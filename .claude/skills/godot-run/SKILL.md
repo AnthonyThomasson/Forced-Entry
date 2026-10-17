@@ -51,6 +51,8 @@ Load check first: never drive a game that doesn't parse.
   and launch again.
 - The command server runs only from the editor binary, with a port (`GODOT_CMD_PORT`, else
   `application/debug/command_port` = 9080). Never in an exported build.
+- The change's tests in a window, for the user to watch: `tools/play_tests.sh` (no ids = the change's tests; it returns
+  at once with the window's pid and log; `domain-testing`).
 
 ## 3. Drive with `tools/gcmd.py`
 

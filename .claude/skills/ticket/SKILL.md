@@ -139,8 +139,9 @@ reuses an open one. `ticket-assets`: also before the showroom's first feedback r
 
 ### Feedback gate (before the audit)
 
-All green: you tell the user in a few lines what is built and passing, point them at the `show-me` editor (rerun if
-gone; Play restarted for the latest code), and ask ("looks right, go on to the audit" / "I have changes"). Feedback is a
+All green: you tell the user in a few lines what is built and passing, rerun `show-me` (it reuses the editor and plays
+the change's tests in a fresh window, `tools/play_tests.sh`), point them at the editor (Play restarted for the latest
+code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). Feedback is a
 new round: update `## Agent Brief` and `## Plan` if scope moved, test first, code, green, ask again. Audit only once the behaviour is right.
 
 ### Audit

@@ -87,6 +87,7 @@ and controller contract, EventBus and character signals) and never reaches into 
   | Intermittent | `--id=<id> --repeat=10` (`--seed=N` pins the layout) |
   | What exists? | `tools/run_tests.sh --list [words]` |
   | Edited `scenes/testing/` | `tools/run_tests.sh --self-test` (`--changed` adds it) |
+  | Show a person the change's tests in a window | `tools/play_tests.sh` (or `tools/play_tests.sh <id> …`) |
 
 - **`--self-test`:** runs the harness's own tests (`tests/_harness/`, `internal: true` in `describe()`;
   hidden from the browser and normal runs): verdict rules, catalog selection and shard partitioning, LogWatch really seeing engine logs, and the
@@ -121,6 +122,27 @@ and controller contract, EventBus and character signals) and never reaches into 
   plays them one by one in the real window: each verdict is held `QUEUE_PAUSE` (2 s, or until the banner's Next ▸),
   then the world is freed and the next test starts. A failure does not stop the queue; Esc/Back cancels the rest.
   Results fold into the browser's marks as for a single Play; a summary shows after the last test.
+- **Command-line queue:** `-- --queue=<id,id,…>` (launch `test_runner.tscn` through Godot, like `--play`) plays those
+  exact ids as the headed queue above, in the order given: harness tests allowed, an id that names no test printed
+  (`No test with id '<id>' (skipped)`) and skipped, none valid -> the browser. It queues once per process (the runner's
+  `META_CLI_QUEUED` meta), so Back -> browser -> Play plays the browser's pick. Each verdict line is printed as in a
+  batch, and after the last test `Queue done: <summary>` (the banner's summary). **`tools/play_tests.sh [ids…]
+  [--base=REF]`** opens such a window for a person to watch: with no ids, **the change's tests** (every
+  `tests/**/*_test.gd` added or modified since the merge-base with `origin/main`, or `REF`: committed, uncommitted and
+  untracked; not deleted ones, helpers or sandboxes), by id; with ids, those in that order. No tests: it says so
+  (`nothing to play`), exits 2 and opens nothing. One test window per worktree: a run first closes the window an
+  earlier run opened (pid in `$TMPDIR/play_tests_<worktree>.pid`, killed only while it is still this checkout's
+  queued runner), never the editor or its game. The window owns its engine log as a batch run does: it is launched
+  with `--log-file <dir>/godot.log` and `--out=<dir>`, `<dir>` = `$TMPDIR/play_tests_<worktree>/` emptied each run, so
+  another Godot start (an editor's game, `tools/lint.sh`, another worktree's window), which rotates the shared
+  `user://logs/godot.log`, cannot hide an error from it; the runner watches that log from its start, so start-up errors
+  count (lines logged while no test is open are listed before `Queue done:`, which adds `, N logged outside any test`).
+  Fire and forget: it launches the window detached (`GAME_TICKET` set, importing a fresh worktree first), prints the
+  queued ids, `test window pid <pid> | log <dir>/godot.log` (the verdict and `Queue done:` lines) and returns; the
+  person closes the window. `show-me` runs it. **Tested by** `tools/test_play_tests.py` (a fake Godot in a temporary
+  git repo for the selection, exit 2, one window, the return and the window's own log dir, then the real engine
+  headless for `--queue`, and a window the script launches failing the log-gate probe while another Godot starts on
+  the project mid-queue); run it after editing `play_tests.sh` or the runner's `--queue`.
 - **Pause and overlays (headed runs):** the banner's **Pause / Resume** (and Space, unless the test has a `player`
   actor, where Space is INTERACT) freezes the world. The runner stays `PROCESS_MODE_ALWAYS`, each `TestWorld` is
   explicitly pausable, and the test clock (`ctx.time`, so waits and the timeout) stops with the tree; the tree is
@@ -544,8 +566,10 @@ the engine log file (`debug/file_logging/log_path`) from an offset marked at run
   holder such as `CharacterConfig` print it at exit whatever the test does. `tools/load_check.sh` applies the same
   gate to a plain headless start-up.
 - **Headless or windowed.** The gate reads the log file, so it is the same either way: `tools/run_tests.sh --shots`
-  runs the batch with a window, and the in-game runner (`-- --play …`, the browser) watches the default log
-  (`debug/file_logging/enable_file_logging` is set in `project.godot`). In-game, a logged error or warning fails the
+  runs the batch with a window, and a `tools/play_tests.sh` window follows its own log (`--log-file` + `--out`) as a
+  batch run does. The in-game runner started otherwise (`-- --play …`, the browser) watches the default log
+  (`debug/file_logging/enable_file_logging` is set in `project.godot`), shared by every Godot start of the project, so a
+  start elsewhere rotates it and can hide an error from it. In-game, a logged error or warning fails the
   open test and flips a verdict already shown; each verdict is also printed to the console, and the banner says so
   when the log cannot be read.
 - **Tested by** `tools/test_log_gate.py` (`--headed` adds the windowed engine): the scanner on crafted logs,

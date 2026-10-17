@@ -789,6 +789,9 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   one is already open there (it then prints that editor's pid, port and log). Each gets its own free
   command-server port (`GODOT_CMD_PORT`), importing first in a fresh worktree. `--autorun`
   makes the editor plugin `addons/ticket_autorun/` press Play once it is up.
+- **The change's tests in a window:** `tools/play_tests.sh [ids…]` opens a game window on the checkout that plays the
+  tests the change added or modified (since the merge-base with `origin/main`) one after another, for a person to
+  watch; `show-me` runs it, `domain-testing` has the detail.
 - **Verification ladder** — use the cheapest rung that proves the change:
   1. **Loads?** `godot-run` skill: headless load check (run `--import` first when you add a `class_name`).
      **Clean?** `tools/lint.sh [paths]` (a few seconds) prints every GDScript analyzer warning of the editor's

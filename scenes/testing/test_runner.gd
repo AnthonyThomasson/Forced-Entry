@@ -4,9 +4,13 @@ extends Node2D
 ##   interactive — plays the test the browser picked (`Engine` meta `test_selection`, or the first
 ##                 match of `-- --play <filter>`), shows the result banner and keeps the world
 ##                 running; Rerun rebuilds it, Back/Escape returns to the browser;
-##   queued      — the browser's "Run N checked" (`Engine` meta `test_queue`, ordered paths): interactive,
+##   queued      — the browser's "Run N checked" (`Engine` meta `test_queue`, ordered paths), or
+##                 `-- --queue=<id,id,…>` (tools/play_tests.sh: those ids in the order given, harness tests
+##                 allowed, an unknown id printed and skipped, none valid -> the browser): interactive,
 ##                 but plays each test in turn, pausing on its verdict then freeing it and starting the
-##                 next; Back/Escape cancels the rest;
+##                 next, and prints each verdict and a final `Queue done: <summary>` line; Back/Escape
+##                 cancels the rest. play_tests.sh starts it with `--log-file <dir>/godot.log` and
+##                 `--out=<dir>`, so it owns its log as a batch run does (below) and start-up errors count;
 ##   batch       — `godot --headless --fixed-fps 60 res://scenes/testing/test_runner.tscn --
 ##                 --run-tests [filter] [--domain=a,b] [--id=a,b] [--failed=<report>] [--shard=I/N]
 ##                 [--costs=<json>] [--fail-fast] [--summary] [--include-von]` runs every matching test
@@ -41,6 +45,9 @@ const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
 const REALTIME_FPS := 60
 ## Seconds a queued run holds each verdict before the next test starts (the HUD's Next skips it).
 const QUEUE_PAUSE := 2.0
+## Engine meta set once `--queue` has been queued, so a later visit to the runner (from the browser) plays
+## what the browser picked instead of the command line's queue again.
+const META_CLI_QUEUED := "test_cli_queued"
 
 ## The camera that frames each test's actors.
 @onready var _camera: Camera2D = $MainCamera
@@ -100,9 +107,14 @@ func _ready() -> void:
 	var out := _option(args, "--out", "")
 	if out != "":
 		_watch.path_override = out.path_join("godot.log")
-	_watch.begin(args.has("--run-tests") and out != "")  # a batch run owns a fresh log: startup errors count too
+	var cli_queue := _option(args, "--queue", "") != "" and not Engine.has_meta(META_CLI_QUEUED)
+	# A batch run, and the command line's queue on the runner's first visit, own a fresh log: startup errors count too.
+	_watch.begin(out != "" and (args.has("--run-tests") or cli_queue))
 	if args.has("--play"):
 		_select_from_cli(args)
+	if cli_queue:
+		Engine.set_meta(META_CLI_QUEUED, true)
+		_queue_from_cli(TestCatalog.csv(_option(args, "--queue", "")))
 	if args.has("--run-tests"):
 		_batch = true
 		_run_batch.call_deferred(args)
@@ -387,6 +399,23 @@ func _select_from_cli(args: PackedStringArray) -> void:
 	print("No test matches '%s'" % filter)
 
 
+## `--queue=<id,id,…>`: queue those exact ids in the order given; an id that names no test is printed and skipped.
+func _queue_from_cli(ids: Array) -> void:
+	TestCatalog.show_internal = true  # a named test is played even when it is a harness self-test
+	var paths := {}
+	for e in TestCatalog.discover(TestCatalog.ROOT, [], ids):
+		paths[e["id"]] = e["path"]
+	TestCatalog.show_internal = false
+	var queue: Array = []
+	for id in ids:
+		if paths.has(id):
+			queue.append(paths[id])
+		else:
+			print("No test with id '%s' (skipped)" % id)
+	if not queue.is_empty():
+		Engine.set_meta(TestCatalog.META_QUEUE, queue)
+
+
 ## Play the test at `path` with the result banner, leaving its world running afterwards.
 func _run_interactive(path: String) -> void:
 	var entry := TestCatalog.describe(path)
@@ -433,8 +462,13 @@ func _run_queue(paths: Array) -> void:
 			if not _queue_active:
 				return
 			await _close()
-	_hud.show_queue_done("%d passed, %d failed, %d timed out, %d skipped, %d gap" % [counts.get("PASS", 0),
-		counts.get("FAIL", 0), counts.get("TIMEOUT", 0), counts.get("SKIPPED", 0), counts.get("GAP", 0)])
+	var summary := "%d passed, %d failed, %d timed out, %d skipped, %d gap" % [counts.get("PASS", 0),
+		counts.get("FAIL", 0), counts.get("TIMEOUT", 0), counts.get("SKIPPED", 0), counts.get("GAP", 0)]
+	if not _stray_logs.is_empty():
+		_print_stray_logs()
+		summary += ", %d logged outside any test" % _stray_logs.size()
+	print("Queue done: " + summary)
+	_hud.show_queue_done(summary)
 
 
 ## Hold the shown verdict for QUEUE_PAUSE seconds of wall time, or until the HUD's Next is pressed.
@@ -639,9 +673,7 @@ func _summarize(results: Array, repeat := 1) -> int:
 	for r in results:
 		counts[r["status"]] = counts.get(r["status"], 0) + 1
 	if not _stray_logs.is_empty():
-		print("Logged outside any test (%d):" % _stray_logs.size())
-		for e in _stray_logs:
-			print("        ✗ %s: %s %s" % [e["severity"], e["message"], e["location"]])
+		_print_stray_logs()
 	if repeat > 1:
 		var tally := {}
 		for r in results:
@@ -663,6 +695,13 @@ func _summarize(results: Array, repeat := 1) -> int:
 		counts["SKIPPED"], counts["GAP"]])
 	var bad: int = counts["FAIL"] + counts["TIMEOUT"] + (1 if not _stray_logs.is_empty() else 0)
 	return 1 if bad > 0 else 0
+
+
+## Print the errors and warnings logged while no test was open (startup ones included, in a run that owns its log).
+func _print_stray_logs() -> void:
+	print("Logged outside any test (%d):" % _stray_logs.size())
+	for e in _stray_logs:
+		print("        ✗ %s: %s %s" % [e["severity"], e["message"], e["location"]])
 
 
 ## Write the JSON report (results + stray logs) to the report path.
