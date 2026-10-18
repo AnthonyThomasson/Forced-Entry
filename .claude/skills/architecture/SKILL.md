@@ -364,9 +364,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 **static** wall colliders (doorways stay open) **and minus each solid furniture footprint**
 	 (baked in as a hole: every `RigidBody2D` with a collider, an anchored piece frozen static among them; walk-over decor has
 	 none), so paths route around furniture.
-   - `NavBuilder.rebake(region, house, rooms, agent_radius=14.0)` — re-carves the furniture holes in
-	 place at the pieces' **current** positions; `rebake_async(region, house, rooms, agent_radius, done)` does it with the
-	 bake on the NavigationServer's worker thread (what the Navigation domain's own `nav_updater.gd` drives).
+   - The re-bake is the Navigation domain's own: its `nav_updater.gd` (built by Main, below) re-carves the furniture holes in place at the
+	 pieces' **current** positions, the planning bake on the NavigationServer's worker thread. `NavBuilder.rebake` / `rebake_async` /
+	 `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).
    - `NavBuilder.furniture_holes(house) -> Array` — the carved furniture footprints (the anchored pieces' included) as world-space
 	 polygons: what the Navigation domain's draw-only `nav_debug.gd` overlay draws and its `nav_updater.gd` watches for a
 	 moved piece, and what Main's `match_spawner.gd` keeps a spawn's clearance from.
@@ -374,8 +374,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 living characters at rest under the region's parent), `NavBuilder.OBSTACLE_MARGIN` (the px every carved footprint is grown by: the AI's
 	 entry geometry grows a body at rest by it to match the steering map's carve), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own, holding
 	 the furniture *and* those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers);
-	 invalid when the world has none), `steering_region(region)` and
-	 `rebake_steering(region, house, rooms, agent_radius=14.0)` (driven by `nav_updater.gd`). The world's own map stays furniture-only, because the AI
+	 invalid when the world has none) and `steering_region(region)` (re-baked by `nav_updater.gd` too). The world's own map stays furniture-only, because the AI
 	 plans on it; the AI's `Locomotion` puts its `NavigationAgent2D` on the steering map for a walk that goes round a body at rest it
 	 knows of (the map carves every one; what a walker accounts for is the AI's rule, `domain-ai-behavior`).
    - **Map queries**, what the AI asks of a baked map when it weighs a point or a route: `NavBuilder.ready(map) -> bool`

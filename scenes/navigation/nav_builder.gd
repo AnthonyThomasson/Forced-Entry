@@ -61,8 +61,8 @@ const BOUNDS_EPSILON := 0.5
 ## Build and add a NavigationRegion2D under `parent`, covering `rooms` (each `{ key, type, rect }`
 ## with a world-space `rect`, from WorldGen.get_rooms) minus `house`'s wall colliders. `agent_radius`
 ## is the pathing clearance (character body radius). Returns the region, or null if there are no rooms.
-## The furniture holes baked in here are not permanent: `rebake` re-carves them at the furniture's
-## live positions on an interval (driven by `nav_updater.gd`) so paths follow scattered pieces. The
+## The furniture holes baked in here are not permanent: `nav_updater.gd` re-carves them at the furniture's
+## live positions when a piece has moved (`_rebake_async` / `_rebake_steering`) so paths follow scattered pieces. The
 ## returned region is the PLANNING one, on the world's own navigation map; its child (`steering_region`)
 ## is baked with the living characters at rest too and sits on the steering map.
 static func build(house: Node2D, rooms: Array, parent: Node, agent_radius: float = 14.0) -> NavigationRegion2D:
@@ -92,7 +92,8 @@ static func build(house: Node2D, rooms: Array, parent: Node, agent_radius: float
 ## Re-bake `region`'s navigation polygon in place, re-carving the furniture holes at each piece's
 ## CURRENT position so paths route around furniture that has been shoved off its original spot. The
 ## region keeps its world offset; reassigning `navigation_polygon` re-registers the mesh with the
-## NavigationServer2D. Call it only when furniture has actually moved — see `nav_updater.gd`.
+## NavigationServer2D. A test-facing seam that measures its own footprints; the game re-bakes through `nav_updater.gd`, which
+## drives `_rebake_async`.
 static func rebake(region: NavigationRegion2D, house: Node2D, rooms: Array, agent_radius: float = 14.0) -> void:
 	var job := _source_for(house, rooms, agent_radius)
 	if job.is_empty():
@@ -102,8 +103,8 @@ static func rebake(region: NavigationRegion2D, house: Node2D, rooms: Array, agen
 
 
 ## Re-bake the steering region under `region` (the planning one `build` returned) with the furniture
-## and the living characters at rest at their CURRENT positions. Call it when a character or a piece of
-## furniture has moved — see `nav_updater.gd`. Does nothing when the region has no steering child.
+## and the living characters at rest at their CURRENT positions. A test-facing seam that measures its own footprints;
+## `nav_updater.gd` drives `_rebake_steering`. Does nothing when the region has no steering child.
 static func rebake_steering(region: NavigationRegion2D, house: Node2D, rooms: Array, agent_radius: float = 14.0) -> void:
 	_rebake_steering(region, house, rooms, agent_radius, furniture_holes(house), character_holes(house.get_parent()))
 
@@ -194,7 +195,8 @@ static func _new_map() -> RID:
 ## geometry is gathered on the main thread now (the walls are read from the scene tree, the furniture from its live
 ## positions), the bake runs in the background, and the polygon is assigned to `region` once it is done, when `done`
 ## is called. A region freed meanwhile is left alone. `done` is called even when there is nothing to bake. The planning
-## region only: the steering one is re-baked by `rebake_steering`.
+## region only: the steering one is re-baked by `rebake_steering`. A test-facing seam that measures its own footprints;
+## `nav_updater.gd` drives `_rebake_async`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array, agent_radius: float = 14.0,
 		done: Callable = Callable()) -> void:
 	_rebake_async(region, house, rooms, agent_radius, furniture_holes(house), done)
@@ -227,8 +229,9 @@ static func _rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Arra
 ## static wall colliders (doorways stay open) minus each solid furniture footprint (carved as a hole)
 ## and minus each of `characters` (footprints from `character_holes`; none = the planning bake). Returns
 ## null if there are no rooms. In the house's LOCAL frame — the region offsets it into world space.
-## Shared by the initial `build` and every `rebake`, so both carve furniture holes identically. The result is welded
-## to the 1 px grid (`_weld_vertices`): every hole that meets a wall, a character's and a piece of furniture's, needs it.
+## `build` bakes its steering region's first polygon with it. It goes through `_source_for` + `_bake_job` like every other bake,
+## so all carve furniture holes identically, and `_bake_job` welds the result to the 1 px grid (`_weld_vertices`): every hole
+## that meets a wall, a character's and a piece of furniture's, needs it.
 static func _bake_polygon(house: Node2D, rooms: Array, agent_radius: float, characters: Array = []) -> NavigationPolygon:
 	var job := _source_for(house, rooms, agent_radius, characters)
 	if job.is_empty():
@@ -247,7 +250,7 @@ static func _bake_job(job: Dictionary, origin: Vector2) -> NavigationPolygon:
 
 ## Everything a bake needs, gathered on the main thread: the polygon to bake into (`poly`, with the agent radius set)
 ## and its source geometry (`source`: the walls, the walkable footprint, the furniture holes and each of `characters`).
-## {} with no rooms. `_bake_polygon` bakes it at once; `rebake_async` hands it to the server's worker thread.
+## {} with no rooms. `_bake_job` bakes it at once; `_rebake_async` hands it to the server's worker thread.
 static func _source_for(house: Node2D, rooms: Array, agent_radius: float, characters: Array = [], furniture: Variant = null,
 		walls: Dictionary = {}) -> Dictionary:
 	var bounds := _bounds(rooms)
@@ -365,8 +368,8 @@ static func _signed_area(ring: PackedVector2Array) -> float:
 ## The furniture footprint holes a bake of `house` carves, each a closed WORLD-space polygon — the
 ## same solid-furniture selection and grown footprints `_add_furniture_holes` feeds the baker, so a
 ## debug overlay drawing these shows exactly what was carved out. Re-measured from each collider's
-## live `global_transform` on every call, so it reflects where the furniture stands NOW — `rebake`
-## and `nav_updater.gd` rely on that to re-carve holes as pieces are shoved around in play. A damaged
+## live `global_transform` on every call, so it reflects where the furniture stands NOW — the re-bakes
+## `nav_updater.gd` drives rely on that to re-carve holes as pieces are shoved around in play. A damaged
 ## piece has its primitive collider rebuilt into several deformed ConvexPolygonShape2D pieces, so EACH
 ## of a body's collision shapes contributes to its footprint — otherwise a dented piece's hole would
 ## vanish. A body's footprint is the convex hull of those shapes: a dent's notches are far smaller than
@@ -448,7 +451,7 @@ static func _hull_inputs(body: Node2D) -> Array:
 ## carved, and so is one pushing against a wall or another body without getting anywhere; when it sets off its hole
 ## goes at the next re-bake. Every body at rest is carved, seen or not: which of them a walk accounts for is up to the
 ## walker (the AI's `Locomotion` goes round by this map only for a body it knows of). Re-measured on every call from the
-## live collider transform, so `rebake` and `nav_updater.gd` follow the characters as they stop, set off, appear and die.
+## live collider transform, so the steering re-bakes `nav_updater.gd` drives follow the characters as they stop, set off, appear and die.
 static func character_holes(root: Node) -> Array:
 	var out: Array = []
 	if root == null:
