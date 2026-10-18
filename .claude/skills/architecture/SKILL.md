@@ -148,10 +148,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 4. **Objects/Character/Vehicles → Physics** (objects, the character and a vehicle compose physics; Physics is a leaf domain)
    - `Knockback` (Node child): RigidBody2D adapter — configures its parent body and owns
-	 `apply_impulse(v, at_world)`.
+	 `apply_impulse(v, at_world)`; `mass` (the body's mass, which its owner sets from the catalogue `weight` before `_ready`).
    - `Deformable` (Node child): `record(hit, turn = 0.0)`, `impacts`, `damage_total`, `changed`
-	 signal (`turn`: the body's drawn turn beyond its node rotation; the character passes its facing). A vehicle composes one
-	 (no `Knockback`: it is its own `RigidBody2D`) with chunks off and does not rebuild its collider from the dents.
+	 signal (`turn`: the body's drawn turn beyond its node rotation; the character passes its facing), and three per-body knobs its owner
+	 sets: `max_depth` (the deepest one dent caves, px), `allow_chunks` (a hard hit carves a missing piece) and `max_impacts` (how many
+	 dents it remembers), each defaulting to `PhysicsConfig.deform_*` (the character sets its softer flesh values from `CharacterConfig`). A
+	 vehicle composes one (no `Knockback`: it is its own `RigidBody2D`) with chunks off and does not rebuild its collider from the dents.
    - `Deformation` (static): silhouette/collider polygons + drawing (`draw_shape` and
 	 `draw_wall` optionally textured — `draw_shape` also turned by `texture_angle`, its hit marks
 	 optional for a caller drawing them over later layers with `draw_marks` — so pixel art is drawn
@@ -256,7 +258,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`) and `Outfit` (`RefCounted`, one character's worn set: `set_ids(ids)`, `ids()`, `worn(slot)`, `condition(slot)`,
    `layer(zone, side)` (the armour a round meets there: `{}` or `{ stop_power, penetration, material, color, blunt, reduction, blast, plate }`), `wear(zone, side, damage)`,
    `weight()`, `look(style)` (what the art draws, in that character style), `view()` (what the UI shows) and `revision` (bumped by every change, which the art watches)). The
-   character API an item may call: `facing`, `punch(hand)`, `punch_amount(hand)` (0..1, how far that hand is thrown: a long gun swings round by it),
+   character API an item may call: `facing`, `is_dead` and `current_item()` (a grenade gives up its windup when its user dies or switches away), `punch(hand)`, `punch_amount(hand)` (0..1, how far that hand is thrown: a long gun swings round by it),
    `hand_position(hand)`, `hand_world(hand)`, `muzzle_origin(hand)` (the held item's `muzzle_ahead()` past the hand),
    `world_root()` (also read by the AI: the characters it perceives are the group `characters` under it), `report_shot(body, dmg)`, `kick(hand, strength := 1.0)` (recoil: throws that hand back; `strength` scales it),
    `weapon_facing()` (the drawn weapon direction, trailing the aim; shots still use `facing`), `aim_target()` (the aim point a grenade is thrown to) / `aim_sway()` (rad, the stun's wandering turn of every shot and throw; 0 unstunned), `one_handed()`
@@ -369,7 +371,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 polygons: what the Navigation domain's draw-only `nav_debug.gd` overlay draws and its `nav_updater.gd` watches for a
 	 moved piece, and what Main's `match_spawner.gd` keeps a spawn's clearance from.
    - **Characters at rest are holes too, on a second map.** `NavBuilder.character_holes(root) -> Array` (the footprints of the
-	 living characters at rest under the region's parent), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own, holding
+	 living characters at rest under the region's parent), `NavBuilder.OBSTACLE_MARGIN` (the px every carved footprint is grown by: the AI's
+	 entry geometry grows a body at rest by it to match the steering map's carve), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own, holding
 	 the furniture *and* those holes; named from the frame `build` returns, before it has synchronized (`ready` tells when it answers);
 	 invalid when the world has none), `steering_region(region)` and
 	 `rebake_steering(region, house, rooms, agent_radius=14.0)` (driven by `nav_updater.gd`). The world's own map stays furniture-only, because the AI
