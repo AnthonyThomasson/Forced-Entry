@@ -103,7 +103,7 @@ static func _strike(body: Node2D, reach: Dictionary, away: Vector2, damage: floa
 	body.call("take_hit", info)
 	var surface: Dictionary = body.call("get_surface") if body.has_method("get_surface") else {}
 	EventBus.post(&"hit", {
-		"position": info.position, "victim": body, "source": null, "direction": away, "damage": damage,
+		"position": info.position, "victim": body, "direction": away, "damage": damage,
 		"attacker": source, "outcome": &"blast", "material": String(surface.get("material", "")),
 		"speed_factor": 0.0, "power": 1.0,
 	})

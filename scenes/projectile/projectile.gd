@@ -258,7 +258,7 @@ func _deal(body: Node, info: HitInfo, outcome: StringName, surface: Dictionary) 
 		body.take_hit(info)
 	hit.emit(body, info.damage)
 	EventBus.post(&"hit", {
-		"position": info.position, "victim": body, "source": info.source,
+		"position": info.position, "victim": body,
 		"direction": info.direction, "damage": info.damage,
 		"attacker": ignore if is_instance_valid(ignore) else null,
 		"outcome": outcome, "material": String(surface.get("material", "")),

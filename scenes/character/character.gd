@@ -844,7 +844,7 @@ func _post_melee_hit(hand: int, body: Node, damage: float) -> void:
 	if body.has_method("get_surface"):
 		surface_material = String(body.get_surface().get("material", ""))
 	EventBus.post(&"hit", {
-		"position": pos, "victim": body, "source": self, "attacker": self,
+		"position": pos, "victim": body, "attacker": self,
 		"direction": facing, "damage": damage, "outcome": &"punch", "material": surface_material,
 	})
 

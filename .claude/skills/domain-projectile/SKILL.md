@@ -51,7 +51,7 @@ the same surface and needs less speed to get through, so a pistol round (3200 px
 On any *damaging* outcome the projectile packages a `HitInfo` and calls `body.take_hit(info)` (the
 object then shoves/deforms/sprays via Physics), re-emits `hit(body, damage)` — which a gun
 forwards to the character's `hit_landed` — and posts a `&"hit"` event on `EventBus`
-(`{ position, victim, source, direction, damage, attacker }`, interface 10 — `attacker` is the
+(`{ position, victim, direction, damage, attacker }`, interface 10 — `attacker` is the
 shooter, the projectile's `ignore` body; plus `outcome` (`&"ricochet"` / `&"blocked"` / `&"penetrate"`), the struck
 `material` (`surface.material`, `""` for a wall; a stopped round's is the armour's, one through armour the flesh's), `speed_factor` and the round's `power`,
 which the Audio domain voices impacts from; a fly-over posts nothing) so decoupled listeners (the AI's combat awareness and
