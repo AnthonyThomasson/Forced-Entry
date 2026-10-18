@@ -3,7 +3,7 @@ extends RefCounted
 ## Top-down pixel-art CHARACTER SHOULDERS painter (Character domain, private; rendered through the Art domain's PixelArt).
 ## Painted in the canonical frame — facing +y — and kept within the body's round footprint: the shoulders in the shirt (`base`)
 ## with the dark ring of the neck where the head sits (the head is its own part, head_painter.gd, drawn over this one so it can
-## turn on its own). The look (`opts.look`, a `style_art.gd` handle) styles them:
+## turn on its own). The look (`opts.look`, a `PixelArt.handle`) styles them:
 ## - the ends where the arms leave: a sleeve (a merc's patched one in another colour), bare skin (inked, inlaid) or chrome;
 ## - a police uniform: a shirt's high collar or a tee's neckband, the Zenitex's segmented shoulder plates with light edges (a
 ##   shirt) and two white stripes across each shoulder cap, the Trauma Team's white patch with its red cross; the sergeant's
@@ -26,7 +26,7 @@ const _CABLE := Color(0.80, 0.32, 0.12)
 
 ## Paint the shoulders onto `c` in a `base` shirt, facing +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var t := PixelCanvas.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var head_r := HeadPainter.radius_for(c.w)

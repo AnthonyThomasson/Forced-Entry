@@ -1,29 +1,12 @@
 extends RefCounted
 
-## What the character painters share (Character domain, private): the resolved looks they draw by handle, and the marks of
-## the styles (`CharacterConfig.styles`: the Zenitex and Trauma Team police units, the merc and borg crew) drawn on a
-## PixelCanvas: chrome, tattoo ink, black plates set in the skin, a livery's edge sheen, stripes, crosses, stencils, tape and a
-## plate's wear.
+## What the character painters share (Character domain, private): the marks of the styles (`CharacterConfig.styles`: the
+## Zenitex and Trauma Team police units, the merc and borg crew) drawn on a PixelCanvas: chrome, tattoo ink, black plates set
+## in the skin, a livery's edge sheen, stripes, crosses, stencils, tape and a plate's wear.
 ##
-## A painter's options carry the look as an int handle (`opts.look`, from `register`), never the look itself: PixelArt keys its
-## caches by the options (`render_turned` hashes them on every call), and the look is some fifty entries, so carrying it would
-## cost that for every part of every body every frame. The handle is the look's hash, so the same look always has the same one
-## and a cached texture keyed by it is always that look's.
-
-## The resolved looks (`character_style.gd`'s `resolve`) by handle.
-static var _looks := {}
-
-
-## The handle of `look`, registered for `look_of`.
-static func register(look: Dictionary) -> int:
-	var id := hash(look)
-	_looks[id] = look
-	return id
-
-
-## The look a painter's `opts` name (`opts.look`), or {} for none (the plain strip of a neck).
-static func look_of(opts: Dictionary) -> Dictionary:
-	return _looks.get(opts.get("look", 0), {})
+## A painter's options carry the resolved look (`character_style.gd`'s `resolve`, some fifty entries) as an int handle
+## (`opts.look`, `PixelArt.handle`), read back with `PixelArt.look_of` ({} for none: the plain strip of a neck), so the options
+## PixelArt hashes for every part of every body every frame stay a few scalars.
 
 
 ## The chrome tone at pixel index `k`: cool metal with a bright glint every few pixels.

@@ -29,6 +29,9 @@ const TURNED_MEMO_MAX := 4096
 ## texture. Bounded, so arguments that never repeat exactly cannot grow it.
 static var _turned_memo: Dictionary = {}
 
+## Painters' looks by their handle (`handle`).
+static var _looks: Dictionary = {}
+
 
 ## `painter`'s art for a footprint of `size` world px whose front faces the cardinal `facing`.
 static func render(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
@@ -89,6 +92,21 @@ static func render_turned(painter: Script, size: Vector2, color: Color, angle: f
 	memo_key[4] = opts.duplicate(true)  # The caller may change its dictionary later; the memo keeps the values it was asked with.
 	_turned_memo[memo_key] = tex
 	return tex
+
+
+## The handle of `look`, registered for `look_of`. A painter's options carry a big look (a character style's resolved look,
+## a weapon style's colours) as this int (`opts.look`), never the look itself: the caches are keyed by the options and
+## `render_turned` hashes them on every call. The handle is the look's hash, so the same look always has the same one and
+## a cached texture keyed by it is always that look's.
+static func handle(look: Dictionary) -> int:
+	var id := hash(look)
+	_looks[id] = look
+	return id
+
+
+## The look a painter's `opts` name (`opts.look`, a `handle`), or {} for none.
+static func look_of(opts: Dictionary) -> Dictionary:
+	return _looks.get(opts.get("look", 0), {})
 
 
 ## `angle` snapped to the nearest of ArtConfig.turn_steps lighting steps (pass it to

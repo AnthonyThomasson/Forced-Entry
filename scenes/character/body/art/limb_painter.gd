@@ -4,7 +4,7 @@ extends RefCounted
 ## segment of an arm, a leg or a shoe as a straight strip along +y in `base` — shaded light to dark across it toward the light,
 ## with the cloth's weave when `material` is "fabric". The caller maps it onto the limb's tapered outline, which gives it its
 ## shape and outline; the strip runs from the joint nearer the body (y = 0) to the far one. Without a look (the neck) it is the
-## plain strip. With one (`opts.look`, a `style_art.gd` handle), by the segment's `part`:
+## plain strip. With one (`opts.look`, a `PixelArt.handle`), by the segment's `part`:
 ## - an arm (`upper`, `fore`): a sleeve (the Zenitex's segmented forearm plates and white stripe, the Trauma Team's red forearm
 ##   guard, a plain cuff) or bare skin (`skin`: inked, inlaid);
 ## - a leg (`thigh`, `knee`, `shin`) by the look's `pants`: police trousers with a piping down the outer seam, or armoured
@@ -31,7 +31,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	if material != "":
 		c.surface(strip, material, base)
 	c.bevel(strip, 1, maxi(1, int(c.w / 4.0)), t.light, t.dark)
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var part := String(opts.get("part", ""))

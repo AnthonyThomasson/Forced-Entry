@@ -3,14 +3,14 @@ extends RefCounted
 ## Top-down pixel-art painter for a gun in the TAPED SCRAP weapon style (Items domain, private; rendered through the Art domain's
 ## PixelArt): a defender's patched-up gun in rusted steel with a mismatched wooden stock, grey duct tape round the guard, grip
 ## and stock and a rust-coloured magazine. Options: `gun` (&"pistol" / &"smg" / &"rifle"), `look` (the `GunConfig` look's
-## handle, weapon_art.gd), and `flat`: held, in the game's top-down frame; flat, lying on its side (`flip` the side up).
+## handle, `PixelArt.handle`), and `flat`: held, in the game's top-down frame; flat, lying on its side (`flip` the side up).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := WeaponArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var gun: StringName = opts.get("gun", &"pistol")

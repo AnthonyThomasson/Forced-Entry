@@ -9,8 +9,6 @@ class_name Item extends RefCounted
 ## world_root(), report_shot(), aim_target(), aim_sway(), current_item(), and for reloading best_magazine() /
 ## take_magazine() / stow_magazine()), so Items and the Character are otherwise independent.
 
-const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
-
 ## Shown in the HUD.
 var display_name := "Item"
 ## Punch reach (px), read by the hands to size the swing.
@@ -201,12 +199,12 @@ func _note_drawn(tex: Texture2D) -> void:
 		_art.append(tex)
 
 
-## The painters' handle of `look` (a gun's or grenade's config `looks` row, weapon_art.gd), registered again only when the row
+## The painters' handle of `look` (a gun's or grenade's config `looks` row, `PixelArt.handle`), registered again only when the row
 ## drawn is another one (a new style, or a config row replaced).
 func _look_handle(look: Dictionary) -> int:
 	if not is_same(look, _look_row):
 		_look_row = look
-		_look_id = WeaponArt.register(look)
+		_look_id = PixelArt.handle(look)
 	return _look_id
 
 

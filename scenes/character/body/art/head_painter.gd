@@ -3,7 +3,7 @@ extends RefCounted
 ## Top-down pixel-art CHARACTER HEAD painter (Character domain, private; rendered through the Art domain's PixelArt). Painted in
 ## the canonical frame — facing +y — on its own canvas, so the head can turn apart from the shoulders: skin with ears and a nose
 ## toward the front, under the hair or what is worn on the head, then the face's implants. All of it from the look (`opts.look`,
-## a `style_art.gd` handle; `character_style.gd` resolves it):
+## a `PixelArt.handle`; `character_style.gd` resolves it):
 ## - the hair (`hair_style`: `short`, `long`, `buzz`, `bald`, `mohawk`) in `hair`, a tattoo on a bare scalp;
 ## - a cap (`head` `cap`): the police units' peaked duty cap (the Zenitex's white band, the Trauma Team's cross), a merc's watch
 ##   cap, a borg's bandana;
@@ -35,7 +35,7 @@ static func canvas_for(r: int) -> int:
 
 ## Paint a head onto `c`, centred, facing +y. `base` is unused: the head takes its colours from the look.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var r := int(c.w / 2.0) - MARGIN
 	var skin: Color = look.get("skin", Color(0.80, 0.62, 0.48))

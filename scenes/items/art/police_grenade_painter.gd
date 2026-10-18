@@ -3,7 +3,7 @@ extends RefCounted
 ## Top-down pixel-art painter for a grenade in the POLICE ISSUE weapon style (Items domain, private; rendered through the Art
 ## domain's PixelArt), the fuze toward +y: a gunmetal frag egg scored with its fragmentation grid and a red and blue light pair
 ## by the steel fuze, or a gunmetal stun cylinder with its ring of vents and the light pair on its black cap; both with a white
-## serial. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's handle, weapon_art.gd) and `spoon` (the
+## serial. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's handle, `PixelArt.handle`) and `spoon` (the
 ## lever still held down: in the hand; thrown, it is gone).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
@@ -11,7 +11,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the grenade onto `c`, the fuze toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := WeaponArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var frag: bool = opts.get("kind", &"frag") == &"frag"

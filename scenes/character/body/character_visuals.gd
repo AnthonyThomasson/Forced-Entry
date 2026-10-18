@@ -19,7 +19,6 @@ const HandPainter = preload("res://scenes/character/body/art/hand_painter.gd")
 const LimbPainter = preload("res://scenes/character/body/art/limb_painter.gd")
 const TorsoPainter = preload("res://scenes/character/body/art/torso_painter.gd")
 const VestPainter = preload("res://scenes/character/body/art/vest_painter.gd")
-const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
 const CharacterStyle = preload("res://scenes/character/body/character_style.gd")
 const Rig = preload("res://scenes/character/body/character_rig.gd")  # The joint indices, shared with the ragdoll.
 
@@ -167,7 +166,7 @@ func drawn_art() -> Array:
 
 
 ## Resolve the look: the character's style (`Character.style`, with its `look_seed` and `rank`) and what it wears drawn in that
-## style (`Outfit.look(style)`), through `character_style.gd`, registered for the painters (`style_art.gd`: they get its handle);
+## style (`Outfit.look(style)`), through `character_style.gd`, registered for the painters (`PixelArt.handle`: they get its handle);
 ## then what each part is drawn in: the shirt, pants and shoes (boots: a laced shaft up the shin), the skin, the gloves, each
 ## arm's sleeve, bare skin or chrome, a chrome shin, each fist, and the plates' colours and wear, rounded to
 ## `VestPainter.WEAR_STEPS`. Returns whether the resolved look changed.
@@ -179,7 +178,7 @@ func _dress() -> bool:
 	var style: StringName = _character.style
 	var worn := outfit.look(style)
 	var look := CharacterStyle.resolve(style, _character.look_seed, _character.rank, worn)
-	var id := StyleArt.register(look)
+	var id := PixelArt.handle(look)
 	_shirt = _colour(look["shirt"])
 	_pants = _colour(look["pants_col"])
 	_shoes = _colour(look["feet_col"])

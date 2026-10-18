@@ -8,7 +8,7 @@ extends RefCounted
 ## bulging where a plate sits in it (a crew's panels mismatched: `front_cover`, `back_cover`). Each style marks it: the Zenitex's
 ## white stencil along the front and back edges with a red lamp, the Trauma Team's red cross, a borg's welded steel and rivets.
 ## A plate's wear shows on its panel as scuffs and cracks with the plate showing through, more of them at each wear step.
-## Options (`opts`): `look` (a `style_art.gd` handle: `vest`, `vest_col`, the covers, the style) and per side (`front_` /
+## Options (`opts`): `look` (a `PixelArt.handle`: `vest`, `vest_col`, the covers, the style) and per side (`front_` /
 ## `back_`) `<side>plate` (the plate's colour; absent = no plate) and `<side>wear` (0 new .. `WEAR_STEPS` spent).
 
 const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
@@ -26,7 +26,7 @@ const _STRAP := Color(0.10, 0.10, 0.09)  ## Buckles and webbing.
 
 ## The vest seen from above, over the shoulders ellipse `span` of a canvas centred on `o` (front toward +y).
 static func paint_top(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var kind := String(look.get("vest", ""))
 	if kind == "":
 		return
@@ -77,7 +77,7 @@ static func paint_top(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionar
 ## The vest on the trunk's `face` ("front" | "back" | "side"): a canvas spanning the trunk, shoulders toward −y, the shirt down
 ## to row `waist`.
 static func paint_face(c: PixelCanvas, face: String, waist: int, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var kind := String(look.get("vest", ""))
 	if kind == "":
 		return

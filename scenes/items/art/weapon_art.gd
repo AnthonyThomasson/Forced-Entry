@@ -6,9 +6,7 @@ extends RefCounted
 ## through here and adds its own marks.
 ##
 ## A painter's options carry the look (a `looks` row of `GunConfig` / `GrenadeConfig`: its colours) as an int handle
-## (`opts.look`, from `register`), never the row itself: PixelArt keys its caches by the options (`render_turned` hashes them on
-## every call). The handle is the row's hash, so the same colours always have the same one and a cached texture keyed by it is
-## always that look's.
+## (`opts.look`, `PixelArt.handle`), never the row itself, read back with `PixelArt.look_of`.
 ##
 ## Held, a gun is drawn in the game's top-down frame (muzzle toward +y, butt at y = 0) and scales its parts from `c.w` / `c.h`, so
 ## the raised barrel's shorter canvas is the same drawing foreshortened. Lying, it is its side profile along y: the receiver along
@@ -28,22 +26,6 @@ const MUZZLE := Color(0.05, 0.05, 0.06)
 ## The order the held parts are drawn in, and each one's height.
 const HELD_PARTS := { "grip": STOCK_HEIGHT, "stock": STOCK_HEIGHT, "body": BODY_HEIGHT, "guard": GUARD_HEIGHT,
 	"barrel": BARREL_HEIGHT }
-
-## The looks by handle.
-static var _looks := {}
-
-
-## The handle of `look`, registered for `look_of`.
-static func register(look: Dictionary) -> int:
-	var id := hash(look)
-	_looks[id] = look
-	return id
-
-
-## The look a painter's `opts` name (`opts.look`), or {} for none.
-static func look_of(opts: Dictionary) -> Dictionary:
-	return _looks.get(opts.get("look", 0), {})
-
 
 # --- Guns held, seen from above -----------------------------------------------------------------
 

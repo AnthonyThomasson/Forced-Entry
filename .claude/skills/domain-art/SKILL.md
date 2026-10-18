@@ -36,6 +36,10 @@ the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, 
 - `emissive(painter, size, color, facing, material, opts)` — the emissive twin of `render`'s texture for the same inputs: what
   the painter drew `glowing` (PixelCanvas), in the art's colours, transparent elsewhere, same size and turn; null when nothing in
   it glows. Kept from the same paint (`_emissive`, beside `_cache`), so asking costs no second paint. `render_turned` keeps none.
+- `handle(look) -> int` / `look_of(opts) -> Dictionary` — a painter's big look (a character style's resolved look, a gun's or
+  grenade's `looks` row) travels in its options as an int (`opts.look`), never the dict: the caches key by the options and
+  `render_turned` hashes them every call. `handle` registers the look under its hash (so the same look has the same handle and a
+  cached texture keyed by it is that look's); `look_of` reads it back, {} for none. The Character and Items painters use it.
 - Static cache keyed by painter path + inputs (+ orientation); survives scene reloads. Each
   piece's random detail is seeded by its inputs *without* orientation, so it doesn't change as the
   piece turns.

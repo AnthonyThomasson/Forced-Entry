@@ -258,7 +258,7 @@ Test: `tests/character/run_pose_test.gd`.
 
 The character is top-down pixel art rendered through the Art domain (interface 12):
 - Six private painters in `body/art/`, each its own part, all drawing from the character's resolved look (below), which they get as an int
-  handle (`opts.look`) and read back through `style_art.gd` (`register` / `look_of`; also the styles' shared marks: chrome, tattoo ink, skin inlays,
+  handle (`opts.look`, Art's `PixelArt.handle`) and read back with `PixelArt.look_of`; `style_art.gd` holds the styles' shared marks (chrome, tattoo ink, skin inlays,
   the edge sheen, stripes, crosses, a stencil, tape). The handle keeps the painters' options a few scalars: PixelArt hashes the options on every
   call, and the look is some fifty entries. `body_painter.gd` — the shoulders in the shirt (`base`), the dark neck ring, the ends where the arms leave
   (a sleeve, bare inked or inlaid skin, chrome), a police uniform (a shirt's high collar or a tee's neckband; the Zenitex's segmented shoulder plates
@@ -308,7 +308,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   order (skin, hair and hair style, gloves, a pack, eyes and face, the glow and ink colours, tattoos, inlays, a headset, a spine rig, cables, a patched
   sleeve, chrome arms, a chrome shin, the sides a face plate and a patch sit on), each garment's colour (its own, or drawn from the style's palette it
   names by the seed and the palette's name, so a colour stays put as the clothes change), each side's sleeve (a colour, or null: bare or chrome) and a
-  carrier's front and back panels. It registers the look with `style_art.gd` and builds, once per change, the painters' options (the handle, the
+  carrier's front and back panels. It registers the look with `PixelArt.handle` and builds, once per change, the painters' options (the handle, the
   plates' colours and wear step `ceil((1 − condition) × WEAR_STEPS)`), each arm segment's colour, finish and options (`_arm_part`: chrome, a sleeve,
   a long one to its cuff, or bare skin), each leg part's options and a chrome shin, and each fist's colour (gloves, skin or chrome) and options. Boots:
   the shin's lower part, from `BOOT_TOP` 0.62 down to the ankle, becomes the boot's shaft, `BOOT_GROW` 0.06 body radii wider. For every body, dressed

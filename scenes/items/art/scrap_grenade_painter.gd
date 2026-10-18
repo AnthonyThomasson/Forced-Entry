@@ -3,14 +3,14 @@ extends RefCounted
 ## Top-down pixel-art painter for a grenade in the TAPED SCRAP weapon style (Items domain, private; rendered through the Art
 ## domain's PixelArt), the fuze toward +y: an old rusty olive frag egg with its fragmentation grid, or a tin can for a stun, each
 ## with a strip of grey duct tape round its middle. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's
-## handle, weapon_art.gd) and `spoon` (the lever still held down: in the hand; thrown, it is gone).
+## handle, `PixelArt.handle`) and `spoon` (the lever still held down: in the hand; thrown, it is gone).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 
 ## Paint the grenade onto `c`, the fuze toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := WeaponArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var frag: bool = opts.get("kind", &"frag") == &"frag"

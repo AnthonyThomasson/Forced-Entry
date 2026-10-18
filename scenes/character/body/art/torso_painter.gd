@@ -24,7 +24,7 @@ const _CABLE := Color(0.80, 0.32, 0.12)
 
 ## Paint the trunk's `face` onto `c` with a `base` shirt.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var face := String(opts.get("face", "front"))
 	var pants: Color = opts.get("pants", base)
 	var t := PixelCanvas.tones(base)

@@ -163,8 +163,8 @@ Items-private:
 | `pipe` (pipe guns) | a box action and a pipe barrel with clamp bands, copper wire, weld beads, a plank stock with a ragged end | a capped pipe bomb with a red fuse and a soda-can stun with a white band, each wrapped in copper wire |
 
 The painters share `art/weapon_art.gd`: the guns' two silhouettes (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`; a `crude` one is the
-pipe guns' short box action with the pipe for a barrel), the grenades' `shell` / `cap` / `lever`, the marks' helpers, and the look handle: a
-painter's options carry the look as an int (`opts.look`, `WeaponArt.register`, the row's hash) and never the row, since PixelArt hashes the options
+pipe guns' short box action with the pipe for a barrel), the grenades' `shell` / `cap` / `lever`, the marks' helpers. The look travels as a handle: a
+painter's options carry the look as an int (`opts.look`, Art's `PixelArt.handle`, the row's hash; read back with `PixelArt.look_of`) and never the row, since PixelArt hashes the options
 on every call; an item registers its row once (`Item._look_handle`, again only when the row drawn is another one). Options: a gun's `{ gun, look }`
 held, `{ gun, look, flat, flip }` lying; a grenade's `{ kind, look, spoon }` (`spoon`: the lever held down, in the look's `lever` colour; thrown
 or at rest it is gone). The popped spoon (`GrenadeSpoon`, `spoon_painter.gd`) is the same in every style. Sizes, hold points, muzzle points and

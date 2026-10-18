@@ -10,7 +10,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the grenade onto `c`, the fuze toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := WeaponArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var frag: bool = opts.get("kind", &"frag") == &"frag"

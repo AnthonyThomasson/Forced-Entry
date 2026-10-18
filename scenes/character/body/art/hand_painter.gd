@@ -2,11 +2,9 @@ extends RefCounted
 
 ## Top-down pixel-art HAND painter (Character domain, private; rendered through the Art domain's PixelArt): a fist seen from
 ## above in the canonical frame — knuckles toward the front (+y), the thumb tucked along the inner side — in `base` (the glove,
-## the bare skin or a chrome hand's metal). The look (`opts.look`, a `style_art.gd` handle) adds the Zenitex's hard knuckle guard,
+## the bare skin or a chrome hand's metal). The look (`opts.look`, a `PixelArt.handle`) adds the Zenitex's hard knuckle guard,
 ## a merc's fingerless glove; a chrome hand (`opts.chrome`) gets its metal finish and knuckle hinge. Options: `look`, `side`
 ## (-1 = left hand, thumb toward +x; 1 = right hand, thumb toward -x), `chrome`.
-
-const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
 
 const _FIST := 3  ## Heights for cast shadows: the thumb sits over the fist.
 const _THUMB := 5
@@ -14,7 +12,7 @@ const _THUMB := 5
 
 ## Paint a fist onto `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var look := StyleArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	var chrome: bool = opts.get("chrome", false)
 	var t := PixelCanvas.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))

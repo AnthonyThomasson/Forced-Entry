@@ -3,7 +3,7 @@ extends RefCounted
 ## Top-down pixel-art painter for a gun in the PIPE GUN weapon style (Items domain, private; rendered through the Art domain's
 ## PixelArt): a defender's crude home build, a box action with a plumbing pipe for the barrel held by clamp bands, copper wire
 ## where the pipe meets the action, weld beads along the box and a scrap plank for a stock. Options: `gun` (&"pistol" / &"smg" /
-## &"rifle"), `look` (the `GunConfig` look's handle, weapon_art.gd), and `flat`: held, in the game's top-down frame; flat, lying
+## &"rifle"), `look` (the `GunConfig` look's handle, `PixelArt.handle`), and `flat`: held, in the game's top-down frame; flat, lying
 ## on its side (`flip` the side up).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
@@ -11,7 +11,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := WeaponArt.look_of(opts)
+	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var gun: StringName = opts.get("gun", &"pistol")
