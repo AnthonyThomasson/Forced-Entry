@@ -128,7 +128,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    surface) and `height` (the 0..100 height the striker flew at, which picks a character's hit zone; −1 = none: a blast strikes the
    whole body). The projectile decides the ballistic outcome, then hands
    the struck body a HitInfo; the body decides what a hit *does to it* — an object spawns debris
-   (interface 4), the character bleeds instead (its `BloodWound` component, interface 4), a vehicle is dented
+   (interface 4), the character is dented, throws debris (blood, or its armour's chips when the armour stops the round) and bleeds
+   (its `BloodWound` component, interface 4), a vehicle is dented
    (`Deformable`), throws debris and is shoved at the hit (`Physics.impact_impulse`) and is never destroyed. A round that meets a `stop_power` and does not
    beat it is blocked; one that beats it always penetrates, so an armoured body reads `penetrated == false` as "stopped by the armour" (it
    then takes only the armour's blunt share, no wound). The
@@ -161,7 +162,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
 	 computed without the caches: all pure, so they may run on a worker thread); `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour.
-   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects and a vehicle)
+   - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects, the character and a vehicle)
 	 `BloodWound` (Node child, character: `record(hit)` on a hit throws a splatter spray and owes drips, one
 	 `BloodSplat` every `BloodConfig.drip_interval_min..max` s from the body's blood origin; `stop()` on death)
 	 and `Physics.bleed_out(parent, source, exclude)`
