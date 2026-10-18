@@ -3,9 +3,9 @@ extends Node
 ## Navigation domain: keeps the baked navigation map in step with furniture that has been shoved
 ## around. The holes `NavBuilder.build` carves are a snapshot of where the furniture stood at bake
 ## time; as pieces are bulldozed off their spots those holes go stale and paths route around empty
-## floor. This node re-bakes the map on an interval (`NavBuilder.rebake_async`) so the holes follow the
+## floor. This node re-bakes the map on an interval (`NavBuilder._rebake_async`) so the holes follow the
 ## furniture's CURRENT positions and paths route around scattered objects. The living characters are
-## holes in the STEERING region (`NavBuilder.rebake_steering`), so it follows them as they walk, appear
+## holes in the STEERING region (`NavBuilder._rebake_steering`), so it follows them as they walk, appear
 ## and die. It only re-bakes when a piece or a character has actually moved past `move_threshold`, so an
 ## at-rest scene costs a cheap per-tick compare and no bake. The planning region only re-bakes for
 ## furniture. Bulldozing is still the behaviour BETWEEN re-bakes (and
@@ -59,7 +59,7 @@ func setup(region: NavigationRegion2D, house: Node2D, rooms: Array, nav_debug: N
 
 
 ## One interval tick: if furniture has moved since the last bake, re-carve the planning region's holes at the live
-## positions on the server's worker thread (`NavBuilder.rebake_async`; a furniture move while one is in flight waits for
+## positions on the server's worker thread (`NavBuilder._rebake_async`; a furniture move while one is in flight waits for
 ## the next tick) and the steering region's in place; if only a character has, re-carve the steering region. Refreshes
 ## the overlay after either. Skips the bake entirely when nothing has moved.
 func _on_tick() -> void:

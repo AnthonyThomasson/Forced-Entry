@@ -48,7 +48,8 @@ The world's own map stays furniture-only, because the AI plans on it (flank/fire
 entry slots, search coverage) and a body's hole would bend every one of those. Only a `NavigationAgent2D` walks the steering map, and
 the AI's `Locomotion` chooses per walk (see `domain-ai-behavior`). The map carves every body at rest, seen or not; which bodies a walk
 accounts for is the walker's business (the AI goes round by it only for a body it knows of, and stops short when it has no way round).
-`rebake_steering(region, house, rooms)` re-bakes it.
+`nav_updater.gd` re-bakes it through the domain-internal `_rebake_steering`; the public `rebake_steering(region, house, rooms)` is a
+test-facing seam that measures its own footprints.
 
 **Every bake is welded** (`_weld_vertices`, run by `_bake_polygon` and by `rebake_async` when its bake lands): it merges the vertices that
 share a 1 px cell, because a hole meeting a wall leaves vertices a fraction of a pixel apart and the server rejects such an edge
@@ -71,7 +72,7 @@ simplified like the furniture's, then welded and stripped of slivers. Each key g
 holding one child region `NavAvoid` of the planning region; the bake runs on the NavigationServer's worker thread
 (`bake_from_source_geometry_data_async`), so a frame never pays for it, and the region is awaited like any (`ready(map)` is false until it
 answers queries). Asking again for the key returns the same map and marks it asked; once the planning bake has been redone (furniture
-shoved, `rebake` / `rebake_async`) it is baked again in place, the old mesh answering meanwhile. A map nobody has asked for in
+shoved: the updater's `_rebake_async`, or the test-facing `rebake` / `rebake_async`) it is baked again in place, the old mesh answering meanwhile. A map nobody has asked for in
 `avoid_idle_ms` (a static var, 20 s of wall clock) is freed with its region (its `tree_exited` frees the map) by the next ask for another
 key on the same planning map (the sweep runs only inside `avoid_map`: with no further asks an idle map lives on), and every one is freed with its world.
 Invalid when the region has no bake to start from. The world's own map and the steering map are not touched. Test:
@@ -80,23 +81,25 @@ Invalid when the region has no bake to start from. The world's own map and the s
 ## Keeping the holes current (`nav_updater.gd`)
 
 The holes a `build` carves are a snapshot of where the furniture stood at bake time. Furniture is
-`RigidBody2D` and gets shoved around in play, so those holes go stale. `NavBuilder.rebake(region,
-house, rooms, agent_radius=14.0)` re-bakes `region`'s polygon **in place** (same region + world
+`RigidBody2D` and gets shoved around in play, so those holes go stale. The game re-bakes through the domain-internal
+`_rebake_async` / `_rebake_steering`, which `nav_updater.gd` drives (below). `NavBuilder.rebake(region,
+house, rooms, agent_radius=14.0)`, `rebake_async(region, house, rooms, agent_radius, done)` and `rebake_steering` are
+**test-facing seams** over the same bakes that measure their own footprints; only tests call them. `rebake` re-bakes `region`'s polygon **in place** (same region + world
 offset; reassigning `navigation_polygon` re-registers the mesh) with the holes re-measured at the
 furniture's **current** positions — `furniture_holes` reads each collider's live `global_transform`,
-so moved pieces carve at their new spots. `rebake_async(region, house, rooms, agent_radius, done)` does the same with the
+so moved pieces carve at their new spots. `rebake_async` does the same with the
 bake on the NavigationServer's worker thread: the source geometry (walls from the scene tree, the footprint, the furniture
 holes) is gathered on the main thread by `_source_for`, `bake_from_source_geometry_data_async` bakes it, and the polygon is
 assigned (slivers dropped) when the bake lands, then `done` runs; a region freed meanwhile is left alone (the callback holds it
 by a `WeakRef`: a lambda capturing a node freed before it runs logs an engine error into whatever runs next, a test world torn
 down mid-bake; `tests/navigation/rebake_outlives_region`). The sync `rebake`
-stays for a caller that needs the map now (`perf/bake_and_path_stress` times it); the re-baker uses the async one, so no
+is for a test that needs the map now (`perf/bake_and_path_stress` times it); the re-baker bakes on the worker thread, so no
 frame pays for a bake (`tests/navigation/rebake_runs_off_the_main_thread_test.gd`).
 
 `nav_updater.gd` (a script-only Node; `main.gd` builds it once right after the bake and hands it the
 region, house, rooms and the overlay) drives the re-bake on an interval. Each tick it recomputes
 `furniture_holes` and `character_holes` (cheap — transforms only, no bake) and re-bakes **only** when a piece moved past
-`move_threshold` (4 px): furniture re-bakes both regions (the planning one on the server's worker thread, `rebake_async`; a
+`move_threshold` (4 px): furniture re-bakes both regions (the planning one on the server's worker thread, `_rebake_async`; a
 tick while that bake is still in flight (`_baking`) leaves the planning region alone, and its baseline is set from what the
 bake carved when it lands, so a move during a bake is caught by the next tick), a character that stopped, set off, appeared
 or died re-bakes the steering one in place. An at-rest scene costs just the compare. Exports: `enabled`,
