@@ -65,7 +65,7 @@ func _markers() -> Array:
 		if not _alive(member) or order.is_empty() or step == "done" or not order.get("pos") is Vector2:
 			continue
 		out.append({ "kind": "order", "point": order["pos"], "node": member, "from": member.global_position,
-			"label": _label_of(order, step), "refused": step == "refused" })
+			"label": _label_of(order, step, bool(row.get("held", false))), "refused": step == "refused" })
 	for mate in _selection:
 		if _alive(mate):
 			out.append({ "kind": "selected", "point": mate.global_position, "node": mate })
@@ -73,13 +73,12 @@ func _markers() -> Array:
 
 
 ## The words at an order's target: what it is and how it goes ("Stack (stun) · moving"; a stack names its mode, quiet / stun / frag, and
-## "hold" while it waits for the leader's go, LD13: "Stack (frag, hold) · in position"; "Ambush · in position", LD15).
-func _label_of(order: Dictionary, step: String) -> String:
+## "hold" while it waits for the leader's go, `held` (the view row's, LD13): "Stack (frag, hold) · in position"; "Ambush · in position", LD15).
+func _label_of(order: Dictionary, step: String, held: bool) -> String:
 	var what := "Defend"
 	match String(order.get("kind", "")):
 		"stack":
 			var mode := String(order["mode"])
-			var held := bool(order.get("wait_go", false)) and not bool(order.get("go", false))
 			what = "Stack (%s%s)" % [mode, ", hold" if held else ""]
 		"ambush":
 			what = "Ambush"

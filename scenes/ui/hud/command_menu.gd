@@ -226,27 +226,23 @@ func _ambush_from(at: Vector2) -> String:
 	return String((out as Dictionary).get("room", "")) if out is Dictionary else ""
 
 
-## Whether a member of the squad's view holds a stack order at doorway `opening` that waits for the leader's go and has not had it (LD13).
+## Whether a member of the squad's view holds a stack order at doorway `opening` that waits for the leader's go and has not had it (its row's
+## `held`, LD13).
 func _held_at(opening: String) -> bool:
 	var view: Dictionary = _view.call() if _view.is_valid() else {}
 	for row: Dictionary in view.get("members", []):
-		if _held(row.get("order", {})) and String(row["order"].get("opening", "")) == opening:
+		if bool(row.get("held", false)) and String(row["order"].get("opening", "")) == opening:
 			return true
 	return false
 
 
-## The held stack order `mate` holds in the squad's view (`_held`) with its doorway's centre (`pos`), or {}.
+## The held stack order `mate` holds in the squad's view (its row's `held`) with its doorway's centre (`pos`), or {}.
 func _held_order_of(mate: Node) -> Dictionary:
 	var view: Dictionary = _view.call() if _view.is_valid() else {}
 	for row: Dictionary in view.get("members", []):
-		if row.get("node") == mate and _held(row.get("order", {})) and row["order"].get("pos") is Vector2:
+		if row.get("node") == mate and bool(row.get("held", false)) and row["order"].get("pos") is Vector2:
 			return row["order"]
 	return {}
-
-
-## Whether `order` is a stack that waits for the leader's go and has not had it (LD13).
-static func _held(order: Dictionary) -> bool:
-	return String(order.get("kind", "")) == "stack" and bool(order.get("wait_go", false)) and not bool(order.get("go", false))
 
 
 ## The room whose rect holds world point `at`, or {}.

@@ -75,6 +75,7 @@ func run(t: TestContext) -> void:
 ## "Stack (stun)". The words are read off `drawn()`'s `label`.
 func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	_view["members"][1]["order"] = { "id": "o3", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "frag", "bang": true, "wait_go": true, "pos": Vector2(870, 190) }
+	_view["members"][1]["held"] = true
 	_view["members"][1]["step"] = "in_position"
 	_view["members"][2]["order"] = { "id": "o4", "kind": "ambush", "opening": "door_150_360", "room": "living_room", "pos": Vector2(150, 360) }
 	_view["members"][2]["step"] = "in_position"
@@ -87,6 +88,7 @@ func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	var stun_hold := _label_for(markers, t1)
 	t.check(stun_hold.contains("stun") and stun_hold.contains("hold"), "a held stun stack is named with its mode and hold (%s)" % stun_hold)
 	_view["members"][1]["order"] = { "id": "o6", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "stun", "bang": true, "pos": Vector2(870, 190) }
+	_view["members"][1]["held"] = false
 	await t.frames(2)
 	t.expect_eq(_label_for(markers, t1), "Stack (stun) · moving", "a stun stack not held for go is named with its mode alone")
 

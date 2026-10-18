@@ -238,9 +238,10 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	if t.check(got.size() == before + 3, "choosing it emits order_requested"):
 		_expect_stack(t, got[before + 2], "stun", false, [t1, t2], "unticked, a stun stack that goes when ready")
 
-	# Go: offered only on a doorway where a member of the view holds a held stack (wait_go, at that opening), whatever the selection.
+	# Go: offered only on a doorway where a member of the view holds a held stack (its view row's `held`, at that opening), whatever the selection.
 	_view["members"][0]["order"] = {}
 	_view["members"][1]["order"] = { "id": "o3", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "stun", "bang": true, "wait_go": true, "pos": Vector2(840, 190) }
+	_view["members"][1]["held"] = true
 	Order.tick(menu, String(t1.name), true)  # Only t1 selected; t2 holds the held stack.
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -253,16 +254,19 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 		t.check((got[before + 3].get("pos", Vector2.INF) as Vector2).is_equal_approx(Order.BACK_SOUTH), "carrying the click (%s)" % str(got[before + 3].get("pos")))
 	Order.tick(menu, String(t1.name), false)
 	_view["members"][1]["order"]["wait_go"] = false
+	_view["members"][1]["held"] = false
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(Order.item(menu, "Go into").is_empty(), "no \"Go into\" for a stack that goes when ready (items %s)" % str(Order.labels(menu)))
 	menu.close()
 	_view["members"][1]["order"]["wait_go"] = true
+	_view["members"][1]["held"] = true
 	_view["members"][1]["order"]["opening"] = "door_690_360"
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(Order.item(menu, "Go into").is_empty(), "nor for a held stack at another doorway (items %s)" % str(Order.labels(menu)))
 	_view["members"][1]["order"] = {}
+	_view["members"][1]["held"] = false
 
 	# Ambush, for the whole squad.
 	Order.choose(menu, "Ambush the doorway from the kitchen")

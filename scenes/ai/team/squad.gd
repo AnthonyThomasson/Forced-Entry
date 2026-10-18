@@ -101,9 +101,9 @@ func alive(member: Node) -> bool:
 
 
 ## What the squad looks like now, for observers (the order markers, the command menu, the stack markers): `{ leader, members: [{ node,
-## order, step }], stacks }`, `order` being the order the member holds ({} for none, and once it is done; a held stack released by a go
-## carries `go: true`) and `step` its latest progress on it ("" for none; `done` with no order held once it is done); `stacks` every stack
-## the side is forming (`_stacks`).
+## order, step, held }], stacks }`, `order` being the order the member holds ({} for none, and once it is done; a held stack released by a go
+## carries `go: true`), `step` its latest progress on it ("" for none; `done` with no order held once it is done) and `held` whether that
+## order is a stack waiting for the leader's go (`_waits_for_go`, LD13); `stacks` every stack the side is forming (`_stacks`).
 func view() -> Dictionary:
 	var rows: Array = []
 	for m: Node in _members:
@@ -111,10 +111,11 @@ func view() -> Dictionary:
 			continue
 		var id := m.get_instance_id()
 		var order: Dictionary = _orders.get(id, {})
+		var held := _waits_for_go(order)
 		if _released.has(str(order.get("id", ""))):
 			order = order.duplicate()
 			order["go"] = true  # A held stack the leader said go to (LD13): still held, released.
-		rows.append({ "node": m, "order": order, "step": _steps.get(id, "") })
+		rows.append({ "node": m, "order": order, "step": _steps.get(id, ""), "held": held })
 	return { "leader": _leader, "members": rows, "stacks": _stacks_now() }
 
 
@@ -276,13 +277,17 @@ func resolve(request: Dictionary) -> Dictionary:
 	return {}
 
 
+## Whether `order` is a stack that waits for the leader's go and no go has released yet (LD13).
+func _waits_for_go(order: Dictionary) -> bool:
+	return String(order.get("kind", "")) == STACK and bool(order.get("wait_go", false)) and not _released.has(str(order["id"]))
+
+
 ## The held stack orders at doorway `opening` that no go has released yet (LD13): order id -> the order, held by a living member.
 func _held_at(opening: String) -> Dictionary:
 	var out := {}
 	for m: Node in _members:
 		var held: Dictionary = _orders.get(m.get_instance_id(), {}) if is_instance_valid(m) else {}
-		if alive(m) and String(held.get("kind", "")) == STACK and bool(held.get("wait_go", false)) \
-				and String(held.get("opening", "")) == opening and not _released.has(str(held["id"])):
+		if alive(m) and _waits_for_go(held) and String(held.get("opening", "")) == opening:
 			out[str(held["id"])] = held
 	return out
 

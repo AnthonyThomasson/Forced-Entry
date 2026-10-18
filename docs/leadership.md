@@ -116,7 +116,8 @@ done (a stack's room cleared, by itself or by a teammate who radioed it; an ambu
 that walk is the member's own, not kept to the refused order's room), or a stack at a dead end with no slot left for it (LD9: the order
 is kept and the member holds where it is); each step once until the next differs.
 The entry steps of a stack go out as they always do. Allies leave a progress call out of what they weigh (it never replaces a member's
-entry claim on their radio); the squad keeps each member's latest step for `view()` (`{ leader, members: [{ node, order, step }] }`).
+entry claim on their radio); the squad keeps each member's latest step for `view()` (`{ leader, members: [{ node, order, step, held }] }`,
+`held` whether the order is a stack still waiting for the leader's go, LD13).
 An order radioed `done` is no longer one the member holds: the view shows it with no order and the step `done`, so the order markers drop
 it and the command menu offers no "Cancel order" for it. A `refused` order is still held, and drawn red.
 

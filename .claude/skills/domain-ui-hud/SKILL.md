@@ -84,9 +84,9 @@ The in-game observers: each reads only the Character public API / signals (incl.
   click the toggle bar or the panel takes never opens it) or `open_at(world)` pauses the whole tree (unpaused on close only if it paused it, and
   in `_exit_tree` if freed open) and fills the panel for what is under the point, hit-tested in this order: a living teammate within `PICK_RADIUS`
   (28 px) — "Select <name>" / "Deselect <name>", the menu staying open, then "Go into the <room>" while that teammate holds a held stack in the
-  view that has had no go (`_held_order_of`: a `stack` with `wait_go` and no `go`, LD13), its go at that order's doorway; a doorway, the one the
+  view that has had no go (`_held_order_of`: its view row's `held`, LD13), its go at that order's doorway; a doorway, the one the
   squad resolves a stack at the click to (`resolve({ kind: "stack", pos })`: the nearest within its width; no `resolve`, no doorway) — first
-  "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`, D13), then
+  "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`: a row's `held`, D13), then
   "Stack into the <room> (quiet)", "Stack into the <room> with stun" and "Stack into the <room> with frag", `<room>` the type of the room it
   resolves the stack into (`into`), so the label names the room of the order (`tests/ui/command_menu_label_matches_order`), the stun item
   disabled while no recipient's `item_count(ItemRegistry.STUN_SLOT)` is above 0 (D1) and the frag item while none's `FRAG_SLOT` is (D15)
@@ -116,7 +116,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `set_selection(nodes)` is the menu's selection. It draws, for each living
   member with an order a dashed line to the order's target (`order.pos`: the doorway's centre for a stack, the room's for a defend), ringed
   and labelled once per target (`_label_of`: "Stack (<mode>)" with the order's mode, quiet / stun / frag, and ", hold" while it waits for the
-  leader's go, LD13: "Stack (frag, hold) · in position"; "Ambush · moving" (LD15); "Defend · in position"; red when the member `refused`; a
+  leader's go (the view row's `held`), LD13: "Stack (frag, hold) · in position"; "Ambush · moving" (LD15); "Defend · in position"; red when the member `refused`; a
   `done` order is not drawn), and a green ring round each selected teammate. `drawn()` is `[{ kind, point, node, from?, label?, refused? }]`
   (`kind` `order` (`point` the target, `node` the member, `from` where it stands, `label` the words at the target) / `selected`), redrawn
   only when it changes. Who leads is not drawn here: the crown over each squad's leader is the

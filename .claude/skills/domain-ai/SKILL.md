@@ -65,8 +65,9 @@ living member but the leader. A `go` request (`{ kind: "go", pos }`, LD13) posts
 holding a held stack (`wait_go`) at the doorway nearest `pos` that no go has released yet, whatever its `to` (D13), and replaces nothing; when
 the leader that gave held stacks dies the squad posts their go itself (`auto: true`, D12). `resolve(request)` is that resolution read-only,
 without posting (`{ room, pos }`, `{ opening, pos, into, split, stack_at? }`, `{ opening, pos }` for a go, `{ opening, pos, room, beyond }` for
-an ambush: what the UI's command menu names its stack and ambush items from); `view()` is `{ leader, members: [{ node, order, step }], stacks }`, the
-steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`; an order radioed `done` is no longer
+an ambush: what the UI's command menu names its stack and ambush items from); `view()` is `{ leader, members: [{ node, order, step, held }], stacks }`, the
+steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
+still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it); an order radioed `done` is no longer
 held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks` / `_slots_of`) is every stack the side is forming, ordered
 or its own, from the members' entry claims it hears (`_claims`, the latest per speaker, current for `_claim_ttl`: the NPCs' `callout_ttl` (6 s), handed in by `setup`, which Main reads off
 the side's NPCs with `MatchSpawner.callout_ttl_of`; a dead speaker's dropped;
