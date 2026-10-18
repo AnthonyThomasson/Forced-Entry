@@ -48,7 +48,8 @@ lives in `agent_snapshot.gd`.
   `gun_loaded` (the gun it fights with, `Character.gun_slot()`, has rounds and is not mid-reload),
   `weapon_low` (at or below `low_ammo_fraction` of its magazine, empty included), `can_reload` (a carried magazine would add
   rounds), `under_fire`, `engaged`, `leads`, `lead_outside` (the NPC is inside the house and an offered lead lies outside it:
-  gates the `stay` child of INVESTIGATE), `hurt`, `inside`, `exposed`, and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
+  gates the `stay` child of INVESTIGATE), `hurt` (its damage taken has reached `hurt_threshold`), `inside` (it stands in a room of the
+  house), `exposed` (a clear line to the hostile it lists first, or under fire with no hostile known), and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
   `stack_has_stun` (it carries a stun, or a teammate's entry callout says `stuns` > 0: gates STUN ENTRY), `ordered` (it holds a live order from its
   leader, `docs/leadership.md` LD5: gates the ORDER node and its entry rule). The brain overlay shows the ones that hold.
 - **sections** — named state-text blocks; each tree level shows the ones it lists: `goal` (the controller's goal with `{gun}` filled in by `fill_goal`, the same noun as `loadout`),
