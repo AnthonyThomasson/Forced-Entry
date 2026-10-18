@@ -10,7 +10,7 @@ blood_pool_visuals, blood_flow, blood_smear, blood_footprints, blood_wound, bloo
 `physics/` (hit packet, knockback, deformation, debris, hit particles, ragdoll) reaches it only through `Physics.spawn_debris`
 (a hit that carries blood; the bloody mark a bullet's `HitInfo.blood` leaves on an object is drawn by the core's
 `Deformation.draw_marks`) and `Physics.bleed_out`; every other domain meets it through the classes in interface 4, all
-resolved by `class_name`. It imports nothing outside Physics except `Despawner` and `DrawLayers` (General).
+resolved by `class_name`. It imports nothing outside Physics except `Despawner`, `DrawLayers` and `FillBatch` (General).
 
 **Master switches** (`BloodConfig.enabled`, and under it `footprints_enabled` / `smear_enabled`, `surface_flow`): off, `BloodWound.record` /
 `Physics.bleed_out` spawn nothing (`bleed_out` returns null); used by the Testing domain's `physics.blood` switch. `BloodSpawner` adds each
@@ -116,4 +116,4 @@ a `BloodPool` node itself, set by `BloodSpawner._new_pool`, so its `BloodPoolVis
 blood's rung) and `print_z_index` (the `BloodDecals` prints and smears, and Physics' scorch decals). Over the floor (−5) and rugs (−4),
 under what lies there (a dead body, casings, a dropped item, `LYING` −2) and so under a vehicle driving over it.
 
-**Interfaces:** 4 (Objects / Character → Physics), 11 (`DrawLayers.BLOOD`) — signatures in `architecture`.
+**Interfaces:** 4 (Objects / Character → Physics), 11 (`DrawLayers.BLOOD`; `FillBatch`: the splats and the prints) — signatures in `architecture`.

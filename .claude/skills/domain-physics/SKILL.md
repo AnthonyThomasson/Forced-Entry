@@ -7,7 +7,7 @@ description: Deep implementation detail for the Physics System domain (scenes/ph
 
 Stateless helpers + reusable Node components (a leaf).
 Objects, the character and a vehicle *compose* these components; Physics imports nothing from other domains but General's
-infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`).
+infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
 
 - `HitInfo` — the one data packet a striker fills in (`position, normal, direction, damage,
   speed_factor, penetrated, has_exit, exit_position, exit_normal, blood, height, source`); `height` is the 0..100 height the striker flew at
@@ -138,4 +138,4 @@ The core keeps only the entry points: `Physics.spawn_debris` (draws a bullet's `
 (the layer the ragdoll sweep and the blood queries treat as blocking). `BloodConfig` (blood tuning and its master switches) is
 documented in `domain-physics-blood`. Both are `class_name` static holders — there is no `Config` autoload.
 
-**Interfaces:** 4 (Objects / Character / Vehicles → Physics), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`; `DrawLayers`: blood and scorch decals `BLOOD`, `ExplosionFx.Z_INDEX` = `EFFECTS`) — signatures in `architecture`.
+**Interfaces:** 4 (Objects / Character / Vehicles → Physics), 11 (`PhysicsLayers` in `PhysicsConfig.wall_mask`; `DrawLayers`: blood and scorch decals `BLOOD`, `ExplosionFx.Z_INDEX` = `EFFECTS`; `FillBatch`: the hit marks' blood discs and the debris chips) — signatures in `architecture`.
