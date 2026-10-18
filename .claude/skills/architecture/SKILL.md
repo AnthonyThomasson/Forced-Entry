@@ -744,7 +744,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 ```
 main ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
-main ─▶ NavBuilder ──(parses static colliders)──▶ NavigationServer2D
+main ─▶ NavBuilder (build; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  main ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds
 main ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style
 main ──(the styles' side / weapons)──▶ CharacterConfig.styles
@@ -753,23 +753,25 @@ Character ─▶ Item ─▶ ProjectileSpawner ──(get_surface / take_hit)─
 Character ─▶ Interaction ──(get_interactions)──▶ Objects
 Character ─▶ CharacterVehicleUse (Vehicles) ─▶ Vehicle   (the ride and a strike call back only the character API of interface 19, as an Item calls its user's)
 Character ─▶ Deformable / Deformation / BloodWound / BloodFootprints / Ragdoll / HitInfo / Physics.impact_impulse / spawn_debris / bleed_out (Physics)
-Vehicle ─▶ Deformable / Physics.impact_impulse / Physics.spawn_debris (Physics);  Vehicle ─▶ PhysicsLayers (General)
+Vehicle ─▶ Deformable / Deformation (draw_marks) / Physics.impact_impulse / Physics.spawn_debris (Physics);  Vehicle ─▶ PhysicsLayers (General)
 Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / ArtConfig   (Art, a leaf)
 AIController ─▶ NavigationAgent2D ─▶ NavigationServer2D   (writes Character.move_input; tactics query the nav map)
+AI (perception / behaviour / team / debug) ─▶ NavBuilder (ready / snap / route / path_length, avoid_map, planning_region, steering_map)
 AIController ─▶ ItemRegistry slot ids (Items: FISTS_SLOT, STUN_SLOT, FRAG_SLOT)
 Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶ Despawner
-Projectile / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
+Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
 main ──(_build_squads: Squad.setup, MatchSpawner.bind_squad)──▶ Squad (AI team) ──(&"order", &"leader")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchSpawner.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
-Item (&"shot") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank ─▶ SoundSynth
+Item (&"shot") / GrenadeItem (&"throw") / ThrownGrenade (&"grenade") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank ─▶ SoundSynth
 Character (&"footfall") ──▶ EventBus ──(posted)──▶ AIController (footsteps heard)
 Objects Floor ──(SoundSurface.register)──▶ SoundSurface ◀── Sound   (Audio, a leaf: imports nothing but EventBus)
 main ──(Sound.focus = the human)──▶ Sound   /   Character (&"stun") ──▶ EventBus ──▶ Sound (tinnitus + muffle for the focus), StunScreen (UI)
-Explosion (&"explosion") ──▶ EventBus ──▶ Sound (the burst) / Camera (shake)
+Explosion (&"explosion") ──▶ EventBus ──▶ Sound (the burst) / Camera (shake) / AIController
+ThrownGrenade (&"grenade") ──▶ EventBus ──▶ AIController (a grenade heard coming down)
 Vehicle (&"vehicle", &"engine", &"skid") ──▶ EventBus ──▶ Sound ──(engine_state / slip / speed, duck-typed)──▶ the vehicle's loops
 Camera ──(target.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
 UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display and the tactics overlay's set_focus / clear_focus; DebugUI and the inspector outfit_view)
