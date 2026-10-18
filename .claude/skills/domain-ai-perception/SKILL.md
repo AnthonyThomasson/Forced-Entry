@@ -28,17 +28,22 @@ Files:
 - `agent_snapshot.gd` + `snapshot/` — the BUILD half (`domain-ai-snapshot`): turns the gathered knowledge + the tactics geometry
   into the decision SNAPSHOT (facts / sections / option groups) and owns the measured wording Von reads. Pure transform.
 
-The controller (`ai/goal_controller.gd`) sets `agent_perception.gd`'s config fields from its exports,
-calls `setup()` once to BUILD the internal modules, then `apply_config()` to configure them, and `bind(character)` once it knows the
+The controller (`ai/goal_controller.gd`) calls `setup()` once to BUILD the internal modules, then `apply_config(self)`, which sets the
+perception's own tunables and its modules' straight from the controller's exports (the one authoring surface: a module field is
+declared where it is read, and only the modules built without the controller keep a default: `AgentVision`, `AgentMemory`,
+`AgentThrow`, `AgentEntry` and `AgentDoorViews`, built by the tests and the `ai/team/` files), and `bind(character)` once it knows the
 body it drives (its first `control()`) — and
-re-calls `apply_config()` each decision, so a tunable retuned at runtime reaches the modules without a
+re-calls `apply_config(self)` each decision, so a tunable retuned at runtime reaches the modules without a
 rebuild that would wipe the event memory. Nothing outside this folder holds a reference to them.
 
 ## Public interface (what the orchestrator / behaviour call)
 
-(Config: besides the usual fields, `grenades_enabled`, `hear_grenade`, `evade_margin` and the hearing ranges `hear_walk` / `hear_run` / `hear_crouch`.)
+(Config: the controller's exports, read by `apply_config(cfg)`; the perception keeps as fields only those it reads itself: `contact_memory_ttl`,
+`familiar_with_house`, `lead_memory_ttl`, `search_memory_ttl`, `hit_awareness_radius`, `hearing_radius`, the hearing ranges `hear_walk` / `hear_run` /
+`hear_crouch`, `under_fire_time`, `engage_dwell`, `track_smoothing`, `callout_range`, `callout_ttl`, `entry_enabled`, `entry_guard` and
+`entry_pass_clear_time`; the rest, `grenades_enabled`, `hear_grenade` and `evade_margin` among them, go straight to the module that reads them.)
 
-- `setup()` (build the modules), `apply_config()` (push the config fields into them; re-callable each
+- `setup()` (build the modules), `apply_config(cfg)` (set its own tunables and its modules' from the controller `cfg`; re-callable each
   decision), `bind(character)` (the NPC's body, which every sense and query reads from then on; it tells the hostility rules the
   body's faction and hands the body on to `AgentThrow`, `AgentGrenades` and the snapshot, each with its own `bind`). No function
   below takes the character.
@@ -308,7 +313,7 @@ point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuil
 `SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
 Locomotion's last leg, the way into a slot between two taken ones, which lies inside their carved margins); 0 when not, -1 while that map
 bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
-Config on the perception (from the controller's exports): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (pushed into `AgentDoorViews`), `entry_pass_clear_time`; views are
+Config (the controller's exports, through `apply_config(cfg)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `entry_pass_clear_time` (on the perception); views are
 avoided only where `entry_enabled` and `entry_guard` are.
 **Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
 defend a room holds it: the room's doorways sorted by id, member `nth` taking doorway `nth` mod their number (the extras doubling up on its

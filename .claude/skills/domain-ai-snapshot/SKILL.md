@@ -8,22 +8,22 @@ description: Deep implementation detail for the AI SNAPSHOT sub-domain (scenes/a
 The BUILD half of perception: given what the NPC currently knows (contacts, memory, learned house knowledge) and the combat
 geometry, it writes the decision SNAPSHOT the planner walks. A pure transform: it reads the event memory and the tactics module,
 holds no state between calls, and never writes memory, decides or picks. `agent_perception.gd` (see `domain-ai-perception`) owns it
-and calls `build()` once per decision; it sets the tunables on `snapshot.vocab` from `apply_config()`.
+and calls `build()` once per decision; its `apply_config(cfg)` sets the tunables on `snapshot.vocab` straight from the controller's exports.
 
 Files:
 - `agent_snapshot.gd` — `build(rooms, goal, activity, known, callouts, knowledge) -> { facts, sections, sections_per_target,
   options, gun }`: the **facts** literal, the per-hostile loop (`_analyze`), and the assembly of the dict; `fill_goal(goal)`;
   `bind(character)` (from the perception's own `bind`) hands the NPC's body to it and to the vocabulary, the sections and the option
   groups, each holding it as `_character`, so none of their functions takes the character.
-- `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, every tunable the perception copies in
+- `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, every tunable the perception sets from the controller's exports
   (`shoot_range`, `punch_range`, `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `flank_ally_radius`,
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
   `max_contacts_in_state`, `search_memory_ttl`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
   wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`, `room_key_at`,
   `room_by_key`).
-  The snapshot reads its tuning here only; the same fields are declared on the controller (the exports) and on the perception
-  (which copies them in), so adding a tunable is three declarations and one line in `agent_perception.apply_config()`.
+  The snapshot reads its tuning here only; adding a tunable is two declarations (the controller's export, the authoring surface, and
+  the vocabulary's field, with no default) and one line in `AgentPerception.apply_config(cfg)` (`_snapshot.vocab.x = cfg.x`).
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
   unseen_fire_text, allies_text, flanks_text, awareness_text, order_text, threat_summary`.
 - `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group, grenade_group, shots_grenade_group,
@@ -161,4 +161,4 @@ stay on the plain route.
 
 **Posture** words appear only when someone is not standing, so a standing body's text is byte-identical (the `tools/von_scenarios` fixtures pin it): the
 NPC's own in its situation line (" You are crouching.") and a *visible* contact's in its contact line ("crouched low"; a last-seen posture may be stale, so it is never shown for a remembered one). Test: `tests/ai/posture/posture_in_von_state_test.gd`.
-`low_ammo_fraction` is a controller export pushed through `apply_config`. Room types are humanized ("kitchen_living" → "kitchen living").
+`low_ammo_fraction` is a controller export set on the vocabulary by `AgentPerception.apply_config(cfg)`. Room types are humanized ("kitchen_living" → "kitchen living").

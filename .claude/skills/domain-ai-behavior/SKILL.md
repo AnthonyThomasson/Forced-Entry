@@ -20,10 +20,11 @@ Files:
 - `entry.gd` — a tactical entry through a doorway, as a team member or alone (`RefCounted`; `domain-ai-entry`, spec `docs/tactical-entry.md`).
 - `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)` / `inside_house(p)`.
 
-The controller sets the behaviour's config fields from its exports, calls `setup(perception, nav_agent)`
-once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules, then `apply_config()` to push the tunables they hold
-in — re-calling `apply_config()` each decision so a runtime retune takes effect. (The behaviour's own
-fields are read live, so only those modules need the push.) On its first `control()` the controller calls `bind(character)`: the
+The controller calls `setup(perception, nav_agent)`
+once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules, then `apply_config(self)`, which sets the behaviour's
+own tunables and its modules' straight from the controller's exports — re-calling it each decision so a runtime retune takes effect. (A
+field is declared where it is read: the behaviour keeps only those it reads itself, and only `Combat`, built alone by a unit test, keeps
+defaults.) On its first `control()` the controller calls `bind(character)`: the
 behaviour keeps the NPC's body and hands it to each module's own `bind`, so none of their functions takes the character.
 
 ## The primitives (a leaf = `{ path, labels, primitive, params }`)
@@ -74,7 +75,7 @@ while that map is `pending`) for a threshold into a room not cleared and, unless
 view it passes: either is a detour first (`_entry.reset()`, `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
 `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `_ordered_stack()` sets
-the perception's `ordered_walk` each tick, D4 / D11), the controller hands its `squad` down (`Behavior.squad` → `Entry.squad`) with
+the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(cfg)`, with
 `order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. A frag
 entry's thrower (LD14) radios `frag_out` through the same `take_throw_calls` as a GRENADE throw: `poll_throw` takes `Entry.take_thrown()`
@@ -133,8 +134,8 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 
 ## Public interface (what the orchestrator calls)
 
-- `setup(perception, nav_agent)` (build the Locomotion, coverage, combat, watch and entry modules), `apply_config()` (push their tunables
-  in; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
+- `setup(perception, nav_agent)` (build the Locomotion, coverage, combat, watch and entry modules), `apply_config(cfg)` (set its own tunables
+  and its modules' from the controller `cfg`; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
 - `set_leaf(leaf)` — adopt: snap the point onto the navmesh, capture the target (a fight whose target
   is no longer known drops to hold and forces a re-decision), commit.
 - `update_known(known, delta) -> bool` — adopt the perception's hostiles; retarget a lost engaged

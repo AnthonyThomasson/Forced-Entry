@@ -16,7 +16,7 @@ pie arc, corners, capacity) and the team's claims off the radio are the percepti
 
 `entry.gd` is a `RefCounted` built in `Behavior.setup`: `setup(loco, perception, coverage, eyes, combat)` captures the locomotion, the
 perception, the room coverage, the watch module (where a walker looks) and the combat module (the tactical reload and the bang's throw);
-`bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config()` copies the tunables in (below).
+`bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config(cfg)` sets the tunables from the controller's exports (below).
 - `begin(params) -> bool` — start from an ENTER leaf's `opening`, `into`, `slot` and `bang`, the guard's pass-by `secure`, or an ordered
   stack's `order_id`, `bang`, `mode`, `wait_go`, `go` and `stack_at` / `split` (below); false when the doorway is unknown (the leaf is dropped and the NPC re-decides).
   `step(delta) -> bool` — one tick; true once it is over.
@@ -239,7 +239,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `bang_off` from a claim under the same order (`_vetoed`); `_banging` holds whatever a quiet member says, `_tick_bang` gives up only on its
   own caps, and with the stack in and no stun in it (`_stack_has_stun`) `_bang_due` gives the bang up (D1: quiet, `bang_off` radioed).
   **D7:** `_stack_ready` waits for every other living recipient of the order (`_recipients`: the live order's `to` from
-  `AgentPerception.order()`, `Squad.alive` through `Entry.squad`, which the controller pushes via `Behavior.squad`) to have radioed past
+  `AgentPerception.order()`, `Squad.alive` through `Entry.squad`, which `Behavior.apply_config` sets from the controller's `squad`) to have radioed past
   `claim`, and the human leader that gave the order while it holds a slot (`_waits_for` / `_leads`: its `PlayerStack` claim says `leader`
   and its id is `_leader_id`, the live order's `leader` at `begin`; `_stack_ready` is false while that claim is at `claim`, LD17), an
   unordered member `ready_timeout` from `_all_in_at` (`_note_all_in`, each step: when every living recipient, itself among them, is past
@@ -306,8 +306,8 @@ above).
 ## Exports (`GoalController`, group *Entry*)
 
 `entry_ready_timeout`, `entry_listen_time`, `entry_follow_gap`, `entry_pie_dwell`, `entry_corner_dwell`, `rear_security_time`, `entry_cover_time`,
-`entry_watch_dwell`, `entry_approach_time`, `order_ready_cap` → `Behavior` fields → `apply_config()` → `Entry` (`ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`,
+`entry_watch_dwell`, `entry_approach_time`, `order_ready_cap` → `Behavior.apply_config(cfg)` → `Entry` (`ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`,
 `corner_dwell`, `rear_time`, `cover_time`, `watch_dwell`, `approach_time`, `order_ready_cap`; `look_rate` is `search_look_rate`; `squad`, the controller's, goes the same way). `entry_enabled` (ENTER
 offered, and the guard on) and the geometry's `entry_stack_spacing`, `entry_wall_standoff`, `entry_pie_radius`, `entry_pie_steps`,
-`entry_corner_inset` and `entry_short_room` go to the perception. The guard's `entry_guard`, `entry_guard_range`, `entry_guard_rearm` and
-`entry_secure_time` stay on `Behavior`.
+`entry_corner_inset` and `entry_short_room` go through `AgentPerception.apply_config(cfg)` to `AgentEntry`. The guard's `entry_guard`,
+`entry_guard_range`, `entry_guard_rearm` and `entry_secure_time` are fields of `Behavior`, set the same way.

@@ -5,7 +5,7 @@ description: Deep implementation detail for the AI COMBAT module (scenes/ai/beha
 
 # AI · Combat module (`scenes/ai/behavior/combat.gd`)
 
-A `RefCounted` that `Behavior` owns (built in `setup()`, config copied in by `apply_config()`). It owns the fire cooldown and the
+A `RefCounted` that `Behavior` owns (built in `setup()`, its tunables set from the controller's exports by `Behavior.apply_config(cfg)`). It owns the fire cooldown and the
 peek-and-cover cycle (`phase` `"peek"`/`"cover"`, `cover_timer`, `fire_timer`, the committed `dest` and `dest_timer`, the burst and
 back-off counters) and executes every combat action on the character. `Behavior` decides WHICH fight is on — it holds the engaged
 contact (node, last-known position) and the `hold_ground` flag — and passes them in each call, so combat never picks a target. It reads
@@ -17,9 +17,10 @@ loaded gun, the known contact in range on a clear line: a shot is on), `fire_at_
 (shoot it when `can_fire_at`, once facing settles; aims at it; the watch stage calls it for the threat in every primitive, `domain-ai-watch`), `reload_due()`, `has_line_of_fire(target) -> bool` (in range on a clear line, whatever the gun's state; what `can_fire_at` adds a loaded gun to, and the entry reads for E14), `top_off() -> bool` (a tactical reload of a part-spent gun, called by the entry at the stack: starts it, true while it runs or is wanted; `docs/tactical-entry.md` E11), `ambush(node, pos)`,
 `peek_cover(delta, node, pos, hold_ground, room := "")`, `melee(pos, hold_ground)`, `shoot() -> bool`, `strike()` / `punch()` / `kick()`,
 `continue_burst()`, `apply_back_off(delta)`, `reload_if_dry()`; `signal dry`
-(an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables (copied from the controller
-exports): `shoot_range`, `punch_range`, `combat_ring_radius` / `combat_ring_count` (the ring of candidate spots), `cover_time`,
-`fire_cooldown`, `fire_burst`, `back_off_time`, `reposition_interval`, `auto_reload`.
+(an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables (set from the controller
+exports): `shoot_range`, `punch_range`, `ring_radius` / `ring_count` (the ring of candidate spots, from `combat_ring_radius` / `combat_ring_count`), `cover_time`,
+`fire_cooldown`, `fire_burst`, `back_off_time`, `reposition_interval`, `auto_reload`; each keeps the export's default, for a `Combat` built
+without the controller (`tests/ai/combat/combat_waits_for_facing_test.gd`).
 
 **Peek-and-cover** (the `engage` primitive, style `peek_cover`): in the PEEK phase move to the nearest spot with a clear shot and
 fire on `fire_cooldown`, then duck; in the COVER phase hold behind a shielding spot for `cover_time` (reloading an empty gun

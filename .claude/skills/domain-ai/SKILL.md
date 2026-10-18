@@ -20,8 +20,9 @@ skill for detail.
 
 `ai/goal_controller.gd` is the **orchestrator** — the AI's own composition root (the `main.gd` of the
 AI domain). It is the single **authoring surface** (every tunable is an export here, so a defender or
-invader preset is all data on this one node), it wires the sub-domains and pushes its exports into
-them — building them once, then re-pushing the config each decision so a tunable retuned at runtime
+invader preset is all data on this one node), it wires the sub-domains and hands itself to each facade's
+`apply_config(cfg)`, which sets that sub-domain's fields and its modules' straight from the controller's exports — building
+them once, then applying the config again each decision so a tunable retuned at runtime
 (a behaviour test, the dev command server) takes effect without a rebuild, and on its first `control(character, delta)` hands the NPC's
 body to perception and behaviour once (`bind(character)`, which each passes on to its modules), so no sub-domain function takes the
 character — and it runs the

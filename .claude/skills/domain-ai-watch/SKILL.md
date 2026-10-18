@@ -28,7 +28,7 @@ place a threat is shot at, whichever primitive or entry phase is running.
    ambusher's on the threshold it waits on (LD15).
    `_gaze` (`threat` / `doors` / `primitive`) and `_threat` are in `debug_state()["gaze"]`.
 
-## Watch (`watch.gd`, a `RefCounted` built in `Behavior.setup`, tunables via `apply_config`)
+## Watch (`watch.gd`, a `RefCounted` built in `Behavior.setup`, tunables set by `Behavior.apply_config(cfg)`)
 
 It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only the static `ease_gaze` takes a character.
 
@@ -59,7 +59,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 
 ## Exports (`GoalController`, group *Watch*)
 
-`watch_look_ahead`, `watch_door_dwell`, `watch_lost_gaze` → Behavior fields → `apply_config()` → `Watch`.
+`watch_look_ahead`, `watch_door_dwell`, `watch_lost_gaze` → `Behavior.apply_config(cfg)` → `Watch` (`look_ahead`, `door_dwell`, `lost_gaze`; `look_rate` is `search_look_rate`). `Behavior` keeps `watch_lost_gaze` too, for its own read of a threat out of sight.
 
 ## Tests
 
