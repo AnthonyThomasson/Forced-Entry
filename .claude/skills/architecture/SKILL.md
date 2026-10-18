@@ -531,7 +531,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`):
 	  shapes (`rounded`/`ellipse`/`disc`/`bowed`), `fill`, `bevel`, `outline`, `surface`, `grain`,
 	  `speckle`, `glare`, `cast_shadows`, `tones(base)` …; `PixelCanvas.ConvexShape.new(rect, x0, x1, y0, y1)` (a shape from its per-row
-	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`. **What gives light** (a screen's
+	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`; `PixelCanvas.line_points(a, b) -> Array[Vector2i]` (the
+	  points of a 1 px line, the one Bresenham `line` draws along) is walked by Objects' `art/decay.gd` for its lines and scratches. **What gives light** (a screen's
 	  face, a tube, a bulb, an LED) a painter draws inside `canvas.glowing(draw: Callable, area := Rect2i())`, which marks every pixel
 	  the drawing changes as emissive; `PixelArt.emissive(painter, size, color, facing, material, opts) -> Texture2D` returns those
 	  pixels of `render`'s texture for the same inputs (same paint, cached beside it; transparent elsewhere, null when nothing in it
