@@ -101,8 +101,8 @@ func learn_carried() -> void:
 		if not stats.is_empty():
 			_release = _character.throw_release_offset(slot)
 
-## Learn the heights of a standing and of a crouched body off the NPC's own (`Character.posture_coverage`), the figures furniture is measured against.
 
+## Learn the heights of a standing and of a crouched body off the NPC's own (`Character.posture_coverage`), the figures furniture is measured against.
 func learn_body() -> void:
 	_stand = _character.posture_coverage(&"stand")
 	_crouch = _character.posture_coverage(&"crouch")
