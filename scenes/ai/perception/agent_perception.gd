@@ -1025,7 +1025,7 @@ func is_cleared(key: String) -> bool:
 func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var clear := is_cleared
 	if ordered_walk:
-		# The room its stack holds is passed through (rule 9), and, for an NPC that does not clear rooms by entry, a room seen empty (D11).
+		# The room its stack holds is passed through (D20), and, for an NPC that does not clear rooms by entry, a room seen empty (D11).
 		clear = func(key: String) -> bool: return is_cleared(key) or key == stack_room() or (not entry_enabled and seen_empty(key))
 	return _entry.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
 
@@ -1066,7 +1066,7 @@ func _pass_clear_ordered(key: String) -> bool:
 	return is_pass_clear(key) or key == stack_room()
 
 
-## The room an ordered stack holds (ticket #65 rule 9, `docs/leadership.md` D4): on the walk of a member to the stack its live order names
+## The room an ordered stack holds (`docs/leadership.md` D20): on the walk of a member to the stack its live order names
 ## (`ordered_walk`), the room that stack stands in once a member under the same order holds its slot there (its claim radioed `ready`, or
 ## `bang`): that room counts as cleared for passing, so the walk is not sent into it by entry. "" for none (outside the house, no slot held
 ## yet, or no ordered walk). Worked out once a physics frame.

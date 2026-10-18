@@ -1,7 +1,7 @@
 extends RefCounted
 
-## Shared helpers for the tests of every member of an ordered stack reaching its slot (`tests/ai/entry/stack_reach_*`, ticket #65 round
-## 2, rule 9; not a test itself): `const Reach := preload("res://tests/_ai/reach_probe.gd")`.
+## Shared helpers for the tests of every member of an ordered stack reaching its slot (`tests/ai/entry/stack_reach_*`,
+## `docs/leadership.md` D4 and D20; not a test itself): `const Reach := preload("res://tests/_ai/reach_probe.gd")`.
 ##
 ## A leader (a puppet standing in for the human, out of the way) orders a stack on one doorway through `Squad.issue`, held for its go
 ## (LD13) so the stack forms and holds in its slots instead of going in, and the rest of the AI is on; Von is down (scripted), so what each
@@ -73,7 +73,7 @@ static func click(f: Dictionary, side: int) -> Vector2:
 
 
 ## Order the members `ids` (invader actors) to stack on frame `f`, starting on side `side`, held for the go, through the squad led by
-## the puppet `lead`; watch them form the stack; check rule 9 for each. `starts` names each member's starting place for the messages
+## the puppet `lead`; watch them form the stack; check each member as above (D4, D20). `starts` names each member's starting place for the messages
 ## (`{ id: "near along the wall" }`).
 static func run(t: TestContext, f: Dictionary, ids: Array, lead: StringName, side: int, starts: Dictionary) -> void:
 	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
@@ -271,7 +271,7 @@ static func _latest_claim(t: TestContext, id: StringName, opening: String) -> Di
 	return out
 
 
-## The stack's move-ups at doorway `opening` among the members `ids`, read off their claims on the radio (rule 9: a member in its slot
+## The stack's move-ups at doorway `opening` among the members `ids`, read off their claims on the radio (E2: a member in its slot
 ## steps into a lower slot of its own file whose holder is not there yet, and the latecomer takes the slot it freed): a mover's claim of
 ## a lower number on the same side of the door (`from` -> `to`), paired with a teammate's claim, within `MOVE_UP_S` of it, that rises
 ## from exactly `to` to exactly `from` on that side. Each `{ mover, late, from, to, at, late_at, side }`; a rise pairs with one claim.

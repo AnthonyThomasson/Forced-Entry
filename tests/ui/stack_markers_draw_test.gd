@@ -4,7 +4,7 @@ extends GameTest
 ## is drawn with its number, slots held by the AI dimmer than the human's own, which is highlighted; nothing is drawn
 ## while the stack has no reservation. The node only observes `view()` of the human's stack.
 ##
-## Extended (ticket #65 round 2, rule 11, LD18): in a played match every stack of the human's side, ordered or its own, shows its numbered
+## Extended (LD18): in a played match every stack of the human's side, ordered or its own, shows its numbered
 ## rings, read from the squad's view (`Squad.view()["stacks"]`: `{ opening, into, door, slots: [{ n, point, holder, held, there, mine,
 ## side, row }] }`), as well as the human's own `PlayerStack.view()`: in claim order, dim while the member is on its way (`held`, not
 ## `there`), filled once there, the human's own bright (`mine`), free slots faint; both sides of a split stack and second rows; from the

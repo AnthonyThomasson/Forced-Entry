@@ -1582,7 +1582,7 @@ static func claims(id: String, callouts: Array) -> Array:
 
 
 ## The lowest stack slot (1 = the point) not claimed by an ally in `team` (see `claims`), for the NPC with instance id `self_id` that holds
-## `current` (0: it is claiming now). Claims made on the same physics frame settle by distance (ticket #65 rule 9), so their walks do not
+## `current` (0: it is claiming now). Claims made on the same physics frame settle by distance (E2), so their walks do not
 ## cross: with `mine` (`{ frame, pos, g, side }`: the frame this NPC claims or claimed on, where it stood then, the doorway's geometry and,
 ## for `current`, its side), a slot claimed on that same frame by an ally farther from the slot's point than this NPC is taken from it,
 ## and of two such claims on one slot the nearer keeps it (each reads the other's `claim_frame` and `claim_pos` off the radio, so both
