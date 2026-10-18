@@ -684,8 +684,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `WALL`) and solid pieces (their footprint, `EMITTER`, `TALL` or `FURNITURE`) and Character's living body (an oval turned
       with `facing`, `CHARACTER`, freed on death) build their own `LightOccluder2D` children with `LightMasks.occluder`, like
       their colliders; Objects' street floors (catalogue `light_layer: "street"`) put their canvas items on `LightMasks.STREET`;
-      Objects' `Emissive` overlays draw unshaded. The Lighting domain reads the floors (`floor_material`, `size`, the `light_mask`
-      of their canvas items) for the per-floor budget, and each frame the characters in the group `characters` (`is_dead`,
+      Objects' `Emissive` overlays draw unshaded. The Lighting domain reads the floors, found by the group `floors` every Objects `Floor` joins in
+      its `_ready` (their `size` and the `light_mask` of their canvas items), for the per-floor budget, and each frame the characters in the group `characters` (`is_dead`,
       `radius`, interface 7) for whom stands in a flash.
     - **The flash events:** the `&"shot"` and `&"explosion"` topics (interface 10) light its flash pool.
 
@@ -785,7 +785,7 @@ Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sa
 TestBrowser / TestRunner ─▶ UI (TestBrowserWindow / TestResultHUD / OverlayToggles / PerformanceOverlay)
 TestRunner / TestWorld ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 TestRunner ─▶ Camera (General: frame(targets), pan_enabled)
-main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), floors, group `characters`, duck-typed)──▶ the world
+main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world
 Item (&"shot") / Explosion (&"explosion") ──▶ EventBus ──▶ WorldLighting (flashes)
 Objects (walls, solid pieces, street floors) / Character (the living body) ──(LightMasks.occluder, STREET)──▶ LightMasks (General)
 TestWorld ─▶ vehicle scenes (TestSetup.vehicle)
