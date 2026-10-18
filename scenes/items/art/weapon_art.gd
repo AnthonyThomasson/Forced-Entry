@@ -27,6 +27,46 @@ const MUZZLE := Color(0.05, 0.05, 0.06)
 const HELD_PARTS := { "grip": STOCK_HEIGHT, "stock": STOCK_HEIGHT, "body": BODY_HEIGHT, "guard": GUARD_HEIGHT,
 	"barrel": BARREL_HEIGHT }
 
+# --- A weapon style's painting -----------------------------------------------------------------
+
+## Paint a gun onto `c`, muzzle toward +y, for a weapon style's painter: held (its parts drawn, then `held_marks(c, look,
+## parts)`, then the muzzle) or, with `opts.flat`, lying on its side (`opts.flip` the side up: its profile drawn, then
+## `flat_marks(c, look, profile, mirror)`), then the cast shadows; nothing without a look (`opts.look`). `crude`, `wood_stock`
+## and `wood_grip` are the style's silhouette (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`).
+static func paint_gun(c: PixelCanvas, opts: Dictionary, crude: bool, wood_stock: bool, wood_grip: bool, flat_marks: Callable,
+		held_marks: Callable) -> void:
+	var look := PixelArt.look_of(opts)
+	if look.is_empty():
+		return
+	var gun: StringName = opts.get("gun", &"pistol")
+	if opts.get("flat", false):
+		var mx := mirror(c, bool(opts.get("flip", false)))
+		var p := flat_profile(c, gun, crude)
+		draw_flat(c, look, gun, p, mx, crude, wood_stock, wood_grip)
+		flat_marks.call(c, look, p, mx)
+	else:
+		var parts := held_parts(c, gun, crude)
+		draw_held(c, look, parts, wood_stock)
+		held_marks.call(c, look, parts)
+		held_muzzle(c)
+	c.cast_shadows()
+
+
+## Paint a grenade onto `c`, the fuze toward +y, for a weapon style's painter: `body(c, look, frag, cap_len, top)` draws its
+## shell, marks and fuze or cap (`frag` a frag, else a stun; `cap_len` px left for the fuze or cap, from `top` down), then the
+## lever held down along it while `opts.spoon` and the cast shadows; nothing without a look (`opts.look`).
+static func paint_grenade(c: PixelCanvas, opts: Dictionary, body: Callable) -> void:
+	var look := PixelArt.look_of(opts)
+	if look.is_empty():
+		return
+	var frag: bool = opts.get("kind", &"frag") == &"frag"
+	var cap_len := maxi(2, int(c.h * (22 if frag else 24) / 100.0))
+	body.call(c, look, frag, cap_len, c.h - cap_len)
+	if opts.get("spoon", false):
+		lever(c, look, frag)
+	c.cast_shadows()
+
+
 # --- Guns held, seen from above -----------------------------------------------------------------
 
 ## The parts of `gun` as held (part -> its rect, butt to muzzle): a pistol's `grip` and `body` (the slide); a long gun's `stock`,

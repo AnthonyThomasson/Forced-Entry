@@ -10,12 +10,11 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the grenade onto `c`, the fuze toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := PixelArt.look_of(opts)
-	if look.is_empty():
-		return
-	var frag: bool = opts.get("kind", &"frag") == &"frag"
-	var cap_len := maxi(2, int(c.h * (22 if frag else 24) / 100.0))
-	var top := c.h - cap_len
+	WeaponArt.paint_grenade(c, opts, _body)
+
+
+## The shell, its marks and the fuze or cap: the frag's grid, the rust and the tape round the middle.
+static func _body(c: PixelCanvas, look: Dictionary, frag: bool, cap_len: int, top: int) -> void:
 	var cx := int(c.w / 2.0)
 	var mid := int(top * 0.45)
 	var t := WeaponArt.shell(c, look, cap_len, frag)
@@ -31,6 +30,3 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 		WeaponArt.cap(c, look, Rect2i(cx - 1, top - 1, 3, cap_len + 1))
 	else:
 		WeaponArt.cap(c, look, Rect2i(1, top, c.w - 2, cap_len))
-	if opts.get("spoon", false):
-		WeaponArt.lever(c, look, frag)
-	c.cast_shadows()

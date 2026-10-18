@@ -10,21 +10,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := PixelArt.look_of(opts)
-	if look.is_empty():
-		return
-	var gun: StringName = opts.get("gun", &"pistol")
-	if opts.get("flat", false):
-		var mx := WeaponArt.mirror(c, bool(opts.get("flip", false)))
-		var p := WeaponArt.flat_profile(c, gun, false)
-		WeaponArt.draw_flat(c, look, gun, p, mx, false, true, false)
-		_flat_marks(c, look, p)
-	else:
-		var parts := WeaponArt.held_parts(c, gun, false)
-		WeaponArt.draw_held(c, look, parts, true)
-		_held_marks(c, look, parts)
-		WeaponArt.held_muzzle(c)
-	c.cast_shadows()
+	WeaponArt.paint_gun(c, opts, false, true, false, _flat_marks, _held_marks)
 
 
 ## Rust on the receiver and the guard (a pistol's slide), a strip of tape round the guard, the grip and the stock's neck.
@@ -41,7 +27,7 @@ static func _held_marks(c: PixelCanvas, look: Dictionary, parts: Dictionary) -> 
 
 
 ## Lying: rust along the receiver and two rows of tape round the guard (round a pistol's slide).
-static func _flat_marks(c: PixelCanvas, look: Dictionary, p: Dictionary) -> void:
+static func _flat_marks(c: PixelCanvas, look: Dictionary, p: Dictionary, _mx: Callable) -> void:
 	var body_end: int = p["body_end"]
 	var guard_end: int = p["guard_end"]
 	var from := maxi(int(p["stock_end"]), 0) + 1

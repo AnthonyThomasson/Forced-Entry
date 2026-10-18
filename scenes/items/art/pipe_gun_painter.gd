@@ -11,21 +11,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	var look := PixelArt.look_of(opts)
-	if look.is_empty():
-		return
-	var gun: StringName = opts.get("gun", &"pistol")
-	if opts.get("flat", false):
-		var mx := WeaponArt.mirror(c, bool(opts.get("flip", false)))
-		var p := WeaponArt.flat_profile(c, gun, true)
-		WeaponArt.draw_flat(c, look, gun, p, mx, true, true, true)
-		_flat_marks(c, look, p, mx)
-	else:
-		var parts := WeaponArt.held_parts(c, gun, true)
-		WeaponArt.draw_held(c, look, parts, true)
-		_held_marks(c, look, parts)
-		WeaponArt.held_muzzle(c)
-	c.cast_shadows()
+	WeaponArt.paint_gun(c, opts, true, true, true, _flat_marks, _held_marks)
 
 
 ## Clamp bands down the pipe, copper wire where it leaves the action, weld beads down the box's left edge; the plank's ragged
