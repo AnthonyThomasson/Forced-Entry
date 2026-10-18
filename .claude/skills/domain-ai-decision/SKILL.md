@@ -140,6 +140,8 @@ effect; `node_overrides` is baked into the tree at `setup()` and is construction
   choose; the controller wires it to the behaviour's `fallback()`.
 - `entry_for(facts)` / `current_entry()` — the cheap check the controller uses to interrupt a walk
   in flight when the situation now calls for a different start (e.g. came under fire mid-search).
+- `label_of(id)` — a tree node's label ("STUN ENTRY"), or its id when it has none: the controller names an entry it turned into a bang
+  with it.
 - `cancel()`, `is_pending()`, `debug_state()` (per level: node, question, state, offered, Von's
   probabilities and pick, `auto`, `ms` — enough to replay offline), `walk_digest()` for the log line.
 
@@ -156,7 +158,8 @@ each hearing the other's radio first. A test raises `per_frame` with `set_static
 
 ## `decision_client.gd` — the transport
 
-`configure(url, model, timeout)`; `ask(state_text, instructions, options) -> bool` POSTs ONE `choice`
+`configure(url, model_name, timeout, npc_name = "NPC")`; `set_npc_name(npc_name)` (the NPC's name for log lines, once the controller
+has its character); `ask(state_text, instructions, options) -> bool` POSTs ONE `choice`
 question (`pick`) to `/v1/systemone`; `cancel()`.
 - `signal answered(pick, probabilities)` — Von's top pick: the argmax `choice` when it is one of the
   offered ids, else the highest-probability offered id (a stale/foreign id can never be chosen). Von's
