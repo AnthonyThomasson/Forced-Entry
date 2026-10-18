@@ -1,6 +1,6 @@
 ---
 name: domain-ui-menus
-description: Deep implementation detail for the UI menus sub-domain (scenes/ui/menus/) — the pre-game setup window (Play as, Lead the team, seed, per-side count/weapon/magazine/spares/grenades/outfit, Start / Watch / Endless / Tests / Settings buttons, remembered choices) and the settings page (Debug switch + key rebinding with capture). Use when editing scenes/ui/menus/ or working on the setup menu, its start config, the settings page or key rebinding UI. Plain-data windows that only emit signals. Complements the `domain-ui` overview and the `architecture` skill (interfaces 13, 14).
+description: Deep implementation detail for the UI menus sub-domain (scenes/ui/menus/) — the pre-game setup window (Play as, Lead the team, seed, per-side count/weapon/magazine/spares/grenades/outfit, Start / Watch / Endless / Tests / Settings buttons, remembered choices) and the settings page (Debug switch + key rebinding with capture). Use when editing scenes/ui/menus/ or working on the setup menu, its start config, the settings page or key rebinding UI. Plain-data windows that only emit signals. Complements the `domain-ui` overview and the `architecture` skill (interfaces 13, 14, 22).
 ---
 
 # UI · Menus sub-domain (`scenes/ui/menus/`)
