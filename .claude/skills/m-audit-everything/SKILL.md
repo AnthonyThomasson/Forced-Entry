@@ -19,7 +19,7 @@ loop. You are the coordinator; never substitute a non-Orca subagent.
 
 | Phase | Owner | Work | Gate |
 | --- | --- | --- | --- |
-| 0 — Scan | you | Step 0 survey, `audit_scan.py all`, uid check, `test_coverage.py`, saved under `$AUDIT_DIR` | outputs exist |
+| 0 — Scan | you | Step 0 survey, `audit_scan.py all`, uid check, `test_coverage.py`, `coverage.py report`, saved under `$AUDIT_DIR` | outputs exist |
 | 1 — Code wave | 5 workers, parallel, read-only | **1a** unreferenced symbols · **1b** orphaned mechanisms + vestigial config · **2** redundancy · **3** isolation · **4** splits | every Dispatch settled |
 | 2 — Docs wave | up to 4 workers, parallel, read-only | **5a** `AGENTS.md` + `architecture` · **5b–5c** domain skills, sharded · **5d** code comments | every Dispatch settled |
 | 3 — Merge | you | merge reports into the Output checklist, then ask which items to apply | the user answers |
@@ -36,8 +36,16 @@ python3 -I tools/audit_scan.py all > "$AUDIT_DIR/scan.txt"
 python3 tools/test_coverage.py      > "$AUDIT_DIR/test_coverage.txt"
 for f in $(find scenes tests tools addons -name '*.gd'); do [ -f "$f.uid" ] || echo "no uid: $f"; done  > "$AUDIT_DIR/uids.txt"
 for u in $(find scenes tests tools addons -name '*.gd.uid'); do [ -f "${u%.uid}" ] || echo "orphan uid: $u"; done >> "$AUDIT_DIR/uids.txt"
+python3 tools/coverage.py report > "$AUDIT_DIR/coverage.txt"   # only when a run folder of HEAD exists (below)
 # plus the Step 0 size table, saved as $AUDIT_DIR/survey.txt
 ```
+
+`coverage.txt` is the runtime view: what ran in real matches and in the game tests (`tools/coverage/README.md`).
+`report` reads the newest run folders of HEAD under `artifacts/coverage/`, and exits 1 saying so when there are none.
+Then either tell the user there is no coverage evidence and go on without it (write that line into `coverage.txt`, so
+the workers know), or, if there is time, run one first: `python3 tools/coverage.py run` and `python3 tools/coverage.py
+run --tests --jobs=auto`, Bash sandbox disabled, on a quiet machine; they take a while (24 matches, 2 at a time, then
+the whole suite). Its rows feed the dead-code briefs (1a, 1b).
 
 **A wave.** Create the Run once (`orca orchestration run-create --objective "m-audit-everything of <branch>" --json`),
 start every worker of the wave, then wait:
@@ -50,7 +58,7 @@ orca orchestration check --wait --types "worker_done,escalation,question" --time
 Spec template (literal paths; a worker has no `$AUDIT_DIR`):
 
 > **Target:** the whole codebase as it stands in `<worktree path>`; scan outputs in `<AUDIT_DIR>` (`scan.txt`,
-> `test_coverage.txt`, `uids.txt`, `survey.txt`) [; Phase 1 reports `<AUDIT_DIR>/report-*.md` for a docs worker].
+> `test_coverage.txt`, `uids.txt`, `survey.txt`, `coverage.txt`) [; Phase 1 reports `<AUDIT_DIR>/report-*.md` for a docs worker].
 > **Change:** produce the findings of `[Brief N — name, part ‹x›]` in `.claude/skills/m-audit-everything/SKILL.md`; read
 > that brief, the `architecture` skill first, then `[the domain-*/ skills for the domain(s) it covers]`.
 > **Constraints:** read-only — edit, stage, commit, stash and ticket nothing; propose, never delete; confirm every scan hit
@@ -92,6 +100,10 @@ ones. `tools/audit_scan.py` (`deps`, `dead`, `signals`, `facts`, `events`, `all`
 
 ## Brief 1 — Dead code (workers 1a, 1b)
 
+`coverage.txt`, when Phase 0 has one, is the runtime half of the evidence; how to read its columns, tags and trust
+checks (a Von-starvation warning in its header voids its combat zeros) is `ticket-refactor` step 2, and its limits
+step 4. Zero hits means not run in the sample, never unreachable: each row is a lead, confirmed by hand like a scan hit.
+
 ### 1a. Unreferenced symbols
 
 ```bash
@@ -99,8 +111,9 @@ python3 -I tools/audit_scan.py dead
 ```
 
 Matches by token (a same-named member elsewhere hides a dead one: grep the qualified name); any non-comment token in
-`scenes/ tests/ tools/ addons/` or a `.tscn` counts. Also check scripts nothing references, `uids.txt`, and the gaps in
-`test_coverage.txt` worth filling.
+`scenes/ tests/ tools/ addons/` or a `.tscn` counts. Also check scripts nothing references, `uids.txt`, the gaps in
+`test_coverage.txt` worth filling, and `coverage.txt`'s `dead` rows (never run, never referenced: the strongest lead)
+and `test-only` rows (only the tests reach it).
 
 **Every hit is advisory until confirmed by hand.** Dynamic dispatch no scan follows:
 
@@ -125,6 +138,8 @@ python3 -I tools/audit_scan.py facts     # snapshot facts no tree node gates on
 python3 -I tools/audit_scan.py events    # each EventBus topic's listeners, payload keys and their readers
 ```
 
+- `coverage.txt`: `untriggered system` rows (referenced, never ran: wired to a trigger that never comes) and
+  `dead branch` rows (an arm a live function never takes; an impossible condition is also Brief 2's dead branch).
 - `signals`: a signal with no listener (`test_context._never` is a deliberate `await` sentinel).
 - `facts`: facts `agent_snapshot.gd` writes that no tree `requires`, entry rule, test or tool names, marked documented
   (vocabulary in `domain-ai-perception` / `docs/cover-and-stance.md`: a judgement call, report as such) or not (an orphan).

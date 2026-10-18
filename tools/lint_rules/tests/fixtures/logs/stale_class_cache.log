@@ -1,0 +1,602 @@
+2026-10-17 13:47:43.191 Godot[93861:105941679] ApplePersistenceIgnoreState: Existing state will not be touched. New state will be written to /var/folders/_d/ylmkwtcj15sdbbdt8wdnypq00000gn/T/org.godotengine.godot.savedState
+LINT-PASS2
+LINT> res://sandboxes/player_gun_range_sandbox.gd
+
+Debugger Break, Reason: 'Parser Error: Could not find base class "GameTest".'
+*Frame 0 - res://sandboxes/player_gun_range_sandbox.gd:1 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Could not find base class "GameTest".
+[0;90m          at: GDScript::reload (res://sandboxes/player_gun_range_sandbox.gd:1)[0m
+[1;31mERROR:[0;91m Failed to load script "res://sandboxes/player_gun_range_sandbox.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://sandboxes/vehicle_sandbox.gd
+
+Debugger Break, Reason: 'Parser Error: Could not find base class "GameTest".'
+*Frame 0 - res://sandboxes/vehicle_sandbox.gd:1 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Could not find base class "GameTest".
+[0;90m          at: GDScript::reload (res://sandboxes/vehicle_sandbox.gd:1)[0m
+[1;31mERROR:[0;91m Failed to load script "res://sandboxes/vehicle_sandbox.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/behavior/behavior.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/locomotion.gd:158 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:158)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:173)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:184)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:186)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:474)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:474)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:476)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "route" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:476)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:477)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:486)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:488)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "q" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:672)[0m
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/combat.gd:299 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/combat.gd:299)[0m
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/entry.gd:221 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:221)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:433)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:1110)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:1555)[0m
+[1;35mSCRIPT ERROR:[0;95m Compile Error: Failed to compile depended scripts.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/behavior.gd:0)[0m
+
+Debugger Break, Reason: 'Parser Error: Failed to compile depended scripts.'
+*Frame 0 - res://scenes/ai/behavior/behavior.gd:0 in function ''
+Enter "help" for assistance.
+debug> [1;31mERROR:[0;91m Failed to load script "res://scenes/ai/behavior/behavior.gd" with error "Compilation failed".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/behavior/combat.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/combat.gd:299 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/combat.gd:299)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/behavior/combat.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/behavior/entry.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/entry.gd:221 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:221)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:433)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:1110)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/entry.gd:1555)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/behavior/entry.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/behavior/locomotion.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/behavior/locomotion.gd:158 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:158)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:173)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:184)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:186)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:474)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:474)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:476)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "route" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:476)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:477)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:486)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:488)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "q" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/behavior/locomotion.gd:672)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/behavior/locomotion.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/behavior/search_coverage.gd
+LINT> res://scenes/ai/behavior/watch.gd
+LINT> res://scenes/ai/debug/agent_debug.gd
+LINT> res://scenes/ai/debug/brain_debug.gd
+LINT> res://scenes/ai/debug/combat_debug.gd
+LINT> res://scenes/ai/debug/contacts_debug.gd
+LINT> res://scenes/ai/debug/debug_overlay.gd
+LINT> res://scenes/ai/debug/debug_text.gd
+LINT> res://scenes/ai/debug/entry_debug.gd
+LINT> res://scenes/ai/debug/entry_team_debug.gd
+LINT> res://scenes/ai/debug/grenade_overlay.gd
+LINT> res://scenes/ai/debug/hearing_debug.gd
+LINT> res://scenes/ai/debug/routes_debug.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/debug/routes_debug.gd:60 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/debug/routes_debug.gd:60)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/debug/routes_debug.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/debug/search_debug.gd
+LINT> res://scenes/ai/debug/stuck_debug.gd
+LINT> res://scenes/ai/debug/tactics_debug.gd
+LINT> res://scenes/ai/debug/targets_debug.gd
+LINT> res://scenes/ai/debug/territory_debug.gd
+LINT> res://scenes/ai/debug/vision_debug.gd
+LINT> res://scenes/ai/debug/zone_list.gd
+LINT> res://scenes/ai/decision/decision_budget.gd
+LINT> res://scenes/ai/decision/decision_client.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "DecisionStub" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/decision/decision_client.gd:49 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "DecisionStub" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_client.gd:49)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "DecisionStub" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_client.gd:71)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "DecisionStub" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_client.gd:78)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "pick" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_client.gd:78)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_client.gd:126)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/decision/decision_client.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/decision/decision_planner.gd
+LINT> res://scenes/ai/decision/decision_server_launcher.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "GameLog" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/decision/decision_server_launcher.gd:201 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_server_launcher.gd:201)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_server_launcher.gd:203)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_server_launcher.gd:217)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_server_launcher.gd:229)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/decision/decision_server_launcher.gd:247)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/decision/decision_server_launcher.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/decision/decision_stub.gd
+LINT> res://scenes/ai/decision/decision_tree.gd
+LINT> res://scenes/ai/goal_controller.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "GameLog" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/goal_controller.gd:829 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/goal_controller.gd:829)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "GameLog" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/goal_controller.gd:961)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/goal_controller.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/perception/agent_entry.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_entry.gd:135 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:135)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:163)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:175)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:175)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "off" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:184)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:291)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:291)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:292)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain_len" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:292)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:294)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:301)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "region" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:301)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:302)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "avoid" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:302)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:303)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:306)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:306)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:307)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:309)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "length" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:309)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:320)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:323)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "region" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:323)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:377)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:525)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:548)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:566)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:566)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:679)[0m
+[1;31mERROR:[0;91m Failed to load script "res://scenes/ai/perception/agent_entry.gd" with error "Parse error".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/perception/agent_grenades.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_throw.gd:75 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Assigned value for constant "SLOTS" isn't a constant expression.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "Explosion" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:164)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:193)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:211)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:211)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "Explosion" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:243)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "hit" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:243)[0m
+[1;35mSCRIPT ERROR:[0;95m Compile Error: Failed to compile depended scripts.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_grenades.gd:0)[0m
+
+Debugger Break, Reason: 'Parser Error: Failed to compile depended scripts.'
+*Frame 0 - res://scenes/ai/perception/agent_grenades.gd:0 in function ''
+Enter "help" for assistance.
+debug> [1;31mERROR:[0;91m Failed to load script "res://scenes/ai/perception/agent_grenades.gd" with error "Compilation failed".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/perception/agent_hostility.gd
+LINT> res://scenes/ai/perception/agent_memory.gd
+LINT> res://scenes/ai/perception/agent_perception.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "PhysicsLayers" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_vision.gd:25 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "PhysicsLayers" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_vision.gd:25)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Assigned value for constant "QUERY_MASK" isn't a constant expression.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_vision.gd:25)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "QUERY_MASK" constant because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_vision.gd:25)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot assign a value of type "null" as "int".
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_vision.gd:47)[0m
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_tactics.gd:83 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:83)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "total" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:83)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:233)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:269)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:269)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:276)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:295)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:295)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:399)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:399)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:418)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:418)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:419)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:447)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:447)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:460)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:460)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:461)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "total" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:461)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:465)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:465)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:469)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:495)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:499)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:518)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:518)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:519)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "route_len" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:519)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:537)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "q" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:537)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:538)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:538)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "q" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:550)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:561)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:566)[0m
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_entry.gd:135 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:135)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:163)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:175)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:175)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "off" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:184)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:291)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:291)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:292)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain_len" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:292)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:294)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:301)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "region" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:301)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:302)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "avoid" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:302)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:303)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:306)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:306)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:307)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:309)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "length" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:309)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:320)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:323)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "region" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:323)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:377)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:525)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:548)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:555)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:566)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:566)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_entry.gd:679)[0m
+
+Debugger Break, Reason: 'Parser Error: Identifier "ItemRegistry" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_throw.gd:75 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "ItemRegistry" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Assigned value for constant "SLOTS" isn't a constant expression.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:75)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "Explosion" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:164)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:193)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:211)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:211)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "Explosion" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:243)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "hit" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_throw.gd:243)[0m
+[1;35mSCRIPT ERROR:[0;95m Compile Error: Failed to compile depended scripts.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_perception.gd:0)[0m
+
+Debugger Break, Reason: 'Parser Error: Failed to compile depended scripts.'
+*Frame 0 - res://scenes/ai/perception/agent_perception.gd:0 in function ''
+Enter "help" for assistance.
+debug> [1;31mERROR:[0;91m Failed to load script "res://scenes/ai/perception/agent_perception.gd" with error "Compilation failed".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/perception/agent_snapshot.gd
+
+Debugger Break, Reason: 'Parser Error: Could not resolve external class member "SLOTS".'
+*Frame 0 - res://scenes/ai/perception/snapshot/snapshot_options.gd:324 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Could not resolve external class member "SLOTS".
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:324)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:486)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:499)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:508)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:526)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:595)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:614)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:692)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:742)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/snapshot/snapshot_options.gd:886)[0m
+[1;35mSCRIPT ERROR:[0;95m Compile Error: Failed to compile depended scripts.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_snapshot.gd:0)[0m
+
+Debugger Break, Reason: 'Parser Error: Failed to compile depended scripts.'
+*Frame 0 - res://scenes/ai/perception/agent_snapshot.gd:0 in function ''
+Enter "help" for assistance.
+debug> [1;31mERROR:[0;91m Failed to load script "res://scenes/ai/perception/agent_snapshot.gd" with error "Compilation failed".
+[0;90m   at: load (modules/gdscript/gdscript.cpp:3022)[0m
+LINT> res://scenes/ai/perception/agent_suspicion.gd
+LINT> res://scenes/ai/perception/agent_tactics.gd
+
+Debugger Break, Reason: 'Parser Error: Identifier "NavBuilder" not declared in the current scope.'
+*Frame 0 - res://scenes/ai/perception/agent_tactics.gd:83 in function ''
+Enter "help" for assistance.
+debug> [1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:83)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "total" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:83)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:233)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:269)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:269)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:276)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:295)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:295)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:326)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:399)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "p" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:399)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:418)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "plain" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:418)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:419)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:447)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:447)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:460)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "path" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:460)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:461)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Cannot infer the type of "total" variable because the value doesn't have a set type.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:461)[0m
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "NavBuilder" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/ai/perception/agent_tactics.gd:465)[0m
+LINT-DONE 797

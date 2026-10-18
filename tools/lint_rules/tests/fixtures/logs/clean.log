@@ -1,0 +1,6 @@
+Godot Engine v4.4.stable.mono.official.4c311cbee - https://godotengine.org
+
+LINT-PASS2
+LINT> res://scenes/clean.gd
+LINT> res://scenes/bad.gd
+LINT-DONE 2

@@ -25,7 +25,7 @@ to ~15 matching lines verbatim". Judge the reply yourself; fix or rerun yourself
 tools/load_check.sh               # headless: main scene + autoloads, a few frames, quit
 tools/load_check.sh --windowed    # with a window: rendering warnings count too
 tools/load_check.sh --strict-exit # also fail on the engine's exit leak report (otherwise a NOTE)
-tools/lint.sh [paths]             # GDScript analyzer warnings, which headless runs never print
+tools/lint.sh [paths]             # GDScript analyzer warnings, which headless runs never print, then the lint rules
 ```
 
 - `load_check.sh` exits 1 and prints every engine error or warning in the log (`✗ script error: Parse Error: … (res://….gd:42)`
@@ -34,7 +34,11 @@ tools/lint.sh [paths]             # GDScript analyzer warnings, which headless r
 - `Identifier "Foo" not declared` right after adding `class_name Foo`: stale class cache. Run
   `"$GODOT" --headless --path . --import` (its `progress_dialog` noise is not a failure), then the check again.
 - One script: `"$GODOT" --headless --path . --check-only --script scenes/character/character.gd`.
-- Lint: fix the code; silencing a warning is a last resort (`audit`, step 5).
+- Lint: fix the code; silencing a warning is a last resort (`audit`, step 5). It prints a section per pass:
+  `== GDScript analyzer (engine) ==`, then `== <rule>: <description> ==` for each project lint rule
+  (`tools/lint_rules/README.md`), ending in `PASS` or `FAIL`; a failing rule fails the lint like a warning.
+  `--list-rules` lists the rules, `--rule=a,b` runs only those (no engine pass, so no Godot), `--skip-rule=a,b` every
+  rule but those.
 - A clean load only proves it parses. **Prefer a test** for behaviour (`tools/run_tests.sh --changed --summary`, which
   imports a fresh checkout itself). Drive the live game only to explore or for what a puppet cannot reach; N-match
   scoring is `tools/match.py`.

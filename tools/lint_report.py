@@ -8,6 +8,10 @@ warning without its file or line, so the file comes from the `LINT> <path>` mark
 lint_scripts.gd) and the lines are only candidates: the lines of that file which name the variable in the message,
 or, for an integer division, the exact `/` (found by recompiling the script once per `/`, see lint_scripts.gd;
 needs $GODOT, else the lines which divide). The editor's Debugger > Errors tab shows the exact line of the rest.
+
+A stale class cache (pulled commits that add `class_name`s, before an import) makes every script naming one of them
+fail with "not declared" / "could not find type" errors; when the log is full of those, the report says to run
+`godot --headless --path . --import` instead of leaving them to be read as hundreds of code errors.
 """
 import os
 import re
@@ -19,6 +23,13 @@ HEADERS = ("SCRIPT ERROR:", "USER SCRIPT ERROR:", "ERROR:", "WARNING:", "SCRIPT 
 NOISE = ("Debugger Break", "Enter \"help\"", "*Frame", "at:", "LINT")
 NAMED = re.compile(r'"(\w+)"')
 MAX_CANDIDATES = 8
+# An unknown class name, which a stale class cache produces by the hundred; a typo produces one.
+UNKNOWN_CLASS = re.compile(r'Identifier "[A-Z]\w*" not declared|Could not find (?:base class|type) "|'
+                           r'Could not resolve (?:class|external class member) "')
+STALE_MIN_ERRORS = 10
+STALE_MIN_FILES = 3
+STALE_HINT = ("Hint: {n} unknown-class errors in {files} scripts look like a stale class cache (commits that add "
+              "class_names were pulled): run `godot --headless --path . --import`, then lint again.")
 
 
 def entries(text: str):
@@ -63,6 +74,14 @@ def candidates(path: str, msg: str) -> list[int]:
         found = [i + 1 for i, l in enumerate(code) if decl.search(l)]
         return (found or [i + 1 for i, l in enumerate(code) if re.search(rf"\b{name}\b", l)])[:MAX_CANDIDATES]
     return []
+
+
+def stale_cache(by_file: dict[str, list[str]]) -> str:
+    """The import hint when the errors look like a stale class cache rather than code errors, else ""."""
+    hit = {path: sum(1 for m in msgs if UNKNOWN_CLASS.search(m)) for path, msgs in by_file.items()}
+    total = sum(hit.values())
+    files = sum(1 for n in hit.values() if n)
+    return STALE_HINT.format(n=total, files=files) if total >= STALE_MIN_ERRORS and files >= STALE_MIN_FILES else ""
 
 
 def division_sites(paths: list[str]) -> dict[str, list[tuple[int, int]]]:
@@ -122,6 +141,9 @@ def main() -> int:
                 where = f"  [candidate lines {', '.join(map(str, lines))}]" if lines else ""
             print(f"  {msg}{f'  x{n}' if n > 1 else ''}{where}")
     print(f"FAIL: {total} GDScript warning(s)/error(s) in {len(by_file)} file(s) (log: {args[0]})")
+    hint = stale_cache(by_file)
+    if hint:
+        print(hint)
     return 1
 
 

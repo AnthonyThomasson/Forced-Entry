@@ -795,8 +795,8 @@ Two conventions hold across domains; the per-domain specifics live in each domai
 - **Verification ladder** — use the cheapest rung that proves the change:
   1. **Loads?** `godot-run` skill: headless load check (run `--import` first when you add a `class_name`).
      **Clean?** `tools/lint.sh [paths]` (a few seconds) prints every GDScript analyzer warning of the editor's
-     Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file; it runs first in
-     every `run_tests.sh` and fails the run before a test starts. Fix the code; silence a warning only as a last resort.
+     Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
+     (`tools/lint_rules/`, one section each); it runs first in every `run_tests.sh` and fails the run before a test starts. Fix the code; silence a warning only as a last resort.
   2. **Behaves?** `tools/run_tests.sh [words]` runs `tests/**/*_test.gd` headless and deterministically
      (exit 1 on a lint warning, a failure, or any engine error/warning logged during a test). Useful flags: `--list`,
      `--changed` (the domains your uncommitted changes can break, in one run), `--id=<id>` / `--domain=a,b`
@@ -813,6 +813,7 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   frame, a furniture pile shoved at once, house generation, hundreds of hits on one body, an NPC crowd, grenades thrown into a 5v5 and a
   frag and a stun bursting in a crowded room (`domain-testing` skill, "Performance tests"); a change to a per-frame path should leave them
   green. Headless they measure the CPU; `tools/run_tests.sh --windowed` measures the render too.
+  **What runs?** `tools/coverage/README.md`: a dev tool outside the game, kept out of it by the `coverage_isolation` lint rule.
   A bugfix starts with a failing test on rung 2 (`fix` skill).
 - The relevant **`domain-<name>` skill** documents each domain's behaviour to verify (house
   generation, movement/pushing, items, interactions, combat).

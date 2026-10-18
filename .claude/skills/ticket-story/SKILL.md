@@ -1,13 +1,13 @@
 ---
 name: ticket-story
-description: Work a standard ticket (no `bug` or `spike` label; also `ai`, `harness`, `assets`, `graphics` and `audio`) in seven phases - grill, plan on the ticket, tests first, build, green + feedback gate, audit, report. Invoked from `ticket`.
+description: Work a standard ticket (no `bug` or `spike` label; also `ai`, `harness`, `refactor`, `assets`, `graphics` and `audio`) in seven phases - grill, plan on the ticket, tests first, build, green + feedback gate, audit, report. Invoked from `ticket`.
 ---
 
 # Ticket: story
 
 Seven phases (`ticket`, "Work in phases"). You run 1, 2, 7, the feedback gate and the findings question; 3–6 may go
-to workers, the audit always does. Label `ai`: also `ticket-ai`; `harness`: also `ticket-harness`; `assets` /
-`graphics` / `audio`: also `ticket-assets`.
+to workers, the audit always does. Label `ai`: also `ticket-ai`; `harness`: also `ticket-harness`; `refactor`: also
+`ticket-refactor`; `assets` / `graphics` / `audio`: also `ticket-assets`.
 
 ## 1. Orient and grill
 

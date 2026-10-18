@@ -19,13 +19,16 @@ Use the GitHub CLI: `gh issue view`, `gh issue comment`, `gh issue edit`, `gh is
    | `bug` | `ticket-bug` |
    | `ai` | `ticket-ai` plus `ticket-story` |
    | `harness` | `ticket-harness` plus `ticket-story` |
+   | `refactor` | `ticket-refactor` plus `ticket-story` |
    | `assets` / `graphics` / `audio` | `ticket-assets` plus `ticket-story` |
    | `wayfinder:map` / `wayfinder:<type>` | none: a decision ticket, not build work. Stop and tell the user to run `/wayfinder <map>` |
 
-   A `bug` or `spike` label wins: the kind rows don't apply. No `bug` or `spike` label (no label, `ai`, `harness`,
-   `assets`, `graphics`, `audio`, or topic tags only): `ticket-story`. A label not in the table (e.g. `physics`) is a
-   topic tag; ignore it. Kind unclear: say so, don't guess. The kind is the triage category (`bug` is a bug, everything
-   else but `spike` an enhancement); the labels are mapped in `docs/agents/triage-labels.md`.
+   A `bug` or `spike` label wins: the kind rows don't apply. `harness` with `refactor` builds or changes a tool:
+   `ticket-harness`, not `ticket-refactor` (that one is for a ticket that uses the coverage evidence). No `bug` or
+   `spike` label (no label, `ai`, `harness`, `refactor`, `assets`, `graphics`, `audio`, or topic tags only):
+   `ticket-story`. A label not in the table (e.g. `physics`) is a topic tag; ignore it. Kind unclear: say so, don't
+   guess. The kind is the triage category (`bug` is a bug, everything else but `spike` an enhancement); the labels are
+   mapped in `docs/agents/triage-labels.md`.
 3. Read the **state** label (one of them; two at once: ask which holds):
 
    | State | Then |

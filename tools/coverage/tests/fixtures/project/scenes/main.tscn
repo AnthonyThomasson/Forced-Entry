@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scenes/setup_menu.gd" id="2_setup"]
+[ext_resource type="Script" path="res://scenes/match_hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scenes/worker.gd" id="4_worker"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="SetupMenu" type="CanvasLayer" parent="."]
+script = ExtResource("2_setup")
+
+[node name="MatchHUD" type="CanvasLayer" parent="."]
+script = ExtResource("3_hud")
+
+[node name="Worker" type="Node" parent="."]
+script = ExtResource("4_worker")
+
+[connection signal="pinged" from="Worker" to="." method="_on_worker_pinged"]

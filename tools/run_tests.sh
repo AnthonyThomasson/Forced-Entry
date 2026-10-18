@@ -279,7 +279,9 @@ for x in ${args[@]+"${args[@]}"}; do
 done
 # The same sources lint the same: the fingerprint of the last clean lint (HEAD plus every uncommitted change,
 # the way tools/stop_hook_checks.sh fingerprints) is kept in $LINT_OK, and a run on an identical tree skips the
-# ~4 s. Any edit, new file or new commit changes it, so the lint still runs before every first test run.
+# ~4 s. It spans the whole checkout, so it covers everything the lint reads: the scripts the engine pass compiles,
+# the rules in tools/lint_rules/ and what they scan (scenes/, tests/, addons/, project.godot). Any edit, new file or
+# new commit changes it, so the lint still runs before every first test run.
 lint_fingerprint() {
   { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; shasum "$f"; done; } \
     | shasum | cut -d' ' -f1

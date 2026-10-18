@@ -11,10 +11,12 @@ cross-domain interface surface. When working *inside* a domain, also load that d
 **If you are working on a GitHub ticket (issue), invoke the `ticket` skill first.** It reads the
 ticket's label and tells you which `ticket-<label>` skill to invoke (e.g. `spike` → `ticket-spike`).
 
-**Checks:** on Stop, Claude runs only lint + the headless load check (`tools/stop_hook_checks.sh`). A git
-pre-commit hook (`.githooks/pre-commit`) runs the game tests a commit can break (`tools/run_tests.sh --changed`), only
-when it touches `scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate
-`tools/run_tests.sh --domain=perf`; enable it once per clone with `tools/install_hooks.sh`.
+**Checks:** on Stop, Claude runs only lint + the headless load check (`tools/stop_hook_checks.sh`); lint is the
+engine's analyzer plus the project lint rules (`tools/lint_rules/`), and a failing rule fails it. A git pre-commit hook
+(`.githooks/pre-commit`) runs the game tests a commit can break (`tools/run_tests.sh --changed`), only when it touches
+`scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate
+`tools/run_tests.sh --domain=perf`; when it touches `tools/`, it also runs the tool tests
+(`python3 -m unittest discover -s tools -t .`). Enable it once per clone with `tools/install_hooks.sh`.
 
 ## Agent skills
 

@@ -42,8 +42,11 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-## Gather every .gd under `dir` (recursively) into `out`.
+## Gather every .gd under `dir` (recursively) into `out`, leaving out hidden folders, addons/ and every folder
+## holding a `.gdignore` (those Godot never imports, such as artifacts/ with the coverage tool's instrumented copy).
 func _collect(dir: String, out: Array) -> void:
+	if FileAccess.file_exists(dir.path_join(".gdignore")):
+		return
 	for f in DirAccess.get_files_at(dir):
 		var path := dir.path_join(f)
 		if f.ends_with(".gd") and path != SELF:

@@ -1,0 +1,8 @@
+Godot Engine v4.4.stable.mono.official.4c311cbee - https://godotengine.org
+
+LINT-PASS2
+LINT> res://scenes/clean.gd
+LINT> res://scenes/bad.gd
+[1;35mSCRIPT ERROR:[0;95m Parse Error: Identifier "Helth" not declared in the current scope.
+[0;90m          at: GDScript::reload (res://scenes/bad.gd:7)[0m
+LINT-DONE 2

@@ -1,16 +1,38 @@
 #!/usr/bin/env bash
-# Git pre-commit hook: when the commit touches game code, run the affected game tests and abort the commit on
-# failure. The performance tests (domain perf) are left out: their frame-time budgets fail on a loaded machine, so
-# run them on their own (`tools/run_tests.sh --domain=perf`). Enable with tools/install_hooks.sh; bypass with
-# `git commit --no-verify`.
+# Git pre-commit hook: run the tests a commit can break and abort the commit on failure.
+#   - Staged tools/: the tool tests (`python3 -m unittest discover -s tools -t .`: the lint rules, the coverage tool,
+#     audit_scan, this hook), silent when they pass.
+#   - Staged game code (scenes/, tests/, project.godot): the affected game tests. The performance tests (domain perf)
+#     are left out: their frame-time budgets fail on a loaded machine, so run them on their own
+#     (`tools/run_tests.sh --domain=perf`).
+# Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-git diff --cached --name-only | grep -qE '^(scenes/|tests/|project\.godot$)' || exit 0
+staged=$(git diff --cached --name-only)
+status=0
+
+if grep -qE '^tools/' <<<"$staged"; then
+  # Without git's GIT_* variables: git hands the hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every git a
+  # test runs in a throwaway repo of its own would obey them and act on this repo instead.
+  out=$(
+    while IFS= read -r var; do unset "$var"; done < <(compgen -e | grep '^GIT_')
+    python3 -m unittest discover -s tools -t . 2>&1
+  )
+  if [[ $? -ne 0 ]]; then
+    {
+      echo "Tool tests failed; commit aborted (python3 -m unittest discover -s tools -t .):"
+      echo "$out" | grep -E '^(FAIL|ERROR):|^Ran [0-9]+ test|^FAILED'
+    } >&2
+    status=1
+  fi
+fi
+
+grep -qE '^(scenes/|tests/|project\.godot$)' <<<"$staged" || exit $status
 
 out=$(tools/run_tests.sh --changed --summary --jobs=auto --skip-domain=perf 2>&1)
 code=$?
-[[ $code -eq 0 ]] && exit 0
+[[ $code -eq 0 ]] && exit $status
 
 {
   echo "Game tests failed; commit aborted (tools/run_tests.sh --changed --summary --jobs=auto --skip-domain=perf):"

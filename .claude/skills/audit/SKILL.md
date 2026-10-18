@@ -138,6 +138,14 @@ done
   Flag every one the diff adds (`git diff --staged "$BASE" | grep -n '^+.*warning_ignore'`) and every added `[debug]` /
   `gdscript/warnings` line in `project.godot` unless it meets that bar. After a rename that clears a shadowing warning,
   grep the function for the old name: a stale reference silently binds to the member (`name`, `visible`, `material`).
+  After the engine's section, lint prints one `== <rule>: <description> ==` section per project lint rule
+  (`tools/lint_rules/`; `--list-rules` names them, `--rule=a,b` / `--skip-rule=a,b` select): each finding under a
+  `FAIL` is a `file:line` finding, and a failing rule fails the lint. An `ALLOW` entry the diff adds needs a reason
+  that holds (`tools/lint_rules/README.md`, "Exceptions"). `tools/lint.sh --rule=coverage_isolation` passes: nothing
+  in the game names a dev tool (`docs/adr/0001-dev-tools-stay-outside-the-game.md`).
+- **Tool tests:** every new or changed `tools/` module, CLI flag, lint rule and hook block has its own test; one
+  without is a finding. Run `python3 -m unittest discover -s tools -t .` (Bash sandbox disabled: some start Godot) and
+  report its `Ran N tests` line and every `FAIL:` / `ERROR:`.
 - **Tests:** `GAME_TEST_CHANGED_FILES="$(git diff --staged --name-only "$BASE")" tools/run_tests.sh --changed --summary`.
   The variable hands `--changed` the branch's files (without it, committed work runs nothing). Add `--jobs=auto` when
   the change touches worldgen, art, general or `main.gd` (runs everything). Scripted-Von tests cover AI without a

@@ -1,0 +1,15 @@
+; The coverage tool's fixture project (tools/coverage/tests/): a tiny Godot 4.4 game shaped like Forced-Entry where the
+; tool looks (scenes/**/*.gd, the setup window's start_requested, the MatchHUD's match_ended, the test runner's
+; current entry, tools/run_tests.sh), small enough that every statement's expected hits are written by hand.
+
+config_version=5
+
+[application]
+
+config/name="coverage-fixture"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4")
+
+[autoload]
+
+Bus="*res://scenes/bus.gd"

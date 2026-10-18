@@ -26,6 +26,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))  # run as a script: the repo root, for tools.coverage.tests.support
+from tools.coverage.tests.support import clean_env  # noqa: E402
 PLAY = ROOT / "tools" / "play_tests.sh"
 RUNNER_SCENE = "res://scenes/testing/test_runner.tscn"
 
@@ -118,7 +120,7 @@ class ScriptTests(unittest.TestCase):
     # --- the temporary repo --------------------------------------------------------------------------
 
     def git(self, *args):
-        subprocess.run(["git", "-c", "commit.gpgsign=false", *args], cwd=self.repo, env=dict(os.environ, **GIT_ENV),
+        subprocess.run(["git", "-c", "commit.gpgsign=false", *args], cwd=self.repo, env=clean_env(**GIT_ENV),
                        check=True, capture_output=True, text=True)
 
     def write(self, rel, text=None):

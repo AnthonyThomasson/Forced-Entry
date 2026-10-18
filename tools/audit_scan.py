@@ -18,7 +18,11 @@
            how many reads it has outside the posting files (production vs. tests/tools).
 
 Reads files only (no Godot needed). A hit is a lead: dynamic dispatch (duck-typed controllers,
-gcmd `Expression` eval, scene-wired signals) can hide a real use, so confirm by hand.
+gcmd `Expression` eval, scene-wired signals) can hide a real use, so confirm by hand. The coverage tool's fixture
+project (tools/coverage/tests/fixtures/) is not this game's code and is skipped.
+
+`dead_functions(root)` is the "Functions nothing references" list as data, for the tree at `root` (the coverage
+tool's static_refs.py reads it).
 """
 import collections
 import os
@@ -27,9 +31,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-os.chdir(ROOT)
 
 SOURCE_DIRS = ("scenes", "tests", "tools", "addons")
+FIXTURES = os.path.join("tools", "coverage", "tests", "fixtures")
 SOURCE_EXT = (".gd", ".tscn", ".tres", ".py", ".sh", ".json")
 LIFECYCLE = {
     "_ready", "_process", "_physics_process", "_draw", "_init", "_input", "_exit_tree", "_enter_tree",
@@ -69,16 +73,26 @@ def strip_strings(line: str) -> str:
     return "".join(out)
 
 
-def read(path: str) -> str:
-    text = Path(path).read_text(errors="ignore")
+def read(path: str, root: str = ".") -> str:
+    text = Path(root, path).read_text(errors="ignore")
     if path.endswith(".gd"):
         text = "\n".join(strip_comment(l) for l in text.split("\n"))
     return text
 
 
-def source_files() -> list:
-    return [os.path.join(d, f) for r in SOURCE_DIRS if os.path.isdir(r)
-            for d, _, fs in os.walk(r) for f in fs if f.endswith(SOURCE_EXT)]
+def source_files(root: str = ".") -> list:
+    """The source files under SOURCE_DIRS of the tree at `root`, as paths relative to it (FIXTURES left out)."""
+    found = []
+    for r in SOURCE_DIRS:
+        if not os.path.isdir(os.path.join(root, r)):
+            continue
+        for d, dirs, fs in os.walk(os.path.join(root, r)):
+            rel = os.path.relpath(d, root)
+            if rel == FIXTURES or rel.startswith(FIXTURES + os.sep):
+                dirs[:] = []
+                continue
+            found += [os.path.join(rel, f) for f in fs if f.endswith(SOURCE_EXT)]
+    return found
 
 
 def scene_scripts() -> list:
@@ -141,23 +155,36 @@ def deps() -> None:
         print(f"  {u:14s} -> {t:14s} {sum(files.values()):4d}  {top}")
 
 
-def dead() -> None:
-    files = source_files()
-    text = {p: read(p) for p in files}
+def dead_functions(root=".") -> list:
+    """The scene functions nothing references in the tree at `root`: [(path, line, name)], path relative to `root`."""
+    text = {p: read(p, root) for p in source_files(root)}
     alltext = "\n".join(text.values())
-    tokens = collections.Counter(re.findall(r"[A-Za-z_]\w*", alltext))
+    return unreferenced_functions(text, alltext, collections.Counter(re.findall(r"[A-Za-z_]\w*", alltext)))
+
+
+def unreferenced_functions(text: dict, alltext: str, tokens: collections.Counter) -> list:
     # Declarations are counted once per name: a regex per symbol over the whole corpus takes a minute.
     func_declared = collections.Counter(re.findall(r"^[ \t]*(?:static )?func ([A-Za-z_]\w*)", alltext, re.M))
-    print("== Functions nothing references ==")
-    found = False
-    for p in scene_scripts():
+    found = []
+    for p in (q for q in text if q.endswith(".gd") and q.startswith("scenes")):
         for m in re.finditer(r"^[ \t]*(?:static )?func ([A-Za-z_]\w*)", text[p], re.M):
             fn = m.group(1)
             if fn in LIFECYCLE:
                 continue
             if tokens[fn] <= func_declared[fn]:
-                print(f"  {p}:{text[p][:m.start()].count(chr(10)) + 1}  {fn}")
-                found = True
+                found.append((p, text[p][:m.start()].count(chr(10)) + 1, fn))
+    return found
+
+
+def dead() -> None:
+    files = source_files()
+    text = {p: read(p) for p in files}
+    alltext = "\n".join(text.values())
+    tokens = collections.Counter(re.findall(r"[A-Za-z_]\w*", alltext))
+    print("== Functions nothing references ==")
+    found = unreferenced_functions(text, alltext, tokens)
+    for p, line, fn in found:
+        print(f"  {p}:{line}  {fn}")
     if not found:
         print("  (none)")
     print("\n== Declarations nothing reads ==")
@@ -268,6 +295,7 @@ def events() -> None:
 COMMANDS = {"deps": deps, "dead": dead, "signals": signals, "facts": facts, "events": events}
 
 if __name__ == "__main__":
+    os.chdir(ROOT)
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
     if which != "all" and which not in COMMANDS:
         sys.exit(f"usage: audit_scan.py [{'|'.join(COMMANDS)}|all]")
