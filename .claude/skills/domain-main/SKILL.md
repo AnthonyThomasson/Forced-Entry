@@ -109,3 +109,5 @@ inspector and overlays observe.
   `match_spawn_origin_test.gd` (a counter against the world origin is not launched by a spawn); `stack_player_wiring_test.gd` (`bind_player` attaches the stack with the house's doorways); `match_setup_test.gd`
   covers the setup dicts, loadout arming and the endless randomisation; `match_styles_test.gd` the crews' styles (one unit per match from the seed, defenders mixed,
   every item in its wielder's weapon style).
+
+**Interfaces:** 1 (World Generation), 6 (`LoadoutConfig`: arming a side), 7 (the characters and the AI controller, the overlays' `show_<x>`), 9 (Navigation), 13 (the Tests button's scene change), 14 (`Settings`, the settings page, the dev command server), 17 (the human's `PlayerStack` and the stack markers), 18 (`Sound.focus`, the stun screen), 20 (`WorldLighting.light`), 21 (the squads, the command menu and order markers, the leader overlay), and Main → UI (setup window, match HUD, spectator inspector, overlay bar) — signatures in `architecture`.
