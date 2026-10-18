@@ -1245,14 +1245,9 @@ func can_lob(at: Vector2, to: Vector2, kind: StringName, walked := false) -> boo
 	return at.distance_to(to) <= _throw.range_of(kind) and _throw.throw_clear_on_arrival(space, at, to, rids)
 
 
-## Whether the lob a thrower standing at `at` throws onto `to` flies clear, from its hand (any distance: the range is `grenade_range`'s).
+## Whether the lob a thrower standing at `at` throws onto `to` flies clear, from its hand (any distance: the range is `AgentThrow.range_of`'s).
 func throw_clear(at: Vector2, to: Vector2) -> bool:
 	return _throw.throw_clear(_character.get_world_2d().direct_space_state, at, to, _character_rids())
-
-
-## How far (px) a grenade of `kind` first comes down (what the NPC learned of it off the grenades it carries).
-func grenade_range(kind: StringName) -> float:
-	return _throw.range_of(kind)
 
 
 ## How far (px) from its spot a thrower stands to let a grenade of `kind` go: its range less a few px, so one that drifted a step past it
