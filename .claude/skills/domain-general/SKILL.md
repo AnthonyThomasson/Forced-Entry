@@ -126,10 +126,10 @@ driven by injecting `Input` action presses through `Keybinds` names — the same
 keyboard/mouse uses — so no game domain is coupled to it. Combatants and the player are discovered under the scene root **or a node in the `match_world` group** (Main's container for everything a match builds). `match` prints a one-line, parseable
 status of every AI combatant it finds: each one's health, current act and
 alive flag, plus the verdict and elapsed time — reading only the characters' public API and their
-controller's `current_act()`. `ai` is the diagnostic counterpart: it dumps every AI combatant's
+AI controller's `current_act()` (the child in the group `npc_controllers`, interface 7). `ai` is the diagnostic counterpart: it dumps every AI combatant's
 `debug_state()` as JSON (every level of its last decision walk — the state and question Von saw,
 the options, Von's probabilities and pick — plus the facts gated on, the known contacts, the running
-primitive and the pathing state), duck-typed the same way so the server stays a decoupled
+primitive and the pathing state), read off the same controller so the server stays a decoupled
 observer. `tools/von_probe.py --capture` turns such a dump into replayable Von scenarios. `restart [seed]` reloads the scene for a fresh matchup, pinning the
 next layout when a seed is given (stashed in `Engine` meta, which survives the reload; `main.gd`
 reads it) and sets the `skip_setup` Engine meta so the reloaded scene builds immediately instead of

@@ -98,7 +98,7 @@ inspector and overlays observe.
   straight for it.
 - `add_npc` instances the scene, sets its position and only THEN adds it under `world` (a body added at the world origin and moved afterwards
   overlaps whatever stands there for a frame, and the physics launches that piece across the map), hands its controller the house `rooms`, its `openings` (the spawner's field, which `main.gd` sets from
-  `WorldGen.get_openings` before spawning; for tactical entry) and `entry_point` through the `control` duck-type (`bind_npc`), and appends it to `combatants`; `bind_squad(member, squad, stack := null)` hands an NPC its side's squad (its
+  `WorldGen.get_openings` before spawning; for tactical entry) and `entry_point` through its controller, the child in the group `npc_controllers` (`bind_npc`), and appends it to `combatants`; `bind_squad(member, squad, stack := null)` hands an NPC its side's squad (its
   controller's `squad`) the same way, and the human's `PlayerStack` (`stack`, the node `bind_player` returned) its `squad`; `callout_ttl_of(members)`
   is the `callout_ttl` of the first NPC among them (0 with none), which Main hands `Squad.setup`; `bind_player(player, rooms)` does the human's equivalent (a `PlayerStack`); the first of a kind is named plainly (`Defender`, `Invader`), the rest `<base> 2`, …
 - Tests of the leadership wiring: `tests/general/lead_rank_test.gd` (LD10: the ranks with and without "Lead the team", the same style draws, `lead`

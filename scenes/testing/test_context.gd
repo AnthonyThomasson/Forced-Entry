@@ -338,7 +338,7 @@ func bind(built_world: Node2D, actors: Dictionary, objects: Dictionary, world_ro
 
 
 ## The state of every placed actor and object right now, as plain data for a failure bundle: position,
-## health/death, held item, and an NPC brain's decision path (duck-typed through the public API).
+## health/death, held item, and an NPC brain's decision path (its controller child in the group `npc_controllers`).
 ## Freed nodes are skipped, so take it before the world is torn down.
 func snapshot() -> Dictionary:
 	var out := { "actors": {}, "objects": {}, "vehicles": {} }
@@ -351,10 +351,9 @@ func snapshot() -> Dictionary:
 			if prop in a:
 				s[prop] = _plain(a.get(prop))
 		for child in a.get_children():
-			if child.has_method("current_act"):
+			if child.is_in_group(&"npc_controllers"):
 				var act: Variant = child.current_act()
 				s["act"] = "/".join(PackedStringArray(act.map(func(x): return str(x)))) if act is Array else str(act)
-			if child.has_method("debug_status"):
 				s["status"] = str(child.debug_status())
 		out["actors"][String(id)] = s
 	for id in _objects:

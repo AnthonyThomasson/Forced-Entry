@@ -217,30 +217,31 @@ func _match_status() -> String:
 
 ## The deep AI state of every AI combatant, as JSON — what `match` is to scoring, this is to
 ## diagnosing a brain: the state Von was told, the menu it chose from, its pick vs. any policy
-## override, the known contacts and the pathing state. Reads only the controller's read-only
-## `debug_state()` (the same duck-type as `current_act()`), so the server stays a decoupled observer
+## override, the known contacts and the pathing state. Reads only the read-only `debug_state()` of the
+## controller child in the group `npc_controllers` (interface 7), so the server stays a decoupled observer
 ## and a character without an AI controller is simply skipped.
 func _ai_status() -> String:
 	var out: Array = []
 	for c in _combatants():
 		for child in c.get_children():
-			if child.has_method("debug_state"):
+			if child.is_in_group(&"npc_controllers"):
 				out.append(child.debug_state())
 				break
 	return "no AI combatants" if out.is_empty() else JSON.stringify(out, "  ")
 
 
-## The current act of `character`'s AI controller child, or "?" when it has none (e.g. the player).
+## The current act of `character`'s AI controller child (the one in the group `npc_controllers`), or "?" when it has none
+## (e.g. the player).
 func _act_of(character: Node) -> String:
 	for child in character.get_children():
-		if child.has_method("current_act"):
+		if child.is_in_group(&"npc_controllers"):
 			return child.current_act()
 	return "?"
 
 
 ## Every AI combatant in the running scene, discovered rather than named: a child of the scene root
 ## (or of a node in the `match_world` group, the container holding everything a match builds) that has
-## an AI controller child (the same `current_act` duck-type `_act_of` uses). So the match status covers every
+## an AI controller child (the `npc_controllers` group `_act_of` reads). So the match status covers every
 ## defender/invader in the scene, with no coupling to their node names.
 func _combatants() -> Array:
 	var out: Array = []

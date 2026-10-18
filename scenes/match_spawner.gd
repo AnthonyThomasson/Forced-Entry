@@ -123,41 +123,38 @@ func add_npc(scene: PackedScene, node_name: String, pos: Vector2, rooms: Array, 
 
 ## Wire an NPC's controller to the world: hand it the house's `rooms` (world-space rects), its `openings`
 ## (the doorways, for tactical entry) and, when given, an `entry_point` the NPC heads for first while
-## outside all rooms. Found by the same
-## `control` duck-type the character uses to pick its controller — so Main doesn't depend on the
-## controller's node name. This keeps the World-Gen boundary in Main: the AI never calls WorldGen.
+## outside all rooms. Found by the group `npc_controllers` the AI controller joins (interface 7) — so
+## Main doesn't depend on the controller's node name. This keeps the World-Gen boundary in Main: the AI
+## never calls WorldGen.
 func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> void:
 	for child in npc.get_children():
-		if child.has_method("control"):
-			if "rooms" in child:
-				child.rooms = rooms
-			if "openings" in child:
-				child.openings = openings
-			if "entry_point" in child and entry_point != Vector2.ZERO:
+		if child.is_in_group(&"npc_controllers"):
+			child.rooms = rooms
+			child.openings = openings
+			if entry_point != Vector2.ZERO:
 				child.entry_point = entry_point
 			return
 
 
 ## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc` hands it the house: an NPC's controller's
-## `squad`, found by the same `control` duck-type, and the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
+## `squad`, found by the same `npc_controllers` group, and the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
 func bind_squad(npc: Node, squad: Node, stack: Node = null) -> void:
 	if stack != null and "squad" in stack:
 		stack.squad = squad
 	for child in npc.get_children():
-		if child.has_method("control"):
-			if "squad" in child:
-				child.squad = squad
+		if child.is_in_group(&"npc_controllers"):
+			child.squad = squad
 			return
 
 
-## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's controller, found by the `control`
-## duck-type (0 with no NPC among them). Main hands it to the side's squad (`Squad.setup`), which keeps its members' entry claims as long.
+## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's controller, found by the
+## `npc_controllers` group (0 with no NPC among them). Main hands it to the side's squad (`Squad.setup`), which keeps its members' entry claims as long.
 func callout_ttl_of(members: Array) -> float:
 	for m in members:
 		if not (m is Node and is_instance_valid(m)):
 			continue
 		for child in (m as Node).get_children():
-			if child.has_method("control") and "callout_ttl" in child:
+			if child.is_in_group(&"npc_controllers"):
 				return float(child.callout_ttl)
 	return 0.0
 
