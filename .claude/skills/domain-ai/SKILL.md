@@ -46,7 +46,7 @@ E19), standing on the side `side_for` gives that slot (`_on`: the other side whi
 fields plus `human: true` (no AI moves up into its slot, E2) and `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
 `MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it), with the human as `speaker`, repeated every 2 s. It reads the human's step
 from where it stands (`claim` / `ready` / `going_in` / `in`) and withdraws on leaving, dying, nobody left stacking, or `go_timeout` after the AI
-ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's `AgentEntry` (the statics `claims`, `free_slot`, `stack_side`, `crossing_order`, `place`,
+ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's `AgentEntry` (the statics `claims`, `free_slot`, `stack_side`, `crossing_order`,
 `side_for`, `stack_point`, `holds_slot`, and `geometry` / `stack_side_from`) and `AgentGrenades.is_call` (a grenade call is not a stack claim; nor is a callout that is
 only an order's progress, `order_step` with no `entry_step`, LD7), and never moves the
 character. `view()` feeds `StackMarkers` (UI). `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
