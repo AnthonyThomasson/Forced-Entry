@@ -391,7 +391,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 own with the planning bake plus those holes, baked on the NavigationServer's worker thread, cached by `key` (re-baked when the
 	 planning bake has been redone since), freed by the next ask for another set once nobody has asked for it for 20 s, and with its
 	 world, and `ready` as any map. The world's map and the
-	 steering map are untouched. The AI's `Locomotion` walks it and `AgentEntry.walk_route` measures on it.
+	 steering map are untouched. The AI's `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
    `main.gd` calls `build` once after `WorldGen.generate` (and builds the `nav_debug.gd` overlay and the
    `nav_updater.gd` re-baker right after). Any `NavigationAgent2D` then pathfinds
    against the global map automatically — the AI's locomotion sets `target_position` and steers at
