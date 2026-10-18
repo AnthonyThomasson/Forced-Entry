@@ -274,7 +274,7 @@ func begin(params: Dictionary) -> bool:
 	_order_hold = bool(params.get("wait_go", false))
 	_released = bool(params.get("go", false))
 	_order_side = _side_named(params)
-	_pref_side = _side_of(_character.global_position)
+	_pref_side = _perception.entry_side_of(_geo, _character.global_position)
 	var asked := bool(params.get("bang", false))
 	var ordered := _order_claim(team)
 	if not ordered.is_empty():
@@ -832,13 +832,8 @@ func _side_named(params: Dictionary) -> int:
 		return 0
 	var at = params.get("stack_at")
 	if at is Vector2:
-		return _side_of(at)
+		return _perception.entry_side_of(_geo, at)
 	return _perception.entry_team_side(_geo, [], _character.global_position)
-
-
-## The side of the door (1 / -1 along its wall) point `p` is on.
-func _side_of(p: Vector2) -> int:
-	return 1 if (p - (_geo["pos"] as Vector2)).dot(_geo["along"]) >= 0.0 else -1
 
 
 ## The side an ordered stack (`ordered`, `_order_claim`) has this NPC stack on: the side the order names (D3); on a split stack, D6's.

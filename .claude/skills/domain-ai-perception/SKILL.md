@@ -101,6 +101,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
 - Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_team(opening_id)` and the shared
   stack rules `entry_free_slot(team, self_id, current, mine)`, `entry_team_side(geometry, team, self_pos)` (the team's side),
+  `entry_side_of(geometry, p)` (the side of the door, 1 / -1 along its wall, a point is on: the radio claims' `side`),
   `entry_stack_side(geometry, team)` (the side the NPC stacks on from where it stands: the team's, or its own when its way
   there crosses the doorway's view, E19), `entry_crossing_order(members)`, `entry_place(team, side, slot)`, `entry_side_for(geometry,
   team, slot, preferred)`, `entry_stack_point(geometry, members, slot, side)`, `entry_holds_slot(geometry, slot)`, `entry_is_tail(geometry,

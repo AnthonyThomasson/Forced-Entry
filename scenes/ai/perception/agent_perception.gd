@@ -1154,6 +1154,12 @@ func entry_team_side(geometry: Dictionary, team: Array, self_pos: Vector2) -> in
 	return AgentEntry.stack_side(geometry, team, self_pos)
 
 
+## The side of a doorway (`geometry` from `entry_geometry`) point `p` is on, 1 / -1 along its wall: the radio claims' `side` (see
+## agent_entry.gd `side_of`).
+func entry_side_of(geometry: Dictionary, p: Vector2) -> int:
+	return AgentEntry.side_of(geometry, p)
+
+
 ## The side of a doorway the NPC stacks on from where it stands: the team's, unless its way there crosses the doorway's view, then its
 ## own (a split stack, see agent_entry.gd `stack_side_from`).
 func entry_stack_side(geometry: Dictionary, team: Array) -> int:
