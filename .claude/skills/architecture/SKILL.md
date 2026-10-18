@@ -159,8 +159,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 optional for a caller drawing them over later layers with `draw_marks` — so pixel art is drawn
 	 through the dented silhouette). The polygons are `base_ring(shape, size)` (a primitive's undented ring),
 	 `shape_polygon(shape, size, impacts)` (a piece's or the character's dented silhouette, cached), `wall_polygon(a, b, thickness, impacts)`
-	 (a dented wall segment), `is_valid_polygon(poly)` (callers skip a self-touching one that frame) and `convex_shapes(polygon)` (the
-	 convex pieces a dented collider is rebuilt from; also as `convex_pieces(polygon)`, their points, and `shapes_of(pieces)`; and
+	 (a dented wall segment), `is_valid_polygon(poly)` (callers skip a self-touching one that frame), `convex_pieces(polygon)` (the
+	 convex pieces a dented collider is rebuilt from, as their points) and `shapes_of(pieces)` (their `ConvexPolygonShape2D`s); and
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
 	 computed without the caches: all pure, so they may run on a worker thread); `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour.
