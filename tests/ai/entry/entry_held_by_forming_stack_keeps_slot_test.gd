@@ -25,10 +25,10 @@ const START := Vector2(100, 200)
 const FAR_MATE := Vector2(80, 60)
 ## Where the teammate in the gap steps to, leg by leg (east along the south wall, then north, clear of the walk to the door).
 const ASIDE := [Vector2(430, 352), Vector2(450, 60)]
-## The spec's cap on waiting for a teammate on its way (s, from when the hold began) and Locomotion's first re-plan of a held walk (s).
+## The spec's cap on waiting for a teammate on its way (s, from when the hold began).
 const CAP := 3.0
-const REPLAN := 0.75
-## How long into the hold (s, with no waypoint left) the teammate steps aside: past the first re-plan, short of the cap.
+## How long into the hold (s, with no waypoint left) the teammate steps aside: past Locomotion's first re-plan of a held walk (0.75 s),
+## short of the cap.
 const HELD_S := 2.4
 ## Within this (px) of its slot's point it is in its slot (`Entry.SLOT_REACH` and a few px).
 const SLOT_NEAR := 10.0
