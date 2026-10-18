@@ -33,7 +33,7 @@ static func strew(room: Dictionary, clutter: Array, solids: Array, blocked: Arra
 	for _i in count:
 		if kinds.is_empty():
 			break
-		var key: String = _pick(rng, kinds)
+		var key: String = WeightedPick.pick(rng, kinds)
 		kinds = kinds.filter(func(row: Array) -> bool: return row[0] != key)
 		var definition := ObjectDefinitions.get_definition(key).duplicate(true)
 		if definition.is_empty():
@@ -215,16 +215,3 @@ static func _neon_tube(rect: Rect2, taken: Array, blocked: Array, wall_thickness
 		# A turned tube's art is turned with it, so its painter still draws along the canvas's length.
 		ObjectFactory.spawn(definition, p, parent, { "rotated": rotated, "facing": Vector2.RIGHT if rotated else Vector2.DOWN, "name": "neon_tube" })
 		return
-
-
-## A key of a `[[key, weight], ...]` table, drawn by weight.
-static func _pick(rng: RandomNumberGenerator, table: Array) -> String:
-	var total := 0.0
-	for row: Array in table:
-		total += float(row[1])
-	var roll := rng.randf() * total
-	for row: Array in table:
-		roll -= float(row[1])
-		if roll <= 0.0:
-			return row[0]
-	return table[-1][0]

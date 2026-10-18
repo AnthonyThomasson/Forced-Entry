@@ -126,7 +126,7 @@ func _walk_wear(rng: RandomNumberGenerator) -> void:
 	for _c in int(_length() / ObjectArtConfig.street_walk_cluster_run):
 		var p := _along(rng, 4.0)
 		for _m in rng.randi_range(1, 2):
-			var kind: String = RoomWear.pick(rng, ObjectArtConfig.street_walk_wear)
+			var kind: String = WeightedPick.pick(rng, ObjectArtConfig.street_walk_wear)
 			var size := Vector2(rng.randf_range(24, 40), rng.randf_range(8, 14)) if kind in ["crack", "weeds"] \
 					else Vector2(rng.randf_range(10, 22), rng.randf_range(8, 18))
 			var r := _mark_rect(rng, p + Vector2(rng.randf_range(-20, 20), rng.randf_range(-20, 20)), size)
@@ -160,7 +160,7 @@ func _road_wear(rng: RandomNumberGenerator) -> void:
 		var p := Vector2(rng.randf_range(30, maxf(30, _size.x - 30)), rng.randf_range(30, maxf(30, _size.y - 30)))
 		for _m in rng.randi_range(1, 3):
 			var at := p + Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(0, 50)
-			var kind: String = RoomWear.pick(rng, ObjectArtConfig.street_road_wear)
+			var kind: String = WeightedPick.pick(rng, ObjectArtConfig.street_road_wear)
 			var size := Vector2(rng.randf_range(40, 110), rng.randf_range(10, 20)) if kind == "crack" \
 					else (Vector2(rng.randf_range(24, 60), rng.randf_range(18, 40)) if kind == "patch" else Vector2(rng.randf_range(20, 50), rng.randf_range(14, 32)))
 			var r := _mark_rect(rng, at, size)

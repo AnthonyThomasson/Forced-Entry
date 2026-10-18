@@ -77,10 +77,11 @@ static func _variety(row: Dictionary, style: StringName, seed_value: int) -> Dic
 	var look := {}
 	look["skin"] = _from(rng, row.get("skin", [Color(0.8, 0.62, 0.48)]))
 	look["hair"] = _from(rng, row.get("hair", [Color.BLACK]))
-	look["hair_style"] = _weighted(rng, row.get("hair_styles", { "short": 1 }))
+	look["hair_style"] = String(WeightedPick.key(rng, row.get("hair_styles", { "short": 1 }), true))
 	look["glove"] = row.get("glove", look["skin"]) if rng.randf() < float(row.get("gloves", 0.0)) else look["skin"]
 	look["pack"] = rng.randf() < float(row.get("pack", 0.0))
-	var optics: Array = _weighted_entry(rng, row.get("optics", [[1, "", ""]]))
+	var optic_rows: Array = row.get("optics", [[1, "", ""]])
+	var optics: Array = optic_rows[WeightedPick.index(rng, optic_rows, 0, true)]
 	look["eyes"] = optics[1]
 	look["face"] = optics[2]
 	look["glow"] = _from(rng, row.get("glows", [Color.RED]))
@@ -112,29 +113,3 @@ static func _palette(row: Dictionary, style: StringName, seed_value: int, name: 
 ## An entry of `list`, drawn by `rng`.
 static func _from(rng: RandomNumberGenerator, list: Array) -> Variant:
 	return list[rng.randi() % list.size()]
-
-
-## A key of `weights` (key -> weight), drawn by weight.
-static func _weighted(rng: RandomNumberGenerator, weights: Dictionary) -> String:
-	var total := 0.0
-	for k in weights:
-		total += float(weights[k])
-	var roll := rng.randf() * total
-	for k in weights:
-		roll -= float(weights[k])
-		if roll < 0.0:
-			return String(k)
-	return String(weights.keys()[0])
-
-
-## One of `entries` (each `[weight, ...]`), drawn by weight.
-static func _weighted_entry(rng: RandomNumberGenerator, entries: Array) -> Array:
-	var total := 0.0
-	for e: Array in entries:
-		total += float(e[0])
-	var roll := rng.randf() * total
-	for e: Array in entries:
-		roll -= float(e[0])
-		if roll < 0.0:
-			return e
-	return entries[0]

@@ -5,7 +5,7 @@ description: Deep implementation detail for the Lighting domain (scenes/lighting
 
 # Lighting domain (`scenes/lighting/`)
 
-A **leaf**: it imports nothing but General (`EventBus`, `DrawLayers`, `LightMasks`) and Godot, and reads the world duck-typed, the
+A **leaf**: it imports nothing but General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world duck-typed, the
 way Audio reads a vehicle. Nothing calls into it but Main and the Testing world (`WorldLighting.light`, interface 20) and the
 Testing domain's switch row; the lights and shadows of the world's things are declared and built by their own domains. The spec
 is `docs/lighting.md` (L1 to L10, each with its tests); the tests are `tests/lighting/` through `tests/_lighting/lighting_probe.gd`.
@@ -27,7 +27,7 @@ energy, none when absent: the stun's 0.08) and `life` (the fall-off after it); t
 since Physics draws no disc for it), the budget (`item_lights` 15, `per_floor()` = 15 − the pool, `floor_reach`), `body_clear` 1.3, and the pool textures (`textures` per shape, two smooth profiles, linear points: a low light's glow `glow_offsets` / `glow_levels`, an overhead light's downward pool `pool_offsets` / `pool_levels`). |
 | `world_lighting.gd` (`WorldLighting`) | The node: `static light(root, seed_value, rooms := []) -> WorldLighting` (null while `enabled` is off), the reads `lights()`, `fixtures()`, `flashes()`, `budget()`, and the per-frame work (`_process`). |
 | `light_budget.gd` (private) | The per-floor count: `add_floor(ground)`, `take(box, item_mask, always) -> bool`, `box_of(light, xf)`. |
-| `light_rhythm.gd` (private) | One light's rhythm: `pick(kinds, rng)`, `new(mode, seed)`, `step(delta) -> factor`. |
+| `light_rhythm.gd` (private) | One light's rhythm: `pick(kinds, rng)` (General's `WeightedPick`, `steady` for none), `new(mode, seed)`, `step(delta) -> factor`. |
 | `ceiling_fixture.gd` (private) | A fixture's bulb glyph, drawn unshaded at `DrawLayers.OVERHEAD`. |
 
 General's `scenes/general/light_masks.gd` (`LightMasks`, interface 11) holds the shared ids: the occluder bits `WALL` 1,

@@ -44,19 +44,6 @@ func setup(rect: Rect2, floor_definition: Dictionary, wall_thickness: float, clu
 	return self
 
 
-## An entry of a `[[value, weight], ...]` table, drawn by weight.
-static func pick(rng: RandomNumberGenerator, table: Array) -> Variant:
-	var total := 0.0
-	for row: Array in table:
-		total += float(row[1])
-	var roll := rng.randf() * total
-	for row: Array in table:
-		roll -= float(row[1])
-		if roll <= 0.0:
-			return row[0]
-	return table[-1][0]
-
-
 # --- Floor ---------------------------------------------------------------------------------------------------------
 
 ## 1-3 marks of the floor `pattern` round `at`, inside `inner`, clear of the marks already `placed`.
@@ -65,7 +52,7 @@ func _floor_marks(rng: RandomNumberGenerator, at: Vector2, inner: Rect2, pattern
 	for m in marks:
 		var spread := ObjectArtConfig.wear_spread
 		var offset := Vector2.ZERO if m == 0 else Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(spread.x, spread.y)
-		var kind: String = pick(rng, ObjectArtConfig.wear_floor_kinds[pattern])
+		var kind: String = WeightedPick.pick(rng, ObjectArtConfig.wear_floor_kinds[pattern])
 		var mark := _floor_mark(kind, at + offset, pattern, rng)
 		if mark.is_empty():
 			continue
@@ -141,7 +128,7 @@ func _wall_mark(rng: RandomNumberGenerator, from: Vector2, to: Vector2, at: Vect
 	var a := from.min(to)  # A wall runs along x or y: walk it from its lower end.
 	var b := from.max(to)
 	var length := a.distance_to(b)
-	var kind: String = pick(rng, ObjectArtConfig.wear_wall_kinds)
+	var kind: String = WeightedPick.pick(rng, ObjectArtConfig.wear_wall_kinds)
 	var span: Vector2 = ObjectArtConfig.wear_wall_lengths[kind]
 	var mark := roundf(minf(rng.randf_range(span.x, span.y), length - 8.0))
 	if mark < span.x:

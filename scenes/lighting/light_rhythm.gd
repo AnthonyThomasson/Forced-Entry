@@ -29,15 +29,7 @@ var _level := 1.0  ## shimmer: the picture's brightness.
 static func pick(kinds: Array, rng: RandomNumberGenerator) -> StringName:
 	if kinds.is_empty():
 		return &"steady"
-	var total := 0.0
-	for k: Array in kinds:
-		total += float(k[1])
-	var roll := rng.randf() * total
-	for k: Array in kinds:
-		roll -= float(k[1])
-		if roll <= 0.0:
-			return k[0]
-	return kinds[-1][0]
+	return WeightedPick.pick(rng, kinds)
 
 
 ## A rhythm of `kind` (one of the modes above), seeded by `seed_value`.
