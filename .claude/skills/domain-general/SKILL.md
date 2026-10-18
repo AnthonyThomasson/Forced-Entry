@@ -1,6 +1,6 @@
 ---
 name: domain-general
-description: Deep implementation detail for the General domain (scenes/general/) — input (Keybinds), saved settings (Settings), the pausable game clock (GameClock), despawner, camera, the dev command server, shared physics-layer ids (PhysicsLayers), the draw-order ladder (DrawLayers), the light masks (LightMasks: occluder bits, shadow masks, light layers, the occluder shape) and FillBatch (plain-coloured shapes drawn as one triangle array). Use when editing scenes/general/ or working on input/keybinds/rebinding, the game clock AI timers run on, the saved settings file (debug switch + key bindings), the dev command server (gcmd), camera follow, the despawn cap, a cross-domain physics-layer constant, a draw-order rung, a light mask or batching many plain-coloured shapes. HUDs and menus live in the UI domain (scenes/ui/) — see `domain-ui`. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the General domain (scenes/general/) — input (Keybinds), saved settings (Settings), the pausable game clock (GameClock), despawner, camera, the dev command server, shared physics-layer ids (PhysicsLayers), the draw-order ladder (DrawLayers), the light masks (LightMasks: occluder bits, shadow masks, light layers, the occluder shape) FillBatch (plain-coloured shapes drawn as one triangle array) and WeightedPick (the shared weighted roll). Use when editing scenes/general/ or working on input/keybinds/rebinding, the game clock AI timers run on, the saved settings file (debug switch + key bindings), the dev command server (gcmd), camera follow, the despawn cap, a cross-domain physics-layer constant, a draw-order rung, a light mask, batching many plain-coloured shapes or a weighted roll. HUDs and menus live in the UI domain (scenes/ui/) — see `domain-ui`. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # General domain
@@ -59,9 +59,13 @@ and print chunks and the wound marks (Physics). Test: `tests/general/fill_batch_
 on: the batch holds each polygon's own triangles, and off it holds nothing; `--windowed`: identical pixels to the plain calls).
 
 `weighted_pick.gd` (`class_name WeightedPick`, a static holder like `PhysicsLayers`, interface 11) is the one weighted roll the
-domains share: `WeightedPick.pick(rng, rows, …)` draws one of `rows` (each a key and its weight) with `rng`, a row's chance its
-weight's share of the total. World-Gen's room dresser, Objects' room wear, the Lighting domain's rhythms and the Character's style
-all draw through it, so the roll and its edges live in one place.
+domains share. A roll takes one `rng.randf()` over the total of the weights, each entry in order taking the next stretch of it:
+`WeightedPick.pick(rng, rows, key_index := 0, weight_index := 1, strict := false)` returns the drawn row's `key_index` value (`rows`
+each an Array), `key(rng, weights, strict := false)` a key of a `key -> weight` Dictionary (in its order) and
+`index(rng, rows, weight_index := 1, strict := false) -> int` the drawn row's index. `strict` keeps each caller's own edges: false, a
+roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them
+all takes the first. World-Gen's room dresser, Objects' room wear and street marks, the Lighting domain's rhythms (not strict) and
+the Character's style (strict) all draw through it, so the roll lives in one place.
 
 ## Input architecture
 
