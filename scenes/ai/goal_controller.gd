@@ -6,9 +6,10 @@ extends Node
 ## behaviour itself. It satisfies the character's controller contract (`control(character, delta)`) and
 ## writes only the intent the player controller writes (`move_input`/`aim_point`) plus the same public
 ## actions — all of that done by the behaviour sub-domain. It is the single authoring surface: every
-## tunable below is an export here (so a defender or invader preset is all data on this one node), pushed
-## into the sub-modules it builds — and re-pushed each decision, so a tunable retuned at runtime (a
-## behaviour test, the dev command server) takes effect without a rebuild.
+## tunable below is an export here (so a defender or invader preset is all data on this one node), read
+## straight from this node by the sub-domains it builds (their `apply_config(cfg)`) — and read again each
+## decision, so a tunable retuned at runtime (a behaviour test, the dev command server) takes effect
+## without a rebuild.
 ##
 ## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/), is the
 ## draw-only overlays, children of the NPC that read this node's `debug_*` getters):
@@ -365,7 +366,7 @@ var _was_blind := false ## The character was flash-blinded last tick, to re-deci
 var _rng := RandomNumberGenerator.new()
 
 
-## Build the AI sub-domains and wire them together, then push every export into them with
+## Build the AI sub-domains and wire them together, then configure them from the exports with
 ## _apply_config(). The sub-domains each own internal modules (perception's sight/hostility/memory/
 ## tactics, the behaviour's locomotion), so building and configuring are separate: _ready() builds
 ## once, _apply_config() configures (here and again each decision, so a tunable retuned at runtime
@@ -402,10 +403,12 @@ func _ready() -> void:
 	EventBus.posted.connect(_on_event)
 
 
-## Push every export into the sub-domains it configures. The controller is the single authoring surface
-## — every tunable lives as an export here — and this is where they reach the sub-modules. It only SETS
-## config on already-built sub-domains (never rebuilds), so it is safe to call each decision: a tunable
-## retuned at runtime (e.g. by the dev command server for a behaviour test) takes effect on the next one.
+## Configure the sub-domains from the exports. The controller is the single authoring surface — every
+## tunable lives as an export here — and this is where they reach the sub-modules: the perception and the
+## behaviour each take this node (`apply_config(self)`) and set their own fields and their modules' from it,
+## and the planner's config is worked out here. It only SETS config on already-built sub-domains (never
+## rebuilds), so it is safe to call each decision: a tunable retuned at runtime (e.g. by the dev command
+## server for a behaviour test) takes effect on the next one.
 func _apply_config() -> void:
 	_perception.apply_config(self)
 	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a walk at
@@ -428,50 +431,7 @@ func _apply_config() -> void:
 	_planner.inside_only = defend_territory
 	var held: Dictionary = _perception.order()
 	_planner.confine_room = String(held.get("room", "")) if String(held.get("kind", "")) == "defend_room" else ""
-	_behavior.interaction_dwell = interaction_dwell
-	_behavior.max_commit_time = max_commit_time
-	_behavior.search_look_rate = search_look_rate
-	_behavior.search_coverage_spacing = search_coverage_spacing
-	_behavior.search_coverage_target = search_coverage_target
-	_behavior.search_coverage_budget = search_coverage_budget
-	_behavior.search_coverage_approach = search_coverage_approach
-	_behavior.search_coverage_margin = search_coverage_margin
-	_behavior.tactic_interval = tactic_interval
-	_behavior.shoot_range = shoot_range
-	_behavior.punch_range = punch_range
-	_behavior.combat_ring_radius = combat_ring_radius
-	_behavior.combat_ring_count = combat_ring_count
-	_behavior.cover_time = cover_time
-	_behavior.fire_cooldown = fire_cooldown
-	_behavior.fire_burst = fire_burst
-	_behavior.back_off_time = back_off_time
-	_behavior.reposition_interval = reposition_interval
-	_behavior.arrive_dist = arrive_dist
-	_behavior.run_enabled = run_enabled
-	_behavior.auto_reload = auto_reload
-	_behavior.posture_enabled = posture_enabled
-	_behavior.posture_dwell = posture_dwell
-	_behavior.run_min_distance = run_min_distance
-	_behavior.run_start_fraction = run_start_fraction
-	_behavior.entry_ready_timeout = entry_ready_timeout
-	_behavior.entry_listen_time = entry_listen_time
-	_behavior.entry_follow_gap = entry_follow_gap
-	_behavior.entry_pie_dwell = entry_pie_dwell
-	_behavior.entry_corner_dwell = entry_corner_dwell
-	_behavior.rear_security_time = rear_security_time
-	_behavior.entry_cover_time = entry_cover_time
-	_behavior.entry_watch_dwell = entry_watch_dwell
-	_behavior.entry_approach_time = entry_approach_time
-	_behavior.order_ready_cap = order_ready_cap
-	_behavior.squad = squad
-	_behavior.entry_guard = entry_guard
-	_behavior.entry_guard_range = entry_guard_range
-	_behavior.entry_guard_rearm = entry_guard_rearm
-	_behavior.entry_secure_time = entry_secure_time
-	_behavior.watch_look_ahead = watch_look_ahead
-	_behavior.watch_door_dwell = watch_door_dwell
-	_behavior.watch_lost_gaze = watch_lost_gaze
-	_behavior.apply_config()
+	_behavior.apply_config(self)
 
 
 ## Buffer a world event for processing on the next control() tick (the signal can fire before the

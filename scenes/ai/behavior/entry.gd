@@ -113,17 +113,18 @@ const BANG_WINDOW := 3.0
 ## Seconds between reads of why the room is suspect, for a quiet entry that may turn into a bang (E17).
 const SUSPECT_EVERY := 0.25
 
-var ready_timeout: float = 6.0     ## Seconds the point waits for the stack, once ready, before going in without it.
-var listen_time: float = 3.0       ## Seconds a quiet stack with a stun holds, the point in its slot, before the pie (E17: a late reason may turn it).
-var follow_gap: float = 0.3        ## Seconds a follower leaves after the member ahead of it is through.
-var pie_dwell: float = 0.35        ## Seconds the point looks through the door from each pie step.
-var corner_dwell: float = 0.6      ## Seconds held in the corner looking across the room before clearing it.
-var rear_time: float = 10.0        ## Most seconds the last of the team holds the doorway facing out once the room is clear.
-var cover_time: float = 8.0        ## Most seconds a member covers a doorway on when no teammate moves on first.
-var watch_dwell: float = 0.8       ## Seconds a lone entrant looks through each doorway on, once its gaze has settled.
-var approach_time: float = 20.0    ## Safety cap (s) on reaching the slot, on top of the way's own walk (`_approach_cap`); past it the claim is given up.
-var look_rate: float = 2.5         ## Gaze turn speed (rad/s).
-var order_ready_cap: float = 60.0  ## Most seconds an ordered stack waits for all its recipients, from the first ordered `ready` (D7).
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`entry_*`, `rear_security_time`, `order_ready_cap`, `squad`). ---
+var ready_timeout: float           ## Seconds the point waits for the stack, once ready, before going in without it.
+var listen_time: float             ## Seconds a quiet stack with a stun holds, the point in its slot, before the pie (E17: a late reason may turn it).
+var follow_gap: float              ## Seconds a follower leaves after the member ahead of it is through.
+var pie_dwell: float               ## Seconds the point looks through the door from each pie step.
+var corner_dwell: float            ## Seconds held in the corner looking across the room before clearing it.
+var rear_time: float               ## Most seconds the last of the team holds the doorway facing out once the room is clear.
+var cover_time: float              ## Most seconds a member covers a doorway on when no teammate moves on first.
+var watch_dwell: float             ## Seconds a lone entrant looks through each doorway on, once its gaze has settled.
+var approach_time: float           ## Safety cap (s) on reaching the slot, on top of the way's own walk (`_approach_cap`); past it the claim is given up.
+var look_rate: float               ## Gaze turn speed (rad/s).
+var order_ready_cap: float         ## Most seconds an ordered stack waits for all its recipients, from the first ordered `ready` (D7).
 var squad: Node = null             ## The NPC's squad (`Squad.alive`: which recipients of an order still live); null without one.
 
 var phase := ""                    ## approach / stack / pie / cross / corner / clear / rear / done ("" = idle).

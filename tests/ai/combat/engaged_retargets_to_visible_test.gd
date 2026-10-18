@@ -6,6 +6,8 @@ extends GameTest
 ## here with stand-in contacts and perception (no world).
 
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
+## The controller whose exports the behaviour takes its tunables from (an unbuilt one: its export defaults).
+const GoalController := preload("res://scenes/ai/goal_controller.gd")
 
 
 ## Perception with what `Behavior` asks of it on adopting a fight.
@@ -31,8 +33,9 @@ func run(t: TestContext) -> void:
 	var b := Node2D.new()
 	var perception := FakePerception.new()
 	var behavior := Behavior.new()
+	var cfg := GoalController.new()
 	behavior.setup(perception, null)
-	behavior.apply_config()
+	behavior.apply_config(cfg)
 
 	var both_seen := [_contact(a, Vector2(300, 0), true), _contact(b, Vector2(300, 200), true)]
 	behavior.update_known(both_seen, 0.016)
@@ -48,7 +51,7 @@ func run(t: TestContext) -> void:
 	behavior.update_known([_contact(a, Vector2(300, 0), false), _contact(b, Vector2(300, 200), true)], 0.016)
 	t.expect_eq(behavior.debug_state()["engage_id"], b.get_instance_id(), "A out of sight, B in view: it fights B")
 
-	for n in [a, b, perception, behavior]:
+	for n in [a, b, perception, behavior, cfg]:
 		n.free()
 
 

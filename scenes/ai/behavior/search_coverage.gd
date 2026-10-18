@@ -6,12 +6,13 @@ extends RefCounted
 ## of the points have been seen or the time budget runs out. Owns that state and nothing else: `Behavior` decides when a
 ## search move begins, calls `begin()` on arrival, `step()` each tick, and re-decides when `step()` reports it done.
 
-var spacing: float = 64.0         ## Room sample-grid spacing (px): smaller = finer coverage, more sight rays.
-var target_fraction: float = 1.0  ## Fraction of sampled points that must be SEEN to call a room covered (1 = all).
-var budget_max: float = 8.0       ## Max seconds spent covering one room before giving up (safety cap).
-var approach: float = 300.0       ## Walk toward an unseen point beyond this range (or whose line is blocked); else just turn to it.
-var margin: float = 24.0          ## Inset (px) from the room's walls where sampling starts, so points sit off the walls.
-var look_rate: float = 2.5        ## Gaze turn speed (rad/s) while looking around.
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`search_coverage_*`, `search_look_rate`). ---
+var spacing: float                ## Room sample-grid spacing (px): smaller = finer coverage, more sight rays.
+var target_fraction: float        ## Fraction of sampled points that must be SEEN to call a room covered (1 = all).
+var budget_max: float             ## Max seconds spent covering one room before giving up (safety cap).
+var approach: float               ## Walk toward an unseen point beyond this range (or whose line is blocked); else just turn to it.
+var margin: float                 ## Inset (px) from the room's walls where sampling starts, so points sit off the walls.
+var look_rate: float              ## Gaze turn speed (rad/s) while looking around.
 
 var points: Array = []            ## All room sample points this search (kept whole for the coverage fraction + debug).
 var unseen: Array = []            ## The subset of `points` not yet SEEN (view cone + line of sight).

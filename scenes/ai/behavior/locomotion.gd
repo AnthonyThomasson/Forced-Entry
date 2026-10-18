@@ -22,8 +22,8 @@ extends Node
 ## no nav agent. It also knows the house's rooms (set each tick by `Behavior`), so the behaviour modules can ask which
 ## room, if any, a point lies in.
 
-## How close (px) counts as "arrived" when steering straight-line (no nav agent).
-var arrive_dist: float = 10.0
+## How close (px) counts as "arrived" when steering straight-line (no nav agent): the controller's `arrive_dist`, set by `Behavior.apply_config()`.
+var arrive_dist: float
 
 ## World-space room rects (`{ key, type, rect }`) of the house, set each tick by `Behavior` from the controller's inject.
 var rooms: Array = []

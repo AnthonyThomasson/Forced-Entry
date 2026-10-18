@@ -22,18 +22,18 @@ const THROW_RELEASE_CAP := 1.5
 ## and from no farther off than this (`AgentThrow.ARRIVAL_SLACK`; a stride short, a jamb can be in the way of it).
 const THROW_SPOT_REACH := 6.0
 
-# --- Config fields `Behavior.apply_config()` copies in. ---
-var shoot_range: float = 500.0  ## Copy of GoalController.shoot_range.
-var punch_range: float = 48.0  ## Copy of GoalController.punch_range.
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports; each default is the export's, for a `Combat` built alone (a unit test). ---
+var shoot_range: float = 500.0  ## GoalController.shoot_range.
+var punch_range: float = 48.0  ## GoalController.punch_range.
 var ring_radius: float = 80.0  ## Radius of the ring of candidate firing / cover spots around the target.
 var ring_count: int = 12       ## Candidate spots on that ring.
-var cover_time: float = 1.2  ## Copy of GoalController.cover_time.
-var fire_cooldown: float = 0.5  ## Copy of GoalController.fire_cooldown.
+var cover_time: float = 1.2  ## GoalController.cover_time.
+var fire_cooldown: float = 0.5  ## GoalController.fire_cooldown.
 ## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot gun fires one.
 var fire_burst: int = 3
 ## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
 var back_off_time: float = 0.45
-var reposition_interval: float = 0.5  ## Copy of GoalController.reposition_interval.
+var reposition_interval: float = 0.5  ## GoalController.reposition_interval.
 var auto_reload: bool = true   ## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
 ## Whether the NPC fires blind while flash-blinded (`docs/grenades.md` G15): the controller's roll as it went blind
 ## (`Behavior.set_blind_fire`). Read only while blind (`holds_fire`).

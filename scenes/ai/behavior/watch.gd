@@ -6,15 +6,15 @@ extends RefCounted
 ## back to a known threat. Owns the pick of the threat and the rotating look at a room's doorways, and nothing else: `Behavior`
 ## runs the stage each tick and does the aiming, `Combat` the shooting, `Locomotion` the walk it looks down.
 
-# --- Config fields `Behavior.apply_config()` copies in. ---
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`watch_*`, `search_look_rate`). ---
 ## How far (px) down its path a walking NPC looks.
-var look_ahead: float = 150.0
+var look_ahead: float
 ## Seconds a resting NPC looks at one doorway before turning to the next.
-var door_dwell: float = 2.5
+var door_dwell: float
 ## Seconds a hostile that is no longer seen still holds the NPC's eyes (while it has a clear line to where it was last seen).
-var lost_gaze: float = 2.0
+var lost_gaze: float
 ## Gaze turn speed (rad/s) while it looks from one doorway to the next.
-var look_rate: float = 2.5
+var look_rate: float
 
 ## Doorways nearer than this (px) are not worth watching: the NPC stands in them.
 const DOOR_MIN_DISTANCE := 60.0

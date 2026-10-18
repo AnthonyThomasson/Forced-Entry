@@ -31,7 +31,7 @@ extends Node
 ## `SearchCoverage` module, reads the world only through the PERCEPTION sub-domain (known
 ## contacts, combat geometry, engagement memory) and drives the character only through its public
 ## controller contract (`move_input` / `aim_point`, `select_slot`, `shoot`, `melee`, `interact_with`,
-## `end_interaction`). All tunables are set by the controller before `setup()`.
+## `end_interaction`). All tunables are set from the controller's exports by `apply_config(cfg)`.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -51,59 +51,24 @@ const DEFEND_REACH := 8.0
 ## How far (px) a defender at its post may be pushed off its defend spot before it walks back.
 const DEFEND_DRIFT := 24.0
 
-# --- Config fields the controller copies from its exports before setup(). ---
-var interaction_dwell: float = 3.0 ## Copy of GoalController.interaction_dwell.
-var max_commit_time: float = 6.0 ## Copy of GoalController.max_commit_time.
-var search_look_rate: float = 2.5 ## Gaze turn speed (rad/s) while a searcher looks around a room it is covering.
-var search_coverage_spacing: float = 64.0 ## Room sample-grid spacing (px): smaller = finer coverage, more sight rays.
-var search_coverage_target: float = 1.0 ## Fraction of sampled points that must be SEEN to call a room covered (1 = all).
-var search_coverage_budget: float = 8.0 ## Max seconds spent covering one room before giving up and re-deciding (safety cap).
-var search_coverage_approach: float = 300.0 ## Walk toward an unseen point beyond this range (or whose line is blocked); else just turn to it.
-var search_coverage_margin: float = 24.0 ## Inset (px) from the room's walls where sampling starts, so points sit off the walls.
-var tactic_interval: float = 3.0 ## Copy of GoalController.tactic_interval.
-var shoot_range: float = 500.0 ## Copy of GoalController.shoot_range.
-var punch_range: float = 48.0 ## Copy of GoalController.punch_range.
-var combat_ring_radius: float = 80.0 ## Copy of GoalController.combat_ring_radius.
-var combat_ring_count: int = 12 ## Copy of GoalController.combat_ring_count.
-var cover_time: float = 1.2 ## Copy of GoalController.cover_time.
-var fire_cooldown: float = 0.5 ## Copy of GoalController.fire_cooldown.
-## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot gun fires one.
-var fire_burst: int = 3
-## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
-var back_off_time: float = 0.45
-var reposition_interval: float = 0.5 ## Copy of GoalController.reposition_interval.
-# Locomotion config (forwarded to the Locomotion child in setup()).
-var arrive_dist: float = 10.0 ## Copy of GoalController.arrive_dist.
+# --- The tunables the behaviour reads itself, set by apply_config() from the controller's exports of the same name. ---
+var interaction_dwell: float ## Seconds an object interaction is held before it ends.
+var max_commit_time: float ## Safety cap (s) on a move or approach before it re-decides.
+var search_look_rate: float ## Gaze turn speed (rad/s) while a searcher looks around a room it is covering, or a defender's gun turns to its doorway.
+var tactic_interval: float ## Seconds a fight in position runs before it re-asks its tactic.
 # Running: whether the NPC may sprint on the way to a destination (see `_should_run`).
-var run_enabled: bool = true ## May sprint at all.
-var run_min_distance: float = 150.0 ## Only run when farther than this (px) from the destination.
-var run_start_fraction: float = 0.5 ## Stamina needed to START a run (once running it goes on until dry).
-var auto_reload: bool = true ## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
+var run_enabled: bool ## May sprint at all.
+var run_min_distance: float ## Only run when farther than this (px) from the destination.
+var run_start_fraction: float ## Stamina needed to START a run (once running it goes on until dry).
 # Posture: whether the NPC may crouch in a fight (see `_wanted_posture`), and how long it keeps one before changing.
-var posture_enabled: bool = true ## Copy of GoalController.posture_enabled.
-var posture_dwell: float = 0.7 ## Copy of GoalController.posture_dwell.
-# Tactical entry (see entry.gd).
-var entry_ready_timeout: float = 6.0 ## Copy of GoalController.entry_ready_timeout.
-var entry_listen_time: float = 3.0 ## Copy of GoalController.entry_listen_time.
-var entry_follow_gap: float = 0.3 ## Copy of GoalController.entry_follow_gap.
-var entry_pie_dwell: float = 0.35 ## Copy of GoalController.entry_pie_dwell.
-var entry_corner_dwell: float = 0.6 ## Copy of GoalController.entry_corner_dwell.
-var rear_security_time: float = 10.0 ## Copy of GoalController.rear_security_time.
-var entry_cover_time: float = 8.0 ## Copy of GoalController.entry_cover_time.
-var entry_watch_dwell: float = 0.8 ## Copy of GoalController.entry_watch_dwell.
-var entry_approach_time: float = 20.0 ## Copy of GoalController.entry_approach_time.
-var order_ready_cap: float = 60.0 ## Copy of GoalController.order_ready_cap.
-## The NPC's squad (`ai/team/squad.gd`, set by the controller): which recipients of an order still live (`Squad.alive`), for an ordered
-## stack's wait (`docs/leadership.md` D7). Null without one.
-var squad: Node = null
+var posture_enabled: bool ## May crouch at all.
+var posture_dwell: float ## Seconds a crouch is held before it is dropped.
 ## The entry guard: any walk into a room that is not cleared goes in by tactical entry (`_entry_guard`; `docs/tactical-entry.md` E9).
-var entry_guard: bool = true
-var entry_guard_range: float = 300.0 ## Start the entry once the doorway is this near (px of walking).
-var entry_guard_rearm: float = 6.0 ## Seconds a doorway whose entry was given up is left alone before the guard may start another.
-var entry_secure_time: float = 30.0 ## Seconds a doorway secured in passing (E15) is left alone before the guard may secure it again.
-var watch_look_ahead: float = 150.0 ## A walking NPC looks this far (px) down its path.
-var watch_door_dwell: float = 2.5   ## A resting NPC looks at one doorway this long (s) before the next.
-var watch_lost_gaze: float = 2.0    ## A hostile out of sight keeps the NPC's eyes this long (s) while there is a clear line to where it was.
+var entry_guard: bool
+var entry_guard_range: float ## Start the entry once the doorway is this near (px of walking).
+var entry_guard_rearm: float ## Seconds a doorway whose entry was given up is left alone before the guard may start another.
+var entry_secure_time: float ## Seconds a doorway secured in passing (E15) is left alone before the guard may secure it again.
+var watch_lost_gaze: float ## A hostile out of sight keeps the NPC's eyes this long (s) while there is a clear line to where it was.
 
 ## World-space room rects (`{ key, type, rect }`), set each tick by the controller from Main's inject; handed on to the
 ## Locomotion child, which answers the room queries.
@@ -171,7 +136,7 @@ var _awaiting_order := false      ## An order was just taken and its decision ha
 
 
 ## Build the Locomotion child and capture the perception sub-domain. The controller calls this once in
-## its _ready(); it then pushes the config fields in with apply_config() (here and again each decision).
+## its _ready(); it then hands itself to apply_config(), which sets the tunables (here and again each decision).
 func setup(perception: Node, nav_agent: NavigationAgent2D) -> void:
 	_perception = perception
 	_loco = Locomotion.new()
@@ -201,43 +166,57 @@ func bind(character: Node) -> void:
 	_entry.bind(character)
 
 
-## Push the current config into the Locomotion child and the coverage and combat modules. The behaviour's own
-## fields are read live, so only what those hold needs pushing. Idempotent, so the controller may call it each
-## decision to pick up an export retuned at runtime.
-func apply_config() -> void:
-	_loco.arrive_dist = arrive_dist
-	_watch.look_ahead = watch_look_ahead
-	_watch.door_dwell = watch_door_dwell
-	_watch.lost_gaze = watch_lost_gaze
-	_watch.look_rate = search_look_rate
-	_coverage.spacing = search_coverage_spacing
-	_coverage.target_fraction = search_coverage_target
-	_coverage.budget_max = search_coverage_budget
-	_coverage.approach = search_coverage_approach
-	_coverage.margin = search_coverage_margin
-	_coverage.look_rate = search_look_rate
-	_combat.shoot_range = shoot_range
-	_combat.punch_range = punch_range
-	_combat.ring_radius = combat_ring_radius
-	_combat.ring_count = combat_ring_count
-	_combat.cover_time = cover_time
-	_combat.fire_cooldown = fire_cooldown
-	_combat.fire_burst = fire_burst
-	_combat.back_off_time = back_off_time
-	_combat.reposition_interval = reposition_interval
-	_combat.auto_reload = auto_reload
-	_entry.ready_timeout = entry_ready_timeout
-	_entry.listen_time = entry_listen_time
-	_entry.follow_gap = entry_follow_gap
-	_entry.pie_dwell = entry_pie_dwell
-	_entry.corner_dwell = entry_corner_dwell
-	_entry.rear_time = rear_security_time
-	_entry.cover_time = entry_cover_time
-	_entry.watch_dwell = entry_watch_dwell
-	_entry.approach_time = entry_approach_time
-	_entry.order_ready_cap = order_ready_cap
-	_entry.squad = squad
-	_entry.look_rate = search_look_rate
+## Set the behaviour's own tunables and its modules' (Locomotion, the watch, coverage, combat and entry modules) straight from `cfg`, the
+## controller, whose exports of these names are the one authoring surface. Idempotent, so the controller may call it each decision to pick
+## up an export retuned at runtime.
+func apply_config(cfg: Node) -> void:
+	interaction_dwell = cfg.interaction_dwell
+	max_commit_time = cfg.max_commit_time
+	search_look_rate = cfg.search_look_rate
+	tactic_interval = cfg.tactic_interval
+	run_enabled = cfg.run_enabled
+	run_min_distance = cfg.run_min_distance
+	run_start_fraction = cfg.run_start_fraction
+	posture_enabled = cfg.posture_enabled
+	posture_dwell = cfg.posture_dwell
+	entry_guard = cfg.entry_guard
+	entry_guard_range = cfg.entry_guard_range
+	entry_guard_rearm = cfg.entry_guard_rearm
+	entry_secure_time = cfg.entry_secure_time
+	watch_lost_gaze = cfg.watch_lost_gaze
+	_loco.arrive_dist = cfg.arrive_dist
+	_watch.look_ahead = cfg.watch_look_ahead
+	_watch.door_dwell = cfg.watch_door_dwell
+	_watch.lost_gaze = cfg.watch_lost_gaze
+	_watch.look_rate = cfg.search_look_rate
+	_coverage.spacing = cfg.search_coverage_spacing
+	_coverage.target_fraction = cfg.search_coverage_target
+	_coverage.budget_max = cfg.search_coverage_budget
+	_coverage.approach = cfg.search_coverage_approach
+	_coverage.margin = cfg.search_coverage_margin
+	_coverage.look_rate = cfg.search_look_rate
+	_combat.shoot_range = cfg.shoot_range
+	_combat.punch_range = cfg.punch_range
+	_combat.ring_radius = cfg.combat_ring_radius
+	_combat.ring_count = cfg.combat_ring_count
+	_combat.cover_time = cfg.cover_time
+	_combat.fire_cooldown = cfg.fire_cooldown
+	_combat.fire_burst = cfg.fire_burst
+	_combat.back_off_time = cfg.back_off_time
+	_combat.reposition_interval = cfg.reposition_interval
+	_combat.auto_reload = cfg.auto_reload
+	_entry.ready_timeout = cfg.entry_ready_timeout
+	_entry.listen_time = cfg.entry_listen_time
+	_entry.follow_gap = cfg.entry_follow_gap
+	_entry.pie_dwell = cfg.entry_pie_dwell
+	_entry.corner_dwell = cfg.entry_corner_dwell
+	_entry.rear_time = cfg.rear_security_time
+	_entry.cover_time = cfg.entry_cover_time
+	_entry.watch_dwell = cfg.entry_watch_dwell
+	_entry.approach_time = cfg.entry_approach_time
+	_entry.order_ready_cap = cfg.order_ready_cap
+	_entry.squad = cfg.squad
+	_entry.look_rate = cfg.search_look_rate
 
 
 # --- Read-only views -------------------------------------------------------------------------
@@ -527,7 +506,7 @@ func debug_combat() -> Dictionary:
 	var in_range := false
 	var fire_clear := false
 	if engaged and _character != null:
-		in_range = _character.global_position.distance_to(_engage_pos) <= shoot_range
+		in_range = _character.global_position.distance_to(_engage_pos) <= _combat.shoot_range
 		fire_clear = in_range and _perception.has_line_to(_engage_node, _engage_pos)
 	var fighting := _primitive in [&"engage", &"melee"]
 	var obj_pos = null
@@ -542,13 +521,13 @@ func debug_combat() -> Dictionary:
 		"hold_ground": _hold_ground,
 		"in_range": in_range,
 		"fire_clear": fire_clear,
-		"shoot_range": shoot_range,
-		"punch_range": punch_range,
+		"shoot_range": _combat.shoot_range,
+		"punch_range": _combat.punch_range,
 		"combat_phase": _combat.phase if fighting else "",
 		"cover_timer": _combat.cover_timer,
-		"cover_time": cover_time,
+		"cover_time": _combat.cover_time,
 		"fire_timer": _combat.fire_timer,
-		"fire_cooldown": fire_cooldown,
+		"fire_cooldown": _combat.fire_cooldown,
 		"combat_dest": _combat.dest if _primitive == &"engage" and _arrived and _combat.dest != Vector2.ZERO else null,
 		"aim_point": _character.aim_point if _character != null else Vector2.ZERO,
 		"reloading": _reloading,
