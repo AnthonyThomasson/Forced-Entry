@@ -269,7 +269,7 @@ func _defend_candidate(rect: Rect2, raw: Vector2, doors: Array, map: RID, space)
 		var aim := pos + into * DEFEND_DOOR_IN
 		if _sees(space, p, aim):
 			sees[d["id"]] = true
-			var hit: Dictionary = vision.raycast(space, p, aim, []) if vision != null and space != null else {}
+			var hit: Dictionary = vision.raycast(space, p, aim, []) if space != null else {}
 			if hit.get("collider") is RigidBody2D:
 				cover[d["id"]] = true
 	return { "spot": p, "funnel": funnel, "sees": sees.size(), "sees_door": sees, "cover": cover }
@@ -356,7 +356,7 @@ func _ambush_posts(g: Dictionary, room_key: String, map: RID, space) -> Array:
 ## Whether someone standing at `from` sees `to` (over low cover; walls and tall furniture block it), at any distance and whichever way it
 ## faces: what a stack outside could see of a post once it looks.
 func _sees_from(space, from: Vector2, to: Vector2) -> bool:
-	return vision == null or space == null or vision.sight_hit(space, from, to, []).is_empty()
+	return space == null or vision.sight_hit(space, from, to, []).is_empty()
 
 
 ## The doorways out of room `room_key` (one already cleared) that lead on into another room that `is_cleared` (a Callable
@@ -651,7 +651,7 @@ func door_view(id: String, into: String, map: RID, space) -> PackedVector2Array:
 		return _views[key]
 	var opening := _opening(id)
 	var room := SnapshotVocab.room_by_key(_rooms, into)
-	if opening.is_empty() or room.is_empty() or space == null or vision == null or not NavBuilder.ready(map):
+	if opening.is_empty() or room.is_empty() or space == null or not NavBuilder.ready(map):
 		return PackedVector2Array()
 	# A view lies in the room (or the open) in front of the doorway: it does not run on through the next doorway into another room.
 	var in_front := Rect2()
@@ -851,8 +851,7 @@ func _shared_on(map: RID) -> Dictionary:
 ## `warm_geometry` checks it every pass; `_tuning()` is the same as the key the shared geometry is filed under.
 func _tuning_inputs() -> Array:
 	var out: Array = [_house, stack_spacing, wall_standoff, pie_radius, pie_steps, corner_inset, short_room, door_view_depth]
-	if vision != null:
-		out.append_array([vision.enabled, vision.view_distance, vision.fov_degrees, vision.awareness_radius, vision.see_over_coverage])
+	out.append_array([vision.enabled, vision.view_distance, vision.fov_degrees, vision.awareness_radius, vision.see_over_coverage])
 	return out
 
 
@@ -1554,7 +1553,7 @@ func _wall_length(rect: Rect2, pos: Vector2, dir: Vector2) -> float:
 
 ## Whether the line `from` → `to` is clear for sight (over low cover; walls and tall furniture block it).
 func _sees(space, from: Vector2, to: Vector2) -> bool:
-	return vision == null or space == null or vision.can_see(from, to - from, to, space, [])
+	return space == null or vision.can_see(from, to - from, to, space, [])
 
 
 # --- The team, off the radio -------------------------------------------------------------------
