@@ -484,13 +484,20 @@ func paint_over(r: Rect2i, c: Color) -> void:
 
 ## A 1px line from `a` to `b` (Bresenham).
 func line(a: Vector2i, b: Vector2i, c: Color, height: int = -1) -> void:
+	for p in line_points(a, b):
+		px(p.x, p.y, c, height)
+
+
+## The points of a 1 px line from `a` to `b` (Bresenham), `a` first and `b` last.
+static func line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
 	var d := (b - a).abs()
 	var sx := 1 if a.x < b.x else -1
 	var sy := 1 if a.y < b.y else -1
 	var err := d.x - d.y
 	var p := a
 	while true:
-		px(p.x, p.y, c, height)
+		out.append(p)
 		if p == b:
 			break
 		var e2 := err * 2
@@ -500,6 +507,7 @@ func line(a: Vector2i, b: Vector2i, c: Color, height: int = -1) -> void:
 		if e2 < d.x:
 			err += d.x
 			p.y += sy
+	return out
 
 
 # --- Shading ---------------------------------------------------------------------------
@@ -605,23 +613,9 @@ func glare(s: Shape, glint: Color, streaks: int = 2) -> void:
 
 ## A line clipped to shape `s`.
 func _line_inside(s: Shape, a: Vector2i, b: Vector2i, c: Color) -> void:
-	var d := (b - a).abs()
-	var sx := 1 if a.x < b.x else -1
-	var sy := 1 if a.y < b.y else -1
-	var err := d.x - d.y
-	var p := a
-	while true:
+	for p in line_points(a, b):
 		if s.has(p.x, p.y) and has(p.x, p.y):
 			img.set_pixel(p.x, p.y, c)
-		if p == b:
-			break
-		var e2 := err * 2
-		if e2 > -d.y:
-			err -= d.y
-			p.x += sx
-		if e2 < d.x:
-			err += d.x
-			p.y += sy
 
 
 # --- Surface finishes ------------------------------------------------------------------

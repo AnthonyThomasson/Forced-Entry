@@ -105,7 +105,7 @@ static func scratches(c: PixelCanvas, count: int) -> void:
 	for _i in count:
 		var a := Vector2i(c.rng.randi_range(0, c.w - 1), c.rng.randi_range(0, c.h - 1))
 		var b := a + Vector2i(c.rng.randi_range(-6, 6), c.rng.randi_range(-3, 3))
-		for p in points(a, b):
+		for p in PixelCanvas.line_points(a, b):
 			if c.covered(p.x, p.y):
 				c.img.set_pixel(p.x, p.y, c.at(p.x, p.y).lerp(SCRATCH, 0.35))
 
@@ -246,29 +246,8 @@ static func screen(c: PixelCanvas, r: Rect2i, col: Color) -> void:
 
 ## A line from `a` to `b`, each pixel blended `amount` toward `col` over what is drawn (set outright where nothing is).
 static func line(c: PixelCanvas, a: Vector2i, b: Vector2i, col: Color, amount: float) -> void:
-	for p in points(a, b):
+	for p in PixelCanvas.line_points(a, b):
 		if c.has(p.x, p.y):
 			var here := c.at(p.x, p.y)
 			c.px(p.x, p.y, here.lerp(col, amount) if here.a > 0.0 else col)
 
-
-## The points of a 1 px line from `a` to `b` (Bresenham).
-static func points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	var d := (b - a).abs()
-	var sx := 1 if a.x < b.x else -1
-	var sy := 1 if a.y < b.y else -1
-	var err := d.x - d.y
-	var p := a
-	while true:
-		out.append(p)
-		if p == b:
-			break
-		var e2 := err * 2
-		if e2 > -d.y:
-			err -= d.y
-			p.x += sx
-		if e2 < d.x:
-			err += d.x
-			p.y += sy
-	return out

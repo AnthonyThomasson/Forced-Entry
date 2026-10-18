@@ -63,7 +63,9 @@ through snapshots).
   (per row: first inside x and one past the last; per column the same in y): the Vehicles domain's `vehicle_art.convex` does, once
   per geometry, for its windscreens and side windows. `cast_shadows()` walks the whole canvas, so a large canvas painted for every
   lighting step (a vehicle body) skips it and shades with bevels.
-- **Drawing:** `fill(shape, color, height)`, `clear`, `paint_over(rect, color)`, `line`, `px`.
+- **Drawing:** `fill(shape, color, height)`, `clear`, `paint_over(rect, color)`, `line`, `px`; the static
+  `line_points(a, b)` (a 1 px line's Bresenham points, `a` first) is the one line walk, also for a painter that blends or clips
+  each point itself (Objects' `decay.gd` `line` / `scratches`).
 - **What gives light:** `glowing(draw: Callable, area := Rect2i())` runs a drawing (a screen's face, a tube, a bulb, an LED)
   and marks every pixel it changed within `area` (the whole canvas when empty) as emissive; `emissive()` returns those pixels as
   they stand in the finished art (null when none). It compares the image before and after (skipping the rows left as they
