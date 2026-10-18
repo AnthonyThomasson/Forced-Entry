@@ -35,6 +35,7 @@ extends RefCounted
 ## else: `Behavior` calls `begin()` on adopting an ENTER leaf and `step()` every tick until it reports done.
 
 const Watch := preload("res://scenes/ai/behavior/watch.gd")
+const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 
 ## A member whose latest call is one of these is through the doorway.
 const THROUGH := ["in", "clear", "cover", "rear"]
@@ -48,8 +49,14 @@ const COVER_DEPTH := 110.0
 const COVER_INSET := 20.0
 ## How far (px) out from the wall an entrant crosses in front of a door it must get past.
 const CROSS_DEPTH := 140.0
-## How far (px) beyond its slot, along the wall, an entrant arrives from.
+## How far (px) off the walls of the room it stacks in that crossing, and every approach waypoint, stays.
+const CROSS_INSET := 24.0
+## How far (px) beyond its slot, along the wall, an entrant arrives from, and the step (px) it is shortened by where that point is off the
+## stack's ground (`AgentPerception.entry_on_stack_side`).
 const APPROACH_LEAD := 60.0
+const LEAD_STEP := 8.0
+## The farthest (px) an approach waypoint may be moved onto the navmesh and still stand for the point it was asked for.
+const WAYPOINT_SNAP := 24.0
 ## How far (px) inside the wall plane an entrant counts as through the threshold.
 const THROUGH_DEPTH := 26.0
 ## Seconds between repeats of the latest call, so the claim stays live on the radio (callouts lapse after a while).
@@ -64,6 +71,20 @@ const CORNER_REACH := 6.0
 ## Distance (px) between the spots two members hold side by side (the later members' spots inside, the rear spots): clear of
 ## each other's footprint, so neither stands in the hole the other's body cuts in the steering map.
 const SPOT_SPACING := 44.0
+## Farthest (px) a member standing in its slot steps to move up into a lower slot of its side (E2): the slot beside or in front of it.
+const MOVE_UP_REACH := SPOT_SPACING * 1.5
+## How much farther (px) than `MOVE_UP_REACH` from the slot a move-up would hand it a holder still on its way, whose way there runs through
+## the mover's step, may be for the move-up to wait (`_latecomer_crosses`): one more step's length, because the latecomer walks about as far
+## as the mover's step while the mover makes it, so one nearer than reach + a step can come into the step's way, and the two meet mid-swap,
+## each a stride off the other's slot (the stack jams).
+const MOVE_UP_MARGIN := MOVE_UP_REACH
+## Seconds between looks for a slot to move up into (`_move_up_now`).
+const MOVE_UP_EVERY := 0.25
+## The longest (s, from when the hold began) a walk to the stack waits on a teammate of the stack still on its way to its own slot before it
+## takes the back of the stack as a walk the stack seals does (`way_blocked`, `_held_by_forming`).
+const HELD_BY_FORMING_CAP := 3.0
+## How long ago (s) a body at rest out of sight may have been seen for a hold's verdict on the slot to count it (`_standing_bodies`).
+const SEEN_FRESH := 0.5
 ## Most seconds the committed crossing may take before it gives up the commitment (a blocked doorway).
 const CROSS_CAP := 6.0
 ## Gaze (rad) within which the look through the door has settled at a pie step.
@@ -84,6 +105,8 @@ const BANG_MIN_DEPTH := 120.0
 ## stack waits for the stun to go off once it was called.
 const BANG_CALL_CAP := 8.0
 const BANG_BURST_CAP := 5.0
+## The most seconds the stack waits for a frag to go off once it was called (`docs/leadership.md` LD14): its fuse is twice a stun's.
+const FRAG_BURST_CAP := 7.0
 ## Seconds after the stun went off in which the stack goes in whatever stands in view (a hostile in the doorway is blind and deaf); an
 ## entry begun within this long of its own team's burst in the room goes in on it too (E17).
 const BANG_WINDOW := 3.0
@@ -98,7 +121,7 @@ var corner_dwell: float = 0.6      ## Seconds held in the corner looking across 
 var rear_time: float = 10.0        ## Most seconds the last of the team holds the doorway facing out once the room is clear.
 var cover_time: float = 8.0        ## Most seconds a member covers a doorway on when no teammate moves on first.
 var watch_dwell: float = 0.8       ## Seconds a lone entrant looks through each doorway on, once its gaze has settled.
-var approach_time: float = 20.0    ## Safety cap (s) on reaching the slot; past it the claim is given up.
+var approach_time: float = 20.0    ## Safety cap (s) on reaching the slot, on top of the way's own walk (`_approach_cap`); past it the claim is given up.
 var look_rate: float = 2.5         ## Gaze turn speed (rad/s).
 var order_ready_cap: float = 60.0  ## Most seconds an ordered stack waits for all its recipients, from the first ordered `ready` (D7).
 var squad: Node = null             ## The NPC's squad (`Squad.alive`: which recipients of an order still live); null without one.
@@ -122,13 +145,24 @@ var _perception: Node              ## The perception sub-domain (doorway geometr
 var _coverage: RefCounted          ## The room coverage by sight, reused to clear the room once inside.
 var _geo := {}                     ## The doorway's geometry (agent_entry.gd `geometry`).
 var _place := 0                    ## Its place in its side's file (1 = nearest the door): the slot, less the claims ahead on the other side.
+var _want := 0                     ## The side it asks for: the team's, the order's, its own on a split stack. `side` is where its slot is (E21).
+var _spot := Vector2.INF           ## Where its slot stands (`AgentPerception.entry_stack_point`), worked out again as the claims change.
+var _leader_id := 0                ## The instance id of the leader that gave the order this entry carries out (0: none).
+var _all_in_at := -1.0             ## `_time` every living recipient of its order was last found in its slot (-1 = not all are).
 var _team_side := 0                ## The side the team stacks on, as last weighed (a change is weighed again: E19).
 var _ready_said := false           ## It has radioed `ready` this entry.
 var _lead_side := 0                ## The side the point stacked on, as last seen while the stack formed: the side every member counts the rear spots from.
 var _calls: Array = []             ## Steps to radio, oldest first: { step, cleared_room? }.
+var _on_air := false               ## A step of this entry has gone out on the radio (`take_calls`).
+var held_back := false             ## Set by `Behavior` while it reads an ordered entry's way before its claim (D4): `take_calls` gives nothing yet.
 var _last_call := {}               ## The latest step radioed, whole (repeated on the heartbeat).
 var _heartbeat := 0.0              ## Seconds until the latest step is radioed again.
 var _clock := 0.0                  ## Seconds into the phase.
+var _move_up := 0                  ## The slot this member moved up from (E2) until it stands in the one it stepped into, else 0: its claim holds that one against the latecomer's.
+var _move_up_clock := 0.0         ## Seconds until the next look for a slot to move up into.
+var _moved_for := {}               ## The vacancies this member has moved up into (`"<holder id>:<slot>"`): one move per vacancy.
+var _pie_begun := false            ## This member has begun slicing the pie, and says so on the radio (`pie`): nobody moves up behind it from then on.
+var _approach_cap := 0.0           ## The approach's cap (s): `approach_time` on top of the walk there at walking pace (`_walk_time`), measured as it is planned.
 var _waypoints: Array = []         ## Points still to walk through before the current phase's spot.
 var _ready_at := -1.0              ## `_time` this NPC got to its slot (-1 = not yet).
 var _team_size := 0                ## How many allies claimed the doorway last tick (a new one restarts the wait).
@@ -155,6 +189,10 @@ var _combat: RefCounted            ## The combat module: the tactical reload at 
 var _top_off_spent := 0.0          ## Seconds this entry has spent topping its gun off.
 var _stuns := 0                    ## Stun grenades this NPC carries (radioed, so the stack knows who can throw).
 var _self_id := 0                  ## This NPC's instance id (to know it is the thrower on the radio's terms).
+var _claim_frame := -1             ## The `GameClock` frame its slot was last claimed on, radioed with every call (`claim_frame`).
+var _claim_pos := Vector2.ZERO     ## Where it stood then (`claim_pos`): claims made on the same frame settle by distance (`free_slot`).
+var _lead := APPROACH_LEAD         ## How far past its slot the approach in hand arrives from (`_approach_lead`).
+var _round_pending := false        ## The approach was laid while the map round the doorway's view was being baked (`_way_round`).
 var _bang_stage := ""              ## The thrower's part: "go" (to the throw spot), "throw", "back" (to its slot); "" for everyone else.
 var _bang_spot := Vector2.INF      ## Where the thrower throws from.
 var _bang_route: Array = []        ## The points it walks through to get there: out from its slot first, clear of the member ahead of it, then along.
@@ -172,9 +210,18 @@ var _burst_at := -INF              ## `_time` of the burst in the room (negative
 var _security_clock := 0.0         ## Seconds spent holding the stack outside a short room (E13).
 var _security_held_at := -1.0      ## `_security_clock` the room was first called clear (-1 = not yet).
 var _blocked_count := 0            ## How many times the walk of this phase has been found sealed (`way_blocked`).
+var _forming_wait := false         ## The approach is held by a teammate still on its way and waits for it (`way_blocked`, at most `HELD_BY_FORMING_CAP`).
+var _dropped_at := Vector2.INF     ## Where the member stood when a hold last dropped approach waypoints (`_drop_sealed`; INF: none since it walked on).
 var _order_id := ""                ## The order this entry carries out (`docs/leadership.md` LD9; "" for the NPC's own ENTER or a detour).
 var _order_side := 0               ## The side of the door the order names (1 / -1 along its wall, from its `stack_at`); 0 for a split stack (D6).
-var _order_bang := false           ## The order's mode: a stun thrown in first.
+var _order_bang := false           ## The order's mode: a grenade thrown in first.
+var _order_mode := ""              ## The order's mode by name (LD14): `quiet`, `stun` or `frag`.
+var _order_hold := false           ## The order holds the stack for the leader's go (LD13).
+var _released := false             ## The held stack has had its go (LD13: the leader's, latched; D14 a member going in; D12 no leader).
+var _holding := false              ## This tick, the member holds in its slot for the go (`holding_for_go`).
+var _frags := 0                    ## Frag grenades this NPC carries (radioed, so a frag stack knows who can throw, LD14).
+var _kind: StringName = &"stun"    ## The grenade the bang throws: a stun, or a frag for a stack ordered so (LD14).
+var _thrown := {}                  ## The frag this NPC threw for the bang, to radio (`take_thrown`): { kind, point }; {} for none.
 var _pref_side := 0                ## The side of the door this NPC began on: the side it reaches without crossing the doorway's view (D6).
 var _order_ready_at := -1.0        ## `_time` an ordered `ready` (its own or a recipient's) was first heard or said: D7's cap runs from it.
 var _character: Node               ## The NPC's body, handed in once by `bind`.
@@ -203,10 +250,11 @@ func bind(character: Node) -> void:
 
 
 ## Start an entry from `params`: `opening` and `into` from an ENTER leaf, `secure` from the guard's pass-by detour, and from an
-## ordered stack's leaf (`docs/leadership.md` LD9) its `order_id`, `bang` and side (`stack_at`, or `split`). False when the doorway is
+## ordered stack's leaf (`docs/leadership.md` LD9) its `order_id`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13) and side (`stack_at`, or `split`). False when the doorway is
 ## unknown (the leaf is then dropped and the NPC re-decides). It claims the lowest slot the claims heard leave free (the slots go by
-## arrival on the radio, E2), not the one the option was measured from: a claim heard since then came first. Two claims made before
-## either heard the other are settled by instance id (`_keep_slot`).
+## arrival on the radio, E2), not the one the option was measured from: a claim heard since then came first. A claim made on this same
+## frame is not first: the member nearer the slot takes it, and two claims on one slot made on one frame settle the same way (`_keep_slot`;
+## else by instance id), so walks to neighbouring slots do not cross.
 func begin(params: Dictionary) -> bool:
 	reset()
 	opening = str(params.get("opening", ""))
@@ -219,8 +267,12 @@ func begin(params: Dictionary) -> bool:
 	var team: Array = [] if secure else _perception.entry_team(opening)
 	_self_id = _character.get_instance_id()
 	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
+	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
 	_order_id = "" if secure else str(params.get("order_id", ""))
 	_order_bang = bool(params.get("bang", false))
+	_order_mode = str(params.get("mode", "stun" if _order_bang else "quiet"))
+	_order_hold = bool(params.get("wait_go", false))
+	_released = bool(params.get("go", false))
 	_order_side = _side_named(params)
 	_pref_side = _side_of(_character.global_position)
 	var asked := bool(params.get("bang", false))
@@ -233,21 +285,28 @@ func begin(params: Dictionary) -> bool:
 		if not team.is_empty():
 			bang = team.all(func(m): return m["bang"] and not m["bang_off"])  # The stack goes in the way its first claimer chose.
 	_turned = bang and not asked
-	slot = _perception.entry_free_slot(team, _character.get_instance_id())
+	slot = _perception.entry_free_slot(team, _character.get_instance_id(), 0,
+		{ "frame": GameClock.frame(), "pos": _character.global_position, "g": _geo })
+	if not _perception.entry_holds_slot(_geo, slot):
+		phase = "done"  # A dead end already holding all it can (E20, rule 6): no slot, no claim (an ordered member's next decision refuses).
+		return false
+	var held: Dictionary = _perception.order() if _order_id != "" else {}
+	var leader = held.get("leader") if str(held.get("id", "")) == _order_id else null
+	_leader_id = leader.get_instance_id() if leader is Node and is_instance_valid(leader) else 0
 	if ordered.is_empty():
 		_team_side = _perception.entry_team_side(_geo, team, _character.global_position)
-		side = _perception.entry_stack_side(_geo, team)
+		_want = _perception.entry_stack_side(_geo, team)
 	else:
-		side = _ordered_side(team, ordered)
-		_team_side = side
-	_place = _perception.entry_place(team, side, slot)
+		_want = _ordered_side(team, ordered)
+		_team_side = _want
+	_settle(team)
 	solo = _alone(team)
 	_team_size = team.size()
 	_points = _coverage.sample_room(into)
 	_unseen = _points.duplicate()
 	_look_angle = _character.facing.angle()
 	_note_burst_before()
-	_enter_approach()
+	_enter_approach(team)
 	_radio("claim")
 	return true
 
@@ -255,11 +314,18 @@ func begin(params: Dictionary) -> bool:
 ## Forget the running entry.
 func reset() -> void:
 	phase = ""
+	_claim_frame = -1
+	_claim_pos = Vector2.ZERO
 	opening = ""
 	into = ""
 	slot = 0
 	side = 0
 	_place = 0
+	_want = 0
+	_spot = Vector2.INF
+	_leader_id = 0
+	_all_in_at = -1.0
+	_round_pending = false
 	_team_side = 0
 	_ready_said = false
 	_lead_side = 0
@@ -288,14 +354,29 @@ func reset() -> void:
 	_order_id = ""
 	_order_side = 0
 	_order_bang = false
+	_order_mode = ""
+	_order_hold = false
+	_released = false
+	_holding = false
+	_frags = 0
+	_kind = &"stun"
+	_thrown = {}
 	_pref_side = 0
 	_order_ready_at = -1.0
 	_geo = {}
 	_calls = []
+	_on_air = false
+	held_back = false
 	_last_call = {}
 	_heartbeat = HEARTBEAT
 	_clock = 0.0
+	_approach_cap = 0.0
+	_move_up = 0
+	_move_up_clock = 0.0
+	_moved_for = {}
+	_pie_begun = false
 	_waypoints = []
+	_lead = APPROACH_LEAD
 	_ready_at = -1.0
 	_team_size = 0
 	_team_grew_at = 0.0
@@ -319,14 +400,33 @@ func reset() -> void:
 	_security_clock = 0.0
 	_security_held_at = -1.0
 	_blocked_count = 0
+	_forming_wait = false
+	_dropped_at = Vector2.INF
 
 
-## Give the entry up (the NPC chose something else, e.g. a fight): radio `abort` so the stack stops counting on it.
+## Give the entry up (the NPC chose something else, e.g. a fight): radio `abort` so the stack stops counting on it. An entry none of whose
+## steps has gone out yet (its claim held back) gives nothing up: its steps are dropped.
 func abandon() -> void:
 	if phase in ["", "done"]:
 		return
-	_radio("abort")
+	if _on_air:
+		_radio("abort")
+	else:
+		_calls = []
 	phase = "done"
+
+
+## Whether the entry `params` names can begin on its doorway's slots: they are laid (`wall_n` and the rest, `AgentPerception.entry_geometry`)
+## only on a baked nav map, and a stack claims by them. True for a doorway the perception does not know (`begin` then fails at once).
+func laid(params: Dictionary) -> bool:
+	var g: Dictionary = _perception.entry_geometry(str(params.get("opening", "")), str(params.get("into", "")))
+	return g.is_empty() or g.has("wall_n")
+
+
+## The points the approach still walks through to its slot, in order (its waypoints, then the slot), from `begin` on: the way `Behavior`
+## reads before the claim of an ordered entry goes out (D4).
+func approach_points() -> Array:
+	return _waypoints + ([_spot] if phase == "approach" and _spot != Vector2.INF else [])
 
 
 ## Whether the entrant is committed: nothing may stop it (no re-decision, no reload, no crouch) while it crosses, until it is through the
@@ -350,11 +450,34 @@ func take_turned() -> bool:
 	return was
 
 
-## The steps queued for the radio since the last call, oldest first: { step, cleared_room? }.
+## The steps queued for the radio since the last call, oldest first: { step, cleared_room? }; none while `held_back`.
 func take_calls() -> Array:
+	if held_back:
+		return []
 	var out := _calls
 	_calls = []
+	_on_air = _on_air or not out.is_empty()
 	return out
+
+
+## The frag this NPC threw into the room for the bang since the last call (`{ kind, point }`, the point it was aimed at), once, for the
+## controller to radio as `frag_out` (LD14); {} for none. A stun's bang radios nothing of its throw.
+func take_thrown() -> Dictionary:
+	var out := _thrown
+	_thrown = {}
+	return out
+
+
+## Whether this member holds in its slot, ready, for the leader's go (LD13): the stack it is in was ordered to hold and has had no go.
+func holding_for_go() -> bool:
+	return _holding and phase == "stack"
+
+
+## Whether this member holds its slot crouched for the frag its stack throws into the room (LD14): the bang phase of a frag stack, in its
+## slot (the thrower once it is back in it).
+func holds_crouched() -> bool:
+	return phase == "bang" and _kind == &"frag" and not throwing() \
+		and _character.global_position.distance_to(_stack_point()) <= WAYPOINT_REACH
 
 
 ## The entry as data, for `debug_entry()` / `debug_state()` and the tests: the doorway, slot, side, role, phase, what
@@ -371,7 +494,8 @@ func debug() -> Dictionary:
 		"seen_fraction": seen_fraction, "pie_sides": pie_sides, "hidden_corners": hidden, "corner": corner,
 		"stack_point": _stack_point() if not _geo.is_empty() else Vector2.INF, "team": _team_size,
 		"covering": covering, "watch_doors": _watch.map(func(w): return w["id"]), "bang": bang, "bang_off": _bang_off, "upgraded": _upgraded, "bang_stage": _bang_stage,
-		"order_id": _order_id,
+		"order_id": _order_id, "order_mode": _order_mode, "order_hold": _order_hold, "released": _released, "holding": holding_for_go(),
+		"kind": _kind,
 	}
 
 
@@ -391,8 +515,9 @@ func debug_view() -> Dictionary:
 	var members: Array = team + [{ "id": _self_id, "slot": slot, "side": side, "name": "me" }]
 	var order: Array = _perception.entry_crossing_order(members)
 	var ready_left := -1.0
-	if role == "point" and _ready_at >= 0.0 and phase in ["stack", "pie"]:
-		ready_left = maxf(ready_timeout - (_time - maxf(_ready_at, _team_grew_at)), 0.0)
+	var waits_from := _all_in_at if _order_id != "" else _ready_at  # Under an order, from when every recipient was in its slot (LD17).
+	if role == "point" and waits_from >= 0.0 and phase in ["stack", "pie"]:
+		ready_left = maxf(ready_timeout - (_time - maxf(waits_from, _team_grew_at)), 0.0)
 	var hold_left := -1.0
 	if phase == "cover":
 		hold_left = maxf(cover_time - _clock, 0.0)
@@ -431,6 +556,8 @@ func step(delta: float) -> bool:
 	_clock += delta
 	var team: Array = [] if secure else _perception.entry_team(opening)
 	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
+	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
+	_holding = false
 	_note_burst()
 	if team.size() > _team_size:
 		_team_grew_at = _time  # Someone joined: the point gives the newcomer the full wait.
@@ -443,6 +570,8 @@ func step(delta: float) -> bool:
 	if _order_id != "" and _order_ready_at < 0.0 \
 			and (_ready_said or team.any(func(m): return m["order_id"] == _order_id and m["step"] != "claim")):
 		_order_ready_at = _time
+	_note_go(team)
+	_note_all_in(team)
 	if phase in ["approach", "stack", "pie"]:
 		_keep_slot(team)
 		_follow_order(team)
@@ -486,14 +615,12 @@ func way_blocked() -> bool:
 	_blocked_count += 1
 	match phase:
 		"approach":
-			if not _waypoints.is_empty():
-				_waypoints.pop_front()
+			if _drop_sealed():
 				return false
-			if _to_back():
+			if _held_by_forming():
+				_forming_wait = true  # The stack is forming, not keeping it out: it waits, its walk held (`_tick_approach` ends the wait).
 				return false
-			_radio("abort")
-			phase = "done"
-			return true
+			return _to_back_or_abort()
 		"pie":
 			if not _pie_queue.is_empty():
 				_pie_queue.pop_front()
@@ -521,6 +648,76 @@ func way_blocked() -> bool:
 	return false
 
 
+## The approach's waypoints the hold that blocked its walk seals, dropped: the one it was walking to, then each next one at the slot (within
+## `SLOT_REACH` of it: the walk into the slot follows anyway) or whose plain way from where the member stands passes the body holding it
+## (`Locomotion.seals`), up to the first the hold does not seal (E19's point out from the wall, on another way), which is the next tried.
+## True when the approach goes on: a waypoint is left, or the hold does not seal the slot for good (`_slot_sealed`: another way reaches it,
+## which the walk is held until the locomotion takes). False when it does: the sealed rule's.
+func _drop_sealed() -> bool:
+	var spot := _stack_point()
+	if not _waypoints.is_empty():
+		_dropped_at = _character.global_position
+		_waypoints.pop_front()
+		while not _waypoints.is_empty() and ((_waypoints[0] as Vector2).distance_to(spot) <= SLOT_REACH or _loco.seals(_waypoints[0])):
+			_waypoints.pop_front()
+	return not _waypoints.is_empty() or not _slot_sealed(spot)
+
+
+## Whether the hold seals the slot (at `spot`) for good: a body between the member and its slot, not on it. Its plain way passes the body the
+## walk is held by (`Locomotion.seals`) and no way at all reaches it with that body and each other body standing still in the way at body
+## width (`_standing_bodies`, `AgentPerception.entry_slot_reach`). A body standing on the slot (within `Locomotion.PASS_CLEARANCE` of it,
+## Locomotion's own read of a body on the goal) is no seal: the walk goes on, and Locomotion ends it at a free spot beside the slot. A way
+## round there is, though the steering map does not show it yet (a teammate on its way still crossing it), is no seal. Nor is one not known
+## yet (its map still being baked): the hold's next re-plan asks again.
+func _slot_sealed(spot: Vector2) -> bool:
+	if _loco.held_at().distance_to(spot) < Locomotion.PASS_CLEARANCE:
+		return false
+	return _loco.seals(spot) and _perception.entry_slot_reach(spot, _standing_bodies()) == 0
+
+
+## The bodies a hold's verdict on the slot weighs (`_slot_sealed`): the one the walk is held by, and every other body at rest the walk knows
+## of (`Locomotion.bodies`: the teammates standing in their slots among them) that it sees now or saw within `SEEN_FRESH` s, but a teammate
+## of this stack still on its way to its slot (its claim at `claim`), which moves on. A body last seen longer ago is only where it stood then
+## (a teammate gone on into its slot), and a false "sealed" gives the slot up, so it does not count.
+func _standing_bodies() -> Array:
+	var coming := {}
+	for m in ([] if secure else _perception.entry_team(opening)):
+		if m["step"] == "claim":
+			coming[int(m["id"])] = true
+	var out: Array = [_loco.held_at()]
+	for b in _loco.bodies:
+		if coming.has(int(b.get("id", 0))) or (b.get("vel", Vector2.ZERO) as Vector2).length() >= Locomotion.REST_SPEED:
+			continue
+		if b.get("visible", false) or float(b.get("age", INF)) <= SEEN_FRESH:
+			out.append(b["pos"])
+	return out
+
+
+## Whether the walk to the stack is held by a teammate of this stack still on its way to its own slot (its claim at `claim`: walking there,
+## or moving up), not the human, for less than `HELD_BY_FORMING_CAP` since the hold began: the stack forming (two walkers that give way
+## to each other stand still a moment), which clears, not the stack keeping this member from its slot. A hold by a member in its slot,
+## by the human (its claim stays at `claim` however long it takes) or by anyone else is the stack's or the way's, and so is a hold past
+## the cap (two members holding each other wait it out together, then the sealed rule parts them, `_to_back_or_abort`).
+func _held_by_forming() -> bool:
+	var id: int = _loco.held_by()
+	if id == 0 or secure or _loco.held_time() >= HELD_BY_FORMING_CAP:
+		return false
+	for m in _perception.entry_team(opening):
+		if int(m["id"]) == id:
+			return m["step"] == "claim" and not bool(m.get("human", false))
+	return false
+
+
+## The walk to the stack is sealed for good: take the back of the stack (`_to_back`), else give the claim up (`abort`). True when it
+## gave the entry up.
+func _to_back_or_abort() -> bool:
+	if _to_back():
+		return false
+	_radio("abort")
+	phase = "done"
+	return true
+
+
 ## Take the back of the stack (E2: the slots go by arrival): the slot behind the last one claimed, when this member is not
 ## already the last and the doorway's wall has a slot there. A change is radioed as a new claim. False when there is none to
 ## take.
@@ -529,17 +726,21 @@ func _to_back() -> bool:
 	var last := 0
 	for m in team:
 		last = maxi(last, int(m["slot"]))
-	if last < slot or _perception.entry_place(team, side, last + 1) > (_geo["slots"][side] as Array).size():
+	if last < slot or not _perception.entry_holds_slot(_geo, last + 1):
 		return false
 	slot = last + 1
-	_place = _perception.entry_place(team, side, slot)
-	_enter_approach()
+	_move_up = 0
+	_forming_wait = false
+	_dropped_at = Vector2.INF  # A new slot and its own way: the hold is weighed afresh, on its own re-plan.
+	_settle(team)
+	_enter_approach(team)
 	_radio("claim")
 	return true
 
 
-## Keep this NPC's slot, side and place in step with the radio: a slot an ally with a lower instance id also claimed is
-## given up for the next free one, and when the side the team stacks on changes (the point's, once it is known) a member
+## Keep this NPC's slot, side and place in step with the radio: a slot an ally also claimed is given up for the next free one when
+## the ally keeps it (one that moved up into it, E2; nearer it, of two claims made on one frame; else the lower instance id: `free_slot`),
+## or for the one the ally freed when it moved up; and when the side the team stacks on changes (the point's, once it is known) a member
 ## that is not the point weighs it again: it follows it, unless its way there crosses the doorway's view (E19). The side is
 ## otherwise never re-read from where this NPC stands: a lone entrant crosses in front of the door to slice its other side.
 ## In an ordered stack (LD9) the order's side holds instead, for every member (`_ordered_side`). The place in its side's file
@@ -547,35 +748,71 @@ func _to_back() -> bool:
 func _keep_slot(team: Array) -> void:
 	var was := slot
 	var was_side := side
-	var was_place := _place
-	slot = _perception.entry_free_slot(team, _character.get_instance_id(), slot)
+	var was_spot := _spot
+	slot = _perception.entry_free_slot(team, _character.get_instance_id(), slot,
+		{ "frame": _claim_frame, "pos": _claim_pos, "g": _geo, "side": side, "move_up": _move_up })
+	if slot != was:
+		_move_up = 0
 	var ordered := _order_claim(team)
 	if not ordered.is_empty():
-		side = _ordered_side(team, ordered)
-		_team_side = side
+		_want = _ordered_side(team, ordered)
+		_team_side = _want
 	elif slot != 1:
 		var team_side: int = _perception.entry_team_side(_geo, team, _character.global_position)
 		if team_side != _team_side:
 			_team_side = team_side
-			side = _perception.entry_stack_side(_geo, team)
-	_place = _perception.entry_place(team, side, slot)
-	if slot != was or side != was_side or _place != was_place:
-		if phase != "approach":
-			_enter_approach()  # Walk to the new slot.
+			_want = _perception.entry_stack_side(_geo, team)
+	if not _perception.entry_holds_slot(_geo, slot):
+		_refuse()  # Pushed past what a dead end holds (E20).
+		return
+	_settle(team)
+	if slot != was or side != was_side or _spot.distance_to(was_spot) > 1.0:
+		_enter_approach(team)  # Walk to the new slot.
 		if slot != was or side != was_side:
-			_radio("claim")
+			_radio("claim", { "claim_frame": _claim_frame })  # (Still the claim made then: one settled by distance settles on.)
+
+
+## Where this NPC's slot stands now, among the claims `team` (E20 to E22): the side it lies on (`side`: the one it asks for, `_want`, while
+## that side's wall has room, else the other's, E21), its place in that side's file and the point (`_spot`).
+func _settle(team: Array) -> void:
+	if _move_up > 0:  # Moved up (E2): the latecomer's claim still on this slot is counted at the one it is about to take.
+		team = team.map(func(m): return m.merged({ "slot": _move_up }, true) if int(m["slot"]) == slot and int(m.get("move_up", 0)) == 0 else m)
+	side = _perception.entry_side_for(_geo, team, slot, _want)
+	var members: Array = team + [{ "id": _self_id, "slot": slot, "side": side }]
+	_place = _perception.entry_place(members, side, slot)
+	_spot = _perception.entry_stack_point(_geo, members, slot, side)
+
+
+## Give the slot up: a dead end holds no slot for this NPC (E20, rule 6). Its claim is withdrawn and it stops where it is; an ordered
+## member's next decision holds it there, its order refused (the snapshot's ORDER option).
+func _refuse() -> void:
+	_radio("abort")
+	_character.move_input = Vector2.ZERO
+	phase = "done"
+
+
+## Whether this NPC's slot is against the doorway's wall (or among the fewest-seen spots beside it), not one of the
+## stack's open floor or tail past what the wall holds (rule 6): those are walked to by the plain way, not along the wall.
+func _on_wall() -> bool:
+	return slot <= int(_geo.get("wall_n", slot))
+
+
+## Whether this NPC is one of the stack's tail (E20's fallback): it holds the room it came by as rear security and never crosses.
+func _tail() -> bool:
+	return _perception.entry_is_tail(_geo, slot)
 
 
 # --- An ordered stack (`docs/leadership.md` LD9) -------------------------------------------------
 
-## The order this stack goes in under, as a claim's `{ order_id, order_bang, order_side }`: this NPC's own, else the lowest slot's of the
-## teammates' claims that carry one (an unordered member that joins an ordered stack follows its mode and side, D10). {} for a stack nobody
+## The order this stack goes in under, as a claim's `{ order_id, order_bang, order_mode, order_hold, order_go, order_side }`: this NPC's
+## own, else the lowest slot's of the teammates' claims that carry one (an unordered member that joins an ordered stack follows its mode and side, D10). {} for a stack nobody
 ## was ordered to, which keeps its own rules, and for a pass-by.
 func _order_claim(team: Array) -> Dictionary:
 	if secure:
 		return {}
 	if _order_id != "":
-		return { "order_id": _order_id, "order_bang": _order_bang, "order_side": _order_side }
+		return { "order_id": _order_id, "order_bang": _order_bang, "order_mode": _order_mode, "order_hold": _order_hold,
+			"order_go": _released, "order_side": _order_side }
 	for m in team:
 		if m["order_id"] != "":
 			return m
@@ -616,7 +853,7 @@ func _ordered_side(team: Array, ordered: Dictionary) -> int:
 ## to have claimed (the highest slot), so the sides differ by one at most. Every member weighs it the same way off the radio; it moves the
 ## one member, and once the sides are even nobody moves again.
 func _split_side(team: Array) -> int:
-	var own := side if side != 0 else _pref_side
+	var own := _want if _want != 0 else _pref_side
 	var mine := 1 + team.filter(func(m): return int(m["side"]) == own).size()
 	var other := team.filter(func(m): return int(m["side"]) == -own).size()
 	if mine - other < 2:
@@ -648,6 +885,34 @@ func _follow_order(team: Array) -> void:
 	_radio(str(_last_call.get("step", "claim")), _last_call)
 
 
+## Whether the stack holds for the leader's go (LD13): it goes in under an order (`_order_claim`, an unordered member following it too) that
+## says hold, and has had no go yet (`_released`, latched by `_note_go`).
+func _held(team: Array) -> bool:
+	var ordered := _order_claim(team)
+	return not _released and not ordered.is_empty() and bool(ordered["order_hold"])
+
+
+## Latch the go of a held stack (LD13) the first time it comes: the leader's `go` on this NPC's own order (given before the stack was ready
+## too: it then goes on the ready barrier), a teammate under the same order whose claims say it had it, a member of the stack going in or
+## through (D14: the human leader in the stack stepping in is its go), or the leader that gave the order dead (D12). Radioed with the next
+## claim (`order_go`).
+func _note_go(team: Array) -> void:
+	if not _held(team):
+		return
+	var ordered := _order_claim(team)
+	var go := _crossing(team) or team.any(func(m): return m["order_go"] and m["order_id"] == ordered["order_id"])
+	if not go and _order_id != "":
+		var held: Dictionary = _perception.order()
+		if str(held.get("id", "")) == _order_id:
+			var leader = held.get("leader")
+			go = bool(held.get("go", false)) or not is_instance_valid(leader) or leader.get("is_dead") == true
+	if not go:
+		return
+	_released = true
+	if not _last_call.is_empty():
+		_radio(str(_last_call["step"]), _last_call)
+
+
 ## The other living recipients of the order this NPC stacks under (D7): the order's `to` less itself and the dead (`Squad.alive`; with no
 ## squad, the living as the radio tells them). [] for an entry that is no order, or once the order has ended.
 func _recipients() -> Array:
@@ -673,10 +938,13 @@ func _alone(team: Array) -> bool:
 
 # --- Approach (E1) and stack (E2, E6) ----------------------------------------------------------
 
-## Head for the slot: if on the wrong side of the door, first out from the wall and across in front of it, far
-## out; then (when not already beyond the slot along the wall) sideways at that depth to a point past the slot,
-## then in to the wall and along it to the slot. So the last leg runs along the wall, never down the door's axis.
-func _enter_approach() -> void:
+## Head for the slot: if on the wrong side of the door with no way round its view (`_way_round`), first out from the wall and across in
+## front of it, far out; then (when not already beyond the slot along the wall) sideways at that depth to a point past the slot,
+## then in to the wall and along it to the slot. With a way round, the walk goes round the view (and the room being entered) to the point
+## past the slot. So the last leg runs along the wall, never down the door's axis. The point past
+## the slot stops a body's clearance short of the next slot along that side a teammate claims (`team`), so the walk never aims at a
+## teammate's body, nor goes round it (E2).
+func _enter_approach(team: Array) -> void:
 	_set_phase("approach")
 	_ready_said = false
 	var door: Vector2 = _geo["pos"]
@@ -685,27 +953,142 @@ func _enter_approach() -> void:
 	var target := _stack_point()
 	var target_out := (target - door).dot(out)
 	var target_lat := absf((target - door).dot(along))
+	var lead := _approach_lead(team)
+	_lead = lead
 	var here: Vector2 = _character.global_position
 	var depth := (here - door).dot(out)
 	var lat := (here - door).dot(along)
 	_waypoints = []
-	if signf(lat) != float(side) and absf(lat) >= 1.0:
-		depth = maxf(depth, CROSS_DEPTH)
+	if not _on_wall():
+		_approach_cap = approach_time + _walk_time()
+		return  # An open-floor or tail slot (rule 6): the plain way there, which keeps out of the doorway's view.
+	var crossing := signf(lat) != float(side) and absf(lat) >= 1.0
+	var round_way := _way_round(target) if crossing else 1
+	_round_pending = round_way < 0
+	if round_way == 0:
+		depth = maxf(depth, _cross_depth())
 		_waypoints.append(door + out * depth + along * lat)  # Out from the wall before crossing the door's front.
-	if signf(lat) != float(side) or absf(lat) < target_lat + APPROACH_LEAD * 0.5:
-		_waypoints.append(door + out * maxf(depth, target_out) + along * side * (target_lat + APPROACH_LEAD))
-	_waypoints.append(door + out * target_out + along * side * (target_lat + APPROACH_LEAD))
-	_waypoints = _waypoints.map(func(p): return _loco.reachable(p))
+	elif crossing:
+		depth = target_out  # Round the doorway's view, straight to the point past the slot.
+	var deep := crossing or absf(lat) < target_lat + lead * 0.5
+	while lead > 0.0 and not (_lead_ok(door + out * target_out + along * side * (target_lat + lead))
+			and (not deep or _lead_ok(door + out * maxf(depth, target_out) + along * side * (target_lat + lead)))):
+		lead = maxf(lead - LEAD_STEP, 0.0)  # Never past the room's end nor into another doorway's funnel: the walk would go by another way.
+	if deep:
+		_waypoints.append(door + out * maxf(depth, target_out) + along * side * (target_lat + lead))
+	_waypoints.append(door + out * target_out + along * side * (target_lat + lead))
+	# Each inside the room the stack stands in; one that lands off the stack's ground (another doorway's funnel) is left out.
+	_waypoints = _waypoints.map(func(p): return _waypoint(p)).filter(func(p): return p != Vector2.INF)
+	_approach_cap = approach_time + _walk_time()
+
+
+## How long (s) the approach's walk takes at walking pace: the way the NPC walks it (`AgentPerception.walk_route`, this entry's approach), leg by
+## leg through the waypoints into the slot, so a long way round (an ordered approach keeps out of the room being entered however long it is) is
+## not cut short by the cap (E2).
+func _walk_time() -> float:
+	var speed: float = _character.walk_speed()
+	if speed <= 0.0:
+		return 0.0
+	var entering := "%s>%s" % [opening, into]
+	var length := 0.0
+	var at: Vector2 = _character.global_position
+	for p in _waypoints + [_stack_point()]:
+		length += float(_perception.walk_route(p, entering, at)["len"])
+		at = p
+	return length / speed
+
+
+## Whether approach waypoint `p` can be walked to (`_waypoint`).
+func _lead_ok(p: Vector2) -> bool:
+	return _waypoint(p) != Vector2.INF
+
+
+## Approach waypoint `p` as the walk goes to it: kept inside the room the stack stands in (`_in_stack_room`) and onto the navmesh, or INF
+## when that lands off the stack's ground (`AgentPerception.entry_on_stack_side`: another doorway's funnel, or across a wall) or more than
+## `WAYPOINT_SNAP` px from where it was asked (the nearest walkable point lies somewhere else).
+func _waypoint(p: Vector2) -> Vector2:
+	var kept := _in_stack_room(p)
+	var on: Vector2 = _loco.reachable(kept)
+	if on.distance_to(kept) > WAYPOINT_SNAP or not _perception.entry_on_stack_side(_geo, on):
+		return Vector2.INF
+	return on
+
+
+## Point `p` kept inside the room the stack stands in, `CROSS_INSET` off its walls (an approach waypoint past the room's end would be
+## reached by some other way round); outside the house, `p`.
+func _in_stack_room(p: Vector2) -> Vector2:
+	var room: Rect2 = (_geo.get("from_room", Rect2()) as Rect2).grow(-CROSS_INSET)
+	if room.size.x <= 0.0 or room.size.y <= 0.0:
+		return p
+	return p.clamp(room.position, room.end)
+
+
+## How far out from the wall the crossing in front of the door goes (with no way round its view): `CROSS_DEPTH`, but no deeper than the room
+## the stack stands in allows, a body (`CROSS_INSET`) off its far wall; outside the house, `CROSS_DEPTH`.
+func _cross_depth() -> float:
+	var room: Rect2 = _geo.get("from_room", Rect2())
+	if room.size == Vector2.ZERO:
+		return CROSS_DEPTH
+	var door: Vector2 = _geo["pos"]
+	var far := -INF
+	for c in [room.position, Vector2(room.end.x, room.position.y), room.end, Vector2(room.position.x, room.end.y)]:
+		far = maxf(far, ((c as Vector2) - door).dot(_geo["out"]))
+	return minf(CROSS_DEPTH, far - CROSS_INSET)
+
+
+## Whether the walk from here to `target` has a way round this doorway's view (E18): 1 when the way the NPC walks
+## (`AgentPerception.walk_route`, the approach of this entry: out of the room being entered and its doorway's view) goes round it or the
+## plain way never goes into it, 0 when it has none (the front is crossed far out), -1 while the map round the views is still being baked.
+func _way_round(target: Vector2) -> int:
+	var route: Dictionary = _perception.walk_route(target, "%s>%s" % [opening, into])
+	if bool(route["doors"]) or not (route["views"] as Array).any(func(v): return v["id"] == opening):
+		return 1
+	return -1 if bool(route["pending"]) else 0
+
+
+## How far past its slot, along the wall, this NPC arrives from: `APPROACH_LEAD`, or short of the nearest slot farther along
+## this side that a teammate claims by `Locomotion.PASS_CLEARANCE` (a body standing there is passed no closer than that).
+func _approach_lead(team: Array) -> float:
+	var door: Vector2 = _geo["pos"]
+	var along: Vector2 = _geo["along"]
+	var target_lat := absf((_stack_point() - door).dot(along))
+	var members: Array = team + [{ "id": _self_id, "slot": slot, "side": side }]
+	var lead := APPROACH_LEAD
+	for m in team:
+		if int(m["side"]) != side:
+			continue
+		var point: Vector2 = _perception.entry_stack_point(_geo, members, int(m["slot"]), side)
+		var beyond := absf((point - door).dot(along)) - target_lat
+		if beyond > 0.0:
+			lead = minf(lead, maxf(0.0, beyond - Locomotion.PASS_CLEARANCE))
+	return lead
 
 
 ## Walk the approach waypoints, then into the slot; give up the claim when it takes too long.
 func _tick_approach(team: Array, delta: float) -> void:
-	if _clock > approach_time:
+	if _clock > _approach_cap:
 		_radio("abort")
 		phase = "done"
 		return
+	if _forming_wait and not _held_by_forming():
+		_forming_wait = false  # The teammate it waited on moved on (the walk goes on), or the wait ran out with the walk still held: the
+		if _loco.held_by() != 0 and way_blocked():  # hold is weighed again as a sealed walk.
+			return
+	if _loco.held_time() > 0.0:
+		_slot_sealed(_stack_point())  # Held: the map the verdict on the slot is read from is asked for now, so it is baked by the re-plan.
 	if not team.is_empty() and _bang_due(team, delta):
 		return  # The rest of the stack is in place: the thrower goes straight to throw, rather than into its slot first.
+	if not _waypoints.is_empty() and _approach_lead(team) < _lead:
+		_enter_approach(team)  # A teammate has since claimed a slot the point past this one runs into: arrive short of it.
+	elif _round_pending and _way_round(_stack_point()) >= 0:
+		_enter_approach(team)  # The map round the doorway's view is up: the way there is known now.
+	if _dropped_at != Vector2.INF and _character.global_position.distance_to(_dropped_at) > Locomotion.HOLD_MOVED:
+		_dropped_at = Vector2.INF  # Walked on from where the hold stood it: a hold met further on is a new one.
+	if _dropped_at != Vector2.INF and not _forming_wait and not _waypoints.is_empty() and _loco.seals(_waypoints[0]):
+		# A waypoint the hold already showed sealed, put back by a re-plan of the approach (its slot point moved, a teammate's claim): the
+		# same hold, so it is dropped again at once rather than on the hold's next re-plan.
+		if way_blocked():
+			return
 	_aim_travel()
 	while not _waypoints.is_empty() and (_character.global_position.distance_to(_waypoints[0]) <= WAYPOINT_REACH \
 			or _loco.reached(_waypoints[0])):
@@ -725,21 +1108,105 @@ func _tick_approach(team: Array, delta: float) -> void:
 		_say_ready()
 
 
+## Move up (E2: the slots go by arrival). Standing in its slot, this member steps into a lower slot on its own side, either row, within
+## `MOVE_UP_REACH` of it, whose holder is not there yet (its claim still at `claim`, and farther from that slot than this member, and not
+## near the slot this member would hand it by a way through this member's step, `_latecomer_crosses`) and which a short walk reaches, and
+## takes that number; the holder takes the slot this member freed (`AgentPerception.entry_free_slot` reads the claim's
+## `move_up`). Both are radioed as claims. Never into the human's slot (`PlayerStack`'s claim says `human`), nor into one a member moving up
+## is on its way to, nor once a member has begun the pie (`pie`), the bang or the crossing; once per vacancy (its holder and slot), so it
+## never moves back and forth, though a later vacancy may move it up again. Looked for every `MOVE_UP_EVERY` s. True when it moved up (it
+## walks to the new slot).
+func _move_up_now(team: Array, delta: float) -> bool:
+	_move_up_clock -= delta
+	if _move_up_clock > 0.0:
+		return false
+	_move_up_clock = MOVE_UP_EVERY
+	var here: Vector2 = _character.global_position
+	if _move_up > 0 or _pie_begun or here.distance_to(_spot) > SLOT_REACH:
+		return false
+	if team.any(func(m): return bool(m.get("pie", false)) or m["step"] in ["bang", "going_in"] or THROUGH.has(m["step"])):
+		return false  # The pie, the bang or the crossing has begun: the order of the stack stands.
+	var best := {}
+	var best_team: Array = []
+	var best_d := INF
+	for h in team:
+		var vacancy := int(h["slot"])
+		if vacancy >= slot or int(h["side"]) != side or h["step"] != "claim" or bool(h.get("human", false)) or int(h.get("move_up", 0)) > 0 \
+				or _moved_for.has("%d:%d" % [h["id"], vacancy]) or team.any(func(m): return int(m["slot"]) == vacancy and m["id"] != h["id"]):
+			continue
+		var swapped: Array = team.map(func(m): return m.merged({ "slot": slot }, true) if m["id"] == h["id"] else m)
+		if _perception.entry_side_for(_geo, swapped, vacancy, _want) != side:
+			continue
+		var point: Vector2 = _perception.entry_stack_point(_geo, swapped + [{ "id": _self_id, "slot": vacancy, "side": side }], vacancy, side)
+		var d := here.distance_to(point)
+		if point == Vector2.INF or d > MOVE_UP_REACH or d >= best_d or d >= (h["pos"] as Vector2).distance_to(point):
+			continue
+		var walk := float(_perception.walk_route(point, "%s>%s" % [opening, into])["plain_len"])
+		if walk <= 0.0 or walk > d * 1.5 + Locomotion.PASS_CLEARANCE:
+			continue  # No short way there: a body or a wall between.
+		if _latecomer_crosses(h, point):
+			continue  # It would meet the latecomer mid-swap: the slots stand as claimed.
+		best = h
+		best_team = swapped
+		best_d = d
+	if best.is_empty():
+		return false
+	_moved_for["%d:%d" % [best["id"], best["slot"]]] = true
+	_move_up = slot
+	slot = int(best["slot"])
+	_settle(best_team)
+	_enter_approach(best_team)
+	_waypoints = []  # A step within the stack, straight into the slot: not the approach's way along the wall from past it.
+	_approach_cap = approach_time + _walk_time()
+	_radio("claim", { "claim_frame": _claim_frame })
+	return true
+
+
+## Whether holder `h`, a teammate still on its way to its slot, may meet this member's move-up into `vacancy` (the point of `h`'s slot) mid-swap:
+## it may be within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` of the slot the move-up would hand it (this member's own, `_spot`), and its straight
+## way from there to that slot passes `vacancy` closer than `Locomotion.PASS_CLEARANCE` (it would walk through the step). Where it may be is
+## a worst-case bound: its newest known place, seen (`Locomotion.bodies`) or radioed (its claim's `pos`), whichever is newer, brought nearer by
+## the ground it may have walked since straight at that slot, its age x its walking pace (an entry never runs; its own `walk_speed()` when
+## the NPC knows its body, else this member's). A latecomer coming up behind this member, on the same lane, does not cross: it follows in.
+func _latecomer_crosses(h: Dictionary, vacancy: Vector2) -> bool:
+	var pos: Vector2 = h["pos"]
+	var age := float(h.get("age", 0.0))
+	var pace: float = _character.walk_speed()
+	for b in _loco.bodies:
+		if int(b.get("id", 0)) != int(h["id"]):
+			continue
+		var seen := 0.0 if b.get("visible", false) else float(b.get("age", INF))
+		if seen < age:
+			pos = b["pos"]
+			age = seen
+		var body = b.get("node")
+		if is_instance_valid(body) and body.has_method("walk_speed"):
+			pace = body.walk_speed()
+	var gap := pos.distance_to(_spot)
+	if gap - age * pace > MOVE_UP_REACH + MOVE_UP_MARGIN:
+		return false
+	var at := pos.move_toward(_spot, minf(age * pace, gap))  # The nearest it may be by now, on its way in.
+	return Geometry2D.get_closest_point_to_segment(vacancy, at, _spot).distance_to(vacancy) < Locomotion.PASS_CLEARANCE
+
+
 ## Radio `ready`, once per walk into the slot: in its slot (E2, E6), or, the other side's front man of a split stack, once
 ## its half of the pie is sliced (E19), so the point's ready barrier waits for that half too.
 func _say_ready() -> void:
 	if _ready_said:
 		return
 	_ready_said = true
+	_move_up = 0  # In the slot it moved up into: an ordinary claim from now on.
 	_radio("ready")
 
 
 ## In the slot, facing the door: the point slices the pie; a follower waits its turn, then crosses. On a split stack the
 ## other side's front man slices its own half of the pie first (E19).
 func _tick_stack(team: Array, delta: float) -> void:
+	if _move_up_now(team, delta):
+		return
 	var spot := _stack_point()
-	if _character.global_position.distance_to(spot) > WAYPOINT_REACH:
-		_loco.move_to(spot, SLOT_REACH)  # Shoved out of the slot: step back in.
+	if _character.global_position.distance_to(spot) > SLOT_REACH:
+		_loco.move_to(spot, SLOT_REACH)  # Shoved out of the slot, or stood beside it while a body was on it: step (back) in.
 	else:
 		_character.move_input = Vector2.ZERO
 	if _covers_rear(team):
@@ -748,8 +1215,16 @@ func _tick_stack(team: Array, delta: float) -> void:
 		_look_toward(_geo["pos"], delta)
 	if not _bang_over and _topping_off(delta):
 		return
-	if _holds_outside(team):
+	if _holds_outside(team) or _tail():
+		_say_ready()
+		if _held(team):
+			_holding = true  # Held for the go (LD13) like the rest: nobody is in to secure yet.
+			return
 		_tick_security(team, delta)
+		return
+	if _held(team):
+		_say_ready()
+		_holding = true  # Ready, and held for the go (LD13): no pie, no bang, no crossing until it comes.
 		return
 	if _bang_due(team, delta):
 		return
@@ -843,16 +1318,40 @@ func _tick_security(team: Array, delta: float) -> void:
 
 
 ## The members of the stack still ahead of this one in the crossing order (`_before`), the first to cross first. One that never
-## reached its slot is dropped once this NPC has waited `ready_timeout` for it; a recipient of the order this NPC stacks under only
-## once `order_ready_cap` has run out (D7).
+## reached its slot is dropped once this NPC has waited `ready_timeout` for it (under an order, from when every living recipient of it was
+## in its slot, LD17); a recipient of the order this NPC stacks under, and the human leader that gave it, only once `order_ready_cap` has
+## run out (D7).
 func _ahead(team: Array) -> Array:
 	var waited := _ready_at >= 0.0 and _time - _ready_at >= ready_timeout
+	if _order_id != "":
+		waited = _all_in_at >= 0.0 and _time - _all_in_at >= ready_timeout
 	return _before(team).filter(func(m): return not (m["step"] == "claim" and (_order_capped() or (waited and not _waits_for(m)))))
 
 
-## Whether this NPC waits for teammate `m` (a claim) past `ready_timeout`: a recipient of the order it stacks under (D7).
+## Whether this NPC waits for teammate `m` (a claim) past `ready_timeout`: a recipient of the order it stacks under (D7), or the leader
+## that gave it holding a slot in the stack (the human's `PlayerStack`, its claims marked `leader`, LD17).
 func _waits_for(m: Dictionary) -> bool:
-	return _order_id != "" and m["order_id"] == _order_id
+	return _order_id != "" and (m["order_id"] == _order_id or _leads(m))
+
+
+## Whether claim `m` is the leader's that gave this NPC's order (LD17: the human leader stacking with the stack it ordered).
+func _leads(m: Dictionary) -> bool:
+	return bool(m.get("leader", false)) and _leader_id != 0 and int(m["id"]) == _leader_id
+
+
+## Note when every living recipient of this NPC's order (itself among them) stands in its slot (`_all_in_at`, LD17): an unordered joiner's
+## `ready_timeout` counts from then.
+func _note_all_in(team: Array) -> void:
+	if _order_id == "":
+		return
+	var all_in := _ready_at >= 0.0
+	for m: Node in _recipients():
+		var id := m.get_instance_id()
+		all_in = all_in and team.any(func(c): return c["id"] == id and c["step"] != "claim")
+	if not all_in:
+		_all_in_at = -1.0
+	elif _all_in_at < 0.0:
+		_all_in_at = _time
 
 
 ## Whether an ordered stack's wait for its recipients has run out: `order_ready_cap` s since the first ordered `ready` (D7).
@@ -882,11 +1381,13 @@ func _banging(team: Array) -> bool:
 	return bang and not _bang_over and (_upgraded or _ordered(team) or team.all(func(m): return m["bang"])) and _thrower(team) != -1
 
 
-## The instance id of the member who throws the stun, or -1 when nobody can: the second of the stack if it carries one, else the lowest
-## slot that does (alone, this NPC). Every member works it out from the radio's `stuns` the same way.
+## The instance id of the member who throws the bang's grenade (`_bang_kind`), or -1 when nobody can: the second of the stack if it carries
+## one, else the lowest slot that does (alone, this NPC). Every member works it out from the radio's `stuns` (a frag stack's: `frags`, LD14)
+## the same way.
 func _thrower(team: Array) -> int:
-	var carriers: Array = team.filter(func(m): return int(m["stuns"]) > 0).map(func(m): return { "id": m["id"], "slot": m["slot"] })
-	if _stuns > 0:
+	var key := "frags" if _bang_kind(team) == &"frag" else "stuns"
+	var carriers: Array = team.filter(func(m): return int(m[key]) > 0).map(func(m): return { "id": m["id"], "slot": m["slot"] })
+	if _carried(_bang_kind(team)) > 0:
 		carriers.append({ "id": _self_id, "slot": slot })
 	if carriers.is_empty():
 		return -1
@@ -900,8 +1401,8 @@ func _thrower(team: Array) -> int:
 ## A member in its slot with the stack ready that is the thrower calls the bang and goes to throw. Returns true once the phase has
 ## changed. A thrower with nowhere to throw from (no clear lob into the room) gives the bang up: the stack goes in quietly.
 func _bang_due(team: Array, delta: float) -> bool:
-	if _bang_over or not bang:
-		return false
+	if _bang_over or not bang or _held(team):
+		return false  # (A held stack calls no bang before its go, LD13.)
 	var ordered := _ordered(team)
 	if _vetoed(team) or (_upgraded and _crossing(team)):
 		_give_up_bang()  # A teammate gave the bang up, or went in quietly before the stack turned: this member goes in quietly too, and its claims say so.
@@ -911,27 +1412,28 @@ func _bang_due(team: Array, delta: float) -> bool:
 			_go_quiet()  # The stack goes in the way its first claimer chose (a claim heard after this one was made).
 		return false  # A quiet entry just turned: the rest of the stack follows within a call or two.
 	if team.any(func(m): return m["step"] == "bang"):
-		_enter_bang()  # The thrower called it: hold, turned away, until the stun goes off.
+		_enter_bang(team)  # The thrower called it: hold, turned away, until the grenade goes off.
 		return true
-	if ordered and _stack_ready(team) and not _stack_has_stun(team):
-		_give_up_bang()  # D1: the stack is in and the order's stun is gone: it goes in quietly, and its claims say so (`bang_off`).
+	if ordered and _stack_ready(team) and not _stack_has(team, _bang_kind(team)):
+		_give_up_bang()  # D1 / D15: the stack is in and the order's stun (or frag) is gone: it goes in quietly, and its claims say so (`bang_off`).
 		return false
 	if _thrower(team) == -1 or not _stack_ready(team) or hostile_in_view:
 		return false
 	if _thrower(team) != _self_id:
 		_bang_wait += delta  # Waiting for the thrower to call the bang.
 		return false
-	if not _plan_bang():
+	if not _plan_bang(team):
 		_give_up_bang()
 		return false
 	_bang_stage = "go"
-	_enter_bang()
+	_enter_bang(team)
 	_radio("bang")
 	return true
 
 
-## Begin the bang phase, taking note of the last burst so only a stun that goes off from now on ends it.
-func _enter_bang() -> void:
+## Begin the bang phase, taking note of the last burst so only a grenade of the bang's kind that goes off from now on ends it.
+func _enter_bang(team: Array) -> void:
+	_kind = _bang_kind(team)
 	_set_phase("bang")
 	_burst_seen = int(_perception.last_burst.get("frame", -1))
 	_burst_at = -INF
@@ -1027,15 +1529,35 @@ func _may_turn(team: Array) -> bool:
 
 ## Whether the stack carries a stun: this NPC, or a teammate whose claims say so (`stuns`).
 func _stack_has_stun(team: Array) -> bool:
-	return _stuns > 0 or team.any(func(m): return int(m["stuns"]) > 0)
+	return _stack_has(team, &"stun")
+
+
+## Whether the stack carries a grenade of `kind` (`stun` / `frag`): this NPC, or a teammate whose claims say so (`stuns` / `frags`).
+func _stack_has(team: Array, kind: StringName) -> bool:
+	var key := "frags" if kind == &"frag" else "stuns"
+	return _carried(kind) > 0 or team.any(func(m): return int(m[key]) > 0)
+
+
+## How many grenades of `kind` (`stun` / `frag`) this NPC carries.
+func _carried(kind: StringName) -> int:
+	return _frags if kind == &"frag" else _stuns
+
+
+## The grenade the stack's bang throws: a frag for a stack under an order whose mode is frag (LD14), else a stun.
+func _bang_kind(team: Array) -> StringName:
+	var ordered := _order_claim(team)
+	return &"frag" if not ordered.is_empty() and str(ordered["order_mode"]) == "frag" else &"stun"
 
 
 ## Plan the throw: a spot to throw from and a target in the room, a clear lob from the thrower's hand there to the target (one that clears the
 ## jamb: `AgentPerception.can_lob`, from the hand with room to spare either side). The target is the room's far side, `BANG_DEPTHS` of the way in and
 ## `BANG_ACROSS` of the way across, or, in a room deeper than a stun reaches from the spot, the farthest point along that line it reaches
 ## (`_bang_aim`); at least `BANG_MIN_DEPTH` from the door. The first of them that some spot reaches with a clear lob wins, the thrower's own
-## slot before a step out in front of the door (`BANG_STEP_ALONG`). False when nowhere gives a clear lob.
-func _plan_bang() -> bool:
+## slot before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14, D16) aims only where its burst leaves every claimed slot
+## of the stack, the thrower's own too, out of its danger zone (`AgentPerception.in_grenade_zone`: the wall between shields it). False when
+## nowhere gives a clear lob (for a frag, a safe one).
+func _plan_bang(team: Array) -> bool:
+	var kind := _bang_kind(team)
 	var door: Vector2 = _geo["pos"]
 	var out: Vector2 = _geo["out"]
 	var along: Vector2 = _geo["along"]
@@ -1047,19 +1569,28 @@ func _plan_bang() -> bool:
 	var spots: Array = [_stack_point()]
 	for share: float in BANG_STEP_ALONG:
 		spots.append(_loco.reachable(door + out * BANG_STEP_OUT + along * side * float(_geo["width"]) * share))
-	var reach: float = _perception.grenade_reach(&"stun")
+	var reach: float = _perception.grenade_reach(kind)
+	var slots := _slot_points(team) if kind == &"frag" else []
 	for d: float in BANG_DEPTHS:
 		for a: float in BANG_ACROSS:
 			for spot: Vector2 in spots:
 				var target := _bang_aim(spot, depth * d, width * a, reach)
 				if not room.grow(-30.0).has_point(target) or target.distance_to(door) < BANG_MIN_DEPTH:
 					continue
-				if _clear_lob(spot, target, reach):
+				if slots.any(func(p): return _perception.in_grenade_zone(kind, target, p)):
+					continue  # The frag's burst there reaches a slot of the stack.
+				if _clear_lob(spot, target, reach, kind):
 					_bang_spot = spot
 					_bang_target = target
 					_bang_route = [_loco.reachable(door + out * maxf(BANG_STEP_OUT, (spot - door).dot(out)) + along * (_stack_point() - door).dot(along)), spot]
 					return true
 	return false
+
+
+## Where every member of the stack stands in its slot: the slot points of the claims heard and this NPC's own.
+func _slot_points(team: Array) -> Array:
+	var members: Array = team + [{ "id": _self_id, "slot": slot, "side": side }]
+	return members.map(func(m): return _perception.entry_stack_point(_geo, members, int(m["slot"]), int(m["side"]))).filter(func(p): return p != Vector2.INF)
 
 
 ## The point a stun thrown from `spot` is aimed at: `deep` px into the room from the doorway (along its axis) and `across` px across it, or,
@@ -1076,15 +1607,16 @@ func _bang_aim(spot: Vector2, deep: float, across: float, reach: float) -> Vecto
 	return q + spot - out * minf(deep, b + sqrt(room_left) - 1.0)
 
 
-## Whether a stun thrown by a thrower that walks to `spot` and faces `target` flies to it clear of the jamb (`AgentPerception.can_lob`: from
-## its hand, with room to spare either side, wherever its walk into the spot may end). The target is within the stun's throw reach (`reach`,
-## `AgentPerception.grenade_reach`) of the spot, so the thrower throws from where it stands and does not close in.
-func _clear_lob(spot: Vector2, target: Vector2, reach: float) -> bool:
-	return spot.distance_to(target) <= reach and _perception.can_lob(spot, target, &"stun", true)
+## Whether a grenade of `kind` thrown by a thrower that walks to `spot` and faces `target` flies to it clear of the jamb
+## (`AgentPerception.can_lob`: from its hand, with room to spare either side, wherever its walk into the spot may end). The target is within
+## the grenade's throw reach (`reach`, `AgentPerception.grenade_reach`) of the spot, so the thrower throws from where it stands and does not
+## close in.
+func _clear_lob(spot: Vector2, target: Vector2, reach: float, kind: StringName) -> bool:
+	return spot.distance_to(target) <= reach and _perception.can_lob(spot, target, kind, true)
 
 
-## The bang phase. Everyone holds its slot turned away from the door while the stun is thrown and goes off; the thrower first steps to its
-## throw spot, throws (taking the stun in hand, `Combat`) and comes back. When the stun has gone off the stack is over the bang: the point
+## The bang phase. Everyone holds its slot turned away from the door while the stun is thrown and goes off (a frag: crouched,
+## `holds_crouched`, LD14); the thrower first steps to its throw spot, throws (taking the grenade in hand, `Combat`) and comes back. When the stun has gone off the stack is over the bang: the point
 ## crosses at once (`_tick_stack`), the rest follow as usual. The bang is given up if the throw fails, a teammate gave it up (its claims say
 ## quiet) or the stun does not go off.
 func _tick_bang(team: Array, delta: float) -> void:
@@ -1092,7 +1624,7 @@ func _tick_bang(team: Array, delta: float) -> void:
 		_bang_over = true
 		_set_phase("stack")
 		return
-	if _clock > BANG_BURST_CAP or _vetoed(team) or (not _ordered(team) and not team.all(func(m): return m["bang"])):
+	if _clock > (FRAG_BURST_CAP if _kind == &"frag" else BANG_BURST_CAP) or _vetoed(team) or (not _ordered(team) and not team.all(func(m): return m["bang"])):
 		_give_up_bang()
 		_set_phase("stack")
 		return
@@ -1107,7 +1639,7 @@ func _tick_bang(team: Array, delta: float) -> void:
 				_look_toward(_bang_target, delta, 3.0)
 				return
 			_character.move_input = Vector2.ZERO
-			_combat.begin_throw(ItemRegistry.STUN_SLOT, _bang_target, _perception.grenade_reach(&"stun"))
+			_combat.begin_throw(ItemRegistry.FRAG_SLOT if _kind == &"frag" else ItemRegistry.STUN_SLOT, _bang_target, _perception.grenade_reach(_kind))
 			_bang_stage = "throw"
 		"throw":
 			if _combat.throw_stage != "away" and _combat.throw_step(delta) == &"failed":
@@ -1118,6 +1650,8 @@ func _tick_bang(team: Array, delta: float) -> void:
 			if _combat.throw_released():
 				_combat.end_throw()
 				_bang_stage = "back"
+				if _kind == &"frag":
+					_thrown = { "kind": _kind, "point": _bang_target }  # "Frag out" on the radio (LD14).
 		_:
 			var spot := _stack_point()
 			if _character.global_position.distance_to(spot) > WAYPOINT_REACH:
@@ -1127,9 +1661,9 @@ func _tick_bang(team: Array, delta: float) -> void:
 			_look_toward(away, delta, 3.0)
 
 
-## Whether a burst in the room being entered ends a wait: the perception notes every burst (`last_burst`). In the bang phase, a stun its own
-## team threw that goes off after the phase began: the stack's own, or a teammate's thrown another way (a GRENADE), counts as the
-## bang. Before anyone of this member has crossed (approach, stack, the pie), a stun or frag its own team threw (the NPC or an ally): the entry
+## Whether a burst in the room being entered ends a wait: the perception notes every burst (`last_burst`). In the bang phase, a grenade of the
+## bang's kind (a stun, or a frag stack's frag) its own team threw that goes off after the phase began: the stack's own, or a teammate's thrown
+## another way (a GRENADE), counts as the bang. Before anyone of this member has crossed (approach, stack, the pie), a stun or frag its own team threw (the NPC or an ally): the entry
 ## goes in on it (E17), no pie, as after a bang.
 func _note_burst() -> void:
 	var burst: Dictionary = _perception.last_burst
@@ -1138,7 +1672,7 @@ func _note_burst() -> void:
 	if not burst.get("team", false):
 		return
 	if phase == "bang":
-		if burst["kind"] != &"stun":
+		if burst["kind"] != _kind:
 			return
 	elif not phase in ["approach", "stack", "pie"]:
 		return
@@ -1170,11 +1704,16 @@ func _in_bang_window() -> bool:
 	return _bang_over and _time - _burst_at < BANG_WINDOW
 
 
-## Whether a live grenade of `kind` is the stun this entry is waiting for (the evade reflex then leaves the stack to its own turned-away
-## hold, beside the wall and out of the burst's line): any stun, while the bang phase runs. (In flight it is at the doorway, where its
-## landing is not known to those who did not throw it.)
-func expects_burst(kind: StringName) -> bool:
-	return phase == "bang" and kind == &"stun"
+## Whether the live grenade of the evade reflex's `plan` (`AgentPerception.evade_plan`) is the one this entry is waiting for (the evade
+## reflex then leaves the stack to its own turned-away hold, beside the wall and out of the burst's line): any stun, while a stun's bang
+## phase runs (in flight it is at the doorway, where its landing is not known to those who did not throw it); a frag, while a frag's bang
+## phase runs, in flight (the stack's own, aimed where no slot is in its zone, D16) or come down where this member's slot is out of its
+## danger zone (LD14: the slot is its cover; one the frag reaches, a frag that came back to the door, is evaded as anywhere).
+func expects_burst(plan: Dictionary) -> bool:
+	if phase != "bang" or plan.get("kind") != _kind:
+		return false
+	return _kind == &"stun" or not bool(plan.get("landed", false)) \
+		or not _perception.in_grenade_zone(_kind, plan.get("lies", plan["point"]), _stack_point())
 
 
 # --- The pie (E3, E7) ---------------------------------------------------------------------------
@@ -1183,6 +1722,10 @@ func expects_burst(kind: StringName) -> bool:
 func _start_pie(team: Array) -> void:
 	solo = _alone(team)
 	_set_phase("pie")
+	if not _pie_begun:
+		_pie_begun = true
+		if not _last_call.is_empty():
+			_radio(_last_call["step"], _last_call)  # The pie is begun: on the radio at once, so nobody moves up behind it (E2).
 	_pie_side = side
 	_pie_queue = (_geo["pie"][side] as Array).duplicate()
 	pie_sides = 1
@@ -1244,19 +1787,19 @@ func _pie_other_side() -> void:
 
 
 ## Whether the point may go in: every other member of the stack is in its slot, or the wait (from when the point was
-## ready, or the stack last grew) has run out. Under an order (D7) every living recipient of it is in its slot first, whatever
-## the wait, until `order_ready_cap` runs out; a member that was not ordered is waited for `ready_timeout` as ever.
+## ready, or the stack last grew) has run out. Under an order (D7) every living recipient of it is in its slot first, and the human leader
+## that gave it when it holds a slot in the stack (LD17), whatever the wait, until `order_ready_cap` runs out; a member that was not
+## ordered is waited for `ready_timeout` from the moment all of those are in their slots (LD17), or the stack last grew.
 func _stack_ready(team: Array) -> bool:
-	var waited := _time - maxf(_ready_at, _team_grew_at) >= ready_timeout
 	if _order_id == "":
+		var waited := _time - maxf(_ready_at, _team_grew_at) >= ready_timeout
 		return waited or team.all(func(m): return m["step"] != "claim")
 	if _order_capped():
 		return true
-	for m: Node in _recipients():
-		var id := m.get_instance_id()
-		if not team.any(func(c): return c["id"] == id and c["step"] != "claim"):
-			return false
-	return waited or team.all(func(m): return m["step"] != "claim" or _waits_for(m))
+	if _all_in_at < 0.0 or team.any(func(m): return m["step"] == "claim" and _leads(m)):
+		return false
+	var waited_all := _time - maxf(_all_in_at, _team_grew_at) >= ready_timeout
+	return waited_all or team.all(func(m): return m["step"] != "claim" or _waits_for(m))
 
 
 ## Drop every room point and corner now in sight from the unseen sets, and update the share seen.
@@ -1564,21 +2107,30 @@ func _at(p: Vector2, within := 0.0) -> bool:
 
 ## Where this NPC stacks: its place in the file on its side.
 func _stack_point() -> Vector2:
-	return _perception.entry_slot_point(_geo, side, _place)
+	return _spot
 
 
 ## Queue step `what` for the radio (and remember it, with its extra fields, for the heartbeat).
 func _radio(what: String, extra := {}) -> void:
 	if secure:
 		return  # A pass-by joins no stack and claims nothing on the radio.
-	var msg := { "step": what }
+	if what == "claim" and not extra.has("claim_frame"):  # (A new claim: the heartbeat's repeat keeps the frame it was made on.)
+		_claim_frame = GameClock.frame()
+		_claim_pos = _character.global_position
+	var msg := { "step": what, "claim_frame": _claim_frame, "claim_pos": _claim_pos }
 	msg.merge(extra)
 	msg["bang"] = bang
 	msg["bang_off"] = _bang_off
 	msg["stuns"] = _stuns
+	msg["frags"] = _frags
+	msg["move_up"] = _move_up  # (E2: the slot it moved up from, while it walks into the one it took.)
+	msg["pie"] = _pie_begun
 	if _order_id != "":
 		msg["order_id"] = _order_id  # An ordered stack's claim (LD9): the order, its mode and its side, so the stack goes in the order's way.
 		msg["order_bang"] = _order_bang
+		msg["order_mode"] = _order_mode  # (LD14.)
+		msg["order_hold"] = _order_hold  # Held for the leader's go, and whether it came (LD13).
+		msg["order_go"] = _released
 		msg["order_side"] = _order_side
 	_calls.append(msg)
 	_last_call = msg.duplicate()

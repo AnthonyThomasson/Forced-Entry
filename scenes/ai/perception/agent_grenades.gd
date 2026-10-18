@@ -198,8 +198,9 @@ func known() -> Array:
 # --- Getting clear -------------------------------------------------------------------------------------------
 
 ## The plan for the grenade that goes off first among those the NPC is inside the danger zone of (or is already running
-## from): `{ id, point, kind, radius, spot, crouch, fuse_left }`, where `spot` is the safe spot to run to (`Vector2.INF`: none
-## in time) and `crouch` whether it is behind cover that shields a crouched body only. {} with nothing to run from. A plan is
+## from): `{ id, point, kind, radius, spot, crouch, fuse_left, landed, lies }`, where `spot` is the safe spot to run to (`Vector2.INF`: none
+## in time), `crouch` whether it is behind cover that shields a crouched body only, `landed` whether the grenade has come down (until then
+## it is known in flight) and `lies` where it is known to be now (`point` is where it was when the plan was made). {} with nothing to run from. A plan is
 ## made when the NPC is first inside a grenade's zone, made again as the grenade moves, and kept while it lives, so the NPC
 ## holds its spot until the burst. `exclude` is every character's rid (a body shields nothing); `map` the navigation map.
 func plan(space, map: RID, exclude: Array) -> Dictionary:
@@ -230,6 +231,9 @@ func plan(space, map: RID, exclude: Array) -> Dictionary:
 		return {}
 	var out: Dictionary = best.duplicate()
 	out["fuse_left"] = best_fuse
+	var known_: Dictionary = _known[best["id"]]
+	out["landed"] = known_["landed"]
+	out["lies"] = known_["point"]
 	return out
 
 

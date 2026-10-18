@@ -36,8 +36,9 @@ var ignore_id: int = 0
 var views: Node
 ## The walk under way is one that keeps out of the doorway views (set each tick by `Behavior`: the walks the entry guard covers).
 var avoid_doors := false
-## The doorway (its id) whose view the walk does not keep out of: the one it is going to stack at.
-var avoid_exempt := ""
+## The entry the walk is the approach of (`"<opening id>><room key>"`, "" for none): it keeps out of that room and of that doorway's view
+## (`AgentPerception.walk_route`).
+var avoid_entering := ""
 
 ## Stuck-sensing window (s): displacement is compared over this span while the NPC is trying to move.
 const STALL_WINDOW := 0.75
@@ -49,6 +50,9 @@ const TRAIL_MAX := 24
 ## How far (px) the steering map's route may end short of the point it was asked for before a body is taken to seal the
 ## way (see `_goes_round`).
 const BLOCKED_DISTANCE := 24.0
+## Farthest (px) short of its goal a route round bodies at rest may end when the plain way on from there passes no body: a goal inside the
+## margins the steering map carves round bodies (a stack slot between two taken ones) is reached by that last leg (`_last_stretch`).
+const LAST_LEG := 64.0
 ## A known character whose smoothed track is slower than this (px/s) is AT REST: it stands where it is, and a walk goes
 ## round it or stops short of it; any faster one is a walker, given way to (`_give_way`). A walking pace is 150; a body
 ## standing still but jostled by another reads 20 to 30.
@@ -68,6 +72,15 @@ const STOP_GAP := 56.0
 ## is blocked: `take_blocked`), and between later re-plans while it is still held.
 const WAIT := 0.75
 const REPLAN_EVERY := 4.0
+## A hold that begins again within `HOLD_GAP` s of game time (`GameClock`, LD1: a pause is no gap) of the last one ending, the NPC within
+## `HOLD_MOVED` px of where that one began, is the same hold going on (its walk aimed again, a free spot tried, a frame the body read as
+## moving): its clocks carry on (`_begin_hold`).
+const HOLD_GAP := 0.5
+const HOLD_MOVED := 16.0
+## A held walk re-plans only once the steering map shows the body it is held by (`_carved`: a body carved there has its centre at least this
+## far (px) off the map), or this many s past its re-plan time whatever the map shows.
+const CARVED_GAP := 16.0
+const CARVE_WAIT := 2.0
 ## Seconds between looks for a way round while held (the steering map catches up with a body that has just stopped).
 const RECHECK := 0.25
 ## A free spot near a taken destination: rings this far out from it (px), sampled at `FREE_SPOT_ANGLES` angles, the
@@ -109,10 +122,13 @@ var _goal := Vector2.INF          ## Where the walk is going: the destination, o
 var _way: int = Way.PLAIN         ## How the walk goes (`Way`).
 var _doors_decided := false       ## The walk has been checked against the doorway views: it goes round them (`_doors_map`) or needs no way round.
 var _doors_map := RID()           ## The avoid map the walk goes round the doorway views on (invalid: the walk is not door-avoiding).
+var _last_leg := false            ## The walk round bodies ended short of a goal no body stands on: it walks the rest plain, held by a body on it (`_last_stretch`).
 var _doors_in := 0.0              ## Seconds until the door-avoiding walk next looks at its route.
 var _blocker := Vector2.INF       ## The body at rest the walk is held short of (INF: not held).
 var _held_for := 0.0              ## Seconds the walk has been held short.
 var _replan_at := WAIT            ## `_held_for` at which the held walk next re-plans.
+var _hold_at := Vector2.INF       ## Where the NPC stood when the hold under way began (INF: none yet).
+var _hold_left := -1              ## The `GameClock` frame the walk last stopped being held.
 var _recheck_in := 0.0            ## Seconds until the held walk next looks for a way round, or one gone round off the avoid map looks back at it.
 var _blocked := false             ## The held walk re-planned and found no way: the caller should re-decide (`take_blocked`).
 var _checked_frame := -1          ## The physics frame the walk was last checked in (once a frame).
@@ -205,6 +221,7 @@ func debug_state() -> Dictionary:
 		"next": _point(path[idx]) if idx < path.size() else [],
 		"way": ["plain", "round", "held", "doors"][_way],
 		"held_for": snappedf(_held_for, 0.01) if _way == Way.HELD else 0.0,
+		"last_leg": _last_leg,
 		"giving_way": _yield_id != 0,
 	}
 
@@ -262,6 +279,7 @@ func reached(point: Vector2, within := 0.0) -> bool:
 	if _agent != null:
 		_begin(point, within)
 		_agent.target_position = _goal
+		_last_stretch()
 		return _way != Way.HELD and _agent.is_navigation_finished()
 	return _character.global_position.distance_to(point) < arrive_dist
 
@@ -271,6 +289,28 @@ func reached(point: Vector2, within := 0.0) -> bool:
 ## taken destination. A caller must not push on toward the destination itself then.
 func holding() -> bool:
 	return _way == Way.HELD or _kept_off or _yielding or _goal != _walk_dest
+
+
+## The known body the walk is held short of (`Way.HELD`), by instance id: 0 while the walk is not held, or when that body is no longer
+## known. What an entry asks of a hold before it gives its slot up (`Entry.way_blocked`: a teammate still on its way only waits).
+func held_by() -> int:
+	if _way != Way.HELD or _blocker == Vector2.INF:
+		return 0
+	for b in bodies:
+		if b["pos"] == _blocker:
+			return int(b.get("id", 0))
+	return 0
+
+
+## Where the body the walk is held short of stands (`Way.HELD`), or INF while the walk is not held.
+func held_at() -> Vector2:
+	return _blocker if _way == Way.HELD else Vector2.INF
+
+
+## Seconds the walk has been held short of a body (0 while it is not held): from when the hold began, whichever body holds it now, and
+## through the walk being aimed again while the NPC stands (`_begin_hold`): how long it has stood held.
+func held_time() -> float:
+	return _held_for if _way == Way.HELD else 0.0
 
 
 ## True once each time a held walk has re-planned and found no way through (the body seals the only way and the
@@ -298,6 +338,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 		return
 	_begin(dest, within)
 	_agent.target_position = _goal
+	_last_stretch()
 	_kept_off = false
 	_yielding = false
 	if _agent.is_navigation_finished() and _way != Way.HELD:
@@ -328,20 +369,45 @@ func _begin(dest: Vector2, within := 0.0) -> void:
 		if _goal == _walk_dest:
 			_goal = dest
 		_walk_dest = dest
+		if _goal != _walk_dest and _taker(_resting(_walk_dest, PASS_CLEARANCE), _walk_dest) == Vector2.INF:
+			_goal = _walk_dest  # Done at the free spot beside it, and nobody stands on the destination now: on to it (`_check` is not run once a walk is over).
 		return
 	_walk_dest = dest
 	_goal = dest
 	_blocked = false
 	_doors_decided = false
 	_doors_map = RID()
+	_last_leg = false
 	_set_way(Way.PLAIN)
+
+
+## A walk round the doorway views whose avoid map ends short of the goal walks the last stretch on the plain map: a goal by a view's edge
+## (a stack slot beside the doorway) is off that map, which keeps the body its radius out of the view, and `walk_route` takes a route that ends
+## within `AgentEntry.AVOID_REACH` of it. Without it the walk would be over where the avoid route ends. So does a walk round bodies at rest
+## whose steering map ends short of a goal no body stands on (a stack slot between two that are taken lies inside their carved margins): the
+## rest is walked plain (`_last_leg`), held short of a body on it; held, it looks again every `RECHECK` for a way round: one that ends at the
+## goal, or a new last leg whose plain way passes clear of every known body at rest (`_goes_round` with `held_leg`), so it never takes one the
+## body holding it, or another, stands on.
+func _last_stretch() -> void:
+	if _way not in [Way.DOORS, Way.ROUND] or not _agent.is_navigation_finished() \
+			or _character.global_position.distance_to(_goal) <= _agent.target_desired_distance:
+		return
+	if _way == Way.DOORS:
+		_doors_map = RID()  # Decided: no way round for the rest of this walk.
+	elif _taker(_resting(_goal, PASS_CLEARANCE), _goal) != Vector2.INF:
+		return  # A body stands on the goal: the hold and the free spot beside it are `_check`'s.
+	else:
+		_last_leg = true
+	_set_way(Way.PLAIN)
+	_agent.target_position = _goal
 
 
 ## Put the walk on `way` and the agent on that way's map; a hold starts its clocks.
 func _set_way(way: int) -> void:
 	if way == Way.HELD and _way != Way.HELD:
-		_held_for = 0.0
-		_replan_at = WAIT
+		_begin_hold()
+	elif way != Way.HELD and _way == Way.HELD:
+		_hold_left = GameClock.frame()
 	if way != _way and (way == Way.HELD or way == Way.ROUND):
 		_recheck_in = RECHECK
 	if way != Way.HELD:
@@ -354,6 +420,32 @@ func _set_way(way: int) -> void:
 		want = _doors_map
 	if want.is_valid() and _agent.get_navigation_map() != want:
 		_agent.set_navigation_map(want)
+
+
+## The walk is held: a new hold starts its clocks, from where the NPC stands. One the NPC has not left (within `HOLD_MOVED` px of where the
+## last began, that one ended under `HOLD_GAP` s of game time ago: a pause is no gap) goes on with them, so a walk aimed again, a free spot
+## tried or a body that read as moving for a frame does not start the wait over: the re-plan (`take_blocked`) and an entry's cap on a hold
+## (`held_time`) come on the time the NPC has stood held.
+func _begin_hold() -> void:
+	var here: Vector2 = _character.global_position
+	var gap := float(GameClock.frame() - _hold_left) / Engine.physics_ticks_per_second
+	if _hold_at != Vector2.INF and here.distance_to(_hold_at) <= HOLD_MOVED and _hold_left >= 0 and gap <= HOLD_GAP:
+		return
+	_hold_at = here
+	_held_for = 0.0
+	_replan_at = WAIT
+
+
+## Whether the plain way from where the NPC stands to `p` passes the body the walk is held short of (closer than `PASS_CLEARANCE` and than
+## it stands to it now, `_first_on`): the hold seals `p` too. False while the walk is not held.
+func seals(p: Vector2) -> bool:
+	if _way != Way.HELD or _blocker == Vector2.INF or _character == null:
+		return false
+	var from: Vector2 = _character.global_position
+	var route := PackedVector2Array([from, p])
+	if _agent != null and NavBuilder.ready(_plan_map):
+		route = NavBuilder.route(_plan_map, from, p)
+	return _first_on(from, route, 0, [_blocker], INF) != Vector2.INF
 
 
 ## Check the walk against the bodies at rest the NPC knows of, once a physics frame: the first one on its path ahead
@@ -387,7 +479,7 @@ func _check() -> bool:
 	match _way:
 		Way.PLAIN, Way.ROUND, Way.DOORS:
 			if blocker != Vector2.INF:
-				if not on_goal and _goes_round(from, resting):
+				if not on_goal and not _last_leg and _goes_round(from, resting):
 					_set_way(Way.ROUND)
 				else:
 					_set_way(Way.HELD)
@@ -407,12 +499,22 @@ func _check() -> bool:
 				_recheck_in -= delta
 				if not on_goal and _recheck_in <= 0.0:
 					_recheck_in = RECHECK
-					if _goes_round(from, resting):
+					if _goes_round(from, resting, _last_leg):
+						_last_leg = false  # A held last leg goes round by a way to the goal, or to a new last leg clear of every body at rest.
 						_set_way(Way.ROUND)
-				if _way == Way.HELD and _held_for >= _replan_at:
+				if _way == Way.HELD and _held_for >= _replan_at and (_carved(blocker) or _held_for >= _replan_at + CARVE_WAIT):
 					_replan_at = _held_for + REPLAN_EVERY
 					_replan(from, on_goal)
 	return _agent.get_navigation_map() != was_map or _goal != was_goal
+
+
+## Whether the steering map has caught up with the body at rest at `pos`: it is re-baked on an interval, so a body that has just stopped is
+## carved a moment later, and until then the map shows no way round it that may well be there. Its centre is then off the map (by more than
+## `CARVED_GAP`). True with no steering map to wait for.
+func _carved(pos: Vector2) -> bool:
+	if not _steering_map.is_valid() or not NavBuilder.ready(_steering_map):
+		return true
+	return NavBuilder.snap(_steering_map, pos).distance_to(pos) > CARVED_GAP
 
 
 ## The way a walk goes when no body is in it: round the doorway views when it has been given the avoid map, else the plain way.
@@ -441,7 +543,7 @@ func _update_doors(delta: float) -> void:
 		if _doors_in > 0.0:
 			return
 	_doors_in = DOORS_RECHECK
-	var route: Dictionary = views.walk_route(_goal, avoid_exempt)
+	var route: Dictionary = views.walk_route(_goal, avoid_entering)
 	if bool(route["doors"]):
 		_doors_decided = true
 		_doors_map = route["map"]
@@ -463,19 +565,29 @@ func _replan(from: Vector2, on_goal: bool) -> void:
 		var spot := _free_spot(from)
 		if spot != Vector2.INF:
 			_goal = spot
+			_last_leg = false
 			_set_way(_free_way())
 			return
 	_blocked = true
 
 
-## Whether the steering map has a way round from `from` to the goal: its route ends at the goal and passes no known body
-## at rest (`resting`) closer than `PASS_CLEARANCE`. Nothing goes round before both maps have synchronized.
-func _goes_round(from: Vector2, resting: Array) -> bool:
+## Whether the steering map has a way round from `from` to the goal: its route ends at the goal, or within `LAST_LEG` of it with the plain
+## way on from there passing no known body at rest (the last leg, `_last_stretch`: of `resting`, or with `held_leg`, a held last leg looking
+## again, of every known body at rest, so a new last leg is never one the body holding it, or another, stands on), and passes no known body at
+## rest (`resting`) closer than `PASS_CLEARANCE`. Nothing goes round before both maps have synchronized.
+func _goes_round(from: Vector2, resting: Array, held_leg := false) -> bool:
 	if not _steering_map.is_valid() or not NavBuilder.ready(_steering_map) or not NavBuilder.ready(_plan_map):
 		return false
 	var route := NavBuilder.route(_steering_map, from, _goal)
-	if route.is_empty() or route[route.size() - 1].distance_to(NavBuilder.snap(_plan_map, _goal)) > BLOCKED_DISTANCE:
+	if route.is_empty():
 		return false
+	var end: Vector2 = route[route.size() - 1]
+	var goal := NavBuilder.snap(_plan_map, _goal)
+	if end.distance_to(goal) > BLOCKED_DISTANCE:
+		var leg := NavBuilder.route(_plan_map, end, goal)
+		var clear_of := _resting(goal, INF) if held_leg else resting
+		if end.distance_to(goal) > LAST_LEG or NavBuilder.path_length(leg) > LAST_LEG or _first_on(end, leg, 0, clear_of, INF) != Vector2.INF:
+			return false
 	return _first_on(from, route, 0, resting) == Vector2.INF
 
 

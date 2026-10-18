@@ -1,7 +1,7 @@
 extends Node2D
 
 ## UI domain: the order markers (`docs/leadership.md` LD12, D5), what the human leader sees of its squad: each living member's order
-## target (a line from the member to the doorway it stacks on or the room it defends, the target ringed and named, with the member's
+## target (a line from the member to the doorway it stacks on or ambushes, or the room it defends, the target ringed and named, with the member's
 ## latest progress), and a ring round each teammate selected in the command menu. Who leads is the squad-leaders debug overlay's
 ## (`ui/overlays/leader_overlay.gd`). Main builds it only when the human leads, under the match's `World` node (world space), drawn at
 ## `DrawLayers.ABOVE` (interface 11) so a character never hides its marker.
@@ -72,11 +72,17 @@ func _markers() -> Array:
 	return out
 
 
-## The words at an order's target: what it is and how it goes ("Stack (stun) · moving").
+## The words at an order's target: what it is and how it goes ("Stack (stun) · moving"; a stack names its mode, quiet / stun / frag, and
+## "hold" while it waits for the leader's go, LD13: "Stack (frag, hold) · in position"; "Ambush · in position", LD15).
 func _label_of(order: Dictionary, step: String) -> String:
 	var what := "Defend"
-	if String(order.get("kind", "")) == "stack":
-		what = "Stack (stun)" if bool(order.get("bang", false)) else "Stack (quiet)"
+	match String(order.get("kind", "")):
+		"stack":
+			var mode := String(order.get("mode", "stun" if bool(order.get("bang", false)) else "quiet"))
+			var held := bool(order.get("wait_go", false)) and not bool(order.get("go", false))
+			what = "Stack (%s%s)" % [mode, ", hold" if held else ""]
+		"ambush":
+			what = "Ambush"
 	return what if step == "" else "%s · %s" % [what, step.replace("_", " ")]
 
 

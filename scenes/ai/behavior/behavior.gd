@@ -123,6 +123,7 @@ var _watch: RefCounted            ## The threat that takes the eyes and the door
 var _threat: Dictionary = {}      ## The contact holding the NPC's eyes and gun this tick ({} = none); see `_apply_watch`.
 var _gaze := "primitive"          ## What set the gaze this tick, for the read-outs: threat / doors / primitive.
 var _entry_pending := false       ## An ENTER leaf was adopted and its entry starts on the next tick (`_apply_entry`).
+var _route_wait := 0.0             ## How long (s) an ordered entry has waited, its claim held back, for the map round the views (`_detour_first`).
 var _resume := {}                 ## The leaf an entry detour paused (see `_begin_detour`); {} when the entry is the NPC's own order.
 var _guard_clock := 0.0           ## Seconds the guard has been watching (sim time), for the re-arm of a given-up doorway.
 var _guard_off := {}              ## Doorway id -> `_guard_clock` before which the guard leaves it alone.
@@ -166,6 +167,7 @@ var _throw_wait := -1.0           ## Seconds left waiting out the grenade's fuse
 var _throw_seen := false          ## The grenade thrown has been seen in the world (it is its own, always known): the wait ends when it is gone.
 var _order_steps: Array = []      ## Progress on the order being carried out, to radio since the last `take_order_steps()`: { order_id, step }.
 var _order_said := {}             ## The last step said of an order (`{ id, step }`), so a step is said once until the next differs.
+var _awaiting_order := false      ## An order was just taken and its decision has not landed: a walk it replaces stops (`await_order`).
 
 
 ## Build the Locomotion child and capture the perception sub-domain. The controller calls this once in
@@ -293,7 +295,7 @@ func ongoing() -> bool:
 			return _reloading
 		&"entry":
 			return _entry_pending or _entry.phase not in ["", "done"]
-		&"throw", &"defend":
+		&"throw", &"defend", &"ambush":
 			return true
 	return false
 
@@ -384,6 +386,8 @@ func _progress() -> String:
 			return "throwing it" if _throw_wait < 0.0 else "waiting for it to go off"
 		&"defend":
 			return "holding the room" if _arrived else "on the way to its post"
+		&"ambush":
+			return "waiting in ambush" if _arrived else "on the way to its post"
 	return "waiting" if not _labels.is_empty() else ""
 
 
@@ -446,6 +450,9 @@ func debug_entry() -> Dictionary:
 
 ## How far (px of walking) the entry debug view looks ahead along the walk for the next uncleared doorway.
 const GUARD_PREVIEW_RANGE := 2000.0
+## The longest (s) an entry waits for the nav map its doorway's slots are laid on (`Entry.laid`), and the read of an ordered entry's way
+## (`_detour_first`) for the map round the doorway views, to be baked.
+const ROUTE_WAIT := 2.0
 
 
 ## Read-only, for the entry debug overlays: the running entry as world-space data (entry.gd `debug_view`, under `entry`;
@@ -583,6 +590,7 @@ func _json_safe(d: Dictionary) -> Dictionary:
 ## Adopt the planner's leaf `{ path, labels, primitive, params }`: capture its destination (snapped
 ## onto the navmesh), its target and its object, and commit to it.
 func set_leaf(leaf: Dictionary) -> void:
+	_awaiting_order = false  # The decision made with the order known has landed (the controller hands only that one, or a later one).
 	if not _evade.is_empty():
 		return  # Running from a grenade: a decision that was in flight is stale by the burst, which ends in a new one.
 	if committed() and _resume.is_empty():
@@ -634,7 +642,7 @@ func _ordered_stack() -> bool:
 func _guards(leaf: Dictionary, into: String) -> bool:
 	var params: Dictionary = leaf.get("params", {})
 	var prim: StringName = leaf.get("primitive", &"hold")
-	var walks: bool = prim in [&"move", &"engage", &"interact", &"defend"] or (prim == &"throw" and bool(params.get("walk", false)))
+	var walks: bool = prim in [&"move", &"engage", &"interact", &"defend", &"ambush"] or (prim == &"throw" and bool(params.get("walk", false)))
 	return entry_guard and walks and bool(params.get("entry_guard", true)) and (not _perception.under_fire() or _into_the_shots(into))
 
 
@@ -685,9 +693,9 @@ func _adopt(leaf: Dictionary) -> void:
 			_entry_pending = true
 		&"throw":
 			_begin_throw_order()
-		&"defend":
+		&"defend", &"ambush":
 			_point = _loco.reachable(_params.get("spot", _character.global_position))
-	_say_order_step("moving")
+	_say_order_step("refused" if _params.get("refused", false) else "moving")  # (Refused: an order kept and held, no room for it.)
 
 
 ## Start the throw order in `_params` afresh: with a throw spot (`walk`), from the walk to it (a throw resumed after a detour's entry, whose
@@ -731,6 +739,7 @@ func _engage(id: int) -> void:
 
 ## A steady stance for when no decision can be had (Von unreachable): stop and watch any known hostile.
 func fallback() -> void:
+	_awaiting_order = false
 	_drop_detour()
 	_entry.abandon()  # No decision to be had: an entry in progress is given up (the stack is told).
 	_primitive = &"hold"
@@ -856,6 +865,9 @@ func wants_decision(decide_timer_elapsed: bool) -> bool:
 			# On the way, the walk's safety cap; at its post it holds as long as the order stands, until a fight it began from there
 			# (its shots keep it engaged) is the decision's to weigh, in the room (LD8).
 			return _commit_timer <= 0.0 if not _arrived else _perception.engaged_fresh()
+		&"ambush":
+			# It holds its post as long as the order stands; first contact ends the order (D18), and the NPC then fights on its own.
+			return not _order_live() or (not _arrived and _commit_timer <= 0.0)
 	return decide_timer_elapsed
 
 
@@ -869,7 +881,7 @@ func apply(delta: float) -> void:
 	_loco.ignore_id = _engage_id if _primitive == &"melee" else 0  # A melee closes on its target: no walk round it.
 	_perception.ordered_walk = _ordered_stack()
 	_loco.avoid_doors = _keeps_out_of_views()
-	_loco.avoid_exempt = _entry.opening if _primitive == &"entry" else ""
+	_loco.avoid_entering = "%s>%s" % [_entry.opening, _entry.into] if _primitive == &"entry" and _entry.opening != "" else ""
 	if not _evade.is_empty():
 		_apply_evade(delta)
 		return
@@ -888,10 +900,12 @@ func apply(delta: float) -> void:
 			_apply_entry(delta)
 		&"throw":
 			_apply_throw(delta)
-		&"defend":
+		&"defend", &"ambush":
 			_apply_defend()
 		_:
 			_apply_hold()
+	if _awaiting_order and not committed() and _walking():
+		_character.move_input = Vector2.ZERO  # The order is being decided on: stop the walk it replaces, as an arrived move stands.
 	if _loco.take_blocked():
 		_way_blocked()
 	_apply_watch(delta)
@@ -906,6 +920,34 @@ func apply(delta: float) -> void:
 	_reloading = _character.is_reloading()
 
 
+## An order was taken (`on`, the frame it arrives: `docs/leadership.md` LD5) or the decision made knowing it has landed (`set_leaf` and
+## `fallback` clear it too): until then a walk the order replaces stops (`_walking`), as an arrived move stands, while a fight goes on
+## (a move chosen under COMBAT included); the watch stage still looks and shoots. A crossing or a bang's throw (`committed()`) is not
+## stopped in the doorway.
+func await_order(on: bool) -> void:
+	_awaiting_order = on
+
+
+## Whether the running primitive is on a walk an order replaces (LD6): a move that is not chosen under COMBAT (a search's walk and
+## cover, an investigation's, an idle walk), an entry's approach to its slot, a defend or ambush walk to its post, a throw's walk to its
+## throw spot, an interaction's walk to its object. Not a fight (an engage arrived or on its way, a melee, a reload, a hold, and a move
+## chosen under COMBAT: an advance, a retreat, a locate, whose path starts at `combat`) nor the rest of an entry (the pie, the crossing,
+## the corner, the clear, the cover, the rear: one stopped there stands in the doorway's funnel).
+func _walking() -> bool:
+	match _primitive:
+		&"move":
+			return not in_combat()
+		&"entry":
+			return _entry.phase == "approach"
+		&"defend", &"ambush":
+			return not _arrived
+		&"throw":
+			return _combat.throw_stage == "walk"
+		&"interact":
+			return not _in_interaction and _target_obj != null and is_instance_valid(_target_obj) and not _interaction_in_reach()
+	return false
+
+
 ## Whether the walk the running primitive is on keeps out of the doorway views (E18): the walks the entry guard covers, so a move, an
 ## engage or an interact that is not a retreat, a throw's walk to its throw spot, and an entry's approach to its stack (its other walks, the pie and the crossing, are
 ## the entry's own), while the NPC is not under fire. Not an evade. An ordered stack's walk does whatever `entry_enabled` says (D4).
@@ -916,7 +958,7 @@ func _keeps_out_of_views() -> bool:
 		return _entry.phase == "approach"
 	if _primitive == &"throw":
 		return _combat.throw_stage == "walk"
-	return _primitive in [&"move", &"engage", &"interact", &"defend"] and bool(_params.get("entry_guard", true))
+	return _primitive in [&"move", &"engage", &"interact", &"defend", &"ambush"] and bool(_params.get("entry_guard", true))
 
 
 ## A body seals the only way of the walk the primitive is on and stays (`Locomotion.take_blocked`): re-plan, so the NPC is
@@ -925,7 +967,7 @@ func _keeps_out_of_views() -> bool:
 ## and, when it gives the entry up, re-decides too, or, as a detour, hands the walk back to the order it paused. An evade
 ## (not a primitive: it replaces the order) holds the best spot it has until the burst.
 func _way_blocked() -> void:
-	if _primitive in [&"move", &"engage", &"melee", &"interact", &"defend"]:
+	if _primitive in [&"move", &"engage", &"melee", &"interact", &"defend", &"ambush"]:
 		_resolved = true
 		_resolve_reason = "way blocked"
 	elif _primitive == &"throw" and _combat.throw_stage in ["walk", "aim"]:
@@ -973,9 +1015,9 @@ func _apply_watch(delta: float) -> void:
 		return
 	if _resting():
 		_gaze = "doors"
-		var door = _params.get("door_pos") if _primitive == &"defend" else null
+		var door = _params.get("door_pos") if _primitive in [&"defend", &"ambush"] else null
 		if door is Vector2:
-			Watch.ease_gaze(_character, door, search_look_rate, delta)  # A defender's gun on its own doorway (D2).
+			Watch.ease_gaze(_character, door, search_look_rate, delta)  # A defender's gun on its own doorway (D2), an ambusher's on the threshold (LD15).
 		else:
 			_watch.idle_gaze(delta)
 
@@ -990,7 +1032,7 @@ func _resting() -> bool:
 			return _arrived and not _look_around
 		&"throw":
 			return _combat.throw_stage == "away"
-		&"defend":
+		&"defend", &"ambush":
 			return _arrived
 	return false
 
@@ -1015,12 +1057,17 @@ func _apply_posture(delta: float) -> void:
 ## The posture to take this tick: a manner of carrying out the leaf, not something Von chooses, so it works with
 ## the server down. Only a standing body runs, so anything on the move to a destination stands, and so does
 ## everything outside a fight. Fighting in place (an engaged NPC in position, or one holding / reloading while a hostile is known or
-## shots are landing) it crouches: a smaller target, and it hides behind cover as high as a crouch.
+## shots are landing) it crouches: a smaller target, and it hides behind cover as high as a crouch. A member of a frag entry holding its slot
+## for the burst crouches too (`Entry.holds_crouched`, LD14).
 func _wanted_posture() -> StringName:
 	if not _evade.is_empty():
 		return &"crouch" if _evade_crouches() else &"stand"
 	if not posture_enabled or _character.run_input:
 		return &"stand"
+	if _primitive == &"entry" and _entry.holds_crouched():
+		return &"crouch"  # Its slot held for the frag the stack threw into the room (LD14).
+	if _primitive == &"ambush" and _arrived:
+		return &"crouch"  # Waiting at its post, low (LD15).
 	var under_fire: bool = _perception != null and _perception.under_fire()
 	if _hostiles.is_empty() and not under_fire:
 		return &"stand"
@@ -1059,7 +1106,7 @@ func _should_run() -> bool:
 				return false
 		&"melee":
 			dest = _engage_pos
-		&"defend":
+		&"defend", &"ambush":
 			if _arrived:
 				return false
 		_:
@@ -1175,16 +1222,84 @@ func _apply_entry(delta: float) -> void:
 	_entry.gaze_held = not _threat.is_empty()
 	_entry.hostile_in_view = _hostile_in_view()
 	if _entry_pending:
+		if not _entry.laid(_params) and _route_wait < ROUTE_WAIT:
+			_route_wait += delta  # The doorway's slots are laid once the nav map is baked: a stack claims nothing before.
+			_character.move_input = Vector2.ZERO
+			return
 		_entry_pending = false
+		_route_wait = 0.0
+		if not _entry.begin(_params):
+			_finish_entry()
+			return
+		_entry.held_back = _resume.is_empty() and _params.has("order_id") and _entry.phase == "approach"
+	if _entry.held_back:
+		if _detour_first(delta):
+			return
+		# The way is clear: the entry begins again, from the claims heard meanwhile (others' held back like its own), and its claim goes out.
+		_entry.reset()
 		if not _entry.begin(_params):
 			_finish_entry()
 			return
 	if _entry.step(delta):
 		_finish_entry()
-	elif _held and not _entry.throwing():
+		return
+	if _entry.holding_for_go():
+		_say_order_step("in_position")  # Ready in its slot and held for the leader's go (LD13).
+	if _held and not _entry.throwing():
 		_held = false  # The stun is away (or the bang given up): the decision held off for it is taken now, from where it stands.
 		_resolved = true
 		_resolve_reason = "after the bang"
+
+
+## An ordered stack's way to its doorway (D4, LD9), read before the member's claim goes out: its entry has begun (its slot, its side and the
+## approach's waypoints are worked out) and holds its claim back (`Entry.held_back`) while the whole walk to the slot, leg by leg as the approach
+## walks it (`AgentPerception.walk_route`: out of the room being entered and its doorway's view), is read for a threshold into a room not cleared
+## (`threshold_ahead`; the room being entered and the doorway it stacks at left out), and, with no other recipient coming to the doorway, a
+## doorway view it would cross (E15, `passing_ahead`; not one of the room being entered, which the stack clears). The first is gone through by
+## entry first, as a detour (`_begin_detour`): the entry is dropped unheard, so no claim was made and none is given up; the order's entry starts
+## afresh once the detour is over, and reads the way again. True while it is detouring or waits (at most `ROUTE_WAIT` s) for a map round the
+## views to be baked; false when the way is clear and the claim is due.
+func _detour_first(delta: float) -> bool:
+	if not entry_guard or _perception.under_fire():
+		return false
+	var opening: String = _entry.opening
+	var into: String = _entry.into
+	var entering := "%s>%s" % [opening, into]
+	var path := PackedVector2Array()
+	var from := Vector2.INF
+	var pending := false
+	for p: Vector2 in _entry.approach_points():
+		var leg: Dictionary = _perception.walk_route(p, entering, from)
+		pending = pending or bool(leg["pending"])
+		path.append_array(leg["path"])
+		from = p
+	if pending and _route_wait < ROUTE_WAIT:
+		_route_wait += delta
+		_character.move_input = Vector2.ZERO
+		return true
+	var gate: Dictionary = _perception.threshold_ahead(path, 0, INF)
+	if not gate.is_empty() and (gate["opening"] == opening or str(gate["into"]) == into or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock):
+		gate = {}
+	if not _entry_recipients_coming():
+		var passing: Dictionary = _perception.passing_ahead(path, 0, INF)
+		if not passing.is_empty() and passing["opening"] != opening and str(passing["into"]) != into and (gate.is_empty() or float(passing["dist"]) < float(gate["dist"])) \
+				and float(_guard_off.get(passing["opening"], -1.0)) <= _guard_clock and _perception.entry_team(passing["opening"]).is_empty():
+			passing["secure"] = true
+			gate = passing
+	if gate.is_empty():
+		return false
+	_entry.reset()
+	_begin_detour(gate)
+	return true
+
+
+## Whether the order the pending entry stacks under names another living member: a team is coming to the doorway, so nobody leaves the
+## way to it to cover a doorway on the way (E15, as for a stack others claim).
+func _entry_recipients_coming() -> bool:
+	var held: Dictionary = _perception.order()
+	if str(held.get("id", "")) != str(_params.get("order_id", "")):
+		return false
+	return (held.get("to", []) as Array).any(func(m): return is_instance_valid(m) and m != _character and m.get("is_dead") != true)
 
 
 ## Whether a hostile stands in view for the entry's purposes (E14): the threat holding the NPC's eyes is seen now, or was a moment ago
@@ -1246,7 +1361,7 @@ func _entry_guard() -> void:
 	if not entry_guard or _perception == null or not _perception.entry_enabled:
 		return
 	match _primitive:
-		&"move", &"defend":
+		&"move", &"defend", &"ambush":
 			if _arrived:
 				return  # Holding at the destination, or covering the room by sight.
 		&"engage", &"interact":
@@ -1276,8 +1391,9 @@ func _entry_guard() -> void:
 
 ## An ENTER order's own walk to its stack (E15): a doorway it goes past on the way (in a corridor, not the one it is stacking at) is
 ## secured first like any other walk's. The entry pauses (it told the stack it gave its claim up and starts again afterwards). Not
-## for a member heading for a stack that others have claimed: the team goes to its door as one, and a member that left it to cover a
-## door on the way would leave the point to go in alone. An ordered stack's walk (`docs/leadership.md` LD9, D4), whatever
+## for a member heading for a stack that others have claimed, or that its order names others for: the team goes to its door as one, and a
+## member that left it to cover a door on the way would leave the point to go in alone. (An ordered stack reads its whole way for both
+## before it claims, `_detour_first`; this catches what comes up on the walk.) An ordered stack's walk (`docs/leadership.md` LD9, D4), whatever
 ## `entry_enabled` says, also goes into a room that is not cleared on its way by entry first, as any walk does (E9), team or none, and
 ## its entry starts afresh after it.
 func _guard_approach() -> void:
@@ -1290,10 +1406,11 @@ func _guard_approach() -> void:
 	var gate := {}
 	if ordered:
 		gate = _perception.threshold_ahead(walk["path"], walk["index"], entry_guard_range)
-		if not gate.is_empty() and (gate["opening"] == _entry.opening or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock):
+		if not gate.is_empty() and (gate["opening"] == _entry.opening or str(gate["into"]) == _entry.into or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock):
 			gate = {}
-	var passing := {} if not _perception.entry_team(_entry.opening).is_empty() else _passing_gate(walk, gate)
-	if not passing.is_empty() and passing["opening"] != _entry.opening:
+	var team_coming: bool = not _perception.entry_team(_entry.opening).is_empty() or (ordered and _entry_recipients_coming())
+	var passing := {} if team_coming else _passing_gate(walk, gate)
+	if not passing.is_empty() and passing["opening"] != _entry.opening and str(passing["into"]) != _entry.into:
 		gate = passing
 	if gate.is_empty():
 		return
@@ -1402,11 +1519,16 @@ func _apply_throw(delta: float) -> void:
 
 ## Called every tick before the evade reflex is handed its plan: whether the grenade being thrown has left the hand (the end of the
 ## wind-up). Then it is radioed, and the wait for the burst begins. This has to come first: a grenade just thrown is a live one the
-## thrower may be inside the zone of, and the evade replaces the throw order the same tick.
+## thrower may be inside the zone of, and the evade replaces the throw order the same tick. A frag entry's thrower (LD14) radios its frag
+## the same way, the tick after it left the hand (`Entry.take_thrown`).
 func poll_throw() -> void:
 	if _primitive == &"throw" and _combat.throw_released():
 		_throw_calls.append({ "kind": _throw_kind, "point": _throw_spot })
 		_throw_wait = _perception.grenade_fuse(_throw_kind) + THROW_WAIT_MARGIN
+	elif _primitive == &"entry":
+		var thrown: Dictionary = _entry.take_thrown()
+		if not thrown.is_empty():
+			_throw_calls.append(thrown)  # A frag entry's frag (LD14), radioed as any thrown frag.
 
 
 ## The throw is over (the burst, or it could not be made): the NPC re-decides.
@@ -1435,7 +1557,8 @@ func throw_plan() -> Dictionary:
 
 ## Defend (LD8): walk to the defend spot (a guarded walk where the entry guard applies, as any walk), then hold it, still; the watch stage
 ## keeps the gun on its doorway, or turns it among the room's doorways, and on a threat in sight. Pushed off the spot, it walks back.
-## It says `in_position` on the radio once there. An empty gun is reloaded meanwhile, as in a hold.
+## It says `in_position` on the radio once there. An empty gun is reloaded meanwhile, as in a hold. An ambush (LD15) is the same walk and
+## hold at its post, crouched, its gun on the threshold.
 func _apply_defend() -> void:
 	if _arrived and _character.global_position.distance_to(_point) > DEFEND_DRIFT:
 		_arrived = false
@@ -1449,6 +1572,11 @@ func _apply_defend() -> void:
 		return
 	_character.move_input = Vector2.ZERO
 	_combat.reload_if_dry()
+
+
+## Whether the order the running leaf carries out (its `order_id`) is still the NPC's live order (`AgentPerception.order`).
+func _order_live() -> bool:
+	return _params.has("order_id") and str(_perception.order().get("id", "")) == str(_params["order_id"])
 
 
 ## Note step `step` of the order the running leaf carries out (its `order_id`), once until the next step differs, for the controller to
@@ -1531,8 +1659,8 @@ func set_evade(plan: Dictionary) -> void:
 		return
 	if _evade.is_empty() and _primitive == &"throw" and _combat.throw_stage == "windup":
 		return  # Its own grenade is about to leave the hand, toward the spot: thrown first, then the run.
-	if _evade.is_empty() and _primitive == &"entry" and _entry.expects_burst(plan["kind"]):
-		return  # The stun a bang entry threw into its room: the stack holds turned away from the door for it already.
+	if _evade.is_empty() and _primitive == &"entry" and _entry.expects_burst(plan):
+		return  # The stun (or frag, its slot out of the zone) a bang entry threw into its room: the stack holds turned away from the door for it already.
 	if _evade.is_empty():
 		_drop_detour()
 		_entry_pending = false

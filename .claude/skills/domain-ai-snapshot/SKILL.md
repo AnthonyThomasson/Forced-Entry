@@ -61,9 +61,13 @@ lives in `agent_snapshot.gd`.
   empty without a gun; the noun is the gun's display name lower-cased, `gun_noun` ("pistol", "assault rifle", an acronym like "SMG" kept), so a
   pistol user's text is unchanged and the Von scenario fixtures stay valid; listed in the contexts of root, combat, engage, flank, advance), `awareness` (being hit / under fire; gunfire and footsteps heard only while no hostile is known; noted events).
   `order` (`order_text`, LD6): one sentence while the NPC holds an order, "Your leader ordered you to defend the kitchen." / "... to go into the
-  kitchen by its doorway quietly." ("with a stun grenade first"), "" otherwise; the planner shows it after the goal at every level, so an NPC
-  with no order reads exactly what it read before. Measured with `tools/von_probe.py` (`docs/leadership.md` LD6: at the combat levels the top
-  pick unchanged in 17/18 levels for the defend sentence, 18/18 for the stack ones).
+  kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade first": the order's `mode`, LD14; a held stack that has
+  had no go adds " when they give the go", LD13), "Your leader ordered you to ambush the doorway into the hall from the living room." (into
+  `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15), "" otherwise; the planner
+  shows it after the goal at every level, so an NPC with no order reads exactly what it read before. Measured with `tools/von_probe.py`
+  (`docs/leadership.md` LD6, LD13 to LD15: at the 18 combat levels the top pick unchanged in 17/18 for the defend sentence and 18/18 for
+  every stack, held stack and ambush one; the plan's held ending " and wait for my go", and every other ending tried, flipped
+  `bind_most_dangerous`, a near-tie, so re-run the probe after any rewording).
   `sections_per_target[id]` re-frames exposure/flanks/allies around each known hostile. The snapshot also carries `gun` (that noun), which the planner
   fills into `{gun}` in the tree's templates. `shoot_range` and the "in pistol range" distance band are deliberately left gun-agnostic (pinned wording).
 - **options** — named groups `{ summary, summary_inside?, options: [{ id, label, desc, params, tags }] }`:
@@ -92,8 +96,13 @@ lives in `agent_snapshot.gd`.
   (`explore` at two).
   `order` (`order_group`, LD6): the ORDER node's one option, the live order, carrying its own `primitive` and params with `order_id`:
   `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `AgentEntry.defend_spot`, the member's place being its index in
-  the order's `to`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `split`, `stack_at`); empty with no order or one it cannot
-  carry out (a room or doorway it does not know: the controller ends it `refused`).
+  the order's `to`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), `split`,
+  `stack_at`; its label "the doorway into the kitchen" adds " with a stun" / " with a frag"), `ambush_<opening>` runs `ambush` (`opening`,
+  `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
+  dead end with no slot for this member (`AgentEntry.holds_slot` false at `_stack_place`: its index among the living recipients in `to`,
+  after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
+  doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
+  or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).
   Options are places and things, never verbs; `tags.inside` drives the territorial filter. After the groups are built `tag_rooms` tags every
   option that names a place with the room it lies in (`tags.room`: the room key of its `from`, else its `point`; "" outside): the planner's
   `confine_room` keeps a member ordered to defend a room to the options in it (LD8). Tags are not text.

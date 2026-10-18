@@ -1,10 +1,11 @@
 # Tactical entry
 
 How an invader gets through an opening into a building, alone or as a team, and the real-world tactics
-that rule is modelled on. Behaviours E1 to E9, E11 to E19 are enforced; each has its tests
+that rule is modelled on. Behaviours E1 to E9, E11 to E22 are enforced; each has its tests
 in `tests/ai/entry/` (`tools/run_tests.sh entry`; E16's in `tests/ai/stack/`), named under the behaviour, following the convention of
 `docs/flanking-behavior.md`. They are tests on the Terrace house of
-`tests/_ai/flank_maps.gd`, read through `tests/_ai/entry_probe.gd`.
+`tests/_ai/flank_maps.gd`, read through `tests/_ai/entry_probe.gd`; E20 to E22 also sweep every generated floorplan
+(`tests/_ai/slots_probe.gd`), and the reach tests of E2 and E20 run ordered stacks across three floorplans (`tests/_ai/reach_probe.gd`).
 E10 (the clear-time benchmark) is met and its test is green. E1 to E9 are scripted-Von tests. E10 to E16 are tests that run
 the whole pipeline with the real Von server (`requires_von`, `--include-von --require-von`), as are E18's and E19's: the world gives the AI the situation
 and the test judges what the shipped AI does with it; E15 and E18 also have scripted tests of their mechanism. A rule the AI does not
@@ -68,24 +69,74 @@ below (E7) is this game's adaptation of the team principles, not doctrine.
 
 **E1. Approach off the line of sight.** Heading for an opening, an invader does not walk down the line
 that looks straight through it. It goes to a staging point beside the opening, on the outside of the wall and
-clear of the doorway's view into the room, and arrives along the wall side, not across the door. Why: the
+clear of the doorway's view into the room, and arrives along the wall side, not across the door (from a point past its slot, short of
+the next slot a teammate claims: E2). Why: the
 funnel is exposed to anyone inside; staging out of sight keeps surprise.
 Tests: `entry_stages_beside_opening`, `entry_approach_off_door_axis`.
 
 **E2. Stack beside the opening.** Several invaders heading for the same opening queue in single file on
 the wall beside it, one slot each, ordered by arrival (the order of the claims on the radio: a member takes the lowest slot the claims it
-has heard leave free), each clear of the one in front (`entry_stack_spacing`, 44 px: outside
+has heard leave free; two claims made on the same frame settle by distance, the member nearer the slot taking it, so their walks do not
+cross), each clear of the one in front (`entry_stack_spacing`, 44 px: outside
 the footprint a body on the next slot keeps clear around it, so no slot is a spot inside a teammate), none in the doorway's line of
-sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
+sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member
+walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
+32 px) short of the next slot along its side a teammate claims, re-planned as claims come in, so the walk into a slot never aims at a
+teammate's body (`entry.gd` `_approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
 free spot beside it, and gives way to one walking (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
-walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point; one the stack itself keeps
-from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides;
+walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point the hold does not seal (the
+point it was walking to is dropped, and with it each next one at the slot or whose plain way passes the body holding it, `entry.gd`
+`_drop_sealed`; test `ai/entry/entry_held_walks_unsealed_waypoint`). With none left, and on a walk straight into the slot, it walks on into the slot unless the slot is sealed, by a body between the member
+and its slot, not on it (one standing within `Locomotion.PASS_CLEARANCE` of the slot is Locomotion's body on the goal: the walk goes on and ends
+at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its plain way passes that body and no way reaches it with the holder and every other body at rest the member sees, or saw within half a second,
+standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
+the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
+(`_slot_sealed`, `AgentPerception.entry_slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
+its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
+one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
+`ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
+from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a
+walk held by a teammate of the same stack that is still on its way to its own slot (its claim at `claim`: walking there, or moving up) is
+the stack forming, not the stack keeping the member out, and the member keeps its slot and waits for it, at most 3 s from when the hold
+began (`entry.gd` `HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
+it takes (tests `ai/entry/entry_held_by_forming_stack_keeps_slot`, `entry_held_by_forming_stack_cap`). A hold is timed by how long the
+member has stood held: its walk aimed again while it stands (its slot's point moved by the claims), a free spot tried or a body read as
+moving for a frame is the same hold going on, not a new one (`Locomotion` `HOLD_GAP`, `HOLD_MOVED`), so the cap and the re-plans come on
+time (test `ai/entry/entry_held_cap_despite_reaim`);
 a pie step is skipped; a corner, cover or rear spot is held from where it stands. Slots are claimed over the radio (the same claim pattern as a flank side), so two
-invaders never take the same one. Why: a stack is the formation every technique starts from; crowding the door
-makes a target and blocks the point man.
-Tests: `entry_stack_orders_slots`, `entry_stack_no_double_claim`, `entry_spots_clear_of_each_other`, `entry_team_no_bumping` (four invaders
-placed as in a match, real Von: nobody walks into a teammate, standing or walking), `entry_held_walk_replans`, `stack_ai_goes_round_player_in_slot`
-(a match built as `main.gd` builds one: the AI goes round the human standing in its slot).
+invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
+given up (`abort`) only once it has taken its own walking time at walking pace plus `entry_approach_time` (20 s): the walk is measured, leg
+by leg as it will be walked, when the approach is planned and again at each re-plan (`entry.gd` `_walk_time`). In its slot a member stands
+within `SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
+**The stack moves up.** A member standing in its slot looks every `MOVE_UP_EVERY` (0.25 s) for a lower slot of its own side (either row)
+within `MOVE_UP_REACH` (66 px) whose holder is not there yet: its claim still at `claim`, the holder farther from that slot than this member
+(its last radioed position), not the human, not moving up itself and the only one claiming it; the slot must lie on this member's side once
+the two swap and be reached by a short plain walk (at most 1.5 x the straight line plus 32 px). It waits while the latecomer's way to the
+slot it would take runs through the step: the latecomer may be within `MOVE_UP_REACH` + a step (`MOVE_UP_MARGIN`, 132 px in all) of that
+slot, and its straight way from there passes the vacancy closer than a body's clearance (`Locomotion.PASS_CLEARANCE`), or the two meet
+mid-swap, each a stride off the other's slot, and the stack jams. Where the latecomer may be is a worst-case bound: its newest known place,
+seen or radioed, brought nearer by its age x its walking pace (`entry.gd` `_latecomer_crosses`). It is the crossing that makes it wait, not
+the distance alone: a latecomer coming up behind the mover on the same lane follows it in (tests `stack_move_up_waits_for_near_latecomer`,
+`stack_move_up_lets_follower_in`). It steps straight into it and takes that
+number; the latecomer takes the slot it freed. Both are radioed as claims (the one that moved up carries `move_up`, the slot it left, until
+it radios `ready` in the new one, and holds the slot against the latecomer's claim). Never into the human's slot, never once a member has
+begun the pie (its claims say `pie`), the bang or the crossing, and once per vacancy, so nobody moves back and forth (a later vacancy may move
+it up again). Why: a stack is the formation every technique starts from; crowding the door
+makes a target and blocks the point man. The slots go by arrival: a member already against the wall does not stand behind an empty slot
+while its holder is still on the way, and the latecomer comes in at the back without walking past it.
+Tests: `entry_stack_orders_slots`, `entry_stack_no_double_claim`, `entry_spots_clear_of_each_other`, `order_stack_hold_for_go` (the third
+member claims after the second has set off: the second's walk is re-planned to come in short of the third's slot, `docs/leadership.md` LD13), `entry_team_no_bumping` (four invaders
+placed as in a match, real Von: nobody walks into a teammate, standing or walking), `stack_move_up_keeps_slot_reachable` (a member moving up
+leaves the latecomer a way into the slot it frees), `entry_held_walk_replans`, `stack_ai_goes_round_player_in_slot`
+(a match built as `main.gd` builds one: the AI goes round the human standing in its slot); the reach tests `stack_reach_terrace_back_door`,
+`stack_reach_terrace_hall_door`, `stack_reach_terrace_kitchen_six`, `stack_reach_garage_home_kitchen_door`, `stack_reach_garage_home_garage_exit`,
+`stack_reach_garage_home_garage_six`, `stack_reach_bungalow_kitchen_door`, `stack_reach_bungalow_laundry_six` and `stack_reach_vestibule_tail`
+(ordered stacks of 3 or 4, and of 6 at a short wall, at doorways of the Terrace house, the garage home, the bungalow and a hand-laid
+vestibule, the rest of the AI on, scripted Von; members start in the stack's room near the door, far along the wall and on the wrong side of
+it, in the room beyond, at the far end of the house and outside: each ends in the slot it claimed (6 px), never radios `abort`, its slot
+rising only as the latecomer's half of a move-up (and each move-up a real one: the mover in its own slot, into a lower one of its side,
+ending in it), within its route's walking time plus 8 s from its last detour (`docs/leadership.md` D4), never in the doorway's view nor
+across the door's front close in when a way round exists, and never bumping a teammate).
 
 **E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`entry_pie_steps` points, 100 px from
 the threshold, from 55° to 25° off the door's axis), turning its gaze through the doorway at each, before it crosses. What it sees from outside it engages from
@@ -115,9 +166,10 @@ Tests: `entry_pair_take_opposite_corners`, `entry_pair_hard_corner_first`.
 slot (or a ready timeout runs out), on either side of the door (the other side's front man of a split stack is ready once it has
 sliced its half of the pie, E19), and it radios that it is going in. Followers cross after it, one at a
 time, not together, each after the member ahead of it in the crossing order (on a split stack the sides take turns, E19). A member killed is dropped from the barrier at once; one that never arrives is dropped by the ready timeout (or gives
-its own approach up after `entry_approach_time`). Why: a team that
+its own approach up after its walk there plus `entry_approach_time`, E2). Why: a team that
 trickles through the funnel is a series of solo entries; the radio is the team's only signal. The barrier is a
-hold-until-ready, not a fixed delay.
+hold-until-ready, not a fixed delay. A stack its leader ordered to hold for the go holds past the barrier, no pie and no bang, until that
+go (`docs/leadership.md` LD13).
 Tests: `entry_waits_for_stack`, `entry_ready_timeout`, `entry_going_in_callout`.
 
 **E7. Solo entry.** An invader with no ally in radio range runs the same sequence without a barrier (it still
@@ -270,7 +322,8 @@ with a human near is a team of two and slices only its own side (E7), and an AI 
 has not crossed within `PlayerStack.go_timeout` (6 s), its claim is withdrawn (`abort`), the marker goes and the AI behind goes
 in. After the entry the AI's corner, clear and cover roles ignore the human. The floor shows it: every slot of the doorway
 numbered in the order they were claimed, each where it stands (on both sides of the door when the stack is split), the human's own
-highlighted, the AI's dimmer (`scenes/ui/hud/stack_markers.gd`). Only invaders enter, so only a
+highlighted, the AI's dimmer (`scenes/ui/hud/stack_markers.gd`; in a played match every stack of the human's side shows its rings,
+`docs/leadership.md` LD18). No AI member moves up into the human's slot (E2), and a dead end with no room left holds none for it (E20). Only invaders enter, so only a
 human invader is ever offered a slot. Why: a stack is a formation the human can only join if it can see where it forms and the
 team can count on it to be there; the number says how many go in ahead.
 Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stack_player_keeps_slot_late_ai_behind`, `stack_far_player_ignored`,
@@ -309,6 +362,14 @@ GRENADE thrown into the room, then the walk in), goes in on it: the point does n
 stands as soon as the stack is ready (E6), without waiting on a top-off (E11), the rest follow as in E6, and for `BANG_WINDOW` after the burst the
 E14 hold on a hostile in view does not apply. A quiet entry that went in on a burst does not turn into a bang. Why: whoever is in the room is blind
 and deaf, or down, for a moment, and that moment is the entry's.
+**A frag, on an order** *(`docs/leadership.md` LD14)*. A stack its leader ordered in with a frag throws a frag in place of the stun, by the
+same roles: the thrower is the second of the stack if it carries a frag, else the lowest slot that does (every claim carries `frags`); it aims only
+where the burst leaves every claimed slot, its own included, out of the frag's danger zone (a clear line within 370 px, `docs/grenades.md` G16:
+the wall beside the door is the stack's cover), and gives the frag up (quiet, `bang_off`) when nowhere does; it radios `frag_out` as the frag
+leaves its hand; the stack holds its slots crouched and turned away until the burst (at most `FRAG_BURST_CAP`, 7 s, from the call), and the
+point crosses on it with no pie. A member whose slot is out of the zone does not run from the frag (the slot is its cover); one whose slot it
+reaches does (G16). Nothing else throws a frag at entry: an unordered stack, STUN ENTRY and the suspect-room bang throw a stun. Why: a team
+that expects resistance preps the room with a frag, and keeps a wall between itself and the burst, since its fragments reach past the room.
 Why: a stack hears the room as it lines up, and a team that hears someone behind the door it is about to open puts a stun in first. The stack forms as in E1 and E2 (split across the door when it must
 be, E19: neither front man then slices the pie). Once it is ready, the **thrower**
 (the second of the stack, by slot on either side, if it carries a stun, else the lowest slot that does; alone, itself) radios `bang`, steps out in front of the
@@ -330,7 +391,9 @@ the pie; a lone entrant without a stun does not hold), `quiet_entry_listen_turns
 shows itself in the doorway at the call: the point leaves for the fight, the thrower throws the planned stun, then fights, and a member at the door
 goes in on the burst; real Von); going in on the burst: `ai/grenade/burst_then_cross` (its own stun thrown by GRENADE at a householder
 holding the kitchen's back doorway from inside, in its line of fire, then the walk in: no pie, across from its slot at once; real Von); a guard's entry: `ai/entry/entry_guard_bang_suspect_room` (a search
-walk through the back door into a kitchen gunfire was heard in: a bang), `entry_guard_quiet_unsuspected_room` (the same walk, nothing heard: quiet), scripted.
+walk through the back door into a kitchen gunfire was heard in: a bang), `entry_guard_quiet_unsuspected_room` (the same walk, nothing heard: quiet), scripted;
+the ordered frag (scripted): `ai/grenade/order_frag_entry` (at the burst no member has a clear line to it within the zone; in on the burst, no pie),
+`order_frag_no_frag_goes_quiet`, `order_frag_held_then_go`.
 
 **E18. Keep out of a doorway's view; a cleared room is safe to pass for a minute.** Any walk the entry guard covers (a search or
 explore, an investigation, an advance or flank, the way to an object or to a throw spot, the approach to a stack) stays out of the **view** of every
@@ -344,8 +407,10 @@ A room is **clear for passing** for `entry_pass_clear_time` (60 s) after it was 
 that covered it): a doorway into it is then walked past freely; after that its views are avoided or secured again. E9 and ENTER keep
 a cleared room cleared (nobody clears it twice) for the memory's own span. The route bands Von reads in the options ("short / medium /
 long route") are the length of the route the NPC will walk, the door-avoiding one when it would take it (the planner is not offered
-a short route it would not walk). Exempt, as in E9: a retreat, an NPC under fire, and the doorway it is entering itself (the approach to its
-stack leaves that doorway's own view alone). Why: a threshold crossed in the open is how a team is shot from a room it has not cleared
+a short route it would not walk). Exempt, as in E9: a retreat and an NPC under fire. The approach to a stack (E2) keeps out of its own
+doorway's view too, cleared room or not, and out of the room it goes into (a walk that starts in a view leaves it by the way it goes); with no
+way round every view within the cap it goes round those two at least, and an ordered member takes that way round however long it is
+(`docs/leadership.md` D4). Why: a threshold crossed in the open is how a team is shot from a room it has not cleared
 (E4, E9); the real answer is to give an open door a wide berth, and cover it only when the way leads past it. In the code
 `AgentEntry` lays out each view once per doorway (`door_view`, a ray fan on `PhysicsLayers.SOLID` that looks through furniture and
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
@@ -376,15 +441,78 @@ the human is given a slot on the side it stands on when the way to the team's si
 arrive from one side is one-sided and behaves as E1 to E17 say. Why: walking across the door to reach the stack is the funnel crossed
 outside it (E15, E18); the criss-cross is how real teams enter from both sides of a door, each man covering the half of the room the other
 cannot see, and the crossing paths keep each entrant's sector clear of the other's. In the code, `AgentEntry.stack_side_from` takes the
-team's side (`stack_side`: the point's, else the side with more wall, else its own) unless `cuts_view` says the member's plain route there
+team's side (`stack_side`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
 split the stack); `AgentEntry.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
 `AgentEntry.crossing_order` the order the stack crosses in. `entry.gd` reads both through the perception (`_before`, `_slices_own_half`,
 `_follow`, `_corner_for`); `PlayerStack` uses them for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
+**E20. Every slot in the stack's room.** Every slot of a stack, both sides and every row, lies in the room on the stack side of the
+doorway's wall (at an exterior door, outdoors: outside every room of the house and out from the wall): never across a wall, round a
+corner or in another room. It is on the navmesh, reached from the stack side by a route that does not go through the doorway, and out of
+every other doorway's fatal funnel (its width, `FUNNEL_DEPTH` 40 px either side of its wall) and view (E18). The file is sought in a band
+beside the door: from a body (`SLOT_BODY`, 14 px) past the jamb to the stack room's corner (outdoors `OUTDOOR_REACH`, 320 px), and 14 to
+110 px out from the wall plane (`SLOT_OUT_MIN` / `SLOT_OUT_MAX`; within `ROW1_DEPTH`, 50 px, a slot is against the wall, past it a step
+out); it is the most bodies that band holds `entry_stack_spacing` apart, against the wall first, nearest the door first. Where the rule
+cannot be met, a chain of fallbacks, in this order:
+- *The fewest-seen spots.* When every spot against the wall beside the door is in some other doorway's view, the stack takes the band's
+  spots seen from the fewest other doorways that still hold it (never one in a funnel).
+- *A short wall.* A wall that holds fewer than the stack (both sides and the second file counted, E21), or fewest-seen spots that do,
+  takes as many as it holds; the members past that go on down the chain, numbered after them.
+- *The open floor* of the same room: off the door's axis by a body and out of its funnel and every other doorway's, nearest the door's wall
+  first; past a short wall also off the wall band and out of every other doorway's view, the most it holds. With no spot against the wall
+  beside the door at all, the whole stack starts here.
+- *The tail.* The members the room cannot hold hold in the room they came by, at its doorway into the small room (the small room's other
+  doorway nearest this one): against that doorway's wall, taking turns either side of it, else the nearest spots within `TAIL_REACH`
+  (140 px), off its axis and out of its funnel. They radio `ready`, hold there as rear security and never cross (as E13's members outside).
+- *The dead-end cap.* A small room whose only doorway is the one being entered (and the outdoors past a short wall) has nowhere for a tail:
+  it takes only as many slots as its wall and open floor hold at the normal spacing, never squeezed. A member past that gets no slot: it
+  claims nothing, holds where it is, and an ordered one shows its order refused (`docs/leadership.md` LD9).
+It is the same for every stack, ordered or not, the human's included (E16): one layout for each way in, laid once per navigation map and
+shared by every NPC on it. Why: a slot across a wall or in another room is not a place in this stack: the member there cannot see the point
+nor follow it through, and one in another doorway's view or funnel stands in the open before a room nobody has cleared (E15, E18). A room
+too small for the team leaves the rest waiting where they came from, covering the way behind, as a short room's members do outside (E13).
+In the code `AgentEntry._lay_slots` lays a way in (`kind` `wall`, `views`, `open_floor` or `dead_end`; `wall_n` the slots its wall holds, `seq`
+the open floor and the tail past them, `tail_from`, `capped`), and the static `AgentEntry.stack_slots(g, count, side)` (`[{ n, point, side, row
+}]`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`, `stack_point`, `holds_slot` and `is_tail`;
+`warm_geometry` lays one way in a physics frame, among every NPC, in the frames after the nav bake.
+Tests: `stack_slots_sweep` (geometry, no simulation: every doorway of the 11 generated floorplans, 3 fixed seeds each, furnished, and the
+Terrace house, both sides, stacks of 1 to 6; every slot read through `AgentEntry.stack_slots` and judged by the test's own geometry: in the
+stack-side room, on the navmesh, reached, out of every other doorway's view and funnel, off furniture, spacing kept, and each fallback by its
+rule, with the test's own fewest-seen bar and its own exhaustive packing of the wall, the open floor and a dead end), `stack_dead_end_refused`
+(four ordered into a hand-laid 100 x 100 closet with no wall beside its door, which holds fewer by the test's own packing: exactly as many as
+it holds claim slots in it and reach them; the others claim nothing, stay put and show `refused` while still holding the order), `stack_reach_vestibule_tail` (no wall beside a vestibule's door: two slots
+in it, the tail of two in the lobby at its doorway), and the reach tests of E2.
+
+**E21. A side that runs out of wall.** A side's file ends where its wall does: the stack room's corner, another doorway's funnel, or furniture
+that runs to the wall's end (E22). The members past it stack on the other side of the door (a split stack, E19, numbered across both sides)
+while that side's wall has room; when neither side has, a second file a step out from the wall behind the first, in the same room (its own
+side first, then the other's). An ordered stack starts on the side its order names (`docs/leadership.md` D3), then the same rule. Why: real
+teams split across a door whose wall is short, and enter by the criss-cross; a second row against the first is the last resort, since it stands
+nearer the door's front. In the code `AgentEntry.side_for(g, team, slot, preferred)` (a member's side, wanting `preferred`, among the claims)
+and `stack_point`.
+Tests: `stack_slots_sweep` (the other side before a second file, against the wall or a step out, the point on the order's side), and the
+six-member reach tests `stack_reach_terrace_kitchen_six`, `stack_reach_garage_home_garage_six` and `stack_reach_bungalow_laundry_six`.
+
+**E22. A slot on solid furniture.** Solid furniture is carved out of the navmesh, so a spot on a piece is no spot: the file skips past the
+piece along the wall, at the same spacing and in the same room; a piece that runs to the wall's end is the wall's end (E21). Why: a body
+cannot stand in a cabinet, and a slot it cannot reach sends its member to the back. Test: `stack_slots_sweep` (furnished: no slot on a piece,
+the spacing kept past it).
+
 A stack a leader orders (its side, its mode, its wait for every member it names, its guarded way across the house, for a defender too) is
-`docs/leadership.md` LD9: E1 to E19 hold for it but where LD9 says otherwise, and a stack nobody was ordered to is as written here.
+`docs/leadership.md` LD9: E1 to E22 hold for it but where LD9 says otherwise, and a stack nobody was ordered to is as written here. So
+are a stack held for its leader's go (LD13) and one ordered in with a frag (LD14, E17).
+
+## The other side of the door
+
+A defender reacting to a stack at its door is modelled in one piece, on its leader's order only: the **ambush** (`docs/leadership.md`
+LD15). Ordered to ambush a doorway, a member waits in the room on its side at a post off the doorway's axis, back from its wall and out of
+the fatal funnel, with a sight line to the threshold and hidden from every slot and pie step of an entry by that doorway (E2's and E3's
+geometry, before it is snapped onto the navmesh: `AgentEntry.geometry`'s `lookouts`), crouched, its gun on the threshold, and fires the
+moment a line opens. So the pie (E3) sees nothing of it, and the first entrant into the funnel (E4) meets its fire. Its order ends at first
+contact, and it fights on its own. A stack's rules do not change for it. Tests: `ai/combat/ambush_door_post`, `ai/combat/ambush_ends_on_shot_at`,
+`ai/combat/ambush_vs_stack` (the real Von server: a real invader stack against it).
 
 ## Situations
 
@@ -417,9 +545,9 @@ corridor spine (E15), three rooms off one hallway.
 Hard and soft are judged as the definition above says, by sight from just outside the threshold: the far
 corners are seen through the door and the two on the door's own wall are not, so both shapes have two hard
 corners (the sources count one for a corner-fed room, whose short-side corner is a step from the jamb). The
-stack forms on the side the point stacks on: for the point, the side of the door with more wall to stand against (an even
+stack forms on the side the point stacks on: for the point, the side of the door whose wall holds more of the file against it (an even
 wall: the side it comes from), single file, slot 1 nearest the door; a member whose way there crosses the door's view stacks on
-its own side (E19). The pie arc runs from beside
+its own side (E19), and one past the end of its side's wall on the other side, then in a second file (E21). The pie arc runs from beside
 the stack toward the door's axis, clear of the slots.
 
 ## How the rules are enforced
@@ -427,9 +555,9 @@ the stack toward the door's axis, clear of the slots.
 - **What the AI knows.** Main hands every NPC the house's openings (`WorldGen.get_openings`, through
   `MatchSpawner.bind_npc`; the test world does the same). Perception's `agent_entry.gd` turns each one,
   entered into one of the rooms it joins, into geometry: the door's outward normal and the axis along its
-  wall (taken from the room edge it lies on; the data has none), the stack slots in single file on both
-  sides, the pie arc, and the four corners of the room behind tagged hard or soft by a sight ray. Built
-  once per opening and kept, since walls do not move.
+  wall (taken from the room edge it lies on; the data has none), the stack slots (E20 to E22), the pie arc, and the four corners of the
+  room behind tagged hard or soft by a sight ray. Built once per opening and navigation map and shared by every NPC on it, since walls do
+  not move; laid one a physics frame in the frames after the nav bake (`warm_geometry`), so no decision waits on it.
 - **What Von decides.** Whether to enter, and by which doorway. (With a stun grenade in the stack SEARCH offers **STUN ENTRY** beside
   ENTER: the same doorways, a bang before the crossing, E17.) SEARCH offers a child **ENTER**
   (`decision_tree.gd`) beside its rooms and unexplored areas; its options are the `entries` group
@@ -460,10 +588,14 @@ the stack toward the door's axis, clear of the slots.
   and `entry_guard_rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`entry_enabled`).
 - **The views (E18).** `AgentEntry.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
   the set of views of the doorways into rooms not clear for passing (`AgentPerception.is_pass_clear`, from the `cleared_room`
-  memory's age against `entry_pass_clear_time`), less the room the NPC stands in; `walk_route(from, to)` weighs the plain route
+  memory's age against `entry_pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
-  `door_avoid_ratio` and `door_avoid_slack`. `Locomotion._update_doors` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
-  a move, engage or interact that is not a retreat, and an entry's approach); `Behavior._passing_gate` (E15) secures what the plain
+  `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
+  entry's approach (`entering`, `Locomotion.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
+  entered that room is carved too (`_with_room`; test `ai/entry/entry_ordered_approach_keeps_out_of_entered_room`); with no way round all of it, round those two (`_entering_set`), uncapped on an ordered approach
+  (`AgentEntry.ordered_approach`). `Locomotion._update_doors` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
+  a move, engage or interact that is not a retreat, and an entry's approach), and walks the stretch past the avoid route's end (a slot at a
+  view's edge) on the plain map (`_last_stretch`); `Behavior._passing_gate` (E15) secures what the plain
   walk still goes into. `SnapshotOptions._route_len` measures the same route for the bands Von reads.
 - **The team.** Roles, readiness and progress travel on the callout radio: each step is a `callout` with
   `opening`, `into` (the room it leads into), `slot`, `side` (the side of the door the member stacks on: on a split stack, E19,
@@ -471,14 +603,18 @@ the stack toward the door's axis, clear of the slots.
   `cleared_room`, `cover` with `covering` (the doorway on it watches), `rear`, `done`, `abort`), repeated whole every
   2 s so a claim stays live. A doorway on is claimed like a slot: the nearest one no teammate covers, and of two who
   claim one, the lower instance id keeps it. `done` ends a hold; a teammate still holding takes it as the team moving on. A slot is the lowest the radio
-  leaves free; two members who claim the same slot on the same frame settle it by instance id (the flank
-  side claim pattern). A single invader is a team of one: nobody else claims the doorway, so there is no
+  leaves free; every claim carries `claim_frame` and `claim_pos` (the frame its slot was claimed on and where the member stood), and two
+  members who claim the same slot on the same frame and side settle it by distance to it, the nearer keeping it (within 0.5 px, or on
+  different frames, by instance id, the flank side claim pattern; `AgentEntry.free_slot`), the other taking the next. A claim that moved up
+  (E2) carries `move_up` and holds its slot against the latecomer's, which takes the one it freed; `pie` says the speaker has begun the pie.
+  A single invader is a team of one: nobody else claims the doorway, so there is no
   barrier and the pie is sliced from both sides (E7).
 
 Interpretations and the game's own rules, where the sources leave a choice:
 
-- "Ordered by arrival" (E2) is the order of claims on the radio, not of bodies at the wall. A member claims the lowest slot the
-  claims it has heard leave free; two that claim before either hears the other settle it by instance id.
+- "Ordered by arrival" (E2) is the order of claims on the radio, then of bodies at the wall: a member claims the lowest slot the
+  claims it has heard leave free; two that claim on the same frame settle it by distance (on different frames before either hears the
+  other, by instance id); and a member in its slot moves up into a lower slot whose holder is still on the way.
 - The point is the lowest slot still waiting; a member that claimed a slot and never reached it is dropped
   once the member behind it has waited `entry_ready_timeout`. The wait restarts when someone new claims a
   slot (E6, E7).
@@ -504,8 +640,10 @@ Interpretations and the game's own rules, where the sources leave a choice:
   (`MatchSpawner.bind_player`). It hears the same callouts the NPCs do, and when an allied claim on a doorway is live and the
   human is within range it radios the human's own claim as a `callout` with the human as speaker, repeated every 2 s. The AI's
   entry code (`claims`, `free_slot`, the barrier, the follow rule) reads it like any teammate's, so `entry.gd` has no case for a
-  human. Its side comes from the same `AgentEntry.stack_side_from` (E19). `view()` gives the markers the doorway, the slots (each
-  where it stands, on either side) and which is the human's.
+  human but one: its claims say `human`, and no member moves up into that slot (E2); while the human leads its side's squad they say
+  `leader` too (`docs/leadership.md` LD17). Its side comes from the same `AgentEntry.stack_side_from` (E19) and `side_for` (E21), its
+  slot's point from `stack_point` (E20). `view()` gives the markers the doorway, the slots (each where it stands, on either side) and
+  which is the human's.
 
 ## Sources
 
@@ -540,12 +678,16 @@ procedure.
   [NRA Women piece on when to reload](https://nrawomen.com/content/when-to-reload) names room clearing as a
   situation for a tactical reload. A game-tactics wiki adds that reloading in the fatal funnel is dangerous; not
   relied on.
+- The frag at entry (E17): the stack's second man preps the room with a frag or a stun, the frag kept for heavy resistance, and
+  its fragments reach past the room, so the stack keeps a wall between it and the burst. As summarised in the plan of issue #65
+  (UNITAF split and single-stack guides, USMC room-clearing notes, CALL 97-20 above, a 2026 Military.com piece on the M111); not
+  re-read for this document.
 - E4's "finish the crossing when hit", E6's ready timeout, E7's ally joining and E13's size rule for a short room are
-  this game's own rules, not sourced.
+  this game's own rules, not sourced; so are the ambush's post and its end at first contact (*The other side of the door*).
 
 ## Not modelled
 
-Closed or locked doors and breaching (blocked on doors, issue #21); a stun grenade thrown in is modelled (E17), a frag at
-entry is not. The dynamic-entry "shock" of breaching. Stairs (bottom-up clearing, no leapfrogging). Mirrors and cameras under a door. Hallway bounding overwatch
+Closed or locked doors and breaching (blocked on doors, issue #21); a stun grenade thrown in is modelled (E17), and a frag on
+a leader's order (E17, `docs/leadership.md` LD14), but not a frag a stack chooses on its own. The dynamic-entry "shock" of breaching. Stairs (bottom-up clearing, no leapfrogging). Mirrors and cameras under a door. Hallway bounding overwatch
 and corner clearing outside a room (a doorway passed in a corridor is E15). Verbal commands to non-combatants. A
-defender reacting to a stack at its door. Entry speed against the 5 to 6 second benchmark is E10.
+defender reacting to a stack at its door of its own accord (an ordered ambush is the one piece modelled: *The other side of the door*). Entry speed against the 5 to 6 second benchmark is E10.

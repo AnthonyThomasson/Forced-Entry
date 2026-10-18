@@ -651,7 +651,9 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 		var team := AgentEntry.claims(e["id"], ctx["callouts"])
 		var slot := AgentEntry.free_slot(team, ctx["self_id"])
 		var side: int = _entry.stack_side_from(g, team, self_pos, ctx["map"], ctx["space"])
-		var point := AgentEntry.slot_point(g, side, AgentEntry.place(team, side, slot))
+		var point := AgentEntry.stack_point(g, team, slot, AgentEntry.side_for(g, team, slot, side))
+		if point == Vector2.INF:
+			continue  # A dead end already holding all it can (E20): no slot for this NPC there.
 		picks.append({ "e": e, "status": status, "point": point, "slot": slot, "len": _route_len(ctx, point),
 			"suspect": why.get(into, []).map(func(w): return SUSPECT_PHRASES[w]) })
 	picks.sort_custom(func(x, y):
@@ -750,8 +752,12 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 ## The order this NPC's leader gave it (`docs/leadership.md` LD5, LD6), as the one option of the ORDER node, carrying the primitive it
 ## runs and that primitive's params: `defend_room` is a `defend` of the room at this member's defend spot with its gun on its doorway
 ## (D2, `AgentEntry.defend_spot`: the members of the order share the room's doorways out in the order `to` names them); `stack` is an
-## `entry` through the ordered doorway into the ordered room (`opening`, `into`, `bang`, and the side: `stack_at` or `split`). Each
-## carries the order's `order_id`. Empty with no order, or one this NPC cannot carry out (a room or doorway it does not know): refused.
+## `entry` through the ordered doorway into the ordered room (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), and the
+## side: `stack_at` or `split`); `ambush` (LD15) is an `ambush` of the doorway from the ordered room at this member's post with its gun on
+## the threshold (`AgentEntry.ambush_spot`: `opening`, `room`, `spot`, `door_pos`). Each
+## carries the order's `order_id`. A stack at a dead end that holds no slot for this member (its place, `_stack_place`, past what the room
+## holds, E20) is a `hold` where it stands instead, the order kept and refused (`refused` in its params: the behaviour radios it). Empty
+## with no order, or one this NPC cannot carry out (a room or doorway it does not know): refused, and dropped.
 func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
 	if order.is_empty():
 		return { "summary": "", "options": [] }
@@ -775,18 +781,53 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 				"tags": { "inside": true } }
 		"stack":
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
-			if into.is_empty() or _entry.geometry(String(order.get("opening", "")), String(into["key"]), ctx["map"], ctx["space"]).is_empty():
+			var g: Dictionary = {} if into.is_empty() else _entry.geometry(String(order.get("opening", "")), String(into["key"]), ctx["map"], ctx["space"])
+			if g.is_empty():
 				return { "summary": "", "options": [] }
-			var params := { "opening": String(order["opening"]), "into": String(into["key"]), "bang": bool(order.get("bang", false)),
-				"split": bool(order.get("split", false)), "order_id": order["id"] }
+			if not AgentEntry.holds_slot(g, _stack_place(order, ctx)):
+				# Past what a dead end holds (E20, rule 6): no slot for it. The order stands, refused: it holds where it is.
+				var hold := "hold where you are: no room at the doorway into the %s" % _v.room_name(into["type"])
+				option = { "id": "hold_%s" % order["opening"], "label": hold, "desc": hold, "primitive": &"hold",
+					"params": { "order_id": order["id"], "refused": true }, "tags": { "inside": _v.is_inside(ctx["self_pos"]) } }
+				return { "summary": hold, "options": [option] }
+			var bang := bool(order.get("bang", false))
+			var params := { "opening": String(order["opening"]), "into": String(into["key"]), "bang": bang,
+				"mode": String(order.get("mode", "stun" if bang else "quiet")), "wait_go": bool(order.get("wait_go", false)),
+				"go": bool(order.get("go", false)), "split": bool(order.get("split", false)), "order_id": order["id"] }
 			if order.get("stack_at") is Vector2:
 				params["stack_at"] = order["stack_at"]
-			var label := "the doorway into the %s%s" % [_v.room_name(into["type"]), " with a stun" if params["bang"] else ""]
+			var label := "the doorway into the %s%s" % [_v.room_name(into["type"]), " with a %s" % params["mode"] if bang else ""]
 			option = { "id": "stack_%s" % order["opening"], "label": label, "desc": label, "primitive": &"entry", "params": params,
 				"tags": { "inside": _v.is_inside(ctx["self_pos"]) } }
+		"ambush":
+			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+			if room.is_empty():
+				return { "summary": "", "options": [] }
+			var to: Array = (order.get("to", []) as Array).filter(func(m): return is_instance_valid(m))
+			var at: Dictionary = _entry.ambush_spot(String(order.get("opening", "")), String(room["key"]), maxi(to.find(_character), 0),
+				to.size(), ctx["map"], ctx["space"])
+			if at.is_empty():
+				return { "summary": "", "options": [] }
+			var params := { "opening": String(order["opening"]), "room": String(room["key"]), "spot": at["spot"], "door_pos": at["door_pos"],
+				"order_id": order["id"] }
+			var label := "ambush the doorway from the %s" % _v.room_name(room["type"])
+			option = { "id": "ambush_%s" % order["opening"], "label": label, "desc": label, "primitive": &"ambush", "params": params,
+				"tags": { "inside": true } }
 		_:
 			return { "summary": "", "options": [] }
 	return { "summary": option["label"], "options": [option] }
+
+
+## The slot this NPC would take in the stack order `order` (1 = the point): after the living recipients of it named before it in `to`,
+## and after every claim on its doorway from anyone else (the radio in `ctx`), so a dead end's extras are known before anyone claims.
+func _stack_place(order: Dictionary, ctx: Dictionary) -> int:
+	var to: Array = (order.get("to", []) as Array).filter(func(m): return is_instance_valid(m) and m.get("is_dead") != true)
+	var ids: Array = to.map(func(m): return m.get_instance_id())
+	var ahead := maxi(to.find(_character), 0)
+	for c in AgentEntry.claims(String(order.get("opening", "")), ctx["callouts"]):
+		if not ids.has(c["id"]) and c["id"] != ctx["self_id"]:
+			ahead += 1
+	return ahead + 1
 
 
 ## Tag every option that names a place with the room it lies in (`tags.room`, the room key, "" outside): where its walk ends, the

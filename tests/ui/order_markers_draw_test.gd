@@ -17,7 +17,7 @@ var _view := {}
 func describe() -> Dictionary:
 	return {
 		"name": "Order markers draw each order and the selection",
-		"description": "The markers mark one target per member with an order and none without, and each selected teammate; the leader is not theirs to mark (LD12, D5).",
+		"description": "The markers mark one target per member with an order and none without, and each selected teammate; the leader is not theirs to mark (LD12, D5); part 2's targets are named with the stack's mode and hold, or Ambush (LD16).",
 		"tags": ["ui", "hud", "leadership", "order"],
 		"timeout": 6.0,
 	}
@@ -66,6 +66,37 @@ func run(t: TestContext) -> void:
 	markers.set_selection([])
 	await t.frames(2)
 	t.check(_of(markers, "selected").is_empty(), "clearing the selection clears its highlight")
+
+	await _part_two(t, markers, t1, t2)
+
+
+## LD16 (`docs/leadership.md`, part 2): the markers name the new order kinds at their targets: a stack's mode and whether it is held for
+## go ("Stack (frag, hold) · in position"), and an ambush ("Ambush · in position"). A part-1 stun stack (bang, no mode) still reads
+## "Stack (stun)". The words are read off `drawn()`'s `label`.
+func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
+	_view["members"][1]["order"] = { "id": "o3", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "frag", "bang": true, "wait_go": true, "pos": Vector2(870, 190) }
+	_view["members"][1]["step"] = "in_position"
+	_view["members"][2]["order"] = { "id": "o4", "kind": "ambush", "opening": "door_150_360", "room": "living_room", "pos": Vector2(150, 360) }
+	_view["members"][2]["step"] = "in_position"
+	await t.frames(2)
+	t.expect_eq(_label_for(markers, t1), "Stack (frag, hold) · in position", "a held frag stack is named with its mode and hold")
+	t.expect_eq(_label_for(markers, t2), "Ambush · in position", "an ambush is named Ambush")
+	_view["members"][1]["order"] = { "id": "o5", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "stun", "bang": true, "wait_go": true, "pos": Vector2(870, 190) }
+	_view["members"][1]["step"] = "moving"
+	await t.frames(2)
+	var stun_hold := _label_for(markers, t1)
+	t.check(stun_hold.contains("stun") and stun_hold.contains("hold"), "a held stun stack is named with its mode and hold (%s)" % stun_hold)
+	_view["members"][1]["order"] = { "id": "o6", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "bang": true, "pos": Vector2(870, 190) }
+	await t.frames(2)
+	t.expect_eq(_label_for(markers, t1), "Stack (stun) · moving", "a part-1 stun stack (bang, no mode, no hold) still reads as before")
+
+
+## The label drawn at the order target of `member`, or "".
+func _label_for(markers: Node, member: Node) -> String:
+	for d in _of(markers, "order"):
+		if d.get("node") == member:
+			return String(d.get("label", ""))
+	return ""
 
 
 ## The drawn markers of `kind`.

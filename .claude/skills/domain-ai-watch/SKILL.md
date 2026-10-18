@@ -22,7 +22,10 @@ place a threat is shot at, whichever primitive or entry phase is running.
    spot is clear (no staring at a wall because someone is behind it).
 3. With a threat: `aim_point` = its position **before any gate**, then `Combat.fire_at_will` (loaded gun, in `shoot_range`, clear
    line, facing settled, cooldown) and, unless the entry is crossing (`_entry.committed()`, E4), `Combat.reload_if_dry`.
-4. With none and `_resting()` (a `hold`, a `reload`, a `move` that has arrived and is not covering a room): `Watch.idle_gaze`.
+4. With none and `_resting()` (a `hold`, a `reload`, a `move` that has arrived and is not covering a room, a `throw` whose grenade is
+   away, a `defend` or `ambush` that has arrived): `Watch.idle_gaze`, but for a `defend` or `ambush` whose params carry `door_pos`, which
+   eases the gaze onto it (`Watch.ease_gaze` at `search_look_rate`): a defender's gun on its own doorway (`docs/leadership.md` D2), an
+   ambusher's on the threshold it waits on (LD15).
    `_gaze` (`threat` / `doors` / `primitive`) and `_threat` are in `debug_state()["gaze"]`.
 
 ## Watch (`watch.gd`, a `RefCounted` built in `Behavior.setup`, tunables via `apply_config`)

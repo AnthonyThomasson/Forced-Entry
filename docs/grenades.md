@@ -238,7 +238,9 @@ Tests: `ai/grenade/evade_frag_seen`, `ai/grenade/evade_frag_ally_warned`, `ai/gr
 `ai/grenade/evade_frag_crouches_behind_cover` (the amendment: a couch nearer than any way out of line, the defender crouches behind it),
 `ai/grenade/evade_replans_when_spot_in_line` (scripted: a frag by the living room's doorway rolls on under 48 px and puts the planned spot in its line; a new
 spot out of the line is planned before the burst), `ai/grenade/evade_waits_for_own_windup` (scripted: a teammate's stun lands beside an invader winding up its
-own throw: its stun still goes onto its spot, then it runs).
+own throw: its stun still goes onto its spot, then it runs), `ai/grenade/evade_wave_spots_match_own_plan` (five defenders round a frag an ally throws
+into the hall plan their escape together, at least three on one frame: the work that depends on the burst alone is shared among them on that frame,
+and every plan's spot is the one the NPC's own search, nothing shared, picks on that frame).
 
 **G17. The GRENADE tactic (combat).** *(Amended after the tests phase: "frag out, take cover"; amended by issue #51, R7 and R10: a defender
 barricaded in a room, and the room the shots came from; R13 and R15: throw spots.)* A COMBAT tactic (decision-tree id `grenade`), offered when the NPC
@@ -356,13 +358,24 @@ itself) radios `bang` (`entry_step = &"bang"`, phase `bang` between `stack` and 
 doorway, and every member holds its slot turned away from the door; on the detonation the point **skips the pie** and crosses at once,
 the rest follow as usual (E4 to E8 of `docs/tactical-entry.md`). If the throw is impossible (no stun left, no clear path into the room) it
 falls back to a quiet entry; so it does when the call never comes (`BANG_CALL_CAP` 8 s after the stack is ready) or the stun does not go off (`BANG_BURST_CAP`
-5 s after the call), and a member that sees a teammate's claim say quiet goes in quietly at once, its own claims saying so. Frags are not used at entry. Where nothing suggests the room is occupied, ENTER is the pick and nothing is thrown.
-How it is made to happen (E17 of `docs/tactical-entry.md` has the rest): the entry callouts carry `bang` and `stuns`; the stack is in bang mode only if every
+5 s after the call), and a member that sees a teammate's claim say quiet goes in quietly at once, its own claims saying so. Where nothing suggests the room is occupied, ENTER is the pick and nothing is thrown.
+**The ordered frag entry** (`docs/leadership.md` LD14, `docs/tactical-entry.md` E17). A frag is thrown at entry only by a stack its leader
+ordered in with a frag (the order's `mode` `frag`); an unordered stack, STUN ENTRY and the suspect-room bang throw a stun. The roles are the
+stun's: the thrower is the slot-2 member if it carries a frag, else the lowest slot that does (every entry callout carries `frags` beside
+`stuns`), and it throws from the same spots (`Combat.begin_throw` on `FRAG_SLOT`, at the frag's reach). It aims only where the burst leaves
+every claimed slot of the stack, its own included, out of the frag's danger zone (G16: a clear line within 370 px; the wall beside the door
+shields the stack), and with no such target it gives the frag up and the stack goes in quietly (`bang_off`). It radios `frag_out` as the frag
+leaves its hand, as GRENADE's thrower does (G17); the stack holds its slots crouched and turned away until the burst (`FRAG_BURST_CAP` 7 s
+from the call, against `BANG_BURST_CAP` 5 s for a stun), and on the frag's burst in the room the point crosses at once, no pie. A frag stack
+with no frag left once it is in goes in quietly (`bang_off`), the order still done at the cleared room. Tests: `ai/grenade/order_frag_entry`,
+`order_frag_no_frag_goes_quiet`, `order_frag_held_then_go` (scripted).
+How it is made to happen (E17 of `docs/tactical-entry.md` has the rest): the entry callouts carry `bang`, `stuns` and `frags`; the stack is in bang mode only if every
 claim says so; the thrower steps out in front of the door (`BANG_STEP_OUT`) to a spot from which the lob from its hand is clear of the jamb (G17's
 lob test), walks all the way into that spot (6 px: a stride short of it the jamb can be in the way), and
 aims at the room's far side (85% of the room's depth, on the doorway's axis if the lob is clear), or, in a room deeper than a stun reaches from where it throws
 (a long hall entered from its end), at the farthest point along that line it reaches, at least 120 px in from the doorway. A stun grenade in flight in the doorway is not evaded by the
-stack members, who hold turned away beside the wall (G16 still moves anyone else).
+stack members, who hold turned away beside the wall (G16 still moves anyone else). Nor is an ordered entry's frag, in flight or come down where the member's
+slot is out of its zone (the slot is its cover, `Entry.expects_burst`); a member whose slot the frag reaches (one that came back to the door) evades it as G16 says.
 
 **A suspect room** *(amended by issue #51, R6)*. A room is suspect, each fact its own phrase in the doorway's option (in this order, the room's doorway listed first), when:
 - gunfire it heard came from inside it: "gunfire heard there";
@@ -464,7 +477,8 @@ to what is drawn, when or how anything behaves): the bodies' drawing was about 7
 buffer of its own, so they go out as General's `FillBatch` (one triangle array) and the limbs are built once a frame for body and shadow; furniture
 moves its drop shadow instead of repainting on a turn and walls repaint the struck segment alone; spreading pools blur separably; dented colliders
 are cut and a spray's splats merged side by side on worker threads; navigation re-bakes measure and parse once a tick; the escape search judges each
-spot once; and weapon art is painted ahead of time.
+spot once (and, since issue #65, shares what depends on the burst alone among the NPCs planning on one physics frame: `docs/leadership.md`,
+Performance); and weapon art is painted ahead of time.
 
 **What is left.** P1's windowed busy frames are the bodies' textured limb segments (each a command with its own art), the characters' physics,
 the AI and the engine's render; P2's worst frame is the frag's own frame, about 23 ms of CPU and about 12 ms more of rendering what the burst adds
@@ -522,7 +536,8 @@ the linear falloffs of the blast, the flash and the bang; the facing factor of t
 stun's effect on a character (G13); the lob over low furniture and the bounce off tall furniture and walls (G3); a grenade's lack of
 cooking, pick-up and throw-back; the loss of every unthrown grenade at death (G4); friendly fire (G9, a fact of the real weapons, but the
 absence of any rule to spare an ally is the game's); the evade reflex and its margins (G16); the GRENADE tactic and its dropping rule (G17);
-the bang entry and its roles, including the turn-away hold and the point that skips the pie (G18); fragments stopped at 500 px; the
+the bang entry and its roles, including the turn-away hold and the point that skips the pie, and the ordered frag entry's aim that keeps
+every slot out of the zone and its crouched hold (G18); fragments stopped at 500 px; the
 setup defaults of 1 + 1 for invaders (G5).
 
 ## Sources
@@ -553,6 +568,7 @@ How far each is to be trusted. Mixed quality; none is current doctrine for a gam
 ## Not modelled
 
 Cooking a grenade, picking one up, throwing it back or kicking it away; grenades in the dropped-item pile; breaching charges and closed
-doors (issue #21); smoke and gas grenades; frags at entry; defenders reacting to a stack at their door beyond G16; grenades setting
+doors (issue #21); smoke and gas grenades; a frag at entry that a stack chooses on its own (only a leader's order throws one, G18);
+defenders reacting to a stack at their door beyond G16 and an ordered ambush (`docs/leadership.md` LD15); grenades setting
 anything on fire; structural damage to walls beyond the usual deformation; the patent's multi-charge device; hearing damage and permanent
 injury; a grenade rolled along the floor; any use of stairs or heights.

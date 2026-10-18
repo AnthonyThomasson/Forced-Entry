@@ -161,7 +161,7 @@ and controller contract, EventBus and character signals) and never reaches into 
 
 One file `tests/<domain>/<name>_test.gd` that `extends GameTest`. Id = `<domain>/<name>`. A domain with many tests
 splits them one folder deeper by topic (`tests/ai/entry/`, `flank/`, `gaze/`, `posture/`, `investigate/`, `combat/`,
-`movement/`, `decision/`, `perception/`, `stack/`, `grenade/`): the id is then `<domain>/<topic>/<name>`, the domain is still the first
+`movement/`, `decision/`, `perception/`, `stack/`, `grenade/`, `debug/`: the overlays): the id is then `<domain>/<topic>/<name>`, the domain is still the first
 folder (so `--domain=ai` and `--changed` see it), the descriptor's `category` is the topic and the browser shows a
 row per topic under the domain. The file name keeps its topic prefix (`entry_waits_for_stack_test.gd`), the name
 the specs quote.
@@ -315,7 +315,7 @@ functional tests of their domain.
 
 ## Tactical entry tests (tag `entry`)
 
-`tests/ai/entry/` pin down `docs/tactical-entry.md` (E1 to E15; each header names its behaviour): staging and
+`tests/ai/entry/` pin down `docs/tactical-entry.md` (E1 to E15 here, E16 to E22 in the sections below; each header names its behaviour): staging and
 the approach, the stack's slots, the pie, the crossing, the corners, the ready barrier and the radio, the solo entry
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
@@ -387,23 +387,42 @@ the human (the player's character and controller, `MatchSpawner.bind_player`) in
 
 ## Leadership tests (tag `leadership`)
 
-The rules are `docs/leadership.md` (LD1 to LD12, each with its tests named under it); `tools/run_tests.sh leadership` runs them, the three
-real-Von ones (`ai/decision/order_fight_then_resume`, `ai/combat/defend_room_stays_inside`, `ai/decision/von_request_across_pause`) with
-`--include-von --require-von`. They are spread by domain: the clock in `tests/ai/perception/clock_pauses` (LD1 also names
-`memory_matches_reference`, which is not tagged `leadership`), the order transport, ORDER node, progress radio and a refused order in `tests/ai/decision/` (`order_*`, and
+The rules are `docs/leadership.md` (LD1 to LD18, each with its tests named under it); `tools/run_tests.sh leadership` runs them, the four
+real-Von ones (`ai/decision/order_fight_then_resume`, `ai/combat/defend_room_stays_inside`, `ai/decision/von_request_across_pause`,
+`ai/combat/ambush_vs_stack`) with `--include-von --require-von`. They are spread by domain: the clock in `tests/ai/perception/clock_pauses` (LD1 also names
+`memory_matches_reference`, which is not tagged `leadership`), the order transport, ORDER node, progress radio, a refused order and what an order stops (a walk, not a fight: `order_stops_walk`, `order_fight_goes_on`, `order_retreat_goes_on`) in `tests/ai/decision/` (`order_*`, and
 `unordered_state_unchanged`, which compares an unordered NPC's first walk and state text with the capture `unordered_state_unchanged.json`
-beside it), defending a room in `tests/ai/combat/defend_room_*`, the ordered stack in `tests/ai/entry/order_stack_*` (scripted, the Terrace
-house's back door), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`, `squad_done_order_not_cancellable`, `lead_rank`,
-`command_menu_wiring`) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
+beside it), defending a room in `tests/ai/combat/defend_room_*`, the ambush (LD15) in `tests/ai/combat/ambush_*` (`ambush_door_post`,
+`ambush_ends_on_shot_at`, and `ambush_vs_stack` with real Von), the ordered stack in `tests/ai/entry/order_stack_*` (scripted, the Terrace
+house's back door; the held stack of LD13 in `order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`,
+`order_stack_hold_leader_dies`), the frag entry (LD14) in `tests/ai/grenade/order_frag_*` (`order_frag_entry`, `order_frag_held_then_go`,
+`order_frag_no_frag_goes_quiet`), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`,
+`squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
 and `setup_menu_config`'s "Lead the team").
 The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; not a test): the squad built as Main builds it (`squad`,
 `raid`: invader actors led by a puppet standing in for the human, `bind` hands NPCs their squad), `issue` / `post` / `view` /
+`stack_order` (a stack the way the menu asks for it, `mode` and `wait_go`) / `go` (the leader's go, LD13) /
 `member_view` / `orders`, the brain's reads (`brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`, `levels`), the radio
-(`progress`, `ordered_claims`, `raw_calls`, `first_time`), `gunfire_near` (forces a decision without touching the brain),
+(`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
 `pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it), the command menu (`command_menu`,
 `items`, `item`, `labels`, `choose`, `tick`, `click`, `screen_of`) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
 `BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`, `stack_point`, `stacked`), with the spec's numbers as consts (`ORDER_READY_CAP`). The squad,
 menu and markers are loaded by path and read duck-typed, so a missing piece fails an assertion that names it.
+LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet's `PlayerStack` claim says `leader`) and
+`order_stack_joiner_grace`; LD18's is `tests/ui/stack_markers_draw` (a fake squad view's `stacks`); a dead end's refusal (D21) is
+`tests/ai/entry/stack_dead_end_refused`.
+
+**Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
+test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
+the other doorways' views and funnels): `frames` / `frame` (a way in's door frame), `world_of`, `entry_geometry` (the AI's `AgentEntry`, loaded
+by path), `layout(entry, g, count, side)` (the slots, read only through `stack_slots`), and one check per rule
+(`in_stack_room`, `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`,
+`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. `tests/_ai/reach_probe.gd`
+(`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, ids, lead,
+side, starts)`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
+walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of
+a real move-up, `move_ups` / `_check_move_up`), never the doorway's view nor its front close in when a way round exists (`way_round`,
+`front_crossings`), no bump; the nine `tests/ai/entry/stack_reach_*` use it.
 
 ## Investigation tests (tag `investigate`)
 
