@@ -28,8 +28,8 @@ character — and it runs the
 **SENSE → THINK → ACT** loop plus the decide cadence, salient-event detection (a change of belief about hostiles, the behaviour's `salient_key`; the order just
 adopted is not one: `_on_decided` re-takes the key after `set_leaf`, since the order sets or clears the engaged contact the key carries, issue #51 R12, test
 `ai/decision/adopt_target_no_redecide`), interrupting a decision
-walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall"`s within earshot, allies' `&"callout"`s, `&"grenade"` landings and
-`&"explosion"`s, queued and handed to perception on the next tick) and its own callouts (a combat one carries `target_pos`, where its hostile is).
+walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall"`s within earshot, allies' `&"callout"`s, `&"grenade"` landings,
+`&"explosion"`s and its leader's `&"order"`s (Orders, below), queued and handed to perception on the next tick) and its own callouts (a combat one carries `target_pos`, where its hostile is).
 
 | Sub-domain | Folder | Skill | Owns (role) |
 |---|---|---|---|

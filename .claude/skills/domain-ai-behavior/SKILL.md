@@ -9,7 +9,8 @@ The ACT half: it runs the LEAF the decision planner chose — one primitive with
 concrete movement + actions, and holds the System-Two state Von (a stateless ranker) lacks. It never
 chooses WHAT to do and applies no policy beyond its params. It reads the world only through the
 perception sub-domain and drives the character only through its public controller contract
-(`move_input`/`aim_point`, `select_slot`, `shoot`, `melee`, `interact_with`, `end_interaction`).
+(`move_input`/`aim_point`/`run_input`, `set_posture`, `select_slot`, `shoot`, `melee`, `leg_kick`, `reload`, `interact_with`,
+`end_interaction`: interface 7).
 
 Files:
 - `behavior.gd` — the primitive executor (a `Node`); owns engagement + commitment state, posture / run policy and the read-outs.
