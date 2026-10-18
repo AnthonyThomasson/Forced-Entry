@@ -182,7 +182,7 @@ Scope line (base ref, merge-base short sha, commit count, anything staged), then
 Base origin/main @ 1a2b3c4, 3 commits, nothing staged.
 
 ### Domain isolation
-- [ ] `scenes/main.gd:48` — couples to the NPC's child node name `"GoalController"`. Fix: find the controller by its `control` duck-type.
+- [ ] `scenes/main.gd:48` — couples to the NPC's child node name `"GoalController"`. Fix: find the controller by its group, `npc_controllers`.
 - [x] No calls into another domain's private members.
 
 ### Architecture & domain skills
