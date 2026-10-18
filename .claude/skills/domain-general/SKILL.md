@@ -151,9 +151,11 @@ reload started / finished), posted by
 Items and Character and consumed by Audio; the grenades' `&"throw"` (consumed by Audio), `&"grenade"` (a bounce or rest, consumed by Audio and the AI), `&"explosion"` (consumed by Audio, the camera shake, the
 Lighting domain's flash and the AI) and `&"stun"` (Audio's tinnitus and the stun screen); the vehicles' `&"vehicle"` (ignition, doors, crashes, a character struck), `&"engine"` and `&"skid"` (consumed by Audio);
 `&"sound"`, which Audio posts for every sound it
-makes (what tests assert on); and `&"callout"`, an AI
+makes (what tests assert on); `&"callout"`, an AI
 controller's team radio (`{ speaker, faction, position, status, path, label, target_id, point }`),
-consumed by allied AIs.
+consumed by allied AIs; and the squads' (`ai/team/squad.gd`) `&"order"`, a leader's order (`{ id, leader, faction, to, kind, … }`),
+consumed by the AI controllers of its side it names in `to`, and `&"leader"`, a new leader after a death (`{ faction, leader, previous }`),
+which no game code listens to: its readers are the test runner's event log and the tests that assert on it.
 
 ## Camera and despawner
 
