@@ -20,3 +20,6 @@ __pycache__/
 # Coverage run folders (tools/coverage.py) and a run's scratch copy and hit shards (artifacts/tmp/, removed when it
 # ends), with the artifacts/.gdignore each run writes so Godot and the lint never load them
 artifacts/
+
+# Voice mute setting for .claude/hooks/needs_you_hook.sh (per machine)
+.claude/hooks/needs_you.json
