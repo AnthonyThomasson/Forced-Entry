@@ -1133,14 +1133,6 @@ func _row1_outs() -> Array:
 		wall_standoff + 16.0].filter(func(o): return o >= ROW1_MIN and o <= ROW1_MAX)
 
 
-## `raw` snapped onto the navmesh, where a body of the stack of `c` may stand by E20 and E22 (`_slot_ok`), or INF.
-func _slot_spot(c: Dictionary, raw: Vector2, with_views: bool, open := false) -> Vector2:
-	var p := NavBuilder.snap(c["map"], raw)
-	if p.distance_to(raw) > SLOT_SNAP:
-		return Vector2.INF  # Off the navmesh: a wall, or solid furniture carved out of it (E22).
-	return p if _slot_ok(c, p, with_views, open) else Vector2.INF
-
-
 ## Whether a body of the stack of `c` may stand at navmesh point `p`: in the stack side's room (or outdoors, outside every room and out
 ## from the wall), out of every other doorway's funnel and (unless `with_views`) view, and reached from the stack side by a route that does
 ## not go through the doorway (`routed`: false leaves the route to the caller). `open` (the open-floor fallback): off the door's axis by a
