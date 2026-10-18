@@ -42,7 +42,8 @@ skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<fo
 | `ai/behavior/watch.gd` | `domain-ai-watch` |
 | `ai/behavior/entry.gd` | `domain-ai-entry` |
 | `ai/debug/` | `domain-ai-debug` |
-| `ai/goal_controller.gd`, `ai/team/`, the set of AI sub-domains | `domain-ai` |
+| `ai/team/` | `domain-ai-team` |
+| `ai/goal_controller.gd`, the set of AI sub-domains | `domain-ai` |
 | `physics/blood/` | `domain-physics-blood` |
 | `character/body/` | `domain-character-body` |
 | `ui/{menus,hud,overlays,testing}/` | `domain-ui-<folder>` |

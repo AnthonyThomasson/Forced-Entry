@@ -10,7 +10,7 @@ The spec and the tests are `docs/tactical-entry.md` (E1 to E22; the bang is also
 `domain-ai-decision`); the choreography is this phase machine, so it runs with the server down. The doorway geometry (stack slots,
 pie arc, corners, capacity) and the team's claims off the radio are the perception's (`agent_entry.gd`, "Entry geometry" in
 `domain-ai-perception`), read through the `AgentPerception` wrappers; the room is cleared by sight with `search_coverage.gd`
-(`domain-ai-coverage`). The human's side of the same radio is `PlayerStack` (`domain-ai`).
+(`domain-ai-coverage`). The human's side of the same radio is `PlayerStack` (`domain-ai-team`).
 
 ## The module
 
@@ -193,7 +193,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   runs, not even under fire: a running character cannot shoot, so a sprint to the stack or through the doorway would
   be a lowered gun at the worst moment (test `entry_never_runs`).
 - **The radio.** Steps are queued (`take_calls()`, via `Behavior.take_entry_calls()`, which adds `opening`, `into`, `slot` and `side`) and the controller posts them;
-  a human invader's `PlayerStack` (`ai/team/`, `domain-ai`) posts the same steps for the human, so the team counts it like an ally;
+  a human invader's `PlayerStack` (`ai/team/`, `domain-ai-team`) posts the same steps for the human, so the team counts it like an ally;
   the latest is repeated every 2 s so the claim stays live. Every call (`_radio`) carries `claim_frame` and `claim_pos` (stamped only on a
   new `claim`, so a heartbeat or a re-claim keeps the pair same-frame settling reads), `bang`, `bang_off`, `stuns`, `frags`, `move_up` and
   `pie` (`_pie_begun`, set in `_start_pie`), plus the order fields below. Choosing anything else `abandon()`s the entry (radios

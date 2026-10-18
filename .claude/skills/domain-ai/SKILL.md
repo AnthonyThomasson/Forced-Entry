@@ -1,6 +1,6 @@
 ---
 name: domain-ai
-description: Light overview of the AI domain (scenes/ai/) — non-player brains, split into four isolated sub-domains under scenes/ai/ around a thin orchestrator. Start here to see the shape of the AI (sense → decision-tree walk → primitive, the sub-domain map, the two NPC presets, which cross-domain interfaces it uses), then load the matching `domain-ai-<name>` skill for deep detail: `domain-ai-perception` (what the NPC knows: vision, hostility, memory, tracks, callouts, tactics geometry, the decision snapshot Von reads), `domain-ai-decision` (the decision tree, its planner walk, the Von round-trip + server), `domain-ai-behavior` (the primitives: move/engage/melee/interact/hold/entry + pathing + commitment; its `combat.gd` is `domain-ai-combat`, `search_coverage.gd` is `domain-ai-coverage`, `watch.gd`, where it looks and when it shoots, is `domain-ai-watch` and `entry.gd`, the tactical entry through a doorway, is `domain-ai-entry`), `domain-ai-debug` (the overlays); the decision snapshot inside perception is `domain-ai-snapshot`. Use when editing scenes/ai/ or working on NPC goals/behaviour, or to find which sub-domain owns a concern. Complements the `architecture` skill (cross-domain interfaces).
+description: Light overview of the AI domain (scenes/ai/) — non-player brains, split into four isolated sub-domains under scenes/ai/ around a thin orchestrator. Start here to see the shape of the AI (sense → decision-tree walk → primitive, the sub-domain map, the two NPC presets, which cross-domain interfaces it uses), then load the matching `domain-ai-<name>` skill for deep detail: `domain-ai-perception` (what the NPC knows: vision, hostility, memory, tracks, callouts, tactics geometry, the decision snapshot Von reads), `domain-ai-decision` (the decision tree, its planner walk, the Von round-trip + server), `domain-ai-behavior` (the primitives: move/engage/melee/interact/hold/entry + pathing + commitment; its `combat.gd` is `domain-ai-combat`, `search_coverage.gd` is `domain-ai-coverage`, `watch.gd`, where it looks and when it shoots, is `domain-ai-watch` and `entry.gd`, the tactical entry through a doorway, is `domain-ai-entry`), `domain-ai-debug` (the overlays); the decision snapshot inside perception is `domain-ai-snapshot`, and `ai/team/` (the human's `PlayerStack`, each side's `Squad`, its leader and orders) is `domain-ai-team`. Use when editing scenes/ai/ or working on NPC goals/behaviour, or to find which sub-domain owns a concern. Complements the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI domain (`scenes/ai/`) — overview
@@ -39,44 +39,7 @@ walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall
 | **Behaviour** | `ai/behavior/` | `domain-ai-behavior` (+ `domain-ai-combat` for `combat.gd`, `domain-ai-coverage` for `search_coverage.gd`, `domain-ai-watch` for `watch.gd`, `domain-ai-entry` for `entry.gd`) | ACT — runs the chosen leaf's primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush) and the commitment state Von lacks; owns a locomotion layer for pathing, and the tactical entry phase machine (`entry.gd`). |
 | **Debug** | `ai/debug/` | `domain-ai-debug` | Draw-only overlays: the vision cone/bubble, the decision-path label + movement path, the tactical zones it weighed, search coverage, and behaviour overlays (contacts, hearing/radio, combat, territory, move/use targets, Von/brain, routes, stuck, the entry plan, the entry team and guard). |
 
-**The human's stack (`ai/team/player_stack.gd`).** Not a fifth sub-domain: one small module, the human's side of the entry radio
-(`docs/tactical-entry.md` E16). A child of the human's character (Main attaches it through `MatchSpawner.bind_player`), it listens to the
-`&"callout"` bus like an NPC and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
-human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
-E19), standing on the side `side_for` gives that slot (`_on`: the other side while its own wall is full, E21) at `stack_point`: the same entry
-fields plus `human: true` (no AI moves up into its slot, E2) and `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
-`MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it), with the human as `speaker`, repeated every 2 s. It reads the human's step
-from where it stands (`claim` / `ready` / `going_in` / `in`) and withdraws on leaving, dying, nobody left stacking, or `go_timeout` after the AI
-ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's `AgentEntry` (the statics `claims`, `free_slot`, `stack_side`, `crossing_order`,
-`side_for`, `stack_point`, `holds_slot`, and `geometry` / `stack_side_from`) and `AgentGrenades.is_call` (a grenade call is not a stack claim; nor is a callout that is
-only an order's progress, `order_step` with no `entry_step`, LD7), and never moves the
-character. `view()` feeds `StackMarkers` (UI). `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
-see one more teammate, and a held stack (LD13) takes a teammate's `going_in`, the human's too, as its go (D14).
-
-**The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7, interface 21).** One per side, a `Node` Main builds under `World` after
-arming the characters (`setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)`) and hands each NPC (`MatchSpawner.bind_squad`: the
-controller's `squad`). Its leader is the highest `rank`, the first spawned among equals (the human when it leads); on the leader's `died`
-the next leads within the frame and it posts `&"leader"` `{ faction, leader, previous }`. `issue(request)` turns a leader's plain request
-(`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (`defend_room` / `stack` / `ambush` / `cancel`: the room key, or
-the doorway nearest `pos` within its width, a stack's room on the far side of the wall plane, `stack_at` or `split`, its `mode` quiet / stun /
-frag (`bang` true for any but quiet; a request with no `mode` reads it from `bang`) and `wait_go` (LD13); an ambush's `room` on the click's
-side of the wall plane and `beyond` the room on the other, "" for an exterior door, LD15, D17; a `defend_room`, `stack` or `ambush` order
-also carries its target point `pos`, the room's centre or the doorway's, which the UI's order markers draw) and posts it; no `to` is every
-living member but the leader. A `go` request (`{ kind: "go", pos }`, LD13) posts a `go` order (`opening`, `pos`) to every living member
-holding a held stack (`wait_go`) at the doorway nearest `pos` that no go has released yet, whatever its `to` (D13), and replaces nothing; when
-the leader that gave held stacks dies the squad posts their go itself (`auto: true`, D12). `resolve(request)` is that resolution read-only,
-without posting (`{ room, pos }`, `{ opening, pos, into, split, stack_at? }`, `{ opening, pos }` for a go, `{ opening, pos, room, beyond }` for
-an ambush: what the UI's command menu names its stack and ambush items from); `view()` is `{ leader, members: [{ node, order, step, held }], stacks }`, the
-steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
-still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it); an order radioed `done` is no longer
-held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks` / `_slots_of`) is every stack the side is forming, ordered
-or its own, from the members' entry claims it hears (`_claims`, the latest per speaker, current for `_claim_ttl`: the NPCs' `callout_ttl` (6 s), handed in by `setup`, which Main reads off
-the side's NPCs with `MatchSpawner.callout_ttl_of`; a dead speaker's dropped;
-the human's `PlayerStack` among them), while a claim is at `claim` / `ready` / `bang` / `going_in` (`STACKING`): `[{ opening, into, door, slots:
-[{ n, point, holder, held, there, mine, side, row }] }]`, slots 1 to the last claimed laid with its own `AgentEntry` (`stack_slots`, `side_for`,
-`stack_point`; a slot a dead end does not hold left out), `there` its holder at `ready` / `bang` (`IN_SLOT`), `mine` the human's; the UI's stack
-markers draw it, laid on the navigation map and physics space of the world the squad itself is in (its viewport's `World2D`). It reads its
-members only through the Character API (`rank`, `is_dead`, `died`) and the bus, and reuses `AgentEntry.opening_id` / `normal_into` and the slot statics. An AI leader issues no orders.
+**The AI team (`ai/team/`: `player_stack.gd`, `squad.gd`).** Not a fifth sub-domain: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21); its detail is the `domain-ai-team` skill.
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order
 (`AgentPerception.process_order`) and forces a decision (`_force_now("ordered")`); from that frame until a decision made knowing the order
