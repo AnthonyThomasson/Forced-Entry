@@ -30,7 +30,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   (each toggle set from `flags`) and hiding every other NPC's; clicking it again or empty ground clears
   it. No NPC shows any overlay until clicked (the view stays focused on one NPC). With an NPC selected, a
   left-click on one of its tactical points (nearest zone within `ZONE_PICK_RADIUS`, from its
-  `debug_zones()`) highlights that point (overlay `set_focus`) and fills a detail panel — top-left,
+  `debug_zones()`) highlights that point (the controller's `debug_focus`, which its tactics overlay rings; `debug_clear_focus` clears it) and fills a detail panel — top-left,
   below the match HUD's timer — with the zone's kind, label and Von's reasoning (`desc`). It runs `PROCESS_MODE_ALWAYS` so Space/clicks work while
   paused (freeze the match, then inspect). Decoupled like the other observers: reads the combatants'
   public `global_position` and `outfit_view()`, the camera, and each NPC's `debug_zones()`, and flips the debug-overlay

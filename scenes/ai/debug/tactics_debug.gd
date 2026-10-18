@@ -43,7 +43,16 @@ const DOT_RADIUS := 3.0
 ## Inset (px) of a room's tag from its top-left corner.
 const ROOM_LABEL_INSET := 6.0
 
-var _focus := Vector2.INF   ## A tactical point the inspector asked to highlight, or INF for none.
+var _focus := Vector2.INF   ## The highlighted tactical point last drawn (the controller's `debug_focus_point()`), or INF for none.
+
+
+## Follow the controller's highlighted point, redrawing when it changes (so a cleared ring goes with both toggles off).
+func _process(delta: float) -> void:
+	var focus: Vector2 = _controller.debug_focus_point() if _controller != null else Vector2.INF
+	if focus != _focus:
+		_focus = focus
+		queue_redraw()
+	super(delta)
 
 
 ## Whether either toggle is on, or the inspector has a point highlighted (its ring draws with both off).
@@ -78,23 +87,11 @@ func _draw_room_zones() -> void:
 
 
 ## Highlight the inspector's clicked tactical point with a bright double ring, so which point the detail
-## panel describes is unmistakable. Set via `set_focus` / cleared via `clear_focus`.
+## panel describes is unmistakable. Set via the controller's `debug_focus` / cleared via `debug_clear_focus`.
 func _draw_focus() -> void:
 	var p := to_local(_focus)
 	draw_arc(p, ZONE_RADIUS + 5.0, 0.0, TAU, 24, Color.WHITE, 2.0)
 	draw_arc(p, ZONE_RADIUS + 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.5), 1.0)
-
-
-## Highlight the tactical point at world `point` (the inspector's clicked zone).
-func set_focus(point: Vector2) -> void:
-	_focus = point
-	queue_redraw()
-
-
-## Clear the highlighted tactical point.
-func clear_focus() -> void:
-	_focus = Vector2.INF
-	queue_redraw()
 
 
 ## Draw each candidate zone as a translucent disc + outline + a dot at its exact point, and label each

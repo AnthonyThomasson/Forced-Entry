@@ -63,7 +63,8 @@ reading the controller's public API; both default off — they are dense).
 decision, from the controller's `debug_zones()`: a flat list of `{ point, category, label, desc, tags }` (a `grenade` zone also `from`), one
 per option in the last snapshot's option groups that carries a world location (its `point` param, or an
 interactable's current position); the spectator inspector reads `label`/`desc` to detail a clicked
-point, and the overlay highlights that point with a double ring via `set_focus()` / `clear_focus()` (drawn while a focus is set, even
+point, and the overlay highlights that point with a double ring: the inspector calls the controller's `debug_focus(point)` / `debug_clear_focus()`
+and the overlay follows its `debug_focus_point()` (drawn while a focus is set, even
 with both toggles off). Each is a translucent disc + outline + a dot at the exact point,
 coloured by `category` (`fire` red, `flank` orange, `advance` yellow, `retreat` blue, `lead` purple,
 `search` green, `entry` cyan (the stack slot beside a doorway ENTER offers), `room` teal, `interaction` white,

@@ -116,7 +116,9 @@ last snapshot's option groups to world points, each with its `label`, `desc` (fo
 weighed would burst, with `from`, the throw spot or the NPC's own spot), plus `waypoint` for the non-room go-to points: post / entrance / approach). `debug_state()["order"]` is the order leaf the NPC is carrying out (`{ path, primitive, params, paused }`, `paused` while an entry detour of the
 entry guard holds it, its primitive and params then the order's, not the detour's; {} with none), beside the running `primitive` / `params`.
 `debug_room_zones() -> Array` gives each room `{ rect, type, status }`
-by how the NPC regards it (current / searched / unsearched / unknown). Both feed the tactics overlay (`domain-ai-debug`).
+by how the NPC regards it (current / searched / unsearched / unknown). Both feed the tactics overlay (`domain-ai-debug`), which also rings
+the point an observer asked to highlight: `debug_focus(point)` / `debug_clear_focus()` (the spectator inspector's clicked zone; debug only), read
+back as `debug_focus_point()`.
 
 ## Grenades (`docs/grenades.md`)
 

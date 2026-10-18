@@ -178,7 +178,7 @@ func _refresh_outfit() -> void:
 
 ## Select `npc` (null = none): show only the selected NPC's own overlays and cache its controller for
 ## the live marker refresh. Clears any tactical-point detail/highlight from the previous selection
-## (on the PREVIOUS NPC, not the new one — _clear_zone must run before _selected is reassigned).
+## (on the PREVIOUS NPC, not the new one — _clear_zone must run before _selected_ctrl is reassigned).
 func _select(npc: Node) -> void:
 	_clear_zone()
 	_selected = npc
@@ -219,9 +219,8 @@ func _flags_off() -> Dictionary:
 ## Highlight the clicked tactical point on the selected NPC and fill the detail panel with its kind,
 ## label and the reasoning text Von read.
 func _show_zone(zone: Dictionary) -> void:
-	var overlay := _tactics_overlay(_selected)
-	if overlay != null:
-		overlay.set_focus(zone["point"])
+	if _selected_ctrl != null and is_instance_valid(_selected_ctrl):
+		_selected_ctrl.debug_focus(zone["point"])
 	var label: String = zone.get("label", "")
 	var desc: String = zone.get("desc", "")
 	_detail.text = "%s%s%s" % [String(zone["category"]).to_upper(),
@@ -231,18 +230,7 @@ func _show_zone(zone: Dictionary) -> void:
 
 ## Drop any tactical-point detail: clear the highlight on the selected NPC and hide the panel.
 func _clear_zone() -> void:
-	var overlay := _tactics_overlay(_selected)
-	if overlay != null:
-		overlay.clear_focus()
+	if _selected_ctrl != null and is_instance_valid(_selected_ctrl):
+		_selected_ctrl.debug_clear_focus()
 	if _detail != null:
 		_detail.visible = false
-
-
-## The NPC's tactics overlay (the child exposing `set_focus()`), or null.
-func _tactics_overlay(npc: Node) -> Node:
-	if npc == null or not is_instance_valid(npc):
-		return null
-	for child in npc.get_children():
-		if child.has_method("set_focus"):
-			return child
-	return null

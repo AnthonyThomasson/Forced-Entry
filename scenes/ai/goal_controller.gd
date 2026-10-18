@@ -345,6 +345,7 @@ var _planner: Node ## THINK policy: the decision-tree walk (decision/decision_pl
 var _behavior: Node ## ACT sub-domain: runs the chosen primitive + holds commitment state.
 var _last_facts := {} ## The facts of the last decision snapshot, retained for `debug_state()`.
 var _last_options := {} ## The option groups of the last snapshot, retained for `debug_zones()`.
+var _debug_focus := Vector2.INF ## The tactical point an observer asked to highlight (`debug_focus`), or INF for none.
 var _decide_timer := 0.0 ## Seconds until the next decision is allowed.
 var _force := false ## Force a decision now (task resolved or salient event).
 var _force_reason := "" ## Why `_force` was last raised, kept (with `_force_ms`) for the brain overlay.
@@ -598,6 +599,22 @@ func debug_state() -> Dictionary:
 ## tagged by kind (see `debug/zone_list.gd`), for the tactics debug overlay to draw. Empty until the first decision.
 func debug_zones() -> Array:
 	return ZoneList.from_options(_last_options)
+
+
+## Highlight the tactical point at world `point` on the tactics overlay (the spectator inspector's clicked zone). Debug only: it changes
+## nothing the NPC does.
+func debug_focus(point: Vector2) -> void:
+	_debug_focus = point
+
+
+## Clear the highlighted tactical point (`debug_focus`).
+func debug_clear_focus() -> void:
+	_debug_focus = Vector2.INF
+
+
+## Read-only: the tactical point highlighted (`debug_focus`), or INF for none, for the tactics overlay to ring.
+func debug_focus_point() -> Vector2:
+	return _debug_focus
 
 
 ## Read-only: the tactical ROOM zones — every room of the house tagged by how this NPC regards it now
