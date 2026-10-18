@@ -99,13 +99,6 @@ static func pool_near(pos: Vector2, radius: float) -> Node2D:
 	return null
 
 
-## Forget everything (a fresh world).
-static func clear() -> void:
-	_splats.clear()
-	_grid.clear()
-	_pools.clear()
-
-
 ## 1 when new, falling linearly to 0 over `seconds` (<= 0 = never dries).
 static func _wet(born: int, seconds: float) -> float:
 	if seconds <= 0.0:
