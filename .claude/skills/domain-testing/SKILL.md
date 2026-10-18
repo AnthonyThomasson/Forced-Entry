@@ -236,7 +236,7 @@ func run(t: TestContext) -> void:
     `t.controller(id, method)` (e.g. `&"current_act"` for an NPC brain; `TestContext.controller_of(character, method := &"control")`
     is the same for a character that is not a test actor, e.g. a match's NPC spawned in `run`), `t.world`, `t.rooms`, `t.time`.
   - Event log: `t.events_of(topic, filter)`, `t.happened(topic, filter)`, `t.spawned(name_part)`.
-    Topics are every EventBus topic (`&"hit"`: position, victim, source, attacker, direction, damage;
+    Topics are every EventBus topic (`&"hit"`: position, victim, attacker, direction, damage;
     `&"callout"`), `&"died"` / `&"hit_landed"` per actor (`actor` = its id; hit_landed adds body,
     damage, hand, −1 = shot), and `&"spawned"` / `&"removed"` for direct children of the world root
     (blood splatters and pools, debris, projectiles, dropped items).

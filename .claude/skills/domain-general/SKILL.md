@@ -143,7 +143,7 @@ commands, or `tools/match.py` to run and score N matches in a row; each command 
 cross-domain notifications: `post(topic, data)` broadcasts and the `posted(topic, data)` signal
 delivers to any listener, which filters by `topic`. Emitters and listeners never reference each
 other. Topics in use: `&"hit"`, posted by the Projectile System for each damaging hit and
-by the Character for each landed punch (`{ position, victim, source, direction, damage, attacker }`, plus
+by the Character for each landed punch (`{ position, victim, direction, damage, attacker }`, plus
 `outcome` / `material` and, for bullets, `speed_factor`, `power`)
 and consumed by the AI for combat awareness, hostility and gunfire heard, by Audio for impacts;
 `&"shot"` (a round left a gun; also the Lighting domain's muzzle flash), `&"footfall"` (a foot landed) and `&"reload"` (a
