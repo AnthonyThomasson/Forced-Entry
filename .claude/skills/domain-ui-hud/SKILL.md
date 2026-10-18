@@ -15,7 +15,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   Bottom left (26pt, growing up from the bottom edge: free), an `=== OUTFIT ===` block of
   `OutfitLines.of(outfit_view())`, refreshed every frame (`docs/outfits.md` O13). Tested by `tests/ui/debug_panel_outfit_test.gd`.
 
-- `match_hud.gd` — the **spectator match HUD** (`MatchHUD` node). `begin(combatants, time_limit := 0.0, show_details := true)` wires it to
+- `match_hud.gd` — the **spectator match HUD** (`MatchHUD` node). `begin(combatants, time_limit := 0.0)` wires it to
   any number of characters (a human included); it is **re-entrant** (an endless run calls it for each new match),
   emits `match_ended(verdict)` once when a faction is eliminated or `time_limit` seconds pass undecided
   ("TIME UP - DRAW"), `set_countdown(text)` shows a line under the verdict (Main's next-match countdown), and
