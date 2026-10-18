@@ -48,10 +48,10 @@ func run(t: TestContext) -> void:
 	t.expect_eq(int(Entry.entry(brain).get("slot", 0)), 2, "it took the slot after the ally's")
 
 
-## The ally radios its claim on the stack at room C's door: slot 1, on the corridor's near side.
+## The ally radios that it stands ready in its slot at room C's door: slot 1, on the corridor's near side (a stacked teammate's heartbeat; a member moves up only into a slot whose holder is not there yet).
 func _claim(t: TestContext) -> void:
 	var who := t.actor(&"ally")
 	EventBus.post(&"callout", {
 		"speaker": who, "faction": who.faction, "position": who.global_position, "status": "", "path": "", "label": "", "target_id": 0,
-		"point": Vector2.ZERO, "opening": Entry.SPINE_C["id"], "slot": 1, "side": -1, "entry_step": "claim",
+		"point": Vector2.ZERO, "opening": Entry.SPINE_C["id"], "slot": 1, "side": -1, "entry_step": "ready",
 	})

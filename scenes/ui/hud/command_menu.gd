@@ -3,11 +3,16 @@ extends CanvasLayer
 ## UI domain: the command menu (`docs/leadership.md` LD11), how the human leader orders its teammates. Main builds it only when the
 ## human leads its side ("Lead the team" in the setup window). A right-click (`Keybinds.COMMAND`) pauses the whole tree and opens the
 ## menu on what is under the cursor:
-## - a teammate within `PICK_RADIUS`: "Select <name>" / "Deselect <name>" (the menu stays open);
+## - a teammate within `PICK_RADIUS`: "Select <name>" / "Deselect <name>" (the menu stays open), and "Go into the <room>" while it holds a
+##   held stack that has had no go (LD13: the stack's point stands right by its doorway);
 ## - else a doorway the squad resolves a stack at the click to (its `resolve` callable: the doorway nearest the click within its width):
-##   "Stack into the <room> (quiet)" and "Stack into the <room> with stun", `<room>` the room that stack goes into (the squad's `into`,
-##   named from the plain room dicts it was set up with), so the label names the room of the order; the stun item is greyed while no
-##   recipient carries a stun (`Character.item_count(ItemRegistry.STUN_SLOT)`, D1);
+##   "Stack into the <room> (quiet)", "Stack into the <room> with stun" and "Stack into the <room> with frag", `<room>` the room that stack
+##   goes into (the squad's `into`, named from the plain room dicts it was set up with), so the label names the room of the order; the stun
+##   item is greyed while no recipient carries a stun (`Character.item_count(ItemRegistry.STUN_SLOT)`, D1), the frag item while none
+##   carries a frag (`FRAG_SLOT`, D15); the panel's "Hold for my go" checkbox (off at first, kept while the match runs, D19) makes the
+##   stack chosen wait for the leader's go (LD13); "Go into the <room>" while a member of the squad's view holds a held stack there that
+##   has had no go, whoever is selected (D13); and "Ambush the doorway from the <room>", `<room>` the one on the click's side of its
+##   wall, as the squad resolves the ambush (LD15, D17);
 ## - else a room: "Defend the <room>";
 ## - and "Cancel order" while a recipient holds an order (the squad's `view()`).
 ## The panel also lists the teammates to tick. The recipients are the selection (ticked, or picked by a left-click on a teammate's body
@@ -20,9 +25,10 @@ extends CanvasLayer
 ## `item_count`) and the squad through its `view()` and `resolve()` callables, emits plain requests and works out no AI id: the squad
 ## (interface 21) resolves the click into its doorway, side and room. `PROCESS_MODE_ALWAYS`, so it works while the tree is paused.
 
-## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang }` (`pos` the click itself), `{ kind: "defend_room", to, room }` (a
-## room key) or `{ kind: "cancel", to }` (the recipients holding an order). `to` is the recipients (characters). Main hands it to the
-## squad's `issue`.
+## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos` the click itself, `mode` quiet / stun /
+## frag, `bang` mode != quiet as part 1 had it, `wait_go` the "Hold for my go" box), `{ kind: "go", pos }` (the held stack at that
+## doorway goes, LD13), `{ kind: "ambush", to, pos }` (LD15), `{ kind: "defend_room", to, room }` (a room key) or `{ kind: "cancel", to }`
+## (the recipients holding an order). `to` is the recipients (characters). Main hands it to the squad's `issue`.
 signal order_requested(request: Dictionary)
 ## Emitted when the highlighted selection changes: the selected teammates while the menu is open, [] once it closes (the order
 ## markers' `set_selection`).
@@ -51,7 +57,8 @@ var _selection: Array = []    ## The selected teammates.
 var _open := false            ## Whether the menu is open.
 var _paused_tree := false     ## Whether opening the menu paused the tree (closing then unpauses it).
 var _click := Vector2.ZERO    ## The world point the menu is open on.
-var _items: Array = []        ## What is offered now: `{ label, disabled, act: Callable }`.
+var _items: Array = []        ## What is offered now: `{ label, disabled, act: Callable, why }`.
+var _hold_go := false         ## "Hold for my go" is ticked: a stack chosen waits for the leader's go (LD13; kept across opens, D19).
 
 var _panel: PanelContainer    ## The panel docked at the left, holding everything below.
 var _title: Label             ## Names what the menu is open on.
@@ -59,6 +66,7 @@ var _recipients: Label        ## "Orders go to: ...".
 var _item_box: VBoxContainer  ## The offered items' buttons.
 var _list_box: VBoxContainer  ## The teammates' CheckBoxes.
 var _checks := {}             ## Teammate instance id -> its CheckBox in the list.
+var _hold_box: CheckBox       ## "Hold for my go".
 var _mark: Control            ## Full-screen, mouse-ignoring: draws the ring on the clicked point.
 
 
@@ -163,12 +171,23 @@ func _refresh() -> void:
 		_title.text = String(mate.name)
 		var picked := _selection.has(mate)
 		offered.append(_item("%s %s" % ["Deselect" if picked else "Select", mate.name], false, _toggle.bind(mate, not picked)))
+		var held := _held_order_of(mate)
+		if not held.is_empty():
+			offered.append(_item("Go into the %s" % _room_name(_room_by_key(String(held.get("into", "")))), false, _go.bind(held["pos"])))
 	elif not door.is_empty():
 		var into := _room_name(_room_by_key(String(door.get("into", ""))))
 		_title.text = "Doorway into the %s" % into
-		offered.append(_item("Stack into the %s (quiet)" % into, false, _order.bind({ "kind": "stack", "pos": _click, "bang": false })))
-		offered.append(_item("Stack into the %s with stun" % into, not _recipients_carry_stun(),
-			_order.bind({ "kind": "stack", "pos": _click, "bang": true })))
+		if _held_at(String(door.get("opening", ""))):
+			offered.append(_item("Go into the %s" % into, false, _go.bind(_click)))
+		offered.append(_item("Stack into the %s (quiet)" % into, false, _stack.bind("quiet")))
+		offered.append(_item("Stack into the %s with stun" % into, not _recipients_carry(ItemRegistry.STUN_SLOT), _stack.bind("stun"),
+			"Nobody it would go to carries a stun grenade."))
+		offered.append(_item("Stack into the %s with frag" % into, not _recipients_carry(ItemRegistry.FRAG_SLOT), _stack.bind("frag"),
+			"Nobody it would go to carries a frag grenade."))
+		var from := _ambush_from(_click)
+		if from != "":
+			offered.append(_item("Ambush the doorway from the %s" % _room_name(_room_by_key(from)), false,
+				_order.bind({ "kind": "ambush", "pos": _click })))
 	else:
 		var room := _room_at(_click)
 		_title.text = "The %s" % _room_name(room) if not room.is_empty() else "Outside"
@@ -201,6 +220,35 @@ func _stack_at(at: Vector2) -> Dictionary:
 	return out if out is Dictionary else {}
 
 
+## The room an ambush ordered at world point `at` is laid from (the squad's `resolve`: the click's side of the doorway's wall), or "".
+func _ambush_from(at: Vector2) -> String:
+	var out = _resolve.call({ "kind": "ambush", "pos": at }) if _resolve.is_valid() else {}
+	return String((out as Dictionary).get("room", "")) if out is Dictionary else ""
+
+
+## Whether a member of the squad's view holds a stack order at doorway `opening` that waits for the leader's go and has not had it (LD13).
+func _held_at(opening: String) -> bool:
+	var view: Dictionary = _view.call() if _view.is_valid() else {}
+	for row: Dictionary in view.get("members", []):
+		if _held(row.get("order", {})) and String(row["order"].get("opening", "")) == opening:
+			return true
+	return false
+
+
+## The held stack order `mate` holds in the squad's view (`_held`) with its doorway's centre (`pos`), or {}.
+func _held_order_of(mate: Node) -> Dictionary:
+	var view: Dictionary = _view.call() if _view.is_valid() else {}
+	for row: Dictionary in view.get("members", []):
+		if row.get("node") == mate and _held(row.get("order", {})) and row["order"].get("pos") is Vector2:
+			return row["order"]
+	return {}
+
+
+## Whether `order` is a stack that waits for the leader's go and has not had it (LD13).
+static func _held(order: Dictionary) -> bool:
+	return String(order.get("kind", "")) == "stack" and bool(order.get("wait_go", false)) and not bool(order.get("go", false))
+
+
 ## The room whose rect holds world point `at`, or {}.
 func _room_at(at: Vector2) -> Dictionary:
 	for r: Dictionary in _rooms:
@@ -229,9 +277,9 @@ func _recipients_now() -> Array:
 	return _selection.duplicate() if not _selection.is_empty() else _teammates.filter(_alive)
 
 
-## Whether any recipient carries a stun grenade (D1: the stun stack is offered only then).
-func _recipients_carry_stun() -> bool:
-	return _recipients_now().any(func(n): return n.has_method("item_count") and int(n.item_count(ItemRegistry.STUN_SLOT)) > 0)
+## Whether any recipient carries a grenade of inventory slot `slot` (D1, D15: a stun or frag stack is offered only then).
+func _recipients_carry(slot: int) -> bool:
+	return _recipients_now().any(func(n): return n.has_method("item_count") and int(n.item_count(slot)) > 0)
 
 
 ## The recipients that hold an order now (the squad's `view()`).
@@ -250,6 +298,18 @@ func _order(request: Dictionary) -> void:
 	out["to"] = _recipients_now()
 	close()
 	order_requested.emit(out)
+
+
+## Order a stack at the click in `mode` (quiet / stun / frag), held for the leader's go while "Hold for my go" is ticked.
+func _stack(mode: String) -> void:
+	_order({ "kind": "stack", "pos": _click, "bang": mode != "quiet", "mode": mode, "wait_go": _hold_go })
+
+
+## The leader's go for the held stack at the doorway at `at` (the squad sends it to whoever holds it there) and close the menu.
+func _go(at: Vector2) -> void:
+	var request := { "kind": "go", "pos": at }
+	close()
+	order_requested.emit(request)
 
 
 ## Cancel the recipients' orders and close the menu.
@@ -306,9 +366,9 @@ func _world_of(screen: Vector2) -> Vector2:
 
 # --- The panel --------------------------------------------------------------------------------------------------
 
-## One offered item: its label, whether it is greyed out, and what choosing it does.
-func _item(label: String, disabled: bool, act: Callable) -> Dictionary:
-	return { "label": label, "disabled": disabled, "act": act }
+## One offered item: its label, whether it is greyed out, what choosing it does, and why it is greyed (its tooltip then).
+func _item(label: String, disabled: bool, act: Callable, why := "") -> Dictionary:
+	return { "label": label, "disabled": disabled, "act": act, "why": why }
 
 
 ## Show `offered` as the panel's buttons, replacing the ones shown.
@@ -325,12 +385,12 @@ func _set_items(offered: Array) -> void:
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.add_theme_font_size_override("font_size", ITEM_FONT)
 		if i["disabled"]:
-			button.tooltip_text = "Nobody it would go to carries a stun grenade."
+			button.tooltip_text = i["why"]
 		button.pressed.connect(i["act"])
 		_item_box.add_child(button)
 
 
-## Build the hidden panel (title, recipients, items, the teammate list, the hint) and the ring layer.
+## Build the hidden panel (title, recipients, items, "Hold for my go", the teammate list, the hint) and the ring layer.
 func _build() -> void:
 	if _panel != null:
 		return
@@ -362,6 +422,12 @@ func _build() -> void:
 	_item_box = VBoxContainer.new()
 	_item_box.add_theme_constant_override("separation", 4)
 	box.add_child(_item_box)
+	_hold_box = CheckBox.new()
+	_hold_box.text = "Hold for my go"
+	_hold_box.focus_mode = Control.FOCUS_NONE
+	_hold_box.add_theme_font_size_override("font_size", LIST_FONT)
+	_hold_box.toggled.connect(func(on: bool): _hold_go = on)
+	box.add_child(_hold_box)
 	box.add_child(HSeparator.new())
 	var heading := _label(box, LIST_FONT)
 	heading.text = "Teammates"

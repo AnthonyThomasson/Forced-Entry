@@ -83,7 +83,10 @@ rebuild that would wipe the event memory. Nothing outside this folder holds a re
   true when its order changed (the controller decides at once). `order()` is the live order or {}; `end_order(id, why)` ends it (`done`,
   `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `take_ended_order()` is one that ended done or refused since the last
   call, for the controller to radio (LD7). `mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
-  ally's. `quick_facts()` carries `ordered`. A callout that is only an order's progress (`order_step` with no `entry_step`) is the squad's to
+  ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
+  whenever the go came), and `process_order` returns false (no decision is forced). An `ambush` (LD15) ends `done` on first contact:
+  `_end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
+  (D18); footsteps heard and callouts are no contact. `quick_facts()` carries `ordered`. A callout that is only an order's progress (`order_step` with no `entry_step`) is the squad's to
   hear: `process_callout` returns before the memory, so it never replaces what that ally last said it is doing (its entry claim).
 - `process_grenade(data, deaf)` — a `&"grenade"` bounce / rest: marks the grenades the NPC knows as down at that spot (seen coming down, deaf or not), and one within `hear_grenade` of a NPC that is not `deaf` is heard, so known. `process_explosion(data)` forgets the grenade that went off, keeps it as `last_burst` (`{ kind, position, frame, team }`, `frame` the `GameClock.frame()` it was noted in, `team`: the NPC or an ally threw it; a bang entry waits for its stun, and an entry goes in on its own team's burst in the room, E17) and, for a stun the NPC or an ally threw, marks the hostiles it knew
 within the flash radius with a clear line from the burst as `flashed` for a few seconds (`FLASH_SHARE` 0.8 of the stun's `max_blind`, 4 s, at the burst, less with distance, at least 1 s: memory topic `flashed`), which the contact view reads as `blind` (the snapshot says "blinded by a flash"). A callout whose `status` is `grenade` / `frag_out` / `bang_out` is not an ally's plan: `process_callout` hands it to the grenade tracker (`called`) and returns before the memory (so it never counts as a held flank side or an entry claim).
@@ -97,11 +100,12 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   `note_engaged` / `engaged_fresh` / `under_fire`; `memory_size()` and
   `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
 - Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_team(opening_id)` and the shared
-  stack rules `entry_free_slot(team, self_id, current)`, `entry_team_side(geometry, team, self_pos)` (the team's side),
+  stack rules `entry_free_slot(team, self_id, current, mine)`, `entry_team_side(geometry, team, self_pos)` (the team's side),
   `entry_stack_side(geometry, team)` (the side the NPC stacks on from where it stands: the team's, or its own when its way
-  there crosses the doorway's view, E19), `entry_crossing_order(members)`, `entry_place(team, side, slot)` and
-  `entry_slot_point(geometry, side, nth)` (wrappers on `AgentEntry`, which the snapshot's `entries` group also uses; the
-  behaviour never reaches into `agent_entry.gd` itself; the one other consumer is the human's `PlayerStack` in `ai/team/`, which uses `AgentEntry` directly through its published seam: `set_house`, `geometry`, `stack_side_from` and the statics `claims`, `free_slot`, `stack_side`, `crossing_order`, `place`, `slot_point`, and beside it the static `AgentGrenades.is_call(status)`, so a grenade call is never read as a stack claim) (below). `openings` (the house's doorways, set by the controller each tick from Main's inject) and `entry_enabled`.
+  there crosses the doorway's view, E19), `entry_crossing_order(members)`, `entry_place(team, side, slot)`, `entry_side_for(geometry,
+  team, slot, preferred)`, `entry_stack_point(geometry, members, slot, side)`, `entry_holds_slot(geometry, slot)`, `entry_is_tail(geometry,
+  slot)`, `entry_on_stack_side(geometry, p)` and `entry_slot_reach(to, bodies)` (from where the NPC stands, `AgentEntry.slot_reach`, below) (wrappers on `AgentEntry`, which the snapshot's `entries` and `order` groups also use; the
+  behaviour never reaches into `agent_entry.gd` itself; the other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/`, which use `AgentEntry` directly through its published seam: `set_house`, `geometry`, `stack_side_from` and the statics `claims`, `free_slot`, `stack_side`, `side_of`, `crossing_order`, `place`, `stack_slots`, `side_for`, `stack_point`, `holds_slot`, and beside it the static `AgentGrenades.is_call(status)`, so a grenade call is never read as a stack claim) (below). `stack_room()` (the room an ordered stack holds, below). `openings` (the house's doorways, set by the controller each tick from Main's inject) and `entry_enabled`; `observe` calls `AgentEntry.warm_geometry` each SEE pass while `entry_enabled`.
 - `all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
 - `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
@@ -220,21 +224,52 @@ in by `set_house` on each observe) and rooms, `entries_from(room_key)` lists the
 doors from outside, a room's doors into the next room), `watch_doors(room_key, exclude_id, is_cleared)` those of a cleared
 room on into rooms not cleared (what the team covers after clearing it, E8; the perception's `entry_watch_doors(into, opening_id)`) and `geometry(id, into, map, space)` lays one out, built once on a
 baked nav map and cached (walls do not move): `out` (unit normal away from the room, from the room edge the door lies on)
-and `along` (the wall's axis), `wall` (wall length either side), `side` (the side with more wall, 0 when even), `slots`
+and `along` (the wall's axis), `wall` (wall length either side), `side` (the side with more wall, 0 when even; once the slots are laid, the side whose file holds more against the wall when they differ), `slots`
 (single file against the wall on each side: `wall_standoff` off it, the first a body clear of the jamb, then every
 `stack_spacing` (44 px: clear of the neighbour's footprint, outside the 34 px hole a body at rest on the next slot cuts in the
-steering map, so a slot is never a destination inside a teammate), snapped), `pie` (`pie_steps` points `pie_radius` from the threshold, from 55° to 25° off the axis), and the
+steering map, so a slot is never a destination inside a teammate), snapped), `pie` (`pie_steps` points `pie_radius` from the threshold, from 55° to 25° off the axis), `lookouts` (the slots and pie points as laid out, before they are snapped
+onto the navmesh: where an entry's stack and point stand, or near it; what an ambush post is hidden from), and the
 `capacity` (how many go in: 2 when a side of the room is under `short_room`, the controller's `entry_short_room`, else `MAX_SLOTS`: E13), the
 room's four corners inset `corner_inset`, each `near` (on the door's wall), `side` and `hard` (no sight line from 24 px
-outside the threshold). The statics `claims(id, callouts)` (allies' live entry claims: slot, side, step, covering; `abort` and `done` drop one), `free_slot(team,
-self_id, current)` (the lowest free slot; a tie goes to the lower instance id), `stack_side(g, team, self_pos)` and
-`slot_point(g, side, nth)` are shared with the snapshot's `entries` group and, through the `AgentPerception` wrappers, with the behaviour's `entry.gd` (`domain-ai-entry`). `stack_side` is the
-point's side (its slot 1 claim), else the side with more wall, else the member's own. **A split stack (E19):** `stack_side_from(g, team, from, map, space)` is that side
+outside the threshold). The statics `claims(id, callouts)` (allies' live entry claims: slot, side, step, covering, `pos`, `bang`, `bang_off`, `stuns`, `frags`, `claim_frame`, `claim_pos`, `move_up`, `pie`, `human`, `leader` and the order fields below; `abort` and `done` drop one), `free_slot(team,
+self_id, current, mine)` (the lowest free slot; `mine` = `{ frame, pos, g, side, move_up }`: two claims on one slot made on the same frame and
+side settle by distance to the slot's point, laid among the rest (`_wins`; within 0.5 px, or otherwise, the lower instance id), and a slot
+claimed on this NPC's frame by someone farther is taken from them, so the settling runs down the stack; a claim that moved up into a slot
+(`move_up`) holds it against one that did not, and the NPC it moved up past takes the freed slot) and `stack_side(g, team, self_pos)` are shared with the snapshot's `entries` group and, through the `AgentPerception` wrappers, with the behaviour's `entry.gd` (`domain-ai-entry`). `stack_side` is the
+point's side (its slot 1 claim), else `g["side"]` (the side whose wall holds more of the file against it, once laid; before, the side with more wall), else the member's own. **A split stack (E19):** `stack_side_from(g, team, from, map, space)` is that side
 unless `cuts_view(g, from, to, map, space)` (the plain route from `from`, starting outside the doorway's `door_view`, crosses the door's axis inside the view: a walk
 that starts in the view or goes round it does not) says the way there crosses the view; then the member's own side (`side_of`). The slots are numbered across both
 sides in claim order; `place(team, side, slot)` is a member's place in its side's file (its slot less the claims ahead on the other side; the slot itself on a one-sided
-stack) and `slot_point` takes that place. `crossing_order(members)` is the order a stack crosses in: by slot, or on a split stack the point, the other side's front man,
-then the sides in turn. An `AgentEntry` built outside the perception (`PlayerStack`'s) makes its own `AgentVision` for the view rays. Tunables: the controller's `entry_*` exports.
+stack), and `stack_point` (below) is where that place stands. `crossing_order(members)` is the order a stack crosses in: by slot, or on a split stack the point, the other side's front man,
+then the sides in turn. An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` for the view rays. Tunables: the controller's `entry_*` exports.
+
+**Where a stack stands (E20 to E22, `_lay_slots`).** On a baked map with a physics space `_build` also lays the slots: `from` / `from_room` (the
+room the stack stands in, "" / a zero rect outside), `kind` and its layout, `wall_n` (how many slots the wall, or the fewest-seen spots,
+hold), and past them `seq` (the overflow: open floor, then the tail from `tail_from`) and `capped`; `spacing`. `kind`: `wall` (a spot against
+the wall beside the door out of every other doorway's view, `_has_wall_spot`): `files { 1: [{ point, row }], -1: [...] }` packed exactly at
+`stack_spacing` from the wall band (`_band`: `SLOT_BODY` past the jamb to the stack room's corner, outdoors `OUTDOOR_REACH` 320 px, or
+another doorway's funnel; `SLOT_OUT_MIN`–`SLOT_OUT_MAX` 14–110 px out; `WALL_GRID` 8 px, on `SLOT_STEP` 4 px when short of a full stack;
+`_pack` / `_most_spaced` within `PACK_BUDGET` steps), `row1` (how many of each against the wall, within `ROW1_DEPTH` 50 px) and `g["side"]`
+from those counts; `views` (every wall spot is in another doorway's view): `views_lays`, each stack size on each first side from the points
+seen by the fewest doorways; `open_floor` / `dead_end` (no wall spot; `dead_end` when the stack room has no other doorway). A point is kept
+only on the navmesh within `SLOT_SNAP`, inside the stack room by `SLOT_ROOM_INSET`, on the stack side, reached from `SLOT_REACH_OUT` out
+without going through the doorway, out of other doorways' funnels (`FUNNEL_DEPTH`) and, but for `views`, their views (`VIEW_MARGIN`); a
+navmesh carved round solid furniture skips it (E22). `_overflow`: `_open_floor` (`OPEN_GRID` 8 / `OPEN_GRID_FINE` 4 px; outdoors within
+`OUTDOOR_FLOOR` 300 px; past a short wall or a `views` way in, `strict`: off the wall band and out of other doorways' views; exact when
+capped), then `_tail_spots` (in the room beyond the stack room's nearest other doorway, within `TAIL_REACH` 140 px of it); `capped` (a dead
+end, or outdoors past a short wall) takes no tail. The statics every stack reads: `stack_slots(g, count, side) -> [{ n, point, side, row }]`
+(only as many as `holds_slot`), `side_for(g, team, slot, preferred)` (E21: its side while that side's row 1 has room, else the other's, then
+a second file on its side, then the other's; past `wall_n` or with no files, the side the slot lies on), `stack_point(g, members, slot, side)`
+(INF for a slot a dead end does not hold), `holds_slot(g, slot)`, `is_tail(g, slot)`; and the method `on_stack_side(g, p)`.
+**Shared, and laid ahead.** `geometry` keeps each doorway's layout in the instance's `_cache` and in the static `_shared` (navigation map RID
+-> `"<_tuning()>|<id>><into>"` -> geometry, `_tuning()` being `_tuning_inputs()` (the house and the tunables `_build` reads) as a string), dropped
+when the map's planning region leaves the tree; only a layout snapped on a baked map is kept. `warm_geometry(map, space)` lays at most one
+missing way in per physics frame among every NPC (`_warmed_frame`), so a house's doorways are laid in the frames after the bake, not in a
+decision. Once a pass finds every way in laid it remembers that shared dictionary and the `_tuning_inputs()` array (`_warm_done_in`,
+`_warm_done_for`) and returns at once until either changes: comparing the array costs about 0.2 us against about 3 us to format the key, and
+scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the match guards. Laying one way in costs 7 to 52 ms
+(garage_home's ten: `_band` 2 to 15 ms, `_overflow` 10 to 28 ms); all ten are laid by 0.22 s into a match, before the perf guards measure
+(`docs/leadership.md`, Performance).
 
 **Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_memory_ttl`) is not `visited_room`:
 standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)`: the behaviour calls it when an entry
@@ -252,12 +287,22 @@ each ray a fan cast from three points in the gap (the middle and each jamb, `VIE
 (`AgentVision.wall_hit`: static bodies only, furniture and characters are looked through), the three fans fused, and for a doorway between two rooms cut at
 the edge of the room in front of it (so a view does not run on through the next doorway into another room). Laid out once per doorway on a baked map and kept. `avoided(here_key, map, space, exempt)` is the set of views a walk from room `here_key` keeps out of: those of every doorway into a room that is not
 clear for passing (`AgentPerception.is_pass_clear(key)`: the `cleared_room` memory's age is within `entry_pass_clear_time`, 60 s; `is_cleared` stays the
-entry's), other than the NPC's own room and `exempt` (the doorway an entry's approach is for); `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
-`walk_route(from, to, map, space, exempt)` (over `AgentPerception.walk_route(to, exempt)`) is the route the NPC walks: the plain one, unless it comes
-into one of those views and the route on `NavBuilder.avoid_map` for the set reaches `to` (within `AVOID_REACH` 24 px) no longer than `door_avoid_ratio`
-(2.0) x the plain length + `door_avoid_slack` (300 px): `{ map, path, len, plain_len, doors, pending, views }` (`pending`: the plain route crosses a view and
-the avoid map is still baking). `warm(from, map, space)` (over `AgentPerception.routes_ready()`) asks for the avoid map of the room the NPC is in and
+entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
+always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
+`walk_route(from, to, map, space, entering)` (over `AgentPerception.walk_route(to, entering, from)`) is the route the NPC walks: the plain one, unless it comes
+into one of those views (or, with `entering`, goes into the room being entered) and the route on `NavBuilder.avoid_map` for the set (less
+the views `from` stands in, `_left_from`; when that route goes into the room being entered, the route on the map with the room's floor carved too, `_with_room`, so the room-carved map is asked for, baked and kept only while an approach needs it) reaches `to` (within `AVOID_REACH` 24 px) no longer than `door_avoid_ratio`
+(2.0) x the plain length + `door_avoid_slack` (300 px); failing that, with `entering`, the route round that doorway's own view and the room
+at least (`_entering_set`), capped the same unless `ordered_approach` (set by `_sync_walks` from `ordered_walk`: uncapped, D4):
+`{ map, path, len, plain_len, doors, pending, views }` (`len` the whole walk, the steps onto the route and from its end to `to` included;
+`pending`: the plain route crosses a view and the avoid map is still baking). `warm(from, map, space)` (over `AgentPerception.routes_ready()`) asks for the avoid map of the room the NPC is in and
 says whether it answers; the controller starts no decision before it does (at most `WARM_CAP_MS` 3 s of game time), so the route bands a snapshot reads are the walked ones.
+`slot_reach(from, to, map, bodies)` (over `AgentPerception.entry_slot_reach(to, bodies)`) is whether any way at all reaches `to` with a body standing at each
+point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuilder.OBSTACLE_MARGIN` each, the steering map's carve of a body at rest, on an
+`NavBuilder.avoid_map` of their own keyed by the bodies on a 4 px grid): 1 when its route ends within `AVOID_REACH` of `to`, or within
+`SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
+Locomotion's last leg, the way into a slot between two taken ones, which lies inside their carved margins); 0 when not, -1 while that map
+bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
 Config on the perception (from the controller's exports): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `entry_pass_clear_time`; views are
 avoided only where `entry_enabled` and `entry_guard` are.
 **Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
@@ -268,12 +313,27 @@ than `DEFEND_FUNNEL_DEPTH`), then with a sight line to its doorway, low furnitur
 from the best; a lone member of a room with several doorways takes the spot that sees the most. `{ spot, door, door_pos, doors }` (`door` ""
 and `door_pos` INF for that lone member, who turns among them). The snapshot's `order` group calls it. `static normal_into(rect, pos)` (the
 unit normal into a room from the edge a doorway lies on) is also read by the squad (`ai/team/squad.gd`).
+**Ambush posts (`docs/leadership.md` LD15, D17).** `ambush_spot(id, room_key, nth, count, map, space)` is where member `nth` of `count` ordered
+to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
+many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
+doorway and room side in `_posts` once worked out on a baked map, cleared by `set_house`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
+wall and `AMBUSH_LATERALS` (30 to 260 px) past the jamb, either side, inside the room by `AMBUSH_INSET` (22 px), through `_defend_candidate`
+(snapped, its funnel, its sight line and cover on the line to each doorway); one off the doorway's sight line or on its axis (within half the
+width + `DEFEND_BODY`) is dropped. Each is scored `seen` x 1000 + funnel x 500 + (no cover on its line to the threshold) 300 + |depth -
+`AMBUSH_DEPTH` 110|, `seen` counting the geometry's `lookouts`, slots and pie points that see it (`_sees_from`: `AgentVision.sight_hit`, over
+low cover, at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too.
+Members alternate sides of the axis, the side with more wall first, and two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order`
+group calls it.
 **An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `ordered_walk` (set each tick by the behaviour while it walks an ordered stack's
 way to its door) makes `_sync_walks` turn the view avoidance on (`AgentEntry.avoid_views` = `entry_guard` and (`entry_enabled` or `ordered_walk`))
 and, for an NPC with `entry_enabled` off (a defender), swap `AgentEntry.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
 `seen_empty(key)` says it stood in within `entry_pass_clear_time` with no hostile sighting in them (the latest of each hostile it knows, within that
-time); `avoided` keys its per-frame cache on the `pass_clear` rule too. An invader's walks are unchanged. The team's claims (`AgentEntry.claims`)
-carry an ordered member's `order_id`, `order_bang` and `order_side` ("" / false / 0 for others), which `entry.gd` reads.
+time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an ordered walk the room its stack holds is clear too: `stack_room()`
+(once a physics frame: the live order is a stack, `ordered_walk`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
+→ the geometry's `from`; else "") counts as cleared for `threshold_ahead` and as pass-clear (`_pass_clear_ordered`, handed as `pass_clear` to
+an ordered walk with entry on; `_passable` adds `seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`AgentEntry.claims`)
+carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14; read from `order_bang` for a claim without one), `order_hold` and
+`order_go` (LD13) and `order_side` ("" / false / quiet / false / false / 0 for others), which `entry.gd` reads.
 `room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
@@ -298,12 +358,26 @@ route measured once, `tests/ai/grenade/escape_spot_matches_plain_test.gd` pinnin
 (`NavBuilder.route`; a straight line says nothing, a spot just behind a wall can be a house away) and the shortest route within `(fuse_left - 0.4 s) x run speed`
 (`RUN_RELIABILITY` 0.85 of `Character.run_speed()`, or `Character.walk_speed()` once stamina is below `RUN_STAMINA`: both slowed by a
 stun or a heavy outfit; `tests/ai/grenade/throw_timing_counts_slowed_walk_test.gd`) wins; `spot` is `Vector2.INF` when none is in time. Cost: ~150 snaps, ~300 rays and ~100 routes, only when a plan is
-made. `can_lob(space, at, to, max_range, exclude)` is the throw test of the GRENADE tactic, the shots' group, the throw's re-check and the bang (within range, and `throw_clear`: the lob from
+made; in the grenade match guard a plan made alone costs about 2.5 ms of burst work (the candidates round the burst, their snaps, the verdicts) and 1.2 ms of routes.
+`can_lob(space, at, to, max_range, exclude)` is the throw test of the GRENADE tactic, the shots' group, the throw's re-check and the bang (within range, and `throw_clear`: the lob from
 where the grenade leaves the thrower's hand, `release_point` (the thrower's hand as it faces the spot, `Character.throw_release_offset`: the `throw` stance's hand, 6 px behind and 15 px right of it, learned with the grenades carried in `learn_carried` (the centre until one is), held
 off a wall like the character's own hand), and the band `LOB_MARGIN` 8 px either side of that line the whole way (parallel edges, not converging on the spot: a jamb far along is met with the grenade's full width), each with nothing taller than `LOB_CLEARANCE` 50 px, the release height, on the line: a centre line
 that grazes a jamb is a grenade that strikes it). `reach_of(kind)` is the range less `REACH_SLACK` 15 px: how far from its spot a thrower lets go, and the reach a throw spot is chosen in.
 `throw_clear_on_arrival(space, at, to, exclude)` is `throw_clear` from `at` and from `ARRIVAL_SLACK` (6 px, the walk's own arrival) off it in the four axis directions: the test for a
 spot the thrower walks to (a throw spot's `lob` callable; the bang's spot, through `AgentPerception.can_lob(..., walked = true)`).
+
+**Shared on a physics frame (`_shared_burst`, `_shared_snaps`).** What depends on the burst alone is the same for every NPC fleeing it, and an evade
+wave is 4 to 8 NPCs planning on one frame: `escape` keeps the candidates round the burst (`_around`: the circle and the shadows, ~50 rays), each spot's
+verdict (keyed `[space, burst, kind, out_r, cover_reach, stand height, crouch height, the excluded rids' ids sorted]`, so a grenade that moved or an NPC
+with other heights or margin has its own entry) and each candidate's navmesh spot (per map) in static dictionaries for the physics frame
+(`Engine.get_physics_frames()`, cleared when a new one begins). Inside a physics frame the space and the map hold still for these queries (furniture
+moves in the step, a dented collider is rebuilt deferred, the map syncs after the frame's callbacks, the characters are excluded), so what is shared is
+what each NPC would work out; outside one (`Engine.is_in_physics_frame()` false) nothing is kept. Only `[from]`, the ring round it (`_ring`) and the
+routes are the NPC's own. `_candidates` (`[from] + _around + _ring`) stays the plain list the tests compare against. On the grenade match's evade waves
+the worst wave measured (8 NPCs planning on one frame) went from 35.9 ms of planning to 17.4 ms (`docs/leadership.md`, Performance). Tests:
+`tests/ai/grenade/escape_spot_matches_plain_test.gd` (120 escapes on one frame, many bursts) and
+`tests/ai/grenade/evade_wave_spots_match_own_plan_test.gd` (five defenders plan together; each plan's spot equals the plain search's for that NPC on
+that frame).
 
 **Cover from a flash.** For a stun (`AgentThrow.cover_reach(kind)`, the `flash_cover_reach` of the stun's stats, 30 px, learned off the grenade: below) a piece of furniture shields a body from the burst only when the body is within that many px of it
 (`shielded`'s `reach`, handed to `Explosion.shields` as its `cover_reach`); a wall always does; a frag's blast keeps the plain rule. `escape` also tries a spot right against the far face of each stopper near the burst (`FAR_PROBE`, `FAR_STEP`).
@@ -316,11 +390,14 @@ it just left, so the zone it is in is the one the burst will have. **Replanning*
 first, via `Character.item_count(ItemRegistry.FRAG_SLOT / STUN_SLOT)`) and the geometry the snapshot's `grenade_group` uses (`can_lob`, `in_zone`, `escape`, `run_speed`).
 
 **The plan (`evade_plan()`).** For the known grenade that goes off first among those the NPC is in the zone of (or is already running from): `{ id, point, kind, radius, spot,
-crouch, fuse_left }`. Made when the NPC is first inside a zone, made again when the grenade has moved 48 px (in flight, a bounce), or any distance that leaves the spot in its line
+crouch, fuse_left, landed, lies }` (`landed` whether it has come down, `lies` where it is known to be now; `point` is where it was when the plan was made: a frag entry's stack
+reads both, `Entry.expects_burst`, `docs/leadership.md` LD14). Made when the NPC is first inside a zone, made again when the grenade has moved 48 px (in flight, a bounce), or any distance that leaves the spot in its line
 (`_still_safe`: a grenade rolling on a few px by a doorway; test `ai/grenade/evade_replans_when_spot_in_line`), at most every 0.15 s, and kept while the
 grenade lives, so the NPC holds the spot until the burst. A grenade in flight is reacted to from where it is; the callout waits until it has come down (`announcements()`, the
 spot it LANDED, which the allies' plans need) and is repeated once if it rests 30 px or more from there; an ally's call or the NPC's own throw is not radioed again.
 The behaviour carries the plan out (`domain-ai-behavior`, "The evade reflex").
 
 **Wrappers for the behaviour sub-domain on `AgentPerception`:** `can_lob(at, to, kind, walked := false)`, `throw_clear(at, to)`, `grenade_range(kind)`,
-`grenade_reach(kind)` and `grenade_fuse(kind)` (above), and `evade_plan()`, `known_grenades()`, `grenade_announcements()`. Tests: `tests/ai/grenade/`.
+`grenade_reach(kind)` and `grenade_fuse(kind)` (above), `in_grenade_zone(kind, burst, p)` (a standing body at `p` inside the zone of a `kind` bursting at `burst`,
+`AgentThrow.in_zone`, every character's body excluded: the frag entry's slot check, `docs/leadership.md` D16), and `evade_plan()`, `known_grenades()`,
+`grenade_announcements()`. Tests: `tests/ai/grenade/`.

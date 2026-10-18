@@ -22,6 +22,7 @@ const BUBBLE_RAYS := 48
 
 var _cone_poly: PackedVector2Array = PackedVector2Array()   ## The view cone's visible area, local points (rebuilt each frame).
 var _bubble_poly: PackedVector2Array = PackedVector2Array() ## The awareness bubble's visible area, local points.
+var _drawn: Array = []  ## The triangle arrays the last paint drew (`drawn()`).
 
 
 ## Rebuild the visibility polygons every frame so they track the NPC's movement and facing (the base runs
@@ -37,12 +38,37 @@ func _on() -> bool:
 	return show_vision
 
 
-## Draw the cached visibility polygons built in _process.
+## Draw the cached visibility polygons built in _process, each as the fan of triangles it is by construction: every corner is where
+## a ray from the eye ends, in the order the rays were cast, so the triangles from the eye to each pair of neighbouring corners cover it
+## exactly. Handing the engine the polygon to cut again (`draw_polygon`) fails on a run of ray ends along one wall, which lie on one
+## line only up to float noise (some read as reflex corners), and that frame's area would not be drawn.
 func _paint() -> void:
+	_drawn.clear()
 	if _bubble_poly.size() >= 3:
-		draw_polygon(_bubble_poly, [bubble_color])
+		_fill_fan(&"bubble", Vector2.ZERO, _bubble_poly, true, bubble_color)
 	if _cone_poly.size() >= 3:
-		draw_polygon(_cone_poly, [cone_color])
+		_fill_fan(&"cone", _cone_poly[0], _cone_poly.slice(1), false, cone_color)
+
+
+## What the last paint drew: `[{ kind, points, indices }]`, one triangle array per area (`kind` `bubble` / `cone`), local points.
+func drawn() -> Array:
+	return _drawn
+
+
+## Fill the fan of triangles from `eye` to each pair of neighbouring `corners` (local px, in ray order; `closed`: the last corner
+## back to the first too, a sweep all the way round) in `color`, as one triangle array.
+func _fill_fan(kind: StringName, eye: Vector2, corners: PackedVector2Array, closed: bool, color: Color) -> void:
+	var points := PackedVector2Array([eye])
+	points.append_array(corners)
+	var indices := PackedInt32Array()
+	var n := corners.size()
+	for k in (n if closed else n - 1):
+		indices.append_array([0, 1 + k, 1 + (k + 1) % n])
+	var colors := PackedColorArray()
+	colors.resize(points.size())
+	colors.fill(color)
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, points, colors)
+	_drawn.append({ "kind": kind, "points": points, "indices": indices })
 
 
 ## Where the NPC's sight from `from` in `dir` ends: the first sight-blocking hit within `max_dist`, or the

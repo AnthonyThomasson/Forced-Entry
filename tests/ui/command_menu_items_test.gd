@@ -23,6 +23,8 @@ const Probe := preload("res://tests/_ai/grenade_probe.gd")
 
 ## In the kitchen, clear of every doorway and teammate.
 const IN_KITCHEN := Vector2(640, 90)
+## In the living room by the living room / kitchen doorway (`door_480_150`), within its width: its living room side.
+const LIVING_SIDE := Vector2(455, 150)
 
 ## The fake squad's view, as the menu's `view` callable returns it.
 var _view := {}
@@ -31,7 +33,7 @@ var _view := {}
 func describe() -> Dictionary:
 	return {
 		"name": "The command menu offers the right orders and works while paused",
-		"description": "On a doorway, a room and a teammate the menu offers the right items (stun greyed with no stun), emits the right order_requested for the selection or the whole squad, cancels a selected member's order, pauses the tree and unpauses on close (LD11).",
+		"description": "On a doorway, a room and a teammate the menu offers the right items (stun greyed with no stun), emits the right order_requested for the selection or the whole squad, cancels a selected member's order, pauses the tree and unpauses on close (LD11); and part 2's frag item, Hold for my go, Go on a held door and Ambush, with their requests (LD16).",
 		"tags": ["ui", "hud", "leadership", "order"],
 		"timeout": 20.0,
 	}
@@ -180,6 +182,124 @@ func run(t: TestContext) -> void:
 	if t.check(got.size() == 8, "choosing it emits order_requested"):
 		_expect_order(t, got[7], "stack", [t1, t2], "a left-click on t1's body while paused added it to the selection (t2 was ticked)")
 	tree.paused = false
+
+	await _part_two(t, menu, got, t1, t2)
+	tree.paused = false
+
+
+## LD16 (`docs/leadership.md`, part 2): on a doorway the menu also offers "... with frag" (greyed while no recipient carries a frag, as
+## the stun), a panel checkbox "Hold for my go" (off by default, remembered while the match runs, D19) that sets `wait_go` on the stack
+## chosen, "Go into the <room>" while a member of the view holds a held stack there (whatever the selection, D13), and "Ambush the doorway
+## from the <room>" (`<room>` the click side's, as the squad resolves it). The requests: `{ kind: "stack", to, pos, bang, mode, wait_go }`
+## (`bang` = mode != quiet, kept for part 1), `{ kind: "go", pos }`, `{ kind: "ambush", to, pos }`.
+func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
+	Order.tick(menu, String(t1.name), false)
+	Order.tick(menu, String(t2.name), false)
+	Probe.arm(t1, 0, 0)  # t2 carries the stun it was armed with above, and no frag.
+
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	var frag := Order.item(menu, "Stack into the kitchen with frag")
+	t.check(not frag.is_empty() and bool(frag.get("disabled", false)), "a doorway offers \"Stack into the kitchen with frag\", greyed: no recipient carries a frag (items %s)" % str(Order.labels(menu)))
+	var ambush := Order.item(menu, "Ambush the doorway from the kitchen")
+	t.check(not ambush.is_empty() and not bool(ambush.get("disabled", false)), "and \"Ambush the doorway from the kitchen\" (an exterior door: the house's room)")
+	t.check(Order.item(menu, "Go into").is_empty(), "no \"Go into\" while nobody holds a held stack there")
+	var hold := _hold_box(menu)
+	if not t.check(hold != null, "the panel has a \"Hold for my go\" checkbox"):
+		menu.close()
+		return
+	t.check(not hold.button_pressed, "off by default")
+	menu.close()
+
+	# A frag carried: the frag item is offered; with "Hold for my go" ticked the stack is held.
+	Probe.arm(t1, 0, 1)
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	t.check(not bool(Order.item(menu, "with frag").get("disabled", true)), "with a frag in the squad, \"with frag\" is offered")
+	_set_hold(menu, true)
+	var before := got.size()
+	Order.choose(menu, "Stack into the kitchen with frag")
+	await t.frames(1)
+	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
+		_expect_stack(t, got[before], "frag", true, [t1, t2], "the held frag stack")
+	# D19: remembered while the match runs.
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	t.check(_hold_box(menu) != null and _hold_box(menu).button_pressed, "\"Hold for my go\" is still ticked when the menu opens again")
+	Order.choose(menu, "Stack into the kitchen (quiet)")
+	await t.frames(1)
+	if t.check(got.size() == before + 2, "choosing it emits order_requested"):
+		_expect_stack(t, got[before + 1], "quiet", true, [t1, t2], "the held quiet stack")
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	_set_hold(menu, false)
+	Order.choose(menu, "Stack into the kitchen with stun")
+	await t.frames(1)
+	if t.check(got.size() == before + 3, "choosing it emits order_requested"):
+		_expect_stack(t, got[before + 2], "stun", false, [t1, t2], "unticked, a stun stack that goes when ready")
+
+	# Go: offered only on a doorway where a member of the view holds a held stack (wait_go, at that opening), whatever the selection.
+	_view["members"][0]["order"] = {}
+	_view["members"][1]["order"] = { "id": "o3", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "stun", "bang": true, "wait_go": true, "pos": Vector2(840, 190) }
+	Order.tick(menu, String(t1.name), true)  # Only t1 selected; t2 holds the held stack.
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	var go := Order.item(menu, "Go into the kitchen")
+	t.check(not go.is_empty() and not bool(go.get("disabled", false)), "\"Go into the kitchen\" on the held stack's doorway, though its holder is not selected (items %s)" % str(Order.labels(menu)))
+	Order.choose(menu, "Go into the kitchen")
+	await t.frames(1)
+	if t.check(got.size() == before + 4, "choosing it emits order_requested"):
+		t.expect_eq(String(got[before + 3].get("kind", "")), "go", "the go request: kind go")
+		t.check((got[before + 3].get("pos", Vector2.INF) as Vector2).is_equal_approx(Order.BACK_SOUTH), "carrying the click (%s)" % str(got[before + 3].get("pos")))
+	Order.tick(menu, String(t1.name), false)
+	_view["members"][1]["order"]["wait_go"] = false
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	t.check(Order.item(menu, "Go into").is_empty(), "no \"Go into\" for a stack that goes when ready (items %s)" % str(Order.labels(menu)))
+	menu.close()
+	_view["members"][1]["order"]["wait_go"] = true
+	_view["members"][1]["order"]["opening"] = "door_690_360"
+	menu.open_at(Order.BACK_SOUTH)
+	await t.frames(1)
+	t.check(Order.item(menu, "Go into").is_empty(), "nor for a held stack at another doorway (items %s)" % str(Order.labels(menu)))
+	_view["members"][1]["order"] = {}
+
+	# Ambush, for the whole squad.
+	Order.choose(menu, "Ambush the doorway from the kitchen")
+	await t.frames(1)
+	if t.check(got.size() == before + 5, "choosing the ambush emits order_requested"):
+		_expect_order(t, got[before + 4], "ambush", [t1, t2], "the ambush to the whole squad")
+		t.check((got[before + 4].get("pos", Vector2.INF) as Vector2).is_equal_approx(Order.BACK_SOUTH), "carrying the click (%s)" % str(got[before + 4].get("pos")))
+	# An interior doorway clicked from the living room's side: the ambush is from the living room, the stack into the kitchen.
+	menu.open_at(LIVING_SIDE)
+	await t.frames(1)
+	t.check(not Order.item(menu, "Ambush the doorway from the living room").is_empty(), "by the living room / kitchen doorway, from the living room's side: \"Ambush the doorway from the living room\" (items %s)" % str(Order.labels(menu)))
+	t.check(not Order.item(menu, "Stack into the kitchen").is_empty(), "beside \"Stack into the kitchen\"")
+	menu.close()
+
+
+## The panel's "Hold for my go" checkbox, or null.
+func _hold_box(menu: Node) -> BaseButton:
+	for box: BaseButton in menu.find_children("*", "BaseButton", true, false):
+		if (box is CheckBox or box is CheckButton) and String(box.text).to_lower().contains("hold for my go"):
+			return box
+	return null
+
+
+## Tick or untick "Hold for my go" the way a click does.
+func _set_hold(menu: Node, on: bool) -> void:
+	var box := _hold_box(menu)
+	if box != null and box.button_pressed != on:
+		box.button_pressed = on
+		box.toggled.emit(on)
+
+
+## Check an emitted stack request of part 2: its recipients, `mode`, `wait_go` and part 1's `bang` (mode != quiet).
+func _expect_stack(t: TestContext, request: Dictionary, mode: String, wait_go: bool, to: Array, what: String) -> void:
+	_expect_order(t, request, "stack", to, what)
+	t.expect_eq(String(request.get("mode", "")), mode, "%s: mode %s" % [what, mode])
+	t.expect_eq(request.get("wait_go"), wait_go, "%s: wait_go %s" % [what, str(wait_go)])
+	t.expect_eq(request.get("bang"), mode != "quiet", "%s: bang %s (mode != quiet)" % [what, str(mode != "quiet")])
 
 
 ## Wait until the world's canvas transform has held still (under half a pixel) for a few frames; false if it has not within 5 s.

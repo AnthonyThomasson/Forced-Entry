@@ -15,10 +15,14 @@ const SQUAD_SCRIPT := "res://scenes/ai/team/squad.gd"
 const COMMAND_MENU_SCRIPT := "res://scenes/ui/hud/command_menu.gd"
 const ORDER_MARKERS_SCRIPT := "res://scenes/ui/hud/order_markers.gd"
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
+const Entry := preload("res://tests/_ai/entry_probe.gd")
 ## The order kinds (LD5).
 const DEFEND := "defend_room"
 const STACK := "stack"
 const CANCEL := "cancel"
+## The order kinds of part 2 (LD13, LD15): the leader's go for a held stack, and an ambush on a doorway.
+const GO := "go"
+const AMBUSH := "ambush"
 ## D7: the safety cap (s) on an ordered stack's wait for all its recipients' `ready`.
 const ORDER_READY_CAP := 60.0
 
@@ -26,7 +30,8 @@ const ORDER_READY_CAP := 60.0
 # --- The squad (LD3, LD4, LD5) ----------------------------------------------------------------------------
 
 ## Build the squad of `faction` the way Main does (a `Squad` node under the world, `setup(faction, members, openings, rooms,
-## leader)`), over the test world's house. Null when the script does not exist yet.
+## leader, claim_ttl)`, the claim ttl the NPCs' own `callout_ttl` read through `MatchSpawner.callout_ttl_of`), over the test world's
+## house. Null when the script does not exist yet.
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
 	if not ResourceLoader.exists(SQUAD_SCRIPT):
 		return null
@@ -35,7 +40,7 @@ static func squad(t: TestContext, faction: StringName, members: Array, leader: N
 	t.world.add_child(s)
 	var openings: Array = t.world.get("openings") if t.world.get("openings") != null else []
 	if s.has_method("setup"):
-		s.setup(faction, members, openings, t.rooms, leader)
+		s.setup(faction, members, openings, t.rooms, leader, MatchSpawner.new().callout_ttl_of(members))
 	return s
 
 
@@ -305,6 +310,33 @@ static func stack_point(t: TestContext, id: StringName) -> Vector2:
 	var e: Dictionary = brain(t, id).debug_entry()
 	var p = e.get("stack_point", Vector2.INF)
 	return p if p is Vector2 else Vector2.INF
+
+
+## Order a stack at the back door through `squad.issue` the way the command menu asks for it (LD16): `{ kind: "stack", to, pos, bang,
+## mode, wait_go }`, `bang` being mode != quiet (part 1's key). The order posted, or {}.
+static func stack_order(s: Node, to: Array, pos: Vector2, mode: String, wait_go: bool) -> Dictionary:
+	return issue(s, { "kind": STACK, "to": to, "pos": pos, "bang": mode != "quiet", "mode": mode, "wait_go": wait_go })
+
+
+## The leader's Go for the held stack at the doorway nearest `pos` (LD13): `squad.issue({ kind: "go", pos })`. The order posted, or {}.
+static func go(s: Node, pos: Vector2) -> Dictionary:
+	return issue(s, { "kind": GO, "pos": pos })
+
+
+## Whether every actor of `ids` has radioed entry step `step` about doorway `opening`.
+static func all_called(t: TestContext, ids: Array, step: String, opening: String) -> bool:
+	return ids.all(func(id): return Entry.first_call_time(t, step, id, opening) < INF)
+
+
+## The actors of `ids` sorted by the stack slot they last claimed at doorway `opening` (from their radio); those with no claim last.
+static func by_slot(t: TestContext, ids: Array, opening: String) -> Array:
+	var slot_of := {}
+	for id in ids:
+		var claims := Entry.calls(t, "", id).filter(func(c): return String(c.get("opening", "")) == opening)
+		slot_of[id] = int(claims.back().get("slot", 99)) if not claims.is_empty() else 99
+	var out := ids.duplicate()
+	out.sort_custom(func(a, b): return slot_of[a] < slot_of[b])
+	return out
 
 
 ## Whether actor `id` is in its stack slot (its entry's phase is past the approach: `stack` or later).

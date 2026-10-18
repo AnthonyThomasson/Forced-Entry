@@ -127,12 +127,15 @@ var door_avoid_slack: float = 300.0    ## ... plus this many px.
 var entry_pass_clear_time: float = 60.0 ## Seconds a cleared room counts as safe to walk past.
 ## Whether the NPC is walking an ordered stack's way to its door (`docs/leadership.md` LD9), set each tick by the behaviour: that walk keeps
 ## out of the doorway views whatever `entry_enabled` says (D4), and for an NPC that does not clear rooms by entry (`entry_enabled` off) a
-## room it has stood in lately and seen no hostile in counts as clear for passing (`seen_empty`, D11).
+## room it has stood in lately and seen no hostile in counts as clear for passing (`seen_empty`, D11); the room its stack holds always does
+## (`stack_room`).
 var ordered_walk := false:
 	set(value):
 		if value != ordered_walk:
 			ordered_walk = value
 			_sync_walks()
+var _stack_room := ""                  ## `stack_room()` this frame...
+var _stack_room_frame := -1            ## ... worked out on this physics frame.
 # Grenades (live ones known by sight, hearing and callouts, and the danger zone; see agent_grenades.gd).
 var grenades_enabled: bool = true      ## Whether the NPC reacts to live grenades at all.
 var hear_grenade: float = 300.0        ## How far (px) a grenade coming down is heard.
@@ -252,12 +255,14 @@ func apply_config() -> void:
 
 ## Push the walk rules into the entry geometry: walks keep out of the doorway views where the entry guard runs (`entry_guard`, with
 ## `entry_enabled` or on an ordered stack's walk, D4), and a room counts as clear for passing when it was cleared lately (`is_pass_clear`)
-## or, on an ordered walk of an NPC that does not clear rooms by entry, when it has seen it empty (`seen_empty`, D11).
+## or, on an ordered walk, when its stack holds it (`stack_room`) or, for an NPC that does not clear rooms by entry, it has seen it empty
+## (`seen_empty`, D11).
 func _sync_walks() -> void:
 	if _entry == null:
 		return
 	_entry.avoid_views = entry_guard and (entry_enabled or ordered_walk)
-	_entry.pass_clear = _passable if ordered_walk and not entry_enabled else is_pass_clear
+	_entry.ordered_approach = ordered_walk  # Its way round the room it stacks on is taken however long (D4).
+	_entry.pass_clear = (_passable if not entry_enabled else _pass_clear_ordered) if ordered_walk else is_pass_clear
 
 
 ## Hand the perception the NPC's body, which every sense and query reads from then on, and tell the hostility rules its
@@ -393,9 +398,18 @@ func process_callout(data: Dictionary) -> void:
 ## Take one `&"order"` (interface 10, `docs/leadership.md` LD5: `{ id, leader, faction, to, kind, ... }`) when it names this NPC in `to`
 ## and comes from its own side: kept as the live order (memory topic `order`, permanent, one per NPC), replacing the one it held; a
 ## `cancel` ends the one it holds. An order never lapses on a timer: it ends only when it is done, cancelled or replaced (`end_order`).
-## True when the NPC's order changed (the controller then decides at once).
+## A `go` (LD13) replaces nothing: it releases the held stack order the NPC holds at its doorway (`go: true` on the live order, latched:
+## the stack goes once ready, however long before that the go came), and asks for no new decision. True when the NPC's order changed
+## (the controller then decides at once).
 func process_order(data: Dictionary) -> bool:
 	if not (data.get("to", []) as Array).has(_character) or not _hostility.is_ally(data.get("faction", &"")):
+		return false
+	if String(data.get("kind", "")) == "go":
+		var live := order()
+		if String(live.get("kind", "")) == "stack" and String(live.get("opening", "")) == String(data.get("opening", "")):
+			live = live.duplicate()
+			live["go"] = true
+			_memory.remember(&"order", live, 0.0, "live")
 		return false
 	if String(data.get("kind", "")) == "cancel":
 		var held := order()
@@ -615,6 +629,9 @@ func observe(rooms: Array) -> void:
 	_throw.learn_body()
 	_seed_house(rooms)
 	_entry.set_house(openings, rooms)
+	if entry_enabled:
+		var world: World2D = _character.get_world_2d()
+		_entry.warm_geometry(world.navigation_map, world.direct_space_state)  # Lay the doorways before a decision needs them.
 	_rooms = rooms
 
 	var self_pos: Vector2 = _character.global_position
@@ -681,6 +698,18 @@ func observe(rooms: Array) -> void:
 	_grenades.observe(_vision, space, exclude, _blind)
 	if not familiar_with_house and not _blind and Engine.get_physics_frames() >= _learn_next:
 		_learn_by_sight(rooms)
+	_end_ambush_on_contact()
+
+
+## An ambush ends on first contact (`docs/leadership.md` LD15, D18): a hostile in sight, wherever it stands, or shots at the NPC
+## (`under_fire`: hit, or a round landing by it). The order is then done and the NPC fights on its own. Footsteps heard and callouts are
+## no contact.
+func _end_ambush_on_contact() -> void:
+	var held := order()
+	if String(held.get("kind", "")) != "ambush":
+		return
+	if under_fire() or _visible_now.keys().any(func(id): return _hostility.is_hostile(id, _memory)):
+		end_order(held["id"], "done")
 
 
 ## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every `LEARN_EVERY_FRAMES`
@@ -990,12 +1019,14 @@ func is_cleared(key: String) -> bool:
 
 
 ## The first doorway on the walk `path` (from waypoint `from_idx`, `max_dist` px of it at most) that leads into a room that
-## is not cleared (nor, on an ordered walk of an NPC that does not clear rooms by entry, seen empty: D11), as `{ opening, into, dist }`,
+## is not cleared (nor, on an ordered walk, the room its stack holds, or for an NPC that does not clear rooms by entry seen empty: D11), as
+## `{ opening, into, dist }`,
 ## or {} (see agent_entry.gd `threshold_ahead`).
 func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var clear := is_cleared
-	if ordered_walk and not entry_enabled:
-		clear = func(key: String) -> bool: return is_cleared(key) or seen_empty(key)  # D11: a room seen empty is passed through.
+	if ordered_walk:
+		# The room its stack holds is passed through (rule 9), and, for an NPC that does not clear rooms by entry, a room seen empty (D11).
+		clear = func(key: String) -> bool: return is_cleared(key) or key == stack_room() or (not entry_enabled and seen_empty(key))
 	return _entry.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
 
 
@@ -1025,9 +1056,35 @@ func seen_empty(key: String) -> bool:
 
 
 ## Whether room `key` counts as clear for passing on an ordered walk of an NPC that does not clear rooms by entry (D11): cleared lately,
-## or seen empty.
+## seen empty, or held by its stack (`stack_room`).
 func _passable(key: String) -> bool:
-	return is_pass_clear(key) or seen_empty(key)
+	return _pass_clear_ordered(key) or seen_empty(key)
+
+
+## Whether room `key` counts as clear for passing on an ordered stack's walk: cleared lately, or the room its stack holds (`stack_room`).
+func _pass_clear_ordered(key: String) -> bool:
+	return is_pass_clear(key) or key == stack_room()
+
+
+## The room an ordered stack holds (ticket #65 rule 9, `docs/leadership.md` D4): on the walk of a member to the stack its live order names
+## (`ordered_walk`), the room that stack stands in once a member under the same order holds its slot there (its claim radioed `ready`, or
+## `bang`): that room counts as cleared for passing, so the walk is not sent into it by entry. "" for none (outside the house, no slot held
+## yet, or no ordered walk). Worked out once a physics frame.
+func stack_room() -> String:
+	var frame := Engine.get_physics_frames()
+	if frame == _stack_room_frame:
+		return _stack_room
+	_stack_room_frame = frame
+	_stack_room = ""
+	var held := order()
+	if not ordered_walk or str(held.get("kind", "")) != "stack":
+		return _stack_room
+	var opening := str(held.get("opening", ""))
+	for m in entry_team(opening):
+		if m["order_id"] == str(held.get("id", "")) and m["step"] in ["ready", "bang"]:
+			_stack_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
+			break
+	return _stack_room
 
 
 ## Whether the routes a snapshot measures can be the ones the NPC will walk (see agent_entry.gd `warm`): the avoid map for the doorway
@@ -1052,10 +1109,19 @@ func avoided_views() -> Array:
 
 
 ## The route the NPC walks from where it stands to `to` (see agent_entry.gd `walk_route`): the plain one, or the one that keeps out of
-## the views of the doorways into rooms not clear for passing when there is one within the cap.
-func walk_route(to: Vector2, exempt := "") -> Dictionary:
+## the views of the doorways into rooms not clear for passing when there is one within the cap. `entering` (`"<opening id>><room key>"`):
+## the entry the walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where the NPC stands) is where the
+## walk sets out from, for a leg of a walk read ahead.
+func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
 	var world: World2D = _character.get_world_2d()
-	return _entry.walk_route(_character.global_position, to, world.navigation_map, world.direct_space_state, exempt)
+	var at: Vector2 = _character.global_position if from == Vector2.INF else from
+	return _entry.walk_route(at, to, world.navigation_map, world.direct_space_state, entering)
+
+
+## Whether the NPC can walk from where it stands to `to` with a body standing at each of `bodies` in its way (see agent_entry.gd
+## `slot_reach`): 1 yes, 0 no, -1 not known yet (its map is being baked).
+func entry_slot_reach(to: Vector2, bodies: Array) -> int:
+	return _entry.slot_reach(_character.global_position, to, _character.get_world_2d().navigation_map, bodies)
 
 
 ## The doorways out of the cleared room `into` that lead on into a room that is not cleared, other than `opening_id` (the
@@ -1078,9 +1144,9 @@ func entry_team(opening_id: String) -> Array:
 
 
 ## The lowest stack slot (1 = the point) no ally in `team` has claimed, for the NPC with instance id `self_id` that
-## holds `current` (see agent_entry.gd `free_slot`).
-func entry_free_slot(team: Array, self_id: int, current := 0) -> int:
-	return AgentEntry.free_slot(team, self_id, current)
+## holds `current`; claims made on the same frame (`mine`) settle by distance (see agent_entry.gd `free_slot`).
+func entry_free_slot(team: Array, self_id: int, current := 0, mine := {}) -> int:
+	return AgentEntry.free_slot(team, self_id, current, mine)
 
 
 ## The side of a doorway (`geometry` from `entry_geometry`) the team stacks on (see agent_entry.gd `stack_side`).
@@ -1106,9 +1172,32 @@ func entry_place(team: Array, side: int, slot: int) -> int:
 	return AgentEntry.place(team, side, slot)
 
 
-## Where the `nth` place in the file on side `side` of a doorway stands (see agent_entry.gd `slot_point`).
-func entry_slot_point(geometry: Dictionary, side: int, nth: int) -> Vector2:
-	return AgentEntry.slot_point(geometry, side, nth)
+## The side of a doorway the member holding slot `slot` stacks on, wanting side `preferred`, among the claims `team` (E21: its side while
+## that side's wall has room, else the other's, then a second file; see agent_entry.gd `side_for`).
+func entry_side_for(geometry: Dictionary, team: Array, slot: int, preferred: int) -> int:
+	return AgentEntry.side_for(geometry, team, slot, preferred)
+
+
+## Where the member holding slot `slot` on side `side` stands among the stack's `members` (E20 to E22; INF for a slot a dead end does not
+## hold; see agent_entry.gd `stack_point`).
+func entry_stack_point(geometry: Dictionary, members: Array, slot: int, side: int) -> Vector2:
+	return AgentEntry.stack_point(geometry, members, slot, side)
+
+
+## Whether a doorway has a slot `slot` at all: a dead end holds only as many as its floor does (see agent_entry.gd `holds_slot`).
+func entry_holds_slot(geometry: Dictionary, slot: int) -> bool:
+	return AgentEntry.holds_slot(geometry, slot)
+
+
+## Whether slot `slot` at a doorway is one of the stack's tail, holding in the room it came by (see agent_entry.gd `is_tail`).
+func entry_is_tail(geometry: Dictionary, slot: int) -> bool:
+	return AgentEntry.is_tail(geometry, slot)
+
+
+## Whether point `p` is ground a stack going in by `geometry` may walk on to its slot (`AgentEntry.on_stack_side`: on the stack side, in its
+## room, out of every other doorway's funnel).
+func entry_on_stack_side(geometry: Dictionary, p: Vector2) -> bool:
+	return _entry.on_stack_side(geometry, p)
 
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the
@@ -1131,7 +1220,7 @@ func known_grenades() -> Array:
 
 
 ## The plan to get clear of the live grenade that goes off first among those the NPC is in the danger zone of (or is
-## already running from): `{ id, point, kind, radius, spot, crouch, fuse_left }` (see agent_grenades.gd `plan`), or {}. Made
+## already running from): `{ id, point, kind, radius, spot, crouch, fuse_left, landed, lies }` (see agent_grenades.gd `plan`), or {}. Made
 ## from where the NPC stands and kept while the grenade lives. A pure read of what it knows plus the physics space and the navmesh.
 func evade_plan() -> Dictionary:
 	if not _grenades.has_known():
@@ -1175,6 +1264,14 @@ func grenade_reach(kind: StringName) -> float:
 ## Seconds from release to the burst of a grenade of `kind` (what the NPC learned of it off the grenades it carries).
 func grenade_fuse(kind: StringName) -> float:
 	return _throw.fuse_of(kind)
+
+
+## Whether a standing body at `p` is inside the danger zone of a grenade of `kind` bursting at `burst`: within its reach (a frag's blast
+## radius and the evade margin, a stun's flash radius) and not shielded from the burst by a wall or taller furniture (agent_throw.gd
+## `in_zone`; bodies shield nothing). False for a kind the NPC has never met.
+func in_grenade_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
+	return _throw.in_zone(_character.get_world_2d().direct_space_state, kind, _throw.radius_of(kind), burst, p, _throw.stand_height(),
+		_character_rids())
 
 
 ## The rids of every character in the world, this NPC included: the bodies a blast or a lob goes through.

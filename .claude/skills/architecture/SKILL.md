@@ -230,7 +230,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    is which side landed up), and `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in
    the frame it was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by
    them, like `CharacterVisuals.drawn_art()`). The character
-   calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns as `item_count(ItemRegistry.STUN_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
+   calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun, or the frag of an entry its leader ordered in with one); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns and frags as `item_count(ItemRegistry.STUN_SLOT)` / `item_count(ItemRegistry.FRAG_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
    `default_inventory()` / `inventory_for(slots, rounds, magazine, grenades, style := &"police")` (an optional `magazine` type the gun starts loaded with; `grenades` = slot -> count; `style` the weapon style stamped on every item made) /
    `create_magazines(type_ids)` (full `Magazine`s for those `MagazineConfig` types: the character's spare-magazine store) /
    `random_gun_slot(rng)` / `loadout_for(gun_slot, stuns, frags)` / `spares_for(gun_slot)`. The grenades (`docs/grenades.md`) are `Item`s too: slots `ItemRegistry.STUN_SLOT` 7 / `FRAG_SLOT` 8, a *count*
@@ -334,7 +334,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    the characters it perceives by sight. Von walks a data-driven DECISION TREE ranked against the
    goal — a broad mode (combat / reload_quiet / investigate / search / idle), then a tactic (engage / flank / advance /
    retreat / reload / locate …), then a concrete option (a place, a firing spot, an object) — one `choice`
-   request per level, ending in a behaviour primitive (move / engage / melee / interact / hold / reload / entry / throw / defend) — no
+   request per level, ending in a behaviour primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush) — no
    per-goal or per-NPC-type code. `goal_controller.gd` is only the thin orchestrator; the work is split
    across four isolated AI sub-domains (perception / decision / behaviour / debug). See the `domain-ai`
    overview and its `domain-ai-<name>` sub-skills.
@@ -431,14 +431,20 @@ interfaces it takes part in (by number) and describes how they're implemented.
       the hostile's last-known spot as the speaker knows it, else where the shots at it came from, `Vector2.INF` when it knows neither;
       an ally reads it as a fight in that room, `docs/grenades.md` G18) — and one
       per step of a tactical entry, which adds `opening`, `into` (the room it leads into), `slot`, `side` (the side of the door it stacks on: a stack split across the door, E19, has both), `entry_step` (claim / ready / bang /
-      going_in / in / clear / cover / rear / done / abort), `bang` (this member goes in with a stun thrown first), `bang_off` (it gave the bang up: the stack goes in quietly) and `stuns` (how many it carries), `cleared_room` (with a clear) and `covering` (with a cover:
-      the doorway on out of the cleared room it watches) (`docs/tactical-entry.md`), and from a member of a stack its leader ordered
-      `order_id`, `order_bang` (the order's mode) and `order_side` (the side of the door the order names, 1 / -1 along its wall, 0 for a split
-      stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9); a human invader's `PlayerStack`
-      (interface 17) posts the same entry steps for the human. A live grenade has its own statuses, which an ally in range reads as "a
+      going_in / in / clear / cover / rear / done / abort), `bang` (this member goes in with a stun thrown first), `bang_off` (it gave the bang up: the stack goes in quietly), `stuns` and `frags` (how many stun / frag grenades it carries), `cleared_room` (with a clear) and `covering` (with a cover:
+      the doorway on out of the cleared room it watches), `claim_frame` / `claim_pos` (the `GameClock` frame its slot was claimed on and
+      where it stood then, kept by every repeat of that claim: two claims on one slot made on the same frame settle by distance, E2),
+      `move_up` (the slot it moved up from, while it walks into the lower one it took; 0 otherwise, E2) and `pie` (it has begun slicing the
+      pie: nobody moves up behind it) (`docs/tactical-entry.md`), and from a member of a stack its leader ordered
+      `order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14), `order_hold` (the order holds the stack
+      for the leader's go, LD13), `order_go` (that go has come) and `order_side` (the side of the door the order names, 1 / -1 along its
+      wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9); a human invader's `PlayerStack`
+      (interface 17) posts the same entry steps for the human, with `human: true` (no AI moves up into its slot) and `leader` (true while the
+      human leads its squad: a stack it ordered waits for it, LD17). A live grenade has its own statuses, which an ally in range reads as "a
       grenade is down there" and not as what the speaker is doing: `status = "grenade"` (an NPC that saw or heard a grenade come down and
       is in its danger zone: `point` the spot it landed, `kind` `&"frag"` / `&"stun"`; the NPC repeats it once if the grenade then comes to rest
-      30 px or more away), `"frag_out"` / `"bang_out"` (the thrower of a frag or a stun, `point` the landing; the GRENADE tactic's call, G17), all
+      30 px or more away), `"frag_out"` / `"bang_out"` (the thrower of a frag or a stun, `point` the landing; the GRENADE tactic's call, G17, and `frag_out` from the
+      thrower of a frag entry its leader ordered, LD14), all
       from `docs/grenades.md` G16. Allied AI
       controllers within `callout_range` consume it (which flank an ally holds, whom it fights, where to
       support it, which stack slot is taken, when the point is through, which room is clear, which doorway on is
@@ -446,11 +452,16 @@ interfaces it takes part in (by number) and describes how they're implemented.
       progress as a callout with `order_id` (the order's `id`) and `order_step` (`moving` / `in_position` / `done` / `refused`); allies leave
       such a call out of what they weigh, and its squad (interface 21) keeps it as that member's latest step.
     - `&"order"`: a squad (`ai/team/squad.gd`, interface 21) posts one per order its leader gives (`docs/leadership.md` LD5):
-      `{ id, leader, faction, to` (the recipients, characters)`, kind` (`defend_room` / `stack` / `cancel`)`, room?` (`defend_room`: the room
-      key)`, opening?, into?, stack_at?, split?, bang?` (`stack`: the doorway's id, the room it goes into, the click the stack's side is read
-      from or a split stack, with a stun first)`, pos?` (`defend_room` / `stack`: the target point, the room's centre or the doorway's, which
-      the UI's order markers draw)` }`. Range is unlimited: every AI controller named in `to` of the same faction takes it, and
-      it holds it until it is done, cancelled or replaced (never on a timer).
+      `{ id, leader, faction, to` (the recipients, characters)`, kind` (`defend_room` / `stack` / `go` / `ambush` / `cancel`)`, room?`
+      (`defend_room`: the room key; `ambush`: the room it lies in wait in, on the click's side of the doorway's wall, D17)`, opening?, into?,
+      stack_at?, split?, mode?, bang?, wait_go?` (`stack`: the doorway's id, the room it goes into, the click the stack's side is read from
+      or a split stack, `mode` `quiet` / `stun` / `frag` (LD14) with `bang` true for any mode but quiet, and `wait_go`, the stack holds at
+      its slots for the leader's go, LD13)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
+      auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12)`, pos?` (`defend_room` / `stack` / `ambush` /
+      `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)` }`. A `go` (`opening`, `pos`) goes
+      to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
+      unlimited: every AI controller named in `to` of the same faction takes it, and it holds it until it is done, cancelled or replaced
+      (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18).
     - `&"leader"`: a squad posts one when its leader dies and the next in line leads (`docs/leadership.md` LD4): `{ faction, leader, previous }`
       (`leader` null when nobody is left).
     - `&"vehicle"`, `&"engine"`, `&"skid"`: a vehicle (Vehicles) posts `&"vehicle"` `{ position, kind` (`&"car"` / `&"van"`)`, stage }` with
@@ -597,7 +608,13 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`n` the slot, numbered in claim order; `point` where it stands, on its holder's side of the door: both sides on a split stack, E19):
       the UI's `StackMarkers` (`ui/hud/stack_markers.gd`, `watch(stack)`, built by Main under `World`) draws it on the floor and reads
       nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10) and reads the allies' off the same bus;
-      the AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`).
+      the AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human` (no AI moves up into its slot) and, when
+      the human leads, `leader`.
+    - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack)` with the stack `bind_player` returned (interface 21); its claims say
+      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17).
+    - `StackMarkers.watch_squad(view: Callable)` — Main (`_watch_side_stacks`, every played match) hands the markers the human's side's
+      `Squad.view`, whose `stacks` they draw too (LD18): every stack of that side, a ring per slot, a slot both views give drawn once.
+      `StackMarkers.drawn() -> Array` is what is shown: `[{ n, point, mine, held, there, side, row, opening }]`.
 
 18. **Main → Audio: `Sound.focus`** (whose ears the player has; Audio stays a leaf)
     - `Sound.focus: Node` (a plain var on the `Sound` autoload): the character a bang deafens *for the player*. Main sets it to the human when there is
@@ -669,33 +686,50 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 21. **Main → AI team: the squads, their leaders and their orders** (`scenes/ai/team/squad.gd`; spec `docs/leadership.md`)
     - Main builds one `Squad` (a `Node`) per side under `World` after arming the characters (`_build_squads`):
-      `Squad.setup(faction, roster, openings, rooms, human := null)` (`roster` the side's characters in spawn order; `human` when the human
-      leads), and hands each NPC its own through `MatchSpawner.bind_squad(npc, squad)` (beside `bind_npc`: the controller's `squad`, found by the
-      `control` duck-type). The squad reads its members only through the Character API (`rank`, `is_dead`, the `died` signal).
+      `Squad.setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)` (`roster` the side's characters in spawn order; `human` when the human
+      leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchSpawner.callout_ttl_of(members)`
+      through the `control` duck-type: the squad keeps a member's entry claim as long), and hands each member its own through
+      `MatchSpawner.bind_squad(member, squad, stack := null)` (beside `bind_npc`: the controller's `squad`, found by the `control` duck-type, and the
+      human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17). The squad reads its members only through the
+      Character API (`rank`, `is_dead`, the `died` signal) and lays its stacks on the navigation map and physics space of its own viewport's `World2D`.
     - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `rank`, the first in spawn order among equals, so the invaders'
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
-      (`{ leader, members: [{ node, order, step }] }`: the order each member holds, the posted dict or {}, and its latest `order_step`; an
-      order radioed `done` is no longer held, {} with the step `done`, while a `refused` one is), what observers draw.
-    - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang? }`: no `to` = every
-      living member but the leader) resolved into the AI's (a room key, or the room under `pos`; for a stack the doorway nearest `pos` within its
-      width, `into` the room on the far side of the wall plane from `pos`, an exterior door's house room, and `stack_at` = `pos` or `split` for a
-      click on the opening) and posted as `&"order"` (interface 10); returns the order posted, or {}. Nothing outside the AI computes an AI id.
-    - `Squad.resolve(request) -> Dictionary` (read-only): the same resolution without posting, `{ room, pos }` for a `defend_room` and
-      `{ opening, pos, into, split, stack_at? }` for a `stack` ({} when it names nothing): the one rule for which doorway a click means and
-      which room "into" is, which the command menu names its stack items from.
+      (`{ leader, members: [{ node, order, step }], stacks }`: the order each member holds, the posted dict or {} (a held stack a `go` released
+      carries `go: true`), and its latest `order_step`; an order radioed `done` is no longer held, {} with the step `done`, while a
+      `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the members' entry claims on the bus,
+      `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where
+      the AI stands it; `holder` the instance id, 0 free; `there` its holder in it; `mine` the human's; `row` 1 against the wall, 2 a step out),
+      from a stack's first claim until everyone in it is through), what observers draw.
+    - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang?, mode?, wait_go? }`:
+      no `to` = every living member but the leader) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
+      doorway nearest `pos` within its width, a stack's `into` the room on the far side of the wall plane from `pos`, an exterior door's house
+      room, and `stack_at` = `pos` or `split` for a click on the opening; a stack's `mode` from the request's `mode`, else `bang` true is a
+      stun; an ambush's `room` the one on `pos`'s side of the wall plane) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
+      posts a `go` to every living member holding a held stack, not yet released, at the doorway nearest `pos`, whatever its `to` (D13; {}
+      when none waits there). Returns the order posted, or {}. Nothing outside the AI computes an AI id. When a leader that gave held stack
+      orders dies, the squad posts their `go` itself (`auto: true`, D12).
+    - `Squad.resolve(request) -> Dictionary` (read-only): the same resolution without posting, `{ room, pos }` for a `defend_room`,
+      `{ opening, pos, into, split, stack_at? }` for a `stack`, `{ opening, pos }` for a `go` and `{ opening, pos, room, beyond }` for an
+      `ambush` ({} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
+      which the command menu names its stack and ambush items from.
     - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10); the orders given stand.
-    - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12), in the shape of interfaces 14 and 17:
+    - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:
       with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only) Main hands
       the human to `Squad.setup` (a human invader is ranked the unit's lead, 2) and `_build_command_menu` builds, under `World`, the
       `CommandMenu` (`ui/hud/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader })`
       (the house's `WorldGen.get_rooms` dicts, the squad's members but the human, `view` and `resolve` the squad's `view()` and `resolve()`
       callables (the doorway a click is on and the room its stack goes into are the squad's `resolve`), `leader` the human: it opens only
       while the view names it the leader), `open_at(world)`, `close()`, `is_open()`, `items() -> Array`
-      (`[{ label, disabled }]`, what it offers), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang }`, `pos` the
-      raw click; `{ kind: "defend_room", to, room }`; `{ kind: "cancel", to }`), which Main connects to `Squad.issue`, and
+      (`[{ label, disabled }]`, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
+      while a member holds a held stack there, the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
+      while no recipient carries one, D1 / D15) and "Ambush the doorway from the <room>"; on a room, "Defend the <room>"; "Cancel order"),
+      a "Hold for my go" checkbox (D19), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
+      `pos` the raw click, `wait_go` the checkbox; `{ kind: "go", pos }`; `{ kind: "ambush", to, pos }`; `{ kind: "defend_room", to, room }`;
+      `{ kind: "cancel", to }`), which Main connects to `Squad.issue`, and
       `selection_changed(nodes)`; and the `OrderMarkers` (`ui/hud/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
       squad's `view()` callable), `set_selection(nodes)` (Main connects the menu's `selection_changed` to it) and `drawn() -> Array`
-      (`[{ kind, point, node }]`, `kind` `order` / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
+      (`[{ kind, point, node, from?, label?, refused? }]`, `kind` `order` (`from` where the member stands, `label` the words at its target,
+      "Stack (frag, hold) · in position", "Ambush · moving") / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
       menu alone, so with "Lead the team" off nothing reads the right button. Neither holds an AI reference: they read the members through the
       Character API (`global_position`, `name`, `is_dead`, `item_count`) and the squad through `view()` (and the menu `resolve()`), and the menu
       emits plain requests.
@@ -726,8 +760,8 @@ Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶
 Projectile / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
-main ──(_build_squads: Squad.setup, MatchSpawner.bind_squad)──▶ Squad (AI team) ──(&"order", &"leader")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step)── EventBus
-CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT (Items, via item_count)
+main ──(_build_squads: Squad.setup, MatchSpawner.bind_squad)──▶ Squad (AI team) ──(&"order", &"leader")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchSpawner.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
+CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
 Item (&"shot") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank ─▶ SoundSynth

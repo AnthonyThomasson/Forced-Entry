@@ -35,6 +35,12 @@ shadows are exactly the sense's — only the area that would actually trigger a 
 ray of its own. It reads the controller's live vision params
 (`vision_enabled`, `view_distance`, `fov_degrees`, `awareness_radius`). When vision is disabled
 (omniscient), the bubble is drawn as a plain circle and the cone is skipped.
+Each area is drawn as the fan it is by construction (`_fill_fan`: one `RenderingServer.canvas_item_add_triangle_array`, the
+triangles from the eye, the cone's first corner or the bubble's centre, to each pair of neighbouring ray ends), never as a polygon
+for the engine to cut again: a run of ray ends along one wall lies on one line only up to float noise, and the engine's cut
+(`draw_polygon`) of such a run fails ("Invalid polygon data, triangulation failed.") and draws nothing that frame. `drawn()` gives
+what the last paint drew, `[{ kind` (`bubble` / `cone`)`, points, indices }]`. Test: `ai/debug/vision_overlay_cone_along_wall` (the two
+captured cones that failed, through a fake controller).
 
 ## `agent_debug.gd` (toggles `show_actions`, `show_path`)
 

@@ -138,14 +138,28 @@ func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> v
 			return
 
 
-## Hand an NPC its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc` hands it the house: its controller's
-## `squad`, found by the same `control` duck-type.
-func bind_squad(npc: Node, squad: Node) -> void:
+## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc` hands it the house: an NPC's controller's
+## `squad`, found by the same `control` duck-type, and the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
+func bind_squad(npc: Node, squad: Node, stack: Node = null) -> void:
+	if stack != null and "squad" in stack:
+		stack.squad = squad
 	for child in npc.get_children():
 		if child.has_method("control"):
 			if "squad" in child:
 				child.squad = squad
 			return
+
+
+## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's controller, found by the `control`
+## duck-type (0 with no NPC among them). Main hands it to the side's squad (`Squad.setup`), which keeps its members' entry claims as long.
+func callout_ttl_of(members: Array) -> float:
+	for m in members:
+		if not (m is Node and is_instance_valid(m)):
+			continue
+		for child in (m as Node).get_children():
+			if child.has_method("control") and "callout_ttl" in child:
+				return float(child.callout_ttl)
+	return 0.0
 
 
 ## Give the human the stack radio, as `bind_npc` hands an NPC its doorways: a `PlayerStack` child of `player` that knows the

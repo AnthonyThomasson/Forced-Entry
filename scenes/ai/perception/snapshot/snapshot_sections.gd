@@ -36,7 +36,9 @@ func situation_text(rooms: Array) -> String:
 
 ## The order the NPC's leader gave it, in one sentence Von reads at every level while it holds one (`docs/leadership.md` LD6; measured
 ## with tools/von_probe.py): "Your leader ordered you to defend the kitchen." / "... to go into the kitchen by its doorway quietly." (or
-## "with a stun grenade first"). Empty with no order, so an NPC that holds none reads exactly what it read before.
+## "with a stun grenade first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13, since "and wait for
+## my go" moved a combat level's top pick) / "... to ambush the doorway into the hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the kitchen from inside").
+## Empty with no order, so an NPC that holds none reads exactly what it read before.
 func order_text(order: Dictionary, rooms: Array) -> String:
 	match String(order.get("kind", "")):
 		"defend_room":
@@ -46,8 +48,18 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 		"stack":
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
 			if not into.is_empty():
-				return "Your leader ordered you to go into the %s by its doorway %s." % [_v.room_name(into["type"]),
-					"with a stun grenade first" if bool(order.get("bang", false)) else "quietly"]
+				var mode := String(order.get("mode", "stun" if bool(order.get("bang", false)) else "quiet"))
+				return "Your leader ordered you to go into the %s by its doorway %s%s." % [_v.room_name(into["type"]),
+					"with a %s grenade first" % mode if mode != "quiet" else "quietly",
+					" when they give the go" if bool(order.get("wait_go", false)) and not bool(order.get("go", false)) else ""]
+		"ambush":
+			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+			if not room.is_empty():
+				var beyond := SnapshotVocab.room_by_key(rooms, String(order.get("beyond", "")))
+				if beyond.is_empty():
+					return "Your leader ordered you to ambush the outside doorway of the %s from inside." % _v.room_name(room["type"])
+				return "Your leader ordered you to ambush the doorway into the %s from the %s." % [_v.room_name(beyond["type"]),
+					_v.room_name(room["type"])]
 	return ""
 
 

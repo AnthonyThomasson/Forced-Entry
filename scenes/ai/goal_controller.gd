@@ -219,7 +219,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var entry_cover_time: float = 8.0
 ## Seconds a lone entrant looks through each doorway on out of a room it has cleared, once its gaze has settled.
 @export var entry_watch_dwell: float = 0.8
-## Safety cap (s) on reaching the stack: an entrant that cannot get to its slot in this time gives up its claim.
+## Safety cap (s) on reaching the stack, on top of the walk there at walking pace (measured as the approach is planned): an entrant that
+## cannot get to its slot in that time gives up its claim.
 @export var entry_approach_time: float = 20.0
 ## Most seconds an ordered stack waits for every living recipient of the order to be in its slot, from the first ordered `ready` heard or
 ## said (`docs/leadership.md` LD9, D7); an unordered joiner is waited for `entry_ready_timeout` as ever.
@@ -348,6 +349,7 @@ var _decide_timer := 0.0 ## Seconds until the next decision is allowed.
 var _force := false ## Force a decision now (task resolved or salient event).
 var _force_reason := "" ## Why `_force` was last raised, kept (with `_force_ms`) for the brain overlay.
 var _decisions := 0 ## Decision walks started so far (`debug_state()["decisions"]`).
+var _order_from := -1 ## `_decisions` when an order was last taken, while its decision has not landed (-1: none awaited); see `Behavior.await_order`.
 var _decision_reason := "" ## Why the latest walk was started: the force reason, or "cadence" (`debug_state()["decision_reason"]`).
 var _force_ms := 0 ## When `_force_reason` was raised (game msec, `GameClock.msec()`).
 var _last_callout := {} ## The last callout this NPC radioed (`position`, `point`, `label`, `at` in game msec), for the hearing overlay.
@@ -856,7 +858,9 @@ func _should_decide() -> bool:
 func _maybe_interrupt() -> void:
 	if _behavior.evading() or _character.is_blind():
 		return
-	if _planner.entry_for(_perception.quick_facts()) != _planner.current_entry():
+	# An order taken since the walk in flight began always restarts it: that walk was made without the order, and a walk the order
+	# replaces stands until one made with it lands.
+	if _order_from >= 0 or _planner.entry_for(_perception.quick_facts()) != _planner.current_entry():
 		if Budget.claim():  # Else `_force` stays and the restart is tried again next frame.
 			_start_decision()
 	else:
@@ -912,6 +916,8 @@ func _process_events() -> void:
 				# (after a crossing or an evade, which hold every decision).
 				if _perception.process_order(ev[1]):
 					_force_now("ordered")
+					_order_from = _decisions  # A walk it replaces stands until a decision started from here on lands (`_on_decided`).
+					_behavior.await_order(true)
 	_event_queue.clear()
 
 
@@ -953,6 +959,9 @@ func _check_salient() -> void:
 func _on_decided(leaf: Dictionary) -> void:
 	if _behavior.evading():
 		return  # Overtaken by a grenade while Von was answering; the burst ends in a new decision.
+	if _order_from >= 0 and _decisions <= _order_from:
+		return  # A walk begun before the order came, which its restart superseded: the one made with the order is on its way.
+	_order_from = -1
 	_behavior.set_leaf(leaf)
 	# The order just adopted sets (or clears) the engaged contact, which the salient key carries: that is not a change of belief about
 	# hostiles, and the decision just made already weighed what the NPC knows. Re-take the key so it does not start another.
@@ -1028,9 +1037,12 @@ func _post_throw_call(throw: Dictionary) -> void:
 ## Radio one step of a tactical entry (`{ step, opening, slot, side, cleared_room? }` from the behaviour) as an
 ## `&"callout"`: the usual fields plus `opening`, `into` (the room it leads into), `slot`, `side` and `entry_step` (claim / ready / going_in / in /
 ## clear / cover / rear / done / abort), `cleared_room` with a clear and `covering` (the doorway on it watches) with a
-## cover, and the bang entry's `bang` (its mode), `bang_off` (it gave the bang up) and `stuns`; an ordered stack's member adds `order_id`,
-## `order_bang` and `order_side` (the order, its mode and its side, `docs/leadership.md` LD9). It is how the stack claims slots, waits for
-## the team and crosses in order; "going in" is also said in `status`. `point` is where the speaker stands.
+## cover, and the bang entry's `bang` (its mode), `bang_off` (it gave the bang up), `stuns` and `frags`; every claim carries `claim_frame` and
+## `claim_pos` (the physics frame its slot was claimed on and where it stood then: same-frame claims settle by distance), `move_up` (the slot
+## it moved up from while it walks into the one it took, else 0, E2) and `pie` (it has begun the pie); an ordered stack's member adds
+## `order_id`, `order_bang`, `order_mode`, `order_hold`, `order_go` and `order_side` (the order, its mode, whether it holds for the leader's
+## go and whether that go has come, and its side, `docs/leadership.md` LD9, LD13, LD14). It is how the stack claims slots, waits for the team
+## and crosses in order; "going in" is also said in `status`. `point` is where the speaker stands.
 func _post_entry_call(step: Dictionary) -> void:
 	var status := _status(false)
 	if step["step"] == "going_in":
@@ -1055,12 +1067,17 @@ func _post_entry_call(step: Dictionary) -> void:
 		"bang": step.get("bang", false),
 		"bang_off": step.get("bang_off", false),
 		"stuns": step.get("stuns", 0),
+		"frags": step.get("frags", 0),
 		"cleared_room": step.get("cleared_room", ""),
 		"covering": step.get("covering", ""),
+		"claim_frame": step.get("claim_frame", -1),  # When and where the slot was claimed: same-frame claims settle by distance.
+		"claim_pos": step.get("claim_pos", _character.global_position),
+		"move_up": step.get("move_up", 0),  # The slot it moved up from, while it walks into the one it took (E2).
+		"pie": step.get("pie", false),  # It has begun the pie: nobody moves up behind it.
 	}
 	if step.has("order_id"):
-		for key in ["order_id", "order_bang", "order_side"]:
-			msg[key] = step[key]  # An ordered stack's claim (LD9): the order, its mode and its side.
+		for key in ["order_id", "order_bang", "order_mode", "order_hold", "order_go", "order_side"]:
+			msg[key] = step[key]  # An ordered stack's claim (LD9): the order, its mode, its hold for go (LD13) and its side.
 	EventBus.post(&"callout", msg)
 
 

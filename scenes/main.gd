@@ -125,6 +125,8 @@ var _endless: bool = false
 var _lead: bool = false
 ## This match's squads (`ai/team/squad.gd`), by faction.
 var _squads: Dictionary = {}
+## The human's stack radio this match (the `PlayerStack` `MatchSpawner.bind_player` returned), handed its squad with the human; null without one.
+var _player_stack: Node = null
 ## Endless run: the highest defender / invader counts a random match may draw (the counts chosen in setup).
 var _endless_max := { "defenders": 1, "invaders": 1 }
 ## Endless run: seconds left until the next match (-1 while a match is being played).
@@ -416,6 +418,7 @@ func _spawn_world() -> void:
 		_build_stun_screen()
 	_arm_characters(combatants)
 	_build_squads(combatants, rooms)
+	_watch_side_stacks()
 	_build_leader_overlay()
 	if not spectator_mode and is_instance_valid(_player):
 		_build_command_menu(rooms)
@@ -470,7 +473,7 @@ func _arm_characters(characters: Array) -> void:
 			GameLog.say("%s is armed with the %s" % [character.name, character.item_name()])
 
 
-## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`, each NPC handed its own (`MatchSpawner.bind_squad`;
+## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`, each member handed its own (`MatchSpawner.bind_squad`, the human's stack radio with it;
 ## `docs/leadership.md` LD3): the leader by the squad's rule (rank, then spawn order), so after `_arm_characters` has ranked the unit;
 ## the human's side is led by the human when it leads ("Lead the team").
 func _build_squads(combatants: Array, rooms: Array) -> void:
@@ -483,10 +486,18 @@ func _build_squads(combatants: Array, rooms: Array) -> void:
 		squad.name = "Squad_%s" % faction
 		_world.add_child(squad)
 		var human: Node = _player if _lead and is_instance_valid(_player) and members.has(_player) else null
-		squad.setup(faction, members, _spawner.openings, rooms, human)
+		squad.setup(faction, members, _spawner.openings, rooms, human, _spawner.callout_ttl_of(members))
 		for member in members:
-			_spawner.bind_squad(member, squad)
+			_spawner.bind_squad(member, squad, _player_stack if _player_stack != null and member == _player else null)
 		_squads[faction] = squad
+
+
+## The stack markers (a played match) watch the human's side's squad too, so every stack that side forms shows its rings (LD18).
+func _watch_side_stacks() -> void:
+	var markers := _world.get_node_or_null("StackMarkers")
+	var squad: Node = _squads.get(_player.get("faction")) if is_instance_valid(_player) else null
+	if markers != null and squad != null:
+		markers.watch_squad(squad.view)
 
 
 ## The squad-leaders debug overlay under `World`, watching every squad's `view()`, shown while the overlay bar's `show_leaders` is on.
@@ -545,6 +556,7 @@ func _teardown_world() -> void:
 	Sound.focus = null  # nobody's ears until the next match names the human
 	_spawner = null
 	_squads = {}
+	_player_stack = null
 	_inspector = null
 	_nav_debug = null
 	_leader_overlay = null
@@ -601,11 +613,11 @@ func _join_player(rooms: Array, rng: RandomNumberGenerator) -> void:
 ## world space) watch the stack the spawner attached to the player. Only a human invader is ever reserved a slot, since
 ## only the invaders' entries come over the radio.
 func _build_stack_markers(rooms: Array) -> void:
-	var stack: Node = _spawner.bind_player(_player, rooms)
+	_player_stack = _spawner.bind_player(_player, rooms)
 	var markers: Node2D = STACK_MARKERS.new()
 	markers.name = "StackMarkers"
 	_world.add_child(markers)
-	markers.watch(stack)
+	markers.watch(_player_stack)
 
 
 ## The human's stun: the white-out of a flash (a `CanvasLayer` under `World`, watching the player) and, through

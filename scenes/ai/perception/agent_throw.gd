@@ -177,17 +177,20 @@ func cover_reach(kind: StringName) -> float:
 ## crouched body only), or `{ spot: Vector2.INF }` when there is none in time. Candidates are the circle just outside the
 ## zone, the shadows behind whatever stands round the burst and a ring round the NPC; each is snapped onto the navmesh and
 ## judged by the shielding rule, every one that passes is routed (a straight line says nothing: a spot just behind a wall can be a
-## house away by walking) and the shortest route that is in time wins.
+## house away by walking) and the shortest route that is in time wins. What depends on the burst alone (the candidates round it, each
+## candidate's spot on the navmesh, each spot's verdict) is shared with every NPC that asks about the same burst on the same physics
+## frame (`_shared_burst`); the routes are the NPC's own.
 func escape(space, map: RID, kind: StringName, radius: float, burst: Vector2, from: Vector2, fuse_left: float,
 		speed: float, exclude: Array) -> Dictionary:
 	var out_r := zone_radius(kind, radius) + OUTSIDE_SLACK
 	var reach := cover_reach(kind)
 	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap onto the same spot, so each
 	# point is snapped, each spot judged and each route measured once: the same answers, in the same order.
-	var on_mesh := {}  # candidate -> its spot on the navmesh
-	var judged := {}   # spot -> NOT_SAFE, or whether it is safe only crouched
+	var shared := _shared_burst(space, burst, out_r, exclude, kind)
+	var on_mesh: Dictionary = _shared_snaps(map)  # candidate -> its spot on the navmesh
+	var judged: Dictionary = shared["judged"]     # spot -> NOT_SAFE, or whether it is safe only crouched
 	var spots: Array = []
-	for p in _candidates(space, burst, from, out_r, exclude, kind):
+	for p in [from] + shared["around"] + _ring(from):
 		var q: Vector2 = on_mesh.get(p, Vector2.INF)
 		if q == Vector2.INF:
 			q = NavBuilder.snap(map, p)
@@ -222,6 +225,64 @@ const SAFE_CROUCHED := 1
 const NOT_SAFE := 2
 
 
+# --- What every NPC fleeing one burst shares -----------------------------------------------------------------
+
+## An evade wave is several NPCs planning their escape from one grenade on one physics frame (docs/grenades.md G16), and most of
+## `escape`'s work depends on the burst alone: the candidates round it (`_around`: about 50 rays), where each candidate lies on the navmesh
+## and each spot's verdict (the blast's lines, `Explosion.shields`). That work is done once and shared for the rest of the physics frame.
+## Inside one the space and the map hold still for these queries: furniture moves in the physics step, a dented collider is rebuilt
+## deferred, the navigation map syncs after the frame's callbacks, and the characters are excluded. So what is shared is what each NPC would
+## work out itself, and the spot it picks is the same. Outside a physics frame (`Engine.is_in_physics_frame()` false: the step may have run
+## since) nothing is kept.
+static var _shared_frame := -1
+## [space, burst, kind, out_r, reach, stand height, crouch height, excluded rid ids] -> { around: `_around`, judged: spot -> verdict }. A
+## grenade that moved, or an NPC whose heights, margin or exclusions differ, has its own entry.
+static var _bursts := {}
+## Navigation map -> { candidate -> its spot on the navmesh }.
+static var _snaps := {}
+
+
+## The work shared on this physics frame for a burst at `burst` judged with the zone `out_r` and this NPC's heights:
+## `{ around, judged }` (`judged` filled as spots are judged), made now when no NPC has asked yet, and fresh outside a physics frame.
+func _shared_burst(space, burst: Vector2, out_r: float, exclude: Array, kind: StringName) -> Dictionary:
+	var keep := _this_frame()
+	var key: Array = [space, burst, kind, out_r, cover_reach(kind), _stand, _crouch, _ids(exclude)] if keep else []
+	var entry: Dictionary = _bursts.get(key, {}) if keep else {}
+	if entry.is_empty():
+		entry = { "around": _around(space, burst, out_r, exclude, kind), "judged": {} }
+		if keep:
+			_bursts[key] = entry
+	return entry
+
+
+## The candidates snapped onto navigation `map` on this physics frame (filled as they are snapped), or a fresh dictionary outside one.
+static func _shared_snaps(map: RID) -> Dictionary:
+	if not _this_frame():
+		return {}
+	if not _snaps.has(map):
+		_snaps[map] = {}
+	return _snaps[map]
+
+
+## Whether this runs inside a physics frame, what is shared then being that frame's (dropped when a new one began).
+static func _this_frame() -> bool:
+	if not Engine.is_in_physics_frame():
+		return false
+	var frame := Engine.get_physics_frames()
+	if frame != _shared_frame:
+		_shared_frame = frame
+		_bursts.clear()
+		_snaps.clear()
+	return true
+
+
+## The ids of `rids`, sorted: the set of bodies a line passes through, whatever order the caller listed them in.
+static func _ids(rids: Array) -> Array:
+	var ids: Array = rids.map(func(r: RID) -> int: return r.get_id())
+	ids.sort()
+	return ids
+
+
 ## Whether a body `height` tall at `p` is shielded from `burst` with room to spare: also `COVER_MARGIN` px to either side of the line, so a spot on the
 ## edge of a shadow (and a body that stops a step short of it) is not taken for one.
 func _covered(space, burst: Vector2, p: Vector2, height: float, exclude: Array, reach: float) -> bool:
@@ -234,7 +295,12 @@ func _covered(space, burst: Vector2, p: Vector2, height: float, exclude: Array, 
 ## body, it need not move), the circle `out_r` round the burst, the shadows behind the obstacles a ray from the burst meets, and a
 ## ring round `from`.
 func _candidates(space, burst: Vector2, from: Vector2, out_r: float, exclude: Array, kind: StringName) -> Array:
-	var out: Array = [from]
+	return [from] + _around(space, burst, out_r, exclude, kind) + _ring(from)
+
+
+## The candidates that depend on the burst alone: the circle `out_r` round it and the shadows behind the obstacles a ray from it meets.
+func _around(space, burst: Vector2, out_r: float, exclude: Array, kind: StringName) -> Array:
+	var out: Array = []
 	for i in CIRCLE_DIRECTIONS:
 		out.append(burst + Vector2.from_angle(TAU * i / CIRCLE_DIRECTIONS) * out_r)
 	for i in SHADOW_DIRECTIONS:
@@ -249,6 +315,12 @@ func _candidates(space, burst: Vector2, from: Vector2, out_r: float, exclude: Ar
 				if kind == &"stun" else {}
 			if not far.is_empty():
 				out.append((far["position"] as Vector2) + dir * FAR_STEP)  # Right against the piece's far face: the cover a flash respects.
+	return out
+
+
+## The candidates round the NPC at `from`: `RING_RADII` x `RING_DIRECTIONS`.
+func _ring(from: Vector2) -> Array:
+	var out: Array = []
 	for radius: float in RING_RADII:
 		for i in RING_DIRECTIONS:
 			out.append(from + Vector2.from_angle(TAU * i / RING_DIRECTIONS) * radius)

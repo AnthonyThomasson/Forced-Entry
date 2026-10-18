@@ -5,14 +5,17 @@ extends Node
 ## radio the NPCs use, and when an allied team is stacking at a doorway near the human it reserves the human the first
 ## free slot there, on the team's side of the door or, when its way there would cross the doorway's view, on the side the
 ## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as speaker (`opening`, `into`, `slot`, `side`,
-## `entry_step`), repeated every `HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any teammate's
+## `entry_step`, and `human`), repeated every `HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any teammate's
 ## claim, so the point waits for the human at the ready barrier, a lone AI is no longer solo, and an AI behind the human
-## crosses after it. Nothing in the entry code knows it is a human.
+## crosses after it. The one thing it reads `human` for: no AI member moves up into the human's slot (E2).
 ##
 ## The human is never ordered: its radio step is read from where it stands (`claim` away from the slot, `ready` in it,
 ## `going_in` in the doorway, `in` through it). The claim is withdrawn (`abort`) when the human leaves (walks beyond
 ## `reserve_range * leave_factor`, dies), when no one is left stacking, or when the AI ahead is through and the human has
 ## not crossed within `go_timeout`; it is finished with `done` once through and nobody waits behind it.
+##
+## When the human leads its side's squad (`squad`, handed in as an NPC is handed its own: `MatchSpawner.bind_squad`), its claims say so
+## (`leader: true`, `docs/leadership.md` LD17): a stack it ordered waits for it as for an ordered member, until it stands in its slot.
 ##
 ## `view()` is what the UI's stack markers draw. Observation and radio only: it never moves or steers the character.
 
@@ -48,6 +51,7 @@ const CHECK_INTERVAL := 0.25
 ## Seconds the human is given to follow once the AI ahead of it is through, before its slot is withdrawn.
 @export var go_timeout: float = 6.0
 
+var squad: Node = null                        ## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
 var _char: Node2D = null                      ## The human's character (the parent).
 var _entry: RefCounted = AgentEntry.new()    ## The doorway geometry (slots), the same the NPCs build.
 var _clock := 0.0                             ## Seconds since the stack was built (physics time).
@@ -57,6 +61,7 @@ var _into := ""                              ## The key of the room the reserved
 var _geo := {}                                ## The reserved doorway's geometry (`AgentEntry.geometry`).
 var _slot := 0                                ## The human's slot number (1 = the point; 0 = none): the order it claimed in.
 var _side := 0                                ## The side of the door the human stacks on (1 / -1 along its wall).
+var _on := 0                                  ## The side its slot stands on: `_side`, or the other while `_side`'s wall is full (E21).
 var _team_side := 0                           ## The side the team stacks on, as last weighed (a change is weighed again).
 var _step := ""                               ## The human's latest radio step (claim / ready / going_in / in).
 var _heartbeat := 0.0                         ## Seconds until the latest step is radioed again.
@@ -105,15 +110,16 @@ func view() -> Dictionary:
 		top = maxi(top, m["slot"])
 	var slots: Array = []
 	for n in range(1, top + 1):
-		var on: int = int(holder[n]["side"]) if holder.has(n) and int(holder[n]["side"]) != 0 else _side
-		var point := AgentEntry.slot_point(_geo, on, AgentEntry.place(members, on, n))
-		slots.append({ "n": n, "point": point, "mine": n == _slot, "held": holder.has(n) })
+		var on: int = int(holder[n]["side"]) if holder.has(n) and int(holder[n]["side"]) != 0 else AgentEntry.side_for(_geo, members, n, _side)
+		var point := AgentEntry.stack_point(_geo, members, n, on)
+		if point != Vector2.INF:
+			slots.append({ "n": n, "point": point, "mine": n == _slot, "held": holder.has(n) })
 	return { "opening": _opening, "door": _geo["pos"], "slots": slots, "mine": _slot, "step": _step }
 
 
 ## The claims on the reserved doorway (`team`) with the human's own added (`me`).
 func _members(team: Array) -> Array:
-	return team + [{ "id": _char.get_instance_id(), "slot": _slot, "side": _side, "step": _step, "me": true }]
+	return team + [{ "id": _char.get_instance_id(), "slot": _slot, "side": _on, "step": _step, "me": true }]
 
 
 ## Of the claims on the reserved doorway (`team`), those that cross before the human (`before` true) or after it, in the order
@@ -133,6 +139,8 @@ func _crossing(team: Array, before: bool) -> Array:
 func _on_posted(topic: StringName, data: Dictionary) -> void:
 	if topic != &"callout" or _char == null or AgentGrenades.is_call(data.get("status")):
 		return  # (A call about a live grenade is not the speaker's place in a stack: it must not replace its claim.)
+	if String(data.get("order_step", "")) != "" and String(data.get("entry_step", "")) == "":
+		return  # (Nor is how an ally's order goes, LD7: the perception leaves what the ally last said standing too.)
 	var speaker = data.get("speaker")
 	if speaker == _char or not speaker is Node or not is_instance_valid(speaker):
 		return
@@ -212,14 +220,15 @@ func _look_for_team() -> void:
 	for id in _barred.keys():
 		if not stacking_now.has(id):
 			_barred.erase(id)   # Their stack is over: a later one is a new offer.
-	if best.is_empty():
-		return
+	if best.is_empty() or not AgentEntry.holds_slot(best["geo"], AgentEntry.free_slot(best["team"], _char.get_instance_id(), 0)):
+		return   # (A dead end with no room left in it holds no slot for the human either, E20.)
 	_opening = best["id"]
 	_into = best["into"]
 	_geo = best["geo"]
 	_slot = AgentEntry.free_slot(best["team"], _char.get_instance_id(), 0)
 	_team_side = AgentEntry.stack_side(_geo, best["team"], _char.global_position)
 	_side = _entry.stack_side_from(_geo, best["team"], _char.global_position, map, space)
+	_on = AgentEntry.side_for(_geo, best["team"], _slot, _side)
 	_step = "claim"
 	_ahead_through_at = -1.0
 	_in_at = -1.0
@@ -254,14 +263,18 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		return
 	if _step != "in":
 		var was := _slot
-		var was_side := _side
+		var was_side := _on
 		_slot = AgentEntry.free_slot(team, self_id, _slot)   # An AI with a lower instance id that claimed the same slot keeps it.
+		if not AgentEntry.holds_slot(_geo, _slot):
+			_withdraw("abort")   # Pushed past what a dead end holds (E20).
+			return
 		var team_side := AgentEntry.stack_side(_geo, team, pos)
 		if team_side != _team_side:
 			_team_side = team_side   # The team's side changed (its point is known now): follow it, unless the way there crosses the view.
 			var world := _char.get_world_2d()
 			_side = _entry.stack_side_from(_geo, team, pos, world.navigation_map, world.direct_space_state)
-		if _slot != was or _side != was_side:
+		_on = AgentEntry.side_for(_geo, team, _slot, _side)
+		if _slot != was or _on != was_side:
 			_post(_step)
 	var ahead := _crossing(team, true)
 	var ahead_through: bool = ahead.all(func(m): return THROUGH.has(m["step"]))
@@ -304,7 +317,7 @@ func _step_at(pos: Vector2) -> String:
 		return "in"
 	if absf(outward) < FUNNEL_DEPTH and lateral < float(_geo["width"]) * 0.5:
 		return "going_in"
-	var spot := AgentEntry.slot_point(_geo, _side, AgentEntry.place(AgentEntry.claims(_opening, _callouts()), _side, _slot))
+	var spot := AgentEntry.stack_point(_geo, _members(AgentEntry.claims(_opening, _callouts())), _slot, _on)
 	var d := pos.distance_to(spot)
 	if d <= SLOT_REACH or (_step == "ready" and d <= SLOT_REACH * 2.0):
 		return "ready"
@@ -319,6 +332,7 @@ func _withdraw(how: String) -> void:
 	_geo = {}
 	_slot = 0
 	_side = 0
+	_on = 0
 	_team_side = 0
 	_step = ""
 	_ahead_through_at = -1.0
@@ -341,8 +355,10 @@ func _post(step: String) -> void:
 		"opening": _opening,
 		"into": _into,
 		"slot": _slot,
-		"side": _side,
+		"side": _on,
 		"entry_step": step,
+		"leader": squad != null and is_instance_valid(squad) and squad.has_method("leader") and squad.leader() == _char,
 		"cleared_room": "",
 		"covering": "",
+		"human": true,  # The human's claim: no AI member moves up into its slot (E2).
 	})
