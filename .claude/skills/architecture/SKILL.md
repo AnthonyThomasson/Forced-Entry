@@ -700,8 +700,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       Character API (`rank`, `is_dead`, the `died` signal) and lays its stacks on the navigation map and physics space of its own viewport's `World2D`.
     - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `rank`, the first in spawn order among equals, so the invaders'
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
-      (`{ leader, members: [{ node, order, step }], stacks }`: the order each member holds, the posted dict or {} (a held stack a `go` released
-      carries `go: true`), and its latest `order_step`; an order radioed `done` is no longer held, {} with the step `done`, while a
+      (`{ leader, members: [{ node, order, step, held }], stacks }`: the order each member holds, the posted dict or {} (a held stack a `go` released
+      carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
+      LD13: the one rule the UI reads instead of working it out); an order radioed `done` is no longer held, {} with the step `done`, while a
       `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the members' entry claims on the bus,
       `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where
       the AI stands it; `holder` the instance id, 0 free; `there` its holder in it; `mine` the human's; `row` 1 against the wall, 2 a step out),
