@@ -130,7 +130,7 @@ A seen character's `reloading` flag (read via `is_reloading()` only while visibl
 (`line.clear` false: "frag X behind their cover", group `situation` "Your line to X is blocked") or lies in a room the NPC is outside of (`_held_room`, issue #51 R7: "frag X in the kitchen",
 `situation` "X holds a room you are outside of", `held_room` the room, and the exposure section adds "X holds the kitchen, a room you are outside of." before the throw sentence), within that kind's throw range (`AgentThrow.range_of`, off the grenade carried) with a clear lob from the thrower's hand (`AgentThrow.can_lob`), judged per kind, from where the NPC stands or else
 from a **throw spot** a short walk away (`_throw_option(ctx, kind, spot, target_id, keep_out, walk)` asks `AgentTactics.throw_spot` within `AgentThrow.reach_of`, never inside `keep_out`, the room the
-hostile holds, with `_throw_walk` as its route: the walked route (`AgentEntry.walk_route`, E18) and `detour`, whether the entry guard would stop it, a threshold into an uncleared room or a
+hostile holds, with `_throw_walk` as its route: the walked route (`AgentDoorViews.walk_route`, E18) and `detour`, whether the entry guard would stop it, a threshold into an uncleared room or a
 doorway view with no way round, so a spot whose walk needs none is preferred; issue #51 R13); `params` `point` (the spot), `kind`, `radius`, `slot`, `target_id`, `from` (where it throws from: the throw spot, or where it stands) and `walk` (`from` is a throw
 spot); the option keeps `route_len` (the walk), its desc adds " — from the hallway to the east, short route" (`_throw_from_text`) and the group's summary says "within throwing range from a spot
 nearby" when every option needs the walk, "within throwing range" otherwise (`_throw_reach_text`; measured: the walk's words change nothing, `docs/grenades.md` G17); `tags` `ally_in_blast` (a known ally, seen or on the radio, in the
@@ -154,7 +154,7 @@ one, E17). Without one the leads are as before. The `leads` group also offers **
 and the awareness section says "Footsteps heard to the west, in the kitchen, just now." beside gunfire, while no hostile is known.
 
 **Route bands are the route walked (E18).** Every "short / medium / long route" in an option (`SnapshotOptions._route_len`) is the length of the route the NPC
-will walk from where it stands, `AgentEntry.walk_route(...)["len"]`: the one that keeps out of the doorway views when it would take it (within
+will walk from where it stands, `AgentDoorViews.walk_route(...)["len"]`: the one that keeps out of the doorway views when it would take it (within
 `door_avoid_ratio` x the plain route + `door_avoid_slack`), else the plain one. The controller starts no decision before the avoid map of the room the NPC
 stands in is baked (`AgentPerception.routes_ready`). Test: `tests/ai/entry/entry_route_band_as_walked_test.gd`. The combat spots' `route_len` (`agent_tactics.gd`)
 stay on the plain route.

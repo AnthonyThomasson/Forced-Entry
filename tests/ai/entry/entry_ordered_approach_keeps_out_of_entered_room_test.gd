@@ -3,7 +3,7 @@ extends GameTest
 ## D4 / E18 (`docs/leadership.md`, `docs/tactical-entry.md`): an approach never runs through the room being entered. The Terrace house
 ## (furnished), one invader in the back garden ordered (quiet, held for the go) to stack on the hall door into the kitchen, on its west
 ## side. The way to its slot that keeps out of only that doorway's view runs in at the back door, across the kitchen and out by the living
-## room, so only the kitchen's floor carved into the avoid map (`AgentEntry._with_room`, asked for by `walk_route` once the uncarved way
+## room, so only the kitchen's floor carved into the avoid map (`AgentDoorViews._with_room`, asked for by `walk_route` once the uncarved way
 ## round goes into the room) keeps the approach out of it: round the house and in at the front door. The member must reach its slot without
 ## ever standing in the kitchen. The test first measures, on avoid maps of its own, that the way round the doorway's view alone does go
 ## through the kitchen and that a way round both exists (`reach_probe.gd` `keep_out_route`; on the east side none does, and the walk goes

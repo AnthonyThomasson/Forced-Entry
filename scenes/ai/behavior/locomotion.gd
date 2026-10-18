@@ -383,7 +383,7 @@ func _begin(dest: Vector2, within := 0.0) -> void:
 
 ## A walk round the doorway views whose avoid map ends short of the goal walks the last stretch on the plain map: a goal by a view's edge
 ## (a stack slot beside the doorway) is off that map, which keeps the body its radius out of the view, and `walk_route` takes a route that ends
-## within `AgentEntry.AVOID_REACH` of it. Without it the walk would be over where the avoid route ends. So does a walk round bodies at rest
+## within `AgentDoorViews.AVOID_REACH` of it. Without it the walk would be over where the avoid route ends. So does a walk round bodies at rest
 ## whose steering map ends short of a goal no body stands on (a stack slot between two that are taken lies inside their carved margins): the
 ## rest is walked plain (`_last_leg`), held short of a body on it; held, it looks again every `RECHECK` for a way round: one that ends at the
 ## goal, or a new last leg whose plain way passes clear of every known body at rest (`_goes_round` with `held_leg`), so it never takes one the

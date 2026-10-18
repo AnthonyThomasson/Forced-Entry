@@ -33,16 +33,19 @@ var _memory: RefCounted   ## The agent's event memory (read-only here); see agen
 var _tactics: RefCounted  ## The combat geometry; see agent_tactics.gd.
 var _character: Node      ## The NPC's body, handed in once by `bind`.
 var _entry: RefCounted    ## The doorway geometry; see agent_entry.gd.
+var _views: RefCounted    ## The doorway views and the walk round them; see agent_door_views.gd.
 var _throw: AgentThrow    ## The grenade geometry (the lob, the danger zone, the escape); see agent_throw.gd.
 var _suspicion: AgentSuspicion  ## Why a room is suspect; see agent_suspicion.gd.
 
 
 ## Capture the collaborators the groups read. Called once by `AgentSnapshot.setup()`.
-func setup(vocab: SnapshotVocab, memory: RefCounted, tactics: RefCounted, entry: RefCounted, throw: AgentThrow, suspicion: AgentSuspicion) -> void:
+func setup(vocab: SnapshotVocab, memory: RefCounted, tactics: RefCounted, entry: RefCounted, views: RefCounted, throw: AgentThrow,
+		suspicion: AgentSuspicion) -> void:
 	_v = vocab
 	_memory = memory
 	_tactics = tactics
 	_entry = entry
+	_views = views
 	_throw = throw
 	_suspicion = suspicion
 
@@ -328,17 +331,17 @@ func _throw_option(ctx: Dictionary, kind: StringName, spot: Vector2, target_id: 
 		"tags": { "inside": _v.is_inside(spot), "ally_in_blast": ally, "no_safe_spot": cornered } }
 
 
-## The walk to throw spot `p` as the NPC would walk it (agent_entry.gd `walk_route`: round the doorway views when it would take that, E18), and
+## The walk to throw spot `p` as the NPC would walk it (agent_door_views.gd `walk_route`: round the doorway views when it would take that, E18), and
 ## whether the entry guard would stop it on the way (`detour`): a doorway into a room not cleared that it crosses (E9), or a doorway view it
-## comes into with no way round it (E15). `{ path, len, detour }`. The guard runs only where doorway views are kept out of (`AgentEntry.avoid_views`:
+## comes into with no way round it (E15). `{ path, len, detour }`. The guard runs only where doorway views are kept out of (`AgentDoorViews.avoid_views`:
 ## tactical entry and the guard on).
 func _throw_walk(ctx: Dictionary, p: Vector2) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var way: Dictionary = _entry.walk_route(self_pos, p, ctx["map"], ctx["space"])
+	var way: Dictionary = _views.walk_route(self_pos, p, ctx["map"], ctx["space"])
 	var detour := false
-	if _entry.avoid_views:
+	if _views.avoid_views:
 		var cleared := func(key: String) -> bool: return _memory.age_of(&"cleared_room", "key", key) <= _v.search_memory_ttl
-		detour = not _entry.threshold_ahead(way["path"], 0, self_pos, cleared, INF).is_empty() \
+		detour = not _views.threshold_ahead(way["path"], 0, self_pos, cleared, INF).is_empty() \
 			or (not way["doors"] and not (way["views"] as Array).is_empty())
 	return { "path": way["path"], "len": way["len"], "detour": detour }
 
@@ -923,9 +926,9 @@ func _shot_origin(ctx: Dictionary, snap_to_navmesh := true) -> Vector2:
 
 
 ## The length (px) of the route the NPC will walk from where it stands to `p`: the one that keeps out of the doorway views when it would
-## take it (`AgentEntry.walk_route`, E18), else the plain one.
+## take it (`AgentDoorViews.walk_route`, E18), else the plain one.
 func _route_len(ctx: Dictionary, p: Vector2) -> float:
-	return float(_entry.walk_route(ctx["self_pos"], p, ctx["map"], ctx["space"])["len"])
+	return float(_views.walk_route(ctx["self_pos"], p, ctx["map"], ctx["space"])["len"])
 
 
 ## The ally (perceived near the target, or calling it on the radio) already fighting hostile `t`.

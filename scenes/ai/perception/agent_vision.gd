@@ -151,7 +151,7 @@ func raycast(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 
 
 ## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters are looked through), or {} when
-## the line reaches `to`. What bounds a doorway's view (`AgentEntry.door_view`).
+## the line reaches `to`. What bounds a doorway's view (`AgentDoorViews.door_view`).
 func wall_hit(space, from: Vector2, to: Vector2) -> Dictionary:
 	var ex: Array = []
 	while true:

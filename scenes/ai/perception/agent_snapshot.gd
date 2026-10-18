@@ -30,15 +30,15 @@ var _tactics: RefCounted  ## The combat geometry; see agent_tactics.gd.
 var _character: Node      ## The NPC's body, handed in once by `bind`.
 
 
-## Capture the collaborators the author reads: the event memory, the combat geometry, the doorway geometry, the grenade geometry and
-## why a room is suspect.
+## Capture the collaborators the author reads: the event memory, the combat geometry, the doorway geometry, the doorway views, the grenade
+## geometry and why a room is suspect.
 ## Called once by the perception in its setup(), after it has built them. The config fields are set directly by
 ## the perception's apply_config() (like the other modules), so there is no separate configure step.
-func setup(memory: RefCounted, tactics: RefCounted, entry: RefCounted, throw: RefCounted, suspicion: RefCounted) -> void:
+func setup(memory: RefCounted, tactics: RefCounted, entry: RefCounted, views: RefCounted, throw: RefCounted, suspicion: RefCounted) -> void:
 	_memory = memory
 	_tactics = tactics
 	_sections.setup(vocab, memory, tactics)
-	_options.setup(vocab, memory, tactics, entry, throw, suspicion)
+	_options.setup(vocab, memory, tactics, entry, views, throw, suspicion)
 
 
 ## Hand in the NPC's body, for the author and its three parts. Called once by `AgentPerception.bind()`.

@@ -15,9 +15,9 @@ extends Node
 ##
 ## This is the PERCEPTION sub-domain's public face: it OWNS the sight sense (agent_vision.gd), the
 ## hostility rules (agent_hostility.gd), the event memory (agent_memory.gd), the combat geometry
-## (agent_tactics.gd), the doorway geometry (agent_entry.gd), the grenade geometry (agent_throw.gd), the live
-## grenades known (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as internal modules, and surfaces
-## knowledge only through its own methods. It holds NO policy: it never decides, gates by goal or
+## (agent_tactics.gd), the doorway geometry (agent_entry.gd), the doorway views and the walk round them (agent_door_views.gd), the
+## grenade geometry (agent_throw.gd), the live grenades known (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as
+## internal modules, and surfaces knowledge only through its own methods. It holds NO policy: it never decides, gates by goal or
 ## picks — and the measured wording Von reads lives in the snapshot author, not here. The controller
 ## configures it (all tunables live on the GoalController, the single authoring surface) then calls
 ## `setup()` once.
@@ -28,6 +28,7 @@ const AgentHostility := preload("res://scenes/ai/perception/agent_hostility.gd")
 const AgentMemory := preload("res://scenes/ai/perception/agent_memory.gd")
 const AgentTactics := preload("res://scenes/ai/perception/agent_tactics.gd")
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
+const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
 const AgentSuspicion := preload("res://scenes/ai/perception/agent_suspicion.gd")
@@ -121,7 +122,7 @@ var entry_pie_steps: int = 5           ## GoalController.entry_pie_steps
 var entry_corner_inset: float = 40.0   ## GoalController.entry_corner_inset
 var entry_short_room: float = 150.0   ## A room with a side under this (px) is too small for the team (agent_entry.gd `short_room`).
 var entry_guard: bool = true           ## Whether walks keep out of doorway views and secure the ones they cross (the controller's `entry_guard`).
-var door_view_depth: float = 450.0     ## How far (px) out of a doorway its view reaches (agent_entry.gd `door_view_depth`).
+var door_view_depth: float = 450.0     ## How far (px) out of a doorway its view reaches (agent_door_views.gd `door_view_depth`).
 var door_avoid_ratio: float = 2.0      ## A walk round the doorway views is taken when no longer than this many times the plain route...
 var door_avoid_slack: float = 300.0    ## ... plus this many px.
 var entry_pass_clear_time: float = 60.0 ## Seconds a cleared room counts as safe to walk past.
@@ -148,6 +149,7 @@ var _hostility: RefCounted       ## The hostility rules; see agent_hostility.gd.
 var _memory: RefCounted          ## The event memory; see agent_memory.gd.
 var _tactics: RefCounted         ## The combat geometry; see agent_tactics.gd.
 var _entry: RefCounted           ## The doorway geometry and the team's claims; see agent_entry.gd.
+var _views: RefCounted           ## The doorway views and the walk that keeps out of them; see agent_door_views.gd.
 var _warming_since := -1         ## When (`GameClock.msec()`) the decision began waiting for the avoid map; -1: not waiting.
 var _throw: RefCounted           ## The grenade geometry (danger zone, escape spot, lob); see agent_throw.gd.
 var _grenades: RefCounted        ## The live grenades known and the plan to get clear of them; see agent_grenades.gd.
@@ -182,8 +184,11 @@ func setup() -> void:
 	_memory = AgentMemory.new()
 	_tactics = AgentTactics.new()
 	_tactics.vision = _vision
+	_views = AgentDoorViews.new()
+	_views.vision = _vision
 	_entry = AgentEntry.new()
 	_entry.vision = _vision
+	_entry.views = _views
 	_throw = AgentThrow.new()
 	_throw.vision = _vision
 	_grenades = AgentGrenades.new()
@@ -192,7 +197,7 @@ func setup() -> void:
 	_suspicion.memory = _memory
 	_suspicion.entry = _entry
 	_snapshot = AgentSnapshot.new()
-	_snapshot.setup(_memory, _tactics, _entry, _throw, _suspicion)
+	_snapshot.setup(_memory, _tactics, _entry, _views, _throw, _suspicion)
 
 
 ## Push the current config fields into the owned modules. Idempotent and state-free (it only sets
@@ -227,9 +232,9 @@ func apply_config() -> void:
 	_entry.pie_steps = entry_pie_steps
 	_entry.corner_inset = entry_corner_inset
 	_entry.short_room = entry_short_room
-	_entry.door_view_depth = door_view_depth
-	_entry.door_avoid_ratio = door_avoid_ratio
-	_entry.door_avoid_slack = door_avoid_slack
+	_views.door_view_depth = door_view_depth
+	_views.door_avoid_ratio = door_avoid_ratio
+	_views.door_avoid_slack = door_avoid_slack
 	_sync_walks()
 	_throw.evade_margin = evade_margin
 	_grenades.enabled = grenades_enabled
@@ -253,16 +258,16 @@ func apply_config() -> void:
 	_snapshot.vocab.search_memory_ttl = search_memory_ttl
 
 
-## Push the walk rules into the entry geometry: walks keep out of the doorway views where the entry guard runs (`entry_guard`, with
+## Push the walk rules into the doorway views: walks keep out of the doorway views where the entry guard runs (`entry_guard`, with
 ## `entry_enabled` or on an ordered stack's walk, D4), and a room counts as clear for passing when it was cleared lately (`is_pass_clear`)
 ## or, on an ordered walk, when its stack holds it (`stack_room`) or, for an NPC that does not clear rooms by entry, it has seen it empty
 ## (`seen_empty`, D11).
 func _sync_walks() -> void:
-	if _entry == null:
+	if _views == null:
 		return
-	_entry.avoid_views = entry_guard and (entry_enabled or ordered_walk)
-	_entry.ordered_approach = ordered_walk  # Its way round the room it stacks on is taken however long (D4).
-	_entry.pass_clear = (_passable if not entry_enabled else _pass_clear_ordered) if ordered_walk else is_pass_clear
+	_views.avoid_views = entry_guard and (entry_enabled or ordered_walk)
+	_views.ordered_approach = ordered_walk  # Its way round the room it stacks on is taken however long (D4).
+	_views.pass_clear = (_passable if not entry_enabled else _pass_clear_ordered) if ordered_walk else is_pass_clear
 
 
 ## Hand the perception the NPC's body, which every sense and query reads from then on, and tell the hostility rules its
@@ -1021,20 +1026,20 @@ func is_cleared(key: String) -> bool:
 ## The first doorway on the walk `path` (from waypoint `from_idx`, `max_dist` px of it at most) that leads into a room that
 ## is not cleared (nor, on an ordered walk, the room its stack holds, or for an NPC that does not clear rooms by entry seen empty: D11), as
 ## `{ opening, into, dist }`,
-## or {} (see agent_entry.gd `threshold_ahead`).
+## or {} (see agent_door_views.gd `threshold_ahead`).
 func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var clear := is_cleared
 	if ordered_walk:
 		# The room its stack holds is passed through (D20), and, for an NPC that does not clear rooms by entry, a room seen empty (D11).
 		clear = func(key: String) -> bool: return is_cleared(key) or key == stack_room() or (not entry_enabled and seen_empty(key))
-	return _entry.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
+	return _views.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
 
 
 ## The first doorway view the walk `path` goes into without entering the room behind it, as `{ opening, into, dist }`, or {} (see
-## agent_entry.gd `passing_ahead`): a doorway to be secured before the NPC crosses its view (E15, E18).
+## agent_door_views.gd `passing_ahead`): a doorway to be secured before the NPC crosses its view (E15, E18).
 func passing_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
 	var world: World2D = _character.get_world_2d()
-	return _entry.passing_ahead(path, from_idx, _character.global_position, max_dist, world.navigation_map, world.direct_space_state)
+	return _views.passing_ahead(path, from_idx, _character.global_position, max_dist, world.navigation_map, world.direct_space_state)
 
 
 ## Whether room `key` counts as safe to walk past: cleared within `entry_pass_clear_time` (a room cleared longer ago is cleared for
@@ -1087,12 +1092,12 @@ func stack_room() -> String:
 	return _stack_room
 
 
-## Whether the routes a snapshot measures can be the ones the NPC will walk (see agent_entry.gd `warm`): the avoid map for the doorway
+## Whether the routes a snapshot measures can be the ones the NPC will walk (see agent_door_views.gd `warm`): the avoid map for the doorway
 ## views from the room it stands in is baked. Asking starts the bake. After `WARM_CAP_MS` of waiting it is true anyway, so a decision
 ## never waits for good.
 func routes_ready() -> bool:
 	var world: World2D = _character.get_world_2d()
-	if _entry.warm(_character.global_position, world.navigation_map, world.direct_space_state):
+	if _views.warm(_character.global_position, world.navigation_map, world.direct_space_state):
 		_warming_since = -1
 		return true
 	var now := GameClock.msec()
@@ -1101,21 +1106,21 @@ func routes_ready() -> bool:
 	return now - _warming_since > WARM_CAP_MS
 
 
-## The doorway views the NPC's walks keep out of from where it stands, each `{ id, into, poly }` (see agent_entry.gd `avoided`): what the
+## The doorway views the NPC's walks keep out of from where it stands, each `{ id, into, poly }` (see agent_door_views.gd `avoided`): what the
 ## entry plan overlay draws.
 func avoided_views() -> Array:
 	var world: World2D = _character.get_world_2d()
-	return _entry.views_from(_character.global_position, world.navigation_map, world.direct_space_state) if _entry.avoid_views else []
+	return _views.views_from(_character.global_position, world.navigation_map, world.direct_space_state) if _views.avoid_views else []
 
 
-## The route the NPC walks from where it stands to `to` (see agent_entry.gd `walk_route`): the plain one, or the one that keeps out of
+## The route the NPC walks from where it stands to `to` (see agent_door_views.gd `walk_route`): the plain one, or the one that keeps out of
 ## the views of the doorways into rooms not clear for passing when there is one within the cap. `entering` (`"<opening id>><room key>"`):
 ## the entry the walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where the NPC stands) is where the
 ## walk sets out from, for a leg of a walk read ahead.
 func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
 	var world: World2D = _character.get_world_2d()
 	var at: Vector2 = _character.global_position if from == Vector2.INF else from
-	return _entry.walk_route(at, to, world.navigation_map, world.direct_space_state, entering)
+	return _views.walk_route(at, to, world.navigation_map, world.direct_space_state, entering)
 
 
 ## Whether the NPC can walk from where it stands to `to` with a body standing at each of `bodies` in its way (see agent_entry.gd

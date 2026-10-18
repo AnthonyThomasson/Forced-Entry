@@ -633,7 +633,7 @@ the 5v5 6.02 / 9.37 / 14.30. An earlier run at 03:06 also passed 11 of 11 and is
   changes (`_warm_done_in` / `_warm_done_for`). That brought its per-tick cost from 0.10 to 0.21 ms a frame down to the profiler's floor,
   0.04 ms.
 - **The room an approach enters is carved only when the way round would go into it (D4).**
-  - `AgentEntry.walk_route` routes an approach on the uncarved views map, the one every walk shares, and asks for a map with the
+  - `AgentDoorViews.walk_route` routes an approach on the uncarved views map, the one every walk shares, and asks for a map with the
     entered room's floor carved too only when that route goes into the room (test
     `ai/entry/entry_ordered_approach_keeps_out_of_entered_room`). Each avoid map is re-baked after every planning bake while approaches
     walk (furniture shoved by a blast, say), so a carved map per approach is a cost: priced on the base commit, 4 of them take the

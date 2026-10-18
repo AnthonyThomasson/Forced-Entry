@@ -292,7 +292,7 @@ Tests: `entry_hostile_in_view_holds_outside` (a defender that cannot be killed, 
 room not clear for passing, the NPC covers the doorway with its gun from beside the jamb before it is in the view, then crosses
 the view in one go without stopping, and never goes in. Why: a door left open behind or beside the team is a threat on its
 side (E8's last sentence), and a view crossed at a run is crossed once. In the code the entry guard looks for the doorway views a
-walk goes **into** without entering the room behind them (`AgentEntry.passing_ahead`, `Behavior._passing_gate`): the walk comes
+walk goes **into** without entering the room behind them (`AgentDoorViews.passing_ahead`, `Behavior._passing_gate`): the walk comes
 from outside the view of a doorway (E18) into it within `entry_guard_range`, however far out from the wall, inside the house or
 out, at an exterior door too. The view of a doorway of a room the walk goes into (by any of the room's doors) is left to E9, whose entry clears that room and
 covers its doorways (E8), and so is the room the NPC stands in. The NPC then secures it: an `entry` run in `secure` mode stacks beside the jamb on the side it comes from,
@@ -412,7 +412,7 @@ doorway's view too, cleared room or not, and out of the room it goes into (a wal
 way round every view within the cap it goes round those two at least, and an ordered member takes that way round however long it is
 (`docs/leadership.md` D4). Why: a threshold crossed in the open is how a team is shot from a room it has not cleared
 (E4, E9); the real answer is to give an open door a wide berth, and cover it only when the way leads past it. In the code
-`AgentEntry` lays out each view once per doorway (`door_view`, a ray fan on `PhysicsLayers.SOLID` that looks through furniture and
+`AgentDoorViews` (`agent_door_views.gd`) lays out each view once per doorway (`door_view`, a ray fan on `PhysicsLayers.SOLID` that looks through furniture and
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
 (`NavBuilder.avoid_map`, on the worker thread, cached per set of views), and `Locomotion` walks that map (its third way, beside the
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
@@ -578,7 +578,7 @@ the stack toward the door's axis, clear of the slots.
 - **The guard (E9).** `Behavior._entry_guard` (`behavior.gd`) runs after the running primitive has steered and reads the
   walk the nav agent was just given (`Locomotion.path_ahead()`), not the order's destination, so it sees every walk: a
   move, an engage or its repositions, the way to an object, a throw's walk to its throw spot (which starts afresh from the walk when the
-  entry hands it back, `_resume_order`). Perception's `AgentEntry.threshold_ahead` finds the first
+  entry hands it back, `_resume_order`). Perception's `AgentDoorViews.threshold_ahead` finds the first
   doorway on it that leads into a room that is not cleared (`cleared_room` memory, written when an entry finishes, when an
   ally radios `cleared_room`, and when a search covers its room). The guard then stashes the order, runs an `entry`
   primitive for that doorway (the same one ENTER runs) and puts the order back when it ends. Exempt are the nodes that
@@ -586,14 +586,14 @@ the stack toward the door's axis, clear of the slots.
   (`Behavior._into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). `GoalController` exports `entry_guard`, `entry_guard_range`
   and `entry_guard_rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`entry_enabled`).
-- **The views (E18).** `AgentEntry.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
+- **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
   the set of views of the doorways into rooms not clear for passing (`AgentPerception.is_pass_clear`, from the `cleared_room`
   memory's age against `entry_pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
   entry's approach (`entering`, `Locomotion.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
   entered that room is carved too (`_with_room`; test `ai/entry/entry_ordered_approach_keeps_out_of_entered_room`); with no way round all of it, round those two (`_entering_set`), uncapped on an ordered approach
-  (`AgentEntry.ordered_approach`). `Locomotion._update_doors` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
+  (`AgentDoorViews.ordered_approach`). `Locomotion._update_doors` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
   a move, engage or interact that is not a retreat, and an entry's approach), and walks the stretch past the avoid route's end (a slot at a
   view's edge) on the plain map (`_last_stretch`); `Behavior._passing_gate` (E15) secures what the plain
   walk still goes into. `SnapshotOptions._route_len` measures the same route for the bands Von reads.

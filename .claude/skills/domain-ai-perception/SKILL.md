@@ -1,13 +1,13 @@
 ---
 name: domain-ai-perception
-description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
+description: Deep implementation detail for the AI PERCEPTION sub-domain (scenes/ai/perception/) — what an NPC knows and how it is worded for Von. The sight sense, hostility rules, the generic event memory (with keyed supersede), movement tracks/facing/visible wounds, gunfire and footsteps heard, where shots came from, allies' radio callouts, the live grenades known (seen, heard, called, own) and the plan to get clear of them, a blinded or deafened NPC, leads, searched rooms, the tactics geometry (flank sides, fire/advance/retreat spots, route length + exposure, cover), the doorway geometry for tactical entry (agent_entry.gd: stack slots, pie arc, hard/soft corners, the team's slot claims), the doorway views and the walk that keeps out of them (agent_door_views.gd) and its hand-off to the decision SNAPSHOT (the snapshot itself, its wording rules and option groups are the sub-domain `domain-ai-snapshot`). Use when editing scenes/ai/perception/ (except the snapshot) or working on vision, memory/eviction, hostility, flanking geometry, entry geometry, callouts, or combat line-of-sight. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI · Perception sub-domain (`scenes/ai/perception/`)
 
 The SENSE half of the NPC brain: it turns the world into what the NPC *knows*, and turns that into the
 snapshot the decision planner walks. It holds no policy — it never decides, picks or gates by goal. It
-owns eight internal modules and presents one public face, `agent_perception.gd` (a `Node`).
+owns nine internal modules and presents one public face, `agent_perception.gd` (a `Node`).
 
 Files:
 - `agent_perception.gd` — the public face: SEE (observe), the contacts view, event intake, and the
@@ -23,6 +23,8 @@ Files:
   hostiles and the radio, shared by the snapshot (which words it) and, through `room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
 - `agent_entry.gd` — doorway geometry for a tactical entry (`docs/tactical-entry.md`) and the team's claims on a doorway
   off the radio (see "Entry geometry" below).
+- `agent_door_views.gd` — each doorway's view and the walk that keeps out of the views (E18), and the first doorway or view a walk comes
+  to, which the entry guard secures (see "Doorway views and the walked route" below).
 - `agent_snapshot.gd` + `snapshot/` — the BUILD half (`domain-ai-snapshot`): turns the gathered knowledge + the tactics geometry
   into the decision SNAPSHOT (facts / sections / option groups) and owns the measured wording Von reads. Pure transform.
 
@@ -214,7 +216,7 @@ from where the NPC stands fails (out of range or not clear). Candidates on rings
 navmesh within `SNAP_TOLERANCE`, within `reach` of the spot, more than a `STRIDE` away, not inside `keep_out` (the room the hostile holds, or the shots' room),
 the `lob` callable: `AgentThrow.throw_clear` from there), then sorted as the fire spots are: hidden from the spot (`blocked`: low furniture between), then with
 cover close by against it (`cover_near`: a jamb, a piece), then the straight distance; routes only for the first `THROW_ROUTES` (10), through the optional `route`
-callable (`{ path, len, detour }`: the snapshot's `_throw_walk`, the walked route of `AgentEntry.walk_route` and whether the entry guard would stop it), kept when
+callable (`{ path, len, detour }`: the snapshot's `_throw_walk`, the walked route of `AgentDoorViews.walk_route` and whether the entry guard would stop it), kept when
 the route reaches it, is at most `throw_spot_walk` (250 px, the controller export in the Grenades group) and passes no known hostile (`route_crosses`); the pick is
 the first with no `detour`, then hidden, then covered, then the shortest walk. `{ point, route_len, hidden, cover, detour }` or {}. Cost: ~150 snaps and lob tests and up to 10 routes, only for a throw the NPC cannot make where it stands.
 
@@ -238,11 +240,11 @@ side settle by distance to the slot's point, laid among the rest (`_wins`; withi
 claimed on this NPC's frame by someone farther is taken from them, so the settling runs down the stack; a claim that moved up into a slot
 (`move_up`) holds it against one that did not, and the NPC it moved up past takes the freed slot) and `stack_side(g, team, self_pos)` are shared with the snapshot's `entries` group and, through the `AgentPerception` wrappers, with the behaviour's `entry.gd` (`domain-ai-entry`). `stack_side` is the
 point's side (its slot 1 claim), else `g["side"]` (the side whose wall holds more of the file against it, once laid; before, the side with more wall), else the member's own. **A split stack (E19):** `stack_side_from(g, team, from, map, space)` is that side
-unless `cuts_view(g, from, to, map, space)` (the plain route from `from`, starting outside the doorway's `door_view`, crosses the door's axis inside the view: a walk
+unless `cuts_view(g, from, to, map, space)` (the plain route from `from`, starting outside the doorway's view, `views.door_view`, crosses the door's axis inside the view: a walk
 that starts in the view or goes round it does not) says the way there crosses the view; then the member's own side (`side_of`). The slots are numbered across both
 sides in claim order; `place(team, side, slot)` is a member's place in its side's file (its slot less the claims ahead on the other side; the slot itself on a one-sided
 stack), and `stack_point` (below) is where that place stands. `crossing_order(members)` is the order a stack crosses in: by slot, or on a split stack the point, the other side's front man,
-then the sides in turn. An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` for the view rays. Tunables: the controller's `entry_*` exports.
+then the sides in turn. An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` and `AgentDoorViews` for the view rays. Tunables: the controller's `entry_*` exports.
 
 **Where a stack stands (E20 to E22, `_lay_slots`).** On a baked map with a physics space `_build` also lays the slots: `from` / `from_room` (the
 room the stack stands in, "" / a zero rect outside), `kind` and its layout, `wall_n` (how many slots the wall, or the fewest-seen spots,
@@ -277,12 +279,14 @@ standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)
 finishes (`entry.gd` `_finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `process_callout`
 when an ally radios `cleared_room`. `is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
 (search ranking still uses `visited_room`). `threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
-`AgentEntry.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
+`AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
 doorway's width and heading into a room that is not the one the NPC is in and is not cleared: `{ opening, into, dist }`, or
 {}. The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
-entry guard calls it every tick. `passing_ahead(path, from_idx, max_dist)` (over `AgentEntry.passing_ahead`) is its sibling for E15 / E18:
+entry guard calls it every tick. `passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
 the first doorway **view** the walk comes into from outside it (any doorway into a room not clear for passing: inside the house or out, exterior doors too, however far out from the wall; not the NPC's own room, nor a doorway of a room the walk goes into by any of its doors, which the entry into that room covers): `{ opening, into, dist }` (`dist` = px of walking until it is in the view), or {}.
-**Doorway views and the walked route (E18, `agent_entry.gd`).** `door_view(id, into, map, space)` is the view out of a doorway (the area outside it
+**Doorway views and the walked route (E18, `agent_door_views.gd`).** The perception builds one `AgentDoorViews` and hands it to its
+`AgentEntry` (`views`, which `set_house` forwards the house to, and which `cuts_view` reads) and to the snapshot's options; `AgentEntry`
+keeps `opening_id` / `normal_into` as one-line forwards to it, so the views never preload `agent_entry.gd`. `door_view(id, into, map, space)` is the view out of a doorway (the area outside it
 seen from inside room `into` through it): a polygon from the rays from the room's two far corners through the opposite jambs, `door_view_depth` (450 px) long,
 each ray a fan cast from three points in the gap (the middle and each jamb, `VIEW_APEX_OUT` 8 px off the wall plane) and stopped at the first wall
 (`AgentVision.wall_hit`: static bodies only, furniture and characters are looked through), the three fans fused, and for a doorway between two rooms cut at
@@ -298,13 +302,13 @@ at least (`_entering_set`), capped the same unless `ordered_approach` (set by `_
 `{ map, path, len, plain_len, doors, pending, views }` (`len` the whole walk, the steps onto the route and from its end to `to` included;
 `pending`: the plain route crosses a view and the avoid map is still baking). `warm(from, map, space)` (over `AgentPerception.routes_ready()`) asks for the avoid map of the room the NPC is in and
 says whether it answers; the controller starts no decision before it does (at most `WARM_CAP_MS` 3 s of game time), so the route bands a snapshot reads are the walked ones.
-`slot_reach(from, to, map, bodies)` (over `AgentPerception.entry_slot_reach(to, bodies)`) is whether any way at all reaches `to` with a body standing at each
+`AgentEntry.slot_reach(from, to, map, bodies)` (over `AgentPerception.entry_slot_reach(to, bodies)`) is whether any way at all reaches `to` with a body standing at each
 point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuilder.OBSTACLE_MARGIN` each, the steering map's carve of a body at rest, on an
-`NavBuilder.avoid_map` of their own keyed by the bodies on a 4 px grid): 1 when its route ends within `AVOID_REACH` of `to`, or within
+`NavBuilder.avoid_map` of their own keyed by the bodies on a 4 px grid): 1 when its route ends within `AgentDoorViews.AVOID_REACH` of `to`, or within
 `SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
 Locomotion's last leg, the way into a slot between two taken ones, which lies inside their carved margins); 0 when not, -1 while that map
 bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
-Config on the perception (from the controller's exports): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `entry_pass_clear_time`; views are
+Config on the perception (from the controller's exports): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (pushed into `AgentDoorViews`), `entry_pass_clear_time`; views are
 avoided only where `entry_enabled` and `entry_guard` are.
 **Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
 defend a room holds it: the room's doorways sorted by id, member `nth` taking doorway `nth` mod their number (the extras doubling up on its
@@ -313,7 +317,7 @@ other side), the spot `DEFEND_DEPTHS` back from its wall and `DEFEND_LATERALS` p
 than `DEFEND_FUNNEL_DEPTH`), then with a sight line to its doorway, low furniture on that line (cover seen over), its side and the distance
 from the best; a lone member of a room with several doorways takes the spot that sees the most. `{ spot, door, door_pos, doors }` (`door` ""
 and `door_pos` INF for that lone member, who turns among them). The snapshot's `order` group calls it. `static normal_into(rect, pos)` (the
-unit normal into a room from the edge a doorway lies on) is also read by the squad (`ai/team/squad.gd`).
+unit normal into a room from the edge a doorway lies on, `AgentDoorViews.normal_into`) is also read by the squad (`ai/team/squad.gd`).
 **Ambush posts (`docs/leadership.md` LD15, D17).** `ambush_spot(id, room_key, nth, count, map, space)` is where member `nth` of `count` ordered
 to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
 many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
@@ -326,8 +330,8 @@ low cover, at any range and facing); a post seen by none is hidden only if it is
 Members alternate sides of the axis, the side with more wall first, and two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order`
 group calls it.
 **An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `ordered_walk` (set each tick by the behaviour while it walks an ordered stack's
-way to its door) makes `_sync_walks` turn the view avoidance on (`AgentEntry.avoid_views` = `entry_guard` and (`entry_enabled` or `ordered_walk`))
-and, for an NPC with `entry_enabled` off (a defender), swap `AgentEntry.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
+way to its door) makes `_sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `entry_guard` and (`entry_enabled` or `ordered_walk`))
+and, for an NPC with `entry_enabled` off (a defender), swap `AgentDoorViews.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
 `seen_empty(key)` says it stood in within `entry_pass_clear_time` with no hostile sighting in them (the latest of each hostile it knows, within that
 time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an ordered walk the room its stack holds is clear too: `stack_room()`
 (once a physics frame: the live order is a stack, `ordered_walk`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
