@@ -267,14 +267,7 @@ func _physics_step(delta: float) -> void:
 	# interaction sets) and runs no movement, aim, knockback or push. Skipping move_and_slide /
 	# _apply_pushes is what keeps a seated body from being ejected or shoving its neighbours.
 	if _interaction.is_busy():
-		move_input = Vector2.ZERO
-		velocity = Vector2.ZERO
-		_update_stamina(false, delta)
-		_knockback = Vector2.ZERO  # Drop any pending shove so standing back up doesn't lurch.
-		_hands.facing = facing
-		_legs.clear()
-		_kick.clear()
-		pose.update(delta, facing, Vector2.ZERO, speed, _stances(), _hands.punch_amounts(), stun_level())
+		_frozen_frame(delta, Vector2.ZERO, stun_level())
 		return
 
 	# Aim toward the aim point. Guard the degenerate zero-length case.
@@ -438,15 +431,22 @@ func end_ride() -> void:
 ## A frame of a ride: the vehicle has posed the body; it only breathes, its legs stepping with the pose's step. The ride's
 ## pose wins over a stun's look (no hunch, no hand over the eyes), which eases back in once out.
 func _ride_frame(delta: float) -> void:
-	velocity = Vector2.ZERO
-	move_input = Vector2.ZERO
 	run_input = false
+	_frozen_frame(delta, _ride_step, 0.0)
+
+
+## A frame held still (an interaction, a ride): no movement or input, stamina refilling, any pending shove dropped so
+## moving again doesn't lurch, legs and kick cleared, and the pose updated with `step` as its motion and `stun` as its
+## stun level.
+func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
+	move_input = Vector2.ZERO
+	velocity = Vector2.ZERO
 	_update_stamina(false, delta)
 	_knockback = Vector2.ZERO
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
-	pose.update(delta, facing, _ride_step, speed, _stances(), _hands.punch_amounts())
+	pose.update(delta, facing, step, speed, _stances(), _hands.punch_amounts(), stun)
 
 
 ## Keep the collision exception with `body` (one the character just left: an interaction's object, a vehicle) until the

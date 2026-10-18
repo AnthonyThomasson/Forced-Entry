@@ -214,7 +214,7 @@ The Vehicles domain poses the body with `set_ride_pose(at, toward, fold, step)`:
 disables the collision shape (`set_deferred`); each pose sets `global_position`, `facing`, `aim_point`, the posture to `stand` and
 `_posture_height` between standing and the crouch height by `fold` (so `posture_folded()` and the body art read the seated fold), keeps
 `_ride_step` and drops `_rig_cache`. While `_riding`, `_ease_posture` is skipped, `current_item()` returns null (the item put away: no
-firing, nothing drawn in the hands) and `_ride_frame` replaces the rest of the frame: no movement, knockback or push, stamina refilling,
+firing, nothing drawn in the hands) and `_ride_frame` replaces the rest of the frame (`_frozen_frame`, the frame an interaction holds too): no movement, knockback or push, stamina refilling,
 legs and kick cleared, and `pose.update` with `_ride_step` as the motion and no stun (the stunned look waits until the ride is over) (the legs step with the pose through the vehicle's frame, not
 with the vehicle). `end_ride()` clears `_riding`, re-enables the shape, zeroes the step and points the aim along the facing. The collision
 exception with the vehicle is added at boarding; after the ride the component hands the vehicle to `keep_clear_of(body)`, below.
