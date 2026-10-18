@@ -25,7 +25,10 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`).
   facing its aim); the owner turns the impacts back when drawing. A vehicle (Vehicles domain) composes one with `allow_chunks`
   off, its own `max_depth` / `max_impacts`, and leaves its collider alone (it does not listen to `changed`); it has no
   `Knockback`, being a `RigidBody2D` of its own, and draws the dents with `Deformation.draw_marks`.
-- `Deformation` — the polygon math + drawing (shared by furniture and walls). `shape_polygon` keeps its last 256 dented
+- `Deformation` — the polygon math + drawing (shared by furniture and walls). It owns the impact schema: `new_impact(pos, inward,
+  damage, blood, max_depth, allow_chunks)` builds one (depth from `deform_depth_per_damage`, a chunk past `deform_chunk_damage`, a
+  fresh seed) and `push_impact(list, impact, max_impacts)` adds it, dropping the oldest; `Deformable.record` and Objects' wall
+  segments both record through them. `shape_polygon` keeps its last 256 dented
   silhouettes, keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
   each hit asks for the same one three times (collider, shadow, drawing) and every repaint of a wounded character asks again
   (`tests/physics/shape_polygon_cache_test.gd`). `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
@@ -71,7 +74,7 @@ the exit burst when `HitInfo.has_exit`, and the material chips. Tuning: `Physics
 `physics.hit_particles`), `hit_particles_scale`, `hit_particles_max`.
 
 **Blood carried onto a surface.** A hit with `HitInfo.blood > 0` also throws red droplets and `flesh` chips from the entry,
-and the object keeps a bloody mark: `Deformable.record` and the wall's segment impacts store `"blood"`, and
+and the object keeps a bloody mark: `Deformation.new_impact` stores `"blood"` (for `Deformable.record` and the wall's segments), and
 `Deformation.draw_marks` draws a red blot (`PhysicsConfig.blood_mark_color` / `blood_mark_radius`) under the hole, riding
 with the object (`hit_marks()` on an `EnvironmentObject` or `Wall` returns them). A character hit with an exit also throws a splatter out the far side (`BloodWound.record`).
 

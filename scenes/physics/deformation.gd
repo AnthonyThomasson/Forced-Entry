@@ -11,6 +11,8 @@ class_name Deformation
 ##   depth:  float    dent depth in px (from dealt damage)
 ##   chunk:  bool     true = carve a jagged missing piece instead of a shallow dent
 ##   seed:   int      stable RNG seed so a hit's jitter/cracks don't shimmer each frame
+##   blood:  float    0..1 blood the striker carried onto the surface (drawn with the hole)
+## `new_impact` builds one and `push_impact` adds it to a list, so every caller records the same schema.
 
 ## Sentinel for an unset color argument: callers pass it to accept the default derived from
 ## the shape's own colors (an intentional mark color always has non-zero alpha).
@@ -24,6 +26,24 @@ const POLYGON_CACHE_SIZE := 256
 
 ## `shape_polygon`'s kept results: inputs hash -> [the inputs, the polygon].
 static var _polygon_cache: Dictionary = {}
+
+
+## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage` dealt: its depth
+## `damage * PhysicsConfig.deform_depth_per_damage`, at most `max_depth`; a chunk when `allow_chunks` and `damage` reaches
+## `PhysicsConfig.deform_chunk_damage`; a fresh `randi()` seed; `blood` carried.
+static func new_impact(pos: Vector2, inward: Vector2, damage: float, blood: float, max_depth: float, allow_chunks: bool) -> Dictionary:
+	return {
+		"pos": pos, "inward": inward, "depth": minf(damage * PhysicsConfig.deform_depth_per_damage, max_depth),
+		"chunk": allow_chunks and damage >= PhysicsConfig.deform_chunk_damage, "seed": randi(),
+		"blood": blood,
+	}
+
+
+## Append `hit` (a `new_impact`) to `list`, dropping the oldest past `max_impacts`.
+static func push_impact(list: Array, hit: Dictionary, max_impacts: int) -> void:
+	list.append(hit)
+	if list.size() > max_impacts:
+		list.pop_front()
 
 
 ## Closed perimeter sample ring for a primitive shape, centered on the origin.

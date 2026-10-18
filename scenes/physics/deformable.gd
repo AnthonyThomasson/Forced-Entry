@@ -7,7 +7,8 @@ class_name Deformable extends Node
 ## collider from the SAME deformed polygon (via the Deformation static helper). Per-body
 ## fields (max_depth / allow_chunks / max_impacts) let a small body dent gently without
 ## folding. Walls keep their own per-segment recording instead (their geometry isn't a
-## single centered shape), but they share the Deformation helper and PhysicsConfig knobs.
+## single centered shape), but they build each impact through the same Deformation.new_impact / push_impact and
+## PhysicsConfig knobs.
 
 ## Emitted after an impact is recorded, so visuals redraw and the collider rebuilds.
 signal changed
@@ -44,13 +45,7 @@ func record(hit: HitInfo, turn: float = 0.0) -> void:
 	var inward := xf.basis_xform(-hit.normal).normalized().rotated(-turn)  # into the surface
 	if inward.length() < 0.01:
 		inward = -local_pos.normalized() if local_pos.length() > 0.01 else Vector2.DOWN
-	var depth := minf(hit.damage * PhysicsConfig.deform_depth_per_damage, max_depth)
-	impacts.append({
-		"pos": local_pos, "inward": inward, "depth": depth,
-		"chunk": allow_chunks and hit.damage >= PhysicsConfig.deform_chunk_damage, "seed": randi(),
-		"blood": hit.blood,
-	})
-	if impacts.size() > max_impacts:
-		impacts.pop_front()
+	var impact := Deformation.new_impact(local_pos, inward, hit.damage, hit.blood, max_depth, allow_chunks)
+	Deformation.push_impact(impacts, impact, max_impacts)
 	damage_total += hit.damage
 	changed.emit()

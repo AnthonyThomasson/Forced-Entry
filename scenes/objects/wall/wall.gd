@@ -115,15 +115,9 @@ func _record_segment_damage(world_pos: Vector2, world_normal: Vector2, amount: f
 		var seg: PackedVector2Array = segs[best_i]
 		var perp := (seg[1] - seg[0]).normalized().orthogonal()
 		inward = perp if perp.dot(local_pos - size * 0.5) > 0.0 else -perp
-	var depth := minf(amount * PhysicsConfig.deform_depth_per_damage, PhysicsConfig.deform_max_depth)
 	var arr: Array = _seg_impacts.get(best_i, [])
-	arr.append({
-		"pos": local_pos, "inward": inward, "depth": depth,
-		"chunk": amount >= PhysicsConfig.deform_chunk_damage, "seed": randi(),
-		"blood": blood,
-	})
-	if arr.size() > PhysicsConfig.deform_max_impacts:
-		arr.pop_front()
+	var impact := Deformation.new_impact(local_pos, inward, amount, blood, PhysicsConfig.deform_max_depth, true)
+	Deformation.push_impact(arr, impact, PhysicsConfig.deform_max_impacts)
 	_seg_impacts[best_i] = arr
 	if _visuals:
 		_visuals.redraw_segment(best_i)
