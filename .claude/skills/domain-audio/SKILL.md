@@ -202,3 +202,5 @@ in `tests/_ai/grenade_probe.gd`) and `vehicle_sounds` (ignition, the engine loop
 close, the van's slide door, the skid loop, a slow and a fast crash, a character struck, the van's engine deeper; through
 `tests/_vehicle/vehicle_probe.gd`) and `vehicle_door_tone` (every door take no brighter than the brightest reload, over 0.75 of its
 energy under 300 Hz). Switch `audio.sound` (`SoundConfig.enabled`) turns it all off.
+
+**Interfaces:** 10 (EventBus: the topics above, and `&"sound"`), 13 (`audio.sound`, a sandbox's own voice), 16 (`SoundSurface`), 18 (`Sound.focus`), 19 (the vehicle a loop follows) — signatures in `architecture`.

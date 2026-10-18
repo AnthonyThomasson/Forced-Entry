@@ -8,8 +8,9 @@ description: Deep implementation detail for the Character body sub-domain (scene
 Everything that gives the character a body: `character_rig, character_legs, character_pose, character_ragdoll, character_hands,
 character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
-edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics), `PixelArt` / `PixelCanvas` / `ArtConfig` (Art, interface 12), the character's `Outfit` (Items: `look(style)`, `revision`), and
-`CharacterConfig` (this domain's tuning holder, in `character/`). `character_base.tscn` attaches
+edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtConfig` (Art, 12), the held `Item`
+(its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
+`FillBatch` (11) and `GameLog` (15), and `CharacterConfig` (this domain's tuning holder, in `character/`). `character_base.tscn` attaches
 `character_hands.gd` and `character_visuals.gd` as the `Hands` / `Visuals` children (the NPC scenes and `main.tscn`'s `Player` inherit or instance it); the rest are `RefCounted` helpers the character owns.
 
 ## Animate and draw
