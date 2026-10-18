@@ -35,14 +35,6 @@ func take(box: Rect2, item_mask: int, always := false) -> bool:
 	return true
 
 
-## The most lights any one floor is reached by.
-func most() -> int:
-	var out := 0
-	for n in _load:
-		out = maxi(out, n)
-	return out
-
-
 ## Whether a light covering `box` and lighting items `item_mask` reaches floor `k`.
 func _reaches(k: int, box: Rect2, item_mask: int) -> bool:
 	return _masks[k] & item_mask != 0 and _rects[k].intersects(box)
