@@ -162,7 +162,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 (a dented wall segment), `is_valid_polygon(poly)` (callers skip a self-touching one that frame), `convex_pieces(polygon)` (the
 	 convex pieces a dented collider is rebuilt from, as their points) and `shapes_of(pieces)` (their `ConvexPolygonShape2D`s); and
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
-	 computed without the caches: all pure, so they may run on a worker thread); `NO_COLOR` is the sentinel a caller passes to take a
+	 computed without the caches: all pure, so they may run on a worker thread). An impact record (the dicts in `impacts`) is built by
+	 `new_impact(pos, inward, damage, blood, max_depth, allow_chunks)` and kept by `push_impact(list, impact, max_impacts)` (oldest
+	 dropped past the cap): `Deformable.record` and Objects' wall, which keeps an impact list per segment, both build through them. `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects, the character and a vehicle)
 	 `BloodWound` (Node child, character: `record(hit)` on a hit throws a splatter spray and owes drips, one
