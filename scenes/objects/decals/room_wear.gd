@@ -44,16 +44,6 @@ func setup(rect: Rect2, floor_definition: Dictionary, wall_thickness: float, clu
 	return self
 
 
-## The layer drawing the floor marks.
-func floor_layer() -> Node2D:
-	return _floor_layer
-
-
-## The layer drawing the wall marks.
-func wall_layer() -> Node2D:
-	return _wall_layer
-
-
 ## An entry of a `[[value, weight], ...]` table, drawn by weight.
 static func pick(rng: RandomNumberGenerator, table: Array) -> Variant:
 	var total := 0.0
