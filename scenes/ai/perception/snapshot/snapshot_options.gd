@@ -539,17 +539,12 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 
 ## Whether world point `p` lies in a room of `entered` (the rooms a doorway of ENTER leads into).
 func _entered_at(entered: Dictionary, p: Vector2) -> bool:
-	return not entered.is_empty() and entered.has(_room_key_at(p))
+	return not entered.is_empty() and entered.has(SnapshotVocab.room_key_at(p, _v.rooms))
 
 
 ## Whether any of room keys `keys` is in `entered`.
 func _entered_any(entered: Dictionary, keys: Array) -> bool:
 	return not entered.is_empty() and keys.any(func(k): return entered.has(k))
-
-
-## The key of the room world point `p` lies in, or "".
-func _room_key_at(p: Vector2) -> String:
-	return AgentSuspicion.room_key_at(_v.rooms, p)
 
 
 ## Under fire from someone the NPC cannot see: the one way to find them — toward where the shots came
@@ -576,7 +571,7 @@ func _shots_from_a_room(ctx: Dictionary) -> bool:
 	var shot: Dictionary = _memory.recall(&"shot_from")
 	if shot.is_empty():
 		return false
-	var here := _room_key_at(ctx["self_pos"])
+	var here := SnapshotVocab.room_key_at(ctx["self_pos"], _v.rooms)
 	return AgentSuspicion.shot_rooms(_v.rooms, shot).any(func(key): return key != here)
 
 
@@ -846,7 +841,7 @@ static func tag_rooms(groups: Dictionary, rooms: Array) -> void:
 			var params: Dictionary = o.get("params", {})
 			var at = params.get("from", params.get("point"))
 			if at is Vector2 and at != Vector2.INF and o.get("tags") is Dictionary:
-				o["tags"]["room"] = String(SnapshotVocab.room_at(at, rooms).get("key", ""))
+				o["tags"]["room"] = SnapshotVocab.room_key_at(at, rooms)
 
 
 ## `tags` plus the spot's geometry, kept for the routes debug overlay (`clear_shot`, `route_exposed`,

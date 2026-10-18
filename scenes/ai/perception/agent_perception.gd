@@ -1050,7 +1050,7 @@ func seen_empty(key: String) -> bool:
 	if _memory.age_of(&"visited_room", "key", key) > entry_pass_clear_time:
 		return false
 	for c in _sightings(null, entry_pass_clear_time, -1.0, true):
-		if str(SnapshotVocab.room_at(c["pos"], _rooms).get("key", "")) == key:
+		if SnapshotVocab.room_key_at(c["pos"], _rooms) == key:
 			return false
 	return true
 

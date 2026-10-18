@@ -381,7 +381,7 @@ func threshold_ahead(path: PackedVector2Array, from_idx: int, from_pos: Vector2,
 	var tail: Vector2 = (pts[-1] as Vector2) - (pts[-2] as Vector2)
 	if tail.length() > 0.001:
 		pts.append((pts[-1] as Vector2) + tail.normalized() * THRESHOLD_EXTEND)
-	var here := str(SnapshotVocab.room_at(from_pos, _rooms).get("key", ""))
+	var here := SnapshotVocab.room_key_at(from_pos, _rooms)
 	var walked := 0.0
 	for i in range(1, pts.size()):
 		var a: Vector2 = pts[i - 1]
@@ -427,7 +427,7 @@ func passing_ahead(path: PackedVector2Array, from_idx: int, from_pos: Vector2, m
 	if pts.size() < 2:
 		return {}
 	var best := {}
-	for v in _crossed_views(pts, avoided(_room_key_at(from_pos), map, space)["views"], max_dist):
+	for v in _crossed_views(pts, avoided(SnapshotVocab.room_key_at(from_pos, _rooms), map, space)["views"], max_dist):
 		if best.is_empty() or v["dist"] < best["dist"]:
 			best = { "opening": v["id"], "into": v["into"], "dist": v["dist"] }
 	return best
@@ -466,7 +466,7 @@ func walk_route(from: Vector2, to: Vector2, map: RID, space, entering := "") -> 
 	var out := { "map": map, "path": plain, "len": plain_len, "plain_len": plain_len, "doors": false, "pending": false, "views": [] }
 	if not avoid_views or not NavBuilder.ready(map):
 		return out
-	var here := _room_key_at(from)
+	var here := SnapshotVocab.room_key_at(from, _rooms)
 	var avoid_set := _left_from(avoided(here, map, space, entering), from)
 	var crossed := _crossed_views([from] + Array(plain), avoid_set["views"], INF, entering)
 	out["views"] = crossed
@@ -556,7 +556,7 @@ func _entering_set(views_set: Dictionary, entering: String) -> Dictionary:
 func warm(from: Vector2, map: RID, space) -> bool:
 	if not avoid_views or not NavBuilder.ready(map):
 		return true
-	var avoid_set := avoided(_room_key_at(from), map, space)
+	var avoid_set := avoided(SnapshotVocab.room_key_at(from, _rooms), map, space)
 	var region := NavBuilder.planning_region(map)
 	if avoid_set["views"].is_empty() or region == null:
 		return true
@@ -606,7 +606,7 @@ func slot_reach(from: Vector2, to: Vector2, map: RID, bodies: Array) -> int:
 
 ## The views a walk from point `from` keeps out of, each `{ id, into, poly }` (see `avoided`).
 func views_from(from: Vector2, map: RID, space) -> Array:
-	return avoided(_room_key_at(from), map, space)["views"]
+	return avoided(SnapshotVocab.room_key_at(from, _rooms), map, space)["views"]
 
 
 ## The doorway views a walk from room `here_key` ("" = outside) keeps out of: the view out of every doorway into a room that is not
@@ -718,11 +718,6 @@ func _build_view(opening: Dictionary, rect: Rect2, space) -> PackedVector2Array:
 		if outer.size() == 1:
 			merged = [outer[0]]
 	return merged[0]
-
-
-## The room key at world point `p` ("" = outside every room).
-func _room_key_at(p: Vector2) -> String:
-	return str(SnapshotVocab.room_at(p, _rooms).get("key", ""))
 
 
 ## The keys of the rooms the walk `pts` goes into, by any of their doorways.

@@ -204,6 +204,11 @@ static func room_at(p: Vector2, list: Array) -> Dictionary:
 	return {}
 
 
+## The key of the room world point `p` lies in (`room_at`), or "" when it is outside every room.
+static func room_key_at(p: Vector2, list: Array) -> String:
+	return str(room_at(p, list).get("key", ""))
+
+
 ## The room of `list` (`{ key, type, rect }` dicts) with key `key`, or {}.
 static func room_by_key(list: Array, key: String) -> Dictionary:
 	for room in list:

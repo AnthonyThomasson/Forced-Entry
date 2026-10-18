@@ -20,7 +20,7 @@ Files:
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
   `max_contacts_in_state`, `search_memory_ttl`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
-  wound_band, compass, place, own_posture_text, contact_posture_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`).
+  wound_band, compass, place, own_posture_text, contact_posture_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`, `room_key_at`).
   The snapshot reads its tuning here only; the same fields are declared on the controller (the exports) and on the perception
   (which copies them in), so adding a tunable is three declarations and one line in `agent_perception.apply_config()`.
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
