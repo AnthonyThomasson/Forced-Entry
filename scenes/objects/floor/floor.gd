@@ -5,7 +5,8 @@ extends Node2D
 ## perception all pass over it. Built by FloorFactory; drawing lives in floor_visuals.gd, which reads these fields. It tells
 ## the Physics blood flow where its grooves are and, unless `sound_surface` is off (the street: footsteps out there stay the
 ## open ground's), the Audio domain what it is made of. A floor of the street (`light_layer` `street`) is drawn, with
-## everything under it, on the street's light layer (General's `LightMasks.STREET`).
+## everything under it, on the street's light layer (General's `LightMasks.STREET`). It joins the group `floors`, which the
+## Lighting domain walks for its per-floor light budget.
 
 @export var size: Vector2 = Vector2(100.0, 100.0)  ## Floor extent (px) from this node's origin.
 @export var art: String = "floor"  ## Tiling painter id.
@@ -30,6 +31,7 @@ var _sound_id := -1  ## SoundSurface registration of this floor.
 
 
 func _ready() -> void:
+	add_to_group(&"floors")
 	z_index = ObjectArtConfig.floor_z_index
 	if light_layer == "street":
 		# Every canvas item of the floor (its visuals, marks and light-source overlay: children, so ready by now).

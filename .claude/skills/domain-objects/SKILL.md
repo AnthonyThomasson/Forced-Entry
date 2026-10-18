@@ -99,7 +99,7 @@ The Lighting domain lights the world; Objects declares and builds what its piece
 
 `FloorFactory.spawn(rect, definition, name, parent)` builds a `Floor` (`Node2D`, no collider —
 shots, navigation and AI perception all pass over it) holding `size`, `art`, `color`,
-`floor_material`, `art_opts`, `sound_surface`, `marks`, `tile_offset`, `light_layer` (`street`: on the street's light layer, above). It sits at `ObjectArtConfig.floor_z_index`
+`floor_material`, `art_opts`, `sound_surface`, `marks`, `tile_offset`, `light_layer` (`street`: on the street's light layer, above), in the group `floors` (the Lighting domain's per-floor budget walks it). It sits at `ObjectArtConfig.floor_z_index`
 (`DrawLayers.FLOOR`, −5: beneath blood pools, casings and rugs). `floor_visuals.gd` repeats `ObjectArt.tile(...)` across the rect
 (`texture_repeat` on, nearest filter, scaled by `pixel_size`), its grid starting `tile_offset` px into the tile (the
 definition's `tile_from`; 0 for a room's floor, the street's pieces share one grid). A floor whose definition carries `marks`

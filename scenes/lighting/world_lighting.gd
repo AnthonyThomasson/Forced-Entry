@@ -3,7 +3,7 @@ extends Node2D
 
 ## The Lighting domain's one node: a world's dusk lighting (`docs/lighting.md`), a leaf like Audio. Built by Main and the
 ## Testing world through `light(root, seed_value, rooms)` under the world root, in the group `world_lighting`; it reads the
-## world only duck-typed (Objects' floors: `floor_material` / `size`; a light-giving piece's `get_lights()`; the characters in
+## world only duck-typed (Objects' floors, the group `floors`: `size`, their canvas items' `light_mask`; a light-giving piece's `get_lights()`; the characters in
 ## the group `characters`: `is_dead`, `radius`) and the `shot` / `explosion` events, and imports nothing but General.
 ##   - Dusk: one CanvasModulate in `LightingConfig.ambient_color`, and a DirectionalLight2D in `sky_color` low from the
 ##     south-west on the street only (`LightMasks.STREET`), unshadowed (a directional shadow runs to the edge of the view, so a
@@ -135,14 +135,15 @@ func _build(root: Node2D, rooms: Array) -> void:
 	_sky()
 
 	var floors := Budget.new()
+	for ground: Node2D in root.get_tree().get_nodes_in_group(&"floors"):
+		if root.is_ancestor_of(ground):
+			floors.add_floor(ground)
 	var candidates: Array = []  ## `[piece, index, spec, order]` per declared light.
 	var lit_rooms := {}  ## Room key -> true for a room a piece's `room_light` stands in.
 	for node in root.find_children("*", "", true, false):
 		if node == self or is_ancestor_of(node):
 			continue
-		if "floor_material" in node and "size" in node:
-			floors.add_floor(node)
-		elif node.has_method(&"get_lights"):
+		if node.has_method(&"get_lights"):
 			var specs: Array = node.call(&"get_lights")
 			for i in specs.size():
 				candidates.append([node, i, specs[i], candidates.size()])

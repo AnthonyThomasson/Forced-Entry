@@ -41,8 +41,8 @@ that keeps the shape itself lit and darkens only what lies behind it.
 
 1. `Ambient` (CanvasModulate) and the sky: `Sky` (range `STREET`, no shadows, rotated so its +y, which a DirectionalLight2D
    shines along, points along `-sky_from`). None on the house's items: the house has a roof.
-2. One walk of `root`'s descendants (itself excluded): an Objects floor (`floor_material` and `size`) is a budget area (its rect grown
-   by `floor_reach`, its light layers the union of its canvas items' `light_mask`); a node with `get_lights()` gives candidates
+2. Every Objects floor under `root` (the group `floors`) is a budget area (its `size` rect grown by `floor_reach`, its light layers
+   the union of its canvas items' `light_mask`); then one walk of `root`'s descendants (itself excluded): a node with `get_lights()` gives candidates
    (`[piece, index, spec, order]`), and a `room_light` among them marks its room (`rooms`, by the piece's position) lit.
 3. Fixtures for the rooms no `room_light` marked, counted against the budget whatever (`always`).
 4. The candidates **by declared energy, highest first** (ties in walk order): each is placed (`_piece_light`: a PointLight2D under
