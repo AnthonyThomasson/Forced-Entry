@@ -404,7 +404,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `signal posted(topic, data)` — listeners connect and filter by `topic`.
     These topics are in use:
     - `&"hit"`: the Projectile System posts one per damaging hit and the Character one per landed
-      punch (`{ position, victim, source, direction, damage, attacker }`; `attacker` = the striking
+      punch (`{ position, victim, direction, damage, attacker }`; `attacker` = the striking
       character or null). The AI controller consumes it for combat awareness, hostility ("attacked
       me") and gunfire heard farther off. It also says *how* the
       hit met the surface, for the Audio domain: `outcome` (`&"blocked"` / `&"penetrate"` /
