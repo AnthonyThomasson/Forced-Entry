@@ -19,16 +19,7 @@ const _ROOF := 10
 
 ## Paint the car's `opts.part` (`chassis` / `roof`) onto `c` in `base` paint, front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var kind: StringName = opts.get("kind", &"car")
-	var row: Dictionary = VehicleConfig.kinds[kind]
-	var look: Dictionary = VehicleConfig.looks[kind]
-	var k := Art.scale(c, (row["size"] as Vector2).x)
-	if opts.get("part", "chassis") == "roof":
-		_roof(c, base, kind, row, look, k)
-	else:
-		_chassis(c, base, row, look, k)
-	# No cast shadows: a body is repainted for every lighting step it turns through, and on a canvas this size they cost
-	# more than the rest of the painting together. Its raised parts are shaded by their bevels instead.
+	Art.paint_parts(c, base, opts, &"car", _chassis, _roof)
 
 
 ## The body, the bumpers, bonnet and boot, and the open cabin with its seats.
@@ -120,7 +111,7 @@ static func _roof(c: PixelCanvas, base: Color, kind: StringName, row: Dictionary
 	c.bevel(panel, 1, 2, t["highlight"], t["dark"])
 	c.glare(panel, base.lightened(0.42), 2)
 	c.outline(panel, t["shadow"])
-	_lamps(c, row, look, k)
+	Art.lamps(c, row, look, k, 0.0, 2, _BODY + 1, _BODY + 1)
 
 
 ## Glass in `shape`: the tint, a glint, a rubber seal round it.
@@ -128,20 +119,3 @@ static func _glass(c: PixelCanvas, shape: PixelCanvas.Shape, glass: Color, rubbe
 	c.fill(shape, glass, _PILLAR - 1)
 	c.glare(shape, Color(glass.lightened(0.55), 0.6), 2)
 	c.outline(shape, rubber)
-
-
-## Headlights at the nose's corners and tail lights at the tail's (dark until lit by the visuals).
-static func _lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float) -> void:
-	var half: Vector2 = (row["size"] as Vector2) * 0.5
-	var length: float = look["lamp"]
-	var head: Vector2 = look["head"]
-	for r in Art.both(c, half.x - length, half.x - 1.0, head.x, head.y, k):
-		var lamp := PixelCanvas.rounded(r, roundi(2 * k))
-		c.fill(lamp, VehicleConfig.headlight_color, _BODY + 1)
-		c.bevel(lamp, 1, 1, Color.WHITE, VehicleConfig.headlight_color.darkened(0.3))
-		c.outline(lamp, VehicleConfig.trim_color)
-	for rect: Rect2 in Art.tail_lamps(row, look):
-		var lamp := PixelCanvas.rounded(Art.box(c, rect.position.x, rect.end.x, rect.position.y, rect.end.y, k), roundi(1 * k))
-		c.fill(lamp, VehicleConfig.tail_off_color, _BODY + 1)
-		c.outline(lamp, VehicleConfig.trim_color)
-

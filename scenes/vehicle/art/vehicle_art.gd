@@ -153,6 +153,42 @@ static func clear_door_glass(c: PixelCanvas, kind: StringName, row: Dictionary, 
 			func(p: Vector2) -> bool: return in_door_glass(one, look, p)))
 
 
+## Paint a body painter's `opts.part` for a vehicle of `opts.kind` (`default_kind` when none): its `roof` through
+## `roof(c, base, kind, row, look, k)`, else its `chassis` through `chassis(c, base, row, look, k)`, with the kind's
+## `VehicleConfig.kinds` and `looks` rows and its canvas scale.
+static func paint_parts(c: PixelCanvas, base: Color, opts: Dictionary, default_kind: StringName, chassis: Callable,
+		roof: Callable) -> void:
+	var kind: StringName = opts.get("kind", default_kind)
+	var row: Dictionary = VehicleConfig.kinds[kind]
+	var look: Dictionary = VehicleConfig.looks[kind]
+	var k := scale(c, (row["size"] as Vector2).x)
+	if opts.get("part", "chassis") == "roof":
+		roof.call(c, base, kind, row, look, k)
+	else:
+		chassis.call(c, base, row, look, k)
+	# No cast shadows: a body is repainted for every lighting step it turns through, and on a canvas this size they cost
+	# more than the rest of the painting together. Its raised parts are shaded by their bevels instead.
+
+
+## The lamps on a body's roof part: the headlights at the nose's corners over the `looks` row's `head` |y| span, `lamp` +
+## `head_extra` long and rounded `head_round` px, at height `head_height`; the unlit tail lights (`tail_lamps`) at
+## `tail_height`.
+static func lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float, head_extra: float, head_round: int,
+		head_height: int, tail_height: int) -> void:
+	var half: Vector2 = (row["size"] as Vector2) * 0.5
+	var length: float = look["lamp"]
+	var head: Vector2 = look["head"]
+	for r in both(c, half.x - length - head_extra, half.x - 1.0, head.x, head.y, k):
+		var lamp := PixelCanvas.rounded(r, roundi(head_round * k))
+		c.fill(lamp, VehicleConfig.headlight_color, head_height)
+		c.bevel(lamp, 1, 1, Color.WHITE, VehicleConfig.headlight_color.darkened(0.3))
+		c.outline(lamp, VehicleConfig.trim_color)
+	for rect: Rect2 in tail_lamps(row, look):
+		var lamp := PixelCanvas.rounded(box(c, rect.position.x, rect.end.x, rect.position.y, rect.end.y, k), roundi(1 * k))
+		c.fill(lamp, VehicleConfig.tail_off_color, tail_height)
+		c.outline(lamp, VehicleConfig.trim_color)
+
+
 ## The tail lights (vehicle-frame rects, left then right): at the tail's corners, the `looks` row's `tail` |y| span, `lamp` long.
 static func tail_lamps(row: Dictionary, look: Dictionary) -> Array[Rect2]:
 	var half: Vector2 = (row["size"] as Vector2) * 0.5

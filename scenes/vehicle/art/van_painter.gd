@@ -21,16 +21,7 @@ const _RIB_GAP := 17.0  ## px between the roof's ribs.
 
 ## Paint the van's `opts.part` (`chassis` / `roof`) onto `c` in `base` paint, front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var kind: StringName = opts.get("kind", &"van")
-	var row: Dictionary = VehicleConfig.kinds[kind]
-	var look: Dictionary = VehicleConfig.looks[kind]
-	var k := Art.scale(c, (row["size"] as Vector2).x)
-	if opts.get("part", "chassis") == "roof":
-		_roof(c, base, kind, row, look, k)
-	else:
-		_chassis(c, base, row, look, k)
-	# No cast shadows: a body is repainted for every lighting step it turns through, and on a canvas this size they cost
-	# more than the rest of the painting together. Its raised parts are shaded by their bevels instead.
+	Art.paint_parts(c, base, opts, &"van", _chassis, _roof)
 
 
 ## The body, the nose and bumpers, the cab and the cargo bay.
@@ -135,20 +126,4 @@ static func _roof(c: PixelCanvas, base: Color, kind: StringName, row: Dictionary
 		var vx := -74.0 + i * 5.0
 		c.line(Art.at(c, Vector2(vx, -6.0), k), Art.at(c, Vector2(vx, 6.0), k), t["shadow"])
 	c.outline(panel, t["shadow"])
-	_lamps(c, row, look, k)
-
-
-## Headlights at the nose's corners; tail lights standing up the back corners (dark until lit by the visuals).
-static func _lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float) -> void:
-	var half: Vector2 = (row["size"] as Vector2) * 0.5
-	var length: float = look["lamp"]
-	var head: Vector2 = look["head"]
-	for r in Art.both(c, half.x - length - 2.0, half.x - 1.0, head.x, head.y, k):
-		var lamp := PixelCanvas.rounded(r, roundi(1 * k))
-		c.fill(lamp, VehicleConfig.headlight_color, _BODY + 1)
-		c.bevel(lamp, 1, 1, Color.WHITE, VehicleConfig.headlight_color.darkened(0.3))
-		c.outline(lamp, VehicleConfig.trim_color)
-	for rect: Rect2 in Art.tail_lamps(row, look):
-		var lamp := PixelCanvas.rounded(Art.box(c, rect.position.x, rect.end.x, rect.position.y, rect.end.y, k), roundi(1 * k))
-		c.fill(lamp, VehicleConfig.tail_off_color, _ROOF)
-		c.outline(lamp, VehicleConfig.trim_color)
+	Art.lamps(c, row, look, k, 2.0, 1, _BODY + 1, _ROOF)
