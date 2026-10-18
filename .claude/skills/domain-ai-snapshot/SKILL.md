@@ -20,15 +20,15 @@ Files:
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
   `max_contacts_in_state`, `search_memory_ttl`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
-  wound_band, compass, place, own_posture_text, contact_posture_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`, `room_key_at`).
+  wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`, `room_key_at`,
+  `room_by_key`).
   The snapshot reads its tuning here only; the same fields are declared on the controller (the exports) and on the perception
   (which copies them in), so adding a tunable is three declarations and one line in `agent_perception.apply_config()`.
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
-  unseen_fire_text, allies_text, flanks_text, awareness_text, threat_summary`.
-- `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group, grenade_group, melee_group,
-  advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group, explore_group,
-  interaction_group, room_group` and their
-  helpers. Reads the per-decision knowledge from `know` (set by `build()`).
+  unseen_fire_text, allies_text, flanks_text, awareness_text, order_text, threat_summary`.
+- `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group, grenade_group, shots_grenade_group,
+  melee_group, advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group,
+  explore_group, interaction_group, room_group, order_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
 
 Add a **fact** in the `facts` literal of `build()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
 `build()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
