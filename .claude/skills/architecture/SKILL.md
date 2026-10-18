@@ -379,7 +379,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 (valid, synchronized at least once and has taken in every region `build` put on it, so a map still showing the previous
 	 navmesh counts as unbaked), `snap(map, p) -> Vector2` (`p` on the navmesh; unchanged before the bake),
 	 `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before the bake or with no
-	 path) and `path_length(path) -> float`. The AI's locomotion, tactics geometry, entry geometry, snapshot options and
+	 path) and `path_length(path) -> float`. The AI's locomotion, tactics geometry, entry geometry, grenade escape plan, snapshot options and
 	 routes overlay, and the human's `PlayerStack` (how near a doorway it is), all go through these, so the "is the map baked yet" rule lives in one place.
    - **Avoid maps**, for a walk that keeps out of some stretch of floor (the AI's doorway views, `docs/tactical-entry.md` E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
@@ -814,8 +814,8 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   `$` / `get_parent()`). A "draw" file is attached to its own child `Node2D` (Godot only draws
   from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's.
 - **Runtime shapes.** Collision shapes are built **in code in `_ready()`**, not in the scene
-  (layout is data-driven). Because of this the editor shows "no shape" warnings on
-  `Player/CollisionShape2D` and on each `Wall` — **those are expected**; don't add scene shapes.
+  (layout is data-driven). Because of this the editor shows a "no shape" warning on the character scenes'
+  `CollisionShape2D` (`character_base.tscn`, so `Player` and the NPCs) — **that is expected** (walls are built in code); don't add scene shapes.
 
 ## Running & verifying
 
