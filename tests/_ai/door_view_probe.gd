@@ -102,20 +102,6 @@ static func longest_pause_in_view(t: TestContext, samples: Array, id: StringName
 	return longest
 
 
-## How many separate times actor `id` walked into the view of `door` in `samples` (a crossing in one go is one).
-static func view_entries(t: TestContext, samples: Array, id: StringName, door: Dictionary) -> int:
-	var count := 0
-	var was_in := false
-	for s in samples:
-		if not s["pos"].has(id):
-			continue
-		var now_in := in_view(t, door, s["pos"][id])
-		if now_in and not was_in:
-			count += 1
-		was_in = now_in
-	return count
-
-
 ## The sim time actor `id` first stood outside `door` (on the outer side of its wall) across the door's axis from `from_side`
 ## (the sign of `entry_probe.lateral` on the side it came from), more than `beyond` px past the axis: when its walk crossed the
 ## doorway's line of sight. INF when it never did.
@@ -176,13 +162,6 @@ static func wait_wall(t: TestContext, since_ms: int, seconds: float, since_t: fl
 	while Time.get_ticks_msec() - since_ms < int(seconds * 1000.0) or t.time - since_t < sim_seconds:
 		OS.delay_msec(16)
 		await t.frames(1)
-
-
-## The navigated length (px) of the plain route from `a` to `b` on the test world's planning map: what the avoiding route is
-## measured against (`AVOID_RATIO` x this + `AVOID_SLACK`).
-static func plain_route_length(t: TestContext, a: Vector2, b: Vector2) -> float:
-	var map := t.world.get_world_2d().navigation_map
-	return NavBuilder.path_length(NavBuilder.route(map, a, b))
 
 
 # --- internals ---------------------------------------------------------------------------------------
