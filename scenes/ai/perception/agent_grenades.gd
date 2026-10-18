@@ -32,8 +32,8 @@ const RECALL_DIST := 30.0
 ## The callout statuses that name a live grenade, and the kind each means (`&""`: the callout names it).
 const CALL_KINDS := { &"grenade": &"", &"frag_out": &"frag", &"bang_out": &"stun" }
 
-var enabled: bool = true               ## Whether the NPC reacts to grenades at all (`grenades_enabled`).
-var hear_grenade: float = 300.0        ## How far (px) a grenade coming down is heard.
+var enabled: bool                      ## Whether the NPC reacts to grenades at all (the controller's `grenades_enabled`, set by the perception).
+var hear_grenade: float                ## How far (px) a grenade coming down is heard (`hear_grenade`, the same way).
 var throw: AgentThrow                  ## The danger-zone and escape geometry.
 
 var _character: Node  ## The NPC's body, handed in once by `bind`.

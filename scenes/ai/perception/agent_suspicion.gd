@@ -25,8 +25,8 @@ const LEAVE_STEP := 1.0
 
 var memory: RefCounted       ## The event memory (read-only); see agent_memory.gd.
 var entry: RefCounted        ## The doorway geometry (`room_doorways`); see agent_entry.gd.
-var still_speed := 20.0      ## A lost hostile slower than this (px/s) was not heading anywhere.
-var extrapolate_cap := 3.0   ## Most seconds its last-seen velocity is carried forward to where it was heading.
+var still_speed: float       ## A lost hostile slower than this (px/s) was not heading anywhere (set by the perception, as the next).
+var extrapolate_cap: float   ## Most seconds its last-seen velocity is carried forward to where it was heading.
 
 
 ## Every suspect room: room key -> its reasons (`ORDER`), from the memory, the lost hostiles `lost` (`AgentPerception.lost_hostiles()`)

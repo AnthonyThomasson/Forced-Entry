@@ -19,8 +19,8 @@ extends Node
 ## grenade geometry (agent_throw.gd), the live grenades known (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as
 ## internal modules, and surfaces knowledge only through its own methods. It holds NO policy: it never decides, gates by goal or
 ## picks — and the measured wording Von reads lives in the snapshot author, not here. The controller
-## configures it (all tunables live on the GoalController, the single authoring surface) then calls
-## `setup()` once.
+## calls `setup()` once, then hands itself to `apply_config(cfg)`, which sets the perception's own tunables
+## and its modules' straight from the controller's exports (the single authoring surface).
 
 ## The internal modules this sub-domain owns (built in setup() from the config fields).
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -52,80 +52,29 @@ const SIGHT_EVERY_FRAMES := 3
 ## The longest (game ms, `GameClock`) a decision waits for the avoid map its routes are measured on (`routes_ready`).
 const WARM_CAP_MS := 3000
 
-## Lifetime (s) of a live contact: the window the NPC keeps acting on a last-seen position.
-var contact_memory_ttl: float = 4.0
-## Whether this NPC starts knowing the house (rooms + objects), else learns them by sight.
-var familiar_with_house: bool = true
 ## The house entrance in world space (injected by Main for some NPCs), offered while outside.
 var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`WorldGen.get_openings`, injected by Main), for tactical entry.
 var openings: Array = []
 
-# --- Config fields the controller copies from its exports before calling setup(). ---
-# Vision (the sight sense).
-var vision_enabled: bool = true        ## GoalController.vision_enabled
-var view_distance: float = 2520.0      ## GoalController.view_distance
-var fov_degrees: float = 110.0         ## GoalController.fov_degrees
-var awareness_radius: float = 48.0     ## GoalController.awareness_radius
-var see_over_coverage: float = 60.0    ## GoalController.see_over_coverage
-# Hostility (the categorization rules).
-var hostile_on_sight: bool = false     ## GoalController.hostile_on_sight
-var hostile_on_trespass: bool = false  ## GoalController.hostile_on_trespass
-var hostile_on_attack: bool = true     ## GoalController.hostile_on_attack
-var hostility_ttl: float = 0.0         ## GoalController.hostility_ttl
-# Memory (the event log) and how long each kind of knowledge lasts.
-var memory_capacity: int = 128         ## GoalController.memory_capacity
-var lead_memory_ttl: float = 20.0      ## GoalController.lead_memory_ttl
-var search_memory_ttl: float = 60.0    ## GoalController.search_memory_ttl
-# Combat awareness (how hits and gunfire are remembered — see process_hit()).
-var hit_awareness_radius: float = 160.0 ## GoalController.hit_awareness_radius
-var hearing_radius: float = 900.0      ## GoalController.hearing_radius
-var hear_walk: float = 250.0           ## How far (px) a walking step is heard, through walls (docs/hearing.md H1).
-var hear_run: float = 450.0            ## How far (px) a running step is heard.
-var hear_crouch: float = 100.0         ## How far (px) a crouched step is heard.
-var under_fire_time: float = 3.0       ## GoalController.under_fire_time
-var engage_dwell: float = 3.0          ## GoalController.engage_dwell
-# Context: how knowledge is worded and bounded for Von.
-var shoot_range: float = 500.0         ## GoalController.shoot_range
-var punch_range: float = 48.0          ## GoalController.punch_range
-var recency_bands: Vector2 = Vector2(2.0, 8.0) ## GoalController.recency_bands
-var route_buckets: Vector2 = Vector2(400.0, 900.0) ## GoalController.route_buckets
-var aim_cone: float = 20.0             ## GoalController.aim_cone
-var still_speed: float = 20.0          ## GoalController.still_speed
-var track_smoothing: float = 0.3       ## GoalController.track_smoothing
-var extrapolate_cap: float = 3.0       ## GoalController.extrapolate_cap
-var investigate_distance: float = 300.0 ## GoalController.investigate_distance
-var max_options_per_level: int = 4     ## GoalController.max_options_per_level
-var hurt_threshold: float = 15.0       ## Accumulated damage at/above which a character reads as hurt.
-var critical_threshold: float = 35.0   ## Accumulated damage at/above which a character reads as badly wounded.
-var low_ammo_fraction: float = 0.34    ## A gun at/below this fraction of its magazine reads as nearly empty.
-var max_contacts_in_state: int = 4     ## Most contacts described in the decision state (hostiles first).
-# Tactics (the combat geometry).
-var cover_min: float = 40.0            ## Surface coverage at/above which a blocking object counts as cover.
-var flank_distance: float = 220.0      ## GoalController.flank_distance
-var flank_arc: float = 60.0            ## GoalController.flank_arc
-var flank_ally_radius: float = 500.0   ## GoalController.flank_ally_radius
-var combat_ring_radius: float = 80.0   ## GoalController.combat_ring_radius
-var combat_ring_count: int = 12        ## GoalController.combat_ring_count
-var route_clearance: float = 120.0     ## GoalController.route_clearance
-var watch_arc: float = 90.0            ## GoalController.watch_arc
-var fire_spot_distances: Array[float] = [200.0, 350.0] ## GoalController.fire_spot_distances
-# Callouts (allies' radio).
-var callout_range: float = 1500.0      ## GoalController.callout_range
-var callout_ttl: float = 6.0           ## GoalController.callout_ttl
-# Tactical entry (the doorway geometry; see agent_entry.gd).
-var entry_enabled: bool = false        ## Whether doorways into rooms left to clear are offered (ENTER).
-var entry_stack_spacing: float = 44.0  ## GoalController.entry_stack_spacing
-var entry_wall_standoff: float = 28.0  ## GoalController.entry_wall_standoff
-var entry_pie_radius: float = 100.0    ## GoalController.entry_pie_radius
-var entry_pie_steps: int = 5           ## GoalController.entry_pie_steps
-var entry_corner_inset: float = 40.0   ## GoalController.entry_corner_inset
-var entry_short_room: float = 150.0   ## A room with a side under this (px) is too small for the team (agent_entry.gd `short_room`).
-var entry_guard: bool = true           ## Whether walks keep out of doorway views and secure the ones they cross (the controller's `entry_guard`).
-var door_view_depth: float = 450.0     ## How far (px) out of a doorway its view reaches (agent_door_views.gd `door_view_depth`).
-var door_avoid_ratio: float = 2.0      ## A walk round the doorway views is taken when no longer than this many times the plain route...
-var door_avoid_slack: float = 300.0    ## ... plus this many px.
-var entry_pass_clear_time: float = 60.0 ## Seconds a cleared room counts as safe to walk past.
+# --- The tunables the perception reads itself, set by apply_config() from the controller's exports of the same name. ---
+var contact_memory_ttl: float          ## Lifetime (s) of a live contact: the window the NPC keeps acting on a last-seen position.
+var familiar_with_house: bool          ## Whether this NPC starts knowing the house (rooms + objects), else learns them by sight.
+var lead_memory_ttl: float             ## Seconds a lead stays one: a lost hostile's last sighting, gunfire or footsteps heard, where shots came from.
+var search_memory_ttl: float           ## Seconds a visited room counts as recently searched (and a cleared one as cleared).
+var hit_awareness_radius: float        ## A hit this near (px) counts as being attacked (see process_hit()).
+var hearing_radius: float              ## A hit farther off but this near (px) is gunfire heard.
+var hear_walk: float                   ## How far (px) a walking step is heard, through walls (docs/hearing.md H1).
+var hear_run: float                    ## How far (px) a running step is heard.
+var hear_crouch: float                 ## How far (px) a crouched step is heard.
+var under_fire_time: float             ## Seconds a hit on or near the NPC keeps it under fire (`under_fire`).
+var engage_dwell: float                ## Seconds the NPC stays committed to a fight after the last shot it fired or took (`engaged`).
+var track_smoothing: float             ## Smoothing (0–1) of a seen character's tracked velocity: the share of a new one taken per game frame.
+var callout_range: float               ## How far (px) an ally's callout carries; <= 0 = unlimited.
+var callout_ttl: float                 ## Seconds a heard callout stays current.
+var entry_enabled: bool                ## Whether doorways into rooms left to clear are offered (ENTER).
+var entry_guard: bool                  ## Whether walks keep out of doorway views and secure the ones they cross (the controller's `entry_guard`).
+var entry_pass_clear_time: float       ## Seconds a cleared room counts as safe to walk past.
 ## Whether the NPC is walking an ordered stack's way to its door (`docs/leadership.md` LD9), set each tick by the behaviour: that walk keeps
 ## out of the doorway views whatever `entry_enabled` says (D4), and for an NPC that does not clear rooms by entry (`entry_enabled` off) a
 ## room it has stood in lately and seen no hostile in counts as clear for passing (`seen_empty`, D11); the room its stack holds always does
@@ -137,11 +86,6 @@ var ordered_walk := false:
 			_sync_walks()
 var _stack_room := ""                  ## `stack_room()` this frame...
 var _stack_room_frame := -1            ## ... worked out on this physics frame.
-# Grenades (live ones known by sight, hearing and callouts, and the danger zone; see agent_grenades.gd).
-var grenades_enabled: bool = true      ## Whether the NPC reacts to live grenades at all.
-var hear_grenade: float = 300.0        ## How far (px) a grenade coming down is heard.
-var evade_margin: float = 120.0        ## How far past a frag's blast radius its danger zone reaches (px).
-var throw_spot_walk: float = 250.0     ## Longest walk (px of route) to a throw spot (agent_tactics.gd `throw_spot`).
 
 var _character: Node             ## The NPC's body, handed in once by bind().
 var _vision: RefCounted          ## The sight sense (FOV/range/LoS); see agent_vision.gd.
@@ -174,8 +118,8 @@ var last_burst := {}
 var _ended_order := {}           ## The order that ended done or refused, until the controller radios it (`take_ended_order`).
 
 
-## Build the owned sensing modules. The controller calls this once in its _ready(); it then pushes the
-## config fields into the modules with apply_config() (here, and again each decision so a runtime
+## Build the owned sensing modules. The controller calls this once in its _ready(); it then hands itself
+## to apply_config(), which sets the modules' tunables (here, and again each decision so a runtime
 ## retune takes effect). Building and configuring are separate so apply_config() never rebuilds a
 ## module — that would wipe the event memory and the sight state.
 func setup() -> void:
@@ -200,62 +144,79 @@ func setup() -> void:
 	_snapshot.setup(_memory, _tactics, _entry, _views, _throw, _suspicion)
 
 
-## Push the current config fields into the owned modules. Idempotent and state-free (it only sets
-## tunables, never the memory log or hostility faction), so the controller may call it every decision
-## to keep the modules in step with exports retuned at runtime (e.g. by the dev command server).
-func apply_config() -> void:
-	_vision.enabled = vision_enabled
-	_vision.view_distance = view_distance
-	_vision.fov_degrees = fov_degrees
-	_vision.awareness_radius = awareness_radius
-	_vision.see_over_coverage = see_over_coverage
-	_hostility.on_sight = hostile_on_sight
-	_hostility.trespass = hostile_on_trespass
-	_hostility.retaliate = hostile_on_attack
-	_hostility.ttl = hostility_ttl
-	_memory.capacity = memory_capacity
-	_tactics.cover_min = cover_min
-	_tactics.flank_distance = flank_distance
-	_tactics.flank_arc = flank_arc
-	_tactics.flank_ally_radius = flank_ally_radius
-	_tactics.shoot_range = shoot_range
-	_tactics.combat_ring_radius = combat_ring_radius
-	_tactics.combat_ring_count = combat_ring_count
-	_tactics.still_speed = still_speed
-	_tactics.route_clearance = route_clearance
-	_tactics.watch_arc = watch_arc
-	_tactics.fire_spot_distances = fire_spot_distances
-	_tactics.throw_spot_walk = throw_spot_walk
-	_entry.stack_spacing = entry_stack_spacing
-	_entry.wall_standoff = entry_wall_standoff
-	_entry.pie_radius = entry_pie_radius
-	_entry.pie_steps = entry_pie_steps
-	_entry.corner_inset = entry_corner_inset
-	_entry.short_room = entry_short_room
-	_views.door_view_depth = door_view_depth
-	_views.door_avoid_ratio = door_avoid_ratio
-	_views.door_avoid_slack = door_avoid_slack
+## Set the perception's own tunables and its modules' straight from `cfg`, the controller, whose exports of these names are the one
+## authoring surface. Idempotent and state-free (it only sets tunables, never the memory log or hostility faction), so the controller may
+## call it every decision to keep the modules in step with exports retuned at runtime (e.g. by the dev command server).
+func apply_config(cfg: Node) -> void:
+	contact_memory_ttl = cfg.contact_memory_ttl
+	familiar_with_house = cfg.familiar_with_house
+	lead_memory_ttl = cfg.lead_memory_ttl
+	search_memory_ttl = cfg.search_memory_ttl
+	hit_awareness_radius = cfg.hit_awareness_radius
+	hearing_radius = cfg.hearing_radius
+	hear_walk = cfg.hear_walk
+	hear_run = cfg.hear_run
+	hear_crouch = cfg.hear_crouch
+	under_fire_time = cfg.under_fire_time
+	engage_dwell = cfg.engage_dwell
+	track_smoothing = cfg.track_smoothing
+	callout_range = cfg.callout_range
+	callout_ttl = cfg.callout_ttl
+	entry_enabled = cfg.entry_enabled
+	entry_guard = cfg.entry_guard
+	entry_pass_clear_time = cfg.entry_pass_clear_time
+	_vision.enabled = cfg.vision_enabled
+	_vision.view_distance = cfg.view_distance
+	_vision.fov_degrees = cfg.fov_degrees
+	_vision.awareness_radius = cfg.awareness_radius
+	_vision.see_over_coverage = cfg.see_over_coverage
+	_hostility.on_sight = cfg.hostile_on_sight
+	_hostility.trespass = cfg.hostile_on_trespass
+	_hostility.retaliate = cfg.hostile_on_attack
+	_hostility.ttl = cfg.hostility_ttl
+	_memory.capacity = cfg.memory_capacity
+	_tactics.cover_min = cfg.cover_min
+	_tactics.flank_distance = cfg.flank_distance
+	_tactics.flank_arc = cfg.flank_arc
+	_tactics.flank_ally_radius = cfg.flank_ally_radius
+	_tactics.shoot_range = cfg.shoot_range
+	_tactics.combat_ring_radius = cfg.combat_ring_radius
+	_tactics.combat_ring_count = cfg.combat_ring_count
+	_tactics.still_speed = cfg.still_speed
+	_tactics.route_clearance = cfg.route_clearance
+	_tactics.watch_arc = cfg.watch_arc
+	_tactics.fire_spot_distances = cfg.fire_spot_distances
+	_tactics.throw_spot_walk = cfg.throw_spot_walk
+	_entry.stack_spacing = cfg.entry_stack_spacing
+	_entry.wall_standoff = cfg.entry_wall_standoff
+	_entry.pie_radius = cfg.entry_pie_radius
+	_entry.pie_steps = cfg.entry_pie_steps
+	_entry.corner_inset = cfg.entry_corner_inset
+	_entry.short_room = cfg.entry_short_room
+	_views.door_view_depth = cfg.door_view_depth
+	_views.door_avoid_ratio = cfg.door_avoid_ratio
+	_views.door_avoid_slack = cfg.door_avoid_slack
 	_sync_walks()
-	_throw.evade_margin = evade_margin
-	_grenades.enabled = grenades_enabled
-	_grenades.hear_grenade = hear_grenade
-	_suspicion.still_speed = still_speed
-	_suspicion.extrapolate_cap = extrapolate_cap
-	_snapshot.vocab.shoot_range = shoot_range
-	_snapshot.vocab.punch_range = punch_range
-	_snapshot.vocab.recency_bands = recency_bands
-	_snapshot.vocab.route_buckets = route_buckets
-	_snapshot.vocab.aim_cone = aim_cone
-	_snapshot.vocab.still_speed = still_speed
-	_snapshot.vocab.flank_ally_radius = flank_ally_radius
-	_snapshot.vocab.investigate_distance = investigate_distance
-	_snapshot.vocab.extrapolate_cap = extrapolate_cap
-	_snapshot.vocab.max_options_per_level = max_options_per_level
-	_snapshot.vocab.hurt_threshold = hurt_threshold
-	_snapshot.vocab.critical_threshold = critical_threshold
-	_snapshot.vocab.low_ammo_fraction = low_ammo_fraction
-	_snapshot.vocab.max_contacts_in_state = max_contacts_in_state
-	_snapshot.vocab.search_memory_ttl = search_memory_ttl
+	_throw.evade_margin = cfg.evade_margin
+	_grenades.enabled = cfg.grenades_enabled
+	_grenades.hear_grenade = cfg.hear_grenade
+	_suspicion.still_speed = cfg.still_speed
+	_suspicion.extrapolate_cap = cfg.extrapolate_cap
+	_snapshot.vocab.shoot_range = cfg.shoot_range
+	_snapshot.vocab.punch_range = cfg.punch_range
+	_snapshot.vocab.recency_bands = cfg.recency_bands
+	_snapshot.vocab.route_buckets = cfg.route_buckets
+	_snapshot.vocab.aim_cone = cfg.aim_cone
+	_snapshot.vocab.still_speed = cfg.still_speed
+	_snapshot.vocab.flank_ally_radius = cfg.flank_ally_radius
+	_snapshot.vocab.investigate_distance = cfg.investigate_distance
+	_snapshot.vocab.extrapolate_cap = cfg.extrapolate_cap
+	_snapshot.vocab.max_options_per_level = cfg.max_options_per_level
+	_snapshot.vocab.hurt_threshold = cfg.hurt_threshold
+	_snapshot.vocab.critical_threshold = cfg.critical_threshold
+	_snapshot.vocab.low_ammo_fraction = cfg.low_ammo_fraction
+	_snapshot.vocab.max_contacts_in_state = cfg.max_contacts_in_state
+	_snapshot.vocab.search_memory_ttl = cfg.search_memory_ttl
 
 
 ## Push the walk rules into the doorway views: walks keep out of the doorway views where the entry guard runs (`entry_guard`, with
@@ -592,7 +553,7 @@ func debug_memory() -> Dictionary:
 		"callout_range": callout_range,
 		"contact_memory_ttl": contact_memory_ttl,
 		"lead_memory_ttl": lead_memory_ttl,
-		"extrapolate_cap": extrapolate_cap,
+		"extrapolate_cap": _suspicion.extrapolate_cap,
 	}
 
 

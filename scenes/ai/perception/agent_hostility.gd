@@ -5,16 +5,17 @@ extends RefCounted
 ## it each sighting and the controller feeds it each attack, and it records its verdicts in the
 ## agent's memory as `&"hostile"` events (`{ id, reason }`), so hostility persists and decays like any
 ## other knowledge. The same rules serve every NPC: a defender is "hostile on trespass + on attack", an
-## invader "hostile on sight". Allies (same faction, or a listed one) are never hostile.
+## invader "hostile on sight". Allies (same faction, or a listed one) are never hostile. The perception sets the four rules
+## from the controller's exports (`hostile_on_sight`, `hostile_on_trespass`, `hostile_on_attack`, `hostility_ttl`).
 
 ## Every non-allied character seen is hostile.
-var on_sight: bool = false
+var on_sight: bool
 ## A non-allied character seen inside the house is hostile.
-var trespass: bool = false
+var trespass: bool
 ## A non-allied character that attacks this NPC (hits it or shoots close to it) is hostile.
-var retaliate: bool = true
+var retaliate: bool
 ## Lifetime (s) of a hostility verdict; <= 0 = permanent (a grudge never fades).
-var ttl: float = 0.0
+var ttl: float
 ## This NPC's own faction (read from its character).
 var faction: StringName = &""
 

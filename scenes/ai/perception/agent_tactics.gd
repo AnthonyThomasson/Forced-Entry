@@ -29,18 +29,19 @@ const TAKEN := 32.0
 const BESIDE_ALLY := 44.0
 
 var vision: RefCounted               ## The perception's sight sense; owner of the ray queries.
-var cover_min: float = 40.0          ## Surface coverage at or above which a blocking object is cover.
-var flank_distance: float = 220.0    ## Distance (px) from the target a flanking spot is sought at.
-var flank_arc: float = 60.0          ## Angular spread (degrees) sampled around each side's bearing.
-var flank_ally_radius: float = 500.0 ## An ally this close to the target holds the side it stands on.
-var shoot_range: float = 500.0       ## Pistol range (px): a spot beyond it gives no shot.
-var combat_ring_radius: float = 80.0 ## Radius (px) of the ring of nearby candidate fighting spots.
-var combat_ring_count: int = 12      ## Points sampled on that ring.
-var still_speed: float = 20.0        ## Speed (px/s) under which a contact counts as standing still.
-var route_clearance: float = 120.0   ## A route coming this close (px) to a known hostile passes it.
-var watch_arc: float = 90.0          ## Full cone (degrees) around a hostile's front in which it is looking.
-var fire_spot_distances: Array[float] = [200.0, 350.0] ## Distances (px) from a target at which firing spots are sampled.
-var throw_spot_walk: float = 250.0  ## Longest walk (px of route) to a throw spot (`throw_spot`).
+# --- Config fields the perception's apply_config() sets from the controller's exports of the same name. ---
+var cover_min: float                 ## Surface coverage at or above which a blocking object is cover.
+var flank_distance: float            ## Distance (px) from the target a flanking spot is sought at.
+var flank_arc: float                 ## Angular spread (degrees) sampled around each side's bearing.
+var flank_ally_radius: float         ## An ally this close to the target holds the side it stands on.
+var shoot_range: float               ## Pistol range (px): a spot beyond it gives no shot.
+var combat_ring_radius: float        ## Radius (px) of the ring of nearby candidate fighting spots.
+var combat_ring_count: int           ## Points sampled on that ring.
+var still_speed: float               ## Speed (px/s) under which a contact counts as standing still.
+var route_clearance: float           ## A route coming this close (px) to a known hostile passes it.
+var watch_arc: float                 ## Full cone (degrees) around a hostile's front in which it is looking.
+var fire_spot_distances: Array[float] ## Distances (px) from a target at which firing spots are sampled.
+var throw_spot_walk: float           ## Longest walk (px of route) to a throw spot (`throw_spot`).
 
 
 # --- Ray + nav primitives --------------------------------------------------------------------

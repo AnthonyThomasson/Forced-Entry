@@ -407,69 +407,7 @@ func _ready() -> void:
 ## config on already-built sub-domains (never rebuilds), so it is safe to call each decision: a tunable
 ## retuned at runtime (e.g. by the dev command server for a behaviour test) takes effect on the next one.
 func _apply_config() -> void:
-	_perception.contact_memory_ttl = contact_memory_ttl
-	_perception.familiar_with_house = familiar_with_house
-	_perception.vision_enabled = vision_enabled
-	_perception.view_distance = view_distance
-	_perception.fov_degrees = fov_degrees
-	_perception.awareness_radius = awareness_radius
-	_perception.see_over_coverage = see_over_coverage
-	_perception.hostile_on_sight = hostile_on_sight
-	_perception.hostile_on_trespass = hostile_on_trespass
-	_perception.hostile_on_attack = hostile_on_attack
-	_perception.hostility_ttl = hostility_ttl
-	_perception.memory_capacity = memory_capacity
-	_perception.lead_memory_ttl = lead_memory_ttl
-	_perception.search_memory_ttl = search_memory_ttl
-	_perception.hit_awareness_radius = hit_awareness_radius
-	_perception.hearing_radius = hearing_radius
-	_perception.hear_walk = hear_walk
-	_perception.hear_run = hear_run
-	_perception.hear_crouch = hear_crouch
-	_perception.under_fire_time = under_fire_time
-	_perception.engage_dwell = engage_dwell
-	_perception.shoot_range = shoot_range
-	_perception.punch_range = punch_range
-	_perception.recency_bands = recency_bands
-	_perception.route_buckets = route_buckets
-	_perception.aim_cone = aim_cone
-	_perception.still_speed = still_speed
-	_perception.track_smoothing = track_smoothing
-	_perception.extrapolate_cap = extrapolate_cap
-	_perception.investigate_distance = investigate_distance
-	_perception.hurt_threshold = hurt_threshold
-	_perception.critical_threshold = critical_threshold
-	_perception.low_ammo_fraction = low_ammo_fraction
-	_perception.max_contacts_in_state = max_contacts_in_state
-	_perception.cover_min = cover_min
-	_perception.max_options_per_level = max_options_per_level
-	_perception.flank_distance = flank_distance
-	_perception.flank_arc = flank_arc
-	_perception.flank_ally_radius = flank_ally_radius
-	_perception.combat_ring_radius = combat_ring_radius
-	_perception.combat_ring_count = combat_ring_count
-	_perception.route_clearance = route_clearance
-	_perception.watch_arc = watch_arc
-	_perception.fire_spot_distances = fire_spot_distances
-	_perception.callout_range = callout_range
-	_perception.callout_ttl = callout_ttl
-	_perception.entry_enabled = entry_enabled
-	_perception.entry_stack_spacing = entry_stack_spacing
-	_perception.entry_wall_standoff = entry_wall_standoff
-	_perception.entry_pie_radius = entry_pie_radius
-	_perception.entry_pie_steps = entry_pie_steps
-	_perception.entry_corner_inset = entry_corner_inset
-	_perception.entry_short_room = entry_short_room
-	_perception.entry_guard = entry_guard
-	_perception.door_view_depth = door_view_depth
-	_perception.door_avoid_ratio = door_avoid_ratio
-	_perception.door_avoid_slack = door_avoid_slack
-	_perception.entry_pass_clear_time = entry_pass_clear_time
-	_perception.grenades_enabled = grenades_enabled
-	_perception.hear_grenade = hear_grenade
-	_perception.evade_margin = evade_margin
-	_perception.throw_spot_walk = throw_spot_walk
-	_perception.apply_config()
+	_perception.apply_config(self)
 	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a walk at
 	# COMBAT once a hostile is known; territory confines combat options inside the house.
 	var disabled: Array[StringName] = []
@@ -1104,9 +1042,9 @@ func _status(reloading: bool) -> Array:
 	if _perception.under_fire():
 		status.append("under fire")
 	var dmg: float = _character.damage_taken()
-	if dmg >= _perception.critical_threshold:
+	if dmg >= critical_threshold:
 		status.append("badly wounded")
-	elif dmg >= _perception.hurt_threshold:
+	elif dmg >= hurt_threshold:
 		status.append("hurt")
 	if reloading or _character.is_reloading():
 		status.append("reloading")

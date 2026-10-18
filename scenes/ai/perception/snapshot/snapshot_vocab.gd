@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## AI PERCEPTION sub-domain — SNAPSHOT VOCABULARY. The shared words and tuning of the decision snapshot: the compass and
-## flank-side names, every tunable the perception copies in before a decision (ranges, bands, thresholds, caps), the house
+## flank-side names, every tunable the perception sets from the controller's exports before a decision (ranges, bands, thresholds, caps), the house
 ## rooms of the decision being built, and the helpers that turn a distance, an age, a route, a bearing or a wound into the
 ## band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option modules read it, so no tunable is set twice.
 ## Everything is worded for a classifier (see `agent_snapshot.gd`): bands not numbers, no negations.
@@ -11,22 +11,22 @@ const COMPASS := ["east", "south-east", "south", "south-west", "west", "north-we
 ## How each flank side of a target is named to Von.
 const SIDE_WORDS := { "left": "their left side", "right": "their right side", "rear": "behind them", "front": "their front" }
 
-# --- Config fields the perception copies from its own config before each decision. ---
-var shoot_range: float = 500.0         ## GoalController.shoot_range
-var punch_range: float = 48.0          ## GoalController.punch_range
-var recency_bands: Vector2 = Vector2(2.0, 8.0) ## GoalController.recency_bands
-var route_buckets: Vector2 = Vector2(400.0, 900.0) ## GoalController.route_buckets
-var aim_cone: float = 20.0             ## GoalController.aim_cone
-var still_speed: float = 20.0          ## GoalController.still_speed
-var flank_ally_radius: float = 500.0   ## GoalController.flank_ally_radius
-var investigate_distance: float = 300.0 ## GoalController.investigate_distance
-var extrapolate_cap: float = 3.0       ## GoalController.extrapolate_cap
-var max_options_per_level: int = 4     ## GoalController.max_options_per_level
-var hurt_threshold: float = 15.0       ## GoalController.hurt_threshold
-var critical_threshold: float = 35.0   ## GoalController.critical_threshold
-var low_ammo_fraction: float = 0.34    ## GoalController.low_ammo_fraction
-var max_contacts_in_state: int = 4     ## GoalController.max_contacts_in_state
-var search_memory_ttl: float = 60.0    ## GoalController.search_memory_ttl
+# --- Config fields the perception's apply_config() sets from the controller's exports of the same name before each decision. ---
+var shoot_range: float                 ## GoalController.shoot_range
+var punch_range: float                 ## GoalController.punch_range
+var recency_bands: Vector2             ## GoalController.recency_bands
+var route_buckets: Vector2             ## GoalController.route_buckets
+var aim_cone: float                    ## GoalController.aim_cone
+var still_speed: float                 ## GoalController.still_speed
+var flank_ally_radius: float           ## GoalController.flank_ally_radius
+var investigate_distance: float        ## GoalController.investigate_distance
+var extrapolate_cap: float             ## GoalController.extrapolate_cap
+var max_options_per_level: int         ## GoalController.max_options_per_level
+var hurt_threshold: float              ## GoalController.hurt_threshold
+var critical_threshold: float          ## GoalController.critical_threshold
+var low_ammo_fraction: float           ## GoalController.low_ammo_fraction
+var max_contacts_in_state: int         ## GoalController.max_contacts_in_state
+var search_memory_ttl: float           ## GoalController.search_memory_ttl
 
 var rooms: Array = []  ## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
 var _character: Node   ## The NPC's body, handed in once by `bind`.
