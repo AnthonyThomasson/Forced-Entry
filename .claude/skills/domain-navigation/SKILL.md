@@ -27,8 +27,8 @@ notches are far smaller than the agent, and baked in they leave sub-pixel navmes
 NavigationServer cannot merge ("navigation map synchronization error"). Overlapping footprints are
 then fused (`_union_outlines`, which skips the polygon merge for two outlines whose bounding boxes are apart: the union would keep them as two; `tests/navigation/furniture_union_fast_path_test.gd` pins it to the every-pair merge) and every outline is snapped to the 1 px grid with repeated points dropped (`_on_grid`). The bake runs in the
 house's local frame and the region is offset by `house.position`, so the map lands in world space.
-`main.gd` calls it once after `WorldGen.generate`. `build` and every re-bake share one private
-`_bake_polygon` helper, so both carve furniture holes identically.
+`main.gd` calls it once after `WorldGen.generate`. `build` and every re-bake share one private path,
+`_source_for` (gathers the source geometry) then `_bake_job` (bakes it), so both carve furniture holes identically.
 
 ## Characters at rest are holes too (the steering map)
 
@@ -51,7 +51,7 @@ accounts for is the walker's business (the AI goes round by it only for a body i
 `nav_updater.gd` re-bakes it through the domain-internal `_rebake_steering`; the public `rebake_steering(region, house, rooms)` is a
 test-facing seam that measures its own footprints.
 
-**Every bake is welded** (`_weld_vertices`, run by `_bake_polygon` and by `rebake_async` when its bake lands): it merges the vertices that
+**Every bake is welded** (`_weld_vertices`, run by `_bake_job`, by `_rebake_async` when its bake lands and by the avoid bake, `_bake_avoid`): it merges the vertices that
 share a 1 px cell, because a hole meeting a wall leaves vertices a fraction of a pixel apart and the server rejects such an edge
 ("navigation map synchronization error"). A character's hole does it, and so does a piece of furniture's, a turned chair beside a wall for one,
 so the planning re-bake welds too (`tests/navigation/furniture_beside_wall_bakes_clean`, `character_beside_wall_bakes_clean`).
