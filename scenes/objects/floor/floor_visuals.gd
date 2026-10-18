@@ -2,7 +2,7 @@ extends Node2D
 
 ## Floor DRAW layer (Objects domain): repeats the floor's pixel-art tile across its rect, scaled so
 ## one art pixel covers ArtConfig.pixel_size world px (its grid from `tile_offset`), and lays the floor's world-placed
-## `marks` over it (a street's: a child StreetMarks layer, street_marks.gd). What in the tile gives light (`emissive()`; none of the floors glows) is drawn
+## `marks` over it (a street's: a child StreetMarks layer, street_marks.gd). What in the tile gives light (`_emissive`; none of the floors glows) is drawn
 ## again by a child `Emissive` layer. Floors are static: one draw.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
@@ -25,11 +25,6 @@ func _ready() -> void:
 	if _emissive:
 		_emissive_layer = EmissiveLayer.new().setup(self)
 	queue_redraw()
-
-
-## What in the floor's tile gives light, or null when nothing does. Drawn over the floor by the `Emissive` child.
-func emissive() -> Texture2D:
-	return _emissive
 
 
 ## The `Emissive` child layer (null when the floor has nothing that gives light).

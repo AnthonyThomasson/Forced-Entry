@@ -44,12 +44,7 @@ func get_rect() -> Rect2:
 	return _rect
 
 
-## What in the overhang's art gives light, transparent elsewhere; null when nothing in it does.
-func emissive() -> Texture2D:
-	return _emissive
-
-
-## The `Emissive` child layer drawing `emissive()` (null when the overhang has nothing that gives light).
+## The `Emissive` child layer drawing `_emissive` (null when the overhang has nothing that gives light).
 func emissive_layer() -> Node2D:
 	return _emissive_layer
 

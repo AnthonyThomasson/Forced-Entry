@@ -4,7 +4,7 @@ extends Node2D
 ## control node (wall.gd): its pixel-art tile repeated along each segment, or a flat line when
 ## the wall has no art. Reads the geometry (`wall_segments()`), width (`wall_thickness`) and look
 ## (`art`, `art_color`, `art_opts`) from the parent, so this file owns appearance only. What in the cap tile gives light
-## (`emissive()`; none of the caps glows) is drawn again by a child `Emissive` layer.
+## (`_emissive`; none of the caps glows) is drawn again by a child `Emissive` layer.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -49,11 +49,6 @@ func redraw_segment(i: int) -> void:
 		_segments[i].queue_redraw()
 	if _emissive_layer:
 		_emissive_layer.queue_redraw()
-
-
-## What in the cap tile gives light, or null when nothing does. Drawn over the walls by the `Emissive` child.
-func emissive() -> Texture2D:
-	return _emissive
 
 
 ## The `Emissive` child layer (null when the cap has nothing that gives light).

@@ -67,7 +67,7 @@ child `Overhang` to the piece, the overhead part that reaches beyond the footpri
 It draws the piece's own painter with `part: "overhang"` at `size` (across x out, canonical; swapped for a sideways facing), centred
 `reach` px out along the piece's facing, at `ObjectArtConfig.overhang_z_index` (`DrawLayers.OVERHEAD`, absolute: over the living and a
 vehicle's roof), with no collider (only the footprint is solid); `get_rect()` is the area it draws in its own frame, and like the
-piece's visuals it has `emissive()` / `emissive_layer()` (a child `Emissive`) for what in it gives light (`tests/objects/overhang`).
+piece's visuals it has `emissive_layer()` (a child `Emissive`) for what in it gives light (`tests/objects/overhang`).
 
 ## Lights and shadows (interface 20; spec `docs/lighting.md`)
 
@@ -145,8 +145,8 @@ art instead of a flat shape with its name label (the flat path stays for any def
 **No light is baked in** (no glow pools, sheen, halos, spill): what gives light is drawn bright and **marked emissive**: a
 painter draws it inside `canvas.glowing(draw, area)` (PixelCanvas, interface 12): the bare bulb, a CRT's screen, a monitor's lit
 edge (`props.gd`), an appliance's display, every neon trim and the neon tube. Each visuals
-node (`environment_object_visuals`, `floor_visuals`, `wall_visuals`, and the overhang's) exposes `emissive() -> Texture2D`
-(`ObjectArt.emissive` / `tile_emissive`: `PixelArt.emissive` of the same inputs, null when nothing glows) and `emissive_layer()`, a
+node (`environment_object_visuals`, `floor_visuals`, `wall_visuals`, and the overhang's) keeps those pixels in `_emissive`
+(`ObjectArt.emissive` / `tile_emissive`: `PixelArt.emissive` of the same inputs, null when nothing glows) and exposes `emissive_layer()`, a
 child `Emissive` (`emissive_layer.gd`, its own canvas item) that draws those pixels over the art through the same geometry (a
 piece's deformed silhouette, the tiled floor, the dented wall segments), **unshaded** (one shared `CanvasItemMaterial` in
 `LIGHT_MODE_UNSHADED`): the dusk and the lights never change a light source, while the art under it is lit

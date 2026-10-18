@@ -2,7 +2,7 @@ extends Node2D
 
 ## Objects domain: draws an EnvironmentObject: its pixel art (when it has an `art` painter) or its
 ## flat shape and name label, either way through the damage-deformed silhouette. What in the art gives light (a screen's
-## face, a tube, a bulb: `emissive()`) is drawn again over it by a child `Emissive` layer (emissive_layer.gd), through the
+## face, a tube, a bulb: `_emissive`) is drawn again over it by a child `Emissive` layer (emissive_layer.gd), through the
 ## same silhouette: the light-source overlay.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
@@ -32,13 +32,7 @@ func _ready() -> void:
 		add_child(_drop_shadow)
 
 
-## What in the piece's art gives light (a screen's face, a tube, a bulb), in the art's frame and colours, transparent
-## elsewhere; null when nothing in it does. Drawn over the art by the `Emissive` child.
-func emissive() -> Texture2D:
-	return _emissive
-
-
-## The `Emissive` child layer drawing `emissive()` (null when the piece has nothing that gives light).
+## The `Emissive` child layer drawing `_emissive` (null when the piece has nothing that gives light).
 func emissive_layer() -> Node2D:
 	return _emissive_layer
 
