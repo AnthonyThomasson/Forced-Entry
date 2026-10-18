@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Character body: how a character looks in its style (`Character.style`, `look_seed`, `rank`; `docs/outfits.md`, styles).
 ## `resolve` turns the style's row (`CharacterConfig.styles`) and what the character wears in that style (`Outfit.look(style)`)
-## into the one look every body painter draws from (`style_art.gd` registers it, the painters get its handle):
+## into the one look every body painter draws from (registered with `PixelArt.handle`, the painters read it back with `PixelArt.look_of`):
 ## - the character's own variety, drawn from its look seed in a fixed order (`_variety`): skin, hair and hair style, gloves,
 ##   a pack, its optics and face, the colours of its eyes and ink, the implants (tattoos, inlays, a headset, a spine rig, cables, a
 ##   patched sleeve), chrome arms and a chrome shin, and the sides a face plate and a patch sit on;
