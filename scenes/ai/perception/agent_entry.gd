@@ -1557,8 +1557,8 @@ func _sees(space, from: Vector2, to: Vector2) -> bool:
 ## `_callouts()`): `{ id (speaker instance id), name, slot, side, step, covering, pos, age }`, lowest slot first
 ## (`covering` = the doorway a member holding the cleared room watches, with step `cover`; `bang` = it goes in with a stun thrown first, true
 ## for a member that says nothing of it, such as the human; `stuns` / `frags` = how many stun / frag grenades it carries; `order_id` = the
-## order it stacks under, "" for none, with the order's `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14; a
-## claim without one reads it from `order_bang`), `order_hold` (the order holds for the leader's go, LD13) and `order_go` (that go has
+## order it stacks under, "" for none, with the order's `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14;
+## `quiet` for a claim under no order), `order_hold` (the order holds for the leader's go, LD13) and `order_go` (that go has
 ## come), and its side `order_side`, 1 / -1 along the wall or 0 for a split stack: `docs/leadership.md` LD9). A member who aborted or is
 ## done with the doorway, or whose latest call is about something else, holds no claim.
 static func claims(id: String, callouts: Array) -> Array:
@@ -1569,12 +1569,11 @@ static func claims(id: String, callouts: Array) -> Array:
 		var step := str(c.get("entry_step", ""))
 		if step == "" or step == "abort" or step == "done":
 			continue
-		var order_bang := bool(c.get("order_bang", false))
 		out.append({ "id": c["id"], "name": c.get("name", ""), "slot": int(c.get("slot", 0)), "side": int(c.get("side", 0)),
 			"step": step, "covering": str(c.get("covering", "")), "pos": c.get("position", Vector2.ZERO), "age": c.get("age", 0.0),
 			"bang": bool(c.get("bang", true)), "bang_off": bool(c.get("bang_off", false)), "stuns": int(c.get("stuns", 0)),
-			"frags": int(c.get("frags", 0)), "order_id": str(c.get("order_id", "")), "order_bang": order_bang,
-			"order_mode": str(c.get("order_mode", "stun" if order_bang else "quiet")), "order_hold": bool(c.get("order_hold", false)),
+			"frags": int(c.get("frags", 0)), "order_id": str(c.get("order_id", "")), "order_bang": bool(c.get("order_bang", false)),
+			"order_mode": str(c.get("order_mode", "quiet")), "order_hold": bool(c.get("order_hold", false)),
 			"order_go": bool(c.get("order_go", false)), "order_side": int(c.get("order_side", 0)), "leader": bool(c.get("leader", false)),
 			"claim_frame": int(c.get("claim_frame", -1)), "claim_pos": c.get("claim_pos", c.get("position", Vector2.ZERO)),
 			"move_up": int(c.get("move_up", 0)), "pie": bool(c.get("pie", false)), "human": bool(c.get("human", false)) })

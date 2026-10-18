@@ -78,7 +78,7 @@ func _label_of(order: Dictionary, step: String) -> String:
 	var what := "Defend"
 	match String(order.get("kind", "")):
 		"stack":
-			var mode := String(order.get("mode", "stun" if bool(order.get("bang", false)) else "quiet"))
+			var mode := String(order["mode"])
 			var held := bool(order.get("wait_go", false)) and not bool(order.get("go", false))
 			what = "Stack (%s%s)" % [mode, ", hold" if held else ""]
 		"ambush":

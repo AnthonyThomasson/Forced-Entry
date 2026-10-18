@@ -48,7 +48,7 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 		"stack":
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
 			if not into.is_empty():
-				var mode := String(order.get("mode", "stun" if bool(order.get("bang", false)) else "quiet"))
+				var mode := String(order["mode"])
 				return "Your leader ordered you to go into the %s by its doorway %s%s." % [_v.room_name(into["type"]),
 					"with a %s grenade first" % mode if mode != "quiet" else "quietly",
 					" when they give the go" if bool(order.get("wait_go", false)) and not bool(order.get("go", false)) else ""]

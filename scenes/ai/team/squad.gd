@@ -228,7 +228,7 @@ func issue(request: Dictionary) -> Dictionary:
 			if kind == STACK:
 				var mode := String(request.get("mode", ""))
 				if not MODES.has(mode):
-					mode = "stun" if bool(request.get("bang", false)) else "quiet"  # Part 1's request: a grenade first is a stun.
+					mode = "stun" if bool(request.get("bang", false)) else "quiet"  # A bare `bang` request: a grenade first is a stun.
 				order["mode"] = mode
 				order["bang"] = mode != "quiet"
 				order["wait_go"] = bool(request.get("wait_go", false))

@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 	t.check(selected.size() == 1 and (selected[0].get("point", Vector2.INF) as Vector2).distance_to(t2.global_position) < 2.0,
 		"the selected teammate is highlighted where it stands (%s)" % str(selected))
 
-	_view["members"][2]["order"] = { "id": "o2", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "pos": Vector2(870, 255) }
+	_view["members"][2]["order"] = { "id": "o2", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "quiet", "pos": Vector2(870, 255) }
 	await t.frames(2)
 	t.expect_eq(_of(markers, "order").size(), 2, "a second member's order adds a second target")
 
@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 
 
 ## LD16 (`docs/leadership.md`, part 2): the markers name the new order kinds at their targets: a stack's mode and whether it is held for
-## go ("Stack (frag, hold) · in position"), and an ambush ("Ambush · in position"). A part-1 stun stack (bang, no mode) still reads
+## go ("Stack (frag, hold) · in position"), and an ambush ("Ambush · in position"). A stun stack not held for go reads
 ## "Stack (stun)". The words are read off `drawn()`'s `label`.
 func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	_view["members"][1]["order"] = { "id": "o3", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "frag", "bang": true, "wait_go": true, "pos": Vector2(870, 190) }
@@ -86,9 +86,9 @@ func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	await t.frames(2)
 	var stun_hold := _label_for(markers, t1)
 	t.check(stun_hold.contains("stun") and stun_hold.contains("hold"), "a held stun stack is named with its mode and hold (%s)" % stun_hold)
-	_view["members"][1]["order"] = { "id": "o6", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "bang": true, "pos": Vector2(870, 190) }
+	_view["members"][1]["order"] = { "id": "o6", "kind": "stack", "opening": "door_840_190", "into": "kitchen", "mode": "stun", "bang": true, "pos": Vector2(870, 190) }
 	await t.frames(2)
-	t.expect_eq(_label_for(markers, t1), "Stack (stun) · moving", "a part-1 stun stack (bang, no mode, no hold) still reads as before")
+	t.expect_eq(_label_for(markers, t1), "Stack (stun) · moving", "a stun stack not held for go is named with its mode alone")
 
 
 ## The label drawn at the order target of `member`, or "".

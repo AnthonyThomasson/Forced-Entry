@@ -787,7 +787,7 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 				return { "summary": hold, "options": [option] }
 			var bang := bool(order.get("bang", false))
 			var params := { "opening": String(order["opening"]), "into": String(into["key"]), "bang": bang,
-				"mode": String(order.get("mode", "stun" if bang else "quiet")), "wait_go": bool(order.get("wait_go", false)),
+				"mode": String(order["mode"]), "wait_go": bool(order.get("wait_go", false)),
 				"go": bool(order.get("go", false)), "split": bool(order.get("split", false)), "order_id": order["id"] }
 			if order.get("stack_at") is Vector2:
 				params["stack_at"] = order["stack_at"]

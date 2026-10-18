@@ -333,7 +333,7 @@ time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an or
 (once a physics frame: the live order is a stack, `ordered_walk`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
 → the geometry's `from`; else "") counts as cleared for `threshold_ahead` and as pass-clear (`_pass_clear_ordered`, handed as `pass_clear` to
 an ordered walk with entry on; `_passable` adds `seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`AgentEntry.claims`)
-carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14; read from `order_bang` for a claim without one), `order_hold` and
+carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
 `order_go` (LD13) and `order_side` ("" / false / quiet / false / false / 0 for others), which `entry.gd` reads.
 `room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).

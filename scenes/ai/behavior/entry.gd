@@ -270,7 +270,7 @@ func begin(params: Dictionary) -> bool:
 	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
 	_order_id = "" if secure else str(params.get("order_id", ""))
 	_order_bang = bool(params.get("bang", false))
-	_order_mode = str(params.get("mode", "stun" if _order_bang else "quiet"))
+	_order_mode = str(params["mode"]) if _order_id != "" else ""
 	_order_hold = bool(params.get("wait_go", false))
 	_released = bool(params.get("go", false))
 	_order_side = _side_named(params)
