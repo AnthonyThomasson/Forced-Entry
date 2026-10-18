@@ -47,8 +47,8 @@ the test browser. `current_config() -> Dictionary` returns the same
   `rebind_requested(action, event)`, `reset_requested(action)`, `reset_all_requested`, `back_requested`.
   It knows nothing of `Keybinds` or `Settings`; Main applies each change and answers with `set_rows`.
   Layout: an opaque full-screen page (title 44pt, Debug checkbox 26pt) over a scrolling list grouped by
-  `group` (28pt headings; rows 22pt: name, key button, a red "also: <labels>" note when another action
-  shares the binding, Reset — disabled until the row differs from the default), then Reset all keys / Back.
+  `group` (28pt headings; rows: name and key button 22pt, a red "also: <labels>" note when another action
+  shares the binding and Reset — disabled until the row differs from the default — 20pt), then Reset all keys / Back.
   **Capture:** clicking a key button swaps it for "Press a key…" and the next key or mouse-button press is
   emitted as `rebind_requested` (the host may still refuse it); Esc cancels. Escape (cancel, else
   `back_requested`) and every key press during a capture are consumed in `_input`, which runs before
