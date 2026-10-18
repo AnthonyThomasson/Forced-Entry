@@ -546,7 +546,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `scenes/testing/` builds a test's world and drives it through the interfaces above only:
     WorldGen (1, incl. the catalogue lookups) or an arena / hand-laid room layout from the three
     factories (2, incl. `WallFactory.openings_for`), `NavBuilder`
-    + `nav_updater.gd` (9), the dusk lighting as Main lights a match (20: `WorldLighting.light` after the nav bake), the character scenes plus the controller contract (7) — a puppet
+    + `nav_updater.gd` (9), the dusk lighting as Main lights a match (20: `WorldLighting.light` after the nav bake), the character scenes plus the controller contract (7: it hands an NPC's controller the house's `rooms` / `openings` before the
+    character joins the tree, so it finds it by the `control` duck-type, the `npc_controllers` group being joined only in `_ready`) — a puppet
     `ScriptedController` or `player_controller.gd` on `character/character_base.tscn` (the
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
     `res://scenes/vehicle/<kind>.tscn` under the world root after the nav bake (not carved) and waits one physics frame so the new bodies
@@ -693,8 +694,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - Main builds one `Squad` (a `Node`) per side under `World` after arming the characters (`_build_squads`):
       `Squad.setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)` (`roster` the side's characters in spawn order; `human` when the human
       leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchSpawner.callout_ttl_of(members)`
-      through the `control` duck-type: the squad keeps a member's entry claim as long), and hands each member its own through
-      `MatchSpawner.bind_squad(member, squad, stack := null)` (beside `bind_npc`: the controller's `squad`, found by the `control` duck-type, and the
+      off the child in the group `npc_controllers` (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
+      `MatchSpawner.bind_squad(member, squad, stack := null)` (beside `bind_npc`: the controller's `squad`, found by the same group, and the
       human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17). The squad reads its members only through the
       Character API (`rank`, `is_dead`, the `died` signal) and lays its stacks on the navigation map and physics space of its own viewport's `World2D`.
     - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `rank`, the first in spawn order among equals, so the invaders'
