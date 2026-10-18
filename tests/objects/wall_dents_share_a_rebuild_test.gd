@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 		poly.append(Vector2(9999.0, 9999.0))  # the caller's own copy: changing it must change nothing kept
 		if Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts) != fresh:
 			differing.append("segment %d: a caller's change reached the kept polygon" % i)
-		var want := Deformation.convex_shapes(fresh)
+		var want := Deformation.shapes_of(Deformation.convex_pieces(fresh))
 		var have: Array = []
 		for col in wall._seg_colliders.get(i, []):
 			if is_instance_valid(col) and not col.is_queued_for_deletion():

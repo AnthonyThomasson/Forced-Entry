@@ -1,6 +1,6 @@
 extends GameTest
 
-## `Deformation.convex_shapes` cuts a dented silhouette into convex collider pieces by merging triangles
+## `Deformation.convex_pieces` cuts a dented silhouette into convex collider pieces by merging triangles
 ## (Hertel-Mehlhorn), restarting its scan after every merge. It finds the neighbouring pieces through an edge map,
 ## remembers the pairs that failed to merge, and checks only the two corners where a merge joins. This pins its pieces
 ## to the plain scan (every pair after every merge, every corner of the union) over silhouettes of every shape with up

@@ -241,17 +241,11 @@ static func is_valid_polygon(poly: PackedVector2Array) -> bool:
 	return poly.size() >= 3 and not Geometry2D.triangulate_polygon(poly).is_empty()
 
 
-## Decompose a (possibly concave) polygon into convex ConvexPolygonShape2D pieces for a
-## static collider. Returns [] for a degenerate polygon (caller keeps the old collider).
-## Merges the triangulation itself rather than calling `Geometry2D.decompose_polygon_in_convex`,
-## which logs "Convex decomposing failed!" on some near-degenerate polygons that do triangulate.
-static func convex_shapes(polygon: PackedVector2Array) -> Array:
-	return shapes_of(convex_pieces(polygon))
-
-
-## The convex pieces `convex_shapes` makes its shapes of, as their points (`PackedVector2Array` each); [] for a degenerate
-## polygon. Pure: it touches no shared state and makes no resource, so it may run on a worker thread (Objects works out the
-## pieces of every collider rebuilt in a frame together).
+## Decompose a (possibly concave) polygon into the convex pieces a static collider is rebuilt from (`shapes_of` makes
+## their shapes), as their points (`PackedVector2Array` each); [] for a degenerate polygon (caller keeps the old collider).
+## Merges the triangulation itself rather than calling `Geometry2D.decompose_polygon_in_convex`, which logs "Convex
+## decomposing failed!" on some near-degenerate polygons that do triangulate. Pure: it touches no shared state and makes no
+## resource, so it may run on a worker thread (Objects works out the pieces of every collider rebuilt in a frame together).
 static func convex_pieces(polygon: PackedVector2Array) -> Array:
 	var out: Array = []
 	if not is_valid_polygon(polygon):

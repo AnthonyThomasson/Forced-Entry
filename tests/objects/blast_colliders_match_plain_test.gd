@@ -3,7 +3,7 @@ extends GameTest
 ## A frag dents a room's worth of furniture in one frame, and each dented piece rebuilds its collider from convex pieces of its
 ## silhouette in a deferred call (environment_object.gd). The first rebuild of a flush cuts every waiting piece's silhouette
 ## together on the worker threads (`ColliderCuts`); each piece still swaps its own colliders in its own call. This checks that after a frag and
-## its fragments every piece's collider is exactly what cutting its own silhouette alone gives (`Deformation.convex_shapes`),
+## its fragments every piece's collider is exactly what cutting its own silhouette alone gives (`Deformation.convex_pieces`),
 ## piece by piece and point by point.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -48,7 +48,7 @@ func run(t: TestContext) -> void:
 		if impacts.is_empty():
 			continue
 		dented += 1
-		var want := Deformation.convex_shapes(Deformation.shape_polygon(piece.shape_type, piece.size, impacts))
+		var want := Deformation.shapes_of(Deformation.convex_pieces(Deformation.shape_polygon(piece.shape_type, piece.size, impacts)))
 		var have: Array = []
 		for child in piece.get_children():
 			if child is CollisionShape2D and not child.is_queued_for_deletion():

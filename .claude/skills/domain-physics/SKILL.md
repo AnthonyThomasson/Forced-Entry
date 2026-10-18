@@ -28,11 +28,11 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`).
 - `Deformation` — the polygon math + drawing (shared by furniture and walls). `shape_polygon` keeps its last 256 dented
   silhouettes, keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
   each hit asks for the same one three times (collider, shadow, drawing) and every repaint of a wounded character asks again
-  (`tests/physics/shape_polygon_cache_test.gd`). `convex_shapes` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
+  (`tests/physics/shape_polygon_cache_test.gd`). `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
   over its triangulation) finding neighbouring pieces through a directed-edge map, remembering failed pairs by piece id and
   checking only the two corners a merge joins; after a merge the scan goes on from the merged piece, having first tried the pairs
   the new piece makes with the pieces before it (every other pair before it has failed), and an attempt hands back its union;
-  `tests/physics/convex_pieces_match_plain_scan_test.gd` pins it to the plain every-pair, every-corner scan; `convex_pieces(polygon)` gives the pieces' points (pure, for a worker thread) and
+  `tests/physics/convex_pieces_match_plain_scan_test.gd` pins it to the plain every-pair, every-corner scan; the pieces come as their points (pure, for a worker thread) and
   `shapes_of` makes the shapes; `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` return `[polygon, pieces]`
   for a dented silhouette computed without the caches (pure: Objects' `ColliderCuts` runs them on worker threads; a circle's unit
   ring is made afresh there, never read from or written to the kept one). `wall_polygon` keeps its last 256 dented segments like `shape_polygon` (a wall repaints every segment when
