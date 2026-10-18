@@ -10,9 +10,7 @@ extends RefCounted
 ##   `shimmer` a screen: a restless flicker, and every few seconds a cut to another picture (brighter or darker);
 ##   `pulse`   a slow breathing (a heating coil, a scanner's sweep, a status light).
 
-const MODES := [&"steady", &"buzz", &"failing", &"blink", &"shimmer", &"pulse"]
-
-var mode: StringName  ## One of MODES.
+var mode: StringName  ## One of the modes above.
 var _rng := RandomNumberGenerator.new()  ## Seeded per light: its periods, bursts, cuts and jitter.
 var _t := 0.0  ## Its clock (s), started at a seeded point.
 var _period := 1.0  ## blink, pulse: the cycle (s).
@@ -42,7 +40,7 @@ static func pick(kinds: Array, rng: RandomNumberGenerator) -> StringName:
 	return kinds[-1][0]
 
 
-## A rhythm of `kind` (one of MODES), seeded by `seed_value`.
+## A rhythm of `kind` (one of the modes above), seeded by `seed_value`.
 func _init(kind: StringName, seed_value: int) -> void:
 	mode = kind
 	_rng.seed = seed_value

@@ -26,7 +26,7 @@ static var fixture_energy := 0.8
 static var fixture_reach_scale := 1.1
 static var fixture_reach_pad := 60.0
 static var fixture_reach_range := Vector2(300.0, 900.0)
-## The rhythms a fixture's light is drawn from, by weight (`LightRhythm.MODES`).
+## The rhythms a fixture's light is drawn from, by weight (the modes in light_rhythm.gd's header).
 static var fixture_rhythms: Array = [[&"steady", 12.0], [&"failing", 1.0]]
 
 # --- Flashes -----------------------------------------------------------------------------------------------------------
