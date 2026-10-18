@@ -28,4 +28,4 @@ working while the match is paused. There are no `class_name`s in this domain; ca
 `OverlayToggles.setup`, …); `main.gd` finds its HUD nodes by name (`get_node_or_null("MatchHUD")`, `"DebugUI"`)
 and calls them duck-typed. Each sub-skill lists the calls its folder receives.
 
-**Interfaces:** 7 (observers of the Character API and the AI controller), 10 (EventBus), 13 (Testing), 14 (settings page), 17 (stack markers), 18 (stun screen), 21 (the command menu, the order markers and the squad-leaders overlay) — signatures in `architecture`.
+**Interfaces:** 7 (observers of the Character API and the AI controller), 10 (EventBus), 13 (Testing), 14 (settings page), 17 (stack markers), 18 (stun screen), 21 (the command menu, the order markers and the squad-leaders overlay), 22 (the setup window, match HUD, spectator inspector and overlay bar Main wires) — signatures in `architecture`.

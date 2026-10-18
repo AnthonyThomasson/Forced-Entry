@@ -122,4 +122,4 @@ The in-game observers: each reads only the Character public API / signals (incl.
   only when it changes. Who leads is not drawn here: the crown over each squad's leader is the
   overlays sub-domain's `leader_overlay.gd` (`domain-ui-overlays`), a debug overlay. Tested by `tests/ui/order_markers_draw_test.gd`.
 
-**Interfaces:** 7 (observers of the Character API, the debug panel's hits from its `hit_landed` signal, and of the AI controller), 10 (EventBus `&"stun"`), 11 (`DrawLayers.ABOVE` for the stack and order markers), 17 (stack markers), 18 (stun screen), 21 (the command menu and the order markers) — signatures in `architecture`.
+**Interfaces:** 7 (observers of the Character API, the debug panel's hits from its `hit_landed` signal, and of the AI controller), 10 (EventBus `&"stun"`), 11 (`DrawLayers.ABOVE` for the stack and order markers), 17 (stack markers), 18 (stun screen), 21 (the command menu and the order markers), 22 (the match HUD and the spectator inspector Main wires) — signatures in `architecture`.

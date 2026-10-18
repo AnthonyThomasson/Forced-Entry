@@ -572,7 +572,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     would change its result with `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`), sending
     its own input through `TestContext.inject` so the lock lets it through; the runner also builds the
     Navigation domain's draw-only `nav_debug.gd` (via the world, kept current by `nav_updater.gd`) and the
-    UI's `PerformanceOverlay` for the overlay bar's global toggles. Its scene carries General's camera (`general/camera_controller.gd`),
+    UI's `PerformanceOverlay` for the overlay bar's global toggles (the bar and `OverlayRegistry` are interface 22). Its scene carries General's camera (`general/camera_controller.gd`),
     which it points at the setup's camera targets (every actor by default) with `frame(targets)` and whose `pan_enabled` it clears where a
     human-driven player walks on WASD or the test locks the camera. Examples of the knobs: the Physics domain's `BloodConfig.enabled` /
     `PhysicsConfig.debris_enabled` master switches and the Audio domain's `audio.sound` switch; statics are restored after each test.
@@ -755,6 +755,39 @@ interfaces it takes part in (by number) and describes how they're implemented.
       and `drawn() -> Array` (`[{ point, node }]`, a crown over each squad's living leader while shown). It reads the leader through the
       Character API (`global_position`, `is_dead`) and the squads through `view()` only.
 
+22. **Main → UI: setup window, match HUD, spectator inspector, overlay bar** (the composition root wires them, in the shape of
+    interface 14: plain dicts in, signals out; the flow is `domain-main`'s)
+    - `SetupMenu` (`ui/menus/setup_menu.gd`, the `SetupMenu` node of `main.tscn`): `open(defaults)` (the exports with the saved
+      `Settings.setup` over them, plus the choice rows as plain data: `weapons` (`LoadoutConfig.options()`), `grenades`
+      (`grenade_options()`), `outfits` (`outfit_options()`) and the run's `ticket`), `current_config() -> Dictionary` (`{ side, seed, lead,
+      defenders, invaders }` as they stand, {} before `open`: Main saves it with `Settings.set_setup` when the window is left without
+      starting) and `set_status(text)` (a status line while Main holds the start; "" hides it); signals `start_requested(config)` (`{ mode`
+      (`play` / `watch` / `endless`)`, side, seed, lead, defenders, invaders }`, each side `{ count, weapon, magazine, spares, stuns, frags,
+      outfit }`), `tests_requested` (Main changes scene to the test browser, interface 13) and `settings_requested` (Main opens the settings
+      page, interface 14). It knows nothing of `LoadoutConfig`, `Settings` or Main.
+    - **The Von-server wait** (AI decision: `ai/decision/decision_server_launcher.gd`, the `DecisionServerLauncher` node of `main.tscn`):
+      before it builds a match Main asks `is_resolved()` and, while not, shows `set_status` and awaits `resolved(live)` (emitted exactly once;
+      `live` false = no server coming: the match starts with NPCs holding steady). Read duck-typed (`has_method("is_resolved")`), so a scene
+      without the launcher starts at once.
+    - `MatchHUD` (`ui/hud/match_hud.gd`, the `MatchHUD` node of `main.tscn`): `begin(combatants, time_limit := 0.0)` (every character in
+      the match, a human included; an endless run's `endless_time_limit` calls a match still undecided then a draw), `set_countdown(text)`
+      (the endless run's next-match line, "" clears it) and the signal `match_ended(verdict)` (Main starts the endless countdown on it).
+      Main also hides the player debug panel (the `DebugUI` node) behind the setup window and frees it in a spectator match; the panel
+      itself watches the player by exported path (interface 7).
+    - `SpectatorInspector` (`ui/hud/spectator_inspector.gd`, built by Main under `World` in a spectator match): `setup(combatants, flags,
+      right_clear)` (`flags` the overlay toggles without the global ones; `right_clear` the bar's column its outfit panel keeps clear of,
+      `OverlayToggles.RESERVED_WIDTH`) and `set_flag(flag, on)` (a toggle applied live to the selected NPC). What it reads of the characters
+      and their controllers is interface 7.
+    - **The overlay bar** (`ui/overlays/`, built by Main the first time a match starts with Debug on): `OverlayToggles` — `setup(flags)`
+      (`{ flag: bool }`, a missing flag taking its default), the signal `overlay_toggled(flag, on)` (Main saves it with `Settings.set_overlay`
+      and applies it: `NAV_HOLES` to the `nav_debug.gd` overlay's `show_holes`, `LEADERS` to the `LeaderOverlay` (interface 21), `PERF` to
+      the performance overlay, any other to the inspector's `set_flag`, or in a played match to every NPC) and `RESERVED_WIDTH`;
+      `PerformanceOverlay.set_shown(on)`; and `OverlayRegistry` (static: `defaults() -> Dictionary` (`{ flag: bool }`), `is_global(flag)`,
+      `apply(npc, flags)` (sets each `show_<x>` on every child of the NPC that has it, interface 7), `GLOBAL` and the global flags
+      `NAV_HOLES`, `LEADERS` and `PERF`). The Testing domain uses the same bar (interface 13): its runner builds an `OverlayToggles` and its
+      own `PerformanceOverlay` (`PERF`), and its world seeds its flags from `defaults()`, applies them to each actor with `apply` and sends
+      `NAV_HOLES` to its `nav_debug.gd`.
+
 ### Dependency graph (arrows = "calls / knows"; no cycles)
 
 ```
@@ -764,6 +797,8 @@ main ─▶ Character ◀─ PlayerController ─▶ Keybinds
 main ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style
 main ──(the styles' side / weapons)──▶ CharacterConfig.styles
 main ─▶ Settings ─▶ Keybinds   /   main ─▶ SettingsMenu (UI; signals only, no dependency on Settings)
+main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out)
+main ──(is_resolved / resolved: the Von wait)──▶ DecisionServerLauncher (AI)
 Character ─▶ Item ─▶ ProjectileSpawner ──(get_surface / take_hit)──▶ Objects;  Projectile ──(get_surface_at / take_hit)──▶ Character ─▶ Outfit (Items)
 Character ─▶ Interaction ──(get_interactions)──▶ Objects
 Character ─▶ CharacterVehicleUse (Vehicles) ─▶ Vehicle   (the ride and a strike call back only the character API of interface 19, as an Item calls its user's)
@@ -793,7 +828,7 @@ UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + sig
 DebugUI ─▶ LoadoutConfig.grenade_options (Items)
 main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / NavBuilder / Character scenes / EventBus
 Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
-TestBrowser / TestRunner ─▶ UI (TestBrowserWindow / TestResultHUD / OverlayToggles / PerformanceOverlay)
+TestBrowser / TestRunner / TestWorld ─▶ UI (TestBrowserWindow / TestResultHUD / OverlayToggles / PerformanceOverlay / OverlayRegistry)
 TestRunner / TestWorld ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 TestRunner ─▶ Camera (General: frame(targets), pan_enabled)
 main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world

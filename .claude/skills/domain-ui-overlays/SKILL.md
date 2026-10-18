@@ -51,4 +51,4 @@ The tooling that switches the AI/nav debug overlays on and off and shows engine 
   move it (it swallows clicks, so it blocks click-to-inspect beneath it). `PROCESS_MODE_ALWAYS` (keeps
   updating while paused); hidden it stops processing.
 
-**Interfaces:** 7 (the overlays' `show_<x>` exports), 13 (the Testing runner's overlay bar) — signatures in `architecture`.
+**Interfaces:** 7 (the overlays' `show_<x>` exports), 13 (the Testing runner's overlay bar), 22 (the overlay bar and `OverlayRegistry` Main wires) — signatures in `architecture`.

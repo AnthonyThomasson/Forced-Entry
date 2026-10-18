@@ -56,4 +56,4 @@ the test browser. `current_config() -> Dictionary` returns the same
   reaches the game; so Esc itself can't be bound. A redraw keeps the list's scroll position. Key and
   Reset buttons take no focus (Space/Enter must not re-press them). Tested by `tests/ui/settings_menu_test.gd`.
 
-**Interfaces:** 13 (the Tests button's scene change), 14 (the settings page; the setup window is called only by `main.gd`, see above) — signatures in `architecture`.
+**Interfaces:** 13 (the Tests button's scene change), 14 (the settings page), 22 (the setup window, called only by `main.gd`) — signatures in `architecture`.
