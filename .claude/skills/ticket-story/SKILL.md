@@ -39,7 +39,8 @@ A brief and a plan someone else could build from (the shape is `ticket` → "Bri
 - **Plan:** per domain, files and types added or changed, data; test files; phases (build order and what each
   produces); open risks.
 
-`ticket-assets`: the plan follows the showroom picks. Revise until accepted. Then `ticket` → "Rebase after
+`ticket-assets`: the plan follows the showroom picks. Show it with a `change-report` and ask for acceptance; each
+revision gets a fresh report. Revise until accepted. Then `ticket` → "Rebase after
 acceptance", "Brief and plan on the ticket", "Show the user".
 
 ## 3. Tests first
