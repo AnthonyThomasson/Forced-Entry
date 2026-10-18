@@ -165,6 +165,14 @@ static func opening_id(o: Dictionary) -> String:
 	return "door_%d_%d" % [roundi(p.x), roundi(p.y)]
 
 
+## The house's doorway whose `opening_id` is `id`, or `{}`.
+func _opening(id: String) -> Dictionary:
+	for o in _openings:
+		if opening_id(o) == id:
+			return o
+	return {}
+
+
 ## The doorways an NPC standing in room `here_key` ("" = outside) can go through into a room: an outer door from
 ## outside, any door of its room into the room on the far side. Each `{ id, into, pos, width, front }`.
 func entries_from(here_key: String) -> Array:
@@ -641,10 +649,7 @@ func door_view(id: String, into: String, map: RID, space) -> PackedVector2Array:
 	var key := "%s>%s@%d" % [id, into, int(door_view_depth)]
 	if _views.has(key):
 		return _views[key]
-	var opening := {}
-	for o in _openings:
-		if opening_id(o) == id:
-			opening = o
+	var opening := _opening(id)
 	var room := SnapshotVocab.room_by_key(_rooms, into)
 	if opening.is_empty() or room.is_empty() or space == null or vision == null or not NavBuilder.ready(map):
 		return PackedVector2Array()
@@ -792,10 +797,7 @@ func geometry(id: String, into: String, map: RID, space) -> Dictionary:
 	if shared.has(shared_key):
 		_cache[key] = shared[shared_key]
 		return _cache[key]
-	var opening := {}
-	for o in _openings:
-		if opening_id(o) == id:
-			opening = o
+	var opening := _opening(id)
 	var room := SnapshotVocab.room_by_key(_rooms, into)
 	if opening.is_empty() or room.is_empty():
 		return {}
@@ -1377,11 +1379,9 @@ func _tail_spots(c: Dictionary, open_slots: Array) -> Array:
 		return []
 	var pos: Vector2 = best["pos"]
 	var beyond := ""
-	for o in _openings:
-		if opening_id(o) == best["id"]:
-			for k in o.get("rooms", []):
-				if str(k) != c["from"]:
-					beyond = str(k)
+	for k in _opening(best["id"]).get("rooms", []):
+		if str(k) != c["from"]:
+			beyond = str(k)
 	var tc := { "id": best["id"], "pos": pos, "out": best["out"], "along": best["along"], "half": best["half"], "from": beyond,
 		"from_rect": _room_rect(beyond), "map": c["map"], "space": c["space"], "reach": {} }
 	var out: Array = []
