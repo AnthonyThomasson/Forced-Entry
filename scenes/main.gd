@@ -254,11 +254,9 @@ func _on_setup_chosen(config: Dictionary) -> void:
 	_spawn_world()
 
 
-## One entry of a side's config (`{ count, weapon, … }`, or a bare count from an older caller), else `fallback`.
+## One entry of a side's config (`{ count, weapon, … }`), else `fallback`.
 func _side_value(side: Variant, key: String, fallback: Variant) -> Variant:
-	if side is Dictionary:
-		return side.get(key, fallback)
-	return side if key == "count" and side != null else fallback
+	return side.get(key, fallback) if side is Dictionary else fallback
 
 
 ## A side's loadout dict from its config entry, keeping `fallback` for what the entry doesn't name.

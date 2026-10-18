@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(main.defender_loadout, LoadoutConfig.normalize(main.defender_loadout), "the defender loadout is valid")
 	t.expect_eq(main.invader_loadout, LoadoutConfig.normalize(main.invader_loadout), "the invader loadout is valid")
 
-	t.expect_eq(main._side_value(4, "count", 1), 4, "a bare count is read as the count")
+	t.expect_eq(main._side_value(null, "count", 1), 1, "a side the config leaves out keeps the fallback")
 	t.expect_eq(main._side_value({ "count": 2 }, "count", 1), 2, "a side dict's count is read")
 	t.expect_eq(main._side_loadout({ "weapon": "pistol", "spares": 1 }, {}), { "weapon": "pistol", "spares": 1 }, "a side dict's loadout keys are kept")
 	t.check(not main._side_defaults(1, {}).has("spares"), "an unset spare count is left to the window's default")
