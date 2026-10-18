@@ -58,6 +58,11 @@ draw their plain commands there themselves. Used by the body's limbs and shadow 
 and print chunks and the wound marks (Physics). Test: `tests/general/fill_batch_matches_draw_calls_test.gd` (headless, batching forced
 on: the batch holds each polygon's own triangles, and off it holds nothing; `--windowed`: identical pixels to the plain calls).
 
+`weighted_pick.gd` (`class_name WeightedPick`, a static holder like `PhysicsLayers`, interface 11) is the one weighted roll the
+domains share: `WeightedPick.pick(rng, rows, …)` draws one of `rows` (each a key and its weight) with `rng`, a row's chance its
+weight's share of the total. World-Gen's room dresser, Objects' room wear, the Lighting domain's rhythms and the Character's style
+all draw through it, so the roll and its edges live in one place.
+
 ## Input architecture
 
 All input flows through the `Keybinds` autoload; gameplay never hard-codes action strings or
@@ -209,4 +214,4 @@ human `Player` and `DebugUI`, points the camera at every combatant in framing mo
 for watching and regression-testing both AI agent-types (defender and invader). Composition-root
 wiring lives in `main.gd`; the General observers only read published contracts.
 
-**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
+**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
