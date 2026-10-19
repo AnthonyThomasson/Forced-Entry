@@ -15,12 +15,12 @@ trigger per case).
 ## What is tested
 
 - **Skills and instructions: no tests.** A skill, `AGENTS.md`, a doc, a hook's wording, a checklist, or a tool change
-  that only rewords help text or a log line: skip `ticket-story` phase 3. Check instead, in phase 5 and the audit:
-  every skill, file, command, flag and name mentioned exists as spelled now; frontmatter valid (`name` = folder,
+  that only rewords help text or a log line: build it in `ticket-story` phase 3 without the red step. Check instead,
+  in phase 4 and the audit: every skill, file, command, flag and name mentioned exists as spelled now; frontmatter valid (`name` = folder,
   `description` says when to use it); no reference left to a renamed or removed skill (`grep -rn` the old name); the
   routing skills (`ticket`, `architecture`, `AGENTS.md`) list it.
-- **Tools an agent uses on the app: tests first** (red, per `ticket-story` phase 3): a command-server verb, a `tools/`
-  script that drives, queries or inspects the game, a runner flag or report field, a probe or overlay an agent reads.
+- **Tools an agent uses on the app: tests first** (red first, per `ticket-story` phase 3): a command-server verb, a
+  `tools/` script that drives, queries or inspects the game, a runner flag or report field, a probe or overlay an agent reads.
   Test it the way an agent uses it: a game test for an in-game surface (`domain-testing`; harness ones in
   `tests/_harness/`, run by `--self-test` through `tests/_harness/harness_suite.gd`), or for a script a run against the
   headless game or a fixture, checking output and exit code. A behaviour is proved by a simulation test (`GameTest`);
@@ -35,5 +35,5 @@ trigger per case).
 
 ## Wrap-up for skill-only work
 
-Phase 5 is: lint and load check if any `.gd` changed (`godot-run`), a read-through of each changed skill against the
+Phase 4 is: lint and load check if any `.gd` changed (`godot-run`), a read-through of each changed skill against the
 code, and a check that no other skill or doc now disagrees. The audit still runs; its skills step is the main check.

@@ -1,12 +1,12 @@
 ---
 name: ticket-story
-description: Work a standard ticket (no `bug` or `spike` label; also `ai`, `harness`, `refactor`, `assets`, `graphics` and `audio`) in seven phases - grill, plan on the ticket, tests first, build, green + feedback gate, audit, report. Invoked from `ticket`.
+description: Work a standard ticket (no `bug` or `spike` label; also `ai`, `harness`, `refactor`, `assets`, `graphics` and `audio`) in six phases - grill, plan on the ticket, build test by test, green + feedback gate, audit, report. Invoked from `ticket`.
 ---
 
 # Ticket: story
 
-Seven phases (`ticket`, "Work in phases"). You run 1, 2, 7, the feedback gate and the findings question; 3–6 may go
-to workers, the audit always does. Label `ai`: also `ticket-ai`; `harness`: also `ticket-harness`; `refactor`: also
+Six phases (`ticket`, "Work in phases"). You run 1, 2, 6, the feedback gate and the findings question; 3 and 4 go to
+workers, the audit always does. Label `ai`: also `ticket-ai`; `harness`: also `ticket-harness`; `refactor`: also
 `ticket-refactor`; `assets` / `graphics` / `audio`: also `ticket-assets`.
 
 ## 1. Orient and grill
@@ -35,45 +35,46 @@ A brief and a plan someone else could build from (the shape is `ticket` → "Bri
 
 - **Agent Brief:** current behaviour; **desired behaviour** rule by rule, with the grilling's decisions; key
   interfaces (only those in `architecture`) and tunables with defaults; **acceptance criteria**, one per rule, each
-  naming the test scenario and the seam it runs at (the world or `house()` it builds, the switches on); out of scope.
-- **Plan:** per domain, files and types added or changed, data; test files; phases (build order and what each
-  produces); open risks.
+  naming the test scenario and the seam it runs at (the world or `house()` it builds, the switches on): the seams
+  `tdd` tests at, confirmed by the plan's acceptance; out of scope.
+- **Plan:** per domain, files and types added or changed, data; test files; slices (the acceptance criteria in build
+  order, each a test and the code that turns it green); open risks.
 
 `ticket-assets`: the plan follows the showroom picks. Show it with a `change-report` and ask for acceptance; each
 revision gets a fresh report. Revise until accepted. Then `ticket` → "Rebase after
 acceptance", "Brief and plan on the ticket", "Show the user".
 
-## 3. Tests first
+## 3. Build, test by test
 
-Before any production code, write the tests (`domain-testing`, `test-debug`; `mattpocock-skills:tdd` for what makes a
-test worth keeping: behaviour through published interfaces, expected values from the brief, never recomputed the way
-the code computes them). All of them come before code on purpose, unlike `tdd`'s one-test-at-a-time loop: they are
-the brief's acceptance criteria, fixed at acceptance. Extend an existing test rather than add a
-near-duplicate (`tools/run_tests.sh --list <words>`). One test per acceptance criterion, through published interfaces only.
-A behaviour is proved by a simulation test (a `GameTest`, `tests/<domain>/<name>_test.gd`); a native gdUnit suite
-(`tests/<domain>/<name>_suite.gd`, `extends UnitSuite`) is for pure logic only and may add fast checks of a pure function
-beneath it, always supplementing the simulation test, never replacing it (`domain-testing`, "Native unit suites"). Run
-each alone, Bash sandbox disabled (`tools/run_tests.sh --id=<domain>/<name>`); it must **fail for the right reason**
-(the feature is missing, not a parse error, race or setup mistake). Passes at once: too loose or already built; tighten
-or say so. `git status` shows only test files (plus `sandboxes/showroom/` and any variant switch, `ticket-assets`).
-Tell the user which tests are red and why.
+The `coding` worker runs `mattpocock-skills:implement` (`ticket` → "Code goes through `implement`"), which drives
+`mattpocock-skills:tdd`: one acceptance criterion at a time, in the plan's order, at the seam the plan names for it.
 
-## 4. Build
+1. **Red.** That criterion's test (`domain-testing`, `test-debug`): behaviour through published interfaces, expected
+   values from the brief, never recomputed the way the code computes them. Extend an existing test rather than add a
+   near-duplicate (`tools/run_tests.sh --list <words>`). A behaviour is proved by a simulation test (a `GameTest`,
+   `tests/<domain>/<name>_test.gd`); a native gdUnit suite (`tests/<domain>/<name>_suite.gd`, `extends UnitSuite`) is
+   for pure logic only and may add fast checks of a pure function beneath it, always supplementing the simulation
+   test, never replacing it (`domain-testing`, "Native unit suites"). Run it alone, Bash sandbox disabled
+   (`tools/run_tests.sh --id=<domain>/<name>`); it must **fail for the right reason** (the behaviour is missing, not a
+   parse error, race or setup mistake). Passes at once: too loose or already built; tighten it, or report it built.
+2. **Green.** The smallest production change that passes it, in the right domain, through published interfaces only.
+   Never loosen, skip or special-case a test. Load check and lint (`godot-run`), then the test again.
+3. **Next criterion.** No code for a later one ahead of its test; refactoring waits for the review.
 
-Build the plan phase by phase, in the right domains, through published interfaces only. Never loosen, skip or
-special-case a test. Check each phase loads and runs (`godot-run`).
+Then the whole suite, the `code-review` self-review and the commit, as `implement` ends. The worker's `worker_done`
+lists each criterion's red line (why it failed) and green line; tell the user.
 
-## 5. Green and wrap up
+## 4. Green and wrap up
 
 New tests pass (`--repeat=10` if timing-dependent), then `tools/run_tests.sh --changed --summary`, then
 `tools/run_tests.sh --summary --jobs=auto`. Touched a per-frame path: `tools/run_tests.sh --domain=perf` on a quiet
 machine. An older test now failing is your regression until shown otherwise. Update every changed domain's skill,
 `architecture` for an interface, and the `docs/` spec if there is one. Then `ticket` → "Feedback gate".
 
-## 6. Audit
+## 5. Audit
 
 `ticket` → "Audit".
 
-## 7. Report, then feedback or finish
+## 6. Report, then retro, then finish
 
-`ticket` → "Report, then feedback or finish".
+`ticket` → "Report, then retro, then finish".

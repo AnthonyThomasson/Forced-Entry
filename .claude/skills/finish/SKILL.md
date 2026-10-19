@@ -1,6 +1,6 @@
 ---
 name: finish
-description: Commit the worktree's work, merge it into main, push main, close its ticket and remove the Orca workspace. Use only once the user answered "finish" at the end of a ticket workflow, or on `/finish`.
+description: Commit the worktree's work, merge it into main, push main, close its ticket and remove the Orca workspace. Runs after `session-retro`. Use only once the user answered "finish" (or "finish now, skip the retro") at the end of a ticket workflow, or on `/finish`.
 model: haiku
 ---
 
@@ -8,6 +8,12 @@ model: haiku
 
 Run from the worktree root. Push `main` only, never the branch. It pushes and deletes the workspace, so it runs only on
 the user's "finish" answer or `/finish`. Release every settled orchestration worker before step 1.
+
+## Retro first
+
+`session-retro` runs before this skill and invokes it once the user answers "finish". When it has not run this
+session and the user did not say to skip it (a bare `/finish`), invoke `session-retro` now and stop here: it asks
+whether to finish and invokes `finish` again.
 
 1. **Preconditions.** The branch (`git branch --show-current`) and `main`'s directory (the `worktree` entry with
    `branch refs/heads/main` in `git worktree list --porcelain`). Stop and tell the user if the branch is `main`, there
@@ -36,7 +42,7 @@ the user's "finish" answer or `/finish`. Release every settled orchestration wor
    - GitLab or no link: skip and say so. Never guess a ticket.
    Closing fails: report it and skip step 9.
 8. **Report** before step 9: commits landed on `main` (hashes, subjects), `origin/main` matches, the ticket closed,
-   anything deleted in step 6.
+   anything deleted in step 6, the retro's new tickets.
 9. **Remove the workspace, last.** `orca worktree rm --worktree id:<worktree id> --json` with step 7's id (not
    `current`). No `--force`, no `--run-hooks`. It removes the git worktree and the merged local branch. Refused: report
    and stop; never retry with `--force`. Nothing runs after this.

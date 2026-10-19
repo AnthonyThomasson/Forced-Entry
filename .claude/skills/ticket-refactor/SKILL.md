@@ -99,15 +99,16 @@ reference) is the strongest lead; still confirm it by hand.
 `signals`, `facts` and `events`, and `python3 tools/test_coverage.py`). Say so in the plan and the report, and claim
 nothing about what runs.
 
-## 5. Pin, change, re-measure (phases 3 to 5)
+## 5. Pin, change, re-measure (phases 3 and 4)
 
 - **Plan:** each removal or rewrite cites its evidence: the report row (file, function, tag) or the `audit_scan` line,
   and the hand check that ruled out dynamic dispatch.
-- **Tests first** pin the behaviour that stays: through published interfaces, green before the change and after it (a
-  pinning test passes at once; that is its job). `rare` and `live-but-unpinned` code the change touches gets its pin
+- **Pins first**, each before the change it guards, pin the behaviour that stays: through published interfaces, green
+  before the change and after it (a pinning test passes at once; that is its job, the one exception to `ticket-story`
+  phase 3's red step). `rare` and `live-but-unpinned` code the change touches gets its pin
   here. A test goes red first only for behaviour the ticket changes.
 - **Delete code** only with those pins green and its evidence in the plan; zero hits alone never suffices.
-- **Re-measure** in phase 5, after the green run: `run` with the same `--seed` and `--matches`, and `run --tests`. The
+- **Re-measure** in phase 4, after the green run: `run` with the same `--seed` and `--matches`, and `run --tests`. The
   removed rows are gone, every function that ran before still runs (an Endless run's later matches draw their own
   seeds, so a `rare` one may miss: check it), and no new uninstrumented span appears. Compare with the earlier folders
   (`report --run=<old matches> --run=<old tests>`) and put both in the report.

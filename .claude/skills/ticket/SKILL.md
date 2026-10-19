@@ -53,20 +53,36 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   "No shortcuts", that anything it cannot decide comes back as an escalation, not a guess, and the heartbeat rule
   (1–2 sentence `--phase` status) and the `received <id>` ack rule below. A showroom brief (`ticket-assets`) names the
   exhibits, the references, the variants wanted and its load check and lint.
+- **Code goes through `implement`.** A worker that writes tests or production code (`test-preparation`, `coding`,
+  `coding-review-fixes`) runs `mattpocock-skills:implement`. It is slash-only (the Skill tool refuses it), so the
+  spec's first line is `/mattpocock-skills:implement`, the brief after it. The brief also says:
+  - **Tests through `mattpocock-skills:tdd`**, in vertical slices: one acceptance criterion's test, red for the right
+    reason, the smallest change that turns it green, then the next. The seams are the ones the accepted plan names per
+    criterion: plan acceptance is the seam confirmation `tdd` asks the user for, so the worker never stops for it. A
+    test at a seam the plan doesn't name is an escalation.
+  - **`implement`'s checks here:** typechecking is the load check and lint (`godot-run`); a single test file is
+    `tools/run_tests.sh --id=<domain>/<name>`; the full suite (`tools/run_tests.sh --summary --jobs=auto`) once at the
+    end. Godot runs with the Bash sandbox disabled.
+  - **Self-review:** `mattpocock-skills:code-review` with the fixed point the commit the worker started from (its sha
+    in the brief) and the spec the ticket's `## Agent Brief` (`#<n>`). It fixes the findings it agrees with (a
+    behaviour defect as one more `tdd` slice) and lists the rest in its `worker_done`.
+  - **Commit** to the worktree's branch once green, `#<n>` in the message, ending with the session's commit
+    attribution line. Never with a red test (the pre-commit hook runs it), never push or merge: `finish` lands it.
 - **Worker names** (lowercase, hyphens; a split phase adds its stage: `coding-feature-one`,
-  `test-preparation-ai-scenarios`):
+  `coding-ai-scenarios`):
 
   | Phase | Name |
   |---|---|
   | the showroom (variants before the plan) | `showroom` |
-  | tests first, or a bug's failing repro | `test-preparation` |
-  | building the change | `coding` |
+  | a bug's failing repro | `test-preparation` |
+  | building the change, test by test | `coding` |
   | green run, docs and skills | `wrap-up` |
   | removing the showroom (before the audit) | `showroom-removal` |
   | the audit | `review` |
   | fixing the audit's findings | `coding-review-fixes` |
   | second audit, of those fixes | `review-fixes` |
   | a spike's investigation | `investigation` |
+  | the session's retro (`session-retro`) | `retro` |
 
   Pass the name as `--task-title` to `worker-start`, then name the tab:
   `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"` (handle from the `worker-start` receipt).
@@ -154,27 +170,28 @@ Before starting it, check what `main` gained since the last rebase: `git fetch o
 in against the change as in "Rebase after acceptance", and rerun the checks (new tests, `--changed`) on the rebased
 tree, so the audit reviews against the current `origin/main`. Say so when nothing came in.
 
-One agent runs `audit`. It sees committed plus staged work: commit or stage first if the user asked for commits, else
-tell it which files are only in the working tree. Start it with
-`orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude` and name its
-tab `review`. Spec:
+One agent runs `mattpocock-skills:code-review` and `audit`. Both see committed work (`audit` also staged): the coding
+workers commit theirs; tell it which files are only in the working tree (a `wrap-up`'s skill and doc edits). Start
+it with `orca orchestration worker-start --task-title "review" --spec "<spec>" --worktree current --agent claude` and
+name its tab `review`. Spec:
 
 - **Target:** worktree and branch, ticket number, base ref (default `origin/main`).
-- **Change:** invoke `audit` and run it to its checklist, its Spec step against the ticket's `## Agent Brief`; do
-  every step itself, start no workers.
+- **Change:** first `code-review` with the fixed point the base ref and the spec the ticket's `## Agent Brief`: its
+  Standards and Spec axes. Then `audit` to its checklist, every step but Spec (5b), which `code-review`'s Spec axis
+  covers. Its two `code-review` sub-agents are fine; start no Orca workers.
 - **Constraints:** report only: no fix, edit, stage, commit, push or ticket comment; start the editor only when green.
 - **Ownership:** the audit's scratch directory and one report file; no file in the tree.
-- **Observable acceptance:** `worker_done` gives the issue count and report path; the report is the checklist with a
-  verdict line.
+- **Observable acceptance:** `worker_done` gives the issue count and report path; the report is `code-review`'s
+  `## Standards` and `## Spec`, then `audit`'s checklist, with a verdict line.
 
 Read the report yourself; a failed or missing one is a finding. Then:
 
 1. Show the findings ranked high / medium / low, one line each with its fix, which you agree with, and why not for the
    rest. Ask (recommended first): fix all, then feedback; feedback first, folded in; or fix only high and medium.
 2. One `coding-review-fixes` worker (`coding-review-fixes-<stage>` if split), briefed with the report path and the
-   accepted findings. Each behaviour defect is fixed tests first (red for the right reason, fix at the cause, green). A
-   test set-up mistake is fixed only as the report names it; no assertion is loosened. Stale skills, docs and comments
-   in the same worker.
+   accepted findings, through `implement` (above). Each behaviour defect is a `tdd` slice (red for the right reason,
+   fix at the cause, green). A test set-up mistake is fixed only as the report names it; no assertion is loosened.
+   Stale skills, docs and comments in the same worker.
 3. A `wrap-up` worker reruns the green checks (new tests `--repeat=10`, the whole suite, perf on a quiet machine) and
    makes sure no doc or skill claims a run that did not happen.
 4. If the fixes went beyond the report's list or added behaviour, a `review-fixes` audit (same spec, told which
@@ -182,17 +199,20 @@ Read the report yourself; a failed or missing one is a finding. Then:
 
 Go on when it is clean or the user accepts what is left.
 
-### Report, then feedback or finish
+### Report, then retro, then finish
 
 On the ticket and to the user: what was built against the plan, the brief's acceptance criteria ticked, tests red →
 green, the audit verdict and what was done per finding, files changed, anything uncovered or deviating and why. Ask:
-**give feedback** (try it in the `show-me` editor, Play restarted) or **finish**. Wait. If the ticket went sideways
-(grilling reopened, more than one audit round, tests red for the wrong reason), also suggest the user run `/retro`
-before finishing: it reads this session and proposes skill, check and tooling changes.
+**give feedback** (try it in the `show-me` editor, Play restarted), **retro** (recommended), or **finish now, skip the
+retro**. Wait.
 
-- Feedback: a new round (update `## Agent Brief` and `## Plan` if scope moved, a test first, code, `wrap-up`, audit), then report and ask again.
-- Finish: release every settled worker, then invoke `finish` yourself. That answer is the go-ahead; without it never
-  commit or close the ticket.
+- Feedback: a new round (update `## Agent Brief` and `## Plan` if scope moved, a test first, code, `wrap-up`, audit),
+  then report and ask again.
+- Retro: invoke `session-retro` (on Opus: a `retro` worker on `mattpocock-skills:retro`, then you file the improvement
+  tickets the user picks). It ends by asking **finish** or **not yet**; on not yet, stop and wait.
+- Finish (after the retro, or "finish now, skip the retro"): invoke `finish` (on Haiku), which releases every settled
+  worker and lands the work. That answer is the go-ahead; without it never merge, push or close the ticket (workers
+  commit only to the ticket's branch).
 
 ## No shortcuts
 

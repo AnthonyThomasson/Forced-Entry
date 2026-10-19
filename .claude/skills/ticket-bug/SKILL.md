@@ -31,16 +31,17 @@ behavior** the expected, the trigger, **Acceptance criteria** the regression tes
 
 Invoke `fix` with the agreed expected-vs-actual (plus the ticket title and useful comments) and follow it: red for the
 bug's reason (tell the user the red result; passes at once or not visible headless: agree the next step with the user,
-don't fix blind), root-cause fix, green, skills updated.
+don't fix blind), root-cause fix, green, skills updated. A worker on these steps runs `implement` with `fix` as its
+steps (`ticket` → "Code goes through `implement`"): the repro is its `tdd` slice, at the seam the agreed bug names.
 
 **Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to
-the user as a `change-report`, then an acceptance question. A worker stops there and sends back the cause and its
-planned fix; the fix starts once accepted.
+the user as a `change-report`, then an acceptance question. A worker stops there, the red test uncommitted, and
+sends back the cause and its planned fix; the fix starts once accepted, and the commit comes once it is green.
 
 Then:
 
 - **Feedback:** you point the user at the `show-me` editor (Play restarted) and ask (`AskUserQuestion`) whether the bug
   is gone. Anything still seen is a new round: failing test, fix, green, ask again.
-- **Report** on the ticket: the root cause, the covering test, the red → green lines. Then ask feedback or finish as in
-  `ticket` → "Report, then feedback or finish"; a bug has no audit, so a feedback round is the one above (failing test,
+- **Report** on the ticket: the root cause, the covering test, the red → green lines. Then ask feedback, retro or finish as in
+  `ticket` → "Report, then retro, then finish"; a bug has no audit, so a feedback round is the one above (failing test,
   fix, green).
