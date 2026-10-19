@@ -73,7 +73,7 @@ order, one roll per draw and the share by weight.
 MatchHUD (its banner) and the dev command server's `match` verb both decide by. `MatchVerdict.decide(combatants) -> Dictionary` is
 `{}` while every side (faction) still has someone alive; once a side is wiped out, `{ winner, survivors, sides }`: `winner` the faction
 left standing, or null for a draw (nobody, or more than one side, left), `survivors` the living combatants and `sides` faction -> how
-many combatants it fields. It reads them through the Character API only (`faction`, `is_dead`) and skips a freed one (fallen). Each
+many combatants it fields. It reads them through the Character API only (`faction`, `is_dead`) and leaves a freed one out (its side not counted for it). Each
 caller words the result: the HUD names a lone survivor in a match of any size, `verdict_of` only in a 1v1. Tests: the callers',
 `tests/ui/match_hud_verdict_test.gd` and `tests/general/command_server_verdict_suite.gd`.
 

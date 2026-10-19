@@ -31,7 +31,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var brain := Follow.brain_of(inv)
-	t.check(brain.get("squad") == null, "premise: no squad was handed to its controller")
+	if not t.require(brain.get("squad") == null, "premise: no squad was handed to its controller"):
+		return
 	var went_in := func(_rec: Dictionary) -> bool:
 		return not Follow.calls_of(t, inv, "going_in").is_empty()
 	var w: Dictionary = await Follow.watch(t, [inv], null, WATCH_S, went_in)
@@ -45,10 +46,11 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var facts: Dictionary = brain.debug_state().get("facts", {})
-	t.check(
-		facts.has("follows") and facts["follows"] == false,
-		"its snapshot has the follows fact, false (facts %s)" % str(facts.keys()),
-	)
+	if not t.require(
+			facts.has("follows") and facts["follows"] == false,
+			"premise: its snapshot has the follows fact, false (facts %s)" % str(facts.keys()),
+	):
+		return
 	t.check(
 		not Follow.took(w, inv, "follow"),
 		"it never followed (acts %s)" % Follow.acts_of(w, inv),

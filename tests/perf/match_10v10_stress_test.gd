@@ -10,7 +10,6 @@ extends GameTest
 ## these numbers.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 7
 ## The house is the largest plan by floor area (garage_home: five rooms, 760k px²), pinned rather
 ## than drawn from the seed: the match is measured in a full-size house whatever the catalogue
@@ -51,7 +50,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters := _spawn_match(t)
+	var characters := Perf.spawn_match(t, SEED, PER_SIDE)
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"twenty combatants spawned (%d)" % characters.size(),
@@ -72,25 +71,3 @@ func run(t: TestContext) -> void:
 			% [grown, t.von_requests().size()])
 	t.trace("node growth", grown)
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])
-
-
-## Place the match as Main does: defenders in random rooms, invaders around the house heading for
-## its front entrance, each side armed from the default (random gun) loadout drawn from the same
-## seeded rng.
-func _spawn_match(t: TestContext) -> Array:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	var entrance := Perf.front_entrance(t)
-	for i in PER_SIDE:
-		spawner.spawn_defender(t.rooms, rng, i)
-	for i in PER_SIDE:
-		spawner.spawn_invader(t.rooms, rng, i, PER_SIDE, entrance)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = SEED
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, {}, loadout_rng)
-		Perf.overlays_off(c)
-	return spawner.combatants

@@ -447,7 +447,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       pie: nobody moves up behind it) (`docs/tactical-entry.md`), and from a member of a stack its leader ordered
       `order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14), `order_hold` (the order holds the stack
       for the leader's go, LD13), `order_go` (that go has come) and `order_side` (the side of the door the order names, 1 / -1 along its
-      wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9); a human invader's `PlayerStack`
+      wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9), and from a member of a join
+      (the squad's rally, LD24) `join: true` (its claims are never its own, D30); a human invader's `PlayerStack`
       (interface 17) posts the same entry steps for the human, with `human: true` (no AI moves up into its slot), `leader` (true while the
       human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway nobody stacks at,
       which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). A live grenade has its own statuses, which an ally in range reads as "a
@@ -540,7 +541,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  `MatchVerdict.decide(combatants) -> Dictionary`, `{}` while every side (faction) still has someone alive; once a side is wiped out
 	  `{ winner, survivors, sides }` (`winner` the faction left standing, null for a draw: nobody, or more than one side, left; `survivors`
 	  the living combatants; `sides` faction -> how many it fields). It reads the combatants through the Character API (`faction`,
-	  `is_dead`; a freed one counts as fallen). The UI's `MatchHUD` (its banner) and the dev command server's `match` verb (`verdict_of`,
+	  `is_dead`; a freed one is left out, its side not counted for it). The UI's `MatchHUD` (its banner) and the dev command server's `match` verb (`verdict_of`,
 	  which `tools/match.py` scores by) both decide by it, each wording the result its own way (the HUD names a lone survivor in any match,
 	  the `match` verb only in a 1v1).
 
@@ -644,8 +645,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10) and reads the allies' off the same bus;
       the AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human` (no AI moves up into its slot) and, when
       the human leads, `leader`.
-    - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack)` with the stack `bind_player` returned (interface 21); its claims say
-      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). While the human leads a squad with another living
+    - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack, own_claims)` with the stack `bind_player` returned (interface 21); its claims say
+      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). `PlayerStack.own_claims: bool` (false unless set; Main
+      sets it through `bind_squad` on the invaders' side only, D29): while it is set and the human leads a squad with another living
       member and no allied stack forms in its reach, it also claims of its own (LD24): stepping up to a doorway nobody stacks at (on its stack
       side against the wall beside the opening, out from the wall plane and past the jamb each within `PlayerStack.STEP_UP_REACH`, 60 px,
       for `STEP_UP_TIME`, 0.5 s) it claims slot 1 there, marked `own: true`, which the squad hears as its leader's own claim and rallies the
@@ -728,8 +730,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `Squad.setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)` (`roster` the side's characters in spawn order; `human` when the human
       leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchSpawner.callout_ttl_of(members)`
       off the child in the group `npc_controllers` (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
-      `MatchSpawner.bind_squad(member, squad, stack := null)` (beside `bind_npc`: the controller's `squad`, found by the same group, and the
-      human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17). The squad reads its members only through the
+      `MatchSpawner.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
+      same group, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,
+      which Main passes true for the invaders' side only, D29). The squad reads its members only through the
       Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
       follow, when a child of it is in the group `npc_controllers` at `setup`, interface 7) and lays its stacks and its follow spots on the
       navigation map and physics space of its own viewport's `World2D` (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
@@ -768,8 +771,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10); the orders given stand,
       but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room` or `ambush` (the takeover,
       LD26). The trail starts afresh at the new leader.
-    - **The rally** (LD24, LD25): on an entry claim of its leader's own (an `&"callout"` from the leader with no `order_id`: an AI leader's
-      entry, or the human's own claim through its `PlayerStack`, the one marked `own`, interface 17) the squad posts one `stack` order with `mode` `join` to every
+    - **The rally** (LD24, LD25): on an entry claim of its leader's own (an `&"callout"` from the leader with no `order_id` and no `join`: an
+      AI leader's entry, or the human's own claim through its `PlayerStack`, the one marked `own`, interface 17; a join's claims never, D30) the squad posts one `stack` order with `mode` `join` to every
       follower holding no order, once per doorway per leader, and on the leader's `abort` there a `cancel` to the members holding those joins.
       The command menu never offers a join.
     - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:

@@ -8,17 +8,17 @@ extends GameTest
 ## lead, rank 2, the second the sergeant, 1, the rest 0). So the members follow their leaders: what
 ## a squad costs (the leader's trail, the follow spots, the follow primitive, the leash) is in the
 ## frame, where the squad-less guards cannot see it. The sides are in contact before the window
-## opens: the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN` s more), so the
-## frames measured cost the teams' fight (the leash filter, combat within the leash, the leash
-## break) and not only a walking crowd. Measured to the same standard: the average frame fits in
-## one 60 fps frame, no spike over two. The follow cost is the frame stats this guard logs (`PERF
-## 10v10 team match` avg / p95 / max, `Perf.within_frames`), read against those of
-## `perf/match_10v10_stress` on the same house and seed, which builds no squad; it also logs how
-## many members were following at the end. Headless measures CPU only.
+## opens: the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN` s more), and
+## as it opens some NPC knows a hostile (`known_contacts_for_display()`), so the frames cost the
+## teams' fight (the leash filter, combat within the leash, the leash break) and not only a walking
+## crowd. It logs how many knew one and how many shots the window held. Measured to the same
+## standard: the average frame fits in one 60 fps frame, no spike over two. The follow cost is the
+## frame stats this guard logs (`PERF 10v10 team match` avg / p95 / max, `Perf.within_frames`),
+## read against those of `perf/match_10v10_stress` on the same house and seed, which builds no
+## squad; it also logs how many members were following at the end. Headless measures CPU only.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 7
 ## The largest plan by floor area, pinned as `perf/match_10v10_stress` pins it.
 const PLAN := "garage_home"
@@ -93,9 +93,21 @@ func run(t: TestContext) -> void:
 	):
 		return
 	GameLog.say("PERF 10v10 team match contact at %.1f s" % t.time)
+	var aware := characters.filter(func(c): return _knows_hostile(c)).size()
+	if not t.require(
+			aware > 0,
+			"premise: the fight is on as the window opens, some NPC knows a hostile (%d)" % aware,
+	):
+		return
 	var nodes_before := Perf.nodes()
+	var shots_before := t.events_of(&"shot").size()
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
+	var shots := t.events_of(&"shot").size() - shots_before
 	var following := characters.filter(func(c): return Follow.following(c)).size()
+	GameLog.say(
+		"PERF 10v10 team match window: %d knowing a hostile as it opened, %d shots in it"
+			% [aware, shots],
+	)
 	Perf.within_frames(
 		t,
 		"10v10 team match",
@@ -117,34 +129,20 @@ func run(t: TestContext) -> void:
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])
 
 
-## Place the match as `perf/match_10v10_stress` places it (the defenders as Main places them, the
-## invaders spread round the house by `spawn_invader`, so the two guards' frames compare), and rank
-## the invaders as Main ranks its police unit.
+## Place the match as `perf/match_10v10_stress` places it (`Perf.spawn_match`, so the two guards'
+## frames compare), and rank the invaders as Main ranks its police unit.
 func _spawn_match(t: TestContext) -> Array:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	var entrance := Perf.front_entrance(t)
-	for i in PER_SIDE:
-		spawner.spawn_defender(t.rooms, rng, i)
-	for i in PER_SIDE:
-		spawner.spawn_invader(t.rooms, rng, i, PER_SIDE, entrance)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = SEED
+	var characters := Perf.spawn_match(t, SEED, PER_SIDE)
 	var rank := 2
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, {}, loadout_rng)
-		Perf.overlays_off(c)
+	for c in characters:
 		if c.get("faction") == &"invader":
 			c.rank = rank
 			rank = maxi(rank - 1, 0)
-	return spawner.combatants
+	return characters
 
 
 ## One squad per side over its combatants in spawn order, bound to each NPC, as Main's
-## `_build_squads` does: faction -> squad ({} when the squad script is missing).
+## `_build_squads` does: faction -> squad (a side with no combatants has none).
 func _build_squads(t: TestContext, characters: Array) -> Dictionary:
 	var out := {}
 	for faction: StringName in [&"household", &"invader"]:
@@ -153,3 +151,13 @@ func _build_squads(t: TestContext, characters: Array) -> Dictionary:
 		if squad != null:
 			out[faction] = squad
 	return out
+
+
+## Whether character `c` (an NPC) knows a hostile now (`known_contacts_for_display()`, interface 7).
+func _knows_hostile(c: Node) -> bool:
+	if not is_instance_valid(c) or c.get("is_dead") == true:
+		return false
+	var brain := TestContext.controller_of(c, &"known_contacts_for_display")
+	if brain == null:
+		return false
+	return brain.known_contacts_for_display().any(func(k): return k.get("hostile", false))

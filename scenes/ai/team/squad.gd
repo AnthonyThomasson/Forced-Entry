@@ -133,7 +133,7 @@ var _entry: RefCounted = AgentEntry.new()
 ## Member instance id -> true for each member an NPC controller drives (the ones that follow).
 var _npcs := {}
 ## The leader's trail and the followers' spots (`setup`; null before it).
-var _follow: RefCounted = null
+var _follow: SquadFollow = null
 ## "<leader instance id>:<opening>" -> true for each doorway a leader's own claim has rallied its
 ## team to, until that stack is given up (`_rally`).
 var _rallied := {}
@@ -672,11 +672,12 @@ func _rally(data: Dictionary) -> void:
 			))
 
 
-## Whether entry callout `data` is its speaker's own claim (LD24): no order behind it, and, from
-## the human's `PlayerStack`, marked `own` (it stepped up to a doorway nobody stacks at); a slot
-## the human is reserved in a stack already forming is E16's, which rallies nobody.
+## Whether entry callout `data` is its speaker's own claim (LD24): no order behind it, not a join's
+## (`join`: a follower that took over the lead holding one, D30), and, from the human's
+## `PlayerStack`, marked `own` (it stepped up to a doorway nobody stacks at); a slot the human is
+## reserved in a stack already forming is E16's, which rallies nobody.
 func _own_claim(data: Dictionary) -> bool:
-	if str(data.get("order_id", "")) != "":
+	if str(data.get("order_id", "")) != "" or bool(data.get("join", false)):
 		return false
 	return not bool(data.get("human", false)) or bool(data.get("own", false))
 

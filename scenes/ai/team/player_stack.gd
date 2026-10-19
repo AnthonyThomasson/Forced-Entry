@@ -20,12 +20,12 @@ extends Node
 ## When the human leads its side's squad (`squad`, handed in as an NPC is handed its own:
 ## `MatchSpawner.bind_squad`), its claims say so (`leader: true`, `docs/leadership.md` LD17): a
 ## stack it ordered waits for it as for an ordered member, until it stands in its slot. Leading a
-## squad with another living member, it also claims of its own (LD24, D27): stepping up to a
-## doorway nobody stacks at (standing `STEP_UP_TIME` against its wall beside the opening, on the
-## side a stack forms on), it claims the first slot there, marked `own`, which its squad hears as
-## the leader's own claim and rallies the team to; that claim is kept while nobody else stacks
-## there yet. A slot it is reserved in a stack already forming is E16's: never `own`, it rallies
-## nobody.
+## squad with another living member on the invaders' side (`own_claims`, D29), it also claims of
+## its own (LD24, D27): stepping up to a doorway nobody stacks at (standing `STEP_UP_TIME` against
+## its wall beside the opening, on the side a stack forms on), it claims the first slot there,
+## marked `own`, which its squad hears as the leader's own claim and rallies the team to; that
+## claim is kept while nobody else stacks there yet. A slot it is reserved in a stack already
+## forming is E16's: never `own`, it rallies nobody.
 ##
 ## `view()` is what the UI's stack markers draw. Observation and radio only: it never moves or
 ## steers the character.
@@ -71,6 +71,10 @@ const STEP_UP_TIME := 0.5
 
 ## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
 var squad: Node = null
+## Whether the human, leading its squad, claims of its own at a doorway it steps up to (LD24, D29):
+## set by Main through `MatchSpawner.bind_squad` for the invaders' side only, so a human defender
+## leader's step-ups rally nobody. Off unless set.
+var own_claims := false
 ## The human's character (the parent).
 var _char: Node2D = null
 ## The doorway geometry (slots), the same the NPCs build.
@@ -287,7 +291,7 @@ func _look_for_team() -> void:
 	for id in _barred.keys():
 		if not stacking_now.has(id):
 			_barred.erase(id)   # Their stack is over: a later one is a new offer.
-	if best.is_empty() and _leads_team():
+	if best.is_empty() and own_claims and _leads_team():
 		_claim_own(stacking_now)
 		return
 	if (best.is_empty()
@@ -342,7 +346,9 @@ func _reserve(id: String, into: String, geo: Dictionary, team: Array) -> void:
 ## The doorway the human has stepped up to (`{ id, into, geo }`, {} for none): one no stack forms
 ## at (`stacking_now`) nor declined, on whose stack side it has stood `STEP_UP_TIME` against the
 ## wall beside the opening (out from the wall plane and past the jamb along it, each within
-## `STEP_UP_REACH`): where the first of a stack stands.
+## `STEP_UP_REACH`): where the first of a stack stands. Not a pure query: each call advances the
+## step-up timer (`_stepping`, restarted at `_clock` whenever the doorway stood at changes), so
+## it is called once per check.
 func _stepped_up(stacking_now: Dictionary) -> Dictionary:
 	var pos := _char.global_position
 	var world := _char.get_world_2d()

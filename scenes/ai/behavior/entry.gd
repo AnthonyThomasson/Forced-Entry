@@ -368,6 +368,9 @@ var _order_bang := false
 var _order_mode := ""
 ## The order holds the stack for the leader's go (LD13).
 var _order_hold := false
+## The entry is a join (LD24, `is_join`): its claims say so, so its squad never takes them for the
+## member's own (D30).
+var _join := false
 ## The held stack has had its go (LD13: the leader's, latched; D14 a member going in; D12 no
 ## leader).
 var _released := false
@@ -448,7 +451,8 @@ func begin(params: Dictionary) -> bool:
 	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
 	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
 	# A join is the member's own entry joining its leader's stack (LD24, D10): no order's rules.
-	_order_id = "" if secure or is_join(params) else str(params.get("order_id", ""))
+	_join = not secure and is_join(params)
+	_order_id = "" if secure or _join else str(params.get("order_id", ""))
 	_order_bang = bool(params.get("bang", false))
 	_order_mode = str(params["mode"]) if _order_id != "" else ""
 	_order_hold = bool(params.get("wait_go", false))
@@ -543,6 +547,7 @@ func reset() -> void:
 	_order_side = 0
 	_order_bang = false
 	_order_mode = ""
+	_join = false
 	_order_hold = false
 	_released = false
 	_holding = false
@@ -2588,6 +2593,8 @@ func _radio(what: String, extra := {}) -> void:
 	# (E2: the slot it moved up from, while it walks into the one it took.)
 	msg["move_up"] = _move_up
 	msg["pie"] = _pie_begun
+	if _join:
+		msg["join"] = true  # A join's claim, never its holder's own (D30).
 	if _order_id != "":
 		# An ordered stack's claim (LD9): the order, its mode and its side, so the stack goes in the
 		# order's way.

@@ -577,6 +577,7 @@ func _build_squads(combatants: Array, rooms: Array) -> void:
 				member,
 				squad,
 				_player_stack if _player_stack != null and member == _player else null,
+				faction == INVADER_FACTION,
 			)
 		_squads[faction] = squad
 

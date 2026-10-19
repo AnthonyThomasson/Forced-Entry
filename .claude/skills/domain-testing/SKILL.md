@@ -375,7 +375,7 @@ selector. They are ordinary tests that load other domains, so they live apart fr
 |---|---|
 | `perf/match_5v5_stress` | the whole-match case: a generated house (pinned to the largest plan, `garage_home`, so a catalogue change never shrinks the house it fights in), five defenders and five invaders placed by `MatchSpawner`, default loadouts, debug overlays off as in Main, nav re-baker, blood, debris, sound and radio on, scripted Von |
 | `perf/match_10v10_stress` | the same with ten a side: the largest match the game means to carry, held to the same standard |
-| `perf/match_10v10_team_stress` | the 10v10 of `match_10v10_stress` (same house, seed, placement, loadouts, switches and scripted Von) with one squad per side built and bound as Main builds it (`Squad.setup` with the spawner's openings, the rooms and `MatchSpawner.callout_ttl_of`, `MatchSpawner.bind_squad`, the invaders ranked as Main ranks its unit), so the members follow their leaders and the squads' cost (the trail, the follow spots, the `follow` primitive, the leash) is in the frame; every member but the leader following is its premise, and so is contact: after `WARMUP_S` the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN`, 20 s; `PERF 10v10 team match contact at <s> s`), so the window measures the teams' fight. Its follow cost is its frame stats read against `match_10v10_stress`'s; it logs the follow count (`PERF ... following at the end`). The two squad-less match guards stay a deciding crowd |
+| `perf/match_10v10_team_stress` | the 10v10 of `match_10v10_stress` (same house, seed, placement, loadouts, switches and scripted Von) with one squad per side built and bound as Main builds it (`Squad.setup` with the spawner's openings, the rooms and `MatchSpawner.callout_ttl_of`, `MatchSpawner.bind_squad`, the invaders ranked as Main ranks its unit), so the members follow their leaders and the squads' cost (the trail, the follow spots, the `follow` primitive, the leash) is in the frame; every member but the leader following is its premise, and so is contact: after `WARMUP_S` the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN`, 20 s; `PERF 10v10 team match contact at <s> s`), and as the window opens some NPC knows a hostile (`known_contacts_for_display()`), so the window measures the teams' fight (`PERF 10v10 team match window: <n> knowing a hostile as it opened, <n> shots in it`). Its follow cost is its frame stats read against `match_10v10_stress`'s; it logs the follow count (`PERF ... following at the end`). The two squad-less match guards stay a deciding crowd |
 | `perf/npc_crowd_stress` | twelve scripted-Von NPCs sensing, deciding and shooting in one open furnished arena (everyone sees everyone: the decision snapshot's worst case) |
 | `perf/automatic_fire_stress` | SMGs and rifles on the trigger plus pistols clicking into furniture: one run covers the single-shot and the automatic path |
 | `perf/hit_overload_stress` | hundreds of hits on one chair and one character: deformation, debris, blood and their caps |
@@ -391,7 +391,8 @@ that touches a per-frame path. They stay in the default run, balanced across sha
 by measured cost like every test, and `--changed` adds the domain whenever a scene they exercise changes (`affected()` in
 `tools/run_tests.sh`) or `tests/_perf/` changes. The shared helper is `tests/_perf/perf_probe.gd` (`const Perf :=
 preload(...)`; not a test), with the match guards' shared set-up: `overlays_off(npc)` (an NPC's debug overlays at their defaults, off, as Main
-leaves them) and `front_entrance(t)` (the generated house's front entrance, where a guard's spread invaders are placed from). `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but are
+leaves them), `front_entrance(t)` (the generated house's front entrance, where a guard's spread invaders are placed from) and
+`spawn_match(t, seed, per_side)` (a match placed and armed as Main does, the invaders spread from the front entrance: the two 10v10 guards'). `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but are
 functional tests of their domain.
 
 - **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max): the main-loop iteration the frame ran
@@ -531,10 +532,10 @@ LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet
 
 **Following, the leash and the rally (LD19 to LD28).** The shared helper is `tests/_ai/follow_probe.gd` (`const Follow :=
 preload(...)`; not a test): the spec's numbers as its own consts (`FOLLOW_GAP`, `FOLLOW_STEP`, `FOLLOW_RING`, `FOLLOW_RINGS`,
-`FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
+`FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `FOLLOW_ARRIVE`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
 (`band_p50(i)`: the `i`-th follower's place in the file plus `BAND_LAG`, 45 px of walking lag, at the median; `BAND_P90`); the squad
 built and bound as Main does (`team`, `team_of`); a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
-(`joins`, `raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
+(`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
 `watch`, `asked`: the Von questions of a member's walks, `gaps`, `took`, `acts_of`, `went_through`, `off_spot_tick`); and the leash
 chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contrast `leash_free_chase`, which binds no squad). The tests
 call the squad itself (`follows`, `follow_spot`, `leader()`, `leash`, `view()`); a squad read that only answers the code's own value

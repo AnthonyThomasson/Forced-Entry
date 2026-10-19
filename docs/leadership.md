@@ -528,11 +528,12 @@ FOLLOW at or after the break and comes back within the leash), `ai/combat/leash_
 from cover within the leash, or follows, never more than the leash and 40 px from its leader).
 
 **LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
-`entry_step` `claim` and no `order_id`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the
+`entry_step` `claim`, no `order_id` and no `join`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the
 squad rallies its team (`_rally`): one `stack` order with mode `join`, `opening` and `into` the claim's, `pos` the doorway's centre, `split`,
 `bang` and `wait_go` false, to every follower holding no order (D24: a member carrying out another order keeps it). Once per doorway per
 leader (keyed `<leader>:<opening>`), until that stack is given up (LD25); a new leader rallies again. The rule keys on the speaker being the
-leader, never on whether the squad has a human.
+leader, never on whether the squad has a human. A join's claims are never its holder's own: they carry `join: true`, so a follower that
+takes over the lead while it holds a join rallies nobody on it; its next claim of its own does (D30).
 - **The join.** The ORDER node's option is the entry `stack_<opening>` with `{ opening, into, bang: false, join: true, order_id }`: no side,
   mode, `wait_go` or `split` of the order's. `Entry.begin` leaves the order's id out of the entry, so the member runs its own unordered entry,
   joining the leader's stack: the team's side and the first claimer's mode (D10), the suspect-room bang and its late upgrade
@@ -545,8 +546,10 @@ leader, never on whether the squad has a human.
 - **The wording.** "Your leader ordered you to go into the kitchen by its doorway with them." (LD6): measured with `tools/von_probe.py` over
   the 38 `tools/von_scenarios` levels in spike #66, it moved no combat level's top pick (the expected pick's probability moving 0.020 on
   average).
-- **The human's own claim** (`PlayerStack`, interface 17). While the human leads a squad with another living member and no allied stack is
-  forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
+- **The human's own claim** (`PlayerStack`, interface 17). The invaders' alone (D29): Main sets the human's `PlayerStack.own_claims` through
+  `MatchSpawner.bind_squad` on the invaders' side only, so a human defender leader makes no claim of its own and its step-ups rally nobody
+  (its teammates still follow it). While the human leads a squad with
+  another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
   doorway's stack side, out from its wall plane by at most `STEP_UP_REACH` (60 px) and past its jamb along the wall by at most as much, for
   `STEP_UP_TIME` (0.5 s), at a doorway nobody stacks at and the human has not declined. It claims on the side it stands on, marked `own`,
   and the squad hears it as the leader's own claim: of the human's claims only one marked `own` rallies the team, so the slot the human is
@@ -563,7 +566,11 @@ steps up beside the back door: its own claim, a join to both NPCs, both ready in
 `ai/stack/human_rally_spares_ordered` (D24: the member the human ordered to defend the living room gets no join, keeps its order and
 claims no slot; the two free members join and stand ready), `ai/stack/human_stack_slot_no_rally` (scripted: the human ordered two
 members to stack and is reserved a slot in that stack (E16): it steps in and radios ready, and no join is posted, the free follower making
-no claim there). The human's own orders, quiet / stun / frag and held, are LD9's, LD13's and
+no claim there), `ai/stack/human_defender_leader_no_rally` (D29: in a Main-wired match with "Lead the team" on, a human defender leading
+its crew stands beside the hall doorway into the living room: no claim of its own, no join, and its teammate keeps following it),
+`ai/entry/join_inherited_no_rally` (D30: the human leader rallies the sergeant to the back door and dies while the sergeant is on its way;
+the sergeant leads holding the join, and its claims there give the trooper, freed of its defend by the takeover, no join; once the join
+is done, its next claim of its own rallies the trooper). The human's own orders, quiet / stun / frag and held, are LD9's, LD13's and
 LD14's tests, their squads bound.
 
 **LD25. A join's end.** When the leader gives its stack up (its own `entry_step` `abort` there: a decision forced on it replaced the entry,
@@ -619,7 +626,7 @@ voice of the leader. The leader's succession and each member keeping its own ent
 
 ## Decisions
 
-The cases the behaviours above cite as D1 to D28.
+The cases the behaviours above cite as D1 to D30.
 
 | # | Case | Decision | Where |
 |---|---|---|---|
@@ -646,11 +653,13 @@ The cases the behaviours above cite as D1 to D28.
 | D21 | More members than a dead end holds | Each past what its wall and open floor hold claims no slot, holds where it is and radios `refused`; the order is kept (still held, drawn red), unlike a refused unknown room, which is dropped. | LD7, LD9 |
 | D22 | The human leader in a stack it ordered | The stack waits for it as for a recipient: nobody goes while its claim is at `claim`, until `order_ready_cap`; its withdrawn claim frees the stack. | LD17 |
 | D23 | When an unordered joiner's wait starts | From the moment every living recipient of the order stands in its slot (or the stack last grew), not from the point's own `ready`. | LD17 |
-| D24 | Who a rally's join goes to | Only the followers holding no order (decided 2026-10-19): a member carrying out another of the human's orders (a defend, an ambush, a stack elsewhere or at the same doorway) keeps it; the same for an AI leader's rally. | LD24 |
+| D24 | Who a rally's join goes to | Only the followers holding no order: a member carrying out another of the human's orders (a defend, an ambush, a stack elsewhere or at the same doorway) keeps it; the same for an AI leader's rally. | LD24 |
 | D25 | "Once per doorway per leader" and a stack given up | The leader's `abort` there forgets the rally, so its next claim there rallies again (a leader whose approach the entry guard paused, or that comes back after a fight, brings its team in); heartbeats, re-claims and move-ups never rally twice. | LD24, LD25 |
 | D26 | A join that ends mid-entry | A decision is forced only in the `approach` and `stack` phases, where the entry would not end on its own; from the pie on the entry runs to its end, then the member follows. | LD25 |
 | D27 | What "stepping up" to a doorway is, for the human | Standing on its stack side against its wall beside the opening (out from the wall plane and past the jamb, each within 60 px) for 0.5 s, so a human walking past a door does not rally the team. | LD24 |
 | D28 | A follower and its leader's way | It never stands in the lane ahead of its leader: it steps beside it (its own side first) or further ahead, only into rooms the leader has entered, and keeps that spot while it clears the way, so a leader turning back or slicing a pie walks through its file. | LD21 |
+| D29 | Whose human leader rallies by stepping up | The invaders' only: a human defender leader makes no claim of its own at a doorway (Main sets `PlayerStack.own_claims` for the invaders' side alone), so its step-ups rally nobody and its teammates go on following it. | LD24 |
+| D30 | A follower that takes over the lead holding a join | The join's claims are not its own claim: they carry `join: true` and the squad's own-claim check rejects them, so it does not rally again at that doorway; its next claim of its own, at any doorway, rallies the members then holding no order. | LD24 |
 
 ## Numbers
 
@@ -701,32 +710,32 @@ The cases the behaviours above cite as D1 to D28.
 
 ## Baseline
 
-AI against AI, with squads following their leaders (this change, d914857) and before it (main, e6cdbf7: every member decides on its
-own, nobody follows), scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to 110, one round each) on
-2026-10-19 from 11:55 to 12:19, the two trees alternated (change 3v3, main 3v3, change 5v5, main 5v5). Each tree was a scratch
+AI against AI, with squads following their leaders and before them (main, e6cdbf7: every member decides on its own, nobody
+follows), scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to 110, one round each) on
+2026-10-19 from 11:55 to 12:19, the two trees alternated (squads 3v3, main 3v3, squads 5v5, main 5v5). Each tree was a scratch
 `git worktree` of its commit; for each run a headless game ran on its own command port from an uncommitted scene inheriting
 `main.tscn` with `defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server (one shared
 server). A round ends when one side is wiped out (the `match` verdict, `scenes/general/command_server.gd` `verdict_of`, deciding by
 General's `MatchVerdict`, the rule the MatchHUD decides by too). Main's own `match` verdict calls a match larger than 1v1 a draw at
-its first death, so main's tree was run with this change's `scenes/general/match_verdict.gd` and the calls to it in
+its first death, so main's tree was run with the squads tree's `scenes/general/match_verdict.gd` and the calls to it in
 `command_server.gd` and `match_hud.gd` copied onto it, and nothing else. The round length is the `match` line's `elapsed`, over the rounds a side won. The load is the 1-min average
 from `uptime` before and after the run, on 12 cores; the machine was shared, and other work raised it during the runs.
 
 | Size | Tree | Invader wins | Defender wins | Draws | Timeouts | Round length, mean (min to max) | Load |
 |---|---|---|---|---|---|---|---|
-| 3v3 | change (d914857) | 10 | 0 | 0 | 0 | 29.6 s (4.0 to 66.9) | 3.95 → 11.67 |
+| 3v3 | squads | 10 | 0 | 0 | 0 | 29.6 s (4.0 to 66.9) | 3.95 → 11.67 |
 | 3v3 | main (e6cdbf7) | 9 | 1 (seed 105) | 0 | 0 | 31.8 s (14.2 to 47.7) | 12.26 → 8.15 |
-| 5v5 | change (d914857) | 10 | 0 | 0 | 0 | 35.0 s (13.1 to 50.5) | 7.57 → 7.81 |
+| 5v5 | squads | 10 | 0 | 0 | 0 | 35.0 s (13.1 to 50.5) | 7.57 → 7.81 |
 | 5v5 | main (e6cdbf7) | 7 | 2 (seeds 104, 105) | 0 | 1 (seed 107) | 32.4 s (16.2 to 82.0), 9 rounds | 7.34 → 11.30 |
 
-Main's 5v5 timeout on seed 107 was still undecided at 180 s, one defender and three invaders standing. A run of the change's tree
+Main's 5v5 timeout on seed 107 was still undecided at 180 s, one defender and three invaders standing. A run of the squads tree
 before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), gave the same tallies: 10 invader wins in 10 at both sizes.
 
 ## Performance
 
 **With squads following their leaders (LD19 to LD28).** `tools/run_tests.sh --domain=perf` (twelve guards, the eleven below and
 `perf/match_10v10_team_stress`: the 10v10 guard's match, the same house, placement and scripted Von, with one squad a side bound as Main
-binds it, so its members follow their leaders), `--verbose` for the `PERF` lines, on this change (d914857), 3 runs back to back on
+binds it, so its members follow their leaders), `--verbose` for the `PERF` lines, with the squads, 3 runs back to back on
 2026-10-19 from 12:36 to 12:39, the 1-min load 3.19 → 3.08, 3.08 → 3.29 and 3.29 → 4.06 (`uptime` before and after each, on 12 cores;
 none discarded). Each passed 12 of 12. In ms per frame, avg / p95 / max, against the smooth-match budgets 16.7 / 20 / 33.4:
 
@@ -739,14 +748,17 @@ none discarded). Each passed 12 of 12. In ms per frame, avg / p95 / max, against
 
 The team guard opens its window only once the sides are in contact (a shot fired; the warm-up runs on past its 6 s for at most
 `CONTACT_WITHIN`, 20 s, and the guard fails without it), so what it measures is the teams' fight; in all three runs the first shot came
-within the warm-up (`PERF 10v10 team match contact at 6.0 s`), and the window ended with 13, 18 and 9 members following. Every frame
+within the warm-up (`PERF 10v10 team match contact at 6.0 s`), and the window ended with 13, 18 and 9 members following. The guard
+also requires that some NPC knows a hostile as the window opens (`known_contacts_for_display()`): in 8 runs on 2026-10-19 (14:10 to
+14:12, load 3.97 to 5.54) two NPCs did each time, while shots fired inside the window came in 1 of those 8 (12 shots) and 1 of 5 runs
+just before them (11 shots), none in the rest, so the shots are logged, not required. Every frame
 guard of all three runs was within its budget: the worst frame of these four guards, 24.14 ms (the grenade match), is under the 33.4 ms
 max, so the budgets stand. Then those four guards ran `--repeat=10` in one process (12:41 to 12:46, load 3.59 → 4.53): 40 of 40 passed.
 Over the ten runs of each, avg / p95 / max ranged 4.30 to 6.60 / 7.31 to 10.34 / 11.04 to 30.80 (5v5), 9.88 to 11.15 / 12.85 to 14.72 /
 15.30 to 24.78 (10v10), 6.55 to 9.46 / 8.16 to 11.87 / 11.49 to 17.05 (10v10 team, contact at 6.0 s in all ten) and 8.51 to 11.98 /
 12.75 to 19.18 / 19.85 to 30.73 (grenades in a 5v5).
 
-**Before the audit fixes.** The same three `--domain=perf` runs on the change's tree before its audit fixes, the same morning (07:42 to
+**Before the audit fixes.** The same three `--domain=perf` runs on the squads tree before its audit fixes, the same morning (07:42 to
 07:44, load 2.06 to 2.70, the team guard not yet waiting for contact), gave the 10v10 9.81 to 10.59 ms avg (max at most 18.95), the team
 match 7.04 to 9.74 (max at most 20.07) and the 5v5 4.36 to 5.85 (max at most 14.62). Runs 1 and 3 passed 12 of 12. Run 2 passed 11: the log gate failed
 `perf/crowd_deaths_stress` (ten puppets killed at once; no AI, no squad) on one engine error, "Invalid polygon data, triangulation

@@ -1134,8 +1134,9 @@ func _post_throw_call(throw: Dictionary) -> void:
 ## it walks into the one it took, else 0, E2) and `pie` (it has begun the pie); an ordered stack's
 ## member adds `order_id`, `order_bang`, `order_mode`, `order_hold`, `order_go` and `order_side`
 ## (the order, its mode, whether it holds for the leader's go and whether that go has come, and its
-## side, `docs/leadership.md` LD9, LD13, LD14). It is how the stack claims slots, waits for the team
-## and crosses in order; "going in" is also said in `status`. `point` is where the speaker stands.
+## side, `docs/leadership.md` LD9, LD13, LD14), and a join's member `join` (LD24, D30). It is how
+## the stack claims slots, waits for the team and crosses in order; "going in" is also said in
+## `status`. `point` is where the speaker stands.
 func _post_entry_call(step: Dictionary) -> void:
 	var status := _status(false)
 	if step["step"] == "going_in":
@@ -1178,6 +1179,8 @@ func _post_entry_call(step: Dictionary) -> void:
 			# An ordered stack's claim (LD9): the order, its mode, its hold for go (LD13) and its
 			# side.
 			msg[key] = step[key]
+	if step.get("join", false):
+		msg["join"] = true  # A join's claim (LD24): never the speaker's own, D30.
 	EventBus.post(&"callout", msg)
 
 

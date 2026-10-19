@@ -236,10 +236,13 @@ func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> v
 
 ## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc`
 ## hands it the house: an NPC's controller's `squad`, found by the same `npc_controllers` group, and
-## the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
-func bind_squad(npc: Node, squad: Node, stack: Node = null) -> void:
+## the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17), with
+## `own_claims` (LD24, D29: true for the invaders' side only, whose leader's own claim at a doorway
+## rallies the team).
+func bind_squad(npc: Node, squad: Node, stack: Node = null, own_claims := false) -> void:
 	if stack != null and "squad" in stack:
 		stack.squad = squad
+		stack.own_claims = own_claims
 	for child in npc.get_children():
 		if child.is_in_group(&"npc_controllers"):
 			child.squad = squad

@@ -25,6 +25,8 @@ const FOLLOW_RINGS := 3
 const FOLLOW_STILL_TIME := 0.8
 ## How far (px) a follower's spot moves before it re-aims its walk.
 const FOLLOW_RETARGET := 20.0
+## How near (px) its spot a follower is at it.
+const FOLLOW_ARRIVE := 10.0
 ## The leash (px) round the leader's live position a follower fights within.
 const LEASH := 320.0
 ## The break (in leashes) past which a fighting follower re-decides.
@@ -70,15 +72,14 @@ static func band_p50(i: int) -> float:
 ## The squad of the actors `ids` in that order (the first is its leader by the rank rule when every
 ## rank is equal), built and bound as Main does: every NPC among them handed it
 ## (`MatchSpawner.bind_squad`). `human` names the actor that stands in for the human leader (passed
-## to `Squad.setup` as `human`); "" for an AI-led squad. Null when the squad script or `bind_squad`
-## is missing.
+## to `Squad.setup` as `human`); "" for an AI-led squad.
 static func team(t: TestContext, ids: Array, human: StringName = &"") -> Node:
 	var members: Array = ids.map(func(id): return t.actor(id))
 	return team_of(t, members, t.actor(human) if human != &"" else null)
 
 
 ## The squad over the characters `members` (spawn order), `human` its human leader or null, bound
-## to every NPC among them. Null when the squad script or `bind_squad` is missing.
+## to every NPC among them; null for no members.
 static func team_of(t: TestContext, members: Array, human: Node = null) -> Node:
 	if members.is_empty():
 		return null
@@ -133,13 +134,6 @@ static func walk_target(c: Node) -> Vector2:
 static func entry(c: Node) -> Dictionary:
 	var b := brain_of(c)
 	return b.debug_entry() if b != null else {}
-
-
-## The `&"order"` events posted so far with kind `stack` and mode `join`.
-static func joins(t: TestContext) -> Array:
-	return t.events_of(&"order", func(d): return (
-		String(d.get("kind", "")) == Order.STACK and String(d.get("mode", "")) == JOIN
-	))
 
 
 ## The raw `&"order"` events (`{ topic, data, time }`) of kind `kind` (any when ""), oldest first.

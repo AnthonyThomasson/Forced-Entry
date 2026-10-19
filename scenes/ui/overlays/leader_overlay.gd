@@ -15,6 +15,7 @@ extends Node2D
 ## leader and the members through the Character API only (`global_position`, `is_dead`).
 ## `PROCESS_MODE_ALWAYS`: it stays on the squad while the match is paused.
 
+## The colours of the crown, the leash ring, a follow spot (its ring and its line) and the trail.
 const CROWN_COLOR := Color(1.0, 0.82, 0.25, 0.95)
 const LEASH_COLOR := Color(1.0, 0.82, 0.25, 0.35)
 const SPOT_COLOR := Color(0.55, 0.9, 1.0, 0.8)

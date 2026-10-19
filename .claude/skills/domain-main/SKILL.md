@@ -67,7 +67,8 @@ Everything one match builds lives under a fresh `World` node (group `match_world
    combatants in spawn order (after `_arm_characters`, which ranks the unit), with `_spawner.openings` and the house's `rooms` (and the human as
    `human` when it leads, and the claim ttl `_spawner.callout_ttl_of(members)`, the side's NPCs' `callout_ttl`), kept in `_squads` by faction;
    each member is handed its squad (`MatchSpawner.bind_squad`: an NPC's controller, and the human's `PlayerStack`, the node `bind_player` returned,
-   kept in `_player_stack`, whose claims then say `leader` while the human leads, LD17). The leader is the squad's own
+   kept in `_player_stack`, whose claims then say `leader` while the human leads, LD17, with `own_claims` true on the invaders' side only, so a human
+   defender leader's step-ups rally nobody, D29). The leader is the squad's own
    rule (rank, then spawn order), or the human when it leads. Then `_watch_side_stacks()`: in a played match the `StackMarkers` under `World`
    `watch_squad(squad.view)` the human's side's squad, lead or not, so every stack that side forms shows its rings (LD18). Then, in every match, `_build_leader_overlay()`: the `LeaderOverlay` (UI
    overlays, `watch` over every squad's `view`) under `World`, its `show_leaders` from `_overlay_flags` (the global `OverlayRegistry.LEADERS`
@@ -104,13 +105,15 @@ inspector and overlays observe.
   straight for it.
 - `add_npc` instances the scene, sets its position and only THEN adds it under `world` (a body added at the world origin and moved afterwards
   overlaps whatever stands there for a frame, and the physics launches that piece across the map), hands its controller the house `rooms`, its `openings` (the spawner's field, which `main.gd` sets from
-  `WorldGen.get_openings` before spawning; for tactical entry) and `entry_point` through its controller, the child in the group `npc_controllers` (`bind_npc`), and appends it to `combatants`; `bind_squad(member, squad, stack := null)` hands an NPC its side's squad (its
-  controller's `squad`) the same way, and the human's `PlayerStack` (`stack`, the node `bind_player` returned) its `squad`; `callout_ttl_of(members)`
+  `WorldGen.get_openings` before spawning; for tactical entry) and `entry_point` through its controller, the child in the group `npc_controllers` (`bind_npc`), and appends it to `combatants`; `bind_squad(member, squad, stack := null, own_claims := false)` hands an NPC its side's squad (its
+  controller's `squad`) the same way, and the human's `PlayerStack` (`stack`, the node `bind_player` returned) its `squad` and `own_claims` (true from
+  Main for the invaders' side only, D29); `callout_ttl_of(members)`
   is the `callout_ttl` of the first NPC among them (0 with none), which Main hands `Squad.setup`; `bind_player(player, rooms)` does the human's equivalent (a `PlayerStack`); the first of a kind is named plainly (`Defender`, `Invader`), the rest `<base> 2`, …
 - Tests of the leadership wiring: `tests/general/lead_rank_test.gd` (LD10: the ranks with and without "Lead the team", the same style draws, `lead`
   saved), `command_menu_wiring_test.gd` (LD11: a Main-built match, the menu orders a stun stack and both NPCs claim in bang mode; LD13 / LD16: ordered
   with "Hold for my go" ticked it holds until the menu's "Go into the kitchen", then bangs and goes in),
-  `squad_leader_rule_test.gd` and `squad_succession_test.gd` (LD3, LD4).
+  `squad_leader_rule_test.gd` and `squad_succession_test.gd` (LD3, LD4), and `tests/ai/stack/human_defender_leader_no_rally_test.gd` (D29: a
+  Main-wired match, a human defender leading with "Lead the team" on: its step-up rallies nobody, its teammate keeps following).
 - Test: `tests/general/match_spawn_clear_test.gd` (two defenders in a room with a bed over its centre start clear and apart);
   `match_spawn_origin_test.gd` (a counter against the world origin is not launched by a spawn); `stack_player_wiring_test.gd` (`bind_player` attaches the stack with the house's doorways); `match_setup_test.gd`
   covers the setup dicts, loadout arming and the endless randomisation; `match_styles_test.gd` the crews' styles (one unit per match from the seed, defenders mixed,

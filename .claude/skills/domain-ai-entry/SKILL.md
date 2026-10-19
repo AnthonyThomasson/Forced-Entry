@@ -267,12 +267,13 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   the one test of it the behaviour and the entry share). `begin` leaves the
   order's id out (`_order_id` ""), so the entry is the member's own unordered one joining the leader's stack: the team's side and the first
   claimer's mode (D10), E17's suspect-room bang and `_maybe_upgrade`, the listen, the joiner's `ready_timeout`, no order fields on its claims
-  and `_order_bang` false. `Behavior` keeps the `order_id` in the leaf (the `moving` radio, `_order_live`) and leaves a join out of the ordered
+  and `_order_bang` false. `_join` marks every call `join: true` (`_radio`; the controller passes it on), so its squad never takes a join's
+  claim for its holder's own: one that takes over the lead holding it rallies nobody on it (D30). `Behavior` keeps the `order_id` in the leaf (the `moving` radio, `_order_live`) and leaves a join out of the ordered
   stack's guarded way (`_ordered_entry`); a join whose `begin` fails (no slot at a dead end) is ended `refused`. Its order ends `done` at the
   room cleared (`AgentPerception.mark_cleared`, as any stack order), `cancel`led when the leader radios `abort` there, or `refused`; in
   `approach` / `stack` its end forces a decision at once (`Behavior._join_over`, "join over"), from the pie on the entry runs to its end. Tests:
   `ai/entry/join_rally_clears_room`, `join_suspect_room_bangs`, `join_unsuspected_quiet`, `join_leader_aborts`,
-  `join_cleared_before_reached`, `ai/stack/human_leader_rallies`, `human_rally_spares_ordered`.
+  `join_cleared_before_reached`, `join_inherited_no_rally`, `ai/stack/human_leader_rallies`, `human_rally_spares_ordered`.
 - **Held for the leader's go (`docs/leadership.md` LD13).** An ordered stack with `wait_go` (`_order_hold`, from `begin` or the claim it
   follows) is `_held(team)` until its go is latched (`_released`): in `_tick_stack` each member then radios `ready` (`_say_ready`) and holds
   in its slot (`_holding`, read through `holding_for_go()` while in `stack`): no pie, no listen, no bang (`_bang_due` calls none) and no

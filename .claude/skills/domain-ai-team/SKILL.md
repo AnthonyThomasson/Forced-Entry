@@ -22,8 +22,9 @@ from where it stands (`claim` / `ready` / `going_in` / `in`) and withdraws on le
 ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's `AgentEntry` (the statics `claims`, `free_slot`, `stack_side`, `crossing_order`,
 `side_for`, `stack_point`, `holds_slot`, and `geometry` / `stack_side_from`) and `AgentGrenades.is_call` (a grenade call is not a stack claim; nor is a callout that is
 only an order's progress, `order_step` with no `entry_step`, LD7), and never moves the
-character. **Its own claim (LD24).** With no allied stack forming in reach and the human leading a squad with another living member
-(`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;
+character. **Its own claim (LD24).** With `own_claims` set (Main sets it through `MatchSpawner.bind_squad` on the invaders' side only, D29:
+false unless set, so a human defender leader claims nothing of its own and rallies nobody), no allied stack forming in reach and the human
+leading a squad with another living member (`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;
 `_stepped_up`: on the doorway's stack side (`AgentEntry.on_stack_side`), out from the wall plane and past the jamb along it each within
 `STEP_UP_REACH`, 60 px, at a doorway nobody stacks at and not `_barred`) it claims slot 1 there (`free_slot([])`) on the side it stands on
 (`stack_side_from`), flagged `_own` and radioed `own: true`. The squad hears that claim as the leader's own and rallies the team; a
@@ -81,7 +82,8 @@ reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow`
 `follow_arrive`, `follow_still_time` and `follow_step`, and faces away from the leash centre the controller pushes.
 
 **The rally, the abort cancel and the takeover (LD24 to LD26).** `_on_event` hands an entry callout of the current leader's (same
-faction, any `entry_step`, not a grenade call) with no `order_id`, and from the human only one marked `own` (`_own_claim`), to `_rally`: on
+faction, any `entry_step`, not a grenade call) with no `order_id` and no `join` (a join's claims, D30: a follower that took over the lead
+holding one rallies nobody on it), and from the human only one marked `own` (`_own_claim`), to `_rally`: on
 `claim`, once per `"<leader id>:<opening>"` (`_rallied`), one `stack` order with `mode` `JOIN` (`"join"`, not one of `MODES`, `quiet` /
 `stun` / `frag`, which a request may name; `is_join(order)` tells a join), `opening` / `into` the claim's, `pos` the doorway's centre (`_opening_pos`), `split`, `bang`,
 `wait_go` false, to every follower whose `_orders` entry is empty (D24); on the leader's `abort` the key is erased and one `cancel` goes to
@@ -90,7 +92,7 @@ the living members holding a join of that leader at that opening (D25). A join r
 an `ambush`; the held stacks it ordered are released as before (D12).
 
 Tests: `tests/general/` (`squad_*`, `squad_takeover_from_human`, `lead_rank`, `stack_player_wiring`), `tests/ai/stack/` (the human's stack
-claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
+claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
 (`leash_*`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/perf/match_10v10_team_stress` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
 
 **Interfaces:** 7 (the Character API a squad reads: `rank`, `is_dead`, `died`, the leader's `global_position` and `facing`), 9 (the map

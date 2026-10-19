@@ -55,7 +55,8 @@ func run(t: TestContext) -> void:
 	var squad := Follow.team(t, [&"me", &"a", &"b", &"f"], &"me")
 	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
 		return
-	MatchSpawner.new().bind_squad(me, squad, stack)
+	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
+	MatchSpawner.new().bind_squad(me, squad, stack, true)
 	if not t.require(
 			squad.leader() == me and squad.follows(follower),
 			"premise: the human leads, and f follows it",

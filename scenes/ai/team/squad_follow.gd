@@ -18,6 +18,7 @@ extends RefCounted
 ## moved out of the lane ahead of the leader's facing (`_clear_of_way`).
 
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
+const Squad := preload("res://scenes/ai/team/squad.gd")
 ## How far (px) the leader moves before its trail takes a new point.
 const TRAIL_STEP := 15.0
 ## How far (px) a ring slot or a spot beside the leader's way may lie from the navigation map and
@@ -30,7 +31,7 @@ const RINGS := 3
 const WAY_CLEARANCE := 32.0
 
 ## The squad whose followers these are: its reads and its follow tunables.
-var _squad: Node = null
+var _squad: Squad = null
 ## The house's doorways (`WorldGen.get_openings`): no spot lies in one.
 var _openings: Array = []
 ## The house's rooms (`WorldGen.get_rooms`): the rooms the leader has stood in.
@@ -65,7 +66,7 @@ var _vision: RefCounted = AgentVision.new()
 
 
 ## The follow geometry of `squad`, whose house is `openings` and `rooms`.
-func _init(squad: Node, openings: Array, rooms: Array) -> void:
+func _init(squad: Squad, openings: Array, rooms: Array) -> void:
 	_squad = squad
 	_openings = openings
 	_rooms = rooms

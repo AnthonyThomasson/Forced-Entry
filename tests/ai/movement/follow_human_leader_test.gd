@@ -7,7 +7,8 @@ extends GameTest
 ## behind the human, the walk re-aimed only once the spot has moved `FOLLOW_RETARGET`), and once it
 ## has stood `FOLLOW_STILL_TIME` they take spots on a ring round it (`FOLLOW_RING` 80 px), behind
 ## its facing, and face outward. Mid-walk the squad's `view()` (what the leader overlay draws,
-## LD28) holds the trail, the leash and each member's own follow spot.
+## LD28) holds the trail, the leash and each member's own follow spot, its place in the file behind
+## the human.
 ##
 ## Real Von, the whole pipeline; no switch. The house is the bare Terrace house, so there is a house
 ## to search: left to themselves the NPCs go in and search it.
@@ -26,6 +27,9 @@ const RING_SLACK := 35.0
 ## How far (px) a follower's spot may lie off its place in the file, at the median over the walk
 ## (the trail's `TRAIL_STEP` points, a snapped spot).
 const FILE_SLACK := 15.0
+## Where (x) on the second leg the squad's view is read: 100 px into the leg, the file behind the
+## human on one straight line.
+const VIEW_AT_X := 600.0
 
 
 func describe() -> Dictionary:
@@ -69,7 +73,7 @@ func run(t: TestContext) -> void:
 	var spacing := {}
 	var reaims := {}
 	var aimed := {}
-	var viewed := {}  # `squad.view()` mid-walk, with each member's `follow_spot` beside it.
+	var viewed := {}  # `squad.view()` mid-walk, with where the human stood then.
 	for m: Node in members:
 		spacing[m] = []
 		reaims[m] = []
@@ -79,11 +83,8 @@ func run(t: TestContext) -> void:
 		puppet.walk_to(point)
 		while not puppet.has_arrived() and t.time < 60.0:
 			Follow.tick(w, t, nodes, squad)
-			if leg == 1 and viewed.is_empty():
-				viewed = {
-					"view": squad.view(),
-					"spots": members.map(func(m): return squad.follow_spot(m)),
-				}
+			if leg == 1 and viewed.is_empty() and me.global_position.x <= VIEW_AT_X:
+				viewed = { "view": squad.view(), "lead": me.global_position }
 			for m: Node in members:
 				if leg > 0:
 					spacing[m].append(squad.follow_spot(m).distance_to(me.global_position))
@@ -154,8 +155,8 @@ func run(t: TestContext) -> void:
 	var tuned := {
 		"follow_gap": Follow.FOLLOW_GAP, "follow_step": Follow.FOLLOW_STEP,
 		"follow_ring": Follow.FOLLOW_RING, "follow_still_time": Follow.FOLLOW_STILL_TIME,
-		"follow_retarget": Follow.FOLLOW_RETARGET, "leash": Follow.LEASH,
-		"leash_break": Follow.LEASH_BREAK,
+		"follow_retarget": Follow.FOLLOW_RETARGET, "follow_arrive": Follow.FOLLOW_ARRIVE,
+		"leash": Follow.LEASH, "leash_break": Follow.LEASH_BREAK,
 	}
 	var off_spec: Array = tuned.keys().filter(
 		func(k): return not is_equal_approx(float(squad.get(k)), float(tuned[k])),
@@ -173,13 +174,21 @@ func run(t: TestContext) -> void:
 		"mid-walk the view holds the human's trail and the leash (%d trail points, leash %s)"
 			% [trail.size(), str(view.get("leash"))],
 	)
-	var mismatched: Array = members.filter(func(m):
+	var lead: Vector2 = viewed.get("lead", Vector2.INF)
+	var off_file: Array = members.filter(func(m):
 		var row: Array = rows.filter(func(r): return r["node"] == m)
-		return row.size() != 1 or row[0]["follow_spot"] != viewed["spots"][members.find(m)])
+		var behind := Follow.FOLLOW_GAP + Follow.FOLLOW_STEP * members.find(m)
+		if row.size() != 1:
+			return true
+		return absf((row[0]["follow_spot"] as Vector2).distance_to(lead) - behind) > FILE_SLACK)
 	t.check(
-		not rows.is_empty() and mismatched.is_empty(),
-		"each member's view row carries its own follow spot (Squad.follow_spot; rows %s)"
-			% str(rows.map(func(r): return [Follow.name_of(r["node"]), r["follow_spot"]])),
+		not rows.is_empty() and off_file.is_empty(),
+		"each member's view row carries its own follow spot, its place in the file behind the "
+			+ "human (human at %s; rows %s)"
+			% [
+				str(lead.round()),
+				str(rows.map(func(r): return [Follow.name_of(r["node"]), r["follow_spot"]])),
+			],
 	)
 	t.check(
 		members.all(func(m): return Follow.asked(w, m) == 0),
