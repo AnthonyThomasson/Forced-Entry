@@ -692,9 +692,9 @@ def runner_awaits_before_the_world(repo: Path) -> None:
 
 
 def runner_without_context(repo: Path) -> None:
-    """An `edit` for fixture_repo: the fixture's test runner keeps its test's context under another name than `_ctx`."""
+    """An `edit` for fixture_repo: the fixture's test runner keeps its test's context under another name than `open_ctx`."""
     runner_gd = repo / "scenes" / "testing" / "test_runner.gd"
-    runner_gd.write_text(runner_gd.read_text().replace("_ctx", "_context"))
+    runner_gd.write_text(runner_gd.read_text().replace("open_ctx", "open_context"))
 
 
 def context_without_is_finished(repo: Path) -> None:
@@ -711,7 +711,7 @@ def context_without_finished_signal(repo: Path) -> None:
     `finished`; the runner still runs its tests."""
     runner_gd = repo / "scenes" / "testing" / "test_runner.gd"
     text = runner_gd.read_text()
-    for old, new in (("\tsignal finished\n", "\tsignal done\n"), ("await _ctx.finished\n", "await _ctx.done\n"),
+    for old, new in (("\tsignal finished\n", "\tsignal done\n"), ("await open_ctx.finished\n", "await open_ctx.done\n"),
                      ("finished.emit()\n", "done.emit()\n")):
         assert old in text
         text = text.replace(old, new)
@@ -720,7 +720,7 @@ def context_without_finished_signal(repo: Path) -> None:
 
 @needs_godot
 class TestEndTests(unittest.TestCase):
-    """`run --tests`: the probe ends a test's unit when the runner's test context (`_ctx`) emits `finished`, before the
+    """`run --tests`: the probe ends a test's unit when the runner's test context (`open_ctx`) emits `finished`, before the
     runner hears it, so the teardown after it is not the test's; a runner it cannot read that way fails the run."""
 
     def test_a_runner_with_no_test_context_fails_loudly(self):
@@ -728,7 +728,7 @@ class TestEndTests(unittest.TestCase):
             repo = fixture_repo(d, runner_without_context)
             r = run_cli(repo, "run", "--tests")
         self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("_ctx", r.stdout + r.stderr)
+        self.assertIn("open_ctx", r.stdout + r.stderr)
 
     def test_a_test_context_with_no_is_finished_fails_loudly(self):
         with TempDir() as d:

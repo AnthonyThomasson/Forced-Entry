@@ -1,9 +1,9 @@
 extends RefCounted
+## Shared bits for the Audio tests (not a test). `const Probe :=
+## preload("res://tests/_audio/sound_probe.gd")`.
 
-## Shared bits for the Audio tests (not a test). `const Probe := preload("res://tests/_audio/sound_probe.gd")`.
-
-## A range so large that nothing is out of earshot: the tests that are not about distance use it, since the
-## test camera frames the actors and would otherwise decide what they can hear.
+## A range so large that nothing is out of earshot: the tests that are not about distance use it,
+## since the test camera frames the actors and would otherwise decide what they can hear.
 const EVERYWHERE := { &"shot": 1.0e9, &"impact": 1.0e9, &"footstep": 1.0e9, &"reload": 1.0e9 }
 
 
@@ -28,12 +28,12 @@ static func samples(profile: StringName, variant: int = 0) -> PackedFloat32Array
 	var out := PackedFloat32Array()
 	out.resize(int(data.size() / 2.0))
 	for i in out.size():
-		out[i] = data.decode_s16(i * 2) / 32768.0
+		out[i] = data.decode_s16(i * 2) / 32_768.0
 	return out
 
 
-## How bright `s` is: the energy of its sample-to-sample change over its energy. A low rumble changes slowly
-## (near 0); hiss, clicks and high ring change fast (0.1 and up is audibly tinny).
+## How bright `s` is: the energy of its sample-to-sample change over its energy. A low rumble
+## changes slowly (near 0); hiss, clicks and high ring change fast (0.1 and up is audibly tinny).
 static func brightness(s: PackedFloat32Array) -> float:
 	var energy := 0.0
 	var change := 0.0
@@ -45,7 +45,8 @@ static func brightness(s: PackedFloat32Array) -> float:
 	return change / maxf(energy, 0.000001)
 
 
-## The share of `s`'s energy below about `hz` (two one-pole low-passes in a row), 0..1: how much low body it has.
+## The share of `s`'s energy below about `hz` (two one-pole low-passes in a row), 0..1: how much low
+## body it has.
 static func low_share(s: PackedFloat32Array, hz: float = 250.0) -> float:
 	var a := 1.0 - exp(-TAU * hz / SoundConfig.sample_rate)
 	var one := 0.0
@@ -60,11 +61,13 @@ static func low_share(s: PackedFloat32Array, hz: float = 250.0) -> float:
 	return low / maxf(energy, 0.000001)
 
 
-## The low-end energy `profile` actually puts out, in its own level: the low share of its (peak-normalized) render,
-## scaled by its level trim. This is what "a heavier hit" means in numbers.
+## The low-end energy `profile` actually puts out, in its own level: the low share of its
+## (peak-normalized) render, scaled by its level trim. This is what "a heavier hit" means in
+## numbers.
 static func low_weight(profile: StringName, variant: int = 0) -> float:
 	var s := samples(profile, variant)
 	var energy := 0.0
 	for x in s:
 		energy += x * x
-	return low_share(s) * energy * pow(10.0, float(SoundBank.sound(profile, variant)["level_db"]) / 10.0)
+	return (low_share(s) * energy
+			* pow(10.0, float(SoundBank.sound(profile, variant)["level_db"]) / 10.0))

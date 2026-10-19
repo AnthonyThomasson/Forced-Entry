@@ -1,12 +1,12 @@
 extends GameTest
-
 ## With the footprints switch off a walker crossing fresh blood prints nothing.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "No footprints with the footprints switch off",
-		"description": "physics.footprints off: a puppet walks through a fresh splatter and leaves no prints.",
+		"description": "physics.footprints off: a puppet walks through a fresh splatter and leaves "
+			+ "no prints.",
 		"tags": ["blood", "footprints", "switch"],
 		"timeout": 12.0,
 	}
@@ -23,6 +23,10 @@ func run(t: TestContext) -> void:
 	BloodSpawner.splat(t.world, Vector2(250, 200), 30.0, Vector2.RIGHT, 0.0, [])
 	await t.frames(2)
 	t.puppet(&"walker").walk(Vector2.RIGHT)
-	await t.until(func(): return t.actor(&"walker").global_position.x > 550.0, 8.0, "the walker crosses")
+	await t.until(
+		func(): return t.actor(&"walker").global_position.x > 550.0,
+		8.0,
+		"the walker crosses",
+	)
 	var layer := BloodDecals.find(t.world)
 	t.expect_eq(layer.print_count() if layer else 0, 0, "no prints were left")

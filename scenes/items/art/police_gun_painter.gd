@@ -1,9 +1,9 @@
 extends RefCounted
-
-## Top-down pixel-art painter for a gun in the POLICE ISSUE weapon style (Items domain, private; rendered through the Art
-## domain's PixelArt): the line both police units carry, in gunmetal with a red and blue light bar across the receiver's top
-## and a white serial stencil at its back. Options: `gun` (&"pistol" / &"smg" / &"rifle"), `look` (the `GunConfig` look's
-## handle, `PixelArt.handle`), and `flat`: held, in the game's top-down frame; flat, lying on its side (`flip` the side up).
+## Top-down pixel-art painter for a gun in the POLICE ISSUE weapon style (Items domain, private;
+## rendered through the Art domain's PixelArt): the line both police units carry, in gunmetal with a
+## red and blue light bar across the receiver's top and a white serial stencil at its back. Options:
+## `gun` (&"pistol" / &"smg" / &"rifle"), `look` (the `GunConfig` look's handle, `PixelArt.handle`),
+## and `flat`: held, in the game's top-down frame; flat, lying on its side (`flip` the side up).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
@@ -13,8 +13,8 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	WeaponArt.paint_gun(c, opts, false, false, false, _flat_marks, _held_marks)
 
 
-## The light bar across the receiver just behind the guard (red left, blue right, a dark divider) and the serial stencil
-## dashed across its back.
+## The light bar across the receiver just behind the guard (red left, blue right, a dark divider)
+## and the serial stencil dashed across its back.
 static func _held_marks(c: PixelCanvas, look: Dictionary, parts: Dictionary) -> void:
 	var body: Rect2i = parts["body"]
 	var cx := int(c.w / 2.0)

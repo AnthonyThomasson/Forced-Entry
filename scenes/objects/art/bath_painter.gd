@@ -1,5 +1,4 @@
 extends RefCounted
-
 ## Top-down pixel-art BATH painter (Objects domain, private). Painted in the canonical frame
 ## (front toward +y). A `tub`: a glazed rim around a sunken basin of rippled water, a drain and a
 ## mixer tap at one end. A `shower`: a tiled tray with a central drain, a glass screen along the
@@ -7,8 +6,8 @@ extends RefCounted
 ## `style` ("tub" | "shower"). Run down like a toilet (limescale, rust, a crack).
 
 const ToiletPainter = preload("res://scenes/objects/art/toilet_painter.gd")
-
-const _TRAY_HEIGHT := 1  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _TRAY_HEIGHT := 1
 const _RIM_HEIGHT := 5
 const _FIXTURE_HEIGHT := 8
 
@@ -34,15 +33,24 @@ static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 	c.outline(rim, t.shadow)
 	var lip := maxi(4, int(mini(c.w, c.h) / 12.0))
 	var basin_rect := full.grow(-lip)
-	var basin := PixelCanvas.rounded(basin_rect, mini(14, int(mini(basin_rect.size.x, basin_rect.size.y) / 3.0)))
+	var basin := PixelCanvas.rounded(
+		basin_rect,
+		mini(14, int(mini(basin_rect.size.x, basin_rect.size.y) / 3.0)),
+	)
 	c.fill(basin, base.darkened(0.06), _TRAY_HEIGHT)
 	c.bevel(basin, 1, 2, t.shadow, t.light)
 	var water_col := ObjectArtConfig.bath_water_color
 	var water_rect := basin_rect.grow(-3)
-	var water := PixelCanvas.rounded(water_rect, mini(12, int(mini(water_rect.size.x, water_rect.size.y) / 3.0)))
+	var water := PixelCanvas.rounded(
+		water_rect,
+		mini(12, int(mini(water_rect.size.x, water_rect.size.y) / 3.0)),
+	)
 	c.fill(water, water_col, _TRAY_HEIGHT)
 	for _i in maxi(3, int(water_rect.get_area() / 500.0)):
-		var p := water_rect.position + Vector2i(c.rng.randi_range(4, water_rect.size.x - 10), c.rng.randi_range(3, water_rect.size.y - 4))
+		var p := water_rect.position + Vector2i(
+			c.rng.randi_range(4, water_rect.size.x - 10),
+			c.rng.randi_range(3, water_rect.size.y - 4),
+		)
 		c.line(p, p + Vector2i(c.rng.randi_range(3, 6), 0), water_col.lightened(0.18))
 	c.glare(water, water_col.lightened(0.45), 2)
 	var cy := int(c.h / 2.0)

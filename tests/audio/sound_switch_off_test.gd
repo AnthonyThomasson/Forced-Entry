@@ -1,8 +1,8 @@
 extends GameTest
-
-## The twin of the sound tests with the `audio.sound` switch off: a real gun is fired, a punch lands and a
-## walker steps, yet the Sound service synthesizes, plays and announces nothing. The events themselves still
-## happen (the shot, the hit, the footfall are posted regardless: the AI listens to some of them).
+## The twin of the sound tests with the `audio.sound` switch off: a real gun is fired, a punch lands
+## and a walker steps, yet the Sound service synthesizes, plays and announces nothing. The events
+## themselves still happen (the shot, the hit, the footfall are posted regardless: the AI listens to
+## some of them).
 
 const Probe := preload("res://tests/_audio/sound_probe.gd")
 
@@ -10,7 +10,8 @@ const Probe := preload("res://tests/_audio/sound_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "No sound with the sound switch off",
-		"description": "audio.sound off: shots, hits and footsteps still happen and are posted on the bus, but make no `sound` and no voice.",
+		"description": "audio.sound off: shots, hits and footsteps still happen and are posted on "
+			+ "the bus, but make no `sound` and no voice.",
 		"tags": ["sound", "switch"],
 		"timeout": 8.0,
 	}
@@ -33,7 +34,13 @@ func run(t: TestContext) -> void:
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	await t.seconds(0.5)
 	shooter.shoot()
-	if not t.require(await t.until(func(): return t.happened(&"hit", func(d): return d["victim"] == t.actor(&"target")), 2.0), "the shot lands"):
+	if not t.require(
+		await t.until(
+			func(): return t.happened(&"hit", func(d): return d["victim"] == t.actor(&"target")),
+			2.0,
+		),
+		"the shot lands",
+	):
 		return
 	await t.until(func(): return t.happened(&"footfall"), 2.0, "the walker steps")
 	await t.seconds(0.5)

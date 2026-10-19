@@ -1,29 +1,30 @@
 class_name LayoutRules
-
 ## World Generation domain: what makes a floorplan logical, as tunable data plus a pure validator. A
-## `class_name` holder of constants and statics — read as `LayoutRules.<name>`; no instance, no autoload.
+## `class_name` holder of constants and statics — read as `LayoutRules.<name>`; no instance, no
+## autoload.
 ##
-## A layout is a set of rooms (`{ key, type, rect }`) joined by doorways (`{ pos, width, front, rooms }`, `rooms`
-## = the keys of the rooms the doorway touches: one for an exterior door, two for an interior one). The rules:
-##   ROOMS  per room TYPE: `front` (may carry the front door), `exit` (may carry a secondary exterior door),
-##          `through` (may be the only route between two other rooms; a `through: false` room may still gate a
-##          private dead end such as an en-suite bathroom), `max_doors` (most interior doors).
+## A layout is a set of rooms (`{ key, type, rect }`) joined by doorways
+## (`{ pos, width, front, rooms }`, `rooms` = the keys of the rooms the doorway touches: one for an
+## exterior door, two for an interior one). The rules:
+##   ROOMS  per room TYPE: `front` (may carry the front door), `exit` (may carry a secondary
+##          exterior door), `through` (may be the only route between two other rooms; a
+##          `through: false` room may still gate a private dead end such as an en-suite bathroom),
+##          `max_doors` (most interior doors).
 ##   LINKS  which pairs of room types may share an interior door (symmetric).
-## A type with no ROOMS entry gets DEFAULT_RULE; a type in no LINKS pair cannot share a door with anything, so
-## a new room type has to be given its rules here before a plan can use it.
+## A type with no ROOMS entry gets DEFAULT_RULE; a type in no LINKS pair cannot share a door with
+## anything, so a new room type has to be given its rules here before a plan can use it.
 ##
-## `check` returns one readable string per violation (empty = a logical layout). HouseSpawner warns with them
-## while building; tests/worldgen asserts every floorplan has none.
+## `check` returns one readable string per violation (empty = a logical layout). HouseSpawner warns
+## with them while building; tests/worldgen asserts every floorplan has none.
 
 ## The graph node standing for "outside the house" (a room with an exterior door is joined to it).
 const OUTSIDE := "outside"
-
 const DEFAULT_RULE := { "front": false, "exit": false, "through": true, "max_doors": 99 }
-
-## `front` rooms are where a visitor first steps in (a security vestibule among them); `exit` rooms may carry a
-## back/side/garage door. Bedrooms, bathrooms, offices and a netrunner den are never walked through to reach something
-## else (an en-suite dead end hanging off them is fine); a bathroom and a netrunner den are always dead ends with one
-## door; a ripperdoc (chop shop) is walked through; a kitchenette has at most two doors.
+## `front` rooms are where a visitor first steps in (a security vestibule among them); `exit` rooms
+## may carry a back/side/garage door. Bedrooms, bathrooms, offices and a netrunner den are never
+## walked through to reach something else (an en-suite dead end hanging off them is fine); a
+## bathroom and a netrunner den are always dead ends with one door; a ripperdoc (chop shop) is
+## walked through; a kitchenette has at most two doors.
 const ROOMS := {
 	"studio": { "front": true },
 	"living_room": { "front": true, "exit": true },
@@ -40,26 +41,26 @@ const ROOMS := {
 	"home_office": { "through": false, "max_doors": 2 },
 	"bathroom": { "through": false, "max_doors": 1 },
 }
-
-## Allowed interior-door pairs. Bathrooms open onto a hallway, a bedroom (en-suite) or a living space — never a
-## kitchen, kitchenette, laundry or garage; bedrooms never open onto service rooms or another bedroom; a
-## garage opens only onto the kitchen, laundry or a hallway; a netrunner den hangs off a hallway, a living space, a studio
-## or a ripperdoc; a kitchenette off a studio, a living room or a hallway.
+## Allowed interior-door pairs. Bathrooms open onto a hallway, a bedroom (en-suite) or a living
+## space — never a kitchen, kitchenette, laundry or garage; bedrooms never open onto service rooms
+## or another bedroom; a garage opens only onto the kitchen, laundry or a hallway; a netrunner den
+## hangs off a hallway, a living space, a studio or a ripperdoc; a kitchenette off a studio, a
+## living room or a hallway.
 const LINKS := [
-	["hallway", "security_vestibule"], ["hallway", "bedroom"], ["hallway", "bathroom"], ["hallway", "home_office"],
-	["hallway", "living_room"], ["hallway", "kitchen_living"], ["hallway", "kitchen"], ["hallway", "kitchenette"],
-	["hallway", "laundry_room"], ["hallway", "garage"], ["hallway", "netrunner_den"], ["hallway", "ripperdoc"],
-	["security_vestibule", "living_room"], ["security_vestibule", "kitchen_living"], ["security_vestibule", "studio"],
-	["security_vestibule", "home_office"], ["security_vestibule", "ripperdoc"],
-	["living_room", "kitchen"], ["living_room", "bedroom"], ["living_room", "bathroom"], ["living_room", "home_office"],
-	["living_room", "kitchenette"], ["living_room", "netrunner_den"], ["living_room", "ripperdoc"],
-	["kitchen_living", "bedroom"], ["kitchen_living", "bathroom"], ["kitchen_living", "home_office"],
-	["kitchen_living", "laundry_room"], ["kitchen_living", "netrunner_den"], ["kitchen_living", "ripperdoc"],
-	["kitchen", "laundry_room"], ["kitchen", "garage"],
-	["bedroom", "bathroom"],
-	["studio", "bathroom"], ["studio", "kitchenette"], ["studio", "netrunner_den"],
-	["ripperdoc", "netrunner_den"],
-	["laundry_room", "garage"],
+	["hallway", "security_vestibule"], ["hallway", "bedroom"], ["hallway", "bathroom"],
+	["hallway", "home_office"], ["hallway", "living_room"], ["hallway", "kitchen_living"],
+	["hallway", "kitchen"], ["hallway", "kitchenette"], ["hallway", "laundry_room"],
+	["hallway", "garage"], ["hallway", "netrunner_den"], ["hallway", "ripperdoc"],
+	["security_vestibule", "living_room"], ["security_vestibule", "kitchen_living"],
+	["security_vestibule", "studio"], ["security_vestibule", "home_office"],
+	["security_vestibule", "ripperdoc"], ["living_room", "kitchen"], ["living_room", "bedroom"],
+	["living_room", "bathroom"], ["living_room", "home_office"], ["living_room", "kitchenette"],
+	["living_room", "netrunner_den"], ["living_room", "ripperdoc"], ["kitchen_living", "bedroom"],
+	["kitchen_living", "bathroom"], ["kitchen_living", "home_office"],
+	["kitchen_living", "laundry_room"], ["kitchen_living", "netrunner_den"],
+	["kitchen_living", "ripperdoc"], ["kitchen", "laundry_room"], ["kitchen", "garage"],
+	["bedroom", "bathroom"], ["studio", "bathroom"], ["studio", "kitchenette"],
+	["studio", "netrunner_den"], ["ripperdoc", "netrunner_den"], ["laundry_room", "garage"],
 ]
 
 
@@ -76,8 +77,9 @@ static func linked(type_a: String, type_b: String) -> bool:
 	return false
 
 
-## Every violation in a layout, as readable strings (empty = logical). `rooms` are `{ key, type, rect }`,
-## `openings` are `{ pos, front, rooms, … }` — in any one coordinate space (a plan's, or the world's).
+## Every violation in a layout, as readable strings (empty = logical). `rooms` are
+## `{ key, type, rect }`, `openings` are `{ pos, front, rooms, … }` — in any one coordinate space (a
+## plan's, or the world's).
 static func check(rooms: Array, openings: Array) -> Array:
 	var problems: Array = []
 	var type_of := {}
@@ -102,7 +104,8 @@ static func check(rooms: Array, openings: Array) -> Array:
 				if not rule(type_of[key])["front"]:
 					problems.append("the front door opens into %s" % _describe(key, type_of))
 				if absf((opening["pos"] as Vector2).y - bounds.end.y) > 1.0:
-					problems.append("the front door at %s is not on the house's south wall" % [opening["pos"]])
+					problems.append("the front door at %s is not on the house's south wall"
+							% [opening["pos"]])
 			elif not rule(type_of[key])["exit"]:
 				problems.append("an exterior door opens into %s" % _describe(key, type_of))
 			graph[key].append(OUTSIDE)
@@ -111,26 +114,30 @@ static func check(rooms: Array, openings: Array) -> Array:
 			var a: String = keys[0]
 			var b: String = keys[1]
 			if not linked(type_of[a], type_of[b]):
-				problems.append("a door joins %s and %s" % [_describe(a, type_of), _describe(b, type_of)])
+				problems.append("a door joins %s and %s"
+						% [_describe(a, type_of), _describe(b, type_of)])
 			graph[a].append(b)
 			graph[b].append(a)
 			doors[a] = doors.get(a, 0) + 1
 			doors[b] = doors.get(b, 0) + 1
 		else:
-			problems.append("the doorway at %s joins %d rooms%s" % [opening["pos"], keys.size(), " (a front entrance)" if is_front else ""])
+			problems.append("the doorway at %s joins %d rooms%s"
+					% [opening["pos"], keys.size(), " (a front entrance)" if is_front else ""])
 	if fronts != 1:
 		problems.append("the house needs exactly one front door, not %d" % fronts)
 
 	for key in type_of:
 		var max_doors: int = rule(type_of[key])["max_doors"]
 		if doors.get(key, 0) > max_doors:
-			problems.append("%s has %d doors (at most %d)" % [_describe(key, type_of), doors[key], max_doors])
+			problems.append("%s has %d doors (at most %d)"
+					% [_describe(key, type_of), doors[key], max_doors])
 
 	var from_outside := _reached(graph, "")
 	for key in type_of:
 		if not from_outside.has(key):
 			problems.append("%s cannot be reached from outside" % _describe(key, type_of))
-	# A room that must not be walked through may only gate private dead ends hanging off it (an en-suite).
+	# A room that must not be walked through may only gate private dead ends hanging off it (an
+	# en-suite).
 	for key in type_of:
 		if rule(type_of[key])["through"] or not from_outside.has(key):
 			continue
@@ -139,7 +146,8 @@ static func check(rooms: Array, openings: Array) -> Array:
 			if other == key or not from_outside.has(other) or without.has(other):
 				continue
 			if rule(type_of[other])["through"] or _only_neighbour(graph, other) != key:
-				problems.append("%s is a pass-through: reaching %s means walking through it" % [_describe(key, type_of), _describe(other, type_of)])
+				problems.append("%s is a pass-through: reaching %s means walking through it"
+						% [_describe(key, type_of), _describe(other, type_of)])
 	return problems
 
 

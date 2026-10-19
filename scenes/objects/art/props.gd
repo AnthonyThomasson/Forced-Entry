@@ -1,21 +1,26 @@
 extends RefCounted
-
 ## Small procedural props dressing a surface (Objects domain, private): monitors, keyboards,
 ## mugs, books, bowls, tools and the like, drawn by the table / cabinet / counter painters from a
 ## piece's `art_opts.props` list. Each prop is painted in the host's canonical frame (front toward
 ## +y), raised so it casts a shadow onto the surface, with sizes in art px scaled by
-## ArtConfig.pixel_size and colors from ObjectArtConfig.prop_colors. A monitor's lit screen edge is drawn `glowing` (it gives
-## light), in the host's screen colour.
+## ArtConfig.pixel_size and colors from ObjectArtConfig.prop_colors. A monitor's lit screen edge is
+## drawn `glowing` (it gives light), in the host's screen colour.
 
-const _HEIGHT := 7  ## Props stand above the surface they sit on (cast-shadow height).
+## Props stand above the surface they sit on (cast-shadow height).
+const _HEIGHT := 7
 
 
-## Draw each `{ "kind": String, "at": Vector2 }` entry of `props`; `at` is relative to `area`. A screen glows in `glow`
-## (transparent: the prop palette's `glow`).
+## Draw each `{ "kind": String, "at": Vector2 }` entry of `props`; `at` is relative to `area`. A
+## screen glows in `glow` (transparent: the prop palette's `glow`).
 static func draw_all(c: PixelCanvas, props: Array, area: Rect2i, glow := Color(0, 0, 0, 0)) -> void:
 	for p: Dictionary in props:
 		var at: Vector2 = p.get("at", Vector2(0.5, 0.5))
-		draw(c, String(p.get("kind", "")), area.position + Vector2i((Vector2(area.size) * at).round()), glow)
+		draw(
+			c,
+			String(p.get("kind", "")),
+			area.position + Vector2i((Vector2(area.size) * at).round()),
+			glow,
+		)
 
 
 ## Draw one prop of `kind` centred on `o` (a screen glowing in `glow`, transparent: the palette's).
@@ -82,8 +87,9 @@ static func _monitor(c: PixelCanvas, o: Vector2i, glow: Color) -> void:
 	var screen := _block(c, bar, 1, _col("plastic_dark"))
 	c.outline(screen, _col("plastic_dark").darkened(0.4))
 	var edge := bar.end.y - 1
-	c.glowing(func() -> void: c.line(Vector2i(bar.position.x + 1, edge), Vector2i(bar.end.x - 2, edge), glow),
-			Rect2i(bar.position.x, edge, bar.size.x, 1))
+	var bar_line := func() -> void:
+		c.line(Vector2i(bar.position.x + 1, edge), Vector2i(bar.end.x - 2, edge), glow)
+	c.glowing(bar_line, Rect2i(bar.position.x, edge, bar.size.x, 1))
 
 
 ## A keyboard: a pale slab dotted with keys.
@@ -94,7 +100,6 @@ static func _keyboard(c: PixelCanvas, o: Vector2i) -> void:
 	for y in range(r.position.y + 1, r.end.y - 1):
 		for x in range(r.position.x + 1 + (y % 2), r.end.x - 1, 2):
 			c.px(x, y, _col("plastic_light").darkened(0.22))
-
 
 
 ## A mug of coffee with its handle.
@@ -124,8 +129,16 @@ static func _book(c: PixelCanvas, o: Vector2i) -> void:
 	var cover := pick(c, "books")
 	var s := _block(c, r, 0, cover)
 	c.outline(s, cover.darkened(0.45))
-	c.line(Vector2i(r.position.x + 1, r.position.y), Vector2i(r.position.x + 1, r.end.y - 1), cover.darkened(0.3))
-	c.line(Vector2i(r.end.x - 1, r.position.y + 1), Vector2i(r.end.x - 1, r.end.y - 2), _col("paper"))
+	c.line(
+		Vector2i(r.position.x + 1, r.position.y),
+		Vector2i(r.position.x + 1, r.end.y - 1),
+		cover.darkened(0.3),
+	)
+	c.line(
+		Vector2i(r.end.x - 1, r.position.y + 1),
+		Vector2i(r.end.x - 1, r.end.y - 2),
+		_col("paper"),
+	)
 
 
 ## A small round clock face with two hands.
@@ -181,7 +194,11 @@ static func _tools(c: PixelCanvas, o: Vector2i) -> void:
 	# Hammer.
 	var h := o + Vector2i(-_u(6), -_u(2))
 	c.line(h, h + Vector2i(_u(9), 0), _col("wood_light"), _HEIGHT)
-	c.fill(PixelCanvas.rounded(Rect2i(h + Vector2i(_u(8), -_u(2)), Vector2i(_u(2), _u(5))), 0), _col("metal").darkened(0.3), _HEIGHT)
+	c.fill(
+		PixelCanvas.rounded(Rect2i(h + Vector2i(_u(8), -_u(2)), Vector2i(_u(2), _u(5))), 0),
+		_col("metal").darkened(0.3),
+		_HEIGHT,
+	)
 	# Wrench.
 	var wr := o + Vector2i(-_u(5), _u(3))
 	c.line(wr, wr + Vector2i(_u(8), 0), _col("metal"), _HEIGHT)
@@ -198,9 +215,18 @@ static func _vise(c: PixelCanvas, o: Vector2i) -> void:
 	var r := _box(o, 10, 8)
 	var s := _block(c, r, 1, _col("metal").darkened(0.35))
 	c.outline(s, _col("metal").darkened(0.65))
-	c.line(Vector2i(r.position.x + 1, o.y), Vector2i(r.end.x - 2, o.y), _col("metal").lightened(0.15))
+	c.line(
+		Vector2i(r.position.x + 1, o.y),
+		Vector2i(r.end.x - 2, o.y),
+		_col("metal").lightened(0.15),
+	)
 	c.line(Vector2i(o.x, r.end.y), Vector2i(o.x, r.end.y + _u(3)), _col("metal"), _HEIGHT)
-	c.line(Vector2i(o.x - _u(3), r.end.y + _u(3)), Vector2i(o.x + _u(3), r.end.y + _u(3)), _col("metal"), _HEIGHT)
+	c.line(
+		Vector2i(o.x - _u(3), r.end.y + _u(3)),
+		Vector2i(o.x + _u(3), r.end.y + _u(3)),
+		_col("metal"),
+		_HEIGHT,
+	)
 
 
 ## A drawing on a sheet of paper beside a row of crayons.
@@ -208,7 +234,11 @@ static func _crayons(c: PixelCanvas, o: Vector2i) -> void:
 	var sheet := _box(o, 13, 10, -3, 0)
 	c.fill(PixelCanvas.rounded(sheet, 0), _col("paper"), 2)
 	c.outline(PixelCanvas.rounded(sheet, 0), _col("paper").darkened(0.25))
-	c.line(sheet.position + Vector2i(2, 3), sheet.position + Vector2i(sheet.size.x - 3, 6), pick(c, "flowers"))
+	c.line(
+		sheet.position + Vector2i(2, 3),
+		sheet.position + Vector2i(sheet.size.x - 3, 6),
+		pick(c, "flowers"),
+	)
 	for i in 4:
 		var p := o + Vector2i(_u(5) + i * 2, -_u(3) + i)
 		c.line(p, p + Vector2i(0, _u(4)), pick(c, "flowers"), _HEIGHT - 3)
@@ -220,5 +250,3 @@ static func _plate(c: PixelCanvas, o: Vector2i) -> void:
 	c.fill(rim, _col("ceramic"), 3)
 	c.outline(rim, _col("ceramic").darkened(0.3))
 	c.outline(PixelCanvas.disc(o, _u(3)), _col("ceramic").darkened(0.12))
-
-

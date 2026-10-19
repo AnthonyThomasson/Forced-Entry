@@ -1,5 +1,4 @@
 extends GameTest
-
 ## With the smear switch off a chair pushed through fresh blood leaves no streaks.
 
 
@@ -25,6 +24,10 @@ func run(t: TestContext) -> void:
 	BloodSpawner.splat(t.world, Vector2(300, 200), 30.0, Vector2.RIGHT, 0.0, [])
 	await t.frames(2)
 	t.puppet(&"pusher").walk(Vector2.RIGHT)
-	await t.until(func(): return t.object(&"chair").global_position.x > 600.0, 8.0, "the chair is pushed across")
+	await t.until(
+		func(): return t.object(&"chair").global_position.x > 600.0,
+		8.0,
+		"the chair is pushed across",
+	)
 	var layer := BloodDecals.find(t.object(&"chair").get_parent())
 	t.expect_eq(layer.ribbon_count() if layer else 0, 0, "no streaks were laid")

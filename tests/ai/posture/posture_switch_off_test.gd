@@ -1,13 +1,13 @@
 extends GameTest
-
-## With the `ai.posture` switch off an NPC always stands, however hard it is pressed: the same pinned defender that
-## crouches in `posture_pinned_crouch_test` stays on its feet.
+## With the `ai.posture` switch off an NPC always stands, however hard it is pressed: the same
+## pinned defender that crouches in `posture_pinned_crouch_test` stays on its feet.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "The posture switch keeps NPCs standing",
-		"description": "Shot at in the open with the posture switch off, the defender never crouches.",
+		"description": "Shot at in the open with the posture switch off, the defender never "
+			+ "crouches.",
 		"tags": ["ai", "posture", "switch", "under fire"],
 		"timeout": 15.0,
 	}
@@ -24,7 +24,12 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"defender", &"defender", Vector2(700, 150))
-	s.actor(&"gunman", &"puppet", Vector2(200, 150), { "start_slot": 3, "faction": &"invader", "max_health": 400.0 })
+	s.actor(
+		&"gunman",
+		&"puppet",
+		Vector2(200, 150),
+		{ "start_slot": 3, "faction": &"invader", "max_health": 400.0 },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -33,6 +38,9 @@ func run(t: TestContext) -> void:
 	gunman.aim_at(defender)
 	await t.seconds(0.6)
 	gunman.shoot()
-	t.check(await t.until(func(): return defender.health < defender.max_health, 3.0), "the defender was shot")
+	t.check(
+		await t.until(func(): return defender.health < defender.max_health, 3.0),
+		"the defender was shot",
+	)
 	await t.seconds(4.0)
 	t.expect_eq(defender.posture(), &"stand", "with the switch off it stays standing")

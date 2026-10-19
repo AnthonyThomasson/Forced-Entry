@@ -1,7 +1,6 @@
 class_name Deformation
-
-## Physics System: stateless damage-deformation geometry + rendering, shared by furniture, walls, characters
-## and vehicles (their visuals and, for furniture/walls, collider rebuilds), so the drawn
+## Physics System: stateless damage-deformation geometry + rendering, shared by furniture, walls,
+## characters and vehicles (their visuals and, for furniture/walls, collider rebuilds), so the drawn
 ## silhouette and any collider come from the same deformed polygon. The caller owns the
 ## impact list. Tuning lives in PhysicsConfig.deform_* (and, for a character, CharacterConfig).
 ##
@@ -12,28 +11,45 @@ class_name Deformation
 ##   chunk:  bool     true = carve a jagged missing piece instead of a shallow dent
 ##   seed:   int      stable RNG seed so a hit's jitter/cracks don't shimmer each frame
 ##   blood:  float    0..1 blood the striker carried onto the surface (drawn with the hole)
-## `new_impact` builds one and `push_impact` adds it to a list, so every caller records the same schema.
+## `new_impact` builds one and `push_impact` adds it to a list, so every caller records the same
+## schema.
 
 ## Sentinel for an unset color argument: callers pass it to accept the default derived from
 ## the shape's own colors (an intentional mark color always has non-zero alpha).
 const NO_COLOR := Color(0.0, 0.0, 0.0, 0.0)
 ## Default near-black bullet-hole color when a caller supplies no override.
 const HOLE_COLOR := Color(0.05, 0.05, 0.06)
-## Multiplier that packs two piece ids into one dictionary key in `_convex_pieces` (ids stay far below it).
-const PIECE_PAIR_STRIDE := 65536
-## Dented silhouettes `shape_polygon` keeps before it starts over (a dozen bodies, a few parts each).
+## Multiplier that packs two piece ids into one dictionary key in `_convex_pieces` (ids stay far
+## below it).
+const PIECE_PAIR_STRIDE := 65_536
+## Dented silhouettes `shape_polygon` keeps before it starts over (a dozen bodies, a few parts
+## each).
 const POLYGON_CACHE_SIZE := 256
 
 ## `shape_polygon`'s kept results: inputs hash -> [the inputs, the polygon].
 static var _polygon_cache: Dictionary = {}
+## The `n` points of the unit circle `base_ring` scales, from angle 0 round, by `n`; kept, as they
+## never change.
+static var _unit_rings := {}
+## The dented wall segments `wall_polygon` keeps, by the hash of their inputs: [inputs, polygon].
+static var _wall_cache := {}
 
 
-## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage` dealt: its depth
-## `damage * PhysicsConfig.deform_depth_per_damage`, at most `max_depth`; a chunk when `allow_chunks` and `damage` reaches
-## `PhysicsConfig.deform_chunk_damage`; a fresh `randi()` seed; `blood` carried.
-static func new_impact(pos: Vector2, inward: Vector2, damage: float, blood: float, max_depth: float, allow_chunks: bool) -> Dictionary:
+## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage`
+## dealt: its depth `damage * PhysicsConfig.deform_depth_per_damage`, at most `max_depth`; a chunk
+## when `allow_chunks` and `damage` reaches `PhysicsConfig.deform_chunk_damage`; a fresh `randi()`
+## seed; `blood` carried.
+static func new_impact(
+	pos: Vector2,
+	inward: Vector2,
+	damage: float,
+	blood: float,
+	max_depth: float,
+	allow_chunks: bool,
+) -> Dictionary:
 	return {
-		"pos": pos, "inward": inward, "depth": minf(damage * PhysicsConfig.deform_depth_per_damage, max_depth),
+		"pos": pos, "inward": inward,
+		"depth": minf(damage * PhysicsConfig.deform_depth_per_damage, max_depth),
 		"chunk": allow_chunks and damage >= PhysicsConfig.deform_chunk_damage, "seed": randi(),
 		"blood": blood,
 	}
@@ -51,14 +67,15 @@ static func base_ring(shape: String, size: Vector2) -> PackedVector2Array:
 	return _ring(shape, size, true)
 
 
-## `base_ring`, a circle's unit ring the one kept in `_unit_rings` (`kept`, on the main thread) or made afresh (pure: a worker's
-## cut reads and writes no shared state).
+## `base_ring`, a circle's unit ring the one kept in `_unit_rings` (`kept`, on the main thread) or
+## made afresh (pure: a worker's cut reads and writes no shared state).
 static func _ring(shape: String, size: Vector2, kept: bool) -> PackedVector2Array:
 	var ring := PackedVector2Array()
 	match shape:
 		"circle":
 			var radius := size.x * 0.5
-			# The unit ring scaled: a fresh array each call (callers may change theirs), with no trig per point.
+			# The unit ring scaled: a fresh array each call (callers may change theirs), with no
+			# trig per point.
 			var n := maxi(3, PhysicsConfig.deform_circle_points)
 			var unit := _unit_ring(n) if kept else _unit_points(n)
 			return Transform2D(0.0, Vector2(radius, radius), 0.0, Vector2.ZERO) * unit
@@ -77,11 +94,8 @@ static func _ring(shape: String, size: Vector2, kept: bool) -> PackedVector2Arra
 	return ring
 
 
-## The `n` points of the unit circle `base_ring` scales, from angle 0 round, by `n`; kept, as they never change.
-static var _unit_rings := {}
-
-
-## The unit ring of `n` points kept in `_unit_rings`, made there on its first ask (main thread only: it writes the shared cache).
+## The unit ring of `n` points kept in `_unit_rings`, made there on its first ask (main thread only:
+## it writes the shared cache).
 static func _unit_ring(n: int) -> PackedVector2Array:
 	var ring: Variant = _unit_rings.get(n)
 	if ring == null:
@@ -90,7 +104,8 @@ static func _unit_ring(n: int) -> PackedVector2Array:
 	return ring
 
 
-## The `n` points of the unit circle from angle 0 round, made afresh: pure, so a worker thread may make them.
+## The `n` points of the unit circle from angle 0 round, made afresh: pure, so a worker thread may
+## make them.
 static func _unit_points(n: int) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	for i in n:
@@ -114,7 +129,8 @@ static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
 		var offset := Vector2.ZERO
 		for impact in impacts:
 			var d: float = p.distance_to(impact["pos"])
-			var reach: float = radius * (PhysicsConfig.deform_chunk_reach_scale if impact["chunk"] else 1.0)
+			var reach: float = (radius
+					* (PhysicsConfig.deform_chunk_reach_scale if impact["chunk"] else 1.0))
 			if d >= reach:
 				continue
 			var t := 1.0 - d / reach  # 1 at the impact, 0 at the edge of reach
@@ -122,8 +138,12 @@ static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
 				# Deep carve + seeded jitter so the bite looks torn, not smooth.
 				var rng := RandomNumberGenerator.new()
 				rng.seed = int(impact["seed"]) + i * 7
-				var jag := 1.0 + rng.randf_range(-PhysicsConfig.deform_chunk_jitter, PhysicsConfig.deform_chunk_jitter)
-				offset += impact["inward"] * impact["depth"] * PhysicsConfig.deform_chunk_depth * smoothstep(0.0, 1.0, t) * jag
+				var jag := 1.0 + rng.randf_range(
+					-PhysicsConfig.deform_chunk_jitter,
+					PhysicsConfig.deform_chunk_jitter,
+				)
+				offset += (impact["inward"] * impact["depth"] * PhysicsConfig.deform_chunk_depth
+						* smoothstep(0.0, 1.0, t) * jag)
 			else:
 				offset += impact["inward"] * impact["depth"] * (t * t)
 		# Clamp the displacement so a dent can't push the point past the object's opposite
@@ -171,7 +191,7 @@ static func _clamp_inside(ring: PackedVector2Array, center: Vector2, p: Vector2,
 ## intersections closer than a hair are its own adjacent edges and are ignored.
 static func _exit_distance(ring: PackedVector2Array, p: Vector2, dir: Vector2) -> float:
 	var start := p + dir * 0.05
-	var far := p + dir * 100000.0
+	var far := p + dir * 100_000.0
 	var best := INF
 	var n := ring.size()
 	for i in n:
@@ -186,15 +206,18 @@ static func _exit_distance(ring: PackedVector2Array, p: Vector2, dir: Vector2) -
 ## Deformed perimeter polygon for a furniture shape — the single source both the visuals
 ## and the collider use. The central core scales with the shape, so a small body dents
 ## deeply without folding while big furniture (whose dents never reach the core) is unchanged.
-## A dented silhouette is the same until the next hit, but it is asked for several times by each hit (the collider
-## rebuild, the drop shadow, the drawing) and again by every repaint of a character, so the last few are kept, keyed by
-## everything the result is made from.
+## A dented silhouette is the same until the next hit, but it is asked for several times by each hit
+## (the collider rebuild, the drop shadow, the drawing) and again by every repaint of a character,
+## so the last few are kept, keyed by everything the result is made from.
 static func shape_polygon(shape: String, size: Vector2, impacts: Array) -> PackedVector2Array:
 	if impacts.is_empty():
 		return _shape_polygon(shape, size, impacts)
-	var inputs: Array = [shape, size, impacts, PhysicsConfig.deform_core_fraction, PhysicsConfig.deform_radius,
-		PhysicsConfig.deform_back_margin, PhysicsConfig.deform_circle_points, PhysicsConfig.deform_rect_points_per_edge,
-		PhysicsConfig.deform_chunk_reach_scale, PhysicsConfig.deform_chunk_jitter, PhysicsConfig.deform_chunk_depth]
+	var inputs: Array = [
+		shape, size, impacts, PhysicsConfig.deform_core_fraction, PhysicsConfig.deform_radius,
+		PhysicsConfig.deform_back_margin, PhysicsConfig.deform_circle_points,
+		PhysicsConfig.deform_rect_points_per_edge, PhysicsConfig.deform_chunk_reach_scale,
+		PhysicsConfig.deform_chunk_jitter, PhysicsConfig.deform_chunk_depth,
+	]
 	var key := inputs.hash()
 	var kept = _polygon_cache.get(key)
 	if kept != null and kept[0] == inputs:
@@ -206,9 +229,14 @@ static func shape_polygon(shape: String, size: Vector2, impacts: Array) -> Packe
 	return poly
 
 
-## The silhouette of `shape` at `size` dented by `impacts`, computed afresh (`shape_polygon` caches it); its ring from the kept unit
-## ring when `kept`, else made afresh (`_ring`).
-static func _shape_polygon(shape: String, size: Vector2, impacts: Array, kept := true) -> PackedVector2Array:
+## The silhouette of `shape` at `size` dented by `impacts`, computed afresh (`shape_polygon` caches
+## it); its ring from the kept unit ring when `kept`, else made afresh (`_ring`).
+static func _shape_polygon(
+	shape: String,
+	size: Vector2,
+	impacts: Array,
+	kept := true,
+) -> PackedVector2Array:
 	var core := minf(size.x, size.y) * 0.5 * PhysicsConfig.deform_core_fraction
 	return deform(_ring(shape, size, kept), impacts, PhysicsConfig.deform_radius, core)
 
@@ -216,13 +244,22 @@ static func _shape_polygon(shape: String, size: Vector2, impacts: Array, kept :=
 ## Deformed polygon for one wall segment: a thick rectangle (quad) along the centerline
 ## a→b, ends extended by half-thickness (like the collider), long edges subdivided so
 ## dents have resolution. Shared by the wall visuals and the wall collider rebuild.
-static func wall_polygon(a: Vector2, b: Vector2, thickness: float, impacts: Array) -> PackedVector2Array:
+static func wall_polygon(
+	a: Vector2,
+	b: Vector2,
+	thickness: float,
+	impacts: Array,
+) -> PackedVector2Array:
 	if impacts.is_empty():
 		return _wall_polygon(a, b, thickness, impacts)
-	# A dented segment is the same until its next hit, and a wall repaints all its segments whenever one is struck: the last
-	# few are kept like `shape_polygon`'s, keyed by everything they are made from.
-	var inputs: Array = [a, b, thickness, impacts, PhysicsConfig.deform_radius, PhysicsConfig.deform_back_margin,
-		PhysicsConfig.deform_chunk_reach_scale, PhysicsConfig.deform_chunk_jitter, PhysicsConfig.deform_chunk_depth]
+	# A dented segment is the same until its next hit, and a wall repaints all its segments whenever
+	# one is struck: the last few are kept like `shape_polygon`'s, keyed by everything they are made
+	# from.
+	var inputs: Array = [
+		a, b, thickness, impacts, PhysicsConfig.deform_radius, PhysicsConfig.deform_back_margin,
+		PhysicsConfig.deform_chunk_reach_scale, PhysicsConfig.deform_chunk_jitter,
+		PhysicsConfig.deform_chunk_depth,
+	]
 	var key := inputs.hash()
 	var kept = _wall_cache.get(key)
 	if kept != null and kept[0] == inputs:
@@ -234,12 +271,13 @@ static func wall_polygon(a: Vector2, b: Vector2, thickness: float, impacts: Arra
 	return poly
 
 
-## The dented wall segments `wall_polygon` keeps, by the hash of their inputs: [inputs, polygon].
-static var _wall_cache := {}
-
-
 ## The polygon of one wall segment, computed afresh (`wall_polygon` keeps the dented ones).
-static func _wall_polygon(a: Vector2, b: Vector2, thickness: float, impacts: Array) -> PackedVector2Array:
+static func _wall_polygon(
+	a: Vector2,
+	b: Vector2,
+	thickness: float,
+	impacts: Array,
+) -> PackedVector2Array:
 	var dir := (b - a).normalized()
 	var half_n := dir.orthogonal() * (thickness * 0.5)
 	var s := a - dir * (thickness * 0.5)
@@ -261,11 +299,13 @@ static func is_valid_polygon(poly: PackedVector2Array) -> bool:
 	return poly.size() >= 3 and not Geometry2D.triangulate_polygon(poly).is_empty()
 
 
-## Decompose a (possibly concave) polygon into the convex pieces a static collider is rebuilt from (`shapes_of` makes
-## their shapes), as their points (`PackedVector2Array` each); [] for a degenerate polygon (caller keeps the old collider).
-## Merges the triangulation itself rather than calling `Geometry2D.decompose_polygon_in_convex`, which logs "Convex
-## decomposing failed!" on some near-degenerate polygons that do triangulate. Pure: it touches no shared state and makes no
-## resource, so it may run on a worker thread (Objects works out the pieces of every collider rebuilt in a frame together).
+## Decompose a (possibly concave) polygon into the convex pieces a static collider is rebuilt from
+## (`shapes_of` makes their shapes), as their points (`PackedVector2Array` each); [] for a
+## degenerate polygon (caller keeps the old collider). Merges the triangulation itself rather than
+## calling `Geometry2D.decompose_polygon_in_convex`, which logs "Convex decomposing failed!" on some
+## near-degenerate polygons that do triangulate. Pure: it touches no shared state and makes no
+## resource, so it may run on a worker thread (Objects works out the pieces of every collider
+## rebuilt in a frame together).
 static func convex_pieces(polygon: PackedVector2Array) -> Array:
 	var out: Array = []
 	if not is_valid_polygon(polygon):
@@ -278,14 +318,19 @@ static func convex_pieces(polygon: PackedVector2Array) -> Array:
 	return out
 
 
-## `[shape_polygon(shape, size, impacts), its convex_pieces]`, worked out afresh: pure (no cache read or written, no resource made,
-## its circle's unit ring made afresh), so it may run on a worker thread with its own copy of `impacts`. Objects cuts a dented piece's silhouette this way as it is struck.
+## `[shape_polygon(shape, size, impacts), its convex_pieces]`, worked out afresh: pure (no cache
+## read or written, no resource made, its circle's unit ring made afresh), so it may run on a worker
+## thread with its own copy of `impacts`. Objects cuts a dented piece's silhouette this way as it is
+## struck.
 static func cut_shape(shape: String, size: Vector2, impacts: Array) -> Array:
-	var poly := _shape_polygon(shape, size, impacts, false) if not impacts.is_empty() else _ring(shape, size, false)
+	var poly := (_shape_polygon(shape, size, impacts, false)
+			if not impacts.is_empty()
+			else _ring(shape, size, false))
 	return [poly, convex_pieces(poly)]
 
 
-## `[wall_polygon(a, b, thickness, impacts), its convex_pieces]`, worked out afresh and pure, as `cut_shape`.
+## `[wall_polygon(a, b, thickness, impacts), its convex_pieces]`, worked out afresh and pure, as
+## `cut_shape`.
 static func cut_wall(a: Vector2, b: Vector2, thickness: float, impacts: Array) -> Array:
 	var poly := _wall_polygon(a, b, thickness, impacts)
 	return [poly, convex_pieces(poly)]
@@ -313,12 +358,14 @@ static func _convex_pieces(polygon: PackedVector2Array) -> Array:
 		if _turn(polygon, tri[0], tri[1], tri[2]) * sign_ < 0.0:
 			tri = [tri[0], tri[2], tri[1]]
 		pieces.append(tri)
-	# The scan takes the first pair, in piece order, that is neighbours across an edge and whose union is convex, merges it
-	# and scans again. Only neighbours can merge, so they are found through a map of who owns each directed edge (a piece's
-	# edge i -> j meets its neighbour's j -> i), and a neighbouring pair that failed is remembered by the pieces' ids (the
-	# failure holds until one of them changes). A scan that starts over need not walk the pieces before the merge again:
-	# every pair there was tried and failed, but those with the piece the merge just made (`fresh`), which are tried first,
-	# in order, before the scan goes on from it. The same merges happen in the same order as a scan from the start.
+	# The scan takes the first pair, in piece order, that is neighbours across an edge and whose
+	# union is convex, merges it and scans again. Only neighbours can merge, so they are found
+	# through a map of who owns each directed edge (a piece's edge i -> j meets its neighbour's j ->
+	# i), and a neighbouring pair that failed is remembered by the pieces' ids (the failure holds
+	# until one of them changes). A scan that starts over need not walk the pieces before the merge
+	# again: every pair there was tried and failed, but those with the piece the merge just made
+	# (`fresh`), which are tried first, in order, before the scan goes on from it. The same merges
+	# happen in the same order as a scan from the start.
 	var count := polygon.size()
 	var ids: Array = range(pieces.size())
 	var next_id := pieces.size()
@@ -326,7 +373,8 @@ static func _convex_pieces(polygon: PackedVector2Array) -> Array:
 	for p in pieces.size():
 		_own_edges(owner, pieces[p], ids[p], count, true)
 	var failed := {}
-	var from := 0  # the scan goes on from this piece; every pair before it has failed, but those with `fresh`
+	# the scan goes on from this piece; every pair before it has failed, but those with `fresh`
+	var from := 0
 	var fresh := -1  # the piece the last merge made (-1: none yet)
 	while true:
 		var merge := Vector2i(-1, -1)
@@ -373,7 +421,8 @@ static func _convex_pieces(polygon: PackedVector2Array) -> Array:
 	return pieces
 
 
-## The ids of the pieces across each edge of piece `loop`, in the loop's order (`owner` as `_own_edges` keeps it).
+## The ids of the pieces across each edge of piece `loop`, in the loop's order (`owner` as
+## `_own_edges` keeps it).
 static func _neighbour_ids(owner: Dictionary, loop: Array, count: int) -> Array:
 	var out: Array = []
 	for k in loop.size():
@@ -383,16 +432,17 @@ static func _neighbour_ids(owner: Dictionary, loop: Array, count: int) -> Array:
 	return out
 
 
-## The convex piece the neighbouring pieces at positions `a` < `b` merge into (`_merge_across_edge`), or [] when they do not; a
-## pair that does not is remembered in `failed` (by the pieces' ids) and not tried again.
-static func _try_merge(polygon: PackedVector2Array, pieces: Array, ids: Array, failed: Dictionary, a: int, b: int,
-		sign_: float) -> Array:
+## The convex piece the neighbouring pieces at positions `a` < `b` merge into
+## (`_merge_across_edge`), or [] when they do not; a pair that does not is remembered in `failed`
+## (by the pieces' ids) and not tried again.
+static func _try_merge(polygon: PackedVector2Array, pieces: Array, ids: Array, failed: Dictionary,
+		a: int, b: int, sign_: float) -> Array:
 	var pair: int = mini(ids[a], ids[b]) * PIECE_PAIR_STRIDE + maxi(ids[a], ids[b])
 	if failed.has(pair):
 		return []
 	var union := _merge_across_edge(pieces[a], pieces[b])
-	# Both pieces are convex already, so only the two corners where they now join can turn the wrong way:
-	# the union's first vertex and the one ending piece a's run (see _merge_across_edge).
+	# Both pieces are convex already, so only the two corners where they now join can turn the wrong
+	# way: the union's first vertex and the one ending piece a's run (see _merge_across_edge).
 	if union.is_empty() or not (_turns_right_at(polygon, union, 0, sign_)
 			and _turns_right_at(polygon, union, pieces[a].size() - 1, sign_)):
 		failed[pair] = true
@@ -400,7 +450,8 @@ static func _try_merge(polygon: PackedVector2Array, pieces: Array, ids: Array, f
 	return union
 
 
-## Record (`add`) or forget the directed edges of piece `loop` in `owner`, keyed `from * count + to`, as piece `id`'s.
+## Record (`add`) or forget the directed edges of piece `loop` in `owner`, keyed
+## `from * count + to`, as piece `id`'s.
 static func _own_edges(owner: Dictionary, loop: Array, id: int, count: int, add: bool) -> void:
 	for k in loop.size():
 		var key: int = int(loop[k]) * count + int(loop[(k + 1) % loop.size()])
@@ -433,8 +484,14 @@ static func _merge_across_edge(a: Array, b: Array) -> Array:
 	return []
 
 
-## True when `loop` turns the polygon's way (`sign_` = +1 / -1, straight allowed) at its vertex number `at`.
-static func _turns_right_at(polygon: PackedVector2Array, loop: Array, at: int, sign_: float) -> bool:
+## True when `loop` turns the polygon's way (`sign_` = +1 / -1, straight allowed) at its vertex
+## number `at`.
+static func _turns_right_at(
+	polygon: PackedVector2Array,
+	loop: Array,
+	at: int,
+	sign_: float,
+) -> bool:
 	var n := loop.size()
 	var a: Vector2 = polygon[loop[(at - 1 + n) % n]]
 	var b: Vector2 = polygon[loop[at]]
@@ -455,17 +512,24 @@ static func draw_shape(canvas: CanvasItem, shape: String, size: Vector2, fill: C
 		texture: Texture2D = null, texture_angle: float = 0.0, marks: bool = true) -> void:
 	var poly := shape_polygon(shape, size, impacts)
 	# Fall back to the intact outline if the dents pinched the silhouette into a polygon the
-	# renderer can't triangulate; the hit marks below still show the damage. Undented, it is that outline already.
+	# renderer can't triangulate; the hit marks below still show the damage. Undented, it is that
+	# outline already.
 	if not impacts.is_empty() and not is_valid_polygon(poly):
 		poly = base_ring(shape, size)
 	var darken := 0.0
 	if damage_total > 0.0 and PhysicsConfig.deform_darken_full > 0.0:
-		darken = clampf(damage_total / PhysicsConfig.deform_darken_full, 0.0, 1.0) * PhysicsConfig.deform_darken_max
+		darken = (clampf(damage_total / PhysicsConfig.deform_darken_full, 0.0, 1.0)
+				* PhysicsConfig.deform_darken_max)
 	if texture:
-		# Each point turned back by `texture_angle`, over the size, from the art's centre: one transform of the whole ring.
+		# Each point turned back by `texture_angle`, over the size, from the art's centre: one
+		# transform of the whole ring.
 		var c := cos(texture_angle)
 		var s := sin(texture_angle)
-		var to_uv := Transform2D(Vector2(c / size.x, -s / size.y), Vector2(s / size.x, c / size.y), Vector2(0.5, 0.5))
+		var to_uv := Transform2D(
+			Vector2(c / size.x, -s / size.y),
+			Vector2(s / size.x, c / size.y),
+			Vector2(0.5, 0.5),
+		)
 		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(darken), to_uv * poly, texture)
 	else:
 		canvas.draw_colored_polygon(poly, fill.darkened(darken))
@@ -486,7 +550,8 @@ static func draw_wall(canvas: CanvasItem, a: Vector2, b: Vector2, thickness: flo
 		color: Color, impacts: Array, texture: Texture2D = null, tile_length: float = 0.0) -> void:
 	var poly := wall_polygon(a, b, thickness, impacts)
 	# Many dents can pinch the segment into a polygon the renderer can't triangulate; draw it
-	# undented that frame (the hit marks below still show the damage). Undented, it is that polygon already.
+	# undented that frame (the hit marks below still show the damage). Undented, it is that polygon
+	# already.
 	if not impacts.is_empty() and not is_valid_polygon(poly):
 		poly = wall_polygon(a, b, thickness, [])
 	if texture and tile_length > 0.0:
@@ -494,7 +559,9 @@ static func draw_wall(canvas: CanvasItem, a: Vector2, b: Vector2, thickness: flo
 		var across := dir.orthogonal()
 		var uvs := PackedVector2Array()
 		for p in poly:
-			uvs.append(Vector2((p - a).dot(dir) / tile_length, (p - a).dot(across) / thickness + 0.5))
+			uvs.append(
+				Vector2((p - a).dot(dir) / tile_length, (p - a).dot(across) / thickness + 0.5),
+			)
 		canvas.draw_colored_polygon(poly, Color.WHITE, uvs, texture)
 	else:
 		canvas.draw_colored_polygon(poly, color)
@@ -525,7 +592,8 @@ static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, h
 		scorch_color: Color) -> void:
 	var scorch := scorch_color
 	scorch.a = PhysicsConfig.deform_scorch_alpha
-	var discs := FillBatch.new(canvas)  # Each mark's discs in one command (General's FillBatch), drawn before its cracks.
+	# Each mark's discs in one command (General's FillBatch), drawn before its cracks.
+	var discs := FillBatch.new(canvas)
 	for impact in impacts:
 		var p := _impact_apex(impact)
 		var depth: float = impact["depth"]
@@ -540,13 +608,20 @@ static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, h
 		var count := 2 + int(clampf(depth * PhysicsConfig.deform_crack_count, 0.0, 5.0))
 		for _c in count:
 			var ang := rng.randf_range(0.0, TAU)
-			var length := PhysicsConfig.deform_crack_length * rng.randf_range(0.5, 1.0) * (1.0 + depth * 0.15)
+			var length := (PhysicsConfig.deform_crack_length * rng.randf_range(0.5, 1.0)
+					* (1.0 + depth * 0.15))
 			var jitter := Vector2(cos(ang), sin(ang)).orthogonal() * rng.randf_range(-2.0, 2.0)
-			canvas.draw_line(p, p + Vector2(cos(ang), sin(ang)) * length + jitter, crack_color, PhysicsConfig.deform_crack_width)
+			canvas.draw_line(
+				p,
+				p + Vector2(cos(ang), sin(ang)) * length + jitter,
+				crack_color,
+				PhysicsConfig.deform_crack_width,
+			)
 
 
-## Blood a bullet carried onto an object, drawn under the hole: a lumpy red blot with a few flecks around
-## it, scaled and faded by how much blood arrived (`blood` 0..1). Seeded per impact so it never shimmers.
+## Blood a bullet carried onto an object, drawn under the hole: a lumpy red blot with a few flecks
+## around it, scaled and faded by how much blood arrived (`blood` 0..1). Seeded per impact so it
+## never shimmers.
 static func _draw_blood_mark(discs: FillBatch, at: Vector2, blood: float, seed_value: int) -> void:
 	var color := PhysicsConfig.blood_mark_color
 	color.a = clampf(0.45 + blood * 0.5, 0.0, 1.0)

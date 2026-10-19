@@ -1,15 +1,13 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: the team and the entry guard, as this NPC knows them (`docs/tactical-entry.md` E2, E6, E8, E9).
-## While it enters: each ally's claim on the doorway off the radio (from where it last radioed to its stack slot, on
-## its own side of the door when the stack is split (E19), tagged with its slot and step, and the doorway on it covers
-## once the room is clear), the order the stack crosses in, and who the point is still waiting for. Whatever it does: the entry guard's view of the walk — the next
-## doorway into an uncleared room on it and how far (cyan once within the guard's range, where the walk will be paused
-## for an entry), a running detour with the order it paused, and the doorways the guard is leaving alone for a while.
-## Reads the controller's `debug_entry_view()` only.
-
-## Whether to draw the entry team & guard overlay.
-@export var show_entry_team: bool = false
+## AI domain, debug: the team and the entry guard, as this NPC knows them (`docs/tactical-entry.md`
+## E2, E6, E8, E9). While it enters: each ally's claim on the doorway off the radio (from where it
+## last radioed to its stack slot, on its own side of the door when the stack is split (E19), tagged
+## with its slot and step, and the doorway on it covers once the room is clear), the order the stack
+## crosses in, and who the point is still waiting for. Whatever it does: the entry guard's view of
+## the walk — the next doorway into an uncleared room on it and how far (cyan once within the
+## guard's range, where the walk will be paused for an entry), a running detour with the order it
+## paused, and the doorways the guard is leaving alone for a while. Reads the controller's
+## `debug_entry_view()` only.
 
 const ALLY := Color(0.55, 0.85, 1.0)
 const THROUGH := Color(0.4, 0.95, 0.5)
@@ -17,6 +15,9 @@ const WAITING := Color(1.0, 0.75, 0.3)
 const GUARD := Color(0.3, 0.9, 1.0)
 const BEYOND := Color(0.7, 0.7, 0.7)
 const PAUSED := Color(0.85, 0.6, 1.0)
+
+## Whether to draw the entry team & guard overlay.
+@export var show_entry_team: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -35,9 +36,9 @@ func _paint() -> void:
 	_guard(view["guard"], not e.is_empty())
 
 
-## Each ally's claim: a line from where it radioed to its place in its side's file, `slot N · step` (the slots are the
-## order the stack claimed the doorway in), the doorway on it covers; the order the stack crosses in; and who the point
-## is still waiting for.
+## Each ally's claim: a line from where it radioed to its place in its side's file, `slot N · step`
+## (the slots are the order the stack claimed the doorway in), the doorway on it covers; the order
+## the stack crosses in; and who the point is still waiting for.
 func _team(e: Dictionary) -> void:
 	var slots: Dictionary = e["slots"]
 	var doors := {}
@@ -54,7 +55,12 @@ func _team(e: Dictionary) -> void:
 			var slot_at: Vector2 = row[clampi(place - 1, 0, row.size() - 1)]
 			_line(at, slot_at, Color(col, 0.4), 1.0)
 		_ring(at, 12.0, col, 2.0)
-		_label(at, "%s · slot %d · %s" % [m["name"], m["slot"], step.replace("_", " ")], col, Vector2(14, -14))
+		_label(
+			at,
+			"%s · slot %d · %s" % [m["name"], m["slot"], step.replace("_", " ")],
+			col,
+			Vector2(14, -14),
+		)
 		var covers := str(m.get("covering", ""))
 		if covers != "" and doors.has(covers):
 			_arrow(at, doors[covers], Color(col, 0.7), 1.5)
@@ -70,8 +76,8 @@ func _team(e: Dictionary) -> void:
 		_label(me, text, WAITING, Vector2(-60, -46))
 
 
-## The entry guard: the next doorway into an uncleared room on the walk (cyan within `range`, grey beyond), a running
-## detour and the order it paused, and the doorways it is leaving alone.
+## The entry guard: the next doorway into an uncleared room on the walk (cyan within `range`, grey
+## beyond), a running detour and the order it paused, and the doorways it is leaving alone.
 func _guard(g: Dictionary, entering: bool) -> void:
 	var me := _character.global_position
 	var ahead: Dictionary = g["ahead"]
@@ -80,8 +86,15 @@ func _guard(g: Dictionary, entering: bool) -> void:
 		var col := GUARD if within else BEYOND
 		_arrow(me, ahead["pos"], Color(col, 0.8), 2.0 if within else 1.0)
 		_ring(ahead["pos"], 16.0, col, 2.0)
-		_label(ahead["pos"], "%s › %s · %d px%s" % [ahead["opening"], ahead["into"], roundi(float(ahead["dist"])),
-			" · ENTRY HERE" if within else ""], col, Vector2(18, 4))
+		_label(
+			ahead["pos"],
+			"%s › %s · %d px%s" % [
+				ahead["opening"], ahead["into"], roundi(float(ahead["dist"])),
+				" · ENTRY HERE" if within else "",
+			],
+			col,
+			Vector2(18, 4),
+		)
 	if g["detour"]:
 		_label(me, "GUARD: entering before %s" % g["resume_label"], PAUSED, Vector2(-60, -82))
 		var resume: Vector2 = g["resume_point"]

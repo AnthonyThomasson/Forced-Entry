@@ -1,16 +1,16 @@
 extends RefCounted
-
 ## Top-down pixel-art COUNTER painter (worktops, islands, vanities; Objects domain, private).
 ## Painted in the canonical frame (front toward +y): a stone or ceramic top with a backsplash
 ## along the back, a bullnose front edge, optionally a sunken basin with drain and mixer tap, and
 ## an island's seating overhang. Options (`art_opts`, defaulting to ObjectArtConfig.counter_*):
-## `basin` ("none" | "single" | "deep"), `backsplash`, `overhang`, `props`, `neon` (a neon under-glow along the front,
-## glowing). Run down (decay.gd): grime, food and grease stains, scratches.
+## `basin` ("none" | "single" | "deep"), `backsplash`, `overhang`, `props`, `neon` (a neon
+## under-glow along the front, glowing). Run down (decay.gd): grime, food and grease stains,
+## scratches.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _TOP_HEIGHT := 3     ## Heights for cast shadows.
+## Heights for cast shadows.
+const _TOP_HEIGHT := 3
 const _SPLASH_HEIGHT := 6
 const _TAP_HEIGHT := 8
 
@@ -39,7 +39,12 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 
 	c.bevel(body, 2, 2, t.highlight, t.dark)
 	c.outline(body, t.outline)
-	Props.draw_all(c, opts.get("props", []), Rect2i(0, splash, c.w, c.h - splash).grow(-3), Decay.screen_color(opts))
+	Props.draw_all(
+		c,
+		opts.get("props", []),
+		Rect2i(0, splash, c.w, c.h - splash).grow(-3),
+		Decay.screen_color(opts),
+	)
 	c.cast_shadows()
 	Decay.grime(c)
 	Decay.stain(c, Decay.STAIN, 4)
@@ -55,7 +60,12 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep: bool) -> void:
 	var margin_x := maxi(3, roundi(c.w * 0.16))
 	var top := splash + maxi(3, roundi(c.h * 0.12))
-	var r := Rect2i(margin_x, top, c.w - margin_x * 2, maxi(4, c.h - top - maxi(3, roundi(c.h * 0.1))))
+	var r := Rect2i(
+		margin_x,
+		top,
+		c.w - margin_x * 2,
+		maxi(4, c.h - top - maxi(3, roundi(c.h * 0.1))),
+	)
 	var radius := mini(6, int(mini(r.size.x, r.size.y) / 3.0))
 	var bowl := PixelCanvas.rounded(r, radius)
 	var floor_col := base.darkened(0.16 if deep else 0.08)
@@ -68,7 +78,11 @@ static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep
 	c.fill(drain, metal.darkened(0.3))
 	c.px(centre.x, centre.y, metal.darkened(0.7))
 	var tap_x := r.position.x + int(r.size.x / 2.0)
-	c.fill(PixelCanvas.rounded(Rect2i(tap_x - 1, maxi(0, splash - 1), 2, top - splash + 4), 0), metal, _TAP_HEIGHT)
+	c.fill(
+		PixelCanvas.rounded(Rect2i(tap_x - 1, maxi(0, splash - 1), 2, top - splash + 4), 0),
+		metal,
+		_TAP_HEIGHT,
+	)
 	c.px(tap_x - 1, maxi(0, splash - 1), metal.lightened(0.4))
 	for dx in [-5, 5]:
 		var knob := PixelCanvas.disc(Vector2i(tap_x + dx, maxi(1, splash)), 1)

@@ -1,20 +1,22 @@
 extends Node
-## GDScript analyzer lint: loads every project script and lets the engine print the warnings the editor's
-## Debugger shows (unused variable, integer division, shadowed identifier, ...). Headless runs are silent about
-## them unless the debugger is active, so tools/lint.sh starts this scene with `--debug` and tools/lint_report.py
-## reads what it printed. The engine gives no file or line with a warning, hence this protocol on stdout:
-## `LINT-PASS2`, then `LINT> <path>` before each script (whatever the engine prints after it belongs to that
-## script), then `LINT-DONE <count>`.
+## GDScript analyzer lint: loads every project script and lets the engine print the warnings the
+## editor's Debugger shows (unused variable, integer division, shadowed identifier, ...). Headless
+## runs are silent about them unless the debugger is active, so tools/lint.sh starts this scene with
+## `--debug` and tools/lint_report.py reads what it printed. The engine gives no file or line with a
+## warning, hence this protocol on stdout: `LINT-PASS2`, then `LINT> <path>` before each script
+## (whatever the engine prints after it belongs to that script), then `LINT-DONE <count>`.
 ##
-## `-- --only=res://a.gd,res://b.gd` lints just those scripts (their dependencies are still compiled first).
+## `-- --only=res://a.gd,res://b.gd` lints just those scripts (their dependencies are still compiled
+## first).
 ##
-## `-- --divisions=res://a.gd,...` instead finds which `/` in those scripts are integer divisions (the engine
-## names no line): it recompiles each script with one `/` turned into `*` (the same result types, so nothing
-## else changes) and prints `LINT@ <line> <column>` before each, and `LINT@ base` before the unchanged
-## script. A `/` whose recompile has one integer-division warning fewer than the base is an integer division.
+## `-- --divisions=res://a.gd,...` instead finds which `/` in those scripts are integer divisions
+## (the engine names no line): it recompiles each script with one `/` turned into `*` (the same
+## result types, so nothing else changes) and prints `LINT@ <line> <column>` before each, and
+## `LINT@ base` before the unchanged script. A `/` whose recompile has one integer-division warning
+## fewer than the base is an integer division.
 ##
-## Pass 1 only warms the script cache; pass 2 reloads every script on its own (CACHE_MODE_IGNORE), so what it
-## prints is that script's own warnings and not those of the scripts it depends on.
+## Pass 1 only warms the script cache; pass 2 reloads every script on its own (CACHE_MODE_IGNORE),
+## so what it prints is that script's own warnings and not those of the scripts it depends on.
 
 const SELF := "res://tools/lint_scripts.gd"
 
@@ -42,8 +44,9 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-## Gather every .gd under `dir` (recursively) into `out`, leaving out hidden folders, addons/ and every folder
-## holding a `.gdignore` (those Godot never imports, such as artifacts/ with the coverage tool's instrumented copy).
+## Gather every .gd under `dir` (recursively) into `out`, leaving out hidden folders, addons/ and
+## every folder holding a `.gdignore` (those Godot never imports, such as artifacts/ with the
+## coverage tool's instrumented copy).
 func _collect(dir: String, out: Array) -> void:
 	if FileAccess.file_exists(dir.path_join(".gdignore")):
 		return
@@ -58,11 +61,13 @@ func _collect(dir: String, out: Array) -> void:
 
 ## Load `path` so the analyzer reports its warnings once, and probe its integer divisions.
 func _probe_divisions(path: String) -> void:
-	ResourceLoader.load(path)  # compiles (and caches) what the script depends on, so its warnings are not repeated
+	# compiles (and caches) what the script depends on, so its warnings are not repeated
+	ResourceLoader.load(path)
 	print("LINT-PASS2")
 	print("LINT> ", path)
 	var lines := FileAccess.get_file_as_string(path).split("\n")
-	var named := RegEx.create_from_string("^class_name\\s+\\w+\\s*")  # the copy must not claim the real class's name
+	# the copy must not claim the real class's name
+	var named := RegEx.create_from_string("^class_name\\s+\\w+\\s*")
 	for row in lines.size():
 		lines[row] = named.sub(lines[row], "")
 	_compile(lines, "base")

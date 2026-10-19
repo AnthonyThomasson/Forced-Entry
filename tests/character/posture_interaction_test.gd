@@ -1,13 +1,13 @@
 extends GameTest
-
-## Posture and interactions: sitting on a chair stands a crouched character up and locks the posture while seated;
-## a dead character takes no posture; an unknown posture is refused.
+## Posture and interactions: sitting on a chair stands a crouched character up and locks the posture
+## while seated; a dead character takes no posture; an unknown posture is refused.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Sitting stands the character up and locks the posture",
-		"description": "interact_with from a crouch leaves the character standing, set_posture is refused while seated or dead, and a bad name is refused.",
+		"description": "interact_with from a crouch leaves the character standing, set_posture is "
+			+ "refused while seated or dead, and a bad name is refused.",
 		"tags": ["posture", "crouch", "interaction", "death"],
 		"timeout": 8.0,
 	}

@@ -1,12 +1,16 @@
 extends GameTest
-
 ## Harness self-test: LogWatch really sees what the engine writes to its log file. The test logs a
 ## warning and an error on purpose and declares both with expect_log; if LogWatch missed either, the
 ## unmet expectation fails the test.
 
 
 func describe() -> Dictionary:
-	return { "name": "LogWatch sees engine logs", "tags": ["harness", "log"], "internal": true, "timeout": 4.0 }
+	return {
+		"name": "LogWatch sees engine logs",
+		"tags": ["harness", "log"],
+		"internal": true,
+		"timeout": 4.0,
+	}
 
 
 func configure(s: TestSetup) -> void:

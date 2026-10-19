@@ -1,16 +1,16 @@
 extends CanvasLayer
-
-## UI domain, test browser window: lists every game test grouped by domain, with a search box (matched
-## by the host's `matcher`), the last result per test, and a details
-## pane. Play (or double-click / Enter) emits `play_requested`; Back emits `back_requested`; Run all, or
-## the ▶ button on a domain's row, emits `run_requested` and the host answers with `set_run_status` /
-## `set_results`. Built in code like the other UI windows; it knows nothing of the
-## Testing domain — only the descriptor dicts
-## (`{ id, path, name, domain, category, description, tags, requires_von, manual, switches, world, locked, error }`) and
-## the `{ id: status }` results it is handed.
-## Each test (not sandbox) row has a checkbox; a domain row's box and the header's "Check shown" button
-## tick or clear the tests the search currently shows. "Run N checked" emits `run_queue_requested` with
-## the ticked tests' paths for a headed, one-by-one run (the host persists the ticks via `checked_changed`).
+## UI domain, test browser window: lists every game test grouped by domain, with a search box
+## (matched by the host's `matcher`), the last result per test, and a details
+## pane. Play (or double-click / Enter) emits `play_requested`; Back emits `back_requested`; Run
+## all, or the ▶ button on a domain's row, emits `run_requested` and the host answers with
+## `set_run_status` / `set_results`. Built in code like the other UI windows; it knows nothing of
+## the Testing domain — only the descriptor dicts
+## (`{ id, path, name, domain, category, description, tags, requires_von, manual, switches, world,
+## locked, error }`) and the `{ id: status }` results it is handed.
+## Each test (not sandbox) row has a checkbox; a domain row's box and the header's "Check shown"
+## button tick or clear the tests the search currently shows. "Run N checked" emits
+## `run_queue_requested` with the ticked tests' paths for a headed, one-by-one run (the host
+## persists the ticks via `checked_changed`).
 
 ## Play the selected test or sandbox (its script path) in the runner.
 signal play_requested(path: String)
@@ -19,7 +19,8 @@ signal back_requested
 ## Run the tests of `domain` — every test when it is "" (the host spawns the run and reports back
 ## through `set_run_status` / `set_results`).
 signal run_requested(domain: String)
-## Run the ticked tests one after another in the real (headed) runner: their script paths, in list order.
+## Run the ticked tests one after another in the real (headed) runner: their script paths, in list
+## order.
 signal run_queue_requested(paths: Array)
 ## The set of ticked test ids changed (so the host can restore it next time).
 signal checked_changed(ids: Array)
@@ -52,12 +53,14 @@ var _run_all: Button
 var _run_status: Label
 ## How many tests the search shows, of all ("shown / total").
 var _count: Label
-## The current list's group rows: a domain row per domain (keyed by its name, each carrying a ▶ button) and, under
-## it, a row per sub-folder of tests the domain has (keyed "<domain>/<category>", no button).
+## The current list's group rows: a domain row per domain (keyed by its name, each carrying a ▶
+## button) and, under it, a row per sub-folder of tests the domain has (keyed "<domain>/<category>",
+## no button).
 var _groups: Dictionary = {}
 ## Ticked test ids (id → true); kept across searches, and stale ids are dropped on `open`.
 var _checked: Dictionary = {}
-## The tick-able tests the search shows: id → its TreeItem, and group key (domain, or "<domain>/<category>") → [ids].
+## The tick-able tests the search shows: id → its TreeItem, and group key (domain, or
+## "<domain>/<category>") → [ids].
 var _test_items: Dictionary = {}
 var _shown_by_domain: Dictionary = {}
 ## How many tests and sandboxes the search shows (`_count`'s first number).
@@ -70,9 +73,17 @@ var _running := false
 
 
 ## Build the window over `tests`, marking `results`, with `filter` prefilled and `selected` (a test
-## path) highlighted and `checked` (test ids) ticked. `matcher(test, text) -> bool` decides which tests a
-## search shows.
-func open(tests: Array, sandboxes: Array, results: Dictionary, matcher: Callable, filter := "", selected := "", checked: Array = []) -> void:
+## path) highlighted and `checked` (test ids) ticked. `matcher(test, text) -> bool` decides which
+## tests a search shows.
+func open(
+	tests: Array,
+	sandboxes: Array,
+	results: Dictionary,
+	matcher: Callable,
+	filter := "",
+	selected := "",
+	checked: Array = [],
+) -> void:
 	_tests = tests
 	for t in tests:
 		if checked.has(t["id"]) and t.get("error", "") == "":
@@ -227,7 +238,13 @@ func _refresh(keep: String) -> void:
 			g.set_selectable(0, false)
 			g.set_custom_color(0, Color(0.7, 0.75, 0.85))
 			g.set_metadata(0, domain)
-			g.add_button(0, _run_icon(), 0, _running, "Run the %d %s tests" % [_runnable_count(domain), domain])
+			g.add_button(
+				0,
+				_run_icon(),
+				0,
+				_running,
+				"Run the %d %s tests" % [_runnable_count(domain), domain],
+			)
 			_groups[domain] = g
 		var keys := [domain]
 		var category: String = t.get("category", "")
@@ -245,7 +262,8 @@ func _refresh(keep: String) -> void:
 			keys.append(key)
 		var item := _tree.create_item(_groups[keys[-1]])
 		if t.get("error", "") == "":
-			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)  # before the text: a mode change clears it
+			# before the text: a mode change clears it
+			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 			item.set_editable(0, true)
 		var status: String = _results.get(t["id"], "")
 		var mark: String = STATUS_MARKS.get(status, " ")
@@ -296,25 +314,32 @@ func _refresh(keep: String) -> void:
 	_play.disabled = pick == null
 
 
-## A double-click on a test's label opens it. Godot raises `item_activated` for rows without a checkbox (and
-## for Enter), but not for a double-click on an editable check cell, so that case is handled here; on the
-## checkbox itself a double-click just toggles.
+## A double-click on a test's label opens it. Godot raises `item_activated` for rows without a
+## checkbox (and for Enter), but not for a double-click on an editable check cell, so that case is
+## handled here; on the checkbox itself a double-click just toggles.
 func _on_tree_input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and event.double_click):
+	if not (event is InputEventMouseButton
+				and event.button_index == MOUSE_BUTTON_LEFT
+				and event.pressed
+				and event.double_click):
 		return
 	var item := _tree.get_item_at_position(event.position)
-	if item != null and item.get_cell_mode(0) == TreeItem.CELL_MODE_CHECK and item.get_metadata(0) is Dictionary \
-			and not _over_checkbox(event.position, item):
+	if (item != null
+			and item.get_cell_mode(0) == TreeItem.CELL_MODE_CHECK
+			and item.get_metadata(0) is Dictionary
+			and not _over_checkbox(event.position, item)):
 		play_requested.emit(item.get_metadata(0)["path"])
 
 
 ## Whether tree-local `pos` is over `item`'s checkbox (the left edge of its label cell).
 func _over_checkbox(pos: Vector2, item: TreeItem) -> bool:
-	var box := _tree.get_theme_icon(&"checked").get_width() + _tree.get_theme_constant(&"h_separation")
+	var box := (_tree.get_theme_icon(&"checked").get_width()
+			+ _tree.get_theme_constant(&"h_separation"))
 	return pos.x < _tree.get_item_area_rect(item, 0).position.x + box
 
 
-## A checkbox was toggled: a test row ticks itself, a domain or category row ticks or clears every shown test it holds.
+## A checkbox was toggled: a test row ticks itself, a domain or category row ticks or clears every
+## shown test it holds.
 func _on_item_edited() -> void:
 	_apply_edit(_tree.get_edited())
 
@@ -335,7 +360,8 @@ func _on_check_shown() -> void:
 	_set_checked(_test_items.keys(), not _all_shown_checked())
 
 
-## Tick or clear `ids`, redraw the boxes in place (the list keeps its scroll and selection) and tell the host.
+## Tick or clear `ids`, redraw the boxes in place (the list keeps its scroll and selection) and tell
+## the host.
 func _set_checked(ids: Array, on: bool) -> void:
 	for id in ids:
 		if on:
@@ -351,7 +377,8 @@ func _all_shown_checked() -> bool:
 	return not _test_items.is_empty() and _test_items.keys().all(func(id): return _checked.has(id))
 
 
-## Bring every checkbox, the domain and category rows' partial state and the buttons in line with `_checked`.
+## Bring every checkbox, the domain and category rows' partial state and the buttons in line with
+## `_checked`.
 func _sync_checks() -> void:
 	for id in _test_items:
 		(_test_items[id] as TreeItem).set_checked(0, _checked.has(id))
@@ -397,7 +424,8 @@ static func _run_icon() -> Texture2D:
 		var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 		var color: Color = RESULT_HUD.STATUS_COLORS["PASS"]
 		for y in size:
-			# The triangle's right edge narrows linearly from the full width at the middle row to a point at the ends.
+			# The triangle's right edge narrows linearly from the full width at the middle row to a
+			# point at the ends.
 			var reach := int(size * (1.0 - absf((y + 0.5) / size - 0.5) * 2.0))
 			for x in reach:
 				img.set_pixel(x, y, color)
@@ -455,4 +483,3 @@ func _selected() -> Dictionary:
 ## The selected test's script path ("" when none).
 func _selected_path() -> String:
 	return String(_selected().get("path", ""))
-

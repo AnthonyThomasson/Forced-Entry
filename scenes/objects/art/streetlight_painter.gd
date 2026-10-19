@@ -1,30 +1,36 @@
 extends RefCounted
-
-## Top-down pixel-art STREETLIGHT painter (Objects domain, private): a street lamp seen from above, in two parts (`part` in
-## the options). The default, `pole`, is the piece's own art inside its round footprint: a base plate bolted to the sidewalk
-## (four bolts) and the round top of the rusted steel post, a flyer taped round it. `overhang` is its overhead part (drawn
-## by the piece's `Overhang`, overhang_visuals.gd, above whoever walks under it): the arm from the post's top (the canvas'
-## top centre) out over the road and, at its end, the head, `head` `cobra` (a dented cobra head, its lens facing the road)
-## or `sign` (a dark board, a neon tube round its edge and two bars of letters). Canonical frame: the front (+y) is out
-## over the road. Run down (decay.gd): grime and rust. What gives light (the lens, the sign's tube and letters) is drawn
-## glowing: the lens in ObjectArtConfig.streetlight_lens_color, the sign in its `neon` (cyan or magenta). The catalogue
+## Top-down pixel-art STREETLIGHT painter (Objects domain, private): a street lamp seen from above,
+## in two parts (`part` in the options). The default, `pole`, is the piece's own art inside its
+## round footprint: a base plate bolted to the sidewalk (four bolts) and the round top of the rusted
+## steel post, a flyer taped round it. `overhang` is its overhead part (drawn by the piece's
+## `Overhang`, overhang_visuals.gd, above whoever walks under it): the arm from the post's top (the
+## canvas' top centre) out over the road and, at its end, the head, `head` `cobra` (a dented cobra
+## head, its lens facing the road) or `sign` (a dark board, a neon tube round its edge and two bars
+## of letters). Canonical frame: the front (+y) is out over the road. Run down (decay.gd): grime and
+## rust. What gives light (the lens, the sign's tube and letters) is drawn glowing: the lens in
+## ObjectArtConfig.streetlight_lens_color, the sign in its `neon` (cyan or magenta). The catalogue
 ## colour is the post's paint (and its debris'). Knobs: ObjectArtConfig.streetlight_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _PLATE_HEIGHT := 1  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _PLATE_HEIGHT := 1
 const _POST_HEIGHT := 12
 const _ARM_HEIGHT := 20
 const _HEAD_HEIGHT := 22
 
 
-## Paint the streetlight's `opts.part` onto `c`: the post in `base` paint, or its arm and head out over the road (+y).
+## Paint the streetlight's `opts.part` onto `c`: the post in `base` paint, or its arm and head out
+## over the road (+y).
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	if String(opts.get("part", "pole")) == "overhang":
 		var head_at := c.h - int(opts.get("head_px", ObjectArtConfig.streetlight_head_px) / 2.0) - 1
 		_arm(c, head_at)
 		if String(opts.get("head", ObjectArtConfig.streetlight_head)) == "sign":
-			_sign(c, head_at, Decay.neon(opts) if Decay.neon(opts).a > 0.0 else ObjectArtConfig.neon_magenta)
+			_sign(
+				c,
+				head_at,
+				Decay.neon(opts) if Decay.neon(opts).a > 0.0 else ObjectArtConfig.neon_magenta,
+			)
 		else:
 			_cobra(c, head_at)
 	else:
@@ -34,8 +40,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.cast_shadows()
 
 
-## The base plate (four bolts at its corners, inside the round footprint) and the post's round top, raised over it, a
-## scrap of flyer taped round it.
+## The base plate (four bolts at its corners, inside the round footprint) and the post's round top,
+## raised over it, a scrap of flyer taped round it.
 static func _pole(c: PixelCanvas, base: Color) -> void:
 	var mid := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var half := int(mini(c.w, c.h) / 2.0) - 1
@@ -63,7 +69,8 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 static func _arm(c: PixelCanvas, head_at: int) -> void:
 	var x := int(c.w / 2.0)
 	var t := PixelCanvas.tones(ObjectArtConfig.streetlight_head_color)
-	c.fill(PixelCanvas.disc(Vector2i(x, 1), 2), t.dark, _ARM_HEIGHT)  # The cap the arm leaves the post by.
+	# The cap the arm leaves the post by.
+	c.fill(PixelCanvas.disc(Vector2i(x, 1), 2), t.dark, _ARM_HEIGHT)
 	for y in range(1, head_at - 4):
 		c.px(x - 1, y, t.light, _ARM_HEIGHT)
 		c.px(x, y, t.dark, _ARM_HEIGHT)
@@ -82,10 +89,12 @@ static func _cobra(c: PixelCanvas, head_at: int) -> void:
 	c.px(x + 3, head_at - 3, t.shadow, _HEAD_HEIGHT)  # A dent.
 	c.px(x + 4, head_at - 2, t.shadow, _HEAD_HEIGHT)
 	var lens := ObjectArtConfig.streetlight_lens_color
-	c.glowing(func() -> void: c.fill(PixelCanvas.ellipse(Rect2i(x - 3, head_at - 2, 6, 7)), lens, _HEAD_HEIGHT))
+	c.glowing(func() -> void:
+		c.fill(PixelCanvas.ellipse(Rect2i(x - 3, head_at - 2, 6, 7)), lens, _HEAD_HEIGHT))
 
 
-## A neon sign at the arm's end: a dark board, its tube run round the edge and two bars of letters, glowing in `neon`.
+## A neon sign at the arm's end: a dark board, its tube run round the edge and two bars of letters,
+## glowing in `neon`.
 static func _sign(c: PixelCanvas, head_at: int, neon: Color) -> void:
 	var board_col := ObjectArtConfig.streetlight_sign_color
 	var board := PixelCanvas.rounded(Rect2i(1, head_at - 6, c.w - 2, 12), 1)
@@ -95,6 +104,16 @@ static func _sign(c: PixelCanvas, head_at: int, neon: Color) -> void:
 	var letters := neon.lightened(0.45)
 	c.glowing(func() -> void:
 		c.outline(PixelCanvas.rounded(Rect2i(2, head_at - 5, c.w - 4, 10), 1), tube)
-		c.line(Vector2i(5, head_at - 1), Vector2i(int(c.w * 0.42), head_at - 1), letters, _HEAD_HEIGHT)
-		c.line(Vector2i(int(c.w * 0.54), head_at - 1), Vector2i(c.w - 6, head_at - 1), letters, _HEAD_HEIGHT)
+		c.line(
+			Vector2i(5, head_at - 1),
+			Vector2i(int(c.w * 0.42), head_at - 1),
+			letters,
+			_HEAD_HEIGHT,
+		)
+		c.line(
+			Vector2i(int(c.w * 0.54), head_at - 1),
+			Vector2i(c.w - 6, head_at - 1),
+			letters,
+			_HEAD_HEIGHT,
+		)
 		c.line(Vector2i(7, head_at + 2), Vector2i(c.w - 8, head_at + 2), letters, _HEAD_HEIGHT))

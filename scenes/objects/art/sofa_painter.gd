@@ -1,15 +1,15 @@
 extends RefCounted
-
 ## Top-down pixel-art SOFA painter (Objects domain, private). Painted in the canonical frame
 ## (seat front at +y): a backrest with a rolled top and a row of back cushions, rolled armrests
 ## at both ends, puffy seat cushions lined up under the back cushions, optional throw pillows in
 ## the back corners, and a speckled weave over the upholstery. Raised parts shade the seat beside
-## them. Run down (decay.gd): grimy, torn to the stuffing, patched with tape, stained. Options (`art_opts`, defaulting to
-## ObjectArtConfig.sofa_*): `back_depth`, `arm_width`, `cushion_width`, `max_cushions`, `pillows`.
+## them. Run down (decay.gd): grimy, torn to the stuffing, patched with tape, stained. Options
+## (`art_opts`, defaulting to ObjectArtConfig.sofa_*): `back_depth`, `arm_width`, `cushion_width`,
+## `max_cushions`, `pillows`.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _FRAME_HEIGHT := 1  ## Heights for cast shadows, floor-up.
+## Heights for cast shadows, floor-up.
+const _FRAME_HEIGHT := 1
 const _SEAT_HEIGHT := 2
 const _PILLOW_HEIGHT := 3
 const _BACK_CUSHION_HEIGHT := 4
@@ -21,11 +21,21 @@ const _ARM_HEIGHT := 6
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
 	var full := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 4)
-	var back_d := clampi(roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.sofa_back_depth))), 4, int(c.h / 2.0))
-	var arm_w := clampi(roundi(c.w * float(opts.get("arm_width", ObjectArtConfig.sofa_arm_width))), 3, int(c.w / 4.0))
+	var back_d := clampi(
+		roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.sofa_back_depth))),
+		4,
+		int(c.h / 2.0),
+	)
+	var arm_w := clampi(
+		roundi(c.w * float(opts.get("arm_width", ObjectArtConfig.sofa_arm_width))),
+		3,
+		int(c.w / 4.0),
+	)
 	var seat_w := c.w - 2 * arm_w
-	var n := clampi(roundi(seat_w / float(opts.get("cushion_width", ObjectArtConfig.sofa_cushion_width))),
-			1, int(opts.get("max_cushions", ObjectArtConfig.sofa_max_cushions)))
+	var n := clampi(
+		roundi(seat_w / float(opts.get("cushion_width", ObjectArtConfig.sofa_cushion_width))), 1,
+		int(opts.get("max_cushions", ObjectArtConfig.sofa_max_cushions)),
+	)
 	# Back cushions lean away from the light overhead, so they sit a shade darker than the seat.
 	var back_tone := base.darkened(0.1)
 
@@ -71,8 +81,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	upholstery(c)
 
 
-## The run-down finish of an upholstered seat (a sofa, an armchair, an office chair): grime, a tear or two to the stuffing,
-## a strip of tape, a stain.
+## The run-down finish of an upholstered seat (a sofa, an armchair, an office chair): grime, a tear
+## or two to the stuffing, a strip of tape, a stain.
 static func upholstery(c: PixelCanvas) -> void:
 	Decay.grime(c)
 	for _i in maxi(1, int(c.w * c.h / 1600.0)):

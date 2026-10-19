@@ -1,12 +1,14 @@
 extends RefCounted
+## Top-down pixel-art HAND painter (Character domain, private; rendered through the Art domain's
+## PixelArt): a fist seen from above in the canonical frame — knuckles toward the front (+y), the
+## thumb tucked along the inner side — in `base` (the glove, the bare skin or a chrome hand's
+## metal). The look (`opts.look`, a `PixelArt.handle`) adds the Zenitex's hard knuckle guard, a
+## merc's fingerless glove; a chrome hand (`opts.chrome`) gets its metal finish and knuckle hinge.
+## Options: `look`, `side` (-1 = left hand, thumb toward +x; 1 = right hand, thumb toward -x),
+## `chrome`.
 
-## Top-down pixel-art HAND painter (Character domain, private; rendered through the Art domain's PixelArt): a fist seen from
-## above in the canonical frame — knuckles toward the front (+y), the thumb tucked along the inner side — in `base` (the glove,
-## the bare skin or a chrome hand's metal). The look (`opts.look`, a `PixelArt.handle`) adds the Zenitex's hard knuckle guard,
-## a merc's fingerless glove; a chrome hand (`opts.chrome`) gets its metal finish and knuckle hinge. Options: `look`, `side`
-## (-1 = left hand, thumb toward +x; 1 = right hand, thumb toward -x), `chrome`.
-
-const _FIST := 3  ## Heights for cast shadows: the thumb sits over the fist.
+## Heights for cast shadows: the thumb sits over the fist.
+const _FIST := 3
 const _THUMB := 5
 
 
@@ -29,11 +31,19 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		c.px(x + 1, ky + 1, t.dark)
 	var skin: Color = look.get("skin", base)
 	if chrome:
-		c.line(Vector2i(o.x - r + 1, o.y), Vector2i(o.x + r - 1, o.y), t.shadow, _FIST)  # The knuckle hinge.
+		# The knuckle hinge.
+		c.line(Vector2i(o.x - r + 1, o.y), Vector2i(o.x + r - 1, o.y), t.shadow, _FIST)
 	elif String(look.get("style", "")) == "zenitex":
-		c.line(Vector2i(o.x - r + 2, ky), Vector2i(o.x + r - 2, ky), t.light.lightened(0.15), _THUMB)  # A hard knuckle guard.
+		# A hard knuckle guard.
+		c.line(
+			Vector2i(o.x - r + 2, ky),
+			Vector2i(o.x + r - 2, ky),
+			t.light.lightened(0.15),
+			_THUMB,
+		)
 	elif String(look.get("style", "")) == "merc" and base != skin:
-		for x in range(o.x - r + 2, o.x + r - 1, 2):  # Fingerless: the fingers' skin past the glove.
+		# Fingerless: the fingers' skin past the glove.
+		for x in range(o.x - r + 2, o.x + r - 1, 2):
 			c.px(x, ky + 1, skin)
 	c.outline(fist, t.outline)
 	var side := int(opts.get("side", 1))

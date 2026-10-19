@@ -1,16 +1,15 @@
 extends Node
-
 ## Navigation domain: keeps the baked navigation map in step with furniture that has been shoved
 ## around. The holes `NavBuilder.build` carves are a snapshot of where the furniture stood at bake
 ## time; as pieces are bulldozed off their spots those holes go stale and paths route around empty
-## floor. This node re-bakes the map on an interval (`NavBuilder._rebake_async`) so the holes follow the
-## furniture's CURRENT positions and paths route around scattered objects. The living characters are
-## holes in the STEERING region (`NavBuilder._rebake_steering`), so it follows them as they walk, appear
-## and die. It only re-bakes when a piece or a character has actually moved past `move_threshold`, so an
-## at-rest scene costs a cheap per-tick compare and no bake. The planning region only re-bakes for
-## furniture. Bulldozing is still the behaviour BETWEEN re-bakes (and
-## for non-solid decor, which is never carved). A script-only node Main builds once after the initial
-## bake; imports nothing from other domains — it is handed plain Nodes.
+## floor. This node re-bakes the map on an interval (`NavBuilder._rebake_async`) so the holes follow
+## the furniture's CURRENT positions and paths route around scattered objects. The living characters
+## are holes in the STEERING region (`NavBuilder._rebake_steering`), so it follows them as they
+## walk, appear and die. It only re-bakes when a piece or a character has actually moved past
+## `move_threshold`, so an at-rest scene costs a cheap per-tick compare and no bake. The planning
+## region only re-bakes for furniture. Bulldozing is still the behaviour BETWEEN re-bakes (and
+## for non-solid decor, which is never carved). A script-only node Main builds once after the
+## initial bake; imports nothing from other domains — it is handed plain Nodes.
 
 ## Whether the periodic re-bake runs at all. Off = the map stays the static bake-time snapshot.
 @export var enabled: bool = true
@@ -34,15 +33,22 @@ var _nav_debug: Node = null
 ## (NavBuilder.character_holes) as of the last bake of each, compared each tick to detect movement.
 var _baseline: Array = []
 var _character_baseline: Array = []
-## Whether the planning region's re-bake is running on the server's worker thread; a furniture move meanwhile waits for
-## the first tick after the bake lands (the baseline is set from what that bake carved, so it is caught then).
+## Whether the planning region's re-bake is running on the server's worker thread; a furniture move
+## meanwhile waits for the first tick after the bake lands (the baseline is set from what that bake
+## carved, so it is caught then).
 var _baking := false
 
 
 ## Wire the updater to the baked map and start the interval. `region` is NavBuilder.build's result,
 ## `house`/`rooms`/`agent_radius` are what a re-bake needs, `nav_debug` is the optional overlay to
 ## refresh. Captures the current furniture layout as the baseline and starts a repeating Timer.
-func setup(region: NavigationRegion2D, house: Node2D, rooms: Array, nav_debug: Node = null, agent_radius: float = 14.0) -> void:
+func setup(
+	region: NavigationRegion2D,
+	house: Node2D,
+	rooms: Array,
+	nav_debug: Node = null,
+	agent_radius: float = 14.0,
+) -> void:
 	_region = region
 	_house = house
 	_rooms = rooms
@@ -58,10 +64,11 @@ func setup(region: NavigationRegion2D, house: Node2D, rooms: Array, nav_debug: N
 	add_child(timer)
 
 
-## One interval tick: if furniture has moved since the last bake, re-carve the planning region's holes at the live
-## positions on the server's worker thread (`NavBuilder._rebake_async`; a furniture move while one is in flight waits for
-## the next tick) and the steering region's in place; if only a character has, re-carve the steering region. Refreshes
-## the overlay after either. Skips the bake entirely when nothing has moved.
+## One interval tick: if furniture has moved since the last bake, re-carve the planning region's
+## holes at the live positions on the server's worker thread (`NavBuilder._rebake_async`; a
+## furniture move while one is in flight waits for the next tick) and the steering region's in
+## place; if only a character has, re-carve the steering region. Refreshes the overlay after either.
+## Skips the bake entirely when nothing has moved.
 func _on_tick() -> void:
 	if not enabled or _region == null or not is_instance_valid(_house):
 		return
@@ -70,8 +77,8 @@ func _on_tick() -> void:
 	var furniture_moved := _moved(_baseline, furniture)
 	if not furniture_moved and not _moved(_character_baseline, characters):
 		return
-	# Both bakes carve the footprints just measured and the walls parsed once: nothing has moved since, so measuring or parsing
-	# again would give the same.
+	# Both bakes carve the footprints just measured and the walls parsed once: nothing has moved
+	# since, so measuring or parsing again would give the same.
 	var walls := NavBuilder._walls_of(_house, _agent_radius)
 	if furniture_moved and not _baking:
 		_baking = true
@@ -79,14 +86,19 @@ func _on_tick() -> void:
 			_baking = false
 			_baseline = furniture
 			_refresh_overlay(), walls)
-	NavBuilder._rebake_steering(_region, _house, _rooms, _agent_radius, furniture, characters, walls)
+	NavBuilder._rebake_steering(
+		_region, _house, _rooms, _agent_radius, furniture, characters, walls,
+	)
 	_character_baseline = characters
 	_refresh_overlay()
 
 
 ## Re-snapshot the overlay so it matches the re-baked holes.
 func _refresh_overlay() -> void:
-	if _nav_debug != null and is_instance_valid(_nav_debug) and _nav_debug.has_method("setup") and is_instance_valid(_house):
+	if (_nav_debug != null
+			and is_instance_valid(_nav_debug)
+			and _nav_debug.has_method("setup")
+			and is_instance_valid(_house)):
 		_nav_debug.setup(_house)
 
 

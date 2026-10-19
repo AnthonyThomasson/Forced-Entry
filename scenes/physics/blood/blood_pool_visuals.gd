@@ -1,8 +1,8 @@
 extends Node2D
-
-## Physics System, blood: draw layer for a bleed-out pool: its flow's cells drawn through a threshold shader (see
-## `_draw_flow`). Draws at its pool's z_index (`BloodConfig.z_index`, set on the pool by the spawner): beneath what lies
-## on the floor, the player and furniture. Reads the flow from its parent control node (blood_pool.gd).
+## Physics System, blood: draw layer for a bleed-out pool: its flow's cells drawn through a
+## threshold shader (see `_draw_flow`). Draws at its pool's z_index (`BloodConfig.z_index`, set on
+## the pool by the spawner): beneath what lies on the floor, the player and furniture. Reads the
+## flow from its parent control node (blood_pool.gd).
 
 ## The threshold runs per screen pixel on the bilinearly magnified field (edge width ~1 px via
 ## fwidth), so the outline is crisp yet smooth rather than a blurred alpha ramp.
@@ -65,12 +65,14 @@ const BLUR_PASSES := 2
 ## Empty cells around the claimed ones, so the blur and the outline have room at the edge.
 const PAD := 3
 
-@onready var _pool := get_parent()  ## The blood pool (control node).
-
-## The fill field as a texture; held in a member because one freed at the end of `_draw` renders white.
+## The fill field as a texture; held in a member because one freed at the end of `_draw` renders
+## white.
 var _flow_texture: ImageTexture
 ## The threshold shader's material, created on the first flow draw.
 var _flow_material: ShaderMaterial
+
+## The blood pool (control node).
+@onready var _pool := get_parent()
 
 
 func _draw() -> void:
@@ -79,8 +81,8 @@ func _draw() -> void:
 
 ## The claimed cells' fill levels are written to a small field, box-blurred so single
 ## cells at the frontier melt into their neighbours, drawn magnified with linear
-## filtering through a threshold shader. The contour is one smooth outline that creeps outward, never
-## separate dots.
+## filtering through a threshold shader. The contour is one smooth outline that creeps outward,
+## never separate dots.
 func _draw_flow() -> void:
 	var flow: BloodFlow = _pool.flow
 	if flow.cells.is_empty():
@@ -123,7 +125,9 @@ func _draw_flow() -> void:
 		bytes[i * 2] = int(clampf(field[i], 0.0, 1.0) * 255.0)
 	if flow.has_porous():
 		for c in flow.cells:
-			bytes[((c.y - lo.y) * w + (c.x - lo.x)) * 2 + 1] = int(clampf(flow.soak_level(c), 0.0, 1.0) * 255.0)
+			bytes[((c.y - lo.y) * w + (c.x - lo.x)) * 2 + 1] = int(
+				clampf(flow.soak_level(c), 0.0, 1.0) * 255.0,
+			)
 	var image := Image.create_from_data(w, h, false, Image.FORMAT_RG8, bytes)
 	var size := BloodConfig.flow_cell_size
 	_flow_material.set_shader_parameter("field_px", Vector2(w, h) * size)
@@ -136,9 +140,9 @@ func _draw_flow() -> void:
 	draw_texture_rect(_flow_texture, Rect2(Vector2(lo) * size, Vector2(w, h) * size), false)
 
 
-## One 3x3 box-blur pass (edges read as empty), as the sum of each cell's three-cell row sums above, at and below it. The
-## row sums are kept in doubles: a sum of float32 fills is exact in a double, so the nine-cell sum, and the field, are the
-## same whatever the order they are added in.
+## One 3x3 box-blur pass (edges read as empty), as the sum of each cell's three-cell row sums above,
+## at and below it. The row sums are kept in doubles: a sum of float32 fills is exact in a double,
+## so the nine-cell sum, and the field, are the same whatever the order they are added in.
 static func _box_blur(src: PackedFloat32Array, w: int, h: int) -> PackedFloat32Array:
 	var rows := PackedFloat64Array()
 	rows.resize(w * h)

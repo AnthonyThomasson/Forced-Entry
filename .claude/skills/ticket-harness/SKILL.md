@@ -22,7 +22,14 @@ trigger per case).
 - **Tools an agent uses on the app: tests first** (red, per `ticket-story` phase 3): a command-server verb, a `tools/`
   script that drives, queries or inspects the game, a runner flag or report field, a probe or overlay an agent reads.
   Test it the way an agent uses it: a game test for an in-game surface (`domain-testing`; harness ones in
-  `tests/_harness/`), or for a script a run against the headless game or a fixture, checking output and exit code.
+  `tests/_harness/`, run by `--self-test` through `tests/_harness/harness_suite.gd`), or for a script a run against the
+  headless game or a fixture, checking output and exit code. A behaviour is proved by a simulation test (`GameTest`);
+  a native gdUnit suite (`*_suite.gd`, `UnitSuite`) is for pure logic only and may add fast checks beneath it, never
+  replace it.
+- **The runner itself** (`tools/run_tests.sh`, `scenes/testing/`): it drives gdUnit4's command-line tool, so its own
+  tests are `tools/test_log_gate.py` (verdicts, lines, report, flags, the log gate; a fake Godot and the real engine) and
+  `tools/test_gdunit_wrap.py` (every catalog test one wrapper case, by id) and `tools/test_gdunit_panel.py` (a run as the
+  editor's GdUnit panel starts it: its verdicts and a clean checkout), with `--self-test` (`domain-testing`).
 - Both in one ticket: test only the tool part. Game code added so a tool can read it is a tool change: test it and
   keep `architecture` true.
 

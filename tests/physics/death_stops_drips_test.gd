@@ -1,13 +1,13 @@
 extends GameTest
-
-## A wounded character that dies stops dripping: its BloodWound is stopped on death and the bleed-out
-## pool (not further drops) takes over.
+## A wounded character that dies stops dripping: its BloodWound is stopped on death and the
+## bleed-out pool (not further drops) takes over.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Death stops a wound's dripping",
-		"description": "A wounded character is killed; no BloodSplat lands after the death, while the bleed-out BloodPool still spreads.",
+		"description": "A wounded character is killed; no BloodSplat lands after the death, while "
+			+ "the bleed-out BloodPool still spreads.",
 		"tags": ["blood", "wound", "drip", "death"],
 		"timeout": 30.0,
 	}

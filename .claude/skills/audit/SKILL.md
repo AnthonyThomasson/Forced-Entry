@@ -144,6 +144,12 @@ done
   `FAIL` is a `file:line` finding, and a failing rule fails the lint. An `ALLOW` entry the diff adds needs a reason
   that holds (`tools/lint_rules/README.md`, "Exceptions"). `tools/lint.sh --rule=coverage_isolation` passes: nothing
   in the game names a dev tool (`docs/adr/0001-dev-tools-stay-outside-the-game.md`).
+  Last come gdstyle's two sections (`gdstyle fmt --check`, `gdstyle check`; config `gdstyle.toml`): each script the
+  formatter would change and each `path:line:col` finding (a line over 100 columns, member order, naming ...) is a
+  finding; the fix is `tools/gdstyle.sh fmt <path>` or the code, a long line split by hand, a comment re-wrapped. No
+  suppression here either: flag every `# gdstyle:ignore` / `# gdstyle:ignore-file` the diff adds, and every change to
+  `gdstyle.toml` that turns a rule off, lowers it or widens `exclude`/`max_line_length` (`git diff --staged "$BASE" --
+  gdstyle.toml`).
 - **Tool tests:** every new or changed `tools/` module, CLI flag, lint rule and hook block has its own test; one
   without is a finding. Run `python3 -m unittest discover -s tools -t .` (Bash sandbox disabled: some start Godot) and
   report its `Ran N tests` line and every `FAIL:` / `ERROR:`.

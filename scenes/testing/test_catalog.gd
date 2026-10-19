@@ -1,39 +1,48 @@
 extends RefCounted
-
-## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict the
-## browser and runner work from:
-##   { id, path, name, domain, category, description, tags, timeout, requires_von, manual, internal, switches, world,
-##     locked, error }
-## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds"); `category` is the
-## sub-folder between the domain and the file when there is one (`tests/ai/entry/…` -> "entry", else ""); `error` is
-## set (and the rest defaulted) when the script fails to load. `configure()` is called on a scratch
-## TestSetup to read which switches and world a test uses — it only records data.
+## Testing domain: finds every test (`res://tests/**/*_test.gd`) and describes it as a plain dict
+## the browser and runner work from:
+##   { id, path, name, domain, category, description, tags, timeout, requires_von, manual, internal,
+##     switches, world, locked, error }
+## `id` is the path under tests/ without the suffix (e.g. "projectile/pistol_shot_wounds");
+## `category` is the sub-folder between the domain and the file when there is one
+## (`tests/ai/entry/…` -> "entry", else ""); `error` is set (and the rest defaulted) when the script
+## fails to load. `configure()` is called on a scratch TestSetup to read which switches and world a
+## test uses — it only records data.
 
 const ROOT := "res://tests"
 const SUFFIX := "_test.gd"
-## Sandboxes (`res://sandboxes/**/*_sandbox.gd`, also `GameTest` scripts) are played by hand: a separate
-## catalog that `discover()` never returns, so batch runs and the test list never include them.
+## Sandboxes (`res://sandboxes/**/*_sandbox.gd`, also `GameTest` scripts) are played by hand: a
+## separate catalog that `discover()` never returns, so batch runs and the test list never include
+## them.
 const SANDBOX_ROOT := "res://sandboxes"
 const SANDBOX_SUFFIX := "_sandbox.gd"
 const DEFAULT_TIMEOUT := 10.0
-## Engine metas shared by the browser and the runner: the test to play, and the last status per test id.
+## Engine metas shared by the browser and the runner: the test to play, and the last status per test
+## id.
 const META_SELECTION := "test_selection"
 const META_RESULTS := "test_results"
-## The ids ticked in the browser (kept across a round trip through a test), and the ordered script paths of
-## the queued headed run the browser hands the runner.
+## The ids ticked in the browser (kept across a round trip through a test), and the ordered script
+## paths of the queued headed run the browser hands the runner.
 const META_CHECKED := "test_checked"
 const META_QUEUE := "test_queue"
+
 ## The word pattern `matches` splits a test's text with (compiled on first use).
 static var _WORD: RegEx = null
-## Whether `discover()` also returns harness self-tests (`internal: true`); the runner's `--self-test`.
+## Whether `discover()` also returns harness self-tests (`internal: true`); the runner's
+## `--self-test`.
 static var show_internal := false
 
 
-## Every test under `root`, sorted by id (so grouped by domain). Harness self-tests (`internal: true`
-## in `describe()`) are left out unless `show_internal`. `domains` / `ids` (when non-empty) keep only
-## tests of those domains / with those exact ids, decided from the path so the rest are never loaded; `skipped`
-## domains are left out the same way.
-static func discover(root := ROOT, domains: Array = [], ids: Array = [], skipped: Array = []) -> Array:
+## Every test under `root`, sorted by id (so grouped by domain). Harness self-tests
+## (`internal: true` in `describe()`) are left out unless `show_internal`. `domains` / `ids` (when
+## non-empty) keep only tests of those domains / with those exact ids, decided from the path so the
+## rest are never loaded; `skipped` domains are left out the same way.
+static func discover(
+	root := ROOT,
+	domains: Array = [],
+	ids: Array = [],
+	skipped: Array = [],
+) -> Array:
 	var out: Array = []
 	for path in _find(root):
 		var rel: String = path.trim_prefix(root + "/").trim_suffix(SUFFIX)
@@ -68,12 +77,11 @@ static func describe(path: String, root := "") -> Dictionary:
 	var rel := path.trim_prefix(root + "/").trim_suffix(SANDBOX_SUFFIX if sandbox else SUFFIX)
 	var parts := rel.split("/")
 	var entry := {
-		"id": rel, "path": path,
-		"name": parts[parts.size() - 1].capitalize(),
+		"id": rel, "path": path, "name": parts[parts.size() - 1].capitalize(),
 		"domain": parts[0] if parts.size() > 1 else "general",
-		"category": parts[1] if parts.size() > 2 else "",
-		"description": "", "tags": [], "timeout": DEFAULT_TIMEOUT,
-		"requires_von": false, "manual": sandbox, "internal": false, "switches": {}, "world": "", "locked": [], "error": "",
+		"category": parts[1] if parts.size() > 2 else "", "description": "", "tags": [],
+		"timeout": DEFAULT_TIMEOUT, "requires_von": false, "manual": sandbox, "internal": false,
+		"switches": {}, "world": "", "locked": [], "error": "",
 	}
 	var script := load(path) as GDScript
 	if script == null or not script.can_instantiate():
@@ -99,7 +107,13 @@ static func describe(path: String, root := "") -> Dictionary:
 ## id, name, domain, description or tags ("pist" finds "pistol"; "ai" finds the ai domain, not
 ## "chair"). Blank matches everything.
 static func matches(entry: Dictionary, text: String) -> bool:
-	var hay := " ".join([entry["id"], entry["name"], entry["domain"], entry["description"], " ".join(entry["tags"])]).to_lower()
+	var hay := " ".join([
+		entry["id"],
+		entry["name"],
+		entry["domain"],
+		entry["description"],
+		" ".join(entry["tags"]),
+	]).to_lower()
 	var words := PackedStringArray()
 	if _WORD == null:
 		_WORD = RegEx.new()
@@ -135,13 +149,13 @@ static func csv(text: String) -> Array:
 	return out
 
 
-## Shard `spec` ("I/N", I from 0) of `entries`. Every shard computes the same split: tests that need Von
-## all go to shard 0 (they are paced in real time and share one launcher); the rest, costliest first, each
-## go to the shard with the least cost so far, so the shards finish at about the same time.
-## A test's cost is its wall-clock milliseconds in `costs` (id -> ms, measured by an earlier run; an id it
-## lacks costs the median of those it has). With no `costs` the declared `timeout` stands in, which orders
-## tests but says little about how long they really take. `von_runs` is whether the Von tests are going to
-## run: when they are skipped they cost shard 0 nothing.
+## Shard `spec` ("I/N", I from 0) of `entries`. Every shard computes the same split: tests that need
+## Von all go to shard 0 (they are paced in real time and share one launcher); the rest, costliest
+## first, each go to the shard with the least cost so far, so the shards finish at about the same
+## time. A test's cost is its wall-clock milliseconds in `costs` (id -> ms, measured by an earlier
+## run; an id it lacks costs the median of those it has). With no `costs` the declared `timeout`
+## stands in, which orders tests but says little about how long they really take. `von_runs` is
+## whether the Von tests are going to run: when they are skipped they cost shard 0 nothing.
 static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -> Array:
 	var parts := spec.split("/")
 	var count := maxi(1, int(parts[1])) if parts.size() == 2 else 1
@@ -182,8 +196,8 @@ static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -
 	return out
 
 
-## The per-test wall-clock costs (id -> ms) in the JSON file at `path` (what `shard` balances by); empty when
-## it is missing or unreadable, which makes `shard` fall back to the declared timeouts.
+## The per-test wall-clock costs (id -> ms) in the JSON file at `path` (what `shard` balances by);
+## empty when it is missing or unreadable, which makes `shard` fall back to the declared timeouts.
 static func load_costs(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ) if path != "" else null
 	if f == null:

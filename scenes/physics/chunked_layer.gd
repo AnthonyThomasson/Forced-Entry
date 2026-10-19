@@ -1,9 +1,9 @@
 extends Node2D
-
-## Physics System: the shared base of the batched decal layers (`DebrisLayer`, `ScorchDecals`, `BloodDecals`): one node under a
-## world node holding every mark as plain data, drawn by a few chunk nodes instead of one node each. Marks are grouped in
-## `CHUNK`-px squares and only the chunk that gained or lost one redraws; past a layer's cap the oldest is dropped (and
-## flagged `dead`). A layer supplies its marks' recipe, its cap and its chunk node (`_make_chunk`), whose `_draw` reads
+## Physics System: the shared base of the batched decal layers (`DebrisLayer`, `ScorchDecals`,
+## `BloodDecals`): one node under a world node holding every mark as plain data, drawn by a few
+## chunk nodes instead of one node each. Marks are grouped in `CHUNK`-px squares and only the chunk
+## that gained or lost one redraws; past a layer's cap the oldest is dropped (and flagged `dead`). A
+## layer supplies its marks' recipe, its cap and its chunk node (`_make_chunk`), whose `_draw` reads
 ## `marks_in` its cell.
 
 ## Side (px) of a chunk.
@@ -17,8 +17,8 @@ var _by_chunk: Dictionary = {}
 var _chunks: Dictionary = {}
 
 
-## The layer named `node_name` under `parent`, made from `script` (at `z` z-index) on first use. Each parent has its own
-## layer, freed with it.
+## The layer named `node_name` under `parent`, made from `script` (at `z` z-index) on first use.
+## Each parent has its own layer, freed with it.
 static func _get_or_make(parent: Node, node_name: String, script: GDScript, z: int = 0) -> Node:
 	var found := parent.get_node_or_null(node_name)
 	if found != null:
@@ -45,7 +45,8 @@ func marks_in(cell: Vector2i) -> Array:
 	return _by_chunk.get(cell, [])
 
 
-## File `mark` (its `chunk` cell already set) as the newest, redraw its chunk, and drop the oldest past `cap`.
+## File `mark` (its `chunk` cell already set) as the newest, redraw its chunk, and drop the oldest
+## past `cap`.
 func _add(mark: Dictionary, cap: int) -> void:
 	_marks.append(mark)
 	var cell: Vector2i = mark["chunk"]

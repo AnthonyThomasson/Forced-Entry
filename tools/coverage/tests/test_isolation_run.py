@@ -104,8 +104,9 @@ class RealTreeIsolationTests(unittest.TestCase):
         r = in_copy(self.copy, "tools/load_check.sh", timeout=300)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
-    def test_the_copy_passes_lint_but_for_the_isolation_rule_it_breaks_on_purpose(self):
-        r = in_copy(self.copy, "tools/lint.sh", "--skip-rule=coverage_isolation", timeout=300)
+    def test_the_copy_passes_lint_but_for_what_it_breaks_on_purpose(self):
+        # The isolation rule (the game names the probe) and gdstyle (each probe shares its statement's line).
+        r = in_copy(self.copy, "tools/lint.sh", "--skip-rule=coverage_isolation", "--no-gdstyle", timeout=300)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_the_copy_passes_a_sample_of_the_game_tests_with_the_probe_idle(self):

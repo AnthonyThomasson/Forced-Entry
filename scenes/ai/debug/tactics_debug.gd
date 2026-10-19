@@ -1,21 +1,16 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
+## AI domain: an optional debug overlay for the NPC's tactical geometry, in two independent aspects.
+## The point ZONES (`show_tactics`) are every candidate position its perception laid out for the
+## last decision (fire spots, flank sides, ways to advance or retreat, leads, rooms to search,
+## objects), each a coloured marker tagged by kind. The ROOM zones (`show_room_zones`) are every
+## room of the house drawn as a rectangle tinted by how the NPC regards it now (the room it is in,
+## searched, unsearched, or not yet seen) — the room reasoning the search / room / flank points are
+## placed against. It reads the sibling GoalController's `debug_zones()` / `debug_room_zones()`
+## through its public API, senses nothing and feeds nothing back (the "draw on its own child Node2D"
+## convention, like vision_debug.gd).
 
-## AI domain: an optional debug overlay for the NPC's tactical geometry, in two independent aspects. The
-## point ZONES (`show_tactics`) are every candidate position its perception laid out for the last
-## decision (fire spots, flank sides, ways to advance or retreat, leads, rooms to search, objects), each
-## a coloured marker tagged by kind. The ROOM zones (`show_room_zones`) are every room of the house drawn
-## as a rectangle tinted by how the NPC regards it now (the room it is in, searched, unsearched, or not
-## yet seen) — the room reasoning the search / room / flank points are placed against. It reads the
-## sibling GoalController's `debug_zones()` / `debug_room_zones()` through its public API, senses nothing
-## and feeds nothing back (the "draw on its own child Node2D" convention, like vision_debug.gd).
-
-## Whether to draw the candidate point zones. Off by default — it is the densest overlay.
-@export var show_tactics: bool = false
-## Whether to draw the room zones (each room tinted by how the NPC regards it). Off by default.
-@export var show_room_zones: bool = false
-
-## Marker colour per zone category (the categories `debug_zones()` tags each point with). A colour is
-## drawn once as an in-world label beside its first marker, so the palette reads as a legend.
+## Marker colour per zone category (the categories `debug_zones()` tags each point with). A colour
+## is drawn once as an in-world label beside its first marker, so the palette reads as a legend.
 const ZONE_COLORS := {
 	&"fire": Color(1.0, 0.3, 0.2),       # red — a spot to shoot the hostile from
 	&"flank": Color(1.0, 0.6, 0.1),      # orange — a side to take around it
@@ -25,15 +20,17 @@ const ZONE_COLORS := {
 	&"search": Color(0.5, 0.9, 0.5),     # green — a room or unexplored area to search
 	&"entry": Color(0.2, 0.9, 0.9),      # cyan — a stack slot beside a doorway to enter a room by
 	&"room": Color(0.4, 0.8, 0.8),       # teal — a known room to go to
-	&"interaction": Color(0.9, 0.9, 0.9),# white — an object to use
-	&"waypoint": Color(0.9, 0.3, 0.8),   # magenta — a non-room go-to (starting post / entrance / approach)
-	&"grenade": Color(0.75, 0.75, 0.3),  # olive — where a grenade would burst (thrown from the NPC's spot or a throw spot)
+	&"interaction": Color(0.9, 0.9, 0.9), # white — an object to use
+	# magenta — a non-room go-to (starting post / entrance / approach)
+	&"waypoint": Color(0.9, 0.3, 0.8),
+	# olive — where a grenade would burst (thrown from the NPC's spot or a throw spot)
+	&"grenade": Color(0.75, 0.75, 0.3),
 }
 ## Outline / tint colour per room status (how the NPC regards each room), from `debug_room_zones()`.
 const ROOM_COLORS := {
 	&"current": Color(1.0, 0.85, 0.2),   # gold — the room the NPC is standing in
 	&"searched": Color(0.4, 0.8, 0.5),   # green — seen and searched recently
-	&"unsearched": Color(0.95, 0.5, 0.2),# orange — seen but not searched (a place to search)
+	&"unsearched": Color(0.95, 0.5, 0.2), # orange — seen but not searched (a place to search)
 	&"unknown": Color(0.5, 0.5, 0.6),    # grey — not yet seen at all
 }
 ## Radius (px) of a zone's translucent disc.
@@ -43,10 +40,18 @@ const DOT_RADIUS := 3.0
 ## Inset (px) of a room's tag from its top-left corner.
 const ROOM_LABEL_INSET := 6.0
 
-var _focus := Vector2.INF   ## The highlighted tactical point last drawn (the controller's `debug_focus_point()`), or INF for none.
+## Whether to draw the candidate point zones. Off by default — it is the densest overlay.
+@export var show_tactics: bool = false
+## Whether to draw the room zones (each room tinted by how the NPC regards it). Off by default.
+@export var show_room_zones: bool = false
+
+## The highlighted tactical point last drawn (the controller's `debug_focus_point()`), or INF for
+## none.
+var _focus := Vector2.INF
 
 
-## Follow the controller's highlighted point, redrawing when it changes (so a cleared ring goes with both toggles off).
+## Follow the controller's highlighted point, redrawing when it changes (so a cleared ring goes with
+## both toggles off).
 func _process(delta: float) -> void:
 	var focus: Vector2 = _controller.debug_focus_point() if _controller != null else Vector2.INF
 	if focus != _focus:
@@ -55,12 +60,14 @@ func _process(delta: float) -> void:
 	super(delta)
 
 
-## Whether either toggle is on, or the inspector has a point highlighted (its ring draws with both off).
+## Whether either toggle is on, or the inspector has a point highlighted (its ring draws with both
+## off).
 func _on() -> bool:
 	return show_tactics or show_room_zones or _focus != Vector2.INF
 
 
-## Draw the room zones (behind) then the candidate point zones (in front), then the highlighted point.
+## Draw the room zones (behind) then the candidate point zones (in front), then the highlighted
+## point.
 func _paint() -> void:
 	if show_room_zones:
 		_draw_room_zones()
@@ -82,20 +89,24 @@ func _draw_room_zones() -> void:
 		var local := Rect2(to_local(rect.position), rect.size)
 		draw_rect(local, Color(color, 0.08), true)
 		draw_rect(local, color, false, 2.0)
-		DebugText.string(self, font, local.position + Vector2(ROOM_LABEL_INSET, ROOM_LABEL_INSET + FONT_SIZE),
-			"%s · %s" % [room["type"], String(status)], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color)
+		DebugText.string(
+			self, font, local.position + Vector2(ROOM_LABEL_INSET, ROOM_LABEL_INSET + FONT_SIZE),
+			"%s · %s" % [room["type"], String(status)], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE,
+			color,
+		)
 
 
-## Highlight the inspector's clicked tactical point with a bright double ring, so which point the detail
-## panel describes is unmistakable. Set via the controller's `debug_focus` / cleared via `debug_clear_focus`.
+## Highlight the inspector's clicked tactical point with a bright double ring, so which point the
+## detail panel describes is unmistakable. Set via the controller's `debug_focus` / cleared via
+## `debug_clear_focus`.
 func _draw_focus() -> void:
 	var p := to_local(_focus)
 	draw_arc(p, ZONE_RADIUS + 5.0, 0.0, TAU, 24, Color.WHITE, 2.0)
 	draw_arc(p, ZONE_RADIUS + 8.0, 0.0, TAU, 24, Color(1, 1, 1, 0.5), 1.0)
 
 
-## Draw each candidate zone as a translucent disc + outline + a dot at its exact point, and label each
-## category once (beside its first marker) so the colours read as a legend.
+## Draw each candidate zone as a translucent disc + outline + a dot at its exact point, and label
+## each category once (beside its first marker) so the colours read as a legend.
 func _draw_point_zones() -> void:
 	var font: Font = ThemeDB.fallback_font
 	var labelled := {}
@@ -108,5 +119,7 @@ func _draw_point_zones() -> void:
 		draw_circle(p, DOT_RADIUS, color)
 		if not labelled.has(category):
 			labelled[category] = true
-			DebugText.string(self, font, p + Vector2(ZONE_RADIUS + 2.0, FONT_SIZE * 0.4), String(category),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color)
+			DebugText.string(
+				self, font, p + Vector2(ZONE_RADIUS + 2.0, FONT_SIZE * 0.4), String(category),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color,
+			)

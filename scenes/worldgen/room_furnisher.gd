@@ -1,24 +1,33 @@
 class_name RoomFurnisher
-
-## World Generation domain: fills a room's interior with arrangements from its recipe (ArrangementDefinitions).
-## Arrangements are placed as whole blocks: each one's footprint is fitted against a
-## wall (or free-standing for "center" placement) without overlapping other placed
+## World Generation domain: fills a room's interior with arrangements from its recipe
+## (ArrangementDefinitions). Arrangements are placed as whole blocks: each one's footprint is fitted
+## against a wall (or free-standing for "center" placement) without overlapping other placed
 ## blocks or any blocked area (doorway-opening clearances), then its items are spawned.
 
 ## Which wall an arrangement's local "top wall" frame is mapped onto.
-enum Orient { TOP, BOTTOM, LEFT, RIGHT }
+enum Orient {
+	TOP,
+	BOTTOM,
+	LEFT,
+	RIGHT,
+}
 
-const PADDING := 8.0       ## Minimum gap between arrangements (and doorway-opening clearances).
-const STEP := 10.0         ## Spacing of candidate offsets along a wall.
-const CENTER_TRIES := 40   ## Random spots tried for free-standing arrangements.
-
-## Walkability: a placement is rejected if it cuts a room's doorways off from each other (a doorway is the free grid cells inside its clearance box). An agent is
-## a point on a coarse grid; furniture is grown by `FURNITURE_CLEAR` (agent radius + nav hole margin +
-## slack) and the room edge by `WALL_CLEAR` (agent radius less the interior inset).
-const PLAN_ATTEMPTS := 12  ## Layouts tried before settling for one that misses a required zone.
-## A gap between furniture (or furniture and a wall) that is wider than touching but too narrow to walk
-## through is a dead slot, and the baked nav hole offsets either side of it overlap and can crash the map
-## bake; so a gap must be at most SLOT_MIN (just the padding: the holes fuse) or at least SLOT_MAX (an agent fits).
+## Minimum gap between arrangements (and doorway-opening clearances).
+const PADDING := 8.0
+## Spacing of candidate offsets along a wall.
+const STEP := 10.0
+## Random spots tried for free-standing arrangements.
+const CENTER_TRIES := 40
+## Walkability: a placement is rejected if it cuts a room's doorways off from each other (a doorway
+## is the free grid cells inside its clearance box). An agent is a point on a coarse grid; furniture
+## is grown by `FURNITURE_CLEAR` (agent radius + nav hole margin + slack) and the room edge by
+## `WALL_CLEAR` (agent radius less the interior inset).
+## Layouts tried before settling for one that misses a required zone.
+const PLAN_ATTEMPTS := 12
+## A gap between furniture (or furniture and a wall) that is wider than touching but too narrow to
+## walk through is a dead slot, and the baked nav hole offsets either side of it overlap and can
+## crash the map bake; so a gap must be at most SLOT_MIN (just the padding: the holes fuse) or at
+## least SLOT_MAX (an agent fits).
 const SLOT_MIN := 8.5
 const SLOT_MAX := 48.0
 const WALK_CELL := 10.0
@@ -27,10 +36,11 @@ const WALL_CLEAR := 8.0
 
 
 ## `interior` and `blocked` rects are in `parent`'s coordinate space. Returns the palette picked
-## for the room (its `wood` / `fabric` tones and `floor` key), or {} if the type has no recipe. The footprint of every solid
-## piece it spawns is appended to `solids` (rects in `parent`'s space, from the catalogue's sizes).
-static func furnish(room_type: String, interior: Rect2, blocked: Array, rng: RandomNumberGenerator, parent: Node,
-		solids: Array = []) -> Dictionary:
+## for the room (its `wood` / `fabric` tones and `floor` key), or {} if the type has no recipe. The
+## footprint of every solid piece it spawns is appended to `solids` (rects in `parent`'s space, from
+## the catalogue's sizes).
+static func furnish(room_type: String, interior: Rect2, blocked: Array, rng: RandomNumberGenerator,
+		parent: Node, solids: Array = []) -> Dictionary:
 	var recipe := ArrangementDefinitions.get_recipe(room_type)
 	if recipe.is_empty():
 		push_error("No furnishing recipe for room type: ", room_type)
@@ -47,19 +57,25 @@ static func furnish(room_type: String, interior: Rect2, blocked: Array, rng: Ran
 		if plan["missing"].is_empty():
 			break
 	for zone_options in plan["missing"]:
-		push_warning("RoomFurnisher: no room for required zone %s in %s" % [zone_options, room_type])
+		push_warning("RoomFurnisher: no room for required zone %s in %s"
+				% [zone_options, room_type])
 	for placement in plan["placements"]:
 		_spawn_items(placement["arrangement"], placement["spot"], palette, parent, solids)
 	return palette
 
 
 ## One attempt at the recipe's layout: `{ placements: [{ arrangement, spot }], missing: [options] }`
-## where `missing` lists the required zones that found no walkable spot. The zones come first, then the
-## recipe's optional `fill` (see _fill).
-static func _plan(recipe: Dictionary, interior: Rect2, blocked: Array, rng: RandomNumberGenerator) -> Dictionary:
+## where `missing` lists the required zones that found no walkable spot. The zones come first, then
+## the recipe's optional `fill` (see _fill).
+static func _plan(
+	recipe: Dictionary,
+	interior: Rect2,
+	blocked: Array,
+	rng: RandomNumberGenerator,
+) -> Dictionary:
 	var state := {
-		"interior": interior, "occupied": blocked.duplicate(), "used_tags": {}, "walk": _walk_state(interior, blocked),
-		"placements": [], "ground": [],
+		"interior": interior, "occupied": blocked.duplicate(), "used_tags": {},
+		"walk": _walk_state(interior, blocked), "placements": [], "ground": [],
 	}
 	var missing: Array = []
 
@@ -84,10 +100,14 @@ static func _plan(recipe: Dictionary, interior: Rect2, blocked: Array, rng: Rand
 	return { "placements": state["placements"], "missing": missing }
 
 
-## Place `arrangement` in the planned room if its tags are free and a spot fits; true if it was placed.
-## A "ground" arrangement (rug, runner, mat) is non-solid decor: it may lie under furniture, so it only avoids
-## other ground pieces and never touches the walkability grid.
-static func _try_place(arrangement: Dictionary, state: Dictionary, rng: RandomNumberGenerator) -> bool:
+## Place `arrangement` in the planned room if its tags are free and a spot fits; true if it was
+## placed. A "ground" arrangement (rug, runner, mat) is non-solid decor: it may lie under furniture,
+## so it only avoids other ground pieces and never touches the walkability grid.
+static func _try_place(
+	arrangement: Dictionary,
+	state: Dictionary,
+	rng: RandomNumberGenerator,
+) -> bool:
 	var tags: Array = arrangement.get("tags", [])
 	var used_tags: Dictionary = state["used_tags"]
 	if tags.any(func(t: String) -> bool: return used_tags.has(t)):
@@ -112,11 +132,12 @@ static func _try_place(arrangement: Dictionary, state: Dictionary, rng: RandomNu
 	return true
 
 
-## The recipe's fill pass: `{ target, options }` keeps drawing arrangements from `options` until the room's
-## solid footprints cover `target` (a fraction of the interior area), so big rooms are not left bare. Every
-## piece goes through the same placement checks as a zone. Each listed option is tried once, hit or miss (list
-## one twice to allow two of it): a miss can't turn into a hit later because a fuller room never gains a spot
-## and a taken tag stays taken, so a full room ends the pass quickly. Bounded and scaled by WorldGenConfig.
+## The recipe's fill pass: `{ target, options }` keeps drawing arrangements from `options` until the
+## room's solid footprints cover `target` (a fraction of the interior area), so big rooms are not
+## left bare. Every piece goes through the same placement checks as a zone. Each listed option is
+## tried once, hit or miss (list one twice to allow two of it): a miss can't turn into a hit later
+## because a fuller room never gains a spot and a taken tag stays taken, so a full room ends the
+## pass quickly. Bounded and scaled by WorldGenConfig.
 static func _fill(fill: Dictionary, state: Dictionary, rng: RandomNumberGenerator) -> void:
 	if fill.is_empty() or not WorldGenConfig.fill_enabled:
 		return
@@ -136,7 +157,8 @@ static func _fill(fill: Dictionary, state: Dictionary, rng: RandomNumberGenerato
 		pool.remove_at(pick)
 
 
-## Floor area (px^2) taken up by the planned solid arrangements (ground pieces lie beneath and don't count).
+## Floor area (px^2) taken up by the planned solid arrangements (ground pieces lie beneath and don't
+## count).
 static func _covered(placements: Array) -> float:
 	var area := 0.0
 	for placement: Dictionary in placements:
@@ -146,36 +168,62 @@ static func _covered(placements: Array) -> float:
 
 
 ## Returns { rect, orient, mirror } for a free spot, or {} if none fits.
-static func _find_spot(arrangement: Dictionary, interior: Rect2, occupied: Array, rng: RandomNumberGenerator, walk: Dictionary) -> Dictionary:
+static func _find_spot(
+	arrangement: Dictionary,
+	interior: Rect2,
+	occupied: Array,
+	rng: RandomNumberGenerator,
+	walk: Dictionary,
+) -> Dictionary:
 	var fp: Vector2 = arrangement["footprint"]
 	var mirror := rng.randf() < 0.5
 
 	if arrangement.get("placement", "wall") == "center":
-		return _centre_spot(fp, interior, mirror, rng,
-			func(rect: Rect2) -> bool: return _fits(rect, interior, occupied) and _leaves_no_slot(rect, walk) and _keeps_walkable(rect, walk))
+		var fits := func(rect: Rect2) -> bool:
+			return (_fits(rect, interior, occupied) and _leaves_no_slot(rect, walk)
+					and _keeps_walkable(rect, walk))
+		return _centre_spot(fp, interior, mirror, rng, fits)
 
 	for orient in _shuffled([Orient.TOP, Orient.BOTTOM, Orient.LEFT, Orient.RIGHT], rng):
-		var wall_length := interior.size.x if orient in [Orient.TOP, Orient.BOTTOM] else interior.size.y
+		var wall_length := (interior.size.x
+				if orient in [Orient.TOP, Orient.BOTTOM]
+				else interior.size.y)
 		var max_offset := wall_length - fp.x
 		if max_offset < 0.0:
 			continue
 		for offset in _offsets(max_offset, arrangement.get("prefer_corner", false), rng):
 			var rect := _wall_rect(orient, offset, fp, interior)
-			if _fits(rect, interior, occupied) and _leaves_no_slot(rect, walk) and _keeps_walkable(rect, walk):
+			if (_fits(rect, interior, occupied)
+					and _leaves_no_slot(rect, walk)
+					and _keeps_walkable(rect, walk)):
 				return { "rect": rect, "orient": orient, "mirror": mirror }
 	return {}
 
 
-## Like a free-standing spot, but for a "ground" arrangement: dead center first, then random, rejecting only an
-## overlap with another ground piece. Returns { rect, orient, mirror }, or {} if none fits.
-static func _find_ground_spot(arrangement: Dictionary, interior: Rect2, ground: Array, rng: RandomNumberGenerator) -> Dictionary:
-	return _centre_spot(arrangement["footprint"], interior, rng.randf() < 0.5, rng,
-		func(rect: Rect2) -> bool: return ground.all(func(other: Rect2) -> bool: return not rect.intersects(other)))
+## Like a free-standing spot, but for a "ground" arrangement: dead center first, then random,
+## rejecting only an overlap with another ground piece. Returns { rect, orient, mirror }, or {} if
+## none fits.
+static func _find_ground_spot(
+	arrangement: Dictionary,
+	interior: Rect2,
+	ground: Array,
+	rng: RandomNumberGenerator,
+) -> Dictionary:
+	var clear_of_ground := func(rect: Rect2) -> bool:
+		return ground.all(func(other: Rect2) -> bool: return not rect.intersects(other))
+	return _centre_spot(arrangement["footprint"], interior, rng.randf() < 0.5, rng, clear_of_ground)
 
 
-## A free-standing spot for a footprint `fp` in `interior`: dead centre first, then up to `CENTER_TRIES` random spots,
-## in a random orientation each, the first that `accepts` taken. Returns { rect, orient, mirror }, or {} if none fits.
-static func _centre_spot(fp: Vector2, interior: Rect2, mirror: bool, rng: RandomNumberGenerator, accepts: Callable) -> Dictionary:
+## A free-standing spot for a footprint `fp` in `interior`: dead centre first, then up to
+## `CENTER_TRIES` random spots, in a random orientation each, the first that `accepts` taken.
+## Returns { rect, orient, mirror }, or {} if none fits.
+static func _centre_spot(
+	fp: Vector2,
+	interior: Rect2,
+	mirror: bool,
+	rng: RandomNumberGenerator,
+	accepts: Callable,
+) -> Dictionary:
 	for i in range(CENTER_TRIES):
 		var orient: int = rng.randi_range(Orient.TOP, Orient.RIGHT)
 		var size := _oriented_size(fp, orient)
@@ -189,8 +237,8 @@ static func _centre_spot(fp: Vector2, interior: Rect2, mirror: bool, rng: Random
 	return {}
 
 
-## The room's walkability grid (1 = blocked: near a wall or placed furniture) and its doorways: for each
-## clearance rect touching the interior, the free grid cells inside it.
+## The room's walkability grid (1 = blocked: near a wall or placed furniture) and its doorways: for
+## each clearance rect touching the interior, the free grid cells inside it.
 static func _walk_state(interior: Rect2, blocked: Array) -> Dictionary:
 	var cols := ceili(interior.size.x / WALK_CELL)
 	var rows := ceili(interior.size.y / WALK_CELL)
@@ -206,11 +254,21 @@ static func _walk_state(interior: Rect2, blocked: Array) -> Dictionary:
 			continue
 		var cells: Array = []
 		for i in range(cols * rows):
-			if grid[i] == 0 and clearance.has_point(_cell_center(interior, i % cols, int(i / float(cols)))):
+			if (grid[i] == 0
+					and clearance.has_point(_cell_center(
+							interior, i % cols, int(i / float(cols)),
+					))):
 				cells.append(i)
 		if not cells.is_empty():
 			doors.append(cells)
-	return { "interior": interior, "cols": cols, "rows": rows, "grid": grid, "doors": doors, "furniture": [] }
+	return {
+		"interior": interior,
+		"cols": cols,
+		"rows": rows,
+		"grid": grid,
+		"doors": doors,
+		"furniture": [],
+	}
 
 
 ## The centre of walk-grid cell (`col`, `row`) in world space.
@@ -219,7 +277,11 @@ static func _cell_center(interior: Rect2, col: int, row: int) -> Vector2:
 
 
 ## Block the grid cells within agent reach of `rect`.
-static func _stamp(walk: Dictionary, rect: Rect2, grid: PackedByteArray = PackedByteArray()) -> PackedByteArray:
+static func _stamp(
+	walk: Dictionary,
+	rect: Rect2,
+	grid: PackedByteArray = PackedByteArray(),
+) -> PackedByteArray:
 	var interior: Rect2 = walk["interior"]
 	var cols: int = walk["cols"]
 	var rows: int = walk["rows"]
@@ -246,7 +308,8 @@ static func _leaves_no_slot(rect: Rect2, walk: Dictionary) -> bool:
 	for other: Rect2 in walk["furniture"]:
 		var gx := maxf(other.position.x - rect.end.x, rect.position.x - other.end.x)
 		var gy := maxf(other.position.y - rect.end.y, rect.position.y - other.end.y)
-		if (gy < 0.0 and gx > SLOT_MIN and gx < SLOT_MAX) or (gx < 0.0 and gy > SLOT_MIN and gy < SLOT_MAX):
+		if ((gy < 0.0 and gx > SLOT_MIN and gx < SLOT_MAX)
+				or (gx < 0.0 and gy > SLOT_MIN and gy < SLOT_MAX)):
 			return false
 	return true
 
@@ -276,7 +339,9 @@ static func _keeps_walkable(rect: Rect2, walk: Dictionary) -> bool:
 				seen[next] = 1
 				stack.append(next)
 	# Every doorway must have a free, reached cell (the first one's own cells seed the fill).
-	return doors.all(func(cells: Array) -> bool: return cells.any(func(c: int) -> bool: return seen[c] == 1))
+	return doors.all(
+		func(cells: Array) -> bool: return cells.any(func(c: int) -> bool: return seen[c] == 1),
+	)
 
 
 ## Candidate offsets along a wall; corners first when preferred, otherwise shuffled.
@@ -324,9 +389,15 @@ static func _fits(rect: Rect2, interior: Rect2, occupied: Array) -> bool:
 	return true
 
 
-## Map each item from the arrangement's top-wall frame into the chosen spot and spawn it; a solid one's footprint goes on
-## `solids`.
-static func _spawn_items(arrangement: Dictionary, spot: Dictionary, palette: Dictionary, parent: Node, solids: Array) -> void:
+## Map each item from the arrangement's top-wall frame into the chosen spot and spawn it; a solid
+## one's footprint goes on `solids`.
+static func _spawn_items(
+	arrangement: Dictionary,
+	spot: Dictionary,
+	palette: Dictionary,
+	parent: Node,
+	solids: Array,
+) -> void:
 	var fp: Vector2 = arrangement["footprint"]
 	var rect: Rect2 = spot["rect"]
 	var orient: int = spot["orient"]

@@ -1,15 +1,19 @@
 extends RefCounted
-
-## AI PERCEPTION sub-domain — SNAPSHOT SECTIONS. Writes the state text Von reads: the situation, loadout, odds, contact lines,
-## exposure, allies, flank digest and awareness lines. A pure read of the event memory, the tactics geometry and the shared
-## vocabulary; it holds no state of its own. `agent_snapshot.gd` calls it from `build()`.
+## AI PERCEPTION sub-domain — SNAPSHOT SECTIONS. Writes the state text Von reads: the situation,
+## loadout, odds, contact lines, exposure, allies, flank digest and awareness lines. A pure read of
+## the event memory, the tactics geometry and the shared vocabulary; it holds no state of its own.
+## `agent_snapshot.gd` calls it from `build()`.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 
-var _v: SnapshotVocab  ## The shared vocabulary and tuning; see snapshot_vocab.gd.
-var _memory: RefCounted   ## The agent's event memory (read-only here); see agent_memory.gd.
-var _tactics: RefCounted  ## The combat geometry; see agent_tactics.gd.
-var _character: Node      ## The NPC's body, handed in once by `bind`.
+## The shared vocabulary and tuning; see snapshot_vocab.gd.
+var _v: SnapshotVocab
+## The agent's event memory (read-only here); see agent_memory.gd.
+var _memory: RefCounted
+## The combat geometry; see agent_tactics.gd.
+var _tactics: RefCounted
+## The NPC's body, handed in once by `bind`.
+var _character: Node
 
 
 ## Capture the collaborators the sections read. Called once by `AgentSnapshot.setup()`.
@@ -27,18 +31,26 @@ func bind(character: Node) -> void:
 ## Where the NPC is, whether it is free, what it holds and how hurt it is.
 func situation_text(rooms: Array) -> String:
 	var room := SnapshotVocab.room_at(_character.global_position, rooms)
-	var where := ("in the %s, inside the house" % _v.room_name(room["type"])) if not room.is_empty() else "outside the house"
-	var busy := (" You are busy: %s." % _character.interaction_label()) if _character.is_busy() else ""
+	var where := (("in the %s, inside the house" % _v.room_name(room["type"]))
+			if not room.is_empty()
+			else "outside the house")
+	var busy := ((" You are busy: %s." % _character.interaction_label())
+			if _character.is_busy()
+			else "")
 	return "You are %s, holding a %s.%s%s You are %s." % [
-		where, _character.current_item().display_name, busy, _v.own_posture_text(_character.posture()),
-		_v.health_band(_character.damage_taken())]
+		where, _character.current_item().display_name, busy,
+		_v.own_posture_text(_character.posture()), _v.health_band(_character.damage_taken()),
+	]
 
 
-## The order the NPC's leader gave it, in one sentence Von reads at every level while it holds one (`docs/leadership.md` LD6; measured
-## with tools/von_probe.py): "Your leader ordered you to defend the kitchen." / "... to go into the kitchen by its doorway quietly." (or
-## "with a stun grenade first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13, since "and wait for
-## my go" moved a combat level's top pick) / "... to ambush the doorway into the hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the kitchen from inside").
-## Empty with no order, so an NPC that holds none reads exactly what it read before.
+## The order the NPC's leader gave it, in one sentence Von reads at every level while it holds one
+## (`docs/leadership.md` LD6; measured with tools/von_probe.py): "Your leader ordered you to defend
+## the kitchen." / "... to go into the kitchen by its doorway quietly." (or "with a stun grenade
+## first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13,
+## since "and wait for my go" moved a combat level's top pick) / "... to ambush the doorway into the
+## hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the
+## kitchen from inside"). Empty with no order, so an NPC that holds none reads exactly what it read
+## before.
 func order_text(order: Dictionary, rooms: Array) -> String:
 	match String(order.get("kind", "")):
 		"defend_room":
@@ -49,29 +61,36 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
 			if not into.is_empty():
 				var mode := String(order["mode"])
-				return "Your leader ordered you to go into the %s by its doorway %s%s." % [_v.room_name(into["type"]),
+				return "Your leader ordered you to go into the %s by its doorway %s%s." % [
+					_v.room_name(into["type"]),
 					"with a %s grenade first" % mode if mode != "quiet" else "quietly",
-					" when they give the go" if bool(order.get("wait_go", false)) and not bool(order.get("go", false)) else ""]
+					" when they give the go"
+						if bool(order.get("wait_go", false)) and not bool(order.get("go", false))
+						else "",
+				]
 		"ambush":
 			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
 			if not room.is_empty():
 				var beyond := SnapshotVocab.room_by_key(rooms, String(order.get("beyond", "")))
 				if beyond.is_empty():
-					return "Your leader ordered you to ambush the outside doorway of the %s from inside." % _v.room_name(room["type"])
-				return "Your leader ordered you to ambush the doorway into the %s from the %s." % [_v.room_name(beyond["type"]),
-					_v.room_name(room["type"])]
+					return (("Your leader ordered you to ambush the outside doorway of the %s from "
+								+ "inside.") % _v.room_name(room["type"]))
+				return ("Your leader ordered you to ambush the doorway into the %s from the %s."
+						% [_v.room_name(beyond["type"]), _v.room_name(room["type"])])
 	return ""
 
 
-## The gun's state in the bands Von reads (never a round count): loaded, nearly empty, empty or being
-## reloaded; once it runs low, whether spare magazines are carried. Then the grenades carried (`grenades`: the kinds, a frag
-## first): "You carry a frag grenade and a stun grenade." Empty without a gun or a grenade.
+## The gun's state in the bands Von reads (never a round count): loaded, nearly empty, empty or
+## being reloaded; once it runs low, whether spare magazines are carried. Then the grenades carried
+## (`grenades`: the kinds, a frag first): "You carry a frag grenade and a stun grenade." Empty
+## without a gun or a grenade.
 func loadout_text(gun: int, ammo: int, grenades: Array = []) -> String:
 	var lines: Array = []
 	if ammo >= 0:
 		lines.append(_gun_text(gun, ammo))
 	if not grenades.is_empty():
-		lines.append("You carry %s." % " and ".join(grenades.map(func(k): return "a %s grenade" % k)))
+		lines.append("You carry %s."
+				% " and ".join(grenades.map(func(k): return "a %s grenade" % k)))
 	return " ".join(lines)
 
 
@@ -80,7 +99,9 @@ func _gun_text(gun: int, ammo: int) -> String:
 	var noun := _v.gun_noun(gun)
 	if _character.is_reloading():
 		return "You are reloading your %s." % noun
-	var spares := "You carry spare magazines." if _character.spare_magazines() > 0 else "You are out of spare magazines."
+	var spares := ("You carry spare magazines."
+			if _character.spare_magazines() > 0
+			else "You are out of spare magazines.")
 	if ammo == 0:
 		return "Your %s is empty. %s" % [noun, spares]
 	if ammo <= ceili(_character.ammo_capacity(gun) * _v.low_ammo_fraction):
@@ -105,7 +126,8 @@ func odds_text(hostiles: Array, allies: Array, callouts: Array, trouble: bool) -
 			lead = "There is trouble nearby, out of your sight."
 		return "%s Allies near you: %s." % [lead, ally_text]
 	var in_sight := hostiles.filter(func(c): return c["visible"]).size()
-	return "Known hostiles: %d (%d in sight). Allies near you: %s." % [hostiles.size(), in_sight, ally_text]
+	return ("Known hostiles: %d (%d in sight). Allies near you: %s."
+			% [hostiles.size(), in_sight, ally_text])
 
 
 ## One line per known non-ally contact (hostiles first, up to `max_contacts_in_state`).
@@ -120,44 +142,60 @@ func contacts_text(self_pos: Vector2, known: Array) -> String:
 
 
 ## The line between the NPC and hostile `t`: whether each can shoot the other, what blocks it, and
-## which other hostiles can see the NPC here. `throws` are the kinds of grenade it can throw onto their spot ("You can throw a frag
-## grenade onto their spot."), `held` the room they hold that the NPC is outside of, when that is why ("X holds the kitchen, a room you
-## are outside of.", docs/grenades.md G17).
-func exposure_text(ctx: Dictionary, t: Dictionary, a: Dictionary, throws: Array = [], held := "") -> String:
+## which other hostiles can see the NPC here. `throws` are the kinds of grenade it can throw onto
+## their spot ("You can throw a frag grenade onto their spot."), `held` the room they hold that the
+## NPC is outside of, when that is why ("X holds the kitchen, a room you are outside of.",
+## docs/grenades.md G17).
+func exposure_text(
+	ctx: Dictionary,
+	t: Dictionary,
+	a: Dictionary,
+	throws: Array = [],
+	held := "",
+) -> String:
 	var line: Dictionary = a["line"]
 	var text := ""
 	if line["clear"] and line["in_range"]:
-		text = "You have a clear shot at %s from where you stand. You are exposed to their fire." % t["name"]
+		text = ("You have a clear shot at %s from where you stand. You are exposed to their fire."
+				% t["name"])
 	elif line["clear"]:
 		text = "%s is too far to shoot. They can see you." % t["name"]
 	elif line["cover"] != "":
-		text = "You are behind cover from %s (the %s): your line to them is blocked." % [t["name"], line["cover"]]
+		text = ("You are behind cover from %s (the %s): your line to them is blocked."
+				% [t["name"], line["cover"]])
 	else:
-		text = "A %s is between you and %s: your line to them is blocked." % [line["blocker"], t["name"]]
+		text = ("A %s is between you and %s: your line to them is blocked."
+				% [line["blocker"], t["name"]])
 	if not throws.is_empty():
 		if held != "":
 			text += " %s holds the %s, a room you are outside of." % [t["name"], held]
-		text += " You can throw %s onto their spot." % " or ".join(throws.map(func(k): return "a %s grenade" % k))
+		text += (" You can throw %s onto their spot."
+				% " or ".join(throws.map(func(k): return "a %s grenade" % k)))
 	if t.get("blind", false):
 		text += " %s is blinded by a flash and cannot see you." % t["name"]
 	if t["visible"] and _v.aim_text(t, ctx["self_pos"], []) == "aiming at you":
 		text += " They are aiming at you."
-	var others: Array = _tactics.exposed_to(ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"], ctx["exclude"])
+	var others: Array = _tactics.exposed_to(
+		ctx["space"], ctx["self_pos"], ctx["hostiles"], t["id"], ctx["exclude"],
+	)
 	if not others.is_empty():
 		text += " You are also exposed to the fire of %s." % ", ".join(others)
 	return text
 
 
-## Exposure when under fire from someone the NPC cannot see; with `throws` (the kinds of grenade it can throw where the shots came from,
-## into room `held`, which the NPC is outside of) "The shots came from the kitchen, a room you are outside of. You can throw a stun grenade
-## where the shots came from."
+## Exposure when under fire from someone the NPC cannot see; with `throws` (the kinds of grenade it
+## can throw where the shots came from, into room `held`, which the NPC is outside of) "The shots
+## came from the kitchen, a room you are outside of. You can throw a stun grenade where the shots
+## came from."
 func unseen_fire_text(throws: Array = [], held := "") -> String:
 	if not _memory.under_fire():
 		return ""
-	var text := "You are being shot at by someone you cannot see, from the %s; you are exposed to their fire." % _v.compass(_memory.under_fire_from())
+	var text := (("You are being shot at by someone you cannot see, from the %s; you are exposed "
+				+ "to their fire.") % _v.compass(_memory.under_fire_from()))
 	if not throws.is_empty():
-		text += " The shots came from the %s, a room you are outside of. You can throw %s where the shots came from." % [held,
-			" or ".join(throws.map(func(k): return "a %s grenade" % k))]
+		var kinds := " or ".join(throws.map(func(k): return "a %s grenade" % k))
+		text += ((" The shots came from the %s, a room you are outside of. You can throw %s where "
+				+ "the shots came from.") % [held, kinds])
 	return text
 
 
@@ -175,7 +213,9 @@ func allies_text(ctx: Dictionary, t: Dictionary, a: Dictionary) -> String:
 		if not t.is_empty():
 			var tpos: Vector2 = t["pos"]
 			if (ally["pos"] as Vector2).distance_to(tpos) <= _v.flank_ally_radius:
-				parts.append("on %s's %s" % [t["name"], SnapshotVocab.SIDE_WORDS[_tactics.side_of(tpos, a["front"], ally["pos"])].trim_prefix("their ")])
+				var side: String = _tactics.side_of(tpos, a["front"], ally["pos"])
+				var where: String = SnapshotVocab.SIDE_WORDS[side].trim_prefix("their ")
+				parts.append("on %s's %s" % [t["name"], where])
 			else:
 				parts.append("far from %s" % t["name"])
 		parts.append(_v.move_text(ally, self_pos))
@@ -185,39 +225,57 @@ func allies_text(ctx: Dictionary, t: Dictionary, a: Dictionary) -> String:
 		lines.append(" — ".join(parts) + ".")
 	for c in ctx["callouts"]:
 		var status: String = c.get("status", "")
-		lines.append("%s (radio, %s): %s%s." % [c["name"], _v.recency(c["age"]), c.get("label", "?"), ("; " + status) if status != "" else ""])
+		lines.append("%s (radio, %s): %s%s." % [
+			c["name"],
+			_v.recency(c["age"]),
+			c.get("label", "?"),
+			("; " + status) if status != "" else "",
+		])
 	return "\n".join(lines)
 
 
-## A one-line digest of hostile `t`'s flanks: which side the NPC is on and, per other side, whether it
-## is open, has a shot and cover, and how long and exposed the route is.
+## A one-line digest of hostile `t`'s flanks: which side the NPC is on and, per other side, whether
+## it is open, has a shot and cover, and how long and exposed the route is.
 func flanks_text(t: Dictionary, a: Dictionary) -> String:
 	if a["flanks"].is_empty():
 		return "Every side of %s is out of reach." % t["name"]
 	var parts: Array = []
 	for s in a["flanks"]:
-		parts.append("%s — %s, %s, %s, %s route" % [SnapshotVocab.SIDE_WORDS[s["side"]], _v.side_status(s),
+		parts.append("%s — %s, %s, %s, %s route" % [
+			SnapshotVocab.SIDE_WORDS[s["side"]], _v.side_status(s),
 			"clear shot" if s["clear_shot"] else "line blocked",
 			"cover" if s["cover"] != "" else "in the open",
-			_v.route_text(s["route_len"], s["route_exposed"])])
-	return "Flanks on %s (you are on %s): %s." % [t["name"], SnapshotVocab.SIDE_WORDS[a["own_side"]], "; ".join(parts)]
+			_v.route_text(s["route_len"], s["route_exposed"]),
+		])
+	return ("Flanks on %s (you are on %s): %s."
+			% [t["name"], SnapshotVocab.SIDE_WORDS[a["own_side"]], "; ".join(parts)])
 
 
-## Being shot at or hit (and from where), and gunfire and footsteps heard nearby (only while no hostile is known — in a
-## fight it is just the fight).
+## Being shot at or hit (and from where), and gunfire and footsteps heard nearby (only while no
+## hostile is known — in a fight it is just the fight).
 func awareness_text(self_pos: Vector2, fighting: bool) -> String:
 	var out: Array = []
 	if _memory.under_fire():
 		var uf: Dictionary = _memory.recall(&"under_fire")
 		var dir := _v.compass(_memory.under_fire_from())
-		out.append(("You are being hit, from the %s!" if uf.get("hit", false) else "You are under fire: shots are landing near you, from the %s!") % dir)
+		out.append(("You are being hit, from the %s!"
+				if uf.get("hit", false)
+				else "You are under fire: shots are landing near you, from the %s!") % dir)
 	for rec in _memory.recall_aged(&"heard_gunfire"):
 		if not fighting and rec["age"] <= _v.recency_bands.y:
-			out.append("Gunfire heard to the %s, %s, %s." % [_v.compass(rec["data"]["pos"] - self_pos), _v.place(rec["data"]["pos"]), _v.recency(rec["age"])])
+			out.append("Gunfire heard to the %s, %s, %s." % [
+				_v.compass(rec["data"]["pos"] - self_pos),
+				_v.place(rec["data"]["pos"]),
+				_v.recency(rec["age"]),
+			])
 			break
 	for rec in _memory.recall_aged(&"heard_footsteps"):
 		if not fighting and rec["age"] <= _v.recency_bands.y:
-			out.append("Footsteps heard to the %s, %s, %s." % [_v.compass(rec["data"]["pos"] - self_pos), _v.place(rec["data"]["pos"]), _v.recency(rec["age"])])
+			out.append("Footsteps heard to the %s, %s, %s." % [
+				_v.compass(rec["data"]["pos"] - self_pos),
+				_v.place(rec["data"]["pos"]),
+				_v.recency(rec["age"]),
+			])
 			break
 	return "\n".join(out)
 
@@ -229,7 +287,10 @@ func threat_summary(self_pos: Vector2, hostiles: Array) -> String:
 			return "shots from the %s" % _v.compass(_memory.under_fire_from())
 		return ""
 	var t: Dictionary = hostiles[0]
-	var desc := "%s, %s" % ["in sight" if t["visible"] else "last seen %s" % _v.recency(t["age"]), _v.dist_band(self_pos.distance_to(t["pos"]))]
+	var desc := "%s, %s" % [
+		"in sight" if t["visible"] else "last seen %s" % _v.recency(t["age"]),
+		_v.dist_band(self_pos.distance_to(t["pos"])),
+	]
 	var aim := _v.aim_text(t, self_pos, [])
 	if aim != "":
 		desc += ", " + aim
@@ -244,7 +305,11 @@ func _contact_line(c: Dictionary, self_pos: Vector2, everyone: Array) -> String:
 	var parts: Array = [
 		"%s — %s" % [c["name"], ("HOSTILE (%s)" % c["reason"]) if c["hostile"] else "neutral"],
 		"in sight" if c["visible"] else "last seen %s" % _v.recency(c["age"]),
-		"%s, %s of you, %s" % [_v.dist_band(self_pos.distance_to(c["pos"])), _v.compass(c["pos"] - self_pos), _v.where(c)],
+		"%s, %s of you, %s" % [
+			_v.dist_band(self_pos.distance_to(c["pos"])),
+			_v.compass(c["pos"] - self_pos),
+			_v.where(c),
+		],
 		_v.move_text(c, self_pos),
 	]
 	var aim := _v.aim_text(c, self_pos, everyone)

@@ -1,11 +1,17 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
 ## AI domain: an optional debug overlay that draws, in the world next to the NPC, what its brain is
 ## doing — a floating ACTION LABEL (the controller's live decision, from `debug_status()`) and its
 ## current MOVEMENT PATH (the NavigationAgent2D's path, polyline + waypoints + target marker). Two
-## independent toggles (`show_actions`, `show_path`). Draw-only — it reads the sibling GoalController
-## and NavigationAgent2D through their public API, senses nothing and feeds nothing back (follows the
-## "draw on its own child Node2D" convention, like vision_debug.gd).
+## independent toggles (`show_actions`, `show_path`). Draw-only — it reads the sibling
+## GoalController and NavigationAgent2D through their public API, senses nothing and feeds nothing
+## back (follows the "draw on its own child Node2D" convention, like vision_debug.gd).
+
+## Point size of the label font.
+const LABEL_FONT_SIZE := 11
+## Radius (px) of a waypoint dot on the path.
+const WAYPOINT_RADIUS := 2.5
+## Radius (px) of the ring drawn at the path's final target.
+const TARGET_RADIUS := 6.0
 
 ## Whether to draw the floating action label above the NPC.
 @export var show_actions: bool = true
@@ -20,14 +26,8 @@ extends "res://scenes/ai/debug/debug_overlay.gd"
 ## Pixels below the NPC's origin to anchor the label (keeps it clear of the match HUD panel above).
 @export var label_offset: float = 28.0
 
-## Point size of the label font.
-const LABEL_FONT_SIZE := 11
-## Radius (px) of a waypoint dot on the path.
-const WAYPOINT_RADIUS := 2.5
-## Radius (px) of the ring drawn at the path's final target.
-const TARGET_RADIUS := 6.0
-
-var _agent: NavigationAgent2D     ## The nav agent read for the movement path.
+## The nav agent read for the movement path.
+var _agent: NavigationAgent2D
 
 
 func _ready() -> void:
@@ -48,8 +48,8 @@ func _paint() -> void:
 		_draw_label(_controller.debug_status())
 
 
-## Draw the agent's remaining navigation path as a polyline, a dot at each waypoint, and a ring at the
-## final target. Nothing is drawn when the path has no remaining segment (an idle/arrived NPC).
+## Draw the agent's remaining navigation path as a polyline, a dot at each waypoint, and a ring at
+## the final target. Nothing is drawn when the path has no remaining segment (an idle/arrived NPC).
 func _draw_path() -> void:
 	var path: PackedVector2Array = _agent.get_current_navigation_path()
 	if path.size() < 2:
@@ -71,6 +71,9 @@ func _draw_label(text: String) -> void:
 	if text == "":
 		return
 	var font: Font = ThemeDB.fallback_font
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE).x
+	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE)
+	var width: float = text_size.x
 	var pos := Vector2(-width / 2.0, label_offset)
-	DebugText.string(self, font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE, label_color)
+	DebugText.string(
+		self, font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE, label_color,
+	)

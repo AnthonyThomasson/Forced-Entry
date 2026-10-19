@@ -1,16 +1,17 @@
 extends GameTest
-
-## A falling body's parts keep their draw order (character_visuals.gd, `_stack`). A pair of parts only
-## swaps over or under each other once their heights differ by more than STACK_BAND; while they sit within
-## the band of one another, the order they were drawn in holds, so a limb lying across the trunk does not
-## flicker. Shoots a one-hit target and, every frame of its fall, checks that no pair swapped while both
-## were within the band. Reads the last drawn order (`_fallen_order`) and the parts' heights; draws nothing.
+## A falling body's parts keep their draw order (character_visuals.gd, `_stack`). A pair of parts
+## only swaps over or under each other once their heights differ by more than STACK_BAND; while they
+## sit within the band of one another, the order they were drawn in holds, so a limb lying across
+## the trunk does not flicker. Shoots a one-hit target and, every frame of its fall, checks that no
+## pair swapped while both were within the band. Reads the last drawn order (`_fallen_order`) and
+## the parts' heights; draws nothing.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Falling body keeps its draw order",
-		"description": "A shot target falls; no two of its parts swap draw order while their heights are within the stacking band.",
+		"description": "A shot target falls; no two of its parts swap draw order while their "
+			+ "heights are within the stacking band.",
 		"tags": ["draw", "ragdoll", "flicker"],
 		"timeout": 12.0,
 	}
@@ -22,7 +23,8 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"physics.blood", false)
 	s.actor(&"shooter", &"puppet", Vector2(200, 250), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(560, 250), { "max_health": 1.0 })
-	s.camera_follow([&"target"])  # The camera stays on the body: one out of its view is not drawn, so its order would not change.
+	# The camera stays on the body: one out of its view is not drawn, so its order would not change.
+	s.camera_follow([&"target"])
 
 
 ## The highest part of a body, by height.
@@ -38,7 +40,13 @@ func run(t: TestContext) -> void:
 	shooter.aim_at(t.actor(&"target"))
 	await t.seconds(0.4)
 	shooter.shoot()
-	if not t.require(await t.until(func(): return t.happened(&"died", func(d): return d["actor"] == &"target"), 2.0), "the target dies"):
+	if not t.require(
+			await t.until(
+				func(): return t.happened(&"died", func(d): return d["actor"] == &"target"),
+				2.0,
+			),
+			"the target dies",
+	):
 		return
 
 	var target: Node = t.actor(&"target")
@@ -85,5 +93,11 @@ func run(t: TestContext) -> void:
 	t.check(target.is_dead, "the target is dead")
 	t.check(start_top > 0.0 and low_top < start_top * 0.5,
 		"the body fell: highest part went from %.1f to %.1f" % [start_top, low_top])
-	t.check(frames_sampled > 30, "the draw order was sampled over the fall (%d frames)" % frames_sampled)
-	t.check(near_swaps == 0, "%d draw-order swaps happened while parts were within the stacking band" % near_swaps)
+	t.check(
+		frames_sampled > 30,
+		"the draw order was sampled over the fall (%d frames)" % frames_sampled,
+	)
+	t.check(
+		near_swaps == 0,
+		"%d draw-order swaps happened while parts were within the stacking band" % near_swaps,
+	)

@@ -1,20 +1,23 @@
 extends GameTest
-
-## Generated rooms are not left bare: every room's solid furniture covers at least a floor share of its
-## floor (lower for corridors), the fill pass puts more in than the recipe's zones alone, and the
-## WorldGenConfig knobs really switch it off.
+## Generated rooms are not left bare: every room's solid furniture covers at least a floor share of
+## its floor (lower for corridors), the fill pass puts more in than the recipe's zones alone, and
+## the WorldGenConfig knobs really switch it off.
 
 const SEEDS := [11, 12, 13]
 const FAR_AWAY := Vector2(5000, 5000)
-const MIN_COVER := 0.08  ## Fraction of a room's interior its solid pieces must cover.
-const MIN_COVER_CORRIDOR := 0.03  ## Hallways and security vestibules are mostly walking space.
+## Fraction of a room's interior its solid pieces must cover.
+const MIN_COVER := 0.08
+## Hallways and security vestibules are mostly walking space.
+const MIN_COVER_CORRIDOR := 0.03
 const CORRIDORS := ["hallway", "security_vestibule"]
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Generated rooms are furnished, not bare",
-		"description": "Every room of every floorplan has a minimum share of its floor covered by solid furniture; the fill pass adds pieces over a zones-only house and WorldGenConfig.fill_scale = 0 turns it off.",
+		"description": "Every room of every floorplan has a minimum share of its floor covered by "
+			+ "solid furniture; the fill pass adds pieces over a zones-only house and "
+			+ "WorldGenConfig.fill_scale = 0 turns it off.",
 		"tags": ["worldgen", "house", "furniture", "fill"],
 		"timeout": 30.0,
 	}
@@ -27,7 +30,8 @@ func configure(s: TestSetup) -> void:
 	s.set_static(WorldGenConfig, &"fill_enabled", WorldGenConfig.fill_enabled)
 
 
-## The solid pieces and their combined footprint area in each room of `house`: key -> { count, area }.
+## The solid pieces and their combined footprint area in each room of `house`: key -> { count, area
+## }.
 func _furniture(house: Node2D) -> Dictionary:
 	var result := {}
 	for room in WorldGen.get_rooms(house):
@@ -43,9 +47,9 @@ func _furniture(house: Node2D) -> Dictionary:
 	return result
 
 
-## Total solid pieces across every plan and seed, and (when `check_cover`) the per-room cover assertions. The
-## houses are built under a node that is never in the tree: only their pieces' fields and metas are read, so
-## there is no need to paint, collide or register anything.
+## Total solid pieces across every plan and seed, and (when `check_cover`) the per-room cover
+## assertions. The houses are built under a node that is never in the tree: only their pieces'
+## fields and metas are read, so there is no need to paint, collide or register anything.
 func _survey(t: TestContext, check_cover: bool) -> int:
 	var pieces := 0
 	var holder := Node2D.new()
@@ -58,9 +62,20 @@ func _survey(t: TestContext, check_cover: bool) -> int:
 				pieces += f["count"]
 				if check_cover:
 					var floor_area := (room["rect"] as Rect2).grow(-12.0).get_area()
-					var floor_min: float = MIN_COVER_CORRIDOR if room["type"] in CORRIDORS else MIN_COVER
-					t.check(f["area"] / floor_area >= floor_min, "%s seed %d: the %s (%s) is %.0f%% furnished, at least %.0f%% expected" % [
-						plan, house_seed, room["key"], room["type"], 100.0 * f["area"] / floor_area, 100.0 * floor_min])
+					var floor_min: float = (MIN_COVER_CORRIDOR
+							if room["type"] in CORRIDORS
+							else MIN_COVER)
+					t.check(
+						f["area"] / floor_area >= floor_min,
+						"%s seed %d: the %s (%s) is %.0f%% furnished, at least %.0f%% expected" % [
+							plan,
+							house_seed,
+							room["key"],
+							room["type"],
+							100.0 * f["area"] / floor_area,
+							100.0 * floor_min,
+						],
+					)
 			house.free()
 	holder.free()
 	return pieces
@@ -72,7 +87,10 @@ func run(t: TestContext) -> void:
 	WorldGenConfig.fill_scale = 0.0
 	var zones_only := _survey(t, false)
 	WorldGenConfig.fill_scale = 1.0
-	t.check(filled > zones_only, "the fill pass adds pieces (%d with, %d without)" % [filled, zones_only])
+	t.check(
+		filled > zones_only,
+		"the fill pass adds pieces (%d with, %d without)" % [filled, zones_only],
+	)
 
 	WorldGenConfig.fill_enabled = false
 	var disabled := _survey(t, false)

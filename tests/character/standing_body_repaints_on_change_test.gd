@@ -1,9 +1,9 @@
 extends GameTest
-
-## A standing body is repainted only when what it draws has changed (character_visuals.gd). One standing
-## still mostly stops repainting; a walking one repaints every frame; a wound, a change of the held item and
-## a fresh walk each repaint it promptly, and it goes quiet again once it stops. Guards the idle cost of a
-## crowd (tests/perf/crowd_deaths_stress_test.gd) without leaving a stale body on screen.
+## A standing body is repainted only when what it draws has changed (character_visuals.gd). One
+## standing still mostly stops repainting; a walking one repaints every frame; a wound, a change of
+## the held item and a fresh walk each repaint it promptly, and it goes quiet again once it stops.
+## Guards the idle cost of a crowd (tests/perf/crowd_deaths_stress_test.gd) without leaving a stale
+## body on screen.
 
 ## Frames each repaint count is read over.
 const WINDOW := 120
@@ -12,7 +12,8 @@ const WINDOW := 120
 func describe() -> Dictionary:
 	return {
 		"name": "Standing body repaints only on change",
-		"description": "A still body skips most repaints, a walking one repaints every frame, and a wound, a new held item and a walk each repaint it.",
+		"description": "A still body skips most repaints, a walking one repaints every frame, and "
+			+ "a wound, a new held item and a walk each repaint it.",
 		"tags": ["draw", "pose"],
 		"timeout": 20.0,
 	}
@@ -46,7 +47,10 @@ func run(t: TestContext) -> void:
 
 	var idle := await _repaints_over_window(t, &"still")
 	t.trace("still repaints", idle)
-	t.check(idle < int(WINDOW / 2.0), "a body standing still repainted %d of %d frames" % [idle, WINDOW])
+	t.check(
+		idle < int(WINDOW / 2.0),
+		"a body standing still repainted %d of %d frames" % [idle, WINDOW],
+	)
 
 	var wound_before := _redraws(t, &"still")
 	var hit := HitInfo.new()
@@ -74,4 +78,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.5)
 	var settled := await _repaints_over_window(t, &"walker")
 	t.trace("stopped repaints", settled)
-	t.check(settled < int(WINDOW / 2.0), "a body that stopped walking repainted %d of %d frames" % [settled, WINDOW])
+	t.check(
+		settled < int(WINDOW / 2.0),
+		"a body that stopped walking repainted %d of %d frames" % [settled, WINDOW],
+	)

@@ -1,13 +1,19 @@
 extends RefCounted
+## Vehicles domain: what the vehicle painters share. A vehicle is painted in the Art domain's
+## canonical frame (front toward +y, width across), and drawn turned a quarter back onto the
+## vehicle's own frame (x forward, y toward its right side), so a painter thinks in the vehicle's
+## frame and these helpers put it on the canvas: `at` (a point), `box` (an axis-aligned box) and
+## `region` (any shape, by a test on vehicle-frame points). A door is painted in its own canonical
+## frame (`door_frame`): along its length toward the hinge, across its thickness. The seats,
+## dashboard, steering wheel and door sills every cabin has are here too, so the car and van
+## painters only differ in their bodies.
 
-## Vehicles domain: what the vehicle painters share. A vehicle is painted in the Art domain's canonical frame (front toward
-## +y, width across), and drawn turned a quarter back onto the vehicle's own frame (x forward, y toward its right side), so a
-## painter thinks in the vehicle's frame and these helpers put it on the canvas: `at` (a point), `box` (an axis-aligned box)
-## and `region` (any shape, by a test on vehicle-frame points). A door is painted in its own canonical frame (`door_frame`):
-## along its length toward the hinge, across its thickness. The seats, dashboard, steering wheel and door sills every
-## cabin has are here too, so the car and van painters only differ in their bodies.
+## Shapes built by `region` (or `cached`), by their key and canvas size.
+static var _regions: Dictionary = {}
 
-## The canvas px per vehicle px (1 unless ArtConfig.pixel_size is not), for a body `length` long painted on `c`.
+
+## The canvas px per vehicle px (1 unless ArtConfig.pixel_size is not), for a body `length` long
+## painted on `c`.
 static func scale(c: PixelCanvas, length: float) -> float:
 	return c.h / maxf(length, 1.0)
 
@@ -26,13 +32,14 @@ static func box(c: PixelCanvas, x0: float, x1: float, y0: float, y1: float, k: f
 	return Rect2i(left, top, maxi(right - left, 1), maxi(bottom - top, 1))
 
 
-## The shape of every pixel in the box (x `x0`..`x1`, y `y0`..`y1`) whose centre, in the vehicle's frame, passes `test`,
-## which must be convex along both canvas axes (each row and column one run: a windscreen, a side window). It is kept as
-## a `PixelCanvas.ConvexShape`, so filling, bevelling and outlining it cost its edge, not its area; and it depends only
-## on the geometry, never on the light, so it is built once per `key` (and canvas size) and reused for every lighting
-## step (testing every pixel is most of a paint's cost).
-static func region(c: PixelCanvas, x0: float, x1: float, y0: float, y1: float, k: float, key: String,
-		test: Callable) -> PixelCanvas.Shape:
+## The shape of every pixel in the box (x `x0`..`x1`, y `y0`..`y1`) whose centre, in the vehicle's
+## frame, passes `test`, which must be convex along both canvas axes (each row and column one run: a
+## windscreen, a side window). It is kept as a `PixelCanvas.ConvexShape`, so filling, bevelling and
+## outlining it cost its edge, not its area; and it depends only on the geometry, never on the
+## light, so it is built once per `key` (and canvas size) and reused for every lighting step
+## (testing every pixel is most of a paint's cost).
+static func region(c: PixelCanvas, x0: float, x1: float, y0: float, y1: float, k: float,
+		key: String, test: Callable) -> PixelCanvas.Shape:
 	var cache_key := "%s|%d|%d|%.4f" % [key, c.w, c.h, k]
 	if not _regions.has(cache_key):
 		var half := Vector2(c.w, c.h) * 0.5
@@ -41,8 +48,8 @@ static func region(c: PixelCanvas, x0: float, x1: float, y0: float, y1: float, k
 	return _regions[cache_key]
 
 
-## The pixels of `bounds` passing `test` (on canvas pixels), as a ConvexShape: each row's and column's first and last
-## inside pixel. A row or column with none is empty.
+## The pixels of `bounds` passing `test` (on canvas pixels), as a ConvexShape: each row's and
+## column's first and last inside pixel. A row or column with none is empty.
 static func convex(bounds: Rect2i, test: Callable) -> PixelCanvas.Shape:
 	var w := bounds.size.x
 	var h := bounds.size.y
@@ -75,25 +82,31 @@ static func convex(bounds: Rect2i, test: Callable) -> PixelCanvas.Shape:
 	return PixelCanvas.ConvexShape.new(bounds, x0, x1, y0, y1)
 
 
-## Shapes built by `region` (or `cached`), by their key and canvas size.
-static var _regions: Dictionary = {}
-
-
-## The shape `build` makes, built once per `key` (for shapes tested pixel by pixel that never depend on the light).
+## The shape `build` makes, built once per `key` (for shapes tested pixel by pixel that never depend
+## on the light).
 static func cached(key: String, build: Callable) -> PixelCanvas.Shape:
 	if not _regions.has(key):
 		_regions[key] = build.call()
 	return _regions[key]
 
 
-## The same box on both sides of the centre line (`y0`..`y1` are distances out from it): [left, right] rects.
-static func both(c: PixelCanvas, x0: float, x1: float, y0: float, y1: float, k: float) -> Array[Rect2i]:
+## The same box on both sides of the centre line (`y0`..`y1` are distances out from it): [left,
+## right] rects.
+static func both(
+	c: PixelCanvas,
+	x0: float,
+	x1: float,
+	y0: float,
+	y1: float,
+	k: float,
+) -> Array[Rect2i]:
 	return [box(c, x0, x1, -y1, -y0, k), box(c, x0, x1, y0, y1, k)]
 
 
-## How a door (its `VehicleConfig.kinds` row entry) is painted and drawn: `turn`, the rotation that takes the canonical
-## frame onto the shut door (front, +y, toward the hinge along it; across it, +x); `outer`, which way across is out of the
-## body (+1: the canonical +x side is the outside); `length`.
+## How a door (its `VehicleConfig.kinds` row entry) is painted and drawn: `turn`, the rotation that
+## takes the canonical frame onto the shut door (front, +y, toward the hinge along it; across it,
+## +x); `outer`, which way across is out of the body (+1: the canonical +x side is the outside);
+## `length`.
 static func door_frame(def: Dictionary) -> Dictionary:
 	var hinge: Vector2 = def["hinge"]
 	var handle: Vector2 = def["handle"]
@@ -105,27 +118,32 @@ static func door_frame(def: Dictionary) -> Dictionary:
 	return { "turn": turn, "outer": 1.0 if across.dot(outward) > 0.0 else -1.0, "length": length }
 
 
-## Each glazed door's glass span: [{ side (-1 left, +1 right), from, to }] (x, the `looks` row's `glass` by its door);
-## only door `only` when given.
+## Each glazed door's glass span: [{ side (-1 left, +1 right), from, to }] (x, the `looks` row's
+## `glass` by its door); only door `only` when given.
 static func door_glass(row: Dictionary, look: Dictionary, only: StringName = &"") -> Array:
 	var out := []
 	var glazed: Dictionary = look["glass"]
 	for def: Dictionary in row["doors"]:
 		if glazed.has(def["id"]) and (only == &"" or def["id"] == only):
 			var span: Vector2 = glazed[def["id"]]
-			out.append({ "side": signf((def["handle"] as Vector2).y), "from": span.x, "to": span.y })
+			out.append({
+				"side": signf((def["handle"] as Vector2).y),
+				"from": span.x,
+				"to": span.y,
+			})
 	return out
 
 
-## How far out (|y|) the windscreen reaches at x: the roof's half width where it meets the roof, `screen_half` at its base.
+## How far out (|y|) the windscreen reaches at x: the roof's half width where it meets the roof,
+## `screen_half` at its base.
 static func screen_edge(look: Dictionary, x: float) -> float:
 	var roof: Vector2 = look["roof"]
 	var t := clampf((x - roof.x) / maxf(float(look["bonnet"]) - roof.x, 1.0), 0.0, 1.0)
 	return lerpf(float(look["roof_half"]) + 1.0, float(look["screen_half"]), t)
 
 
-## Whether vehicle-frame point `p` lies in a door's side glass (`gaps` from `door_glass`): within its span, out from the
-## roof (or, beside the windscreen, from its pillar) to the belt line.
+## Whether vehicle-frame point `p` lies in a door's side glass (`gaps` from `door_glass`): within
+## its span, out from the roof (or, beside the windscreen, from its pillar) to the belt line.
 static func in_door_glass(gaps: Array, look: Dictionary, p: Vector2) -> bool:
 	var out := absf(p.y)
 	if out > float(look["belt"]) - 0.5:
@@ -141,23 +159,31 @@ static func in_door_glass(gaps: Array, look: Dictionary, p: Vector2) -> bool:
 	return false
 
 
-## Each glazed door's side-glass shape on a body canvas (its own glass is drawn by door_painter.gd where it is, so the
-## roof leaves a hole there).
-static func clear_door_glass(c: PixelCanvas, kind: StringName, row: Dictionary, look: Dictionary, k: float) -> void:
+## Each glazed door's side-glass shape on a body canvas (its own glass is drawn by door_painter.gd
+## where it is, so the roof leaves a hole there).
+static func clear_door_glass(
+	c: PixelCanvas,
+	kind: StringName,
+	row: Dictionary,
+	look: Dictionary,
+	k: float,
+) -> void:
 	var roof_half: float = look["roof_half"]
 	var belt: float = look["belt"]
 	for gap: Dictionary in door_glass(row, look):
 		var one := [gap]
 		var y0: float = roof_half if gap["side"] > 0.0 else -belt
-		c.clear(region(c, gap["from"], gap["to"], y0, y0 + belt - roof_half, k, "glass_hole/%s/%s/%s" % [kind, gap["side"], gap["from"]],
-			func(p: Vector2) -> bool: return in_door_glass(one, look, p)))
+		var hole_key := "glass_hole/%s/%s/%s" % [kind, gap["side"], gap["from"]]
+		var in_gap := func(p: Vector2) -> bool: return in_door_glass(one, look, p)
+		c.clear(region(c, gap["from"], gap["to"], y0, y0 + belt - roof_half, k, hole_key, in_gap))
 
 
-## Paint a body painter's `opts.part` for a vehicle of `opts.kind` (`default_kind` when none): its `roof` through
-## `roof(c, base, kind, row, look, k)`, else its `chassis` through `chassis(c, base, row, look, k)`, with the kind's
-## `VehicleConfig.kinds` and `looks` rows and its canvas scale.
-static func paint_parts(c: PixelCanvas, base: Color, opts: Dictionary, default_kind: StringName, chassis: Callable,
-		roof: Callable) -> void:
+## Paint a body painter's `opts.part` for a vehicle of `opts.kind` (`default_kind` when none): its
+## `roof` through `roof(c, base, kind, row, look, k)`, else its `chassis` through
+## `chassis(c, base, row, look, k)`, with the kind's `VehicleConfig.kinds` and `looks` rows and its
+## canvas scale.
+static func paint_parts(c: PixelCanvas, base: Color, opts: Dictionary, default_kind: StringName,
+		chassis: Callable, roof: Callable) -> void:
 	var kind: StringName = opts.get("kind", default_kind)
 	var row: Dictionary = VehicleConfig.kinds[kind]
 	var look: Dictionary = VehicleConfig.looks[kind]
@@ -166,15 +192,16 @@ static func paint_parts(c: PixelCanvas, base: Color, opts: Dictionary, default_k
 		roof.call(c, base, kind, row, look, k)
 	else:
 		chassis.call(c, base, row, look, k)
-	# No cast shadows: a body is repainted for every lighting step it turns through, and on a canvas this size they cost
-	# more than the rest of the painting together. Its raised parts are shaded by their bevels instead.
+	# No cast shadows: a body is repainted for every lighting step it turns through, and on a canvas
+	# this size they cost more than the rest of the painting together. Its raised parts are shaded
+	# by their bevels instead.
 
 
-## The lamps on a body's roof part: the headlights at the nose's corners over the `looks` row's `head` |y| span, `lamp` +
-## `head_extra` long and rounded `head_round` px, at height `head_height`; the unlit tail lights (`tail_lamps`) at
-## `tail_height`.
-static func lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float, head_extra: float, head_round: int,
-		head_height: int, tail_height: int) -> void:
+## The lamps on a body's roof part: the headlights at the nose's corners over the `looks` row's
+## `head` |y| span, `lamp` + `head_extra` long and rounded `head_round` px, at height `head_height`;
+## the unlit tail lights (`tail_lamps`) at `tail_height`.
+static func lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float, head_extra: float,
+		head_round: int, head_height: int, tail_height: int) -> void:
 	var half: Vector2 = (row["size"] as Vector2) * 0.5
 	var length: float = look["lamp"]
 	var head: Vector2 = look["head"]
@@ -184,21 +211,29 @@ static func lamps(c: PixelCanvas, row: Dictionary, look: Dictionary, k: float, h
 		c.bevel(lamp, 1, 1, Color.WHITE, VehicleConfig.headlight_color.darkened(0.3))
 		c.outline(lamp, VehicleConfig.trim_color)
 	for rect: Rect2 in tail_lamps(row, look):
-		var lamp := PixelCanvas.rounded(box(c, rect.position.x, rect.end.x, rect.position.y, rect.end.y, k), roundi(1 * k))
+		var lamp := PixelCanvas.rounded(
+			box(c, rect.position.x, rect.end.x, rect.position.y, rect.end.y, k),
+			roundi(1 * k),
+		)
 		c.fill(lamp, VehicleConfig.tail_off_color, tail_height)
 		c.outline(lamp, VehicleConfig.trim_color)
 
 
-## The tail lights (vehicle-frame rects, left then right): at the tail's corners, the `looks` row's `tail` |y| span, `lamp` long.
+## The tail lights (vehicle-frame rects, left then right): at the tail's corners, the `looks` row's
+## `tail` |y| span, `lamp` long.
 static func tail_lamps(row: Dictionary, look: Dictionary) -> Array[Rect2]:
 	var half: Vector2 = (row["size"] as Vector2) * 0.5
 	var tail: Vector2 = look["tail"]
 	var length: float = look["lamp"]
-	return [Rect2(-half.x + 0.5, -tail.y, length - 0.5, tail.y - tail.x), Rect2(-half.x + 0.5, tail.x, length - 0.5, tail.y - tail.x)]
+	return [
+		Rect2(-half.x + 0.5, -tail.y, length - 0.5, tail.y - tail.x),
+		Rect2(-half.x + 0.5, tail.x, length - 0.5, tail.y - tail.x),
+	]
 
 
-## A cabin's seats (vehicle-frame `seats`: id -> point), painted facing forward: a bucket for a front seat, a cushion with a
-## backrest for the others, each with a headrest. `rear_x` below which a seat is a bench place.
+## A cabin's seats (vehicle-frame `seats`: id -> point), painted facing forward: a bucket for a
+## front seat, a cushion with a backrest for the others, each with a headrest. `rear_x` below which
+## a seat is a bench place.
 static func seats(c: PixelCanvas, seats_at: Dictionary, k: float, rear_x: float) -> void:
 	var cloth := VehicleConfig.seat_color
 	var t := PixelCanvas.tones(cloth)
@@ -206,38 +241,63 @@ static func seats(c: PixelCanvas, seats_at: Dictionary, k: float, rear_x: float)
 		var p: Vector2 = seats_at[id]
 		var bench: bool = p.x < rear_x
 		var half := 13.0 if bench else 11.0
-		var cushion := PixelCanvas.rounded(box(c, p.x - 9.0, p.x + 9.0, p.y - half, p.y + half, k), roundi(3 * k))
+		var cushion := PixelCanvas.rounded(
+			box(c, p.x - 9.0, p.x + 9.0, p.y - half, p.y + half, k),
+			roundi(3 * k),
+		)
 		c.fill(cushion, cloth, 2)
 		c.surface(cushion, "fabric", cloth)
 		c.bevel(cushion, 1, 1, t["light"], t["dark"])
-		var back := PixelCanvas.rounded(box(c, p.x - 16.0, p.x - 9.0, p.y - half, p.y + half, k), roundi(2 * k))
+		var back := PixelCanvas.rounded(
+			box(c, p.x - 16.0, p.x - 9.0, p.y - half, p.y + half, k),
+			roundi(2 * k),
+		)
 		c.fill(back, t["light"], 4)
 		c.bevel(back, 1, 1, t["highlight"], t["dark"])
-		var rest := PixelCanvas.rounded(box(c, p.x - 15.0, p.x - 11.0, p.y - 5.0, p.y + 5.0, k), roundi(1 * k))
+		var rest := PixelCanvas.rounded(
+			box(c, p.x - 15.0, p.x - 11.0, p.y - 5.0, p.y + 5.0, k),
+			roundi(1 * k),
+		)
 		c.fill(rest, t["dark"], 6)
 		c.outline(rest, t["shadow"])
 		if not bench:
-			c.line(at(c, Vector2(p.x - 7.0, p.y), k), at(c, Vector2(p.x + 7.0, p.y), k), t["dark"])  # the bucket's seam
+			# the bucket's seam
+			c.line(at(c, Vector2(p.x - 7.0, p.y), k), at(c, Vector2(p.x + 7.0, p.y), k), t["dark"])
 
 
-## A dashboard across the cabin from x `dash.x` to `dash.y` (|y| up to `half`) and a steering wheel ahead of `driver`
-## at x `wheel_x`: seen from above, a narrow ring tipped toward the driver.
-static func dashboard(c: PixelCanvas, dash: Vector2, half: float, wheel_x: float, driver: Vector2, k: float) -> void:
+## A dashboard across the cabin from x `dash.x` to `dash.y` (|y| up to `half`) and a steering wheel
+## ahead of `driver` at x `wheel_x`: seen from above, a narrow ring tipped toward the driver.
+static func dashboard(
+	c: PixelCanvas,
+	dash: Vector2,
+	half: float,
+	wheel_x: float,
+	driver: Vector2,
+	k: float,
+) -> void:
 	var trim := VehicleConfig.trim_color
 	var t := PixelCanvas.tones(trim.lightened(0.12))
 	var board := PixelCanvas.rounded(box(c, dash.x, dash.y, -half, half, k), roundi(3 * k))
 	c.fill(board, t["base"], 5)
 	c.bevel(board, 1, 2, t["highlight"], t["shadow"])
-	var hood := PixelCanvas.rounded(box(c, dash.x - 2.0, dash.x + 6.0, driver.y - 9.0, driver.y + 9.0, k), roundi(2 * k))
+	var hood := PixelCanvas.rounded(
+		box(c, dash.x - 2.0, dash.x + 6.0, driver.y - 9.0, driver.y + 9.0, k),
+		roundi(2 * k),
+	)
 	c.fill(hood, trim, 6)
-	var rim := PixelCanvas.ellipse(box(c, wheel_x - 3.0, wheel_x + 3.0, driver.y - 9.0, driver.y + 9.0, k))
+	var rim := PixelCanvas.ellipse(
+		box(c, wheel_x - 3.0, wheel_x + 3.0, driver.y - 9.0, driver.y + 9.0, k),
+	)
 	c.fill(rim, trim, 7)
-	var hub := PixelCanvas.ellipse(box(c, wheel_x - 1.5, wheel_x + 1.5, driver.y - 6.0, driver.y + 6.0, k))
+	var hub := PixelCanvas.ellipse(
+		box(c, wheel_x - 1.5, wheel_x + 1.5, driver.y - 6.0, driver.y + 6.0, k),
+	)
 	c.fill(hub, t["base"], 6)
 	c.px(at(c, Vector2(wheel_x, driver.y), k).x, at(c, Vector2(wheel_x, driver.y), k).y, trim, 7)
 
 
-## Under each door the sill it stands on and the gap it closes, from the body's edge in to `belt` (shown once it opens).
+## Under each door the sill it stands on and the gap it closes, from the body's edge in to `belt`
+## (shown once it opens).
 static func sills(c: PixelCanvas, doors: Array, belt: float, k: float) -> void:
 	var sill := VehicleConfig.interior_color.darkened(0.25)
 	for def: Dictionary in doors:
@@ -245,8 +305,17 @@ static func sills(c: PixelCanvas, doors: Array, belt: float, k: float) -> void:
 		var length: float = door_frame(def)["length"]
 		var r: Rect2i
 		if def["kind"] == &"rear":
-			r = box(c, hinge.x, hinge.x + 4.0, minf(hinge.y, def["handle"].y), maxf(hinge.y, def["handle"].y), k)
+			r = box(
+				c,
+				hinge.x,
+				hinge.x + 4.0,
+				minf(hinge.y, def["handle"].y),
+				maxf(hinge.y, def["handle"].y),
+				k,
+			)
 		else:
-			var back: float = hinge.x - length if def["kind"] == &"slide" else (def["handle"] as Vector2).x
+			var back: float = (hinge.x - length
+					if def["kind"] == &"slide"
+					else (def["handle"] as Vector2).x)
 			r = box(c, back, hinge.x, signf(hinge.y) * belt, hinge.y, k)
 		c.fill(PixelCanvas.rounded(r, 0), sill, 1)

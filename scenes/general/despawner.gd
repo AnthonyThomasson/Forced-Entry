@@ -1,5 +1,4 @@
 extends Node
-
 ## General domain: autoloaded as `Despawner`. Any system that spawns transient world debris
 ## (casings, chips) hands the node to `track()`; once the live count passes `max_scene_objects` the
 ## oldest are freed, so the scene never accumulates debris without bound. Nodes that free themselves

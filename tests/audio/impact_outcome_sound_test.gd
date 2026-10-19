@@ -1,9 +1,8 @@
 extends GameTest
-
-## What strikes the surface changes the sound: a round that glances off something hard *ricochets* (a wall in
-## plaster, a car in metal), and a fist *punches* (a body, a chair, a wall). Each is checked with a real shot or
-## swing, with the ballistics tuned only as far as needed to make the outcome certain (a *blocked* round is
-## impact_blocked_sound).
+## What strikes the surface changes the sound: a round that glances off something hard *ricochets*
+## (a wall in plaster, a car in metal), and a fist *punches* (a body, a chair, a wall). Each is
+## checked with a real shot or swing, with the ballistics tuned only as far as needed to make the
+## outcome certain (a *blocked* round is impact_blocked_sound).
 
 const Probe := preload("res://tests/_audio/sound_probe.gd")
 
@@ -11,7 +10,8 @@ const Probe := preload("res://tests/_audio/sound_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "Ricochet and punch impacts have their own sounds",
-		"description": "A glancing pistol round off a wall and a car is heard as `ricochet` (plaster and metal), and fists on a body, a chair and a wall as `punch`.",
+		"description": "A glancing pistol round off a wall and a car is heard as `ricochet` "
+			+ "(plaster and metal), and fists on a body, a chair and a wall as `punch`.",
 		"tags": ["sound", "impact", "ricochet", "punch", "projectile"],
 		"timeout": 12.0,
 	}
@@ -20,13 +20,15 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
 	s.switch(&"projectile.flyover", false)
-	s.switch(&"nav.rebake", false)  # shot furniture is shoved into overlaps; re-baking them logs a nav sync error
+	# shot furniture is shoved into overlaps; re-baking them logs a nav sync error
+	s.switch(&"nav.rebake", false)
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:
 		straight[gun]["spread_deg"] = 0.0
 	s.set_static(GunConfig, &"guns", straight)
-	# Glancing shots: one along the north wall, one down the west face of a car in the middle of the room.
+	# Glancing shots: one along the north wall, one down the west face of a car in the middle of the
+	# room.
 	s.actor(&"skimmer", &"puppet", Vector2(100, 100), { "start_slot": 3 })
 	s.actor(&"racer", &"puppet", Vector2(300, 100), { "start_slot": 3 })
 	s.object(&"car", "car", Vector2(500, 300))
@@ -38,8 +40,15 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"boxer_wall", &"puppet", Vector2(26, 450), { "start_slot": 2 })
 
 
-func _first(t: TestContext, near: Vector2, radius: float, kind: StringName = &"impact") -> Dictionary:
-	var heard := Probe.sounds(t, kind).filter(func(d): return d["position"].distance_to(near) < radius)
+func _first(
+	t: TestContext,
+	near: Vector2,
+	radius: float,
+	kind: StringName = &"impact",
+) -> Dictionary:
+	var heard := Probe.sounds(t, kind).filter(
+		func(d): return d["position"].distance_to(near) < radius,
+	)
 	return heard[0] if not heard.is_empty() else {}
 
 
@@ -53,12 +62,21 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	var wall: Dictionary = _first(t, Vector2(700, 6), 60.0)
 	if t.check(not wall.is_empty(), "the shot skimming the north wall was heard"):
-		t.expect_eq(wall["profile"], &"impact/wall/ricochet/medium", "it ricocheted off the plaster")
+		t.expect_eq(
+			wall["profile"],
+			&"impact/wall/ricochet/medium",
+			"it ricocheted off the plaster",
+		)
 	var car: Dictionary = _first(t, Vector2(437, 396), 60.0)
 	if t.check(not car.is_empty(), "the shot scraping the car was heard"):
 		t.expect_eq(car["profile"], &"impact/metal/ricochet/medium", "it ricocheted off the metal")
-	t.check(t.happened(&"hit", func(d): return d["outcome"] == &"ricochet" and d["material"] == "metal"),
-		"the hit event itself says ricochet off metal")
+	t.check(
+		t.happened(
+			&"hit",
+			func(d): return d["outcome"] == &"ricochet" and d["material"] == "metal",
+		),
+		"the hit event itself says ricochet off metal",
+	)
 
 	# --- Punches.
 	t.puppet(&"boxer_body").aim_at(t.actor(&"victim"))
@@ -68,7 +86,12 @@ func run(t: TestContext) -> void:
 	for boxer in [&"boxer_body", &"boxer_chair", &"boxer_wall"]:
 		t.puppet(boxer).punch()
 	await t.seconds(0.8)
-	var punches := Probe.sounds(t, &"impact", "impact/").filter(func(d): return String(d["profile"]).ends_with("/punch"))
-	t.check(Probe.profiles(punches).has(&"impact/flesh/punch"), "a punch on a body is heard as flesh (%s)" % [Probe.profiles(punches)])
+	var punches := Probe.sounds(t, &"impact", "impact/").filter(
+		func(d): return String(d["profile"]).ends_with("/punch"),
+	)
+	t.check(
+		Probe.profiles(punches).has(&"impact/flesh/punch"),
+		"a punch on a body is heard as flesh (%s)" % [Probe.profiles(punches)],
+	)
 	t.check(Probe.profiles(punches).has(&"impact/wood/punch"), "a punch on a chair as wood")
 	t.check(Probe.profiles(punches).has(&"impact/wall/punch"), "a punch on a wall as plaster")

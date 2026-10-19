@@ -1,9 +1,9 @@
 extends GameTest
-
-## The nav re-bake fuses overlapping furniture footprints into one hole each (`NavBuilder._union_outlines`). That is the
-## costliest step of a re-bake (it ran a polygon merge for every pair of footprints), so it skips the merge for two
-## footprints whose bounding boxes are apart: the union of such a pair is the pair, as the merge would have said. This
-## pins the result to the plain every-pair merge, outline for outline, over sixteen generated houses.
+## The nav re-bake fuses overlapping furniture footprints into one hole each
+## (`NavBuilder._union_outlines`). That is the costliest step of a re-bake (it ran a polygon merge
+## for every pair of footprints), so it skips the merge for two footprints whose bounding boxes are
+## apart: the union of such a pair is the pair, as the merge would have said. This pins the result
+## to the plain every-pair merge, outline for outline, over sixteen generated houses.
 
 const SEEDS := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 
@@ -11,7 +11,8 @@ const SEEDS := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 func describe() -> Dictionary:
 	return {
 		"name": "The furniture union skips only merges that would change nothing",
-		"description": "NavBuilder fuses furniture footprints into holes; skipping the merge for boxes that are apart gives exactly the outlines the full every-pair merge does.",
+		"description": "NavBuilder fuses furniture footprints into holes; skipping the merge for "
+			+ "boxes that are apart gives exactly the outlines the full every-pair merge does.",
 		"tags": ["bake", "furniture", "holes"],
 		"timeout": 30.0,
 	}
@@ -35,7 +36,11 @@ func run(t: TestContext) -> void:
 			outlines.append(local)
 		var fast: Array = NavBuilder._union_outlines(outlines)
 		var full: Array = _union_every_pair(outlines)
-		t.check(fast == full, "seed %d: %d footprints fuse into %d holes, the same as the every-pair merge" % [house_seed, outlines.size(), full.size()])
+		t.check(
+			fast == full,
+			"seed %d: %d footprints fuse into %d holes, the same as the every-pair merge"
+				% [house_seed, outlines.size(), full.size()],
+		)
 		holder.queue_free()
 
 
@@ -47,7 +52,9 @@ func _union_every_pair(outlines: Array) -> Array:
 		var k := 0
 		while k < out.size():
 			var fused := Geometry2D.merge_polygons(cur, out[k])
-			var outer: Array = fused.filter(func(poly: PackedVector2Array) -> bool: return not Geometry2D.is_polygon_clockwise(poly))
+			var outer: Array = fused.filter(func(poly: PackedVector2Array) -> bool: return (
+				not Geometry2D.is_polygon_clockwise(poly)
+			))
 			if outer.size() == 1:
 				cur = outer[0]
 				out.remove_at(k)

@@ -1,13 +1,9 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: the NPC's decision machinery. A "thinking…" badge while Von is being asked, a red
-## FALLBACK badge when the last walk failed (the NPC then holds steady), the time to the next decision and
-## why the last one was forced, the commitment / tactic timers, the facts that hold, and — per level of
-## the last walk — Von's probability bars with the pick highlighted. Reads the controller's `debug_brain()`
-## only.
-
-## Whether to draw the brain overlay.
-@export var show_brain: bool = false
+## AI domain, debug: the NPC's decision machinery. A "thinking…" badge while Von is being asked, a
+## red FALLBACK badge when the last walk failed (the NPC then holds steady), the time to the next
+## decision and why the last one was forced, the commitment / tactic timers, the facts that hold,
+## and — per level of the last walk — Von's probability bars with the pick highlighted. Reads the
+## controller's `debug_brain()` only.
 
 const THINK := Color(1.0, 0.85, 0.2)
 const FAIL := Color(1.0, 0.3, 0.3)
@@ -21,6 +17,9 @@ const LINE_H := 21.0
 const MAX_BARS := 4
 ## How long (s) after a forced decision its reason stays shown.
 const FORCE_SHOW := 4.0
+
+## Whether to draw the brain overlay.
+@export var show_brain: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -38,10 +37,28 @@ func _paint() -> void:
 	var font := ThemeDB.fallback_font
 	if b["pending"]:
 		var dots := ".".repeat(1 + int(GameClock.msec() / 300.0) % 3)
-		DebugText.string(self, font, Vector2(x, y), "THINKING" + dots, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE + 2, THINK)
+		DebugText.string(
+			self,
+			font,
+			Vector2(x, y),
+			"THINKING" + dots,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE + 2,
+			THINK,
+		)
 		y += LINE_H + 2
 	if b["failed"]:
-		DebugText.string(self, font, Vector2(x, y), "FALLBACK: no decision, holding", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE + 1, FAIL)
+		DebugText.string(
+			self,
+			font,
+			Vector2(x, y),
+			"FALLBACK: no decision, holding",
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE + 1,
+			FAIL,
+		)
 		y += LINE_H + 2
 	# Timers: next decision, plus the commitment / tactic countdowns the behaviour is on.
 	var t: Dictionary = b.get("timers", {})
@@ -50,25 +67,61 @@ func _paint() -> void:
 		parts.append("tactic %.1fs" % t["tactic"])
 	if t.get("commit", 0.0) > 0.0:
 		parts.append("commit %.1fs" % t["commit"])
-	DebugText.string(self, font, Vector2(x, y), " · ".join(parts), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, TEXT)
+	DebugText.string(
+		self,
+		font,
+		Vector2(x, y),
+		" · ".join(parts),
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		FONT_SIZE,
+		TEXT,
+	)
 	y += LINE_H
-	_timer_arc(_character.global_position, 33.0, 1.0 - b["decide_in"] / maxf(b["decide_interval"], 0.01), THINK, 2.0)
+	_timer_arc(
+		_character.global_position,
+		33.0,
+		1.0 - b["decide_in"] / maxf(b["decide_interval"], 0.01),
+		THINK,
+		2.0,
+	)
 	if b["force_reason"] != "" and b["force_age"] <= FORCE_SHOW:
-		DebugText.string(self, font, Vector2(x, y), "forced: %s" % b["force_reason"], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, THINK)
+		DebugText.string(
+			self,
+			font,
+			Vector2(x, y),
+			"forced: %s" % b["force_reason"],
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE,
+			THINK,
+		)
 		y += LINE_H
 	var facts: Array = []
 	for k in b["facts"]:
 		if b["facts"][k] == true:
 			facts.append(str(k))
 	if not facts.is_empty():
-		DebugText.string(self, font, Vector2(x, y), "facts: " + ", ".join(facts), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color(0.7, 0.9, 1.0, 0.85))
+		DebugText.string(
+			self,
+			font,
+			Vector2(x, y),
+			"facts: " + ", ".join(facts),
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE,
+			Color(0.7, 0.9, 1.0, 0.85),
+		)
 		y += LINE_H
 	# One block per level of the last walk: the node and Von's probability for each offered option.
 	for level in b["levels"]:
 		y += 3.0
 		var auto: bool = level.get("auto", false)
-		DebugText.string(self, font, Vector2(x, y), "%s%s" % [level["node"], " (auto)" if auto else " %dms" % level.get("ms", 0)],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, TEXT)
+		DebugText.string(
+			self, font, Vector2(x, y),
+			"%s%s" % [level["node"], " (auto)" if auto else " %dms" % level.get("ms", 0)],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, TEXT,
+		)
 		y += LINE_H
 		var probs: Dictionary = level.get("probabilities", {})
 		var pick: String = str(level.get("pick", ""))
@@ -78,8 +131,26 @@ func _paint() -> void:
 			var p: float = probs[id]
 			var col := PICK if str(id) == pick else BAR
 			draw_rect(Rect2(Vector2(x, y - 12), Vector2(BAR_W * clampf(p, 0.0, 1.0), 12)), col)
-			DebugText.string(self, font, Vector2(x + BAR_W + 4, y), "%s %d%%" % [id, int(p * 100.0)], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1, col)
+			DebugText.string(
+				self,
+				font,
+				Vector2(x + BAR_W + 4, y),
+				"%s %d%%" % [id, int(p * 100.0)],
+				HORIZONTAL_ALIGNMENT_LEFT,
+				-1,
+				FONT_SIZE - 1,
+				col,
+			)
 			y += LINE_H - 2
 		if probs.is_empty() and pick != "":
-			DebugText.string(self, font, Vector2(x, y), "→ " + pick, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE - 1, PICK)
+			DebugText.string(
+				self,
+				font,
+				Vector2(x, y),
+				"→ " + pick,
+				HORIZONTAL_ALIGNMENT_LEFT,
+				-1,
+				FONT_SIZE - 1,
+				PICK,
+			)
 			y += LINE_H - 2

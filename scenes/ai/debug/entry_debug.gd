@@ -1,16 +1,13 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: this NPC's plan for the doorway it is entering (`docs/tactical-entry.md`). The doorway and its
-## fatal funnel, the stack slots (each side the stack holds numbered, its own slot ringed), the approach waypoints, the pie arc
-## (steps done / to go) and the room points still unseen from outside, the room's corners (red hard / green soft,
-## filled once the pie saw them) and the corner it enters to, its gaze, and once the room is clear the doorways on it
-## covers (the one it holds bright) or the rear it holds; rooms it regards as cleared are outlined; the views of the doorways its walks keep
-## out of (E18) are shaded red. A badge under the
-## NPC gives the doorway, role, phase and progress, with timer arcs for the ready wait, the follow gap and the hold.
-## Reads the controller's `debug_entry_view()` only.
-
-## Whether to draw the entry plan overlay.
-@export var show_entry: bool = false
+## AI domain, debug: this NPC's plan for the doorway it is entering (`docs/tactical-entry.md`). The
+## doorway and its fatal funnel, the stack slots (each side the stack holds numbered, its own slot
+## ringed), the approach waypoints, the pie arc (steps done / to go) and the room points still
+## unseen from outside, the room's corners (red hard / green soft, filled once the pie saw them) and
+## the corner it enters to, its gaze, and once the room is clear the doorways on it covers (the one
+## it holds bright) or the rear it holds; rooms it regards as cleared are outlined; the views of the
+## doorways its walks keep out of (E18) are shaded red. A badge under the NPC gives the doorway,
+## role, phase and progress, with timer arcs for the ready wait, the follow gap and the hold. Reads
+## the controller's `debug_entry_view()` only.
 
 const DOOR := Color(0.3, 0.9, 1.0)
 const FUNNEL := Color(1.0, 0.25, 0.2)
@@ -29,9 +26,12 @@ const FUNNEL_DEPTH := 40.0
 ## Half the angle (rad) of the wedge drawn toward the room beyond a covered doorway.
 const COVER_WEDGE := 0.26
 const PHASE_NAMES := {
-	"approach": "APPROACH", "stack": "STACKED", "pie": "PIE", "cross": "CROSSING", "corner": "CORNER",
-	"clear": "CLEARING", "cover": "COVERING", "rear": "REAR SECURITY",
+	"approach": "APPROACH", "stack": "STACKED", "pie": "PIE", "cross": "CROSSING",
+	"corner": "CORNER", "clear": "CLEARING", "cover": "COVERING", "rear": "REAR SECURITY",
 }
+
+## Whether to draw the entry plan overlay.
+@export var show_entry: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -61,7 +61,8 @@ func _paint() -> void:
 	_badge(e)
 
 
-## The view of a doorway the NPC's walks keep out of (E18): a faint red polygon with the doorway's id, bold while the walk goes round the views.
+## The view of a doorway the NPC's walks keep out of (E18): a faint red polygon with the doorway's
+## id, bold while the walk goes round the views.
 func _door_view(v: Dictionary, round_views: bool) -> void:
 	var poly := PackedVector2Array()
 	for p in (v["poly"] as PackedVector2Array):
@@ -69,7 +70,11 @@ func _door_view(v: Dictionary, round_views: bool) -> void:
 	if poly.size() < 3:
 		return
 	draw_colored_polygon(poly, Color(VIEW, 0.2 if round_views else 0.08))
-	draw_polyline(PackedVector2Array(Array(poly) + [poly[0]]), Color(VIEW, 0.7 if round_views else 0.35), 1.5)
+	draw_polyline(
+		PackedVector2Array(Array(poly) + [poly[0]]),
+		Color(VIEW, 0.7 if round_views else 0.35),
+		1.5,
+	)
 	_label(v["poly"][0], "view %s" % v["id"], Color(VIEW, 0.7), Vector2(4, -4))
 
 
@@ -80,7 +85,8 @@ func _cleared_room(rect: Rect2) -> void:
 	_label(rect.position, "cleared", Color(CLEARED, 0.7), Vector2(10, 22))
 
 
-## The doorway (a thick line across it), its outward normal and the fatal funnel either side of the wall plane.
+## The doorway (a thick line across it), its outward normal and the fatal funnel either side of the
+## wall plane.
 func _doorway(e: Dictionary) -> void:
 	var d: Dictionary = e["door"]
 	var pos: Vector2 = d["pos"]
@@ -88,19 +94,26 @@ func _doorway(e: Dictionary) -> void:
 	var out: Vector2 = d["out"]
 	var half: float = float(d["width"]) * 0.5
 	var funnel := PackedVector2Array([
-		to_local(pos + along * half + out * FUNNEL_DEPTH), to_local(pos - along * half + out * FUNNEL_DEPTH),
-		to_local(pos - along * half - out * FUNNEL_DEPTH), to_local(pos + along * half - out * FUNNEL_DEPTH),
+		to_local(pos + along * half + out * FUNNEL_DEPTH),
+		to_local(pos - along * half + out * FUNNEL_DEPTH),
+		to_local(pos - along * half - out * FUNNEL_DEPTH),
+		to_local(pos + along * half - out * FUNNEL_DEPTH),
 	])
 	draw_colored_polygon(funnel, Color(FUNNEL, 0.12))
 	_line(pos - along * half, pos + along * half, DOOR, 4.0)
 	_arrow(pos, pos + out * 30.0, Color(DOOR, 0.7), 1.5)
 	# Named on the side away from the stack, clear of the slots and the NPC's badge.
-	_label(pos - along * float(e["side"]) * (half + 26.0), "%s › %s" % [e["opening"], e["into"]], DOOR, Vector2(-40, 6))
+	_label(
+		pos - along * float(e["side"]) * (half + 26.0),
+		"%s › %s" % [e["opening"], e["into"]],
+		DOOR,
+		Vector2(-40, 6),
+	)
 
 
-## The stack slots in use (and the next one free) in the file on each side the stack holds (both, when it is split: E19),
-## numbered from the door out; a lone entrant's first slots on the far side, which it slices from too, faint; this NPC's
-## slot ringed twice.
+## The stack slots in use (and the next one free) in the file on each side the stack holds (both,
+## when it is split: E19), numbered from the door out; a lone entrant's first slots on the far side,
+## which it slices from too, faint; this NPC's slot ringed twice.
 func _stack(e: Dictionary) -> void:
 	var slots: Dictionary = e["slots"]
 	var side: int = e["side"]
@@ -135,8 +148,8 @@ func _approach(e: Dictionary) -> void:
 		draw_circle(to_local(p), 3.0, APPROACH)
 
 
-## The pie: the arc on the side being sliced (steps done dim, steps to go bright, the current one ringed), the line of
-## sight through the doorway, and the room points still unseen from outside.
+## The pie: the arc on the side being sliced (steps done dim, steps to go bright, the current one
+## ringed), the line of sight through the doorway, and the room points still unseen from outside.
 func _pie(e: Dictionary) -> void:
 	var queue: Array = e["pie_queue"]
 	var pie: Dictionary = e["pie"]
@@ -159,9 +172,9 @@ func _pie(e: Dictionary) -> void:
 	_line(me, door + (door - me).normalized() * 260.0, Color(PIE, 0.35), 1.0)
 
 
-## The room's corners: red hard / green soft, filled once seen from outside (by this NPC's own pie: a follower never
-## slices one), tagged "hidden" while the pie runs; the corner this NPC enters to, with an arrow from the NPC while it
-## crosses or takes it.
+## The room's corners: red hard / green soft, filled once seen from outside (by this NPC's own pie:
+## a follower never slices one), tagged "hidden" while the pie runs; the corner this NPC enters to,
+## with an arrow from the NPC while it crosses or takes it.
 func _corners(e: Dictionary) -> void:
 	for c in e["corners"]:
 		var col := HARD if c["hard"] else SOFT
@@ -180,8 +193,9 @@ func _corners(e: Dictionary) -> void:
 		_arrow(_character.global_position, corner, Color(1, 1, 1, 0.7), 1.5)
 
 
-## Once the room is clear: each doorway on, a line from where it would be covered through it and a wedge into the room
-## beyond (the one this NPC holds bright, the rest faint; a lone entrant's sweep numbered), or the rear it holds.
+## Once the room is clear: each doorway on, a line from where it would be covered through it and a
+## wedge into the room beyond (the one this NPC holds bright, the rest faint; a lone entrant's sweep
+## numbered), or the rear it holds.
 func _covering(e: Dictionary) -> void:
 	if e["phase"] == "rear":
 		var spot: Vector2 = e["rear_spot"]
@@ -201,8 +215,10 @@ func _covering(e: Dictionary) -> void:
 		_line(from, pos, col, 1.5 if held else 1.0)
 		var dir := (pos - from).normalized()
 		var far := 160.0
-		var wedge := PackedVector2Array([to_local(pos),
-			to_local(pos + dir.rotated(COVER_WEDGE) * far), to_local(pos + dir.rotated(-COVER_WEDGE) * far)])
+		var wedge := PackedVector2Array([
+			to_local(pos), to_local(pos + dir.rotated(COVER_WEDGE) * far),
+			to_local(pos + dir.rotated(-COVER_WEDGE) * far),
+		])
 		draw_colored_polygon(wedge, Color(COVER, 0.18 if held else 0.05))
 		if w["id"] == e["covering"]:
 			_ring(w["spot"], 9.0, COVER, 2.0)
@@ -217,15 +233,17 @@ func _gaze(e: Dictionary) -> void:
 	_line(me, me + (e["gaze"] as Vector2) * 120.0, Color(GAZE, 0.6), 1.5)
 
 
-## The badge under the NPC: doorway, slot and role, phase and progress; timer arcs for the ready wait, the follow
-## gap and the hold.
+## The badge under the NPC: doorway, slot and role, phase and progress; timer arcs for the ready
+## wait, the follow gap and the hold.
 func _badge(e: Dictionary) -> void:
 	var me := _character.global_position
 	var phase := str(e["phase"])
-	var text := "ENTRY · slot %d %s · %s" % [e["slot"], e["role"], PHASE_NAMES.get(phase, phase.to_upper())]
+	var text := ("ENTRY · slot %d %s · %s"
+			% [e["slot"], e["role"], PHASE_NAMES.get(phase, phase.to_upper())])
 	if phase == "pie":
 		var arc: Array = e["pie"][int(e["pie_side"])]
-		text += " %d/%d (side %d/2)" % [arc.size() - (e["pie_queue"] as Array).size(), arc.size(), e["pie_sides"]]
+		text += (" %d/%d (side %d/2)"
+				% [arc.size() - (e["pie_queue"] as Array).size(), arc.size(), e["pie_sides"]])
 	if phase in ["pie", "cross", "corner", "clear"]:
 		text += " · seen %d%%" % roundi(float(e["seen_fraction"]) * 100.0)
 	if phase == "cover" and str(e["covering"]) != "":
@@ -233,11 +251,23 @@ func _badge(e: Dictionary) -> void:
 	_label(me, text, DOOR, Vector2(-60, 58))
 	var timers := []
 	if float(e["ready_left"]) >= 0.0:
-		timers.append(["ready wait %.1fs" % e["ready_left"], float(e["ready_left"]) / maxf(float(e["ready_total"]), 0.01), SLOT])
+		timers.append([
+			"ready wait %.1fs" % e["ready_left"],
+			float(e["ready_left"]) / maxf(float(e["ready_total"]), 0.01),
+			SLOT,
+		])
 	if float(e["follow_left"]) >= 0.0:
-		timers.append(["follow in %.1fs" % e["follow_left"], float(e["follow_left"]) / maxf(float(e["follow_total"]), 0.01), APPROACH])
+		timers.append([
+			"follow in %.1fs" % e["follow_left"],
+			float(e["follow_left"]) / maxf(float(e["follow_total"]), 0.01),
+			APPROACH,
+		])
 	if float(e["hold_left"]) >= 0.0:
-		timers.append(["hold %.1fs" % e["hold_left"], float(e["hold_left"]) / maxf(float(e["hold_total"]), 0.01), COVER])
+		timers.append([
+			"hold %.1fs" % e["hold_left"],
+			float(e["hold_left"]) / maxf(float(e["hold_total"]), 0.01),
+			COVER,
+		])
 	for i in timers.size():
 		var t: Array = timers[i]
 		_timer_arc(me, 26.0 + 5.0 * i, clampf(t[1], 0.0, 1.0), t[2], 2.5)

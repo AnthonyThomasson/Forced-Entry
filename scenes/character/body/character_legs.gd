@@ -1,29 +1,32 @@
 extends RefCounted
-
-## Character LEGS (Character domain, animate layer): the legs' contact with the world. The rig strides, folds
-## and trails the feet wherever the pose puts them, which can be well past the body's collision circle (a
-## stride's toes, a crouch's leading knees), so this layer, stepped by
-## character.gd each physics frame after the pose, finds where each leg would stop and keeps the drawn leg there:
-## - each ankle is swept from the body centre toward where the rig would put it (a foot-sized circle, like the
-##   hands, `body_sweep.gd`) and rests at the first wall or solid piece it meets, sliding the leftover
-##   along the surface; the rig reads it back through `character.foot_clamp(i)`;
-## - the knee is judged the same way from the leg the ankle leaves: a knee that would pass through something
-##   moves the foot back by what it overshot (a crouch facing a wall keeps its knees off it), up to `KNEE_TRIES`;
-## - a foot or knee swinging into a light, pushable piece shoves it where it rests, scaled by how fast the foot is
-##   moving into it and how far it wanted to go, and capped so the piece is never driven faster than the character
-##   walks (the body's own push, `character_push.gd`). A fixed wall only stops the leg, and a foot at rest pushes nothing.
-## Other characters are solid to a leg (it rests against them) but are never shoved by it. Nothing is cast while
-## nothing is near. Tuning: CharacterConfig.leg_*.
+## Character LEGS (Character domain, animate layer): the legs' contact with the world. The rig
+## strides, folds and trails the feet wherever the pose puts them, which can be well past the body's
+## collision circle (a stride's toes, a crouch's leading knees), so this layer, stepped by
+## character.gd each physics frame after the pose, finds where each leg would stop and keeps the
+## drawn leg there:
+## - each ankle is swept from the body centre toward where the rig would put it (a foot-sized
+##   circle, like the hands, `body_sweep.gd`) and rests at the first wall or solid piece it meets,
+##   sliding the leftover along the surface; the rig reads it back through
+##   `character.foot_clamp(i)`;
+## - the knee is judged the same way from the leg the ankle leaves: a knee that would pass through
+##   something moves the foot back by what it overshot (a crouch facing a wall keeps its knees off
+##   it), up to `KNEE_TRIES`;
+## - a foot or knee swinging into a light, pushable piece shoves it where it rests, scaled by how
+##   fast the foot is moving into it and how far it wanted to go, and capped so the piece is never
+##   driven faster than the character walks (the body's own push, `character_push.gd`). A fixed wall
+##   only stops the leg, and a foot at rest pushes nothing.
+## Other characters are solid to a leg (it rests against them) but are never shoved by it. Nothing
+## is cast while nothing is near. Tuning: CharacterConfig.leg_*.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 ## The collide-and-slide a leg makes toward where the rig wants it (shared with the hands).
 const Sweep = preload("res://scenes/character/body/body_sweep.gd")
 ## The shove the body's own walking push gives (at the contact point, carried at walking pace).
 const Push = preload("res://scenes/character/character_push.gd")
-
 ## Physics layer a leg meets: walls, solid furniture and living characters (the hands' mask).
 const MASK := PhysicsLayers.SOLID
-## Nothing is cast unless something solid lies within this many px of the body centre (a leg reaches ~55).
+## Nothing is cast unless something solid lies within this many px of the body centre (a leg reaches
+## ~55).
 const NEAR := 72.0
 ## How many times a knee that would pass through something may move its foot back.
 const KNEE_TRIES := 3
@@ -86,25 +89,35 @@ func _rest_leg(space: PhysicsDirectSpaceState2D, character, rig, i: int, delta: 
 		var overshoot := knee_rested - knee_wanted
 		if overshoot.length() <= REST_EPS:
 			break
-		# The knee would pass through something: step the foot back by how far it overshot, then rest it again.
+		# The knee would pass through something: step the foot back by how far it overshot, then
+		# rest it again.
 		rested = _sweep(space, character, rested + overshoot)
 	_press(space, character, 2 + i, knee_wanted, knee_rested, delta)
 	_press(space, character, i, ankle_at, rested, delta)
-	if rested.distance_to(ankle_at) <= REST_EPS and knee_rested.distance_to(knee_wanted) <= REST_EPS:
+	if (rested.distance_to(ankle_at) <= REST_EPS
+			and knee_rested.distance_to(knee_wanted) <= REST_EPS):
 		return null
 	return rested
 
 
-## The place `target` (local px) can be reached from the body centre by a foot-sized circle: `target` itself when
-## the way is clear, else where it first touches a wall or solid piece, slid along the surface for what is left.
+## The place `target` (local px) can be reached from the body centre by a foot-sized circle:
+## `target` itself when the way is clear, else where it first touches a wall or solid piece, slid
+## along the surface for what is left.
 func _sweep(space: PhysicsDirectSpaceState2D, character, target: Vector2) -> Vector2:
-	return Sweep.circle(space, character.global_position, target, CharacterConfig.leg_radius, [character.get_rid()])
+	return Sweep.circle(
+		space,
+		character.global_position,
+		target,
+		CharacterConfig.leg_radius,
+		[character.get_rid()],
+	)
 
 
-## Shove the light piece (if any) that a point wanted at `wanted` but rested at `rested` (local px) is pressing
-## into. `slot` indexes `_prev`: how fast the point is moving, in the world, into the piece sets the strength.
-func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vector2, rested: Vector2,
-		delta: float) -> void:
+## Shove the light piece (if any) that a point wanted at `wanted` but rested at `rested` (local px)
+## is pressing into. `slot` indexes `_prev`: how fast the point is moving, in the world, into the
+## piece sets the strength.
+func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vector2,
+		rested: Vector2, delta: float) -> void:
 	var previous = _prev[slot]
 	_prev[slot] = wanted
 	var into := wanted - rested
@@ -120,13 +133,21 @@ func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vect
 	var piece := _pushable_at(space, character, at)
 	if piece == null:
 		return
-	var strength := clampf(approach / maxf(float(character.speed), 1.0), 0.0, 1.0) * clampf(depth / FULL_PRESS, 0.0, 1.0)
-	# At the point where the leg rests, so a piece pressed near an end turns; never driven faster than the character walks.
-	Push.shove(piece, dir, CharacterConfig.leg_push_impulse * strength * delta, at, float(character.speed))
+	var strength := (clampf(approach / maxf(float(character.speed), 1.0), 0.0, 1.0)
+			* clampf(depth / FULL_PRESS, 0.0, 1.0))
+	# At the point where the leg rests, so a piece pressed near an end turns; never driven faster
+	# than the character walks.
+	Push.shove(
+		piece,
+		dir,
+		CharacterConfig.leg_push_impulse * strength * delta,
+		at,
+		float(character.speed),
+	)
 
 
-## The light, pushable piece touching a foot-sized circle at world point `at`, or null: a body that takes an
-## impulse and has a mass, and is not another character.
+## The light, pushable piece touching a foot-sized circle at world point `at`, or null: a body that
+## takes an impulse and has a mass, and is not another character.
 func _pushable_at(space: PhysicsDirectSpaceState2D, character, at: Vector2) -> Node:
 	var circle := CircleShape2D.new()
 	circle.radius = CharacterConfig.leg_radius + 1.5

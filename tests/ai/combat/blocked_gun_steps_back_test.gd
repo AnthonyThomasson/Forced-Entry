@@ -1,10 +1,10 @@
 extends GameTest
-
-## The AI is not written per weapon: when its gun cannot fire because the barrel is against something, it steps
-## back instead. A defender with an assault rifle has a chair against its barrel (the chair's edge is between the
-## aim line and the barrel's line, so the line of fire to the intruder is clear and only the rifle touches it).
-## Pinned in place (speed 0) it holds fire and keeps trying to back away; free to move it steps back, the barrel
-## clears and it shoots the intruder.
+## The AI is not written per weapon: when its gun cannot fire because the barrel is against
+## something, it steps back instead. A defender with an assault rifle has a chair against its barrel
+## (the chair's edge is between the aim line and the barrel's line, so the line of fire to the
+## intruder is clear and only the rifle touches it). Pinned in place (speed 0) it holds fire and
+## keeps trying to back away; free to move it steps back, the barrel clears and it shoots the
+## intruder.
 
 ## The rifle in `GunConfig`: the slot the defender is given.
 const RIFLE_SLOT := 6
@@ -13,7 +13,9 @@ const RIFLE_SLOT := 6
 func describe() -> Dictionary:
 	return {
 		"name": "An AI with a blocked rifle steps back",
-		"description": "A chair against a defender's rifle barrel (clear line of fire): it holds fire and drives away from the chair, and once it can move it backs off, the barrel clears and it shoots the intruder.",
+		"description": "A chair against a defender's rifle barrel (clear line of fire): it holds "
+			+ "fire and drives away from the chair, and once it can move it backs off, the barrel "
+			+ "clears and it shoots the intruder.",
 		"tags": ["ai", "gun", "rifle", "wall", "back off", "scripted"],
 		"timeout": 30.0,
 	}
@@ -26,11 +28,22 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	s.set_static(GunConfig, "guns", _straight_guns())
 	# Pinned to its spot (speed 0) to begin with, aimed east at the intruder along y = 250.
-	s.actor(&"defender", &"defender", Vector2(300, 250), { "start_slot": RIFLE_SLOT, "speed": 0.0, "max_health": 400.0 })
-	# A chair whose north edge (y = 254) is just south of the defender's aim line (y = 250) and across its barrel's
-	# line (y = 259, the rifle is on the right): clear to shoot past, but the barrel is against it.
+	s.actor(
+		&"defender",
+		&"defender",
+		Vector2(300, 250),
+		{ "start_slot": RIFLE_SLOT, "speed": 0.0, "max_health": 400.0 },
+	)
+	# A chair whose north edge (y = 254) is just south of the defender's aim line (y = 250) and
+	# across its barrel's line (y = 259, the rifle is on the right): clear to shoot past, but the
+	# barrel is against it.
 	s.object(&"chair", "chair", Vector2(336, 268))
-	s.actor(&"intruder", &"puppet", Vector2(750, 250), { "start_slot": 1, "faction": &"invader", "max_health": 400.0 })
+	s.actor(
+		&"intruder",
+		&"puppet",
+		Vector2(750, 250),
+		{ "start_slot": 1, "faction": &"invader", "max_health": 400.0 },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -39,7 +52,10 @@ func run(t: TestContext) -> void:
 	var rounds: int = defender.ammo(RIFLE_SLOT)
 
 	# The defender fights: it aims at the intruder and finds its barrel against the chair.
-	if not t.require(await t.until(func(): return defender.weapon_blocked(), 10.0), "the rifle's barrel is against the chair"):
+	if not t.require(
+			await t.until(func(): return defender.weapon_blocked(), 10.0),
+			"the rifle's barrel is against the chair",
+	):
 		return
 	t.check(defender.weapon_raise() > 0.0, "the rifle is raised off the chair")
 
@@ -59,7 +75,10 @@ func run(t: TestContext) -> void:
 	# Free to move: it backs off, the barrel clears, and it shoots the intruder.
 	defender.speed = 150.0
 	t.check(await t.until(func(): return intruder.health < intruder.max_health, 14.0),
-		"once it can move it clears the chair and wounds the intruder (%.0f / %.0f)" % [intruder.health, intruder.max_health])
+		"once it can move it clears the chair and wounds the intruder (%.0f / %.0f)" % [
+			intruder.health,
+			intruder.max_health,
+		])
 	t.check(defender.ammo(RIFLE_SLOT) < rounds, "the rifle fired")
 
 

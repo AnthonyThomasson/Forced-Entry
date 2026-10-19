@@ -1,8 +1,7 @@
 extends GameTest
-
-## The human's fire button, pressed through the real input action (the path a click takes): holding it keeps an
-## automatic gun (the rifle) firing at its rate, and a semi-automatic one (the pistol) fires once per press, however
-## long it is held.
+## The human's fire button, pressed through the real input action (the path a click takes): holding
+## it keeps an automatic gun (the rifle) firing at its rate, and a semi-automatic one (the pistol)
+## fires once per press, however long it is held.
 
 ## How long the button is held (s).
 const HOLD := 1.0
@@ -11,7 +10,8 @@ const HOLD := 1.0
 func describe() -> Dictionary:
 	return {
 		"name": "The player holds the trigger for an automatic gun",
-		"description": "Holding the fire action fires the rifle at its rate and the pistol only once; releasing stops it.",
+		"description": "Holding the fire action fires the rifle at its rate and the pistol only "
+			+ "once; releasing stops it.",
 		"tags": ["player", "input", "gun", "automatic", "rifle", "pistol"],
 		"timeout": 10.0,
 	}
@@ -35,7 +35,11 @@ func run(t: TestContext) -> void:
 	Input.action_release(Keybinds.FIRE)
 	var fired: int = before - you.ammo()
 	var want := HOLD / float(GunConfig.row(&"rifle")["fire_interval"])
-	t.check(absf(fired - want) <= 2.0, "holding the button fires the rifle about %.1f rounds in %.1f s (fired %d)" % [want, HOLD, fired])
+	t.check(
+		absf(fired - want) <= 2.0,
+		"holding the button fires the rifle about %.1f rounds in %.1f s (fired %d)"
+			% [want, HOLD, fired],
+	)
 
 	# Released: nothing more.
 	var after: int = you.ammo()

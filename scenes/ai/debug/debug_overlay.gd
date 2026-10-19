@@ -1,23 +1,23 @@
 extends Node2D
-
 ## AI domain, debug: the shared base of every draw-only overlay (vision / agent / tactics / search /
-## contacts / hearing / combat / territory / targets / brain / routes / stuck / grenade / entry / entry
-## team). Each subclass declares its own `@export var show_<x>` toggle(s) (found by property name, the
-## names in the UI's OverlayRegistry), overrides `_on()` to report them and `_paint()` to draw, and reads
-## only the sibling GoalController's public getters and exports (the agent overlay also the
-## NavigationAgent2D's path) — it senses nothing and feeds nothing back. The base finds the controller and
-## character, runs PROCESS_MODE_ALWAYS so it keeps drawing while the tree is paused, redraws every frame
-## only while `_on()` is true and paints only while the NPC is alive.
+## contacts / hearing / combat / territory / targets / brain / routes / stuck / grenade / entry /
+## entry team). Each subclass declares its own `@export var show_<x>` toggle(s) (found by property
+## name, the names in the UI's OverlayRegistry), overrides `_on()` to report them and `_paint()` to
+## draw, and reads only the sibling GoalController's public getters and exports (the agent overlay
+## also the NavigationAgent2D's path) — it senses nothing and feeds nothing back. The base finds the
+## controller and character, runs PROCESS_MODE_ALWAYS so it keeps drawing while the tree is paused,
+## redraws every frame only while `_on()` is true and paints only while the NPC is alive.
 
 const DebugText := preload("res://scenes/ai/debug/debug_text.gd")
-
 const FONT_SIZE := 16
 
 ## The GoalController to read from (a sibling under the NPC).
 @export var controller_path: NodePath = NodePath("../GoalController")
 
-var _controller: Node  ## The GoalController read for the overlay's data.
-var _character: Node2D ## The NPC body this overlay is a child of.
+## The GoalController read for the overlay's data.
+var _controller: Node
+## The NPC body this overlay is a child of.
+var _character: Node2D
 
 
 func _ready() -> void:
@@ -49,7 +49,16 @@ func _paint() -> void:
 
 ## A small text label at world point `world` (drawn in this node's local space).
 func _label(world: Vector2, text: String, color: Color, offset := Vector2(6, -6)) -> void:
-	DebugText.string(self, ThemeDB.fallback_font, to_local(world) + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color)
+	DebugText.string(
+		self,
+		ThemeDB.fallback_font,
+		to_local(world) + offset,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		FONT_SIZE,
+		color,
+	)
 
 
 ## A ring (circle outline) of world radius `radius` around world point `world`.
@@ -75,8 +84,17 @@ func _arrow(a: Vector2, b: Vector2, color: Color, width := 2.0) -> void:
 	draw_line(lb, lb - dir.rotated(-0.45) * head, color, width)
 
 
-## A pie-style countdown arc around world point `world`: `fraction` (0..1) of a full circle, from the top.
+## A pie-style countdown arc around world point `world`: `fraction` (0..1) of a full circle, from
+## the top.
 func _timer_arc(world: Vector2, radius: float, fraction: float, color: Color, width := 3.0) -> void:
 	if fraction <= 0.0:
 		return
-	draw_arc(to_local(world), radius, -PI * 0.5, -PI * 0.5 + TAU * clampf(fraction, 0.0, 1.0), 24, color, width)
+	draw_arc(
+		to_local(world),
+		radius,
+		-PI * 0.5,
+		-PI * 0.5 + TAU * clampf(fraction, 0.0, 1.0),
+		24,
+		color,
+		width,
+	)

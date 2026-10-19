@@ -1,12 +1,12 @@
 class_name BloodFootprints
 extends Node
-
-## Physics System, blood: bloody footprints for a walker (a Node child of the host, composed like BloodWound). The owner
-## reports each footfall with `step`; a foot that lands in wet blood (BloodField) soaks up a load of it, and every
-## footfall after that stamps a sole print whose opacity follows the load, which drops a little per print, so the trail
-## fades out over a dozen steps. A low load prints broken and patchy (the arch and edges drop out); a fast, heavy foot
-## slips a little forward. Prints go to the world's BloodDecals. Nothing is stamped in blood that is already thick, nor
-## with BloodConfig.footprints_enabled off.
+## Physics System, blood: bloody footprints for a walker (a Node child of the host, composed like
+## BloodWound). The owner reports each footfall with `step`; a foot that lands in wet blood
+## (BloodField) soaks up a load of it, and every footfall after that stamps a sole print whose
+## opacity follows the load, which drops a little per print, so the trail fades out over a dozen
+## steps. A low load prints broken and patchy (the arch and edges drop out); a fast, heavy foot
+## slips a little forward. Prints go to the world's BloodDecals. Nothing is stamped in blood that is
+## already thick, nor with BloodConfig.footprints_enabled off.
 
 ## Points along the sole outline, per side.
 const SOLE_STEPS := 14
@@ -15,10 +15,18 @@ const SOLE_STEPS := 14
 var _load: Dictionary = {}
 
 
-## A foot lands at world `at` (the middle of the sole), toes toward unit `direction`, sole `length` x
-## `width` px, moving at `speed` px/s. `inner` is +1/-1: which side of the direction's frame (+y =
+## A foot lands at world `at` (the middle of the sole), toes toward unit `direction`, sole `length`
+## x `width` px, moving at `speed` px/s. `inner` is +1/-1: which side of the direction's frame (+y =
 ## `direction.orthogonal()`) the foot's arch faces.
-func step(foot: int, at: Vector2, direction: Vector2, length: float, width: float, inner: float, speed: float) -> void:
+func step(
+	foot: int,
+	at: Vector2,
+	direction: Vector2,
+	length: float,
+	width: float,
+	inner: float,
+	speed: float,
+) -> void:
 	if not (BloodConfig.enabled and BloodConfig.footprints_enabled):
 		return
 	var host := get_parent()
@@ -30,15 +38,28 @@ func step(foot: int, at: Vector2, direction: Vector2, length: float, width: floa
 	var soak: float = maxf(_load.get(foot, 0.0), wet * BloodConfig.pickup_gain)
 	if soak >= BloodConfig.print_min_load and wet < BloodConfig.thick_blood:
 		var poly := _sole(at, direction, length, width, inner, soak, speed)
-		var alpha := lerpf(BloodConfig.print_alpha_min, BloodConfig.print_alpha_max, clampf(soak, 0.0, 1.0))
+		var alpha := lerpf(
+			BloodConfig.print_alpha_min,
+			BloodConfig.print_alpha_max,
+			clampf(soak, 0.0, 1.0),
+		)
 		BloodDecals.layer(host.get_parent()).print_at(poly, alpha)
 		soak -= BloodConfig.print_decay
 	_load[foot] = maxf(soak, 0.0)
 
 
 ## The sole outline in world space: heel at the back, arch on the `inner` side, ball, rounded toe.
-## `soak` (the foot's load) thins the arch and roughens the edge; `speed` and `soak` slip it forward.
-func _sole(at: Vector2, direction: Vector2, length: float, width: float, inner: float, soak: float, speed: float) -> PackedVector2Array:
+## `soak` (the foot's load) thins the arch and roughens the edge; `speed` and `soak` slip it
+## forward.
+func _sole(
+	at: Vector2,
+	direction: Vector2,
+	length: float,
+	width: float,
+	inner: float,
+	soak: float,
+	speed: float,
+) -> PackedVector2Array:
 	var fraction := clampf(soak, 0.0, 1.0)
 	length += BloodConfig.print_slip * fraction * clampf(speed / 120.0, 0.0, 1.0)
 	var turn := randf_range(-1.0, 1.0) * BloodConfig.print_turn_jitter

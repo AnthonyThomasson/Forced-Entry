@@ -1,5 +1,4 @@
 extends GameTest
-
 ## Shooting a chair dents its collider into a jagged polygon and shoves it; the
 ## re-bake that follows must produce a map the NavigationServer accepts (any engine error fails the
 ## test) and a path across the arena still exists.
@@ -8,7 +7,8 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Re-baking around a dented chair",
-		"description": "A chair is shot and shoved; after the re-bake the nav map syncs without error and still routes across the arena.",
+		"description": "A chair is shot and shoved; after the re-bake the nav map syncs without "
+			+ "error and still routes across the arena.",
 		"tags": ["navigation", "rebake", "deformation", "furniture"],
 		"timeout": 10.0,
 	}

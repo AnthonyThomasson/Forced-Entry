@@ -1,15 +1,12 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
 ## AI domain, debug: the routes and exposure behind the options the NPC weighed. For each candidate
-## fire / flank / advance / retreat point it draws the navigated route there (green = hidden from known
-## hostiles, red = exposed) tagged with the route length band, whether the spot has a clear shot / cover,
-## and a flank's status ("held by X", "route passes X", "in X's line of fire"). Known hostiles that have a
-## last-seen facing get a wedge of the `watch_arc` they are looking along — the cone a spot "watched in
-## the open" is rejected for. Reads the controller's `debug_zones()` and `known_contacts_for_display()`;
-## the route is fetched from the navigation map (a pure read) and cached, since it only changes per decision.
-
-## Whether to draw the routes overlay.
-@export var show_routes: bool = false
+## fire / flank / advance / retreat point it draws the navigated route there (green = hidden from
+## known hostiles, red = exposed) tagged with the route length band, whether the spot has a clear
+## shot / cover, and a flank's status ("held by X", "route passes X", "in X's line of fire"). Known
+## hostiles that have a last-seen facing get a wedge of the `watch_arc` they are looking along — the
+## cone a spot "watched in the open" is rejected for. Reads the controller's `debug_zones()` and
+## `known_contacts_for_display()`; the route is fetched from the navigation map (a pure read) and
+## cached, since it only changes per decision.
 
 const HIDDEN := Color(0.4, 0.9, 0.5)
 const EXPOSED := Color(1.0, 0.35, 0.3)
@@ -21,9 +18,15 @@ const CACHE_TTL := 0.5
 ## Reach (px) of a hostile's watch-cone wedge.
 const WEDGE_RANGE := 170.0
 
-var _cache: Dictionary = {}  ## point (Vector2) → PackedVector2Array route from the NPC.
-var _cache_ms := 0  ## When (game msec, `GameClock.msec()`) the cached routes were fetched.
-var _cache_from := Vector2.ZERO  ## Where the NPC stood when they were fetched (moving more than 24 px away refetches them).
+## Whether to draw the routes overlay.
+@export var show_routes: bool = false
+
+## point (Vector2) → PackedVector2Array route from the NPC.
+var _cache: Dictionary = {}
+## When (game msec, `GameClock.msec()`) the cached routes were fetched.
+var _cache_ms := 0
+## Where the NPC stood when they were fetched (moving more than 24 px away refetches them).
+var _cache_from := Vector2.ZERO
 
 
 ## Whether this overlay's toggle is on.
@@ -40,7 +43,9 @@ func _paint() -> void:
 		_cache.clear()
 		_cache_ms = now
 		_cache_from = me
-	var half_arc := deg_to_rad(float(_controller.get("watch_arc") if _controller.get("watch_arc") != null else 90.0)) * 0.5
+	var half_arc := (deg_to_rad(float(_controller.get("watch_arc")
+			if _controller.get("watch_arc") != null
+			else 90.0)) * 0.5)
 	var contacts: Array = _controller.known_contacts_for_display()
 	for c in contacts:
 		var facing: Vector2 = c.get("facing", Vector2.ZERO)

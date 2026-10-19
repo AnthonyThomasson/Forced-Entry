@@ -20,3 +20,7 @@ __pycache__/
 # Coverage run folders (tools/coverage.py) and a run's scratch copy and hit shards (artifacts/tmp/, removed when it
 # ends), with the artifacts/.gdignore each run writes so Godot and the lint never load them
 artifacts/
+
+# The run config the editor's GdUnit panel writes before each run (its cases and its server's port); its reports
+# go to user://gdunit_reports/ (scenes/testing/test_report_hook.gd)
+addons/gdUnit4/GdUnitRunner.cfg

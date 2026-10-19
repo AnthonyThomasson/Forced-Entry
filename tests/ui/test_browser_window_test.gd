@@ -1,9 +1,8 @@
 extends GameTest
-
-## The test browser's checkboxes are plain data in, signals out: a test row ticks itself, a domain row and
-## the header's "Check shown" button tick (or clear) only the tests the search currently shows, ticks survive
-## a search, and "Run N checked" hands back the ticked tests' paths in list order. Driven through the
-## window's own handlers; the descriptors here are hand-made.
+## The test browser's checkboxes are plain data in, signals out: a test row ticks itself, a domain
+## row and the header's "Check shown" button tick (or clear) only the tests the search currently
+## shows, ticks survive a search, and "Run N checked" hands back the ticked tests' paths in list
+## order. Driven through the window's own handlers; the descriptors here are hand-made.
 
 const Browser := preload("res://scenes/ui/testing/test_browser_window.gd")
 
@@ -15,7 +14,8 @@ var _checked: Array = []
 func describe() -> Dictionary:
 	return {
 		"name": "Test browser ticks tests, bulk-checks what the search shows and queues them",
-		"description": "Test and domain checkboxes and the header button tick only the shown tests; ticks survive a search; Run N checked emits the ticked paths in order.",
+		"description": "Test and domain checkboxes and the header button tick only the shown "
+			+ "tests; ticks survive a search; Run N checked emits the ticked paths in order.",
 		"tags": ["test browser", "ui"],
 		"timeout": 5.0,
 	}
@@ -74,9 +74,14 @@ func run(t: TestContext) -> void:
 	_window._search.text = ""
 	_window._search.text_changed.emit("")
 	_window._run_checked.pressed.emit()
-	t.expect_eq(_queued, ["res://tests/a/one_test.gd", "res://tests/b/one_test.gd"], "Run emits the ticked paths in list order")
+	t.expect_eq(
+		_queued,
+		["res://tests/a/one_test.gd", "res://tests/b/one_test.gd"],
+		"Run emits the ticked paths in list order",
+	)
 
-	# Real clicks: the box toggles, a double-click on the label opens the test, one on the box does not.
+	# Real clicks: the box toggles, a double-click on the label opens the test, one on the box does
+	# not.
 	var played: Array = []
 	var root_window := t.world.get_window()
 	var window_size := root_window.size
@@ -88,14 +93,17 @@ func run(t: TestContext) -> void:
 	t.check(_window._checked.has("b/two") != before, "clicking the box toggles the test")
 	await _click(t, "b/two", true, true)
 	t.check(played.is_empty(), "a double-click on the box does not open the test")
-	await _click(t, "b/two", false, false)  # a double-click starts with a click that selects the row
+	# a double-click starts with a click that selects the row
+	await _click(t, "b/two", false, false)
 	t.check(played.is_empty(), "a single click on the label only selects")
 	await _click(t, "b/two", false, true)
 	t.expect_eq(played, ["res://tests/b/two_test.gd"], "a double-click on the label opens the test")
 	# A real click on a domain row's box ticks every test it holds.
 	_window._set_checked(["a/one", "a/two"], false)
 	await t.frames(1)
-	var arrow_width: float = _window._tree.get_theme_icon(&"arrow").get_width() + _window._tree.get_theme_constant(&"h_separation")  # the fold arrow sits left of the box
+	# the fold arrow sits left of the box
+	var arrow_width: float = (_window._tree.get_theme_icon(&"arrow").get_width()
+			+ _window._tree.get_theme_constant(&"h_separation"))
 	var group_rect: Rect2 = _window._tree.get_item_area_rect(_group("a"), 0)
 	var group_at: Vector2 = _window._tree.get_global_rect().position + group_rect.position \
 			+ Vector2(arrow_width + 12.0, group_rect.size.y / 2.0)
@@ -107,7 +115,10 @@ func run(t: TestContext) -> void:
 		event.pressed = pressed
 		TestContext.inject(event)
 		await t.frames(1)
-	t.check(_window._checked.has("a/one") and _window._checked.has("a/two"), "clicking a domain row's box ticks its tests")
+	t.check(
+		_window._checked.has("a/one") and _window._checked.has("a/two"),
+		"clicking a domain row's box ticks its tests",
+	)
 	root_window.size = window_size
 
 	# A headless run in progress blocks the queue button; a script error cannot be ticked.
@@ -125,8 +136,11 @@ func _tests() -> Array:
 
 
 func _test(id: String, domain: String, test_name: String, error := "") -> Dictionary:
-	return { "id": id, "path": "res://tests/%s_test.gd" % id, "name": test_name, "domain": domain, "description": "",
-		"tags": [], "requires_von": false, "manual": false, "switches": {}, "world": "arena", "error": error }
+	return {
+		"id": id, "path": "res://tests/%s_test.gd" % id, "name": test_name, "domain": domain,
+		"description": "", "tags": [], "requires_von": false, "manual": false, "switches": {},
+		"world": "arena", "error": error,
+	}
 
 
 ## Matches when every search word starts the test's name (blank matches all).
@@ -142,11 +156,13 @@ func _group(domain: String) -> TreeItem:
 	return _window._groups[domain]
 
 
-## Left-click the row of test `id` on its checkbox (`box`) or its label, as a double-click when `double`.
+## Left-click the row of test `id` on its checkbox (`box`) or its label, as a double-click when
+## `double`.
 func _click(t: TestContext, id: String, box: bool, double: bool) -> void:
 	var tree: Tree = _window._tree
 	var rect := tree.get_item_area_rect(_item(id), 0)
-	var at := tree.get_global_rect().position + rect.position + Vector2(10.0 if box else rect.size.x - 20.0, rect.size.y / 2.0)
+	var at := (tree.get_global_rect().position + rect.position
+			+ Vector2(10.0 if box else rect.size.x - 20.0, rect.size.y / 2.0))
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.button_index = MOUSE_BUTTON_LEFT

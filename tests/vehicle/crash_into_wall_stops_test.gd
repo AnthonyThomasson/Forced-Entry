@@ -1,8 +1,7 @@
 extends GameTest
-
-## V6 (ticket #54): the vehicle is a rigid body on the solid layer. Driven into a wall it is stopped there, losing most of
-## its speed on the impact, and the impact (above crash_min_speed) posts a `vehicle` crash event with its speed and the
-## struck material.
+## V6 (ticket #54): the vehicle is a rigid body on the solid layer. Driven into a wall it is stopped
+## there, losing most of its speed on the impact, and the impact (above crash_min_speed) posts a
+## `vehicle` crash event with its speed and the struck material.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 
@@ -10,7 +9,9 @@ const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "A crash into a wall stops the car",
-		"description": "The car is driven flat out into the east wall: it loses most of its speed on impact, stays this side of the wall, and a vehicle crash event carries the impact speed and a material.",
+		"description": "The car is driven flat out into the east wall: it loses most of its speed "
+			+ "on impact, stays this side of the wall, and a vehicle crash event carries the "
+			+ "impact speed and a material.",
 		"tags": ["vehicle", "car", "crash", "collision", "wall"],
 		"timeout": 25.0,
 	}
@@ -43,13 +44,27 @@ func run(t: TestContext) -> void:
 	if not t.require(crashed.call(), "driving into the wall posts a crash event"):
 		return
 	await t.frames(3)
-	t.check(before > float(crash_min), "it hit the wall faster than crash_min_speed (%.0f against %.0f px/s)" % [before, float(crash_min)])
-	t.check(car.speed() < 0.5 * before, "it loses most of its speed on the impact (%.0f -> %.0f px/s)" % [before, car.speed()])
+	t.check(
+		before > float(crash_min),
+		"it hit the wall faster than crash_min_speed (%.0f against %.0f px/s)"
+			% [before, float(crash_min)],
+	)
+	t.check(
+		car.speed() < 0.5 * before,
+		"it loses most of its speed on the impact (%.0f -> %.0f px/s)" % [before, car.speed()],
+	)
 	var crash: Dictionary = t.events_of(&"vehicle", func(d): return d.get("stage") == &"crash")[0]
 	t.check(crash.has("material"), "the crash event names the struck material")
 	t.expect_eq(crash.get("kind"), &"car", "and the vehicle's kind")
-	t.check(absf(float(crash.get("speed", 0.0)) - before) < 0.3 * before, "and the impact speed (%.0f, the car was at %.0f px/s)" % [float(crash.get("speed", 0.0)), before])
-	t.check((crash.get("position", Vector2.ZERO) as Vector2).x > 1200.0, "where it hit the east wall (%s)" % crash.get("position"))
+	t.check(
+		absf(float(crash.get("speed", 0.0)) - before) < 0.3 * before,
+		"and the impact speed (%.0f, the car was at %.0f px/s)"
+			% [float(crash.get("speed", 0.0)), before],
+	)
+	t.check(
+		(crash.get("position", Vector2.ZERO) as Vector2).x > 1200.0,
+		"where it hit the east wall (%s)" % crash.get("position"),
+	)
 
 	await t.seconds(1.0)
 	t.check(car.speed() < 20.0, "the wall has stopped it (%.1f px/s)" % car.speed())

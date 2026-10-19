@@ -48,7 +48,10 @@ Before any production code, write the tests (`domain-testing`, `test-debug`; `ma
 test worth keeping: behaviour through published interfaces, expected values from the brief, never recomputed the way
 the code computes them). All of them come before code on purpose, unlike `tdd`'s one-test-at-a-time loop: they are
 the brief's acceptance criteria, fixed at acceptance. Extend an existing test rather than add a
-near-duplicate (`tools/run_tests.sh --list <words>`). One test per acceptance criterion, through published interfaces only. Run
+near-duplicate (`tools/run_tests.sh --list <words>`). One test per acceptance criterion, through published interfaces only.
+A behaviour is proved by a simulation test (a `GameTest`, `tests/<domain>/<name>_test.gd`); a native gdUnit suite
+(`tests/<domain>/<name>_suite.gd`, `extends UnitSuite`) is for pure logic only and may add fast checks of a pure function
+beneath it, always supplementing the simulation test, never replacing it (`domain-testing`, "Native unit suites"). Run
 each alone, Bash sandbox disabled (`tools/run_tests.sh --id=<domain>/<name>`); it must **fail for the right reason**
 (the feature is missing, not a parse error, race or setup mistake). Passes at once: too loose or already built; tighten
 or say so. `git status` shows only test files (plus `sandboxes/showroom/` and any variant switch, `ticket-assets`).

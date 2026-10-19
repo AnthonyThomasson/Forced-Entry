@@ -27,6 +27,8 @@ link the file from the plan. Don't shape the behaviour around what the AI, snaps
   a set-up finding in the bundle.
 - `von_script` (scripted Von) is for one mechanism at a time (the NPC carries out a given pick; a situation offers an
   option the contrasting one doesn't). It never replaces scenario tests.
+- A native gdUnit suite (`*_suite.gd`, `UnitSuite`) is for pure logic only (a geometry helper, a wording rule) and may
+  add fast checks beneath a scenario test, never replace one (`domain-testing`, "Native unit suites").
 - **Leave the rest of the AI on:** build the world as a match does, keep defaults. Don't switch off `ai.*` behaviours,
   hold the NPC still, change its timers or remove what would be in the way. A switch or prop only when it is the
   scenario's premise (a part-spent magazine, an unkillable defender); comment why on each and list them in the report.

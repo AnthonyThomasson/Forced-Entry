@@ -1,11 +1,15 @@
 extends GameTest
-
 ## Harness self-test, first of an ordered pair: overrides a static var for this test only.
 ## static_restore_b_test then checks it came back.
 
 
 func describe() -> Dictionary:
-	return { "name": "Static override applies (1/2)", "tags": ["harness", "statics"], "internal": true, "timeout": 3.0 }
+	return {
+		"name": "Static override applies (1/2)",
+		"tags": ["harness", "statics"],
+		"internal": true,
+		"timeout": 3.0,
+	}
 
 
 func configure(s: TestSetup) -> void:

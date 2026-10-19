@@ -1,25 +1,15 @@
 extends GameTest
-
-## The match HUD announces the result once (`match_ended`): when a faction is eliminated, or when the
-## time limit runs out; and `begin` can be called again for a fresh match.
+## The match HUD announces the result once (`match_ended`): when a faction is eliminated, or when
+## the time limit runs out; and `begin` can be called again for a fresh match.
 
 const MatchHUD := preload("res://scenes/ui/hud/match_hud.gd")
-
-
-class Fighter extends Node:
-	signal died
-	var faction: StringName = &"a"
-	var is_dead := false
-
-	func kill() -> void:
-		is_dead = true
-		died.emit()
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Match HUD announces the result",
-		"description": "match_ended fires once when a faction is eliminated and when the time limit passes; begin() restarts it cleanly.",
+		"description": "match_ended fires once when a faction is eliminated and when the time "
+			+ "limit passes; begin() restarts it cleanly.",
 		"tags": ["ui", "match", "hud"],
 		"timeout": 6.0,
 	}
@@ -58,3 +48,13 @@ func run(t: TestContext) -> void:
 	t.expect_eq(verdicts, ["TIME UP - DRAW"], "an undecided match is a draw at the time limit")
 	e.kill()
 	t.expect_eq(verdicts.size(), 1, "and stays decided")
+
+
+class Fighter extends Node:
+	signal died
+	var faction: StringName = &"a"
+	var is_dead := false
+
+	func kill() -> void:
+		is_dead = true
+		died.emit()

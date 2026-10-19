@@ -26,7 +26,8 @@ The in-game observers: each reads only the Character public API / signals (incl.
   only in spectator mode via `setup(combatants, flags, right_clear)` (`flags` = the current overlay toggles; `right_clear` = the screen width from the right edge its outfit
   panel keeps clear, which Main hands it as the overlay toggle bar's `RESERVED_WIDTH`; `set_flag(flag, on)` updates one live from the toggle bar and re-applies it to the selected NPC).
   **Space** toggles `get_tree().paused`. A **left-click** on an NPC (nearest within `PICK_RADIUS` of the
-  cursor's world point, via the framing camera) selects it — revealing ONLY that NPC's *enabled* overlays
+  click's world point: the event's own position through the framing camera's view, never the viewport's mouse position, which
+  in a window is the system cursor) selects it — revealing ONLY that NPC's *enabled* overlays
   (each toggle set from `flags`) and hiding every other NPC's; clicking it again or empty ground clears
   it. No NPC shows any overlay until clicked (the view stays focused on one NPC). With an NPC selected, a
   left-click on one of its tactical points (nearest zone within `ZONE_PICK_RADIUS`, from its
@@ -102,12 +103,15 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `{ kind: "go", pos }` (no `to`: the squad sends it to whoever holds the held stack there, LD13), `{ kind: "ambush", to, pos }`,
   `{ kind: "defend_room", to, room }`, `{ kind: "cancel", to }` (the recipients holding an order) — and closes it. Escape (`Keybinds.MENU`)
   closes it in `_input` and is set handled, so Main's "back to setup" never sees it. `selection_changed(nodes)` carries the selection while open
-  and [] on close (Main connects it to the order markers). Layout: a panel docked at the left (`PANEL_LEFT` 24, `PANEL_TOP` 120, at least
-  `PANEL_WIDTH` 440; title 28pt naming the target, a "Orders go to:" line 22pt, the items 26pt, the "Hold for my go" box 22pt, a "Teammates" list 22pt, a hint 18pt), so it
+  and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (`_dock`, on each `open_at`:
+  the left, or the right when the click's screen point lies in the left half; anchored `PANEL_EDGE` 24 in from that edge and growing
+  away from it, `PANEL_TOP` 120, at least `PANEL_WIDTH` 440; title 28pt naming the target, a "Orders go to:" line 22pt, the items 26pt, the "Hold for my go" box 22pt, a "Teammates" list 22pt, a hint 18pt), so it
   never covers the bodies and doorway it is about, and a ring on the clicked point (a full-rect, mouse-ignoring `Control`). `items()` is
   `[{ label, disabled }]` (empty while closed), `is_open()`, `close()`. It holds no AI reference and computes no AI id. Tested by
   `tests/ui/command_menu_items_test.gd` (plain dicts, a fake view and a real squad's `resolve`: the items, the frag item greyed, Go on a held
-  doorway and teammate, the ambush item, the checkbox), `tests/ui/command_menu_label_matches_order_test.gd`
+  doorway and teammate, the ambush item, the checkbox; on the project's window size, `Order.player_screen`),
+  `tests/ui/command_menu_docks_right_test.gd` / `_left_test.gd` (a click in the left half docks it right, one in the right half
+  left: its rect covers neither the click nor a selected teammate, `Order.check_dock`), `tests/ui/command_menu_label_matches_order_test.gd`
   (a real squad: the stack item names the room of the order posted) and, wired by Main, `tests/general/command_menu_wiring_test.gd`.
 
 - `order_markers.gd` — the **order markers** (`OrderMarkers` Node2D, world space, z at `DrawLayers.ABOVE`, `PROCESS_MODE_ALWAYS` so the

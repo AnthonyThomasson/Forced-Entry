@@ -1,14 +1,64 @@
 class_name BedroomCatalog
-
 ## World Generation domain: bedroom objects, arrangements, and recipe. Shared items (nightstand,
 ## desk, chair, lamp, armchair via reading_chair) live in GeneralCatalog.
 
 const OBJECTS := {
-	"bed": { "name": "Bed", "shape": "rect", "size": Vector2(120, 180), "color": Color(0.7, 0.3, 0.3), "material": "fabric", "art": "bed", "weight": 50, "coverage": 35, "penetration": 30, "interactions": [{ "id": "lie", "label": "Lie down", "move_to": true }, { "id": "hide", "label": "Hide under bed", "move_to": true }, { "id": "make", "label": "Make the bed" }] },
-	"wardrobe": { "name": "Wardrobe", "shape": "rect", "size": Vector2(90, 45), "color": Color(0.45, 0.28, 0.12), "material": "wood", "art": "cabinet", "art_opts": { "front": "doors", "count": 2, "crown": true }, "weight": 60, "coverage": 95, "penetration": 55, "interactions": [{ "id": "hide", "label": "Hide inside", "move_to": true }, { "id": "rummage", "label": "Rummage (needs Key)", "requires_item": 4 }] },
-	"dresser": { "name": "Dresser", "shape": "rect", "size": Vector2(80, 40), "color": Color(0.5, 0.3, 0.1), "material": "wood", "art": "cabinet", "art_opts": { "front": "drawers", "count": 3, "props": [{ "kind": "vase", "at": Vector2(0.15, 0.45) }, { "kind": "book", "at": Vector2(0.72, 0.5) }] }, "weight": 35, "coverage": 45, "penetration": 55, "interactions": [{ "id": "open", "label": "Open drawer" }, { "id": "examine", "label": "Examine" }] },
+	"bed": {
+		"name": "Bed",
+		"shape": "rect",
+		"size": Vector2(120, 180),
+		"color": Color(0.7, 0.3, 0.3),
+		"material": "fabric",
+		"art": "bed",
+		"weight": 50,
+		"coverage": 35,
+		"penetration": 30,
+		"interactions": [
+			{ "id": "lie", "label": "Lie down", "move_to": true },
+			{ "id": "hide", "label": "Hide under bed", "move_to": true },
+			{ "id": "make", "label": "Make the bed" },
+		],
+	},
+	"wardrobe": {
+		"name": "Wardrobe",
+		"shape": "rect",
+		"size": Vector2(90, 45),
+		"color": Color(0.45, 0.28, 0.12),
+		"material": "wood",
+		"art": "cabinet",
+		"art_opts": { "front": "doors", "count": 2, "crown": true },
+		"weight": 60,
+		"coverage": 95,
+		"penetration": 55,
+		"interactions": [
+			{ "id": "hide", "label": "Hide inside", "move_to": true },
+			{ "id": "rummage", "label": "Rummage (needs Key)", "requires_item": 4 },
+		],
+	},
+	"dresser": {
+		"name": "Dresser",
+		"shape": "rect",
+		"size": Vector2(80, 40),
+		"color": Color(0.5, 0.3, 0.1),
+		"material": "wood",
+		"art": "cabinet",
+		"art_opts": {
+			"front": "drawers",
+			"count": 3,
+			"props": [
+				{ "kind": "vase", "at": Vector2(0.15, 0.45) },
+				{ "kind": "book", "at": Vector2(0.72, 0.5) },
+			],
+		},
+		"weight": 35,
+		"coverage": 45,
+		"penetration": 55,
+		"interactions": [
+			{ "id": "open", "label": "Open drawer" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
 }
-
 const ARRANGEMENTS := {
 	"bed_twin_nightstands": {
 		"placement": "wall", "footprint": Vector2(212, 180),
@@ -53,22 +103,54 @@ const ARRANGEMENTS := {
 		],
 	},
 }
-
 const RECIPES := {
 	"bedroom": {
 		"clutter": [["trash", 2.0], ["cardboard", 2.0], ["cables", 1.5]],
 		"palettes": [
-			{ "wood": GeneralCatalog.WOOD.white, "fabric": GeneralCatalog.FABRIC.blush, "floor": "oak_planks" },
-			{ "wood": GeneralCatalog.WOOD.cherry, "fabric": GeneralCatalog.FABRIC.cream, "floor": "beige_carpet" },
-			{ "wood": GeneralCatalog.WOOD.oak, "fabric": GeneralCatalog.FABRIC.slate, "floor": "grey_planks" },
-			{ "wood": GeneralCatalog.WOOD.walnut, "fabric": GeneralCatalog.FABRIC.sage, "floor": "ash_planks" },
+			{
+				"wood": GeneralCatalog.WOOD.white,
+				"fabric": GeneralCatalog.FABRIC.blush,
+				"floor": "oak_planks",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.cherry,
+				"fabric": GeneralCatalog.FABRIC.cream,
+				"floor": "beige_carpet",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.oak,
+				"fabric": GeneralCatalog.FABRIC.slate,
+				"floor": "grey_planks",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.walnut,
+				"fabric": GeneralCatalog.FABRIC.sage,
+				"floor": "ash_planks",
+			},
 		],
 		"zones": [
-			{ "options": ["bed_twin_nightstands", "bed_single_nightstand"], "count": Vector2i(1, 1), "required": true, "fallback": "bed_compact" },
-			{ "options": ["wardrobe_wall"], "count": Vector2i(1, 1), "required": true, "fallback": "wardrobe_compact" },
+			{
+				"options": ["bed_twin_nightstands", "bed_single_nightstand"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "bed_compact",
+			},
+			{
+				"options": ["wardrobe_wall"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "wardrobe_compact",
+			},
 			{ "options": ["work_desk", "reading_chair"], "count": Vector2i(1, 2) },
 			{ "options": ["plant_corner"], "count": Vector2i(0, 1) },
 		],
-		"fill": { "target": 0.38, "options": ["dresser_wall", "bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner", "plant_corner", "side_table_lamp", "reading_chair", "work_desk", "rug_small", "rug_center"] },
+		"fill": {
+			"target": 0.38,
+			"options": [
+				"dresser_wall", "bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner",
+				"plant_corner", "side_table_lamp", "reading_chair", "work_desk", "rug_small",
+				"rug_center",
+			],
+		},
 	},
 }

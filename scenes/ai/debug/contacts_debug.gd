@@ -1,19 +1,19 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: what the NPC knows about OTHER characters. For every contact in its memory it draws a
-## ghost at the last-KNOWN position — green ring for a non-hostile, red for a hostile with the reason it is
-## hostile — fading as the sighting ages toward `lead_memory_ttl`, with a facing arrow, a velocity arrow,
-## a wound pip and a sight line while the NPC sees it right now. Hostiles it has lost track of get a dashed
-## heading line to where it would have got to (the investigation lead the snapshot offers). Reads the
-## controller's `known_contacts_for_display()`, `debug_memory()` and `debug_state()` only.
-
-## Whether to draw the contacts overlay.
-@export var show_contacts: bool = false
+## AI domain, debug: what the NPC knows about OTHER characters. For every contact in its memory it
+## draws a ghost at the last-KNOWN position — green ring for a non-hostile, red for a hostile with
+## the reason it is hostile — fading as the sighting ages toward `lead_memory_ttl`, with a facing
+## arrow, a velocity arrow, a wound pip and a sight line while the NPC sees it right now. Hostiles
+## it has lost track of get a dashed heading line to where it would have got to (the investigation
+## lead the snapshot offers). Reads the controller's `known_contacts_for_display()`,
+## `debug_memory()` and `debug_state()` only.
 
 const HOSTILE := Color(1.0, 0.3, 0.25)
 const FRIENDLY := Color(0.4, 0.85, 0.5)
 const LOST := Color(0.75, 0.45, 1.0)
 const GHOST_RADIUS := 14.0
+
+## Whether to draw the contacts overlay.
+@export var show_contacts: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -47,13 +47,18 @@ func _paint() -> void:
 		if vel.length() > 5.0:
 			_arrow(pos, pos + vel.limit_length(120.0) * 0.4, Color(1.0, 0.85, 0.2, fade), 1.5)
 		if c.get("wound_dmg", 0.0) > 0.0:
-			draw_circle(to_local(pos) + Vector2(GHOST_RADIUS, -GHOST_RADIUS), 3.5, Color(0.9, 0.1, 0.1, fade))
+			draw_circle(
+				to_local(pos) + Vector2(GHOST_RADIUS, -GHOST_RADIUS),
+				3.5,
+				Color(0.9, 0.1, 0.1, fade),
+			)
 		var tag: String = str(c["name"])
 		if c["hostile"]:
 			tag += " [%s]" % str(reasons.get(c["name"], "hostile"))
 		tag += " %.1fs%s" % [age, "" if not stale else " (stale)"]
 		_label(pos, tag, col, Vector2(GHOST_RADIUS + 2, 4))
-	# Hostiles it has lost track of: where they were, and the heading it would extrapolate them along.
+	# Hostiles it has lost track of: where they were, and the heading it would extrapolate them
+	# along.
 	var cap: float = mem.get("extrapolate_cap", 3.0)
 	for l in mem.get("lost", []):
 		var pos: Vector2 = l["pos"]

@@ -1,5 +1,4 @@
 class_name ArtConfig
-
 ## Tuning shared by every procedural pixel-art painter (Art domain, scenes/art/): the art
 ## resolution, the light and the shadows it casts, the tone ramp around a base color, and the
 ## material surface finishes (fabric weave, wood grain, brushed metal, stone flecks). Each domain
@@ -26,16 +25,14 @@ static var drop_shadow_alpha: float = 0.28
 ## beside it, and how much it darkens it.
 static var cast_shadow_px: int = 2
 static var cast_shadow_darken: float = 0.22
-
 # --- Tone ramp (darken/lighten amounts applied to a piece's base color) ---
-## How far each tone of `PixelCanvas.tones` darkens (`tone_outline`, `tone_shadow`, `tone_dark`) or lightens
-## (`tone_light`, `tone_highlight`) a piece's base color.
+## How far each tone of `PixelCanvas.tones` darkens (`tone_outline`, `tone_shadow`, `tone_dark`) or
+## lightens (`tone_light`, `tone_highlight`) a piece's base color.
 static var tone_outline: float = 0.62
 static var tone_shadow: float = 0.36
 static var tone_dark: float = 0.18
 static var tone_light: float = 0.14
 static var tone_highlight: float = 0.3
-
 # --- Surface texture ---
 ## Fraction of fabric pixels nudged a shade lighter/darker (a woven look).
 static var fabric_speckle: float = 0.12

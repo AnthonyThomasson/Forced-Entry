@@ -1,12 +1,12 @@
 extends RefCounted
-
 ## AI domain: the HOSTILITY rules for a goal-driven NPC — which perceived characters it treats as
 ## hostile. Like the vision sense it is pure configuration plus a few queries; the perception feeds
 ## it each sighting and the controller feeds it each attack, and it records its verdicts in the
-## agent's memory as `&"hostile"` events (`{ id, reason }`), so hostility persists and decays like any
-## other knowledge. The same rules serve every NPC: a defender is "hostile on trespass + on attack", an
-## invader "hostile on sight". Allies (same faction, or a listed one) are never hostile. The perception sets the four rules
-## from the controller's exports (`hostile_on_sight`, `hostile_on_trespass`, `hostile_on_attack`, `hostility_ttl`).
+## agent's memory as `&"hostile"` events (`{ id, reason }`), so hostility persists and decays like
+## any other knowledge. The same rules serve every NPC: a defender is "hostile on trespass + on
+## attack", an invader "hostile on sight". Allies (same faction, or a listed one) are never hostile.
+## The perception sets the four rules from the controller's exports (`hostile_on_sight`,
+## `hostile_on_trespass`, `hostile_on_attack`, `hostility_ttl`).
 
 ## Every non-allied character seen is hostile.
 var on_sight: bool

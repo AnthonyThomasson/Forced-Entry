@@ -1,14 +1,13 @@
 extends GameTest
-
-## Every gun deals its own damage (`GunConfig` `damage`, on top of the bullet's base). Each puppet fires one
-## round, straight (the spread is switched off), at a target in the open; the hit event carries what it dealt.
+## Every gun deals its own damage (`GunConfig` `damage`, on top of the bullet's base). Each puppet
+## fires one round, straight (the spread is switched off), at a target in the open; the hit event
+## carries what it dealt.
 
 const GUNS := {
 	&"pistol": [&"pistol_man", &"pistol_target", 3],
 	&"smg": [&"smg_man", &"smg_target", 5],
 	&"rifle": [&"rifle_man", &"rifle_target", 6],
 }
-
 ## The bullet's own base damage before the gun adds its own (`Projectile.damage`).
 const BASE_DAMAGE := 10.0
 
@@ -16,7 +15,8 @@ const BASE_DAMAGE := 10.0
 func describe() -> Dictionary:
 	return {
 		"name": "Each gun hits for its own damage",
-		"description": "One round from each gun at a target in the open; the damage dealt is the bullet's base plus the gun's, the rifle highest and the SMG lowest.",
+		"description": "One round from each gun at a target in the open; the damage dealt is the "
+			+ "bullet's base plus the gun's, the rifle highest and the SMG lowest.",
 		"tags": ["item", "gun", "damage", "hit event"],
 		"timeout": 8.0,
 	}
@@ -57,8 +57,12 @@ func run(t: TestContext) -> void:
 		var hit: Dictionary = t.events_of(&"hit", func(d): return d["victim"] == victim)[0]
 		dealt[gun] = float(hit["damage"])
 		var nominal := BASE_DAMAGE + float(GunConfig.row(gun)["damage"])
-		# The muzzle is a few px off the aim line, so the round meets the round body a little off square.
+		# The muzzle is a few px off the aim line, so the round meets the round body a little off
+		# square.
 		t.check(dealt[gun] <= nominal + 0.01 and dealt[gun] >= nominal * 0.8,
 			"the %s deals about %.0f (dealt %.1f)" % [gun, nominal, dealt[gun]])
-	t.check(dealt[&"rifle"] > dealt[&"pistol"] and dealt[&"pistol"] > dealt[&"smg"],
-		"the rifle hits hardest, the SMG lightest (rifle %.1f, pistol %.1f, SMG %.1f)" % [dealt[&"rifle"], dealt[&"pistol"], dealt[&"smg"]])
+	t.check(
+		dealt[&"rifle"] > dealt[&"pistol"] and dealt[&"pistol"] > dealt[&"smg"],
+		"the rifle hits hardest, the SMG lightest (rifle %.1f, pistol %.1f, SMG %.1f)"
+			% [dealt[&"rifle"], dealt[&"pistol"], dealt[&"smg"]],
+	)

@@ -1,5 +1,4 @@
 extends Node2D
-
 ## Character INTERACTION layer. Owns object interactions end to end: on a request it finds the
 ## reachable objects that advertise interactions (their `get_interactions()`), keeps only the
 ## actions whose item gate passes, targets the object nearest the mouse, and starts a random one
@@ -12,20 +11,23 @@ extends Node2D
 ## (a controller picking a specific object + action), and reads `is_busy()` / `active_label()`;
 ## it never learns what an interaction means, so this system can be iterated on its own.
 
+## Physics layer the reach query tests (General's `PhysicsLayers.SOLID` — walls + solid furniture).
+const QUERY_MASK := PhysicsLayers.SOLID
+
 ## How far from the body center (px) an object may be and still be reachable.
 @export var reach: float = 46.0
 ## Bias the reach circle this far ahead of the character along its facing (0 = centered on body).
 @export var front_offset: float = 0.0
 
-## Physics layer the reach query tests (General's `PhysicsLayers.SOLID` — walls + solid furniture).
-const QUERY_MASK := PhysicsLayers.SOLID
-
-var _active: Dictionary = {}     ## The active interaction spec, or empty when idle.
-var _active_object: Node = null  ## The object the active interaction belongs to.
+## The active interaction spec, or empty when idle.
+var _active: Dictionary = {}
+## The object the active interaction belongs to.
+var _active_object: Node = null
 ## Where the character stood when the interaction began; it returns here on exit.
 var _return_position := Vector2.ZERO
 
-@onready var _character := get_parent()  ## Character (CharacterBody2D) — position, aim, inventory.
+## Character (CharacterBody2D) — position, aim, inventory.
+@onready var _character := get_parent()
 
 
 ## Toggle interaction: end the current one (moving back), or start the best one in range.
@@ -132,7 +134,8 @@ func _begin(spec: Dictionary, object: Node) -> void:
 	_active = spec
 	_active_object = object
 	if spec.get("move_to", false):
-		if not _character.stop_clearing(object):  # Re-entering the object just left keeps its existing exception.
+		# Re-entering the object just left keeps its existing exception.
+		if not _character.stop_clearing(object):
 			_character.add_collision_exception_with(object)
 		_character.global_position = object.global_position
 
@@ -145,9 +148,9 @@ func _end() -> void:
 	call_deferred("_teardown")
 
 
-## Restore the character to its start spot and hand the object off to the character's `keep_clear_of`, which
-## re-enables collision only once the body has separated from it (so no separation kick). Runs
-## outside the physics step (deferred from _end), then clears the busy state.
+## Restore the character to its start spot and hand the object off to the character's
+## `keep_clear_of`, which re-enables collision only once the body has separated from it (so no
+## separation kick). Runs outside the physics step (deferred from _end), then clears the busy state.
 func _teardown() -> void:
 	_character.global_position = _return_position
 	if _active_object != null and _active.get("move_to", false):

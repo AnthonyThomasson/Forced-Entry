@@ -1,32 +1,37 @@
 extends CanvasLayer
-
-## UI domain, in-game debug-overlay toggle bar: a collapsible panel of toggle buttons, one per overlay in
-## `overlay_registry.gd`, grouped (Perception / Combat / Movement / Brain / Entry / Map / Stats). Pressing one emits
-## `overlay_toggled(flag, on)`; each group's header button and the "All" button flip a whole set at once
-## (all on unless they already are, then all off), emitting one `overlay_toggled` per flag changed. Main
-## applies each live to the NPCs' overlay nodes (or, in the spectator match, to the inspector's
-## selected-NPC flags). It knows nothing of the AI — only the registry rows and the flag dict it is given.
-## Its "Overlays" title is a drag handle that moves the bar. Runs PROCESS_MODE_ALWAYS so it still works while the match is paused, and its panel swallows clicks so
-## pressing a button never selects an NPC underneath.
-
-const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
-const DragHandle := preload("res://scenes/ui/overlays/drag_handle.gd")
-
-## Size multiplier for the whole bar (width, fonts, spacing).
-const SCALE := 1.5
-
-## Screen width the bar occupies from the right edge (panel + margin); other top-right HUDs dock left of it.
-const RESERVED_WIDTH := SCALE * 220.0 + 10.0
+## UI domain, in-game debug-overlay toggle bar: a collapsible panel of toggle buttons, one per
+## overlay in `overlay_registry.gd`, grouped (Perception / Combat / Movement / Brain / Entry / Map /
+## Stats). Pressing one emits `overlay_toggled(flag, on)`; each group's header button and the "All"
+## button flip a whole set at once (all on unless they already are, then all off), emitting one
+## `overlay_toggled` per flag changed. Main applies each live to the NPCs' overlay nodes (or, in the
+## spectator match, to the inspector's selected-NPC flags). It knows nothing of the AI — only the
+## registry rows and the flag dict it is given. Its "Overlays" title is a drag handle that moves the
+## bar. Runs PROCESS_MODE_ALWAYS so it still works while the match is paused, and its panel swallows
+## clicks so pressing a button never selects an NPC underneath.
 
 ## Emitted when a button is pressed: the overlay's `show_<x>` flag and its new state.
 signal overlay_toggled(flag: String, on: bool)
 
-var _buttons: Dictionary = {}  ## flag → its toggle Button.
-var _body: Control             ## The button list, hidden when the bar is collapsed.
-var _header: Button            ## The collapse/expand button.
-var _all_button: Button        ## Flips every overlay at once.
-var _group_buttons: Dictionary = {}  ## group name → its header Button (flips that group).
-var _group_flags: Dictionary = {}    ## group name → Array of its flags.
+const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
+const DragHandle := preload("res://scenes/ui/overlays/drag_handle.gd")
+## Size multiplier for the whole bar (width, fonts, spacing).
+const SCALE := 1.5
+## Screen width the bar occupies from the right edge (panel + margin); other top-right HUDs dock
+## left of it.
+const RESERVED_WIDTH := SCALE * 220.0 + 10.0
+
+## flag → its toggle Button.
+var _buttons: Dictionary = {}
+## The button list, hidden when the bar is collapsed.
+var _body: Control
+## The collapse/expand button.
+var _header: Button
+## Flips every overlay at once.
+var _all_button: Button
+## group name → its header Button (flips that group).
+var _group_buttons: Dictionary = {}
+## group name → Array of its flags.
+var _group_flags: Dictionary = {}
 
 
 ## Build the bar seeded from `flags` (`{ flag: bool }`; a missing flag uses its registry default).
@@ -87,7 +92,8 @@ func setup(flags: Dictionary) -> void:
 		b.toggle_mode = true
 		b.text = e["label"]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.focus_mode = Control.FOCUS_NONE  # keep Space (pause / interact) from re-pressing a focused button
+		# keep Space (pause / interact) from re-pressing a focused button
+		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", int(14 * SCALE))
 		b.button_pressed = bool(flags.get(e["flag"], e["default"]))
 		b.toggled.connect(_on_toggled.bind(e["flag"]))
@@ -144,7 +150,8 @@ func _refresh_bulk() -> void:
 	_all_button.text = "All (%d/%d)" % [_count_on(all), all.size()]
 	for group in _group_buttons:
 		var flags: Array = _group_flags[group]
-		(_group_buttons[group] as Button).text = "%s (%d/%d)" % [group, _count_on(flags), flags.size()]
+		(_group_buttons[group] as Button).text = ("%s (%d/%d)"
+				% [group, _count_on(flags), flags.size()])
 
 
 ## The header was pressed: flip the panel between collapsed and open.

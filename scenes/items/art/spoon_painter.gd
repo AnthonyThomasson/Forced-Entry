@@ -1,9 +1,10 @@
 extends RefCounted
+## Top-down pixel-art painter for a grenade's SPOON (the safety lever) lying flat on the floor
+## (Items domain, private; rendered through the Art domain's PixelArt): a thin curved steel strip
+## with a loop at one end, toward +y.
 
-## Top-down pixel-art painter for a grenade's SPOON (the safety lever) lying flat on the floor (Items domain,
-## private; rendered through the Art domain's PixelArt): a thin curved steel strip with a loop at one end, toward +y.
-
-const _HEIGHT := 1  ## Height for cast shadows.
+## Height for cast shadows.
+const _HEIGHT := 1
 
 
 ## Paint a spoon onto `c` in `base` steel, the loop toward +y.

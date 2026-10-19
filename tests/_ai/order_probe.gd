@@ -1,14 +1,15 @@
 extends RefCounted
-
 ## Shared helpers for the leadership tests (`docs/leadership.md` LD1 to LD12; not a test itself):
-## `const Order := preload("res://tests/_ai/order_probe.gd")`. A squad per side with a leader, orders (`defend_room`, `stack`,
-## `cancel`) carried on the `&"order"` bus topic, the ORDER decision node, the progress radio (`order_id`, `order_step` on a
-## callout), the pausable AI clock (`GameClock`), the command menu and the order markers.
+## `const Order := preload("res://tests/_ai/order_probe.gd")`. A squad per side with a leader,
+## orders (`defend_room`, `stack`, `cancel`) carried on the `&"order"` bus topic, the ORDER decision
+## node, the progress radio (`order_id`, `order_step` on a callout), the pausable AI clock
+## (`GameClock`), the command menu and the order markers.
 ##
-## Everything new is reached by path and duck-typed (`ResourceLoader.exists`, `has_method`, `get`), so a test loads and runs
-## before the feature exists and goes red on an assertion that names what is missing, never on a parse error. The NPC is read
-## only through its controller's public reads: `current_act()`, `debug_state()` (the `facts` of its last decision, the running
-## leaf's `primitive` and `params`, the levels of its last walk), `debug_entry()`, `debug_memory()`,
+## Everything new is reached by path and duck-typed (`ResourceLoader.exists`, `has_method`, `get`),
+## so a test loads and runs before the feature exists and goes red on an assertion that names what
+## is missing, never on a parse error. The NPC is read only through its controller's public reads:
+## `current_act()`, `debug_state()` (the `facts` of its last decision, the running leaf's
+## `primitive` and `params`, the levels of its last walk), `debug_entry()`, `debug_memory()`,
 ## `known_contacts_for_display()` and its radio.
 
 const SQUAD_SCRIPT := "res://scenes/ai/team/squad.gd"
@@ -20,18 +21,39 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const DEFEND := "defend_room"
 const STACK := "stack"
 const CANCEL := "cancel"
-## The order kinds of part 2 (LD13, LD15): the leader's go for a held stack, and an ambush on a doorway.
+## The order kinds of part 2 (LD13, LD15): the leader's go for a held stack, and an ambush on a
+## doorway.
 const GO := "go"
 const AMBUSH := "ambush"
 ## D7: the safety cap (s) on an ordered stack's wait for all its recipients' `ready`.
 const ORDER_READY_CAP := 60.0
+# --- Stack orders at the Terrace house's back door (LD9) ------------------------------------------
+# The back door (`Entry.BACK`: `door_840_190`, 90 px wide, in the kitchen's east wall) and where a
+# leader's click on it lands (D3): the side of the wall plane clicked is the side the stack forms
+# on; left or right of the opening along the wall picks the stack's side of the door; a click on the
+# opening (within its half-width along the wall) is a split stack; an exterior door always goes into
+# the house.
+## Outside (the back garden), along the wall north of the opening: a stack north of the door, into
+## the kitchen.
+const BACK_NORTH := Vector2(870, 125)
+## Outside, along the wall south of the opening: a stack south of the door, into the kitchen.
+const BACK_SOUTH := Vector2(870, 255)
+## Outside, on the opening: a split stack, into the kitchen.
+const BACK_ON := Vector2(870, 190)
+## Inside the kitchen, north of the opening: an exterior door still goes into the house's room.
+const BACK_INSIDE_NORTH := Vector2(810, 125)
+## The back door's centre y and half-width: north of the door is y < 190 - 45, south y > 190 + 45.
+const BACK_Y := 190.0
+const BACK_HALF := 45.0
 
 
-# --- The squad (LD3, LD4, LD5) ----------------------------------------------------------------------------
+# --- The squad (LD3, LD4, LD5) --------------------------------------------------------------------
 
-## Build the squad of `faction` the way Main does (a `Squad` node under the world, `setup(faction, members, openings, rooms,
-## leader, claim_ttl)`, the claim ttl the NPCs' own `callout_ttl` read through `MatchSpawner.callout_ttl_of`), over the test world's
-## house. Null when the script does not exist yet.
+
+## Build the squad of `faction` the way Main does (a `Squad` node under the world,
+## `setup(faction, members, openings, rooms, leader, claim_ttl)`, the claim ttl the NPCs' own
+## `callout_ttl` read through `MatchSpawner.callout_ttl_of`), over the test world's house. Null when
+## the script does not exist yet.
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
 	if not ResourceLoader.exists(SQUAD_SCRIPT):
 		return null
@@ -40,12 +62,19 @@ static func squad(t: TestContext, faction: StringName, members: Array, leader: N
 	t.world.add_child(s)
 	var openings: Array = t.world.get("openings") if t.world.get("openings") != null else []
 	if s.has_method("setup"):
-		s.setup(faction, members, openings, t.rooms, leader, MatchSpawner.new().callout_ttl_of(members))
+		s.setup(
+			faction,
+			members,
+			openings,
+			t.rooms,
+			leader,
+			MatchSpawner.new().callout_ttl_of(members),
+		)
 	return s
 
 
-## Hand each NPC of `npcs` its squad the way Main does (`MatchSpawner.bind_squad(npc, squad)`); false when the spawner has no
-## `bind_squad` yet.
+## Hand each NPC of `npcs` its squad the way Main does (`MatchSpawner.bind_squad(npc, squad)`);
+## false when the spawner has no `bind_squad` yet.
 static func bind(npcs: Array, s: Node) -> bool:
 	var spawner = MatchSpawner.new()
 	if not spawner.has_method("bind_squad"):
@@ -55,8 +84,8 @@ static func bind(npcs: Array, s: Node) -> bool:
 	return true
 
 
-## `squad.issue(request)` (`{ kind, to, pos, room, bang }`, what the command menu emits): the order it posted, or {} (also
-## when the squad has no `issue` yet).
+## `squad.issue(request)` (`{ kind, to, pos, room, bang }`, what the command menu emits): the order
+## it posted, or {} (also when the squad has no `issue` yet).
 static func issue(s: Node, request: Dictionary) -> Dictionary:
 	if s == null or not s.has_method("issue"):
 		return {}
@@ -82,12 +111,14 @@ static func orders(t: TestContext, who: Node = null) -> Array:
 	return t.events_of(&"order", func(d): return who == null or (d.get("to", []) as Array).has(who))
 
 
-## Post an order straight onto the bus, as a squad does (LD5): `{ id, leader, faction, to, kind, ... }`.
+## Post an order straight onto the bus, as a squad does (LD5):
+## `{ id, leader, faction, to, kind, ... }`.
 static func post(order: Dictionary) -> void:
 	EventBus.post(&"order", order)
 
 
-# --- The NPC ---------------------------------------------------------------------------------------------
+# --- The NPC --------------------------------------------------------------------------------------
+
 
 ## The controller of actor `id`.
 static func brain(t: TestContext, id: StringName) -> Node:
@@ -96,7 +127,9 @@ static func brain(t: TestContext, id: StringName) -> Node:
 
 ## Whether the NPC's last decision snapshot had the fact `ordered` (LD5).
 static func ordered(b: Node) -> bool:
-	return bool((b.debug_state().get("facts", {}) as Dictionary).get("ordered", false)) if b != null else false
+	return (bool((b.debug_state().get("facts", {}) as Dictionary).get("ordered", false))
+			if b != null
+			else false)
 
 
 ## How many decision walks the NPC has started.
@@ -124,15 +157,26 @@ static func levels(b: Node) -> Array:
 	return b.debug_state().get("decision", {}).get("levels", []) if b != null else []
 
 
-## Force a decision on the NPC now without touching its brain: gunfire from nobody it knows lands beside it (`&"hit"`, no
-## attacker), which it hears as fire at it.
+## Force a decision on the NPC now without touching its brain: gunfire from nobody it knows lands
+## beside it (`&"hit"`, no attacker), which it hears as fire at it.
 static func gunfire_near(c: Node) -> void:
-	EventBus.post(&"hit", { "position": c.global_position + Vector2(40, 0), "direction": Vector2.LEFT, "damage": 10.0, "attacker": null, "victim": null })
+	EventBus.post(
+		&"hit",
+		{
+			"position": c.global_position + Vector2(40, 0),
+			"direction": Vector2.LEFT,
+			"damage": 10.0,
+			"attacker": null,
+			"victim": null,
+		},
+	)
 
 
-# --- The radio (LD7) ----------------------------------------------------------------------------------------
+# --- The radio (LD7) ------------------------------------------------------------------------------
 
-## The callouts that carry an `order_step` (LD7), optionally only step `step` and / or only from character `who`.
+
+## The callouts that carry an `order_step` (LD7), optionally only step `step` and / or only from
+## character `who`.
 static func progress(t: TestContext, step := "", who: Node = null) -> Array:
 	return t.events_of(&"callout", func(d):
 		if String(d.get("order_step", "")) == "":
@@ -145,11 +189,14 @@ static func progress(t: TestContext, step := "", who: Node = null) -> Array:
 ## The entry claims (any entry step) from `who` that carry an `order_id`.
 static func ordered_claims(t: TestContext, who: Node, opening := "") -> Array:
 	return t.events_of(&"callout", func(d):
-		return d.get("speaker") == who and String(d.get("entry_step", "")) != "" and str(d.get("order_id", "")) != "" \
-				and (opening == "" or String(d.get("opening", "")) == opening))
+		return (d.get("speaker") == who
+				and String(d.get("entry_step", "")) != ""
+				and str(d.get("order_id", "")) != ""
+				and (opening == "" or String(d.get("opening", "")) == opening)))
 
 
-## The raw callout events (`{ topic, data, time }`) of entry step `step` from `who` (any step when ""), oldest first.
+## The raw callout events (`{ topic, data, time }`) of entry step `step` from `who` (any step when
+## ""), oldest first.
 static func raw_calls(t: TestContext, who: Node, step := "") -> Array:
 	var out: Array = []
 	for e: Dictionary in t.events:
@@ -170,10 +217,12 @@ static func first_time(t: TestContext, topic: StringName, filter: Callable) -> f
 	return INF
 
 
-# --- The clock (LD1) ----------------------------------------------------------------------------------------
+# --- The clock (LD1) ------------------------------------------------------------------------------
 
-## Hold the tree paused for `wall_s` seconds of wall time, then unpause. The test's own clock stops with the world (the runner
-## stops counting sim time while paused), so this waits on the wall clock, a physics frame at a time.
+
+## Hold the tree paused for `wall_s` seconds of wall time, then unpause. The test's own clock stops
+## with the world (the runner stops counting sim time while paused), so this waits on the wall
+## clock, a physics frame at a time.
 static func pause_for(t: TestContext, wall_s: float) -> void:
 	var tree := t.world.get_tree()
 	tree.paused = true
@@ -184,9 +233,11 @@ static func pause_for(t: TestContext, wall_s: float) -> void:
 	tree.paused = false
 
 
-# --- UI (LD11, LD12) -----------------------------------------------------------------------------------------
+# --- UI (LD11, LD12) ------------------------------------------------------------------------------
 
-## A new command menu (by path), added under the test world; null when the script does not exist yet.
+
+## A new command menu (by path), added under the test world; null when the script does not exist
+## yet.
 static func command_menu(t: TestContext) -> Node:
 	if not ResourceLoader.exists(COMMAND_MENU_SCRIPT):
 		return null
@@ -214,8 +265,9 @@ static func labels(menu: Node) -> Array:
 	return items(menu).map(func(i): return String(i.get("label", "")))
 
 
-## Choose the menu's item whose label contains `text` the way a click does: press the button that shows it (a `BaseButton`
-## whose text it is), or the entry of a `PopupMenu` that shows it. False when no control shows it.
+## Choose the menu's item whose label contains `text` the way a click does: press the button that
+## shows it (a `BaseButton` whose text it is), or the entry of a `PopupMenu` that shows it. False
+## when no control shows it.
 static func choose(menu: Node, text: String) -> bool:
 	if menu == null:
 		return false
@@ -236,7 +288,8 @@ static func choose(menu: Node, text: String) -> bool:
 	return false
 
 
-## Tick (or untick) the teammate named `name` in the menu's list: the `CheckBox` whose text is that name.
+## Tick (or untick) the teammate named `name` in the menu's list: the `CheckBox` whose text is that
+## name.
 static func tick(menu: Node, name: String, on: bool) -> bool:
 	if menu == null:
 		return false
@@ -249,12 +302,132 @@ static func tick(menu: Node, name: String, on: bool) -> bool:
 	return false
 
 
+## Give a headless run the screen a player has: the project's window size (1152x648), put back as
+## the world goes. Headless the root viewport is 64 px square, so the camera frames the world into a
+## view no window has, and a click aimed in it lands off screen; with this a headless run and a
+## windowed one see the world, and the menu over it, alike. A windowed run already has that window.
+static func player_screen(t: TestContext) -> void:
+	if DisplayServer.get_name() != "headless":
+		return
+	var root := t.world.get_tree().root
+	var was := root.size
+	root.size = Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width")),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height")),
+	)
+	t.world.tree_exiting.connect(func() -> void: root.size = was)
+
+
+## Wait until the view holds still (its canvas origin unmoved for five frames, within 5 s): the
+## premise of a click aimed at a world point. The test camera eases in from where the previous test
+## left it (and on while paused), and an injected click is handled a frame after it is aimed, so a
+## moving view puts it somewhere else.
+static func view_still(t: TestContext) -> bool:
+	var last: Array = [Vector2.INF, 0]  # The origin last frame, and the frames it has held still.
+	return await t.until(func():
+		var origin := t.world.get_viewport().get_canvas_transform().origin
+		last[1] = last[1] + 1 if origin.distance_to(last[0]) < 0.5 else 0
+		last[0] = origin
+		return last[1] >= 5, 5.0)
+
+
+## The command menu's panel on screen (its `Panel` child, a Control under the menu's CanvasLayer),
+## or an empty rect when it has none.
+static func panel_rect(menu: Node) -> Rect2:
+	var panel := menu.get_node_or_null("Panel") as Control
+	return panel.get_global_rect() if panel != null else Rect2()
+
+
+## LD11's dock: the menu's panel docks on the side of the screen away from the click that opened it
+## (on the left, or on the right when the click is in the left half), so it never covers what it is
+## about. On a player's screen, a command menu set up as Main sets it up for the human leader `lead`
+## and its teammates `mates` is opened by a right-click at world point `at` (a doorway or a body),
+## then each of `mates` is selected by a left-click on its body. The premise: the click and every
+## selected body lie on screen, in `half` (`"left"` or `"right"`). Checks that the clicks selected
+## them, that the panel docks in the other half, and that its rect holds neither the click point nor
+## a selected body. The menu is closed (the tree unpaused) at the end.
+static func check_dock(t: TestContext, at: Vector2, lead: Node, mates: Array, half: String) -> void:
+	player_screen(t)
+	var menu := command_menu(t)
+	if not t.require(
+			menu != null and menu.has_method("setup") and menu.has_signal("selection_changed"),
+			"the command menu exists, with setup and selection_changed (%s)" % COMMAND_MENU_SCRIPT,
+	):
+		return
+	var members: Array = [lead] + mates
+	var side_squad := squad(t, lead.faction, members, lead)
+	if not t.require(
+			side_squad != null and side_squad.has_method("resolve"),
+			"the squad resolves a click",
+	):
+		return
+	var squad_view := {
+		"leader": lead,
+		"members": members.map(func(n): return { "node": n, "order": {}, "step": "" }),
+	}
+	menu.setup({
+		"rooms": t.rooms, "teammates": mates, "view": func(): return squad_view,
+		"resolve": side_squad.resolve, "leader": lead,
+	})
+	var selected: Array = []
+	menu.selection_changed.connect(func(nodes: Array) -> void: selected.assign(nodes))
+	if not t.require(await view_still(t), "the view holds still before the clicks"):
+		return
+	var screen := t.world.get_viewport().get_visible_rect()
+	var mid := screen.get_center().x
+	var at_screen := screen_of(t, at)
+	var points: Array = [at_screen] + mates.map(func(m): return screen_of(t, m.global_position))
+	if not t.require(
+			points.all(func(p: Vector2) -> bool: return (
+				screen.has_point(p) and (p.x < mid if half == "left" else p.x >= mid)
+			)),
+			"the premise: the click and the bodies to select are on screen, %s half (%s of %s)"
+				% [half, str(points), str(screen)],
+	):
+		return
+	click(t, at, MOUSE_BUTTON_RIGHT)
+	await t.frames(2)
+	if not t.require(menu.is_open(), "the right-click opens the menu"):
+		return
+	for m: Node in mates:
+		click(t, m.global_position, MOUSE_BUTTON_LEFT)
+		await t.frames(2)
+	t.check(
+		mates.all(func(m: Node) -> bool: return selected.has(m)),
+		"a left-click on each teammate's body selects it (selected %s)"
+			% str(selected.map(func(n: Node) -> String: return String(n.name))),
+	)
+	var rect := panel_rect(menu)
+	var other := "right" if half == "left" else "left"
+	t.check(
+		rect.has_area()
+			and (rect.get_center().x >= mid if other == "right" else rect.get_center().x < mid),
+		"a click in the %s half docks the panel on the %s (panel %s)" % [half, other, str(rect)],
+	)
+	t.check(
+		not rect.has_point(at_screen),
+		"the panel does not cover the click %s (panel %s)" % [str(at_screen), str(rect)],
+	)
+	for m: Node in mates:
+		var p := screen_of(t, m.global_position)
+		t.check(
+			not rect.has_point(p),
+			"the panel does not cover the selected %s at %s (panel %s)" % [
+				m.name,
+				str(p),
+				str(rect),
+			],
+		)
+	menu.close()
+
+
 ## Where world point `p` is on the screen of the test world's viewport (what a click there sends).
 static func screen_of(t: TestContext, p: Vector2) -> Vector2:
 	return t.world.get_viewport().get_canvas_transform() * p
 
 
-## Click mouse button `button` at world point `p` (a motion there first, so the pointer is where the click is), as the test's own input.
+## Click mouse button `button` at world point `p` (a motion there first, so the pointer is where the
+## click is), as the test's own input.
 static func click(t: TestContext, p: Vector2, button: MouseButton) -> void:
 	var at := screen_of(t, p)
 	var motion := InputEventMouseMotion.new()
@@ -270,25 +443,11 @@ static func click(t: TestContext, p: Vector2, button: MouseButton) -> void:
 		TestContext.inject(ev)
 
 
-# --- Stack orders at the Terrace house's back door (LD9) ---------------------------------------------------------------
-# The back door (`Entry.BACK`: `door_840_190`, 90 px wide, in the kitchen's east wall) and where a leader's click on it lands (D3): the
-# side of the wall plane clicked is the side the stack forms on; left or right of the opening along the wall picks the stack's side of
-# the door; a click on the opening (within its half-width along the wall) is a split stack; an exterior door always goes into the house.
-
-## Outside (the back garden), along the wall north of the opening: a stack north of the door, into the kitchen.
-const BACK_NORTH := Vector2(870, 125)
-## Outside, along the wall south of the opening: a stack south of the door, into the kitchen.
-const BACK_SOUTH := Vector2(870, 255)
-## Outside, on the opening: a split stack, into the kitchen.
-const BACK_ON := Vector2(870, 190)
-## Inside the kitchen, north of the opening: an exterior door still goes into the house's room.
-const BACK_INSIDE_NORTH := Vector2(810, 125)
-## The back door's centre y and half-width: north of the door is y < 190 - 45, south y > 190 + 45.
-const BACK_Y := 190.0
-const BACK_HALF := 45.0
+# --- Stack orders at the Terrace house's back door (LD9) ------------------------------------------
 
 
-## The squad of invader actors `ids` led by the puppet actor `lead` (a stand-in for the human leader), built as Main builds it.
+## The squad of invader actors `ids` led by the puppet actor `lead` (a stand-in for the human
+## leader), built as Main builds it.
 static func raid(t: TestContext, ids: Array, lead: StringName) -> Node:
 	var members: Array = [t.actor(lead)]
 	for id in ids:
@@ -296,7 +455,8 @@ static func raid(t: TestContext, ids: Array, lead: StringName) -> Node:
 	return squad(t, &"invader", members, t.actor(lead))
 
 
-## Which side of the back door point `p` lies on along its wall: `north`, `south`, or `door` (within the opening's width).
+## Which side of the back door point `p` lies on along its wall: `north`, `south`, or `door` (within
+## the opening's width).
 static func back_side(p: Vector2) -> String:
 	if p.y < BACK_Y - BACK_HALF:
 		return "north"
@@ -305,20 +465,39 @@ static func back_side(p: Vector2) -> String:
 	return "door"
 
 
-## Where actor `id`'s running entry has it stand in the stack (`debug_entry()["stack_point"]`), or INF.
+## Where actor `id`'s running entry has it stand in the stack (`debug_entry()["stack_point"]`), or
+## INF.
 static func stack_point(t: TestContext, id: StringName) -> Vector2:
 	var e: Dictionary = brain(t, id).debug_entry()
 	var p = e.get("stack_point", Vector2.INF)
 	return p if p is Vector2 else Vector2.INF
 
 
-## Order a stack at the back door through `squad.issue` the way the command menu asks for it (LD16): `{ kind: "stack", to, pos, bang,
-## mode, wait_go }`, `bang` being mode != quiet (part 1's key). The order posted, or {}.
-static func stack_order(s: Node, to: Array, pos: Vector2, mode: String, wait_go: bool) -> Dictionary:
-	return issue(s, { "kind": STACK, "to": to, "pos": pos, "bang": mode != "quiet", "mode": mode, "wait_go": wait_go })
+## Order a stack at the back door through `squad.issue` the way the command menu asks for it (LD16):
+## `{ kind: "stack", to, pos, bang, mode, wait_go }`, `bang` being mode != quiet (part 1's key). The
+## order posted, or {}.
+static func stack_order(
+	s: Node,
+	to: Array,
+	pos: Vector2,
+	mode: String,
+	wait_go: bool,
+) -> Dictionary:
+	return issue(
+		s,
+		{
+			"kind": STACK,
+			"to": to,
+			"pos": pos,
+			"bang": mode != "quiet",
+			"mode": mode,
+			"wait_go": wait_go,
+		},
+	)
 
 
-## The leader's Go for the held stack at the doorway nearest `pos` (LD13): `squad.issue({ kind: "go", pos })`. The order posted, or {}.
+## The leader's Go for the held stack at the doorway nearest `pos` (LD13):
+## `squad.issue({ kind: "go", pos })`. The order posted, or {}.
 static func go(s: Node, pos: Vector2) -> Dictionary:
 	return issue(s, { "kind": GO, "pos": pos })
 
@@ -328,18 +507,22 @@ static func all_called(t: TestContext, ids: Array, step: String, opening: String
 	return ids.all(func(id): return Entry.first_call_time(t, step, id, opening) < INF)
 
 
-## The actors of `ids` sorted by the stack slot they last claimed at doorway `opening` (from their radio); those with no claim last.
+## The actors of `ids` sorted by the stack slot they last claimed at doorway `opening` (from their
+## radio); those with no claim last.
 static func by_slot(t: TestContext, ids: Array, opening: String) -> Array:
 	var slot_of := {}
 	for id in ids:
-		var claims := Entry.calls(t, "", id).filter(func(c): return String(c.get("opening", "")) == opening)
+		var claims := Entry.calls(t, "", id).filter(
+			func(c): return String(c.get("opening", "")) == opening,
+		)
 		slot_of[id] = int(claims.back().get("slot", 99)) if not claims.is_empty() else 99
 	var out := ids.duplicate()
 	out.sort_custom(func(a, b): return slot_of[a] < slot_of[b])
 	return out
 
 
-## Whether actor `id` is in its stack slot (its entry's phase is past the approach: `stack` or later).
+## Whether actor `id` is in its stack slot (its entry's phase is past the approach: `stack` or
+## later).
 static func stacked(t: TestContext, id: StringName) -> bool:
 	var phase := String(brain(t, id).debug_entry().get("phase", ""))
 	return phase != "" and phase != "approach"

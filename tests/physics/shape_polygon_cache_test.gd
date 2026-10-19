@@ -1,9 +1,8 @@
 extends GameTest
-
-## `Deformation.shape_polygon` keeps its last few dented silhouettes, because each hit asks for the same one several
-## times (collider, shadow, drawing) and every repaint of a wounded character asks again. A kept polygon must be the
-## one a fresh computation gives, for the inputs it was made from only: another size, other dents or retuned
-## deformation each get their own.
+## `Deformation.shape_polygon` keeps its last few dented silhouettes, because each hit asks for the
+## same one several times (collider, shadow, drawing) and every repaint of a wounded character asks
+## again. A kept polygon must be the one a fresh computation gives, for the inputs it was made from
+## only: another size, other dents or retuned deformation each get their own.
 
 const SEED := 777
 
@@ -11,7 +10,8 @@ const SEED := 777
 func describe() -> Dictionary:
 	return {
 		"name": "Kept dented silhouettes equal fresh ones",
-		"description": "shape_polygon returns what a fresh computation does, hit or miss, and a change of shape, size, dents or tuning is never answered with an old polygon.",
+		"description": "shape_polygon returns what a fresh computation does, hit or miss, and a "
+			+ "change of shape, size, dents or tuning is never answered with an old polygon.",
 		"tags": ["deformation", "cache"],
 		"timeout": 10.0,
 	}
@@ -19,7 +19,8 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 400, 300))
-	s.set_static(PhysicsConfig, "deform_radius", PhysicsConfig.deform_radius)  # restored after the test
+	# restored after the test
+	s.set_static(PhysicsConfig, "deform_radius", PhysicsConfig.deform_radius)
 
 
 func _impacts(rng: RandomNumberGenerator, size: Vector2, count: int) -> Array:
@@ -51,9 +52,24 @@ func run(t: TestContext) -> void:
 	var dents := _impacts(rng, dented_size, 6)
 	var before := Deformation.shape_polygon("circle", dented_size, dents)
 	dents.append(_impacts(rng, dented_size, 1)[0])
-	t.check(Deformation.shape_polygon("circle", dented_size, dents) == Deformation._shape_polygon("circle", dented_size, dents), "one more dent is not answered with the old polygon")
-	t.check(Deformation.shape_polygon("circle", dented_size, dents) != before, "and it is a different polygon")
+	t.check(
+		Deformation.shape_polygon("circle", dented_size, dents)
+			== Deformation._shape_polygon("circle", dented_size, dents),
+		"one more dent is not answered with the old polygon",
+	)
+	t.check(
+		Deformation.shape_polygon("circle", dented_size, dents) != before,
+		"and it is a different polygon",
+	)
 	var other_size := Vector2(60.0, 60.0)
-	t.check(Deformation.shape_polygon("circle", other_size, dents) == Deformation._shape_polygon("circle", other_size, dents), "another size is computed afresh")
+	t.check(
+		Deformation.shape_polygon("circle", other_size, dents)
+			== Deformation._shape_polygon("circle", other_size, dents),
+		"another size is computed afresh",
+	)
 	PhysicsConfig.deform_radius = 12.0
-	t.check(Deformation.shape_polygon("circle", dented_size, dents) == Deformation._shape_polygon("circle", dented_size, dents), "retuned deformation is computed afresh")
+	t.check(
+		Deformation.shape_polygon("circle", dented_size, dents)
+			== Deformation._shape_polygon("circle", dented_size, dents),
+		"retuned deformation is computed afresh",
+	)

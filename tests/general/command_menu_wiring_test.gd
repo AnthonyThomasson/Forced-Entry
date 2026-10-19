@@ -1,17 +1,21 @@
 extends GameTest
-
-## LD11 and interface 21 (`docs/leadership.md`): the wiring, in a match Main builds. With "Lead the team" on, Main builds one
-## squad per faction from its combatants after arming them (`_build_squads`), hands each NPC its squad, and, because the human leads, adds
-## the command menu and the order markers (`_build_command_menu`), the menu's `order_requested` connected to the squad's `issue`. The
-## human leader opens the menu on the Terrace house's back door, ticks its two NPC teammates and orders "Stack into the kitchen with stun";
-## after the menu closes (and the tree is unpaused), both NPCs claim slots at the back door under the order, in bang mode. Part 2 (LD13,
-## LD16): the order is given with the menu's "Hold for my go" ticked, so the stack holds once formed; the leader opens the menu on the door
-## again and chooses "Go into the kitchen", and the stack bangs and goes in.
+## LD11 and interface 21 (`docs/leadership.md`): the wiring, in a match Main builds. With "Lead the
+## team" on, Main builds one squad per faction from its combatants after arming them
+## (`_build_squads`), hands each NPC its squad, and, because the human leads, adds the command menu
+## and the order markers (`_build_command_menu`), the menu's `order_requested` connected to the
+## squad's `issue`. The human leader opens the menu on the Terrace house's back door, ticks its two
+## NPC teammates and orders "Stack into the kitchen with stun"; after the menu closes (and the tree
+## is unpaused), both NPCs claim slots at the back door under the order, in bang mode. Part 2 (LD13,
+## LD16): the order is given with the menu's "Hold for my go" ticked, so the stack holds once
+## formed; the leader opens the menu on the door again and chooses "Go into the kitchen", and the
+## stack bangs and goes in.
 ##
-## Main's match-setup logic runs on a Main that never enters the tree (as `match_setup_test.gd` and `lead_rank_test.gd` do): the window's
-## config through `_on_setup_chosen`, the NPCs placed with Main's `MatchSpawner`, the human a puppet standing in for the player, then
-## Main's own `_arm_characters`, `_build_squads` and `_build_command_menu` over this world. Scripted Von (the first option offered): the
-## NPCs' own decisions are not under test, and the order level asks nothing. `Settings.path` points at a scratch file.
+## Main's match-setup logic runs on a Main that never enters the tree (as `match_setup_test.gd` and
+## `lead_rank_test.gd` do): the window's config through `_on_setup_chosen`, the NPCs placed with
+## Main's `MatchSpawner`, the human a puppet standing in for the player, then Main's own
+## `_arm_characters`, `_build_squads` and `_build_command_menu` over this world. Scripted Von (the
+## first option offered): the NPCs' own decisions are not under test, and the order level asks
+## nothing. `Settings.path` points at a scratch file.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -19,7 +23,6 @@ const MainScript := preload("res://scenes/main.gd")
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-
 const NPC_AT := [Vector2(960, 60), Vector2(985, 110)]
 ## How long (s) the held stack is watched holding once both are ready.
 const HOLD := 8.0
@@ -28,7 +31,11 @@ const HOLD := 8.0
 func describe() -> Dictionary:
 	return {
 		"name": "The leader's menu orders a stun stack in a Main-built match",
-		"description": "With Lead the team on, Main builds the squads and the command menu; ordering two ticked teammates to stack on the back door with a stun makes both claim slots there in bang mode once the menu closes (LD11, interface 21); ordered with Hold for my go it holds until the menu's Go, then bangs and goes in (LD13, LD16).",
+		"description": "With Lead the team on, Main builds the squads and the command menu; "
+			+ "ordering two ticked teammates to stack on the back door with a stun makes both "
+			+ "claim slots there in bang mode once the menu closes (LD11, interface 21); ordered "
+			+ "with Hold for my go it holds until the menu's Go, then bangs and goes in (LD13, "
+			+ "LD16).",
 		"tags": ["setup", "match", "leadership", "order", "ui"],
 		"timeout": 70.0,
 	}
@@ -41,7 +48,12 @@ func configure(s: TestSetup) -> void:
 	s.lock_interaction([&"camera", &"pause"])
 	s.set_static(Settings, "path", "user://test_command_menu_wiring_settings.json")
 	s.set_static(Settings, "setup", {})
-	s.actor(&"me", &"puppet", Vector2(1150, 500), { "faction": &"invader", "max_health": 1000000.0 })
+	s.actor(
+		&"me",
+		&"puppet",
+		Vector2(1150, 500),
+		{ "faction": &"invader", "max_health": 1_000_000.0 },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -52,7 +64,12 @@ func run(t: TestContext) -> void:
 	spawner.world = t.world
 	spawner.openings = t.world.get("openings")
 	for i in NPC_AT.size():
-		spawner.add_npc(MatchSpawner.INVADER_SCENE, spawner.npc_name("Invader", i), NPC_AT[i], t.rooms)
+		spawner.add_npc(
+			MatchSpawner.INVADER_SCENE,
+			spawner.npc_name("Invader", i),
+			NPC_AT[i],
+			t.rooms,
+		)
 	var npcs: Array = spawner.combatants.duplicate()
 	var me := t.actor(&"me")
 	main._world = t.world
@@ -60,72 +77,130 @@ func run(t: TestContext) -> void:
 	main._player = me
 	var combatants: Array = npcs + [me]
 	main._arm_characters(combatants)
-	if not t.require(npcs.all(func(n): return Probe.count(n, Probe.STUN) >= 1), "Main armed the NPC invaders with a stun each (premise: the invaders' loadout)"):
+	if not t.require(
+			npcs.all(func(n): return Probe.count(n, Probe.STUN) >= 1),
+			"Main armed the NPC invaders with a stun each (premise: the invaders' loadout)",
+	):
 		main.free()
 		return
-	if not t.require(_call(main, &"_build_squads", [combatants, t.rooms]), "Main builds the squads (_build_squads)"):
+	if not t.require(
+			_call(main, &"_build_squads", [combatants, t.rooms]),
+			"Main builds the squads (_build_squads)",
+	):
 		main.free()
 		return
-	if not t.require(_call(main, &"_build_command_menu", [t.rooms]), "Main builds the command menu when the human leads (_build_command_menu)"):
+	if not t.require(
+			_call(main, &"_build_command_menu", [t.rooms]),
+			"Main builds the command menu when the human leads (_build_command_menu)",
+	):
 		main.free()
 		return
 	var menu := _find_menu(t.world)
-	if not t.require(menu != null, "the command menu is in the match's world (a node with open_at under World)"):
+	if not t.require(
+			menu != null,
+			"the command menu is in the match's world (a node with open_at under World)",
+	):
 		main.free()
 		return
 
 	for npc in npcs:
-		t.check(Order.tick(menu, String(npc.name), true), "the menu lists teammate %s to tick" % npc.name)
+		t.check(
+			Order.tick(menu, String(npc.name), true),
+			"the menu lists teammate %s to tick" % npc.name,
+		)
 	menu.open_at(Order.BACK_NORTH)
 	await t.frames(1)
 	t.check(t.world.get_tree().paused, "the menu pauses the match")
 	t.check(_set_hold(menu, true), "the menu has a \"Hold for my go\" checkbox to tick (LD16)")
-	if not t.require(Order.choose(menu, "Stack into the kitchen with stun"), "it offers \"Stack into the kitchen with stun\" (items %s)" % str(Order.labels(menu))):
+	if not t.require(
+			Order.choose(menu, "Stack into the kitchen with stun"),
+			"it offers \"Stack into the kitchen with stun\" (items %s)" % str(Order.labels(menu)),
+	):
 		t.world.get_tree().paused = false
 		main.free()
 		return
 	await t.frames(1)
 	t.check(not t.world.get_tree().paused, "choosing it closes the menu and unpauses")
-	t.check(not Order.orders(t).is_empty(), "the squad posted the order (Main wired order_requested to Squad.issue)")
+	t.check(
+		not Order.orders(t).is_empty(),
+		"the squad posted the order (Main wired order_requested to Squad.issue)",
+	)
 
-	var claimed := func(): return npcs.all(func(n): return not Order.ordered_claims(t, n, Entry.BACK["id"]).is_empty())
-	t.check(await t.until(claimed, 10.0), "both teammates claim slots at the back door under the order")
+	var claimed := func():
+		return npcs.all(func(n): return not Order.ordered_claims(t, n, Entry.BACK["id"]).is_empty())
+	t.check(
+		await t.until(claimed, 10.0),
+		"both teammates claim slots at the back door under the order",
+	)
 	for n in npcs:
 		var claims := Order.ordered_claims(t, n, Entry.BACK["id"])
-		t.check(not claims.is_empty() and claims.all(func(c): return c.get("bang") == true), "%s claims in bang mode (%s)" % [n.name, str(claims.map(func(c): return c.get("bang")))])
+		t.check(
+			not claims.is_empty() and claims.all(func(c): return c.get("bang") == true),
+			"%s claims in bang mode (%s)"
+				% [n.name, str(claims.map(func(c): return c.get("bang")))],
+		)
 	await _hold_then_go(t, menu, npcs)
 	main.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 
 
-## LD13 / LD16 (part 2): the stun stack was ordered with "Hold for my go" ticked, so it holds once formed: no bang call, no crossing. The
-## leader opens the menu on the back door again and chooses "Go into the kitchen"; the squad posts the go, the bang is called and the
-## stack goes in.
+## LD13 / LD16 (part 2): the stun stack was ordered with "Hold for my go" ticked, so it holds once
+## formed: no bang call, no crossing. The leader opens the menu on the back door again and chooses
+## "Go into the kitchen"; the squad posts the go, the bang is called and the stack goes in.
 func _hold_then_go(t: TestContext, menu: Node, npcs: Array) -> void:
-	t.expect_eq(Order.orders(t).back().get("wait_go") if not Order.orders(t).is_empty() else null, true, "the stack ordered with Hold for my go ticked is held (wait_go)")
-	var ready := func(): return npcs.all(func(n): return not Order.raw_calls(t, n, "ready").is_empty())
+	t.expect_eq(
+		Order.orders(t).back().get("wait_go") if not Order.orders(t).is_empty() else null,
+		true,
+		"the stack ordered with Hold for my go ticked is held (wait_go)",
+	)
+	var ready := func():
+		return npcs.all(func(n): return not Order.raw_calls(t, n, "ready").is_empty())
 	if not t.require(await t.until(ready, 20.0), "both teammates stack and radio ready"):
 		return
-	var early := await t.until(func(): return not Entry.calls(t, "bang").is_empty() or not Entry.calls(t, "going_in").is_empty(), HOLD)
-	t.check(not early, "the held stack holds: no bang call and nobody goes in for %.0f s (bang calls %d, going_in %d)" % [HOLD, Entry.calls(t, "bang").size(), Entry.calls(t, "going_in").size()])
+	var early := await t.until(
+		func(): return (
+			not Entry.calls(t, "bang").is_empty() or not Entry.calls(t, "going_in").is_empty()
+		),
+		HOLD,
+	)
+	t.check(
+		not early,
+		("the held stack holds: no bang call and nobody goes in for %.0f s (bang calls %d, "
+				+ "going_in %d)")
+			% [HOLD, Entry.calls(t, "bang").size(), Entry.calls(t, "going_in").size()],
+	)
 	if early:
 		return
 	menu.open_at(Order.BACK_NORTH)
 	await t.frames(1)
-	if not t.require(Order.choose(menu, "Go into the kitchen"), "the menu offers \"Go into the kitchen\" on the held stack's door (items %s)" % str(Order.labels(menu))):
+	if not t.require(
+			Order.choose(menu, "Go into the kitchen"),
+			"the menu offers \"Go into the kitchen\" on the held stack's door (items %s)"
+				% str(Order.labels(menu)),
+	):
 		t.world.get_tree().paused = false
 		return
 	await t.frames(1)
 	t.check(not t.world.get_tree().paused, "choosing it closes the menu and unpauses")
-	t.check(Order.orders(t).any(func(o): return String(o.get("kind", "")) == Order.GO), "the squad posted the go (Main wired the go request to Squad.issue)")
-	t.check(await t.until(func(): return not Entry.calls(t, "bang").is_empty(), 10.0), "after the go the bang is called")
-	t.check(await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 20.0), "and the stack goes in")
+	t.check(
+		Order.orders(t).any(func(o): return String(o.get("kind", "")) == Order.GO),
+		"the squad posted the go (Main wired the go request to Squad.issue)",
+	)
+	t.check(
+		await t.until(func(): return not Entry.calls(t, "bang").is_empty(), 10.0),
+		"after the go the bang is called",
+	)
+	t.check(
+		await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 20.0),
+		"and the stack goes in",
+	)
 
 
 ## Tick or untick the menu's "Hold for my go" checkbox the way a click does; false when it has none.
 func _set_hold(menu: Node, on: bool) -> bool:
 	for box: BaseButton in menu.find_children("*", "BaseButton", true, false):
-		if (box is CheckBox or box is CheckButton) and String(box.text).to_lower().contains("hold for my go"):
+		if ((box is CheckBox or box is CheckButton)
+				and String(box.text).to_lower().contains("hold for my go")):
 			if box.button_pressed != on:
 				box.button_pressed = on
 				box.toggled.emit(on)

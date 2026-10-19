@@ -1,38 +1,44 @@
 extends Node
-
-## Audio domain: the sound service, autoloaded as `Sound`. It listens to the EventBus and turns the events other
-## domains post into positional sound, so emitters never reference it (and it never references them):
+## Audio domain: the sound service, autoloaded as `Sound`. It listens to the EventBus and turns the
+## events other domains post into positional sound, so emitters never reference it (and it never
+## references them):
 ##   &"shot"      a gun fired        { position, gun, attacker, power }
-##   &"hit"       a bullet or punch landed (only those carrying an `outcome`: blocked / penetrate / ricochet /
-##                punch)             { position, outcome, material, power, speed_factor, damage, … }
+##   &"hit"       a bullet or punch landed (only those carrying an `outcome`: blocked / penetrate /
+##                ricochet / punch)             { position, outcome, material, power, speed_factor,
+##                damage, … }
 ##   &"footfall"  a foot landed      { position, foot, speed, running }
-##   &"reload"    a reload began (stage &"start": the magazine comes out) or finished (stage &"done": the new one is
-##                seated and the action racked)   { position, gun, stage, power }
+##   &"reload"    a reload began (stage &"start": the magazine comes out) or finished (stage
+##                &"done": the new one is seated and the action racked)   { position, gun, stage,
+##                power }
 ##   &"throw"     a grenade left a hand           { position, kind }
-##   &"grenade"   a thrown grenade bounced (stage &"bounce"; &"rest" is silent)   { position, kind, stage }
-##   &"explosion" a grenade went off              { position, kind }
-##   &"stun"      a character was flashed / banged; only a deafening of `focus` is voiced   { character, deaf }
-##   &"vehicle"   a vehicle's ignition, door (open / close / slide_open / slide_close), crash (+ speed, material) or a
-##                character struck (bump_character, + speed)   { position, kind, stage }
+##   &"grenade"   a thrown grenade bounced (stage &"bounce"; &"rest" is silent)   { position, kind,
+##   stage } &"explosion" a grenade went off              { position, kind }
+##   &"stun"      a character was flashed / banged; only a deafening of `focus` is voiced   {
+##   character, deaf } &"vehicle"   a vehicle's ignition, door (open / close / slide_open /
+##                slide_close), crash (+ speed, material) or a character struck (bump_character, +
+##                speed)   { position, kind, stage }
 ##   &"engine"    a vehicle's engine started / stopped   { vehicle, kind, stage }
 ##   &"skid"      a vehicle's tyres began / stopped sliding   { vehicle, stage }
-## Each becomes a *profile* (SoundBank), a rendered variant of it, and a voice: a pooled AudioStreamPlayer2D, capped
-## per category with the oldest cut off first. The surface under a footfall comes from SoundSurface.
-## Everything accepted is announced back on the bus as &"sound" { kind, profile, variant, position, volume_db,
-## pitch } — what tests assert on and what a debug view could show.
+## Each becomes a *profile* (SoundBank), a rendered variant of it, and a voice: a pooled
+## AudioStreamPlayer2D, capped per category with the oldest cut off first. The surface under a
+## footfall comes from SoundSurface. Everything accepted is announced back on the bus as &"sound" {
+## kind, profile, variant, position, volume_db, pitch } — what tests assert on and what a debug view
+## could show.
 ##
-## `focus` is the character whose ears this is (Main sets the human; nothing hears for an AI). While it is deafened
-## (`stun_view().deaf`) `muffled()` is true: game audio goes through a low-pass on its own bus, closing at once and lifting
-## slowly, and a tinnitus whine (a looping voice that follows the deafness and is cut when it ends) plays once per stun.
+## `focus` is the character whose ears this is (Main sets the human; nothing hears for an AI). While
+## it is deafened (`stun_view().deaf`) `muffled()` is true: game audio goes through a low-pass on
+## its own bus, closing at once and lifting slowly, and a tinnitus whine (a looping voice that
+## follows the deafness and is cut when it ends) plays once per stun.
 ##
-## A running engine and a sliding vehicle's tyres are loops: one looping voice per vehicle and kind (`loop_of`), started by
-## the `engine` / `skid` start event and following the vehicle every frame, duck-typed like the focus (its position, and
-## `engine_state()` rpm and load for the engine's pitch and level, `slip()` and `speed()` for the squeal's), until the stop
-## event, the vehicle's engine stopping or the vehicle being freed.
+## A running engine and a sliding vehicle's tyres are loops: one looping voice per vehicle and kind
+## (`loop_of`), started by the `engine` / `skid` start event and following the vehicle every frame,
+## duck-typed like the focus (its position, and `engine_state()` rpm and load for the engine's pitch
+## and level, `slip()` and `speed()` for the squeal's), until the stop event, the vehicle's engine
+## stopping or the vehicle being freed.
 ##
-## Randomness (which variant, pitch and volume jitter) comes from this node's own RNG, never the gameplay one.
-## Voice lifetimes are counted in simulated time (`_now`), not read from the players, so a fixed-FPS test run
-## that outpaces the clock frees them correctly.
+## Randomness (which variant, pitch and volume jitter) comes from this node's own RNG, never the
+## gameplay one. Voice lifetimes are counted in simulated time (`_now`), not read from the players,
+## so a fixed-FPS test run that outpaces the clock frees them correctly.
 
 const SHOT := &"shot"
 const IMPACT := &"impact"
@@ -45,12 +51,14 @@ const TINNITUS := &"tinnitus"
 const ENGINE := &"engine"
 const VEHICLE := &"vehicle"
 const SKID := &"skid"
-## The bus every game voice plays on, with the muffling low-pass on it; the tinnitus plays on the master bus, above the muffle.
+## The bus every game voice plays on, with the muffling low-pass on it; the tinnitus plays on the
+## master bus, above the muffle.
 const GAME_BUS := &"GameSound"
 ## Real milliseconds to give the audio mixer at shutdown (see `_exit_tree`).
 const MIXER_DRAIN_MS := 80
 
-## The character whose hearing the player has (a deafened `focus` muffles the game and hears tinnitus); null = nobody's.
+## The character whose hearing the player has (a deafened `focus` muffles the game and hears
+## tinnitus); null = nobody's.
 var focus: Node = null
 ## The tinnitus voice while it plays ({} when none) and the level it started at.
 var _tinnitus: Dictionary = {}
@@ -58,18 +66,23 @@ var _tinnitus_db := 0.0
 ## How far the muffle is closed (0 open .. 1 shut) and the game bus's index (-1: none).
 var _muffle := 0.0
 var _bus := -1
-var _bus_made := false  ## Whether this service added the game bus (and so removes it at exit).
+## Whether this service added the game bus (and so removes it at exit).
+var _bus_made := false
 ## Picks variants and jitter (seeded from `SoundConfig.rng_seed`; never the gameplay RNG).
 var _rng := RandomNumberGenerator.new()
-## Simulated seconds since the service started (advances with the tree, so it stops when the game pauses).
+## Simulated seconds since the service started (advances with the tree, so it stops when the game
+## pauses).
 var _now := 0.0
-## Every voice built so far: [{ player: AudioStreamPlayer2D, category: StringName, until: float, started: float }].
+## Every voice built so far: [{ player: AudioStreamPlayer2D, category: StringName, until: float,
+## started: float }].
 var _voices: Array = []
 ## Last variant played per profile, so the same one is not repeated back to back.
 var _last_variant: Dictionary = {}
-## `[profile, variant]` pairs still to pre-render in the background (empty once the library is warm).
+## `[profile, variant]` pairs still to pre-render in the background (empty once the library is
+## warm).
 var _warm: Array = []
-## The loops following a vehicle, by `_loop_key`: { vehicle, kind (`engine` / `skid`), profile, voice, pitch, volume_db }.
+## The loops following a vehicle, by `_loop_key`: { vehicle, kind (`engine` / `skid`), profile,
+## voice, pitch, volume_db }.
 var _loops: Dictionary = {}
 
 
@@ -88,9 +101,10 @@ func _process(delta: float) -> void:
 	_follow_loops(delta)
 
 
-## On quit, stop and free every voice. The engine's mixer thread only lets go of a stopped playback on its next
-## pass, which a process that exits straight away never gives it (and a fixed-FPS test run outruns it), so any
-## voice that ever played would be reported as a leaked object; a short pause lets it run once.
+## On quit, stop and free every voice. The engine's mixer thread only lets go of a stopped playback
+## on its next pass, which a process that exits straight away never gives it (and a fixed-FPS test
+## run outruns it), so any voice that ever played would be reported as a leaked object; a short
+## pause lets it run once.
 func _exit_tree() -> void:
 	for v: Dictionary in _voices:
 		var player: AudioStreamPlayer2D = v["player"]
@@ -100,7 +114,10 @@ func _exit_tree() -> void:
 	if not _voices.is_empty():
 		OS.delay_msec(MIXER_DRAIN_MS)
 	_voices.clear()
-	if _bus_made and _bus >= 0 and _bus < AudioServer.bus_count and AudioServer.get_bus_name(_bus) == GAME_BUS:
+	if (_bus_made
+			and _bus >= 0
+			and _bus < AudioServer.bus_count
+			and AudioServer.get_bus_name(_bus) == GAME_BUS):
 		AudioServer.remove_bus(_bus)
 
 
@@ -118,7 +135,8 @@ func muffled() -> bool:
 	return _deaf_left() > 0.0
 
 
-## The loop of `kind` (`engine` or `skid`) following `vehicle`: { profile, pitch, volume_db } as it plays now, or {} when none.
+## The loop of `kind` (`engine` or `skid`) following `vehicle`: { profile, pitch, volume_db } as it
+## plays now, or {} when none.
 func loop_of(vehicle: Node, kind: StringName) -> Dictionary:
 	var loop: Dictionary = _loops.get(_loop_key(vehicle, kind), {})
 	if loop.is_empty():
@@ -144,23 +162,46 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		return
 	match topic:
 		&"shot":
-			_play(SHOT, SoundBank.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))), data)
+			_play(
+				SHOT,
+				SoundBank.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))),
+				data,
+			)
 		&"hit":
 			var outcome := StringName(data.get("outcome", &""))
 			if outcome != &"":
-				var profile := SoundBank.impact_profile(String(data.get("material", "")), outcome, float(data.get("power", 1.0)))
+				var profile := SoundBank.impact_profile(
+					String(data.get("material", "")),
+					outcome,
+					float(data.get("power", 1.0)),
+				)
 				if profile != &"":
 					_play(IMPACT, profile, data, _impact_db(outcome, data))
 		&"footfall":
 			var at: Vector2 = data.get("position", Vector2.ZERO)
-			var profile := SoundBank.footstep_profile(SoundSurface.at(at), bool(data.get("running", false)))
+			var profile := SoundBank.footstep_profile(
+				SoundSurface.at(at),
+				bool(data.get("running", false)),
+			)
 			var pace := clampf(float(data.get("speed", 150.0)) / 150.0, 0.5, 1.5)
 			# Left and right feet differ a touch in pitch.
-			_play(FOOTSTEP, profile, data, linear_to_db(pace), 0.97 if int(data.get("foot", 0)) == 0 else 1.03)
+			_play(
+				FOOTSTEP,
+				profile,
+				data,
+				linear_to_db(pace),
+				0.97 if int(data.get("foot", 0)) == 0 else 1.03,
+			)
 		&"reload":
 			# The event says "start" / "done"; the sound is the magazine going out / coming in.
-			var stage := &"out" if data.get("stage", &"") == &"start" else (&"in" if data.get("stage", &"") == &"done" else &"")
-			var profile := SoundBank.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0)))
+			var stage := (&"out"
+					if data.get("stage", &"") == &"start"
+					else (&"in" if data.get("stage", &"") == &"done" else &""))
+			var profile := SoundBank.reload_profile(
+				data.get("gun", &""),
+				stage,
+				float(data.get("power", 1.0)),
+			)
 			if profile != &"":
 				_play(RELOAD, profile, data)
 		&"throw":
@@ -168,9 +209,13 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 			if profile != &"":
 				_play(THROW, profile, data)
 		&"grenade":
-			# A bounce clatters, voiced by the floor it lands on; the rest that follows it is silent.
+			# A bounce clatters, voiced by the floor it lands on; the rest that follows it is
+			# silent.
 			if data.get("stage", &"") == &"bounce":
-				var profile := SoundBank.grenade_profile(data.get("kind", &""), SoundSurface.at(data.get("position", Vector2.ZERO)))
+				var profile := SoundBank.grenade_profile(
+					data.get("kind", &""),
+					SoundSurface.at(data.get("position", Vector2.ZERO)),
+				)
 				if profile != &"":
 					_play(GRENADE, profile, data)
 		&"explosion":
@@ -178,7 +223,9 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 			if profile != &"":
 				_play(EXPLOSION, profile, data)
 		&"stun":
-			if data.get("character") == focus and focus != null and float(data.get("deaf", 0.0)) > 0.0:
+			if (data.get("character") == focus
+					and focus != null
+					and float(data.get("deaf", 0.0)) > 0.0):
 				_start_tinnitus(data)
 		&"vehicle":
 			_vehicle_sound(data)
@@ -196,7 +243,8 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 				_stop_loop(vehicle, SKID)
 
 
-## A one-shot vehicle sound: the ignition, a door, a crash (louder the faster, by what was struck) or a character struck.
+## A one-shot vehicle sound: the ignition, a door, a crash (louder the faster, by what was struck)
+## or a character struck.
 func _vehicle_sound(data: Dictionary) -> void:
 	var kind: StringName = data.get("kind", &"")
 	var stage: StringName = data.get("stage", &"")
@@ -209,24 +257,27 @@ func _vehicle_sound(data: Dictionary) -> void:
 		&"door_open", &"door_close", &"slide_open", &"slide_close":
 			profile = SoundBank.door_profile(kind, StringName(String(stage).trim_prefix("door_")))
 		&"crash", &"bump_character":
-			var material := "flesh" if stage == &"bump_character" else String(data.get("material", ""))
+			var material := ("flesh"
+					if stage == &"bump_character"
+					else String(data.get("material", "")))
 			profile = SoundBank.crash_profile(material, speed)
 			extra_db = linear_to_db(clampf(speed / SoundConfig.crash_speed_ref, 0.5, 1.6))
 	if profile != &"":
 		_play(VEHICLE, profile, data, extra_db)
 
 
-## How loud a hit is beyond its profile's own level: a faster bullet hits harder, a punch by its damage.
+## How loud a hit is beyond its profile's own level: a faster bullet hits harder, a punch by its
+## damage.
 func _impact_db(outcome: StringName, data: Dictionary) -> float:
 	if outcome == &"punch":
 		return linear_to_db(clampf(float(data.get("damage", 10.0)) / 10.0, 0.3, 1.5))
 	return linear_to_db(clampf(float(data.get("speed_factor", 1.0)), 0.25, 1.3))
 
 
-## Play one sound of `profile` for the category at `data.position` on `bus`: pick a variant, find a voice, post the event.
-## Returns the voice, or {} when nothing played.
-func _play(category: StringName, profile: StringName, data: Dictionary, extra_db: float = 0.0, pitch_scale: float = 1.0,
-		bus: StringName = GAME_BUS) -> Dictionary:
+## Play one sound of `profile` for the category at `data.position` on `bus`: pick a variant, find a
+## voice, post the event. Returns the voice, or {} when nothing played.
+func _play(category: StringName, profile: StringName, data: Dictionary, extra_db: float = 0.0,
+		pitch_scale: float = 1.0, bus: StringName = GAME_BUS) -> Dictionary:
 	var at: Vector2 = data.get("position", Vector2.ZERO)
 	var reach := _reach(category, at)
 	if reach <= 0.0:
@@ -236,7 +287,8 @@ func _play(category: StringName, profile: StringName, data: Dictionary, extra_db
 	if entry.is_empty():
 		return {}
 	var swing := float(SoundConfig.category_jitter_scale.get(category, 1.0))
-	var pitch := pitch_scale * (1.0 + _rng.randf_range(-SoundConfig.pitch_jitter, SoundConfig.pitch_jitter) * swing)
+	var pitch := (pitch_scale
+			* (1.0 + _rng.randf_range(-SoundConfig.pitch_jitter, SoundConfig.pitch_jitter) * swing))
 	var volume := _level(category, entry) + extra_db \
 		+ _rng.randf_range(-SoundConfig.volume_jitter_db, SoundConfig.volume_jitter_db) * swing
 	return _voice(category, profile, variant, entry["stream"], at, volume, pitch, reach, bus)
@@ -244,12 +296,15 @@ func _play(category: StringName, profile: StringName, data: Dictionary, extra_db
 
 ## A sound's level before what the event adds: its profile's own, the master's and its category's.
 func _level(category: StringName, entry: Dictionary) -> float:
-	return float(entry["level_db"]) + SoundConfig.master_db + float(SoundConfig.category_db.get(category, 0.0))
+	return (float(entry["level_db"]) + SoundConfig.master_db
+			+ float(SoundConfig.category_db.get(category, 0.0)))
 
 
-## Start `stream` (variant `variant` of `profile`) on a voice of `category` at `at`, heard up to `reach`, and announce it.
-func _voice(category: StringName, profile: StringName, variant: int, stream: AudioStreamWAV, at: Vector2, volume: float,
-		pitch: float, reach: float, bus: StringName = GAME_BUS) -> Dictionary:
+## Start `stream` (variant `variant` of `profile`) on a voice of `category` at `at`, heard up to
+## `reach`, and announce it.
+func _voice(category: StringName, profile: StringName, variant: int, stream: AudioStreamWAV,
+		at: Vector2, volume: float, pitch: float, reach: float,
+		bus: StringName = GAME_BUS) -> Dictionary:
 	var voice := _acquire(category)
 	var player: AudioStreamPlayer2D = voice["player"]
 	player.stream = stream
@@ -261,19 +316,34 @@ func _voice(category: StringName, profile: StringName, variant: int, stream: Aud
 	player.play()
 	voice["started"] = _now
 	voice["until"] = _now + stream.get_length() / pitch + 0.02
-	EventBus.post(&"sound", { "kind": category, "profile": profile, "variant": variant, "position": at,
-		"volume_db": volume, "pitch": pitch })
+	EventBus.post(
+		&"sound",
+		{
+			"kind": category, "profile": profile, "variant": variant, "position": at,
+			"volume_db": volume, "pitch": pitch,
+		},
+	)
 	return voice
 
 
-## The focus's ears ring: a looping whine at its position that lasts as long as it is deaf (`_hear_stun` keeps it to that).
+## The focus's ears ring: a looping whine at its position that lasts as long as it is deaf
+## (`_hear_stun` keeps it to that).
 func _start_tinnitus(data: Dictionary) -> void:
 	var deaf := _deaf_left()
 	if deaf <= 0.0:
 		return
 	var loudness := linear_to_db(clampf(deaf / SoundConfig.tinnitus_full_s, 0.3, 1.0))
-	var at: Vector2 = (focus as Node2D).global_position if focus is Node2D else data.get("position", Vector2.ZERO)
-	var voice := _play(TINNITUS, SoundBank.tinnitus_profile(), { "position": at }, loudness, 1.0, &"Master")
+	var at: Vector2 = ((focus as Node2D).global_position
+			if focus is Node2D
+			else data.get("position", Vector2.ZERO))
+	var voice := _play(
+		TINNITUS,
+		SoundBank.tinnitus_profile(),
+		{ "position": at },
+		loudness,
+		1.0,
+		&"Master",
+	)
 	if voice.is_empty():
 		return
 	voice["until"] = _now + deaf
@@ -288,8 +358,8 @@ func _deaf_left() -> float:
 	return float(focus.call("stun_view").get("deaf", 0.0))
 
 
-## Every frame: the muffle closes while `focus` is deaf and lifts when it is not, and the tinnitus voice fades with the
-## deafness and is cut when it ends.
+## Every frame: the muffle closes while `focus` is deaf and lifts when it is not, and the tinnitus
+## voice fades with the deafness and is cut when it ends.
 func _hear_stun(delta: float) -> void:
 	var deaf := _deaf_left()
 	var target := 1.0 if deaf > 0.0 else 0.0
@@ -298,7 +368,9 @@ func _hear_stun(delta: float) -> void:
 	if _bus >= 0:
 		var filter := AudioServer.get_bus_effect(_bus, 0) as AudioEffectLowPassFilter
 		AudioServer.set_bus_effect_enabled(_bus, 0, _muffle > 0.0)
-		filter.cutoff_hz = exp(lerpf(log(SoundConfig.muffle_open_hz), log(SoundConfig.muffle_cutoff_hz), _muffle))
+		filter.cutoff_hz = exp(
+			lerpf(log(SoundConfig.muffle_open_hz), log(SoundConfig.muffle_cutoff_hz), _muffle),
+		)
 	if _tinnitus.is_empty():
 		return
 	var player: AudioStreamPlayer2D = _tinnitus["player"]
@@ -308,7 +380,8 @@ func _hear_stun(delta: float) -> void:
 		_tinnitus = {}
 		return
 	_tinnitus["until"] = _now + deaf
-	player.volume_db = _tinnitus_db + linear_to_db(clampf(deaf / SoundConfig.tinnitus_tail, 0.001, 1.0))
+	player.volume_db = (_tinnitus_db
+			+ linear_to_db(clampf(deaf / SoundConfig.tinnitus_tail, 0.001, 1.0)))
 	if focus is Node2D:
 		player.global_position = (focus as Node2D).global_position
 
@@ -327,8 +400,8 @@ func _make_bus() -> void:
 	AudioServer.set_bus_effect_enabled(_bus, 0, false)
 
 
-## How far from `at` the category can still be heard by whoever is looking (the current camera): its range, or 0
-## when `at` is beyond it. With no camera (nothing is looking), everything is in range.
+## How far from `at` the category can still be heard by whoever is looking (the current camera): its
+## range, or 0 when `at` is beyond it. With no camera (nothing is looking), everything is in range.
 func _reach(category: StringName, at: Vector2) -> float:
 	var camera := get_viewport().get_camera_2d()
 	if camera == null:
@@ -336,16 +409,22 @@ func _reach(category: StringName, at: Vector2) -> float:
 	return reach_from(category, at, camera.get_screen_center_position(), camera.zoom.x)
 
 
-## `category`'s range (px) for a view centred on `center` at camera `zoom`, or 0 when `at` is beyond it. The range
-## grows as the camera zooms out when SoundConfig.range_follows_zoom is on.
-static func reach_from(category: StringName, at: Vector2, center: Vector2, zoom: float = 1.0) -> float:
+## `category`'s range (px) for a view centred on `center` at camera `zoom`, or 0 when `at` is beyond
+## it. The range grows as the camera zooms out when SoundConfig.range_follows_zoom is on.
+static func reach_from(
+	category: StringName,
+	at: Vector2,
+	center: Vector2,
+	zoom: float = 1.0,
+) -> float:
 	var reach: float = SoundConfig.category_range.get(category, 1000.0)
 	if SoundConfig.range_follows_zoom and zoom > 0.0:
 		reach /= zoom
 	return reach if center.distance_to(at) <= reach else 0.0
 
 
-## A variant of `profile` other than the one played last; a category may have more takes than the default.
+## A variant of `profile` other than the one played last; a category may have more takes than the
+## default.
 func _pick_variant(category: StringName, profile: StringName) -> int:
 	var n := maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1)
 	var v := _rng.randi() % n
@@ -355,7 +434,8 @@ func _pick_variant(category: StringName, profile: StringName) -> int:
 	return v
 
 
-## A voice for `category`: the oldest of its own if it is at its cap, else a free one, else a new player.
+## A voice for `category`: the oldest of its own if it is at its cap, else a free one, else a new
+## player.
 func _acquire(category: StringName) -> Dictionary:
 	var cap: int = SoundConfig.category_voices.get(category, 4)
 	var count := 0
@@ -372,7 +452,8 @@ func _acquire(category: StringName) -> Dictionary:
 	if count >= cap and not oldest.is_empty():
 		(oldest["player"] as AudioStreamPlayer2D).stop()
 		oldest["category"] = category
-		oldest["loop"] = ""  # A loop cut off for a newer voice is over (`_follow_loops` lets it go).
+		# A loop cut off for a newer voice is over (`_follow_loops` lets it go).
+		oldest["loop"] = ""
 		return oldest
 	if not free.is_empty():
 		free["category"] = category
@@ -381,13 +462,16 @@ func _acquire(category: StringName) -> Dictionary:
 	var player := AudioStreamPlayer2D.new()
 	player.name = "Voice%d" % _voices.size()
 	add_child(player)
-	var voice := { "player": player, "category": category, "until": 0.0, "started": 0.0, "loop": "" }
+	var voice := {
+		"player": player, "category": category, "until": 0.0, "started": 0.0, "loop": "",
+	}
 	_voices.append(voice)
 	return voice
 
 
-## Every `[profile, variant]` the service can play: the first variant of each profile, then the others. A variant
-## nobody has rendered yet is synthesized when it first plays, a hitch of several frames in the middle of a fight.
+## Every `[profile, variant]` the service can play: the first variant of each profile, then the
+## others. A variant nobody has rendered yet is synthesized when it first plays, a hitch of several
+## frames in the middle of a fight.
 func library() -> Array:
 	var profiles := SoundBank.profiles()
 	var out: Array = []
@@ -399,31 +483,36 @@ func library() -> Array:
 	return out
 
 
-## How many variants `_pick_variant` chooses between for `profile` (its category is the profile id's first part).
+## How many variants `_pick_variant` chooses between for `profile` (its category is the profile id's
+## first part).
 func _variants_of(profile: StringName) -> int:
 	var category := StringName(String(profile).get_slice("/", 0))
 	return maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1)
 
 
-## Render the library a little at a time (a few ms a frame) so no sound hitches the first time it plays.
+## Render the library a little at a time (a few ms a frame) so no sound hitches the first time it
+## plays.
 func _prewarm() -> void:
 	if _warm.is_empty():
 		return
 	var t0 := Time.get_ticks_usec()
-	while not _warm.is_empty() and (Time.get_ticks_usec() - t0) / 1000.0 < SoundConfig.prewarm_budget_ms:
+	while (not _warm.is_empty()
+			and (Time.get_ticks_usec() - t0) / 1000.0 < SoundConfig.prewarm_budget_ms):
 		var next: Array = _warm.pop_front()
 		SoundBank.sound(next[0], next[1])
 
 
 # --- Loops that follow a vehicle -------------------------------------------------------------
 
+
 ## The key of `vehicle`'s loop of `kind`.
 static func _loop_key(vehicle: Variant, kind: StringName) -> String:
 	return "%d/%s" % [(vehicle as Object).get_instance_id() if vehicle is Object else 0, kind]
 
 
-## Start `vehicle`'s loop of `category` (`engine` / `skid`) playing `profile`, unless it already has one. It is not culled
-## by range (it lasts, and the listener may come closer): its voice is heard up to the category's range, kept current.
+## Start `vehicle`'s loop of `category` (`engine` / `skid`) playing `profile`, unless it already has
+## one. It is not culled by range (it lasts, and the listener may come closer): its voice is heard
+## up to the category's range, kept current.
 func _start_loop(category: StringName, vehicle: Variant, profile: StringName) -> void:
 	if not is_instance_valid(vehicle) or not (vehicle is Node2D) or profile == &"":
 		return
@@ -433,15 +522,22 @@ func _start_loop(category: StringName, vehicle: Variant, profile: StringName) ->
 	var entry := SoundBank.sound(profile, _pick_variant(category, profile))
 	if entry.is_empty():
 		return
-	var loop := { "vehicle": vehicle, "kind": category, "profile": profile, "level": _level(category, entry) }
+	var loop := {
+		"vehicle": vehicle,
+		"kind": category,
+		"profile": profile,
+		"level": _level(category, entry),
+	}
 	var aim := _loop_aim(loop)
 	if aim.is_empty():
 		return
 	loop["pitch"] = aim["pitch"]
 	loop["volume_db"] = aim["volume_db"]
 	var at := (vehicle as Node2D).global_position
-	var voice := _voice(category, profile, int(_last_variant.get(profile, 0)), entry["stream"], at, loop["volume_db"],
-		loop["pitch"], _range(category))
+	var voice := _voice(
+		category, profile, int(_last_variant.get(profile, 0)), entry["stream"], at,
+		loop["volume_db"], loop["pitch"], _range(category),
+	)
 	voice["until"] = INF  # It plays until it is stopped.
 	voice["loop"] = key
 	loop["voice"] = voice
@@ -467,8 +563,9 @@ func _end_loop(key: String) -> void:
 		voice["loop"] = ""
 
 
-## Every frame each loop follows its vehicle: its position, and its pitch and level glide toward what the vehicle's state
-## asks for. A loop whose vehicle is gone (or whose engine no longer runs), or whose voice was cut off, ends.
+## Every frame each loop follows its vehicle: its position, and its pitch and level glide toward
+## what the vehicle's state asks for. A loop whose vehicle is gone (or whose engine no longer runs),
+## or whose voice was cut off, ends.
 func _follow_loops(delta: float) -> void:
 	if _loops.is_empty():
 		return
@@ -490,9 +587,10 @@ func _follow_loops(delta: float) -> void:
 		player.global_position = (vehicle as Node2D).global_position
 
 
-## What `loop` should sound like now, read off its vehicle (duck-typed): { pitch, volume_db }, or {} once it should stop
-## (an engine that no longer runs). The engine climbs in pitch with the revs and is louder on the throttle and high in the
-## revs; the squeal is as loud as the slide (and the speed) and a little higher the harder it slides.
+## What `loop` should sound like now, read off its vehicle (duck-typed): { pitch, volume_db }, or {}
+## once it should stop (an engine that no longer runs). The engine climbs in pitch with the revs and
+## is louder on the throttle and high in the revs; the squeal is as loud as the slide (and the
+## speed) and a little higher the harder it slides.
 func _loop_aim(loop: Dictionary) -> Dictionary:
 	var vehicle: Object = loop["vehicle"]
 	var level: float = loop["level"]
@@ -504,17 +602,27 @@ func _loop_aim(loop: Dictionary) -> Dictionary:
 			return {}
 		var rpm := clampf(float(state.get("rpm", 0.0)), 0.0, 1.0)
 		var throttle := clampf(float(state.get("load", 0.0)), 0.0, 1.0)
-		return { "pitch": lerpf(SoundConfig.engine_pitch.x, SoundConfig.engine_pitch.y, rpm),
-			"volume_db": level - SoundConfig.engine_load_db * (1.0 - throttle) + SoundConfig.engine_rev_db * rpm }
+		return {
+			"pitch": lerpf(SoundConfig.engine_pitch.x, SoundConfig.engine_pitch.y, rpm),
+			"volume_db": level - SoundConfig.engine_load_db * (1.0 - throttle)
+				+ SoundConfig.engine_rev_db * rpm,
+		}
 	if not vehicle.has_method("slip"):
 		return {}
 	var slip := clampf(float(vehicle.call("slip")), 0.0, 1.0)
-	var speed := float(vehicle.call("speed")) if vehicle.has_method("speed") else SoundConfig.skid_full_speed
-	var amount := clampf(slip / maxf(SoundConfig.skid_full_slip, 0.01), 0.1, 1.0) * clampf(speed / SoundConfig.skid_full_speed, 0.25, 1.0)
-	return { "pitch": 1.0 + SoundConfig.skid_pitch * slip, "volume_db": level + linear_to_db(amount) }
+	var speed := (float(vehicle.call("speed"))
+			if vehicle.has_method("speed")
+			else SoundConfig.skid_full_speed)
+	var amount := (clampf(slip / maxf(SoundConfig.skid_full_slip, 0.01), 0.1, 1.0)
+			* clampf(speed / SoundConfig.skid_full_speed, 0.25, 1.0))
+	return {
+		"pitch": 1.0 + SoundConfig.skid_pitch * slip,
+		"volume_db": level + linear_to_db(amount),
+	}
 
 
-## How far `category` carries for whoever is looking now: its range, scaled by the camera's zoom like `reach_from`.
+## How far `category` carries for whoever is looking now: its range, scaled by the camera's zoom
+## like `reach_from`.
 func _range(category: StringName) -> float:
 	var reach: float = SoundConfig.category_range.get(category, 1000.0)
 	var camera := get_viewport().get_camera_2d()

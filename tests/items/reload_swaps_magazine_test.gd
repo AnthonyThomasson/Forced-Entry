@@ -1,13 +1,13 @@
 extends GameTest
-
-## R reloads: it takes MagazineConfig.reload_time, seats the fullest carried magazine and keeps the old one
-## (with what is left in it) among the spares.
+## R reloads: it takes MagazineConfig.reload_time, seats the fullest carried magazine and keeps the
+## old one (with what is left in it) among the spares.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Reload swaps in the fullest magazine",
-		"description": "A half-spent pistol reloads from the fullest spare after the reload time; the old magazine is kept; switching away cancels a reload.",
+		"description": "A half-spent pistol reloads from the fullest spare after the reload time; "
+			+ "the old magazine is kept; switching away cancels a reload.",
 		"tags": ["item", "pistol", "ammo", "magazine", "reload"],
 		"timeout": 10.0,
 	}
@@ -15,8 +15,18 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.actor(&"gunman", &"puppet", Vector2(200, 250), { "start_slot": 3, "start_rounds": 5, "spare_magazine_types": [&"standard", &"extended"] })
-	s.actor(&"dry", &"puppet", Vector2(200, 400), { "start_slot": 3, "start_rounds": 5, "spare_magazine_types": [] })
+	s.actor(
+		&"gunman",
+		&"puppet",
+		Vector2(200, 250),
+		{ "start_slot": 3, "start_rounds": 5, "spare_magazine_types": [&"standard", &"extended"] },
+	)
+	s.actor(
+		&"dry",
+		&"puppet",
+		Vector2(200, 400),
+		{ "start_slot": 3, "start_rounds": 5, "spare_magazine_types": [] },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -50,7 +60,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	for i in 12:
 		shooter.shoot()
-		await t.seconds(float(GunConfig.row(&"pistol")["fire_interval"]) + 0.03)  # The pistol cycles between rounds.
+		# The pistol cycles between rounds.
+		await t.seconds(float(GunConfig.row(&"pistol")["fire_interval"]) + 0.03)
 	t.expect_eq(body.ammo(), 8, "twelve shots left 8 rounds")
 	gunman.reload()
 	await t.seconds(0.2)

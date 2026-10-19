@@ -1,28 +1,40 @@
 extends Node2D
-
 ## Objects domain: draws an EnvironmentObject: its pixel art (when it has an `art` painter) or its
-## flat shape and name label, either way through the damage-deformed silhouette. What in the art gives light (a screen's
-## face, a tube, a bulb: `_emissive`) is drawn again over it by a child `Emissive` layer (emissive_layer.gd), through the
-## same silhouette: the light-source overlay.
+## flat shape and name label, either way through the damage-deformed silhouette. What in the art
+## gives light (a screen's face, a tube, a bulb: `_emissive`) is drawn again over it by a child
+## `Emissive` layer (emissive_layer.gd), through the same silhouette: the light-source overlay.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
 
-@onready var _obj := get_parent()  ## The EnvironmentObject this draws.
-var _art: Texture2D  ## The piece's pixel-art texture, or null for the flat shape + label.
-var _watching := false  ## Whether the Deformable's `changed` is connected yet.
-var _drawn_rotation := NAN  ## The global rotation the current drawing was made for (NAN = not drawn yet).
-var _emissive: Texture2D  ## The art's light-giving pixels, or null when nothing in it gives light.
-var _emissive_layer: Node2D  ## The child drawing `_emissive` over the art (null without one).
-## The child behind the art drawing its drop shadow in the piece's frame, laid off it by the shadow's offset (fixed in world
-## space): a turn moves it (`_shadow_shift`) instead of repainting the piece. Null for a piece without art.
+## The piece's pixel-art texture, or null for the flat shape + label.
+var _art: Texture2D
+## Whether the Deformable's `changed` is connected yet.
+var _watching := false
+## The global rotation the current drawing was made for (NAN = not drawn yet).
+var _drawn_rotation := NAN
+## The art's light-giving pixels, or null when nothing in it gives light.
+var _emissive: Texture2D
+## The child drawing `_emissive` over the art (null without one).
+var _emissive_layer: Node2D
+## The child behind the art drawing its drop shadow in the piece's frame, laid off it by the
+## shadow's offset (fixed in world space): a turn moves it (`_shadow_shift`) instead of repainting
+## the piece. Null for a piece without art.
 var _drop_shadow: Node2D
+
+## The EnvironmentObject this draws.
+@onready var _obj := get_parent()
+
 
 func _ready() -> void:
 	if _obj.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_art = ObjectArt.texture(_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts)
-		_emissive = ObjectArt.emissive(_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts)
+		_art = ObjectArt.texture(
+			_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts,
+		)
+		_emissive = ObjectArt.emissive(
+			_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts,
+		)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 		_drop_shadow = Node2D.new()
@@ -32,25 +44,13 @@ func _ready() -> void:
 		add_child(_drop_shadow)
 
 
-## The `Emissive` child layer drawing `_emissive` (null when the piece has nothing that gives light).
-func emissive_layer() -> Node2D:
-	return _emissive_layer
-
-
-## Draw the light-giving pixels onto `layer` (the `Emissive` child) through the piece's deformed silhouette.
-func draw_emissive(layer: CanvasItem) -> void:
-	var deformable = _obj._deformable
-	var impacts: Array = deformable.impacts if deformable else []
-	Deformation.draw_shape(layer, _obj.shape_type, _obj.size, _obj.color, _obj.color, impacts,
-			deformable.damage_total if deformable else 0.0, Deformation.NO_COLOR, Deformation.NO_COLOR, Deformation.NO_COLOR,
-			_emissive, 0.0, false)
-
-## Redraws only when the picture can have changed: a recorded impact (the object's `Deformable` says so). A turn swings the
-## drop shadow (its offset is fixed in world space), which only moves its child; a piece at rest, or just shoved sideways,
-## keeps its drawing.
+## Redraws only when the picture can have changed: a recorded impact (the object's `Deformable` says
+## so). A turn swings the drop shadow (its offset is fixed in world space), which only moves its
+## child; a piece at rest, or just shoved sideways, keeps its drawing.
 func _process(_delta: float) -> void:
 	if not _watching:
-		var deformable = _obj._deformable  # created by the object's _ready, which runs after this node's
+		# created by the object's _ready, which runs after this node's
+		var deformable = _obj._deformable
 		if deformable:
 			deformable.changed.connect(queue_redraw)
 			if _emissive_layer:
@@ -62,6 +62,7 @@ func _process(_delta: float) -> void:
 		_drawn_rotation = global_rotation
 		if _drop_shadow:
 			_drop_shadow.position = _shadow_shift()
+
 
 func _draw() -> void:
 	var shape: String = _obj.shape_type
@@ -92,10 +93,28 @@ func _draw() -> void:
 	draw_string(font, pos, name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, text_color)
 
 
+## The `Emissive` child layer drawing `_emissive` (null when the piece has nothing that gives
+## light).
+func emissive_layer() -> Node2D:
+	return _emissive_layer
+
+
+## Draw the light-giving pixels onto `layer` (the `Emissive` child) through the piece's deformed
+## silhouette.
+func draw_emissive(layer: CanvasItem) -> void:
+	var deformable = _obj._deformable
+	var impacts: Array = deformable.impacts if deformable else []
+	Deformation.draw_shape(
+		layer, _obj.shape_type, _obj.size, _obj.color, _obj.color, impacts,
+		deformable.damage_total if deformable else 0.0, Deformation.NO_COLOR, Deformation.NO_COLOR,
+		Deformation.NO_COLOR, _emissive, 0.0, false,
+	)
+
+
 ## The art's silhouette (its alpha, through the deformed outline) cast on the floor away from the
-## light, longer for taller pieces (`coverage`); flat decor casts none. Drawn on the `_drop_shadow` child in the piece's frame;
-## the child sits at the shadow's offset (`_shadow_shift`), fixed in world space, so the shadow stays put relative to the light
-## as a shoved piece spins.
+## light, longer for taller pieces (`coverage`); flat decor casts none. Drawn on the `_drop_shadow`
+## child in the piece's frame; the child sits at the shadow's offset (`_shadow_shift`), fixed in
+## world space, so the shadow stays put relative to the light as a shoved piece spins.
 func _draw_drop_shadow() -> void:
 	if not _obj.solid or _shadow_length() <= 0.0 or ArtConfig.drop_shadow_alpha <= 0.0:
 		return
@@ -109,7 +128,12 @@ func _draw_drop_shadow() -> void:
 	var uvs := PackedVector2Array()
 	for p in poly:
 		uvs.append(p / size + Vector2(0.5, 0.5))
-	_drop_shadow.draw_colored_polygon(poly, Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha), uvs, _art)
+	_drop_shadow.draw_colored_polygon(
+		poly,
+		Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha),
+		uvs,
+		_art,
+	)
 
 
 ## How far (px) the drop shadow falls from the piece: longer for taller pieces.
@@ -117,7 +141,8 @@ func _shadow_length() -> float:
 	return minf(_obj.coverage * ArtConfig.drop_shadow_per_coverage, ArtConfig.drop_shadow_max)
 
 
-## Where the drop shadow lies off the piece in its own frame: `_shadow_length` px away from the light, whichever way it is turned.
+## Where the drop shadow lies off the piece in its own frame: `_shadow_length` px away from the
+## light, whichever way it is turned.
 func _shadow_shift() -> Vector2:
 	var away := -ArtConfig.light_from.normalized()
 	return global_transform.basis_xform_inv(away).normalized() * _shadow_length()

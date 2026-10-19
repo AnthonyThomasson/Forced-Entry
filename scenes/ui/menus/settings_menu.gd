@@ -1,14 +1,13 @@
 extends CanvasLayer
-
 ## UI domain, settings page: a full-screen window with the Debug checkbox and one row per rebindable
 ## input — the action's name, a button showing its key (click it, then press the new key or mouse
 ## button), a note when another action shares the binding, and a Reset. Built entirely in code, like
-## the other UI windows (an opaque full-screen page like the test browser), above everything (layer 20)
-## so it can open over the setup window.
+## the other UI windows (an opaque full-screen page like the test browser), above everything (layer
+## 20) so it can open over the setup window.
 ##
-## A decoupled piece, like the test browser window: it takes plain dicts and only emits signals — the
-## host (Main) applies each change to the settings and answers with `set_rows()`. It knows nothing of
-## the input system beyond the raw `InputEvent` it hands back.
+## A decoupled piece, like the test browser window: it takes plain dicts and only emits signals —
+## the host (Main) applies each change to the settings and answers with `set_rows()`. It knows
+## nothing of the input system beyond the raw `InputEvent` it hands back.
 ##
 ## While it is open it owns Escape and, during a capture, every key press: both are consumed in
 ## `_input`, which runs before the host's `_unhandled_input`, so Escape never reaches Main's
@@ -30,14 +29,40 @@ const _ROW_FONT := 22
 const _CONFLICT_COLOR := Color(1.0, 0.45, 0.35)
 const _PROMPT := "Press a key…"
 
-var _debug_check: CheckBox  ## The Debug checkbox.
-var _list: VBoxContainer    ## The scrolling list of headings and rows.
-var _rows: Array = []        ## The latest rows from the host: `{ action, label, group, text, conflicts, changed }`.
-var _capturing := ""         ## The action waiting for its next key or mouse press, "" when idle.
+## The Debug checkbox.
+var _debug_check: CheckBox
+## The scrolling list of headings and rows.
+var _list: VBoxContainer
+## The latest rows from the host: `{ action, label, group, text, conflicts, changed }`.
+var _rows: Array = []
+## The action waiting for its next key or mouse press, "" when idle.
+var _capturing := ""
 
 
 func _init() -> void:
 	layer = _LAYER
+
+
+## Consume Escape (back, or cancel a capture) and, during a capture, the next key or mouse press.
+## Handled here in `_input` so it never reaches Main's `_unhandled_input` or the game.
+func _input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	var click := event as InputEventMouseButton
+	if _capturing == "":
+		if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
+			get_viewport().set_input_as_handled()
+			back_requested.emit()
+		return
+	if key != null:
+		get_viewport().set_input_as_handled()  # a capture swallows every key, releases included
+		if key.pressed and not key.echo:
+			if key.keycode == KEY_ESCAPE:
+				_end_capture()
+			else:
+				_commit(event)
+	elif click != null and click.pressed:
+		get_viewport().set_input_as_handled()
+		_commit(event)
 
 
 ## Build the window from `model` = `{ debug: bool, rows: Array }` and show it. Each row is
@@ -47,7 +72,8 @@ func open(model: Dictionary) -> void:
 	set_rows(model.get("rows", []))
 
 
-## Replace the rows (after the host applied a change) and redraw the list. Any capture in progress ends.
+## Replace the rows (after the host applied a change) and redraw the list. Any capture in progress
+## ends.
 func set_rows(rows: Array) -> void:
 	_rows = rows
 	_capturing = ""
@@ -56,10 +82,12 @@ func set_rows(rows: Array) -> void:
 
 # --- UI construction ------------------------------------------------------------------------
 
+
 ## Lay out the opaque page: title, Debug checkbox, the scrolling list and the bottom buttons.
 func _build_ui(debug_on: bool) -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.09, 0.11)  # opaque, so the setup window underneath doesn't show through
+	# opaque, so the setup window underneath doesn't show through
+	bg.color = Color(0.08, 0.09, 0.11)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP  # swallow clicks meant for the window underneath
 	add_child(bg)
@@ -182,6 +210,7 @@ func _row(row: Dictionary) -> HBoxContainer:
 
 # --- capture ---------------------------------------------------------------------------------
 
+
 ## Start waiting for the next key or mouse press for `action`.
 func _begin_capture(action: String) -> void:
 	_capturing = action
@@ -192,28 +221,6 @@ func _begin_capture(action: String) -> void:
 func _end_capture() -> void:
 	_capturing = ""
 	_rebuild()
-
-
-## Consume Escape (back, or cancel a capture) and, during a capture, the next key or mouse press.
-## Handled here in `_input` so it never reaches Main's `_unhandled_input` or the game.
-func _input(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	var click := event as InputEventMouseButton
-	if _capturing == "":
-		if key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
-			get_viewport().set_input_as_handled()
-			back_requested.emit()
-		return
-	if key != null:
-		get_viewport().set_input_as_handled()  # a capture swallows every key, releases included
-		if key.pressed and not key.echo:
-			if key.keycode == KEY_ESCAPE:
-				_end_capture()
-			else:
-				_commit(event)
-	elif click != null and click.pressed:
-		get_viewport().set_input_as_handled()
-		_commit(event)
 
 
 ## End the capture and hand the press to the host, which answers with `set_rows` if it rebound.

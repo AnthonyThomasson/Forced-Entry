@@ -1,51 +1,46 @@
 class_name DroppedItem extends Node2D
-
 ## Items domain: an item let go into the world: a dead character's weapon, or a thrown grenade's
-## spoon. It falls from hand height, bounces, then skids across the floor with a fading spin until it
-## stops, glancing off walls and solid furniture (layer 1). Drawn by the item's own draw_dropped()
-## over a shadow that closes in as it lands. Visual only: nothing picks it up, and a dropped weapon
-## is never despawned (a grenade's spoon is, grenade_spoon.gd).
+## spoon. It falls from hand height, bounces, then skids across the floor with a fading spin until
+## it stops, glancing off walls and solid furniture (layer 1). Drawn by the item's own
+## draw_dropped() over a shadow that closes in as it lands. Visual only: nothing picks it up, and a
+## dropped weapon is never despawned (a grenade's spoon is, grenade_spoon.gd).
 
 ## Physics layers it glances off (walls + solid furniture).
 const WALL_MASK := PhysicsLayers.SOLID
 
-@export var gravity: float = 610.0          ## Fall acceleration (px/s²), as a falling body's.
-@export var start_height: float = 50.0      ## Height it is let go from (px): about hand height.
-@export var bounce: float = 0.35            ## Share of its fall speed each bounce keeps.
-@export var friction: float = 520.0         ## Skid deceleration on the floor (px/s²).
-@export var wall_bounce: float = 0.45       ## Share of its speed kept glancing off a wall.
-@export var spin_friction: float = 14.0     ## Spin deceleration on the floor (rad/s²).
-@export var radius: float = 3.0             ## Its size against walls (px).
-@export var shadow_per_height: float = 0.06 ## Shadow shift per px of height.
+## Fall acceleration (px/s²), as a falling body's.
+@export var gravity: float = 610.0
+## Height it is let go from (px): about hand height.
+@export var start_height: float = 50.0
+## Share of its fall speed each bounce keeps.
+@export var bounce: float = 0.35
+## Skid deceleration on the floor (px/s²).
+@export var friction: float = 520.0
+## Share of its speed kept glancing off a wall.
+@export var wall_bounce: float = 0.45
+## Spin deceleration on the floor (rad/s²).
+@export var spin_friction: float = 14.0
+## Its size against walls (px).
+@export var radius: float = 3.0
+## Shadow shift per px of height.
+@export var shadow_per_height: float = 0.06
 
 ## The item lying here (draws itself).
 var item: Item
-
-var _velocity := Vector2.ZERO  ## Across the floor (px/s).
-var _height := 0.0             ## Above the floor (px).
-var _rise := 0.0               ## Vertical speed (px/s, up).
-var _angle := 0.0              ## Which way the item's art points (rad).
-var _spin := 0.0               ## Spin (rad/s).
-var _landing := {}             ## How it lies, passed to draw_dropped (`flip`: which side is up).
-var _query: PhysicsShapeQueryParameters2D  ## Reused wall sweep (a circle of `radius`).
-
-
-## Let `dropped` go at world point `at`, pointing along `angle`, flying off at `velocity`, into
-## `parent`. `held_from` is a clear point it was held from (the hand): if `at` lies inside a wall,
-## the item starts where the way from there first meets it instead.
-static func spawn(dropped: Item, at: Vector2, angle: float, velocity: Vector2, parent: Node,
-		held_from: Vector2) -> DroppedItem:
-	var node := DroppedItem.new()
-	node.name = "Dropped%s" % dropped.display_name
-	node.item = dropped
-	node._angle = angle
-	node._velocity = velocity
-	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
-	node._landing = { "flip": randf() < 0.5 }
-	parent.add_child(node)
-	node.global_position = held_from
-	node._slide(at - held_from, false)
-	return node
+## Across the floor (px/s).
+var _velocity := Vector2.ZERO
+## Above the floor (px).
+var _height := 0.0
+## Vertical speed (px/s, up).
+var _rise := 0.0
+## Which way the item's art points (rad).
+var _angle := 0.0
+## Spin (rad/s).
+var _spin := 0.0
+## How it lies, passed to draw_dropped (`flip`: which side is up).
+var _landing := {}
+## Reused wall sweep (a circle of `radius`).
+var _query: PhysicsShapeQueryParameters2D
 
 
 func _ready() -> void:
@@ -75,6 +70,33 @@ func _physics_process(delta: float) -> void:
 		set_physics_process(false)  # At rest for good.
 
 
+func _draw() -> void:
+	if item == null:
+		return
+	var away := global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized()
+	item.draw_dropped(self, away * (0.5 + _height * shadow_per_height), _angle,
+		Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha), _landing)
+	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
+
+
+## Let `dropped` go at world point `at`, pointing along `angle`, flying off at `velocity`, into
+## `parent`. `held_from` is a clear point it was held from (the hand): if `at` lies inside a wall,
+## the item starts where the way from there first meets it instead.
+static func spawn(dropped: Item, at: Vector2, angle: float, velocity: Vector2, parent: Node,
+		held_from: Vector2) -> DroppedItem:
+	var node := DroppedItem.new()
+	node.name = "Dropped%s" % dropped.display_name
+	node.item = dropped
+	node._angle = angle
+	node._velocity = velocity
+	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
+	node._landing = { "flip": randf() < 0.5 }
+	parent.add_child(node)
+	node.global_position = held_from
+	node._slide(at - held_from, false)
+	return node
+
+
 ## Move by `motion`, stopping at a wall or solid furniture and (with `glance`) glancing off it.
 func _slide(motion: Vector2, glance: bool = true) -> void:
 	if motion.length_squared() < 0.000001:
@@ -95,12 +117,3 @@ func _slide(motion: Vector2, glance: bool = true) -> void:
 	var normal: Vector2 = info["normal"] if info.has("normal") else -motion.normalized()
 	_velocity = _velocity.bounce(normal) * wall_bounce
 	_spin *= -0.5
-
-
-func _draw() -> void:
-	if item == null:
-		return
-	var away := global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized()
-	item.draw_dropped(self, away * (0.5 + _height * shadow_per_height), _angle,
-		Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha), _landing)
-	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)

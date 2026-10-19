@@ -1,8 +1,8 @@
 extends GameTest
-
-## V3 (ticket #54): the held item is put away while seated and taken out again on exit. A character holding its pistol
-## boards the car: from the moment it starts folding into the seat until it has stepped out again it holds nothing
-## (`current_item()` null), and once out it has the same slot back in hand.
+## V3 (ticket #54): the held item is put away while seated and taken out again on exit. A character
+## holding its pistol boards the car: from the moment it starts folding into the seat until it has
+## stepped out again it holds nothing (`current_item()` null), and once out it has the same slot
+## back in hand.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 ## The slot it holds before boarding (the pistol).
@@ -12,7 +12,8 @@ const SLOT := 3
 func describe() -> Dictionary:
 	return {
 		"name": "The held item is put away while riding",
-		"description": "A character holding its pistol boards a car: no item in hand from the fold into the seat until it is out again, then the pistol is back in hand.",
+		"description": "A character holding its pistol boards a car: no item in hand from the fold "
+			+ "into the seat until it is out again, then the pistol is back in hand.",
 		"tags": ["vehicle", "car", "board", "exit", "item"],
 		"timeout": 25.0,
 	}
@@ -30,10 +31,18 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	if not Probe.has_reads(t, me, [&"posture_folded", &"current_item", &"current_slot"], "character me"):
+	if not Probe.has_reads(
+			t,
+			me,
+			[&"posture_folded", &"current_item", &"current_slot"],
+			"character me",
+	):
 		return
 	await t.seconds(0.3)
-	if not t.require(me.current_item() != null and me.current_slot() == SLOT, "it starts with its pistol in hand (slot %d)" % me.current_slot()):
+	if not t.require(
+			me.current_item() != null and me.current_slot() == SLOT,
+			"it starts with its pistol in hand (slot %d)" % me.current_slot(),
+	):
 		return
 	var held_name: String = me.item_name()
 
@@ -51,7 +60,11 @@ func run(t: TestContext) -> void:
 				folding_held += 1
 	if not t.require(me.is_in_vehicle(), "it gets in"):
 		return
-	t.check(folding > 0 and folding_held == 0, "nothing in hand while it folds into the seat (held on %d of %d frames)" % [folding_held, folding])
+	t.check(
+		folding > 0 and folding_held == 0,
+		"nothing in hand while it folds into the seat (held on %d of %d frames)"
+			% [folding_held, folding],
+	)
 	var seated := 0
 	var seated_held := 0
 	deadline = t.time + 1.0
@@ -60,7 +73,10 @@ func run(t: TestContext) -> void:
 		seated += 1
 		if me.current_item() != null:
 			seated_held += 1
-	t.check(seated_held == 0, "nothing in hand while seated (held on %d of %d frames)" % [seated_held, seated])
+	t.check(
+		seated_held == 0,
+		"nothing in hand while seated (held on %d of %d frames)" % [seated_held, seated],
+	)
 
 	# Getting out: still nothing in hand until it is out, then the same slot back.
 	t.puppet(&"me").use_vehicle()
@@ -74,7 +90,15 @@ func run(t: TestContext) -> void:
 		await t.frames(1)
 	if not t.require(me.vehicle() == null, "it gets out"):
 		return
-	t.check(out_held == 0, "nothing in hand while it rises out of the seat (held on %d of %d frames)" % [out_held, getting_out])
+	t.check(
+		out_held == 0,
+		"nothing in hand while it rises out of the seat (held on %d of %d frames)"
+			% [out_held, getting_out],
+	)
 	await t.frames(2)
 	t.check(me.current_item() != null, "once out it holds an item again")
-	t.check(me.current_slot() == SLOT and me.item_name() == held_name, "the same one it put away (slot %d, %s; was slot %d, %s)" % [me.current_slot(), me.item_name(), SLOT, held_name])
+	t.check(
+		me.current_slot() == SLOT and me.item_name() == held_name,
+		"the same one it put away (slot %d, %s; was slot %d, %s)"
+			% [me.current_slot(), me.item_name(), SLOT, held_name],
+	)

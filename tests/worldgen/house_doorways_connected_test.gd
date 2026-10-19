@@ -1,23 +1,27 @@
 extends GameTest
-
-## Every generated house is walkable and logical: within each room all of its doorways reach one another on the
-## baked nav map, each doorway can be passed through, and every room is reachable from outside the
-## front entrance; and LayoutRules.check finds nothing illogical in it (front door in a living space on the south
-## wall, legal exits and doors, bathrooms are dead ends, no pass-through rooms) and it has at most one exit. The
-## layout (rooms, doorways, exits) depends only on the plan and the seed's mirror draw, never on the furnishing,
-## so these checks share the houses this test builds anyway.
+## Every generated house is walkable and logical: within each room all of its doorways reach one
+## another on the baked nav map, each doorway can be passed through, and every room is reachable
+## from outside the front entrance; and LayoutRules.check finds nothing illogical in it (front door
+## in a living space on the south wall, legal exits and doors, bathrooms are dead ends, no
+## pass-through rooms) and it has at most one exit. The layout (rooms, doorways, exits) depends only
+## on the plan and the seed's mirror draw, never on the furnishing, so these checks share the houses
+## this test builds anyway.
 
 const SEEDS := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const AGENT_RADIUS := 14.0
-const FAR_AWAY := Vector2(5000, 5000)  ## Keeps each house clear of the test arena's own nav region.
-const STEP_IN := 30.0  ## How far inside a room a doorway's probe point sits.
+## Keeps each house clear of the test arena's own nav region.
+const FAR_AWAY := Vector2(5000, 5000)
+## How far inside a room a doorway's probe point sits.
+const STEP_IN := 30.0
 const REACH_TOLERANCE := 6.0
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Every doorway in a generated house is reachable",
-		"description": "For every floorplan and several seeds: LayoutRules finds the layout logical, all doorways of a room are mutually reachable, each doorway can be walked through, and every room is reachable from the front entrance.",
+		"description": "For every floorplan and several seeds: LayoutRules finds the layout "
+			+ "logical, all doorways of a room are mutually reachable, each doorway can be walked "
+			+ "through, and every room is reachable from the front entrance.",
 		"tags": ["worldgen", "navigation", "house", "doorway", "layout"],
 		"timeout": 120.0,
 	}
@@ -67,11 +71,13 @@ func _check_house(t: TestContext, plan: String, house_seed: int) -> void:
 
 	var region := NavBuilder.build(house, rooms, t.world, AGENT_RADIUS)
 	var map := t.world.get_world_2d().navigation_map
-	# The bake is applied to the shared map a frame or more later, and under load later still: wait until the map
-	# answers with this house's navmesh (a query before that reads the old map, or logs an engine error).
+	# The bake is applied to the shared map a frame or more later, and under load later still: wait
+	# until the map answers with this house's navmesh (a query before that reads the old map, or
+	# logs an engine error).
 	var centre: Vector2 = (rooms[0]["rect"] as Rect2).get_center()
 	var synced := func() -> bool:
-		return NavigationServer2D.map_get_iteration_id(map) > 0 and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid()
+		return (NavigationServer2D.map_get_iteration_id(map) > 0
+				and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid())
 	await t.until(synced, 5.0, "%s: the nav map took in the house's navmesh" % label)
 
 	var rect_of := {}
@@ -87,8 +93,11 @@ func _check_house(t: TestContext, plan: String, house_seed: int) -> void:
 				points.append(_inside(opening["pos"], rect))
 		for i in points.size():
 			for j in range(i + 1, points.size()):
-				t.check(_reachable(map, points[i], points[j]),
-					"%s: doorways %s and %s in %s cannot reach each other" % [label, points[i], points[j], room["key"]])
+				t.check(
+					_reachable(map, points[i], points[j]),
+					"%s: doorways %s and %s in %s cannot reach each other"
+						% [label, points[i], points[j], room["key"]],
+				)
 
 	# Each doorway is passable from either side.
 	for opening in openings:
@@ -112,8 +121,11 @@ func _check_house(t: TestContext, plan: String, house_seed: int) -> void:
 		for opening in openings:
 			for key in opening["rooms"]:
 				var target := _inside(opening["pos"], rect_of[key])
-				t.check(_reachable(map, start, target),
-					"%s: doorway at %s into %s is not reachable from the front entrance" % [label, opening["pos"], key])
+				t.check(
+					_reachable(map, start, target),
+					"%s: doorway at %s into %s is not reachable from the front entrance"
+						% [label, opening["pos"], key],
+				)
 
 	region.queue_free()
 	house.queue_free()

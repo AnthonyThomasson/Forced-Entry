@@ -1,21 +1,20 @@
 extends RefCounted
-
 ## Top-down pixel-art TABLE painter (Objects domain, private). A planked wooden top — planks
 ## along the long side with dark seams, staggered butt joints, a slight tone per plank, grain and
 ## the odd knot — inside a light-aware bevelled rim with rounded corners, optionally dressed with
 ## props. Options (`art_opts`, defaulting to ObjectArtConfig.table_*): `plank_px`, `rim_px`,
 ## `corner_radius`, `inset` (a recessed centre panel), `runner` (a cloth runner down the long
-## axis), `gaps` (open slats, as on a bench), `props` and `neon` (a desk's: its screens and a neon strip set round its edge,
-## glowing). Run down like a chair (scratches, cup rings, burns). A table is symmetric, so its facing only turns the plank
-## direction with the footprint.
+## axis), `gaps` (open slats, as on a bench), `props` and `neon` (a desk's: its screens and a neon
+## strip set round its edge, glowing). Run down like a chair (scratches, cup rings, burns). A table
+## is symmetric, so its facing only turns the plank direction with the footprint.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const ChairPainter = preload("res://scenes/objects/art/chair_painter.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-
-const _TOP_HEIGHT := 2     ## Tabletop height, for cast shadows.
-const _RUNNER_HEIGHT := 3  ## The runner sits on the top.
+## Tabletop height, for cast shadows.
+const _TOP_HEIGHT := 2
+## The runner sits on the top.
+const _RUNNER_HEIGHT := 3
 
 
 ## Paint a table onto `c` in `base` wood.
@@ -34,10 +33,18 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.outline(top, t.outline)
 	if opts.get("gaps", false):
 		for a in seams:
-			c.clear(PixelCanvas.rounded(Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h), 0))
+			c.clear(PixelCanvas.rounded(
+				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
+				0,
+			))
 	if opts.get("runner", ObjectArtConfig.table_runner):
 		_runner(c)
-	Props.draw_all(c, opts.get("props", []), Rect2i(0, 0, c.w, c.h).grow(-3), Decay.screen_color(opts))
+	Props.draw_all(
+		c,
+		opts.get("props", []),
+		Rect2i(0, 0, c.w, c.h).grow(-3),
+		Decay.screen_color(opts),
+	)
 	c.cast_shadows()
 	ChairPainter.worn_wood(c)
 	var neon := Decay.neon(opts)
@@ -82,7 +89,14 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 
 
 ## A 1px seam line at `across` running `from`..`to` along the planks (drawn pixels only).
-static func _seam(c: PixelCanvas, along_x: bool, across: int, from: int, to: int, col: Color) -> void:
+static func _seam(
+	c: PixelCanvas,
+	along_x: bool,
+	across: int,
+	from: int,
+	to: int,
+	col: Color,
+) -> void:
 	for i in range(from, to):
 		var p := Vector2i(i, across) if along_x else Vector2i(across, i)
 		if c.at(p.x, p.y).a > 0.0:
@@ -91,7 +105,13 @@ static func _seam(c: PixelCanvas, along_x: bool, across: int, from: int, to: int
 
 ## A recessed centre panel: a darker inlay with cross grain, framed by an inverted bevel (the
 ## edge nearest the light sits in shadow, the far edge catches light).
-static func _inset(c: PixelCanvas, radius: int, base: Color, t: Dictionary, opts: Dictionary) -> void:
+static func _inset(
+	c: PixelCanvas,
+	radius: int,
+	base: Color,
+	t: Dictionary,
+	opts: Dictionary,
+) -> void:
 	var margin: int = opts.get("inset_margin", ObjectArtConfig.table_inset_margin)
 	margin = mini(margin, int(mini(c.w, c.h) / 4.0))
 	var inner_rect := Rect2i(0, 0, c.w, c.h).grow(-margin)
@@ -100,7 +120,13 @@ static func _inset(c: PixelCanvas, radius: int, base: Color, t: Dictionary, opts
 	var inner := PixelCanvas.rounded(inner_rect, maxi(radius - 1, 1))
 	var inlay := base.darkened(0.1)
 	c.fill(inner, inlay)
-	c.grain(inner, c.w >= c.h, ArtConfig.wood_grain_density, inlay.darkened(0.12), inlay.lightened(0.05))
+	c.grain(
+		inner,
+		c.w >= c.h,
+		ArtConfig.wood_grain_density,
+		inlay.darkened(0.12),
+		inlay.lightened(0.05),
+	)
 	c.bevel(inner, 1, 1, t.shadow, t.light)
 	c.bevel(inner, 2, 2, t.dark, inlay)
 

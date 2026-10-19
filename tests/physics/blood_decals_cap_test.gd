@@ -1,5 +1,4 @@
 extends GameTest
-
 ## The decal layer keeps at most BloodConfig.print_max marks, dropping the oldest, and draws what it
 ## holds without engine errors.
 
@@ -7,7 +6,8 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Blood decals are capped",
-		"description": "Adding three times print_max prints and strokes keeps the layer at print_max, newest kept.",
+		"description": "Adding three times print_max prints and strokes keeps the layer at "
+			+ "print_max, newest kept.",
 		"tags": ["blood", "decals", "stress"],
 		"timeout": 10.0,
 	}
@@ -23,7 +23,15 @@ func run(t: TestContext) -> void:
 	for i in 300:
 		var at := Vector2(50 + (i * 7) % 800, 50 + (i * 13) % 400)
 		if i % 2 == 0:
-			layer.print_at(PackedVector2Array([at, at + Vector2(6, 0), at + Vector2(6, 3), at + Vector2(0, 3)]), 0.5)
+			layer.print_at(
+				PackedVector2Array([
+					at,
+					at + Vector2(6, 0),
+					at + Vector2(6, 3),
+					at + Vector2(0, 3),
+				]),
+				0.5,
+			)
 		else:
 			layer.ribbon_begin(at, 3.0, 0.5)
 	await t.frames(3)

@@ -1,8 +1,7 @@
 extends GameTest
-
-## A character standing in a doorway seals it in the steering map, like a piece of furniture does: the room
-## beyond is unreachable until the character moves, which is the AI's cue to shove through rather than push
-## at a body. The world's own map, which the AI plans with, keeps the doorway open.
+## A character standing in a doorway seals it in the steering map, like a piece of furniture does:
+## the room beyond is unreachable until the character moves, which is the AI's cue to shove through
+## rather than push at a body. The world's own map, which the AI plans with, keeps the doorway open.
 
 const DOOR := Vector2(400, 150)
 const FROM := Vector2(100, 150)
@@ -12,7 +11,8 @@ const TO := Vector2(700, 150)
 func describe() -> Dictionary:
 	return {
 		"name": "A character in a doorway seals it in the nav map",
-		"description": "Two rooms share one doorway with a puppet standing in it: a path through it stops short of the far room, then reaches it once the puppet has stepped aside.",
+		"description": "Two rooms share one doorway with a puppet standing in it: a path through "
+			+ "it stops short of the far room, then reaches it once the puppet has stepped aside.",
 		"tags": ["navigation", "rebake", "character", "doorway"],
 		"timeout": 20.0,
 	}
@@ -39,7 +39,18 @@ func _reach(t: TestContext, steering := true) -> float:
 func run(t: TestContext) -> void:
 	var sealed := func(): return _reach(t) > 0.0 and _reach(t) < DOOR.x
 	var open := func(): return _reach(t) > TO.x - 20.0
-	t.check(await t.until(sealed, 5.0), "the far room cannot be reached through the occupied doorway (path ends at x=%.0f)" % _reach(t))
-	t.check(_reach(t, false) > TO.x - 20.0, "the planning map keeps the doorway open (path ends at x=%.0f)" % _reach(t, false))
+	t.check(
+		await t.until(sealed, 5.0),
+		"the far room cannot be reached through the occupied doorway (path ends at x=%.0f)"
+			% _reach(t),
+	)
+	t.check(
+		_reach(t, false) > TO.x - 20.0,
+		"the planning map keeps the doorway open (path ends at x=%.0f)" % _reach(t, false),
+	)
 	t.puppet(&"guard").walk_to(Vector2(200, 60))
-	t.check(await t.until(open, 10.0), "the far room is reachable once the character has stepped aside (path ends at x=%.0f)" % _reach(t))
+	t.check(
+		await t.until(open, 10.0),
+		"the far room is reachable once the character has stepped aside (path ends at x=%.0f)"
+			% _reach(t),
+	)

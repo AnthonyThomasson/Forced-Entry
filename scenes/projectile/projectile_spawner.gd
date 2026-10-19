@@ -1,20 +1,22 @@
 class_name ProjectileSpawner
-
-## Projectile System: the one place a bullet is built. Guns (Items) call `spawn`; the bullet (projectile.gd)
-## owns its flight and the ballistic outcome of everything it strikes.
+## Projectile System: the one place a bullet is built. Guns (Items) call `spawn`; the bullet
+## (projectile.gd) owns its flight and the ballistic outcome of everything it strikes.
 
 const Projectile = preload("res://scenes/projectile/projectile.gd")
 const ProjectileVisuals = preload("res://scenes/projectile/projectile_visuals.gd")
 
+
 ## Spawn a bullet at `position` travelling along `direction` into `parent` (the world root).
 ## `ignore` is the shooter's body, skipped in the sweep; `item_damage` adds to the bullet's
-## base damage. `muzzle_speed` is the speed it leaves at (negative = `BallisticsConfig.projectile_speed`);
-## `penetration` its power to punch through what it hits (1 = a pistol round, higher goes further).
-## `max_range` (px, negative = `Projectile.max_distance`'s default) is how far it flies before it is spent, stopping exactly
-## there; `strikes_shooter` lets it hit `ignore` as well (a grenade's fragments name their thrower as the attacker and hurt it).
+## base damage. `muzzle_speed` is the speed it leaves at (negative =
+## `BallisticsConfig.projectile_speed`); `penetration` its power to punch through what it hits (1 =
+## a pistol round, higher goes further). `max_range` (px, negative = `Projectile.max_distance`'s
+## default) is how far it flies before it is spent, stopping exactly there; `strikes_shooter` lets
+## it hit `ignore` as well (a grenade's fragments name their thrower as the attacker and hurt it).
 ## Returns the node so the caller can connect its `hit` signal.
-static func spawn(position: Vector2, direction: Vector2, parent: Node, ignore: Node = null, item_damage: float = 0.0,
-		muzzle_speed: float = -1.0, penetration: float = 1.0, max_range: float = -1.0, strikes_shooter: bool = false) -> Node:
+static func spawn(position: Vector2, direction: Vector2, parent: Node, ignore: Node = null,
+		item_damage: float = 0.0, muzzle_speed: float = -1.0, penetration: float = 1.0,
+		max_range: float = -1.0, strikes_shooter: bool = false) -> Node:
 	var proj := Node2D.new()
 	proj.name = "Projectile"
 	proj.script = Projectile
@@ -34,5 +36,6 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, ignore: N
 	visuals.script = ProjectileVisuals
 	proj.add_child(visuals)
 
-	parent.add_child(proj, true)  # a readable name (Projectile, Projectile2, ...) for the tests and the log
+	# a readable name (Projectile, Projectile2, ...) for the tests and the log
+	parent.add_child(proj, true)
 	return proj

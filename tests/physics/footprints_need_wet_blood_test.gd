@@ -1,13 +1,14 @@
 extends GameTest
-
-## Footprints need wet blood under the feet: of three walkers crossing at once, the one over bare floor
-## and the one over a splatter that has dried leave no prints; the one over a fresh splatter does.
+## Footprints need wet blood under the feet: of three walkers crossing at once, the one over bare
+## floor and the one over a splatter that has dried leave no prints; the one over a fresh splatter
+## does.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Footprints need wet blood",
-		"description": "Three puppets walk side by side: over bare floor, over a dried splatter and over a fresh one; only the fresh one prints.",
+		"description": "Three puppets walk side by side: over bare floor, over a dried splatter "
+			+ "and over a fresh one; only the fresh one prints.",
 		"tags": ["blood", "footprints", "dried"],
 		"timeout": 15.0,
 	}
@@ -29,7 +30,11 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	for id in [&"clean", &"dried", &"fresh"]:
 		t.puppet(id).walk(Vector2.RIGHT)
-	await t.until(func(): return t.actor(&"clean").global_position.x > 600.0, 8.0, "the walkers cross")
+	await t.until(
+		func(): return t.actor(&"clean").global_position.x > 600.0,
+		8.0,
+		"the walkers cross",
+	)
 	for id in [&"clean", &"dried", &"fresh"]:
 		t.puppet(id).stop()
 	var layer := BloodDecals.find(t.world)

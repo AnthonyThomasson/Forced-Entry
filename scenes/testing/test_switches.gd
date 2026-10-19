@@ -1,18 +1,20 @@
 extends RefCounted
-
 ## Testing domain: the ONE table of named behaviour switches a test turns on or off with
 ## `TestSetup.switch(name, on)`. Each row maps a name onto knobs that already exist, as data:
 ##   actor:  { child, props } — set each of `props` to `on` on that child of every actor that has it
-##           (child "" = the character itself), before the actor enters the tree; `controller: true` in place
-##           of `child` targets the actor's controller child (the one with `control`, interface 7);
+##           (child "" = the character itself), before the actor enters the tree; `controller: true`
+##           in place of `child` targets the actor's controller child (the one with `control`,
+##           interface 7);
 ##   world:  { node, props }  — set each of `props` to `on` on that node of the built world;
 ##   static: [[Script, prop], …] — set each static var to `on`, restored after the test; a row
-##           `[Script, prop, off_value]` is for a non-bool knob: on keeps its tuning, off sets off_value.
+##           `[Script, prop, off_value]` is for a non-bool knob: on keeps its tuning, off sets
+##           off_value.
 ## To add a switch, add a row; test_world.gd applies them generically.
 
 static var ROWS := {
 	&"ai.vision": {
-		"description": "NPCs see (off = they only learn of others by hearing, being hit or callouts).",
+		"description": "NPCs see (off = they only learn of others by hearing, being hit or "
+			+ "callouts).",
 		"actor": { "controller": true, "props": ["vision_enabled"] },
 	},
 	&"ai.callouts": {
@@ -20,11 +22,13 @@ static var ROWS := {
 		"actor": { "controller": true, "props": ["send_callouts", "hear_callouts"] },
 	},
 	&"ai.entry": {
-		"description": "Invaders enter rooms tactically: stack, slice the pie, cross, take the corners.",
+		"description": "Invaders enter rooms tactically: stack, slice the pie, cross, take the "
+			+ "corners.",
 		"actor": { "controller": true, "props": ["entry_enabled"] },
 	},
 	&"ai.entry_guard": {
-		"description": "Any walk into a room that is not cleared goes in by tactical entry (needs ai.entry).",
+		"description": "Any walk into a room that is not cleared goes in by tactical entry (needs "
+			+ "ai.entry).",
 		"actor": { "controller": true, "props": ["entry_guard"] },
 	},
 	&"ai.pursuit": {
@@ -80,11 +84,13 @@ static var ROWS := {
 		"static": [[PhysicsConfig, &"hit_particles_enabled"]],
 	},
 	&"lighting.enabled": {
-		"description": "The dusk lighting: ambient, sky, piece lights and fixtures, flashes, and every occluder (off = the art alone).",
+		"description": "The dusk lighting: ambient, sky, piece lights and fixtures, flashes, and "
+			+ "every occluder (off = the art alone).",
 		"static": [[LightingConfig, &"enabled"], [LightMasks, &"shadows"]],
 	},
 	&"projectile.flyover": {
-		"description": "Bullets may fly over partial cover (off = every shot meets what it reaches).",
+		"description": "Bullets may fly over partial cover (off = every shot meets what it "
+			+ "reaches).",
 		"static": [[BallisticsConfig, &"cover_flyover_scale", 0.0]],
 	},
 }

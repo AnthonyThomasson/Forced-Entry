@@ -1,21 +1,30 @@
 extends CanvasLayer
-
-## Debug UI showing the held item, attack state and last-hit info, and (bottom-left) what the character wears, each plate
-## with its condition. Talks to the character only through its public API + signals (hit_landed / current_item /
-## is_attacking / outfit_view), never its internals — so it stays a UI-domain observer.
+## Debug UI showing the held item, attack state and last-hit info, and (bottom-left) what the
+## character wears, each plate with its condition. Talks to the character only through its public
+## API + signals (hit_landed / current_item / is_attacking / outfit_view), never its internals — so
+## it stays a UI-domain observer.
 
 const OutfitLines := preload("res://scenes/ui/hud/outfit_lines.gd")
 
 ## The character to observe.
 @export var character_path: NodePath = ^"../Player"
-var _character: Node                 ## The observed character (from `character_path`).
-var _label: Label                    ## Bottom-right stats panel.
-var _hit_display_label: Label        ## Top-left last-hit banner.
-var _outfit_label: Label             ## Bottom-left outfit list (one line per slot).
-var _last_hit_body: String = "—"     ## Name of the last body hit.
-var _last_hit_hand: int = -1         ## Hand of the last hit (−1 = a shot).
-var _last_hit_time: float = 0.0      ## When the last hit landed (seconds).
-var _last_hit_damage: float = -1.0   ## Damage of the last hit; < 0 = none recorded yet.
+
+## The observed character (from `character_path`).
+var _character: Node
+## Bottom-right stats panel.
+var _label: Label
+## Top-left last-hit banner.
+var _hit_display_label: Label
+## Bottom-left outfit list (one line per slot).
+var _outfit_label: Label
+## Name of the last body hit.
+var _last_hit_body: String = "—"
+## Hand of the last hit (−1 = a shot).
+var _last_hit_hand: int = -1
+## When the last hit landed (seconds).
+var _last_hit_time: float = 0.0
+## Damage of the last hit; < 0 = none recorded yet.
+var _last_hit_damage: float = -1.0
 
 
 func _ready() -> void:
@@ -66,16 +75,70 @@ func _ready() -> void:
 		_character.hit_landed.connect(_on_hit_landed)
 
 
-## "Ammo: 7/12  (+2 mags)" for a held gun ("reloading…" mid-swap), "Ammo: —" for an item without ammo.
+func _process(_delta: float) -> void:
+	var item_name: String = _character.item_name()
+	var reach: float = _character.item_reach()
+	var attack_active: bool = _character.is_attacking()
+	var interaction: String = _character.interaction_label()
+
+	# Build debug text (bottom-right).
+	var debug_lines := [
+		"=== DEBUG ===",
+		"Item: %d (%s)" % [_character.current_slot(), item_name],
+		_ammo_line(),
+		_grenade_line(),
+		"Punch Active: %s" % ("YES" if attack_active else "NO"),
+		"Interaction: %s" % (interaction if interaction != "" else "—"),
+		"Reach: %.1f" % reach,
+		"Stamina: %d%%%s" % [
+			roundi(_character.stamina_fraction() * 100.0),
+			" (running)" if _character.is_running() else "",
+		],
+		"Posture: %s" % _posture_label(),
+		"Last Hit:",
+	]
+
+	if _last_hit_time > 0:
+		var time_ago := Time.get_ticks_msec() / 1000.0 - _last_hit_time
+		var dmg_seg := "" if _last_hit_damage < 0.0 else " | Dmg: %.0f" % _last_hit_damage
+		debug_lines.append("  %s — %s%s | [%.1fs ago]"
+				% [_last_hit_body, _method_label(_last_hit_hand), dmg_seg, time_ago])
+		# Clear old hits after 5 seconds.
+		if time_ago > 5.0:
+			_last_hit_time = 0.0
+	else:
+		debug_lines.append("  (none)")
+
+	_label.text = "\n".join(debug_lines)
+	_outfit_label.text = "\n".join(["=== OUTFIT ==="] + OutfitLines.of(_character.outfit_view()))
+
+	# Update hit display (top-left).
+	if _last_hit_time > 0:
+		var time_ago := Time.get_ticks_msec() / 1000.0 - _last_hit_time
+		var dmg_seg := "" if _last_hit_damage < 0.0 else " — %.0f dmg" % _last_hit_damage
+		_hit_display_label.text = ("HIT: %s — %s%s"
+				% [_last_hit_body, _method_label(_last_hit_hand), dmg_seg])
+		# Clear after 3 seconds.
+		if time_ago > 3.0:
+			_hit_display_label.text = ""
+			_last_hit_time = 0.0
+	else:
+		_hit_display_label.text = ""
+
+
+## "Ammo: 7/12  (+2 mags)" for a held gun ("reloading…" mid-swap), "Ammo: —" for an item without
+## ammo.
 func _ammo_line() -> String:
 	var rounds: int = _character.ammo()
 	if rounds < 0:
 		return "Ammo: —"
-	var line := "Ammo: %d/%d  (+%d mags)" % [rounds, _character.ammo_capacity(), _character.spare_magazines()]
+	var line := ("Ammo: %d/%d  (+%d mags)"
+			% [rounds, _character.ammo_capacity(), _character.spare_magazines()])
 	return line + "  reloading…" if _character.is_reloading() else line
 
 
-## "Grenades: 1 stun, 2 frag" for what is carried (the kinds and slots `LoadoutConfig.grenade_options()` lists); "—" with none.
+## "Grenades: 1 stun, 2 frag" for what is carried (the kinds and slots
+## `LoadoutConfig.grenade_options()` lists); "—" with none.
 func _grenade_line() -> String:
 	var carried := []
 	for option: Dictionary in LoadoutConfig.grenade_options():
@@ -93,52 +156,6 @@ func _posture_label() -> String:
 	return "Standing"
 
 
-func _process(_delta: float) -> void:
-	var item_name: String = _character.item_name()
-	var reach: float = _character.item_reach()
-	var attack_active: bool = _character.is_attacking()
-	var interaction: String = _character.interaction_label()
-
-	# Build debug text (bottom-right).
-	var debug_lines := [
-		"=== DEBUG ===",
-		"Item: %d (%s)" % [_character.current_slot(), item_name],
-		_ammo_line(),
-		_grenade_line(),
-		"Punch Active: %s" % ("YES" if attack_active else "NO"),
-		"Interaction: %s" % (interaction if interaction != "" else "—"),
-		"Reach: %.1f" % reach,
-		"Stamina: %d%%%s" % [roundi(_character.stamina_fraction() * 100.0), " (running)" if _character.is_running() else ""],
-		"Posture: %s" % _posture_label(),
-		"Last Hit:",
-	]
-
-	if _last_hit_time > 0:
-		var time_ago := Time.get_ticks_msec() / 1000.0 - _last_hit_time
-		var dmg_seg := "" if _last_hit_damage < 0.0 else " | Dmg: %.0f" % _last_hit_damage
-		debug_lines.append("  %s — %s%s | [%.1fs ago]" % [_last_hit_body, _method_label(_last_hit_hand), dmg_seg, time_ago])
-		# Clear old hits after 5 seconds.
-		if time_ago > 5.0:
-			_last_hit_time = 0.0
-	else:
-		debug_lines.append("  (none)")
-
-	_label.text = "\n".join(debug_lines)
-	_outfit_label.text = "\n".join(["=== OUTFIT ==="] + OutfitLines.of(_character.outfit_view()))
-
-	# Update hit display (top-left).
-	if _last_hit_time > 0:
-		var time_ago := Time.get_ticks_msec() / 1000.0 - _last_hit_time
-		var dmg_seg := "" if _last_hit_damage < 0.0 else " — %.0f dmg" % _last_hit_damage
-		_hit_display_label.text = "HIT: %s — %s%s" % [_last_hit_body, _method_label(_last_hit_hand), dmg_seg]
-		# Clear after 3 seconds.
-		if time_ago > 3.0:
-			_hit_display_label.text = ""
-			_last_hit_time = 0.0
-	else:
-		_hit_display_label.text = ""
-
-
 ## Record the latest hit for display.
 func _on_hit_landed(body: Node, damage: float, hand: int) -> void:
 	_last_hit_body = body.name
@@ -147,7 +164,8 @@ func _on_hit_landed(body: Node, damage: float, hand: int) -> void:
 	_last_hit_time = Time.get_ticks_msec() / 1000.0
 
 
-## Readable method of damage for a hit's hand code: -1 = gunshot, 0/1 = left/right-hand punch, 2 = leg kick.
+## Readable method of damage for a hit's hand code: -1 = gunshot, 0/1 = left/right-hand punch, 2 =
+## leg kick.
 func _method_label(hand: int) -> String:
 	match hand:
 		-1: return "Gunshot"

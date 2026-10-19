@@ -1,16 +1,21 @@
 # Project lint rules
 
-`tools/lint.sh` runs two passes: the engine's GDScript analyzer, then every rule in `tools/lint_rules/rules/`. A rule
-is a project-specific check the engine cannot make: a domain reaching into another's internals, game code naming a
-dev tool, a banned call. One failing rule fails the lint, so it gates `tools/run_tests.sh` and the Stop hook with
-no extra wiring.
+`tools/lint.sh` runs three passes: the engine's GDScript analyzer, then every rule in `tools/lint_rules/rules/`, then
+gdstyle (`tools/lint_gdstyle.py`: `gdstyle fmt --check` and `gdstyle check` through the pinned `tools/gdstyle.sh`,
+config `gdstyle.toml`: 100 columns, tabs, every rule an error but `quality/*`). A rule is a project-specific check
+neither the engine nor gdstyle can make: a domain reaching into another's internals, game code naming a dev tool, a
+banned call. One failing rule fails the lint, so it gates `tools/run_tests.sh`, the Stop hook and the pre-commit hook
+with no extra wiring.
+The whole lint takes about 14 s, nearly all of it the engine pass; the rules and gdstyle take under a second.
 
 ```sh
-tools/lint.sh                          # engine pass, then every rule
+tools/lint.sh                          # engine pass, then every rule, then gdstyle
 tools/lint.sh --list-rules             # each rule's name and description
-tools/lint.sh --rule=coverage_isolation   # only that rule (comma list allowed), no engine pass
+tools/lint.sh --rule=coverage_isolation   # only that rule (comma list allowed), no engine or gdstyle pass
 tools/lint.sh --skip-rule=a,b          # every rule but those, after the engine pass
-tools/lint.sh scenes/ai                # both passes limited to those paths
+tools/lint.sh --no-gdstyle             # every pass but gdstyle
+tools/lint.sh scenes/ai                # every pass limited to those paths
+tools/gdstyle.sh fmt scenes/ai         # format those scripts as gdstyle's pass wants them
 tools/lint.sh --quiet                  # nothing printed when clean
 ```
 
@@ -26,7 +31,7 @@ The rules:
 ## Writing a rule
 
 A rule is one file, `rules/<name>.py`, plus a fixture test in `tools/lint_rules/tests/`, and nothing else: the runner
-loads every module in `rules/`, so `lint.sh`, `run_tests.sh` and the Stop hook pick it up. The module holds:
+loads every module in `rules/`, so `lint.sh`, `run_tests.sh` and both hooks pick it up. The module holds:
 
 - `NAME`: the rule's name, what `--rule=` and `--skip-rule=` take; the file is named after it.
 - `DESCRIPTION`: one line, shown by `--list-rules` and in the rule's section header.

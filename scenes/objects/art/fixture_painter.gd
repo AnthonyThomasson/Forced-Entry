@@ -1,14 +1,13 @@
 extends RefCounted
-
 ## Top-down pixel-art wall FIXTURE painter (thin wall-mounted pieces; Objects domain, private).
 ## Painted in the canonical frame (room side toward +y). A `mirror`: a framed glass strip with glare
 ## streaks. A `towels` rack: a chrome bar on end brackets with folded towels draped over it.
-## Run down (decay.gd): grime, and a mirror cracked. Options (`art_opts`): `kind` ("mirror" | "towels"), `neon` (a
-## mirror's frame lit as a neon strip, glowing).
+## Run down (decay.gd): grime, and a mirror cracked. Options (`art_opts`): `kind` ("mirror" |
+## "towels"), `neon` (a mirror's frame lit as a neon strip, glowing).
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _BAR_HEIGHT := 4  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _BAR_HEIGHT := 4
 const _TOWEL_HEIGHT := 6
 
 
@@ -58,5 +57,9 @@ static func _towels(c: PixelCanvas, metal: Color) -> void:
 		c.surface(towel, "fabric", col)
 		c.line(Vector2i(r.position.x, cy), Vector2i(r.end.x - 1, cy), col.lightened(0.2))
 		c.line(Vector2i(r.position.x, cy + 1), Vector2i(r.end.x - 1, cy + 1), col.darkened(0.2))
-		c.line(Vector2i(r.position.x + 1, r.end.y - 2), Vector2i(r.end.x - 2, r.end.y - 2), col.darkened(0.15))
+		c.line(
+			Vector2i(r.position.x + 1, r.end.y - 2),
+			Vector2i(r.end.x - 2, r.end.y - 2),
+			col.darkened(0.15),
+		)
 		c.outline(towel, col.darkened(0.35))

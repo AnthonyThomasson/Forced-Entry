@@ -1,9 +1,8 @@
 extends GameTest
-
-## The settings window is plain data in, signals out: it draws the rows it is given, turns a click on a
-## key button into a capture, hands the next key or mouse press back as `rebind_requested`, and owns
-## Escape (cancel a capture, else go back) so it never reaches Main's "return to setup". Driven by feeding
-## it events directly; it knows nothing of Keybinds, so the rows here are hand-made.
+## The settings window is plain data in, signals out: it draws the rows it is given, turns a click
+## on a key button into a capture, hands the next key or mouse press back as `rebind_requested`, and
+## owns Escape (cancel a capture, else go back) so it never reaches Main's "return to setup". Driven
+## by feeding it events directly; it knows nothing of Keybinds, so the rows here are hand-made.
 
 const SettingsMenu := preload("res://scenes/ui/menus/settings_menu.gd")
 
@@ -17,7 +16,9 @@ var _backs := 0
 func describe() -> Dictionary:
 	return {
 		"name": "Settings window captures a key and owns Escape",
-		"description": "Rows draw from plain dicts; clicking a key button captures the next key/mouse press as rebind_requested; Escape cancels a capture, else goes back; Reset and Debug emit their signals.",
+		"description": "Rows draw from plain dicts; clicking a key button captures the next "
+			+ "key/mouse press as rebind_requested; Escape cancels a capture, else goes back; "
+			+ "Reset and Debug emit their signals.",
 		"tags": ["settings", "ui", "input"],
 		"timeout": 5.0,
 	}
@@ -57,7 +58,10 @@ func run(t: TestContext) -> void:
 	t.expect_eq(_key_button("Punch").text, "Press a key…", "the row prompts for a key")
 	_menu._input(_key(KEY_ESCAPE))
 	t.expect_eq(_key_button("Punch").text, "G", "Escape cancels the capture")
-	t.check(_rebinds.is_empty() and _backs == 1, "a cancelled capture rebinds nothing and does not go back")
+	t.check(
+		_rebinds.is_empty() and _backs == 1,
+		"a cancelled capture rebinds nothing and does not go back",
+	)
 
 	# A key release or repeat is not a capture; the next press is.
 	_key_button("Punch").pressed.emit()
@@ -83,7 +87,11 @@ func run(t: TestContext) -> void:
 	_menu._input(click)
 	if not t.require(_rebinds.size() == 2, "a mouse press is captured"):
 		return
-	t.expect_eq((_rebinds[1][1] as InputEventMouseButton).button_index, MOUSE_BUTTON_RIGHT, "with the button pressed")
+	t.expect_eq(
+		(_rebinds[1][1] as InputEventMouseButton).button_index,
+		MOUSE_BUTTON_RIGHT,
+		"with the button pressed",
+	)
 
 	# New rows from the host replace the list and end any capture.
 	_key_button("Punch").pressed.emit()
@@ -101,16 +109,39 @@ func run(t: TestContext) -> void:
 
 func _rows() -> Array:
 	return [
-		{ "action": "move_up", "label": "Move up", "group": "Movement", "text": "W", "conflicts": [], "changed": false },
-		{ "action": "punch", "label": "Punch", "group": "Combat", "text": "G", "conflicts": ["Move up"], "changed": true },
-		{ "action": "fire", "label": "Fire", "group": "Combat", "text": "Mouse Left", "conflicts": [], "changed": false },
+		{
+			"action": "move_up",
+			"label": "Move up",
+			"group": "Movement",
+			"text": "W",
+			"conflicts": [],
+			"changed": false,
+		},
+		{
+			"action": "punch",
+			"label": "Punch",
+			"group": "Combat",
+			"text": "G",
+			"conflicts": ["Move up"],
+			"changed": true,
+		},
+		{
+			"action": "fire",
+			"label": "Fire",
+			"group": "Combat",
+			"text": "Mouse Left",
+			"conflicts": [],
+			"changed": false,
+		},
 	]
 
 
 ## The row whose name label reads `label` (rebuilt on every redraw, so look it up fresh each time).
 func _row(label: String) -> HBoxContainer:
 	for box in _menu.find_children("*", "HBoxContainer", true, false):
-		if box.get_child_count() > 0 and box.get_child(0) is Label and (box.get_child(0) as Label).text == label:
+		if (box.get_child_count() > 0
+				and box.get_child(0) is Label
+				and (box.get_child(0) as Label).text == label):
 			return box
 	return null
 

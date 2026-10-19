@@ -1,15 +1,14 @@
 extends CanvasLayer
-
-## UI domain, performance overlay: a compact stats panel (FPS, frame / physics time, draw calls, nodes,
-## memory) with a frame-time graph, toggled by the "Performance" button of the overlay toggle bar. It docks
-## directly left of that bar (`OverlayToggles.RESERVED_WIDTH`), below the match HUD's timer, so it overlaps
-## none of the other HUDs until moved: left-drag the panel to put it
-## elsewhere. Reads only Godot's `Performance` monitors and the frame delta — it knows nothing of the
-## domains. Runs PROCESS_MODE_ALWAYS so it keeps updating (and stays draggable) while the match is paused.
+## UI domain, performance overlay: a compact stats panel (FPS, frame / physics time, draw calls,
+## nodes, memory) with a frame-time graph, toggled by the "Performance" button of the overlay toggle
+## bar. It docks directly left of that bar (`OverlayToggles.RESERVED_WIDTH`), below the match HUD's
+## timer, so it overlaps none of the other HUDs until moved: left-drag the panel to put it
+## elsewhere. Reads only Godot's `Performance` monitors and the frame delta — it knows nothing of
+## the domains. Runs PROCESS_MODE_ALWAYS so it keeps updating (and stays draggable) while the match
+## is paused.
 
 const Toggles := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 const DragHandle := preload("res://scenes/ui/overlays/drag_handle.gd")
-
 ## Panel width in px, and its top edge (clears the match HUD's top-centre timer).
 const PANEL_WIDTH := 232.0
 const PANEL_TOP := 76.0
@@ -26,11 +25,16 @@ const TARGET_MS := 16.7
 ## Seconds between text refreshes (the graph samples every frame).
 const REFRESH := 0.25
 
-var _label: Label                      ## The text readout, refreshed every `REFRESH` s.
-var _graph: Control                    ## The frame-time graph, redrawn every frame.
-var _frame_ms := PackedFloat32Array()  ## Ring buffer of recent frame times in ms.
-var _next := 0                         ## Slot the next sample is written to (the oldest one).
-var _since_refresh := 0.0              ## Seconds since the text was last refreshed.
+## The text readout, refreshed every `REFRESH` s.
+var _label: Label
+## The frame-time graph, redrawn every frame.
+var _graph: Control
+## Ring buffer of recent frame times in ms.
+var _frame_ms := PackedFloat32Array()
+## Slot the next sample is written to (the oldest one).
+var _next := 0
+## Seconds since the text was last refreshed.
+var _since_refresh := 0.0
 
 
 func _ready() -> void:
@@ -62,14 +66,6 @@ func _ready() -> void:
 	set_shown(false)
 
 
-## Show or hide the overlay; hidden, it stops processing so it costs nothing.
-func set_shown(on: bool) -> void:
-	visible = on
-	set_process(on)
-	if on:
-		_since_refresh = REFRESH  # refresh the text on the very next frame
-
-
 func _process(delta: float) -> void:
 	_frame_ms[_next] = delta * 1000.0
 	_next = (_next + 1) % SAMPLES
@@ -80,6 +76,14 @@ func _process(delta: float) -> void:
 		_refresh_text()
 
 
+## Show or hide the overlay; hidden, it stops processing so it costs nothing.
+func set_shown(on: bool) -> void:
+	visible = on
+	set_process(on)
+	if on:
+		_since_refresh = REFRESH  # refresh the text on the very next frame
+
+
 ## Rewrite the stats text from the engine's monitors and the sampled frame times.
 func _refresh_text() -> void:
 	var worst_ms := 0.0
@@ -88,15 +92,18 @@ func _refresh_text() -> void:
 	var low_fps := (1000.0 / worst_ms) if worst_ms > 0.0 else 0.0
 	_label.text = "\n".join([
 		"FPS %d  (low %d)" % [Engine.get_frames_per_second(), int(low_fps)],
-		"Frame %.1f / max %.1f ms" % [Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, worst_ms],
+		"Frame %.1f / max %.1f ms"
+			% [Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, worst_ms],
 		"Physics %.1f ms" % (Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0),
 		"Draws %d  Objs %d" % [
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
-			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)],
+			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+		],
 		"Nodes %d  Phys %d" % [
 			Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
-			Performance.get_monitor(Performance.PHYSICS_2D_ACTIVE_OBJECTS)],
-		"Mem %.1f MB" % (Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0),
+			Performance.get_monitor(Performance.PHYSICS_2D_ACTIVE_OBJECTS),
+		],
+		"Mem %.1f MB" % (Performance.get_monitor(Performance.MEMORY_STATIC) / 1_048_576.0),
 	])
 
 

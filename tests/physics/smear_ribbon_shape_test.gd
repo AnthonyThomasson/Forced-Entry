@@ -1,5 +1,4 @@
 extends GameTest
-
 ## Smear ribbons draw without engine errors whatever their shape: a straight run, a hairpin turn, a
 ## pinched zero-width tail, repeated and single-sample ribbons. Any logged error fails the test.
 
@@ -7,7 +6,8 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Smear ribbons draw cleanly in any shape",
-		"description": "Straight, hairpin, zero-length, tapered and one-point ribbons are drawn with no engine error.",
+		"description": "Straight, hairpin, zero-length, tapered and one-point ribbons are drawn "
+			+ "with no engine error.",
 		"tags": ["blood", "decals", "smear"],
 		"timeout": 10.0,
 	}

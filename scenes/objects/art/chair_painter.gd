@@ -1,5 +1,4 @@
 extends RefCounted
-
 ## Top-down pixel-art wooden CHAIR painter (Objects domain, private). Painted in the canonical
 ## frame (front of the seat at +y): a rounded seat with a paler worn centre, cross grain and a
 ## bevelled edge, and across the back a curved crest rail whose ends sag toward the seat, joined
@@ -7,8 +6,8 @@ extends RefCounted
 ## `slats`. Run down (decay.gd): grime, scratches, cup rings and cigarette burns.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _SEAT_HEIGHT := 1  ## Heights for cast shadows: the back stands over the seat.
+## Heights for cast shadows: the back stands over the seat.
+const _SEAT_HEIGHT := 1
 const _SLAT_HEIGHT := 3
 const _RAIL_HEIGHT := 5
 
@@ -16,7 +15,11 @@ const _RAIL_HEIGHT := 5
 ## Paint a chair onto `c` in `base` wood, front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
-	var back_d := clampi(roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.chair_back_depth))), 3, int(c.h / 2.0))
+	var back_d := clampi(
+		roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.chair_back_depth))),
+		3,
+		int(c.h / 2.0),
+	)
 	var rail_th := maxi(2, roundi(back_d * 0.55))
 	var bow := maxi(1, roundi(back_d * 0.3))
 	var inset := maxi(1, int(c.w / 14.0))
@@ -42,7 +45,13 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var rail_rect := Rect2i(inset - 1, 0, c.w - 2 * inset + 2, rail_th + bow)
 	var rail := PixelCanvas.bowed(rail_rect, 2, bow)
 	c.fill(rail, base, _RAIL_HEIGHT)
-	c.grain(rail, true, ArtConfig.wood_grain_density * 2.0, base.darkened(0.12), base.lightened(0.08))
+	c.grain(
+		rail,
+		true,
+		ArtConfig.wood_grain_density * 2.0,
+		base.darkened(0.12),
+		base.lightened(0.08),
+	)
 	c.bevel(rail, 2, 2, t.highlight, t.dark)
 	c.outline(rail, t.outline)
 
@@ -50,7 +59,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	worn_wood(c)
 
 
-## The run-down finish of a wooden surface (a chair, a table, a desk): grime, scratches, cup rings, cigarette burns.
+## The run-down finish of a wooden surface (a chair, a table, a desk): grime, scratches, cup rings,
+## cigarette burns.
 static func worn_wood(c: PixelCanvas) -> void:
 	Decay.grime(c)
 	Decay.scratches(c, maxi(3, int(c.w * c.h / 220.0)))

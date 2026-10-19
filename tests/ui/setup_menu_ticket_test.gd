@@ -1,6 +1,6 @@
 extends GameTest
-
-## The setup window shows the run's ticket name above its title when one is given, and nothing when blank.
+## The setup window shows the run's ticket name above its title when one is given, and nothing when
+## blank.
 
 const SetupMenu := preload("res://scenes/ui/menus/setup_menu.gd")
 
@@ -8,7 +8,8 @@ const SetupMenu := preload("res://scenes/ui/menus/setup_menu.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "Setup window shows the ticket name",
-		"description": "open() with a ticket adds a label above the title; a blank or missing ticket adds none.",
+		"description": "open() with a ticket adds a label above the title; a blank or missing "
+			+ "ticket adds none.",
 		"tags": ["setup", "ui"],
 		"timeout": 5.0,
 	}

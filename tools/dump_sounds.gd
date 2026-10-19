@@ -1,13 +1,14 @@
 extends SceneTree
-
-## Dev aid (Audio domain): renders every sound the SoundBank can voice to .wav files, so they can be auditioned
-## (and their cost and level checked) without playing the game. Run from the project root:
+## Dev aid (Audio domain): renders every sound the SoundBank can voice to .wav files, so they can be
+## auditioned (and their cost and level checked) without playing the game. Run from the project
+## root:
 ##
-##   godot --headless --path . -s tools/dump_sounds.gd -- --out=/some/dir [--variants=2] [--filter=impact/metal]
+##   godot --headless --path . -s tools/dump_sounds.gd -- --out=/some/dir [--variants=2]
+##   [--filter=impact/metal]
 ##
-## `--out` defaults to `user://sound_dump`; `--variants` is how many renders per profile to write (default 1);
-## `--filter` keeps only profiles whose name contains that text. Prints one line per sound — length, peak and the
-## milliseconds the render took — and a total.
+## `--out` defaults to `user://sound_dump`; `--variants` is how many renders per profile to write
+## (default 1); `--filter` keeps only profiles whose name contains that text. Prints one line per
+## sound — length, peak and the milliseconds the render took — and a total.
 
 
 func _init() -> void:
@@ -35,10 +36,13 @@ func _init() -> void:
 			var stream: AudioStreamWAV = entry["stream"]
 			var file := "%s/%s_v%d.wav" % [out, String(profile).replace("/", "_"), v]
 			var err := stream.save_to_wav(file)
-			print("%-40s %.3fs  peak %.2f  %.1f ms%s" % [profile, stream.get_length(), SoundSynth.peak_of(stream), ms,
-				"" if err == OK else "  SAVE FAILED %d" % err])
+			print("%-40s %.3fs  peak %.2f  %.1f ms%s" % [
+				profile, stream.get_length(), SoundSynth.peak_of(stream), ms,
+				"" if err == OK else "  SAVE FAILED %d" % err,
+			])
 			total_ms += ms
 			worst_ms = maxf(worst_ms, ms)
 			count += 1
-	print("%d sounds, %.0f ms total, %.1f ms worst, written to %s" % [count, total_ms, worst_ms, ProjectSettings.globalize_path(out)])
+	print("%d sounds, %.0f ms total, %.1f ms worst, written to %s"
+			% [count, total_ms, worst_ms, ProjectSettings.globalize_path(out)])
 	quit()

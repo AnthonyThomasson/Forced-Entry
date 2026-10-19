@@ -1,12 +1,9 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: the NPC's GRENADE awareness (docs/grenades.md G19). Each live grenade it knows of is a dot with its danger
-## radius ringed round it, a label (kind, fuse left, how it knows of it) and a countdown arc; the safe spot it is running to is
-## a green ring with a line to it; and a planned throw is an arc from the thrower's hand to the landing spot with the grenade's
-## danger radius round that. Reads the controller's `debug_grenades()` only.
-
-## Whether to draw the grenade overlay.
-@export var show_grenades: bool = false
+## AI domain, debug: the NPC's GRENADE awareness (docs/grenades.md G19). Each live grenade it knows
+## of is a dot with its danger radius ringed round it, a label (kind, fuse left, how it knows of it)
+## and a countdown arc; the safe spot it is running to is a green ring with a line to it; and a
+## planned throw is an arc from the thrower's hand to the landing spot with the grenade's danger
+## radius round that. Reads the controller's `debug_grenades()` only.
 
 const KNOWN := Color(1.0, 0.5, 0.15)
 const ESCAPE := Color(0.35, 0.9, 0.5)
@@ -14,6 +11,9 @@ const THROW := Color(1.0, 0.85, 0.3)
 ## How high (px) the drawn arc of a planned throw bows over its straight line.
 const ARC_HEIGHT := 36.0
 const ARC_POINTS := 20
+
+## Whether to draw the grenade overlay.
+@export var show_grenades: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -32,7 +32,12 @@ func _paint() -> void:
 		_ring(point, float(k["radius"]), Color(KNOWN, 0.55), 1.5)
 		draw_circle(to_local(point), 4.0, KNOWN)
 		_timer_arc(point, 12.0, float(k["fuse_left"]) / maxf(float(k["fuse"]), 0.01), KNOWN, 3.0)
-		_label(point, "%s %.1fs (%s)" % [str(k["kind"]), float(k["fuse_left"]), str(k["source"])], KNOWN, Vector2(16, -8))
+		_label(
+			point,
+			"%s %.1fs (%s)" % [str(k["kind"]), float(k["fuse_left"]), str(k["source"])],
+			KNOWN,
+			Vector2(16, -8),
+		)
 	var escape: Vector2 = g.get("escape", Vector2.INF)
 	if escape != Vector2.INF:
 		_line(me, escape, Color(ESCAPE, 0.7), 2.0)
@@ -48,7 +53,8 @@ func _paint() -> void:
 		_label(to, "throw: %s" % str(plan["kind"]), THROW, Vector2(16, -8))
 
 
-## The lob of a planned throw from `from` to `to`: a polyline bowed over the straight line, and an arrow head at the landing.
+## The lob of a planned throw from `from` to `to`: a polyline bowed over the straight line, and an
+## arrow head at the landing.
 func _arc(from: Vector2, to: Vector2) -> void:
 	var lift := (to - from).orthogonal().normalized() * -ARC_HEIGHT
 	var previous := from

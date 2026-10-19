@@ -10,10 +10,11 @@ nothing but the docs that describe it.
 ## Consequences
 
 The tool hooks into the game dynamically, from inside the copy: its probe starts a match by emitting the setup window's
-`start_requested(config)`, ends it at the MatchHUD's `match_ended`, and reads the test runner's current entry and its
-test's context (ending a test's hits at the context's `finished`), all duck-typed. Those hooks are not `architecture`
-interfaces, so a rename in the game can break them unannounced; the probe checks each one and fails loudly (an error, a
-failure file, exit code 3) rather than record a run that measured nothing. A rule is a text scan: it cannot stop a tool
+`start_requested(config)`, ends it at the MatchHUD's `match_ended`, and reads the running game test suite's current
+entry and its test's context (its public `open_entry` / `open_ctx`, ending a test's hits at the context's `finished`),
+all duck-typed. Those hooks are not `architecture` interfaces, so a rename in the game can break them unannounced; the
+probe checks each one and fails loudly (an error, a failure file, exit code 3) rather than record a run that measured
+nothing. A rule is a text scan: it cannot stop a tool
 writing into the real tree at run time, so the tool checks the tree's hash after each run and fails if it changed.
 
 ## Considered options

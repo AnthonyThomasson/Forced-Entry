@@ -1,27 +1,26 @@
 extends GameTest
-
-## Performance guard: a whole 5v5 match (ten characters) is killed in one frame, the worst thing that can happen to
-## the frame time of a match. Their ragdolls fall and settle (the 3D solver with wall sweeps), blood sprays and bleeds
-## out. Frame cost stays within the smooth-match standard, every body comes to rest, and the world is not left with
-## runaway objects.
+## Performance guard: a whole 5v5 match (ten characters) is killed in one frame, the worst thing
+## that can happen to the frame time of a match. Their ragdolls fall and settle (the 3D solver with
+## wall sweeps), blood sprays and bleeds out. Frame cost stays within the smooth-match standard,
+## every body comes to rest, and the world is not left with runaway objects.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-
 const COLUMNS := 5
 const ROWS := 2
 const IDLE_FRAMES := 60
 const FALL_FRAMES := 240
 const SETTLE_TIMEOUT := 20.0
-# Frame budgets are the smooth-match standard (Perf.SMOOTH_*), idle and while the bodies fall (the frame the deaths are
-# dealt in is not measured). One match's worth of bodies, the most a match can lose at once: falling avg ~13 /
-# p95 ~18 / max ~21 ms, about 170 nodes added.
+# Frame budgets are the smooth-match standard (Perf.SMOOTH_*), idle and while the bodies fall (the
+# frame the deaths are dealt in is not measured). One match's worth of bodies, the most a match can
+# lose at once: falling avg ~13 / p95 ~18 / max ~21 ms, about 170 nodes added.
 const NODE_GROWTH := 600
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A crowd dying at once stays cheap",
-		"description": "Ten characters (a whole 5v5) are killed in one frame; frame cost while they fall stays within budget, all ragdolls settle, and node growth is bounded.",
+		"description": "Ten characters (a whole 5v5) are killed in one frame; frame cost while "
+			+ "they fall stays within budget, all ragdolls settle, and node growth is bounded.",
 		"tags": ["ragdoll", "blood", "death"],
 		"timeout": 40.0,
 	}
@@ -56,7 +55,9 @@ func run(t: TestContext) -> void:
 	t.check(t.actor(_id(0)).is_dead and t.actor(_id(count - 1)).is_dead, "the crowd is dead")
 
 	var fall := await Perf.frame_stats(t, FALL_FRAMES)
-	Perf.within_frames(t, "crowd fall", fall, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS)
+	Perf.within_frames(
+		t, "crowd fall", fall, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
+	)
 
 	var settled := func():
 		for i in count:

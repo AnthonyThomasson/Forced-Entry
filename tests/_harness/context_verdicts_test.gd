@@ -1,13 +1,17 @@
 extends GameTest
-
 ## Harness self-test: TestContext decides verdicts correctly from fed log entries and assertions
 ## (logged warning/error fails, expect_log consumes, allowed/disabled logs pass, no-assertion test
-## fails, skip stays skipped, a `gap` test fails as GAP and passes as FAIL). Uses throwaway contexts, so nothing real
-## is logged.
+## fails, skip stays skipped, a `gap` test fails as GAP and passes as FAIL). Uses throwaway
+## contexts, so nothing real is logged.
 
 
 func describe() -> Dictionary:
-	return { "name": "Context verdict rules", "tags": ["harness", "context", "log"], "internal": true, "timeout": 3.0 }
+	return {
+		"name": "Context verdict rules",
+		"tags": ["harness", "context", "log"],
+		"internal": true,
+		"timeout": 3.0,
+	}
 
 
 func configure(s: TestSetup) -> void:
@@ -82,7 +86,12 @@ func run(t: TestContext) -> void:
 	c = _ctx(t, { "tags": ["gap"] })
 	c.check(true, "fine")
 	t.expect_eq(c.conclude(false), "FAIL", "a gap test that passes is FAIL")
-	t.check(c.checks.any(func(k): return not k["ok"] and String(k["message"]).contains("drop the gap tag")), "and says to drop the tag")
+	t.check(
+		c.checks.any(
+			func(k): return not k["ok"] and String(k["message"]).contains("drop the gap tag"),
+		),
+		"and says to drop the tag",
+	)
 	t.expect_eq(c.conclude(false), "FAIL", "and stays FAIL when re-decided")
 	c.free()
 

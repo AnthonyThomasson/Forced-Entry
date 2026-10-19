@@ -1,8 +1,7 @@
 extends GameTest
-
-## R10 (ticket #61): a shoved lamp's light moves with it. A lamp is shoved across the room (the pushable contract's
-## `apply_impulse`): while it slides and once it rests, each of its lights stays where it was in the lamp's own frame, and is
-## still one of the lighting's lights.
+## R10 (ticket #61): a shoved lamp's light moves with it. A lamp is shoved across the room (the
+## pushable contract's `apply_impulse`): while it slides and once it rests, each of its lights stays
+## where it was in the lamp's own frame, and is still one of the lighting's lights.
 ##
 ## It reads (tests/_lighting/lighting_probe.gd) `WorldLighting` in the group `world_lighting`
 ## with `lights()`; the lamp's `get_lights()`.
@@ -10,14 +9,17 @@ extends GameTest
 const Probe := preload("res://tests/_lighting/lighting_probe.gd")
 const LAMP_AT := Vector2(250, 300)
 const SHOVE := Vector2(900, 120)
-const MOVED := 40.0  ## px the shove must carry the lamp, so the light has somewhere to follow it to.
-const KEEP := 0.5  ## px a light may stray from its place on the lamp.
+## px the shove must carry the lamp, so the light has somewhere to follow it to.
+const MOVED := 40.0
+## px a light may stray from its place on the lamp.
+const KEEP := 0.5
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A shoved lamp's light moves with it",
-		"description": "A lamp shoved across the room keeps each of its lights at the same place in its own frame, while it slides and at rest.",
+		"description": "A lamp shoved across the room keeps each of its lights at the same place "
+			+ "in its own frame, while it slides and at rest.",
 		"tags": ["lighting"],
 		"timeout": 6.0,
 	}
@@ -49,7 +51,10 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	var moved := lamp.global_position.distance_to(LAMP_AT)
 	t.trace("lamp moved", moved)
-	if not t.require(moved >= MOVED, "the shove carries the lamp at least %.0f px (%.1f)" % [MOVED, moved]):
+	if not t.require(
+			moved >= MOVED,
+			"the shove carries the lamp at least %.0f px (%.1f)" % [MOVED, moved],
+	):
 		return
 	_check_follow(t, lamp, offsets, "at rest")
 	var now: Array = lighting.lights()
@@ -63,5 +68,9 @@ func _check_follow(t: TestContext, lamp: Node2D, offsets: Dictionary, when: Stri
 		var want: Vector2 = lamp.global_transform * (offsets[l] as Vector2)
 		var off := l.global_position.distance_to(want)
 		if off > KEEP:
-			t.check(false, "the lamp's light %s follows it %s (%.1f px off, lamp at %s)" % [l.name, when, off, lamp.global_position.round()])
+			t.check(
+				false,
+				"the lamp's light %s follows it %s (%.1f px off, lamp at %s)"
+					% [l.name, when, off, lamp.global_position.round()],
+			)
 			return

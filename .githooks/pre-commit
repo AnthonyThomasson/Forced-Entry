@@ -4,7 +4,10 @@
 #     audit_scan, this hook), silent when they pass.
 #   - Staged game code (scenes/, tests/, project.godot): the affected game tests. The performance tests (domain perf)
 #     are left out: their frame-time budgets fail on a loaded machine, so run them on their own
-#     (`tools/run_tests.sh --domain=perf`).
+#     (`tools/run_tests.sh --domain=perf`). tools/run_tests.sh lints the tree before its first test.
+#   - Otherwise, a staged script the lint holds to its rules (a .gd outside addons/ and the coverage tool's fixtures:
+#     sandboxes/, tools/ ...) or a file of the gdstyle pass (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py):
+#     the lint (`tools/lint.sh --quiet`), silent when it passes.
 # Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -28,7 +31,24 @@ if grep -qE '^tools/' <<<"$staged"; then
   fi
 fi
 
-grep -qE '^(scenes/|tests/|project\.godot$)' <<<"$staged" || exit $status
+grep -qE '^(scenes/|tests/|project\.godot$)' <<<"$staged" && game=1 || game=0
+
+# Read to the end (no grep -q): under pipefail an early exit would fail the first grep on a long list (SIGPIPE).
+lintable=$(grep -vE '^(addons/|tools/coverage/tests/fixtures/)' <<<"$staged" \
+  | grep -E '\.gd$|^(gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$')
+if [[ $game -eq 0 && -n "$lintable" ]]; then
+  out=$(tools/lint.sh --quiet 2>&1)
+  if [[ $? -ne 0 ]]; then
+    {
+      echo "Lint failed; commit aborted (tools/lint.sh):"
+      echo "$out"
+      echo "Format a script with tools/gdstyle.sh fmt PATH; fix every other finding in the code."
+    } >&2
+    status=1
+  fi
+fi
+
+[[ $game -eq 1 ]] || exit $status
 
 out=$(tools/run_tests.sh --changed --summary --jobs=auto --skip-domain=perf 2>&1)
 code=$?

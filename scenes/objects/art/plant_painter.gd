@@ -1,14 +1,13 @@
 extends RefCounted
-
 ## Top-down pixel-art POTTED PLANT painter (Objects domain, private), kept within the inscribed
 ## circle of its round footprint: a terracotta pot with a lit rim around dark soil, and a crown of
-## tapering leaves radiating from the middle in two tones, each with a pale midrib. Run down: the leaves wilted toward
-## dead brown (ObjectArtConfig.plant_wilt) and the whole grimy (decay.gd). Options (`art_opts`, defaulting to
-## ObjectArtConfig.plant_*): `leaves`.
+## tapering leaves radiating from the middle in two tones, each with a pale midrib. Run down: the
+## leaves wilted toward dead brown (ObjectArtConfig.plant_wilt) and the whole grimy (decay.gd).
+## Options (`art_opts`, defaulting to ObjectArtConfig.plant_*): `leaves`.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _POT_HEIGHT := 3  ## Heights for cast shadows: leaves arch over the pot.
+## Heights for cast shadows: leaves arch over the pot.
+const _POT_HEIGHT := 3
 const _LEAF_HEIGHT := 7
 
 
@@ -48,7 +47,9 @@ static func _leaf(c: PixelCanvas, o: Vector2i, dir: Vector2, length: float, col:
 		var p := Vector2(o) + dir * f * length
 		for s in range(-ceili(half), ceili(half) + 1):
 			var q := Vector2i((p + side * s).round())
-			var tone := col.lightened(0.18) if signf(s) == lit_side and absf(s) >= half - 1.0 else col
+			var tone := (col.lightened(0.18)
+					if signf(s) == lit_side and absf(s) >= half - 1.0
+					else col)
 			c.px(q.x, q.y, tone, _LEAF_HEIGHT)
 		var mid := Vector2i(p.round())
 		if f > 0.15 and f < 0.85:

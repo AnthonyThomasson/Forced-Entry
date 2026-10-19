@@ -1,6 +1,6 @@
 ---
 name: domain-testing
-description: Deep implementation detail for the Testing domain (scenes/testing/ + tests/) — game tests that declare a world (arena, hand-laid room layout or generated house), the actors and objects in it and which behaviours are on, run it, and assert what happened; plus the in-game test browser/runner and the headless CLI runner (tools/run_tests.sh). Use when writing or debugging a test, adding a behaviour switch, running the suite, or editing scenes/testing/. Any engine error/warning during a test fails it. Complements the `architecture` skill (interface 13; the world is lit through interface 20).
+description: Deep implementation detail for the Testing domain (scenes/testing/ + tests/) — game tests that declare a world (arena, hand-laid room layout or generated house), the actors and objects in it and which behaviours are on, run it, and assert what happened; plus the in-game test browser/runner, the gdUnit4 suites that the headless CLI runner (tools/run_tests.sh) and the editor's GdUnit panel run, and native pure-logic suites. Use when writing or debugging a test, adding a behaviour switch, running the suite, or editing scenes/testing/. Any engine error/warning during a test fails it. Complements the `architecture` skill (interface 13; the world is lit through interface 20).
 ---
 
 # Testing domain (`scenes/testing/`, cases in `tests/`)
@@ -11,20 +11,31 @@ and controller contract, EventBus and character signals) and never reaches into 
 
 ## Running tests
 
-- **Lint first:** every `tools/run_tests.sh` run starts with `tools/lint.sh` (about 5 s; skipped for `--list`,
+- **Lint first:** every `tools/run_tests.sh` run starts with `tools/lint.sh` (about 14 s for the whole tree, nearly all of
+  it the engine pass; skipped for `--list`,
   `--self-test`, with `--no-lint`, and when the sources are the ones the last clean lint saw: the wrapper
   keeps a fingerprint of HEAD plus every uncommitted change in `$TMPDIR`, so a rerun of an unchanged tree does not
   lint again, while any edit, new file or commit does). It loads every project script with the engine's debugger on, the only
   way a headless run reports GDScript analyzer warnings (unused variable or parameter, integer division, a name that
   shadows a member or built-in, a redundant `await` ...), and prints them per file; any warning ends the run with exit 1
   before a test starts. The engine names no line, so the report gives candidate lines, and the exact `line:col` of each
-  integer division (it recompiles the script once per `/`). Run `tools/lint.sh scenes/x.gd` for one script. Fix the
-  code: `@warning_ignore` or a lowered level in `project.godot` is a last resort (see `audit`).
-- **CLI:** `tools/run_tests.sh [filter words] [--include-von]` runs
-  `godot --headless --fixed-fps 60 res://scenes/testing/test_runner.tscn -- --run-tests …`. A fresh checkout
-  (no `.godot/` class cache) is imported first, since without it every script fails to parse. It prints one
+  integer division (it recompiles the script once per `/`). Then the project lint rules (`tools/lint_rules/`) and
+  gdstyle (`tools/gdstyle.sh`, pinned v0.4.0; config `gdstyle.toml`): `gdstyle fmt --check` names every script the
+  formatter would change, `gdstyle check` every finding of its rules (all errors but `quality/*`: a line over 100
+  columns, tabs, member order, naming, ...); one finding fails the run like a warning. Run `tools/lint.sh scenes/x.gd`
+  for one script and `tools/gdstyle.sh fmt scenes/x.gd` to format it. Fix the code: never silence a warning or a
+  finding (see `audit`).
+- **CLI:** `tools/run_tests.sh [filter words] [--include-von]` runs every test through gdUnit4's command-line tool:
+  `godot --headless --fixed-fps 60 --log-file <dir>/godot.log -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd … -a <suites>
+  -- --out=<dir> <the run's options>`. The suites are the wrapper suites (`tests/<domain>/<domain>_suite.gd`, one per AI
+  topic folder `tests/ai/<topic>/<topic>_suite.gd`: 27, each running its folder's catalog tests as one case per test
+  id) and the native unit suites (`*_suite.gd` extending `UnitSuite`); the options after `--` reach them
+  (`test_batch.gd`), which pick the tests. gdUnit's own console goes to `<dir>/gdunit.txt`, not to the screen. A fresh
+  checkout (no `.godot/` class cache) is imported first, since without it every script fails to parse. It prints one
   line per test (`PASS/FAIL/TIMEOUT/SKIPPED/GAP  <id>  (<sim s> sim, <ms> ms)`, failed checks indented with ✗), then a
-  summary, and writes `report.json`. Exit code 1 means a test failed or timed out, or an
+  summary, and writes `report.json`; gdUnit's JUnit `results.xml` and HTML report land in `<dir>/gdunit/report_1/`.
+  In gdUnit's terms FAIL and TIMEOUT are failures, SKIPPED and GAP are skipped (a GAP with the reason "gap: expected to
+  fail" and its failed checks). Exit code 1 means a test failed or timed out, or an
   error/warning was logged outside any test. **GAP** is a test tagged `gap` (a behaviour written into a spec that the
   code does not show yet, left red on purpose) that failed or timed out: expected, printed with its failed checks and a
   bundle like a FAIL, counted apart in the summary and never a failure of the run; a `gap` test that *passes* is a FAIL
@@ -33,40 +44,45 @@ and controller contract, EventBus and character signals) and never reaches into 
   `requires_von` tests are skipped unless `--include-von` is passed (`--require-von` runs them and
   fails when no server is live), and are then paced in real time
   (see below). Run with the Bash sandbox disabled, like every Godot launch.
-- **Per-run output dir:** the wrapper gives every invocation a fresh `mktemp -d`, passed as
-  `--log-file <dir>/godot.log` (engine flag) plus `--out=<dir>`. The report, failure bundles and shots go
-  under `<dir>` (`Report:` / `bundle:` lines print the paths) and the runner's `LogWatch` follows
-  `<dir>/godot.log` (`--log-file` is consumed by the engine, so it is not in `get_cmdline_args()` and does
-  not change the project setting — the runner derives the log from `--out`). So concurrent runs, and a
-  game being played meanwhile, never share a log (a new process rotates the old `user://logs/godot.log`,
-  and `LogWatch` tails by path) or overwrite each other's report. Without `--out` the runner falls back
-  to `user://test_report.json` and `user://test_failures/`.
+- **Per-run output dir:** the wrapper gives every process a fresh `mktemp -d`, passed as
+  `--log-file <dir>/godot.log` (engine flag) plus `--out=<dir>`. The report, failure bundles, shots, gdUnit's
+  reports (`gdunit/`) and its console (`gdunit.txt`) go under `<dir>` (`Report:` / `bundle:` lines print the paths) and
+  the run's `LogWatch` follows `<dir>/godot.log` (`--log-file` is consumed by the engine, so it does not change the
+  project setting: `test_batch.gd` derives the log from `--out`, and points gdUnit's own log path at it in memory for
+  the run). So concurrent runs, and a game being played meanwhile, never share a log (a new process rotates the old
+  `user://logs/godot.log`, and `LogWatch` tails by path) or overwrite each other's report. A run without `--out` (the
+  editor's GdUnit panel) writes no `report.json` and keeps its failure bundles in `user://test_failures/`. `--report=FILE` also writes the
+  run's merged report (results, stray logs) to FILE.
 - **Quiet by default:** the game's own log of what happens (shots, punches, house seed, Von decisions, the
-  `PERF …` numbers) goes through `GameLog.say` (General), which a batch run turns off; pass `--verbose` to
+  `PERF …` numbers) goes through `GameLog.say` (General), which a `run_tests.sh` run turns off; pass `--verbose` to
   see it (e.g. to read the `PERF` lines when re-baselining). Engine errors/warnings are never gated.
 - **Selecting:** `--domain=NAME[,NAME]` (exact domain(s); the filter words are word prefixes, so `ai` also
   catches a test that mentions "aim"), `--id=ID[,ID]` (exact ids), `--failed` (wrapper only: the tests
   that FAILED / TIMED OUT in the previous run of this checkout, read from its merged report in `$TMPDIR`),
-  `--list [words]` (id, von flag, tags; runs nothing). Domain/id selection is decided from the file
-  path, so unselected test scripts are never loaded.
-- **Speed:** `--jobs=N|auto` (wrapper only) splits the run over N parallel godot processes via the runner's
+  `--list [words]` (id, von flag, tags; runs nothing; `scenes/testing/test_list.gd`). Domain/id selection is decided
+  from the file path, so unselected test scripts are never loaded. A native suite runs whole or not at all: its id is
+  its path under `tests/` (`general/weighted_pick_suite`), a case's `<suite id>::<function>`; `--domain`, `--skip-domain`,
+  an `--id` naming the suite or one of its cases and filter words on its path and name select it, `--self-test` never.
+- **Speed:** `--jobs=N|auto` (wrapper only) splits the run over N parallel godot processes via each one's
   `--shard=I/N`, merges their output into one combined total, one `Slowest:` list and one `--failed` report.
   `auto` = cores, at most 6 (the stress tests stay under half their budgets at 6 jobs on a 12-core machine). **Without `--jobs`, a run of the whole suite uses `auto` and any selection (filter
-  words, `--id`, `--domain`, `--failed`, `--repeat`) one process**, since a process costs ~2 s to start; an explicit
+  words, `--id`, `--domain`, `--failed`, `--repeat`) one process**, since a process costs about 3 s to start (gdUnit's
+  discovery of its suites is 1.2 to 1.9 s of it), and filter words, which load every test script to match it, about 10 s
+  more; an explicit
   `--jobs` never starts more processes than the `--id` list has ids. Not used with `--list`/`--self-test`/`--shots`
   (the `_a`/`_b` restore pairs need one process in id order). **Shards are balanced by measured cost:** the wrapper
   keeps each test's wall-clock ms (the mean of the previous and the latest measurement) in
   `$TMPDIR/example_godot_costs_<checkout hash>.json`, rewritten only after all shards have finished, and passes it to
   every shard as `--costs=<file>`; costliest tests go first onto the lightest shard (Von tests all stay in shard 0 and
-  weigh it only when they run). With no costs file (a fresh checkout) it falls back to the declared `timeout`, an
+  weigh it only when they run, and the native suites run only in shard 0). With no costs file (a fresh checkout) it falls back to the declared `timeout`, an
   unmeasured id costs the median. Perf tests budget wall-clock ms about 4x their baseline, so heavy CPU contention is
   the thing to suspect if one trips only under `--jobs`. `--fail-fast` stops after the first FAIL/TIMEOUT (per shard).
 - **Output:** `--summary` prints only non-passing tests and the totals; every run reports wall-clock ms
   per test (`wall_ms` in the report) and ends with a `Slowest:` line. `--verbose`, `--json` apply too.
 - **Other flags:** `--skip-domain=a,b` (leave those exact domains out; wins over every other selection, `--changed`'s included),
   `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones), `--seed=N` (every
-  `house()` uses that seed), and, in the wrapper only, `--changed` (see below). Options take the
-  `--name=value` form.
+  `house()` uses that seed), and, in the wrapper only, `--changed` (see below), `--report=FILE` and `--strict-exit`.
+  Options take the `--name=value` form.
 - **`--changed`:** the wrapper maps each changed file (`git diff HEAD` plus untracked) to a domain and
   runs those domains plus the ones that compose them (its `affected()` table, from the architecture
   dependency graph) in **one** process; `main.gd`, root scenes, `project.godot`, worldgen, art, general, audio, lighting and testing
@@ -74,6 +90,7 @@ and controller contract, EventBus and character signals) and never reaches into 
   (`tests/<domain>/[<topic>/]<name>_test.gd`) runs only that test** (`--id=<domain>/[<topic>/]<name>`; it can only change its own
   result), unless its domain is already running; `tests/_ai`, `tests/_audio` and `tests/_lighting` helpers run that domain,
   `tests/_vehicle` runs `vehicle`, `audio` and `general` (its users), `tests/_perf` runs the `perf` domain, `tests/_harness` the self-tests, and an unknown helper folder everything.
+  An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
   `tools/test_log_gate.py` tests this mapping.
 - **Which command?**
@@ -88,15 +105,19 @@ and controller contract, EventBus and character signals) and never reaches into 
   | What exists? | `tools/run_tests.sh --list [words]` |
   | Edited `scenes/testing/` | `tools/run_tests.sh --self-test` (`--changed` adds it) |
   | Show a person the change's tests in a window | `tools/play_tests.sh` (or `tools/play_tests.sh <id> …`) |
+  | Run or debug a case in the editor | the GdUnit panel (below) |
 
 - **`--self-test`:** runs the harness's own tests (`tests/_harness/`, `internal: true` in `describe()`;
-  hidden from the browser and normal runs): verdict rules, catalog selection and shard partitioning, LogWatch really seeing engine logs, and the
-  statics / Von-stub restore pairs (`*_a` then `*_b`, run in id order). Run it after editing
-  `scenes/testing/`. `--changed` does this automatically when `scenes/testing/` changed.
+  hidden from the browser and normal runs) through their own gdUnit suite, `tests/_harness/harness_suite.gd`, which
+  only `--self-test` passes to gdUnit: verdict rules, catalog selection and shard partitioning, LogWatch really seeing
+  engine logs, the statics / Von-stub restore pairs (`*_a` then `*_b`, run in id order), and the probes
+  `tools/test_log_gate.py` drives through environment variables (`verdict_probe`, `gap_probe`, `von_probe`,
+  `warning_hold_probe`, `log_gate_probe`). Run it after editing `scenes/testing/`. `--changed` does this
+  automatically when `scenes/testing/` changed.
 - **`--shots`:** `tools/run_tests.sh --shots words` runs windowed (not headless) and saves
   `<bundle dir>/<id>__fail.png` for each failed test (printed as `shot:`); `t.screenshot(label)` saves one
   on demand (returns "" when headless or `--shots` is off). Read the PNG to see what went wrong.
-- **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs the batch in a window with vsync off (`--disable-vsync`), always in one
+- **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off (`--disable-vsync`), always in one
   process (no shard competes with what it measures, and one window), headless staying the default. A perf test's frame times then
   include the render, without being held to the display's refresh; the draw tests that compare pixels
   (`general/fill_batch_matches_draw_calls`, `items/prepaint_covers_the_draws`) run their image checks only this way.
@@ -111,11 +132,11 @@ and controller contract, EventBus and character signals) and never reaches into 
   `-- --play <filter>` on the command line opens the first matching test straight in the runner (launch
   `test_runner.tscn` through Godot: `tools/run_tests.sh` only runs batches and refuses `--play` with that command).
   The browser's **Run all** button, and the ▶ button on each domain row (which passes `--domain=<name>`),
-  spawn a separate headless run of the whole suite or just that domain, Von tests included
-  (`--include-von`; they skip if no server comes up) (its own
-  `user://test_runs/<n>/` dir as above), show elapsed time, then fold `report.json` into the marks (only
-  the ids in the report change) and the status line (failure bundles are under that dir). The buttons are
-  disabled while a run is going.
+  spawn `tools/run_tests.sh --include-von --no-lint` for the whole suite or just that domain, Von tests included
+  (they skip if no server comes up), its console in `user://test_runs/<n>/run.log` and its merged report there
+  (`--report=user://test_runs/<n>/report.json`), show elapsed time, then fold that report into the marks (only
+  the ids in it change) and the status line. Failure bundles stay in the run's own temp dirs, whose `bundle:` paths
+  `run.log` prints. The buttons are disabled while a run is going.
 - **Headed queue:** tick tests in the browser (checkbox per test, bulk buttons per domain and in the header; they
   respect the search) and press **Run N checked**. The browser stores the ordered paths in the `test_queue` meta
   (`TestCatalog.META_QUEUE`; the ticks themselves are `test_checked`, `META_CHECKED`) and opens the runner, which
@@ -126,13 +147,13 @@ and controller contract, EventBus and character signals) and never reaches into 
   exact ids as the headed queue above, in the order given: harness tests allowed, an id that names no test printed
   (`No test with id '<id>' (skipped)`) and skipped, none valid -> the browser. It queues once per process (the runner's
   `META_CLI_QUEUED` meta), so Back -> browser -> Play plays the browser's pick. Each verdict line is printed as in a
-  batch, and after the last test `Queue done: <summary>` (the banner's summary). **`tools/play_tests.sh [ids…]
+  `run_tests.sh` run, and after the last test `Queue done: <summary>` (the banner's summary). **`tools/play_tests.sh [ids…]
   [--base=REF]`** opens such a window for a person to watch: with no ids, **the change's tests** (every
   `tests/**/*_test.gd` added or modified since the merge-base with `origin/main`, or `REF`: committed, uncommitted and
   untracked; not deleted ones, helpers or sandboxes), by id; with ids, those in that order. No tests: it says so
   (`nothing to play`), exits 2 and opens nothing. One test window per worktree: a run first closes the window an
   earlier run opened (pid in `$TMPDIR/play_tests_<worktree>.pid`, killed only while it is still this checkout's
-  queued runner), never the editor or its game. The window owns its engine log as a batch run does: it is launched
+  queued runner), never the editor or its game. The window owns its engine log as a `run_tests.sh` process does: it is launched
   with `--log-file <dir>/godot.log` and `--out=<dir>`, `<dir>` = `$TMPDIR/play_tests_<worktree>/` emptied each run, so
   another Godot start (an editor's game, `tools/lint.sh`, another worktree's window), which rotates the shared
   `user://logs/godot.log`, cannot hide an error from it; the runner watches that log from its start, so start-up errors
@@ -157,7 +178,57 @@ and controller contract, EventBus and character signals) and never reaches into 
   Held keys are polled state and cannot be told apart. The three `tests/general/camera_*_test.gd` use it; the
   browser's details pane lists "Locked while it runs".
 
+## The GdUnit panel (editor)
+
+gdUnit4 5.1.1 (`addons/gdUnit4/`, plugin on) adds a **GdUnit** dock to the editor. `project.godot`'s `[gdunit4]` section
+points its lookup at `tests/` with discovery on, so it lists every suite there: the 27 wrapper suites, the harness's
+`tests/_harness/harness_suite.gd` and the native suites. A wrapper suite holds one parameterized test (`test_projectile`)
+whose cases are its folder's catalog tests, one per id: `test_projectile:3 ('projectile/pistol_shot_wounds')`. They are
+read from the folder's `*_test.gd` files, so a new test shows up with no edit to the suite.
+
+- **One case or one suite:** right-click it in the dock's tree, then **Run** or **Debug** (breakpoints stop in the test).
+  A suite file can also be run from the FileSystem dock's context menu (**Run Testsuites**), and a case from the script
+  editor's (**Run Tests**).
+- **Everything:** the toolbar's **Run overall tests** button (shown by `ui/toolbar/run_overall`).
+- **Watching:** gdUnit runs the tests in a game window of its own and minimises it; the base suite restores it whenever
+  a test's world is built and frames the world with the game camera, as the in-game runner does.
+- **What differs from `run_tests.sh`:** no options reach the suites, so nothing is selected away: every case is listed,
+  the harness's own included, and `requires_von` tests run (the Von server is started or reused; skipped when none comes
+  up). Verdicts map as on the command line (FAIL / TIMEOUT failed, SKIPPED / GAP skipped), with the failed checks as the
+  failure message; bundles go to `user://test_failures/` and no `report.json` is written. The log gate watches the
+  project's own log from the run's start, which another Godot start (the game, `tools/lint.sh`) can rotate, as in the
+  in-game runner started from the browser.
+- **Stepped like the command line:** every way the panel runs (Run and Debug on a case or a suite, Run overall) starts
+  gdUnit's editor runner (`GdUnitTestRunner.tscn`, as its own process or through the editor's Play) without
+  `--fixed-fps`, so the engine paces it to the clock. Left so, a slow frame is caught up with several physics frames in
+  one main-loop iteration before its process frame (a draw test's overlay, updated in `_process`, then shows nothing
+  after `t.frames(2)`), and vsync holds each frame to the display. The session hook (`test_report_hook.gd`) sees the
+  editor's runner (the `GdUnitRunner` engine meta's script) and steps it once an iteration
+  (`Engine.max_physics_steps_per_frame` 1) with vsync off, both put back at the session's end; a lagging panel run then
+  slows its sim rather than catching up, as under `--fixed-fps`, and a frame budget measures the iteration a frame ran
+  in (`Perf.frame_stats`), not the pacing waits between. So a panel run gives the verdicts of
+  `tools/run_tests.sh --windowed`, its perf numbers included: some frame budgets do not hold windowed on this machine
+  yet (Performance tests, "Rendered too"), so a perf test the panel fails is one `--windowed` fails too; `tests/_harness/frame_step_test.gd` checks the stepping (each physics frame waited
+  brings a process frame, after slow frames).
+- **Reports out of the checkout:** gdUnit writes a run's JUnit and HTML reports to `res://reports/` unless given `-rd`
+  (`run_tests.sh` always gives it, the panel never does); the hook moves a run left on that default to
+  `user://gdunit_reports/report_<n>/` (a folder given with `-rd` stays as given). The run config the panel writes before each run
+  (`addons/gdUnit4/GdUnitRunner.cfg`: the cases and its server's port) is gitignored, so a panel run leaves
+  `git status` clean.
+- **Tested by** `tools/test_gdunit_panel.py`: `tools/gdunit_panel.gd` does what the panel's Run does without an editor
+  (gdUnit's discovery, its TCP server, the run config, the runner started with the panel's arguments, stopped when its
+  session closes as the editor stops it) on a scratch copy of the checkout with its own `user://`. Headless: the
+  harness's `frame_step` and the two draw tests pass, the reports land in `user://gdunit_reports/`, no `reports/`
+  appears and every file the run writes is ignored. `--headed` (a window; perf wants a quiet machine) adds the nine
+  timing tests, the two draw tests and the two click tests (`ui/command_menu_items`, `ui/inspector_outfit`). Run it
+  after editing `test_report_hook.gd`, `perf_probe.gd` or gdUnit's runner settings.
+
 ## Writing a test
+
+**A behaviour is proved by a simulation test** (a `GameTest`: a declared world, run and asserted on, below).
+Native gdUnit suites are for pure logic only and always supplement the simulation tests, never replace them: a native
+suite may add fast checks of a pure function beneath the simulation test that proves the behaviour (see "Native unit
+suites" below).
 
 One file `tests/<domain>/<name>_test.gd` that `extends GameTest`. Id = `<domain>/<name>`. A domain with many tests
 splits them one folder deeper by topic (`tests/ai/entry/`, `flank/`, `gaze/`, `posture/`, `investigate/`, `combat/`,
@@ -166,7 +237,7 @@ folder (so `--domain=ai` and `--changed` see it), the descriptor's `category` is
 row per topic under the domain. The file name keeps its topic prefix (`entry_waits_for_stack_test.gd`), the name
 the specs quote.
 
-**Sandboxes** (worlds you play by hand) are separate: `sandboxes/<name>_sandbox.gd`, same `GameTest` base, no assertions or timeout. `TestCatalog.discover_sandboxes()` lists them for their own browser section; `discover()` and the batch runner never see them (`--play <words>` can still open one). They are `player_gun_range_sandbox.gd` ("Gun range": the player with every gun, 3 stun (7) and 3 frag (8) grenades re-armed through
+**Sandboxes** (worlds you play by hand) are separate: `sandboxes/<name>_sandbox.gd`, same `GameTest` base, no assertions or timeout. `TestCatalog.discover_sandboxes()` lists them for their own browser section; `discover()` and the gdUnit suites never see them (`--play <words>` can still open one). They are `player_gun_range_sandbox.gd` ("Gun range": the player with every gun, 3 stun (7) and 3 frag (8) grenades re-armed through
 `Character.set_loadout` 2 s after the last of its grenades goes off, which restocks the guns too (its `Restock` node), a dummy crouched behind a
 couch to show cover (`CoverSpot`), and the armour range of nine dressed dummies to the south) and `vehicle_sandbox.gd` ("Vehicle yard": a walled concrete yard with the player, a car and a van, furniture to shove and three dummies; `nav.rebake` off, since rammed furniture would re-bake as overlapping holes). `sandboxes/showroom/` holds a ticket's temporary showroom (`ticket-assets`), deleted before its audit.
 
@@ -255,6 +326,33 @@ func run(t: TestContext) -> void:
 - Make randomness deterministic where the assertion depends on it (e.g. `projectile.flyover` off,
   since a character is partial cover).
 
+### Native unit suites (pure logic only)
+
+They supplement the simulation tests, never replace them: write the `GameTest` that proves the behaviour first, then,
+if a pure function beneath it (no world, no nodes, no frames) earns fast edge-case checks, a native suite for it. One
+file `tests/<domain>/<name>_suite.gd` that `extends UnitSuite` (`scenes/testing/unit_suite.gd`, a `GdUnitTestSuite`),
+with `test_*` functions using gdUnit's own asserts (`assert_that`, `assert_int`, `assert_float`, ...;
+`override_failure_message` says what broke). The example is `tests/general/weighted_pick_suite.gd`, General's
+`WeightedPick`:
+
+```gdscript
+extends UnitSuite
+## Native unit suite (pure logic) for General's `WeightedPick`, architecture interface 11: ...
+
+
+func test_the_keys_take_their_stretches_in_their_order() -> void:
+	_premise_zero_roll()
+	assert_that(WeightedPick.key(_zero_roll(), { "b": 1.0, "a": 1.0 })).is_equal("b")
+	assert_that(WeightedPick.key(_zero_roll(), { "b": 1.0, "a": 1.0 }, true)).is_equal("b")
+```
+
+- Its expected values come from the spec (the interface's description), never worked out the way the code does; a
+  premise the asserts rest on (here, that an rng at state 0 rolls 0.0) is checked on its own first.
+- The log gate holds: an engine error or warning logged during one of its tests fails that test.
+- `run_tests.sh` runs it in shard 0, ids `<path under tests/>::<function>` (`general/weighted_pick_suite::test_…`);
+  `--changed` runs its domain when it or the domain's code changes; the GdUnit panel lists it like any suite.
+- Name it `*_suite.gd`, never `*_test.gd` (that is the catalog's), and keep it out of the helper folders (`tests/_*`).
+
 ## Performance tests (domain `perf`, `tests/perf/`)
 
 Their own category: regression guards for speed and runaway object counts, one folder, one browser section, one
@@ -281,11 +379,13 @@ by measured cost like every test, and `--changed` adds the domain whenever a sce
 preload(...)`; not a test). `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but are
 functional tests of their domain.
 
-- **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max; headless `--fixed-fps`
-  outruns the clock, so frame-to-frame wall time is the CPU cost; rendering is not covered), one-shot ms
-  (`Perf.time_ms`), and exact counts (`Perf.nodes()`, `Despawner.count()`, dent / blood-pool caps).
+- **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max): the main-loop iteration the frame ran
+  in, from its physics frame to the next iteration's first frame signal. Headless `--fixed-fps` outruns the clock and
+  steps one physics frame an iteration, so that is frame-to-frame wall time, the CPU cost (rendering is not covered);
+  in the GdUnit panel's run, paced to the clock, the waits between iterations are left out, so it measures the same. Also one-shot
+  ms (`Perf.time_ms`) and exact counts (`Perf.nodes()`, `Despawner.count()`, dent / blood-pool caps).
 - **Rendered too:** `tools/run_tests.sh --windowed --domain=perf` (or `--id=`) measures the same tests with the render in each frame.
-  The two grenade tests frame the whole fight with the runner's camera, as a player's screen would show it, the camera locked (P1 points
+  The two grenade tests frame the whole fight with the test camera (the runner's, or the gdUnit suite's), as a player's screen would show it, the camera locked (P1 points
   it at the match's ten with `frame(characters)`, P2 keeps the default framing of every actor), so every body is drawn; headless (a 64 px
   viewport) they size the root viewport to the project's window first, so the camera frames the same view either way. Windowed, General's `FillBatch` batches the plain-coloured shapes (off headless, which renders nothing).
   Their headless and windowed numbers, before and after issue #56, are in `docs/grenades.md`, Performance; windowed they do not all meet
@@ -338,7 +438,7 @@ run the whole pipeline with the **real Von server** (`requires_von`, paced in re
 the actors are plain `invader`s with match defaults (no switch, no timer override, only a premise such as a part-spent magazine), the world is placed so the doorway under test is the natural pick,
 and each test first `require`s that the AI claimed that doorway, so a different Von choice reads in the bundle as a set-up
 finding, not as the doctrine gap. Their maps: the box room (`Maps.box_room`, `Entry.BOX`) and the corridor spine
-(`Entry.SPINE_A/B/C`). A `gap` test that turns green gets its tag dropped (the runner fails a passing gap test until then).
+(`Entry.SPINE_A/B/C`). A `gap` test that turns green gets its tag dropped (a run fails a passing gap test until then).
 
 - Two invaders that claim a doorway on the same frame settle their slots by instance id: the first actor declared
   gets slot 1 on a tie.
@@ -397,7 +497,7 @@ beside it), defending a room in `tests/ai/combat/defend_room_*`, the ambush (LD1
 house's back door; the held stack of LD13 in `order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`,
 `order_stack_hold_leader_dies`), the frag entry (LD14) in `tests/ai/grenade/order_frag_*` (`order_frag_entry`, `order_frag_held_then_go`,
 `order_frag_no_frag_goes_quiet`), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`,
-`squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
+`squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_docks_right`, `command_menu_docks_left`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
 and `setup_menu_config`'s "Lead the team").
 The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; not a test): the squad built as Main builds it (`squad`,
 `raid`: invader actors led by a puppet standing in for the human, `bind` hands NPCs their squad), `issue` / `post` / `view` /
@@ -405,7 +505,9 @@ The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; 
 `member_view` / `orders`, the brain's reads (`brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`, `levels`), the radio
 (`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
 `pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it), the command menu (`command_menu`,
-`items`, `item`, `labels`, `choose`, `tick`, `click`, `screen_of`) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
+`items`, `item`, `labels`, `choose`, `tick`, `click`, `screen_of`, `view_still`, `panel_rect`; `player_screen` sizes a headless root
+viewport to the project's window, as a real screen is, and `check_dock` is the dock-side tests' run: the panel's rect covers neither
+the click nor a selected teammate) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
 `BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`, `stack_point`, `stacked`), with the spec's numbers as consts (`ORDER_READY_CAP`). The squad,
 menu and markers are loaded by path and read duck-typed, so a missing piece fails an assertion that names it.
 LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet's `PlayerStack` claim says `leader`) and
@@ -564,39 +666,54 @@ items, interaction, projectile, physics, objects, ai, perf, audio and general.
 ## Errors and warnings fail the test (`log_watch.gd`)
 
 Godot 4.4 has no in-process logger hook (that arrives with `OS.add_logger` in 4.5). `LogWatch` tails
-the engine log file (`debug/file_logging/log_path`) from an offset marked at runner start and parses
+the engine log file (`debug/file_logging/log_path`, or the run's own `--log-file`) from an offset marked as the run
+or the runner starts, and parses
 `ERROR:` / `SCRIPT ERROR:` / `USER ERROR:` / `WARNING:` / … headers with their `at:` lines.
 
-- The runner polls it every physics frame and hands each entry to the open test (`TestContext.on_log`).
+- The test session (`test_session.gd`, under the in-game runner and under each gdUnit suite) polls it every physics
+  frame and hands each entry to the open test (`TestContext.on_log`).
   An expected (`expect_log`) or allowed (`allowed_logs`, or the global `[von] ` launcher diagnostics)
-  line passes; anything else is a failed check, `Logged error: … (at …)`, and ends the test.
-- Teardown logs count too. Batch mode frees the world and polls again before taking the verdict;
-  interactive mode re-renders the banner if a late error arrives.
+  line passes; anything else is a failed check, `Logged error: … (at …)`, and ends the test at once (under gdUnit too,
+  not at its timeout). A native suite's test (`UnitSuite`) reads the log after it ends, two physics frames on, and
+  fails on any entry.
+- Teardown logs count too. The session frees the world and polls again before taking the verdict;
+  the in-game runner re-renders the banner if a late error arrives.
 - Lines logged while no test is open (for example a test script's parse error when the catalog loads
-  it) are batch-level failures. The runner's own output never starts with an error header. A batch run owns a
-  fresh log (`--log-file` + `--out`), so the watch starts at byte 0 and **start-up errors count too**.
-- **Nothing escapes the process either.** The runner writes `log_end` (bytes judged, `LogWatch.consumed()`) into its
+  it) fail the run (`Logged outside any test`). The run's own output never starts with an error header. A
+  `run_tests.sh` process owns a fresh log (`--log-file` + `--out`), so the watch starts at byte 0 and **start-up errors
+  count too**. gdUnit's own log scan (`report/godot/script_error`) is off in `project.godot`: it reads the project's log
+  path, not the run's, so it would blame a test for another Godot's errors.
+- **Nothing escapes the process either.** The run writes `log_end` (bytes judged, `LogWatch.consumed()`) into its
   report; `tools/run_tests.sh` then scans the log from there to the end with `tools/scan_godot_log.py` — whatever
-  the engine writes while shutting down — and from byte 0 when no report exists (`--list`, a crash, a runner that
-  never started), once per shard. Any hit prints `Logged outside any test` and fails the run. Godot's own
+  the engine writes after it, gdUnit's own reports and the shutdown — and from byte 0 when no report exists (`--list`,
+  a crash, a run that never started), once per shard. Any hit prints `Logged outside any test` and fails the run. Godot's own
   end-of-process leak report ("ObjectDB instances leaked at exit", "resources still in use at exit") is a `NOTE`
   by default (`--strict-exit` fails it): runs that touch a character together with a reflectively read config
   holder such as `CharacterConfig` print it at exit whatever the test does. `tools/load_check.sh` applies the same
   gate to a plain headless start-up.
 - **Headless or windowed.** The gate reads the log file, so it is the same either way: `tools/run_tests.sh --shots`
-  runs the batch with a window, and a `tools/play_tests.sh` window follows its own log (`--log-file` + `--out`) as a
-  batch run does. The in-game runner started otherwise (`-- --play …`, the browser) watches the default log
+  runs gdUnit with a window, and a `tools/play_tests.sh` window follows its own log (`--log-file` + `--out`) as a
+  `run_tests.sh` process does. The in-game runner started otherwise (`-- --play …`, the browser), and a run from the
+  GdUnit panel, watch the default log
   (`debug/file_logging/enable_file_logging` is set in `project.godot`), shared by every Godot start of the project, so a
   start elsewhere rotates it and can hide an error from it. In-game, a logged error or warning fails the
   open test and flips a verdict already shown; each verdict is also printed to the console, and the banner says so
   when the log cannot be read.
 - **Tested by** `tools/test_log_gate.py` (`--headed` adds the windowed engine): the scanner on crafted logs,
-  `run_tests.sh` around a fake Godot for every way a run can end, and the real engine through the probe
-  `tests/_harness/log_gate_probe_test.gd` (set `GAME_TEST_PROBE=error|warning`) in batch and in-game;
-  `log_watch_offsets_test.gd` covers the read positions. Run it after editing `log_watch.gd`, `test_runner.gd`,
-  `run_tests.sh` or `scan_godot_log.py`. The same file tests the lint: `lint_report.py` on crafted logs,
-  `run_tests.sh` stopping on a lint failure, and the real engine through `tools/lint.sh` (the project is clean; a probe
-  script's warnings are found). Run it after editing `tools/lint*` too.
+  `run_tests.sh` around a fake Godot for every way a run can end and for how it starts gdUnit (headless, `--fixed-fps
+  60`, a log per process), and the real engine through the harness probes: `log_gate_probe_test.gd` (set
+  `GAME_TEST_PROBE=error|warning`) in a `run_tests.sh` run and in-game, and the gdUnit verdicts (PASS, FAIL, TIMEOUT,
+  SKIPPED, GAP skipped as "gap: expected to fail", a passing gap a failure, a logged warning ending its test at once,
+  a Von test with no server), the lines, summary, `report.json`, bundles and gdUnit's JUnit / HTML reports, and a native
+  suite run in a copy with a fresh `user://`; `log_watch_offsets_test.gd` covers the read positions. Run it after
+  editing `log_watch.gd`, `test_session.gd`, `test_batch.gd`, `game_test_suite.gd`, `unit_suite.gd`,
+  `test_report_hook.gd`, `run_tests.sh` or `scan_godot_log.py`. The same file tests the lint: `lint_report.py` on
+  crafted logs, `run_tests.sh` stopping on a lint failure, the real engine through `tools/lint.sh` (the project is
+  clean; a probe script's warnings are found) and the gdstyle pass on probe scripts (an unformatted one and a line over
+  100 columns fail). Run it after editing `tools/lint*` or `gdstyle.toml` too. `tools/test_gdunit_wrap.py` runs
+  gdUnit's own discovery (`tools/gdunit_discover.gd`) and checks that every catalog test is one wrapper case, by id,
+  and the harness tests are in the self-test suite alone: run it after adding or moving a suite.
+  `tools/test_gdunit_panel.py` runs the tests as the editor's GdUnit panel does ("The GdUnit panel", above).
 
 ## Behaviour switches (`test_switches.gd`)
 
@@ -643,7 +760,7 @@ domain's config holder, guarded at its one spawn point (the way `BloodConfig.ena
 |---|---|
 | `game_test.gd` (`GameTest`) | Base class. |
 | `test_setup.gd` (`TestSetup`) | The declarative builder. |
-| `test_context.gd` (`TestContext`, an **Object**) | Waits, lookup, event log, assertions, verdict (`conclude`: PASS / FAIL / TIMEOUT / SKIPPED, and GAP for a `gap`-tagged test that failed as expected). The runner frees it at close, which discards any test coroutine still parked on it. |
+| `test_context.gd` (`TestContext`, an **Object**) | Waits, lookup, event log, assertions, verdict (`conclude`: PASS / FAIL / TIMEOUT / SKIPPED, and GAP for a `gap`-tagged test that failed as expected). The test session frees it at close, which discards any test coroutine still parked on it. |
 | `test_world.gd` | Builds a TestSetup into a sub-tree: statics and switches first, then the house, layout or arena, objects, nav plus updater, the dusk lighting (`WorldLighting.light(self, seed, rooms)`, interface 20; none with `lighting.enabled` off), two physics frames (walls solid, navmesh live), then a wait (real time, at most `NAV_SYNC_MS`) until the shared nav map, and the Navigation domain's steering map, answer with this world's regions, actors (controller injected before `_ready` — `rooms` and the house's `openings` — positioned before they join the tree so one never overlaps origin furniture for a frame), then world switches. Vehicles (`TestSetup.vehicle`) are placed after the nav wait and before the actors, followed by one more
 physics frame so they are in the space. `build` is a coroutine. Also `restore()` and `set_overlay()`. |
 | `arena_builder.gd` | The walled arena via `FloorFactory` / `WallFactory` + `WorldGen.wall_style()`, annotated with `WorldGen.annotate_layout`. |
@@ -652,23 +769,31 @@ physics frame so they are in the space. `build` is a coroutine. Also `restore()`
 | `test_switches.gd` | The switch table. |
 | (AI) `decision_stub.gd` | `DecisionStub`: the scripted-Von statics a TestSetup turns on (restored after each test); `DecisionBudget.per_frame` (`decision_budget.gd`) is set with `set_static` the same way. |
 | `log_watch.gd` | The log tail (`begin(from_start)`, `poll`, `consumed`). |
-| `test_catalog.gd` | `discover(root, domains, ids)`, `describe(path)` (descriptor dicts), `matches(entry, text)`, and the CLI selection helpers `csv()` / `shard()`. |
-| `test_runner.gd` / `.tscn` | Interactive and batch modes, one `TestWorld` child per test, a lazily created `DecisionServerLauncher` kept for the session, real-time pacing for Von tests, the JSON report. |
+| `test_catalog.gd` | `discover(root, domains, ids, skipped)`, `describe(path)` (descriptor dicts), `matches(entry, text)`, and the CLI selection helpers `csv()` / `shard()` / `load_costs()`. |
+| `test_session.gd` | Plays one catalog test at a time, shared by the runner and the gdUnit suites: `start(entry)` builds its `TestWorld`, observes it on a `TestContext`, ticks its sim clock and timeout, routes the log to it and returns when it has ended; `close()` frees the world and returns the verdict record. Owns the Von launcher wait and real-time pacing, `print_result` and the bundles. |
+| `game_test_suite.gd` (`GameTestSuite`) | The gdUnit4 base of the wrapper suites: `cases(folder)` lists a folder's selected ids as one parameterized test's cases, `run_case(id)` plays one through a `TestSession` and maps its verdict to gdUnit's; restores and frames the runner window; joins the group `game_test_suites` and exposes `open_entry` / `open_ctx` for the coverage probe. |
+| `unit_suite.gd` (`UnitSuite`) | The gdUnit4 base of a native pure-logic suite: the log gate per test, selected whole or skipped. |
+| `test_batch.gd` | What one gdUnit run shares (static): its options (after `--`), the selection and shard, native-suite selection, the verdict records, the banner, the summary and `report.json` (`begin` / `add` / `finish`). |
+| `test_report_hook.gd` | gdUnit's session hook (`project.godot`, `gdunit4/hooks/session_hooks`): starts and finishes a run given `--out`, and makes each native case a record. |
+| `test_list.gd` | `run_tests.sh --list`: prints what a run with the same options selects. |
+| `test_runner.gd` / `.tscn` | The in-game runner: interactive (`--play`, the browser's Play) and queued (`--queue`, "Run N checked") modes over a `TestSession`, the banner, overlay bar and camera, the Von launcher kept for the scene. No batch mode: batch runs are gdUnit's. |
+| `tests/**/<x>_suite.gd` | The 27 wrapper suites (`extends GameTestSuite`, one parameterized test listing `cases("<folder>")`), `tests/_harness/harness_suite.gd`, and the native suites (`extends UnitSuite`). |
 | `test_browser.gd` / `.tscn` | Hosts the UI browser window. Engine metas `test_selection` / `test_results` / `test_filter` survive the round trip through a test. |
 
 ## Gotchas
 
 - **A body added this frame is not in the physics space.** A direct-space query (a shape query, a ray) on the frame a body was added
   misses it: it joins the broadphase at the next physics step (`TestWorld` waits one after placing vehicles).
-- **A click at a world point needs a still view.** The runner's camera eases in from where the previous test in the process left it
+- **A click at a world point needs a still view.** The test camera (the runner's, or the gdUnit suite's) eases in from where the previous test left it
   (and keeps easing while the tree is paused), and an injected mouse event is handled a frame after it was aimed, so a click aimed while
-  the view moves lands elsewhere: such a test first waits for the canvas transform to hold still (`ui/command_menu_items`, `_view_still`).
+  the view moves lands elsewhere: such a test first waits for the canvas transform to hold still (`Order.view_still`, `tests/_ai/order_probe.gd`,
+  used by `ui/command_menu_items` and both dock tests).
 - **A test camera reads its screen centre only while current.** Godot updates `Camera2D.get_screen_center_position()` only for the
-  viewport's current camera, and the runner's own camera stays current: a test that adds its own camera and reads where it looks calls
+  viewport's current camera, and the test camera stays current: a test that adds its own camera and reads where it looks calls
   `make_current()` on it (`tests/general/camera_zooms_out_driving_test.gd`).
 
-- **Von tests are paced in real time.** Batch runs use `--fixed-fps 60`, so the sim outruns the wall
-  clock and game-time timers (HTTP timeouts, the launcher's probe interval) fire early. While a `requires_von` test is open the runner sleeps each frame to
+- **Von tests are paced in real time.** `run_tests.sh` runs use `--fixed-fps 60`, so the sim outruns the wall
+  clock and game-time timers (HTTP timeouts, the launcher's probe interval) fire early. While a `requires_von` test is open the test session sleeps each frame to
   1/60 s, because `Engine.max_fps` is not honoured under `--fixed-fps` headless. A cold Von start
   takes about 5 s.
 - A test that ends mid-wait (a failure or timeout) leaves its coroutine parked. Godot may report
@@ -679,6 +804,6 @@ physics frame so they are in the space. `build` is a coroutine. Also `restore()`
   plans on an empty navmesh), then until the navigation map's closest point to a room's centre belongs to the
   new region. The map's iteration is built on a worker thread: under load (parallel shards) its id and region list
   update before queries do, and an NPC that snapped a point onto the empty map walked to the origin. That wait is
-  in real time, so the test clock is stopped while the world builds (`_building` in the runner).
+  in real time, so the test clock is stopped while the world builds (`_building` in the test session).
 - The defender preset is `hostile_on_trespass`, and an arena counts as its house. Turn
   `ai.hostile_on_trespass` off to test a reaction to something else.

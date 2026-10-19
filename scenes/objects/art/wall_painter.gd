@@ -1,12 +1,12 @@
 extends RefCounted
-
 ## Top-down pixel-art WALL tile painter (Objects domain, private). Paints one tile of a wall's top
 ## cap that the wall visuals repeat along every segment: x runs along the wall, y across its
 ## thickness. `plaster`: a stuccoed cap with streaks that wrap along the wall, framed at both faces
-## by a lit trim and a dark edge. `brick`: running-bond courses with mortar joints. Run down, but only evenly: a fine
-## grime of single darker pixels (its peeling, stains, cracks and cables are placed in the world: wear_painter.gd). The tile
-## is symmetric across the thickness, so it reads the same whichever side of a wall faces a room.
-## Options (`art_opts`, defaulting to ObjectArtConfig.wall_*): `pattern` ("plaster" | "brick").
+## by a lit trim and a dark edge. `brick`: running-bond courses with mortar joints. Run down, but
+## only evenly: a fine grime of single darker pixels (its peeling, stains, cracks and cables are
+## placed in the world: wear_painter.gd). The tile is symmetric across the thickness, so it reads
+## the same whichever side of a wall faces a room. Options (`art_opts`, defaulting to
+## ObjectArtConfig.wall_*): `pattern` ("plaster" | "brick").
 
 
 ## Paint one wall tile onto `c` in `base` (x along the wall, y across it).
@@ -26,7 +26,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	_grime(c)
 
 
-## An even, fine grime of single darker pixels, mirrored across the thickness: no mark big enough to show the tile's repeat.
+## An even, fine grime of single darker pixels, mirrored across the thickness: no mark big enough to
+## show the tile's repeat.
 static func _grime(c: PixelCanvas) -> void:
 	for _i in int(c.w * c.h * ObjectArtConfig.wall_grime_density):
 		var x := c.rng.randi_range(0, c.w - 1)

@@ -1,10 +1,10 @@
 extends RefCounted
-
-## Top-down pixel-art painter for a grenade in the POLICE ISSUE weapon style (Items domain, private; rendered through the Art
-## domain's PixelArt), the fuze toward +y: a gunmetal frag egg scored with its fragmentation grid and a red and blue light pair
-## by the steel fuze, or a gunmetal stun cylinder with its ring of vents and the light pair on its black cap; both with a white
-## serial. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's handle, `PixelArt.handle`) and `spoon` (the
-## lever still held down: in the hand; thrown, it is gone).
+## Top-down pixel-art painter for a grenade in the POLICE ISSUE weapon style (Items domain, private;
+## rendered through the Art domain's PixelArt), the fuze toward +y: a gunmetal frag egg scored with
+## its fragmentation grid and a red and blue light pair by the steel fuze, or a gunmetal stun
+## cylinder with its ring of vents and the light pair on its black cap; both with a white serial.
+## Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's handle,
+## `PixelArt.handle`) and `spoon` (the lever still held down: in the hand; thrown, it is gone).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
@@ -14,8 +14,8 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	WeaponArt.paint_grenade(c, opts, _body)
 
 
-## The shell, its marks and the fuze or cap: the frag's grid and lights by the fuze, the stun's vents and the lights on its
-## cap, the serial.
+## The shell, its marks and the fuze or cap: the frag's grid and lights by the fuze, the stun's
+## vents and the lights on its cap, the serial.
 static func _body(c: PixelCanvas, look: Dictionary, frag: bool, cap_len: int, top: int) -> void:
 	var cx := int(c.w / 2.0)
 	var t := WeaponArt.shell(c, look, cap_len, frag)

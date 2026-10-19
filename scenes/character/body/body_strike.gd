@@ -1,20 +1,22 @@
 extends RefCounted
-
-## Character BODY sub-domain: the melee strike a punch (character_hands.gd) and a kick (character_kick.gd) share. A
-## circle is queried at the striking point on the solid layer; each body in it not struck yet this swing is shoved through
-## the pushable contract at the contact (`apply_impulse(impulse, at)`, so a piece struck off-centre turns), logged,
-## reported to `on_hit(body, damage)` and dealt the damage (`take_damage`). A strike never deforms; a wall (no
+## Character BODY sub-domain: the melee strike a punch (character_hands.gd) and a kick
+## (character_kick.gd) share. A circle is queried at the striking point on the solid layer; each
+## body in it not struck yet this swing is shoved through the pushable contract at the contact
+## (`apply_impulse(impulse, at)`, so a piece struck off-centre turns), logged, reported to
+## `on_hit(body, damage)` and dealt the damage (`take_damage`). A strike never deforms; a wall (no
 ## `apply_impulse`) takes the damage without moving. Stateless.
 
 ## Physics layer a strike meets: walls, solid furniture and living characters.
 const MASK := PhysicsLayers.SOLID
 
 
-## Strike every body a circle of `radius` at world `at` overlaps, but `character` itself and those already in `struck`
-## (each one struck is added to it), shoving it by `impulse` and dealing it `damage`. `what` names the strike in the log
-## line and `note` ends its bracket. With `first_only` it stops after the first body.
-static func strike(character: CollisionObject2D, at: Vector2, radius: float, impulse: Vector2, damage: float,
-		struck: Dictionary, first_only: bool, on_hit: Callable, what: String, note := "") -> void:
+## Strike every body a circle of `radius` at world `at` overlaps, but `character` itself and those
+## already in `struck` (each one struck is added to it), shoving it by `impulse` and dealing it
+## `damage`. `what` names the strike in the log line and `note` ends its bracket. With `first_only`
+## it stops after the first body.
+static func strike(character: CollisionObject2D, at: Vector2, radius: float, impulse: Vector2,
+		damage: float, struck: Dictionary, first_only: bool, on_hit: Callable, what: String,
+		note := "") -> void:
 	var shape := CircleShape2D.new()
 	shape.radius = radius
 	var params := PhysicsShapeQueryParameters2D.new()

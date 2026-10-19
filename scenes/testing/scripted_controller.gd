@@ -1,10 +1,9 @@
 extends Node
-
-## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface 7)
-## driven by a test instead of a human or an AI. Commands are queued here and carried out on the
+## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface
+## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
 ## character's own frame, through only the published controller API (`move_input`, `aim_point`,
-## `run_input`, `set_posture`, `toggle_crouch`, `melee`, `leg_kick`, `shoot`, `reload`, `select_slot`, `interact_with`,
-## `end_interaction`, `try_use_vehicle`).
+## `run_input`, `set_posture`, `toggle_crouch`, `melee`, `leg_kick`, `shoot`, `reload`,
+## `select_slot`, `interact_with`, `end_interaction`, `try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -22,11 +21,13 @@ var _move_dir := Vector2.ZERO
 var _run := false
 ## The posture the puppet wants, written every frame like the AI does (`&""` = leave it alone).
 var _posture: StringName = &""
-## Whether the puppet holds the trigger: an automatic gun keeps firing, a semi-auto one fires once per `shoot()`.
+## Whether the puppet holds the trigger: an automatic gun keeps firing, a semi-auto one fires once
+## per `shoot()`.
 var _firing := false
 ## Actions waiting for the character's next frame: Callables taking the character.
 var _pending: Array[Callable] = []
-## Interactions started on the character's frame that reported failure (object, id) — for tests to read.
+## Interactions started on the character's frame that reported failure (object, id) — for tests to
+## read.
 var failed_interactions: Array = []
 
 
@@ -88,7 +89,6 @@ func toggle_crouch() -> void:
 	_pending.append(func(c): c.toggle_crouch())
 
 
-
 ## Stop walking.
 func stop() -> void:
 	_walk_target = null
@@ -120,8 +120,8 @@ func shoot() -> void:
 	_pending.append(func(c): c.shoot())
 
 
-## Hold (or release) the trigger: while held, an automatic gun fires every frame its fire rate allows. A
-## semi-automatic gun is unaffected (it needs a `shoot()` per round).
+## Hold (or release) the trigger: while held, an automatic gun fires every frame its fire rate
+## allows. A semi-automatic gun is unaffected (it needs a `shoot()` per round).
 func hold_fire(on: bool) -> void:
 	_firing = on
 
@@ -138,17 +138,18 @@ func interact(object: Node, id: String) -> void:
 			failed_interactions.append([object, id]))
 
 
-## Press E once (the player's use-vehicle key): board the nearest door's seat, or get out. A character without
-## `try_use_vehicle` ignores it, so a test written before the feature fails on its own `require`.
+## Press E once (the player's use-vehicle key): board the nearest door's seat, or get out. A
+## character without `try_use_vehicle` ignores it, so a test written before the feature fails on its
+## own `require`.
 func use_vehicle() -> void:
 	_pending.append(func(c):
 		if c.has_method("try_use_vehicle"):
 			c.try_use_vehicle())
 
 
-## Hold the driving keys, as the player's WASD and Shift do: `throttle` 1 is W, -1 is S; `steer` 1 is D, -1 is A
-## (relative to the vehicle, which reads them); `handbrake` is the run key. Written as `Input.get_vector` gives
-## them (W up = -y, length at most 1). `drive(0, 0, false)` lets go.
+## Hold the driving keys, as the player's WASD and Shift do: `throttle` 1 is W, -1 is S; `steer` 1
+## is D, -1 is A (relative to the vehicle, which reads them); `handbrake` is the run key. Written as
+## `Input.get_vector` gives them (W up = -y, length at most 1). `drive(0, 0, false)` lets go.
 func drive(throttle: float, steer: float, handbrake: bool) -> void:
 	_walk_target = null
 	_move_dir = Vector2(steer, -throttle).limit_length(1.0)

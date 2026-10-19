@@ -1,15 +1,69 @@
 class_name LivingRoomCatalog
-
 ## World Generation domain: living-room objects, arrangements, and recipe. Shared items (lamp,
 ## armchair, side_table, plant, bookshelf, coat_rack, shoe_rack) live in GeneralCatalog.
 
 const OBJECTS := {
-	"tv": { "name": "TV", "shape": "rect", "size": Vector2(80, 30), "color": Color(0.1, 0.1, 0.1), "material": "electronics", "art": "appliance", "art_opts": { "panel": "tv" }, "weight": 12, "coverage": 40, "penetration": 35, "interactions": [{ "id": "watch", "label": "Watch TV" }, { "id": "toggle", "label": "Turn off" }] },
-	"sofa": { "name": "Sofa", "shape": "rect", "size": Vector2(120, 50), "color": Color(0.8, 0.4, 0.2), "material": "fabric", "art": "sofa", "weight": 45, "coverage": 45, "penetration": 30, "interactions": [{ "id": "sit", "label": "Sit", "move_to": true }, { "id": "lie", "label": "Lie down", "move_to": true }] },
-	"coffee_table": { "name": "Coffee", "shape": "rect", "size": Vector2(70, 40), "color": Color(0.55, 0.35, 0.2), "material": "wood", "art": "table", "art_opts": { "inset": true }, "weight": 12, "coverage": 30, "penetration": 45, "interactions": [{ "id": "sit_on", "label": "Sit on it", "move_to": true }, { "id": "examine", "label": "Examine" }] },
-	"rug": { "name": "Rug", "shape": "rect", "size": Vector2(170, 110), "color": Color(0.6, 0.35, 0.35), "material": "fabric", "art": "rug", "art_opts": { "pattern": "medallion" }, "weight": 5, "solid": false, "coverage": 0, "penetration": 5 },
+	"tv": {
+		"name": "TV",
+		"shape": "rect",
+		"size": Vector2(80, 30),
+		"color": Color(0.1, 0.1, 0.1),
+		"material": "electronics",
+		"art": "appliance",
+		"art_opts": { "panel": "tv" },
+		"weight": 12,
+		"coverage": 40,
+		"penetration": 35,
+		"interactions": [
+			{ "id": "watch", "label": "Watch TV" },
+			{ "id": "toggle", "label": "Turn off" },
+		],
+	},
+	"sofa": {
+		"name": "Sofa",
+		"shape": "rect",
+		"size": Vector2(120, 50),
+		"color": Color(0.8, 0.4, 0.2),
+		"material": "fabric",
+		"art": "sofa",
+		"weight": 45,
+		"coverage": 45,
+		"penetration": 30,
+		"interactions": [
+			{ "id": "sit", "label": "Sit", "move_to": true },
+			{ "id": "lie", "label": "Lie down", "move_to": true },
+		],
+	},
+	"coffee_table": {
+		"name": "Coffee",
+		"shape": "rect",
+		"size": Vector2(70, 40),
+		"color": Color(0.55, 0.35, 0.2),
+		"material": "wood",
+		"art": "table",
+		"art_opts": { "inset": true },
+		"weight": 12,
+		"coverage": 30,
+		"penetration": 45,
+		"interactions": [
+			{ "id": "sit_on", "label": "Sit on it", "move_to": true },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"rug": {
+		"name": "Rug",
+		"shape": "rect",
+		"size": Vector2(170, 110),
+		"color": Color(0.6, 0.35, 0.35),
+		"material": "fabric",
+		"art": "rug",
+		"art_opts": { "pattern": "medallion" },
+		"weight": 5,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 5,
+	},
 }
-
 const ARRANGEMENTS := {
 	"tv_wall_cozy": {
 		"placement": "wall", "footprint": Vector2(200, 175), "tags": ["rug"],
@@ -49,21 +103,48 @@ const ARRANGEMENTS := {
 		],
 	},
 }
-
 const RECIPES := {
 	"living_room": {
 		"clutter": [["trash", 3.0], ["cables", 2.0], ["cardboard", 1.5], ["puddle", 1.0]],
 		"palettes": [
-			{ "wood": GeneralCatalog.WOOD.walnut, "fabric": GeneralCatalog.FABRIC.navy, "floor": "ash_planks" },
-			{ "wood": GeneralCatalog.WOOD.oak, "fabric": GeneralCatalog.FABRIC.terracotta, "floor": "walnut_planks" },
-			{ "wood": GeneralCatalog.WOOD.ash, "fabric": GeneralCatalog.FABRIC.sage, "floor": "oak_planks" },
-			{ "wood": GeneralCatalog.WOOD.charcoal, "fabric": GeneralCatalog.FABRIC.mustard, "floor": "parquet" },
+			{
+				"wood": GeneralCatalog.WOOD.walnut,
+				"fabric": GeneralCatalog.FABRIC.navy,
+				"floor": "ash_planks",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.oak,
+				"fabric": GeneralCatalog.FABRIC.terracotta,
+				"floor": "walnut_planks",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.ash,
+				"fabric": GeneralCatalog.FABRIC.sage,
+				"floor": "oak_planks",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.charcoal,
+				"fabric": GeneralCatalog.FABRIC.mustard,
+				"floor": "parquet",
+			},
 		],
 		"zones": [
-			{ "options": ["tv_wall_cozy", "tv_wall_modern"], "count": Vector2i(1, 1), "required": true, "fallback": "tv_compact" },
+			{
+				"options": ["tv_wall_cozy", "tv_wall_modern"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "tv_compact",
+			},
 			{ "options": ["reading_nook", "entry_area"], "count": Vector2i(1, 2) },
 			{ "options": ["plant_corner", "side_table_lamp"], "count": Vector2i(0, 2) },
 		],
-		"fill": { "target": 0.4, "options": ["bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner", "plant_corner", "plant_corner", "side_table_lamp", "sofa_wall", "lounge_group", "reading_nook", "storage_wall"] },
+		"fill": {
+			"target": 0.4,
+			"options": [
+				"bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner", "plant_corner",
+				"plant_corner", "side_table_lamp", "sofa_wall", "lounge_group", "reading_nook",
+				"storage_wall",
+			],
+		},
 	},
 }

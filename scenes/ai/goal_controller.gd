@@ -1,52 +1,57 @@
 extends Node
-
-## AI domain ORCHESTRATOR: a generic, goal-driven controller for a non-player character. It is the AI's own
-## composition root (the `main.gd` of the AI domain): it wires the three sub-domains it builds (the fourth,
-## debug/, reads its `debug_*` getters) and runs the SENSE → THINK → ACT loop, but holds almost no
-## behaviour itself. It satisfies the character's controller contract (`control(character, delta)`) and
-## writes only the intent the player controller writes (`move_input`/`aim_point`) plus the same public
-## actions — all of that done by the behaviour sub-domain. It is the single authoring surface: every
-## tunable below is an export here (so a defender or invader preset is all data on this one node), read
-## straight from this node by the sub-domains it builds (their `apply_config(cfg)`) — and read again each
-## decision, so a tunable retuned at runtime (a behaviour test, the dev command server) takes effect
-## without a rebuild.
+## AI domain ORCHESTRATOR: a generic, goal-driven controller for a non-player character. It is the
+## AI's own composition root (the `main.gd` of the AI domain): it wires the three sub-domains it
+## builds (the fourth, debug/, reads its `debug_*` getters) and runs the SENSE → THINK → ACT loop,
+## but holds almost no behaviour itself. It satisfies the character's controller contract
+## (`control(character, delta)`) and writes only the intent the player controller writes
+## (`move_input`/`aim_point`) plus the same public actions — all of that done by the behaviour
+## sub-domain. It is the single authoring surface: every tunable below is an export here (so a
+## defender or invader preset is all data on this one node), read straight from this node by the
+## sub-domains it builds (their `apply_config(cfg)`) — and read again each decision, so a tunable
+## retuned at runtime (a behaviour test, the dev command server) takes effect without a rebuild.
 ##
-## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/), is the
-## draw-only overlays, children of the NPC that read this node's `debug_*` getters):
+## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/),
+## is the draw-only overlays, children of the NPC that read this node's `debug_*` getters):
 ##   • PERCEPTION (perception/) — SENSE. What the NPC knows: sight, hostility, event memory, the
 ##     known-contacts view, combat geometry, and the decision SNAPSHOT (state sections, facts and
-##     option groups). The NPC is NOT omniscient — it acts on last-KNOWN positions and forgets what decays.
-##   • DECISION (decision/) — THINK. The decision TREE and its planner: Von picks top-down, one `choice`
-##     request per level — a broad mode (combat / investigate / search / idle), the hostile, a tactic
-##     (engage / flank / advance / retreat / reload …), then a concrete option — ending in one behaviour primitive.
-##   • BEHAVIOUR (behavior/) — ACT. Runs the chosen primitive (move / engage / melee / interact / reload /
-##     entry / throw / hold) as movement + actions, and holds the System-Two state Von lacks: the engaged
-##     contact, peek-and-cover, the interaction in progress, and the commitment that keeps a choice running.
+##     option groups). The NPC is NOT omniscient — it acts on last-KNOWN positions and forgets what
+##     decays.
+##   • DECISION (decision/) — THINK. The decision TREE and its planner: Von picks top-down, one
+##     `choice` request per level — a broad mode (combat / investigate / search / idle), the
+##     hostile, a tactic (engage / flank / advance / retreat / reload …), then a concrete option —
+##     ending in one behaviour primitive.
+##   • BEHAVIOUR (behavior/) — ACT. Runs the chosen primitive (move / engage / melee / interact /
+##     reload / entry / throw / hold) as movement + actions, and holds the System-Two state Von
+##     lacks: the engaged contact, peek-and-cover, the interaction in progress, and the commitment
+##     that keeps a choice running.
 ##
-## This file keeps only the ORCHESTRATION: the control loop, the decide cadence, forcing a re-decision
-## on a salient event or a finished task (interrupting a walk in flight when the situation now calls for
-## a different starting point — e.g. under fire → straight to combat), the EventBus intake (hits, footfalls and
-## allies' radio callouts) and posting this NPC's own callouts. The behaviour is pure DATA — `goal` plus
-## the generic primitives and decision config exported below; a house defender and a house invader are
-## the same code with different data.
+## This file keeps only the ORCHESTRATION: the control loop, the decide cadence, forcing a
+## re-decision on a salient event or a finished task (interrupting a walk in flight when the
+## situation now calls for a different starting point — e.g. under fire → straight to combat), the
+## EventBus intake (hits, footfalls and allies' radio callouts) and posting this NPC's own callouts.
+## The behaviour is pure DATA — `goal` plus the generic primitives and decision config exported
+## below; a house defender and a house invader are the same code with different data.
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
 const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
-const Budget := preload("res://scenes/ai/decision/decision_budget.gd")  ## The frame's snapshot count (DecisionBudget).
+## The frame's snapshot count (DecisionBudget).
+const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
 const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 
-## The behaviour to pursue, in plain language — what Von ranks every level of the decision against. `{gun}` stands
-## for whatever gun the NPC carries ("shoot them with your {gun}"); read it filled in through `goal_text()`.
+## The behaviour to pursue, in plain language — what Von ranks every level of the decision against.
+## `{gun}` stands for whatever gun the NPC carries ("shoot them with your {gun}"); read it filled in
+## through `goal_text()`.
 @export_multiline var goal: String = ("Deal with hostile characters: shoot them with your {gun}. " +
 	"Otherwise go about your business.")
-## Pursuit primitive: when true this NPC actively hunts hostiles instead of doing chores. Once a hostile
-## is known every decision starts at COMBAT, and IDLE (chores) is never offered — a passive interaction
-## freezes the NPC's facing and blinds it. Turn off for an NPC whose goal is unrelated to fighting.
+## Pursuit primitive: when true this NPC actively hunts hostiles instead of doing chores. Once a
+## hostile is known every decision starts at COMBAT, and IDLE (chores) is never offered — a passive
+## interaction freezes the NPC's facing and blinds it. Turn off for an NPC whose goal is unrelated
+## to fighting.
 @export var pursue_hostiles: bool = true
-## Territory primitive: when true the NPC fights from inside the house — combat options outside it are
-## never offered, and it won't chase a contact out of the house.
+## Territory primitive: when true the NPC fights from inside the house — combat options outside it
+## are never offered, and it won't chase a contact out of the house.
 @export var defend_territory: bool = false
 ## The `/v1/systemone` endpoint to ask.
 @export var server_url: String = "http://127.0.0.1:8000/v1/systemone"
@@ -57,22 +62,26 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## Seconds to stay in a chosen interaction before ending it and re-deciding (covers Von's
 ## statelessness so multi-step goals advance).
 @export var interaction_dwell: float = 3.0
-## Safety cap (s) on committing to a move or to reaching an object, so a blocked path still re-decides.
+## Safety cap (s) on committing to a move or to reaching an object, so a blocked path still
+## re-decides.
 @export var max_commit_time: float = 6.0
 ## When searching a room the NPC looks around until it has SEEN (near-)every part of it (view cone +
-## line of sight). These tune that coverage. Gaze turn speed (rad/s) as it looks from point to point.
+## line of sight). These tune that coverage. Gaze turn speed (rad/s) as it looks from point to
+## point.
 @export var search_look_rate: float = 2.5
 ## Room sample-grid spacing (px): smaller = finer coverage but more sight rays per tick.
 @export var search_coverage_spacing: float = 64.0
-## Fraction (0..1) of sampled points that must be seen to call a room covered (1 = all; < 1 tolerates
-## nooks it can never see into).
+## Fraction (0..1) of sampled points that must be seen to call a room covered (1 = all; < 1
+## tolerates nooks it can never see into).
 @export var search_coverage_target: float = 1.0
-## Max seconds spent covering one room before giving up on unseeable spots and re-deciding (safety cap).
+## Max seconds spent covering one room before giving up on unseeable spots and re-deciding (safety
+## cap).
 @export var search_coverage_budget: float = 8.0
-## If the nearest unseen point is farther than this (px) or its line is blocked, the NPC walks toward
-## it to get a view; otherwise it just turns to look.
+## If the nearest unseen point is farther than this (px) or its line is blocked, the NPC walks
+## toward it to get a view; otherwise it just turns to look.
 @export var search_coverage_approach: float = 300.0
-## Inset (px) from a room's walls where coverage sampling starts, so search points sit off the walls.
+## Inset (px) from a room's walls where coverage sampling starts, so search points sit off the
+## walls.
 @export var search_coverage_margin: float = 24.0
 ## Range (px) of the gun: shots are taken within it, and distances are banded against it for Von.
 @export var shoot_range: float = 500.0
@@ -86,7 +95,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var cover_time: float = 1.2
 ## Minimum seconds between shots/punches while engaging.
 @export var fire_cooldown: float = 0.5
-## Rounds an automatic gun fires per trigger pull (at the gun's own fire rate); a single-shot gun fires one.
+## Rounds an automatic gun fires per trigger pull (at the gun's own fire rate); a single-shot gun
+## fires one.
 @export var fire_burst: int = 3
 ## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
 @export var back_off_time: float = 0.45
@@ -101,13 +111,12 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## Seconds the NPC stays committed to a fight after the last shot it fired or took, before it
 ## re-asks Von. Stops it dropping out of combat between decisions.
 @export var engage_dwell: float = 3.0
-
 @export_group("Decision")
 ## Decision-tree nodes never offered to this NPC (see scenes/ai/decision/decision_tree.gd), e.g.
 ## [&"advance"] for one that never closes in. `pursue_hostiles` adds &"idle".
 @export var disabled_nodes: Array[StringName] = []
-## Per-node overrides merged over the tree's defaults: { node_id: { field: value } } — e.g. a different
-## `question` for &"flank".
+## Per-node overrides merged over the tree's defaults: { node_id: { field: value } } — e.g. a
+## different `question` for &"flank".
 @export var node_overrides: Dictionary = {}
 ## Ordered fact → node: a decision starts at the first rule's node whose fact holds, skipping the
 ## broader levels above it (e.g. under fire → straight to COMBAT). `pursue_hostiles` adds
@@ -119,9 +128,9 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var max_options_per_level: int = 4
 ## Seconds a fight runs before Von re-chooses its tactic (it re-chooses sooner if the fight lapses).
 @export var tactic_interval: float = 3.0
-
 @export_group("Context")
-## Ages (s) up to which something counts as "just now" (x) and "recently" (y); older is "a while ago".
+## Ages (s) up to which something counts as "just now" (x) and "recently" (y); older is "a while
+## ago".
 @export var recency_bands: Vector2 = Vector2(2.0, 8.0)
 ## Route lengths (px) up to which a route is "short" (x) and "medium" (y); longer is "long".
 @export var route_buckets: Vector2 = Vector2(400.0, 900.0)
@@ -133,7 +142,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var track_smoothing: float = 0.3
 ## Radius (px) within which a hit elsewhere is heard as gunfire (an investigation lead).
 @export var hearing_radius: float = 900.0
-## Most seconds a lost hostile's last-seen velocity is projected forward ("where they were heading").
+## Most seconds a lost hostile's last-seen velocity is projected forward ("where they were
+## heading").
 @export var extrapolate_cap: float = 3.0
 ## Distance (px) toward unseen gunfire the "where the shots came from" lead points.
 @export var investigate_distance: float = 300.0
@@ -141,11 +151,11 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var hurt_threshold: float = 15.0
 ## Accumulated damage at or above which a character reads as "badly wounded".
 @export var critical_threshold: float = 35.0
-## A gun holding this fraction of its magazine or less reads as "nearly empty" (and offers a reload).
+## A gun holding this fraction of its magazine or less reads as "nearly empty" (and offers a
+## reload).
 @export var low_ammo_fraction: float = 0.34
 ## Most contacts described in the decision state (hostiles first, then nearest).
 @export var max_contacts_in_state: int = 4
-
 @export_group("Tactics")
 ## Surface coverage (0–100) at or above which a blocking object counts as usable cover.
 @export var cover_min: float = 40.0
@@ -153,8 +163,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var flank_distance: float = 220.0
 ## Angular spread (degrees) sampled around each flank side's bearing.
 @export var flank_arc: float = 60.0
-## An ally within this distance (px) of a target holds the side it stands on, so this NPC is told that
-## side is taken.
+## An ally within this distance (px) of a target holds the side it stands on, so this NPC is told
+## that side is taken.
 @export var flank_ally_radius: float = 500.0
 ## A route that comes within this distance (px) of a known hostile, nearer than the NPC already is,
 ## passes them: such a flank side is never offered, nor is such a firing spot.
@@ -165,7 +175,6 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## Distances (px) from a target at which firing spots around it are sampled (besides those a step or
 ## two from the NPC).
 @export var fire_spot_distances: Array[float] = [200.0, 350.0]
-
 @export_group("Memory")
 ## Hard cap on remembered events (oldest expirable evicted past it); <= 0 = unlimited.
 @export var memory_capacity: int = 128
@@ -173,7 +182,6 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var lead_memory_ttl: float = 20.0
 ## Seconds a visited room counts as recently searched.
 @export var search_memory_ttl: float = 60.0
-
 @export_group("Callouts")
 ## Broadcast this NPC's combat and investigation decisions to allies over the EventBus.
 @export var send_callouts: bool = true
@@ -183,20 +191,24 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var callout_range: float = 1500.0
 ## Seconds a heard callout stays current.
 @export var callout_ttl: float = 6.0
-
 @export_group("Entry")
-## Tactical entry (`docs/tactical-entry.md`): offer doorways into rooms left to search as an ENTER tactic, carried
-## out as a team or alone — stack beside the door, slice the pie, cross without stopping, take the corners, clear.
+## Tactical entry (`docs/tactical-entry.md`): offer doorways into rooms left to search as an ENTER
+## tactic, carried out as a team or alone — stack beside the door, slice the pie, cross without
+## stopping, take the corners, clear.
 @export var entry_enabled: bool = false
-## Seconds the point waits at the door, once in its slot, for the rest of the stack before going in without them.
+## Seconds the point waits at the door, once in its slot, for the rest of the stack before going in
+## without them.
 @export var entry_ready_timeout: float = 6.0
-## Seconds a quiet entry whose stack carries a stun holds at the stack, once the point is in its slot, before the point slices the pie: time
-## for a late reason to suspect the room to come up and turn it into a bang one (E17). A hostile in view or coming under fire ends it early.
+## Seconds a quiet entry whose stack carries a stun holds at the stack, once the point is in its
+## slot, before the point slices the pie: time for a late reason to suspect the room to come up and
+## turn it into a bang one (E17). A hostile in view or coming under fire ends it early.
 @export var entry_listen_time: float = 3.0
-## Seconds a follower leaves after the member ahead of it is through, so the stack crosses one at a time.
+## Seconds a follower leaves after the member ahead of it is through, so the stack crosses one at a
+## time.
 @export var entry_follow_gap: float = 0.3
-## Distance (px) between neighbouring stack slots along the wall: clear of a neighbour's footprint (the 34 px hole a body at
-## rest cuts in the steering map, plus room to spare), so a slot never lies in the hole of the member beside it.
+## Distance (px) between neighbouring stack slots along the wall: clear of a neighbour's footprint
+## (the 34 px hole a body at rest cuts in the steering map, plus room to spare), so a slot never
+## lies in the hole of the member beside it.
 @export var entry_stack_spacing: float = 44.0
 ## Distance (px) of a stack slot off the wall's centreline.
 @export var entry_wall_standoff: float = 28.0
@@ -208,76 +220,87 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var entry_pie_dwell: float = 0.35
 ## Inset (px) of a corner point from the room's walls: where an entrant stops in a corner.
 @export var entry_corner_inset: float = 40.0
-## A room with a side under this (px) is too small for the team (about three bodies): two go in, the rest hold the stack side.
+## A room with a side under this (px) is too small for the team (about three bodies): two go in, the
+## rest hold the stack side.
 @export var entry_short_room: float = 150.0
 ## Seconds an entrant holds its corner, looking across the room, before it clears the rest by sight.
 @export var entry_corner_dwell: float = 0.6
-## Most seconds the last of a team holds the doorway it came in by, facing back out, once the room is clear (it leaves
-## sooner when a teammate holding the room moves on).
+## Most seconds the last of a team holds the doorway it came in by, facing back out, once the room
+## is clear (it leaves sooner when a teammate holding the room moves on).
 @export var rear_security_time: float = 10.0
-## Most seconds a member covers a doorway on out of a room the team has cleared, gun through it, when no teammate moves
-## on first.
+## Most seconds a member covers a doorway on out of a room the team has cleared, gun through it,
+## when no teammate moves on first.
 @export var entry_cover_time: float = 8.0
-## Seconds a lone entrant looks through each doorway on out of a room it has cleared, once its gaze has settled.
+## Seconds a lone entrant looks through each doorway on out of a room it has cleared, once its gaze
+## has settled.
 @export var entry_watch_dwell: float = 0.8
-## Safety cap (s) on reaching the stack, on top of the walk there at walking pace (measured as the approach is planned): an entrant that
-## cannot get to its slot in that time gives up its claim.
+## Safety cap (s) on reaching the stack, on top of the walk there at walking pace (measured as the
+## approach is planned): an entrant that cannot get to its slot in that time gives up its claim.
 @export var entry_approach_time: float = 20.0
-## Most seconds an ordered stack waits for every living recipient of the order to be in its slot, from the first ordered `ready` heard or
-## said (`docs/leadership.md` LD9, D7); an unordered joiner is waited for `entry_ready_timeout` as ever.
+## Most seconds an ordered stack waits for every living recipient of the order to be in its slot,
+## from the first ordered `ready` heard or said (`docs/leadership.md` LD9, D7); an unordered joiner
+## is waited for `entry_ready_timeout` as ever.
 @export var order_ready_cap: float = 60.0
-## The entry guard (E9): any walk that would cross into a room that is not cleared goes in by tactical entry first, whatever
-## order it came from. Needs `entry_enabled`. A retreat and an NPC under fire are exempt.
+## The entry guard (E9): any walk that would cross into a room that is not cleared goes in by
+## tactical entry first, whatever order it came from. Needs `entry_enabled`. A retreat and an NPC
+## under fire are exempt.
 @export var entry_guard: bool = true
 ## Distance (px of walking) from such a doorway at which the guard starts the entry.
 @export var entry_guard_range: float = 300.0
-## Seconds a doorway whose entry was given up (a fight, a failed start) is left alone before the guard may try it again.
+## Seconds a doorway whose entry was given up (a fight, a failed start) is left alone before the
+## guard may try it again.
 @export var entry_guard_rearm: float = 6.0
-## Seconds a doorway the NPC secured as it passed (E15: a doorway on its walk in a corridor, not crossed) is left alone before
-## the guard may secure it again.
+## Seconds a doorway the NPC secured as it passed (E15: a doorway on its walk in a corridor, not
+## crossed) is left alone before the guard may secure it again.
 @export var entry_secure_time: float = 30.0
-## How far (px) out of a doorway its view reaches, along the rays from the room's far corners through the opposite jambs (stopped at
-## walls): a walk keeps out of the view of every doorway into a room not clear for passing (E18).
+## How far (px) out of a doorway its view reaches, along the rays from the room's far corners
+## through the opposite jambs (stopped at walls): a walk keeps out of the view of every doorway into
+## a room not clear for passing (E18).
 @export var door_view_depth: float = 450.0
 ## A walk round those views is taken when it is no longer than this many times the plain route...
 @export var door_avoid_ratio: float = 2.0
-## ... plus this many px. Longer, or none: the walk goes the plain way, and the guard secures each doorway view it crosses (E15).
+## ... plus this many px. Longer, or none: the walk goes the plain way, and the guard secures each
+## doorway view it crosses (E15).
 @export var door_avoid_slack: float = 300.0
-## Seconds a cleared room counts as safe to walk past (its doorways' views are then left alone); after it they are avoided or secured again.
+## Seconds a cleared room counts as safe to walk past (its doorways' views are then left alone);
+## after it they are avoided or secured again.
 @export var entry_pass_clear_time: float = 60.0
-
 @export_group("Hearing")
-## How far (px) the footsteps of a character not of the NPC's own faction are heard, through walls, by gait (`docs/hearing.md` H1):
-## walking, running and crouched. A heard step is an investigation lead and a reason to suspect the room it came from.
+## How far (px) the footsteps of a character not of the NPC's own faction are heard, through walls,
+## by gait (`docs/hearing.md` H1): walking, running and crouched. A heard step is an investigation
+## lead and a reason to suspect the room it came from.
 @export var hear_walk: float = 250.0
 @export var hear_run: float = 450.0
 @export var hear_crouch: float = 100.0
-
 @export_group("Grenades")
-## React to live grenades (`docs/grenades.md` G16): an NPC that sees one, hears it land or is told of it, and is in its danger zone, radios
-## it and runs for the nearest safe spot (out of its line, behind cover that shields it, or outside the zone), holding it to the burst.
-## Off = it stands and takes it.
+## React to live grenades (`docs/grenades.md` G16): an NPC that sees one, hears it land or is told
+## of it, and is in its danger zone, radios it and runs for the nearest safe spot (out of its line,
+## behind cover that shields it, or outside the zone), holding it to the burst. Off = it stands and
+## takes it.
 @export var grenades_enabled: bool = true
 ## How far (px) a grenade coming down is heard (its bounce and rest), seen or not.
 @export var hear_grenade: float = 300.0
-## How far (px) past a frag's blast radius its danger zone reaches: the NPC runs to be clear of that, not only of the blast.
+## How far (px) past a frag's blast radius its danger zone reaches: the NPC runs to be clear of
+## that, not only of the blast.
 @export var evade_margin: float = 120.0
-## Longest walk (px of route) to a throw spot: a grenade out of range or with no clear lob from where the NPC stands is thrown from a spot
-## at most this far away that is in range with a clear lob (docs/grenades.md G17), else not offered.
+## Longest walk (px of route) to a throw spot: a grenade out of range or with no clear lob from
+## where the NPC stands is thrown from a spot at most this far away that is in range with a clear
+## lob (docs/grenades.md G17), else not offered.
 @export var throw_spot_walk: float = 250.0
-## The chance (0..1) a flash-blinded NPC fires blindly (`docs/grenades.md` G15): rolled once as it goes blind (from not blind), on the
-## controller's own seeded RNG. A hit fires one-handed at the last-known spot of the hostile it fought; a miss holds its fire until it
-## can see. A further stun while it is still blind does not roll again.
+## The chance (0..1) a flash-blinded NPC fires blindly (`docs/grenades.md` G15): rolled once as it
+## goes blind (from not blind), on the controller's own seeded RNG. A hit fires one-handed at the
+## last-known spot of the hostile it fought; a miss holds its fire until it can see. A further stun
+## while it is still blind does not roll again.
 @export_range(0.0, 1.0) var blind_fire_chance: float = 0.5
-
 @export_group("Watch")
-## How far (px) down its path a walking NPC looks: through the doorway it is lining up, not at the wall beside it.
+## How far (px) down its path a walking NPC looks: through the doorway it is lining up, not at the
+## wall beside it.
 @export var watch_look_ahead: float = 150.0
 ## Seconds a resting NPC looks at one doorway of its room before turning to the next.
 @export var watch_door_dwell: float = 2.5
-## Seconds a hostile that is no longer in sight still holds the NPC's eyes, while it has a clear line to where it was.
+## Seconds a hostile that is no longer in sight still holds the NPC's eyes, while it has a clear
+## line to where it was.
 @export var watch_lost_gaze: float = 2.0
-
 @export_group("Vision")
 ## Whether sight is gated at all. Off = everything is visible (omniscient), for debugging.
 @export var vision_enabled: bool = true
@@ -297,7 +320,6 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## Lifetime (s) of a character sighting — the window the NPC keeps acting on a last-seen position
 ## after losing sight before the contact becomes a mere investigation lead.
 @export var contact_memory_ttl: float = 4.0
-
 @export_group("Hostility")
 ## Every non-allied character seen is hostile (e.g. an invader).
 @export var hostile_on_sight: bool = false
@@ -307,15 +329,14 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var hostile_on_attack: bool = true
 ## Lifetime (s) of a hostility verdict; <= 0 = permanent (a grudge never fades).
 @export var hostility_ttl: float = 0.0
-
 @export_group("")
 ## How close (px) counts as "arrived" when steering straight-line (no nav agent).
 @export var arrive_dist: float = 10.0
 ## Running: may the NPC sprint (spending stamina) on the way to a destination when its decision-tree
 ## node asks for it (`run`) or it is under fire.
 @export var run_enabled: bool = true
-## Reload an empty gun on its own (holding steady, or ducked in cover) when a spare magazine is carried,
-## whatever the decision tree chose: the NPC is never left unarmed for lack of a decision.
+## Reload an empty gun on its own (holding steady, or ducked in cover) when a spare magazine is
+## carried, whatever the decision tree chose: the NPC is never left unarmed for lack of a decision.
 @export var auto_reload: bool = true
 ## Crouch while fighting in place (kneel behind cover, keep low when pinned), standing to run and
 ## move. Off = the NPC always stands.
@@ -324,7 +345,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 @export var posture_dwell: float = 0.7
 ## Only run when the destination is farther than this (px), so short hops don't burn stamina.
 @export var run_min_distance: float = 150.0
-## Stamina fraction (0..1) needed to start a run; once running it goes on until the Character runs dry.
+## Stamina fraction (0..1) needed to start a run; once running it goes on until the Character runs
+## dry.
 @export var run_start_fraction: float = 0.5
 ## NavigationAgent2D used for pathing (a sibling under the character); set in the NPC scene.
 @export var nav_agent_path: NodePath
@@ -336,33 +358,57 @@ var rooms: Array = []
 var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`{ pos, width, front, exit, rooms }`) from Main, for tactical entry.
 var openings: Array = []
-## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by Main (`MatchSpawner.bind_squad`): who leads it
-## and who is in it. The orders themselves come off the bus (`&"order"`), so an NPC with none still takes the ones that name it.
+## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by Main
+## (`MatchSpawner.bind_squad`): who leads it and who is in it. The orders themselves come off the
+## bus (`&"order"`), so an NPC with none still takes the ones that name it.
 var squad: Node = null
-
-var _perception: Node ## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.
-var _client: Node ## THINK transport: the Von round-trip (decision/decision_client.gd).
-var _planner: Node ## THINK policy: the decision-tree walk (decision/decision_planner.gd).
-var _behavior: Node ## ACT sub-domain: runs the chosen primitive + holds commitment state.
-var _last_facts := {} ## The facts of the last decision snapshot, retained for `debug_state()`.
-var _last_options := {} ## The option groups of the last snapshot, retained for `debug_zones()`.
-var _debug_focus := Vector2.INF ## The tactical point an observer asked to highlight (`debug_focus`), or INF for none.
-var _decide_timer := 0.0 ## Seconds until the next decision is allowed.
-var _force := false ## Force a decision now (task resolved or salient event).
-var _force_reason := "" ## Why `_force` was last raised, kept (with `_force_ms`) for the brain overlay.
-var _decisions := 0 ## Decision walks started so far (`debug_state()["decisions"]`).
-var _order_from := -1 ## `_decisions` when an order was last taken, while its decision has not landed (-1: none awaited); see `Behavior.await_order`.
-var _decision_reason := "" ## Why the latest walk was started: the force reason, or "cadence" (`debug_state()["decision_reason"]`).
-var _force_ms := 0 ## When `_force_reason` was raised (game msec, `GameClock.msec()`).
-var _last_callout := {} ## The last callout this NPC radioed (`position`, `point`, `label`, `at` in game msec), for the hearing overlay.
-var _salient_key := "" ## Known-hostile set + engaged contact's inside state, for edge detection.
-var _salient_init := false ## Whether _salient_key has been seeded.
+## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.
+var _perception: Node
+## THINK transport: the Von round-trip (decision/decision_client.gd).
+var _client: Node
+## THINK policy: the decision-tree walk (decision/decision_planner.gd).
+var _planner: Node
+## ACT sub-domain: runs the chosen primitive + holds commitment state.
+var _behavior: Node
+## The facts of the last decision snapshot, retained for `debug_state()`.
+var _last_facts := {}
+## The option groups of the last snapshot, retained for `debug_zones()`.
+var _last_options := {}
+## The tactical point an observer asked to highlight (`debug_focus`), or INF for none.
+var _debug_focus := Vector2.INF
+## Seconds until the next decision is allowed.
+var _decide_timer := 0.0
+## Force a decision now (task resolved or salient event).
+var _force := false
+## Why `_force` was last raised, kept (with `_force_ms`) for the brain overlay.
+var _force_reason := ""
+## Decision walks started so far (`debug_state()["decisions"]`).
+var _decisions := 0
+## `_decisions` when an order was last taken, while its decision has not landed (-1: none awaited);
+## see `Behavior.await_order`.
+var _order_from := -1
+## Why the latest walk was started: the force reason, or "cadence"
+## (`debug_state()["decision_reason"]`).
+var _decision_reason := ""
+## When `_force_reason` was raised (game msec, `GameClock.msec()`).
+var _force_ms := 0
+## The last callout this NPC radioed (`position`, `point`, `label`, `at` in game msec), for the
+## hearing overlay.
+var _last_callout := {}
+## Known-hostile set + engaged contact's inside state, for edge detection.
+var _salient_key := ""
+## Whether _salient_key has been seeded.
+var _salient_init := false
 # EventBus events are queued here, then handed to perception on the next control() tick.
-var _character: Node ## The character this controller drives, captured on first control.
-var _event_queue: Array = [] ## [topic, data] pairs awaiting processing once _character is known.
-var _was_blind := false ## The character was flash-blinded last tick, to re-decide the moment its sight returns.
-## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the character's name and spawn spot, so a seeded
-## match or a test that places the NPC the same way draws the same rolls.
+## The character this controller drives, captured on first control.
+var _character: Node
+## [topic, data] pairs awaiting processing once _character is known.
+var _event_queue: Array = []
+## The character was flash-blinded last tick, to re-decide the moment its sight returns.
+var _was_blind := false
+## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the
+## character's name and spawn spot, so a seeded match or a test that places the NPC the same way
+## draws the same rolls.
 var _rng := RandomNumberGenerator.new()
 
 
@@ -374,14 +420,16 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	# The group the observers find an NPC's controller by (interface 7).
 	add_to_group(&"npc_controllers")
-	# SENSE: the perception sub-domain owns sight, hostility, memory and the combat geometry internally.
+	# SENSE: the perception sub-domain owns sight, hostility, memory and the combat geometry
+	# internally.
 	_perception = AgentPerception.new()
 	add_child(_perception)
 	_perception.setup()
-	# THINK: the Von transport, and the planner that walks the decision tree through it. node_overrides
-	# is baked into the tree at setup() (construction-time only); the rest of the planner's config is
-	# applied by _apply_config(), which turns the policy primitives into tree config (pursuit starts at
-	# COMBAT once a hostile is known and never idles; territory keeps combat options inside the house).
+	# THINK: the Von transport, and the planner that walks the decision tree through it.
+	# node_overrides is baked into the tree at setup() (construction-time only); the rest of the
+	# planner's config is applied by _apply_config(), which turns the policy primitives into tree
+	# config (pursuit starts at COMBAT once a hostile is known and never idles; territory keeps
+	# combat options inside the house).
 	_client = DecisionClient.new()
 	_client.configure(server_url, model, 3.0)
 	add_child(_client)
@@ -403,21 +451,23 @@ func _ready() -> void:
 	EventBus.posted.connect(_on_event)
 
 
-## Configure the sub-domains from the exports. The controller is the single authoring surface — every
-## tunable lives as an export here — and this is where they reach the sub-modules: the perception and the
-## behaviour each take this node (`apply_config(self)`) and set their own fields and their modules' from it,
-## and the planner's config is worked out here. It only SETS config on already-built sub-domains (never
-## rebuilds), so it is safe to call each decision: a tunable retuned at runtime (e.g. by the dev command
-## server for a behaviour test) takes effect on the next one.
+## Configure the sub-domains from the exports. The controller is the single authoring surface —
+## every tunable lives as an export here — and this is where they reach the sub-modules: the
+## perception and the behaviour each take this node (`apply_config(self)`) and set their own fields
+## and their modules' from it, and the planner's config is worked out here. It only SETS config on
+## already-built sub-domains (never rebuilds), so it is safe to call each decision: a tunable
+## retuned at runtime (e.g. by the dev command server for a behaviour test) takes effect on the next
+## one.
 func _apply_config() -> void:
 	_perception.apply_config(self)
-	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a walk at
-	# COMBAT once a hostile is known; territory confines combat options inside the house.
+	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a
+	# walk at COMBAT once a hostile is known; territory confines combat options inside the house.
 	var disabled: Array[StringName] = []
 	disabled.assign(disabled_nodes)
 	var rules := entry_rules.duplicate()
-	# An order (docs/leadership.md LD6) is carried out unless the NPC is shot at or fighting (the fight rules above come first); it
-	# comes before `hostile_known`, which would otherwise hide it whenever any hostile is known.
+	# An order (docs/leadership.md LD6) is carried out unless the NPC is shot at or fighting (the
+	# fight rules above come first); it comes before `hostile_known`, which would otherwise hide it
+	# whenever any hostile is known.
 	if not rules.has(&"ordered") and not rules.has("ordered"):
 		rules[&"ordered"] = &"order"
 	if pursue_hostiles:
@@ -430,23 +480,32 @@ func _apply_config() -> void:
 	_planner.skip_single_option = skip_single_option
 	_planner.inside_only = defend_territory
 	var held: Dictionary = _perception.order()
-	_planner.confine_room = String(held.get("room", "")) if String(held.get("kind", "")) == "defend_room" else ""
+	_planner.confine_room = (String(held.get("room", ""))
+			if String(held.get("kind", "")) == "defend_room"
+			else "")
 	_behavior.apply_config(self)
 
 
 ## Buffer a world event for processing on the next control() tick (the signal can fire before the
-## controller knows which character it drives): hits (combat awareness, gunfire heard), footfalls (footsteps
-## heard; one out of earshot of every gait is dropped here, as they come many a second), allies' radio
-## callouts, a grenade coming down or going off, and the leader's orders.
+## controller knows which character it drives): hits (combat awareness, gunfire heard), footfalls
+## (footsteps heard; one out of earshot of every gait is dropped here, as they come many a second),
+## allies' radio callouts, a grenade coming down or going off, and the leader's orders.
 func _on_event(topic: StringName, data: Dictionary) -> void:
-	if topic == &"hit" or topic == &"callout" or topic == &"grenade" or topic == &"explosion" or topic == &"order":
+	if (topic == &"hit"
+			or topic == &"callout"
+			or topic == &"grenade"
+			or topic == &"explosion"
+			or topic == &"order"):
 		_event_queue.append([topic, data])
-	elif topic == &"footfall" and _character != null \
-			and _character.global_position.distance_to(data.get("position", Vector2.INF)) <= _perception.footfall_reach():
+	elif (topic == &"footfall"
+			and _character != null
+			and _character.global_position.distance_to(data.get("position", Vector2.INF))
+				<= _perception.footfall_reach()):
 		_event_queue.append([topic, data])
 
 
-## Read-only: the goal as Von reads it, with `{gun}` filled in with the NPC's gun (the raw `goal` before it has acted).
+## Read-only: the goal as Von reads it, with `{gun}` filled in with the NPC's gun (the raw `goal`
+## before it has acted).
 func goal_text() -> String:
 	if _perception == null or not is_instance_valid(_character):
 		return goal.replace("{gun}", "gun")
@@ -458,19 +517,19 @@ func current_act() -> String:
 	return _behavior.current_act() if _behavior != null else "hold"
 
 
-## Read-only: the full decision path the NPC is carrying out, every level ("COMBAT - Intruder - FLANK -
-## their left side (kitchen)"), plus its progress — for debug overlays/observers.
+## Read-only: the full decision path the NPC is carrying out, every level ("COMBAT - Intruder -
+## FLANK - their left side (kitchen)"), plus its progress — for debug overlays/observers.
 func debug_status() -> String:
 	return _behavior.debug_status() if _behavior != null else "HOLD"
 
 
 ## Read-only: the WHOLE AI state as structured data — the deep counterpart to `debug_status()`'s
-## one-line label, for an observer (the dev command server) to inspect on demand. It answers what a log
-## line can't: the facts the last decision gated on, every level of the last walk (the exact state and
-## question Von saw, the options, its probabilities and pick, auto-picks and timings), what the NPC
-## knows (`contacts`), the running primitive and pathing, how many decision walks it has started and why the latest one
-## started (`decisions`, `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"). Pure
-## reads — never perturbs the loop.
+## one-line label, for an observer (the dev command server) to inspect on demand. It answers what a
+## log line can't: the facts the last decision gated on, every level of the last walk (the exact
+## state and question Von saw, the options, its probabilities and pick, auto-picks and timings),
+## what the NPC knows (`contacts`), the running primitive and pathing, how many decision walks it
+## has started and why the latest one started (`decisions`, `decision_reason`: the force reason,
+## e.g. "task resolved" or "way blocked", or "cadence"). Pure reads — never perturbs the loop.
 func debug_state() -> Dictionary:
 	var out := {
 		"npc": _npc_name(),
@@ -493,14 +552,15 @@ func debug_state() -> Dictionary:
 	return out
 
 
-## Read-only: the tactical navigation ZONES the NPC's perception laid out for its last decision, flattened to world points
-## tagged by kind (see `debug/zone_list.gd`), for the tactics debug overlay to draw. Empty until the first decision.
+## Read-only: the tactical navigation ZONES the NPC's perception laid out for its last decision,
+## flattened to world points tagged by kind (see `debug/zone_list.gd`), for the tactics debug
+## overlay to draw. Empty until the first decision.
 func debug_zones() -> Array:
 	return ZoneList.from_options(_last_options)
 
 
-## Highlight the tactical point at world `point` on the tactics overlay (the spectator inspector's clicked zone). Debug only: it changes
-## nothing the NPC does.
+## Highlight the tactical point at world `point` on the tactics overlay (the spectator inspector's
+## clicked zone). Debug only: it changes nothing the NPC does.
 func debug_focus(point: Vector2) -> void:
 	_debug_focus = point
 
@@ -510,63 +570,70 @@ func debug_clear_focus() -> void:
 	_debug_focus = Vector2.INF
 
 
-## Read-only: the tactical point highlighted (`debug_focus`), or INF for none, for the tactics overlay to ring.
+## Read-only: the tactical point highlighted (`debug_focus`), or INF for none, for the tactics
+## overlay to ring.
 func debug_focus_point() -> Vector2:
 	return _debug_focus
 
 
-## Read-only: the tactical ROOM zones — every room of the house tagged by how this NPC regards it now
-## (`current` / `searched` / `unsearched` / `unknown`), each as a world-space `rect` with its `type`,
-## for the tactics debug overlay to draw. It is the room reasoning the search / room / flank options are
-## placed against. Empty until the controller knows its character. A pure read of the perception.
+## Read-only: the tactical ROOM zones — every room of the house tagged by how this NPC regards it
+## now (`current` / `searched` / `unsearched` / `unknown`), each as a world-space `rect` with its
+## `type`, for the tactics debug overlay to draw. It is the room reasoning the search / room / flank
+## options are placed against. Empty until the controller knows its character. A pure read of the
+## perception.
 func debug_room_zones() -> Array:
 	if _character == null or _perception == null:
 		return []
 	return _perception.room_status(rooms, _character.global_position)
 
 
-## Read-only: the running tactical entry — the doorway (`opening`, `into`), the NPC's stack `slot` and `side`,
-## whether it is going `solo`, its `phase`, what the pie saw (`seen_fraction`, `pie_sides`, `hidden_corners`), its
-## `corner` and `stack_point`, as the behaviour reports it (typed values; `debug_state()["entry"]` is the JSON-safe
-## copy). Empty when the NPC isn't entering a room.
+## Read-only: the running tactical entry — the doorway (`opening`, `into`), the NPC's stack `slot`
+## and `side`, whether it is going `solo`, its `phase`, what the pie saw (`seen_fraction`,
+## `pie_sides`, `hidden_corners`), its `corner` and `stack_point`, as the behaviour reports it
+## (typed values; `debug_state()["entry"]` is the JSON-safe copy). Empty when the NPC isn't entering
+## a room.
 func debug_entry() -> Dictionary:
 	return _behavior.debug_entry() if _behavior != null else {}
 
 
-## Read-only: the tactical entry and the entry guard as world-space data, for the entry debug overlays: `entry` (the
-## doorway's slots, pie arc and corners, this NPC's role, timers, the team off the radio, the doorways it covers; {}
-## when not entering) and `guard` (a running detour and the order it paused, the next uncleared doorway on the walk,
-## the rooms regarded as cleared). See behavior.gd `debug_entry_view`.
+## Read-only: the tactical entry and the entry guard as world-space data, for the entry debug
+## overlays: `entry` (the doorway's slots, pie arc and corners, this NPC's role, timers, the team
+## off the radio, the doorways it covers; {} when not entering) and `guard` (a running detour and
+## the order it paused, the next uncleared doorway on the walk, the rooms regarded as cleared). See
+## behavior.gd `debug_entry_view`.
 func debug_entry_view() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
 	return _behavior.debug_entry_view()
 
 
-## Read-only: the behaviour's running search-coverage state (which room sample points it has seen vs.
-## still needs to, and the one it is looking at now), for the search debug overlay. Empty/inactive when
-## the NPC isn't currently covering a room.
+## Read-only: the behaviour's running search-coverage state (which room sample points it has seen
+## vs. still needs to, and the one it is looking at now), for the search debug overlay.
+## Empty/inactive when the NPC isn't currently covering a room.
 func debug_search_coverage() -> Dictionary:
 	return _behavior.debug_coverage() if _behavior != null else {}
 
 
-## Read-only: where the NPC's sight toward world point `to` is first blocked (over low cover, the perception's own
-## sight rule), or `to` when it reaches it — for the vision overlay, so it draws the area the sense really covers.
+## Read-only: where the NPC's sight toward world point `to` is first blocked (over low cover, the
+## perception's own sight rule), or `to` when it reaches it — for the vision overlay, so it draws
+## the area the sense really covers.
 func debug_sight_end(to: Vector2) -> Vector2:
 	if _perception == null or _character == null:
 		return to
 	return _perception.sight_end(to)
 
 
-## Read-only: what the NPC has heard and been told (gunfire heard, under-fire direction, ally callouts,
-## lost hostiles, checked leads, radii) — for the contacts and hearing overlays. Empty before perception exists.
+## Read-only: what the NPC has heard and been told (gunfire heard, under-fire direction, ally
+## callouts, lost hostiles, checked leads, radii) — for the contacts and hearing overlays. Empty
+## before perception exists.
 func debug_memory() -> Dictionary:
 	return _perception.debug_memory() if _perception != null else {}
 
 
-## Read-only: the behaviour's combat / movement / interaction state as world-space data — the engaged
-## target, committed destination, aim and fire line, peek-and-cover phase, leash, move/interact targets —
-## for the combat, territory and targets overlays. Empty until the controller knows its character.
+## Read-only: the behaviour's combat / movement / interaction state as world-space data — the
+## engaged target, committed destination, aim and fire line, peek-and-cover phase, leash,
+## move/interact targets — for the combat, territory and targets overlays. Empty until the
+## controller knows its character.
 func debug_combat() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
@@ -578,10 +645,12 @@ func debug_progress() -> Dictionary:
 	return _behavior.debug_progress() if _behavior != null else {}
 
 
-## Read-only: the NPC's grenade awareness for the grenade overlay: `known` (the live grenades it knows of, soonest first, each
-## `{ point, kind, fuse_left, fuse, radius, source }`, `source` being `&"seen"` / `&"heard"` / `&"called"` / `&"own"`), `escape` (the safe spot
-## it is running to, `Vector2.INF` when it is not running to one) and `throw` (the throw it is about to make, `{ from, to, kind, radius }`;
-## {} when it is not making one, or once the grenade has left its hand).
+## Read-only: the NPC's grenade awareness for the grenade overlay: `known` (the live grenades it
+## knows of, soonest first, each `{ point, kind, fuse_left, fuse, radius, source }`, `source` being
+## `&"seen"` / `&"heard"` / `&"called"` / `&"own"`), `escape` (the safe spot it is running to,
+## `Vector2.INF` when it is not running to one) and `throw` (the throw it is about to make,
+## `{ from, to, kind, radius }`; {} when it is not making one, or once the grenade has left its
+## hand).
 func debug_grenades() -> Dictionary:
 	if _perception == null or _behavior == null:
 		return { "known": [], "escape": Vector2.INF, "throw": {} }
@@ -595,13 +664,16 @@ func debug_sent_callout() -> Dictionary:
 
 
 ## Read-only: the decision machinery's live state for the brain overlay — whether Von is being asked
-## (`pending`), the last walk's levels (state, offered options, probabilities, pick), whether it failed
-## (the behaviour then holds steady), the decide/force timers and why the last force fired, and the facts.
+## (`pending`), the last walk's levels (state, offered options, probabilities, pick), whether it
+## failed (the behaviour then holds steady), the decide/force timers and why the last force fired,
+## and the facts.
 func debug_brain() -> Dictionary:
 	if _planner == null:
 		return {}
 	var d: Dictionary = _planner.debug_state()
-	var timers: Dictionary = _behavior.debug_combat().get("timers", {}) if _character != null else {}
+	var timers: Dictionary = (_behavior.debug_combat().get("timers", {})
+			if _character != null
+			else {})
 	return {
 		"pending": d.get("pending", false),
 		"failed": d.get("last_failed", false),
@@ -617,8 +689,9 @@ func debug_brain() -> Dictionary:
 	}
 
 
-## Full contact data for display in the spectator inspector: each entry has `node`, `pos` (last-known
-## world position), `name`, `hostile`, `visible` (seen this tick) and `age` (seconds since last seen).
+## Full contact data for display in the spectator inspector: each entry has `node`, `pos`
+## (last-known world position), `name`, `hostile`, `visible` (seen this tick) and `age` (seconds
+## since last seen).
 func known_contacts_for_display() -> Array:
 	if _character == null or _perception == null:
 		return []
@@ -626,7 +699,8 @@ func known_contacts_for_display() -> Array:
 
 
 ## The known-contacts list flattened to the fields worth reading in a snapshot (who, whether hostile
-## and why, whether seen this tick, and how far off). Empty until the controller knows its character.
+## and why, whether seen this tick, and how far off). Empty until the controller knows its
+## character.
 func _contact_digest() -> Array:
 	if _character == null:
 		return []
@@ -646,8 +720,8 @@ func _contact_digest() -> Array:
 
 ## Called each physics frame by the character. Runs the SENSE → THINK → ACT loop: fold queued events
 ## in, perceive, let the behaviour resolve what it knows + honour its commitments, start a decision
-## walk only when free to (or restart one a new situation has overtaken), then let the behaviour carry
-## out the running primitive.
+## walk only when free to (or restart one a new situation has overtaken), then let the behaviour
+## carry out the running primitive.
 func control(character, delta: float) -> void:
 	if character.is_dead:
 		return
@@ -699,8 +773,9 @@ func control(character, delta: float) -> void:
 	_report_order()
 
 
-## The progress of the order the NPC holds, on the radio (`docs/leadership.md` LD7): the steps the behaviour reports as it carries it
-## out (`moving`, `in_position`), and `done` / `refused` once it has ended so; on the team radio, so only with `send_callouts`.
+## The progress of the order the NPC holds, on the radio (`docs/leadership.md` LD7): the steps the
+## behaviour reports as it carries it out (`moving`, `in_position`), and `done` / `refused` once it
+## has ended so; on the team radio, so only with `send_callouts`.
 func _report_order() -> void:
 	var steps: Array = _behavior.take_order_steps()
 	var ended: Dictionary = _perception.take_ended_order()
@@ -711,11 +786,15 @@ func _report_order() -> void:
 			_post_order_step(step["order_id"], step["step"])
 
 
-## Radio step `step` of order `order_id` as an `&"callout"` with `order_id` and `order_step`: the speaker, where it stands and what it
-## is doing. Allies leave it out of what they weigh; its squad keeps it as the member's latest step.
+## Radio step `step` of order `order_id` as an `&"callout"` with `order_id` and `order_step`: the
+## speaker, where it stands and what it is doing. Allies leave it out of what they weigh; its squad
+## keeps it as the member's latest step.
 func _post_order_step(order_id: Variant, step: String) -> void:
-	_last_callout = { "position": _character.global_position, "point": _character.global_position,
-		"label": "%s (%s)" % [_behavior.path_label(), step.replace("_", " ")], "at": GameClock.msec() }
+	_last_callout = {
+		"position": _character.global_position, "point": _character.global_position,
+		"label": "%s (%s)" % [_behavior.path_label(), step.replace("_", " ")],
+		"at": GameClock.msec(),
+	}
 	EventBus.post(&"callout", {
 		"speaker": _character,
 		"faction": _character.faction,
@@ -730,8 +809,9 @@ func _post_order_step(order_id: Variant, step: String) -> void:
 	})
 
 
-## The running ENTER became a bang one, its room suspect (`docs/tactical-entry.md` E17: at its start, or on a late reason): the order is
-## re-adopted as the STUN ENTRY it now is (`search/stun_entry/<door>`, its label from the tree), so what the NPC is doing reads as it is.
+## The running ENTER became a bang one, its room suspect (`docs/tactical-entry.md` E17: at its
+## start, or on a late reason): the order is re-adopted as the STUN ENTRY it now is
+## (`search/stun_entry/<door>`, its label from the tree), so what the NPC is doing reads as it is.
 ## An entry the guard runs under another order (a walk's detour) keeps that order's name.
 func _on_entry_turned() -> void:
 	var order: Dictionary = _behavior.order()
@@ -753,17 +833,22 @@ func _force_now(reason: String) -> void:
 	_force_ms = GameClock.msec()
 
 
-## Whether a new decision may start now: never while crossing a doorway (a forced one waits until the NPC is
-## through); always when forced; otherwise the behaviour decides whether its current commitment still holds (a
-## fight, a move, an approach) or the decide cadence has elapsed. One that may must also get one of the frame's
-## snapshots (`DecisionBudget`); refused, it keeps its wish (`_force`, the elapsed timer) and asks again next frame.
+## Whether a new decision may start now: never while crossing a doorway (a forced one waits until
+## the NPC is through); always when forced; otherwise the behaviour decides whether its current
+## commitment still holds (a fight, a move, an approach) or the decide cadence has elapsed. One that
+## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
+## (`_force`, the elapsed timer) and asks again next frame.
 func _should_decide() -> bool:
 	if _behavior.committed() or _behavior.evading() or _character.is_blind():
-		return false  # A blinded NPC starts no new decision (G15), one running from a grenade none until the burst (G16).
+		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
+		# burst (G16).
+		return false
 	if not _force and not _behavior.wants_decision(_decide_timer <= 0.0):
 		return false
 	if not _force and not _perception.routes_ready():
-		return false  # The routes it would weigh are still being measured (the avoid map is baking): a few frames. A forced decision does not wait.
+		# The routes it would weigh are still being measured (the avoid map is baking): a few
+		# frames. A forced decision does not wait.
+		return false
 	return Budget.claim()
 
 
@@ -773,9 +858,10 @@ func _should_decide() -> bool:
 func _maybe_interrupt() -> void:
 	if _behavior.evading() or _character.is_blind():
 		return
-	# An order taken since the walk in flight began always restarts it: that walk was made without the order, and a walk the order
-	# replaces stands until one made with it lands.
-	if _order_from >= 0 or _planner.entry_for(_perception.quick_facts()) != _planner.current_entry():
+	# An order taken since the walk in flight began always restarts it: that walk was made without
+	# the order, and a walk the order replaces stands until one made with it lands.
+	if (_order_from >= 0
+			or _planner.entry_for(_perception.quick_facts()) != _planner.current_entry()):
 		if Budget.claim():  # Else `_force` stays and the restart is tried again next frame.
 			_start_decision()
 	else:
@@ -795,9 +881,11 @@ func _start_decision() -> void:
 	_last_options = snapshot["options"]
 	var held: Dictionary = _perception.order()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
-		_perception.end_order(held["id"], "refused")  # An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
+		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
+		_perception.end_order(held["id"], "refused")
 		_last_facts["ordered"] = false
-		_planner.confine_room = ""  # `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
+		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
+		_planner.confine_room = ""
 	_planner.begin(snapshot, _behavior.ongoing())
 
 
@@ -808,7 +896,8 @@ func _start_decision() -> void:
 func _process_events() -> void:
 	if _event_queue.is_empty():
 		return
-	var deaf: bool = _character.is_deaf()  # A deafened NPC hears no gunfire, no footsteps, no hit elsewhere and no radio call (G15).
+	# A deafened NPC hears no gunfire, no footsteps, no hit elsewhere and no radio call (G15).
+	var deaf: bool = _character.is_deaf()
 	for ev in _event_queue:
 		match ev[0]:
 			&"hit":
@@ -827,18 +916,22 @@ func _process_events() -> void:
 			&"explosion":
 				_perception.process_explosion(ev[1])
 			&"order":
-				# An order (LD5) reaches its recipients whatever their state, deaf included, and is decided on at once, as a hit is
-				# (after a crossing or an evade, which hold every decision).
+				# An order (LD5) reaches its recipients whatever their state, deaf included, and is
+				# decided on at once, as a hit is (after a crossing or an evade, which hold every
+				# decision).
 				if _perception.process_order(ev[1]):
 					_force_now("ordered")
-					_order_from = _decisions  # A walk it replaces stands until a decision started from here on lands (`_on_decided`).
+					# A walk it replaces stands until a decision started from here on lands
+					# (`_on_decided`).
+					_order_from = _decisions
 					_behavior.await_order(true)
 	_event_queue.clear()
 
 
-## The grenade reflex (G16) and the blind NPC (G15), every tick after the SEE pass: hand the behaviour the plan to get clear of the
-## live grenade that threatens the NPC (or {}), radio the grenades it has seen or heard come down, roll once whether it fires blind
-## the tick it goes blind, and re-decide the moment its sight returns.
+## The grenade reflex (G16) and the blind NPC (G15), every tick after the SEE pass: hand the
+## behaviour the plan to get clear of the live grenade that threatens the NPC (or {}), radio the
+## grenades it has seen or heard come down, roll once whether it fires blind the tick it goes blind,
+## and re-decide the moment its sight returns.
 func _react_to_grenades() -> void:
 	_behavior.poll_throw()
 	_behavior.set_evade(_perception.evade_plan())
@@ -847,7 +940,8 @@ func _react_to_grenades() -> void:
 			_post_grenade_call(grenade)
 	var blind: bool = _character.is_blind()
 	if blind and not _was_blind:
-		var draw := _rng.randf()  # One draw per blinding, whatever the chance, so the sequence does not depend on it.
+		# One draw per blinding, whatever the chance, so the sequence does not depend on it.
+		var draw := _rng.randf()
 		_behavior.set_blind_fire(draw < blind_fire_chance or blind_fire_chance >= 1.0)
 	if _was_blind and not blind:
 		_force_now("sight returned")
@@ -856,8 +950,8 @@ func _react_to_grenades() -> void:
 
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly
 ## categorized hostile, or the engaged contact crosses the house boundary (per its last sighting).
-## These are the events worth interrupting a commitment for. The behaviour sub-domain packs that belief
-## into a salient key; seeded on the first call so the initial state isn't a "change".
+## These are the events worth interrupting a commitment for. The behaviour sub-domain packs that
+## belief into a salient key; seeded on the first call so the initial state isn't a "change".
 func _check_salient() -> void:
 	var key: String = _behavior.salient_key()
 	if not _salient_init:
@@ -875,27 +969,34 @@ func _on_decided(leaf: Dictionary) -> void:
 	if _behavior.evading():
 		return  # Overtaken by a grenade while Von was answering; the burst ends in a new decision.
 	if _order_from >= 0 and _decisions <= _order_from:
-		return  # A walk begun before the order came, which its restart superseded: the one made with the order is on its way.
+		# A walk begun before the order came, which its restart superseded: the one made with the
+		# order is on its way.
+		return
 	_order_from = -1
 	_behavior.set_leaf(leaf)
-	# The order just adopted sets (or clears) the engaged contact, which the salient key carries: that is not a change of belief about
-	# hostiles, and the decision just made already weighed what the NPC knows. Re-take the key so it does not start another.
+	# The order just adopted sets (or clears) the engaged contact, which the salient key carries:
+	# that is not a change of belief about hostiles, and the decision just made already weighed what
+	# the NPC knows. Re-take the key so it does not start another.
 	if _salient_init:
 		_salient_key = _behavior.salient_key()
-	GameLog.say("%s (Von) %s  [%s]" % [_npc_name(), " - ".join(leaf["labels"]), _planner.walk_digest()])
+	GameLog.say("%s (Von) %s  [%s]"
+			% [_npc_name(), " - ".join(leaf["labels"]), _planner.walk_digest()])
 	if send_callouts and _character != null and not leaf["path"].is_empty() \
 			and str(leaf["path"][0]) in ["combat", "investigate"]:
 		_post_callout(leaf)
 
 
-## Broadcast this NPC's decision as an `&"callout"` EventBus event (interface 10): who is speaking and
-## where, its state, the decision path, its target and destination, and with a combat decision `target_pos`
-## (where the hostile is as it knows it). Allies within range hear it.
+## Broadcast this NPC's decision as an `&"callout"` EventBus event (interface 10): who is speaking
+## and where, its state, the decision path, its target and destination, and with a combat decision
+## `target_pos` (where the hostile is as it knows it). Allies within range hear it.
 func _post_callout(leaf: Dictionary) -> void:
 	var params: Dictionary = leaf["params"]
 	var status := _status(leaf["primitive"] == &"reload")
-	_last_callout = { "position": _character.global_position, "point": params.get("point", _character.global_position),
-		"label": " - ".join(leaf["labels"]), "at": GameClock.msec() }
+	_last_callout = {
+		"position": _character.global_position,
+		"point": params.get("point", _character.global_position),
+		"label": " - ".join(leaf["labels"]), "at": GameClock.msec(),
+	}
 	var radio := {
 		"speaker": _character,
 		"faction": _character.faction,
@@ -907,16 +1008,23 @@ func _post_callout(leaf: Dictionary) -> void:
 		"point": params.get("point", _character.global_position),
 	}
 	if str(leaf["path"][0]) == "combat":
-		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it (docs/grenades.md G18).
+		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it
+		# (docs/grenades.md G18).
 		radio["target_pos"] = _perception.target_pos(params.get("target_id", 0))
 	EventBus.post(&"callout", radio)
 
 
-## Radio a live grenade the NPC has seen or heard come down (`{ point, kind }`) as an `&"grenade"` callout: the spot it landed
-## at and its kind, for the allies in its danger zone who neither saw nor heard it (G16). `point` is the landing.
+## Radio a live grenade the NPC has seen or heard come down (`{ point, kind }`) as an `&"grenade"`
+## callout: the spot it landed at and its kind, for the allies in its danger zone who neither saw
+## nor heard it (G16). `point` is the landing.
 func _post_grenade_call(grenade: Dictionary) -> void:
 	var label := "a %s grenade" % grenade["kind"]
-	_last_callout = { "position": _character.global_position, "point": grenade["point"], "label": label, "at": GameClock.msec() }
+	_last_callout = {
+		"position": _character.global_position,
+		"point": grenade["point"],
+		"label": label,
+		"at": GameClock.msec(),
+	}
 	EventBus.post(&"callout", {
 		"speaker": _character,
 		"faction": _character.faction,
@@ -930,12 +1038,18 @@ func _post_grenade_call(grenade: Dictionary) -> void:
 	})
 
 
-## Radio a grenade this NPC has just thrown (`{ kind, point }` from the behaviour) as a `frag_out` / `bang_out` `&"callout"`: where it is
-## going to land and its kind, for the allies near it to get clear of (G16, G17). `point` is the landing.
+## Radio a grenade this NPC has just thrown (`{ kind, point }` from the behaviour) as a `frag_out` /
+## `bang_out` `&"callout"`: where it is going to land and its kind, for the allies near it to get
+## clear of (G16, G17). `point` is the landing.
 func _post_throw_call(throw: Dictionary) -> void:
 	var status := "frag_out" if throw["kind"] == &"frag" else "bang_out"
 	var label := "%s!" % status.replace("_", " ")
-	_last_callout = { "position": _character.global_position, "point": throw["point"], "label": label, "at": GameClock.msec() }
+	_last_callout = {
+		"position": _character.global_position,
+		"point": throw["point"],
+		"label": label,
+		"at": GameClock.msec(),
+	}
 	EventBus.post(&"callout", {
 		"speaker": _character,
 		"faction": _character.faction,
@@ -949,22 +1063,28 @@ func _post_throw_call(throw: Dictionary) -> void:
 	})
 
 
-## Radio one step of a tactical entry (`{ step, opening, slot, side, cleared_room? }` from the behaviour) as an
-## `&"callout"`: the usual fields plus `opening`, `into` (the room it leads into), `slot`, `side` and `entry_step` (claim / ready / going_in / in /
-## clear / cover / rear / done / abort), `cleared_room` with a clear and `covering` (the doorway on it watches) with a
-## cover, and the bang entry's `bang` (its mode), `bang_off` (it gave the bang up), `stuns` and `frags`; every claim carries `claim_frame` and
-## `claim_pos` (the physics frame its slot was claimed on and where it stood then: same-frame claims settle by distance), `move_up` (the slot
-## it moved up from while it walks into the one it took, else 0, E2) and `pie` (it has begun the pie); an ordered stack's member adds
-## `order_id`, `order_bang`, `order_mode`, `order_hold`, `order_go` and `order_side` (the order, its mode, whether it holds for the leader's
-## go and whether that go has come, and its side, `docs/leadership.md` LD9, LD13, LD14). It is how the stack claims slots, waits for the team
+## Radio one step of a tactical entry (`{ step, opening, slot, side, cleared_room? }` from the
+## behaviour) as an `&"callout"`: the usual fields plus `opening`, `into` (the room it leads into),
+## `slot`, `side` and `entry_step` (claim / ready / going_in / in / clear / cover / rear / done /
+## abort), `cleared_room` with a clear and `covering` (the doorway on it watches) with a cover, and
+## the bang entry's `bang` (its mode), `bang_off` (it gave the bang up), `stuns` and `frags`; every
+## claim carries `claim_frame` and `claim_pos` (the physics frame its slot was claimed on and where
+## it stood then: same-frame claims settle by distance), `move_up` (the slot it moved up from while
+## it walks into the one it took, else 0, E2) and `pie` (it has begun the pie); an ordered stack's
+## member adds `order_id`, `order_bang`, `order_mode`, `order_hold`, `order_go` and `order_side`
+## (the order, its mode, whether it holds for the leader's go and whether that go has come, and its
+## side, `docs/leadership.md` LD9, LD13, LD14). It is how the stack claims slots, waits for the team
 ## and crosses in order; "going in" is also said in `status`. `point` is where the speaker stands.
 func _post_entry_call(step: Dictionary) -> void:
 	var status := _status(false)
 	if step["step"] == "going_in":
 		status.push_front("going in")
 	var labels: String = _behavior.path_label()
-	_last_callout = { "position": _character.global_position, "point": _character.global_position,
-		"label": "%s (%s)" % [labels, String(step["step"]).replace("_", " ")], "at": GameClock.msec() }
+	_last_callout = {
+		"position": _character.global_position, "point": _character.global_position,
+		"label": "%s (%s)" % [labels, String(step["step"]).replace("_", " ")],
+		"at": GameClock.msec(),
+	}
 	var msg := {
 		"speaker": _character,
 		"faction": _character.faction,
@@ -985,14 +1105,18 @@ func _post_entry_call(step: Dictionary) -> void:
 		"frags": step.get("frags", 0),
 		"cleared_room": step.get("cleared_room", ""),
 		"covering": step.get("covering", ""),
-		"claim_frame": step.get("claim_frame", -1),  # When and where the slot was claimed: same-frame claims settle by distance.
+		# When and where the slot was claimed: same-frame claims settle by distance.
+		"claim_frame": step.get("claim_frame", -1),
 		"claim_pos": step.get("claim_pos", _character.global_position),
-		"move_up": step.get("move_up", 0),  # The slot it moved up from, while it walks into the one it took (E2).
+		# The slot it moved up from, while it walks into the one it took (E2).
+		"move_up": step.get("move_up", 0),
 		"pie": step.get("pie", false),  # It has begun the pie: nobody moves up behind it.
 	}
 	if step.has("order_id"):
 		for key in ["order_id", "order_bang", "order_mode", "order_hold", "order_go", "order_side"]:
-			msg[key] = step[key]  # An ordered stack's claim (LD9): the order, its mode, its hold for go (LD13) and its side.
+			# An ordered stack's claim (LD9): the order, its mode, its hold for go (LD13) and its
+			# side.
+			msg[key] = step[key]
 	EventBus.post(&"callout", msg)
 
 

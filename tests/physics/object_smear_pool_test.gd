@@ -1,13 +1,13 @@
 extends GameTest
-
-## A chair pushed out of a bleed-out pool drags blood with it and the streak grows out of the pool's soft
-## rim without a hard edge: ribbons ease in from nothing and their opacity never steps sharply.
+## A chair pushed out of a bleed-out pool drags blood with it and the streak grows out of the pool's
+## soft rim without a hard edge: ribbons ease in from nothing and their opacity never steps sharply.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A smear flows out of a pool without an edge",
-		"description": "A chair pushed through a settled pool stretches the pool's outline into a tongue and leaves ribbons beyond it that start faint and never jump up in opacity.",
+		"description": "A chair pushed through a settled pool stretches the pool's outline into a "
+			+ "tongue and leaves ribbons beyond it that start faint and never jump up in opacity.",
 		"tags": ["blood", "smear", "pool"],
 		"timeout": 30.0,
 	}
@@ -27,18 +27,33 @@ func run(t: TestContext) -> void:
 	t.world.add_child(anchor)
 	anchor.global_position = Vector2(300, 200)
 	var pool := BloodSpawner.bleed(t.world, anchor, [])
-	if not t.require(await t.until(func(): return pool.flow.settled(), 20.0, "the pool fills"), "pool settles"):
+	if not t.require(
+			await t.until(func(): return pool.flow.settled(), 20.0, "the pool fills"),
+			"pool settles",
+	):
 		return
 	var rim := 0.0
 	for c in pool.flow.cells:
 		rim = maxf(rim, pool.global_position.x + (c.x + 1) * BloodConfig.flow_cell_size)
 	t.expect_eq(pool.flow.trail.size(), 0, "nothing dragged out yet")
 	t.puppet(&"pusher").walk(Vector2.RIGHT)
-	await t.until(func(): return t.object(&"chair").global_position.x > 400.0, 10.0, "the chair is pushed out of the pool")
+	await t.until(
+		func(): return t.object(&"chair").global_position.x > 400.0,
+		10.0,
+		"the chair is pushed out of the pool",
+	)
 	t.screenshot("chair_smear_pool")
-	await t.until(func(): return t.object(&"chair").global_position.x > 520.0, 10.0, "the chair is well clear of the pool")
+	await t.until(
+		func(): return t.object(&"chair").global_position.x > 520.0,
+		10.0,
+		"the chair is well clear of the pool",
+	)
 	t.screenshot("chair_smear_pool_clear")
-	await t.until(func(): return t.object(&"chair").global_position.x > 650.0, 10.0, "the chair is pushed across")
+	await t.until(
+		func(): return t.object(&"chair").global_position.x > 650.0,
+		10.0,
+		"the chair is pushed across",
+	)
 	t.puppet(&"pusher").stop()
 	var layer := BloodDecals.find(t.object(&"chair").get_parent())
 	if not t.require(layer != null and layer.ribbon_count() > 0, "the chair left streaks"):
@@ -46,7 +61,10 @@ func run(t: TestContext) -> void:
 	var reach := 0.0
 	for c in pool.flow.trail:
 		reach = maxf(reach, pool.global_position.x + c.x * BloodConfig.flow_cell_size)
-	t.check(reach > rim + 20.0, "the pool's own outline was pulled out past its old rim (%.0f vs %.0f)" % [reach, rim])
+	t.check(
+		reach > rim + 20.0,
+		"the pool's own outline was pulled out past its old rim (%.0f vs %.0f)" % [reach, rim],
+	)
 	var jump := 0.0
 	var start := 1.0
 	var beyond := 0

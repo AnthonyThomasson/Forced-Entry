@@ -1,10 +1,10 @@
 extends GameTest
-
-## `Deformation.convex_pieces` cuts a dented silhouette into convex collider pieces by merging triangles
-## (Hertel-Mehlhorn), restarting its scan after every merge. It finds the neighbouring pieces through an edge map,
-## remembers the pairs that failed to merge, and checks only the two corners where a merge joins. This pins its pieces
-## to the plain scan (every pair after every merge, every corner of the union) over silhouettes of every shape with up
-## to the most dents a piece keeps.
+## `Deformation.convex_pieces` cuts a dented silhouette into convex collider pieces by merging
+## triangles (Hertel-Mehlhorn), restarting its scan after every merge. It finds the neighbouring
+## pieces through an edge map, remembers the pairs that failed to merge, and checks only the two
+## corners where a merge joins. This pins its pieces to the plain scan (every pair after every
+## merge, every corner of the union) over silhouettes of every shape with up to the most dents a
+## piece keeps.
 
 const SEED := 4242
 const SHAPES := ["circle", "square", "rect"]
@@ -13,7 +13,8 @@ const SHAPES := ["circle", "square", "rect"]
 func describe() -> Dictionary:
 	return {
 		"name": "Convex collider pieces are the same as the plain scan cuts",
-		"description": "Deformation cuts dented silhouettes into the same convex pieces as the scan that retries every pair after each merge and checks every corner.",
+		"description": "Deformation cuts dented silhouettes into the same convex pieces as the "
+			+ "scan that retries every pair after each merge and checks every corner.",
 		"tags": ["deformation", "collider"],
 		"timeout": 30.0,
 	}
@@ -35,7 +36,8 @@ func run(t: TestContext) -> void:
 		for k in rng.randi_range(0, PhysicsConfig.deform_max_impacts):
 			var at := Vector2.from_angle(rng.randf() * TAU) * size.x * 0.5
 			impacts.append({
-				"pos": at, "inward": -at.normalized(), "depth": rng.randf_range(1.0, PhysicsConfig.deform_max_depth),
+				"pos": at, "inward": -at.normalized(),
+				"depth": rng.randf_range(1.0, PhysicsConfig.deform_max_depth),
 				"chunk": rng.randf() < 0.3, "seed": rng.randi(), "blood": 0.0,
 			})
 		var poly := Deformation.shape_polygon(shape, size, impacts)
@@ -78,6 +80,8 @@ func _every_pair(polygon: PackedVector2Array) -> Array:
 ## True when every turn around `loop` goes the polygon's way (`sign_` = +1 / -1), straight allowed.
 func _is_convex_loop(polygon: PackedVector2Array, loop: Array, sign_: float) -> bool:
 	for k in loop.size():
-		if Deformation._turn(polygon, loop[k], loop[(k + 1) % loop.size()], loop[(k + 2) % loop.size()]) * sign_ < 0.0:
+		if (Deformation._turn(
+			polygon, loop[k], loop[(k + 1) % loop.size()], loop[(k + 2) % loop.size()],
+		) * sign_ < 0.0):
 			return false
 	return true

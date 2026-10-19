@@ -1,11 +1,11 @@
 class_name BloodFlow
 extends RefCounted
-
-## Physics System, blood: a liquid flood-fill for a dead body's bleed-out: blood claims grid cells outward from where it
-## leaves the body, cheapest-first, so the puddle is one continuous shape. Noise makes some
-## directions cheap and others dear (fingers and bays instead of a disc), and cells overlapping a
-## wall or furniture collider are never filled, so the blood wraps around them and creeps into
-## gaps. Positions are local to the owning pool. The draw layer reads `cells` and `fill()`.
+## Physics System, blood: a liquid flood-fill for a dead body's bleed-out: blood claims grid cells
+## outward from where it leaves the body, cheapest-first, so the puddle is one continuous shape.
+## Noise makes some directions cheap and others dear (fingers and bays instead of a disc), and cells
+## overlapping a wall or furniture collider are never filled, so the blood wraps around them and
+## creeps into gaps. Positions are local to the owning pool. The draw layer reads `cells` and
+## `fill()`.
 
 ## The eight grid neighbours a cell flows into.
 const NEIGHBORS: Array[Vector2i] = [
@@ -17,8 +17,8 @@ const NEIGHBORS: Array[Vector2i] = [
 ## front (a few per frame); a front then sweeps through cost-space over time, so each cell's fill
 ## level rises continuously and the pool's edge moves smoothly instead of cells popping in.
 var cells: Dictionary = {}
-## Blood dragged out of the pool (BloodSmear): cell -> fill 0..1, for cells the flood-fill never claimed.
-## Drawn with the pool, so a smear grows out of the pool's own outline.
+## Blood dragged out of the pool (BloodSmear): cell -> fill 0..1, for cells the flood-fill never
+## claimed. Drawn with the pool, so a smear grows out of the pool's own outline.
 var trail: Dictionary = {}
 ## Where the front has reached, in cost units.
 var front := 0.0
@@ -26,7 +26,6 @@ var front := 0.0
 var _progress := 0.0
 ## The highest flow cost claimed so far; the front sweeps up to it.
 var _last_cost := 0.0
-
 ## Side (px) of a grid cell.
 var _size: float
 ## Unit direction the flow leans toward.
@@ -41,7 +40,8 @@ var _probe := RectangleShape2D.new()
 var _blocked: Dictionary = {}
 ## Floor-texture flow multiplier per cell, looked up once each.
 var _resist: Dictionary = {}
-## Soak progress 0..1 of each claimed cell lying on a porous surface (carpet, a rug): 0 = fresh, 1 = sunk in.
+## Soak progress 0..1 of each claimed cell lying on a porous surface (carpet, a rug): 0 = fresh, 1 =
+## sunk in.
 var _soak: Dictionary = {}
 ## Frontier: Vector2i -> accumulated cost to reach it.
 var _frontier: Dictionary = {}
@@ -72,7 +72,11 @@ func advance(delta: float, duration: float) -> void:
 	# Blood creeps slower over porous surface, in proportion to how much of the pool lies on it.
 	var slow := 1.0
 	if not _soak.is_empty() and not cells.is_empty():
-		slow = lerpf(1.0, maxf(BloodConfig.porous_spread_slowdown, 1.0), float(_soak.size()) / cells.size())
+		slow = lerpf(
+			1.0,
+			maxf(BloodConfig.porous_spread_slowdown, 1.0),
+			float(_soak.size()) / cells.size(),
+		)
 	_progress = minf(_progress + delta / (maxf(duration, 0.001) * slow), 1.0)
 	var eased := 1.0 - (1.0 - _progress) * (1.0 - _progress)
 	front = (_last_cost + BloodConfig.flow_soft_edge) * eased
@@ -83,8 +87,9 @@ func settled() -> bool:
 	return _progress >= 1.0
 
 
-## Fill level (0..1) of a cell: the flood-fill at the current front, or the dragged-out trail if more. Soaking
-## into a porous surface changes how the blood looks and how wet it is, never how much of the floor it covers.
+## Fill level (0..1) of a cell: the flood-fill at the current front, or the dragged-out trail if
+## more. Soaking into a porous surface changes how the blood looks and how wet it is, never how much
+## of the floor it covers.
 func fill(c: Vector2i) -> float:
 	return maxf(_flood(c), trail.get(c, 0.0))
 
@@ -132,10 +137,10 @@ func covers(c: Vector2i) -> bool:
 	return cells.has(c) or trail.has(c)
 
 
-## Drag blood out onto cell `c` and the ring around it: raise them to `level` (the centre) and a little
-## less (the ring), never lowering one. The level tapers linearly to nothing at
-## `BloodConfig.pool_trail_length` px from the flooded cells, and stops growing at `BloodConfig.pool_trail_max`
-## trail cells.
+## Drag blood out onto cell `c` and the ring around it: raise them to `level` (the centre) and a
+## little less (the ring), never lowering one. The level tapers linearly to nothing at
+## `BloodConfig.pool_trail_length` px from the flooded cells, and stops growing at
+## `BloodConfig.pool_trail_max` trail cells.
 func add_trail(c: Vector2i, level: float) -> void:
 	level *= 1.0 - clampf(_rim_distance(c) / maxf(BloodConfig.pool_trail_length, 0.001), 0.0, 1.0)
 	if level <= 0.0:
@@ -149,8 +154,8 @@ func add_trail(c: Vector2i, level: float) -> void:
 			trail[n] = maxf(trail.get(n, 0.0), clampf(l, 0.0, 1.0))
 
 
-## Distance (px) from cell `c` to the nearest flooded cell (0 inside the pool), searched no farther than
-## `BloodConfig.pool_trail_length`; beyond that it returns the limit.
+## Distance (px) from cell `c` to the nearest flooded cell (0 inside the pool), searched no farther
+## than `BloodConfig.pool_trail_length`; beyond that it returns the limit.
 func _rim_distance(c: Vector2i) -> float:
 	if cells.has(c):
 		return 0.0
@@ -174,9 +179,14 @@ func budget_used() -> float:
 	return cells.size() + _soak.size() * (maxf(BloodConfig.porous_cell_weight, 1.0) - 1.0)
 
 
-## Claim up to `count` more cells, cheapest first, stopping once `budget` is used (see `budget_used`).
-## `origin_global` is the pool's world position.
-func step(count: int, space: PhysicsDirectSpaceState2D, origin_global: Vector2, budget := INF) -> void:
+## Claim up to `count` more cells, cheapest first, stopping once `budget` is used (see
+## `budget_used`). `origin_global` is the pool's world position.
+func step(
+	count: int,
+	space: PhysicsDirectSpaceState2D,
+	origin_global: Vector2,
+	budget := INF,
+) -> void:
 	for i in count:
 		if _frontier.is_empty() or budget_used() >= budget:
 			return

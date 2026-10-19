@@ -1,5 +1,4 @@
 extends RefCounted
-
 ## Character RIG (Character domain, animate layer): the standing skeleton as 3D joints (local x/y
 ## over the floor plus height z), solved fresh from the live pose and the hands. Both the standing
 ## body's limbs (character_visuals.gd) and the ragdoll's starting pose (character_ragdoll.gd) are
@@ -11,16 +10,19 @@ extends RefCounted
 ##   its shoulder after it (a punch's lean-in), up to CharacterConfig.body_shoulder_reach.
 ## - Each foot strides fore and aft, opposite to the arm on its side, lifting as it swings through;
 ##   the knee is IK bent forward.
-## - A crouch lowers the hips to the character's eased posture height and pitches the spine forward about the
-##   pelvis (the neck pitching on, so the head sits ahead of and above the shoulders); the hips and feet come
-##   together, the feet standing a little ahead of the pelvis so the knees lead.
-## - A stunned body hunches: the spine and the neck pitch forward by the pose's `hunch()` on top of any crouch, its
-##   stride is shorter (`stun_stagger_stride`) and its pelvis sways with the pose's `hip_sway`.
-## - Each ankle rests where the legs layer (character_legs.gd) stopped it against a wall or piece of furniture.
+## - A crouch lowers the hips to the character's eased posture height and pitches the spine forward
+##   about the pelvis (the neck pitching on, so the head sits ahead of and above the shoulders); the
+##   hips and feet come together, the feet standing a little ahead of the pelvis so the knees lead.
+## - A stunned body hunches: the spine and the neck pitch forward by the pose's `hunch()` on top of
+##   any crouch, its stride is shorter (`stun_stagger_stride`) and its pelvis sways with the pose's
+##   `hip_sway`.
+## - Each ankle rests where the legs layer (character_legs.gd) stopped it against a wall or piece of
+##   furniture.
 ## Joints are read by index (the constants below, shared with the ragdoll) through `point(i)`, and
-## each foot's direction through `toes(i)`. Index pairs are per hand side (0 = the character's right as drawn, 1 = the left). A rig also
-## answers `torso()` and `face()`, so a crouched body is drawn like a fallen one.
-## Tuning: CharacterConfig.body_*, CharacterConfig.stances, CharacterConfig.postures.
+## each foot's direction through `toes(i)`. Index pairs are per hand side (0 = the character's right
+## as drawn, 1 = the left). A rig also answers `torso()` and `face()`, so a crouched body is drawn
+## like a fallen one. Tuning: CharacterConfig.body_*, CharacterConfig.stances,
+## CharacterConfig.postures.
 
 const HEAD := 0
 const CHEST := 1
@@ -32,22 +34,30 @@ const ELBOW := [8, 9]
 const HAND := [10, 11]
 const KNEE := [12, 13]
 const ANKLE := [14, 15]
-const SPINE := 16  ## The back, opposite the belly.
+## The back, opposite the belly.
+const SPINE := 16
 
-## How many rigs have been solved in all (a test reads it to check a frame's callers share one solve).
+## How many rigs have been solved in all (a test reads it to check a frame's callers share one
+## solve).
 static var solves := 0
 
-var _points: Array = []                       ## Vector3 per joint index.
-var _toes := [Vector3.RIGHT, Vector3.RIGHT]   ## Per side: the way the foot points (unit, flat).
-var _face := Vector3.RIGHT                    ## The way the face looks (unit, flat).
-var _knee_poles := [Vector3.RIGHT, Vector3.RIGHT]  ## Per side: the way the knee bends toward.
-var _thigh := 0.0                             ## Bone lengths (px), for re-solving a knee.
+## Vector3 per joint index.
+var _points: Array = []
+## Per side: the way the foot points (unit, flat).
+var _toes := [Vector3.RIGHT, Vector3.RIGHT]
+## The way the face looks (unit, flat).
+var _face := Vector3.RIGHT
+## Per side: the way the knee bends toward.
+var _knee_poles := [Vector3.RIGHT, Vector3.RIGHT]
+## Bone lengths (px), for re-solving a knee.
+var _thigh := 0.0
 var _shin := 0.0
 
 
-## Solve the skeleton of `character` as it stands now. With `with_legs` (the default) each ankle takes the place
-## the legs layer rested it at against a wall or piece of furniture (`character.foot_clamp(i)`, when it has
-## one); the legs layer itself solves without, to learn where the legs would go unobstructed.
+## Solve the skeleton of `character` as it stands now. With `with_legs` (the default) each ankle
+## takes the place the legs layer rested it at against a wall or piece of furniture
+## (`character.foot_clamp(i)`, when it has one); the legs layer itself solves without, to learn
+## where the legs would go unobstructed.
 func _init(character, with_legs := true) -> void:
 	solves += 1
 	var r: float = character.radius
@@ -55,24 +65,28 @@ func _init(character, with_legs := true) -> void:
 	var up := Vector3(0.0, 0.0, 1.0)
 	var torso_dir := Vector2.from_angle(pose.torso_angle)
 	var fwd := Vector3(torso_dir.x, torso_dir.y, 0.0)
-	var right := Vector3(torso_dir.orthogonal().x, torso_dir.orthogonal().y, 0.0)  # Hand 1's side (the character's left as drawn: Godot's orthogonal() turns counter-clockwise).
+	# Hand 1's side (the character's left as drawn: Godot's orthogonal() turns counter-clockwise).
+	var right := Vector3(torso_dir.orthogonal().x, torso_dir.orthogonal().y, 0.0)
 	var hips := Vector2.from_angle(pose.hip_angle)
 	var hip_fwd := Vector3(hips.x, hips.y, 0.0)
 	var hip_right := Vector3(hips.orthogonal().x, hips.orthogonal().y, 0.0)
 	var lunge := Vector3(pose.torso_offset.x, pose.torso_offset.y, 0.0)
-	# A lower posture scales the standing heights down and folds the body: the spine pitches forward about the
-	# pelvis (the pelvis sits back and the chest forward by half the lean, so the body stays centred over its
-	# feet), the neck pitches on from the shoulders, the hips and feet come together, and the feet stand ahead of
-	# the pelvis so the knees lead over the toes.
+	# A lower posture scales the standing heights down and folds the body: the spine pitches forward
+	# about the pelvis (the pelvis sits back and the chest forward by half the lean, so the body
+	# stays centred over its feet), the neck pitches on from the shoulders, the hips and feet come
+	# together, and the feet stand ahead of the pelvis so the knees lead over the toes.
 	var height: float = character.posture_height()
 	var crouch_height: float = CharacterConfig.postures[&"crouch"]["height"]
 	var folded := clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
-	var pitch: float = deg_to_rad(CharacterConfig.body_crouch_pitch) * folded + pose.hunch()  # A stun hunches it on.
+	# A stun hunches it on.
+	var pitch: float = deg_to_rad(CharacterConfig.body_crouch_pitch) * folded + pose.hunch()
 	var neck_pitch := pitch + deg_to_rad(CharacterConfig.body_crouch_neck_pitch) * folded
 	var spine := (CharacterConfig.body_shoulder_height - CharacterConfig.body_hip_height) * r
 	var neck := (CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r
 	var lean := spine * sin(pitch)  # How far the chest sits ahead of the pelvis.
-	var hip_z: float = (CharacterConfig.body_hip_height - CharacterConfig.body_run_hip_drop * pose.run_amount()) * r * height  # A run sinks.
+	# A run sinks.
+	var hip_z: float = ((CharacterConfig.body_hip_height
+			- CharacterConfig.body_run_hip_drop * pose.run_amount()) * r * height)
 	var chest_z := CharacterConfig.body_hip_height * r * height + spine * cos(pitch)
 	var upper := CharacterConfig.body_upper_arm * r
 	var fore := CharacterConfig.body_forearm * r
@@ -82,28 +96,34 @@ func _init(character, with_legs := true) -> void:
 	_shin = shin
 	var arm_reach := (upper + fore) * CharacterConfig.body_arm_extension
 	var foot_z := CharacterConfig.ragdoll_limb_radius * r
-	var hip_half := CharacterConfig.body_hip_width * r * lerpf(1.0, CharacterConfig.body_crouch_hip_width, folded)
-	var foot_half := CharacterConfig.body_hip_width * r * lerpf(1.0, CharacterConfig.body_crouch_foot_gap, folded)
+	var hip_half := (CharacterConfig.body_hip_width * r
+			* lerpf(1.0, CharacterConfig.body_crouch_hip_width, folded))
+	var foot_half := (CharacterConfig.body_hip_width * r
+			* lerpf(1.0, CharacterConfig.body_crouch_foot_gap, folded))
 	var foot_fwd := CharacterConfig.body_crouch_foot_ahead * r * folded - lean * 0.5
 	var item: Item = character.current_item()
 	var weapon_hand: int = item.weapon_hand() if item != null else 0
-	var staggered := lerpf(1.0, CharacterConfig.stun_stagger_stride, pose.stun_amount())  # A stunned walk's shorter steps.
+	# A stunned walk's shorter steps.
+	var staggered := lerpf(1.0, CharacterConfig.stun_stagger_stride, pose.stun_amount())
 
 	_points.resize(17)
 	_face = Vector3(cos(pose.head_angle), sin(pose.head_angle), 0.0)
 	_points[CHEST] = lunge + fwd * lean * 0.5 + up * chest_z
-	_points[HEAD] = Vector3(pose.head_offset.x, pose.head_offset.y, 0.0) + fwd * (lean * 0.5 + neck * sin(neck_pitch)) \
-		+ up * (chest_z + neck * cos(neck_pitch))
-	_points[PELVIS] = -fwd * lean * 0.5 + up * hip_z + Vector3(pose.hip_sway.x, pose.hip_sway.y, 0.0)
+	_points[HEAD] = (Vector3(pose.head_offset.x, pose.head_offset.y, 0.0)
+			+ fwd * (lean * 0.5 + neck * sin(neck_pitch)) + up * (chest_z + neck * cos(neck_pitch)))
+	_points[PELVIS] = (-fwd * lean * 0.5 + up * hip_z
+			+ Vector3(pose.hip_sway.x, pose.hip_sway.y, 0.0))
 	var mid: Vector3 = (_points[CHEST] + _points[PELVIS]) * 0.5
-	var belly := fwd * cos(pitch) - up * sin(pitch)  # Out of the chest, square to the leaning spine.
+	# Out of the chest, square to the leaning spine.
+	var belly := fwd * cos(pitch) - up * sin(pitch)
 	_points[BELLY] = mid + belly * CharacterConfig.ragdoll_belly * r
 	_points[SPINE] = mid - belly * CharacterConfig.ragdoll_belly * r
 
 	for i in 2:
 		var out := -1.0 if i == 0 else 1.0
 		# Arm: the shoulder reaches for the fist the hands layer holds, at its stance's grip height.
-		var shoulder: Vector3 = _points[CHEST] + right * out * CharacterConfig.body_shoulder_width * r
+		var shoulder: Vector3 = (_points[CHEST]
+				+ right * out * CharacterConfig.body_shoulder_width * r)
 		var grip: Vector2 = character.hand_position(i)
 		var hand := Vector3(grip.x, grip.y, pose.grip_height(i) * r * height)
 		hand.z = clampf(hand.z, shoulder.z - arm_reach * 0.98, shoulder.z + arm_reach * 0.98)
@@ -116,32 +136,47 @@ func _init(character, with_legs := true) -> void:
 		var pole: Vector3 = pose.elbow_pole(i)
 		_points[SHOULDER[i]] = shoulder
 		_points[HAND[i]] = hand
-		_points[ELBOW[i]] = _bend(shoulder, hand, upper, fore, right * out * pole.x + fwd * pole.y + up * pole.z)
+		_points[ELBOW[i]] = _bend(
+			shoulder,
+			hand,
+			upper,
+			fore,
+			right * out * pole.x + fwd * pole.y + up * pole.z,
+		)
 
-		# Leg: the foot strides along the hips' forward, back when the arm on its side swings forward. A crouch
-		# stands the feet closer together, a little ahead of the pelvis and staggered (the weapon hand's side back),
-		# and takes a shorter step.
+		# Leg: the foot strides along the hips' forward, back when the arm on its side swings
+		# forward. A crouch stands the feet closer together, a little ahead of the pelvis and
+		# staggered (the weapon hand's side back), and takes a shorter step.
 		var hip: Vector3 = _points[PELVIS] + hip_right * out * hip_half
 		var phase: float = pose.stride_phase() + (0.0 if i == 0 else PI)
 		var walk: float = pose.walk_amount()
 		var run: float = pose.run_amount()  # A run strides wider and lifts higher.
 		var stride := lerpf(CharacterConfig.body_stride, CharacterConfig.body_run_stride, run) \
 			* lerpf(1.0, CharacterConfig.body_crouch_stride, folded) * staggered
-		var foot_lift := lerpf(CharacterConfig.body_foot_lift, CharacterConfig.body_run_foot_lift, run)
+		var foot_lift := lerpf(
+			CharacterConfig.body_foot_lift,
+			CharacterConfig.body_run_foot_lift,
+			run,
+		)
 		var step := -sin(phase) * walk * stride * r
 		var lift := maxf(-cos(phase), 0.0) * walk * foot_lift * r  # Off the floor mid-swing.
-		var stagger := (-0.5 if i == weapon_hand else 0.5) * CharacterConfig.body_crouch_stagger * r * folded
+		var stagger := ((-0.5 if i == weapon_hand else 0.5) * CharacterConfig.body_crouch_stagger
+				* r * folded)
 		var base := hip_right * out * foot_half + hip_fwd * (foot_fwd + stagger)
 		var ankle := Vector3(base.x, base.y, foot_z + lift) + hip_fwd * step
 		var leg_pole := hip_fwd
 		var foot_dir := hip_fwd
 		var kick: float = character.leg_kick_amount(i)
 		if kick > 0.0:
-			# A kick: the foot rises first, then is thrown out along the aim, as far as the leg reaches at that height.
+			# A kick: the foot rises first, then is thrown out along the aim, as far as the leg
+			# reaches at that height.
 			var aim := Vector3(character.facing.x, character.facing.y, 0.0)
 			var kick_z := CharacterConfig.kick_foot_height * r * height
 			var leg_rise := hip.z - kick_z
-			var reach := minf(CharacterConfig.kick_reach, sqrt(maxf((thigh + shin) * (thigh + shin) - leg_rise * leg_rise, 0.0)) * 0.98)
+			var reach := minf(
+				CharacterConfig.kick_reach,
+				sqrt(maxf((thigh + shin) * (thigh + shin) - leg_rise * leg_rise, 0.0)) * 0.98,
+			)
 			var thrown := hip + aim * reach
 			ankle.x = lerpf(ankle.x, thrown.x, kick * kick)
 			ankle.y = lerpf(ankle.y, thrown.y, kick * kick)
@@ -165,8 +200,8 @@ func _init(character, with_legs := true) -> void:
 				_points[KNEE[i]] = knee_at(i, ankle)
 
 
-## Where side `i`'s knee sits with its ankle at `ankle`: the middle joint of the leg's two bones, bent the way this
-## pose bends it.
+## Where side `i`'s knee sits with its ankle at `ankle`: the middle joint of the leg's two bones,
+## bent the way this pose bends it.
 func knee_at(i: int, ankle: Vector3) -> Vector3:
 	return _bend(_points[HIP[i]], ankle, _thigh, _shin, _knee_poles[i])
 
@@ -186,8 +221,8 @@ func face() -> Vector3:
 	return _face
 
 
-## The trunk's orientation: x toward the right shoulder, y up the spine (hips to chest), z out of the chest. A
-## body face down has z pointing at the floor.
+## The trunk's orientation: x toward the right shoulder, y up the spine (hips to chest), z out of
+## the chest. A body face down has z pointing at the floor.
 func torso() -> Basis:
 	var y: Vector3 = (_points[CHEST] - _points[PELVIS]).normalized()
 	var across: Vector3 = _points[SHOULDER[1]] - _points[SHOULDER[0]]

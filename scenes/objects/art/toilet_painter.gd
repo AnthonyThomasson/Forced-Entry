@@ -1,31 +1,44 @@
 extends RefCounted
-
 ## Top-down pixel-art TOILET painter (Objects domain, private). Painted in the canonical frame
 ## (bowl toward +y, cistern against the wall) and kept within the inscribed circle of its round
 ## footprint: a glazed cistern with a flush button, and an oval bowl whose seat ring frames the
-## water. Run down (decay.gd: `porcelain`): grime, limescale, rust round the fittings, a crack. No options.
+## water. Run down (decay.gd: `porcelain`): grime, limescale, rust round the fittings, a crack. No
+## options.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
-
-const _BOWL_HEIGHT := 4  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _BOWL_HEIGHT := 4
 const _TANK_HEIGHT := 7
 
 
 ## Paint a toilet onto `c` in `base` glaze, bowl toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
-	var bowl_rect := Rect2i(roundi(c.w * 0.21), roundi(c.h * 0.26), roundi(c.w * 0.58), roundi(c.h * 0.68))
+	var bowl_rect := Rect2i(
+		roundi(c.w * 0.21), roundi(c.h * 0.26), roundi(c.w * 0.58), roundi(c.h * 0.68),
+	)
 	var bowl := PixelCanvas.ellipse(bowl_rect)
 	c.fill(bowl, base, _BOWL_HEIGHT)
 	c.bevel(bowl, 1, 2, t.highlight, t.dark)
 	c.outline(bowl, t.shadow)
 	var water := PixelCanvas.ellipse(bowl_rect.grow(-maxi(2, int(c.w / 10.0))))
 	c.fill(water, ObjectArtConfig.bath_water_color, 1)
-	c.bevel(water, 1, 1, ObjectArtConfig.bath_water_color.darkened(0.25), ObjectArtConfig.bath_water_color.lightened(0.2))
-	c.fill(PixelCanvas.ellipse(bowl_rect.grow(-maxi(4, int(c.w / 5.0)))), ObjectArtConfig.bath_water_color.darkened(0.12))
+	c.bevel(
+		water,
+		1,
+		1,
+		ObjectArtConfig.bath_water_color.darkened(0.25),
+		ObjectArtConfig.bath_water_color.lightened(0.2),
+	)
+	c.fill(
+		PixelCanvas.ellipse(bowl_rect.grow(-maxi(4, int(c.w / 5.0)))),
+		ObjectArtConfig.bath_water_color.darkened(0.12),
+	)
 	c.glare(water, Color(0.95, 0.98, 1.0), 1)
 
-	var tank_rect := Rect2i(roundi(c.w * 0.2), roundi(c.h * 0.06), roundi(c.w * 0.6), roundi(c.h * 0.24))
+	var tank_rect := Rect2i(
+		roundi(c.w * 0.2), roundi(c.h * 0.06), roundi(c.w * 0.6), roundi(c.h * 0.24),
+	)
 	var tank := PixelCanvas.rounded(tank_rect, 3)
 	c.fill(tank, base, _TANK_HEIGHT)
 	c.bevel(tank, 1, 2, t.highlight, t.dark)
@@ -36,7 +49,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	porcelain(c)
 
 
-## The run-down finish of bathroom porcelain (a toilet, a tub, a shower tray): grime, limescale, rust, a crack.
+## The run-down finish of bathroom porcelain (a toilet, a tub, a shower tray): grime, limescale,
+## rust, a crack.
 static func porcelain(c: PixelCanvas) -> void:
 	Decay.grime(c)
 	Decay.stain(c, Decay.LIMESCALE, 3)

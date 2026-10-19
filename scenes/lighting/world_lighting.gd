@@ -1,98 +1,77 @@
 class_name WorldLighting
 extends Node2D
-
-## The Lighting domain's one node: a world's dusk lighting (`docs/lighting.md`), a leaf like Audio. Built by Main and the
-## Testing world through `light(root, seed_value, rooms)` under the world root, in the group `world_lighting`; it reads the
-## world only duck-typed (Objects' floors, the group `floors`: `size`, their canvas items' `light_mask`; a light-giving piece's `get_lights()`; the characters in
-## the group `characters`: `is_dead`, `radius`) and the `shot` / `explosion` events, and imports nothing but General.
-##   - Dusk: one CanvasModulate in `LightingConfig.ambient_color`, and a DirectionalLight2D in `sky_color` low from the
-##     south-west on the street only (`LightMasks.STREET`), unshadowed (a directional shadow runs to the edge of the view, so a
-##     body out there would throw one across the whole street). The house has a roof: no sky reaches its rooms.
-##   - A PointLight2D per light a piece declares (`get_lights()`: `offset`, `turn`, `colour`, `energy`, `radius`, `shape`,
-##     `rhythm`, `room_light`, `street`, `height`, `glow`), a child of the piece so a shoved lamp carries it; and a ceiling
-##     fixture (a bulb glyph and its light) in every room no kept `room_light` lights.
-##   - Shadows by height (a 2D shadow has no length, it runs to the rim of the pool): an overhead light (a fixture, a lamp, a
-##     street lamp) is shadowed by the walls only and pools downward (`LightingConfig.pool_offsets`), a low one (a screen, a
-##     tube) by the walls and the tall pieces, with a glow that fades from its middle (`glow_offsets`); both fade smoothly.
-##   - The budget (light_budget.gd): no floor reached by more than `LightingConfig.per_floor()` lights; the fixtures first,
-##     then the declared lights strongest first, so a room over budget drops its weakest (`budget().dropped`).
-##   - Rhythms (light_rhythm.gd) seeded per light from `seed_value` and the piece, dimming the light and its `glow` (the
-##     piece's unshaded light-source overlay) together.
-##   - Flashes: a pool of `LightingConfig.flash_pool` lights lit at a `shot`'s muzzle and an `explosion`'s burst, each held at
-##     full energy for its row's `hold` (the stun's) and then falling off to dark over its `life`.
-##   - Each frame a flash whose centre a living character stands within `LightingConfig.body_clear` of its radius leaves the
-##     characters out of its shadows (a body would black out the light it stands in; only the flashes are shadowed by them).
-## Shadows are cast by the occluders the walls, solid pieces and living characters build themselves on `LightMasks`.
+## The Lighting domain's one node: a world's dusk lighting (`docs/lighting.md`), a leaf like Audio.
+## Built by Main and the Testing world through `light(root, seed_value, rooms)` under the world
+## root, in the group `world_lighting`; it reads the world only duck-typed (Objects' floors, the
+## group `floors`: `size`, their canvas items' `light_mask`; a light-giving piece's `get_lights()`;
+## the characters in the group `characters`: `is_dead`, `radius`) and the `shot` / `explosion`
+## events, and imports nothing but General.
+##   - Dusk: one CanvasModulate in `LightingConfig.ambient_color`, and a DirectionalLight2D in
+##     `sky_color` low from the south-west on the street only (`LightMasks.STREET`), unshadowed (a
+##     directional shadow runs to the edge of the view, so a body out there would throw one across
+##     the whole street). The house has a roof: no sky reaches its rooms.
+##   - A PointLight2D per light a piece declares (`get_lights()`: `offset`, `turn`, `colour`,
+##     `energy`, `radius`, `shape`, `rhythm`, `room_light`, `street`, `height`, `glow`), a child of
+##     the piece so a shoved lamp carries it; and a ceiling fixture (a bulb glyph and its light) in
+##     every room no kept `room_light` lights.
+##   - Shadows by height (a 2D shadow has no length, it runs to the rim of the pool): an overhead
+##     light (a fixture, a lamp, a street lamp) is shadowed by the walls only and pools downward
+##     (`LightingConfig.pool_offsets`), a low one (a screen, a tube) by the walls and the tall
+##     pieces, with a glow that fades from its middle (`glow_offsets`); both fade smoothly.
+##   - The budget (light_budget.gd): no floor reached by more than `LightingConfig.per_floor()`
+##     lights; the fixtures first, then the declared lights strongest first, so a room over budget
+##     drops its weakest (`budget().dropped`).
+##   - Rhythms (light_rhythm.gd) seeded per light from `seed_value` and the piece, dimming the light
+##     and its `glow` (the piece's unshaded light-source overlay) together.
+##   - Flashes: a pool of `LightingConfig.flash_pool` lights lit at a `shot`'s muzzle and an
+##     `explosion`'s burst, each held at full energy for its row's `hold` (the stun's) and then
+##     falling off to dark over its `life`.
+##   - Each frame a flash whose centre a living character stands within `LightingConfig.body_clear`
+##     of its radius leaves the characters out of its shadows (a body would black out the light it
+##     stands in; only the flashes are shadowed by them).
+## Shadows are cast by the occluders the walls, solid pieces and living characters build themselves
+## on `LightMasks`.
 
 const Rhythm := preload("res://scenes/lighting/light_rhythm.gd")
 const Budget := preload("res://scenes/lighting/light_budget.gd")
 const Fixture := preload("res://scenes/lighting/ceiling_fixture.gd")
-
 const GROUP := &"world_lighting"
 
+## The light textures made so far, by `[shape, overhead]`.
+static var _textures := {}
+## The unshaded material the fixtures' glyphs draw through.
+static var _unshaded: CanvasItemMaterial
 
-## One kept light: its node, its full energy, its rhythm (null: steady) and what glows with it.
-class Lit:
-	var light: PointLight2D
-	var energy: float
-	var rhythm: Rhythm
-	var glow: CanvasItem
-
-
-static var _textures := {}  ## The light textures made so far, by `[shape, overhead]`.
-static var _unshaded: CanvasItemMaterial  ## The unshaded material the fixtures' glyphs draw through.
-
-var _seed := 0  ## The world's seed, which the rhythms are seeded from.
-var _lit: Array[Lit] = []  ## Every kept piece and fixture light.
-var _lights: Array = []  ## Their nodes (`lights()`).
-var _fixtures: Array = []  ## `{ room, light }` per fixture.
-var _dropped: Array = []  ## `{ piece, index }` per declared light the budget left out.
-var _flashes: Array = []  ## The pooled flash lights.
-var _flash_energy := PackedFloat32Array()  ## Each flash's energy as it was lit.
-var _flash_hold := PackedFloat32Array()  ## Each flash's hold at full energy (s).
-var _flash_life := PackedFloat32Array()  ## Each flash's fall-off to dark after its hold (s).
-var _flash_t := PackedFloat32Array()  ## Each flash's time since it was lit (s).
-var _next_flash := 0  ## The pooled flash lit next.
-var _bodies: Array[Node] = []  ## The world's characters (refreshed when the group's size changes).
-var _body_count := -1  ## The size of the group `characters` when `_bodies` was read.
-var _body_at := PackedVector2Array()  ## This frame: each living character's position (INF for the dead and the gone).
-var _body_reach := PackedFloat32Array()  ## Its `body_clear` reach squared.
-
-
-## Light the world under `root` (built, in the tree): `seed_value` seeds the rhythms, `rooms` are its `WorldGen.get_rooms`
-## (world-space `{ key, rect }`; none: no fixtures). Returns the WorldLighting it added under `root`, or null while
-## `LightingConfig.enabled` is off (nothing is built).
-static func light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting:
-	if not LightingConfig.enabled:
-		return null
-	var node := WorldLighting.new()
-	node.name = "WorldLighting"
-	node._seed = seed_value
-	node.add_to_group(GROUP)
-	root.add_child(node)
-	node._build(root, rooms)
-	return node
-
-
-## Every PointLight2D given to a piece or a room fixture (not the flashes).
-func lights() -> Array:
-	return _lights
-
-
-## `{ room, light }` per room fixture (`room` the room's key).
-func fixtures() -> Array:
-	return _fixtures
-
-
-## The pooled flash PointLight2Ds.
-func flashes() -> Array:
-	return _flashes
-
-
-## `{ per_floor, dropped }`: the most lights one floor may be reached by, and `{ piece, index }` per declared light left without a
-## PointLight2D (`index` into the piece's `get_lights()`).
-func budget() -> Dictionary:
-	return { "per_floor": LightingConfig.per_floor(), "dropped": _dropped }
+## The world's seed, which the rhythms are seeded from.
+var _seed := 0
+## Every kept piece and fixture light.
+var _lit: Array[Lit] = []
+## Their nodes (`lights()`).
+var _lights: Array = []
+## `{ room, light }` per fixture.
+var _fixtures: Array = []
+## `{ piece, index }` per declared light the budget left out.
+var _dropped: Array = []
+## The pooled flash lights.
+var _flashes: Array = []
+## Each flash's energy as it was lit.
+var _flash_energy := PackedFloat32Array()
+## Each flash's hold at full energy (s).
+var _flash_hold := PackedFloat32Array()
+## Each flash's fall-off to dark after its hold (s).
+var _flash_life := PackedFloat32Array()
+## Each flash's time since it was lit (s).
+var _flash_t := PackedFloat32Array()
+## The pooled flash lit next.
+var _next_flash := 0
+## The world's characters (refreshed when the group's size changes).
+var _bodies: Array[Node] = []
+## The size of the group `characters` when `_bodies` was read.
+var _body_count := -1
+## This frame: each living character's position (INF for the dead and the gone).
+var _body_at := PackedVector2Array()
+## Its `body_clear` reach squared.
+var _body_reach := PackedFloat32Array()
 
 
 func _exit_tree() -> void:
@@ -120,10 +99,48 @@ func _process(delta: float) -> void:
 	_clear_bodies()
 
 
-# --- Building ----------------------------------------------------------------------------------------------------------
+## Light the world under `root` (built, in the tree): `seed_value` seeds the rhythms, `rooms` are
+## its `WorldGen.get_rooms` (world-space `{ key, rect }`; none: no fixtures). Returns the
+## WorldLighting it added under `root`, or null while `LightingConfig.enabled` is off (nothing is
+## built).
+static func light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting:
+	if not LightingConfig.enabled:
+		return null
+	var node := WorldLighting.new()
+	node.name = "WorldLighting"
+	node._seed = seed_value
+	node.add_to_group(GROUP)
+	root.add_child(node)
+	node._build(root, rooms)
+	return node
 
-## Build the lighting of the world under `root` once: the ambient and the sky, the pieces' lights and the rooms' fixtures within
-## the budget, the flash pool and its events.
+
+## Every PointLight2D given to a piece or a room fixture (not the flashes).
+func lights() -> Array:
+	return _lights
+
+
+## `{ room, light }` per room fixture (`room` the room's key).
+func fixtures() -> Array:
+	return _fixtures
+
+
+## The pooled flash PointLight2Ds.
+func flashes() -> Array:
+	return _flashes
+
+
+## `{ per_floor, dropped }`: the most lights one floor may be reached by, and `{ piece, index }` per
+## declared light left without a PointLight2D (`index` into the piece's `get_lights()`).
+func budget() -> Dictionary:
+	return { "per_floor": LightingConfig.per_floor(), "dropped": _dropped }
+
+
+# --- Building -------------------------------------------------------------------------------------
+
+
+## Build the lighting of the world under `root` once: the ambient and the sky, the pieces' lights
+## and the rooms' fixtures within the budget, the flash pool and its events.
 func _build(root: Node2D, rooms: Array) -> void:
 	if _unshaded == null:
 		_unshaded = CanvasItemMaterial.new()
@@ -138,8 +155,10 @@ func _build(root: Node2D, rooms: Array) -> void:
 	for ground: Node2D in root.get_tree().get_nodes_in_group(&"floors"):
 		if root.is_ancestor_of(ground):
 			floors.add_floor(ground)
-	var candidates: Array = []  ## `[piece, index, spec, order]` per declared light.
-	var lit_rooms := {}  ## Room key -> true for a room a piece's `room_light` stands in.
+	## `[piece, index, spec, order]` per declared light.
+	var candidates: Array = []
+	## Room key -> true for a room a piece's `room_light` stands in.
+	var lit_rooms := {}
 	for node in root.find_children("*", "", true, false):
 		if node == self or is_ancestor_of(node):
 			continue
@@ -162,13 +181,22 @@ func _build(root: Node2D, rooms: Array) -> void:
 	for c: Array in candidates:
 		if _piece_light(c[0], c[1], c[2], floors) and (c[2] as Dictionary).get("room_light", false):
 			kept_rooms[_room_of(rooms, (c[0] as Node2D).global_position)] = true
-	# A room whose every room light the budget left out still gets its fixture, where its floors have room for it.
+	# A room whose every room light the budget left out still gets its fixture, where its floors
+	# have room for it.
 	for room: Dictionary in rooms:
 		if lit_rooms.has(room["key"]) and not kept_rooms.has(room["key"]):
 			_fixture(room, floors, false)
 
 	for k in LightingConfig.flash_pool:
-		var flash := _point(Color.WHITE, 0.0, 1.0, &"round", false, LightMasks.ALL_SHADOWS, LightMasks.HOUSE | LightMasks.STREET)
+		var flash := _point(
+			Color.WHITE,
+			0.0,
+			1.0,
+			&"round",
+			false,
+			LightMasks.ALL_SHADOWS,
+			LightMasks.HOUSE | LightMasks.STREET,
+		)
 		flash.name = "Flash%d" % (k + 1)
 		flash.enabled = false
 		add_child(flash)
@@ -183,28 +211,32 @@ func _build(root: Node2D, rooms: Array) -> void:
 	EventBus.posted.connect(_on_posted)
 
 
-## The dusk sky on the street, unshadowed (a directional shadow would run to the edge of the view). Not on the house's
-## items: the house has a roof.
+## The dusk sky on the street, unshadowed (a directional shadow would run to the edge of the view).
+## Not on the house's items: the house has a roof.
 func _sky() -> void:
 	var sky := DirectionalLight2D.new()
 	sky.name = "Sky"
 	sky.color = LightingConfig.sky_color
 	sky.energy = LightingConfig.sky_energy
-	sky.rotation = Vector2.DOWN.angle_to(-LightingConfig.sky_from)  # A directional light shines along its +y.
+	# A directional light shines along its +y.
+	sky.rotation = Vector2.DOWN.angle_to(-LightingConfig.sky_from)
 	sky.shadow_enabled = false
 	sky.range_item_cull_mask = LightMasks.STREET
 	add_child(sky)
 
 
-## Give `piece` its declared light `index` (`spec`, one of its `get_lights()`) if the floors it reaches have room for it;
-## whether it did (else it is listed in `budget().dropped`). Its `height` picks its shadows and its pool.
+## Give `piece` its declared light `index` (`spec`, one of its `get_lights()`) if the floors it
+## reaches have room for it; whether it did (else it is listed in `budget().dropped`). Its `height`
+## picks its shadows and its pool.
 func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -> bool:
 	var item_mask := LightMasks.HOUSE | (LightMasks.STREET if spec.get("street", false) else 0)
 	var energy := float(spec.get("energy", 1.0))
 	var overhead: bool = spec.get("height", &"low") == &"overhead"
 	var mask := LightMasks.OVERHEAD_SHADOWS if overhead else LightMasks.LOW_SHADOWS
-	var l := _point(spec.get("colour", Color.WHITE), energy, float(spec.get("radius", 100.0)), spec.get("shape", &"round"),
-		overhead, mask, item_mask)
+	var l := _point(
+		spec.get("colour", Color.WHITE), energy, float(spec.get("radius", 100.0)),
+		spec.get("shape", &"round"), overhead, mask, item_mask,
+	)
 	l.position = spec.get("offset", Vector2.ZERO)
 	l.rotation = float(spec.get("turn", 0.0))
 	if not floors.take(Budget.box_of(l, piece.global_transform * l.transform), item_mask):
@@ -218,14 +250,20 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -
 	return true
 
 
-## A ceiling fixture at the centre of `room` (`{ key, rect }`): its bulb glyph and its light, overhead (shadowed by the walls
-## only, pooling downward); `always` counts it against the budget whatever (a room no piece lights). Whether it was placed.
+## A ceiling fixture at the centre of `room` (`{ key, rect }`): its bulb glyph and its light,
+## overhead (shadowed by the walls only, pooling downward); `always` counts it against the budget
+## whatever (a room no piece lights). Whether it was placed.
 func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 	var rect: Rect2 = room["rect"]
-	var reach := clampf(maxf(rect.size.x, rect.size.y) * LightingConfig.fixture_reach_scale + LightingConfig.fixture_reach_pad,
-		LightingConfig.fixture_reach_range.x, LightingConfig.fixture_reach_range.y)
-	var l := _point(LightingConfig.fixture_color, LightingConfig.fixture_energy, reach * 0.5, &"round", true,
-		LightMasks.OVERHEAD_SHADOWS, LightMasks.HOUSE)
+	var reach := clampf(
+		maxf(rect.size.x, rect.size.y) * LightingConfig.fixture_reach_scale
+			+ LightingConfig.fixture_reach_pad,
+		LightingConfig.fixture_reach_range.x, LightingConfig.fixture_reach_range.y,
+	)
+	var l := _point(
+		LightingConfig.fixture_color, LightingConfig.fixture_energy, reach * 0.5, &"round", true,
+		LightMasks.OVERHEAD_SHADOWS, LightMasks.HOUSE,
+	)
 	l.position = to_local(rect.get_center())
 	if not floors.take(Budget.box_of(l, global_transform * l.transform), LightMasks.HOUSE, always):
 		l.free()
@@ -236,12 +274,19 @@ func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 	glyph.position = l.position
 	add_child(glyph)
 	_fixtures.append({ "room": room["key"], "light": l })
-	_keep(l, LightingConfig.fixture_energy, LightingConfig.fixture_rhythms, hash([_seed, "fixture", room["key"]]), glyph)
+	_keep(
+		l,
+		LightingConfig.fixture_energy,
+		LightingConfig.fixture_rhythms,
+		hash([_seed, "fixture", room["key"]]),
+		glyph,
+	)
 	return true
 
 
-## Keep light `l` (its full `energy`) with a rhythm drawn from `kinds` (`[[mode, weight], ...]`) by an RNG seeded with
-## `seed_value` (none when it draws `steady`), and the item that glows with it (or null).
+## Keep light `l` (its full `energy`) with a rhythm drawn from `kinds` (`[[mode, weight], ...]`) by
+## an RNG seeded with `seed_value` (none when it draws `steady`), and the item that glows with it
+## (or null).
 func _keep(l: PointLight2D, energy: float, kinds: Array, seed_value: int, glow: Variant) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
@@ -255,11 +300,11 @@ func _keep(l: PointLight2D, energy: float, kinds: Array, seed_value: int, glow: 
 	_lights.append(l)
 
 
-## A shadowed PointLight2D of `colour` at `energy`, its pool `radius` px out along its long axis in the texture of `shape`
-## (`round`, `wide`, `tube`; an `overhead` light's pools downward), shadowed by the occluders in `shadow_mask`, lighting the
-## items in `item_mask`.
-static func _point(colour: Color, energy: float, radius: float, shape: StringName, overhead: bool, shadow_mask: int,
-		item_mask: int) -> PointLight2D:
+## A shadowed PointLight2D of `colour` at `energy`, its pool `radius` px out along its long axis in
+## the texture of `shape` (`round`, `wide`, `tube`; an `overhead` light's pools downward), shadowed
+## by the occluders in `shadow_mask`, lighting the items in `item_mask`.
+static func _point(colour: Color, energy: float, radius: float, shape: StringName, overhead: bool,
+		shadow_mask: int, item_mask: int) -> PointLight2D:
 	if not LightingConfig.textures.has(shape):
 		shape = &"round"
 	var l := PointLight2D.new()
@@ -274,8 +319,8 @@ static func _point(colour: Color, energy: float, radius: float, shape: StringNam
 	return l
 
 
-## The smooth light texture of `shape` (built once): an `overhead` light's pool (flat in the middle, a quick rim: a cone
-## meeting the floor) or a low light's glow (fading from its middle).
+## The smooth light texture of `shape` (built once): an `overhead` light's pool (flat in the middle,
+## a quick rim: a cone meeting the floor) or a low light's glow (fading from its middle).
 static func _texture(shape: StringName, overhead: bool) -> Texture2D:
 	var key := [shape, overhead]
 	if _textures.has(key):
@@ -307,7 +352,8 @@ static func _room_of(rooms: Array, p: Vector2) -> String:
 	return ""
 
 
-# --- Flashes -----------------------------------------------------------------------------------------------------------
+# --- Flashes --------------------------------------------------------------------------------------
+
 
 ## Light a flash for a `shot` at its muzzle or an `explosion` at its burst (EventBus).
 func _on_posted(topic: StringName, data: Dictionary) -> void:
@@ -321,8 +367,9 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 			_flash(data["position"], LightingConfig.flashes[kind], float(data.get("radius", 0.0)))
 
 
-## Light the pooled flash next in turn at world point `at` in `look` (a `LightingConfig.flashes` row), its pool at least
-## `radius` × the row's `reach_per_radius` across, held at full energy for its `hold`, then falling off to dark over its `life`.
+## Light the pooled flash next in turn at world point `at` in `look` (a `LightingConfig.flashes`
+## row), its pool at least `radius` × the row's `reach_per_radius` across, held at full energy for
+## its `hold`, then falling off to dark over its `life`.
 func _flash(at: Vector2, look: Dictionary, radius: float) -> void:
 	if _flashes.is_empty():
 		return
@@ -339,14 +386,16 @@ func _flash(at: Vector2, look: Dictionary, radius: float) -> void:
 	_flash_hold[k] = float(look.get("hold", 0.0))
 	_flash_life[k] = look["life"]
 	_flash_t[k] = 0.0
-	_clear_bodies()  # This frame already: a blast at someone's feet must not black out the room it lights.
+	# This frame already: a blast at someone's feet must not black out the room it lights.
+	_clear_bodies()
 
 
-# --- Characters --------------------------------------------------------------------------------------------------------
+# --- Characters -----------------------------------------------------------------------------------
 
-## Leave the characters out of the shadows of every lit flash one of them stands in this frame (and put them back once
-## none does): the flashes are the only lights the characters shadow. The character list is re-read only when the group's
-## size changes, so a frame allocates nothing.
+
+## Leave the characters out of the shadows of every lit flash one of them stands in this frame (and
+## put them back once none does): the flashes are the only lights the characters shadow. The
+## character list is re-read only when the group's size changes, so a frame allocates nothing.
 func _clear_bodies() -> void:
 	var tree := get_tree()
 	var count := tree.get_node_count_in_group(&"characters")
@@ -367,7 +416,8 @@ func _clear_bodies() -> void:
 		_clear_flash(l)
 
 
-## Flash `l`'s shadow mask: everything, without the characters while one stands within reach of its centre.
+## Flash `l`'s shadow mask: everything, without the characters while one stands within reach of its
+## centre.
 func _clear_flash(l: PointLight2D) -> void:
 	if not l.enabled:
 		return
@@ -379,3 +429,11 @@ func _clear_flash(l: PointLight2D) -> void:
 			break
 	if l.shadow_item_cull_mask != mask:
 		l.shadow_item_cull_mask = mask
+
+
+## One kept light: its node, its full energy, its rhythm (null: steady) and what glows with it.
+class Lit:
+	var light: PointLight2D
+	var energy: float
+	var rhythm: Rhythm
+	var glow: CanvasItem

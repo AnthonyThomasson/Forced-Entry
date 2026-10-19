@@ -1,16 +1,15 @@
 extends RefCounted
-
 ## Character RAGDOLL (Character domain, animate layer): the body falling on death. Builds a humanoid
-## on the Physics domain's Ragdoll from the rig's standing joints (character_rig.gd) — a rigid trunk (chest, pelvis, belly and back,
-## shoulders, hips), the head, elbows, fists, knees and ankles — held by anatomical limits: swing
-## cones at the neck, shoulders and hips, and hinges at the elbows and knees that only ever bend the
-## natural way. It is launched with the body's momentum, a topple along the killing blow and a
-## buckle at the knees, then left to fall. Owned and stepped by character.gd once dead; read by the
-## visuals, which draw it top-down by height. Index pairs are per hand side (0 = right as drawn, 1 = left),
-## matching the hands. Tuning: CharacterConfig.ragdoll_*.
+## on the Physics domain's Ragdoll from the rig's standing joints (character_rig.gd) — a rigid trunk
+## (chest, pelvis, belly and back, shoulders, hips), the head, elbows, fists, knees and ankles —
+## held by anatomical limits: swing cones at the neck, shoulders and hips, and hinges at the elbows
+## and knees that only ever bend the natural way. It is launched with the body's momentum, a topple
+## along the killing blow and a buckle at the knees, then left to fall. Owned and stepped by
+## character.gd once dead; read by the visuals, which draw it top-down by height. Index pairs are
+## per hand side (0 = right as drawn, 1 = left), matching the hands. Tuning:
+## CharacterConfig.ragdoll_*.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
-
 # Joint indices, shared with the rig the body starts from.
 const HEAD := Rig.HEAD
 const CHEST := Rig.CHEST
@@ -23,7 +22,6 @@ const HAND := Rig.HAND
 const KNEE := Rig.KNEE
 const ANKLE := Rig.ANKLE
 const SPINE := Rig.SPINE
-
 ## Directions in the trunk's frame: x toward the right shoulder, y up the spine, z out of the chest.
 const UP := Vector3(0.0, 1.0, 0.0)
 const DOWN := Vector3(0.0, -1.0, 0.0)
@@ -32,11 +30,12 @@ const BACK := Vector3(0.0, 0.0, -1.0)
 
 ## The simulated body (Physics domain).
 var body := Ragdoll.new()
-var _frame := 0  ## The trunk's frame id in `body`.
+## The trunk's frame id in `body`.
+var _frame := 0
 
 
-## Build the body standing as the rig holds `character`, moving at `momentum` (px/s) and knocked over
-## along `blow` (the killing hit's direction; zero for none).
+## Build the body standing as the rig holds `character`, moving at `momentum` (px/s) and knocked
+## over along `blow` (the killing hit's direction; zero for none).
 func _init(character, momentum: Vector2, blow: Vector2) -> void:
 	var r: float = character.radius
 	var rig = Rig.new(character)
@@ -47,11 +46,16 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 	var torso_r := CharacterConfig.ragdoll_torso_radius * r
 	var limb_r := CharacterConfig.ragdoll_limb_radius * r
 
-	body.add_point(rig.point(HEAD), CharacterConfig.ragdoll_head_radius * r, CharacterConfig.ragdoll_head_mass)
+	body.add_point(
+		rig.point(HEAD),
+		CharacterConfig.ragdoll_head_radius * r,
+		CharacterConfig.ragdoll_head_mass,
+	)
 	body.add_point(rig.point(CHEST), torso_r, CharacterConfig.ragdoll_torso_mass)
 	body.add_point(rig.point(PELVIS), torso_r, CharacterConfig.ragdoll_torso_mass)
-	# Belly and back sit off the spine, their radii reaching just to the trunk's surface, so the trunk
-	# lies flat on either side (rather than rocking on a keel) and can never fold through itself.
+	# Belly and back sit off the spine, their radii reaching just to the trunk's surface, so the
+	# trunk lies flat on either side (rather than rocking on a keel) and can never fold through
+	# itself.
 	var skin := maxf(torso_r - CharacterConfig.ragdoll_belly * r, 0.05 * r)
 	body.add_point(rig.point(BELLY), skin, CharacterConfig.ragdoll_torso_mass)
 	for i in 2:
@@ -82,10 +86,22 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 	var elbow := CharacterConfig.ragdoll_elbow_bend
 	var knee := CharacterConfig.ragdoll_knee_bend
 	for i in 2:
-		body.add_swing(_frame, SHOULDER[i], ELBOW[i], DOWN, _limits(CharacterConfig.ragdoll_shoulder_limits, i))
+		body.add_swing(
+			_frame,
+			SHOULDER[i],
+			ELBOW[i],
+			DOWN,
+			_limits(CharacterConfig.ragdoll_shoulder_limits, i),
+		)
 		body.add_hinge(_frame, SHOULDER[i], ELBOW[i], HAND[i], DOWN, FRONT, deg_to_rad(elbow.x),
 			deg_to_rad(elbow.y), deg_to_rad(CharacterConfig.ragdoll_elbow_slack))
-		body.add_swing(_frame, HIP[i], KNEE[i], DOWN, _limits(CharacterConfig.ragdoll_hip_limits, i))
+		body.add_swing(
+			_frame,
+			HIP[i],
+			KNEE[i],
+			DOWN,
+			_limits(CharacterConfig.ragdoll_hip_limits, i),
+		)
 		body.add_hinge(_frame, HIP[i], KNEE[i], ANKLE[i], DOWN, BACK, deg_to_rad(knee.x),
 			deg_to_rad(knee.y), deg_to_rad(CharacterConfig.ragdoll_knee_slack))
 
@@ -95,7 +111,13 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 ## Seed the fall: everything carries the body's momentum; the upper body is pushed over along the
 ## blow (or, with none, a weaker push along the momentum or a random way), the knees buckle forward
 ## and every point gets a small random jolt, so no two falls are alike.
-func _launch(momentum: Vector2, blow: Vector2, fwd: Vector3, hip_z: float, shoulder_z: float) -> void:
+func _launch(
+	momentum: Vector2,
+	blow: Vector2,
+	fwd: Vector3,
+	hip_z: float,
+	shoulder_z: float,
+) -> void:
 	var topple := CharacterConfig.ragdoll_hit_topple
 	var dir := blow
 	if dir.length() < 0.001:
@@ -118,8 +140,8 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 	body.step(delta, space, origin)
 
 
-## An explosion throws the fallen body: every point gains `velocity` (px/s) along the floor and a hop up, and a body that
-## had come to rest wakes.
+## An explosion throws the fallen body: every point gains `velocity` (px/s) along the floor and a
+## hop up, and a body that had come to rest wakes.
 func blast(velocity: Vector2) -> void:
 	body.wake()
 	var lift := velocity.length() * CharacterConfig.ragdoll_blast_lift

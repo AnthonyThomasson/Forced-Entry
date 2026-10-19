@@ -1,35 +1,58 @@
 extends RefCounted
-
-## AI PERCEPTION sub-domain — SNAPSHOT VOCABULARY. The shared words and tuning of the decision snapshot: the compass and
-## flank-side names, every tunable the perception sets from the controller's exports before a decision (ranges, bands, thresholds, caps), the house
-## rooms of the decision being built, and the helpers that turn a distance, an age, a route, a bearing or a wound into the
-## band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option modules read it, so no tunable is set twice.
-## Everything is worded for a classifier (see `agent_snapshot.gd`): bands not numbers, no negations.
+## AI PERCEPTION sub-domain — SNAPSHOT VOCABULARY. The shared words and tuning of the decision
+## snapshot: the compass and flank-side names, every tunable the perception sets from the
+## controller's exports before a decision (ranges, bands, thresholds, caps), the house rooms of the
+## decision being built, and the helpers that turn a distance, an age, a route, a bearing or a wound
+## into the band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option modules
+## read it, so no tunable is set twice. Everything is worded for a classifier (see
+## `agent_snapshot.gd`): bands not numbers, no negations.
 
 ## Compass names for an 8-wind direction, indexed clockwise from east (screen +y is south).
-const COMPASS := ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]
+const COMPASS := [
+	"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east",
+]
 ## How each flank side of a target is named to Von.
-const SIDE_WORDS := { "left": "their left side", "right": "their right side", "rear": "behind them", "front": "their front" }
+const SIDE_WORDS := {
+	"left": "their left side", "right": "their right side", "rear": "behind them",
+	"front": "their front",
+}
 
-# --- Config fields the perception's apply_config() sets from the controller's exports of the same name before each decision. ---
-var shoot_range: float                 ## GoalController.shoot_range
-var punch_range: float                 ## GoalController.punch_range
-var recency_bands: Vector2             ## GoalController.recency_bands
-var route_buckets: Vector2             ## GoalController.route_buckets
-var aim_cone: float                    ## GoalController.aim_cone
-var still_speed: float                 ## GoalController.still_speed
-var flank_ally_radius: float           ## GoalController.flank_ally_radius
-var investigate_distance: float        ## GoalController.investigate_distance
-var extrapolate_cap: float             ## GoalController.extrapolate_cap
-var max_options_per_level: int         ## GoalController.max_options_per_level
-var hurt_threshold: float              ## GoalController.hurt_threshold
-var critical_threshold: float          ## GoalController.critical_threshold
-var low_ammo_fraction: float           ## GoalController.low_ammo_fraction
-var max_contacts_in_state: int         ## GoalController.max_contacts_in_state
-var search_memory_ttl: float           ## GoalController.search_memory_ttl
-
-var rooms: Array = []  ## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
-var _character: Node   ## The NPC's body, handed in once by `bind`.
+# --- Config fields the perception's apply_config() sets from the controller's exports of the same
+# name before each decision.
+## GoalController.shoot_range
+var shoot_range: float
+## GoalController.punch_range
+var punch_range: float
+## GoalController.recency_bands
+var recency_bands: Vector2
+## GoalController.route_buckets
+var route_buckets: Vector2
+## GoalController.aim_cone
+var aim_cone: float
+## GoalController.still_speed
+var still_speed: float
+## GoalController.flank_ally_radius
+var flank_ally_radius: float
+## GoalController.investigate_distance
+var investigate_distance: float
+## GoalController.extrapolate_cap
+var extrapolate_cap: float
+## GoalController.max_options_per_level
+var max_options_per_level: int
+## GoalController.hurt_threshold
+var hurt_threshold: float
+## GoalController.critical_threshold
+var critical_threshold: float
+## GoalController.low_ammo_fraction
+var low_ammo_fraction: float
+## GoalController.max_contacts_in_state
+var max_contacts_in_state: int
+## GoalController.search_memory_ttl
+var search_memory_ttl: float
+## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
+var rooms: Array = []
+## The NPC's body, handed in once by `bind`.
+var _character: Node
 
 
 ## Hand in the NPC's body. Called once by `AgentSnapshot.bind()`.
@@ -41,6 +64,7 @@ func bind(character: Node) -> void:
 func room_name(kind) -> String:
 	return str(kind).replace("_", " ")
 
+
 ## A distance as a combat band, from the NPC's own reach.
 func dist_band(d: float) -> String:
 	if d <= punch_range * 1.5:
@@ -51,6 +75,7 @@ func dist_band(d: float) -> String:
 		return "in pistol range"
 	return "too far to shoot"
 
+
 ## How long ago, as a band.
 func recency(age: float) -> String:
 	if age <= recency_bands.x:
@@ -58,6 +83,7 @@ func recency(age: float) -> String:
 	if age <= recency_bands.y:
 		return "recently"
 	return "a while ago"
+
 
 ## A route length as a band.
 func route_band(length: float) -> String:
@@ -67,9 +93,11 @@ func route_band(length: float) -> String:
 		return "medium"
 	return "long"
 
+
 ## A route as Von reads it: "short hidden" / "long exposed".
 func route_text(length: float, exposed: bool) -> String:
 	return "%s %s" % [route_band(length), "exposed" if exposed else "hidden"]
+
 
 ## How a contact is moving, relative to the NPC ("moving west, toward you" / "standing still").
 func move_text(c: Dictionary, self_pos: Vector2) -> String:
@@ -85,6 +113,7 @@ func move_text(c: Dictionary, self_pos: Vector2) -> String:
 		rel = ", away from you"
 	return "%smoving %s%s" % [prefix, compass(vel), rel]
 
+
 ## Whether contact `c` (seen this tick) is coming toward the NPC, for an ambush.
 func coming_text(c: Dictionary, self_pos: Vector2) -> String:
 	var vel: Vector2 = c.get("vel", Vector2.ZERO)
@@ -93,6 +122,7 @@ func coming_text(c: Dictionary, self_pos: Vector2) -> String:
 	if absf(vel.angle_to(self_pos - (c["pos"] as Vector2))) < PI * 0.25:
 		return "they are coming this way"
 	return "they are moving elsewhere"
+
 
 ## Who a VISIBLE contact is aiming at — the NPC, or another known character within `aim_cone` of its
 ## facing — or that it faces away from the NPC. Empty when unknown or unremarkable.
@@ -105,15 +135,19 @@ func aim_text(c: Dictionary, self_pos: Vector2, others: Array) -> String:
 	if absf(facing.angle_to(to_me)) <= cone:
 		return "aiming at you"
 	for o in others:
-		if o["id"] != c["id"] and absf(facing.angle_to((o["pos"] as Vector2) - (c["pos"] as Vector2))) <= cone:
+		if (o["id"] != c["id"]
+				and absf(facing.angle_to((o["pos"] as Vector2) - (c["pos"] as Vector2))) <= cone):
 			return "aiming at %s" % o["name"]
 	if absf(facing.angle_to(to_me)) >= PI * 0.66:
 		return "facing away from you"
 	return ""
 
-## "blinded by a flash" for a contact the NPC (or an ally) caught in a stun grenade's flash a moment ago.
+
+## "blinded by a flash" for a contact the NPC (or an ally) caught in a stun grenade's flash a moment
+## ago.
 func blind_text(c: Dictionary) -> String:
 	return "blinded by a flash" if c.get("blind", false) else ""
+
 
 ## Where a contact is: "in the kitchen, inside the house" / "outside the house".
 func where(c: Dictionary) -> String:
@@ -122,15 +156,19 @@ func where(c: Dictionary) -> String:
 	var room := room_name(c.get("room_type", ""))
 	return ("in the %s" % room) if room != "" else "inside the house"
 
-## Where a point is, in the words of `where`: "in the kitchen" inside a room, "outside the house" otherwise.
+
+## Where a point is, in the words of `where`: "in the kitchen" inside a room, "outside the house"
+## otherwise.
 func place(p: Vector2) -> String:
 	var room := room_at(p, rooms)
 	return ("in the %s" % room_name(room["type"])) if not room.is_empty() else "outside the house"
+
 
 ## " (in the kitchen)" for a point inside a room, " (outside)" otherwise.
 func room_suffix(p: Vector2) -> String:
 	var room := room_at(p, rooms)
 	return (" (in the %s)" % room_name(room["type"])) if not room.is_empty() else " (outside)"
+
 
 ## Accumulated damage as a band of how hurt a character is.
 func health_band(dmg: float) -> String:
@@ -140,6 +178,7 @@ func health_band(dmg: float) -> String:
 		return "hurt"
 	return "unhurt"
 
+
 ## A seen character's visible wound band ("looks hurt"), or "" when unharmed.
 func wound_band(dmg: float) -> String:
 	if dmg >= critical_threshold:
@@ -148,10 +187,12 @@ func wound_band(dmg: float) -> String:
 		return "looks hurt"
 	return ""
 
+
 ## The 8-wind compass name for a direction vector (screen space, +y down = south).
 func compass(v: Vector2) -> String:
 	var idx := int(round(atan2(v.y, v.x) / (TAU / 8.0))) % 8
 	return COMPASS[idx + 8 if idx < 0 else idx]
+
 
 ## How the NPC's own posture is worded in its situation: " You are crouching.", and
 ## nothing for a standing body, so the usual text is unchanged.
@@ -161,6 +202,7 @@ func own_posture_text(posture: StringName) -> String:
 			return " You are crouching."
 	return ""
 
+
 ## How a contact seen low is worded: "crouched low", and nothing for one standing.
 func contact_posture_text(posture: StringName) -> String:
 	match posture:
@@ -168,24 +210,28 @@ func contact_posture_text(posture: StringName) -> String:
 			return "crouched low"
 	return ""
 
-## What the NPC calls its gun in the text Von reads: its name in lower case ("pistol", "assault rifle"; an
-## acronym like "SMG" stays as written), or "gun" with none.
+
+## What the NPC calls its gun in the text Von reads: its name in lower case ("pistol", "assault
+## rifle"; an acronym like "SMG" stays as written), or "gun" with none.
 func gun_noun(gun: int) -> String:
 	if gun < 0:
 		return "gun"
 	var name: String = _character.item_name(gun)
 	return name if name == name.to_upper() else name.to_lower()
 
-## A flank side's status: "route passes X" when getting there walks past a known hostile, "taken by X"
-## when an ally holds it, else "free".
+
+## A flank side's status: "route passes X" when getting there walks past a known hostile, "taken by
+## X" when an ally holds it, else "free".
 func side_status(s: Dictionary) -> String:
 	if s["crosses"] != "":
 		return "route passes %s" % s["crosses"]
 	return ("taken by %s" % s["held_by"]) if s["held_by"] != "" else "free"
 
+
 ## Whether a world point lies inside the house (within any room of the decision being built).
 func is_inside(p: Vector2) -> bool:
 	return not room_at(p, rooms).is_empty()
+
 
 ## The centre of the bounding box enclosing all rooms — "the house" for an NPC that knows no room.
 func house_centre() -> Vector2:

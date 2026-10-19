@@ -1,5 +1,4 @@
 extends Node2D
-
 ## UI domain: world-space contact-indicator overlay for the spectator inspector. When an NPC is
 ## selected, this node draws a coloured ring + name label at EACH CHARACTER THE SELECTED NPC HAS
 ## IN MEMORY — showing the selected NPC's own knowledge of the world, not the contacts' state.
@@ -13,20 +12,13 @@ const FONT_SIZE := 18
 ## Opacity for a currently-visible contact vs a stale (remembered but not in sight) one.
 const ALPHA_VISIBLE := 0.9
 const ALPHA_STALE := 0.45
-
 ## Hostile ring colour (red).
 const COLOR_HOSTILE := Color(1.0, 0.25, 0.25)
 ## Neutral / ally ring colour (amber).
 const COLOR_NEUTRAL := Color(1.0, 0.75, 0.2)
 
-var _contacts: Array = []  ## Array of { pos, name, hostile, visible }
-
-
-## Replace the contacts list and queue a redraw. Called by SpectatorInspector every frame while an NPC
-## is selected, so the rings track the characters as they move and as the NPC's knowledge updates.
-func set_contacts(contacts: Array) -> void:
-	_contacts = contacts
-	queue_redraw()
+## Array of { pos, name, hostile, visible }
+var _contacts: Array = []
 
 
 func _draw() -> void:
@@ -41,5 +33,30 @@ func _draw() -> void:
 		var label: String = c["name"] + (" ●" if seen else " ?")
 		var str_w: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 		var label_pos := world_pos + Vector2(-str_w * 0.5, -RING_RADIUS - 5.0)
-		draw_string_outline(font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, 5, Color(0, 0, 0, 0.95))
-		draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Color(base, 1.0))
+		draw_string_outline(
+			font,
+			label_pos,
+			label,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE,
+			5,
+			Color(0, 0, 0, 0.95),
+		)
+		draw_string(
+			font,
+			label_pos,
+			label,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			FONT_SIZE,
+			Color(base, 1.0),
+		)
+
+
+## Replace the contacts list and queue a redraw. Called by SpectatorInspector every frame while an
+## NPC is selected, so the rings track the characters as they move and as the NPC's knowledge
+## updates.
+func set_contacts(contacts: Array) -> void:
+	_contacts = contacts
+	queue_redraw()

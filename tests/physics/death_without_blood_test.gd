@@ -1,13 +1,13 @@
 extends GameTest
-
-## The same one-hit kill as blood_follows_grout, with the `physics.blood` switch off: the target still
-## dies and falls, but no blood appears at all — the switch reaches the Physics domain.
+## The same one-hit kill as blood_follows_grout, with the `physics.blood` switch off: the target
+## still dies and falls, but no blood appears at all — the switch reaches the Physics domain.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "No blood with the blood switch off",
-		"description": "physics.blood off: a 1 hp target is shot dead and rests, with no wound splatter and no bleed-out.",
+		"description": "physics.blood off: a 1 hp target is shot dead and rests, with no wound "
+			+ "splatter and no bleed-out.",
 		"tags": ["death", "blood", "switch"],
 		"timeout": 12.0,
 	}
@@ -26,7 +26,13 @@ func run(t: TestContext) -> void:
 	shooter.aim_at(t.actor(&"target"))
 	await t.seconds(0.4)
 	shooter.shoot()
-	if not t.require(await t.until(func(): return t.happened(&"died", func(d): return d["actor"] == &"target"), 2.0), "the target dies"):
+	if not t.require(
+			await t.until(
+				func(): return t.happened(&"died", func(d): return d["actor"] == &"target"),
+				2.0,
+			),
+			"the target dies",
+	):
 		return
 	await t.seconds(6.0)  # past the ragdoll settling, when a bleed-out would start
 	t.expect_eq(t.spawned("BloodSplat").size(), 0, "no splatter was spawned")

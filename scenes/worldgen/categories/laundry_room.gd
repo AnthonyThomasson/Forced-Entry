@@ -1,12 +1,21 @@
 class_name LaundryRoomCatalog
-
 ## World Generation domain: laundry-room objects, arrangements, and recipe. Shared items (cabinet,
 ## plant, and the laundry_pair arrangement with washing_machine/dryer) live in GeneralCatalog.
 
 const OBJECTS := {
-	"laundry_sink": { "name": "Sink", "shape": "square", "size": Vector2(45, 45), "color": Color(0.72, 0.8, 0.88), "material": "ceramic", "art": "counter", "art_opts": { "basin": "deep" }, "weight": 25, "coverage": 45, "penetration": 45 },
+	"laundry_sink": {
+		"name": "Sink",
+		"shape": "square",
+		"size": Vector2(45, 45),
+		"color": Color(0.72, 0.8, 0.88),
+		"material": "ceramic",
+		"art": "counter",
+		"art_opts": { "basin": "deep" },
+		"weight": 25,
+		"coverage": 45,
+		"penetration": 45,
+	},
 }
-
 const ARRANGEMENTS := {
 	"laundry_sink": {
 		"placement": "wall", "footprint": Vector2(100, 45),
@@ -16,19 +25,29 @@ const ARRANGEMENTS := {
 		],
 	},
 }
-
 const RECIPES := {
 	"laundry_room": {
 		"clutter": [["puddle", 3.0], ["trash", 1.0], ["cables", 1.0]],
 		"palettes": [
-			{ "wood": GeneralCatalog.WOOD.white, "fabric": GeneralCatalog.FABRIC.slate, "floor": "slate_tile" },
-			{ "wood": GeneralCatalog.WOOD.ash, "fabric": GeneralCatalog.FABRIC.aqua, "floor": "white_tile" },
+			{
+				"wood": GeneralCatalog.WOOD.white,
+				"fabric": GeneralCatalog.FABRIC.slate,
+				"floor": "slate_tile",
+			},
+			{
+				"wood": GeneralCatalog.WOOD.ash,
+				"fabric": GeneralCatalog.FABRIC.aqua,
+				"floor": "white_tile",
+			},
 		],
 		"zones": [
 			{ "options": ["laundry_pair"], "count": Vector2i(1, 1), "required": true },
 			{ "options": ["laundry_sink"], "count": Vector2i(1, 1) },
 			{ "options": ["plant_corner"], "count": Vector2i(0, 1) },
 		],
-		"fill": { "target": 0.3, "options": ["storage_wall", "plant_corner", "shelf_single", "lamp_corner"] },
+		"fill": {
+			"target": 0.3,
+			"options": ["storage_wall", "plant_corner", "shelf_single", "lamp_corner"],
+		},
 	},
 }

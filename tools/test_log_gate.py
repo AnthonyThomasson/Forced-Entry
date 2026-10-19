@@ -5,7 +5,7 @@
   python3 tools/test_log_gate.py --headed   also the real engine WITH a window (batch --shots and the in-game runner)
 
 (The GDScript lint that runs first has its own tests at the end: lint_report.py on crafted logs, run_tests.sh
-aborting on a lint failure, and the real engine through tools/lint.sh.)
+aborting on a lint failure, the real engine through tools/lint.sh, and gdstyle in tools/lint.sh on probe scripts.)
 
 Three layers, because the gate has three parts:
   1. tools/scan_godot_log.py on crafted logs (what counts as an error, the shutdown leak NOTE, --from offsets).
@@ -14,16 +14,28 @@ Three layers, because the gate has three parts:
   3. The real engine: tests/_harness/log_gate_probe_test.gd logs an error / warning on purpose (GAME_TEST_PROBE) and
      the run must FAIL in batch and in the in-game runner (`-- --play`), headless and (with --headed) windowed.
 Layer 3 is skipped when no Godot binary is found.
+
+The run goes through gdUnit4 underneath (issue #70): GdUnitCommandLineTests checks, around a fake Godot, how
+run_tests.sh starts gdUnit's command-line tool (headless, `--fixed-fps 60`, a log of its own per process), and
+GdUnitEngineTests checks, on the real engine through the harness probes in tests/_harness/, that the verdicts, lines,
+summary, report.json and bundles keep their shape, that gdUnit's JUnit and HTML reports land in the run's out dir with
+the same verdicts (a GAP skipped, "gap: expected to fail"), that a logged warning ends its test at once, that a
+requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work.
+FreshUserDirTests runs one native suite in a copy of the checkout whose user:// holds no logs/godot.log (a fresh
+clone, CI): gdUnit's own log monitor reads the run's log, nothing is logged outside a test, project.godot is untouched.
 """
 import json
 import os
 import re
 import shutil
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -296,6 +308,11 @@ class WrapperTests(unittest.TestCase):
         _, lines = self.changed(["tests/_perf/perf_probe.gd"])
         self.assertEqual([l for l in lines if l.startswith("selection:")], ["selection: --domain=perf"])
 
+    def test_changed_runs_the_domain_of_an_edited_gdunit_suite(self):
+        # A native suite holds several cases, none of them a catalog id: its whole domain runs, the suite with it.
+        _, lines = self.changed(["tests/general/weighted_pick_suite.gd"])
+        self.assertEqual([l for l in lines if l.startswith("selection:")], ["selection: --domain=general"])
+
     def test_skip_domain_reaches_the_runner_and_stops_the_perf_helper_run(self):
         _, lines = self.changed(["scenes/ai/behavior/behavior.gd"], "clean", "--skip-domain=perf")
         self.assertEqual([l for l in lines if l.startswith("selection:")], ["selection: --domain=ai,perf --skip-domain=perf"])
@@ -376,6 +393,47 @@ class LintEngineTests(unittest.TestCase):
 
 
 @unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
+class GdStyleLintTests(unittest.TestCase):
+    """tools/lint.sh runs gdstyle (v0.4.0, fetched by tools/gdstyle.sh): a script `gdstyle fmt --check` would change
+    fails it, and so does a line over 100 columns the formatter leaves alone; a formatted script passes."""
+
+    CLEAN = "extends RefCounted\n\n\nfunc total() -> int:\n\tvar a := 1 + 2\n\treturn a\n"
+    UNFORMATTED = "extends RefCounted\n\n\nfunc total()->int:\n\tvar a:=1+2\n\treturn a\n"  # no spaces round '+'
+    LONG_LINE = "extends RefCounted\n\nconst MESSAGE := \"%s\"\n" % ("a long line only a person can shorten, never the formatter, " * 2)
+
+    def lint_probe(self, name, text):
+        probe = ROOT / "tests" / "_harness" / f"zz_style_{name}_probe.gd"
+        probe.write_text(text)
+        try:
+            env = dict(os.environ, GODOT=godot_binary())
+            r = subprocess.run(["bash", str(ROOT / "tools" / "lint.sh"), probe.relative_to(ROOT).as_posix()], cwd=ROOT, env=env,
+                               capture_output=True, text=True, timeout=600)
+        finally:
+            for f in (probe, probe.with_name(probe.name + ".uid")):
+                f.unlink(missing_ok=True)
+        return r.returncode, r.stdout + r.stderr
+
+    def test_the_probes_are_what_they_claim(self):
+        self.assertTrue(all(len(line) <= 100 for line in self.CLEAN.splitlines() + self.UNFORMATTED.splitlines()))
+        self.assertGreater(max(len(line) for line in self.LONG_LINE.splitlines()), 100)
+
+    def test_a_formatted_script_passes(self):
+        code, out = self.lint_probe("clean", self.CLEAN)
+        self.assertEqual(code, 0, out)
+
+    def test_a_script_the_formatter_would_change_fails(self):
+        code, out = self.lint_probe("unformatted", self.UNFORMATTED)
+        self.assertEqual(code, 1, "gdstyle fmt --check would reformat it\n" + out)
+        self.assertIn("zz_style_unformatted_probe.gd", out)
+
+    def test_a_line_over_100_columns_fails(self):
+        code, out = self.lint_probe("long_line", self.LONG_LINE)
+        self.assertEqual(code, 1, "a 100-column limit\n" + out)
+        self.assertIn("zz_style_long_line_probe.gd", out)
+        self.assertIn("max-line-length", out)
+
+
+@unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
 class EngineTests(unittest.TestCase):
     """The real engine: an error or warning logged during a test must fail it, in batch and in the in-game runner."""
 
@@ -417,6 +475,395 @@ class EngineTests(unittest.TestCase):
     @unittest.skipUnless(HEADED, "pass --headed to run the windowed engine")
     def test_headed(self):
         self.check_mode(True)
+
+
+GDUNIT_TOOL = "res://addons/gdUnit4/bin/GdUnitCmdTool.gd"
+
+FAKE_ARGV_GODOT = r"""#!/usr/bin/env bash
+# Stands in for Godot: records its argv (one argument per line) in $FAKE_ARGV_DIR, one file per process, and exits.
+# Started on the lint scene it prints a clean lint.
+for a in "$@"; do
+  if [ "$a" = "res://tools/lint_scripts.tscn" ]; then echo "LINT-PASS2"; echo "LINT-DONE 0"; exit 0; fi
+done
+f="$FAKE_ARGV_DIR/$$.argv"
+for a in "$@"; do printf '%s\n' "$a" >> "$f"; done
+exit 0
+"""
+
+
+class GdUnitCommandLineTests(unittest.TestCase):
+    """How tools/run_tests.sh starts the engine: gdUnit's command-line tool, headless at a fixed 60 fps, each process
+    with its own engine log. A fake Godot records the arguments; what it then reports is not looked at here."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="gdunit_cli_"))
+        cls.fake = cls.tmp / "fakegodot"
+        cls.fake.write_text(FAKE_ARGV_GODOT)
+        cls.fake.chmod(cls.fake.stat().st_mode | stat.S_IEXEC)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def launches(self, *args):
+        """The argv of every engine process a run_tests.sh call started (the lint's aside)."""
+        argv_dir = Path(tempfile.mkdtemp(dir=self.tmp))
+        env = dict(os.environ, GODOT=str(self.fake), FAKE_ARGV_DIR=str(argv_dir), TMPDIR=str(argv_dir))
+        subprocess.run(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+        return [f.read_text().splitlines() for f in sorted(argv_dir.glob("*.argv"))]
+
+    @staticmethod
+    def value_after(argv, flag):
+        return argv[argv.index(flag) + 1] if flag in argv and argv.index(flag) + 1 < len(argv) else None
+
+    def gdunit_launches(self, *args):
+        """The gdUnit processes of a run_tests.sh call, once every engine process it started is seen to have an engine
+        log of its own and none to be today's batch runner."""
+        runs = self.launches(*args)
+        logs = [self.value_after(argv, "--log-file") for argv in runs]
+        self.assertTrue(runs and all(logs), f"every engine process has an engine log of its own: {runs}")
+        self.assertEqual(len(set(logs)), len(logs), f"no two processes share a log: {logs}")
+        for argv in runs:
+            self.assertNotIn("--run-tests", argv, f"the batch runner has given way to gdUnit: {argv}")
+        tests = [argv for argv in runs if (self.value_after(argv, "-s") or self.value_after(argv, "--script")) == GDUNIT_TOOL]
+        self.assertTrue(tests, f"no process runs gdUnit's command-line tool {GDUNIT_TOOL}: {runs}")
+        return tests
+
+    def assert_shape(self, argv, headless=True):
+        self.assertEqual(self.value_after(argv, "--fixed-fps"), "60", f"at a fixed 60 fps: {argv}")
+        self.assertEqual("--headless" in argv, headless, f"headless {headless}: {argv}")
+
+    def test_a_run_drives_gdunits_command_line_tool_headless_at_a_fixed_60_fps(self):
+        for argv in self.gdunit_launches("--id=a/x"):
+            self.assert_shape(argv)
+
+    def test_the_self_tests_go_through_gdunit_too(self):
+        for argv in self.gdunit_launches("--self-test"):
+            self.assert_shape(argv)
+
+    def test_each_shard_is_a_gdunit_process_with_its_own_log(self):
+        runs = self.gdunit_launches("--jobs=2", "--id=a/x,b/y")
+        self.assertEqual(len(runs), 2, runs)
+        for argv in runs:
+            self.assert_shape(argv)
+
+    def test_windowed_and_shots_runs_keep_a_window(self):
+        for flag in ("--windowed", "--shots"):
+            with self.subTest(flag=flag):
+                for argv in self.gdunit_launches(flag, "--id=a/x"):
+                    self.assert_shape(argv, headless=False)
+                    if flag == "--windowed":
+                        self.assertIn("--disable-vsync", argv)
+
+
+RESULT_LINE = re.compile(r"^(PASS|FAIL|TIMEOUT|SKIPPED|GAP)\s+(\S+)\s+\((\d+\.\d)s sim, (\d+) ms\)(.*)$")
+SUMMARY_LINE = re.compile(r"^(\d+) passed, (\d+) failed, (\d+) timed out, (\d+) skipped, (\d+) gap\b")
+
+
+def free_port():
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class Run:
+    """One tools/run_tests.sh call, read the way a person or an agent reads it."""
+
+    def __init__(self, code, out, seconds):
+        self.code, self.out, self.seconds = code, out, seconds
+        self.results = {}  # id -> [(status, sim s, wall ms, tail)]
+        self.summary = None
+        self.report_path = None
+        for line in out.splitlines():
+            m = RESULT_LINE.match(line)
+            if m:
+                self.results.setdefault(m.group(2), []).append((m.group(1), float(m.group(3)), int(m.group(4)), m.group(5)))
+            m = SUMMARY_LINE.match(line)
+            if m:
+                self.summary = tuple(int(g) for g in m.groups())
+            if line.startswith("Report: "):
+                self.report_path = Path(line[len("Report: "):].strip())
+
+    def status(self, test_id):
+        return [r[0] for r in self.results.get(test_id, [])]
+
+    @property
+    def out_dir(self):
+        return self.report_path.parent if self.report_path else None
+
+    def report(self):
+        return json.loads(self.report_path.read_text())
+
+    def junit(self):
+        """test id -> (verdict child tag or "", its message + text): gdUnit's results.xml in the run's out dir."""
+        files = sorted(self.out_dir.rglob("results.xml")) if self.out_dir else []
+        if not files:
+            return None
+        cases = {}
+        for f in files:
+            for case in ET.parse(f).getroot().iter("testcase"):
+                m = re.search(r"'([^']+)'\)$", case.get("name", ""))
+                if not m:
+                    continue
+                verdict = next((c for c in case if c.tag in ("failure", "error", "skipped")), None)
+                cases[m.group(1)] = ("", "") if verdict is None else \
+                    (verdict.tag, (verdict.get("message") or "") + "\n" + (verdict.text or ""))
+        return cases
+
+    def bundles(self):
+        return [Path(m) for m in re.findall(r"^\s+bundle: (\S+)$", self.out, re.M)]
+
+
+@unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
+class GdUnitEngineTests(unittest.TestCase):
+    """The real engine through gdUnit: the harness probes' verdicts as run_tests.sh prints them and as gdUnit's JUnit
+    records them, the log gate ending a test at once, a requires_von test with no server, and the flags."""
+
+    VERDICT = "_harness/verdict_probe"
+    GAP = "_harness/gap_probe"
+    HOLD = "_harness/warning_hold_probe"
+    VON = "_harness/von_probe"
+    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="gdunit_engine_"))
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def run_tests(self, *args, timeout=900, **probe_env):
+        """run_tests.sh with `args`; its per-checkout state ($TMPDIR) kept apart from the person's."""
+        env = {k: v for k, v in os.environ.items() if k not in self.PROBE_ENV}
+        env.update(GODOT=godot_binary(), TMPDIR=str(Path(tempfile.mkdtemp(dir=self.tmp))), **probe_env)
+        started = time.monotonic()
+        r = subprocess.run(["bash", str(RUN), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+        return Run(r.returncode, r.stdout + r.stderr, time.monotonic() - started)
+
+    def probe(self, test_id, *flags, **probe_env):
+        return self.run_tests("--self-test", f"--id={test_id}", *flags, **probe_env)
+
+    def assert_junit(self, run, test_id, tag, *texts):
+        junit = run.junit()
+        self.assertIsNotNone(junit, f"no gdUnit results.xml under the run's out dir {run.out_dir}\n{run.out[-3000:]}")
+        self.assertIn(test_id, junit, f"no JUnit case named by {test_id}: {sorted(junit)}")
+        got_tag, text = junit[test_id]
+        if tag == "failure":
+            self.assertIn(got_tag, ("failure", "error"), f"{test_id} is a gdUnit failure in the JUnit, got {got_tag!r}")
+        else:
+            self.assertEqual(got_tag, tag, f"{test_id} in the JUnit")
+        for t in texts:
+            self.assertIn(t, text, f"the JUnit {got_tag} of {test_id}")
+
+    def test_a_run_writes_gdunits_junit_and_html_reports_in_its_out_dir(self):
+        run = self.probe(self.VERDICT)
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.VERDICT), ["PASS"], run.out)
+        self.assertIsNotNone(run.out_dir, "a run prints `Report: <out dir>/report.json`\n" + run.out)
+        self.assertTrue(list(run.out_dir.rglob("results.xml")), f"gdUnit's JUnit report in {run.out_dir}")
+        self.assertTrue(list(run.out_dir.rglob("index.html")), f"gdUnit's HTML report in {run.out_dir}")
+        self.assert_junit(run, self.VERDICT, "")
+
+    def test_lines_summary_report_and_bundles_keep_their_shape(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="fail")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.VERDICT), ["FAIL"], "one `FAIL  <id>  (<sim>s sim, <ms> ms)` line\n" + run.out)
+        self.assertIn("        ✗ verdict probe: a failed check", run.out)
+        self.assertEqual(run.summary, (0, 1, 0, 0, 0), run.out)
+        report = run.report()
+        self.assertTrue({"results", "stray_logs", "log_end"} <= set(report), sorted(report))
+        result = next(r for r in report["results"] if r["id"] == self.VERDICT)
+        self.assertTrue({"id", "name", "domain", "status", "reason", "time", "checks", "logs", "wall_ms"} <= set(result), sorted(result))
+        self.assertEqual(result["status"], "FAIL")
+        bundles = run.bundles()
+        self.assertEqual(len(bundles), 1, "a failed test prints one `bundle:` path\n" + run.out)
+        bundle = json.loads(bundles[0].read_text())
+        self.assertTrue({"events", "snapshot", "traces"} <= set(bundle), sorted(bundle))
+
+    def test_a_failed_check_is_a_gdunit_failure(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="fail")
+        self.assert_junit(run, self.VERDICT, "failure", "verdict probe: a failed check")
+
+    def test_a_timeout_is_a_gdunit_failure(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="timeout")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.VERDICT), ["TIMEOUT"], run.out)
+        self.assertIn("timed out after 1.0s", run.out)
+        self.assert_junit(run, self.VERDICT, "failure")
+
+    def test_a_skipped_test_is_gdunit_skipped(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="skip")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.VERDICT), ["SKIPPED"], run.out)
+        self.assert_junit(run, self.VERDICT, "skipped", "verdict probe: skipped on purpose")
+
+    def test_a_gap_is_gdunit_skipped_as_expected_to_fail_with_its_failed_checks(self):
+        run = self.probe(self.GAP)
+        self.assertEqual(run.code, 0, "a GAP is not a failure of the run\n" + run.out)
+        self.assertEqual(run.status(self.GAP), ["GAP"], run.out)
+        self.assertEqual(run.summary, (0, 0, 0, 0, 1), run.out)
+        self.assert_junit(run, self.GAP, "skipped", "gap: expected to fail", "gap probe: the behaviour is not built")
+
+    def test_a_gap_test_that_passes_is_a_failure(self):
+        run = self.probe(self.GAP, GAME_TEST_GAP="pass")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.GAP), ["FAIL"], run.out)
+        self.assertIn("drop the gap tag", run.out)
+        self.assert_junit(run, self.GAP, "failure", "drop the gap tag")
+
+    def test_a_logged_warning_fails_the_test_and_ends_it_at_once(self):
+        # The probe would wait 50000 s of sim time (timeout 100000 s): only the log gate gives a verdict in time, and
+        # gdUnit's own test timeout (300 s) is far off.
+        run = self.probe(self.HOLD, timeout=900, GAME_TEST_HOLD="warning")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.HOLD), ["FAIL"], run.out)
+        self.assertIn("Logged warning: gate probe hold warning", run.out)
+        _, sim, wall_ms, _ = run.results[self.HOLD][0]
+        self.assertLess(sim, 1.0, f"ended at the warning, not {sim}s of sim time later")
+        self.assertLess(wall_ms, 20000, f"ended at once, not after {wall_ms} ms")
+        self.assertLess(run.seconds, 120, f"the run took {run.seconds:.0f} s")
+        self.assert_junit(run, self.HOLD, "failure", "gate probe hold warning")
+
+    def test_a_requires_von_test_with_no_server_is_skipped_and_fails_under_require_von(self):
+        port = str(free_port())
+        run = self.probe(self.VON, "--include-von", GAME_TEST_VON_PORT=port)
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.VON), ["SKIPPED"], f"no server on port {port}: skipped\n" + run.out)
+        self.assert_junit(run, self.VON, "skipped")
+        run = self.probe(self.VON, "--require-von", GAME_TEST_VON_PORT=port)
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.VON), ["FAIL"], f"no server on port {port} under --require-von: FAIL\n" + run.out)
+        self.assert_junit(run, self.VON, "failure")
+
+    def test_a_requires_von_test_is_skipped_without_include_von(self):
+        run = self.probe(self.VON)
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.VON), ["SKIPPED"], run.out)
+        self.assertIn("--include-von", run.out)
+        self.assert_junit(run, self.VON, "skipped")
+
+    def test_list_prints_the_selection_and_runs_nothing(self):
+        run = self.run_tests("--self-test", "--list")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertRegex(run.out, re.compile(r"^_harness/von_probe\s+von\s+\[harness, von\]\s+Von probe$", re.M))
+        self.assertRegex(run.out, re.compile(r"^\d+ test\(s\)$", re.M))
+        self.assertEqual(run.results, {}, "--list runs no test")
+
+    def test_summary_prints_only_what_did_not_pass(self):
+        run = self.run_tests("--self-test", f"--id={self.VERDICT},{self.GAP}", "--summary")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.GAP), ["GAP"], run.out)
+        self.assertEqual(run.status(self.VERDICT), [], "a PASS is not printed with --summary\n" + run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 1), run.out)
+
+    def test_json_prints_the_results(self):
+        run = self.probe(self.VERDICT, "--json")
+        line = next((l for l in run.out.splitlines() if l.startswith("JSON: ")), None)
+        self.assertIsNotNone(line, run.out)
+        data = json.loads(line[len("JSON: "):])
+        self.assertEqual([r["status"] for r in data["results"] if r["id"] == self.VERDICT], ["PASS"])
+
+    def test_repeat_runs_each_test_that_many_times(self):
+        run = self.probe(self.VERDICT, "--repeat=2")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.summary[0], 2, run.out)
+
+    def test_fail_fast_stops_after_the_first_failure(self):
+        run = self.run_tests("--self-test", f"--id={self.GAP},{self.VERDICT}", "--fail-fast", GAME_TEST_GAP="pass")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.GAP), ["FAIL"], run.out)
+        self.assertEqual(run.status(self.VERDICT), [], "nothing runs after the first failure\n" + run.out)
+
+    def test_jobs_split_a_run_over_shards_and_print_one_total(self):
+        ids = ["projectile/pistol_shot_wounds", "worldgen/seed_reproducible"]
+        run = self.run_tests("--no-lint", "--jobs=2", "--id=" + ",".join(ids))
+        self.assertEqual(run.code, 0, run.out)
+        for test_id in ids:
+            self.assertEqual(run.status(test_id), ["PASS"], run.out)
+        self.assertRegex(run.out, re.compile(r"^2 passed, 0 failed, 0 timed out, 0 skipped, 0 gap  \(2 shards\)$", re.M))
+
+
+def os_data_dir() -> Path:
+    """The OS data folder Godot puts a project's custom user:// folder in (`config/custom_user_dir_name`)."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support"
+    if sys.platform.startswith("win"):
+        return Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+
+
+# A native suite written into the copy only: gdUnit's own log monitor (GodotGdErrorMonitor, which reads
+# GdUnitSettings.get_log_path()) must read the log this run writes (`--log-file <out>/godot.log`).
+LOG_PATH_PROBE = """extends UnitSuite
+
+
+func test_gdunit_reads_this_runs_log() -> void:
+	var run_log := ProjectSettings.globalize_path(TestBatch.option("--out").path_join("godot.log"))
+	assert_str(ProjectSettings.globalize_path(GdUnitSettings.get_log_path())).is_equal(run_log)
+"""
+
+
+@unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
+class FreshUserDirTests(unittest.TestCase):
+    """A run in a checkout whose user:// was never used (a fresh clone, CI, a coverage copy), so it holds no
+    logs/godot.log: gdUnit reads the run's own log, nothing is logged outside a test, and the run leaves
+    project.godot as it was. The checkout is a copy of this one with a user:// of its own (a custom user dir)."""
+
+    PROBE_ID = "general/zz_log_path_probe_suite"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="fresh_user_dir_"))
+        cls.copy = cls.tmp / "checkout"
+        listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
+                                check=True, capture_output=True).stdout.decode()
+        for rel in sorted({p for p in listed.split("\0") if p}):
+            src = ROOT / rel
+            if rel.startswith("artifacts/") or not src.is_file():
+                continue
+            (cls.copy / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, cls.copy / rel)
+        if (ROOT / ".godot").is_dir():
+            shutil.copytree(ROOT / ".godot", cls.copy / ".godot", symlinks=True)
+        cls.user_dir_name = f"fe-fresh-user-dir-{cls.tmp.name}"
+        cls.user_dir = os_data_dir() / cls.user_dir_name
+        project = cls.copy / "project.godot"
+        text = project.read_text()
+        head = "[application]\n"
+        assert head in text, "project.godot has an [application] section"
+        project.write_text(text.replace(head, head + "\nconfig/use_custom_user_dir=true\n"
+                                        f'config/custom_user_dir_name="{cls.user_dir_name}"\n', 1))
+        (cls.copy / "tests" / "general" / "zz_log_path_probe_suite.gd").write_text(LOG_PATH_PROBE)
+        cls.project_before = project.read_bytes()
+        cls.fresh = not (cls.user_dir / "logs" / "godot.log").exists()
+        env = dict(os.environ, GODOT=godot_binary(), TMPDIR=str(cls.tmp))
+        # No .git in the copy, so the wrapper's clean-lint fingerprint cannot be taken: --no-lint.
+        r = subprocess.run(["bash", str(cls.copy / "tools" / "run_tests.sh"), "--no-lint", f"--id={cls.PROBE_ID}"],
+                           cwd=cls.copy, env=env, capture_output=True, text=True, timeout=600)
+        cls.done = Run(r.returncode, r.stdout + r.stderr, 0.0)
+        cls.project_after = project.read_bytes()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        shutil.rmtree(cls.user_dir, ignore_errors=True)
+
+    def test_the_copys_user_dir_held_no_log(self):
+        self.assertTrue(self.fresh, f"{self.user_dir} already held logs/godot.log")
+
+    def test_the_run_passes_with_nothing_logged_outside_a_test(self):
+        self.assertEqual(self.done.code, 0, self.done.out)
+        self.assertNotIn("Logged outside any test", self.done.out)
+        self.assertEqual(self.done.report()["stray_logs"], [], self.done.out)
+
+    def test_gdunit_reads_the_runs_own_log(self):
+        probe = f"{self.PROBE_ID}::test_gdunit_reads_this_runs_log"
+        self.assertEqual(self.done.status(probe), ["PASS"], self.done.out)
+
+    def test_the_run_leaves_project_godot_as_it_was(self):
+        self.assertEqual(self.project_after, self.project_before)
 
 
 if __name__ == "__main__":

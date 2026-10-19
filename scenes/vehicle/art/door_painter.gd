@@ -1,22 +1,24 @@
 extends RefCounted
-
-## Vehicles domain: a vehicle's door, top-down pixel art (rendered through Art, `PixelArt.render_turned`). `opts.kind` and
-## `opts.door` name it (its `VehicleConfig.kinds` row entry); `opts.part` is which piece:
-##  - `panel`: the door seen from above as it swings, in its own canonical frame (front, +y, toward the hinge along it;
-##    across it its thickness, the outside on the `vehicle_art.door_frame` `outer` side): the painted skin with its handle,
-##    the black belt moulding, the top of the frame, and the trim on the inside (an armrest along it), which shows once
-##    it is open; shut lines at both ends. A sliding door carries its rail groove, a rear door a hinge strap.
-##  - `glass`: its side window, a strip of tinted glass between the belt line and the roof, in the vehicle's canonical frame
-##    (as the body is), so it stays put and fades as the door opens.
+## Vehicles domain: a vehicle's door, top-down pixel art (rendered through Art,
+## `PixelArt.render_turned`). `opts.kind` and `opts.door` name it (its `VehicleConfig.kinds` row
+## entry); `opts.part` is which piece:
+##  - `panel`: the door seen from above as it swings, in its own canonical frame (front, +y, toward
+##    the hinge along it; across it its thickness, the outside on the `vehicle_art.door_frame`
+##    `outer` side): the painted skin with its handle, the black belt moulding, the top of the
+##    frame, and the trim on the inside (an armrest along it), which shows once it is open; shut
+##    lines at both ends. A sliding door carries its rail groove, a rear door a hinge strap.
+##  - `glass`: its side window, a strip of tinted glass between the belt line and the roof, in the
+##    vehicle's canonical frame (as the body is), so it stays put and fades as the door opens.
 ##  - `mirror`: the wing mirror on a front door, standing out from it near the hinge.
 
 const Art = preload("res://scenes/vehicle/art/vehicle_art.gd")
-
-const _HEIGHT := 5  ## Heights (for cast shadows).
+## Heights (for cast shadows).
+const _HEIGHT := 5
 const _GLASS := 8
 
 
-## Paint the `opts.part` (`panel` / `glass` / `mirror`) of the door `opts.door` of an `opts.kind` vehicle onto `c` in `base` paint.
+## Paint the `opts.part` (`panel` / `glass` / `mirror`) of the door `opts.door` of an `opts.kind`
+## vehicle onto `c` in `base` paint.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var kind: StringName = opts.get("kind", &"car")
 	var def := door_def(kind, opts.get("door", &""))
@@ -60,11 +62,20 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 	c.fill(lining, inside, _HEIGHT)
 	# An armrest along the middle of the lining.
 	var rest_col: int = col.call(c.w - 2)
-	var rest := Rect2i(mini(rest_col, col.call(c.w - 1)), roundi(c.h * 0.35), 2, maxi(roundi(c.h * 0.3), 2))
+	var rest := Rect2i(
+		mini(rest_col, col.call(c.w - 1)),
+		roundi(c.h * 0.35),
+		2,
+		maxi(roundi(c.h * 0.3), 2),
+	)
 	c.fill(PixelCanvas.rounded(rest, 0), inside.lightened(0.15), _HEIGHT + 1)
 	# The handle, on the skin where it is pulled (a sliding door's near its front edge).
 	var from_hinge := (def["handle"] as Vector2).distance_to(def["hinge"])
-	var row := clampi(c.h - 1 - roundi(from_hinge) + (4 if from_hinge < c.h * 0.5 else 2), 2, c.h - 6)
+	var row := clampi(
+		c.h - 1 - roundi(from_hinge) + (4 if from_hinge < c.h * 0.5 else 2),
+		2,
+		c.h - 6,
+	)
 	if def["kind"] == &"rear":
 		row = clampi(roundi(c.h * 0.12), 2, c.h - 6)
 	c.line(Vector2i(col.call(0), row), Vector2i(col.call(0), row + 3), trim)
@@ -74,15 +85,17 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 	c.line(Vector2i(0, c.h - 1), Vector2i(c.w - 1, c.h - 1), t["outline"])
 	match def["kind"]:
 		&"slide":
-			c.line(Vector2i(col.call(3), 2), Vector2i(col.call(3), c.h - 3), t["shadow"])  # the rail groove
+			# the rail groove
+			c.line(Vector2i(col.call(3), 2), Vector2i(col.call(3), c.h - 3), t["shadow"])
 		&"rear":
 			for r in [c.h - 7, roundi(c.h * 0.55)]:  # hinge straps
 				c.line(Vector2i(col.call(0), r), Vector2i(col.call(2), r), trim)
 	c.cast_shadows()
 
 
-## The side window: tinted glass with a glint and a black rubber round it, the shape of the door's glass (its front cut
-## by the windscreen's pillar) in the strip from the roof out to the belt line (`glass_rect`).
+## The side window: tinted glass with a glint and a black rubber round it, the shape of the door's
+## glass (its front cut by the windscreen's pillar) in the strip from the roof out to the belt line
+## (`glass_rect`).
 static func _glass(c: PixelCanvas, kind: StringName, def: Dictionary) -> void:
 	var row: Dictionary = VehicleConfig.kinds[kind]
 	var look: Dictionary = VehicleConfig.looks[kind]
@@ -90,7 +103,8 @@ static func _glass(c: PixelCanvas, kind: StringName, def: Dictionary) -> void:
 	var gaps := Art.door_glass(row, look, def["id"])
 	var k := c.h / maxf(rect.size.x, 1.0)
 	var centre := rect.get_center()
-	var pane := Art.cached("door_glass/%s/%s|%d|%d" % [kind, def["id"], c.w, c.h], func() -> PixelCanvas.Shape:
+	var key := "door_glass/%s/%s|%d|%d" % [kind, def["id"], c.w, c.h]
+	var pane := Art.cached(key, func() -> PixelCanvas.Shape:
 		return Art.convex(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 			var p := Vector2(rect.position.x + (y + 0.5) / k, centre.y - (x + 0.5 - c.w * 0.5) / k)
 			return Art.in_door_glass(gaps, look, p)))
@@ -100,8 +114,8 @@ static func _glass(c: PixelCanvas, kind: StringName, def: Dictionary) -> void:
 	c.outline(pane, VehicleConfig.trim_color)
 
 
-## Where door `id`'s side glass lies (vehicle frame): its span along the body, from the roof out to the belt line on its
-## side.
+## Where door `id`'s side glass lies (vehicle frame): its span along the body, from the roof out to
+## the belt line on its side.
 static func glass_rect(kind: StringName, id: StringName) -> Rect2:
 	var look: Dictionary = VehicleConfig.looks[kind]
 	var span: Vector2 = look["glass"][id]
@@ -118,5 +132,9 @@ static func _mirror(c: PixelCanvas, base: Color) -> void:
 	var housing := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(housing, base, _GLASS)
 	c.bevel(housing, 1, 1, t["highlight"], t["shadow"])
-	c.fill(PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, 2), 0), VehicleConfig.glass_color.darkened(0.3), _GLASS)
+	c.fill(
+		PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, 2), 0),
+		VehicleConfig.glass_color.darkened(0.3),
+		_GLASS,
+	)
 	c.outline(housing, t["outline"])

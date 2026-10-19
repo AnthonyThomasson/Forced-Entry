@@ -1,5 +1,4 @@
 extends GameTest
-
 ## Eight puppets each walk into a different piece of furniture from a different side — from the top,
 ## bottom, left and right and from each corner (diagonals), light pieces to heavy. Every walker's
 ## real speed must stay steady once it meets its piece: no lunge past walk speed and no sudden
@@ -9,9 +8,9 @@ const WALK_SPEED := 150.0
 const CELL := 600.0
 const START_GAP := 100.0
 const FRAMES := 150
-## Frames after first contact ignored: the sweep stops at the surface, so that frame's travel is partial.
+## Frames after first contact ignored: the sweep stops at the surface, so that frame's travel is
+## partial.
 const SETTLE_FRAMES := 2
-
 ## [id, walker comes from (the direction it walks is the opposite), piece definition key]
 const CASES := [
 	[&"from_top", Vector2(0, -1), "sofa"],
@@ -28,7 +27,8 @@ const CASES := [
 func describe() -> Dictionary:
 	return {
 		"name": "Walking into furniture keeps speed steady",
-		"description": "Eight puppets walk into different furniture from the sides and corners; none's speed spikes or snaps between frames.",
+		"description": "Eight puppets walk into different furniture from the sides and corners; "
+			+ "none's speed spikes or snaps between frames.",
 		"tags": ["walk", "pushable", "locomotion"],
 		"timeout": 12.0,
 	}
@@ -41,7 +41,12 @@ func configure(s: TestSetup) -> void:
 		var c: Array = CASES[i]
 		var centre := _centre(i)
 		s.object(c[0], c[2], centre)
-		s.actor(c[0], &"puppet", centre + (c[1] as Vector2).normalized() * START_GAP, { "start_slot": 2 })
+		s.actor(
+			c[0],
+			&"puppet",
+			centre + (c[1] as Vector2).normalized() * START_GAP,
+			{ "start_slot": 2 },
+		)
 
 
 func run(t: TestContext) -> void:
@@ -79,8 +84,14 @@ func run(t: TestContext) -> void:
 				prev[id] = sp
 	for id in prev:
 		t.require(contact[id], "%s reached its piece" % id)
-		t.check(max_speed[id] <= WALK_SPEED * 1.05, "%s never lunges past walk speed (peak %.1f)" % [id, max_speed[id]])
-		t.check(max_jump[id] <= WALK_SPEED * 0.4, "%s speed never snaps between frames (max jump %.1f)" % [id, max_jump[id]])
+		t.check(
+			max_speed[id] <= WALK_SPEED * 1.05,
+			"%s never lunges past walk speed (peak %.1f)" % [id, max_speed[id]],
+		)
+		t.check(
+			max_jump[id] <= WALK_SPEED * 0.4,
+			"%s speed never snaps between frames (max jump %.1f)" % [id, max_jump[id]],
+		)
 
 
 ## Middle of case `i`'s cell in the 4×2 grid.

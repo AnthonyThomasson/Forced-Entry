@@ -1,43 +1,58 @@
 extends RefCounted
+## AI BEHAVIOUR sub-domain — WATCH. Where an NPC looks when no primitive has a reason to look
+## anywhere in particular, and which threat takes its eyes and its gun whatever it is doing
+## (docs/gaze-and-fire.md). The rule is one sentence: an NPC is always either looking at (and, when
+## it can, shooting) a threat, or watching its doors; never a wall, and never with its back to a
+## known threat. Owns the pick of the threat and the rotating look at a room's doorways, and nothing
+## else: `Behavior` runs the stage each tick and does the aiming, `Combat` the shooting,
+## `Locomotion` the walk it looks down.
 
-## AI BEHAVIOUR sub-domain — WATCH. Where an NPC looks when no primitive has a reason to look anywhere in particular, and
-## which threat takes its eyes and its gun whatever it is doing (docs/gaze-and-fire.md). The rule is one sentence: an NPC is
-## always either looking at (and, when it can, shooting) a threat, or watching its doors; never a wall, and never with its
-## back to a known threat. Owns the pick of the threat and the rotating look at a room's doorways, and nothing else: `Behavior`
-## runs the stage each tick and does the aiming, `Combat` the shooting, `Locomotion` the walk it looks down.
+## Doorways nearer than this (px) are not worth watching: the NPC stands in them.
+const DOOR_MIN_DISTANCE := 60.0
+## Spacing (px) of the points along the path tried for a clear line when a walking NPC picks where
+## to look.
+const PATH_STEP := 30.0
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`watch_*`, `search_look_rate`). ---
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`watch_*`,
+# `search_look_rate`).
 ## How far (px) down its path a walking NPC looks.
 var look_ahead: float
 ## Seconds a resting NPC looks at one doorway before turning to the next.
 var door_dwell: float
-## Seconds a hostile that is no longer seen still holds the NPC's eyes (while it has a clear line to where it was last seen).
+## Seconds a hostile that is no longer seen still holds the NPC's eyes (while it has a clear line to
+## where it was last seen).
 var lost_gaze: float
 ## Gaze turn speed (rad/s) while it looks from one doorway to the next.
 var look_rate: float
+## The Locomotion child (which room the NPC stands in).
+var _loco: Node
+## The perception sub-domain (the room's doorways, the clear-line test).
+var _perception: Node
+## The room whose doorways are being watched.
+var _room := ""
+## That room's doorway points worth watching, in a turn around the room.
+var _doors: Array = []
+## Which of them is being looked at.
+var _door := 0
+## Seconds left looking at it.
+var _dwell := 0.0
+## The NPC's body, handed in once by `bind`.
+var _character: Node
 
-## Doorways nearer than this (px) are not worth watching: the NPC stands in them.
-const DOOR_MIN_DISTANCE := 60.0
-## Spacing (px) of the points along the path tried for a clear line when a walking NPC picks where to look.
-const PATH_STEP := 30.0
 
-var _loco: Node                   ## The Locomotion child (which room the NPC stands in).
-
-
-## Ease `character`'s gaze from where it looks now toward `point`, by at most `rate` rad/s over `delta`, and aim it there
-## (100 px out); returns the new gaze angle. From the current facing, not a stored angle: something else (a threat) may have
-## held its eyes meanwhile. The one way a gaze is turned: the doors here, a searcher's unseen points, an entry's pie and corners.
+## Ease `character`'s gaze from where it looks now toward `point`, by at most `rate` rad/s over
+## `delta`, and aim it there (100 px out); returns the new gaze angle. From the current facing, not
+## a stored angle: something else (a threat) may have held its eyes meanwhile. The one way a gaze is
+## turned: the doors here, a searcher's unseen points, an entry's pie and corners.
 static func ease_gaze(character, point: Vector2, rate: float, delta: float) -> float:
 	var self_pos: Vector2 = character.global_position
-	var angle := rotate_toward((character.facing as Vector2).angle(), (point - self_pos).angle(), rate * delta)
+	var angle := rotate_toward(
+		(character.facing as Vector2).angle(),
+		(point - self_pos).angle(),
+		rate * delta,
+	)
 	character.aim_point = self_pos + Vector2.from_angle(angle) * 100.0
 	return angle
-var _perception: Node             ## The perception sub-domain (the room's doorways, the clear-line test).
-var _room := ""                   ## The room whose doorways are being watched.
-var _doors: Array = []            ## That room's doorway points worth watching, in a turn around the room.
-var _door := 0                    ## Which of them is being looked at.
-var _dwell := 0.0                 ## Seconds left looking at it.
-var _character: Node              ## The NPC's body, handed in once by `bind`.
 
 
 ## Capture the locomotion and the perception. Called once by `Behavior.setup()`.
@@ -51,10 +66,11 @@ func bind(character: Node) -> void:
 	_character = character
 
 
-## The contact that takes the NPC's eyes from `hostiles` (the known hostile contacts, hostile first and nearest first): the
-## one it is fighting if it can see it, else the nearest it can see, else the one it is fighting as last seen, else the nearest
-## it saw within `lost_gaze` seconds. {} with none. Seen or not, a contact stays a threat only as far as `Behavior` finds a line
-## to it: a hostile remembered behind a wall is not worth staring at the wall for.
+## The contact that takes the NPC's eyes from `hostiles` (the known hostile contacts, hostile first
+## and nearest first): the one it is fighting if it can see it, else the nearest it can see, else
+## the one it is fighting as last seen, else the nearest it saw within `lost_gaze` seconds. {} with
+## none. Seen or not, a contact stays a threat only as far as `Behavior` finds a line to it: a
+## hostile remembered behind a wall is not worth staring at the wall for.
 func threat(hostiles: Array, engaged_id: int) -> Dictionary:
 	var seen := {}
 	var engaged := {}
@@ -74,10 +90,11 @@ func threat(hostiles: Array, engaged_id: int) -> Dictionary:
 	return engaged if not engaged.is_empty() else recent
 
 
-## Where a walking NPC looks: the farthest point, up to `look_ahead` px down the walk the nav agent was just given, that it has
-## a clear line to. Along a straight walk that is well ahead; at a doorway it is through the door as soon as it can see
-## through, and the wall beside it never (the immediate waypoint hugs the jamb, and facing it looks at the jamb).
-## Vector2.INF with no walk or no clear point (the caller then looks where it steers).
+## Where a walking NPC looks: the farthest point, up to `look_ahead` px down the walk the nav agent
+## was just given, that it has a clear line to. Along a straight walk that is well ahead; at a
+## doorway it is through the door as soon as it can see through, and the wall beside it never (the
+## immediate waypoint hugs the jamb, and facing it looks at the jamb). Vector2.INF with no walk or
+## no clear point (the caller then looks where it steers).
 func travel_point() -> Vector2:
 	var walk: Dictionary = _loco.path_ahead()
 	if walk.is_empty():
@@ -103,9 +120,10 @@ func travel_point() -> Vector2:
 	return best
 
 
-## Resting with nothing to look at: turn to each doorway of the room in turn, `door_dwell` s apiece, easing between them. Does
-## nothing outdoors or in a room with no doorway in line (the gaze it has stays). A fresh NPC that was never given an aim looks
-## where its body points, not at the world's origin.
+## Resting with nothing to look at: turn to each doorway of the room in turn, `door_dwell` s apiece,
+## easing between them. Does nothing outdoors or in a room with no doorway in line (the gaze it has
+## stays). A fresh NPC that was never given an aim looks where its body points, not at the world's
+## origin.
 func idle_gaze(delta: float) -> void:
 	var here: Vector2 = _character.global_position
 	if _character.aim_point == Vector2.ZERO:
@@ -119,15 +137,16 @@ func idle_gaze(delta: float) -> void:
 	ease_gaze(_character, _doors[_door], look_rate, delta)
 
 
-## Forget the doorway being watched (a new order is taken): the next resting NPC starts again from the nearest.
+## Forget the doorway being watched (a new order is taken): the next resting NPC starts again from
+## the nearest.
 func reset() -> void:
 	_room = ""
 	_doors = []
 	_dwell = 0.0
 
 
-## Choose the next doorway to watch. On entering a room (or the first time) the nearest in line; afterwards the next one
-## round the NPC, so it sweeps all of them.
+## Choose the next doorway to watch. On entering a room (or the first time) the nearest in line;
+## afterwards the next one round the NPC, so it sweeps all of them.
 func _pick_door(room: String) -> void:
 	var here: Vector2 = _character.global_position
 	var fresh := room != _room or _doors.is_empty()
@@ -140,8 +159,8 @@ func _pick_door(room: String) -> void:
 	_dwell = door_dwell
 
 
-## The room's doorways worth watching from where the NPC stands, ordered by the angle they lie at round it: those with a clear
-## line to them and not right under its feet.
+## The room's doorways worth watching from where the NPC stands, ordered by the angle they lie at
+## round it: those with a clear line to them and not right under its feet.
 func _doors_of(room: String) -> Array:
 	var here: Vector2 = _character.global_position
 	var points: Array = []

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Claude Code Stop hook: when the turn changed game code, run the fast checks (GDScript lint + headless load
+# Claude Code Stop hook: when the turn changed what the lint reads, run the fast checks (GDScript lint + headless load
 # check) and, on failure, block the stop (exit 2) so the agent sees the errors and keeps working. The game
 # tests run on commit instead (.githooks/pre-commit).
 #
-# Skips silently when: the hook already fired this turn (stop_hook_active — no loops), nothing under
-# scenes/ tests/ addons/ or project.godot changed (addons/ because a lint rule, coverage_isolation, checks it), or
-# those files are identical to the last run (so an unfixed failure is reported once, not on every stop). Wired in
+# Skips silently when: the hook already fired this turn (stop_hook_active — no loops), nothing the lint reads
+# changed, or those files are identical to the last run (so an unfixed failure is reported once, not on every stop).
+# What the lint reads: scenes/ tests/ addons/ sandboxes/ and project.godot (addons/ because a lint rule,
+# coverage_isolation, checks it), every other .gd (tools/gdunit_discover.gd, tools/coverage/probe.gd ...) but the
+# coverage tool's fixture project, which the lint leaves out, and the gdstyle pass's own files. Wired in
 # .claude/settings.json.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -14,7 +16,8 @@ if grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' <(cat); then
   exit 0
 fi
 
-paths=(scenes tests addons project.godot)
+paths=(scenes tests addons sandboxes project.godot '*.gd' ':(exclude)tools/coverage/tests/fixtures'
+  gdstyle.toml tools/gdstyle.sh tools/lint_gdstyle.py)
 fingerprint=$( { git diff HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}" \
   | while read -r f; do echo "$f"; shasum "$f"; done; } | shasum | cut -d' ' -f1 )
 changed=$( { git diff --name-only HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}"; } | head -1 )

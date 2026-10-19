@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Run the game tests headless (scenes/testing/test_runner.gd, batch mode) and exit non-zero on any
-# failure, timeout, or engine error/warning logged ANYWHERE in the run: while a test is open (that test
-# fails), between tests and at start-up (reported as "Logged outside any test"), and after the runner has
-# finished judging (engine shutdown; tools/scan_godot_log.py reads that tail of each process's log).
+# Run the game tests headless through gdUnit4's command-line tool (addons/gdUnit4/bin/GdUnitCmdTool.gd, the suites in
+# tests/: one wrapper suite per folder running its catalog tests, scenes/testing/game_test_suite.gd, plus the native
+# *_suite.gd ones) and exit non-zero on any failure, timeout, or engine error/warning logged ANYWHERE in the run: while
+# a test is open (that test fails), between tests and at start-up (reported as "Logged outside any test"), and after
+# the run has finished judging (gdUnit's own reports, engine shutdown; tools/scan_godot_log.py reads that tail of each
+# process's log). The flags below reach the suites after `--` (scenes/testing/test_batch.gd); the verdict is read
+# from the run's report.json, gdUnit's own exit code only telling a crash.
 #
 # Selecting tests
 #   tools/run_tests.sh                    every test (Von tests skipped)
@@ -48,16 +51,19 @@
 #   --repeat=5      run each match 5 times; names FLAKY / FAILING tests
 #   --seed=42       pin every house() test to seed 42
 #   --strict-exit   also fail on Godot's own end-of-process leak report (reported as a NOTE by default)
-#   --no-lint       skip the GDScript lint that runs first (tools/lint.sh, ~5 s: unused variables, integer
-#                   division, shadowed names ... the warnings of the editor's Debugger > Errors tab). Any warning
-#                   fails the run before a single test starts. Not run for --list or --self-test, nor when
+#   --report=FILE   also write the run's merged report (results, stray_logs) to FILE (the in-game browser's Run all)
+#   --no-lint       skip the lint that runs first (tools/lint.sh, ~14 s: unused variables, integer division, shadowed
+#                   names ... the warnings of the editor's Debugger > Errors tab, the project lint rules, gdstyle). Any
+#                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
 #                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR).
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner.
 # Every run ends with a `Slowest:` line (wall-clock ms per test).
 # A failed test prints its final actor state and a `bundle:` path to a JSON with its event log,
 # state and traces. Each invocation gets its own engine log, report and bundles in a fresh temp dir
-# (printed as `Report:` / `bundle:`), so concurrent runs and a running game never share files.
+# (printed as `Report:` / `bundle:`), so concurrent runs and a running game never share files. gdUnit's JUnit and
+# HTML reports land in that dir too (gdunit/report_1/results.xml, index.html), and its own console, which the
+# printed output leaves out, in gdunit.txt.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
@@ -89,6 +95,7 @@ JOBS=
 CHANGED=0
 LINT=1
 SKIP=""   # --skip-domain=a,b, also forwarded to the runner
+export RUN_TESTS_REPORT_TO=""   # --report=FILE (save_reports writes the merged report there too)
 args=()
 for a in "$@"; do
   case "$a" in
@@ -99,6 +106,7 @@ for a in "$@"; do
       echo "  \"\$GODOT\" --path . res://scenes/testing/test_runner.tscn -- --play <words>" >&2
       exit 2 ;;
     --strict-exit) STRICT=--strict-exit ;;
+    --report=*) RUN_TESTS_REPORT_TO="${a#--report=}" ;;
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
     --no-lint) LINT=0 ;;
@@ -110,7 +118,7 @@ for a in "$@"; do
   esac
 done
 # --jobs=N|auto is explicit; without it a run of the whole suite uses auto and a selection (words, --id,
-# --domain, --failed, --repeat, --list ...) one process, since a process costs ~2 s to start and a few tests
+# --domain, --failed, --repeat, --list ...) one process, since a process costs ~3 s to start and a few tests
 # do not repay it. Resolved per run() call in `jobs_for`.
 JOBS_EXPLICIT=0
 [[ -n "$JOBS" ]] && JOBS_EXPLICIT=1
@@ -145,11 +153,125 @@ jobs_for() {
   auto_jobs
 }
 
-# Start one godot process writing its log/report/bundles to $1 (a fresh dir); extra args follow.
+# The suites (res:// paths) a run with these selection args can find its tests in, one per line, for gdUnit's `-a`:
+# the harness suite for --self-test; else every suite in tests/ outside the helper folders, narrowed by the paths the
+# selection names (--domain, --skip-domain, the folders of --id and --failed's ids). Which tests run is decided by the
+# suites themselves (test_batch.gd); this only spares gdUnit loading suites that cannot hold one.
+suites_for() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+from pathlib import Path
+opts, flags = {}, set()
+for a in sys.argv[1:]:
+    if a.startswith("--"):
+        k, eq, v = a.partition("=")
+        (opts.setdefault(k, []).append(v)) if eq else flags.add(k)
+def csv(k):
+    return [x.strip() for v in opts.get(k, []) for x in v.split(",") if x.strip()]
+def domain(path):
+    parts = path.relative_to("tests").parts
+    return parts[0] if len(parts) > 1 else "general"
+suites = sorted(Path("tests").rglob("*_suite.gd"))
+if "--self-test" in flags:
+    picked = [s for s in suites if domain(s) == "_harness"]
+else:
+    picked = [s for s in suites if not domain(s).startswith("_") and domain(s) not in csv("--skip-domain")]
+    if csv("--domain"):
+        picked = [s for s in picked if domain(s) in csv("--domain")]
+    ids = csv("--id")
+    for report in opts.get("--failed", []):
+        try:
+            ids += [r["id"] for r in json.load(open(report)).get("results", []) if r.get("status") in ("FAIL", "TIMEOUT")]
+        except Exception:
+            pass
+    if ids or "--failed" in opts:
+        # A catalog test is in its folder's wrapper suite; a native suite is named by its id or one of its cases'.
+        want = set()
+        for i in ids:
+            want.add(Path("tests", i.split("::")[0] + ".gd"))
+            folder = os.path.dirname(i)
+            want.add(Path("tests", folder, os.path.basename(folder) + "_suite.gd"))
+        picked = [s for s in picked if s in want]
+print("\n".join("res://" + s.as_posix() for s in picked))
+EOF
+}
+
+# gdUnit's own console (its banner, suite and case lines, statistics: coloured with CSI codes, a multi-line message
+# coloured over several lines) left out of what a run prints, so it reads as it always has: the verdict lines, the
+# summary, the game's log under --verbose. Line by line, as it comes: a line in CSI colour is gdUnit's, and so is each
+# line while a colour it opened is still open; what follows the last reset of a line whose coloured part is blank
+# (gdUnit's console leaves a coloured blank before the next line) is ours. Plain lines gdUnit prints are named.
+CONSOLE_FILTER=$(cat <<'EOF'
+import re, sys
+CSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+GDUNIT = re.compile(r"^(-{20,}|GdUnit4 Comandline Tool|Disabled fail fast!|Set report history count to |Set write reports to |"
+                    r"Headless mode is ignored by option |Please note that tests that use UI interaction |"
+                    r"Godot 'InputEvents' are not transported |have no effect in the test!|Finallize \.\. done|"
+                    r"Scanning for test suites in:|No test cases found, abort test run!)")
+open_colour = False
+for raw in sys.stdin:
+    line = raw.rstrip("\n")
+    codes = list(CSI.finditer(line))
+    if codes:
+        open_colour = codes[-1].group() not in ("\x1b[0m", "\x1b[m")
+        tail = line[codes[-1].end():]
+        if open_colour or not tail.strip() or CSI.sub("", line[:codes[-1].start()]).strip():
+            continue
+        line = tail
+    elif open_colour or not line.strip() or GDUNIT.match(line):
+        continue
+    print(line, flush=True)
+EOF
+)
+
+# Start one gdUnit process writing its log/report/bundles to $1 (a fresh dir); the selection args follow. Its console
+# goes whole to $1/gdunit.txt and, filtered (CONSOLE_FILTER), to stdout; the engine's stderr passes as it is. Its
+# reports go to $1/gdunit (-rd is resolved under res://, so the dir is named relative to the project). Returns the
+# run's verdict from $1/report.json (1 on a FAIL / TIMEOUT or a line logged outside any test), and 1 when gdUnit
+# crashed (an exit code other than its 0 / 100 failures / 101 orphans).
 godot_run() {
   local out="$1"; shift
+  local rel suites=() s code
+  rel=$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1]))' "$out")
+  while IFS= read -r s; do [[ -n "$s" ]] && suites+=(-a "$s"); done < <(suites_for "$@")
+  set +e
   "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
-    res://scenes/testing/test_runner.tscn -- --run-tests --out="$out" "$@"
+    -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
+    ${suites[@]+"${suites[@]}"} -- --out="$out" "$@" | tee "$out/gdunit.txt" | python3 -u -c "$CONSOLE_FILTER"
+  code=${PIPESTATUS[0]}
+  set -e
+  if [[ $code -ne 0 && $code -ne 100 && $code -ne 101 ]]; then
+    echo "gdUnit exited with $code: the run crashed (its console: $out/gdunit.txt)"
+    return 1
+  fi
+  if [[ ! -f "$out/report.json" ]] && grep -q "No test cases found" "$out/gdunit.txt"; then
+    # gdUnit runs no session, so no suite and no hook, when the selection holds no test: an empty run, as it was.
+    echo '{"results": [], "stray_logs": [], "log_end": 0}' > "$out/report.json"
+    echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
+    echo "Report: $out/report.json"
+  fi
+  verdict "$out"
+}
+
+# The verdict of the run that wrote $1/report.json: 1 when a test FAILED or TIMED OUT or a line was logged outside
+# any test, 0 otherwise (and when there is no report, which scan_log reports).
+verdict() {
+  python3 - "$1/report.json" <<'EOF'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+bad = any(r.get("status") in ("FAIL", "TIMEOUT") for r in data.get("results", [])) or bool(data.get("stray_logs"))
+sys.exit(1 if bad else 0)
+EOF
+}
+
+# `--list [words]`: the tests a run with these args would select, one line each, and nothing run
+# (scenes/testing/test_list.gd); it writes no report, so its whole log is scanned.
+godot_list() {
+  local out="$1"; shift
+  "$GODOT" --headless --path . --log-file "$out/godot.log" -s res://scenes/testing/test_list.gd -- --out="$out" "$@"
 }
 
 # Merge the report.json of each dir given into $LAST (what --failed reads) and fold each test's wall-clock ms into
@@ -169,6 +291,8 @@ for d in sys.argv[4:]:
     stray += data.get("stray_logs", [])
 if results or stray:
     json.dump({"results": results, "stray_logs": stray}, open(last, "w"))
+if os.environ.get("RUN_TESTS_REPORT_TO"):
+    json.dump({"results": results, "stray_logs": stray}, open(os.environ["RUN_TESTS_REPORT_TO"], "w"))
 fresh = {}
 for r in results:
     if r.get("status") in ("PASS", "FAIL", "GAP") and r.get("wall_ms", 0) > 0:
@@ -179,6 +303,8 @@ if fresh:
     except Exception:
         costs = {}
     for test_id, ms in fresh.items():
+        if "::" in test_id:
+            continue  # a native suite's case: it is never dealt out to a shard (they all run in the first)
         mean = sum(ms) / len(ms)
         costs[test_id] = mean if test_id not in costs else (costs[test_id] + mean) / 2
     json.dump(costs, open(costs_path + ".tmp", "w"))
@@ -218,7 +344,11 @@ run() {
   if [[ $sharded -eq 0 ]]; then
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     local code=0
-    godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+    if [[ $listing -eq 1 ]]; then
+      godot_list "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+    else
+      godot_run "$out" "$@" ${args[@]+"${args[@]}"} || code=$?
+    fi
     [[ $keep -eq 1 ]] && save_reports "$out"
     scan_log "$out" $listing || code=1
     return $code
@@ -279,7 +409,7 @@ for x in ${args[@]+"${args[@]}"}; do
 done
 # The same sources lint the same: the fingerprint of the last clean lint (HEAD plus every uncommitted change,
 # the way tools/stop_hook_checks.sh fingerprints) is kept in $LINT_OK, and a run on an identical tree skips the
-# ~4 s. It spans the whole checkout, so it covers everything the lint reads: the scripts the engine pass compiles,
+# ~14 s. It spans the whole checkout, so it covers everything the lint reads: the scripts the engine pass compiles,
 # the rules in tools/lint_rules/ and what they scan (scenes/, tests/, addons/, project.godot). Any edit, new file or
 # new commit changes it, so the lint still runs before every first test run.
 lint_fingerprint() {
@@ -323,6 +453,7 @@ if [[ $CHANGED -eq 1 ]]; then
       tests/_*/*) domains="$domains all" ;;    # an unknown helper folder: assume the worst
       tests/*/*.uid) ;;                        # generated next to a script
       tests/*/*_test.gd) [[ -f "$f" ]] && { id="${f#tests/}"; ids="$ids ${id%_test.gd}"; } ;;
+      tests/*/*_suite.gd) exact="$exact $(echo "$f" | cut -d/ -f2)" ;;   # a gdUnit suite: its domain's tests
       tests/*/*) exact="$exact $(echo "$f" | cut -d/ -f2)" ;;   # some other file in a domain's test folder
       scenes/*/*) domains="$domains $(affected "$(echo "$f" | cut -d/ -f2)")" ;;
       scenes/*|project.godot) domains="$domains all" ;;   # main.gd, root scenes, autoload wiring

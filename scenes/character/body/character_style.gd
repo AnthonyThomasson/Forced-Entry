@@ -1,23 +1,29 @@
 extends RefCounted
-
-## Character body: how a character looks in its style (`Character.style`, `look_seed`, `rank`; `docs/outfits.md`, styles).
-## `resolve` turns the style's row (`CharacterConfig.styles`) and what the character wears in that style (`Outfit.look(style)`)
-## into the one look every body painter draws from (registered with `PixelArt.handle`, the painters read it back with `PixelArt.look_of`):
-## - the character's own variety, drawn from its look seed in a fixed order (`_variety`): skin, hair and hair style, gloves,
-##   a pack, its optics and face, the colours of its eyes and ink, the implants (tattoos, inlays, a headset, a spine rig, cables, a
-##   patched sleeve), chrome arms and a chrome shin, and the sides a face plate and a patch sit on;
-## - each garment worn, its `kind` and its colour: the garment look's own (a police livery's) or one drawn from the style's
-##   palette it names, by the look seed and the palette (so a character keeps a colour as it changes clothes);
+## Character body: how a character looks in its style (`Character.style`, `look_seed`, `rank`;
+## `docs/outfits.md`, styles). `resolve` turns the style's row (`CharacterConfig.styles`) and what
+## the character wears in that style (`Outfit.look(style)`) into the one look every body painter
+## draws from (registered with `PixelArt.handle`, the painters read it back with
+## `PixelArt.look_of`):
+## - the character's own variety, drawn from its look seed in a fixed order (`_variety`): skin, hair
+##   and hair style, gloves, a pack, its optics and face, the colours of its eyes and ink, the
+##   implants (tattoos, inlays, a headset, a spine rig, cables, a patched sleeve), chrome arms and a
+##   chrome shin, and the sides a face plate and a patch sit on;
+## - each garment worn, its `kind` and its colour: the garment look's own (a police livery's) or one
+##   drawn from the style's palette it names, by the look seed and the palette (so a character keeps
+##   a colour as it changes clothes);
 ## - where nothing is worn on the body, the legs or the feet, the style's `bare` palettes;
-## - the sleeves per side (a colour, or null: bare to the shoulder or chrome) and a carrier's front and back panels.
+## - the sleeves per side (a colour, or null: bare to the shoulder or chrome) and a carrier's front
+##   and back panels.
 ## Nothing here changes what the body does.
 
 ## The look keys a garment slot's `kind` is stored under, and the key of its resolved colour.
-const _COLOURS := { "head": "helm", "body": "shirt", "vest": "vest_col", "pants": "pants_col", "feet": "feet_col" }
+const _COLOURS := {
+	"head": "helm", "body": "shirt", "vest": "vest_col", "pants": "pants_col", "feet": "feet_col",
+}
 
 
-## The look of a character in `style` (unknown = `CharacterConfig.default_style`) with variety seed `seed_value` and police
-## `rank`, wearing `worn` (`Outfit.look(style)`).
+## The look of a character in `style` (unknown = `CharacterConfig.default_style`) with variety seed
+## `seed_value` and police `rank`, wearing `worn` (`Outfit.look(style)`).
 static func resolve(style: StringName, seed_value: int, rank: int, worn: Dictionary) -> Dictionary:
 	if not CharacterConfig.styles.has(style):
 		style = CharacterConfig.default_style
@@ -37,7 +43,9 @@ static func resolve(style: StringName, seed_value: int, rank: int, worn: Diction
 		var colour: Variant = entry.get("color")
 		if colour == null:
 			var palette := String(entry.get("palette", bare.get(slot, "")))
-			colour = _palette(row, style, seed_value, palette, Color(0.3, 0.3, 0.3)) if palette != "" else null
+			colour = (_palette(row, style, seed_value, palette, Color(0.3, 0.3, 0.3))
+					if palette != ""
+					else null)
 		look[_COLOURS[slot]] = colour
 	for face in ["front", "back"]:
 		var cover: String = face + "_cover"
@@ -47,8 +55,9 @@ static func resolve(style: StringName, seed_value: int, rank: int, worn: Diction
 	return look
 
 
-## Side `side`'s sleeve in `look`: its colour, or null where the arm is bare to the shoulder (a borg's torn or missing sleeve,
-## a tank top) or chrome; a merc's long sleeve on its patch side is patched.
+## Side `side`'s sleeve in `look`: its colour, or null where the arm is bare to the shoulder (a
+## borg's torn or missing sleeve, a tank top) or chrome; a merc's long sleeve on its patch side is
+## patched.
 static func _sleeves(look: Dictionary) -> Array:
 	var shirt: Variant = look["shirt"]
 	var long: bool = look["body"] == "long_sleeves"
@@ -59,9 +68,15 @@ static func _sleeves(look: Dictionary) -> Array:
 				out[look["patch_side"]] = look["patch"]
 		"borg":
 			out = [null, null]
-			if long:  # One sleeve torn off: the chrome side bare, or the patch side when neither or both are chrome.
+			# One sleeve torn off: the chrome side bare, or the patch side when neither or both are
+			# chrome.
+			if long:
 				var arms: Array = look["chrome_arm"]
-				var torn: int = 0 if arms[0] and not arms[1] else 1 if arms[1] and not arms[0] else look["patch_side"]
+				var torn: int = (0
+						if arms[0] and not arms[1]
+						else 1
+						if arms[1] and not arms[0]
+						else look["patch_side"])
 				out[1 - torn] = shirt
 	for side in 2:
 		if look["chrome_arm"][side]:
@@ -69,8 +84,8 @@ static func _sleeves(look: Dictionary) -> Array:
 	return out
 
 
-## The character's own variety within its style, drawn from `seed_value` in a fixed order (so a draw added at the end never shifts
-## the ones before it).
+## The character's own variety within its style, drawn from `seed_value` in a fixed order (so a draw
+## added at the end never shifts the ones before it).
 static func _variety(row: Dictionary, style: StringName, seed_value: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([String(style), seed_value])
@@ -78,7 +93,9 @@ static func _variety(row: Dictionary, style: StringName, seed_value: int) -> Dic
 	look["skin"] = _from(rng, row.get("skin", [Color(0.8, 0.62, 0.48)]))
 	look["hair"] = _from(rng, row.get("hair", [Color.BLACK]))
 	look["hair_style"] = String(WeightedPick.key(rng, row.get("hair_styles", { "short": 1 }), true))
-	look["glove"] = row.get("glove", look["skin"]) if rng.randf() < float(row.get("gloves", 0.0)) else look["skin"]
+	look["glove"] = (row.get("glove", look["skin"])
+			if rng.randf() < float(row.get("gloves", 0.0))
+			else look["skin"])
 	look["pack"] = rng.randf() < float(row.get("pack", 0.0))
 	var optic_rows: Array = row.get("optics", [[1, "", ""]])
 	var optics: Array = optic_rows[WeightedPick.index(rng, optic_rows, 0, true)]
@@ -101,9 +118,15 @@ static func _variety(row: Dictionary, style: StringName, seed_value: int) -> Dic
 	return look
 
 
-## A colour from the style's palette `name` for this character: drawn by its seed and the palette's name, so it does not depend
-## on what else it wears. `fallback` when the style has no such palette.
-static func _palette(row: Dictionary, style: StringName, seed_value: int, name: String, fallback: Variant) -> Variant:
+## A colour from the style's palette `name` for this character: drawn by its seed and the palette's
+## name, so it does not depend on what else it wears. `fallback` when the style has no such palette.
+static func _palette(
+	row: Dictionary,
+	style: StringName,
+	seed_value: int,
+	name: String,
+	fallback: Variant,
+) -> Variant:
 	var list: Array = (row.get("palettes", {}) as Dictionary).get(name, [])
 	if list.is_empty():
 		return fallback

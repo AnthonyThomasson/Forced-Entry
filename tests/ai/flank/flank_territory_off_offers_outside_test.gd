@@ -1,7 +1,7 @@
 extends GameTest
-
-## The contrast to B8, the counterpart of flank_territory_confines_sides: the same kitchen, the same intruder at the back
-## door, but the defender is not territorial, so the garden side is offered like any other.
+## The contrast to B8, the counterpart of flank_territory_confines_sides: the same kitchen, the same
+## intruder at the back door, but the defender is not territorial, so the garden side is offered
+## like any other.
 
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -13,7 +13,8 @@ const LOOKING_AT := Vector2(400, 190)
 func describe() -> Dictionary:
 	return {
 		"name": "Without territory the outside flank side is offered",
-		"description": "The same defender and intruder with defend_territory off: the rear point in the garden, through the back door, is offered.",
+		"description": "The same defender and intruder with defend_territory off: the rear point "
+			+ "in the garden, through the back door, is offered.",
 		"tags": ["ai", "flank", "territory", "scripted"],
 		"timeout": 15.0,
 	}
@@ -37,4 +38,7 @@ func run(t: TestContext) -> void:
 	if not t.require(zones.has("rear"), "the rear side was weighed (%s)" % Flank.dump(brain)):
 		return
 	t.expect_eq(zones["rear"]["tags"]["inside"], false, "the rear point is outside the house")
-	t.check(Flank.offered_sides(brain).has("rear"), "the outside side is offered (%s)" % [Flank.offered_sides(brain)])
+	t.check(
+		Flank.offered_sides(brain).has("rear"),
+		"the outside side is offered (%s)" % [Flank.offered_sides(brain)],
+	)

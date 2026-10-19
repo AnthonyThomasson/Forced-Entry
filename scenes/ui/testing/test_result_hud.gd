@@ -1,10 +1,9 @@
 extends CanvasLayer
-
-## UI domain, test result banner: shown over a game test played from the test browser. While the test
-## runs it names it; when it ends it shows the verdict (PASS / FAIL / SKIPPED / TIMEOUT), each check with
-## ✓/✗, any logged errors, and Rerun / Back buttons — the world keeps running underneath. Built in code
-## like the other HUDs; it knows nothing of the Testing domain, only the descriptor and result dicts it
-## is handed.
+## UI domain, test result banner: shown over a game test played from the test browser. While the
+## test runs it names it; when it ends it shows the verdict (PASS / FAIL / SKIPPED / TIMEOUT), each
+## check with ✓/✗, any logged errors, and Rerun / Back buttons — the world keeps running underneath.
+## Built in code like the other HUDs; it knows nothing of the Testing domain, only the descriptor
+## and result dicts it is handed.
 
 ## Rerun pressed: rebuild and replay the same test.
 signal rerun_requested
@@ -18,16 +17,24 @@ signal pause_requested
 const STATUS_COLORS := {
 	"PASS": Color(0.45, 0.9, 0.45), "FAIL": Color(1.0, 0.4, 0.35), "TIMEOUT": Color(1.0, 0.6, 0.25),
 	"SKIPPED": Color(0.75, 0.75, 0.75), "RUNNING": Color(0.6, 0.8, 1.0),
-	"GAP": Color(0.85, 0.7, 0.4),  # tagged `gap`: failed as expected (a behaviour the code does not show yet)
+	# tagged `gap`: failed as expected (a behaviour the code does not show yet)
+	"GAP": Color(0.85, 0.7, 0.4),
 }
 
-var _title: Label             ## The test's name.
-var _status: Label            ## The verdict (or RUNNING), in its status colour.
-var _details: RichTextLabel   ## Each check with ✓/✗ and any logged errors.
-var _rerun: Button            ## Rerun the same test.
-var _queue_line: Label        ## A queued run's progress line (hidden outside a queue).
-var _next: Button             ## Skip a queued run's pause and start the next test.
-var _pause: Button            ## Pause / Resume the world.
+## The test's name.
+var _title: Label
+## The verdict (or RUNNING), in its status colour.
+var _status: Label
+## Each check with ✓/✗ and any logged errors.
+var _details: RichTextLabel
+## Rerun the same test.
+var _rerun: Button
+## A queued run's progress line (hidden outside a queue).
+var _queue_line: Label
+## Skip a queued run's pause and start the next test.
+var _next: Button
+## Pause / Resume the world.
+var _pause: Button
 
 
 func _ready() -> void:
@@ -95,7 +102,8 @@ func set_paused(paused: bool) -> void:
 	_pause.text = "Resume" if paused else "Pause"
 
 
-## A queued run is on test `index` of `total` (1-based): show the progress line and Next, hide Rerun.
+## A queued run is on test `index` of `total` (1-based): show the progress line and Next, hide
+## Rerun.
 func show_queue(index: int, total: int) -> void:
 	_queue_line.text = "Queue  %d / %d" % [index, total]
 	_queue_line.visible = true
@@ -134,7 +142,12 @@ func show_result(result: Dictionary) -> void:
 	var snapshot: Dictionary = result.get("snapshot", {})
 	for id in snapshot.get("actors", {}):
 		var a: Dictionary = snapshot["actors"][id]
-		lines.append("[color=#9aa7b4]· %s %s  health %s%s[/color]" % [id, a.get("position", ""), a.get("health", "?"), "  " + String(a["act"]) if a.has("act") else ""])
+		lines.append("[color=#9aa7b4]· %s %s  health %s%s[/color]" % [
+			id,
+			a.get("position", ""),
+			a.get("health", "?"),
+			"  " + String(a["act"]) if a.has("act") else "",
+		])
 	_details.text = "\n".join(lines)
 	_rerun.disabled = false
 

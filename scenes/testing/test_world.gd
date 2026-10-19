@@ -1,5 +1,4 @@
 extends Node2D
-
 ## Testing domain: one test's live world, built from a TestSetup through the published interfaces
 ## only (WorldGen, the Objects factories, NavBuilder, the character scenes + controller contract) —
 ## the same way main.gd composes a match. Freed between tests; `restore()` undoes the static-var
@@ -13,8 +12,9 @@ const PlayerController = preload("res://scenes/character/player_controller.gd")
 const NAV_UPDATER := preload("res://scenes/navigation/nav_updater.gd")
 const NAV_DEBUG := preload("res://scenes/navigation/nav_debug.gd")
 const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")
-## Most wall-clock ms `build` waits for the shared navigation map to answer with this world's navmesh (the map is
-## built on a worker thread, so a loaded machine is slow in real time, not in sim frames).
+## Most wall-clock ms `build` waits for the shared navigation map to answer with this world's
+## navmesh (the map is built on a worker thread, so a loaded machine is slow in real time, not in
+## sim frames).
 const NAV_SYNC_MS := 5000
 const ACTOR_SCENES := {
 	&"puppet": "res://scenes/character/character_base.tscn",
@@ -32,21 +32,23 @@ var openings: Array = []
 var actors: Dictionary = {}
 var objects: Dictionary = {}
 var vehicles: Dictionary = {}
-
 ## Original values of overridden statics: `[script, prop, value]`.
 var _saved_statics: Array = []
-## The overlay toggles (`show_<x>` -> on), given to every actor as it spawns and changed by `set_overlay`.
+## The overlay toggles (`show_<x>` -> on), given to every actor as it spawns and changed by
+## `set_overlay`.
 var _overlay_flags: Dictionary = {}
 ## The baked navigation region (see `_await_nav_sync`).
 var _nav_region: NavigationRegion2D = null
-## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the updater.
+## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the
+## updater.
 var _nav_debug: Node2D = null
 
 
 ## Build everything `setup` declares. Statics and switches are applied before anything spawns, so
 ## spawning already sees them. The world (walls, objects, navmesh) is stepped through two physics
-## frames before any actor enters: the walls' colliders and the navmesh only go live on a physics step, and
-## an NPC thinking on its first tick would otherwise see through the walls and plan on an empty map.
+## frames before any actor enters: the walls' colliders and the navmesh only go live on a physics
+## step, and an NPC thinking on its first tick would otherwise see through the walls and plan on an
+## empty map.
 func build(setup: TestSetup) -> void:
 	for switch_name in setup.switches:
 		if not TestSwitches.has(switch_name):
@@ -57,7 +59,12 @@ func build(setup: TestSetup) -> void:
 	for o in setup.objects:
 		var opts: Dictionary = o["opts"].duplicate()
 		opts["name"] = String(o["id"])
-		objects[o["id"]] = ObjectFactory.spawn(o["definition"], house.to_local(o["position"]), house, opts)
+		objects[o["id"]] = ObjectFactory.spawn(
+			o["definition"],
+			house.to_local(o["position"]),
+			house,
+			opts,
+		)
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
@@ -72,8 +79,9 @@ func build(setup: TestSetup) -> void:
 		if vehicle != null:
 			vehicles[v["id"]] = vehicle
 	if not vehicles.is_empty():
-		# A new body joins the physics server's broadphase only at its next step: wait for it, so the vehicles are solid
-		# (and found by space queries) before an actor is placed or the test's first query runs.
+		# A new body joins the physics server's broadphase only at its next step: wait for it, so
+		# the vehicles are solid (and found by space queries) before an actor is placed or the
+		# test's first query runs.
 		await get_tree().physics_frame
 	for a in setup.actors:
 		actors[a["id"]] = _spawn_actor(a, setup.switches)
@@ -128,11 +136,13 @@ func _set_static(script: Script, prop: StringName, value: Variant) -> void:
 	script.set(prop, value)
 
 
-## Wait (at most `NAV_SYNC_MS` of real time, a physics frame at a time) until the shared navigation map answers queries with this world's
-## navmesh: the closest map point to a room's centre belongs to this world's region. The map's iteration is built
-## asynchronously, so under load its id and region list can already show the new region while queries still run on an
-## empty (or the previous test's) iteration, and an NPC that snaps a point onto the map then gets the origin, and walks
-## there. The steering map (the characters' own, see NavBuilder.steering_map) is built the same way and waited for too.
+## Wait (at most `NAV_SYNC_MS` of real time, a physics frame at a time) until the shared navigation
+## map answers queries with this world's navmesh: the closest map point to a room's centre belongs
+## to this world's region. The map's iteration is built asynchronously, so under load its id and
+## region list can already show the new region while queries still run on an empty (or the previous
+## test's) iteration, and an NPC that snaps a point onto the map then gets the origin, and walks
+## there. The steering map (the characters' own, see NavBuilder.steering_map) is built the same way
+## and waited for too.
 func _await_nav_sync() -> void:
 	if rooms.is_empty() or not is_instance_valid(_nav_region):
 		return
@@ -144,13 +154,14 @@ func _await_nav_sync() -> void:
 	while not _map_synced(map, _nav_region, centre) \
 			or (steering != null and not _map_synced(steering_map, steering, centre)):
 		if Time.get_ticks_msec() > deadline:
-			push_error("TestWorld: the navigation map did not take in the world's navmesh within %d ms" % NAV_SYNC_MS)
+			push_error(("TestWorld: the navigation map did not take in the world's navmesh within "
+						+ "%d ms") % NAV_SYNC_MS)
 			return
 		await get_tree().physics_frame
 
 
-## Whether `map` has finished an iteration and answers with `region` for `centre`. A map that has not synchronized yet
-## is not asked (that query is an engine error), so the wait just goes on.
+## Whether `map` has finished an iteration and answers with `region` for `centre`. A map that has
+## not synchronized yet is not asked (that query is an engine error), so the wait just goes on.
 func _map_synced(map: RID, region: NavigationRegion2D, centre: Vector2) -> bool:
 	return NavigationServer2D.map_get_iteration_id(map) > 0 \
 			and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid()
@@ -159,7 +170,12 @@ func _map_synced(map: RID, region: NavigationRegion2D, centre: Vector2) -> bool:
 ## Build the generated house or the arena, and read its rooms.
 func _build_world(world: Dictionary) -> void:
 	if world["kind"] == "house":
-		house = WorldGen.generate(int(world["seed"]), String(world.get("plan", "")), world.get("entrance", Vector2.ZERO), self)
+		house = WorldGen.generate(
+			int(world["seed"]),
+			String(world.get("plan", "")),
+			world.get("entrance", Vector2.ZERO),
+			self,
+		)
 	elif world["kind"] == "layout":
 		house = LayoutBuilder.build(world, self)
 	else:
@@ -172,9 +188,10 @@ func _build_world(world: Dictionary) -> void:
 func _build_nav() -> void:
 	var region := NavBuilder.build(house, rooms, self)
 	_nav_region = region
-	# Every test world shares the viewport's navigation map, which a previous test has already synced. Without
-	# this, the new region is not yet in the map when its NPCs first decide, and a path query against the stale map
-	# returns the origin (a point, not a route), so the NPC walks to (0, 0). Sync now, before any actor spawns.
+	# Every test world shares the viewport's navigation map, which a previous test has already
+	# synced. Without this, the new region is not yet in the map when its NPCs first decide, and a
+	# path query against the stale map returns the origin (a point, not a route), so the NPC walks
+	# to (0, 0). Sync now, before any actor spawns.
 	NavigationServer2D.map_force_update(get_world_2d().navigation_map)
 	NavigationServer2D.map_force_update(NavBuilder.steering_map(get_world_2d().navigation_map))
 	_nav_debug = NAV_DEBUG.new()
@@ -188,9 +205,9 @@ func _build_nav() -> void:
 	updater.setup(region, house, rooms, _nav_debug)
 
 
-## Instance vehicle `v` (`TestSetup.vehicle`) from `res://scenes/vehicle/<kind>.tscn`, set its props, then add it to
-## the world, already in place. A kind with no scene is left out (null) without an error, so a test written before the
-## vehicle exists fails on its own `require`.
+## Instance vehicle `v` (`TestSetup.vehicle`) from `res://scenes/vehicle/<kind>.tscn`, set its
+## props, then add it to the world, already in place. A kind with no scene is left out (null)
+## without an error, so a test written before the vehicle exists fails on its own `require`.
 func _spawn_vehicle(v: Dictionary) -> Node:
 	var path := "res://scenes/vehicle/%s.tscn" % v["kind"]
 	if not ResourceLoader.exists(path):
@@ -203,7 +220,8 @@ func _spawn_vehicle(v: Dictionary) -> Node:
 	var props: Dictionary = v["props"]
 	for prop in props:
 		vehicle.set(prop, props[prop])
-	# Placed before it joins the tree, like an actor: a body added at the origin and moved afterwards shoves what is there.
+	# Placed before it joins the tree, like an actor: a body added at the origin and moved
+	# afterwards shoves what is there.
 	if vehicle is Node2D:
 		vehicle.position = to_local(v["position"])
 		vehicle.rotation = v["rotation"]
@@ -259,8 +277,8 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 			child.rooms = rooms
 			if "openings" in child:
 				child.openings = openings
-	# Positioned before it joins the tree: a body added at the origin and moved afterwards launches whatever
-	# stands there (the same trap `match_spawner.gd` avoids).
+	# Positioned before it joins the tree: a body added at the origin and moved afterwards launches
+	# whatever stands there (the same trap `match_spawner.gd` avoids).
 	character.position = to_local(a["position"])
 	add_child(character)
 	return character

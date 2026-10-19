@@ -14,7 +14,8 @@ Empty, or too vague to tell expected from actual: ask one concise question first
 1. **Orient.** Load `architecture`, the `domain-<name>` skill where the bug lives, `domain-testing` and `test-debug`.
 2. **Place it.** Write it as *expected vs. actual* in one or two lines. The test goes in
    `tests/<domain>/<name>_test.gd`; check `tools/run_tests.sh --list <words>` first and extend an existing test rather
-   than add a near-duplicate.
+   than add a near-duplicate. It is a simulation test (`GameTest`): a native gdUnit suite (`*_suite.gd`) is for pure
+   logic only and may add checks of the pure function at fault beneath it, never in its place (`domain-testing`).
 3. **Red.** Write the smallest test that triggers the symptom through published interfaces only (world/`house()` plus
    behaviour switches; `--seed=N` if it depends on layout). Run it inline, Bash sandbox disabled:
    `tools/run_tests.sh --id=<domain>/<name>`. It must FAIL *for the bug's reason*: read the `✗` lines and the `bundle:`

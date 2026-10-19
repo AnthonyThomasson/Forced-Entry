@@ -1,5 +1,4 @@
 class_name GeneralCatalog
-
 ## World Generation domain: shared catalogue: objects and arrangements used by 2+ room categories,
 ## the combined room-type recipes (kitchen_living, studio) that draw from several categories, the
 ## WOOD/FABRIC material palettes every recipe shares, the FLOORS a palette's `floor` names, and the
@@ -15,52 +14,431 @@ class_name GeneralCatalog
 ##   art (optional pixel-art painter id, e.g. "sofa", "cabinet", "appliance"; omitted =
 ##     flat shape + label) and art_opts (optional painter variant/overrides, e.g.
 ##     { "front": "drawers", "count": 3 } or { "props": [...] });
-##   anchored (optional, default false: a solid piece that never moves, the street lamps' posts) and overhang (optional
-##     `{ size, reach }`: an overhead part drawn beyond the footprint above the characters, a street lamp's arm and head).
+##   anchored (optional, default false: a solid piece that never moves, the street lamps' posts) and
+##     overhang (optional `{ size, reach }`: an overhead part drawn beyond the footprint above the
+##     characters, a street lamp's arm and head).
 ## Arrangements/recipes: see ArrangementDefinitions for the authoring conventions.
-## Objects and arrangements used by 2+ room categories (bench, console_wall, bookshelf_wall, the rugs, …) live here, and the
-## run-down dressing every room shares: the walk-over CLUTTER a recipe strews (its `clutter`, or this default) and the neon
-## tube on a wall (RoomDresser), and the STREET round the house with its street lamps.
+## Objects and arrangements used by 2+ room categories (bench, console_wall, bookshelf_wall, the
+## rugs, …) live here, and the run-down dressing every room shares: the walk-over CLUTTER a recipe
+## strews (its `clutter`, or this default) and the neon tube on a wall (RoomDresser), and the STREET
+## round the house with its street lamps.
 
 const OBJECTS := {
-	"chair": { "name": "Chair", "shape": "square", "size": Vector2(28, 28), "color": Color(0.5, 0.33, 0.18), "material": "wood", "art": "chair", "weight": 6, "coverage": 45, "penetration": 50, "interactions": [{ "id": "sit", "label": "Sit", "move_to": true }, { "id": "stand_on", "label": "Stand on it", "move_to": true }] },
-	"lamp": { "name": "Lamp", "shape": "circle", "size": Vector2(20, 20), "color": Color(1.0, 1.0, 0.6), "material": "metal", "art": "lamp", "weight": 3, "coverage": 55, "penetration": 30, "interactions": [{ "id": "toggle", "label": "Toggle light" }, { "id": "examine", "label": "Examine" }] },
-	"plant": { "name": "Plant", "shape": "circle", "size": Vector2(26, 26), "color": Color(0.25, 0.6, 0.3), "material": "foliage", "art": "plant", "weight": 5, "coverage": 50, "penetration": 10, "interactions": [{ "id": "water", "label": "Water plant" }, { "id": "examine", "label": "Examine" }] },
-	"armchair": { "name": "Armchair", "shape": "square", "size": Vector2(50, 50), "color": Color(0.7, 0.45, 0.3), "material": "fabric", "art": "sofa", "art_opts": { "cushion_width": 200.0, "pillows": false, "arm_width": 0.2, "back_depth": 0.3 }, "weight": 22, "coverage": 50, "penetration": 25, "interactions": [{ "id": "sit", "label": "Sit", "move_to": true }, { "id": "lie", "label": "Curl up", "move_to": true }] },
-	"side_table": { "name": "Side", "shape": "square", "size": Vector2(30, 30), "color": Color(0.55, 0.35, 0.2), "material": "wood", "art": "table", "art_opts": { "props": [{ "kind": "book", "at": Vector2(0.5, 0.5) }] }, "weight": 8, "coverage": 40, "penetration": 45, "interactions": [{ "id": "examine", "label": "Examine" }] },
-	"bookshelf": { "name": "Books", "shape": "rect", "size": Vector2(40, 80), "color": Color(0.4, 0.2, 0.0), "material": "wood", "art": "shelf", "art_opts": { "contents": "books" }, "weight": 30, "coverage": 90, "penetration": 60, "interactions": [{ "id": "browse", "label": "Browse books" }, { "id": "examine", "label": "Examine" }] },
-	"coat_rack": { "name": "Coats", "shape": "circle", "size": Vector2(24, 24), "color": Color(0.45, 0.3, 0.15), "material": "wood", "art": "coat_rack", "weight": 6, "coverage": 60, "penetration": 25, "interactions": [{ "id": "examine", "label": "Examine" }] },
-	"shoe_rack": { "name": "Shoes", "shape": "rect", "size": Vector2(60, 25), "color": Color(0.45, 0.3, 0.15), "material": "wood", "art": "shelf", "art_opts": { "contents": "shoes" }, "weight": 7, "coverage": 20, "penetration": 35, "interactions": [{ "id": "examine", "label": "Examine" }] },
-	"sink": { "name": "Sink", "shape": "square", "size": Vector2(50, 50), "color": Color(0.7, 0.8, 0.9), "material": "ceramic", "art": "counter", "art_opts": { "basin": "single" }, "weight": 20, "coverage": 45, "penetration": 45, "interactions": [{ "id": "use", "label": "Wash up" }, { "id": "examine", "label": "Examine" }] },
-	"cabinet": { "name": "Cabinet", "shape": "rect", "size": Vector2(50, 35), "color": Color(0.55, 0.35, 0.2), "material": "wood", "art": "cabinet", "art_opts": { "front": "doors", "count": 2 }, "weight": 22, "coverage": 55, "penetration": 50, "interactions": [{ "id": "open", "label": "Open cabinet" }, { "id": "examine", "label": "Examine" }] },
-	"nightstand": { "name": "Night", "shape": "square", "size": Vector2(40, 40), "color": Color(0.6, 0.4, 0.2), "material": "wood", "art": "cabinet", "art_opts": { "front": "drawers", "count": 1, "props": [{ "kind": "clock", "at": Vector2(0.28, 0.45) }, { "kind": "book", "at": Vector2(0.68, 0.5) }] }, "weight": 10, "coverage": 40, "penetration": 45, "interactions": [{ "id": "open", "label": "Open drawer" }, { "id": "examine", "label": "Examine" }] },
-	"desk": { "name": "Desk", "shape": "rect", "size": Vector2(120, 50), "color": Color(0.4, 0.25, 0.1), "material": "wood", "art": "table", "art_opts": { "props": [{ "kind": "monitor", "at": Vector2(0.5, 0.22) }, { "kind": "keyboard", "at": Vector2(0.5, 0.62) }, { "kind": "mug", "at": Vector2(0.83, 0.55) }, { "kind": "papers", "at": Vector2(0.15, 0.5) }] }, "weight": 24, "coverage": 45, "penetration": 50, "interactions": [{ "id": "sit_at", "label": "Sit at desk", "move_to": true }, { "id": "examine", "label": "Examine" }] },
-	"washing_machine": { "name": "Wash", "shape": "square", "size": Vector2(60, 60), "color": Color(0.9, 0.9, 0.9), "material": "metal", "art": "appliance", "art_opts": { "panel": "washer" }, "weight": 70, "coverage": 55, "penetration": 80 },
-	"dryer": { "name": "Dryer", "shape": "square", "size": Vector2(60, 60), "color": Color(0.7, 0.7, 0.7), "material": "metal", "art": "appliance", "art_opts": { "panel": "dryer" }, "weight": 55, "coverage": 55, "penetration": 80 },
-	"bench": { "name": "Bench", "shape": "rect", "size": Vector2(80, 30), "color": Color(0.55, 0.4, 0.25), "material": "wood", "art": "table", "art_opts": { "gaps": true, "plank_px": 6, "rim_px": 1 }, "weight": 14, "coverage": 30, "penetration": 50 },
-	"console_table": { "name": "Console", "shape": "rect", "size": Vector2(90, 28), "color": Color(0.5, 0.34, 0.2), "material": "wood", "art": "table", "art_opts": { "plank_px": 7, "props": [{ "kind": "bowl", "at": Vector2(0.3, 0.5) }, { "kind": "vase", "at": Vector2(0.75, 0.5) }] }, "weight": 14, "coverage": 30, "penetration": 45 },
-	"mirror": { "name": "Mirror", "shape": "rect", "size": Vector2(44, 12), "color": Color(0.7, 0.82, 0.85), "material": "glass", "art": "fixture", "art_opts": { "kind": "mirror" }, "weight": 6, "coverage": 40, "penetration": 20 },
-	"rug_large": { "name": "Rug", "shape": "rect", "size": Vector2(250, 170), "color": Color(0.6, 0.35, 0.35), "material": "fabric", "art": "rug", "art_opts": { "pattern": "medallion" }, "weight": 5, "solid": false, "coverage": 0, "penetration": 5 },
-	"runner": { "name": "Runner", "shape": "rect", "size": Vector2(220, 56), "color": Color(0.6, 0.35, 0.35), "material": "fabric", "art": "rug", "art_opts": { "pattern": "stripes" }, "weight": 3, "solid": false, "coverage": 0, "penetration": 5 },
-	# Walk-over clutter (RoomDresser strews it, 0-2 a room): non-solid, coverless, never carved into the nav map.
-	"trash": { "name": "Trash", "shape": "rect", "size": Vector2(30, 24), "color": Color(0.1, 0.1, 0.11), "material": "plastic", "art": "decor", "art_opts": { "kind": "trash" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	"cables": { "name": "Cables", "shape": "rect", "size": Vector2(84, 14), "color": Color(0.1, 0.1, 0.1), "material": "plastic", "art": "decor", "art_opts": { "kind": "cables" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	"cable_nest": { "name": "Cables", "shape": "rect", "size": Vector2(60, 48), "color": Color(0.1, 0.1, 0.1), "material": "plastic", "art": "decor", "art_opts": { "kind": "cable_nest" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	"cardboard": { "name": "Cardboard", "shape": "rect", "size": Vector2(40, 28), "color": Color(0.62, 0.48, 0.3), "material": "fabric", "art": "decor", "art_opts": { "kind": "cardboard" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	"puddle": { "name": "Puddle", "shape": "rect", "size": Vector2(48, 30), "color": Color(0.14, 0.12, 0.08), "material": "", "art": "decor", "art_opts": { "kind": "puddle" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	# A neon tube along the foot of a wall (RoomDresser, about every other room); its `tone` is picked per room.
-	"neon_tube": { "name": "Neon", "shape": "rect", "size": Vector2(64, 7), "color": Color(0.8, 0.9, 1.0), "material": "glass", "art": "decor", "art_opts": { "kind": "neon_tube" }, "weight": 1, "solid": false, "coverage": 0, "penetration": 0 },
-	# The street lamps along the front of the house (HouseSpawner, `streetlight_*` in WorldGenConfig), every other one a neon
-	# sign (its `neon` picked per lamp): a thin steel post, anchored, as tall as anything on the street (never flown over),
-	# as hard to shoot through as a thin steel post; its arm and head (or sign) hang overhead out over the road (`overhang`,
+	"chair": {
+		"name": "Chair",
+		"shape": "square",
+		"size": Vector2(28, 28),
+		"color": Color(0.5, 0.33, 0.18),
+		"material": "wood",
+		"art": "chair",
+		"weight": 6,
+		"coverage": 45,
+		"penetration": 50,
+		"interactions": [
+			{ "id": "sit", "label": "Sit", "move_to": true },
+			{ "id": "stand_on", "label": "Stand on it", "move_to": true },
+		],
+	},
+	"lamp": {
+		"name": "Lamp",
+		"shape": "circle",
+		"size": Vector2(20, 20),
+		"color": Color(1.0, 1.0, 0.6),
+		"material": "metal",
+		"art": "lamp",
+		"weight": 3,
+		"coverage": 55,
+		"penetration": 30,
+		"interactions": [
+			{ "id": "toggle", "label": "Toggle light" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"plant": {
+		"name": "Plant",
+		"shape": "circle",
+		"size": Vector2(26, 26),
+		"color": Color(0.25, 0.6, 0.3),
+		"material": "foliage",
+		"art": "plant",
+		"weight": 5,
+		"coverage": 50,
+		"penetration": 10,
+		"interactions": [
+			{ "id": "water", "label": "Water plant" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"armchair": {
+		"name": "Armchair",
+		"shape": "square",
+		"size": Vector2(50, 50),
+		"color": Color(0.7, 0.45, 0.3),
+		"material": "fabric",
+		"art": "sofa",
+		"art_opts": {
+			"cushion_width": 200.0,
+			"pillows": false,
+			"arm_width": 0.2,
+			"back_depth": 0.3,
+		},
+		"weight": 22,
+		"coverage": 50,
+		"penetration": 25,
+		"interactions": [
+			{ "id": "sit", "label": "Sit", "move_to": true },
+			{ "id": "lie", "label": "Curl up", "move_to": true },
+		],
+	},
+	"side_table": {
+		"name": "Side",
+		"shape": "square",
+		"size": Vector2(30, 30),
+		"color": Color(0.55, 0.35, 0.2),
+		"material": "wood",
+		"art": "table",
+		"art_opts": { "props": [{ "kind": "book", "at": Vector2(0.5, 0.5) }] },
+		"weight": 8,
+		"coverage": 40,
+		"penetration": 45,
+		"interactions": [{ "id": "examine", "label": "Examine" }],
+	},
+	"bookshelf": {
+		"name": "Books",
+		"shape": "rect",
+		"size": Vector2(40, 80),
+		"color": Color(0.4, 0.2, 0.0),
+		"material": "wood",
+		"art": "shelf",
+		"art_opts": { "contents": "books" },
+		"weight": 30,
+		"coverage": 90,
+		"penetration": 60,
+		"interactions": [
+			{ "id": "browse", "label": "Browse books" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"coat_rack": {
+		"name": "Coats",
+		"shape": "circle",
+		"size": Vector2(24, 24),
+		"color": Color(0.45, 0.3, 0.15),
+		"material": "wood",
+		"art": "coat_rack",
+		"weight": 6,
+		"coverage": 60,
+		"penetration": 25,
+		"interactions": [{ "id": "examine", "label": "Examine" }],
+	},
+	"shoe_rack": {
+		"name": "Shoes",
+		"shape": "rect",
+		"size": Vector2(60, 25),
+		"color": Color(0.45, 0.3, 0.15),
+		"material": "wood",
+		"art": "shelf",
+		"art_opts": { "contents": "shoes" },
+		"weight": 7,
+		"coverage": 20,
+		"penetration": 35,
+		"interactions": [{ "id": "examine", "label": "Examine" }],
+	},
+	"sink": {
+		"name": "Sink",
+		"shape": "square",
+		"size": Vector2(50, 50),
+		"color": Color(0.7, 0.8, 0.9),
+		"material": "ceramic",
+		"art": "counter",
+		"art_opts": { "basin": "single" },
+		"weight": 20,
+		"coverage": 45,
+		"penetration": 45,
+		"interactions": [
+			{ "id": "use", "label": "Wash up" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"cabinet": {
+		"name": "Cabinet",
+		"shape": "rect",
+		"size": Vector2(50, 35),
+		"color": Color(0.55, 0.35, 0.2),
+		"material": "wood",
+		"art": "cabinet",
+		"art_opts": { "front": "doors", "count": 2 },
+		"weight": 22,
+		"coverage": 55,
+		"penetration": 50,
+		"interactions": [
+			{ "id": "open", "label": "Open cabinet" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"nightstand": {
+		"name": "Night",
+		"shape": "square",
+		"size": Vector2(40, 40),
+		"color": Color(0.6, 0.4, 0.2),
+		"material": "wood",
+		"art": "cabinet",
+		"art_opts": {
+			"front": "drawers",
+			"count": 1,
+			"props": [
+				{ "kind": "clock", "at": Vector2(0.28, 0.45) },
+				{ "kind": "book", "at": Vector2(0.68, 0.5) },
+			],
+		},
+		"weight": 10,
+		"coverage": 40,
+		"penetration": 45,
+		"interactions": [
+			{ "id": "open", "label": "Open drawer" },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"desk": {
+		"name": "Desk",
+		"shape": "rect",
+		"size": Vector2(120, 50),
+		"color": Color(0.4, 0.25, 0.1),
+		"material": "wood",
+		"art": "table",
+		"art_opts": {
+			"props": [
+				{ "kind": "monitor", "at": Vector2(0.5, 0.22) },
+				{ "kind": "keyboard", "at": Vector2(0.5, 0.62) },
+				{ "kind": "mug", "at": Vector2(0.83, 0.55) },
+				{ "kind": "papers", "at": Vector2(0.15, 0.5) },
+			],
+		},
+		"weight": 24,
+		"coverage": 45,
+		"penetration": 50,
+		"interactions": [
+			{ "id": "sit_at", "label": "Sit at desk", "move_to": true },
+			{ "id": "examine", "label": "Examine" },
+		],
+	},
+	"washing_machine": {
+		"name": "Wash",
+		"shape": "square",
+		"size": Vector2(60, 60),
+		"color": Color(0.9, 0.9, 0.9),
+		"material": "metal",
+		"art": "appliance",
+		"art_opts": { "panel": "washer" },
+		"weight": 70,
+		"coverage": 55,
+		"penetration": 80,
+	},
+	"dryer": {
+		"name": "Dryer",
+		"shape": "square",
+		"size": Vector2(60, 60),
+		"color": Color(0.7, 0.7, 0.7),
+		"material": "metal",
+		"art": "appliance",
+		"art_opts": { "panel": "dryer" },
+		"weight": 55,
+		"coverage": 55,
+		"penetration": 80,
+	},
+	"bench": {
+		"name": "Bench",
+		"shape": "rect",
+		"size": Vector2(80, 30),
+		"color": Color(0.55, 0.4, 0.25),
+		"material": "wood",
+		"art": "table",
+		"art_opts": { "gaps": true, "plank_px": 6, "rim_px": 1 },
+		"weight": 14,
+		"coverage": 30,
+		"penetration": 50,
+	},
+	"console_table": {
+		"name": "Console",
+		"shape": "rect",
+		"size": Vector2(90, 28),
+		"color": Color(0.5, 0.34, 0.2),
+		"material": "wood",
+		"art": "table",
+		"art_opts": {
+			"plank_px": 7,
+			"props": [
+				{ "kind": "bowl", "at": Vector2(0.3, 0.5) },
+				{ "kind": "vase", "at": Vector2(0.75, 0.5) },
+			],
+		},
+		"weight": 14,
+		"coverage": 30,
+		"penetration": 45,
+	},
+	"mirror": {
+		"name": "Mirror",
+		"shape": "rect",
+		"size": Vector2(44, 12),
+		"color": Color(0.7, 0.82, 0.85),
+		"material": "glass",
+		"art": "fixture",
+		"art_opts": { "kind": "mirror" },
+		"weight": 6,
+		"coverage": 40,
+		"penetration": 20,
+	},
+	"rug_large": {
+		"name": "Rug",
+		"shape": "rect",
+		"size": Vector2(250, 170),
+		"color": Color(0.6, 0.35, 0.35),
+		"material": "fabric",
+		"art": "rug",
+		"art_opts": { "pattern": "medallion" },
+		"weight": 5,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 5,
+	},
+	"runner": {
+		"name": "Runner",
+		"shape": "rect",
+		"size": Vector2(220, 56),
+		"color": Color(0.6, 0.35, 0.35),
+		"material": "fabric",
+		"art": "rug",
+		"art_opts": { "pattern": "stripes" },
+		"weight": 3,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 5,
+	},
+	# Walk-over clutter (RoomDresser strews it, 0-2 a room): non-solid, coverless, never carved into
+	# the nav map.
+	"trash": {
+		"name": "Trash",
+		"shape": "rect",
+		"size": Vector2(30, 24),
+		"color": Color(0.1, 0.1, 0.11),
+		"material": "plastic",
+		"art": "decor",
+		"art_opts": { "kind": "trash" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	"cables": {
+		"name": "Cables",
+		"shape": "rect",
+		"size": Vector2(84, 14),
+		"color": Color(0.1, 0.1, 0.1),
+		"material": "plastic",
+		"art": "decor",
+		"art_opts": { "kind": "cables" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	"cable_nest": {
+		"name": "Cables",
+		"shape": "rect",
+		"size": Vector2(60, 48),
+		"color": Color(0.1, 0.1, 0.1),
+		"material": "plastic",
+		"art": "decor",
+		"art_opts": { "kind": "cable_nest" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	"cardboard": {
+		"name": "Cardboard",
+		"shape": "rect",
+		"size": Vector2(40, 28),
+		"color": Color(0.62, 0.48, 0.3),
+		"material": "fabric",
+		"art": "decor",
+		"art_opts": { "kind": "cardboard" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	"puddle": {
+		"name": "Puddle",
+		"shape": "rect",
+		"size": Vector2(48, 30),
+		"color": Color(0.14, 0.12, 0.08),
+		"material": "",
+		"art": "decor",
+		"art_opts": { "kind": "puddle" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	# A neon tube along the foot of a wall (RoomDresser, about every other room); its `tone` is
+	# picked per room.
+	"neon_tube": {
+		"name": "Neon",
+		"shape": "rect",
+		"size": Vector2(64, 7),
+		"color": Color(0.8, 0.9, 1.0),
+		"material": "glass",
+		"art": "decor",
+		"art_opts": { "kind": "neon_tube" },
+		"weight": 1,
+		"solid": false,
+		"coverage": 0,
+		"penetration": 0,
+	},
+	# The street lamps along the front of the house (HouseSpawner, `streetlight_*` in
+	# WorldGenConfig), every other one a neon sign (its `neon` picked per lamp): a thin steel post,
+	# anchored, as tall as anything on the street (never flown over), as hard to shoot through as a
+	# thin steel post; its arm and head (or sign) hang overhead out over the road (`overhang`,
 	# across x out, its front the way the piece faces).
-	"streetlight": { "name": "Street lamp", "shape": "circle", "size": Vector2(14, 14), "color": Color(0.34, 0.33, 0.27), "material": "metal", "art": "streetlight", "art_opts": { "head": "cobra" }, "overhang": { "size": Vector2(16, 40), "reach": 20.0 }, "anchored": true, "weight": 250, "coverage": 100, "penetration": 85 },
-	"street_sign": { "name": "Neon sign", "shape": "circle", "size": Vector2(14, 14), "color": Color(0.34, 0.33, 0.27), "material": "metal", "art": "streetlight", "art_opts": { "head": "sign" }, "overhang": { "size": Vector2(24, 40), "reach": 20.0 }, "anchored": true, "weight": 250, "coverage": 100, "penetration": 85 },
+	"streetlight": {
+		"name": "Street lamp",
+		"shape": "circle",
+		"size": Vector2(14, 14),
+		"color": Color(0.34, 0.33, 0.27),
+		"material": "metal",
+		"art": "streetlight",
+		"art_opts": { "head": "cobra" },
+		"overhang": { "size": Vector2(16, 40), "reach": 20.0 },
+		"anchored": true,
+		"weight": 250,
+		"coverage": 100,
+		"penetration": 85,
+	},
+	"street_sign": {
+		"name": "Neon sign",
+		"shape": "circle",
+		"size": Vector2(14, 14),
+		"color": Color(0.34, 0.33, 0.27),
+		"material": "metal",
+		"art": "streetlight",
+		"art_opts": { "head": "sign" },
+		"overhang": { "size": Vector2(24, 40), "reach": 20.0 },
+		"anchored": true,
+		"weight": 250,
+		"coverage": 100,
+		"penetration": 85,
+	},
 }
-
-## The clutter a room strews when its recipe names none (`[key, weight]`; RoomDresser draws 0-2, no key twice).
-const CLUTTER := [["trash", 3.0], ["cables", 2.0], ["cardboard", 1.5], ["puddle", 1.5], ["cable_nest", 1.0]]
-
+## The clutter a room strews when its recipe names none (`[key, weight]`; RoomDresser draws 0-2, no
+## key twice).
+const CLUTTER := [
+	["trash", 3.0],
+	["cables", 2.0],
+	["cardboard", 1.5],
+	["puddle", 1.5],
+	["cable_nest", 1.0],
+]
 const ARRANGEMENTS := {
 	"plant_corner": {
 		"placement": "wall", "footprint": Vector2(30, 30), "prefer_corner": true,
@@ -151,7 +529,8 @@ const ARRANGEMENTS := {
 			{ "key": "armchair", "pos": Vector2(175, 40), "facing": Vector2.LEFT },
 		],
 	},
-	# Ground pieces lie under whatever is on the floor: they never block it, and only one rug a room.
+	# Ground pieces lie under whatever is on the floor: they never block it, and only one rug a
+	# room.
 	"rug_center": {
 		"placement": "center", "footprint": Vector2(250, 170), "ground": true, "tags": ["rug"],
 		"items": [{ "key": "rug_large", "pos": Vector2(125, 85) }],
@@ -165,7 +544,6 @@ const ARRANGEMENTS := {
 		"items": [{ "key": "runner", "pos": Vector2(110, 28) }],
 	},
 }
-
 ## Material tones shared by all arrangements in a room, so zones blend together.
 const WOOD := {
 	"oak": Color(0.72, 0.53, 0.32), "walnut": Color(0.42, 0.27, 0.15),
@@ -178,39 +556,124 @@ const FABRIC := {
 	"blush": Color(0.85, 0.6, 0.62), "slate": Color(0.45, 0.5, 0.55),
 	"cream": Color(0.9, 0.87, 0.78), "aqua": Color(0.45, 0.7, 0.75),
 }
-
 ## Room floors, named by each recipe palette's `floor` (picked to contrast with the palette's
 ## furniture wood). Definition fields: art (a tiling painter), color, material, art_opts
 ## (`pattern`: planks/parquet/tiles/checker/mosaic/carpet/concrete; `alt` for checker).
 const FLOORS := {
-	"oak_planks": { "art": "floor", "color": Color(0.68, 0.52, 0.34), "material": "wood", "art_opts": { "pattern": "planks" } },
-	"walnut_planks": { "art": "floor", "color": Color(0.4, 0.27, 0.17), "material": "wood", "art_opts": { "pattern": "planks" } },
-	"ash_planks": { "art": "floor", "color": Color(0.8, 0.73, 0.6), "material": "wood", "art_opts": { "pattern": "planks" } },
-	"grey_planks": { "art": "floor", "color": Color(0.58, 0.56, 0.52), "material": "wood", "art_opts": { "pattern": "planks" } },
-	"parquet": { "art": "floor", "color": Color(0.62, 0.43, 0.26), "material": "wood", "art_opts": { "pattern": "parquet" } },
-	"white_tile": { "art": "floor", "color": Color(0.88, 0.88, 0.86), "material": "ceramic", "art_opts": { "pattern": "tiles" } },
-	"terracotta_tile": { "art": "floor", "color": Color(0.7, 0.42, 0.3), "material": "ceramic", "art_opts": { "pattern": "tiles" } },
-	"slate_tile": { "art": "floor", "color": Color(0.4, 0.42, 0.45), "material": "stone", "art_opts": { "pattern": "tiles" } },
-	"checker": { "art": "floor", "color": Color(0.88, 0.87, 0.84), "material": "ceramic", "art_opts": { "pattern": "checker", "alt": Color(0.22, 0.22, 0.24) } },
-	"mosaic": { "art": "floor", "color": Color(0.55, 0.72, 0.78), "material": "ceramic", "art_opts": { "pattern": "mosaic" } },
-	"beige_carpet": { "art": "floor", "color": Color(0.76, 0.7, 0.6), "material": "fabric", "art_opts": { "pattern": "carpet" } },
-	"blue_carpet": { "art": "floor", "color": Color(0.48, 0.58, 0.72), "material": "fabric", "art_opts": { "pattern": "carpet" } },
-	"green_carpet": { "art": "floor", "color": Color(0.5, 0.62, 0.5), "material": "fabric", "art_opts": { "pattern": "carpet" } },
-	"concrete": { "art": "floor", "color": Color(0.55, 0.55, 0.53), "material": "stone", "art_opts": { "pattern": "concrete" } },
+	"oak_planks": {
+		"art": "floor",
+		"color": Color(0.68, 0.52, 0.34),
+		"material": "wood",
+		"art_opts": { "pattern": "planks" },
+	},
+	"walnut_planks": {
+		"art": "floor",
+		"color": Color(0.4, 0.27, 0.17),
+		"material": "wood",
+		"art_opts": { "pattern": "planks" },
+	},
+	"ash_planks": {
+		"art": "floor",
+		"color": Color(0.8, 0.73, 0.6),
+		"material": "wood",
+		"art_opts": { "pattern": "planks" },
+	},
+	"grey_planks": {
+		"art": "floor",
+		"color": Color(0.58, 0.56, 0.52),
+		"material": "wood",
+		"art_opts": { "pattern": "planks" },
+	},
+	"parquet": {
+		"art": "floor",
+		"color": Color(0.62, 0.43, 0.26),
+		"material": "wood",
+		"art_opts": { "pattern": "parquet" },
+	},
+	"white_tile": {
+		"art": "floor",
+		"color": Color(0.88, 0.88, 0.86),
+		"material": "ceramic",
+		"art_opts": { "pattern": "tiles" },
+	},
+	"terracotta_tile": {
+		"art": "floor",
+		"color": Color(0.7, 0.42, 0.3),
+		"material": "ceramic",
+		"art_opts": { "pattern": "tiles" },
+	},
+	"slate_tile": {
+		"art": "floor",
+		"color": Color(0.4, 0.42, 0.45),
+		"material": "stone",
+		"art_opts": { "pattern": "tiles" },
+	},
+	"checker": {
+		"art": "floor",
+		"color": Color(0.88, 0.87, 0.84),
+		"material": "ceramic",
+		"art_opts": { "pattern": "checker", "alt": Color(0.22, 0.22, 0.24) },
+	},
+	"mosaic": {
+		"art": "floor",
+		"color": Color(0.55, 0.72, 0.78),
+		"material": "ceramic",
+		"art_opts": { "pattern": "mosaic" },
+	},
+	"beige_carpet": {
+		"art": "floor",
+		"color": Color(0.76, 0.7, 0.6),
+		"material": "fabric",
+		"art_opts": { "pattern": "carpet" },
+	},
+	"blue_carpet": {
+		"art": "floor",
+		"color": Color(0.48, 0.58, 0.72),
+		"material": "fabric",
+		"art_opts": { "pattern": "carpet" },
+	},
+	"green_carpet": {
+		"art": "floor",
+		"color": Color(0.5, 0.62, 0.5),
+		"material": "fabric",
+		"art_opts": { "pattern": "carpet" },
+	},
+	"concrete": {
+		"art": "floor",
+		"color": Color(0.55, 0.55, 0.53),
+		"material": "stone",
+		"art_opts": { "pattern": "concrete" },
+	},
 }
-
-## The street round a house (FloorFactory definitions, laid by HouseSpawner): asphalt out to the edge and a sidewalk ring
-## hugging the walls. Neither registers a SoundSurface, so footsteps out there stay the open ground's (`outdoor`), and both
-## are drawn on the street's light layer (lit by the street lamps and the street's sky, never by the house's lights).
+## The street round a house (FloorFactory definitions, laid by HouseSpawner): asphalt out to the
+## edge and a sidewalk ring hugging the walls. Neither registers a SoundSurface, so footsteps out
+## there stay the open ground's (`outdoor`), and both are drawn on the street's light layer (lit by
+## the street lamps and the street's sky, never by the house's lights).
 const STREET := {
-	"asphalt": { "art": "street", "color": Color(0.24, 0.21, 0.17), "material": "stone", "sound_surface": false, "light_layer": "street", "art_opts": { "kind": "asphalt" } },
-	"sidewalk": { "art": "street", "color": Color(0.42, 0.38, 0.32), "material": "stone", "sound_surface": false, "light_layer": "street", "art_opts": { "kind": "sidewalk" } },
+	"asphalt": {
+		"art": "street",
+		"color": Color(0.24, 0.21, 0.17),
+		"material": "stone",
+		"sound_surface": false,
+		"light_layer": "street",
+		"art_opts": { "kind": "asphalt" },
+	},
+	"sidewalk": {
+		"art": "street",
+		"color": Color(0.42, 0.38, 0.32),
+		"material": "stone",
+		"sound_surface": false,
+		"light_layer": "street",
+		"art_opts": { "kind": "sidewalk" },
+	},
 }
-
-## The house wall style handed to WallFactory: a plaster cap (see ObjectArtConfig.wall_*), nicotine-yellow (drawn run-down
-## and dun, like every colour the Objects painters take).
-const WALL := { "art": "wall", "color": Color(0.87, 0.81, 0.49), "art_opts": { "pattern": "plaster" } }
-
+## The house wall style handed to WallFactory: a plaster cap (see ObjectArtConfig.wall_*),
+## nicotine-yellow (drawn run-down and dun, like every colour the Objects painters take).
+const WALL := {
+	"art": "wall",
+	"color": Color(0.87, 0.81, 0.49),
+	"art_opts": { "pattern": "plaster" },
+}
 ## Combined room types that pull arrangements from several categories.
 const RECIPES := {
 	"kitchen_living": {
@@ -222,13 +685,40 @@ const RECIPES := {
 			{ "wood": WOOD.white, "fabric": FABRIC.navy, "floor": "slate_tile" },
 		],
 		"zones": [
-			{ "options": ["tv_wall_cozy", "tv_wall_modern"], "count": Vector2i(1, 1), "required": true, "fallback": "tv_compact" },
-			{ "options": ["cooking_line", "cooking_l_shape"], "count": Vector2i(1, 1), "required": true, "fallback": "cooking_compact" },
+			{
+				"options": ["tv_wall_cozy", "tv_wall_modern"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "tv_compact",
+			},
+			{
+				"options": ["cooking_line", "cooking_l_shape"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "cooking_compact",
+			},
 			{ "options": ["fridge_corner"], "count": Vector2i(1, 1) },
-			{ "options": ["dining_set_4", "dining_set_2", "island_stools"], "count": Vector2i(1, 1), "required": true, "fallback": "dining_compact" },
-			{ "options": ["reading_nook", "entry_area", "pantry", "plant_corner", "side_table_lamp"], "count": Vector2i(1, 3) },
+			{
+				"options": ["dining_set_4", "dining_set_2", "island_stools"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "dining_compact",
+			},
+			{
+				"options": [
+					"reading_nook", "entry_area", "pantry", "plant_corner", "side_table_lamp",
+				],
+				"count": Vector2i(1, 3),
+			},
 		],
-		"fill": { "target": 0.4, "options": ["bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner", "plant_corner", "plant_corner", "side_table_lamp", "sofa_wall", "lounge_group", "storage_wall", "counter_run", "pantry", "entry_area"] },
+		"fill": {
+			"target": 0.4,
+			"options": [
+				"bookshelf_wall", "shelf_single", "lamp_corner", "lamp_corner", "plant_corner",
+				"plant_corner", "side_table_lamp", "sofa_wall", "lounge_group", "storage_wall",
+				"counter_run", "pantry", "entry_area",
+			],
+		},
 	},
 	"studio": {
 		"clutter": [["trash", 3.0], ["cables", 2.0], ["cardboard", 1.5], ["cable_nest", 1.0]],
@@ -238,11 +728,35 @@ const RECIPES := {
 			{ "wood": WOOD.ash, "fabric": FABRIC.sage, "floor": "grey_planks" },
 		],
 		"zones": [
-			{ "options": ["tv_wall_cozy", "tv_wall_modern"], "count": Vector2i(1, 1), "required": true, "fallback": "tv_compact" },
-			{ "options": ["cooking_line", "cooking_l_shape"], "count": Vector2i(1, 1), "required": true, "fallback": "cooking_compact" },
-			{ "options": ["bed_single_nightstand", "bed_twin_nightstands"], "count": Vector2i(1, 1), "required": true, "fallback": "bed_compact" },
-			{ "options": ["fridge_corner", "dining_set_2", "plant_corner"], "count": Vector2i(0, 2) },
+			{
+				"options": ["tv_wall_cozy", "tv_wall_modern"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "tv_compact",
+			},
+			{
+				"options": ["cooking_line", "cooking_l_shape"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "cooking_compact",
+			},
+			{
+				"options": ["bed_single_nightstand", "bed_twin_nightstands"],
+				"count": Vector2i(1, 1),
+				"required": true,
+				"fallback": "bed_compact",
+			},
+			{
+				"options": ["fridge_corner", "dining_set_2", "plant_corner"],
+				"count": Vector2i(0, 2),
+			},
 		],
-		"fill": { "target": 0.4, "options": ["bookshelf_wall", "shelf_single", "lamp_corner", "plant_corner", "side_table_lamp", "storage_wall", "reading_chair", "work_desk"] },
+		"fill": {
+			"target": 0.4,
+			"options": [
+				"bookshelf_wall", "shelf_single", "lamp_corner", "plant_corner", "side_table_lamp",
+				"storage_wall", "reading_chair", "work_desk",
+			],
+		},
 	},
 }

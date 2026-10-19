@@ -1,12 +1,10 @@
 extends GameTest
-
-## Every gun has its own fire rate (`GunConfig` `fire_interval`). Holding the trigger fires an automatic gun
-## (SMG, rifle) at its rate and does nothing for a semi-automatic one (the pistol), which fires once per click and
-## is held to its rate however fast the clicks come.
+## Every gun has its own fire rate (`GunConfig` `fire_interval`). Holding the trigger fires an
+## automatic gun (SMG, rifle) at its rate and does nothing for a semi-automatic one (the pistol),
+## which fires once per click and is held to its rate however fast the clicks come.
 
 ## How long each phase pulls the trigger (s).
 const WINDOW := 1.0
-
 ## The guns under test: id -> [actor id, inventory slot].
 const GUNS := {
 	&"pistol": [&"pistol_man", 3],
@@ -18,7 +16,8 @@ const GUNS := {
 func describe() -> Dictionary:
 	return {
 		"name": "Each gun fires at its own rate",
-		"description": "Holding the trigger fires the automatic guns at their configured rate and not the pistol; mashing clicks is held to the pistol's rate.",
+		"description": "Holding the trigger fires the automatic guns at their configured rate and "
+			+ "not the pistol; mashing clicks is held to the pistol's rate.",
 		"tags": ["item", "gun", "fire rate", "automatic", "ammo"],
 		"timeout": 12.0,
 	}
@@ -51,13 +50,20 @@ func run(t: TestContext) -> void:
 	t.expect_eq(held[&"pistol"], 0, "holding the trigger fires a semi-automatic pistol not at all")
 	for gun: StringName in [&"smg", &"rifle"]:
 		var want := WINDOW / float(GunConfig.row(gun)["fire_interval"])
-		t.check(absf(held[gun] - want) <= 2.0,
-			"held, the %s fires about %.1f rounds in %.1f s (fired %d)" % [gun, want, WINDOW, held[gun]])
+		t.check(
+			absf(held[gun] - want) <= 2.0,
+			"held, the %s fires about %.1f rounds in %.1f s (fired %d)"
+				% [gun, want, WINDOW, held[gun]],
+		)
 		t.check(t.actor(GUNS[gun][0]).is_automatic(), "the %s reports itself automatic" % gun)
 	t.check(not t.actor(GUNS[&"pistol"][0]).is_automatic(), "the pistol does not")
-	t.check(held[&"smg"] > held[&"rifle"], "the SMG (%d) out-fires the rifle (%d)" % [held[&"smg"], held[&"rifle"]])
+	t.check(
+		held[&"smg"] > held[&"rifle"],
+		"the SMG (%d) out-fires the rifle (%d)" % [held[&"smg"], held[&"rifle"]],
+	)
 
-	# Phase 2: a click on every frame. The pistol is held to its fire interval; an automatic gun too.
+	# Phase 2: a click on every frame. The pistol is held to its fire interval; an automatic gun
+	# too.
 	await t.seconds(0.2)
 	before = _rounds(t)
 	var frames := roundi(WINDOW * float(Engine.physics_ticks_per_second))
@@ -68,8 +74,11 @@ func run(t: TestContext) -> void:
 	var mashed := _spent(t, before)
 	for gun: StringName in GUNS:
 		var want := WINDOW / float(GunConfig.row(gun)["fire_interval"])
-		t.check(absf(mashed[gun] - want) <= 2.0,
-			"mashing the %s is held to about %.1f rounds in %.1f s (fired %d)" % [gun, want, WINDOW, mashed[gun]])
+		t.check(
+			absf(mashed[gun] - want) <= 2.0,
+			"mashing the %s is held to about %.1f rounds in %.1f s (fired %d)"
+				% [gun, want, WINDOW, mashed[gun]],
+		)
 
 
 ## Rounds loaded in each gun, by gun id.

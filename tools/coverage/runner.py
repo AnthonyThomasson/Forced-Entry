@@ -58,6 +58,9 @@ VON_HEALTH = "/v1/systemone"
 VON_MODEL = "von-1.2.0"
 VON_READY_SECONDS = 90.0
 VON_TESTS_FLAGS = ("--include-von", "--require-von")
+# How the copy is linted before its tests: what instrumenting breaks on purpose left out (the isolation rule, and
+# gdstyle: each probe shares its statement's line, so line numbers match the real tree).
+COPY_LINT = ("--skip-rule=coverage_isolation", "--no-gdstyle")
 # What meta.json keeps of each match unit: its outcome, then its cost (probe.gd; null where the probe did not record it)
 MATCH_FIELDS = ("seed", "mode", "match", "verdict", "duration", "shots", "deaths", "wall", "frames", "physics_peak_ms",
                 "process_peak_ms", "npcs", "decisions", "decided", "failed", "decided_per_npc_minute",
@@ -403,17 +406,18 @@ def crash_record(result: dict, hits_dir: Path, folder: Path, root: Path) -> dict
 
 
 def run_tests(copy, args: list[str], hits_dir: Path, say=print) -> dict:
-    """Lint the copy (its own tools/lint.sh, the isolation rule skipped), then run its tools/run_tests.sh with the
+    """Lint the copy (its own tools/lint.sh, without what instrumenting breaks on purpose: the isolation rule, and the
+    gdstyle pass, since each probe shares its statement's line), then run its tools/run_tests.sh with the
     probe on, its output passed on to `say` line by line; returns {code, failed, finished}: run_tests.sh's exit code,
     the tests that failed or timed out (failed_tests) and whether it printed its summary line."""
     copy = Path(copy)
     lint = copy / "tools" / "lint.sh"
     if lint.is_file():
-        say("Linting the instrumented copy (tools/lint.sh --skip-rule=coverage_isolation)...")
+        say("Linting the instrumented copy (tools/lint.sh " + " ".join(COPY_LINT) + ")...")
         proc = None
         try:
             with signals_held():
-                proc = start([str(lint), "--skip-rule=coverage_isolation", "--quiet"], cwd=copy, env=game_env(copy),
+                proc = start([str(lint), *COPY_LINT, "--quiet"], cwd=copy, env=game_env(copy),
                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              start_new_session=True)
             out, err = proc.communicate()
@@ -423,7 +427,7 @@ def run_tests(copy, args: list[str], hits_dir: Path, say=print) -> dict:
                     stop_group(proc)
             raise
         if proc.returncode != 0:
-            raise RunFailed("the instrumented copy fails lint (tools/lint.sh --skip-rule=coverage_isolation):\n"
+            raise RunFailed("the instrumented copy fails lint (tools/lint.sh " + " ".join(COPY_LINT) + "):\n"
                             + out + err)
     config = write_config(hits_dir, "run_tests.json", {"source": "tests"})
     cmd = [str(copy / "tools" / "run_tests.sh"), "--no-lint", *with_perf_skipped(args)]

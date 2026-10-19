@@ -26,7 +26,7 @@ Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_t
 | `instrument` | Builds an instrumented copy in `artifacts/tmp/` (below) and prints its path as the last line. The probe stays idle in it (no `FE_COVERAGE`), so the copy loads, lints and runs its tests like the game. The copy is kept: no run sweeps it. Delete it when done; the next copy made removes the `user://` folder it leaves behind. |
 | `run [--matches=24] [--jobs=2] [--seed=N] [--endless-every=4] [--windowed] [--keep]` | Plays real matches in a fresh instrumented copy and writes a run folder (below). |
 | `run --uninstrumented [--matches=N] [--jobs=N] [--seed=N] [--endless-every=N] [--windowed]` | Plays the same matches in a copy that has the probe (it still starts, caps and records each match) but no counter bump, and writes `artifacts/coverage/<sha>-<time>-uninstrumented/` (`meta.json`, `hits.json` with empty counts, an empty `map.json`, no report). It is the baseline for the counters' cost and for whether they change what a match does: compare its `meta.json` `matches` with a measured run's over the same `--seed`. `report` never reads it. |
-| `run --tests [run_tests.sh args...] [--keep]` | Runs the copy's own `tools/run_tests.sh --no-lint --skip-domain=perf` plus the args (`--jobs=`, `--domain=`, ...), after linting the copy with its own `tools/lint.sh --skip-rule=coverage_isolation` (the copy names `CoverageProbe` on purpose). It measures coverage and does not judge the tests: every selected test runs, and one that fails or times out in the copy is recorded in `meta.json` (`failed`), listed in the report and printed, its hits kept like any test's (a wall-clock budget, such as `audio/bank`'s, fails from the counters' cost alone). It exits 0 when `run_tests.sh` finished (printed its summary line) and the hits merged, whatever the tests' verdicts; it fails only when the run itself broke: a lint failure, the runner exiting non-zero with no hits or before its summary line, a probe hook missing, or the repo changed. |
+| `run --tests [run_tests.sh args...] [--keep]` | Runs the copy's own `tools/run_tests.sh --no-lint --skip-domain=perf` plus the args (`--jobs=`, `--domain=`, ...), after linting the copy with its own `tools/lint.sh --skip-rule=coverage_isolation --no-gdstyle` (the copy names `CoverageProbe` on purpose, and each probe shares its statement's line, which gdstyle would reflow, so line numbers match the real tree). It measures coverage and does not judge the tests: every selected test runs, and one that fails or times out in the copy is recorded in `meta.json` (`failed`), listed in the report and printed, its hits kept like any test's (a wall-clock budget, such as `audio/bank`'s, fails from the counters' cost alone). It exits 0 when `run_tests.sh` finished (printed its summary line) and the hits merged, whatever the tests' verdicts; it fails only when the run itself broke: a lint failure, the runner exiting non-zero with no hits or before its summary line, a probe hook missing, or the repo changed. |
 | `report [--domain=x] [--run=DIR...] [--out=DIR]` | Prints the Markdown report of the newest matches run and the newest tests run of HEAD under `artifacts/coverage/`, or of the run folders given, naming the folders it combined (several matches runs read as one run of all their matches, in seed order). `--out` also saves it into that folder: `report.md`, `report.json` and `runs.json` (each folder combined: `folder`, `source`, `commit`, `time`, `units`); a folder that already holds a `report.md` is refused, never overwritten. |
 
 `run` (matches):
@@ -92,14 +92,16 @@ Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_t
      the frame the MatchHUD's own clock starts): the wait for Von and the pause between Endless matches are in no
      match's duration, and the cap counts the match itself, so an Endless match is called by Main's own draw at
      the limit, not cut short. A match that ends before its world appeared fails the process;
-   - **tests**: reads the test runner's current entry (`_entry`) and its test's context (`_ctx`, a TestContext:
+   - **tests**: the tests run in gdUnit4's game test suites (`scenes/testing/game_test_suite.gd`), each in the group
+     `game_test_suites` while gdUnit runs it; the probe follows the newest suite to join the tree and reads its current
+     entry (`open_entry`) and its test's context (`open_ctx`, a TestContext:
      `is_finished` and the signal `finished`), duck-typed, every frame and whenever a node is added, and keeps each
-     test's hits apart. A test's unit runs from when the probe sees its context open (at the latest as the runner
-     adds the test's world) to the context's `finished`, the test's verdict, which the probe hears before the runner
-     does. The hits made while no test runs (the runner's start-up, each test's teardown after its verdict, the next
+     test's hits apart. A test's unit runs from when the probe sees its context open (at the latest as the suite
+     adds the test's world) to the context's `finished`, the test's verdict, which the probe hears before the suite
+     does. The hits made while no test runs (the process's start-up, each test's teardown after its verdict, the next
      test's start until its context is open) go to one `outside` unit, so code that ran is never read as never run
      and no test is charged with it. A test that ends before its context is seen open (a skip, a script error) has
-     no unit, and a runner that listens to `finished` before the probe fails the process (its teardown would be
+     no unit, and a suite that listens to `finished` before the probe fails the process (its teardown would be
      charged to the test);
    - writes `coverage_hits_<pid>.json` every 5 s and at exit, atomically, so a crashed or killed process keeps its
      last flush; the last flush, as the tree is freed (after every node's `_exit_tree`), marks the file `final`;
@@ -326,7 +328,7 @@ The probe writes one per game process into the run's hit folder (`artifacts/tmp/
     NPC stops deciding and still counts, so a bloody match reads a little low) and `von_failed_share` (failed /
     (decided + failed), null when no walk ended); with no controller, `npcs` is 0 and the others null.
   - For `tests`, a unit per test: `id` is the test id (`ai/entry/entry_waits_for_stack`). And units
-    `{ "id": "", "outside": true, "counts": ... }` for the hits made while no test ran (the runner's start-up, each
+    `{ "id": "", "outside": true, "counts": ... }` for the hits made while no test ran (the process's start-up, each
     test's teardown after its verdict); the report counts them as run (so neither `dead` nor `untriggered system`) and
     never as a test that pins a function. A process's own file may hold several units of one id: an `outside` unit
     for each stretch between tests, and a unit for each run of a test it repeats (`run_tests.sh --repeat=N`). The

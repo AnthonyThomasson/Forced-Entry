@@ -1,9 +1,9 @@
 extends Node2D
+## Projectile System: draw layer for a bullet: a short streak along local +X (the bullet rotates
+## itself to face travel). Reads `length` / `color` from the projectile.
 
-## Projectile System: draw layer for a bullet: a short streak along local +X (the bullet rotates itself to
-## face travel). Reads `length` / `color` from the projectile.
-
-@onready var _control := get_parent()  ## The projectile (control node).
+## The projectile (control node).
+@onready var _control := get_parent()
 
 
 func _draw() -> void:

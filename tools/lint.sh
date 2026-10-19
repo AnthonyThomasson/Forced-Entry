@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lint, headless and fast (a few seconds), in two passes; exits 1 when either fails, 0 when clean.
+# Lint, headless (~14 s, nearly all of it the engine pass), in three passes; exits 1 when any fails, 0 when clean.
 #   1. The GDScript analyzer: every script's warnings and errors the editor's Debugger > Errors tab would list
 #      (UNUSED_VARIABLE, INTEGER_DIVISION, SHADOWED_GLOBAL_IDENTIFIER, ...), printed per file by tools/lint_report.py.
 #      Like Godot, it skips a folder holding a .gdignore (artifacts/, where a coverage run keeps its copy).
@@ -9,22 +9,29 @@
 #      `godot --headless --path . --import`.
 #   2. The project lint rules (tools/lint_rules/rules/, one module per rule; tools/lint_rules/README.md): one section per
 #      rule, listing what it found.
-# tools/run_tests.sh runs it first, and the Stop hook runs it after a turn changed game code.
-#   tools/lint.sh [--quiet] [--rule=a,b | --skip-rule=a,b | --list-rules] [PATH...]
+#   3. gdstyle (tools/gdstyle.sh, pinned; config gdstyle.toml), by tools/lint_gdstyle.py: a section listing the scripts
+#      `gdstyle fmt --check` would change (`tools/gdstyle.sh fmt PATH` formats them), and one listing every finding of
+#      `gdstyle check` (every rule an error but quality/*: a line over 100 columns, member order, naming ...). Like the
+#      engine pass it skips a folder holding a .gdignore.
+# tools/run_tests.sh runs it first, the Stop hook after a turn changed what it reads, and the pre-commit hook when a
+# commit stages a script it reads but no game code (the game tests lint it then).
+#   tools/lint.sh [--quiet] [--rule=a,b | --skip-rule=a,b | --list-rules] [--no-gdstyle] [PATH...]
 #     --quiet          print nothing when clean
 #     --list-rules     list the rules (name and description) and exit; no engine pass
-#     --rule=a,b       run only those rules, and no engine pass
+#     --rule=a,b       run only those rules, and no engine or gdstyle pass
 #     --skip-rule=a,b  run every rule but those (after the engine pass)
+#     --no-gdstyle     leave out the gdstyle pass (a coverage copy: each probe shares its statement's line)
 #     PATH...          scenes/x.gd, res://scenes/x.gd or a folder (scenes/ai): lint only those scripts (a folder's
-#                      *.gd files, its hidden folders left out) and check only those paths
+#                      *.gd files, its hidden folders left out) and check only those paths (the rules and gdstyle)
 set -uo pipefail
 cd "$(dirname "$0")/.."
-flags=(); only=(); paths=(); rule_args=(); engine=1
+flags=(); only=(); paths=(); rule_args=(); engine=1; style=1
 for a in "$@"; do
   case "$a" in
     --list-rules) exec python3 tools/lint_rules/runner.py --list-rules ;;
-    --rule=*) rule_args+=("$a"); engine=0 ;;
+    --rule=*) rule_args+=("$a"); engine=0; style=0 ;;
     --skip-rule=*) rule_args+=("$a") ;;
+    --no-gdstyle) style=0 ;;
     --*) flags+=("$a") ;;
     *)
       p="${a#res://}"; p="${p%/}"; paths+=("$p")
@@ -64,4 +71,9 @@ python3 tools/lint_rules/runner.py ${flags[@]+"${flags[@]}"} ${rule_args[@]+"${r
   ${paths[@]+"${paths[@]}"}
 code=$?  # 2 = a usage error (an unknown rule), which wins over a plain failure
 [[ $code -gt $status ]] && status=$code
+if [[ $style -eq 1 ]]; then
+  python3 tools/lint_gdstyle.py ${flags[@]+"${flags[@]}"} ${paths[@]+"${paths[@]}"}
+  code=$?  # 2 = gdstyle could not run (no binary to be had), which wins too
+  [[ $code -gt $status ]] && status=$code
+fi
 exit $status

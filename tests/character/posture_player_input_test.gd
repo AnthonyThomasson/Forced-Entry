@@ -1,13 +1,13 @@
 extends GameTest
-
-## The human's posture key, pressed through the real input action: C crouches and stands back up. A posture change
-## has to wait out `posture_change_time`, and a crouched character can still punch.
+## The human's posture key, pressed through the real input action: C crouches and stands back up. A
+## posture change has to wait out `posture_change_time`, and a crouched character can still punch.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "C crouches and toggles back",
-		"description": "The crouch action toggles the player's posture; changes are paced and a crouched character can punch.",
+		"description": "The crouch action toggles the player's posture; changes are paced and a "
+			+ "crouched character can punch.",
 		"tags": ["posture", "crouch", "player", "input"],
 		"timeout": 15.0,
 	}
@@ -58,7 +58,8 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 
 
-## Press `action` for a few frames, release, and wait out the change time so the next press is not paced away.
+## Press `action` for a few frames, release, and wait out the change time so the next press is not
+## paced away.
 func _tap(t: TestContext, action: String) -> void:
 	Input.action_press(action)
 	await t.frames(2)

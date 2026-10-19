@@ -1,5 +1,4 @@
 class_name ArrangementDefinitions
-
 ## Aggregator over the per-category catalogs in scenes/worldgen/categories/. Merges
 ## every catalog's ARRANGEMENTS and RECIPES into two cached lookups and exposes the
 ## lookups RoomFurnisher uses. Shared arrangements/recipes live in
@@ -20,7 +19,8 @@ class_name ArrangementDefinitions
 ##                  shared tag (e.g. only one "fridge" per kitchen).
 ##
 ##   ground:        a non-solid piece that lies under the furniture (a rug, runner, mat): it never
-##                  blocks the floor, avoids only other ground pieces, and is placed dead center first.
+##                  blocks the floor, avoids only other ground pieces, and is placed dead center
+##                  first.
 ##
 ## A recipe's `zones` are filled in order. Each zone picks `count` (min..max) distinct
 ## arrangements from `options`; `required` zones warn if nothing could be placed. A recipe may
@@ -28,20 +28,28 @@ class_name ArrangementDefinitions
 ## `options` until solid footprints cover `target` (a fraction of the interior), bounded and scaled
 ## by WorldGenConfig. One palette is picked per room and applied to every "wood"/"fabric" object.
 
-static var _arrangements: Dictionary = {}  ## Every catalog's ARRANGEMENTS by key, filled on the first lookup.
-static var _recipes: Dictionary = {}       ## Every catalog's RECIPES by room type, filled on the first lookup.
+## Every catalog's ARRANGEMENTS by key, filled on the first lookup.
+static var _arrangements: Dictionary = {}
+## Every catalog's RECIPES by room type, filled on the first lookup.
+static var _recipes: Dictionary = {}
+
 
 ## GeneralCatalog holds the shared/combined entries; each other catalog owns its
 ## category. Keys are unique across catalogs, so the merge never collides.
 static func _all_arrangements() -> Dictionary:
 	if _arrangements.is_empty():
-		for src in [GeneralCatalog.ARRANGEMENTS, LivingRoomCatalog.ARRANGEMENTS,
-				KitchenCatalog.ARRANGEMENTS, BedroomCatalog.ARRANGEMENTS, BathroomCatalog.ARRANGEMENTS,
-				HomeOfficeCatalog.ARRANGEMENTS, HallwayCatalog.ARRANGEMENTS, LaundryRoomCatalog.ARRANGEMENTS,
-				GarageCatalog.ARRANGEMENTS, NetrunnerDenCatalog.ARRANGEMENTS, RipperdocCatalog.ARRANGEMENTS,
-				SecurityVestibuleCatalog.ARRANGEMENTS, KitchenetteCatalog.ARRANGEMENTS]:
+		for src in [
+				GeneralCatalog.ARRANGEMENTS, LivingRoomCatalog.ARRANGEMENTS,
+				KitchenCatalog.ARRANGEMENTS, BedroomCatalog.ARRANGEMENTS,
+				BathroomCatalog.ARRANGEMENTS, HomeOfficeCatalog.ARRANGEMENTS,
+				HallwayCatalog.ARRANGEMENTS, LaundryRoomCatalog.ARRANGEMENTS,
+				GarageCatalog.ARRANGEMENTS, NetrunnerDenCatalog.ARRANGEMENTS,
+				RipperdocCatalog.ARRANGEMENTS, SecurityVestibuleCatalog.ARRANGEMENTS,
+				KitchenetteCatalog.ARRANGEMENTS,
+		]:
 			_arrangements.merge(src)
 	return _arrangements
+
 
 ## Merge every catalog's RECIPES into one cached lookup.
 static func _all_recipes() -> Dictionary:
@@ -54,9 +62,11 @@ static func _all_recipes() -> Dictionary:
 			_recipes.merge(src)
 	return _recipes
 
+
 ## The arrangement for `key`, or {} if unknown.
 static func get_arrangement(key: String) -> Dictionary:
 	return _all_arrangements().get(key, {})
+
 
 ## The furnishing recipe for a room type, or {} if none.
 static func get_recipe(room_type: String) -> Dictionary:

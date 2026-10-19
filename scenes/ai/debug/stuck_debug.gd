@@ -1,18 +1,17 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: whether the NPC is making progress. A fading trail of its recent positions, and a
-## ring under it that fills as it fails to progress while trying to move — green while moving freely,
-## shifting to red once it has been stalled (pushing into a wall or a heavy piece, wedged) for a while.
-## Reads the controller's `debug_progress()` only; nothing reacts to the stall.
-
-## Whether to draw the stuck overlay.
-@export var show_stuck: bool = false
+## AI domain, debug: whether the NPC is making progress. A fading trail of its recent positions, and
+## a ring under it that fills as it fails to progress while trying to move — green while moving
+## freely, shifting to red once it has been stalled (pushing into a wall or a heavy piece, wedged)
+## for a while. Reads the controller's `debug_progress()` only; nothing reacts to the stall.
 
 const FREE := Color(0.4, 0.9, 0.5)
 const STUCK := Color(1.0, 0.25, 0.2)
 ## Seconds stalled at which the ring is fully red.
 const STUCK_FULL := 3.0
 const RING_RADIUS := 20.0
+
+## Whether to draw the stuck overlay.
+@export var show_stuck: bool = false
 
 
 ## Whether this overlay's toggle is on.

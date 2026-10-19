@@ -7,6 +7,23 @@ share. The domains and their interfaces are the `architecture` skill.
 
 ### Game tests
 
+**Simulation test**:
+A game test that declares a world (an arena, a hand-laid layout or a generated house), the actors and objects in it
+and which behaviours are on, runs it on the sim clock and asserts what happened: a `GameTest`, `tests/**/*_test.gd`,
+named by its id (`projectile/pistol_shot_wounds`). It is what proves a behaviour.
+_Avoid_: GdUnit test, integration test, scenario (the real-Von tests of one AI situation)
+
+**Wrapper suite**:
+The gdUnit4 suite that runs one folder's simulation tests unchanged, one case per test id, its cases read from the
+folder's files: `tests/<domain>/<domain>_suite.gd`, or `tests/ai/<topic>/<topic>_suite.gd` for an AI topic folder.
+The harness's own tests have one apart, run only by `--self-test`.
+_Avoid_: test suite (any gdUnit suite), runner
+
+**Unit suite**:
+A native gdUnit4 suite of pure logic (`tests/<domain>/<name>_suite.gd`, extends `UnitSuite`): gdUnit's own asserts on a
+pure function, no world. It always supplements the simulation tests, never replaces them.
+_Avoid_: unit test (for a simulation test), native test
+
 **Change's tests**:
 The game tests (`tests/**/*_test.gd`) a change added or modified since its merge-base with `origin/main`, committed or
 not; deleted tests, test helpers and sandboxes are not among them. `tools/play_tests.sh` plays them in a window.

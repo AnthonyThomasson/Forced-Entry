@@ -1,13 +1,13 @@
 extends RefCounted
-
-## Top-down pixel-art HOTPLATE painter (Objects domain, private): the kitchenette's two-ring hotplate on a crate, one ring
-## glowing hot, a pan on the other. Canonical frame: the front toward +y. The catalogue colour is the plate's. Run down
-## (decay.gd): grease, grime and rust. The hot ring gives light: drawn glowing in ObjectArtConfig.hotplate_ring_color.
+## Top-down pixel-art HOTPLATE painter (Objects domain, private): the kitchenette's two-ring
+## hotplate on a crate, one ring glowing hot, a pan on the other. Canonical frame: the front toward
+## +y. The catalogue colour is the plate's. Run down (decay.gd): grease, grime and rust. The hot
+## ring gives light: drawn glowing in ObjectArtConfig.hotplate_ring_color.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const Tech = preload("res://scenes/objects/art/tech_painter.gd")
-
-const _CRATE_HEIGHT := 3  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _CRATE_HEIGHT := 3
 const _PLATE_HEIGHT := 5
 const _PAN_HEIGHT := 7
 
@@ -31,7 +31,12 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var pan_col := ObjectArtConfig.hotplate_pan_color
 	c.fill(pan, pan_col, _PAN_HEIGHT)
 	c.outline(pan, PixelCanvas.tones(pan_col).outline)
-	c.line(right + Vector2i(r + 1, 0), right + Vector2i(r + 6, 1), pan_col.darkened(0.2), _PAN_HEIGHT)
+	c.line(
+		right + Vector2i(r + 1, 0),
+		right + Vector2i(r + 6, 1),
+		pan_col.darkened(0.2),
+		_PAN_HEIGHT,
+	)
 	c.cast_shadows()
 	Decay.stain(c, Decay.GREASE, 3)
 	Decay.grime(c)

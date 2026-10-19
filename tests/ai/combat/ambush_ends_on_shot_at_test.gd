@@ -1,23 +1,24 @@
 extends GameTest
-
-## D18 (`docs/leadership.md`, LD15): an ambush ends on first contact, and being shot at is contact. The order ends `done` when the
-## ambusher sees a hostile anywhere, or is hit or shot at (`under_fire`), wherever the shots come from; footsteps and callouts do not end
-## it. It radios `done` and decides on its own.
+## D18 (`docs/leadership.md`, LD15): an ambush ends on first contact, and being shot at is contact.
+## The order ends `done` when the ambusher sees a hostile anywhere, or is hit or shot at
+## (`under_fire`), wherever the shots come from; footsteps and callouts do not end it. It radios
+## `done` and decides on its own.
 ##
-## The doorway is the Terrace house's hall / living room doorway (`door_150_360`), ambushed from the living room, as in
-## `ambush_door_post_test.gd`: the one Terrace doorway with a post hidden from every slot and pie step of an entry by it. A defender in
-## the living room is ordered (by its squad's leader, a household puppet in the kitchen) to ambush it. Once it holds its post, an intruder
-## puppet walks along the east end of the hall, behind the living room's south wall and out of the ambusher's sight (premise, required each
-## frame): its footsteps do not end the order. Then gunfire from nobody it knows lands beside the ambusher (`Order.gunfire_near`, a shot
-## from elsewhere, not through the doorway): the order ends `done`, and its next decision holds no order.
+## The doorway is the Terrace house's hall / living room doorway (`door_150_360`), ambushed from the
+## living room, as in `ambush_door_post_test.gd`: the one Terrace doorway with a post hidden from
+## every slot and pie step of an entry by it. A defender in the living room is ordered (by its
+## squad's leader, a household puppet in the kitchen) to ambush it. Once it holds its post, an
+## intruder puppet walks along the east end of the hall, behind the living room's south wall and out
+## of the ambusher's sight (premise, required each frame): its footsteps do not end the order. Then
+## gunfire from nobody it knows lands beside the ambusher (`Order.gunfire_near`, a shot from
+## elsewhere, not through the doorway): the order ends `done`, and its next decision holds no order.
 ##
-## Scripted Von (the first option offered): what the ambusher decides after the order is not under test, only that it decides without it.
-## The intruder is unkillable and never shoots.
+## Scripted Von (the first option offered): what the ambusher decides after the order is not under
+## test, only that it decides without it. The intruder is unkillable and never shoots.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-
 ## The click that orders the ambush: in the living room, on the doorway's axis.
 const CLICK := Vector2(150, 330)
 ## The intruder's walk along the hall's east end, behind the living room's south wall.
@@ -30,7 +31,9 @@ const HOLD := 3.0
 func describe() -> Dictionary:
 	return {
 		"name": "An ambush ends when the ambusher is shot at, not on footsteps",
-		"description": "A defender ambushing the hall doorway from the living room holds through an unseen intruder's footsteps; gunfire landing beside it ends the order done and it decides without it (D18).",
+		"description": "A defender ambushing the hall doorway from the living room holds through "
+			+ "an unseen intruder's footsteps; gunfire landing beside it ends the order done and "
+			+ "it decides without it (D18).",
 		"tags": ["ai", "combat", "leadership", "order", "ambush", "scripted"],
 		"timeout": 60.0,
 	}
@@ -40,9 +43,9 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.von_script([])
 	s.switch(&"projectile.flyover", false)
-	s.actor(&"a", &"defender", Vector2(240, 150), { "max_health": 1000000.0 })
+	s.actor(&"a", &"defender", Vector2(240, 150), { "max_health": 1_000_000.0 })
 	s.actor(&"lead", &"puppet", Vector2(700, 120), { "faction": &"household" })
-	s.actor(&"intruder", &"puppet", HALL_EAST, { "faction": &"invader", "max_health": 1000000.0 })
+	s.actor(&"intruder", &"puppet", HALL_EAST, { "faction": &"invader", "max_health": 1_000_000.0 })
 
 
 func run(t: TestContext) -> void:
@@ -52,12 +55,21 @@ func run(t: TestContext) -> void:
 		return
 	await t.seconds(0.5)
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [a], "pos": CLICK })
-	if not t.require(not order.is_empty(), "the squad posts the ambush order (issue of kind ambush returned %s)" % str(order)):
+	if not t.require(
+			not order.is_empty(),
+			"the squad posts the ambush order (issue of kind ambush returned %s)" % str(order),
+	):
 		return
 	var brain := Order.brain(t, &"a")
-	if not t.require(await t.until(func(): return Order.primitive(brain) == "ambush", 5.0), "the defender takes the ambush (primitive %s)" % Order.primitive(brain)):
+	if not t.require(
+			await t.until(func(): return Order.primitive(brain) == "ambush", 5.0),
+			"the defender takes the ambush (primitive %s)" % Order.primitive(brain),
+	):
 		return
-	if not t.require(await t.until(func(): return not Order.progress(t, "in_position", a).is_empty(), 20.0), "it reaches its post and radios in_position"):
+	if not t.require(
+			await t.until(func(): return not Order.progress(t, "in_position", a).is_empty(), 20.0),
+			"it reaches its post and radios in_position",
+	):
 		return
 
 	var intruder := t.puppet(&"intruder")
@@ -68,16 +80,42 @@ func run(t: TestContext) -> void:
 	while t.time < end:
 		seen = seen or Probe.line_clear(t, a.global_position, intruder_node.global_position)
 		await t.frames(1)
-	if not t.require(not seen, "the intruder walks the hall out of the ambusher's sight (premise: no clear line from the post)"):
+	if not t.require(
+			not seen,
+			"the intruder walks the hall out of the ambusher's sight (premise: no clear line from "
+				+ "the post)",
+	):
 		return
-	t.check(Order.progress(t, "done", a).is_empty() and Order.primitive(brain) == "ambush", "footsteps out of sight do not end the ambush (primitive %s, done %d)" % [Order.primitive(brain), Order.progress(t, "done", a).size()])
+	t.check(
+		Order.progress(t, "done", a).is_empty() and Order.primitive(brain) == "ambush",
+		"footsteps out of sight do not end the ambush (primitive %s, done %d)"
+			% [Order.primitive(brain), Order.progress(t, "done", a).size()],
+	)
 
 	var shot_at := t.time
 	Order.gunfire_near(a)
-	t.check(await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 3.0), "shot at, the ambusher radios its order done")
-	var dones := Probe.raw(t, &"callout", func(d): return d.get("speaker") == a and String(d.get("order_step", "")) == "done")
+	t.check(
+		await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 3.0),
+		"shot at, the ambusher radios its order done",
+	)
+	var dones := Probe.raw(
+		t,
+		&"callout",
+		func(d): return d.get("speaker") == a and String(d.get("order_step", "")) == "done",
+	)
 	if not dones.is_empty():
-		t.check(float(dones[0]["time"]) >= shot_at, "not before the shots (shots at %.2f s, done at %.2f s)" % [shot_at, float(dones[0]["time"])])
+		t.check(
+			float(dones[0]["time"]) >= shot_at,
+			"not before the shots (shots at %.2f s, done at %.2f s)"
+				% [shot_at, float(dones[0]["time"])],
+		)
 	var before := Order.decisions(brain)
-	var ends := func(): return Order.decisions(brain) > before and not Order.ordered(brain) and not Order.on_order(brain)
-	t.check(await t.until(ends, 4.0), "its next decision holds no order (ordered %s, act %s)" % [str(Order.ordered(brain)), brain.current_act()])
+	var ends := func():
+		return (Order.decisions(brain) > before
+				and not Order.ordered(brain)
+				and not Order.on_order(brain))
+	t.check(
+		await t.until(ends, 4.0),
+		"its next decision holds no order (ordered %s, act %s)"
+			% [str(Order.ordered(brain)), brain.current_act()],
+	)

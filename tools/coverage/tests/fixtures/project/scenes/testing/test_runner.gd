@@ -1,9 +1,9 @@
 extends Node
-## Fixture stand-in for scenes/testing/test_runner.gd in batch mode: runs its tests one by one as the real runner does.
-## It starts them deferred from `_ready`. `_entry` holds the test running and `_ctx` its context (a Context, with
-## TestContext's `is_finished` and `finished`), both set as it starts; it adds the test's world, waits for `finished`,
-## then tears the test down (the teardown) and frees the context. It takes the real `--skip-domain=` and
-## `--shard=I/N` flags.
+## Fixture stand-in for a game test suite (scenes/testing/game_test_suite.gd; its .tscn puts it in that group,
+## game_test_suites): runs its tests one by one from `_ready`, deferred. `open_entry` holds the test running and
+## `open_ctx` its context (a Context, with TestContext's `is_finished` and `finished`), both set as it starts; it adds
+## the test's world, waits for `finished`, then tears the test down (the teardown) and frees the context. It takes the
+## real `--skip-domain=` and `--shard=I/N` flags.
 
 const TESTS := [
 	{ "id": "t/alpha", "domain": "t" },
@@ -12,8 +12,8 @@ const TESTS := [
 	{ "id": "perf/heavy", "domain": "perf" },
 ]
 
-var _entry: Dictionary = {}
-var _ctx: Context = null
+var open_entry: Dictionary = {}
+var open_ctx: Context = null
 var _world: Node = null
 
 
@@ -42,13 +42,13 @@ func _run_batch() -> void:
 
 
 func _start(entry: Dictionary) -> void:
-	_entry = entry
-	_ctx = Context.new()
+	open_entry = entry
+	open_ctx = Context.new()
 	_world = Node.new()
 	add_child(_world)
 	_drive(entry)
-	if not _ctx.is_finished:
-		await _ctx.finished
+	if not open_ctx.is_finished:
+		await open_ctx.finished
 
 
 func _drive(entry: Dictionary) -> void:
@@ -65,7 +65,7 @@ func _drive(entry: Dictionary) -> void:
 		_:
 			targets.heavy()
 	await _frames(2)
-	_ctx.finish()
+	open_ctx.finish()
 
 
 func _close() -> void:
@@ -73,8 +73,8 @@ func _close() -> void:
 	_world.queue_free()
 	_world = null
 	await _frames(2)
-	_ctx.free()
-	_ctx = null
+	open_ctx.free()
+	open_ctx = null
 
 
 func _frames(count: int) -> void:

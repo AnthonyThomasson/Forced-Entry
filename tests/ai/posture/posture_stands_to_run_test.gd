@@ -1,13 +1,13 @@
 extends GameTest
-
-## Only a standing body runs: an NPC sent across the arena (combat → advance, a `run` leaf) runs to do it, and is
-## never crouched while running.
+## Only a standing body runs: an NPC sent across the arena (combat → advance, a `run` leaf) runs to
+## do it, and is never crouched while running.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "An NPC stands up to run",
-		"description": "A defender told to advance on a far hostile runs, and never while crouched.",
+		"description": "A defender told to advance on a far hostile runs, and never while "
+			+ "crouched.",
 		"tags": ["ai", "posture", "run", "scripted"],
 		"timeout": 30.0,
 	}
@@ -29,7 +29,10 @@ func run(t: TestContext) -> void:
 	var runner := t.actor(&"runner")
 	var brain := t.controller(&"runner", &"current_act")
 	runner.aim_point = t.actor(&"far").global_position
-	t.check(await t.until(func(): return String(brain.current_act()).contains("advance"), 10.0), "the runner advances (%s)" % brain.current_act())
+	t.check(
+		await t.until(func(): return String(brain.current_act()).contains("advance"), 10.0),
+		"the runner advances (%s)" % brain.current_act(),
+	)
 	var ran := false
 	var ran_low := 0
 	for i in 600:

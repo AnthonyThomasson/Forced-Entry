@@ -1,8 +1,8 @@
 extends GameTest
-
-## Settings keeps the Debug switch and the key bindings that differ from the defaults in one JSON file:
-## every change saves at once, only differences are written, a reload restores them, and a missing or
-## unreadable file just means the defaults. Runs against a scratch file, never the real one.
+## Settings keeps the Debug switch and the key bindings that differ from the defaults in one JSON
+## file: every change saves at once, only differences are written, a reload restores them, and a
+## missing or unreadable file just means the defaults. Runs against a scratch file, never the real
+## one.
 
 const SCRATCH := "user://settings_test.json"
 
@@ -10,7 +10,8 @@ const SCRATCH := "user://settings_test.json"
 func describe() -> Dictionary:
 	return {
 		"name": "Settings save and reload the debug switch and key bindings",
-		"description": "Each change is written at once (differences only); a reload restores it; a missing, partial or corrupt file falls back to the defaults.",
+		"description": "Each change is written at once (differences only); a reload restores it; a "
+			+ "missing, partial or corrupt file falls back to the defaults.",
 		"tags": ["settings", "keybinds", "persistence"],
 		"timeout": 5.0,
 	}
@@ -35,7 +36,10 @@ func run(t: TestContext) -> void:
 	Settings.set_debug(false)
 	t.check(FileAccess.file_exists(SCRATCH), "changing Debug writes the file")
 	t.check(Settings.rebind(Keybinds.PUNCH, _key(KEY_G)), "a rebind is accepted")
-	t.check(not Settings.rebind(Keybinds.PUNCH, InputEventMouseMotion.new()), "an unbindable event is refused")
+	t.check(
+		not Settings.rebind(Keybinds.PUNCH, InputEventMouseMotion.new()),
+		"an unbindable event is refused",
+	)
 	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(SCRATCH))
 	if not t.require(saved is Dictionary, "the file is a JSON object"):
 		return
@@ -50,7 +54,12 @@ func run(t: TestContext) -> void:
 	t.check(_key(KEY_G).is_action(Keybinds.PUNCH), "a reload restores the rebinding")
 
 	# The setup window's choices are remembered too (the start mode is not).
-	Settings.set_setup({ "mode": "watch", "side": "invader", "seed": 7, "defenders": { "count": 3 } })
+	Settings.set_setup({
+		"mode": "watch",
+		"side": "invader",
+		"seed": 7,
+		"defenders": { "count": 3 },
+	})
 	Settings.setup = {}
 	Settings.load_file()
 	t.expect_eq(Settings.setup.get("side"), "invader", "a reload restores the setup side")
@@ -67,7 +76,11 @@ func run(t: TestContext) -> void:
 	Settings.rebind(Keybinds.MOVE_UP, _key(KEY_G))
 	rows = Settings.binding_rows()
 	punch = rows.filter(func(r): return r["action"] == Keybinds.PUNCH)[0]
-	t.expect_eq(punch["conflicts"], [Keybinds.LABELS[Keybinds.MOVE_UP]], "a shared binding is listed by label")
+	t.expect_eq(
+		punch["conflicts"],
+		[Keybinds.LABELS[Keybinds.MOVE_UP]],
+		"a shared binding is listed by label",
+	)
 
 	# Reset saves too.
 	Settings.reset(Keybinds.PUNCH)

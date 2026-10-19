@@ -89,9 +89,9 @@ exit 0
 
 
 class LintTree:
-    """A temp copy of the lint machinery (tools/lint.sh, lint_report.py, the lint_rules package) with `rules_from`'s
-    rules as its registered rules, two scenes (scenes/clean.gd, and scenes/bad.gd holding the word BAD), a class cache
-    so lint.sh does not import, and a fake Godot that prints a canned engine log."""
+    """A temp copy of the lint machinery (tools/lint.sh, lint_report.py, the lint_rules package, the gdstyle pass and
+    gdstyle.toml) with `rules_from`'s rules as its registered rules, two scenes (scenes/clean.gd, and scenes/bad.gd
+    holding the word BAD), a class cache so lint.sh does not import, and a fake Godot that prints a canned engine log."""
 
     def __init__(self, rules_from: Path):
         self.rules_from = rules_from
@@ -101,8 +101,9 @@ class LintTree:
         self.root = self.dir / "tree"
         tools = self.root / "tools"
         tools.mkdir(parents=True)
-        for name in ("lint.sh", "lint_report.py"):
+        for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")
         (tools / "__init__.py").write_text("")
         shutil.copytree(LINT_RULES, tools / "lint_rules",
                         ignore=shutil.ignore_patterns("tests", "rules", "__pycache__"))
@@ -152,17 +153,19 @@ config/name="lint engine tree"
 
 
 class EngineLintTree:
-    """A temp Godot project with the lint machinery (tools/lint.sh, lint_report.py, lint_scripts.gd / .tscn and the
-    lint_rules package with its real rules) and one clean script, scenes/clean.gd, linted by the real engine
-    (godot_binary())."""
+    """A temp Godot project with the lint machinery (tools/lint.sh, lint_report.py, lint_scripts.gd / .tscn, the
+    lint_rules package with its real rules, the gdstyle pass and gdstyle.toml) and one clean script, scenes/clean.gd,
+    linted by the real engine (godot_binary())."""
 
     def __enter__(self):
         self.dir = Path(tempfile.mkdtemp(prefix="lint_engine_test."))
         self.root = self.dir / "tree"
         tools = self.root / "tools"
         tools.mkdir(parents=True)
-        for name in ("lint.sh", "lint_report.py", "lint_scripts.gd", "lint_scripts.tscn"):
+        for name in ("lint.sh", "lint_report.py", "lint_gdstyle.py", "gdstyle.sh", "lint_scripts.gd",
+                     "lint_scripts.tscn"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
+        shutil.copy2(ROOT / "gdstyle.toml", self.root / "gdstyle.toml")
         (tools / "__init__.py").write_text("")
         shutil.copytree(LINT_RULES, tools / "lint_rules", ignore=shutil.ignore_patterns("tests", "__pycache__"))
         write(self.root, "project.godot", ENGINE_PROJECT)

@@ -1,5 +1,4 @@
 extends GameTest
-
 ## A puppet beside a chair sits on it through the interaction API (interact_with "sit"): it becomes
 ## busy with the "Sit" label, and standing up (end_interaction) frees it again.
 
@@ -7,7 +6,8 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Sit on a chair and stand up",
-		"description": "interact_with(chair, \"sit\") locks the character in the Sit interaction; end_interaction releases it.",
+		"description": "interact_with(chair, \"sit\") locks the character in the Sit interaction; "
+			+ "end_interaction releases it.",
 		"tags": ["interaction", "sit", "chair"],
 		"timeout": 5.0,
 	}

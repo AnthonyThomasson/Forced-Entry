@@ -1,10 +1,9 @@
 extends RefCounted
-
 ## Top-down pixel-art RUG painter (Objects domain, private). A woven rug: a contrasting border with
 ## a pale inner line and a stitched band, a patterned field (a stepped central medallion with
 ## corner pieces, or stripes) and fringe at both short ends. A `plush` mat: rounded, densely tufted
-## with a darker rim. Run down (decay.gd): grime, stains, moth holes through to the floor. Options (`art_opts`, defaulting
-## to ObjectArtConfig.rug_*): `pattern` ("medallion" | "stripes" | "plush").
+## with a darker rim. Run down (decay.gd): grime, stains, moth holes through to the floor. Options
+## (`art_opts`, defaulting to ObjectArtConfig.rug_*): `pattern` ("medallion" | "stripes" | "plush").
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 
@@ -18,7 +17,9 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		return
 	var along_x := c.w >= c.h
 	var fringe := clampi(roundi(maxi(c.w, c.h) * 0.025), 2, 5)
-	var body_rect := Rect2i(fringe, 0, c.w - fringe * 2, c.h) if along_x else Rect2i(0, fringe, c.w, c.h - fringe * 2)
+	var body_rect := (Rect2i(fringe, 0, c.w - fringe * 2, c.h)
+			if along_x
+			else Rect2i(0, fringe, c.w, c.h - fringe * 2))
 	var body := PixelCanvas.rounded(body_rect, 1)
 	var border_col := base.darkened(0.38)
 	c.fill(body, border_col)
@@ -38,12 +39,26 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		c.px(body_rect.position.x + mid, y, stitch)
 		c.px(body_rect.end.x - 1 - mid, y, stitch)
 	if pattern == "stripes":
-		var band := maxi(3, int(field_rect.size.y / 8.0) if along_x else int(field_rect.size.x / 8.0))
+		var band := maxi(
+			3,
+			int(field_rect.size.y / 8.0) if along_x else int(field_rect.size.x / 8.0),
+		)
 		var i := 0
 		for a in range(0, field_rect.size.y if along_x else field_rect.size.x, band):
 			if i % 2 == 1:
-				var r := Rect2i(field_rect.position.x, field_rect.position.y + a, field_rect.size.x, band) if along_x \
-						else Rect2i(field_rect.position.x + a, field_rect.position.y, band, field_rect.size.y)
+				var r := (Rect2i(
+					field_rect.position.x,
+					field_rect.position.y + a,
+					field_rect.size.x,
+					band,
+				)
+						if along_x
+						else Rect2i(
+							field_rect.position.x + a,
+							field_rect.position.y,
+							band,
+							field_rect.size.y,
+						))
 				c.paint_over(r, base.darkened(0.12))
 			i += 1
 	else:
@@ -88,8 +103,12 @@ static func _fringe(c: PixelCanvas, body: Rect2i, length: int, along_x: bool) ->
 	var span := body.size.y if along_x else body.size.x
 	for a in range(1, span - 1, 2):
 		for i in length:
-			var near := Vector2i(body.position.x - 1 - i, body.position.y + a) if along_x else Vector2i(body.position.x + a, body.position.y - 1 - i)
-			var far := Vector2i(body.end.x + i, body.position.y + a) if along_x else Vector2i(body.position.x + a, body.end.y + i)
+			var near := (Vector2i(body.position.x - 1 - i, body.position.y + a)
+					if along_x
+					else Vector2i(body.position.x + a, body.position.y - 1 - i))
+			var far := (Vector2i(body.end.x + i, body.position.y + a)
+					if along_x
+					else Vector2i(body.position.x + a, body.end.y + i))
 			var shade := col if i > 0 else col.darkened(0.15)
 			c.px(near.x, near.y, shade)
 			c.px(far.x, far.y, shade)

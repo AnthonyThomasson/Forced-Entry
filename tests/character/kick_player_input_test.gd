@@ -1,13 +1,13 @@
 extends GameTest
-
-## The human's kick key, pressed through the real input action: it throws a kick whatever is held, but not while
-## crouched.
+## The human's kick key, pressed through the real input action: it throws a kick whatever is held,
+## but not while crouched.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Kick key kicks standing, not crouched",
-		"description": "The kick action starts a kick for the player holding a pistol; a crouched player cannot kick.",
+		"description": "The kick action starts a kick for the player holding a pistol; a crouched "
+			+ "player cannot kick.",
 		"tags": ["kick", "player", "input", "legs"],
 		"timeout": 10.0,
 	}

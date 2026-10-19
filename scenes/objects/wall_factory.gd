@@ -1,5 +1,4 @@
 class_name WallFactory
-
 ## Objects-domain factory: turns a plain rect + doorway openings into a runtime Wall entity
 ## (a StaticBody2D that builds its own colliders and is hittable/deformable). World-Gen
 ## calls this with geometry and an optional style dict — it never touches the Wall's fields.
@@ -7,8 +6,10 @@ class_name WallFactory
 const WallScript = preload("res://scenes/objects/wall/wall.gd")
 const WallVisualsScript = preload("res://scenes/objects/wall/wall_visuals.gd")
 
-## The doorways in `doors` (`{ pos, width }`, one point on a wall's centerline each) that lie on one of
-## `rect`'s walls, as the `openings` array `spawn` takes. A door whose point is on no wall of `rect` is skipped.
+
+## The doorways in `doors` (`{ pos, width }`, one point on a wall's centerline each) that lie on one
+## of `rect`'s walls, as the `openings` array `spawn` takes. A door whose point is on no wall of
+## `rect` is skipped.
 static func openings_for(rect: Rect2, doors: Array) -> Array:
 	var cut: Array = []
 	for door in doors:
@@ -17,13 +18,29 @@ static func openings_for(rect: Rect2, doors: Array) -> Array:
 		var within_x := p.x > rect.position.x and p.x < rect.end.x
 		var within_y := p.y > rect.position.y and p.y < rect.end.y
 		if within_x and is_equal_approx(p.y, rect.position.y):
-			cut.append({ "side": WallScript.Side.TOP, "offset": p.x - rect.position.x, "width": width })
+			cut.append({
+				"side": WallScript.Side.TOP,
+				"offset": p.x - rect.position.x,
+				"width": width,
+			})
 		elif within_x and is_equal_approx(p.y, rect.end.y):
-			cut.append({ "side": WallScript.Side.BOTTOM, "offset": p.x - rect.position.x, "width": width })
+			cut.append({
+				"side": WallScript.Side.BOTTOM,
+				"offset": p.x - rect.position.x,
+				"width": width,
+			})
 		elif within_y and is_equal_approx(p.x, rect.position.x):
-			cut.append({ "side": WallScript.Side.LEFT, "offset": p.y - rect.position.y, "width": width })
+			cut.append({
+				"side": WallScript.Side.LEFT,
+				"offset": p.y - rect.position.y,
+				"width": width,
+			})
 		elif within_y and is_equal_approx(p.x, rect.end.x):
-			cut.append({ "side": WallScript.Side.RIGHT, "offset": p.y - rect.position.y, "width": width })
+			cut.append({
+				"side": WallScript.Side.RIGHT,
+				"offset": p.y - rect.position.y,
+				"width": width,
+			})
 	return cut
 
 

@@ -1,7 +1,6 @@
 class_name Knockback extends Node
-
-## Physics System: reusable physics adapter for a shoveable RigidBody2D. Add it as a child of the body. It
-## configures the body for top-down play (no gravity, mass, damping, sleep, origin-pinned
+## Physics System: reusable physics adapter for a shoveable RigidBody2D. Add it as a child of the
+## body. It configures the body for top-down play (no gravity, mass, damping, sleep, origin-pinned
 ## center of mass), and its `apply_impulse(v, at_world)` is how the owner's `take_hit` shoves
 ## the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
 ## `get_mass()`. The engine integrates motion, collisions, pivoting and settling; this
@@ -13,8 +12,8 @@ const _NO_POINT := Vector2(INF, INF)
 
 ## The body's mass. Set by the owner from its catalog definition; applied to the RigidBody2D.
 var mass: float = 10.0
-
-var _body: RigidBody2D  ## The shoved body (parent).
+## The shoved body (parent).
+var _body: RigidBody2D
 
 
 ## Configure the parent RigidBody2D for top-down physics and wire contact reporting.
@@ -25,7 +24,9 @@ func _ready() -> void:
 	_body.linear_damp = PhysicsConfig.body_linear_damp
 	_body.angular_damp = PhysicsConfig.body_angular_damp
 	_body.can_sleep = true
-	_body.continuous_cd = RigidBody2D.CCD_MODE_CAST_RAY if PhysicsConfig.body_continuous_cd else RigidBody2D.CCD_MODE_DISABLED
+	_body.continuous_cd = (RigidBody2D.CCD_MODE_CAST_RAY
+			if PhysicsConfig.body_continuous_cd
+			else RigidBody2D.CCD_MODE_DISABLED)
 	# Pin the center of mass to the origin so a carved object still rotates about its
 	# origin-centered drawn silhouette instead of a shifted mass center.
 	_body.center_of_mass_mode = RigidBody2D.CENTER_OF_MASS_MODE_CUSTOM

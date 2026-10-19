@@ -1,11 +1,11 @@
 class_name FloorFactory
-
-## Objects-domain factory: turns a room rect + a floor DEFINITION (a plain data dict from World-Gen's
-## catalogue: `art`, `color`, `material`, `art_opts`, and optionally `sound_surface` (false: registers no SoundSurface, so
-## footsteps on it sound like the open ground: the street), `marks` (world-placed marks laid over it: the street's
-## `{ seed, lane, edges }`, see street_marks.gd) and `tile_from` (a point in `parent`'s space the repeating tile's grid is laid
-## from, so neighbouring pieces share one grid; default the floor's own corner)) into a runtime Floor entity. World-Gen
-## never touches the Floor's fields directly.
+## Objects-domain factory: turns a room rect + a floor DEFINITION (a plain data dict from
+## World-Gen's catalogue: `art`, `color`, `material`, `art_opts`, and optionally `sound_surface`
+## (false: registers no SoundSurface, so footsteps on it sound like the open ground: the street),
+## `marks` (world-placed marks laid over it: the street's `{ seed, lane, edges }`, see
+## street_marks.gd) and `tile_from` (a point in `parent`'s space the repeating tile's grid is laid
+## from, so neighbouring pieces share one grid; default the floor's own corner)) into a runtime
+## Floor entity. World-Gen never touches the Floor's fields directly.
 
 const FloorScript = preload("res://scenes/objects/floor/floor.gd")
 const FloorVisualsScript = preload("res://scenes/objects/floor/floor_visuals.gd")

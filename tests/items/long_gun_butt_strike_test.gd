@@ -1,14 +1,12 @@
 extends GameTest
-
-## F with a rifle or SMG in hand strikes with the butt: the gun swings in both hands, outward from the body, to lie nearly
-## across it with the butt leading, and the blow lands from the butt, as far out as a punch with the gun's reach ever did.
-## A pistol still just jabs.
+## F with a rifle or SMG in hand strikes with the butt: the gun swings in both hands, outward from
+## the body, to lie nearly across it with the butt leading, and the blow lands from the butt, as far
+## out as a punch with the gun's reach ever did. A pistol still just jabs.
 
 const PISTOL_SLOT := 3
 const SMG_SLOT := 5
 const RIFLE_SLOT := 6
 const Rig = preload("res://scenes/character/body/character_rig.gd")
-
 ## How far an arm bone may stretch past its length (fraction) while the gun is swung round.
 const ARM_STRETCH := 0.12
 
@@ -16,7 +14,8 @@ const ARM_STRETCH := 0.12
 func describe() -> Dictionary:
 	return {
 		"name": "Long guns punch with the butt",
-		"description": "A rifle and an SMG swing round in both hands so the butt leads and hit a chair with it; a pistol never turns.",
+		"description": "A rifle and an SMG swing round in both hands so the butt leads and hit a "
+			+ "chair with it; a pistol never turns.",
 		"tags": ["punch", "melee", "rifle", "smg", "pistol", "gun"],
 		"timeout": 8.0,
 	}
@@ -53,17 +52,24 @@ func run(t: TestContext) -> void:
 	for id in [&"rifle", &"smg"]:
 		var you := t.actor(id)
 		t.check(you.current_item().strike_ahead() > 0.0, "%s: the butt sits behind the grip" % id)
-		t.check(peak[id] > 0.95, "%s: the gun swings round for the butt strike (%.2f)" % [id, peak[id]])
+		t.check(
+			peak[id] > 0.95,
+			"%s: the gun swings round for the butt strike (%.2f)" % [id, peak[id]],
+		)
 		var chair: Node2D = t.object(StringName("chair_%s" % id))
 		var struck := func(d): return d["actor"] == id and d["body"] == chair and d["hand"] >= 0
 		t.check(t.happened(&"hit_landed", struck), "%s: the butt strike lands on the chair" % id)
-	t.expect_eq(t.actor(&"pistol").current_item().strike_ahead(), 0.0, "a pistol has no butt to lead with")
+	t.expect_eq(
+		t.actor(&"pistol").current_item().strike_ahead(),
+		0.0,
+		"a pistol has no butt to lead with",
+	)
 	t.expect_eq(peak[&"pistol"], 0.0, "a pistol never turns in the hand")
 
 
-## With nothing in the way, a rifle punch swings the gun in both hands, the other hand staying a fixed grip from the
-## weapon hand, until it lies nearly across the body: almost horizontal, the butt centred on the aim and a little ahead
-## of the muzzle. The arms never overstretch on the way.
+## With nothing in the way, a rifle punch swings the gun in both hands, the other hand staying a
+## fixed grip from the weapon hand, until it lies nearly across the body: almost horizontal, the
+## butt centred on the aim and a little ahead of the muzzle. The arms never overstretch on the way.
 func _check_two_handed_swing(t: TestContext) -> void:
 	var puppet := t.puppet(&"free")
 	var you := t.actor(&"free")
@@ -87,9 +93,15 @@ func _check_two_handed_swing(t: TestContext) -> void:
 			worst = maxf(worst, absf(apart.length() - gap))
 		var rig = you.rig()
 		for arm in 2:
-			for bone in [[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm], [Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm]]:
+			for bone in [
+					[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
+					[Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
+			]:
 				var want: float = bone[2] * you.radius
-				stretch = maxf(stretch, rig.point(bone[0][arm]).distance_to(rig.point(bone[1][arm])) / want - 1.0)
+				stretch = maxf(
+					stretch,
+					rig.point(bone[0][arm]).distance_to(rig.point(bone[1][arm])) / want - 1.0,
+				)
 		if item.strike_swing(amount) > 0.99:
 			var barrel := item.strike_direction(you.facing, amount)
 			var butt: Vector2 = item.strike_end(you.facing, amount)
@@ -99,8 +111,20 @@ func _check_two_handed_swing(t: TestContext) -> void:
 			muzzle_ahead = minf(muzzle_ahead, muzzle.dot(you.facing))
 			var centre: Vector2 = you.hand_position(0) + butt
 			butt_off = minf(butt_off, absf(centre.dot(you.facing.orthogonal())))
-	t.check(worst < 3.0, "the other hand stays a fixed grip from the weapon hand (off by %.1f px)" % worst)
-	t.check(tilt < 0.4, "the gun ends nearly across the body, not turned round (%.2f along the aim)" % tilt)
-	t.check(butt_ahead > muzzle_ahead, "the butt is a little ahead of the muzzle (%.1f vs %.1f px)" % [butt_ahead, muzzle_ahead])
+	t.check(
+		worst < 3.0,
+		"the other hand stays a fixed grip from the weapon hand (off by %.1f px)" % worst,
+	)
+	t.check(
+		tilt < 0.4,
+		"the gun ends nearly across the body, not turned round (%.2f along the aim)" % tilt,
+	)
+	t.check(
+		butt_ahead > muzzle_ahead,
+		"the butt is a little ahead of the muzzle (%.1f vs %.1f px)" % [butt_ahead, muzzle_ahead],
+	)
 	t.check(butt_off < 9.0, "the butt is centred on the aim line (%.1f px off)" % butt_off)
-	t.check(stretch <= ARM_STRETCH, "neither arm overstretches through the swing (%.0f%%)" % (stretch * 100.0))
+	t.check(
+		stretch <= ARM_STRETCH,
+		"neither arm overstretches through the swing (%.0f%%)" % (stretch * 100.0),
+	)

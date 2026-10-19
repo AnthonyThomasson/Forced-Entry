@@ -1,17 +1,17 @@
 class_name HouseDefinitions
-
-## World Generation domain: house floorplans, in house-local coordinates (walls run along the rect edges).
+## World Generation domain: house floorplans, in house-local coordinates (walls run along the rect
+## edges).
 ##   rooms: key, type (a recipe in ArrangementDefinitions), rect.
 ##   openings: `pos` is the doorway center ON a wall line; every room whose wall passes
 ##          through it gets that gap cut. Exactly one opening is `front` (the exterior
 ##          entrance the house is positioned by, on the south wall); a house may also have `exit`
 ##          openings (a back/side/garage door: exterior, on exactly one room's wall).
 ## What may connect to what (which rooms can hold the front door or an exit, which room types may
-## share a door, which must be dead ends) is LayoutRules; HouseSpawner warns about a plan that breaks it
-## and tests/worldgen/house_doorways_connected_test.gd fails on it. Bedrooms and bathrooms open off a
-## hallway (or a living space); a bedroom-to-bathroom door is a private en-suite. The flats are run-down cyberpunk
-## homes: the railroad, micro and corner flats carry the netrunner den, the ripperdoc, the security vestibule and the
-## kitchenette between them.
+## share a door, which must be dead ends) is LayoutRules; HouseSpawner warns about a plan that
+## breaks it and tests/worldgen/house_doorways_connected_test.gd fails on it. Bedrooms and bathrooms
+## open off a hallway (or a living space); a bedroom-to-bathroom door is a private en-suite. The
+## flats are run-down cyberpunk homes: the railroad, micro and corner flats carry the netrunner den,
+## the ripperdoc, the security vestibule and the kitchenette between them.
 
 const PLANS := {
 	"starter_home": {
@@ -143,12 +143,17 @@ const PLANS := {
 		],
 	},
 
-	# A railroad flat: four rooms in a row, each opening into the next through doorways that line up along their north
-	# side, from the vestibule on the street to the netrunner's den at the far end.
+	# A railroad flat: four rooms in a row, each opening into the next through doorways that line up
+	# along their north side, from the vestibule on the street to the netrunner's den at the far
+	# end.
 	"railroad_flat": {
 		"wall_thickness": 12.0,
 		"rooms": [
-			{ "key": "security_vestibule", "type": "security_vestibule", "rect": Rect2(0, 0, 260, 340) },
+			{
+				"key": "security_vestibule",
+				"type": "security_vestibule",
+				"rect": Rect2(0, 0, 260, 340),
+			},
 			{ "key": "living_room", "type": "living_room", "rect": Rect2(260, 0, 380, 340) },
 			{ "key": "ripperdoc", "type": "ripperdoc", "rect": Rect2(640, 0, 360, 340) },
 			{ "key": "netrunner_den", "type": "netrunner_den", "rect": Rect2(1000, 0, 340, 340) },
@@ -176,8 +181,8 @@ const PLANS := {
 		],
 	},
 
-	# A corner flat: the vestibule on the street opens onto a short inner hallway; the living room, bedroom, bathroom and
-	# kitchenette are round it.
+	# A corner flat: the vestibule on the street opens onto a short inner hallway; the living room,
+	# bedroom, bathroom and kitchenette are round it.
 	"corner_flat": {
 		"wall_thickness": 12.0,
 		"rooms": [
@@ -185,7 +190,11 @@ const PLANS := {
 			{ "key": "bedroom", "type": "bedroom", "rect": Rect2(420, 0, 340, 340) },
 			{ "key": "bathroom", "type": "bathroom", "rect": Rect2(0, 340, 220, 320) },
 			{ "key": "hallway", "type": "hallway", "rect": Rect2(220, 340, 540, 130) },
-			{ "key": "security_vestibule", "type": "security_vestibule", "rect": Rect2(220, 470, 280, 190) },
+			{
+				"key": "security_vestibule",
+				"type": "security_vestibule",
+				"rect": Rect2(220, 470, 280, 190),
+			},
 			{ "key": "kitchenette", "type": "kitchenette", "rect": Rect2(500, 470, 260, 190) },
 		],
 		"openings": [
@@ -199,9 +208,11 @@ const PLANS := {
 	},
 }
 
+
 ## The floorplan for `key`, or {} if unknown.
 static func get_plan(key: String) -> Dictionary:
 	return PLANS.get(key, {})
+
 
 ## Every floorplan key.
 static func get_all() -> Array:

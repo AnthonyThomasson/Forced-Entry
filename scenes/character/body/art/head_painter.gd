@@ -1,20 +1,23 @@
 extends RefCounted
-
-## Top-down pixel-art CHARACTER HEAD painter (Character domain, private; rendered through the Art domain's PixelArt). Painted in
-## the canonical frame — facing +y — on its own canvas, so the head can turn apart from the shoulders: skin with ears and a nose
-## toward the front, under the hair or what is worn on the head, then the face's implants. All of it from the look (`opts.look`,
-## a `PixelArt.handle`; `character_style.gd` resolves it):
-## - the hair (`hair_style`: `short`, `long`, `buzz`, `bald`, `mohawk`) in `hair`, a tattoo on a bare scalp;
-## - a cap (`head` `cap`): the police units' peaked duty cap (the Zenitex's white band, the Trauma Team's cross), a merc's watch
-##   cap, a borg's bandana;
-## - a helmet (`head` `helmet`): the Zenitex's faceless shell, light rimmed, a visor with a white glint, rails and ear pods; the
-##   Trauma Team's white shell with its red crown and blue lamp; a merc's scuffed army helmet with goggles pushed up; a borg's
-##   welded skull cap; the lead's stripe across the brow (`rank` 2);
-## - the face (`eyes`: `glow`, `multi` lenses; `face`: `respirator`, a chrome `plate`, `goggles`; a `headset`).
+## Top-down pixel-art CHARACTER HEAD painter (Character domain, private; rendered through the Art
+## domain's PixelArt). Painted in the canonical frame — facing +y — on its own canvas, so the head
+## can turn apart from the shoulders: skin with ears and a nose toward the front, under the hair or
+## what is worn on the head, then the face's implants. All of it from the look (`opts.look`, a
+## `PixelArt.handle`; `character_style.gd` resolves it):
+## - the hair (`hair_style`: `short`, `long`, `buzz`, `bald`, `mohawk`) in `hair`, a tattoo on a
+##   bare scalp;
+## - a cap (`head` `cap`): the police units' peaked duty cap (the Zenitex's white band, the Trauma
+##   Team's cross), a merc's watch cap, a borg's bandana;
+## - a helmet (`head` `helmet`): the Zenitex's faceless shell, light rimmed, a visor with a white
+##   glint, rails and ear pods; the Trauma Team's white shell with its red crown and blue lamp; a
+##   merc's scuffed army helmet with goggles pushed up; a borg's welded skull cap; the lead's stripe
+##   across the brow (`rank` 2);
+## - the face (`eyes`: `glow`, `multi` lenses; `face`: `respirator`, a chrome `plate`, `goggles`; a
+##   `headset`).
 
 const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
-
-const _HAIR := 7  ## Heights for cast shadows, floor-up.
+## Heights for cast shadows, floor-up.
+const _HAIR := 7
 const _HEAD := 9
 const _BRIM := 10
 const _SHELL := 11
@@ -33,7 +36,8 @@ static func canvas_for(r: int) -> int:
 	return (r + MARGIN) * 2
 
 
-## Paint a head onto `c`, centred, facing +y. `base` is unused: the head takes its colours from the look.
+## Paint a head onto `c`, centred, facing +y. `base` is unused: the head takes its colours from the
+## look.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
@@ -68,14 +72,19 @@ static func _shade(c: PixelCanvas, head: PixelCanvas.Shape) -> void:
 	c.outline_relative(head, 0.45)
 
 
-## Whether a pixel of the head lies behind the face (the face is the head's front cap): what hair and a cap cover.
+## Whether a pixel of the head lies behind the face (the face is the head's front cap): what hair
+## and a cap cover.
 static func _covered(o: Vector2i, r: int, head: PixelCanvas.Shape) -> Callable:
 	var face_o := Vector2(o.x, o.y + r * 0.9)
 	var face_r := r * 0.85
-	return func(x: int, y: int) -> bool: return head.has(x, y) and Vector2(x, y).distance_to(face_o) > face_r
+	return func(
+		x: int,
+		y: int,
+	) -> bool: return head.has(x, y) and Vector2(x, y).distance_to(face_o) > face_r
 
 
-# --- Hair --------------------------------------------------------------------------------------------
+# --- Hair -----------------------------------------------------------------------------------------
+
 
 ## Long hair falling behind the head, under it.
 static func _long_hair(c: PixelCanvas, o: Vector2i, r: int, hair: Color) -> void:
@@ -87,9 +96,16 @@ static func _long_hair(c: PixelCanvas, o: Vector2i, r: int, hair: Color) -> void
 		c.line(Vector2i(o.x + dx, o.y - r - 2), Vector2i(o.x + dx, o.y - 2), ht.dark)
 
 
-## The hair over the crown: cropped, buzzed (stubble over skin), shaved bald, a mohawk's crest over stubble, or full; a glyph
-## inked beside the crest on a tattooed bare scalp.
-static func _hair(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary, skin: Color, head: PixelCanvas.Shape) -> void:
+## The hair over the crown: cropped, buzzed (stubble over skin), shaved bald, a mohawk's crest over
+## stubble, or full; a glyph inked beside the crest on a tattooed bare scalp.
+static func _hair(
+	c: PixelCanvas,
+	o: Vector2i,
+	r: int,
+	look: Dictionary,
+	skin: Color,
+	head: PixelCanvas.Shape,
+) -> void:
 	var hair: Color = look.get("hair", Color.BLACK)
 	var ht := PixelCanvas.tones(hair)
 	var covered := _covered(o, r, head)
@@ -124,11 +140,19 @@ static func _hair(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary, skin: C
 		c.px(at.x, at.y + 2, ink)
 
 
-# --- Caps --------------------------------------------------------------------------------------------
+# --- Caps -----------------------------------------------------------------------------------------
 
-## A cap over the crown in `helm`: the police units' peaked duty cap (a crown seam, a brim to the front, the Zenitex's white
-## band or the Trauma Team's cross), a merc's ribbed watch cap with its knot, a borg's bandana tied at the back.
-static func _cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary, head: PixelCanvas.Shape) -> void:
+
+## A cap over the crown in `helm`: the police units' peaked duty cap (a crown seam, a brim to the
+## front, the Zenitex's white band or the Trauma Team's cross), a merc's ribbed watch cap with its
+## knot, a borg's bandana tied at the back.
+static func _cap(
+	c: PixelCanvas,
+	o: Vector2i,
+	r: int,
+	look: Dictionary,
+	head: PixelCanvas.Shape,
+) -> void:
 	var col: Color = look.get("helm", Color.BLACK)
 	var t := PixelCanvas.tones(col)
 	var trim: Color = look.get("trim", Color.WHITE)
@@ -159,9 +183,11 @@ static func _cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary, head: Pi
 			c.px(o.x + 1, o.y - r - 2, col, _BRIM)
 
 
-# --- Helmets -----------------------------------------------------------------------------------------
+# --- Helmets --------------------------------------------------------------------------------------
 
-## A helmet shell over the head in `helm`, a style's own on it, and the lead's stripe across the brow.
+
+## A helmet shell over the head in `helm`, a style's own on it, and the lead's stripe across the
+## brow.
 static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
 	var col: Color = look.get("helm", Color.GRAY)
 	var t := PixelCanvas.tones(col)
@@ -179,13 +205,19 @@ static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> vo
 	var front := at.y + r + grow  # The shell's front edge row.
 	match style:
 		"zenitex":
-			# Faceless: a glossy visor wrapping the front with a white glint across it, ridge rails down each side, ear pods.
+			# Faceless: a glossy visor wrapping the front with a white glint across it, ridge rails
+			# down each side, ear pods.
 			_visor(c, shell, front - 3, visor, visor.lightened(0.45))
 			c.px(at.x - 3, front - 2, Color(0.92, 0.95, 1.0), _VISOR)
 			c.px(at.x - 2, front - 2, Color(0.80, 0.86, 0.94), _VISOR)
 			c.px(at.x - 1, front - 1, visor.lightened(0.5), _VISOR)
 			for side in [-1, 1]:
-				c.line(Vector2i(at.x + side * (r - 1), at.y - r + 1), Vector2i(at.x + side * (r - 1), front - 4), t.highlight, _SHELL)
+				c.line(
+					Vector2i(at.x + side * (r - 1), at.y - r + 1),
+					Vector2i(at.x + side * (r - 1), front - 4),
+					t.highlight,
+					_SHELL,
+				)
 				c.px(at.x + side * (r + 2), at.y + 1, t.light, _SHELL)
 		"trauma":
 			# A white shell, red over the crown, a dark visor and a blue lamp on one side.
@@ -200,10 +232,23 @@ static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> vo
 		"merc":
 			# An old army helmet, scuffed, with goggles pushed up on the brow.
 			for k in 4:
-				c.px(at.x + c.rng.randi_range(-r + 1, r - 1), at.y + c.rng.randi_range(-r + 1, 0), t.shadow)
+				c.px(
+					at.x + c.rng.randi_range(-r + 1, r - 1),
+					at.y + c.rng.randi_range(-r + 1, 0),
+					t.shadow,
+				)
 			for side in [-1, 1]:
-				c.line(Vector2i(at.x + side * (r + 1), at.y), Vector2i(at.x + side * 2, front - 2), Color(0.15, 0.14, 0.12), _VISOR)
-				c.fill(PixelCanvas.disc(Vector2i(at.x + side * 2, front - 2), 1), Color(0.55, 0.45, 0.2), _VISOR)
+				c.line(
+					Vector2i(at.x + side * (r + 1), at.y),
+					Vector2i(at.x + side * 2, front - 2),
+					Color(0.15, 0.14, 0.12),
+					_VISOR,
+				)
+				c.fill(
+					PixelCanvas.disc(Vector2i(at.x + side * 2, front - 2), 1),
+					Color(0.55, 0.45, 0.2),
+					_VISOR,
+				)
 		_:
 			# A welded skull cap: a seam over the crown and a ring of rivets.
 			c.line(Vector2i(at.x, at.y - r - 1), Vector2i(at.x, front - 1), t.shadow, _SHELL)
@@ -211,11 +256,22 @@ static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> vo
 				var p := Vector2(at) + Vector2.from_angle(TAU * k / 8.0) * (r - 0.5)
 				c.px(roundi(p.x), roundi(p.y), t.highlight, _SHELL + 1)
 	if int(look.get("rank", 0)) >= 2:
-		c.line(Vector2i(at.x - r + 1, at.y - 1), Vector2i(at.x + r - 1, at.y - 1), trim.lightened(0.2), _SHELL + 1)
+		c.line(
+			Vector2i(at.x - r + 1, at.y - 1),
+			Vector2i(at.x + r - 1, at.y - 1),
+			trim.lightened(0.2),
+			_SHELL + 1,
+		)
 
 
 ## A visor over the shell's front rows from `row` on, rimmed along its top edge.
-static func _visor(c: PixelCanvas, shell: PixelCanvas.Shape, row: int, col: Color, rim: Color) -> void:
+static func _visor(
+	c: PixelCanvas,
+	shell: PixelCanvas.Shape,
+	row: int,
+	col: Color,
+	rim: Color,
+) -> void:
 	var b := shell.bounds
 	for y in range(row, b.end.y):
 		for x in range(b.position.x, b.end.x):
@@ -223,9 +279,11 @@ static func _visor(c: PixelCanvas, shell: PixelCanvas.Shape, row: int, col: Colo
 				c.px(x, y, col if y > row else rim, _VISOR)
 
 
-# --- Face implants -----------------------------------------------------------------------------------
+# --- Face implants --------------------------------------------------------------------------------
 
-## The face: a respirator, a chrome plate over one side, or goggles; glowing eyes or multi-lens optics; a headset's band.
+
+## The face: a respirator, a chrome plate over one side, or goggles; glowing eyes or multi-lens
+## optics; a headset's band.
 static func _face(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
 	var glow: Color = look.get("glow", Color.RED)
 	var eye_y := o.y + r - 1
@@ -246,8 +304,17 @@ static func _face(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void
 			c.px(o.x + side * (r - 1), o.y + 1, Color(0.2, 0.2, 0.22), _HEAD + 1)  # A bolt.
 		"goggles":
 			for side in [-1, 1]:
-				c.line(Vector2i(o.x + side * r, o.y), Vector2i(o.x + side * 2, eye_y), Color(0.12, 0.11, 0.10), _VISOR)
-				c.fill(PixelCanvas.disc(Vector2i(o.x + side * 2, eye_y), 1), Color(0.75, 0.55, 0.12), _VISOR)
+				c.line(
+					Vector2i(o.x + side * r, o.y),
+					Vector2i(o.x + side * 2, eye_y),
+					Color(0.12, 0.11, 0.10),
+					_VISOR,
+				)
+				c.fill(
+					PixelCanvas.disc(Vector2i(o.x + side * 2, eye_y), 1),
+					Color(0.75, 0.55, 0.12),
+					_VISOR,
+				)
 				c.px(o.x + side * 2, eye_y, Color(0.95, 0.85, 0.45), _VISOR)
 	match String(look.get("eyes", "")):
 		"glow":
@@ -257,10 +324,20 @@ static func _face(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void
 				halo.a = 0.55
 				c.px(o.x + side * 2, eye_y + 1, halo, _VISOR + 1)
 		"multi":
-			for p in [Vector2i(-2, 0), Vector2i(-1, 1), Vector2i(1, 1), Vector2i(2, 0), Vector2i(0, -1)]:
+			for p in [
+					Vector2i(-2, 0),
+					Vector2i(-1, 1),
+					Vector2i(1, 1),
+					Vector2i(2, 0),
+					Vector2i(0, -1),
+			]:
 				c.px(o.x + p.x, eye_y + p.y, glow.lightened(0.2) if p.y == 1 else glow, _VISOR + 1)
 	if look.get("headset", false):
 		var band := Color(0.12, 0.12, 0.12)
 		c.line(Vector2i(o.x - r, o.y), Vector2i(o.x + r, o.y), band, _VISOR)
 		for side in [-1, 1]:
-			c.fill(PixelCanvas.disc(Vector2i(o.x + side * (r + 1), o.y + 1), 1), Color(0.18, 0.18, 0.17), _VISOR)
+			c.fill(
+				PixelCanvas.disc(Vector2i(o.x + side * (r + 1), o.y + 1), 1),
+				Color(0.18, 0.18, 0.17),
+				_VISOR,
+			)

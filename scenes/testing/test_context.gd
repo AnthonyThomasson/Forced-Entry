@@ -1,5 +1,4 @@
 class_name TestContext extends Object
-
 ## Testing domain: what a running test sees — handed to `GameTest.run(t)`. Waiting (in sim time),
 ## looking up what the setup placed, the event log of what happened, and the assertions.
 ##
@@ -10,6 +9,15 @@ class_name TestContext extends Object
 
 ## Emitted once when the test ends, for whatever reason.
 signal finished
+## Never emitted: waits park on it once the test has ended.
+signal _never
+
+
+# --- Input ----------------------------------------------------------------------------------
+
+## Marks an input event a test sent itself, so a locked interaction (`TestSetup.lock_interaction`)
+## lets it through while still dropping the same kind of event from a person.
+const INJECTED_META := &"test_injected"
 
 ## The built world (a TestWorld node) and its rooms (`{ key, type, rect }`, world-space).
 var world: Node2D
@@ -26,20 +34,21 @@ var logs: Array = []
 var events: Array = []
 ## Sampled series from `trace()`: name → Array of `[time, value]`.
 var traces: Dictionary = {}
-## Where `screenshot()` saves PNGs, as a path prefix ("" = screenshots off; the runner's `--shots` sets it
-## on a rendering run). `shots` lists the files written.
+## Where `screenshot()` saves PNGs, as a path prefix ("" = screenshots off; the runner's `--shots`
+## sets it on a rendering run). `shots` lists the files written.
 var shot_prefix := ""
 var shots: Array = []
-## "PASS" | "FAIL" | "SKIPPED" | "TIMEOUT" | "GAP" once ended ("" while running). GAP is a test tagged `gap` (a
-## behaviour the code does not show yet, written first and left red) that failed or timed out as expected; one that
-## passes is a FAIL ("drop the gap tag").
+## "PASS" | "FAIL" | "SKIPPED" | "TIMEOUT" | "GAP" once ended ("" while running). GAP is a test
+## tagged `gap` (a behaviour the code does not show yet, written first and left red) that failed or
+## timed out as expected; one that passes is a FAIL ("drop the gap tag").
 var status := ""
 ## Why it was skipped / timed out.
 var reason := ""
-## Whether the test has ended (`finish`: a verdict, a failed `require`, a skip); a wait then parks for good.
+## Whether the test has ended (`finish`: a verdict, a failed `require`, a skip); a wait then parks
+## for good.
 var is_finished := false
-
-## The world's placed actors, objects and vehicles by id (what `actor`, `object` and `vehicle` read).
+## The world's placed actors, objects and vehicles by id (what `actor`, `object` and `vehicle`
+## read).
 var _actors: Dictionary = {}
 var _objects: Dictionary = {}
 var _vehicles: Dictionary = {}
@@ -49,7 +58,8 @@ var _tree: SceneTree
 var _expected_logs: Array = []
 ## Patterns of log lines the test lets pass (its `allowed_logs`).
 var _allowed_logs: Array = []
-## Whether a logged engine error / warning fails the test (its `fail_on_errors` / `fail_on_warnings`).
+## Whether a logged engine error / warning fails the test (its `fail_on_errors` /
+## `fail_on_warnings`).
 var _fail_on_errors := true
 var _fail_on_warnings := true
 ## Whether `conclude` has already run its one-time checks (expected logs, no assertions).
@@ -60,8 +70,6 @@ var _gap := false
 var _gap_passed := false
 ## The test ended by timing out; its verdict stays TIMEOUT whatever the checks say.
 var _timed_out := false
-## Never emitted: waits park on it once the test has ended.
-signal _never
 
 
 func _init(tree: SceneTree, description: Dictionary) -> void:
@@ -73,6 +81,7 @@ func _init(tree: SceneTree, description: Dictionary) -> void:
 
 
 # --- Lookup -------------------------------------------------------------------------------
+
 
 ## The character placed as `id` (null if unknown or freed).
 func actor(id: StringName) -> Node:
@@ -93,11 +102,13 @@ func puppet(id: StringName) -> Node:
 
 ## The object placed as `id` (null if unknown or freed).
 func object(id: StringName) -> Node:
-	var n = _objects.get(id)  # untyped: assigning a freed object to a Node variable is an engine error
+	# untyped: assigning a freed object to a Node variable is an engine error
+	var n = _objects.get(id)
 	return n if is_instance_valid(n) else null
 
 
-## The vehicle placed as `id` (`TestSetup.vehicle`; null if unknown, freed, or its kind has no scene).
+## The vehicle placed as `id` (`TestSetup.vehicle`; null if unknown, freed, or its kind has no
+## scene).
 func vehicle(id: StringName) -> Node:
 	var n = _vehicles.get(id)  # untyped, as in `object`
 	return n if is_instance_valid(n) else null
@@ -111,20 +122,13 @@ func controller(id: StringName, method := &"control") -> Node:
 	return controller_of(a, method)
 
 
-## The child of `character` that has `method` (default `control`: its controller, interface 7), or null. For
-## characters that are not test actors (a match's NPCs spawned in `run`).
+## The child of `character` that has `method` (default `control`: its controller, interface 7), or
+## null. For characters that are not test actors (a match's NPCs spawned in `run`).
 static func controller_of(character: Node, method := &"control") -> Node:
 	for child in character.get_children():
 		if child.has_method(method):
 			return child
 	return null
-
-
-# --- Input ----------------------------------------------------------------------------------
-
-## Marks an input event a test sent itself, so a locked interaction (`TestSetup.lock_interaction`) lets it
-## through while still dropping the same kind of event from a person.
-const INJECTED_META := &"test_injected"
 
 
 ## Send `event` into the game as the test's own input (instead of a bare `Input.parse_input_event`).
@@ -134,6 +138,7 @@ static func inject(event: InputEvent) -> void:
 
 
 # --- Waiting (sim time) ---------------------------------------------------------------------
+
 
 ## Wait `duration` seconds of simulated time.
 func seconds(duration: float) -> void:
@@ -172,6 +177,7 @@ func until(condition: Callable, timeout: float, message := "") -> bool:
 
 # --- Event log ------------------------------------------------------------------------------
 
+
 ## Logged events with `topic`, optionally filtered by `filter(data) -> bool`.
 func events_of(topic: StringName, filter := Callable()) -> Array:
 	var out: Array = []
@@ -195,16 +201,17 @@ func spawned(name_part: String) -> Array:
 	return out
 
 
-## Record `value` (a number) under `name` at the current time, e.g. a distance a threshold check later
-## misses. Failed runs print each series' range and last value and keep it in the failure bundle.
+## Record `value` (a number) under `name` at the current time, e.g. a distance a threshold check
+## later misses. Failed runs print each series' range and last value and keep it in the failure
+## bundle.
 func trace(trace_name: String, value: float) -> void:
 	var series: Array = traces.get(trace_name, [])
 	series.append([snappedf(time, 0.01), snappedf(value, 0.001)])
 	traces[trace_name] = series
 
 
-## What the scripted Von (`TestSetup.von_script`) was asked: `{ state, question, options: Array, pick }`
-## per ask, in order.
+## What the scripted Von (`TestSetup.von_script`) was asked: `{ state, question, options: Array,
+## pick }` per ask, in order.
 func von_requests() -> Array:
 	return DecisionStub.requests
 
@@ -228,6 +235,7 @@ func screenshot(label: String) -> String:
 
 
 # --- Assertions -----------------------------------------------------------------------------
+
 
 ## Record `condition` as a check; returns it. A failure fails the test but lets it continue.
 func check(condition: bool, message: String) -> bool:
@@ -268,6 +276,7 @@ func skip(why: String) -> void:
 
 # --- Runner-facing --------------------------------------------------------------------------
 
+
 ## End the test with `result` (first call wins). Waits park; `finished` fires.
 func finish(result: String) -> void:
 	if is_finished:
@@ -293,20 +302,27 @@ func on_log(entry: Dictionary) -> void:
 		return
 	logs.append(entry)
 	var where: String = entry["location"]
-	check(false, "Logged %s: %s%s" % [entry["severity"], entry["message"], "" if where == "" else " (at %s)" % where])
+	check(
+		false,
+		"Logged %s: %s%s"
+			% [entry["severity"], entry["message"], "" if where == "" else " (at %s)" % where],
+	)
 	finish("FAIL")
 
 
 ## Final verdict once the run is over: fails unmet expected logs, and a non-manual test that
-## asserted nothing. A test tagged `gap` is expected to fail: its FAIL or TIMEOUT is reported as GAP (the failed
-## checks say what the code does not do yet) and a pass is a FAIL that says to drop the tag. Safe to call again (a
-## late logged error re-decides it). Returns the status.
+## asserted nothing. A test tagged `gap` is expected to fail: its FAIL or TIMEOUT is reported as GAP
+## (the failed checks say what the code does not do yet) and a pass is a FAIL that says to drop the
+## tag. Safe to call again (a late logged error re-decides it). Returns the status.
 func conclude(manual: bool) -> String:
 	if not _concluded:
 		_concluded = true
 		for e in _expected_logs:
 			if e["count"] > 0:
-				check(false, "Expected log never appeared: /%s/ (%d more)" % [e["pattern"], e["count"]])
+				check(
+					false,
+					"Expected log never appeared: /%s/ (%d more)" % [e["pattern"], e["count"]],
+				)
 		if checks.is_empty() and not manual and status != "SKIPPED":
 			check(false, "The test made no assertions")
 	if status == "SKIPPED":
@@ -329,7 +345,13 @@ func conclude(manual: bool) -> String:
 
 
 ## Register what the world placed (called by the runner after the build).
-func bind(built_world: Node2D, actors: Dictionary, objects: Dictionary, world_rooms: Array, vehicles: Dictionary = {}) -> void:
+func bind(
+	built_world: Node2D,
+	actors: Dictionary,
+	objects: Dictionary,
+	world_rooms: Array,
+	vehicles: Dictionary = {},
+) -> void:
 	world = built_world
 	_actors = actors
 	_objects = objects
@@ -337,9 +359,9 @@ func bind(built_world: Node2D, actors: Dictionary, objects: Dictionary, world_ro
 	rooms = world_rooms
 
 
-## The state of every placed actor and object right now, as plain data for a failure bundle: position,
-## health/death, held item, and an NPC brain's decision path (its controller child in the group `npc_controllers`).
-## Freed nodes are skipped, so take it before the world is torn down.
+## The state of every placed actor and object right now, as plain data for a failure bundle:
+## position, health/death, held item, and an NPC brain's decision path (its controller child in the
+## group `npc_controllers`). Freed nodes are skipped, so take it before the world is torn down.
 func snapshot() -> Dictionary:
 	var out := { "actors": {}, "objects": {}, "vehicles": {} }
 	for id in _actors:
@@ -353,7 +375,9 @@ func snapshot() -> Dictionary:
 		for child in a.get_children():
 			if child.is_in_group(&"npc_controllers"):
 				var act: Variant = child.current_act()
-				s["act"] = "/".join(PackedStringArray(act.map(func(x): return str(x)))) if act is Array else str(act)
+				s["act"] = ("/".join(PackedStringArray(act.map(func(x): return str(x))))
+						if act is Array
+						else str(act))
 				s["status"] = str(child.debug_status())
 		out["actors"][String(id)] = s
 	for id in _objects:
@@ -363,7 +387,10 @@ func snapshot() -> Dictionary:
 	for id in _vehicles:
 		var v: Node = vehicle(id)
 		if v is Node2D:
-			var row := { "position": _vec(v.global_position), "rotation": snappedf(v.global_rotation, 0.01) }
+			var row := {
+				"position": _vec(v.global_position),
+				"rotation": snappedf(v.global_rotation, 0.01),
+			}
 			if v.has_method("speed"):
 				row["speed"] = snappedf(v.speed(), 0.1)
 			out["vehicles"][String(id)] = row
@@ -372,7 +399,14 @@ func snapshot() -> Dictionary:
 
 ## The event log as JSON-safe rows `{ topic, time, data }` (nodes become their names).
 func plain_events() -> Array:
-	return events.map(func(e): return { "topic": String(e["topic"]), "time": snappedf(e["time"], 0.01), "data": _plain(e["data"]) })
+	return events.map(
+		func(e):
+			return {
+				"topic": String(e["topic"]),
+				"time": snappedf(e["time"], 0.01),
+				"data": _plain(e["data"]),
+			}
+	)
 
 
 ## Formats a Vector2 as a rounded "(x, y)" string.

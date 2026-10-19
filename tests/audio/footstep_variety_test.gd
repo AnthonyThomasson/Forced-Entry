@@ -1,18 +1,19 @@
 extends GameTest
-
-## A step is not one sample played over and over. On every surface a footstep has several takes that really differ
-## from one another (they correlate only loosely, and differ in loudness and in when the toe lands), and each take is
-## two beats: the heel strikes, then the toe taps a few ms later and softer.
+## A step is not one sample played over and over. On every surface a footstep has several takes that
+## really differ from one another (they correlate only loosely, and differ in loudness and in when
+## the toe lands), and each take is two beats: the heel strikes, then the toe taps a few ms later
+## and softer.
 
 const Probe := preload("res://tests/_audio/sound_probe.gd")
-
 const SAMPLES_PER_MS := 22.05
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Footsteps are varied two-beat steps, not one repeated sample",
-		"description": "Each surface's footstep renders several takes that are mutually distinct, loosely correlated and differently loud, and each has a heel strike followed by a softer toe tap.",
+		"description": "Each surface's footstep renders several takes that are mutually distinct, "
+			+ "loosely correlated and differently loud, and each has a heel strike followed by a "
+			+ "softer toe tap.",
 		"tags": ["sound", "footstep", "variety"],
 		"timeout": 10.0,
 	}
@@ -22,8 +23,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 400, 300))
 
 
-## Running totals of the samples' magnitudes (`totals[i]` = the sum over the first `i` samples), so the sum over any
-## window is one subtraction.
+## Running totals of the samples' magnitudes (`totals[i]` = the sum over the first `i` samples), so
+## the sum over any window is one subtraction.
 func _magnitude_totals(samples: PackedFloat32Array) -> PackedFloat64Array:
 	var totals := PackedFloat64Array()
 	totals.resize(samples.size() + 1)
@@ -34,8 +35,8 @@ func _magnitude_totals(samples: PackedFloat32Array) -> PackedFloat64Array:
 	return totals
 
 
-## Peak of the smoothed envelope (a 4 ms moving average of the magnitudes, from `_magnitude_totals`) between
-## `from_ms` and `to_ms`.
+## Peak of the smoothed envelope (a 4 ms moving average of the magnitudes, from `_magnitude_totals`)
+## between `from_ms` and `to_ms`.
 func _peak(totals: PackedFloat64Array, from_ms: float, to_ms: float) -> float:
 	var peak := 0.0
 	var window := 88  # 4 ms
@@ -77,7 +78,11 @@ func run(t: TestContext) -> void:
 					total += _similarity(all[i], all[j])
 					pairs += 1
 			t.expect_eq(identical, 0, "%s: no two takes are the same" % profile)
-			t.check(total / pairs < 0.85, "%s: takes are only loosely alike (mean similarity %.2f)" % [profile, total / pairs])
+			t.check(
+				total / pairs < 0.85,
+				"%s: takes are only loosely alike (mean similarity %.2f)"
+					% [profile, total / pairs],
+			)
 
 			var heel := 0.0
 			var loudness: Array = []
@@ -87,7 +92,11 @@ func run(t: TestContext) -> void:
 				heel = _peak(totals, 0.0, 30.0)
 				# The toe beat: after the heel's first 30 ms, before the step's tail.
 				var toe := _peak(totals, 35.0, 110.0)
-				t.check(toe > heel * 0.12, "%s take %d has a toe tap after the heel (%.3f vs heel %.3f)" % [profile, v, toe, heel])
+				t.check(
+					toe > heel * 0.12,
+					"%s take %d has a toe tap after the heel (%.3f vs heel %.3f)"
+						% [profile, v, toe, heel],
+				)
 				var energy := 0.0
 				for x in s:
 					energy += x * x

@@ -1,22 +1,23 @@
 extends RefCounted
-
 ## AI domain: the SIGHT sense for a goal-driven NPC. Pure, stateless geometry — "can this agent see
 ## that point right now?" — governed by tunable parameters (field of view, range, a close-range
 ## 360° awareness bubble, and line of sight). It holds NO policy: it never decides, remembers or
 ## picks. The perception runs each visible thing through it and deposits what is seen into the
-## agent's memory (agent_memory.gd), so the "remember" half lives there; this is only the "see" half.
+## agent's memory (agent_memory.gd), so the "remember" half lives there; this is only the "see"
+## half.
 ##
-## A point is visible when it is (a) within `view_distance`, AND (b) either within `awareness_radius`
-## of the agent — a near bubble you sense regardless of which way you face — or inside the forward
-## cone of half-angle `fov_degrees / 2` around the agent's facing, AND (c) reachable by a clear
-## straight line on the physics query layer. For SIGHT that line is forgiving: a standing agent looks
-## OVER low furniture (a collider whose `coverage` is at or below `see_over_coverage` — tables, beds,
-## islands, counters), so only walls and tall furniture (cabinets, wardrobes, fridges) break the line.
-## Set `enabled` to false to make everything visible (omniscient), for debugging.
+## A point is visible when it is (a) within `view_distance`, AND (b) either within
+## `awareness_radius` of the agent — a near bubble you sense regardless of which way you face — or
+## inside the forward cone of half-angle `fov_degrees / 2` around the agent's facing, AND (c)
+## reachable by a clear straight line on the physics query layer. For SIGHT that line is forgiving:
+## a standing agent looks OVER low furniture (a collider whose `coverage` is at or below
+## `see_over_coverage` — tables, beds, islands, counters), so only walls and tall furniture
+## (cabinets, wardrobes, fridges) break the line. Set `enabled` to false to make everything visible
+## (omniscient), for debugging.
 ##
-## This "look over low cover" rule is SIGHT-only: `blocked()` / `raycast()` below stay fully physical
-## (every solid collider counts) because they serve line-of-fire and cover, where a bullet is still
-## stopped by a table even though an agent can see across it.
+## This "look over low cover" rule is SIGHT-only: `blocked()` / `raycast()` below stay fully
+## physical (every solid collider counts) because they serve line-of-fire and cover, where a bullet
+## is still stopped by a table even though an agent can see across it.
 
 ## Physics layer walls + solid furniture live on (General's `PhysicsLayers.SOLID`, also used by
 ## CharacterInteraction). This module is the sub-domain's single owner of the solid-geometry ray
@@ -36,7 +37,6 @@ var awareness_radius: float = 48.0
 ## passes through it. Above this it blocks the line like a wall (which rates 100). Sight-only; cover
 ## and line-of-fire ignore it.
 var see_over_coverage: float = 60.0
-
 ## The ray every cast reuses: the solid layer, nothing else configured.
 var _query := _solid_query()
 
@@ -59,13 +59,15 @@ func can_see(from_pos: Vector2, facing: Vector2, point: Vector2, space, exclude:
 	return space == null or not _sight_blocked(space, from_pos, point, exclude)
 
 
-## Whether `point` is inside the geometry of sight (view distance and the near bubble or the forward cone), ignoring what
-## stands in the way; true for everything when sight is disabled. A cheap test: the cast of `can_see` is the costly half.
+## Whether `point` is inside the geometry of sight (view distance and the near bubble or the forward
+## cone), ignoring what stands in the way; true for everything when sight is disabled. A cheap test:
+## the cast of `can_see` is the costly half.
 func in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 	return not enabled or _in_view(from_pos, facing, point)
 
 
-## The geometry half of sight: `point` is within view distance and either inside the near bubble or the forward cone.
+## The geometry half of sight: `point` is within view distance and either inside the near bubble or
+## the forward cone.
 func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 	var to := point - from_pos
 	var dist := to.length()
@@ -80,9 +82,10 @@ func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 	return true
 
 
-## Whether `node` (a Node2D) is visible — convenience wrapper over can_see using its global position.
-## The node itself is excluded from the sight ray (it is the endpoint, so its own collider must not
-## count as something blocking the line to it); the line is clear when nothing ELSE is between.
+## Whether `node` (a Node2D) is visible — convenience wrapper over can_see using its global
+## position. The node itself is excluded from the sight ray (it is the endpoint, so its own collider
+## must not count as something blocking the line to it); the line is clear when nothing ELSE is
+## between.
 func can_see_node(node: Node2D, from_pos: Vector2, facing: Vector2, space, exclude: Array) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
@@ -90,7 +93,8 @@ func can_see_node(node: Node2D, from_pos: Vector2, facing: Vector2, space, exclu
 		return true
 	var point := node.global_position
 	if not _in_view(from_pos, facing, point):
-		return false  # Out of view whatever stands between: no need to build the ray's exclude list.
+		# Out of view whatever stands between: no need to build the ray's exclude list.
+		return false
 	if space == null:
 		return true
 	var ex: Array = exclude.duplicate()
@@ -99,13 +103,14 @@ func can_see_node(node: Node2D, from_pos: Vector2, facing: Vector2, space, exclu
 	return not _sight_blocked(space, from_pos, point, ex)
 
 
-## The first hit that blocks SIGHT along `from`→`to`, or {} when the line reaches `to`. Unlike `blocked()`
-## (physical: any solid collider stops it), this looks OVER low cover — it walks the line, skipping each
-## collider whose coverage is at or below `see_over_coverage` and casting again past it, until it reaches
-## `to` or hits something tall enough to block (a wall or tall furniture). A collider with no readable
-## coverage is treated as a full blocker. The exclude list grows by one skipped collider each pass, so
-## the walk always terminates (there are finitely many colliders on the line). Ignores `enabled`: it
-## answers what the line is, the callers decide whether sight is gated.
+## The first hit that blocks SIGHT along `from`→`to`, or {} when the line reaches `to`. Unlike
+## `blocked()` (physical: any solid collider stops it), this looks OVER low cover — it walks the
+## line, skipping each collider whose coverage is at or below `see_over_coverage` and casting again
+## past it, until it reaches `to` or hits something tall enough to block (a wall or tall furniture).
+## A collider with no readable coverage is treated as a full blocker. The exclude list grows by one
+## skipped collider each pass, so the walk always terminates (there are finitely many colliders on
+## the line). Ignores `enabled`: it answers what the line is, the callers decide whether sight is
+## gated.
 func sight_hit(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 	var ex := exclude
 	while true:
@@ -141,8 +146,9 @@ func blocked(space, from: Vector2, to: Vector2, exclude: Array) -> bool:
 	return not raycast(space, from, to, exclude).is_empty()
 
 
-## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is clear.
-## Callers that need the blocking collider itself (e.g. a cover test) use this instead of `blocked()`.
+## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is
+## clear. Callers that need the blocking collider itself (e.g. a cover test) use this instead of
+## `blocked()`.
 func raycast(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 	_query.from = from  # One query object, refilled: a snapshot casts thousands of rays.
 	_query.to = to
@@ -150,8 +156,9 @@ func raycast(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 	return space.intersect_ray(_query)
 
 
-## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters are looked through), or {} when
-## the line reaches `to`. What bounds a doorway's view (`AgentDoorViews.door_view`).
+## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters
+## are looked through), or {} when the line reaches `to`. What bounds a doorway's view
+## (`AgentDoorViews.door_view`).
 func wall_hit(space, from: Vector2, to: Vector2) -> Dictionary:
 	var ex: Array = []
 	while true:

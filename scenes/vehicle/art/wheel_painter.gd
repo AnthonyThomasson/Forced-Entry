@@ -1,8 +1,8 @@
 extends RefCounted
-
-## Vehicles domain: a wheel seen from above, top-down pixel art (rendered through Art, `PixelArt.render_turned`): the tyre's
-## tread rolling along it (canonical front, +y, the way it rolls), its rounded shoulders, and a glint of the hub on the
-## outside face. Most of it hides under the body; a turned front wheel shows past the wing.
+## Vehicles domain: a wheel seen from above, top-down pixel art (rendered through Art,
+## `PixelArt.render_turned`): the tyre's tread rolling along it (canonical front, +y, the way it
+## rolls), its rounded shoulders, and a glint of the hub on the outside face. Most of it hides under
+## the body; a turned front wheel shows past the wing.
 
 const _HEIGHT := 2
 

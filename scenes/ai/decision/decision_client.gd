@@ -1,5 +1,4 @@
 extends Node
-
 ## AI DECISION sub-domain: the external-model transport. This wraps one round-trip to the local Von
 ## ("System One") decision server: it POSTs a state text plus ONE `choice` question over a set of
 ## option ids → descriptions, and resolves Von's answer into the top-ranked offered id. Von is a
@@ -17,16 +16,22 @@ signal failed()
 var server_url: String = "http://127.0.0.1:8000/v1/systemone"
 ## Model name sent with each request.
 var model: String = "von-1.2.0"
+## Client for decision requests.
+var _http: HTTPRequest
+## True while a request is in flight.
+var _pending := false
+## Option ids → descriptions of the in-flight question (to validate the pick).
+var _options := {}
+## Name of the driven NPC, for log lines.
+var _npc_name := "NPC"
+## Last failure reported, so a persistent one isn't logged every tick.
+var _last_error := ""
+## Which scripted ask is current: a delayed stub answer for an older one is dropped.
+var _stub_serial := 0
 
-var _http: HTTPRequest             ## Client for decision requests.
-var _pending := false             ## True while a request is in flight.
-var _options := {}                ## Option ids → descriptions of the in-flight question (to validate the pick).
-var _npc_name := "NPC"            ## Name of the driven NPC, for log lines.
-var _last_error := ""             ## Last failure reported, so a persistent one isn't logged every tick.
-var _stub_serial := 0             ## Which scripted ask is current: a delayed stub answer for an older one is dropped.
 
-
-## Configure the endpoint + request timeout and build the HTTP client. Called once by the controller.
+## Configure the endpoint + request timeout and build the HTTP client. Called once by the
+## controller.
 func configure(url: String, model_name: String, timeout: float, npc_name: String = "NPC") -> void:
 	server_url = url
 	model = model_name
@@ -54,7 +59,9 @@ func ask(state_text: String, instructions: String, options: Dictionary) -> bool:
 	var body := {
 		"model": model,
 		"state": state_text,
-		"questions": { "pick": { "type": "choice", "instructions": instructions, "criteria": options } },
+		"questions": {
+			"pick": { "type": "choice", "instructions": instructions, "criteria": options },
+		},
 	}
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	if _http.request(server_url, headers, HTTPClient.METHOD_POST, JSON.stringify(body)) == OK:
@@ -64,10 +71,15 @@ func ask(state_text: String, instructions: String, options: Dictionary) -> bool:
 	return false
 
 
-## Test seam (decision_stub.gd): answer the in-flight question from the scripted stub, a frame later like a
-## real reply (`DecisionStub.latency_frames` more physics frames when a test wants a slow server). Dropped if the
-## request was cancelled meanwhile.
-func _answer_from_stub(serial: int, state_text: String, instructions: String, options: Dictionary) -> void:
+## Test seam (decision_stub.gd): answer the in-flight question from the scripted stub, a frame later
+## like a real reply (`DecisionStub.latency_frames` more physics frames when a test wants a slow
+## server). Dropped if the request was cancelled meanwhile.
+func _answer_from_stub(
+	serial: int,
+	state_text: String,
+	instructions: String,
+	options: Dictionary,
+) -> void:
 	for i in DecisionStub.latency_frames:
 		if not is_inside_tree():
 			return
@@ -90,11 +102,16 @@ func cancel() -> void:
 
 
 ## Read the answer and emit Von's top pick; emit `failed()` on transport or parse error.
-func _on_request_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+func _on_request_completed(
+	result: int,
+	code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray,
+) -> void:
 	_pending = false
-	# A transport failure and an HTTP error answer are DIFFERENT faults and must not share a message:
-	# calling a 4xx/5xx "unreachable" hides the server's own explanation (a missing model checkpoint,
-	# say) behind what reads as a connection problem.
+	# A transport failure and an HTTP error answer are DIFFERENT faults and must not share a
+	# message: calling a 4xx/5xx "unreachable" hides the server's own explanation (a missing model
+	# checkpoint, say) behind what reads as a connection problem.
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_fail("no reply from %s (HTTPRequest result %d)" % [server_url, result])
 		return
@@ -116,8 +133,8 @@ func _on_request_completed(result: int, code: int, _headers: PackedStringArray, 
 
 
 ## Report a failed decision and fall back. The same `reason` is logged only ONCE: every NPC re-asks
-## about once a second, so a persistent fault (a server that cannot load its weights) would otherwise
-## bury the log. A different reason, or a recovery followed by a relapse, logs again.
+## about once a second, so a persistent fault (a server that cannot load its weights) would
+## otherwise bury the log. A different reason, or a recovery followed by a relapse, logs again.
 func _fail(reason: String) -> void:
 	failed.emit()
 	if reason == _last_error:
@@ -136,10 +153,10 @@ func _error_detail(body: PackedByteArray) -> String:
 	return text if text != "" else "(empty response body)"
 
 
-## The offered id Von ranks highest: its argmax `choice` when that is one of the offered options, else
-## the highest-probability offered id. Von's distributions are often flat (low confidence), so taking
-## the top pick — rather than sampling — keeps the NPC decisive instead of jittering. Empty when no
-## offered option is present.
+## The offered id Von ranks highest: its argmax `choice` when that is one of the offered options,
+## else the highest-probability offered id. Von's distributions are often flat (low confidence), so
+## taking the top pick — rather than sampling — keeps the NPC decisive instead of jittering. Empty
+## when no offered option is present.
 func _pick(answer) -> String:
 	if not answer is Dictionary:
 		return ""

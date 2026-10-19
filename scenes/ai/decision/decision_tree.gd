@@ -1,11 +1,11 @@
 extends RefCounted
-
-## AI DECISION sub-domain: the DECISION TREE Von walks, as plain data. Von picks one option per level,
-## top-down: a broad MODE (combat / investigate / search / idle), then within it a TACTIC, then a
-## concrete OPTION (a place to move to, a position to fight from, an object to use) that ends in one
-## behaviour PRIMITIVE. The planner (decision_planner.gd) walks it, one Von `choice` request per level;
-## this file only describes the shape and the words Von reads. Per NPC, the controller can disable
-## nodes, merge per-node overrides, and pick the entry node by situation (e.g. under fire → combat).
+## AI DECISION sub-domain: the DECISION TREE Von walks, as plain data. Von picks one option per
+## level, top-down: a broad MODE (combat / investigate / search / idle), then within it a TACTIC,
+## then a concrete OPTION (a place to move to, a position to fight from, an object to use) that ends
+## in one behaviour PRIMITIVE. The planner (decision_planner.gd) walks it, one Von `choice` request
+## per level; this file only describes the shape and the words Von reads. Per NPC, the controller
+## can disable nodes, merge per-node overrides, and pick the entry node by situation (e.g. under
+## fire → combat).
 ##
 ## Node fields (all optional except where noted):
 ##   label     — short tag shown in the path ("COMBAT"); also prefixes the HUD status.
@@ -15,53 +15,59 @@ extends RefCounted
 ##               into the state ("You are badly wounded and being hit"), never an action label, and
 ##               no negated attributes (an encoder reads "no cover" as "cover"). The wording is
 ##               measured, not guessed: tools/von_probe.py checks it against clear-cut scenarios.
-##               Template fields: {target} (the bound target's name), {blinded} (the bound target's "X is
-##               blinded by a flash and cannot see you, or " when it is, else nothing), {gun} (what the NPC calls its
-##               gun: "pistol", "assault rifle"), {summary} (the summary of
+##               Template fields: {target} (the bound target's name), {blinded} (the bound target's
+##               "X is blinded by a flash and cannot see you, or " when it is, else nothing), {gun}
+##               (what the NPC calls its gun: "pistol", "assault rifle"), {summary} (the summary of
 ##               the node's `summary` option group, else its first `options` group — specifics
-##               written by perception, kept in parentheses after the situation) and {situation} (that
-##               group's `situation`: for a node offered in more than one case, the case at hand in the
-##               state's own phrase, e.g. GRENADE's "Your line to X is blocked").
-##   question  — the instruction Von answers when choosing AMONG this node's children/options. It names
-##               the trade-off, since Von scores options against it. Same template fields as desc.
+##               written by perception, kept in parentheses after the situation) and {situation}
+##               (that group's `situation`: for a node offered in more than one case, the case at
+##               hand in the state's own phrase, e.g. GRENADE's "Your line to X is blocked").
+##   question  — the instruction Von answers when choosing AMONG this node's children/options. It
+##               names the trade-off, since Von scores options against it. Same template fields as
+##               desc.
 ##   context   — which perception state sections Von sees at this level (the goal is always shown).
-##   children  — static child node ids, offered when their `requires` hold and their subtree has a leaf.
-##   options   — option-group names (perception generators); each option becomes a leaf. A group is
-##               looked up under the bound target first, then globally.
+##   children  — static child node ids, offered when their `requires` hold and their subtree has a
+##   leaf. options   — option-group names (perception generators); each option becomes a leaf. A
+##               group is looked up under the bound target first, then globally.
 ##   summary   — option-group whose summary fills {summary} (defaults to the first `options` group);
 ##               inside a confined subtree a group's `summary_inside` is used when it has one.
-##   bind      — before its children, pick one option of group `bind_options` and bind it (e.g. which
-##               hostile to fight); `bind_question` is asked, with `bind_context` sections (the options
-##               already carry each candidate's details — repeating them in the state blurs the match).
-##               Skipped when there is only one.
+##   bind      — before its children, pick one option of group `bind_options` and bind it (e.g.
+##               which hostile to fight); `bind_question` is asked, with `bind_context` sections
+##               (the options already carry each candidate's details — repeating them in the state
+##               blurs the match). Skipped when there is only one.
 ##   requires  — fact names that must be true ("!" negates); a binding name counts as a true fact.
-##   confine   — this subtree is combat: a territorial NPC drops options outside the house, and a member ordered to defend a room
-##               those outside that room.
-##   ask       — Von is always asked about this node, and about the level that offers it: the planner never
-##               takes it without asking, even as the lone option (INVESTIGATE: whether a lead is worth
-##               going to is Von's call, read against the goal and where the lead is).
+##   confine   — this subtree is combat: a territorial NPC drops options outside the house, and a
+##               member ordered to defend a room those outside that room.
+##   ask       — Von is always asked about this node, and about the level that offers it: the
+##               planner never takes it without asking, even as the lone option (INVESTIGATE:
+##               whether a lead is worth going to is Von's call, read against the goal and where the
+##               lead is).
 ##   drop_tags — options carrying any of these tags are never offered (e.g. a flank side an ally
-##               already holds: Von can't weigh "taken by Invader2" — the name matches the state; one
-##               whose route passes a known hostile; one with no shot at the target, one the target is
-##               walking toward, or one whose point or route lies in an ally's line of fire). A node
-##               whose options are all dropped is not offered at all.
-##   primitive — the behaviour primitive a leaf runs (move / engage / melee / interact / hold / reload / entry / throw / defend); an
-##               option that names its own `primitive` (ORDER's) runs that one. FLANK
-##               runs `engage` anchored at the chosen side: get there, then fight from it. ADVANCE runs
-##               `move`: it only closes the distance, then the NPC re-decides how to fight.
-##   params    — default primitive params, merged under each option's own params. `run: true` lets the
-##               behaviour sprint while travelling to the leaf's destination (Von never sees it).
+##               already holds: Von can't weigh "taken by Invader2" — the name matches the state;
+##               one whose route passes a known hostile; one with no shot at the target, one the
+##               target is walking toward, or one whose point or route lies in an ally's line of
+##               fire). A node whose options are all dropped is not offered at all.
+##   primitive — the behaviour primitive a leaf runs (move / engage / melee / interact / hold /
+##               reload / entry / throw / defend); an option that names its own `primitive`
+##               (ORDER's) runs that one. FLANK runs `engage` anchored at the chosen side: get
+##               there, then fight from it. ADVANCE runs `move`: it only closes the distance, then
+##               the NPC re-decides how to fight.
+##   params    — default primitive params, merged under each option's own params. `run: true` lets
+##               the behaviour sprint while travelling to the leaf's destination (Von never sees
+##               it).
 
 const NODES := {
 	&"root": {
-		"question": "What should you do right now? Choose what best serves your goal, given any threat and what you know.",
+		"question": "What should you do right now? Choose what best serves your goal, given any "
+			+ "threat and what you know.",
 		"context": [&"situation", &"loadout", &"current", &"odds", &"contacts", &"awareness"],
 		"children": [&"order", &"combat", &"reload_quiet", &"investigate", &"search", &"idle"],
 	},
 	&"order": {
-		# What the NPC's leader ordered it to do (docs/leadership.md LD6): one option, the order itself, so it is taken without asking
-		# Von. The controller's entry rule `ordered -> order` starts a walk here, after the fight rules. Its option names the primitive
-		# it runs (`defend`, or an `entry` for a stack), which wins over this node's own.
+		# What the NPC's leader ordered it to do (docs/leadership.md LD6): one option, the order
+		# itself, so it is taken without asking Von. The controller's entry rule `ordered -> order`
+		# starts a walk here, after the fight rules. Its option names the primitive it runs
+		# (`defend`, or an `entry` for a stack), which wins over this node's own.
 		"label": "ORDER",
 		"desc": "Your leader gave you an order ({summary})",
 		"requires": [&"ordered"],
@@ -76,17 +82,41 @@ const NODES := {
 		"confine": true,
 		"bind": &"target",
 		"bind_options": &"hostiles",
-		"bind_question": "Which hostile should you fight? Prefer the most dangerous one you can actually hit: close, armed, aiming at you or an ally.",
+		"bind_question": "Which hostile should you fight? Prefer the most dangerous one you can "
+			+ "actually hit: close, armed, aiming at you or an ally.",
 		"bind_context": [&"situation", &"odds", &"awareness"],
-		"question": "How should you fight {target}? Shoot from where you have a clear line, flank to an open side, advance on them when they are weak, fleeing or unarmed, punch when they are point-blank, or retreat when you are badly hurt, exposed or outnumbered, or reload when your {gun} is nearly empty or empty.",
-		"context": [&"situation", &"loadout", &"current", &"odds", &"exposure", &"contacts", &"allies", &"flanks", &"awareness"],
-		"children": [&"engage", &"flank", &"grenade", &"advance", &"melee", &"reload", &"retreat", &"locate"],
+		"question": "How should you fight {target}? Shoot from where you have a clear line, flank "
+			+ "to an open side, advance on them when they are weak, fleeing or unarmed, punch "
+			+ "when they are point-blank, or retreat when you are badly hurt, exposed or "
+			+ "outnumbered, or reload when your {gun} is nearly empty or empty.",
+		"context": [
+			&"situation",
+			&"loadout",
+			&"current",
+			&"odds",
+			&"exposure",
+			&"contacts",
+			&"allies",
+			&"flanks",
+			&"awareness",
+		],
+		"children": [
+			&"engage",
+			&"flank",
+			&"grenade",
+			&"advance",
+			&"melee",
+			&"reload",
+			&"retreat",
+			&"locate",
+		],
 	},
 	&"engage": {
 		"label": "ENGAGE",
 		"desc": "You have a clear shot at {target}, and you are not badly wounded ({summary})",
 		"requires": [&"target", &"gun_loaded"],
-		"question": "Where should you fight {target} from? Prefer a clear shot with cover close by, hidden from other hostiles; wait in ambush when they are coming to you.",
+		"question": "Where should you fight {target} from? Prefer a clear shot with cover close "
+			+ "by, hidden from other hostiles; wait in ambush when they are coming to you.",
 		"context": [&"current", &"loadout", &"exposure", &"contacts", &"allies", &"awareness"],
 		"options": [&"fire_positions"],
 		"primitive": &"engage",
@@ -95,7 +125,8 @@ const NODES := {
 		"label": "FLANK",
 		"desc": "Your line to {target} is blocked, or they are aiming at someone else ({summary})",
 		"requires": [&"target", &"gun_loaded"],
-		"question": "Which side should you flank {target} from? Prefer a free side behind or beside them, with cover and a short, hidden route.",
+		"question": "Which side should you flank {target} from? Prefer a free side behind or "
+			+ "beside them, with cover and a short, hidden route.",
 		"context": [&"current", &"loadout", &"contacts", &"allies", &"flanks", &"exposure"],
 		"options": [&"flank_sides"],
 		"drop_tags": [&"held", &"crosses", &"no_shot", &"heading", &"lane"],
@@ -106,7 +137,8 @@ const NODES := {
 		"label": "GRENADE",
 		"desc": "{situation} and you can throw a grenade onto their spot ({summary})",
 		"requires": [&"grenade_ready"],
-		"question": "Which grenade should you throw at {target}? A frag to kill them behind their cover, a stun to blind and deafen them so you can close in.",
+		"question": "Which grenade should you throw at {target}? A frag to kill them behind their "
+			+ "cover, a stun to blind and deafen them so you can close in.",
 		"context": [&"current", &"loadout", &"exposure", &"contacts", &"allies", &"awareness"],
 		"options": [&"grenade_throws"],
 		"drop_tags": [&"ally_in_blast", &"no_safe_spot"],
@@ -114,9 +146,11 @@ const NODES := {
 	},
 	&"advance": {
 		"label": "ADVANCE",
-		"desc": "{blinded}{target} looks badly wounded, is unarmed, or is moving away from you ({summary})",
+		"desc": "{blinded}{target} looks badly wounded, is unarmed, or is moving away from you "
+			+ "({summary})",
 		"requires": [&"target"],
-		"question": "How should you close in on {target}? Prefer cover close to them and a hidden route; rush only when they are weak, fleeing or unarmed.",
+		"question": "How should you close in on {target}? Prefer cover close to them and a hidden "
+			+ "route; rush only when they are weak, fleeing or unarmed.",
 		"context": [&"current", &"loadout", &"exposure", &"contacts", &"allies", &"awareness"],
 		"options": [&"advance_positions"],
 		"primitive": &"move",
@@ -140,7 +174,8 @@ const NODES := {
 		"label": "RETREAT",
 		"desc": "You are badly wounded and being hit ({summary})",
 		"requires": [&"threat_known"],
-		"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, with cover, toward allies, and close by.",
+		"question": "Where should you fall back to? Prefer a spot out of every hostile's sight, "
+			+ "with cover, toward allies, and close by.",
 		"context": [&"situation", &"exposure", &"contacts", &"allies", &"awareness"],
 		"options": [&"retreat_positions"],
 		"primitive": &"move",
@@ -164,10 +199,12 @@ const NODES := {
 	},
 	&"investigate": {
 		"label": "INVESTIGATE",
-		"desc": "You heard gunfire or lost sight of a hostile recently and know where to look ({summary})",
+		"desc": "You heard gunfire or lost sight of a hostile recently and know where to look "
+			+ "({summary})",
 		"requires": [&"leads"],
 		"ask": true,
-		"question": "What should you check first? Prefer the freshest lead that matters most to your goal.",
+		"question": "What should you check first? Prefer the freshest lead that matters most to "
+			+ "your goal.",
 		"context": [&"situation", &"current", &"contacts", &"allies", &"awareness"],
 		"children": [&"stay"],
 		"options": [&"leads"],
@@ -176,20 +213,23 @@ const NODES := {
 	},
 	&"stay": {
 		"label": "STAY",
-		# Von's way to decline a lead outside the house. It states the situation in the state's own words (inside the
-		# house, the gunfire outside it) and echoes a goal that tells the NPC to hold a house ("hold your ground inside the
-		# house; do not chase anyone outside"), so it wins for that goal and not for one that sends the NPC after
-		# intruders, also when shots are landing near it and when several leads are outside (measured with
-		# tools/von_probe.py: the plain "Hold your ground ..." lost to the lead once the NPC was under fire).
-		# Nothing here knows who the NPC is; the goal decides.
-		"desc": "You are inside the house and the gunfire is outside the house: hold your ground, do not chase anyone outside",
+		# Von's way to decline a lead outside the house. It states the situation in the state's own
+		# words (inside the house, the gunfire outside it) and echoes a goal that tells the NPC to
+		# hold a house ("hold your ground inside the house; do not chase anyone outside"), so it
+		# wins for that goal and not for one that sends the NPC after intruders, also when shots are
+		# landing near it and when several leads are outside (measured with tools/von_probe.py: the
+		# plain "Hold your ground ..." lost to the lead once the NPC was under fire). Nothing here
+		# knows who the NPC is; the goal decides.
+		"desc": "You are inside the house and the gunfire is outside the house: hold your ground, "
+			+ "do not chase anyone outside",
 		"requires": [&"lead_outside"],
 		"primitive": &"hold",
 	},
 	&"search": {
 		"label": "SEARCH",
 		"desc": "All is quiet and there are rooms left to search ({summary})",
-		"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, nearest first.",
+		"question": "Where should you search next? Prefer unsearched rooms and unexplored areas, "
+			+ "nearest first.",
 		"context": [&"situation", &"current", &"awareness"],
 		"summary": &"search_rooms",
 		"children": [&"enter", &"stun_entry"],
@@ -207,7 +247,8 @@ const NODES := {
 	},
 	&"stun_entry": {
 		"label": "STUN ENTRY",
-		"desc": "A doorway leads into a room where a hostile was heard, seen, radioed or shooting from ({summary})",
+		"desc": "A doorway leads into a room where a hostile was heard, seen, radioed or shooting "
+			+ "from ({summary})",
 		"requires": [&"stack_has_stun"],
 		"question": "Which doorway should you go through? Prefer the shortest route.",
 		"context": [&"situation", &"current", &"awareness"],

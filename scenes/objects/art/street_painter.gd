@@ -1,11 +1,11 @@
 extends RefCounted
-
-## Top-down pixel-art STREET tile painter (Objects domain, private): the street round a house, two seamless tiles a Floor
-## repeats. They repeat across the whole street, so they carry only an even fine grain (and the sidewalk its slab joints,
-## the one grid a sidewalk has); every mark with a shape (the lane dashes, odd slabs, cracks, patches, oil, gum, weeds,
-## litter, puddles) is placed in the world over them instead (street_marks.gd), each its own size, turn and detail. Options
-## (`art_opts`): `kind` — `asphalt` (dun, gritty asphalt) or `sidewalk` (grimy concrete slabs with joints). Colours and
-## sizes: ObjectArtConfig.street_*.
+## Top-down pixel-art STREET tile painter (Objects domain, private): the street round a house, two
+## seamless tiles a Floor repeats. They repeat across the whole street, so they carry only an even
+## fine grain (and the sidewalk its slab joints, the one grid a sidewalk has); every mark with a
+## shape (the lane dashes, odd slabs, cracks, patches, oil, gum, weeds, litter, puddles) is placed
+## in the world over them instead (street_marks.gd), each its own size, turn and detail. Options
+## (`art_opts`): `kind` — `asphalt` (dun, gritty asphalt) or `sidewalk` (grimy concrete slabs with
+## joints). Colours and sizes: ObjectArtConfig.street_*.
 
 
 ## The tile size (world px) of the `kind` in `opts`.
@@ -33,5 +33,6 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 		return
 	var asphalt := ObjectArtConfig.street_asphalt_color
 	c.fill(PixelCanvas.rounded(all, 0), asphalt)
-	c.speckle(all, asphalt, 0.45, 0.05)  # Even fine grain only: low contrast, no clumps, nothing to recognise.
+	# Even fine grain only: low contrast, no clumps, nothing to recognise.
+	c.speckle(all, asphalt, 0.45, 0.05)
 	c.speckle(all, asphalt, 0.1, 0.09)

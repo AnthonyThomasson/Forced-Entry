@@ -1,14 +1,13 @@
 class_name Deformable extends Node
-
-## Physics System: reusable damage-deformation component for a single primitive-shaped body (furniture, a
-## character or a vehicle). Add it as a child of the drawable body; on each `record(hit)` it converts the
-## world contact into a local impact (dent, or a carved "missing piece" for a hard hit) and
-## emits `changed`, so the owner can redraw its silhouette and, if it wants, rebuild its
-## collider from the SAME deformed polygon (via the Deformation static helper). Per-body
-## fields (max_depth / allow_chunks / max_impacts) let a small body dent gently without
+## Physics System: reusable damage-deformation component for a single primitive-shaped body
+## (furniture, a character or a vehicle). Add it as a child of the drawable body; on each
+## `record(hit)` it converts the world contact into a local impact (dent, or a carved "missing
+## piece" for a hard hit) and emits `changed`, so the owner can redraw its silhouette and, if it
+## wants, rebuild its collider from the SAME deformed polygon (via the Deformation static helper).
+## Per-body fields (max_depth / allow_chunks / max_impacts) let a small body dent gently without
 ## folding. Walls keep their own per-segment recording instead (their geometry isn't a
-## single centered shape), but they build each impact through the same Deformation.new_impact / push_impact and
-## PhysicsConfig knobs.
+## single centered shape), but they build each impact through the same Deformation.new_impact /
+## push_impact and PhysicsConfig knobs.
 
 ## Emitted after an impact is recorded, so visuals redraw and the collider rebuilds.
 signal changed
@@ -16,8 +15,8 @@ signal changed
 ## Recorded impacts (local space) that deform the drawn silhouette, and the accumulated
 ## damage (drives fill darkening). Read by the owner's visuals + collider rebuild.
 var impacts: Array = []
-var damage_total := 0.0  ## Accumulated dealt damage (drives fill darkening).
-
+## Accumulated dealt damage (drives fill darkening).
+var damage_total := 0.0
 ## Deepest a single dent may cave (px). Defaults to the furniture value; a small body (a
 ## character) sets this lower so a dent stays a fraction of its radius.
 var max_depth := PhysicsConfig.deform_max_depth
@@ -27,8 +26,8 @@ var allow_chunks := true
 ## How many impacts are remembered (oldest dropped past this). A small body keeps fewer, so
 ## dents from many directions can't pile up and pinch the silhouette toward its core.
 var max_impacts := PhysicsConfig.deform_max_impacts
-
-var _body: Node2D  ## The deformed body (parent).
+## The deformed body (parent).
+var _body: Node2D
 
 
 func _ready() -> void:
@@ -45,7 +44,9 @@ func record(hit: HitInfo, turn: float = 0.0) -> void:
 	var inward := xf.basis_xform(-hit.normal).normalized().rotated(-turn)  # into the surface
 	if inward.length() < 0.01:
 		inward = -local_pos.normalized() if local_pos.length() > 0.01 else Vector2.DOWN
-	var impact := Deformation.new_impact(local_pos, inward, hit.damage, hit.blood, max_depth, allow_chunks)
+	var impact := Deformation.new_impact(
+		local_pos, inward, hit.damage, hit.blood, max_depth, allow_chunks,
+	)
 	Deformation.push_impact(impacts, impact, max_impacts)
 	damage_total += hit.damage
 	changed.emit()

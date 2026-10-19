@@ -41,6 +41,19 @@ def copy_tree(dest: Path, with_fixtures: bool) -> Path:
     return dest
 
 
+# A function nothing references, planted in each copied tree, so the dead list has an entry to compare whatever the
+# real tree holds (it may have none). Its name is put together here, never spelled out: this file is copied into the
+# tree too (tools/tests/), and its text naming the function would be a reference to it.
+PLANTED_NAME = "_".join(("audit", "scan", "planted", "dead", "function"))
+PLANTED_PATH = Path("scenes") / "zz_audit_scan_planted.gd"
+
+
+def plant_dead_function(tree: Path) -> tuple[str, int, str]:
+    """Write a scene script whose one function nothing references into `tree`; returns its dead-list entry."""
+    (tree / PLANTED_PATH).write_text(f"extends Node\n\n\nfunc {PLANTED_NAME}() -> void:\n\tpass\n")
+    return (PLANTED_PATH.as_posix(), 4, PLANTED_NAME)
+
+
 def place_script(tree: Path, name: str, text: str) -> Path:
     (tree / "x").mkdir(exist_ok=True)
     path = tree / "x" / name
@@ -90,6 +103,8 @@ class RealTreeTests(unittest.TestCase):
         base = class_tempdir(cls, "audit_scan_test.")
         cls.full = copy_tree(base / "full", with_fixtures=True)
         cls.bare = copy_tree(base / "bare", with_fixtures=False)
+        cls.planted = plant_dead_function(cls.full)
+        plant_dead_function(cls.bare)
         old = subprocess.run(["git", "show", f"{PINNED}:tools/audit_scan.py"], cwd=ROOT, capture_output=True,
                              text=True, check=True).stdout
         cls.old_on_bare = place_script(cls.bare, "audit_scan_old.py", old)
@@ -109,7 +124,7 @@ class RealTreeTests(unittest.TestCase):
 
     def test_dead_functions_is_the_dead_list_of_the_cli(self):
         want = dead_section(scan(self.new_on_bare, "dead").stdout)
-        self.assertTrue(want, "the real tree has some unreferenced function to compare with")
+        self.assertIn(self.planted, want, "the CLI lists the function planted with no reference")
         got = audit_scan_module().dead_functions(self.bare)
         self.assertEqual(sorted(got), sorted(want))
 

@@ -1,21 +1,21 @@
 extends GameTest
-
-## Performance guard: hundreds of hits land on one chair and one character. Deformation, debris and blood
-## each have a cap (`deform_max_impacts`, the Despawner, the per-body splatter cap); the caps hold and frame
-## cost stays within budget while the hits land.
+## Performance guard: hundreds of hits land on one chair and one character. Deformation, debris and
+## blood each have a cap (`deform_max_impacts`, the Despawner, the per-body splatter cap); the caps
+## hold and frame cost stays within budget while the hits land.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-
 const HITS_PER_FRAME := 4
 const FRAMES := 150
-# Frame budgets are the smooth-match standard (Perf.SMOOTH_*). The pool limit is a count, so it is tight.
+# Frame budgets are the smooth-match standard (Perf.SMOOTH_*). The pool limit is a count, so it is
+# tight.
 const BLOOD_SPLAT_LIMIT := 80  # BloodConfig.max_splats_per_body, plus slack for ones not yet freed
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Hundreds of hits keep deformation, debris and blood capped",
-		"description": "600 hits land on a chair and 600 on a sturdy character; recorded dents, tracked debris and blood splatters stay capped and frame cost stays within budget.",
+		"description": "600 hits land on a chair and 600 on a sturdy character; recorded dents, "
+			+ "tracked debris and blood splatters stay capped and frame cost stays within budget.",
 		"tags": ["deformation", "debris", "blood"],
 		"timeout": 30.0,
 	}
@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"physics.debris", true)
 	s.switch(&"nav.rebake", false)
 	s.object(&"chair", "chair", Vector2(200, 200))
-	s.actor(&"victim", &"puppet", Vector2(500, 200), { "max_health": 1000000.0 })
+	s.actor(&"victim", &"puppet", Vector2(500, 200), { "max_health": 1_000_000.0 })
 
 
 func _hit(at: Vector2, i: int, source: Node) -> HitInfo:
@@ -57,13 +57,24 @@ func run(t: TestContext) -> void:
 			chair.take_hit(_hit(chair.global_position, i, null))
 			victim.take_hit(_hit(victim.global_position, i, null))
 	var stats := await Perf.frame_stats(t, FRAMES, land)
-	Perf.within_frames(t, "hit overload", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS)
+	Perf.within_frames(
+		t, "hit overload", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
+	)
 
-	t.check(deformable.impacts.size() <= PhysicsConfig.deform_max_impacts,
-		"recorded dents stay capped (%d, cap %d)" % [deformable.impacts.size(), PhysicsConfig.deform_max_impacts])
-	t.check(Despawner.count() <= Despawner.max_scene_objects, "the Despawner cap holds (%d tracked)" % Despawner.count())
+	t.check(
+		deformable.impacts.size() <= PhysicsConfig.deform_max_impacts,
+		"recorded dents stay capped (%d, cap %d)"
+			% [deformable.impacts.size(), PhysicsConfig.deform_max_impacts],
+	)
+	t.check(
+		Despawner.count() <= Despawner.max_scene_objects,
+		"the Despawner cap holds (%d tracked)" % Despawner.count(),
+	)
 	var live := t.world.find_children("BloodSplat*", "Node2D", true, false).size()
 	GameLog.say("PERF hit overload live blood splats %d" % live)
 	t.trace("live blood splats", live)
-	t.check(live <= BLOOD_SPLAT_LIMIT, "live blood splats: %d, limit %d" % [live, BLOOD_SPLAT_LIMIT])
+	t.check(
+		live <= BLOOD_SPLAT_LIMIT,
+		"live blood splats: %d, limit %d" % [live, BLOOD_SPLAT_LIMIT],
+	)
 	t.check(not victim.is_dead, "the victim survived the hits")

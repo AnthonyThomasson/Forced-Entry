@@ -1,15 +1,16 @@
 extends RefCounted
-
 ## Top-down pixel-art open SHELF painter (Objects domain, private). Painted in the canonical frame
 ## (front toward +y): a material frame around a shadowed well, filled with what the shelf holds as
 ## seen from above — rows of book tops, cardboard boxes and paint tins, or pairs of shoes. Metal
 ## frames show corner uprights. Options (`art_opts`, defaulting to ObjectArtConfig.shelf_*):
-## `contents` ("books" | "boxes" | "shoes"), `neon` (a neon strip round the frame, glowing). Run down like a cabinet.
+## `contents` ("books" | "boxes" | "shoes"), `neon` (a neon strip round the frame, glowing). Run
+## down like a cabinet.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const CabinetPainter = preload("res://scenes/objects/art/cabinet_painter.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
-const _FRAME_HEIGHT := 5    ## Heights for cast shadows: the frame stands over its contents.
+## Heights for cast shadows: the frame stands over its contents.
+const _FRAME_HEIGHT := 5
 const _CONTENT_HEIGHT := 3
 
 
@@ -32,7 +33,12 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.bevel(frame, 2, 2, t.light, t.dark)
 	c.outline(frame, t.outline)
 	if material == "metal":
-		for p in [Vector2i(0, 0), Vector2i(c.w - 3, 0), Vector2i(0, c.h - 3), Vector2i(c.w - 3, c.h - 3)]:
+		for p in [
+				Vector2i(0, 0),
+				Vector2i(c.w - 3, 0),
+				Vector2i(0, c.h - 3),
+				Vector2i(c.w - 3, c.h - 3),
+		]:
 			var post := PixelCanvas.rounded(Rect2i(p, Vector2i(3, 3)), 0)
 			c.fill(post, t.dark, _FRAME_HEIGHT + 1)
 			c.outline(post, t.outline)
@@ -55,7 +61,11 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 			continue
 		if roll < 0.12 and well.end.x - x > 8:
 			var o := Vector2i(x + 3, well.position.y + mini(4, int(well.size.y / 3.0)))
-			c.fill(PixelCanvas.disc(o, 2), ObjectArtConfig.prop_colors["glaze"], _CONTENT_HEIGHT + 1)
+			c.fill(
+				PixelCanvas.disc(o, 2),
+				ObjectArtConfig.prop_colors["glaze"],
+				_CONTENT_HEIGHT + 1,
+			)
 			x += 7
 			continue
 		var bw := mini(c.rng.randi_range(2, 4), well.end.x - x)
@@ -66,7 +76,11 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 		if bw >= 3:
 			c.fill(PixelCanvas.rounded(Rect2i(x + 1, r.position.y + 1, bw - 2, bh - 2), 0), paper)
 		else:
-			c.line(Vector2i(x + bw - 1, r.position.y), Vector2i(x + bw - 1, r.end.y - 1), cover.darkened(0.3))
+			c.line(
+				Vector2i(x + bw - 1, r.position.y),
+				Vector2i(x + bw - 1, r.end.y - 1),
+				cover.darkened(0.3),
+			)
 		c.px(x, r.end.y - 1, cover.darkened(0.35))
 		x += bw
 
@@ -93,7 +107,11 @@ static func _boxes(c: PixelCanvas, well: Rect2i) -> void:
 		var box := PixelCanvas.rounded(r, 0)
 		c.fill(box, tone, _CONTENT_HEIGHT)
 		c.bevel(box, 1, 1, tone.lightened(0.12), tone.darkened(0.25))
-		c.line(Vector2i(r.position.x + 1, r.position.y + int(r.size.y / 2.0)), Vector2i(r.end.x - 2, r.position.y + int(r.size.y / 2.0)), tone.darkened(0.3))
+		c.line(
+			Vector2i(r.position.x + 1, r.position.y + int(r.size.y / 2.0)),
+			Vector2i(r.end.x - 2, r.position.y + int(r.size.y / 2.0)),
+			tone.darkened(0.3),
+		)
 		var tape := r.position.x + int(r.size.x / 2.0)
 		c.line(Vector2i(tape, r.position.y + 1), Vector2i(tape, r.end.y - 2), tone.lightened(0.25))
 		x += bw + 1
@@ -111,5 +129,13 @@ static func _shoes(c: PixelCanvas, well: Rect2i) -> void:
 			var shoe := PixelCanvas.ellipse(r)
 			c.fill(shoe, col, _CONTENT_HEIGHT)
 			c.outline(shoe, col.darkened(0.45))
-			c.fill(PixelCanvas.ellipse(Rect2i(r.position.x + 1, r.position.y + 1, maxi(1, sw - 2), maxi(2, int(length * 2 / 5.0)))), col.darkened(0.55))
+			c.fill(
+				PixelCanvas.ellipse(Rect2i(
+					r.position.x + 1,
+					r.position.y + 1,
+					maxi(1, sw - 2),
+					maxi(2, int(length * 2 / 5.0)),
+				)),
+				col.darkened(0.55),
+			)
 		x += sw * 2 + 3

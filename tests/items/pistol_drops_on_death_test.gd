@@ -1,5 +1,4 @@
 extends GameTest
-
 ## An armed character that dies lets go of its pistol: a DroppedItem lands in the world.
 
 
@@ -24,6 +23,18 @@ func run(t: TestContext) -> void:
 	shooter.aim_at(t.actor(&"target"))
 	await t.seconds(0.4)
 	shooter.shoot()
-	if not t.require(await t.until(func(): return t.happened(&"died", func(d): return d["actor"] == &"target"), 2.0), "the target dies"):
+	if not t.require(
+			await t.until(
+				func(): return t.happened(&"died", func(d): return d["actor"] == &"target"),
+				2.0,
+			),
+			"the target dies",
+	):
 		return
-	t.check(await t.until(func(): return t.world.get_children().any(func(n): return n is DroppedItem), 2.0), "a DroppedItem lies in the world")
+	t.check(
+		await t.until(
+			func(): return t.world.get_children().any(func(n): return n is DroppedItem),
+			2.0,
+		),
+		"a DroppedItem lies in the world",
+	)

@@ -1,6 +1,6 @@
 extends Node
-
-## General domain: central place for all input actions, their default bindings and runtime rebinding.
+## General domain: central place for all input actions, their default bindings and runtime
+## rebinding.
 ##
 ## Autoloaded as `Keybinds` (see project.godot [autoload]). Everything that reads
 ## input should go through the constants and helpers here instead of hard-coding
@@ -25,14 +25,14 @@ const INTERACT := "interact"
 const RELOAD := "reload"
 ## Get into the vehicle whose door is nearest, or out of the one the player sits in.
 const USE_VEHICLE := "use_vehicle"
-## Command teammates (the UI's command menu, built only when the human leads its side): pause and open the menu on what is
-## under the cursor.
+## Command teammates (the UI's command menu, built only when the human leads its side): pause and
+## open the menu on what is under the cursor.
 const COMMAND := "command"
 ## Return to the pre-game setup window to start a fresh match (handled by main.gd, works in both
 ## player and spectator mode).
 const MENU := "menu"
-## Pause/resume the game (spectator inspector only — shares Space with INTERACT, which is unused in the
-## player-less spectator match).
+## Pause/resume the game (spectator inspector only — shares Space with INTERACT, which is unused in
+## the player-less spectator match).
 const PAUSE := "pause"
 ## Pan the spectator camera by hand (camera_controller.gd). Shares WASD with the MOVE_* actions —
 ## harmless because the spectator match has no player to move.
@@ -52,9 +52,9 @@ const ITEM_6 := "item_6"
 const ITEM_7 := "item_7"
 const ITEM_8 := "item_8"
 const ITEM_9 := "item_9"
-
 ## Default key for each action, keyed by action name. Change a value here to change the shipped
-## layout — e.g. swap WASD for arrow keys; a player's own changes go through `bind()` and `Settings`.
+## layout — e.g. swap WASD for arrow keys; a player's own changes go through `bind()` and
+## `Settings`.
 const DEFAULTS := {
 	MOVE_LEFT: KEY_A,
 	MOVE_RIGHT: KEY_D,
@@ -83,7 +83,6 @@ const DEFAULTS := {
 	ITEM_8: KEY_8,
 	ITEM_9: KEY_9,
 }
-
 ## Default mouse button for each pointer-bound action (`MouseButton` values aren't `Key`s, so they
 ## live apart from DEFAULTS).
 const MOUSE_DEFAULTS := {
@@ -92,7 +91,6 @@ const MOUSE_DEFAULTS := {
 	ZOOM_IN: MOUSE_BUTTON_WHEEL_UP,
 	ZOOM_OUT: MOUSE_BUTTON_WHEEL_DOWN,
 }
-
 ## The settings-page label of each action, in page order. Every action in DEFAULTS / MOUSE_DEFAULTS
 ## needs a row here and in GROUPS (a test enforces it).
 const LABELS := {
@@ -127,7 +125,6 @@ const LABELS := {
 	PAUSE: "Pause (spectator)",
 	MENU: "Back to setup",
 }
-
 ## The settings-page section each action is listed under.
 const GROUPS := {
 	MOVE_UP: "Movement",
@@ -161,10 +158,9 @@ const GROUPS := {
 	PAUSE: "System",
 	MENU: "System",
 }
-
-## Action pairs that deliberately share a binding, so `conflicts_of()` doesn't flag them: Interact and
-## Pause (the player-less spectator match has nothing to interact with) and each camera pan key with
-## its move key (the spectator match has no player to move).
+## Action pairs that deliberately share a binding, so `conflicts_of()` doesn't flag them: Interact
+## and Pause (the player-less spectator match has nothing to interact with) and each camera pan key
+## with its move key (the spectator match has no player to move).
 const SHARED := [
 	[INTERACT, PAUSE],
 	[MOVE_UP, CAMERA_UP],
@@ -172,8 +168,8 @@ const SHARED := [
 	[MOVE_LEFT, CAMERA_LEFT],
 	[MOVE_RIGHT, CAMERA_RIGHT],
 ]
-
-## The mouse buttons an action may be bound to, with their display names (the horizontal wheel is not bindable).
+## The mouse buttons an action may be bound to, with their display names (the horizontal wheel is
+## not bindable).
 const MOUSE_NAMES := {
 	MOUSE_BUTTON_LEFT: "Mouse Left",
 	MOUSE_BUTTON_RIGHT: "Mouse Right",
@@ -193,9 +189,9 @@ func _ready() -> void:
 	reset_all()
 
 
-## Point `action` at the key or mouse button in `event`, replacing its current binding. A key is stored
-## by its physical position (so it survives keyboard layouts); anything else (wheel, gamepad, an empty
-## key) is refused. Returns whether the action was rebound.
+## Point `action` at the key or mouse button in `event`, replacing its current binding. A key is
+## stored by its physical position (so it survives keyboard layouts); anything else (wheel, gamepad,
+## an empty key) is refused. Returns whether the action was rebound.
 func bind(action: String, event: InputEvent) -> bool:
 	var fresh := _normalized(event)
 	if fresh == null:
@@ -240,13 +236,15 @@ func event_of(action: String) -> InputEvent:
 	return null if events.is_empty() else events[0]
 
 
-## `action`'s current binding as text for a button ("W", "Space", "Mouse Left"), "Unbound" when it has none.
+## `action`'s current binding as text for a button ("W", "Space", "Mouse Left"), "Unbound" when it
+## has none.
 func text_of(action: String) -> String:
 	var event := event_of(action)
 	if event is InputEventKey:
 		var physical: Key = (event as InputEventKey).physical_keycode
 		var code: Key = physical
-		# The key's label on the player's layout; a headless display server can't map it and logs an error.
+		# The key's label on the player's layout; a headless display server can't map it and logs an
+		# error.
 		if DisplayServer.get_name() != "headless":
 			code = DisplayServer.keyboard_get_keycode_from_physical(physical)
 		return OS.get_keycode_string(code if code != KEY_NONE else physical)
@@ -263,7 +261,9 @@ func conflicts_of(action: String) -> Array:
 	if mine.is_empty():
 		return out
 	for other in actions():
-		if other != action and not _is_shared(action, other) and _serialize(event_of(other)) == mine:
+		if (other != action
+				and not _is_shared(action, other)
+				and _serialize(event_of(other)) == mine):
 			out.append(other)
 	return out
 
@@ -276,9 +276,9 @@ func _is_shared(a: String, b: String) -> bool:
 	return false
 
 
-## The bindings that differ from the defaults, as `{ action: { "key": int } | { "mouse": int } }` — what
-## `Settings` writes to disk. Only differences are kept, so a changed default still reaches an action
-## the player never touched.
+## The bindings that differ from the defaults, as `{ action: { "key": int } | { "mouse": int } }` —
+## what `Settings` writes to disk. Only differences are kept, so a changed default still reaches an
+## action the player never touched.
 func overrides() -> Dictionary:
 	var out := {}
 	for action in actions():
@@ -288,8 +288,8 @@ func overrides() -> Dictionary:
 	return out
 
 
-## Rebind from an `overrides()`-shaped dictionary (as read back from JSON). Unknown actions and malformed
-## entries are skipped one by one; actions not named keep their current binding.
+## Rebind from an `overrides()`-shaped dictionary (as read back from JSON). Unknown actions and
+## malformed entries are skipped one by one; actions not named keep their current binding.
 func apply_overrides(data: Dictionary) -> void:
 	for action in data:
 		if actions().has(action):
@@ -331,7 +331,8 @@ func _serialize(event: InputEvent) -> Dictionary:
 	return {}
 
 
-## The binding a `_serialize()` dictionary describes, or null when it isn't one (JSON numbers arrive as floats).
+## The binding a `_serialize()` dictionary describes, or null when it isn't one (JSON numbers arrive
+## as floats).
 func _deserialize(value: Variant) -> InputEvent:
 	if not value is Dictionary:
 		return null
@@ -356,7 +357,6 @@ func is_run_pressed() -> bool:
 ## True on the frame the crouch key is pressed (a toggle). Rebindable like the others.
 func is_crouch_just_pressed() -> bool:
 	return Input.is_action_just_pressed(CROUCH)
-
 
 
 ## Manual camera pan direction from the four camera actions (length <= 1).

@@ -1,30 +1,34 @@
 class_name SoundSynth
-
-## Audio domain: the procedural sound engine. Renders a *recipe* — a length plus a list of layers — into a
-## 16-bit mono AudioStreamWAV, with no files and no outside input: a recipe and a seed always render to the
-## same bytes (the noise comes from a local RandomNumberGenerator, never the gameplay one).
+## Audio domain: the procedural sound engine. Renders a *recipe* — a length plus a list of layers —
+## into a 16-bit mono AudioStreamWAV, with no files and no outside input: a recipe and a seed always
+## render to the same bytes (the noise comes from a local RandomNumberGenerator, never the gameplay
+## one).
 ##
-## Recipe: { "length": s, "drive": 0 (optional tanh saturation), "vary": 0 (optional), "loop": false (optional), "layers": [layer, …] }. Every layer has
-## `type`, `gain` (default 1) and `delay` (s, default 0) and runs from its delay until it has decayed:
+## Recipe: { "length": s, "drive": 0 (optional tanh saturation), "vary": 0 (optional), "loop": false
+## (optional), "layers": [layer, …] }. Every layer has `type`, `gain` (default 1) and `delay` (s,
+## default 0) and runs from its delay until it has decayed:
 ##   noise  white noise through an envelope — `attack` (s), `decay` (time constant, s), `lp` / `hp`
-##          (low-pass, two poles, and high-pass, one pole, cut-off in Hz; 0 = off). Cracks, scuffs, hiss, tails.
-##   tone   a sine that glides from `freq` to `freq_end` (time constant `sweep`) under an envelope with
-##          `decay`. Thumps, pings.
-##   modes  damped sinusoids — `freqs`, optional `amps`, `decays` (one per mode, or one `decay` for all),
-##          optional `detune` (± fraction, random per mode). How a struck material rings.
-##   pulses a periodic excitation rung through resonators: `rate` pulses a second (rounded to whole pulses per clip; 0 =
-##          continuous noise instead of pulses), each a burst of noise decaying over `burst` s, its level cycling through
-##          `pattern` (an engine's cylinders) and nudged by `spread`, its timing by `jitter` (a fraction of the gap); the
-##          excitation is shaped by `lp` / `hp`, then `noise` of it is heard as it is and the rest rings through the
-##          resonators `freqs` / `amps` / `decays`; `wobble` [cycles per clip, depth] swells it. An engine's firing, a tyre's
-##          squeal.
-## `vary` (0..1) makes every render of a recipe its own take: each layer's gain, decay, glide, cut-offs, partial levels
-## and delay are nudged by up to that fraction (a pitch by about half of it), drawn from the seed, so one recipe
-## yields many distinct but related sounds. A footstep wants it; a gunshot does not.
-## The mix is normalized to SoundConfig.peak, optionally saturated, and faded out over its last few ms. A `loop` recipe is not
-## faded and its stream loops forward over the whole clip. In a loop, whatever a layer still sounds past the clip's end comes
-## round again at its start (a pulse near the end rings on into the beginning), so decaying layers join without a seam; a
-## steady tone must still be a whole number of cycles of the length.
+##          (low-pass, two poles, and high-pass, one pole, cut-off in Hz; 0 = off). Cracks, scuffs,
+##          hiss, tails.
+##   tone   a sine that glides from `freq` to `freq_end` (time constant `sweep`) under an envelope
+##          with `decay`. Thumps, pings.
+##   modes  damped sinusoids — `freqs`, optional `amps`, `decays` (one per mode, or one `decay` for
+##          all), optional `detune` (± fraction, random per mode). How a struck material rings.
+##   pulses a periodic excitation rung through resonators: `rate` pulses a second (rounded to whole
+##          pulses per clip; 0 = continuous noise instead of pulses), each a burst of noise decaying
+##          over `burst` s, its level cycling through `pattern` (an engine's cylinders) and nudged
+##          by `spread`, its timing by `jitter` (a fraction of the gap); the excitation is shaped by
+##          `lp` / `hp`, then `noise` of it is heard as it is and the rest rings through the
+##          resonators `freqs` / `amps` / `decays`; `wobble` [cycles per clip, depth] swells it. An
+##          engine's firing, a tyre's squeal.
+## `vary` (0..1) makes every render of a recipe its own take: each layer's gain, decay, glide,
+## cut-offs, partial levels and delay are nudged by up to that fraction (a pitch by about half of
+## it), drawn from the seed, so one recipe yields many distinct but related sounds. A footstep wants
+## it; a gunshot does not. The mix is normalized to SoundConfig.peak, optionally saturated, and
+## faded out over its last few ms. A `loop` recipe is not faded and its stream loops forward over
+## the whole clip. In a loop, whatever a layer still sounds past the clip's end comes round again at
+## its start (a pulse near the end rings on into the beginning), so decaying layers join without a
+## seam; a steady tone must still be a whole number of cycles of the length.
 
 ## An envelope below this has ended; a layer stops there instead of running to the end of the clip.
 const SILENCE := 0.0006
@@ -58,8 +62,8 @@ static func render(recipe: Dictionary, seed_value: int) -> AudioStreamWAV:
 	return _to_stream(mix, rate, float(recipe.get("drive", 0.0)), loop)
 
 
-## A copy of `layer` with its numbers nudged by up to `vary` (see the header): levels and times by the full
-## amount, frequencies and cut-offs by half of it.
+## A copy of `layer` with its numbers nudged by up to `vary` (see the header): levels and times by
+## the full amount, frequencies and cut-offs by half of it.
 static func _varied(layer: Dictionary, vary: float, rng: RandomNumberGenerator) -> Dictionary:
 	var out := layer.duplicate()
 	for key: String in ["gain", "decay", "sweep", "attack"]:
@@ -74,7 +78,8 @@ static func _varied(layer: Dictionary, vary: float, rng: RandomNumberGenerator) 
 		if out.has(key):
 			var scaled := []
 			for v in out[key]:
-				scaled.append(float(v) * (1.0 + rng.randf_range(-vary, vary) * (0.5 if key == "freqs" else 1.0)))
+				scaled.append(float(v)
+						* (1.0 + rng.randf_range(-vary, vary) * (0.5 if key == "freqs" else 1.0)))
 			out[key] = scaled
 	return out
 
@@ -85,7 +90,7 @@ static func peak_of(stream: AudioStreamWAV) -> float:
 	var peak := 0
 	for i in range(0, data.size() - 1, 2):
 		peak = maxi(peak, absi(data.decode_s16(i)))
-	return peak / 32768.0
+	return peak / 32_768.0
 
 
 ## One-pole low-pass coefficient for cut-off `hz` (1 = pass everything).
@@ -95,19 +100,37 @@ static func _coef(hz: float, rate: int) -> float:
 	return 1.0 - exp(-TAU * hz / rate)
 
 
-## Samples a layer with envelope time constant `decay` runs for, starting at `start` in a clip of `size`: to the clip's
-## end, or in a loop (`looped`) for at most one clip's length, round past the end.
-static func _span(size: int, start: int, decay: float, rate: int, extra: int = 0, looped := false) -> int:
-	return maxi(mini(size if looped else size - start, int(decay * rate * TAIL_CONSTANTS) + extra), 0)
+## Samples a layer with envelope time constant `decay` runs for, starting at `start` in a clip of
+## `size`: to the clip's end, or in a loop (`looped`) for at most one clip's length, round past the
+## end.
+static func _span(
+	size: int,
+	start: int,
+	decay: float,
+	rate: int,
+	extra: int = 0,
+	looped := false,
+) -> int:
+	return maxi(
+		mini(size if looped else size - start, int(decay * rate * TAIL_CONSTANTS) + extra),
+		0,
+	)
 
 
-## Where sample `i` lands in a clip of `size`: past the end it comes round to the start (a layer runs at most one clip long).
+## Where sample `i` lands in a clip of `size`: past the end it comes round to the start (a layer
+## runs at most one clip long).
 static func _at(i: int, size: int) -> int:
 	return i - size if i >= size else i
 
 
 ## Mix a layer of decaying noise (shaped by a 2-pole low-pass and a 1-pole high-pass) into `mix`.
-static func _noise(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: RandomNumberGenerator, looped := false) -> void:
+static func _noise(
+	mix: PackedFloat32Array,
+	layer: Dictionary,
+	rate: int,
+	rng: RandomNumberGenerator,
+	looped := false,
+) -> void:
 	var start := int(float(layer.get("delay", 0.0)) * rate)
 	var gain: float = layer.get("gain", 1.0)
 	var attack := maxi(int(float(layer.get("attack", 0.0005)) * rate), 1)
@@ -161,7 +184,13 @@ static func _tone(mix: PackedFloat32Array, layer: Dictionary, rate: int, looped 
 
 ## Each mode is a two-pole resonator, y[n] = 2r·cos(w)·y[n-1] - r²·y[n-2]: a damped sine with no
 ## per-sample sin() or exp().
-static func _modes(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: RandomNumberGenerator, looped := false) -> void:
+static func _modes(
+	mix: PackedFloat32Array,
+	layer: Dictionary,
+	rate: int,
+	rng: RandomNumberGenerator,
+	looped := false,
+) -> void:
 	var start := int(float(layer.get("delay", 0.0)) * rate)
 	var gain: float = layer.get("gain", 1.0)
 	var freqs: Array = layer.get("freqs", [])
@@ -173,7 +202,10 @@ static func _modes(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: R
 		if hz >= rate * 0.45:
 			continue  # past what the sample rate can carry
 		var amp := float(amps[m]) if m < amps.size() else 1.0
-		var decay := maxf(float(decays[m]) if m < decays.size() else float(layer.get("decay", 0.05)), 0.0005)
+		var decay := maxf(
+			float(decays[m]) if m < decays.size() else float(layer.get("decay", 0.05)),
+			0.0005,
+		)
 		var w := TAU * hz / rate
 		var r := exp(-1.0 / (decay * rate))
 		var c1 := 2.0 * r * cos(w)
@@ -194,11 +226,18 @@ static func _modes(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: R
 				break
 
 
-## Mix a `pulses` layer (see the header) into `mix`. The excitation (a train of noise bursts, or continuous noise) is
-## shaped by the low- and high-pass, heard directly at `noise`, and drives each resonator; everything runs on past the
-## clip's end until it has decayed, and in a loop (`looped`) that overhang is folded back onto the start, so the clip is one
-## period of a train that never began: it loops without a seam.
-static func _pulses(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: RandomNumberGenerator, looped := false) -> void:
+## Mix a `pulses` layer (see the header) into `mix`. The excitation (a train of noise bursts, or
+## continuous noise) is shaped by the low- and high-pass, heard directly at `noise`, and drives each
+## resonator; everything runs on past the clip's end until it has decayed, and in a loop (`looped`)
+## that overhang is folded back onto the start, so the clip is one period of a train that never
+## began: it loops without a seam.
+static func _pulses(
+	mix: PackedFloat32Array,
+	layer: Dictionary,
+	rate: int,
+	rng: RandomNumberGenerator,
+	looped := false,
+) -> void:
 	var count := mix.size()
 	var gain: float = layer.get("gain", 1.0)
 	var per_second: float = layer.get("rate", 0.0)
@@ -225,7 +264,8 @@ static func _pulses(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: 
 			var at := roundi(k * gap + rng.randf_range(-jitter, jitter) * gap)
 			if at < 0:
 				at += count if looped else -at
-			var level := float(pattern[k % pattern.size()]) * (1.0 + rng.randf_range(-spread, spread))
+			var level := (float(pattern[k % pattern.size()])
+					* (1.0 + rng.randf_range(-spread, spread)))
 			var env := level
 			for i in span:
 				exc[at + i] += (rng.randf() * 2.0 - 1.0) * env
@@ -259,7 +299,8 @@ static func _pulses(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: 
 		if hz >= rate * 0.45:
 			continue  # past what the sample rate can carry
 		var w := TAU * hz / rate
-		var r := exp(-1.0 / (maxf(float(decays[m]) if m < decays.size() else longest, 0.0005) * rate))
+		var r := exp(-1.0
+				/ (maxf(float(decays[m]) if m < decays.size() else longest, 0.0005) * rate))
 		var c1 := 2.0 * r * cos(w)
 		var c2 := -r * r
 		# Scaled so each resonator peaks near its `amp` whatever its frequency and decay.
@@ -286,8 +327,14 @@ static func _pulses(mix: PackedFloat32Array, layer: Dictionary, rate: int, rng: 
 		mix[i] += v * gain
 
 
-## Normalize, optionally saturate, fade the tail (unless it loops) and pack as 16-bit little-endian PCM.
-static func _to_stream(mix: PackedFloat32Array, rate: int, drive: float, loop := false) -> AudioStreamWAV:
+## Normalize, optionally saturate, fade the tail (unless it loops) and pack as 16-bit little-endian
+## PCM.
+static func _to_stream(
+	mix: PackedFloat32Array,
+	rate: int,
+	drive: float,
+	loop := false,
+) -> AudioStreamWAV:
 	var count := mix.size()
 	var top := 0.0
 	for i in count:
@@ -303,7 +350,7 @@ static func _to_stream(mix: PackedFloat32Array, rate: int, drive: float, loop :=
 		v *= SoundConfig.peak
 		if fade > 0 and i >= count - fade:
 			v *= float(count - i) / fade
-		bytes.encode_s16(i * 2, clampi(int(v * 32767.0), -32767, 32767))
+		bytes.encode_s16(i * 2, clampi(int(v * 32_767.0), -32_767, 32_767))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = rate

@@ -1,28 +1,34 @@
 extends GameTest
-
-## G16, the radio: an ally that can neither see nor hear the grenade but is in its zone moves on a teammate's `grenade` callout.
-## Two defenders in the hall of the terrace house; a hostile invader at the west end throws a frag that lands beside the first. The
-## second sits on a chair at the hall's east end, about 340 px from the landing, in its line of sight and inside the frag zone (blast
-## radius 250 + the 120 px evade margin), but outside `hear_grenade` (300 px) and with its back to the landing. It can only learn of the
-## grenade from the call, and the reflex has to break off its interaction.
+## G16, the radio: an ally that can neither see nor hear the grenade but is in its zone moves on a
+## teammate's `grenade` callout. Two defenders in the hall of the terrace house; a hostile invader
+## at the west end throws a frag that lands beside the first. The second sits on a chair at the
+## hall's east end, about 340 px from the landing, in its line of sight and inside the frag zone
+## (blast radius 250 + the 120 px evade margin), but outside `hear_grenade` (300 px) and with its
+## back to the landing. It can only learn of the grenade from the call, and the reflex has to break
+## off its interaction.
 ##
-## Premises: the thrower is an invader *puppet* that cannot be killed (the scripted world event), armed here as Main arms a spawn; and
-## the second defender is busy in an interaction (seated, started through `interact_with` at the start of `run`), which is what keeps a
-## defender in place in a live house, where an idle one otherwise sets off to search a room within a third of a second. A premise check
-## reads where B sat when A radioed and where the grenade really came to rest, so a different set-up is a finding.
+## Premises: the thrower is an invader *puppet* that cannot be killed (the scripted world event),
+## armed here as Main arms a spawn; and the second defender is busy in an interaction (seated,
+## started through `interact_with` at the start of `run`), which is what keeps a defender in place
+## in a live house, where an idle one otherwise sets off to search a room within a third of a
+## second. A premise check reads where B sat when A radioed and where the grenade really came to
+## rest, so a different set-up is a finding.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const LANDING := Vector2(450, 415)
 const A_AT := Vector2(560, 415)
-const B_AT := Vector2(745, 415)  ## beside its chair, near the hall's east end
+## beside its chair, near the hall's east end
+const B_AT := Vector2(745, 415)
 const CHAIR_AT := Vector2(780, 415)
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A defender that cannot see the grenade runs on its ally's call",
-		"description": "A frag lands by defender A; defender B, seated about 340 px away with its back turned, learns of it only from A's callout, leaves its chair and gets out of the grenade's line or radius before it goes off.",
+		"description": "A frag lands by defender A; defender B, seated about 340 px away with its "
+			+ "back turned, learns of it only from A's callout, leaves its chair and gets out of "
+			+ "the grenade's line or radius before it goes off.",
 		"tags": ["ai", "grenade", "evade", "von"],
 		"requires_von": true,
 		"timeout": 60.0,
@@ -34,14 +40,23 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"a", &"defender", A_AT, { "facing": Vector2.LEFT })
 	s.object(&"chair", "chair", CHAIR_AT)
 	s.actor(&"b", &"defender", B_AT, { "facing": Vector2.RIGHT })
-	s.actor(&"thrower", &"puppet", Vector2(100, 415), { "faction": &"invader", "max_health": 1000000.0, "aim_point": Vector2(900, 415) })
+	s.actor(
+		&"thrower",
+		&"puppet",
+		Vector2(100, 415),
+		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": Vector2(900, 415) },
+	)
 
 
 func run(t: TestContext) -> void:
 	var thrower := t.actor(&"thrower")
 	var b := t.actor(&"b")
 	Probe.arm(thrower, 0, 1)
-	if not t.require(Probe.count(thrower, Probe.FRAG) == 1, "the thrower carries a frag grenade (Character.item_count(8) = %d)" % Probe.count(thrower, Probe.FRAG)):
+	if not t.require(
+			Probe.count(thrower, Probe.FRAG) == 1,
+			"the thrower carries a frag grenade (Character.item_count(8) = %d)"
+				% Probe.count(thrower, Probe.FRAG),
+	):
 		return
 	var bb := t.controller(&"b", &"current_act")
 	b.interact_with(t.object(&"chair"), "sit")
@@ -74,26 +89,46 @@ func run(t: TestContext) -> void:
 		return
 	var call_at: float = called[0]["time"]
 
-	# The premise: where B sat when A radioed, it was in the grenade's line and its zone, and could not have heard it land.
+	# The premise: where B sat when A radioed, it was in the grenade's line and its zone, and could
+	# not have heard it land.
 	var seat: Vector2 = b.global_position
 	for sample in b_path:
 		if float(sample["t"]) <= call_at:
 			seat = sample["p"]
 	var gap := seat.distance_to(at)
-	t.require(gap > Probe.HEAR_GRENADE and gap < Probe.FRAG_ZONE and not _shielded(t, at, seat),
-		"set-up: B sat %.0f px from where the grenade lay, between hearing range (%.0f) and the frag zone (%.0f), with nothing shielding it" % [gap, Probe.HEAR_GRENADE, Probe.FRAG_ZONE])
-	t.check(b_path.any(func(sample): return float(sample["t"]) <= call_at and bool(sample["busy"])), "(B was still seated when A radioed)")
+	t.require(
+		gap > Probe.HEAR_GRENADE and gap < Probe.FRAG_ZONE and not _shielded(t, at, seat),
+		("set-up: B sat %.0f px from where the grenade lay, between hearing range (%.0f) and the "
+				+ "frag zone (%.0f), with nothing shielding it")
+			% [gap, Probe.HEAR_GRENADE, Probe.FRAG_ZONE],
+	)
+	t.check(
+		b_path.any(func(sample): return float(sample["t"]) <= call_at and bool(sample["busy"])),
+		"(B was still seated when A radioed)",
+	)
 
 	t.check(escape_at != INF, "B ran for an escape spot (debug_grenades().escape was set)")
-	t.check(escape_at >= call_at - 0.05 and escape_at <= call_at + 0.7, "within 0.7 s of A's call, not before it (call at %.2f s, B's escape set at %.2f s)" % [call_at, escape_at])
-	t.check(sources.has(&"called") and not sources.has(&"seen") and not sources.has(&"heard"), "B knew of the grenade only by the callout (sources %s)" % str(sources.keys()))
+	t.check(
+		escape_at >= call_at - 0.05 and escape_at <= call_at + 0.7,
+		"within 0.7 s of A's call, not before it (call at %.2f s, B's escape set at %.2f s)"
+			% [call_at, escape_at],
+	)
+	t.check(
+		sources.has(&"called") and not sources.has(&"seen") and not sources.has(&"heard"),
+		"B knew of the grenade only by the callout (sources %s)" % str(sources.keys()),
+	)
 	var last: Array = b_path.filter(func(s): return float(s["t"]) >= float(boom["time"]) - 0.25)
-	t.check(last.all(func(s): return Probe.safe_from_frag(t, at, s["p"])), "and it was out of the grenade's line of sight or past its radius before the burst (%.0f px away)" % b.global_position.distance_to(at))
+	t.check(
+		last.all(func(s): return Probe.safe_from_frag(t, at, s["p"])),
+		("and it was out of the grenade's line of sight or past its radius before the burst (%.0f "
+				+ "px away)") % b.global_position.distance_to(at),
+	)
 	t.check(Probe.blast_hits(t, b).is_empty() and not b.is_dead, "taking no blast")
 
 
-## G7 cover for a standing body at `p` (the height of B's surface while seated): whether a wall or a piece of furniture taller than it stands
-## on the straight line from the burst (`Probe.shielded` reads a character's position, and B has left its seat by the time the test checks).
+## G7 cover for a standing body at `p` (the height of B's surface while seated): whether a wall or a
+## piece of furniture taller than it stands on the straight line from the burst (`Probe.shielded`
+## reads a character's position, and B has left its seat by the time the test checks).
 func _shielded(t: TestContext, burst: Vector2, p: Vector2) -> bool:
 	var exclude: Array = []
 	for body in t.world.find_children("*", "CharacterBody2D", true, false):
@@ -106,7 +141,9 @@ func _shielded(t: TestContext, burst: Vector2, p: Vector2) -> bool:
 		if hit.is_empty():
 			return false
 		var collider: Object = hit["collider"]
-		if (float(collider.get_surface().get("coverage", 100.0)) if collider.has_method("get_surface") else 100.0) > 60.0:
+		if ((float(collider.get_surface().get("coverage", 100.0))
+				if collider.has_method("get_surface")
+				else 100.0) > 60.0):
 			return true
 		exclude.append(hit["rid"])
 	return false

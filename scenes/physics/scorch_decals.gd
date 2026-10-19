@@ -1,12 +1,13 @@
 class_name ScorchDecals
 extends "res://scenes/physics/chunked_layer.gd"
-
-## Physics System: a layer of scorch marks (the black burn a frag leaves on the floor) under a world node, batching
-## every mark so a floor full of them costs a few draw calls and no nodes of their own (`chunked_layer.gd`, as
-## `DebrisLayer` and `BloodDecals`). A mark is stepped rows of `PhysicsConfig.explosion_pixel` px, ragged at the edge, a
-## darker core inside a lighter rim, with a few specks flung out round it. Marks are grouped in `CHUNK`-px squares and
-## only the chunk that gained or lost one redraws. The oldest are dropped past `Despawner.max_scene_objects`, the same
-## bound every other kept mark answers to. Drawn at the blood decals' depth, under the furniture and the living.
+## Physics System: a layer of scorch marks (the black burn a frag leaves on the floor) under a world
+## node, batching every mark so a floor full of them costs a few draw calls and no nodes of their
+## own (`chunked_layer.gd`, as `DebrisLayer` and `BloodDecals`). A mark is stepped rows of
+## `PhysicsConfig.explosion_pixel` px, ragged at the edge, a darker core inside a lighter rim, with
+## a few specks flung out round it. Marks are grouped in `CHUNK`-px squares and only the chunk that
+## gained or lost one redraws. The oldest are dropped past `Despawner.max_scene_objects`, the same
+## bound every other kept mark answers to. Drawn at the blood decals' depth, under the furniture and
+## the living.
 
 const NODE_NAME := "ScorchDecals"
 ## The rim is this share of the core's alpha, and the core this share of the mark's radius.
@@ -21,7 +22,8 @@ static func find(parent: Node) -> ScorchDecals:
 	return parent.get_node_or_null(NODE_NAME) as ScorchDecals
 
 
-## The scorch layer under `parent` (the world node), made on first use. Each parent has its own layer, freed with it.
+## The scorch layer under `parent` (the world node), made on first use. Each parent has its own
+## layer, freed with it.
 static func layer(parent: Node) -> ScorchDecals:
 	return _get_or_make(parent, NODE_NAME, ScorchDecals, BloodConfig.print_z_index) as ScorchDecals
 
@@ -48,8 +50,17 @@ func burn(at: Vector2, radius: float) -> void:
 	_add({ "chunk": _chunk_cell(at), "rects": rects, "tones": tones }, Despawner.max_scene_objects)
 
 
-## One row `j` (counted from the mark's centre) of a disc, `half` px each way from `at`, stepped to the pixel grid.
-func _row(rects: Array[Rect2], tones: Array[Color], at: Vector2, j: int, step: float, half: float, tone: Color) -> void:
+## One row `j` (counted from the mark's centre) of a disc, `half` px each way from `at`, stepped to
+## the pixel grid.
+func _row(
+	rects: Array[Rect2],
+	tones: Array[Color],
+	at: Vector2,
+	j: int,
+	step: float,
+	half: float,
+	tone: Color,
+) -> void:
 	var cells := roundi(half / step)
 	if cells <= 0:
 		return

@@ -1,64 +1,92 @@
 extends RefCounted
-
-## AI BEHAVIOUR sub-domain — COMBAT. Everything a fight does with the character's hands: taking a shot, throwing a punch,
-## keeping an automatic gun's trigger down for a burst, stepping back when a barrel is against a wall, the reload reflex,
-## and the peek-and-cover cycle (step out, shoot, duck) with its committed firing / cover spot, and throwing a grenade
-## (`docs/grenades.md` G17: take it in hand, aim at the spot, throw, put the gun back). Owns the fire cooldown, that cycle's
-## phase and timers and the throw's stage. `Behavior` decides WHICH fight is on (it holds the engaged contact and the hold-ground
-## flag) and passes the target in each call; this class never chooses a target and reads the world only through the
-## perception (`has_line_to`, `combat_spots`, `note_engaged`) and the character's public contract. It knows no gun from
-## another: the gun it fights with is `Character.gun_slot()`.
+## AI BEHAVIOUR sub-domain — COMBAT. Everything a fight does with the character's hands: taking a
+## shot, throwing a punch, keeping an automatic gun's trigger down for a burst, stepping back when a
+## barrel is against a wall, the reload reflex, and the peek-and-cover cycle (step out, shoot, duck)
+## with its committed firing / cover spot, and throwing a grenade (`docs/grenades.md` G17: take it
+## in hand, aim at the spot, throw, put the gun back). Owns the fire cooldown, that cycle's phase
+## and timers and the throw's stage. `Behavior` decides WHICH fight is on (it holds the engaged
+## contact and the hold-ground flag) and passes the target in each call; this class never chooses a
+## target and reads the world only through the perception (`has_line_to`, `combat_spots`,
+## `note_engaged`) and the character's public contract. It knows no gun from another: the gun it
+## fights with is `Character.gun_slot()`.
 
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
 signal dry
 
 ## Facing error (radians) within which a shot is taken — aim settles a frame after it is set.
 const AIM_TOLERANCE := 0.15
-## Seconds a throw may take to start (the grenade in hand, the facing settled, the hand free) before it is given up, and to
-## leave the hand once started.
+## Seconds a throw may take to start (the grenade in hand, the facing settled, the hand free) before
+## it is given up, and to leave the hand once started.
 const THROW_START_CAP := 2.0
 const THROW_RELEASE_CAP := 1.5
-## How close (px) a thrower walks to its throw spot before it takes the grenade in hand: all the way in, since the lob was judged from there
-## and from no farther off than this (`AgentThrow.ARRIVAL_SLACK`; a stride short, a jamb can be in the way of it).
+## How close (px) a thrower walks to its throw spot before it takes the grenade in hand: all the way
+## in, since the lob was judged from there and from no farther off than this
+## (`AgentThrow.ARRIVAL_SLACK`; a stride short, a jamb can be in the way of it).
 const THROW_SPOT_REACH := 6.0
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports; each default is the export's, for a `Combat` built alone (a unit test). ---
-var shoot_range: float = 500.0  ## GoalController.shoot_range.
-var punch_range: float = 48.0  ## GoalController.punch_range.
-var ring_radius: float = 80.0  ## Radius of the ring of candidate firing / cover spots around the target.
-var ring_count: int = 12       ## Candidate spots on that ring.
-var cover_time: float = 1.2  ## GoalController.cover_time.
-var fire_cooldown: float = 0.5  ## GoalController.fire_cooldown.
-## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot gun fires one.
+# --- Config fields `Behavior.apply_config()` sets from the controller's exports; each default is
+# the export's, for a `Combat` built alone (a unit test).
+## GoalController.shoot_range.
+var shoot_range: float = 500.0
+## GoalController.punch_range.
+var punch_range: float = 48.0
+## Radius of the ring of candidate firing / cover spots around the target.
+var ring_radius: float = 80.0
+## Candidate spots on that ring.
+var ring_count: int = 12
+## GoalController.cover_time.
+var cover_time: float = 1.2
+## GoalController.fire_cooldown.
+var fire_cooldown: float = 0.5
+## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot
+## gun fires one.
 var fire_burst: int = 3
 ## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
 var back_off_time: float = 0.45
-var reposition_interval: float = 0.5  ## GoalController.reposition_interval.
-var auto_reload: bool = true   ## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
-## Whether the NPC fires blind while flash-blinded (`docs/grenades.md` G15): the controller's roll as it went blind
-## (`Behavior.set_blind_fire`). Read only while blind (`holds_fire`).
+## GoalController.reposition_interval.
+var reposition_interval: float = 0.5
+## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
+var auto_reload: bool = true
+## Whether the NPC fires blind while flash-blinded (`docs/grenades.md` G15): the controller's roll
+## as it went blind (`Behavior.set_blind_fire`). Read only while blind (`holds_fire`).
 var blind_fire := true
-
-var phase := "peek"            ## Peek-and-cover phase: "peek" (seek a shot) or "cover" (duck).
-var cover_timer := 0.0         ## Seconds left ducking behind cover before peeking again.
-var fire_timer := 0.0          ## Seconds left before the next shot/punch may be thrown.
-var dest := Vector2.ZERO       ## Committed fire/cover position the NPC is steering toward.
-var dest_timer := 0.0          ## Seconds left before a new combat position may be chosen.
-## The throw in hand (`begin_throw`): "" none, "walk" on the way to the throw spot (the gun still in hand), "aim" taking the grenade
-## and turning to the spot, "windup" the hand drawn back, "away" it has left the hand (or never will).
+## Peek-and-cover phase: "peek" (seek a shot) or "cover" (duck).
+var phase := "peek"
+## Seconds left ducking behind cover before peeking again.
+var cover_timer := 0.0
+## Seconds left before the next shot/punch may be thrown.
+var fire_timer := 0.0
+## Committed fire/cover position the NPC is steering toward.
+var dest := Vector2.ZERO
+## Seconds left before a new combat position may be chosen.
+var dest_timer := 0.0
+## The throw in hand (`begin_throw`): "" none, "walk" on the way to the throw spot (the gun still in
+## hand), "aim" taking the grenade and turning to the spot, "windup" the hand drawn back, "away" it
+## has left the hand (or never will).
 var throw_stage := ""
-
-var _throw_slot := -1          ## The inventory slot of the grenade being thrown.
-var _throw_spot := Vector2.ZERO  ## Where it is thrown to.
-var _throw_from := Vector2.ZERO  ## Where it is thrown from (the throw spot; where the thrower stood when it was offered, for a throw in place).
-var _throw_reach := 0.0        ## How far (px) from the spot the thrower stands to let it go.
-var _throw_before := 0         ## How many of that grenade were carried when the throw started.
-var _throw_clock := 0.0        ## Seconds in the current stage of the throw.
-var _burst_left := 0           ## Rounds still to fire in the automatic gun's current burst.
-var _back_off_timer := 0.0     ## Seconds left stepping back from whatever the gun's barrel is against.
-var _loco: Node                ## The Locomotion child (pathing, rooms).
-var _perception: Node          ## The perception sub-domain (line of fire, candidate spots, engagement memory).
-var _character: Node           ## The NPC's body, handed in once by `bind`: whose hands fight.
+## The inventory slot of the grenade being thrown.
+var _throw_slot := -1
+## Where it is thrown to.
+var _throw_spot := Vector2.ZERO
+## Where it is thrown from (the throw spot; where the thrower stood when it was offered, for a throw
+## in place).
+var _throw_from := Vector2.ZERO
+## How far (px) from the spot the thrower stands to let it go.
+var _throw_reach := 0.0
+## How many of that grenade were carried when the throw started.
+var _throw_before := 0
+## Seconds in the current stage of the throw.
+var _throw_clock := 0.0
+## Rounds still to fire in the automatic gun's current burst.
+var _burst_left := 0
+## Seconds left stepping back from whatever the gun's barrel is against.
+var _back_off_timer := 0.0
+## The Locomotion child (pathing, rooms).
+var _loco: Node
+## The perception sub-domain (line of fire, candidate spots, engagement memory).
+var _perception: Node
+## The NPC's body, handed in once by `bind`: whose hands fight.
+var _character: Node
 
 
 ## Capture the locomotion and the perception. Called once by `Behavior.setup()`.
@@ -83,8 +111,9 @@ func tick(delta: float) -> void:
 	fire_timer -= delta
 
 
-## Whether `target` (a known-contact dict) can be shot at now: a loaded gun not mid-reload, and `has_line_of_fire`. The cooldown, the
-## facing and a run are not counted: they pass in a moment, this says the NPC is in a position to fire.
+## Whether `target` (a known-contact dict) can be shot at now: a loaded gun not mid-reload, and
+## `has_line_of_fire`. The cooldown, the facing and a run are not counted: they pass in a moment,
+## this says the NPC is in a position to fire.
 func can_fire_at(target: Dictionary) -> bool:
 	var gun: int = _character.gun_slot()
 	if gun < 0 or _character.ammo(gun) == 0 or _character.is_reloading() or target.is_empty():
@@ -92,17 +121,19 @@ func can_fire_at(target: Dictionary) -> bool:
 	return has_line_of_fire(target)
 
 
-## Whether `target` (a known-contact dict) stands within range on a clear line to where it is known to be: a shot at it is possible
-## from here whatever the gun's state (the entry reads it as "engaged from outside", docs/tactical-entry.md E14).
+## Whether `target` (a known-contact dict) stands within range on a clear line to where it is known
+## to be: a shot at it is possible from here whatever the gun's state (the entry reads it as
+## "engaged from outside", docs/tactical-entry.md E14).
 func has_line_of_fire(target: Dictionary) -> bool:
 	if target.is_empty():
 		return false
 	var pos: Vector2 = target["pos"]
-	return _character.global_position.distance_to(pos) <= shoot_range and _perception.has_line_to(target["node"], pos)
+	return (_character.global_position.distance_to(pos) <= shoot_range
+			and _perception.has_line_to(target["node"], pos))
 
 
-## Shoot `target` (a known-contact dict) when it can be shot at (`can_fire_at`), once the facing has settled on it; aims at it
-## meanwhile. No-op otherwise.
+## Shoot `target` (a known-contact dict) when it can be shot at (`can_fire_at`), once the facing has
+## settled on it; aims at it meanwhile. No-op otherwise.
 func fire_at_will(target: Dictionary) -> void:
 	if not can_fire_at(target):
 		return
@@ -112,7 +143,8 @@ func fire_at_will(target: Dictionary) -> void:
 		shoot()
 
 
-## Whether the NPC holds its fire: blind, and this blinding's roll said it does not fire blind (G15). It shoots again once it can see.
+## Whether the NPC holds its fire: blind, and this blinding's roll said it does not fire blind
+## (G15). It shoots again once it can see.
 func holds_fire() -> bool:
 	return not blind_fire and _character.is_blind()
 
@@ -125,11 +157,12 @@ func ambush(node, pos: Vector2) -> void:
 		shoot()
 
 
-## Peek-and-cover shooting at the known contact (`node` at `pos`): in the PEEK phase, move to a spot with a clear shot and
-## fire, then duck; in the COVER phase, hold behind a shielding object for `cover_time` before peeking again. The
-## fire/cover destination is committed for `reposition_interval` rather than re-picked every frame, so the NPC steers
-## smoothly instead of vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside the house, or inside room
-## `room` when given (a member ordered to defend it, `docs/leadership.md` LD8).
+## Peek-and-cover shooting at the known contact (`node` at `pos`): in the PEEK phase, move to a spot
+## with a clear shot and fire, then duck; in the COVER phase, hold behind a shielding object for
+## `cover_time` before peeking again. The fire/cover destination is committed for
+## `reposition_interval` rather than re-picked every frame, so the NPC steers smoothly instead of
+## vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside the house,
+## or inside room `room` when given (a member ordered to defend it, `docs/leadership.md` LD8).
 func peek_cover(delta: float, node, pos: Vector2, hold_ground: bool, room := "") -> void:
 	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
@@ -144,12 +177,14 @@ func peek_cover(delta: float, node, pos: Vector2, hold_ground: bool, room := "")
 			phase = "peek"
 			dest_timer = 0.0  # Re-pick a firing spot immediately on peeking out.
 		return
-	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get one.
+	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get
+	# one.
 	if dist <= shoot_range and _perception.has_line_to(node, pos):
 		_character.move_input = Vector2.ZERO
-		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall stepping back, a reload under
-		# way) keeps the NPC peeking until it fires, rather than ducking without having fired; a click on an empty gun
-		# ducks, where the cover phase reloads it.
+		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall
+		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than
+		# ducking without having fired; a click on an empty gun ducks, where the cover phase reloads
+		# it.
 		if fire_timer <= 0.0 and _faces(pos):
 			var fired := shoot()
 			if fired or _character.ammo(_character.gun_slot()) == 0:
@@ -163,9 +198,10 @@ func peek_cover(delta: float, node, pos: Vector2, hold_ground: bool, room := "")
 	_loco.move_to(dest)
 
 
-## Start a throw of the grenade in `slot` at world point `spot`, let go no farther than `reach` px from it (`AgentPerception.grenade_reach`):
-## the GRENADE tactic's `throw` primitive and the bang entry's thrower. With a throw spot `from` (`Vector2.INF`: none) the thrower walks
-## there first (`throw_stage` "walk"), then throws from it.
+## Start a throw of the grenade in `slot` at world point `spot`, let go no farther than `reach` px
+## from it (`AgentPerception.grenade_reach`): the GRENADE tactic's `throw` primitive and the bang
+## entry's thrower. With a throw spot `from` (`Vector2.INF`: none) the thrower walks there first
+## (`throw_stage` "walk"), then throws from it.
 func begin_throw(slot: int, spot: Vector2, reach: float, from := Vector2.INF) -> void:
 	throw_stage = "aim" if from == Vector2.INF else "walk"
 	_throw_slot = slot
@@ -180,12 +216,15 @@ func end_throw() -> void:
 	throw_stage = ""
 
 
-## Carry the throw out one tick. With a throw spot, first walk all the way to it (`THROW_SPOT_REACH`) with the gun in hand: the caller's
-## watch keeps its eyes on a threat meanwhile, and its commit timer and the locomotion's held walk bound the walk. Then, standing still:
-## take the grenade in hand, aim at the spot and, once the facing has settled, click the trigger (`Character.shoot()`: the wind-up starts,
-## the grenade leaves the hand `windup` seconds later). A thrower that stands farther than its reach from the spot (it moved on since the
-## spot was offered) walks the last few px toward the spot first, within the same `THROW_START_CAP`. Returns `&"failed"` when it never could
-## (none left, the hand busy, the wind-up cut short), else `&""`.
+## Carry the throw out one tick. With a throw spot, first walk all the way to it
+## (`THROW_SPOT_REACH`) with the gun in hand: the caller's watch keeps its eyes on a threat
+## meanwhile, and its commit timer and the locomotion's held walk bound the walk. Then, standing
+## still: take the grenade in hand, aim at the spot and, once the facing has settled, click the
+## trigger (`Character.shoot()`: the wind-up starts, the grenade leaves the hand `windup` seconds
+## later). A thrower that stands farther than its reach from the spot (it moved on since the spot
+## was offered) walks the last few px toward the spot first, within the same `THROW_START_CAP`.
+## Returns `&"failed"` when it never could (none left, the hand busy, the wind-up cut short), else
+## `&""`.
 func throw_step(delta: float) -> StringName:
 	_throw_clock += delta
 	_character.move_input = Vector2.ZERO
@@ -221,8 +260,8 @@ func throw_step(delta: float) -> StringName:
 	return &""
 
 
-## Whether the grenade being thrown has left the hand since the last call (true once): the end of the wind-up. The gun is taken
-## back in hand then (a last grenade empties its slot by itself).
+## Whether the grenade being thrown has left the hand since the last call (true once): the end of
+## the wind-up. The gun is taken back in hand then (a last grenade empties its slot by itself).
 func throw_released() -> bool:
 	if throw_stage != "windup" or _character.item_count(_throw_slot) >= _throw_before:
 		return false
@@ -231,8 +270,9 @@ func throw_released() -> bool:
 	return true
 
 
-## Melee at the known position `pos`: close to punch range and strike on the fire cooldown (no cover cycle for fists).
-## While holding ground it won't chase a contact out of the house — it only swings if one is already in reach.
+## Melee at the known position `pos`: close to punch range and strike on the fire cooldown (no cover
+## cycle for fists). While holding ground it won't chase a contact out of the house — it only swings
+## if one is already in reach.
 func melee(pos: Vector2, hold_ground: bool) -> void:
 	if _character.global_position.distance_to(pos) > punch_range:
 		if not hold_ground:
@@ -248,12 +288,14 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 ## Equip the character's gun and fire it, refreshing the combat engagement so an active fight stays
 ## committed; true when a round left the barrel. Nothing here is specific to a gun:
 ##   - at a run or mid-reload it holds fire and keeps the cooldown for when that stops;
-##   - blind, when its roll said it holds its fire (`holds_fire`), it does not pull the trigger at all, so not even a click;
-##   - dry, a click is not a shot, so it neither commits the fight nor needs a hand free to reload — it
-##     emits `dry` (the empty gun is in the snapshot now), at most once per cooldown;
-##   - with the barrel against a wall or object (`weapon_blocked()`) it cannot fire, so it steps back until
-##     it can, keeping the cooldown;
-##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the gun's own rate.
+##   - blind, when its roll said it holds its fire (`holds_fire`), it does not pull the trigger at
+##     all, so not even a click;
+##   - dry, a click is not a shot, so it neither commits the fight nor needs a hand free to reload —
+##     it emits `dry` (the empty gun is in the snapshot now), at most once per cooldown;
+##   - with the barrel against a wall or object (`weapon_blocked()`) it cannot fire, so it steps
+##     back until it can, keeping the cooldown;
+##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the
+##     gun's own rate.
 func shoot() -> bool:
 	if _character.is_running() or _character.is_reloading() or holds_fire():
 		return false
@@ -276,8 +318,8 @@ func shoot() -> bool:
 	return true
 
 
-## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and kicks; otherwise (a
-## crouched NPC cannot kick) it equips the fists and punches.
+## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and
+## kicks; otherwise (a crouched NPC cannot kick) it equips the fists and punches.
 func strike() -> void:
 	if _character.ammo_capacity() >= 0 and _character.posture() == &"stand":
 		kick()
@@ -300,9 +342,9 @@ func punch() -> void:
 	_character.melee()
 
 
-## Keep the trigger down for the rest of an automatic gun's burst: one more round each time the gun's own fire
-## rate allows, until the burst is spent or something stops it (a run, a reload, a swap, a wall, running dry, a blinding it holds
-## its fire through).
+## Keep the trigger down for the rest of an automatic gun's burst: one more round each time the
+## gun's own fire rate allows, until the burst is spent or something stops it (a run, a reload, a
+## swap, a wall, running dry, a blinding it holds its fire through).
 func continue_burst() -> void:
 	if _burst_left <= 0:
 		return
@@ -314,8 +356,9 @@ func continue_burst() -> void:
 		_burst_left -= 1
 
 
-## Step back from whatever the gun's barrel is against (`shoot` set the timer): away from where it points,
-## walking, until the barrel is clear or the time is up. Applied after the primitive has steered, so it wins.
+## Step back from whatever the gun's barrel is against (`shoot` set the timer): away from where it
+## points, walking, until the barrel is clear or the time is up. Applied after the primitive has
+## steered, so it wins.
 func apply_back_off(delta: float) -> void:
 	if _back_off_timer <= 0.0:
 		return
@@ -334,9 +377,10 @@ func reload_if_dry() -> void:
 	_character.reload()
 
 
-## A tactical reload (docs/tactical-entry.md E11): swap a part-spent magazine for a full one in a lull, the way a stack tops its
-## gun off before it crosses. Starts the reload when the held gun is short of full with a magazine to add; true while it is
-## under way or wanted, so a caller that must not move on armed waits for false. The caller stands still (a run cancels it).
+## A tactical reload (docs/tactical-entry.md E11): swap a part-spent magazine for a full one in a
+## lull, the way a stack tops its gun off before it crosses. Starts the reload when the held gun is
+## short of full with a magazine to add; true while it is under way or wanted, so a caller that must
+## not move on armed waits for false. The caller stands still (a run cancels it).
 func top_off() -> bool:
 	var gun: int = _character.gun_slot()
 	if gun < 0:
@@ -350,11 +394,15 @@ func top_off() -> bool:
 	return true
 
 
-## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine to put in it. (A reload runs
-## only while standing, so a run is dropped for it.)
+## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine
+## to put in it. (A reload runs only while standing, so a run is dropped for it.)
 func reload_due() -> bool:
 	var gun: int = _character.gun_slot()
-	return auto_reload and gun >= 0 and not _character.is_reloading() and _character.ammo(gun) == 0 and _character.can_reload(gun)
+	return (auto_reload
+			and gun >= 0
+			and not _character.is_reloading()
+			and _character.ammo(gun) == 0
+			and _character.can_reload(gun))
 
 
 ## Whether the facing has settled on world point `pos` (within `AIM_TOLERANCE`).
@@ -362,16 +410,19 @@ func _faces(pos: Vector2) -> bool:
 	return absf(_character.facing.angle_to(pos - _character.global_position)) <= AIM_TOLERANCE
 
 
-## The committed destination for the current phase `kind`: the nearest spot with a clear shot ("peek") or the nearest
-## shielded spot ("cover") around the known contact; falls back to closing on the contact (peek) or holding (cover)
-## when no suitable spot exists this sample. While holding ground, spots are restricted to inside the house and the peek fallback
-## holds position instead of advancing out; with a `room` (kept to by order) spots are restricted to inside that room in any case.
+## The committed destination for the current phase `kind`: the nearest spot with a clear shot
+## ("peek") or the nearest shielded spot ("cover") around the known contact; falls back to closing
+## on the contact (peek) or holding (cover) when no suitable spot exists this sample. While holding
+## ground, spots are restricted to inside the house and the peek fallback holds position instead of
+## advancing out; with a `room` (kept to by order) spots are restricted to inside that room in any
+## case.
 func _choose_dest(kind: String, node, pos: Vector2, hold_ground: bool, room := "") -> Vector2:
 	var spots: Dictionary = _perception.combat_spots(node, pos, ring_radius, ring_count)
 	var fire: Array = spots["fire"]
 	var cover: Array = spots["cover"]
 	if hold_ground or room != "":
-		var keep := func(p): return _loco.room_key_at(p) == room if room != "" else _loco.inside_house(p)
+		var keep := func(p):
+			return _loco.room_key_at(p) == room if room != "" else _loco.inside_house(p)
 		fire = fire.filter(keep)
 		cover = cover.filter(keep)
 	if kind == "cover":

@@ -1,12 +1,11 @@
 extends RefCounted
-
 ## Top-down pixel-art OFFICE CHAIR painter (Objects domain, private). Painted in the canonical
 ## frame (seat front toward +y): a five-star base with casters peeking out, a rounded padded seat,
 ## armrests at its sides and a curved mesh backrest. No options.
 
 const SofaPainter = preload("res://scenes/objects/art/sofa_painter.gd")
-
-const _BASE_HEIGHT := 1  ## Heights for cast shadows, floor-up.
+## Heights for cast shadows, floor-up.
+const _BASE_HEIGHT := 1
 const _SEAT_HEIGHT := 3
 const _ARM_HEIGHT := 5
 const _BACK_HEIGHT := 6
@@ -24,10 +23,16 @@ static func paint(c: PixelCanvas, base: Color, material: String, _opts: Dictiona
 		c.line(o, tip, metal, _BASE_HEIGHT)
 		c.fill(PixelCanvas.disc(tip, 1), metal.darkened(0.4), _BASE_HEIGHT)
 
-	var seat := PixelCanvas.rounded(Rect2i(4, roundi(c.h * 0.28), c.w - 8, c.h - roundi(c.h * 0.28) - 3), 6)
+	var seat := PixelCanvas.rounded(
+		Rect2i(4, roundi(c.h * 0.28), c.w - 8, c.h - roundi(c.h * 0.28) - 3),
+		6,
+	)
 	c.fill(seat, base, _SEAT_HEIGHT)
 	c.surface(seat, material, base)
-	c.fill(PixelCanvas.rounded(Rect2i(7, roundi(c.h * 0.36), c.w - 14, int(c.h / 3.0)), 4), base.lightened(0.05))
+	c.fill(
+		PixelCanvas.rounded(Rect2i(7, roundi(c.h * 0.36), c.w - 14, int(c.h / 3.0)), 4),
+		base.lightened(0.05),
+	)
 	c.bevel(seat, 1, 2, t.light, t.dark)
 	c.outline(seat, t.outline)
 

@@ -65,7 +65,9 @@ each an Array), `key(rng, weights, strict := false)` a key of a `key -> weight` 
 `index(rng, rows, weight_index := 1, strict := false) -> int` the drawn row's index. `strict` keeps each caller's own edges: false, a
 roll on the end of a stretch takes that entry and one past them all takes the last; true, it takes the next entry and one past them
 all takes the first. World-Gen's room dresser, Objects' room wear and street marks, the Lighting domain's rhythms (not strict) and
-the Character's style (strict) all draw through it, so the roll lives in one place.
+the Character's style (strict) all draw through it, so the roll lives in one place. Tests: its users' simulation tests, and
+beneath them the native unit suite `tests/general/weighted_pick_suite.gd` (`UnitSuite`, `domain-testing`): the edges, the
+order, one roll per draw and the share by weight.
 
 ## Input architecture
 
@@ -200,7 +202,7 @@ which no game code listens to: its readers are the test runner's event log and t
   the trauma draining at `shake_decay` (1.2 /s) so it settles back to a zero offset. The offset never touches `global_position`, so following and
   framing are unchanged. Test: `tests/general/camera_shakes_on_explosion_test.gd`.
 - `game_log.gd` (`GameLog`, a `class_name` static holder) — the one way any domain logs what is happening:
-  `GameLog.say(message)` prints while `GameLog.enabled` (default true). The batch test runner turns it off
+  `GameLog.say(message)` prints while `GameLog.enabled` (default true). A `tools/run_tests.sh` run (gdUnit) turns it off
   unless `--verbose`; never route errors/warnings through it.
 - `despawner.gd` (autoload) — global cap for transient bodies (flying debris chips, `HitParticles`, the `ExplosionFx` nodes, casings, blood
   splatters and pools, a grenade's `GrenadeSpoon`); domains register spawns with it. The Physics domain's `DebrisLayer` and `ScorchDecals` read

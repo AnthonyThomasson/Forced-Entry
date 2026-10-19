@@ -1,24 +1,26 @@
 extends RefCounted
-
-## Top-down pixel-art LIMB painter (Character domain, private; rendered through the Art domain's PixelArt): the surface of one
-## segment of an arm, a leg or a shoe as a straight strip along +y in `base` — shaded light to dark across it toward the light,
-## with the cloth's weave when `material` is "fabric". The caller maps it onto the limb's tapered outline, which gives it its
-## shape and outline; the strip runs from the joint nearer the body (y = 0) to the far one. Without a look (the neck) it is the
-## plain strip. With one (`opts.look`, a `PixelArt.handle`), by the segment's `part`:
-## - an arm (`upper`, `fore`): a sleeve (the Zenitex's segmented forearm plates and white stripe, the Trauma Team's red forearm
-##   guard, a plain cuff) or bare skin (`skin`: inked, inlaid);
-## - a leg (`thigh`, `knee`, `shin`) by the look's `pants`: police trousers with a piping down the outer seam, or armoured
-##   (`tactical`) with knee pads (the Zenitex's with a white bar), a cargo pocket and the Zenitex's segmented shins; a merc's
-##   pockets and patched knees, a borg's patch and chrome knee caps;
-## - a foot (`shaft`, `foot`) by the look's `feet`: polished police shoes or boots (the Trauma Team's red soles), a merc's
-##   muddy laced boots, a borg's steel toe caps;
+## Top-down pixel-art LIMB painter (Character domain, private; rendered through the Art domain's
+## PixelArt): the surface of one segment of an arm, a leg or a shoe as a straight strip along +y in
+## `base` — shaded light to dark across it toward the light, with the cloth's weave when `material`
+## is "fabric". The caller maps it onto the limb's tapered outline, which gives it its shape and
+## outline; the strip runs from the joint nearer the body (y = 0) to the far one. Without a look
+## (the neck) it is the plain strip. With one (`opts.look`, a `PixelArt.handle`), by the segment's
+## `part`:
+## - an arm (`upper`, `fore`): a sleeve (the Zenitex's segmented forearm plates and white stripe,
+##   the Trauma Team's red forearm guard, a plain cuff) or bare skin (`skin`: inked, inlaid);
+## - a leg (`thigh`, `knee`, `shin`) by the look's `pants`: police trousers with a piping down the
+##   outer seam, or armoured (`tactical`) with knee pads (the Zenitex's with a white bar), a cargo
+##   pocket and the Zenitex's segmented shins; a merc's pockets and patched knees, a borg's patch
+##   and chrome knee caps;
+## - a foot (`shaft`, `foot`) by the look's `feet`: polished police shoes or boots (the Trauma
+##   Team's red soles), a merc's muddy laced boots, a borg's steel toe caps;
 ## - a chrome segment (`chrome`): joint rings, a dark seam and a borg's glowing line.
-## Options: `look`, `part`, `side` (0 or 1, the body side: which edge is the outer seam), `cuff` (a sleeve's end at the wrist),
-## `skin`, `chrome`.
+## Options: `look`, `part`, `side` (0 or 1, the body side: which edge is the outer seam), `cuff` (a
+## sleeve's end at the wrist), `skin`, `chrome`.
 
 const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
-
-const _LIMB := 3  ## Heights for cast shadows.
+## Heights for cast shadows.
+const _LIMB := 3
 const _DETAIL := 4
 const _LACE := Color(0.72, 0.68, 0.58)
 
@@ -50,7 +52,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 		_foot(c, look, part, t, base)
 
 
-## A chrome segment: joint rings across it, a bright line down it, a dark seam down one side with a borg's glow in it.
+## A chrome segment: joint rings across it, a bright line down it, a dark seam down one side with a
+## borg's glow in it.
 static func _chrome(c: PixelCanvas, look: Dictionary, t: Dictionary) -> void:
 	for y in c.h:
 		c.px(int(c.w / 2.0) - 1, y, t.highlight)
@@ -58,11 +61,22 @@ static func _chrome(c: PixelCanvas, look: Dictionary, t: Dictionary) -> void:
 		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.shadow, _DETAIL)
 	c.line(Vector2i(c.w - 2, 1), Vector2i(c.w - 2, c.h - 2), Color(0.1, 0.1, 0.12), _DETAIL)
 	if String(look.get("style", "")) == "borg":
-		c.line(Vector2i(c.w - 2, 2), Vector2i(c.w - 2, c.h - 3), look.get("glow", Color.CYAN), _DETAIL)
+		c.line(
+			Vector2i(c.w - 2, 2),
+			Vector2i(c.w - 2, c.h - 3),
+			look.get("glow", Color.CYAN),
+			_DETAIL,
+		)
 
 
 ## An arm segment: bare skin with its ink and plates, or a sleeve and its end at the wrist.
-static func _arm(c: PixelCanvas, look: Dictionary, opts: Dictionary, part: String, t: Dictionary) -> void:
+static func _arm(
+	c: PixelCanvas,
+	look: Dictionary,
+	opts: Dictionary,
+	part: String,
+	t: Dictionary,
+) -> void:
 	if opts.get("skin", false):
 		if look.get("tattoo", false):
 			StyleArt.tattoo(c, Rect2i(0, 0, c.w, c.h), look, 2 if part == "fore" else 3)
@@ -73,7 +87,10 @@ static func _arm(c: PixelCanvas, look: Dictionary, opts: Dictionary, part: Strin
 		match String(look.get("style", "")):
 			"trauma":
 				# A red armoured guard over the forearm.
-				var guard := PixelCanvas.rounded(Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)), 1)
+				var guard := PixelCanvas.rounded(
+					Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)),
+					1,
+				)
 				var red: Color = look.get("trim", Color.RED)
 				c.fill(guard, red, _DETAIL)
 				c.bevel(guard, 1, 1, red.lightened(0.25), red.darkened(0.3))
@@ -82,8 +99,18 @@ static func _arm(c: PixelCanvas, look: Dictionary, opts: Dictionary, part: Strin
 				var edge: Color = look.get("edge", t.light)
 				for y in range(roundi(c.h * 0.35), c.h - 1, 3):
 					c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.outline, _DETAIL)
-					c.line(Vector2i(1, y + 1), Vector2i(c.w - 2, y + 1), edge.darkened(0.2), _DETAIL)
-				c.line(Vector2i(0, roundi(c.h * 0.25)), Vector2i(c.w - 1, roundi(c.h * 0.25)), look.get("trim", Color.WHITE), _DETAIL)
+					c.line(
+						Vector2i(1, y + 1),
+						Vector2i(c.w - 2, y + 1),
+						edge.darkened(0.2),
+						_DETAIL,
+					)
+				c.line(
+					Vector2i(0, roundi(c.h * 0.25)),
+					Vector2i(c.w - 1, roundi(c.h * 0.25)),
+					look.get("trim", Color.WHITE),
+					_DETAIL,
+				)
 			_:
 				var cuff := maxi(2, roundi(c.h * 0.2))
 				c.fill(PixelCanvas.rounded(Rect2i(0, c.h - cuff, c.w, cuff), 0), t.dark, _DETAIL)
@@ -92,7 +119,14 @@ static func _arm(c: PixelCanvas, look: Dictionary, opts: Dictionary, part: Strin
 
 
 ## A leg segment, by what the legs wear and the style.
-static func _leg(c: PixelCanvas, look: Dictionary, part: String, outer: int, t: Dictionary, base: Color) -> void:
+static func _leg(
+	c: PixelCanvas,
+	look: Dictionary,
+	part: String,
+	outer: int,
+	t: Dictionary,
+	base: Color,
+) -> void:
 	var style := String(look.get("style", ""))
 	var armoured := String(look.get("pants", "")) == "tactical"
 	if look.get("police", false):
@@ -102,11 +136,21 @@ static func _leg(c: PixelCanvas, look: Dictionary, part: String, outer: int, t: 
 			c.fill(pad, pad_col, _DETAIL)
 			c.bevel(pad, 1, 1, pad_col.lightened(0.25), pad_col.darkened(0.3))
 			if style == "zenitex":
-				c.line(Vector2i(1, int(c.h / 2.0)), Vector2i(c.w - 2, int(c.h / 2.0)), look.get("trim", Color.WHITE), _DETAIL)
+				c.line(
+					Vector2i(1, int(c.h / 2.0)),
+					Vector2i(c.w - 2, int(c.h / 2.0)),
+					look.get("trim", Color.WHITE),
+					_DETAIL,
+				)
 		elif armoured and part == "shin" and style == "zenitex":
 			for y in range(1, c.h - 1, 3):
 				c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.outline, _DETAIL)
-				c.line(Vector2i(1, y + 1), Vector2i(c.w - 2, y + 1), (look.get("edge", t.light) as Color).darkened(0.2), _DETAIL)
+				c.line(
+					Vector2i(1, y + 1),
+					Vector2i(c.w - 2, y + 1),
+					(look.get("edge", t.light) as Color).darkened(0.2),
+					_DETAIL,
+				)
 		elif armoured and part == "thigh":
 			_pocket(c, outer, 0.4, base.darkened(0.1), t)
 		elif not armoured:
@@ -116,15 +160,30 @@ static func _leg(c: PixelCanvas, look: Dictionary, part: String, outer: int, t: 
 		return
 	match [style, armoured, part]:
 		["merc", _, "thigh"]:
-			_pocket(c, outer, 0.35, (look.get("patch", base) as Color) if armoured else base.darkened(0.1), t)
+			_pocket(
+				c,
+				outer,
+				0.35,
+				(look.get("patch", base) as Color) if armoured else base.darkened(0.1),
+				t,
+			)
 		["merc", _, "knee"]:
-			c.fill(PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 1), (look.get("patch", base) as Color).darkened(0.1), _DETAIL)
+			c.fill(
+				PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 1),
+				(look.get("patch", base) as Color).darkened(0.1),
+				_DETAIL,
+			)
 		["borg", true, "knee"]:
 			var cap := PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, c.h), 2)
 			c.fill(cap, look.get("chrome", Color.GRAY), _DETAIL)
 			c.bevel(cap, 1, 1, Color.WHITE, Color(0.3, 0.3, 0.32))
 		["borg", false, "thigh"]:
-			c.fill(PixelCanvas.rounded(Rect2i(1, int(c.h * 0.5), c.w - 2, 3), 0), base.lightened(0.15), _DETAIL)  # A patch.
+			# A patch.
+			c.fill(
+				PixelCanvas.rounded(Rect2i(1, int(c.h * 0.5), c.w - 2, 3), 0),
+				base.lightened(0.15),
+				_DETAIL,
+			)
 		[_, _, "shin"]:
 			c.line(Vector2i(outer, 1), Vector2i(outer, c.h - 2), t.shadow)
 
@@ -138,8 +197,15 @@ static func _pocket(c: PixelCanvas, outer: int, from: float, col: Color, t: Dict
 	c.outline(pocket, t.shadow)
 
 
-## A foot segment: a boot's shaft up the shin (`shaft`, a padded rim on top, laces) or the shoe or boot itself (`foot`).
-static func _foot(c: PixelCanvas, look: Dictionary, part: String, t: Dictionary, base: Color) -> void:
+## A foot segment: a boot's shaft up the shin (`shaft`, a padded rim on top, laces) or the shoe or
+## boot itself (`foot`).
+static func _foot(
+	c: PixelCanvas,
+	look: Dictionary,
+	part: String,
+	t: Dictionary,
+	base: Color,
+) -> void:
 	var style := String(look.get("style", ""))
 	var boots := String(look.get("feet", "")) == "boots"
 	var strip := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
@@ -153,13 +219,24 @@ static func _foot(c: PixelCanvas, look: Dictionary, part: String, t: Dictionary,
 	if look.get("police", false):
 		c.px(int(c.w / 2.0), int(c.h * 0.7), t.highlight, _DETAIL)  # A polished toe.
 		if style == "trauma":
-			c.line(Vector2i(0, c.h - 1), Vector2i(c.w - 1, c.h - 1), look.get("trim", Color.RED), _DETAIL)  # The red sole.
+			# The red sole.
+			c.line(
+				Vector2i(0, c.h - 1),
+				Vector2i(c.w - 1, c.h - 1),
+				look.get("trim", Color.RED),
+				_DETAIL,
+			)
 		if boots:
 			_laces(c, 2, int(c.h * 0.55))
 		return
 	if style == "merc":
 		for k in 3:
-			c.px(c.rng.randi_range(0, c.w - 1), c.rng.randi_range(0, c.h - 1), base.lerp(Color(0.4, 0.32, 0.2), 0.6))  # Mud.
+			# Mud.
+			c.px(
+				c.rng.randi_range(0, c.w - 1),
+				c.rng.randi_range(0, c.h - 1),
+				base.lerp(Color(0.4, 0.32, 0.2), 0.6),
+			)
 		_laces(c, 2, int(c.h * 0.55))
 		return
 	var cap := PixelCanvas.rounded(Rect2i(0, int(c.h * 0.65), c.w, c.h - int(c.h * 0.65)), 1)

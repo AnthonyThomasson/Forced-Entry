@@ -1,18 +1,19 @@
 extends RefCounted
-
-## Top-down pixel-art CHARACTER TRUNK painter (Character domain, private; rendered through the Art domain's PixelArt): the
-## surface of a crouched or fallen body's trunk seen from its front, back or side, as a full strip the caller maps onto the
-## trunk's rounded outline (which gives it its shape and outline). Canonical frame: shoulders toward −y, hips toward +y, across
-## the body along x. The shirt (`base`) runs down to the belt and the pants cover the hips. The look (`opts.look`, a
-## `style_art.gd` handle) styles it: a police uniform's collar and its unit's mark on the chest (the Zenitex's stencil, the
-## Trauma Team's cross); a crew's open jacket, or a tank top with bare (inked, inlaid) skin either side; a spine rig and cables
-## down the back; then the vest (vest_painter.gd) and the pack. Options: `look`, `face` ("front" | "back" | "side"), `pants`
-## (the pants' colour) and the plates' (vest_painter.gd).
+## Top-down pixel-art CHARACTER TRUNK painter (Character domain, private; rendered through the Art
+## domain's PixelArt): the surface of a crouched or fallen body's trunk seen from its front, back or
+## side, as a full strip the caller maps onto the trunk's rounded outline (which gives it its shape
+## and outline). Canonical frame: shoulders toward −y, hips toward +y, across the body along x. The
+## shirt (`base`) runs down to the belt and the pants cover the hips. The look (`opts.look`, a
+## `style_art.gd` handle) styles it: a police uniform's collar and its unit's mark on the chest (the
+## Zenitex's stencil, the Trauma Team's cross); a crew's open jacket, or a tank top with bare
+## (inked, inlaid) skin either side; a spine rig and cables down the back; then the vest
+## (vest_painter.gd) and the pack. Options: `look`, `face` ("front" | "back" | "side"), `pants` (the
+## pants' colour) and the plates' (vest_painter.gd).
 
 const StyleArt = preload("res://scenes/character/body/art/style_art.gd")
 const VestPainter = preload("res://scenes/character/body/art/vest_painter.gd")
-
-const _PANTS := 3  ## Heights for cast shadows, floor-up.
+## Heights for cast shadows, floor-up.
+const _PANTS := 3
 const _SHIRT := 4
 const _PACK := 7
 const _RIG := 8
@@ -41,8 +42,12 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	StyleArt.edge(c, shirt, look)
 	var police: bool = look.get("police", false)
 	var long := String(look.get("body", "")) == "long_sleeves"
-	if not police and not long and (look.get("sleeves", []) as Array).has(null) and String(look.get("style", "")) != "merc":
-		# A tank top: bare skin either side of it (and up to the throat at the front), inked and inlaid.
+	if (not police
+			and not long
+			and (look.get("sleeves", []) as Array).has(null)
+			and String(look.get("style", "")) != "merc"):
+		# A tank top: bare skin either side of it (and up to the throat at the front), inked and
+		# inlaid.
 		var side_w := maxi(2, roundi(c.w * 0.18))
 		for x0 in [0, c.w - side_w]:
 			var bare := Rect2i(x0, 0, side_w, roundi(waist * 0.55))
@@ -63,7 +68,13 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 				c.line(Vector2i(cx + 3, 1), Vector2i(cx, 4), t.shadow)
 				match String(look.get("style", "")):
 					"zenitex":
-						StyleArt.stencil(c, Vector2i(cx - 4, 6), 9, look.get("trim", Color.WHITE), _SHIRT)
+						StyleArt.stencil(
+							c,
+							Vector2i(cx - 4, 6),
+							9,
+							look.get("trim", Color.WHITE),
+							_SHIRT,
+						)
 					"trauma":
 						StyleArt.cross(c, Vector2i(cx + 4, 6), look.get("trim", Color.RED), _SHIRT)
 			else:
@@ -94,7 +105,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.cast_shadows()
 
 
-## A pack on the back in `pack_col`: a padded body (a medic's cross on it), straps running up over the shoulders.
+## A pack on the back in `pack_col`: a padded body (a medic's cross on it), straps running up over
+## the shoulders.
 static func _pack(c: PixelCanvas, cx: int, waist: int, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
 	var pt := PixelCanvas.tones(col)

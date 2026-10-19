@@ -1,12 +1,13 @@
 extends RefCounted
-
-## What the character painters share (Character domain, private): the marks of the styles (`CharacterConfig.styles`: the
-## Zenitex and Trauma Team police units, the merc and borg crew) drawn on a PixelCanvas: chrome, tattoo ink, black plates set
-## in the skin, a livery's edge sheen, stripes, crosses, stencils, tape and a plate's wear.
+## What the character painters share (Character domain, private): the marks of the styles
+## (`CharacterConfig.styles`: the Zenitex and Trauma Team police units, the merc and borg crew)
+## drawn on a PixelCanvas: chrome, tattoo ink, black plates set in the skin, a livery's edge sheen,
+## stripes, crosses, stencils, tape and a plate's wear.
 ##
-## A painter's options carry the resolved look (`character_style.gd`'s `resolve`, some fifty entries) as an int handle
-## (`opts.look`, `PixelArt.handle`), read back with `PixelArt.look_of` ({} for none: the plain strip of a neck), so the options
-## PixelArt hashes for every part of every body every frame stay a few scalars.
+## A painter's options carry the resolved look (`character_style.gd`'s `resolve`, some fifty
+## entries) as an int handle (`opts.look`, `PixelArt.handle`), read back with `PixelArt.look_of` ({}
+## for none: the plain strip of a neck), so the options PixelArt hashes for every part of every body
+## every frame stay a few scalars.
 
 
 ## The chrome tone at pixel index `k`: cool metal with a bright glint every few pixels.
@@ -19,7 +20,10 @@ static func chrome(look: Dictionary, k: int) -> Color:
 static func tattoo(c: PixelCanvas, r: Rect2i, look: Dictionary, strokes := 3) -> void:
 	var ink: Color = look.get("ink", Color.BLACK)
 	for k in strokes:
-		var p := Vector2i(c.rng.randi_range(r.position.x, r.end.x - 1), c.rng.randi_range(r.position.y, r.end.y - 1))
+		var p := Vector2i(
+			c.rng.randi_range(r.position.x, r.end.x - 1),
+			c.rng.randi_range(r.position.y, r.end.y - 1),
+		)
 		for i in 3:
 			if c.covered(p.x, p.y):
 				c.px(p.x, p.y, ink)
@@ -29,7 +33,10 @@ static func tattoo(c: PixelCanvas, r: Rect2i, look: Dictionary, strokes := 3) ->
 ## `count` black cyber plates set into the skin of `r`: 2 px slivers with a bright edge.
 static func inlays(c: PixelCanvas, r: Rect2i, count := 2) -> void:
 	for k in count:
-		var p := Vector2i(c.rng.randi_range(r.position.x, r.end.x - 2), c.rng.randi_range(r.position.y, r.end.y - 1))
+		var p := Vector2i(
+			c.rng.randi_range(r.position.x, r.end.x - 2),
+			c.rng.randi_range(r.position.y, r.end.y - 1),
+		)
 		if not (c.covered(p.x, p.y) and c.covered(p.x + 1, p.y)):
 			continue
 		c.px(p.x, p.y, Color(0.07, 0.07, 0.08))
@@ -38,16 +45,26 @@ static func inlays(c: PixelCanvas, r: Rect2i, count := 2) -> void:
 			c.px(p.x, p.y + 1, Color(0.04, 0.04, 0.05))
 
 
-## The livery's edge sheen on `shape` (the Zenitex's light grey plate edges): its rim lit all round, brighter toward the
-## light, so a near-black garment still reads as a shape on the floor. Nothing for a style without an `edge`.
+## The livery's edge sheen on `shape` (the Zenitex's light grey plate edges): its rim lit all round,
+## brighter toward the light, so a near-black garment still reads as a shape on the floor. Nothing
+## for a style without an `edge`.
 static func edge(c: PixelCanvas, shape: PixelCanvas.Shape, look: Dictionary) -> void:
 	var col: Color = look.get("edge", Color(0, 0, 0, 0))
 	if col.a > 0.0:
 		c.bevel(shape, 1, 1, col, col.darkened(0.4))
 
 
-## A vertical line at column `x` from row `y0` to `y1` (exclusive), only where `shape` is: a stripe kept on the garment.
-static func column(c: PixelCanvas, shape: PixelCanvas.Shape, x: int, y0: int, y1: int, col: Color, height: int) -> void:
+## A vertical line at column `x` from row `y0` to `y1` (exclusive), only where `shape` is: a stripe
+## kept on the garment.
+static func column(
+	c: PixelCanvas,
+	shape: PixelCanvas.Shape,
+	x: int,
+	y0: int,
+	y1: int,
+	col: Color,
+	height: int,
+) -> void:
 	for y in range(y0, y1):
 		if shape.has(x, y):
 			c.px(x, y, col, height)

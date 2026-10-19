@@ -1,39 +1,45 @@
 class_name GunItem extends Item
+## Items domain: a gun held in the right hand: the logic every firearm shares, driven by its row in
+## `GunConfig` (damage, fire rate, penetration, muzzle speed, spread, recoil, whether it is
+## automatic and whether its barrel is too long to use against a wall). F still jabs with the weapon
+## hand (melee); left-click fires a projectile and ejects a casing. It is drawn in its weapon style
+## (`Item.style`) by the row's look (`GunConfig.look`: the painter and colours). A subclass supplies
+## only its sizes and how it is held (`PistolItem`, `SmgItem`, `RifleItem`): the gun id, the art's
+## footprints, where the hand grips it and the stances. Items reach into the Projectile System in
+## two places: here, via ProjectileSpawner / CasingSpawner (a shot's `hit` is forwarded back to the
+## character's `report_shot` for the HUD), and ThrownGrenade, via `Explosion.frag` /
+## `Explosion.stun`.
 
-## Items domain: a gun held in the right hand: the logic every firearm shares, driven by its row in `GunConfig`
-## (damage, fire rate, penetration, muzzle speed, spread, recoil, whether it is automatic and whether its
-## barrel is too long to use against a wall). F still jabs with the weapon hand (melee); left-click fires a
-## projectile and ejects a casing. It is drawn in its weapon style (`Item.style`) by the row's look (`GunConfig.look`: the
-## painter and colours). A subclass supplies only its sizes and how it is held (`PistolItem`, `SmgItem`, `RifleItem`): the gun
-## id, the art's footprints, where the hand grips it and the stances.
-## Items reach into the Projectile System in two places: here, via ProjectileSpawner / CasingSpawner (a
-## shot's `hit` is forwarded back to the character's `report_shot` for the HUD), and ThrownGrenade, via
-## `Explosion.frag` / `Explosion.stun`.
-
-## How far the pulled-up barrel shortens at full raise (fraction of its length): pointed up, a top-down view
-## sees it foreshortened. The art is re-rendered at `RAISE_STEPS` lengths between full and this, so it stays crisp
-## and cached.
+## How far the pulled-up barrel shortens at full raise (fraction of its length): pointed up, a
+## top-down view sees it foreshortened. The art is re-rendered at `RAISE_STEPS` lengths between full
+## and this, so it stays crisp and cached.
 const RAISED_LENGTH := 0.42
 const RAISE_STEPS := 5
-## How far (px) along a long gun's barrel from the weapon hand the support hand grips through a butt strike: toward the
-## butt, so the other arm does not reach across the weapon hand.
+## How far (px) along a long gun's barrel from the weapon hand the support hand grips through a butt
+## strike: toward the butt, so the other arm does not reach across the weapon hand.
 const SUPPORT_GAP := -8.0
-## How far (rad) a long gun turns in a butt strike: nearly across the body (105 degrees), the butt a little ahead of the muzzle.
+## How far (rad) a long gun turns in a butt strike: nearly across the body (105 degrees), the butt a
+## little ahead of the muzzle.
 const STRIKE_TURN := 1.833
 ## How far (px) short of a fist's reach a long gun's blow lands.
 const STRIKE_SHORT := 5.0
 
-## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Set by the subclass.
+## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
+static var _prepainted := {}
+
+## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Set by the
+## subclass.
 var gun: StringName = &""
 ## The magazine it is loaded with (null = unloaded); every shot spends one of its rounds.
 var magazine: Magazine
-
-## Seconds until the next round may leave. Counts down in `tick`; firing adds the fire interval, so an
-## overshoot carries into the next round and the rate holds even when it is not a whole number of frames.
+## Seconds until the next round may leave. Counts down in `tick`; firing adds the fire interval, so
+## an overshoot carries into the next round and the rate holds even when it is not a whole number of
+## frames.
 var _cooldown := 0.0
 
 
 # --- What a subclass supplies: sizes and hold --------------------------------------------------
+
 
 ## The held art's footprint (px): width across, length from butt to muzzle.
 func art_size() -> Vector2:
@@ -72,6 +78,7 @@ func raised_fore_stance() -> StringName:
 
 # --- Stats (read live from GunConfig, so tuning it takes effect at once) ---------------------
 
+
 ## A value from this gun's `GunConfig` row (`fallback` when the row has none).
 func stat(key: String, fallback: Variant = null) -> Variant:
 	return GunConfig.row(gun).get(key, fallback)
@@ -87,12 +94,14 @@ func fire_interval() -> float:
 	return float(stat("fire_interval", 0.0))
 
 
-## How it is drawn: its row's look in its weapon style (`GunConfig.look`: `painter`, colours, `finish`).
+## How it is drawn: its row's look in its weapon style (`GunConfig.look`: `painter`, colours,
+## `finish`).
 func look() -> Dictionary:
 	return GunConfig.look(gun, style)
 
 
 # --- Item contract --------------------------------------------------------------------------
+
 
 ## The gun's id.
 func gun_id() -> StringName:
@@ -104,15 +113,16 @@ func round_power() -> float:
 	return float(stat("penetration", 1.0))
 
 
-## The weapon hand aims the gun and holds its grip; the other hand holds it forward, or while reloading drops to
-## the belt for the next magazine.
+## The weapon hand aims the gun and holds its grip; the other hand holds it forward, or while
+## reloading drops to the belt for the next magazine.
 func hand_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
 		return grip_stance()
 	return &"reload" if reloading else fore_stance()
 
 
-## How `hand` is held while the weapon is raised: the weapon hand's raised stance; the other hand's, or the belt while reloading.
+## How `hand` is held while the weapon is raised: the weapon hand's raised stance; the other hand's,
+## or the belt while reloading.
 func raised_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
 		return raised_grip_stance()
@@ -134,8 +144,8 @@ func muzzle_ahead() -> float:
 	return art_size().y - grip_back()
 
 
-## Count the time between rounds down. The credit for an overshoot is capped at one frame, so a gun left idle
-## fires its next round at once but never a burst to catch up.
+## Count the time between rounds down. The credit for an overshoot is capped at one frame, so a gun
+## left idle fires its next round at once but never a burst to catch up.
 func tick(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, -delta)
 
@@ -162,8 +172,8 @@ func can_reload(user) -> bool:
 	return best != null and best.rounds > rounds_loaded()
 
 
-## Seat the fullest carried magazine; the one it replaces goes back into the carried store unless it is
-## empty (nothing refills a magazine, so an empty one is dropped).
+## Seat the fullest carried magazine; the one it replaces goes back into the carried store unless it
+## is empty (nothing refills a magazine, so an empty one is dropped).
 func finish_reload(user) -> void:
 	var fresh: Magazine = user.take_magazine(gun)
 	if fresh == null:
@@ -179,12 +189,14 @@ func strike_ahead() -> float:
 	return grip_back() if raises_at_contact() else 0.0
 
 
-## How far (px) the other hand grips ahead of the weapon hand along the barrel: it holds the gun through a butt strike.
+## How far (px) the other hand grips ahead of the weapon hand along the barrel: it holds the gun
+## through a butt strike.
 func strike_support_gap() -> float:
 	return SUPPORT_GAP if raises_at_contact() else 0.0
 
 
-## A long gun swung in both hands lands a little short of a fist's reach, which keeps the support arm from overstretching.
+## A long gun swung in both hands lands a little short of a fist's reach, which keeps the support
+## arm from overstretching.
 func strike_short() -> float:
 	return STRIKE_SHORT if raises_at_contact() else 0.0
 
@@ -205,9 +217,9 @@ func primary(user) -> void:
 
 
 ## LMB: fire a bullet from the muzzle and eject a casing (both live in world space); the gun kicks
-## the hand back. Spends a round; an empty, mid-reload or still-cycling gun does nothing. The round leaves
-## within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user holds it in one hand
-## (`one_handed()`). True when a round left the barrel.
+## the hand back. Spends a round; an empty, mid-reload or still-cycling gun does nothing. The round
+## leaves within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user
+## holds it in one hand (`one_handed()`). True when a round left the barrel.
 func secondary(user) -> bool:
 	if reloading or rounds_loaded() <= 0 or _cooldown > 0.0:
 		return false
@@ -215,12 +227,15 @@ func secondary(user) -> bool:
 	_cooldown += fire_interval()
 	var hand := weapon_hand()
 	var muzzle: Vector2 = user.muzzle_origin(hand)
-	# Zeroed: the round crosses the aim line `zero_range` ahead of the body, so a gun held off the line (the
-	# butt on the right shoulder) still shoots where the character points.
-	var direction: Vector2 = (user.global_position + user.facing * GunConfig.zero_range - muzzle).normalized()
-	direction = direction.rotated(user.aim_sway())  # A stunned character's aim wanders off the line.
+	# Zeroed: the round crosses the aim line `zero_range` ahead of the body, so a gun held off the
+	# line (the butt on the right shoulder) still shoots where the character points.
+	var direction: Vector2 = (user.global_position + user.facing * GunConfig.zero_range
+			- muzzle).normalized()
+	# A stunned character's aim wanders off the line.
+	direction = direction.rotated(user.aim_sway())
 	var spread_deg := float(stat("spread_deg", 0.0))
-	if user.one_handed():  # Held in one hand (the other over its eyes): the gun wanders off the line.
+	# Held in one hand (the other over its eyes): the gun wanders off the line.
+	if user.one_handed():
 		spread_deg += float(stat("one_hand_spread_deg", 0.0))
 	var spread := deg_to_rad(spread_deg)
 	if spread > 0.0:
@@ -231,14 +246,16 @@ func secondary(user) -> bool:
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
 	CasingSpawner.spawn(user.hand_world(hand), user.facing, user.world_root())
 	user.kick(hand, float(stat("recoil", 1.0)))
-	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on its way.
+	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on
+	# its way.
 	EventBus.post(&"shot", { "position": muzzle, "gun": gun, "attacker": user, "power": power })
 	return true
 
 
 ## Draw the gun's pixel art at the weapon hand, its butt behind the hand and the muzzle along the
 ## character's weapon_facing() (trailing the aim a touch as it turns): lit for the nearest lighting
-## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the hand.
+## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the
+## hand.
 func draw_weapon(canvas: CanvasItem, user) -> void:
 	var facing: Vector2 = user.weapon_facing()
 	# A punch turns a long gun about its grip until the butt leads.
@@ -246,7 +263,8 @@ func draw_weapon(canvas: CanvasItem, user) -> void:
 	var step := clampi(roundi(float(user.weapon_raise()) * RAISE_STEPS), 0, RAISE_STEPS)
 	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
 	var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
-	var centre: Vector2 = user.hand_position(weapon_hand()) + facing * (size.y * 0.5 - grip_back() * shrink)
+	var centre: Vector2 = (user.hand_position(weapon_hand())
+			+ facing * (size.y * 0.5 - grip_back() * shrink))
 	_draw_art(canvas, centre, facing, size)
 
 
@@ -258,30 +276,29 @@ func drop(user, velocity: Vector2) -> Node2D:
 	return DroppedItem.spawn(self, at, facing.angle(), velocity, user.world_root(), hand)
 
 
-## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter lying (`flat`); `opts.flip`
-## picks the side facing up.
+## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter
+## lying (`flat`); `opts.flip` picks the side facing up.
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
 		opts: Dictionary = {}) -> void:
 	var turn := angle - PI * 0.5
 	var size := flat_size()
 	var flip: bool = opts.get("flip", false)
 	var drawn := look()
-	var tex := PixelArt.render_turned(drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn), drawn["finish"],
-		{ "gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip })
+	var tex := PixelArt.render_turned(
+		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn), drawn["finish"],
+		{ "gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip },
+	)
 	_note_drawn(tex)
 	canvas.draw_set_transform(at, turn, Vector2.ONE)
 	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false, modulate)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
-static var _prepainted := {}
-
-
-## Paint this gun's art ahead of time, once per gun and style: held at every raise step (`draw_weapon`) and lying on the floor
-## either side up (`draw_dropped`), each at every lighting step. A gun turns, is raised off walls and skids from a dead hand
-## through those, and each first paint (0.3 to 0.5 ms) would land in the busiest frames of a fight. The same calls the draws
-## make, so the same cached textures: what is drawn never changes.
+## Paint this gun's art ahead of time, once per gun and style: held at every raise step
+## (`draw_weapon`) and lying on the floor either side up (`draw_dropped`), each at every lighting
+## step. A gun turns, is raised off walls and skids from a dead hand through those, and each first
+## paint (0.3 to 0.5 ms) would land in the busiest frames of a fight. The same calls the draws make,
+## so the same cached textures: what is drawn never changes.
 func prepaint() -> void:
 	var key := [gun, style]
 	if _prepainted.has(key):
@@ -295,19 +312,30 @@ func prepaint() -> void:
 		for raise in RAISE_STEPS + 1:
 			var shrink := lerpf(1.0, RAISED_LENGTH, float(raise) / RAISE_STEPS)
 			var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
-			PixelArt.render_turned(drawn["painter"], size, drawn["body"], angle, drawn["finish"], { "gun": gun, "look": handle })
+			PixelArt.render_turned(
+				drawn["painter"],
+				size,
+				drawn["body"],
+				angle,
+				drawn["finish"],
+				{ "gun": gun, "look": handle },
+			)
 		for flip in [false, true]:
-			PixelArt.render_turned(drawn["painter"], flat_size(), drawn["body"], angle, drawn["finish"],
-				{ "gun": gun, "look": handle, "flat": true, "flip": flip })
+			PixelArt.render_turned(
+				drawn["painter"], flat_size(), drawn["body"], angle, drawn["finish"],
+				{ "gun": gun, "look": handle, "flat": true, "flip": flip },
+			)
 
 
-## The held art of `size` centered at `centre`, muzzle along `facing`, in its look's painter: lit for the nearest lighting
-## step, drawn rotated to the exact angle.
+## The held art of `size` centered at `centre`, muzzle along `facing`, in its look's painter: lit
+## for the nearest lighting step, drawn rotated to the exact angle.
 func _draw_art(canvas: CanvasItem, centre: Vector2, facing: Vector2, size: Vector2) -> void:
 	var angle := facing.angle() - PI * 0.5
 	var drawn := look()
-	var tex := PixelArt.render_turned(drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle), drawn["finish"],
-		{ "gun": gun, "look": _look_handle(drawn) })
+	var tex := PixelArt.render_turned(
+		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle), drawn["finish"],
+		{ "gun": gun, "look": _look_handle(drawn) },
+	)
 	_note_drawn(tex)
 	canvas.draw_set_transform(centre, angle, Vector2.ONE)
 	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false)

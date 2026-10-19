@@ -1,9 +1,9 @@
 extends RefCounted
-
-## Top-down pixel-art painter for a grenade in the TAPED SCRAP weapon style (Items domain, private; rendered through the Art
-## domain's PixelArt), the fuze toward +y: an old rusty olive frag egg with its fragmentation grid, or a tin can for a stun, each
-## with a strip of grey duct tape round its middle. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's
-## handle, `PixelArt.handle`) and `spoon` (the lever still held down: in the hand; thrown, it is gone).
+## Top-down pixel-art painter for a grenade in the TAPED SCRAP weapon style (Items domain, private;
+## rendered through the Art domain's PixelArt), the fuze toward +y: an old rusty olive frag egg with
+## its fragmentation grid, or a tin can for a stun, each with a strip of grey duct tape round its
+## middle. Options: `kind` (&"frag" / &"stun"), `look` (the `GrenadeConfig` look's handle,
+## `PixelArt.handle`) and `spoon` (the lever still held down: in the hand; thrown, it is gone).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
@@ -13,7 +13,8 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	WeaponArt.paint_grenade(c, opts, _body)
 
 
-## The shell, its marks and the fuze or cap: the frag's grid, the rust and the tape round the middle.
+## The shell, its marks and the fuze or cap: the frag's grid, the rust and the tape round the
+## middle.
 static func _body(c: PixelCanvas, look: Dictionary, frag: bool, cap_len: int, top: int) -> void:
 	var cx := int(c.w / 2.0)
 	var mid := int(top * 0.45)

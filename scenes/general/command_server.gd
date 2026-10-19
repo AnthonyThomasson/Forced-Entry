@@ -1,5 +1,4 @@
 extends Node
-
 ## General domain, development-only: a small TCP server that lets an external tool (the agent /
 ## MCP, driven from `tools/gcmd.py`) control the running game with text commands. It never exists
 ## in an exported build — `_ready()` returns unless running from the editor binary — and stays off
@@ -16,7 +15,8 @@ extends Node
 ## `application/debug/command_port` project setting, and 0 there too means the server never starts.
 @export var port: int = 0
 
-var _server: TCPServer  ## The listening socket; null when the server is off.
+## The listening socket; null when the server is off.
+var _server: TCPServer
 ## Connected clients, each `{ peer: StreamPeerTCP, buf: String }` (buffered until a full line).
 var _clients: Array = []
 ## Actions tapped this frame, released at the start of the next so they read as "just pressed" once.
@@ -65,7 +65,7 @@ func _process(_delta: float) -> void:
 	if _server == null:
 		return
 	while _server.is_connection_available():
-		_clients.append({"peer": _server.take_connection(), "buf": ""})
+		_clients.append({ "peer": _server.take_connection(), "buf": "" })
 
 	var dead: Array = []
 	for client in _clients:
@@ -93,6 +93,19 @@ func _process(_delta: float) -> void:
 		_clients.erase(client)
 
 
+## Stop the server and drop any input the commands were still holding.
+func _exit_tree() -> void:
+	for action in _release_next_frame:
+		Input.action_release(action)
+	_release_next_frame.clear()
+	for action in _move_actions.values():
+		Input.action_release(action)
+	if _server != null:
+		_server.stop()
+		_server = null
+	_clients.clear()
+
+
 ## Run one command line: a curated verb, or a GDScript expression when it matches no verb.
 func _execute(line: String) -> String:
 	if line.is_empty():
@@ -100,25 +113,26 @@ func _execute(line: String) -> String:
 	var parts := line.split(" ", false)
 	match parts[0]:
 		"help":
-			return "verbs: help, pos, tp X Y, slot N, move up|down|left|right [off], stop, " \
-				+ "fire, punch, kick, reload, interact, crouch, aim X Y, match, ai, restart [seed], menu, eval EXPR; " \
-				+ "anything else = GDScript expression"
+			return ("verbs: help, pos, tp X Y, slot N, move up|down|left|right [off], stop, "
+					+ "fire, punch, kick, reload, interact, crouch, aim X Y, match, ai, restart "
+						+ "[seed], menu, eval EXPR; " + "anything else = GDScript expression")
 		"match":
 			return _match_status()
 		"ai":
 			return _ai_status()
 		"menu":
-			# Return to the pre-game setup window (the same as pressing Escape) so a fresh match can be
-			# configured. Composition-root owns the window, so defer to main's return_to_setup().
+			# Return to the pre-game setup window (the same as pressing Escape) so a fresh match can
+			# be configured. Composition-root owns the window, so defer to main's return_to_setup().
 			var s := scene()
 			if s == null or not s.has_method("return_to_setup"):
 				return "no scene"
 			s.return_to_setup()
 			return "ok"
 		"restart":
-			# Reload for a fresh matchup. An optional seed pins the next layout; `skip_setup` makes the
-			# reloaded scene build immediately rather than reopening the pre-game setup window (the
-			# harness never clicks it). Engine meta survives the scene reload; main.gd reads both.
+			# Reload for a fresh matchup. An optional seed pins the next layout; `skip_setup` makes
+			# the reloaded scene build immediately rather than reopening the pre-game setup window
+			# (the harness never clicks it). Engine meta survives the scene reload; main.gd reads
+			# both.
 			if parts.size() >= 2:
 				Engine.set_meta("match_seed", parts[1].to_int())
 			Engine.set_meta("skip_setup", true)
@@ -217,9 +231,9 @@ func _match_status() -> String:
 
 ## The deep AI state of every AI combatant, as JSON — what `match` is to scoring, this is to
 ## diagnosing a brain: the state Von was told, the menu it chose from, its pick vs. any policy
-## override, the known contacts and the pathing state. Reads only the read-only `debug_state()` of the
-## controller child in the group `npc_controllers` (interface 7), so the server stays a decoupled observer
-## and a character without an AI controller is simply skipped.
+## override, the known contacts and the pathing state. Reads only the read-only `debug_state()` of
+## the controller child in the group `npc_controllers` (interface 7), so the server stays a
+## decoupled observer and a character without an AI controller is simply skipped.
 func _ai_status() -> String:
 	var out: Array = []
 	for c in _combatants():
@@ -230,8 +244,8 @@ func _ai_status() -> String:
 	return "no AI combatants" if out.is_empty() else JSON.stringify(out, "  ")
 
 
-## The current act of `character`'s AI controller child (the one in the group `npc_controllers`), or "?" when it has none
-## (e.g. the player).
+## The current act of `character`'s AI controller child (the one in the group `npc_controllers`), or
+## "?" when it has none (e.g. the player).
 func _act_of(character: Node) -> String:
 	for child in character.get_children():
 		if child.is_in_group(&"npc_controllers"):
@@ -240,9 +254,9 @@ func _act_of(character: Node) -> String:
 
 
 ## Every AI combatant in the running scene, discovered rather than named: a child of the scene root
-## (or of a node in the `match_world` group, the container holding everything a match builds) that has
-## an AI controller child (the `npc_controllers` group `_act_of` reads). So the match status covers every
-## defender/invader in the scene, with no coupling to their node names.
+## (or of a node in the `match_world` group, the container holding everything a match builds) that
+## has an AI controller child (the `npc_controllers` group `_act_of` reads). So the match status
+## covers every defender/invader in the scene, with no coupling to their node names.
 func _combatants() -> Array:
 	var out: Array = []
 	var s := scene()
@@ -259,6 +273,7 @@ func _combatants() -> Array:
 
 # --- Helpers, callable both from the verbs and from `eval` expressions --------------------
 
+
 ## The player character node, or null if the current scene has none.
 func player() -> Node:
 	var s := scene()
@@ -270,7 +285,8 @@ func scene() -> Node:
 	return get_tree().current_scene
 
 
-## The node at `path` under the scene root (or, failing that, under a `match_world` group node), or null if absent.
+## The node at `path` under the scene root (or, failing that, under a `match_world` group node), or
+## null if absent.
 func node(path: String) -> Node:
 	var s := scene()
 	if s == null:
@@ -310,16 +326,3 @@ func _aim(world: Vector2) -> String:
 		return "no viewport"
 	Input.warp_mouse(vp.get_canvas_transform() * world)
 	return "ok (windowed only)"
-
-
-## Stop the server and drop any input the commands were still holding.
-func _exit_tree() -> void:
-	for action in _release_next_frame:
-		Input.action_release(action)
-	_release_next_frame.clear()
-	for action in _move_actions.values():
-		Input.action_release(action)
-	if _server != null:
-		_server.stop()
-		_server = null
-	_clients.clear()

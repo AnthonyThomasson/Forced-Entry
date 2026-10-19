@@ -1,34 +1,39 @@
 class_name FillBatch
 extends RefCounted
+## General domain: plain-coloured shapes drawn on a canvas item as ONE triangle array (`flush`)
+## instead of one polygon or circle command each, shared infrastructure (like `DrawLayers`) for any
+## domain that draws many of them every frame. Rendering windowed, the engine builds a vertex buffer
+## for every polygon command (`draw_colored_polygon`, `draw_circle`), about 9 µs each against a
+## fifth of one for a rect: a body's limbs and shadow, a blood splat's outlines, a chunk of resting
+## chips. A batch cuts each polygon into the triangles the engine itself would
+## (`Geometry2D.triangulate_polygon`) and a circle into the 64-gon `draw_circle` draws (point `i` at
+## angle `i * TAU / 64`; fanned from its first corner, which covers the same pixels as any cut of a
+## convex polygon), and draws them all in the order they were added: the same shapes, so the same
+## pixels. A batch is drawn at the canvas item's draw transform at `flush`: shapes added under
+## different transforms are placed by the caller (`xform`). Under the headless display (`batching`
+## false) nothing is rendered, a command costs no vertex buffer and building the array would cost
+## more than the commands it replaces: there a batch hands each shape to its canvas as it is added.
 
-## General domain: plain-coloured shapes drawn on a canvas item as ONE triangle array (`flush`) instead of one polygon or
-## circle command each, shared infrastructure (like `DrawLayers`) for any domain that draws many of them every frame.
-## Rendering windowed, the engine builds a vertex buffer for every polygon command (`draw_colored_polygon`, `draw_circle`),
-## about 9 µs each against a fifth of one for a rect: a body's limbs and shadow, a blood splat's outlines, a chunk of resting
-## chips. A batch cuts each polygon into the triangles the engine itself would (`Geometry2D.triangulate_polygon`) and a circle into
-## the 64-gon `draw_circle` draws (point `i` at angle `i * TAU / 64`; fanned from its first corner, which covers the same pixels as
-## any cut of a convex polygon), and draws them all in the order they were added: the same shapes, so the same pixels. A batch
-## is drawn at the canvas item's draw transform at `flush`: shapes added under different transforms are placed by the caller
-## (`xform`).
-## Under the headless display (`batching` false) nothing is rendered, a command costs no vertex buffer and building the array
-## would cost more than the commands it replaces: there a batch hands each shape to its canvas as it is added.
-
-## Whether shapes are gathered into one triangle array (else each is drawn by its own command as it is added): not under the
-## headless display, whose renderer draws nothing.
+## Whether shapes are gathered into one triangle array (else each is drawn by its own command as it
+## is added): not under the headless display, whose renderer draws nothing.
 static var batching := DisplayServer.get_name() != "headless"
 ## The corners of `draw_circle`'s 64-gon round the unit circle, from angle 0.
 static var _UNIT_CIRCLE := _circle_points()
-## A fan (corner 0 with each pair of neighbours) of `n` corners numbered from a first index, by Vector2i(first index, n): the
-## 64-gon's, and those of `fill_convex`.
+## A fan (corner 0 with each pair of neighbours) of `n` corners numbered from a first index, by
+## Vector2i(first index, n): the 64-gon's, and those of `fill_convex`.
 static var _fans := {}
 
-var _canvas: CanvasItem  ## The canvas item the batch draws on.
-## The draw transform the caller has set on the canvas (`draw_set_transform_matrix`), put back after a shape drawn on its own
-## under its `xform`.
+## The canvas item the batch draws on.
+var _canvas: CanvasItem
+## The draw transform the caller has set on the canvas (`draw_set_transform_matrix`), put back after
+## a shape drawn on its own under its `xform`.
 var _base: Transform2D
-var _points := PackedVector2Array()  ## The corners of every shape added since the last `flush` (canvas px).
-var _colors := PackedColorArray()  ## Each corner's colour, by `_points` index.
-var _indices := PackedInt32Array()  ## The triangles to draw, three `_points` indices each, in the order added.
+## The corners of every shape added since the last `flush` (canvas px).
+var _points := PackedVector2Array()
+## Each corner's colour, by `_points` index.
+var _colors := PackedColorArray()
+## The triangles to draw, three `_points` indices each, in the order added.
+var _indices := PackedInt32Array()
 
 
 ## A batch drawn on `canvas`, whose draw transform the caller has set to `base` (if any).
@@ -37,8 +42,9 @@ func _init(canvas: CanvasItem, base := Transform2D.IDENTITY) -> void:
 	_base = base
 
 
-## Add `poly` (canvas px) in `color`, moved by `xform` first. A polygon the engine cannot cut into triangles is drawn on its own,
-## after what was added before it, so it is reported as `draw_colored_polygon` reports it.
+## Add `poly` (canvas px) in `color`, moved by `xform` first. A polygon the engine cannot cut into
+## triangles is drawn on its own, after what was added before it, so it is reported as
+## `draw_colored_polygon` reports it.
 func fill(poly: PackedVector2Array, color: Color, xform := Transform2D.IDENTITY) -> void:
 	var placed := poly if xform == Transform2D.IDENTITY else xform * poly
 	if not batching:
@@ -52,8 +58,9 @@ func fill(poly: PackedVector2Array, color: Color, xform := Transform2D.IDENTITY)
 	_add(placed, tris, color)
 
 
-## Add `poly` (canvas px), which the caller knows to be CONVEX, in `color`, moved by `xform` first: fanned from its first corner,
-## which covers the same pixels as the engine's cut of it (any cut of a convex polygon does), without cutting it.
+## Add `poly` (canvas px), which the caller knows to be CONVEX, in `color`, moved by `xform` first:
+## fanned from its first corner, which covers the same pixels as the engine's cut of it (any cut of
+## a convex polygon does), without cutting it.
 func fill_convex(poly: PackedVector2Array, color: Color, xform := Transform2D.IDENTITY) -> void:
 	var placed := poly if xform == Transform2D.IDENTITY else xform * poly
 	if not batching:
@@ -67,7 +74,9 @@ func circle(center: Vector2, radius: float, color: Color, xform := Transform2D.I
 	if not batching:
 		if xform == Transform2D.IDENTITY:
 			_canvas.draw_circle(center, radius, color)
-		else:  # the canvas's own polygon command would cut the 64-gon: the disc command, placed by the transform
+		# the canvas's own polygon command would cut the 64-gon: the disc command, placed by the
+		# transform
+		else:
 			_canvas.draw_set_transform_matrix(_base * xform)
 			_canvas.draw_circle(center, radius, color)
 			_canvas.draw_set_transform_matrix(_base)
@@ -104,7 +113,12 @@ func is_empty() -> bool:
 func flush() -> void:
 	if _indices.is_empty():
 		return
-	RenderingServer.canvas_item_add_triangle_array(_canvas.get_canvas_item(), _indices, _points, _colors)
+	RenderingServer.canvas_item_add_triangle_array(
+		_canvas.get_canvas_item(),
+		_indices,
+		_points,
+		_colors,
+	)
 	_points = PackedVector2Array()
 	_colors = PackedColorArray()
 	_indices = PackedInt32Array()
@@ -122,7 +136,8 @@ func _add(placed: PackedVector2Array, tris: PackedInt32Array, color: Color) -> v
 	_colors.append_array(tint)
 
 
-## The 64 corners of `draw_circle`'s polygon round the unit circle, point `i` at angle `i * TAU / 64`.
+## The 64 corners of `draw_circle`'s polygon round the unit circle, point `i` at angle
+## `i * TAU / 64`.
 static func _circle_points() -> PackedVector2Array:
 	var out := PackedVector2Array()
 	for i in 64:

@@ -1,14 +1,15 @@
 extends GameTest
+## Each segment of a wall is drawn by its own child of the wall's visuals (wall_visuals.gd), in
+## segment order, so a hit repaints the struck segment alone (its dent and marks) while the rest
+## keep their drawing. This shoots one segment of an arena's walls and counts each segment's draws:
+## the struck one draws again, no other does, and every segment has its drawing child in order.
 
-## Each segment of a wall is drawn by its own child of the wall's visuals (wall_visuals.gd), in segment order, so a hit
-## repaints the struck segment alone (its dent and marks) while the rest keep their drawing. This shoots one segment of an
-## arena's walls and counts each segment's draws: the struck one draws again, no other does, and every segment has its
-## drawing child in order.
 
 func describe() -> Dictionary:
 	return {
 		"name": "A struck wall segment repaints alone",
-		"description": "A hit on one wall segment repaints that segment's drawing child and none of the others.",
+		"description": "A hit on one wall segment repaints that segment's drawing child and none "
+			+ "of the others.",
 		"tags": ["wall", "draw", "deformation"],
 		"timeout": 6.0,
 	}
@@ -26,16 +27,27 @@ func run(t: TestContext) -> void:
 		if node.has_method("wall_segments"):
 			wall = node
 			break
-	if not t.require(wall != null and wall.get_node_or_null("WallVisuals") != null, "the arena has a drawn wall"):
+	if not t.require(
+			wall != null and wall.get_node_or_null("WallVisuals") != null,
+			"the arena has a drawn wall",
+	):
 		return
 	var visuals: Node = wall.get_node("WallVisuals")
 	var segs: Array = wall.wall_segments()
 	var pieces: Array = []
 	for i in segs.size():
 		pieces.append(visuals.get_node_or_null("Segment%d" % i))
-	if not t.require(not pieces.has(null), "every segment has its drawing child (%d segments)" % segs.size()):
+	if not t.require(
+			not pieces.has(null),
+			"every segment has its drawing child (%d segments)" % segs.size(),
+	):
 		return
-	t.check(pieces.all(func(p: Node) -> bool: return p.get_index() == pieces[0].get_index() + pieces.find(p)), "in segment order")
+	t.check(
+		pieces.all(
+			func(p: Node) -> bool: return p.get_index() == pieces[0].get_index() + pieces.find(p),
+		),
+		"in segment order",
+	)
 	await t.frames(2)
 	var draws: Array = []
 	for i in pieces.size():

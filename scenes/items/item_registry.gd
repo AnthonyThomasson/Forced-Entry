@@ -1,10 +1,10 @@
 class_name ItemRegistry
-
-## Items domain: the catalogue of items, keyed by selection slot (the 1–9 number keys). The character asks for an
-## inventory here and otherwise never hard-codes item ids. To add an item: write its Item subclass in this folder and add
-## a case below; to add a gun, also give it a row in `GunConfig` (its slot is that row's `slot`) and a case in `_new_gun`;
-## a grenade, a row in `GrenadeConfig` and a case in `_new_grenade`. Magazines are not slot items: they are carried in the
-## character's magazine store (`create_magazines`).
+## Items domain: the catalogue of items, keyed by selection slot (the 1–9 number keys). The
+## character asks for an inventory here and otherwise never hard-codes item ids. To add an item:
+## write its Item subclass in this folder and add a case below; to add a gun, also give it a row in
+## `GunConfig` (its slot is that row's `slot`) and a case in `_new_gun`; a grenade, a row in
+## `GrenadeConfig` and a case in `_new_grenade`. Magazines are not slot items: they are carried in
+## the character's magazine store (`create_magazines`).
 
 ## Slots of the plain items (guns take theirs from `GunConfig`).
 const UNARMED_SLOT := 1
@@ -15,9 +15,10 @@ const STUN_SLOT := 7
 const FRAG_SLOT := 8
 
 
-## Create the item for a slot id, or null if the slot is empty. A gun comes loaded with the magazine its
-## `GunConfig` row names (or `magazine`, a `MagazineConfig.types` id of that gun, when given), holding
-## `rounds` (negative = full). A grenade is a count: `rounds` of them (negative = one; none at all = null).
+## Create the item for a slot id, or null if the slot is empty. A gun comes loaded with the magazine
+## its `GunConfig` row names (or `magazine`, a `MagazineConfig.types` id of that gun, when given),
+## holding `rounds` (negative = full). A grenade is a count: `rounds` of them (negative = one; none
+## at all = null).
 static func create(id: int, rounds := -1, magazine: StringName = &"") -> Item:
 	match id:
 		UNARMED_SLOT: return UnarmedItem.new()
@@ -37,16 +38,16 @@ static func create(id: int, rounds := -1, magazine: StringName = &"") -> Item:
 	return item
 
 
-## A fresh inventory: slot id -> Item, with everything the game has. Each character gets its own instances
-## (items hold per-item state, e.g. the fists' alternating hand). `rounds` is what a gun starts loaded with
-## (negative = full).
+## A fresh inventory: slot id -> Item, with everything the game has. Each character gets its own
+## instances (items hold per-item state, e.g. the fists' alternating hand). `rounds` is what a gun
+## starts loaded with (negative = full).
 static func default_inventory(rounds := -1) -> Dictionary:
 	return inventory_for([UNARMED_SLOT, FISTS_SLOT, KEY_SLOT] + gun_slots(), rounds)
 
 
 ## A fresh inventory of just the given slots (an empty slot id is skipped). A gun comes loaded with
-## `magazine` when that type fits it. A grenade slot holds `grenades[slot]` of them, else `rounds` (as `create`). Every item
-## made carries the weapon style `style` (`Item.style`).
+## `magazine` when that type fits it. A grenade slot holds `grenades[slot]` of them, else `rounds`
+## (as `create`). Every item made carries the weapon style `style` (`Item.style`).
 static func inventory_for(slots: Array, rounds := -1, magazine: StringName = &"", grenades := {},
 		style: StringName = &"police") -> Dictionary:
 	var inv := {}
@@ -64,7 +65,8 @@ static func gun_slots() -> Array:
 	return GunConfig.slots()
 
 
-## A random gun's slot, drawn from `rng` (-1 when there are no guns): a character spawning with a random weapon.
+## A random gun's slot, drawn from `rng` (-1 when there are no guns): a character spawning with a
+## random weapon.
 static func random_gun_slot(rng: RandomNumberGenerator) -> int:
 	var slots := gun_slots()
 	if slots.is_empty():
@@ -72,8 +74,8 @@ static func random_gun_slot(rng: RandomNumberGenerator) -> int:
 	return slots[rng.randi() % slots.size()]
 
 
-## The slots a character carrying only the gun in `gun_slot` has: bare hands, fists, the key and that gun, and the
-## grenade slots of the `stuns` and `frags` it carries (none for a count of 0).
+## The slots a character carrying only the gun in `gun_slot` has: bare hands, fists, the key and
+## that gun, and the grenade slots of the `stuns` and `frags` it carries (none for a count of 0).
 static func loadout_for(gun_slot: int, stuns := 0, frags := 0) -> Array:
 	var slots := [UNARMED_SLOT, FISTS_SLOT, KEY_SLOT, gun_slot]
 	if stuns > 0:
@@ -83,7 +85,8 @@ static func loadout_for(gun_slot: int, stuns := 0, frags := 0) -> Array:
 	return slots
 
 
-## The spare magazines (`MagazineConfig.types` ids) a character carrying the gun in `gun_slot` also carries.
+## The spare magazines (`MagazineConfig.types` ids) a character carrying the gun in `gun_slot` also
+## carries.
 static func spares_for(gun_slot: int) -> Array:
 	var row := GunConfig.row(GunConfig.gun_in_slot(gun_slot))
 	var spares := []

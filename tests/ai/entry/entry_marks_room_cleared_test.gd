@@ -1,7 +1,6 @@
 extends GameTest
-
-## Desired (E8): once an invader has cleared the kitchen it radios it clear, and the room counts as searched, both for
-## itself and for an ally that stayed outside and only heard the call.
+## Desired (E8): once an invader has cleared the kitchen it radios it clear, and the room counts as
+## searched, both for itself and for an ally that stayed outside and only heard the call.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -10,7 +9,8 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "Entry marks the room cleared",
-		"description": "After clearing the kitchen the invader radios it clear; it and a listening ally regard it as searched.",
+		"description": "After clearing the kitchen the invader radios it clear; it and a listening "
+			+ "ally regard it as searched.",
 		"tags": ["ai", "entry", "scripted", "callout"],
 		"timeout": 70.0,
 	}
@@ -27,10 +27,24 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var cleared := func(): return not Entry.calls(t, "clear", &"inv").is_empty()
 	await Entry.watch(t, [&"inv"], Entry.BACK, 65.0, cleared)
-	if not t.require(cleared.call(), "the invader radioed the room clear (act %s)" % Entry.brain(t, &"inv").current_act()):
+	if not t.require(
+			cleared.call(),
+			"the invader radioed the room clear (act %s)" % Entry.brain(t, &"inv").current_act(),
+	):
 		return
-	t.expect_eq(String(Entry.calls(t, "clear", &"inv")[0].get("cleared_room", "")), "kitchen", "the call names the kitchen")
+	t.expect_eq(
+		String(Entry.calls(t, "clear", &"inv")[0].get("cleared_room", "")),
+		"kitchen",
+		"the call names the kitchen",
+	)
 	await t.frames(2)
 	var mine := Entry.room_status(t, &"inv", Maps.HOUSE_KITCHEN)
-	t.check(mine in ["current", "searched"], "the invader regards the kitchen as searched (%s)" % mine)
-	t.expect_eq(Entry.room_status(t, &"ally", Maps.HOUSE_KITCHEN), "searched", "the ally that heard the call does too")
+	t.check(
+		mine in ["current", "searched"],
+		"the invader regards the kitchen as searched (%s)" % mine,
+	)
+	t.expect_eq(
+		Entry.room_status(t, &"ally", Maps.HOUSE_KITCHEN),
+		"searched",
+		"the ally that heard the call does too",
+	)

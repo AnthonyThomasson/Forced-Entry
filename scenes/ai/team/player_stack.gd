@@ -1,27 +1,31 @@
 extends Node
-
-## AI domain · TEAM — the human's place in an AI stack (`docs/tactical-entry.md` E16). A child of the human's character
-## (Main attaches it with `attach`, as it hands an NPC its `rooms` and `openings`): it listens to the same `&"callout"`
-## radio the NPCs use, and when an allied team is stacking at a doorway near the human it reserves the human the first
-## free slot there, on the team's side of the door or, when its way there would cross the doorway's view, on the side the
-## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as speaker (`opening`, `into`, `slot`, `side`,
-## `entry_step`, and `human`), repeated every `HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any teammate's
-## claim, so the point waits for the human at the ready barrier, a lone AI is no longer solo, and an AI behind the human
-## crosses after it. The one thing it reads `human` for: no AI member moves up into the human's slot (E2).
+## AI domain · TEAM — the human's place in an AI stack (`docs/tactical-entry.md` E16). A child of
+## the human's character (Main attaches it with `attach`, as it hands an NPC its `rooms` and
+## `openings`): it listens to the same `&"callout"` radio the NPCs use, and when an allied team is
+## stacking at a doorway near the human it reserves the human the first free slot there, on the
+## team's side of the door or, when its way there would cross the doorway's view, on the side the
+## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as
+## speaker (`opening`, `into`, `slot`, `side`, `entry_step`, and `human`), repeated every
+## `HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any teammate's claim, so
+## the point waits for the human at the ready barrier, a lone AI is no longer solo, and an AI behind
+## the human crosses after it. The one thing it reads `human` for: no AI member moves up into the
+## human's slot (E2).
 ##
-## The human is never ordered: its radio step is read from where it stands (`claim` away from the slot, `ready` in it,
-## `going_in` in the doorway, `in` through it). The claim is withdrawn (`abort`) when the human leaves (walks beyond
-## `reserve_range * leave_factor`, dies), when no one is left stacking, or when the AI ahead is through and the human has
-## not crossed within `go_timeout`; it is finished with `done` once through and nobody waits behind it.
+## The human is never ordered: its radio step is read from where it stands (`claim` away from the
+## slot, `ready` in it, `going_in` in the doorway, `in` through it). The claim is withdrawn
+## (`abort`) when the human leaves (walks beyond `reserve_range * leave_factor`, dies), when no one
+## is left stacking, or when the AI ahead is through and the human has not crossed within
+## `go_timeout`; it is finished with `done` once through and nobody waits behind it.
 ##
-## When the human leads its side's squad (`squad`, handed in as an NPC is handed its own: `MatchSpawner.bind_squad`), its claims say so
-## (`leader: true`, `docs/leadership.md` LD17): a stack it ordered waits for it as for an ordered member, until it stands in its slot.
+## When the human leads its side's squad (`squad`, handed in as an NPC is handed its own:
+## `MatchSpawner.bind_squad`), its claims say so (`leader: true`, `docs/leadership.md` LD17): a
+## stack it ordered waits for it as for an ordered member, until it stands in its slot.
 ##
-## `view()` is what the UI's stack markers draw. Observation and radio only: it never moves or steers the character.
+## `view()` is what the UI's stack markers draw. Observation and radio only: it never moves or
+## steers the character.
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
-
 ## Entry steps that mean a member is still on its way into the room (it holds a place in the stack).
 const STACKING := ["claim", "ready", "going_in"]
 ## Entry steps of a member that is through the doorway.
@@ -30,11 +34,13 @@ const THROUGH := ["in", "clear", "cover", "rear"]
 const HEARTBEAT := 2.0
 ## How close (px) to its slot the human counts as standing in it (the NPCs' `WAYPOINT_REACH`).
 const SLOT_REACH := 20.0
-## How deep (px) either side of the wall plane the doorway's funnel reaches (the entry tests' `FUNNEL_DEPTH`).
+## How deep (px) either side of the wall plane the doorway's funnel reaches (the entry tests'
+## `FUNNEL_DEPTH`).
 const FUNNEL_DEPTH := 40.0
 ## How far (px) past the wall plane the human is through (the entry's `THROUGH_DEPTH`).
 const THROUGH_DEPTH := 26.0
-## Seconds the human's `in` stays on the radio for an AI waiting behind it to hear, and the most it is held.
+## Seconds the human's `in` stays on the radio for an AI waiting behind it to hear, and the most it
+## is held.
 const IN_HOLD_MIN := 1.0
 const IN_HOLD_MAX := 8.0
 ## Seconds between the checks that need a path query (is a team near, has the human left).
@@ -48,40 +54,46 @@ const CHECK_INTERVAL := 0.25
 @export var callout_range: float = 1500.0
 ## Seconds a heard callout stays current (the NPCs' `callout_ttl`).
 @export var callout_ttl: float = 6.0
-## Seconds the human is given to follow once the AI ahead of it is through, before its slot is withdrawn.
+## Seconds the human is given to follow once the AI ahead of it is through, before its slot is
+## withdrawn.
 @export var go_timeout: float = 6.0
 
-var squad: Node = null                        ## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
-var _char: Node2D = null                      ## The human's character (the parent).
-var _entry: RefCounted = AgentEntry.new()    ## The doorway geometry (slots), the same the NPCs build.
-var _clock := 0.0                             ## Seconds since the stack was built (physics time).
-var _heard := {}                              ## speaker instance id -> { data, at }: the latest callout of each speaker.
-var _opening := ""                            ## The doorway reserved ("" = no reservation).
-var _into := ""                              ## The key of the room the reserved doorway leads into.
-var _geo := {}                                ## The reserved doorway's geometry (`AgentEntry.geometry`).
-var _slot := 0                                ## The human's slot number (1 = the point; 0 = none): the order it claimed in.
-var _side := 0                                ## The side of the door the human stacks on (1 / -1 along its wall).
-var _on := 0                                  ## The side its slot stands on: `_side`, or the other while `_side`'s wall is full (E21).
-var _team_side := 0                           ## The side the team stacks on, as last weighed (a change is weighed again).
-var _step := ""                               ## The human's latest radio step (claim / ready / going_in / in).
-var _heartbeat := 0.0                         ## Seconds until the latest step is radioed again.
-var _check := 0.0                             ## Seconds until the next walking-distance check.
-var _ahead_through_at := -1.0                 ## `_clock` the AI ahead of the human was first all through (-1 = not yet).
-var _in_at := -1.0                            ## `_clock` the human was through.
-var _barred := {}                             ## doorway id -> true: declined, until nobody stacks there any more.
-
-
-## Give `character` its stack radio: the house's `rooms` and `openings` as an NPC controller is handed them. Returns it.
-static func attach(character: Node, rooms: Array, openings: Array) -> Node:
-	var existing := character.get_node_or_null("PlayerStack")
-	if existing != null:
-		return existing
-	var stack := new()
-	stack.name = "PlayerStack"
-	stack._char = character as Node2D
-	stack._entry.set_house(openings, rooms)
-	character.add_child(stack)
-	return stack
+## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
+var squad: Node = null
+## The human's character (the parent).
+var _char: Node2D = null
+## The doorway geometry (slots), the same the NPCs build.
+var _entry: RefCounted = AgentEntry.new()
+## Seconds since the stack was built (physics time).
+var _clock := 0.0
+## speaker instance id -> { data, at }: the latest callout of each speaker.
+var _heard := {}
+## The doorway reserved ("" = no reservation).
+var _opening := ""
+## The key of the room the reserved doorway leads into.
+var _into := ""
+## The reserved doorway's geometry (`AgentEntry.geometry`).
+var _geo := {}
+## The human's slot number (1 = the point; 0 = none): the order it claimed in.
+var _slot := 0
+## The side of the door the human stacks on (1 / -1 along its wall).
+var _side := 0
+## The side its slot stands on: `_side`, or the other while `_side`'s wall is full (E21).
+var _on := 0
+## The side the team stacks on, as last weighed (a change is weighed again).
+var _team_side := 0
+## The human's latest radio step (claim / ready / going_in / in).
+var _step := ""
+## Seconds until the latest step is radioed again.
+var _heartbeat := 0.0
+## Seconds until the next walking-distance check.
+var _check := 0.0
+## `_clock` the AI ahead of the human was first all through (-1 = not yet).
+var _ahead_through_at := -1.0
+## `_clock` the human was through.
+var _in_at := -1.0
+## doorway id -> true: declined, until nobody stacks there any more.
+var _barred := {}
 
 
 func _ready() -> void:
@@ -93,63 +105,6 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if EventBus.posted.is_connected(_on_posted):
 		EventBus.posted.disconnect(_on_posted)
-
-
-## The reservation as data for the markers (`{}` with none): `opening`, `door`, `slots` (`{ n, point, mine, held }` for
-## slot 1 up to the last taken, each where it stands in the file on its holder's side of the door: both sides on a split
-## stack, E19; a free one on the human's side), `mine` (the human's slot) and `step` (its own radio step).
-func view() -> Dictionary:
-	if _opening == "" or _geo.is_empty():
-		return {}
-	var members := _members(AgentEntry.claims(_opening, _callouts()))
-	var holder := {}
-	var top := _slot
-	for m in members:
-		if not holder.has(m["slot"]) or m.get("me", false):
-			holder[m["slot"]] = m
-		top = maxi(top, m["slot"])
-	var slots: Array = []
-	for n in range(1, top + 1):
-		var on: int = int(holder[n]["side"]) if holder.has(n) and int(holder[n]["side"]) != 0 else AgentEntry.side_for(_geo, members, n, _side)
-		var point := AgentEntry.stack_point(_geo, members, n, on)
-		if point != Vector2.INF:
-			slots.append({ "n": n, "point": point, "mine": n == _slot, "held": holder.has(n) })
-	return { "opening": _opening, "door": _geo["pos"], "slots": slots, "mine": _slot, "step": _step }
-
-
-## The claims on the reserved doorway (`team`) with the human's own added (`me`).
-func _members(team: Array) -> Array:
-	return team + [{ "id": _char.get_instance_id(), "slot": _slot, "side": _on, "step": _step, "me": true }]
-
-
-## Of the claims on the reserved doorway (`team`), those that cross before the human (`before` true) or after it, in the order
-## the stack crosses (agent_entry.gd `crossing_order`: on a split stack the sides take turns, E19).
-func _crossing(team: Array, before: bool) -> Array:
-	var out: Array = []
-	var past := false
-	for m in AgentEntry.crossing_order(_members(team)):
-		if m.get("me", false):
-			past = true
-		elif past != before:
-			out.append(m)
-	return out
-
-
-## Keep the latest callout of each allied speaker within range (`_heard`).
-func _on_posted(topic: StringName, data: Dictionary) -> void:
-	if topic != &"callout" or _char == null or AgentGrenades.is_call(data.get("status")):
-		return  # (A call about a live grenade is not the speaker's place in a stack: it must not replace its claim.)
-	if String(data.get("order_step", "")) != "" and String(data.get("entry_step", "")) == "":
-		return  # (Nor is how an ally's order goes, LD7: the perception leaves what the ally last said standing too.)
-	var speaker = data.get("speaker")
-	if speaker == _char or not speaker is Node or not is_instance_valid(speaker):
-		return
-	if StringName(data.get("faction", &"")) != StringName(_char.get("faction")):
-		return
-	var at: Vector2 = data.get("position", _char.global_position)
-	if callout_range > 0.0 and _char.global_position.distance_to(at) > callout_range:
-		return
-	_heard[speaker.get_instance_id()] = { "data": data, "at": _clock }
 
 
 func _physics_process(delta: float) -> void:
@@ -168,16 +123,106 @@ func _physics_process(delta: float) -> void:
 	_keep_reservation(delta, due)
 
 
+## Give `character` its stack radio: the house's `rooms` and `openings` as an NPC controller is
+## handed them. Returns it.
+static func attach(character: Node, rooms: Array, openings: Array) -> Node:
+	var existing := character.get_node_or_null("PlayerStack")
+	if existing != null:
+		return existing
+	var stack := new()
+	stack.name = "PlayerStack"
+	stack._char = character as Node2D
+	stack._entry.set_house(openings, rooms)
+	character.add_child(stack)
+	return stack
+
+
+## The reservation as data for the markers (`{}` with none): `opening`, `door`, `slots`
+## (`{ n, point, mine, held }` for slot 1 up to the last taken, each where it stands in the file on
+## its holder's side of the door: both sides on a split stack, E19; a free one on the human's side),
+## `mine` (the human's slot) and `step` (its own radio step).
+func view() -> Dictionary:
+	if _opening == "" or _geo.is_empty():
+		return {}
+	var members := _members(AgentEntry.claims(_opening, _callouts()))
+	var holder := {}
+	var top := _slot
+	for m in members:
+		if not holder.has(m["slot"]) or m.get("me", false):
+			holder[m["slot"]] = m
+		top = maxi(top, m["slot"])
+	var slots: Array = []
+	for n in range(1, top + 1):
+		var on: int = (int(holder[n]["side"])
+				if holder.has(n) and int(holder[n]["side"]) != 0
+				else AgentEntry.side_for(_geo, members, n, _side))
+		var point := AgentEntry.stack_point(_geo, members, n, on)
+		if point != Vector2.INF:
+			slots.append({ "n": n, "point": point, "mine": n == _slot, "held": holder.has(n) })
+	return {
+		"opening": _opening,
+		"door": _geo["pos"],
+		"slots": slots,
+		"mine": _slot,
+		"step": _step,
+	}
+
+
+## The claims on the reserved doorway (`team`) with the human's own added (`me`).
+func _members(team: Array) -> Array:
+	return team + [
+		{ "id": _char.get_instance_id(), "slot": _slot, "side": _on, "step": _step, "me": true },
+	]
+
+
+## Of the claims on the reserved doorway (`team`), those that cross before the human (`before` true)
+## or after it, in the order the stack crosses (agent_entry.gd `crossing_order`: on a split stack
+## the sides take turns, E19).
+func _crossing(team: Array, before: bool) -> Array:
+	var out: Array = []
+	var past := false
+	for m in AgentEntry.crossing_order(_members(team)):
+		if m.get("me", false):
+			past = true
+		elif past != before:
+			out.append(m)
+	return out
+
+
+## Keep the latest callout of each allied speaker within range (`_heard`).
+func _on_posted(topic: StringName, data: Dictionary) -> void:
+	if topic != &"callout" or _char == null or AgentGrenades.is_call(data.get("status")):
+		# (A call about a live grenade is not the speaker's place in a stack: it must not replace
+		# its claim.)
+		return
+	if String(data.get("order_step", "")) != "" and String(data.get("entry_step", "")) == "":
+		# (Nor is how an ally's order goes, LD7: the perception leaves what the ally last said
+		# standing too.)
+		return
+	var speaker = data.get("speaker")
+	if speaker == _char or not speaker is Node or not is_instance_valid(speaker):
+		return
+	if StringName(data.get("faction", &"")) != StringName(_char.get("faction")):
+		return
+	var at: Vector2 = data.get("position", _char.global_position)
+	if callout_range > 0.0 and _char.global_position.distance_to(at) > callout_range:
+		return
+	_heard[speaker.get_instance_id()] = { "data": data, "at": _clock }
+
+
 ## Drop the callouts that lapsed or whose speaker is gone or dead.
 func _forget_stale() -> void:
 	for id in _heard.keys():
 		var rec: Dictionary = _heard[id]
 		var speaker = rec["data"].get("speaker")
-		if _clock - rec["at"] > callout_ttl or not is_instance_valid(speaker) or (speaker as Node).get("is_dead") == true:
+		if (_clock - rec["at"] > callout_ttl
+				or not is_instance_valid(speaker)
+				or (speaker as Node).get("is_dead") == true):
 			_heard.erase(id)
 
 
-## The live callouts heard, latest per speaker, in the shape `AgentEntry.claims` reads: the data with `age`, `id`, `name`.
+## The live callouts heard, latest per speaker, in the shape `AgentEntry.claims` reads: the data
+## with `age`, `id`, `name`.
 func _callouts() -> Array:
 	var out: Array = []
 	for id in _heard:
@@ -190,7 +235,8 @@ func _callouts() -> Array:
 	return out
 
 
-## Reserve the first free slot at the nearest doorway near the human where an allied team is stacking up.
+## Reserve the first free slot at the nearest doorway near the human where an allied team is
+## stacking up.
 func _look_for_team() -> void:
 	var calls := _callouts()
 	var map: RID = _char.get_world_2d().navigation_map
@@ -220,7 +266,11 @@ func _look_for_team() -> void:
 	for id in _barred.keys():
 		if not stacking_now.has(id):
 			_barred.erase(id)   # Their stack is over: a later one is a new offer.
-	if best.is_empty() or not AgentEntry.holds_slot(best["geo"], AgentEntry.free_slot(best["team"], _char.get_instance_id(), 0)):
+	if (best.is_empty()
+			or not AgentEntry.holds_slot(
+					best["geo"],
+					AgentEntry.free_slot(best["team"], _char.get_instance_id(), 0),
+			)):
 		return   # (A dead end with no room left in it holds no slot for the human either, E20.)
 	_opening = best["id"]
 	_into = best["into"]
@@ -235,7 +285,8 @@ func _look_for_team() -> void:
 	_post(_step)
 
 
-## Walking distance (px) from the human to `to` over the baked map; the straight line before it is baked.
+## Walking distance (px) from the human to `to` over the baked map; the straight line before it is
+## baked.
 func _walk_distance(to: Vector2) -> float:
 	var from := _char.global_position
 	var straight := from.distance_to(to)
@@ -245,8 +296,8 @@ func _walk_distance(to: Vector2) -> float:
 	return NavBuilder.path_length(NavBuilder.route(map, from, to))
 
 
-## One tick of a held reservation: leave it, follow the radio, and say where the human stands. `due` is true on the ticks
-## that may afford a path query.
+## One tick of a held reservation: leave it, follow the radio, and say where the human stands. `due`
+## is true on the ticks that may afford a path query.
 func _keep_reservation(delta: float, due: bool) -> void:
 	if _char.get("is_dead") == true:
 		_withdraw("abort")
@@ -264,15 +315,20 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	if _step != "in":
 		var was := _slot
 		var was_side := _on
-		_slot = AgentEntry.free_slot(team, self_id, _slot)   # An AI with a lower instance id that claimed the same slot keeps it.
+		# An AI with a lower instance id that claimed the same slot keeps it.
+		_slot = AgentEntry.free_slot(team, self_id, _slot)
 		if not AgentEntry.holds_slot(_geo, _slot):
 			_withdraw("abort")   # Pushed past what a dead end holds (E20).
 			return
 		var team_side := AgentEntry.stack_side(_geo, team, pos)
 		if team_side != _team_side:
-			_team_side = team_side   # The team's side changed (its point is known now): follow it, unless the way there crosses the view.
+			# The team's side changed (its point is known now): follow it, unless the way there
+			# crosses the view.
+			_team_side = team_side
 			var world := _char.get_world_2d()
-			_side = _entry.stack_side_from(_geo, team, pos, world.navigation_map, world.direct_space_state)
+			_side = _entry.stack_side_from(
+				_geo, team, pos, world.navigation_map, world.direct_space_state,
+			)
 		_on = AgentEntry.side_for(_geo, team, _slot, _side)
 		if _slot != was or _on != was_side:
 			_post(_step)
@@ -282,7 +338,9 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_ahead_through_at = _clock
 	elif not ahead_through:
 		_ahead_through_at = -1.0
-	if _step in ["claim", "ready"] and _ahead_through_at >= 0.0 and _clock - _ahead_through_at >= go_timeout:
+	if (_step in ["claim", "ready"]
+			and _ahead_through_at >= 0.0
+			and _clock - _ahead_through_at >= go_timeout):
 		_barred[_opening] = true   # It had its chance at this stack.
 		_withdraw("abort")
 		return
@@ -293,7 +351,9 @@ func _keep_reservation(delta: float, due: bool) -> void:
 			_in_at = _clock
 		_post(_step)
 	if _step == "in":
-		var waiting := _crossing(team, false).any(func(m): return STACKING.has(m["step"]) and m["step"] != "going_in")
+		var waiting := _crossing(team, false).any(
+			func(m): return STACKING.has(m["step"]) and m["step"] != "going_in",
+		)
 		var held := _clock - _in_at
 		if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
 			_barred[_opening] = true
@@ -304,8 +364,8 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_post(_step)
 
 
-## The radio step for the human standing at `pos`: through the doorway (and it stays so), in the doorway's funnel, in its
-## slot, or still on its way.
+## The radio step for the human standing at `pos`: through the doorway (and it stays so), in the
+## doorway's funnel, in its slot, or still on its way.
 func _step_at(pos: Vector2) -> String:
 	if _step == "in":
 		return "in"
@@ -317,7 +377,12 @@ func _step_at(pos: Vector2) -> String:
 		return "in"
 	if absf(outward) < FUNNEL_DEPTH and lateral < float(_geo["width"]) * 0.5:
 		return "going_in"
-	var spot := AgentEntry.stack_point(_geo, _members(AgentEntry.claims(_opening, _callouts())), _slot, _on)
+	var spot := AgentEntry.stack_point(
+		_geo,
+		_members(AgentEntry.claims(_opening, _callouts())),
+		_slot,
+		_on,
+	)
 	var d := pos.distance_to(spot)
 	if d <= SLOT_REACH or (_step == "ready" and d <= SLOT_REACH * 2.0):
 		return "ready"
@@ -339,7 +404,8 @@ func _withdraw(how: String) -> void:
 	_in_at = -1.0
 
 
-## Radio the human's step as a `callout` (the same fields the NPCs' entry steps carry) and restart the heartbeat.
+## Radio the human's step as a `callout` (the same fields the NPCs' entry steps carry) and restart
+## the heartbeat.
 func _post(step: String) -> void:
 	_heartbeat = HEARTBEAT
 	var pos := _char.global_position
@@ -357,7 +423,8 @@ func _post(step: String) -> void:
 		"slot": _slot,
 		"side": _on,
 		"entry_step": step,
-		"leader": squad != null and is_instance_valid(squad) and squad.has_method("leader") and squad.leader() == _char,
+		"leader": (squad != null and is_instance_valid(squad) and squad.has_method("leader")
+				and squad.leader() == _char),
 		"cleared_room": "",
 		"covering": "",
 		"human": true,  # The human's claim: no AI member moves up into its slot (E2).

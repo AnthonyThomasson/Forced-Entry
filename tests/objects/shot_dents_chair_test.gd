@@ -1,5 +1,4 @@
 extends GameTest
-
 ## A pistol shot that strikes a chair is recorded by its Deformable (the hittable contract): a `hit`
 ## event names the chair and the chair keeps an impact.
 
@@ -7,7 +6,8 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "A shot dents a chair",
-		"description": "A puppet shoots a chair across an arena; the chair is the hit's victim and records an impact.",
+		"description": "A puppet shoots a chair across an arena; the chair is the hit's victim and "
+			+ "records an impact.",
 		"tags": ["deformation", "hittable", "pistol", "chair"],
 		"timeout": 6.0,
 	}
@@ -26,7 +26,13 @@ func run(t: TestContext) -> void:
 	shooter.aim_at(chair.global_position)
 	await t.seconds(0.5)
 	shooter.shoot()
-	if not t.require(await t.until(func(): return t.happened(&"hit", func(d): return d["victim"] == chair), 2.0), "a hit event names the chair"):
+	if not t.require(
+			await t.until(
+				func(): return t.happened(&"hit", func(d): return d["victim"] == chair),
+				2.0,
+			),
+			"a hit event names the chair",
+	):
 		return
 	var deformable: Node = null
 	for child in chair.get_children():

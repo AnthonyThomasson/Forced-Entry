@@ -1,5 +1,4 @@
 class_name Ragdoll extends RefCounted
-
 ## A generic 3D ragdoll (Physics domain): point masses joined by bones and joint limits, stepped as
 ## position-based dynamics. Space is the owner's local floor plane (x, y in px) plus z = height
 ## above the floor: gravity pulls toward z = 0, the floor holds each point at its radius, and walls
@@ -8,37 +7,54 @@ class_name Ragdoll extends RefCounted
 ## anatomical hinges, set in a frame), seeds velocities, then calls step() each physics frame until
 ## it sleeps. Tuning: PhysicsConfig.ragdoll_*.
 
+enum {
+	SWING,
+	HINGE,
+}
+
 ## Fraction of a joint limit's violation corrected per constraint pass (softens jitter).
 const LIMIT_STIFFNESS := 0.6
 ## Most a limit turns a bone per pass (rad): a far-out bone is brought back over several passes, so
 ## the correction never becomes a burst of speed.
 const LIMIT_MAX_TURN := 0.3
 
-enum { SWING, HINGE }
-
 ## True once the body has come to rest (or timed out); step() then does nothing.
 var asleep := false
 ## Colliders the wall sweep ignores (e.g. the owner's own body).
 var exclude: Array[RID] = []
-
-var _pos := PackedVector3Array()     ## Point positions (local x/y px, z = height px).
-var _prev := PackedVector3Array()    ## Positions at the start of the sub-step.
-var _vel := PackedVector3Array()     ## Point velocities (px/s).
-var _radius := PackedFloat32Array()  ## Point collision radii (px).
-var _inv_mass := PackedFloat32Array()  ## Point inverse masses (heavier points move less).
-var _bones: Array = []   ## [a, b, rest length, stiffness].
-var _frames: Array = []  ## [origin, up, right, sign]: forward = (up × right) · sign.
-var _limits: Array = []  ## Swing / hinge dicts (see add_swing / add_hinge).
-var _params: PhysicsShapeQueryParameters2D  ## Reused wall-sweep query.
-var _shapes := {}        ## Circle query shapes by radius.
-var _still := 0.0        ## Seconds every point has stayed under the sleep speed.
-var _time := 0.0         ## Seconds simulated.
-var _primed := false     ## False until the first step pulls starting points out of walls.
+## Point positions (local x/y px, z = height px).
+var _pos := PackedVector3Array()
+## Positions at the start of the sub-step.
+var _prev := PackedVector3Array()
+## Point velocities (px/s).
+var _vel := PackedVector3Array()
+## Point collision radii (px).
+var _radius := PackedFloat32Array()
+## Point inverse masses (heavier points move less).
+var _inv_mass := PackedFloat32Array()
+## [a, b, rest length, stiffness].
+var _bones: Array = []
+## [origin, up, right, sign]: forward = (up × right) · sign.
+var _frames: Array = []
+## Swing / hinge dicts (see add_swing / add_hinge).
+var _limits: Array = []
+## Reused wall-sweep query.
+var _params: PhysicsShapeQueryParameters2D
+## Circle query shapes by radius.
+var _shapes := {}
+## Seconds every point has stayed under the sleep speed.
+var _still := 0.0
+## Seconds simulated.
+var _time := 0.0
+## False until the first step pulls starting points out of walls.
+var _primed := false
 
 
 # --- Building ----------------------------------------------------------------------------
 
-## Add a point at `at` (local px, z = height) with a collision `radius` and `mass`; returns its index.
+
+## Add a point at `at` (local px, z = height) with a collision `radius` and `mass`; returns its
+## index.
 func add_point(at: Vector3, radius: float, mass: float = 1.0) -> int:
 	_pos.append(at)
 	_prev.append(at)
@@ -75,9 +91,11 @@ func add_frame(origin: int, up: int, right: int, forward_hint: Vector3) -> int:
 ## y axis (up or down) — at most `limits` `right` / `left` / `front` / `back` radians off it toward
 ## the frame's +x / −x / +z / −z, blended by direction in between.
 func add_swing(frame: int, joint: int, child: int, rest: Vector3, limits: Dictionary) -> void:
-	_limits.append({ "kind": SWING, "frame": frame, "joint": joint, "child": child,
-		"rest": rest.normalized(), "right": maxf(limits["right"], 0.01), "left": maxf(limits["left"], 0.01),
-		"front": maxf(limits["front"], 0.01), "back": maxf(limits["back"], 0.01) })
+	_limits.append({
+		"kind": SWING, "frame": frame, "joint": joint, "child": child, "rest": rest.normalized(),
+		"right": maxf(limits["right"], 0.01), "left": maxf(limits["left"], 0.01),
+		"front": maxf(limits["front"], 0.01), "back": maxf(limits["back"], 0.01),
+	})
 
 
 ## An anatomical hinge at `joint` between the parent bone (`parent` → `joint`) and the child bone
@@ -87,9 +105,11 @@ func add_swing(frame: int, joint: int, child: int, rest: Vector3, limits: Dictio
 ## toward that side, and its twist out of the plane to ±`slack` (radians).
 func add_hinge(frame: int, parent: int, joint: int, child: int, rest: Vector3, bend: Vector3,
 		min_angle: float, max_angle: float, slack: float) -> void:
-	_limits.append({ "kind": HINGE, "frame": frame, "parent": parent, "joint": joint, "child": child,
+	_limits.append({
+		"kind": HINGE, "frame": frame, "parent": parent, "joint": joint, "child": child,
 		"rest": rest.normalized(), "bend": bend.normalized(), "min": min_angle, "max": max_angle,
-		"slack": slack })
+		"slack": slack,
+	})
 
 
 ## Add `v` (px/s) to point `i`'s velocity.
@@ -98,6 +118,7 @@ func push(i: int, v: Vector3) -> void:
 
 
 # --- Reading -----------------------------------------------------------------------------
+
 
 ## Point `i`'s position (local x/y px, z = height px).
 func point(i: int) -> Vector3:
@@ -121,8 +142,10 @@ func frame_basis(f: int) -> Basis:
 
 # --- Stepping ----------------------------------------------------------------------------
 
-## Wake a body that had gone to sleep and start its sleep clocks afresh, so a push is simulated and the body does not go
-## straight back to sleep through `ragdoll_max_time` (an explosion throws a fallen body).
+
+## Wake a body that had gone to sleep and start its sleep clocks afresh, so a push is simulated and
+## the body does not go straight back to sleep through `ragdoll_max_time` (an explosion throws a
+## fallen body).
 func wake() -> void:
 	asleep = false
 	_time = 0.0
@@ -181,7 +204,9 @@ func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 	for i in _pos.size():
 		# The constraints may pass momentum along the body but never pump it up: a point leaves them
 		# no faster than it came in, plus a push no harder than `ragdoll_max_push`.
-		var v := ((_pos[i] - _prev[i]) / h).limit_length(minf(free[i] + gain, PhysicsConfig.ragdoll_max_speed))
+		var v := ((_pos[i] - _prev[i]) / h).limit_length(
+			minf(free[i] + gain, PhysicsConfig.ragdoll_max_speed),
+		)
 		if _pos[i].z <= _radius[i] + 0.01:
 			if _prev[i].z > _radius[i] + 0.01 and fall[i] < 0.0:
 				v.z = -fall[i] * PhysicsConfig.ragdoll_floor_bounce

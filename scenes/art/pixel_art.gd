@@ -1,5 +1,4 @@
 class_name PixelArt
-
 ## Renders painters into cached pixel-art textures (Art domain: the entry point the Objects,
 ## Character, Items and Vehicles domains paint through). A PAINTER is any script with
 ## `static func paint(canvas: PixelCanvas, base: Color, material: String, opts: Dictionary)` that
@@ -11,24 +10,25 @@ class_name PixelArt
 ## Either way the lighting stays consistent in the world. Textures are cached by their inputs
 ## (static, so they survive scene reloads); a piece's random detail is seeded by its inputs minus
 ## its orientation, so it doesn't change as the piece turns.
-## What a painter draws `glowing` (PixelCanvas: a screen's face, a tube, a bulb) is kept for a `render`ed piece as a second,
-## EMISSIVE texture of only those pixels (`emissive()`), from the same paint, for callers that draw light sources unshaded.
+## What a painter draws `glowing` (PixelCanvas: a screen's face, a tube, a bulb) is kept for a
+## `render`ed piece as a second, EMISSIVE texture of only those pixels (`emissive()`), from the same
+## paint, for callers that draw light sources unshaded.
+
+## Most `render_turned` calls remembered by their exact arguments (see `_turned_memo`) before the
+## memo is dropped and refills.
+const TURNED_MEMO_MAX := 4096
 
 ## Painted textures by their inputs; identical pieces share one texture.
 static var _cache: Dictionary = {}
-
-## A `render`ed texture's emissive pixels by the same key, or null when its painter drew nothing glowing.
+## A `render`ed texture's emissive pixels by the same key, or null when its painter drew nothing
+## glowing.
 static var _emissive: Dictionary = {}
-
-## Most `render_turned` calls remembered by their exact arguments (see `_turned_memo`) before the memo is dropped and refills.
-const TURNED_MEMO_MAX := 4096
-
-## `render_turned`'s textures by the arguments of the calls that fetched them, so a repeat call with the same values (a
-## character repaints its parts every frame) is one lookup instead of building the key string below. Only a shortcut to
-## `_cache`: which texture a call gets is still decided by the string key, so values that key treats as equal still share one
-## texture. Bounded, so arguments that never repeat exactly cannot grow it.
+## `render_turned`'s textures by the arguments of the calls that fetched them, so a repeat call with
+## the same values (a character repaints its parts every frame) is one lookup instead of building
+## the key string below. Only a shortcut to `_cache`: which texture a call gets is still decided by
+## the string key, so values that key treats as equal still share one texture. Bounded, so arguments
+## that never repeat exactly cannot grow it.
 static var _turned_memo: Dictionary = {}
-
 ## Painters' looks by their handle (`handle`).
 static var _looks: Dictionary = {}
 
@@ -50,8 +50,9 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 	return _store(key, _turned(canvas.img, turns))
 
 
-## The emissive pixels of `render`'s texture for the same inputs (painting it if it is not cached yet): what the painter drew
-## `glowing`, in the art's own colours, transparent elsewhere, the same size and orientation; null when it drew nothing glowing.
+## The emissive pixels of `render`'s texture for the same inputs (painting it if it is not cached
+## yet): what the painter drew `glowing`, in the art's own colours, transparent elsewhere, the same
+## size and orientation; null when it drew nothing glowing.
 static func emissive(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
 		material: String = "", opts: Dictionary = {}) -> Texture2D:
 	render(painter, size, color, facing, material, opts)
@@ -86,18 +87,23 @@ static func render_turned(painter: Script, size: Vector2, color: Color, angle: f
 	if _cache.has(key):
 		tex = _cache[key]
 	else:
-		tex = _store(key, _paint(painter, _resolution(size), color, -angle, material, opts, base_key).img)
+		tex = _store(
+			key,
+			_paint(painter, _resolution(size), color, -angle, material, opts, base_key).img,
+		)
 	if _turned_memo.size() >= TURNED_MEMO_MAX:
 		_turned_memo.clear()
-	memo_key[4] = opts.duplicate(true)  # The caller may change its dictionary later; the memo keeps the values it was asked with.
+	# The caller may change its dictionary later; the memo keeps the values it was asked with.
+	memo_key[4] = opts.duplicate(true)
 	_turned_memo[memo_key] = tex
 	return tex
 
 
-## The handle of `look`, registered for `look_of`. A painter's options carry a big look (a character style's resolved look,
-## a weapon style's colours) as this int (`opts.look`), never the look itself: the caches are keyed by the options and
-## `render_turned` hashes them on every call. The handle is the look's hash, so the same look always has the same one and
-## a cached texture keyed by it is always that look's.
+## The handle of `look`, registered for `look_of`. A painter's options carry a big look (a character
+## style's resolved look, a weapon style's colours) as this int (`opts.look`), never the look
+## itself: the caches are keyed by the options and `render_turned` hashes them on every call. The
+## handle is the look's hash, so the same look always has the same one and a cached texture keyed by
+## it is always that look's.
 static func handle(look: Dictionary) -> int:
 	var id := hash(look)
 	_looks[id] = look
@@ -122,14 +128,27 @@ static func _resolution(size: Vector2) -> Vector2i:
 
 
 ## The cache key of a painter's inputs, without orientation.
-static func _key(painter: Script, size: Vector2, color: Color, material: String, opts: Dictionary) -> String:
-	return "%s|%v|%s|%s|%s|%s" % [painter.resource_path, size, color.to_html(), material, opts, ArtConfig.pixel_size]
+static func _key(
+	painter: Script,
+	size: Vector2,
+	color: Color,
+	material: String,
+	opts: Dictionary,
+) -> String:
+	return ("%s|%v|%s|%s|%s|%s"
+			% [painter.resource_path, size, color.to_html(), material, opts, ArtConfig.pixel_size])
 
 
-## Paint `painter` onto a fresh canvas of `res` with the world light turned by `light_turn`; returns the canvas.
-static func _paint(painter: Script, res: Vector2i, color: Color, light_turn: float, material: String,
-		opts: Dictionary, seed_key: String) -> PixelCanvas:
-	var canvas := PixelCanvas.new(res.x, res.y, hash(seed_key), ArtConfig.light_from.rotated(light_turn))
+## Paint `painter` onto a fresh canvas of `res` with the world light turned by `light_turn`; returns
+## the canvas.
+static func _paint(painter: Script, res: Vector2i, color: Color, light_turn: float,
+		material: String, opts: Dictionary, seed_key: String) -> PixelCanvas:
+	var canvas := PixelCanvas.new(
+		res.x,
+		res.y,
+		hash(seed_key),
+		ArtConfig.light_from.rotated(light_turn),
+	)
 	painter.paint(canvas, color, material, opts)
 	return canvas
 

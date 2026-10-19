@@ -38,7 +38,7 @@ composition root is `domain-main`.
 | **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers, the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
 | **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
 | **Vehicles** | `vehicle/` | `domain-vehicle` | Drivable vehicles (a car and a van, only in the sandbox): the rigid body and its driving model, doors and seats, getting in and out (the character's `CharacterVehicleUse` component and the ride), collisions and the harm to a character struck, the dents, the vehicle art and its events. |
-| **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the headless CLI runner. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`); sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
+| **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the gdUnit4 suites the headless CLI runner (`tools/run_tests.sh`) and the editor's GdUnit panel run. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`), each played through its folder's wrapper suite (`*_suite.gd`); pure-logic native suites (`tests/<domain>/<name>_suite.gd`) only add to them; sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
 
 `scenes/main.gd` (`main.tscn`) is the **composition root** — with the Testing domain's runner
 (interface 13), the only code that knows every domain. It asks World-Gen for a house, places the NPCs (`scenes/match_spawner.gd`),
@@ -565,15 +565,15 @@ interfaces it takes part in (by number) and describes how they're implemented.
     signals (7, 10) for its event log.
     Behaviour switches set existing exported props and config-holder `static var`s by name
     (duck-typed, like Main's overlay flags); a test can also script the Von answers through the AI
-    decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the runner also drives the
+    decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the test session also drives the
     `DecisionServerLauncher` for the tests that need the real server; `DecisionBudget.per_frame`, the
     snapshots a frame may start, is set the same way) so AI
     wiring runs without a server. In the in-game runner a test can switch off user interactions that
     would change its result with `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`), sending
     its own input through `TestContext.inject` so the lock lets it through; the runner also builds the
     Navigation domain's draw-only `nav_debug.gd` (via the world, kept current by `nav_updater.gd`) and the
-    UI's `PerformanceOverlay` for the overlay bar's global toggles (the bar and `OverlayRegistry` are interface 22). Its scene carries General's camera (`general/camera_controller.gd`),
-    which it points at the setup's camera targets (every actor by default) with `frame(targets)` and whose `pan_enabled` it clears where a
+    UI's `PerformanceOverlay` for the overlay bar's global toggles (the bar and `OverlayRegistry` are interface 22). Its scene carries General's camera (`general/camera_controller.gd`;
+    the gdUnit4 base suite `GameTestSuite` makes one of its own), which it points at the setup's camera targets (every actor by default) with `frame(targets)` and whose `pan_enabled` it clears where a
     human-driven player walks on WASD or the test locks the camera. Examples of the knobs: the Physics domain's `BloodConfig.enabled` /
     `PhysicsConfig.debris_enabled` master switches and the Audio domain's `audio.sound` switch; statics are restored after each test.
     A sandbox (`sandboxes/`, e.g. a `ticket-assets` showroom) may also draw through Art (12: its own painter on
@@ -583,7 +583,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
     reaches it only by changing scene to `testing/test_browser.tscn`, and the browser's Back changes scene back to
     `main.tscn` (the one thing Testing knows of Main); the UI widgets it shows
     (`test_browser_window.gd`, `test_result_hud.gd`) take plain dicts and emit signals. Nothing
-    depends on Testing.
+    depends on Testing. Its one outward dependency beyond the game is the gdUnit4 addon (`addons/gdUnit4/`, v5.1.1): its
+    base suites `GameTestSuite` and `UnitSuite` extend `GdUnitTestSuite`, and its session hook (`test_report_hook.gd`, named in
+    `project.godot`'s `[gdunit4]` section) writes a run's report, steps the editor's GdUnit panel's run as `--fixed-fps` steps
+    the command line's and keeps its reports out of the checkout (`domain-testing`, "The GdUnit panel"); no game domain names it.
 
 14. **Main → General settings, UI settings page** (the composition root wires them; they never meet)
     - `Settings` (`general/settings.gd`, a `class_name` static holder): `load_file()` (Main calls it once in
@@ -602,7 +605,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 15. **Any domain → General (`GameLog`)** — `GameLog.say(message)` (`general/game_log.gd`, a `class_name` static
     holder) is how every domain prints its "what is happening" log (shots, punches, house seed, Von decisions,
-    perf numbers). `GameLog.enabled` is true in the game; the batch test runner sets it from `--verbose`, so
+    perf numbers). `GameLog.enabled` is true in the game; a `tools/run_tests.sh` run sets it from `--verbose`, so
     test runs are quiet unless asked. Plain `print` is not used for gameplay logs.
 
 16. **Objects → Audio: `SoundSurface`** (a floor tells Audio what it is made of; Audio stays a leaf)
@@ -830,12 +833,13 @@ main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner �
 Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
 TestBrowser / TestRunner / TestWorld ─▶ UI (TestBrowserWindow / TestResultHUD / OverlayToggles / PerformanceOverlay / OverlayRegistry)
 TestRunner / TestWorld ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
-TestRunner ─▶ Camera (General: frame(targets), pan_enabled)
+TestRunner / GameTestSuite ─▶ Camera (General: frame(targets), pan_enabled)
+GameTestSuite / UnitSuite / test_report_hook (Testing) ─▶ GdUnitTestSuite / GdUnitTestSessionHook (the gdUnit4 addon);  TestRunner / GameTestSuite ─▶ TestSession (plays one test)
 main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world
 Item (&"shot") / Explosion (&"explosion") ──▶ EventBus ──▶ WorldLighting (flashes)
 Objects (walls, solid pieces, street floors) / Character (the living body) ──(LightMasks.occluder, STREET)──▶ LightMasks (General)
 TestWorld ─▶ vehicle scenes (TestSetup.vehicle)
-TestRunner / TestWorld ─▶ DecisionStub / DecisionServerLauncher / NPC scenes (AI), config-holder statics (behaviour switches)
+TestSession / TestWorld ─▶ DecisionStub / DecisionServerLauncher / NPC scenes (AI), config-holder statics (behaviour switches)
 TestBrowser ──(Back: scene change)──▶ main
 ```
 
@@ -881,17 +885,24 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   watch; `show-me` runs it, `domain-testing` has the detail.
 - **Verification ladder** — use the cheapest rung that proves the change:
   1. **Loads?** `godot-run` skill: headless load check (run `--import` first when you add a `class_name`).
-     **Clean?** `tools/lint.sh [paths]` (a few seconds) prints every GDScript analyzer warning of the editor's
+     **Clean?** `tools/lint.sh [paths]` (about 14 s for the whole tree, nearly all of it the engine pass) prints every GDScript analyzer warning of the editor's
      Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
-     (`tools/lint_rules/`, one section each); it runs first in every `run_tests.sh` and fails the run before a test starts. Fix the code; silence a warning only as a last resort.
-  2. **Behaves?** `tools/run_tests.sh [words]` runs `tests/**/*_test.gd` headless and deterministically
-     (exit 1 on a lint warning, a failure, or any engine error/warning logged during a test). Useful flags: `--list`,
+     (`tools/lint_rules/`, one section each), then gdstyle's two (`gdstyle fmt --check`: a script the formatter would change;
+     `gdstyle check`: every rule of `gdstyle.toml` but `quality/*`, among them lines over 100 columns and member order); any
+     finding fails it, and it runs first in every `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH`
+     formats a script. Fix the code; never silence a warning (`audit`).
+  2. **Behaves?** `tools/run_tests.sh [words]` runs every test headless and deterministically through gdUnit4's command-line
+     tool: the simulation tests (`tests/**/*_test.gd`, `GameTest`s, through their folder's wrapper suite) and the native
+     pure-logic suites (`*_suite.gd` extending `UnitSuite`)
+     (exit 1 on a lint finding, a failure, or any engine error/warning logged during a test). Useful flags: `--list`,
      `--changed` (the domains your uncommitted changes can break, in one run), `--id=<id>` / `--domain=a,b`
      (exact selection), `--failed` (rerun last run's failures), `--jobs=auto` (parallel shards),
      `--fail-fast`, `--summary` (failures + totals only), `--repeat=N` (flaky check), `--seed=N`,
-     `--no-lint`, `--json`, `--include-von` / `--require-von`. A failure prints actor state and a `bundle:` JSON path.
+     `--no-lint`, `--json`, `--report=FILE`, `--include-von` / `--require-von`. A failure prints actor state and a `bundle:` JSON path;
+     each run's output dir also holds gdUnit's JUnit `results.xml` and HTML report.
      Writing tests: `domain-testing` skill; debugging one: `test-debug` skill. In the game, the setup
-     window's **Tests** button opens the browser to play one.
+     window's **Tests** button opens the browser to play one; in the editor, the GdUnit panel runs one case, a suite or
+     everything (`domain-testing`, "The GdUnit panel").
   3. **Exploratory / not yet scriptable?** `godot-run` skill: drive the live game through the dev
      command server (`tools/gcmd.py`).
   4. **Whole-AI outcomes?** `tools/match.py` scores full defender-vs-invader matches.

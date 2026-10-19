@@ -1,13 +1,15 @@
 extends GameTest
-
-## The AI event memory answers exactly as a plain, ordered log of events would: the same events survive a keyed write, an age
-## expiry and a volume eviction, and every reader (`recall`, `recall_all`, `recall_aged`, `age_of`, `is_fresh`, `fresh`, `size`)
-## returns the same events in the same order. The plain log below is the oracle; a few hundred random writes with mixed
-## topics, keys and lifetimes (permanent, long, default and short) run through both, with a pause that expires every short
-## event at once so no expiry sits on a clock boundary.
+## The AI event memory answers exactly as a plain, ordered log of events would: the same events
+## survive a keyed write, an age expiry and a volume eviction, and every reader (`recall`,
+## `recall_all`, `recall_aged`, `age_of`, `is_fresh`, `fresh`, `size`) returns the same events in
+## the same order. The plain log below is the oracle; a few hundred random writes with mixed topics,
+## keys and lifetimes (permanent, long, default and short) run through both, with a pause that
+## expires every short event at once so no expiry sits on a clock boundary.
 
 const AgentMemory := preload("res://scenes/ai/perception/agent_memory.gd")
-const TOPICS: Array[StringName] = [&"saw_character", &"visited_room", &"hostile", &"heard_gunfire", &"saw_room", &"engaged"]
+const TOPICS: Array[StringName] = [
+	&"saw_character", &"visited_room", &"hostile", &"heard_gunfire", &"saw_room", &"engaged",
+]
 const KEYS: Array[String] = ["", "a", "b", "c", "d"]
 const LIFETIMES: Array[float] = [0.0, -1.0, 600.0, 0.05, 0.05]
 const ROUNDS := 24
@@ -18,7 +20,8 @@ const AGE_TOLERANCE_S := 0.05
 func describe() -> Dictionary:
 	return {
 		"name": "The event memory matches a plain ordered log",
-		"description": "Random writes through the real memory and a naive reference log give the same events from every reader.",
+		"description": "Random writes through the real memory and a naive reference log give the "
+			+ "same events from every reader.",
 		"tags": ["ai", "memory", "scripted"],
 		"timeout": 20.0,
 	}
@@ -26,7 +29,7 @@ func describe() -> Dictionary:
 
 func run(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 12345
+	rng.seed = 12_345
 	var real := AgentMemory.new()
 	var plain := PlainLog.new()
 	for m in [real, plain]:
@@ -48,7 +51,9 @@ func run(t: TestContext) -> void:
 					mismatches += 1
 					t.check(false, "batch %d write %d: %s" % [batch, w, mid])
 		if batch % 4 == 3:
-			await t.frames(5)  # 83 ms of game time: every 0.05 s event written so far has expired; nothing is near its deadline.
+			# 83 ms of game time: every 0.05 s event written so far has expired; nothing is near its
+			# deadline.
+			await t.frames(5)
 		var after := _compare(real, plain, rng)
 		checked += 1
 		if after != "":
@@ -56,11 +61,18 @@ func run(t: TestContext) -> void:
 			t.check(false, "end of batch %d: %s" % [batch, after])
 		if mismatches > 3:
 			break
-	t.check(checked > 100 and mismatches == 0, "%d comparisons, %d mismatches" % [checked, mismatches])
-	t.check(real.size() == plain.size(), "the same number of events are stored (%d, reference %d)" % [real.size(), plain.size()])
+	t.check(
+		checked > 100 and mismatches == 0,
+		"%d comparisons, %d mismatches" % [checked, mismatches],
+	)
+	t.check(
+		real.size() == plain.size(),
+		"the same number of events are stored (%d, reference %d)" % [real.size(), plain.size()],
+	)
 
 
-## Every reader of both memories on a random topic, field and value; "" when they agree, else what differed.
+## Every reader of both memories on a random topic, field and value; "" when they agree, else what
+## differed.
 func _compare(real: RefCounted, plain: RefCounted, rng: RandomNumberGenerator) -> String:
 	if real.size() != plain.size():
 		return "size %d vs %d" % [real.size(), plain.size()]
@@ -78,19 +90,22 @@ func _compare(real: RefCounted, plain: RefCounted, rng: RandomNumberGenerator) -
 		if aged_real.size() != aged_plain.size():
 			return "recall_aged(%s) size %d vs %d" % [topic, aged_real.size(), aged_plain.size()]
 		for i in aged_real.size():
-			if aged_real[i]["data"] != aged_plain[i]["data"] or absf(aged_real[i]["age"] - aged_plain[i]["age"]) > AGE_TOLERANCE_S:
+			if (aged_real[i]["data"] != aged_plain[i]["data"]
+					or absf(aged_real[i]["age"] - aged_plain[i]["age"]) > AGE_TOLERANCE_S):
 				return "recall_aged(%s)[%d]" % [topic, i]
 		var id := rng.randi() % 4
 		var age_real: float = real.age_of(topic, "id", id)
 		var age_plain: float = plain.age_of(topic, "id", id)
-		if is_inf(age_real) != is_inf(age_plain) or (not is_inf(age_real) and absf(age_real - age_plain) > AGE_TOLERANCE_S):
+		if (is_inf(age_real) != is_inf(age_plain)
+				or (not is_inf(age_real) and absf(age_real - age_plain) > AGE_TOLERANCE_S)):
 			return "age_of(%s, id, %d): %s vs %s" % [topic, id, age_real, age_plain]
 	var fresh_real: Array = real.fresh()
 	var fresh_plain: Array = plain.fresh()
 	if fresh_real.size() != fresh_plain.size():
 		return "fresh() size %d vs %d" % [fresh_real.size(), fresh_plain.size()]
 	for i in fresh_real.size():
-		if fresh_real[i]["data"] != fresh_plain[i]["data"] or fresh_real[i]["topic"] != fresh_plain[i]["topic"]:
+		if (fresh_real[i]["data"] != fresh_plain[i]["data"]
+				or fresh_real[i]["topic"] != fresh_plain[i]["topic"]):
 			return "fresh()[%d]" % i
 	return ""
 
@@ -120,7 +135,9 @@ class PlainLog:
 		var now := GameClock.msec()
 		for i in range(_entries.size() - 1, -1, -1):
 			var entry: Dictionary = _entries[i]
-			if entry["topic"] == topic and not _expired(entry, now) and entry["data"].get(field) == value:
+			if (entry["topic"] == topic
+					and not _expired(entry, now)
+					and entry["data"].get(field) == value):
 				return (now - entry["at"]) / 1000.0
 		return INF
 

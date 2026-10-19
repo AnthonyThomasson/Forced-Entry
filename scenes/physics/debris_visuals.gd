@@ -1,8 +1,10 @@
 extends Node2D
+## Physics System: draw layer for a debris chip: one small shape (rect/tri/circle) from the chip's
+## fields.
 
-## Physics System: draw layer for a debris chip: one small shape (rect/tri/circle) from the chip's fields.
+## The debris chip (control node).
+@onready var _control := get_parent()
 
-@onready var _control := get_parent()  ## The debris chip (control node).
 
 func _draw() -> void:
 	var color: Color = _control.color

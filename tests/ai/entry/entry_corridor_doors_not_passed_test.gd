@@ -1,9 +1,9 @@
 extends GameTest
-
-## E15: a doorway passed in a corridor is searched or secured before the NPC is abreast of it. Gunfire is
-## heard from the far room of the corridor spine; whatever Von sends the invader there for, the way runs past the open
-## doors of rooms A and B, and each is entered, or at least covered from beside its jamb, before the invader walks
-## past it. Real Von: the invader hears the shots and decides for itself.
+## E15: a doorway passed in a corridor is searched or secured before the NPC is abreast of it.
+## Gunfire is heard from the far room of the corridor spine; whatever Von sends the invader there
+## for, the way runs past the open doors of rooms A and B, and each is entered, or at least covered
+## from beside its jamb, before the invader walks past it. Real Von: the invader hears the shots and
+## decides for itself.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -17,7 +17,8 @@ const BODY := 14.0
 func describe() -> Dictionary:
 	return {
 		"name": "Entry secures the doorways it passes in a corridor",
-		"description": "Drawn down the corridor by gunfire in the far room, the invader enters or covers rooms A and B before walking past their doors.",
+		"description": "Drawn down the corridor by gunfire in the far room, the invader enters or "
+			+ "covers rooms A and B before walking past their doors.",
 		"tags": ["ai", "entry", "von"],
 		"requires_von": true,
 		"timeout": 100.0,
@@ -38,7 +39,10 @@ func run(t: TestContext) -> void:
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	var far_jamb := float(Entry.SPINE_A["pos"].x) + float(Entry.SPINE_A["width"]) * 0.5 + BODY
 	var passed_a := Entry.path_of(samples, &"inv").any(func(p: Vector2): return p.x > far_jamb)
-	if not t.require(passed_a, "the gunfire drew the invader down the corridor past room A's door (act %s)" % act):
+	if not t.require(
+			passed_a,
+			"the gunfire drew the invader down the corridor past room A's door (act %s)" % act,
+	):
 		return
 	for door in [Entry.SPINE_A, Entry.SPINE_B]:
 		var abreast := float(door["pos"].x) + float(door["width"]) * 0.5 + BODY
@@ -51,5 +55,14 @@ func run(t: TestContext) -> void:
 			continue  # Never walked past it: nothing was left behind.
 		var before := samples.filter(func(s): return s["t"] <= passed_at)
 		var entered := Entry.first_call_time(t, "going_in", &"inv", door["id"]) <= passed_at
-		var covered := Entry.time_facing_through(before, &"inv", door, func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0)
-		t.check(entered or covered >= COVERED, "%s was searched or secured before the invader walked past it (entered: %s, gun through it from beside: %.1f s)" % [door["id"], entered, covered])
+		var covered := Entry.time_facing_through(
+			before,
+			&"inv",
+			door,
+			func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0,
+		)
+		t.check(
+			entered or covered >= COVERED,
+			("%s was searched or secured before the invader walked past it (entered: %s, gun "
+					+ "through it from beside: %.1f s)") % [door["id"], entered, covered],
+		)

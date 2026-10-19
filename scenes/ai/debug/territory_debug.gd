@@ -1,17 +1,16 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: the territorial leash. Outlines the house (the union of the rooms), shows whether the
-## NPC is holding ground (`hold_ground` — it will not chase an outside contact out) and whether the
-## engaged contact was last seen inside or outside, and marks every tactical zone that sits outside the
-## house (the ones a territorial NPC filters out). Reads the controller's `debug_combat()`,
-## `debug_room_zones()` and `debug_zones()` only.
-
-## Whether to draw the territory overlay.
-@export var show_territory: bool = false
+## AI domain, debug: the territorial leash. Outlines the house (the union of the rooms), shows
+## whether the NPC is holding ground (`hold_ground` — it will not chase an outside contact out) and
+## whether the engaged contact was last seen inside or outside, and marks every tactical zone that
+## sits outside the house (the ones a territorial NPC filters out). Reads the controller's
+## `debug_combat()`, `debug_room_zones()` and `debug_zones()` only.
 
 const INSIDE := Color(0.4, 0.85, 0.5)
 const OUTSIDE := Color(1.0, 0.5, 0.3)
 const HOLD := Color(0.4, 0.65, 1.0)
+
+## Whether to draw the territory overlay.
+@export var show_territory: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -34,13 +33,20 @@ func _paint() -> void:
 	var holding: bool = c.get("hold_ground", false)
 	var me := _character.global_position
 	var me_inside := rooms.any(func(r): return (r["rect"] as Rect2).has_point(me))
-	_label(me, "%s%s" % ["inside" if me_inside else "outside", " · HOLDING GROUND" if holding else ""],
-		HOLD if holding else (INSIDE if me_inside else OUTSIDE), Vector2(-30, 64))
+	_label(
+		me, "%s%s" % ["inside" if me_inside else "outside", " · HOLDING GROUND" if holding else ""],
+		HOLD if holding else (INSIDE if me_inside else OUTSIDE), Vector2(-30, 64),
+	)
 	if c.get("engaged", false):
 		var tp: Vector2 = c["engage_pos"]
 		var inside: bool = c["engage_inside"]
 		_ring(tp, 18.0, INSIDE if inside else OUTSIDE, 2.0)
-		_label(tp, "target %s" % ("inside" if inside else "outside"), INSIDE if inside else OUTSIDE, Vector2(20, 14))
+		_label(
+			tp,
+			"target %s" % ("inside" if inside else "outside"),
+			INSIDE if inside else OUTSIDE,
+			Vector2(20, 14),
+		)
 		if holding:
 			_line(me, tp, Color(HOLD, 0.5), 1.0)
 	# Zones outside the house: what a territorial NPC would drop from its combat options.

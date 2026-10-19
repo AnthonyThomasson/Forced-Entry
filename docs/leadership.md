@@ -219,7 +219,8 @@ the human last; `Settings.set_setup` keeps and saves `lead`).
 
 **LD11. Command menu.** Built only when the human leads (`ui/hud/command_menu.gd`). `Keybinds.COMMAND` ("Command teammates", right
 mouse by default; nothing reads the right button otherwise) pauses the whole tree and opens the menu on what is under the cursor, a
-panel docked at the left of the screen (so it never covers the teammates or the doorway it is about) and a ring on the clicked point:
+panel docked on the side of the screen away from the click (on the left, or on the right when the click lies in the left half, so it
+never covers the teammates or the doorway it is about) and a ring on the clicked point:
 - a teammate's body within 28 px of the click: "Select <name>" or "Deselect <name>" (the menu stays open), and "Go into the <room>"
   while it holds a held stack that has had no go (LD16);
 - else a doorway, the one nearest the click within its width: "Stack into the <room> (quiet)", "Stack into the <room> with stun" and
@@ -243,7 +244,9 @@ Tests: `ui/command_menu_items` (plain dicts, a fake squad's view and a real squa
 stun and offered with one, the requests for the whole squad, a selection and a ticked teammate, "Cancel order" for a selected member that
 holds an order, Escape, a right-click opening it on the doorway and a left-click on a body while paused; it pauses the tree and unpauses on
 close), `ui/command_menu_label_matches_order` (a real squad: by an interior doorway, on either side of the wall and on its plane, the
-room the stack item names is the room of the order the squad posts), `general/command_menu_wiring` (a Main-built match with "Lead the team" on: two ticked teammates ordered to stack on the back door
+room the stack item names is the room of the order the squad posts), `ui/command_menu_docks_left` and `ui/command_menu_docks_right`
+(on a player's screen: a click in the right half, on a teammate's body, docks the panel on the left, and a click in the left half, on the
+back doorway, docks it on the right, each clear of the click and of the selected bodies), `general/command_menu_wiring` (a Main-built match with "Lead the team" on: two ticked teammates ordered to stack on the back door
 with a stun claim slots there in bang mode once the menu closes), the keybind coverage test (`general/keybinds_overrides`:
 every action, `COMMAND` among them, has a settings label and group).
 

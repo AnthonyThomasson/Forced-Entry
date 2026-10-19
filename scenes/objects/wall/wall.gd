@@ -1,28 +1,38 @@
 extends StaticBody2D
-
 ## Wall CONTROL layer (Objects domain). A hittable, deformable room-boundary entity:
 ## computes the wall centerline segments (with any doorways cut out), builds the static
 ## collision walls, and takes hits (deform + debris). Built by WallFactory from a rect +
 ## openings. Drawing lives in wall_visuals.gd, which reads `wall_segments()` and
-## `wall_thickness` from this node. Each wall run also casts a shadow: a LightOccluder2D over its collider's rect, on the
-## General's `LightMasks.WALL`, built with the colliders (none while `LightMasks.shadows` is off).
+## `wall_thickness` from this node. Each wall run also casts a shadow: a LightOccluder2D over its
+## collider's rect, on the General's `LightMasks.WALL`, built with the colliders (none while
+## `LightMasks.shadows` is off).
 
-enum Side { NONE, TOP, BOTTOM, LEFT, RIGHT }
+enum Side {
+	NONE,
+	TOP,
+	BOTTOM,
+	LEFT,
+	RIGHT,
+}
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 
-@export var size: Vector2 = Vector2(600.0, 600.0)  ## Room extents (centerline of the walls).
-@export var wall_thickness: float = 24.0  ## Half the character's width.
+## Room extents (centerline of the walls).
+@export var size: Vector2 = Vector2(600.0, 600.0)
+## Half the character's width.
+@export var wall_thickness: float = 24.0
 ## Doorways: `{ side: Side, offset: float, width: float }`. `offset` is the gap center
 ## measured along the wall from its start corner (top/bottom walls start at the left,
 ## left/right walls start at the top).
 @export var openings: Array = []
-## Pixel-art cap: the tiling painter id ("" = a flat gray line), its base color (its debris takes the colour it is drawn
-## in) and painter options (see ObjectArtConfig.wall_*). Read by wall_visuals.gd.
+## Pixel-art cap: the tiling painter id ("" = a flat gray line), its base color (its debris takes
+## the colour it is drawn in) and painter options (see ObjectArtConfig.wall_*). Read by
+## wall_visuals.gd.
 @export var art: String = ""
-@export var art_color: Color = Color(0.6, 0.6, 0.6)  ## Cap base color.
-@export var art_opts: Dictionary = {}  ## Painter options, e.g. { "pattern": "plaster" }.
-
+## Cap base color.
+@export var art_color: Color = Color(0.6, 0.6, 0.6)
+## Painter options, e.g. { "pattern": "plaster" }.
+@export var art_opts: Dictionary = {}
 ## The wall's own ballistic surface rating (Objects owns its surface data, same as
 ## environment_object.gd): full cover, hard to shoot through.
 @export var coverage: float = 100.0
@@ -34,26 +44,15 @@ var _seg_impacts := {}
 ## Segment index -> Array of that segment's CollisionShape2D nodes, so a damaged segment's
 ## collider can be rebuilt to follow the deformed shape. Filled in _build_walls().
 var _seg_colliders := {}
-## Segment index -> true while its deferred collider rebuild waits: the hits that land on it before that runs share it, as a
-## piece of furniture's do (each would rebuild the same pieces from the same dents).
+## Segment index -> true while its deferred collider rebuild waits: the hits that land on it before
+## that runs share it, as a piece of furniture's do (each would rebuild the same pieces from the
+## same dents).
 var _rebuild_queued := {}
-
-## The WallVisuals child, redrawn when a segment is struck (null without one).
-@onready var _visuals := get_node_or_null("WallVisuals")
-
-
 ## Segment index -> the cut queued with its rebuild (`ColliderCuts`, as a piece of furniture's).
 var _seg_cuts := {}
 
-
-## The cut of segment `i` as its dents stand now (on the main thread): a pure job (`Deformation.cut_wall`) on a copy of them.
-func _prepare_cut(i: int) -> Callable:
-	var seg: PackedVector2Array = wall_segments()[i]
-	var a := seg[0]
-	var b := seg[1]
-	var thickness := wall_thickness
-	var dents: Array = (_seg_impacts.get(i, []) as Array).duplicate(true)
-	return func() -> Array: return Deformation.cut_wall(a, b, thickness, dents)
+## The WallVisuals child, redrawn when a segment is struck (null without one).
+@onready var _visuals := get_node_or_null("WallVisuals")
 
 
 func _exit_tree() -> void:
@@ -66,7 +65,19 @@ func _ready() -> void:
 	_build_walls()
 
 
-## The wall's ballistic surface: full cover, hard to shoot through, debris in the colour its cap is drawn in.
+## The cut of segment `i` as its dents stand now (on the main thread): a pure job
+## (`Deformation.cut_wall`) on a copy of them.
+func _prepare_cut(i: int) -> Callable:
+	var seg: PackedVector2Array = wall_segments()[i]
+	var a := seg[0]
+	var b := seg[1]
+	var thickness := wall_thickness
+	var dents: Array = (_seg_impacts.get(i, []) as Array).duplicate(true)
+	return func() -> Array: return Deformation.cut_wall(a, b, thickness, dents)
+
+
+## The wall's ballistic surface: full cover, hard to shoot through, debris in the colour its cap is
+## drawn in.
 func get_surface() -> Dictionary:
 	return { "coverage": coverage, "penetration": penetration,
 		"material": "", "color": ObjectArt.drawn_color(art_color) if art != "" else art_color }
@@ -88,7 +99,12 @@ func hit_marks() -> Array:
 
 ## Dent the nearest wall segment (caving inward along the contact normal), redraw it, and
 ## rebuild that segment's collider to match.
-func _record_segment_damage(world_pos: Vector2, world_normal: Vector2, amount: float, blood: float = 0.0) -> void:
+func _record_segment_damage(
+	world_pos: Vector2,
+	world_normal: Vector2,
+	amount: float,
+	blood: float = 0.0,
+) -> void:
 	var local_pos := to_local(world_pos)
 	var segs := wall_segments()
 	var best_i := -1
@@ -116,7 +132,9 @@ func _record_segment_damage(world_pos: Vector2, world_normal: Vector2, amount: f
 		var perp := (seg[1] - seg[0]).normalized().orthogonal()
 		inward = perp if perp.dot(local_pos - size * 0.5) > 0.0 else -perp
 	var arr: Array = _seg_impacts.get(best_i, [])
-	var impact := Deformation.new_impact(local_pos, inward, amount, blood, PhysicsConfig.deform_max_depth, true)
+	var impact := Deformation.new_impact(
+		local_pos, inward, amount, blood, PhysicsConfig.deform_max_depth, true,
+	)
 	Deformation.push_impact(arr, impact, PhysicsConfig.deform_max_impacts)
 	_seg_impacts[best_i] = arr
 	if _visuals:
@@ -125,7 +143,8 @@ func _record_segment_damage(world_pos: Vector2, world_normal: Vector2, amount: f
 	# mid-physics from the projectile, when swapping shapes is disallowed).
 	if PhysicsConfig.deform_update_collider and not _rebuild_queued.has(best_i):
 		_rebuild_queued[best_i] = true
-		_seg_cuts[best_i] = ColliderCuts.queue(_prepare_cut.bind(best_i))  # cut beside the others' (see environment_object.gd)
+		# cut beside the others' (see environment_object.gd)
+		_seg_cuts[best_i] = ColliderCuts.queue(_prepare_cut.bind(best_i))
 		call_deferred("_rebuild_segment", best_i)
 
 
@@ -194,7 +213,10 @@ func _build_walls() -> void:
 		_seg_colliders[i] = [col]  # keyed by wall_segments() index for later rebuilds
 		# Its shadow: the same rect, undented (a dent is too small to show in a shadow).
 		var n := dir.orthogonal() * (t * 0.5)
-		var occ := LightMasks.occluder(PackedVector2Array([start - n, end - n, end + n, start + n]), LightMasks.WALL)
+		var occ := LightMasks.occluder(
+			PackedVector2Array([start - n, end - n, end + n, start + n]),
+			LightMasks.WALL,
+		)
 		if occ != null:
 			add_child(occ)
 
@@ -203,14 +225,17 @@ func _build_walls() -> void:
 ## collides with what's drawn. Keeps the old collider if convex decomposition fails.
 func _rebuild_segment(i: int) -> void:
 	_rebuild_queued.erase(i)
-	var made: Array = (_seg_cuts[i] as ColliderCuts).take() if _seg_cuts.has(i) else []  # [] for the one cut here
+	# [] for the one cut here
+	var made: Array = (_seg_cuts[i] as ColliderCuts).take() if _seg_cuts.has(i) else []
 	_seg_cuts.erase(i)
 	var segs := wall_segments()
 	if i < 0 or i >= segs.size():
 		return
 	var seg: PackedVector2Array = segs[i]
 	var poly := Deformation.wall_polygon(seg[0], seg[1], wall_thickness, _seg_impacts.get(i, []))
-	var shapes := Deformation.shapes_of(made[1] if not made.is_empty() and made[0] == poly else Deformation.convex_pieces(poly))
+	var shapes := Deformation.shapes_of(made[1]
+			if not made.is_empty() and made[0] == poly
+			else Deformation.convex_pieces(poly))
 	if shapes.is_empty():
 		return
 	for old in _seg_colliders.get(i, []):

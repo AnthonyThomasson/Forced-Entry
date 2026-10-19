@@ -1,22 +1,25 @@
 extends RefCounted
-
-## Composition-root helper (`main.gd`): where and how a match's NPCs are placed. Defenders go to a clear spot in a random room,
-## invaders spread around the outside of the house; each NPC is added under the match's `World` node, handed the house's rooms and
-## recorded in `combatants` (the spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
-## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the root only wires domains.
+## Composition-root helper (`main.gd`): where and how a match's NPCs are placed. Defenders go to a
+## clear spot in a random room, invaders spread around the outside of the house; each NPC is added
+## under the match's `World` node, handed the house's rooms and recorded in `combatants` (the
+## spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
+## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the
+## root only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
 ## The house invader, dropped just outside the house. Same AI, different data.
 const INVADER_SCENE := preload("res://scenes/ai/npc_invader.tscn")
-## The human's side of the entry radio: it reserves the human a slot in an AI stack near it (`docs/tactical-entry.md` E16).
+## The human's side of the entry radio: it reserves the human a slot in an AI stack near it
+## (`docs/tactical-entry.md` E16).
 const PLAYER_STACK := preload("res://scenes/ai/team/player_stack.gd")
 ## Random points tried in a room, after its centre, before `clear_spot` gives up.
 const SPAWN_TRIES := 32
 
 ## The match's `World` node the NPCs are added under.
 var world: Node2D = null
-## Minimum clearance (px) from solid furniture a character is dropped with (twice that from another combatant).
+## Minimum clearance (px) from solid furniture a character is dropped with (twice that from another
+## combatant).
 var spawn_clearance: float = 20.0
 ## How far outside the house's bounding box (px) invaders are dropped.
 var invader_margin: float = 80.0
@@ -26,9 +29,9 @@ var combatants: Array = []
 var openings: Array = []
 
 
-## Drop defender number `index` at a clear spot (`clear_spot`) in a random room. `rng` is seeded from
-## `house_seed` so a pinned layout also pins the NPCs. Added after the house, so it draws above it. `rooms`
-## is WorldGen.get_rooms(house), already fetched by the caller.
+## Drop defender number `index` at a clear spot (`clear_spot`) in a random room. `rng` is seeded
+## from `house_seed` so a pinned layout also pins the NPCs. Added after the house, so it draws above
+## it. `rooms` is WorldGen.get_rooms(house), already fetched by the caller.
 func spawn_defender(rooms: Array, rng: RandomNumberGenerator, index: int) -> void:
 	if rooms.is_empty():
 		return
@@ -36,10 +39,11 @@ func spawn_defender(rooms: Array, rng: RandomNumberGenerator, index: int) -> voi
 	add_npc(DEFENDER_SCENE, npc_name("Defender", index), clear_spot(room["rect"], rng), rooms)
 
 
-## Where a character can be dropped in room `rect`: its centre when clear, else the first clear point of
-## SPAWN_TRIES drawn from `rng` (inset from the walls). Clear = at least `spawn_clearance` from every solid
-## furniture footprint (Navigation's `furniture_holes`, read off the shapes, so it is right on the frame the
-## house is built) and twice that from every combatant already placed. The centre when nothing is clear.
+## Where a character can be dropped in room `rect`: its centre when clear, else the first clear
+## point of SPAWN_TRIES drawn from `rng` (inset from the walls). Clear = at least `spawn_clearance`
+## from every solid furniture footprint (Navigation's `furniture_holes`, read off the shapes, so it
+## is right on the frame the house is built) and twice that from every combatant already placed. The
+## centre when nothing is clear.
 func clear_spot(rect: Rect2, rng: RandomNumberGenerator) -> Vector2:
 	var holes := NavBuilder.furniture_holes(world)
 	var taken: Array = []
@@ -59,7 +63,8 @@ func clear_spot(rect: Rect2, rng: RandomNumberGenerator) -> Vector2:
 	return centre
 
 
-## Whether `p` keeps `spawn_clearance` from every footprint in `holes` and twice that from every point in `taken`.
+## Whether `p` keeps `spawn_clearance` from every footprint in `holes` and twice that from every
+## point in `taken`.
 func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 	for q in taken:
 		if p.distance_to(q) < spawn_clearance * 2.0:
@@ -68,7 +73,9 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 		if Geometry2D.is_point_in_polygon(p, poly):
 			return false
 		for i in poly.size():
-			if Geometry2D.get_closest_point_to_segment(p, poly[i], poly[(i + 1) % poly.size()]).distance_to(p) < spawn_clearance:
+			var edge_end: Vector2 = poly[(i + 1) % poly.size()]
+			var closest := Geometry2D.get_closest_point_to_segment(p, poly[i], edge_end)
+			if closest.distance_to(p) < spawn_clearance:
 				return false
 	return true
 
@@ -76,9 +83,15 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 ## Drop invader number `index` (of `count`) just outside the house (the rooms' bounding box),
 ## `invader_margin` px out. Invaders are spread evenly around the perimeter (one even fraction per
 ## index, plus a little jitter) so several attackers start on different sides and flank a shared
-## target rather than stacking on one side. `front_entranceworld` is injected so the controller heads
-## straight for the entrance rather than circling.
-func spawn_invader(rooms: Array, rng: RandomNumberGenerator, index: int, count: int, front_entranceworld: Vector2) -> void:
+## target rather than stacking on one side. `front_entranceworld` is injected so the controller
+## heads straight for the entrance rather than circling.
+func spawn_invader(
+	rooms: Array,
+	rng: RandomNumberGenerator,
+	index: int,
+	count: int,
+	front_entranceworld: Vector2,
+) -> void:
 	if rooms.is_empty():
 		return
 	var bounds: Rect2 = rooms[0]["rect"]
@@ -86,7 +99,13 @@ func spawn_invader(rooms: Array, rng: RandomNumberGenerator, index: int, count: 
 		bounds = bounds.merge(room["rect"])
 	bounds = bounds.grow(invader_margin)
 	var frac := fposmod((index + 0.5) / maxi(count, 1) + rng.randf_range(-0.05, 0.05), 1.0)
-	add_npc(INVADER_SCENE, npc_name("Invader", index), perimeter_point(bounds, frac), rooms, front_entranceworld)
+	add_npc(
+		INVADER_SCENE,
+		npc_name("Invader", index),
+		perimeter_point(bounds, frac),
+		rooms,
+		front_entranceworld,
+	)
 
 
 ## A point at fraction `frac` (0..1, clockwise from the top-left) around the perimeter of `rect`.
@@ -107,12 +126,18 @@ func npc_name(base: String, index: int) -> String:
 	return base if index == 0 else "%s %d" % [base, index + 1]
 
 
-## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms and optional
-## entry point, and record it as a combatant (for the spectator camera + match HUD). It joins the `World`
-## node; `_arm_characters` gives it its weapon afterwards. It is positioned BEFORE it joins the tree: a body
-## added at the world origin and moved afterwards overlaps whatever stands there for a moment, and the
-## physics launches that piece (or the NPC) across the map.
-func add_npc(scene: PackedScene, node_name: String, pos: Vector2, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> void:
+## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms and
+## optional entry point, and record it as a combatant (for the spectator camera + match HUD). It
+## joins the `World` node; `_arm_characters` gives it its weapon afterwards. It is positioned BEFORE
+## it joins the tree: a body added at the world origin and moved afterwards overlaps whatever stands
+## there for a moment, and the physics launches that piece (or the NPC) across the map.
+func add_npc(
+	scene: PackedScene,
+	node_name: String,
+	pos: Vector2,
+	rooms: Array,
+	entry_point: Vector2 = Vector2.ZERO,
+) -> void:
 	var npc := scene.instantiate()
 	npc.name = node_name
 	npc.position = world.to_local(pos)
@@ -121,11 +146,11 @@ func add_npc(scene: PackedScene, node_name: String, pos: Vector2, rooms: Array, 
 	combatants.append(npc)
 
 
-## Wire an NPC's controller to the world: hand it the house's `rooms` (world-space rects), its `openings`
-## (the doorways, for tactical entry) and, when given, an `entry_point` the NPC heads for first while
-## outside all rooms. Found by the group `npc_controllers` the AI controller joins (interface 7) — so
-## Main doesn't depend on the controller's node name. This keeps the World-Gen boundary in Main: the AI
-## never calls WorldGen.
+## Wire an NPC's controller to the world: hand it the house's `rooms` (world-space rects), its
+## `openings` (the doorways, for tactical entry) and, when given, an `entry_point` the NPC heads for
+## first while outside all rooms. Found by the group `npc_controllers` the AI controller joins
+## (interface 7) — so Main doesn't depend on the controller's node name. This keeps the World-Gen
+## boundary in Main: the AI never calls WorldGen.
 func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> void:
 	for child in npc.get_children():
 		if child.is_in_group(&"npc_controllers"):
@@ -136,8 +161,9 @@ func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> v
 			return
 
 
-## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc` hands it the house: an NPC's controller's
-## `squad`, found by the same `npc_controllers` group, and the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
+## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc`
+## hands it the house: an NPC's controller's `squad`, found by the same `npc_controllers` group, and
+## the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17).
 func bind_squad(npc: Node, squad: Node, stack: Node = null) -> void:
 	if stack != null and "squad" in stack:
 		stack.squad = squad
@@ -147,8 +173,9 @@ func bind_squad(npc: Node, squad: Node, stack: Node = null) -> void:
 			return
 
 
-## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's controller, found by the
-## `npc_controllers` group (0 with no NPC among them). Main hands it to the side's squad (`Squad.setup`), which keeps its members' entry claims as long.
+## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's
+## controller, found by the `npc_controllers` group (0 with no NPC among them). Main hands it to the
+## side's squad (`Squad.setup`), which keeps its members' entry claims as long.
 func callout_ttl_of(members: Array) -> float:
 	for m in members:
 		if not (m is Node and is_instance_valid(m)):
@@ -159,7 +186,7 @@ func callout_ttl_of(members: Array) -> float:
 	return 0.0
 
 
-## Give the human the stack radio, as `bind_npc` hands an NPC its doorways: a `PlayerStack` child of `player` that knows the
-## house's `rooms` and `openings`. Returned, for the stack markers to watch.
+## Give the human the stack radio, as `bind_npc` hands an NPC its doorways: a `PlayerStack` child of
+## `player` that knows the house's `rooms` and `openings`. Returned, for the stack markers to watch.
 func bind_player(player: Node, rooms: Array) -> Node:
 	return PLAYER_STACK.attach(player, rooms, openings)

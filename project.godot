@@ -35,4 +35,12 @@ project/assembly_name="Example_Godot"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/ticket_autorun/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/ticket_autorun/plugin.cfg")
+
+[gdunit4]
+
+hooks/session_hooks=PackedStringArray("res://scenes/testing/test_report_hook.gd")
+report/godot/script_error=false
+settings/test/test_lookup_folder="tests"
+settings/test/test_discovery=true
+ui/toolbar/run_overall=true

@@ -22,7 +22,7 @@ done
 [[ "$jobs" == "auto" ]] && jobs=2
 pids=()
 for ((i = 0; i < jobs; i++)); do
-  "$GODOT" --headless --path . --fixed-fps 60 res://scenes/testing/test_runner.tscn -- --run-tests \
+  "$GODOT" --headless --path . --fixed-fps 60 res://scenes/testing/test_runner.tscn -- \
     ${pass[@]+"${pass[@]}"} --shard="$i/$jobs" &
   pids+=($!)
 done

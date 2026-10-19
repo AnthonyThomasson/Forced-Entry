@@ -1,12 +1,13 @@
 extends GameTest
-
-## A reload is refused while running and cancelled by running or dying; a reloading character cannot shoot.
+## A reload is refused while running and cancelled by running or dying; a reloading character cannot
+## shoot.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "Reload is blocked by running and cancelled by death",
-		"description": "R is ignored while running; a reload stops when the character runs or dies; shooting is ignored mid-reload.",
+		"description": "R is ignored while running; a reload stops when the character runs or "
+			+ "dies; shooting is ignored mid-reload.",
 		"tags": ["reload", "run", "death", "pistol"],
 		"timeout": 10.0,
 	}

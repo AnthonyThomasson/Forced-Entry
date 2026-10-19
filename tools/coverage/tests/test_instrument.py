@@ -30,7 +30,7 @@ What the fixture holds, and why each form is expected to be instrumented exactly
     one reached only through `call("_by_name")`: both must count.
   - The hook surfaces the probe uses on the real game, in the same places: Main's `endless_time_limit`, the
     SetupMenu's `start_requested(config)`, the MatchHUD's `match_ended(verdict)`, and scenes/testing/test_runner.gd's
-    `_entry` and `_ctx` (`is_finished`, the signal `finished`).
+    `open_entry` and `open_ctx` (`is_finished`, the signal `finished`).
 
 The Godot tests (needs_godot) play one Watch match of seed 100 through the fixture repo's own tools/coverage.py and
 compare the run folder's map.json and hits.json with the expected hits.

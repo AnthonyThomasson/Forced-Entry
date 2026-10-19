@@ -1,10 +1,10 @@
 extends GameTest
-
-## O13 (docs/outfits.md): the spectator inspector lists what the NPC it has selected wears: each garment by name (as
-## `outfit_view()` names it) and each plate by name (as `LoadoutConfig.outfit_options()` labels it) with its condition as a
-## percentage. Nothing is listed before an NPC is clicked, nor after a click on empty ground clears the selection. The clicks are
-## real mouse input at a world point's place on screen (once the framing camera has settled); the NPC's vision overlay turning
-## on shows the click selected it.
+## O13 (docs/outfits.md): the spectator inspector lists what the NPC it has selected wears: each
+## garment by name (as `outfit_view()` names it) and each plate by name (as
+## `LoadoutConfig.outfit_options()` labels it) with its condition as a percentage. Nothing is listed
+## before an NPC is clicked, nor after a click on empty ground clears the selection. The clicks are
+## real mouse input at a world point's place on screen (once the framing camera has settled); the
+## NPC's vision overlay turning on shows the click selected it.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const Inspector := preload("res://scenes/ui/hud/spectator_inspector.gd")
@@ -13,15 +13,17 @@ const AT := Vector2(450, 250)
 ## Empty ground, far from the NPC: a click there clears the selection.
 const GROUND := Vector2(150, 420)
 const KIT := {
-	"head": &"helmet", "body": &"shirt", "vest": &"plate_carrier", "pants": &"tactical_pants", "feet": &"boots",
-	"front_plate": &"ceramic_iv", "back_plate": &"steel_iii",
+	"head": &"helmet", "body": &"shirt", "vest": &"plate_carrier", "pants": &"tactical_pants",
+	"feet": &"boots", "front_plate": &"ceramic_iv", "back_plate": &"steel_iii",
 }
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "The spectator inspector lists the selected NPC's outfit",
-		"description": "Clicking an NPC in a helmet, shirt, plate carrier (ceramic front, steel back), tactical pants and boots lists every garment and both plates with their condition; clicking empty ground hides the list.",
+		"description": "Clicking an NPC in a helmet, shirt, plate carrier (ceramic front, steel "
+			+ "back), tactical pants and boots lists every garment and both plates with their "
+			+ "condition; clicking empty ground hides the list.",
 		"tags": ["outfit", "ui", "inspector", "spectator"],
 		"timeout": 6.0,
 	}
@@ -40,13 +42,17 @@ func run(t: TestContext) -> void:
 	var npc := t.actor(&"npc")
 	if not OutfitProbe.require_api(t, npc):
 		return
-	if not t.require(not OutfitProbe.options().is_empty(), "LoadoutConfig.outfit_options() names the plates (docs/outfits.md O11)"):
+	if not t.require(
+			not OutfitProbe.options().is_empty(),
+			"LoadoutConfig.outfit_options() names the plates (docs/outfits.md O11)",
+	):
 		return
 	OutfitProbe.wear(npc, KIT)
 	var inspector := CanvasLayer.new()
 	inspector.set_script(Inspector)
 	t.world.add_child(inspector)
-	inspector.call("setup", [npc], { "show_vision": true }, OverlayToggles.RESERVED_WIDTH)  # the width Main hands it
+	# the width Main hands it
+	inspector.call("setup", [npc], { "show_vision": true }, OverlayToggles.RESERVED_WIDTH)
 	await t.seconds(1.5)  # the framing camera settles, so a point's place on screen holds still
 
 	var names: Array[String] = []
@@ -56,7 +62,10 @@ func run(t: TestContext) -> void:
 	for side: String in ["front_plate", "back_plate"]:
 		names.append(OutfitProbe.label_of(side, KIT[side]))
 	t.check(not names.has(""), "every garment and plate has a name to show (%s)" % [names])
-	t.check(names.all(func(n): return not _shown(inspector).contains(n)), "nothing is listed before an NPC is selected")
+	t.check(
+		names.all(func(n): return not _shown(inspector).contains(n)),
+		"nothing is listed before an NPC is selected",
+	)
 
 	await _click(t, npc.global_position)
 	if not t.require(_vision_on(npc), "the click selects the NPC (its vision overlay is on)"):

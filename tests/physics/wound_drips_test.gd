@@ -1,8 +1,7 @@
 extends GameTest
-
 ## A hit on a sturdy character sprays splatters at once, then the wound drips: each BloodSplat after
-## the spray lands 3..10 s after the one before (BloodConfig.drip_interval_min/max), and the drips stop
-## once the hit's budget (damage * drips_per_damage) is spent.
+## the spray lands 3..10 s after the one before (BloodConfig.drip_interval_min/max), and the drips
+## stop once the hit's budget (damage * drips_per_damage) is spent.
 
 const HIT_DAMAGE := 10.0  # 2 spray splatters, 2 drips
 
@@ -10,7 +9,8 @@ const HIT_DAMAGE := 10.0  # 2 spray splatters, 2 drips
 func describe() -> Dictionary:
 	return {
 		"name": "A wound sprays, then drips every 3 to 10 seconds",
-		"description": "A hit throws an immediate splatter spray, then drops of blood land 3 to 10 s apart until the wound's drip budget is spent.",
+		"description": "A hit throws an immediate splatter spray, then drops of blood land 3 to 10 "
+			+ "s apart until the wound's drip budget is spent.",
 		"tags": ["blood", "wound", "drip", "splat"],
 		"timeout": 40.0,
 	}
@@ -48,13 +48,19 @@ func run(t: TestContext) -> void:
 		while seen < now:
 			times.append(t.time)
 			seen += 1
-	if not t.require(times.size() == drips_wanted, "the wound drips %d times (saw %d)" % [drips_wanted, times.size()]):
+	if not t.require(
+			times.size() == drips_wanted,
+			"the wound drips %d times (saw %d)" % [drips_wanted, times.size()],
+	):
 		return
 	var previous := hit_time
 	for i in times.size():
 		var gap: float = times[i] - previous
-		t.check(gap >= BloodConfig.drip_interval_min - 0.1 and gap <= BloodConfig.drip_interval_max + 0.1,
-			"drip %d lands %.1fs after the last (3..10 s)" % [i + 1, gap])
+		t.check(
+			gap >= BloodConfig.drip_interval_min - 0.1
+				and gap <= BloodConfig.drip_interval_max + 0.1,
+			"drip %d lands %.1fs after the last (3..10 s)" % [i + 1, gap],
+		)
 		previous = times[i]
 
 	var count: int = t.spawned("BloodSplat").size()

@@ -1,5 +1,4 @@
 class_name FistsItem extends Item
-
 ## Items domain: both fists. F throws a punch, alternating hands each press (the alternation state
 ## lives here, in the item). No secondary action.
 

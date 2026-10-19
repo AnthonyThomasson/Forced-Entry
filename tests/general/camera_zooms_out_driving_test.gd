@@ -1,12 +1,12 @@
 extends GameTest
-
-## V8 (ticket #54): the camera follows the character, which the seat carries; while it drives, the zoom eases out with the
-## vehicle's speed (further the faster) and back in when it slows. Seated in a parked car the zoom is the on-foot one.
+## V8 (ticket #54): the camera follows the character, which the seat carries; while it drives, the
+## zoom eases out with the vehicle's speed (further the faster) and back in when it slows. Seated in
+## a parked car the zoom is the on-foot one.
 
 const CameraController = preload("res://scenes/general/camera_controller.gd")
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
-## The two cruising speeds (px/s), fixed numbers in reach of the car whatever its top speed and well apart (the zoom
-## follows speed over top speed).
+## The two cruising speeds (px/s), fixed numbers in reach of the car whatever its top speed and well
+## apart (the zoom follows speed over top speed).
 const MID_SPEED := 160.0
 const FAST_SPEED := 320.0
 
@@ -14,7 +14,9 @@ const FAST_SPEED := 320.0
 func describe() -> Dictionary:
 	return {
 		"name": "The camera zooms out while driving",
-		"description": "A camera following the driver: the on-foot zoom while parked, zoomed out at 160 px/s and further at 320 px/s, back to the on-foot zoom once stopped; it keeps following the driver.",
+		"description": "A camera following the driver: the on-foot zoom while parked, zoomed out "
+			+ "at 160 px/s and further at 320 px/s, back to the on-foot zoom once stopped; it "
+			+ "keeps following the driver.",
 		"tags": ["camera", "zoom", "vehicle", "drive"],
 		"timeout": 45.0,
 	}
@@ -47,7 +49,8 @@ func run(t: TestContext) -> void:
 	cam.set_script(CameraController)
 	cam.target_path = ^"../me"
 	t.world.add_child(cam)
-	cam.make_current()  # only the current camera updates its screen centre, which the follow check reads
+	# only the current camera updates its screen centre, which the follow check reads
+	cam.make_current()
 	await t.seconds(1.5)
 	var on_foot := cam.zoom.x
 
@@ -58,9 +61,16 @@ func run(t: TestContext) -> void:
 
 	var mid := await _cruise(t, car, cam, MID_SPEED, 1.5)
 	var fast := await _cruise(t, car, cam, FAST_SPEED, 1.5)
-	t.check(mid < on_foot - 0.01, "driving, the camera zooms out (%.3f at %.0f px/s, %.3f on foot)" % [mid, MID_SPEED, on_foot])
+	t.check(
+		mid < on_foot - 0.01,
+		"driving, the camera zooms out (%.3f at %.0f px/s, %.3f on foot)"
+			% [mid, MID_SPEED, on_foot],
+	)
 	t.check(fast < mid - 0.01, "further the faster (%.3f at %.0f px/s)" % [fast, FAST_SPEED])
-	t.check(cam.get_screen_center_position().distance_to(me.global_position) < 200.0, "and keeps following the driver the seat carries")
+	t.check(
+		cam.get_screen_center_position().distance_to(me.global_position) < 200.0,
+		"and keeps following the driver the seat carries",
+	)
 
 	t.puppet(&"me").drive(-1.0, 0.0, false)
 	await t.until(func(): return Probe.along(car) <= 2.0, 8.0)

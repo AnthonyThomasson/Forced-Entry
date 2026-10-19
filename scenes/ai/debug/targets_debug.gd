@@ -1,19 +1,18 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
-
-## AI domain, debug: where a move / interact / hold is actually going. The requested destination versus
-## the navmesh-snapped point it really steers to (red when the nav agent says the target is unreachable),
-## the room a room-entry move is waiting to enter, the object an interact walks to or uses (with the
-## dwell countdown), the hostile a hold watches, and the leads it has already checked. Reads the
-## controller's `debug_combat()` and `debug_memory()` only.
-
-## Whether to draw the targets overlay.
-@export var show_targets: bool = false
+## AI domain, debug: where a move / interact / hold is actually going. The requested destination
+## versus the navmesh-snapped point it really steers to (red when the nav agent says the target is
+## unreachable), the room a room-entry move is waiting to enter, the object an interact walks to or
+## uses (with the dwell countdown), the hostile a hold watches, and the leads it has already
+## checked. Reads the controller's `debug_combat()` and `debug_memory()` only.
 
 const REQUESTED := Color(0.8, 0.8, 0.8)
 const SNAPPED := Color(0.4, 0.9, 0.9)
 const UNREACHABLE := Color(1.0, 0.3, 0.3)
 const OBJECT := Color(1.0, 0.85, 0.3)
 const WATCH := Color(0.8, 0.5, 1.0)
+
+## Whether to draw the targets overlay.
+@export var show_targets: bool = false
 
 
 ## Whether this overlay's toggle is on.
@@ -50,7 +49,12 @@ func _paint() -> void:
 		_line(me, obj, Color(OBJECT, 0.6), 1.5)
 		_ring(obj, 14.0, OBJECT, 2.0)
 		if c["in_interaction"]:
-			_timer_arc(obj, 19.0, c["interaction_timer"] / maxf(c["interaction_dwell"], 0.01), OBJECT)
+			_timer_arc(
+				obj,
+				19.0,
+				c["interaction_timer"] / maxf(c["interaction_dwell"], 0.01),
+				OBJECT,
+			)
 			_label(obj, "using %.1fs" % c["interaction_timer"], OBJECT, Vector2(20, 4))
 		else:
 			_label(obj, "walking to use", OBJECT, Vector2(20, 4))

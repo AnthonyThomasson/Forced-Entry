@@ -1,12 +1,15 @@
 extends Node
+## UI domain, drag-to-move helper: add it as a child of any Control and left-click-drag that Control
+## (the handle) to move `target` (a panel anchored to a screen edge), keeping `target` fully inside
+## the viewport. Moves the target by shifting its offsets, so its anchors (and so its place on
+## window resize) are kept.
 
-## UI domain, drag-to-move helper: add it as a child of any Control and left-click-drag that Control (the
-## handle) to move `target` (a panel anchored to a screen edge), keeping `target` fully inside the viewport.
-## Moves the target by shifting its offsets, so its anchors (and so its place on window resize) are kept.
-
-var _handle: Control     ## The Control the drag is started on (this node's parent).
-var _target: Control     ## The panel the drag moves.
-var _dragging := false   ## Whether the left button is held down on the handle.
+## The Control the drag is started on (this node's parent).
+var _handle: Control
+## The panel the drag moves.
+var _target: Control
+## Whether the left button is held down on the handle.
+var _dragging := false
 
 
 ## Make `handle` (this node's parent) drag `target`.

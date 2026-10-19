@@ -1,5 +1,4 @@
 extends Node2D
-
 ## Character HANDS layer. Owns the hand geometry (collision-resolved so hands rest on
 ## walls/objects), the punch animation (a tween per swing) and the punch hit detection
 ## (a shape query at the fist's raw punch position). The character sets `facing` and calls
@@ -8,15 +7,27 @@ extends Node2D
 ## swing it is told to. The rest pose follows the character's pose (the stance the held item asks
 ## for, trailing the aim, swinging with the walk, kicked back by recoil).
 
-## Hand geometry (all in pixels, in the character's local space).
-@export var hand_radius: float = 4.0      ## Size of each hand circle.
-## Gap between the body edge and where a punch's reach starts: a full swing lands the fist
-## `punch_gap + reach` beyond the body edge, wherever the hand rests (its stance).
-@export var punch_gap: float = 5.5
-
 ## Emitted when the extended fist overlaps a body. `hand_index` is 0 (left) or 1 (right);
 ## `damage` is the range-of-motion-scaled punch damage dealt (0 at point-blank, up at full reach).
 signal punched(hand_index: int, body: Node, damage: float)
+
+## Physics layers the hands collide with: the solid layer, where walls, furniture and bodies sit.
+const HAND_MASK := PhysicsLayers.SOLID
+## The collide-and-slide a hand makes toward where the pose wants it (shared with the legs).
+const Sweep = preload("res://scenes/character/body/body_sweep.gd")
+## The melee strike a punch lands (shared with the kick).
+const Strike = preload("res://scenes/character/body/body_strike.gd")
+## Punch tween durations (s): the fist extends, then retracts. The extend time also
+## normalizes the swing-speed factor, so a full-speed extend counts as a full-power hit.
+const PUNCH_EXTEND_TIME := 0.07
+const PUNCH_RETRACT_TIME := 0.11
+
+## Hand geometry (all in pixels, in the character's local space).
+## Size of each hand circle.
+@export var hand_radius: float = 4.0
+## Gap between the body edge and where a punch's reach starts: a full swing lands the fist
+## `punch_gap + reach` beyond the body edge, wherever the hand rests (its stance).
+@export var punch_gap: float = 5.5
 
 ## Facing unit vector, set by the character each frame.
 var facing := Vector2.RIGHT
@@ -32,27 +43,18 @@ var _current_reach := 28.0
 ## Per-hand collision-resolved local positions, recomputed each physics frame so the hands
 ## rest against walls/objects instead of clipping through. Read via hand_position().
 var _hand_pos := [Vector2.ZERO, Vector2.ZERO]
-
-## Physics layers the hands collide with: the solid layer, where walls, furniture and bodies sit.
-const HAND_MASK := PhysicsLayers.SOLID
-## The collide-and-slide a hand makes toward where the pose wants it (shared with the legs).
-const Sweep = preload("res://scenes/character/body/body_sweep.gd")
-## The melee strike a punch lands (shared with the kick).
-const Strike = preload("res://scenes/character/body/body_strike.gd")
-
-## Punch tween durations (s): the fist extends, then retracts. The extend time also
-## normalizes the swing-speed factor, so a full-speed extend counts as a full-power hit.
-const PUNCH_EXTEND_TIME := 0.07
-const PUNCH_RETRACT_TIME := 0.11
 ## The held weapon's tempo (1 = a fist's) for the swing under way: it stretches both times.
 var _tempo := 1.0
-
 ## Hit-detection state for the current swing.
-var _attack_active := false   ## True for the whole swing (extend + retract); gates hit polling.
-var _active_hand := 0         ## Hand the fist is tracking this swing.
-var _hit_bodies := {}         ## Bodies already reported this swing (dedup).
+## True for the whole swing (extend + retract); gates hit polling.
+var _attack_active := false
+## Hand the fist is tracking this swing.
+var _active_hand := 0
+## Bodies already reported this swing (dedup).
+var _hit_bodies := {}
 
-@onready var _character := get_parent()  ## Character (CharacterBody2D) — body radius + held item.
+## Character (CharacterBody2D) — body radius + held item.
+@onready var _character := get_parent()
 
 
 func _ready() -> void:
@@ -67,7 +69,8 @@ func _physics_process(delta: float) -> void:
 	# Track the current reach from the held item.
 	var item: Item = _character.current_item()
 	if item:
-		_current_reach = maxf(item.reach - item.strike_forward() - item.strike_short(), 0.0)  # A butt makes up the rest.
+		# A butt makes up the rest.
+		_current_reach = maxf(item.reach - item.strike_forward() - item.strike_short(), 0.0)
 
 	# Estimate each hand's extension speed (units/s) for the range-of-motion punch factor,
 	# then resolve each hand against walls/objects so it rests on the surface, not clipping.
@@ -86,9 +89,10 @@ func punch_amounts() -> Array:
 	return _punch.duplicate()
 
 
-## How far from world point `from`, along unit `dir`, the first wall or solid object lies, or `INF` when
-## nothing is within `max_len`. Other characters do not count (a gun held against a person is not held against
-## a wall), nor the body itself. A weapon's barrel asks this to know whether it touches something.
+## How far from world point `from`, along unit `dir`, the first wall or solid object lies, or `INF`
+## when nothing is within `max_len`. Other characters do not count (a gun held against a person is
+## not held against a wall), nor the body itself. A weapon's barrel asks this to know whether it
+## touches something.
 func solid_distance(from: Vector2, dir: Vector2, max_len: float) -> float:
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(from, from + dir * max_len, HAND_MASK)
@@ -110,7 +114,8 @@ func is_attacking() -> bool:
 	return _attack_active
 
 
-## Local-space center of a hand (0 = the character's right as drawn, 1 = the left): the collision-resolved position.
+## Local-space center of a hand (0 = the character's right as drawn, 1 = the left): the
+## collision-resolved position.
 func hand_position(hand: int) -> Vector2:
 	return _hand_pos[hand]
 
@@ -122,17 +127,26 @@ func punch_amount(hand: int) -> float:
 
 ## The hand's ideal local position, before any wall/object collision is applied: its rest pose
 ## in the pose's frame for that hand (its stance, which trails and swings around the aim), then the
-## punch extension straight along `facing`, far enough to land `punch_gap + reach` beyond the body edge.
+## punch extension straight along `facing`, far enough to land `punch_gap + reach` beyond the body
+## edge.
 func _raw_hand_position(hand: int) -> Vector2:
 	var raw := _stance_hand_position(hand)
-	# A long gun swung butt first is held in both hands: the other hand grips on along the barrel as it turns.
+	# A long gun swung butt first is held in both hands: the other hand grips on along the barrel as
+	# it turns.
 	var item: Item = _character.current_item()
 	if item and item.strike_support_gap() != 0.0 and hand != item.weapon_hand():
 		var thrown: float = _punch[item.weapon_hand()]
 		if thrown > 0.0:
-			var barrel := item.strike_direction(Vector2.from_angle(_character.pose.weapon_angle), thrown)
-			# Gripping at once (not eased in with the swing), or the hand would cut across the weapon hand's path.
-			raw = raw.lerp(_stance_hand_position(item.weapon_hand()) + barrel * item.strike_support_gap(), smoothstep(0.0, 0.1, thrown))
+			var barrel := item.strike_direction(
+				Vector2.from_angle(_character.pose.weapon_angle),
+				thrown,
+			)
+			# Gripping at once (not eased in with the swing), or the hand would cut across the
+			# weapon hand's path.
+			raw = raw.lerp(
+				_stance_hand_position(item.weapon_hand()) + barrel * item.strike_support_gap(),
+				smoothstep(0.0, 0.1, thrown),
+			)
 	return raw
 
 
@@ -145,15 +159,23 @@ func _stance_hand_position(hand: int) -> Vector2:
 	var lateral: float = pose.rest_lateral(hand)
 	var rest := along * forward + along.orthogonal() * (lateral * side)
 	rest += pose.hand_offset(hand)
-	var swing := maxf(_character.radius + hand_radius + punch_gap + _current_reach - forward, 0.0)  # Rest pose → full extension.
+	# Rest pose → full extension.
+	var swing := maxf(_character.radius + hand_radius + punch_gap + _current_reach - forward, 0.0)
 	return rest + facing * (swing * _punch[hand])
 
 
-## Where the hand rests, as a local offset: its raw target when the way from the body centre is clear, else
-## against the first wall or solid object, slid along it for what is left (`body_sweep.gd`).
+## Where the hand rests, as a local offset: its raw target when the way from the body centre is
+## clear, else against the first wall or solid object, slid along it for what is left
+## (`body_sweep.gd`).
 func _resolve_hand(hand: int) -> Vector2:
 	var space := get_world_2d().direct_space_state
-	return Sweep.circle(space, _character.global_position, _raw_hand_position(hand), hand_radius, [_character.get_rid()])
+	return Sweep.circle(
+		space,
+		_character.global_position,
+		_raw_hand_position(hand),
+		hand_radius,
+		[_character.get_rid()],
+	)
 
 
 ## Throw the given hand forward, then retract it. The Item decides which hand and gates it.
@@ -194,7 +216,8 @@ func _report_hits() -> void:
 	var end := Vector2.ZERO
 	var item: Item = _character.current_item()
 	if item and _active_hand == item.weapon_hand():
-		end = item.strike_end(facing, _punch[_active_hand])  # The butt, once it is ahead of the hand.
+		# The butt, once it is ahead of the hand.
+		end = item.strike_end(facing, _punch[_active_hand])
 		if end.dot(facing) <= 0.0:
 			end = Vector2.ZERO
 	var fist: Vector2 = _character.global_position + _raw_hand_position(_active_hand) + end

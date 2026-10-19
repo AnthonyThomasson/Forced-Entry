@@ -1,14 +1,13 @@
 extends RefCounted
-
-## Character FOOTSTEPS (Character domain, animate layer): spots the instant each foot lands in the walk
-## cycle. It reports the sole to the Physics domain's BloodFootprints, which decides whether it prints blood, and
-## posts a `footfall` event on the EventBus (the Audio domain makes the step). A foot lands when its lift
-## (max(-cos(phase), 0), see character_rig.gd) returns to the floor, i.e. cos(phase) rises through zero, at the forward
-## end of its stride. Stepped by character.gd after the pose each physics frame; one rig solve per footfall, none
-## otherwise. The event says whose step it is (`character`) and its gait (`running`, `crouched`), which the AI hears by.
+## Character FOOTSTEPS (Character domain, animate layer): spots the instant each foot lands in the
+## walk cycle. It reports the sole to the Physics domain's BloodFootprints, which decides whether it
+## prints blood, and posts a `footfall` event on the EventBus (the Audio domain makes the step). A
+## foot lands when its lift (max(-cos(phase), 0), see character_rig.gd) returns to the floor, i.e.
+## cos(phase) rises through zero, at the forward end of its stride. Stepped by character.gd after
+## the pose each physics frame; one rig solve per footfall, none otherwise. The event says whose
+## step it is (`character`) and its gait (`running`, `crouched`), which the AI hears by.
 
 const CharacterRig = preload("res://scenes/character/body/character_rig.gd")
-
 ## Below this walk amount (0..1) a shuffle makes no steps.
 const MIN_WALK := 0.2
 
@@ -42,7 +41,13 @@ func _report(character, footprints: BloodFootprints, foot: int) -> void:
 	var inner := 1.0 if foot == 0 else -1.0
 	var speed: float = character.get_real_velocity().length()
 	footprints.step(foot, at, dir, length, width, inner, speed)
-	# The footfall itself, for whoever listens (the Audio domain picks the sound from the floor it lands on; the AI hears whose it is
-	# and how it was walked: running carries far, a crouched step hardly at all).
-	EventBus.post(&"footfall", { "position": at, "foot": foot, "speed": speed, "running": character.is_running(),
-		"character": character, "crouched": character.posture() == &"crouch" })
+	# The footfall itself, for whoever listens (the Audio domain picks the sound from the floor it
+	# lands on; the AI hears whose it is and how it was walked: running carries far, a crouched step
+	# hardly at all).
+	EventBus.post(
+		&"footfall",
+		{
+			"position": at, "foot": foot, "speed": speed, "running": character.is_running(),
+			"character": character, "crouched": character.posture() == &"crouch",
+		},
+	)

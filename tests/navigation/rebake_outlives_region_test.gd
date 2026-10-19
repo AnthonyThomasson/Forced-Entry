@@ -1,14 +1,15 @@
 extends GameTest
-
-## A re-bake still in flight when its region is freed (a world torn down mid-bake: a test ending, a match restarting)
-## lands quietly: `NavBuilder.rebake_async` leaves the freed region alone and still calls `done`, with no engine error
-## (a callback that held the freed region logged one into whatever ran next).
+## A re-bake still in flight when its region is freed (a world torn down mid-bake: a test ending, a
+## match restarting) lands quietly: `NavBuilder.rebake_async` leaves the freed region alone and
+## still calls `done`, with no engine error (a callback that held the freed region logged one into
+## whatever ran next).
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "A re-bake outlives its freed region",
-		"description": "rebake_async on a region freed before the bake lands calls back without logging an engine error.",
+		"description": "rebake_async on a region freed before the bake lands calls back without "
+			+ "logging an engine error.",
 		"tags": ["navigation", "bake", "rebake"],
 		"timeout": 10.0,
 	}
@@ -27,5 +28,8 @@ func run(t: TestContext) -> void:
 	NavBuilder.rebake_async(region, t.world.house, t.rooms, 14.0, func() -> void: landed[0] = true)
 	t.check(not landed[0], "the bake is still in flight when it returns")
 	region.free()
-	t.check(await t.until(func(): return landed[0], 5.0), "the bake lands and calls back after its region is freed")
+	t.check(
+		await t.until(func(): return landed[0], 5.0),
+		"the bake lands and calls back after its region is freed",
+	)
 	await t.frames(2)

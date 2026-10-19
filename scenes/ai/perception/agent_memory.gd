@@ -1,47 +1,49 @@
 extends RefCounted
-
 ## AI domain: a generic, behaviour-agnostic memory for a non-player agent. It is an event log — an
 ## ordered list of remembered events, each a `topic` (what happened) with free-form `data` and a
-## lifetime. Many events coexist, including many of the same topic; nothing is capped per topic. Ages and lifetimes
-## run on the pausable game clock (`GameClock`), so a pause of the tree expires nothing.
-## Behaviours (the controller) write events with `remember()` and read them back by topic to drive
-## decisions; the perception renders fresh events into the decision state. It holds NO policy — it
-## does not know what any topic means, beyond naming the reads of the two the whole perception asks about
-## (`under_fire()` / `under_fire_from()`, `engaged()`).
+## lifetime. Many events coexist, including many of the same topic; nothing is capped per topic.
+## Ages and lifetimes run on the pausable game clock (`GameClock`), so a pause of the tree expires
+## nothing. Behaviours (the controller) write events with `remember()` and read them back by topic
+## to drive decisions; the perception renders fresh events into the decision state. It holds NO
+## policy — it does not know what any topic means, beyond naming the reads of the two the whole
+## perception asks about (`under_fire()` / `under_fire_from()`, `engaged()`).
 ##
-## Cleanup is a configurable policy, not a per-topic limit: `capacity` caps the total stored. Eviction
-## runs on every write: age-expired events are dropped first, then, if still over capacity, the
-## oldest EXPIRABLE event (one with a positive ttl). Permanent events (ttl <= 0 — long-term facts
-## like learned house knowledge) never age out and are never volume-evicted. So memory self-cleans
-## its volatile events by age and by volume, both tunable per NPC, while keeping what it has learned.
+## Cleanup is a configurable policy, not a per-topic limit: `capacity` caps the total stored.
+## Eviction runs on every write: age-expired events are dropped first, then, if still over capacity,
+## the oldest EXPIRABLE event (one with a positive ttl). Permanent events (ttl <= 0 — long-term
+## facts like learned house knowledge) never age out and are never volume-evicted. So memory
+## self-cleans its volatile events by age and by volume, both tunable per NPC, while keeping what it
+## has learned.
 ##
 ## A write may name a `key` (the event's SUBJECT — a character id, a room key): it then supersedes
-## the live event with the same topic + key instead of piling up beside it. Something re-observed every
-## tick (a visible character) stays one entry per subject rather than flooding the log and volume-
-## evicting every other expirable event. Unkeyed writes always append.
+## the live event with the same topic + key instead of piling up beside it. Something re-observed
+## every tick (a visible character) stays one entry per subject rather than flooding the log and
+## volume- evicting every other expirable event. Unkeyed writes always append.
 ##
-## The log is kept as one list per topic, each in the order its events were written, and every event carries
-## its write order across topics (`seq`). A write or a read touches only the lists of the topic it names, not
-## every event stored, and the order the log promises (newest first, oldest evicted first) is the `seq` order.
+## The log is kept as one list per topic, each in the order its events were written, and every event
+## carries its write order across topics (`seq`). A write or a read touches only the lists of the
+## topic it names, not every event stored, and the order the log promises (newest first, oldest
+## evicted first) is the `seq` order.
 
 ## Hard cap on total stored events; the oldest are evicted past it. <= 0 = unlimited.
 var capacity: int = 128
-
-## The stored events by topic, each list oldest first. An entry is `{ topic, key, data, at, ttl, seq }` (`at` in game msec, `GameClock.msec()`,
-## `ttl` in s, `seq` the write order across all topics).
+## The stored events by topic, each list oldest first. An entry is
+## `{ topic, key, data, at, ttl, seq }` (`at` in game msec, `GameClock.msec()`, `ttl` in s, `seq`
+## the write order across all topics).
 var _by_topic: Dictionary = {}
 ## How many events are stored in all, live or awaiting cleanup.
 var _count := 0
 ## The `seq` the next write takes.
 var _next_seq := 0
-## Game milliseconds (`GameClock.msec()`) before which no stored event can have outlived its ttl (a little early,
-## never late), so `_prune` can skip its scan until then. INF = nothing stored expires.
+## Game milliseconds (`GameClock.msec()`) before which no stored event can have outlived its ttl (a
+## little early, never late), so `_prune` can skip its scan until then. INF = nothing stored
+## expires.
 var _earliest_expiry := INF
 
 
-## Record that something happened: append an event under `topic` with `data`. `ttl` is its lifetime in seconds
-## (<= 0 = permanent). A non-empty `key` supersedes any earlier event with the same topic + key (see the class
-## note). Evicts expired/overflow events afterward.
+## Record that something happened: append an event under `topic` with `data`. `ttl` is its lifetime
+## in seconds (<= 0 = permanent). A non-empty `key` supersedes any earlier event with the same topic
+## + key (see the class note). Evicts expired/overflow events afterward.
 func remember(topic: StringName, data: Dictionary, ttl: float, key: String = "") -> void:
 	var list: Array = _by_topic.get(topic, [])
 	if list.is_empty():
@@ -80,8 +82,8 @@ func age_of(topic: StringName, field: String, value: Variant) -> float:
 	return INF
 
 
-## Every live `topic` event as `{ data, age }` (age in seconds), newest first — for readers that grade
-## knowledge by how fresh it is (a sighting is a live contact, then an investigation lead).
+## Every live `topic` event as `{ data, age }` (age in seconds), newest first — for readers that
+## grade knowledge by how fresh it is (a sighting is a live contact, then an investigation lead).
 func recall_aged(topic: StringName) -> Array:
 	var out: Array = []
 	var list: Array = _by_topic.get(topic, [])
@@ -123,7 +125,8 @@ func under_fire() -> bool:
 	return is_fresh(&"under_fire")
 
 
-## The direction the latest shots came from (the freshest `under_fire` event's `from`), or `Vector2.ZERO` when none is remembered.
+## The direction the latest shots came from (the freshest `under_fire` event's `from`), or
+## `Vector2.ZERO` when none is remembered.
 func under_fire_from() -> Vector2:
 	return recall(&"under_fire").get("from", Vector2.ZERO)
 
@@ -184,7 +187,8 @@ func _prune() -> void:
 		over -= 1
 
 
-## Drop the oldest event (lowest `seq`) that has a positive ttl, across every topic. False when every stored event is permanent.
+## Drop the oldest event (lowest `seq`) that has a positive ttl, across every topic. False when
+## every stored event is permanent.
 func _evict_oldest_expirable() -> bool:
 	var oldest_list: Array = []
 	var oldest_index := -1
@@ -205,7 +209,8 @@ func _evict_oldest_expirable() -> bool:
 	return true
 
 
-## Whether an event has outlived its ttl at `now` (`GameClock.msec()`; ttl <= 0 never expires on age).
+## Whether an event has outlived its ttl at `now` (`GameClock.msec()`; ttl <= 0 never expires on
+## age).
 func _expired(entry: Dictionary, now: int) -> bool:
 	var ttl: float = entry["ttl"]
 	if ttl <= 0.0:

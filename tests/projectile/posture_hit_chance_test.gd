@@ -1,8 +1,7 @@
 extends GameTest
-
-## In the open a lower posture is a smaller target: a bullet strikes a body of coverage C when it flies below C,
-## so at a pinned height each posture is struck or missed by the numbers alone, and over random heights the hit
-## rates follow the postures' coverage (standing most, then crouched).
+## In the open a lower posture is a smaller target: a bullet strikes a body of coverage C when it
+## flies below C, so at a pinned height each posture is struck or missed by the numbers alone, and
+## over random heights the hit rates follow the postures' coverage (standing most, then crouched).
 
 const LANES := { &"stand": 200.0, &"crouch": 400.0 }
 const TARGET_X := 560.0
@@ -12,7 +11,8 @@ const SHOOT_X := 150.0
 func describe() -> Dictionary:
 	return {
 		"name": "A lower posture is hit by fewer shots",
-		"description": "Bullets pinned to a height strike the postures it is below (10 and 20: both, 40: standing, 70: none); random shots hit standing most, crouched less.",
+		"description": "Bullets pinned to a height strike the postures it is below (10 and 20: "
+			+ "both, 40: standing, 70: none); random shots hit standing most, crouched less.",
 		"tags": ["projectile", "posture", "crouch", "coverage", "ballistics"],
 		"timeout": 20.0,
 	}
@@ -25,12 +25,20 @@ func configure(s: TestSetup) -> void:
 	s.set_static(BloodConfig, &"enabled", false)
 	s.set_static(BallisticsConfig, &"bullet_height", -1.0)
 	for lane: StringName in LANES:
-		s.actor(StringName("body_%s" % lane), &"puppet", Vector2(TARGET_X, LANES[lane]), { "max_health": 1000000.0 })
+		s.actor(
+			StringName("body_%s" % lane),
+			&"puppet",
+			Vector2(TARGET_X, LANES[lane]),
+			{ "max_health": 1_000_000.0 },
+		)
 
 
 func run(t: TestContext) -> void:
 	for lane: StringName in LANES:
-		t.check(t.actor(StringName("body_%s" % lane)).set_posture(lane), "the %s body takes its posture" % lane)
+		t.check(
+			t.actor(StringName("body_%s" % lane)).set_posture(lane),
+			"the %s body takes its posture" % lane,
+		)
 	await t.frames(2)
 
 	await _volley(t, 10.0, 1)
@@ -55,7 +63,13 @@ func run(t: TestContext) -> void:
 	for lane: StringName in LANES:
 		rate[lane] = float(_hits(t, lane) - before[lane]) / shots
 		var want: float = float(CharacterConfig.postures[lane]["coverage"]) / 100.0
-		t.expect_near(rate[lane], want, 0.12, "a %s body is hit by about %.0f%% of random shots (%.2f)" % [lane, want * 100.0, rate[lane]])
+		t.expect_near(
+			rate[lane],
+			want,
+			0.12,
+			"a %s body is hit by about %.0f%% of random shots (%.2f)"
+				% [lane, want * 100.0, rate[lane]],
+		)
 	t.check(rate[&"stand"] > rate[&"crouch"], "standing is hit more than crouched")
 
 

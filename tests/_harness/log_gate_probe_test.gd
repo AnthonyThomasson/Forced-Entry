@@ -1,13 +1,18 @@
 extends GameTest
-
-## Harness probe for the "an engine error or warning fails the test" gate (tools/test_log_gate.py). It passes
-## unless the environment variable GAME_TEST_PROBE is `error` or `warning`, in which case it logs that on purpose
-## and does NOT declare it, so the run must report FAIL: in batch (`tools/run_tests.sh --self-test`) and in the
-## in-game runner (`-- --play log gate probe`), headless or windowed.
+## Harness probe for the "an engine error or warning fails the test" gate (tools/test_log_gate.py).
+## It passes unless the environment variable GAME_TEST_PROBE is `error` or `warning`, in which case
+## it logs that on purpose and does NOT declare it, so the run must report FAIL: in batch
+## (`tools/run_tests.sh --self-test`) and in the in-game runner (`-- --play log gate probe`),
+## headless or windowed.
 
 
 func describe() -> Dictionary:
-	return { "name": "Log gate probe", "tags": ["harness", "log"], "internal": true, "timeout": 4.0 }
+	return {
+		"name": "Log gate probe",
+		"tags": ["harness", "log"],
+		"internal": true,
+		"timeout": 4.0,
+	}
 
 
 func configure(s: TestSetup) -> void:

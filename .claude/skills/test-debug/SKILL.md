@@ -5,7 +5,9 @@ description: Debug a failing or flaky game test - read the failure bundle, narro
 
 # Debugging game tests
 
-Runner flags and selection: `domain-testing`, "Running tests". Run Godot with the Bash sandbox disabled.
+Runner flags and selection: `domain-testing`, "Running tests". Run Godot with the Bash sandbox disabled. Every test runs
+through gdUnit4: a simulation test (`GameTest`) as one case of its folder's wrapper suite, a native pure-logic suite
+(`*_suite.gd`, `UnitSuite`) case by case, id `<path>::<function>`.
 
 ## 1. Read the failure first
 
@@ -14,7 +16,10 @@ A FAIL/TIMEOUT prints its ✗ checks, each actor's final state (`· name at (x, 
 `hit_landed`, `spawned`/`removed`), the final `snapshot` (actors + objects), `traces` and logged errors. Read it before
 rerunning; it usually names the cause (no `hit` event: the shot never fired; target `health` unchanged: it hit cover).
 Add `--summary` to keep output to the failures and totals. A hang with no output: the project was never imported, or a
-parse error.
+parse error. The run's out dir (the `Report:` line's folder) also holds gdUnit's console (`gdunit.txt`), its JUnit
+`gdunit/report_1/results.xml` and HTML report, and the engine log (`godot.log`): `gdUnit exited with <n>: the run
+crashed` sends you to `gdunit.txt`. A run of the editor's GdUnit panel keeps its bundles in `user://test_failures/` and
+gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 
 ## 2. Narrow it down
 
@@ -27,6 +32,9 @@ parse error.
 - Suspect the harness: `--self-test`.
 - Watch it live: `"$GODOT" --path . res://scenes/testing/test_runner.tscn -- --play <words>` (`$GODOT`: `godot-run`)
   (windowed, result banner, overlay bar, Rerun).
+- Step through it: in the editor's GdUnit panel, right-click the case (`test_<folder>:<n> ('<id>')`) → **Debug**; a
+  breakpoint in the test or the game code stops there, the world in gdUnit's window (`domain-testing`, "The GdUnit
+  panel").
 - Suspiciously slow: every run ends with a `Slowest:` line (wall-clock ms).
 
 ## 3. Test bug or code bug?
@@ -35,3 +43,6 @@ parse error.
 - An engine error/warning logged: real; fix the code (or `expect_log` / `allowed_logs` if intended).
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never
   assign a config holder directly in a test.
+- A native suite case failing: the pure function under it, or the suite's premise (it checks its premise first). The
+  behaviour is still the simulation test's to prove: native suites only supplement simulation tests, never replace
+  them, so a fix keeps (or adds) the `GameTest` that shows the behaviour.

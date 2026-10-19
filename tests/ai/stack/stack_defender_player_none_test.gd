@@ -1,7 +1,7 @@
 extends GameTest
-
-## Desired (E16): the stack is the invaders' radio. A human on the other side, standing as close as an invader would, is
-## not an ally of the stacking team: it is reserved nothing and says nothing on the entry radio.
+## Desired (E16): the stack is the invaders' radio. A human on the other side, standing as close as
+## an invader would, is not an ally of the stacking team: it is reserved nothing and says nothing on
+## the entry radio.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -11,7 +11,8 @@ const Stack := preload("res://tests/_ai/stack_probe.gd")
 func describe() -> Dictionary:
 	return {
 		"name": "A defending human gets no stack slot",
-		"description": "An invader stacks at the back door with a household human close by: the human is not reserved a slot and never radios an entry step.",
+		"description": "An invader stacks at the back door with a household human close by: the "
+			+ "human is not reserved a slot and never radios an entry step.",
 		"tags": ["ai", "entry", "stack", "scripted", "callout"],
 		"timeout": 40.0,
 	}
@@ -29,7 +30,10 @@ func run(t: TestContext) -> void:
 	var stack := Stack.attach(t, &"me")
 	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
 		return
-	if not t.require(await t.until(func(): return not Entry.calls(t, "claim", &"a").is_empty(), 25.0), "the invader claimed the doorway (act %s)" % Entry.brain(t, &"a").current_act()):
+	if not t.require(
+			await t.until(func(): return not Entry.calls(t, "claim", &"a").is_empty(), 25.0),
+			"the invader claimed the doorway (act %s)" % Entry.brain(t, &"a").current_act(),
+	):
 		return
 	var reserved := false
 	var end := t.time + 12.0
