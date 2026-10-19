@@ -33,6 +33,10 @@ Invoke `fix` with the agreed expected-vs-actual (plus the ticket title and usefu
 bug's reason (tell the user the red result; passes at once or not visible headless: agree the next step with the user,
 don't fix blind), root-cause fix, green, skills updated.
 
+**Fix gate:** once the root cause is known (`fix` step 4) and before any production change, the planned fix goes to
+the user as a `change-report`, then an acceptance question. A worker stops there and sends back the cause and its
+planned fix; the fix starts once accepted.
+
 Then:
 
 - **Feedback:** you point the user at the `show-me` editor (Play restarted) and ask (`AskUserQuestion`) whether the bug

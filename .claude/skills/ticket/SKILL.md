@@ -46,7 +46,7 @@ Use the GitHub CLI: `gh issue view`, `gh issue comment`, `gh issue edit`, `gh is
 Load `orchestration`. You are the coordinator: one task per phase of the kind skill, each depending on the one before.
 
 - **User phases stay with you:** grilling, plan acceptance, ticket edits, feedback questions. A worker cannot reach
-  the user. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
+  the user. Every acceptance question (a plan, a bug's fix, a revision) comes right after a `change-report`. Ask with `AskUserQuestion`, a few specific questions at a time, recommended answer first. Use a decision
   gate where a phase waits on an answer.
 - **Build phases go to workers.** A self-contained brief: ticket number and body, accepted plan, skills to load
   (`architecture`, the `domain-<name>` skills, `domain-testing`, `test-debug`), what to produce, how to know it is done,
@@ -133,7 +133,7 @@ Right after the plan is accepted (a bug: the restated bug agreed), before anythi
 if `git rev-list --count HEAD..origin/main` > 0, invoke `rebase` (uncommitted changes kept). Read what came in (`git log --oneline` and the diff of
 the new commits) against the plan. A change to a domain, interface, rule, test or doc the plan builds on (renamed API,
 new behaviour in the area, moved file, a contradicting spec) **reopens the grilling**: ask about each, revise, get it
-accepted again. Say so when nothing relevant came in or there was nothing to rebase.
+accepted again (a fresh `change-report` first). Say so when nothing relevant came in or there was nothing to rebase.
 
 ### Show the user
 
@@ -145,7 +145,7 @@ reuses an open one. `ticket-assets`: also before the showroom's first feedback r
 All green: you tell the user in a few lines what is built and passing, rerun `show-me` (it reuses the editor and plays
 the change's tests in a fresh window, `tools/play_tests.sh`), point them at the editor (Play restarted for the latest
 code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). Feedback is a
-new round: update `## Agent Brief` and `## Plan` if scope moved, test first, code, green, ask again. Audit only once the behaviour is right.
+new round: update `## Agent Brief` and `## Plan` if scope moved (accepted again after a `change-report`), test first, code, green, ask again. Audit only once the behaviour is right.
 
 ### Audit
 

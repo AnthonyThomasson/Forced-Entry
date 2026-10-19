@@ -24,3 +24,6 @@ artifacts/
 # The run config the editor's GdUnit panel writes before each run (its cases and its server's port); its reports
 # go to user://gdunit_reports/ (scenes/testing/test_report_hook.gd)
 addons/gdUnit4/GdUnitRunner.cfg
+
+# Voice mute setting for .claude/hooks/needs_you_hook.sh (per machine)
+.claude/hooks/needs_you.json
