@@ -701,37 +701,54 @@ The cases the behaviours above cite as D1 to D28.
 
 ## Baseline
 
-AI against AI with squads following their leaders, scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to
-110, one round each) on 2026-10-19. A headless game ran on its own command port from a scene inheriting `main.tscn` with
-`defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server. A round ends when one side is
-wiped out (the `match` verdict, `scenes/general/command_server.gd` `verdict_of`, deciding by General's `MatchVerdict`, the rule the
-MatchHUD decides by too). The load is the 1-min average
-from `uptime` before and after the run, on 12 cores.
+AI against AI, with squads following their leaders (this change, d914857) and before it (main, e6cdbf7: every member decides on its
+own, nobody follows), scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to 110, one round each) on
+2026-10-19 from 11:55 to 12:19, the two trees alternated (change 3v3, main 3v3, change 5v5, main 5v5). Each tree was a scratch
+`git worktree` of its commit; for each run a headless game ran on its own command port from an uncommitted scene inheriting
+`main.tscn` with `defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server (one shared
+server). A round ends when one side is wiped out (the `match` verdict, `scenes/general/command_server.gd` `verdict_of`, deciding by
+General's `MatchVerdict`, the rule the MatchHUD decides by too). Main's own `match` verdict calls a match larger than 1v1 a draw at
+its first death, so main's tree was run with this change's `scenes/general/match_verdict.gd` and the calls to it in
+`command_server.gd` and `match_hud.gd` copied onto it, and nothing else. The round length is the `match` line's `elapsed`, over the rounds a side won. The load is the 1-min average
+from `uptime` before and after the run, on 12 cores; the machine was shared, and other work raised it during the runs.
 
-| Size | Seeds | Invader wins | Defender wins | Draws | Timeouts | Round length, mean (min to max) | Load |
+| Size | Tree | Invader wins | Defender wins | Draws | Timeouts | Round length, mean (min to max) | Load |
 |---|---|---|---|---|---|---|---|
-| 3v3 | 101–110 | 10 | 0 | 0 | 0 | 34.5 s (10.2 to 88.3) | 3.07 → 5.46 |
-| 5v5 | 101–110 | 10 | 0 | 0 | 0 | 32.1 s (14.4 to 48.7) | 3.88 → 7.28 |
+| 3v3 | change (d914857) | 10 | 0 | 0 | 0 | 29.6 s (4.0 to 66.9) | 3.95 → 11.67 |
+| 3v3 | main (e6cdbf7) | 9 | 1 (seed 105) | 0 | 0 | 31.8 s (14.2 to 47.7) | 12.26 → 8.15 |
+| 5v5 | change (d914857) | 10 | 0 | 0 | 0 | 35.0 s (13.1 to 50.5) | 7.57 → 7.81 |
+| 5v5 | main (e6cdbf7) | 7 | 2 (seeds 104, 105) | 0 | 1 (seed 107) | 32.4 s (16.2 to 82.0), 9 rounds | 7.34 → 11.30 |
+
+Main's 5v5 timeout on seed 107 was still undecided at 180 s, one defender and three invaders standing. A run of the change's tree
+before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), gave the same tallies: 10 invader wins in 10 at both sizes.
 
 ## Performance
 
 **With squads following their leaders (LD19 to LD28).** `tools/run_tests.sh --domain=perf` (twelve guards, the eleven below and
 `perf/match_10v10_team_stress`: the 10v10 guard's match, the same house, placement and scripted Von, with one squad a side bound as Main
-binds it, so its members follow their leaders), 3 runs back to
-back on 2026-10-19 from 07:42 to 07:44, the 1-min load 2.24 → 2.25, 2.25 → 2.06 and 2.06 → 2.70 (`uptime` before and after each, on
-12 cores; none discarded). In ms per frame, avg / p95 / max, against the smooth-match budgets 16.7 / 20 / 33.4:
+binds it, so its members follow their leaders), `--verbose` for the `PERF` lines, on this change (d914857), 3 runs back to back on
+2026-10-19 from 12:36 to 12:39, the 1-min load 3.19 → 3.08, 3.08 → 3.29 and 3.29 → 4.06 (`uptime` before and after each, on 12 cores;
+none discarded). Each passed 12 of 12. In ms per frame, avg / p95 / max, against the smooth-match budgets 16.7 / 20 / 33.4:
 
 | Guard | Run 1 | Run 2 | Run 3 |
 |---|---|---|---|
-| 10v10 match (`match_10v10_stress`) | 10.59 / 14.14 / 18.95 | 9.85 / 13.67 / 18.83 | 9.81 / 13.50 / 17.65 |
-| 10v10 team match (`match_10v10_team_stress`) | 7.04 / 8.61 / 11.79 | 9.74 / 13.43 / 20.07 | 8.47 / 10.76 / 15.76 |
-| 5v5 match (`match_5v5_stress`) | 5.64 / 10.08 / 14.62 | 5.85 / 8.58 / 12.36 | 4.36 / 7.31 / 11.11 |
+| 10v10 match (`match_10v10_stress`) | 10.80 / 14.79 / 20.18 | 10.45 / 13.72 / 18.40 | 10.37 / 13.87 / 19.87 |
+| 10v10 team match (`match_10v10_team_stress`) | 7.59 / 9.16 / 13.11 | 8.25 / 10.76 / 13.42 | 11.06 / 15.07 / 19.34 |
+| 5v5 match (`match_5v5_stress`) | 5.83 / 8.65 / 12.38 | 5.06 / 8.90 / 12.99 | 5.82 / 8.90 / 12.73 |
+| grenades in a 5v5 match (`grenade_match_stress`) | 8.65 / 13.97 / 22.06 | 8.86 / 14.29 / 24.14 | 10.88 / 15.70 / 24.06 |
 
-The team match ended its window with 18, 8 and 11 members following. The team guard opens its window only once the sides
-are in contact (a shot fired; the warm-up runs on past its 6 s for at most `CONTACT_WITHIN`, 20 s, and the guard fails without it), so
-what it measures is the teams' fight; in three runs with that premise the first shot came within the warm-up (contact logged at 6.0 s
-each time), the same window as above, at 9.28 / 12.14 / 15.06, 8.54 / 11.96 / 15.11 and 9.26 / 10.59 / 14.02 ms (load 3.2 to 3.5). Every frame guard of all three runs was within its budget: the 10v10
-worst frame, 20.07 ms, is under the 33.4 ms max, so the budgets stand. Runs 1 and 3 passed 12 of 12. Run 2 passed 11: the log gate failed
+The team guard opens its window only once the sides are in contact (a shot fired; the warm-up runs on past its 6 s for at most
+`CONTACT_WITHIN`, 20 s, and the guard fails without it), so what it measures is the teams' fight; in all three runs the first shot came
+within the warm-up (`PERF 10v10 team match contact at 6.0 s`), and the window ended with 13, 18 and 9 members following. Every frame
+guard of all three runs was within its budget: the worst frame of these four guards, 24.14 ms (the grenade match), is under the 33.4 ms
+max, so the budgets stand. Then those four guards ran `--repeat=10` in one process (12:41 to 12:46, load 3.59 → 4.53): 40 of 40 passed.
+Over the ten runs of each, avg / p95 / max ranged 4.30 to 6.60 / 7.31 to 10.34 / 11.04 to 30.80 (5v5), 9.88 to 11.15 / 12.85 to 14.72 /
+15.30 to 24.78 (10v10), 6.55 to 9.46 / 8.16 to 11.87 / 11.49 to 17.05 (10v10 team, contact at 6.0 s in all ten) and 8.51 to 11.98 /
+12.75 to 19.18 / 19.85 to 30.73 (grenades in a 5v5).
+
+**Before the audit fixes.** The same three `--domain=perf` runs on the change's tree before its audit fixes, the same morning (07:42 to
+07:44, load 2.06 to 2.70, the team guard not yet waiting for contact), gave the 10v10 9.81 to 10.59 ms avg (max at most 18.95), the team
+match 7.04 to 9.74 (max at most 20.07) and the 5v5 4.36 to 5.85 (max at most 14.62). Runs 1 and 3 passed 12 of 12. Run 2 passed 11: the log gate failed
 `perf/crowd_deaths_stress` (ten puppets killed at once; no AI, no squad) on one engine error, "Invalid polygon data, triangulation
 failed" (`canvas_item_add_polygon`), on the frame the deaths were dealt. That guard then passed 40 of 40 on its own (four at a time), and 300 more runs
 (six at a time, so their frame times do not count) logged no such error, with every polygon draw on its path that has no triangulation check (`FillBatch.fill` and `fill_convex`, a limb's
