@@ -209,24 +209,40 @@ func _eval(text: String) -> String:
 	return var_to_str(result)
 
 
+## The `match` verdict over `combatants` (read through the Character API: `faction`, `is_dead`,
+## `name`), decided by General's `MatchVerdict`, the rule the MatchHUD decides by too: "none" while
+## every side (faction) still has someone alive; once a side is wiped out, the one side left
+## standing wins, named by its faction ("invader", "household"), or in a 1v1 (one combatant a side)
+## by the survivor's name (where the MatchHUD names a lone survivor in a match of any size); "draw"
+## when nobody, or more than one side, is left.
+static func verdict_of(combatants: Array) -> String:
+	var verdict := MatchVerdict.decide(combatants)
+	if verdict.is_empty():
+		return "none"
+	if verdict["winner"] == null:
+		return "draw"
+	if (verdict["sides"] as Dictionary).values().all(func(n): return n == 1):
+		return str((verdict["survivors"] as Array)[0].name)
+	return str(verdict["winner"])
+
+
 ## One-line, parseable match status for the headless harness: each combatant's health/act/alive,
-## then the verdict and elapsed seconds. Reads only the characters' public API (`health`, `is_dead`)
-## and their controller's `current_act()`, so the server stays a decoupled observer.
+## then the verdict (`verdict_of`) and elapsed seconds. Reads only the characters' public API
+## (`health`, `is_dead`, `faction`) and their controller's `current_act()`, so the server stays a
+## decoupled observer.
 func _match_status() -> String:
 	var lines := PackedStringArray()
-	var dead := PackedStringArray()
-	var alive := PackedStringArray()
-	for c in _combatants():
-		var cname := str(c.name)
+	var combatants := _combatants()
+	for c in combatants:
 		var hp: float = c.health if "health" in c else -1.0
 		var is_dead: bool = c.get("is_dead") == true
-		lines.append("%s hp=%.0f act=%s alive=%s" % [cname, hp, _act_of(c), str(not is_dead)])
-		(dead if is_dead else alive).append(cname)
-	var verdict := "none"
-	if not dead.is_empty():
-		verdict = alive[0] if alive.size() == 1 else "draw"
+		lines.append("%s hp=%.0f act=%s alive=%s" % [str(c.name), hp, _act_of(c), str(not is_dead)])
 	var elapsed := (Time.get_ticks_msec() - _match_start_ms) / 1000.0
-	return "%s | verdict=%s elapsed=%.1f" % [" | ".join(lines), verdict, elapsed]
+	return "%s | verdict=%s elapsed=%.1f" % [
+		" | ".join(lines),
+		verdict_of(combatants),
+		elapsed,
+	]
 
 
 ## The deep AI state of every AI combatant, as JSON — what `match` is to scoring, this is to

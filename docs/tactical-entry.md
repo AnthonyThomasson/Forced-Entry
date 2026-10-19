@@ -324,7 +324,8 @@ in. After the entry the AI's corner, clear and cover roles ignore the human. The
 numbered in the order they were claimed, each where it stands (on both sides of the door when the stack is split), the human's own
 highlighted, the AI's dimmer (`scenes/ui/hud/stack_markers.gd`; in a played match every stack of the human's side shows its rings,
 `docs/leadership.md` LD18). No AI member moves up into the human's slot (E2), and a dead end with no room left holds none for it (E20). Only invaders enter, so only a
-human invader is ever offered a slot. Why: a stack is a formation the human can only join if it can see where it forms and the
+human invader is ever offered a slot. A human who leads a squad with members also claims of its own, stepping up to a doorway nobody stacks
+at, and its squad brings the team in to it (`docs/leadership.md` LD24). Why: a stack is a formation the human can only join if it can see where it forms and the
 team can count on it to be there; the number says how many go in ahead.
 Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stack_player_keeps_slot_late_ai_behind`, `stack_far_player_ignored`,
 `stack_point_waits_for_player`, `stack_point_goes_when_player_ready`, `stack_follower_waits_for_player`,

@@ -20,6 +20,9 @@ extends Node
 ##   defend   — the order to defend `room` (`docs/leadership.md` LD8): walk to the defend `spot`,
 ##              then hold it with the gun on its doorway `door_pos` (or, with none, turning among
 ##              the room's doorways), as long as the order stands.
+##   follow   — keep to the spot its squad gives it (`Squad.follow_spot`): walk there, stand there
+##              facing away from its leader, top up a low magazine at rest (`docs/leadership.md`
+##              LD20 to LD22).
 ##   hold     — stay and watch.
 ## Outside the primitives, **the evade reflex** (`set_evade`, `docs/grenades.md` G16) takes over the
 ## NPC whatever it is doing, an entry included, while a live grenade threatens it: it runs to the
@@ -103,6 +106,10 @@ var entry_secure_time: float
 ## A hostile out of sight keeps the NPC's eyes this long (s) while there is a clear line to where it
 ## was.
 var watch_lost_gaze: float
+## A magazine at or below this share of its capacity is low: a follower at rest tops it up.
+var low_ammo_fraction: float
+## The NPC's squad (`ai/team/squad.gd`), null without one: where a follower keeps to.
+var squad: Node = null
 ## World-space room rects (`{ key, type, rect }`), set each tick by the controller from Main's
 ## inject; handed on to the Locomotion child, which answers the room queries.
 var rooms: Array = []:
@@ -160,6 +167,10 @@ var _point := Vector2.ZERO
 var _arrive_room := ""
 ## Whether the destination has been reached.
 var _arrived := false
+## Where a follower's walk is going: its follow spot as last re-aimed (`Vector2.INF`: not yet).
+var _follow_to := Vector2.INF
+## When (game s, `GameClock`) the follower last came to a stop at its spot.
+var _follow_stood := 0.0
 ## A search/explore move that covers the room by sight on arrival (vs resolving at once).
 var _look_around := false
 ## Instance id of the contact being fought (0 = none).
@@ -203,6 +214,8 @@ var _resolve_reason := ""
 ## A decision came back while the bang's thrower was committed to its throw: it is taken again once
 ## the stun is away.
 var _held := false
+## The running join's end has been said (`_join_over`, LD25).
+var _join_done := false
 ## The plan to get clear of a live grenade being carried out ({} = none); see `set_evade`.
 var _evade := {}
 ## The evade reached its safe spot.
@@ -279,6 +292,8 @@ func apply_config(cfg: Node) -> void:
 	entry_guard_rearm = cfg.entry_guard_rearm
 	entry_secure_time = cfg.entry_secure_time
 	watch_lost_gaze = cfg.watch_lost_gaze
+	low_ammo_fraction = cfg.low_ammo_fraction
+	squad = cfg.squad
 	_loco.arrive_dist = cfg.arrive_dist
 	_watch.look_ahead = cfg.watch_look_ahead
 	_watch.door_dwell = cfg.watch_door_dwell
@@ -371,7 +386,7 @@ func ongoing() -> bool:
 			return _reloading
 		&"entry":
 			return _entry_pending or _entry.phase not in ["", "done"]
-		&"throw", &"defend", &"ambush":
+		&"throw", &"defend", &"ambush", &"follow":
 			return true
 	return false
 
@@ -462,6 +477,8 @@ func _progress() -> String:
 			return "holding the room" if _arrived else "on the way to its post"
 		&"ambush":
 			return "waiting in ambush" if _arrived else "on the way to its post"
+		&"follow":
+			return "by its leader" if _arrived else "keeping up with its leader"
 	return "waiting" if not _labels.is_empty() else ""
 
 
@@ -737,11 +754,27 @@ func _same_order(leaf: Dictionary) -> bool:
 ## entry an order gave it, or a detour of the entry guard paused in front of one. Its walk is
 ## guarded whatever `entry_enabled` says (D4).
 func _ordered_stack() -> bool:
-	if _primitive == &"entry" and _params.has("order_id"):
+	if _primitive == &"entry" and _ordered_entry(_params):
 		return true
 	return (not _resume.is_empty()
 			and _resume["primitive"] == &"entry"
-			and (_resume["params"] as Dictionary).has("order_id"))
+			and _ordered_entry(_resume["params"]))
+
+
+## Whether the running entry is a join (LD24) whose order has ended (done: the room cleared by the
+## rest of the stack) while the member is still on its way to the stack or in it, where its entry
+## would never end on its own (LD25, D26): once per leaf.
+func _join_over() -> bool:
+	return (Entry.is_join(_params)
+			and not _join_done
+			and not _order_live()
+			and _entry.phase in ["approach", "stack"])
+
+
+## Whether an entry leaf's `params` are an ordered stack's, which goes in the order's way (LD9): an
+## order's that is no join (a join is the member's own entry joining its leader's stack, LD24).
+static func _ordered_entry(params: Dictionary) -> bool:
+	return params.has("order_id") and not Entry.is_join(params)
 
 
 ## Whether the entry guard applies to `leaf` for a doorway into room `into`: a walk (move / engage /
@@ -768,6 +801,7 @@ func _into_the_shots(into: String) -> bool:
 ## Take `leaf` as the running order.
 func _adopt(leaf: Dictionary) -> void:
 	_held = false
+	_join_done = false
 	_primitive = leaf.get("primitive", &"hold")
 	_params = leaf.get("params", {})
 	_path = leaf.get("path", [])
@@ -809,6 +843,8 @@ func _adopt(leaf: Dictionary) -> void:
 			_begin_throw_order()
 		&"defend", &"ambush":
 			_point = _loco.reachable(_params.get("spot", _character.global_position))
+		&"follow":
+			_follow_to = Vector2.INF
 	# (Refused: an order kept and held, no room for it.)
 	_say_order_step("refused" if _params.get("refused", false) else "moving")
 
@@ -999,6 +1035,8 @@ func wants_decision(decide_timer_elapsed: bool) -> bool:
 			# It holds its post as long as the order stands; first contact ends the order (D18), and
 			# the NPC then fights on its own.
 			return not _order_live() or (not _arrived and _commit_timer <= 0.0)
+		&"follow":
+			return false  # It keeps with its leader until something forces a decision.
 	return decide_timer_elapsed
 
 
@@ -1038,6 +1076,8 @@ func apply(delta: float) -> void:
 			_apply_throw(delta)
 		&"defend", &"ambush":
 			_apply_defend()
+		&"follow":
+			_apply_follow()
 		_:
 			_apply_hold()
 	if _awaiting_order and not committed() and _walking():
@@ -1088,6 +1128,8 @@ func _walking() -> bool:
 					and _target_obj != null
 					and is_instance_valid(_target_obj)
 					and not _interaction_in_reach())
+		&"follow":
+			return not _arrived
 	return false
 
 
@@ -1128,6 +1170,8 @@ func _way_blocked() -> void:
 		_finish_entry()
 		if _resolved:
 			_resolve_reason = "way blocked"
+	elif _primitive == &"follow":
+		_arrived = true  # It stands where it is held until its spot moves on.
 
 
 ## The watch stage (docs/gaze-and-fire.md), run after the primitive has steered: an NPC is always
@@ -1249,15 +1293,17 @@ func _wanted_posture() -> StringName:
 ## arrived, a melee closing in; never an ambush, peek, room search, interaction, hold or tactical
 ## entry — a running character cannot shoot, so an entrant walks with its gun up from the moment it
 ## heads for the door), when the leaf asks for it (`params.run`) or the NPC is under fire, the
-## destination is farther than `run_min_distance`, and a run can be started (stamina
-## `run_start_fraction`, or already running). It never sprints with a shot to take or an empty gun
-## to reload (a running character can do neither), except a retreat (`params.run_through_fire`),
-## which is about leaving the line, not trading shots. The Character spends the stamina and runs dry
-## on its own.
+## destination is farther than `run_min_distance` (a follower: one fallen `follow_step` behind its
+## spot, whatever the leaf), and a run can be started (stamina `run_start_fraction`, or already
+## running). It never sprints with a shot to take or an empty gun to reload (a running character can
+## do neither), except a retreat (`params.run_through_fire`), which is about leaving the line, not
+## trading shots. The Character spends the stamina and runs dry on its own.
 func _should_run() -> bool:
 	if not run_enabled or _character.move_input == Vector2.ZERO:
 		return false
 	var dest := _point
+	var near := run_min_distance
+	var run: bool = _params.get("run", false)
 	match _primitive:
 		&"move":
 			if _arrived or _look_around:
@@ -1270,11 +1316,18 @@ func _should_run() -> bool:
 		&"defend", &"ambush":
 			if _arrived:
 				return false
+		&"follow":
+			if _arrived:
+				return false
+			# A follower runs to catch up once it has fallen a place behind its spot.
+			dest = squad.follow_spot(_character)
+			near = squad.follow_step
+			run = true
 		_:
 			return false
-	if not _params.get("run", false) and not (_perception != null and _perception.under_fire()):
+	if not run and not (_perception != null and _perception.under_fire()):
 		return false
-	if _character.global_position.distance_to(dest) <= run_min_distance:
+	if _character.global_position.distance_to(dest) <= near:
 		return false
 	if not _threat.is_empty() and not bool(_params.get("run_through_fire", false)) \
 			and (_combat.can_fire_at(_threat) or _combat.reload_due()):
@@ -1404,10 +1457,14 @@ func _apply_entry(delta: float) -> void:
 		_entry_pending = false
 		_route_wait = 0.0
 		if not _entry.begin(_params):
+			if Entry.is_join(_params):
+				# No slot in its leader's stack (a dead end, E20): the join is refused and it
+				# follows again (LD24, LD25).
+				_perception.end_order(_params.get("order_id"), "refused")
 			_finish_entry()
 			return
 		_entry.held_back = (_resume.is_empty()
-				and _params.has("order_id")
+				and _ordered_entry(_params)
 				and _entry.phase == "approach")
 	if _entry.held_back:
 		if _detour_first(delta):
@@ -1421,6 +1478,12 @@ func _apply_entry(delta: float) -> void:
 	if _entry.step(delta):
 		_finish_entry()
 		return
+	if _join_over():
+		# Its leader's stack went in and cleared the room without it (LD25, D26): it follows again
+		# now, not once its entry would have ended. One inside holds the room until its entry ends.
+		_join_done = true
+		_resolved = true
+		_resolve_reason = "join over"
 	if _entry.holding_for_go():
 		_say_order_step("in_position")  # Ready in its slot and held for the leader's go (LD13).
 	if _held and not _entry.throwing():
@@ -1610,7 +1673,7 @@ func _entry_guard() -> void:
 ## `entry_enabled` says, also goes into a room that is not cleared on its way by entry first, as any
 ## walk does (E9), team or none, and its entry starts afresh after it.
 func _guard_approach() -> void:
-	var ordered := _params.has("order_id")
+	var ordered := _ordered_entry(_params)
 	if (not entry_guard
 			or not (_perception.entry_enabled or ordered)
 			or (_character.move_input as Vector2).length() < 0.1
@@ -1852,6 +1915,63 @@ func take_order_steps() -> Array:
 	var out := _order_steps
 	_order_steps = []
 	return out
+
+
+## Follow (LD20 to LD22): keep to the spot the squad gives the NPC (`Squad.follow_spot`). The walk
+## is re-aimed only once that spot has moved `follow_retarget` from where it is going, and is over
+## within `follow_arrive` of it or where its path ends short of one it cannot reach. There it
+## stands facing away from its leader (the leash's centre, its live position) and, at rest with
+## nothing to fight, tops up a low magazine.
+## The watch stage shoots what it sees on the way. Its spot gone (it leads now, or left the squad):
+## re-decide.
+func _apply_follow() -> void:
+	var spot: Vector2 = (squad.follow_spot(_character)
+			if squad != null and is_instance_valid(squad)
+			else Vector2.INF)
+	if spot == Vector2.INF:
+		_character.move_input = Vector2.ZERO
+		_primitive = &"hold"
+		_resolved = true
+		return
+	if _follow_to == Vector2.INF or spot.distance_to(_follow_to) > squad.follow_retarget:
+		_follow_to = spot
+		_arrived = false
+	if not _arrived:
+		_arrived = _loco.reached(_follow_to, squad.follow_arrive)
+		_follow_stood = GameClock.seconds()
+	if not _arrived:
+		_loco.move_to(_follow_to, squad.follow_arrive)
+		_aim_move()
+		return
+	_character.move_input = Vector2.ZERO
+	var here: Vector2 = _character.global_position
+	var lead: Vector2 = _combat.leash_center
+	if lead != Vector2.INF and here.distance_to(lead) > 1.0:
+		_character.aim_point = here + (here - lead).normalized() * 100.0
+	# At rest once it has stood as long as a still leader does (a file walk stops between re-aims).
+	if (GameClock.seconds() - _follow_stood >= squad.follow_still_time
+			and _threat.is_empty()
+			and not _perception.under_fire()
+			and _combat.magazine_low(low_ammo_fraction)):
+		_combat.top_off()
+
+
+## The leash the NPC fights within (LD23), set every tick by the controller: `radius` px of
+## `center`, its leader's live position (`Vector2.INF`: none, it does not follow).
+func set_leash(center: Vector2, radius: float) -> void:
+	_combat.leash_center = center
+	_combat.leash = radius
+
+
+## Whether the running primitive is on its way somewhere it chose: a move or an engage not yet
+## there, or a throw's walk to its throw spot.
+func walk_pending() -> bool:
+	match _primitive:
+		&"move", &"engage":
+			return not _arrived
+		&"throw":
+			return _combat.throw_stage == "walk"
+	return false
 
 
 ## Hold: stand still. Where it looks is the watch stage's (`_apply_watch`): a threat if one has its

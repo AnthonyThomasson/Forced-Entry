@@ -62,7 +62,7 @@ func begin(combatants: Array, time_limit := 0.0) -> void:
 	for c in combatants:
 		_combatants.append(c)
 		if c.has_signal("died"):
-			c.died.connect(_on_died.bind(c))
+			c.died.connect(_on_died)
 
 
 ## Show `text` under the verdict banner (blank clears it). Main uses it for the next-match
@@ -71,33 +71,23 @@ func set_countdown(text: String) -> void:
 	_countdown = text
 
 
-## Record the outcome when a combatant dies. The match waits until the victim's whole faction is
-## eliminated before declaring a result — a single death does not end a multi-NPC side. Once a
-## faction is down, all surviving combatants are checked: if they share one faction that faction
-## wins (by name for a 1v1, by faction label for a larger match); no survivors or survivors from
-## multiple factions is a draw.
-func _on_died(victim: Node) -> void:
+## Record the outcome when a combatant dies, by General's `MatchVerdict` (the rule the dev
+## command server's `match` verb decides by too): a single death does not end a multi-NPC side, the
+## match is decided once a side is wiped out. The one side left standing wins, named by its lone
+## survivor or by its faction label; nobody, or more than one side, left is a draw.
+func _on_died() -> void:
 	if _end_ms >= 0:
 		return
-	var victim_faction = victim.get("faction") if "faction" in victim else null
-	for c in _combatants:
-		if c != victim and is_instance_valid(c) and c.get("is_dead") != true \
-				and c.get("faction") == victim_faction:
-			return  # Victim's faction still has living members; match continues.
-	var survivors: Array = []
-	for c in _combatants:
-		if is_instance_valid(c) and c.get("is_dead") != true:
-			survivors.append(c)
-	if survivors.is_empty():
-		_decide("DRAW")
-		return
-	var wf = survivors[0].get("faction") if "faction" in survivors[0] else null
-	if not survivors.all(func(c): return c.get("faction") == wf):
+	var verdict := MatchVerdict.decide(_combatants)
+	if verdict.is_empty():
+		return  # Every side still has someone alive: the match goes on.
+	var survivors: Array = verdict["survivors"]
+	if verdict["winner"] == null:
 		_decide("DRAW")
 	elif survivors.size() == 1:
 		_decide("%s WINS" % str(survivors[0].name))
 	else:
-		_decide("%s WINS" % str(wf).to_upper())
+		_decide("%s WINS" % str(verdict["winner"]).to_upper())
 
 
 ## Fix the result: freeze the timer, show `verdict` and tell the observers (once).

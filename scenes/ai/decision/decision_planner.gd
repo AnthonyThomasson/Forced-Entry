@@ -36,6 +36,13 @@ var inside_only: bool = false
 ## `confine` subtree, drop options whose `tags.room` is another room or outside, as `inside_only`
 ## drops those outside the house. Pushed each decision from the live order.
 var confine_room: String = ""
+## The point a squad member following its leader keeps to (the leader's position, `Vector2.INF` =
+## none) and how far from it (px): inside a `confine` subtree, drop options placed farther than
+## `leash` from it, as `confine_room` drops those outside its room. Pushed each decision from the
+## squad.
+var leash_center: Vector2 = Vector2.INF
+## The leash (px) round `leash_center` (0 with no leash).
+var leash: float = 0.0
 ## The Von transport (decision_client.gd).
 var _client: Node
 ## The tree with overrides merged, keyed by node id.
@@ -407,15 +414,16 @@ func _is_leaf_node(node: Dictionary) -> bool:
 			and node.get("children", []).is_empty())
 
 
-## Whether a `confine` subtree confines this NPC: it is territorial, or keeps to the room it was
-## ordered to defend.
+## Whether a `confine` subtree confines this NPC: it is territorial, keeps to the room it was
+## ordered to defend, or keeps within its leash.
 func _confines() -> bool:
-	return inside_only or confine_room != ""
+	return inside_only or confine_room != "" or leash_center != Vector2.INF
 
 
 ## `options` minus those carrying any `drop` tag, and, when `confine` applies, minus those outside
-## the house (a territorial NPC) and those placed outside the room it keeps to (`confine_room`; an
-## option that names no place, a reload or a punch, stays).
+## the house (a territorial NPC), those placed outside the room it keeps to (`confine_room`) and
+## those placed beyond its leash (where it acts from, `params.from`, else `params.point`; an option
+## that names no place, a reload or a punch, stays).
 func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
 	return options.filter(func(o):
 		var tags: Dictionary = o.get("tags", {})
@@ -426,6 +434,11 @@ func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
 				and tags.has("room")
 				and String(tags["room"]) != confine_room):
 			return false
+		if confine and leash_center != Vector2.INF:
+			var params: Dictionary = o.get("params", {})
+			var at = params.get("from", params.get("point"))
+			if at is Vector2 and at != Vector2.INF and leash_center.distance_to(at) > leash:
+				return false
 		for tag in drop:
 			if tags.get(String(tag), false):
 				return false

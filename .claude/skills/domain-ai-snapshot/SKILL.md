@@ -51,7 +51,8 @@ lives in `agent_snapshot.gd`.
   gates the `stay` child of INVESTIGATE), `hurt` (its damage taken has reached `hurt_threshold`), `inside` (it stands in a room of the
   house), `exposed` (a clear line to the hostile it lists first, or under fire with no hostile known), and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
   `stack_has_stun` (it carries a stun, or a teammate's entry callout says `stuns` > 0: gates STUN ENTRY), `ordered` (it holds a live order from its
-  leader, `docs/leadership.md` LD5: gates the ORDER node and its entry rule). The brain overlay shows the ones that hold.
+  leader, `docs/leadership.md` LD5: gates the ORDER node and its entry rule), `follows` (it follows its squad's leader, `Squad.follows`, from
+  the knowledge's `follows`, which the controller sets on the perception every tick, LD19: gates the FOLLOW node and its entry rule). The brain overlay shows the ones that hold.
 - **sections** — named state-text blocks; each tree level shows the ones it lists: `goal` (the controller's goal with `{gun}` filled in by `fill_goal`, the same noun as `loadout`),
   `situation` (place, item, own health as its own sentence), `current` (activity line), `odds`
   (hostiles vs allies; "All quiet so far." only when there are no leads), `contacts`, `exposure`
@@ -64,7 +65,8 @@ lives in `agent_snapshot.gd`.
   `order` (`order_text`, LD6): one sentence while the NPC holds an order, "Your leader ordered you to defend the kitchen." / "... to go into the
   kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade first": the order's `mode`, LD14; a held stack that has
   had no go adds " when they give the go", LD13), "Your leader ordered you to ambush the doorway into the hall from the living room." (into
-  `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15), "" otherwise; the planner
+  `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15), a join (the leader's own
+  stack, mode `join`, `SnapshotVocab.is_join(order)`, LD24) "Your leader ordered you to go into the kitchen by its doorway with them.", "" otherwise; the planner
   shows it after the goal at every level, so an NPC with no order reads exactly what it read before. Measured with `tools/von_probe.py`
   (`docs/leadership.md` LD6, LD13 to LD15: at the 18 combat levels the top pick unchanged in 17/18 for the defend sentence and 18/18 for
   every stack, held stack and ambush one; the plan's held ending " and wait for my go", and every other ending tried, flipped
@@ -98,7 +100,9 @@ lives in `agent_snapshot.gd`.
   `order` (`order_group`, LD6): the ORDER node's one option, the live order, carrying its own `primitive` and params with `order_id`:
   `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `AgentEntry.defend_spot`, the member's place being its index in
   the order's `to`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), `split`,
-  `stack_at`; its label "the doorway into the kitchen" adds " with a stun" / " with a frag"), `ambush_<opening>` runs `ambush` (`opening`,
+  `stack_at`; its label "the doorway into the kitchen" adds " with a stun" / " with a frag"; a join's params are `opening`, `into`, `bang`
+false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
+controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
   `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
   dead end with no slot for this member (`AgentEntry.holds_slot` false at `_stack_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the

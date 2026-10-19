@@ -176,6 +176,7 @@ func build(
 		"inside": not SnapshotVocab.room_at(self_pos, rooms).is_empty(),
 		"exposed": line.get("clear", false) or (primary.is_empty() and _memory.under_fire()),
 		"ordered": not (knowledge["order"] as Dictionary).is_empty(),
+		"follows": knowledge["follows"],
 	}
 	var sections := {
 		"goal": fill_goal(goal),

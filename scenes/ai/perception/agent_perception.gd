@@ -108,6 +108,9 @@ var ordered_walk := false:
 		if value != ordered_walk:
 			ordered_walk = value
 			_sync_walks()
+## Whether the NPC follows its squad's leader (`Squad.follows`), set each tick by the controller:
+## the snapshot's and `quick_facts()`'s `follows`.
+var follows := false
 ## `stack_room()` this frame...
 var _stack_room := ""
 ## ... worked out on this physics frame.
@@ -588,6 +591,7 @@ func quick_facts() -> Dictionary:
 		"hostile_known": hostile_known,
 		"threat_known": hostile_known or under_fire(),
 		"ordered": not order().is_empty(),
+		"follows": follows,
 	}
 
 
@@ -996,6 +1000,7 @@ func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 		"carried_grenades": carried,
 		"character_rids": _character_rids() if not carried.is_empty() else [],
 		"order": order(),
+		"follows": follows,
 	}
 	return _snapshot.build(rooms, goal, activity, contacts(self_pos), _callouts(), knowledge)
 

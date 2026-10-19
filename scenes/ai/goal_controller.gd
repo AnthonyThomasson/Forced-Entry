@@ -372,6 +372,9 @@ var _planner: Node
 var _behavior: Node
 ## The facts of the last decision snapshot, retained for `debug_state()`.
 var _last_facts := {}
+## The state sections of the last decision snapshot (the global ones: `goal`, `order`, ...), the
+## text Von reads in any question of the walk, retained for `debug_state()`.
+var _last_sections := {}
 ## The option groups of the last snapshot, retained for `debug_zones()`.
 var _last_options := {}
 ## The tactical point an observer asked to highlight (`debug_focus`), or INF for none.
@@ -406,6 +409,10 @@ var _character: Node
 var _event_queue: Array = []
 ## The character was flash-blinded last tick, to re-decide the moment its sight returns.
 var _was_blind := false
+## Whether the NPC followed its squad's leader last tick (`Squad.follows`, LD19).
+var _follows := false
+## A fight off the leash forced a decision, and the NPC has not been back within the break since.
+var _leash_broke := false
 ## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the
 ## character's name and spawn spot, so a seeded match or a test that places the NPC the same way
 ## draws the same rolls.
@@ -475,14 +482,25 @@ func _apply_config() -> void:
 			disabled.append(&"idle")
 		if not rules.has(&"hostile_known") and not rules.has("hostile_known"):
 			rules[&"hostile_known"] = &"combat"
-	_planner.disabled_nodes = disabled
-	_planner.entry_rules = rules
 	_planner.skip_single_option = skip_single_option
 	_planner.inside_only = defend_territory
 	var held: Dictionary = _perception.order()
 	_planner.confine_room = (String(held.get("room", ""))
 			if String(held.get("kind", "")) == "defend_room"
 			else "")
+	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
+	# rules, and fights only within its leash of the leader (LD23).
+	var lead := _leader_followed()
+	if lead != null:
+		for id in [&"investigate", &"search", &"idle"]:
+			if not disabled.has(id):
+				disabled.append(id)
+		if not rules.has(&"follows") and not rules.has("follows"):
+			rules[&"follows"] = &"follow"
+	_planner.disabled_nodes = disabled
+	_planner.entry_rules = rules
+	_planner.leash_center = lead.global_position if lead != null else Vector2.INF
+	_planner.leash = float(squad.leash) if lead != null else 0.0
 	_behavior.apply_config(self)
 
 
@@ -525,11 +543,13 @@ func debug_status() -> String:
 
 ## Read-only: the WHOLE AI state as structured data — the deep counterpart to `debug_status()`'s
 ## one-line label, for an observer (the dev command server) to inspect on demand. It answers what a
-## log line can't: the facts the last decision gated on, every level of the last walk (the exact
-## state and question Von saw, the options, its probabilities and pick, auto-picks and timings),
-## what the NPC knows (`contacts`), the running primitive and pathing, how many decision walks it
-## has started and why the latest one started (`decisions`, `decision_reason`: the force reason,
-## e.g. "task resolved" or "way blocked", or "cadence"). Pure reads — never perturbs the loop.
+## log line can't: the facts the last decision gated on and its state sections (`sections`: the text
+## Von reads, also when no level asked, e.g. the `order` an ORDER walk took), every level of the
+## last walk (the exact state and question Von saw, the options, its probabilities and pick,
+## auto-picks and timings), what the NPC knows (`contacts`), the running primitive and pathing, how
+## many decision walks it has started and why the latest one started (`decisions`,
+## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"). Pure
+## reads — never perturbs the loop.
 func debug_state() -> Dictionary:
 	var out := {
 		"npc": _npc_name(),
@@ -539,6 +559,7 @@ func debug_state() -> Dictionary:
 		"decisions": _decisions,
 		"decision_reason": _decision_reason,
 		"facts": _last_facts,
+		"sections": _last_sections,
 	}
 	if _planner != null:
 		out["decision"] = _planner.debug_state()
@@ -734,6 +755,7 @@ func control(character, delta: float) -> void:
 	_decide_timer -= delta
 	# SENSE.
 	_process_events()
+	_follow_squad()
 	_perception.openings = openings
 	_perception.observe(rooms)
 	_react_to_grenades()
@@ -878,6 +900,7 @@ func _start_decision() -> void:
 	_apply_config()  # Pick up any export retuned at runtime before sensing + deciding.
 	var snapshot: Dictionary = _perception.sense(rooms, goal, _behavior.activity_text())
 	_last_facts = snapshot["facts"]
+	_last_sections = snapshot["sections"]
 	_last_options = snapshot["options"]
 	var held: Dictionary = _perception.order()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
@@ -946,6 +969,44 @@ func _react_to_grenades() -> void:
 	if _was_blind and not blind:
 		_force_now("sight returned")
 	_was_blind = blind
+
+
+## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the
+## perception's `follows`), deciding at once when that changes (it joined a squad's file, or the
+## leader it followed died and it leads now), and the leash it fights within. A follower fighting
+## farther than `leash_break` leashes from its leader, neither committed nor on its way somewhere,
+## decides again, once until it has been back within that.
+func _follow_squad() -> void:
+	var follows: bool = (squad != null
+			and is_instance_valid(squad)
+			and squad.has_method("follows")
+			and squad.follows(_character))
+	_perception.follows = follows
+	if follows != _follows:
+		_follows = follows
+		_force_now("follows its leader" if follows else "leads its squad")
+	var lead := _leader_followed()
+	if lead == null:
+		_behavior.set_leash(Vector2.INF, 0.0)
+		_leash_broke = false
+		return
+	_behavior.set_leash(lead.global_position, squad.leash)
+	if (_character.global_position.distance_to(lead.global_position)
+			<= squad.leash * squad.leash_break):
+		_leash_broke = false
+	elif (not _leash_broke
+			and _behavior.in_combat()
+			and not _behavior.committed()
+			and not _behavior.walk_pending()):
+		_leash_broke = true
+		_force_now("off the leash")
+
+
+## The leader the NPC follows (`Squad.leader`), or null when it follows none.
+func _leader_followed() -> Node2D:
+	if not _perception.follows:
+		return null
+	return squad.leader() as Node2D
 
 
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly

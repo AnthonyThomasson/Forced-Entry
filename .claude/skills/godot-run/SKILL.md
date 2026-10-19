@@ -77,7 +77,7 @@ else a GDScript expression evaluated on the command-server node (helpers `player
 | `slot N` | select item slot 1–9 |
 | `fire`, `punch`, `kick`, `reload`, `interact`, `crouch` | LMB, F, V, R, Space, C |
 | `aim X Y` | warp the cursor to a world point (windowed only; a no-op headless) |
-| `match` | one-line status: each combatant's health/act/alive, verdict, elapsed s |
+| `match` | one-line status: each combatant's health/act/alive, verdict (`none` while each side has someone alive, then the side left standing by faction, a 1v1's survivor by name, or `draw`), elapsed s |
 | `ai` | every NPC's brain as JSON: state text Von saw, menus and pick, contacts (hostile + why, visible, distance), commitment timers, pathing. Use it before guessing from logs |
 | `restart [seed]` | reload straight into a new match, optional layout seed |
 | `menu` | back to the setup window |

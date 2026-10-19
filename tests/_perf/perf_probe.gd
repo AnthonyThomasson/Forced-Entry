@@ -14,6 +14,26 @@ extends RefCounted
 const SMOOTH_AVG_MS := 16.7
 const SMOOTH_P95_MS := 20.0
 const SMOOTH_MAX_MS := 33.4
+const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
+
+
+## A match's NPC `npc` with its debug overlays at their defaults (off), as Main's `_configure_debug`
+## leaves them: an overlay left on (the vision cone's export defaults to on) would be costed as if
+## a player were watching it.
+static func overlays_off(npc: Node) -> void:
+	for child in npc.get_children():
+		for flag in OverlayRegistry.defaults():
+			if not OverlayRegistry.is_global(flag) and flag in child:
+				child.set(flag, false)
+
+
+## The test world's generated house's front entrance (world px), or the origin when it has none:
+## where a match guard's spread invaders are placed from, as Main places them.
+static func front_entrance(t: TestContext) -> Vector2:
+	for o in WorldGen.get_openings(t.world.get("house")):
+		if o["front"]:
+			return o["pos"]
+	return Vector2.ZERO
 
 
 ## Render every sound the way the game's background pre-warm has by the time a match is fought.

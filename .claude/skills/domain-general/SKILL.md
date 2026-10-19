@@ -1,6 +1,6 @@
 ---
 name: domain-general
-description: Deep implementation detail for the General domain (scenes/general/) — input (Keybinds), saved settings (Settings), the pausable game clock (GameClock), despawner, camera, the dev command server, shared physics-layer ids (PhysicsLayers), the draw-order ladder (DrawLayers), the light masks (LightMasks: occluder bits, shadow masks, light layers, the occluder shape), FillBatch (plain-coloured shapes drawn as one triangle array) and WeightedPick (the shared weighted roll). Use when editing scenes/general/ or working on input/keybinds/rebinding, the game clock AI timers run on, the saved settings file (debug switch + key bindings), the dev command server (gcmd), camera follow, the despawn cap, a cross-domain physics-layer constant, a draw-order rung, a light mask, batching many plain-coloured shapes or a weighted roll. HUDs and menus live in the UI domain (scenes/ui/) — see `domain-ui`. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the General domain (scenes/general/) — input (Keybinds), saved settings (Settings), the pausable game clock (GameClock), despawner, camera, the dev command server, shared physics-layer ids (PhysicsLayers), the draw-order ladder (DrawLayers), the light masks (LightMasks: occluder bits, shadow masks, light layers, the occluder shape), FillBatch (plain-coloured shapes drawn as one triangle array), WeightedPick (the shared weighted roll) and MatchVerdict (who has won a match). Use when editing scenes/general/ or working on input/keybinds/rebinding, the game clock AI timers run on, the saved settings file (debug switch + key bindings), the dev command server (gcmd), camera follow, the despawn cap, a cross-domain physics-layer constant, a draw-order rung, a light mask, batching many plain-coloured shapes, a weighted roll or the match verdict. HUDs and menus live in the UI domain (scenes/ui/) — see `domain-ui`. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # General domain
@@ -69,6 +69,14 @@ the Character's style (strict) all draw through it, so the roll lives in one pla
 beneath them the native unit suite `tests/general/weighted_pick_suite.gd` (`UnitSuite`, `domain-testing`): the edges, the
 order, one roll per draw and the share by weight.
 
+`match_verdict.gd` (`class_name MatchVerdict`, a static holder, interface 11) is who has won a match, the one rule the UI's
+MatchHUD (its banner) and the dev command server's `match` verb both decide by. `MatchVerdict.decide(combatants) -> Dictionary` is
+`{}` while every side (faction) still has someone alive; once a side is wiped out, `{ winner, survivors, sides }`: `winner` the faction
+left standing, or null for a draw (nobody, or more than one side, left), `survivors` the living combatants and `sides` faction -> how
+many combatants it fields. It reads them through the Character API only (`faction`, `is_dead`) and skips a freed one (fallen). Each
+caller words the result: the HUD names a lone survivor in a match of any size, `verdict_of` only in a 1v1. Tests: the callers',
+`tests/ui/match_hud_verdict_test.gd` and `tests/general/command_server_verdict_suite.gd`.
+
 ## Input architecture
 
 All input flows through the `Keybinds` autoload; gameplay never hard-codes action strings or
@@ -136,8 +144,12 @@ evaluated against the node (e.g. `scene().get_node("Player").speed`). Movement a
 driven by injecting `Input` action presses through `Keybinds` names — the same path a human's
 keyboard/mouse uses — so no game domain is coupled to it. Combatants and the player are discovered under the scene root **or a node in the `match_world` group** (Main's container for everything a match builds). `match` prints a one-line, parseable
 status of every AI combatant it finds: each one's health, current act and
-alive flag, plus the verdict and elapsed time — reading only the characters' public API and their
-AI controller's `current_act()` (the child in the group `npc_controllers`, interface 7). `ai` is the diagnostic counterpart: it dumps every AI combatant's
+alive flag, plus the verdict and elapsed time — reading only the characters' public API (`health`, `is_dead`,
+`faction`, `name`) and their
+AI controller's `current_act()` (the child in the group `npc_controllers`, interface 7). The verdict (`verdict_of(combatants)`, static) words `MatchVerdict.decide`,
+the rule the MatchHUD decides by too: `none` while every faction has someone alive; once one is wiped out, the one left standing by its
+faction (a 1v1 names the survivor, where the HUD names a lone survivor in any match); `draw` with nobody, or more than one faction,
+left (`tests/general/command_server_verdict_suite.gd`). `ai` is the diagnostic counterpart: it dumps every AI combatant's
 `debug_state()` as JSON (every level of its last decision walk — the state and question Von saw,
 the options, Von's probabilities and pick — plus the facts gated on, the known contacts, the running
 primitive and the pathing state), read off the same controller so the server stays a decoupled
@@ -220,4 +232,4 @@ human `Player` and `DebugUI`, points the camera at every combatant in framing mo
 for watching and regression-testing both AI agent-types (defender and invader). Composition-root
 wiring lives in `main.gd`; the General observers only read published contracts.
 
-**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
+**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.

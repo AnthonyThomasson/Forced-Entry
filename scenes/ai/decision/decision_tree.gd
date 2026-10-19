@@ -48,7 +48,7 @@ extends RefCounted
 ##               target is walking toward, or one whose point or route lies in an ally's line of
 ##               fire). A node whose options are all dropped is not offered at all.
 ##   primitive — the behaviour primitive a leaf runs (move / engage / melee / interact / hold /
-##               reload / entry / throw / defend); an option that names its own `primitive`
+##               reload / entry / throw / defend / follow); an option that names its own `primitive`
 ##               (ORDER's) runs that one. FLANK runs `engage` anchored at the chosen side: get
 ##               there, then fight from it. ADVANCE runs `move`: it only closes the distance, then
 ##               the NPC re-decides how to fight.
@@ -61,7 +61,9 @@ const NODES := {
 		"question": "What should you do right now? Choose what best serves your goal, given any "
 			+ "threat and what you know.",
 		"context": [&"situation", &"loadout", &"current", &"odds", &"contacts", &"awareness"],
-		"children": [&"order", &"combat", &"reload_quiet", &"investigate", &"search", &"idle"],
+		"children": [
+			&"order", &"combat", &"follow", &"reload_quiet", &"investigate", &"search", &"idle",
+		],
 	},
 	&"order": {
 		# What the NPC's leader ordered it to do (docs/leadership.md LD6): one option, the order
@@ -73,6 +75,15 @@ const NODES := {
 		"requires": [&"ordered"],
 		"options": [&"order"],
 		"primitive": &"hold",
+	},
+	&"follow": {
+		# A squad member keeps with its leader (the squad's `follows`): a leaf, taken without asking
+		# Von. The controller's entry rule `follows -> follow` starts a walk here, after the fight
+		# and order rules, and turns INVESTIGATE, SEARCH and IDLE off for a follower.
+		"label": "FOLLOW",
+		"desc": "You follow your squad's leader",
+		"requires": [&"follows", &"!ordered"],
+		"primitive": &"follow",
 	},
 	&"combat": {
 		"label": "COMBAT",

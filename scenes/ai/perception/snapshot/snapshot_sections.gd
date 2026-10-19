@@ -47,7 +47,8 @@ func situation_text(rooms: Array) -> String:
 ## (`docs/leadership.md` LD6; measured with tools/von_probe.py): "Your leader ordered you to defend
 ## the kitchen." / "... to go into the kitchen by its doorway quietly." (or "with a stun grenade
 ## first", "with a frag grenade first", LD14; a held stack adds " when they give the go", LD13,
-## since "and wait for my go" moved a combat level's top pick) / "... to ambush the doorway into the
+## since "and wait for my go" moved a combat level's top pick; a join, the leader's own stack:
+## "... by its doorway with them.", LD24) / "... to ambush the doorway into the
 ## hall from the living room." (LD15; an exterior door's: "... to ambush the outside doorway of the
 ## kitchen from inside"). Empty with no order, so an NPC that holds none reads exactly what it read
 ## before.
@@ -61,6 +62,10 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
 			if not into.is_empty():
 				var mode := String(order["mode"])
+				if SnapshotVocab.is_join(order):
+					# The leader's own stack (LD24): its team goes in with it.
+					return ("Your leader ordered you to go into the %s by its doorway with them."
+							% _v.room_name(into["type"]))
 				return "Your leader ordered you to go into the %s by its doorway %s%s." % [
 					_v.room_name(into["type"]),
 					"with a %s grenade first" % mode if mode != "quiet" else "quietly",

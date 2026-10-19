@@ -116,8 +116,8 @@ func run(t: TestContext) -> void:
 
 ## LD16 (`docs/leadership.md`, part 2): the markers name the new order kinds at their targets: a
 ## stack's mode and whether it is held for go ("Stack (frag, hold) · in position"), and an ambush
-## ("Ambush · in position"). A stun stack not held for go reads "Stack (stun)". The words are read
-## off `drawn()`'s `label`.
+## ("Ambush · in position"). A stun stack not held for go reads "Stack (stun)", and a join (LD24)
+## "Join stack". The words are read off `drawn()`'s `label`.
 func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	_view["members"][1]["order"] = {
 		"id": "o3",
@@ -178,6 +178,25 @@ func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 		_label_for(markers, t1),
 		"Stack (stun) · moving",
 		"a stun stack not held for go is named with its mode alone",
+	)
+	# LD24: the stack a leader's own claim rallies its free followers into (a `stack`
+	# order in mode `join`) is the member joining the leader's stack, named "Join stack".
+	_view["members"][1]["order"] = {
+		"id": "o7",
+		"kind": "stack",
+		"opening": "door_840_190",
+		"into": "kitchen",
+		"mode": "join",
+		"bang": false,
+		"wait_go": false,
+		"split": false,
+		"pos": Vector2(870, 190),
+	}
+	await t.frames(2)
+	t.expect_eq(
+		_label_for(markers, t1),
+		"Join stack · moving",
+		"a join order (the leader's stack rallying the member) is named Join stack",
 	)
 
 

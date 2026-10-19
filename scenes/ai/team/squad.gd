@@ -35,7 +35,23 @@ extends Node
 ## **Progress (LD7).** The members radio how their order goes (`&"callout"` with `order_id` and
 ## `order_step`: moving, in_position, done, refused); the squad keeps each one's latest step for
 ## `view()`, which the order markers draw. A done order is no longer held. It reads its members only
-## through the Character API (`rank`, `is_dead`, `died`) and the bus, never an NPC's brain.
+## through the Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the
+## leader's `facing`; a member is an NPC, one that may follow, when a child of it is in the group
+## `npc_controllers` at `setup`, interface 7) and the bus, never an NPC's brain.
+##
+## **Following (LD19 to LD23).** Every living NPC member but the leader follows it (`follows`): it
+## picks no goal of its own and keeps to the spot the squad gives it (`follow_spot`). While the
+## leader moves that spot is on the leader's trail, a file behind it (`follow_gap` back, then
+## `follow_step` further for each next follower); once the leader has stood `follow_still_time` it
+## is a slot on a ring (`follow_ring`) behind the way the leader came, within the leader's sight,
+## and never in the leader's way (D28). The trail and the spots are `SquadFollow`'s
+## (`squad_follow.gd`); the tunables are here. A follower fights only within the `leash` of the
+## leader's live position. A human member who does not lead is never given a spot.
+##
+## **The rally (LD24 to LD26).** The leader's own entry claim at a doorway gives every follower
+## holding no order a `stack` order of mode `JOIN` there (D24), once per doorway per leader; its
+## `abort` there cancels them (D25); when the human leader dies, the members holding its defend and
+## ambush orders are told `cancel` (LD26).
 ##
 ## **Its stacks (LD18).** Every stack its side is forming, ordered or its own, read off the members'
 ## entry claims on the radio (the human's `PlayerStack` among them) and laid where the AI stands
@@ -46,19 +62,42 @@ extends Node
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
+const SquadFollow := preload("res://scenes/ai/team/squad_follow.gd")
 ## The order kinds.
 const DEFEND := "defend_room"
 const STACK := "stack"
 const CANCEL := "cancel"
 const GO := "go"
 const AMBUSH := "ambush"
-## A stack order's modes (LD14): in quietly, with a stun first, with a frag first.
+## A stack order's modes a leader's request may name (LD14): in quietly, with a stun first, with a
+## frag first.
 const MODES := ["quiet", "stun", "frag"]
+## The mode of the squad's own rally stack (LD24): the leader's own stack bringing its team in,
+## which pins no mode (each member goes in as its own entry would). Not one of `MODES`: no request
+## names it, only the rally posts it.
+const JOIN := "join"
 ## The entry steps of a member still on its way into the room (it holds a place in the stack), and
 ## of one standing in its slot.
 const STACKING := ["claim", "ready", "bang", "going_in"]
 const IN_SLOT := ["ready", "bang"]
 
+## The follow file (px): the first follower keeps this far back along the leader's trail...
+var follow_gap := 55.0
+## ... and each next one this much further (also the spacing of the slots on a ring, and of the
+## rings).
+var follow_step := 45.0
+## The ring (px) round a still leader its followers stand on, behind its facing.
+var follow_ring := 80.0
+## Seconds the leader stands (within `SquadFollow.TRAIL_STEP`) before it counts as still.
+var follow_still_time := 0.8
+## A follower re-aims its walk only once its spot has moved this far (px) from where it is going.
+var follow_retarget := 20.0
+## A follower is at its spot within this distance (px).
+var follow_arrive := 10.0
+## A follower fights within this distance (px) of the leader's live position...
+var leash := 320.0
+## ... and one fighting further than this many leashes from it re-decides.
+var leash_break := 1.3
 ## The side this squad is (its members' `faction`).
 var _faction: StringName = &""
 ## The roster, in spawn order (the human leader among them when it leads).
@@ -91,6 +130,19 @@ var _stacks_cache: Array = []
 var _stacks_at := -1
 ## The doorway geometry the stacks are laid out by, the same the NPCs build.
 var _entry: RefCounted = AgentEntry.new()
+## Member instance id -> true for each member an NPC controller drives (the ones that follow).
+var _npcs := {}
+## The leader's trail and the followers' spots (`setup`; null before it).
+var _follow: RefCounted = null
+## "<leader instance id>:<opening>" -> true for each doorway a leader's own claim has rallied its
+## team to, until that stack is given up (`_rally`).
+var _rallied := {}
+
+
+## Take the leader's trail every physics frame (`SquadFollow.track`).
+func _physics_process(_delta: float) -> void:
+	if _follow != null:
+		_follow.track()
 
 
 ## Set the squad up: `faction`, its members (`roster`) in spawn order, the house's `openings` and
@@ -116,9 +168,13 @@ func setup(
 	for m: Node in _members:
 		if m.has_signal(&"died"):
 			m.died.connect(_on_died.bind(m))
+		if m.get_children().any(func(c): return c.is_in_group(&"npc_controllers")):
+			_npcs[m.get_instance_id()] = true
 	if not EventBus.posted.is_connected(_on_event):
 		EventBus.posted.connect(_on_event)
 	_leader = _next_leader()
+	_follow = SquadFollow.new(self, openings, rooms)
+	_follow.reset()
 
 
 ## The squad's leader (null when every member is dead).
@@ -136,12 +192,40 @@ func alive(member: Node) -> bool:
 	return _members.has(member) and is_instance_valid(member) and member.get("is_dead") != true
 
 
+## Whether `member` follows the leader: a living NPC member of this squad that does not lead it.
+func follows(member: Node) -> bool:
+	return (
+		_leader != null
+			and member != _leader
+			and alive(member)
+			and _npcs.has(member.get_instance_id())
+	)
+
+
+## Where follower `member` keeps to now (`Vector2.INF` when it does not follow): on the leader's
+## trail while the leader moves, a slot on the ring behind it once it stands still, and out of the
+## leader's way (`SquadFollow.spot`, LD21, D28).
+func follow_spot(member: Node) -> Vector2:
+	if not follows(member) or _follow == null:
+		return Vector2.INF
+	return _follow.spot(member)
+
+
+## Whether `order` (a posted order, or a member's row's `order` in `view()`) is a rally's join: a
+## `stack` of mode `JOIN` (LD24).
+static func is_join(order: Dictionary) -> bool:
+	return String(order.get("kind", "")) == STACK and String(order.get("mode", "")) == JOIN
+
+
 ## What the squad looks like now, for observers (the order markers, the command menu, the stack
-## markers): `{ leader, members: [{ node, order, step, held }], stacks }`, `order` being the order
-## the member holds ({} for none, and once it is done; a held stack released by a go carries
-## `go: true`), `step` its latest progress on it ("" for none; `done` with no order held once it is
-## done) and `held` whether that order is a stack waiting for the leader's go (`_waits_for_go`,
-## LD13); `stacks` every stack the side is forming (`_stacks`).
+## markers, the leaders overlay):
+## `{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`, `order`
+## being the order the member holds ({} for none, and once it is done; a held stack released by a go
+## carries `go: true`), `step` its latest progress on it ("" for none; `done` with no order held
+## once it is done) and `held` whether that order is a stack waiting for the leader's go
+## (`_waits_for_go`, LD13), `follow_spot` its spot when it follows (`Vector2.INF` when not);
+## `stacks` every stack the side is forming (`_stacks`); `trail` the leader's trail (oldest point
+## first) and `leash` (px).
 func view() -> Dictionary:
 	var rows: Array = []
 	for m: Node in _members:
@@ -153,8 +237,20 @@ func view() -> Dictionary:
 		if _released.has(str(order.get("id", ""))):
 			order = order.duplicate()
 			order["go"] = true  # A held stack the leader said go to (LD13): still held, released.
-		rows.append({ "node": m, "order": order, "step": _steps.get(id, ""), "held": held })
-	return { "leader": _leader, "members": rows, "stacks": _stacks_now() }
+		rows.append({
+			"node": m,
+			"order": order,
+			"step": _steps.get(id, ""),
+			"held": held,
+			"follow_spot": follow_spot(m),
+		})
+	return {
+		"leader": _leader,
+		"members": rows,
+		"stacks": _stacks_now(),
+		"trail": Array(_follow.trail()) if _follow != null else [],
+		"leash": leash,
+	}
 
 
 ## `_stacks()`, laid at most once a physics frame, and again after a claim heard or a member's
@@ -292,11 +388,17 @@ func issue(request: Dictionary) -> Dictionary:
 			pass
 		_:
 			return {}
+	return _post_order(order)
+
+
+## Give `order` (`{ leader, faction, to, kind, ... }`) its id, keep it as what each of its `to`
+## holds (a `cancel` ends what they held), and post it as `&"order"`. Returns it.
+func _post_order(order: Dictionary) -> Dictionary:
 	_issued += 1
 	order["id"] = "%s_%d" % [_faction, _issued]
-	for m: Node in to:
+	for m: Node in order["to"]:
 		var id := m.get_instance_id()
-		if kind == CANCEL:
+		if order["kind"] == CANCEL:
 			_orders.erase(id)
 		else:
 			_orders[id] = order
@@ -459,14 +561,22 @@ func _next_leader() -> Node:
 
 ## A member died (LD4): when it led, the next in line leads now, and the squad says so on the bus.
 ## Its own order is dropped. The held stacks it ordered have nobody to say go now (D12): each is
-## released (a `go` with `auto: true`), so it goes on the ready barrier.
+## released (a `go` with `auto: true`), so it goes on the ready barrier. When the human leader dies
+## (LD26), the members it set to defend a room or lie in ambush are told `cancel` (one order) and
+## follow the new leader; its stack orders are finished.
 func _on_died(member: Node) -> void:
 	_orders.erase(member.get_instance_id())
 	_stacks_at = -1
+	if _follow != null:
+		_follow.invalidate()
 	if member == _leader:
 		var previous := _leader
 		_leader = _next_leader()
+		if _follow != null:
+			_follow.reset()
 		EventBus.post(&"leader", { "faction": _faction, "leader": _leader, "previous": previous })
+		if previous == _human:
+			_take_over()
 	# Doorway id -> the held stack orders the dead member gave there, not yet released.
 	var orphaned := {}
 	for m: Node in _members:
@@ -482,9 +592,26 @@ func _on_died(member: Node) -> void:
 		_release(orphaned[at]["orders"], { "opening": at, "pos": orphaned[at]["pos"] }, true)
 
 
+## The new leader takes over from the dead human's (LD26): one `cancel` to the living members
+## holding a `defend_room` or an `ambush` order, so each follows it.
+func _take_over() -> void:
+	_cancel_held(func(held: Dictionary): return held.get("kind") in [DEFEND, AMBUSH])
+
+
+## Post one `cancel` from the leader to the living members whose held order `holds` (called with it)
+## accepts; nothing when none does.
+func _cancel_held(holds: Callable) -> void:
+	var to: Array = _members.filter(
+		func(m): return alive(m) and holds.call(_orders.get(m.get_instance_id(), {})),
+	)
+	if not to.is_empty():
+		_post_order({ "leader": _leader, "faction": _faction, "to": to, "kind": CANCEL })
+
+
 ## The radio (LD7): a member's progress on the order it holds (`order_id`, `order_step`) is kept as
 ## its latest step. An order radioed `done` is no longer held (the step `done` stays, the order
-## goes), so nothing offers to cancel it; a `refused` one is still held.
+## goes), so nothing offers to cancel it; a `refused` one is still held (D21), but for a join
+## (LD25). The leader's own entry steps rally its team (`_rally`).
 func _on_event(topic: StringName, data: Dictionary) -> void:
 	if topic != &"callout":
 		return
@@ -497,6 +624,8 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 		# Its place in a stack (LD18).
 		_claims[speaker.get_instance_id()] = { "data": data, "at": GameClock.seconds() }
 		_stacks_at = -1
+		if speaker == _leader and _own_claim(data):
+			_rally(data)
 	var step := String(data.get("order_step", ""))
 	if step == "" or not speaker is Node or not is_instance_valid(speaker):
 		return
@@ -504,5 +633,57 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	var held: Dictionary = _orders.get(id, {})
 	if not held.is_empty() and str(held.get("id", "")) == str(data.get("order_id", "")):
 		_steps[id] = step
-		if step == "done":
+		if step == "done" or (step == "refused" and is_join(held)):
+			# (A join refused, no slot for it, is over too: the member follows again.)
 			_orders.erase(id)
+
+
+## The leader's own entry steps (no order behind them, LD24, LD25). Its claim at a doorway rallies
+## the team: one `stack` order with mode `join` there, into the room it goes into, to every follower
+## holding no order (one carrying out another order keeps it), once for that stack (a new leader
+## rallies again). Its `abort` (it gave the stack up) cancels the joins it gave there, so their
+## members follow it again, and a later claim there is a new stack.
+func _rally(data: Dictionary) -> void:
+	var opening := String(data.get("opening", ""))
+	var key := "%d:%s" % [_leader.get_instance_id(), opening]
+	match String(data.get("entry_step", "")):
+		"claim":
+			if _rallied.has(key):
+				return
+			var door := _opening_pos(opening)
+			if door == Vector2.INF:
+				return
+			_rallied[key] = true
+			var to: Array = _follow.followers().filter(
+				func(m): return (_orders.get(m.get_instance_id(), {}) as Dictionary).is_empty(),
+			)
+			if to.is_empty():
+				return
+			_post_order({
+				"leader": _leader, "faction": _faction, "to": to, "kind": STACK,
+				"opening": opening, "into": String(data.get("into", "")), "pos": door,
+				"split": false, "mode": JOIN, "bang": false, "wait_go": false,
+			})
+		"abort":
+			if not _rallied.erase(key):
+				return
+			_cancel_held(func(held: Dictionary): return (
+				is_join(held) and held.get("opening") == opening and held.get("leader") == _leader
+			))
+
+
+## Whether entry callout `data` is its speaker's own claim (LD24): no order behind it, and, from
+## the human's `PlayerStack`, marked `own` (it stepped up to a doorway nobody stacks at); a slot
+## the human is reserved in a stack already forming is E16's, which rallies nobody.
+func _own_claim(data: Dictionary) -> bool:
+	if str(data.get("order_id", "")) != "":
+		return false
+	return not bool(data.get("human", false)) or bool(data.get("own", false))
+
+
+## The centre of the house's doorway `opening`, or `Vector2.INF` when it has none by that id.
+func _opening_pos(opening: String) -> Vector2:
+	for o: Dictionary in _openings:
+		if AgentEntry.opening_id(o) == opening:
+			return o["pos"]
+	return Vector2.INF

@@ -58,6 +58,11 @@ var cover_timer := 0.0
 var fire_timer := 0.0
 ## Committed fire/cover position the NPC is steering toward.
 var dest := Vector2.ZERO
+## A squad member following its leader fights within `leash` px of this, the leader's live
+## position (`Vector2.INF`: no leash), set every tick by `Behavior.set_leash` (LD23).
+var leash_center := Vector2.INF
+## The leash (px) round `leash_center` a follower fights within (0 with no leash).
+var leash := 0.0
 ## Seconds left before a new combat position may be chosen.
 var dest_timer := 0.0
 ## The throw in hand (`begin_throw`): "" none, "walk" on the way to the throw spot (the gun still in
@@ -162,7 +167,8 @@ func ambush(node, pos: Vector2) -> void:
 ## `cover_time` before peeking again. The fire/cover destination is committed for
 ## `reposition_interval` rather than re-picked every frame, so the NPC steers smoothly instead of
 ## vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside the house,
-## or inside room `room` when given (a member ordered to defend it, `docs/leadership.md` LD8).
+## or inside room `room` when given (a member ordered to defend it, `docs/leadership.md` LD8), and a
+## leash (`leash_center`) within it.
 func peek_cover(delta: float, node, pos: Vector2, hold_ground: bool, room := "") -> void:
 	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
@@ -271,11 +277,11 @@ func throw_released() -> bool:
 
 
 ## Melee at the known position `pos`: close to punch range and strike on the fire cooldown (no cover
-## cycle for fists). While holding ground it won't chase a contact out of the house — it only swings
-## if one is already in reach.
+## cycle for fists). While holding ground it won't chase a contact out of the house, nor off its
+## leash — it only swings if one is already in reach.
 func melee(pos: Vector2, hold_ground: bool) -> void:
 	if _character.global_position.distance_to(pos) > punch_range:
-		if not hold_ground:
+		if not hold_ground and _on_leash(pos):
 			_loco.move_to(pos)
 		else:
 			_character.move_input = Vector2.ZERO
@@ -394,6 +400,13 @@ func top_off() -> bool:
 	return true
 
 
+## Whether the gun the NPC fights with is at or below `fraction` of its magazine (a follower at
+## rest tops up such a one, LD22: not only a dry one).
+func magazine_low(fraction: float) -> bool:
+	var gun: int = _character.gun_slot()
+	return gun >= 0 and _character.ammo(gun) <= ceili(_character.ammo_capacity(gun) * fraction)
+
+
 ## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine
 ## to put in it. (A reload runs only while standing, so a run is dropped for it.)
 func reload_due() -> bool:
@@ -415,7 +428,7 @@ func _faces(pos: Vector2) -> bool:
 ## on the contact (peek) or holding (cover) when no suitable spot exists this sample. While holding
 ## ground, spots are restricted to inside the house and the peek fallback holds position instead of
 ## advancing out; with a `room` (kept to by order) spots are restricted to inside that room in any
-## case.
+## case; on a leash, spots are restricted to within it and the peek fallback holds position too.
 func _choose_dest(kind: String, node, pos: Vector2, hold_ground: bool, room := "") -> Vector2:
 	var spots: Dictionary = _perception.combat_spots(node, pos, ring_radius, ring_count)
 	var fire: Array = spots["fire"]
@@ -425,8 +438,16 @@ func _choose_dest(kind: String, node, pos: Vector2, hold_ground: bool, room := "
 			return _loco.room_key_at(p) == room if room != "" else _loco.inside_house(p)
 		fire = fire.filter(keep)
 		cover = cover.filter(keep)
+	if leash_center != Vector2.INF:
+		fire = fire.filter(_on_leash)
+		cover = cover.filter(_on_leash)
 	if kind == "cover":
 		return cover[0] if not cover.is_empty() else _character.global_position
 	if not fire.is_empty():
 		return fire[0]
-	return _character.global_position if hold_ground else pos
+	return _character.global_position if hold_ground or leash_center != Vector2.INF else pos
+
+
+## Whether point `p` is within the leash (true with none).
+func _on_leash(p: Vector2) -> bool:
+	return leash_center == Vector2.INF or leash_center.distance_to(p) <= leash

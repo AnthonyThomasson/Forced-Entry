@@ -14,7 +14,6 @@ extends GameTest
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
-const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const SEED := 7
 ## The house `perf/match_5v5_stress` measures its match in: the largest plan, pinned (see its
 ## comment).
@@ -195,7 +194,7 @@ func _spawn_match(t: TestContext) -> Array:
 	spawner.openings = t.world.openings
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	var entrance := _front_entrance(t)
+	var entrance := Perf.front_entrance(t)
 	for i in PER_SIDE:
 		spawner.spawn_defender(t.rooms, rng, i)
 	for i in PER_SIDE:
@@ -204,24 +203,8 @@ func _spawn_match(t: TestContext) -> Array:
 	loadout_rng.seed = SEED
 	for c in spawner.combatants:
 		LoadoutConfig.apply(c, {}, loadout_rng)
-		_overlays_off(c)
+		Perf.overlays_off(c)
 	return spawner.combatants
-
-
-## Main's `_configure_debug` with every overlay at its default (off), as perf/match_5v5_stress.
-func _overlays_off(npc: Node) -> void:
-	for child in npc.get_children():
-		for flag in OverlayRegistry.defaults():
-			if not OverlayRegistry.is_global(flag) and flag in child:
-				child.set(flag, false)
-
-
-## The generated house's front entrance (world px), or the origin when it has none.
-func _front_entrance(t: TestContext) -> Vector2:
-	for o in WorldGen.get_openings(t.world.get("house")):
-		if o["front"]:
-			return o["pos"]
-	return Vector2.ZERO
 
 
 ## Headless, the runner's viewport is 64 px square (the camera sees ~160 px of the world), so every

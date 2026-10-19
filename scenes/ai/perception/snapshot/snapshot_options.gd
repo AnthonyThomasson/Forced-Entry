@@ -998,11 +998,13 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 ## `AgentEntry.defend_spot`: the members of the order share the room's doorways out in the order
 ## `to` names them); `stack` is an `entry` through the ordered doorway into the ordered room
 ## (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), and the side: `stack_at` or
-## `split`); `ambush` (LD15) is an `ambush` of the doorway from the ordered room at this member's
-## post with its gun on the threshold (`AgentEntry.ambush_spot`: `opening`, `room`, `spot`,
-## `door_pos`). Each carries the order's `order_id`. A stack at a dead end that holds no slot for
-## this member (its place, `_stack_place`, past what the room holds, E20) is a `hold` where it
-## stands instead, the order kept and refused (`refused` in its params: the behaviour radios it).
+## `split`), a join (the leader's own stack, LD24, `SnapshotVocab.is_join`) the member's own entry
+## joining it (`opening`, `into`, `join`, `bang` false: no side or mode of the order's), none at a
+## dead end with no slot for it; `ambush` (LD15) is an `ambush` of the doorway from the ordered room
+## at this member's post with its gun on the threshold (`AgentEntry.ambush_spot`: `opening`, `room`,
+## `spot`, `door_pos`). Each carries the order's `order_id`. A stack at a dead end that holds no
+## slot for this member (its place, `_stack_place`, past what the room holds, E20) is a `hold` where
+## it stands instead, the order kept and refused (`refused` in its params: the behaviour radios it).
 ## Empty with no order, or one this NPC cannot carry out (a room or doorway it does not know):
 ## refused, and dropped.
 func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
@@ -1053,6 +1055,23 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 					))
 			if g.is_empty():
 				return { "summary": "", "options": [] }
+			if SnapshotVocab.is_join(order):
+				# The leader's own stack (LD24, D10): the member's own entry, joining it (no side,
+				# no mode of the order's). A dead end with no slot for it is no join: refused, it
+				# follows again (LD25).
+				if not AgentEntry.holds_slot(g, _stack_place(order, ctx)):
+					return { "summary": "", "options": [] }
+				var joined := "the doorway into the %s" % _v.room_name(into["type"])
+				option = {
+					"id": "stack_%s" % order["opening"], "label": joined, "desc": joined,
+					"primitive": &"entry",
+					"params": {
+						"opening": String(order["opening"]), "into": String(into["key"]),
+						"bang": false, "join": true, "order_id": order["id"],
+					},
+					"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
+				}
+				return { "summary": joined, "options": [option] }
 			if not AgentEntry.holds_slot(g, _stack_place(order, ctx)):
 				# Past what a dead end holds (E20, rule 6): no slot for it. The order stands,
 				# refused: it holds where it is.

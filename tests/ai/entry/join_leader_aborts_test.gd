@@ -1,0 +1,122 @@
+extends GameTest
+## LD25 and D25: the leader gives its stack up, and the squad cancels the joins. Three invaders,
+## ranked as Main ranks a unit, are a squad bound as Main binds it: the lead in the back garden by
+## the bare Terrace house's back door, the sergeant and the trooper far off in the garden north-west
+## of the house. The lead decides through Von and claims a doorway of its own: the squad rallies the
+## others (a `join` order). Then the lead comes under fire (a hit on it): its forced decision
+## replaces the entry and it radios `abort`. The squad cancels those join orders, and the sergeant
+## and the trooper stop their entries and follow the lead again.
+##
+## Real Von, the whole pipeline; no switch. Premises: the hit (a `hit` event on the lead, nobody
+## known firing, as `tests/_ai/order_probe.gd`'s `gunfire_near` posts one) lands while the others
+## are still far from the doorway, more than an awareness radius off, so only the lead is under
+## fire; the lead is never killed (`max_health`).
+
+const Follow := preload("res://tests/_ai/follow_probe.gd")
+const Maps := preload("res://tests/_ai/flank_maps.gd")
+## How long (s) after the lead's claim the hit lands: the join order is out and taken.
+const HIT_AFTER := 1.0
+## How long (s) the members have, from the cancel, to drop their entries and follow.
+const FOLLOW_WITHIN := 3.0
+
+
+func describe() -> Dictionary:
+	return {
+		"name": "When the leader aborts its stack the joins are cancelled",
+		"description": "The lead's claim rallies its team; the lead comes under fire and gives its "
+			+ "stack up: the squad cancels the join orders and the members follow it again.",
+		"tags": ["ai", "entry", "squad", "join", "leadership", "von"],
+		"requires_von": true,
+		"timeout": 90.0,
+	}
+
+
+func configure(s: TestSetup) -> void:
+	Maps.house(s, false)
+	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2, "max_health": 1_000_000.0 })
+	s.actor(&"sergeant", &"invader", Vector2(100, -120), { "rank": 1 })
+	s.actor(&"trooper", &"invader", Vector2(40, -80), { "rank": 0 })
+
+
+func run(t: TestContext) -> void:
+	var squad := Follow.team(t, [&"lead", &"sergeant", &"trooper"])
+	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
+		return
+	var lead := t.actor(&"lead")
+	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
+	var nodes: Array = [lead] + members
+	var own := func(_rec: Dictionary) -> bool: return not Follow.own_claims(t, lead).is_empty()
+	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, own)
+	var claims := Follow.own_claims(t, lead)
+	if not t.require(
+			not claims.is_empty(),
+			"premise: the lead made its own entry claim (acts %s)" % Follow.acts_of(w, lead),
+	):
+		return
+	var opening := String(claims[0]["data"].get("opening", ""))
+	var keep := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return false
+	await t.until(keep, HIT_AFTER)
+	var far: Array = members.map(
+		func(m): return m.global_position.distance_to(lead.global_position),
+	)
+	if not t.require(
+			far.all(func(d): return d > 200.0),
+			"premise: the others are still far from the lead when it is hit (%s px)"
+				% str(far.map(func(d): return roundi(d))),
+	):
+		return
+	EventBus.post(
+		&"hit",
+		{
+			"position": lead.global_position,
+			"direction": Vector2.LEFT,
+			"damage": 10.0,
+			"attacker": null,
+			"victim": lead,
+		},
+	)
+	var aborted := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return Follow.first_call(t, lead, "abort", opening) < INF
+	if not t.require(
+			await t.until(aborted, 5.0),
+			"premise: under fire, the lead gives its stack on %s up (abort; acts %s)"
+				% [opening, Follow.acts_of(w, lead)],
+	):
+		return
+	var abort_at := Follow.first_call(t, lead, "abort", opening)
+
+	var joins := Follow.raw_joins(t)
+	t.check(
+		not joins.is_empty() and String(joins[0]["data"].get("opening", "")) == opening,
+		"the lead's claim on %s rallied the team (joins %s)"
+			% [opening, str(joins.map(func(e): return e["data"]))],
+	)
+	var cancel_of := func(m: Node) -> float:
+		for e: Dictionary in Follow.raw_orders(t, Follow.Order.CANCEL):
+			if float(e["time"]) >= abort_at and (e["data"].get("to", []) as Array).has(m):
+				return float(e["time"])
+		return INF
+	var settled := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return members.all(func(m): return (
+			cancel_of.call(m) < INF and Follow.entry(m).is_empty() and Follow.following(m)
+		))
+	await t.until(settled, FOLLOW_WITHIN + 1.0)
+	for m: Node in members:
+		var at: float = cancel_of.call(m)
+		t.check(
+			at < INF,
+			"the squad cancelled %s's join order after the abort at %.2f s" % [m.name, abort_at],
+		)
+		t.check(
+			Follow.entry(m).is_empty() and Follow.following(m),
+			"%s dropped its entry and follows the lead again (entry %s; acts %s)"
+				% [m.name, str(Follow.entry(m).get("phase", "none")), Follow.acts_of(w, m)],
+		)
+		t.check(
+			Follow.first_call(t, m, "going_in", opening) == INF,
+			"%s never went in by %s" % [m.name, opening],
+		)

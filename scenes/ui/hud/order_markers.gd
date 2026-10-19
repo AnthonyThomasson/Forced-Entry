@@ -23,6 +23,8 @@ const SELECTED_RADIUS := 22.0
 const FONT_SIZE := 16
 ## The dashes of the line from a member to its target (px).
 const DASH := 10.0
+## A stack order's mode for the squad's own rally (interface 21, `docs/leadership.md` LD24): a join.
+const JOIN_MODE := "join"
 
 ## The squad's `view()`; invalid = nothing watched.
 var _view: Callable
@@ -126,13 +128,17 @@ func _markers() -> Array:
 
 ## The words at an order's target: what it is and how it goes ("Stack (stun) · moving"; a stack
 ## names its mode, quiet / stun / frag, and "hold" while it waits for the leader's go, `held` (the
-## view row's, LD13): "Stack (frag, hold) · in position"; "Ambush · in position", LD15).
+## view row's, LD13): "Stack (frag, hold) · in position"; "Ambush · in position", LD15). A join, the
+## stack the leader's own claim rallied the member into, is "Join stack · moving".
 func _label_of(order: Dictionary, step: String, held: bool) -> String:
 	var what := "Defend"
 	match String(order.get("kind", "")):
 		"stack":
 			var mode := String(order["mode"])
-			what = "Stack (%s%s)" % [mode, ", hold" if held else ""]
+			if mode == JOIN_MODE:
+				what = "Join stack"
+			else:
+				what = "Stack (%s%s)" % [mode, ", hold" if held else ""]
 		"ambush":
 			what = "Ambush"
 	return what if step == "" else "%s · %s" % [what, step.replace("_", " ")]

@@ -1,0 +1,106 @@
+extends GameTest
+## LD24 and LD25: an AI leader's stack brings its team in. Three invaders, ranked as Main ranks a
+## unit (lead, sergeant, trooper), are a squad bound as Main binds it, in the back garden east of
+## the bare Terrace house, the back door the nearest way in. The lead decides through Von and goes
+## in: its own entry claim at a doorway (no order behind it) makes the squad issue one `stack` order
+## with mode `join` to both others, on that doorway. All three cross as one stack and the room is
+## cleared.
+##
+## Real Von, the whole pipeline; no switch. The premise is the leader's own claim: what doorway it
+## picks is Von's, and the test reads it off the radio.
+
+const Follow := preload("res://tests/_ai/follow_probe.gd")
+const Maps := preload("res://tests/_ai/flank_maps.gd")
+## How long (s) the team has, from the lead's first claim, to be in and the room called clear.
+const CLEAR_WITHIN := 60.0
+## The most (s) between the first and the last of the three going in: one stack, not one at a time.
+const ONE_STACK_S := 15.0
+
+
+func describe() -> Dictionary:
+	return {
+		"name": "An AI leader's stack rallies its team and they clear the room",
+		"description": "Three invaders in a squad: the lead's own claim at a doorway gives both "
+			+ "others a join order there, all three cross as one stack and clear the room.",
+		"tags": ["ai", "entry", "squad", "join", "leadership", "von"],
+		"requires_von": true,
+		"timeout": 120.0,
+	}
+
+
+func configure(s: TestSetup) -> void:
+	Maps.house(s, false)
+	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2 })
+	s.actor(&"sergeant", &"invader", Vector2(1000, 100), { "rank": 1 })
+	s.actor(&"trooper", &"invader", Vector2(1000, 250), { "rank": 0 })
+
+
+func run(t: TestContext) -> void:
+	var squad := Follow.team(t, [&"lead", &"sergeant", &"trooper"])
+	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
+		return
+	var lead := t.actor(&"lead")
+	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
+	var nodes: Array = [lead] + members
+	if not t.require(squad.leader() == lead, "the lead leads (the rank rule)"):
+		return
+	var own_claim := func(_rec: Dictionary) -> bool:
+		return not Follow.own_claims(t, lead).is_empty()
+	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, own_claim)
+	var claims := Follow.own_claims(t, lead)
+	if not t.require(
+			not claims.is_empty(),
+			"premise: the lead made its own entry claim at a doorway (acts %s)"
+				% Follow.acts_of(w, lead),
+	):
+		return
+	var opening := String(claims[0]["data"].get("opening", ""))
+	var into := String(claims[0]["data"].get("into", ""))
+	var claimed_at := float(claims[0]["time"])
+	var cleared := func(rec: Dictionary) -> bool:
+		Follow.tick(rec, t, nodes, squad)
+		return not Follow.clears(t, into).is_empty() and nodes.all(
+			func(c): return Follow.first_call(t, c, "going_in", opening) < INF,
+		)
+	await t.until(cleared.bind(w), CLEAR_WITHIN)
+
+	var joins := Follow.raw_joins(t)
+	t.check(
+		joins.size() == 1,
+		"the squad issued one join order (%d: %s)"
+			% [joins.size(), str(joins.map(func(e): return e["data"]))],
+	)
+	if not joins.is_empty():
+		var order: Dictionary = joins[0]["data"]
+		var to: Array = order.get("to", [])
+		t.check(
+			members.all(func(m): return to.has(m)) and not to.has(lead),
+			"the join order went to both others, not the lead (to %s)"
+				% str(to.map(func(n): return Follow.name_of(n))),
+		)
+		t.check(
+			String(order.get("opening", "")) == opening and float(joins[0]["time"]) >= claimed_at,
+			"on the lead's doorway %s, after its claim at %.2f s (order on %s at %.2f s)"
+				% [opening, claimed_at, order.get("opening", ""), float(joins[0]["time"])],
+		)
+	for m: Node in members:
+		t.check(
+			Follow.took(w, m, "order"),
+			"%s carried out the join order (ORDER; acts %s)" % [m.name, Follow.acts_of(w, m)],
+		)
+	var going: Array = nodes.map(func(c): return Follow.first_call(t, c, "going_in", opening))
+	t.check(
+		going.all(func(g): return g < INF),
+		"all three went in by %s (going_in at %s)" % [opening, str(going)],
+	)
+	if going.all(func(g): return g < INF):
+		t.check(
+			float(going.max()) - float(going.min()) <= ONE_STACK_S,
+			"as one stack: the first and the last went in %.1f s apart (most %.0f)"
+				% [float(going.max()) - float(going.min()), ONE_STACK_S],
+		)
+	t.check(
+		not Follow.clears(t, into).is_empty(),
+		"the %s was called clear (cleared_room) within %.0f s of the lead's claim"
+			% [into, CLEAR_WITHIN],
+	)

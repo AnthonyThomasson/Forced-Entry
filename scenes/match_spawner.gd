@@ -1,10 +1,11 @@
 extends RefCounted
 ## Composition-root helper (`main.gd`): where and how a match's NPCs are placed. Defenders go to a
-## clear spot in a random room, invaders spread around the outside of the house; each NPC is added
-## under the match's `World` node, handed the house's rooms and recorded in `combatants` (the
-## spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
-## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the
-## root only wires domains.
+## clear spot in a random room, Main's invader team in one group outside the house
+## (`spawn_invader_team`; `spawn_invader` drops one alone at its share of the perimeter, as the
+## tests that place a spread side do); each NPC is added under the match's `World` node, handed the
+## house's rooms and recorded in `combatants` (the spectator camera, the match HUD and the overlays
+## observe that list). Like `main.gd` it knows the NPC scenes and the Navigation domain's
+## `furniture_holes`; the placement rules live here so the root only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
@@ -15,6 +16,9 @@ const INVADER_SCENE := preload("res://scenes/ai/npc_invader.tscn")
 const PLAYER_STACK := preload("res://scenes/ai/team/player_stack.gd")
 ## Random points tried in a room, after its centre, before `clear_spot` gives up.
 const SPAWN_TRIES := 32
+## Rings round a group's point (`spawn_invader_team`) tried for a member before it gives up: six
+## hold 130 spots.
+const GROUP_RINGS := 6
 
 ## The match's `World` node the NPCs are added under.
 var world: Node2D = null
@@ -106,6 +110,75 @@ func spawn_invader(
 		rooms,
 		front_entranceworld,
 	)
+
+
+## Drop an invader team of `count` in one group outside the house, so the squad starts together:
+## packed round one point of the perimeter `invader_margin` px out of the rooms' bounding box, drawn
+## from `rng` (so a pinned house seed pins it), or round `around` when given (the human invader's
+## spot, which a member then keeps clear of as of any combatant). Each member takes the spot
+## `_group_spot` gives it, nearest the point first. `front_entranceworld` is handed to each as in
+## `spawn_invader`.
+func spawn_invader_team(
+	rooms: Array,
+	rng: RandomNumberGenerator,
+	count: int,
+	front_entranceworld: Vector2,
+	around := Vector2.INF,
+) -> void:
+	if rooms.is_empty():
+		return
+	var bounds: Rect2 = rooms[0]["rect"]
+	for room in rooms:
+		bounds = bounds.merge(room["rect"])
+	var centre := around
+	if centre == Vector2.INF:
+		centre = perimeter_point(bounds.grow(invader_margin), rng.randf())
+	var holes := NavBuilder.furniture_holes(world)
+	for i in count:
+		var taken: Array = []
+		for c in combatants:
+			if is_instance_valid(c):
+				taken.append((c as Node2D).global_position)
+		if around != Vector2.INF:
+			taken.append(around)
+		add_npc(
+			INVADER_SCENE,
+			npc_name("Invader", i),
+			_group_spot(centre, rooms, bounds, holes, taken),
+			rooms,
+			front_entranceworld,
+		)
+
+
+## The spot nearest `centre` for one more member of a group: `centre` itself, then the points of
+## rings twice `spawn_clearance` apart round it (about one per twice `spawn_clearance` along each
+## ring), the first that is clear of `holes` and `taken` (`is_clear`) and `_outdoors`. `centre`
+## when none is.
+func _group_spot(
+	centre: Vector2,
+	rooms: Array,
+	bounds: Rect2,
+	holes: Array,
+	taken: Array,
+) -> Vector2:
+	var step := spawn_clearance * 2.0
+	for ring in GROUP_RINGS + 1:
+		var slots := maxi(1, floori(TAU * ring))
+		for k in slots:
+			var p := centre + Vector2.from_angle(TAU * k / slots) * step * ring
+			if _outdoors(p, rooms, bounds) and is_clear(p, holes, taken):
+				return p
+	GameLog.say("No clear spawn spot round %s; using it" % centre)
+	return centre
+
+
+## Whether `p` stands out of every room by `spawn_clearance` and within twice `invader_margin` of
+## `bounds` (the rooms' bounding box), on the walkable ring round the house.
+func _outdoors(p: Vector2, rooms: Array, bounds: Rect2) -> bool:
+	for room in rooms:
+		if (room["rect"] as Rect2).grow(spawn_clearance).has_point(p):
+			return false
+	return p.distance_to(p.clamp(bounds.position, bounds.end)) <= invader_margin * 2.0
 
 
 ## A point at fraction `frac` (0..1, clockwise from the top-left) around the perimeter of `rect`.

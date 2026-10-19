@@ -57,15 +57,16 @@ const STYLE_SEED_SALT := 0x4c4f4f4b
 ## How many defender NPCs to drop into the house (0 = none). Raise it to exercise coordinated
 ## flanking from the defending side.
 @export var defender_count: int = 1
-## How many invader NPCs to spawn outside the house (0 = none). With more than one they start on
-## different sides and flank a shared target (a pincer).
+## How many invader NPCs to spawn outside the house (0 = none). They start together, one group
+## round a point of the perimeter (round the human invader when there is one).
 @export var invader_count: int = 1
-## Distance (px) beyond the house's outer edge an invader starts at (inside the navmesh's outer
-## band).
+## Distance (px) beyond the house's outer edge the invaders' group point is drawn at (inside the
+## navmesh's outer band).
 @export var invader_margin: float = 80.0
-## Room (px) a defender is dropped with: its centre stays this far from every solid furniture
-## footprint and twice this from anyone already placed. A body spawned inside a piece is ejected
-## along with it, and the piece's momentum flings the character across the map.
+## Room (px) a character is dropped with: its centre stays this far from every solid furniture
+## footprint and twice this from anyone already placed (the invaders' group is packed at it). A
+## body spawned inside a piece is ejected along with it, and the piece's momentum flings the
+## character across the map.
 @export var spawn_clearance: float = 20.0
 ## Spectator match mode: run as an AI-only contest (the defenders vs the invaders) with no human
 ## player — frees the Player and its HUD, frames every NPC, and shows the match HUD. Off = the
@@ -461,8 +462,18 @@ func _spawn_world() -> void:
 	rng.seed = house_seed
 	for i in defender_count:
 		_spawner.spawn_defender(rooms, rng, i)
-	for i in invader_count:
-		_spawner.spawn_invader(rooms, rng, i, invader_count, front_entrance)
+	# The invader team starts in one group: round the human's spot when the human is an invader,
+	# else round a perimeter point drawn from the house seed.
+	var human_invader := (not spectator_mode
+			and is_instance_valid(_player)
+			and player_side != &"defender")
+	_spawner.spawn_invader_team(
+		rooms,
+		rng,
+		invader_count,
+		front_entrance,
+		_player.global_position if human_invader else Vector2.INF,
+	)
 	var combatants: Array = _spawner.combatants.filter(func(c): return is_instance_valid(c))
 	if not spectator_mode and is_instance_valid(_player):
 		_join_player(rooms, rng)

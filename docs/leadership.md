@@ -1,23 +1,32 @@
 # Leadership
 
-Each side has a squad and a leader, and the leader can order members to defend a room, to stack on a door (quietly, with a stun or with
-a frag first, going in when ready or holding for the leader's go) or to ambush a door. A member with no order acts on its own, exactly
-as it would without any of this. The human can choose to lead its side from the setup window; a right-click
-then pauses the game and opens a menu to order the selected teammates. In a played match the human sees the slots of every stack its side
-forms, ordered or its own (LD18). The tests named under each behaviour assert this document.
+Each side has a squad and a leader, and a squad is a coordinated team. Its members with no order follow their leader, AI or human: they
+pick no goal of their own, keep to a file on its trail or a ring round it, fight only within a leash of it, and go in by its doorway as one
+stack when it makes its own claim there (LD19 to LD26). The leader can order members to defend a room, to stack on a door (quietly, with a
+stun or with a frag first, going in when ready or holding for the leader's go) or to ambush a door; a member carries its order out until
+the order ends, then follows again. An NPC with no squad handed to it picks its own goals. The human can choose to lead its side from the
+setup window; a right-click then pauses the game and opens a menu to order the selected teammates. In a played match the human sees the
+slots of every stack its side forms, ordered or its own (LD18). A Main-built invader team starts in one group (LD27), and the squad-leaders
+debug overlay draws the leader, its leash, its trail and the follow spots (LD12, LD28). The tests named under each behaviour assert this
+document.
 
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
-`issue` and `view`), `goal_controller.gd` (the order intake, the `ordered → order` entry rule, the progress radio), `agent_perception.gd`
-(`process_order`, the live order, its end, the ambush's end on contact, `stack_room`), `agent_entry.gd` (`defend_spot`, `ambush_spot`,
-`stack_slots`), the snapshot
-(`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` node and the
-planner's `confine_room`, the behaviour's `defend` and `ambush` primitives (`behavior.gd`, `combat.gd`) and its ordered stack (`entry.gd`:
-the hold for go, the frag entry; the entry guard in `behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's
-`PlayerStack` (`ai/team/player_stack.gd`) in a held stack and as the leader a stack waits for (LD17). Main builds the squads (`main.gd` `_build_squads`, `match_spawner.gd` `bind_squad`) and, when the
+`issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
+(the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads and the leash
+break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
+`agent_entry.gd` (`defend_spot`, `ambush_spot`, `stack_slots`), the snapshot
+(`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
+the planner's `confine_room` and leash, the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
+and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
+`behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
+stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). Main builds the squads (`main.gd` `_build_squads`,
+`match_spawner.gd` `bind_squad`), places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27) and, when the
 human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/hud/command_menu.gd`, `ui/hud/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
-the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`). See the `architecture` skill (interfaces 7, 10, 11,
-17 and 21), the `domain-ai-*` skills, `domain-main`, `domain-general`, `domain-ui-menus` and `domain-ui-hud`.
+the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is
+`ui/overlays/leader_overlay.gd`. See the `architecture` skill (interfaces 1, 7, 10, 11, 17 and 21), the `domain-ai-*` skills, `domain-main`,
+`domain-general`, `domain-ui-menus`, `domain-ui-hud` and `domain-ui-overlays`. The real-world practice the following rules were weighed
+against is `docs/research/squad-following.md` (where the game differs from it: "Doctrine", after LD28).
 
 ## Behaviours
 
@@ -46,12 +55,16 @@ Tests: `ai/decision/von_request_across_pause` (real Von: paused mid-request for 
 **LD3. Squad.** One squad per side. Its leader is the member of the highest `rank`, the first in spawn order among equals: for the invaders
 that is the unit's lead (rank 2, then its sergeant, rank 1), and a defenders' crew, which carries no rank, is led by its first spawned. A
 squad the human leads is led by the human. Main builds one per side under `World` after arming the characters, and hands each NPC its own
-(`MatchSpawner.bind_squad`). An AI leader gives no orders: nothing in a match changes unless a leader orders.
+(`MatchSpawner.bind_squad`). Every squad coordinates, with no switch: its members with no order follow the leader (LD19 to LD23), and the
+leader's own claim at a doorway brings them in with it (LD24). An AI leader decides through Von as any NPC does, fights and enters like
+any member and takes whatever slot its stack gives it; the only orders given in its name are the squad's own (a join, LD24; the cancels of
+LD25 and LD26), never one of the human's kinds. An NPC with no squad handed to its controller is no follower and picks its own goals.
 
 Tests: `general/squad_leader_rule` (invaders by rank, then spawn order; defenders by the first spawned; the human when leading).
 
 **LD4. Succession.** When the leader dies, the next in line by the same rule leads within the frame, and the squad says so on the bus:
-`&"leader"` `{ faction, leader, previous }`. The orders already given stand; a later order, from the new leader, replaces them.
+`&"leader"` `{ faction, leader, previous }`. The orders already given stand (but for the dead human leader's defends and ambushes, LD26); a
+later order, from the new leader, replaces them. The followers re-centre on the new leader, which stops following (LD19).
 
 Tests: `general/squad_succession` (a Main-built match: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
 trooper keeps its order, a newer order from the sergeant replaces it).
@@ -62,8 +75,10 @@ trooper keeps its order, a newer order from the sergeant replaces it).
 room's centre, the doorway's), for the order markers (LD12). `Squad.issue` turns a leader's request in plain terms (`{ kind, to, pos?,
 room?, bang?, mode?, wait_go? }`) into one: a room key or the room under `pos`; for a stack the doorway nearest `pos` within its width, the
 room on the far side of the wall plane from `pos` (an exterior door always goes into the house), and the side of the door `pos` lies on
-along the wall (`stack_at`) or, for a click on the opening itself, both (`split`); its `mode` (`quiet` / `stun` / `frag`; with none, `bang`
-true is a stun, else quiet) and `bang` (true for any mode but quiet), and `wait_go` (false unless asked). No `to` means every living
+along the wall (`stack_at`) or, for a click on the opening itself, both (`split`); its `mode` (`quiet` / `stun` / `frag`, `Squad.MODES`;
+a request naming none of them reads it from `bang`: true is a stun, else quiet) and `bang` (true for any mode but `quiet`), and `wait_go`
+(false unless asked). The one other mode is `join` (`Squad.JOIN`, not one of `MODES`): the squad's own rally posts it (LD24), no request
+names it and the command menu never offers it. No `to` means every living
 member but the leader; an order to a dead member is dropped (a `go` ignores `to`: D13). Range is unlimited. Only the recipients named in `to`, of the squad's side, take it: each
 holds it as its live order (the memory topic `order`, permanent) until it is done, cancelled or replaced, and never on a timer. While it
 holds one the snapshot fact `ordered` is true.
@@ -72,14 +87,15 @@ Tests: `ai/decision/order_transport` (`ordered` on the recipients only; still he
 replaces it; a cancel clears it).
 
 **LD6. The ORDER node.** An arriving order forces a decision at once, as a hit does (after a crossing or an evade, which hold every
-decision). The entry rules run in the order `under_fire → combat`, `engaged → combat`, `ordered → order`, `hostile_known → combat`: an
-ordered member that is shot at or fighting fights, and goes back to its order once the fight lapses; a hostile merely known does not hide
-the order. The ORDER node offers one option, the order itself, built by the snapshot with the primitive it runs (`defend` for a room, an
+decision). The entry rules run in the order `under_fire → combat`, `engaged → combat`, `ordered → order`, `hostile_known → combat` (and,
+for a follower, `follows → follow` last, LD20): an ordered member that is shot at or fighting fights, and goes back to its order once the
+fight lapses; a hostile merely known does not hide the order. The ORDER node offers one option, the order itself, built by the snapshot with the primitive it runs (`defend` for a room, an
 `entry` for a stack, `ambush` for an ambush) and its params, each carrying the order's `order_id`; it is taken without asking Von. At Von's
 other levels the state carries one sentence, after the goal, while the member holds an order: "Your leader ordered you to defend the
 kitchen." or "Your leader ordered you to go into the kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade
-first", LD14; a held stack adds " when they give the go", LD13), or the ambush's (LD15). A member with no order reads exactly what it
-read before: the same tree, the same rules, the same state text.
+first", LD14; a held stack adds " when they give the go", LD13), the ambush's (LD15), or a join's, "Your leader ordered you to go into
+the kitchen by its doorway with them." (LD24). A member with no order reads no such sentence: the same state text as an NPC outside any
+squad.
 
 An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.await_order`,
 set by the controller with `_order_from`), a decision walk already in flight is restarted and its answer, when it comes, dropped, and a
@@ -119,7 +135,8 @@ The entry steps of a stack go out as they always do. Allies leave a progress cal
 entry claim on their radio); the squad keeps each member's latest step for `view()` (`{ leader, members: [{ node, order, step, held }] }`,
 `held` whether the order is a stack still waiting for the leader's go, LD13).
 An order radioed `done` is no longer one the member holds: the view shows it with no order and the step `done`, so the order markers drop
-it and the command menu offers no "Cancel order" for it. A `refused` order is still held, and drawn red.
+it and the command menu offers no "Cancel order" for it. A `refused` order is still held, and drawn red; a join radioed `refused` is not
+(the member follows again, LD25).
 
 Tests: `ai/decision/order_progress_radio` (a defender radios `in_position` in the living room, an invader `done` once it has cleared the
 kitchen; each callout names its order; the squads' views show the steps), `general/squad_done_order_not_cancellable` (a member's order
@@ -185,7 +202,8 @@ to keeps its own (D10).
   drops it. A member pushed past what the room holds after it claimed (the stack grew in front of it) withdraws its claim (`abort`) and
   its next decision holds it the same way.
 - **The end.** The order is done when its room is cleared (`cleared_room`, by the member or radioed by a teammate): the member radios
-  `order_step` `done` and acts on its own from then (the rest of the entry, covering the doorways on, runs to its end first). The same
+  `order_step` `done` and, once the rest of the entry (covering the doorways on) has run to its end, follows its leader (LD20; the leader
+  itself, or an NPC with no squad, decides on its own). The same
   order decided again (a decision forced meanwhile) leaves the running entry, or the detour in front of it, running.
 - **The human.** A human leader near the ordered doorway is given a slot by its `PlayerStack` as for any stack (E16); it is a member the
   order does not name, but the stack it ordered waits for it (LD17).
@@ -259,12 +277,14 @@ selection (`selection_changed`, empty once the menu closes), and reads the membe
 
 Who leads is a debug overlay, not a marker: the overlay bar's "Squad leaders" (`show_leaders`, a global row of `OverlayRegistry`, off by
 default; `ui/overlays/leader_overlay.gd`, under `World` at `DrawLayers.ABOVE`), which Main builds in every match, played, Watch or Endless,
-over every squad's `view()`. While it is on it draws a crown over each side's living leader, moving to the next in line when one falls.
+over every squad's `view()`. While it is on it draws a crown over each side's living leader, moving to the next in line when one falls, and
+how the squad follows it: the leash, the follow spots and the trail (LD28). A join is marked "Join stack · moving" (LD24).
 
 Tests: `ui/order_markers_draw` (a fake view: one target per member with an order and none without, no marker on the leader, the selected
-teammate ringed where it stands and cleared with the selection, drawn at `DrawLayers.ABOVE`), `ui/leader_overlay_draw` (the `show_leaders`
-row, global and off by default; with fake views nothing while off, then a crown over each squad's leader, moved to a new leader and gone
-with none; Main's `_build_leader_overlay` over two real squads, shown and hidden by the bar's toggle).
+teammate ringed where it stands and cleared with the selection, a join "Join stack · moving", drawn at `DrawLayers.ABOVE`),
+`ui/leader_overlay_draw` (the `show_leaders` row, global and off by default; with fake views nothing while off, then a crown over each
+squad's leader, moved to a new leader and gone with none; Main's `_build_leader_overlay` over two real squads, shown and hidden by the
+bar's toggle; LD28's marks).
 
 **LD13. Hold for go.** A stack order carries `wait_go` (false unless asked: it goes when ready, LD9, as before). A held stack forms, claims
 its slots and radios `ready` as any stack, then holds: the point holds its slot, gun on the door, and nobody slices the pie, calls the bang,
@@ -396,7 +416,8 @@ claims carry `leader: true` while the squad's `leader()` is the human. An ordere
 leader holds a slot in it (`Entry._leads`: the claim says `leader` and is the order's leader's): nobody crosses, slices the pie or calls the
 bang while that claim is still at `claim`, whatever the wait, until `order_ready_cap` (D7) runs out; the leader standing in its slot
 (`ready`) lets the stack go. Its claim withdrawn (`abort`: its walk back to the doorway grew past `reserve_range * leave_factor`, 450 px, or it died) frees the
-stack at once. An AI leader holds no `PlayerStack` and gives no orders, so only the human is waited for this way (D22).
+stack at once. An AI leader holds no `PlayerStack`, and the joins its own claims bring (LD24) are no ordered stack (a join runs as the
+member's own entry), so only the human is waited for this way (D22).
 - **The joiners' clock (D23).** A member the order does not name is waited for `entry_ready_timeout` (6 s) from the moment every living
   recipient of the order, the member itself among them, stands in its slot (`Entry._all_in_at`, `_note_all_in`), or from when the stack last
   grew if that is later: not from the point's own `ready`. A point that has stood in its slot a long while for a far recipient still gives
@@ -425,9 +446,180 @@ Tests: `ui/stack_markers_draw` (a fake view: every stack of the side, ordered or
 there, free faint, each where its slot is, both sides and a second file's ring, gone once through; then the human's own bright, and the
 only one; with the human's reserved doorway alone, its slots and its own highlighted, cleared when the reservation ends).
 
+**LD19. Who follows.** A member follows its leader (`Squad.follows(member)`) while it is alive, its squad has a leader, it is not the
+leader and an NPC controller drives it (a child in the group `npc_controllers` when the squad is set up): a human member who does not lead
+is never given a spot, and a squad of one has no followers. Each tick the controller reads it (`_follow_squad`) into the perception's
+`follows` (a snapshot fact and a `quick_facts()` entry) and forces a decision when it changes ("follows its leader" / "leads its squad").
+The rule is the same whoever leads: an AI leader, the human (its AI teammates follow the human and ring it when it stops, LD21), or a
+defenders' crew's first spawned, from the start of the match. When the leader dies (LD4) the squad starts its trail afresh at the new
+leader within the frame, so every follower's spot comes round it, and the new leader, a follower no more, decides on its own again.
+
+Tests: `ai/movement/follow_leader_search` (real Von, three invaders on the furnished Terrace house: while the leader, its own entries off
+(`entry_enabled`), searches the house, the two followers stay within a band of it (the median under its place in the file plus 45 px of walking lag,
+`Follow.band_p50`: 100 px for the first follower, 145 for the second, the lag measured 5 to 38 px; nine samples in ten under `BAND_P90`,
+260 px), go through two doorways after it and put no question to Von while no hostile is known), `ai/movement/follow_defenders` (three
+defenders on a pinned house, placed and bound as Main does, their leader investigating gunfire across the house: within the band, through
+its doorways, each follower's spot at the median between its place in the file and the outermost ring (LD21), no question to Von, and no
+follower more than 80 px off its spot for more than 8 s), `ai/movement/follow_human_leader` (a puppet human leader walks the garden and
+stops: the two NPCs follow it in a file, each spot 55 and 100 px behind it at the median, re-aiming their walks only once their spots have
+moved 20 px, then take spots on the ring behind it and face outward; the squad's tunables are this document's numbers, and mid-walk its
+`view()` holds a trail of two points or more, the 320 px leash and each member's own follow spot), `ai/movement/follow_leader_dies` (the lead killed: the sergeant
+leads within the frame and decides on its own, not FOLLOW; the trooper's spot comes round the sergeant), `ai/movement/independent_no_squad`
+(one invader with no squad: its root level is asked of Von, its `follows` is false, it never takes FOLLOW, and it claims a doorway of its
+own and goes in).
+
+**LD20. The FOLLOW node.** A follower picks no goal of its own: while it follows, INVESTIGATE, SEARCH and IDLE are disabled for it and the
+controller adds the entry rule `follows → follow`, after the fight rules, ORDER and `hostile_known` (LD6). FOLLOW is a root leaf
+(`requires` `follows` and `!ordered`, primitive `follow`): with no fight, no order and no hostile known, the walk starts there and takes it
+without asking Von. The `follow` primitive keeps the member to the spot the squad gives it (LD21) and asks for no decision on the cadence
+(`Behavior.wants_decision` is false for it); a decision comes only when one is forced (a hostile seen, a hit or shots landing by it, an
+order, the leader's death, the leash break of LD23) or when its spot is gone (it leads now, or follows no more: the primitive resolves,
+holding). A follower in a fight decides through Von as any member, within its leash (LD23), and follows again once the fight lapses. Its
+status reads "keeping up with its leader" on the way and "by its leader" at its spot.
+
+**LD21. Where a follower stands.** The squad keeps the leader's trail and lays the follow spots through its `SquadFollow`
+(`scenes/ai/team/squad_follow.gd`, the squad's tunables read off it): the trail every physics frame (`track`: a point each `TRAIL_STEP`,
+15 px, the leader moves, kept as long as the file needs), and every follower's spot (`Squad.follow_spot`, laid at most once a physics frame, and only when the leader moved, turned or stopped or the followers changed), the followers taken in roster order:
+- **The leader moving.** The spot is on the trail, `follow_gap` (55 px) back for the first follower and `follow_step` (45 px) further for
+  each next one, snapped onto the navigation map: a file behind the leader, through its doorways after it, with no tactical entry of its
+  own. A follower whose place lies past the trail's oldest point (the leader has not walked that far since it led) keeps where it stands
+  while that place lies further from the leader than it does, so a file setting off never walks away from its leader and across itself.
+- **The leader still** (`follow_still_time`, 0.8 s, since it last moved a trail step). The spot is a slot on a ring behind the way the
+  leader came (`follow_ring`, 80 px; the way is the last stretch of its trail, so a leader looking round its doors does not swing the ring
+  round it): slots `follow_step` apart either side of straight behind it and less than a right angle off it, then on two wider rings
+  (`RINGS` 3, each `follow_step` further out), each on the navigation map within `SLOT_SNAP` (20 px), in the leader's sight and out of
+  every doorway. A follower the rings hold no slot for keeps to the trail, stepped back along it out of a doorway.
+- **Out of the leader's way** (`_clear_of_way`). A follower, or its spot, in the lane ahead of the leader's facing (`WAY_CLEARANCE`, 32 px
+  either side of its line, a ring and a step deep) is sent beside that lane, on its own side (the other when a member stands there), else
+  further ahead along it (170, 215 or 260 px), each such spot in the leader's sight, on the navigation map, out of every doorway and in a
+  room the leader has stood in since it led: a follower never goes first into a room its leader has not entered, and a leader turning back
+  walks through its file. A spot beside the way is kept while it still clears the way, until the leader has moved a ring on or turned
+  back, so a leader's swinging gaze (slicing a pie) does not send the follower to and fro.
+- **The walk** (`follow`). It is re-aimed only once the spot has moved `follow_retarget` (20 px) from where it is going, and is over within
+  `follow_arrive` (10 px) of it, where its path ends short of a spot it cannot reach (the navigation agent done at the nearest reachable
+  point), or when a body seals its only way. The member walks with its gun up (the watch stage shoots what it sees on the way) and runs,
+  when a run can start, once it is more than `follow_step` from its live spot.
+
+Tests: LD19's, `follow_human_leader` for the file's spacing, the re-aim and the ring.
+
+**LD22. At rest.** At its spot a follower stands facing away from its leader. Once it has stood there `follow_still_time` (0.8 s) with no
+threat and not under fire, it tops up a low magazine (at or below `low_ammo_fraction`, 0.34, of the gun's capacity: not only a dry one)
+with a tactical reload (`Combat.top_off`), without a decision.
+
+Tests: `ai/movement/follow_top_up` (a follower starting with 2 rounds in its pistol takes its spot on the ring round a still puppet leader
+and reloads there, at rest, while its decision walks put no question to Von).
+
+**LD23. The leash.** A follower fights within `leash` (320 px) of its leader's live position:
+- **Its options.** Inside a `confine` subtree (COMBAT) the planner drops every option placed beyond the leash (`leash_center`, pushed each
+  decision as the leader's position, and `leash`, beside `inside_only` and `confine_room`): where the option acts from (`params.from`, else
+  `params.point`), so the fire spots, flank sides, advances, retreats and throw spots out there are not offered; an option that names no
+  place (a reload, a punch) stays.
+- **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of
+  closing in, and melee holds its ground while its target is off the leash.
+- **The break.** A fighting follower (`in_combat`) further than `leash_break` (1.3) leashes from its leader, neither committed nor on its
+  way somewhere it chose (`Behavior.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
+  once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
+  on the way.
+
+Tests: `ai/combat/leash_no_chase` (real Von: a target the follower fights flees far down an open hall; the follower never stands more than
+the leash and 40 px from its puppet leader), `ai/combat/leash_free_chase` (its contrast: the same hall with no squad bound, and the NPC goes
+after the target past the leash and 40 px from the puppet, so the leash is what holds the follower back), `ai/combat/leash_walks_back` (the leader runs 650 px off while the follower fights: it takes
+FOLLOW at or after the break and comes back within the leash), `ai/combat/leash_pinned_cover` (an SMG gunman pins the follower: it fights
+from cover within the leash, or follows, never more than the leash and 40 px from its leader).
+
+**LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
+`entry_step` `claim` and no `order_id`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the
+squad rallies its team (`_rally`): one `stack` order with mode `join`, `opening` and `into` the claim's, `pos` the doorway's centre, `split`,
+`bang` and `wait_go` false, to every follower holding no order (D24: a member carrying out another order keeps it). Once per doorway per
+leader (keyed `<leader>:<opening>`), until that stack is given up (LD25); a new leader rallies again. The rule keys on the speaker being the
+leader, never on whether the squad has a human.
+- **The join.** The ORDER node's option is the entry `stack_<opening>` with `{ opening, into, bang: false, join: true, order_id }`: no side,
+  mode, `wait_go` or `split` of the order's. `Entry.begin` leaves the order's id out of the entry, so the member runs its own unordered entry,
+  joining the leader's stack: the team's side and the first claimer's mode (D10), the suspect-room bang and its late upgrade
+  (`docs/tactical-entry.md` E17), the listen at the stack, the joiner's ready wait (`entry_ready_timeout`), and no bang of its own. Its walk
+  there is any entry's, not an ordered stack's guarded way (D4). The order still names it, so its progress is radioed (`moving`, `done`) and
+  the squad's view and the order markers show it ("Join stack · moving"). The human's quiet / stun / frag orders keep LD9's "the mode wins";
+  the command menu never offers a join.
+- **No slot.** A join at a dead end with no slot for the member offers no option (and a join whose entry cannot begin is ended), so it ends
+  `refused` and the member follows again (LD25), instead of an ordered stack's refused hold (D21).
+- **The wording.** "Your leader ordered you to go into the kitchen by its doorway with them." (LD6): measured with `tools/von_probe.py` over
+  the 38 `tools/von_scenarios` levels in spike #66, it moved no combat level's top pick (the expected pick's probability moving 0.020 on
+  average).
+- **The human's own claim** (`PlayerStack`, interface 17). While the human leads a squad with another living member and no allied stack is
+  forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
+  doorway's stack side, out from its wall plane by at most `STEP_UP_REACH` (60 px) and past its jamb along the wall by at most as much, for
+  `STEP_UP_TIME` (0.5 s), at a doorway nobody stacks at and the human has not declined. It claims on the side it stands on, marked `own`,
+  and the squad hears it as the leader's own claim: of the human's claims only one marked `own` rallies the team, so the slot the human is
+  reserved in a stack already forming (E16) never does. That claim is kept while nobody else stacks there yet (the "nobody stacking" withdrawal waits until
+  the human is `in`), and the `go_timeout` withdrawal waits for somebody ahead of it; otherwise it is withdrawn as any reservation (the walk
+  back past `reserve_range` x `leave_factor`, death). The human's other claims are E16's (`docs/tactical-entry.md`).
+
+Tests: `ai/entry/join_rally_clears_room` (real Von: the lead's own claim gives both others a join; all three go in within 15 s of each
+other and the room is called clear), `ai/entry/join_suspect_room_bangs` (scripted: gunfire heard in the kitchen first, the stun the
+sergeant's: the join stack turns bang and a stun goes off in the kitchen before anyone goes in), `ai/entry/join_unsuspected_quiet`
+(scripted: nothing heard: each joiner's state reads the join's sentence above verbatim, no claim says bang, no stun goes off, all three go
+in), `ai/stack/human_leader_rallies` (a puppet human leader
+steps up beside the back door: its own claim, a join to both NPCs, both ready in the stack with it within 20 s),
+`ai/stack/human_rally_spares_ordered` (D24: the member the human ordered to defend the living room gets no join, keeps its order and
+claims no slot; the two free members join and stand ready), `ai/stack/human_stack_slot_no_rally` (scripted: the human ordered two
+members to stack and is reserved a slot in that stack (E16): it steps in and radios ready, and no join is posted, the free follower making
+no claim there). The human's own orders, quiet / stun / frag and held, are LD9's, LD13's and
+LD14's tests, their squads bound.
+
+**LD25. A join's end.** When the leader gives its stack up (its own `entry_step` `abort` there: a decision forced on it replaced the entry,
+or it withdrew), the squad posts one `cancel` to the living members holding a join it gave at that doorway and forgets that rally, so a
+later claim of its there rallies again (D25). A member whose join ends follows again: done (the room cleared, by it or radioed by a
+teammate), cancelled, or refused (the squad drops a refused join from what the member holds, so the next rally counts it free). While its
+entry is still in its `approach` or `stack` phase, a join whose order has ended forces a decision at once (`Behavior._join_over`, "join
+over": the entry would not end on its own there); in the later phases (the pie, the crossing, the corner, the clear, the cover, the rear) the
+entry runs to its end first, then the member follows (D26). A cancel forces a decision as any order does.
+
+Tests: `ai/entry/join_leader_aborts` (the lead is hit just after its claim and radios `abort`: the joins are cancelled and both members
+drop their entries and follow within 3 s), `ai/entry/join_cleared_before_reached` (a slow trooper still on its way when the lead and the
+sergeant have cleared the room: it follows within 1 s and never goes in).
+
+**LD26. Taking over from a dead human leader.** When the human leader dies the next in line leads (LD4) and the squad posts one `cancel` to
+the living members holding a `defend_room` or an `ambush` order (`_take_over`), so each follows the new AI leader. The human's held stacks
+are released as any dead leader's (D12) and its other stack orders are carried to their end (the room cleared); each member follows once
+its order ends, and the new leader's next own claim rallies the members then holding no order (LD24).
+
+Tests: `general/squad_takeover_from_human` (a puppet human leader orders a defend, an ambush and a held stack, then dies: the sergeant leads
+within the frame; one `cancel`, to the defender and the ambusher; the held stack is released (`auto`), goes in and clears the kitchen; each
+member follows the sergeant once its order ends; the sergeant's next own claim gives a join to every member then holding no order and to
+nobody holding one).
+
+**LD27. The invader team spawns together.** Main places its invader team in one group (`MatchSpawner.spawn_invader_team`, `main.gd`
+`_spawn_world`): round a point of the perimeter of the rooms' bounding box grown by `invader_margin` (80 px), drawn from the match's RNG
+seeded with the house seed (a pinned seed pins it), or, with a human invader in a played match, round the human's spot. Each member takes
+the first spot that is clear (`is_clear`: `spawn_clearance`, 20 px, from every furniture footprint and twice that from every combatant
+placed, the human's spot among them) and out of doors (out of every room grown by `spawn_clearance`, within twice `invader_margin` of the
+bounds): the centre, then the spots of up to `GROUP_RINGS` (6) rings twice `spawn_clearance` apart round it; the centre, logged, when none
+is. Defenders keep spawning in random rooms. `spawn_invader` (one alone at its share of the perimeter) places a spread side for the tests
+and perf guards that want one.
+
+Tests: `general/match_spawn_team_grouped` (Main run whole on house seed 101 with four invaders and two defenders: watched, every invader
+within 110 px of the group's centre, which stands 20 to 220 px outside the rooms' bounds, the same point for the same seed, every defender
+in a room; played as an invader, every invader within 110 px of the human).
+
+**LD28. The squad-leaders overlay draws the following.** With `show_leaders` on (LD12) the `LeaderOverlay` draws, per squad and read
+through `Squad.view()` alone: the crown over the living leader, the leash ring round it (the view's `leash`), each follower's follow spot as
+a small ring with a thin line from the follower to it (each member row's `follow_spot`, none at `Vector2.INF`), and the leader's trail as a
+dotted line (the view's `trail`, oldest point first, drawn from two points). `drawn()` lists them: `{ kind: "crown", point, node }`,
+`{ kind: "leash", point, radius, node }`, `{ kind: "spot", point, node }`, `{ kind: "line", from, to, node }` and `{ kind: "trail",
+points }`; off, nothing.
+
+Tests: `ui/leader_overlay_draw`.
+
+**Doctrine.** `docs/research/squad-following.md` sets these rules beside fire-team and entry-team practice (US Army FM 3-21.8 and FM 3-06.11,
+USMC MCWP 3-11.2, police SWAT outlines). The game keeps the prototype's numbers from spike #66, the user's choice, and differs from doctrine
+in four ways: the file is stack-tight everywhere (55 + 45 px against 3 to 5 m between buildings and 10 m in the open); the leader leads the
+file (the Army's "follow me"; a USMC column and an entry stack put the team leader second); a halted team rings its leader at 80 px
+instead of holding its movement intervals facing out (facing out matches); and the leash is a radius (320 px) where doctrine's is sight or
+voice of the leader. The leader's succession and each member keeping its own entry drill match.
+
 ## Decisions
 
-The cases the behaviours above cite as D1 to D23.
+The cases the behaviours above cite as D1 to D28.
 
 | # | Case | Decision | Where |
 |---|---|---|---|
@@ -454,6 +646,11 @@ The cases the behaviours above cite as D1 to D23.
 | D21 | More members than a dead end holds | Each past what its wall and open floor hold claims no slot, holds where it is and radios `refused`; the order is kept (still held, drawn red), unlike a refused unknown room, which is dropped. | LD7, LD9 |
 | D22 | The human leader in a stack it ordered | The stack waits for it as for a recipient: nobody goes while its claim is at `claim`, until `order_ready_cap`; its withdrawn claim frees the stack. | LD17 |
 | D23 | When an unordered joiner's wait starts | From the moment every living recipient of the order stands in its slot (or the stack last grew), not from the point's own `ready`. | LD17 |
+| D24 | Who a rally's join goes to | Only the followers holding no order (decided 2026-10-19): a member carrying out another of the human's orders (a defend, an ambush, a stack elsewhere or at the same doorway) keeps it; the same for an AI leader's rally. | LD24 |
+| D25 | "Once per doorway per leader" and a stack given up | The leader's `abort` there forgets the rally, so its next claim there rallies again (a leader whose approach the entry guard paused, or that comes back after a fight, brings its team in); heartbeats, re-claims and move-ups never rally twice. | LD24, LD25 |
+| D26 | A join that ends mid-entry | A decision is forced only in the `approach` and `stack` phases, where the entry would not end on its own; from the pie on the entry runs to its end, then the member follows. | LD25 |
+| D27 | What "stepping up" to a doorway is, for the human | Standing on its stack side against its wall beside the opening (out from the wall plane and past the jamb, each within 60 px) for 0.5 s, so a human walking past a door does not rally the team. | LD24 |
+| D28 | A follower and its leader's way | It never stands in the lane ahead of its leader: it steps beside it (its own side first) or further ahead, only into rooms the leader has entered, and keeps that spot while it clears the way, so a leader turning back or slicing a pie walks through its file. | LD21 |
 
 ## Numbers
 
@@ -486,10 +683,62 @@ The cases the behaviours above cite as D1 to D23.
 | The human's slot is withdrawn once its walk back to the doorway is longer than | 450 px (300 x 1.5) | `PlayerStack.reserve_range` x `leave_factor` |
 | The squad's view keeps a member's entry claim for | 6 s | `GoalController.callout_ttl` (handed to `Squad.setup` by Main) |
 | A ring whose holder stands in its slot is filled at | 0.3 alpha | `StackMarkers.ALPHA_THERE_FILL` |
+| The first follower keeps back along the leader's trail, and each next one further | 55 px, 45 px | `Squad.follow_gap`, `follow_step` |
+| The leader takes a trail point each | 15 px | `SquadFollow.TRAIL_STEP` |
+| The leader counts as still after standing | 0.8 s | `Squad.follow_still_time` |
+| The ring round a still leader, and the rings after it | 80 px, then 125 and 170 px (3 rings) | `Squad.follow_ring`, `follow_step`, `SquadFollow.RINGS` |
+| A ring slot or a spot beside the way lies on the navigation map within | 20 px | `SquadFollow.SLOT_SNAP` |
+| The leader's way: either side of its line | 32 px | `SquadFollow.WAY_CLEARANCE` |
+| A follower re-aims its walk once its spot has moved | 20 px | `Squad.follow_retarget` |
+| A follower is at its spot within | 10 px | `Squad.follow_arrive` |
+| A follower runs once it is further from its spot than | 45 px | `Squad.follow_step` |
+| A follower at rest tops up a magazine at or below | 0.34 of its capacity | `GoalController.low_ammo_fraction` |
+| A follower fights within, of its leader's live position | 320 px | `Squad.leash` |
+| ... and re-decides in a fight further than | 1.3 leashes (416 px) | `Squad.leash_break` |
+| The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |
+| The invader team's point lies out of the rooms' bounds by | 80 px | `Main.invader_margin` |
+| ... its members packed on rings round it, apart | 40 px (twice `spawn_clearance`), 6 rings | `Main.spawn_clearance`, `MatchSpawner.GROUP_RINGS` |
+
+## Baseline
+
+AI against AI with squads following their leaders, scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to
+110, one round each) on 2026-10-19. A headless game ran on its own command port from a scene inheriting `main.tscn` with
+`defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server. A round ends when one side is
+wiped out (the `match` verdict, `scenes/general/command_server.gd` `verdict_of`, deciding by General's `MatchVerdict`, the rule the
+MatchHUD decides by too). The load is the 1-min average
+from `uptime` before and after the run, on 12 cores.
+
+| Size | Seeds | Invader wins | Defender wins | Draws | Timeouts | Round length, mean (min to max) | Load |
+|---|---|---|---|---|---|---|---|
+| 3v3 | 101–110 | 10 | 0 | 0 | 0 | 34.5 s (10.2 to 88.3) | 3.07 → 5.46 |
+| 5v5 | 101–110 | 10 | 0 | 0 | 0 | 32.1 s (14.4 to 48.7) | 3.88 → 7.28 |
 
 ## Performance
 
-The perf guards (`tools/run_tests.sh --domain=perf`, eleven tests) with LD13 to LD18 and the stack geometry of `docs/tactical-entry.md`
+**With squads following their leaders (LD19 to LD28).** `tools/run_tests.sh --domain=perf` (twelve guards, the eleven below and
+`perf/match_10v10_team_stress`: the 10v10 guard's match, the same house, placement and scripted Von, with one squad a side bound as Main
+binds it, so its members follow their leaders), 3 runs back to
+back on 2026-10-19 from 07:42 to 07:44, the 1-min load 2.24 → 2.25, 2.25 → 2.06 and 2.06 → 2.70 (`uptime` before and after each, on
+12 cores; none discarded). In ms per frame, avg / p95 / max, against the smooth-match budgets 16.7 / 20 / 33.4:
+
+| Guard | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| 10v10 match (`match_10v10_stress`) | 10.59 / 14.14 / 18.95 | 9.85 / 13.67 / 18.83 | 9.81 / 13.50 / 17.65 |
+| 10v10 team match (`match_10v10_team_stress`) | 7.04 / 8.61 / 11.79 | 9.74 / 13.43 / 20.07 | 8.47 / 10.76 / 15.76 |
+| 5v5 match (`match_5v5_stress`) | 5.64 / 10.08 / 14.62 | 5.85 / 8.58 / 12.36 | 4.36 / 7.31 / 11.11 |
+
+The team match ended its window with 18, 8 and 11 members following. The team guard opens its window only once the sides
+are in contact (a shot fired; the warm-up runs on past its 6 s for at most `CONTACT_WITHIN`, 20 s, and the guard fails without it), so
+what it measures is the teams' fight; in three runs with that premise the first shot came within the warm-up (contact logged at 6.0 s
+each time), the same window as above, at 9.28 / 12.14 / 15.06, 8.54 / 11.96 / 15.11 and 9.26 / 10.59 / 14.02 ms (load 3.2 to 3.5). Every frame guard of all three runs was within its budget: the 10v10
+worst frame, 20.07 ms, is under the 33.4 ms max, so the budgets stand. Runs 1 and 3 passed 12 of 12. Run 2 passed 11: the log gate failed
+`perf/crowd_deaths_stress` (ten puppets killed at once; no AI, no squad) on one engine error, "Invalid polygon data, triangulation
+failed" (`canvas_item_add_polygon`), on the frame the deaths were dealt. That guard then passed 40 of 40 on its own (four at a time), and 300 more runs
+(six at a time, so their frame times do not count) logged no such error, with every polygon draw on its path that has no triangulation check (`FillBatch.fill` and `fill_convex`, a limb's
+strip, the trunk, the shoulders' shadow, `Deformation.draw_shape` and `draw_wall`) checked for an outline the engine cannot cut. The
+error is not reproduced and its source is not known.
+
+**Before following.** The perf guards (`tools/run_tests.sh --domain=perf`, eleven tests then) with LD13 to LD18 and the stack geometry of `docs/tactical-entry.md`
 E20 to E22, against the base commit (c8821b0, a clean checkout). Measured on 2026-10-17 from 13:57 to 14:07, 8 full runs of each,
 alternated base then change. The machine was shared with other sessions: the 1-min load average was 3.6 to 5.9 on 12 cores, read with
 `uptime` before and after every run, and no run was discarded. Means in ms per frame, avg / p95 / max:

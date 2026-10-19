@@ -1,6 +1,6 @@
 ---
 name: domain-ui-overlays
-description: Deep implementation detail for the UI overlays sub-domain (scenes/ui/overlays/) — the single table of debug overlays (OverlayRegistry), the in-game overlay toggle bar (OverlayToggles with group buttons and All), the performance overlay (FPS, frame time, draw calls, graph), the squad-leaders overlay (a crown over each side's leader) and the DragHandle helper. Use when editing scenes/ui/overlays/ or adding/renaming a debug overlay flag, the toggle bar or the performance panel. Complements the `domain-ui` overview, `domain-ai-debug` (the overlay draw scripts) and the `architecture` skill.
+description: Deep implementation detail for the UI overlays sub-domain (scenes/ui/overlays/) — the single table of debug overlays (OverlayRegistry), the in-game overlay toggle bar (OverlayToggles with group buttons and All), the performance overlay (FPS, frame time, draw calls, graph), the squad-leaders overlay (a crown over each side's leader, its leash, its trail and the follow spots) and the DragHandle helper. Use when editing scenes/ui/overlays/ or adding/renaming a debug overlay flag, the toggle bar or the performance panel. Complements the `domain-ui` overview, `domain-ai-debug` (the overlay draw scripts) and the `architecture` skill.
 ---
 
 # UI · Overlays sub-domain (`scenes/ui/overlays/`)
@@ -37,8 +37,13 @@ The tooling that switches the AI/nav debug overlays on and off and shows engine 
   `docs/leadership.md` LD12, interface 21), built by `main.gd` under `World` in every match right after the squads (`_build_leader_overlay`).
   `watch(views)` takes every squad's `view()` callable; while `show_leaders` is on (the global `LEADERS` row, off by default, set by Main's
   `_on_overlay_toggled`) it draws a gold crown over each squad's living leader (`LIFT` 30 px above the body), following the next in line
-  when one falls. `drawn()` is `[{ point, node }]` ([] while off), redrawn only when it changes. Reads the leader through the Character API
-  only (`global_position`, `is_dead`). The Testing world has no squads, so its bar's row does nothing there. Tested by
+  when one falls, and how the squad follows it (`docs/leadership.md` LD28): the leash ring round the leader (the view's `leash`,
+  `LEASH_COLOR`), each follower's follow spot as a small ring (`SPOT_RADIUS` 6 px) with a thin line from the follower to it (each member
+  row's `follow_spot`, none at `Vector2.INF`; `SPOT_COLOR`), and the leader's trail dotted (the view's `trail`, `draw_dashed_line` per
+  segment, `DOT` 3 px; from two points). `drawn()` is `[{ kind: "crown", point, node }]` per crown, `{ kind: "leash", point, radius, node }`,
+  `{ kind: "spot", point, node }`, `{ kind: "line", from, to, node }` and `{ kind: "trail", points }` ([] while off), redrawn only when it
+  changes; a view without `leash`, `trail` or `follow_spot` gives crowns alone. Reads the squads through `view()` and the leader and members
+  through the Character API only (`global_position`, `is_dead`). The Testing world has no squads, so its bar's row does nothing there. Tested by
   `tests/ui/leader_overlay_draw_test.gd`.
 
 - `performance_overlay.gd` — the **performance overlay** (`PerformanceOverlay` CanvasLayer, layer 9, built by

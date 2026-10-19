@@ -1,6 +1,6 @@
 ---
 name: domain-ai-combat
-description: Deep implementation detail for the AI COMBAT module (scenes/ai/behavior/combat.gd) — how an NPC fights with its hands: taking a shot (fire cooldown, dry-gun click, automatic bursts, backing off a gun whose barrel is against a wall), throwing a punch, the peek-and-cover cycle (peek to a clear-shot spot, fire, duck to cover) and its committed destination, the ambush, melee, fire-at-will on the move, the reload reflex, and the no-per-weapon-code rule. Use when editing scenes/ai/behavior/combat.gd or working on how NPCs shoot, reload, take cover or step back. Complements the `domain-ai-behavior` overview and the `architecture` skill.
+description: Deep implementation detail for the AI COMBAT module (scenes/ai/behavior/combat.gd) — how an NPC fights with its hands: taking a shot (fire cooldown, dry-gun click, automatic bursts, backing off a gun whose barrel is against a wall), throwing a punch, the peek-and-cover cycle (peek to a clear-shot spot, fire, duck to cover) and its committed destination, the ambush, melee, fire-at-will on the move, the reload reflex, the leash a squad follower fights within, and the no-per-weapon-code rule. Use when editing scenes/ai/behavior/combat.gd or working on how NPCs shoot, reload, take cover or step back. Complements the `domain-ai-behavior` overview and the `architecture` skill.
 ---
 
 # AI · Combat module (`scenes/ai/behavior/combat.gd`)
@@ -33,7 +33,12 @@ cooldown (no cover cycle): `Combat.strike` kicks (`Combat.kick`, `Character.leg_
 and otherwise (crouched, or no gun held) equips the fists and punches (`Combat.punch`). With `hold_ground` (a territorial NPC fighting a contact outside), spots are restricted to inside
 the house, the peek fallback holds instead of advancing, and melee won't chase out of the house. With a `room` (a member ordered to defend
 it, `docs/leadership.md` LD8) the peek and cover spots are restricted to inside that room whatever the contact, and `hold_ground` is set
-against a contact outside the room.
+against a contact outside the room. **The leash** (a squad member following its leader, `docs/leadership.md` LD23): `leash_center` (the
+leader's live position, `Vector2.INF` for none) and `leash` (px), set every tick through `Behavior.set_leash`; with one, `_choose_dest` keeps
+the peek and cover spots within it (`_on_leash`) and, with no fire spot left, the peek fallback holds where it stands instead of closing on
+the contact, and `melee` holds its ground rather than walk to a target off the leash. Which COMBAT options are offered at all is the
+planner's leash filter (`domain-ai-decision`). `magazine_low(fraction) -> bool`: whether the gun it fights with is at or below that share
+of its magazine, which a follower at rest tops up (`Behavior._apply_follow` with `low_ammo_fraction`, `top_off`; LD22).
 
 **No per-weapon code.** The behaviour never knows which gun it has. It fights with `Character.gun_slot()` (the held item if it takes ammo, else the
 lowest slot that does) and reacts only to generic conditions the character reports: out of rounds, mid-reload, running, **blocked**, automatic.

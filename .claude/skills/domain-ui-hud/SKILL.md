@@ -19,7 +19,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   any number of characters (a human included); it is **re-entrant** (an endless run calls it for each new match),
   emits `match_ended(verdict)` once when a faction is eliminated or `time_limit` seconds pass undecided
   ("TIME UP - DRAW"), `set_countdown(text)` shows a line under the verdict (Main's next-match countdown), and
-  nothing else is shown but a top-centre running timer (34pt) and a centre winner banner (62pt gold): no goal readout or combat feed. Declares the winner once an entire faction is eliminated. `main.gd` calls `begin` / `set_countdown` and listens to
+  nothing else is shown but a top-centre running timer (34pt) and a centre winner banner (62pt gold): no goal readout or combat feed. Declares the winner once an entire faction is eliminated, decided by General's `MatchVerdict.decide` (interface 11, the rule the dev command server's `match` verb decides by too), worded its own way (a lone survivor named in a match of any size). `main.gd` calls `begin` / `set_countdown` and listens to
   `match_ended`. Tested by `tests/ui/match_hud_verdict_test.gd`.
 
 - `spectator_inspector.gd` — the **spectator inspector** (`SpectatorInspector` node), built by `main.gd`
@@ -120,7 +120,8 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `set_selection(nodes)` is the menu's selection. It draws, for each living
   member with an order a dashed line to the order's target (`order.pos`: the doorway's centre for a stack, the room's for a defend), ringed
   and labelled once per target (`_label_of`: "Stack (<mode>)" with the order's mode, quiet / stun / frag, and ", hold" while it waits for the
-  leader's go (the view row's `held`), LD13: "Stack (frag, hold) · in position"; "Ambush · moving" (LD15); "Defend · in position"; red when the member `refused`; a
+  leader's go (the view row's `held`), LD13: "Stack (frag, hold) · in position"; a join, the leader's own stack rallying the member (mode
+  `join`, LD24): "Join stack · moving"; "Ambush · moving" (LD15); "Defend · in position"; red when the member `refused`; a
   `done` order is not drawn), and a green ring round each selected teammate. `drawn()` is `[{ kind, point, node, from?, label?, refused? }]`
   (`kind` `order` (`point` the target, `node` the member, `from` where it stands, `label` the words at the target) / `selected`), redrawn
   only when it changes. Who leads is not drawn here: the crown over each squad's leader is the

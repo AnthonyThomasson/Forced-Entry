@@ -418,10 +418,17 @@ func bind(character: Node) -> void:
 	_character = character
 
 
+## Whether an entry leaf's `params` are a join's (the ORDER node's option for a rally's `join`
+## stack, LD24: `join` true): the member's own entry joining its leader's stack.
+static func is_join(params: Dictionary) -> bool:
+	return bool(params.get("join", false))
+
+
 ## Start an entry from `params`: `opening` and `into` from an ENTER leaf, `secure` from the guard's
 ## pass-by detour, and from an ordered stack's leaf (`docs/leadership.md` LD9) its `order_id`,
-## `bang`, `mode` (LD14), `wait_go` and `go` (LD13) and side (`stack_at`, or `split`). False when
-## the doorway is unknown (the leaf is then dropped and the NPC re-decides). It claims the lowest
+## `bang`, `mode` (LD14), `wait_go` and `go` (LD13) and side (`stack_at`, or `split`); a join
+## (LD24, `is_join`) is run as the NPC's own entry, its order's id left out of it. False when the
+## doorway is unknown (the leaf is then dropped and the NPC re-decides). It claims the lowest
 ## slot the claims heard leave free (the slots go by arrival on the radio, E2), not the one the
 ## option was measured from: a claim heard since then came first. A claim made on this same frame is
 ## not first: the member nearer the slot takes it, and two claims on one slot made on one frame
@@ -440,7 +447,8 @@ func begin(params: Dictionary) -> bool:
 	_self_id = _character.get_instance_id()
 	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
 	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
-	_order_id = "" if secure else str(params.get("order_id", ""))
+	# A join is the member's own entry joining its leader's stack (LD24, D10): no order's rules.
+	_order_id = "" if secure or is_join(params) else str(params.get("order_id", ""))
 	_order_bang = bool(params.get("bang", false))
 	_order_mode = str(params["mode"]) if _order_id != "" else ""
 	_order_hold = bool(params.get("wait_go", false))

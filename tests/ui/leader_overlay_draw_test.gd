@@ -4,7 +4,14 @@ extends GameTest
 ## row of the overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default); while it is
 ## on, a crown over each squad's living leader, moving to the next leader when the view names one. A
 ## decoupled observer: `watch(views)` takes the squads' `view()` callables and `drawn()` is what is
-## shown (`[{ point, node }]`), which this test reads.
+## shown (`[{ kind: "crown", point, node }]`), which this test reads.
+##
+## LD28: per squad it also draws, from `view()` only, the leash ring round the living leader
+## (`{ kind: "leash", point, radius, node }`, the view's `leash`), each follower's follow spot
+## (`{ kind: "spot", point, node }`) with a thin line from the follower to it
+## (`{ kind: "line", from, to, node }`), from each member's `follow_spot` (none for one at INF), and
+## the leader's trail as a dotted line (`{ kind: "trail", points }`, the view's `trail`). A crown is
+## `{ kind: "crown", point, node }`. A view without those keys draws crowns alone.
 ##
 ## Fake squad views (plain data) over three puppets for the overlay itself; then Main's wiring, on a
 ## Main that never enters the tree (as `command_menu_wiring_test.gd` does): two real squads, Main's
@@ -82,6 +89,7 @@ func run(t: TestContext) -> void:
 	_views[1]["leader"] = null
 	await t.frames(2)
 	t.expect_eq(overlay.drawn().size(), 1, "a squad with nobody left to lead has no crown")
+	await _check_follow(t, overlay, lead, next, boss)
 	overlay.queue_free()
 
 	await _check_main(t, lead, next, boss)
@@ -115,14 +123,97 @@ func _check_main(t: TestContext, lead: Node, next: Node, boss: Node) -> void:
 		_crowned(overlay, lead) and _crowned(overlay, boss),
 		"the bar's toggle shows a crown over each squad's leader (%s)" % str(overlay.drawn()),
 	)
+	var view: Dictionary = squads[&"invader"].view()
+	t.check(
+		view.has("leash") and view.has("trail")
+			and (view.get("members", []) as Array).all(func(m): return m.has("follow_spot")),
+		"a real squad's view() carries leash, trail and each member's follow_spot (keys %s)"
+			% str(view.keys()),
+	)
+	t.check(
+		_of(overlay, "leash").any(func(e): return e.get("node") == lead),
+		"the bar's toggle shows the leash ring round the invaders' leader (%s)"
+			% str(overlay.drawn()),
+	)
 	main._on_overlay_toggled(Registry.LEADERS, false)
 	await t.frames(2)
 	t.check(overlay.drawn().is_empty(), "toggled off, the crowns go")
 	main.free()
 
 
-## Whether a crown is drawn over `who`.
+## The squad's leash ring, follow spots, lines and trail (LD28), off fake views: drawn while
+## on, from the view alone; nothing while off.
+func _check_follow(t: TestContext, overlay: Node, lead: Node, next: Node, boss: Node) -> void:
+	var spot := Vector2(210, 330)
+	var trail := [Vector2(150, 300), Vector2(240, 260), Vector2(330, 220)]
+	_views = [
+		{
+			"leader": lead,
+			"leash": 320.0,
+			"trail": trail,
+			"members": [
+				{ "node": lead, "order": {}, "follow_spot": Vector2.INF },
+				{ "node": next, "order": {}, "follow_spot": spot },
+			],
+		},
+		{
+			"leader": boss,
+			"leash": 320.0,
+			"trail": [],
+			"members": [{ "node": boss, "order": {}, "follow_spot": Vector2.INF }],
+		},
+	]
+	await t.frames(2)
+	var rings := _of(overlay, "leash")
+	t.check(
+		rings.size() == 2
+			and rings.any(func(e): return (
+				e.get("node") == lead
+					and (e.get("point", Vector2.INF) as Vector2).distance_to(lead.global_position)
+						< 2.0
+					and is_equal_approx(float(e.get("radius", 0.0)), 320.0)
+			)),
+		"a leash ring of 320 px round each living leader (%s)" % str(rings),
+	)
+	var spots := _of(overlay, "spot")
+	t.check(
+		spots.size() == 1
+			and spots[0].get("node") == next
+			and (spots[0].get("point", Vector2.INF) as Vector2).distance_to(spot) < 0.5,
+		"the follower's follow spot, and none for a member with no spot (%s)" % str(spots),
+	)
+	var lines := _of(overlay, "line")
+	t.check(
+		lines.size() == 1
+			and lines[0].get("node") == next
+			and (lines[0].get("from", Vector2.INF) as Vector2).distance_to(next.global_position)
+				< 2.0
+			and (lines[0].get("to", Vector2.INF) as Vector2).distance_to(spot) < 0.5,
+		"a thin line from the follower to its spot (%s)" % str(lines),
+	)
+	var trails := _of(overlay, "trail")
+	t.check(
+		trails.any(func(e): return Array(e.get("points", [])) == trail),
+		"the leader's trail as a dotted line (%s)" % str(trails),
+	)
+	t.check(
+		_crowned(overlay, lead) and _crowned(overlay, boss),
+		"and the crowns still (%s)" % str(overlay.drawn()),
+	)
+	overlay.show_leaders = false
+	await t.frames(2)
+	t.check(overlay.drawn().is_empty(), "off, no ring, spot, line or trail is drawn")
+
+
+## The entries of `overlay.drawn()` of kind `kind`.
+func _of(overlay: Node, kind: String) -> Array:
+	return (overlay.drawn() as Array).filter(func(e): return String(e.get("kind", "")) == kind)
+
+
+## Whether a crown (an entry of kind `crown`) is drawn over `who`.
 func _crowned(overlay: Node, who: Node) -> bool:
 	return (overlay.drawn() as Array).any(func(c): return (
-		c.get("node") == who and (c["point"] as Vector2).distance_to(who.global_position) < 2.0
+		String(c.get("kind", "")) == "crown"
+			and c.get("node") == who
+			and (c["point"] as Vector2).distance_to(who.global_position) < 2.0
 	))

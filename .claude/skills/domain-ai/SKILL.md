@@ -36,7 +36,7 @@ walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall
 |---|---|---|---|
 | **Perception** | `ai/perception/` | `domain-ai-perception` (+ `domain-ai-snapshot` for the snapshot: `agent_snapshot.gd`, `perception/snapshot/`) | SENSE — what the NPC knows (sight, hostility, event memory, movement tracks, gunfire heard, allies' callouts) and the combat geometry (`agent_tactics.gd`: flanks, fire/advance/retreat spots); builds the decision SNAPSHOT — state sections, facts, option groups — worded for Von (`agent_snapshot.gd`). |
 | **Decision** | `ai/decision/` | `domain-ai-decision` | THINK — the decision TREE (data), the planner that walks it with Von one `choice` request per level, and the Von transport + dev-only server launcher. |
-| **Behaviour** | `ai/behavior/` | `domain-ai-behavior` (+ `domain-ai-combat` for `combat.gd`, `domain-ai-coverage` for `search_coverage.gd`, `domain-ai-watch` for `watch.gd`, `domain-ai-entry` for `entry.gd`) | ACT — runs the chosen leaf's primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush) and the commitment state Von lacks; owns a locomotion layer for pathing, and the tactical entry phase machine (`entry.gd`). |
+| **Behaviour** | `ai/behavior/` | `domain-ai-behavior` (+ `domain-ai-combat` for `combat.gd`, `domain-ai-coverage` for `search_coverage.gd`, `domain-ai-watch` for `watch.gd`, `domain-ai-entry` for `entry.gd`) | ACT — runs the chosen leaf's primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush / follow) and the commitment state Von lacks; owns a locomotion layer for pathing, and the tactical entry phase machine (`entry.gd`). |
 | **Debug** | `ai/debug/` | `domain-ai-debug` | Draw-only overlays: the vision cone/bubble, the decision-path label + movement path, the tactical zones it weighed, search coverage, and behaviour overlays (contacts, hearing/radio, combat, territory, move/use targets, Von/brain, routes, stuck, the entry plan, the entry team and guard). |
 
 **The AI team (`ai/team/`: `player_stack.gd`, `squad.gd`).** Not a fifth sub-domain: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21); its detail is the `domain-ai-team` skill.
@@ -58,6 +58,20 @@ it claims and its walk guarded, its claims (`_post_entry_call`) carrying `order_
 beside every claim's `stuns`, `frags`, `claim_frame`, `claim_pos`, `move_up` and `pie`; it ends done at the room cleared
 (`domain-ai-entry`). A held stack (LD13) waits at its slots, ready, until its go; a frag stack (LD14) has a frag carrier throw a frag in
 first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception._end_ambush_on_contact`, D18).
+A **join** (a `stack` order with `mode` `join`, LD24) is the squad's own: its leader's own claim at a doorway rallies every follower holding
+no order. Its ORDER option is an `entry` with `join: true` and no side or mode of the order's, and `Entry.begin` runs it as the member's own
+unordered entry joining the leader's stack (`domain-ai-entry`); the order's id stays in the leaf's params, so its progress is still radioed.
+A join with no slot at a dead end has no option and ends `refused`. A join that ends (done, cancelled on the leader's `abort`, refused)
+leaves the member to follow again, at once while its entry is still in `approach` or `stack` (`Behavior._join_over`, LD25).
+
+**Following (`docs/leadership.md` LD19 to LD23).** Each tick `_follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
+`follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
+("follows its leader" / "leads its squad"), and the leash (`Behavior.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
+not follow); a follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
+`walk_pending()`, forces one decision ("off the leash", `_leash_broke` re-armed once it is back within that). `_apply_config` disables
+INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
+`leash_center` (the leader's live position) and `leash`. The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
+(`domain-ai-behavior`) and asks for no decision on the cadence.
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it
 `observe()` and return `contacts()`; hands those to **Behaviour** to resolve + honour commitments;
@@ -71,7 +85,8 @@ the running primitive.
 **Observer reads** (pure reads, never perturbing the loop). The controller joins the group `npc_controllers` in its `_ready` (interface 7):
 that is how the HUDs tell an NPC's controller among a character's children (the UI's `hud_probe.gd`). `debug_status()` is the decision path as labels plus the running
 primitive's progress. `debug_state() -> Dictionary` is the deep snapshot: every level of the last walk (the state and question
-Von saw, the options, its probabilities and pick), the facts, the contacts, the running primitive and pathing (`loco`: the walk's
+Von saw, the options, its probabilities and pick), the facts, the state sections of the last snapshot (`sections`: the text Von reads
+in any question, read even when no level asked, e.g. a join's `order` sentence, LD24), the contacts, the running primitive and pathing (`loco`: the walk's
 `way` plain / round / held / doors, `held_for`, `giving_way`), and `decisions` (walks started) with `decision_reason` (why the latest started:
 the force reason, e.g. "task resolved", "way blocked", "attacked", or "cadence"); the dev command
 server's `ai` verb dumps it and `tools/von_probe.py` replays captured levels against Von. `debug_zones() -> Array` flattens the
@@ -119,6 +134,7 @@ root ─┬─ ORDER   → the order the NPC's leader gave it, auto-picked      
       │                             ├─ MELEE   → punch, only when point-blank   (melee)
       │                             ├─ RETREAT → a hidden / farther spot        (move)
       │                             └─ LOCATE  → toward an unseen shooter       (move)
+      ├─ FOLLOW  → keep to the spot the squad gives a follower, auto-picked     (follow)
       ├─ INVESTIGATE ─┬─ a lead (last seen, heading, gunfire, footsteps, ally's call) (move)  [always asked of Von]
       │               └─ STAY → hold, when a lead is outside the house          (hold)
       ├─ SEARCH ─┬─ ENTER → a doorway into a room left to search              (entry)
@@ -129,7 +145,8 @@ root ─┬─ ORDER   → the order the NPC's leader gave it, auto-picked      
 ```
 
 Entry rules skip the broad levels when the situation is clear (under fire / engaged → straight to COMBAT; ordered → ORDER; — when
-pursuing — a hostile known → COMBAT). A level with one option is taken without asking.
+pursuing — a hostile known → COMBAT; a follower → FOLLOW). A level with one option is taken without asking. A follower has INVESTIGATE,
+SEARCH and IDLE disabled (below).
 
 ## The two presets
 
@@ -139,8 +156,9 @@ Spawned by Main (`defender_count` / `invader_count`, default 1 each):
   house. Dropped at a clear spot in a random room (never inside solid furniture or on another defender).
 - **Invader** — `ai/npc_invader.tscn`, an inherited scene overriding only data (faction
   `invader`): `hostile_on_sight`, not territorial, unfamiliar with the house (it learns rooms by
-  sight and is offered unexplored areas by direction), a red body. Dropped just outside the house;
-  several start spread around the perimeter and coordinate flanks over the callout radio. It enters rooms
+  sight and is offered unexplored areas by direction), a red body. Dropped just outside the house: Main's
+  invader team in one group round a seeded perimeter point (`MatchSpawner.spawn_invader_team`, LD27), a test's spread side round the
+  perimeter (`spawn_invader`); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms
   tactically (`entry_enabled`, `docs/tactical-entry.md`): stack beside the door, slice the pie, cross
   without stopping, take the corners, clear, leave rear security — as a team over the radio, or alone. A quiet stack that carries a stun
   listens at the stack before the pie (`entry_listen_time` 3 s, an **Entry** group export: E17, issue #51 R17), so a late reason can turn it into a bang.
@@ -166,4 +184,4 @@ becomes an investigation lead), and (unless `familiar_with_house`) must see room
 use them. The detail lives in `domain-ai-perception`, `domain-ai-decision` and `domain-ai-behavior`.
 
 **Interfaces:** 3 (`Explosion.shields` / `first_stop`, the blast's cover rule perception asks of a grenade), 6 (`ItemRegistry`'s
-slot ids, `throw_stats()`, `aim_target()`), 7 (Character ↔ Controller, the observer reads and overlay exports), 9 (AI → Navigation), 10 (EventBus), 11 (`PhysicsLayers`, `GameClock`), 13 (`DecisionStub` / `DecisionServerLauncher` for tests), 15 (`GameLog`: the decision log line, entry phases, the Von launcher), 17 (the human's `PlayerStack`), 21 (the `Squad`: leader, succession, orders), 22 (`DecisionServerLauncher`: Main's Von-server wait) — signatures in `architecture`.
+slot ids, `throw_stats()`, `aim_target()`), 7 (Character ↔ Controller, the observer reads and overlay exports), 9 (AI → Navigation), 10 (EventBus), 11 (`PhysicsLayers`, `GameClock`), 13 (`DecisionStub` / `DecisionServerLauncher` for tests), 15 (`GameLog`: the decision log line, entry phases, the Von launcher), 17 (the human's `PlayerStack`), 21 (the `Squad`: leader, succession, orders, following, the rally), 22 (`DecisionServerLauncher`: Main's Von-server wait) — signatures in `architecture`.

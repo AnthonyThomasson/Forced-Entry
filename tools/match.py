@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
-"""Run and score 2-AI spectator matches (defender vs invader) against a running game.
+"""Run and score AI spectator matches (defenders vs invaders, any size) against a running game.
 
 The game must already be running in spectator mode with its dev command server up (see
 scenes/general/command_server.gd, port from application/debug/command_port, default 9080). This
 driver reuses that server's line protocol:
 
     restart [seed]   reload for a fresh matchup (optional seed pins the house layout)
-    match            one parseable status line for both combatants + verdict + elapsed
+    match            one parseable status line for every combatant + verdict + elapsed
+
+The verdict is decided by the rule the MatchHUD decides by (General's MatchVerdict): "none" while
+each side has someone alive; once a side is wiped out, the side left standing by its faction
+("household", "invader"), or in a 1v1 the survivor's name ("Defender", "Invader"); "draw" when
+nobody, or more than one side, is left. The match's size is the scene's (Main's invader_count /
+defender_count).
 
 For each round it restarts, optionally applies per-side overrides (arbitrary GDScript evaluated
-against the scene, e.g. to retune a controller's goal/flags), polls `match` until a side wins or
-the round times out, and finally prints a win-count summary across rounds.
+against the scene, e.g. to retune a controller's goal/flags), polls `match` until a side wins, it
+is a draw or the round times out, and finally prints a tally of the verdicts across rounds.
 
 Examples:
     python3 tools/match.py --rounds 5

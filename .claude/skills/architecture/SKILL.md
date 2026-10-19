@@ -34,7 +34,7 @@ composition root is `domain-main`.
 | **Audio** | `audio/` | `domain-audio` | The procedural sound system: every sound is synthesized in code, picked by event (gunshots per gun, bullet impacts per surface / outcome / round weight, footsteps per floor and gait, reloads, a grenade's throw, bounce, burst, a vehicle's ignition, doors, crashes, engine and skid loops) and played by the `Sound` autoload through a capped pool of positional voices; a deafened `Sound.focus` (the human) gets a muffle and a tinnitus whine. |
 | **Lighting** | `lighting/` | `domain-lighting` | The world's dusk lighting, a leaf like Audio (`docs/lighting.md`): the ambient and the sky, a light per light-giving piece (declared by the piece) and per room fixture within a per-floor budget, their seeded rhythms, the shot and explosion flashes, and who stands in a light. |
 | **Navigation** | `navigation/` | `domain-navigation` | Baking the house into a walkable nav map so characters can path around walls. |
-| **General** | `general/` | `domain-general` | Infrastructure: input (Keybinds), saved settings (`Settings`), the event bus (`EventBus`), the log (`GameLog`), the pausable game clock (`GameClock`), despawner, camera, dev command server, shared physics-layer ids (`PhysicsLayers`), the draw-order ladder (`DrawLayers`), the light masks (`LightMasks`), the batched plain-colour drawing (`FillBatch`) and the shared weighted roll (`WeightedPick`). |
+| **General** | `general/` | `domain-general` | Infrastructure: input (Keybinds), saved settings (`Settings`), the event bus (`EventBus`), the log (`GameLog`), the pausable game clock (`GameClock`), despawner, camera, dev command server, shared physics-layer ids (`PhysicsLayers`), the draw-order ladder (`DrawLayers`), the light masks (`LightMasks`), the batched plain-colour drawing (`FillBatch`), the shared weighted roll (`WeightedPick`) and the match verdict (`MatchVerdict`). |
 | **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers, the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
 | **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
 | **Vehicles** | `vehicle/` | `domain-vehicle` | Drivable vehicles (a car and a van, only in the sandbox): the rigid body and its driving model, doors and seats, getting in and out (the character's `CharacterVehicleUse` component and the ride), collisions and the harm to a character struck, the dents, the vehicle art and its events. |
@@ -82,8 +82,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 `get_rooms`, `get_openings` and `NavBuilder` read them unchanged. No other caller writes those keys.
    `main.gd` positions the front entrance, fixes draw order and builds the nav map from the rooms (interface 9); its
    `match_spawner.gd` drops each defender at a clear spot in a random room (its centre unless solid furniture is within `spawn_clearance` or another
-   combatant within twice that — read off `NavBuilder.furniture_holes` — else a random clear point) and each invader
-   just outside the house (all via `get_rooms`), and hands every NPC the house's `get_openings` (for tactical
+   combatant within twice that — read off `NavBuilder.furniture_holes` — else a random clear point) and the invader team in one group
+   just outside the house (`spawn_invader_team`: packed round a perimeter point of the rooms' bounding box, grown by `invader_margin`, drawn
+   from the house seed, or round the human invader's spot, `docs/leadership.md` LD27; `spawn_invader` places one alone at its share of the
+   perimeter, for the tests that want a spread side) (all via `get_rooms`), and hands every NPC the house's `get_openings` (for tactical
    entry); it never touches world-gen internals.
 
 2. **World Generation → Objects** (the only way world-gen makes entities)
@@ -314,7 +316,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
    own side's steps are never taken for a stranger's (`docs/hearing.md` H1); of the attacker of a hit on or near it (the `hit` event's `attacker`), so an
    ally's round striking nearby is not fire at it; and of the thrower of a grenade that bursts (the `explosion` event's `attacker`), so it knows a burst as its
    own team's (`docs/grenades.md`). A member also knows its squad unseen (interface 21, `docs/leadership.md`): who is in it and leads it, and an
-   order names its recipients and its side (`to`, `faction` on the `&"order"` event), so an NPC takes only its own side's orders that name it. Every character joins the group `characters` in its `_ready`:
+   order names its recipients and its side (`to`, `faction` on the `&"order"` event), so an NPC takes only its own side's orders that name it; and
+   its squad reads the leader's `global_position` and `facing` (and its members' `global_position`) unseen, to lay the spots its followers keep
+   to and the leash they fight within (LD19 to LD23). Every character joins the group `characters` in its `_ready`:
    that group is how the AI (its perception and tactics), the Projectile System's `Explosion` and a vehicle tell a character in the world, so it
    is part of this interface and is not renamed lightly.
    `player_controller.gd` is the human one and
@@ -339,7 +343,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    the characters it perceives by sight. Von walks a data-driven DECISION TREE ranked against the
    goal — a broad mode (combat / reload_quiet / investigate / search / idle), then a tactic (engage / flank / advance /
    retreat / reload / locate …), then a concrete option (a place, a firing spot, an object) — one `choice`
-   request per level, ending in a behaviour primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush) — no
+   request per level, ending in a behaviour primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush / follow) — no
    per-goal or per-NPC-type code. `goal_controller.gd` is only the thin orchestrator; the work is split
    across four isolated AI sub-domains (perception / decision / behaviour / debug). See the `domain-ai`
    overview and its `domain-ai-<name>` sub-skills.
@@ -384,7 +388,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 navmesh counts as unbaked), `snap(map, p) -> Vector2` (`p` on the navmesh; unchanged before the bake),
 	 `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before the bake or with no
 	 path) and `path_length(path) -> float`. The AI's locomotion, tactics geometry, entry geometry, grenade escape plan, snapshot options and
-	 routes overlay, and the human's `PlayerStack` (how near a doorway it is), all go through these, so the "is the map baked yet" rule lives in one place.
+	 routes overlay, the squad's follow spots (`snap`), and the human's `PlayerStack` (how near a doorway it is), all go through these, so the "is the map baked yet" rule lives in one place.
    - **Avoid maps**, for a walk that keeps out of some stretch of floor (the AI's doorway views, `docs/tactical-entry.md` E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its
@@ -444,8 +448,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14), `order_hold` (the order holds the stack
       for the leader's go, LD13), `order_go` (that go has come) and `order_side` (the side of the door the order names, 1 / -1 along its
       wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9); a human invader's `PlayerStack`
-      (interface 17) posts the same entry steps for the human, with `human: true` (no AI moves up into its slot) and `leader` (true while the
-      human leads its squad: a stack it ordered waits for it, LD17). A live grenade has its own statuses, which an ally in range reads as "a
+      (interface 17) posts the same entry steps for the human, with `human: true` (no AI moves up into its slot), `leader` (true while the
+      human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway nobody stacks at,
+      which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). A live grenade has its own statuses, which an ally in range reads as "a
       grenade is down there" and not as what the speaker is doing: `status = "grenade"` (an NPC that saw or heard a grenade come down and
       is in its danger zone: `point` the spot it landed, `kind` `&"frag"` / `&"stun"`; the NPC repeats it once if the grenade then comes to rest
       30 px or more away), `"frag_out"` / `"bang_out"` (the thrower of a frag or a stun, `point` the landing; the GRENADE tactic's call, G17, and `frag_out` from the
@@ -460,13 +465,17 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `{ id, leader, faction, to` (the recipients, characters)`, kind` (`defend_room` / `stack` / `go` / `ambush` / `cancel`)`, room?`
       (`defend_room`: the room key; `ambush`: the room it lies in wait in, on the click's side of the doorway's wall, D17)`, opening?, into?,
       stack_at?, split?, mode?, bang?, wait_go?` (`stack`: the doorway's id, the room it goes into, the click the stack's side is read from
-      or a split stack, `mode` `quiet` / `stun` / `frag` (LD14) with `bang` true for any mode but quiet, and `wait_go`, the stack holds at
+      or a split stack, `mode` `quiet` / `stun` / `frag` (LD14) or `join` (the squad's own rally on its leader's own entry claim, to the
+      followers holding no order, LD24: no side or mode pinned, the member's own entry joining the leader's stack) with `bang` true for
+      `stun` and `frag`, and `wait_go`, the stack holds at
       its slots for the leader's go, LD13)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
       auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12)`, pos?` (`defend_room` / `stack` / `ambush` /
       `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)` }`. A `go` (`opening`, `pos`) goes
       to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
       unlimited: every AI controller named in `to` of the same faction takes it, and it holds it until it is done, cancelled or replaced
-      (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18).
+      (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18). Besides its leader's orders a
+      squad posts its own: the rally's `join` stacks, a `cancel` of them when its leader radios `abort` at that doorway (LD25), and a `cancel`
+      to the members holding a `defend_room` or `ambush` when the human leader dies (LD26).
     - `&"leader"`: a squad posts one when its leader dies and the next in line leads (`docs/leadership.md` LD4): `{ faction, leader, previous }`
       (`leader` null when nobody is left).
     - `&"vehicle"`, `&"engine"`, `&"skid"`: a vehicle (Vehicles) posts `&"vehicle"` `{ position, kind` (`&"car"` / `&"van"`)`, stage }` with
@@ -479,7 +488,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (the `Sound.focus` pattern, interface 18), so it stays a leaf.
     Emitters and listeners never reference each other (like `Despawner`).
 
-11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `DrawLayers` and `GameClock`**
+11. **General → every domain: shared ids, `PhysicsLayers.SOLID`, `DrawLayers`, `GameClock` and the shared rules**
     - `PhysicsLayers` (`general/physics_layers.gd`, a `class_name` static holder) — `SOLID` names
 	  the physics layer bit (1) that "walls + solid furniture" live on. Interaction's reach query
 	  (`character_interaction.gd`) and AI perception's sight/line-of-fire rays (`agent_vision.gd`; the
@@ -527,6 +536,13 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  `index(rng, rows, weight_index := 1, strict := false) -> int`; `strict` is the caller's edge rule (false: a roll on a stretch's end
 	  takes that entry, one past them all the last; true: the next entry, one past them all the first). World-Gen's room dresser,
 	  Objects' room wear and street marks, the Lighting domain's rhythms and the Character's style draw through it.
+    - `MatchVerdict` (`general/match_verdict.gd`, a `class_name` static holder) — who has won a match, the one rule:
+	  `MatchVerdict.decide(combatants) -> Dictionary`, `{}` while every side (faction) still has someone alive; once a side is wiped out
+	  `{ winner, survivors, sides }` (`winner` the faction left standing, null for a draw: nobody, or more than one side, left; `survivors`
+	  the living combatants; `sides` faction -> how many it fields). It reads the combatants through the Character API (`faction`,
+	  `is_dead`; a freed one counts as fallen). The UI's `MatchHUD` (its banner) and the dev command server's `match` verb (`verdict_of`,
+	  which `tools/match.py` scores by) both decide by it, each wording the result its own way (the HUD names a lone survivor in any match,
+	  the `match` verb only in a 1v1).
 
 12. **Objects / Character / Items / Vehicles → Art** (leaf: the pixel-art engine; each domain owns its painters)
     - `PixelArt.render(painter, size, color, facing, material, opts) -> Texture2D` — a painter's art
@@ -629,7 +645,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       the AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human` (no AI moves up into its slot) and, when
       the human leads, `leader`.
     - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack)` with the stack `bind_player` returned (interface 21); its claims say
-      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17).
+      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). While the human leads a squad with another living
+      member and no allied stack forms in its reach, it also claims of its own (LD24): stepping up to a doorway nobody stacks at (on its stack
+      side against the wall beside the opening, out from the wall plane and past the jamb each within `PlayerStack.STEP_UP_REACH`, 60 px,
+      for `STEP_UP_TIME`, 0.5 s) it claims slot 1 there, marked `own: true`, which the squad hears as its leader's own claim and rallies the
+      team to; that claim stands while nobody else stacks there. A slot it is reserved in an allied stack (E16) is never `own` and never
+      rallies.
     - `StackMarkers.watch_squad(view: Callable)` — Main (`_watch_side_stacks`, every played match) hands the markers the human's side's
       `Squad.view`, whose `stacks` they draw too (LD18): every stack of that side, a ring per slot, a slot both views give drawn once.
       `StackMarkers.drawn() -> Array` is what is shown: `[{ n, point, mine, held, there, side, row, opening }]`.
@@ -709,18 +730,31 @@ interfaces it takes part in (by number) and describes how they're implemented.
       off the child in the group `npc_controllers` (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
       `MatchSpawner.bind_squad(member, squad, stack := null)` (beside `bind_npc`: the controller's `squad`, found by the same group, and the
       human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17). The squad reads its members only through the
-      Character API (`rank`, `is_dead`, the `died` signal) and lays its stacks on the navigation map and physics space of its own viewport's `World2D`.
+      Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
+      follow, when a child of it is in the group `npc_controllers` at `setup`, interface 7) and lays its stacks and its follow spots on the
+      navigation map and physics space of its own viewport's `World2D` (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
+      Every squad coordinates, with no switch (`docs/leadership.md` LD3, LD19 to LD26).
     - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `rank`, the first in spawn order among equals, so the invaders'
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
-      (`{ leader, members: [{ node, order, step, held }], stacks }`: the order each member holds, the posted dict or {} (a held stack a `go` released
+      (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
       LD13: the one rule the UI reads instead of working it out); an order radioed `done` is no longer held, {} with the step `done`, while a
       `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the members' entry claims on the bus,
       `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where
       the AI stands it; `holder` the instance id, 0 free; `there` its holder in it; `mine` the human's; `row` 1 against the wall, 2 a step out),
-      from a stack's first claim until everyone in it is through), what observers draw.
+      from a stack's first claim until everyone in it is through; `follow_spot` the member's `follow_spot`, `trail` the leader's trail
+      (`Array` of points, oldest first) and `leash` (px), LD28), what observers draw.
+    - Following reads (LD19 to LD23): `follows(member) -> bool` (alive, the squad has a leader, not the leader, an NPC), `follow_spot(member)
+      -> Vector2` (the spot it keeps to now, `Vector2.INF` when it does not follow: on the leader's trail while it moves, a ring slot behind
+      it once it has stood `follow_still_time`, out of the leader's way), and the tunables the AI reads, vars on the squad: `follow_gap` (55),
+      `follow_step` (45), `follow_ring` (80), `follow_still_time` (0.8 s), `follow_retarget` (20), `follow_arrive` (10), `leash` (320) and
+      `leash_break` (1.3). The squad keeps the leader's trail every physics frame and lays the spots through its `SquadFollow`
+      (`ai/team/squad_follow.gd`, the team module's own, which reads the tunables, `leader()`, `members()`, `alive` and `follows` off the
+      squad). The controller reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
+      follow tunables, and faces away from the leash centre the controller pushes (its leader's live position), reading no `leader()`.
     - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang?, mode?, wait_go? }`:
-      no `to` = every living member but the leader) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
+      no `to` = every living member but the leader; a stack's `mode` one of `Squad.MODES`, `quiet` / `stun` / `frag`; `Squad.JOIN`, `join`, is
+      not one of them: only the squad's own rally posts it, and `Squad.is_join(order)` tells such an order) resolved into the AI's (a room key, or the room under `pos`; for a stack or an ambush the
       doorway nearest `pos` within its width, a stack's `into` the room on the far side of the wall plane from `pos`, an exterior door's house
       room, and `stack_at` = `pos` or `split` for a click on the opening; a stack's `mode` from the request's `mode`, else `bang` true is a
       stun; an ambush's `room` the one on `pos`'s side of the wall plane) and posted as `&"order"` (interface 10); a `{ kind: "go", pos }`
@@ -731,7 +765,13 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `{ opening, pos, into, split, stack_at? }` for a `stack`, `{ opening, pos }` for a `go` and `{ opening, pos, room, beyond }` for an
       `ambush` ({} when it names nothing): the one rule for which doorway a click means and which room "into" (or an ambush's room) is,
       which the command menu names its stack and ambush items from.
-    - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10); the orders given stand.
+    - On the leader's `died` the next in line leads within the frame and the squad posts `&"leader"` (interface 10); the orders given stand,
+      but when the dead leader was the human the squad posts one `cancel` to the members holding a `defend_room` or `ambush` (the takeover,
+      LD26). The trail starts afresh at the new leader.
+    - **The rally** (LD24, LD25): on an entry claim of its leader's own (an `&"callout"` from the leader with no `order_id`: an AI leader's
+      entry, or the human's own claim through its `PlayerStack`, the one marked `own`, interface 17) the squad posts one `stack` order with `mode` `join` to every
+      follower holding no order, once per doorway per leader, and on the leader's `abort` there a `cancel` to the members holding those joins.
+      The command menu never offers a join.
     - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:
       with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only) Main hands
       the human to `Squad.setup` (a human invader is ranked the unit's lead, 2) and `_build_command_menu` builds, under `World`, the
@@ -748,15 +788,17 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `selection_changed(nodes)`; and the `OrderMarkers` (`ui/hud/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
       squad's `view()` callable), `set_selection(nodes)` (Main connects the menu's `selection_changed` to it) and `drawn() -> Array`
       (`[{ kind, point, node, from?, label?, refused? }]`, `kind` `order` (`from` where the member stands, `label` the words at its target,
-      "Stack (frag, hold) · in position", "Ambush · moving") / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
+      "Stack (frag, hold) · in position", "Join stack · moving", "Ambush · moving") / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
       menu alone, so with "Lead the team" off nothing reads the right button. Neither holds an AI reference: they read the members through the
       Character API (`global_position`, `name`, `is_dead`, `item_count`) and the squad through `view()` (and the menu `resolve()`), and the menu
       emits plain requests.
     - **The squad-leaders debug overlay** (UI, `ui/overlays/leader_overlay.gd`, LD12): Main builds a `LeaderOverlay` (a `Node2D` at
       `DrawLayers.ABOVE`) under `World` in every match after the squads (`_build_leader_overlay`): `watch(views)` (every squad's `view()`
       callable), `show_leaders` (the overlay bar's global `OverlayRegistry.LEADERS` row, off by default, set by Main's `_on_overlay_toggled`)
-      and `drawn() -> Array` (`[{ point, node }]`, a crown over each squad's living leader while shown). It reads the leader through the
-      Character API (`global_position`, `is_dead`) and the squads through `view()` only.
+      and `drawn() -> Array` (while shown, per squad: `{ kind: "crown", point, node }`, a crown over its living leader; `{ kind: "leash", point, radius,
+      node }`, the leash ring round it; per follower with a follow spot `{ kind: "spot", point, node }` and `{ kind: "line", from, to, node }`;
+      `{ kind: "trail", points }`, the leader's trail dotted, LD28). It reads the leader and the members through the Character API
+      (`global_position`, `is_dead`) and the squads through `view()` only.
 
 22. **Main → UI: setup window, match HUD, spectator inspector, overlay bar** (the composition root wires them, in the shape of
     interface 14: plain dicts in, signals out; the flow is `domain-main`'s)
@@ -838,6 +880,7 @@ GameTestSuite / UnitSuite / test_report_hook (Testing) ─▶ GdUnitTestSuite / 
 main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world
 Item (&"shot") / Explosion (&"explosion") ──▶ EventBus ──▶ WorldLighting (flashes)
 Objects (walls, solid pieces, street floors) / Character (the living body) ──(LightMasks.occluder, STREET)──▶ LightMasks (General)
+MatchHUD (UI) / CommandServer `match` (General) ──(decide)──▶ MatchVerdict (General)
 TestWorld ─▶ vehicle scenes (TestSetup.vehicle)
 TestSession / TestWorld ─▶ DecisionStub / DecisionServerLauncher / NPC scenes (AI), config-holder statics (behaviour switches)
 TestBrowser ──(Back: scene change)──▶ main
@@ -906,7 +949,7 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   3. **Exploratory / not yet scriptable?** `godot-run` skill: drive the live game through the dev
      command server (`tools/gcmd.py`).
   4. **Whole-AI outcomes?** `tools/match.py` scores full defender-vs-invader matches.
-  **Fast enough?** `tools/run_tests.sh --domain=perf`: the performance tests (`tests/perf/`: eleven guards) hold a 5v5 and a 10v10 match to one 60 fps
+  **Fast enough?** `tools/run_tests.sh --domain=perf`: the performance tests (`tests/perf/`: twelve guards) hold a 5v5 and a 10v10 match (and the 10v10 with its squads built as Main builds them, following their leaders) to one 60 fps
   frame on average and hold stress cases to their budgets: automatic fire, nav re-bakes and path queries, a whole match dying in one
   frame, a furniture pile shoved at once, house generation, hundreds of hits on one body, an NPC crowd, grenades thrown into a 5v5 and a
   frag and a stun bursting in a crowded room (`domain-testing` skill, "Performance tests"); a change to a per-frame path should leave them

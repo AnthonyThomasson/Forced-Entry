@@ -11,7 +11,6 @@ extends GameTest
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
-const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const SEED := 7
 ## The house is the largest plan by floor area (garage_home: five rooms, 760k px²), pinned rather
 ## than drawn from the seed: the match is measured in a full-size house whatever the catalogue
@@ -84,7 +83,7 @@ func _spawn_match(t: TestContext) -> Array:
 	spawner.openings = t.world.openings
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	var entrance := _front_entrance(t)
+	var entrance := Perf.front_entrance(t)
 	for i in PER_SIDE:
 		spawner.spawn_defender(t.rooms, rng, i)
 	for i in PER_SIDE:
@@ -93,21 +92,5 @@ func _spawn_match(t: TestContext) -> Array:
 	loadout_rng.seed = SEED
 	for c in spawner.combatants:
 		LoadoutConfig.apply(c, {}, loadout_rng)
-		_overlays_off(c)
+		Perf.overlays_off(c)
 	return spawner.combatants
-
-
-## Main's `_configure_debug` with every overlay at its default (off): a debug overlay that is left
-## on (the vision cone's export defaults to on) would be costed as if a player were watching it.
-func _overlays_off(npc: Node) -> void:
-	for child in npc.get_children():
-		for flag in OverlayRegistry.defaults():
-			if not OverlayRegistry.is_global(flag) and flag in child:
-				child.set(flag, false)
-
-
-func _front_entrance(t: TestContext) -> Vector2:
-	for o in WorldGen.get_openings(t.world.get("house")):
-		if o["front"]:
-			return o["pos"]
-	return Vector2.ZERO

@@ -93,7 +93,13 @@ inspector and overlays observe.
   `SPAWN_TRIES` (32) drawn from the rng (inset from the walls). **Clear** = at least `spawn_clearance` from every solid furniture footprint
   (`NavBuilder.furniture_holes`, read off the shapes, so it is right on the frame the house is built) and twice that from every combatant already
   placed; the centre again when nothing is clear. (A body spawned inside a piece is ejected with it and the piece's momentum flings it.)
-- `spawn_invader(rooms, rng, index, count, front_entrance)` — around the perimeter of the rooms' bounding box grown by `invader_margin`, one even
+- `spawn_invader_team(rooms, rng, count, front_entrance, around := Vector2.INF)` — Main's invader team in one group (`docs/leadership.md`
+  LD27): round `around` (the human invader's spot, which `_spawn_world` passes in a played match with a human invader) or else round one
+  `perimeter_point` of the rooms' bounding box grown by `invader_margin`, at `rng.randf()` (so the house seed pins it); each member takes
+  `_group_spot`: the centre, then rings twice `spawn_clearance` apart (about one slot per twice `spawn_clearance` of ring, `GROUP_RINGS` 6),
+  the first spot `is_clear` of the furniture holes and every combatant placed (and `around`) and `_outdoors` (out of every room grown by
+  `spawn_clearance`, within twice `invader_margin` of the bounds); the centre, logged, when none is.
+- `spawn_invader(rooms, rng, index, count, front_entrance)` — one invader alone, for the tests and perf guards that place a spread side: around the perimeter of the rooms' bounding box grown by `invader_margin`, one even
   fraction per index plus a little jitter, so several attackers start on different sides; the front entrance is injected so the controller heads
   straight for it.
 - `add_npc` instances the scene, sets its position and only THEN adds it under `world` (a body added at the world origin and moved afterwards
