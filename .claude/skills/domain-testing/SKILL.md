@@ -230,6 +230,19 @@ Native gdUnit suites are for pure logic only and always supplement the simulatio
 suite may add fast checks of a pure function beneath the simulation test that proves the behaviour (see "Native unit
 suites" below).
 
+**No tautological tests.** A test exists to fail when the behaviour is wrong, so every assertion must be one the
+code could get wrong:
+- Expected values come from the spec (`docs/`, the ticket, the interface's description) or from what a player would
+  see, never worked out the way the code does: no calling the function under test (or a helper it shares) to compute
+  the expectation, no copying its formula, no reading its tuning constant back as the expected value (a probe keeps
+  its own copy of the spec's numbers, as `door_view_probe.gd` does).
+- It asserts an outcome the world shows (the shot landed, the health dropped, the NPC went in by the doorway), not
+  that the code did what the test told it: a setter read back, a `von_script` pick reported as picked, a stub's answer
+  echoed, a constant equal to itself, a node the test itself added found in the tree.
+- A premise the asserts rest on is checked on its own, as a premise, and never counts as the test's proof.
+- The check before keeping it: break the behaviour it covers (invert the condition, drop the call, zero the effect)
+  and it must go red. A test that would still pass is rewritten or deleted, not kept for coverage.
+
 One file `tests/<domain>/<name>_test.gd` that `extends GameTest`. Id = `<domain>/<name>`. A domain with many tests
 splits them one folder deeper by topic (`tests/ai/entry/`, `flank/`, `gaze/`, `posture/`, `investigate/`, `combat/`,
 `movement/`, `decision/`, `perception/`, `stack/`, `grenade/`, `debug/`: the overlays): the id is then `<domain>/<topic>/<name>`, the domain is still the first
@@ -346,8 +359,8 @@ func test_the_keys_take_their_stretches_in_their_order() -> void:
 	assert_that(WeightedPick.key(_zero_roll(), { "b": 1.0, "a": 1.0 }, true)).is_equal("b")
 ```
 
-- Its expected values come from the spec (the interface's description), never worked out the way the code does; a
-  premise the asserts rest on (here, that an rng at state 0 rolls 0.0) is checked on its own first.
+- No tautologies (above): its expected values come from the spec (the interface's description), never worked out the
+  way the code does; a premise the asserts rest on (here, that an rng at state 0 rolls 0.0) is checked on its own first.
 - The log gate holds: an engine error or warning logged during one of its tests fails that test.
 - `run_tests.sh` runs it in shard 0, ids `<path under tests/>::<function>` (`general/weighted_pick_suite::test_…`);
   `--changed` runs its domain when it or the domain's code changes; the GdUnit panel lists it like any suite.
