@@ -201,7 +201,10 @@ func _start_matches() -> void:
 	await get_tree().process_frame  # the main scene's _ready has run
 	var main := get_tree().current_scene
 	if main == null or not ("endless_time_limit" in main):
-		_fail("the main scene has no endless_time_limit (Main's export), so no match can be capped")
+		_fail(
+			"the main scene has no endless_time_limit (Main's export; a parse error in Main's"
+			+ " script leaves it out: see the game log), so no match can be capped",
+		)
 		return
 	var menu := _find_with_signal(main, &"start_requested")
 	if menu == null:

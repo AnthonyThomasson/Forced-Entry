@@ -323,6 +323,14 @@ def godot_processes_under(pid: int) -> list[int]:
     return found
 
 
+def game_processes_under(pid: int) -> list[int]:
+    """The Godot processes under `pid` that play matches: not the `--import` a run of a never-imported checkout makes
+    first (runner.ensure_imported)."""
+    return [p for p in godot_processes_under(pid)
+            if "--import" not in subprocess.run(["ps", "-o", "args=", "-p", str(p)], capture_output=True,
+                                                text=True).stdout.split()]
+
+
 def stall_hits(data: dict, smap: dict) -> int:
     return hits.totals(data).get(one_id(smap, *STALL_LOOP), 0)
 
@@ -393,6 +401,34 @@ class WorldClockTests(unittest.TestCase):
         self.assertIn("match_world", r.stdout + r.stderr)
 
 
+def with_class_name(repo: Path) -> None:
+    """The fixture's Main names a global class (`class_name`), as the real Main names `GameClock`, `NavBuilder` and
+    the rest: a script that parses only once the project's class cache (.godot/) is built."""
+    (repo / "scenes" / "game" / "fixture_rules.gd").write_text(
+        "class_name FixtureRules\nextends RefCounted\n\n\nstatic func verdict() -> String:\n"
+        '\treturn "INVADER WINS"\n')
+    main = repo / "scenes" / "main.gd"
+    text = main.read_text()
+    anchor = '$MatchHUD.finish("INVADER WINS")'
+    assert anchor in text, "the fixture's Main ends a match with INVADER WINS"
+    main.write_text(text.replace(anchor, "$MatchHUD.finish(FixtureRules.verdict())", 1))
+
+
+@needs_godot
+class FreshCheckoutTests(unittest.TestCase):
+    """A checkout never opened in Godot (a fresh worktree) has no .godot/ class cache. The matches run imports its
+    copy first, as tools/run_tests.sh imports a fresh checkout, so a Main that names a global class still loads."""
+
+    def test_a_never_imported_checkout_plays_its_matches(self):
+        with TempDir() as d:
+            repo = fixture_repo(d, with_class_name)
+            self.assertFalse((repo / ".godot").exists(), "the fixture repo is a fresh checkout")
+            r = run_cli(repo, "run", "--matches=1", "--jobs=1", "--seed=100", "--endless-every=0", timeout=240)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            meta = read_json(newest_run(repo, "matches") / "meta.json")
+        self.assertEqual(meta["matches"][0]["verdict"], "INVADER WINS", meta["matches"][0])
+
+
 @needs_godot
 class KillTests(unittest.TestCase):
     def test_a_process_killed_with_kill_9_leaves_its_last_flush(self):
@@ -436,10 +472,10 @@ class KillTests(unittest.TestCase):
                                     "--jobs=1", "--seed=9000"], cwd=repo, env=env_with_godot(),
                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             try:
-                game = wait_for(lambda: godot_processes_under(cli.pid), timeout=120)
+                game = wait_for(lambda: game_processes_under(cli.pid), timeout=120)
                 self.assertTrue(game, "the run started a game process")
                 time.sleep(8)  # past the first 5 s flush
-                for pid in godot_processes_under(cli.pid):
+                for pid in game_processes_under(cli.pid):
                     os.kill(pid, signal.SIGKILL)
                 out, _ = cli.communicate(timeout=180)
             finally:

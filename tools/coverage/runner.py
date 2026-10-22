@@ -52,6 +52,7 @@ ENDLESS_MATCHES = 3
 SIDE_SIZES = 5                   # both sides 1..5 strong, by the seed
 PROCESS_WALL_BASE = 120.0        # wall seconds a game process may take, plus PROCESS_WALL_PER_MATCH per match,
 PROCESS_WALL_PER_MATCH = 600.0   # before it is killed (its last flush is kept)
+IMPORT_TIMEOUT = 600.0           # wall seconds the import of a copy with no class cache may take (ensure_imported)
 RUNS_DIR = Path("artifacts") / "coverage"
 VON_PORT = 8000
 VON_HEALTH = "/v1/systemone"
@@ -230,6 +231,18 @@ def write_config(hits_dir: Path, name: str, config: dict) -> Path:
     path = Path(hits_dir) / name
     hits.write_json(path, {"hits_dir": str(Path(hits_dir).resolve()), "flush": FLUSH_SECONDS, **config})
     return path
+
+
+def ensure_imported(copy, log_path: Path) -> None:
+    """Import the copy when it has no class cache: a checkout never opened in Godot (a fresh worktree) has no .godot/
+    for workspace.create to carry over, and without the cache every script naming a global class fails to parse, so
+    Main never loads. tools/run_tests.sh imports a fresh checkout the same way (the tests run goes through it)."""
+    if (Path(copy) / ".godot" / "global_script_class_cache.cfg").is_file():
+        return
+    with open(log_path, "w") as out:
+        subprocess.run([godot_binary(), "--headless", "--path", str(copy), "--import"], cwd=copy,
+                       env=game_env(copy), stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+                       timeout=IMPORT_TIMEOUT, check=False)
 
 
 def launch(copy, entry: dict, hits_dir, windowed: bool = False) -> subprocess.Popen:
@@ -608,6 +621,7 @@ def run_once(root, source, matches, jobs, seed, endless_every, windowed, test_ar
         if source == "matches":
             seed = random.randrange(1, 1_000_000) if seed is None else seed
             plan = plan_matches(matches, seed, endless_every)
+            ensure_imported(copy, hits_dir / "import.log")
             von = ensure_von(copy, log_path=hits_dir / "von.log")
             say(von.note)
             say(f"Playing {len(plan)} processes from seed {seed} ({sum(e['matches'] for e in plan)} matches), "
