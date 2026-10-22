@@ -4,13 +4,11 @@ extends GameTest
 ## `{ faction, leader, previous }`, and the orders already given stand; a later order (from the new
 ## leader) replaces them.
 ##
-## The match is built the way Main builds one (`match_world_probe.gd`: the house, its navmesh and
-## the NPCs in one frame, each NPC through `MatchSpawner`), its three invaders ranked as Main ranks
-## a unit (lead, sergeant, trooper), then given their squad as Main does (`Squad.setup`,
-## `MatchBuilder.bind_squad`). The leader is killed with `take_damage`.
+## The match is built the way Main builds one (`s.match`, populated through `MatchBuilder` on the
+## bare Terrace house: its three invaders at their start points, ranked as a match ranks its unit,
+## lead, sergeant, trooper, and given their squad). The leader is killed with `take_damage`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Match := preload("res://tests/_ai/match_world_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const INVADERS := [Vector2(1000, 60), Vector2(1000, 330), Vector2(1100, 190)]
 
@@ -27,9 +25,10 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	# Scripted Von (the first option offered): the members' own decisions are not under test. The
-	# match gets a world of its own.
+	# Scripted Von (the first option offered): the members' own decisions are not under test.
+	Maps.house(s, false)
 	s.von_script([])
+	s.match({ "defenders": { "count": 0 }, "invaders": { "at": INVADERS } })
 
 
 func run(t: TestContext) -> void:
@@ -38,20 +37,20 @@ func run(t: TestContext) -> void:
 			"the squad script exists (%s)" % Order.SQUAD_SCRIPT,
 	):
 		return
-	var built := Match.build(_layout(), t.world, INVADERS)
-	var npcs: Array = built["npcs"]
+	var built := t.match()
+	var npcs: Array = built.get("combatants", [])
 	if not t.require(npcs.size() == 3, "the match has its three invaders"):
 		return
-	for i in npcs.size():
-		# As Main ranks a unit: the first its lead, the second its sergeant, the rest troopers.
-		npcs[i].rank = 2 - i
-	var squad: Node = (load(Order.SQUAD_SCRIPT) as GDScript).new()
-	squad.name = "Squad_invader"
-	built["world"].add_child(squad)
-	squad.setup(&"invader", npcs, built["openings"], built["rooms"], null)
+	t.expect_eq(
+		npcs.map(func(n): return int(n.rank)),
+		[2, 1, 0],
+		"premise: ranked as a match ranks its unit (lead, sergeant, trooper)",
+	)
+	var squad: Node = (built["squads"] as Dictionary).get(&"invader")
 	if not t.require(
-			Order.bind(npcs, squad),
-			"Main hands each NPC its squad (MatchBuilder.bind_squad)",
+			squad != null
+				and npcs.all(func(n): return TestContext.controller_of(n).get("squad") == squad),
+			"the match hands each NPC its squad (MatchBuilder.bind_squad)",
 	):
 		return
 	var lead: Node = npcs[0]
@@ -121,13 +120,6 @@ func run(t: TestContext) -> void:
 		String(running.get("room", "")) == "living_room",
 		"in the trooper's running order too (params %s)" % str(running),
 	)
-
-
-## The Terrace house, bare, as a layout to read the rooms and doorways from.
-func _layout() -> TestSetup:
-	var layout := TestSetup.new()
-	Maps.house(layout, false)
-	return layout
 
 
 ## A node's name for a message, or the value as text.

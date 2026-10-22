@@ -1,10 +1,11 @@
 extends GameTest
 ## G5: the grenade counts chosen in the setup window are saved with the rest of the setup, and an
 ## older save that does not name them keeps the defaults (invaders 1 stun + 1 frag, defenders none):
-## Main lays what was saved over its defaults side by side. Runs against a scratch file on a Main
-## that never enters the tree, never the real file.
+## Main lays what was saved over its defaults side by side. Read off the setup window Main opens,
+## Main run whole (`tests/_main/main_probe.gd`) as a fresh launch starts it, through
+## `SetupMenu.current_config()`. Runs against a scratch file, never the real one.
 
-const MainScript := preload("res://scenes/main.gd")
+const MainProbe := preload("res://tests/_main/main_probe.gd")
 const SCRATCH := "user://settings_grenades_test.json"
 
 
@@ -22,15 +23,15 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.set_static(Settings, &"path", SCRATCH)
 	s.set_static(Settings, &"setup", {})
+	s.set_static(Settings, &"overlays", {})
+	s.set_static(Settings, &"debug", Settings.debug)
 
 
 func run(t: TestContext) -> void:
-	var main = MainScript.new()
-	var defaults := {
-		"side": "defender", "seed": 0,
-		"defenders": main._side_defaults(2, main.defender_loadout),
-		"invaders": main._side_defaults(2, main.invader_loadout),
-	}
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))  # no save yet
+	var defaults := await _window(t)
+	if not t.require(not defaults.is_empty(), "Main opened the setup window"):
+		return
 	t.expect_eq(
 		[int(defaults["invaders"]["stuns"]), int(defaults["invaders"]["frags"])],
 		[1, 1],
@@ -51,8 +52,7 @@ func run(t: TestContext) -> void:
 			"invaders": { "count": 4 },
 		},
 	})
-	Settings.load_file()
-	var merged: Dictionary = main._with_saved_setup(defaults)
+	var merged := await _window(t)
 	t.expect_eq(
 		int(merged["invaders"]["count"]),
 		4,
@@ -79,8 +79,7 @@ func run(t: TestContext) -> void:
 		"invaders": { "count": 2, "stuns": 0, "frags": 2 },
 	})
 	Settings.setup = {}
-	Settings.load_file()
-	merged = main._with_saved_setup(defaults)
+	merged = await _window(t)
 	t.expect_eq(
 		[int(merged["defenders"]["stuns"]), int(merged["defenders"]["frags"])],
 		[3, 0],
@@ -91,8 +90,17 @@ func run(t: TestContext) -> void:
 		[0, 2],
 		"and the invaders' (a chosen 0 is not the default)",
 	)
-	main.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
+
+
+## Launch Main as a fresh launch does (it loads the settings file and opens the setup window) and
+## return the window's choices as they stand ({} when it opened none); Main is freed after.
+func _window(t: TestContext) -> Dictionary:
+	var main = MainProbe.open(t.world)
+	var menu := MainProbe.setup_menu(main)
+	var config: Dictionary = menu.current_config() if menu != null else {}
+	await MainProbe.close(t, main)
+	return config
 
 
 func _write(data: Dictionary) -> void:

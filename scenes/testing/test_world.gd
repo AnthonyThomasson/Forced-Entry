@@ -65,8 +65,10 @@ func build(setup: TestSetup) -> void:
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
-	var spec := { "seed": int(setup.resolved_world().get("seed", 0)), "wait_nav": true }
-	var staged: Dictionary = await MatchBuilder.stage(spec, self, house)
+	var spec := {
+		"seed": int(setup.resolved_world().get("seed", 0)), "house": house, "wait_nav": true,
+	}
+	var staged: Dictionary = await MatchBuilder.stage(spec, self)
 	_nav_debug = staged["nav_debug"]
 	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
 	for v in setup.vehicles:
@@ -82,6 +84,13 @@ func build(setup: TestSetup) -> void:
 		actors[a["id"]] = _spawn_actor(a, setup.switches)
 	if setup.match_spec is Dictionary:
 		var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)
+		var human: Variant = overrides.get("human")
+		if human is Dictionary and (human as Dictionary).has("actor"):
+			# The human a test actor: the match joins that node to its side.
+			human = (human as Dictionary).duplicate()
+			human["node"] = actors.get(human["actor"])
+			human.erase("actor")
+			overrides["human"] = human
 		match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
 		for npc in match_handle["combatants"]:
 			OVERLAY_REGISTRY.apply(npc, _overlay_flags)

@@ -6,18 +6,17 @@ extends GameTest
 ## moves it, and it never stands still for `STILL_CAP` s or more on the way (a stop short of the
 ## human, a moment's wait and a new plan within 5 s is the most it may do; it never waits for ever).
 ##
-## The match is built the way `main.gd` builds one (`tests/_ai/match_world_probe.gd`: the house, its
-## navmesh and re-baker, then the NPC and the human in the same frame, in a world of its own),
-## because a test world waits for its navigation maps before an actor spawns and a match does not.
-## The human is the player's character with the player's controller (no input: it stands still) and
-## its stack radio as `MatchBuilder.bind_player` gives it. The AI is held where it starts (speed 0)
-## until the human stands in its slot: the premise is an AI arriving at a stack the human is already
-## in. Scripted Von (ENTER the back door) and the shared entry switches; nothing else changed.
+## The match is built the way `main.gd` builds one (`s.match`, populated through `MatchBuilder` on
+## the bare Terrace house: its one invader NPC at its start point, armed, styled and ranked, the
+## squads built), its human a test actor: the player's character with the player's controller (no
+## input: it stands still), joined to the invaders and given its stack radio as a match gives it
+## (`MatchBuilder.bind_player`). The AI is held where it starts (speed 0) until the human stands in
+## its slot: the premise is an AI arriving at a stack the human is already in. Scripted Von (ENTER
+## the back door) and the shared entry switches; nothing else changed.
 
 const Bump := preload("res://tests/_ai/bump_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Match := preload("res://tests/_ai/match_world_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 ## The AI starts against the back wall well past where the second slot will be (the far side of the
 ## human from the door).
@@ -49,20 +48,31 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
+	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
+	s.actor(&"me", &"player", HUMAN_START, { "max_health": 1_000_000.0 })
+	s.match({
+		"defenders": { "count": 0 },
+		"invaders": { "at": [AI_START] },
+		"human": { "actor": &"me", "side": &"invader" },
+	})
 
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	var layout := TestSetup.new()
-	Maps.house(layout, false)
-	var m := Match.build(layout, t.world, [AI_START], HUMAN_START)
-	var ai: Node2D = m["npcs"][0]
-	var me: Node2D = m["human"]
-	var stack: Node = m["stack"]
+	var m := t.match()
+	var me: Node2D = t.actor(&"me")
+	var npcs: Array = (m.get("combatants", []) as Array).filter(func(c): return c != me)
+	if not t.require(npcs.size() == 1, "premise: the match has its one invader NPC"):
+		return
+	var ai: Node2D = npcs[0]
+	var stack: Node = m["player_stack"]
 	var brain: Node = TestContext.controller_of(ai)
 	ai.set("speed", 0.0)  # Held until the human stands in its slot (the premise).
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
+	if not t.require(
+			stack != null and stack.get_parent() == me,
+			"the human has a stack radio (MatchBuilder.bind_player)",
+	):
 		return
 	if not t.require(
 			await t.until(func(): return Stack.mine(stack) == 2, 20.0),
@@ -105,9 +115,9 @@ func run(t: TestContext) -> void:
 		t.trace("ai_to_slot", p.distance_to(target))
 		t.trace("ai_to_human", p.distance_to(me.global_position))
 		t.trace("ai_out", Entry.outward(door, p))
-		return not Match.calls(t, ai, "ready").is_empty()
+		return not _calls(t, ai, "ready").is_empty()
 	var seen := await Bump.watch(t, [ai, me], REACH_S, sample)
-	var ready := Match.calls(t, ai, "ready")
+	var ready := _calls(t, ai, "ready")
 	var into_me := (seen["bumps"] as Array).filter(
 		func(b): return b["walker"] == StringName(ai.name),
 	)
@@ -135,3 +145,9 @@ func run(t: TestContext) -> void:
 		"the AI never stood still %.0f s or more on its way (%.1f s at %s, held %.1f s at most)"
 			% [STILL_CAP, float(st["longest"]), st["longest_at"], float(st["held_max"])],
 	)
+
+
+## The entry callouts radioed so far by `speaker` (a character node), only step `step`.
+func _calls(t: TestContext, speaker: Node, step: String) -> Array:
+	return t.events_of(&"callout", func(d):
+		return d.get("speaker") == speaker and String(d.get("entry_step", "")) == step)

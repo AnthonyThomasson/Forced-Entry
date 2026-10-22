@@ -6,7 +6,6 @@ extends GameTest
 ## items, whose `uses_left()` is the count (guns and the rest: -1).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-const MainScript := preload("res://scenes/main.gd")
 const SetupMenu := preload("res://scenes/ui/menus/setup_menu.gd")
 const WEAPONS := [
 	{
@@ -160,9 +159,7 @@ func run(t: TestContext) -> void:
 	)
 
 	# A match's defaults: invaders 1 + 1, defenders 0 + 0.
-	var main = MainScript.new()
-	main.house_seed = 99
-	main._arm_characters([t.actor(&"home"), t.actor(&"raider")])
+	MatchBuilder.arm([t.actor(&"home"), t.actor(&"raider")], MatchBuilder.spec({ "seed": 99 }))
 	t.expect_eq(
 		[Probe.count(t.actor(&"raider"), Probe.STUN), Probe.count(t.actor(&"raider"), Probe.FRAG)],
 		[1, 1],
@@ -173,4 +170,3 @@ func run(t: TestContext) -> void:
 		[0, 0],
 		"a defender starts with none",
 	)
-	main.free()

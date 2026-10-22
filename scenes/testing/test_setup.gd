@@ -141,8 +141,10 @@ func set_props(id: StringName, child_path: String, props: Dictionary) -> TestSet
 
 ## Populate a whole match over the world, as Main populates one (`MatchBuilder.populate`, after
 ## the world stage and the actors): `overrides` are `MatchBuilder.spec`'s (each side's `count`,
-## `loadout` and `at`, `spawn_clearance`, `invader_margin`, ...), the house's seed the spec's
-## `seed` unless they name one. Its NPCs are not test actors: read the match's handle with
+## `loadout` and `at`, `human`, `spawn_clearance`, `invader_margin`, ...), the house's seed the
+## spec's `seed` unless they name one. Its `human` may name a test actor by id (`{ actor, side,
+## lead, at }`, `actor` in place of `node`): that actor is the match's human, joined to its side,
+## armed and given its stack radio. Its NPCs are not test actors: read the match's handle with
 ## `t.match()`.
 func match(overrides: Dictionary = {}) -> TestSetup:
 	match_spec = overrides

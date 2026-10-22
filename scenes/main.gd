@@ -89,11 +89,6 @@ const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
 ## carved out of the navmesh) is hidden.
 @export var show_nav_holes: bool = false
 
-## What the defenders (and a player defending) carry and wear this match: the match spec's default
-## (`MatchBuilder.spec`), replaced by the setup window's choices and the endless run's draws.
-var defender_loadout: Dictionary = MatchBuilder.DEFENDER_LOADOUT.duplicate(true)
-## What the invaders (and a player invading) carry and wear this match; as `defender_loadout`.
-var invader_loadout: Dictionary = MatchBuilder.INVADER_LOADOUT.duplicate(true)
 ## Where the player stood in the scene: the house is placed relative to this point (its front
 ## entrance just above), and an invading human starts here.
 var _anchor: Vector2 = Vector2.ZERO
@@ -102,25 +97,19 @@ var _anchor: Vector2 = Vector2.ZERO
 var _world: Node2D = null
 ## Endless run: on while the setup window's Endless button chose it.
 var _endless: bool = false
-## "Lead the team" (the setup window's `lead`, a played match only): the human leads its side's
-## squad and orders it.
-var _lead: bool = false
-## This match's squads (`ai/team/squad.gd`), by faction.
-var _squads: Dictionary = {}
-## The human's stack radio this match (the `PlayerStack` `MatchBuilder.bind_player` returned),
-## handed its squad with the human; null without one.
-var _player_stack: Node = null
+## The spec of the match being played (`MatchBuilder.spec`, its seed resolved), which the endless
+## run draws the next one from.
+var _spec: Dictionary = {}
+## This match's human (the spec's `human` node), null in a spectator match.
+var _human: Node2D = null
 ## Endless run: the highest defender / invader counts a random match may draw (the counts chosen in
 ## setup).
 var _endless_max := { "defenders": 1, "invaders": 1 }
 ## Endless run: seconds left until the next match (-1 while a match is being played).
 var _next_match_in: float = -1.0
-## This match's handle (`MatchBuilder.populate`'s): its world, house, rooms, doorways, combatants,
-## squads and the human's stack radio; {} between matches.
+## This match's handle (`MatchBuilder.build`'s): its world, house, rooms, doorways, combatants,
+## squads (by faction) and the human's stack radio; {} between matches.
 var _match: Dictionary = {}
-## A match spawner handed in from outside a built match, whose doorways `_build_squads` and
-## `_build_stack_markers` read; null in a match Main builds.
-var _spawner: RefCounted = null
 ## Every debug overlay's on/off state, `{ show_<x>: bool }` keyed like `overlay_registry.gd`.
 var _overlay_flags: Dictionary = {}
 ## The spectator inspector (spectator mode only), told of live toggles so the selected NPC follows
@@ -164,7 +153,7 @@ func _ready() -> void:
 	# builds immediately — the headless match harness never clicks the setup window. A fresh launch
 	# opens the window first and builds the world once the player presses Start.
 	if Engine.has_meta("skip_setup") or _setup_menu == null:
-		_spawn_world()
+		_play(_base_spec())
 	else:
 		# Hide the debug overlay while the setup menu is shown so it doesn't bleed through.
 		var _debug_ui := get_node_or_null("DebugUI")
@@ -173,13 +162,14 @@ func _ready() -> void:
 		_setup_menu.start_requested.connect(_on_setup_chosen)
 		_setup_menu.tests_requested.connect(_open_tests)
 		_setup_menu.settings_requested.connect(_open_settings)
-		# The exports are the defaults; what the player chose last time (kept in the settings file)
-		# wins.
+		# The exports and the match spec's loadouts are the defaults; what the player chose last
+		# time (kept in the settings file) wins.
+		var base := _base_spec()
 		var defaults := {
 			"side": str(player_side),
 			"seed": house_seed,
-			"defenders": _side_defaults(defender_count, defender_loadout),
-			"invaders": _side_defaults(invader_count, invader_loadout),
+			"defenders": _side_defaults(base["defenders"]),
+			"invaders": _side_defaults(base["invaders"]),
 		}
 		_setup_menu.open(_with_saved_setup(defaults).merged({
 			"weapons": LoadoutConfig.options(),
@@ -212,8 +202,11 @@ func _process(delta: float) -> void:
 	if hud:
 		hud.set_countdown("")
 	_teardown_world()
-	_randomize_match()
-	_spawn_world()
+	# The next match: a new seed, each side's count drawn from 1..its setup count (a side set to 0
+	# stays empty) and a random gun and outfit for each side, with the grenades it was set up with.
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	_play(MatchBuilder.random_spec(rng, _spec, _endless_max))
 
 
 ## The name this run is tagged with: the `GAME_TICKET` env var (`tools/editor.sh` sets it to the
@@ -241,35 +234,29 @@ func _with_saved_setup(defaults: Dictionary) -> Dictionary:
 
 
 ## A side's setup-window defaults: `{ count, weapon, magazine, spares, stuns, frags, outfit }` from
-## its count and loadout.
-func _side_defaults(count: int, loadout: Dictionary) -> Dictionary:
-	var out := LoadoutConfig.normalize(loadout).merged({ "count": count })
+## the side of a match spec (`{ count, loadout }`).
+func _side_defaults(side: Dictionary) -> Dictionary:
+	var out := LoadoutConfig.normalize(side["loadout"]).merged({ "count": int(side["count"]) })
 	if out["spares"] < 0:
 		out.erase("spares")  # unset: the window shows its own default
 	return out
 
 
-## Apply the parameters chosen in the setup window, then build the world. The window's `mode` is
+## Apply the parameters chosen in the setup window, then start the match. The window's `mode` is
 ## "play" (a human takes `side`), "watch" (the AIs alone: the spectator contest) or "endless"
 ## (watch, then a fresh randomised match after each one ends); anything but "play" has no human
-## player.
+## player. The config is read into a match spec over the exports' (`MatchBuilder.spec_from_setup`).
 func _on_setup_chosen(config: Dictionary) -> void:
 	Settings.set_setup(config)
 	var mode := str(config.get("mode", "play" if not spectator_mode else "watch"))
 	spectator_mode = mode != "play"
 	_endless = mode == "endless"
-	_lead = not spectator_mode and bool(config.get("lead", false))
-	player_side = StringName(config.get("side", player_side))
-	house_seed = int(config.get("seed", house_seed))
-	defender_count = int(_side_value(config.get("defenders"), "count", defender_count))
-	invader_count = int(_side_value(config.get("invaders"), "count", invader_count))
-	defender_loadout = _side_loadout(config.get("defenders"), defender_loadout)
-	invader_loadout = _side_loadout(config.get("invaders"), invader_loadout)
+	var spec := MatchBuilder.spec_from_setup(config.merged({ "mode": mode }, true), _base_spec())
 	if _endless:
-		if defender_count + invader_count == 0:
-			defender_count = 1
-			invader_count = 1  # nothing to watch otherwise
-		_endless_max = { "defenders": defender_count, "invaders": invader_count }
+		_endless_max = {
+			"defenders": int(spec["defenders"]["count"]),
+			"invaders": int(spec["invaders"]["count"]),
+		}
 	debug_overlays = Settings.debug
 	_overlay_flags = _initial_overlays()  # Recomputed now that the master switch is chosen.
 	# Hold the start until the decision server is live, so the NPCs' first decisions don't fail
@@ -282,22 +269,7 @@ func _on_setup_chosen(config: Dictionary) -> void:
 	var _debug_ui := get_node_or_null("DebugUI")
 	if _debug_ui:
 		_debug_ui.visible = true  # restored here; _setup_spectator frees it in spectator mode
-	_spawn_world()
-
-
-## One entry of a side's config (`{ count, weapon, … }`), else `fallback`.
-func _side_value(side: Variant, key: String, fallback: Variant) -> Variant:
-	return side.get(key, fallback) if side is Dictionary else fallback
-
-
-## A side's loadout dict from its config entry, keeping `fallback` for what the entry doesn't name.
-func _side_loadout(side: Variant, fallback: Dictionary) -> Dictionary:
-	var out := fallback.duplicate()
-	if side is Dictionary:
-		for key in ["weapon", "magazine", "spares", "stuns", "frags", "outfit"]:
-			if side.has(key):
-				out[key] = side[key]
-	return out
+	_play(spec)
 
 
 ## Save the setup window's choices as they stand, if it is open, so leaving it without starting (to
@@ -389,99 +361,89 @@ func return_to_setup() -> void:
 	get_tree().reload_current_scene()
 
 
-## Build one match from the spec Main's state names (`_match_spec`) under a fresh `World` node, so
-## `_teardown_world` can clear it, through `MatchBuilder`: its world stage (the house placed so its
-## front entrance sits just above the player's anchor, the nav map, its overlay and re-baker, the
-## dusk lighting), which waits until both navigation maps answer with this house, so no NPC is
-## placed before then (a coroutine); then its population (each side placed, the human joined, armed,
-## styled and ranked, the squads). Then the UI over the handle: the stack markers and the stun
-## screen for a human, the leader overlay, the command menu, the match HUD, the spectator inspector
-## and the overlay bar.
-func _spawn_world() -> void:
-	# A dev/headless harness can pin the next match's layout via Engine meta (it survives the scene
-	# reload the `restart` command does); otherwise the exported seed (0 = random) stands.
-	if Engine.has_meta("match_seed"):
-		house_seed = Engine.get_meta("match_seed")
-	# Resolve 0 to a concrete seed here so the whole run (house AND NPC placement) is reproducible
-	# from it, and so it can be displayed and re-entered to pin this layout.
-	if house_seed == 0:
-		house_seed = randi()
+## Main's one way into a match: build the match of `spec` (`MatchBuilder.spec` overrides) under a
+## fresh `World` node, so `_teardown_world` can clear it, through `MatchBuilder.build`: its world
+## stage (the spec's house, or one generated with its front entrance at the spec's `entrance`, the
+## nav map, its overlay and re-baker, the dusk lighting), which waits until both navigation maps
+## answer with this house, so no NPC is placed before then (a coroutine: await it); then its
+## population (each side placed, the human joined, armed, styled and ranked, the squads). Then the
+## UI over the handle: for the spec's human the stack markers, the stun screen and, when it leads,
+## the command menu and order markers; the leader overlay, the match HUD, for a match with no human
+## the spectator inspector, and the overlay bar. The scene's own `Player` stands in for the human
+## of a played match: a match whose human is another character, or nobody, has none, and it goes.
+## Returns the match handle, or {} when the match was torn down while it was built.
+func start_match(spec: Dictionary) -> Dictionary:
+	spec = MatchBuilder.spec(spec)
 	var world := Node2D.new()
 	world.name = "World"
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
 	add_child(world)
 	_world = world
-	var spec := _match_spec()
-	var staged: Dictionary = await MatchBuilder.stage(spec, world)
-	if _world != world or not is_inside_tree():
-		return  # torn down (a new match, or the scene left) while the maps synchronized
-	_nav_debug = staged["nav_debug"]
+	var built: Dictionary = await MatchBuilder.build(spec, world)
+	if _world != world or not is_inside_tree() or built.is_empty():
+		return {}  # torn down (a new match, or the scene left) while the maps synchronized
+	_match = built
+	var human: Variant = (spec["human"] as Dictionary).get("node")
+	_human = human if is_instance_valid(human) else null
+	_nav_debug = built["nav_debug"]
 	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
-	_match = MatchBuilder.populate(staged, spec)
-	_squads = _match["squads"]
-	_player_stack = _match["player_stack"]
-	var combatants: Array = _match["combatants"]
-	var human: bool = not (spec["human"] as Dictionary).is_empty()
-	if human:
+	var combatants: Array = built["combatants"]
+	if _human != null:
 		_build_markers()
 		_build_stun_screen()
+		if _human != _player and is_instance_valid(_player):
+			_player.queue_free()
 	_watch_side_stacks()
 	_build_leader_overlay()
-	if human:
-		_build_command_menu(staged["rooms"])
+	if _human != null and bool(spec["human"].get("lead", false)):
+		_build_command_menu(built["rooms"])
 	_configure_debug()
 	_begin_match_hud(combatants)
-	if spectator_mode:
+	if _human == null:
 		_setup_spectator(combatants)
 	_build_overlays()
+	return built
 
 
-## The match spec Main's state names (`MatchBuilder.spec`): the house seed and floorplan, the front
-## entrance `entrance_distance` above the player's anchor, each side's count and loadout, the human
-## (in a played match: the player, on `player_side`, leading it with "Lead the team"), and the
+## Start the match of `spec` as the setup flow does: the seed a dev/headless harness pins (the
+## Engine `match_seed` meta, which survives the scene reload the `restart` command does) wins, and 0
+## is resolved to a fresh random seed here, so the whole run (house and NPC placement) reproduces
+## from it and it can be displayed and re-entered to pin this layout; then `start_match`.
+func _play(spec: Dictionary) -> void:
+	spec = spec.duplicate()
+	if Engine.has_meta("match_seed"):
+		spec["seed"] = int(Engine.get_meta("match_seed"))
+	if int(spec["seed"]) == 0:
+		spec["seed"] = randi()
+	_spec = spec
+	await start_match(spec)
+
+
+## The match spec Main's exports name (`MatchBuilder.spec`, whose defaults hold each side's
+## loadout): the house seed and floorplan, the front entrance `entrance_distance` above the player's
+## anchor, each side's count, the human (in a played match: the player, on `player_side`) and the
 ## placement clearances.
-func _match_spec() -> Dictionary:
+func _base_spec() -> Dictionary:
 	var human := {}
 	if not spectator_mode and is_instance_valid(_player):
-		human = { "node": _player, "side": player_side, "lead": _lead }
+		human = { "node": _player, "side": player_side, "lead": false }
 	return MatchBuilder.spec({
 		"seed": house_seed,
 		"plan": force_plan,
 		"entrance": _anchor + Vector2(0, -entrance_distance),
-		"defenders": { "count": defender_count, "loadout": defender_loadout },
-		"invaders": { "count": invader_count, "loadout": invader_loadout },
+		"defenders": { "count": defender_count },
+		"invaders": { "count": invader_count },
 		"human": human,
 		"spawn_clearance": spawn_clearance,
 		"invader_margin": invader_margin,
 	})
 
 
-## Arm, style and rank `characters` as a match does (`MatchBuilder.arm`), over the spec Main's state
-## names: each side's loadout, the house seed, the human leading or not.
-func _arm_characters(characters: Array) -> void:
-	MatchBuilder.arm(characters, _match_spec())
-
-
-## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`
-## (`MatchBuilder.build_squads`), with the doorways of the match spawner handed in (`_spawner`) and
-## the human's stack radio; the human's side is led by the human when it leads ("Lead the team").
-func _build_squads(combatants: Array, rooms: Array) -> void:
-	var human := { "node": _player, "lead": _lead } if is_instance_valid(_player) else {}
-	_squads = MatchBuilder.build_squads(
-		_world,
-		combatants,
-		_spawner.openings,
-		rooms,
-		human,
-		_player_stack,
-	)
-
-
 ## The stack markers (a played match) watch the human's side's squad too, so every stack that side
 ## forms shows its rings (LD18).
 func _watch_side_stacks() -> void:
 	var markers := _world.get_node_or_null("StackMarkers")
-	var squad: Node = _squads.get(_player.get("faction")) if is_instance_valid(_player) else null
+	var squad: Node = _squads().get(_human.get("faction")) if _human != null else null
 	if markers != null and squad != null:
 		markers.watch_squad(squad.view)
 
@@ -492,7 +454,7 @@ func _build_leader_overlay() -> void:
 	_leader_overlay = LEADER_OVERLAY.new()
 	_leader_overlay.name = "LeaderOverlay"
 	_world.add_child(_leader_overlay)
-	_leader_overlay.watch(_squads.values().map(func(squad): return squad.view))
+	_leader_overlay.watch(_squads().values().map(func(squad): return squad.view))
 	_leader_overlay.show_leaders = _overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false)
 
 
@@ -503,10 +465,8 @@ func _build_leader_overlay() -> void:
 ## the same view and showing the menu's selection. Nothing is built, and nothing reads the COMMAND
 ## key, otherwise.
 func _build_command_menu(rooms: Array) -> void:
-	if not _lead or not is_instance_valid(_player):
-		return
-	var squad: Node = _squads.get(_player.get("faction"))
-	if squad == null or squad.leader() != _player:
+	var squad: Node = _squads().get(_human.get("faction"))
+	if squad == null or squad.leader() != _human:
 		return
 	var markers: Node2D = ORDER_MARKERS.new()
 	markers.name = "OrderMarkers"
@@ -517,17 +477,22 @@ func _build_command_menu(rooms: Array) -> void:
 	_world.add_child(menu)
 	menu.setup({
 		"rooms": rooms,
-		"teammates": squad.members().filter(func(m): return m != _player),
+		"teammates": squad.members().filter(func(m): return m != _human),
 		"view": squad.view,
 		"resolve": squad.resolve,
-		"leader": _player,
+		"leader": _human,
 		"right_clear": OVERLAY_TOGGLES.RESERVED_WIDTH if debug_overlays else 0.0,
 	})
 	menu.order_requested.connect(squad.issue)
 	menu.selection_changed.connect(markers.set_selection)
 
 
-## Free the match built by `_spawn_world`: the whole `World` node (house, nav map, NPCs, inspector,
+## This match's squads (`ai/team/squad.gd`), by faction; {} between matches.
+func _squads() -> Dictionary:
+	return _match.get("squads", {})
+
+
+## Free the match built by `start_match`: the whole `World` node (house, nav map, NPCs, inspector,
 ## and any blood / debris / casings they left) goes, and the bookkeeping that pointed into it is
 ## cleared. Removed from the tree at once (not just queued) so the next match's `World` takes the
 ## same name.
@@ -538,8 +503,7 @@ func _teardown_world() -> void:
 	_world = null
 	Sound.focus = null  # nobody's ears until the next match names the human
 	_match = {}
-	_squads = {}
-	_player_stack = null
+	_human = null
 	_inspector = null
 	_nav_debug = null
 	_leader_overlay = null
@@ -580,13 +544,6 @@ func _setup_spectator(combatants: Array) -> void:
 		_player.queue_free()
 
 
-## Give the human the stack radio (`MatchBuilder.bind_player`, with the doorways of the match
-## spawner handed in, `_spawner`) and draw its place in an AI stack on the floor (`_build_markers`).
-func _build_stack_markers(rooms: Array) -> void:
-	_player_stack = MatchBuilder.bind_player(_player, rooms, _spawner.openings)
-	_build_markers()
-
-
 ## Draw the human's place in an AI stack on the floor: the markers (a child of `World`, so world
 ## space) watch the human's stack radio. Only a human invader is ever reserved a slot, since only
 ## the invaders' entries come over the radio.
@@ -594,17 +551,17 @@ func _build_markers() -> void:
 	var markers: Node2D = STACK_MARKERS.new()
 	markers.name = "StackMarkers"
 	_world.add_child(markers)
-	markers.watch(_player_stack)
+	markers.watch(_match["player_stack"])
 
 
-## The human's stun: the white-out of a flash (a `CanvasLayer` under `World`, watching the player)
-## and, through `Sound.focus`, the muffle and tinnitus of a bang. Both read the player's
+## The human's stun: the white-out of a flash (a `CanvasLayer` under `World`, watching the human)
+## and, through `Sound.focus`, the muffle and tinnitus of a bang. Both read the human's
 ## `stun_view()`; neither knows of the other.
 func _build_stun_screen() -> void:
-	Sound.focus = _player
+	Sound.focus = _human
 	var screen: CanvasLayer = STUN_SCREEN.new()
 	_world.add_child(screen)
-	screen.watch(_player)
+	screen.watch(_human)
 
 
 ## The performance overlay and the toggle bar, built the first time a match starts with Debug on and
@@ -620,7 +577,7 @@ func _build_overlays() -> void:
 	toggles.name = "OverlayToggles"
 	add_child(toggles)
 	toggles.setup(_overlay_flags)
-	toggles.overlay_toggled.connect(_on_overlay_toggled)
+	toggles.overlay_toggled.connect(set_overlay)
 	_overlay_toggles = toggles
 
 
@@ -628,29 +585,6 @@ func _build_overlays() -> void:
 func _on_match_ended(_verdict: String) -> void:
 	if _endless:
 		_next_match_in = endless_delay
-
-
-## Choose the next endless match's parameters: a new seed, each side's count drawn from 1..its setup
-## count (a side set to 0 stays empty) and a random gun and outfit for each side, with the grenades
-## it was set up with. Everything the player picked in the setup window is the upper limit; the rest
-## is luck.
-func _randomize_match() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	house_seed = 0
-	defender_count = _random_count(rng, _endless_max["defenders"])
-	invader_count = _random_count(rng, _endless_max["invaders"])
-	defender_loadout = LoadoutConfig.random(rng).merged(LoadoutConfig.grenade_counts(
-		defender_loadout,
-	))
-	invader_loadout = LoadoutConfig.random(rng).merged(LoadoutConfig.grenade_counts(
-		invader_loadout,
-	))
-
-
-## A count drawn from 1..`most`, or 0 when `most` is 0.
-func _random_count(rng: RandomNumberGenerator, most: int) -> int:
-	return 0 if most <= 0 else rng.randi_range(1, most)
 
 
 ## The overlays' starting state: each registry default, overridden by the Main exports that name an
@@ -683,15 +617,16 @@ func _configure_debug() -> void:
 		if not OVERLAY_REGISTRY.is_global(flag):
 			flags[flag] = _overlay_flags[flag]
 	for npc in _match.get("combatants", []):
-		if npc != _player:
+		if npc != _human:
 			OVERLAY_REGISTRY.apply(npc, flags)
 
 
-## A toggle-bar button was pressed: record the flag and apply it live. The navigation holes go to
-## the single NavDebug node, the squad leaders to the single LeaderOverlay and the performance flag
-## to the performance overlay; spectator mode hands the flag to the inspector (it shows overlays on
-## the selected NPC only); in player mode every NPC's overlay takes it directly.
-func _on_overlay_toggled(flag: String, on: bool) -> void:
+## Turn the debug overlay `flag` (a row of `overlay_registry.gd`) on or off, as the toggle bar's
+## buttons do: record and save it, and apply it live. The navigation holes go to the single NavDebug
+## node, the squad leaders to the single LeaderOverlay and the performance flag to the performance
+## overlay; spectator mode hands the flag to the inspector (it shows overlays on the selected NPC
+## only); in player mode every NPC's overlay takes it directly.
+func set_overlay(flag: String, on: bool) -> void:
 	_overlay_flags[flag] = on
 	Settings.set_overlay(flag, on)
 	if flag == OVERLAY_REGISTRY.NAV_HOLES:

@@ -85,7 +85,7 @@ func _init(tree: SceneTree, description: Dictionary) -> void:
 
 ## The character placed as `id` (null if unknown or freed).
 func actor(id: StringName) -> Node:
-	var n: Node = _actors.get(id)
+	var n: Variant = _actors.get(id)  # untyped: a freed node may not be assigned to a Node
 	return n if is_instance_valid(n) else null
 
 

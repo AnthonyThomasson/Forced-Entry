@@ -1,7 +1,7 @@
 extends GameTest
-## R2 and R3's arming (ticket #61): Main arms a match's crew from the match seed (`_arm_characters`,
-## as `match_setup_test` drives it, on a Main that never enters the tree), and the styles come with
-## the arms:
+## R2 and R3's arming (ticket #61): a match's crew is armed from the match seed (`MatchBuilder.arm`,
+## as Main's match arms it, over the spec's `seed` and each side's loadout), and the styles come
+## with the arms:
 ## - R2: every invader, the human invader too, wears one police unit (`Character.style` `zenitex` or
 ##   `trauma`), the same for every invader of a match; the unit is drawn from the seed (re-arming
 ##   with the same seed gives the same one, and across seeds both units come up). Each defender is
@@ -14,7 +14,6 @@ extends GameTest
 ## Read through `Character.style` / `look_seed` / `rank` and each carried gun's and grenade's
 ## `Item.style`.
 
-const MainScript := preload("res://scenes/main.gd")
 const DEFENDERS := 12
 const INVADERS := 4
 const SEED := 61
@@ -35,7 +34,7 @@ const INVADER_RANKS := [2, 1, 0, 0, 0]
 func describe() -> Dictionary:
 	return {
 		"name": "A match's invaders share a police unit, its defenders mix merc and borg",
-		"description": "Main arms a crew from the match seed: every invader (and the human) gets "
+		"description": "A match arms its crew from the seed: every invader (and the human) gets "
 			+ "one unit, drawn from the seed; defenders are seeded merc or borg; every gun and "
 			+ "grenade carries its wielder's weapon style.",
 		"tags": ["style", "match", "loadout", "setup"],
@@ -51,18 +50,18 @@ func configure(s: TestSetup) -> void:
 			_defender(i),
 			&"puppet",
 			Vector2(100 + (i % 6) * 110, 100 + floori(i / 6.0) * 90),
-			{ "faction": MainScript.DEFENDER_FACTION },
+			{ "faction": MatchBuilder.DEFENDER_FACTION },
 		)
 	for i in INVADERS:
 		s.actor(
 			_invader(i),
 			&"puppet",
 			Vector2(100 + i * 110, 320),
-			{ "faction": MainScript.INVADER_FACTION },
+			{ "faction": MatchBuilder.INVADER_FACTION },
 		)
 	# The human invader: the player's own character and controller, joined to the invaders' side as
 	# Main joins it.
-	s.actor(&"human", &"player", Vector2(600, 400), { "faction": MainScript.INVADER_FACTION })
+	s.actor(&"human", &"player", Vector2(600, 400), { "faction": MatchBuilder.INVADER_FACTION })
 
 
 func run(t: TestContext) -> void:
@@ -73,12 +72,7 @@ func run(t: TestContext) -> void:
 	for i in INVADERS:
 		invaders.append(t.actor(_invader(i)))
 	invaders.append(t.actor(&"human"))
-	var main = MainScript.new()
-	main.defender_loadout = DEFENDER_LOADOUT
-	main.invader_loadout = INVADER_LOADOUT
-
-	main.house_seed = SEED
-	main._arm_characters(defenders + invaders)
+	MatchBuilder.arm(defenders + invaders, _spec(SEED))
 	var unit: StringName = invaders[0].style
 	t.check(
 		unit in UNITS,
@@ -115,7 +109,7 @@ func run(t: TestContext) -> void:
 	)
 
 	# Drawn from the seed: the same seed arms the same way.
-	main._arm_characters(defenders + invaders)
+	MatchBuilder.arm(defenders + invaders, _spec(SEED))
 	t.expect_eq(
 		invaders[0].style,
 		unit,
@@ -128,8 +122,7 @@ func run(t: TestContext) -> void:
 	# Across seeds both units come up, one per match.
 	var units := {}
 	for s in range(1, UNIT_SEEDS + 1):
-		main.house_seed = s
-		main._arm_characters(invaders)
+		MatchBuilder.arm(invaders, _spec(s))
 		var drawn: StringName = invaders[0].style
 		units[drawn] = true
 		for c: Node in invaders:
@@ -144,7 +137,15 @@ func run(t: TestContext) -> void:
 			"across %d seeds, the invaders are %s in some match (units drawn: %s)"
 				% [UNIT_SEEDS, u, units.keys()],
 		)
-	main.free()
+
+
+## The match spec the crew is armed by: the match seed `seed_value` and both sides' loadouts.
+func _spec(seed_value: int) -> Dictionary:
+	return MatchBuilder.spec({
+		"seed": seed_value,
+		"defenders": { "loadout": DEFENDER_LOADOUT },
+		"invaders": { "loadout": INVADER_LOADOUT },
+	})
 
 
 ## Check the ranks: the invaders' (in the order they were armed) are `INVADER_RANKS`, every

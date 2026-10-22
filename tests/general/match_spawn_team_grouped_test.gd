@@ -3,9 +3,9 @@ extends GameTest
 ## seed (its members packed round it at `spawn_clearance`), not spread round the house; with a human
 ## invader in the match, round the human's spot. Defenders keep spawning in random rooms.
 ##
-## Main runs whole, `_ready` to `_spawn_world`, as a scripted restart starts it (the Engine
-## `skip_setup` meta, set while it enters the tree and dropped after), in a world of its own (a
-## `SubViewport` with its own `World2D`, as `tests/_ai/match_world_probe.gd` builds a match): a Main
+## Main runs whole, `_ready` to its match, as a scripted restart starts it (the Engine `skip_setup`
+## meta, set while it enters the tree and dropped after), in a world of its own (a `SubViewport`
+## with its own `World2D`, so fresh navigation maps, as each match's are): a Main
 ## node with the two children its scene gives it that `_ready` reads (`Player`, the human's body
 ## and controller, and `SetupMenu`, never opened). Its exports name the match: a pinned house seed,
 ## four invaders and two defenders; Watch (spectator) for the team alone, Start as an invader for

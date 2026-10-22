@@ -5,13 +5,10 @@ extends GameTest
 ## seed are the ones it gets with "Lead the team" off). With it off, the human is ranked last of the
 ## unit. `Settings.set_setup` saves the config's `lead` with the rest of the window's choices.
 ##
-## Main's match-setup logic runs on a Main that never enters the tree (as `match_setup_test.gd`
-## does): the window's config through `_on_setup_chosen` (which applies it and returns, out of the
-## tree, before building a world), then `_arm_characters` over the combatants in Main's order (the
-## NPCs, then the human). `Settings.path` points at a scratch file, so no developer's file is
-## touched.
-
-const MainScript := preload("res://scenes/main.gd")
+## The window's config is read into a match spec as Main reads it (`MatchBuilder.spec_from_setup`,
+## over a base naming the human), then the combatants are armed by it (`MatchBuilder.arm`) in a
+## match's order (the NPCs, then the human). `Settings.path` points at a scratch file, so no
+## developer's file is touched.
 
 
 func describe() -> Dictionary:
@@ -40,13 +37,13 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var cast := [t.actor(&"npc1"), t.actor(&"npc2"), t.actor(&"me")]
-	var off := await _armed(t, false)
+	var off := _armed(t, false)
 	t.expect_eq(
 		off["ranks"],
 		[2, 1, 0],
 		"with Lead the team off the human is ranked last (npc1, npc2, human)",
 	)
-	var on := await _armed(t, true)
+	var on := _armed(t, true)
 	t.expect_eq(
 		on["ranks"],
 		[1, 0, 2],
@@ -77,18 +74,17 @@ func run(t: TestContext) -> void:
 	Keybinds.reset_all()
 
 
-## Arm the three test characters as Main does after the window's config with `lead`:
+## Arm the three test characters as a match does after the window's config with `lead`:
 ## `{ ranks: [...], looks: [[style, seed], ...] }`.
 func _armed(t: TestContext, lead: bool) -> Dictionary:
 	var cast := [t.actor(&"npc1"), t.actor(&"npc2"), t.actor(&"me")]
-	var main = MainScript.new()
-	await main._on_setup_chosen({ "mode": "play", "side": "invader", "seed": 99, "lead": lead,
-		"defenders": { "count": 1 }, "invaders": { "count": 2 } })
-	main._player = t.actor(&"me")
-	main._arm_characters(cast)
-	var out := {
+	var spec := MatchBuilder.spec_from_setup(
+		{ "mode": "play", "side": "invader", "seed": 99, "lead": lead,
+			"defenders": { "count": 1 }, "invaders": { "count": 2 } },
+		MatchBuilder.spec({ "human": { "node": t.actor(&"me") } }),
+	)
+	MatchBuilder.arm(cast, spec)
+	return {
 		"ranks": cast.map(func(c): return int(c.rank)),
 		"looks": cast.map(func(c): return [String(c.style), int(c.look_seed)]),
 	}
-	main.free()
-	return out

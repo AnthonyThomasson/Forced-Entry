@@ -2,16 +2,18 @@ class_name MatchBuilder
 extends RefCounted
 ## Composition-root module (beside `main.gd` and `match_spawner.gd`): builds a match for Main and
 ## for the Testing domain's world alike, so both compose one the same way. A match spec goes in (a
-## plain dict `match_spec` fills with defaults: the house's `seed` / `plan` / `entrance`, each
-## side's `count`, `loadout` and optional `at`, the `human`, `wait_nav`, `spawn_clearance`,
-## `invader_margin`) and a match handle comes out (a plain dict: `world`, `house`, `rooms`,
-## `openings`, `nav_region`, `nav_debug`, then `combatants`, `squads`, `player_stack`). `build` is
-## its two stages: `stage`, the world stage (the house, its navigation map with the holes overlay
-## and the re-baker, interface 9, the dusk lighting, interface 20, then, when asked, a wait until
-## both navigation maps answer with this house), and `populate` (each side placed through the match
-## spawner, the human joined, everyone armed, styled and ranked, one squad per side). `bind_npc` is
-## the one rule an NPC's controller is handed the house by (before the NPC joins the tree),
-## `bind_squad` / `bind_player` / `callout_ttl_of` the squad's and the human's (interfaces 17, 21).
+## plain dict `spec` fills with defaults: the house's `seed` / `plan` / `entrance`, or a `house`
+## already built, each side's `count`, `loadout` and optional `at`, the `human`, `wait_nav`,
+## `spawn_clearance`, `invader_margin`) and a match handle comes out (a plain dict: `world`,
+## `house`, `rooms`, `openings`, `nav_region`, `nav_debug`, then `combatants`, `squads`,
+## `player_stack`). `build` is its two stages: `stage`, the world stage (the house, its navigation
+## map with the holes overlay and the re-baker, interface 9, the dusk lighting, interface 20, then,
+## when asked, a wait until both navigation maps answer with this house), and `populate` (each side
+## placed through the match spawner, the human joined, everyone armed, styled and ranked, one squad
+## per side). `bind_npc` is the one rule an NPC's controller is handed the house by (before the NPC
+## joins the tree), `bind_squad` / `bind_player` / `callout_ttl_of` the squad's and the human's
+## (interfaces 17, 21). `spec_from_setup` reads the setup window's choices into a spec,
+## `random_spec` draws an endless run's next one.
 ## Like `main.gd` it knows the domains it wires; nothing in them knows it.
 
 ## NPC placement for one match (where defenders and invaders start; see match_spawner.gd).
@@ -53,6 +55,8 @@ const NAV_UPDATER := preload("res://scenes/navigation/nav_updater.gd")
 ## The human's side of the entry radio: it reserves the human a slot in an AI stack near it
 ## (`docs/tactical-entry.md` E16).
 const PLAYER_STACK := preload("res://scenes/ai/team/player_stack.gd")
+## The keys of a side's loadout the setup window chooses (its per-side config, beside `count`).
+const SETUP_LOADOUT_KEYS := ["weapon", "magazine", "spares", "stuns", "frags", "outfit"]
 ## Most wall-clock ms `stage` waits for the navigation maps to answer with the house's navmesh (a
 ## map synchronizes on a worker thread, so a loaded machine is slow in real time, not in frames).
 const NAV_SYNC_MS := 5000
@@ -60,19 +64,22 @@ const NAV_SYNC_MS := 5000
 
 ## A match spec: `overrides` over the defaults. `seed` (the house's, which also pins the placement,
 ## the guns and the styles; 0 by default), `plan` (a floorplan key, "" = picked by the seed),
-## `entrance` (where the front entrance lands), `defenders` / `invaders` (each `{ count, loadout,
-## at }`: how many NPCs, what they carry (`INVADER_LOADOUT` / `DEFENDER_LOADOUT`), and optional
-## explicit start points, one NPC each, in place of placement; a side given in `overrides` keeps the
-## defaults of what it does not name), `human` (`{ node, side, lead }`: the human's character, the
-## side it joins, `&"defender"` or `&"invader"`, and whether it leads that side's squad; `{}` = no
-## human), `wait_nav` (`stage` waits for the navigation maps; on), `spawn_clearance` (px a
-## character is dropped clear of furniture, twice that of another combatant; 20) and
-## `invader_margin` (px out of the house the invaders' group point is drawn; 80).
+## `entrance` (where the front entrance lands), `house` (a house already built, a hand-laid layout
+## or an arena with its objects placed, staged in place of a generated one; null = generate one),
+## `defenders` / `invaders` (each `{ count, loadout, at }`: how many NPCs, what they carry
+## (`INVADER_LOADOUT` / `DEFENDER_LOADOUT`), and optional explicit start points, one NPC each, in
+## place of placement; a side given in `overrides` keeps the defaults of what it does not name),
+## `human` (`{ node, side, lead, at }`: the human's character, the side it joins, `&"defender"` or
+## `&"invader"`, whether it leads that side's squad, and optionally where it starts in place of its
+## side's placement; `{}` = no human), `wait_nav` (`stage` waits for the navigation maps; on),
+## `spawn_clearance` (px a character is dropped clear of furniture, twice that of another combatant;
+## 20) and `invader_margin` (px out of the house the invaders' group point is drawn; 80).
 static func spec(overrides: Dictionary = {}) -> Dictionary:
 	var out := {
 		"seed": 0,
 		"plan": "",
 		"entrance": Vector2.ZERO,
+		"house": null,
 		"defenders": { "count": 1, "loadout": DEFENDER_LOADOUT.duplicate(true), "at": [] },
 		"invaders": { "count": 1, "loadout": INVADER_LOADOUT.duplicate(true), "at": [] },
 		"human": {},
@@ -88,6 +95,67 @@ static func spec(overrides: Dictionary = {}) -> Dictionary:
 	return out
 
 
+## The match spec of the setup window's `config` (`SetupMenu`'s `{ mode, side, seed, lead,
+## defenders, invaders }`, each side `{ count, weapon, magazine, spares, stuns, frags, outfit }`)
+## laid over `base` (a spec, e.g. Main's exports'): the config's `seed`; each side's `count` and
+## the loadout keys it names (`SETUP_LOADOUT_KEYS`) over the base side's loadout, a side the config
+## leaves out keeping the base's; and the human: in a played match (`mode` "play") the base's human
+## on the config's `side`, leading it with `lead`; in any other mode none; a config with no `mode`
+## keeps the base's human. An endless run (`mode` "endless") of no NPC at all is one a side, since
+## there would be nothing to watch.
+static func spec_from_setup(config: Dictionary, base: Dictionary = {}) -> Dictionary:
+	var out := spec(base)
+	out["seed"] = int(config.get("seed", out["seed"]))
+	for side in ["defenders", "invaders"]:
+		var chosen: Variant = config.get(side)
+		if not chosen is Dictionary:
+			continue
+		var into: Dictionary = (out[side] as Dictionary).duplicate()
+		into["count"] = int(chosen.get("count", into.get("count", 0)))
+		var loadout: Dictionary = (into.get("loadout", {}) as Dictionary).duplicate()
+		for key in SETUP_LOADOUT_KEYS:
+			if chosen.has(key):
+				loadout[key] = chosen[key]
+		into["loadout"] = loadout
+		out[side] = into
+	var mode := str(config.get("mode", ""))
+	if mode != "" and mode != "play":
+		out["human"] = {}
+	elif out["human"] is Dictionary and not (out["human"] as Dictionary).is_empty():
+		var human: Dictionary = (out["human"] as Dictionary).duplicate()
+		human["side"] = StringName(config.get("side", human.get("side", &"defender")))
+		human["lead"] = bool(config.get("lead", false))
+		out["human"] = human
+	if (mode == "endless"
+			and int(out["defenders"]["count"]) + int(out["invaders"]["count"]) == 0):
+		out["defenders"]["count"] = 1
+		out["invaders"]["count"] = 1
+	return out
+
+
+## An endless run's next match spec, drawn from `rng` over `base` (the match before it): a fresh
+## seed (0, which the caller resolves), each side's count drawn from 1..its most in `most` (`{
+## defenders, invaders }`: the counts chosen in setup; a side whose most is 0 stays empty), in that
+## order, then a random gun and outfit for each side (`LoadoutConfig.random`), defenders first, with
+## the grenade counts its base loadout carries.
+static func random_spec(
+	rng: RandomNumberGenerator,
+	base: Dictionary,
+	most: Dictionary,
+) -> Dictionary:
+	var out := spec(base)
+	out["seed"] = 0
+	for side in ["defenders", "invaders"]:
+		var top := int(most.get(side, 0))
+		out[side] = (out[side] as Dictionary).duplicate()
+		out[side]["count"] = 0 if top <= 0 else rng.randi_range(1, top)
+	for side in ["defenders", "invaders"]:
+		var kept := LoadoutConfig.grenade_counts(out[side].get("loadout", {}))
+		# Laid over the draw, which names no grenades of its own (0 + 0).
+		out[side]["loadout"] = LoadoutConfig.random(rng).merged(kept, true)
+	return out
+
+
 ## Build the whole match of `match_spec` under `world`: `stage`, then `populate`. A coroutine (the
 ## stage may wait for the navigation maps): await it. Returns the match handle.
 static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
@@ -99,13 +167,14 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 
 ## Populate the staged match `match` (the handle `stage` returned) by `match_spec`: the defenders,
 ## each at a clear spot in a random room (or at the side's `at` points), then the invader team in
-## one group outside the house (round the human's spot when the human invades), each NPC bound to
+## one group outside the house (round the human's start when the human invades), each NPC bound to
 ## the house (an invader heading for the front entrance first); the human joined to its side (its
-## faction, and for a defender a clear spot in a random room) under the world, just above the
-## house, and given its stack radio; everyone armed, styled and ranked (`arm`); one squad per side
-## (`build_squads`). Placement draws from one RNG seeded with the spec's `seed`, so a pinned seed
-## pins the match. Returns the handle with `combatants` (every character in the match in spawn
-## order, the human last), `squads` (by faction) and `player_stack` (the human's, or null).
+## faction, and its start: the spec's `human.at`, else for a defender a clear spot in a random
+## room) under the world, just above the house, and given its stack radio; everyone armed, styled
+## and ranked (`arm`); one squad per side (`build_squads`). Placement draws from one RNG seeded with
+## the spec's `seed`, so a pinned seed pins the match. Returns the handle with `combatants` (every
+## character in the match in spawn order, the human last), `squads` (by faction) and `player_stack`
+## (the human's, or null).
 static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
 	var world: Node2D = match["world"]
@@ -142,7 +211,7 @@ static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 			rng,
 			int(invaders.get("count", 0)),
 			front,
-			human_node.global_position if human_invader else Vector2.INF,
+			_start_of(human) if human_invader else Vector2.INF,
 		)
 	for i in at.size():
 		spawner.add_npc(
@@ -155,7 +224,7 @@ static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	var combatants: Array = spawner.combatants.filter(func(c): return is_instance_valid(c))
 	var stack: Node = null
 	if human_node != null:
-		_join(human_node, human_invader, match, spawner, rng)
+		_join(human_node, human_invader, human["at"], match, spawner, rng)
 		combatants.append(human_node)
 		stack = bind_player(human_node, rooms, openings)
 	arm(combatants, match_spec)
@@ -293,18 +362,20 @@ static func build_squads(
 
 
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
-## from `match_spec` (`seed`, `plan`, `entrance`, `wait_nav`). With no `house` it generates one
-## (`WorldGen.generate` from the spec's `seed`, `plan` and front `entrance`); a caller that built
-## its own (a test's arena or layout, its objects already placed so the bake carves them) passes it.
-## Then the nav map (`NavBuilder.build`), its holes overlay and its re-baker, and the dusk lighting
-## seeded by `seed`. With `wait_nav` the world is stepped two physics frames (the walls' colliders
-## go live on a step), then until `NavBuilder.ready` holds on the planning map and on the steering
-## map, so an NPC placed afterwards never plans or walks on a map still showing another navmesh (at
-## most `NAV_SYNC_MS` of real time; an error past it). A coroutine: await it. Returns the handle
+## from `match_spec` (`seed`, `plan`, `entrance`, `house`, `wait_nav`). With no `house` it generates
+## one (`WorldGen.generate` from the spec's `seed`, `plan` and front `entrance`); a caller that
+## built its own (a hand-laid layout or an arena, its objects already placed so the bake carves
+## them) names it, and it is moved under `world` when it stands elsewhere. Then the nav map
+## (`NavBuilder.build`), its holes overlay and its re-baker, and the dusk lighting seeded by `seed`.
+## With `wait_nav` the world is stepped two physics frames (the walls' colliders go live on a step),
+## then until `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed
+## afterwards never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of
+## real time; an error past it). A coroutine: await it. Returns the handle
 ## `{ world, house, rooms, openings, nav_region, nav_debug }`, or `{}` when `world` was freed during
 ## the wait (the match torn down).
-static func stage(match_spec: Dictionary, world: Node2D, house: Node2D = null) -> Dictionary:
+static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
+	var house: Node2D = match_spec["house"]
 	if house == null:
 		house = WorldGen.generate(
 			int(match_spec["seed"]),
@@ -312,6 +383,10 @@ static func stage(match_spec: Dictionary, world: Node2D, house: Node2D = null) -
 			match_spec["entrance"],
 			world,
 		)
+	elif house.get_parent() == null:
+		world.add_child(house)
+	elif house.get_parent() != world:
+		house.reparent(world, true)
 	var rooms := WorldGen.get_rooms(house)
 	var nav_region := NavBuilder.build(house, rooms, world)
 	var nav_debug: Node2D = NAV_DEBUG.new()
@@ -415,19 +490,23 @@ static func bind_player(player: Node, rooms: Array, openings: Array) -> Node:
 
 
 ## Put the human `human` in the staged match `match` on its side: that side's faction (so its NPCs
-## treat it as an ally) and, for a defender, a clear spot in a random room drawn from `rng` (an
-## invader starts where it stands). It is moved under the match's world, keeping where it stands,
-## just above the house so the draw order stays house < human < NPCs.
+## treat it as an ally) and its start: `at` when given (not INF), else for a defender a clear spot
+## in a random room drawn from `rng` (an invader starts where it stands). It is moved under the
+## match's world, keeping where it stands, just above the house so the draw order stays house <
+## human < NPCs.
 static func _join(
 	human: Node2D,
 	invading: bool,
+	at: Vector2,
 	match: Dictionary,
 	spawner: RefCounted,
 	rng: RandomNumberGenerator,
 ) -> void:
 	var rooms: Array = match["rooms"]
 	human.set("faction", INVADER_FACTION if invading else DEFENDER_FACTION)
-	if not invading and not rooms.is_empty():
+	if at != Vector2.INF:
+		human.global_position = at
+	elif not invading and not rooms.is_empty():
 		human.global_position = spawner.clear_spot(rooms[rng.randi() % rooms.size()]["rect"], rng)
 	var world: Node2D = match["world"]
 	if human.get_parent() != world:
@@ -436,16 +515,24 @@ static func _join(
 	world.move_child(human, house.get_index() + 1)
 
 
-## The spec's human as `{ node, side, lead }`: `node` null when there is none (or it was freed).
+## The spec's human as `{ node, side, lead, at }`: `node` null when there is none (or it was
+## freed), `at` INF when it names no start.
 static func _human_of(match_spec: Dictionary) -> Dictionary:
 	var given: Variant = match_spec.get("human")
 	var human: Dictionary = given if given is Dictionary else {}
 	var node: Variant = human.get("node")
+	var at: Variant = human.get("at")
 	return {
 		"node": node if is_instance_valid(node) and node is Node2D else null,
 		"side": StringName(human.get("side", &"defender")),
 		"lead": bool(human.get("lead", false)),
+		"at": at if at is Vector2 else Vector2.INF,
 	}
+
+
+## Where the spec's human (`_human_of`) starts: its `at`, else where it stands.
+static func _start_of(human: Dictionary) -> Vector2:
+	return human["at"] if human["at"] != Vector2.INF else (human["node"] as Node2D).global_position
 
 
 ## The controller of `npc` (interface 7): its child with `control` and `rooms`, else null.

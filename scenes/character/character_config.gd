@@ -184,7 +184,7 @@ static var default_style: StringName = &"zenitex"
 ## One row per style. What a garment looks like in a style is its `OutfitConfig` row's `looks`; a
 ## row here is the rest of the look, and each character's own variety within it, drawn from its
 ## `look_seed`:
-##   side         the faction a match styles in it (`Main._arm_characters`): `invader` (the police
+##   side         the faction a match styles in it (`MatchBuilder.style`): `invader` (the police
 ##   units) or `household`. police       a uniformed police unit (its rank marks, its livery's
 ##   marks) rather than a criminal's gear. weapons      the weapon styles (`Item.style`) a character
 ##   in it is armed with, one drawn per character. palettes     name -> colours, one drawn per

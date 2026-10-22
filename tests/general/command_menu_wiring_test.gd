@@ -1,26 +1,25 @@
 extends GameTest
 ## LD11 and interface 21 (`docs/leadership.md`): the wiring, in a match Main builds. With "Lead the
-## team" on, Main builds one squad per faction from its combatants after arming them
-## (`_build_squads`), hands each NPC its squad, and, because the human leads, adds the command menu
-## and the order markers (`_build_command_menu`), the menu's `order_requested` connected to the
-## squad's `issue`. The human leader opens the menu on the Terrace house's back door, ticks its two
-## NPC teammates and orders "Stack into the kitchen with stun"; after the menu closes (and the tree
-## is unpaused), both NPCs claim slots at the back door under the order, in bang mode. Part 2 (LD13,
+## team" on, Main's match (`Main.start_match`, through `MatchBuilder`) has one squad per faction
+## over its combatants, armed first, each NPC handed its squad, and, because the human leads, the
+## command menu and the order markers, the menu's `order_requested` connected to the squad's
+## `issue`. The human leader opens the menu on the Terrace house's back door, ticks its two NPC
+## teammates and orders "Stack into the kitchen with stun"; after the menu closes (and the tree is
+## unpaused), both NPCs claim slots at the back door under the order, in bang mode. Part 2 (LD13,
 ## LD16): the order is given with the menu's "Hold for my go" ticked, so the stack holds once
 ## formed; the leader opens the menu on the door again and chooses "Go into the kitchen", and the
 ## stack bangs and goes in.
 ##
-## Main's match-setup logic runs on a Main that never enters the tree (as `match_setup_test.gd` and
-## `lead_rank_test.gd` do): the window's config through `_on_setup_chosen`, the NPCs placed with
-## Main's `MatchSpawner`, the human a puppet standing in for the player, then Main's own
-## `_arm_characters`, `_build_squads` and `_build_command_menu` over this world. Scripted Von (the
-## first option offered): the NPCs' own decisions are not under test, and the order level asks
-## nothing. `Settings.path` points at a scratch file.
+## Main runs whole in a world of its own (`tests/_main/main_probe.gd`), through its public members:
+## the window's config turned into a match spec (`MatchBuilder.spec_from_setup`) over a base that
+## names the bare Terrace house as the match's house, the NPC invaders' start points (`at`) and a
+## puppet of the test standing in for the player as the human, then `Main.start_match(spec)`.
+## Scripted Von (the first option offered): the NPCs' own decisions are not under test, and the
+## order level asks nothing. `Settings.path` points at a scratch file.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const MainScript := preload("res://scenes/main.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
+const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const NPC_AT := [Vector2(960, 60), Vector2(985, 110)]
@@ -42,12 +41,12 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	Maps.house(s, false)
 	s.von_script([])
-	s.switch(&"ai.hostile_on_trespass", false)
 	s.lock_interaction([&"camera", &"pause"])
 	s.set_static(Settings, "path", "user://test_command_menu_wiring_settings.json")
 	s.set_static(Settings, "setup", {})
+	s.set_static(Settings, "overlays", {})
+	s.set_static(Settings, "debug", Settings.debug)
 	s.actor(
 		&"me",
 		&"puppet",
@@ -57,50 +56,45 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var main = MainScript.new()
-	await main._on_setup_chosen({ "mode": "play", "side": "invader", "seed": 5, "lead": true,
-		"defenders": { "count": 0 }, "invaders": { "count": 2 } })
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.get("openings")
-	for i in NPC_AT.size():
-		spawner.add_npc(
-			MatchSpawner.INVADER_SCENE,
-			spawner.npc_name("Invader", i),
-			NPC_AT[i],
-			t.rooms,
-		)
-	var npcs: Array = spawner.combatants.duplicate()
+	var viewport := MainProbe.viewport(t)
+	var main = MainProbe.open(viewport)
+	var layout := TestSetup.new()
+	Maps.house(layout, false)
 	var me := t.actor(&"me")
-	main._world = t.world
-	main._spawner = spawner
-	main._player = me
-	var combatants: Array = npcs + [me]
-	main._arm_characters(combatants)
-	if not t.require(
-			npcs.all(func(n): return Probe.count(n, Probe.STUN) >= 1),
-			"Main armed the NPC invaders with a stun each (premise: the invaders' loadout)",
-	):
-		main.free()
+	var base := MatchBuilder.spec({
+		"house": MainProbe.house(layout, viewport),
+		"invaders": { "at": NPC_AT },
+		"human": { "node": me },
+	})
+	var spec := MatchBuilder.spec_from_setup(
+		{ "mode": "play", "side": "invader", "seed": 5, "lead": true,
+			"defenders": { "count": 0 }, "invaders": { "count": 2 } },
+		base,
+	)
+	var built: Dictionary = await main.start_match(spec)
+	if not t.require(not built.is_empty(), "premise: Main built the match (start_match)"):
+		await MainProbe.close(t, viewport)
 		return
+	var npcs: Array = (built["combatants"] as Array).filter(func(c): return c != me)
 	if not t.require(
-			_call(main, &"_build_squads", [combatants, t.rooms]),
-			"Main builds the squads (_build_squads)",
+			npcs.size() == 2 and npcs.all(func(n): return Probe.count(n, Probe.STUN) >= 1),
+			"Main armed the two NPC invaders with a stun each (premise: the invaders' loadout)",
 	):
-		main.free()
+		await MainProbe.close(t, viewport)
 		return
+	var squad: Node = (built["squads"] as Dictionary).get(&"invader")
 	if not t.require(
-			_call(main, &"_build_command_menu", [t.rooms]),
-			"Main builds the command menu when the human leads (_build_command_menu)",
+			squad != null and squad.leader() == me,
+			"Main built the invaders' squad, led by the human (Lead the team)",
 	):
-		main.free()
+		await MainProbe.close(t, viewport)
 		return
-	var menu := _find_menu(t.world)
+	var menu := _find_menu(built["world"])
 	if not t.require(
 			menu != null,
 			"the command menu is in the match's world (a node with open_at under World)",
 	):
-		main.free()
+		await MainProbe.close(t, viewport)
 		return
 
 	for npc in npcs:
@@ -117,7 +111,7 @@ func run(t: TestContext) -> void:
 			"it offers \"Stack into the kitchen with stun\" (items %s)" % str(Order.labels(menu)),
 	):
 		t.world.get_tree().paused = false
-		main.free()
+		await MainProbe.close(t, viewport)
 		return
 	await t.frames(1)
 	t.check(not t.world.get_tree().paused, "choosing it closes the menu and unpauses")
@@ -140,7 +134,7 @@ func run(t: TestContext) -> void:
 				% [n.name, str(claims.map(func(c): return c.get("bang")))],
 		)
 	await _hold_then_go(t, menu, npcs)
-	main.free()
+	await MainProbe.close(t, viewport)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 
 
@@ -204,15 +198,6 @@ func _set_hold(menu: Node, on: bool) -> bool:
 			if box.button_pressed != on:
 				box.button_pressed = on
 				box.toggled.emit(on)
-			return true
-	return false
-
-
-## Call Main's `method` with as many of `args` as it takes; false when Main has no such method.
-func _call(main: Object, method: StringName, args: Array) -> bool:
-	for m in main.get_method_list():
-		if StringName(m["name"]) == method:
-			main.callv(method, args.slice(0, (m["args"] as Array).size()))
 			return true
 	return false
 
