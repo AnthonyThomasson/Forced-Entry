@@ -1538,7 +1538,7 @@ func _detour_first(delta: float) -> bool:
 				and str(passing["into"]) != into
 				and (gate.is_empty() or float(passing["dist"]) < float(gate["dist"]))
 				and float(_guard_off.get(passing["opening"], -1.0)) <= _guard_clock
-				and _perception.entry_team(passing["opening"]).is_empty()):
+				and _perception.entry_stack(passing["opening"]).team.is_empty()):
 			passing["secure"] = true
 			gate = passing
 	if gate.is_empty():
@@ -1691,7 +1691,7 @@ func _guard_approach() -> void:
 							or str(gate["into"]) == _entry.into
 							or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock)):
 			gate = {}
-	var team_coming: bool = (not _perception.entry_team(_entry.opening).is_empty()
+	var team_coming: bool = (not _perception.entry_stack(_entry.opening).team.is_empty()
 			or (ordered and _entry_recipients_coming()))
 	var passing := {} if team_coming else _passing_gate(walk, gate)
 	if (not passing.is_empty()
@@ -1716,7 +1716,7 @@ func _passing_gate(walk: Dictionary, gate: Dictionary) -> Dictionary:
 			or (not gate.is_empty() and float(passing["dist"]) >= float(gate["dist"]))):
 		return {}
 	if (float(_guard_off.get(passing["opening"], -1.0)) > _guard_clock
-			or not _perception.entry_team(passing["opening"]).is_empty()):
+			or not _perception.entry_stack(passing["opening"]).team.is_empty()):
 		return {}
 	passing["secure"] = true
 	return passing

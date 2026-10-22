@@ -10,6 +10,7 @@ extends RefCounted
 ## are decoded once per physics frame (`GameClock.frame()`), or again once a claim is heard.
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
 
 ## The side whose claims it hears.
 var faction: StringName = &""
@@ -23,7 +24,9 @@ var listener: Node = null
 var _heard := {}
 ## opening -> its claims (`claims`), as decoded on frame `_frame`.
 var _cache := {}
-## The `GameClock.frame()` `_cache` was filled on (-1: stale).
+## "<opening>>into" -> its `DoorStack`, built on frame `_frame`.
+var _stacks := {}
+## The `GameClock.frame()` `_cache` and `_stacks` were filled on (-1: stale).
 var _frame := -1
 
 
@@ -87,6 +90,17 @@ func claims(opening: String) -> Array:
 	return out
 
 
+## The stack at the doorway of geometry `g` (agent_entry.gd `geometry`; {} for the claims alone, on
+## doorway `opening`): a `DoorStack` of its claims, built at most once a frame (or again once a
+## claim is heard).
+func stack(opening: String, g := {}) -> RefCounted:
+	var team := claims(opening)
+	var key := "%s>%s" % [opening, str(g.get("into", ""))]
+	if not _stacks.has(key):
+		_stacks[key] = DoorStack.new(g, team)
+	return _stacks[key]
+
+
 ## The doorways a stack is forming at (`{ opening, into }`, in the order their claims were first
 ## heard): those with a live claim at a `STACKING` step.
 func openings_stacking() -> Array:
@@ -111,6 +125,7 @@ func _refresh() -> void:
 		return
 	_frame = frame
 	_cache = {}
+	_stacks = {}
 	var now := GameClock.seconds()
 	for id in _heard.keys():
 		if _lapsed(_heard[id], now):

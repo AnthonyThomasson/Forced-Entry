@@ -3,7 +3,7 @@ extends GameTest
 ## every doorway of every floorplan. Geometry only, no simulation: the house is built and baked,
 ## then each way into each room (both sides of every doorway's wall, an exterior door from outside)
 ## is read for stacks of 1 to 6 starting on either side of the door (1 / -1 along its wall), through
-## the published rule for where a stack of N stands (`AgentEntry.stack_slots(g, count, side)`, read
+## the published rule for where a stack of N stands (`DoorStack.stack_slots(g, count, side)`, read
 ## through `tests/_ai/slots_probe.gd`).
 ##
 ## The houses: the 11 generated floorplans (`HouseDefinitions.get_all()`), each with 3 fixed seeds
@@ -224,7 +224,7 @@ func _sweep(t: TestContext, label: String, house: Node2D, rooms: Array, openings
 		var lays := {}   # "<side> <count>" -> layout
 		for side in [1, -1]:
 			for count in range(1, Slots.MAX_STACK + 1):
-				lays["%d %d" % [side, count]] = Slots.layout(entry, g, count, side)
+				lays["%d %d" % [side, count]] = Slots.layout(g, count, side)
 		if kind == "wall":
 			var wall := _wall_capacity(w, f, cache, lays)
 			if int(wall["count"]) < Slots.MAX_STACK:

@@ -1259,7 +1259,7 @@ func stack_room() -> String:
 	if not ordered_walk or str(held.get("kind", "")) != "stack":
 		return _stack_room
 	var opening := str(held.get("opening", ""))
-	for m in entry_team(opening):
+	for m in entry_stack(opening).team:
 		if m["order_id"] == str(held.get("id", "")) and StackClaim.in_slot(m["step"]):
 			_stack_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
 			break
@@ -1327,23 +1327,12 @@ func room_doorways(room_key: String) -> Array:
 	return _entry.room_doorways(room_key)
 
 
-## The allies' live claims on doorway `opening_id`, off the radio (stack/claim_ledger.gd `claims`:
-## `StackClaim.decode`'s fields, `step`, `id`, `name`, `pos`, `age`), lowest slot first.
-func entry_team(opening_id: String) -> Array:
-	return _ledger.claims(opening_id)
-
-
-## The lowest stack slot (1 = the point) no ally in `team` has claimed, for the NPC with instance id
-## `self_id` that holds `current`; claims made on the same frame (`mine`) settle by distance (see
-## agent_entry.gd `free_slot`).
-func entry_free_slot(team: Array, self_id: int, current := 0, mine := {}) -> int:
-	return AgentEntry.free_slot(team, self_id, current, mine)
-
-
-## The side of a doorway (`geometry` from `entry_geometry`) the team stacks on (see agent_entry.gd
-## `stack_side`).
-func entry_team_side(geometry: Dictionary, team: Array, self_pos: Vector2) -> int:
-	return AgentEntry.stack_side(geometry, team, self_pos)
+## The stack at doorway `opening_id` into room `into` as the radio describes it
+## (stack/door_stack.gd): the allies' live claims on it (stack/claim_ledger.gd `claims`) over its
+## geometry (`entry_geometry`; none when `into` is ""), every slot rule settled the one way. One per
+## doorway a frame.
+func entry_stack(opening_id: String, into := "") -> RefCounted:
+	return _ledger.stack(opening_id, entry_geometry(opening_id, into) if into != "" else {})
 
 
 ## The side of a doorway (`geometry` from `entry_geometry`) point `p` is on, 1 / -1 along its wall:
@@ -1352,50 +1341,14 @@ func entry_side_of(geometry: Dictionary, p: Vector2) -> int:
 	return AgentEntry.side_of(geometry, p)
 
 
-## The side of a doorway the NPC stacks on from where it stands: the team's, unless its way there
-## crosses the doorway's view, then its own (a split stack, see agent_entry.gd `stack_side_from`).
-func entry_stack_side(geometry: Dictionary, team: Array) -> int:
+## The side of a doorway the NPC stacks on from where it stands in `stack` (`entry_stack`): the
+## team's, unless its way there crosses the doorway's view, then its own (a split stack, see
+## agent_entry.gd `stack_side_from`).
+func entry_stack_side(stack: RefCounted) -> int:
 	var world: World2D = _character.get_world_2d()
 	return _entry.stack_side_from(
-		geometry, team, _character.global_position, world.navigation_map, world.direct_space_state,
+		stack, _character.global_position, world.navigation_map, world.direct_space_state,
 	)
-
-
-## The members of a stack (claims with `id`, `slot`, `side`, the NPC's own among them) in the order
-## they cross (see agent_entry.gd `crossing_order`).
-func entry_crossing_order(members: Array) -> Array:
-	return AgentEntry.crossing_order(members)
-
-
-## The place in its side's file of the member holding slot `slot` on side `side` (see agent_entry.gd
-## `place`).
-func entry_place(team: Array, side: int, slot: int) -> int:
-	return AgentEntry.place(team, side, slot)
-
-
-## The side of a doorway the member holding slot `slot` stacks on, wanting side `preferred`, among
-## the claims `team` (E21: its side while that side's wall has room, else the other's, then a second
-## file; see agent_entry.gd `side_for`).
-func entry_side_for(geometry: Dictionary, team: Array, slot: int, preferred: int) -> int:
-	return AgentEntry.side_for(geometry, team, slot, preferred)
-
-
-## Where the member holding slot `slot` on side `side` stands among the stack's `members` (E20 to
-## E22; INF for a slot a dead end does not hold; see agent_entry.gd `stack_point`).
-func entry_stack_point(geometry: Dictionary, members: Array, slot: int, side: int) -> Vector2:
-	return AgentEntry.stack_point(geometry, members, slot, side)
-
-
-## Whether a doorway has a slot `slot` at all: a dead end holds only as many as its floor does (see
-## agent_entry.gd `holds_slot`).
-func entry_holds_slot(geometry: Dictionary, slot: int) -> bool:
-	return AgentEntry.holds_slot(geometry, slot)
-
-
-## Whether slot `slot` at a doorway is one of the stack's tail, holding in the room it came by (see
-## agent_entry.gd `is_tail`).
-func entry_is_tail(geometry: Dictionary, slot: int) -> bool:
-	return AgentEntry.is_tail(geometry, slot)
 
 
 ## Whether point `p` is ground a stack going in by `geometry` may walk on to its slot

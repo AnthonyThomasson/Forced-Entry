@@ -7,7 +7,6 @@ extends RefCounted
 ## decision (`know`, set by `AgentSnapshot.build()`). `agent_snapshot.gd` calls it from `build()`.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
-const AgentEntry = preload("res://scenes/ai/perception/agent_entry.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
@@ -871,10 +870,14 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 		var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
 		if g.is_empty():
 			continue
-		var team: Array = _ledger.claims(e["id"])
-		var slot := AgentEntry.free_slot(team, ctx["self_id"])
-		var side: int = _entry.stack_side_from(g, team, self_pos, ctx["map"], ctx["space"])
-		var point := AgentEntry.stack_point(g, team, slot, AgentEntry.side_for(g, team, slot, side))
+		# The slot and side its entry's `begin` would take, claiming now from where it stands.
+		var stack: RefCounted = _ledger.stack(e["id"], g)
+		var slot: int = stack.slot_for({
+			"id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos,
+		})
+		var side: int = _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"])
+		var settled: Dictionary = stack.settle({ "id": ctx["self_id"], "slot": slot, "want": side })
+		var point: Vector2 = settled["point"]
 		if point == Vector2.INF:
 			continue  # A dead end already holding all it can (E20): no slot for this NPC there.
 		picks.append({
@@ -1064,7 +1067,10 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 				# The leader's own stack (LD24, D10): the member's own entry, joining it (no side,
 				# no mode of the order's). A dead end with no slot for it is no join: refused, it
 				# follows again (LD25).
-				if not AgentEntry.holds_slot(g, _stack_place(order, ctx)):
+				if not _ledger.stack(
+					String(order.get("opening", "")),
+					g,
+				).has_slot(_stack_place(order, ctx)):
 					return { "summary": "", "options": [] }
 				var joined := "the doorway into the %s" % _v.room_name(into["type"])
 				option = {
@@ -1077,7 +1083,10 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 					"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
 				}
 				return { "summary": joined, "options": [option] }
-			if not AgentEntry.holds_slot(g, _stack_place(order, ctx)):
+			if not _ledger.stack(
+				String(order.get("opening", "")),
+				g,
+			).has_slot(_stack_place(order, ctx)):
 				# Past what a dead end holds (E20, rule 6): no slot for it. The order stands,
 				# refused: it holds where it is.
 				var hold := ("hold where you are: no room at the doorway into the %s"

@@ -16,6 +16,8 @@ extends RefCounted
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const ENTRY_SCRIPT := "res://scenes/ai/perception/agent_entry.gd"
+## The doorway's stack, whose `stack_slots` lays a stack out.
+const DOOR_STACK_SCRIPT := "res://scenes/ai/perception/stack/door_stack.gd"
 ## Body radius (px) of a character.
 const BODY := 14.0
 ## A slot inside its room keeps at least this far (px) from the room rect's edges (the walls'
@@ -82,10 +84,10 @@ static func opening_id(o: Dictionary) -> String:
 
 
 ## Where a stack of `count` going in by geometry `g` stands, its point on side `side` (1 / -1 along
-## the wall), read through the published rule `stack_slots(g, count, side)`:
+## the wall), read through the published rule `DoorStack.stack_slots(g, count, side)`:
 ## `{ slots: [{ n, point, side, row }] }`.
-static func layout(entry: RefCounted, g: Dictionary, count: int, side: int) -> Dictionary:
-	var raw = entry.call("stack_slots", g, count, side)
+static func layout(g: Dictionary, count: int, side: int) -> Dictionary:
+	var raw = (load(DOOR_STACK_SCRIPT) as GDScript).call("stack_slots", g, count, side)
 	var published: Array = []
 	for s in (raw if raw is Array else []):
 		published.append({

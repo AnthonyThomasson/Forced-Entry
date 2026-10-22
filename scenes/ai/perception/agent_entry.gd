@@ -715,7 +715,7 @@ func _lay_slots(g: Dictionary, opening: Dictionary, map: RID, space) -> void:
 			lays = _views_lays({ 1: _band(c, 1, SLOT_STEP), -1: _band(c, -1, SLOT_STEP) })
 		g["kind"] = "views"
 		g["views_lays"] = lays
-		var lay := _views_layout(g, MAX_SLOTS, int(g["side"]) if int(g["side"]) != 0 else 1)
+		var lay := views_layout(g, MAX_SLOTS, int(g["side"]) if int(g["side"]) != 0 else 1)
 		g["slots"] = {
 			1: lay.filter(func(x): return x["side"] == 1).map(func(x): return x["point"]),
 			-1: lay.filter(func(x): return x["side"] == -1).map(func(x): return x["point"]),
@@ -1325,108 +1325,11 @@ func _edge_gap(poly: PackedVector2Array, p: Vector2) -> float:
 	return best
 
 
-## Where a stack of `count` going in by geometry `g` stands, its point on side `side` (1 / -1 along
-## the wall) where that side has room: `[{ n, point, side, row }]`, slot 1 (the point) first. The
-## one rule every stack is laid out by (E20 to E22, `_lay_slots`): one slot per member, but on a
-## dead end only as many as its room holds.
-static func stack_slots(g: Dictionary, count: int, side: int) -> Array:
-	var members: Array = []
-	var out: Array = []
-	for n in range(1, count + 1):
-		if not holds_slot(g, n):
-			break
-		var on := side_for(g, members, n, side)
-		members.append({ "id": n, "slot": n, "side": on })
-	for m: Dictionary in members:
-		var at := _laid(g, members, int(m["slot"]), int(m["side"]))
-		var on_wall: bool = (g.get("kind", "wall") == "wall"
-				and int(m["slot"]) <= int(g.get("wall_n", MAX_SLOTS)))
-		out.append({
-			"n": m["slot"],
-			"point": at["point"],
-			"side": m["side"] if on_wall else side_of(g, at["point"]),
-			"row": at["row"],
-		})
-	return out
-
-
-## The side of the door the member holding slot `slot` stacks on, wanting side `preferred` (the
-## team's, its own on a split stack, the order's), among the claims `team` (E21): its side while
-## that side's wall has room for it, else the other side's while it has, else a second file on its
-## side, then on the other. Past what the wall holds (`seq`), and on a layout with no files
-## (`views`, `open_floor`, `dead_end`), the side its slot lies on.
-static func side_for(g: Dictionary, team: Array, slot: int, preferred: int) -> int:
-	var pref := preferred if preferred != 0 else 1
-	if g.get("kind", "wall") != "wall" or slot > int(g.get("wall_n", MAX_SLOTS)):
-		var at := _laid(g, team, slot, pref)
-		return side_of(g, at["point"]) if at["point"] != Vector2.INF else pref
-	var files: Dictionary = g["files"]
-	var row1: Dictionary = g["row1"]
-	var here := place(team, pref, slot)
-	var there := place(team, -pref, slot)
-	if here <= int(row1[pref]):
-		return pref
-	if there <= int(row1[-pref]):
-		return -pref
-	if here <= (files[pref] as Array).size():
-		return pref
-	if there <= (files[-pref] as Array).size():
-		return -pref
-	return pref
-
-
-## Where the member holding slot `slot` on side `side` stands, among the stack's `members` (the
-## claims, its own among them or not); INF for a slot a dead end does not hold.
-static func stack_point(g: Dictionary, members: Array, slot: int, side: int) -> Vector2:
-	return _laid(g, members, slot, side)["point"]
-
-
-## Whether a stack going in by `g` has a slot `slot` at all: a dead end holds only as many as its
-## wall and open floor do (E20); any slot elsewhere.
-static func holds_slot(g: Dictionary, slot: int) -> bool:
-	return (not g.get("capped", false)
-			or slot <= int(g.get("wall_n", 0)) + (g.get("seq", []) as Array).size())
-
-
-## Whether slot `slot` of a stack going in by `g` is one of its tail (E20's fallback: the members a
-## small room cannot hold, who hold in the room they came by as rear security and never cross).
-static func is_tail(g: Dictionary, slot: int) -> bool:
-	return not g.get("capped", false) and g.has("seq") and slot >= int(g.get("tail_from", 999))
-
-
-## `{ point, row }` of slot `slot` on side `side` among `members` (see `stack_point`).
-static func _laid(g: Dictionary, members: Array, slot: int, side: int) -> Dictionary:
-	var wall_n := int(g.get("wall_n", MAX_SLOTS))
-	if slot > wall_n and g.has("seq"):
-		var seq: Array = g["seq"]
-		var i := slot - wall_n - 1
-		if seq.is_empty() or (g.get("capped", false) and i >= seq.size()):
-			return { "point": Vector2.INF, "row": 1 }
-		return seq[mini(i, seq.size() - 1)]
-	if g.get("kind", "wall") == "views":
-		var ahead := func(m): return int(m["slot"]) != slot and int(m["slot"]) <= wall_n
-		var count := mini(maxi(members.filter(ahead).size() + 1, slot), wall_n)
-		var lead := side
-		for m in members:
-			if int(m["slot"]) == 1 and int(m["side"]) != 0:
-				lead = int(m["side"])
-		var lay := _views_layout(g, count, lead if lead != 0 else 1)
-		if lay.is_empty():
-			return { "point": g["pos"] + (g["out"] as Vector2) * 28.0, "row": 1 }
-		return lay[clampi(slot - 1, 0, lay.size() - 1)]
-	var file: Array = g["files"][side if side != 0 else 1]
-	if file.is_empty():
-		file = g["files"][-side if side != 0 else -1]
-	if file.is_empty():
-		return { "point": g["pos"] + (g["out"] as Vector2) * 28.0, "row": 1 }
-	return file[clampi(place(members, side, slot) - 1, 0, file.size() - 1)]
-
-
 ## The `count` slots of a `views` layout (`_lay_slots`, `_views_lays`), its first side `side`: of
 ## the spots beside the door, those seen from the fewest other doorways that hold `count` at
 ## `stack_spacing`, side `side`'s file nearest the door first, then the other's, then the second
 ## files. Each `{ point, row, side }`.
-static func _views_layout(g: Dictionary, count: int, side: int) -> Array:
+static func views_layout(g: Dictionary, count: int, side: int) -> Array:
 	var per: Array = (g.get("views_lays", {}) as Dictionary).get(side if side != 0 else 1, [])
 	return per[clampi(count, 1, per.size()) - 1] if not per.is_empty() else []
 
@@ -1452,87 +1355,7 @@ func _sees(space, from: Vector2, to: Vector2) -> bool:
 	return space == null or vision.can_see(from, to - from, to, space, [])
 
 
-# --- The team, off the radio -------------------------------------------------------------------
-
-
-## The lowest stack slot (1 = the point) not claimed by an ally in `team` (stack/claim_ledger.gd
-## `claims`), for the
-## NPC with instance id `self_id` that holds `current` (0: it is claiming now). Claims made on the
-## same physics frame settle by distance (E2), so their walks do not cross: with `mine`
-## (`{ frame, pos, g, side }`: the frame this NPC claims or claimed on, where it stood then, the
-## doorway's geometry and, for `current`, its side), a slot claimed on that same frame by an ally
-## farther from the slot's point than this NPC is taken from it, and of two such claims on one slot
-## the nearer keeps it (each reads the other's `claim_frame` and `claim_pos` off the radio, so both
-## settle the same way; a slot given up for another keeps the claim's frame and spot, so the
-## settling goes on down the stack). Otherwise, or at an even distance, the lower instance id keeps
-## a slot two claim. A claim that moved up into a slot (E2: its `move_up`, the slot it came from,
-## which `mine` carries for this NPC's own) holds it against one that did not, and the NPC that held
-## it takes the freed one.
-static func free_slot(team: Array, self_id: int, current := 0, mine := {}) -> int:
-	var taken := {}
-	for m in team:
-		taken[m["slot"]] = taken.get(m["slot"], []) + [m]
-	var holds := func(other):
-		return _wins(team, current, int(mine.get("side", 0)), other, self_id, mine)
-	if current > 0 and (not taken.has(current) or taken[current].all(holds)):
-		return current
-	for other in taken.get(current, []):
-		var freed := int(other.get("move_up", 0))
-		if freed > 0 and not taken.has(freed) and int(mine.get("move_up", 0)) == 0:
-			return freed  # An ally moved up into this slot (E2): this NPC takes the one it freed.
-	var slot := 1
-	while taken.has(slot):
-		var gives_way := func(other):
-			return (int(other["claim_frame"]) == int(mine.get("frame", -2))
-					and _wins(team, slot, int(other["side"]), other, self_id, mine))
-		if taken[slot].all(gives_way):
-			# Claimed on the frame this NPC claimed on, by someone farther from it: this NPC takes
-			# it, and the other gives it up.
-			return slot
-		slot += 1
-	return slot
-
-
-## Whether this NPC (`self_id`, `mine`: see `free_slot`) holds slot `slot` on side `side` against
-## ally `other`'s claim on it: the one that moved up into it, of a move-up and a claim that is not
-## one (E2); else by distance to the slot's point (laid among the claims but these two) when both
-## claimed it on the same frame on the same side, else (and at an even distance) by instance id.
-static func _wins(
-	team: Array,
-	slot: int,
-	side: int,
-	other: Dictionary,
-	self_id: int,
-	mine: Dictionary,
-) -> bool:
-	if (int(other.get("move_up", 0)) > 0) != (int(mine.get("move_up", 0)) > 0):
-		# A move-up (E2) holds the slot it stepped into against the claim it moved up past.
-		return int(mine.get("move_up", 0)) > 0
-	if (not mine.is_empty()
-			and int(other["claim_frame"]) >= 0
-			and int(other["claim_frame"]) == int(mine["frame"])
-			and (side == 0 or side == int(other["side"]))):
-		var rest: Array = team.filter(func(m): return m["id"] != other["id"])
-		var at := stack_point(mine["g"], rest, slot, int(other["side"]))
-		if at != Vector2.INF:
-			var own: float = (mine["pos"] as Vector2).distance_to(at)
-			var theirs: float = (other["claim_pos"] as Vector2).distance_to(at)
-			if absf(own - theirs) > 0.5:
-				return own < theirs
-	return self_id < int(other["id"])
-
-
-## The side of the door (1 / -1 along its wall, see `geometry`) the team stacks on: the side the
-## point (the slot 1 claim in `team`) stacks on; with no point yet, the side with more wall to stack
-## against; when both have the same, the side `self_pos` is on. Every member works it out the same
-## way, so the stack forms on one side unless a member cannot get there (`stack_side_from`, E19).
-static func stack_side(g: Dictionary, team: Array, self_pos: Vector2) -> int:
-	for m in team:
-		if m["slot"] == 1 and m["side"] != 0:
-			return m["side"]
-	if int(g["side"]) != 0:
-		return int(g["side"])
-	return side_of(g, self_pos)
+# --- The sides of a stack (its claims and layout: stack/door_stack.gd) -------------------------
 
 
 ## The side of the door (1 / -1 along its wall) point `p` is on.
@@ -1540,13 +1363,15 @@ static func side_of(g: Dictionary, p: Vector2) -> int:
 	return 1 if (p - (g["pos"] as Vector2)).dot(g["along"]) >= 0.0 else -1
 
 
-## The side a member standing at `from` stacks on (E19): the team's side (`stack_side`), unless its
-## way there crosses the doorway's view (`cuts_view`): then its own side, and the stack is split
-## across the door.
-func stack_side_from(g: Dictionary, team: Array, from: Vector2, map: RID, space) -> int:
-	var team_side := stack_side(g, team, from)
+## The side a member standing at `from` stacks on in `stack` (a doorway's `DoorStack`,
+## stack/door_stack.gd) (E19): the team's side (`team_side`), unless its way to the first slot on it
+## crosses the doorway's view (`cuts_view`): then its own side, and the stack is split across the
+## door.
+func stack_side_from(stack: RefCounted, from: Vector2, map: RID, space) -> int:
+	var g: Dictionary = stack.geometry
+	var team_side: int = stack.team_side(from)
 	var own := side_of(g, from)
-	var first := stack_point(g, [], 1, side_for(g, [], 1, team_side))
+	var first: Vector2 = stack.first_point(team_side)
 	if own == team_side or first == Vector2.INF or not cuts_view(g, from, first, map, space):
 		return team_side
 	return own
@@ -1573,44 +1398,3 @@ func cuts_view(g: Dictionary, from: Vector2, to: Vector2, map: RID, space) -> bo
 						piece[j]) != null:
 					return true
 	return false
-
-
-## The members of a stack (`members`: claims with `id`, `slot` and `side`, this member's own among
-## them) in the order they cross (E6, E19): by slot on a one-sided stack; on a split one the point
-## (the lowest slot), then the front man of the other side, then the sides take turns, each side's
-## file in slot order (one that runs out leaves the rest to the other).
-static func crossing_order(members: Array) -> Array:
-	var sorted := members.duplicate()
-	sorted.sort_custom(
-		func(a, b): return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"],
-	)
-	if sorted.is_empty():
-		return sorted
-	var lead_side := int(sorted[0]["side"])
-	var lead: Array = sorted.filter(
-		func(m): return int(m["side"]) == lead_side or int(m["side"]) == 0,
-	)
-	var other: Array = sorted.filter(
-		func(m): return int(m["side"]) != lead_side and int(m["side"]) != 0,
-	)
-	if other.is_empty():
-		return sorted
-	var out: Array = []
-	for i in maxi(lead.size(), other.size()):
-		if i < lead.size():
-			out.append(lead[i])
-		if i < other.size():
-			out.append(other[i])
-	return out
-
-
-## The place (1 = nearest the door) in its side's file of the member holding stack slot `slot` on
-## side `side`: the slots are numbered across both sides in the order they were claimed, so a split
-## stack (E19) leaves out the claims on the other side ahead of it (`team`, the claims, this
-## member's own left out or not). On a one-sided stack the place is the slot.
-static func place(team: Array, side: int, slot: int) -> int:
-	var across := 0
-	for m in team:
-		if int(m["side"]) != side and int(m["side"]) != 0 and int(m["slot"]) < slot:
-			across += 1
-	return maxi(slot - across, 1)

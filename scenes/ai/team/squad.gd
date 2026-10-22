@@ -55,7 +55,7 @@ extends Node
 ##
 ## **Its stacks (LD18).** Every stack its side is forming, ordered or its own, read off the members'
 ## entry claims on the radio (the human's `PlayerStack` among them) and laid where the AI stands
-## them (`AgentEntry.stack_slots`, `stack_point`): `view()["stacks"]`, which the stack markers draw,
+## them (`DoorStack.layout`): `view()["stacks"]`, which the stack markers draw,
 ## each from its first claim until everyone in it is through, a claim current for the NPCs' own
 ## `callout_ttl` (handed in by `setup`) and laid on the navigation map and physics space of the
 ## world the squad itself is in (its viewport's `World2D`).
@@ -264,8 +264,8 @@ func _stacks_now() -> Array:
 ## Every stack the side is forming (LD18), from the entry claims heard:
 ## `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, a stack
 ## while one of its members is still on its way in. Its slots run from 1 to the last claimed, each
-## where the AI stands it (`AgentEntry.stack_point`: its holder's side, its place in that side's
-## file), a free one on the stack's side; `holder` the instance id holding it (0: none), `there` its
+## where the AI stands it (`DoorStack.layout`: its holder's side, its place in that side's file),
+## a free one on the stack's side; `holder` the instance id holding it (0: none), `there` its
 ## holder standing in it, `mine` the human's, `row` its file (1 against the wall, 2 a step out).
 func _stacks() -> Array:
 	var out: Array = []
@@ -277,43 +277,7 @@ func _stacks() -> Array:
 			"opening": at["opening"],
 			"into": at["into"],
 			"door": g["pos"],
-			"slots": _slots_of(g, _ledger.claims(at["opening"])),
-		})
-	return out
-
-
-## The slots of the stack `team` (its claims) at doorway geometry `g`, as `_stacks` gives them.
-func _slots_of(g: Dictionary, team: Array) -> Array:
-	var holder := {}
-	var top := 0
-	for m in team:
-		top = maxi(top, int(m["slot"]))
-		if not holder.has(int(m["slot"])):
-			holder[int(m["slot"])] = m
-	var lead := AgentEntry.stack_side(g, team, g["pos"])
-	var laid := AgentEntry.stack_slots(g, top, lead)
-	var human_id := _human.get_instance_id() if _human != null and is_instance_valid(_human) else 0
-	var out: Array = []
-	for n in range(1, top + 1):
-		var m: Dictionary = holder.get(n, {})
-		var on := (int(m["side"])
-				if not m.is_empty() and int(m["side"]) != 0
-				else AgentEntry.side_for(g, team, n, lead))
-		var point := AgentEntry.stack_point(g, team, n, on)
-		if point == Vector2.INF:
-			continue  # A slot the doorway does not hold (a dead end's).
-		var row := 1
-		var near := INF
-		for s in laid:
-			if (s["point"] as Vector2).distance_to(point) < near:
-				near = (s["point"] as Vector2).distance_to(point)
-				row = int(s["row"])
-		out.append({
-			"n": n, "point": point, "holder": int(m.get("id", 0)), "held": not m.is_empty(),
-			"there": not m.is_empty() and StackClaim.in_slot(m["step"]),
-			"mine": not m.is_empty() and int(m["id"]) == human_id,
-			"side": AgentEntry.side_of(g, point) if g.get("kind", "wall") != "wall" else on,
-			"row": row,
+			"slots": _ledger.stack(at["opening"], g).layout(),
 		})
 	return out
 
@@ -413,11 +377,14 @@ func resolve(request: Dictionary) -> Dictionary:
 	return {}
 
 
-## Whether `order` is a stack that waits for the leader's go and no go has released yet (LD13).
+## Whether `order` is a stack that waits for the leader's go and no go has released yet (LD13): not
+## the squad's own `go`, nor one off the radio (`DoorStack.released`: a claim under the order says
+## its go came, or a member of the stack is crossing or through, D14).
 func _waits_for_go(order: Dictionary) -> bool:
 	return (String(order.get("kind", "")) == STACK
 			and bool(order.get("wait_go", false))
-			and not _released.has(str(order["id"])))
+			and not _released.has(str(order["id"]))
+			and not _ledger.stack(String(order.get("opening", ""))).released(str(order["id"])))
 
 
 ## The held stack orders at doorway `opening` that no go has released yet (LD13): order id -> the

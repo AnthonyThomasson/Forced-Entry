@@ -1,7 +1,8 @@
 extends UnitSuite
 ## Native unit suite (pure logic) for the stack module (`scenes/ai/perception/stack/`): the entry
-## claim's wire format (`StackClaim`, interface 10) and the claims a listener keeps
-## (`ClaimLedger`), fed plain callout dicts. Beneath the simulation tests of `tests/ai/stack/` and
+## claim's wire format (`StackClaim`, interface 10), the claims a listener keeps (`ClaimLedger`)
+## and the slot rules a doorway's stack settles them by (`DoorStack`), fed plain callout dicts and
+## a plain doorway. Beneath the simulation tests of `tests/ai/stack/` and
 ## `tests/ai/entry/` (ADR-0002): it supplements them, never replaces them. The expected values are
 ## read off the rules (`docs/tactical-entry.md` E2, E16, E17; `docs/leadership.md` LD7, LD24), never
 ## worked out the way the code does: a field a claim does not say means what the rule says it means
@@ -9,6 +10,9 @@ extends UnitSuite
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
+const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+## The frame the same-frame claims below are made on.
+const FRAME := 100
 
 
 ## A speaker on the radio: a character as a listener reads it (`is_dead`).
@@ -204,6 +208,207 @@ func test_one_join_rule_reads_orders_leaf_params_and_claims() -> void:
 		"opening": "o_1", "entry_step": "claim", "join": true,
 	})))
 	assert_bool(StackClaim.is_join(join)).is_true()
+
+
+func test_a_same_frame_tie_goes_to_the_nearer_claim() -> void:
+	# E2: two claims on one slot made on one physics frame settle by distance to the slot, so their
+	# walks do not cross; each reads the other's frame and spot off the radio, so both settle alike.
+	var pair := _pair()
+	var low: Node = pair[0]
+	var high: Node = pair[1]
+	var near := _slot_at(1, 1) + Vector2(0, 30)
+	var far := _slot_at(1, 1) + Vector2(0, 150)
+	var lows := _claim(low, { "slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": far })
+	var highs := _claim(high, { "slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": near })
+	var high_reads: int = DoorStack.new(_door(), [lows]).slot_for(_me(high, 1, near))
+	var low_reads: int = DoorStack.new(_door(), [highs]).slot_for(_me(low, 1, far))
+	assert_int(high_reads).override_failure_message(
+		"the nearer keeps slot 1, its higher instance id notwithstanding (got %d)" % high_reads,
+	).is_equal(1)
+	assert_int(low_reads).override_failure_message(
+		"and the farther gives it up for the next (got %d)" % low_reads,
+	).is_equal(2)
+	# Premise: on two frames it is no tie, and the lower instance id keeps the slot.
+	lows["claim_frame"] = FRAME - 1
+	assert_int(DoorStack.new(_door(), [lows]).slot_for(_me(high, 1, near))).is_equal(2)
+
+
+func test_a_same_frame_tie_with_the_human_goes_to_the_nearer_claim() -> void:
+	# E2, E16: the human's claim is a full one (its frame and spot), so a tie with it settles by
+	# distance as any other, the AI's entry and the human's `PlayerStack` reading it alike.
+	var pair := _pair()
+	var near := _slot_at(1, 1) + Vector2(0, 30)
+	var far := _slot_at(1, 1) + Vector2(0, 150)
+	for human_first in [true, false]:
+		var human: Node = pair[1] if human_first else pair[0]
+		var ai: Node = pair[0] if human_first else pair[1]
+		var human_at := near if human_first else far
+		var ai_at := far if human_first else near
+		var humans := _claim(human, {
+			"slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": human_at, "human": true,
+		})
+		var ais := _claim(ai, { "slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": ai_at })
+		var ai_reads: int = DoorStack.new(_door(), [humans]).slot_for(_me(ai, 1, ai_at))
+		var human_reads: int = DoorStack.new(_door(), [ais]).slot_for(_me(human, 1, human_at))
+		var nearer := "the human" if human_first else "the AI"
+		assert_array([human_reads, ai_reads]).override_failure_message(
+			"%s stood nearer: it keeps slot 1, the other takes 2 (human, AI: %s)"
+				% [nearer, str([human_reads, ai_reads])],
+		).is_equal([1, 2] if human_first else [2, 1])
+
+
+func test_a_move_up_holds_against_a_plain_claim_and_its_holder_takes_the_freed_slot() -> void:
+	# E2: a member that moved up from slot 3 into slot 2 holds it against the claim still on slot 2,
+	# though that claim has the lower instance id, and that claim's member takes slot 3.
+	var pair := _pair()
+	var holder: Node = pair[0]
+	var mover: Node = pair[1]
+	var holders := _claim(holder, { "slot": 2, "side": 1 })
+	var movers := _claim(mover, { "slot": 2, "side": 1, "move_up": 3 })
+	var holder_reads: int = DoorStack.new(_door(), [movers]).slot_for(_me(holder, 2))
+	var mover_me := _me(mover, 2).merged({ "move_up": 3 }, true)
+	var mover_reads: int = DoorStack.new(_door(), [holders]).slot_for(mover_me)
+	assert_int(mover_reads).override_failure_message(
+		"the move-up holds slot 2 (got %d)" % mover_reads,
+	).is_equal(2)
+	assert_int(holder_reads).override_failure_message(
+		"the member it moved up past takes slot 3, the one freed (got %d)" % holder_reads,
+	).is_equal(3)
+	var rows: Array = DoorStack.new(_door(), [holders, movers]).layout()
+	var held: Array = rows.filter(func(r): return r["held"]).map(
+		func(r): return [r["n"], r["holder"]],
+	)
+	assert_array(held).override_failure_message(
+		"the stack is laid so for whoever reads it: %s" % str(held),
+	).is_equal([[2, mover.get_instance_id()], [3, holder.get_instance_id()]])
+
+
+func test_nobody_moves_up_into_the_humans_slot() -> void:
+	# E2, E16: a member stacked behind a free claim may move up into it; never into the human's.
+	var mate := _speaker()
+	var me := _speaker()
+	var mine := _me(me, 2).merged({ "want": 1 }, true)
+	var ai := _claim(mate, { "slot": 1, "side": 1 })
+	var vacancies: Array = DoorStack.new(_door(), [ai]).move_up_vacancies(mine)
+	assert_array(vacancies.map(func(v): return v["slot"])).override_failure_message(
+		"premise: an AI's slot 1, still at claim, is one to move up into",
+	).is_equal([1])
+	var human := _claim(mate, { "slot": 1, "side": 1, "human": true })
+	assert_array(DoorStack.new(_door(), [human]).move_up_vacancies(mine)).override_failure_message(
+		"the human's slot 1 is not",
+	).is_empty()
+
+
+func test_a_split_stack_crosses_point_then_the_sides_in_turn() -> void:
+	# E6, E19: the point, then the front man of the other side, then the sides take turns, each in
+	# slot order; a side that runs out leaves the rest to the other.
+	var who: Array = range(6).map(func(_i): return _speaker())
+	var sides := [1, 1, -1, 1, -1, 1]  # Slots 1 to 6.
+	var claims: Array = []
+	for i in who.size():
+		claims.append(_claim(who[i], { "slot": i + 1, "side": sides[i] }))
+	var slots: Array = DoorStack.new(_door(), claims).crossing().map(func(m): return m["slot"])
+	assert_array(slots).override_failure_message(
+		"crossing order by slot: %s" % str(slots),
+	).is_equal([1, 3, 2, 5, 4, 6])
+
+
+func test_a_held_stack_is_released_by_its_go_or_a_member_crossing() -> void:
+	# LD13, D14: a held stack's go is a claim under its order saying the go came, or a member of the
+	# stack (the human leader's own too) going in or through the doorway.
+	var a := _speaker()
+	var b := _speaker()
+	var held := { "order_id": "7", "order_hold": true }
+	var point_man := _claim(a, held.merged({ "slot": 1, "side": 1, "entry_step": "ready" }))
+	var waiting := _claim(b, held.merged({ "slot": 2, "side": 1, "entry_step": "ready" }))
+	var holding: RefCounted = DoorStack.new(_door(), [point_man, waiting])
+	assert_bool(holding.released("7")).override_failure_message(
+		"premise: a stack all at ready holds",
+	).is_false()
+	var go := _claim(
+		b,
+		held.merged({ "slot": 2, "side": 1, "entry_step": "ready", "order_go": true }),
+	)
+	assert_bool(DoorStack.new(_door(), [point_man, go]).released("7")).override_failure_message(
+		"a member under the order says the go came",
+	).is_true()
+	assert_bool(DoorStack.new(_door(), [point_man, go]).released("8")).override_failure_message(
+		"another order's go releases nothing",
+	).is_false()
+	for step in ["going_in", "in"]:
+		var human := _claim(b, { "slot": 2, "side": 1, "entry_step": step, "human": true })
+		var crossing: RefCounted = DoorStack.new(_door(), [point_man, human])
+		assert_bool(crossing.released("7")).override_failure_message(
+			"the human in the stack at %s is the go" % step,
+		).is_true()
+
+
+func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
+	# E19, E21: each side's file runs from the door, a member's place in it its slot less the claims
+	# across the door ahead of it. The squad's layout (every claim) and each member's own settling
+	# (the others' claims: it never hears its own) agree on every point.
+	var who: Array = range(4).map(func(_i): return _speaker())
+	var sides := [1, 1, -1, 1]  # Slots 1 to 4: slot 4 is third on its side.
+	var claims: Array = []
+	for i in who.size():
+		claims.append(_claim(who[i], { "slot": i + 1, "side": sides[i] }))
+	var rows: Array = DoorStack.new(_door(), claims).layout()
+	var want := [_slot_at(1, 1), _slot_at(1, 2), _slot_at(-1, 1), _slot_at(1, 3)]
+	assert_array(rows.map(func(r): return r["point"])).override_failure_message(
+		"each slot at its place in its side's file: %s" % str(rows.map(func(r): return r["point"])),
+	).is_equal(want)
+	for r: Dictionary in rows:
+		var own: Dictionary = claims[int(r["n"]) - 1]
+		var others: Array = claims.filter(func(c): return c["id"] != own["id"])
+		var settled: Dictionary = DoorStack.new(_door(), others).settle({
+			"id": own["id"], "slot": r["n"], "want": own["side"],
+		})
+		assert_that(settled["point"]).override_failure_message(
+			"slot %d: laid at %s, settled at %s" % [r["n"], str(r["point"]), str(settled["point"])],
+		).is_equal(r["point"])
+
+
+## A doorway in a wall along x at the origin, the stack's side out along +y: each side's file of
+## six slots against the wall, 30 px apart from 40 px off the door (agent_entry.gd `geometry`, its
+## `wall` kind).
+func _door() -> Dictionary:
+	var files := {}
+	for s in [1, -1]:
+		files[s] = range(1, 7).map(func(n): return { "point": _slot_at(s, n), "row": 1 })
+	return {
+		"id": "o_1", "into": "hall", "pos": Vector2.ZERO, "out": Vector2(0, 1),
+		"along": Vector2(1, 0), "width": 40.0, "side": 0, "kind": "wall", "files": files,
+		"row1": { 1: 6, -1: 6 }, "wall_n": 6,
+	}
+
+
+## The point of the `place`th slot of side `side`'s file of `_door()`.
+func _slot_at(side: int, place: int) -> Vector2:
+	return Vector2(side * (40 + 30 * (place - 1)), 12)
+
+
+## `speaker`'s claim on `_door()` as a listener holds it (`StackClaim.decode`): `fields` over a
+## claim at step `claim`.
+func _claim(speaker: Node, fields: Dictionary) -> Dictionary:
+	var wire := StackClaim.encode(
+		{ "opening": "o_1", "into": "hall", "entry_step": "claim" }.merged(fields, true),
+	)
+	return StackClaim.decode(_callout(speaker, wire, Vector2(0, 200)))
+
+
+## `speaker` asking about itself (`DoorStack`'s `me`): holding slot `slot` on side 1, claimed on
+## `FRAME` from `pos`.
+func _me(speaker: Node, slot: int, pos := Vector2(0, 200)) -> Dictionary:
+	return {
+		"id": speaker.get_instance_id(), "slot": slot, "side": 1, "frame": FRAME, "pos": pos,
+	}
+
+
+## Two speakers, the lower instance id first.
+func _pair() -> Array:
+	var two := [_speaker(), _speaker()]
+	two.sort_custom(func(a, b): return a.get_instance_id() < b.get_instance_id())
+	return two
 
 
 ## A character on the radio as a listener reads it.
