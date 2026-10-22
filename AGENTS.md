@@ -13,8 +13,9 @@ ticket's label and tells you which `ticket-<label>` skill to invoke (e.g. `spike
 
 **Checks:** on Stop, Claude runs only lint + the headless load check (`tools/stop_hook_checks.sh`), when the turn
 changed what lint reads: anything under `scenes/`, `tests/`, `addons/` or `sandboxes/`, `project.godot`, any other
-`.gd` (`tools/` included) but the coverage tool's fixtures, or gdstyle's own files (`gdstyle.toml`, `tools/gdstyle.sh`,
-`tools/lint_gdstyle.py`). Lint is the engine's analyzer, the project lint rules (`tools/lint_rules/`) and gdstyle
+`.gd` (`tools/` included) but the coverage tool's fixtures, gdstyle's own files (`gdstyle.toml`, `tools/gdstyle.sh`,
+`tools/lint_gdstyle.py`), or the lint and load check themselves (`tools/lint.sh`, `tools/lint_rules/`,
+`tools/lint_report.py`, `tools/lint_scripts.gd` / `.tscn`, `tools/load_check.sh`). Lint is the engine's analyzer, the project lint rules (`tools/lint_rules/`) and gdstyle
 (`gdstyle fmt --check` + `gdstyle check`, config `gdstyle.toml`: 100 columns, tabs), and any finding fails it. Format a
 script with `tools/gdstyle.sh fmt PATH`.
 The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless). A git pre-commit hook

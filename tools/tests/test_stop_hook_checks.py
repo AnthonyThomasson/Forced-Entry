@@ -2,12 +2,13 @@
 then tools/load_check.sh) when something the lint reads differs from HEAD, and runs nothing otherwise: anything under
 scenes/, tests/, addons/ or sandboxes/, project.godot, any other .gd (tools/gdunit_discover.gd, tools/coverage/probe.gd
 ...) but the coverage tool's fixtures, and the gdstyle pass's own files (gdstyle.toml, tools/gdstyle.sh,
-tools/lint_gdstyle.py). addons/ counts because a lint rule (coverage_isolation) checks it. A stop on the same changes
-as the last run runs nothing again.
+tools/lint_gdstyle.py), and the lint and the load check themselves (tools/lint.sh, anything under tools/lint_rules/,
+tools/lint_report.py, tools/lint_scripts.gd / .tscn, tools/load_check.sh). addons/ counts because a lint rule
+(coverage_isolation) checks it. A stop on the same changes as the last run runs nothing again.
 
 Each case is a temp git repo holding a copy of this checkout's script, with a fake tools/lint.sh and
 tools/load_check.sh that log that they ran, and one committed file in each place above, plus a coverage fixture
-script, a tools/ Python script and a doc. A file is changed (or added), then the script runs as the Stop hook runs it,
+script, a lint rule, the lint's report and engine-pass scene, a tools/ Python script and a doc. A file is changed (or added), then the script runs as the Stop hook runs it,
 with the hook's JSON on stdin. TMPDIR is the case's own temp folder, so the script's last-run fingerprint is the
 case's and never the real one.
 """
@@ -59,13 +60,17 @@ class StopHookRepo:
         write(root, "gdstyle.toml", "max_line_length = 100\n")
         write(root, "tools/gdstyle.sh", "#!/usr/bin/env bash\n")
         write(root, "tools/lint_gdstyle.py", "VALUE = 1\n")
+        write(root, "tools/lint_rules/runner.py", "VALUE = 1\n")
+        write(root, "tools/lint_rules/rules/some_rule.py", "VALUE = 1\n")
+        write(root, "tools/lint_report.py", "VALUE = 1\n")
+        write(root, "tools/lint_scripts.tscn", "[gd_scene format=3]\n")
         write(root, "docs/notes.md", "notes\n")
         git(root, "add", "-A")
         git(root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
 
     def change(self, rel: str) -> None:
         with open(self.root / rel, "a") as f:
-            f.write("# changed\n" if rel.endswith(".gd") else "changed\n")
+            f.write("# changed\n" if rel.endswith((".gd", ".sh", ".py")) else "changed\n")
 
     def hook(self) -> subprocess.CompletedProcess:
         return subprocess.run(["bash", str(self.root / "tools" / "stop_hook_checks.sh")], cwd=self.root,
@@ -154,6 +159,29 @@ class StopHookChecksTests(unittest.TestCase):
 
     def test_a_change_only_to_the_gdstyle_pass_runs_the_lint_and_the_load_check(self):
         self.assert_checks_run_for("tools/lint_gdstyle.py")
+
+    def test_a_change_only_to_the_lint_tooling_or_the_load_check_runs_the_lint_and_the_load_check(self):
+        for rel in ("tools/lint.sh", "tools/lint_rules/runner.py", "tools/lint_rules/rules/some_rule.py",
+                    "tools/lint_report.py", "tools/lint_scripts.tscn", "tools/load_check.sh"):
+            with self.subTest(rel=rel):
+                self.assert_checks_run_for(rel)
+
+    def test_a_new_lint_rule_runs_the_lint_and_the_load_check(self):
+        with TempDir("stop_hook_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "tools/lint_rules/rules/new_rule.py", "VALUE = 1\n")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(repo.ran(), ["lint --quiet", "load_check"])
+
+    def test_a_second_stop_on_the_same_lint_tooling_change_runs_nothing(self):
+        with TempDir("stop_hook_test.") as d:
+            repo = self.repo(d)
+            repo.change("tools/lint_rules/runner.py")
+            self.assertEqual(repo.hook().returncode, 0)
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), ["lint --quiet", "load_check"], "the second stop ran nothing")
 
     def test_a_change_only_to_a_coverage_fixture_script_runs_nothing(self):
         # The lint leaves the coverage tool's fixture project out (gdstyle.toml's excludes, the engine pass).
