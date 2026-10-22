@@ -18,7 +18,7 @@ fixtures/logs/, so no engine runs: clean.log (no warning), parse_error.log (one 
 one_unknown_identifier.log (one "not declared" error: a typo, not a stale cache) and stale_class_cache.log (a real
 Godot 4.4 lint log cut down: 157 "Could not find type" / "not declared" / "Could not find base class" parse errors
 over 41 scripts, produced by emptying .godot/global_script_class_cache.cfg). With a stale cache the lint must say to
-run `godot --headless --path . --import`; tools/lint_report.py (the engine log parser) prints that hint.
+run `tools/load_check.sh --import`; tools/lint_report.py (the engine log parser) prints that hint.
 
 The engine pass's own walk (tools/lint_scripts.gd) is tested with the real engine (EngineLintTree, skipped when there
 is no Godot): it lints every script of the project except those in a folder holding a `.gdignore`, the folders
@@ -34,7 +34,7 @@ from tools.lint_rules.tests.support import (
 )
 
 TWO = FIXTURES / "rules_two"
-HINT = "godot --headless --path . --import"
+HINT = "tools/load_check.sh --import"
 
 
 class FlagTests(unittest.TestCase):

@@ -20,14 +20,14 @@ or touch `main`'s checkout.
 5. **Conflicts**, until the rebase finishes: for each `git diff --name-only --diff-filter=U` file, compare theirs
    (`git log origin/main -p -- <file>`) with ours (`git show REBASE_HEAD`).
    - Resolve only when both intents are clear and compatible, keeping both; never take a side just to clear it. Don't
-     guess at `*.uid`, `*.import`, `project.godot`: regenerate with `"$GODOT" --headless --path . --import` (`$GODOT`: `godot-run`), or ask.
+     guess at `*.uid`, `*.import`, `project.godot`: regenerate with `tools/load_check.sh --import`, or ask.
    - No markers left (`grep -n '^<<<<<<<\|^=======\|^>>>>>>>'`), `git add`, `GIT_EDITOR=true git rebase --continue`.
    - Unclear or contradictory: stop; show the hunks, one sentence per side, and the options (either side, or
      `git rebase --abort`, which restores the branch exactly). Wait for the user.
    - Re-applying the uncommitted changes conflicts (rebase done, files unmerged, stash kept): resolve the same way, then
      `git reset` so they stay unstaged. Keep the stash entry until the tree is right; to bail out,
      `git stash apply <sha>` from `git stash list --format='%H %gs'`.
-6. **Verify.** `main` added `class_name` scripts: `"$GODOT" --headless --path . --import`. Run
+6. **Verify.** `main` added `class_name` scripts: `tools/load_check.sh --import`. Run
    `tools/run_tests.sh --changed --summary` (sandbox disabled); fix failures the merge caused.
 7. **Report:** commits replayed onto which `origin/main` commit, each conflict and its resolution, files deleted in step
    3 (with backup paths), the test result, the pre-rebase tip, and that uncommitted changes are re-applied (or what

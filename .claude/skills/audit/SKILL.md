@@ -131,7 +131,7 @@ done
 
 ## Step 5 — Load, lint, tests, behaviour
 
-- **Load:** `tools/load_check.sh` (`godot-run`; `--import` first if the change added a `class_name` or file). Report
+- **Load:** `tools/load_check.sh` (`godot-run`; `tools/load_check.sh --import` if the change added a `class_name` or file). Report
   clean, or the exact `SCRIPT ERROR` / `Parse Error` lines.
 - **Lint:** `tools/lint.sh`; each warning is a `file:line` finding. **Never silence a warning: fix the code.**
   `@warning_ignore*`, an underscore prefix hiding a parameter that should go or be used, or a lowered level in

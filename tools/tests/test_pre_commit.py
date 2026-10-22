@@ -4,7 +4,9 @@ discovery over tools/) and aborts the commit when one fails; otherwise it leaves
 (`tools/lint.sh --quiet`) when the commit stages a script the lint holds to its rules that the game tests do not lint
 for it: a .gd outside addons/ and the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own
 files (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py). When the game tests run they lint first
-(run_tests.sh), so the hook does not lint again.
+(run_tests.sh), so the hook does not lint again. Before any of that it refuses a commit that leaves a script Godot
+imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without
+its .gd, naming each and the import command (tools/load_check.sh --import), and runs nothing else.
 
 Each case is a temp git repo holding a copy of this checkout's hook, a fake tools/run_tests.sh that logs its arguments
 (and fails when FAKE_GAME_FAIL=1), a fake tools/lint.sh that does the same (and fails when FAKE_LINT_FAIL=1), and one
@@ -114,6 +116,8 @@ class HookRepo:
         write(root, "tools/helper.py", "VALUE = 1\n")
         write(root, "sandboxes/thing_sandbox.gd", "extends Node\n")
         write(root, "addons/plugin/thing.gd", "extends Node\n")
+        for rel in ("scenes/thing.gd", "sandboxes/thing_sandbox.gd", "addons/plugin/thing.gd"):
+            write(root, f"{rel}.uid", f"uid://{rel.replace('/', '_')}\n")
         write(root, "tools/gdunit_discover.gd", "extends SceneTree\n")
         write(root, "tools/coverage/probe.gd", "extends Node\n")
         write(root, "tools/coverage/tests/fixtures/project/scenes/bus.gd", "extends Node\n")
@@ -345,6 +349,80 @@ class PreCommitTests(unittest.TestCase):
             r = repo.hook(FAKE_LINT_FAIL="1")
             self.assertEqual(r.returncode, 1)
             self.assertIn("Lint failed; commit aborted", r.stderr)
+            self.assertEqual(repo.ran(), ["tool_tests", "lint"])
+
+    def assert_uids_refused(self, repo: HookRepo, *named: str) -> None:
+        r = repo.hook()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(".uid", r.stderr)
+        for text in named:
+            self.assertIn(text, r.stderr)
+        self.assertIn("tools/load_check.sh --import", r.stderr, "and the import command")
+        self.assertEqual(repo.ran(), [], "and runs nothing else")
+
+    def test_a_new_script_staged_without_its_uid_is_refused(self):
+        for place in ("scenes", "tests", "addons", "sandboxes"):
+            with self.subTest(place=place), TempDir("pre_commit_test.") as d:
+                repo = self.repo(d)
+                write(repo.root, f"{place}/new.gd", "extends Node\n")
+                write(repo.root, f"{place}/new.gd.uid", "uid://new\n")  # written by an import, not staged
+                git(repo.root, "add", f"{place}/new.gd")
+                self.assert_uids_refused(repo, f"{place}/new.gd")
+
+    def test_a_new_script_staged_with_its_uid_passes(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "tests/new_test.gd", "extends Node\n")
+            write(repo.root, "tests/new_test.gd.uid", "uid://new\n")
+            git(repo.root, "add", "tests/new_test.gd", "tests/new_test.gd.uid")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), ["run_tests"])
+
+    def test_a_uid_staged_without_its_script_is_refused(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "scenes/gone.gd.uid", "uid://gone\n")
+            git(repo.root, "add", "scenes/gone.gd.uid")
+            self.assert_uids_refused(repo, "scenes/gone.gd.uid")
+
+    def test_a_script_deleted_without_its_uid_is_refused(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "rm", "-q", "scenes/thing.gd")
+            self.assert_uids_refused(repo, "scenes/thing.gd.uid")
+
+    def test_a_script_and_its_uid_deleted_together_pass(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "rm", "-q", "scenes/thing.gd", "scenes/thing.gd.uid")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(repo.ran(), ["run_tests"])
+
+    def test_a_script_renamed_without_its_uid_is_refused(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "mv", "scenes/thing.gd", "scenes/moved.gd")
+            self.assert_uids_refused(repo, "scenes/moved.gd", "scenes/thing.gd.uid")
+
+    def test_a_script_renamed_with_its_uid_passes(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "mv", "scenes/thing.gd", "scenes/moved.gd")
+            git(repo.root, "mv", "scenes/thing.gd.uid", "scenes/moved.gd.uid")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(repo.ran(), ["run_tests"])
+
+    def test_a_tools_script_without_a_uid_is_not_held_to_it(self):
+        # tools/ is no Godot import root the hook pairs: its scripts run as `godot --script`.
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "tools/new_tool.gd", "extends SceneTree\n")
+            git(repo.root, "add", "tools/new_tool.gd")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertEqual(repo.ran(), ["tool_tests", "lint"])
 
     def test_a_failing_tool_test_and_a_failing_lint_are_both_reported(self):

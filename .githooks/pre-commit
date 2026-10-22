@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Git pre-commit hook: run the tests a commit can break and abort the commit on failure.
+#   - First, every script Godot imports (a .gd under scenes/, tests/, addons/ or sandboxes/) the commit touches must
+#     leave the index holding it and its .gd.uid together, or neither: Godot writes a .uid only on import, which
+#     headless runs skip. A commit that does not is refused at once, naming each file and the import command
+#     (tools/load_check.sh --import); nothing else runs.
 #   - Staged tools/: the tool tests (`python3 -m unittest discover -s tools -t .`: the lint rules, the coverage tool,
 #     audit_scan, this hook), silent when they pass.
 #   - Staged game code (scenes/, tests/, project.godot): the affected game tests. The performance tests (domain perf)
@@ -14,6 +18,29 @@ cd "$(git rev-parse --show-toplevel)"
 
 staged=$(git diff --cached --name-only)
 status=0
+
+# Both sides of a rename (--no-renames lists the old path as deleted), read against what the index holds.
+index=$(git ls-files -- scenes tests addons sandboxes)
+unpaired=$(git diff --cached --name-only --no-renames \
+  | grep -E '^(scenes|tests|addons|sandboxes)/.*\.gd(\.uid)?$' | sed 's/\.uid$//' | sort -u \
+  | while IFS= read -r gd; do
+      grep -qxF -- "$gd" <<<"$index" && has_gd=1 || has_gd=0
+      grep -qxF -- "$gd.uid" <<<"$index" && has_uid=1 || has_uid=0
+      if [[ $has_gd -eq 1 && $has_uid -eq 0 ]]; then
+        echo "  $gd has no $gd.uid"
+      elif [[ $has_gd -eq 0 && $has_uid -eq 1 ]]; then
+        echo "  $gd.uid has no $gd"
+      fi
+    done)
+if [[ -n "$unpaired" ]]; then
+  {
+    echo "A script and its .uid are not committed together; commit aborted:"
+    echo "$unpaired"
+    echo "Write the missing .uid files with tools/load_check.sh --import, then stage each .gd with its .gd.uid"
+    echo "(git rm or git mv them together)."
+  } >&2
+  exit 1
+fi
 
 if grep -qE '^tools/' <<<"$staged"; then
   # Without git's GIT_* variables: git hands the hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every git a

@@ -23,6 +23,7 @@ to ~15 matching lines verbatim". Judge the reply yourself; fix or rerun yourself
 
 ```bash
 tools/load_check.sh               # headless: main scene + autoloads, a few frames, quit
+tools/load_check.sh --import      # import first (new scripts' .uid files, the class cache), then the check
 tools/load_check.sh --windowed    # with a window: rendering warnings count too
 tools/load_check.sh --strict-exit # also fail on the engine's exit leak report (otherwise a NOTE)
 tools/lint.sh [paths]             # GDScript analyzer warnings, which headless runs never print, the lint rules, gdstyle
@@ -33,7 +34,11 @@ tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle's pass wants 
   plus the log path); 0 = clean. The verdict comes from the log because Godot exits 0 on a parse error.
 - A warning only one renderer or display logs fails only in that mode: run `--windowed` too when a change touches rendering.
 - `Identifier "Foo" not declared` right after adding `class_name Foo`: stale class cache. Run
-  `"$GODOT" --headless --path . --import` (its `progress_dialog` noise is not a failure), then the check again.
+  `tools/load_check.sh --import` (it imports with the script's own Godot lookup and fails with a message when there is
+  no Godot; the import's `progress_dialog` noise is not a failure).
+- A new script (a test too) gets its `.gd.uid` only from an import, which headless runs skip: run
+  `tools/load_check.sh --import` and stage the `.uid` with the `.gd`. The pre-commit hook refuses a commit that leaves
+  a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/` without its `.uid`, or a `.uid` without its `.gd`.
 - One script: `"$GODOT" --headless --path . --check-only --script scenes/character/character.gd`.
 - Lint (about 14 s, nearly all of it the engine pass): fix the code; never silence a warning or a finding (`audit`,
   step 5). It prints a section per pass: `== GDScript analyzer (engine) ==`, then `== <rule>: <description> ==` for each

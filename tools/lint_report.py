@@ -11,7 +11,7 @@ needs $GODOT, else the lines which divide). The editor's Debugger > Errors tab s
 
 A stale class cache (pulled commits that add `class_name`s, before an import) makes every script naming one of them
 fail with "not declared" / "could not find type" errors; when the log is full of those, the report says to run
-`godot --headless --path . --import` instead of leaving them to be read as hundreds of code errors.
+`tools/load_check.sh --import` instead of leaving them to be read as hundreds of code errors.
 """
 import os
 import re
@@ -29,7 +29,7 @@ UNKNOWN_CLASS = re.compile(r'Identifier "[A-Z]\w*" not declared|Could not find (
 STALE_MIN_ERRORS = 10
 STALE_MIN_FILES = 3
 STALE_HINT = ("Hint: {n} unknown-class errors in {files} scripts look like a stale class cache (commits that add "
-              "class_names were pulled): run `godot --headless --path . --import`, then lint again.")
+              "class_names were pulled): run `tools/load_check.sh --import`, then lint again.")
 
 
 def entries(text: str):

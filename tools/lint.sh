@@ -6,7 +6,7 @@
 #      The warning levels are the project's (Project Settings > GDScript > Warnings). Fix the code; silencing a warning
 #      (@warning_ignore, a project setting) is a last resort, see the audit skill. A stale class cache (after pulling
 #      new class_names) shows as a flood of "type not found" errors, and the report then says to run
-#      `godot --headless --path . --import`.
+#      `tools/load_check.sh --import`.
 #   2. The project lint rules (tools/lint_rules/rules/, one module per rule; tools/lint_rules/README.md): one section per
 #      rule, listing what it found.
 #   3. gdstyle (tools/gdstyle.sh, pinned; config gdstyle.toml), by tools/lint_gdstyle.py: a section listing the scripts

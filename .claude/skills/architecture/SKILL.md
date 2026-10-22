@@ -930,7 +930,7 @@ Two conventions hold across domains; the per-domain specifics live in each domai
   tests the change added or modified (since the merge-base with `origin/main`) one after another, for a person to
   watch; `show-me` runs it, `domain-testing` has the detail.
 - **Verification ladder** — use the cheapest rung that proves the change:
-  1. **Loads?** `godot-run` skill: headless load check (run `--import` first when you add a `class_name`).
+  1. **Loads?** `godot-run` skill: headless load check (`tools/load_check.sh --import` when you add a `class_name` or a script).
      **Clean?** `tools/lint.sh [paths]` (about 14 s for the whole tree, nearly all of it the engine pass) prints every GDScript analyzer warning of the editor's
      Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
      (`tools/lint_rules/`, one section each), then gdstyle's two (`gdstyle fmt --check`: a script the formatter would change;
