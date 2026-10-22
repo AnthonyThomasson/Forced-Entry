@@ -77,6 +77,32 @@ static func crossing(door: Dictionary) -> Array:
 	return [pos + out * 70.0, pos, pos - out * INSIDE_DEPTH + out.orthogonal() * INSIDE_OFFSET]
 
 
+## Radio actor `who` (a puppet teammate) holding stack slot `slot` on side `side` of doorway
+## `opening` into room `into` at entry step `step`: the claim an NPC's entry radios, in the wire
+## format's field names (interface 10). A puppet's claims stand for an AI teammate's where the AI's
+## own timing would make the test a race: the human's `PlayerStack` reads only the bus.
+static func radio(
+	t: TestContext,
+	who: StringName,
+	opening: String,
+	into: String,
+	slot: int,
+	side: int,
+	step := "claim",
+) -> void:
+	var c := t.actor(who)
+	EventBus.post(&"callout", {
+		"speaker": c, "faction": c.faction, "position": c.global_position, "status": "",
+		"path": "", "label": "", "target_id": 0, "point": c.global_position,
+		"opening": opening, "into": into, "slot": slot, "side": side, "entry_step": step,
+	})
+
+
+## The entry callouts actor `id` radioed about doorway `opening`, oldest first.
+static func calls_at(t: TestContext, id: StringName, opening: String) -> Array:
+	return Entry.calls(t, "", id).filter(func(d): return String(d.get("opening", "")) == opening)
+
+
 ## Whether actor `id` ever radioed an entry step (any) as the speaker.
 static func radioed(t: TestContext, id: StringName) -> bool:
 	return not Entry.calls(t, "", id).is_empty()
