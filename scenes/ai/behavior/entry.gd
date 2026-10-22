@@ -416,13 +416,12 @@ func bind(character: Node) -> void:
 ## pass-by detour, and from an ordered stack's leaf (`docs/leadership.md` LD9) its `order_id`,
 ## `bang`, `mode` (LD14), `wait_go` and `go` (LD13) and side (`stack_at`, or `split`); a join
 ## (LD24, `StackClaim.is_join`) is run as the NPC's own entry, its order's id left out of it. False
-## when the
-## doorway is unknown (the leaf is then dropped and the NPC re-decides). It claims the lowest
-## slot the claims heard leave free (the slots go by arrival on the radio, E2), not the one the
-## option was measured from: a claim heard since then came first. A claim made on this same frame is
-## not first: the member nearer the slot takes it, and two claims on one slot made on one frame
-## settle the same way (`_keep_slot`; else by instance id), so walks to neighbouring slots do not
-## cross.
+## when the doorway is unknown (the leaf is then dropped and the NPC re-decides). It claims the
+## lowest slot the claims heard leave free (the slots go by arrival on the radio, E2), not the one
+## the option was measured from: a claim heard since then came first. A claim made on this same
+## frame is not first: the member nearer the slot takes it, and two claims on one slot made on one
+## frame settle the same way (`_keep_slot`; else by instance id), so walks to neighbouring slots do
+## not cross.
 func begin(params: Dictionary) -> bool:
 	reset()
 	opening = str(params.get("opening", ""))
@@ -747,7 +746,7 @@ func debug_view() -> Dictionary:
 		),
 		"team": team.map(func(m):
 			var d: Dictionary = m.duplicate()
-			d["through"] = StackClaim.THROUGH.has(m["step"])
+			d["through"] = StackClaim.through(m["step"])
 			d["place"] = DoorStack.place(members, int(m["side"]), int(m["slot"]))
 			return d),
 		"watch": _watch.map(
@@ -779,7 +778,7 @@ func step(delta: float) -> bool:
 		_team_grew_at = _time  # Someone joined: the point gives the newcomer the full wait.
 	_team_size = team.size()
 	for m in team:
-		if StackClaim.THROUGH.has(m["step"]):
+		if StackClaim.through(m["step"]):
 			_through[m["id"]] = m["slot"]
 		if not m["bang"]:
 			_quiet_seen[m["id"]] = true
@@ -1053,7 +1052,7 @@ func _on_wall() -> bool:
 ## Whether this NPC is one of the stack's tail (E20's fallback): it holds the room it came by as
 ## rear security and never crosses.
 func _tail() -> bool:
-	return DoorStack.is_tail(_geo, slot)
+	return _stack.tail(slot)
 
 
 # --- An ordered stack (`docs/leadership.md` LD9) -------------------------------------------------
@@ -1424,7 +1423,7 @@ func _move_up_now(delta: float) -> bool:
 	if _move_up > 0 or _pie_begun or here.distance_to(_spot) > StackClaim.SLOT_REACH:
 		return false
 	var best := {}
-	var best_team: Array = []
+	var best_stack: RefCounted = null
 	var best_d := INF
 	for v: Dictionary in _stack.move_up_vacancies(_me()):
 		var h: Dictionary = v["holder"]
@@ -1441,16 +1440,15 @@ func _move_up_now(delta: float) -> bool:
 		if _latecomer_crosses(h, point):
 			continue  # It would meet the latecomer mid-swap: the slots stand as claimed.
 		best = h
-		best_team = v["team"]
+		best_stack = v["stack"]
 		best_d = d
 	if best.is_empty():
 		return false
 	_moved_for["%d:%d" % [best["id"], best["slot"]]] = true
 	_move_up = slot
 	slot = int(best["slot"])
-	var swapped := DoorStack.new(_geo, best_team)
-	_settle(swapped)
-	_enter_approach(swapped)
+	_settle(best_stack)
+	_enter_approach(best_stack)
 	# A step within the stack, straight into the slot: not the approach's way along the wall from
 	# past it.
 	_waypoints = []
@@ -1557,7 +1555,7 @@ func _tick_stack(team: Array, delta: float) -> void:
 ## order is through, unless a hostile stands in view (E14; not in the moments after the stack's stun
 ## went off).
 func _follow(team: Array, ahead: Array) -> void:
-	if StackClaim.THROUGH.has(ahead[-1]["step"]):
+	if StackClaim.through(ahead[-1]["step"]):
 		if _turn_at < 0.0:
 			_turn_at = _time
 		if _time - _turn_at >= follow_gap and (not hostile_in_view or _in_bang_window()):
@@ -2216,7 +2214,7 @@ func _through_door(from: Vector2) -> Vector2:
 ## Commit to the crossing: pick the corner for this member's place in the order, radio `going_in`,
 ## go.
 func _start_cross(team: Array) -> void:
-	var order := _before().filter(func(m): return StackClaim.THROUGH.has(m["step"])).size()
+	var order := _before().filter(func(m): return StackClaim.through(m["step"])).size()
 	corner = _corner_for(
 		order,
 		team.any(func(m): return int(m["side"]) != 0 and int(m["side"]) != side),

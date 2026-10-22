@@ -445,7 +445,7 @@ func process_callout(data: Dictionary) -> void:
 		# said it is doing standing.
 		return
 	_memory.remember(&"heard_callout", data, callout_ttl, str(speaker.get_instance_id()))
-	var cleared := str(data.get("cleared_room", ""))
+	var cleared := str(StackClaim.decode(data).get("cleared_room", ""))
 	if cleared != "":
 		_learn_room({ "key": cleared })
 		_memory.remember(&"visited_room", { "key": cleared }, search_memory_ttl, cleared)
@@ -1329,8 +1329,9 @@ func room_doorways(room_key: String) -> Array:
 
 ## The stack at doorway `opening_id` into room `into` as the radio describes it
 ## (stack/door_stack.gd): the allies' live claims on it (stack/claim_ledger.gd `claims`) over its
-## geometry (`entry_geometry`; none when `into` is ""), every slot rule settled the one way. One per
-## doorway a frame.
+## geometry (`entry_geometry`), every slot rule settled the one way. One per doorway a frame. With
+## `into` "" it has no geometry: only what the claims alone answer (`team`, `claimed`, `stacking`,
+## `going_in`, `released`, `crossing`, `order_claim`) may be asked of it.
 func entry_stack(opening_id: String, into := "") -> RefCounted:
 	return _ledger.stack(opening_id, entry_geometry(opening_id, into) if into != "" else {})
 

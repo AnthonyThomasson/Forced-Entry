@@ -145,6 +145,12 @@ static func holding(step: String) -> bool:
 	return HOLDING.has(step)
 
 
+## The order claims are listed and settled in: lowest slot first, then lowest instance id (a
+## `sort_custom` comparator over claims, or any `{ slot, id }`).
+static func by_slot(a: Dictionary, b: Dictionary) -> bool:
+	return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"]
+
+
 ## `value` as field `key`'s type (its default's).
 static func _typed(key: String, value: Variant) -> Variant:
 	match typeof(DEFAULTS[key]):

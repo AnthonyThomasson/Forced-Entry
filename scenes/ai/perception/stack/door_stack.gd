@@ -17,6 +17,8 @@ extends RefCounted
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
+## How far (px) out in front of the door a slot stands when the doorway has no file to lay it in.
+const NO_FILE_OUT := 28.0
 
 ## The doorway's geometry ({} when only the claims are asked about).
 var geometry := {}
@@ -99,13 +101,11 @@ func layout(me := {}) -> Array:
 		var at := _laid(geometry, members, n, on)
 		if at["point"] == Vector2.INF:
 			continue  # A slot the doorway does not hold (a dead end's).
-		var on_wall: bool = (geometry.get("kind", "wall") == "wall"
-				and n <= int(geometry.get("wall_n", AgentEntry.MAX_SLOTS)))
 		out.append({
 			"n": n, "point": at["point"], "holder": int(m.get("id", 0)), "held": not m.is_empty(),
 			"there": not m.is_empty() and StackClaim.in_slot(str(m.get("step", ""))),
 			"mine": not m.is_empty() and (bool(m.get("me", false)) or bool(m.get("human", false))),
-			"side": on if on_wall else AgentEntry.side_of(geometry, at["point"]),
+			"side": on if _on_wall(geometry, n) else AgentEntry.side_of(geometry, at["point"]),
 			"row": int(at["row"]),
 		})
 	return out
@@ -142,6 +142,11 @@ func behind(me: Dictionary) -> Array:
 	return out
 
 
+## Whether any ally claims the doorway at all (at any live step).
+func claimed() -> bool:
+	return not team.is_empty()
+
+
 ## Whether anyone holds a place in the stack (a claim at a `StackClaim.STACKING` step).
 func stacking() -> bool:
 	return team.any(func(m): return StackClaim.stacking(m["step"]))
@@ -165,9 +170,7 @@ func thrower(kind: StringName, me := {}) -> int:
 		carriers.append({ "id": int(me.get("id", 0)), "slot": int(me.get("slot", 0)) })
 	if carriers.is_empty():
 		return -1
-	carriers.sort_custom(
-		func(a, b): return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"],
-	)
+	carriers.sort_custom(StackClaim.by_slot)
 	for c: Dictionary in carriers:
 		if c["slot"] == 2:
 			return c["id"]
@@ -220,9 +223,9 @@ func first_point(side: int) -> Vector2:
 
 ## The lower slots member `me` (standing in its slot `slot` on side `side`, asking for `want`) may
 ## move up into (E2, the rule part; the walk and whether the latecomer would meet it are the
-## entry's): `[{ holder, slot, point, team }]`, each a claim still at `claim` holding a lower slot
+## entry's): `[{ holder, slot, point, stack }]`, each a claim still at `claim` holding a lower slot
 ## on `me`'s side alone, none of them the human's (no AI moves up into its slot) nor one moving up
-## itself, whose slot stays on `me`'s side with the two swapped (`team` the claims so, `point` where
+## itself, whose slot stays on `me`'s side with the two swapped (`stack` the stack so, `point` where
 ## `me` would stand). None once a member has begun the pie, the bang or the crossing: the order of
 ## the stack stands.
 func move_up_vacancies(me: Dictionary) -> Array:
@@ -249,7 +252,10 @@ func move_up_vacancies(me: Dictionary) -> Array:
 			geometry, swapped + [{ "id": id, "slot": vacancy, "side": on }], vacancy, on,
 		)
 		if point != Vector2.INF:
-			out.append({ "holder": h, "slot": vacancy, "point": point, "team": swapped })
+			out.append({
+				"holder": h, "slot": vacancy, "point": point,
+				"stack": (get_script() as GDScript).new(geometry, swapped),
+			})
 	return out
 
 
@@ -296,13 +302,12 @@ static func stack_slots(g: Dictionary, count: int, side: int) -> Array:
 		var on := side_for(g, members, n, side)
 		members.append({ "id": n, "slot": n, "side": on })
 	for m: Dictionary in members:
-		var at := _laid(g, members, int(m["slot"]), int(m["side"]))
-		var on_wall: bool = (g.get("kind", "wall") == "wall"
-				and int(m["slot"]) <= int(g.get("wall_n", AgentEntry.MAX_SLOTS)))
+		var n := int(m["slot"])
+		var at := _laid(g, members, n, int(m["side"]))
 		out.append({
 			"n": m["slot"],
 			"point": at["point"],
-			"side": m["side"] if on_wall else AgentEntry.side_of(g, at["point"]),
+			"side": m["side"] if _on_wall(g, n) else AgentEntry.side_of(g, at["point"]),
 			"row": at["row"],
 		})
 	return out
@@ -352,6 +357,12 @@ static func is_tail(g: Dictionary, slot: int) -> bool:
 	return not g.get("capped", false) and g.has("seq") and slot >= int(g.get("tail_from", 999))
 
 
+## Whether slot `slot` of a stack going in by `g` stands in a file against the wall (`wall`, within
+## `wall_n`): its side is the one it was laid on; past it, the side its point lies on.
+static func _on_wall(g: Dictionary, slot: int) -> bool:
+	return g.get("kind", "wall") == "wall" and slot <= int(g.get("wall_n", AgentEntry.MAX_SLOTS))
+
+
 ## `{ point, row }` of slot `slot` on side `side` among `members` (see `stack_point`).
 static func _laid(g: Dictionary, members: Array, slot: int, side: int) -> Dictionary:
 	var wall_n := int(g.get("wall_n", AgentEntry.MAX_SLOTS))
@@ -370,13 +381,13 @@ static func _laid(g: Dictionary, members: Array, slot: int, side: int) -> Dictio
 				lead = int(m["side"])
 		var lay := AgentEntry.views_layout(g, count, lead if lead != 0 else 1)
 		if lay.is_empty():
-			return { "point": g["pos"] + (g["out"] as Vector2) * 28.0, "row": 1 }
+			return { "point": g["pos"] + (g["out"] as Vector2) * NO_FILE_OUT, "row": 1 }
 		return lay[clampi(slot - 1, 0, lay.size() - 1)]
 	var file: Array = g["files"][side if side != 0 else 1]
 	if file.is_empty():
 		file = g["files"][-side if side != 0 else -1]
 	if file.is_empty():
-		return { "point": g["pos"] + (g["out"] as Vector2) * 28.0, "row": 1 }
+		return { "point": g["pos"] + (g["out"] as Vector2) * NO_FILE_OUT, "row": 1 }
 	return file[clampi(place(members, side, slot) - 1, 0, file.size() - 1)]
 
 
@@ -466,9 +477,7 @@ static func stack_side(g: Dictionary, claims: Array, self_pos: Vector2) -> int:
 ## file in slot order (one that runs out leaves the rest to the other).
 static func crossing_order(members: Array) -> Array:
 	var sorted := members.duplicate()
-	sorted.sort_custom(
-		func(a, b): return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"],
-	)
+	sorted.sort_custom(StackClaim.by_slot)
 	if sorted.is_empty():
 		return sorted
 	var lead_side := int(sorted[0]["side"])

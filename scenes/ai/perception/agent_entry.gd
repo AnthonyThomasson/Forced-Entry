@@ -4,8 +4,8 @@ extends RefCounted
 ## it joins, the door's frame (its outward normal and the axis along its wall), the stack slots in
 ## single file against the wall on either side, the pie arc a point man sweeps from, and the four
 ## corners of the room behind, each tagged hard (unseen from just outside the threshold) or soft.
-## Plus the team's claims on an opening, read off allies' radio callouts (the same claim pattern as
-## a flank side, `agent_tactics.side_holder`).
+## The claims on an opening and the stack they make are the stack module's (`stack/`: `StackClaim`,
+## `ClaimLedger`, `DoorStack`), which lays its slots in this geometry.
 ##
 ## Each doorway's VIEW and the walk that keeps out of the views are `agent_door_views.gd` (`views`),
 ## which a split stack reads (`cuts_view`, `docs/tactical-entry.md` E19).

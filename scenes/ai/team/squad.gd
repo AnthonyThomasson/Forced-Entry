@@ -378,13 +378,22 @@ func resolve(request: Dictionary) -> Dictionary:
 
 
 ## Whether `order` is a stack that waits for the leader's go and no go has released yet (LD13): not
-## the squad's own `go`, nor one off the radio (`DoorStack.released`: a claim under the order says
-## its go came, or a member of the stack is crossing or through, D14).
+## the squad's own `go`, nor one heard off the radio (`_latch_go`), each kept in `_released`.
 func _waits_for_go(order: Dictionary) -> bool:
 	return (String(order.get("kind", "")) == STACK
 			and bool(order.get("wait_go", false))
-			and not _released.has(str(order["id"]))
-			and not _ledger.stack(String(order.get("opening", ""))).released(str(order["id"])))
+			and not _released.has(str(order["id"])))
+
+
+## Keep as released (`_released`) every held stack at doorway `opening` its claims now say had its
+## go (`DoorStack.released`: a claim under the order says the go came, or a member of the stack is
+## crossing or through, D14), as each member keeps its own: a go once heard stands, whatever the
+## claims say after.
+func _latch_go(opening: String) -> void:
+	var stack: RefCounted = _ledger.stack(opening)
+	for id in _held_at(opening):
+		if stack.released(str(id)):
+			_released[str(id)] = true
 
 
 ## The held stack orders at doorway `opening` that no go has released yet (LD13): order id -> the
@@ -561,6 +570,8 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	_ledger.hear(data)
 	if StringName(data.get("faction", &"")) == _faction and not StackClaim.keeps_claim(data):
 		_stacks_at = -1  # A member's place in a stack (LD18), or its claim gone.
+		if StackClaim.is_claim(data):
+			_latch_go(StackClaim.decode(data)["opening"])
 	if (StackClaim.is_claim(data)
 			and speaker == _leader
 			and StringName(data.get("faction", &"")) == _faction):

@@ -83,9 +83,7 @@ func claims(opening: String) -> Array:
 		var c := claim.duplicate()
 		c["age"] = now - float(rec["at"])
 		out.append(c)
-	out.sort_custom(
-		func(a, b): return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"],
-	)
+	out.sort_custom(StackClaim.by_slot)
 	_cache[opening] = out
 	return out
 
@@ -104,9 +102,10 @@ func stack(opening: String, g := {}) -> RefCounted:
 ## The doorways a stack is forming at (`{ opening, into }`, in the order their claims were first
 ## heard): those with a live claim at a `STACKING` step.
 func openings_stacking() -> Array:
+	_refresh()  # Before the loop: it drops lapsed claims from `_heard`.
 	var out: Array = []
 	var seen := {}
-	for id in _heard:
+	for id in _heard.keys():
 		var opening: String = _heard[id]["claim"]["opening"]
 		if opening == "" or seen.has(opening):
 			continue

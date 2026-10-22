@@ -377,7 +377,7 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_ahead_through_at = GameClock.seconds()
 	elif not ahead_through:
 		_ahead_through_at = -1.0
-	if (StackClaim.stacking(_step) and _step != "going_in"
+	if (_waiting(_step)
 			and _ahead_through_at >= 0.0
 			and GameClock.seconds() - _ahead_through_at >= go_timeout):
 		_barred[_opening] = true   # It had its chance at this stack.
@@ -391,7 +391,7 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_post(_step)
 	if _step == "in":
 		var waiting: bool = stack.behind(_me()).any(
-			func(m): return StackClaim.stacking(m["step"]) and m["step"] != "going_in",
+			func(m): return _waiting(m["step"]),
 		)
 		var held := GameClock.seconds() - _in_at
 		if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
@@ -401,6 +401,12 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	_heartbeat -= delta
 	if _heartbeat <= 0.0:
 		_post(_step)
+
+
+## Whether entry step `step` is a member still waiting in the stack: holding its place
+## (`StackClaim.stacking`) and not yet crossing.
+static func _waiting(step: String) -> bool:
+	return StackClaim.stacking(step) and step != "going_in"
 
 
 ## The radio step for the human standing at `pos`: through the doorway (and it stays so), in the
