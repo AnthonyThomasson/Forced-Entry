@@ -1,11 +1,13 @@
 """tools/gdstyle_reflow.py, which `tools/gdstyle.sh fmt` runs gdstyle through: gdstyle wraps an over-long comment line
-by moving its tail onto a new line of its own, and the re-flow then fills each comment paragraph gdstyle changed back
-to 100 columns (a tab counts 4), with the same indent and marker (`#` / `##`), never splitting a backtick span.
+by moving its tail onto a new line of its own, and the re-flow fills that tail back into the comment it came from, to
+100 columns (a tab counts 4), with the same indent and marker (`#` / `##`), never splitting a backtick span.
 
-A paragraph is the full-line comments of one indent and marker between a blank comment line, a line of another
-indent or marker, a list item (`- `, `* `, `1. `: it starts one, and its hang-indented lines, or the tail gdstyle split
-off it, continue it), a preformatted line (more than one space after the marker), or code. A trailing comment on a
-code line is never part of one. A paragraph gdstyle left alone is left alone, however it is wrapped.
+Only what gdstyle split moves: from the line it cut (the lines above keep their breaks) through its tail and on
+through the lines below that flowed on from it in the original (the line before full). The first line after the tail
+is taken in only when it flows on itself, or ends its paragraph and a sentence; a heading, a note on a line of its own
+and a line of code keep their breaks. A list item keeps its hang and never takes in the prose after it; a blank
+comment line, a preformatted row, another indent or marker, and a trailing comment on a code line end the run. CRLF
+line ends are kept.
 
 `reflow(before, after)` is checked on the text alone; then the wrapper end to end, with a fake gdstyle planted in a
 temp cache that splits the way the real one does; `fmt --check` and `check` pass through untouched; and, when the
@@ -144,6 +146,58 @@ class ReflowTests(unittest.TestCase):
         after = f"{BROKEN}\n# A plain comment below.\n\t## An indented doc.\n"
         self.assertEqual(reflow(before, after), after)
 
+    def test_prose_after_a_list_item_is_not_taken_into_it(self):
+        before = ("## - an item.\n## Following prose that is long enough to run past the one hundred column limit "
+                  "at the end ok yes yes yes.\n## More prose.\nvar c := 3\n")
+        self.assertEqual(reflow(before, split_like_gdstyle(before)), lines("""
+            ## - an item.
+            ## Following prose that is long enough to run past the one hundred column limit at the end ok yes
+            ## yes yes. More prose.
+            var c := 3
+            """))
+
+    def test_the_lines_above_the_split_line_keep_their_breaks(self):
+        before = ("## Authoring conventions for an arrangement:\n## An arrangement is authored in a local frame AS IF "
+                  "PLACED AGAINST THE TOP WALL: and some extra words to push it past one hundred columns\n"
+                  "##   x runs along the wall.\nvar a := 1\n")
+        self.assertEqual(reflow(before, split_like_gdstyle(before)), lines("""
+            ## Authoring conventions for an arrangement:
+            ## An arrangement is authored in a local frame AS IF PLACED AGAINST THE TOP WALL: and some extra
+            ## words to push it past one hundred columns
+            ##   x runs along the wall.
+            var a := 1
+            """))
+
+    def test_a_line_on_its_own_below_the_split_keeps_its_break(self):
+        long = "## b: the second and a long line that will run past the hundred column limit at the end here and more."
+        for after_it in ("## c: the third\n## d: the fourth", "## var c := 3", "## Notes:"):
+            with self.subTest(after_it=after_it):
+                before = f"## Fields:\n## a: the first\n{long}\n{after_it}\nvar d := 4\n"
+                after = split_like_gdstyle(before)
+                self.assertEqual(reflow(before, after), after, "the tail stays a line of its own")
+
+    def test_a_flowing_line_below_the_split_is_filled_in_and_the_next_short_one_kept(self):
+        before = (f"{LONG}\n## words that flowed on from the line above, written so as to fill it right up to the "
+                  "hundred edge\n## and stop.\n## A note of its own.\nvar x := 1\n")
+        out = reflow(before, split_like_gdstyle(before))
+        self.assertEqual(out.split("\n")[-3:], ["## A note of its own.", "var x := 1", ""], out)
+        self.assertNotIn("\n## here.\n", out, "the tail is filled in")
+        self.assertIn("and stop.\n## A note", out, "the paragraph's flow ends where it ended")
+
+    def test_two_split_lines_in_a_row_are_filled_together(self):
+        before = f"{LONG}\n{LONG}\n## The end.\n"
+        out = reflow(before, split_like_gdstyle(before))
+        self.assertTrue(all(len(line) <= 100 for line in out.split("\n")), out)
+        self.assertEqual([w for w in out.split() if w != "##"], [w for w in before.split() if w != "##"])
+        self.assertLess(out.count("\n"), split_like_gdstyle(before).count("\n"), "fewer lines than gdstyle left")
+
+    def test_crlf_line_ends_are_kept(self):
+        before = f"{LONG}\r\n## A second line.\r\nvar x := 1\r\n"
+        after = split_like_gdstyle(before.replace("\r\n", "\n")).replace("\n", "\r\n")
+        out = reflow(before, after)
+        self.assertEqual(out.count("\r\n"), out.count("\n"), repr(out))
+        self.assertIn("## here. A second line.\r\n", out)
+
     def test_nothing_changed_returns_the_text(self):
         text = f"{BROKEN}\nvar a := 1\n"
         self.assertEqual(reflow(text, text), text)
@@ -213,14 +267,15 @@ class RealGdstyleTests(unittest.TestCase):
             (work / "gdstyle.toml").write_text((ROOT / "gdstyle.toml").read_text())
             span = "## Text " + "x" * 70 + " then `a span with spaces` end, and the rest of the paragraph."
             a = work / "a.gd"
-            a.write_text(f"extends Node\n\n{LONG}\n## A second line.\n{span}\nvar x := 1\n")
+            a.write_text(f"extends Node\n\n{LONG}\n## A second line.\nvar x := 1\n{span}\nvar y := 2\n")
             env = clean_env()
             fmt = subprocess.run(["bash", str(SCRIPT), "fmt", "a.gd"], cwd=work, env=env, capture_output=True,
                                  text=True, timeout=300)
             self.assertEqual(fmt.returncode, 0, fmt.stdout + fmt.stderr)
             text = a.read_text()
-            self.assertIn("## here. A second line. Text", text, text)
+            self.assertIn("## here. A second line.\n", text, text)
             self.assertIn("`a span with spaces`", text, text)
+            self.assertNotIn("\n## here.\n", text, text)
             check = subprocess.run(["bash", str(SCRIPT), "fmt", "--check", "a.gd"], cwd=work, env=env,
                                    capture_output=True, text=True, timeout=300)
             self.assertEqual(check.returncode, 0, "gdstyle accepts the re-flowed file\n" + check.stdout + text)
