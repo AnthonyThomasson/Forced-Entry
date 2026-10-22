@@ -3,10 +3,9 @@ extends RefCounted
 ## (tests/ai/investigate/defenders_stay_in_house_*, `ai/entry/entry_team_no_bumping`,
 ## `ai/movement/follow_defenders`; not a test itself): `house` declares the house and a match over
 ## it placed the way Main places one (`s.match`, `MatchBuilder.populate`: the defenders each at a
-## clear spot in a random room, the invader team in one group outside the house, out of the views
-## of its exterior doorways, heading for its front entrance; everyone armed, styled and in its
-## side's squad), `side` reads one side's NPCs off it, and `watch` tells whether a defender ever
-## steps outside.
+## clear spot in a random room, the invader team in one group outside the house beside its front
+## entrance, heading for it; everyone armed, styled and in its side's squad), `side` reads one
+## side's NPCs off it, and `watch` tells whether a defender ever steps outside.
 
 ## How far past a room's rectangle (px) a defender may stand before it has left: a doorway's depth.
 const SLACK := 30.0

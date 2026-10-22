@@ -1,7 +1,8 @@
 extends GameTest
-## LD27: a Main-built invader team spawns in a group round one perimeter point drawn from the house
-## seed (its members packed round it at `spawn_clearance`), not spread round the house; with a human
-## invader in the match, round the human's spot. Defenders keep spawning in random rooms.
+## LD27: a Main-built invader team spawns in a group round one point outside the house, beside its
+## front door, drawn from the house seed (its members packed round it at `spawn_clearance`), not
+## spread round the house; with a human invader in the match, round the human's spot. Defenders keep
+## spawning in random rooms.
 ##
 ## Main runs whole, `_ready` to its match, as a scripted restart starts it (the Engine `skip_setup`
 ## meta, set while it enters the tree and dropped after), in a world of its own (a `SubViewport`
@@ -24,8 +25,8 @@ const DEFENDERS := 2
 const HUMAN_AT := Vector2(0, 0)
 ## The most (px) a member may stand from the group's centre: four bodies packed at the clearance.
 const GROUP_RADIUS := 110.0
-## The perimeter the point is drawn on lies `invader_margin` (80 px) out from the rooms' bounds; the
-## group's centre stands outside the house within this band of the bounds (px).
+## The point stands outside the house, against its outside wall beside the front door; the group's
+## centre stands outside the house within this band of the rooms' bounds (px).
 const OUT_MIN := 20.0
 const OUT_MAX := 220.0
 
@@ -75,7 +76,7 @@ func run(t: TestContext) -> void:
 	var out := _outside_by(bounds, centre)
 	t.check(
 		out >= OUT_MIN and out <= OUT_MAX,
-		"the group stands round a perimeter point outside the house (%.0f px out of its bounds "
+		"the group stands round a point outside the house (%.0f px out of its bounds "
 			% out + "%s; centre %s)" % [str(bounds), str(centre.round())],
 	)
 	for d: Dictionary in watch["defenders"]:
