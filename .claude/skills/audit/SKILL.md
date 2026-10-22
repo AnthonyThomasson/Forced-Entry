@@ -121,8 +121,13 @@ done
 
 ## Step 5 — Load, lint, tests, behaviour
 
-- **Load:** `tools/load_check.sh` (`godot-run`; `tools/load_check.sh --import` if the change added a `class_name` or file). Report
-  clean, or the exact `SCRIPT ERROR` / `Parse Error` lines.
+- **Load:** `tools/load_check.sh` (`godot-run`; `tools/load_check.sh --import` if the change added a `class_name` or
+  file). Report clean, or the exact `SCRIPT ERROR` / `Parse Error` lines.
+- **Uids:** every committed script Godot imports has its `.uid` committed beside it; each path printed is a finding:
+  ```bash
+  git ls-files scenes tests addons sandboxes | grep '\.gd$' \
+    | while IFS= read -r f; do git ls-files --error-unmatch "$f.uid" >/dev/null 2>&1 || echo "$f"; done
+  ```
 - **Lint:** `tools/lint.sh`; each warning is a `file:line` finding. **Never silence a warning: fix the code.**
   `@warning_ignore*`, an underscore prefix hiding a parameter that should go or be used, or a lowered level in
   `project.godot` is accepted only when no code change can remove it, on that one statement, with a comment saying why.

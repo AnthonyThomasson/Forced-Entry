@@ -141,7 +141,7 @@ Add a `categories/<type>.gd` catalog with its recipe (register it in `ObjectDefi
 `ArrangementDefinitions`), give the type its `LayoutRules.ROOMS` / `LINKS` entries and use its key as a
 room `type`. Pieces used by 2+ categories (`bench`, `console_wall`, `bookshelf_wall`, the rugs …) live in
 `GeneralCatalog`. New `class_name` scripts resolve only after Godot rescans (open the editor or run
-`godot --headless --path . --import`).
+`tools/load_check.sh --import`, which also writes their `.uid` files).
 
 ## To add or change a floorplan
 

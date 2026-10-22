@@ -415,6 +415,19 @@ class PreCommitTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertEqual(repo.ran(), ["run_tests"])
 
+    def test_a_script_with_a_non_ascii_name_is_held_to_its_uid(self):
+        # git quotes such a path by default ("scenes/caf\303\251.gd"), which no pattern of the hook's would match.
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "scenes/café.gd", "extends Node\n")
+            write(repo.root, "scenes/café.gd.uid", "uid://cafe\n")
+            git(repo.root, "add", "scenes/café.gd")
+            self.assert_uids_refused(repo, "scenes/café.gd")
+            git(repo.root, "add", "scenes/café.gd.uid")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertEqual(repo.ran(), ["run_tests"])
+
     def test_a_tools_script_without_a_uid_is_not_held_to_it(self):
         # tools/ is no Godot import root the hook pairs: its scripts run as `godot --script`.
         with TempDir("pre_commit_test.") as d:

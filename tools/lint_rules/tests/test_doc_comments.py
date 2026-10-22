@@ -1,8 +1,10 @@
 """Tests for the `doc_comments` lint rule (tools/lint_rules/rules/doc_comments.py): every function and member of a
 script under scenes/ has a `##` doc comment.
 
-- A function (`func` or `static func`, at any indent: an inner class's too) has a `##` line directly above it; only
-  annotation lines (`@warning_ignore(...)`, `@rpc`) may stand between. The lifecycle overrides (`_ready`, `_process`,
+- A function (`func` or `static func`, at any indent: an inner class's too, an annotation before it on its line or
+  not) has a `##` line directly above it; only annotation lines (`@warning_ignore(...)`, `@rpc`, one whose arguments
+  run over several lines too) may stand between. A `)` or `#` inside a string in a declaration changes nothing. The
+  lifecycle overrides (`_ready`, `_process`,
   `_physics_process`, `_draw`, `_init`, `_input`, `_unhandled_input`, `_enter_tree`, `_exit_tree`, `_notification`,
   `_integrate_forces`) are exempt.
 - A top-level member (`var`, `static var`, `@export… var`, `@onready var`, `signal`) has a trailing `## …`, or a `##`
@@ -44,6 +46,22 @@ class FunctionTests(unittest.TestCase):
     def test_annotations_may_stand_between_the_doc_and_the_function(self):
         text = 'extends Node\n\n\n## Go.\n@warning_ignore("unused_parameter")\n@rpc\nfunc go(x) -> void:\n\tpass\n'
         self.assertEqual(lines_found(text), [])
+
+    def test_an_annotation_on_the_function_line_is_still_a_function(self):
+        self.assertEqual(lines_found("extends Node\n\n\n@rpc func go() -> void:\n\tpass\n"), [4])
+        self.assertEqual(lines_found("extends Node\n\n\n## Go.\n@rpc func go() -> void:\n\tpass\n"), [])
+
+    def test_a_multi_line_annotation_may_stand_between(self):
+        text = 'extends Node\n\n\n## Go.\n@rpc(\n\t"any_peer",\n\t"call_local"\n)\nfunc go() -> void:\n\tpass\n'
+        self.assertEqual(lines_found(text), [])
+        self.assertEqual(lines_found(text.replace("## Go.\n", "")), [8])
+
+    def test_a_bracket_in_an_annotation_string_changes_nothing(self):
+        text = 'extends Node\n\n\n## Go.\n@warning_ignore(")")\nfunc go() -> void:\n\tpass\n'
+        self.assertEqual(lines_found(text), [])
+        member = 'extends Node\n\n## The x.\n@export_enum(")a", "b") var x := 0\n@export_enum("c)") var y := 0\n'
+        self.assertEqual(lines_found(member), [])
+        self.assertEqual(lines_found(member.replace("## The x.\n", "")), [3, 4])
 
     def test_a_plain_comment_is_not_a_doc_comment(self):
         self.assertEqual(lines_found("extends Node\n\n\n# Go.\nfunc go() -> void:\n\tpass\n"), [5])

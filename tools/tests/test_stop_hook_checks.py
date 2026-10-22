@@ -3,13 +3,14 @@ then tools/load_check.sh) when something the lint reads differs from HEAD, and r
 scenes/, tests/, addons/ or sandboxes/, project.godot, any other .gd (tools/gdunit_discover.gd, tools/coverage/probe.gd
 ...) but the coverage tool's fixtures, and the gdstyle pass's own files (gdstyle.toml, tools/gdstyle.sh,
 tools/lint_gdstyle.py), and the lint and the load check themselves (tools/lint.sh, anything under tools/lint_rules/,
-tools/lint_report.py, tools/lint_scripts.gd / .tscn, tools/load_check.sh). addons/ counts because a lint rule
+tools/lint_report.py, tools/lint_scripts.gd / .tscn, tools/load_check.sh, tools/scan_godot_log.py). addons/ counts because a lint rule
 (coverage_isolation) checks it. A stop on the same changes as the last run runs nothing again.
 
 Each case is a temp git repo holding a copy of this checkout's script, with a fake tools/lint.sh and
 tools/load_check.sh that log that they ran, and one committed file in each place above, plus a coverage fixture
-script, a lint rule, the lint's report and engine-pass scene, a tools/ Python script and a doc. A file is changed (or added), then the script runs as the Stop hook runs it,
-with the hook's JSON on stdin. TMPDIR is the case's own temp folder, so the script's last-run fingerprint is the
+script, a lint rule, the lint's report and engine-pass scene and script, the load check's log scan, a tools/ Python
+script and a doc. A file is changed (or added), then the script runs as the Stop hook runs it, with the hook's JSON on
+stdin. TMPDIR is the case's own temp folder, so the script's last-run fingerprint is the
 case's and never the real one.
 """
 import shutil
@@ -64,6 +65,8 @@ class StopHookRepo:
         write(root, "tools/lint_rules/rules/some_rule.py", "VALUE = 1\n")
         write(root, "tools/lint_report.py", "VALUE = 1\n")
         write(root, "tools/lint_scripts.tscn", "[gd_scene format=3]\n")
+        write(root, "tools/lint_scripts.gd", "extends SceneTree\n")
+        write(root, "tools/scan_godot_log.py", "VALUE = 1\n")
         write(root, "docs/notes.md", "notes\n")
         git(root, "add", "-A")
         git(root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
@@ -162,7 +165,8 @@ class StopHookChecksTests(unittest.TestCase):
 
     def test_a_change_only_to_the_lint_tooling_or_the_load_check_runs_the_lint_and_the_load_check(self):
         for rel in ("tools/lint.sh", "tools/lint_rules/runner.py", "tools/lint_rules/rules/some_rule.py",
-                    "tools/lint_report.py", "tools/lint_scripts.tscn", "tools/load_check.sh"):
+                    "tools/lint_report.py", "tools/lint_scripts.tscn", "tools/lint_scripts.gd", "tools/load_check.sh",
+                    "tools/scan_godot_log.py"):
             with self.subTest(rel=rel):
                 self.assert_checks_run_for(rel)
 

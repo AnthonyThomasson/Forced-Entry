@@ -1,9 +1,9 @@
 """Helpers the project lint rules share: the finding a rule returns, walking the tree, matching lines and names.
 
 A rule never opens the tree on its own terms: `files` lists what it may look at (limited to the paths lint was given),
-`godot_scripts` the scripts among them Godot loads, `lines_matching` reads a text file's matching lines, `names_matching` its path's matching file or folder names, and
-`gdscript_lines` a script's lines split into code and comment, each marked where a statement starts. See
-tools/lint_rules/README.md for how a rule is written.
+`godot_scripts` the scripts among them Godot loads, `lines_matching` reads a text file's matching lines,
+`names_matching` its path's matching file or folder names, and `gdscript_lines` a script's lines split into code and
+comment, each marked where a statement starts. See tools/lint_rules/README.md for how a rule is written.
 """
 import fnmatch
 import re
@@ -69,13 +69,15 @@ def names_matching(path: str, globs) -> list[str]:
 
 class GDLine(NamedTuple):
     """One line of a GDScript file: its 1-based `number`, its `text`, the `code` before its comment, its `comment`
-    (from the first `#` outside a string, "" for none), and whether it `starts` a statement (it is not inside
-    brackets, a triple-quoted string or a backslash continuation that an earlier line opened)."""
+    (from the first `#` outside a string, "" for none), whether it `starts` a statement (it is not inside
+    brackets, a triple-quoted string or a backslash continuation that an earlier line opened), and its `bare` code:
+    `code` with what is inside each string blanked to spaces (the quotes kept), for matching the code's shape."""
     number: int
     text: str
     code: str
     comment: str
     starts: bool
+    bare: str
 
 
 def gdscript_lines(root, path: str) -> list[GDLine]:
@@ -87,32 +89,39 @@ def gdscript_lines(root, path: str) -> list[GDLine]:
     for number, line in enumerate(text.split("\n"), start=1):
         starts = depth == 0 and quote is None and not continued
         comment_at = len(line)
+        bare = []
         i = 0
         while i < len(line):
             c = line[i]
             if quote:
                 if c == "\\":
+                    bare.append(" " * len(line[i:i + 2]))
                     i += 2
                     continue
                 if line.startswith(quote, i):
+                    bare.append(quote)
                     i += len(quote)
                     quote = None
                     continue
+                bare.append(" ")
             elif c in "\"'":
                 quote = line[i:i + 3] if line[i:i + 3] in ('"""', "'''") else c
+                bare.append(quote)
                 i += len(quote)
                 continue
             elif c == "#":
                 comment_at = i
                 break
-            elif c in "([{":
-                depth += 1
-            elif c in ")]}":
-                depth = max(0, depth - 1)
+            else:
+                bare.append(c)
+                if c in "([{":
+                    depth += 1
+                elif c in ")]}":
+                    depth = max(0, depth - 1)
             i += 1
         if quote in ("\"", "'"):
             quote = None  # a one-line string never runs on past its line
         code = line[:comment_at]
         continued = quote is None and code.rstrip().endswith("\\")
-        out.append(GDLine(number, line, code, line[comment_at:], starts))
+        out.append(GDLine(number, line, code, line[comment_at:], starts, "".join(bare)))
     return out

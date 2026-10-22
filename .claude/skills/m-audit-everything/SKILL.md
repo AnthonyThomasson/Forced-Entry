@@ -34,8 +34,11 @@ Phase 2 worker gets the Phase 1 report paths. Nothing is edited before Phase 4.
 AUDIT_DIR="${TMPDIR:-/tmp}/m-audit-everything-$(basename "$PWD")"; mkdir -p "$AUDIT_DIR"
 python3 -I tools/audit_scan.py all > "$AUDIT_DIR/scan.txt"
 python3 tools/test_coverage.py      > "$AUDIT_DIR/test_coverage.txt"
-for f in $(find scenes tests tools addons -name '*.gd'); do [ -f "$f.uid" ] || echo "no uid: $f"; done  > "$AUDIT_DIR/uids.txt"
-for u in $(find scenes tests tools addons -name '*.gd.uid'); do [ -f "${u%.uid}" ] || echo "orphan uid: $u"; done >> "$AUDIT_DIR/uids.txt"
+# Every script Godot imports beside its .uid (the pre-commit hook's pairing, over the whole tree).
+find scenes tests addons sandboxes -name '*.gd' | while IFS= read -r f; do [ -f "$f.uid" ] || echo "no uid: $f"; done \
+  > "$AUDIT_DIR/uids.txt"
+find scenes tests addons sandboxes -name '*.gd.uid' | while IFS= read -r u; do [ -f "${u%.uid}" ] || echo "orphan uid: $u"; done \
+  >> "$AUDIT_DIR/uids.txt"
 python3 tools/coverage.py report > "$AUDIT_DIR/coverage.txt"   # only when a run folder of HEAD exists (below)
 # plus the Step 0 size table, saved as $AUDIT_DIR/survey.txt
 ```
@@ -237,14 +240,17 @@ Same bar as comments: concise, present-tense, current state. Read the Phase 1 re
 4. **Code comments** (5d): the comment rules are `audit`, step 4. Whole-codebase scripts:
 
    ```bash
-   # Undocumented non-lifecycle functions.
-   for f in $(find scenes tools -name '*.gd'); do
+   # Undocumented functions and members, and ticket numbers in game comments (scenes/): the lint rules.
+   tools/lint.sh --rule=doc_comments,comment_ticket_refs
+
+   # Undocumented non-lifecycle functions in tools/ scripts, which the rules leave out.
+   find tools -name '*.gd' -not -path 'tools/coverage/tests/fixtures/*' | while IFS= read -r f; do
      awk 'prev !~ /^[[:space:]]*##/ && prev !~ /^[[:space:]]*@/ && $0 ~ /^[[:space:]]*(static )?func / {
        l=$0; sub(/\(.*/,"",l); gsub(/^[[:space:]]*/,"",l); print FILENAME":"NR": "l } { prev=$0 }' "$f"
    done | grep -vE 'func _(ready|process|physics_process|draw|init|input|exit_tree|notification|unhandled_input|enter_tree|integrate_forces)\b'
 
    # Files with no `##` header in their first lines.
-   for f in $(find scenes -name '*.gd'); do head -3 "$f" | grep -q '^##' || echo "$f"; done
+   find scenes -name '*.gd' | while IFS= read -r f; do head -3 "$f" | grep -q '^##' || echo "$f"; done
 
    # History / speculation sweep (noisy by design: judge each hit).
    grep -rniE '\b(renamed|moved to|moved from|used to|formerly|previously|no longer|in future|for now|todo|fixme|hack|legacy|deprecated)\b' scenes --include='*.gd'

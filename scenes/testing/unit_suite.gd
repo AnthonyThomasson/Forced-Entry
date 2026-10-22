@@ -26,7 +26,7 @@ func _init() -> void:
 
 ## gdUnit's per-test setup: what was logged before the test opens is a stray of the run.
 func before_test() -> void:
-	TestBatch.poll_strays()  # what was logged before the test opens is no test's
+	TestBatch.poll_strays()
 
 
 ## gdUnit's per-test teardown: once its teardown has logged, fails the test on any engine error

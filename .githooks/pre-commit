@@ -16,12 +16,13 @@
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-staged=$(git diff --cached --name-only)
+# Paths as they are (core.quotePath off): git would quote a non-ASCII one, and no pattern below would match it.
+staged=$(git -c core.quotePath=false diff --cached --name-only)
 status=0
 
 # Both sides of a rename (--no-renames lists the old path as deleted), read against what the index holds.
-index=$(git ls-files -- scenes tests addons sandboxes)
-unpaired=$(git diff --cached --name-only --no-renames \
+index=$(git -c core.quotePath=false ls-files -- scenes tests addons sandboxes)
+unpaired=$(git -c core.quotePath=false diff --cached --name-only --no-renames \
   | grep -E '^(scenes|tests|addons|sandboxes)/.*\.gd(\.uid)?$' | sed 's/\.uid$//' | sort -u \
   | while IFS= read -r gd; do
       grep -qxF -- "$gd" <<<"$index" && has_gd=1 || has_gd=0

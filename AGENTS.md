@@ -15,9 +15,10 @@ ticket's label and tells you which `ticket-<label>` skill to invoke (e.g. `spike
 changed what lint reads: anything under `scenes/`, `tests/`, `addons/` or `sandboxes/`, `project.godot`, any other `.gd`
 (`tools/` included) but the coverage tool's fixtures, gdstyle's own files (`gdstyle.toml`, `tools/gdstyle.sh`,
 `tools/lint_gdstyle.py`), or the lint and load check themselves (`tools/lint.sh`, `tools/lint_rules/`,
-`tools/lint_report.py`, `tools/lint_scripts.gd` / `.tscn`, `tools/load_check.sh`). Lint is the engine's analyzer, the
-project lint rules (`tools/lint_rules/`) and gdstyle (`gdstyle fmt --check` + `gdstyle check`, config `gdstyle.toml`:
-100 columns, tabs), and any finding fails it. Format a script with `tools/gdstyle.sh fmt PATH`.
+`tools/lint_report.py`, `tools/lint_scripts.gd` / `.tscn`, `tools/load_check.sh`, `tools/scan_godot_log.py`). Lint is
+the engine's analyzer, the project lint rules (`tools/lint_rules/`) and gdstyle (`gdstyle fmt --check` + `gdstyle
+check`, config `gdstyle.toml`: 100 columns, tabs), and any finding fails it. Format a script with `tools/gdstyle.sh fmt
+PATH`.
 The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless). A git pre-commit hook
 (`.githooks/pre-commit`) first refuses a commit that leaves a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/`
 without its `.gd.uid` or the reverse (`tools/load_check.sh --import` writes them), then runs the game tests a commit can

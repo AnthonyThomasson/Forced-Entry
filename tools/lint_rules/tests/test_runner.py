@@ -23,6 +23,7 @@ walk.py, the helpers rules share (the toy rules use them):
                                                `dirs` may be a file, e.g. "project.godot"; a missing one is skipped),
                                                limited to `paths` (files or folders) when given
   lines_matching(root, path, pattern) -> [(line, text)]   the 1-based lines of a text file matching a regex
+  names_matching, godot_scripts and gdscript_lines are tested in test_walk.py.
 """
 import shutil
 import unittest

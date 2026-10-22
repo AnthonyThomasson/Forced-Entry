@@ -9,7 +9,7 @@
 # coverage_isolation, checks it), every other .gd (tools/gdunit_discover.gd, tools/coverage/probe.gd ...) but the
 # coverage tool's fixture project, which the lint leaves out, the gdstyle pass's own files, and the lint and the load
 # check themselves (tools/lint.sh, tools/lint_rules/, tools/lint_report.py, tools/lint_scripts.gd / .tscn,
-# tools/load_check.sh). Wired in .claude/settings.json.
+# tools/load_check.sh and the log scan it runs, tools/scan_godot_log.py). Wired in .claude/settings.json.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,7 +19,7 @@ fi
 
 paths=(scenes tests addons sandboxes project.godot '*.gd' ':(exclude)tools/coverage/tests/fixtures'
   gdstyle.toml tools/gdstyle.sh tools/lint_gdstyle.py
-  tools/lint.sh tools/lint_rules tools/lint_report.py tools/lint_scripts.tscn tools/load_check.sh)
+  tools/lint.sh tools/lint_rules tools/lint_report.py tools/lint_scripts.tscn tools/load_check.sh tools/scan_godot_log.py)
 fingerprint=$( { git diff HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}" \
   | while read -r f; do echo "$f"; shasum "$f"; done; } | shasum | cut -d' ' -f1 )
 changed=$( { git diff --name-only HEAD -- "${paths[@]}"; git ls-files --others --exclude-standard -- "${paths[@]}"; } | head -1 )
