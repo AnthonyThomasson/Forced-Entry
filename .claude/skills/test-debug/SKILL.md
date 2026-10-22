@@ -45,8 +45,8 @@ gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never
   assign a config holder directly in a test.
 - A failure the diff cannot reach (a test of a domain the change leaves untouched, or one failing on `main` too): rerun
-  it alone, `--id=<id> --repeat=10`, report its `FLAKY … 7/10 passed` line and its `bundle:` path, and hand it to a ticket of
-  its own. The change's work stays inside the change's domains.
+  it alone, `--id=<id> --repeat=10`, report its `FLAKY … 7/10 passed` line and its `bundle:` path, and hand it to a
+  ticket of its own. The change's work stays inside the change's domains.
 - Temporary traces: one tagged line (`print("[dbg] …")`), under 100 columns, removed before the turn ends, since the
   Stop hook lints the tree. A diagnostic copy of a test lives outside `tests/` (the scratchpad), or is deleted before
   the turn ends.
