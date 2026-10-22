@@ -596,9 +596,12 @@ call the squad itself (`follows`, `follow_spot`, `leader()`, `leash`, `view()`);
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
 the other doorways' views and funnels): `frames` / `frame` (a way in's door frame), `world_of`, `entry_geometry` (the AI's `AgentEntry`, loaded
-by path), `layout(entry, g, count, side)` (the slots, read only through `stack_slots`), and one check per rule
+by path), `layout(g, count, side)` (the slots, read only through the published rule `DoorStack.stack_slots`, perception's
+`stack/door_stack.gd` loaded by path), and one check per rule
 (`in_stack_room`, `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`,
-`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. `tests/_ai/reach_probe.gd`
+`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them the native suite
+`tests/ai/door_stack_suite.gd` feeds plain claim dicts to the stack module (`StackClaim`'s codec and its not-a-claim rule, a `ClaimLedger`,
+`DoorStack`'s slot rules: same-frame ties, move-up, the human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
 (`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, ids, lead,
 side, starts)`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
 walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of

@@ -77,7 +77,7 @@ Tests: `entry_stages_beside_opening`, `entry_approach_off_door_axis`.
 **E2. Stack beside the opening.** Several invaders heading for the same opening queue in single file on
 the wall beside it, one slot each, ordered by arrival (the order of the claims on the radio: a member takes the lowest slot the claims it
 has heard leave free; two claims made on the same frame settle by distance, the member nearer the slot taking it, so their walks do not
-cross), each clear of the one in front (`entry_stack_spacing`, 44 px: outside
+cross; the human's claim among them, settled the same way, since it radios the frame and spot it claimed on as any member does, E16), each clear of the one in front (`entry_stack_spacing`, 44 px: outside
 the footprint a body on the next slot keeps clear around it, so no slot is a spot inside a teammate), none in the doorway's line of
 sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
@@ -107,7 +107,7 @@ a pie step is skipped; a corner, cover or rear spot is held from where it stands
 invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
 given up (`abort`) only once it has taken its own walking time at walking pace plus `entry_approach_time` (20 s): the walk is measured, leg
 by leg as it will be walked, when the approach is planned and again at each re-plan (`entry.gd` `_walk_time`). In its slot a member stands
-within `SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
+within `StackClaim.SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
 **The stack moves up.** A member standing in its slot looks every `MOVE_UP_EVERY` (0.25 s) for a lower slot of its own side (either row)
 within `MOVE_UP_REACH` (66 px) whose holder is not there yet: its claim still at `claim`, the holder farther from that slot than this member
 (its last radioed position), not the human, not moving up itself and the only one claiming it; the slot must lie on this member's side once
@@ -119,7 +119,7 @@ seen or radioed, brought nearer by its age x its walking pace (`entry.gd` `_late
 the distance alone: a latecomer coming up behind the mover on the same lane follows it in (tests `stack_move_up_waits_for_near_latecomer`,
 `stack_move_up_lets_follower_in`). It steps straight into it and takes that
 number; the latecomer takes the slot it freed. Both are radioed as claims (the one that moved up carries `move_up`, the slot it left, until
-it radios `ready` in the new one, and holds the slot against the latecomer's claim). Never into the human's slot, never once a member has
+it radios `ready` in the new one, and holds the slot against the latecomer's claim). Never into the human's slot (the human never moves up itself either), never once a member has
 begun the pie (its claims say `pie`), the bang or the crossing, and once per vacancy, so nobody moves back and forth (a later vacancy may move
 it up again). Why: a stack is the formation every technique starts from; crowding the door
 makes a target and blocks the point man. The slots go by arrival: a member already against the wall does not stand behind an empty slot
@@ -311,10 +311,15 @@ doors covered from beside the jamb, neither entered, nothing claimed on the radi
 `entry_guard_enter_walk_with_team_keeps_together` (an ally has claimed C's stack: nothing secured on the way).
 
 **E16. The human stacks up with the team.** A human invader near the doorway an AI team is stacking at is one of the
-team. Its place is reserved over the radio like an NPC's claim: the first free slot, on the side the team stacks on (on the side the human
+team. Its place is reserved over the radio as a full claim, an NPC's in every field (`scenes/ai/perception/stack/stack_claim.gd`): the frame
+and spot it was claimed on, so two claims on one slot made on the same frame, one of them the human's, settle by distance as for any two
+members (E2); `bang` true and no `stuns` or `frags`, so the human never holds a stack back from its bang nor turns it, and never throws the
+stack's grenade (E17). Every reader lays it out the same way (`scenes/ai/perception/stack/door_stack.gd`), so the human's markers show the
+stack the AI stands. Its slot is the first free one, on the side the team stacks on (on the side the human
 stands on when its way to the team's side would cross the doorway's view: a split stack, E19), kept
 for as long as the human stays near (`PlayerStack.reserve_range`, 300 px of walking, as the entry guard; dropped beyond 1.5 times
-that); an AI that claims the doorway later takes a slot behind it. The human is never ordered: its radio step is read from
+that) and the stack is still on: someone else holds a place in it (a claim at `claim`, `ready`, `bang` or `going_in`, so a stack whose
+only other member is on its bang still holds the human's slot) or has just gone in (`in`); an AI that claims the doorway later takes a slot behind it. The human is never ordered: its radio step is read from
 where it stands (`claim` away from the slot, `ready` in it, `going_in` in the doorway, `in` once through). The AI's own
 rules then do the rest: the point waits for the human at the ready barrier (E6, up to `entry_ready_timeout`), a lone AI
 with a human near is a team of two and slices only its own side (E7), and an AI behind the human crosses after the human's
@@ -330,7 +335,10 @@ team can count on it to be there; the number says how many go in ahead.
 Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stack_player_keeps_slot_late_ai_behind`, `stack_far_player_ignored`,
 `stack_point_waits_for_player`, `stack_point_goes_when_player_ready`, `stack_follower_waits_for_player`,
 `stack_player_idle_withdrawn`, `stack_player_leaving_withdraws`, `stack_defender_player_none`, `stack_player_slot_von` (the real
-Von server; `tools/run_tests.sh stack --include-von`), `ui/stack_markers_draw`, `general/stack_player_wiring`.
+Von server; `tools/run_tests.sh stack --include-von`), `stack_player_kept_through_bang` (the human's slot kept through its one
+AI teammate's bang, real Von), `stack_player_dead_end_withdrawn` (E20), `stack_player_follows_team_side` (E19), `ui/stack_markers_draw`,
+`general/stack_player_wiring`; beneath them the unit suite `ai/door_stack_suite` (the claim's codec, same-frame ties with the human, the
+human's slot never moved into).
 
 **E17. A stun before the crossing (the bang entry, `docs/grenades.md` G18).** A stack that carries a stun grenade and has a reason to
 think a hostile is in the room (gunfire or footsteps heard there, shot at from it, an ally's fight in it, a hostile seen going in, lost
@@ -442,17 +450,17 @@ the human is given a slot on the side it stands on when the way to the team's si
 arrive from one side is one-sided and behaves as E1 to E17 say. Why: walking across the door to reach the stack is the funnel crossed
 outside it (E15, E18); the criss-cross is how real teams enter from both sides of a door, each man covering the half of the room the other
 cannot see, and the crossing paths keep each entrant's sector clear of the other's. In the code, `AgentEntry.stack_side_from` takes the
-team's side (`stack_side`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
+team's side (`DoorStack.stack_side`, `scenes/ai/perception/stack/door_stack.gd`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
-split the stack); `AgentEntry.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
-`AgentEntry.crossing_order` the order the stack crosses in. `entry.gd` reads both through the perception (`_before`, `_slices_own_half`,
-`_follow`, `_corner_for`); `PlayerStack` uses them for the human.
+split the stack); `DoorStack.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
+`DoorStack.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
+`_before`, `_slices_own_half`, `_follow`, `_corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
 **E20. Every slot in the stack's room.** Every slot of a stack, both sides and every row, lies in the room on the stack side of the
 doorway's wall (at an exterior door, outdoors: outside every room of the house and out from the wall): never across a wall, round a
 corner or in another room. It is on the navmesh, reached from the stack side by a route that does not go through the doorway, and out of
-every other doorway's fatal funnel (its width, `FUNNEL_DEPTH` 40 px either side of its wall) and view (E18). The file is sought in a band
+every other doorway's fatal funnel (its width, `StackClaim.FUNNEL_DEPTH` 40 px either side of its wall) and view (E18). The file is sought in a band
 beside the door: from a body (`SLOT_BODY`, 14 px) past the jamb to the stack room's corner (outdoors `OUTDOOR_REACH`, 320 px), and 14 to
 110 px out from the wall plane (`SLOT_OUT_MIN` / `SLOT_OUT_MAX`; within `ROW1_DEPTH`, 50 px, a slot is against the wall, past it a step
 out); it is the most bodies that band holds `entry_stack_spacing` apart, against the wall first, nearest the door first. Where the rule
@@ -475,11 +483,12 @@ shared by every NPC on it. Why: a slot across a wall or in another room is not a
 nor follow it through, and one in another doorway's view or funnel stands in the open before a room nobody has cleared (E15, E18). A room
 too small for the team leaves the rest waiting where they came from, covering the way behind, as a short room's members do outside (E13).
 In the code `AgentEntry._lay_slots` lays a way in (`kind` `wall`, `views`, `open_floor` or `dead_end`; `wall_n` the slots its wall holds, `seq`
-the open floor and the tail past them, `tail_from`, `capped`), and the static `AgentEntry.stack_slots(g, count, side)` (`[{ n, point, side, row
-}]`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`, `stack_point`, `holds_slot` and `is_tail`;
+the open floor and the tail past them, `tail_from`, `capped`), and the static `DoorStack.stack_slots(g, count, side)` (`[{ n, point, side, row
+}]`, `scenes/ai/perception/stack/door_stack.gd`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`,
+`stack_point`, `holds_slot` and `is_tail`;
 `warm_geometry` lays one way in a physics frame, among every NPC, in the frames after the nav bake.
 Tests: `stack_slots_sweep` (geometry, no simulation: every doorway of the 11 generated floorplans, 3 fixed seeds each, furnished, and the
-Terrace house, both sides, stacks of 1 to 6; every slot read through `AgentEntry.stack_slots` and judged by the test's own geometry: in the
+Terrace house, both sides, stacks of 1 to 6; every slot read through `DoorStack.stack_slots` and judged by the test's own geometry: in the
 stack-side room, on the navmesh, reached, out of every other doorway's view and funnel, off furniture, spacing kept, and each fallback by its
 rule, with the test's own fewest-seen bar and its own exhaustive packing of the wall, the open floor and a dead end), `stack_dead_end_refused`
 (four ordered into a hand-laid 100 x 100 closet with no wall beside its door, which holds fewer by the test's own packing: exactly as many as
@@ -491,7 +500,7 @@ that runs to the wall's end (E22). The members past it stack on the other side o
 while that side's wall has room; when neither side has, a second file a step out from the wall behind the first, in the same room (its own
 side first, then the other's). An ordered stack starts on the side its order names (`docs/leadership.md` D3), then the same rule. Why: real
 teams split across a door whose wall is short, and enter by the criss-cross; a second row against the first is the last resort, since it stands
-nearer the door's front. In the code `AgentEntry.side_for(g, team, slot, preferred)` (a member's side, wanting `preferred`, among the claims)
+nearer the door's front. In the code `DoorStack.side_for(g, team, slot, preferred)` (a member's side, wanting `preferred`, among the claims)
 and `stack_point`.
 Tests: `stack_slots_sweep` (the other side before a second file, against the wall or a step out, the point on the order's side), and the
 six-member reach tests `stack_reach_terrace_kitchen_six`, `stack_reach_garage_home_garage_six` and `stack_reach_bungalow_laundry_six`.
@@ -602,11 +611,12 @@ the stack toward the door's axis, clear of the slots.
   `opening`, `into` (the room it leads into), `slot`, `side` (the side of the door the member stacks on: on a split stack, E19,
   not the same for all) and `entry_step` (`claim`, `ready`, `going_in`, `in`, `clear` with
   `cleared_room`, `cover` with `covering` (the doorway on it watches), `rear`, `done`, `abort`), repeated whole every
-  2 s so a claim stays live. A doorway on is claimed like a slot: the nearest one no teammate covers, and of two who
+  `StackClaim.HEARTBEAT` (2 s) so a claim stays live; every entry field is encoded and decoded by `StackClaim`
+  (`scenes/ai/perception/stack/stack_claim.gd`), and each listener keeps the latest claim per speaker in its own `ClaimLedger`. A doorway on is claimed like a slot: the nearest one no teammate covers, and of two who
   claim one, the lower instance id keeps it. `done` ends a hold; a teammate still holding takes it as the team moving on. A slot is the lowest the radio
   leaves free; every claim carries `claim_frame` and `claim_pos` (the frame its slot was claimed on and where the member stood), and two
   members who claim the same slot on the same frame and side settle it by distance to it, the nearer keeping it (within 0.5 px, or on
-  different frames, by instance id, the flank side claim pattern; `AgentEntry.free_slot`), the other taking the next. A claim that moved up
+  different frames, by instance id, the flank side claim pattern; `DoorStack.free_slot`), the other taking the next. A claim that moved up
   (E2) carries `move_up` and holds its slot against the latecomer's, which takes the one it freed; `pie` says the speaker has begun the pie.
   A single invader is a team of one: nobody else claims the doorway, so there is no
   barrier and the pie is sliced from both sides (E7).
@@ -639,12 +649,14 @@ Interpretations and the game's own rules, where the sources leave a choice:
 
 - **The human (E16).** `PlayerStack` (`scenes/ai/team/player_stack.gd`) is a child of the human's character, attached by Main
   (`MatchSpawner.bind_player`). It hears the same callouts the NPCs do, and when an allied claim on a doorway is live and the
-  human is within range it radios the human's own claim as a `callout` with the human as speaker, repeated every 2 s. The AI's
-  entry code (`claims`, `free_slot`, the barrier, the follow rule) reads it like any teammate's, so `entry.gd` has no case for a
-  human but one: its claims say `human`, and no member moves up into that slot (E2); while the human leads its side's squad they say
-  `leader` too (`docs/leadership.md` LD17). Its side comes from the same `AgentEntry.stack_side_from` (E19) and `side_for` (E21), its
-  slot's point from `stack_point` (E20). `view()` gives the markers the doorway, the slots (each where it stands, on either side) and
-  which is the human's.
+  human is within range it radios the human's own claim as a `callout` with the human as speaker, a full claim encoded by
+  `StackClaim.encode` (its `claim_frame` and `claim_pos`, `bang` true, no `stuns` or `frags`), repeated every 2 s. It hears through a
+  `ClaimLedger` of its own and asks the doorway's `DoorStack` with the human's own claim, as an NPC's entry does. The AI's entry code (the
+  claims, `slot_for`, the barrier, the follow rule) reads it like any teammate's, so `entry.gd` has no case for a human but one: its
+  claims say `human`, and no member moves up into that slot (E2), nor does the human move up, nor throw the stack's grenade; while the
+  human leads its side's squad they say `leader` too (`docs/leadership.md` LD17). Its side comes from the same
+  `AgentEntry.stack_side_from` (E19) and `DoorStack.settle` (E21), its slot's point too (E20). `view()` gives the markers the doorway,
+  the slots (`DoorStack.layout`, each where it stands, on either side) and which is the human's.
 
 ## Sources
 

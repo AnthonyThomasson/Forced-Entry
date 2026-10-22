@@ -82,7 +82,7 @@ same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` 
 the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(cfg)`, with
 `order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
-`join: true`, the squad's rally, LD24) (`Entry.is_join(params)`) keeps its `order_id` in the params, so `_same_order`, `_order_live` and the `moving` radio treat it as
+`join: true`, the squad's rally, LD24) (`StackClaim.is_join(params)`) keeps its `order_id` in the params, so `_same_order`, `_order_live` and the `moving` radio treat it as
 the member's order, but it is no ordered stack: `_ordered_entry(params)` (an `order_id` and no `join`) is what gates `_ordered_stack()`
 (D4's guarded walk, `ordered_walk`), the held-back way reading (`held_back` / `_detour_first`) and `_guard_approach`'s ordered branch. A
 join whose entry cannot `begin` (no slot at a dead end) is ended `refused` (`AgentPerception.end_order`), so the member follows. LD25
@@ -175,7 +175,7 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 ## Locomotion (`locomotion.gd`)
 
 All movement flows through `move_to(dest, within := 0)` on a `NavigationAgent2D` (`within`: arrive closer than the agent's
-own 16 px; the entry's stack slots use `SLOT_REACH` 6 px, since a member a stride short of its slot stands on the next one). `path_ahead()` returns the walk it was just given
+own 16 px; the entry's stack slots use `StackClaim.SLOT_REACH` 6 px, since a member a stride short of its slot stands on the next one). `path_ahead()` returns the walk it was just given
 (`{ path, index }`, or {}), which the behaviour's entry guard reads. The Navigation
 domain bakes furniture in as navmesh holes and rings the house with a walkable outdoor strip.
 Steering always aims at `get_next_path_position()` — a navmesh waypoint, so it is wall-safe, and for

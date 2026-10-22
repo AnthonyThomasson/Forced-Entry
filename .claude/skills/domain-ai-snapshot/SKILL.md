@@ -50,7 +50,7 @@ lives in `agent_snapshot.gd`.
   rounds), `under_fire`, `engaged`, `leads`, `lead_outside` (the NPC is inside the house and an offered lead lies outside it:
   gates the `stay` child of INVESTIGATE), `hurt` (its damage taken has reached `hurt_threshold`), `inside` (it stands in a room of the
   house), `exposed` (a clear line to the hostile it lists first, or under fire with no hostile known), and the grenade ones: `grenade_ready` (some known hostile has a `grenade_throws` option),
-  `stack_has_stun` (it carries a stun, or a teammate's entry callout says `stuns` > 0: gates STUN ENTRY), `ordered` (it holds a live order from its
+  `stack_has_stun` (it carries a stun, or a teammate's entry callout says `stuns` > 0, read through `StackClaim.decode`: gates STUN ENTRY), `ordered` (it holds a live order from its
   leader, `docs/leadership.md` LD5: gates the ORDER node and its entry rule), `follows` (it follows its squad's leader, `Squad.follows`, from
   the knowledge's `follows`, which the controller sets on the perception every tick, LD19: gates the FOLLOW node and its entry rule). The brain overlay shows the ones that hold.
 - **sections** — named state-text blocks; each tree level shows the ones it lists: `goal` (the controller's goal with `{gun}` filled in by `fill_goal`, the same noun as `loadout`),
@@ -66,7 +66,7 @@ lives in `agent_snapshot.gd`.
   kitchen by its doorway quietly." ("with a stun grenade first", "with a frag grenade first": the order's `mode`, LD14; a held stack that has
   had no go adds " when they give the go", LD13), "Your leader ordered you to ambush the doorway into the hall from the living room." (into
   `beyond` from `room`; an exterior door's: "... to ambush the outside doorway of the kitchen from inside.", LD15), a join (the leader's own
-  stack, mode `join`, `SnapshotVocab.is_join(order)`, LD24) "Your leader ordered you to go into the kitchen by its doorway with them.", "" otherwise; the planner
+  stack, mode `join`, `StackClaim.is_join(order)`, LD24) "Your leader ordered you to go into the kitchen by its doorway with them.", "" otherwise; the planner
   shows it after the goal at every level, so an NPC with no order reads exactly what it read before. Measured with `tools/von_probe.py`
   (`docs/leadership.md` LD6, LD13 to LD15: at the 18 combat levels the top pick unchanged in 17/18 for the defend sentence and 18/18 for
   every stack, held stack and ambush one; the plan's held ending " and wait for my go", and every other ending tried, flipped
@@ -91,7 +91,7 @@ lives in `agent_snapshot.gd`.
   navmesh point is under a `STRIDE`, 32 px; shots from beyond the walkable ground), and the retreat spots are screened in `agent_tactics.gd`
   (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). `entries` (the doorways
   ENTER offers, `entry_enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
-  nearest first; the place is the NPC's free stack slot on the side it would stack on (the team's, or its own when the way there crosses the doorway's view, E19), `params` carry `opening`, `into`, `slot`,
+  nearest first; the place is the NPC's free stack slot on the side it would stack on (the team's, or its own when the way there crosses the doorway's view, E19), the answer its entry's `begin` will give: the doorway's `DoorStack` off the perception's `ClaimLedger` (`_ledger.stack(id, g)`, `slot_for` with its own claim, `{ id, slot: 0, frame: GameClock.frame(), pos }`, then `settle`; a slot a dead end does not hold offers no option, E20), `params` carry `opening`, `into`, `slot`,
   `side`; the summary is the nearest one's desc), `search_rooms` (+ front entrance / approach the house while outside;
   with entries, the rooms they lead into and the entrance are left to ENTER), `explore` (unknown rooms by direction
   only, minus those an entry leads into),
@@ -104,7 +104,7 @@ lives in `agent_snapshot.gd`.
 false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
 controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
   `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
-  dead end with no slot for this member (`AgentEntry.holds_slot` false at `_stack_place`: its index among the living recipients in `to`,
+  dead end with no slot for this member (`DoorStack.has_slot` false at `_stack_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
   or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).

@@ -14,7 +14,7 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads and the leash
 break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
-`agent_entry.gd` (`defend_spot`, `ambush_spot`, `stack_slots`), the snapshot
+`agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confine_room` and leash, the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
@@ -308,7 +308,10 @@ sentence for Von ends " when they give the go".
 - **Go (D13).** `go` is an order kind of its own, `{ opening, pos }`: the squad posts it to every living member holding a held stack order
   at the doorway nearest the request's `pos`, whatever its `to` and the menu's selection, and posts nothing where no held stack waits. It
   replaces nothing: the member's perception marks its live stack order `go: true` (`process_order`) and asks for no new decision, and the
-  squad's `view()` marks the released orders `go`. It is latched: given while the members still walk to their slots, the stack goes the
+  squad's `view()` marks the released orders `go`. The squad reads the go off the claims as well (`scenes/ai/perception/stack/door_stack.gd`
+`released`): once a claim under the held order says `order_go`, or a member of the stack is crossing or through (D14), its `view()` says
+those orders are no longer `held`, latched as each member latches its own, so the order markers stop saying "hold" and the command menu
+stops offering "Go into the …". It is latched: given while the members still walk to their slots, the stack goes the
   moment the ready barrier (D7) is met. After it the entry runs as a go-when-ready stack of its mode (the pie for a quiet one, the bang
   for a stun or a frag). The entry latches its go (`_note_go`) from any of: its own order's `go`; a teammate under the same order whose
   claims say `order_go`; a member of the stack going in or through (D14); the order's leader dead or gone (D12); and radios it in its next
@@ -340,7 +343,8 @@ sentence for Von ends " when they give the go".
 Tests (scripted, the Terrace house's back door, `tests/ai/entry/` unless said): `order_stack_hold_for_go` (three members held: ready, no
 pie, bang or crossing for 15 s, each radios `in_position`; the go, then in by slot), `order_stack_go_latched` (the go posted while they
 walk: they go once ready, with no second go), `order_stack_hold_human_go` (D14: the human puppet holds slot 3 through `PlayerStack`; the
-stack waits 10 s, the human walks in and both AIs follow), `order_stack_hold_leader_dies` (D12: the leader killed while the stack holds,
+stack waits 10 s, the human walks in and both AIs follow; the squad's `view()` then no longer says their orders are held, nor do the order
+markers say hold), `order_stack_hold_leader_dies` (D12: the leader killed while the stack holds,
 it goes on its own), `ai/grenade/order_frag_held_then_go` (LD14: no bang call or throw while held), `general/squad_go_and_ambush` (the go's
 recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/command_menu_wiring` (LD16). Part 1's
 `order_stack_*` tests, unchanged, cover a stack that goes when ready.
@@ -441,12 +445,12 @@ house's back door and dawdles 20 s out of it: nobody crosses and its claim says 
 second door it dawdles 10 s, nobody crosses, then it walks away: its withdrawn claim frees them), `order_stack_joiner_grace` (an unordered
 joiner reaching its slot 2 s after the last ordered member is waited for, though the point stood in its slot 15 s).
 
-**LD18. Rings for every stack of the human's side.** The squad reads the entry claims its members radio (the human's `PlayerStack` among
-them; each current as long as the NPCs keep a callout they heard, their `callout_ttl` (6 s), which Main hands the squad, a dead speaker's
+**LD18. Rings for every stack of the human's side.** The squad reads the entry claims its members radio through its own `ClaimLedger` (the
+human's `PlayerStack` among them; unlimited range, the side's whole view; each current as long as the NPCs keep a callout they heard, their `callout_ttl` (6 s), which Main hands the squad, a dead speaker's
 dropped) and gives every stack its side is forming, ordered or its own, in
 `view()["stacks"]`: `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, from the stack's first claim
 while any member is still on its way in (`claim`, `ready`, `bang` or `going_in`). Its slots run from 1 to the last claimed, each laid where
-the AI stands it with the squad's own copy of the doorway geometry (`AgentEntry.stack_slots`, `side_for`, `stack_point`: the holder's side
+the AI stands it with the squad's own copy of the doorway geometry (`DoorStack.layout`, over `stack_slots`, `side_for`, `stack_point`: the holder's side
 and place in that side's file; a free slot on the stack's side; a slot a dead end does not hold left out); `there` is its holder standing
 in it (`ready` or `bang`), `mine` the human's, `row` its file (1 against the wall, 2 a step out). In every played match, whoever leads,
 Main points the stack markers (`ui/hud/stack_markers.gd`, `watch_squad(squad.view)`) at the human's side's squad, and they draw each slot
@@ -695,7 +699,7 @@ The cases the behaviours above cite as D1 to D30.
 | A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `GoalController.evade_margin` |
 | An ordered member waits for the map round the views before reading its way at most | 2 s | `Behavior.ROUTE_WAIT` |
 | A stack's approach is given up after its own walk at walking pace plus | 20 s | `GoalController.entry_approach_time` (`Entry._approach_cap`) |
-| A member stands in its slot within, and steps back in when further off than | 6 px | `Entry.SLOT_REACH` |
+| A member stands in its slot within, and steps back in when further off than | 6 px | `StackClaim.SLOT_REACH` |
 | A member in its slot looks for a lower slot to move up into every | 0.25 s | `Entry.MOVE_UP_EVERY` |
 | ... within (1.5 x the stack's spacing) | 66 px | `Entry.MOVE_UP_REACH` (`SPOT_SPACING` 44) |
 | ... by a plain walk no longer than 1.5 x the straight line plus | 32 px | `Locomotion.PASS_CLEARANCE` |

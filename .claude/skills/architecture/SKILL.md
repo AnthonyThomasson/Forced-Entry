@@ -36,7 +36,7 @@ composition root is `domain-main`.
 | **Navigation** | `navigation/` | `domain-navigation` | Baking the house into a walkable nav map so characters can path around walls. |
 | **General** | `general/` | `domain-general` | Infrastructure: input (Keybinds), saved settings (`Settings`), the event bus (`EventBus`), the log (`GameLog`), the pausable game clock (`GameClock`), despawner, camera, dev command server, shared physics-layer ids (`PhysicsLayers`), the draw-order ladder (`DrawLayers`), the light masks (`LightMasks`), the batched plain-colour drawing (`FillBatch`), the shared weighted roll (`WeightedPick`) and the match verdict (`MatchVerdict`). |
 | **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers, the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
-| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
+| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). A doorway's stack as the radio describes it lives once, in perception's `ai/perception/stack/` (`StackClaim` the claim's wire format and step lists, `ClaimLedger` the claims one listener has heard, `DoorStack` every slot rule and the slots' points): the seam behaviour and the team read it through (`AgentPerception.entry_stack(opening, into := "") -> DoorStack`; behaviour, the orchestrator and the team preload `StackClaim` / `DoorStack` / `ClaimLedger` themselves). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
 | **Vehicles** | `vehicle/` | `domain-vehicle` | Drivable vehicles (a car and a van, only in the sandbox): the rigid body and its driving model, doors and seats, getting in and out (the character's `CharacterVehicleUse` component and the ride), collisions and the harm to a character struck, the dents, the vehicle art and its events. |
 | **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the gdUnit4 suites the headless CLI runner (`tools/run_tests.sh`) and the editor's GdUnit panel run. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`), each played through its folder's wrapper suite (`*_suite.gd`); pure-logic native suites (`tests/<domain>/<name>_suite.gd`) only add to them; sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
 
@@ -451,9 +451,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
       for the leader's go, LD13), `order_go` (that go has come) and `order_side` (the side of the door the order names, 1 / -1 along its
       wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9), and from a member of a join
       (the squad's rally, LD24) `join: true` (its claims are never its own, D30); a human invader's `PlayerStack`
-      (interface 17) posts the same entry steps for the human, with `human: true` (no AI moves up into its slot), `leader` (true while the
-      human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway nobody stacks at,
-      which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). A live grenade has its own statuses, which an ally in range reads as "a
+      (interface 17) posts the same entry steps for the human as a full claim (E16: every field above, `claim_frame` / `claim_pos` stamped
+      on each new claim and kept by its repeats, `bang: true` and `bang_off: false` (it never holds a stack back nor turns it), `stuns: 0` /
+      `frags: 0` (it throws nothing for the stack), `move_up: 0`, `pie: false`), with `human: true` (no AI moves up into its slot), `leader`
+      (true while the human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway
+      nobody stacks at, which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). These entry
+      fields are encoded by one function and decoded by one, `StackClaim.encode` / `StackClaim.decode`
+      (`ai/perception/stack/stack_claim.gd`, each field's default in its `DEFAULTS`): the NPC controller's `_post_entry_call`, the
+      `PlayerStack` and every reader of a stack go through them, and no reader takes a claim key off a raw callout. A live grenade has its own statuses, which an ally in range reads as "a
       grenade is down there" and not as what the speaker is doing: `status = "grenade"` (an NPC that saw or heard a grenade come down and
       is in its danger zone: `point` the spot it landed, `kind` `&"frag"` / `&"stun"`; the NPC repeats it once if the grenade then comes to rest
       30 px or more away), `"frag_out"` / `"bang_out"` (the thrower of a frag or a stun, `point` the landing; the GRENADE tactic's call, G17, and `frag_out` from the
@@ -644,9 +649,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `PlayerStack.view() -> Dictionary` — `{}` with no reservation, else `{ opening, door, slots: [{ n, point, mine, held }], mine, step }`
       (`n` the slot, numbered in claim order; `point` where it stands, on its holder's side of the door: both sides on a split stack, E19):
       the UI's `StackMarkers` (`ui/hud/stack_markers.gd`, `watch(stack)`, built by Main under `World`) draws it on the floor and reads
-      nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10) and reads the allies' off the same bus;
-      the AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human` (no AI moves up into its slot) and, when
-      the human leads, `leader`.
+      nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10), a full claim encoded by `StackClaim.encode`,
+      and hears the allies' off the same bus through a `ClaimLedger` of its own (`ai/perception/stack/claim_ledger.gd`: its side only,
+      within its `callout_range`, lapsing after its `callout_ttl` on `GameClock`); its slot, side, point, the crossing order and the markers'
+      slots come from the reserved doorway's `DoorStack` (`ai/perception/stack/door_stack.gd`), asked with the human's own claim, so
+      `view()` lays the stack the AI stands. The AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human`
+      (no AI moves up into its slot, and the human never moves up itself nor throws the stack's grenade) and, when the human leads, `leader`.
     - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack, own_claims)` with the stack `bind_player` returned (interface 21); its claims say
       `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). `PlayerStack.own_claims: bool` (false unless set; Main
       sets it through `bind_squad` on the invaders' side only, D29): while it is set and the human leads a squad with another living
@@ -743,8 +751,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
-      LD13: the one rule the UI reads instead of working it out); an order radioed `done` is no longer held, {} with the step `done`, while a
-      `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the members' entry claims on the bus,
+      LD13: the one rule the UI reads instead of working it out; released by the squad's own `go`, or by one read off the claims,
+      `DoorStack.released`: a claim under that order says `order_go`, or a member of the stack is crossing or through (D14: the human leader
+      stepping in is its go), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
+      step `done`, while a `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the side's entry claims
+      through the squad's own `ClaimLedger` (unlimited range: the side's whole view; `claim_ttl`) and laid by each doorway's `DoorStack.layout`,
       `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where
       the AI stands it; `holder` the instance id, 0 free; `there` its holder in it; `mine` the human's; `row` 1 against the wall, 2 a step out),
       from a stack's first claim until everyone in it is through; `follow_spot` the member's `follow_spot`, `trail` the leader's trail
@@ -863,6 +874,7 @@ Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶
 Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
+AI behaviour (entry.gd, behavior.gd) / orchestrator / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack, preloaded; AgentPerception.entry_stack)──▶ AI perception's stack/ (the stack seam)
 main ──(_build_squads: Squad.setup, MatchSpawner.bind_squad)──▶ Squad (AI team) ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchSpawner.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)

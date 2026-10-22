@@ -94,6 +94,33 @@ Hits in the matches, none in the tests: live code no test holds in place.
 Code that is not play: the test harness, the dev command server, the debug overlays, the settings menu. Tagged, never
 hidden; matches never drive it, so its zeros say little.
 
+### Tactical entry
+
+**Stack**:
+A doorway's stack: the members going into a room through one doorway together, each holding a numbered slot beside it
+(slot 1, the point, nearest the door; on one side of the door, or both for a split stack), as the radio describes it
+(`docs/tactical-entry.md`). The human invader is a member like any other.
+_Avoid_: queue, team (all of a side's members), file (one side's line of slots)
+
+**Claim**:
+One member's place in a stack as it radios it: an `&"callout"` with an entry step (`claim`, `ready`, `bang`, `going_in`,
+`in`, ... `abort`, `done`), the doorway, its slot and side, and the fields every reader settles the stack by, encoded and
+decoded only by `StackClaim` (`scenes/ai/perception/stack/stack_claim.gd`). A member's latest claim replaces its
+earlier one; the human's is a full claim too.
+_Avoid_: reservation (the human's slot in an allied stack, E16, is one claim), callout (any radio call)
+
+**Claim ledger**:
+The claims one listener has heard, the latest per speaker, current for its ttl on the game clock: a `ClaimLedger`, one
+each for an NPC's perception, the human's `PlayerStack` and a side's `Squad`, each hearing its own side within its own
+range (the squad's unlimited).
+_Avoid_: claims cache, heard callouts (the perception's memory of what allies say they do)
+
+**Door stack**:
+A doorway's stack built from its geometry and the claims a ledger holds: a `DoorStack`, the one place every slot rule is
+settled (same-frame ties and move-up, the human's slot, sides, files, tail and dead ends, the crossing order, the
+thrower, a held stack's release) and a slot becomes a point, so every reader gets the same answer.
+_Avoid_: stack layout (its `layout()`, what the markers draw), slot rules
+
 ### Lint
 
 **Lint rule**:

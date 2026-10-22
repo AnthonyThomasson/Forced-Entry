@@ -1,6 +1,6 @@
 ---
 name: domain-ai-team
-description: Deep implementation detail for the AI TEAM module (scenes/ai/team/: player_stack.gd, squad.gd) — the human's place in an AI entry stack and each side's squad. The human's stack radio (PlayerStack, interface 17): claiming the first free slot when an allied team stacks at a doorway near the human, the split stack (E19), the dead-end refusal (E20), the other side of the door (E21), human / leader on its claims, the steps read from where the human stands, withdrawing, the human leader's own claim on stepping up to a doorway (LD24), and view() for the stack markers. The squad (Squad, interface 21, docs/leadership.md): the leader and succession (highest rank, the human when it leads, the &"leader" post), issue / resolve of a leader's request into an &"order" (defend_room / stack / go / ambush / cancel: which doorway a click means, the room "into", stack_at or split, quiet / stun / frag modes, held stacks and the go that releases them, the automatic go when the leader dies), following (follows / follow_spot: the leader's trail, the file and the ring, out of the leader's way, the leash), the rally (a join order on the leader's own claim, cancelled on its abort), the takeover from a dead human leader, view() (each member's order, step, held and follow spot, the side's stacks laid slot by slot, the trail and the leash) and the seam into perception it reuses (AgentEntry statics, AgentGrenades.is_call). Use when editing scenes/ai/team/ or working on the squad, leaders, following, orders, the command menu's resolution, the stack markers' data or the human's stack claim. Complements the light `domain-ai` overview, `domain-ai-entry` (how the NPCs carry a stack out) and the `architecture` skill (interfaces 17, 21).
+description: Deep implementation detail for the AI TEAM module (scenes/ai/team/: player_stack.gd, squad.gd) — the human's place in an AI entry stack and each side's squad. The human's stack radio (PlayerStack, interface 17): claiming the first free slot when an allied team stacks at a doorway near the human, the split stack (E19), the dead-end refusal (E20), the other side of the door (E21), human / leader on its claims, the steps read from where the human stands, withdrawing, the human leader's own claim on stepping up to a doorway (LD24), and view() for the stack markers. The squad (Squad, interface 21, docs/leadership.md): the leader and succession (highest rank, the human when it leads, the &"leader" post), issue / resolve of a leader's request into an &"order" (defend_room / stack / go / ambush / cancel: which doorway a click means, the room "into", stack_at or split, quiet / stun / frag modes, held stacks and the go that releases them, the automatic go when the leader dies), following (follows / follow_spot: the leader's trail, the file and the ring, out of the leader's way, the leash), the rally (a join order on the leader's own claim, cancelled on its abort), the takeover from a dead human leader, view() (each member's order, step, held and follow spot, the side's stacks laid slot by slot, the trail and the leash) and the seam into perception it reuses (the stack module: StackClaim, ClaimLedger, DoorStack; AgentEntry's geometry). Use when editing scenes/ai/team/ or working on the squad, leaders, following, orders, the command menu's resolution, the stack markers' data or the human's stack claim. Complements the light `domain-ai` overview, `domain-ai-entry` (how the NPCs carry a stack out) and the `architecture` skill (interfaces 17, 21).
 ---
 
 # AI · Team module (`scenes/ai/team/`)
@@ -12,25 +12,34 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 
 **The human's stack (`ai/team/player_stack.gd`).** Not a fifth sub-domain: one small module, the human's side of the entry radio
 (`docs/tactical-entry.md` E16). A child of the human's character (Main attaches it through `MatchSpawner.bind_player`), it listens to the
-`&"callout"` bus like an NPC and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
+`&"callout"` bus like an NPC (through a `ClaimLedger` of its own, perception's `stack/claim_ledger.gd`: its side only, within its
+`callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
-E19), standing on the side `side_for` gives that slot (`_on`: the other side while its own wall is full, E21) at `stack_point`: the same entry
-fields plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
+E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()`: `slot_for`, then
+`settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
+full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
+by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `bang: true`, `bang_off: false`: it never holds
+a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
 `MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it) and `own` (false for this E16 reservation), with the human as `speaker`,
-repeated every 2 s (`_post`). `_reserve(id, into, geo, team)` takes the slot and side and starts the claim, for E16 and the own claim alike. It reads the human's step
-from where it stands (`claim` / `ready` / `going_in` / `in`) and withdraws on leaving, dying, nobody left stacking, or `go_timeout` after the AI
-ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's `AgentEntry` (the statics `claims`, `free_slot`, `stack_side`, `crossing_order`,
-`side_for`, `stack_point`, `holds_slot`, and `geometry` / `stack_side_from`) and `AgentGrenades.is_call` (a grenade call is not a stack claim; nor is a callout that is
-only an order's progress, `order_step` with no `entry_step`, LD7), and never moves the
-character. **Its own claim (LD24).** With `own_claims` set (Main sets it through `MatchSpawner.bind_squad` on the invaders' side only, D29:
+repeated every `StackClaim.HEARTBEAT` (2 s) (`_post`: its header written by hand, the five fields an NPC's controller writes in
+`_callout_header`). `_reserve(id, into, geo, stack)` takes the slot and side from that `DoorStack` and starts the claim, for E16 and the own
+claim alike. It reads the human's step
+from where it stands (`claim` / `ready` / `going_in` / `in`, `_step_at`: in its slot within `StackClaim.HUMAN_SLOT_REACH`, 20 px, through past
+`StackClaim.THROUGH_DEPTH`, in the funnel within `StackClaim.FUNNEL_DEPTH`) and withdraws on leaving, dying, nobody left stacking (no claim
+at a `StackClaim.STACKING` step, so an AI on its `bang` still keeps the human's slot reserved), or `go_timeout` after the AI
+ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's stack module (`StackClaim`, a `ClaimLedger`, the `DoorStack`s it builds: the slot, side, point, crossing order
+(`crossing` / `ahead`), whether anyone is stacking, `has_slot`, and the markers' `layout`; `StackClaim.keeps_claim`: a grenade call is not a
+stack claim, nor is a callout that is only an order's progress, `order_step` with no `entry_step`, LD7) and `AgentEntry`'s geometry
+(`set_house`, `geometry`, `stack_side_from`, `on_stack_side`, `opening_id`), and never moves the character. **Its own claim (LD24).** With `own_claims` set (Main sets it through `MatchSpawner.bind_squad` on the invaders' side only, D29:
 false unless set, so a human defender leader claims nothing of its own and rallies nobody), no allied stack forming in reach and the human
 leading a squad with another living member (`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;
 `_stepped_up`: on the doorway's stack side (`AgentEntry.on_stack_side`), out from the wall plane and past the jamb along it each within
-`STEP_UP_REACH`, 60 px, at a doorway nobody stacks at and not `_barred`) it claims slot 1 there (`free_slot([])`) on the side it stands on
+`STEP_UP_REACH`, 60 px, at a doorway nobody stacks at and not `_barred`) it claims slot 1 there (an empty `DoorStack`'s `slot_for`) on the side it stands on
 (`stack_side_from`), flagged `_own` and radioed `own: true`. The squad hears that claim as the leader's own and rallies the team; a
 reservation in an allied stack (E16), the leader's or not, carries `own: false` and never rallies. An own claim is kept while nobody
 else stacks there (the "nobody stacking" withdrawal waits until the human is `in`), and with nobody ahead of it the `go_timeout`
-withdrawal does not fire; `_withdraw` clears `_own`. `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI). `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
+withdrawal does not fire; `_withdraw` clears `_own`. `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI): its slots are the `DoorStack`'s `layout(_me())`,
+the points the AI stands. `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
 see one more teammate, and a held stack (LD13) takes a teammate's `going_in`, the human's too, as its go (D14).
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` Main builds under `World` after
@@ -49,17 +58,22 @@ without posting (`{ room, pos }`, `{ opening, pos, into, split, stack_at? }`, `{
 an ambush: what the UI's command menu names its stack and ambush items from); `view()` is `{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }` (`follow_spot` `Vector2.INF` for a
 non-follower, `trail` the leader's trail oldest point first, `leash` px: what the leader overlay draws, LD28), the
 steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
-still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it); an order radioed `done` is no longer
-held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks` / `_slots_of`) is every stack the side is forming, ordered
-or its own, from the members' entry claims it hears (`_claims`, the latest per speaker, current for `_claim_ttl`: the NPCs' `callout_ttl` (6 s), handed in by `setup`, which Main reads off
+still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it): not released by the
+squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id)`, a
+claim under the order saying `order_go` or a member crossing or through, D14, the human leader stepping in among them), each kept in
+`_released` once heard, as each member latches its own go; an order radioed `done` is no longer
+held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
+or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per
+speaker, current for `claim_ttl`: the NPCs' `callout_ttl` (6 s), handed in by `setup`, which Main reads off
 the side's NPCs with `MatchSpawner.callout_ttl_of`; a dead speaker's dropped;
-the human's `PlayerStack` among them), while a claim is at `claim` / `ready` / `bang` / `going_in` (`STACKING`): `[{ opening, into, door, slots:
-[{ n, point, holder, held, there, mine, side, row }] }]`, slots 1 to the last claimed laid with its own `AgentEntry` (`stack_slots`, `side_for`,
-`stack_point`; a slot a dead end does not hold left out), `there` its holder at `ready` / `bang` (`IN_SLOT`), `mine` the human's; the UI's stack
+the human's `PlayerStack` among them), at each doorway `ClaimLedger.openings_stacking()` names (a claim at a `StackClaim.STACKING` step):
+`[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, the slots that doorway's `DoorStack.layout()` gives
+(slots 1 to the last claimed over the geometry its own `AgentEntry` lays, each where its holder stands it, a slot a dead end does not hold
+left out), `there` its holder at `ready` / `bang` (`StackClaim.IN_SLOT`), `mine` the human's; the UI's stack
 markers draw it, laid on the navigation map and physics space of the world the squad itself is in (its viewport's `World2D`). It reads its
 members only through the Character API (`rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
 that follows, when a child of it is in the group `npc_controllers` at `setup`, `_npcs`) and the bus, and reuses `AgentEntry.opening_id` /
-`normal_into` and the slot statics. The only orders it posts of its own are the rally's joins and the cancels below; `_post_order` (the id,
+`normal_into` and the stack module (`StackClaim`, `ClaimLedger`). The only orders it posts of its own are the rally's joins and the cancels below; `_post_order` (the id,
 `_orders`, the `&"order"` post) serves `issue` and them alike.
 
 **Following (`docs/leadership.md` LD19 to LD23).** `follows(member)`: alive, the squad has a leader, not the leader, an NPC (`_npcs`). The
@@ -85,7 +99,7 @@ reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow`
 faction, any `entry_step`, not a grenade call) with no `order_id` and no `join` (a join's claims, D30: a follower that took over the lead
 holding one rallies nobody on it), and from the human only one marked `own` (`_own_claim`), to `_rally`: on
 `claim`, once per `"<leader id>:<opening>"` (`_rallied`), one `stack` order with `mode` `JOIN` (`"join"`, not one of `MODES`, `quiet` /
-`stun` / `frag`, which a request may name; `is_join(order)` tells a join), `opening` / `into` the claim's, `pos` the doorway's centre (`_opening_pos`), `split`, `bang`,
+`stun` / `frag`, which a request may name; `is_join(order)`, a thin name for interface 21's callers over `StackClaim.is_join`, tells a join), `opening` / `into` the claim's, `pos` the doorway's centre (`_opening_pos`), `split`, `bang`,
 `wait_go` false, to every follower whose `_orders` entry is empty (D24); on the leader's `abort` the key is erased and one `cancel` goes to
 the living members holding a join of that leader at that opening (D25). A join radioed `refused` is dropped from `_orders`, as a `done`.
 `_on_died`, when the dead member led and was the human, calls `_take_over`: one `cancel` to the living members holding a `defend_room` or
