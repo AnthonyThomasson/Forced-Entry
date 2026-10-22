@@ -4,9 +4,8 @@ extends RefCounted
 ## radio carries it (interface 10), and the step lists and distances every reader of a stack shares.
 ## The one encoder (`encode`, the entry fields of a callout) and the one decoder (`decode`, a
 ## callout's claim, each field's default from `DEFAULTS`): the NPCs' controller, the human's
-## `PlayerStack`
-## and every listener (`ClaimLedger`) go through them, so no caller reads a claim key off a raw
-## callout. Static, preloaded (no `class_name`).
+## `PlayerStack` and every listener (`ClaimLedger`) go through them, so no caller reads a claim key
+## off a raw callout. Static, preloaded (no `class_name`).
 
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
 ## Entry steps of a member still on its way into the room: it holds a place in the stack.
@@ -16,6 +15,11 @@ const STACKING := ["claim", "ready", "bang", "going_in"]
 const IN_SLOT := ["ready", "bang"]
 ## Entry steps of a member through the doorway.
 const THROUGH := ["in", "clear", "cover", "rear"]
+## Entry steps of a member that has called the room clear (`clear`, then the watch it keeps
+## after).
+const CLEARED := ["clear", "cover", "rear"]
+## Entry steps of a member holding the cleared room (covering a doorway or the rear).
+const HOLDING := ["cover", "rear"]
 ## Entry steps that end a member's claim on a doorway (it gave it up, or is done with it).
 const ENDED := ["abort", "done"]
 ## How far (px) inside the wall plane an entrant counts as through the threshold.
@@ -129,6 +133,16 @@ static func in_slot(step: String) -> bool:
 ## Whether entry step `step` is through the doorway (`THROUGH`).
 static func through(step: String) -> bool:
 	return THROUGH.has(step)
+
+
+## Whether entry step `step` has called the room clear (`CLEARED`).
+static func cleared(step: String) -> bool:
+	return CLEARED.has(step)
+
+
+## Whether entry step `step` holds the cleared room (`HOLDING`).
+static func holding(step: String) -> bool:
+	return HOLDING.has(step)
 
 
 ## `value` as field `key`'s type (its default's).

@@ -21,8 +21,6 @@ const GAZE := Color(1.0, 1.0, 1.0)
 const COVER := Color(1.0, 0.6, 0.2)
 const CLEARED := Color(0.3, 0.9, 1.0)
 const VIEW := Color(1.0, 0.35, 0.3)
-## How deep (px) the funnel is drawn either side of the wall plane (the tests' `FUNNEL_DEPTH`).
-const FUNNEL_DEPTH := 40.0
 ## Half the angle (rad) of the wedge drawn toward the room beyond a covered doorway.
 const COVER_WEDGE := 0.26
 const PHASE_NAMES := {
@@ -93,11 +91,12 @@ func _doorway(e: Dictionary) -> void:
 	var along: Vector2 = d["along"]
 	var out: Vector2 = d["out"]
 	var half: float = float(d["width"]) * 0.5
+	var depth: float = d["funnel"]  # Either side of the wall plane.
 	var funnel := PackedVector2Array([
-		to_local(pos + along * half + out * FUNNEL_DEPTH),
-		to_local(pos - along * half + out * FUNNEL_DEPTH),
-		to_local(pos - along * half - out * FUNNEL_DEPTH),
-		to_local(pos + along * half - out * FUNNEL_DEPTH),
+		to_local(pos + along * half + out * depth),
+		to_local(pos - along * half + out * depth),
+		to_local(pos - along * half - out * depth),
+		to_local(pos + along * half - out * depth),
 	])
 	draw_colored_polygon(funnel, Color(FUNNEL, 0.12))
 	_line(pos - along * half, pos + along * half, DOOR, 4.0)

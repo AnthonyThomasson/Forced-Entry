@@ -47,12 +47,6 @@ const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 ## The entry claim's wire format, step lists and slot distances (perception's stack module).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
-## A member whose latest call is one of these has called the room clear (`clear`, then the watch it
-## keeps after).
-const CLEARED := ["clear", "cover", "rear"]
-## A member whose latest call is one of these is holding the cleared room (covering a doorway or the
-## rear).
-const HOLDING := ["cover", "rear"]
 ## How far (px) back from a doorway, inside the cleared room, a member stands to cover it.
 const COVER_DEPTH := 110.0
 ## How far (px) a cover spot is kept off the cleared room's walls.
@@ -700,9 +694,9 @@ func debug() -> Dictionary:
 
 
 ## The entry as world-space data for the entry debug overlays (observation only): the doorway's
-## frame, slots, pie arc and corners (with what the pie saw), this NPC's role, slot, approach and
-## gaze, the ready-barrier timers, the team off the radio, and once the room is clear the doorways
-## on it covers. {} when no entry is running.
+## frame (its fatal funnel's depth among it), slots, pie arc and corners (with what the pie saw),
+## this NPC's role, slot, approach and gaze, the ready-barrier timers, the team off the radio, and
+## once the room is clear the doorways on it covers. {} when no entry is running.
 func debug_view() -> Dictionary:
 	if phase in ["", "done"] or _geo.is_empty():
 		return {}
@@ -737,6 +731,7 @@ func debug_view() -> Dictionary:
 			"out": _geo["out"],
 			"along": _geo["along"],
 			"room": _geo["room"],
+			"funnel": StackClaim.FUNNEL_DEPTH,
 		},
 		"opening": opening, "into": into, "phase": phase, "role": role, "slot": slot, "side": side,
 		"place": _place, "slots": _geo["slots"],
@@ -2337,7 +2332,7 @@ func _tick_clear(team: Array, delta: float) -> void:
 ## Whether an ally of this entry has radioed the room clear (its latest call may already be the
 ## watch it keeps after).
 func _cleared_by_team(team: Array) -> bool:
-	return team.any(func(m): return CLEARED.has(m["step"]))
+	return team.any(func(m): return StackClaim.cleared(m["step"]))
 
 
 ## The room is clear (by this NPC's sight or an ally's call): it is marked cleared, so nothing walks
@@ -2490,10 +2485,10 @@ func _tick_rear(team: Array, delta: float) -> void:
 ## another doorway).
 func _team_moved(team: Array) -> bool:
 	for m in team:
-		if HOLDING.has(m["step"]):
+		if StackClaim.holding(m["step"]):
 			_holders[m["id"]] = true
 	for id in _holders:
-		if not team.any(func(m): return m["id"] == id and HOLDING.has(m["step"])):
+		if not team.any(func(m): return m["id"] == id and StackClaim.holding(m["step"])):
 			return true
 	return false
 

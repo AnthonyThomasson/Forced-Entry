@@ -377,7 +377,7 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_ahead_through_at = GameClock.seconds()
 	elif not ahead_through:
 		_ahead_through_at = -1.0
-	if (_step in ["claim", "ready"]
+	if (StackClaim.stacking(_step) and _step != "going_in"
 			and _ahead_through_at >= 0.0
 			and GameClock.seconds() - _ahead_through_at >= go_timeout):
 		_barred[_opening] = true   # It had its chance at this stack.
