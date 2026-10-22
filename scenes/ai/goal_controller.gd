@@ -353,16 +353,18 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## NavigationAgent2D used for pathing (a sibling under the character); set in the NPC scene.
 @export var nav_agent_path: NodePath
 
-## World-space room rects (`{ key, type, rect }`) from Main — the sensor's map of the house.
+## World-space room rects (`{ key, type, rect }`) from its composer (`MatchBuilder.bind_npc`) — the
+## sensor's map of the house.
 var rooms: Array = []
-## The house entrance in world space, injected by Main for NPCs that start outside. Handed to the
-## perception once (it offers "the front entrance" as a search option while outside).
+## The house entrance in world space, injected by its composer for NPCs that start outside. Handed
+## to the perception once (it offers "the front entrance" as a search option while outside).
 var entry_point: Vector2 = Vector2.ZERO
-## The house's doorways (`{ pos, width, front, exit, rooms }`) from Main, for tactical entry.
+## The house's doorways (`{ pos, width, front, exit, rooms }`) from its composer, for tactical
+## entry.
 var openings: Array = []
-## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by Main
-## (`MatchBuilder.bind_squad`): who leads it and who is in it. The orders themselves come off the
-## bus (`&"order"`), so an NPC with none still takes the ones that name it.
+## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by its
+## composer (`MatchBuilder.bind_squad`): who leads it and who is in it. The orders themselves come
+## off the bus (`&"order"`), so an NPC with none still takes the ones that name it.
 var squad: Node = null
 ## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.
 var _perception: Node

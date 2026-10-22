@@ -22,6 +22,9 @@ var house: Node2D
 var rooms: Array = []
 ## Its doorways (`WorldGen.get_openings`), injected into every NPC beside `rooms`.
 var openings: Array = []
+## The match `TestSetup.match` declared, populated over this world (`MatchBuilder.populate`'s
+## handle); {} when none.
+var match_handle: Dictionary = {}
 ## The placed actors, objects and vehicles by id.
 var actors: Dictionary = {}
 var objects: Dictionary = {}
@@ -77,6 +80,11 @@ func build(setup: TestSetup) -> void:
 		await get_tree().physics_frame
 	for a in setup.actors:
 		actors[a["id"]] = _spawn_actor(a, setup.switches)
+	if setup.match_spec is Dictionary:
+		var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)
+		match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
+		for npc in match_handle["combatants"]:
+			OVERLAY_REGISTRY.apply(npc, _overlay_flags)
 	_apply_world_switches(setup.switches)
 
 

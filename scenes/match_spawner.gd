@@ -1,12 +1,12 @@
 extends RefCounted
-## Composition-root helper (`main.gd`): where and how a match's NPCs are placed. Defenders go to a
-## clear spot in a random room, Main's invader team in one group outside the house
-## (`spawn_invader_team`; `spawn_invader` drops one alone at its share of the perimeter, as the
-## tests that place a spread side do); each NPC is handed the house through `MatchBuilder.bind_npc`,
-## added under the match's `World` node and recorded in `combatants` (the spectator camera, the
-## match HUD and the overlays observe that list). Like `main.gd` it knows the NPC scenes and the
-## Navigation domain's `furniture_holes`; the placement rules live here so the root only wires
-## domains.
+## The match-assembly module's helper (`MatchBuilder.populate`): where and how a match's NPCs are
+## placed. Defenders go to a clear spot in a random room, Main's invader team in one group outside
+## the house (`spawn_invader_team`; `spawn_invader` drops one alone at its share of the perimeter,
+## as the tests that place a spread side do); each NPC is handed the house through
+## `MatchBuilder.bind_npc`, added under the match's `World` node and recorded in `combatants` (the
+## spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
+## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the
+## root only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
@@ -201,7 +201,7 @@ func npc_name(base: String, index: int) -> String:
 ## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms, its
 ## `openings` and optional entry point (`MatchBuilder.bind_npc`, before it joins the tree), and
 ## record it as a combatant (for the spectator camera + match HUD). It joins the `World` node;
-## `_arm_characters` gives it its weapon afterwards. It is positioned BEFORE it joins the tree: a
+## `MatchBuilder.arm` gives it its weapon afterwards. It is positioned BEFORE it joins the tree: a
 ## body added at the world origin and moved afterwards overlaps whatever stands there for a moment,
 ## and the physics launches that piece (or the NPC) across the map.
 func add_npc(

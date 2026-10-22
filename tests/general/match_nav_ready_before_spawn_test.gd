@@ -5,20 +5,21 @@ extends GameTest
 ## `NavBuilder.ready` and each map's closest point to a room's centre belongs to the house's own
 ## region; and no NPC's first walk target lies off the house's navmesh (an NPC that plans on a map
 ## still showing no navmesh snaps nothing and walks to points off it). Main's match waits the same
-## way.
+## way, and a match torn down while it waits (Escape back to the setup window) places nobody and
+## logs nothing.
 ##
 ## Two matches, each in a world of its own (a `SubViewport` with its own `World2D`, so fresh
-## navigation maps, as each match's are): first the module's stage, then the match's NPCs placed by
-## the match spawner; then Main run whole, `_ready` to its match, as a scripted restart starts it
-## (the Engine `skip_setup` meta, set while it enters the tree and dropped after), with the two
-## children its scene gives it that `_ready` reads (`Player` and `SetupMenu`, never opened), as a
-## Watch match of two a side on a pinned house. The NPCs are found as they enter the tree (the
-## SceneTree's `node_added`: a character with a controller, interface 7), never through Main's
-## members. Scripted Von, the first option offered, so the NPCs walk; the settings file is a scratch
-## one, and the listener Main names (`Sound.focus`) is put back after.
+## navigation maps, as each match's are): first a match the module builds
+## (`MatchBuilder.build`: its stage, then its population); then Main run whole, `_ready` to its
+## match, as a scripted restart starts it (the Engine `skip_setup` meta, set while it enters the
+## tree and dropped after), with the two children its scene gives it that `_ready` reads (`Player`
+## and `SetupMenu`, never opened), as a Watch match of two a side on a pinned house. The NPCs are
+## found as they enter the tree (the SceneTree's `node_added`: a character with a controller,
+## interface 7), never through Main's members. Scripted Von, the first option offered, so the NPCs
+## walk; the settings file is a scratch one, and the listener Main names (`Sound.focus`) is put back
+## after.
 
 const MainScript := preload("res://scenes/main.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const PlayerController := preload("res://scenes/character/player_controller.gd")
 const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
 const SEED := 18
@@ -39,7 +40,8 @@ func describe() -> Dictionary:
 		"name": "A match's NPCs enter only once both navigation maps are ready",
 		"description": "The world stage waits for the planning and the steering map to answer "
 			+ "with the new house before any NPC is placed, and every NPC's first walk target "
-			+ "lies on the house's navmesh; Main's match waits the same way.",
+			+ "lies on the house's navmesh; Main's match waits the same way, and one torn down "
+			+ "during the wait places nobody and logs nothing.",
 		"tags": ["setup", "match", "spawn", "navigation"],
 		"timeout": 40.0,
 		"allowed_logs": [
@@ -65,17 +67,15 @@ func run(t: TestContext) -> void:
 	var world := Node2D.new()
 	world.name = "World"
 	viewport.add_child(world)
-	var spec := { "seed": SEED, "entrance": ENTRANCE, "wait_nav": true }
-	var staged: Dictionary = await MatchBuilder.stage(spec, world)
-	var spawner = MatchSpawner.new()
-	spawner.world = world
-	spawner.openings = staged["openings"]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	for i in DEFENDERS:
-		spawner.spawn_defender(staged["rooms"], rng, i)
-	spawner.spawn_invader_team(staged["rooms"], rng, INVADERS, ENTRANCE)
-	await _judge(t, watch, viewport, "the module's stage")
+	var spec := MatchBuilder.spec({
+		"seed": SEED,
+		"entrance": ENTRANCE,
+		"wait_nav": true,
+		"defenders": { "count": DEFENDERS },
+		"invaders": { "count": INVADERS },
+	})
+	await MatchBuilder.build(spec, world)
+	await _judge(t, watch, viewport, "the module's match")
 	await _free(t, viewport, watch)
 
 	viewport = _viewport(t)
@@ -83,6 +83,19 @@ func run(t: TestContext) -> void:
 	_start_main(viewport)
 	await _judge(t, watch, viewport, "Main's match")
 	await _free(t, viewport, watch)
+
+	# Torn down while its maps synchronize (Escape back to the setup window): the wait ends with
+	# the match, placing nobody and logging nothing (any error logged fails the test).
+	viewport = _viewport(t)
+	watch = _watch(t, viewport)
+	_start_main(viewport)
+	await _free(t, viewport, watch)
+	await t.frames(10)
+	t.check(
+		(watch["entries"] as Array).is_empty(),
+		"a match torn down during the wait places nobody (%d entered)"
+			% (watch["entries"] as Array).size(),
+	)
 
 
 ## A world of its own under the test world: a `SubViewport` with a fresh `World2D`.

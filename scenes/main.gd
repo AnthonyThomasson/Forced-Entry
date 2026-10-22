@@ -4,19 +4,14 @@ extends Node2D
 ## (WorldGen.generate) for a procedurally furnished house just ahead of the player, front entrance
 ## first.
 
-## NPC placement for one match (where defenders and invaders start; see match_spawner.gd).
-const MATCH_SPAWNER := preload("res://scenes/match_spawner.gd")
-## Faction tags the two NPC scenes carry (authored on the scenes); a human joining a side takes its
-## tag so that side's NPCs treat them as an ally.
-const DEFENDER_FACTION := &"household"
-const INVADER_FACTION := &"invader"
+## Faction tags the two NPC scenes carry (`MatchBuilder`'s); a human joining a side takes its tag
+## so that side's NPCs treat them as an ally.
+const DEFENDER_FACTION := MatchBuilder.DEFENDER_FACTION
+const INVADER_FACTION := MatchBuilder.INVADER_FACTION
 ## Spectator inspector (UI): Space-pause + click an NPC to show its tactical zones.
 const SPECTATOR_INSPECTOR := preload("res://scenes/ui/hud/spectator_inspector.gd")
 ## The floor markers of the human's place in an AI stack (world space, under `World`).
 const STACK_MARKERS := preload("res://scenes/ui/hud/stack_markers.gd")
-## One side's squad: its leader, succession and the orders its leader gives (`docs/leadership.md`,
-## interface 21).
-const SQUAD := preload("res://scenes/ai/team/squad.gd")
 ## The human leader's command menu (UI, a right-click pauses and orders the teammates) and the order
 ## markers on the floor (world space, under `World`), built only when the human leads
 ## (`docs/leadership.md` LD11, LD12).
@@ -33,12 +28,6 @@ const TEST_BROWSER := "res://scenes/testing/test_browser.tscn"
 const PERFORMANCE_OVERLAY := preload("res://scenes/ui/overlays/performance_overlay.gd")
 ## The settings page (UI), opened over the setup window by its Settings button.
 const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
-## Salt mixed into the house seed for the loadout draws, so picking guns never shifts the NPC
-## placement that the house seed already pins ("LOAD").
-const LOADOUT_SEED_SALT := 0x4c4f4144
-## Salt mixed into the house seed for the style draws, so styling the crews never shifts the guns or
-## the placement ("LOOK").
-const STYLE_SEED_SALT := 0x4c4f4f4b
 
 ## Seed for the house layout; 0 = a new random seed each run, resolved to a concrete value at
 ## spawn so the whole run (house + NPC placement) reproduces from it. The seed is logged and can be
@@ -69,21 +58,6 @@ const STYLE_SEED_SALT := 0x4c4f4f4b
 ## Which side a human player takes when there is one ("defender" / "invader"). The player joins that
 ## side on top of its NPC count, carrying the side's loadout.
 @export var player_side: StringName = &"defender"
-## What the defenders (and a player defending) carry and wear:
-## `{ weapon, magazine, spares, stuns, frags, outfit }`, anything missing = the `LoadoutConfig`
-## default (a random gun with its own magazine and spares, no grenades, and
-## `LoadoutConfig.default_outfit`'s plain clothes: a t-shirt, jeans and shoes).
-@export var defender_loadout: Dictionary = {}
-## What the invaders (and a player invading) carry and wear; same shape as `defender_loadout`. They
-## come with a stun grenade and a frag grenade each, in a helmet, a shirt, a plate carrier with a
-## steel III plate front and back, tactical pants and boots.
-@export var invader_loadout: Dictionary = {
-	"stuns": 1, "frags": 1,
-	"outfit": {
-		"head": &"helmet", "body": &"shirt", "vest": &"plate_carrier", "pants": &"tactical_pants",
-		"feet": &"boots", "front_plate": &"steel_iii", "back_plate": &"steel_iii",
-	},
-}
 ## Endless run: seconds between a match ending and the next one starting.
 @export var endless_delay: float = 5.0
 ## Endless run: seconds before an undecided match is called a draw, so a stalemate can't stall the
@@ -115,6 +89,11 @@ const STYLE_SEED_SALT := 0x4c4f4f4b
 ## carved out of the navmesh) is hidden.
 @export var show_nav_holes: bool = false
 
+## What the defenders (and a player defending) carry and wear this match: the match spec's default
+## (`MatchBuilder.spec`), replaced by the setup window's choices and the endless run's draws.
+var defender_loadout: Dictionary = MatchBuilder.DEFENDER_LOADOUT.duplicate(true)
+## What the invaders (and a player invading) carry and wear this match; as `defender_loadout`.
+var invader_loadout: Dictionary = MatchBuilder.INVADER_LOADOUT.duplicate(true)
 ## Where the player stood in the scene: the house is placed relative to this point (its front
 ## entrance just above), and an invading human starts here.
 var _anchor: Vector2 = Vector2.ZERO
@@ -136,8 +115,11 @@ var _player_stack: Node = null
 var _endless_max := { "defenders": 1, "invaders": 1 }
 ## Endless run: seconds left until the next match (-1 while a match is being played).
 var _next_match_in: float = -1.0
-## Places this match's NPCs and keeps the list of them (`combatants`) — the spectator camera + match
-## HUD observe it.
+## This match's handle (`MatchBuilder.populate`'s): its world, house, rooms, doorways, combatants,
+## squads and the human's stack radio; {} between matches.
+var _match: Dictionary = {}
+## A match spawner handed in from outside a built match, whose doorways `_build_squads` and
+## `_build_stack_markers` read; null in a match Main builds.
 var _spawner: RefCounted = null
 ## Every debug overlay's on/off state, `{ show_<x>: bool }` keyed like `overlay_registry.gd`.
 var _overlay_flags: Dictionary = {}
@@ -407,11 +389,14 @@ func return_to_setup() -> void:
 	get_tree().reload_current_scene()
 
 
-## Ask World-Gen for a house placed so its front entrance sits just above the player's anchor, and
-## populate it. Everything is built under a fresh `World` node, so `_teardown_world` can clear the
-## match. The world stage (house, nav map, its overlay and re-baker, the dusk lighting) is
-## `MatchBuilder.stage`, which waits until both navigation maps answer with this house, so no NPC is
-## placed before then: a coroutine.
+## Build one match from the spec Main's state names (`_match_spec`) under a fresh `World` node, so
+## `_teardown_world` can clear it, through `MatchBuilder`: its world stage (the house placed so its
+## front entrance sits just above the player's anchor, the nav map, its overlay and re-baker, the
+## dusk lighting), which waits until both navigation maps answer with this house, so no NPC is
+## placed before then (a coroutine); then its population (each side placed, the human joined, armed,
+## styled and ranked, the squads). Then the UI over the handle: the stack markers and the stun
+## screen for a human, the leader overlay, the command menu, the match HUD, the spectator inspector
+## and the overlay bar.
 func _spawn_world() -> void:
 	# A dev/headless harness can pin the next match's layout via Engine meta (it survives the scene
 	# reload the `restart` command does); otherwise the exported seed (0 = random) stands.
@@ -426,49 +411,24 @@ func _spawn_world() -> void:
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
 	add_child(world)
 	_world = world
-	var front_entrance := _anchor + Vector2(0, -entrance_distance)
-	var spec := {
-		"seed": house_seed, "plan": force_plan, "entrance": front_entrance, "wait_nav": true,
-	}
+	var spec := _match_spec()
 	var staged: Dictionary = await MatchBuilder.stage(spec, world)
 	if _world != world or not is_inside_tree():
 		return  # torn down (a new match, or the scene left) while the maps synchronized
 	_nav_debug = staged["nav_debug"]
 	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
-	var rooms: Array = staged["rooms"]
-	_spawner = MATCH_SPAWNER.new()
-	_spawner.world = _world
-	_spawner.spawn_clearance = spawn_clearance
-	_spawner.invader_margin = invader_margin
-	_spawner.openings = staged["openings"]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = house_seed
-	for i in defender_count:
-		_spawner.spawn_defender(rooms, rng, i)
-	# The invader team starts in one group: round the human's spot when the human is an invader,
-	# else round a perimeter point drawn from the house seed.
-	var human_invader := (not spectator_mode
-			and is_instance_valid(_player)
-			and player_side != &"defender")
-	_spawner.spawn_invader_team(
-		rooms,
-		rng,
-		invader_count,
-		front_entrance,
-		_player.global_position if human_invader else Vector2.INF,
-	)
-	var combatants: Array = _spawner.combatants.filter(func(c): return is_instance_valid(c))
-	if not spectator_mode and is_instance_valid(_player):
-		_join_player(rooms, rng)
-		combatants.append(_player)
-		_build_stack_markers(rooms)
+	_match = MatchBuilder.populate(staged, spec)
+	_squads = _match["squads"]
+	_player_stack = _match["player_stack"]
+	var combatants: Array = _match["combatants"]
+	var human: bool = not (spec["human"] as Dictionary).is_empty()
+	if human:
+		_build_markers()
 		_build_stun_screen()
-	_arm_characters(combatants)
-	_build_squads(combatants, rooms)
 	_watch_side_stacks()
 	_build_leader_overlay()
-	if not spectator_mode and is_instance_valid(_player):
-		_build_command_menu(rooms)
+	if human:
+		_build_command_menu(staged["rooms"])
 	_configure_debug()
 	_begin_match_hud(combatants)
 	if spectator_mode:
@@ -476,93 +436,45 @@ func _spawn_world() -> void:
 	_build_overlays()
 
 
-## Arm the player (when there is one) and every NPC with their side's loadout (`defender_loadout` /
-## `invader_loadout`): the chosen gun with its magazine and spares, or for "random" one gun drawn
-## per character, and dress each in the side's outfit. Drawn from the house seed, so a pinned seed
-## pins the random guns too. Tests and sandboxes build their own characters and never come through
-## here, so they keep the weapon they ask for. Each is styled as it is armed (`docs/outfits.md`,
-## styles), from its own draws off the house seed: the invaders (the human invader too) are one
-## police unit drawn for the match (the first draw), its first the lead and its second the sergeant;
-## each defender is drawn one of the defenders' styles, a look seed of its own and one of its
-## style's weapon styles. A human invader who leads ("Lead the team") is the unit's lead instead,
-## and the NPC invaders are ranked from the sergeant down; the draws are the same.
+## The match spec Main's state names (`MatchBuilder.spec`): the house seed and floorplan, the front
+## entrance `entrance_distance` above the player's anchor, each side's count and loadout, the human
+## (in a played match: the player, on `player_side`, leading it with "Lead the team"), and the
+## placement clearances.
+func _match_spec() -> Dictionary:
+	var human := {}
+	if not spectator_mode and is_instance_valid(_player):
+		human = { "node": _player, "side": player_side, "lead": _lead }
+	return MatchBuilder.spec({
+		"seed": house_seed,
+		"plan": force_plan,
+		"entrance": _anchor + Vector2(0, -entrance_distance),
+		"defenders": { "count": defender_count, "loadout": defender_loadout },
+		"invaders": { "count": invader_count, "loadout": invader_loadout },
+		"human": human,
+		"spawn_clearance": spawn_clearance,
+		"invader_margin": invader_margin,
+	})
+
+
+## Arm, style and rank `characters` as a match does (`MatchBuilder.arm`), over the spec Main's state
+## names: each side's loadout, the house seed, the human leading or not.
 func _arm_characters(characters: Array) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = house_seed ^ LOADOUT_SEED_SALT
-	var looks := RandomNumberGenerator.new()
-	looks.seed = house_seed ^ STYLE_SEED_SALT
-	var units := _styles_of(INVADER_FACTION)
-	var crews := _styles_of(DEFENDER_FACTION)
-	var unit: StringName = (units[looks.randi() % units.size()]
-			if not units.is_empty()
-			else CharacterConfig.default_style)
-	var human_lead: bool = (_lead
-			and is_instance_valid(_player)
-			and characters.has(_player)
-			and _player.get("faction") == INVADER_FACTION)
-	# The unit's first is its lead, the next its sergeant, the rest troopers.
-	var rank := 1 if human_lead else 2
-	for character in characters:
-		var defending: bool = character.get("faction") == DEFENDER_FACTION
-		var look: StringName = unit
-		if defending and not crews.is_empty():
-			look = crews[looks.randi() % crews.size()]
-		var weapons: Array = CharacterConfig.styles[look].get("weapons", [&"police"])
-		var style := {
-			"look": look,
-			"seed": looks.randi(),
-			"weapon": weapons[looks.randi() % weapons.size()],
-		}
-		if not defending and human_lead and character == _player:
-			style["rank"] = 2
-		elif not defending:
-			style["rank"] = rank
-			rank = maxi(rank - 1, 0)
-		var gun := LoadoutConfig.apply(
-			character,
-			defender_loadout if defending else invader_loadout,
-			rng,
-			style,
-		)
-		if gun != &"":
-			GameLog.say("%s is armed with the %s" % [character.name, character.item_name()])
+	MatchBuilder.arm(characters, _match_spec())
 
 
-## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`,
-## each member handed its own (`MatchBuilder.bind_squad`, the human's stack radio with it;
-## `docs/leadership.md` LD3): the leader by the squad's rule (rank, then spawn order), so after
-## `_arm_characters` has ranked the unit; the human's side is led by the human when it leads ("Lead
-## the team").
+## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`
+## (`MatchBuilder.build_squads`), with the doorways of the match spawner handed in (`_spawner`) and
+## the human's stack radio; the human's side is led by the human when it leads ("Lead the team").
 func _build_squads(combatants: Array, rooms: Array) -> void:
-	_squads = {}
-	for faction in [DEFENDER_FACTION, INVADER_FACTION]:
-		var members: Array = combatants.filter(
-			func(c): return is_instance_valid(c) and c.get("faction") == faction,
-		)
-		if members.is_empty():
-			continue
-		var squad: Node = SQUAD.new()
-		squad.name = "Squad_%s" % faction
-		_world.add_child(squad)
-		var human: Node = (_player
-				if _lead and is_instance_valid(_player) and members.has(_player)
-				else null)
-		squad.setup(
-			faction,
-			members,
-			_spawner.openings,
-			rooms,
-			human,
-			MatchBuilder.callout_ttl_of(members),
-		)
-		for member in members:
-			MatchBuilder.bind_squad(
-				member,
-				squad,
-				_player_stack if _player_stack != null and member == _player else null,
-				faction == INVADER_FACTION,
-			)
-		_squads[faction] = squad
+	var human := { "node": _player, "lead": _lead } if is_instance_valid(_player) else {}
+	_squads = MatchBuilder.build_squads(
+		_world,
+		combatants,
+		_spawner.openings,
+		rooms,
+		human,
+		_player_stack,
+	)
 
 
 ## The stack markers (a played match) watch the human's side's squad too, so every stack that side
@@ -615,15 +527,6 @@ func _build_command_menu(rooms: Array) -> void:
 	menu.selection_changed.connect(markers.set_selection)
 
 
-## The styles (`CharacterConfig.styles` keys) of the side `faction` fights on, in table order.
-static func _styles_of(faction: StringName) -> Array[StringName]:
-	var out: Array[StringName] = []
-	for key: StringName in CharacterConfig.styles:
-		if CharacterConfig.styles[key].get("side", &"") == faction:
-			out.append(key)
-	return out
-
-
 ## Free the match built by `_spawn_world`: the whole `World` node (house, nav map, NPCs, inspector,
 ## and any blood / debris / casings they left) goes, and the bookkeeping that pointed into it is
 ## cleared. Removed from the tree at once (not just queued) so the next match's `World` takes the
@@ -634,7 +537,7 @@ func _teardown_world() -> void:
 		_world.queue_free()
 	_world = null
 	Sound.focus = null  # nobody's ears until the next match names the human
-	_spawner = null
+	_match = {}
 	_squads = {}
 	_player_stack = null
 	_inspector = null
@@ -677,27 +580,17 @@ func _setup_spectator(combatants: Array) -> void:
 		_player.queue_free()
 
 
-## Put the human in the match as a member of `player_side`: that side's faction (so its NPCs treat
-## them as an ally) and a starting spot — a defender at a clear spot in a random room, an invader
-## where the player stands in the scene (just outside the front entrance). Reparented under `World`
-## so draw order stays house < player < NPCs.
-func _join_player(rooms: Array, rng: RandomNumberGenerator) -> void:
-	var defending := player_side == &"defender"
-	_player.set("faction", DEFENDER_FACTION if defending else INVADER_FACTION)
-	if defending and not rooms.is_empty():
-		_player.global_position = _spawner.clear_spot(
-			rooms[rng.randi() % rooms.size()]["rect"],
-			rng,
-		)
-	_player.reparent(_world, true)
-	_world.move_child(_player, 1)  # just above the house (child 0), below the NPCs
-
-
-## Give the human the stack radio and draw its place in an AI stack on the floor: the markers (a
-## child of `World`, so world space) watch the stack the spawner attached to the player. Only a
-## human invader is ever reserved a slot, since only the invaders' entries come over the radio.
+## Give the human the stack radio (`MatchBuilder.bind_player`, with the doorways of the match
+## spawner handed in, `_spawner`) and draw its place in an AI stack on the floor (`_build_markers`).
 func _build_stack_markers(rooms: Array) -> void:
 	_player_stack = MatchBuilder.bind_player(_player, rooms, _spawner.openings)
+	_build_markers()
+
+
+## Draw the human's place in an AI stack on the floor: the markers (a child of `World`, so world
+## space) watch the human's stack radio. Only a human invader is ever reserved a slot, since only
+## the invaders' entries come over the radio.
+func _build_markers() -> void:
 	var markers: Node2D = STACK_MARKERS.new()
 	markers.name = "StackMarkers"
 	_world.add_child(markers)
@@ -785,14 +678,13 @@ func _initial_overlays() -> Dictionary:
 ## property gets that flag's value. (In spectator mode the inspector then shows them only on the
 ## selected NPC.)
 func _configure_debug() -> void:
-	if _spawner == null:
-		return
 	var flags := {}
 	for flag in _overlay_flags:
 		if not OVERLAY_REGISTRY.is_global(flag):
 			flags[flag] = _overlay_flags[flag]
-	for npc in _spawner.combatants:
-		OVERLAY_REGISTRY.apply(npc, flags)
+	for npc in _match.get("combatants", []):
+		if npc != _player:
+			OVERLAY_REGISTRY.apply(npc, flags)
 
 
 ## A toggle-bar button was pressed: record the flag and apply it live. The navigation holes go to

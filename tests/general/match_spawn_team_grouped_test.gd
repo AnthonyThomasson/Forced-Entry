@@ -11,6 +11,7 @@ extends GameTest
 ## four invaders and two defenders; Watch (spectator) for the team alone, Start as an invader for
 ## the human's case. Von is down (the NPCs hold steady: where they stand is the spawn's alone), the
 ## settings file is a scratch one, and the listener Main names (`Sound.focus`) is put back after.
+## Its NPCs are read off the node Main builds the match under (the `match_world` group).
 
 const MainScript := preload("res://scenes/main.gd")
 const PlayerController := preload("res://scenes/character/player_controller.gd")
@@ -138,16 +139,18 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	viewport.add_child(main)
 	Engine.remove_meta("skip_setup")
 	# Main places nobody until both navigation maps answer with its house (`MatchBuilder.stage`).
-	await t.until(func(): return main.get("_spawner") != null, 5.0)
+	await t.until(func(): return _npcs(viewport).size() >= INVADERS + DEFENDERS, 5.0)
 	var out := {}
-	var spawner = main.get("_spawner")
-	var world: Node = main.get("_world")
-	if spawner != null and is_instance_valid(world) and world.get_child_count() > 0:
-		var rooms := WorldGen.get_rooms(world.get_child(0) as Node2D)
+	var world := _match_world(viewport)
+	var all := _npcs(viewport)
+	if world != null and not all.is_empty():
+		var rooms: Array = []
+		for child in world.get_children():
+			if rooms.is_empty() and child is Node2D:
+				rooms = WorldGen.get_rooms(child)
 		var bounds: Rect2 = rooms[0]["rect"] if not rooms.is_empty() else Rect2()
 		for r in rooms:
 			bounds = bounds.merge(r["rect"])
-		var all: Array = (spawner.combatants as Array).filter(func(c): return is_instance_valid(c))
 		out = {
 			"invaders": _frozen(all.filter(func(c): return c.get("faction") == &"invader")),
 			"defenders": _frozen(all.filter(func(c): return c.get("faction") != &"invader")),
@@ -160,6 +163,26 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	await t.frames(2)
 	Keybinds.reset_all()
 	return out
+
+
+## The node Main builds its match under in `viewport` (the `match_world` group, interface 14), else
+## null.
+func _match_world(viewport: SubViewport) -> Node:
+	for node in viewport.get_tree().get_nodes_in_group(&"match_world"):
+		if viewport.is_ancestor_of(node):
+			return node
+	return null
+
+
+## The NPCs of Main's match in `viewport`, in spawn order: the characters under its `match_world`
+## node with an AI controller (interface 7: the child with `control` and the house's `rooms`).
+func _npcs(viewport: SubViewport) -> Array:
+	var world := _match_world(viewport)
+	if world == null:
+		return []
+	return world.get_children().filter(func(c):
+		var brain := TestContext.controller_of(c)
+		return c is CharacterBody2D and brain != null and "rooms" in brain)
 
 
 ## Each node's `{ name, pos }`, so it outlives the match.

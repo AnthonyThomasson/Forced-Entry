@@ -33,6 +33,9 @@ var overlays: Array = []
 ## Interactions a person could use in a headed run that would change this test's result, which the
 ## runner switches off (see `lock_interaction`).
 var locked: Array = []
+## A whole match to populate over the world (`MatchBuilder.spec` overrides, see `match`); null =
+## none.
+var match_spec: Variant = null
 
 
 ## A walled single-room arena covering `rect`. `opts`: `floor` (a catalogue floor key, default
@@ -133,6 +136,16 @@ func set_props(id: StringName, child_path: String, props: Dictionary) -> TestSet
 			children[child_path] = existing
 			return self
 	push_error("TestSetup.set_props: no actor '%s' (declare it with actor() first)" % id)
+	return self
+
+
+## Populate a whole match over the world, as Main populates one (`MatchBuilder.populate`, after
+## the world stage and the actors): `overrides` are `MatchBuilder.spec`'s (each side's `count`,
+## `loadout` and `at`, `spawn_clearance`, `invader_margin`, ...), the house's seed the spec's
+## `seed` unless they name one. Its NPCs are not test actors: read the match's handle with
+## `t.match()`.
+func match(overrides: Dictionary = {}) -> TestSetup:
+	match_spec = overrides
 	return self
 
 
