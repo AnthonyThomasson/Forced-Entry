@@ -88,11 +88,20 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"` (handle from the `worker-start` receipt).
 - **Heartbeats:** tell every worker in its brief: each `--phase` is a 1–2 sentence status (what it is on, what is
   done), never a bare `implementing`. Relay each to the user in one line with the worker's name, no commentary.
-- **Ack or resend:** tell every worker in its brief: on reading your message, before acting, send `orca orchestration
-  send --subject "received <message id>" --body "<one line: what it will do with it>"`. Read the whole inbox each time; answer each
-  question with `reply --id <that question's id>` (a blocking `ask` is separate from an escalation on the same subject).
-  No `received <id>` within ~5 min: `worker-read --dispatch <id> --source terminal`, find the message it is blocked on, reply to that id
-  or `send --to dispatch:<id>` quoting the question.
+- **Ack or resend:** tell every worker in its brief:
+  - on reading your message, before acting, send `orca orchestration send --subject "received <message id>" --body
+    "<one line: what it will do with it>"`;
+  - once a batch is handled, the next `orca orchestration check` passes `--ack <its deliveryId>`: `check` replays the
+    oldest unacknowledged batch, and every later message waits behind it, so a batch repeating a message already
+    handled means a missing ack, not an empty inbox;
+  - a decision it must wait on goes through the blocking `orca orchestration ask --question "<text>"`.
+
+  Read the whole inbox each time; answer each question with `reply --id <that question's id>` (a blocking `ask` is
+  separate from an escalation on the same subject). No `received <id>` within ~5 min: `worker-read --dispatch <id>
+  --source terminal`, find the message it is blocked on, reply to that id or `send --to dispatch:<id>` quoting the
+  question. A heartbeat saying it waits on an answer you already sent: the answer is stuck behind an unacknowledged
+  batch, so type into its terminal, `orca terminal send --terminal <its handle> --text "Run orca orchestration check
+  --ack <your last batch's deliveryId>: my answer is behind it." --enter`.
 - **Check each phase** before the next: read the result and diff, rerun its check yourself.
 - **Sequential by default** (one worktree, shared Godot runs); parallel only for independent phases, each in its own
   worktree.

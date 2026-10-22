@@ -1,6 +1,6 @@
 ---
 name: change-report
-description: Write the change report the user reads before approving a change - risks, alternatives, domains, tests, seams added and removed. Use right before asking the user to accept a plan or fix (`ticket-story` phase 2, `ticket-bug` before the fix, every re-acceptance), and on `/change-report`.
+description: Write the change report the user reads before approving a change - risks, rule interactions, alternatives, domains, tests, seams added and removed. Use right before asking the user to accept a plan or fix (`ticket-story` phase 2, `ticket-bug` before the fix, every re-acceptance), and on `/change-report`.
 ---
 
 # Change report
@@ -19,12 +19,19 @@ then ask for acceptance (`AskUserQuestion`) in the same turn. Every revision of 
 4. **Tests possibly affected:** existing tests that touch what changes. Find them, don't guess: `tools/run_tests.sh
    --list <words>` for the behaviour, and `grep -rln` in `tests/` for every class, method, signal and tunable the plan
    changes. Group a family by prefix (`ai/entry_*`).
-5. **Risks:** what could go wrong or regress (behaviour, perf on a per-frame path, test timing, a seam's callers).
-6. **Alternatives:** the real choices the user could still make instead, each with its trade-off. The grilling's
+5. **Risks:** what could go wrong or regress (behaviour, perf on a per-frame path, test timing, a seam's callers). Try
+   every tool or command a plan step or acceptance criterion runs (a baseline, a measurement, `tools/match.py`, a
+   runner flag) once at the size the plan runs it, or read its `--help` when a run is too long: one that cannot do it
+   is a risk line, with the work it adds.
+6. **Rule interactions:** the pairs of the brief's rules that can both fire in one scenario, each with the rule that
+   wins; and each acceptance scenario another rule also reaches, with the winning rule and the test premise that pins
+   it. Walk every rule under each actor kind it names (an AI or a human leader, each side, a member with or without an
+   order) to find them.
+7. **Alternatives:** the real choices the user could still make instead, each with its trade-off. The grilling's
    rejected options belong here.
 
-Done when every domain in the plan's file list, every interface it names and every changed symbol's tests are
-accounted for.
+Done when every domain in the plan's file list, every interface it names, every changed symbol's tests, every tool
+the plan runs and every pair of rules that can meet are accounted for.
 
 ## Write
 
@@ -37,6 +44,9 @@ Exactly this shape. One line per item, at most ~15 words after the name. An empt
 
 **Risks**
 - <what could go wrong>: <how the plan guards it>
+
+**Rule interactions**
+- <rule> × <rule> in <scenario>: <the winner>; pinned by <test premise>
 
 **Alternatives**
 - <the other choice>: <its trade-off>

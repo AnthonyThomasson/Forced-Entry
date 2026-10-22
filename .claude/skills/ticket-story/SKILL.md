@@ -22,7 +22,9 @@ a throwaway sandbox under `mattpocock-skills:prototype`'s rules (named as a prot
 branch, the verdict on the ticket). Grill until nothing material is open:
 
 - the outcome: what the user or player sees or can do afterwards, and what stays as it is;
-- edge cases: wrong moment, nothing to act on, two at once, the thing absent;
+- edge cases: wrong moment, nothing to act on, two at once, the thing absent; and each rule under every actor kind it
+  names (an AI or a human leader, each side, a member with or without an order), with the rule that wins where two
+  meet (`change-report`'s Rule interactions lists them);
 - fit: which behaviour it replaces or sits beside, which domains and interfaces it touches;
 - tuning and display: tunables, defaults, debug overlays, HUD, sound;
 - out of scope, and what "done" means (the behaviour or tests that prove it).
