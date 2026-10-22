@@ -27,7 +27,8 @@ tools/load_check.sh --import      # import first (new scripts' .uid files, the c
 tools/load_check.sh --windowed    # with a window: rendering warnings count too
 tools/load_check.sh --strict-exit # also fail on the engine's exit leak report (otherwise a NOTE)
 tools/lint.sh [paths]             # GDScript analyzer warnings, which headless runs never print, the lint rules, gdstyle
-tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle's pass wants them (gdstyle.toml: 100 columns, tabs)
+tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle's pass wants them (gdstyle.toml: 100 columns, tabs);
+                                  # the comment paragraphs it wraps are re-flowed, backtick spans kept whole
 ```
 
 - `load_check.sh` exits 1 and prints every engine error or warning in the log (`✗ script error: Parse Error: … (res://….gd:42)`

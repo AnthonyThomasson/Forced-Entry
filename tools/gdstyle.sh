@@ -2,6 +2,8 @@
 # Run gdstyle (https://github.com/atelico/gdstyle), pinned to v0.4.0, with the arguments given:
 #   tools/gdstyle.sh fmt [--check] [PATH...]   format (or report what fmt would change)
 #   tools/gdstyle.sh check [PATH...]           lint; gdstyle.toml at the root holds the config
+# A `fmt` that writes (no --check) goes through tools/gdstyle_reflow.py, which fills each comment paragraph gdstyle
+# broke (it moves an over-long line's tail onto a line of its own) back to 100 columns.
 # The first run fetches this platform's release asset, checks its sha256 against the one pinned below, refuses to run
 # on a mismatch, and keeps the binary in a cache outside the tree; later runs reuse it. tools/lint.sh runs it.
 # It runs in the caller's directory and exits with gdstyle's status (2 when no binary can be had).
@@ -63,4 +65,7 @@ if [[ ! -x "$binary" ]]; then
   trap - EXIT
 fi
 
+if [[ "${1:-}" == fmt && " $* " != *" --check "* ]]; then
+  exec python3 "$(cd "$(dirname "$0")" && pwd)/gdstyle_reflow.py" "$binary" "$@"
+fi
 exec "$binary" "$@"
