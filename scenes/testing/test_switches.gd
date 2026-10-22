@@ -11,6 +11,7 @@ extends RefCounted
 ##           off_value.
 ## To add a switch, add a row; test_world.gd applies them generically.
 
+## The switches, by name (the row shapes above).
 static var ROWS := {
 	&"ai.vision": {
 		"description": "NPCs see (off = they only learn of others by hearing, being hit or "

@@ -7,6 +7,7 @@ extends Node2D
 ## the piece's light (its `modulate`, through the piece's `get_lights()` `glow`). Draw-only, it
 ## reads nothing but its parent's `draw_emissive(canvas)`.
 
+## The one unshaded material every overlay draws through, made on first use.
 static var _unshaded: CanvasItemMaterial
 
 

@@ -1,7 +1,8 @@
 """Helpers the project lint rules share: the finding a rule returns, walking the tree, matching lines and names.
 
 A rule never opens the tree on its own terms: `files` lists what it may look at (limited to the paths lint was given),
-`lines_matching` reads a text file's matching lines, `names_matching` its path's matching file or folder names. See
+`godot_scripts` the scripts among them Godot loads, `lines_matching` reads a text file's matching lines, `names_matching` its path's matching file or folder names, and
+`gdscript_lines` a script's lines split into code and comment, each marked where a statement starts. See
 tools/lint_rules/README.md for how a rule is written.
 """
 import fnmatch
@@ -41,6 +42,16 @@ def files(root, dirs, paths=None) -> list[str]:
     return sorted(set(found))
 
 
+def godot_scripts(root, dirs, paths=None) -> list[str]:
+    """The `.gd` files of `files(root, dirs, paths)` that Godot loads: none under a folder holding a `.gdignore` (the
+    engine and tools/lint.sh skip those, e.g. artifacts/, where a coverage run keeps its copy)."""
+    root = Path(root)
+    ignored = {p.parent.relative_to(root).as_posix() for name in dirs if (root / name).is_dir()
+               for p in (root / name).rglob(".gdignore")}
+    return [f for f in files(root, dirs, paths)
+            if f.endswith(".gd") and not any(_inside(f, folder) for folder in ignored)]
+
+
 def lines_matching(root, path: str, pattern: str) -> list[tuple[int, str]]:
     """The 1-based (line, text) of every line of the file `path` (relative to `root`) that matches the regex `pattern`;
     the file is read as text, undecodable bytes dropped, so a binary file simply matches nothing."""
@@ -54,3 +65,54 @@ def names_matching(path: str, globs) -> list[str]:
     (`scenes/a/coverage_hits/x.json` and `coverage_hits*` -> ["scenes/a/coverage_hits"]): the files and folders named so."""
     parts = PurePosixPath(path).parts
     return ["/".join(parts[:i + 1]) for i, name in enumerate(parts) if any(fnmatch.fnmatchcase(name, g) for g in globs)]
+
+
+class GDLine(NamedTuple):
+    """One line of a GDScript file: its 1-based `number`, its `text`, the `code` before its comment, its `comment`
+    (from the first `#` outside a string, "" for none), and whether it `starts` a statement (it is not inside
+    brackets, a triple-quoted string or a backslash continuation that an earlier line opened)."""
+    number: int
+    text: str
+    code: str
+    comment: str
+    starts: bool
+
+
+def gdscript_lines(root, path: str) -> list[GDLine]:
+    """The lines of the GDScript file `path` (relative to `root`), each split into code and comment and marked where a
+    statement starts. Strings ("", '', triple-quoted, with their `&` / `^` prefixes) hide a `#` and brackets."""
+    text = (Path(root) / path).read_text(encoding="utf-8", errors="ignore")
+    out = []
+    depth, quote, continued = 0, None, False
+    for number, line in enumerate(text.split("\n"), start=1):
+        starts = depth == 0 and quote is None and not continued
+        comment_at = len(line)
+        i = 0
+        while i < len(line):
+            c = line[i]
+            if quote:
+                if c == "\\":
+                    i += 2
+                    continue
+                if line.startswith(quote, i):
+                    i += len(quote)
+                    quote = None
+                    continue
+            elif c in "\"'":
+                quote = line[i:i + 3] if line[i:i + 3] in ('"""', "'''") else c
+                i += len(quote)
+                continue
+            elif c == "#":
+                comment_at = i
+                break
+            elif c in "([{":
+                depth += 1
+            elif c in ")]}":
+                depth = max(0, depth - 1)
+            i += 1
+        if quote in ("\"", "'"):
+            quote = None  # a one-line string never runs on past its line
+        code = line[:comment_at]
+        continued = quote is None and code.rstrip().endswith("\\")
+        out.append(GDLine(number, line, code, line[comment_at:], starts))
+    return out

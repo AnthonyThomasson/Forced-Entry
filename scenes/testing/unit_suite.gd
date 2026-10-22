@@ -24,10 +24,13 @@ func _init() -> void:
 	TestBatch.native_suites[path] = not __is_skipped
 
 
+## gdUnit's per-test setup: what was logged before the test opens is a stray of the run.
 func before_test() -> void:
 	TestBatch.poll_strays()  # what was logged before the test opens is no test's
 
 
+## gdUnit's per-test teardown: once its teardown has logged, fails the test on any engine error
+## or warning logged while it ran (log_watch.gd).
 func after_test() -> void:
 	for i in SETTLE_FRAMES:
 		await get_tree().physics_frame

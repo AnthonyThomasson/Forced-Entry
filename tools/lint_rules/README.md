@@ -26,7 +26,9 @@ The rules:
 
 | Rule | Checks |
 |---|---|
+| `comment_ticket_refs` | no `ticket #N` / `issue #N` in a comment under `scenes/` (tests may name the ticket whose spec they check) |
 | `coverage_isolation` | nothing in `scenes/`, `tests/`, `addons/` or `project.godot` names the coverage tool (`tools/coverage/`) |
+| `doc_comments` | every function (lifecycle overrides exempt) and every top-level `var` / `@export` / `@onready` / `signal` under `scenes/` has a `##` doc comment: above a function, trailing a member or above its run of declarations |
 
 ## Writing a rule
 
@@ -42,7 +44,9 @@ loads every module in `rules/`, so `lint.sh`, `run_tests.sh` and both hooks pick
 
 Use the helpers in `tools/lint_rules/walk.py` instead of walking the tree yourself: `files(root, dirs, paths)` lists
 the files under `dirs` limited to `paths`, `lines_matching(root, path, regex)` gives a text file's matching lines,
-`names_matching(path, globs)` the parts of a path named so. A check reads files and stays fast: `lint.sh` runs often.
+`names_matching(path, globs)` the parts of a path named so, `godot_scripts(root, dirs, paths)` the `.gd` files among them Godot loads (none under a `.gdignore`
+folder), and `gdscript_lines(root, path)` a script's lines, each
+split into `code` and `comment` (a `#` inside a string is code) and marked where a statement `starts`. A check reads files and stays fast: `lint.sh` runs often.
 
 **Rules report lines; they never fix them.** A rule writes nothing and changes nothing: the finding says where and
 why, and the person or agent reading it fixes the code.

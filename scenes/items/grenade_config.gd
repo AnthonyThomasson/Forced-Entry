@@ -44,6 +44,7 @@ const PoliceGrenadePainter = preload("res://scenes/items/art/police_grenade_pain
 const ScrapGrenadePainter = preload("res://scenes/items/art/scrap_grenade_painter.gd")
 const PipeGrenadePainter = preload("res://scenes/items/art/pipe_grenade_painter.gd")
 
+## The rows, by kind id (the keys above).
 static var grenades: Dictionary = {
 	&"stun": {
 		"name": "Stun grenade", "slot": 7, "fuse": 1.5, "windup": 0.3, "max_range": 550.0,

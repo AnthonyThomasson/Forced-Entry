@@ -105,26 +105,16 @@ The rules every audit uses (`m-audit-everything` points here). Concise, present-
    subtlety.
 5. **File header:** one `##` block at the top saying what the file is and its domain.
 
-Run these over the changed `.gd` files (prefer them to eyeballing):
+Rule 3, and no ticket number in a game comment (`ticket #N` / `issue #N` under `scenes/`), are lint rules
+(`doc_comments`, `comment_ticket_refs`): run them, then grep the changed `.gd` files for history (prefer these to
+eyeballing):
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-CHANGED_GD=$(git diff --staged --name-only --diff-filter=d "$BASE" -- '*.gd')
-
-# Undocumented non-lifecycle functions (should print nothing)
-for f in $CHANGED_GD; do
-  awk 'prev !~ /^[[:space:]]*##/ && $0 ~ /^[[:space:]]*(static )?func / {
-    l=$0; sub(/\(.*/,"",l); gsub(/^[[:space:]]*/,"",l); print FILENAME":"NR": "l } { prev=$0 }' "$f"
-done | grep -vE 'func _(ready|process|physics_process|draw|init|input|exit_tree|notification|unhandled_input|enter_tree|integrate_forces)\b'
-
-# Member vars / signals without a preceding `##` (a trailing `## …` counts: skim)
-for f in $CHANGED_GD; do
-  awk 'prev !~ /^##/ && prev !~ /^@onready/ && ($0 ~ /^@export/ || $0 ~ /^var / || $0 ~ /^signal /) {
-    print FILENAME":"NR": "$0 } { prev=$0 }' "$f"
-done
+tools/lint.sh --rule=comment_ticket_refs,doc_comments   # each finding is a file:line finding
 
 # History / speculation (each hit should be an ordinary word)
-for f in $CHANGED_GD; do
+git diff --staged --name-only --diff-filter=d "$BASE" -- '*.gd' | while IFS= read -r f; do
   grep -nHiE '\b(was |were |renamed|moved to|moved from|used to|formerly|previously|today|tomorrow| later\b|in future|hardcoded|the animator)' "$f"
 done
 ```

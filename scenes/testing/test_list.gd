@@ -9,6 +9,7 @@ extends SceneTree
 var test_batch: GDScript
 
 
+## The main loop's start: lists once the autoloads are up (`_list`, deferred).
 func _initialize() -> void:
 	_list.call_deferred()
 

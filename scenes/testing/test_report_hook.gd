@@ -46,6 +46,8 @@ func _init() -> void:
 	)
 
 
+## gdUnit's session start: paces a panel run like `--fixed-fps`, moves reports left on the default
+## folder out of the checkout and, given `--out`, starts the run's records (`TestBatch.begin`).
 func startup(session: GdUnitTestSession) -> GdUnitResult:
 	if _editor_runner():
 		_step_like_fixed_fps()
@@ -62,6 +64,8 @@ func startup(session: GdUnitTestSession) -> GdUnitResult:
 	return GdUnitResult.success()
 
 
+## gdUnit's session end: given `--out`, prints the totals and writes the report
+## (`TestBatch.finish`); puts back what a panel run's pacing changed.
 func shutdown(session: GdUnitTestSession) -> GdUnitResult:
 	if TestBatch.reporting():
 		session.test_event.disconnect(_on_test_event)

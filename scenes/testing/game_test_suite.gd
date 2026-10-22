@@ -54,6 +54,8 @@ static func cases(folder: String) -> Array:
 	return TestBatch.cases(folder)
 
 
+## gdUnit's once-per-suite setup: the session that plays this suite's tests (its run options from
+## TestBatch) and the camera that frames them.
 func before() -> void:
 	_session = TestSessionScript.new()
 	_session.name = "TestSession"
@@ -75,6 +77,7 @@ func before() -> void:
 	add_child(_camera)
 
 
+## gdUnit's once-per-suite teardown: frees the session and the camera.
 func after() -> void:
 	for n in [_session, _camera]:
 		if is_instance_valid(n):
