@@ -8,10 +8,10 @@ extends GameTest
 ## lead, rank 2, the second the sergeant, 1, the rest 0). So the members follow their leaders: what
 ## a squad costs (the leader's trail, the follow spots, the follow primitive, the leash) is in the
 ## frame, where the squad-less guards cannot see it. The sides are in contact before the window
-## opens: the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN` s more), and
-## as it opens some NPC knows a hostile (`known_contacts_for_display()`), so the frames cost the
-## teams' fight (the leash filter, combat within the leash, the leash break) and not only a walking
-## crowd. It logs how many knew one and how many shots the window held. Measured to the same
+## opens: the warm-up runs on until a shot has been fired and some NPC knows a hostile
+## (`known_contacts_for_display()`) at once (at most `CONTACT_WITHIN` s more), so the frames cost
+## the teams' fight (the leash filter, combat within the leash, the leash break) and not only a
+## walking crowd. It logs how many knew one and how many shots the window held. Measured to the same
 ## standard: the average frame fits in one 60 fps frame, no spike over two. The follow cost is the
 ## frame stats this guard logs (`PERF 10v10 team match` avg / p95 / max, `Perf.within_frames`),
 ## read against those of `perf/match_10v10_stress` on the same house and seed, which builds no
@@ -24,7 +24,8 @@ const SEED := 7
 const PLAN := "garage_home"
 const PER_SIDE := 10
 const WARMUP_S := 6.0
-## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired).
+## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired,
+## and some NPC knowing a hostile).
 const CONTACT_WITHIN := 20.0
 const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
@@ -85,20 +86,17 @@ func run(t: TestContext) -> void:
 		):
 			return
 	await t.seconds(WARMUP_S)
-	var shot := func() -> bool: return t.happened(&"shot")
+	var on := func() -> bool:
+		return t.happened(&"shot") and characters.any(func(c): return _knows_hostile(c))
 	if not t.require(
-			await t.until(shot, CONTACT_WITHIN),
-			"premise: the sides are in contact, a shot fired, within %.0f s of the warm-up (%.1f s)"
+			await t.until(on, CONTACT_WITHIN),
+			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
+					+ "knowing a hostile (%.1f s)")
 				% [CONTACT_WITHIN, t.time],
 	):
 		return
 	GameLog.say("PERF 10v10 team match contact at %.1f s" % t.time)
 	var aware := characters.filter(func(c): return _knows_hostile(c)).size()
-	if not t.require(
-			aware > 0,
-			"premise: the fight is on as the window opens, some NPC knows a hostile (%d)" % aware,
-	):
-		return
 	var nodes_before := Perf.nodes()
 	var shots_before := t.events_of(&"shot").size()
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
