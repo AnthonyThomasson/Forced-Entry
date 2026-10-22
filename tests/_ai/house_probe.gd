@@ -1,32 +1,30 @@
 extends RefCounted
-## Shared helpers for the "defenders stay in the house" tests
-## (tests/ai/investigate/defenders_stay_in_house_*; not a test itself): place defenders (and
-## optionally invaders) in a generated house the way Main does, then watch whether a defender ever
+## Shared helpers for the tests that watch a match's NPCs in a generated house
+## (tests/ai/investigate/defenders_stay_in_house_*, `ai/entry/entry_team_no_bumping`,
+## `ai/movement/follow_defenders`; not a test itself): `house` declares the house and a match over
+## it placed the way Main places one (`s.match`, `MatchBuilder.populate`: the defenders each at a
+## clear spot in a random room, the invader team in one group outside the house, out of the views
+## of its exterior doorways, heading for its front entrance; everyone armed, styled and in its
+## side's squad), `side` reads one side's NPCs off it, and `watch` tells whether a defender ever
 ## steps outside.
 
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 ## How far past a room's rectangle (px) a defender may stand before it has left: a doorway's depth.
 const SLACK := 30.0
 
 
-## Place `defenders` defenders in random rooms and `invaders` invaders around the outside, as Main
-## does (seeded by `seed`); returns the spawner (its `combatants` are the defenders first, then the
-## invaders).
-static func spawn(t: TestContext, seed_value: int, defenders: int, invaders: int) -> RefCounted:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	for i in defenders:
-		spawner.spawn_defender(t.rooms, rng, i)
-	var entrance := Vector2.ZERO
-	for o in WorldGen.get_openings(t.world.get("house")):
-		if o["front"]:
-			entrance = o["pos"]
-	for i in invaders:
-		spawner.spawn_invader(t.rooms, rng, i, invaders, entrance)
-	return spawner
+## Declare generated house `seed_value` (`--seed=N` pins another) and a match over it with
+## `defenders` defenders and `invaders` invaders, its placement seeded with the house's seed.
+static func house(s: TestSetup, seed_value: int, defenders: int, invaders: int) -> void:
+	s.house(seed_value)
+	s.match({ "defenders": { "count": defenders }, "invaders": { "count": invaders } })
+
+
+## The match's NPCs of `faction` (`&"household"` the defenders, `&"invader"` the invaders), in
+## spawn order.
+static func side(t: TestContext, faction: StringName) -> Array:
+	return (t.match().get("combatants", []) as Array).filter(
+		func(c): return is_instance_valid(c) and c.get("faction") == faction,
+	)
 
 
 ## Whether `p` is within the house: inside some room's rectangle, with a doorway's slack.

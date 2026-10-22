@@ -1,8 +1,9 @@
 extends GameTest
 ## Desired: in a quiet house, with nobody to fight or chase, a defender searching its rooms never
-## leaves the house. Defenders are placed as Main places them (a clear spot in a random room) in a
-## generated house and left alone for a while; every defender must stay within the house's rooms (a
-## doorway's depth of slack). `--seed=N` pins the layout, to sweep houses.
+## leaves the house. Defenders are placed as Main places them (a clear spot in a random room, in
+## their side's squad: `tests/_ai/house_probe.gd`) in a generated house and left alone for a while;
+## every defender must stay within the house's rooms (a doorway's depth of slack). `--seed=N` pins
+## the layout, to sweep houses.
 
 const House := preload("res://tests/_ai/house_probe.gd")
 const SEED := 1
@@ -21,11 +22,13 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED)
+	House.house(s, SEED, DEFENDERS, 0)
 	s.von_script([{ "pick": "search" }])
 
 
 func run(t: TestContext) -> void:
-	var spawner = House.spawn(t, SEED, DEFENDERS, 0)
-	var left: Dictionary = await House.watch(t, spawner.combatants, WATCH_S)
+	var defenders := House.side(t, &"household")
+	if not t.require(defenders.size() == DEFENDERS, "premise: two defenders placed"):
+		return
+	var left: Dictionary = await House.watch(t, defenders, WATCH_S)
 	t.check(left.is_empty(), "a defender left the house: %s" % [left])

@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	spawner.spawn_defender(t.rooms, rng, 0)
-	spawner.spawn_invader(t.rooms, rng, 0, 1, FRONT_ENTRANCE)
+	spawner.spawn_invader_team(t.rooms, rng, 1, FRONT_ENTRANCE)
 	var npcs: Array = spawner.combatants.duplicate()
 	if not t.require(npcs.size() == 2, "a defender and an invader spawned"):
 		return

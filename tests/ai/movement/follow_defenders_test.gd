@@ -1,7 +1,8 @@
 extends GameTest
 ## LD19 and LD21: defenders are a coordinated team the same way, from the start. Three defenders are
-## placed in a pinned generated house the way Main places them (`MatchSpawner`, seeded with the
-## house seed) and bound to their side's squad the way Main binds it; the first spawned leads. The
+## placed in a pinned generated house the way Main places them, seeded with the house seed, and
+## bound to their side's squad the way Main binds it (a match over the house,
+## `tests/_ai/house_probe.gd`); the first spawned leads. The
 ## leader decides through Von as ever: gunfire heard inside the house, in the room farthest from it,
 ## sends it to investigate (a defender investigates gunfire inside,
 ## `ai/investigate/defender_investigates_gunfire_inside_von`), through the house's doorways. The
@@ -44,14 +45,14 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED)
+	House.house(s, SEED, CREW, 0)
 
 
 func run(t: TestContext) -> void:
-	var crew: Array = House.spawn(t, SEED, CREW, 0).combatants
+	var crew := House.side(t, &"household")
 	if not t.require(crew.size() == CREW, "three defenders placed as Main places them"):
 		return
-	var squad := Follow.team_of(t, crew)
+	var squad: Node = t.match()["squads"].get(&"household")
 	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
 		return
 	var lead: Node = crew[0]

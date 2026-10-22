@@ -1,13 +1,14 @@
 extends GameTest
 ## Issue #53: a team on a tactical entry walks round its own members. A generated house, and four
-## invaders placed and armed the way Main does (spread round the outside, heading for the front
-## entrance, the invader loadout with its stun and frag), decide for themselves (real Von) to stack
-## on a doorway and go in. For the whole run (the approach, the stack, the bang, the crossing, the
-## corners, the clear, and the walks after it) no invader walks into a teammate that stands still:
-## it goes round it, or stops short and waits; and no two invaders that are both walking collide:
-## one gives way to the other. "Walks into" is measured by `tests/_ai/bump_probe.gd` (steering
-## toward a body it touches); two walkers pressing into each other head-on make a bump each way,
-## counted as one collision (`Bump.collisions`).
+## invaders placed and armed the way Main does (a match over the house, `tests/_ai/house_probe.gd`:
+## in one group outside, out of the exterior doorways' views, heading for the front entrance, the
+## invader loadout with its stun and frag, in their side's squad), decide (real Von, the leader, its
+## team following it in) to stack on a doorway and go in. For the whole run (the approach, the
+## stack, the bang, the crossing, the corners, the clear, and the walks after it) no invader walks
+## into a teammate that stands still: it goes round it, or stops short and waits; and no two
+## invaders that are both walking collide: one gives way to the other. "Walks into" is measured by
+## `tests/_ai/bump_probe.gd` (steering toward a body it touches); two walkers pressing into each
+## other head-on make a bump each way, counted as one collision (`Bump.collisions`).
 ##
 ## The premise: the house is empty (no defender), so what is judged is the team's own movement, not
 ## a firefight; nothing else is changed (no switch, prop or timer).
@@ -31,16 +32,13 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED)
+	House.house(s, SEED, 0, INVADERS)
 
 
 func run(t: TestContext) -> void:
-	var spawner = House.spawn(t, SEED, 0, INVADERS)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = SEED
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, { "stuns": 1, "frags": 1 }, loadout_rng)
-	var team: Array = spawner.combatants
+	var team := House.side(t, &"invader")
+	if not t.require(team.size() == INVADERS, "premise: four invaders placed as Main places them"):
+		return
 	var seen: Dictionary = await Bump.watch(t, team, WATCH_S)
 	var acts := ", ".join(team.map(
 		func(c): return "%s %s" % [c.name, TestContext.controller_of(c).current_act()],

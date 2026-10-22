@@ -29,7 +29,7 @@ static func overlays_off(npc: Node) -> void:
 
 
 ## The test world's generated house's front entrance (world px), or the origin when it has none:
-## where a match guard's spread invaders are placed from, as Main places them.
+## the point a match guard's invaders head for, as Main's do.
 static func front_entrance(t: TestContext) -> Vector2:
 	for o in WorldGen.get_openings(t.world.get("house")):
 		if o["front"]:
@@ -38,8 +38,8 @@ static func front_entrance(t: TestContext) -> Vector2:
 
 
 ## Place a match guard's `per_side` a side as Main does, from `seed_value`: the defenders in random
-## rooms, the invaders spread round the house heading for its front entrance (`spawn_invader`, so
-## the match guards' frames compare), each armed from the default (random gun) loadout drawn from
+## rooms, the invaders in one group outside the house heading for its front entrance
+## (`spawn_invader_team`), each armed from the default (random gun) loadout drawn from
 ## one seeded rng, with its debug overlays off (`overlays_off`). Returns the combatants in spawn
 ## order.
 static func spawn_match(t: TestContext, seed_value: int, per_side: int) -> Array:
@@ -51,8 +51,7 @@ static func spawn_match(t: TestContext, seed_value: int, per_side: int) -> Array
 	var entrance := front_entrance(t)
 	for i in per_side:
 		spawner.spawn_defender(t.rooms, rng, i)
-	for i in per_side:
-		spawner.spawn_invader(t.rooms, rng, i, per_side, entrance)
+	spawner.spawn_invader_team(t.rooms, rng, per_side, entrance)
 	var loadout_rng := RandomNumberGenerator.new()
 	loadout_rng.seed = seed_value
 	for c in spawner.combatants:

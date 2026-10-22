@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	spawner.spawn_defender(rooms, rng, 0)
-	spawner.spawn_invader(rooms, rng, 0, 1, FRONT_ENTRANCE)
+	spawner.spawn_invader_team(rooms, rng, 1, FRONT_ENTRANCE)
 
 	await t.seconds(2.0)
 	var misplaced: Array = []

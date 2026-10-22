@@ -1,8 +1,8 @@
 extends GameTest
 ## Desired: the same as defenders_stay_in_house_quiet, but with the real Von deciding and with
 ## invaders standing outside the house heading for its front door (as in a match, before the fight
-## starts): no defender ever steps outside. Needs the Von decision server. `--seed=N` pins the
-## layout, to sweep houses.
+## starts, placed as Main places them: `tests/_ai/house_probe.gd`): no defender ever steps outside.
+## Needs the Von decision server. `--seed=N` pins the layout, to sweep houses.
 
 const House := preload("res://tests/_ai/house_probe.gd")
 const SEED := 1
@@ -31,10 +31,15 @@ func describe() -> Dictionary:
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED)
+	House.house(s, SEED, DEFENDERS, INVADERS)
 
 
 func run(t: TestContext) -> void:
-	var spawner = House.spawn(t, SEED, DEFENDERS, INVADERS)
-	var left: Dictionary = await House.watch(t, spawner.combatants.slice(0, DEFENDERS), WATCH_S)
+	var defenders := House.side(t, &"household")
+	if not t.require(
+			defenders.size() == DEFENDERS and House.side(t, &"invader").size() == INVADERS,
+			"premise: two defenders and two invaders placed",
+	):
+		return
+	var left: Dictionary = await House.watch(t, defenders, WATCH_S)
 	t.check(left.is_empty(), "a defender left the house: %s" % [left])

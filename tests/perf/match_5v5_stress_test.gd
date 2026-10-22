@@ -71,9 +71,9 @@ func run(t: TestContext) -> void:
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])
 
 
-## Place the match as Main does: defenders in random rooms, invaders around the house heading for
-## its front entrance, each side armed from the default (random gun) loadout drawn from the same
-## seeded rng.
+## Place the match as Main does: defenders in random rooms, invaders in one group outside the house
+## heading for its front entrance, each side armed from the default (random gun) loadout drawn from
+## the same seeded rng.
 func _spawn_match(t: TestContext) -> Array:
 	var spawner = MatchSpawner.new()
 	spawner.world = t.world
@@ -83,8 +83,7 @@ func _spawn_match(t: TestContext) -> Array:
 	var entrance := Perf.front_entrance(t)
 	for i in PER_SIDE:
 		spawner.spawn_defender(t.rooms, rng, i)
-	for i in PER_SIDE:
-		spawner.spawn_invader(t.rooms, rng, i, PER_SIDE, entrance)
+	spawner.spawn_invader_team(t.rooms, rng, PER_SIDE, entrance)
 	var loadout_rng := RandomNumberGenerator.new()
 	loadout_rng.seed = SEED
 	for c in spawner.combatants:
