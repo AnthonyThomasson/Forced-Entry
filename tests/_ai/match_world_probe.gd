@@ -21,7 +21,7 @@ const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
 ## `Maps.house(TestSetup.new(), false)`) under `parent`: walls, navmesh, re-baker, then one invader
 ## NPC per point of `invaders` (`MatchSpawner.add_npc`) and, when `human` is not INF, the human as
 ## Main joins it (an invader with the player's controller, given its stack radio through
-## `MatchSpawner.bind_player`). Returns `{ world, house, rooms, openings, npcs: Array, human, stack
+## `MatchBuilder.bind_player`). Returns `{ world, house, rooms, openings, npcs: Array, human, stack
 ## }`.
 static func build(
 	layout: TestSetup,
@@ -68,7 +68,7 @@ static func build(
 		player.set("max_health", 1_000_000.0)
 		player.position = human
 		world.add_child(player)
-		stack = spawner.bind_player(player, rooms)
+		stack = MatchBuilder.bind_player(player, rooms, spawner.openings)
 	return {
 		"world": world, "house": house, "rooms": rooms, "openings": spawner.openings,
 		"npcs": spawner.combatants, "human": player, "stack": stack,

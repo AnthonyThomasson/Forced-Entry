@@ -8,7 +8,7 @@ extends GameTest
 ## later the leader is killed (`take_damage`), the squad passes the lead on, and the stack goes in
 ## on its own, with no go from anyone.
 ##
-## The squad is built the way Main builds it (`Squad.setup`, `MatchSpawner.bind_squad`). Scripted
+## The squad is built the way Main builds it (`Squad.setup`, `MatchBuilder.bind_squad`). Scripted
 ## Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 		return
 	if not t.require(
 			Order.bind(IDS.map(func(id): return t.actor(id)), squad),
-			"each NPC is handed its squad (MatchSpawner.bind_squad)",
+			"each NPC is handed its squad (MatchBuilder.bind_squad)",
 	):
 		return
 	await t.seconds(0.3)

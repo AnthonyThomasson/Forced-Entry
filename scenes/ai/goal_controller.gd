@@ -361,7 +361,7 @@ var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`{ pos, width, front, exit, rooms }`) from Main, for tactical entry.
 var openings: Array = []
 ## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by Main
-## (`MatchSpawner.bind_squad`): who leads it and who is in it. The orders themselves come off the
+## (`MatchBuilder.bind_squad`): who leads it and who is in it. The orders themselves come off the
 ## bus (`&"order"`), so an NPC with none still takes the ones that name it.
 var squad: Node = null
 ## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.

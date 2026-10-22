@@ -137,7 +137,8 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	Engine.set_meta("skip_setup", true)
 	viewport.add_child(main)
 	Engine.remove_meta("skip_setup")
-	await t.frames(2)
+	# Main places nobody until both navigation maps answer with its house (`MatchBuilder.stage`).
+	await t.until(func(): return main.get("_spawner") != null, 5.0)
 	var out := {}
 	var spawner = main.get("_spawner")
 	var world: Node = main.get("_world")

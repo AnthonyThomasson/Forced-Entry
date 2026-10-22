@@ -2,18 +2,16 @@ extends RefCounted
 ## Composition-root helper (`main.gd`): where and how a match's NPCs are placed. Defenders go to a
 ## clear spot in a random room, Main's invader team in one group outside the house
 ## (`spawn_invader_team`; `spawn_invader` drops one alone at its share of the perimeter, as the
-## tests that place a spread side do); each NPC is added under the match's `World` node, handed the
-## house's rooms and recorded in `combatants` (the spectator camera, the match HUD and the overlays
-## observe that list). Like `main.gd` it knows the NPC scenes and the Navigation domain's
-## `furniture_holes`; the placement rules live here so the root only wires domains.
+## tests that place a spread side do); each NPC is handed the house through `MatchBuilder.bind_npc`,
+## added under the match's `World` node and recorded in `combatants` (the spectator camera, the
+## match HUD and the overlays observe that list). Like `main.gd` it knows the NPC scenes and the
+## Navigation domain's `furniture_holes`; the placement rules live here so the root only wires
+## domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
 ## The house invader, dropped just outside the house. Same AI, different data.
 const INVADER_SCENE := preload("res://scenes/ai/npc_invader.tscn")
-## The human's side of the entry radio: it reserves the human a slot in an AI stack near it
-## (`docs/tactical-entry.md` E16).
-const PLAYER_STACK := preload("res://scenes/ai/team/player_stack.gd")
 ## Random points tried in a room, after its centre, before `clear_spot` gives up.
 const SPAWN_TRIES := 32
 ## Rings round a group's point (`spawn_invader_team`) tried for a member before it gives up: six
@@ -29,7 +27,8 @@ var spawn_clearance: float = 20.0
 var invader_margin: float = 80.0
 ## Every NPC placed so far, in spawn order.
 var combatants: Array = []
-## The house's doorways (`WorldGen.get_openings`), handed to every NPC it binds alongside the rooms.
+## The house's doorways (`WorldGen.get_openings`), handed to every NPC it places alongside the
+## rooms.
 var openings: Array = []
 
 
@@ -199,11 +198,12 @@ func npc_name(base: String, index: int) -> String:
 	return base if index == 0 else "%s %d" % [base, index + 1]
 
 
-## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms and
-## optional entry point, and record it as a combatant (for the spectator camera + match HUD). It
-## joins the `World` node; `_arm_characters` gives it its weapon afterwards. It is positioned BEFORE
-## it joins the tree: a body added at the world origin and moved afterwards overlaps whatever stands
-## there for a moment, and the physics launches that piece (or the NPC) across the map.
+## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms, its
+## `openings` and optional entry point (`MatchBuilder.bind_npc`, before it joins the tree), and
+## record it as a combatant (for the spectator camera + match HUD). It joins the `World` node;
+## `_arm_characters` gives it its weapon afterwards. It is positioned BEFORE it joins the tree: a
+## body added at the world origin and moved afterwards overlaps whatever stands there for a moment,
+## and the physics launches that piece (or the NPC) across the map.
 func add_npc(
 	scene: PackedScene,
 	node_name: String,
@@ -214,55 +214,6 @@ func add_npc(
 	var npc := scene.instantiate()
 	npc.name = node_name
 	npc.position = world.to_local(pos)
+	MatchBuilder.bind_npc(npc, rooms, openings, entry_point)
 	world.add_child(npc)
-	bind_npc(npc, rooms, entry_point)
 	combatants.append(npc)
-
-
-## Wire an NPC's controller to the world: hand it the house's `rooms` (world-space rects), its
-## `openings` (the doorways, for tactical entry) and, when given, an `entry_point` the NPC heads for
-## first while outside all rooms. Found by the group `npc_controllers` the AI controller joins
-## (interface 7) — so Main doesn't depend on the controller's node name. This keeps the World-Gen
-## boundary in Main: the AI never calls WorldGen.
-func bind_npc(npc: Node, rooms: Array, entry_point: Vector2 = Vector2.ZERO) -> void:
-	for child in npc.get_children():
-		if child.is_in_group(&"npc_controllers"):
-			child.rooms = rooms
-			child.openings = openings
-			if entry_point != Vector2.ZERO:
-				child.entry_point = entry_point
-			return
-
-
-## Hand a member its side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), as `bind_npc`
-## hands it the house: an NPC's controller's `squad`, found by the same `npc_controllers` group, and
-## the human's `stack`, the stack radio `bind_player` returned for it (its `squad`, LD17), with
-## `own_claims` (LD24, D29: true for the invaders' side only, whose leader's own claim at a doorway
-## rallies the team).
-func bind_squad(npc: Node, squad: Node, stack: Node = null, own_claims := false) -> void:
-	if stack != null and "squad" in stack:
-		stack.squad = squad
-		stack.own_claims = own_claims
-	for child in npc.get_children():
-		if child.is_in_group(&"npc_controllers"):
-			child.squad = squad
-			return
-
-
-## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's
-## controller, found by the `npc_controllers` group (0 with no NPC among them). Main hands it to the
-## side's squad (`Squad.setup`), which keeps its members' entry claims as long.
-func callout_ttl_of(members: Array) -> float:
-	for m in members:
-		if not (m is Node and is_instance_valid(m)):
-			continue
-		for child in (m as Node).get_children():
-			if child.is_in_group(&"npc_controllers"):
-				return float(child.callout_ttl)
-	return 0.0
-
-
-## Give the human the stack radio, as `bind_npc` hands an NPC its doorways: a `PlayerStack` child of
-## `player` that knows the house's `rooms` and `openings`. Returned, for the stack markers to watch.
-func bind_player(player: Node, rooms: Array) -> Node:
-	return PLAYER_STACK.attach(player, rooms, openings)

@@ -10,12 +10,6 @@ const MATCH_SPAWNER := preload("res://scenes/match_spawner.gd")
 ## tag so that side's NPCs treat them as an ally.
 const DEFENDER_FACTION := &"household"
 const INVADER_FACTION := &"invader"
-## Draw-only overlay for the baked navmesh's holes, furniture and characters at rest (Navigation
-## domain).
-const NAV_DEBUG := preload("res://scenes/navigation/nav_debug.gd")
-## Periodic navmesh re-baker: re-carves furniture holes as pieces are shoved around (Navigation
-## domain).
-const NAV_UPDATER := preload("res://scenes/navigation/nav_updater.gd")
 ## Spectator inspector (UI): Space-pause + click an NPC to show its tactical zones.
 const SPECTATOR_INSPECTOR := preload("res://scenes/ui/hud/spectator_inspector.gd")
 ## The floor markers of the human's place in an AI stack (world space, under `World`).
@@ -134,7 +128,7 @@ var _endless: bool = false
 var _lead: bool = false
 ## This match's squads (`ai/team/squad.gd`), by faction.
 var _squads: Dictionary = {}
-## The human's stack radio this match (the `PlayerStack` `MatchSpawner.bind_player` returned),
+## The human's stack radio this match (the `PlayerStack` `MatchBuilder.bind_player` returned),
 ## handed its squad with the human; null without one.
 var _player_stack: Node = null
 ## Endless run: the highest defender / invader counts a random match may draw (the counts chosen in
@@ -415,7 +409,9 @@ func return_to_setup() -> void:
 
 ## Ask World-Gen for a house placed so its front entrance sits just above the player's anchor, and
 ## populate it. Everything is built under a fresh `World` node, so `_teardown_world` can clear the
-## match.
+## match. The world stage (house, nav map, its overlay and re-baker, the dusk lighting) is
+## `MatchBuilder.stage`, which waits until both navigation maps answer with this house, so no NPC is
+## placed before then: a coroutine.
 func _spawn_world() -> void:
 	# A dev/headless harness can pin the next match's layout via Engine meta (it survives the scene
 	# reload the `restart` command does); otherwise the exported seed (0 = random) stands.
@@ -425,39 +421,26 @@ func _spawn_world() -> void:
 	# from it, and so it can be displayed and re-entered to pin this layout.
 	if house_seed == 0:
 		house_seed = randi()
-	_world = Node2D.new()
-	_world.name = "World"
-	_world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
-	add_child(_world)
+	var world := Node2D.new()
+	world.name = "World"
+	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
+	add_child(world)
+	_world = world
+	var front_entrance := _anchor + Vector2(0, -entrance_distance)
+	var spec := {
+		"seed": house_seed, "plan": force_plan, "entrance": front_entrance, "wait_nav": true,
+	}
+	var staged: Dictionary = await MatchBuilder.stage(spec, world)
+	if _world != world or not is_inside_tree():
+		return  # torn down (a new match, or the scene left) while the maps synchronized
+	_nav_debug = staged["nav_debug"]
+	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
+	var rooms: Array = staged["rooms"]
 	_spawner = MATCH_SPAWNER.new()
 	_spawner.world = _world
 	_spawner.spawn_clearance = spawn_clearance
 	_spawner.invader_margin = invader_margin
-	var front_entrance := _anchor + Vector2(0, -entrance_distance)
-	var house := WorldGen.generate(house_seed, force_plan, front_entrance, _world)
-	# Bake the navigation map from the rooms + walls before the NPC starts pathing.
-	var rooms := WorldGen.get_rooms(house)
-	_spawner.openings = WorldGen.get_openings(house)
-	var nav_region := NavBuilder.build(house, rooms, _world)
-	# Debug overlay (world-space, single node): snapshot the holes carved into the navmesh right
-	# after the bake. The updater below re-snapshots it after each re-bake so it tracks furniture
-	# and characters.
-	var nav_debug: Node2D = NAV_DEBUG.new()
-	nav_debug.name = "NavDebug"
-	_world.add_child(nav_debug)
-	nav_debug.setup(house)
-	_nav_debug = nav_debug
-	nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
-	# Keep the navmesh in step with furniture that gets shoved around: re-carves the holes at the
-	# pieces' current positions on an interval (and refreshes the overlay), so paths route around
-	# scattered objects instead of their original spots.
-	var nav_updater: Node = NAV_UPDATER.new()
-	nav_updater.name = "NavUpdater"
-	_world.add_child(nav_updater)
-	nav_updater.setup(nav_region, house, rooms, nav_debug)
-	# The dusk lighting over the house and the street (interface 20): its lights, fixtures and
-	# flashes, seeded by the house.
-	WorldLighting.light(_world, house_seed, rooms)
+	_spawner.openings = staged["openings"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = house_seed
 	for i in defender_count:
@@ -546,7 +529,7 @@ func _arm_characters(characters: Array) -> void:
 
 
 ## One squad per side over `combatants` (in spawn order) and the house's `rooms`, under `World`,
-## each member handed its own (`MatchSpawner.bind_squad`, the human's stack radio with it;
+## each member handed its own (`MatchBuilder.bind_squad`, the human's stack radio with it;
 ## `docs/leadership.md` LD3): the leader by the squad's rule (rank, then spawn order), so after
 ## `_arm_characters` has ranked the unit; the human's side is led by the human when it leads ("Lead
 ## the team").
@@ -570,10 +553,10 @@ func _build_squads(combatants: Array, rooms: Array) -> void:
 			_spawner.openings,
 			rooms,
 			human,
-			_spawner.callout_ttl_of(members),
+			MatchBuilder.callout_ttl_of(members),
 		)
 		for member in members:
-			_spawner.bind_squad(
+			MatchBuilder.bind_squad(
 				member,
 				squad,
 				_player_stack if _player_stack != null and member == _player else null,
@@ -714,7 +697,7 @@ func _join_player(rooms: Array, rng: RandomNumberGenerator) -> void:
 ## child of `World`, so world space) watch the stack the spawner attached to the player. Only a
 ## human invader is ever reserved a slot, since only the invaders' entries come over the radio.
 func _build_stack_markers(rooms: Array) -> void:
-	_player_stack = _spawner.bind_player(_player, rooms)
+	_player_stack = MatchBuilder.bind_player(_player, rooms, _spawner.openings)
 	var markers: Node2D = STACK_MARKERS.new()
 	markers.name = "StackMarkers"
 	_world.add_child(markers)

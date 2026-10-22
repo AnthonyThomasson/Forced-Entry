@@ -1,6 +1,6 @@
 extends GameTest
 ## LD19 to LD21: members follow their leader. Three invaders are a squad, bound the way Main binds
-## one (`Squad.setup`, `MatchSpawner.bind_squad`); the first, ranked the unit's lead, leads. The
+## one (`Squad.setup`, `MatchBuilder.bind_squad`); the first, ranked the unit's lead, leads. The
 ## leader decides through Von as ever and searches the Terrace house from the back garden, walking
 ## into the rooms (it makes no tactical entry of its own); the two others pick no goal of their own:
 ## they follow it (the root leaf FOLLOW, taken without asking Von) in a file on its trail, through

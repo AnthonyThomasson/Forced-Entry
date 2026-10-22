@@ -2,7 +2,7 @@ extends GameTest
 ## LD24 and D27 (with interface 17): the human leader's own claim rallies its team. A puppet stands
 ## in for the human leader of a squad of two invader NPCs, built and bound the way Main builds it
 ## with "Lead the team" on (the human handed to `Squad.setup` as `human`, its `PlayerStack` attached
-## as `MatchSpawner.bind_player` attaches it and handed the squad by `MatchSpawner.bind_squad`). The
+## as `MatchBuilder.bind_player` attaches it and handed the squad by `MatchBuilder.bind_squad`). The
 ## human walks up beside the bare Terrace house's back door, where nobody is stacking: its stack
 ## radio claims a slot of its own (the human leads a squad with members), and the squad gives both
 ## NPCs a `join` order there. Both claim the back door and stand ready in the stack with the human.
@@ -14,7 +14,6 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 ## Where the human stands: against the wall north of the back door, a stack spot beside it.
 const STEP_UP := Order.BACK_NORTH
 ## How long (s) the NPCs have, once the human has claimed, to stand ready in the stack.
@@ -50,7 +49,7 @@ func run(t: TestContext) -> void:
 	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
 		return
 	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchSpawner.new().bind_squad(me, squad, stack, true)
+	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(
 			stack.get("squad") == squad and squad.leader() == me,
 			"premise: the human's stack is handed its squad, and the human leads (Lead the team)",

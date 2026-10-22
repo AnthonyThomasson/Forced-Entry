@@ -2,7 +2,7 @@ extends Node
 ## AI domain · TEAM — one side's squad (`docs/leadership.md` LD3 to LD7): its roster, its leader,
 ## the line of succession and the orders its leader gives. Main builds one per faction under the
 ## match's `World` node (`setup`, after arming the characters) and hands each NPC its squad
-## (`MatchSpawner.bind_squad`).
+## (`MatchBuilder.bind_squad`).
 ##
 ## **The leader (LD3).** The member of the highest `rank`, the first in spawn order among equals:
 ## the invaders' unit lead (rank 2), and, a defenders' crew carrying no rank, its first spawned. A
@@ -144,7 +144,7 @@ func _physics_process(_delta: float) -> void:
 
 ## Set the squad up: `faction`, its members (`roster`) in spawn order, the house's `openings` and
 ## `rooms`, the `human` when the human leads (null: the leader is the rule's) and `claim_ttl`, how
-## long its NPCs keep a callout they heard (their `callout_ttl`, `MatchSpawner.callout_ttl_of`): a
+## long its NPCs keep a callout they heard (their `callout_ttl`, `MatchBuilder.callout_ttl_of`): a
 ## member's entry claim stays in its stacks as long (0: none is kept). Listens to each member's
 ## `died` and to the radio from here on.
 func setup(

@@ -10,7 +10,7 @@ extends GameTest
 ## navmesh and re-baker, then the NPC and the human in the same frame, in a world of its own),
 ## because a test world waits for its navigation maps before an actor spawns and a match does not.
 ## The human is the player's character with the player's controller (no input: it stands still) and
-## its stack radio as `MatchSpawner.bind_player` gives it. The AI is held where it starts (speed 0)
+## its stack radio as `MatchBuilder.bind_player` gives it. The AI is held where it starts (speed 0)
 ## until the human stands in its slot: the premise is an AI arriving at a stack the human is already
 ## in. Scripted Von (ENTER the back door) and the shared entry switches; nothing else changed.
 
@@ -62,7 +62,7 @@ func run(t: TestContext) -> void:
 	var stack: Node = m["stack"]
 	var brain: Node = TestContext.controller_of(ai)
 	ai.set("speed", 0.0)  # Held until the human stands in its slot (the premise).
-	if not t.require(stack != null, "the human has a stack radio (MatchSpawner.bind_player)"):
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
 	if not t.require(
 			await t.until(func(): return Stack.mine(stack) == 2, 20.0),

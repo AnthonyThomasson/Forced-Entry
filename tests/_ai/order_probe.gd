@@ -16,7 +16,6 @@ const SQUAD_SCRIPT := "res://scenes/ai/team/squad.gd"
 const COMMAND_MENU_SCRIPT := "res://scenes/ui/hud/command_menu.gd"
 const ORDER_MARKERS_SCRIPT := "res://scenes/ui/hud/order_markers.gd"
 const OVERLAY_TOGGLES_SCRIPT := "res://scenes/ui/overlays/overlay_toggles.gd"
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 ## The order kinds (LD5).
 const DEFEND := "defend_room"
@@ -58,7 +57,7 @@ const PANEL_WIDTH := 440.0
 
 ## Build the squad of `faction` the way Main does (a `Squad` node under the world,
 ## `setup(faction, members, openings, rooms, leader, claim_ttl)`, the claim ttl the NPCs' own
-## `callout_ttl` read through `MatchSpawner.callout_ttl_of`), over the test world's house. Null when
+## `callout_ttl` read through `MatchBuilder.callout_ttl_of`), over the test world's house. Null when
 ## the script does not exist yet.
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
 	if not ResourceLoader.exists(SQUAD_SCRIPT):
@@ -74,19 +73,16 @@ static func squad(t: TestContext, faction: StringName, members: Array, leader: N
 			openings,
 			t.rooms,
 			leader,
-			MatchSpawner.new().callout_ttl_of(members),
+			MatchBuilder.callout_ttl_of(members),
 		)
 	return s
 
 
-## Hand each NPC of `npcs` its squad the way Main does (`MatchSpawner.bind_squad(npc, squad)`);
-## false when the spawner has no `bind_squad` yet.
+## Hand each NPC of `npcs` its squad the way Main does (`MatchBuilder.bind_squad(npc, squad)`);
+## true once done.
 static func bind(npcs: Array, s: Node) -> bool:
-	var spawner = MatchSpawner.new()
-	if not spawner.has_method("bind_squad"):
-		return false
 	for npc in npcs:
-		spawner.bind_squad(npc, s)
+		MatchBuilder.bind_squad(npc, s)
 	return true
 
 

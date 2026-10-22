@@ -20,7 +20,7 @@ extends Node
 ## `go_timeout`; it is finished with `done` once through and nobody waits behind it.
 ##
 ## When the human leads its side's squad (`squad`, handed in as an NPC is handed its own:
-## `MatchSpawner.bind_squad`), its claims say so (`leader: true`, `docs/leadership.md` LD17): a
+## `MatchBuilder.bind_squad`), its claims say so (`leader: true`, `docs/leadership.md` LD17): a
 ## stack it ordered waits for it as for an ordered member, until it stands in its slot. Leading a
 ## squad with another living member on the invaders' side (`own_claims`, D29), it also claims of
 ## its own (LD24, D27): stepping up to a doorway nobody stacks at (standing `STEP_UP_TIME` against
@@ -73,7 +73,7 @@ const STEP_UP_TIME := 0.5
 ## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
 var squad: Node = null
 ## Whether the human, leading its squad, claims of its own at a doorway it steps up to (LD24, D29):
-## set by Main through `MatchSpawner.bind_squad` for the invaders' side only, so a human defender
+## set by Main through `MatchBuilder.bind_squad` for the invaders' side only, so a human defender
 ## leader's step-ups rally nobody. Off unless set.
 var own_claims := false
 ## The human's character (the parent).

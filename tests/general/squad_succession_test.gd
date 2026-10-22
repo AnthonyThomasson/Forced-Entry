@@ -7,7 +7,7 @@ extends GameTest
 ## The match is built the way Main builds one (`match_world_probe.gd`: the house, its navmesh and
 ## the NPCs in one frame, each NPC through `MatchSpawner`), its three invaders ranked as Main ranks
 ## a unit (lead, sergeant, trooper), then given their squad as Main does (`Squad.setup`,
-## `MatchSpawner.bind_squad`). The leader is killed with `take_damage`.
+## `MatchBuilder.bind_squad`). The leader is killed with `take_damage`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Match := preload("res://tests/_ai/match_world_probe.gd")
@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	squad.setup(&"invader", npcs, built["openings"], built["rooms"], null)
 	if not t.require(
 			Order.bind(npcs, squad),
-			"Main hands each NPC its squad (MatchSpawner.bind_squad)",
+			"Main hands each NPC its squad (MatchBuilder.bind_squad)",
 	):
 		return
 	var lead: Node = npcs[0]

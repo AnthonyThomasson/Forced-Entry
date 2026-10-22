@@ -6,7 +6,7 @@ extends RefCounted
 ## mode `join`).
 ##
 ## The squad is built and bound the way Main does it (`order_probe.gd`: `Squad.setup`,
-## `MatchSpawner.bind_squad`), and its reads (`leader()`, `follows`, `follow_spot`, `leash`,
+## `MatchBuilder.bind_squad`), and its reads (`leader()`, `follows`, `follow_spot`, `leash`,
 ## `view()`) are called on it directly (interface 21). The NPCs are read only through their
 ## controllers' public reads (`current_act()`, `debug_state()`, `debug_entry()`) and the radio. The
 ## spec's numbers are consts here, so a test checks the spec and not the code.
@@ -71,7 +71,7 @@ static func band_p50(i: int) -> float:
 
 ## The squad of the actors `ids` in that order (the first is its leader by the rank rule when every
 ## rank is equal), built and bound as Main does: every NPC among them handed it
-## (`MatchSpawner.bind_squad`). `human` names the actor that stands in for the human leader (passed
+## (`MatchBuilder.bind_squad`). `human` names the actor that stands in for the human leader (passed
 ## to `Squad.setup` as `human`); "" for an AI-led squad.
 static func team(t: TestContext, ids: Array, human: StringName = &"") -> Node:
 	var members: Array = ids.map(func(id): return t.actor(id))

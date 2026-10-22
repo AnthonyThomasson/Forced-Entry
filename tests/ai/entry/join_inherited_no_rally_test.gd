@@ -2,7 +2,7 @@ extends GameTest
 ## LD24 and D30: a join's claims are never its holder's own. A puppet stands in for the human leader
 ## of a squad of two invader NPCs, built and bound the way Main builds it with "Lead the team" on
 ## (the human handed to `Squad.setup` as `human`, its `PlayerStack` attached as
-## `MatchSpawner.bind_player` attaches it and handed the squad by `MatchSpawner.bind_squad`), over
+## `MatchBuilder.bind_player` attaches it and handed the squad by `MatchBuilder.bind_squad`), over
 ## the bare Terrace house. The human orders the trooper, outside the front door, to defend the
 ## living room, then walks up beside the back door: its own claim rallies the sergeant, far off in
 ## the garden north-west of the house (a `join`). Once the sergeant has claimed its slot there, and
@@ -20,7 +20,6 @@ const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 ## Where the human stands: against the wall north of the back door, a stack spot beside it.
 const STEP_UP := Order.BACK_NORTH
 ## How long (s) the sergeant has, once the human has claimed, to claim its slot at the back door.
@@ -70,7 +69,7 @@ func run(t: TestContext) -> void:
 	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
 		return
 	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchSpawner.new().bind_squad(me, squad, stack, true)
+	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(squad.leader() == me, "premise: the human leads (Lead the team)"):
 		return
 	var defend := Order.issue(

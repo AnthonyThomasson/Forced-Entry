@@ -4,7 +4,7 @@ extends GameTest
 ## `PlayerStack` reserves it a place in an allied stack) is not its own claim: the human's other
 ## claims are E16's. A puppet stands in for the human leader of a squad of three invader NPCs (the
 ## human handed to `Squad.setup` as `human`, its `PlayerStack` attached as
-## `MatchSpawner.bind_player` attaches it and handed the squad by `MatchSpawner.bind_squad`). It
+## `MatchBuilder.bind_player` attaches it and handed the squad by `MatchBuilder.bind_squad`). It
 ## orders `a` and `b` to stack quietly north of the bare Terrace house's back door; standing near
 ## it, it is reserved a slot in that stack and steps into it. The third teammate, `f`, holds no
 ## order and follows the human close by: no `join` is posted, and `f` takes no slot at the back
@@ -18,7 +18,6 @@ const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const STACKERS := [&"a", &"b"]
 ## How long (s) the squad is watched once the human stands in its slot: its claim's repeats (every
 ## 2 s) included.
@@ -56,7 +55,7 @@ func run(t: TestContext) -> void:
 	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
 		return
 	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchSpawner.new().bind_squad(me, squad, stack, true)
+	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(
 			squad.leader() == me and squad.follows(follower),
 			"premise: the human leads, and f follows it",

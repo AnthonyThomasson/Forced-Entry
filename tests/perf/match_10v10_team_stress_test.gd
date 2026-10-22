@@ -3,8 +3,8 @@ extends GameTest
 ## to LD23): the 10v10 of `perf/match_10v10_stress` (the same house, plan, seed, placement,
 ## loadouts, switches and scripted Von) with one squad per side built and bound the way Main builds
 ## it (`Squad.setup` over the side's combatants in spawn order with the spawner's openings, the
-## house's rooms and the claim ttl `MatchSpawner.callout_ttl_of`, each NPC handed it by
-## `MatchSpawner.bind_squad`), the invaders ranked as Main ranks its police unit (the first the
+## house's rooms and the claim ttl `MatchBuilder.callout_ttl_of`, each NPC handed it by
+## `MatchBuilder.bind_squad`), the invaders ranked as Main ranks its police unit (the first the
 ## lead, rank 2, the second the sergeant, 1, the rest 0). So the members follow their leaders: what
 ## a squad costs (the leader's trail, the follow spots, the follow primitive, the leash) is in the
 ## frame, where the squad-less guards cannot see it. The sides are in contact before the window

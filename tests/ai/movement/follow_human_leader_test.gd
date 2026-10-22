@@ -1,7 +1,7 @@
 extends GameTest
 ## LD19 and LD21: a human leader gets the same rule. A puppet stands in for the human leader of a
 ## squad of two invader NPCs, built and bound the way Main builds it with "Lead the team" on (the
-## human handed to `Squad.setup` as `human`, `MatchSpawner.bind_squad`). The human walks a route
+## human handed to `Squad.setup` as `human`, `MatchBuilder.bind_squad`). The human walks a route
 ## along the back garden north of the Terrace house, west, and stops facing west. The NPCs follow
 ## it in a file on its trail while it walks (each spot `FOLLOW_GAP` + `FOLLOW_STEP` x its place
 ## behind the human, the walk re-aimed only once the spot has moved `FOLLOW_RETARGET`), and once it

@@ -1,7 +1,7 @@
 extends GameTest
 ## LD26: taking over from a dead human leader. A puppet stands in for the human leader of an invader
 ## squad, built and bound the way Main builds it with "Lead the team" on (the human handed to
-## `Squad.setup` as `human`, `MatchSpawner.bind_squad`), over the bare Terrace house. Its sergeant
+## `Squad.setup` as `human`, `MatchBuilder.bind_squad`), over the bare Terrace house. Its sergeant
 ## (rank 1) has no order and follows it. The human orders `defender` to defend the living room,
 ## `ambusher` to ambush the hall's doorway into the kitchen from the hall, and `stacker` to stack on
 ## the back door north of it, holding for its go. Once all three are in place the human is killed

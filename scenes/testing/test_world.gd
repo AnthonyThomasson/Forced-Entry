@@ -9,13 +9,7 @@ const LayoutBuilder = preload("res://scenes/testing/layout_builder.gd")
 const TestSwitches = preload("res://scenes/testing/test_switches.gd")
 const ScriptedController = preload("res://scenes/testing/scripted_controller.gd")
 const PlayerController = preload("res://scenes/character/player_controller.gd")
-const NAV_UPDATER := preload("res://scenes/navigation/nav_updater.gd")
-const NAV_DEBUG := preload("res://scenes/navigation/nav_debug.gd")
 const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")
-## Most wall-clock ms `build` waits for the shared navigation map to answer with this world's
-## navmesh (the map is built on a worker thread, so a loaded machine is slow in real time, not in
-## sim frames).
-const NAV_SYNC_MS := 5000
 const ACTOR_SCENES := {
 	&"puppet": "res://scenes/character/character_base.tscn",
 	&"player": "res://scenes/character/character_base.tscn",
@@ -37,18 +31,18 @@ var _saved_statics: Array = []
 ## The overlay toggles (`show_<x>` -> on), given to every actor as it spawns and changed by
 ## `set_overlay`.
 var _overlay_flags: Dictionary = {}
-## The baked navigation region (see `_await_nav_sync`).
-var _nav_region: NavigationRegion2D = null
 ## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the
 ## updater.
 var _nav_debug: Node2D = null
 
 
 ## Build everything `setup` declares. Statics and switches are applied before anything spawns, so
-## spawning already sees them. The world (walls, objects, navmesh) is stepped through two physics
-## frames before any actor enters: the walls' colliders and the navmesh only go live on a physics
-## step, and an NPC thinking on its first tick would otherwise see through the walls and plan on an
-## empty map.
+## spawning already sees them. The world stage (nav map, its overlay and re-baker, the dusk
+## lighting, then the wait for the navigation maps) is Main's own, `MatchBuilder.stage`, over the
+## house, layout or arena built here with its objects in place, so the bake carves them; it steps
+## two physics frames (the walls' colliders go live on a step) and waits until both maps answer with
+## this world's navmesh before any actor enters: an NPC thinking on its first tick would otherwise
+## see through the walls and plan on an empty map.
 func build(setup: TestSetup) -> void:
 	for switch_name in setup.switches:
 		if not TestSwitches.has(switch_name):
@@ -68,12 +62,10 @@ func build(setup: TestSetup) -> void:
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
-	_build_nav()
-	# The dusk lighting, as Main lights a match (none while `lighting.enabled` is off).
-	WorldLighting.light(self, int(setup.resolved_world().get("seed", 0)), rooms)
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	await _await_nav_sync()
+	var spec := { "seed": int(setup.resolved_world().get("seed", 0)), "wait_nav": true }
+	var staged: Dictionary = await MatchBuilder.stage(spec, self, house)
+	_nav_debug = staged["nav_debug"]
+	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
 	for v in setup.vehicles:
 		var vehicle := _spawn_vehicle(v)
 		if vehicle != null:
@@ -136,37 +128,6 @@ func _set_static(script: Script, prop: StringName, value: Variant) -> void:
 	script.set(prop, value)
 
 
-## Wait (at most `NAV_SYNC_MS` of real time, a physics frame at a time) until the shared navigation
-## map answers queries with this world's navmesh: the closest map point to a room's centre belongs
-## to this world's region. The map's iteration is built asynchronously, so under load its id and
-## region list can already show the new region while queries still run on an empty (or the previous
-## test's) iteration, and an NPC that snaps a point onto the map then gets the origin, and walks
-## there. The steering map (the characters' own, see NavBuilder.steering_map) is built the same way
-## and waited for too.
-func _await_nav_sync() -> void:
-	if rooms.is_empty() or not is_instance_valid(_nav_region):
-		return
-	var map: RID = get_world_2d().navigation_map
-	var centre: Vector2 = (rooms[0]["rect"] as Rect2).get_center()
-	var steering := NavBuilder.steering_region(_nav_region)
-	var steering_map := NavBuilder.steering_map(map)
-	var deadline := Time.get_ticks_msec() + NAV_SYNC_MS
-	while not _map_synced(map, _nav_region, centre) \
-			or (steering != null and not _map_synced(steering_map, steering, centre)):
-		if Time.get_ticks_msec() > deadline:
-			push_error(("TestWorld: the navigation map did not take in the world's navmesh within "
-						+ "%d ms") % NAV_SYNC_MS)
-			return
-		await get_tree().physics_frame
-
-
-## Whether `map` has finished an iteration and answers with `region` for `centre`. A map that has
-## not synchronized yet is not asked (that query is an engine error), so the wait just goes on.
-func _map_synced(map: RID, region: NavigationRegion2D, centre: Vector2) -> bool:
-	return NavigationServer2D.map_get_iteration_id(map) > 0 \
-			and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid()
-
-
 ## Build the generated house or the arena, and read its rooms.
 func _build_world(world: Dictionary) -> void:
 	if world["kind"] == "house":
@@ -182,27 +143,6 @@ func _build_world(world: Dictionary) -> void:
 		house = ArenaBuilder.build(world, self)
 	rooms = WorldGen.get_rooms(house)
 	openings = WorldGen.get_openings(house)
-
-
-## Bake the nav map (after the objects, so they are carved) and add the re-baker.
-func _build_nav() -> void:
-	var region := NavBuilder.build(house, rooms, self)
-	_nav_region = region
-	# Every test world shares the viewport's navigation map, which a previous test has already
-	# synced. Without this, the new region is not yet in the map when its NPCs first decide, and a
-	# path query against the stale map returns the origin (a point, not a route), so the NPC walks
-	# to (0, 0). Sync now, before any actor spawns.
-	NavigationServer2D.map_force_update(get_world_2d().navigation_map)
-	NavigationServer2D.map_force_update(NavBuilder.steering_map(get_world_2d().navigation_map))
-	_nav_debug = NAV_DEBUG.new()
-	_nav_debug.name = "NavDebug"
-	add_child(_nav_debug)
-	_nav_debug.setup(house)
-	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
-	var updater: Node = NAV_UPDATER.new()
-	updater.name = "NavUpdater"
-	add_child(updater)
-	updater.setup(region, house, rooms, _nav_debug)
 
 
 ## Instance vehicle `v` (`TestSetup.vehicle`) from `res://scenes/vehicle/<kind>.tscn`, set its
@@ -271,12 +211,8 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 		for prop in children[child_path]:
 			child.set(prop, children[child_path][prop])
 	OVERLAY_REGISTRY.apply(character, _overlay_flags)
-	for child in character.get_children():
-		# The AI learns the house's rooms and doorways from its composer (main.gd does the same).
-		if child.has_method("control") and "rooms" in child:
-			child.rooms = rooms
-			if "openings" in child:
-				child.openings = openings
+	# The AI learns the house's rooms and doorways by Main's own rule, before it joins the tree.
+	MatchBuilder.bind_npc(character, rooms, openings)
 	# Positioned before it joins the tree: a body added at the origin and moved afterwards launches
 	# whatever stands there (the same trap `match_spawner.gd` avoids).
 	character.position = to_local(a["position"])
