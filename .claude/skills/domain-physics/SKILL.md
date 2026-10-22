@@ -28,7 +28,10 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
 - `Deformation` — the polygon math + drawing (shared by furniture and walls). It owns the impact schema: `new_impact(pos, inward,
   damage, blood, max_depth, allow_chunks)` builds one (depth from `deform_depth_per_damage`, a chunk past `deform_chunk_damage`, a
   fresh seed) and `push_impact(list, impact, max_impacts)` adds it, dropping the oldest; `Deformable.record` and Objects' wall
-  segments both record through them. `shape_polygon` keeps its last 256 dented
+  segments both record through them. `deform` moves each ring point by its dents' summed push, kept inside the outline
+  (`_clamp_inside`) and at most `NEIGHBOUR_REACH` (0.45) of the way toward either ring neighbour along the outline, so a
+  corner dented from one face cannot slide along the other past its neighbour and fold the ring onto itself
+  (`tests/physics/deformation_outline_suite.gd`, the frag-dented outlines of issue #77). `shape_polygon` keeps its last 256 dented
   silhouettes, keyed by everything they are made from (shape, size, the dents, the deformation tuning) and checked for equality:
   each hit asks for the same one three times (collider, shadow, drawing) and every repaint of a wounded character asks again
   (`tests/physics/shape_polygon_cache_test.gd`). `convex_pieces` cuts a silhouette into convex collider pieces (Hertel-Mehlhorn
@@ -42,9 +45,12 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   one is struck), a fresh array each ask, and `draw_wall` skips the triangulation check for an undented segment. Its circle `base_ring`
   is the unit ring (kept per point count) scaled, a fresh array each call; `draw_shape` maps its texture with one transform of the
   ring and skips the triangulation check for an undented shape (it is the intact ring already); `draw_marks` draws each mark's
-  discs as one General `FillBatch` before its cracks. `draw_shape` takes
+  discs as one General `FillBatch` before its cracks (one batch per mark, not per call: every mark's discs ahead of every crack
+  changed ~19% of the painted pixels where dents cluster, a later mark's discs covering an earlier mark's cracks; #78). `draw_shape` takes
   an optional `texture`: the deformed polygon is then drawn textured (UVs from the intact
-  footprint, so dents cut into the image), tinted darker by damage, without the smooth outline;
+  footprint, so dents cut into the image), tinted darker by damage (white darkened by `darken(damage_total)`: up to
+  `deform_darken_max`, reached at `deform_darken_full`; published so the character's kept meshes draw its textured parts in the same
+  colour), without the smooth outline;
   `texture_angle` turns the image within the unturned silhouette (a round body facing any way);
   with `marks` false the hit marks are left to the caller's `draw_marks`, to draw over parts
   layered on top.
@@ -52,16 +58,25 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   frame (u along the wall per tile, v across its thickness), so the tile follows every wall.
 - `DebrisSpawner` / `Debris` / `DebrisLayer` — material-styled chips (`STYLES` table). A chip is a node only while it
   flies (Despawner-tracked); as it lands it hands its place, turn, colour, size and shape to the parent's `DebrisLayer`
-  (`DebrisLayer.layer(parent)`) and frees itself, so a floor strewn with a thousand chips costs a few draw calls and no nodes; a chunk
-  draws all its chips (disc, triangle or rect, each at its own place and turn) as one General `FillBatch` (the triangle and rect
-  convex, uncut; under the headless display each by its own command, `_draw_each`). The layer
-  keeps at most `Despawner.max_scene_objects` chips, dropping the oldest; it draws under whatever joins its node after it.
-  Test: `tests/physics/debris_rests_in_a_layer_test.gd`.
+  (`DebrisLayer.layer(parent)`) and frees itself, so a floor strewn with a thousand chips costs a few draw calls and no nodes. A chunk
+  holds its chips in pages of `PAGE` (32), oldest first, each a canvas item of its own (`DebrisPage`, the chunk's children in age
+  order) drawing its chips (disc, triangle or rect, each at its own place and turn) as one General `FillBatch` (`_draw_chips`: the
+  triangle and rect convex, uncut; under the headless display each by its own command, `_draw_each`). A chip landing goes on the
+  chunk's last page (a new one when that is full) and repaints only it; the oldest dropped leaves the first page, which repaints or,
+  left empty, is freed: a struck chair piles hundreds of chips into one chunk, and repainting them all for each new chip cost ~3.7 ms
+  a frame windowed (#78). `DebrisLayer.paged` off draws each chunk's chips in one batch instead (for tests); `chips_drawn` counts the
+  chips every draw paints. The layer keeps at most `Despawner.max_scene_objects` chips, dropping the oldest; it draws under whatever
+  joins its node after it. A page is lit as its own item, by the lights that reach its rect: where more than 15 reach a chunk (one
+  straddling two rooms while flashes go off, `docs/lighting.md` L4) a page can keep a light the whole chunk's draw dropped, the only
+  case its pixels differ. Tests: `tests/physics/debris_rests_in_a_layer_test.gd`, `debris_pages_repaint_one_page_test.gd` (a landing
+  or a drop repaints at most a page; the pages hold the chunk's chips in order) and, windowed, `debris_pages_match_one_batch_test.gd`
+  (pages and one batch paint the same pixels under a light, before and after the cap drops the oldest).
 - `chunked_layer.gd` (no `class_name`; `DebrisLayer`, `ScorchDecals` and the blood's `BloodDecals` extend it by path) — the
   batched decal store they share: every mark kept as plain data in one node under a world node, grouped in 128 px chunks
-  (`CHUNK`) drawn by a few chunk nodes, only the chunk that gained or lost a mark redrawing, and a capped FIFO (`_add(mark, cap)`
-  drops the oldest past the layer's cap and flags it `dead`); `count()`, `items()`, `marks_in(cell)`. A layer names only its
-  recipe, its cap and its chunk's `_draw` (`_make_chunk`); its typed `find(parent)` / `layer(parent)` wrap `_get_or_make`.
+  (`CHUNK`) drawn by a few chunk nodes, and a capped FIFO (`_add(mark, cap)` drops the oldest past the layer's cap and flags it
+  `dead`); `count()`, `items()`, `marks_in(cell)`. Each mark filed and dropped is handed to `_mark_added(cell, mark)` /
+  `_mark_dropped(cell, mark)`, which by default redraw that chunk alone (`DebrisLayer` repaints one page instead). A layer names
+  only its recipe, its cap and its chunk's `_draw` (`_make_chunk`); its typed `find(parent)` / `layer(parent)` wrap `_get_or_make`.
 
 ## Hit particles (entry and exit bursts)
 

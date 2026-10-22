@@ -148,7 +148,8 @@ and controller contract, EventBus and character signals) and never reaches into 
   (`No test with id '<id>' (skipped)`) and skipped, none valid -> the browser. It queues once per process (the runner's
   `META_CLI_QUEUED` meta), so Back -> browser -> Play plays the browser's pick. Each verdict line is printed as in a
   `run_tests.sh` run, and after the last test `Queue done: <summary>` (the banner's summary). **`tools/play_tests.sh [ids…]
-  [--base=REF]`** opens such a window for a person to watch: with no ids, **the change's tests** (every
+  [--base=REF]`** opens such a window, maximized (the camera centres each test's bodies, so its clicks sit clear of the
+  result banner at the top-left), for a person to watch: with no ids, **the change's tests** (every
   `tests/**/*_test.gd` added or modified since the merge-base with `origin/main`, or `REF`: committed, uncommitted and
   untracked; not deleted ones, helpers or sandboxes), by id; with ids, those in that order. No tests: it says so
   (`nothing to play`), exits 2 and opens nothing. One test window per worktree: a run first closes the window an
@@ -406,6 +407,55 @@ functional tests of their domain.
   viewport) they size the root viewport to the project's window first, so the camera frames the same view either way. Windowed, General's `FillBatch` batches the plain-coloured shapes (off headless, which renders nothing).
   Their headless and windowed numbers, before and after issue #56, are in `docs/grenades.md`, Performance; windowed they do not all meet
   the standard yet, which is the honest state, not a reason to loosen it.
+  **Windowed keeps the same budgets** (issue #78): no windowed exemption and no looser number; what a window costs is fixed at its cause,
+  each fix pinned to the old pixels or bytes. The sound library's pre-warm, which synthesized on the main thread about 10 ms a frame for
+  the first seconds of every windowed run (`automatic_fire_stress` 25.4 / 38.9 / 48.5 before), renders on a worker thread
+  (`domain-audio`); a body's one-polygon parts (limb segments, shoulders, fists, head, a damaged body's darkened ones through
+  `Deformation.darken`, the trunk's faces) and its standing shadow's plain black shapes are meshes the body keeps
+  (`domain-character-body`, `body_meshes.gd`), not a polygon command each, pinned pixel for pixel by
+  `character/body_mesh_matches_polygons` (windowed); a debris chunk draws its chips in pages of 32, so a chip landing or the oldest
+  dropped repaints one page, not the ~1,450 chips `hit_overload` repainted a frame (3.7 ms of script windowed; `domain-physics`,
+  `physics/debris_pages_match_one_batch` windowed); and a hit's spray no longer waits for its splats' merges (0.9 ms a frame), which
+  finish later in the frame (`domain-physics-blood`). Measured and dropped: batching `draw_marks`' discs across marks (19 % of the
+  painted pixels change where dents cluster), one body-sized bounds for every mesh (it could change which 15 lights a part keeps), the limb
+  outlines as kept meshes (exact, but no faster: three A/B runs each, `grenade_match` 14.70 / 20.74 against 15.09 / 21.75 avg / p95,
+  `npc_crowd` 12.01 / 21.83 against 11.56 / 19.68). The latest record: three windowed runs of the twelve perf tests on 21 October 2026
+  (`tools/run_tests.sh --windowed`, each alone: no other Godot, the worktree's editor closed), this machine's quiet baseline that day
+  a 1-minute load of about 5 (ordinary apps), the load sampled every 10 s through each run (its range in the header), and one headless
+  run (avg / p95 / max ms; bold misses). Windowed run W2, started at 6.19, over the < 6 bar, is discarded:
+
+  | Test | W1 (3.6-4.3) | W3 (4.3-5.6) | W4 (3.2-4.0) | Headless (2.9-3.0) | Panel (3.9-5.1) |
+  |---|---|---|---|---|---|
+  | `automatic_fire` (gunfire) | 13.17 / 17.12 / 19.74 | 14.44 / 18.71 / 21.55 | 14.90 / 19.64 / **42.56** | 5.39 / 7.70 / 11.50 | 13.38 / 18.50 / 24.79 |
+  | `crowd_deaths` (crowd fall) | 10.87 / 16.53 / 21.83 | 12.40 / 18.57 / 23.86 | 11.67 / 18.24 / 31.64 | 8.04 / 11.77 / 17.32 | 11.92 / 17.04 / 20.38 |
+  | `furniture_pile` (moving) | 1.83 / 5.60 / 5.90 | 8.48 / 10.18 / 17.17 | 6.94 / 12.83 / 18.55 | 0.73 / 2.08 / 2.86 | 3.93 / 7.61 / 24.35 |
+  | `grenade_burst` (P2) | 8.94 / 11.80 / 27.85 | 9.39 / 12.64 / **34.84** | 10.29 / 12.52 / **36.40** | 6.45 / 8.28 / 22.77 | 10.49 / 13.08 / **40.50** |
+  | `grenade_match` (P1) | 15.98 / **20.94** / **37.51** | 15.20 / **21.89** / 31.93 | 14.01 / **20.24** / 28.47 | 9.71 / 14.63 / 20.34 | 15.59 / **21.98** / 31.88 |
+  | `hit_overload` | 11.93 / 13.96 / 15.15 | 11.67 / 13.42 / 14.64 | 12.77 / 14.81 / 16.32 | 7.86 / 9.60 / 10.38 | 12.03 / 14.94 / 17.74 |
+  | `match_10v10` | 14.81 / **20.21** / 27.72 | 13.54 / 18.08 / 21.78 | 14.71 / 18.12 / 21.75 | 10.70 / 13.72 / 21.67 | 16.20 / **20.87** / 25.88 |
+  | `match_10v10_team` | 11.16 / 13.37 / 17.44 | 12.09 / 15.49 / 21.32 | 11.49 / 13.84 / 31.61 | 9.49 / 13.52 / **38.69** | 12.35 / 15.21 / 17.69 |
+  | `match_5v5` | 8.33 / 11.44 / 14.40 | 8.17 / 10.55 / 14.74 | 7.22 / 11.78 / 19.90 | 6.08 / 10.23 / 14.71 | 8.89 / 13.22 / 19.02 |
+  | `npc_crowd` | 10.43 / 18.88 / 27.83 | 10.85 / 17.84 / 24.20 | 10.58 / 18.75 / 24.49 | 4.56 / 11.45 / 16.28 | 11.52 / 18.37 / 31.41 |
+  | `bake_and_path`, `generate_houses` | pass | pass | pass | pass | pass |
+  | **passed** | 10 of 12 | 10 of 12 | 9 of 12 | 11 of 12 | 9 of 12 |
+
+  The panel column is one **Run overall** from the editor's GdUnit panel (all 588 cases, every suite, an hour; started at 22:57 at a
+  load of 3.3, 2.4-6.0 through the run, the perf suite from 23:56 at 3.9-5.1; no other Godot but the editor and its runner; the
+  numbers are the run's `PERF` lines in the project log): 584 passed, the harness's `gap_probe` skipped as a gap, and three perf
+  tests failed, each on a measure the windowed CLI runs above miss too (P1's p95, `match_10v10`'s p95 at the margin, `grenade_burst`'s
+  one-frame max), while every test that passes in all three windowed runs passes. So the panel gives the windowed CLI's perf
+  verdicts: not green while P1 misses.
+  `hit_overload`, which missed two windowed runs of three before the debris pages (16.3-17.2 / 19.2-20.9), passes every run.
+  `match_10v10` misses its p95 at the margin even at a quiet load (20.21 in W1, at 3.6-4.3) and passes the other two. Headless,
+  `match_10v10_team`'s one 38.69 frame was a one-off: `--id=perf/match_10v10_team_stress --repeat=3` alone passed 3 of 3; the other
+  eleven pass. **What is left:** `grenade_match` (P1), which misses its p95 in every windowed run (20.24-21.89), and beside it the
+  one-frame maxima over 33.4 ms in two of the three windowed runs (W3: `grenade_burst` 34.84; W4: gunfire 42.56 and `grenade_burst`
+  36.40), besides P1's own 37.51 in W1. Of P1's windowed frame (14.0-16.0 ms on average above) about 10 ms is paid headless too (9.71
+  above): the characters' physics frame with the AI it drives (6.4 ms, 0.41 ms a body in both modes, measured during #78 with a
+  throwaway timer on every `_process`, `_physics_process` and `_draw`), the ragdolls, and the fallen bodies, which repaint every frame until
+  they settle (about 2 ms a repaint, mostly the trunk's outline built twice, body and shadow; only 3-5 % of those repaints change
+  nothing). The window adds the rest: the standing bodies' drawing on the script side (5.3 ms against 3.5 headless in that same timed
+  run) and the engine's render of the frame. Closing it needs work on the AI and the fallen bodies, outside #78.
 - **The standard:** a match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps
   frame, the Performance overlay's target), `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through
   `Perf.within_frames`, at the scale of the largest match (twenty characters, `match_10v10_stress`), with no looser tail.
@@ -513,7 +563,7 @@ beside it), defending a room in `tests/ai/combat/defend_room_*`, the ambush (LD1
 house's back door; the held stack of LD13 in `order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`,
 `order_stack_hold_leader_dies`), the frag entry (LD14) in `tests/ai/grenade/order_frag_*` (`order_frag_entry`, `order_frag_held_then_go`,
 `order_frag_no_frag_goes_quiet`), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`,
-`squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_docks_right`, `command_menu_docks_left`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
+`squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_docks_right`, `command_menu_docks_left`, `command_menu_clear_of_overlay_bar` / `_centre` / `_crowded`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
 and `setup_menu_config`'s "Lead the team").
 The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; not a test): the squad built as Main builds it (`squad`,
 `raid`: invader actors led by a puppet standing in for the human, `bind` hands NPCs their squad), `issue` / `post` / `view` /
@@ -522,8 +572,10 @@ The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; 
 (`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
 `pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it), the command menu (`command_menu`,
 `items`, `item`, `labels`, `choose`, `tick`, `click`, `screen_of`, `view_still`, `panel_rect`; `player_screen` sizes a headless root
-viewport to the project's window, as a real screen is, and `check_dock` is the dock-side tests' run: the panel's rect covers neither
-the click nor a selected teammate) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
+viewport to the project's window, as a real screen is (a real window keeps its own size unless `exact`, for a premise built on the
+project's size: that size is then stretched over the window, and `click` maps through the stretch), and `check_dock` is the dock-side tests' run: the panel's rect covers neither
+the click nor a selected teammate; `check_clear_of_bar` the overlay-bar ones, Debug on: with a real `OverlayToggles`, the panel
+clears the bar too, `open_selected` opens the menu with the teammates selected and `check_uncovered` checks a panel rect) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
 `BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`, `stack_point`, `stacked`), with the spec's numbers as consts (`ORDER_READY_CAP`). The squad,
 menu and markers are loaded by path and read duck-typed, so a missing piece fails an assertion that names it.
 LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet's `PlayerStack` claim says `leader`) and
@@ -814,7 +866,9 @@ physics frame so they are in the space. `build` is a coroutine. Also `restore()`
 - **A click at a world point needs a still view.** The test camera (the runner's, or the gdUnit suite's) eases in from where the previous test left it
   (and keeps easing while the tree is paused), and an injected mouse event is handled a frame after it was aimed, so a click aimed while
   the view moves lands elsewhere: such a test first waits for the canvas transform to hold still (`Order.view_still`, `tests/_ai/order_probe.gd`,
-  used by `ui/command_menu_items` and both dock tests).
+  used by `ui/command_menu_items` and the dock and overlay-bar tests). It counts drawn frames (`Engine.get_process_frames()`), not
+  physics frames: the camera moves once a drawn frame, and a window's first frames run several physics frames each, so five still
+  physics frames can pass before the camera has moved at all.
 - **A test camera reads its screen centre only while current.** Godot updates `Camera2D.get_screen_center_position()` only for the
   viewport's current camera, and the test camera stays current: a test that adds its own camera and reads where it looks calls
   `make_current()` on it (`tests/general/camera_zooms_out_driving_test.gd`).

@@ -78,9 +78,14 @@ var _now := 0.0
 var _voices: Array = []
 ## Last variant played per profile, so the same one is not repeated back to back.
 var _last_variant: Dictionary = {}
-## `[profile, variant]` pairs still to pre-render in the background (empty once the library is
-## warm).
-var _warm: Array = []
+## The worker task pre-rendering the library (`warm`), -1 when none.
+var _warm_task := -1
+## `[profile, variant, entry]` the pre-warm's worker has rendered and the main thread not yet filed
+## into the bank (`_file_warmed`); guarded by `_warm_lock`.
+var _warmed: Array = []
+## Set to stop the pre-warm's worker before its next sound (at exit); guarded by `_warm_lock`.
+var _warm_stop := false
+var _warm_lock := Mutex.new()
 ## The loops following a vehicle, by `_loop_key`: { vehicle, kind (`engine` / `skid`), profile,
 ## voice, pitch, volume_db }.
 var _loops: Dictionary = {}
@@ -91,7 +96,7 @@ func _ready() -> void:
 	_make_bus()
 	EventBus.posted.connect(_on_posted)
 	if SoundConfig.prewarm and DisplayServer.get_name() != "headless":
-		_warm = library()
+		warm(library())
 
 
 func _process(delta: float) -> void:
@@ -106,6 +111,7 @@ func _process(delta: float) -> void:
 ## run outruns it), so any voice that ever played would be reported as a leaked object; a short
 ## pause lets it run once.
 func _exit_tree() -> void:
+	_stop_warming()
 	for v: Dictionary in _voices:
 		var player: AudioStreamPlayer2D = v["player"]
 		player.stop()
@@ -490,16 +496,82 @@ func _variants_of(profile: StringName) -> int:
 	return maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1)
 
 
-## Render the library a little at a time (a few ms a frame) so no sound hitches the first time it
-## plays.
-func _prewarm() -> void:
-	if _warm.is_empty():
+## Pre-render `pairs` (`[profile, variant]`, those not cached yet, in order) on a worker thread, so
+## no sound hitches the first time it plays and no frame pays for the rendering: a sound takes 1.5
+## to 33 ms to synthesize. Each finished sound is filed into the bank on the main thread at the next
+## frame. A pre-warm still running is finished first.
+func warm(pairs: Array) -> void:
+	finish_warming()
+	var todo := pairs.filter(
+		func(pair: Array) -> bool: return not SoundBank.is_cached(pair[0], pair[1])
+	)
+	if todo.is_empty():
 		return
-	var t0 := Time.get_ticks_usec()
-	while (not _warm.is_empty()
-			and (Time.get_ticks_usec() - t0) / 1000.0 < SoundConfig.prewarm_budget_ms):
-		var next: Array = _warm.pop_front()
-		SoundBank.sound(next[0], next[1])
+	_warm_stop = false
+	_warm_task = WorkerThreadPool.add_task(_render_warm.bind(todo), false, "sound pre-warm")
+
+
+## Whether a pre-warm is under way (its worker rendering, or its sounds not all filed yet).
+func warming() -> bool:
+	return _warm_task >= 0
+
+
+## Wait for the pre-warm's worker to render the rest and file every sound it rendered.
+func finish_warming() -> void:
+	if _warm_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_warm_task)
+		_warm_task = -1
+	_file_warmed()
+
+
+## The pre-warm's worker: render each of `todo` in turn (`SoundBank.render`, which touches nothing
+## shared) and hand it to the main thread, until done or told to stop.
+func _render_warm(todo: Array) -> void:
+	for pair: Array in todo:
+		_warm_lock.lock()
+		var stop := _warm_stop
+		_warm_lock.unlock()
+		if stop:
+			return
+		var entry := SoundBank.render(pair[0], pair[1])
+		_warm_lock.lock()
+		_warmed.append([pair[0], pair[1], entry])
+		_warm_lock.unlock()
+
+
+## Each frame: file what the pre-warm's worker has rendered since the last, and let its task go once
+## it is done.
+func _prewarm() -> void:
+	if _warm_task < 0:
+		return
+	var done := WorkerThreadPool.is_task_completed(_warm_task)
+	_file_warmed()
+	if done:
+		WorkerThreadPool.wait_for_task_completion(_warm_task)
+		_warm_task = -1
+
+
+## File the sounds the pre-warm's worker has handed over into the bank (main thread).
+func _file_warmed() -> void:
+	_warm_lock.lock()
+	var rendered := _warmed
+	_warmed = []
+	_warm_lock.unlock()
+	for item: Array in rendered:
+		SoundBank.file(item[0], item[1], item[2])
+
+
+## Stop the pre-warm's worker after the sound it is on and wait for it, as every worker task must be
+## waited for (at exit); what it rendered is dropped.
+func _stop_warming() -> void:
+	if _warm_task < 0:
+		return
+	_warm_lock.lock()
+	_warm_stop = true
+	_warm_lock.unlock()
+	WorkerThreadPool.wait_for_task_completion(_warm_task)
+	_warm_task = -1
+	_warmed.clear()
 
 
 # --- Loops that follow a vehicle -------------------------------------------------------------

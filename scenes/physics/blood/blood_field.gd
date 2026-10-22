@@ -8,6 +8,8 @@ class_name BloodField
 
 ## Side (px) of a spatial-hash cell for splatters.
 const CELL := 64.0
+## Splats begun and not yet finished are finished before a read answers.
+const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 
 ## Splatters: id -> { node, rect (world bounds), born (physics frame) }.
 static var _splats: Dictionary = {}
@@ -17,8 +19,9 @@ static var _grid: Dictionary = {}
 static var _pools: Dictionary = {}
 
 
-## Register a built BloodSplat (call after `shapes` is final).
-static func add_splat(node: Node2D, shapes: Array[PackedVector2Array]) -> void:
+## Register a built BloodSplat (call after `shapes` is final), aged from physics frame `born`
+## (-1: this one).
+static func add_splat(node: Node2D, shapes: Array[PackedVector2Array], born := -1) -> void:
 	var bounds := Rect2()
 	var first := true
 	for poly in shapes:
@@ -29,7 +32,9 @@ static func add_splat(node: Node2D, shapes: Array[PackedVector2Array]) -> void:
 		return
 	var id := node.get_instance_id()
 	var rect := Rect2(bounds.position + node.global_position, bounds.size)
-	_splats[id] = { "node": node, "rect": rect, "born": Engine.get_physics_frames() }
+	_splats[id] = {
+		"node": node, "rect": rect, "born": born if born >= 0 else Engine.get_physics_frames(),
+	}
 	for c in _cells_of(rect):
 		if not _grid.has(c):
 			_grid[c] = []
@@ -46,6 +51,7 @@ static func add_pool(node: Node2D) -> void:
 
 ## Wetness 0..1 of the blood at world `pos` (0 = bare floor or dried).
 static func wetness_at(pos: Vector2) -> float:
+	BloodSplat.finish_pending()
 	var best := 0.0
 	var ids: Array = _grid.get(_cell_of(pos), [])
 	for id in ids:

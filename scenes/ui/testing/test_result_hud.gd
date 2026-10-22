@@ -3,7 +3,8 @@ extends CanvasLayer
 ## test runs it names it; when it ends it shows the verdict (PASS / FAIL / SKIPPED / TIMEOUT), each
 ## check with ✓/✗, any logged errors, and Rerun / Back buttons — the world keeps running underneath.
 ## Built in code like the other HUDs; it knows nothing of the Testing domain, only the descriptor
-## and result dicts it is handed.
+## and result dicts it is handed. Only its buttons take the mouse: a click anywhere else on it falls
+## through to the world underneath (a test may click there, as a player would with no banner).
 
 ## Rerun pressed: rebuild and replay the same test.
 signal rerun_requested
@@ -41,16 +42,18 @@ func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS  # the buttons keep working while the world is paused
 	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.offset_left = 10.0
 	panel.offset_top = 10.0
 	panel.custom_minimum_size = Vector2(560, 0)
 	add_child(panel)
 	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 14)
 	panel.add_child(margin)
 	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 8)
 	margin.add_child(box)
 	_queue_line = Label.new()
@@ -74,6 +77,7 @@ func _ready() -> void:
 	_details.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(_details)
 	var buttons := HBoxContainer.new()
+	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	buttons.add_theme_constant_override("separation", 10)
 	box.add_child(buttons)
 	_pause = _button(buttons, "Pause", pause_requested.emit)

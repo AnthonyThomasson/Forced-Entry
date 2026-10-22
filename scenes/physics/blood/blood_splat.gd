@@ -14,6 +14,11 @@ const CORE_VERTS := 16
 ## Vertices in a droplet's outline.
 const DROPLET_VERTS := 10
 
+## Begun splats whose merged outlines are still to be taken (`defer_finish`), oldest first.
+static var _pending: Array = []
+## Whether a flush of `_pending` is queued for the frame (`defer_finish`).
+static var _flush_queued := false
+
 ## The splat's merged outline polygons (local space), drawn in `BloodConfig.color`. Public so the
 ## draw step and tests can read them.
 var shapes: Array[PackedVector2Array] = []
@@ -30,6 +35,8 @@ var _space: PhysicsDirectSpaceState2D
 ## `begin`).
 var _task := -1
 var _built: Array = [null]
+## The physics frame a begun splat was thrown on: its age in the blood field counts from it.
+var _born := -1
 
 
 func _ready() -> void:
@@ -65,13 +72,17 @@ func setup(radius: float, direction: Vector2, energy: float, exclude: Array = []
 	_finish(_drawable_all(shapes))
 
 
-## `setup` in two halves, so the splats of one spray are merged side by side: `begin` throws the
-## splat here (its random shapes and their wall rays, in the same order as `setup`) and merges its
-## outlines on a worker thread (the same fold, `_fold`); `finish` waits for them and completes the
-## splat as `setup` does. The caller finishes it before anything else can see it
-## (`BloodWound.record`, before it returns).
+## `setup` in two halves, so the splats of one spray are merged side by side and beside the rest
+## of the frame: `begin` throws the splat here (its random shapes and their wall rays, in the same
+## order as `setup`), adds its wet highlight and sets it drying from now, and merges its outlines on
+## a worker thread (the same fold, `_fold`); `finish` waits for them and completes the splat as
+## `setup` does, aged from the frame it was begun on. The caller hands it to `defer_finish`, or
+## finishes it itself before anything else can see it.
 func begin(radius: float, direction: Vector2, energy: float, exclude: Array = []) -> void:
 	var polys := _throw(radius, direction, energy, exclude)
+	_born = Engine.get_physics_frames()
+	_add_highlight()
+	_dry()
 	var built: Array = [null]
 	_built = built
 	_task = WorkerThreadPool.add_task(func() -> void:
@@ -82,14 +93,38 @@ func begin(radius: float, direction: Vector2, energy: float, exclude: Array = []
 		built[0] = _drawable_all(outlines), true, "blood splat")
 
 
-## Complete a splat `begin` started: wait for its merged outlines, then register, highlight and dry
-## it as `setup` does.
+## Complete a splat `begin` started: wait for its merged outlines, then register and draw them as
+## `setup` does (its highlight and drying began with it).
 func finish() -> void:
 	if _task < 0:
 		return
 	WorkerThreadPool.wait_for_task_completion(_task)
 	_task = -1
-	_finish(_built[0])
+	_complete(_built[0])
+
+
+## Finish begun `splats` later, so the main thread goes on while their outlines merge: before any
+## read of the blood field answers (`BloodField` calls `finish_pending`), and else at the frame's
+## next flush of deferred calls, the one that would draw them, all in the order given. Nothing can
+## see one unfinished: the field is read through that flush, a splat's outlines are drawn after it,
+## and its highlight, drying and age began at `begin`.
+static func defer_finish(splats: Array) -> void:
+	_pending.append_array(splats)
+	if _flush_queued:
+		return
+	_flush_queued = true
+	(func() -> void:
+		_flush_queued = false
+		finish_pending()).call_deferred()
+
+
+## Finish every splat handed to `defer_finish` and not finished yet, oldest first (one freed
+## meanwhile is skipped: its task was waited for as it left).
+static func finish_pending() -> void:
+	while not _pending.is_empty():
+		var splat = _pending.pop_front()
+		if is_instance_valid(splat):
+			splat.finish()
 
 
 ## The splat's random shapes (core, spikes, satellites), clipped by the walls: its first half, on
@@ -127,11 +162,17 @@ static func _drawable_all(outlines: Array[PackedVector2Array]) -> Array[PackedVe
 ## The built splat's last half, on the main thread: its outlines `kept`, registered, highlighted and
 ## set drying.
 func _finish(kept: Array[PackedVector2Array]) -> void:
-	shapes = kept
-	_boxes.clear()
-	BloodField.add_splat(self, shapes)
+	_complete(kept)
 	_add_highlight()
 	_dry()
+
+
+## Take the outlines `kept`: registered in the blood field (aged from `begin` for a begun splat)
+## and drawn.
+func _complete(kept: Array[PackedVector2Array]) -> void:
+	shapes = kept
+	_boxes.clear()
+	BloodField.add_splat(self, shapes, _born)
 	queue_redraw()
 
 

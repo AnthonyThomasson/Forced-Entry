@@ -69,7 +69,10 @@ flashes) do. The fixtures of rooms no piece lights are counted first; then the d
 `energy`), so a room over budget **drops its weakest**; a room whose room lights were all dropped then gets its fixture where its
 floors have room. Each room's walls and wear are their own items over its floor's rect, so they take its floor's count. The
 batched decal layers (blood, scorch, debris) are drawn in 128 px chunks, smaller than any room: a chunk is reached by the lights of
-the floor it lies on, one straddling a wall by those of both rooms (not budgeted on its own).
+the floor it lies on, one straddling a wall by those of both rooms (not budgeted on its own). A debris chunk draws in pages
+(`DebrisLayer.PAGE` chips, each its own item) and a body's parts are kept meshes placed by their own bounds, so each is reached by
+the lights of what it covers: only where more than 15 reach (a chunk or a body straddling two rooms while flashes go off) can a page
+or a mesh keep a light the one draw dropped, and light what that draw left unlit (#78).
 Tests: `lighting/house_lights_per_piece` (`per_floor` ≤ 12; every floor, rooms and street, reached by ≤ 12, ≤ 15 with the flashes),
 `lighting/floor_budget_drops_weakest` (ten lamps and six neon tubes in one room: the floor reached by exactly 12; declared = placed
 + dropped; something dropped; no dropped light brighter than a kept one).

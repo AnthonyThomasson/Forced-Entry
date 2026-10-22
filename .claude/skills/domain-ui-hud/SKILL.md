@@ -79,9 +79,10 @@ The in-game observers: each reads only the Character public API / signals (incl.
   remaining }` (what the test reads, `tests/ui/stun_screen_whiteout_test.gd`). A decoupled observer; the white is drawn on an inner full-rect `Control` (mouse-ignoring).
 
 - `command_menu.gd` — the **command menu** (`CommandMenu` CanvasLayer, layer 40, `PROCESS_MODE_ALWAYS`; `docs/leadership.md` LD11, interface 21),
-  built by `main.gd` under `World` only when the human leads ("Lead the team"). `setup({ rooms, teammates, view, resolve, leader })` (the house's
+  built by `main.gd` under `World` only when the human leads ("Lead the team"). `setup({ rooms, teammates, view, resolve, leader, right_clear })` (the house's
   rooms as plain dicts, the characters it may order, the squad's `view()` and `resolve(request)` callables, the human: it opens only while the
-  view names it the leader; the panel and the teammates' boxes are built here, hidden). `Keybinds.COMMAND` (right mouse, read in `_unhandled_input`, so a
+  view names it the leader; `right_clear` the screen width from the right edge a panel docked on the right keeps clear, default 0: Main hands it
+  the overlay toggle bar's `RESERVED_WIDTH` with Debug on, as the inspector's; the panel and the teammates' boxes are built here, hidden). `Keybinds.COMMAND` (right mouse, read in `_unhandled_input`, so a
   click the toggle bar or the panel takes never opens it) or `open_at(world)` pauses the whole tree (unpaused on close only if it paused it, and
   in `_exit_tree` if freed open) and fills the panel for what is under the point, hit-tested in this order: a living teammate within `PICK_RADIUS`
   (28 px) — "Select <name>" / "Deselect <name>", the menu staying open, then "Go into the <room>" while that teammate holds a held stack in the
@@ -103,15 +104,23 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `{ kind: "go", pos }` (no `to`: the squad sends it to whoever holds the held stack there, LD13), `{ kind: "ambush", to, pos }`,
   `{ kind: "defend_room", to, room }`, `{ kind: "cancel", to }` (the recipients holding an order) — and closes it. Escape (`Keybinds.MENU`)
   closes it in `_input` and is set handled, so Main's "back to setup" never sees it. `selection_changed(nodes)` carries the selection while open
-  and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (`_dock`, on each `open_at`:
-  the left, or the right when the click's screen point lies in the left half; anchored `PANEL_EDGE` 24 in from that edge and growing
-  away from it, `PANEL_TOP` 120, at least `PANEL_WIDTH` 440; title 28pt naming the target, a "Orders go to:" line 22pt, the items 26pt, the "Hold for my go" box 22pt, a "Teammates" list 22pt, a hint 18pt), so it
+  and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (`_dock`, at the end of every `_refresh`, so on each `open_at` and each selection
+  change while open: the left, or the right when the click's screen point lies in the left half; anchored `PANEL_EDGE` 24 in from that edge
+  (the right one `right_clear` further in, clear of the overlay bar's fixed column) and growing away from it, `PANEL_TOP` 120, at least
+  `PANEL_WIDTH` 440). Docked on the right it weighs three vertical docks, rects worked out from the panel's combined minimum size: hanging from
+  `PANEL_TOP`, then the side away from the centre of the click and the selected living bodies (screen points, through the canvas transform),
+  then the other — hanging from `PANEL_EDGE` below the top (over the paused match timer) or standing `PANEL_EDGE` above the bottom (growing
+  up). It takes the first that keeps `POINT_CLEAR` (24 px) from all those points, else the first that keeps clear of the click, else the side
+  away: a body is covered only in that crowded case (LD11; the panel is about 520 x 524 on the 1152 x 648 window, so a vertical dock leaves a
+  band of about 100 px at the top or bottom free); title 28pt naming the target, a "Orders go to:" line 22pt, the items 26pt, the "Hold for my go" box 22pt, a "Teammates" list 22pt, a hint 18pt), so it
   never covers the bodies and doorway it is about, and a ring on the clicked point (a full-rect, mouse-ignoring `Control`). `items()` is
   `[{ label, disabled }]` (empty while closed), `is_open()`, `close()`. It holds no AI reference and computes no AI id. Tested by
   `tests/ui/command_menu_items_test.gd` (plain dicts, a fake view and a real squad's `resolve`: the items, the frag item greyed, Go on a held
   doorway and teammate, the ambush item, the checkbox; on the project's window size, `Order.player_screen`),
   `tests/ui/command_menu_docks_right_test.gd` / `_left_test.gd` (a click in the left half docks it right, one in the right half
-  left: its rect covers neither the click nor a selected teammate, `Order.check_dock`), `tests/ui/command_menu_label_matches_order_test.gd`
+  left: its rect covers neither the click nor a selected teammate, `Order.check_dock`), `tests/ui/command_menu_clear_of_overlay_bar_test.gd`
+  / `_centre_test.gd` / `_crowded_test.gd` (Debug on, a real `OverlayToggles`: docked right `right_clear` + 24 in, beside the click and bodies,
+  above or below them, or away from them when crowded; never over the bar or the click, `Order.check_clear_of_bar`), `tests/ui/command_menu_label_matches_order_test.gd`
   (a real squad: the stack item names the room of the order posted) and, wired by Main, `tests/general/command_menu_wiring_test.gd`.
 
 - `order_markers.gd` — the **order markers** (`OrderMarkers` Node2D, world space, z at `DrawLayers.ABOVE`, `PROCESS_MODE_ALWAYS` so the

@@ -20,6 +20,7 @@ const LimbPainter = preload("res://scenes/character/body/art/limb_painter.gd")
 const TorsoPainter = preload("res://scenes/character/body/art/torso_painter.gd")
 const VestPainter = preload("res://scenes/character/body/art/vest_painter.gd")
 const CharacterStyle = preload("res://scenes/character/body/character_style.gd")
+const BodyMeshes = preload("res://scenes/character/body/body_meshes.gd")
 # The joint indices, shared with the ragdoll.
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 ## A standing body is repainted only when what it draws has changed: its joints, the angles its
@@ -86,6 +87,9 @@ static var _SECTION_RING := _ring(SECTION_POINTS)
 ## Draws the body's floor shadow; inside a CanvasGroup (which carries the shadow's alpha) so
 ## overlapping parts don't darken twice.
 var _shadow: Node2D
+## The textured parts drawn on the body and on its shadow, as meshes kept from draw to draw.
+var _meshes: BodyMeshes
+var _shadow_meshes: BodyMeshes
 ## The fallen body has been drawn at rest: nothing left to redraw.
 var _settled_drawn := false
 ## The fallen parts' keys, lowest first, as last drawn (see `_stack`).
@@ -154,6 +158,7 @@ var _limbs_frame := -1
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_meshes = BodyMeshes.new(self)
 	_build_shadow()
 	_dress()
 
@@ -189,6 +194,7 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	_art.clear()
+	_meshes.begin()
 	if _character.ragdoll:
 		_draw_fallen(_character.ragdoll)
 		return
@@ -231,9 +237,7 @@ func _draw() -> void:
 	# Shoulders: the art through the flesh silhouette deformed by any shots (dents + darkening).
 	draw_set_transform(lunge, 0.0, Vector2.ONE)
 	_art.append(body)
-	Deformation.draw_shape(self, "circle", size, _shirt, CharacterConfig.flesh_crack_color,
-		impacts, damage_total, Deformation.NO_COLOR, Deformation.NO_COLOR, Deformation.NO_COLOR,
-		body, torso, false)
+	_draw_round(body, size, torso, impacts, damage_total, _shirt, CharacterConfig.flesh_crack_color)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_order.append(&"torso")
 	for hand in 2:
@@ -478,22 +482,37 @@ func _draw_standing_shadow() -> void:
 	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
 		poly = Deformation.base_ring("circle", size)
 	var lift := _cast(rig.point(Rig.CHEST), shift)  # The shoulders' lunge, shifted from the light.
-	_shadow.draw_colored_polygon(
-		Transform2D(0.0, lift) * poly, Color.BLACK, _texture_uvs(poly, size, angle),
+	_shadow_meshes.draw(
+		Transform2D(0.0, lift) * poly,
+		_texture_uvs(poly, size, angle),
 		_shoulder_art(angle),
+		Color.BLACK,
+		Rect2(lift - size * 0.5, size),  # The round footprint: dents only cave in.
 	)
 	var limbs := _limbs(rig)
-	var fills := FillBatch.new(_shadow)
+	# All one black (the shadow group shows what any part covers, whatever the order): one kept
+	# mesh, or without meshes one batch.
+	var solid: BodyMeshes.Solid = null
+	var fills = null
+	if BodyMeshes.enabled:
+		solid = _shadow_meshes.solid(Color.BLACK)
+		fills = solid
+	else:
+		fills = FillBatch.new(_shadow)
+	var bounds := Rect2(lift, Vector2.ZERO)  # What the limbs and the discs cover.
 	for i in 2:
 		for chain in [limbs[i], limbs[2 + i]]:
-			_draw_limb_shadow(chain, shift, fills)
-		fills.circle(_cast(rig.point(Rig.HAND[i]), shift), _hands.hand_radius, Color.BLACK)
-	fills.circle(
-		_cast(rig.point(Rig.HEAD), shift),
-		CharacterConfig.ragdoll_head_radius * _character.radius,
-		Color.BLACK,
-	)
-	fills.flush()  # All one black: the shadow group shows what any part covers, whatever the order.
+			bounds = bounds.merge(_draw_limb_shadow(chain, shift, fills))
+		var hand := _cast(rig.point(Rig.HAND[i]), shift)
+		fills.circle(hand, _hands.hand_radius, Color.BLACK)
+		bounds = bounds.merge(Rect2(hand, Vector2.ZERO).grow(_hands.hand_radius))
+	var head := _cast(rig.point(Rig.HEAD), shift)
+	var head_radius: float = CharacterConfig.ragdoll_head_radius * _character.radius
+	fills.circle(head, head_radius, Color.BLACK)
+	if solid:
+		solid.flush(bounds.merge(Rect2(head, Vector2.ZERO).grow(head_radius)))
+	else:
+		fills.flush()
 
 
 ## Where each point of `poly` (local px) falls on art `size` px across drawn turned by `angle` about
@@ -525,17 +544,18 @@ static func _cast(p: Vector3, shift: Vector2) -> Vector2:
 
 
 ## One limb chain's floor shadow: each segment's capsule shifted from the light (`_cast`), added to
-## `fills`.
-func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills: FillBatch) -> void:
+## `fills` (a `FillBatch` or a `BodyMeshes.Solid`). Returns the rect the capsules lie in.
+func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills) -> Rect2:
+	var bounds := Rect2()
+	var reach := 0.0
 	for seg in chain["segs"]:
-		_fill_capsule(
-			fills,
-			_cast(seg["a"], shift),
-			_cast(seg["b"], shift),
-			seg["ra"],
-			seg["rb"],
-			Color.BLACK,
-		)
+		var a := _cast(seg["a"], shift)
+		var b := _cast(seg["b"], shift)
+		_fill_capsule(fills, a, b, seg["ra"], seg["rb"], Color.BLACK)
+		bounds = Rect2(a, Vector2.ZERO) if reach == 0.0 else bounds.expand(a)
+		bounds = bounds.expand(b)
+		reach = maxf(reach, maxf(seg["ra"], seg["rb"]))
+	return bounds.grow(reach)
 
 
 ## The head at the pose's offset and angle, casting its shadow onto the shoulders first (the head
@@ -590,11 +610,33 @@ func _draw_part(tex: Texture2D, size: Vector2, at: Vector2, angle: float, impact
 		damage_total: float, color: Color) -> void:
 	_art.append(tex)
 	draw_set_transform(at, 0.0, Vector2.ONE)
-	Deformation.draw_shape(
-		self, "circle", size, color, color, _through(impacts, at, size.x * 0.5), damage_total,
-		Deformation.NO_COLOR, Deformation.NO_COLOR, Deformation.NO_COLOR, tex, angle, false,
-	)
+	_draw_round(tex, size, angle, _through(impacts, at, size.x * 0.5), damage_total, color, color)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## A round part's art `tex` (`size` px across, turned by `angle`) through its silhouette dented by
+## `impacts`, at the draw transform, its hit marks left for later: what `Deformation.draw_shape`
+## draws, in a kept mesh (`_meshes`): the polygon and uvs `draw_shape` maps the art onto
+## (`_texture_uvs`), in white darkened as it darkens it (`Deformation.darken`). Without meshes
+## (`BodyMeshes.enabled`) `draw_shape` draws it (`fill`, `outline` its colours).
+func _draw_round(tex: Texture2D, size: Vector2, angle: float, impacts: Array, damage_total: float,
+		fill: Color, outline: Color) -> void:
+	if not BodyMeshes.enabled:
+		Deformation.draw_shape(
+			self, "circle", size, fill, outline, impacts, damage_total, Deformation.NO_COLOR,
+			Deformation.NO_COLOR, Deformation.NO_COLOR, tex, angle, false,
+		)
+		return
+	var poly := Deformation.shape_polygon("circle", size, impacts)
+	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
+		poly = Deformation.base_ring("circle", size)
+	_meshes.draw(
+		poly,
+		_texture_uvs(poly, size, angle),
+		tex,
+		Color.WHITE.darkened(Deformation.darken(damage_total)),
+		Rect2(-size * 0.5, size),
+	)
 
 
 ## `impacts` turned by `angle`: from the shoulder-relative frame they're recorded in to the drawn
@@ -660,12 +702,14 @@ func _build_shadow() -> void:
 	group.self_modulate = Color(1.0, 1.0, 1.0, ArtConfig.drop_shadow_alpha)
 	add_child(group)
 	_shadow = Node2D.new()
+	_shadow_meshes = BodyMeshes.new(_shadow)
 	group.add_child(_shadow)
 	_shadow.draw.connect(_draw_body_shadow)
 
 
 ## The body's floor shadow, standing or fallen.
 func _draw_body_shadow() -> void:
+	_shadow_meshes.begin()
 	var rd = _character.ragdoll
 	if rd != null:
 		_draw_fallen_shadow(rd)
@@ -984,7 +1028,7 @@ func _draw_segment(seg: Dictionary) -> void:
 	var along := dir / (span + ra + rb)
 	var to_uv := Transform2D(Vector2(across.x, along.x), Vector2(across.y, along.y),
 		Vector2(0.5 - across.dot(a), (ra - dir.dot(a)) / (span + ra + rb)))
-	draw_colored_polygon(poly, Color.WHITE, to_uv * poly, tex)
+	_meshes.draw(poly, to_uv * poly, tex, Color.WHITE, Rect2(a.min(b), (b - a).abs()).grow(widest))
 
 
 ## A tapered capsule outline from `a` (radius `ra`) to `b` (radius `rb`): a round cap behind each
@@ -1000,12 +1044,12 @@ static func _capsule(a: Vector2, b: Vector2, ra: float, rb: float) -> PackedVect
 	return out
 
 
-## Add the capsule `_capsule(a, b, ra, rb)` to `fills` in `color`. One whose ends' radii differ by
-## less than `CAP_CONVEX` of its length is convex (each cap ends half a step, 15°, short of its
-## side, which leans by `atan(|ra - rb| / span)`), and goes in as a fan without being cut; any other
-## is cut as the engine cuts it.
+## Add the capsule `_capsule(a, b, ra, rb)` to `fills` (a `FillBatch` or a `BodyMeshes.Solid`) in
+## `color`. One whose ends' radii differ by less than `CAP_CONVEX` of its length is convex (each cap
+## ends half a step, 15°, short of its side, which leans by `atan(|ra - rb| / span)`), and goes in
+## as a fan without being cut; any other is cut as the engine cuts it.
 func _fill_capsule(
-	fills: FillBatch,
+	fills,
 	a: Vector2,
 	b: Vector2,
 	ra: float,
@@ -1194,7 +1238,7 @@ func _draw_trunk(rd) -> void:
 			var u := (rel.x * ay.y - rel.y * ay.x) / det
 			var v := (ax.x * rel.y - ax.y * rel.x) / det
 			uvs.append(Vector2(u / size.x + 0.5, v / size.y + 0.5))
-		draw_colored_polygon(outline, Color.WHITE, uvs, face["texture"])
+		_meshes.draw(outline, uvs, face["texture"])
 		_art.append(face["texture"])
 	var closed := outline.duplicate()
 	closed.append(outline[0])

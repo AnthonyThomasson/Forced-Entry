@@ -25,6 +25,9 @@ const PIECE_PAIR_STRIDE := 65_536
 ## Dented silhouettes `shape_polygon` keeps before it starts over (a dozen bodies, a few parts
 ## each).
 const POLYGON_CACHE_SIZE := 256
+## The share of the way to a ring neighbour a dented point may be pushed along the outline (under
+## half, so two neighbours pushed toward each other never meet).
+const NEIGHBOUR_REACH := 0.45
 
 ## `shape_polygon`'s kept results: inputs hash -> [the inputs, the polygon].
 static var _polygon_cache: Dictionary = {}
@@ -116,15 +119,17 @@ static func _unit_points(n: int) -> PackedVector2Array:
 
 ## Displace ring points near each impact: shallow smooth dents, or a deep jagged notch
 ## for `chunk` impacts (a "missing piece"). Points are clamped so they can't cross the
-## shape center (which would fold the polygon inside out).
+## shape center (which would fold the polygon inside out), nor pass a neighbour along the
+## outline (`NEIGHBOUR_REACH`).
 static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
 		core: float = PhysicsConfig.deform_back_margin) -> PackedVector2Array:
 	if impacts.is_empty():
 		return ring
 	var center := _centroid(ring)
 	var out := PackedVector2Array()
-	out.resize(ring.size())
-	for i in ring.size():
+	var n := ring.size()
+	out.resize(n)
+	for i in n:
 		var p: Vector2 = ring[i]
 		var offset := Vector2.ZERO
 		for impact in impacts:
@@ -146,6 +151,15 @@ static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
 						* smoothstep(0.0, 1.0, t) * jag)
 			else:
 				offset += impact["inward"] * impact["depth"] * (t * t)
+		# A push along the outline (a corner dented from one face slides along the other) goes at
+		# most `NEIGHBOUR_REACH` of the way toward either neighbour, so no point passes one and
+		# folds the ring onto itself; a push into the face is untouched.
+		for q: Vector2 in [ring[(i + n - 1) % n], ring[(i + 1) % n]]:
+			var toward := (q - p).normalized()
+			var cap := p.distance_to(q) * NEIGHBOUR_REACH
+			var along := offset.dot(toward)
+			if along > cap:
+				offset -= toward * (along - cap)
 		# Clamp the displacement so a dent can't push the point past the object's opposite
 		# face (which would grow the silhouette out the back on repeated hits).
 		out[i] = _clamp_inside(ring, center, p, offset, core)
@@ -499,6 +513,17 @@ static func _turns_right_at(
 	return not ((b - a).cross(c - b) * sign_ < 0.0)
 
 
+## How far (0..1, `Color.darkened`'s weight) `draw_shape` darkens a shape that has taken
+## `damage_total` damage: up to `PhysicsConfig.deform_darken_max`, reached at `deform_darken_full`.
+## A textured shape is drawn in white darkened by it, so a caller drawing a textured shape's own
+## way draws it in the same colour.
+static func darken(damage_total: float) -> float:
+	if damage_total <= 0.0 or PhysicsConfig.deform_darken_full <= 0.0:
+		return 0.0
+	return (clampf(damage_total / PhysicsConfig.deform_darken_full, 0.0, 1.0)
+			* PhysicsConfig.deform_darken_max)
+
+
 ## Draw a deformed primitive shape (furniture, characters): filled polygon (darkened by
 ## accumulated damage), outline, then crack/hole marks. `crack_color`/`hole_color` override
 ## the mark colors (e.g. red cracks on flesh); left as NO_COLOR they derive from `outline`.
@@ -516,10 +541,7 @@ static func draw_shape(canvas: CanvasItem, shape: String, size: Vector2, fill: C
 	# outline already.
 	if not impacts.is_empty() and not is_valid_polygon(poly):
 		poly = base_ring(shape, size)
-	var darken := 0.0
-	if damage_total > 0.0 and PhysicsConfig.deform_darken_full > 0.0:
-		darken = (clampf(damage_total / PhysicsConfig.deform_darken_full, 0.0, 1.0)
-				* PhysicsConfig.deform_darken_max)
+	var dark := darken(damage_total)
 	if texture:
 		# Each point turned back by `texture_angle`, over the size, from the art's centre: one
 		# transform of the whole ring.
@@ -530,9 +552,9 @@ static func draw_shape(canvas: CanvasItem, shape: String, size: Vector2, fill: C
 			Vector2(s / size.x, c / size.y),
 			Vector2(0.5, 0.5),
 		)
-		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(darken), to_uv * poly, texture)
+		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(dark), to_uv * poly, texture)
 	else:
-		canvas.draw_colored_polygon(poly, fill.darkened(darken))
+		canvas.draw_colored_polygon(poly, fill.darkened(dark))
 		_draw_outline(canvas, poly, outline)
 	if not marks:
 		return

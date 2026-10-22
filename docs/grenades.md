@@ -8,7 +8,8 @@ and read the game only through the interfaces named in the rules, via `tests/_ai
 
 This file was written with the tests, before the feature (issue #35, tests first), and amended as the build and its tests taught what the
 rules needed (the amendments to G7, G11, G16, G17, G18 are marked in them). Issue #56 amended G13, G14 and G15 (the stunned look,
-firing one-handed, the blind-fire roll, the stun's flash as a light; marked in them) and added the Performance section below.
+firing one-handed, the blind-fire roll, the stun's flash as a light; marked in them) and added the Performance section below, to
+which issue #78 added its windowed numbers.
 
 **Verification (15 October 2026, issue #51 final wrap-up, R1 to R17 and the audit's fixes on main `a03e23f`).** `tools/lint.sh` and
 `tools/load_check.sh`: clean. The 50 tests issue #51 adds, `--repeat=10 --include-von --require-von --jobs=auto`: 500 passed, 0 failed (load average 5.5
@@ -480,11 +481,42 @@ are cut and a spray's splats merged side by side on worker threads; navigation r
 spot once (and, since issue #65, shares what depends on the burst alone among the NPCs planning on one physics frame: `docs/leadership.md`,
 Performance); and weapon art is painted ahead of time.
 
-**What is left.** P1's windowed busy frames are the bodies' textured limb segments (each a command with its own art), the characters' physics,
-the AI and the engine's render; P2's worst frame is the frag's own frame, about 23 ms of CPU and about 12 ms more of rendering what the burst adds
-in it (not a first use, not the flash lights: both ruled out by measurement in the profile). An atlas for the limb art was built and measured and gained nothing in P1, so it was
-not kept. What would surely close the rest is only what the user ruled out: visible or timing changes (fewer splats per blast, the blast's work
-spread over frames, simpler art).
+**Issue #78** (19 to 21 October 2026) kept the same budgets windowed, no exemption, and fixed the window's costs at their cause, each fix
+pinned to the old pixels or bytes: the sound library's pre-warm renders on a worker thread instead of about 10 ms a frame on the main
+thread (`domain-audio`); a body's one-polygon parts and its standing shadow's plain shapes are meshes the body keeps instead of a polygon
+command each (`domain-character-body`; `tests/character/body_mesh_matches_polygons_test.gd` compares the pixels windowed); a debris
+chunk draws its chips in pages, so a chip landing repaints one page, not the hundreds a struck chair piles into a chunk (`domain-physics`;
+`tests/physics/debris_pages_match_one_batch_test.gd`); and a hit's spray no longer waits for its splats' merges, which finish later in the
+frame (`domain-physics-blood`). The limb outlines as kept meshes were measured and dropped (exact, but no faster). Three windowed
+`tools/run_tests.sh --windowed --domain=perf` runs on 21 October 2026, each alone (no other Godot during it); this machine's quiet
+baseline that day was a 1-minute load of about 5 (ordinary apps), load before → after (peak) 4.46 → 4.64 (5.87), 4.83 → 3.89 (4.83),
+2.79 → 4.70 (5.26) (avg / p95 / max ms; bold misses):
+
+| Test | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| P1 | 16.54 / **22.84** / 32.42 | 16.31 / **23.74** / **33.97** | 15.60 / **21.81** / **33.46** |
+| P2 | 9.41 / 12.10 / 30.09 | 9.77 / 13.40 / 26.86 | 11.01 / 13.99 / **39.85** |
+
+P1 does not meet the standard windowed: its average is under the budget and its p95 2-4 ms over. P2 holds its average and p95 and missed
+once on one frame (39.85; 26.9-31.4 in the other five windowed runs since 19 October). Headless the same build passes (P1 10.61 / 15.80 /
+25.29, P2 6.44 / 8.40 / 22.50, load 4.00 → 3.61). The other perf tests' windowed numbers are in the `domain-testing` skill (Performance
+tests, "Rendered too"), with the latest windowed runs of all twelve.
+
+**The GdUnit panel.** One **Run overall** from the editor's GdUnit panel on 21 October 2026 (every suite, an hour; no other Godot but the
+editor and its runner; the perf suite at a 1-minute load of 3.9-5.1) gives the windowed verdicts: P1 15.59 / **21.98** / 31.88, its p95
+over as in every windowed run; P2 10.49 / 13.08 / **40.50**, its worst frame over as in two of the three latest windowed runs in
+`domain-testing`. Of the twelve perf tests nine pass and three fail (P1, P2 and `match_10v10`'s p95 at 20.87), each on a measure the
+windowed CLI runs miss too; the panel's numbers for all twelve are beside the windowed table in `domain-testing`.
+
+**What is left.** Of P1's windowed frame (15.6-16.5 ms on average) about 10.6 ms is paid headless too: the characters' physics frame
+with the AI it drives (6.4 ms, 0.41 ms a body in both modes, measured with a timer on every `_process`, `_physics_process` and `_draw`),
+the ragdolls, and the fallen bodies, which repaint every frame until they settle (about 2 ms a repaint, mostly the trunk's outline built
+twice, body and shadow; only 3-5 % of those repaints change nothing). The window adds the rest: the standing bodies' drawing on the
+script side (5.3 ms against 3.5 headless) and the engine's render of the frame. Closing it needs work on the AI and the fallen bodies,
+outside #78. P2's worst frame is the frag's own frame, about 23 ms of CPU and about 12 ms more of rendering what the burst adds in it
+(not a first use, not the flash lights: both ruled out by measurement in the profile). An atlas for the limb art was built and measured
+and gained nothing in P1, so it was not kept. What would surely close the rest is only what the user ruled out: visible or timing
+changes (fewer splats per blast, the blast's work spread over frames, simpler art).
 
 **The prepaint's cost.** A gun or grenade paints its art ahead of time once per weapon style per process (`ItemRegistry.inventory_for`, every
 raise step, both lying sides, every lighting step: the very draws it will make), about **230 ms** once, when the first inventory in that style

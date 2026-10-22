@@ -23,9 +23,12 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1200, 700))
+	# Zero spread, the one-handed spread too: stunned it is blind, so it fires one-handed, and the
+	# stray must be the sway alone.
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:
 		straight[gun]["spread_deg"] = 0.0
+		straight[gun]["one_hand_spread_deg"] = 0.0
 	s.set_static(GunConfig, "guns", straight)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"walker", &"puppet", Vector2(100, 150), { "max_health": 100_000.0 })

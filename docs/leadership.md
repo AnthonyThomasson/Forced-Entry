@@ -238,7 +238,16 @@ the human last; `Settings.set_setup` keeps and saves `lead`).
 **LD11. Command menu.** Built only when the human leads (`ui/hud/command_menu.gd`). `Keybinds.COMMAND` ("Command teammates", right
 mouse by default; nothing reads the right button otherwise) pauses the whole tree and opens the menu on what is under the cursor, a
 panel docked on the side of the screen away from the click (on the left, or on the right when the click lies in the left half, so it
-never covers the teammates or the doorway it is about) and a ring on the clicked point:
+never covers the teammates or the doorway it is about) and a ring on the clicked point. Docked on the left, its top is 120 px down (below
+the match timer), 24 px in from the edge. Docked on the right, its right edge sits `right_clear` + 24 px from the screen's right edge
+(`CommandMenu.setup`'s `right_clear`: with Debug on, Main hands it the overlay toggle bar's fixed column, `OverlayToggles.RESERVED_WIDTH`,
+as the inspector's outfit panel keeps clear of it; else 0): the bar's fixed column, not where it has been dragged or collapsed to.
+There, where its top at 120 px would cover the click or a selected teammate's body (within 24 px: a click near the centre on a narrow
+window), it docks at the top or the bottom of the screen instead (24 px from it, over the paused match timer at the top), the side away
+from the centre of the click and those bodies first: the first dock that covers none of them, else the first that leaves the click clear,
+else that side away. The click and the bar are kept clear in every case the screen allows; a selected body may be covered only when every
+dock on the right covers one (a crowded selection spread over the middle of the screen: the panel is about 520 x 524 px on the 1152 x 648
+window). The dock is worked out again whenever the selection changes while the menu is open:
 - a teammate's body within 28 px of the click: "Select <name>" or "Deselect <name>" (the menu stays open), and "Go into the <room>"
   while it holds a held stack that has had no go (LD16);
 - else a doorway, the one nearest the click within its width: "Stack into the <room> (quiet)", "Stack into the <room> with stun" and
@@ -264,7 +273,11 @@ holds an order, Escape, a right-click opening it on the doorway and a left-click
 close), `ui/command_menu_label_matches_order` (a real squad: by an interior doorway, on either side of the wall and on its plane, the
 room the stack item names is the room of the order the squad posts), `ui/command_menu_docks_left` and `ui/command_menu_docks_right`
 (on a player's screen: a click in the right half, on a teammate's body, docks the panel on the left, and a click in the left half, on the
-back doorway, docks it on the right, each clear of the click and of the selected bodies), `general/command_menu_wiring` (a Main-built match with "Lead the team" on: two ticked teammates ordered to stack on the back door
+back doorway, docks it on the right, each clear of the click and of the selected bodies), `ui/command_menu_clear_of_overlay_bar`,
+`ui/command_menu_clear_of_overlay_bar_centre` and `ui/command_menu_clear_of_overlay_bar_crowded` (Debug on, a real overlay toggle bar, a
+click in the left half: docked on the right `right_clear` + 24 px in, beside the click and the bodies when they leave it room, else above or
+below them, and with a body in the middle of the screen at the top, away from them; clear of the bar and the click every time, and of the
+bodies but in the crowded case), `general/command_menu_wiring` (a Main-built match with "Lead the team" on: two ticked teammates ordered to stack on the back door
 with a stun claim slots there in bang mode once the menu closes), the keybind coverage test (`general/keybinds_overrides`:
 every action, `COMMAND` among them, has a settings label and group).
 

@@ -9,9 +9,11 @@ extends Node
 ## and capped per body (BloodConfig.max_splats_per_body, oldest freed first). Nothing happens while
 ## BloodConfig.enabled is off.
 
+const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
+
 ## Whether a hit's spray merges its splats' outlines side by side on worker threads (each splat
-## begun as it is thrown, all finished before `record` returns), else builds each whole as it is
-## thrown: the same splats either way (for tests).
+## begun as it is thrown, all finished later in the frame by `BloodSplat.defer_finish`), else builds
+## each whole as it is thrown: the same splats either way (for tests).
 static var spray_side_by_side := true
 
 ## Drips still owed, and seconds until the next one.
@@ -49,7 +51,7 @@ func record(hit: HitInfo) -> void:
 	if host == null:
 		return
 	var out := hit.normal if hit.normal.length() > 0.001 else -hit.direction
-	var thrown: Array[Node] = []  # the spray's splats begun, finished below
+	var thrown: Array[Node] = []  # the spray's splats begun, finished later in the frame
 	var sprays := clampi(
 		ceili(hit.damage / maxf(BloodConfig.hit_splat_damage, 0.001)),
 		1,
@@ -77,8 +79,7 @@ func record(hit: HitInfo) -> void:
 		var size := (randf_range(BloodConfig.drip_size_min, BloodConfig.drip_size_max)
 				* BloodConfig.hit_splat_size)
 		_add_splat(hit.exit_position, size, hit.direction, BloodConfig.hit_spray_energy, thrown)
-	for splat in thrown:
-		splat.call(&"finish")
+	BloodSplat.defer_finish(thrown)
 
 	var owed := maxi(1, ceili(hit.damage * BloodConfig.drips_per_damage))
 	if _drips == 0:

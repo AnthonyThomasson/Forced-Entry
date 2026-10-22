@@ -73,7 +73,7 @@ Everything one match builds lives under a fresh `World` node (group `match_world
    `watch_squad(squad.view)` the human's side's squad, lead or not, so every stack that side forms shows its rings (LD18). Then, in every match, `_build_leader_overlay()`: the `LeaderOverlay` (UI
    overlays, `watch` over every squad's `view`) under `World`, its `show_leaders` from `_overlay_flags` (the global `OverlayRegistry.LEADERS`
    row; `_on_overlay_toggled` sets it live, `_teardown_world` drops it): a crown over each side's leader while on. Then, in a played match, `_build_command_menu(rooms)`: when the human leads, the
-   `OrderMarkers` (UI hud, `watch(squad.view)`) and the `CommandMenu` (UI hud, `setup({ rooms, teammates, view, resolve, leader })`, the squad's `view` and `resolve`) under
+   `OrderMarkers` (UI hud, `watch(squad.view)`) and the `CommandMenu` (UI hud, `setup({ rooms, teammates, view, resolve, leader, right_clear })`, the squad's `view` and `resolve`, `right_clear` the overlay bar's `OverlayToggles.RESERVED_WIDTH` with Debug on (`debug_overlays`), else 0, as the inspector's) under
    `World`, the menu's `order_requested` connected to the squad's `issue` and its `selection_changed` to the markers' `set_selection`
    (interface 21, LD11, LD12); nothing is built otherwise, so nothing reads the right button;
 7. `_configure_debug`, `MatchHUD.begin(combatants, time_limit)`, in spectator mode the camera framing + `SpectatorInspector`

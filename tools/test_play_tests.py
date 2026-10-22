@@ -6,8 +6,9 @@
 Two layers:
   1. tools/play_tests.sh, copied into a temporary git repo, around a fake `godot` (GODOT=) that records its argv and
      sleeps like a window left open: which ids it queues (the change's tests, or the ids given), no tests -> exit 2,
-     one test window per worktree (the editor and the editor's game untouched), returning at once, and the window's
-     own log (`--log-file <dir>/godot.log` + `--out=<dir>`, a dir per worktree emptied each run).
+     one test window per worktree (the editor and the editor's game untouched), returning at once, the window's
+     own log (`--log-file <dir>/godot.log` + `--out=<dir>`, a dir per worktree emptied each run), and the window
+     opening maximized.
   2. The real engine, headless: the test runner's `-- --queue=<ids>` plays them in the order given, reports an unknown
      id, prints `Queue done:` and keeps the window open afterwards; and a window play_tests.sh launches still fails a
      logged error when another Godot starts on the project mid-queue (which rotates the shared user://logs/godot.log).
@@ -247,6 +248,16 @@ class ScriptTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
         _, argv = self.window()
         self.assertEqual(self.queue_of(argv), "b/y,a/x", out)
+
+    def test_the_window_opens_maximized(self):
+        """The window fills the screen, so the camera centres the tests' bodies and clicks well clear of the banner
+        at its top-left (a test needing the project's own size shows it stretched over the window)."""
+        self.make_repo()
+        code, out, _ = self.play("a/x")
+        self.assertEqual(code, 0, out)
+        _, argv = self.window()
+        engine = argv[:argv.index("--")] if "--" in argv else argv
+        self.assertIn("--maximized", engine, f"an engine option, before --: {argv}")
 
     def test_no_change_tests_exits_2_and_launches_nothing(self):
         """Rule 3: a change with only a helper, a sandbox and a deleted test has no tests to play."""

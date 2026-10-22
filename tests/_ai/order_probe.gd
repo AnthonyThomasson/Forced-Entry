@@ -15,6 +15,7 @@ extends RefCounted
 const SQUAD_SCRIPT := "res://scenes/ai/team/squad.gd"
 const COMMAND_MENU_SCRIPT := "res://scenes/ui/hud/command_menu.gd"
 const ORDER_MARKERS_SCRIPT := "res://scenes/ui/hud/order_markers.gd"
+const OVERLAY_TOGGLES_SCRIPT := "res://scenes/ui/overlays/overlay_toggles.gd"
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 ## The order kinds (LD5).
@@ -45,6 +46,11 @@ const BACK_INSIDE_NORTH := Vector2(810, 125)
 ## The back door's centre y and half-width: north of the door is y < 190 - 45, south y > 190 + 45.
 const BACK_Y := 190.0
 const BACK_HALF := 45.0
+# --- The command menu's panel on screen (LD11) ----------------------------------------------------
+## Its gap to the screen edge it docks against (past the overlay bar's column when Debug is on) and
+## its least width (screen px).
+const PANEL_EDGE := 24.0
+const PANEL_WIDTH := 440.0
 
 
 # --- The squad (LD3, LD4, LD5) --------------------------------------------------------------------
@@ -302,33 +308,58 @@ static func tick(menu: Node, name: String, on: bool) -> bool:
 	return false
 
 
-## Give a headless run the screen a player has: the project's window size (1152x648), put back as
-## the world goes. Headless the root viewport is 64 px square, so the camera frames the world into a
-## view no window has, and a click aimed in it lands off screen; with this a headless run and a
-## windowed one see the world, and the menu over it, alike. A windowed run already has that window.
-static func player_screen(t: TestContext) -> void:
-	if DisplayServer.get_name() != "headless":
-		return
+## Give the run the screen a player has: the project's window size (1152x648), put back as the
+## world goes. Headless the root viewport is 64 px square, so the camera frames the world into a
+## view no window has, and a click aimed in it lands off screen: the root is resized to it. A real
+## window keeps its own size (the play window opens maximized, so the bodies a test clicks sit clear
+## of the result banner at its top-left), unless `exact`: a premise built on the project's size (a
+## panel that cannot fit beside the click) then sees that size stretched over the window. With this
+## a headless run and a windowed one see the world, and the menu over it, alike.
+static func player_screen(t: TestContext, exact := false) -> void:
 	var root := t.world.get_tree().root
-	var was := root.size
-	root.size = Vector2i(
+	var want := Vector2i(
 		int(ProjectSettings.get_setting("display/window/size/viewport_width")),
 		int(ProjectSettings.get_setting("display/window/size/viewport_height")),
 	)
-	t.world.tree_exiting.connect(func() -> void: root.size = was)
+	if DisplayServer.get_name() == "headless":
+		var was := root.size
+		root.size = want
+		t.world.tree_exiting.connect(func() -> void: root.size = was)
+		return
+	if not exact:
+		return
+	var mode := root.content_scale_mode
+	var aspect := root.content_scale_aspect
+	var size := root.content_scale_size
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	root.content_scale_size = want
+	t.world.tree_exiting.connect(
+		func() -> void:
+			root.content_scale_mode = mode
+			root.content_scale_aspect = aspect
+			root.content_scale_size = size
+	)
 
 
-## Wait until the view holds still (its canvas origin unmoved for five frames, within 5 s): the
-## premise of a click aimed at a world point. The test camera eases in from where the previous test
-## left it (and on while paused), and an injected click is handled a frame after it is aimed, so a
-## moving view puts it somewhere else.
+## Wait until the view holds still (its canvas origin unmoved for five drawn frames, within 5 s):
+## the premise of a click aimed at a world point. The test camera eases in from where the previous
+## test left it (and on while paused), and an injected click is handled a frame after it is aimed,
+## so a moving view puts it somewhere else. The camera moves once a drawn frame, and a window's
+## first frames run several physics frames each, so only a drawn frame counts: else the view looks
+## still before the camera has moved at all.
 static func view_still(t: TestContext) -> bool:
-	var last: Array = [Vector2.INF, 0]  # The origin last frame, and the frames it has held still.
+	# The origin at the last drawn frame, that frame's number, and the drawn frames it held still.
+	var last: Array = [Vector2.INF, -1, 0]
 	return await t.until(func():
+		var frame := Engine.get_process_frames()
+		if frame == last[1]:
+			return false
 		var origin := t.world.get_viewport().get_canvas_transform().origin
-		last[1] = last[1] + 1 if origin.distance_to(last[0]) < 0.5 else 0
+		last[2] = last[2] + 1 if origin.distance_to(last[0]) < 0.5 else 0
 		last[0] = origin
-		return last[1] >= 5, 5.0)
+		last[1] = frame
+		return last[2] >= 5, 5.0)
 
 
 ## The command menu's panel on screen (its `Panel` child, a Control under the menu's CanvasLayer),
@@ -348,55 +379,11 @@ static func panel_rect(menu: Node) -> Rect2:
 ## a selected body. The menu is closed (the tree unpaused) at the end.
 static func check_dock(t: TestContext, at: Vector2, lead: Node, mates: Array, half: String) -> void:
 	player_screen(t)
-	var menu := command_menu(t)
-	if not t.require(
-			menu != null and menu.has_method("setup") and menu.has_signal("selection_changed"),
-			"the command menu exists, with setup and selection_changed (%s)" % COMMAND_MENU_SCRIPT,
-	):
-		return
-	var members: Array = [lead] + mates
-	var side_squad := squad(t, lead.faction, members, lead)
-	if not t.require(
-			side_squad != null and side_squad.has_method("resolve"),
-			"the squad resolves a click",
-	):
-		return
-	var squad_view := {
-		"leader": lead,
-		"members": members.map(func(n): return { "node": n, "order": {}, "step": "" }),
-	}
-	menu.setup({
-		"rooms": t.rooms, "teammates": mates, "view": func(): return squad_view,
-		"resolve": side_squad.resolve, "leader": lead,
-	})
-	var selected: Array = []
-	menu.selection_changed.connect(func(nodes: Array) -> void: selected.assign(nodes))
-	if not t.require(await view_still(t), "the view holds still before the clicks"):
+	var menu: Node = await open_selected(t, at, lead, mates, half, {})
+	if menu == null:
 		return
 	var screen := t.world.get_viewport().get_visible_rect()
 	var mid := screen.get_center().x
-	var at_screen := screen_of(t, at)
-	var points: Array = [at_screen] + mates.map(func(m): return screen_of(t, m.global_position))
-	if not t.require(
-			points.all(func(p: Vector2) -> bool: return (
-				screen.has_point(p) and (p.x < mid if half == "left" else p.x >= mid)
-			)),
-			"the premise: the click and the bodies to select are on screen, %s half (%s of %s)"
-				% [half, str(points), str(screen)],
-	):
-		return
-	click(t, at, MOUSE_BUTTON_RIGHT)
-	await t.frames(2)
-	if not t.require(menu.is_open(), "the right-click opens the menu"):
-		return
-	for m: Node in mates:
-		click(t, m.global_position, MOUSE_BUTTON_LEFT)
-		await t.frames(2)
-	t.check(
-		mates.all(func(m: Node) -> bool: return selected.has(m)),
-		"a left-click on each teammate's body selects it (selected %s)"
-			% str(selected.map(func(n: Node) -> String: return String(n.name))),
-	)
 	var rect := panel_rect(menu)
 	var other := "right" if half == "left" else "left"
 	t.check(
@@ -404,6 +391,232 @@ static func check_dock(t: TestContext, at: Vector2, lead: Node, mates: Array, ha
 			and (rect.get_center().x >= mid if other == "right" else rect.get_center().x < mid),
 		"a click in the %s half docks the panel on the %s (panel %s)" % [half, other, str(rect)],
 	)
+	check_uncovered(t, rect, at, mates)
+	menu.close()
+
+
+## LD11 with Debug on: the overlay toggle bar is built (a real `OverlayToggles`, set up as Main sets
+## it up) and the command menu is set up with `right_clear`, the bar's column
+## (`OverlayToggles.RESERVED_WIDTH`), as Main hands it then. A right-click at world point `at` in
+## the left half opens it and each of `mates` is selected (premise: the click and the bodies on
+## screen, in the left half). The panel docks on the right with its right edge `right_clear` +
+## `PANEL_EDGE` from the screen's right edge, and its rect meets neither the bar's panel (read off
+## the bar itself) nor the click point. By `layout`:
+## - `"beside"`: the click and the bodies leave room for the panel beside them (premise: all of them
+##   left of its least column), selected by a left-click each; it lies right of them all and covers
+##   no selected body;
+## - `"vertical"`: that column holds one of them (premise), selected by a left-click each, and they
+##   all lie in the band a dock at the top or the bottom of the screen leaves free; it docks above
+##   or below them all, covering no selected body;
+## - `"crowded"`: a selected body lies where a panel docked on the right covers it whether it hangs
+##   from the top or stands on the bottom (premise, from the panel's own height), the teammates
+##   selected by ticking their boxes (the panel covers that body); the panel docks on the vertical
+##   side away from the centre of the click and the bodies, the click and the bar still clear.
+## The menu is closed (the tree unpaused) at the end.
+static func check_clear_of_bar(
+	t: TestContext,
+	at: Vector2,
+	lead: Node,
+	mates: Array,
+	layout: String,
+) -> void:
+	player_screen(t, layout != "beside")
+	if not t.require(
+			ResourceLoader.exists(OVERLAY_TOGGLES_SCRIPT),
+			"the overlay toggle bar exists (%s)" % OVERLAY_TOGGLES_SCRIPT,
+	):
+		return
+	var bar_script := load(OVERLAY_TOGGLES_SCRIPT) as GDScript
+	var bar: Node = bar_script.new()
+	bar.name = "OverlayToggles"
+	t.world.add_child(bar)
+	bar.setup({})
+	var right_clear := float(bar_script.get_script_constant_map().get("RESERVED_WIDTH", 0.0))
+	var bar_panel: Control = null
+	for child in bar.get_children():
+		if child is PanelContainer:
+			bar_panel = child
+	if not t.require(
+			right_clear > 0.0 and bar_panel != null,
+			"the bar reserves a column (RESERVED_WIDTH %s) and shows a panel" % right_clear,
+	):
+		return
+	var menu: Node = await open_selected(
+		t,
+		at,
+		lead,
+		mates,
+		"left",
+		{ "right_clear": right_clear },
+		layout != "crowded",
+	)
+	if menu == null:
+		return
+	var screen := t.world.get_viewport().get_visible_rect()
+	var bar_rect := bar_panel.get_global_rect()
+	var right_edge := screen.end.x - right_clear - PANEL_EDGE
+	var column := right_edge - PANEL_WIDTH
+	var at_screen := screen_of(t, at)
+	var points: Array = [at_screen] + mates.map(
+		func(m: Node) -> Vector2: return screen_of(t, m.global_position),
+	)
+	var right_of: float = points.reduce(
+		func(x: float, p: Vector2) -> float: return maxf(x, p.x),
+		-INF,
+	)
+	var rect := panel_rect(menu)
+	t.check(rect.has_area(), "the panel shows (panel %s)" % str(rect))
+	t.expect_near(
+		rect.end.x,
+		right_edge,
+		1.0,
+		"docked right, the panel's right edge sits right_clear + %s from the screen's right edge"
+			% PANEL_EDGE,
+	)
+	t.check(
+		not rect.intersects(bar_rect),
+		"the panel %s keeps clear of the overlay bar %s" % [str(rect), str(bar_rect)],
+	)
+	t.check(
+		not rect.has_point(at_screen),
+		"the panel does not cover the click %s (panel %s)" % [str(at_screen), str(rect)],
+	)
+	match layout:
+		"beside":
+			t.check(
+				right_of < column,
+				"the premise: the panel's least column from x %s lies right of %s"
+					% [column, str(points)],
+			)
+			t.check(
+				rect.position.x > right_of,
+				"the panel %s docks beside the click and the bodies %s" % [str(rect), str(points)],
+			)
+			check_uncovered(t, rect, at, mates)
+		"vertical":
+			t.check(
+				right_of > column,
+				"the premise: the panel's least column from x %s holds the click or a body of %s"
+					% [column, str(points)],
+			)
+			var top: float = points.reduce(
+				func(y: float, p: Vector2) -> float: return minf(y, p.y),
+				INF,
+			)
+			var bottom: float = points.reduce(
+				func(y: float, p: Vector2) -> float: return maxf(y, p.y),
+				-INF,
+			)
+			t.check(
+				rect.end.y < top or rect.position.y > bottom,
+				"the panel %s docks above or below the click and the bodies %s"
+					% [str(rect), str(points)],
+			)
+			check_uncovered(t, rect, at, mates)
+		"crowded":
+			var height := rect.size.y
+			var caught := points.filter(func(p: Vector2) -> bool: return (
+				p.x > right_edge - rect.size.x
+				and p.y > screen.end.y - PANEL_EDGE - height
+				and p.y < screen.position.y + PANEL_EDGE + height
+			))
+			t.check(
+				not caught.is_empty(),
+				"the premise: a panel %s tall docked on the right covers one of %s whether at the "
+					% [height, str(points)] + "top or at the bottom",
+			)
+			var centre: Vector2 = points.reduce(
+				func(sum: Vector2, p: Vector2) -> Vector2: return sum + p,
+				Vector2.ZERO,
+			) / points.size()
+			var at_top := centre.y >= screen.get_center().y
+			t.expect_near(
+				rect.position.y if at_top else rect.end.y,
+				(screen.position.y + PANEL_EDGE) if at_top else (screen.end.y - PANEL_EDGE),
+				1.0,
+				"the click and the bodies centred at %s, the panel %s docks at the %s of the screen"
+					% [str(centre), str(rect), "top" if at_top else "bottom"],
+			)
+	menu.close()
+
+
+## On a player's screen (call `player_screen` first), a command menu set up as Main sets it up for
+## the human leader `lead` and its teammates `mates` (plus `extra` setup keys) is opened by a
+## right-click at world point `at`, then each of `mates` is selected by a left-click on its body
+## (`by_click`) or by ticking its box in the panel.
+## The premise: the click and every selected body lie on screen, in `half` (`"left"` or `"right"`).
+## Checks that the clicks selected them; the open menu, or null when a premise failed.
+static func open_selected(
+	t: TestContext,
+	at: Vector2,
+	lead: Node,
+	mates: Array,
+	half: String,
+	extra: Dictionary,
+	by_click := true,
+) -> Node:
+	var menu := command_menu(t)
+	if not t.require(
+			menu != null and menu.has_method("setup") and menu.has_signal("selection_changed"),
+			"the command menu exists, with setup and selection_changed (%s)" % COMMAND_MENU_SCRIPT,
+	):
+		return null
+	var members: Array = [lead] + mates
+	var side_squad := squad(t, lead.faction, members, lead)
+	if not t.require(
+			side_squad != null and side_squad.has_method("resolve"),
+			"the squad resolves a click",
+	):
+		return null
+	var squad_view := {
+		"leader": lead,
+		"members": members.map(func(n): return { "node": n, "order": {}, "step": "" }),
+	}
+	menu.setup({
+		"rooms": t.rooms, "teammates": mates, "view": func(): return squad_view,
+		"resolve": side_squad.resolve, "leader": lead,
+	}.merged(extra))
+	var selected: Array = []
+	menu.selection_changed.connect(func(nodes: Array) -> void: selected.assign(nodes))
+	if not t.require(await view_still(t), "the view holds still before the clicks"):
+		return null
+	var screen := t.world.get_viewport().get_visible_rect()
+	var mid := screen.get_center().x
+	var points: Array = [screen_of(t, at)] + mates.map(
+		func(m): return screen_of(t, m.global_position),
+	)
+	if not t.require(
+			points.all(func(p: Vector2) -> bool: return (
+				screen.has_point(p) and (p.x < mid if half == "left" else p.x >= mid)
+			)),
+			"the premise: the click and the bodies to select are on screen, %s half (%s of %s)"
+				% [half, str(points), str(screen)],
+	):
+		return null
+	click(t, at, MOUSE_BUTTON_RIGHT)
+	await t.frames(2)
+	if not t.require(menu.is_open(), "the right-click opens the menu"):
+		return null
+	for m: Node in mates:
+		if by_click:
+			click(t, m.global_position, MOUSE_BUTTON_LEFT)
+		else:
+			tick(menu, String(m.name), true)
+		await t.frames(2)
+	t.check(
+		mates.all(func(m: Node) -> bool: return selected.has(m)),
+		"%s selects it (selected %s)" % [
+			"a left-click on each teammate's body" if by_click else "ticking each teammate",
+			str(selected.map(func(n: Node) -> String: return String(n.name))),
+		],
+	)
+	return menu
+
+
+## Checks that the command menu's panel `rect` holds neither the click at world point `at` nor the
+## body of any of the selected `mates`.
+static func check_uncovered(t: TestContext, rect: Rect2, at: Vector2, mates: Array) -> void:
+	var at_screen := screen_of(t, at)
 	t.check(
 		not rect.has_point(at_screen),
 		"the panel does not cover the click %s (panel %s)" % [str(at_screen), str(rect)],
@@ -418,7 +631,6 @@ static func check_dock(t: TestContext, at: Vector2, lead: Node, mates: Array, ha
 				str(rect),
 			],
 		)
-	menu.close()
 
 
 ## Where world point `p` is on the screen of the test world's viewport (what a click there sends).
@@ -429,7 +641,8 @@ static func screen_of(t: TestContext, p: Vector2) -> Vector2:
 ## Click mouse button `button` at world point `p` (a motion there first, so the pointer is where the
 ## click is), as the test's own input.
 static func click(t: TestContext, p: Vector2, button: MouseButton) -> void:
-	var at := screen_of(t, p)
+	# An injected event is in the window's pixels: a stretched root (`player_screen`) maps it.
+	var at := t.world.get_viewport().get_final_transform() * screen_of(t, p)
 	var motion := InputEventMouseMotion.new()
 	motion.position = at
 	motion.global_position = at

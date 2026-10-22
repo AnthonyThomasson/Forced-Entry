@@ -10,8 +10,8 @@ const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 ## Add one splatter (BloodSplat) of core radius `size` at world `position` under `parent`, thrown
 ## toward `direction` with `energy` 0..1; `exclude` is the bleeding body's RID(s), ignored by its
 ## wall clipping. Returns the splat (Despawner-tracked). With `whole` false the splat is only begun
-## (`BloodSplat.begin`: its outlines merge on a worker thread) and the caller must `finish()` it
-## before anything else can see it.
+## (`BloodSplat.begin`: its outlines merge on a worker thread) and the caller finishes it, or hands
+## it to `BloodSplat.defer_finish`, which finishes it before anything else can see it.
 static func splat(parent: Node, position: Vector2, size: float, direction: Vector2, energy: float,
 		exclude: Array, whole := true) -> Node:
 	var node := Node2D.new()

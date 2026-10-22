@@ -7,13 +7,16 @@
 #   tools/play_tests.sh --base=REF        the same since the merge-base with REF
 #   tools/play_tests.sh ID [ID...]        those test ids (e.g. general/keybinds_overrides), in the order given
 #
-# No tests to play: says so, exits 2 and opens nothing. The window is its own process on this checkout's test runner
-# (`-- --queue=<id,id,…>`), named after the worktree directory (GAME_TICKET); a run first closes the test window an
-# earlier run opened for this worktree (pid in $TMPDIR/play_tests_<worktree>.pid), never the editor or its game. The
-# window owns its engine log, as a tools/run_tests.sh batch does: `--log-file <dir>/godot.log` and `--out=<dir>`, the
-# dir $TMPDIR/play_tests_<worktree>/ emptied each run, so another Godot start (which rotates the shared
-# user://logs/godot.log) cannot hide an error from it. It runs detached: the queued ids, its pid and that log (each
-# verdict and a final `Queue done:` line) are printed and the script returns at once. The person closes the window.
+# No tests to play: says so, exits 2 and opens nothing. The window opens maximized: the camera centres each test's
+# bodies, so the points a test clicks sit well clear of the result banner at its top-left (a test whose premise needs
+# the project's window size shows that size stretched over the window). The window is its own process on this
+# checkout's test runner (`-- --queue=<id,id,…>`), named after the worktree directory (GAME_TICKET); a run first closes
+# the test window an earlier run opened for this worktree (pid in $TMPDIR/play_tests_<worktree>.pid), never the editor
+# or its game. The window owns its engine log, as a tools/run_tests.sh batch does: `--log-file <dir>/godot.log` and
+# `--out=<dir>`, the dir $TMPDIR/play_tests_<worktree>/ emptied each run, so another Godot start (which rotates the
+# shared user://logs/godot.log) cannot hide an error from it. It runs detached: the queued ids, its pid and that log
+# (each verdict and a final `Queue done:` line) are printed and the script returns at once. The person closes the
+# window.
 set -euo pipefail
 
 base="origin/main"; ids=()
@@ -80,7 +83,7 @@ fi
 # before the log opens.
 rm -rf "$dir"
 mkdir -p "$dir"
-GAME_TICKET="$name" nohup "$GODOT" --path "$root" --log-file "$dir/godot.log" "$scene" -- "--queue=$queue" "--out=$dir" \
+GAME_TICKET="$name" nohup "$GODOT" --maximized --path "$root" --log-file "$dir/godot.log" "$scene" -- "--queue=$queue" "--out=$dir" \
   > "$dir/stdout.log" 2>&1 < /dev/null &
 pid=$!
 echo "$pid" > "$pid_file"

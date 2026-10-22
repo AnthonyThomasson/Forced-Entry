@@ -602,10 +602,11 @@ func _build_leader_overlay() -> void:
 
 
 ## When the human leads its squad (interface 21, `docs/leadership.md` LD11, LD12): the command menu,
-## set up with the house's `rooms`, the human's teammates and the squad's `view()` and `resolve()`,
-## its `order_requested` handed to the squad's `issue`; and the order markers under `World`,
-## watching the same view and showing the menu's selection. Nothing is built, and nothing reads the
-## COMMAND key, otherwise.
+## set up with the house's `rooms`, the human's teammates, the squad's `view()` and `resolve()` and,
+## with Debug on, the overlay bar's column to keep clear of (`right_clear`, as the inspector's), its
+## `order_requested` handed to the squad's `issue`; and the order markers under `World`, watching
+## the same view and showing the menu's selection. Nothing is built, and nothing reads the COMMAND
+## key, otherwise.
 func _build_command_menu(rooms: Array) -> void:
 	if not _lead or not is_instance_valid(_player):
 		return
@@ -625,6 +626,7 @@ func _build_command_menu(rooms: Array) -> void:
 		"view": squad.view,
 		"resolve": squad.resolve,
 		"leader": _player,
+		"right_clear": OVERLAY_TOGGLES.RESERVED_WIDTH if debug_overlays else 0.0,
 	})
 	menu.order_requested.connect(squad.issue)
 	menu.selection_changed.connect(markers.set_selection)

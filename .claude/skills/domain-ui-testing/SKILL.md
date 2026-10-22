@@ -36,5 +36,8 @@ The two widgets the Testing domain's browser and runner show. Both take plain di
   (`next_requested`, enabled by `set_next_ready` once a verdict is up); `show_queue_done(summary)` ends it (the summary counts passed, failed, timed out, skipped and gap tests).
   A **Pause / Resume** button emits `pause_requested` (`set_paused(on)` relabels it, `set_pause_enabled(on)` hides
   it when a test locks pause); the HUD is `PROCESS_MODE_ALWAYS` so its buttons work while the world is frozen.
+  Only its buttons take the mouse: the panel and its containers are `MOUSE_FILTER_IGNORE`, so a click on its text or
+  padding falls through to the world underneath (a windowed test clicking a doorway the camera framed under the banner
+  reaches it). Tested by `tests/ui/test_result_hud_clicks_through_test.gd`.
 
 **Interfaces:** 13 (Testing → every domain) — signatures in `architecture`.

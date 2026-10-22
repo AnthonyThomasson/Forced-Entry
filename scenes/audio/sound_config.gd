@@ -105,8 +105,6 @@ static var light_power_max: float = 0.9
 static var heavy_power_min: float = 1.6
 ## Seed of the private RNG that picks variants and jitter. Sound never touches the gameplay RNG.
 static var rng_seed: int = 1177
-## True = render the library in the background a few ms a frame after launch so no sound hitches the
+## True = render the library on a worker thread after launch (`Sound.warm`) so no sound hitches the
 ## first time it plays. Skipped when there is no display (tests render lazily).
 static var prewarm: bool = true
-## Milliseconds a frame the background pre-render may take.
-static var prewarm_budget_ms: float = 3.0

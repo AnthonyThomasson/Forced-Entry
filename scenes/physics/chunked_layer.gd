@@ -45,22 +45,21 @@ func marks_in(cell: Vector2i) -> Array:
 	return _by_chunk.get(cell, [])
 
 
-## File `mark` (its `chunk` cell already set) as the newest, redraw its chunk, and drop the oldest
-## past `cap`.
+## File `mark` (its `chunk` cell already set) as the newest and drop the oldest past `cap`, telling
+## the layer of each (`_mark_added`, `_mark_dropped`).
 func _add(mark: Dictionary, cap: int) -> void:
 	_marks.append(mark)
 	var cell: Vector2i = mark["chunk"]
 	if not _by_chunk.has(cell):
 		_by_chunk[cell] = []
 	(_by_chunk[cell] as Array).append(mark)
-	_chunk_node(cell).queue_redraw()
+	_mark_added(cell, mark)
 	while _marks.size() > cap:
 		var old: Dictionary = _marks.pop_front()
 		old["dead"] = true
 		var old_cell: Vector2i = old["chunk"]
 		(_by_chunk[old_cell] as Array).erase(old)
-		if _chunks.has(old_cell):
-			(_chunks[old_cell] as Node).queue_redraw()
+		_mark_dropped(old_cell, old)
 
 
 ## The chunk grid cell containing world `pos`.
@@ -75,6 +74,18 @@ func _chunk_node(cell: Vector2i) -> Node2D:
 		add_child(node)
 		_chunks[cell] = node
 	return _chunks[cell]
+
+
+## `mark` was filed in `cell`: its chunk redraws. A layer may repaint less.
+func _mark_added(cell: Vector2i, _mark: Dictionary) -> void:
+	_chunk_node(cell).queue_redraw()
+
+
+## `mark`, the oldest of `cell` (marks go oldest first), was dropped: its chunk redraws. A layer may
+## repaint less.
+func _mark_dropped(cell: Vector2i, _mark: Dictionary) -> void:
+	if _chunks.has(cell):
+		(_chunks[cell] as Node).queue_redraw()
 
 
 ## A new, not yet added draw chunk for `_cell`; each layer returns its own.

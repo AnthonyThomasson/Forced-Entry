@@ -303,8 +303,11 @@ const CRASH_BANDS := {
 	"heavy": { "db": 4.0, "body": 1.5, "crunch": 1.4, "length": 0.75, "glass": 1.0, "debris": 1.0 },
 }
 
-## Rendered sounds: "profile#variant" -> { stream, level_db }.
+## Rendered sounds: "profile#variant" -> { stream, level_db }. Written on the main thread only.
 static var _cache: Dictionary = {}
+## How many sounds were synthesized on the main thread (for tests: the service's pre-warm renders on
+## a worker, so after launch only a sound nobody pre-warmed is).
+static var main_thread_renders := 0
 
 
 # --- Choosing a profile (no rendering) ------------------------------------------------------
@@ -467,18 +470,47 @@ static func profiles() -> Array[StringName]:
 ## (the profile's own level trim in dB). Rendered the first time it is asked for, then cached. {}
 ## for a profile that does not exist.
 static func sound(profile: StringName, variant: int = 0) -> Dictionary:
-	var key := "%s#%d" % [profile, variant]
+	var key := _key(profile, variant)
 	if _cache.has(key):
 		return _cache[key]
+	var entry := render(profile, variant)
+	if not entry.is_empty():
+		_cache[key] = entry
+	return entry
+
+
+## The sound `sound` would cache for `profile`'s variant `variant`, rendered now and not cached: the
+## same bytes every time. It touches nothing shared off the main thread, so a worker may call it
+## (the service's pre-warm), then `file` the result on the main thread.
+static func render(profile: StringName, variant: int = 0) -> Dictionary:
 	var recipe := recipe_for(profile)
 	if recipe.is_empty():
 		return {}
-	var entry := {
-		"stream": SoundSynth.render(recipe, hash(key)),
+	if OS.get_thread_caller_id() == OS.get_main_thread_id():
+		main_thread_renders += 1
+	return {
+		"stream": SoundSynth.render(recipe, hash(_key(profile, variant))),
 		"level_db": float(recipe.get("level_db", 0.0)),
 	}
-	_cache[key] = entry
-	return entry
+
+
+## Cache `entry`, a `render` of `profile`'s variant `variant`, unless that variant is cached already
+## (it played before its pre-warm finished: the stream playing stays the one cached). Main thread
+## only.
+static func file(profile: StringName, variant: int, entry: Dictionary) -> void:
+	var key := _key(profile, variant)
+	if not entry.is_empty() and not _cache.has(key):
+		_cache[key] = entry
+
+
+## Whether `profile`'s variant `variant` is rendered and cached.
+static func is_cached(profile: StringName, variant: int = 0) -> bool:
+	return _cache.has(_key(profile, variant))
+
+
+## The cache key of `profile`'s variant `variant`, which also seeds its render.
+static func _key(profile: StringName, variant: int) -> String:
+	return "%s#%d" % [profile, variant]
 
 
 ## The synthesis recipe of `profile` ({} if unknown).

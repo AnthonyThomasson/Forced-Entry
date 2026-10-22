@@ -24,10 +24,15 @@ Three parts, all tuned by `BloodConfig`: a wound's **spray**, its **drips**, and
   `ceil(damage / hit_splat_damage)` splatters (max `hit_splat_max`) out the wound's exit side at once (plus one out the exit
   wound) and merges them side by side: each is begun as it is thrown (`BloodSpawner.splat(..., whole = false)` →
   `BloodSplat.begin`: its random shapes and wall rays on the main thread, in `setup`'s order; its outlines merged by the same
-  fold, `_fold`, on a worker thread) and all are finished (`finish`: registered, highlighted, set drying) before `record`
-  returns, so nothing sees a splat half-built and the splats are the ones `setup` builds whole
-  (`tests/physics/blood_spray_side_by_side_matches_whole_test.gd` throws the same seeded hits both ways; `spray_side_by_side`
-  off builds each whole). A drip is still built whole (`setup`). Then it adds
+  fold, `_fold`, on a worker thread; its wet highlight added and its drying started at once) and `record` returns without
+  waiting for the merges: `BloodSplat.defer_finish` finishes them (`finish`: waits for the merge, registers the splat with the
+  `BloodField` aged from the physics frame it was begun on, draws it) in one deferred call later in the frame, before it is drawn,
+  so the rest of the frame's work runs beside them (waiting cost ~0.9 ms a frame under heavy fire, #78). Nothing sees a splat
+  half-built: `BloodField.wetness_at` first finishes every pending splat (`BloodSplat.finish_pending`), and a splat freed before
+  its finish waits for its task as it leaves the tree. The splats are the ones `setup` builds whole
+  (`tests/physics/blood_spray_side_by_side_matches_whole_test.gd` throws the same seeded hits both ways;
+  `blood_spray_does_not_wait_test.gd` checks `record` returns with merges running, that a read or the frame's end finishes them, and
+  their age; `spray_side_by_side` off builds each whole). A drip is still built whole (`setup`). Then it adds
   `ceil(damage * drips_per_damage)` to a drip budget (cap `max_pending_drips`). While it lasts, one drop falls
   every random `drip_interval_min..max` s (3..10) from the host's `blood_origin()`; it keeps the host's
   `velocity` for `drip_fall_time`, so a walker's drops land ahead and splat stretched along its heading
@@ -79,8 +84,9 @@ faint crease where tufts meet. Only colour and opacity change, so some tufts are
 A carrier soaks up a *load* (0..1) of wet blood where it touches it and deposits it with the load fading,
 so trails taper. All tuning is `BloodConfig` (`footprints_enabled`, `smear_enabled`, `pickup_gain`,
 `print_*`, `smear_*`, `thick_blood`, `pool_wet_time`, `splat_wetness`).
-- `BloodField` (static): `wetness_at(world_pos) -> 0..1`. `BloodSplat.setup` and `BloodPool.seed_bleed_out`
-  register themselves (spatial hash for splatters, a list for pools; entries drop on `tree_exited`). A
+- `BloodField` (static): `wetness_at(world_pos) -> 0..1` (finishing every splat still pending first). `BloodSplat.setup` (or
+  `finish`, aged from `begin`'s frame) and `BloodPool.seed_bleed_out` register themselves (spatial hash for splatters, a list for
+  pools; entries drop on `tree_exited`). A
   splatter is a thin film (`splat_wetness`) drying to 0 over `splat_dry_time`; a pool is its flow fill, wet for
   `pool_wet_time`. Dried blood returns 0. Ages count physics frames.
 - `BloodDecals` (one per parent via `layer(parent)` / `find(parent)`; extends Physics' `chunked_layer.gd`, `domain-physics`): batches prints

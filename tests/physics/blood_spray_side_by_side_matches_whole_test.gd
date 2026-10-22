@@ -1,12 +1,13 @@
 extends GameTest
 ## A hit's spray throws up to six splats (`BloodWound.record`). They are merged side by side: each
 ## splat is begun as it is thrown (`BloodSplat.begin`: its random shapes and wall rays here, its
-## outlines merged on a worker thread) and all are finished before `record` returns, where the plain
-## way builds each whole (`setup`) in turn. This throws the same seeded hits both ways, by furniture
-## that clips the blood, and checks every splat is the same: where it lies, its outlines point for
-## point, its wet highlight, its place in the blood field, and the random draws left after the
-## spray.
+## outlines merged on a worker thread) and finished by the first read of the blood field or the
+## frame's flush (`BloodSplat.finish_pending`), where the plain way builds each whole (`setup`) in
+## turn. This throws the same seeded hits both ways, by furniture that clips the blood, and checks
+## every splat is the same once finished: where it lies, its outlines point for point, its wet
+## highlight, its place in the blood field, and the random draws left after the spray.
 
+const BloodSplat = preload("res://scenes/physics/blood/blood_splat.gd")
 const SEED := 4242
 const HITS := 24
 
@@ -54,6 +55,7 @@ func run(t: TestContext) -> void:
 			seed(SEED + k)
 			var before := wound._splats.size()
 			wound.record(hit)
+			BloodSplat.finish_pending()
 			var made: Array = []
 			for i in range(before, wound._splats.size()):
 				var splat: Node2D = wound._splats[i]
@@ -75,7 +77,7 @@ func run(t: TestContext) -> void:
 	t.check(splats >= HITS * 5, "the hits threw splats (%d)" % splats)
 	t.check(
 		unfinished == 0,
-		"every begun splat was finished before record returned (%d not)" % unfinished,
+		"every begun splat was finished by the flush (%d not)" % unfinished,
 	)
 	t.check(
 		differing.is_empty(),

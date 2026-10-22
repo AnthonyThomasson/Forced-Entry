@@ -167,7 +167,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 computed without the caches: all pure, so they may run on a worker thread). An impact record (the dicts in `impacts`) is built by
 	 `new_impact(pos, inward, damage, blood, max_depth, allow_chunks)` and kept by `push_impact(list, impact, max_impacts)` (oldest
 	 dropped past the cap): `Deformable.record` and Objects' wall, which keeps an impact list per segment, both build through them. `NO_COLOR` is the sentinel a caller passes to take a
-	 drawing call's default colour.
+	 drawing call's default colour. `darken(damage_total) -> float` is how far `draw_shape` darkens a shape that has taken that
+	 damage (`Color.darkened`'s weight; a textured shape is white darkened by it), for a caller that draws a textured shape's polygon its
+	 own way (the character's kept meshes, `domain-character-body`) in the same colour.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects, the character and a vehicle)
 	 `BloodWound` (Node child, character: `record(hit)` on a hit throws a splatter spray and owes drips, one
 	 `BloodSplat` every `BloodConfig.drip_interval_min..max` s from the body's blood origin; `stop()` on death)
@@ -778,10 +780,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:
       with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only) Main hands
       the human to `Squad.setup` (a human invader is ranked the unit's lead, 2) and `_build_command_menu` builds, under `World`, the
-      `CommandMenu` (`ui/hud/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader })`
-      (the house's `WorldGen.get_rooms` dicts, the squad's members but the human, `view` and `resolve` the squad's `view()` and `resolve()`
+      `CommandMenu` (`ui/hud/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader,
+      right_clear })` (the house's `WorldGen.get_rooms` dicts, the squad's members but the human, `view` and `resolve` the squad's `view()` and `resolve()`
       callables (the doorway a click is on and the room its stack goes into are the squad's `resolve`), `leader` the human: it opens only
-      while the view names it the leader), `open_at(world)`, `close()`, `is_open()`, `items() -> Array`
+      while the view names it the leader, `right_clear` the screen width from the right edge its panel keeps clear when docked on the right:
+      Main hands it the overlay bar's `OverlayToggles.RESERVED_WIDTH` (interface 22) with Debug on, else 0, the default), `open_at(world)`, `close()`, `is_open()`, `items() -> Array`
       (`[{ label, disabled }]`, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
       while a member holds a held stack there, the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
       while no recipient carries one, D1 / D15) and "Ambush the doorway from the <room>"; on a room, "Defend the <room>"; "Cancel order"),

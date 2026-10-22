@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose, character_ragdoll, character_hands,
-character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -45,9 +45,25 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   unseen; the redraw key is cleared so the first frame back in view repaints. A test whose camera does not frame a body it
   reads the drawing of (the spectator camera drops the dead from its framing) keeps it in view with `camera_follow`
   (`tests/character/fallen_draw_order_stable_test.gd`). Test: `tests/character/offscreen_body_is_not_drawn_test.gd`.
-  **What a repaint costs.** Windowed, every polygon command builds a vertex buffer (~9 µs), so the plain-coloured shapes go out as
-  General's `FillBatch` (one triangle array, the same triangles and pixels): a chain's outline capsules in one command before its
-  fills, and the whole floor shadow (limb capsules, fists, head, trunk slices) in one; only the textured parts are a command each.
+  **What a repaint costs.** Windowed, every polygon command builds a vertex and an index buffer and frees them the next frame (~10 µs),
+  so the parts that are one polygon each are drawn as **meshes the body keeps** (`body_meshes.gd`, `BodyMeshes`: one pool on the body,
+  `_meshes`, one on its shadow, `_shadow_meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
+  `Deformation.draw_shape` would map the art onto, from the published `shape_polygon` / `is_valid_polygon` / `base_ring`, in white
+  darkened by `Deformation.darken(damage_total)`), the shoulders' floor shadow and a folded or fallen trunk's faces, and the standing
+  floor shadow's plain black shapes as one mesh (`BodyMeshes.Solid`: gathered as `FillBatch` gathers them, drawn black). A mesh is cut
+  by `Geometry2D.triangulate_polygon` (the engine's own cut of the polygon: a fan differs at a few edge pixels) and drawn in the
+  polygon's colour as its modulate (both full floats, so exact; a mesh's vertex colours would be 8-bit), its corners and uvs written
+  into its buffers in place (`mesh_surface_update_vertex_region` / `_attribute_region`, only what changed), rebuilt only when its
+  corner count or cut changes; `begin()` at the start of each draw hands the pool's meshes out again from the first, so a mesh still
+  shown is never written before the draw that replaces it. Its custom AABB (`mesh_set_custom_aabb`, from bounds the caller knows
+  cheaply: a capsule's ends grown by its radius, a round part's footprint) places it for culling, the lights and the shadow's
+  CanvasGroup. Those bounds decide which lights reach it: where more than 15 reach the body (one straddling two rooms while flashes
+  go off, `docs/lighting.md` L4) a mesh can keep a light the one polygon command dropped, the only case its pixels differ.
+  Headless (`BodyMeshes.enabled` false) every part is the polygon command, `draw_shape` or `FillBatch` it was. The
+  other plain-coloured shapes go out as General's `FillBatch` (one triangle array, the same triangles and pixels): a chain's outline
+  capsules in one command before its fills, and the fallen body's floor shadow (limb capsules, fists, head, trunk slices) in one.
+  `tests/character/body_mesh_matches_polygons_test.gd` checks which parts are meshes and, windowed, renders frozen bodies (walking,
+  running, damaged, crouched, falling) with meshes off, on and off, every pixel the same (#78).
   The body's and the shadow's draws share one set of limb chains (`_limbs`, built once for both, dropped at every `_process`). Capsules, the shoulders'
   shadow uvs and a segment's uvs are each one transform of a unit outline (`_capsule`, `_texture_uvs`; float rounding only) and the
   trunk's slices the plain point sums with the shadow's shift in place of a callable;
@@ -286,8 +302,9 @@ The character is top-down pixel art rendered through the Art domain (interface 1
 - `character_visuals.gd` renders each with `PixelArt.render_turned(..., snap_angle(angle), ...)` —
   lit for the nearest of `ArtConfig.turn_steps` steps — and draws it rotated to the exact angle of
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
-  `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `Deformation.draw_shape(..., texture,
-  texture_angle, false)` so shots dent the art and darken it, then `Deformation.draw_marks` once
+  `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
+  `Deformation.darken`, or `Deformation.draw_shape(..., texture, texture_angle, false)` headless or with `BodyMeshes.enabled`
+  off: the same polygon either way, above) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
   shadow (living and fallen alike) is one `CanvasGroup` of opaque shapes carrying

@@ -28,11 +28,14 @@ extends CanvasLayer
 ##
 ## The panel docks on the side of the screen away from the click it is open on: on the left, or on
 ## the right when the click lies in the left half, so it never covers the teammate or doorway it is
-## about; a ring marks the clicked point. A decoupled observer: it reads its teammates through
-## the Character API only (`global_position`, `name`, `is_dead`, `item_count`) and the squad through
-## its `view()` and `resolve()` callables, emits plain requests and works out no AI id: the squad
-## (interface 21) resolves the click into its doorway, side and room. `PROCESS_MODE_ALWAYS`, so it
-## works while the tree is paused.
+## about; a ring marks the clicked point. Docked on the right it keeps clear of `right_clear` (the
+## overlay toggle bar's column when Debug is on), and where it would cover the click or a selected
+## teammate there it docks at the top or the bottom of the screen instead, away from them; it is
+## docked again whenever the selection changes while it is open. A decoupled observer: it reads its
+## teammates through the Character API only (`global_position`, `name`, `is_dead`, `item_count`) and
+## the squad through its `view()` and `resolve()` callables, emits plain requests and works out no
+## AI id: the squad (interface 21) resolves the click into its doorway, side and room.
+## `PROCESS_MODE_ALWAYS`, so it works while the tree is paused.
 
 ## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos` the
 ## click itself, `mode` quiet / stun / frag, `bang` mode != quiet as part 1 had it, `wait_go` the
@@ -47,11 +50,13 @@ signal selection_changed(nodes: Array)
 
 ## World-space radius (px) around the cursor within which a click picks a teammate's body.
 const PICK_RADIUS := 28.0
-## The panel's place on screen: its gap to the screen's edge it docks against, its top (below the
-## match HUD's timer) and its least width.
+## The panel's place on screen: its gap to the screen's edge it docks against (and to the top or
+## bottom edge in a vertical dock), its top (below the match HUD's timer) and its least width.
 const PANEL_EDGE := 24.0
 const PANEL_TOP := 120.0
 const PANEL_WIDTH := 440.0
+## How near (screen px) the docked panel may come to the click and to a selected teammate's body.
+const POINT_CLEAR := 24.0
 const TITLE_FONT := 28
 const ITEM_FONT := 26
 const LIST_FONT := 22
@@ -71,6 +76,9 @@ var _view: Callable
 var _resolve: Callable
 ## The human: the menu opens only while the view names it the leader (null: no such check).
 var _leader: Node = null
+## Screen width (px) from the right edge the panel keeps clear when docked on the right: the overlay
+## toggle bar's column while Debug is on, else 0.
+var _right_clear := 0.0
 ## The selected teammates.
 var _selection: Array = []
 ## Whether the menu is open.
@@ -148,10 +156,12 @@ func _process(_delta: float) -> void:
 		_mark.queue_redraw()
 
 
-## Set the menu up: `{ rooms, teammates, view, resolve, leader? }`, `rooms` the house's (plain
-## dicts), `teammates` the characters it may order, `view` and `resolve` the squad's `view()` and
-## `resolve(request)` callables (with no `resolve` no doorway is offered) and `leader` the human
-## (the menu then opens only while it leads). Called by Main once the squads are built.
+## Set the menu up: `{ rooms, teammates, view, resolve, leader?, right_clear? }`, `rooms` the
+## house's (plain dicts), `teammates` the characters it may order, `view` and `resolve` the squad's
+## `view()` and `resolve(request)` callables (with no `resolve` no doorway is offered), `leader` the
+## human (the menu then opens only while it leads) and `right_clear` the screen width (px) from the
+## right edge a panel docked on the right keeps clear (default 0). Called by Main once the squads
+## are built.
 func setup(config: Dictionary) -> void:
 	_rooms = config.get("rooms", [])
 	_teammates = (config.get("teammates", []) as Array).filter(func(n): return n is Node)
@@ -160,6 +170,7 @@ func setup(config: Dictionary) -> void:
 	var resolve = config.get("resolve")
 	_resolve = resolve if resolve is Callable else Callable()
 	_leader = config.get("leader") as Node
+	_right_clear = maxf(float(config.get("right_clear", 0.0)), 0.0)
 	_build()
 
 
@@ -173,7 +184,6 @@ func open_at(at: Vector2) -> void:
 		_paused_tree = not get_tree().paused
 		get_tree().paused = true
 		_panel.visible = true
-	_dock()
 	_drop_dead()
 	_refresh()
 	selection_changed.emit(_selection.duplicate())
@@ -263,6 +273,7 @@ func _refresh() -> void:
 					if not _selection.is_empty()
 					else "the whole squad"))
 	_set_items(offered)
+	_dock()
 	_mark.queue_redraw()
 
 
@@ -443,21 +454,74 @@ func _may_open() -> bool:
 
 
 ## Dock the panel on the side of the screen away from the click it is open on (LD11): on the left,
-## or on the right when the click lies in the left half. Anchored to that edge, it grows away from
-## it as wide as its items need.
+## or on the right when the click lies in the left half, anchored to that edge (the right one
+## `_right_clear` in) and growing away from it as wide as its items need, its top at `PANEL_TOP`.
+## Docked on the right where it would cover the click or a selected teammate's body (within
+## `POINT_CLEAR`), it hangs from the top of the screen or stands on its bottom instead, `PANEL_EDGE`
+## from it, the side away from the centre of the click and those bodies first: the first of these
+## docks that covers none of them, else the first that leaves the click clear, else that side away.
 func _dock() -> void:
 	var screen := get_viewport().get_visible_rect()
-	var right := (get_viewport().get_canvas_transform() * _click).x < screen.get_center().x
+	var points: Array = [_screen_of(_click)]
+	points.append_array(_selection.filter(_alive).map(
+		func(n: Node) -> Vector2: return _screen_of(n.global_position),
+	))
+	var right: bool = points[0].x < screen.get_center().x
+	# Each vertical dock as [anchor, offset, grows up]: below the timer, the top, the bottom.
+	var below_timer := [0.0, PANEL_TOP, false]
+	var dock: Array = below_timer
+	if right:
+		var size := _panel.get_combined_minimum_size()
+		size.x = maxf(size.x, PANEL_WIDTH)
+		var top := [0.0, PANEL_EDGE, false]
+		var bottom := [1.0, -PANEL_EDGE, true]
+		var centre: Vector2 = points.reduce(
+			func(sum, p): return sum + p,
+			Vector2.ZERO,
+		) / points.size()
+		var away := [top, bottom] if centre.y >= screen.get_center().y else [bottom, top]
+		var docks: Array = [below_timer] + away
+		var rect_of := func(d: Array) -> Rect2:
+			var y: float = screen.position.y + d[0] * screen.size.y + d[1]
+			return Rect2(
+				Vector2(
+					screen.end.x - _right_clear - PANEL_EDGE - size.x,
+					y - (size.y if d[2] else 0.0),
+				),
+				size,
+			)
+		var clear_all := docks.filter(
+			func(d: Array) -> bool: return points.all(_clear_of.bind(rect_of.call(d))),
+		)
+		var clear_click := docks.filter(
+			func(d: Array) -> bool: return _clear_of(points[0], rect_of.call(d)),
+		)
+		dock = (clear_all[0] if not clear_all.is_empty()
+				else clear_click[0] if not clear_click.is_empty()
+				else away[0])
 	var edge := 1.0 if right else 0.0
-	var gap := -PANEL_EDGE if right else PANEL_EDGE
+	var gap := -(PANEL_EDGE + _right_clear) if right else PANEL_EDGE
 	# Pushing the opposite anchor along: a left anchor moved past the right one would be held back.
 	for side in [SIDE_LEFT, SIDE_RIGHT]:
 		_panel.set_anchor_and_offset(side, edge, gap, true)
 	for side in [SIDE_TOP, SIDE_BOTTOM]:
-		_panel.set_anchor_and_offset(side, 0.0, PANEL_TOP, true)
+		_panel.set_anchor_and_offset(side, dock[0], dock[1], true)
 	_panel.grow_horizontal = (
 		Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END
 	)
+	_panel.grow_vertical = (
+		Control.GROW_DIRECTION_BEGIN if dock[2] else Control.GROW_DIRECTION_END
+	)
+
+
+## Whether screen point `p` lies `POINT_CLEAR` or more outside screen rect `rect`.
+func _clear_of(p: Vector2, rect: Rect2) -> bool:
+	return not rect.grow(POINT_CLEAR).has_point(p)
+
+
+## Screen point of world point `world` (the world's canvas transform).
+func _screen_of(world: Vector2) -> Vector2:
+	return get_viewport().get_canvas_transform() * world
 
 
 ## World point under screen point `screen` (the world's canvas transform).
@@ -561,6 +625,6 @@ func _label(parent: Control, size: int) -> Label:
 func _draw_mark() -> void:
 	if not _open:
 		return
-	var at := get_viewport().get_canvas_transform() * _click
+	var at := _screen_of(_click)
 	_mark.draw_arc(at, MARK_RADIUS, 0.0, TAU, 24, MARK_COLOR, 3.0)
 	_mark.draw_circle(at, 3.0, MARK_COLOR)
