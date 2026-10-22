@@ -97,8 +97,8 @@ var _anchor: Vector2 = Vector2.ZERO
 var _world: Node2D = null
 ## Endless run: on while the setup window's Endless button chose it.
 var _endless: bool = false
-## The spec of the match being played (`MatchBuilder.spec`, its seed resolved), which the endless
-## run draws the next one from.
+## The spec of the match the setup window or the endless run last started (`_play`:
+## `MatchBuilder.spec`, its seed resolved), which the endless run draws the next one from.
 var _spec: Dictionary = {}
 ## This match's human (the spec's `human` node), null in a spectator match.
 var _human: Node2D = null
@@ -202,8 +202,6 @@ func _process(delta: float) -> void:
 	if hud:
 		hud.set_countdown("")
 	_teardown_world()
-	# The next match: a new seed, each side's count drawn from 1..its setup count (a side set to 0
-	# stays empty) and a random gun and outfit for each side, with the grenades it was set up with.
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	_play(MatchBuilder.random_spec(rng, _spec, _endless_max))

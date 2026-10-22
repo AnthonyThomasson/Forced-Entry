@@ -8,10 +8,11 @@ extends GameTest
 ## The wedge is the test's own copy of the rule (`tests/_ai/door_view_probe.gd`, `View.polygon`, a
 ## doorway framed by `tests/_ai/slots_probe.gd`), so the spec is not read back from the code under
 ## test. Swept over every generated floorplan (`HouseDefinitions.get_all()`) with fixed seeds, each
-## match built whole as Main builds one (`MatchBuilder.build`) in a world of its own (a
-## `SubViewport` with its own `World2D`: its own physics space and navigation maps). Von is down,
+## match built whole as Main builds one (`MatchBuilder.build`) in a world of its own
+## (`MainProbe.viewport`: its own physics space and navigation maps). Von is down,
 ## so the NPCs hold steady.
 
+const MainProbe := preload("res://tests/_main/main_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
 ## How many seeds (1, 2, ...) each floorplan is built with (the seed pins the plan's layout and the
@@ -51,7 +52,7 @@ func run(t: TestContext) -> void:
 	for plan in HouseDefinitions.get_all():
 		for house_seed in range(1, SEEDS + 1):
 			var label := "%s#%d" % [plan, house_seed]
-			var viewport := _viewport(t, label)
+			var viewport := MainProbe.viewport(t)
 			var world := Node2D.new()
 			world.name = "World"
 			viewport.add_child(world)
@@ -70,18 +71,6 @@ func run(t: TestContext) -> void:
 			viewport.queue_free()
 			await t.frames(1)
 	t.check(matches > 0, "the sweep built some matches (%d)" % matches)
-
-
-## A world of its own under the test world.
-func _viewport(t: TestContext, label: String) -> SubViewport:
-	var out := SubViewport.new()
-	out.name = "Match_%s" % label.replace("#", "_")
-	out.world_2d = World2D.new()
-	out.disable_3d = true
-	out.size = Vector2i(64, 64)
-	out.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	t.world.add_child(out)
-	return out
 
 
 ## Every invader of match `handle` out of every exterior doorway's view, and no defender knowing a

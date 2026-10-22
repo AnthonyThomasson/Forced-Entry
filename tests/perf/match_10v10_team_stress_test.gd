@@ -139,8 +139,8 @@ func _spawn_match(t: TestContext) -> Array:
 	return characters
 
 
-## One squad per side over its combatants in spawn order, bound to each NPC, as Main's
-## `_build_squads` does: faction -> squad (a side with no combatants has none).
+## One squad per side over its combatants in spawn order, bound to each NPC, as Main's match does
+## (`MatchBuilder.build_squads`): faction -> squad (a side with no combatants has none).
 func _build_squads(t: TestContext, characters: Array) -> Dictionary:
 	var out := {}
 	for faction: StringName in [&"household", &"invader"]:

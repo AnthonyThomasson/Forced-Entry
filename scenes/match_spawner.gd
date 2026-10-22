@@ -1,12 +1,12 @@
 extends RefCounted
 ## The match-assembly module's helper (`MatchBuilder.populate`): where and how a match's NPCs are
 ## placed. Defenders go to a clear spot in a random room, the invader team in one group outside the
-## house, out of sight of its exterior doorways (`spawn_invader_team`); each NPC is handed the house
-## through
-## `MatchBuilder.bind_npc`, added under the match's `World` node and recorded in `combatants` (the
-## spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
-## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the
-## root only wires domains.
+## house, out of the views of its exterior doorways (`spawn_invader_team`); each NPC is handed the
+## house through `MatchBuilder.bind_npc`, added under the match's `World` node and recorded in
+## `combatants` (the spectator camera, the match HUD and the overlays observe that list). Like
+## `main.gd` it knows the NPC scenes, the Navigation domain's `furniture_holes` and the AI
+## perception's doorway wedge (`AgentDoorViews.wedge`); the placement rules live here so the root
+## only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
@@ -104,10 +104,11 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 ## spot, which a member then keeps clear of as of any combatant). The drawn point, and every member
 ## round it, keeps out of the views of the house's exterior doorways (`_door_views`, `_unseen`):
 ## while the drawn point is in one, the point walks on round the perimeter by `PERIMETER_STEP` to
-## the first that is not, and when none is, the drawn point is used and logged. Round the human no
-## such rule holds: the team packs round wherever the human stands. Each member takes the spot
-## `_group_spot` gives it, nearest the point first. `front_entranceworld` is injected so each heads
-## straight for the entrance rather than circling.
+## the first that is not, and when none is, the drawn point is used and logged, the team packed
+## round it with no view kept out of. Round the human no such rule holds: the team packs round
+## wherever the human stands. Each member takes the spot `_group_spot` gives it, nearest the point
+## first. `front_entranceworld` is injected so each heads straight for the entrance rather than
+## circling.
 func spawn_invader_team(
 	rooms: Array,
 	rng: RandomNumberGenerator,
@@ -125,6 +126,9 @@ func spawn_invader_team(
 	if centre == Vector2.INF:
 		views = _door_views(rooms)
 		centre = _unseen_point(bounds.grow(invader_margin), rng.randf(), views)
+		if not _unseen(centre, views):
+			# No point is out of the views: the team packs round the drawn one as any group does.
+			views = []
 	var holes := NavBuilder.furniture_holes(world)
 	for i in count:
 		var taken: Array = []

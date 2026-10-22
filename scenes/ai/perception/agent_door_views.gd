@@ -485,8 +485,7 @@ func _area(ring: PackedVector2Array) -> float:
 ## area outside it bounded by the rays from the room's two far corners through the opposite jambs,
 ## `depth` px long along each ray, before any wall stops it. A polygon: jamb, the far end of the ray
 ## past it, the far end of the other ray, the other jamb. Pure geometry, no walls: `door_view` lays
-## the view out from it, and the match spawner keeps an invader team's start out of the wedges of
-## the house's exterior doors.
+## the view out from it.
 static func wedge(opening: Dictionary, room_rect: Rect2, depth: float) -> PackedVector2Array:
 	var pos: Vector2 = opening["pos"]
 	var half := float(opening.get("width", 80.0)) * 0.5
