@@ -255,12 +255,6 @@ static func room_key_at(p: Vector2, list: Array) -> String:
 	return str(room_at(p, list).get("key", ""))
 
 
-## Whether `order` (the order the NPC holds, as its squad posted it) is a rally's join: a `stack`
-## of mode `join`, the leader's own stack bringing its team in (`docs/leadership.md` LD24).
-static func is_join(order: Dictionary) -> bool:
-	return String(order.get("kind", "")) == "stack" and String(order.get("mode", "")) == "join"
-
-
 ## The room of `list` (`{ key, type, rect }` dicts) with key `key`, or {}.
 static func room_by_key(list: Array, key: String) -> Dictionary:
 	for room in list:

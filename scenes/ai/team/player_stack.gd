@@ -6,10 +6,10 @@ extends Node
 ## team's side of the door or, when its way there would cross the doorway's view, on the side the
 ## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as
 ## speaker (`opening`, `into`, `slot`, `side`, `entry_step`, and `human`), repeated every
-## `HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any teammate's claim, so
-## the point waits for the human at the ready barrier, a lone AI is no longer solo, and an AI behind
-## the human crosses after it. The one thing it reads `human` for: no AI member moves up into the
-## human's slot (E2).
+## `StackClaim.HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any
+## teammate's claim, so the point waits for the human at the ready barrier, a lone AI is no longer
+## solo, and an AI behind the human crosses after it. The one thing it reads `human` for: no AI
+## member moves up into the human's slot (E2).
 ##
 ## The human is never ordered: its radio step is read from where it stands (`claim` away from the
 ## slot, `ready` in it, `going_in` in the doorway, `in` through it). The claim is withdrawn
@@ -31,20 +31,10 @@ extends Node
 ## steers the character.
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
-const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
-## Entry steps that mean a member is still on its way into the room (it holds a place in the stack).
-const STACKING := ["claim", "ready", "going_in"]
-## Entry steps of a member that is through the doorway.
-const THROUGH := ["in", "clear", "cover", "rear"]
-## Seconds between repeats of the latest call.
-const HEARTBEAT := 2.0
-## How close (px) to its slot the human counts as standing in it (the NPCs' `WAYPOINT_REACH`).
-const SLOT_REACH := 20.0
-## How deep (px) either side of the wall plane the doorway's funnel reaches (the entry tests'
-## `FUNNEL_DEPTH`).
-const FUNNEL_DEPTH := 40.0
-## How far (px) past the wall plane the human is through (the entry's `THROUGH_DEPTH`).
-const THROUGH_DEPTH := 26.0
+## The entry claim's wire format, step lists and slot distances, and the claims heard on the radio
+## (scenes/ai/perception/stack/).
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 ## Seconds the human's `in` stays on the radio for an AI waiting behind it to hear, and the most it
 ## is held.
 const IN_HOLD_MIN := 1.0
@@ -79,10 +69,9 @@ var own_claims := false
 var _char: Node2D = null
 ## The doorway geometry (slots), the same the NPCs build.
 var _entry: RefCounted = AgentEntry.new()
-## Seconds since the stack was built (physics time).
-var _clock := 0.0
-## speaker instance id -> { data, at }: the latest callout of each speaker.
-var _heard := {}
+## The allies' entry claims heard on the radio, the latest per speaker (its side, `callout_range`,
+## `callout_ttl` on `GameClock`).
+var _ledger: RefCounted = ClaimLedger.new()
 ## The doorway reserved ("" = no reservation).
 var _opening := ""
 ## The key of the room the reserved doorway leads into.
@@ -103,9 +92,9 @@ var _step := ""
 var _heartbeat := 0.0
 ## Seconds until the next walking-distance check.
 var _check := 0.0
-## `_clock` the AI ahead of the human was first all through (-1 = not yet).
+## `GameClock.seconds()` the AI ahead of the human was first all through (-1 = not yet).
 var _ahead_through_at := -1.0
-## `_clock` the human was through.
+## `GameClock.seconds()` the human was through.
 var _in_at := -1.0
 ## doorway id -> true: declined, until nobody stacks there any more.
 var _barred := {}
@@ -116,13 +105,17 @@ var _openings: Array = []
 var _own := false
 ## The doorway the human stands stepped up to ("" none).
 var _stepping := ""
-## Since when (`_clock`) the human has stood stepped up to `_stepping`.
+## Since when (`GameClock.seconds()`) the human has stood stepped up to `_stepping`.
 var _stepping_since := 0.0
 
 
 func _ready() -> void:
 	if _char == null:
 		_char = get_parent() as Node2D
+	_ledger.setup({
+		"faction": _char.get("faction"), "range": callout_range, "ttl": callout_ttl,
+		"listener": _char,
+	})
 	EventBus.posted.connect(_on_posted)
 
 
@@ -134,8 +127,6 @@ func _exit_tree() -> void:
 func _physics_process(delta: float) -> void:
 	if _char == null or not is_instance_valid(_char):
 		return
-	_clock += delta
-	_forget_stale()
 	_check -= delta
 	var due := _check <= 0.0
 	if due:
@@ -169,7 +160,7 @@ static func attach(character: Node, rooms: Array, openings: Array) -> Node:
 func view() -> Dictionary:
 	if _opening == "" or _geo.is_empty():
 		return {}
-	var members := _members(AgentEntry.claims(_opening, _callouts()))
+	var members := _members(_ledger.claims(_opening))
 	var holder := {}
 	var top := _slot
 	for m in members:
@@ -214,80 +205,32 @@ func _crossing(team: Array, before: bool) -> Array:
 	return out
 
 
-## Keep the latest callout of each allied speaker within range (`_heard`).
+## Hear an allied entry claim within range (the ledger keeps the latest per speaker).
 func _on_posted(topic: StringName, data: Dictionary) -> void:
-	if topic != &"callout" or _char == null or AgentGrenades.is_call(data.get("status")):
-		# (A call about a live grenade is not the speaker's place in a stack: it must not replace
-		# its claim.)
-		return
-	if String(data.get("order_step", "")) != "" and String(data.get("entry_step", "")) == "":
-		# (Nor is how an ally's order goes, LD7: the perception leaves what the ally last said
-		# standing too.)
-		return
-	var speaker = data.get("speaker")
-	if speaker == _char or not speaker is Node or not is_instance_valid(speaker):
-		return
-	if StringName(data.get("faction", &"")) != StringName(_char.get("faction")):
-		return
-	var at: Vector2 = data.get("position", _char.global_position)
-	if callout_range > 0.0 and _char.global_position.distance_to(at) > callout_range:
-		return
-	_heard[speaker.get_instance_id()] = { "data": data, "at": _clock }
-
-
-## Drop the callouts that lapsed or whose speaker is gone or dead.
-func _forget_stale() -> void:
-	for id in _heard.keys():
-		var rec: Dictionary = _heard[id]
-		var speaker = rec["data"].get("speaker")
-		if (_clock - rec["at"] > callout_ttl
-				or not is_instance_valid(speaker)
-				or (speaker as Node).get("is_dead") == true):
-			_heard.erase(id)
-
-
-## The live callouts heard, latest per speaker, in the shape `AgentEntry.claims` reads: the data
-## with `age`, `id`, `name`.
-func _callouts() -> Array:
-	var out: Array = []
-	for id in _heard:
-		var rec: Dictionary = _heard[id]
-		var c: Dictionary = (rec["data"] as Dictionary).duplicate()
-		c["age"] = _clock - rec["at"]
-		c["id"] = id
-		c["name"] = str(c["speaker"].name)
-		out.append(c)
-	return out
+	if topic == &"callout" and _char != null:
+		_ledger.hear(data, _char.global_position)
 
 
 ## Reserve the first free slot at the nearest doorway near the human where an allied team is
 ## stacking up.
 func _look_for_team() -> void:
-	var calls := _callouts()
 	var map: RID = _char.get_world_2d().navigation_map
 	var space: PhysicsDirectSpaceState2D = _char.get_world_2d().direct_space_state
 	var best := {}
 	var best_dist := INF
-	var tried := {}
 	var stacking_now := {}
-	for c in calls:
-		var id := str(c.get("opening", ""))
-		if id == "" or tried.has(id):
-			continue
-		tried[id] = true
-		var team := AgentEntry.claims(id, calls)
-		if not team.any(func(m): return STACKING.has(m["step"])):
-			continue
+	for at: Dictionary in _ledger.openings_stacking():
+		var id: String = at["opening"]
 		stacking_now[id] = true
 		if _barred.has(id):
 			continue
-		var geo: Dictionary = _entry.geometry(id, str(c.get("into", "")), map, space)
+		var geo: Dictionary = _entry.geometry(id, at["into"], map, space)
 		if geo.is_empty():
 			continue
 		var dist := _walk_distance(geo["pos"])
 		if dist <= reserve_range and dist < best_dist:
 			best_dist = dist
-			best = { "id": id, "into": str(c.get("into", "")), "geo": geo, "team": team }
+			best = { "id": id, "into": at["into"], "geo": geo, "team": _ledger.claims(id) }
 	for id in _barred.keys():
 		if not stacking_now.has(id):
 			_barred.erase(id)   # Their stack is over: a later one is a new offer.
@@ -347,8 +290,8 @@ func _reserve(id: String, into: String, geo: Dictionary, team: Array) -> void:
 ## at (`stacking_now`) nor declined, on whose stack side it has stood `STEP_UP_TIME` against the
 ## wall beside the opening (out from the wall plane and past the jamb along it, each within
 ## `STEP_UP_REACH`): where the first of a stack stands. Not a pure query: each call advances the
-## step-up timer (`_stepping`, restarted at `_clock` whenever the doorway stood at changes), so
-## it is called once per check.
+## step-up timer (`_stepping`, restarted at `GameClock.seconds()` whenever the doorway stood at
+## changes), so it is called once per check.
 func _stepped_up(stacking_now: Dictionary) -> Dictionary:
 	var pos := _char.global_position
 	var world := _char.get_world_2d()
@@ -380,8 +323,8 @@ func _stepped_up(stacking_now: Dictionary) -> Dictionary:
 	var here := str(found.get("id", ""))
 	if here != _stepping:
 		_stepping = here
-		_stepping_since = _clock
-	if here == "" or _clock - _stepping_since < STEP_UP_TIME:
+		_stepping_since = GameClock.seconds()
+	if here == "" or GameClock.seconds() - _stepping_since < STEP_UP_TIME:
 		return {}
 	return found
 
@@ -403,14 +346,13 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	if _char.get("is_dead") == true:
 		_withdraw("abort")
 		return
-	var calls := _callouts()
-	var team := AgentEntry.claims(_opening, calls)
+	var team: Array = _ledger.claims(_opening)
 	var self_id := _char.get_instance_id()
 	var pos := _char.global_position
 	if due and _step != "in" and _walk_distance(_geo["pos"]) > reserve_range * leave_factor:
 		_withdraw("abort")
 		return
-	if (not team.any(func(m): return STACKING.has(m["step"]) or m["step"] == "in")
+	if (not team.any(func(m): return StackClaim.stacking(m["step"]) or m["step"] == "in")
 			and (not _own or _step == "in")):
 		# Nobody is stacking here any more (the human's own claim stands with nobody else yet).
 		_withdraw("abort" if _step != "in" else "done")
@@ -439,15 +381,15 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	# (Its own claim with nobody ahead of it is the point's: nobody's going in to wait on.)
 	var ahead_through: bool = (
 		(not _own or not ahead.is_empty())
-			and ahead.all(func(m): return THROUGH.has(m["step"]))
+			and ahead.all(func(m): return StackClaim.through(m["step"]))
 	)
 	if ahead_through and _ahead_through_at < 0.0:
-		_ahead_through_at = _clock
+		_ahead_through_at = GameClock.seconds()
 	elif not ahead_through:
 		_ahead_through_at = -1.0
 	if (_step in ["claim", "ready"]
 			and _ahead_through_at >= 0.0
-			and _clock - _ahead_through_at >= go_timeout):
+			and GameClock.seconds() - _ahead_through_at >= go_timeout):
 		_barred[_opening] = true   # It had its chance at this stack.
 		_withdraw("abort")
 		return
@@ -455,13 +397,13 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	if now != _step:
 		_step = now
 		if _step == "in":
-			_in_at = _clock
+			_in_at = GameClock.seconds()
 		_post(_step)
 	if _step == "in":
 		var waiting := _crossing(team, false).any(
-			func(m): return STACKING.has(m["step"]) and m["step"] != "going_in",
+			func(m): return StackClaim.stacking(m["step"]) and m["step"] != "going_in",
 		)
-		var held := _clock - _in_at
+		var held := GameClock.seconds() - _in_at
 		if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
 			_barred[_opening] = true
 			_withdraw("done")
@@ -480,18 +422,15 @@ func _step_at(pos: Vector2) -> String:
 	var out: Vector2 = _geo["out"]
 	var outward := (pos - door).dot(out)
 	var lateral := absf((pos - door).dot(out.orthogonal()))
-	if outward < -THROUGH_DEPTH and lateral < float(_geo["width"]) * 0.5 + THROUGH_DEPTH:
+	if (outward < -StackClaim.THROUGH_DEPTH
+			and lateral < float(_geo["width"]) * 0.5 + StackClaim.THROUGH_DEPTH):
 		return "in"
-	if absf(outward) < FUNNEL_DEPTH and lateral < float(_geo["width"]) * 0.5:
+	if absf(outward) < StackClaim.FUNNEL_DEPTH and lateral < float(_geo["width"]) * 0.5:
 		return "going_in"
-	var spot := AgentEntry.stack_point(
-		_geo,
-		_members(AgentEntry.claims(_opening, _callouts())),
-		_slot,
-		_on,
-	)
+	var spot := AgentEntry.stack_point(_geo, _members(_ledger.claims(_opening)), _slot, _on)
 	var d := pos.distance_to(spot)
-	if d <= SLOT_REACH or (_step == "ready" and d <= SLOT_REACH * 2.0):
+	var reach := StackClaim.HUMAN_SLOT_REACH
+	if d <= reach or (_step == "ready" and d <= reach * 2.0):
 		return "ready"
 	return "claim"
 
@@ -512,12 +451,12 @@ func _withdraw(how: String) -> void:
 	_in_at = -1.0
 
 
-## Radio the human's step as a `callout` (the same fields the NPCs' entry steps carry) and restart
-## the heartbeat.
+## Radio the human's step as a `callout` (the header every callout starts with, and the claim's
+## entry fields encoded by `StackClaim.encode`, the NPCs' own) and restart the heartbeat.
 func _post(step: String) -> void:
-	_heartbeat = HEARTBEAT
+	_heartbeat = StackClaim.HEARTBEAT
 	var pos := _char.global_position
-	EventBus.post(&"callout", {
+	var msg := {
 		"speaker": _char,
 		"faction": _char.get("faction"),
 		"position": pos,
@@ -526,6 +465,8 @@ func _post(step: String) -> void:
 		"label": "stacking up (%s)" % step.replace("_", " "),
 		"target_id": 0,
 		"point": pos,
+	}
+	msg.merge(StackClaim.encode({
 		"opening": _opening,
 		"into": _into,
 		"slot": _slot,
@@ -533,8 +474,7 @@ func _post(step: String) -> void:
 		"entry_step": step,
 		"leader": (squad != null and is_instance_valid(squad) and squad.has_method("leader")
 				and squad.leader() == _char),
-		"cleared_room": "",
-		"covering": "",
 		"human": true,  # The human's claim: no AI member moves up into its slot (E2).
 		"own": _own,  # Its own claim, which its squad rallies the team to (LD24); else E16's.
-	})
+	}))
+	EventBus.post(&"callout", msg)

@@ -44,8 +44,8 @@ extends RefCounted
 
 const Watch := preload("res://scenes/ai/behavior/watch.gd")
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
-## A member whose latest call is one of these is through the doorway.
-const THROUGH := ["in", "clear", "cover", "rear"]
+## The entry claim's wire format, step lists and slot distances (perception's stack module).
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## A member whose latest call is one of these has called the room clear (`clear`, then the watch it
 ## keeps after).
 const CLEARED := ["clear", "cover", "rear"]
@@ -68,16 +68,8 @@ const LEAD_STEP := 8.0
 ## The farthest (px) an approach waypoint may be moved onto the navmesh and still stand for the
 ## point it was asked for.
 const WAYPOINT_SNAP := 24.0
-## How far (px) inside the wall plane an entrant counts as through the threshold.
-const THROUGH_DEPTH := 26.0
-## Seconds between repeats of the latest call, so the claim stays live on the radio (callouts lapse
-## after a while).
-const HEARTBEAT := 2.0
 ## A waypoint (px) counts as reached this close.
 const WAYPOINT_REACH := 20.0
-## How close (px) a member walks into its stack slot: a stride short of it would stand on the next
-## slot.
-const SLOT_REACH := 6.0
 ## How close (px) an entrant walks into its corner: all the way, since a few px short of a corner
 ## beside the doorway (a small room's) is still in the way of the one crossing behind it.
 const CORNER_REACH := 6.0
@@ -222,7 +214,8 @@ var _ready_said := false
 ## The side the point stacked on, as last seen while the stack formed: the side every member counts
 ## the rear spots from.
 var _lead_side := 0
-## Steps to radio, oldest first: { step, cleared_room? }.
+## Steps to radio, oldest first, each a claim in `StackClaim`'s fields (`entry_step`, ...; the
+## behaviour adds the doorway, room, slot and side).
 var _calls: Array = []
 ## A step of this entry has gone out on the radio (`take_calls`).
 var _on_air := false
@@ -368,8 +361,8 @@ var _order_bang := false
 var _order_mode := ""
 ## The order holds the stack for the leader's go (LD13).
 var _order_hold := false
-## The entry is a join (LD24, `is_join`): its claims say so, so its squad never takes them for the
-## member's own (D30).
+## The entry is a join (LD24, `StackClaim.is_join`): its claims say so, so its squad never takes
+## them for the member's own (D30).
 var _join := false
 ## The held stack has had its go (LD13: the leader's, latched; D14 a member going in; D12 no
 ## leader).
@@ -421,16 +414,11 @@ func bind(character: Node) -> void:
 	_character = character
 
 
-## Whether an entry leaf's `params` are a join's (the ORDER node's option for a rally's `join`
-## stack, LD24: `join` true): the member's own entry joining its leader's stack.
-static func is_join(params: Dictionary) -> bool:
-	return bool(params.get("join", false))
-
-
 ## Start an entry from `params`: `opening` and `into` from an ENTER leaf, `secure` from the guard's
 ## pass-by detour, and from an ordered stack's leaf (`docs/leadership.md` LD9) its `order_id`,
 ## `bang`, `mode` (LD14), `wait_go` and `go` (LD13) and side (`stack_at`, or `split`); a join
-## (LD24, `is_join`) is run as the NPC's own entry, its order's id left out of it. False when the
+## (LD24, `StackClaim.is_join`) is run as the NPC's own entry, its order's id left out of it. False
+## when the
 ## doorway is unknown (the leaf is then dropped and the NPC re-decides). It claims the lowest
 ## slot the claims heard leave free (the slots go by arrival on the radio, E2), not the one the
 ## option was measured from: a claim heard since then came first. A claim made on this same frame is
@@ -451,7 +439,7 @@ func begin(params: Dictionary) -> bool:
 	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
 	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
 	# A join is the member's own entry joining its leader's stack (LD24, D10): no order's rules.
-	_join = not secure and is_join(params)
+	_join = not secure and StackClaim.is_join(params)
 	_order_id = "" if secure or _join else str(params.get("order_id", ""))
 	_order_bang = bool(params.get("bang", false))
 	_order_mode = str(params["mode"]) if _order_id != "" else ""
@@ -561,7 +549,7 @@ func reset() -> void:
 	_on_air = false
 	held_back = false
 	_last_call = {}
-	_heartbeat = HEARTBEAT
+	_heartbeat = StackClaim.HEARTBEAT
 	_clock = 0.0
 	_approach_cap = 0.0
 	_move_up = 0
@@ -756,7 +744,7 @@ func debug_view() -> Dictionary:
 		),
 		"team": team.map(func(m):
 			var d: Dictionary = m.duplicate()
-			d["through"] = THROUGH.has(m["step"])
+			d["through"] = StackClaim.THROUGH.has(m["step"])
 			d["place"] = _perception.entry_place(members, int(m["side"]), int(m["slot"]))
 			return d),
 		"watch": _watch.map(
@@ -787,7 +775,7 @@ func step(delta: float) -> bool:
 		_team_grew_at = _time  # Someone joined: the point gives the newcomer the full wait.
 	_team_size = team.size()
 	for m in team:
-		if THROUGH.has(m["step"]):
+		if StackClaim.THROUGH.has(m["step"]):
 			_through[m["id"]] = m["slot"]
 		if not m["bang"]:
 			_quiet_seen[m["id"]] = true
@@ -806,7 +794,7 @@ func step(delta: float) -> bool:
 	_heartbeat -= delta
 	if _heartbeat <= 0.0 and not _last_call.is_empty():
 		# Keep the claim (and what it covers) alive on the radio.
-		_radio(_last_call["step"], _last_call)
+		_radio(_last_call["entry_step"], _last_call)
 	match phase:
 		"approach":
 			_tick_approach(team, delta)
@@ -864,7 +852,7 @@ func way_blocked() -> bool:
 				# The member ahead is still in the doorway: it moves on into the room in a moment.
 				return false
 			if ((_character.global_position - (_geo["pos"] as Vector2)).dot(_geo["out"])
-					>= -THROUGH_DEPTH):
+					>= -StackClaim.THROUGH_DEPTH):
 				_radio("abort")
 				phase = "done"
 				return true
@@ -881,8 +869,8 @@ func way_blocked() -> bool:
 
 
 ## The approach's waypoints the hold that blocked its walk seals, dropped: the one it was walking
-## to, then each next one at the slot (within `SLOT_REACH` of it: the walk into the slot follows
-## anyway) or whose plain way from where the member stands passes the body holding it
+## to, then each next one at the slot (within `StackClaim.SLOT_REACH` of it: the walk into the slot
+## follows anyway) or whose plain way from where the member stands passes the body holding it
 ## (`Locomotion.seals`), up to the first the hold does not seal (E19's point out from the wall, on
 ## another way), which is the next tried. True when the approach goes on: a waypoint is left, or the
 ## hold does not seal the slot for good (`_slot_sealed`: another way reaches it, which the walk is
@@ -893,7 +881,7 @@ func _drop_sealed() -> bool:
 		_dropped_at = _character.global_position
 		_waypoints.pop_front()
 		while (not _waypoints.is_empty()
-				and ((_waypoints[0] as Vector2).distance_to(spot) <= SLOT_REACH
+				and ((_waypoints[0] as Vector2).distance_to(spot) <= StackClaim.SLOT_REACH
 							or _loco.seals(_waypoints[0]))):
 			_waypoints.pop_front()
 	return not _waypoints.is_empty() or not _slot_sealed(spot)
@@ -1144,7 +1132,7 @@ func _follow_order(team: Array) -> void:
 	if wanted and phase == "pie":
 		_pie_queue = []
 		_set_phase("stack")
-	_radio(str(_last_call.get("step", "claim")), _last_call)
+	_radio(str(_last_call.get("entry_step", "claim")), _last_call)
 
 
 ## Whether the stack holds for the leader's go (LD13): it goes in under an order (`_order_claim`, an
@@ -1177,7 +1165,7 @@ func _note_go(team: Array) -> void:
 		return
 	_released = true
 	if not _last_call.is_empty():
-		_radio(str(_last_call["step"]), _last_call)
+		_radio(str(_last_call["entry_step"]), _last_call)
 
 
 ## The other living recipients of the order this NPC stacks under (D7): the order's `to` less itself
@@ -1407,8 +1395,8 @@ func _tick_approach(team: Array, delta: float) -> void:
 		_loco.move_to(_waypoints[0])
 		return
 	var spot := _stack_point()
-	if not _at(spot, SLOT_REACH):
-		_loco.move_to(spot, SLOT_REACH)
+	if not _at(spot, StackClaim.SLOT_REACH):
+		_loco.move_to(spot, StackClaim.SLOT_REACH)
 		return
 	_character.move_input = Vector2.ZERO
 	_set_phase("stack")
@@ -1435,11 +1423,11 @@ func _move_up_now(team: Array, delta: float) -> bool:
 		return false
 	_move_up_clock = MOVE_UP_EVERY
 	var here: Vector2 = _character.global_position
-	if _move_up > 0 or _pie_begun or here.distance_to(_spot) > SLOT_REACH:
+	if _move_up > 0 or _pie_begun or here.distance_to(_spot) > StackClaim.SLOT_REACH:
 		return false
 	var begun := func(m):
 		return (bool(m.get("pie", false)) or m["step"] in ["bang", "going_in"]
-				or THROUGH.has(m["step"]))
+				or StackClaim.THROUGH.has(m["step"]))
 	if team.any(begun):
 		return false  # The pie, the bang or the crossing has begun: the order of the stack stands.
 	var best := {}
@@ -1541,9 +1529,9 @@ func _tick_stack(team: Array, delta: float) -> void:
 	if _move_up_now(team, delta):
 		return
 	var spot := _stack_point()
-	if _character.global_position.distance_to(spot) > SLOT_REACH:
+	if _character.global_position.distance_to(spot) > StackClaim.SLOT_REACH:
 		# Shoved out of the slot, or stood beside it while a body was on it: step (back) in.
-		_loco.move_to(spot, SLOT_REACH)
+		_loco.move_to(spot, StackClaim.SLOT_REACH)
 	else:
 		_character.move_input = Vector2.ZERO
 	if _covers_rear(team):
@@ -1590,7 +1578,7 @@ func _tick_stack(team: Array, delta: float) -> void:
 ## order is through, unless a hostile stands in view (E14; not in the moments after the stack's stun
 ## went off).
 func _follow(team: Array, ahead: Array) -> void:
-	if THROUGH.has(ahead[-1]["step"]):
+	if StackClaim.THROUGH.has(ahead[-1]["step"]):
 		if _turn_at < 0.0:
 			_turn_at = _time
 		if _time - _turn_at >= follow_gap and (not hostile_in_view or _in_bang_window()):
@@ -1837,7 +1825,7 @@ func _go_quiet() -> void:
 	bang = false
 	_upgraded = false
 	_bang_stage = ""
-	_radio(str(_last_call.get("step", "ready")), _last_call)
+	_radio(str(_last_call.get("entry_step", "ready")), _last_call)
 
 
 ## Whether a teammate gave the bang up (its claims say `bang_off`): the stack goes in quietly. In an
@@ -1852,7 +1840,7 @@ func _vetoed(team: Array) -> bool:
 
 ## Whether a member of the stack is crossing or through the doorway.
 func _crossing(team: Array) -> bool:
-	return team.any(func(m): return m["step"] == "going_in" or THROUGH.has(m["step"]))
+	return team.any(func(m): return m["step"] == "going_in" or StackClaim.THROUGH.has(m["step"]))
 
 
 ## A quiet entry turns into a bang one (E17, `docs/grenades.md` G18) while nobody has crossed and
@@ -1880,7 +1868,7 @@ func _maybe_upgrade(team: Array, delta: float) -> void:
 	if phase == "pie":
 		_pie_queue = []
 		_set_phase("stack")  # Back to its slot, to hold for the bang instead of slicing on.
-	_radio(str(_last_call.get("step", "claim")), _last_call)
+	_radio(str(_last_call.get("entry_step", "claim")), _last_call)
 
 
 ## Whether the point of a quiet entry still holds in its slot before the pie (E17): the stack
@@ -2039,10 +2027,13 @@ func _tick_bang(team: Array, delta: float) -> void:
 			while (_bang_route.size() > 1
 					and _character.global_position.distance_to(_bang_route[0]) <= WAYPOINT_REACH):
 				_bang_route.pop_front()
-			# All the way into the spot (`SLOT_REACH`): the lob was judged from there, and a stride
-			# short of it a jamb can be in its way.
-			if not _at(_bang_spot, SLOT_REACH):
-				_loco.move_to(_bang_route[0], SLOT_REACH if _bang_route.size() == 1 else 0.0)
+			# All the way into the spot (`StackClaim.SLOT_REACH`): the lob was judged from there,
+			# and a stride short of it a jamb can be in its way.
+			if not _at(_bang_spot, StackClaim.SLOT_REACH):
+				_loco.move_to(
+					_bang_route[0],
+					StackClaim.SLOT_REACH if _bang_route.size() == 1 else 0.0,
+				)
 				_look_toward(_bang_target, delta, 3.0)
 				return
 			_character.move_input = Vector2.ZERO
@@ -2068,7 +2059,7 @@ func _tick_bang(team: Array, delta: float) -> void:
 			var spot := _stack_point()
 			if _character.global_position.distance_to(spot) > WAYPOINT_REACH:
 				# Back in its slot (or, shoved out of it, a step back in).
-				_loco.move_to(spot, SLOT_REACH)
+				_loco.move_to(spot, StackClaim.SLOT_REACH)
 			else:
 				_character.move_input = Vector2.ZERO
 			_look_toward(away, delta, 3.0)
@@ -2151,7 +2142,7 @@ func _start_pie(team: Array) -> void:
 		_pie_begun = true
 		if not _last_call.is_empty():
 			# The pie is begun: on the radio at once, so nobody moves up behind it (E2).
-			_radio(_last_call["step"], _last_call)
+			_radio(_last_call["entry_step"], _last_call)
 	_pie_side = side
 	_pie_queue = (_geo["pie"][side] as Array).duplicate()
 	pie_sides = 1
@@ -2265,7 +2256,7 @@ func _through_door(from: Vector2) -> Vector2:
 ## Commit to the crossing: pick the corner for this member's place in the order, radio `going_in`,
 ## go.
 func _start_cross(team: Array) -> void:
-	var order := _before(team).filter(func(m): return THROUGH.has(m["step"])).size()
+	var order := _before(team).filter(func(m): return StackClaim.THROUGH.has(m["step"])).size()
 	corner = _corner_for(
 		order,
 		team.any(func(m): return int(m["side"]) != 0 and int(m["side"]) != side),
@@ -2323,7 +2314,7 @@ func _tick_cross(delta: float) -> void:
 		_character.move_input = (corner - _character.global_position).normalized()
 	_look_toward(_across_from(corner), delta, 3.0)
 	var rel: Vector2 = _character.global_position - (_geo["pos"] as Vector2)
-	var through: bool = (rel.dot(_geo["out"]) < -THROUGH_DEPTH
+	var through: bool = (rel.dot(_geo["out"]) < -StackClaim.THROUGH_DEPTH
 			and absf(rel.dot(_geo["along"])) > float(_geo["width"]) * 0.5)
 	if (through
 			or _clock > CROSS_CAP
@@ -2370,7 +2361,9 @@ func _tick_clear(team: Array, delta: float) -> void:
 		return
 	_character.move_input = Vector2.ZERO
 	_look_toward(_across_from(_character.global_position), delta)
-	var coming := team.filter(func(m): return not THROUGH.has(m["step"]) and m["step"] != "claim")
+	var coming := team.filter(
+		func(m): return not StackClaim.through(m["step"]) and m["step"] != "claim",
+	)
 	if coming.is_empty() or _clock >= ready_timeout + CROSS_CAP:
 		_radio("clear", { "cleared_room": into })
 		_finish(team)
@@ -2576,7 +2569,8 @@ func _stack_point() -> Vector2:
 	return _spot
 
 
-## Queue step `what` for the radio (and remember it, with its extra fields, for the heartbeat).
+## Queue step `what` for the radio, a claim in `StackClaim`'s fields (and remember it, with its
+## extra fields, for the heartbeat).
 func _radio(what: String, extra := {}) -> void:
 	if secure:
 		return  # A pass-by joins no stack and claims nothing on the radio.
@@ -2584,7 +2578,7 @@ func _radio(what: String, extra := {}) -> void:
 	if what == "claim" and not extra.has("claim_frame"):
 		_claim_frame = GameClock.frame()
 		_claim_pos = _character.global_position
-	var msg := { "step": what, "claim_frame": _claim_frame, "claim_pos": _claim_pos }
+	var msg := { "entry_step": what, "claim_frame": _claim_frame, "claim_pos": _claim_pos }
 	msg.merge(extra)
 	msg["bang"] = bang
 	msg["bang_off"] = _bang_off
@@ -2593,8 +2587,7 @@ func _radio(what: String, extra := {}) -> void:
 	# (E2: the slot it moved up from, while it walks into the one it took.)
 	msg["move_up"] = _move_up
 	msg["pie"] = _pie_begun
-	if _join:
-		msg["join"] = true  # A join's claim, never its holder's own (D30).
+	msg["join"] = _join  # A join's claim, never its holder's own (D30).
 	if _order_id != "":
 		# An ordered stack's claim (LD9): the order, its mode and its side, so the stack goes in the
 		# order's way.
@@ -2606,7 +2599,7 @@ func _radio(what: String, extra := {}) -> void:
 		msg["order_side"] = _order_side
 	_calls.append(msg)
 	_last_call = msg.duplicate()
-	_heartbeat = HEARTBEAT
+	_heartbeat = StackClaim.HEARTBEAT
 
 
 ## Look where it walks: a few paces down its path (the door it is lining up), not the next waypoint

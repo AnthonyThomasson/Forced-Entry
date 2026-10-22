@@ -10,6 +10,7 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const AgentEntry = preload("res://scenes/ai/perception/agent_entry.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
+const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
 ## grenade is aimed, in order of preference (shares of the stretch, from where the line comes into
 ## the room): its middle first, then either side of it.
@@ -48,11 +49,14 @@ var _views: RefCounted
 var _throw: AgentThrow
 ## Why a room is suspect; see agent_suspicion.gd.
 var _suspicion: AgentSuspicion
+## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
+var _ledger: RefCounted
 
 
 ## Capture the collaborators the groups read. Called once by `AgentSnapshot.setup()`.
 func setup(vocab: SnapshotVocab, memory: RefCounted, tactics: RefCounted, entry: RefCounted,
-		views: RefCounted, throw: AgentThrow, suspicion: AgentSuspicion) -> void:
+		views: RefCounted, throw: AgentThrow, suspicion: AgentSuspicion,
+		ledger: RefCounted) -> void:
 	_v = vocab
 	_memory = memory
 	_tactics = tactics
@@ -60,6 +64,7 @@ func setup(vocab: SnapshotVocab, memory: RefCounted, tactics: RefCounted, entry:
 	_views = views
 	_throw = throw
 	_suspicion = suspicion
+	_ledger = ledger
 
 
 ## Start a decision's option groups: forget what the last one worked out (`know` is set by the
@@ -866,7 +871,7 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 		var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
 		if g.is_empty():
 			continue
-		var team := AgentEntry.claims(e["id"], ctx["callouts"])
+		var team: Array = _ledger.claims(e["id"])
 		var slot := AgentEntry.free_slot(team, ctx["self_id"])
 		var side: int = _entry.stack_side_from(g, team, self_pos, ctx["map"], ctx["space"])
 		var point := AgentEntry.stack_point(g, team, slot, AgentEntry.side_for(g, team, slot, side))
@@ -998,7 +1003,7 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 ## `AgentEntry.defend_spot`: the members of the order share the room's doorways out in the order
 ## `to` names them); `stack` is an `entry` through the ordered doorway into the ordered room
 ## (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), and the side: `stack_at` or
-## `split`), a join (the leader's own stack, LD24, `SnapshotVocab.is_join`) the member's own entry
+## `split`), a join (the leader's own stack, LD24, `StackClaim.is_join`) the member's own entry
 ## joining it (`opening`, `into`, `join`, `bang` false: no side or mode of the order's), none at a
 ## dead end with no slot for it; `ambush` (LD15) is an `ambush` of the doorway from the ordered room
 ## at this member's post with its gun on the threshold (`AgentEntry.ambush_spot`: `opening`, `room`,
@@ -1055,7 +1060,7 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 					))
 			if g.is_empty():
 				return { "summary": "", "options": [] }
-			if SnapshotVocab.is_join(order):
+			if StackClaim.is_join(order):
 				# The leader's own stack (LD24, D10): the member's own entry, joining it (no side,
 				# no mode of the order's). A dead end with no slot for it is no join: refused, it
 				# follows again (LD25).
@@ -1135,7 +1140,7 @@ func _stack_place(order: Dictionary, ctx: Dictionary) -> int:
 	)
 	var ids: Array = to.map(func(m): return m.get_instance_id())
 	var ahead := maxi(to.find(_character), 0)
-	for c in AgentEntry.claims(String(order.get("opening", "")), ctx["callouts"]):
+	for c in _ledger.claims(String(order.get("opening", ""))):
 		if not ids.has(c["id"]) and c["id"] != ctx["self_id"]:
 			ahead += 1
 	return ahead + 1

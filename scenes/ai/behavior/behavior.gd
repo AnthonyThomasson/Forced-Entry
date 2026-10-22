@@ -43,6 +43,7 @@ const Combat := preload("res://scenes/ai/behavior/combat.gd")
 const SearchCoverage := preload("res://scenes/ai/behavior/search_coverage.gd")
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const Watch := preload("res://scenes/ai/behavior/watch.gd")
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## Seconds past a grenade's fuse that the thrower waits for the burst before it gives up waiting.
 const THROW_WAIT_MARGIN := 1.0
 ## How near (px) a contact out of sight must have been last seen for a walk to check that it is
@@ -595,7 +596,7 @@ func committed() -> bool:
 			or (_primitive == &"throw" and _combat.throw_stage == "windup"))
 
 
-## The entry steps to radio since the last call (`{ step, cleared_room?, covering? }`), with the
+## The entry steps to radio since the last call (claims in `StackClaim`'s fields), with the
 ## doorway, the room it leads into, slot and side they are about; the controller posts them as
 ## callouts.
 func take_entry_calls() -> Array:
@@ -765,7 +766,7 @@ func _ordered_stack() -> bool:
 ## rest of the stack) while the member is still on its way to the stack or in it, where its entry
 ## would never end on its own (LD25, D26): once per leaf.
 func _join_over() -> bool:
-	return (Entry.is_join(_params)
+	return (StackClaim.is_join(_params)
 			and not _join_done
 			and not _order_live()
 			and _entry.phase in ["approach", "stack"])
@@ -774,7 +775,7 @@ func _join_over() -> bool:
 ## Whether an entry leaf's `params` are an ordered stack's, which goes in the order's way (LD9): an
 ## order's that is no join (a join is the member's own entry joining its leader's stack, LD24).
 static func _ordered_entry(params: Dictionary) -> bool:
-	return params.has("order_id") and not Entry.is_join(params)
+	return params.has("order_id") and not StackClaim.is_join(params)
 
 
 ## Whether the entry guard applies to `leaf` for a doorway into room `into`: a walk (move / engage /
@@ -1457,7 +1458,7 @@ func _apply_entry(delta: float) -> void:
 		_entry_pending = false
 		_route_wait = 0.0
 		if not _entry.begin(_params):
-			if Entry.is_join(_params):
+			if StackClaim.is_join(_params):
 				# No slot in its leader's stack (a dead end, E20): the join is refused and it
 				# follows again (LD24, LD25).
 				_perception.end_order(_params.get("order_id"), "refused")

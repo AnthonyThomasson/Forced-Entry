@@ -38,6 +38,8 @@ const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
 ## The frame's snapshot count (DecisionBudget).
 const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
+## The entry claim's wire format (an entry step's callout fields).
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 
 ## The behaviour to pursue, in plain language — what Von ranks every level of the decision against.
@@ -786,9 +788,9 @@ func control(character, delta: float) -> void:
 	_behavior.apply(delta)
 	if _behavior.take_entry_turned():
 		_on_entry_turned()
-	for step in _behavior.take_entry_calls():
+	for claim in _behavior.take_entry_calls():
 		if send_callouts:
-			_post_entry_call(step)
+			_post_entry_call(claim)
 	for throw in _behavior.take_throw_calls():
 		if send_callouts:
 			_post_throw_call(throw)
@@ -817,18 +819,13 @@ func _post_order_step(order_id: Variant, step: String) -> void:
 		"label": "%s (%s)" % [_behavior.path_label(), step.replace("_", " ")],
 		"at": GameClock.msec(),
 	}
-	EventBus.post(&"callout", {
-		"speaker": _character,
-		"faction": _character.faction,
-		"position": _character.global_position,
-		"status": ", ".join(_status(false)),
-		"path": _behavior.current_act(),
-		"label": _behavior.path_label(),
-		"target_id": 0,
-		"point": _character.global_position,
-		"order_id": order_id,
-		"order_step": step,
-	})
+	var msg := _callout_header(
+		", ".join(_status(false)), _behavior.current_act(), _behavior.path_label(),
+		_character.global_position,
+	)
+	msg["order_id"] = order_id
+	msg["order_step"] = step
+	EventBus.post(&"callout", msg)
 
 
 ## The running ENTER became a bang one, its room suspect (`docs/tactical-entry.md` E17: at its
@@ -1058,16 +1055,10 @@ func _post_callout(leaf: Dictionary) -> void:
 		"point": params.get("point", _character.global_position),
 		"label": " - ".join(leaf["labels"]), "at": GameClock.msec(),
 	}
-	var radio := {
-		"speaker": _character,
-		"faction": _character.faction,
-		"position": _character.global_position,
-		"status": ", ".join(status),
-		"path": "/".join(leaf["path"]),
-		"label": " - ".join(leaf["labels"]),
-		"target_id": params.get("target_id", 0),
-		"point": params.get("point", _character.global_position),
-	}
+	var radio := _callout_header(
+		", ".join(status), "/".join(leaf["path"]), " - ".join(leaf["labels"]),
+		params.get("point", _character.global_position), params.get("target_id", 0),
+	)
 	if str(leaf["path"][0]) == "combat":
 		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it
 		# (docs/grenades.md G18).
@@ -1086,17 +1077,9 @@ func _post_grenade_call(grenade: Dictionary) -> void:
 		"label": label,
 		"at": GameClock.msec(),
 	}
-	EventBus.post(&"callout", {
-		"speaker": _character,
-		"faction": _character.faction,
-		"position": _character.global_position,
-		"status": "grenade",
-		"path": "",
-		"label": label,
-		"target_id": 0,
-		"point": grenade["point"],
-		"kind": grenade["kind"],
-	})
+	var msg := _callout_header("grenade", "", label, grenade["point"])
+	msg["kind"] = grenade["kind"]
+	EventBus.post(&"callout", msg)
 
 
 ## Radio a grenade this NPC has just thrown (`{ kind, point }` from the behaviour) as a `frag_out` /
@@ -1111,77 +1094,54 @@ func _post_throw_call(throw: Dictionary) -> void:
 		"label": label,
 		"at": GameClock.msec(),
 	}
-	EventBus.post(&"callout", {
-		"speaker": _character,
-		"faction": _character.faction,
-		"position": _character.global_position,
-		"status": status,
-		"path": _behavior.current_act(),
-		"label": label,
-		"target_id": 0,
-		"point": throw["point"],
-		"kind": throw["kind"],
-	})
+	var msg := _callout_header(status, _behavior.current_act(), label, throw["point"])
+	msg["kind"] = throw["kind"]
+	EventBus.post(&"callout", msg)
 
 
-## Radio one step of a tactical entry (`{ step, opening, slot, side, cleared_room? }` from the
-## behaviour) as an `&"callout"`: the usual fields plus `opening`, `into` (the room it leads into),
-## `slot`, `side` and `entry_step` (claim / ready / going_in / in / clear / cover / rear / done /
-## abort), `cleared_room` with a clear and `covering` (the doorway on it watches) with a cover, and
-## the bang entry's `bang` (its mode), `bang_off` (it gave the bang up), `stuns` and `frags`; every
-## claim carries `claim_frame` and `claim_pos` (the physics frame its slot was claimed on and where
-## it stood then: same-frame claims settle by distance), `move_up` (the slot it moved up from while
-## it walks into the one it took, else 0, E2) and `pie` (it has begun the pie); an ordered stack's
-## member adds `order_id`, `order_bang`, `order_mode`, `order_hold`, `order_go` and `order_side`
-## (the order, its mode, whether it holds for the leader's go and whether that go has come, and its
-## side, `docs/leadership.md` LD9, LD13, LD14), and a join's member `join` (LD24, D30). It is how
-## the stack claims slots, waits for the team and crosses in order; "going in" is also said in
-## `status`. `point` is where the speaker stands.
-func _post_entry_call(step: Dictionary) -> void:
+## Radio one step of a tactical entry (`claim`, in `StackClaim`'s fields, from the behaviour) as an
+## `&"callout"`: the callout's header (`_callout_header`) and the claim's entry fields, every one
+## encoded by `StackClaim.encode` (the doorway, slot, side and `entry_step`, the bang's mode and
+## grenades, the frame and spot it was claimed on, a move-up, the pie, the order it stacks under, a
+## join's mark: stack/stack_claim.gd `DEFAULTS`). It is how the stack claims slots, waits for the
+## team and crosses in order; "going in" is also said in `status`. `point` is where the speaker
+## stands.
+func _post_entry_call(claim: Dictionary) -> void:
 	var status := _status(false)
-	if step["step"] == "going_in":
+	if claim["entry_step"] == "going_in":
 		status.push_front("going in")
 	var labels: String = _behavior.path_label()
 	_last_callout = {
 		"position": _character.global_position, "point": _character.global_position,
-		"label": "%s (%s)" % [labels, String(step["step"]).replace("_", " ")],
+		"label": "%s (%s)" % [labels, String(claim["entry_step"]).replace("_", " ")],
 		"at": GameClock.msec(),
 	}
-	var msg := {
+	var msg := _callout_header(
+		", ".join(status), _behavior.current_act(), labels, _character.global_position,
+	)
+	msg.merge(StackClaim.encode(claim))
+	EventBus.post(&"callout", msg)
+
+
+## The fields every callout of this NPC's starts with (interface 10): the speaker, its faction and
+## where it stands, its `status`, the decision `path`, the `label`, the `target_id` and the `point`.
+func _callout_header(
+	status: String,
+	path: String,
+	label: String,
+	point: Vector2,
+	target_id: Variant = 0,
+) -> Dictionary:
+	return {
 		"speaker": _character,
 		"faction": _character.faction,
 		"position": _character.global_position,
-		"status": ", ".join(status),
-		"path": _behavior.current_act(),
-		"label": labels,
-		"target_id": 0,
-		"point": _character.global_position,
-		"opening": step["opening"],
-		"into": step.get("into", ""),
-		"slot": step["slot"],
-		"side": step["side"],
-		"entry_step": step["step"],
-		"bang": step.get("bang", false),
-		"bang_off": step.get("bang_off", false),
-		"stuns": step.get("stuns", 0),
-		"frags": step.get("frags", 0),
-		"cleared_room": step.get("cleared_room", ""),
-		"covering": step.get("covering", ""),
-		# When and where the slot was claimed: same-frame claims settle by distance.
-		"claim_frame": step.get("claim_frame", -1),
-		"claim_pos": step.get("claim_pos", _character.global_position),
-		# The slot it moved up from, while it walks into the one it took (E2).
-		"move_up": step.get("move_up", 0),
-		"pie": step.get("pie", false),  # It has begun the pie: nobody moves up behind it.
+		"status": status,
+		"path": path,
+		"label": label,
+		"target_id": target_id,
+		"point": point,
 	}
-	if step.has("order_id"):
-		for key in ["order_id", "order_bang", "order_mode", "order_hold", "order_go", "order_side"]:
-			# An ordered stack's claim (LD9): the order, its mode, its hold for go (LD13) and its
-			# side.
-			msg[key] = step[key]
-	if step.get("join", false):
-		msg["join"] = true  # A join's claim (LD24): never the speaker's own, D30.
-	EventBus.post(&"callout", msg)
 
 
 ## The speaker's state for a callout: under fire, wounded, reloading.

@@ -20,6 +20,8 @@ extends RefCounted
 const SnapshotVocab := preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd")
+## The doorway's fatal funnel and the claims' fields (stack/stack_claim.gd).
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const ENTRY_POINT_DEPTH := 24.0
 ## Slots worked out per side: a fuller team queues in the last one.
 const MAX_SLOTS := 6
@@ -97,8 +99,6 @@ const ROW1_DEPTH := 50.0
 ## The grid (px) a wall stack's slots are first sought on; a wall short of a full stack is sought
 ## again on the `SLOT_STEP` grid.
 const WALL_GRID := 8.0
-## A doorway's fatal funnel: within its width and this far (px) of its wall plane, either side.
-const FUNNEL_DEPTH := 40.0
 ## A body counts in a doorway's view only this far (px) inside its edges.
 const VIEW_MARGIN := 10.0
 ## Outdoors, how far (px) along the house's wall from the doorway a file may run.
@@ -933,7 +933,7 @@ func _slot_ok(c: Dictionary, p: Vector2, with_views: bool, open: bool, routed :=
 	var lateral := absf(rel.dot(c["along"]))
 	var outward := rel.dot(c["out"])
 	if open:
-		if lateral < SLOT_BODY or (lateral < c["half"] and absf(outward) < FUNNEL_DEPTH):
+		if lateral < SLOT_BODY or (lateral < c["half"] and absf(outward) < StackClaim.FUNNEL_DEPTH):
 			return false
 	elif lateral < c["half"] + SLOT_BODY:
 		return false
@@ -959,7 +959,7 @@ func on_stack_side(g: Dictionary, p: Vector2) -> bool:
 		var rel: Vector2 = p - (f["pos"] as Vector2)
 		if (f["id"] != c["id"]
 				and absf(rel.dot(f["along"])) < float(f["half"]) + SLOT_BODY
-				and absf(rel.dot(f["out"])) < FUNNEL_DEPTH):
+				and absf(rel.dot(f["out"])) < StackClaim.FUNNEL_DEPTH):
 			return false
 	return true
 
@@ -996,13 +996,14 @@ func _reached(c: Dictionary, p: Vector2) -> bool:
 
 
 ## Whether `p` stands in the fatal funnel of a doorway other than `c`'s (within its width and
-## `FUNNEL_DEPTH` of its wall plane).
+## `StackClaim.FUNNEL_DEPTH` of its wall plane).
 func _in_other_funnel(c: Dictionary, p: Vector2) -> bool:
 	for f: Dictionary in _door_frames():
 		if f["id"] == c["id"]:
 			continue
 		var rel: Vector2 = p - (f["pos"] as Vector2)
-		if absf(rel.dot(f["along"])) < f["half"] and absf(rel.dot(f["out"])) < FUNNEL_DEPTH:
+		if (absf(rel.dot(f["along"])) < f["half"]
+				and absf(rel.dot(f["out"])) < StackClaim.FUNNEL_DEPTH):
 			return true
 	return false
 
@@ -1282,7 +1283,7 @@ func _tail_spots(c: Dictionary, open_slots: Array) -> Array:
 						+ (best["along"] as Vector2) * lat)
 				if (p.distance_to(pos) <= TAIL_REACH
 						and absf(lat) >= SLOT_BODY
-						and (absf(lat) >= float(best["half"]) or o >= FUNNEL_DEPTH)
+						and (absf(lat) >= float(best["half"]) or o >= StackClaim.FUNNEL_DEPTH)
 						and NavBuilder.snap(c["map"], p).distance_to(p) <= SLOT_SNAP
 						and _in_stack_side(tc, p)
 						and not _in_other_funnel(tc, p)):
@@ -1454,47 +1455,8 @@ func _sees(space, from: Vector2, to: Vector2) -> bool:
 # --- The team, off the radio -------------------------------------------------------------------
 
 
-## The allies' live claims on opening `id`, from the callouts heard (latest per speaker, see the
-## perception's `_callouts()`): `{ id (speaker instance id), name, slot, side, step, covering, pos,
-## age }`, lowest slot first (`covering` = the doorway a member holding the cleared room watches,
-## with step `cover`; `bang` = it goes in with a stun thrown first, true for a member that says
-## nothing of it, such as the human; `stuns` / `frags` = how many stun / frag grenades it carries;
-## `order_id` = the order it stacks under, "" for none, with the order's `order_bang` (a grenade
-## first), `order_mode` (`quiet` / `stun` / `frag`, LD14; `quiet` for a claim under no order),
-## `order_hold` (the order holds for the leader's go, LD13) and `order_go` (that go has come), and
-## its side `order_side`, 1 / -1 along the wall or 0 for a split stack: `docs/leadership.md` LD9). A
-## member who aborted or is done with the doorway, or whose latest call is about something else,
-## holds no claim.
-static func claims(id: String, callouts: Array) -> Array:
-	var out: Array = []
-	for c in callouts:
-		if str(c.get("opening", "")) != id:
-			continue
-		var step := str(c.get("entry_step", ""))
-		if step == "" or step == "abort" or step == "done":
-			continue
-		out.append({
-			"id": c["id"], "name": c.get("name", ""), "slot": int(c.get("slot", 0)),
-			"side": int(c.get("side", 0)), "step": step, "covering": str(c.get("covering", "")),
-			"pos": c.get("position", Vector2.ZERO), "age": c.get("age", 0.0),
-			"bang": bool(c.get("bang", true)), "bang_off": bool(c.get("bang_off", false)),
-			"stuns": int(c.get("stuns", 0)), "frags": int(c.get("frags", 0)),
-			"order_id": str(c.get("order_id", "")), "order_bang": bool(c.get("order_bang", false)),
-			"order_mode": str(c.get("order_mode", "quiet")),
-			"order_hold": bool(c.get("order_hold", false)),
-			"order_go": bool(c.get("order_go", false)), "order_side": int(c.get("order_side", 0)),
-			"leader": bool(c.get("leader", false)), "claim_frame": int(c.get("claim_frame", -1)),
-			"claim_pos": c.get("claim_pos", c.get("position", Vector2.ZERO)),
-			"move_up": int(c.get("move_up", 0)), "pie": bool(c.get("pie", false)),
-			"human": bool(c.get("human", false)),
-		})
-	out.sort_custom(
-		func(a, b): return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["id"] < b["id"],
-	)
-	return out
-
-
-## The lowest stack slot (1 = the point) not claimed by an ally in `team` (see `claims`), for the
+## The lowest stack slot (1 = the point) not claimed by an ally in `team` (stack/claim_ledger.gd
+## `claims`), for the
 ## NPC with instance id `self_id` that holds `current` (0: it is claiming now). Claims made on the
 ## same physics frame settle by distance (E2), so their walks do not cross: with `mine`
 ## (`{ frame, pos, g, side }`: the frame this NPC claims or claimed on, where it stood then, the

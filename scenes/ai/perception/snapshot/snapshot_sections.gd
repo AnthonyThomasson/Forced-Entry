@@ -5,6 +5,7 @@ extends RefCounted
 ## `agent_snapshot.gd` calls it from `build()`.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The shared vocabulary and tuning; see snapshot_vocab.gd.
 var _v: SnapshotVocab
@@ -62,7 +63,7 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
 			if not into.is_empty():
 				var mode := String(order["mode"])
-				if SnapshotVocab.is_join(order):
+				if StackClaim.is_join(order):
 					# The leader's own stack (LD24): its team goes in with it.
 					return ("Your leader ordered you to go into the %s by its doorway with them."
 							% _v.room_name(into["type"]))

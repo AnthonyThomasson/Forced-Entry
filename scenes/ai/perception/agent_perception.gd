@@ -33,6 +33,9 @@ const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd"
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
 const AgentSuspicion := preload("res://scenes/ai/perception/agent_suspicion.gd")
+## The entry claims heard on the radio, and their wire format (scenes/ai/perception/stack/).
+const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## The BUILD half: turns what the NPC knows + the combat geometry into the decision snapshot Von
 ## walks.
 const AgentSnapshot := preload("res://scenes/ai/perception/agent_snapshot.gd")
@@ -125,8 +128,10 @@ var _hostility: RefCounted
 var _memory: RefCounted
 ## The combat geometry; see agent_tactics.gd.
 var _tactics: RefCounted
-## The doorway geometry and the team's claims; see agent_entry.gd.
+## The doorway geometry; see agent_entry.gd.
 var _entry: RefCounted
+## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
+var _ledger: RefCounted
 ## The doorway views and the walk that keeps out of them; see agent_door_views.gd.
 var _views: RefCounted
 ## When (`GameClock.msec()`) the decision began waiting for the avoid map; -1: not waiting.
@@ -195,8 +200,9 @@ func setup() -> void:
 	_suspicion = AgentSuspicion.new()
 	_suspicion.memory = _memory
 	_suspicion.entry = _entry
+	_ledger = ClaimLedger.new()
 	_snapshot = AgentSnapshot.new()
-	_snapshot.setup(_memory, _tactics, _entry, _views, _throw, _suspicion)
+	_snapshot.setup(_memory, _tactics, _entry, _views, _throw, _suspicion, _ledger)
 
 
 ## Set the perception's own tunables and its modules' straight from `cfg`, the controller, whose
@@ -219,6 +225,7 @@ func apply_config(cfg: Node) -> void:
 	track_smoothing = cfg.track_smoothing
 	callout_range = cfg.callout_range
 	callout_ttl = cfg.callout_ttl
+	_ledger.setup({ "range": callout_range, "ttl": callout_ttl })
 	entry_enabled = cfg.entry_enabled
 	entry_guard = cfg.entry_guard
 	entry_pass_clear_time = cfg.entry_pass_clear_time
@@ -298,6 +305,7 @@ func _sync_walks() -> void:
 func bind(character: Node) -> void:
 	_character = character
 	_hostility.faction = character.faction
+	_ledger.setup({ "faction": character.faction, "listener": character })
 	_throw.bind(character)
 	_grenades.bind(character)
 	_snapshot.bind(character)
@@ -427,13 +435,14 @@ func process_callout(data: Dictionary) -> void:
 	var at: Vector2 = data.get("position", _character.global_position)
 	if callout_range > 0.0 and _character.global_position.distance_to(at) > callout_range:
 		return
+	_ledger.hear(data, _character.global_position)
 	if AgentGrenades.is_call(data.get("status")):
 		# "Grenade!": a live grenade, not what the ally is doing, so not a callout to weigh.
 		_grenades.called(data)
 		return
-	if String(data.get("order_step", "")) != "" and String(data.get("entry_step", "")) == "":
-		# How an ally's order goes (LD7) is its squad's to hear: it leaves what the ally last said
-		# it is doing standing.
+	if StackClaim.keeps_claim(data):
+		# Nor is how an ally's order goes (LD7), its squad's to hear: it leaves what the ally last
+		# said it is doing standing.
 		return
 	_memory.remember(&"heard_callout", data, callout_ttl, str(speaker.get_instance_id()))
 	var cleared := str(data.get("cleared_room", ""))
@@ -1251,7 +1260,7 @@ func stack_room() -> String:
 		return _stack_room
 	var opening := str(held.get("opening", ""))
 	for m in entry_team(opening):
-		if m["order_id"] == str(held.get("id", "")) and m["step"] in ["ready", "bang"]:
+		if m["order_id"] == str(held.get("id", "")) and StackClaim.in_slot(m["step"]):
 			_stack_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
 			break
 	return _stack_room
@@ -1318,11 +1327,10 @@ func room_doorways(room_key: String) -> Array:
 	return _entry.room_doorways(room_key)
 
 
-## The allies' live claims on doorway `opening_id`, off the radio:
-## `{ id, name, slot, side, step, covering, pos, age }`, lowest slot first (see agent_entry.gd
-## `claims`).
+## The allies' live claims on doorway `opening_id`, off the radio (stack/claim_ledger.gd `claims`:
+## `StackClaim.decode`'s fields, `step`, `id`, `name`, `pos`, `age`), lowest slot first.
 func entry_team(opening_id: String) -> Array:
-	return AgentEntry.claims(opening_id, _callouts())
+	return _ledger.claims(opening_id)
 
 
 ## The lowest stack slot (1 = the point) no ally in `team` has claimed, for the NPC with instance id

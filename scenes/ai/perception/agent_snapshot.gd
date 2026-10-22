@@ -22,6 +22,7 @@ extends RefCounted
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
+const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The shared vocabulary and tuning. The perception's apply_config() sets the tunables here (like it
 ## does on its other modules).
@@ -39,7 +40,7 @@ var _character: Node
 
 
 ## Capture the collaborators the author reads: the event memory, the combat geometry, the doorway
-## geometry, the doorway views, the grenade geometry and why a room is suspect.
+## geometry, the doorway views, the grenade geometry, why a room is suspect and the claims heard.
 ## Called once by the perception in its setup(), after it has built them. The config fields are set
 ## directly by the perception's apply_config() (like the other modules), so there is no separate
 ## configure step.
@@ -50,11 +51,12 @@ func setup(
 	views: RefCounted,
 	throw: RefCounted,
 	suspicion: RefCounted,
+	ledger: RefCounted,
 ) -> void:
 	_memory = memory
 	_tactics = tactics
 	_sections.setup(vocab, memory, tactics)
-	_options.setup(vocab, memory, tactics, entry, views, throw, suspicion)
+	_options.setup(vocab, memory, tactics, entry, views, throw, suspicion, ledger)
 
 
 ## Hand in the NPC's body, for the author and its three parts. Called once by
@@ -144,7 +146,7 @@ func build(
 	var entered := SnapshotOptions.entry_rooms(entries)
 	var carried: Array = knowledge["carried_grenades"]
 	var stun_stack: bool = (carried.has(&"stun")
-			or callouts.any(func(c): return int(c.get("stuns", 0)) > 0))
+			or callouts.any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
 	# With a stun to throw, gunfire or a hostile in a room a doorway of ENTER leads into is the
 	# entry's to weigh (quiet or with a bang).
 	var leads := _options.lead_group(ctx, hostiles, entered if stun_stack else {})

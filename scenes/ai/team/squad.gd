@@ -61,7 +61,10 @@ extends Node
 ## world the squad itself is in (its viewport's `World2D`).
 
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
-const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
+## The entry claim's wire format and step lists, and the claims heard on the radio
+## (scenes/ai/perception/stack/).
+const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const SquadFollow := preload("res://scenes/ai/team/squad_follow.gd")
 ## The order kinds.
 const DEFEND := "defend_room"
@@ -75,11 +78,7 @@ const MODES := ["quiet", "stun", "frag"]
 ## The mode of the squad's own rally stack (LD24): the leader's own stack bringing its team in,
 ## which pins no mode (each member goes in as its own entry would). Not one of `MODES`: no request
 ## names it, only the rally posts it.
-const JOIN := "join"
-## The entry steps of a member still on its way into the room (it holds a place in the stack), and
-## of one standing in its slot.
-const STACKING := ["claim", "ready", "bang", "going_in"]
-const IN_SLOT := ["ready", "bang"]
+const JOIN := StackClaim.JOIN
 
 ## The follow file (px): the first follower keeps this far back along the leader's trail...
 var follow_gap := 55.0
@@ -118,12 +117,10 @@ var _steps := {}
 var _issued := 0
 ## The ids of the held stack orders a go released (LD13, D12): order id -> true.
 var _released := {}
-## Speaker instance id -> { data, at }: the latest entry claim of each member of this side heard
-## (LD18).
-var _claims := {}
-## Seconds a claim heard stays current: the NPCs' `callout_ttl` (`setup`; a claim is repeated every
-## 2 s).
-var _claim_ttl := 0.0
+## The entry claims of this side heard on the radio, the latest per member (LD18): from anywhere
+## (the side's whole view), each current for the NPCs' `callout_ttl` (`setup`; a claim is repeated
+## every `StackClaim.HEARTBEAT` s).
+var _ledger: RefCounted = ClaimLedger.new()
 ## `_stacks()` as last laid (`_stacks_now`).
 var _stacks_cache: Array = []
 ## The physics frame `_stacks_cache` was laid on (-1: lay it again on the next read).
@@ -159,7 +156,7 @@ func setup(
 	claim_ttl := 0.0,
 ) -> void:
 	_faction = faction
-	_claim_ttl = claim_ttl
+	_ledger.setup({ "faction": faction, "range": 0.0, "ttl": claim_ttl })
 	_members = roster.filter(func(m): return m is Node and is_instance_valid(m))
 	_openings = openings
 	_rooms = rooms
@@ -214,7 +211,7 @@ func follow_spot(member: Node) -> Vector2:
 ## Whether `order` (a posted order, or a member's row's `order` in `view()`) is a rally's join: a
 ## `stack` of mode `JOIN` (LD24).
 static func is_join(order: Dictionary) -> bool:
-	return String(order.get("kind", "")) == STACK and String(order.get("mode", "")) == JOIN
+	return StackClaim.is_join(order)
 
 
 ## What the squad looks like now, for observers (the order markers, the command menu, the stack
@@ -271,38 +268,16 @@ func _stacks_now() -> Array:
 ## file), a free one on the stack's side; `holder` the instance id holding it (0: none), `there` its
 ## holder standing in it, `mine` the human's, `row` its file (1 against the wall, 2 a step out).
 func _stacks() -> Array:
-	var now := GameClock.seconds()
-	var calls: Array = []
-	for id in _claims.keys():
-		var rec: Dictionary = _claims[id]
-		var speaker = rec["data"].get("speaker")
-		if (now - float(rec["at"]) > _claim_ttl
-				or not is_instance_valid(speaker)
-				or (speaker as Node).get("is_dead") == true):
-			_claims.erase(id)
-			continue
-		var c: Dictionary = (rec["data"] as Dictionary).duplicate()
-		c["age"] = now - float(rec["at"])
-		c["id"] = id
-		calls.append(c)
 	var out: Array = []
-	var done := {}
-	for c in calls:
-		var opening := str(c.get("opening", ""))
-		if opening == "" or done.has(opening):
-			continue
-		done[opening] = true
-		var team := AgentEntry.claims(opening, calls)
-		if not team.any(func(m): return STACKING.has(m["step"])):
-			continue
-		var g := _geometry(opening, str(c.get("into", "")))
+	for at: Dictionary in _ledger.openings_stacking():
+		var g := _geometry(at["opening"], at["into"])
 		if g.is_empty():
 			continue
 		out.append({
-			"opening": opening,
-			"into": str(c.get("into", "")),
+			"opening": at["opening"],
+			"into": at["into"],
 			"door": g["pos"],
-			"slots": _slots_of(g, team),
+			"slots": _slots_of(g, _ledger.claims(at["opening"])),
 		})
 	return out
 
@@ -335,7 +310,7 @@ func _slots_of(g: Dictionary, team: Array) -> Array:
 				row = int(s["row"])
 		out.append({
 			"n": n, "point": point, "holder": int(m.get("id", 0)), "held": not m.is_empty(),
-			"there": not m.is_empty() and IN_SLOT.has(m["step"]),
+			"there": not m.is_empty() and StackClaim.in_slot(m["step"]),
 			"mine": not m.is_empty() and int(m["id"]) == human_id,
 			"side": AgentEntry.side_of(g, point) if g.get("kind", "wall") != "wall" else on,
 			"row": row,
@@ -616,16 +591,15 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	if topic != &"callout":
 		return
 	var speaker = data.get("speaker")
-	if (String(data.get("entry_step", "")) != ""
-			and speaker is Node
-			and is_instance_valid(speaker)
-			and StringName(data.get("faction", &"")) == _faction
-			and not AgentGrenades.is_call(data.get("status"))):
-		# Its place in a stack (LD18).
-		_claims[speaker.get_instance_id()] = { "data": data, "at": GameClock.seconds() }
-		_stacks_at = -1
-		if speaker == _leader and _own_claim(data):
-			_rally(data)
+	_ledger.hear(data)
+	if StringName(data.get("faction", &"")) == _faction and not StackClaim.keeps_claim(data):
+		_stacks_at = -1  # A member's place in a stack (LD18), or its claim gone.
+	if (StackClaim.is_claim(data)
+			and speaker == _leader
+			and StringName(data.get("faction", &"")) == _faction):
+		var claim := StackClaim.decode(data)
+		if _own_claim(claim):
+			_rally(claim)
 	var step := String(data.get("order_step", ""))
 	if step == "" or not speaker is Node or not is_instance_valid(speaker):
 		return
@@ -643,10 +617,10 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 ## holding no order (one carrying out another order keeps it), once for that stack (a new leader
 ## rallies again). Its `abort` (it gave the stack up) cancels the joins it gave there, so their
 ## members follow it again, and a later claim there is a new stack.
-func _rally(data: Dictionary) -> void:
-	var opening := String(data.get("opening", ""))
+func _rally(claim: Dictionary) -> void:
+	var opening: String = claim["opening"]
 	var key := "%d:%s" % [_leader.get_instance_id(), opening]
-	match String(data.get("entry_step", "")):
+	match String(claim["step"]):
 		"claim":
 			if _rallied.has(key):
 				return
@@ -661,7 +635,7 @@ func _rally(data: Dictionary) -> void:
 				return
 			_post_order({
 				"leader": _leader, "faction": _faction, "to": to, "kind": STACK,
-				"opening": opening, "into": String(data.get("into", "")), "pos": door,
+				"opening": opening, "into": claim["into"], "pos": door,
 				"split": false, "mode": JOIN, "bang": false, "wait_go": false,
 			})
 		"abort":
@@ -672,14 +646,14 @@ func _rally(data: Dictionary) -> void:
 			))
 
 
-## Whether entry callout `data` is its speaker's own claim (LD24): no order behind it, not a join's
-## (`join`: a follower that took over the lead holding one, D30), and, from the human's
+## Whether `claim` (`StackClaim.decode`) is its speaker's own (LD24): no order behind it, not a
+## join's (`join`: a follower that took over the lead holding one, D30), and, from the human's
 ## `PlayerStack`, marked `own` (it stepped up to a doorway nobody stacks at); a slot the human is
 ## reserved in a stack already forming is E16's, which rallies nobody.
-func _own_claim(data: Dictionary) -> bool:
-	if str(data.get("order_id", "")) != "" or bool(data.get("join", false)):
+func _own_claim(claim: Dictionary) -> bool:
+	if claim["order_id"] != "" or claim["join"]:
 		return false
-	return not bool(data.get("human", false)) or bool(data.get("own", false))
+	return not claim["human"] or claim["own"]
 
 
 ## The centre of the house's doorway `opening`, or `Vector2.INF` when it has none by that id.
