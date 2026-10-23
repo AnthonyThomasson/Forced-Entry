@@ -70,8 +70,8 @@ coloured by `category` (`fire` red, `flank` orange, `advance` yellow, `retreat` 
 `search` green, `entry` cyan (the stack slot beside a doorway ENTER offers), `room` teal, `interaction` white,
 `grenade` olive (where a throw it weighed would burst; dropped ones included), `waypoint` magenta — `ZONE_COLORS`); each category
 is labelled once beside its first marker, so the palette reads as an in-world legend. `waypoint` covers
-the non-room go-to options the room/search groups carry (the NPC's starting post, the front entrance,
-approaching the house) — re-tagged out of `room`/`search` so these, which often sit well outside any
+the non-room go-to options the room/search groups carry (the NPC's starting post, the front entrance)
+— re-tagged out of `room`/`search` so these, which often sit well outside any
 room, don't read as misplaced room zones. Options with no location (a point-blank punch, the hostile
 picks) are skipped. These refresh each decision (the decide cadence). The overlay runs
 `PROCESS_MODE_ALWAYS` so it still redraws while the tree is paused — the spectator inspector

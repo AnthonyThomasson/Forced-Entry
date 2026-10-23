@@ -781,9 +781,9 @@ func _shots_from_a_room(ctx: Dictionary) -> bool:
 	return AgentSuspicion.shot_rooms(_v.rooms, shot).any(func(key): return key != here)
 
 
-## Which known room to search next: not-recently-searched first, then nearest; plus the entrance or
-## the house itself while outside. With doorways to enter by (`entered`: the keys of the rooms they
-## lead into), those rooms and the front entrance are left to ENTER.
+## Which known room to search next: not-recently-searched first, then nearest; plus the front
+## entrance (`entry_point`) while outside. With doorways to enter by (`entered`: the keys of the
+## rooms they lead into), those rooms and the front entrance are left to ENTER.
 func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := {}) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var here := SnapshotVocab.room_at(self_pos, rooms)
@@ -810,23 +810,13 @@ func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := 
 		return x["len"] < y["len"])
 	var options: Array = []
 	# With doorways to enter by, ENTER offers the way in.
-	if here.is_empty() and entered.is_empty():
-		if know["entry_point"] != Vector2.ZERO:
-			options.append({
-				"id": "entrance", "label": "the front entrance",
-				"desc": "the front entrance — %s route"
-					% _v.route_band(_route_len(ctx, know["entry_point"])),
-				"params": { "point": know["entry_point"] }, "tags": { "inside": false },
-			})
-		elif known_rooms.is_empty() and not rooms.is_empty():
-			var centre := _v.house_centre()
-			options.append({
-				"id": "approach", "label": "the house",
-				"desc": "head for the house and find a way in — %s route"
-					% _v.route_band(_route_len(ctx, centre)),
-				"params": { "point": NavBuilder.snap(ctx["map"], centre) },
-				"tags": { "inside": false },
-			})
+	if here.is_empty() and entered.is_empty() and know["entry_point"] != Vector2.ZERO:
+		options.append({
+			"id": "entrance", "label": "the front entrance",
+			"desc": "the front entrance — %s route"
+				% _v.route_band(_route_len(ctx, know["entry_point"])),
+			"params": { "point": know["entry_point"] }, "tags": { "inside": false },
+		})
 	for c in candidates:
 		if options.size() >= _v.max_options_per_level:
 			break

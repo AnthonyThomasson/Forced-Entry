@@ -3,13 +3,12 @@ extends GameTest
 ## with the front entrance as its `entry_point`), and a setup that declares its squads
 ## (`s.squads()`) gets them built and bound as a match's (`MatchBuilder.build_squads`). On the
 ## Terrace house (`Maps.house`, bare), an invader outside is offered "the front entrance" as where
-## to search (the option `entrance`), not "the house" (`approach`, what an invader that knows no
-## entry point is offered); with the squads declared, its partner follows it (`Squad.follows`) and
-## walks after it (a FOLLOW walk, `docs/leadership.md` LD19).
+## to search (the option `entrance`, at its entry point); with the squads declared, its partner
+## follows it (`Squad.follows`) and walks after it (a FOLLOW walk, `docs/leadership.md` LD19).
 ##
-## Premise: tactical entry is off for both (`ai.entry`). The entrance and the house are SEARCH
-## options offered only while ENTER has no doorway to offer, and outside the house ENTER always
-## offers its outer doorways while entry is on.
+## Premise: tactical entry is off for both (`ai.entry`). The entrance is a SEARCH option offered
+## only while ENTER has no doorway to offer, and outside the house ENTER always offers its outer
+## doorways while entry is on.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
@@ -59,7 +58,6 @@ func run(t: TestContext) -> void:
 		6.0,
 	)
 	t.check(_offered(t, "entrance"), "the invader is offered the front entrance (entrance)")
-	t.check(not _offered(t, "approach"), "the invader is not offered the house (approach)")
 	t.check(followed[0], "the partner follows its leader (a FOLLOW leaf)")
 	t.check(
 		walked[0] >= WALKED,

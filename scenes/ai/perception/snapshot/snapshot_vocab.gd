@@ -233,14 +233,6 @@ func is_inside(p: Vector2) -> bool:
 	return not room_at(p, rooms).is_empty()
 
 
-## The centre of the bounding box enclosing all rooms — "the house" for an NPC that knows no room.
-func house_centre() -> Vector2:
-	var bounds := (rooms[0]["rect"] as Rect2)
-	for room in rooms:
-		bounds = bounds.merge(room["rect"])
-	return bounds.get_center()
-
-
 ## The room dict whose rect contains `p`, or empty when `p` is outside every room. Static: the
 ## perception reads rooms the same way.
 static func room_at(p: Vector2, list: Array) -> Dictionary:

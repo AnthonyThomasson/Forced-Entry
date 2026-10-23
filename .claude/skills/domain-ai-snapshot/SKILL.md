@@ -20,7 +20,7 @@ Files:
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
   `max_contacts_in_state`, `search_memory_ttl`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
-  wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside, house_centre`, static `room_at`, `room_key_at`,
+  wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`, static `room_at`, `room_key_at`,
   `room_by_key`).
   The snapshot reads its tuning here only; adding a tunable is two declarations (the controller's export, the authoring surface, and
   the vocabulary's field, with no default) and one line in `AgentPerception.apply_config(cfg)` (`_snapshot.vocab.x = cfg.x`).
@@ -92,7 +92,7 @@ lives in `agent_snapshot.gd`.
   (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). `entries` (the doorways
   ENTER offers, `entry_enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
   nearest first; the place is the NPC's free stack slot on the side it would stack on (the team's, or its own when the way there crosses the doorway's view, E19), the answer its entry's `begin` will give: the doorway's `DoorStack` off the perception's `ClaimLedger` (`_ledger.stack(id, g)`, its claim chain `DoorStack.claim` with its own claim, `{ id, slot: 0, frame: GameClock.frame(), pos }`, and the side `AgentEntry.stack_side_from` gives from where it stands, as every member claims; a slot a dead end does not hold, `held` false, offers no option, E20, nor does a slot laid nowhere, its point `INF`), `params` carry `opening`, `into`, `slot`,
-  `side`; the summary is the nearest one's desc), `search_rooms` (+ front entrance / approach the house while outside;
+  `side`; the summary is the nearest one's desc), `search_rooms` (+ the front entrance while outside, when the NPC has one, `entry_point`;
   with entries, the rooms they lead into and the entrance are left to ENTER), `explore` (unknown rooms by direction
   only, minus those an entry leads into),
   `interactions` (deduped by label, uncapped), `rooms` (uncapped). The other groups are capped at `max_options_per_level`

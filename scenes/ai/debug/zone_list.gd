@@ -4,11 +4,10 @@ extends RefCounted
 ## weighed, as a world point with its `label` + `desc` and the kind of zone it is. A pure transform
 ## of data the orchestrator retains from the last snapshot; it touches no node.
 
-## Non-room go-to options the room/search groups carry: the NPC's starting post, the front entrance,
-## and approaching the house. They aren't rooms (and an outside NPC's often sit well outside one),
-## so the overlay tags them `waypoint` instead of `room`/`search` rather than letting them read as
-## rooms.
-const WAYPOINT_IDS := ["post", "entrance", "approach"]
+## Non-room go-to options the room/search groups carry: the NPC's starting post and the front
+## entrance. They aren't rooms (and an outside NPC's often sit well outside one), so the overlay
+## tags them `waypoint` instead of `room`/`search` rather than letting them read as rooms.
+const WAYPOINT_IDS := ["post", "entrance"]
 
 
 ## The tactical navigation ZONES in a snapshot's `options` — every candidate position the NPC's
@@ -17,8 +16,8 @@ const WAYPOINT_IDS := ["post", "entrance", "approach"]
 ## `lead` / `search` / `entry` (the stack slot beside a doorway to enter by) / `room` /
 ## `interaction` / `grenade` (where a grenade would burst, every throw weighed, dropped ones
 ## included, with `from`: where it would be thrown from, the NPC's own spot or a throw spot), plus
-## `waypoint` for the non-room go-to points — your starting post, the front entrance, approaching
-## the house — which the room/search groups carry but which aren't rooms and often sit outside one).
+## `waypoint` for the non-room go-to points — your starting post, the front entrance — which the
+## room/search groups carry but which aren't rooms and often sit outside one).
 ## Empty until the first decision. Options with no world location (a point-blank punch, the hostile
 ## picks) are skipped.
 static func from_options(options: Dictionary) -> Array:

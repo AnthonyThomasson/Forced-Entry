@@ -21,7 +21,7 @@ const ZONE_COLORS := {
 	&"entry": Color(0.2, 0.9, 0.9),      # cyan — a stack slot beside a doorway to enter a room by
 	&"room": Color(0.4, 0.8, 0.8),       # teal — a known room to go to
 	&"interaction": Color(0.9, 0.9, 0.9), # white — an object to use
-	# magenta — a non-room go-to (starting post / entrance / approach)
+	# magenta — a non-room go-to (starting post / entrance)
 	&"waypoint": Color(0.9, 0.3, 0.8),
 	# olive — where a grenade would burst (thrown from the NPC's spot or a throw spot)
 	&"grenade": Color(0.75, 0.75, 0.3),
