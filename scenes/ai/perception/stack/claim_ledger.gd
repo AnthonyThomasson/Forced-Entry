@@ -100,7 +100,8 @@ func stack(opening: String, g := {}) -> RefCounted:
 
 
 ## The doorways a stack is forming at (`{ opening, into }`, in the order their claims were first
-## heard): those with a live claim at a `STACKING` step.
+## heard): those with a live claim at a `STACKING` step, `into` the room the lowest slot's of those
+## goes into (the stack forming, not a claim left from an earlier entry through the doorway).
 func openings_stacking() -> Array:
 	_refresh()  # Before the loop: it drops lapsed claims from `_heard`.
 	var out: Array = []
@@ -110,9 +111,10 @@ func openings_stacking() -> Array:
 		if opening == "" or seen.has(opening):
 			continue
 		seen[opening] = true
-		var team := claims(opening)
-		if team.any(func(m): return StackClaim.stacking(m["step"])):
-			out.append({ "opening": opening, "into": team[0]["into"] })
+		for m in claims(opening):
+			if StackClaim.stacking(m["step"]):
+				out.append({ "opening": opening, "into": m["into"] })
+				break
 	return out
 
 

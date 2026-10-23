@@ -195,6 +195,26 @@ func test_a_doorway_is_stacking_while_a_member_is_on_its_bang() -> void:
 	assert_array(ledger.openings_stacking()).is_equal([{ "opening": "o_2", "into": "hall" }])
 
 
+func test_a_stack_forming_goes_into_the_room_its_stacking_claims_name() -> void:
+	# E16, LD18: the room a doorway's stack goes into is the one the stack forming there names, not
+	# one a member left from an earlier entry through it still holds (a `cover` on a lower slot).
+	var earlier := _speaker()
+	var mate := _speaker()
+	var ledger := _ledger()
+	ledger.hear(_callout(earlier, {
+		"opening": "o_2", "into": "kitchen", "slot": 1, "side": 1, "entry_step": "cover",
+	}))
+	assert_array(ledger.openings_stacking()).override_failure_message(
+		"premise: a doorway with nobody stacking at it is not one a stack forms at",
+	).is_empty()
+	ledger.hear(_callout(mate, {
+		"opening": "o_2", "into": "hall", "slot": 2, "side": 1, "entry_step": "claim",
+	}))
+	assert_array(ledger.openings_stacking()).override_failure_message(
+		"the stack forming goes into the hall: %s" % str(ledger.openings_stacking()),
+	).is_equal([{ "opening": "o_2", "into": "hall" }])
+
+
 func test_one_join_rule_reads_orders_leaf_params_and_claims() -> void:
 	# LD24: a rally's join is a `stack` order of mode `join`; its leaf params and its claims say
 	# `join`.
