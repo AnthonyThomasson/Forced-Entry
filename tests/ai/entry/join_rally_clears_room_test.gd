@@ -33,12 +33,11 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2 })
 	s.actor(&"sergeant", &"invader", Vector2(1000, 100), { "rank": 1 })
 	s.actor(&"trooper", &"invader", Vector2(1000, 250), { "rank": 0 })
+	s.squads()
 
 
 func run(t: TestContext) -> void:
-	var squad := Follow.team(t, [&"lead", &"sergeant", &"trooper"])
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
+	var squad := t.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
 	var nodes: Array = [lead] + members

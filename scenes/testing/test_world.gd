@@ -25,6 +25,10 @@ var openings: Array = []
 ## The match `TestSetup.match` declared, populated over this world (`MatchBuilder.populate`'s
 ## handle); {} when none.
 var match_handle: Dictionary = {}
+## The squads `TestSetup.squads` declared, by faction (`MatchBuilder.build_squads`), and the human
+## leader's stack radio (`MatchBuilder.bind_player`), or null; or the declared match's own.
+var squads: Dictionary = {}
+var player_stack: Node = null
 ## The placed actors, objects and vehicles by id.
 var actors: Dictionary = {}
 var objects: Dictionary = {}
@@ -94,7 +98,33 @@ func build(setup: TestSetup) -> void:
 		match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
 		for npc in match_handle["combatants"]:
 			OVERLAY_REGISTRY.apply(npc, _overlay_flags)
+		squads = match_handle["squads"]
+		player_stack = match_handle["player_stack"]
+		if setup.squads_spec is Dictionary:
+			push_error("TestWorld: a setup declares its squads or a match, not both")
+	elif setup.squads_spec is Dictionary:
+		_build_squads(setup)
 	_apply_world_switches(setup.switches)
+
+
+## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
+## declaration order, built and bound by Main's own rule (`MatchBuilder.build_squads`), the human
+## leader first handed its stack radio (`MatchBuilder.bind_player`).
+func _build_squads(setup: TestSetup) -> void:
+	var members: Array = []
+	for a in setup.actors:
+		if is_instance_valid(actors.get(a["id"])):
+			members.append(actors[a["id"]])
+	var human := {}
+	var human_id: Variant = (setup.squads_spec as Dictionary).get("human")
+	if human_id != null:
+		var node: Node = actors.get(StringName(human_id))
+		if node == null:
+			push_error("TestWorld: squads' human '%s' is no actor" % human_id)
+		else:
+			human = { "node": node, "lead": true }
+			player_stack = MatchBuilder.bind_player(node, rooms, openings)
+	squads = MatchBuilder.build_squads(self, members, openings, rooms, human, player_stack)
 
 
 ## Undo every static override (call after freeing the world, or before rebuilding).
@@ -228,8 +258,14 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 		for prop in children[child_path]:
 			child.set(prop, children[child_path][prop])
 	OVERLAY_REGISTRY.apply(character, _overlay_flags)
-	# The AI learns the house's rooms and doorways by Main's own rule, before it joins the tree.
-	MatchBuilder.bind_npc(character, rooms, openings)
+	# The AI learns the house's rooms, its doorways and, for an invader, the front entrance by
+	# Main's own rule, before it joins the tree.
+	MatchBuilder.bind_npc(
+		character,
+		rooms,
+		openings,
+		MatchBuilder.entry_point_for(character.get("faction"), openings),
+	)
 	# Positioned before it joins the tree: a body added at the origin and moved afterwards launches
 	# whatever stands there (the same trap `match_spawner.gd` avoids).
 	character.position = to_local(a["position"])

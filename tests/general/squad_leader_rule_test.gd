@@ -2,9 +2,11 @@ extends GameTest
 ## LD3 (`docs/leadership.md`): one squad per faction, with a leader. The invaders' leader is the
 ## highest `rank`, then the first in spawn order; the defenders' leader is the first spawned; when
 ## the human leads (`setup`'s `leader`), the leader is the human. The squad
-## (`scenes/ai/team/squad.gd`) is built the way Main builds it:
-## `setup(faction, members, openings, rooms, leader)` over the characters in spawn order. Plain
+## (`scenes/ai/team/squad.gd`) is built and bound the way Main builds it
+## (`MatchBuilder.build_squads` through `Order.squad`) over the characters in spawn order. Plain
 ## puppets stand in for the members: the rule reads only their `rank` and the order they came in.
+## The squads are built in the run, not declared (`s.squads`): the test builds two invader squads
+## over the same members, led and unled, which no match does.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
 

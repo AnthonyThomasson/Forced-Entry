@@ -49,12 +49,11 @@ func configure(s: TestSetup) -> void:
 	Stack.human(s, &"me", Vector2(900, -80), { "aim_point": Vector2(700, -80) })
 	s.actor(&"m1", &"invader", Vector2(960, -40))
 	s.actor(&"m2", &"invader", Vector2(975, -120))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Follow.team(t, [&"me", &"m1", &"m2"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
+	var squad := t.squad(&"invader")
 	var me := t.actor(&"me")
 	if not t.require(squad.leader() == me, "the human leads (premise: Lead the team)"):
 		return

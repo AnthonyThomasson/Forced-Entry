@@ -45,20 +45,17 @@ func configure(s: TestSetup) -> void:
 	# The defender stands outside the front door, so its way to the living room is its own (front
 	# door, hall) and never the back door the human rallies at.
 	s.actor(&"d", &"invader", Maps.DOOR_FRONT + Vector2(-90, 0))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var free: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	var defender := t.actor(&"d")
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var squad := Follow.team(t, [&"me", &"m1", &"m2", &"d"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
-	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(
 			stack.get("squad") == squad and squad.leader() == me,
 			"premise: the human's stack is handed its squad, and the human leads (Lead the team)",

@@ -3,9 +3,11 @@ extends RefCounted
 ## (`tests/ai/entry/stack_reach_*`, `docs/leadership.md` D4 and D20; not a test itself):
 ## `const Reach := preload("res://tests/_ai/reach_probe.gd")`.
 ##
-## A leader (a puppet standing in for the human, out of the way) orders a stack on one doorway
-## through `Squad.issue`, held for its go (LD13) so the stack forms and holds in its slots instead
-## of going in, and the rest of the AI is on; Von is down (scripted), so what each member does is
+## A leader (a puppet standing in for the human, out of the way, its squad built and bound as a
+## match's: the test declares `s.squads({ "human": <the leader> })`) orders a stack on one doorway
+## through `Squad.issue`, on the first frame (before its members set off to follow it, LD19), held
+## for its go (LD13) so the stack forms and holds in its slots instead of going in, and the rest of
+## the AI is on; Von is down (scripted), so what each member does is
 ## the order's. Every member must, by its own measure:
 ## - end in the slot it claimed: its running entry is through the order's doorway, in the slot of
 ##   its latest `claim` on the radio, in its stack phase, within `SLOT_REACH` of that slot's point
@@ -91,9 +93,9 @@ static func click(f: Dictionary, side: int) -> Vector2:
 
 
 ## Order the members `ids` (invader actors) to stack on frame `f`, starting on side `side`, held for
-## the go, through the squad led by the puppet `lead`; watch them form the stack; check each member
-## as above (D4, D20). `starts` names each member's starting place for the messages
-## (`{ id: "near along the wall" }`).
+## the go, through the squad led by the puppet `lead` (the setup's `s.squads`); watch them form the
+## stack; check each member as above (D4, D20). `starts` names each member's starting place for the
+## messages (`{ id: "near along the wall" }`).
 static func run(
 	t: TestContext,
 	f: Dictionary,
@@ -104,10 +106,12 @@ static func run(
 ) -> void:
 	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
 		return
-	var squad := Order.raid(t, ids, lead)
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
+	var squad := t.squad(&"invader")
+	if not t.require(
+			squad != null and squad.leader() == t.actor(lead),
+			"set-up: the squad is declared (s.squads) and led by %s" % lead,
+	):
 		return
-	await t.seconds(0.3)
 	var members: Array = ids.map(func(id): return t.actor(id))
 	var start := {}
 	for id in ids:

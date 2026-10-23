@@ -38,13 +38,12 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"b", &"invader", Vector2(985, 110))
 	s.actor(&"c", &"invader", Vector2(1010, 20))
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var door: String = Entry.BACK["id"]
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

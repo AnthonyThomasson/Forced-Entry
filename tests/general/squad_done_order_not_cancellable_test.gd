@@ -29,13 +29,14 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"t1", &"puppet", Vector2(200, 300), { "faction": &"invader" })
 	s.actor(&"t2", &"puppet", Vector2(300, 300), { "faction": &"invader" })
 	s.actor(&"me", &"puppet", Vector2(700, 400), { "faction": &"invader" })
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var me := t.actor(&"me")
-	var squad := Order.squad(t, &"invader", [t1, t2, me], me)
+	var squad := t.squad(&"invader")
 	if not t.require(
 			squad != null and squad.has_method("view"),
 			"the squad is built (%s)" % Order.SQUAD_SCRIPT,

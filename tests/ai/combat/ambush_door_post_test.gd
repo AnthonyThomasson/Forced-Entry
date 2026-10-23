@@ -79,13 +79,12 @@ func configure(s: TestSetup) -> void:
 		HALL_START,
 		{ "faction": &"invader", "max_health": 1_000_000.0 },
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), a], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	await t.seconds(0.5)
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [a], "pos": CLICK })
 	if not t.require(

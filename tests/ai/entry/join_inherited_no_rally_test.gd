@@ -1,8 +1,8 @@
 extends GameTest
 ## LD24 and D30: a join's claims are never its holder's own. A puppet stands in for the human leader
 ## of a squad of two invader NPCs, built and bound the way Main builds it with "Lead the team" on
-## (the human handed to `Squad.setup` as `human`, its `PlayerStack` attached as
-## `MatchBuilder.bind_player` attaches it and handed the squad by `MatchBuilder.bind_squad`), over
+## (`s.squads` with the human, `MatchBuilder.build_squads`: its `PlayerStack` attached by
+## `MatchBuilder.bind_player` and handed the squad by `MatchBuilder.bind_squad`), over
 ## the bare Terrace house. The human orders the trooper, outside the front door, to defend the
 ## living room, then walks up beside the back door: its own claim rallies the sergeant, far off in
 ## the garden north-west of the house (a `join`). Once the sergeant has claimed its slot there, and
@@ -56,20 +56,17 @@ func configure(s: TestSetup) -> void:
 		Maps.DOOR_FRONT + Vector2(-90, 0),
 		{ "rank": 0, "max_health": 1_000_000.0 },
 	)
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var sergeant := t.actor(&"sergeant")
 	var trooper := t.actor(&"trooper")
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var squad := Follow.team(t, [&"me", &"sergeant", &"trooper"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
-	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(squad.leader() == me, "premise: the human leads (Lead the team)"):
 		return
 	var defend := Order.issue(

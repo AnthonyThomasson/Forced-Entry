@@ -5,14 +5,19 @@ extends GameTest
 ## from the point's own arrival: a point that has stood in its slot far longer than that still waits
 ## for a joiner that reaches its slot within the grace of the last ordered member.
 ##
-## At the Terrace house's (bare) back door, north of it: the leader (a puppet) orders `point`
-## (beside the door) and `far` (held still in the garden, `speed` 0) to stack, quiet, go-when-ready.
-## The point stands in its slot about 15 s; then `far` is let go, and only then does `joiner`,
-## unordered, take the quiet ENTER on the same door on its own (scripted Von, held back until then)
-## and claim behind them, from the garden north of the living room, so it reaches its slot about 2 s
-## after `far`: well within 6 s of the last ordered member, long after the point's own 6 s, and its
-## own approach well under `entry_approach_time` (it never claims and then stands still). The point
-## may slice the pie meanwhile, but must not cross (radio `going_in`) before the joiner is ready.
+## The squad is built and bound as a match's (`s.squads`, a puppet standing in for the human
+## leader). At the Terrace house's (bare) back door, north of it: the human orders `point` (beside
+## the door) and `far` (held still in the garden, `speed` 0) to stack, quiet, go-when-ready, and is
+## killed at once. `joiner`, the sergeant, leads from then on (LD4), deciding on its own, and the
+## stack order is carried to its end (LD26). The point stands in its slot about 15 s; then `far` is
+## let go, and only then does `joiner`, unordered, take the quiet ENTER on the same door on its own
+## (scripted Von, held back until then) and claim behind them, from the garden north of the living
+## room, so it reaches its slot about 2 s after `far`: well within 6 s of the last ordered member,
+## long after the point's own 6 s, and its own approach well under `entry_approach_time` (it never
+## claims and then stands still). Its claim is an AI leader's own, which rallies only members
+## holding no order (LD24: nobody here) and holds up no ordered stack (only the human leader is
+## waited for, D22). The point may slice the pie meanwhile, but must not cross (radio `going_in`)
+## before the joiner is ready.
 ##
 ## Scripted Von (SEARCH > ENTER > the back door: the joiner's own choice; the ordered members' order
 ## level asks nothing), every ask failing (Von down: the joiner holds steady) until `far` is let go.
@@ -51,16 +56,15 @@ func configure(s: TestSetup) -> void:
 	Entry.rules(s, Entry.BACK)
 	Entry.npc(s, &"point", Vector2(960, 60), 0.4)
 	Entry.npc(s, &"far", Vector2(1150, -150), 0.45, {}, { "speed": 0.0 })
-	Entry.npc(s, &"joiner", JOINER_START, 0.7)
+	Entry.npc(s, &"joiner", JOINER_START, 0.7, {}, { "rank": 1 })
 	s.set_static(DecisionStub, &"fail", true)
 	s.actor(&"lead", &"puppet", Vector2(1300, 700), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var door: Dictionary = Entry.BACK
-	var squad := Order.raid(t, ORDERED + [&"joiner"], &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	var order := Order.stack_order(
 		squad,
 		ORDERED.map(func(id): return t.actor(id)),
@@ -69,6 +73,13 @@ func run(t: TestContext) -> void:
 		false,
 	)
 	if not t.require(not order.is_empty(), "the squad posts the stack order (issue)"):
+		return
+	t.actor(&"lead").take_damage(1.0e9)
+	if not t.require(
+			squad.leader() == t.actor(&"joiner"),
+			"set-up: the human leader is killed and the sergeant, the joiner, leads (LD4; %s)"
+				% str(squad.leader()),
+	):
 		return
 	var claimed := func():
 		return ORDERED.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF)

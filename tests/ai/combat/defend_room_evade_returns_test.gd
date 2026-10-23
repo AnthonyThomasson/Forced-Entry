@@ -50,14 +50,13 @@ func configure(s: TestSetup) -> void:
 		THROWER_AT,
 		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": LANDING },
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), d], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "box_room" })
 	if not t.require(
 			await t.until(func(): return Order.on_order(b) and Order.primitive(b) == "defend", 5.0),

@@ -43,19 +43,16 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"b", &"invader", Vector2(1010, 20), { "max_health": 1_000_000.0 })
 	s.actor(&"f", &"invader", Vector2(1070, 160), { "max_health": 1_000_000.0 })
 	Stack.human(s, &"me", Vector2(1000, 120))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var follower := t.actor(&"f")
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var squad := Follow.team(t, [&"me", &"a", &"b", &"f"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
-	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(
 			squad.leader() == me and squad.follows(follower),
 			"premise: the human leads, and f follows it",

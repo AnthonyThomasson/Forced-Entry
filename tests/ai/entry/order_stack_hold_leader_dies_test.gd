@@ -7,9 +7,8 @@ extends GameTest
 ## human, to stack on the Terrace house's back door from its north side. They form and hold; 5 s
 ## later the leader is killed (`take_damage`), the squad passes the lead on, and the stack goes in
 ## on its own, with no go from anyone.
-##
-## The squad is built the way Main builds it (`Squad.setup`, `MatchBuilder.bind_squad`). Scripted
-## Von, down: the members' own decisions hold steady, so what they do is the order's alone.
+## The squad is built and bound the way Main builds it (`s.squads`, `MatchBuilder.build_squads`).
+## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -38,18 +37,12 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"a", &"invader", Vector2(960, 60))
 	s.actor(&"b", &"invader", Vector2(985, 110))
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var door: String = Entry.BACK["id"]
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
-	if not t.require(
-			Order.bind(IDS.map(func(id): return t.actor(id)), squad),
-			"each NPC is handed its squad (MatchBuilder.bind_squad)",
-	):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

@@ -1,8 +1,8 @@
 extends GameTest
 ## LD27: a Main-built invader team spawns in a group round one point outside the house, beside its
-## front door, drawn from the house seed (its members packed round it at `spawn_clearance`), not
-## spread round the house; with a human invader in the match, round the human's spot. Defenders keep
-## spawning in random rooms.
+## front door on a side drawn from the house seed (its members packed round it at
+## `spawn_clearance`), not spread round the house; with a human invader in the match, round the
+## human's spot. Defenders keep spawning in random rooms.
 ##
 ## Main runs whole, `_ready` to its match, as a scripted restart starts it (the Engine `skip_setup`
 ## meta, set while it enters the tree and dropped after), in a world of its own (a `SubViewport`

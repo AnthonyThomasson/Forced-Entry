@@ -1,6 +1,6 @@
 extends GameTest
 ## LD19 to LD21: members follow their leader. Three invaders are a squad, bound the way Main binds
-## one (`Squad.setup`, `MatchBuilder.bind_squad`); the first, ranked the unit's lead, leads. The
+## one (`s.squads`, `MatchBuilder.build_squads`); the first, ranked the unit's lead, leads. The
 ## leader decides through Von as ever and searches the Terrace house from the back garden, walking
 ## into the rooms (it makes no tactical entry of its own); the two others pick no goal of their own:
 ## they follow it (the root leaf FOLLOW, taken without asking Von) in a file on its trail, through
@@ -44,12 +44,11 @@ func configure(s: TestSetup) -> void:
 	s.set_props(&"lead", "GoalController", { "entry_enabled": false })
 	s.actor(&"m1", &"invader", Vector2(975, 75), { "rank": 1 })
 	s.actor(&"m2", &"invader", Vector2(985, 125), { "rank": 0 })
+	s.squads()
 
 
 func run(t: TestContext) -> void:
-	var squad := Follow.team(t, IDS)
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
+	var squad := t.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	if not t.require(squad.leader() == lead, "the lead leads (premise: the rank rule)"):

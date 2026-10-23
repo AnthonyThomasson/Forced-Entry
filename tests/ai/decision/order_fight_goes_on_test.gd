@@ -10,7 +10,10 @@ extends GameTest
 ##
 ## Scripted Von (an ENGAGE, then the first spot offered). Premises: neither side can be killed; the
 ## intruder is an invader puppet that stands still and never fires (the defender's own shots keep it
-## engaged); the order is given through the squad, as Main wires the leader's command menu to it.
+## engaged); the squad is built and bound as a match's (`s.squads`, a puppet standing in for the
+## human leader, still at the hall's north wall ahead of the defender, so the spot it fights from is
+## within its leash, LD23), and the order is given through it, as Main wires the leader's command
+## menu to it.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
 const HALL := Rect2(0, 0, 900, 450)
@@ -18,6 +21,9 @@ const DEN := Rect2(0, 450, 300, 200)
 const DEN_DOOR := Vector2(150, 450)
 const D_AT := Vector2(200, 220)
 const FOE_AT := Vector2(760, 220)
+## Where the human leader stands: by the hall's north wall, so the defender's spot north of the
+## intruder (`fire_north`, the first offered) lies within its leash, and the walk there is long.
+const LEAD_AT := Vector2(520, 40)
 ## How long (physics frames) each scripted answer is held back once the fight is under way: the wait
 ## for the decision made with the order.
 const LATENCY_FRAMES := 150
@@ -52,7 +58,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(
 		&"lead",
 		&"puppet",
-		Vector2(60, 600),
+		LEAD_AT,
 		{ "faction": &"household", "max_health": 1_000_000.0 },
 	)
 	s.actor(
@@ -70,14 +76,13 @@ func configure(s: TestSetup) -> void:
 		},
 		Vector2(290, 220),
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), d], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	var fighting := func(): return Order.primitive(b) == "engage" and _shots(t, d, 0.0) >= 2
 	if not t.require(
 			await t.until(fighting, 12.0),

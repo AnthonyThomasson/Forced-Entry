@@ -8,7 +8,10 @@ extends GameTest
 ##
 ## Scripted Von (the first option offered; the order level asks nothing). Premise switches:
 ## hostility on sight and on trespass are off, so the two sides in one house leave each other alone
-## (each order is the mechanism under test, not a fight).
+## (each order is the mechanism under test, not a fight). Each squad is built and bound the way Main
+## builds a side's (`MatchBuilder.build_squads` through `Order.squad`), each led by a puppet
+## standing in for a human leader: built in the run, not declared (`s.squads`), since a match has at
+## most one human.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")

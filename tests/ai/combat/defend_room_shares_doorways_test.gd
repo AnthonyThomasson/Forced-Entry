@@ -43,17 +43,11 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"a", &"defender", Vector2(420, 415))
 	s.actor(&"b", &"defender", Vector2(560, 415))
 	s.actor(&"lead", &"puppet", Vector2(760, 430), { "faction": &"household" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Order.squad(
-		t,
-		&"household",
-		[t.actor(&"lead"), t.actor(&"a"), t.actor(&"b")],
-		t.actor(&"lead"),
-	)
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	await t.seconds(0.5)
 	Order.issue(
 		squad,

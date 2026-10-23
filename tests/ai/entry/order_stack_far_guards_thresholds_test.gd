@@ -9,8 +9,10 @@ extends GameTest
 ## the order and goes in.
 ##
 ## Scripted Von, down: the member's own decisions hold steady, so what it does is the order's alone
-## (the guard's detour asks Von nothing). The order comes from the squad, as the leader's menu sends
-## it.
+## (the guard's detour asks Von nothing). The squad is built and bound as a match's (`s.squads`, a
+## puppet standing in for the human leader, in the garden across the house), and the order comes
+## from it, as the leader's menu sends it, on the first frame: before the invader has set off to
+## follow its leader.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -30,6 +32,8 @@ const ORDERED := "door_690_360"
 ## The leader's click: in the hall, east of the kitchen doorway along its wall (D3: the stack forms
 ## in the hall, into the kitchen).
 const CLICK := Vector2(760, 395)
+## Where the human leader stands: across the house, in the garden south-west of it.
+const LEAD_AT := Vector2(-200, 600)
 
 
 func describe() -> Dictionary:
@@ -49,14 +53,12 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"a", &"invader", Vector2(70, 290), { "max_health": 1_000_000.0 })
-	s.actor(&"lead", &"puppet", Vector2(-200, 600), { "faction": &"invader" })
+	s.actor(&"lead", &"puppet", LEAD_AT, { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Order.raid(t, [&"a"], &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
-	await t.seconds(0.3)
+	var squad := t.squad(&"invader")
 	var order := Order.issue(
 		squad,
 		{ "kind": Order.STACK, "to": [t.actor(&"a")], "pos": CLICK, "bang": false },

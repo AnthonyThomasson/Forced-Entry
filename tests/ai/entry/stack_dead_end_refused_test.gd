@@ -83,6 +83,7 @@ func configure(s: TestSetup) -> void:
 		Vector2(40, 150),
 		{ "faction": &"invader", "max_health": 1_000_000.0 },
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
@@ -116,9 +117,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var expect := mini(IDS.size(), holds)
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var members: Array = IDS.map(func(id): return t.actor(id))
 	var start := {}

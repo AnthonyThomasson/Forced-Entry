@@ -244,6 +244,13 @@ static func front_entrance(openings: Array) -> Vector2:
 	return Vector2.ZERO
 
 
+## Where an NPC of `faction` heads first while outside every room (`bind_npc`'s `entry_point`): an
+## invader the front entrance among `openings` (`front_entrance`), a defender nowhere (ZERO), as
+## Main places them.
+static func entry_point_for(faction: Variant, openings: Array) -> Vector2:
+	return Vector2.ZERO if faction == DEFENDER_FACTION else front_entrance(openings)
+
+
 ## Arm `characters` (the match's combatants, the human included) with their side's loadout from
 ## `match_spec` (`defenders` / `invaders` `loadout`, by each one's faction) through
 ## `LoadoutConfig.apply`: the chosen gun with its magazine and spares, or for "random" one gun drawn

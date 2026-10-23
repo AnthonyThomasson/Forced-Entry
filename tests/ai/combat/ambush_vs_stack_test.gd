@@ -56,14 +56,13 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"b", &"invader", Vector2(200, 445))
 	s.actor(&"d", &"defender", Vector2(430, 220))
 	s.actor(&"lead", &"puppet", Vector2(810, 40), { "faction": &"household" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var invaders: Array = IDS.map(func(id): return t.actor(id))
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), d], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [d], "pos": CLICK })
 	if not t.require(
 			not order.is_empty(),

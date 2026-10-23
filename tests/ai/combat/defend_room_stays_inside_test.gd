@@ -54,14 +54,13 @@ func configure(s: TestSetup) -> void:
 			"aim_point": Vector2(700, 0),
 		},
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), d], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "kitchen" })
 	if not t.require(
 			await t.until(func(): return Order.on_order(b), 5.0),

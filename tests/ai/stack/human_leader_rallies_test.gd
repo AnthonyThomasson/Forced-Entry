@@ -37,19 +37,16 @@ func configure(s: TestSetup) -> void:
 	Stack.human(s, &"me", Vector2(930, 40), { "aim_point": STEP_UP })
 	s.actor(&"m1", &"invader", Vector2(980, 0))
 	s.actor(&"m2", &"invader", Vector2(990, 80))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var squad := Follow.team(t, [&"me", &"m1", &"m2"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
-	# (As Main binds the invaders' human leader: its own claims rally the team, D29.)
-	MatchBuilder.bind_squad(me, squad, stack, true)
 	if not t.require(
 			stack.get("squad") == squad and squad.leader() == me,
 			"premise: the human's stack is handed its squad, and the human leads (Lead the team)",

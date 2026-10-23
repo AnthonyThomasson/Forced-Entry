@@ -38,6 +38,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
@@ -46,9 +47,7 @@ func run(t: TestContext) -> void:
 			"both invaders carry a stun grenade (Character.item_count(7))",
 	):
 		return
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
 	await t.seconds(0.3)
 	var order := Order.issue(

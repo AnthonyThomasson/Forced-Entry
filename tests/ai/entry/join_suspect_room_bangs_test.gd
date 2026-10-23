@@ -37,6 +37,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2 })
 	s.actor(&"sergeant", &"invader", Vector2(1000, 100), { "rank": 1 })
 	s.actor(&"trooper", &"invader", Vector2(1000, 250), { "rank": 0 })
+	s.squads()
 
 
 func run(t: TestContext) -> void:
@@ -46,9 +47,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(lead, 0, 0)
 	Probe.arm(members[0], 1, 0)
 	Probe.arm(members[1], 0, 0)
-	var squad := Follow.team(t, [&"lead", &"sergeant", &"trooper"])
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
+	var squad := t.squad(&"invader")
 	if not t.require(
 			Probe.count(members[0], Probe.STUN) == 1 and Probe.count(lead, Probe.STUN) == 0,
 			"premise: only the sergeant carries a stun (Character.item_count(7))",

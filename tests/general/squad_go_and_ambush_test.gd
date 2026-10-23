@@ -41,6 +41,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"t2", &"puppet", Vector2(1000, 420), { "faction": &"invader" })
 	s.actor(&"t3", &"puppet", Vector2(1040, 520), { "faction": &"invader" })
 	s.actor(&"me", &"puppet", Vector2(1100, 600), { "faction": &"invader" })
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
@@ -48,7 +49,7 @@ func run(t: TestContext) -> void:
 	var t2 := t.actor(&"t2")
 	var t3 := t.actor(&"t3")
 	var me := t.actor(&"me")
-	var squad := Order.raid(t, [&"t1", &"t2", &"t3"], &"me")
+	var squad := t.squad(&"invader")
 	if not t.require(
 			squad != null and squad.has_method("issue") and squad.has_method("resolve"),
 			"the squad is built (%s)" % Order.SQUAD_SCRIPT,

@@ -6,14 +6,14 @@ extends GameTest
 ##
 ## Two invaders are ordered (quiet, hold for go) to stack on the Terrace house's back door from its
 ## north side. The human leader, a puppet with the invader faction given the stack radio the way
-## Main gives it (`PlayerStack.attach`), stands beside the stack and is reserved a slot, walks to it
-## and is ready. It holds the slot behind theirs (3), not slot 1: the AIs claim their slots as they
-## begin, and `PlayerStack` reserves the first free slot only once an allied team is stacking, so a
-## human always joins behind them. The held stack does not go for 10 s; then the human walks in
-## through the door, and both AIs go in after it. The squad reads the go off the claims as the
-## members do: while the stack holds, `Squad.view()` says each member's order is `held` and the
-## order markers (`OrderMarkers`, as Main builds them for a human leader) label it "hold"; once the
-## human steps into the doorway, neither says so any more.
+## Main gives it (`MatchBuilder.bind_player`, through `s.squads`), stands beside the stack and is
+## reserved a slot, walks to it and is ready. It holds the slot behind theirs (3), not slot 1: the
+## AIs claim their slots as they begin, and `PlayerStack` reserves the first free slot only once an
+## allied team is stacking, so a human always joins behind them. The held stack does not go for 10
+## s; then the human walks in through the door, and both AIs go in after it. The squad reads the go
+## off the claims as the members do: while the stack holds, `Squad.view()` says each member's order
+## is `held` and the order markers (`OrderMarkers`, as Main builds them for a human leader) label it
+## "hold"; once the human steps into the doorway, neither says so any more.
 ##
 ## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 
@@ -44,15 +44,14 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"a", &"invader", Vector2(960, 60))
 	s.actor(&"b", &"invader", Vector2(1010, 20))
 	Stack.human(s, &"me", Vector2(1000, 120))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var door: Dictionary = Entry.BACK
-	var squad := Order.raid(t, IDS, &"me")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
 	await t.seconds(0.3)
 	var order := Order.stack_order(

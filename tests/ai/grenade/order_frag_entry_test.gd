@@ -46,6 +46,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	Bang.stack(s)
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
@@ -57,9 +58,7 @@ func run(t: TestContext) -> void:
 			"both invaders carry a frag (premise: Character.item_count(8))",
 	):
 		return
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

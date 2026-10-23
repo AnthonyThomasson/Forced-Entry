@@ -37,13 +37,14 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"t1", &"puppet", Vector2(960, 330), { "faction": &"invader" })
 	s.actor(&"t2", &"puppet", Vector2(1000, 420), { "faction": &"invader" })
 	s.actor(&"me", &"puppet", Vector2(1100, 500), { "faction": &"invader" })
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var me := t.actor(&"me")
-	var squad := Order.squad(t, &"invader", [t1, t2, me], me)
+	var squad := t.squad(&"invader")
 	var menu := Order.command_menu(t)
 	if not t.require(
 			squad != null and menu != null,

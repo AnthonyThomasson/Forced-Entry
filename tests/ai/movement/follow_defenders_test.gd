@@ -52,8 +52,8 @@ func run(t: TestContext) -> void:
 	var crew := House.side(t, &"household")
 	if not t.require(crew.size() == CREW, "three defenders placed as Main places them"):
 		return
-	var squad: Node = t.match()["squads"].get(&"household")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
+	var squad := t.squad(&"household")
+	if not t.require(squad != null, "premise: the match built the defenders' squad"):
 		return
 	var lead: Node = crew[0]
 	if not t.require(squad.leader() == lead, "the first spawned leads (premise: LD3)"):

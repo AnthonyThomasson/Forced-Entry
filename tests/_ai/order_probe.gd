@@ -55,35 +55,15 @@ const PANEL_WIDTH := 440.0
 # --- The squad (LD3, LD4, LD5) --------------------------------------------------------------------
 
 
-## Build the squad of `faction` the way Main does (a `Squad` node under the world,
-## `setup(faction, members, openings, rooms, leader, claim_ttl)`, the claim ttl the NPCs' own
-## `callout_ttl` read through `MatchBuilder.callout_ttl_of`), over the test world's house. Null when
-## the script does not exist yet.
+## Build and bind the squad of `faction` over `members` (spawn order, all of that faction) the way
+## Main builds a side's (`MatchBuilder.build_squads` under the world, over the test world's house),
+## `leader` its human leader or null (no `PlayerStack`). For the squads no setup declares: a test
+## with one squad per side declares them (`s.squads`, read with `t.squad`).
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
-	if not ResourceLoader.exists(SQUAD_SCRIPT):
-		return null
-	var s: Node = (load(SQUAD_SCRIPT) as GDScript).new()
-	s.name = "Squad_%s" % faction
-	t.world.add_child(s)
 	var openings: Array = t.world.get("openings") if t.world.get("openings") != null else []
-	if s.has_method("setup"):
-		s.setup(
-			faction,
-			members,
-			openings,
-			t.rooms,
-			leader,
-			MatchBuilder.callout_ttl_of(members),
-		)
-	return s
-
-
-## Hand each NPC of `npcs` its squad the way Main does (`MatchBuilder.bind_squad(npc, squad)`);
-## true once done.
-static func bind(npcs: Array, s: Node) -> bool:
-	for npc in npcs:
-		MatchBuilder.bind_squad(npc, s)
-	return true
+	var human := { "node": leader, "lead": true } if leader != null else {}
+	var built := MatchBuilder.build_squads(t.world, members, openings, t.rooms, human)
+	return built.get(faction)
 
 
 ## `squad.issue(request)` (`{ kind, to, pos, room, bang }`, what the command menu emits): the order
@@ -654,15 +634,6 @@ static func click(t: TestContext, p: Vector2, button: MouseButton) -> void:
 
 
 # --- Stack orders at the Terrace house's back door (LD9) ------------------------------------------
-
-
-## The squad of invader actors `ids` led by the puppet actor `lead` (a stand-in for the human
-## leader), built as Main builds it.
-static func raid(t: TestContext, ids: Array, lead: StringName) -> Node:
-	var members: Array = [t.actor(lead)]
-	for id in ids:
-		members.append(t.actor(id))
-	return squad(t, &"invader", members, t.actor(lead))
 
 
 ## Which side of the back door point `p` lies on along its wall: `north`, `south`, or `door` (within

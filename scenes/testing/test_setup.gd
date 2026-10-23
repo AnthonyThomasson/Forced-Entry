@@ -36,6 +36,8 @@ var locked: Array = []
 ## A whole match to populate over the world (`MatchBuilder.spec` overrides, see `match`); null =
 ## none.
 var match_spec: Variant = null
+## The squads to build over the actors (`squads`' options); null = none.
+var squads_spec: Variant = null
 
 
 ## A walled single-room arena covering `rect`. `opts`: `floor` (a catalogue floor key, default
@@ -148,6 +150,18 @@ func set_props(id: StringName, child_path: String, props: Dictionary) -> TestSet
 ## `t.match()`.
 func match(overrides: Dictionary = {}) -> TestSetup:
 	match_spec = overrides
+	return self
+
+
+## Build one squad per faction over the setup's actors of that faction, in declaration order, as
+## Main builds a match's (`MatchBuilder.build_squads`, after the actors spawn): its leader by the
+## squad's rule (rank, then declaration order), each member handed its own. `opts`: `human` (an
+## actor id: the human who leads its faction's squad, handed its stack radio through
+## `MatchBuilder.bind_player` and its squad with it, `own_claims` on the invaders' side only, as
+## Main hands a human leader its own). Read them with `t.squad(faction)`. A setup that also declares
+## `match` gets the match's squads alone: declaring both is an error.
+func squads(opts: Dictionary = {}) -> TestSetup:
+	squads_spec = opts
 	return self
 
 

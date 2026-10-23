@@ -47,12 +47,11 @@ func configure(s: TestSetup) -> void:
 			"facing": Vector2.LEFT,
 		},
 	)
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Follow.team(t, [&"me", &"m"], &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
-		return
+	var squad := t.squad(&"invader")
 	var me := t.actor(&"me")
 	var m := t.actor(&"m")
 	if not t.require(

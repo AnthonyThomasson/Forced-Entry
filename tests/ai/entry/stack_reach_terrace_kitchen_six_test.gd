@@ -58,6 +58,7 @@ func configure(s: TestSetup) -> void:
 		Vector2(1400, 800),
 		{ "faction": &"invader", "max_health": 1_000_000.0 },
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:

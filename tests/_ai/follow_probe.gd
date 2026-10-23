@@ -5,8 +5,9 @@ extends RefCounted
 ## picks no goal of its own, and goes in by the leader's doorway as one stack (a `stack` order with
 ## mode `join`).
 ##
-## The squad is built and bound the way Main does it (`order_probe.gd`: `Squad.setup`,
-## `MatchBuilder.bind_squad`), and its reads (`leader()`, `follows`, `follow_spot`, `leash`,
+## The squad is built and bound the way Main does it: declared by the test (`s.squads`, read with
+## `t.squad`), or for a squad no setup declares, `team_of` (`MatchBuilder.build_squads`), and its
+## reads (`leader()`, `follows`, `follow_spot`, `leash`,
 ## `view()`) are called on it directly (interface 21). The NPCs are read only through their
 ## controllers' public reads (`current_act()`, `debug_state()`, `debug_entry()`) and the radio. The
 ## spec's numbers are consts here, so a test checks the spec and not the code.
@@ -69,27 +70,13 @@ static func band_p50(i: int) -> float:
 	return FOLLOW_GAP + FOLLOW_STEP * i + BAND_LAG
 
 
-## The squad of the actors `ids` in that order (the first is its leader by the rank rule when every
-## rank is equal), built and bound as Main does: every NPC among them handed it
-## (`MatchBuilder.bind_squad`). `human` names the actor that stands in for the human leader (passed
-## to `Squad.setup` as `human`); "" for an AI-led squad.
-static func team(t: TestContext, ids: Array, human: StringName = &"") -> Node:
-	var members: Array = ids.map(func(id): return t.actor(id))
-	return team_of(t, members, t.actor(human) if human != &"" else null)
-
-
-## The squad over the characters `members` (spawn order), `human` its human leader or null, bound
-## to every NPC among them; null for no members.
+## The squad over the characters `members` (spawn order), `human` its human leader or null, built
+## and bound as Main builds a side's (`Order.squad`, `MatchBuilder.build_squads`); null for no
+## members. For a squad no setup declares (a test's own subset of a match's combatants).
 static func team_of(t: TestContext, members: Array, human: Node = null) -> Node:
 	if members.is_empty():
 		return null
-	var s := Order.squad(t, members[0].get("faction"), members, human)
-	if s == null:
-		return null
-	var npcs := members.filter(func(m): return TestContext.controller_of(m, &"debug_state") != null)
-	if not Order.bind(npcs, s):
-		return null
-	return s
+	return Order.squad(t, members[0].get("faction"), members, human)
 
 
 ## A name for `n` in a message.

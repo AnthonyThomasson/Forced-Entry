@@ -1,9 +1,11 @@
 extends GameTest
 ## LD9 (`docs/leadership.md`): a stack order ends at `cleared_room`, and the member then acts on its
-## own. A lone invader is ordered to stack quietly on the Terrace house's back door: it goes in,
-## clears the kitchen (radioing `cleared_room`) and radios `order_step` `done`; from then on it
-## decides for itself, asking Von again with no `ordered` fact and walking a path that is not the
-## ORDER node's.
+## own. The squad is built and bound as a match's (`s.squads`, a puppet standing in for the human
+## leader). The human orders its lone invader to stack quietly on the Terrace house's back door and
+## is killed once the invader claims there: the invader leads from then on (LD4), and its stack
+## order is carried to its end (LD26). It goes in, clears the kitchen (radioing `cleared_room`) and
+## radios `order_step` `done`; from then on it decides for itself, asking Von again with no
+## `ordered` fact and walking a path that is not the ORDER node's.
 ##
 ## Scripted Von (the first option offered): the member's own decisions after the order are Von's
 ## (scripted), the order's ask nothing.
@@ -30,14 +32,13 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"a", &"invader", Vector2(990, 190))
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
 	var b := Order.brain(t, &"a")
-	var squad := Order.raid(t, [&"a"], &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.issue(
 		squad,
@@ -51,6 +52,13 @@ func run(t: TestContext) -> void:
 				10.0,
 			),
 			"the invader claims the back door under the order",
+	):
+		return
+	t.actor(&"lead").take_damage(1.0e9)
+	if not t.require(
+			squad.leader() == a,
+			"set-up: the human leader is killed and the invader leads (LD4; %s)"
+				% str(squad.leader()),
 	):
 		return
 	var cleared := func():

@@ -11,13 +11,18 @@ extends GameTest
 ##
 ## Scripted Von (RETREAT, then the den). Premises: the defender cannot be killed, and it is on its
 ## retreat when the order comes; the gunfire is from nobody it knows (`Order.gunfire_near`); the
-## order is given through the squad, as Main wires the leader's command menu to it.
+## squad is built and bound as a match's (`s.squads`, a puppet standing in for the human leader,
+## still in the hall's west end, so the den and the spot behind the table are within its leash,
+## LD23), and the order is given through it, as Main wires the leader's command menu to it.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
 const HALL := Rect2(0, 0, 900, 450)
 const DEN := Rect2(0, 450, 300, 200)
 const DEN_DOOR := Vector2(150, 450)
 const D_AT := Vector2(760, 220)
+## Where the human leader stands: in the hall's west end, off the defender's way to the den's
+## doorway, within a leash of the den and of the spot behind the table.
+const LEAD_AT := Vector2(120, 300)
 ## How long (physics frames) each scripted answer is held back once the retreat is under way: the
 ## wait for the decision made with the order.
 const LATENCY_FRAMES := 90
@@ -55,7 +60,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(
 		&"lead",
 		&"puppet",
-		Vector2(60, 600),
+		LEAD_AT,
 		{ "faction": &"household", "max_health": 1_000_000.0 },
 	)
 	s.object(
@@ -67,14 +72,13 @@ func configure(s: TestSetup) -> void:
 		},
 		Vector2(430, 200),
 	)
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := Order.squad(t, &"household", [t.actor(&"lead"), d], t.actor(&"lead"))
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"household")
 	await t.seconds(0.5)
 	Order.gunfire_near(d)
 	var retreating := func():

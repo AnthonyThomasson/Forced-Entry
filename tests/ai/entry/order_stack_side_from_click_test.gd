@@ -40,12 +40,11 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.actor(&"a", &"invader", Vector2(990, 190))
 	s.actor(&"lead", &"puppet", Vector2(1250, 600), { "faction": &"invader" })
+	s.squads({ "human": &"lead" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Order.raid(t, [&"a"], &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
-		return
+	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	for side in ["south", "north"]:
 		var click := Order.BACK_SOUTH if side == "south" else Order.BACK_NORTH

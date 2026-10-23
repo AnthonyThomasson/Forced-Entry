@@ -97,6 +97,21 @@ func match() -> Dictionary:
 	return handle if handle is Dictionary else {}
 
 
+## The squad of `faction` the setup declared (`TestSetup.squads`, or the declared match's own), or
+## null when it has none.
+func squad(faction: StringName) -> Node:
+	var built: Variant = world.get("squads") if is_instance_valid(world) else null
+	var s: Variant = (built as Dictionary).get(faction) if built is Dictionary else null
+	return s if is_instance_valid(s) else null
+
+
+## The human leader's stack radio (`TestSetup.squads`' `human`, or the declared match's human's),
+## or null when there is none.
+func player_stack() -> Node:
+	var stack: Variant = world.get("player_stack") if is_instance_valid(world) else null
+	return stack if is_instance_valid(stack) else null
+
+
 ## The puppet controller of actor `id` (null when it isn't a puppet).
 func puppet(id: StringName) -> Node:
 	var a := actor(id)

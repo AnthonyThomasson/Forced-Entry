@@ -1,7 +1,7 @@
 extends GameTest
 ## LD26: taking over from a dead human leader. A puppet stands in for the human leader of an invader
-## squad, built and bound the way Main builds it with "Lead the team" on (the human handed to
-## `Squad.setup` as `human`, `MatchBuilder.bind_squad`), over the bare Terrace house. Its sergeant
+## squad, built and bound the way Main builds it with "Lead the team" on (`s.squads` with the human,
+## `MatchBuilder.build_squads`), over the bare Terrace house. Its sergeant
 ## (rank 1) has no order and follows it. The human orders `defender` to defend the living room,
 ## `ambusher` to ambush the hall's doorway into the kitchen from the hall, and `stacker` to stack on
 ## the back door north of it, holding for its go. Once all three are in place the human is killed
@@ -45,12 +45,12 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"defender", &"invader", Vector2(240, 150), { "rank": 0, "max_health": 1_000_000.0 })
 	s.actor(&"ambusher", &"invader", Vector2(560, 415), { "rank": 0, "max_health": 1_000_000.0 })
 	s.actor(&"stacker", &"invader", Vector2(960, 60), { "rank": 0, "max_health": 1_000_000.0 })
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
-	var ids := [&"me", &"sergeant", &"defender", &"ambusher", &"stacker"]
-	var squad := Follow.team(t, ids, &"me")
-	if not t.require(squad != null, "the squad is built and bound (Squad.setup, bind_squad)"):
+	var squad := t.squad(&"invader")
+	if not t.require(squad != null, "premise: the invaders' squad is built (s.squads)"):
 		return
 	var me := t.actor(&"me")
 	var sergeant := t.actor(&"sergeant")

@@ -9,15 +9,16 @@ extends GameTest
 ## Two stacks on the Terrace house (bare), both ordered by the human leader, quiet and go-when-ready
 ## (no hold for go: what holds them is the leader alone):
 ## - At the back door, north of it: `a` and `b`. The human, a puppet with the invader faction given
-##   the stack radio the way Main gives it (`PlayerStack.attach`) and leading the squad, is reserved
+## the stack radio the way Main gives it (`MatchBuilder.bind_player`) and leading the squad, is
+## reserved
 ##   a slot, then dawdles 20 s in the garden within its reserve range but out of its slot: nobody
 ##   crosses. It steps into its slot: they go, after it is there.
 ## - At the front door, north of it: `c` and `d`. The human is reserved a slot there, dawdles 10 s
 ##   out of it (nobody crosses), then walks away beyond `reserve_range * leave_factor`: its claim is
 ##   withdrawn and that frees them, they go.
-## The human leads the squad (`Squad` built with it as leader); its `PlayerStack` is told so through
-## `squad` when it has that property (the round's seam: the claim marked `leader: true`), as Main
-## would wire it.
+## The human leads the squad, built and bound as a match's (`s.squads`,
+## `MatchBuilder.build_squads`): its `PlayerStack` is handed the squad, so its claims are marked
+## `leader: true`, as Main wires it.
 ##
 ## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 
@@ -67,17 +68,14 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"c", &"invader", Vector2(-120, 230), { "max_health": 1_000_000.0 })
 	s.actor(&"d", &"invader", Vector2(-170, 200), { "max_health": 1_000_000.0 })
 	Stack.human(s, &"me", LOITER_BACK[0])
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
-	var squad := Order.raid(t, BACK_IDS + FRONT_IDS, &"me")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
-		return
-	if "squad" in stack:
-		stack.set("squad", squad)   # The human leads this squad (Main's wiring): its claims say so.
 	await t.seconds(0.3)
 
 	# --- The back door: the human dawdles, then steps into its slot. ---

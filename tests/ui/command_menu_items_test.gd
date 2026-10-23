@@ -52,6 +52,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"t1", &"puppet", Vector2(960, 330), { "faction": &"invader" })
 	s.actor(&"t2", &"puppet", Vector2(1000, 420), { "faction": &"invader" })
 	s.actor(&"me", &"puppet", Vector2(1100, 500), { "faction": &"invader" })
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
@@ -88,7 +89,7 @@ func run(t: TestContext) -> void:
 			{ "node": t.actor(&"me"), "order": {}, "step": "" },
 		],
 	}
-	var squad := Order.squad(t, &"invader", [t1, t2, t.actor(&"me")], t.actor(&"me"))
+	var squad := t.squad(&"invader")
 	if not t.require(
 			squad != null and squad.has_method("resolve"),
 			"the squad resolves a click (%s resolve)" % Order.SQUAD_SCRIPT,
