@@ -3,9 +3,9 @@ extends GameTest
 ## the side the team stacks on, the point's, when it changes: weighed again from where the human
 ## stands, it takes the team's side when its way there does not cross the doorway's view, and
 ## radios its claim on that side.
+##
 ## The Terrace house's back door. The human (a puppet with the human's stack radio, as Main gives
-## it)
-## stands out in front of the door, in its view, south of its axis: a walk from inside the view
+## it) stands out in front of the door, in its view, south of its axis: a walk from inside the view
 ## crosses no view, so it stacks on whichever side the team does. The point (`a`, slot 1) and `b`
 ## (slot 2) claim one side; the human is reserved slot 3 on it; then the point's claim moves to the
 ## other side.

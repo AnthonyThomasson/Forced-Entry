@@ -5,8 +5,9 @@ extends Node
 ## stacking at a doorway near the human it reserves the human the first free slot there, on the
 ## team's side of the door or, when its way there would cross the doorway's view, on the side the
 ## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as
-## speaker (`opening`, `into`, `slot`, `side`, `entry_step`, and `human`), repeated every
-## `StackClaim.HEARTBEAT` s so the claim stays live. The AI's entry code reads it like any
+## speaker carrying a full claim encoded by `StackClaim.encode` (every entry field an NPC's
+## carries, plus `human`, `leader` and `own`), repeated every `StackClaim.HEARTBEAT` s so the claim
+## stays live. The AI's entry code reads it like any
 ## teammate's claim, so the point waits for the human at the ready barrier, a lone AI is no longer
 ## solo, and an AI behind the human crosses after it. The one thing it reads `human` for: no AI
 ## member moves up into the human's slot (E2).

@@ -21,8 +21,8 @@ full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`
 by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `bang: true`, `bang_off: false`: it never holds
 a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
 `MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it) and `own` (false for this E16 reservation), with the human as `speaker`,
-repeated every `StackClaim.HEARTBEAT` (2 s) (`_post`: its header written by hand, the five fields an NPC's controller writes in
-`_callout_header`). `_reserve(id, into, geo, stack)` takes the slot and side from that `DoorStack` and starts the claim, for E16 and the own
+repeated every `StackClaim.HEARTBEAT` (2 s) (`_post`: its header written by hand, the eight header fields an NPC's controller writes in
+`_callout_header`: speaker, faction, position, status, path, label, target_id and point). `_reserve(id, into, geo, stack)` takes the slot and side from that `DoorStack` and starts the claim, for E16 and the own
 claim alike. It reads the human's step
 from where it stands (`claim` / `ready` / `going_in` / `in`, `_step_at`: in its slot within `StackClaim.HUMAN_SLOT_REACH`, 20 px, through past
 `StackClaim.THROUGH_DEPTH`, in the funnel within `StackClaim.FUNNEL_DEPTH`) and withdraws on leaving, dying, nobody left stacking (no claim

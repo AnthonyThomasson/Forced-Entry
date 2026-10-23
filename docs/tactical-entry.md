@@ -325,7 +325,10 @@ rules then do the rest: the point waits for the human at the ready barrier (E6, 
 with a human near is a team of two and slices only its own side (E7), and an AI behind the human crosses after the human's
 `in` (the follow gap). A human who does not follow is not waited for for ever: once the AI ahead is through and the human
 has not crossed within `PlayerStack.go_timeout` (6 s), its claim is withdrawn (`abort`), the marker goes and the AI behind goes
-in. After the entry the AI's corner, clear and cover roles ignore the human. The floor shows it: every slot of the doorway
+in. Once through, the human's `in` stays on the radio at least `PlayerStack.IN_HOLD_MIN` (1 s) and until nobody behind it is still
+waiting, at most `PlayerStack.IN_HOLD_MAX` (8 s), then its claim ends (`done`); a member behind it at `bang` counts as waiting, as
+at any other stacking step (`claim`, `ready`), so the human's `done` can wait up to `IN_HOLD_MAX` through that member's bang.
+After the entry the AI's corner, clear and cover roles ignore the human. The floor shows it: every slot of the doorway
 numbered in the order they were claimed, each where it stands (on both sides of the door when the stack is split), the human's own
 highlighted, the AI's dimmer (`scenes/ui/hud/stack_markers.gd`; in a played match every stack of the human's side shows its rings,
 `docs/leadership.md` LD18). No AI member moves up into the human's slot (E2), and a dead end with no room left holds none for it (E20). Only invaders enter, so only a
