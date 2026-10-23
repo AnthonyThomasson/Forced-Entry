@@ -114,7 +114,7 @@ func build(setup: TestSetup) -> void:
 ## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
 ## declaration order, built and bound by Main's own rule (`MatchBuilder.build_squads`), the human
 ## leader first handed its stack radio (`MatchBuilder.bind_player`); and the squad-leaders overlay
-## over them (`MatchBuilder.build_leader_overlay`).
+## over them (`MatchBuilder.build_leader_overlay`), started as the setup's overlays say.
 func _build_squads(setup: TestSetup) -> void:
 	var members: Array = []
 	for a in setup.actors:
@@ -130,11 +130,8 @@ func _build_squads(setup: TestSetup) -> void:
 			human = { "node": node, "lead": true }
 			player_stack = MatchBuilder.bind_player(node, rooms, openings)
 	squads = MatchBuilder.build_squads(self, members, openings, rooms, human, player_stack)
-	_leader_overlay = MatchBuilder.build_leader_overlay(
-		self,
-		squads,
-		_overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false),
-	)
+	_leader_overlay = MatchBuilder.build_leader_overlay(self, squads)
+	set_overlay(OVERLAY_REGISTRY.LEADERS, _overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false))
 
 
 ## Undo every static override (call after freeing the world, or before rebuilding).

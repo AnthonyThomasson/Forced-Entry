@@ -5,9 +5,9 @@ extends GameTest
 ## the far end of an open hall, more than two leashes away; the NPC, ordered to defend the hall
 ## (`defend_room`, the arena's one room), has a dry gun and no spare magazine, so only its fists and
 ## feet. A household gunman stands in plain sight down the hall, out of reach and farther from the
-## leader than the leash, and fires at the NPC once a second. Under fire, the NPC fights it and
-## closes on it to strike: a leash would hold it where it stands, since the gunman is off it, and it
-## would never land a blow.
+## leader than the leash, and fires at the NPC every 1.4 s (it aims for 0.4 s, then fires). Under
+## fire, the NPC fights it and closes on it to strike: a leash would hold it where it stands, since
+## the gunman is off it, and it would never land a blow.
 ##
 ## Real Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), and the
 ## gunman, a puppet, never moves.

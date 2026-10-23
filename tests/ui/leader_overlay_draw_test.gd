@@ -159,7 +159,7 @@ func _check_main(t: TestContext) -> void:
 	var overlay: Node = (built["world"] as Node).get_node_or_null("LeaderOverlay")
 	if not t.require(
 			overlay != null,
-			"Main builds the LeaderOverlay under the match's World",
+			"Main's match has the LeaderOverlay under its World",
 	):
 		await MainProbe.close(t, viewport)
 		return

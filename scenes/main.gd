@@ -360,12 +360,12 @@ func return_to_setup() -> void:
 ## nav map, its overlay and re-baker, the dusk lighting), which waits until both navigation maps
 ## answer with this house, so no NPC is placed before then (a coroutine: await it); then its
 ## population (each side placed, the human joined, armed, styled and ranked, the squads and the
-## leaders overlay), its debug overlays started from Main's flags (the spec's `overlays`). Then the
-## UI over the handle: for the spec's human the stack markers, the stun screen and, when it leads,
-## the command menu and order markers; the match HUD, for a match with no human the spectator
-## inspector, and the overlay bar. The scene's own `Player` stands in for the human
-## of a played match: a match whose human is another character, or nobody, has none, and it goes.
-## Returns the match handle, or {} when the match was torn down while it was built.
+## leaders overlay), its debug overlays started from Main's own flags (the spec's `overlays`, which
+## they replace). Then the UI over the handle: for the spec's human the stack markers, the stun
+## screen and, when it leads, the command menu and order markers; the match HUD, for a match with
+## no human the spectator inspector, and the overlay bar. The scene's own `Player` stands in for
+## the human of a played match: a match whose human is another character, or nobody, has none, and
+## it goes. Returns the match handle, or {} when the match was torn down while it was built.
 func start_match(spec: Dictionary) -> Dictionary:
 	spec = MatchBuilder.spec(spec)
 	spec["overlays"] = _overlay_flags.duplicate()

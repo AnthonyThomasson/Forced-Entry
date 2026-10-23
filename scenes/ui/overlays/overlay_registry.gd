@@ -51,9 +51,9 @@ const ENTRIES := [
 
 ## Set each entry of `flags` (`show_<x>` -> on/off) on every child of `npc` that has that property,
 ## and redraw the ones touched (a paused overlay's own `_process` may not run). The one way a
-## composer applies the table to an NPC: Main's `MatchBuilder` (a match's start and a toggle, in
-## Main's match and the Testing world's alike), the spectator inspector on a selection, the Testing
-## world at an actor's spawn.
+## composer applies the table to an NPC: the match builder (`MatchBuilder`: a match's start and a
+## toggle, in Main's match and the Testing world's alike), the spectator inspector on a selection,
+## the Testing world at an actor's spawn.
 static func apply(npc: Node, flags: Dictionary) -> void:
 	for child in npc.get_children():
 		var touched := false

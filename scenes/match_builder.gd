@@ -182,12 +182,11 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## faction, and its start: the spec's `human.at`, else for a defender a clear spot in a random
 ## room) under the world, just above the house, and given its stack radio; everyone armed, styled
 ## and ranked (`arm`); one squad per side (`build_squads`) and the squad-leaders overlay over them
-## (`build_leader_overlay`); every debug overlay started as the spec's `overlays` says
-## (`set_overlay`:
-## a flag it does not name off).
-## Placement draws from one RNG seeded with the spec's `seed`, so a pinned seed pins the match.
-## Returns the handle with `combatants` (every character in the match in spawn order, the human
-## last), `squads` (by faction), `player_stack` (the human's, or null) and `leader_overlay`.
+## (`build_leader_overlay`); every debug overlay but the navigation holes (the stage's) started as
+## the spec's `overlays` says (`set_overlay`: a flag it does not name off). Placement draws from one
+## RNG seeded with the spec's `seed`, so a pinned seed pins the match. Returns the handle with
+## `combatants` (every character in the match in spawn order, the human last), `squads` (by
+## faction), `player_stack` (the human's, or null) and `leader_overlay`.
 static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
 	var world: Node2D = match["world"]
@@ -248,7 +247,8 @@ static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	out["leader_overlay"] = build_leader_overlay(world, out["squads"])
 	var overlays: Dictionary = match_spec["overlays"]
 	for flag in OVERLAY_REGISTRY.defaults():
-		set_overlay(out, flag, bool(overlays.get(flag, false)))
+		if flag != OVERLAY_REGISTRY.NAV_HOLES:
+			set_overlay(out, flag, bool(overlays.get(flag, false)))
 	return out
 
 
@@ -387,14 +387,12 @@ static func build_squads(
 
 ## The squad-leaders debug overlay (`docs/leadership.md` LD12) of the squads `squads` (by faction,
 ## as `build_squads` returns them) under `world`: a `LeaderOverlay` watching every squad's `view()`,
-## shown when `shown` (the `OverlayRegistry.LEADERS` flag). Returned, for the match handle's
-## `leader_overlay`.
-static func build_leader_overlay(world: Node, squads: Dictionary, shown := false) -> Node2D:
+## hidden until `set_overlay` shows it. Returned, for the match handle's `leader_overlay`.
+static func build_leader_overlay(world: Node, squads: Dictionary) -> Node2D:
 	var overlay: Node2D = LEADER_OVERLAY.new()
 	overlay.name = "LeaderOverlay"
 	world.add_child(overlay)
 	overlay.watch(squads.values().map(func(squad): return squad.view))
-	overlay.show_leaders = shown
 	return overlay
 
 
@@ -402,7 +400,7 @@ static func build_leader_overlay(world: Node, squads: Dictionary, shown := false
 ## handle, or any dict with its `nav_debug`, `leader_overlay` and `combatants`): the navigation
 ## holes on its `nav_debug` (redrawn, since a paused overlay's own `_process` may not run), the
 ## squad leaders on its `leader_overlay` (a world with no squads has none: nothing happens), and
-## any NPC's own overlay on each NPC among its `combatants` (a character with a controller,
+## any NPC's own overlay on each NPC among its `combatants` (a character with an AI controller,
 ## interface 7: the human has none of those overlays) through `OverlayRegistry.apply`. The
 ## performance flag is the caller's own overlay: nothing here.
 static func set_overlay(match: Dictionary, flag: String, on: bool) -> void:
@@ -423,17 +421,16 @@ static func set_overlay(match: Dictionary, flag: String, on: bool) -> void:
 
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
 ## from `match_spec` (`seed`, `plan`, `entrance`, `house`, `wait_nav`, and `overlays` for the holes
-## overlay's start). With no `house` it generates
-## one (`WorldGen.generate` from the spec's `seed`, `plan` and front `entrance`); a caller that
-## built its own (a hand-laid layout or an arena, its objects already placed so the bake carves
-## them) names it, and it is moved under `world` when it stands elsewhere. Then the nav map
-## (`NavBuilder.build`), its holes overlay and its re-baker, and the dusk lighting seeded by `seed`.
-## With `wait_nav` the world is stepped two physics frames (the walls' colliders go live on a step),
-## then until `NavBuilder.ready` holds on the planning map and on the steering map, so an NPC placed
-## afterwards never plans or walks on a map still showing another navmesh (at most `NAV_SYNC_MS` of
-## real time; an error past it). A coroutine: await it. Returns the handle
-## `{ world, house, rooms, openings, nav_region, nav_debug }`, or `{}` when `world` was freed during
-## the wait (the match torn down).
+## overlay's start). With no `house` it generates one (`WorldGen.generate` from the spec's `seed`,
+## `plan` and front `entrance`); a caller that built its own (a hand-laid layout or an arena, its
+## objects already placed so the bake carves them) names it, and it is moved under `world` when it
+## stands elsewhere. Then the nav map (`NavBuilder.build`), its holes overlay and its re-baker, and
+## the dusk lighting seeded by `seed`. With `wait_nav` the world is stepped two physics frames (the
+## walls' colliders go live on a step), then until `NavBuilder.ready` holds on the planning map and
+## on the steering map, so an NPC placed afterwards never plans or walks on a map still showing
+## another navmesh (at most `NAV_SYNC_MS` of real time; an error past it). A coroutine: await it.
+## Returns the handle `{ world, house, rooms, openings, nav_region, nav_debug }`, or `{}` when
+## `world` was freed during the wait (the match torn down).
 static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	match_spec = spec(match_spec)
 	var house: Node2D = match_spec["house"]
@@ -454,8 +451,10 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	nav_debug.name = "NavDebug"
 	world.add_child(nav_debug)
 	nav_debug.setup(house)
-	nav_debug.show_holes = bool(
-		(match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false),
+	set_overlay(
+		{ "nav_debug": nav_debug },
+		OVERLAY_REGISTRY.NAV_HOLES,
+		bool((match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false)),
 	)
 	# The re-baker keeps the navmesh in step with shoved furniture and refreshes the overlay.
 	var nav_updater: Node = NAV_UPDATER.new()
