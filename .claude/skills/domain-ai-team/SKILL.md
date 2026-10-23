@@ -13,7 +13,7 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 **The human's stack (`ai/team/player_stack.gd`).** Not a fifth sub-domain: one small module, the human's side of the entry radio
 (`docs/tactical-entry.md` E16). A child of the human's character (Main attaches it through `MatchSpawner.bind_player`), it listens to the
 `&"callout"` bus like an NPC (through a `ClaimLedger` of its own, perception's `stack/claim_ledger.gd`: its side only, within its
-`callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
+`callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1; either export, set, reaches the ledger at once through its setter) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
 E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()`: `slot_for`, then
 `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a

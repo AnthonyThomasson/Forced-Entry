@@ -53,10 +53,18 @@ const STEP_UP_TIME := 0.5
 @export var reserve_range: float = 300.0
 ## The reservation is dropped beyond `reserve_range` times this.
 @export var leave_factor: float = 1.5
-## How far (px) a callout carries to the human (the NPCs' `callout_range`).
-@export var callout_range: float = 1500.0
-## Seconds a heard callout stays current (the NPCs' `callout_ttl`).
-@export var callout_ttl: float = 6.0
+## How far (px) a callout carries to the human (the NPCs' `callout_range`): set, it reaches the
+## claims it hears at once.
+@export var callout_range: float = 1500.0:
+	set(value):
+		callout_range = value
+		_ledger.setup({ "range": value })
+## Seconds a heard callout stays current (the NPCs' `callout_ttl`): set, it reaches the claims it
+## hears at once.
+@export var callout_ttl: float = 6.0:
+	set(value):
+		callout_ttl = value
+		_ledger.setup({ "ttl": value })
 ## Seconds the human is given to follow once the AI ahead of it is through, before its slot is
 ## withdrawn.
 @export var go_timeout: float = 6.0
