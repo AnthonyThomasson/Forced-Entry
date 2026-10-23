@@ -493,7 +493,7 @@ func _apply_config() -> void:
 			if String(held.get("kind", "")) == "defend_room"
 			else "")
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
-	# rules, and fights only within its leash of the leader (LD23).
+	# rules, and, holding no order, fights only within its leash of the leader (LD23).
 	var lead := _leader_followed()
 	if lead != null:
 		for id in [&"investigate", &"search", &"idle"]:
@@ -503,8 +503,9 @@ func _apply_config() -> void:
 			rules[&"follows"] = &"follow"
 	_planner.disabled_nodes = disabled
 	_planner.entry_rules = rules
-	_planner.leash_center = lead.global_position if lead != null else Vector2.INF
-	_planner.leash = float(squad.leash) if lead != null else 0.0
+	var leash_lead := _leash_lead()
+	_planner.leash_center = leash_lead.global_position if leash_lead != null else Vector2.INF
+	_planner.leash = float(squad.leash) if leash_lead != null else 0.0
 	_behavior.apply_config(self)
 
 
@@ -972,9 +973,10 @@ func _react_to_grenades() -> void:
 
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the
 ## perception's `follows`), deciding at once when that changes (it joined a squad's file, or the
-## leader it followed died and it leads now), and the leash it fights within. A follower fighting
-## farther than `leash_break` leashes from its leader, neither committed nor on its way somewhere,
-## decides again, once until it has been back within that.
+## leader it followed died and it leads now), and the leash it fights within while it holds no
+## order (`_leash_lead`). A leashed follower fighting farther than `leash_break` leashes from its
+## leader, neither committed nor on its way somewhere, decides again, once until it has been back
+## within that.
 func _follow_squad() -> void:
 	var follows: bool = (squad != null
 			and is_instance_valid(squad)
@@ -984,7 +986,7 @@ func _follow_squad() -> void:
 	if follows != _follows:
 		_follows = follows
 		_force_now("follows its leader" if follows else "leads its squad")
-	var lead := _leader_followed()
+	var lead := _leash_lead()
 	if lead == null:
 		_behavior.set_leash(Vector2.INF, 0.0)
 		_leash_broke = false
@@ -1006,6 +1008,13 @@ func _leader_followed() -> Node2D:
 	if not _perception.follows:
 		return null
 	return squad.leader() as Node2D
+
+
+## The leader whose leash the NPC fights within (LD23): the one it follows while it holds no order,
+## else null (a member carrying an order, a held stack or a join included, goes where the order
+## takes it).
+func _leash_lead() -> Node2D:
+	return _leader_followed() if _perception.order().is_empty() else null
 
 
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly
