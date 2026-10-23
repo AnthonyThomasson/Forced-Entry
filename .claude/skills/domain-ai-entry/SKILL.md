@@ -292,8 +292,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `view()` reads the same rule), or the leader that
   gave the order is gone or dead (D12, beside the squad's own `auto` go); it then re-radios its latest call with `order_go`. Released, the stack
   goes on the ready barrier as any ordered stack. `Behavior._apply_entry` radios the order's `in_position` while `holding_for_go()`. Tests:
-  `ai/entry/order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`, `order_stack_hold_leader_dies`, and the squad's
-  `general/squad_go_and_ambush`.
+  `ai/entry/order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`, `order_stack_hold_leader_dies`,
+  `order_stack_hold_ignores_earlier_entry` (a `cover` claim left from an earlier entry into the same room releases nothing), and the
+  squad's `general/squad_go_and_ambush` and `squad_go_latched_off_claims`; the rule itself, `ai/door_stack_suite`.
 - **A frag at entry (`docs/leadership.md` LD14).** A stack under an order whose mode is `frag` (`_bang_kind()`, from `_order_claim`'s
   `order_mode`; any other bang throws a stun) runs the bang with a frag: `_kind` is set in `_enter_bang`; `_thrower` picks among the frag
   carriers (the claims' `frags`, `_carried(kind)`), by the same rule; `_stack_has(team, kind)` stands for the stun check (D1 / D15: the stack in

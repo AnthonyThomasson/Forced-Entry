@@ -655,7 +655,8 @@ Interpretations and the game's own rules, where the sources leave a choice:
   (`MatchSpawner.bind_player`). It hears the same callouts the NPCs do, and when an allied claim on a doorway is live and the
   human is within range it radios the human's own claim as a `callout` with the human as speaker, a full claim encoded by
   `StackClaim.encode` (its `claim_frame` and `claim_pos`, `bang` true, no `stuns` or `frags`), repeated every 2 s. It hears through a
-  `ClaimLedger` of its own and asks the doorway's `DoorStack` with the human's own claim, as an NPC's entry does. The AI's entry code (the
+  `ClaimLedger` of its own and asks the doorway's `DoorStack` with the human's own claim through the stack's claim chain
+  (`DoorStack.claim`: the slot, whether the doorway has it, the side asked for, where it stands), as an NPC's entry does. The AI's entry code (the
   claims, `slot_for`, the barrier, the follow rule) reads it like any teammate's, so `entry.gd` has no case for a human but one: its
   claims say `human`, and no member moves up into that slot (E2), nor does the human move up, nor throw the stack's grenade; while the
   human leads its side's squad they say `leader` too (`docs/leadership.md` LD17). Its side comes from the same
