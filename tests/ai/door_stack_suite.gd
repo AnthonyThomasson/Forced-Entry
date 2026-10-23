@@ -183,6 +183,14 @@ func test_the_ledger_hears_its_own_side_within_range_and_never_its_listener() ->
 	).is_equal([2])
 
 
+func test_a_member_is_crossing_from_its_going_in_on() -> void:
+	# E6, D14: crossing is `going_in` or a through step; waiting in the stack or done is not.
+	for step in ["going_in", "in", "clear", "cover", "rear"]:
+		assert_bool(StackClaim.crossing(step)).override_failure_message(step).is_true()
+	for step in ["", "claim", "ready", "bang", "abort", "done"]:
+		assert_bool(StackClaim.crossing(step)).override_failure_message(step).is_false()
+
+
 func test_a_doorway_is_stacking_while_a_member_is_on_its_bang() -> void:
 	# E17: the member throwing the stun is still on its way in; so is one in its slot for it.
 	assert_bool(StackClaim.stacking("bang")).is_true()

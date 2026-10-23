@@ -138,6 +138,11 @@ static func through(step: String) -> bool:
 	return THROUGH.has(step)
 
 
+## Whether entry step `step` is crossing the doorway (`going_in`) or through it (`THROUGH`).
+static func crossing(step: String) -> bool:
+	return step == "going_in" or through(step)
+
+
 ## Whether entry step `step` has called the room clear (`CLEARED`).
 static func cleared(step: String) -> bool:
 	return CLEARED.has(step)

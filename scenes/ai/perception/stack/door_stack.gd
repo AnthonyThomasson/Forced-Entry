@@ -155,7 +155,7 @@ func stacking() -> bool:
 
 ## Whether a member is crossing (`going_in`) or through the doorway.
 func going_in() -> bool:
-	return team.any(func(m): return m["step"] == "going_in" or StackClaim.through(m["step"]))
+	return team.any(func(m): return StackClaim.crossing(m["step"]))
 
 
 ## The instance id of the member who throws the stack's grenade of kind `kind` (`&"frag"` or a
@@ -328,9 +328,7 @@ func move_up_vacancies(me: Dictionary) -> Array:
 ## from one left on the radio from an earlier entry, so it releases nothing, nor does a claim under
 ## no order or another but the human's, or one into the other room.
 func _releases(m: Dictionary, order_id: String, into: String, since: int) -> bool:
-	var crosses: bool = (
-		m["into"] == into and (m["step"] == "going_in" or StackClaim.through(m["step"]))
-	)
+	var crosses: bool = m["into"] == into and StackClaim.crossing(m["step"])
 	if m["order_id"] == order_id:
 		return m["order_go"] or crosses
 	if not m["human"]:

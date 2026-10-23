@@ -19,7 +19,7 @@ E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, as
 `has_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
 by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `_crossed_frame`, restamped
-to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`_crossing`), cleared on a new reservation and on
+to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`StackClaim.crossing`), cleared on a new reservation and on
 withdrawal: the start of its latest crossing, since a human that brushed the funnel steps back out of it, unlike an NPC, D14; `bang: true`, `bang_off: false`: it never holds
 a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
 `MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it) and `own` (false for this E16 reservation), with the human as `speaker`,

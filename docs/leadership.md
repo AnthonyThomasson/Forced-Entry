@@ -311,14 +311,15 @@ sentence for Von ends " when they give the go".
   replaces nothing: the member's perception marks its live stack order `go: true` (`process_order`) and asks for no new decision, and the
   squad's `view()` marks the released orders `go`. The squad reads the go off the claims as well (`scenes/ai/perception/stack/door_stack.gd`
   `released`): once a claim under the held order says `order_go`, or a member of that stack is crossing or through into the order's room
-  (a claim under the order, or the human's, D14), its `view()` says those orders are no longer `held`, latched as each member latches its
+  (a claim under the order, or the human's on a crossing begun since the order was issued, D14), its `view()` says those orders are no longer `held`, latched as each member latches its
   own, so the order markers stop saying "hold" and the command menu stops offering "Go into the …". A claim left on the radio from an
   earlier entry through the same doorway (a member still holding the room on `cover` / `rear` under no order, or another order's member
   through) and a crossing into the other room release nothing: the held stack's go comes from its own stack only. It is latched:
   given while the members still walk to their slots, the stack goes the
   moment the ready barrier (D7) is met. After it the entry runs as a go-when-ready stack of its mode (the pie for a quiet one, the bang
   for a stun or a frag). The entry latches its go (`_note_go`) from any of: its own order's `go`; a teammate under the same order whose
-  claims say `order_go`; a member of the stack, under the order or the human, going in or through into its room (D14); the order's leader
+  claims say `order_go`; a member of the stack, under the order or the human (on a crossing begun since the order), going in or through
+  into its room (D14); the order's leader
   dead or gone (D12); and radios it in its next claim. Both read the one rule (`DoorStack.released`).
 - **The human in the stack (D14).** When the human leader holds a slot at the held doorway through its `PlayerStack`, the held stack waits
   for the human's Go: the menu's Go releases it, and so does the human stepping into the doorway into the stack's room (its `going_in` /
@@ -328,7 +329,8 @@ sentence for Von ends " when they give the go".
   unknown, -1, releases nothing). `PlayerStack` restamps `crossed_frame` each time the human's step goes from `claim` / `ready` to
   `going_in` / `in` (and clears it on a new reservation and on withdrawal), so it is the human's latest crossing: a human that brushed
   the funnel before the order and stepped back to its slot, then steps in after it, releases the stack; an `in` left on the radio from
-  before the order does not. An NPC's `crossed_frame` is its first crossing, its `going_in` being committed. Any other crossing counts
+  before the order does not, nor does a crossing already under way when the order is issued (a human standing in the funnel walking
+  on in): it steps back to its slot and in again, or gives the menu's Go. An NPC's `crossed_frame` is its first crossing, its `going_in` being committed. Any other crossing counts
   only under the held order: an earlier entry's claims left at the doorway are not this stack's. The human joins behind the
   AIs (`PlayerStack` reserves the first free slot once a team is stacking). `PlayerStack` leaves an ally's progress-only callout (an
   `order_step` with no `entry_step`) out of its radio, as the perception does (LD7), so an AI's `in_position` never takes that AI's

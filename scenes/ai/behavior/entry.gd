@@ -2558,7 +2558,7 @@ func _radio(what: String, extra := {}) -> void:
 		_claim_frame = GameClock.frame()
 		_claim_pos = _character.global_position
 	# (D14: the frame its crossing began on, once; its `going_in` is committed.)
-	if _crossed_frame < 0 and (what == "going_in" or StackClaim.through(what)):
+	if _crossed_frame < 0 and StackClaim.crossing(what):
 		_crossed_frame = GameClock.frame()
 	var msg := { "entry_step": what, "claim_frame": _claim_frame, "claim_pos": _claim_pos }
 	msg.merge(extra)

@@ -106,7 +106,7 @@ var _step := ""
 ## The physics frame the human's latest crossing began on (-1 for none): restamped each time its
 ## step goes from a waiting one (claim / ready) to `going_in` or `in`, since a human that brushed
 ## the funnel steps back out of it, unlike an NPC. A held stack takes it as its go only when it
-## began since the order was issued (D14).
+## began since the order was issued (D14): a crossing already under way then is not restamped.
 var _crossed_frame := -1
 ## Seconds until the latest step is radioed again.
 var _heartbeat := 0.0
@@ -403,7 +403,7 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		return
 	var now := _step_at(pos)
 	if now != _step:
-		if not _crossing(_step) and _crossing(now):
+		if not StackClaim.crossing(_step) and StackClaim.crossing(now):
 			_crossed_frame = GameClock.frame()
 		_step = now
 		if _step == "in":
@@ -421,11 +421,6 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	_heartbeat -= delta
 	if _heartbeat <= 0.0:
 		_post(_step)
-
-
-## Whether entry step `step` is the human crossing the doorway or through it (`going_in`, `in`).
-static func _crossing(step: String) -> bool:
-	return step == "going_in" or StackClaim.through(step)
 
 
 ## Whether entry step `step` is a member still waiting in the stack: holding its place

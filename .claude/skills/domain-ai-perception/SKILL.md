@@ -363,7 +363,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   call, `AgentGrenades.is_call`, G16, or an order step with no entry step, LD7: the speaker's last claim stands; any other callout drops it);
   `is_join(d)` (an order, a leaf's params or a claim of a join, LD24: the one test of it). The step lists `STACKING` (`claim`, `ready`,
   `bang`, `going_in`), `IN_SLOT` (`ready`, `bang`), `THROUGH` (`in`, `clear`, `cover`, `rear`), `CLEARED`, `HOLDING`, `ENDED` and their
-  tests `stacking` / `in_slot` / `through` / `cleared` / `holding`; the distances `THROUGH_DEPTH` (26 px), `FUNNEL_DEPTH` (40 px),
+  tests `stacking` / `in_slot` / `through` / `cleared` / `holding`, and `crossing` (`going_in` or a `THROUGH` step); the distances `THROUGH_DEPTH` (26 px), `FUNNEL_DEPTH` (40 px),
   `HEARTBEAT` (2 s), and the two reaches named apart, `SLOT_REACH` (6 px: an NPC walks all the way into its slot, since a stride short of it
   stands on the next one) and `HUMAN_SLOT_REACH` (20 px: how near a hand-driven body counts as in its slot); `JOIN` (`join`); `by_slot`, the
   one comparator claims are sorted by (lowest slot, then lowest instance id).
@@ -372,7 +372,8 @@ orchestrator and the team preload these files themselves; this folder is that se
   the squad's whole view; never the listener's own; `keeps_claim` leaves the speaker's claim standing, any other callout replaces it),
   `claims(opening)` (the live decoded claims, one per speaker, none `ENDED`, `by_slot`, `age` set; shared until the next frame: never
   changed), `stack(opening, g := {}) -> DoorStack` (built at most once a physics frame per doorway and room, or again once a claim is
-  heard) and `openings_stacking()` (`{ opening, into }` with a live `STACKING` claim). A claim lapses `ttl` s after it was heard, on
+  heard) and `openings_stacking()` (`{ opening, into }` for each doorway with a live `STACKING` claim, `into` the lowest-slot
+  stacking claim's). A claim lapses `ttl` s after it was heard, on
   `GameClock` (LD1), and a dead or freed speaker's goes at once.
 - **`DoorStack`** (`door_stack.gd`, `RefCounted`, `new(geometry, team)`): the doorway's `geometry` (`AgentEntry.geometry`; {} for the
   claims alone) and its claims (`team`), every slot rule settled the one way for whoever asks. A member asking about itself passes `me`,
