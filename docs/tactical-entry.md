@@ -339,7 +339,8 @@ Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stac
 `stack_point_waits_for_player`, `stack_point_goes_when_player_ready`, `stack_follower_waits_for_player`,
 `stack_player_idle_withdrawn`, `stack_player_leaving_withdraws`, `stack_defender_player_none`, `stack_player_slot_von` (the real
 Von server; `tools/run_tests.sh stack --include-von`), `stack_player_kept_through_bang` (the human's slot kept through its one
-AI teammate's bang, real Von), `stack_player_dead_end_withdrawn` (E20), `stack_player_follows_team_side` (E19), `ui/stack_markers_draw`,
+AI teammate's bang, real Von), `stack_player_nobody_stacking_withdrawn` (withdrawn once its only teammate aborts),
+`stack_player_dead_end_withdrawn` (E20, micro_flat's kitchenette), `stack_player_follows_team_side` (E19), `ui/stack_markers_draw`,
 `general/stack_player_wiring`; beneath them the unit suite `ai/door_stack_suite` (the claim's codec, same-frame ties with the human, the
 human's slot never moved into).
 

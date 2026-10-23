@@ -346,7 +346,8 @@ walk: they go once ready, with no second go), `order_stack_hold_human_go` (D14: 
 stack waits 10 s, the human walks in and both AIs follow; the squad's `view()` then no longer says their orders are held, nor do the order
 markers say hold), `order_stack_hold_leader_dies` (D12: the leader killed while the stack holds,
 it goes on its own), `ai/grenade/order_frag_held_then_go` (LD14: no bang call or throw while held), `general/squad_go_and_ambush` (the go's
-recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/command_menu_wiring` (LD16). Part 1's
+recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/squad_go_latched_off_claims` (a go read
+off the claims, `order_go` or a member crossing, stays latched in `view()` once the claims stop saying it), `general/command_menu_wiring` (LD16). Part 1's
 `order_stack_*` tests, unchanged, cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
