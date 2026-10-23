@@ -77,8 +77,11 @@ Run `run` with the Bash sandbox disabled: it starts Godot (found as `tools/run_t
    git does not ignore, and `.godot/` (the import cache). No `.git`, no ignored file, nothing of `artifacts/`. A
    checkout never opened in Godot (a fresh worktree) has no `.godot/`: a matches run then imports the copy first
    (`runner.ensure_imported`, its log `import.log` in the hit folder), since without the class cache every script
-   naming a global class fails to parse and Main never loads; a tests run goes through the copy's
-   `tools/run_tests.sh`, which imports a fresh checkout itself.
+   naming a global class fails to parse and Main never loads. An import that exits non-zero or does not end within
+   `IMPORT_TIMEOUT` (600 s) fails the run (`FAILED: the import of the never-imported copy ...`, exit 1) with the last
+   20 lines of `import.log` (the hit folder is removed unless `--keep`), and a run that then cannot go on (Main
+   never loads) says that failure with its own. A tests run goes through the copy's `tools/run_tests.sh`, which
+   imports a fresh checkout itself.
 2. `instrument.py` puts a counter bump on the same line, before every statement of `scenes/**/*.gd`
    (`CoverageProbe.h[7] += 1; <statement>`), so a line in the map, in the copy and in an engine error are the same
    line. It copies `probe.gd` in as `tools/coverage/coverage_probe.gd`, registers it **first** in the copy's

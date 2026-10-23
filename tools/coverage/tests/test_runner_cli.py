@@ -48,8 +48,8 @@ from pathlib import Path
 
 from tools.coverage import hits, instrument, runner, workspace
 from tools.coverage.tests.support import (
-    ROOT, RUN_FILES, class_tempdir, env_with_godot, fixture_repo, git, git_status, needs_godot, newest_run, project_repo,
-    read_json, run_cli, run_folders, slow, tree_digest, wait_for, TempDir,
+    ROOT, RUN_FILES, class_tempdir, env_with_godot, fixture_repo, git, git_status, godot_binary, needs_godot, newest_run,
+    project_repo, read_json, run_cli, run_folders, slow, tree_digest, wait_for, TempDir,
 )
 
 FOLDER = re.compile(r"^(?P<sha>[0-9a-f]{7,40})-(?P<time>.+)-(?P<kind>matches|tests)$")
@@ -427,6 +427,80 @@ class FreshCheckoutTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             meta = read_json(newest_run(repo, "matches") / "meta.json")
         self.assertEqual(meta["matches"][0]["verdict"], "INVADER WINS", meta["matches"][0])
+
+
+IMPORT_LOG_LINES = 40   # what the fake import prints before it fails: more than a log's tail, so the head is cut
+
+
+def failing_import(d: Path, hang: bool) -> Path:
+    """A Godot stand-in whose `--import` prints IMPORT_LOG_LINES numbered lines and an error, then exits 3 or, with
+    `hang`, never ends; any other run is the real Godot's, so the fixture's matches still play."""
+    path = d / "fake_godot"
+    end = "exec sleep 60" if hang else "exit 3"
+    path.write_text(
+        "#!/bin/bash\n"
+        'for a in "$@"; do\n'
+        '\tif [ "$a" = "--import" ]; then\n'
+        f"\t\tfor i in $(seq 1 {IMPORT_LOG_LINES}); do echo \"import line $i\"; done\n"
+        '\t\techo "ERROR: the fake import broke"\n'
+        f"\t\t{end}\n"
+        "\tfi\n"
+        "done\n"
+        f'exec "{godot_binary()}" "$@"\n')
+    path.chmod(0o755)
+    return path
+
+
+@needs_godot
+class ImportFailureTests(unittest.TestCase):
+    """A never-imported copy's import (runner.ensure_imported) that exits non-zero or outlasts IMPORT_TIMEOUT is a
+    failure of the run, said with the end of its log (import.log lives in the hit folder, which the run removes), not
+    a traceback nor a silence the probe's "see the game log" stands in for."""
+
+    def run_with(self, fake: Path, timeout: float = runner.IMPORT_TIMEOUT):
+        said, shouted = [], []
+        with TempDir() as d:
+            repo = fixture_repo(d)
+            with mock.patch.dict(os.environ, {"GODOT": str(fake)}), \
+                    mock.patch.object(runner, "IMPORT_TIMEOUT", timeout):
+                code, _folder = runner.run(repo, "matches", matches=1, jobs=1, seed=100, endless_every=0,
+                                           say=said.append, shout=shouted.append)
+            left = scratch_left(repo)
+        return code, "\n".join(said), "\n".join(shouted), left
+
+    def check_reported(self, code, shouted, why):
+        self.assertEqual(code, 1, shouted)
+        failure = next((s for s in shouted.splitlines() if s.startswith("FAILED:") and "import" in s), "")
+        self.assertIn(why, failure, shouted)
+        self.assertIn("ERROR: the fake import broke", shouted, "the log's last line is said")
+        self.assertIn(f"import line {IMPORT_LOG_LINES}", shouted, "the end of the log is said")
+        self.assertNotIn("import line 1\n", shouted + "\n", "only the end of the log, not all of it")
+
+    def test_a_failed_import_is_reported_with_the_end_of_its_log(self):
+        with TempDir() as d:
+            code, _said, shouted, left = self.run_with(failing_import(d, hang=False))
+        self.check_reported(code, shouted, "exited with 3")
+        self.assertEqual(left, [])
+
+    def test_a_timed_out_import_is_reported_with_the_end_of_its_log(self):
+        with TempDir() as d:
+            code, _said, shouted, left = self.run_with(failing_import(d, hang=True), timeout=3.0)
+        self.check_reported(code, shouted, "did not finish within 3 s")
+        self.assertEqual(left, [])
+
+    def test_a_failed_import_that_leaves_main_unparsed_is_said_with_the_runs_failure(self):
+        # The case an agent meets: no class cache, so Main fails to parse and the run cannot go on; the failure it
+        # ends with names the import that caused it.
+        with TempDir() as d:
+            fake = failing_import(d, hang=False)
+            repo = fixture_repo(d, with_class_name)
+            with mock.patch.dict(os.environ, {"GODOT": str(fake)}):
+                r = run_cli(repo, "run", "--matches=1", "--jobs=1", "--seed=100", "--endless-every=0", timeout=240)
+            left = scratch_left(repo)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("the import of the never-imported copy exited with 3", r.stderr, r.stdout + r.stderr)
+        self.assertIn("ERROR: the fake import broke", r.stderr)
+        self.assertEqual(left, [])
 
 
 @needs_godot
