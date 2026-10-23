@@ -342,7 +342,8 @@ time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an or
 → the geometry's `from`, the steps `StackClaim.IN_SLOT`; else "") counts as cleared for `threshold_ahead` and as pass-clear (`_pass_clear_ordered`, handed as `pass_clear` to
 an ordered walk with entry on; `_passable` adds `seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
 carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
-`order_go` (LD13) and `order_side` ("" / false / quiet / false / false / 0 for others), which `entry.gd` reads.
+`order_go` (LD13), `order_side` and `order_frame` (the frame the order was issued on, D14) ("" / false / quiet / false / false / 0 / -1
+for others), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
 `room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
@@ -355,7 +356,7 @@ orchestrator and the team preload these files themselves; this folder is that se
 
 - **`StackClaim`** (`stack_claim.gd`, static, preloaded, no `class_name`): the entry claim's wire format on the `&"callout"` radio (interface
   10). `DEFAULTS` holds every entry field with the value a claim that does not say it has (`bang` true, `stuns` / `frags` 0, `claim_frame`
-  -1, `claim_pos` `Vector2.INF`, `order_mode` `quiet`, ...). `encode(fields)` gives a callout's entry fields (every one, typed; the producer
+  -1, `claim_pos` `Vector2.INF`, `order_mode` `quiet`, `order_frame` / `crossed_frame` -1, ...). `encode(fields)` gives a callout's entry fields (every one, typed; the producer
   adds its own header): the controller's `_post_entry_call` and `PlayerStack._post` call it. `decode(data)` gives a callout's claim, `{}`
   for none (no `entry_step`), with `step`, the speaker's `id` / `name`, `pos` and `age`, and `claim_pos` where the speaker stands when it says
   none. `is_claim(data)` (any entry step, `abort` / `done` too: it replaces what the speaker last claimed); `keeps_claim(data)` (a live-grenade
@@ -384,8 +385,10 @@ orchestrator and the team preload these files themselves; this folder is that se
   markers' `[{ n, point, holder, held, there, mine, side, row }]`, the same points `settle` gives); `crossing(me := {})` / `ahead(me)` /
   `behind(me)` (E6, E19); `claimed()`, `stacking()` (a claim at a `STACKING` step: one on its `bang` still holds a place), `going_in()`;
   `thrower(kind, me := {})` (E17, LD14: slot 2 if it carries one, else the lowest slot that does; never the human); `order_claim(me := {})`
-  (LD9: `me`'s order, else the lowest slot's that carries one, D10); `released(order_id, into)` (LD13: a claim under the order says
-  `order_go`, or a member of that stack, a claim under the order or the human's, is crossing or through into room `into`, D14; a claim
+  (LD9: `me`'s order, its `order_frame` and `into` too, else the lowest slot's that carries one, D10); `released(order_id, into, since)`
+  (LD13, `_releases`: a claim under the order says `order_go`, or a member of that stack, a claim under the order or the human's, is
+  crossing or through into room `into`, D14, the human's only on a crossing begun on or after `since`, the order's frame: its
+  `crossed_frame` at or after it, since the human's claim carries no order to scope it by, and a -1 on either releases nothing; a claim
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
   `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; `claim(me, want) -> { slot, held, side, place,
   point }` (the chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot's `entries` group offers it) and the human's `PlayerStack` alike: `slot_for`,

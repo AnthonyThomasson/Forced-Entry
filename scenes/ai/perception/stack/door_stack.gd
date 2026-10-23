@@ -7,10 +7,10 @@ extends RefCounted
 ##
 ## A member asking about itself passes `me`, its own claim as it stands (it never hears its own on
 ## the radio): `{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_id, order_bang,
-## order_mode, order_hold, order_go, order_side, into, step }`, each optional (`id` and `slot` its
-## instance id and slot, 0 while it is claiming; `want` the side it asks for; `frame` / `pos` the
-## frame its slot was claimed on and where it stood then, E2; `move_up` the slot it moved up from;
-## `into` the room it goes into).
+## order_mode, order_hold, order_go, order_side, order_frame, into, step }`, each optional (`id` and
+## `slot` its instance id and slot, 0 while it is claiming; `want` the side it asks for; `frame` /
+## `pos` the frame its slot was claimed on and where it stood then, E2; `move_up` the slot it moved
+## up from; `into` the room it goes into).
 ## The human is a member like any other (E16): no AI moves up into its slot, it never moves up
 ## itself and it never throws the stack's grenade. The layout statics (`stack_slots`, `side_for`,
 ## `stack_point`, `place`, `crossing_order`, `stack_side`, `holds_slot`, `is_tail`, `free_slot`) are
@@ -188,7 +188,7 @@ func order_claim(me := {}) -> Dictionary:
 			"order_mode": str(me.get("order_mode", "")),
 			"order_hold": bool(me.get("order_hold", false)),
 			"order_go": bool(me.get("order_go", false)), "order_side": int(me.get("order_side", 0)),
-			"into": str(me.get("into", "")),
+			"order_frame": int(me.get("order_frame", -1)), "into": str(me.get("into", "")),
 		}
 	for m in team:
 		if m["order_id"] != "":
@@ -196,20 +196,10 @@ func order_claim(me := {}) -> Dictionary:
 	return {}
 
 
-## Whether the held stack under order `order_id`, going into room `into`, has had its go off the
-## radio (LD13): a claim under that order says the go came (`order_go`), or a member of that stack
-## is crossing or through the doorway into `into`, one under the order or the human (D14: the human
-## leader in the stack stepping in is its go). A claim left from an earlier entry through the
-## doorway (under no order or another, or into the other room) releases nothing.
-func released(order_id: String, into: String) -> bool:
-	return team.any(
-		func(m):
-			if m["order_id"] != order_id and not m["human"]:
-				return false
-			if m["order_id"] == order_id and m["order_go"]:
-				return true
-			return m["into"] == into and (m["step"] == "going_in" or StackClaim.through(m["step"]))
-	)
+## Whether the held stack under order `order_id`, issued on frame `since`, going into room `into`,
+## has had its go off the radio (LD13): any claim heard says so (`_releases`).
+func released(order_id: String, into: String, since: int) -> bool:
+	return team.any(func(m): return _releases(m, order_id, into, since))
 
 
 ## The chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot
@@ -328,6 +318,24 @@ func move_up_vacancies(me: Dictionary) -> Array:
 				"stack": (get_script() as GDScript).new(geometry, swapped),
 			})
 	return out
+
+
+## Whether claim `m` is the go of the held stack under order `order_id`, issued on frame `since`,
+## into room `into` (D14): under that order, it says the go came (`order_go`) or it is crossing or
+## through into `into`; the human's (its claim carries no order to scope it by), it is crossing or
+## through into `into` on a crossing begun on or after `since` (`crossed_frame`), the human leader
+## in the stack stepping in. A crossing whose frame or order's frame is unknown (-1) cannot be told
+## from one left on the radio from an earlier entry, so it releases nothing, nor does a claim under
+## no order or another but the human's, or one into the other room.
+func _releases(m: Dictionary, order_id: String, into: String, since: int) -> bool:
+	var crosses: bool = (
+		m["into"] == into and (m["step"] == "going_in" or StackClaim.through(m["step"]))
+	)
+	if m["order_id"] == order_id:
+		return m["order_go"] or crosses
+	if not m["human"]:
+		return false
+	return crosses and since >= 0 and int(m["crossed_frame"]) >= since
 
 
 ## The claims with the move-up rewrite (E2): the claim still on the slot a member moved up into

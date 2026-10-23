@@ -13,6 +13,8 @@ const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
 ## The frame the same-frame claims below are made on.
 const FRAME := 100
+## The frame the held stack order "7" below was issued on.
+const ORDER_FRAME := 500
 
 
 ## A speaker on the radio: a character as a listener reads it (`is_dead`).
@@ -51,8 +53,8 @@ func test_a_claim_round_trips_through_the_codec() -> void:
 		"bang": false, "bang_off": true, "stuns": 1, "frags": 2, "cleared_room": "",
 		"covering": "o_5", "claim_frame": 812, "claim_pos": Vector2(40, 60), "move_up": 3,
 		"pie": true, "order_id": "7", "order_bang": true, "order_mode": "frag",
-		"order_hold": true, "order_go": true, "order_side": 1, "join": false, "human": false,
-		"leader": true, "own": false,
+		"order_hold": true, "order_go": true, "order_side": 1, "order_frame": 790,
+		"crossed_frame": 805, "join": false, "human": false, "leader": true, "own": false,
 	}
 	var claim := StackClaim.decode(_callout(null, StackClaim.encode(fields)))
 	for key in fields:
@@ -68,8 +70,8 @@ func test_the_encoding_carries_every_entry_field_and_no_header() -> void:
 	for key in [
 		"opening", "into", "slot", "side", "entry_step", "bang", "bang_off", "stuns", "frags",
 		"cleared_room", "covering", "claim_frame", "claim_pos", "move_up", "pie", "order_id",
-		"order_bang", "order_mode", "order_hold", "order_go", "order_side", "join", "human",
-		"leader", "own",
+		"order_bang", "order_mode", "order_hold", "order_go", "order_side", "order_frame",
+		"crossed_frame", "join", "human", "leader", "own",
 	]:
 		assert_bool(wire.has(key)).override_failure_message("%s is on the wire" % key).is_true()
 	for key in ["speaker", "faction", "position", "status", "path", "label", "point"]:
@@ -97,6 +99,8 @@ func test_a_claim_that_says_little_decodes_to_the_rules_defaults() -> void:
 	assert_str(claim["order_mode"]).override_failure_message("no order: quiet").is_equal("quiet")
 	assert_bool(claim["order_go"]).is_false()
 	assert_int(claim["order_side"]).is_equal(0)
+	assert_int(claim["order_frame"]).override_failure_message("no order's frame: -1").is_equal(-1)
+	assert_int(claim["crossed_frame"]).override_failure_message("not crossed: -1").is_equal(-1)
 	for key in ["join", "human", "leader", "own"]:
 		assert_bool(claim[key]).override_failure_message("%s unsaid is false" % key).is_false()
 
@@ -358,9 +362,12 @@ func test_a_held_stack_is_released_by_its_go_or_its_own_crossing() -> void:
 			"a member under the order at %s into its room is the go" % step,
 		).is_true()
 	for step in ["going_in", "in"]:
-		var human := _claim(b, { "slot": 2, "side": 1, "entry_step": step, "human": true })
+		var human := _claim(b, {
+			"slot": 2, "side": 1, "entry_step": step, "human": true,
+			"crossed_frame": ORDER_FRAME + 30,
+		})
 		assert_bool(_releases_7([point_man, human])).override_failure_message(
-			"the human in the stack at %s into its room is the go" % step,
+			"the human in the stack at %s into its room, crossed after the order, is the go" % step,
 		).is_true()
 
 
@@ -385,13 +392,76 @@ func test_a_held_stack_is_not_released_by_another_stacks_claims() -> void:
 			"order_id": "7", "entry_step": step, "into": "kitchen",
 		}
 		others["the human at %s into the other room" % step] = {
-			"human": true, "entry_step": step, "into": "kitchen",
+			"human": true, "entry_step": step, "into": "kitchen", "crossed_frame": ORDER_FRAME + 30,
 		}
 	for why: String in others:
 		var other := _claim(b, ({ "slot": 2, "side": 1 } as Dictionary).merged(others[why], true))
 		assert_bool(_releases_7([point_man, other])).override_failure_message(
 			"%s releases nothing" % why,
 		).is_false()
+
+
+func test_a_human_crossing_releases_a_held_stack_only_once_the_order_was_issued() -> void:
+	# LD13, D14: the human's claim carries no order to scope it by, so its crossing is the held
+	# stack's go only when it began on or after the frame the order was issued (`since`): an `in`
+	# left on the radio from before releases nothing. The human leader that claimed its slot first
+	# (its own claim, LD24) and ordered the stack second still releases it by stepping in. A claim
+	# under the order releases it whenever it crossed.
+	var a := _speaker()
+	var b := _speaker()
+	var point_man := _claim(
+		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
+	)
+	for step in ["going_in", "in"]:
+		var crossings := {
+			"before the order": [ORDER_FRAME - 30, false],
+			"on the order's frame": [ORDER_FRAME, true],
+			"after it": [ORDER_FRAME + 30, true],
+		}
+		for when: String in crossings:
+			var human := _claim(b, {
+				"slot": 2, "side": 1, "entry_step": step, "human": true,
+				"crossed_frame": crossings[when][0],
+			})
+			assert_bool(_releases_7([point_man, human])).override_failure_message(
+				"the human at %s, crossed %s: released %s" % [step, when, str(crossings[when][1])],
+			).is_equal(crossings[when][1])
+	var own_first := _claim(b, {
+		"slot": 1, "side": 1, "entry_step": "going_in", "human": true, "own": true,
+		"claim_frame": ORDER_FRAME - 200, "crossed_frame": ORDER_FRAME + 30,
+	})
+	var follower := _claim(
+		a, { "order_id": "7", "order_hold": true, "slot": 2, "side": 1, "entry_step": "ready" },
+	)
+	assert_bool(_releases_7([own_first, follower])).override_failure_message(
+		"its own claim made before the order, its crossing after it: the go",
+	).is_true()
+	for crossed in [-1, ORDER_FRAME - 30]:
+		var under := _claim(b, {
+			"order_id": "7", "order_hold": true, "slot": 2, "side": 1, "entry_step": "going_in",
+			"crossed_frame": crossed,
+		})
+		assert_bool(_releases_7([point_man, under])).override_failure_message(
+			"a member under the order crossing (crossed_frame %d) is the go" % crossed,
+		).is_true()
+
+
+func test_a_human_crossing_of_unknown_frame_releases_nothing() -> void:
+	# D14: a crossing not known to come after the order (the human's claim says no frame, or the
+	# held order's frame is unknown) cannot be told from one left on the radio from before.
+	var a := _speaker()
+	var b := _speaker()
+	var point_man := _claim(
+		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
+	)
+	var unsaid := _claim(b, { "slot": 2, "side": 1, "entry_step": "in", "human": true })
+	assert_bool(_releases_7([point_man, unsaid])).override_failure_message(
+		"the human's claim saying no crossed_frame releases nothing",
+	).is_false()
+	var crossed := _claim(b, {
+		"slot": 2, "side": 1, "entry_step": "in", "human": true, "crossed_frame": ORDER_FRAME + 30,
+	})
+	assert_bool(DoorStack.new(_door(), [point_man, crossed]).released("7", "hall", -1)).is_false()
 
 
 func test_the_order_a_stack_goes_in_under_names_its_room() -> void:
@@ -401,18 +471,21 @@ func test_the_order_a_stack_goes_in_under_names_its_room() -> void:
 	var me := _speaker()
 	var own: Dictionary = DoorStack.new(_door(), []).order_claim({
 		"id": me.get_instance_id(), "slot": 1, "order_id": "7", "order_hold": true,
-		"into": "hall",
+		"into": "hall", "order_frame": ORDER_FRAME,
 	})
-	assert_that(own.get("into")).override_failure_message(
-		"its own order, into the hall: %s" % str(own),
-	).is_equal("hall")
-	var mate := _claim(a, { "slot": 1, "side": 1, "order_id": "7", "order_hold": true })
+	assert_array([own.get("into"), own.get("order_frame")]).override_failure_message(
+		"its own order, into the hall, issued on frame %d: %s" % [ORDER_FRAME, str(own)],
+	).is_equal(["hall", ORDER_FRAME])
+	var mate := _claim(a, {
+		"slot": 1, "side": 1, "order_id": "7", "order_hold": true, "order_frame": ORDER_FRAME,
+	})
 	var followed: Dictionary = DoorStack.new(_door(), [mate]).order_claim({
 		"id": me.get_instance_id(), "slot": 2,
 	})
-	assert_that(followed.get("into")).override_failure_message(
-		"the teammate's order it follows, into the hall: %s" % str(followed),
-	).is_equal("hall")
+	assert_array([followed.get("into"), followed.get("order_frame")]).override_failure_message(
+		"the teammate's order it follows (D10), into the hall, issued on frame %d: %s"
+			% [ORDER_FRAME, str(followed)],
+	).is_equal(["hall", ORDER_FRAME])
 
 
 func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
@@ -619,10 +692,10 @@ func _dead_end() -> Dictionary:
 	}, true)
 
 
-## Whether `claims` on `_door()` say the held stack under order "7", going into the hall, had its
-## go (`DoorStack.released`).
+## Whether `claims` on `_door()` say the held stack under order "7", issued on `ORDER_FRAME`, going
+## into the hall, had its go (`DoorStack.released`).
 func _releases_7(claims: Array) -> bool:
-	return DoorStack.new(_door(), claims).released("7", "hall")
+	return DoorStack.new(_door(), claims).released("7", "hall", ORDER_FRAME)
 
 
 ## The point of the `place`th slot of side `side`'s file of `_door()`.

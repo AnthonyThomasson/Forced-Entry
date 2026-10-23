@@ -359,6 +359,12 @@ var _order_bang := false
 var _order_mode := ""
 ## The order holds the stack for the leader's go (LD13).
 var _order_hold := false
+## The physics frame the order was issued on (its `frame`, as the perception holds it; -1 unknown):
+## a held stack takes the human's crossing as its go only from then on (D14).
+var _order_frame := -1
+## The physics frame this entry's crossing began on (its first `going_in`, or a through step; -1
+## before it): radioed on every claim (`crossed_frame`).
+var _crossed_frame := -1
 ## The entry is a join (LD24, `StackClaim.is_join`): its claims say so, so its squad never takes
 ## them for the member's own (D30).
 var _join := false
@@ -443,6 +449,7 @@ func begin(params: Dictionary) -> bool:
 	_order_mode = str(params["mode"]) if _order_id != "" else ""
 	_order_hold = bool(params.get("wait_go", false))
 	_released = bool(params.get("go", false))
+	_order_frame = _held_order_frame()
 	_order_side = _side_named(params)
 	_pref_side = _perception.entry_side_of(_geo, _character.global_position)
 	var asked := bool(params.get("bang", false))
@@ -536,6 +543,8 @@ func reset() -> void:
 	_order_mode = ""
 	_join = false
 	_order_hold = false
+	_order_frame = -1
+	_crossed_frame = -1
 	_released = false
 	_holding = false
 	_frags = 0
@@ -1040,7 +1049,7 @@ func _me() -> Dictionary:
 		"pos": _claim_pos, "move_up": _move_up, "stuns": _stuns, "frags": _frags,
 		"order_id": _order_id, "order_bang": _order_bang, "order_mode": _order_mode,
 		"order_hold": _order_hold, "order_go": _released, "order_side": _order_side,
-		"into": into,
+		"order_frame": _order_frame, "into": into,
 	}
 
 
@@ -1075,9 +1084,10 @@ func _tail() -> bool:
 
 
 ## The order this stack goes in under, as a claim's `{ order_id, order_bang, order_mode, order_hold,
-## order_go, order_side, into }`: this NPC's own, else the lowest slot's of the teammates' claims
-## that carry one (an unordered member that joins an ordered stack follows its mode and side, D10).
-## {} for a stack nobody was ordered to, which keeps its own rules, and for a pass-by.
+## order_go, order_side, order_frame, into }`: this NPC's own, else the lowest slot's of the
+## teammates' claims that carry one (an unordered member that joins an ordered stack follows its
+## mode and side, D10). {} for a stack nobody was ordered to, which keeps its own rules, and for a
+## pass-by.
 func _order_claim() -> Dictionary:
 	return {} if secure else _stack.order_claim(_me())
 
@@ -1086,6 +1096,15 @@ func _order_claim() -> Dictionary:
 ## not its first claimer's, and nothing turns or vetoes it but its own members' lost stun (D1).
 func _ordered() -> bool:
 	return not _order_claim().is_empty()
+
+
+## The frame the order this entry carries out was issued on (`frame`, of the order the perception
+## holds, when it is this one); -1 for an entry that is no order, or one whose frame is unknown.
+func _held_order_frame() -> int:
+	if _order_id == "":
+		return -1
+	var held: Dictionary = _perception.order()
+	return int(held.get("frame", -1)) if str(held.get("id", "")) == _order_id else -1
 
 
 ## The side of the door the order in `params` names (D3): the side along the doorway's wall its
@@ -1142,14 +1161,16 @@ func _held() -> bool:
 ## Latch the go of a held stack (LD13) the first time it comes: the leader's `go` on this NPC's own
 ## order (given before the stack was ready too: it then goes on the ready barrier), a teammate under
 ## the same order whose claims say it had it, a member of this stack going in or through into its
-## room (`DoorStack.released`: one under the order, or the human, D14: the human leader in the stack
-## stepping in is its go), or the leader that gave the order dead (D12). Radioed with the next claim
-## (`order_go`).
+## room (`DoorStack.released`: one under the order, or the human on a crossing begun since the
+## order's `order_frame`, D14: the human leader in the stack stepping in is its go), or the leader
+## that gave the order dead (D12). Radioed with the next claim (`order_go`).
 func _note_go() -> void:
 	if not _held():
 		return
 	var ordered := _order_claim()
-	var go: bool = _stack.released(str(ordered["order_id"]), str(ordered["into"]))
+	var go: bool = _stack.released(
+		str(ordered["order_id"]), str(ordered["into"]), int(ordered["order_frame"]),
+	)
 	if not go and _order_id != "":
 		var held: Dictionary = _perception.order()
 		if str(held.get("id", "")) == _order_id:
@@ -2536,8 +2557,12 @@ func _radio(what: String, extra := {}) -> void:
 	if what == "claim" and not extra.has("claim_frame"):
 		_claim_frame = GameClock.frame()
 		_claim_pos = _character.global_position
+	# (D14: the frame its crossing began on, once; its `going_in` is committed.)
+	if _crossed_frame < 0 and (what == "going_in" or StackClaim.through(what)):
+		_crossed_frame = GameClock.frame()
 	var msg := { "entry_step": what, "claim_frame": _claim_frame, "claim_pos": _claim_pos }
 	msg.merge(extra)
+	msg["crossed_frame"] = _crossed_frame
 	msg["bang"] = bang
 	msg["bang_off"] = _bang_off
 	msg["stuns"] = _stuns
@@ -2555,6 +2580,7 @@ func _radio(what: String, extra := {}) -> void:
 		msg["order_hold"] = _order_hold  # Held for the leader's go, and whether it came (LD13).
 		msg["order_go"] = _released
 		msg["order_side"] = _order_side
+		msg["order_frame"] = _order_frame
 	_calls.append(msg)
 	_last_call = msg.duplicate()
 	_heartbeat = StackClaim.HEARTBEAT

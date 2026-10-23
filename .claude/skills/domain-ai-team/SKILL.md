@@ -18,7 +18,9 @@ human's own claim for the first free slot (none in a dead end with no room left,
 E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()` through the stack's claim chain, `DoorStack.claim`, as an NPC's entry is: `slot_for`,
 `has_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
-by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `bang: true`, `bang_off: false`: it never holds
+by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `_crossed_frame`, restamped
+to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`_crossing`), cleared on a new reservation and on
+withdrawal: the start of its latest crossing, since a human that brushed the funnel steps back out of it, unlike an NPC, D14; `bang: true`, `bang_off: false`: it never holds
 a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
 `MatchSpawner.bind_squad`, LD17: a stack the human ordered waits for it) and `own` (false for this E16 reservation), with the human as `speaker`,
 repeated every `StackClaim.HEARTBEAT` (2 s) (`_post`: its header written by hand, the eight header fields an NPC's controller writes in
@@ -40,13 +42,16 @@ reservation in an allied stack (E16), the leader's or not, carries `own: false` 
 else stacks there (the "nobody stacking" withdrawal waits until the human is `in`), and with nobody ahead of it the `go_timeout`
 withdrawal does not fire; `_withdraw` clears `_own`. `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI): its slots are the `DoorStack`'s `layout(_me())`,
 the points the AI stands. `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
-see one more teammate, and a held stack (LD13) takes the `going_in` of a teammate under its order, or the human's, into its room as its go (D14).
+see one more teammate, and a held stack (LD13) takes the `going_in` of a teammate under its order, or the human's, into its room as its go (D14),
+the human's only on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`). Test:
+`ai/stack/stack_player_go_after_funnel_brush` (the human brushes the funnel before the order, steps in after it, and the squad releases it).
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` Main builds under `World` after
 arming the characters (`setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)`) and hands each NPC (`MatchSpawner.bind_squad`: the
 controller's `squad`). Its leader is the highest `rank`, the first spawned among equals (the human when it leads); on the leader's `died`
 the next leads within the frame and it posts `&"leader"` `{ faction, leader, previous }`. `issue(request)` turns a leader's plain request
-(`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (`defend_room` / `stack` / `ambush` / `cancel`: the room key, or
+(`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (each stamped by `_post_order` with the `GameClock.frame()` it is
+issued on, `frame`, as is a `go`) (`defend_room` / `stack` / `ambush` / `cancel`: the room key, or
 the doorway nearest `pos` within its width, a stack's room on the far side of the wall plane, `stack_at` or `split`, its `mode` quiet / stun /
 frag (`MODES`; `bang` true for any but quiet; a request naming none of them reads it from `bang`) and `wait_go` (LD13); an ambush's `room` on the click's
 side of the wall plane and `beyond` the room on the other, "" for an exterior door, LD15, D17; a `defend_room`, `stack` or `ambush` order
@@ -59,9 +64,10 @@ an ambush: what the UI's command menu names its stack and ambush items from); `v
 non-follower, `trail` the leader's trail oldest point first, `leash` px: what the leader overlay draws, LD28), the
 steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
 still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it): not released by the
-squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id, into)`,
+squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id, into, since)`, `since` the order's `frame`,
 `into` the order's room: a claim under the order saying `order_go`, or a member of that stack, under the order or the human, crossing or
-through into that room, D14, the human leader stepping in among them; a claim left from an earlier entry releases nothing), each kept in
+through into that room, D14, the human leader stepping in among them on a crossing begun since; a claim left from an earlier entry releases
+nothing), each kept in
 `_released` once heard, as each member latches its own go; an order radioed `done` is no longer
 held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
 or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per

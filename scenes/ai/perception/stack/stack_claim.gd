@@ -50,7 +50,10 @@ const JOIN := "join"
 ## one it took, E2), `pie` (it has begun the pie: nobody moves up behind it), the order it stacks
 ## under (`order_id`, "" for none, `order_bang`, `order_mode` quiet / stun / frag (LD14),
 ## `order_hold` and `order_go` (held for the leader's go and whether it came, LD13), `order_side`,
-## 0 for a split stack, LD9), `join` (a join's claim, never its holder's own, LD24, D30), `human`
+## 0 for a split stack, LD9, `order_frame`, the frame the order was issued on, -1 unknown),
+## `crossed_frame` (the frame its latest crossing began on: its step reached `going_in` or a
+## through step, -1 for none; a held stack takes the human's crossing as its go only from the
+## order's frame on, D14), `join` (a join's claim, never its holder's own, LD24, D30), `human`
 ## (the human's: no AI moves up into its slot, E2, E16), `leader` (its speaker leads the squad,
 ## LD17) and `own` (the human's own claim, which its squad rallies the team to, LD24).
 const DEFAULTS := {
@@ -59,7 +62,7 @@ const DEFAULTS := {
 	"cleared_room": "", "covering": "",
 	"claim_frame": -1, "claim_pos": Vector2.INF, "move_up": 0, "pie": false,
 	"order_id": "", "order_bang": false, "order_mode": "quiet", "order_hold": false,
-	"order_go": false, "order_side": 0,
+	"order_go": false, "order_side": 0, "order_frame": -1, "crossed_frame": -1,
 	"join": false, "human": false, "leader": false, "own": false,
 }
 

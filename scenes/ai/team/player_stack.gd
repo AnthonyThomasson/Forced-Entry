@@ -12,7 +12,9 @@ extends Node
 ## after it. The one thing it reads `human` for: no AI member moves up into the human's slot (E2).
 ##
 ## The human is never ordered: its radio step is read from where it stands (`claim` away from the
-## slot, `ready` in it, `going_in` in the doorway, `in` through it). The claim is withdrawn
+## slot, `ready` in it, `going_in` in the doorway, `in` through it), and its claim's
+## `crossed_frame` is the frame its latest crossing began on (a held stack takes it as its go only
+## when it began since the order was issued, `docs/leadership.md` D14). The claim is withdrawn
 ## (`abort`) when the human leaves (walks beyond `reserve_range * leave_factor`, dies), when no one
 ## is left stacking, or when the AI ahead is through and the human has not crossed within
 ## `go_timeout`; it is finished with `done` once through and nobody waits behind it.
@@ -101,6 +103,11 @@ var _claim_pos := Vector2.INF
 var _team_side := 0
 ## The human's latest radio step (claim / ready / going_in / in).
 var _step := ""
+## The physics frame the human's latest crossing began on (-1 for none): restamped each time its
+## step goes from a waiting one (claim / ready) to `going_in` or `in`, since a human that brushed
+## the funnel steps back out of it, unlike an NPC. A held stack takes it as its go only when it
+## began since the order was issued (D14).
+var _crossed_frame := -1
 ## Seconds until the latest step is radioed again.
 var _heartbeat := 0.0
 ## Seconds until the next walking-distance check.
@@ -276,6 +283,7 @@ func _reserve(id: String, into: String, geo: Dictionary, stack: RefCounted) -> v
 	_slot = at["slot"]
 	_on = at["side"]
 	_step = "claim"
+	_crossed_frame = -1
 	_ahead_through_at = -1.0
 	_in_at = -1.0
 	_post(_step)
@@ -395,6 +403,8 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		return
 	var now := _step_at(pos)
 	if now != _step:
+		if not _crossing(_step) and _crossing(now):
+			_crossed_frame = GameClock.frame()
 		_step = now
 		if _step == "in":
 			_in_at = GameClock.seconds()
@@ -411,6 +421,11 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	_heartbeat -= delta
 	if _heartbeat <= 0.0:
 		_post(_step)
+
+
+## Whether entry step `step` is the human crossing the doorway or through it (`going_in`, `in`).
+static func _crossing(step: String) -> bool:
+	return step == "going_in" or StackClaim.through(step)
 
 
 ## Whether entry step `step` is a member still waiting in the stack: holding its place
@@ -455,6 +470,7 @@ func _withdraw(how: String) -> void:
 	_claim_pos = Vector2.INF
 	_team_side = 0
 	_step = ""
+	_crossed_frame = -1
 	_ahead_through_at = -1.0
 	_in_at = -1.0
 
@@ -484,6 +500,7 @@ func _post(step: String) -> void:
 		# holds a stack back nor turns it, throws nothing for it and never moves up.
 		"claim_frame": _claim_frame,
 		"claim_pos": _claim_pos,
+		"crossed_frame": _crossed_frame,  # Its latest crossing's (D14).
 		"bang": true,
 		"bang_off": false,
 		"stuns": 0,

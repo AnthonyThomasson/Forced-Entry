@@ -445,14 +445,16 @@ interfaces it takes part in (by number) and describes how they're implemented.
       going_in / in / clear / cover / rear / done / abort), `bang` (this member goes in with a stun thrown first), `bang_off` (it gave the bang up: the stack goes in quietly), `stuns` and `frags` (how many stun / frag grenades it carries), `cleared_room` (with a clear) and `covering` (with a cover:
       the doorway on out of the cleared room it watches), `claim_frame` / `claim_pos` (the `GameClock` frame its slot was claimed on and
       where it stood then, kept by every repeat of that claim: two claims on one slot made on the same frame settle by distance, E2),
-      `move_up` (the slot it moved up from, while it walks into the lower one it took; 0 otherwise, E2) and `pie` (it has begun slicing the
-      pie: nobody moves up behind it) (`docs/tactical-entry.md`), and from a member of a stack its leader ordered
+      `move_up` (the slot it moved up from, while it walks into the lower one it took; 0 otherwise, E2), `pie` (it has begun slicing the
+      pie: nobody moves up behind it) and `crossed_frame` (the `GameClock` frame its crossing began on, its step reaching `going_in` or a
+      through step, -1 before it: an NPC's first, the human's latest, D14) (`docs/tactical-entry.md`), and from a member of a stack its leader ordered
       `order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`, LD14), `order_hold` (the order holds the stack
-      for the leader's go, LD13), `order_go` (that go has come) and `order_side` (the side of the door the order names, 1 / -1 along its
-      wall, 0 for a split stack): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9), and from a member of a join
+      for the leader's go, LD13), `order_go` (that go has come), `order_side` (the side of the door the order names, 1 / -1 along its
+      wall, 0 for a split stack) and `order_frame` (the order's `frame`, -1 unknown): a stack with such a claim goes in the order's way (`docs/leadership.md` LD9), and from a member of a join
       (the squad's rally, LD24) `join: true` (its claims are never its own, D30); a human invader's `PlayerStack`
       (interface 17) posts the same entry steps for the human as a full claim (E16: every field above, `claim_frame` / `claim_pos` stamped
-      on each new claim and kept by its repeats, `bang: true` and `bang_off: false` (it never holds a stack back nor turns it), `stuns: 0` /
+      on each new claim and kept by its repeats, `crossed_frame` restamped each time its step goes from `claim` / `ready` to `going_in` /
+      `in`, `bang: true` and `bang_off: false` (it never holds a stack back nor turns it), `stuns: 0` /
       `frags: 0` (it throws nothing for the stack), `move_up: 0`, `pie: false`), with `human: true` (no AI moves up into its slot), `leader`
       (true while the human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway
       nobody stacks at, which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). These entry
@@ -478,7 +480,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `stun` and `frag`, and `wait_go`, the stack holds at
       its slots for the leader's go, LD13)`, beyond?` (`ambush`: the room the doorway leads into from its `room`, "" for an exterior door)`,
       auto?` (`go`: the squad's own release of the held stacks of a leader that died, D12)`, pos?` (`defend_room` / `stack` / `ambush` /
-      `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)` }`. A `go` (`opening`, `pos`) goes
+      `go`: the target point, the room's centre or the doorway's, which the UI's order markers draw)`, frame }` (the `GameClock` frame it
+      was issued on, on every order: a held stack takes the human's crossing as its go only from then on, D14). A `go` (`opening`, `pos`) goes
       to the living members holding a held stack at that doorway and replaces nothing: it releases their order (latched, D13). Range is
       unlimited: every AI controller named in `to` of the same faction takes it, and it holds it until it is done, cancelled or replaced
       (never on a timer); an `ambush` is done on first contact (a hostile seen or shots at the member, D18). Besides its leader's orders a
@@ -753,9 +756,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
       LD13: the one rule the UI reads instead of working it out; released by the squad's own `go`, or by one read off the claims,
-      `DoorStack.released`: a claim under that order says `order_go`, or a member of that stack, under the order or the human, is crossing
-      or through into the order's room (D14: the human leader stepping in is its go; a claim left from an earlier entry through the doorway
-      releases nothing), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
+      `DoorStack.released(order_id, into, since)`, `since` the order's `frame`: a claim under that order says `order_go`, or a member of that
+      stack, under the order or the human, is crossing or through into the order's room, the human on a crossing begun since (its
+      `crossed_frame` at or after `since`; -1 on either releases nothing) (D14: the human leader stepping in is its go; a claim left from
+      an earlier entry through the doorway releases nothing), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
       step `done`, while a `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the side's entry claims
       through the squad's own `ClaimLedger` (unlimited range: the side's whole view; `claim_ttl`) and laid by each doorway's `DoorStack.layout`,
       `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where

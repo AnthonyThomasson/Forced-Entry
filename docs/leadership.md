@@ -72,7 +72,8 @@ trooper keeps its order, a newer order from the sergeant replaces it).
 **LD5. Order transport.** A squad posts each order its leader gives as `&"order"` `{ id, leader, faction, to, kind, ... }`, kinds
 `defend_room` (`room`), `stack` (`opening`, `into`, `stack_at` or `split`, `mode`, `bang`, `wait_go`), `go` (`opening`; LD13), `ambush`
 (`opening`, `room`, `beyond`; LD15) and `cancel`; a `defend_room`, `stack`, `go` or `ambush` order also carries its target point, `pos` (the
-room's centre, the doorway's), for the order markers (LD12). `Squad.issue` turns a leader's request in plain terms (`{ kind, to, pos?,
+room's centre, the doorway's), for the order markers (LD12). Every order carries the `GameClock` frame it was issued on, `frame` (D14).
+`Squad.issue` turns a leader's request in plain terms (`{ kind, to, pos?,
 room?, bang?, mode?, wait_go? }`) into one: a room key or the room under `pos`; for a stack the doorway nearest `pos` within its width, the
 room on the far side of the wall plane from `pos` (an exterior door always goes into the house), and the side of the door `pos` lies on
 along the wall (`stack_at`) or, for a click on the opening itself, both (`split`); its `mode` (`quiet` / `stun` / `frag`, `Squad.MODES`;
@@ -164,8 +165,8 @@ Tests: `ai/combat/defend_room_stays_inside` (real Von: an ordered defender shot 
 wherever in the house they are, invaders and defenders alike, whatever `entry_enabled` says (D4). The ORDER node's option is an `entry`
 whose params carry the order: `opening`, `into`, `bang`, `mode`, `wait_go`, `go`, `stack_at` or `split`, `order_id`. Its claims carry it on
 the radio (`order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`), `order_hold` (held for the leader's go,
-LD13), `order_go` (that go has come) and `order_side`, the side it names, 0 for a split stack; every claim also carries the `stuns` and
-`frags` the member carries), and the order's rules hold for any stack that has a claim carrying an `order_id`; a stack nobody was ordered
+LD13), `order_go` (that go has come), `order_side`, the side it names, 0 for a split stack, and `order_frame`, the order's `frame`; every
+claim also carries the `stuns` and `frags` the member carries, and `crossed_frame`, the frame its crossing began on, -1 before it), and the order's rules hold for any stack that has a claim carrying an `order_id`; a stack nobody was ordered
 to keeps its own (D10).
 - **The side (D3, D6).** With `stack_at` (the leader's click beside the opening) every member stacks on the side of the door the click lies
   on along the wall, whichever side it comes from. On a split stack (a click on the opening) each member takes the side it begins on (it
@@ -321,8 +322,14 @@ sentence for Von ends " when they give the go".
   dead or gone (D12); and radios it in its next claim. Both read the one rule (`DoorStack.released`).
 - **The human in the stack (D14).** When the human leader holds a slot at the held doorway through its `PlayerStack`, the held stack waits
   for the human's Go: the menu's Go releases it, and so does the human stepping into the doorway into the stack's room (its `going_in` /
-  `in` on the radio, marked `human`, is a member of the stack crossing): the AIs follow it in by the crossing order. Any other crossing
-  counts only under the held order: an earlier entry's claims left at the doorway are not this stack's. The human joins behind the
+  `in` on the radio, marked `human`, is a member of the stack crossing): the AIs follow it in by the crossing order. The human's claim
+  carries no order to scope it by, so its crossing counts only when it began since the order was issued: its claim's `crossed_frame` at
+  or after the order's `frame` (`DoorStack.released(order_id, into, since)`, `since` that frame; a claim or an order whose frame is
+  unknown, -1, releases nothing). `PlayerStack` restamps `crossed_frame` each time the human's step goes from `claim` / `ready` to
+  `going_in` / `in` (and clears it on a new reservation and on withdrawal), so it is the human's latest crossing: a human that brushed
+  the funnel before the order and stepped back to its slot, then steps in after it, releases the stack; an `in` left on the radio from
+  before the order does not. An NPC's `crossed_frame` is its first crossing, its `going_in` being committed. Any other crossing counts
+  only under the held order: an earlier entry's claims left at the doorway are not this stack's. The human joins behind the
   AIs (`PlayerStack` reserves the first free slot once a team is stacking). `PlayerStack` leaves an ally's progress-only callout (an
   `order_step` with no `entry_step`) out of its radio, as the perception does (LD7), so an AI's `in_position` never takes that AI's
   claim off the human's stack.
@@ -354,7 +361,9 @@ it goes on its own), `ai/grenade/order_frag_held_then_go` (LD14: no bang call or
 recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/squad_go_latched_off_claims` (a go read
 off the claims, `order_go` or a member crossing, stays latched in `view()` once the claims stop saying it),
 `order_stack_hold_ignores_earlier_entry` (real Von: a `cover` claim left from an earlier entry into the same room releases nothing; the
-stack holds and `view()` says held until the leader's go), `general/command_menu_wiring` (LD16). Part 1's
+stack holds and `view()` says held until the leader's go), `ai/stack/stack_player_go_after_funnel_brush` (D14: the human brushes the
+funnel before the order and steps in after it; the squad's `view()` then no longer says held), `ai/door_stack_suite` (the rule:
+`released` against the order's frame), `general/command_menu_wiring` (LD16). Part 1's
 `order_stack_*` tests, unchanged, cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
@@ -668,7 +677,7 @@ The cases the behaviours above cite as D1 to D30.
 | D11 | A defender's ordered walk across its own house | A room it has stood in and seen empty within `entry_pass_clear_time` counts as clear for passing, for thresholds and views; any other room gets an entry. | LD9 |
 | D12 | A held stack whose leader can no longer say go | When the leader who gave it is dead, the squad releases it (a `go` with `auto: true`) and the entry latches its go on its own: it goes on the ready barrier, or at once if ready. | LD13 |
 | D13 | Who a go goes to | Every living member holding a held stack order at that doorway, whatever the selection; it releases the order, never replaces it, and is latched until the stack is ready. | LD13, LD16 |
-| D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`); the AIs follow it in. | LD13 |
+| D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`) on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`; the human's latest crossing); the AIs follow it in. | LD13 |
 | D15 | Ordered with a frag, no frag in the stack | The menu greys "with frag" while no recipient carries one; a stack whose frag is gone by the time it is in goes in quietly and radios `bang_off`, and the order is still done at `cleared_room`. | LD14, LD16 |
 | D16 | Where the frag is aimed | Only where its burst leaves every claimed slot of the stack, the thrower's own too, out of its danger zone (the wall between shields it); nowhere such: the frag is given up, quiet. | LD14 |
 | D17 | Where an ambush waits | In the room on the click's side of the wall (an exterior door: the house's), at a post off the axis, back from the wall, out of the funnel, seeing the threshold and hidden from every slot and pie step of an entry by that doorway; with none hidden, the least seen. | LD15 |

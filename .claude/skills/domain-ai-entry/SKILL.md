@@ -254,7 +254,10 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `claim`; or the stack last grew), all of it at most `order_ready_cap` s from the first ordered `ready`
   (`_order_ready_at`, `_order_capped`); `_ahead` drops a recipient still at `claim` only then; `solo` (`_alone`) is false while another
   recipient is coming; `_waits_for_bang` holds an ordered bang's point in its slot until the stack is in. The claim `_order_claim` reads is
-  `{ order_id, order_bang, order_mode, order_hold, order_go, order_side }` (`DoorStack.order_claim(_me())`), and `_radio` adds `order_mode`, `order_hold`, `order_go` too. The order ends when the room is
+  `{ order_id, order_bang, order_mode, order_hold, order_go, order_side, order_frame, into }` (`DoorStack.order_claim(_me())`), and `_radio`
+  adds `order_mode`, `order_hold`, `order_go` and `order_frame` too (`_order_frame`, the `frame` of the live order at `begin`,
+  `_held_order_frame`, -1 when unknown). Every call carries `crossed_frame` (`_crossed_frame`, stamped by `_radio` the first time its step
+  is `going_in` or a through step, -1 before it, cleared by `reset`: its `going_in` is committed, so its first crossing is its only one). The order ends when the room is
   cleared (`AgentPerception.mark_cleared` ends it `done`). **The approach (D4, D11):** before the claim goes out `Behavior._apply_entry`
   sets `held_back` (an ordered entry, not resumed from a detour, in `approach`) and `_detour_first` reads the whole way (`approach_points()`,
   leg by leg on `AgentPerception.walk_route(p, "<opening>><into>", from)`; up to `ROUTE_WAIT` s, standing, while that map is `pending`): a
@@ -286,9 +289,10 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   in its slot (`_holding`, read through `holding_for_go()` while in `stack`): no pie, no listen, no bang (`_bang_due` calls none) and no
   crossing. `_note_go()`, each `step`, latches the go the first time any of these holds: the live order (`AgentPerception.order()`) has
   `go: true` (the leader's `go`, D13, taken by `process_order` whenever it came, before the stack was ready too), the stack's claims say it
-  came (`DoorStack.released(order_id, into)`, `into` the order claim's room: a claim under the same order says `order_go`, or a member of
-  this stack, a claim under the order or the human's, is crossing or through into that room, D14: the human leader stepping in is its go; a
-  claim left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; the squad's
+  came (`DoorStack.released(order_id, into, since)`, `into` and `since` the order claim's room and `order_frame`: a claim under the same
+  order says `order_go`, or a member of this stack, a claim under the order or the human's, is crossing or through into that room, D14: the
+  human leader stepping in is its go, on a crossing begun since the order was issued (its `crossed_frame` at or after `since`; a -1 on
+  either releases nothing); a claim left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; the squad's
   `view()` reads the same rule), or the leader that
   gave the order is gone or dead (D12, beside the squad's own `auto` go); it then re-radios its latest call with `order_go`. Released, the stack
   goes on the ready barrier as any ordered stack. `Behavior._apply_entry` radios the order's `in_position` while `holding_for_go()`. Tests:

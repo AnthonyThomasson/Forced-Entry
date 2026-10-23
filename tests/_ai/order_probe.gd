@@ -118,9 +118,10 @@ static func orders(t: TestContext, who: Node = null) -> Array:
 
 
 ## Post an order straight onto the bus, as a squad does (LD5):
-## `{ id, leader, faction, to, kind, ... }`.
+## `{ id, leader, faction, to, kind, ... }`, stamped with the frame it is posted on (`frame`) unless
+## it names one.
 static func post(order: Dictionary) -> void:
-	EventBus.post(&"order", order)
+	EventBus.post(&"order", order.merged({ "frame": GameClock.frame() }))
 
 
 # --- The NPC --------------------------------------------------------------------------------------

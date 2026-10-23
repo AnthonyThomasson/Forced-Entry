@@ -330,11 +330,14 @@ func issue(request: Dictionary) -> Dictionary:
 	return _post_order(order)
 
 
-## Give `order` (`{ leader, faction, to, kind, ... }`) its id, keep it as what each of its `to`
-## holds (a `cancel` ends what they held), and post it as `&"order"`. Returns it.
+## Give `order` (`{ leader, faction, to, kind, ... }`) its id and the physics frame it is issued on
+## (`frame`, `GameClock.frame()`: a held stack's go read off the human's claim counts only a
+## crossing begun since, D14), keep it as what each of its `to` holds (a `cancel` ends what they
+## held), and post it as `&"order"`. Returns it.
 func _post_order(order: Dictionary) -> Dictionary:
 	_issued += 1
 	order["id"] = "%s_%d" % [_faction, _issued]
+	order["frame"] = GameClock.frame()
 	for m: Node in order["to"]:
 		var id := m.get_instance_id()
 		if order["kind"] == CANCEL:
@@ -387,13 +390,14 @@ func _waits_for_go(order: Dictionary) -> bool:
 
 ## Keep as released (`_released`) every held stack at doorway `opening` its claims now say had its
 ## go (`DoorStack.released`: a claim under the order says the go came, or a member of that stack,
-## under the order or the human, is crossing or through into the order's room, D14), as each member
-## keeps its own: a go once heard stands, whatever the claims say after.
+## under the order or the human, is crossing or through into the order's room, the human on a
+## crossing begun since the order's `frame`, D14), as each member keeps its own: a go once heard
+## stands, whatever the claims say after.
 func _latch_go(opening: String) -> void:
 	var stack: RefCounted = _ledger.stack(opening)
 	var held := _held_at(opening)
 	for id in held:
-		if stack.released(str(id), str(held[id]["into"])):
+		if stack.released(str(id), str(held[id]["into"]), int(held[id]["frame"])):
 			_released[str(id)] = true
 
 
@@ -426,7 +430,7 @@ func _release(held: Dictionary, at: Dictionary, auto: bool) -> Dictionary:
 	_issued += 1
 	var go := {
 		"id": "%s_%d" % [_faction, _issued], "leader": _leader, "faction": _faction, "to": to,
-		"kind": GO, "opening": at["opening"], "pos": at["pos"],
+		"kind": GO, "opening": at["opening"], "pos": at["pos"], "frame": GameClock.frame(),
 	}
 	if auto:
 		go["auto"] = true
