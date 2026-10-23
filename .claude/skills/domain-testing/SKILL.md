@@ -393,27 +393,28 @@ selector. They are ordinary tests that load other domains, so they live apart fr
 
 | Test | Load |
 |---|---|
-| `perf/match_5v5_stress` | the whole-match case: a generated house (pinned to the largest plan, `garage_home`, so a catalogue change never shrinks the house it fights in), five defenders and five invaders placed by `MatchSpawner`, default loadouts, debug overlays off as in Main, nav re-baker, blood, debris, sound and radio on, scripted Von |
-| `perf/match_10v10_stress` | the same with ten a side: the largest match the game means to carry, held to the same standard |
-| `perf/match_10v10_team_stress` | the 10v10 of `match_10v10_stress` (same house, seed, placement, loadouts, switches and scripted Von) with one squad per side built and bound as Main builds it (`Squad.setup` with the spawner's openings, the rooms and `MatchSpawner.callout_ttl_of`, `MatchSpawner.bind_squad`, the invaders ranked as Main ranks its unit), so the members follow their leaders and the squads' cost (the trail, the follow spots, the `follow` primitive, the leash) is in the frame; every member but the leader following is its premise, and so is contact: after `WARMUP_S` the warm-up runs on until a shot has been fired (at most `CONTACT_WITHIN`, 20 s; `PERF 10v10 team match contact at <s> s`), and as the window opens some NPC knows a hostile (`known_contacts_for_display()`), so the window measures the teams' fight (`PERF 10v10 team match window: <n> knowing a hostile as it opened, <n> shots in it`). Its follow cost is its frame stats read against `match_10v10_stress`'s; it logs the follow count (`PERF ... following at the end`). The two squad-less match guards stay a deciding crowd |
+| `perf/match_5v5_stress` | the whole-match case, built as Main builds one (`s.match({ defenders: { count }, invaders: { count } })` over `s.house(SEED, PLAN)`, through `MatchBuilder.populate`): a generated house pinned to the largest plan, `garage_home` (so a catalogue change never shrinks the house it fights in), five defenders at clear spots in random rooms and five invaders in one group beside the front door, each side with its spec loadout (the invaders' helmet, plate carrier and steel plates front and back, a stun and a frag each; the defenders' plain clothes; a random gun each), styled and ranked, one squad per side, every debug overlay off (the spec's `overlays` default), nav re-baker, blood, debris, sound and radio on, scripted Von; the sides in contact before the window opens (`Perf.await_contact`, a premise) |
+| `perf/match_10v10_stress` | the same with ten a side: the largest match the game means to carry, held to the same standard. Each squad's members but its leader follow it (every member but the leader following is a premise), so the squads' cost (the trail, the follow spots, the `follow` primitive, the leash) is in the frame, and the sides are in contact as the window opens, so it measures the teams' fight; it logs when contact came (`PERF 10v10 match contact at <s> s`), the window (`PERF 10v10 match window: <n> knowing a hostile as it opened, <n> shots in it`) and the follow count (`PERF 10v10 match node growth ..., <n> following at the end`). **Red on a quiet machine** (its p95 and max), by the user's decision: an invader's decision that weighs its grenades (the throw spots and the escape from the burst, in its decision snapshot) spikes in one frame; the standard is untouched and the fix is #98 |
 | `perf/npc_crowd_stress` | twelve scripted-Von NPCs sensing, deciding and shooting in one open furnished arena (everyone sees everyone: the decision snapshot's worst case) |
 | `perf/automatic_fire_stress` | SMGs and rifles on the trigger plus pistols clicking into furniture: one run covers the single-shot and the automatic path |
 | `perf/hit_overload_stress` | hundreds of hits on one chair and one character: deformation, debris, blood and their caps |
 | `perf/crowd_deaths_stress` | a whole 5v5 (ten characters) killed in one frame: ragdolls, blood, bleed-out |
 | `perf/furniture_pile_stress` | 120 rigid bodies shoved at once |
 | `perf/bake_and_path_stress`, `perf/generate_houses_stress` | one-shot work: nav re-bake and path queries, world-gen |
-| `perf/grenade_match_stress` | P1 of `docs/grenades.md`: the 5v5 of `match_5v5_stress`, and once the sides are in contact a puppet on the invaders' side throws three frags and three stuns among the fighters over about 3 s (through the controller contract); measured from the first throw to 3 s after the last burst |
+| `perf/grenade_match_stress` | P1 of `docs/grenades.md`: the 5v5 of `match_5v5_stress`, and once the sides are in contact a puppet on the invaders' side (a test actor, not one of the match's, carrying the three of each P1 names) throws three frags and three stuns among the fighters over about 3 s (through the controller contract); measured from the first throw to 3 s after the last burst. The match's invaders carry grenades of their own, so its premise (all six went off) and its among-the-fighters check count only the puppet's: its blasts by `attacker`, its stuns by the frames its own stun bursts went off in |
 | `perf/grenade_burst_stress` | P2: a frag and a stun going off together among twelve pieces of furniture and eight characters in an arena (blood, debris, hit particles and sound on, `nav.rebake` off); the burst frame and the 2 s after it |
 
-Twelve guards in all. `tools/run_tests.sh --domain=perf` (or the word `perf`) runs just them. The pre-commit hook leaves them out
-(`--skip-domain=perf`): their frame-time budgets fail when the machine is busy, so run them on their own before a push
-that touches a per-frame path. They stay in the default run, balanced across shards
-by measured cost like every test, and `--changed` adds the domain whenever a scene they exercise changes (`affected()` in
-`tools/run_tests.sh`) or `tests/_perf/` changes. The shared helper is `tests/_perf/perf_probe.gd` (`const Perf :=
-preload(...)`; not a test), with the match guards' shared set-up: `overlays_off(npc)` (an NPC's debug overlays at their defaults, off, as Main
-leaves them), `front_entrance(t)` (the generated house's front entrance, where a guard's spread invaders are placed from) and
-`spawn_match(t, seed, per_side)` (a match placed and armed as Main does, the invaders spread from the front entrance: the two 10v10 guards'). `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but are
-functional tests of their domain.
+Eleven guards in all. `tools/run_tests.sh --domain=perf` (or the word `perf`) runs just them; `match_10v10_stress` is red on a
+quiet machine until #98. The pre-commit hook leaves them out (`--skip-domain=perf`): their frame-time budgets fail when the
+machine is busy, so run them on their own before a push that touches a per-frame path. They stay in the default run, balanced
+across shards by measured cost like every test, and `--changed` adds the domain whenever a scene they exercise changes
+(`affected()` in `tools/run_tests.sh`) or `tests/_perf/` changes. The shared helper is `tests/_perf/perf_probe.gd` (`const Perf :=
+preload(...)`; not a test), with the match guards' contact: `await_contact(t, label, characters, limit_s)` runs a guard's warm-up
+on until a shot has been fired and some NPC among `characters` knows a hostile at once (at most `limit_s` s more), logs `PERF
+<label> contact at <s> s` and returns whether contact came (the guard `require`s it), and `knows_hostile(c)` (an NPC knowing a
+hostile now, `known_contacts_for_display()`; false for a dead or freed one). The match guards build their match through `s.match`,
+so they need no set-up of their own. `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but
+are functional tests of their domain.
 
 - **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max): the main-loop iteration the frame ran
   in, from its physics frame to the next iteration's first frame signal. Headless `--fixed-fps` outruns the clock and
@@ -438,7 +439,8 @@ functional tests of their domain.
   finish later in the frame (`domain-physics-blood`). Measured and dropped: batching `draw_marks`' discs across marks (19 % of the
   painted pixels change where dents cluster), one body-sized bounds for every mesh (it could change which 15 lights a part keeps), the limb
   outlines as kept meshes (exact, but no faster: three A/B runs each, `grenade_match` 14.70 / 20.74 against 15.09 / 21.75 avg / p95,
-  `npc_crowd` 12.01 / 21.83 against 11.56 / 19.68). The latest record: three windowed runs of the twelve perf tests on 21 October 2026
+  `npc_crowd` 12.01 / 21.83 against 11.56 / 19.68). The latest windowed record, from before issue #95 (the match guards then placed their own match, and a twelfth guard,
+  `match_10v10_team`, measured the 10v10 with its squads): three windowed runs of the twelve perf tests on 21 October 2026
   (`tools/run_tests.sh --windowed`, each alone: no other Godot, the worktree's editor closed), this machine's quiet baseline that day
   a 1-minute load of about 5 (ordinary apps), the load sampled every 10 s through each run (its range in the header), and one headless
   run (avg / p95 / max ms; bold misses). Windowed run W2, started at 6.19, over the < 6 bar, is discarded:
@@ -475,6 +477,30 @@ functional tests of their domain.
   they settle (about 2 ms a repaint, mostly the trunk's outline built twice, body and shadow; only 3-5 % of those repaints change
   nothing). The window adds the rest: the standing bodies' drawing on the script side (5.3 ms against 3.5 headless in that same timed
   run) and the engine's render of the frame. Closing it needs work on the AI and the fallen bodies, outside #78.
+  **Since issue #95** the three match guards build a real match through `MatchBuilder` (the invaders with plates and grenades, styled
+  and ranked, in squads, beside the front door), and `match_10v10_team` is folded into `match_10v10`. Re-baselined headless only
+  (`--domain=perf --verbose --summary --no-lint`, three valid runs a side, each started at a load under 3.5 with no other headless
+  Godot, a run whose load went over 4 discarded; old 4af0b43, new 4c08406), medians, avg / p95 / max ms, bold misses:
+
+  | Test | before #95 | since #95 |
+  |---|---|---|
+  | `match_5v5` | 5.93 / 9.10 / 12.47 | 5.55 / 11.31 / 22.89 |
+  | `match_10v10` | 10.88 / 14.69 / 22.42 | 11.74 / **22.04** / **65.34** |
+  | `match_10v10_team` | 8.91 / 11.94 / 14.41 | (folded into `match_10v10`) |
+  | `grenade_match` (P1) | 10.16 / 15.09 / 24.20 | 10.58 / 17.29 / 33.18 |
+  | `npc_crowd` | 4.49 / 10.04 / 16.44 | 4.48 / 10.62 / 16.70 |
+  | `automatic_fire` | 5.40 / 8.24 / 10.96 | 5.52 / 8.60 / 10.47 |
+  | `hit_overload` | 7.97 / 9.87 / 10.60 | 8.54 / 10.10 / 10.66 |
+  | `crowd_deaths` | 7.49 / 11.80 / 16.12 | 7.48 / 11.87 / 15.72 |
+  | `furniture_pile` (moving) | 0.72 / 2.15 / 2.61 | 0.72 / 2.14 / 2.65 |
+  | `grenade_burst` (P2) | 6.41 / 8.47 / 22.10 | 6.89 / 8.90 / 22.50 |
+  | `bake_and_path`, `generate_houses` | pass | pass |
+
+  The averages barely move; the tails do. The 5v5 and P1 medians pass, each grazing or missing its max in one run of three; the
+  10v10's window holds 10 to 16 NPCs knowing a hostile and 21 to 48 shots (the team guard's held 2 and 0), and its p95 and max miss in
+  every run: one invader's decision that weighs its grenades (`AgentTactics.throw_spot` about 5 ms a search, up to four a snapshot, and
+  `AgentThrow.escape` 5 to 14 ms) takes 20 to 47 ms in one frame. With the invaders' grenades taken away its max fell within 33.4. The
+  guard stays red and the standard untouched, by the user's decision; the fix is #98. Not yet re-measured windowed.
 - **The standard:** a match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps
   frame, the Performance overlay's target), `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through
   `Perf.within_frames`, at the scale of the largest match (twenty characters, `match_10v10_stress`), with no looser tail.

@@ -426,10 +426,13 @@ Test: `ai/grenade/grenade_overlay_draws`.
 perf test holds (`Perf.SMOOTH_*` in `tests/_perf/perf_probe.gd`): **average ≤ 16.7 ms** a frame (one 60 fps frame),
 **p95 ≤ 20 ms** and **no frame over 33.4 ms** (two frames).
 
-**P1. Grenades in a match** (`perf/grenade_match_stress`). The 5v5 of `perf/match_5v5_stress` (a generated house on its largest plan, placed and
-armed as Main does, nav re-baker, blood, debris, sound and radio on, scripted Von); once the sides are in contact a puppet on the invaders' side
-throws three frags and three stuns among the fighters over about 3 s, through the controller contract, so every NPC's grenade perception, evade
-planning and re-decision is in the measurement. Measured from the first throw to 3 s after the last burst.
+**P1. Grenades in a match** (`perf/grenade_match_stress`). The 5v5 of `perf/match_5v5_stress` (a generated house on its largest plan, the match built
+as Main builds one through `MatchBuilder`: the invader team beside the front door with its plates and a stun and a frag each, styled and ranked, one
+squad a side; nav re-baker, blood, debris, sound and radio on, scripted Von); once the sides are in contact (a shot fired and some NPC knowing a
+hostile) a puppet on the invaders' side, a test actor and not one of the match's, throws three frags and three stuns among the fighters over about 3
+s, through the controller contract, so every NPC's grenade perception, evade planning and re-decision is in the measurement, and a grenade an NPC
+throws meanwhile is part of the load. Measured from the first throw to 3 s after the last burst; the premise that all six went off counts only the
+puppet's own.
 
 **P2. A burst in a crowded room** (`perf/grenade_burst_stress`). A frag and a stun going off together among twelve pieces of furniture and eight
 characters (blood, debris, hit particles and sound on). Measured over the burst frame and the 2 s after it.
@@ -500,7 +503,7 @@ baseline that day was a 1-minute load of about 5 (ordinary apps), load before �
 P1 does not meet the standard windowed: its average is under the budget and its p95 2-4 ms over. P2 holds its average and p95 and missed
 once on one frame (39.85; 26.9-31.4 in the other five windowed runs since 19 October). Headless the same build passes (P1 10.61 / 15.80 /
 25.29, P2 6.44 / 8.40 / 22.50, load 4.00 → 3.61). The other perf tests' windowed numbers are in the `domain-testing` skill (Performance
-tests, "Rendered too"), with the latest windowed runs of all twelve.
+tests, "Rendered too"), with the latest windowed runs of all twelve, from before issue #95.
 
 **The GdUnit panel.** One **Run overall** from the editor's GdUnit panel on 21 October 2026 (every suite, an hour; no other Godot but the
 editor and its runner; the perf suite at a 1-minute load of 3.9-5.1) gives the windowed verdicts: P1 15.59 / **21.98** / 31.88, its p95
@@ -517,6 +520,13 @@ outside #78. P2's worst frame is the frag's own frame, about 23 ms of CPU and ab
 (not a first use, not the flash lights: both ruled out by measurement in the profile). An atlas for the limb art was built and measured
 and gained nothing in P1, so it was not kept. What would surely close the rest is only what the user ruled out: visible or timing
 changes (fewer splats per blast, the blast's work spread over frames, simpler art).
+
+**Issue #95** builds P1's match through `MatchBuilder`, so its invaders carry their plates and grenades, are styled and ranked and follow
+their squad's leader, from beside the front door. Re-baselined headless only (`tools/run_tests.sh --domain=perf --verbose --summary
+--no-lint`, three valid runs a side, each started at a 1-minute load under 3.5 with no other headless Godot, a run whose load went over 4
+discarded; before 4af0b43, after 4c08406), P1's medians went from 10.16 / 15.09 / 24.20 to 10.58 / 17.29 / 33.18, and P2's from 6.41 / 8.47
+/ 22.10 to 6.89 / 8.90 / 22.50. P1's median passes; its max missed in one run of three (34.52). Not yet re-measured windowed; the other
+guards' numbers are in the `domain-testing` skill.
 
 **The prepaint's cost.** A gun or grenade paints its art ahead of time once per weapon style per process (`ItemRegistry.inventory_for`, every
 raise step, both lying sides, every lighting step: the very draws it will make), about **230 ms** once, when the first inventory in that style

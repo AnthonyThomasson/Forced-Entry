@@ -790,6 +790,29 @@ before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), ga
 
 ## Performance
 
+**Since the match builder (issue #95).** The three match guards (`match_5v5_stress`, `match_10v10_stress`, `grenade_match_stress`) build
+their match through `MatchBuilder` as Main builds one (`s.match`): the invader team beside the front door with its plates and grenades,
+styled and ranked, one squad a side, every member but the leader following it. `perf/match_10v10_team_stress` is folded into
+`match_10v10_stress`, which keeps its premises (one squad a side, the rank rule's leader, every member but the leader following, contact
+within `CONTACT_WITHIN`) and its logs; the 5v5 and the grenade match now require contact too (`Perf.await_contact`). So `tools/run_tests.sh
+--domain=perf` runs eleven guards. Re-baselined headless (`--domain=perf --verbose --summary --no-lint`, three valid runs a side, each
+started at a 1-min load under 3.5 with no other headless Godot and discarded if the load went over 4; before 4af0b43, after 4c08406),
+medians in ms per frame, avg / p95 / max against 16.7 / 20 / 33.4 (bold misses):
+
+| Guard | Before (4af0b43) | After (4c08406) |
+|---|---|---|
+| 10v10 match (`match_10v10_stress`) | 10.88 / 14.69 / 22.42 | 11.74 / **22.04** / **65.34** |
+| 10v10 team match (`match_10v10_team_stress`) | 8.91 / 11.94 / 14.41 | (folded into the 10v10) |
+| 5v5 match (`match_5v5_stress`) | 5.93 / 9.10 / 12.47 | 5.55 / 11.31 / 22.89 |
+| grenades in a 5v5 match (`grenade_match_stress`) | 10.16 / 15.09 / 24.20 | 10.58 / 17.29 / 33.18 |
+
+The averages barely move; the tails do, because the guards now measure a real match. The 10v10's window holds 10 to 16 NPCs knowing a
+hostile and 21 to 48 shots (the team guard's held 2 and 0), and its p95 and max miss in every run: one invader's decision that weighs its
+grenades (the throw spots and the escape from the burst, in its decision snapshot) takes 20 to 47 ms in one frame. With the invaders' stuns
+and frags set to 0 its max fell to 29.02. By the user's decision the guard stays red on a quiet machine and the standard is untouched; the
+fix is #98. The 5v5 and the grenade match medians pass, each grazing or missing its max in one run of three. The other guards' numbers are
+in the `domain-testing` skill. The runs below are from before issue #95.
+
 **With squads following their leaders (LD19 to LD28).** `tools/run_tests.sh --domain=perf` (twelve guards, the eleven below and
 `perf/match_10v10_team_stress`: the 10v10 guard's match, the same house, placement and scripted Von, with one squad a side bound as Main
 binds it, so its members follow their leaders), `--verbose` for the `PERF` lines, with the squads, 3 runs back to back on
