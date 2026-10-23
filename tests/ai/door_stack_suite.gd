@@ -503,16 +503,17 @@ func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -
 	assert_int(asked[0]).override_failure_message(
 		"its side is asked for in the slot it takes, 2 (asked in %d)" % asked[0],
 	).is_equal(2)
-	var got := [at["slot"], at["held"], at["want"], at["side"], at["place"]]
+	var got := [at["slot"], at["held"], at["side"], at["place"]]
 	assert_array(got).override_failure_message(
 		"slot 2, held, on the side it asked for, first in that side's file: %s" % str(at),
-	).is_equal([2, true, -1, -1, 1])
+	).is_equal([2, true, -1, 1])
 	assert_that(at["point"]).is_equal(_slot_at(-1, 1))
 	var keeping: Dictionary = DoorStack.new(_door(), point_man).claim(
-		claiming.merged({ "slot": 2, "want": 1 }, true),
+		claiming.merged({ "slot": 2 }, true),
+		func(_n): return 1,
 	)
 	assert_array([keeping["slot"], keeping["side"], keeping["place"]]).override_failure_message(
-		"kept, no weighing given: its own want, behind the point: %s" % str(keeping),
+		"kept, asking for the point's side: behind the point: %s" % str(keeping),
 	).is_equal([2, 1, 2])
 	assert_that(keeping["point"]).is_equal(_slot_at(1, 2))
 	var full: Array = range(3).map(

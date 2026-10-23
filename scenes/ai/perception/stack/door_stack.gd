@@ -213,19 +213,16 @@ func released(order_id: String, into: String) -> bool:
 ## The chain every member claims and keeps its slot by, an NPC's entry and the human's
 ## `PlayerStack` alike (E2, E19 to E22): the slot `slot_for` gives member `me`, whether the doorway
 ## has it (`held`, `has_slot`: a dead end holds only so many, E20), the side it asks for in it
-## (`want`, its own weighing, called with that slot; omitted, `me.want`) and where it then stands
-## (`settle`): `{ slot, held, want, side, place, point }`. A member whose slot changes is no longer
-## moving up (E2), so its `move_up` is dropped for the settling.
-func claim(me: Dictionary, want := Callable()) -> Dictionary:
+## (`want`, its own weighing, called with that slot) and where it then stands (`settle`):
+## `{ slot, held, side, place, point }`. A member whose slot changes is no longer moving up (E2), so
+## its `move_up` is dropped for the settling.
+func claim(me: Dictionary, want: Callable) -> Dictionary:
 	var n := slot_for(me)
-	var asked := me.merged({ "slot": n }, true)
+	var asked := me.merged({ "slot": n, "want": int(want.call(n)) }, true)
 	if n != int(me.get("slot", 0)):
 		asked["move_up"] = 0
-	if want.is_valid():
-		asked["want"] = int(want.call(n))
 	var at := settle(asked)
 	at["held"] = has_slot(n)
-	at["want"] = int(asked.get("want", asked.get("side", 0)))
 	return at
 
 
