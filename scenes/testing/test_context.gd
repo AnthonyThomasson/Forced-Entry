@@ -90,8 +90,8 @@ func actor(id: StringName) -> Node:
 
 
 ## The handle of the match the setup declared (`TestSetup.match`): `MatchBuilder.populate`'s
-## `{ world, house, rooms, openings, nav_region, nav_debug, combatants, squads, player_stack }`;
-## {} when none was declared.
+## `{ world, house, rooms, openings, nav_region, nav_debug, combatants, squads, player_stack,
+## leader_overlay }`; {} when none was declared.
 func match() -> Dictionary:
 	var handle: Variant = world.get("match_handle") if is_instance_valid(world) else null
 	return handle if handle is Dictionary else {}

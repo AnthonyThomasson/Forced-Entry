@@ -4,16 +4,18 @@ extends RefCounted
 ## for the Testing domain's world alike, so both compose one the same way. A match spec goes in (a
 ## plain dict `spec` fills with defaults: the house's `seed` / `plan` / `entrance`, or a `house`
 ## already built, each side's `count`, `loadout` and optional `at`, the `human`, `wait_nav`,
-## `spawn_clearance`, `invader_margin`) and a match handle comes out (a plain dict: `world`,
-## `house`, `rooms`, `openings`, `nav_region`, `nav_debug`, then `combatants`, `squads`,
-## `player_stack`). `build` is its two stages: `stage`, the world stage (the house, its navigation
-## map with the holes overlay and the re-baker, interface 9, the dusk lighting, interface 20, then,
-## when asked, a wait until both navigation maps answer with this house), and `populate` (each side
-## placed through the match spawner, the human joined, everyone armed, styled and ranked, one squad
-## per side). `bind_npc` is the one rule an NPC's controller is handed the house by (before the NPC
-## joins the tree), `bind_squad` / `bind_player` / `callout_ttl_of` the squad's and the human's
-## (interfaces 17, 21). `spec_from_setup` reads the setup window's choices into a spec,
-## `random_spec` draws an endless run's next one.
+## `spawn_clearance`, `invader_margin`, `overlays`) and a match handle comes out (a plain dict:
+## `world`, `house`, `rooms`, `openings`, `nav_region`, `nav_debug`, then `combatants`, `squads`,
+## `player_stack`, `leader_overlay`). `build` is its two stages: `stage`, the world stage (the
+## house, its navigation map with the holes overlay and the re-baker, interface 9, the dusk
+## lighting, interface 20, then, when asked, a wait until both navigation maps answer with this
+## house), and `populate` (each side placed through the match spawner, the human joined, everyone
+## armed, styled and ranked, one squad per side and the squad-leaders overlay over them). `bind_npc`
+## is the one rule an NPC's controller is handed the house by (before the NPC joins the tree),
+## `bind_squad` / `bind_player` / `callout_ttl_of` the squad's and the human's (interfaces 17, 21).
+## `set_overlay` is the one rule a debug overlay's toggle reaches a match by (interface 22).
+## `spec_from_setup` reads the setup window's choices into a spec, `random_spec` draws an endless
+## run's next one.
 ## Like `main.gd` it knows the domains it wires; nothing in them knows it.
 
 ## NPC placement for one match (where defenders and invaders start; see match_spawner.gd).
@@ -55,6 +57,10 @@ const NAV_UPDATER := preload("res://scenes/navigation/nav_updater.gd")
 ## The human's side of the entry radio: it reserves the human a slot in an AI stack near it
 ## (`docs/tactical-entry.md` E16).
 const PLAYER_STACK := preload("res://scenes/ai/team/player_stack.gd")
+## The debug overlay table (UI): the flags `overlays` and `set_overlay` name.
+const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")
+## The squad-leaders debug overlay (UI, `docs/leadership.md` LD12): a crown over each side's leader.
+const LEADER_OVERLAY := preload("res://scenes/ui/overlays/leader_overlay.gd")
 ## The keys of a side's loadout the setup window chooses (its per-side config, beside `count`).
 const SETUP_LOADOUT_KEYS := ["weapon", "magazine", "spares", "stuns", "frags", "outfit"]
 ## Most wall-clock ms `stage` waits for the navigation maps to answer with the house's navmesh (a
@@ -73,7 +79,10 @@ const NAV_SYNC_MS := 5000
 ## `&"invader"`, whether it leads that side's squad, and optionally where it starts in place of its
 ## side's placement; `{}` = no human), `wait_nav` (`stage` waits for the navigation maps; on),
 ## `spawn_clearance` (px a character is dropped clear of furniture, twice that of another combatant;
-## 20) and `invader_margin` (px out of the house the invaders' group point is drawn; 80).
+## 20), `invader_margin` (px out of the house the invaders' group point is drawn; 80) and `overlays`
+## (the debug overlays the match starts with, `{ show_<x>: bool }` by `OverlayRegistry` flag: the
+## navigation holes, the squad leaders and each NPC's own; a flag it does not name starts off;
+## `{}`).
 static func spec(overrides: Dictionary = {}) -> Dictionary:
 	var out := {
 		"seed": 0,
@@ -86,6 +95,7 @@ static func spec(overrides: Dictionary = {}) -> Dictionary:
 		"wait_nav": true,
 		"spawn_clearance": 20.0,
 		"invader_margin": 80.0,
+		"overlays": {},
 	}
 	for key in overrides:
 		if (key == "defenders" or key == "invaders") and overrides[key] is Dictionary:
@@ -171,10 +181,13 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## the house (an invader heading for the front entrance first); the human joined to its side (its
 ## faction, and its start: the spec's `human.at`, else for a defender a clear spot in a random
 ## room) under the world, just above the house, and given its stack radio; everyone armed, styled
-## and ranked (`arm`); one squad per side (`build_squads`). Placement draws from one RNG seeded with
-## the spec's `seed`, so a pinned seed pins the match. Returns the handle with `combatants` (every
-## character in the match in spawn order, the human last), `squads` (by faction) and `player_stack`
-## (the human's, or null).
+## and ranked (`arm`); one squad per side (`build_squads`) and the squad-leaders overlay over them
+## (`build_leader_overlay`); every debug overlay started as the spec's `overlays` says
+## (`set_overlay`:
+## a flag it does not name off).
+## Placement draws from one RNG seeded with the spec's `seed`, so a pinned seed pins the match.
+## Returns the handle with `combatants` (every character in the match in spawn order, the human
+## last), `squads` (by faction), `player_stack` (the human's, or null) and `leader_overlay`.
 static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
 	var world: Node2D = match["world"]
@@ -232,6 +245,10 @@ static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
 	out["combatants"] = combatants
 	out["squads"] = build_squads(world, combatants, openings, rooms, human, stack)
 	out["player_stack"] = stack
+	out["leader_overlay"] = build_leader_overlay(world, out["squads"])
+	var overlays: Dictionary = match_spec["overlays"]
+	for flag in OVERLAY_REGISTRY.defaults():
+		set_overlay(out, flag, bool(overlays.get(flag, false)))
 	return out
 
 
@@ -368,8 +385,45 @@ static func build_squads(
 	return squads
 
 
+## The squad-leaders debug overlay (`docs/leadership.md` LD12) of the squads `squads` (by faction,
+## as `build_squads` returns them) under `world`: a `LeaderOverlay` watching every squad's `view()`,
+## shown when `shown` (the `OverlayRegistry.LEADERS` flag). Returned, for the match handle's
+## `leader_overlay`.
+static func build_leader_overlay(world: Node, squads: Dictionary, shown := false) -> Node2D:
+	var overlay: Node2D = LEADER_OVERLAY.new()
+	overlay.name = "LeaderOverlay"
+	world.add_child(overlay)
+	overlay.watch(squads.values().map(func(squad): return squad.view))
+	overlay.show_leaders = shown
+	return overlay
+
+
+## Turn the debug overlay `flag` (an `OverlayRegistry` row) on or off on the match `match` (a
+## handle, or any dict with its `nav_debug`, `leader_overlay` and `combatants`): the navigation
+## holes on its `nav_debug` (redrawn, since a paused overlay's own `_process` may not run), the
+## squad leaders on its `leader_overlay` (a world with no squads has none: nothing happens), and
+## any NPC's own overlay on each NPC among its `combatants` (a character with a controller,
+## interface 7: the human has none of those overlays) through `OverlayRegistry.apply`. The
+## performance flag is the caller's own overlay: nothing here.
+static func set_overlay(match: Dictionary, flag: String, on: bool) -> void:
+	if flag == OVERLAY_REGISTRY.NAV_HOLES:
+		var nav_debug: Variant = match.get("nav_debug")
+		if is_instance_valid(nav_debug):
+			nav_debug.show_holes = on
+			nav_debug.queue_redraw()
+	elif flag == OVERLAY_REGISTRY.LEADERS:
+		var overlay: Variant = match.get("leader_overlay")
+		if is_instance_valid(overlay):
+			overlay.show_leaders = on
+	elif not OVERLAY_REGISTRY.is_global(flag):
+		for npc: Variant in match.get("combatants", []):
+			if is_instance_valid(npc) and _controller_of(npc) != null:
+				OVERLAY_REGISTRY.apply(npc, { flag: on })
+
+
 ## Build the world stage of a match under `world`, the node everything the match builds lives under,
-## from `match_spec` (`seed`, `plan`, `entrance`, `house`, `wait_nav`). With no `house` it generates
+## from `match_spec` (`seed`, `plan`, `entrance`, `house`, `wait_nav`, and `overlays` for the holes
+## overlay's start). With no `house` it generates
 ## one (`WorldGen.generate` from the spec's `seed`, `plan` and front `entrance`); a caller that
 ## built its own (a hand-laid layout or an arena, its objects already placed so the bake carves
 ## them) names it, and it is moved under `world` when it stands elsewhere. Then the nav map
@@ -400,6 +454,9 @@ static func stage(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	nav_debug.name = "NavDebug"
 	world.add_child(nav_debug)
 	nav_debug.setup(house)
+	nav_debug.show_holes = bool(
+		(match_spec["overlays"] as Dictionary).get(OVERLAY_REGISTRY.NAV_HOLES, false),
+	)
 	# The re-baker keeps the navmesh in step with shoved furniture and refreshes the overlay.
 	var nav_updater: Node = NAV_UPDATER.new()
 	nav_updater.name = "NavUpdater"

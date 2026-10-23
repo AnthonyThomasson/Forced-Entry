@@ -41,6 +41,9 @@ var _overlay_flags: Dictionary = {}
 ## The navmesh-holes overlay (the "Navigation holes" toggle), kept in step with re-bakes by the
 ## updater.
 var _nav_debug: Node2D = null
+## The squad-leaders overlay (the "Squad leaders" toggle), built with the squads a setup declares
+## (`TestSetup.squads` or `TestSetup.match`); null in a world that declares none.
+var _leader_overlay: Node2D = null
 
 
 ## Build everything `setup` declares. Statics and switches are applied before anything spawns, so
@@ -70,11 +73,13 @@ func build(setup: TestSetup) -> void:
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
 	var spec := {
-		"seed": int(setup.resolved_world().get("seed", 0)), "house": house, "wait_nav": true,
+		"seed": int(setup.resolved_world().get("seed", 0)),
+		"house": house,
+		"wait_nav": true,
+		"overlays": _overlay_flags.duplicate(),
 	}
 	var staged: Dictionary = await MatchBuilder.stage(spec, self)
 	_nav_debug = staged["nav_debug"]
-	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
 	for v in setup.vehicles:
 		var vehicle := _spawn_vehicle(v)
 		if vehicle != null:
@@ -96,10 +101,9 @@ func build(setup: TestSetup) -> void:
 			human.erase("actor")
 			overrides["human"] = human
 		match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
-		for npc in match_handle["combatants"]:
-			OVERLAY_REGISTRY.apply(npc, _overlay_flags)
 		squads = match_handle["squads"]
 		player_stack = match_handle["player_stack"]
+		_leader_overlay = match_handle["leader_overlay"]
 		if setup.squads_spec is Dictionary:
 			push_error("TestWorld: a setup declares its squads or a match, not both")
 	elif setup.squads_spec is Dictionary:
@@ -109,7 +113,8 @@ func build(setup: TestSetup) -> void:
 
 ## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
 ## declaration order, built and bound by Main's own rule (`MatchBuilder.build_squads`), the human
-## leader first handed its stack radio (`MatchBuilder.bind_player`).
+## leader first handed its stack radio (`MatchBuilder.bind_player`); and the squad-leaders overlay
+## over them (`MatchBuilder.build_leader_overlay`).
 func _build_squads(setup: TestSetup) -> void:
 	var members: Array = []
 	for a in setup.actors:
@@ -125,6 +130,11 @@ func _build_squads(setup: TestSetup) -> void:
 			human = { "node": node, "lead": true }
 			player_stack = MatchBuilder.bind_player(node, rooms, openings)
 	squads = MatchBuilder.build_squads(self, members, openings, rooms, human, player_stack)
+	_leader_overlay = MatchBuilder.build_leader_overlay(
+		self,
+		squads,
+		_overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false),
+	)
 
 
 ## Undo every static override (call after freeing the world, or before rebuilding).
@@ -140,20 +150,22 @@ func overlay_flags() -> Dictionary:
 	return _overlay_flags.duplicate()
 
 
-## Turn one per-NPC debug overlay on/off on every actor (duck-typed by property, like main.gd).
-## The global flags: the navmesh holes live here; the performance panel belongs to the runner.
-## A redraw is forced because a paused overlay's own `_process` may not run.
+## Turn one debug overlay on/off, as the in-game toggle bar does, by Main's own rule
+## (`MatchBuilder.set_overlay`) on this world: the navmesh holes on its holes overlay, the squad
+## leaders on its leaders overlay (a world that declares no squads has none, so the toggle does
+## nothing there) and any other on every NPC, its actors' and a declared match's. The performance
+## panel belongs to the runner.
 func set_overlay(flag: String, on: bool) -> void:
 	_overlay_flags[flag] = on
-	if flag == OVERLAY_REGISTRY.NAV_HOLES:
-		if is_instance_valid(_nav_debug):
-			_nav_debug.show_holes = on
-			_nav_debug.queue_redraw()
-		return
-	for id in actors:
-		var a: Node = actors[id]
-		if is_instance_valid(a):
-			OVERLAY_REGISTRY.apply(a, { flag: on })
+	MatchBuilder.set_overlay(
+		{
+			"nav_debug": _nav_debug,
+			"leader_overlay": _leader_overlay,
+			"combatants": actors.values() + (match_handle.get("combatants", []) as Array),
+		},
+		flag,
+		on,
+	)
 
 
 ## Apply the switch rows' static knobs, then the explicit `set_static` overrides.

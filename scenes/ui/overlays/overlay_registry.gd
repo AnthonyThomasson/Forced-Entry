@@ -4,11 +4,11 @@ extends RefCounted
 ## Main, the test runner and the Testing world all read it, so adding an overlay is one row here
 ## plus its draw script.
 ##
-## `flag` is the overlay node's `show_<x>` property name (found by duck-typed property, like Main's
-## `_configure_debug` and the spectator inspector's `_flags`), except the GLOBAL flags (not per
-## NPC): `show_nav_holes` (the navmesh holes of furniture and characters at rest, applied to Main's
-## single NavDebug node), `show_leaders` (a crown over each squad's leader, Main's single
-## LeaderOverlay node) and `show_perf` (the performance overlay).
+## `flag` is the overlay node's `show_<x>` property name (found by duck-typed property, like
+## `MatchBuilder.set_overlay` and the spectator inspector's `_flags`), except the GLOBAL flags (not
+## per NPC): `show_nav_holes` (the navmesh holes of furniture and characters at rest, applied to the
+## match's single NavDebug node), `show_leaders` (a crown over each squad's leader, the match's
+## single LeaderOverlay node) and `show_perf` (the performance overlay).
 
 ## Flag of the world-space navmesh-holes overlay (furniture and characters at rest).
 const NAV_HOLES := "show_nav_holes"
@@ -51,8 +51,9 @@ const ENTRIES := [
 
 ## Set each entry of `flags` (`show_<x>` -> on/off) on every child of `npc` that has that property,
 ## and redraw the ones touched (a paused overlay's own `_process` may not run). The one way a
-## composer applies the table to an NPC: Main at spawn, the spectator inspector on a selection, the
-## Testing world on a toggle.
+## composer applies the table to an NPC: Main's `MatchBuilder` (a match's start and a toggle, in
+## Main's match and the Testing world's alike), the spectator inspector on a selection, the Testing
+## world at an actor's spawn.
 static func apply(npc: Node, flags: Dictionary) -> void:
 	for child in npc.get_children():
 		var touched := false

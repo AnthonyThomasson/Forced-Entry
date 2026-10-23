@@ -2,8 +2,9 @@ extends Node2D
 ## UI domain: the squad-leaders debug overlay (`docs/leadership.md` LD12), a global toggle of the
 ## overlay bar (`OverlayRegistry.LEADERS`, `show_leaders`, off by default). A crown over each side's
 ## leader, in any match (a played one or Watch / Endless), so who leads, and who leads next once a
-## leader falls, can be seen. Main builds one under the match's `World` node (world space), drawn at
-## `DrawLayers.ABOVE` (interface 11) so a character never hides its crown.
+## leader falls, can be seen. The match builder (`MatchBuilder`) builds one with the squads, under
+## the match's `World` node or a test world (world space), drawn at `DrawLayers.ABOVE` (interface
+## 11) so a character never hides its crown.
 ##
 ## With the crown it draws how the squad follows its leader, per squad: the leash ring round the
 ## living leader (the view's `leash`, how far a follower fights from it), each follower's follow

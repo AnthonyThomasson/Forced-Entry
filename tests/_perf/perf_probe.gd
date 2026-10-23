@@ -18,9 +18,9 @@ const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
 
 
-## A match's NPC `npc` with its debug overlays at their defaults (off), as Main's `_configure_debug`
-## leaves them: an overlay left on (the vision cone's export defaults to on) would be costed as if
-## a player were watching it.
+## A match's NPC `npc` with its debug overlays at their defaults (off), as a match starts them
+## (`MatchBuilder.populate`, its spec's `overlays` naming none on): an overlay left on (the vision
+## cone's export defaults to on) would be costed as if a player were watching it.
 static func overlays_off(npc: Node) -> void:
 	for child in npc.get_children():
 		for flag in OverlayRegistry.defaults():

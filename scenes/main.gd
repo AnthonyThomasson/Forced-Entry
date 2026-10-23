@@ -17,7 +17,6 @@ const STACK_MARKERS := preload("res://scenes/ui/hud/stack_markers.gd")
 ## (`docs/leadership.md` LD11, LD12).
 const COMMAND_MENU := preload("res://scenes/ui/hud/command_menu.gd")
 const ORDER_MARKERS := preload("res://scenes/ui/hud/order_markers.gd")
-const LEADER_OVERLAY := preload("res://scenes/ui/overlays/leader_overlay.gd")
 const STUN_SCREEN := preload("res://scenes/ui/hud/stun_screen.gd")
 ## The overlay table (UI) and the in-game bar of toggle buttons built from it.
 const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd")
@@ -108,19 +107,15 @@ var _endless_max := { "defenders": 1, "invaders": 1 }
 ## Endless run: seconds left until the next match (-1 while a match is being played).
 var _next_match_in: float = -1.0
 ## This match's handle (`MatchBuilder.build`'s): its world, house, rooms, doorways, combatants,
-## squads (by faction) and the human's stack radio; {} between matches.
+## squads (by faction), the human's stack radio and the navigation-holes and squad-leaders
+## overlays; {} between matches.
 var _match: Dictionary = {}
 ## Every debug overlay's on/off state, `{ show_<x>: bool }` keyed like `overlay_registry.gd`.
 var _overlay_flags: Dictionary = {}
 ## The spectator inspector (spectator mode only), told of live toggles so the selected NPC follows
 ## them.
 var _inspector: Node = null
-## The world-space navigation-hole overlay, one of the two overlays that aren't per NPC.
-var _nav_debug: Node2D = null
-## The squad-leaders debug overlay (one per match, under `World`): a crown over each side's leader
-## while `show_leaders` is on.
-var _leader_overlay: Node2D = null
-## The performance overlay (the other global overlay); null when Debug is off.
+## The performance overlay (the one global overlay that isn't the match's); null when Debug is off.
 var _perf_overlay: CanvasLayer = null
 ## The overlay toggle bar (built once, kept across an endless run's matches); null when Debug is
 ## off.
@@ -364,14 +359,16 @@ func return_to_setup() -> void:
 ## stage (the spec's house, or one generated with its front entrance at the spec's `entrance`, the
 ## nav map, its overlay and re-baker, the dusk lighting), which waits until both navigation maps
 ## answer with this house, so no NPC is placed before then (a coroutine: await it); then its
-## population (each side placed, the human joined, armed, styled and ranked, the squads). Then the
+## population (each side placed, the human joined, armed, styled and ranked, the squads and the
+## leaders overlay), its debug overlays started from Main's flags (the spec's `overlays`). Then the
 ## UI over the handle: for the spec's human the stack markers, the stun screen and, when it leads,
-## the command menu and order markers; the leader overlay, the match HUD, for a match with no human
-## the spectator inspector, and the overlay bar. The scene's own `Player` stands in for the human
+## the command menu and order markers; the match HUD, for a match with no human the spectator
+## inspector, and the overlay bar. The scene's own `Player` stands in for the human
 ## of a played match: a match whose human is another character, or nobody, has none, and it goes.
 ## Returns the match handle, or {} when the match was torn down while it was built.
 func start_match(spec: Dictionary) -> Dictionary:
 	spec = MatchBuilder.spec(spec)
+	spec["overlays"] = _overlay_flags.duplicate()
 	var world := Node2D.new()
 	world.name = "World"
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
@@ -383,8 +380,6 @@ func start_match(spec: Dictionary) -> Dictionary:
 	_match = built
 	var human: Variant = (spec["human"] as Dictionary).get("node")
 	_human = human if is_instance_valid(human) else null
-	_nav_debug = built["nav_debug"]
-	_nav_debug.show_holes = _overlay_flags.get(OVERLAY_REGISTRY.NAV_HOLES, false)
 	var combatants: Array = built["combatants"]
 	if _human != null:
 		_build_markers()
@@ -392,10 +387,8 @@ func start_match(spec: Dictionary) -> Dictionary:
 		if _human != _player and is_instance_valid(_player):
 			_player.queue_free()
 	_watch_side_stacks()
-	_build_leader_overlay()
 	if _human != null and bool(spec["human"].get("lead", false)):
 		_build_command_menu(built["rooms"])
-	_configure_debug()
 	_begin_match_hud(combatants)
 	if _human == null:
 		_setup_spectator(combatants)
@@ -446,16 +439,6 @@ func _watch_side_stacks() -> void:
 		markers.watch_squad(squad.view)
 
 
-## The squad-leaders debug overlay under `World`, watching every squad's `view()`, shown while the
-## overlay bar's `show_leaders` is on.
-func _build_leader_overlay() -> void:
-	_leader_overlay = LEADER_OVERLAY.new()
-	_leader_overlay.name = "LeaderOverlay"
-	_world.add_child(_leader_overlay)
-	_leader_overlay.watch(_squads().values().map(func(squad): return squad.view))
-	_leader_overlay.show_leaders = _overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false)
-
-
 ## When the human leads its squad (interface 21, `docs/leadership.md` LD11, LD12): the command menu,
 ## set up with the house's `rooms`, the human's teammates, the squad's `view()` and `resolve()` and,
 ## with Debug on, the overlay bar's column to keep clear of (`right_clear`, as the inspector's), its
@@ -503,8 +486,6 @@ func _teardown_world() -> void:
 	_match = {}
 	_human = null
 	_inspector = null
-	_nav_debug = null
-	_leader_overlay = null
 
 
 ## Start the match HUD on `combatants` (every character in the match, a human included, so a result
@@ -605,39 +586,20 @@ func _initial_overlays() -> Dictionary:
 	return flags
 
 
-## Apply the current debug-overlay toggles to every spawned NPC. Duck-typed by property name so Main
-## doesn't depend on the debug nodes' class or path — any NPC child with a matching `show_<x>`
-## property gets that flag's value. (In spectator mode the inspector then shows them only on the
-## selected NPC.)
-func _configure_debug() -> void:
-	var flags := {}
-	for flag in _overlay_flags:
-		if not OVERLAY_REGISTRY.is_global(flag):
-			flags[flag] = _overlay_flags[flag]
-	for npc in _match.get("combatants", []):
-		if npc != _human:
-			OVERLAY_REGISTRY.apply(npc, flags)
-
-
 ## Turn the debug overlay `flag` (a row of `overlay_registry.gd`) on or off, as the toggle bar's
-## buttons do: record and save it, and apply it live. The navigation holes go to the single NavDebug
-## node, the squad leaders to the single LeaderOverlay and the performance flag to the performance
-## overlay; spectator mode hands the flag to the inspector (it shows overlays on the selected NPC
-## only); in player mode every NPC's overlay takes it directly.
+## buttons do: record and save it, and apply it live. The performance flag goes to Main's own
+## performance overlay; in spectator mode an NPC's own overlay goes to the inspector (it shows
+## overlays on the selected NPC only); the rest goes to the match by the one rule
+## (`MatchBuilder.set_overlay`): the navigation holes and the squad leaders to the match's single
+## overlays, and in player mode an NPC's own overlay to every NPC.
 func set_overlay(flag: String, on: bool) -> void:
 	_overlay_flags[flag] = on
 	Settings.set_overlay(flag, on)
-	if flag == OVERLAY_REGISTRY.NAV_HOLES:
-		if is_instance_valid(_nav_debug):
-			_nav_debug.show_holes = on
-			_nav_debug.queue_redraw()
-	elif flag == OVERLAY_REGISTRY.LEADERS:
-		if is_instance_valid(_leader_overlay):
-			_leader_overlay.show_leaders = on
-	elif flag == OVERLAY_REGISTRY.PERF:
+	if flag == OVERLAY_REGISTRY.PERF:
 		if is_instance_valid(_perf_overlay):
 			_perf_overlay.set_shown(on)
-	elif _inspector != null and is_instance_valid(_inspector):
+	elif (_inspector != null and is_instance_valid(_inspector)
+			and not OVERLAY_REGISTRY.is_global(flag)):
 		_inspector.set_flag(flag, on)
 	else:
-		_configure_debug()
+		MatchBuilder.set_overlay(_match, flag, on)

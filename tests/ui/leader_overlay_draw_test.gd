@@ -13,12 +13,14 @@ extends GameTest
 ## the leader's trail as a dotted line (`{ kind: "trail", points }`, the view's `trail`). A crown is
 ## `{ kind: "crown", point, node }`. A view without those keys draws crowns alone.
 ##
-## Fake squad views (plain data) over three puppets for the overlay itself; then Main's wiring:
-## Main run whole in a world of its own (`tests/_main/main_probe.gd`), a Watch match of its own
-## (`Main.start_match`: two invaders and a defender on a generated house, so two real squads), the
-## overlay found under its `World`, and the bar's toggle through Main's `set_overlay`, the flag the
-## bar hands it. Scripted Von (the first option offered). `Settings.path` points at a scratch file
-## (a toggle is saved).
+## Fake squad views (plain data) over three puppets for the overlay itself; then the routing, which
+## exists once (`MatchBuilder.set_overlay`): the test world's own squads (`s.squads()` over the
+## three puppets, so one squad a side) and the bar's toggle through the test world's `set_overlay`,
+## as the test runner's bar hands it; then Main's wiring: Main run whole in a world of its own
+## (`tests/_main/main_probe.gd`), a Watch match of its own (`Main.start_match`: two invaders and a
+## defender on a generated house, so two real squads), the overlay found under its `World`, and the
+## bar's toggle through Main's `set_overlay`, the flag the bar hands it. Scripted Von (the first
+## option offered). `Settings.path` points at a scratch file (a toggle is saved).
 
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const LeaderOverlay := preload("res://scenes/ui/overlays/leader_overlay.gd")
@@ -34,8 +36,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "The squad-leaders overlay crowns each side's leader while on",
 		"description": "show_leaders is a global overlay row, off by default; on, one crown over "
-			+ "each squad's living leader, following a new leader; Main builds it for every match "
-			+ "and the bar's toggle shows it (LD12).",
+			+ "each squad's living leader, following a new leader; built with the squads of a "
+			+ "match or a test world, the bar's toggle shows it in either (LD12).",
 		"tags": ["ui", "overlay", "leadership"],
 		"timeout": 6.0,
 	}
@@ -51,6 +53,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"lead", &"puppet", Vector2(150, 300), { "faction": &"invader" })
 	s.actor(&"next", &"puppet", Vector2(400, 200), { "faction": &"invader" })
 	s.actor(&"boss", &"puppet", Vector2(700, 400), { "faction": &"household" })
+	s.squads()
 
 
 func run(t: TestContext) -> void:
@@ -97,12 +100,42 @@ func run(t: TestContext) -> void:
 	t.expect_eq(overlay.drawn().size(), 1, "a squad with nobody left to lead has no crown")
 	await _check_follow(t, overlay, lead, next, boss)
 	overlay.queue_free()
+	await t.frames(1)
 
+	await _check_test_world(t)
 	await _check_main(t)
 
 
-## Main builds the overlay over its match's squads, off while the flag is, and the bar's toggle
-## shows it.
+## The test world's squads (`s.squads()`) and the bar's toggle through the test world's
+## `set_overlay`, as the test runner's bar hands it: one crown over each side's leader while on,
+## none once off.
+func _check_test_world(t: TestContext) -> void:
+	var invaders := t.squad(&"invader")
+	var household := t.squad(&"household")
+	if not t.require(
+			invaders != null and household != null,
+			"premise: the test world built a squad a side",
+	):
+		return
+	await t.frames(2)
+	t.check(_crowns_in(t.world).is_empty(), "the test world's crowns are off by default")
+	t.world.set_overlay(Registry.LEADERS, true)
+	await t.frames(2)
+	var crowns := _crowns_in(t.world)
+	t.check(
+		crowns.size() == 2
+			and crowns.any(func(c): return c.get("node") == invaders.leader())
+			and crowns.any(func(c): return c.get("node") == household.leader()),
+		"toggled on through the test world, one crown over each side's leader (%s)"
+			% str(crowns),
+	)
+	t.world.set_overlay(Registry.LEADERS, false)
+	await t.frames(2)
+	t.check(_crowns_in(t.world).is_empty(), "toggled off through the test world, the crowns go")
+
+
+## Main's match has the overlay over its squads (built by the match builder), off while the flag
+## is, and the bar's toggle through Main's `set_overlay` shows it, by the match builder's rule.
 func _check_main(t: TestContext) -> void:
 	var viewport := MainProbe.viewport(t)
 	var main = MainProbe.open(viewport)
@@ -219,6 +252,15 @@ func _check_follow(t: TestContext, overlay: Node, lead: Node, next: Node, boss: 
 	overlay.show_leaders = false
 	await t.frames(2)
 	t.check(overlay.drawn().is_empty(), "off, no ring, spot, line or trail is drawn")
+
+
+## The crowns drawn by every squad-leaders overlay under `world` (a child with `show_leaders`).
+func _crowns_in(world: Node) -> Array:
+	var out: Array = []
+	for child in world.get_children():
+		if "show_leaders" in child and not child.is_queued_for_deletion():
+			out.append_array(_of(child, "crown"))
+	return out
 
 
 ## The entries of `overlay.drawn()` of kind `kind`.
