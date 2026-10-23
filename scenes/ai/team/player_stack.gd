@@ -267,22 +267,32 @@ func _claim_own(stacking_now: Dictionary) -> void:
 ## `geo`) leaves free, claiming now from where it stands, on the side it stands on unless its way
 ## there crosses the doorway's view (E19), and radio the claim.
 func _reserve(id: String, into: String, geo: Dictionary, stack: RefCounted) -> void:
-	var world := _char.get_world_2d()
-	var pos := _char.global_position
 	_opening = id
 	_into = into
 	_geo = geo
 	_claim_frame = GameClock.frame()
-	_claim_pos = pos
+	_claim_pos = _char.global_position
 	_slot = 0
-	_slot = stack.slot_for(_me())
-	_team_side = stack.team_side(pos)
-	_side = _entry.stack_side_from(stack, pos, world.navigation_map, world.direct_space_state)
-	_on = stack.settle(_me())["side"]
+	var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, true))
+	_slot = at["slot"]
+	_on = at["side"]
 	_step = "claim"
 	_ahead_through_at = -1.0
 	_in_at = -1.0
 	_post(_step)
+
+
+## The side the human asks for at `stack` (`_side`, kept with `_team_side`): from where it stands,
+## the team's unless its way there crosses the doorway's view (E19), weighed on its claim (`first`)
+## and again whenever the side the team stacks on changes (its point is known now).
+func _ask_side(stack: RefCounted, first: bool) -> int:
+	var pos := _char.global_position
+	var team_side: int = stack.team_side(pos)
+	if first or team_side != _team_side:
+		_team_side = team_side
+		var world := _char.get_world_2d()
+		_side = _entry.stack_side_from(stack, pos, world.navigation_map, world.direct_space_state)
+	return _side
 
 
 ## The doorway the human has stepped up to (`{ id, into, geo }`, {} for none): one no stack forms
@@ -360,20 +370,12 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		var was_side := _on
 		# An AI that keeps the same slot (claimed on its frame nearer it, else the lower instance
 		# id) has it: the human takes the next free one (E2).
-		_slot = stack.slot_for(_me())
-		if not stack.has_slot(_slot):
+		var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, false))
+		_slot = at["slot"]
+		if not at["held"]:
 			_withdraw("abort")   # Pushed past what a dead end holds (E20).
 			return
-		var team_side: int = stack.team_side(pos)
-		if team_side != _team_side:
-			# The team's side changed (its point is known now): follow it, unless the way there
-			# crosses the view.
-			_team_side = team_side
-			var world := _char.get_world_2d()
-			_side = _entry.stack_side_from(
-				stack, pos, world.navigation_map, world.direct_space_state,
-			)
-		_on = stack.settle(_me())["side"]
+		_on = at["side"]
 		if _slot != was or _on != was_side:
 			_post(_step)
 	var ahead: Array = stack.ahead(_me())

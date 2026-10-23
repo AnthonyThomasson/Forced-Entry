@@ -15,8 +15,8 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 `&"callout"` bus like an NPC (through a `ClaimLedger` of its own, perception's `stack/claim_ledger.gd`: its side only, within its
 `callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1; either export, set, reaches the ledger at once through its setter) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
-E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()`: `slot_for`, then
-`settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
+E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()` through the stack's claim chain, `DoorStack.claim`, as an NPC's entry is: `slot_for`,
+`has_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
 by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `bang: true`, `bang_off: false`: it never holds
 a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by

@@ -104,7 +104,7 @@ lives in `agent_snapshot.gd`.
 false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
 controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
   `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
-  dead end with no slot for this member (`DoorStack.has_slot` false at `_stack_place`: its index among the living recipients in `to`,
+  dead end with no slot for this member (`DoorStack.has_slot` false at `DoorStack.order_place`, `_has_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
   or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).

@@ -35,15 +35,16 @@ perception, the room coverage, the watch module (where a walker looks) and the c
 ## The phases and the team
 
 `Behavior` adopts an ENTER or STUN ENTRY leaf, starts the entry on the next tick (`_entry_pending`, then `begin(params)`: it reads
-the doorway's geometry and its stack off the perception, `entry_geometry` / `entry_stack`, claims the lowest slot the claims heard leave free
-(`DoorStack.slot_for(me)`, `me` = `{ id, slot: 0, frame, pos }`: two claims on one slot made on the same `GameClock` frame and side settle by
+the doorway's geometry and its stack off the perception, `entry_geometry` / `entry_stack`, and runs the stack's claim chain,
+`DoorStack.claim(me, want)`, as `_keep_slot` does: it claims the lowest slot the claims heard leave free
+(`slot_for(me)`, `me` = `{ id, slot: 0, frame, pos }`: two claims on one slot made on the same `GameClock` frame and side settle by
 distance, the nearer keeping it; the option's `slot` is only the snapshot's guess; a slot past what a dead end holds, `has_slot` false, ends
-it `done` with no claim) and its side (`_want`: `entry_stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
-crosses the doorway's view, E19), then `_settle`s (`DoorStack.settle(_me())`: the side asked for while its wall has room, else the other,
+it `done` with no claim) and its side (`_ask_side`, the entry's own weighing, the `want` it hands the chain: `_want`, `entry_stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
+crosses the doorway's view, E19), then stands where `settle` puts it (`_stand`; `DoorStack.settle(_me())`, `_settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
 E21; its place in that side's file; the slot's point, E20; a claim still on a slot a member moved up into counted at the slot it freed) and
 then calls `step(delta)` each tick until it reports done. `_me()` is this NPC's own claim as a `DoorStack` reads a member asking about
 itself (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_* }`: it never hears its own on the radio). `_keep_slot`
-re-picks with that claim, so a settled claim keeps settling, and a slot
+re-picks with that claim through `DoorStack.claim` (its side weighed again, unless it is the point, only when the team's side changed), so a settled claim keeps settling, and a slot
 pushed past what a dead end holds `_refuse()`s (radios `abort`, stops, `done`; an ordered member's next decision is the ORDER node's
 `hold_<opening>`, refused, `docs/leadership.md` LD9). Phases:
 `approach` (to its stack slot, its place in its side's file (`_place`, `DoorStack.place`); an open-floor or tail slot (`_on_wall()` false: past
@@ -181,8 +182,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   the walk is held, so it is baked by the re-plan); a member walks round by the hall that way rather than give its slot up (test
   `entry_last_leg_sealed_goes_round`). Until the member has walked `Locomotion.HOLD_MOVED` from where a hold dropped its waypoints
   (`_dropped_at`, cleared by `_to_back`), a waypoint a re-aim refills that the hold still seals is weighed at once (`way_blocked` again,
-  `_tick_approach`), so a re-aim never undoes the drop. With the slot sealed, a member the stack keeps from its slot takes the back of the stack (`_to_back`: the slot
-  behind the last claimed, radioed as a new claim; E2 goes by arrival), and with no slot to take gives the claim up (`abort`; `Behavior`
+  `_tick_approach`), so a re-aim never undoes the drop. With the slot sealed, a member the stack keeps from its slot takes the back of the stack (`_to_back`, `DoorStack.back_slot`: the slot
+  behind the last claimed, if the doorway has it, radioed as a new claim; E2 goes by arrival), and with no slot to take gives the claim up (`abort`; `Behavior`
   re-decides with `resolve_reason()` "way blocked", or a detour hands the walk back to its order); a member held by a teammate of the same stack still on its way to its own slot (`_held_by_forming`: `Locomotion.held_by()` is a
   claim at `claim`, not `human`, held under `HELD_BY_FORMING_CAP` 3 s of standing held, `Locomotion.held_time()`, which a walk aimed
   again while it stands does not restart: test `entry_held_cap_despite_reaim`) keeps its slot and waits (`_forming_wait`;
@@ -239,8 +240,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   split) and `_radio` adds `order_id`, `order_bang`, `order_side` to every call (an unordered member's calls carry their defaults, `order_id`
   "": `StackClaim.encode` writes every field); `StackClaim.decode` reads them back (every reader's `ClaimLedger`). A stack is ordered when this member's own entry is, or a teammate's
   claim carries an `order_id` (`_order_claim`: its own, else the lowest slot's; `_ordered`); then:
-  the side is the order's for every member (`_ordered_side`, in `begin` and `_keep_slot`, in place of the team's side and E19), on a split
-  stack D6's (`_split_side`: the side it began on, `_pref_side`, unless that side would hold two more than the other, when the last claimer
+  the side is the order's for every member (`_ordered_side`, through `_ask_side` in `begin` and `_keep_slot`, in place of the team's side and E19), on a split
+  stack D6's (`DoorStack.split_side`, from the side it asked for, else the one it began on, `_pref_side`, unless that side would hold two more than the other, when the last claimer
   there, the highest slot, takes the other); the mode is the order's (`begin`; an unordered member follows it, `_follow_order`, D10), with
   no suspect-room bang, no first claimer's `_go_quiet`, no `_maybe_upgrade` and no listen (`_may_turn` is false) and no veto but a
   `bang_off` from a claim under the same order (`_vetoed`); `_banging` holds whatever a quiet member says, `_tick_bang` gives up only on its

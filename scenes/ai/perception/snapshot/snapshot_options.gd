@@ -1011,10 +1011,10 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 ## dead end with no slot for it; `ambush` (LD15) is an `ambush` of the doorway from the ordered room
 ## at this member's post with its gun on the threshold (`AgentEntry.ambush_spot`: `opening`, `room`,
 ## `spot`, `door_pos`). Each carries the order's `order_id`. A stack at a dead end that holds no
-## slot for this member (its place, `_stack_place`, past what the room holds, E20) is a `hold` where
-## it stands instead, the order kept and refused (`refused` in its params: the behaviour radios it).
-## Empty with no order, or one this NPC cannot carry out (a room or doorway it does not know):
-## refused, and dropped.
+## slot for this member (its place, `DoorStack.order_place`, past what the room holds, E20:
+## `_has_place`) is a `hold` where it stands instead, the order kept and refused (`refused` in its
+## params: the behaviour radios it). Empty with no order, or one this NPC cannot carry out (a room
+## or doorway it does not know): refused, and dropped.
 func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
 	if order.is_empty():
 		return { "summary": "", "options": [] }
@@ -1067,10 +1067,7 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 				# The leader's own stack (LD24, D10): the member's own entry, joining it (no side,
 				# no mode of the order's). A dead end with no slot for it is no join: refused, it
 				# follows again (LD25).
-				if not _ledger.stack(
-					String(order.get("opening", "")),
-					g,
-				).has_slot(_stack_place(order, ctx)):
+				if not _has_place(order, g, ctx):
 					return { "summary": "", "options": [] }
 				var joined := "the doorway into the %s" % _v.room_name(into["type"])
 				option = {
@@ -1083,10 +1080,7 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 					"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
 				}
 				return { "summary": joined, "options": [option] }
-			if not _ledger.stack(
-				String(order.get("opening", "")),
-				g,
-			).has_slot(_stack_place(order, ctx)):
+			if not _has_place(order, g, ctx):
 				# Past what a dead end holds (E20, rule 6): no slot for it. The order stands,
 				# refused: it holds where it is.
 				var hold := ("hold where you are: no room at the doorway into the %s"
@@ -1140,19 +1134,18 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 	return { "summary": option["label"], "options": [option] }
 
 
-## The slot this NPC would take in the stack order `order` (1 = the point): after the living
-## recipients of it named before it in `to`, and after every claim on its doorway from anyone else
-## (the radio in `ctx`), so a dead end's extras are known before anyone claims.
-func _stack_place(order: Dictionary, ctx: Dictionary) -> int:
+## Whether the doorway of stack order `order` (geometry `g`) has a slot for this NPC: the one it
+## would take (`DoorStack.order_place`), after the living recipients of the order named before it in
+## `to` and after every claim on the doorway from anyone else (the radio), so a dead end's extras
+## are known before anyone claims (E20).
+func _has_place(order: Dictionary, g: Dictionary, ctx: Dictionary) -> bool:
 	var to: Array = (order.get("to", []) as Array).filter(
 		func(m): return is_instance_valid(m) and m.get("is_dead") != true,
 	)
-	var ids: Array = to.map(func(m): return m.get_instance_id())
-	var ahead := maxi(to.find(_character), 0)
-	for c in _ledger.claims(String(order.get("opening", ""))):
-		if not ids.has(c["id"]) and c["id"] != ctx["self_id"]:
-			ahead += 1
-	return ahead + 1
+	var stack: RefCounted = _ledger.stack(String(order.get("opening", "")), g)
+	return stack.has_slot(
+		stack.order_place(to.map(func(m): return m.get_instance_id()), ctx["self_id"]),
+	)
 
 
 ## Tag every option that names a place with the room it lies in (`tags.room`, the room key, ""

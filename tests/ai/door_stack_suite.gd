@@ -399,6 +399,131 @@ func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
 		).is_equal(r["point"])
 
 
+func test_a_split_stack_evens_its_sides_by_moving_its_last_claimer() -> void:
+	# D6, E19: a member stacks on the side it stands on, but when that side would hold two more of
+	# the stack than the other, the last of that side to have claimed takes the other side.
+	var a := _speaker()
+	var b := _speaker()
+	var c := _speaker()
+	var me := _speaker()
+	var one_sided := [_claim(a, { "slot": 1, "side": 1 }), _claim(b, { "slot": 2, "side": 1 })]
+	var second := { "id": me.get_instance_id(), "slot": 2 }
+	var pair: RefCounted = DoorStack.new(_door(), [one_sided[0]])
+	assert_int(pair.split_side(second, 1)).override_failure_message(
+		"a second on the point's side, none across: two more there, it takes the other side",
+	).is_equal(-1)
+	var mine := { "id": me.get_instance_id(), "slot": 3 }
+	assert_int(DoorStack.new(_door(), one_sided).split_side(mine, 1)).override_failure_message(
+		"a third on a side holding two, none across: it takes the other side",
+	).is_equal(-1)
+	var even := [_claim(a, { "slot": 1, "side": 1 }), _claim(b, { "slot": 2, "side": -1 })]
+	assert_int(DoorStack.new(_door(), even).split_side(mine, 1)).override_failure_message(
+		"a side one ahead of the other with it there: it keeps its own side",
+	).is_equal(1)
+	var later := one_sided + [_claim(c, { "slot": 4, "side": 1 })]
+	assert_int(DoorStack.new(_door(), later).split_side(mine, 1)).override_failure_message(
+		"a later claimer on its side moves instead: it keeps its own side",
+	).is_equal(1)
+	var three := one_sided + [_claim(me, { "slot": 3, "side": 1 })]
+	var last := { "id": c.get_instance_id(), "slot": 4 }
+	assert_int(DoorStack.new(_door(), three).split_side(last, 1)).override_failure_message(
+		"and that later claimer, weighing it the same way, takes the other side",
+	).is_equal(-1)
+
+
+func test_the_back_of_the_stack_is_the_slot_behind_the_last_claim() -> void:
+	# E2, E20: a member that takes the back of the stack takes the slot behind the last one claimed,
+	# unless it is the last already or the doorway has no slot there (a dead end holds so many).
+	var who: Array = range(3).map(func(_i): return _speaker())
+	var ahead_and_behind := [
+		_claim(who[0], { "slot": 1, "side": 1 }),
+		_claim(who[1], { "slot": 3, "side": 1 }),
+	]
+	assert_int(DoorStack.new(_door(), ahead_and_behind).back_slot(2)).override_failure_message(
+		"slot 2 with a claim on slot 3: the back is slot 4",
+	).is_equal(4)
+	var ahead := [
+		_claim(who[0], { "slot": 1, "side": 1 }),
+		_claim(who[1], { "slot": 2, "side": 1 }),
+	]
+	assert_int(DoorStack.new(_door(), ahead).back_slot(3)).override_failure_message(
+		"the last already: no back to take",
+	).is_equal(0)
+	assert_int(DoorStack.new(_dead_end(), ahead_and_behind).back_slot(2)).override_failure_message(
+		"a dead end holding three: no slot 4 to take",
+	).is_equal(0)
+
+
+func test_an_ordered_members_place_follows_the_recipients_before_it_and_every_other_claim() -> void:
+	# E20, LD9: an ordered member's slot is after the recipients the order names before it and
+	# after every claim on the doorway from anyone else, so it knows a dead end has no slot for it
+	# before anyone claims.
+	var first := _speaker()
+	var me := _speaker()
+	var last_named := _speaker()
+	var stranger := _speaker()
+	var to_ids := [first, me, last_named].map(func(m): return m.get_instance_id())
+	var claims := [
+		_claim(last_named, { "slot": 1, "side": 1 }),
+		_claim(stranger, { "slot": 2, "side": 1 }),
+		_claim(me, { "slot": 3, "side": 1 }),
+	]
+	var stack := DoorStack.new(_door(), claims)
+	assert_int(stack.order_place(to_ids, me.get_instance_id())).override_failure_message(
+		"one recipient named before it and one claim from outside the order: slot 3",
+	).is_equal(3)
+	assert_int(stack.order_place([], me.get_instance_id())).override_failure_message(
+		"named nowhere in the order: after the two other claims, slot 3",
+	).is_equal(3)
+	var none: RefCounted = DoorStack.new(_door(), [])
+	assert_int(none.order_place(to_ids, last_named.get_instance_id())).override_failure_message(
+		"third named, nobody claiming yet: slot 3",
+	).is_equal(3)
+
+
+func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -> void:
+	# E2, E20, E21: a member claims the lowest free slot, asks for its side in that slot and stands
+	# where that side's file puts it; a dead end holding all it can has no slot for it.
+	var a := _speaker()
+	var me := _speaker()
+	var point_man := [_claim(a, { "slot": 1, "side": 1 })]
+	var asked := [0]
+	var claiming := {
+		"id": me.get_instance_id(),
+		"slot": 0,
+		"frame": FRAME,
+		"pos": Vector2(0, 200),
+	}
+	var at: Dictionary = DoorStack.new(_door(), point_man).claim(
+		claiming,
+		func(n):
+			asked[0] = n
+			return -1,
+	)
+	assert_int(asked[0]).override_failure_message(
+		"its side is asked for in the slot it takes, 2 (asked in %d)" % asked[0],
+	).is_equal(2)
+	var got := [at["slot"], at["held"], at["want"], at["side"], at["place"]]
+	assert_array(got).override_failure_message(
+		"slot 2, held, on the side it asked for, first in that side's file: %s" % str(at),
+	).is_equal([2, true, -1, -1, 1])
+	assert_that(at["point"]).is_equal(_slot_at(-1, 1))
+	var keeping: Dictionary = DoorStack.new(_door(), point_man).claim(
+		claiming.merged({ "slot": 2, "want": 1 }, true),
+	)
+	assert_array([keeping["slot"], keeping["side"], keeping["place"]]).override_failure_message(
+		"kept, no weighing given: its own want, behind the point: %s" % str(keeping),
+	).is_equal([2, 1, 2])
+	assert_that(keeping["point"]).is_equal(_slot_at(1, 2))
+	var full: Array = range(3).map(
+		func(i): return _claim(_speaker(), { "slot": i + 1, "side": 1 }),
+	)
+	var none: Dictionary = DoorStack.new(_dead_end(), full).claim(claiming, func(_n): return 1)
+	assert_array([none["slot"], none["held"]]).override_failure_message(
+		"a dead end holding three, all claimed: slot 4, not held (%s)" % str(none),
+	).is_equal([4, false])
+
+
 ## A doorway in a wall along x at the origin, the stack's side out along +y: each side's file of
 ## six slots against the wall, 30 px apart from 40 px off the door (agent_entry.gd `geometry`, its
 ## `wall` kind).
@@ -411,6 +536,13 @@ func _door() -> Dictionary:
 		"along": Vector2(1, 0), "width": 40.0, "side": 0, "kind": "wall", "files": files,
 		"row1": { 1: 6, -1: 6 }, "wall_n": 6,
 	}
+
+
+## `_door()` as a dead end holding three: its wall's first two slots and one on its open floor.
+func _dead_end() -> Dictionary:
+	return _door().merged({
+		"capped": true, "wall_n": 2, "seq": [{ "point": Vector2(0, 120), "row": 1 }],
+	}, true)
 
 
 ## Whether `claims` on `_door()` say the held stack under order "7", going into the hall, had its

@@ -461,10 +461,15 @@ func begin(params: Dictionary) -> bool:
 			# The stack goes in the way its first claimer chose.
 			bang = team.all(func(m): return m["bang"] and not m["bang_off"])
 	_turned = bang and not asked
-	slot = _stack.slot_for({
-		"id": _self_id, "slot": 0, "frame": GameClock.frame(), "pos": _character.global_position,
-	})
-	if not _stack.has_slot(slot):
+	var at: Dictionary = _stack.claim(
+		{
+			"id": _self_id, "slot": 0, "frame": GameClock.frame(),
+			"pos": _character.global_position,
+		},
+		func(n): return _ask_side(n, true),
+	)
+	slot = at["slot"]
+	if not at["held"]:
 		# A dead end already holding all it can (E20, rule 6): no slot, no claim (an ordered
 		# member's next decision refuses).
 		phase = "done"
@@ -472,13 +477,7 @@ func begin(params: Dictionary) -> bool:
 	var held: Dictionary = _perception.order() if _order_id != "" else {}
 	var leader = held.get("leader") if str(held.get("id", "")) == _order_id else null
 	_leader_id = leader.get_instance_id() if leader is Node and is_instance_valid(leader) else 0
-	if ordered.is_empty():
-		_team_side = _stack.team_side(_character.global_position)
-		_want = _perception.entry_stack_side(_stack)
-	else:
-		_want = _ordered_side(team, ordered)
-		_team_side = _want
-	_settle(_stack)
+	_stand(at)
 	solo = _alone(team)
 	_team_size = team.size()
 	_points = _coverage.sample_room(into)
@@ -788,7 +787,7 @@ func step(delta: float) -> bool:
 	_note_go()
 	_note_all_in(team)
 	if phase in ["approach", "stack", "pie"]:
-		_keep_slot(team)
+		_keep_slot()
 		_follow_order(team)
 		_maybe_upgrade(team, delta)
 	if phase in ["approach", "stack", "bang", "pie", "cross"]:
@@ -952,15 +951,13 @@ func _to_back_or_abort() -> bool:
 
 
 ## Take the back of the stack (E2: the slots go by arrival): the slot behind the last one claimed,
-## when this member is not already the last and the doorway's wall has a slot there. A change is
-## radioed as a new claim. False when there is none to take.
+## when this member is not already the last and the doorway has a slot there
+## (`DoorStack.back_slot`). A change is radioed as a new claim. False when there is none to take.
 func _to_back() -> bool:
-	var last := 0
-	for m in _stack.team:
-		last = maxi(last, int(m["slot"]))
-	if last < slot or not _stack.has_slot(last + 1):
+	var back: int = _stack.back_slot(slot)
+	if back == 0:
 		return false
-	slot = last + 1
+	slot = back
 	_move_up = 0
 	_forming_wait = false
 	# A new slot and its own way: the hold is weighed afresh, on its own re-plan.
@@ -980,26 +977,19 @@ func _to_back() -> bool:
 ## entrant crosses in front of the door to slice its other side. In an ordered stack (LD9) the
 ## order's side holds instead, for every member (`_ordered_side`). The place in its side's file
 ## follows the claims ahead on the other side. A change of slot or side is radioed as a new claim.
-func _keep_slot(team: Array) -> void:
+## The chain is the stack's (`DoorStack.claim`); the side asked for is this NPC's (`_ask_side`).
+func _keep_slot() -> void:
 	var was := slot
 	var was_side := side
 	var was_spot := _spot
-	slot = _stack.slot_for(_me())
+	var at: Dictionary = _stack.claim(_me(), func(n): return _ask_side(n, false))
+	slot = at["slot"]
 	if slot != was:
 		_move_up = 0
-	var ordered := _order_claim()
-	if not ordered.is_empty():
-		_want = _ordered_side(team, ordered)
-		_team_side = _want
-	elif slot != 1:
-		var team_side: int = _stack.team_side(_character.global_position)
-		if team_side != _team_side:
-			_team_side = team_side
-			_want = _perception.entry_stack_side(_stack)
-	if not _stack.has_slot(slot):
+	if not at["held"]:
 		_refuse()  # Pushed past what a dead end holds (E20).
 		return
-	_settle(_stack)
+	_stand(at)
 	if slot != was or side != was_side or _spot.distance_to(was_spot) > 1.0:
 		_enter_approach(_stack)  # Walk to the new slot.
 		if slot != was or side != was_side:
@@ -1012,10 +1002,35 @@ func _keep_slot(team: Array) -> void:
 ## E21), its place in that side's file and the point (`_spot`); a latecomer's claim still on the
 ## slot it moved up into counts at the one it freed (E2).
 func _settle(stack: RefCounted) -> void:
-	var at: Dictionary = stack.settle(_me())
+	_stand(stack.settle(_me()))
+
+
+## Take where this NPC's slot stands, `at` (`DoorStack.settle` or `claim`): its side, its place in
+## that side's file and its point.
+func _stand(at: Dictionary) -> void:
 	side = at["side"]
 	_place = at["place"]
 	_spot = at["point"]
+
+
+## The side this NPC asks for in its slot `n` (`_want`, kept with `_team_side`): in an ordered stack
+## (LD9) the order's, for every member (`_ordered_side`); else on its claim (`first`) the team's,
+## from where it stands, or its own when its way there crosses the doorway's view (E19), and after
+## it weighed again, unless it is the point, only when the side the team stacks on changed.
+func _ask_side(n: int, first: bool) -> int:
+	var ordered := _order_claim()
+	if not ordered.is_empty():
+		_want = _ordered_side(ordered, n)
+		_team_side = _want
+	elif first:
+		_team_side = _stack.team_side(_character.global_position)
+		_want = _perception.entry_stack_side(_stack)
+	elif n != 1:
+		var team_side: int = _stack.team_side(_character.global_position)
+		if team_side != _team_side:
+			_team_side = team_side
+			_want = _perception.entry_stack_side(_stack)
+	return _want
 
 
 ## This NPC's own claim as it stands, as a `DoorStack` reads a member asking about itself.
@@ -1083,31 +1098,14 @@ func _side_named(params: Dictionary) -> int:
 	return DoorStack.stack_side(_geo, [], _character.global_position)
 
 
-## The side an ordered stack (`ordered`, `_order_claim`) has this NPC stack on: the side the order
-## names (D3); on a split stack, D6's.
-func _ordered_side(team: Array, ordered: Dictionary) -> int:
+## The side an ordered stack (`ordered`, `_order_claim`) has this NPC stack on in its slot `n`: the
+## side the order names (D3); on a split stack, D6's (`DoorStack.split_side`), from the side it
+## stands on (the one it asked for, else the one it began on, `_pref_side`, which it reaches without
+## crossing the doorway's view).
+func _ordered_side(ordered: Dictionary, n: int) -> int:
 	if int(ordered["order_side"]) != 0:
 		return int(ordered["order_side"])
-	return _split_side(team)
-
-
-## A split stack's side for this NPC (D6): the side it stands on (the one it began on, `_pref_side`,
-## which it reaches without crossing the doorway's view), but when that side holds two more of the
-## stack than the other with it there, the other side for the last of that side to have claimed (the
-## highest slot), so the sides differ by one at most. Every member weighs it the same way off the
-## radio; it moves the one member, and once the sides are even nobody moves again.
-func _split_side(team: Array) -> int:
-	var own := _want if _want != 0 else _pref_side
-	var mine := 1 + team.filter(func(m): return int(m["side"]) == own).size()
-	var other := team.filter(func(m): return int(m["side"]) == -own).size()
-	if mine - other < 2:
-		return own
-	for m in team:
-		if (int(m["side"]) == own
-				and (int(m["slot"]) > slot
-							or (int(m["slot"]) == slot and int(m["id"]) > _self_id))):
-			return own  # A later claimer on this side moves instead.
-	return -own
+	return _stack.split_side({ "id": _self_id, "slot": n }, _want if _want != 0 else _pref_side)
 
 
 ## An unordered member of an ordered stack goes in the order's way (D10): with a stun when the order

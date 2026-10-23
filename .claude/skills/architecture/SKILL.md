@@ -652,7 +652,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10), a full claim encoded by `StackClaim.encode`,
       and hears the allies' off the same bus through a `ClaimLedger` of its own (`ai/perception/stack/claim_ledger.gd`: its side only,
       within its `callout_range`, lapsing after its `callout_ttl` on `GameClock`); its slot, side, point, the crossing order and the markers'
-      slots come from the reserved doorway's `DoorStack` (`ai/perception/stack/door_stack.gd`), asked with the human's own claim, so
+      slots come from the reserved doorway's `DoorStack` (`ai/perception/stack/door_stack.gd`), asked with the human's own claim
+      through `DoorStack.claim`, the chain an NPC's entry claims by too, so
       `view()` lays the stack the AI stands. The AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human`
       (no AI moves up into its slot, and the human never moves up itself nor throws the stack's grenade) and, when the human leads, `leader`.
     - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack, own_claims)` with the stack `bind_player` returned (interface 21); its claims say

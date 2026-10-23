@@ -110,8 +110,8 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
 - Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_stack(opening_id, into := "") -> DoorStack` (the doorway's
   stack as the radio describes it, built by the NPC's own `ClaimLedger` over that geometry, one per doorway a frame: every slot rule the entry
-  reads, `slot_for`, `settle`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`, `move_up_vacancies`, `has_slot`, `tail`,
-  `team_side`; with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
+  reads, `claim`, `slot_for`, `settle`, `split_side`, `back_slot`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`,
+  `move_up_vacancies`, `has_slot`, `tail`, `team_side`; with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
   `released`, `crossing`, `order_claim`; "The stack" below),
   `entry_side_of(geometry, p)` (the side of the door, 1 / -1 along its wall, a point is on: the radio claims' `side`),
   `entry_stack_side(stack)` (the side the NPC stacks on from where it stands in that `DoorStack`: the team's, or its own when its way
@@ -387,7 +387,14 @@ orchestrator and the team preload these files themselves; this folder is that se
   (LD9: `me`'s order, else the lowest slot's that carries one, D10); `released(order_id, into)` (LD13: a claim under the order says
   `order_go`, or a member of that stack, a claim under the order or the human's, is crossing or through into room `into`, D14; a claim
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
-  `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; and
+  `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; `claim(me, want := Callable()) -> { slot, held, want, side,
+  place, point }` (the chain every member claims and keeps its slot by, an NPC's entry and the human's `PlayerStack` alike: `slot_for`,
+  `held` = `has_slot`, E20, the side asked for in that slot, `want` called with it, the member's own weighing, else `me.want`, then
+  `settle`; a member whose slot changes is no longer moving up); `split_side(me, own)` (D6, E19: `own` unless that side would hold two
+  more than the other with `me` there, when its last claimer, the highest slot then the highest instance id, takes the other);
+  `back_slot(slot)` (E2: the slot behind the last claimed, 0 when `slot` is the last already or the doorway has no slot there, E20);
+  `order_place(to_ids, self_id)` (E20, LD9: an ordered member's slot, after the order's living recipients named before it and every claim
+  from anyone else, so a dead end's extras are known before anyone claims; ids only, it holds no nodes); and
   `move_up_vacancies(me)` (E2, the rule part: each lower slot on `me`'s side whose holder is at `claim`, not the human's nor moving up
   itself, its slot staying on `me`'s side with the two swapped, as `{ holder, slot, point, stack }`; none once a claim says `pie`, `bang`,
   `going_in` or through; the walk and the latecomer are the entry's). The layout statics, the one place a slot becomes a point:

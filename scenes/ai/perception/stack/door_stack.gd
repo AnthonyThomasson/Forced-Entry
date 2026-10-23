@@ -210,6 +210,69 @@ func released(order_id: String, into: String) -> bool:
 	)
 
 
+## The chain every member claims and keeps its slot by, an NPC's entry and the human's
+## `PlayerStack` alike (E2, E19 to E22): the slot `slot_for` gives member `me`, whether the doorway
+## has it (`held`, `has_slot`: a dead end holds only so many, E20), the side it asks for in it
+## (`want`, its own weighing, called with that slot; omitted, `me.want`) and where it then stands
+## (`settle`): `{ slot, held, want, side, place, point }`. A member whose slot changes is no longer
+## moving up (E2), so its `move_up` is dropped for the settling.
+func claim(me: Dictionary, want := Callable()) -> Dictionary:
+	var n := slot_for(me)
+	var asked := me.merged({ "slot": n }, true)
+	if n != int(me.get("slot", 0)):
+		asked["move_up"] = 0
+	if want.is_valid():
+		asked["want"] = int(want.call(n))
+	var at := settle(asked)
+	at["held"] = has_slot(n)
+	at["want"] = int(asked.get("want", asked.get("side", 0)))
+	return at
+
+
+## A split stack's side for member `me` (its `id` and `slot`; D6, E19): `own`, the side it stands on
+## (it reaches it without crossing the doorway's view), but when that side holds two more of the
+## stack than the other with `me` there, the other side for the last of that side to have claimed
+## (the highest slot, then the highest instance id), so the sides differ by one at most. Every
+## member weighs it the same way off the radio; it moves the one member, and once the sides are even
+## nobody moves again.
+func split_side(me: Dictionary, own: int) -> int:
+	var n := int(me.get("slot", 0))
+	var id := int(me.get("id", 0))
+	var mine := 1 + team.filter(func(m): return int(m["side"]) == own).size()
+	var other := team.filter(func(m): return int(m["side"]) == -own).size()
+	if mine - other < 2:
+		return own
+	for m in team:
+		if (int(m["side"]) == own
+				and (int(m["slot"]) > n or (int(m["slot"]) == n and int(m["id"]) > id))):
+			return own  # A later claimer on this side moves instead.
+	return -own
+
+
+## The back of the stack for a member holding `slot` (E2: the slots go by arrival): the slot behind
+## the last one claimed, when it is not already the last and the doorway has a slot there (E20); 0
+## when there is none to take.
+func back_slot(slot: int) -> int:
+	var last := 0
+	for m in team:
+		last = maxi(last, int(m["slot"]))
+	if last < slot or not has_slot(last + 1):
+		return 0
+	return last + 1
+
+
+## The slot an ordered member (instance id `self_id`) would take in its stack (1 = the point), its
+## order's living recipients' ids `to_ids` in the order the order names them: after those named
+## before it, and after every claim on the doorway from anyone else, so a dead end's extras are
+## known before anyone claims (E20, LD9).
+func order_place(to_ids: Array, self_id: int) -> int:
+	var before := maxi(to_ids.find(self_id), 0)
+	for m in team:
+		if not to_ids.has(m["id"]) and m["id"] != self_id:
+			before += 1
+	return before + 1
+
+
 ## Whether the doorway has a slot `slot` at all (E20: a dead end holds only so many).
 func has_slot(slot: int) -> bool:
 	return holds_slot(geometry, slot)
