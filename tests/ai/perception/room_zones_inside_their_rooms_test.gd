@@ -5,13 +5,14 @@ extends GameTest
 ## are what the tactics overlay draws. Desired: every room point an NPC weighs lies inside the room
 ## it is named for.
 ##
-## The match is built here the way `main.gd` builds one (generate the house, bake its navmesh, drop
-## the NPCs in, no wait in between) in a world whose shared navigation map is already live with
-## another navmesh, as the map is when a match starts after the menu or a previous match. A test
-## world waits for its own navmesh to be in the map before an actor spawns, so it never sees this;
-## the match does not.
+## The match is built through the match module (`MatchBuilder.build`: generate the house, bake its
+## navmesh, place the NPCs) in a world whose shared navigation map is already live with another
+## navmesh, as the map is when a match starts after the menu or a previous match. Premise: the build
+## does not wait for the maps (`wait_nav` off), so the NPCs are placed in the frame the navmesh is
+## baked and their first decisions meet a map still answering with the test world's arena. What is
+## tested is the AI's own hold on a room point until the map has taken the new navmesh in
+## (`NavBuilder.ready`); a match that waits, as Main's does, never meets that map at all.
 
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 18
 ## Far from the arena the test world is built on, so a point snapped onto the wrong navmesh is
 ## plainly outside the house.
@@ -24,7 +25,7 @@ const ROOM_CATEGORIES := [&"room", &"search"]
 func describe() -> Dictionary:
 	return {
 		"name": "Room zones lie inside their rooms",
-		"description": "A match is built over a live navigation map as main.gd builds one: every "
+		"description": "A match is built over a live navigation map without waiting for it: every "
 			+ "room point the defender and the invader weigh on their first decisions is inside a "
 			+ "room of the house, and the one named for a room is in a room of that kind.",
 		"tags": ["ai", "perception", "zones", "navigation", "scripted"],
@@ -38,21 +39,25 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var house := WorldGen.generate(SEED, "", FRONT_ENTRANCE, t.world)
-	var rooms := WorldGen.get_rooms(house)
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = WorldGen.get_openings(house)
-	NavBuilder.build(house, rooms, t.world)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	spawner.spawn_defender(rooms, rng, 0)
-	spawner.spawn_invader_team(rooms, rng, 1, FRONT_ENTRANCE)
+	var spec := MatchBuilder.spec({
+		"seed": SEED,
+		"entrance": FRONT_ENTRANCE,
+		"wait_nav": false,
+		"defenders": { "count": 1 },
+		"invaders": { "count": 1 },
+	})
+	var match: Dictionary = await MatchBuilder.build(spec, t.world)
+	if not t.require(
+			(match.get("combatants", []) as Array).size() == 2,
+			"a defender and an invader placed",
+	):
+		return
+	var rooms: Array = match["rooms"]
 
 	await t.seconds(2.0)
 	var misplaced: Array = []
 	var seen := 0
-	for npc in spawner.combatants:
+	for npc in match["combatants"]:
 		var brain: Node = TestContext.controller_of(npc)
 		for zone: Dictionary in brain.debug_zones():
 			if not ROOM_CATEGORIES.has(zone["category"]):

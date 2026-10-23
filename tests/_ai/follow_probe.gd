@@ -5,10 +5,10 @@ extends RefCounted
 ## picks no goal of its own, and goes in by the leader's doorway as one stack (a `stack` order with
 ## mode `join`).
 ##
-## The squad is built and bound the way Main does it: declared by the test (`s.squads`, read with
-## `t.squad`), or for a squad no setup declares, `team_of` (`MatchBuilder.build_squads`), and its
-## reads (`leader()`, `follows`, `follow_spot`, `leash`,
-## `view()`) are called on it directly (interface 21). The NPCs are read only through their
+## The squad is built and bound the way Main does it, declared by the test (`s.squads` or
+## `s.match`, read with `t.squad`), and its reads (`leader()`, `follows`, `follow_spot`, `leash`,
+## `view()`) are called
+## on it directly (interface 21). The NPCs are read only through their
 ## controllers' public reads (`current_act()`, `debug_state()`, `debug_entry()`) and the radio. The
 ## spec's numbers are consts here, so a test checks the spec and not the code.
 
@@ -68,15 +68,6 @@ const CHASE_GIVE := 40.0
 ## walk: its place in the file (`FOLLOW_GAP` + `FOLLOW_STEP` x `i`, LD21) and `BAND_LAG`.
 static func band_p50(i: int) -> float:
 	return FOLLOW_GAP + FOLLOW_STEP * i + BAND_LAG
-
-
-## The squad over the characters `members` (spawn order), `human` its human leader or null, built
-## and bound as Main builds a side's (`Order.squad`, `MatchBuilder.build_squads`); null for no
-## members. For a squad no setup declares (a test's own subset of a match's combatants).
-static func team_of(t: TestContext, members: Array, human: Node = null) -> Node:
-	if members.is_empty():
-		return null
-	return Order.squad(t, members[0].get("faction"), members, human)
 
 
 ## A name for `n` in a message.

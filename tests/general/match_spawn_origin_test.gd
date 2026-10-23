@@ -4,10 +4,10 @@ extends GameTest
 ## overlapped any piece standing near (0, 0); the physics ejected the piece at thousands of px/s,
 ## and it flew across the map into whatever character was in its way (a "character spawns or is
 ## pushed way far away from the level"). House seed 18 with the front entrance at the game's (440,
-## 350) puts a kitchen counter against the origin. Runs the match spawner (the placement helper
-##      `main.gd` uses) on the test's own world.
+## 350) puts a kitchen counter against the origin. The match is populated over the test's house as
+## Main populates one (`s.match`, `MatchBuilder.populate`): one defender and one invader, placed
+## from the house seed.
 
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 18
 ## Where `main.gd` puts the front entrance (its scene anchor, `entrance_distance` above it).
 const FRONT_ENTRANCE := Vector2(440, 350)
@@ -33,6 +33,7 @@ func configure(s: TestSetup) -> void:
 	s.house(SEED, "", FRONT_ENTRANCE)
 	s.von_down()   # the NPCs hold steady, so any movement is physics alone
 	s.switch(&"ai.hostile_on_trespass", false)
+	s.match({ "defenders": { "count": 1 }, "invaders": { "count": 1 } })
 
 
 func run(t: TestContext) -> void:
@@ -50,17 +51,13 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	# `run` begins in the frame the match was populated, before the physics has stepped with the
+	# NPCs in it, so each piece still stands where world-gen put it.
 	var pieces: Array = []
 	_collect_bodies(t.world, pieces)
 	var piece_starts: Array = pieces.map(func(p): return (p as Node2D).global_position)
 
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	spawner.spawn_defender(t.rooms, rng, 0)
-	spawner.spawn_invader_team(t.rooms, rng, 1, FRONT_ENTRANCE)
-	var npcs: Array = spawner.combatants.duplicate()
+	var npcs: Array = (t.match().get("combatants", []) as Array).duplicate()
 	if not t.require(npcs.size() == 2, "a defender and an invader spawned"):
 		return
 	for npc: Node2D in npcs:

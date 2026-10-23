@@ -1,13 +1,15 @@
 extends GameTest
 ## Performance guard for the thing a player watches: a 5v5 match in a generated house (the largest
-## plan, `PLAN`), set up the way Main sets one up (the match spawner's placement, every NPC armed
-## from the default random loadout, nav re-baker, blood, debris, sound and team radio all on) with
-## Von scripted so no server is needed. After a warm-up that brings the sides into contact, 300
-## frames are measured: the average frame must fit in one 60 fps frame, with no spike over two.
-## Headless measures CPU only; rendering is not in these numbers.
+## plan, `PLAN`), built as Main builds one (`s.match`, `MatchBuilder.populate`): the defenders at
+## clear spots in random rooms and the invader team in one group beside the front door, each side
+## with its spec loadout (the invaders' helmet and steel plates front and back, a stun and a frag
+## each; the defenders' plain clothes; a random gun each), styled and ranked, one squad per side
+## (its members following their leader), every debug overlay off; nav re-baker, blood, debris,
+## sound and team radio on, with Von scripted so no server is needed. After a warm-up that brings
+## the sides into contact, 300 frames are measured: the average frame must fit in one 60 fps
+## frame, with no spike over two. Headless measures CPU only; rendering is not in these numbers.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 7
 ## The house is the largest plan by floor area (garage_home: five rooms, 760k px²), pinned rather
 ## than drawn from the seed: the match is measured in a full-size house whatever the catalogue
@@ -23,8 +25,9 @@ const NODE_GROWTH := 2500
 func describe() -> Dictionary:
 	return {
 		"name": "A 5v5 match runs without frame loss",
-		"description": "Five defenders and five invaders fight in a generated house, set up as "
-			+ "Main does; the average frame stays under 16.7 ms and no frame takes over two.",
+		"description": "Five defenders and five invaders fight in a generated house, built as "
+			+ "Main builds a match; the average frame stays under 16.7 ms and no frame takes over "
+			+ "two.",
 		"tags": ["match", "ai", "scripted", "crowd"],
 		"timeout": 40.0,
 		# A real match re-bakes the navmesh while furniture is shoved around, and now and then the
@@ -44,11 +47,12 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.vision", true)
 	s.switch(&"ai.pursuit", true)
+	s.match({ "defenders": { "count": PER_SIDE }, "invaders": { "count": PER_SIDE } })
 
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters := _spawn_match(t)
+	var characters: Array = t.match().get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"ten combatants spawned (%d)" % characters.size(),
@@ -69,24 +73,3 @@ func run(t: TestContext) -> void:
 			% [grown, t.von_requests().size()])
 	t.trace("node growth", grown)
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])
-
-
-## Place the match as Main does: defenders in random rooms, invaders in one group outside the house
-## heading for its front entrance, each side armed from the default (random gun) loadout drawn from
-## the same seeded rng.
-func _spawn_match(t: TestContext) -> Array:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	var entrance := Perf.front_entrance(t)
-	for i in PER_SIDE:
-		spawner.spawn_defender(t.rooms, rng, i)
-	spawner.spawn_invader_team(t.rooms, rng, PER_SIDE, entrance)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = SEED
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, {}, loadout_rng)
-		Perf.overlays_off(c)
-	return spawner.combatants

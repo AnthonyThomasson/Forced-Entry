@@ -1,19 +1,24 @@
 extends GameTest
 ## P1 (`docs/grenades.md`, Performance): grenades going off in a running match keep it smooth. The
-## 5v5 match of `perf/match_5v5_stress` (a generated house, its largest plan, Main's placement and
-## loadouts, nav re-baker, blood, debris, sound and radio on, scripted Von), and once the sides are
-## in contact a puppet on the invaders' side (the human's place) throws three frags and three stuns
-## among the fighters over about 3 s, through the controller contract (select the slot, aim, click).
-## So the burst's whole cost is in the window: the blast and its fragments, the flash and bang, the
-## FX, scorch, blood and debris, the sounds, and every NPC's grenade perception, evade planning and
-## re-decision. From the first throw to 3 s after the last burst the frames meet the smooth standard
-## (`Perf.SMOOTH_*`). The camera frames the fighters as Main's spectator view does, on a player's
-## screen, so every body a player would see is drawn. Headless measures the CPU only (the drawing
-## calls included, not the GPU); `tools/run_tests.sh --windowed` measures the render too.
+## 5v5 match of `perf/match_5v5_stress`, built as Main builds one (`s.match`: a generated house on
+## its largest plan, the defenders in random rooms, the invader team beside the front door, each
+## side with its spec loadout, so the invaders carry their plates and a stun and a frag each,
+## styled and ranked, one squad per side; nav re-baker, blood, debris, sound and radio on, scripted
+## Von), and once the sides are in contact a puppet on the invaders' side (the human's place)
+## throws three frags and three stuns among the fighters over about 3 s, through the controller
+## contract (select the slot, aim, click). The puppet is a test actor, not one of the match's: it
+## carries the three of each P1 names (`Probe.arm`), not a side's one and one, and waits far off
+## the house until its first throw, out of the warm-up and the placement. So the burst's whole cost
+## is in the window: the blast and its fragments, the flash and bang, the FX, scorch, blood and
+## debris, the sounds, and every NPC's grenade perception, evade planning and re-decision. From the
+## puppet's first throw to 3 s after its last burst the frames meet the smooth standard
+## (`Perf.SMOOTH_*`); a grenade an NPC throws meanwhile is part of the load. The camera frames the
+## fighters as Main's spectator view does, on a player's screen, so every body a player would see is
+## drawn. Headless measures the CPU only (the drawing calls included, not the GPU);
+## `tools/run_tests.sh --windowed` measures the render too.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
 const SEED := 7
 ## The house `perf/match_5v5_stress` measures its match in: the largest plan, pinned (see its
 ## comment).
@@ -61,6 +66,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.callouts", true)
 	s.switch(&"ai.vision", true)
 	s.switch(&"ai.pursuit", true)
+	s.match({ "defenders": { "count": PER_SIDE }, "invaders": { "count": PER_SIDE } })
 	# a person's wheel or camera keys would change what is drawn, so what is measured
 	s.lock_interaction([&"camera"])
 	# Far off the house until its first throw: it plays no part in the warm-up.
@@ -74,7 +80,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters := _spawn_match(t)
+	var characters: Array = t.match().get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"ten combatants spawned (%d)" % characters.size(),
@@ -113,7 +119,10 @@ func run(t: TestContext) -> void:
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES, throw)
 	var end := t.time
 
-	var booms := Probe.booms(t)
+	# The puppet's own bursts: an NPC's grenade is load, not one of the six.
+	var booms := Probe.booms(t).filter(
+		func(b: Dictionary) -> bool: return b["data"].get("attacker") == thrower,
+	)
 	var last := -INF
 	for b: Dictionary in booms:
 		last = maxf(last, float(b["time"]))
@@ -183,27 +192,6 @@ func _throw_from(t: TestContext, characters: Array) -> Vector2:
 	thrower.velocity = Vector2.ZERO
 	t.puppet(&"thrower").aim_at(target.global_position)
 	return target.global_position.round()
-
-
-## Place the match as Main does (as perf/match_5v5_stress): defenders in random rooms, invaders in
-## one group outside the house heading for its front entrance, each side armed from the default
-## (random gun) loadout drawn from the same seeded rng.
-func _spawn_match(t: TestContext) -> Array:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED
-	var entrance := Perf.front_entrance(t)
-	for i in PER_SIDE:
-		spawner.spawn_defender(t.rooms, rng, i)
-	spawner.spawn_invader_team(t.rooms, rng, PER_SIDE, entrance)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = SEED
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, {}, loadout_rng)
-		Perf.overlays_off(c)
-	return spawner.combatants
 
 
 ## Headless, the runner's viewport is 64 px square (the camera sees ~160 px of the world), so every

@@ -14,50 +14,6 @@ extends RefCounted
 const SMOOTH_AVG_MS := 16.7
 const SMOOTH_P95_MS := 20.0
 const SMOOTH_MAX_MS := 33.4
-const OverlayRegistry := preload("res://scenes/ui/overlays/overlay_registry.gd")
-const MatchSpawner := preload("res://scenes/match_spawner.gd")
-
-
-## A match's NPC `npc` with its debug overlays at their defaults (off), as a match starts them
-## (`MatchBuilder.populate`, its spec's `overlays` naming none on): an overlay left on (the vision
-## cone's export defaults to on) would be costed as if a player were watching it.
-static func overlays_off(npc: Node) -> void:
-	for child in npc.get_children():
-		for flag in OverlayRegistry.defaults():
-			if not OverlayRegistry.is_global(flag) and flag in child:
-				child.set(flag, false)
-
-
-## The test world's generated house's front entrance (world px), or the origin when it has none:
-## the point a match guard's invaders head for, as Main's do.
-static func front_entrance(t: TestContext) -> Vector2:
-	for o in WorldGen.get_openings(t.world.get("house")):
-		if o["front"]:
-			return o["pos"]
-	return Vector2.ZERO
-
-
-## Place a match guard's `per_side` a side as Main does, from `seed_value`: the defenders in random
-## rooms, the invaders in one group outside the house heading for its front entrance
-## (`spawn_invader_team`), each armed from the default (random gun) loadout drawn from
-## one seeded rng, with its debug overlays off (`overlays_off`). Returns the combatants in spawn
-## order.
-static func spawn_match(t: TestContext, seed_value: int, per_side: int) -> Array:
-	var spawner = MatchSpawner.new()
-	spawner.world = t.world
-	spawner.openings = t.world.openings
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var entrance := front_entrance(t)
-	for i in per_side:
-		spawner.spawn_defender(t.rooms, rng, i)
-	spawner.spawn_invader_team(t.rooms, rng, per_side, entrance)
-	var loadout_rng := RandomNumberGenerator.new()
-	loadout_rng.seed = seed_value
-	for c in spawner.combatants:
-		LoadoutConfig.apply(c, {}, loadout_rng)
-		overlays_off(c)
-	return spawner.combatants
 
 
 ## Render every sound the way the game's background pre-warm has by the time a match is fought.

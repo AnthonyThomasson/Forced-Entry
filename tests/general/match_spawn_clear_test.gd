@@ -3,8 +3,10 @@ extends GameTest
 ## top of another defender. World-gen puts a free-standing piece (a bed, an island, a table) at a
 ## room's dead centre first, so a defender dropped at the centre used to spawn inside it; the first
 ## physics step ejected the piece, which handed its momentum back and flung the defender across the
-## map (seen most in endless runs). Runs the match spawner (the placement helper `main.gd` uses) on
-## the test's own world.
+## map (seen most in endless runs). A unit test of the placement rule inside the match module: it
+## runs the match spawner (`match_spawner.gd`, which `MatchBuilder.populate` places every match's
+## NPCs through) on the test's own world, into the one room the test picks, which no match spec can
+## pin.
 
 const MatchSpawner := preload("res://scenes/match_spawner.gd")
 ## A seed whose bedroom has a solid piece over its centre (checked below, so a world-gen change that
