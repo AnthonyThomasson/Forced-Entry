@@ -13,7 +13,7 @@ each piece gives, `ObjectArtConfig.light_specs`.
 
 ## What is built
 
-`WorldLighting.light(root, seed_value, rooms)` (Main after the nav bake, the Testing world the same way) adds one `WorldLighting`
+`WorldLighting.light(root, seed_value, rooms)` (the match builder's world stage, `MatchBuilder.stage`, after the nav bake, for Main's match and the Testing world alike) adds one `WorldLighting`
 node under the world root, in the group `world_lighting`, with the reads `lights()` (every piece and fixture PointLight2D),
 `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and `budget()` (`{ per_floor, dropped }`, `dropped` holding
 `{ piece, index }` per declared light left without a PointLight2D). The world's own things carry the rest:

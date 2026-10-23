@@ -118,7 +118,8 @@ Config (pushed in from the controller): `disabled_nodes`, `node_overrides` (per-
 `entry_rules` (ordered fact → start node), `skip_single_option`, `inside_only` (territory), `confine_room` (the room a member ordered to
 defend it keeps to, `docs/leadership.md` LD8: inside a `confine` subtree an option whose `tags.room` is another room or outside is dropped,
 as `inside_only` drops one outside the house; an option naming no place stays; the leaf's params then carry `confine_room`), and
-`leash_center` / `leash` (a squad follower's leader's live position, `Vector2.INF` for none, and the leash in px, LD23: inside a `confine`
+`leash_center` / `leash` (a squad follower's leader's live position, `Vector2.INF` for none: no squad, or a member holding an order, which
+the leash never binds; and the leash in px, LD23: inside a `confine`
 subtree an option placed farther than `leash` from it is dropped, its place being `params.from`, else `params.point`; an option naming no
 place stays; `_confines()` is true while a leash is set).
 **ORDER** (`order`, a root child, `requires: ordered`, LD6): its one option is the snapshot's `order` group, so it is taken without asking Von;
@@ -211,7 +212,7 @@ things keep that head start honest:
 `resolved` signal). It fires EXACTLY once when
 the question settles, and every terminal path reaches `_resolve()` — server answered (`true`), or
 none is coming (`false`: exported build, blank `von_path`, failed spawn, `ready_timeout` elapsed, or a server up that cannot decide).
-`main.gd` awaits it before `_spawn_world()` so no NPC ever makes its first decision against a cold
+`main.gd` awaits it before it plays a match (`_on_setup_chosen`, before `start_match`) so no NPC ever makes its first decision against a cold
 server; a run with no server still starts (with a warning), just with NPCs that hold steady. Main
 checks `is_resolved()` *before* awaiting, because the exported-build path resolves synchronously in
 `_ready()` — children are readied before their parent, so the signal would otherwise be missed. Any

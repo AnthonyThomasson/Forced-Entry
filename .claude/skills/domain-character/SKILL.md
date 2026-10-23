@@ -140,14 +140,14 @@ cooldown is in step with the frame that pulls the trigger. A controller re-press
 `is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
 
 **Loadout.** `set_loadout(slots, hold_slot, spare_types, loaded_magazine := &"", grenades := {}, weapon_style := &"police")` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.style`: looks only), the carried
-magazines and the held slot (dropping any reload, re-judging the raise). Main uses it (through `LoadoutConfig.apply`) to arm the player and every NPC with its side's loadout — a chosen gun, or one random gun by default
+magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
 (`ItemRegistry.loadout_for` / `spares_for`); tests that do not call it keep `default_inventory()` — every item.
 
 ## The style (`docs/outfits.md` O15)
 
 How the character is drawn, looks only: `style` (exported, a `CharacterConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the
 defenders' crew; `zenitex` by default, the defender NPC scene `merc`), `look_seed` (exported: its own variety within the style) and `rank` (a police
-unit's: 0 trooper, 1 sergeant, 2 lead). `set_style(style, seed, rank := 0)` sets all three (Main through `LoadoutConfig.apply`'s `style`; tests through it
+unit's: 0 trooper, 1 sergeant, 2 lead). `set_style(style, seed, rank := 0)` sets all three (a match through `LoadoutConfig.apply`'s `style`, `MatchBuilder.style`; tests through it
 or the props). Each setter bumps `_look_revision`, which the visuals compare once a frame to re-resolve the look (`domain-character-body`). The
 style rows (`CharacterConfig.styles`: side, police, weapon styles, palettes, bare clothes, skin, hair, gloves, pack, livery marks, chrome, optics,
 implant chances) and `default_style` are this domain's tuning. Tests: `tests/character/style_look_test.gd`, `tests/general/match_styles_test.gd`.

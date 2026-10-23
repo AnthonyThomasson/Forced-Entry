@@ -70,7 +70,7 @@ A showroom is deleted before its audit, so this is the shape to build each time 
   `"$GODOT" --headless --path . --fixed-fps 60 --log-file "$out/godot.log" res://scenes/testing/test_runner.tscn -- --play <words> --showroom-cycle=1`,
   then `python3 tools/scan_godot_log.py "$out/godot.log" --from=0`.
 - **After a round of picks, add team sets** after the variant sets. Each shows the picks as a match would field them:
-  that side's match kit (Main's loadouts: the invaders' `invader_loadout` outfit, a defender's
+  that side's match kit (the match spec's loadouts: the invaders' `MatchBuilder.INVADER_LOADOUT` outfit, a defender's
   `LoadoutConfig.outfit_of({})`), a few bodies plus a walker, and team-wide rules shown as the user stated them (e.g. a
   side that wears one picked look per match gets one set per look; a side that mixes picks per body gets a crew seeded
   per body, with fixed seeds so it is the same on every visit). This is how the user judges the picks together before

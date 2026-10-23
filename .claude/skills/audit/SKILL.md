@@ -47,7 +47,7 @@ skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<fo
 | `physics/blood/` | `domain-physics-blood` |
 | `character/body/` | `domain-character-body` |
 | `ui/{menus,hud,overlays,testing}/` | `domain-ui-<folder>` |
-| `scenes/main.gd`, `scenes/match_spawner.gd` | `domain-main` |
+| `scenes/main.gd`, `scenes/match_builder.gd`, `scenes/match_spawner.gd` | `domain-main` |
 
 A change to a parent (`goal_controller.gd`, `character.gd`, a sub-domain's role) goes to the parent skill; keep both the
 sub-skill and its parent true. A coupling between sub-domains that bypasses their published interfaces is an isolation

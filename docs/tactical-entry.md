@@ -566,8 +566,8 @@ the stack toward the door's axis, clear of the slots.
 
 ## How the rules are enforced
 
-- **What the AI knows.** Main hands every NPC the house's openings (`WorldGen.get_openings`, through
-  `MatchSpawner.bind_npc`; the test world does the same). Perception's `agent_entry.gd` turns each one,
+- **What the AI knows.** The match builder hands every NPC the house's openings (`WorldGen.get_openings`, through
+  `MatchBuilder.bind_npc`, before it joins the tree; Main's match and the test world alike). Perception's `agent_entry.gd` turns each one,
   entered into one of the rooms it joins, into geometry: the door's outward normal and the axis along its
   wall (taken from the room edge it lies on; the data has none), the stack slots (E20 to E22), the pie arc, and the four corners of the
   room behind tagged hard or soft by a sight ray. Built once per opening and navigation map and shared by every NPC on it, since walls do
@@ -651,8 +651,8 @@ Interpretations and the game's own rules, where the sources leave a choice:
   entry the guard began there and gave up is not started again for `entry_guard_rearm` s. Search ranking still goes by
   `visited_room` (stood in it lately); the guard and ENTER go by `cleared_room`.
 
-- **The human (E16).** `PlayerStack` (`scenes/ai/team/player_stack.gd`) is a child of the human's character, attached by Main
-  (`MatchSpawner.bind_player`). It hears the same callouts the NPCs do, and when an allied claim on a doorway is live and the
+- **The human (E16).** `PlayerStack` (`scenes/ai/team/player_stack.gd`) is a child of the human's character, attached by the match builder
+  (`MatchBuilder.bind_player`). It hears the same callouts the NPCs do, and when an allied claim on a doorway is live and the
   human is within range it radios the human's own claim as a `callout` with the human as speaker, a full claim encoded by
   `StackClaim.encode` (its `claim_frame` and `claim_pos`, `bang` true, no `stuns` or `frags`), repeated every 2 s. It hears through a
   `ClaimLedger` of its own and asks the doorway's `DoorStack` with the human's own claim through the stack's claim chain

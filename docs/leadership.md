@@ -6,21 +6,22 @@ stack when it makes its own claim there (LD19 to LD26). The leader can order mem
 stun or with a frag first, going in when ready or holding for the leader's go) or to ambush a door; a member carries its order out until
 the order ends, then follows again. An NPC with no squad handed to it picks its own goals. The human can choose to lead its side from the
 setup window; a right-click then pauses the game and opens a menu to order the selected teammates. In a played match the human sees the
-slots of every stack its side forms, ordered or its own (LD18). A Main-built invader team starts in one group (LD27), and the squad-leaders
+slots of every stack its side forms, ordered or its own (LD18). A match's invader team starts in one group beside the front door (LD27), and the squad-leaders
 debug overlay draws the leader, its leash, its trail and the follow spots (LD12, LD28). The tests named under each behaviour assert this
 document.
 
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
-(the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads and the leash
-break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
+(the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
+pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confine_room` and leash, the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
-stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). Main builds the squads (`main.gd` `_build_squads`,
-`match_spawner.gd` `bind_squad`), places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27) and, when the
+stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
+for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`build_squads`, `bind_squad`,
+`build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
 human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/hud/command_menu.gd`, `ui/hud/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
 the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is
@@ -54,8 +55,9 @@ Tests: `ai/decision/von_request_across_pause` (real Von: paused mid-request for 
 
 **LD3. Squad.** One squad per side. Its leader is the member of the highest `rank`, the first in spawn order among equals: for the invaders
 that is the unit's lead (rank 2, then its sergeant, rank 1), and a defenders' crew, which carries no rank, is led by its first spawned. A
-squad the human leads is led by the human. Main builds one per side under `World` after arming the characters, and hands each NPC its own
-(`MatchSpawner.bind_squad`). Every squad coordinates, with no switch: its members with no order follow the leader (LD19 to LD23), and the
+squad the human leads is led by the human. The match builder builds one per side after arming the characters (`MatchBuilder.build_squads`:
+under `World` in Main's match, under a test world that declares a match or its squads), and hands each NPC its own
+(`MatchBuilder.bind_squad`). Every squad coordinates, with no switch: its members with no order follow the leader (LD19 to LD23), and the
 leader's own claim at a doorway brings them in with it (LD24). An AI leader decides through Von as any NPC does, fights and enters like
 any member and takes whatever slot its stack gives it; the only orders given in its name are the squad's own (a join, LD24; the cancels of
 LD25 and LD26), never one of the human's kinds. An NPC with no squad handed to its controller is no follower and picks its own goals.
@@ -66,7 +68,7 @@ Tests: `general/squad_leader_rule` (invaders by rank, then spawn order; defender
 `&"leader"` `{ faction, leader, previous }`. The orders already given stand (but for the dead human leader's defends and ambushes, LD26); a
 later order, from the new leader, replaces them. The followers re-centre on the new leader, which stops following (LD19).
 
-Tests: `general/squad_succession` (a Main-built match: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
+Tests: `general/squad_succession` (a match built as Main builds one, `s.match` on the bare Terrace house: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
 trooper keeps its order, a newer order from the sergeant replaces it).
 
 **LD5. Order transport.** A squad posts each order its leader gives as `&"order"` `{ id, leader, faction, to, kind, ... }`, kinds
@@ -157,7 +159,8 @@ it inside against a contact outside the room. A live grenade (D8) sets off the e
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
 a rule on its fight options, not on the reflex. The order lasts until it is cancelled or replaced.
 
-Tests: `ai/combat/defend_room_stays_inside` (real Von: an ordered defender shot at from the hall fights and never leaves the kitchen),
+Tests: `ai/combat/defend_room_stays_inside` (real Von: an ordered defender shot at from the hall fights and never leaves the kitchen; its
+squad bound, `s.squads`, its leader left in the hall about 510 px off, beyond the leash, which binds no ordered member, LD23),
 `ai/combat/defend_room_shares_doorways` (two members, two doorways, one each, off-axis and back from the wall, guns on them),
 `ai/combat/defend_room_evade_returns` (a frag drives a defender out of the box room; after the burst it walks back in and holds).
 
@@ -290,15 +293,16 @@ position", red when it refused; an order that is done is no longer drawn), and a
 selection (`selection_changed`, empty once the menu closes), and reads the members through the Character API.
 
 Who leads is a debug overlay, not a marker: the overlay bar's "Squad leaders" (`show_leaders`, a global row of `OverlayRegistry`, off by
-default; `ui/overlays/leader_overlay.gd`, under `World` at `DrawLayers.ABOVE`), which Main builds in every match, played, Watch or Endless,
-over every squad's `view()`. While it is on it draws a crown over each side's living leader, moving to the next in line when one falls, and
+default; `ui/overlays/leader_overlay.gd`, under `World` at `DrawLayers.ABOVE`), which the match builder builds with the squads
+(`MatchBuilder.build_leader_overlay`) in every match, played, Watch or Endless, and in a test world that declares squads or a match, over
+every squad's `view()`; the toggle reaches it through `MatchBuilder.set_overlay`, from Main's bar and the test runner's alike. While it is on it draws a crown over each side's living leader, moving to the next in line when one falls, and
 how the squad follows it: the leash, the follow spots and the trail (LD28). A join is marked "Join stack · moving" (LD24).
 
 Tests: `ui/order_markers_draw` (a fake view: one target per member with an order and none without, no marker on the leader, the selected
 teammate ringed where it stands and cleared with the selection, a join "Join stack · moving", drawn at `DrawLayers.ABOVE`),
 `ui/leader_overlay_draw` (the `show_leaders` row, global and off by default; with fake views nothing while off, then a crown over each
-squad's leader, moved to a new leader and gone with none; Main's `_build_leader_overlay` over two real squads, shown and hidden by the
-bar's toggle; LD28's marks).
+squad's leader, moved to a new leader and gone with none; the toggle through `MatchBuilder.set_overlay` on a test world's declared squads,
+`s.squads`, and on Main's match, `Main.start_match`, two real squads, each shown and hidden by the bar's toggle; LD28's marks).
 
 **LD13. Hold for go.** A stack order carries `wait_go` (false unless asked: it goes when ready, LD9, as before). A held stack forms, claims
 its slots and radios `ready` as any stack, then holds: the point holds its slot, gun on the door, and nobody slices the pie, calls the bang,
@@ -447,7 +451,7 @@ doorway from the kitchen" at an exterior door and "... from the living room" by 
 `general/command_menu_wiring` (a Main-built match: a stun stack ordered with "Hold for my go" ticked holds, no bang call or crossing for
 8 s; "Go into the kitchen" on its door; the bang, then in).
 
-**LD17. The stack waits for its leader.** When the human leads, its `PlayerStack` is handed the squad (`MatchSpawner.bind_squad`) and its
+**LD17. The stack waits for its leader.** When the human leads, its `PlayerStack` is handed the squad (`MatchBuilder.bind_squad`) and its
 claims carry `leader: true` while the squad's `leader()` is the human. An ordered stack waits for the leader that gave its order when the
 leader holds a slot in it (`Entry._leads`: the claim says `leader` and is the order's leader's): nobody crosses, slices the pie or calls the
 bang while that claim is still at `claim`, whatever the wait, until `order_ready_cap` (D7) runs out; the leader standing in its slot
@@ -545,7 +549,11 @@ with a tactical reload (`Combat.top_off`), without a decision.
 Tests: `ai/movement/follow_top_up` (a follower starting with 2 rounds in its pistol takes its spot on the ring round a still puppet leader
 and reloads there, at rest, while its decision walks put no question to Von).
 
-**LD23. The leash.** A follower fights within `leash` (320 px) of its leader's live position:
+**LD23. The leash.** A follower holding no order fights within `leash` (320 px) of its leader's live position. A member carrying an order
+(defending a room, an ambush, a stack, a held one or a join included) is not leashed: it fights where its order takes it, whatever the
+distance to its leader, and is leashed again once its order ends. It still follows (LD19: its follow spot, its place in the file); only the
+leash is dropped (the controller's `_leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
+otherwise). For a leashed follower:
 - **Its options.** Inside a `confine` subtree (COMBAT) the planner drops every option placed beyond the leash (`leash_center`, pushed each
   decision as the leader's position, and `leash`, beside `inside_only` and `confine_room`): where the option acts from (`params.from`, else
   `params.point`), so the fire spots, flank sides, advances, retreats and throw spots out there are not offered; an option that names no
@@ -561,7 +569,10 @@ Tests: `ai/combat/leash_no_chase` (real Von: a target the follower fights flees 
 the leash and 40 px from its puppet leader), `ai/combat/leash_free_chase` (its contrast: the same hall with no squad bound, and the NPC goes
 after the target past the leash and 40 px from the puppet, so the leash is what holds the follower back), `ai/combat/leash_walks_back` (the leader runs 650 px off while the follower fights: it takes
 FOLLOW at or after the break and comes back within the leash), `ai/combat/leash_pinned_cover` (an SMG gunman pins the follower: it fights
-from cover within the leash, or follows, never more than the leash and 40 px from its leader).
+from cover within the leash, or follows, never more than the leash and 40 px from its leader). An ordered member off the leash:
+`ai/combat/ordered_melee_off_leash` (real Von: ordered to defend an open hall with a dry gun, its puppet leader more than two leashes off,
+it closes on a gunman beyond the leash and strikes it, which a leash would hold it short of) and `ai/combat/defend_room_stays_inside`
+(LD8: its leader about 510 px off, the ordered defender still fights from inside the kitchen).
 
 **LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
 `entry_step` `claim`, no `order_id` and no `join`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the
@@ -582,8 +593,8 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
 - **The wording.** "Your leader ordered you to go into the kitchen by its doorway with them." (LD6): measured with `tools/von_probe.py` over
   the 38 `tools/von_scenarios` levels in spike #66, it moved no combat level's top pick (the expected pick's probability moving 0.020 on
   average).
-- **The human's own claim** (`PlayerStack`, interface 17). The invaders' alone (D29): Main sets the human's `PlayerStack.own_claims` through
-  `MatchSpawner.bind_squad` on the invaders' side only, so a human defender leader makes no claim of its own and its step-ups rally nobody
+- **The human's own claim** (`PlayerStack`, interface 17). The invaders' alone (D29): the match builder sets the human's `PlayerStack.own_claims` through
+  `MatchBuilder.bind_squad` on the invaders' side only, so a human defender leader makes no claim of its own and its step-ups rally nobody
   (its teammates still follow it). While the human leads a squad with
   another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
   doorway's stack side, out from its wall plane by at most `STEP_UP_REACH` (60 px) and past its jamb along the wall by at most as much, for
@@ -631,18 +642,26 @@ within the frame; one `cancel`, to the defender and the ambusher; the held stack
 member follows the sergeant once its order ends; the sergeant's next own claim gives a join to every member then holding no order and to
 nobody holding one).
 
-**LD27. The invader team spawns together.** Main places its invader team in one group (`MatchSpawner.spawn_invader_team`, `main.gd`
-`_spawn_world`): round a point of the perimeter of the rooms' bounding box grown by `invader_margin` (80 px), drawn from the match's RNG
-seeded with the house seed (a pinned seed pins it), or, with a human invader in a played match, round the human's spot. Each member takes
-the first spot that is clear (`is_clear`: `spawn_clearance`, 20 px, from every furniture footprint and twice that from every combatant
-placed, the human's spot among them) and out of doors (out of every room grown by `spawn_clearance`, within twice `invader_margin` of the
-bounds): the centre, then the spots of up to `GROUP_RINGS` (6) rings twice `spawn_clearance` apart round it; the centre, logged, when none
-is. Defenders keep spawning in random rooms. `spawn_invader` (one alone at its share of the perimeter) places a spread side for the tests
-and perf guards that want one.
+**LD27. The invader team spawns together.** A match places its invader team in one group (`match_spawner.gd` `spawn_invader_team`,
+through `MatchBuilder.populate`, Main's match and a test's declared match alike), beside the front door: round a point against the house's
+outside wall next to the front entrance, on one side of the doorway (the side drawn from the match's RNG seeded with the house seed, so a
+pinned seed pins it), 120 px along the wall from the doorway's centre (`DOOR_SIDE_OFFSET`: past the jamb, out of the doorway's straight
+line) and `spawn_clearance` (20 px) out from the wall, where the wall hides the team from inside. With a human invader in a played match the
+group packs round the human's spot instead (the human starts where it stands: Main's player just outside the front entrance). In a house
+with no front door it packs round a point of the perimeter of the rooms' bounding box grown by `invader_margin` (80 px), drawn from the same
+RNG. Each member takes the first spot that is clear (`is_clear`: `spawn_clearance` from every furniture footprint and twice that from every
+combatant placed, the human's spot among them), out of doors (out of every room grown by `spawn_clearance`, within twice `invader_margin`
+of the bounds) and, beside the front door, out of the doorway's straight strip (within half its width of its centre along the wall): the
+centre, then the spots of up to `GROUP_RINGS` (6) rings twice `spawn_clearance` apart round it; the centre, logged, when none is. Each
+member heads for the front entrance first (its `entry_point`). Defenders keep spawning in random rooms.
 
-Tests: `general/match_spawn_team_grouped` (Main run whole on house seed 101 with four invaders and two defenders: watched, every invader
-within 110 px of the group's centre, which stands 20 to 220 px outside the rooms' bounds, the same point for the same seed, every defender
-in a room; played as an invader, every invader within 110 px of the human).
+Tests: `general/match_spawn_team_beside_front_door` (every floorplan, fixed seeds, each match built whole by `MatchBuilder.build`: every
+invader outside the house, within 150 px of the front door's centre and its rings, out of the doorway's strip; the team on both sides of
+the door across the seeds; no defender knowing a hostile on the first frame), `general/match_spawn_team_grouped` (Main run whole on house
+seed 101 with four invaders and two defenders: watched, every invader within 110 px of the group's centre, which stands outside the house
+beside its front door, the same point for the same seed, every defender in a room; played as an invader, every invader within 110 px of the
+human), `general/match_spawn_team_no_front_door` (a one-room layout with no doorway: the team packed round a point of the ring round it, each
+member on a spot of its own and outside the house).
 
 **LD28. The squad-leaders overlay draws the following.** With `show_leaders` on (LD12) the `LeaderOverlay` draws, per squad and read
 through `Squad.view()` alone: the crown over the living leader, the leash ring round it (the view's `leash`), each follower's follow spot as
@@ -741,8 +760,10 @@ The cases the behaviours above cite as D1 to D30.
 | A follower fights within, of its leader's live position | 320 px | `Squad.leash` |
 | ... and re-decides in a fight further than | 1.3 leashes (416 px) | `Squad.leash_break` |
 | The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |
-| The invader team's point lies out of the rooms' bounds by | 80 px | `Main.invader_margin` |
-| ... its members packed on rings round it, apart | 40 px (twice `spawn_clearance`), 6 rings | `Main.spawn_clearance`, `MatchSpawner.GROUP_RINGS` |
+| The invader team's point lies along the wall from the front door's centre by | 120 px | `match_spawner.gd` `DOOR_SIDE_OFFSET` |
+| ... and out from the wall by | 20 px (`spawn_clearance`) | the match spec's `spawn_clearance` (Main's export) |
+| With no front door, it lies out of the rooms' bounds by | 80 px | the match spec's `invader_margin` (Main's export) |
+| ... its members packed on rings round it, apart | 40 px (twice `spawn_clearance`), 6 rings | the match spec's `spawn_clearance`, `match_spawner.gd` `GROUP_RINGS` |
 
 ## Baseline
 

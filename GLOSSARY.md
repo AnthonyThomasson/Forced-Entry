@@ -5,6 +5,27 @@ share. The domains and their interfaces are the `architecture` skill.
 
 ## Language
 
+### Matches
+
+**Match builder**:
+The one module that builds a match, `MatchBuilder` (`scenes/match_builder.gd`), beside Main: a match spec goes in and
+a match handle comes out. Main's played, Watch and Endless matches, the Testing domain's worlds and the perf guards
+all build through it, so a test measures the match Main plays.
+_Avoid_: spawner (its placement helper, `match_spawner.gd`), match setup (the setup window's choices)
+
+**Match spec**:
+The plain description of one match the match builder takes: the house (a seed, a plan, an entrance, or a house
+already built), each side's count, loadout and optional start points, the human (its side, whether it leads), whether
+to wait for the navigation maps, and the debug overlays it starts with. Unnamed keys take the defaults, so the
+invaders' default kit is the same everywhere.
+_Avoid_: config (the setup window's choices, which are read into a spec), match settings
+
+**Match handle**:
+What building a match returns, a plain record of the match as built: its world, house, rooms and doorways, the
+navigation region and overlays, its combatants, its squads by side and the human's stack radio. Main wires its HUDs
+onto it; a test reads it.
+_Avoid_: match state, match object
+
 ### Game tests
 
 **Simulation test**:

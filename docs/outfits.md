@@ -118,11 +118,13 @@ the plate carrier) is marked `plates: true`, and each plate slot's row `plate: t
 rng, so every outfit takes the same number of draws). In the setup window a side's plate picks are disabled and show "None" unless its vest pick is a `plates` choice,
 are enabled again when one is picked, and a disabled plate is reported as `""` by `current_config()` and `start_requested`. The window reads only
 those marks (plain data), never the ids. Defaults: **defenders** wear plain clothes (t-shirt, jeans, shoes: `default_outfit`); **invaders** a helmet, a shirt, a plate
-carrier with a steel III plate front and back, tactical pants and boots (`Main.invader_loadout`). Endless draws each side's outfit with its gun.
+carrier with a steel III plate front and back, tactical pants and boots (the match spec's default, `MatchBuilder.INVADER_LOADOUT`). Endless draws each side's outfit with its gun.
 How each garment looks depends on the wearer's style (O15), never on the side's loadout.
 Tests: `items/loadout_outfit` (the options and their `plates` mark, normalize and its clearing of plates without a carrier, apply, and varied
 `random` outfits), `ui/setup_menu_config` (the picks, reported and restored; the plate picks off and on with the vest, reported as none while off).
-The side defaults, the saving and Endless are wired in Main, which no test reaches.
+The side defaults are the match spec's: `general/match_builder_builds_match` (a match's invaders wear the steel III plates front and back),
+`general/main_setup_start_builds_match` (the outfit chosen in the setup window is the one the invaders wear, the human's too) and
+`general/match_setup` (an endless run's next spec carries a valid loadout, its outfit with it).
 
 To try the armour by hand, the **Gun range** sandbox (`sandboxes/player_gun_range_sandbox.gd`) has a firing line of nine lanes, each ending at a
 dummy (1000 health) in one outfit: plain clothes; helmet + t-shirt; tactical vest; plate carrier with no plates; carrier + soft IIIA; + steel III;
@@ -167,7 +169,7 @@ in `CharacterConfig.styles`, drawn from the character's `look_seed`. A police un
 (`Character.rank` 2), the sergeant's chevrons (1). `Character.set_style(style, seed, rank := 0)` sets them (or the exported `style` and
 `look_seed` before `_ready`); a character never given a style is a `zenitex` (a test's puppet, a dummy, the gun range), the defender NPC scene a
 `merc`. A style is looks only: the armour layers, the weight, the surfaces a round meets, the setup window's choices and the garment names are
-the same in every style. A match styles its crews as it arms them (`Main._arm_characters`, from the house seed through its own salted RNG,
+the same in every style. A match styles its crews as it arms them (`MatchBuilder.arm` / `style`, from the house seed through its own salted RNG,
 so the styles never shift the guns or the placement): one unit drawn for every invader, the human invader too, its first the lead and its
 second the sergeant; each defender, the human defender too, drawn merc or borg with a look seed of its own. `LoadoutConfig.apply(character,
 loadout, rng, style)` passes the style on (`{ look, seed, rank, weapon }`), and `weapon` is the weapon style every item the character carries
@@ -210,8 +212,8 @@ a soft panel).
   resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `outfit().look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
   height -1. **Physics**: `HitInfo.height`. **Audio**: the `composite` impact material.
-- **UI** (the setup window's picks, `outfit_lines.gd` for the debug panel and the inspector) and **Main** (the side defaults, the outfit through
-  the setup window and the settings file, the crews' styles in `_arm_characters`).
+- **UI** (the setup window's picks, `outfit_lines.gd` for the debug panel and the inspector) and **Main** (the outfit through the setup window and
+  the settings file) with its match builder (the side defaults, `MatchBuilder.INVADER_LOADOUT`; the crews' styles in `MatchBuilder.style`).
 - **Damage reported** in the `&"hit"` event, `hit_landed` and `report_shot` is the striker's, before the body's zone, blunt and reduction scaling.
 
 ## This game's own rules

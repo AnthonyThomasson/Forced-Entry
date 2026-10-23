@@ -6,7 +6,7 @@ description: Deep implementation detail for the Lighting domain (scenes/lighting
 # Lighting domain (`scenes/lighting/`)
 
 A **leaf**: it imports nothing but General (`EventBus`, `DrawLayers`, `LightMasks`, `WeightedPick`) and Godot, and reads the world duck-typed, the
-way Audio reads a vehicle. Nothing calls into it but Main and the Testing world (`WorldLighting.light`, interface 20) and the
+way Audio reads a vehicle. Nothing calls into it but the composition root's match builder, for Main's match and the Testing world alike (`MatchBuilder.stage` → `WorldLighting.light`, interface 20), and the
 Testing domain's switch row; the lights and shadows of the world's things are declared and built by their own domains. The spec
 is `docs/lighting.md` (L1 to L10, each with its tests); the tests are `tests/lighting/` through `tests/_lighting/lighting_probe.gd`.
 

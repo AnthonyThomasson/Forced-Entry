@@ -41,11 +41,16 @@ composition root is `domain-main`.
 | **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the gdUnit4 suites the headless CLI runner (`tools/run_tests.sh`) and the editor's GdUnit panel run. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`), each played through its folder's wrapper suite (`*_suite.gd`); pure-logic native suites (`tests/<domain>/<name>_suite.gd`) only add to them; sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
 
 `scenes/main.gd` (`main.tscn`) is the **composition root** — with the Testing domain's runner
-(interface 13), the only code that knows every domain. It asks World-Gen for a house, places the NPCs (`scenes/match_spawner.gd`),
-arms and styles every character for its side (its loadout; the match's police unit or a defender's crew style and weapon style, read off
-`CharacterConfig.styles`) and wires the HUDs, overlays and settings page; the setup window's **Tests** button
-sends it to the test browser instead. It lights the match (`WorldLighting.light`, interface 20) right after the nav bake. Match lifecycle (Start / Watch / Endless, teardown, the Von-server wait), the placement rules and
-the exports are the **`domain-main`** skill. `project.godot` autoloads only five: `Keybinds`, `Despawner`, `EventBus` and `GameClock` (all
+(interface 13), the only code that knows every domain. It keeps the UI flow: the setup window, the settings page, the endless run, the HUDs
+and the overlay bar; the setup window's **Tests** button sends it to the test browser instead. A match itself is built by the root's
+match-assembly module, **`MatchBuilder`** (`scenes/match_builder.gd`, interface 23), with its placement helper `scenes/match_spawner.gd`:
+a match spec goes in (`Main.start_match(spec)` is Main's one way into a match), a match handle comes out. It asks World-Gen for a house,
+bakes the nav map and lights it (`WorldLighting.light`, interface 20) right after the bake, waits until the navigation maps answer with the
+new house, places the NPCs, arms and styles every character for its side (its loadout; the match's police unit or a defender's crew style
+and weapon style, read off `CharacterConfig.styles`), ranks the unit and builds the squads. The Testing domain's world stages its own
+worlds and binds its NPCs through the same module, and builds a declared match or declared squads with it, so a test measures the match Main
+plays. Match lifecycle (Start / Watch / Endless, teardown, the Von-server wait), the placement rules and the exports are the
+**`domain-main`** skill. `project.godot` autoloads only five: `Keybinds`, `Despawner`, `EventBus` and `GameClock` (all
 General) and `Sound` (Audio).
 
 ## The vital interfaces (this is the whole cross-domain surface)
@@ -53,7 +58,7 @@ General) and `Sound` (Audio).
 Everything not listed here is private to its domain. The signatures live only here: a domain's skill names the
 interfaces it takes part in (by number) and describes how they're implemented.
 
-1. **Main → World Generation**
+1. **Main (through `MatchBuilder`, interface 23) → World Generation**
    - `WorldGen.generate(seed, force_plan, front_entrance_world, parent) -> Node2D` — seeds one RNG
 	 for the whole run (plan pick is its first draw), prints `House: <plan>  seed: N`, builds
 	 the house; every doorway is an open archway.
@@ -80,13 +85,15 @@ interfaces it takes part in (by number) and describes how they're implemented.
    - `WorldGen.annotate_layout(root, rooms, doors = [])` — for the Testing domain's hand-built arenas and layouts: stores the
 	 same `rooms` / `openings` metadata a generated house carries (a door on one room's wall only is the front entrance), so
 	 `get_rooms`, `get_openings` and `NavBuilder` read them unchanged. No other caller writes those keys.
-   `main.gd` positions the front entrance, fixes draw order and builds the nav map from the rooms (interface 9); its
-   `match_spawner.gd` drops each defender at a clear spot in a random room (its centre unless solid furniture is within `spawn_clearance` or another
-   combatant within twice that — read off `NavBuilder.furniture_holes` — else a random clear point) and the invader team in one group
-   just outside the house (`spawn_invader_team`: packed round a perimeter point of the rooms' bounding box, grown by `invader_margin`, drawn
-   from the house seed, or round the human invader's spot, `docs/leadership.md` LD27; `spawn_invader` places one alone at its share of the
-   perimeter, for the tests that want a spread side) (all via `get_rooms`), and hands every NPC the house's `get_openings` (for tactical
-   entry); it never touches world-gen internals.
+   `MatchBuilder` (interface 23) generates the house with its front entrance where the spec puts it, fixes draw order and builds the nav
+   map from the rooms (interface 9); its `match_spawner.gd` drops each defender at a clear spot in a random room (its centre unless solid
+   furniture is within `spawn_clearance` or another combatant within twice that — read off `NavBuilder.furniture_holes` — else a random
+   clear point) and the invader team in one group just outside the house (`spawn_invader_team`, `docs/leadership.md` LD27: packed round a
+   point against the outside wall beside the front entrance, 120 px along the wall from the doorway's centre on a side drawn from the house
+   seed, no member in the doorway's straight strip; round the human invader's spot when there is one; in a house with no front entrance,
+   round a point of the ring `invader_margin` out of the rooms' bounding box, drawn from the house seed) (all via `get_rooms` /
+   `get_openings`), and hands every NPC the house's `get_openings` (for tactical entry) and an invader the front entrance; it never touches
+   world-gen internals.
 
 2. **World Generation → Objects** (the only way world-gen makes entities)
    - `ObjectFactory.spawn(definition: Dictionary, position, parent, opts) -> Node` — `opts`: `name`, `rotated`, `color`, `facing`,
@@ -245,8 +252,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `random_gun_slot(rng)` / `loadout_for(gun_slot, stuns, frags)` / `spares_for(gun_slot)`. The grenades (`docs/grenades.md`) are `Item`s too: slots `ItemRegistry.STUN_SLOT` 7 / `FRAG_SLOT` 8, a *count*
    carried (`Item.uses_left()`, -1 = unlimited for every other item; `Item.is_throwable()`; `Item.throw_stats() -> Dictionary` (`{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }` for a grenade, from its `GrenadeConfig` row via `GrenadeConfig.stats_of`; `{}` default; `ThrownGrenade.throw_stats()` answers the same for a live one); `ItemRegistry.create(slot, count)`), thrown by `secondary` after a `windup` in the `throw` stance (the `GrenadeItem` posts `&"throw"` as it leaves the hand) as a `ThrownGrenade`
    (a world node in the group `live_grenades`: `kind`, `fuse_left()`, `throw_stats()`, `thrower`, and `item`, the grenade item that draws it, in
-   the thrown item's weapon style) that posts `&"grenade"` events and, when its fuse ends, calls the Projectile System's `Explosion.frag` / `Explosion.stun` (`(at, world, source, row)`, `row` = its `GrenadeConfig` row). `LoadoutConfig` (static holder) is what Main
-   hands a character: `options()` (plain dicts for the setup window: `RANDOM`, then every `GunConfig` gun with its magazines),
+   the thrown item's weapon style) that posts `&"grenade"` events and, when its fuse ends, calls the Projectile System's `Explosion.frag` / `Explosion.stun` (`(at, world, source, row)`, `row` = its `GrenadeConfig` row). `LoadoutConfig` (static holder) is what the match
+   builder (`MatchBuilder.arm`, interface 23) hands a character: `options()` (plain dicts for the setup window: `RANDOM`, then every `GunConfig` gun with its magazines),
    `grenade_options()` (the Stun and Frag rows: `{ id, label, slot, max }`; a loadout names their counts `stuns` / `frags`, 0..3), `grenade_counts(loadout)`,
    `outfit_options()` (the outfit rows: `[{ slot, label, choices: [{ id, label }] }]`, one per slot, a "None" choice `id` `&""` first where the slot may be empty; the
    vest choice that holds plates marked `plates: true`, each plate row `plate: true`),
@@ -299,7 +306,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), `weapon_blocked()` / `weapon_raise()` /
    `is_automatic()`, `item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `aim_target()` (the swayed aim point a grenade
    is thrown to, interface 6: where the AI expects its own grenade to come down), `set_loadout(slots, hold_slot, spare_types, loaded_magazine := &"", grenades := {}, weapon_style := &"police")` (carry only those slots, holding one, with those spare
-   magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how Main arms a spawn with its side's loadout);
+   magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
    how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
    the defenders' crew; `zenitex` when never given one), `look_seed` (exported: its own variety within the style), `rank` (a police unit's: 0 trooper, 1 sergeant,
    2 lead) and `set_style(style, seed, rank := 0)` (`LoadoutConfig.apply` calls it);
@@ -336,12 +343,15 @@ interfaces it takes part in (by number) and describes how they're implemented.
    side (kitchen)`), `debug_state() -> Dictionary` (the deep snapshot the dev command server's `ai` verb dumps), `debug_zones() -> Array`
    (the tactical points the spectator inspector picks from; it rings the one it describes on the NPC's tactics overlay through the
    controller's `debug_focus(point)` / `debug_clear_focus()`), the draw-only overlays' `debug_*` getters (e.g. `debug_entry_view()` for the tactical-entry ones), `known_contacts_for_display()` (the spectator inspector's contact list) for those observers to show. Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry` (`show_grenades` reads `debug_grenades()`: `{ known: [{ point, kind, fuse_left, fuse, radius, source }], escape: Vector2 (INF: none), throw: {} }`);
-   Main, the spectator inspector and the Testing world set those flags by that name, so an overlay's export is part of this surface. Every NPC is the same generic goal-driven agent
+   `MatchBuilder.set_overlay` (interface 23: Main's match and the Testing world's alike), the spectator inspector and the Testing world's
+   actor spawn set those flags by that name, so an overlay's export is part of this surface. Every NPC is the same generic goal-driven agent
    driven by `ai/goal_controller.gd`; the defender (`ai/npc_defender.tscn`) and the invader
    (`ai/npc_invader.tscn`), both inherited from `ai/npc.tscn` (itself an inherited scene of the controller-less
    `character/character_base.tscn`), differ only in data authored on the scene —
    a plain-language `goal` plus generic primitives (hostility rules, pursuit, territory) and
-   decision-tree config. Main injects only `rooms` and `openings` (and `entry_point`), and its side's `squad` (interface 21); the AI finds and categorizes
+   decision-tree config. Its composer injects only `rooms` and `openings` (and `entry_point`), by the one bind rule `MatchBuilder.bind_npc`, before the
+   NPC joins the tree (interface 23; the controller found by its contract, the child with `control` and `rooms`), and its side's `squad`
+   (`MatchBuilder.bind_squad`, interface 21); the AI finds and categorizes
    the characters it perceives by sight. Von walks a data-driven DECISION TREE ranked against the
    goal — a broad mode (combat / reload_quiet / investigate / search / idle), then a tactic (engage / flank / advance /
    retreat / reload / locate …), then a concrete option (a place, a firing spot, an object) — one `choice`
@@ -366,18 +376,18 @@ interfaces it takes part in (by number) and describes how they're implemented.
    overlaps it (then drops it; a freed body is forgotten), and calls `stop_clearing(body) -> bool` when the character goes straight back
    onto that object, so its exception stays.
 
-9. **Main / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
+9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
    - `NavBuilder.build(house, rooms, parent, agent_radius=14.0) -> NavigationRegion2D` — bakes
 	 one `NavigationRegion2D` whose walkable area is the house footprint plus an outdoor ring minus the house's
 	 **static** wall colliders (doorways stay open) **and minus each solid furniture footprint**
 	 (baked in as a hole: every `RigidBody2D` with a collider, an anchored piece frozen static among them; walk-over decor has
 	 none), so paths route around furniture.
-   - The re-bake is the Navigation domain's own: its `nav_updater.gd` (built by Main, below) re-carves the furniture holes in place at the
+   - The re-bake is the Navigation domain's own: its `nav_updater.gd` (built by `MatchBuilder.stage`, below) re-carves the furniture holes in place at the
 	 pieces' **current** positions, the planning bake on the NavigationServer's worker thread. `NavBuilder.rebake` / `rebake_async` /
 	 `rebake_steering` are test-facing seams, not part of this surface (`domain-navigation`).
    - `NavBuilder.furniture_holes(house) -> Array` — the carved furniture footprints (the anchored pieces' included) as world-space
 	 polygons: what the Navigation domain's draw-only `nav_debug.gd` overlay draws and its `nav_updater.gd` watches for a
-	 moved piece, and what Main's `match_spawner.gd` keeps a spawn's clearance from.
+	 moved piece, and what the match builder's `match_spawner.gd` keeps a spawn's clearance from.
    - **Characters at rest are holes too, on a second map.** `NavBuilder.character_holes(root) -> Array` (the footprints of the
 	 living characters at rest under the region's parent), `NavBuilder.OBSTACLE_MARGIN` (the px every carved footprint is grown by: the AI's
 	 entry geometry grows a body at rest by it to match the steering map's carve), `NavBuilder.steering_map(planning_map) -> RID` (a map of its own, holding
@@ -390,7 +400,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 navmesh counts as unbaked), `snap(map, p) -> Vector2` (`p` on the navmesh; unchanged before the bake),
 	 `route(map, from, to) -> PackedVector2Array` (the navigated waypoints; a straight segment before the bake or with no
 	 path) and `path_length(path) -> float`. The AI's locomotion, tactics geometry, entry geometry, grenade escape plan, snapshot options and
-	 routes overlay, the squad's follow spots (`snap`), and the human's `PlayerStack` (how near a doorway it is), all go through these, so the "is the map baked yet" rule lives in one place.
+	 routes overlay, the squad's follow spots (`snap`), the human's `PlayerStack` (how near a doorway it is) and the match builder's wait for the
+	 maps (`MatchBuilder.stage`, interface 23: `ready` on the planning map and the steering map before any NPC is placed), all go through these, so the "is the map baked yet" rule lives in one place.
    - **Avoid maps**, for a walk that keeps out of some stretch of floor (the AI's doorway views, `docs/tactical-entry.md` E18):
 	 `NavBuilder.avoid_map(region, key, holes) -> RID` (`region`: the planning region `build` returned, found from a world map by
 	 `NavBuilder.planning_region(planning_map) -> NavigationRegion2D`; `holes`: world-space polygons; `key` names the set): a map of its
@@ -398,8 +409,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 planning bake has been redone since), freed by the next ask for another set once nobody has asked for it for 20 s, and with its
 	 world, and `ready` as any map. The world's map and the
 	 steering map are untouched. The AI's `Locomotion` walks it and `AgentDoorViews.walk_route` measures on it.
-   `main.gd` calls `build` once after `WorldGen.generate` (and builds the `nav_debug.gd` overlay and the
-   `nav_updater.gd` re-baker right after). Any `NavigationAgent2D` then pathfinds
+   `MatchBuilder.stage` (interface 23: Main's match and every test world alike) calls `build` once after the house is built (and builds the
+   `nav_debug.gd` overlay and the `nav_updater.gd` re-baker right after), then, with the spec's `wait_nav` (on by default), waits until both
+   maps are `ready`. Any `NavigationAgent2D` then pathfinds
    against the global map automatically — the AI's locomotion sets `target_position` and steers at
    `get_next_path_position()`. It does **not** enable RVO avoidance: instead the navmesh is
    **periodically re-baked** (`nav_updater.gd`, only when a piece has moved) so furniture that gets
@@ -581,9 +593,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
 13. **Testing → every domain** (a second composition root, like `main.gd`)
     `scenes/testing/` builds a test's world and drives it through the interfaces above only:
     WorldGen (1, incl. the catalogue lookups) or an arena / hand-laid room layout from the three
-    factories (2, incl. `WallFactory.openings_for`), `NavBuilder`
-    + `nav_updater.gd` (9), the dusk lighting as Main lights a match (20: `WorldLighting.light` after the nav bake), the character scenes plus the controller contract (7: it hands an NPC's controller the house's `rooms` / `openings` before the
-    character joins the tree, so it finds it by the `control` duck-type, the `npc_controllers` group being joined only in `_ready`) — a puppet
+    factories (2, incl. `WallFactory.openings_for`), staged as Main stages a match, through the match builder (23: `MatchBuilder.stage`
+    over the house, layout or arena it built with its objects in place, so `NavBuilder` and `nav_updater.gd` (9) and the dusk lighting
+    (20: `WorldLighting.light` after the nav bake) are Main's own path, then the wait until both navigation maps are `ready` before any
+    actor enters), the character scenes plus the controller contract (7: each NPC actor bound by the match's one rule, `MatchBuilder.bind_npc`,
+    before it joins the tree: the house's `rooms` / `openings` and, for an invader, the front entrance as its `entry_point`,
+    `MatchBuilder.entry_point_for`), a declared match (`TestSetup.match`: `MatchBuilder.populate` over the staged world, read with
+    `TestContext.match()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.build_squads`, the human leader handed its
+    stack radio through `MatchBuilder.bind_player`, read with `TestContext.squad(faction)` / `player_stack()`) — a puppet
     `ScriptedController` or `player_controller.gd` on `character/character_base.tscn` (the
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
     `res://scenes/vehicle/<kind>.tscn` under the world root after the nav bake (not carved) and waits one physics frame so the new bodies
@@ -591,15 +608,17 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `drive(throttle, steer, handbrake)`, writing `move_input` / `run_input` as the player's keys do) — and `EventBus` / character
     signals (7, 10) for its event log.
     Behaviour switches set existing exported props and config-holder `static var`s by name
-    (duck-typed, like Main's overlay flags); a test can also script the Von answers through the AI
+    (duck-typed, like the overlay flags); a test can also script the Von answers through the AI
     decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the test session also drives the
     `DecisionServerLauncher` for the tests that need the real server; `DecisionBudget.per_frame`, the
     snapshots a frame may start, is set the same way) so AI
     wiring runs without a server. In the in-game runner a test can switch off user interactions that
     would change its result with `TestSetup.lock_interaction` (`camera` / `pause` / `overlays`), sending
     its own input through `TestContext.inject` so the lock lets it through; the runner also builds the
-    Navigation domain's draw-only `nav_debug.gd` (via the world, kept current by `nav_updater.gd`) and the
-    UI's `PerformanceOverlay` for the overlay bar's global toggles (the bar and `OverlayRegistry` are interface 22). Its scene carries General's camera (`general/camera_controller.gd`;
+    UI's `PerformanceOverlay` for the overlay bar's `PERF` toggle and hands every other toggle to the world's `set_overlay`, which routes it
+    by the match's one rule (`MatchBuilder.set_overlay`: the navigation holes to the world's `nav_debug.gd`, kept current by `nav_updater.gd`,
+    the squad leaders to the `LeaderOverlay` of its declared squads or match, any other to its NPCs; the bar and `OverlayRegistry` are
+    interface 22). Its scene carries General's camera (`general/camera_controller.gd`;
     the gdUnit4 base suite `GameTestSuite` makes one of its own), which it points at the setup's camera targets (every actor by default) with `frame(targets)` and whose `pan_enabled` it clears where a
     human-driven player walks on WASD or the test locks the camera. Examples of the knobs: the Physics domain's `BloodConfig.enabled` /
     `PhysicsConfig.debris_enabled` master switches and the Audio domain's `audio.sound` switch; statics are restored after each test.
@@ -608,7 +627,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `SoundBank.recipe_for(profile)` / `SoundSynth.render(recipe, seed_value) -> AudioStreamWAV`, played on its own
     `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16). Main
     reaches it only by changing scene to `testing/test_browser.tscn`, and the browser's Back changes scene back to
-    `main.tscn` (the one thing Testing knows of Main); the UI widgets it shows
+    `main.tscn`; beyond that scene change Testing knows only the root's match builder (23); the UI widgets it shows
     (`test_browser_window.gd`, `test_result_hud.gd`) take plain dicts and emit signals. Nothing
     depends on Testing. Its one outward dependency beyond the game is the gdUnit4 addon (`addons/gdUnit4/`, v5.1.1): its
     base suites `GameTestSuite` and `UnitSuite` extend `GdUnitTestSuite`, and its session hook (`test_report_hook.gd`, named in
@@ -646,12 +665,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
     Everything else Audio hears arrives as an EventBus event (interface 10): the gun, projectile and character
     domains only *post*; none of them references Audio.
 
-17. **Main → AI team: the human's place in a stack** (`scenes/ai/team/player_stack.gd`; a human invader is one of the stack)
-    - `MatchSpawner.bind_player(player, rooms) -> Node` (Main's helper, beside `bind_npc`) attaches a `PlayerStack` child to the human with
-      the house's `rooms` and `openings` (`PlayerStack.attach(character, rooms, openings)`); it returns it.
+17. **Main / Testing (through `MatchBuilder`) → AI team: the human's place in a stack** (`scenes/ai/team/player_stack.gd`; a human invader
+    is one of the stack)
+    - `PlayerStack.attach(character, rooms, openings) -> Node` attaches a `PlayerStack` child to the human with the house's `rooms` and
+      `openings` and returns it; the match builder's `bind_player` (interface 23, beside `bind_npc`) is its one caller, for a match's human
+      (`populate`) and a test world's human leader (`TestSetup.squads`' `human`) alike.
     - `PlayerStack.view() -> Dictionary` — `{}` with no reservation, else `{ opening, door, slots: [{ n, point, mine, held }], mine, step }`
       (`n` the slot, numbered in claim order; `point` where it stands, on its holder's side of the door: both sides on a split stack, E19):
-      the UI's `StackMarkers` (`ui/hud/stack_markers.gd`, `watch(stack)`, built by Main under `World`) draws it on the floor and reads
+      the UI's `StackMarkers` (`ui/hud/stack_markers.gd`, `watch(stack)`, built by Main under `World` on the match handle's `player_stack`) draws it on the floor and reads
       nothing else. The stack radios the human's claim as entry `&"callout"`s (interface 10), a full claim encoded by `StackClaim.encode`,
       and hears the allies' off the same bus through a `ClaimLedger` of its own (`ai/perception/stack/claim_ledger.gd`: its side only,
       within its `callout_range`, lapsing after its `callout_ttl` on `GameClock`); its slot, side, point, the crossing order and the markers'
@@ -659,9 +680,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       through `DoorStack.claim`, the chain an NPC's entry claims by too, so
       `view()` lays the stack the AI stands. The AI's entry code treats it as any teammate (E16 in `docs/tactical-entry.md`), but for `human`
       (no AI moves up into its slot, and the human never moves up itself nor throws the stack's grenade) and, when the human leads, `leader`.
-    - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchSpawner.bind_squad(player, squad, stack, own_claims)` with the stack `bind_player` returned (interface 21); its claims say
-      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). `PlayerStack.own_claims: bool` (false unless set; Main
-      sets it through `bind_squad` on the invaders' side only, D29): while it is set and the human leads a squad with another living
+    - `PlayerStack.squad: Node` — the human's side's squad, handed in by `MatchBuilder.bind_squad(player, squad, stack, own_claims)` with the stack `bind_player` returned (interfaces 21, 23); its claims say
+      `leader: true` while `squad.leader()` is the human (`docs/leadership.md` LD17). `PlayerStack.own_claims: bool` (false unless set;
+      `MatchBuilder.build_squads` sets it through `bind_squad` on the invaders' side only, D29): while it is set and the human leads a squad with another living
       member and no allied stack forms in its reach, it also claims of its own (LD24): stepping up to a doorway nobody stacks at (on its stack
       side against the wall beside the opening, out from the wall plane and past the jamb each within `PlayerStack.STEP_UP_REACH`, 60 px,
       for `STEP_UP_TIME`, 0.5 s) it claims slot 1 there, marked `own: true`, which the squad hears as its leader's own claim and rallies the
@@ -712,12 +733,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `player_controller.gd` calls `try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the tests place a vehicle:
       Main, World-Gen, the nav map and the AI do not know them.
 
-20. **Main / Testing → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`; Lighting is a
+20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`; Lighting is a
     leaf: it imports only General and reads the world duck-typed)
     - `WorldLighting.light(root: Node2D, seed_value: int, rooms: Array = []) -> WorldLighting` — lights the built world under `root`:
       adds one `WorldLighting` node under it, in the group `world_lighting` (`rooms` = `WorldGen.get_rooms`, for the fixtures;
-      `seed_value` seeds the rhythms); null, building nothing, while `LightingConfig.enabled` is off. Main calls it after the nav bake
-      with the house seed; the Testing world the same way, with its setup's seed. Its reads: `lights()` (every piece and fixture
+      `seed_value` seeds the rhythms); null, building nothing, while `LightingConfig.enabled` is off. The match builder's `stage` (interface
+      23) calls it after the nav bake with the spec's seed: Main's match with the house seed, the Testing world with its setup's. Its reads: `lights()` (every piece and fixture
       PointLight2D), `fixtures()` (`{ room, light }`), `flashes()` (the pooled flash lights) and `budget()` (`{ per_floor, dropped }`,
       `dropped` = `{ piece, index }` per declared light left without a light). `LightingConfig` (static holder): `enabled`,
       `ambient_color`, `sky_color` and the rest of the dusk, fixture, flash and budget tuning; the Testing domain's `lighting.enabled`
@@ -739,14 +760,16 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `radius`, interface 7) for whom stands in a flash.
     - **The flash events:** the `&"shot"` and `&"explosion"` topics (interface 10) light its flash pool.
 
-21. **Main → AI team: the squads, their leaders and their orders** (`scenes/ai/team/squad.gd`; spec `docs/leadership.md`)
-    - Main builds one `Squad` (a `Node`) per side under `World` after arming the characters (`_build_squads`):
+21. **Main / Testing (through `MatchBuilder`) → AI team: the squads, their leaders and their orders** (`scenes/ai/team/squad.gd`; spec
+    `docs/leadership.md`)
+    - The match builder builds one `Squad` (a `Node`) per side after arming the characters (`MatchBuilder.build_squads`, interface 23: under
+      Main's `World` in every match, under a test world for a declared match or declared squads):
       `Squad.setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)` (`roster` the side's characters in spawn order; `human` when the human
-      leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchSpawner.callout_ttl_of(members)`
-      off the child in the group `npc_controllers` (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
-      `MatchSpawner.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
-      same group, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,
-      which Main passes true for the invaders' side only, D29). The squad reads its members only through the
+      leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchBuilder.callout_ttl_of(members)`
+      off each one's controller (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
+      `MatchBuilder.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
+      same contract, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,
+      true for the invaders' side only, D29). The squad reads its members only through the
       Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
       follow, when a child of it is in the group `npc_controllers` at `setup`, interface 7) and lays its stacks and its follow spots on the
       navigation map and physics space of its own viewport's `World2D` (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
@@ -795,8 +818,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       follower holding no order, once per doorway per leader, and on the leader's `abort` there a `cancel` to the members holding those joins.
       The command menu never offers a join.
     - **The human leader's command menu and order markers** (UI, `docs/leadership.md` LD10 to LD12 and LD16), in the shape of interfaces 14 and 17:
-      with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only) Main hands
-      the human to `Squad.setup` (a human invader is ranked the unit's lead, 2) and `_build_command_menu` builds, under `World`, the
+      with the setup window's "Lead the team" on (its `current_config()["lead"]`, saved by `Settings.set_setup`; a played match only, read into
+      the spec's `human.lead` by `MatchBuilder.spec_from_setup`) the match builder hands the human to `Squad.setup` (a human invader is ranked
+      the unit's lead, 2, by `MatchBuilder.style`) and Main's `_build_command_menu`, over the match handle's squads, builds, under `World`, the
       `CommandMenu` (`ui/hud/command_menu.gd`, a `CanvasLayer`, `PROCESS_MODE_ALWAYS`): `setup({ rooms, teammates, view, resolve, leader,
       right_clear })` (the house's `WorldGen.get_rooms` dicts, the squad's members but the human, `view` and `resolve` the squad's `view()` and `resolve()`
       callables (the doorway a click is on and the room its stack goes into are the squad's `resolve`), `leader` the human: it opens only
@@ -815,9 +839,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
       menu alone, so with "Lead the team" off nothing reads the right button. Neither holds an AI reference: they read the members through the
       Character API (`global_position`, `name`, `is_dead`, `item_count`) and the squad through `view()` (and the menu `resolve()`), and the menu
       emits plain requests.
-    - **The squad-leaders debug overlay** (UI, `ui/overlays/leader_overlay.gd`, LD12): Main builds a `LeaderOverlay` (a `Node2D` at
-      `DrawLayers.ABOVE`) under `World` in every match after the squads (`_build_leader_overlay`): `watch(views)` (every squad's `view()`
-      callable), `show_leaders` (the overlay bar's global `OverlayRegistry.LEADERS` row, off by default, set by Main's `_on_overlay_toggled`)
+    - **The squad-leaders debug overlay** (UI, `ui/overlays/leader_overlay.gd`, LD12): the match builder builds a `LeaderOverlay` (a `Node2D`
+      at `DrawLayers.ABOVE`, hidden) with the squads (`MatchBuilder.build_leader_overlay`, interface 23: under `World` in every match, under a
+      test world with its declared squads or match), the match handle's `leader_overlay`: `watch(views)` (every squad's `view()`
+      callable), `show_leaders` (the overlay bar's global `OverlayRegistry.LEADERS` row, off by default, set through `MatchBuilder.set_overlay`)
       and `drawn() -> Array` (while shown, per squad: `{ kind: "crown", point, node }`, a crown over its living leader; `{ kind: "leash", point, radius,
       node }`, the leash ring round it; per follower with a follow spot `{ kind: "spot", point, node }` and `{ kind: "line", from, to, node }`;
       `{ kind: "trail", points }`, the leader's trail dotted, LD28). It reads the leader and the members through the Character API
@@ -847,25 +872,81 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `OverlayToggles.RESERVED_WIDTH`) and `set_flag(flag, on)` (a toggle applied live to the selected NPC). What it reads of the characters
       and their controllers is interface 7.
     - **The overlay bar** (`ui/overlays/`, built by Main the first time a match starts with Debug on): `OverlayToggles` — `setup(flags)`
-      (`{ flag: bool }`, a missing flag taking its default), the signal `overlay_toggled(flag, on)` (Main saves it with `Settings.set_overlay`
-      and applies it: `NAV_HOLES` to the `nav_debug.gd` overlay's `show_holes`, `LEADERS` to the `LeaderOverlay` (interface 21), `PERF` to
-      the performance overlay, any other to the inspector's `set_flag`, or in a played match to every NPC) and `RESERVED_WIDTH`;
+      (`{ flag: bool }`, a missing flag taking its default), the signal `overlay_toggled(flag, on)` (Main's `set_overlay` saves it with
+      `Settings.set_overlay` and applies it: `PERF` to its own performance overlay, in a spectator match any NPC flag to the inspector's
+      `set_flag`, and the rest to the match by the one rule, `MatchBuilder.set_overlay` (interface 23): `NAV_HOLES` to the `nav_debug.gd`
+      overlay's `show_holes`, `LEADERS` to the `LeaderOverlay` (interface 21), any other to every NPC) and `RESERVED_WIDTH`;
       `PerformanceOverlay.set_shown(on)`; and `OverlayRegistry` (static: `defaults() -> Dictionary` (`{ flag: bool }`), `is_global(flag)`,
       `apply(npc, flags)` (sets each `show_<x>` on every child of the NPC that has it, interface 7), `GLOBAL` and the global flags
       `NAV_HOLES`, `LEADERS` and `PERF`). The Testing domain uses the same bar (interface 13): its runner builds an `OverlayToggles` and its
-      own `PerformanceOverlay` (`PERF`), and its world seeds its flags from `defaults()`, applies them to each actor with `apply` and sends
-      `NAV_HOLES` to its `nav_debug.gd`.
+      own `PerformanceOverlay` (`PERF`), and its world seeds its flags from `defaults()`, applies them to each actor with `apply` at its spawn
+      and routes a toggle through `MatchBuilder.set_overlay`, as Main's match does (so `LEADERS` shows the crowns of its declared squads).
+
+23. **Main / Testing → MatchBuilder: building a match** (`scenes/match_builder.gd`, `class_name MatchBuilder`, a `RefCounted` of statics;
+    part of the composition root, beside `main.gd`, with its placement helper `match_spawner.gd`, which only it uses; the flow and the
+    placement rules are `domain-main`'s). Main's played, Watch and Endless matches and the Testing domain's worlds (13) build through it, so
+    there is one way a match is staged, populated and bound. Nothing in the domains it wires knows it.
+    - **The match spec**, a plain dict: `MatchBuilder.spec(overrides := {}) -> Dictionary` lays `overrides` over the defaults: `seed` (the
+      house's, which also pins the placement, the guns and the styles; 0), `plan` (a floorplan key, "" = by the seed), `entrance` (where the
+      front entrance lands), `house` (a house already built, a layout or an arena with its objects placed, staged in place of a generated
+      one; null), `defenders` / `invaders` (`{ count, loadout, at }`: 1 each, the side's loadout, optional explicit start points, one NPC each,
+      in place of placement; a side given keeps the defaults of what it does not name), `human` (`{ node, side, lead, at }`: the human's
+      character, `&"defender"` / `&"invader"`, whether it leads its side's squad, an optional start; `{}` none), `wait_nav` (true),
+      `spawn_clearance` (20 px), `invader_margin` (80 px) and `overlays` (`{ show_<x>: bool }` by `OverlayRegistry` flag, the debug overlays
+      the match starts with; a flag it does not name starts off; `{}`). The side loadouts' defaults are `MatchBuilder.INVADER_LOADOUT`
+      (1 stun, 1 frag, a helmet, a shirt, a plate carrier with a steel III plate front and back, tactical pants, boots; the gun the
+      `LoadoutConfig` default) and `DEFENDER_LOADOUT` (`{}`), so a test's match carries what Main's does. `DEFENDER_FACTION` (`household`)
+      / `INVADER_FACTION` (`invader`) are the scenes' faction tags.
+    - **Building:** `build(match_spec, world: Node2D) -> Dictionary` (a coroutine: `stage`, then `populate`; `{}` when the match was torn
+      down during the wait). `stage(match_spec, world) -> Dictionary` (a coroutine), the world stage: the spec's `house`, moved under
+      `world`, or `WorldGen.generate` (1); `NavBuilder.build`, the `nav_debug.gd` overlay (`NavDebug`) and the `nav_updater.gd` re-baker
+      (`NavUpdater`) (9); `WorldLighting.light(world, seed, rooms)` (20); then with `wait_nav` two physics frames and a wait until
+      `NavBuilder.ready` holds on the planning map and on its steering map (at most `NAV_SYNC_MS`, 5000 ms of real time, then a
+      `push_error`), so no NPC is placed before the maps answer with this house. `populate(match, match_spec) -> Dictionary` over a staged
+      handle: the defenders and the invader team placed through `match_spawner.gd` from one RNG seeded with `seed` (or at the sides' `at`
+      points), each NPC bound before it joins the tree; the human joined to its side (its faction, its start, reparented just above the
+      house) and handed its stack radio; everyone armed, styled and ranked (`arm`); `build_squads`; `build_leader_overlay`; every overlay
+      but the holes (the stage's) started through `set_overlay` by the spec's `overlays`.
+    - **The match handle**, a plain dict: `{ world, house, rooms, openings, nav_region, nav_debug }` from `stage`, plus `combatants` (every
+      character in spawn order, the human last), `squads` (faction -> `Squad`), `player_stack` (the human's `PlayerStack`, or null) and
+      `leader_overlay` from `populate`.
+    - **The bind rule, once:** `bind_npc(npc, rooms, openings, entry_point := Vector2.ZERO)` hands an NPC's controller its `rooms`,
+      `openings` and, when given, `entry_point`, **before the NPC joins the tree**; the controller is found by its contract (interface 7: the
+      child with `control` and `rooms`, since the `npc_controllers` group is joined only in `_ready`). `entry_point_for(faction, openings)
+      -> Vector2` is the front entrance for an invader, ZERO for a defender (`front_entrance(openings) -> Vector2`, ZERO in a house with
+      none). `bind_squad(npc, squad, stack := null, own_claims := false)` (21), `bind_player(player, rooms, openings) -> Node` (17) and
+      `callout_ttl_of(members) -> float` (21) are the squad's and the human's.
+    - **Arming and squads:** `arm(characters, match_spec)` (each by its faction's side loadout through `LoadoutConfig.apply`, interface 6,
+      the guns from `seed` XOR `LOADOUT_SEED_SALT`), `style(characters, match_spec) -> Array` (one `apply` style per character, from `seed`
+      XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
+      defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, combatants, openings, rooms,
+      human := {}, stack := null) -> Dictionary` (one `Squad` per faction, interface 21) and `build_leader_overlay(world, squads) -> Node2D`.
+    - **Overlay routing, once:** `set_overlay(match, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and
+      `combatants`: `NAV_HOLES` to the `nav_debug`'s `show_holes`, `LEADERS` to the `leader_overlay`'s `show_leaders` (none, nothing), any
+      other non-global flag to each combatant with an AI controller through `OverlayRegistry.apply`; `PERF` is the caller's own (22).
+    - **The setup's specs** (Main's): `spec_from_setup(config, base := {}) -> Dictionary` reads the setup window's config (22) into a spec
+      over `base` (its `seed`, each side's `count` and loadout keys, the human on its `side` with `lead` in a played match, none in Watch or
+      Endless); `random_spec(rng, base, most) -> Dictionary` draws an endless run's next one (seed 0, each count in 1..its most, a random gun
+      and outfit per side keeping the grenade counts).
+    - **Main's one way in:** `Main.start_match(spec) -> Dictionary` builds `spec` under a fresh `World` node (`MatchBuilder.build`, the spec's
+      `overlays` replaced by Main's flags) and wires the HUDs on the handle (17, 18, 21, 22); `{}` when the match was torn down while built.
+    - The Testing domain (13): `TestWorld` stages through `stage` (`wait_nav` on), binds each NPC actor through `bind_npc` with
+      `entry_point_for`, populates a declared match through `populate` (`TestSetup.match`, `TestContext.match()`), builds declared squads
+      through `build_squads` / `bind_player` / `build_leader_overlay` (`TestSetup.squads`) and routes its overlay toggles through
+      `set_overlay`; it has no bake, light, nav-wait or bind code of its own.
 
 ### Dependency graph (arrows = "calls / knows"; no cycles)
 
 ```
-main ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
-main ─▶ NavBuilder (build; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  main ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
+main ──(start_match: build; spec_from_setup / random_spec; set_overlay)──▶ MatchBuilder (the root's match module) ─▶ match_spawner (placement: the NPC scenes)
+TestWorld (Testing) ──(stage / bind_npc / entry_point_for / populate / build_squads / bind_player / build_leader_overlay / set_overlay)──▶ MatchBuilder
+MatchBuilder ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
+MatchBuilder ─▶ NavBuilder (build, ready, steering_map; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  MatchBuilder ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds
-main ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style
-main ──(the styles' side / weapons)──▶ CharacterConfig.styles
+MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
+MatchBuilder ──(the styles' side / weapons)──▶ CharacterConfig.styles
 main ─▶ Settings ─▶ Keybinds   /   main ─▶ SettingsMenu (UI; signals only, no dependency on Settings)
-main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out)
+main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out);  MatchBuilder ─▶ LeaderOverlay / OverlayRegistry (UI: build_leader_overlay, set_overlay)
 main ──(is_resolved / resolved: the Von wait)──▶ DecisionServerLauncher (AI)
 Character ─▶ Item ─▶ ProjectileSpawner ──(get_surface / take_hit)──▶ Objects;  Projectile ──(get_surface_at / take_hit)──▶ Character ─▶ Outfit (Items)
 Character ─▶ Interaction ──(get_interactions)──▶ Objects
@@ -881,7 +962,7 @@ Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ─�
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
 AI behaviour (entry.gd, behavior.gd) / orchestrator / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack, preloaded; AgentPerception.entry_stack)──▶ AI perception's stack/ (the stack seam)
-main ──(_build_squads: Squad.setup, MatchSpawner.bind_squad)──▶ Squad (AI team) ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchSpawner.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
+MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerStack.attach)──▶ Squad / PlayerStack (AI team);  Squad ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchBuilder.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
@@ -895,13 +976,12 @@ Vehicle (&"vehicle", &"engine", &"skid") ──▶ EventBus ──▶ Sound ─�
 Camera ──(target.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
 UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus / debug_clear_focus on the AI controller; DebugUI and the inspector outfit_view)
 DebugUI ─▶ LoadoutConfig.grenade_options (Items)
-main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / NavBuilder / Character scenes / EventBus
+main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / MatchBuilder (the world stage, binding) / Character scenes / EventBus
 Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D
 TestBrowser / TestRunner / TestWorld ─▶ UI (TestBrowserWindow / TestResultHUD / OverlayToggles / PerformanceOverlay / OverlayRegistry)
-TestRunner / TestWorld ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 TestRunner / GameTestSuite ─▶ Camera (General: frame(targets), pan_enabled)
 GameTestSuite / UnitSuite / test_report_hook (Testing) ─▶ GdUnitTestSuite / GdUnitTestSessionHook (the gdUnit4 addon);  TestRunner / GameTestSuite ─▶ TestSession (plays one test)
-main / TestWorld ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world
+MatchBuilder (stage: main's match and every TestWorld) ──(WorldLighting.light)──▶ WorldLighting (Lighting, a leaf) ──(get_lights(), the groups `floors` and `characters`, duck-typed)──▶ the world
 Item (&"shot") / Explosion (&"explosion") ──▶ EventBus ──▶ WorldLighting (flashes)
 Objects (walls, solid pieces, street floors) / Character (the living body) ──(LightMasks.occluder, STREET)──▶ LightMasks (General)
 MatchHUD (UI) / CommandServer `match` (General) ──(decide)──▶ MatchVerdict (General)

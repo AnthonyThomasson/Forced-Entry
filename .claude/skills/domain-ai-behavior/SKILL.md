@@ -55,7 +55,7 @@ an arrived move) turns among its room's doorways. An arrived move zeroes `move_i
 NPC's combat leaves) and a contact last seen outside, `Behavior` sets `hold_ground`, which `Combat` honours (see `domain-ai-combat`). With
 `confine_room` (a member ordered to defend that room, LD8) `_keeps_in` sets it against a contact outside that room, and `Combat.peek_cover`
 keeps its spots inside the room. **The leash** (a squad follower, `docs/leadership.md` LD23): the controller calls `set_leash(center, radius)`
-every tick (its leader's live position and `Squad.leash`; `Vector2.INF` when it does not follow), which `Behavior` hands to `Combat`
+every tick (its leader's live position and `Squad.leash`; `Vector2.INF` when it does not follow or holds an order, LD23), which `Behavior` hands to `Combat`
 (`leash_center`, `leash`, `domain-ai-combat`); `walk_pending()` (a `move` or `engage` not yet arrived, a `throw` in its `walk` stage) is what
 the controller's leash break reads, beside `in_combat()` and `committed()`.
 

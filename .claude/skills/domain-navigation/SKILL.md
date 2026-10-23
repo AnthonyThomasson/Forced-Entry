@@ -27,7 +27,7 @@ notches are far smaller than the agent, and baked in they leave sub-pixel navmes
 NavigationServer cannot merge ("navigation map synchronization error"). Overlapping footprints are
 then fused (`_union_outlines`, which skips the polygon merge for two outlines whose bounding boxes are apart: the union would keep them as two; `tests/navigation/furniture_union_fast_path_test.gd` pins it to the every-pair merge) and every outline is snapped to the 1 px grid with repeated points dropped (`_on_grid`). The bake runs in the
 house's local frame and the region is offset by `house.position`, so the map lands in world space.
-`main.gd` calls it once after `WorldGen.generate`. `build` and every re-bake share one private path,
+The composition root's match builder (`MatchBuilder.stage`, Main's match and every test world alike) calls it once after the house is built. `build` and every re-bake share one private path,
 `_source_for` (gathers the source geometry) then `_bake_job` (bakes it), so both carve furniture holes identically.
 
 ## Characters at rest are holes too (the steering map)
@@ -130,7 +130,9 @@ match's) and takes a new house in only a frame later, on a worker thread, so a q
 (`map_force_update` does not change that) and a room's centre snaps to a corner nowhere near the house (issue #49, a room
 zone drawn outside the house). `build` therefore records each region it adds (planning and steering) with a probe point,
 and `ready` stays false until a query at the probe is answered by that region (`_awaiting`; an entry is dropped when its region
-leaves the tree). `tests/ai/perception/room_zones_inside_their_rooms_test.gd` builds a match over a live map and pins it. `snap(map, p)` returns `p` unchanged until then, else the
+leaves the tree). `tests/ai/perception/room_zones_inside_their_rooms_test.gd` builds a match over a live map and pins it. The match
+builder's world stage waits on the same rule (`MatchBuilder.stage` with `wait_nav`: until `ready` holds on the planning map and its steering
+map) before any NPC is placed, in Main's match and every test world (`tests/general/match_nav_ready_before_spawn_test.gd`). `snap(map, p)` returns `p` unchanged until then, else the
 closest navmesh point (a room's geometric centre is often inside furniture); `route(map, from, to)` returns a straight
 `[from, to]` until then — and when the server finds no path — else the waypoints; `path_length(path)` sums a path.
 The AI's `Locomotion` (`reachable`, `on_navmesh`, the steering-map choice), `agent_tactics.gd`, `agent_entry.gd`,
@@ -140,9 +142,9 @@ The AI's `Locomotion` (`reachable`, `on_navmesh`, the steering-map choice), `age
 
 `nav_debug.gd` is an optional, draw-only overlay (a single world-space `Node2D`, since the map is
 global — not per-NPC) that draws the furniture HOLES carved out of the navmesh as filled polygons +
-outlines. `main.gd` builds it once right after the bake: `nav_debug.setup(house)` snapshots the holes
-via `NavBuilder.furniture_holes(house)`, and `show_holes` toggles it (wired from the toggle bar's
-"Navigation holes" button; it starts from `main.gd`'s `show_nav_holes` export — off — unless a saved toggle in `Settings.overlays` overrides it).
+outlines. `MatchBuilder.stage` builds it once right after the bake: `nav_debug.setup(house)` snapshots the holes
+via `NavBuilder.furniture_holes(house)`, and `show_holes` toggles it (`MatchBuilder.set_overlay`, from the toggle bar's
+"Navigation holes" button; in Main's match it starts from `main.gd`'s `show_nav_holes` export — off — unless a saved toggle in `Settings.overlays` overrides it).
 `furniture_holes(house) -> Array` returns each solid piece's grown footprint as a closed WORLD-space
 polygon, using the exact same selection and footprint helpers the bake feeds the obstruction baker
 (`_add_furniture_holes` calls it), so the overlay cannot drift from what was carved. `nav_updater.gd`

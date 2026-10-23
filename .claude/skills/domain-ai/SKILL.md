@@ -77,10 +77,11 @@ leaves the member to follow again, at once while its entry is still in `approach
 **Following (`docs/leadership.md` LD19 to LD23).** Each tick `_follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
 `follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
 ("follows its leader" / "leads its squad"), and the leash (`Behavior.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
-not follow); a follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
+not follow or holds an order: `_leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
+order takes it); a leashed follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
 `walk_pending()`, forces one decision ("off the leash", `_leash_broke` re-armed once it is back within that). `_apply_config` disables
 INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
-`leash_center` (the leader's live position) and `leash`. The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
+`leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`_leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
 (`domain-ai-behavior`) and asks for no decision on the cadence.
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it
@@ -160,15 +161,17 @@ SEARCH and IDLE disabled (below).
 
 ## The two presets
 
-Spawned by Main (`defender_count` / `invader_count`, default 1 each):
+Spawned by the match builder (`MatchBuilder.populate`: Main's `defender_count` / `invader_count`, default 1 each), each bound before it
+joins the tree (`MatchBuilder.bind_npc`: the house's rooms and openings, an invader's front entrance), as a test world binds its NPC actors:
 - **Defender** — `ai/npc_defender.tscn` (faction `household`): `hostile_on_trespass` +
   `hostile_on_attack`, `defend_territory` (combat options stay inside the house), familiar with the
   house. Dropped at a clear spot in a random room (never inside solid furniture or on another defender).
 - **Invader** — `ai/npc_invader.tscn`, an inherited scene overriding only data (faction
   `invader`): `hostile_on_sight`, not territorial, unfamiliar with the house (it learns rooms by
-  sight and is offered unexplored areas by direction), a red body. Dropped just outside the house: Main's
-  invader team in one group round a seeded perimeter point (`MatchSpawner.spawn_invader_team`, LD27), a test's spread side round the
-  perimeter (`spawn_invader`); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms
+  sight and is offered unexplored areas by direction), a red body. Dropped just outside the house: the
+  match's invader team in one group against the outside wall beside the front door, on a side drawn from the house seed (`match_spawner.gd`
+  `spawn_invader_team`, LD27; round the human invader when there is one, round a seeded point of the ring round the house when it has no front
+  door); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms
   tactically (`entry_enabled`, `docs/tactical-entry.md`): stack beside the door, slice the pie, cross
   without stopping, take the corners, clear, leave rear security — as a team over the radio, or alone. A quiet stack that carries a stun
   listens at the stack before the pie (`entry_listen_time` 3 s, an **Entry** group export: E17, issue #51 R17), so a late reason can turn it into a bang.
