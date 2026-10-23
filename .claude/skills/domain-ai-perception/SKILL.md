@@ -384,8 +384,10 @@ orchestrator and the team preload these files themselves; this folder is that se
   markers' `[{ n, point, holder, held, there, mine, side, row }]`, the same points `settle` gives); `crossing(me := {})` / `ahead(me)` /
   `behind(me)` (E6, E19); `claimed()`, `stacking()` (a claim at a `STACKING` step: one on its `bang` still holds a place), `going_in()`;
   `thrower(kind, me := {})` (E17, LD14: slot 2 if it carries one, else the lowest slot that does; never the human); `order_claim(me := {})`
-  (LD9: `me`'s order, else the lowest slot's that carries one, D10); `released(order_id)` (LD13: a claim under the order says `order_go`,
-  or a member is crossing or through, D14); `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; and
+  (LD9: `me`'s order, else the lowest slot's that carries one, D10); `released(order_id, into)` (LD13: a claim under the order says
+  `order_go`, or a member of that stack, a claim under the order or the human's, is crossing or through into room `into`, D14; a claim
+  left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
+  `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; and
   `move_up_vacancies(me)` (E2, the rule part: each lower slot on `me`'s side whose holder is at `claim`, not the human's nor moving up
   itself, its slot staying on `me`'s side with the two swapped, as `{ holder, slot, point, stack }`; none once a claim says `pie`, `bang`,
   `going_in` or through; the walk and the latecomer are the entry's). The layout statics, the one place a slot becomes a point:

@@ -194,11 +194,20 @@ func order_claim(me := {}) -> Dictionary:
 	return {}
 
 
-## Whether the held stack under order `order_id` has had its go off the radio (LD13): a member is
-## crossing or through (D14: the human leader in the stack stepping in is its go), or a claim under
-## that order says the go came (`order_go`).
-func released(order_id: String) -> bool:
-	return going_in() or team.any(func(m): return m["order_go"] and m["order_id"] == order_id)
+## Whether the held stack under order `order_id`, going into room `into`, has had its go off the
+## radio (LD13): a claim under that order says the go came (`order_go`), or a member of that stack
+## is crossing or through the doorway into `into`, one under the order or the human (D14: the human
+## leader in the stack stepping in is its go). A claim left from an earlier entry through the
+## doorway (under no order or another, or into the other room) releases nothing.
+func released(order_id: String, into: String) -> bool:
+	return team.any(
+		func(m):
+			if m["order_id"] != order_id and not m["human"]:
+				return false
+			if m["order_id"] == order_id and m["order_go"]:
+				return true
+			return m["into"] == into and (m["step"] == "going_in" or StackClaim.through(m["step"]))
+	)
 
 
 ## Whether the doorway has a slot `slot` at all (E20: a dead end holds only so many).

@@ -752,8 +752,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
       LD13: the one rule the UI reads instead of working it out; released by the squad's own `go`, or by one read off the claims,
-      `DoorStack.released`: a claim under that order says `order_go`, or a member of the stack is crossing or through (D14: the human leader
-      stepping in is its go), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
+      `DoorStack.released`: a claim under that order says `order_go`, or a member of that stack, under the order or the human, is crossing
+      or through into the order's room (D14: the human leader stepping in is its go; a claim left from an earlier entry through the doorway
+      releases nothing), latched once heard as each member latches its own); an order radioed `done` is no longer held, {} with the
       step `done`, while a `refused` one is; `stacks` every stack the side is forming, ordered or its own, read off the side's entry claims
       through the squad's own `ClaimLedger` (unlimited range: the side's whole view; `claim_ttl`) and laid by each doorway's `DoorStack.layout`,
       `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]` (LD18: slots 1 to the last claimed, each where

@@ -285,8 +285,10 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   in its slot (`_holding`, read through `holding_for_go()` while in `stack`): no pie, no listen, no bang (`_bang_due` calls none) and no
   crossing. `_note_go()`, each `step`, latches the go the first time any of these holds: the live order (`AgentPerception.order()`) has
   `go: true` (the leader's `go`, D13, taken by `process_order` whenever it came, before the stack was ready too), the stack's claims say it
-  came (`DoorStack.released(order_id)`: a claim under the same order says `order_go`, or a member of the stack is crossing or through, D14:
-  the human leader stepping in is its go; the squad's `view()` reads the same rule), or the leader that
+  came (`DoorStack.released(order_id, into)`, `into` the order claim's room: a claim under the same order says `order_go`, or a member of
+  this stack, a claim under the order or the human's, is crossing or through into that room, D14: the human leader stepping in is its go; a
+  claim left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; the squad's
+  `view()` reads the same rule), or the leader that
   gave the order is gone or dead (D12, beside the squad's own `auto` go); it then re-radios its latest call with `order_go`. Released, the stack
   goes on the ready barrier as any ordered stack. `Behavior._apply_entry` radios the order's `in_position` while `holding_for_go()`. Tests:
   `ai/entry/order_stack_hold_for_go`, `order_stack_go_latched`, `order_stack_hold_human_go`, `order_stack_hold_leader_dies`, and the squad's

@@ -313,34 +313,65 @@ func test_a_split_stack_crosses_point_then_the_sides_in_turn() -> void:
 	).is_equal([1, 3, 2, 5, 4, 6])
 
 
-func test_a_held_stack_is_released_by_its_go_or_a_member_crossing() -> void:
-	# LD13, D14: a held stack's go is a claim under its order saying the go came, or a member of the
-	# stack (the human leader's own too) going in or through the doorway.
+func test_a_held_stack_is_released_by_its_go_or_its_own_crossing() -> void:
+	# LD13, D14: a held stack's go is a claim under its order saying the go came, or a member of
+	# that stack going in or through the doorway into its room: one under the order, or the human
+	# (the human leader stepping in is its go).
 	var a := _speaker()
 	var b := _speaker()
 	var held := { "order_id": "7", "order_hold": true }
 	var point_man := _claim(a, held.merged({ "slot": 1, "side": 1, "entry_step": "ready" }))
 	var waiting := _claim(b, held.merged({ "slot": 2, "side": 1, "entry_step": "ready" }))
-	var holding: RefCounted = DoorStack.new(_door(), [point_man, waiting])
-	assert_bool(holding.released("7")).override_failure_message(
+	assert_bool(_releases_7([point_man, waiting])).override_failure_message(
 		"premise: a stack all at ready holds",
 	).is_false()
 	var go := _claim(
 		b,
 		held.merged({ "slot": 2, "side": 1, "entry_step": "ready", "order_go": true }),
 	)
-	assert_bool(DoorStack.new(_door(), [point_man, go]).released("7")).override_failure_message(
+	assert_bool(_releases_7([point_man, go])).override_failure_message(
 		"a member under the order says the go came",
 	).is_true()
-	assert_bool(DoorStack.new(_door(), [point_man, go]).released("8")).override_failure_message(
-		"another order's go releases nothing",
-	).is_false()
+	for step in ["going_in", "in", "clear", "cover", "rear"]:
+		var own := _claim(b, held.merged({ "slot": 2, "side": 1, "entry_step": step }))
+		assert_bool(_releases_7([point_man, own])).override_failure_message(
+			"a member under the order at %s into its room is the go" % step,
+		).is_true()
 	for step in ["going_in", "in"]:
 		var human := _claim(b, { "slot": 2, "side": 1, "entry_step": step, "human": true })
-		var crossing: RefCounted = DoorStack.new(_door(), [point_man, human])
-		assert_bool(crossing.released("7")).override_failure_message(
-			"the human in the stack at %s is the go" % step,
+		assert_bool(_releases_7([point_man, human])).override_failure_message(
+			"the human in the stack at %s into its room is the go" % step,
 		).is_true()
+
+
+func test_a_held_stack_is_not_released_by_another_stacks_claims() -> void:
+	# LD13, D14: a claim left from an earlier entry through the same doorway (a member still holding
+	# the room under no order, or another order's member through), another order's go, or a crossing
+	# into the other room releases nothing.
+	var a := _speaker()
+	var b := _speaker()
+	var point_man := _claim(
+		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
+	)
+	var others := {
+		"another order's go": { "order_id": "8", "order_go": true, "entry_step": "ready" },
+	}
+	for step in ["cover", "rear"]:
+		others["a leftover %s under no order" % step] = { "entry_step": step }
+	for step in ["going_in", "in", "cover"]:
+		others["another order's member at %s" % step] = { "order_id": "8", "entry_step": step }
+	for step in ["going_in", "in"]:
+		others["its own order's member at %s into the other room" % step] = {
+			"order_id": "7", "entry_step": step, "into": "kitchen",
+		}
+		others["the human at %s into the other room" % step] = {
+			"human": true, "entry_step": step, "into": "kitchen",
+		}
+	for why: String in others:
+		var other := _claim(b, ({ "slot": 2, "side": 1 } as Dictionary).merged(others[why], true))
+		assert_bool(_releases_7([point_man, other])).override_failure_message(
+			"%s releases nothing" % why,
+		).is_false()
 
 
 func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
@@ -380,6 +411,12 @@ func _door() -> Dictionary:
 		"along": Vector2(1, 0), "width": 40.0, "side": 0, "kind": "wall", "files": files,
 		"row1": { 1: 6, -1: 6 }, "wall_n": 6,
 	}
+
+
+## Whether `claims` on `_door()` say the held stack under order "7", going into the hall, had its
+## go (`DoorStack.released`).
+func _releases_7(claims: Array) -> bool:
+	return DoorStack.new(_door(), claims).released("7", "hall")
 
 
 ## The point of the `place`th slot of side `side`'s file of `_door()`.

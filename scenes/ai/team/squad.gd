@@ -386,13 +386,14 @@ func _waits_for_go(order: Dictionary) -> bool:
 
 
 ## Keep as released (`_released`) every held stack at doorway `opening` its claims now say had its
-## go (`DoorStack.released`: a claim under the order says the go came, or a member of the stack is
-## crossing or through, D14), as each member keeps its own: a go once heard stands, whatever the
-## claims say after.
+## go (`DoorStack.released`: a claim under the order says the go came, or a member of that stack,
+## under the order or the human, is crossing or through into the order's room, D14), as each member
+## keeps its own: a go once heard stands, whatever the claims say after.
 func _latch_go(opening: String) -> void:
 	var stack: RefCounted = _ledger.stack(opening)
-	for id in _held_at(opening):
-		if stack.released(str(id)):
+	var held := _held_at(opening)
+	for id in held:
+		if stack.released(str(id), String(held[id].get("into", ""))):
 			_released[str(id)] = true
 
 

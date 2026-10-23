@@ -1142,14 +1142,15 @@ func _held() -> bool:
 
 ## Latch the go of a held stack (LD13) the first time it comes: the leader's `go` on this NPC's own
 ## order (given before the stack was ready too: it then goes on the ready barrier), a teammate under
-## the same order whose claims say it had it, a member of the stack going in or through (D14: the
-## human leader in the stack stepping in is its go), or the leader that gave the order dead (D12).
-## Radioed with the next claim (`order_go`).
+## the same order whose claims say it had it, a member of this stack going in or through into its
+## room (`DoorStack.released`: one under the order, or the human, D14: the human leader in the stack
+## stepping in is its go), or the leader that gave the order dead (D12). Radioed with the next claim
+## (`order_go`).
 func _note_go() -> void:
 	if not _held():
 		return
 	var ordered := _order_claim()
-	var go: bool = _stack.released(str(ordered["order_id"]))
+	var go: bool = _stack.released(str(ordered["order_id"]), str(ordered.get("into", into)))
 	if not go and _order_id != "":
 		var held: Dictionary = _perception.order()
 		if str(held.get("id", "")) == _order_id:

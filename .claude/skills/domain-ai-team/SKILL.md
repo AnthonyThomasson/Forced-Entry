@@ -40,7 +40,7 @@ reservation in an allied stack (E16), the leader's or not, carries `own: false` 
 else stacks there (the "nobody stacking" withdrawal waits until the human is `in`), and with nobody ahead of it the `go_timeout`
 withdrawal does not fire; `_withdraw` clears `_own`. `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI): its slots are the `DoorStack`'s `layout(_me())`,
 the points the AI stands. `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
-see one more teammate, and a held stack (LD13) takes a teammate's `going_in`, the human's too, as its go (D14).
+see one more teammate, and a held stack (LD13) takes the `going_in` of a teammate under its order, or the human's, into its room as its go (D14).
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` Main builds under `World` after
 arming the characters (`setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)`) and hands each NPC (`MatchSpawner.bind_squad`: the
@@ -59,8 +59,9 @@ an ambush: what the UI's command menu names its stack and ambush items from); `v
 non-follower, `trail` the leader's trail oldest point first, `leash` px: what the leader overlay draws, LD28), the
 steps read off the members' progress callouts (`order_step`), a released held stack carrying `go: true`, `held` whether the order is a stack
 still waiting for the leader's go (`_waits_for_go`, LD13: the one place that rule is worked out; the UI reads it): not released by the
-squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id)`, a
-claim under the order saying `order_go` or a member crossing or through, D14, the human leader stepping in among them), each kept in
+squad's own `go` nor by one read off the claims (`_latch_go`, on each claim heard at that doorway: its `DoorStack.released(order_id, into)`,
+`into` the order's room: a claim under the order saying `order_go`, or a member of that stack, under the order or the human, crossing or
+through into that room, D14, the human leader stepping in among them; a claim left from an earlier entry releases nothing), each kept in
 `_released` once heard, as each member latches its own go; an order radioed `done` is no longer
 held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
 or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per

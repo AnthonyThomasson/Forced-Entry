@@ -309,16 +309,19 @@ sentence for Von ends " when they give the go".
   at the doorway nearest the request's `pos`, whatever its `to` and the menu's selection, and posts nothing where no held stack waits. It
   replaces nothing: the member's perception marks its live stack order `go: true` (`process_order`) and asks for no new decision, and the
   squad's `view()` marks the released orders `go`. The squad reads the go off the claims as well (`scenes/ai/perception/stack/door_stack.gd`
-`released`): once a claim under the held order says `order_go`, or a member of the stack is crossing or through (D14), its `view()` says
-those orders are no longer `held`, latched as each member latches its own, so the order markers stop saying "hold" and the command menu
-stops offering "Go into the …". It is latched: given while the members still walk to their slots, the stack goes the
+`released`): once a claim under the held order says `order_go`, or a member of that stack is crossing or through into the order's room
+(a claim under the order, or the human's, D14), its `view()` says those orders are no longer `held`, latched as each member latches its
+own, so the order markers stop saying "hold" and the command menu stops offering "Go into the …". A claim left on the radio from an
+earlier entry through the same doorway (a member still holding the room on `cover` / `rear` under no order, or another order's member
+through) and a crossing into the other room release nothing: the held stack's go comes from its own stack only. It is latched: given while the members still walk to their slots, the stack goes the
   moment the ready barrier (D7) is met. After it the entry runs as a go-when-ready stack of its mode (the pie for a quiet one, the bang
   for a stun or a frag). The entry latches its go (`_note_go`) from any of: its own order's `go`; a teammate under the same order whose
-  claims say `order_go`; a member of the stack going in or through (D14); the order's leader dead or gone (D12); and radios it in its next
-  claim.
+  claims say `order_go`; a member of the stack, under the order or the human, going in or through into its room (D14); the order's leader
+  dead or gone (D12); and radios it in its next claim. Both read the one rule (`DoorStack.released`).
 - **The human in the stack (D14).** When the human leader holds a slot at the held doorway through its `PlayerStack`, the held stack waits
-  for the human's Go: the menu's Go releases it, and so does the human stepping into the doorway (its `going_in` / `in` on the radio is a
-  member crossing): the AIs follow it in by the crossing order. The human joins behind the AIs (`PlayerStack` reserves the first free slot
+  for the human's Go: the menu's Go releases it, and so does the human stepping into the doorway into the stack's room (its `going_in` /
+  `in` on the radio, marked `human`, is a member of the stack crossing): the AIs follow it in by the crossing order. Any other crossing
+  counts only under the held order: an earlier entry's claims left at the doorway are not this stack's. The human joins behind the AIs (`PlayerStack` reserves the first free slot
   once a team is stacking). `PlayerStack` leaves an ally's progress-only callout (an `order_step` with no `entry_step`) out of its radio, as
   the perception does (LD7), so an AI's `in_position` never takes that AI's claim off the human's stack.
 - **No leader to say go (D12).** When the leader who gave a held order dies, the squad releases the held stacks it ordered itself (a `go`
@@ -347,7 +350,9 @@ stack waits 10 s, the human walks in and both AIs follow; the squad's `view()` t
 markers say hold), `order_stack_hold_leader_dies` (D12: the leader killed while the stack holds,
 it goes on its own), `ai/grenade/order_frag_held_then_go` (LD14: no bang call or throw while held), `general/squad_go_and_ambush` (the go's
 recipients, its latch in `view()`, the leader's death posting one `go` with `auto`), `general/squad_go_latched_off_claims` (a go read
-off the claims, `order_go` or a member crossing, stays latched in `view()` once the claims stop saying it), `general/command_menu_wiring` (LD16). Part 1's
+off the claims, `order_go` or a member crossing, stays latched in `view()` once the claims stop saying it),
+`order_stack_hold_ignores_earlier_entry` (real Von: a `cover` claim left from an earlier entry into the same room releases nothing; the
+stack holds and `view()` says held until the leader's go), `general/command_menu_wiring` (LD16). Part 1's
 `order_stack_*` tests, unchanged, cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
