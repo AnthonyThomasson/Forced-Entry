@@ -870,18 +870,21 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 		var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
 		if g.is_empty():
 			continue
-		# The slot and side its entry's `begin` would take, claiming now from where it stands.
+		# The slot and side its entry's `begin` would take, claiming now from where it stands, by
+		# the stack's claim chain (`DoorStack.claim`), the side asked for its own from there.
 		var stack: RefCounted = _ledger.stack(e["id"], g)
-		var slot: int = stack.slot_for({
-			"id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos,
-		})
-		var side: int = _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"])
-		var settled: Dictionary = stack.settle({ "id": ctx["self_id"], "slot": slot, "want": side })
-		var point: Vector2 = settled["point"]
-		if point == Vector2.INF:
+		var at: Dictionary = stack.claim(
+			{ "id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos },
+			func(_n): return _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"]),
+		)
+		if not at["held"]:
 			continue  # A dead end already holding all it can (E20): no slot for this NPC there.
+		var point: Vector2 = at["point"]
+		if point == Vector2.INF:
+			continue  # A slot laid nowhere (no open floor nor tail past the wall): no place.
 		picks.append({
-			"e": e, "status": status, "point": point, "slot": slot, "len": _route_len(ctx, point),
+			"e": e, "status": status, "point": point, "slot": at["slot"],
+			"len": _route_len(ctx, point),
 			"suspect": why.get(into, []).map(func(w): return SUSPECT_PHRASES[w]),
 		})
 	picks.sort_custom(func(x, y):

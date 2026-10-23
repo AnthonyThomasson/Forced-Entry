@@ -388,7 +388,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   `order_go`, or a member of that stack, a claim under the order or the human's, is crossing or through into room `into`, D14; a claim
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
   `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; `claim(me, want) -> { slot, held, side, place,
-  point }` (the chain every member claims and keeps its slot by, an NPC's entry and the human's `PlayerStack` alike: `slot_for`,
+  point }` (the chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot's `entries` group offers it) and the human's `PlayerStack` alike: `slot_for`,
   `held` = `has_slot`, E20, the side asked for in that slot, `want` called with it, the member's own weighing, then
   `settle`; a member whose slot changes is no longer moving up); `split_side(me, own)` (D6, E19: `own` unless that side would hold two
   more than the other with `me` there, when its last claimer, the highest slot then the highest instance id, takes the other);
