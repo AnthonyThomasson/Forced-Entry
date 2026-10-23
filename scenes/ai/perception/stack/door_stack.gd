@@ -7,9 +7,10 @@ extends RefCounted
 ##
 ## A member asking about itself passes `me`, its own claim as it stands (it never hears its own on
 ## the radio): `{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_id, order_bang,
-## order_mode, order_hold, order_go, order_side, step }`, each optional (`id` and `slot` its
+## order_mode, order_hold, order_go, order_side, into, step }`, each optional (`id` and `slot` its
 ## instance id and slot, 0 while it is claiming; `want` the side it asks for; `frame` / `pos` the
-## frame its slot was claimed on and where it stood then, E2; `move_up` the slot it moved up from).
+## frame its slot was claimed on and where it stood then, E2; `move_up` the slot it moved up from;
+## `into` the room it goes into).
 ## The human is a member like any other (E16): no AI moves up into its slot, it never moves up
 ## itself and it never throws the stack's grenade. The layout statics (`stack_slots`, `side_for`,
 ## `stack_point`, `place`, `crossing_order`, `stack_side`, `holds_slot`, `is_tail`, `free_slot`) are
@@ -177,9 +178,9 @@ func thrower(kind: StringName, me := {}) -> int:
 	return carriers[0]["id"]
 
 
-## The order the stack goes in under (LD9): `me`'s own (its `order_id` and the order's fields),
-## else the lowest slot's of the claims that carry one (an unordered member that joins an ordered
-## stack follows it, D10). {} for a stack nobody was ordered to.
+## The order the stack goes in under (LD9): `me`'s own (its `order_id`, the order's fields and the
+## room it goes into, `into`), else the lowest slot's of the claims that carry one (an unordered
+## member that joins an ordered stack follows it, D10). {} for a stack nobody was ordered to.
 func order_claim(me := {}) -> Dictionary:
 	if str(me.get("order_id", "")) != "":
 		return {
@@ -187,6 +188,7 @@ func order_claim(me := {}) -> Dictionary:
 			"order_mode": str(me.get("order_mode", "")),
 			"order_hold": bool(me.get("order_hold", false)),
 			"order_go": bool(me.get("order_go", false)), "order_side": int(me.get("order_side", 0)),
+			"into": str(me.get("into", "")),
 		}
 	for m in team:
 		if m["order_id"] != "":

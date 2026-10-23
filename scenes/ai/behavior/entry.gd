@@ -1014,9 +1014,9 @@ func _stand(at: Dictionary) -> void:
 
 
 ## The side this NPC asks for in its slot `n` (`_want`, kept with `_team_side`): in an ordered stack
-## (LD9) the order's, for every member (`_ordered_side`); else on its claim (`first`) the team's,
-## from where it stands, or its own when its way there crosses the doorway's view (E19), and after
-## it weighed again, unless it is the point, only when the side the team stacks on changed.
+## (LD9) the order's, for every member (`_ordered_side`); else on its claim (`first`) the team's
+## from where it stands, or its own when its way there crosses the doorway's view (E19); after that,
+## unless it is the point, it weighs again only when the team's side changed.
 func _ask_side(n: int, first: bool) -> int:
 	var ordered := _order_claim()
 	if not ordered.is_empty():
@@ -1040,6 +1040,7 @@ func _me() -> Dictionary:
 		"pos": _claim_pos, "move_up": _move_up, "stuns": _stuns, "frags": _frags,
 		"order_id": _order_id, "order_bang": _order_bang, "order_mode": _order_mode,
 		"order_hold": _order_hold, "order_go": _released, "order_side": _order_side,
+		"into": into,
 	}
 
 
@@ -1074,9 +1075,9 @@ func _tail() -> bool:
 
 
 ## The order this stack goes in under, as a claim's `{ order_id, order_bang, order_mode, order_hold,
-## order_go, order_side }`: this NPC's own, else the lowest slot's of the teammates' claims that
-## carry one (an unordered member that joins an ordered stack follows its mode and side, D10). {}
-## for a stack nobody was ordered to, which keeps its own rules, and for a pass-by.
+## order_go, order_side, into }`: this NPC's own, else the lowest slot's of the teammates' claims
+## that carry one (an unordered member that joins an ordered stack follows its mode and side, D10).
+## {} for a stack nobody was ordered to, which keeps its own rules, and for a pass-by.
 func _order_claim() -> Dictionary:
 	return {} if secure else _stack.order_claim(_me())
 
@@ -1148,7 +1149,7 @@ func _note_go() -> void:
 	if not _held():
 		return
 	var ordered := _order_claim()
-	var go: bool = _stack.released(str(ordered["order_id"]), str(ordered.get("into", into)))
+	var go: bool = _stack.released(str(ordered["order_id"]), str(ordered["into"]))
 	if not go and _order_id != "":
 		var held: Dictionary = _perception.order()
 		if str(held.get("id", "")) == _order_id:

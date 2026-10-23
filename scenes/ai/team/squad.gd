@@ -393,7 +393,7 @@ func _latch_go(opening: String) -> void:
 	var stack: RefCounted = _ledger.stack(opening)
 	var held := _held_at(opening)
 	for id in held:
-		if stack.released(str(id), String(held[id].get("into", ""))):
+		if stack.released(str(id), str(held[id]["into"])):
 			_released[str(id)] = true
 
 

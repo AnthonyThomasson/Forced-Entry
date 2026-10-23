@@ -7,10 +7,9 @@ extends Node
 ## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as
 ## speaker carrying a full claim encoded by `StackClaim.encode` (every entry field an NPC's
 ## carries, plus `human`, `leader` and `own`), repeated every `StackClaim.HEARTBEAT` s so the claim
-## stays live. The AI's entry code reads it like any
-## teammate's claim, so the point waits for the human at the ready barrier, a lone AI is no longer
-## solo, and an AI behind the human crosses after it. The one thing it reads `human` for: no AI
-## member moves up into the human's slot (E2).
+## stays live. The AI's entry code reads it like any teammate's claim, so the point waits for the
+## human at the ready barrier, a lone AI is no longer solo, and an AI behind the human crosses
+## after it. The one thing it reads `human` for: no AI member moves up into the human's slot (E2).
 ##
 ## The human is never ordered: its radio step is read from where it stands (`claim` away from the
 ## slot, `ready` in it, `going_in` in the doorway, `in` through it). The claim is withdrawn

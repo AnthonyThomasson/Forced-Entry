@@ -374,6 +374,27 @@ func test_a_held_stack_is_not_released_by_another_stacks_claims() -> void:
 		).is_false()
 
 
+func test_the_order_a_stack_goes_in_under_names_its_room() -> void:
+	# LD13, D10: a held stack's go is read off the claims into the order's room, so the order a
+	# stack goes in under names that room, its own or the teammate's it follows alike.
+	var a := _speaker()
+	var me := _speaker()
+	var own: Dictionary = DoorStack.new(_door(), []).order_claim({
+		"id": me.get_instance_id(), "slot": 1, "order_id": "7", "order_hold": true,
+		"into": "hall",
+	})
+	assert_that(own.get("into")).override_failure_message(
+		"its own order, into the hall: %s" % str(own),
+	).is_equal("hall")
+	var mate := _claim(a, { "slot": 1, "side": 1, "order_id": "7", "order_hold": true })
+	var followed: Dictionary = DoorStack.new(_door(), [mate]).order_claim({
+		"id": me.get_instance_id(), "slot": 2,
+	})
+	assert_that(followed.get("into")).override_failure_message(
+		"the teammate's order it follows, into the hall: %s" % str(followed),
+	).is_equal("hall")
+
+
 func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
 	# E19, E21: each side's file runs from the door, a member's place in it its slot less the claims
 	# across the door ahead of it. The squad's layout (every claim) and each member's own settling
