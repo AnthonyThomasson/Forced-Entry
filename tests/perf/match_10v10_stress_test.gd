@@ -18,7 +18,9 @@ extends GameTest
 ## Then 300 frames are measured to the same standard as the 5v5 match: the average frame fits in
 ## one 60 fps frame, with no spike over two. It logs when contact came, how many knew a hostile as
 ## the window opened, the shots in the window and how many members were following at the end.
-## Headless measures CPU only; rendering is not in these numbers.
+## Headless measures CPU only; rendering is not in these numbers. Its max (and p95) miss the
+## standard on a quiet machine: an invader's decision that weighs its grenades (the throw spots and
+## the escape from the burst, in its decision snapshot) spikes in one frame (#98).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
