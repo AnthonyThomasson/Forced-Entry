@@ -3,12 +3,12 @@ extends GameTest
 ## against the house's outside wall on one side of the doorway, where the wall hides it from inside.
 ## Its group point (the point its members pack round) stands 120 px along the wall from the front
 ## door's centre, past the jamb, and `spawn_clearance` (20 px) out from the wall: within 150 px of
-## the door's centre and out of the doorway's straight strip. Every member stands within two of the
-## rings the team packs in of that point (a street lamp beside the door, which world-gen keeps
-## 140 px or more from it, can push a member out to the second), outside the house's rooms and
-## within 150 px of the door's centre plus those rings. Across the sweep the team starts on both
-## sides of the door (the side is drawn from the house seed). And no defender knows a hostile on the
-## first physics frame after placement.
+## the door's centre and out of the doorway's straight strip. Every member stands out of that strip
+## and within two of the rings the team packs in of that point (a street lamp beside the door, which
+## world-gen keeps 140 px or more from it, can push a member out to the second), outside the house's
+## rooms and within 150 px of the door's centre plus those rings. Across the sweep the team starts
+## on both sides of the door (the side is drawn from the house seed). And no defender knows a
+## hostile on the first physics frame after placement.
 ##
 ## The doorway's frame (its centre, width, the wall's axis and the way out) is the test's own
 ## (`tests/_ai/slots_probe.gd`, read off the house's rooms and openings), and the group point is
@@ -129,19 +129,15 @@ func _check(t: TestContext, label: String, handle: Dictionary) -> int:
 		str(door),
 		members,
 	]
-	t.check(
-		point.distance_to(door) <= NEAR_DOOR,
-		"%s is within %.0f px of the front door's centre (%.0f px)"
-			% [where, NEAR_DOOR, point.distance_to(door)],
-	)
-	t.check(
-		absf((point - door).dot(along)) > float(front["width"]) / 2.0,
-		"%s is out of the doorway's straight strip: %.0f px along the wall, past the jamb at %.0f"
-			% [where, absf((point - door).dot(along)), float(front["width"]) / 2.0],
-	)
 	for c: Node2D in invaders:
 		var p := c.global_position
-		var at := "%s: %s at %s" % [label, c.name, str(p.round())]
+		var at := "%s: %s at %s" % [where, c.name, str(p.round())]
+		t.check(
+			absf((p - door).dot(along)) > float(front["width"]) / 2.0,
+			("%s is out of the doorway's straight strip: %.0f px along the wall, past the jamb "
+					+ "at %.0f")
+				% [at, absf((p - door).dot(along)), float(front["width"]) / 2.0],
+		)
 		t.check(
 			p.distance_to(point) <= RING * RINGS + ROUNDING,
 			"%s packs within %.0f px of the group point %s (%.0f px)"

@@ -92,7 +92,8 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 ## hides the team from inside), or, in a house with no front entrance, round one point of the
 ## perimeter `invader_margin` px out of the rooms' bounding box, drawn from `rng`; or round `around`
 ## when given (the human invader's spot, which a member then keeps clear of as of any combatant).
-## Each member takes the spot `_group_spot` gives it, nearest the point first.
+## Each member takes the spot `_group_spot` gives it, nearest the point first; beside the front
+## entrance, none in the doorway's straight strip.
 ## `front_entranceworld` is injected so each heads straight for the entrance rather than circling.
 func spawn_invader_team(
 	rooms: Array,
@@ -107,8 +108,11 @@ func spawn_invader_team(
 	for room in rooms:
 		bounds = bounds.merge(room["rect"])
 	var centre := around
+	var door := {}
 	if centre == Vector2.INF:
-		centre = _beside_front_door(rooms, rng)
+		door = _front_door(rooms)
+		if not door.is_empty():
+			centre = _beside_front_door(door, rng)
 	if centre == Vector2.INF:
 		centre = perimeter_point(bounds.grow(invader_margin), rng.randf())
 	var holes := NavBuilder.furniture_holes(world)
@@ -122,27 +126,33 @@ func spawn_invader_team(
 		add_npc(
 			INVADER_SCENE,
 			npc_name("Invader", i),
-			_group_spot(centre, rooms, bounds, holes, taken),
+			_group_spot(centre, rooms, bounds, holes, taken, door),
 			rooms,
 			front_entranceworld,
 		)
 
 
-## The invader team's group point beside the front entrance among `openings`: against the house's
-## outside wall, `DOOR_SIDE_OFFSET` px along it from the doorway's centre (past the jamb, out of the
-## doorway's straight line) on the side drawn from `rng`, and `spawn_clearance` px out from the
-## wall. INF when the house has no front entrance (nothing is drawn then).
-func _beside_front_door(rooms: Array, rng: RandomNumberGenerator) -> Vector2:
+## The front entrance among `openings`: `{ pos, out, width }` (its centre, the way out of its room
+## and its width), or `{}` when the house has none.
+func _front_door(rooms: Array) -> Dictionary:
 	for o: Dictionary in openings:
 		if not o.get("front", false):
 			continue
 		for room: Dictionary in rooms:
 			if (o.get("rooms", []) as Array).has(room["key"]):
 				var pos: Vector2 = o["pos"]
-				var out := _outward(room["rect"], pos)
-				var side := 1.0 if rng.randf() < 0.5 else -1.0
-				return pos + out.orthogonal() * side * DOOR_SIDE_OFFSET + out * spawn_clearance
-	return Vector2.INF
+				return { "pos": pos, "out": _outward(room["rect"], pos), "width": o["width"] }
+	return {}
+
+
+## The invader team's group point beside the front entrance `door` (`_front_door`): against the
+## house's outside wall, `DOOR_SIDE_OFFSET` px along it from the doorway's centre (past the jamb,
+## out of the doorway's straight line) on the side drawn from `rng`, and `spawn_clearance` px out
+## from the wall.
+func _beside_front_door(door: Dictionary, rng: RandomNumberGenerator) -> Vector2:
+	var out: Vector2 = door["out"]
+	var side := 1.0 if rng.randf() < 0.5 else -1.0
+	return door["pos"] + out.orthogonal() * side * DOOR_SIDE_OFFSET + out * spawn_clearance
 
 
 ## The way out of room `rect` through its wall at `pos` (a doorway on that wall): the unit normal
@@ -160,24 +170,35 @@ func _outward(rect: Rect2, pos: Vector2) -> Vector2:
 
 ## The spot nearest `centre` for one more member of a group: `centre` itself, then the points of
 ## rings twice `spawn_clearance` apart round it (about one per twice `spawn_clearance` along each
-## ring), the first that is clear of `holes` and `taken` (`is_clear`) and `_outdoors`. `centre`
-## when none is.
+## ring), the first that is clear of `holes` and `taken` (`is_clear`) and `_outdoors`, and, given a
+## front entrance `door` (`_front_door`), out of its straight strip (`_in_strip`). `centre` when
+## none is.
 func _group_spot(
 	centre: Vector2,
 	rooms: Array,
 	bounds: Rect2,
 	holes: Array,
 	taken: Array,
+	door := {},
 ) -> Vector2:
 	var step := spawn_clearance * 2.0
 	for ring in GROUP_RINGS + 1:
 		var slots := maxi(1, floori(TAU * ring))
 		for k in slots:
 			var p := centre + Vector2.from_angle(TAU * k / slots) * step * ring
-			if _outdoors(p, rooms, bounds) and is_clear(p, holes, taken):
+			if _outdoors(p, rooms, bounds) and is_clear(p, holes, taken) and not _in_strip(p, door):
 				return p
 	GameLog.say("No clear spawn spot round %s; using it" % centre)
 	return centre
+
+
+## Whether `p` stands in the straight strip out of doorway `door` (`_front_door`): within half its
+## width of its centre along the wall. False with no `door`.
+func _in_strip(p: Vector2, door: Dictionary) -> bool:
+	if door.is_empty():
+		return false
+	var along := (door["out"] as Vector2).orthogonal()
+	return absf((p - door["pos"]).dot(along)) <= float(door["width"]) / 2.0
 
 
 ## Whether `p` stands out of every room by `spawn_clearance` and within twice `invader_margin` of
