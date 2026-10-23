@@ -6,10 +6,23 @@ extends GameTest
 ## `claim_pos`: same-frame claims settle by distance, E2), kept by the heartbeat however the human
 ## has moved since, and says `bang: true` and `stuns: 0` (it never holds a stack back, and throws
 ## nothing for it).
+##
+## Its `callout_range` and `callout_ttl` reach the claims it hears whenever they are set (as the
+## NPCs' exports do): set after `attach`, a range shorter than the human's distance to its teammate
+## hears none of the teammate's claims after that, and a ttl of `LONG_TTL` keeps its last one live
+## for that long. So the human keeps its slot `KEPT_FOR` s on, past a claim's default ttl (6 s), and
+## its reservation is withdrawn (nobody heard stacking) once that last claim lapses.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
+## The ttl (s) the human's stack is given after `attach`, and how long (s) after its range is cut
+## its slot is still kept: past a claim's default ttl (6 s) and its teammate's 2 s heartbeat, within
+## `LONG_TTL` less that heartbeat.
+const LONG_TTL := 12.0
+const KEPT_FOR := 8.5
+## The most (s) past `LONG_TTL` the withdrawal may take (a few physics frames).
+const LAPSE_SLACK := 1.0
 
 
 func describe() -> Dictionary:
@@ -18,15 +31,16 @@ func describe() -> Dictionary:
 		"description": "An AI invader stacks at the back door; the human invader near it is "
 			+ "reserved slot 2, on the same side, on the radio and in its view.",
 		"tags": ["ai", "entry", "stack", "scripted", "callout"],
-		"timeout": 60.0,
+		"timeout": 90.0,
 	}
 
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	# A long ready timeout so the point is still waiting in its stack while the reservation is read.
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 30.0 })
+	# A long ready timeout so the point is still waiting in its stack while the reservation is read,
+	# and through the range and ttl checks after it.
+	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 60.0 })
 	Stack.human(s, &"me", Stack.NEAR)
 
 
@@ -120,4 +134,31 @@ func run(t: TestContext) -> void:
 			and (again["position"] as Vector2).distance_to(toward) <= 6.0,
 		"and the spot it was made from, not where the human stands now (%s, now at %s)"
 			% [again.get("claim_pos"), again.get("position")],
+	)
+	# The exports set after `attach`: a range short of the teammate (none of its claims heard from
+	# now on) and a long ttl (its last one heard stays live that long).
+	var gap: float = t.actor(&"me").global_position.distance_to(t.actor(&"a").global_position)
+	if not t.require(gap > 2.0, "set-up: the human stands apart from its teammate (%.0f px)" % gap):
+		return
+	stack.set("callout_ttl", LONG_TTL)
+	stack.set("callout_range", gap * 0.5)
+	var cut := t.time
+	var aborted := func(): return not Entry.calls(t, "abort", &"me").is_empty()
+	var a_crossed := func(): return not Entry.calls(t, "going_in", &"a").is_empty()
+	await t.until(aborted, KEPT_FOR)
+	t.check(
+		not aborted.call() and Stack.mine(stack) == 2,
+		"with callout_ttl %.0f s the human still hears its teammate's last claim %.1f s on: slot 2"
+			% [LONG_TTL, KEPT_FOR],
+	)
+	t.check(
+		await t.until(aborted, LONG_TTL - KEPT_FOR + LAPSE_SLACK),
+		("with callout_range %.0f px the teammate's claims are not heard: its last one lapses and "
+				+ "the human's reservation is withdrawn within %.0f s (abort)")
+			% [gap * 0.5, LONG_TTL + LAPSE_SLACK],
+	)
+	t.trace("withdrawn after the range cut", t.time - cut)
+	t.check(
+		not a_crossed.call(),
+		"set-up: the teammate is still in its stack (no going_in), so nothing else withdrew it",
 	)

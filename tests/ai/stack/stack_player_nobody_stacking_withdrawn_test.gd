@@ -12,11 +12,6 @@ extends GameTest
 ## reservation with nobody ahead still on the radio ends: so it is the "nobody stacking" rule that
 ## withdrew it, not the human failing to follow.
 ##
-## Before that, the human's `callout_ttl` is set to `LONG_TTL` after `attach`, and `a` goes quiet
-## for `QUIET` s, longer than a claim's default ttl (6 s) but within `LONG_TTL`: its last claim is
-## still heard, so the human keeps its slot (the stack's exports reach the claims it hears whenever
-## they change).
-##
 ## Premise: the teammate is a puppet radioing its claims on the bus (`Stack.radio`), not an AI
 ## invader. An AI's abort comes from its own decisions (a new order, a blocked way), which a test
 ## cannot time; the human's stack reads only the bus, so a puppet's `abort` is exactly what it hears
@@ -33,9 +28,6 @@ const HOLD := 3.0
 ## The most (s) the withdrawal may take after the teammate's abort: well under the spec's
 ## `go_timeout` (6 s), so the go timeout cannot be what ended it.
 const PROMPT := 1.0
-## The ttl (s) the human's stack is given after `attach`, and how long (s) `a` goes quiet meanwhile.
-const LONG_TTL := 12.0
-const QUIET := 8.0
 
 
 func describe() -> Dictionary:
@@ -43,8 +35,7 @@ func describe() -> Dictionary:
 		"name": "The human's slot is withdrawn once its only teammate in the stack aborts",
 		"description": "One teammate (a puppet on the radio) stacks at the back door and the "
 			+ "human is reserved slot 2 behind it; the teammate radios abort and the human's "
-			+ "reservation is withdrawn at once, its claim radioed abort; with a longer "
-			+ "callout_ttl set after attach, the teammate's last claim is heard for that long.",
+			+ "reservation is withdrawn at once, its claim radioed abort.",
 		"tags": ["ai", "entry", "stack", "scripted", "callout"],
 		"timeout": 40.0,
 	}
@@ -64,7 +55,6 @@ func run(t: TestContext) -> void:
 	var stack := Stack.attach(t, &"me")
 	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
 		return
-	stack.set("callout_ttl", LONG_TTL)
 	if not t.require(
 			await _radioing(t, opening, into, func(): return Stack.mine(stack) > 0, 5.0),
 			"the human is reserved a slot at the back door",
@@ -78,13 +68,6 @@ func run(t: TestContext) -> void:
 			"set-up: the human keeps its slot while its teammate stacks (%.0f s)" % HOLD,
 	):
 		return
-	# `a` goes quiet: its last claim lapses after `LONG_TTL`, not the default 6 s.
-	await t.seconds(QUIET)
-	t.check(
-		not aborted.call() and Stack.mine(stack) == 2,
-		"with callout_ttl %.0f s the human hears its teammate's last claim %.0f s on: slot 2 kept"
-			% [LONG_TTL, QUIET],
-	)
 	Stack.radio(t, &"a", opening, into, 1, 1, "abort")
 	var at := t.time
 	t.check(

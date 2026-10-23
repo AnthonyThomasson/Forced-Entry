@@ -566,6 +566,38 @@ func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -
 	).is_equal([4, false])
 
 
+func test_a_member_whose_slot_changes_is_settled_moving_up_no_more() -> void:
+	# E2: a member that moved up from slot 3 into slot 2 and loses slot 2 (another member moved up
+	# into it too, and keeps it on the lower instance id) takes the next slot free to it, slot 4,
+	# where a plain claim made on its frame gives way to its move-up. Its move-up is over: the claim
+	# on slot 4 is not counted at the slot 3 it freed, so on its side it stands third in the file,
+	# behind the point and slot 2, with slots 3 and 4 across the door ahead of it in the claims.
+	var who: Array = range(5).map(func(_i): return _speaker())
+	who.sort_custom(func(a, b): return a.get_instance_id() < b.get_instance_id())
+	var into_two: Node = who[0]  # The lowest instance id: it keeps slot 2.
+	var me: Node = who[4]
+	var claims := [
+		_claim(who[1], { "slot": 1, "side": 1 }),
+		_claim(into_two, { "slot": 2, "side": 1, "move_up": 5 }),
+		_claim(who[2], { "slot": 3, "side": -1 }),
+		_claim(
+			who[3],
+			{ "slot": 4, "side": -1, "claim_frame": FRAME, "claim_pos": Vector2(0, 600) },
+		),
+	]
+	var moving := _me(me, 2).merged({ "move_up": 3, "want": 1 }, true)
+	var at: Dictionary = DoorStack.new(_door(), claims).claim(moving, func(_n): return 1)
+	assert_array([at["slot"], at["side"]]).override_failure_message(
+		"premise: it loses slot 2 and takes slot 4, on its side (%s)" % str(at),
+	).is_equal([4, 1])
+	assert_int(at["place"]).override_failure_message(
+		"third in its side's file, slots 3 and 4 across the door (place %d)" % at["place"],
+	).is_equal(3)
+	assert_that(at["point"]).override_failure_message(
+		"its point is that place's, %s (got %s)" % [str(_slot_at(1, 3)), str(at["point"])],
+	).is_equal(_slot_at(1, 3))
+
+
 ## A doorway in a wall along x at the origin, the stack's side out along +y: each side's file of
 ## six slots against the wall, 30 px apart from 40 px off the door (agent_entry.gd `geometry`, its
 ## `wall` kind).
