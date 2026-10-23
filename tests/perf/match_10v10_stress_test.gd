@@ -12,7 +12,7 @@ extends GameTest
 ## (`docs/leadership.md` LD19 to LD23), so what a squad costs (the leader's trail, the follow spots,
 ## the follow primitive, the leash) is in the frame; every member but the leader following is a
 ## premise. The sides are in contact before the window opens: after `WARMUP_S` the warm-up runs on
-## until a shot has been fired and some NPC knows a hostile (`known_contacts_for_display()`) at
+## until a shot has been fired and some NPC knows a hostile (`Perf.await_contact`) at
 ## once (at most `CONTACT_WITHIN` s more), so the frames cost the teams' fight (the leash filter,
 ## combat within the leash, the leash break) and not only a walking crowd.
 ## Then 300 frames are measured to the same standard as the 5v5 match: the average frame fits in
@@ -76,17 +76,14 @@ func run(t: TestContext) -> void:
 	if not _check_squads(t, characters):
 		return
 	await t.seconds(WARMUP_S)
-	var on := func() -> bool:
-		return t.happened(&"shot") and characters.any(func(c): return _knows_hostile(c))
 	if not t.require(
-			await t.until(on, CONTACT_WITHIN),
+			await Perf.await_contact(t, "10v10 match", characters, CONTACT_WITHIN),
 			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
 					+ "knowing a hostile (%.1f s)")
 				% [CONTACT_WITHIN, t.time],
 	):
 		return
-	GameLog.say("PERF 10v10 match contact at %.1f s" % t.time)
-	var aware := characters.filter(func(c): return _knows_hostile(c)).size()
+	var aware := characters.filter(func(c): return Perf.knows_hostile(c)).size()
 	var nodes_before := Perf.nodes()
 	var shots_before := t.events_of(&"shot").size()
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
@@ -144,13 +141,3 @@ func _check_squads(t: TestContext, characters: Array) -> bool:
 		):
 			return false
 	return true
-
-
-## Whether character `c` (an NPC) knows a hostile now (`known_contacts_for_display()`, interface 7).
-func _knows_hostile(c: Node) -> bool:
-	if not is_instance_valid(c) or c.get("is_dead") == true:
-		return false
-	var brain := TestContext.controller_of(c, &"known_contacts_for_display")
-	if brain == null:
-		return false
-	return brain.known_contacts_for_display().any(func(k): return k.get("hostile", false))

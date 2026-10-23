@@ -4,10 +4,12 @@ extends GameTest
 ## its largest plan, the defenders in random rooms, the invader team beside the front door, each
 ## side with its spec loadout, so the invaders carry their plates and a stun and a frag each,
 ## styled and ranked, one squad per side; nav re-baker, blood, debris, sound and radio on, scripted
-## Von), and once the sides are in contact a puppet on the invaders' side (the human's place)
-## throws three frags and three stuns among the fighters over about 3 s, through the controller
-## contract (select the slot, aim, click). The puppet is a test actor, not one of the match's: it
-## carries the three of each P1 names (`Probe.arm`), not a side's one and one, and waits far off
+## Von), and once the sides are in contact (after `WARMUP_S`, a shot fired and some NPC knowing a
+## hostile, `Perf.await_contact`, at most `CONTACT_WITHIN` s more: a premise) a puppet on the
+## invaders' side (the human's place) throws three frags and three stuns among the fighters over
+## about 3 s, through the controller contract (select the slot, aim, click). The puppet is a test
+## actor, not one of the match's: it carries the three of each P1 names (`Probe.arm`), not a side's
+## one and one, and waits far off
 ## the house until its first throw, out of the warm-up and the placement. So the burst's whole cost
 ## is in the window: the blast and its fragments, the flash and bang, the FX, scorch, blood and
 ## debris, the sounds, and every NPC's grenade perception, evade planning and re-decision. From the
@@ -25,6 +27,9 @@ const SEED := 7
 const PLAN := "garage_home"
 const PER_SIDE := 5
 const WARMUP_S := 6.0
+## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired,
+## and some NPC knowing a hostile).
+const CONTACT_WITHIN := 20.0
 ## Frag, stun, frag, stun, frag, stun: one throw every `THROW_EVERY` frames (0.6 s), the click
 ## `CLICK_AFTER` frames after the slot is picked and the aim set (the facing settles in a frame or
 ## two standing; the 0.3 s wind-up is over before the next pick).
@@ -102,6 +107,13 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(WARMUP_S)
+	if not t.require(
+			await Perf.await_contact(t, "grenades in a 5v5 match", characters, CONTACT_WITHIN),
+			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
+					+ "knowing a hostile (%.1f s)")
+				% [CONTACT_WITHIN, t.time],
+	):
+		return
 
 	var nodes_before := Perf.nodes()
 	var start := t.time
@@ -142,18 +154,29 @@ func run(t: TestContext) -> void:
 		t, "grenades in a 5v5 match", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS,
 		Perf.SMOOTH_MAX_MS,
 	)
+	# The puppet's own: its frags' blast hits, and the stuns of the frames its stuns went off in
+	# (a `stun` event names no thrower).
 	var hits := Probe.raw(
 		t,
 		&"hit",
-		func(d: Dictionary) -> bool: return d.get("outcome") == &"blast",
+		func(d: Dictionary) -> bool:
+			return d.get("outcome") == &"blast" and d.get("attacker") == thrower,
 	).size()
-	var stunned := Probe.raw(t, &"stun").size()
+	var stun_times: Array = booms.filter(
+		func(b: Dictionary) -> bool: return b["data"].get("kind") == &"stun",
+	).map(func(b: Dictionary) -> float: return float(b["time"]))
+	var stunned := Probe.raw(t, &"stun").filter(
+		func(e: Dictionary) -> bool: return stun_times.has(float(e["time"])),
+	).size()
 	var grown := Perf.nodes() - nodes_before
 	GameLog.say("PERF grenades in a 5v5 match: %d blast hits, %d stuns, node growth %d"
 			% [hits, stunned, grown])
 	t.check(
 		hits + stunned > 0,
-		"the grenades went off among the fighters (%d blast hits, %d stuns)" % [hits, stunned],
+		"the puppet's grenades went off among the fighters (%d blast hits, %d stuns)" % [
+			hits,
+			stunned,
+		],
 	)
 	t.trace("node growth", grown)
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])

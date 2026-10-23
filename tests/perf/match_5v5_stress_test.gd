@@ -5,9 +5,11 @@ extends GameTest
 ## with its spec loadout (the invaders' helmet and steel plates front and back, a stun and a frag
 ## each; the defenders' plain clothes; a random gun each), styled and ranked, one squad per side
 ## (its members following their leader), every debug overlay off; nav re-baker, blood, debris,
-## sound and team radio on, with Von scripted so no server is needed. After a warm-up that brings
-## the sides into contact, 300 frames are measured: the average frame must fit in one 60 fps
-## frame, with no spike over two. Headless measures CPU only; rendering is not in these numbers.
+## sound and team radio on, with Von scripted so no server is needed. After `WARMUP_S` the warm-up
+## runs on until the sides are in contact, a shot fired and some NPC knowing a hostile
+## (`Perf.await_contact`, at most `CONTACT_WITHIN` s more: a premise); then 300 frames are
+## measured: the average frame must fit in one 60 fps frame, with no spike over two. Headless
+## measures CPU only; rendering is not in these numbers.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const SEED := 7
@@ -18,6 +20,9 @@ const SEED := 7
 const PLAN := "garage_home"
 const PER_SIDE := 5
 const WARMUP_S := 6.0
+## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired,
+## and some NPC knowing a hostile).
+const CONTACT_WITHIN := 20.0
 const MEASURE_FRAMES := 300
 const NODE_GROWTH := 2500
 
@@ -59,6 +64,13 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(WARMUP_S)
+	if not t.require(
+			await Perf.await_contact(t, "5v5 match", characters, CONTACT_WITHIN),
+			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
+					+ "knowing a hostile (%.1f s)")
+				% [CONTACT_WITHIN, t.time],
+	):
+		return
 	var nodes_before := Perf.nodes()
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
 	Perf.within_frames(

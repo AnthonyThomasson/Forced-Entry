@@ -16,6 +16,30 @@ const SMOOTH_P95_MS := 20.0
 const SMOOTH_MAX_MS := 33.4
 
 
+## Run a match guard's warm-up on until its sides are in contact: a shot has been fired and some
+## NPC among `characters` knows a hostile (`knows_hostile`) at once, at most `limit_s` s of test
+## time more. Logs when contact came (`PERF <label> contact at <s> s`). Returns whether it came; the
+## caller `require`s it as its premise.
+static func await_contact(t: TestContext, label: String, characters: Array, limit_s: float) -> bool:
+	var on := func() -> bool:
+		return t.happened(&"shot") and characters.any(func(c): return knows_hostile(c))
+	if not await t.until(on, limit_s):
+		return false
+	GameLog.say("PERF %s contact at %.1f s" % [label, t.time])
+	return true
+
+
+## Whether character `c` (an NPC) knows a hostile now (`known_contacts_for_display()`, interface 7);
+## false for a dead or freed one and for a character with no AI controller.
+static func knows_hostile(c: Node) -> bool:
+	if not is_instance_valid(c) or c.get("is_dead") == true:
+		return false
+	var brain := TestContext.controller_of(c, &"known_contacts_for_display")
+	if brain == null:
+		return false
+	return brain.known_contacts_for_display().any(func(k): return k.get("hostile", false))
+
+
 ## Render every sound the way the game's background pre-warm has by the time a match is fought.
 ## Headless runs skip that pre-warm, so a test that plays sound would otherwise pay each variant's
 ## first synthesis (9 to 35 ms) mid-measurement.

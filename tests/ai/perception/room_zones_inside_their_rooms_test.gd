@@ -53,6 +53,11 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var rooms: Array = match["rooms"]
+	if not t.require(
+			not NavBuilder.ready(t.world.get_world_2d().navigation_map),
+			"premise: the NPCs are placed while the map has not taken the house's navmesh in",
+	):
+		return
 
 	await t.seconds(2.0)
 	var misplaced: Array = []
