@@ -37,10 +37,7 @@ func run(t: TestContext) -> void:
 	var t2 := t.actor(&"t2")
 	var me := t.actor(&"me")
 	var squad := t.squad(&"invader")
-	if not t.require(
-			squad != null and squad.has_method("view"),
-			"the squad is built (%s)" % Order.SQUAD_SCRIPT,
-	):
+	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
 		return
 	var room := String(t.rooms[0]["key"])
 	var order := Order.issue(squad, { "kind": Order.DEFEND, "to": [t1, t2], "room": room })

@@ -44,21 +44,14 @@ func run(t: TestContext) -> void:
 	i[3].rank = 0
 	i[4].rank = 2
 	var invaders := Order.squad(t, &"invader", i)
-	if not t.require(
-			invaders != null and invaders.has_method("leader"),
-			"the squad reports its leader (leader())",
-	):
+	if not t.require(invaders != null, "the invaders' squad is built (Order.squad)"):
 		return
 	t.check(
 		invaders.leader() == i[2],
 		("the invaders are led by the highest rank, the first of the two rank-2s in spawn order "
 				+ "(got %s)") % _name(invaders.leader()),
 	)
-	t.expect_eq(
-		invaders.members().size() if invaders.has_method("members") else -1,
-		5,
-		"every invader is a member (members())",
-	)
+	t.expect_eq(invaders.members().size(), 5, "every invader is a member (members())")
 
 	var defenders := Order.squad(t, &"household", [t.actor(&"d0"), t.actor(&"d1")])
 	t.check(

@@ -785,15 +785,17 @@ func _free_spot(from: Vector2) -> Vector2:
 
 
 ## Give way to a walker coming at the NPC (`move_input` already steers its walk): a known character
-## in view, not at rest, within `GIVE_RANGE`, whose course and the NPC's would bring them within
-## `GIVE_CLEARANCE` of each other in the next `GIVE_HORIZON` s, or in the time the NPC's own walk
-## still takes when that is shorter (`_way_left` at its pace: its course reckoned only to the end of
-## its walk, so it never gives way to a walker its walk stops short of, as a follower closing on its
-## spot behind a leader walking on; near the end of its walk the look-ahead is that short for every
-## walker), unless the NPC has the right of way (`_has_way`) and the walker is not yet on top of it
-## (`GIVE_IMMINENT`). Giving way, it steps aside off the walker's line when it stands on it (a spot
-## on open floor, clear of the other bodies it knows of, never toward the walker), else waits where
-## it is, until the walker has gone by; at most `GIVE_MAX` s for one walker.
+## in view, not at rest, within `GIVE_RANGE`, whose course comes within `GIVE_CLEARANCE` of the
+## NPC's in the next `GIVE_HORIZON` s. Unless it has the right of way (`_has_way`) and the walker is
+## not yet on top of it (`GIVE_IMMINENT`), the NPC steps aside off the walker's line when it stands
+## on it (open floor, clear of the other bodies it knows of, never toward the walker), else waits,
+## until the walker has gone by; at most `GIVE_MAX` s for one walker.
+##
+## The look-ahead is cut to the time the NPC's own walk still takes (`_way_left` at its pace) when
+## that is shorter: its course is reckoned only to the end of its walk, so it never gives way to a
+## walker its walk stops short of, as a follower closing on its spot behind a leader walking on.
+## Near the end of its walk that short look-ahead holds for every walker, the `GIVE_IMMINENT` stop
+## included.
 func _give_way() -> void:
 	var me: Vector2 = _character.global_position
 	var pace := maxf(_character.get_real_velocity().length(), PACE_FLOOR)

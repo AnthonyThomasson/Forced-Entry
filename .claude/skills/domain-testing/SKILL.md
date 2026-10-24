@@ -315,8 +315,9 @@ func run(t: TestContext) -> void:
     declaration order, each member handed its squad), and the squad-leaders overlay over them, shown as the setup's overlays say. `opts.human` names an actor that
     leads its faction's squad as the human does: it is handed its stack radio (`MatchBuilder.bind_player`) and its squad through it,
     `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (`squads_over`'
-    `claim_ttl`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets, so a squad of puppets
-    radioing claims names the NPCs' 6 s (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
+    `claim_ttl`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets alone, so a squad of
+    puppets keeps no claim unless `claim_ttl` names one: the two that radio claims name the NPCs' 6 s
+    (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
     that declares no squads has none: its NPCs pick their own goals.
   - A whole match: `match(overrides := {})` populates one over the staged world as Main does (`MatchBuilder.populate`, after the
     actors): `overrides` are `MatchBuilder.spec`'s (each side's `count`, `loadout` and `at`, `human`, `spawn_clearance`,

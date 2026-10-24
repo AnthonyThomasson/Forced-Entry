@@ -66,6 +66,9 @@ const SETUP_LOADOUT_KEYS := ["weapon", "magazine", "spares", "stuns", "frags", "
 ## Most wall-clock ms `stage` waits for the navigation maps to answer with the house's navmesh (a
 ## map synchronizes on a worker thread, so a loaded machine is slow in real time, not in frames).
 const NAV_SYNC_MS := 5000
+## The `claim_ttl` that `build_squads` and `squads_over` read as "as long as the side's NPCs keep a
+## callout" (`callout_ttl_of`): any negative value.
+const CLAIM_TTL_OF_NPCS := -1.0
 
 
 ## A match spec: `overrides` over the defaults. `seed` (the house's, which also pins the placement,
@@ -239,8 +242,8 @@ static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 		squads_over(
 			world,
 			combatants,
-			rooms,
 			openings,
+			rooms,
 			human,
 			bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false)),
 		),
@@ -268,13 +271,13 @@ static func _place_side(
 		spawner.add_npc(scene, spawner.npc_name(base, i), at[i])
 
 
-## The front entrance among `openings` (`WorldGen.get_openings`): its world point, or ZERO when the
-## house has none.
+## The world point of the front entrance among `openings` (`WorldGen.get_openings`), or ZERO when
+## the house has none.
 static func front_entrance(openings: Array) -> Vector2:
 	return _front_opening(openings).get("pos", Vector2.ZERO)
 
 
-## The front entrance among `openings` (`WorldGen.get_openings`): its opening (`{ pos, width,
+## The opening of the front entrance among `openings` (`WorldGen.get_openings`: `{ pos, width,
 ## front, exit, rooms }`), or `{}` when the house has none.
 static func _front_opening(openings: Array) -> Dictionary:
 	for o: Dictionary in openings:
@@ -369,8 +372,8 @@ static func styles_of(faction: StringName) -> Array[StringName]:
 ## squad's rule (rank, then spawn order), so after `arm` has ranked the unit; the human's side is
 ## led by the human when `human` (the spec's `{ node, side, lead }`) says it leads. The human is
 ## handed its squad through `stack`, its stack radio, with `own_claims` on the invaders' side only
-## (D29). Each squad keeps its members' claims `claim_ttl` s, or, when it is negative, as long as
-## the side's NPCs keep a callout (`callout_ttl_of`). Returns the squads by faction.
+## (D29). Each squad keeps its members' claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`, as long
+## as the side's NPCs keep a callout (`callout_ttl_of`). Returns the squads by faction.
 static func build_squads(
 	world: Node,
 	combatants: Array,
@@ -378,7 +381,7 @@ static func build_squads(
 	rooms: Array,
 	human: Dictionary = {},
 	stack: Node = null,
-	claim_ttl := -1.0,
+	claim_ttl := CLAIM_TTL_OF_NPCS,
 ) -> Dictionary:
 	var squads := {}
 	var human_node: Node = human.get("node")
@@ -521,22 +524,22 @@ static func _wait_nav(world: Node2D) -> void:
 		await world.get_tree().physics_frame
 
 
-## The squads over `members` (a match's characters in spawn order, after `arm` has ranked them):
-## the human (`human.node`, leading its side when `human.lead`) first handed its stack radio
-## (`bind_player`), then one squad per side (`build_squads`, each keeping its members' claims
-## `claim_ttl` s, or, when it is negative, its NPCs' `callout_ttl`) and the squad-leaders overlay
-## over them (`build_leader_overlay`), shown when `leaders`. `populate` ends with it, and the
-## Testing world builds the squads a test declares through it. Returns
-## `{ squads, player_stack, leader_overlay }` (`player_stack` null with no human), for the match
-## handle.
+## The squads over `members` (a match's characters in spawn order, after `arm` has ranked them),
+## the house's `openings` and `rooms`: the human (`human.node`, leading its side when `human.lead`)
+## first handed its stack radio (`bind_player`), then one squad per side (`build_squads`, each
+## keeping its members' claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`, as long as its NPCs keep a
+## callout) and the squad-leaders overlay over them (`build_leader_overlay`), shown when `leaders`.
+## `populate` ends with it, and the Testing world builds the squads a test declares through it.
+## Returns `{ squads, player_stack, leader_overlay }` (`player_stack` null with no human), for the
+## match handle.
 static func squads_over(
 	world: Node,
 	members: Array,
-	rooms: Array,
 	openings: Array,
+	rooms: Array,
 	human: Dictionary = {},
 	leaders := false,
-	claim_ttl := -1.0,
+	claim_ttl := CLAIM_TTL_OF_NPCS,
 ) -> Dictionary:
 	var human_node: Variant = human.get("node")
 	var stack: Node = (bind_player(human_node, rooms, openings)

@@ -160,8 +160,9 @@ func match(overrides: Dictionary = {}) -> TestSetup:
 ## `MatchBuilder.bind_player` and its squad with it, `own_claims` on the invaders' side only, as a
 ## match's human leader is handed its own) and `claim_ttl` (s each squad keeps its members' entry
 ## claims; by default its NPCs' `callout_ttl`, `MatchBuilder.callout_ttl_of`, which is 0 over
-## puppets, so a squad of puppets names the NPCs' own). Read them with `t.squad(faction)`. A setup
-## that also declares `match` gets the match's squads alone: declaring both is an error.
+## puppets alone, so a squad of puppets keeps no claim unless `claim_ttl` names one). Read them with
+## `t.squad(faction)`. A setup that also declares `match` gets the match's squads alone: declaring
+## both is an error.
 func squads(opts: Dictionary = {}) -> TestSetup:
 	squads_spec = opts
 	return self

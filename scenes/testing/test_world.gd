@@ -131,11 +131,11 @@ func _build_squads(setup: TestSetup) -> void:
 	var built := MatchBuilder.squads_over(
 		self,
 		members,
-		rooms,
 		openings,
+		rooms,
 		human,
 		bool(_overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false)),
-		float((setup.squads_spec as Dictionary).get("claim_ttl", -1.0)),
+		float((setup.squads_spec as Dictionary).get("claim_ttl", MatchBuilder.CLAIM_TTL_OF_NPCS)),
 	)
 	squads = built["squads"]
 	player_stack = built["player_stack"]

@@ -109,18 +109,18 @@ player_stack, leader_overlay }`). `build` is its two stages:
   draws unchanged: LD10); each defender, the human defender too, draws one of the defenders' styles (`merc`, `borg`), a look seed of its own
   and one of its style's `weapons` (`scrap`, `pipe`; an invader's is `police`), all handed to `LoadoutConfig.apply` as its `style` (`{ look,
   seed, rank, weapon }`). A test actor never comes through here unless its setup declares a match, and keeps the weapon it asks for.
-- **Squads** (`build_squads(world, combatants, openings, rooms, human, stack, claim_ttl)`): one `Squad` (`ai/team/squad.gd`, interface 21,
+- **Squads** (`build_squads`, interface 23): one `Squad` (`ai/team/squad.gd`, interface 21,
   `docs/leadership.md`) per faction under `world`, named `Squad_<faction>`, over that side's combatants in spawn order (after `arm`, which
   ranks the unit), with the house's openings and rooms, the human as its leader when the spec's `human.lead` says it leads, and the claim
-  ttl `callout_ttl_of(members)` (the `callout_ttl` of the first NPC's controller, 0 with none) unless `claim_ttl` names one (a test's
-  squad of puppets, `TestSetup.squads`); each member is handed its squad
+  ttl `callout_ttl_of(members)` (the `callout_ttl` of the first NPC's controller, 0 with none) unless its `claim_ttl` names one (a
+  test's squad of puppets, `TestSetup.squads`); each member is handed its squad
   (`bind_squad`: an NPC's controller's `squad`, and the human's `PlayerStack`, through `stack`, its `squad` and `own_claims`, true on the
   invaders' side only, so a human defender leader's step-ups rally nobody, D29). The leader is the squad's own rule (rank, then spawn order),
   or the human when it leads. Then `build_leader_overlay(world, squads)`: the `LeaderOverlay` (UI overlays, `watch` over every squad's
-  `view`), hidden until `set_overlay` shows it (LD12, LD28). **`squads_over(world, members, rooms, openings, human := {}, leaders := false,
-  claim_ttl := -1.0) -> { squads, player_stack, leader_overlay }`** is the squad tail both `populate` and the test world's declared squads
-  (`TestSetup.squads`) end with: the human (`human.node`) handed its stack radio (`bind_player`) first, then `build_squads`, then
-  `build_leader_overlay`, shown when `leaders`.
+  `view`), hidden until `set_overlay` shows it (LD12, LD28). **`squads_over`** (interface 23) is the squad tail both `populate` and the
+  test world's declared squads (`TestSetup.squads`) end with: the human (`human.node`) handed its stack radio (`bind_player`) first, then
+  `build_squads`, then `build_leader_overlay`, shown when `leaders`; it returns them for the match handle (`squads`, `player_stack`,
+  `leader_overlay`).
 - **The bind rule, once** (`bind_npc(npc, rooms, openings, entry_point)`): an NPC's controller is handed the house `rooms`, its `openings`
   (for tactical entry) and, when given, its `entry_point` **before the NPC joins the tree**, so its first tick already knows them; the
   controller is found by its contract (the child with `control` and `rooms`, interface 7), since the `npc_controllers` group is joined only in

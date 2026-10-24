@@ -921,9 +921,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
       the guns from `seed` XOR `LOADOUT_SEED_SALT`), `style(characters, match_spec) -> Array` (one `apply` style per character, from `seed`
       XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
       defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, combatants, openings, rooms,
-      human := {}, stack := null, claim_ttl := -1.0) -> Dictionary` (one `Squad` per faction, interface 21, keeping claims `claim_ttl` s,
-      or `callout_ttl_of` the side when it is negative) and `build_leader_overlay(world, squads) -> Node2D`; `squads_over(world, members,
-      rooms, openings, human := {}, leaders := false, claim_ttl := -1.0) -> Dictionary` is the squad tail `populate` and the Testing
+      human := {}, stack := null, claim_ttl := CLAIM_TTL_OF_NPCS) -> Dictionary` (one `Squad` per faction, interface 21, keeping claims
+      `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS` (any negative value), `callout_ttl_of` the side) and `build_leader_overlay(world, squads) ->
+      Node2D`; `squads_over(world, members, openings, rooms, human := {}, leaders := false, claim_ttl := CLAIM_TTL_OF_NPCS) ->
+      Dictionary` (its Arrays in `build_squads`' order, as `Squad.setup` takes them) is the squad tail `populate` and the Testing
       world's declared squads share: the human (`human.node`) handed its stack radio (`bind_player`), then `build_squads`, then
       `build_leader_overlay`, shown when `leaders`; it returns `{ squads, player_stack, leader_overlay }`.
     - **Overlay routing, once:** `set_overlay(handle, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and
