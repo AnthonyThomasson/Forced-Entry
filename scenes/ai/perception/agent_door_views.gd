@@ -481,21 +481,17 @@ func _area(ring: PackedVector2Array) -> float:
 	return total * 0.5
 
 
-## The wedge of doorway `opening` (`{ pos, width }`) seen from inside the room `room_rect`: the
-## area outside it bounded by the rays from the room's two far corners through the opposite jambs,
-## `depth` px long along each ray, before any wall stops it. A polygon: jamb, the far end of the ray
-## past it, the far end of the other ray, the other jamb. Pure geometry, no walls: `door_view` lays
-## the view out from it.
-static func wedge(opening: Dictionary, room_rect: Rect2, depth: float) -> PackedVector2Array:
+## The view of `opening` into the room `rect`: see `door_view`.
+func _build_view(opening: Dictionary, rect: Rect2, space) -> PackedVector2Array:
 	var pos: Vector2 = opening["pos"]
 	var half := float(opening.get("width", 80.0)) * 0.5
-	var out := -normal_into(room_rect, pos)
+	var out := -normal_into(rect, pos)
 	var along := out.orthogonal()
 	var corners := [
-		room_rect.position,
-		Vector2(room_rect.end.x, room_rect.position.y),
-		room_rect.end,
-		Vector2(room_rect.position.x, room_rect.end.y),
+		rect.position,
+		Vector2(rect.end.x, rect.position.y),
+		rect.end,
+		Vector2(rect.position.x, rect.end.y),
 	]
 	corners.sort_custom(func(a, b): return (a - pos).dot(out) < (b - pos).dot(out))
 	var far_a: Vector2 = corners[0]
@@ -505,21 +501,8 @@ static func wedge(opening: Dictionary, room_rect: Rect2, depth: float) -> Packed
 	var for_b: Vector2 = far_b if for_a == far_a else far_a
 	var jamb_a := pos - along * half
 	var jamb_b := pos + along * half
-	var end_a := jamb_a + (jamb_a - for_a).normalized() * depth
-	var end_b := jamb_b + (jamb_b - for_b).normalized() * depth
-	return PackedVector2Array([jamb_a, end_a, end_b, jamb_b])
-
-
-## The view of `opening` into the room `rect`: see `door_view`. Its `wedge`, stopped at walls.
-func _build_view(opening: Dictionary, rect: Rect2, space) -> PackedVector2Array:
-	var pos: Vector2 = opening["pos"]
-	var out := -normal_into(rect, pos)
-	var along := out.orthogonal()
-	var frame := wedge(opening, rect, door_view_depth)
-	var jamb_a := frame[0]
-	var end_a := frame[1]
-	var end_b := frame[2]
-	var jamb_b := frame[3]
+	var end_a := jamb_a + (jamb_a - for_a).normalized() * door_view_depth
+	var end_b := jamb_b + (jamb_b - for_b).normalized() * door_view_depth
 	# The view's outline from jamb to jamb the long way round, sampled for the rays.
 	var boundary: Array = []
 	for i in range(1, VIEW_SIDE_RAYS + 1):

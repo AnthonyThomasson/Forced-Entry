@@ -294,10 +294,7 @@ keeps `opening_id` / `normal_into` as one-line forwards to it, so the views neve
 seen from inside room `into` through it): a polygon from the rays from the room's two far corners through the opposite jambs, `door_view_depth` (450 px) long,
 each ray a fan cast from three points in the gap (the middle and each jamb, `VIEW_APEX_OUT` 8 px off the wall plane) and stopped at the first wall
 (`AgentVision.wall_hit`: static bodies only, furniture and characters are looked through), the three fans fused, and for a doorway between two rooms cut at
-the edge of the room in front of it (so a view does not run on through the next doorway into another room). Laid out once per doorway on a baked map and kept.
-The unstopped frame it starts from is the pure static `AgentDoorViews.wedge(opening, room_rect, depth)` (jamb, the far end of the ray past it, the far end
-of the other ray, the other jamb; no walls), the view's only geometry before the rays; an AI-internal helper, no seam
-(`tests/ai/perception/door_view_unchanged` pins every view of a generated house to a capture, point for point). `avoided(here_key, map, space, exempt)` is the set of views a walk from room `here_key` keeps out of: those of every doorway into a room that is not
+the edge of the room in front of it (so a view does not run on through the next doorway into another room). Laid out once per doorway on a baked map and kept. `avoided(here_key, map, space, exempt)` is the set of views a walk from room `here_key` keeps out of: those of every doorway into a room that is not
 clear for passing (`AgentPerception.is_pass_clear(key)`: the `cleared_room` memory's age is within `entry_pass_clear_time`, 60 s; `is_cleared` stays the
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
