@@ -23,13 +23,15 @@
 #                                         its frame-time budgets fail on a loaded machine, so they are a separate run.
 #   tools/run_tests.sh --failed           only the tests that FAILED / TIMED OUT in the previous run
 #                                         of this checkout (its report is kept in $TMPDIR); none: it says so
-#                                         ("nothing to rerun") and exits 0
+#                                         ("nothing to rerun") and exits 0; a report it cannot read: exit 2
 #   tools/run_tests.sh --changed          tests for what uncommitted changes can affect: each changed
 #                                         scenes/<domain>/ plus the domains that compose it (see
 #                                         `affected` below), in ONE run; main.gd, root scenes,
 #                                         project.godot, worldgen, art and general run everything;
 #                                         testing adds --self-test. An edited tests/<d>/[<topic>/]<name>_test.gd
 #                                         runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
+#                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
+#                                         and exits 0.
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
 #                                         the lint only on the staged scripts (as they are on disk; the whole tree
 #                                         when project.godot or a gdstyle file is staged; none when no script is),
@@ -130,12 +132,18 @@ for a in "$@"; do
     --skip-domain=*) SKIP="${SKIP:+$SKIP,}${a#--skip-domain=}"; args+=("$a") ;;
     --failed)
       [[ -f "$LAST" ]] || { echo "No previous run of this checkout to take failures from." >&2; exit 2; }
-      if ! python3 -c 'import json, sys; sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT")
-          for r in json.load(open(sys.argv[1])).get("results", [])) else 1)' "$LAST" 2>/dev/null; then
-        echo "no failed test in the last report: nothing to rerun"
-        exit 0
-      fi
-      args+=("--failed=$LAST") ;;
+      # 0: a failed test to rerun; 1: none; 3: the report cannot be read.
+      python3 -c 'import json, sys
+try:
+    results = json.load(open(sys.argv[1])).get("results", [])
+except (OSError, ValueError, AttributeError):
+    sys.exit(3)
+sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 1)' "$LAST" && found=0 || found=$?
+      case $found in
+        0) args+=("--failed=$LAST") ;;
+        1) echo "no failed test in the last report: nothing to rerun"; exit 0 ;;
+        *) echo "--failed: cannot read the last report ($LAST); run the tests again to write a new one." >&2; exit 2 ;;
+      esac ;;
     *) args+=("$a") ;;
   esac
 done
@@ -613,7 +621,9 @@ if [[ $CHANGED -eq 1 ]]; then
     esac
   done
   domains=$(echo $domains | tr ' ' '\n' | sort -u | tr '\n' ' ')
+  domains="${domains% }"
   status=0
+  skipped=""   # the domains a changed file maps to that --skip-domain leaves out
   ran=0
   if [[ " $domains " == *" all "* ]]; then
     ran=1
@@ -626,6 +636,7 @@ if [[ $CHANGED -eq 1 ]]; then
     for d in $domains $exact; do
       [[ -d "tests/$d" && ",$existing," != *",$d,"* ]] && existing="$existing,$d"
       [[ -d "tests/$d" && ",$SKIP," != *",$d,"* ]] && kept=1
+      [[ -d "tests/$d" && ",$SKIP," == *",$d,"* && ",$skipped," != *",$d,"* ]] && skipped="$skipped,$d"
     done
     if [[ $kept -eq 1 ]]; then
       ran=1
@@ -635,13 +646,16 @@ if [[ $CHANGED -eq 1 ]]; then
     # Changed test files whose domain is not already running above.
     only_ids=""
     for id in $ids; do
-      [[ ",$existing," == *",${id%%/*},"* || ",$SKIP," == *",${id%%/*},"* ]] || only_ids="$only_ids,$id"
+      d="${id%%/*}"
+      [[ ",$SKIP," == *",$d,"* && ",$skipped," != *",$d,"* ]] && skipped="$skipped,$d"
+      [[ ",$existing," == *",$d,"* || ",$SKIP," == *",$d,"* ]] || only_ids="$only_ids,$id"
     done
     if [[ -n "$only_ids" ]]; then
       ran=1
       echo "== ${only_ids#,} =="
       run "--id=${only_ids#,}" || status=1
     fi
+    [[ $perf -eq 1 && ",$SKIP," == *",perf,"* && ",$skipped," != *",perf,"* ]] && skipped="$skipped,perf"
     if [[ $perf -eq 1 && ",$SKIP," != *",perf,"* ]]; then
       ran=1
       echo "== perf tests (tests/_perf changed) =="
@@ -653,7 +667,11 @@ if [[ $CHANGED -eq 1 ]]; then
     echo "== harness self-tests =="
     run --self-test || status=1
   fi
-  [[ $ran -eq 1 ]] || echo "No changed file maps to any tests (affected: ${domains:-none})."
+  if [[ $ran -eq 0 && -n "$skipped" ]]; then
+    echo "No test to run: the changed files map only to skipped domains (${skipped#,})."
+  elif [[ $ran -eq 0 ]]; then
+    echo "No changed file maps to any tests (affected: ${domains:-none})."
+  fi
   exit $status
 fi
 

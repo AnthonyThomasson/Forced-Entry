@@ -63,11 +63,13 @@ and controller contract, EventBus and character signals) and never reaches into 
   `--skip-domain` given more than once add up, as one comma list (`--id=a --id=b` is `--id=a,b`), in the wrapper, the
   suites and `--list`. A run whose selection holds no test at all (catalog or native, every shard together) ends on
   `no test matched the selection: <args>` and exits 1; a `--list` that lists none, and a `--changed` with nothing
-  mapped (a domain `--skip-domain` leaves out maps to nothing), exit 0. `--failed` when the last report holds no
-  FAIL / TIMEOUT prints `no failed test in the last report: nothing to rerun` and exits 0. Domain/id selection is decided
-  from the file path, so unselected test scripts are never loaded. A native suite runs whole or not at all: its id is
-  its path under `tests/` (`general/weighted_pick_suite`), a case's `<suite id>::<function>`; `--domain`, `--skip-domain`,
-  an `--id` naming the suite or one of its cases and filter words on its path and name select it, `--self-test` never.
+  mapped (`No changed file maps to any tests`) or mapped only to domains `--skip-domain` leaves out (`No test to run:
+  the changed files map only to skipped domains (perf).`), exit 0. `--failed` when the last report holds no FAIL /
+  TIMEOUT prints `no failed test in the last report: nothing to rerun` and exits 0, and over a report it cannot read
+  exits 2. Domain/id selection is decided from the file path, so unselected test scripts are never loaded. A native
+  suite runs whole or not at all: its id is its path under `tests/` (`general/weighted_pick_suite`), a case's
+  `<suite id>::<function>`; `--domain`, `--skip-domain`, an `--id` naming the suite or one of its cases and filter
+  words on its path and name select it, `--self-test` never.
 - **Speed:** `--jobs=N|auto` (wrapper only) splits the run over N parallel godot processes via each one's
   `--shard=I/N`, merges their output into one combined total, one `Slowest:` list and one `--failed` report.
   `auto` = cores, at most 6 (the stress tests stay under half their budgets at 6 jobs on a 12-core machine). **Without `--jobs`, a run of the whole suite uses `auto` and any selection (filter

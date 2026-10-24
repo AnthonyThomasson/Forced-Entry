@@ -279,6 +279,17 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("no failed test in the last report: nothing to rerun", out)
         self.assertNotIn("passed,", out, "nothing is run")
 
+    def test_failed_over_an_unreadable_last_report_is_refused_not_passed(self):
+        state = Path(tempfile.mkdtemp(dir=self.tmp))
+        self.assertEqual(self.run_wrapper("clean", state=state)[0], 0)
+        (last,) = state.glob("example_godot_last_report_*.json")
+        last.write_text("{ not json")
+        code, out = self.run_wrapper("clean", "--failed", state=state)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot read the last report", out)
+        self.assertIn(str(last), out, "it names the file")
+        self.assertNotIn("nothing to rerun", out)
+
     def test_one_failing_shard_fails_the_whole_run(self):
         self.assertEqual(self.run_wrapper("shard1_error", "--jobs=2")[0], 1)
         self.assertEqual(self.run_wrapper("clean", "--jobs=2")[0], 0)
@@ -314,11 +325,12 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(self.shards(self.run_wrapper("clean", "--jobs=3", "--id=a/x,b/y")[1]), 2)  # never more than the ids
 
     def changed(self, files, scenario="clean", *extra):
-        """What `--changed` runs when git reports exactly `files` as changed: the selection lines the fake prints."""
+        """What `--changed` runs when git reports exactly `files` as changed: the selection lines the fake prints, and
+        the wrapper's own `== ` headers and `No …` lines."""
         env = dict(os.environ, GODOT=str(self.fake), FAKE_SCENARIO=scenario, TMPDIR=str(self.tmp),
                    GAME_TEST_CHANGED_FILES="\n".join(files))
         r = subprocess.run(["bash", str(RUN), "--changed", "--no-lint", "--jobs=1", *extra], cwd=ROOT, env=env, capture_output=True, text=True)
-        return r.returncode, [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("selection:", "== "))]
+        return r.returncode, [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("selection:", "== ", "No "))]
 
     def test_changed_runs_only_an_edited_test_not_the_domains_that_compose_its_code(self):
         code, lines = self.changed(["tests/projectile/pistol_shot_wounds_test.gd"])
@@ -353,13 +365,17 @@ class WrapperTests(unittest.TestCase):
     def test_repeated_id_flags_count_together_against_the_jobs(self):
         self.assertEqual(self.shards(self.run_wrapper("clean", "--jobs=3", "--id=a/x", "--id=b/y")[1]), 2)
 
-    def test_changed_with_nothing_mapped_still_passes(self):
-        for files in (["docs/hearing.md"], ["tests/perf/match_5v5_stress_test.gd"], ["tests/perf/perf_suite.gd"]):
+    def test_changed_with_nothing_mapped_or_only_skipped_still_passes_and_says_which(self):
+        cases = ((["docs/hearing.md"], "No changed file maps to any tests (affected: none)."),
+                 # A perf test or suite under the hook's --skip-domain=perf: mapped, then left out.
+                 (["tests/perf/match_5v5_stress_test.gd"], "No test to run: the changed files map only to skipped domains (perf)."),
+                 (["tests/perf/perf_suite.gd"], "No test to run: the changed files map only to skipped domains (perf)."))
+        for files, says in cases:
             with self.subTest(files=files):
-                # A perf test or suite under the hook's --skip-domain=perf maps to nothing either.
                 code, lines = self.changed(files, "empty", "--skip-domain=perf")
                 self.assertEqual(code, 0, lines)
                 self.assertEqual([l for l in lines if l.startswith("selection:")], [])
+                self.assertTrue(any(says in l for l in lines), lines)
 
     def test_changed_does_not_repeat_a_test_whose_domain_already_runs(self):
         _, lines = self.changed(["scenes/ai/behavior/behavior.gd", "tests/ai/decision/goal_names_the_gun_test.gd",
