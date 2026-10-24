@@ -27,8 +27,9 @@ break (`tools/run_tests.sh --changed --staged`: picked from what is staged, whic
 --domain=perf`; when it touches `tools/`, it also runs the tool tests (`python3 -m unittest discover -s tools -t .`);
 when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, or one of gdstyle's own
 files, it runs `tools/lint.sh` on the staged scripts. It checks what the commit holds, not the working tree (a lint
-finding in a file the commit does not hold says `not in this commit: <path>`). Enable it once per clone with
-`tools/install_hooks.sh`.
+finding in a file the commit does not hold says `not in this commit: <path>`). A commit-msg hook
+(`.githooks/commit-msg`) refuses a message whose `Co-Authored-By: Claude <model>` line names another model than the
+branch's earlier commits. Enable both once per clone with `tools/install_hooks.sh`.
 
 ## Agent skills
 

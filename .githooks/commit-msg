@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Git commit-msg hook: refuse a commit whose Claude co-author names another model than the branch's earlier commits.
+#   A Claude line is a `Co-Authored-By: Claude <model> <email>` line of the message (comment lines and what follows a
+#   scissors line left out: git strips them after this hook). A skill pinned with `model:` can switch the session's
+#   attribution reminder to its model while the session runs another, so a commit made then names the wrong one.
+#   - The message's own Claude lines name two models: refused.
+#   - Its model differs from one named by the Claude lines of `git log <base>..HEAD` (base origin/main, else main; merges
+#     walked too, commits without a Claude line ignored): refused, naming both models, the earlier commits' short
+#     hashes and the fix (edit this message, or reword the earlier commits if they are the wrong ones).
+#   - No Claude line in the message, or none in the branch's earlier commits: it passes, silently.
+#   An amend (`git commit --amend`, as a rebase's reword makes one: read off the git process that runs this hook)
+#   replaces HEAD, so HEAD is left out of the earlier commits and the amend can put HEAD's own line right.
+# Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
+set -uo pipefail
+msg="$1"
+
+base=""
+for ref in origin/main main; do
+  if git rev-parse --verify -q "$ref^{commit}" >/dev/null; then base="$ref"; break; fi
+done
+head="HEAD"
+ps -o args= -p "$PPID" 2>/dev/null | grep -qE '(^| )--amend( |$)' && head="HEAD^"
+history=""
+if [[ -n "$base" ]] && git rev-parse --verify -q "$head^{commit}" >/dev/null; then
+  # One record per commit: its short hash, then its message, NUL-separated.
+  history=$(git log -z --format='%h%n%B' "$base..$head" | base64)
+fi
+
+python3 - "$msg" "$base" "$history" <<'EOF'
+import base64, re, sys
+from collections import OrderedDict
+
+CLAUDE = re.compile(r"^co-authored-by:\s*(claude\b.*?)\s*<[^>]*>\s*$", re.I)
+SCISSORS = re.compile(r"^# -+ >8 -+$")
+
+
+def claude_lines(text):
+    """The Claude co-author lines of a message, as git keeps it: comment lines and the scissors' tail left out."""
+    out = []
+    for line in text.splitlines():
+        if SCISSORS.match(line):
+            break
+        if line.startswith("#"):
+            continue
+        m = CLAUDE.match(line.strip())
+        if m:
+            out.append((re.sub(r"\s+", " ", m.group(1)), line.strip()))
+    return out
+
+
+path, base, history = sys.argv[1], sys.argv[2], sys.argv[3]
+mine = claude_lines(open(path, encoding="utf-8", errors="replace").read())
+models = list(OrderedDict.fromkeys(model for model, _ in mine))
+if not models:
+    sys.exit(0)
+if len(models) > 1:
+    print("commit-msg: this message's Co-Authored-By lines name more than one Claude model: "
+          + ", ".join(models) + ".\nFix: keep only the line of the model this session runs, and commit again.",
+          file=sys.stderr)
+    sys.exit(1)
+
+earlier = OrderedDict()  # model -> (its first line, [short hashes])
+for record in base64.b64decode(history).decode("utf-8", "replace").split("\0"):
+    short, _, body = record.partition("\n")
+    for model, line in claude_lines(body):
+        hashes = earlier.setdefault(model, (line, []))[1]
+        if short not in hashes:
+            hashes.append(short)
+others = [m for m in earlier if m != models[0]]
+if not others:
+    sys.exit(0)
+named = "; ".join(f"{m} ({', '.join(reversed(earlier[m][1]))})" for m in earlier)
+print(f"commit-msg: this message's Co-Authored-By names {models[0]}, but the branch's earlier commits since {base} "
+      f"name {named}.\n"
+      f"Fix: edit this message's line to \"{earlier[others[0]][0]}\" and commit again; or, if the earlier commits "
+      f"carry the wrong model, reword them first (git rebase -i {base}, `reword` each) and then commit.",
+      file=sys.stderr)
+sys.exit(1)
+EOF
