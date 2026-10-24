@@ -488,25 +488,31 @@ are functional tests of their domain.
   Godot, a run whose load went over 4 discarded; old 4af0b43, new 91400e6's guard code, measured before the branch was rebased onto
   #81), medians, avg / p95 / max ms, bold misses:
 
-  | Test | before #95 | since #95 |
-  |---|---|---|
-  | `match_5v5` | 5.93 / 9.10 / 12.47 | 5.55 / 11.31 / 22.89 |
-  | `match_10v10` | 10.88 / 14.69 / 22.42 | 11.74 / **22.04** / **65.34** |
-  | `match_10v10_team` | 8.91 / 11.94 / 14.41 | (folded into `match_10v10`) |
-  | `grenade_match` (P1) | 10.16 / 15.09 / 24.20 | 10.58 / 17.29 / 33.18 |
-  | `npc_crowd` | 4.49 / 10.04 / 16.44 | 4.48 / 10.62 / 16.70 |
-  | `automatic_fire` | 5.40 / 8.24 / 10.96 | 5.52 / 8.60 / 10.47 |
-  | `hit_overload` | 7.97 / 9.87 / 10.60 | 8.54 / 10.10 / 10.66 |
-  | `crowd_deaths` | 7.49 / 11.80 / 16.12 | 7.48 / 11.87 / 15.72 |
-  | `furniture_pile` (moving) | 0.72 / 2.15 / 2.61 | 0.72 / 2.14 / 2.65 |
-  | `grenade_burst` (P2) | 6.41 / 8.47 / 22.10 | 6.89 / 8.90 / 22.50 |
-  | `bake_and_path`, `generate_houses` | pass | pass |
+  | Test | before #95 | since #95 | 7d067bf (after the review fixes) |
+  |---|---|---|---|
+  | `match_5v5` | 5.93 / 9.10 / 12.47 | 5.55 / 11.31 / 22.89 | 5.28 / 9.22 / 23.40 |
+  | `match_10v10` | 10.88 / 14.69 / 22.42 | 11.74 / **22.04** / **65.34** | 12.11 / **25.91** / **51.13** |
+  | `match_10v10_team` | 8.91 / 11.94 / 14.41 | (folded into `match_10v10`) | |
+  | `grenade_match` (P1) | 10.16 / 15.09 / 24.20 | 10.58 / 17.29 / 33.18 | 10.80 / 17.14 / **35.51** |
+  | `npc_crowd` | 4.49 / 10.04 / 16.44 | 4.48 / 10.62 / 16.70 | 4.66 / 12.07 / 16.83 |
+  | `automatic_fire` | 5.40 / 8.24 / 10.96 | 5.52 / 8.60 / 10.47 | 5.07 / 7.80 / 10.81 |
+  | `hit_overload` | 7.97 / 9.87 / 10.60 | 8.54 / 10.10 / 10.66 | 7.72 / 9.28 / 10.27 |
+  | `crowd_deaths` | 7.49 / 11.80 / 16.12 | 7.48 / 11.87 / 15.72 | 7.76 / 11.72 / 16.77 |
+  | `furniture_pile` (moving) | 0.72 / 2.15 / 2.61 | 0.72 / 2.14 / 2.65 | 0.71 / 2.09 / 2.47 |
+  | `grenade_burst` (P2) | 6.41 / 8.47 / 22.10 | 6.89 / 8.90 / 22.50 | 6.82 / 8.39 / 22.37 |
+  | `bake_and_path`, `generate_houses` | pass | pass | pass |
 
   The averages barely move; the tails do. The 5v5 and P1 medians pass, each grazing or missing its max in one run of three; the
   10v10's window holds 10 to 16 NPCs knowing a hostile and 21 to 48 shots (the team guard's held 2 and 0), and its p95 and max miss in
   every run: one invader's decision that weighs its grenades (`AgentTactics.throw_spot` about 5 ms a search, up to four a snapshot, and
   `AgentThrow.escape` 5 to 14 ms) takes 20 to 47 ms in one frame. With the invaders' grenades taken away its max fell within 33.4. The
   guard stays red and the standard untouched, by the user's decision; the fix is #98. Not yet re-measured windowed.
+  The 7d067bf column re-measures the tree after the review fixes (the give-way's look-ahead cut to the walk left and the
+  follower's catch-up run, on a per-frame path, and the three match guards on one `Perf` helper): `tools/run_tests.sh --domain=perf
+  --verbose`, three runs back to back on 2026-10-24 (12:35 to 12:38), each started at a load under 4 (3.60-3.96, 3.62-4.22 and
+  3.15-3.32 through the runs; none discarded), medians. Within the runs' spread: the 10v10 misses its p95 and max in every run (#98),
+  P1 its max in two of three (25.30, 35.51, 50.28), the 5v5 its max in one of three (38.26), as before; every other guard held its
+  budget in all three.
 - **The standard:** a match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps
   frame, the Performance overlay's target), `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through
   `Perf.within_frames`, at the scale of the largest match (twenty characters, `match_10v10_stress`), with no looser tail.

@@ -822,7 +822,16 @@ hostile and 21 to 48 shots (the team guard's held 2 and 0), and its p95 and max 
 grenades (the throw spots and the escape from the burst, in its decision snapshot) takes 20 to 47 ms in one frame. With the invaders' stuns
 and frags set to 0 its max fell to 29.02. By the user's decision the guard stays red on a quiet machine and the standard is untouched; the
 fix is #98. The 5v5 and the grenade match medians pass, each grazing or missing its max in one run of three. The other guards' numbers are
-in the `domain-testing` skill. The runs below are from before issue #95.
+in the `domain-testing` skill.
+
+**Re-measured after the review fixes** (7d067bf: the give-way's look-ahead cut to the walk left and the follower's catch-up run, both
+on a per-frame path, and the three guards on one `Perf` helper). `tools/run_tests.sh --domain=perf --verbose`, three runs back to back on
+2026-10-24 from 12:35 to 12:38, each started at a 1-min load under 4 (3.60-3.96, 3.62-4.22 and 3.15-3.32 through the runs, sampled
+every 10 s; none discarded), medians avg / p95 / max: 10v10 12.11 / **25.91** / **51.13** (p95 23.19 to 34.42, max 50.72 to 51.77), 5v5
+5.28 / 9.22 / 23.40, grenades in a 5v5 match 10.80 / 17.14 / **35.51** (max 25.30, 35.51, 50.28). Within the runs' spread of the
+medians above: the 10v10 misses its p95 and max in every run (#98), the grenade match its max in two runs of three, and the 5v5 missed its
+max in one run of three (38.26), as before. Every other guard held its budget in all three runs. The runs below are from before issue
+#95.
 
 **With squads following their leaders (LD19 to LD28).** `tools/run_tests.sh --domain=perf` (twelve guards, the eleven below and
 `perf/match_10v10_team_stress`: the 10v10 guard's match, the same house, placement and scripted Von, with one squad a side bound as Main

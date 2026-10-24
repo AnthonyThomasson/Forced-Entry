@@ -792,8 +792,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - Following reads (LD19 to LD23): `follows(member) -> bool` (alive, the squad has a leader, not the leader, an NPC), `follow_spot(member)
       -> Vector2` (the spot it keeps to now, `Vector2.INF` when it does not follow: on the leader's trail while it moves, a ring slot behind
       it once it has stood `follow_still_time`, out of the leader's way), and the tunables the AI reads, vars on the squad: `follow_gap` (55),
-      `follow_step` (45), `follow_ring` (80), `follow_still_time` (0.8 s), `follow_retarget` (20), `follow_arrive` (10), `leash` (320) and
-      `leash_break` (1.3). The squad keeps the leader's trail every physics frame and lays the spots through its `SquadFollow`
+      `follow_step` (45), `follow_caught_up` (20), `follow_ring` (80), `follow_still_time` (0.8 s), `follow_retarget` (20), `follow_arrive`
+      (10), `leash` (320) and `leash_break` (1.3). The squad keeps the leader's trail every physics frame and lays the spots through its `SquadFollow`
       (`ai/team/squad_follow.gd`, the team module's own, which reads the tunables, `leader()`, `members()`, `alive` and `follows` off the
       squad). The controller reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
       follow tunables, and faces away from the leash centre the controller pushes (its leader's live position), reading no `leader()`.
