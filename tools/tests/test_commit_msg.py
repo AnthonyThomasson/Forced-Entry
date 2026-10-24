@@ -96,7 +96,8 @@ class CommitMsgTests(unittest.TestCase):
             git(repo.root, "checkout", "-q", "work")
             git(repo.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "merge", "-q", "--no-ff", "side",
                 "-m", message("Merge side", HAIKU))
-            repo.commit("b.txt", message("Last", HAIKU))
+            # Written as the hook still reads it: GitHub's casing, the model spaced out.
+            repo.commit("b.txt", message("Last", "co-authored-by: Claude  Haiku 5.5 <noreply@anthropic.com>"))
             r = repo.hook(message("Next", OPUS))
             self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
             # As the agent runs it: no editor to open (an interactive rebase would fail on it), the hooks on.
@@ -108,7 +109,8 @@ class CommitMsgTests(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
             log = git(repo.root, "log", "--format=%B", "main..work")
             self.assertNotIn("Haiku", log)
-            self.assertEqual(log.count(OPUS), 3, "each earlier Claude commit reworded, the merge's included\n" + log)
+            self.assertEqual(log.count("Claude Opus 5.5 <"), 3,
+                             "each earlier Claude commit reworded, the merge's included\n" + log)
             self.assertIn("side.txt", git(repo.root, "ls-files"), "the merge is kept")
             self.assert_passes(repo.hook(message("Next", OPUS)))
 
