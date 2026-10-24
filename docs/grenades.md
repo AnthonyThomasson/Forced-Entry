@@ -524,8 +524,8 @@ changes (fewer splats per blast, the blast's work spread over frames, simpler ar
 **Issue #95** builds P1's match through `MatchBuilder`, so its invaders carry their plates and grenades, are styled and ranked and follow
 their squad's leader, from beside the front door. Re-baselined headless only (`tools/run_tests.sh --domain=perf --verbose --summary
 --no-lint`, three valid runs a side, each started at a 1-minute load under 3.5 with no other headless Godot, a run whose load went over 4
-discarded; before 4af0b43, after 4c08406), P1's medians went from 10.16 / 15.09 / 24.20 to 10.58 / 17.29 / 33.18, and P2's from 6.41 / 8.47
-/ 22.10 to 6.89 / 8.90 / 22.50. P1's median passes; its max missed in one run of three (34.52). Not yet re-measured windowed; the other
+discarded; before 4af0b43, after 91400e6's guard code, measured before the branch was rebased onto #81), P1's medians went from 10.16 /
+15.09 / 24.20 to 10.58 / 17.29 / 33.18, and P2's from 6.41 / 8.47 / 22.10 to 6.89 / 8.90 / 22.50. P1's median passes; its max missed in one run of three (34.52). Not yet re-measured windowed; the other
 guards' numbers are in the `domain-testing` skill.
 
 **The prepaint's cost.** A gun or grenade paints its art ahead of time once per weapon style per process (`ItemRegistry.inventory_for`, every

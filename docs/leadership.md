@@ -796,10 +796,11 @@ styled and ranked, one squad a side, every member but the leader following it. `
 `match_10v10_stress`, which keeps its premises (one squad a side, the rank rule's leader, every member but the leader following, contact
 within `CONTACT_WITHIN`) and its logs; the 5v5 and the grenade match now require contact too (`Perf.await_contact`). So `tools/run_tests.sh
 --domain=perf` runs eleven guards. Re-baselined headless (`--domain=perf --verbose --summary --no-lint`, three valid runs a side, each
-started at a 1-min load under 3.5 with no other headless Godot and discarded if the load went over 4; before 4af0b43, after 4c08406),
-medians in ms per frame, avg / p95 / max against 16.7 / 20 / 33.4 (bold misses):
+started at a 1-min load under 3.5 with no other headless Godot and discarded if the load went over 4; before 4af0b43, after 91400e6's
+guard code, measured before the branch was rebased onto #81), medians in ms per frame, avg / p95 / max against 16.7 / 20 / 33.4 (bold
+misses):
 
-| Guard | Before (4af0b43) | After (4c08406) |
+| Guard | Before (4af0b43) | After (91400e6) |
 |---|---|---|
 | 10v10 match (`match_10v10_stress`) | 10.88 / 14.69 / 22.42 | 11.74 / **22.04** / **65.34** |
 | 10v10 team match (`match_10v10_team_stress`) | 8.91 / 11.94 / 14.41 | (folded into the 10v10) |

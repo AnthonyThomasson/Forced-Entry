@@ -480,7 +480,8 @@ are functional tests of their domain.
   **Since issue #95** the three match guards build a real match through `MatchBuilder` (the invaders with plates and grenades, styled
   and ranked, in squads, beside the front door), and `match_10v10_team` is folded into `match_10v10`. Re-baselined headless only
   (`--domain=perf --verbose --summary --no-lint`, three valid runs a side, each started at a load under 3.5 with no other headless
-  Godot, a run whose load went over 4 discarded; old 4af0b43, new 4c08406), medians, avg / p95 / max ms, bold misses:
+  Godot, a run whose load went over 4 discarded; old 4af0b43, new 91400e6's guard code, measured before the branch was rebased onto
+  #81), medians, avg / p95 / max ms, bold misses:
 
   | Test | before #95 | since #95 |
   |---|---|---|
