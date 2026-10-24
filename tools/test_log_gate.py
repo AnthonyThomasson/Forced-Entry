@@ -521,13 +521,14 @@ class EngineTests(unittest.TestCase):
 GDUNIT_TOOL = "res://addons/gdUnit4/bin/GdUnitCmdTool.gd"
 
 FAKE_ARGV_GODOT = r"""#!/usr/bin/env bash
-# Stands in for Godot: records its argv (one argument per line) in $FAKE_ARGV_DIR, one file per process, and exits.
-# Started on the lint scene it prints a clean lint.
+# Stands in for Godot: records its argv (one argument per line) in $FAKE_ARGV_DIR, one file per process, and its
+# GODOT_CMD_PORT beside it (<pid>.port), and exits. Started on the lint scene it prints a clean lint.
 for a in "$@"; do
   if [ "$a" = "res://tools/lint_scripts.tscn" ]; then echo "LINT-PASS2"; echo "LINT-DONE 0"; exit 0; fi
 done
 f="$FAKE_ARGV_DIR/$$.argv"
 for a in "$@"; do printf '%s\n' "$a" >> "$f"; done
+echo "${GODOT_CMD_PORT-<unset>}" > "$FAKE_ARGV_DIR/$$.port"
 exit 0
 """
 
@@ -547,11 +548,14 @@ class GdUnitCommandLineTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def launches(self, *args):
-        """The argv of every engine process a run_tests.sh call started (the lint's aside)."""
+    def launches(self, *args, ports=None, **env_extra):
+        """The argv of every engine process a run_tests.sh call started (the lint's aside); with `ports` a list, each
+        one's GODOT_CMD_PORT is appended to it."""
         argv_dir = Path(tempfile.mkdtemp(dir=self.tmp))
-        env = dict(os.environ, GODOT=str(self.fake), FAKE_ARGV_DIR=str(argv_dir), TMPDIR=str(argv_dir))
+        env = dict(os.environ, GODOT=str(self.fake), FAKE_ARGV_DIR=str(argv_dir), TMPDIR=str(argv_dir), **env_extra)
         subprocess.run(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+        if ports is not None:
+            ports += [f.with_suffix(".port").read_text().strip() for f in sorted(argv_dir.glob("*.argv"))]
         return [f.read_text().splitlines() for f in sorted(argv_dir.glob("*.argv"))]
 
     @staticmethod
@@ -588,6 +592,15 @@ class GdUnitCommandLineTests(unittest.TestCase):
         self.assertEqual(len(runs), 2, runs)
         for argv in runs:
             self.assert_shape(argv)
+
+    def test_every_engine_process_runs_with_the_command_server_off_over_the_callers_port(self):
+        for env in ({}, {"GODOT_CMD_PORT": "9123"}):
+            for args in (["--id=a/x"], ["--jobs=2", "--id=a/x,b/y"], ["--list"]):
+                with self.subTest(env=env, args=args):
+                    ports = []
+                    runs = self.launches(*args, ports=ports, **env)
+                    self.assertTrue(runs, "the run started the engine")
+                    self.assertEqual(ports, ["off"] * len(runs))
 
     def test_windowed_and_shots_runs_keep_a_window(self):
         for flag in ("--windowed", "--shots"):

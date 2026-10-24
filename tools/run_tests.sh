@@ -72,6 +72,9 @@
 # printed output leaves out, in gdunit.txt.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
+# it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
+export GODOT_CMD_PORT=off
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 if [[ -z "$GODOT" ]]; then

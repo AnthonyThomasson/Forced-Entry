@@ -29,6 +29,8 @@ The CLI is driven the way an agent drives it, on the fixture project made a git 
   runner.launch(copy, entry, hits_dir, windowed=False) -> subprocess.Popen
                                             starts one game process of an instrumented copy for one plan entry, its
                                             probe flushing coverage_hits_<pid>.json into `hits_dir` every 5 s
+  runner.game_env(copy, **extra) -> dict     the environment of every process run in the copy: GODOT_CMD_PORT=off
+                                            over any port of the caller's (the dev command server never listens)
 
 The fixture game (fixtures/project/scenes/main.gd) plays a match a few frames long; a seed of 9000 or more is a
 stalemate that never ends on its own (near real time), for the time cap and the kill -9 tests.
@@ -143,6 +145,17 @@ class PlanTests(unittest.TestCase):
 
 
 @needs_godot
+class GameEnvTests(unittest.TestCase):
+    def test_a_process_in_the_copy_runs_with_the_command_server_off_over_the_callers_port(self):
+        for port in (None, "9123"):
+            with self.subTest(port=port), mock.patch.dict(os.environ):
+                os.environ.pop("GODOT_CMD_PORT", None)
+                if port is not None:
+                    os.environ["GODOT_CMD_PORT"] = port
+                self.assertEqual(runner.game_env(ROOT).get("GODOT_CMD_PORT"), "off")
+                self.assertEqual(runner.game_env(ROOT, FE_COVERAGE="x").get("GODOT_CMD_PORT"), "off")
+
+
 class WatchRunTests(unittest.TestCase):
     """`run --matches=2 --seed=100`: two Watch matches, seeds 100 and 101, in two processes, two at a time (the
     default `--jobs`)."""

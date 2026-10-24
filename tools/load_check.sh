@@ -4,9 +4,12 @@
 # printing them; 0 when clean. Engine end-of-process leak lines are a NOTE unless --strict-exit.
 # --import first imports the project with the same Godot (writes each new script's .uid and the class cache; headless
 # runs never import), failing before the check when the import does; its progress_dialog noise is not a failure.
+# The dev command server stays off (GODOT_CMD_PORT=off, over any port the caller set): the check never drives it, and
+# a port another worktree's game or check holds would otherwise fail it on the server's "failed to listen" warning.
 #   tools/load_check.sh [--import] [--strict-exit] [--windowed]
 set -uo pipefail
 cd "$(dirname "$0")/.."
+export GODOT_CMD_PORT=off
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 [[ -n "$GODOT" ]] && command -v "$GODOT" >/dev/null \
