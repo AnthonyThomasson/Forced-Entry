@@ -62,6 +62,13 @@ if [[ "${FAKE_LINT_FAIL:-}" == 1 ]]; then
   echo "FAIL"
   exit 1
 fi
+if [[ -n "${FAKE_LINT_NAMES:-}" ]]; then
+  # A finding in the staged script whose message names another one (the script it fails to preload).
+  echo "== GDScript analyzer (engine) =="
+  echo "res://sandboxes/thing_sandbox.gd  (1)"
+  echo "  Parse Error: Could not preload resource script 'res://$FAKE_LINT_NAMES'."
+  exit 1
+fi
 if [[ -n "${FAKE_LINT_FOREIGN:-}" ]]; then
   # A finding in a file it was not given, as the engine pass reports a script one of them loads.
   echo "== GDScript analyzer (engine) =="
@@ -395,6 +402,16 @@ class PreCommitTests(unittest.TestCase):
             repo.stage("sandboxes/thing_sandbox.gd")
             r = repo.hook(FAKE_LINT_FAIL="1")
             self.assertNotIn("not in this commit", r.stderr, "a finding in a staged file is not labelled")
+
+    def test_a_script_a_staged_finding_only_names_is_not_labelled(self):
+        # The label goes by where the finding is (the path a line starts with), not every script its message names.
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.stage("sandboxes/thing_sandbox.gd")
+            r = repo.hook(FAKE_LINT_NAMES="scenes/thing.gd")
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("Could not preload resource script 'res://scenes/thing.gd'.", r.stderr)
+            self.assertNotIn("not in this commit", r.stderr)
 
     def test_a_script_staged_ahead_of_a_long_list_still_runs_the_lint(self):
         # Far more than a pipe holds after the script: a check that stops reading at the first match would fail.
