@@ -88,6 +88,10 @@ Same current-state bar as step 4. `AGENTS.md` is a pointer stub.
   resolution order, item slots, input flow …). Interface signatures live only in `architecture`; the domain skill
   names them by number.
 
+- **A changed read of an entry claim** (a `ClaimLedger`'s, or a `DoorStack` built from one) holds to the **stale
+  claim** rule (`domain-ai-perception`, "The stack"): it names what makes a claim the current entry's, and its test
+  has a claim left from an earlier entry through the same doorway. Missing: `file:line` → the scope and that test.
+
 Flag drift as `architecture/SKILL.md:line` or `domain-<name>/SKILL.md:line` → what to change.
 
 ## Step 4 — Comments (the comment rules)
