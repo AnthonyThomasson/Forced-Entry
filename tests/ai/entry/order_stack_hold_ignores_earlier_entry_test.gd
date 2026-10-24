@@ -17,7 +17,9 @@ extends GameTest
 ## the bus (in the wire format's field names, interface 10), not an AI that cleared the kitchen: an
 ## AI's cover ends on its own clock (`entry_cover_time`) and its clear marks the room cleared, which
 ## changes what the ordered members do; the stack reads only the bus, so a puppet's claim is
-## exactly what it hears from an AI.
+## exactly what it hears from an AI. The squad is built in the run over the leader and the three
+## (`Order.squad`, through `MatchBuilder.build_squads`), not declared with `s.squads`: the earlier
+## entry's puppet is an invader too, and no member of the held stack's squad.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -60,8 +62,8 @@ func run(t: TestContext) -> void:
 	var door: String = Entry.BACK["id"]
 	var into: String = Entry.BACK["room_key"]
 	var members := IDS.map(func(id): return t.actor(id))
-	var squad := Order.raid(t, IDS, &"lead")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
+	var squad := Order.squad(t, &"invader", [t.actor(&"lead")] + members, t.actor(&"lead"))
+	if not t.require(squad != null, "the squad is built over the leader and the three"):
 		return
 	# The earlier entry's member keeps its cover claim on the radio for the whole test.
 	var covering := [true]

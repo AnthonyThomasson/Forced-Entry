@@ -7,9 +7,9 @@ extends GameTest
 ## stack it stands in is still forming, its only other member at the bang.
 ##
 ## The whole AI pipeline with the real Von server; the human is a puppet with the invader faction,
-## given the stack radio and its squad the way Main gives them (`PlayerStack.attach`, its `squad`),
-## leading the squad. The AI carries one stun (armed as Main arms a loadout): the premise of a stun
-## entry.
+## given the stack radio and its squad the way a match gives them (`MatchBuilder.bind_player` and
+## `bind_squad`, through `s.squads`), leading the squad. The AI carries one stun (armed as Main arms
+## a loadout): the premise of a stun entry.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Grenade := preload("res://tests/_ai/grenade_probe.gd")
@@ -36,19 +36,17 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.actor(&"a", &"invader", Vector2(960, 60))
 	Stack.human(s, &"me", Vector2(1000, 120))
+	s.squads({ "human": &"me" })
 
 
 func run(t: TestContext) -> void:
 	var door: Dictionary = Entry.BACK
 	var opening := String(door["id"])
 	Grenade.arm(t.actor(&"a"), 1)
-	var squad := Order.raid(t, [&"a"], &"me")
-	if not t.require(squad != null, "the squad script exists (%s)" % Order.SQUAD_SCRIPT):
+	var squad := t.squad(&"invader")
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
-		return
-	stack.set("squad", squad)  # The human leads this squad (Main's wiring): its claims say so.
 	await t.seconds(0.3)
 	var order := Order.stack_order(squad, [t.actor(&"a")], Order.BACK_NORTH, "stun", false)
 	if not t.require(not order.is_empty(), "the squad posts the stun stack order (issue)"):
