@@ -51,8 +51,8 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var squad := t.squad(&"invader")
 	if not t.require(
-			squad != null and squad.has_method("issue") and squad.has_method("resolve"),
-			"the squad is built (%s)" % Order.SQUAD_SCRIPT,
+			squad != null,
+			"the invaders' squad is declared (s.squads)",
 	):
 		return
 

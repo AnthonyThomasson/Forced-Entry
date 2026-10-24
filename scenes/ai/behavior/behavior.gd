@@ -111,8 +111,8 @@ var watch_lost_gaze: float
 var low_ammo_fraction: float
 ## The NPC's squad (`ai/team/squad.gd`), null without one: where a follower keeps to.
 var squad: Node = null
-## World-space room rects (`{ key, type, rect }`), set each tick by the controller from Main's
-## inject; handed on to the Locomotion child, which answers the room queries.
+## World-space room rects (`{ key, type, rect }`), set each tick by the controller from its
+## composer's inject; handed on to the Locomotion child, which answers the room queries.
 var rooms: Array = []:
 	set(value):
 		rooms = value

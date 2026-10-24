@@ -356,11 +356,12 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## World-space room rects (`{ key, type, rect }`) from its composer (`MatchBuilder.bind_npc`) — the
 ## sensor's map of the house.
 var rooms: Array = []
-## The house entrance in world space, injected by its composer for NPCs that start outside. Handed
+## The house entrance in world space, injected by its composer (`MatchBuilder.bind_npc`) for NPCs
+## that start outside. Handed
 ## to the perception once (it offers "the front entrance" as a search option while outside).
 var entry_point: Vector2 = Vector2.ZERO
-## The house's doorways (`{ pos, width, front, exit, rooms }`) from its composer, for tactical
-## entry.
+## The house's doorways (`{ pos, width, front, exit, rooms }`) from its composer
+## (`MatchBuilder.bind_npc`), for tactical entry.
 var openings: Array = []
 ## The NPC's side's squad (`ai/team/squad.gd`, `docs/leadership.md` LD3), handed in by its
 ## composer (`MatchBuilder.bind_squad`): who leads it and who is in it. The orders themselves come

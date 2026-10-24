@@ -6,16 +6,20 @@ extends GameTest
 ## it is named for.
 ##
 ## The match is built through the match module (`MatchBuilder.build`: generate the house, bake its
-## navmesh, place the NPCs) in a world whose shared navigation map is already live with another
-## navmesh, as the map is when a match starts after the menu or a previous match. Premise: the build
-## does not wait for the maps (`wait_nav` off), so the NPCs are placed in the frame the navmesh is
-## baked and their first decisions meet a map still answering with the test world's arena. What is
-## tested is the AI's own hold on a room point until the map has taken the new navmesh in
-## (`NavBuilder.ready`); a match that waits, as Main's does, never meets that map at all.
+## navmesh, place the NPCs) in a world of its own (`MainProbe.viewport`: a `SubViewport` with its
+## own `World2D`, so the test world's stage is not laid twice) whose navigation map is already live
+## with another navmesh, an arena's, as the map is when a match starts after the menu or a previous
+## match. Premise: the build does not wait for the maps (`wait_nav` off), so the NPCs are placed in
+## the frame the navmesh is baked and their first decisions meet a map still answering with the
+## arena. What is tested is the AI's own hold on a room point until the map has taken the new
+## navmesh in (`NavBuilder.ready`); a match that waits, as Main's does, never meets that map at all.
 
+const MainProbe := preload("res://tests/_main/main_probe.gd")
+const ArenaBuilder := preload("res://scenes/testing/arena_builder.gd")
 const SEED := 18
-## Far from the arena the test world is built on, so a point snapped onto the wrong navmesh is
-## plainly outside the house.
+## The arena whose navmesh the match's world is live with first.
+const ARENA := Rect2(0, 0, 800, 500)
+## Far from `ARENA`, so a point snapped onto the wrong navmesh is plainly outside the house.
 const FRONT_ENTRANCE := Vector2(4000, 3000)
 ## Categories of `debug_zones()` that stand for a room (the `waypoint` ones — post, entrance — are
 ## not rooms).
@@ -39,6 +43,18 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var viewport := MainProbe.viewport(t)
+	var map: RID = viewport.world_2d.navigation_map
+	var arena := ArenaBuilder.build(TestSetup.new().arena(ARENA).world, viewport)
+	NavBuilder.build(arena, WorldGen.get_rooms(arena), viewport)
+	if not t.require(
+			await t.until(func(): return NavBuilder.ready(map), 5.0),
+			"premise: the match's world's navigation map is live with the arena's navmesh",
+	):
+		return
+	var world := Node2D.new()
+	world.name = "World"
+	viewport.add_child(world)
 	var spec := MatchBuilder.spec({
 		"seed": SEED,
 		"entrance": FRONT_ENTRANCE,
@@ -46,15 +62,15 @@ func run(t: TestContext) -> void:
 		"defenders": { "count": 1 },
 		"invaders": { "count": 1 },
 	})
-	var match: Dictionary = await MatchBuilder.build(spec, t.world)
+	var handle: Dictionary = await MatchBuilder.build(spec, world)
 	if not t.require(
-			(match.get("combatants", []) as Array).size() == 2,
+			(handle.get("combatants", []) as Array).size() == 2,
 			"a defender and an invader placed",
 	):
 		return
-	var rooms: Array = match["rooms"]
+	var rooms: Array = handle["rooms"]
 	if not t.require(
-			not NavBuilder.ready(t.world.get_world_2d().navigation_map),
+			not NavBuilder.ready(map),
 			"premise: the NPCs are placed while the map has not taken the house's navmesh in",
 	):
 		return
@@ -62,7 +78,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(2.0)
 	var misplaced: Array = []
 	var seen := 0
-	for npc in match["combatants"]:
+	for npc in handle["combatants"]:
 		var brain: Node = TestContext.controller_of(npc)
 		for zone: Dictionary in brain.debug_zones():
 			if not ROOM_CATEGORIES.has(zone["category"]):

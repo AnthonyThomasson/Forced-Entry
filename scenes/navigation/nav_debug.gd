@@ -4,7 +4,7 @@ extends Node2D
 ## added as obstructions, so paths route around them — and, in another colour, the holes the
 ## characters at rest leave in the steering map. It snapshots the holes via
 ## `NavBuilder.furniture_holes` (in `setup`), so the drawing matches the navmesh exactly. The
-## snapshot follows the furniture: Main builds this once after the initial bake, and
+## snapshot follows the furniture: the match builder builds this once after the initial bake, and
 ## `nav_updater.gd` calls `setup` again after each re-bake so the overlay re-snapshots at the
 ## pieces' current positions. A single world-space node (the map is global, not per-NPC). It reads
 ## nothing back and feeds nothing in. Toggle with `show_holes`.
@@ -36,9 +36,9 @@ func _draw() -> void:
 
 
 ## Capture the holes a bake of `house` carved, at the furniture's and the characters' current
-## positions. Called by Main right after the initial bake and again by `nav_updater.gd` after each
-## re-bake, so the overlay stays matched to the live navmesh. The node sits at the world origin so
-## the world-space polygons draw as-is.
+## positions. Called by the match builder right after the initial bake and again by `nav_updater.gd`
+## after each re-bake, so the overlay stays matched to the live navmesh. The node sits at the world
+## origin so the world-space polygons draw as-is.
 func setup(house: Node2D) -> void:
 	_holes = NavBuilder.furniture_holes(house)
 	_character_holes = NavBuilder.character_holes(house.get_parent())

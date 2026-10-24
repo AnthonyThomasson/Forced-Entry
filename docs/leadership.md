@@ -469,7 +469,7 @@ second door it dawdles 10 s, nobody crosses, then it walks away: its withdrawn c
 joiner reaching its slot 2 s after the last ordered member is waited for, though the point stood in its slot 15 s).
 
 **LD18. Rings for every stack of the human's side.** The squad reads the entry claims its members radio through its own `ClaimLedger` (the
-human's `PlayerStack` among them; unlimited range, the side's whole view; each current as long as the NPCs keep a callout they heard, their `callout_ttl` (6 s), which Main hands the squad, a dead speaker's
+human's `PlayerStack` among them; unlimited range, the side's whole view; each current as long as the NPCs keep a callout they heard, their `callout_ttl` (6 s), which the match builder hands the squad, a dead speaker's
 dropped) and gives every stack its side is forming, ordered or its own, in
 `view()["stacks"]`: `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, from the stack's first claim
 while any member is still on its way in (`claim`, `ready`, `bang` or `going_in`). Its slots run from 1 to the last claimed, each laid where
@@ -713,7 +713,7 @@ The cases the behaviours above cite as D1 to D30.
 | D26 | A join that ends mid-entry | A decision is forced only in the `approach` and `stack` phases, where the entry would not end on its own; from the pie on the entry runs to its end, then the member follows. | LD25 |
 | D27 | What "stepping up" to a doorway is, for the human | Standing on its stack side against its wall beside the opening (out from the wall plane and past the jamb, each within 60 px) for 0.5 s, so a human walking past a door does not rally the team. | LD24 |
 | D28 | A follower and its leader's way | It never stands in the lane ahead of its leader: it steps beside it (its own side first) or further ahead, only into rooms the leader has entered, and keeps that spot while it clears the way, so a leader turning back or slicing a pie walks through its file. | LD21 |
-| D29 | Whose human leader rallies by stepping up | The invaders' only: a human defender leader makes no claim of its own at a doorway (Main sets `PlayerStack.own_claims` for the invaders' side alone), so its step-ups rally nobody and its teammates go on following it. | LD24 |
+| D29 | Whose human leader rallies by stepping up | The invaders' only: a human defender leader makes no claim of its own at a doorway (the match builder sets `PlayerStack.own_claims` for the invaders' side alone, `MatchBuilder.bind_squad`), so its step-ups rally nobody and its teammates go on following it. | LD24 |
 | D30 | A follower that takes over the lead holding a join | The join's claims are not its own claim: they carry `join: true` and the squad's own-claim check rejects them, so it does not rally again at that doorway; its next claim of its own, at any doorway, rallies the members then holding no order. | LD24 |
 
 ## Numbers
@@ -745,7 +745,7 @@ The cases the behaviours above cite as D1 to D30.
 | A walk held short of a body re-plans once the steering map shows the body this far off it, or after | 16 px, 2 s | `Locomotion.CARVED_GAP`, `CARVE_WAIT` |
 | An unordered joiner is waited for, from when every recipient stands in its slot | 6 s | `GoalController.entry_ready_timeout` |
 | The human's slot is withdrawn once its walk back to the doorway is longer than | 450 px (300 x 1.5) | `PlayerStack.reserve_range` x `leave_factor` |
-| The squad's view keeps a member's entry claim for | 6 s | `GoalController.callout_ttl` (handed to `Squad.setup` by Main) |
+| The squad's view keeps a member's entry claim for | 6 s | `GoalController.callout_ttl` (handed to `Squad.setup` by the match builder) |
 | A ring whose holder stands in its slot is filled at | 0.3 alpha | `StackMarkers.ALPHA_THERE_FILL` |
 | The first follower keeps back along the leader's trail, and each next one further | 55 px, 45 px | `Squad.follow_gap`, `follow_step` |
 | The leader takes a trail point each | 15 px | `SquadFollow.TRAIL_STEP` |

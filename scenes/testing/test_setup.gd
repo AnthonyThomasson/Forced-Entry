@@ -154,14 +154,14 @@ func match(overrides: Dictionary = {}) -> TestSetup:
 
 
 ## Build one squad per faction over the setup's actors of that faction, in declaration order, as
-## Main builds a match's (`MatchBuilder.build_squads`, after the actors spawn): its leader by the
-## squad's rule (rank, then declaration order), each member handed its own. `opts`: `human` (an
-## actor id: the human who leads its faction's squad, handed its stack radio through
-## `MatchBuilder.bind_player` and its squad with it, `own_claims` on the invaders' side only, as
-## Main hands a human leader its own) and `claim_ttl` (s each squad keeps its members' entry claims;
-## by default its NPCs' `callout_ttl`, `MatchBuilder.callout_ttl_of`, which is 0 over puppets, so a
-## squad of puppets names the NPCs' own). Read them with `t.squad(faction)`. A setup that also
-## declares `match` gets the match's squads alone: declaring both is an error.
+## the match builder builds a match's (`MatchBuilder.build_squads`, after the actors spawn): its
+## leader by the squad's rule (rank, then declaration order), each member handed its own. `opts`:
+## `human` (an actor id: the human who leads its faction's squad, handed its stack radio through
+## `MatchBuilder.bind_player` and its squad with it, `own_claims` on the invaders' side only, as a
+## match's human leader is handed its own) and `claim_ttl` (s each squad keeps its members' entry
+## claims; by default its NPCs' `callout_ttl`, `MatchBuilder.callout_ttl_of`, which is 0 over
+## puppets, so a squad of puppets names the NPCs' own). Read them with `t.squad(faction)`. A setup
+## that also declares `match` gets the match's squads alone: declaring both is an error.
 func squads(opts: Dictionary = {}) -> TestSetup:
 	squads_spec = opts
 	return self

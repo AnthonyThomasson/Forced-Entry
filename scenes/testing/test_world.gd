@@ -112,7 +112,7 @@ func build(setup: TestSetup) -> void:
 
 
 ## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
-## declaration order, built and bound by Main's own rule (`MatchBuilder.build_squads`, keeping
+## declaration order, built and bound as a match's are (`MatchBuilder.build_squads`, keeping
 ## claims the setup's `claim_ttl` when it names one), the human leader first handed its stack radio
 ## (`MatchBuilder.bind_player`); and the squad-leaders overlay over them
 ## (`MatchBuilder.build_leader_overlay`), started as the setup's overlays say.
@@ -151,7 +151,7 @@ func overlay_flags() -> Dictionary:
 	return _overlay_flags.duplicate()
 
 
-## Turn one debug overlay on/off, as the in-game toggle bar does, by Main's own rule
+## Turn one debug overlay on/off, as the in-game toggle bar does, by the match's one rule
 ## (`MatchBuilder.set_overlay`) on this world: the navmesh holes on its holes overlay, the squad
 ## leaders on its leaders overlay (a world that declares no squads has none, so the toggle does
 ## nothing there) and any other on every NPC, its actors' and a declared match's. The performance

@@ -15,8 +15,6 @@ const SEED := 18
 const ENTRANCE := Vector2(440, 350)
 const DEFENDERS := 2
 const INVADERS := 3
-const DEFENDER_FACTION := &"household"
-const INVADER_FACTION := &"invader"
 ## The police units' styles (`docs/outfits.md` O15).
 const POLICE_UNITS := [&"zenitex", &"trauma"]
 ## The plate Main's invaders wear front and back (O11).
@@ -64,8 +62,12 @@ func run(t: TestContext) -> void:
 		return
 
 	var combatants: Array = handle.get("combatants", [])
-	var defenders := combatants.filter(func(c): return c.get("faction") == DEFENDER_FACTION)
-	var invaders := combatants.filter(func(c): return c.get("faction") == INVADER_FACTION)
+	var defenders := combatants.filter(
+		func(c): return c.get("faction") == MatchBuilder.DEFENDER_FACTION
+	)
+	var invaders := combatants.filter(
+		func(c): return c.get("faction") == MatchBuilder.INVADER_FACTION
+	)
 	t.expect_eq(defenders.size(), DEFENDERS, "the defenders number their count")
 	t.expect_eq(invaders.size(), INVADERS, "the invaders number their count")
 	t.expect_eq(combatants.size(), DEFENDERS + INVADERS, "nobody else is in the match")
@@ -99,7 +101,10 @@ func run(t: TestContext) -> void:
 
 	var squads: Dictionary = handle.get("squads", {})
 	t.expect_eq(squads.size(), 2, "one squad per faction")
-	var sides := { DEFENDER_FACTION: defenders, INVADER_FACTION: invaders }
+	var sides := {
+		MatchBuilder.DEFENDER_FACTION: defenders,
+		MatchBuilder.INVADER_FACTION: invaders,
+	}
 	for faction in sides:
 		var squad: Node = squads.get(faction)
 		if not t.check(squad != null, "the %s side has a squad" % faction):

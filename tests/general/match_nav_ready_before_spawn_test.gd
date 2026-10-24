@@ -11,20 +11,17 @@ extends GameTest
 ## way, and a match torn down while it waits (Escape back to the setup window) places nobody and
 ## logs nothing.
 ##
-## Two matches, each in a world of its own (a `SubViewport` with its own `World2D`, so fresh
-## navigation maps, as each match's are): first a match the module builds
-## (`MatchBuilder.build`: its stage, then its population); then Main run whole, `_ready` to its
-## match, as a scripted restart starts it (the Engine `skip_setup` meta, set while it enters the
-## tree and dropped after), with the two children its scene gives it that `_ready` reads (`Player`
-## and `SetupMenu`, never opened), as a Watch match of two a side on a pinned house. The NPCs are
-## found as they enter the tree (the SceneTree's `node_added`: a character with a controller,
+## Two matches, each in a world of its own (`MainProbe.viewport`: a `SubViewport` with its own
+## `World2D`, so fresh navigation maps, as each match's are): first a match the module builds
+## (`MatchBuilder.build`: its stage, then its population); then Main run whole (`MainProbe.open`),
+## `_ready` to its match, as a scripted restart starts it (the Engine `skip_setup` meta, set while
+## it enters the tree and dropped after), as a Watch match of two a side on a pinned house. The NPCs
+## are found as they enter the tree (the SceneTree's `node_added`: a character with a controller,
 ## interface 7), never through Main's members. Scripted Von, the first option offered, so the NPCs
-## walk; the settings file is a scratch one, and the listener Main names (`Sound.focus`) is put back
-## after.
+## walk; the settings file is a scratch one, and what Main changed outside its world is put back
+## after (`MainProbe.close`).
 
-const MainScript := preload("res://scenes/main.gd")
-const PlayerController := preload("res://scenes/character/player_controller.gd")
-const PLAYER_SCENE := "res://scenes/character/character_base.tscn"
+const MainProbe := preload("res://tests/_main/main_probe.gd")
 const SEED := 18
 ## Where the module's house puts its front entrance.
 const ENTRANCE := Vector2(440, 350)
@@ -65,7 +62,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var viewport := _viewport(t)
+	var viewport := MainProbe.viewport(t)
 	var watch := _watch(t, viewport)
 	var world := Node2D.new()
 	world.name = "World"
@@ -81,7 +78,7 @@ func run(t: TestContext) -> void:
 	await _judge(t, watch, "the module's match")
 	await _free(t, viewport, watch)
 
-	viewport = _viewport(t)
+	viewport = MainProbe.viewport(t)
 	watch = _watch(t, viewport)
 	_start_main(viewport)
 	await _judge(t, watch, "Main's match")
@@ -89,7 +86,7 @@ func run(t: TestContext) -> void:
 
 	# Torn down while its maps synchronize (Escape back to the setup window): the wait ends with
 	# the match, placing nobody and logging nothing (any error logged fails the test).
-	viewport = _viewport(t)
+	viewport = MainProbe.viewport(t)
 	watch = _watch(t, viewport)
 	_start_main(viewport)
 	await _free(t, viewport, watch)
@@ -99,17 +96,6 @@ func run(t: TestContext) -> void:
 		"a match torn down during the wait places nobody (%d entered)"
 			% (watch["entries"] as Array).size(),
 	)
-
-
-## A world of its own under the test world: a `SubViewport` with a fresh `World2D`.
-func _viewport(t: TestContext) -> SubViewport:
-	var viewport := SubViewport.new()
-	viewport.world_2d = World2D.new()
-	viewport.disable_3d = true
-	viewport.size = Vector2i(64, 64)
-	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	t.world.add_child(viewport)
-	return viewport
 
 
 ## Watch every NPC that enters the tree under `viewport`: on its frame, whether each map was ready
@@ -198,25 +184,17 @@ func _find_region(node: Node) -> NavigationRegion2D:
 ## Main as a scripted restart starts it, in `viewport`: a Watch match of `DEFENDERS` and `INVADERS`
 ## on house `SEED`, Debug off.
 func _start_main(viewport: SubViewport) -> void:
-	var main: Node2D = MainScript.new()
-	main.name = "Main"
-	main.set("house_seed", SEED)
-	main.set("defender_count", DEFENDERS)
-	main.set("invader_count", INVADERS)
-	main.set("spectator_mode", true)
-	main.set("debug_overlays", false)
-	var player: Node2D = (load(PLAYER_SCENE) as PackedScene).instantiate()
-	player.name = "Player"
-	var brain: Node = PlayerController.new()
-	brain.name = "PlayerController"
-	player.add_child(brain)
-	player.position = HUMAN_AT
-	main.add_child(player)
-	var menu := CanvasLayer.new()
-	menu.name = "SetupMenu"
-	main.add_child(menu)
 	Engine.set_meta("skip_setup", true)
-	viewport.add_child(main)
+	MainProbe.open(
+		viewport,
+		{
+			"house_seed": SEED,
+			"defender_count": DEFENDERS,
+			"invader_count": INVADERS,
+			"spectator_mode": true,
+		},
+		HUMAN_AT,
+	)
 	Engine.remove_meta("skip_setup")
 
 
@@ -262,10 +240,7 @@ func _judge(t: TestContext, watch: Dictionary, what: String) -> void:
 		)
 
 
-## Stop watching and free `viewport` with its match.
+## Stop watching and free `viewport` with its match (`MainProbe.close`).
 func _free(t: TestContext, viewport: SubViewport, watch: Dictionary) -> void:
 	t.world.get_tree().node_added.disconnect(watch["added"])
-	Sound.focus = null
-	viewport.queue_free()
-	await t.frames(2)
-	Keybinds.reset_all()
+	await MainProbe.close(t, viewport)

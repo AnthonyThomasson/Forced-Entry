@@ -1,14 +1,14 @@
 extends Node
 ## AI domain · TEAM — the human's place in an AI stack (`docs/tactical-entry.md` E16). A child of
-## the human's character (Main attaches it with `attach`, as it hands an NPC its `rooms` and
-## `openings`): it listens to the same `&"callout"` radio the NPCs use, and when an allied team is
-## stacking at a doorway near the human it reserves the human the first free slot there, on the
-## team's side of the door or, when its way there would cross the doorway's view, on the side the
-## human stands on (a split stack, E19), the way an NPC claims one: a `callout` with the human as
-## speaker carrying a full claim encoded by `StackClaim.encode` (every entry field an NPC's
-## carries, plus `human`, `leader` and `own`), repeated every `StackClaim.HEARTBEAT` s so the claim
-## stays live. The AI's entry code reads it like any teammate's claim, so the point waits for the
-## human at the ready barrier, a lone AI is no longer solo, and an AI behind the human crosses
+## the human's character (the match builder attaches it with `attach`, as it hands an NPC its
+## `rooms` and `openings`): it listens to the same `&"callout"` radio the NPCs use, and when an
+## allied team is stacking at a doorway near the human it reserves the human the first free slot
+## there, on the team's side of the door or, when its way there would cross the doorway's view, on
+## the side the human stands on (a split stack, E19), the way an NPC claims one: a `callout` with
+## the human as speaker carrying a full claim encoded by `StackClaim.encode` (every entry field an
+## NPC's carries, plus `human`, `leader` and `own`), repeated every `StackClaim.HEARTBEAT` s so the
+## claim stays live. The AI's entry code reads it like any teammate's claim, so the point waits for
+## the human at the ready barrier, a lone AI is no longer solo, and an AI behind the human crosses
 ## after it. The one thing it reads `human` for: no AI member moves up into the human's slot (E2).
 ##
 ## The human is never ordered: its radio step is read from where it stands (`claim` away from the
@@ -73,7 +73,7 @@ const STEP_UP_TIME := 0.5
 ## The human's side's squad (`ai/team/squad.gd`), when it has one: its `leader()` is asked.
 var squad: Node = null
 ## Whether the human, leading its squad, claims of its own at a doorway it steps up to (LD24, D29):
-## set by Main through `MatchBuilder.bind_squad` for the invaders' side only, so a human defender
+## set by its composer (`MatchBuilder.bind_squad`) for the invaders' side only, so a human defender
 ## leader's step-ups rally nobody. Off unless set.
 var own_claims := false
 ## The human's character (the parent).

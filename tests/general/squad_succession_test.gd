@@ -32,11 +32,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	if not t.require(
-			ResourceLoader.exists(Order.SQUAD_SCRIPT),
-			"the squad script exists (%s)" % Order.SQUAD_SCRIPT,
-	):
-		return
 	var built := t.match()
 	var npcs: Array = built.get("combatants", [])
 	if not t.require(npcs.size() == 3, "the match has its three invaders"):
@@ -46,7 +41,7 @@ func run(t: TestContext) -> void:
 		[2, 1, 0],
 		"premise: ranked as a match ranks its unit (lead, sergeant, trooper)",
 	)
-	var squad: Node = (built["squads"] as Dictionary).get(&"invader")
+	var squad := t.squad(&"invader")
 	if not t.require(
 			squad != null
 				and npcs.all(func(n): return TestContext.controller_of(n).get("squad") == squad),

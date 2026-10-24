@@ -549,7 +549,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 - **Cover** is read off `get_surface().coverage` of what lies between the blast and the character, against the character's own posture coverage;
   the tests read it with `Probe.shielded` (a ray from the blast, character bodies excluded).
 - **Scenario tests** run the whole pipeline with the real Von server, the rest of the AI on and nothing scripted. Their premises are the
-  puppet thrower in the evade scenarios (an invader puppet that cannot be killed, armed with one grenade the way Main arms a spawn), the
+  puppet thrower in the evade scenarios (an invader puppet that cannot be killed, armed with one grenade the way the match builder arms a spawn), the
   hostile puppet that cannot be killed and never shoots in the combat scenarios, the one shot of gunfire heard in the stun entry, and the
   `take_stun` call that stands in for a grenade in the two NPC-effect scenarios (the throw itself is tested elsewhere). No behaviour switch is used in
   a scenario test: the deaf-NPC scenario has only two household defenders, so trespass hostility has nobody to act on without being switched off. The test world keeps

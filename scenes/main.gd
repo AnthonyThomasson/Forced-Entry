@@ -1,13 +1,9 @@
 extends Node2D
 ## Top-down demo scene and the game's composition root (with the test runner, the only code that
-## knows every domain): it wires the domains together. On start it asks the World Generation domain
-## (WorldGen.generate) for a procedurally furnished house just ahead of the player, front entrance
-## first.
+## knows every domain). It keeps the UI flow (the setup window, the settings page, the endless run,
+## the HUDs and the overlay bar) and starts each match through `start_match`, which builds it with
+## the match builder (`MatchBuilder`).
 
-## Faction tags the two NPC scenes carry (`MatchBuilder`'s); a human joining a side takes its tag
-## so that side's NPCs treat them as an ally.
-const DEFENDER_FACTION := MatchBuilder.DEFENDER_FACTION
-const INVADER_FACTION := MatchBuilder.INVADER_FACTION
 ## Spectator inspector (UI): Space-pause + click an NPC to show its tactical zones.
 const SPECTATOR_INSPECTOR := preload("res://scenes/ui/hud/spectator_inspector.gd")
 ## The floor markers of the human's place in an AI stack (world space, under `World`).
@@ -39,11 +35,13 @@ const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
 ## How many defender NPCs to drop into the house (0 = none). Raise it to exercise coordinated
 ## flanking from the defending side.
 @export var defender_count: int = 1
-## How many invader NPCs to spawn outside the house (0 = none). They start together, one group
-## round a point of the perimeter (round the human invader when there is one).
+## How many invader NPCs to spawn outside the house (0 = none). They start together, in one group
+## beside the front door (round a perimeter point only in a house with none; round the human
+## invader when there is one).
 @export var invader_count: int = 1
-## Distance (px) beyond the house's outer edge the invaders' group point is drawn at (inside the
-## navmesh's outer band).
+## Distance (px) beyond the house's outer edge the invaders' group point is drawn at in a house
+## with no front door (inside the navmesh's outer band); every invader's spot stays within twice it
+## of the rooms' bounds.
 @export var invader_margin: float = 80.0
 ## Room (px) a character is dropped with: its centre stays this far from every solid furniture
 ## footprint and twice this from anyone already placed (the invaders' group is packed at it). A
@@ -354,18 +352,13 @@ func return_to_setup() -> void:
 	get_tree().reload_current_scene()
 
 
-## Main's one way into a match: build the match of `spec` (`MatchBuilder.spec` overrides) under a
-## fresh `World` node, so `_teardown_world` can clear it, through `MatchBuilder.build`: its world
-## stage (the spec's house, or one generated with its front entrance at the spec's `entrance`, the
-## nav map, its overlay and re-baker, the dusk lighting), which waits until both navigation maps
-## answer with this house, so no NPC is placed before then (a coroutine: await it); then its
-## population (each side placed, the human joined, armed, styled and ranked, the squads and the
-## leaders overlay), its debug overlays started from Main's own flags (the spec's `overlays`, which
-## they replace). Then the UI over the handle: for the spec's human the stack markers, the stun
-## screen and, when it leads, the command menu and order markers; the match HUD, for a match with
-## no human the spectator inspector, and the overlay bar. The scene's own `Player` stands in for
-## the human of a played match: a match whose human is another character, or nobody, has none, and
-## it goes. Returns the match handle, or {} when the match was torn down while it was built.
+## Main's one way into a match (a coroutine: await it): `MatchBuilder.build` of `spec`
+## (`MatchBuilder.spec` overrides) under a fresh `World` node, so `_teardown_world` can clear it,
+## its overlays Main's own flags in place of the spec's. Then the UI over the handle: for the spec's
+## human the stack markers, the stun screen and, when it leads, the command menu and order markers;
+## the match HUD, for a match with no human the spectator inspector, and the overlay bar. The
+## scene's own `Player` goes when the human is another character. Returns the match handle, or {}
+## when the match was torn down while it was built.
 func start_match(spec: Dictionary) -> Dictionary:
 	spec = MatchBuilder.spec(spec)
 	spec["overlays"] = _overlay_flags.duplicate()

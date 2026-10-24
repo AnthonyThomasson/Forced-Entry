@@ -262,8 +262,7 @@ static func front_entrance(openings: Array) -> Vector2:
 
 
 ## Where an NPC of `faction` heads first while outside every room (`bind_npc`'s `entry_point`): an
-## invader the front entrance among `openings` (`front_entrance`), a defender nowhere (ZERO), as
-## Main places them.
+## invader the front entrance among `openings` (`front_entrance`), a defender nowhere (ZERO).
 static func entry_point_for(faction: Variant, openings: Array) -> Vector2:
 	return Vector2.ZERO if faction == DEFENDER_FACTION else front_entrance(openings)
 

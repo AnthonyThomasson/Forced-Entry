@@ -58,9 +58,10 @@ const SIGHT_EVERY_FRAMES := 3
 ## (`routes_ready`).
 const WARM_CAP_MS := 3000
 
-## The house entrance in world space (injected by Main for some NPCs), offered while outside.
+## The house entrance in world space (injected by its composer for an invader), offered while
+## outside.
 var entry_point: Vector2 = Vector2.ZERO
-## The house's doorways (`WorldGen.get_openings`, injected by Main), for tactical entry.
+## The house's doorways (`WorldGen.get_openings`, injected by its composer), for tactical entry.
 var openings: Array = []
 # --- The tunables the perception reads itself, set by apply_config() from the controller's exports
 # of the same name.

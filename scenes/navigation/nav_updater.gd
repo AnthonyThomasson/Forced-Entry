@@ -8,8 +8,8 @@ extends Node
 ## walk, appear and die. It only re-bakes when a piece or a character has actually moved past
 ## `move_threshold`, so an at-rest scene costs a cheap per-tick compare and no bake. The planning
 ## region only re-bakes for furniture. Bulldozing is still the behaviour BETWEEN re-bakes (and
-## for non-solid decor, which is never carved). A script-only node Main builds once after the
-## initial bake; imports nothing from other domains — it is handed plain Nodes.
+## for non-solid decor, which is never carved). A script-only node the match builder builds once
+## after the initial bake; imports nothing from other domains — it is handed plain Nodes.
 
 ## Whether the periodic re-bake runs at all. Off = the map stays the static bake-time snapshot.
 @export var enabled: bool = true

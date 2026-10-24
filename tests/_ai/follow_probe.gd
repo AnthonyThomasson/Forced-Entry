@@ -5,10 +5,9 @@ extends RefCounted
 ## picks no goal of its own, and goes in by the leader's doorway as one stack (a `stack` order with
 ## mode `join`).
 ##
-## The squad is built and bound the way Main does it, declared by the test (`s.squads` or
+## The squad is built and bound the way a match's is, declared by the test (`s.squads` or
 ## `s.match`, read with `t.squad`), and its reads (`leader()`, `follows`, `follow_spot`, `leash`,
-## `view()`) are called
-## on it directly (interface 21). The NPCs are read only through their
+## `view()`) are called on it directly (interface 21). The NPCs are read only through their
 ## controllers' public reads (`current_act()`, `debug_state()`, `debug_entry()`) and the radio. The
 ## spec's numbers are consts here, so a test checks the spec and not the code.
 

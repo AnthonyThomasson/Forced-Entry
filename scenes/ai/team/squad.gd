@@ -1,8 +1,8 @@
 extends Node
 ## AI domain · TEAM — one side's squad (`docs/leadership.md` LD3 to LD7): its roster, its leader,
-## the line of succession and the orders its leader gives. Main builds one per faction under the
-## match's `World` node (`setup`, after arming the characters) and hands each NPC its squad
-## (`MatchBuilder.bind_squad`).
+## the line of succession and the orders its leader gives. The match builder builds one per faction
+## under the match's `World` node (`setup`, after arming the characters) and hands each NPC its
+## squad (`MatchBuilder.bind_squad`).
 ##
 ## **The leader (LD3).** The member of the highest `rank`, the first in spawn order among equals:
 ## the invaders' unit lead (rank 2), and, a defenders' crew carrying no rank, its first spawned. A

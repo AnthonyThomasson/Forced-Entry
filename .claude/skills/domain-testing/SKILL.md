@@ -598,9 +598,10 @@ the navigation maps answer with the world before an actor spawns, and Main's mat
 A test that wants Main's whole match declares it (`s.match`, read with `t.match()`); its human may be a test actor: in
 `tests/ai/stack/stack_ai_goes_round_player_in_slot` it is the player's own character and controller (no input), joined to the invaders
 and handed its stack radio as a match's human is (`MatchBuilder.bind_player`). A test of Main itself runs Main whole through its public
-members with `tests/_main/main_probe.gd` (`const MainProbe := preload(...)`; not a test): `open(parent, exports)` (Main with the children
-`main.tscn` gives it that `_ready` reads, `Player` and `SetupMenu`, without the Von launcher and the command server; it opens the setup
-window, as a fresh launch does), `viewport(t)` (a `SubViewport` with a `World2D` of its own, so fresh physics and navigation maps, as each
+members with `tests/_main/main_probe.gd` (`const MainProbe := preload(...)`; not a test): `open(parent, exports, player_at := ZERO)` (Main with
+the children `main.tscn` gives it that `_ready` reads, `Player`, at `player_at`, and `SetupMenu`, without the Von launcher and the command
+server; it opens the setup window, as a fresh launch does, or with the Engine `skip_setup` meta set while it enters the tree builds its
+match at once, as a scripted restart does: `general/match_nav_ready_before_spawn`), `viewport(t)` (a `SubViewport` with a `World2D` of its own, so fresh physics and navigation maps, as each
 match's), `setup_menu(main)`, `house(layout, parent)` (a `TestSetup` layout built as the match's `house`) and `close(t, node)` (puts back
 what Main changed outside it); the test then starts a match with `Main.start_match(spec)` or reads `SetupMenu.current_config()`. No test
 reads or writes a private member of `main.gd`.

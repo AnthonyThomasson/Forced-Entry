@@ -31,9 +31,12 @@ static func viewport(t: TestContext) -> SubViewport:
 
 
 ## Main whole under `parent`, its exports set from `exports` first (Debug off unless they name
-## `debug_overlays`): it loads the settings (`Settings.path`, which the test points at a scratch
-## file) and opens the setup window. Returned once its `_ready` has run.
-static func open(parent: Node, exports: Dictionary = {}) -> Node2D:
+## `debug_overlays`), its `Player` standing at `player_at` (Main's anchor: the front entrance is
+## built `entrance_distance` above it): it loads the settings (`Settings.path`, which the test
+## points at a scratch file) and opens the setup window, or, with the Engine `skip_setup` meta set
+## while it enters the tree (a scripted restart), builds its match at once. Returned once its
+## `_ready` has run.
+static func open(parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO) -> Node2D:
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
 	main.set("debug_overlays", false)
@@ -41,6 +44,7 @@ static func open(parent: Node, exports: Dictionary = {}) -> Node2D:
 		main.set(key, exports[key])
 	var player: Node2D = (load(PLAYER_SCENE) as PackedScene).instantiate()
 	player.name = "Player"
+	player.position = player_at
 	var brain: Node = PlayerController.new()
 	brain.name = "PlayerController"
 	player.add_child(brain)

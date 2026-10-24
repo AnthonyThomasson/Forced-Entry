@@ -1,11 +1,11 @@
 class_name WorldLighting
 extends Node2D
 ## The Lighting domain's one node: a world's dusk lighting (`docs/lighting.md`), a leaf like Audio.
-## Built by Main and the Testing world through `light(root, seed_value, rooms)` under the world
-## root, in the group `world_lighting`; it reads the world only duck-typed (Objects' floors, the
-## group `floors`: `size`, their canvas items' `light_mask`; a light-giving piece's `get_lights()`;
-## the characters in the group `characters`: `is_dead`, `radius`) and the `shot` / `explosion`
-## events, and imports nothing but General.
+## The match builder builds it, for Main's match and the Testing world's, through `light(root,
+## seed_value, rooms)` under the world root, in the group `world_lighting`. It reads the world only
+## duck-typed (Objects' floors, the group `floors`: `size`, their canvas items' `light_mask`; a
+## light-giving piece's `get_lights()`; the characters in the group `characters`: `is_dead`,
+## `radius`) and the `shot` / `explosion` events, and imports nothing but General.
 ##   - Dusk: one CanvasModulate in `LightingConfig.ambient_color`, and a DirectionalLight2D in
 ##     `sky_color` low from the south-west on the street only (`LightMasks.STREET`), unshadowed (a
 ##     directional shadow runs to the edge of the view, so a body out there would throw one across

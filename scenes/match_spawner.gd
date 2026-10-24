@@ -3,9 +3,9 @@ extends RefCounted
 ## placed. Defenders go to a clear spot in a random room, the invader team in one group outside the
 ## house, beside its front entrance (`spawn_invader_team`); each NPC is handed the house through
 ## `MatchBuilder.bind_npc`, added under the match's `World` node and recorded in `combatants` (the
-## spectator camera, the match HUD and the overlays observe that list). Like `main.gd` it knows the
-## NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here so the
-## root only wires domains.
+## spectator camera, the match HUD and the overlays observe that list). Like `match_builder.gd` it
+## knows the NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here
+## so the builder only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
@@ -36,8 +36,8 @@ var openings: Array = []
 
 
 ## Drop defender number `index` at a clear spot (`clear_spot`) in a random room. `rng` is seeded
-## from `house_seed` so a pinned layout also pins the NPCs. Added after the house, so it draws above
-## it. `rooms` is WorldGen.get_rooms(house), already fetched by the caller.
+## from the spec's `seed` so a pinned layout also pins the NPCs. Added after the house, so it draws
+## above it. `rooms` is WorldGen.get_rooms(house), already fetched by the caller.
 func spawn_defender(rooms: Array, rng: RandomNumberGenerator, index: int) -> void:
 	if rooms.is_empty():
 		return

@@ -36,11 +36,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	if not t.require(
-			ResourceLoader.exists(Order.SQUAD_SCRIPT),
-			"the squad script exists (%s)" % Order.SQUAD_SCRIPT,
-	):
-		return
 	var i := [t.actor(&"i0"), t.actor(&"i1"), t.actor(&"i2"), t.actor(&"i3"), t.actor(&"i4")]
 	# Spawn order i0..i4; the ranks a match's unit would carry, the lead (2) not first.
 	i[0].rank = 0
