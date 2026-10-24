@@ -357,8 +357,8 @@ const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 ## sensor's map of the house.
 var rooms: Array = []
 ## The house entrance in world space, injected by its composer (`MatchBuilder.bind_npc`) for NPCs
-## that start outside. Handed
-## to the perception once (it offers "the front entrance" as a search option while outside).
+## that start outside. Handed to the perception once (it offers "the front entrance" as a search
+## option while outside).
 var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`{ pos, width, front, exit, rooms }`) from its composer
 ## (`MatchBuilder.bind_npc`), for tactical entry.

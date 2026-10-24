@@ -1,18 +1,17 @@
 extends GameTest
 ## LD13 / D14 (`docs/leadership.md`, interface 21): a held stack's go read off the radio is latched
-## by the squad. Once the claims say the go came (a claim under the held order saying `order_go`,
-## or a member of that stack crossing), `Squad.view()` says the order is no longer `held`, and it
-## stays so after the claims stop saying it, as each member keeps its own go.
+## by the squad. Once the claims say the go came (a claim under the held order saying `order_go`, or
+## a member of that stack crossing), `Squad.view()` says the order is no longer `held`, and it stays
+## so after the claims stop saying it, as each member keeps its own go.
 ##
 ## The squad is declared (`s.squads`, built and bound as a match's) over three puppet teammates and
 ## a puppet standing in for the human leader (`human`), on the Terrace house, keeping a claim as
 ## long as the NPCs keep a callout (`claim_ttl`, `CLAIM_TTL`: a match reads it off the side's NPCs,
 ## and puppets have none), so a claim that stops saying the go is still on the radio, saying
-## something else. Two held stacks (`wait_go`) are
-## ordered: `t1` and `t2` at the back door, `t3` at the hall / living room doorway. At the back door
-## `t1` radios `order_go` once, then both radio plain `ready` claims again; at the hall doorway `t3`
-## radios `going_in` (the D14 go), then `done`, its claim gone from the stack. No `go` is ever
-## issued.
+## something else. Two held stacks (`wait_go`) are ordered: `t1` and `t2` at the back door, `t3` at
+## the hall / living room doorway. At the back door `t1` radios `order_go` once, then both radio
+## plain `ready` claims again; at the hall doorway `t3` radios `going_in` (the D14 go), then `done`,
+## its claim gone from the stack. No `go` is ever issued.
 ##
 ## Premise: the members are puppets radioing their claims on the bus, in the wire format's field
 ## names (interface 10), not AI invaders. What an AI radios after its go (`order_go` repeated by its

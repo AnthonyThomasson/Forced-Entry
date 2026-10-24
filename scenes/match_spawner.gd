@@ -4,9 +4,8 @@ extends RefCounted
 ## house, beside its front entrance (`spawn_invader_team`); each NPC is handed the house through
 ## `bind` (the builder's `MatchBuilder.bind_npc`, before it joins the tree), added under the match's
 ## `World` node and recorded in `combatants` (the spectator camera, the match HUD and the overlays
-## observe that list). Like `match_builder.gd` it
-## knows the NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here
-## so the builder only wires domains.
+## observe that list). It knows the NPC scenes and the Navigation domain's `furniture_holes`; the
+## placement rules live here so the builder only wires domains.
 
 ## The house defender, dropped into one of the generated rooms.
 const DEFENDER_SCENE := preload("res://scenes/ai/npc_defender.tscn")
@@ -89,13 +88,12 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 
 ## Drop an invader team of `count` in one group outside the house, so the squad starts together:
 ## packed round one point beside the front entrance `front` (its opening, `{}` when the house has
-## none; `_beside_front_door`: against the outside wall
-## on one side of the doorway, the side drawn from `rng`, so a pinned house seed pins it; the wall
-## hides the team from inside), or, in a house with no front entrance, round one point of the
-## perimeter `invader_margin` px out of the rooms' bounding box, drawn from `rng`; or round `around`
-## when given (the human invader's spot, which a member then keeps clear of as of any combatant).
-## Each member takes the spot `_group_spot` gives it, nearest the point first; beside the front
-## entrance, none in the doorway's straight strip.
+## none; `_beside_front_door`: against the outside wall on one side of the doorway, the side drawn
+## from `rng`, so a pinned house seed pins it; the wall hides the team from inside), or, in a house
+## with no front entrance, round one point of the perimeter `invader_margin` px out of the rooms'
+## bounding box, drawn from `rng`; or round `around` when given (the human invader's spot, which a
+## member then keeps clear of as of any combatant). Each member takes the spot `_group_spot` gives
+## it, nearest the point first; beside the front entrance, none in the doorway's straight strip.
 func spawn_invader_team(
 	rooms: Array,
 	rng: RandomNumberGenerator,
