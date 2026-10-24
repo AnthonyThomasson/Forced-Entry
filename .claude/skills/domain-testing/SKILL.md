@@ -59,7 +59,12 @@ and controller contract, EventBus and character signals) and never reaches into 
 - **Selecting:** `--domain=NAME[,NAME]` (exact domain(s); the filter words are word prefixes, so `ai` also
   catches a test that mentions "aim"), `--id=ID[,ID]` (exact ids), `--failed` (wrapper only: the tests
   that FAILED / TIMED OUT in the previous run of this checkout, read from its merged report in `$TMPDIR`),
-  `--list [words]` (id, von flag, tags; runs nothing; `scenes/testing/test_list.gd`). Domain/id selection is decided
+  `--list [words]` (id, von flag, tags; runs nothing; `scenes/testing/test_list.gd`). `--id`, `--domain` and
+  `--skip-domain` given more than once add up, as one comma list (`--id=a --id=b` is `--id=a,b`), in the wrapper, the
+  suites and `--list`. A run whose selection holds no test at all (catalog or native, every shard together) ends on
+  `no test matched the selection: <args>` and exits 1; a `--list` that lists none, and a `--changed` with nothing
+  mapped (a domain `--skip-domain` leaves out maps to nothing), exit 0. `--failed` when the last report holds no
+  FAIL / TIMEOUT prints `no failed test in the last report: nothing to rerun` and exits 0. Domain/id selection is decided
   from the file path, so unselected test scripts are never loaded. A native suite runs whole or not at all: its id is
   its path under `tests/` (`general/weighted_pick_suite`), a case's `<suite id>::<function>`; `--domain`, `--skip-domain`,
   an `--id` naming the suite or one of its cases and filter words on its path and name select it, `--self-test` never.
@@ -80,7 +85,8 @@ and controller contract, EventBus and character signals) and never reaches into 
 - **Output:** `--summary` prints only non-passing tests and the totals; every run reports wall-clock ms
   per test (`wall_ms` in the report) and ends with a `Slowest:` line. `--verbose`, `--json` apply too.
 - **Other flags:** `--skip-domain=a,b` (leave those exact domains out; wins over every other selection, `--changed`'s included),
-  `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones), `--seed=N` (every
+  `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones; a native suite, which runs once a process, runs
+  again in N-1 processes of its own, and the tally and totals are every process's together), `--seed=N` (every
   `house()` uses that seed), and, in the wrapper only, `--changed` (see below), `--report=FILE` and `--strict-exit`.
   Options take the `--name=value` form.
 - **`--changed`:** the wrapper maps each changed file (`git diff HEAD` plus untracked) to a domain and

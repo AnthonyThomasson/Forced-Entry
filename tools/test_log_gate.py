@@ -20,7 +20,9 @@ run_tests.sh starts gdUnit's command-line tool (headless, `--fixed-fps 60`, a lo
 GdUnitEngineTests checks, on the real engine through the harness probes in tests/_harness/, that the verdicts, lines,
 summary, report.json and bundles keep their shape, that gdUnit's JUnit and HTML reports land in the run's out dir with
 the same verdicts (a GAP skipped, "gap: expected to fail"), that a logged warning ends its test at once, that a
-requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work.
+requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work: --id, --domain
+and --skip-domain given twice add up, --repeat reruns a native suite and names its flaky case, and a selection that
+holds no test fails ("no test matched") while a --list that lists none passes.
 FreshUserDirTests runs one native suite in a copy of the checkout whose user:// holds no logs/godot.log (a fresh
 clone, CI): gdUnit's own log monitor reads the run's log, nothing is logged outside a test, project.godot is untouched.
 """
@@ -129,7 +131,9 @@ done
 head='Godot Engine v4.4'
 judged='ERROR: a test provoked this (the runner already failed that test)'
 echo "$head" > "$log"
-report() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+# A report of one passing test; `empty` one of no test at all (a selection that matched nothing).
+report() { printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 timed() {
   printf '{"results": [{"id": "a/x", "status": "PASS", "wall_ms": 120}, {"id": "a/z", "status": "PASS", "wall_ms": 80}, {"id": "a/s", "status": "SKIPPED", "wall_ms": 5}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
@@ -140,6 +144,8 @@ timed() {
 echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
 case "$FAKE_SCENARIO" in
   clean) report ;;
+  empty) empty ;;
+  shard1_empty) if [ "$shard" = "1/2" ]; then empty; else report; fi ;;
   timed) timed ;;
   judged_error) echo "$judged" >> "$log"; report ;;
   shutdown_error) report; echo "ERROR: engine complained while quitting" >> "$log" ;;
@@ -254,6 +260,25 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("test_runner.tscn -- --play <words>", out)
         self.assertNotIn("passed,", out)
 
+    def test_a_selection_that_holds_no_test_fails_but_an_empty_shard_does_not(self):
+        code, out = self.run_wrapper("empty", "--id=a/nope")
+        self.assertEqual(code, 1, out)
+        self.assertIn("no test matched", out)
+        self.assertIn("--id=a/nope", out, "the message names the selection it was given")
+        code, out = self.run_wrapper("shard1_empty", "--jobs=2")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("no test matched", out)
+
+    def test_failed_after_a_clean_run_has_nothing_to_rerun(self):
+        state = Path(tempfile.mkdtemp(dir=self.tmp))
+        code, out = self.run_wrapper("failed", "--failed", state=state)
+        self.assertEqual(code, 2, "no previous run of this checkout: " + out)
+        self.assertEqual(self.run_wrapper("clean", state=state)[0], 0)
+        code, out = self.run_wrapper("clean", "--failed", state=state)
+        self.assertEqual(code, 0, out)
+        self.assertIn("no failed test in the last report: nothing to rerun", out)
+        self.assertNotIn("passed,", out, "nothing is run")
+
     def test_one_failing_shard_fails_the_whole_run(self):
         self.assertEqual(self.run_wrapper("shard1_error", "--jobs=2")[0], 1)
         self.assertEqual(self.run_wrapper("clean", "--jobs=2")[0], 0)
@@ -319,6 +344,22 @@ class WrapperTests(unittest.TestCase):
         code, lines = self.changed(["tests/_perf/perf_probe.gd"], "clean", "--skip-domain=perf")
         self.assertEqual(code, 0)
         self.assertEqual([l for l in lines if l.startswith("selection:")], [])
+
+    def test_repeated_skip_domain_flags_add_up_in_the_wrapper(self):
+        code, lines = self.changed(["tests/_perf/perf_probe.gd"], "clean", "--skip-domain=perf", "--skip-domain=ai")
+        self.assertEqual(code, 0)
+        self.assertEqual([l for l in lines if l.startswith("selection:")], [], "perf is skipped by the first flag")
+
+    def test_repeated_id_flags_count_together_against_the_jobs(self):
+        self.assertEqual(self.shards(self.run_wrapper("clean", "--jobs=3", "--id=a/x", "--id=b/y")[1]), 2)
+
+    def test_changed_with_nothing_mapped_still_passes(self):
+        for files in (["docs/hearing.md"], ["tests/perf/match_5v5_stress_test.gd"], ["tests/perf/perf_suite.gd"]):
+            with self.subTest(files=files):
+                # A perf test or suite under the hook's --skip-domain=perf maps to nothing either.
+                code, lines = self.changed(files, "empty", "--skip-domain=perf")
+                self.assertEqual(code, 0, lines)
+                self.assertEqual([l for l in lines if l.startswith("selection:")], [])
 
     def test_changed_does_not_repeat_a_test_whose_domain_already_runs(self):
         _, lines = self.changed(["scenes/ai/behavior/behavior.gd", "tests/ai/decision/goal_names_the_gun_test.gd",
@@ -624,7 +665,8 @@ class GdUnitEngineTests(unittest.TestCase):
     GAP = "_harness/gap_probe"
     HOLD = "_harness/warning_hold_probe"
     VON = "_harness/von_probe"
-    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT")
+    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT",
+                 "GAME_TEST_FLAKY_COUNT")
 
     @classmethod
     def setUpClass(cls):
@@ -751,12 +793,45 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertRegex(run.out, re.compile(r"^\d+ test\(s\)$", re.M))
         self.assertEqual(run.results, {}, "--list runs no test")
 
+    def test_list_matching_nothing_still_passes(self):
+        run = self.run_tests("--self-test", "--list", "zzqq_no_such_word")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertRegex(run.out, re.compile(r"^0 test\(s\)$", re.M))
+        self.assertNotIn("no test matched", run.out)
+
     def test_summary_prints_only_what_did_not_pass(self):
         run = self.run_tests("--self-test", f"--id={self.VERDICT},{self.GAP}", "--summary")
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.status(self.GAP), ["GAP"], run.out)
         self.assertEqual(run.status(self.VERDICT), [], "a PASS is not printed with --summary\n" + run.out)
         self.assertEqual(run.summary, (1, 0, 0, 0, 1), run.out)
+
+    def test_a_selection_matching_nothing_fails(self):
+        for args in (["--self-test", "--id=_harness/no_such_probe"], ["--self-test", "zzqq_no_such_word"],
+                     ["--no-lint", "--domain=projectile", "--skip-domain=projectile"]):
+            with self.subTest(args=args):
+                run = self.run_tests(*args, "--summary")
+                self.assertEqual(run.code, 1, run.out)
+                self.assertIn("no test matched", run.out)
+
+    def test_repeated_id_flags_add_up(self):
+        run = self.run_tests("--self-test", f"--id={self.VERDICT}", f"--id={self.GAP}", "--summary")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.GAP), ["GAP"], "the second --id runs too\n" + run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 1), "the first --id runs too\n" + run.out)
+
+    def listed(self, *args):
+        """The ids a `--list` run with `args` prints."""
+        run = self.run_tests("--list", *args)
+        self.assertEqual(run.code, 0, run.out)
+        return {ln.split()[0] for ln in run.out.splitlines() if re.match(r"^[a-z_]+/\S+\s", ln)}
+
+    def test_repeated_domain_and_skip_domain_flags_add_up(self):
+        domains = {i.split("/")[0] for i in self.listed("--domain=projectile", "--domain=worldgen")}
+        self.assertEqual(domains, {"projectile", "worldgen"})
+        domains = {i.split("/")[0] for i in self.listed("--domain=projectile,worldgen,lighting",
+                                                       "--skip-domain=projectile", "--skip-domain=worldgen")}
+        self.assertEqual(domains, {"lighting"})
 
     def test_json_prints_the_results(self):
         run = self.probe(self.VERDICT, "--json")
@@ -769,6 +844,42 @@ class GdUnitEngineTests(unittest.TestCase):
         run = self.probe(self.VERDICT, "--repeat=2")
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.summary[0], 2, run.out)
+
+    # A native suite written into tests/general/ for one test only: `test_counted` always passes, `test_flaky` fails
+    # on its second run (the runs are counted in the file GAME_TEST_FLAKY_COUNT names, so across processes).
+    FLAKY_NATIVE = "general/zz_flaky_native_probe_suite"
+    FLAKY_NATIVE_SOURCE = """extends UnitSuite
+
+
+func test_counted() -> void:
+	assert_bool(true).is_true()
+
+
+func test_flaky() -> void:
+	var path := OS.get_environment("GAME_TEST_FLAKY_COUNT")
+	var runs := int(FileAccess.get_file_as_string(path)) if FileAccess.file_exists(path) else 0
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(str(runs + 1))
+	f.close()
+	assert_int(runs).override_failure_message("flaky probe: the second run fails").is_not_equal(1)
+"""
+
+    def test_repeat_reruns_a_native_suite_and_names_a_flaky_case(self):
+        probe = ROOT / "tests" / (self.FLAKY_NATIVE + ".gd")
+        count = Path(tempfile.mkdtemp(dir=self.tmp)) / "runs"
+        probe.write_text(self.FLAKY_NATIVE_SOURCE)
+        try:
+            run = self.run_tests("--no-lint", f"--id={self.FLAKY_NATIVE}", "--repeat=3", GAME_TEST_FLAKY_COUNT=str(count))
+        finally:
+            for f in (probe, probe.with_name(probe.name + ".uid")):
+                f.unlink(missing_ok=True)
+        counted, flaky = self.FLAKY_NATIVE + "::test_counted", self.FLAKY_NATIVE + "::test_flaky"
+        self.assertEqual(run.status(counted), ["PASS"] * 3, "each native case runs 3 times\n" + run.out)
+        self.assertEqual(sorted(run.status(flaky)), ["FAIL", "PASS", "PASS"], run.out)
+        self.assertRegex(run.out, re.compile(r"^FLAKY\s+2/3 passed\s+" + re.escape(flaky) + "$", re.M))
+        self.assertNotRegex(run.out, re.compile(r"^(FLAKY|FAILING).*test_counted", re.M))
+        self.assertEqual(run.summary, (5, 1, 0, 0, 0), run.out)
+        self.assertEqual(run.code, 1, run.out)
 
     def test_fail_fast_stops_after_the_first_failure(self):
         run = self.run_tests("--self-test", f"--id={self.GAP},{self.VERDICT}", "--fail-fast", GAME_TEST_GAP="pass")
