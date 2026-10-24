@@ -1,35 +1,26 @@
 extends GameTest
 ## P1 (`docs/grenades.md`, Performance): grenades going off in a running match keep it smooth. The
-## 5v5 match of `perf/match_5v5_stress`, built as Main builds one (`s.match`: a generated house on
-## its largest plan, the defenders in random rooms, the invader team beside the front door, each
-## side with its spec loadout, so the invaders carry their plates and a stun and a frag each,
-## styled and ranked, one squad per side; nav re-baker, blood, debris, sound and radio on, scripted
-## Von), and once the sides are in contact (after `WARMUP_S`, a shot fired and some NPC knowing a
-## hostile, `Perf.await_contact`, at most `CONTACT_WITHIN` s more: a premise) a puppet on the
-## invaders' side (the human's place) throws three frags and three stuns among the fighters over
-## about 3 s, through the controller contract (select the slot, aim, click). The puppet is a test
-## actor, not one of the match's: it carries the three of each P1 names (`Probe.arm`), not a side's
-## one and one, and waits far off
-## the house until its first throw, out of the warm-up and the placement. So the burst's whole cost
-## is in the window: the blast and its fragments, the flash and bang, the FX, scorch, blood and
-## debris, the sounds, and every NPC's grenade perception, evade planning and re-decision. From the
-## puppet's first throw to 3 s after its last burst the frames meet the smooth standard
-## (`Perf.SMOOTH_*`); a grenade an NPC throws meanwhile is part of the load. The camera frames the
-## fighters as Main's spectator view does, on a player's screen, so every body a player would see is
-## drawn. Headless measures the CPU only (the drawing calls included, not the GPU);
+## 5v5 match of `perf/match_5v5_stress`, built as Main builds one (`Perf.configure_match`,
+## `s.match`: a generated house on its largest plan, the defenders in random rooms, the invader team
+## beside the front door, each side with its spec loadout, so the invaders carry their plates and a
+## stun and a frag each, styled and ranked, one squad per side; nav re-baker, blood, debris, sound
+## and radio on, scripted Von), and once the sides are in contact (after its warm-up, a shot fired
+## and some NPC knowing a hostile, `Perf.warm_until_contact`: a premise) a puppet on the invaders'
+## side (the human's place) throws three frags and three stuns among the fighters over about 3 s,
+## through the controller contract (select the slot, aim, click). The puppet is a test actor, not
+## one of the match's: it carries the three of each P1 names (`Probe.arm`), not a side's one and
+## one, and waits far off the house until its first throw, out of the warm-up and the placement. So
+## the burst's whole cost is in the window: the blast and its fragments, the flash and bang, the FX,
+## scorch, blood and debris, the sounds, and every NPC's grenade perception, evade planning and
+## re-decision. From the puppet's first throw to 3 s after its last burst the frames meet the smooth
+## standard (`Perf.SMOOTH_*`); a grenade an NPC throws meanwhile is part of the load. The camera
+## frames the fighters as Main's spectator view does, on a player's screen, so every body a player
+## would see is drawn. Headless measures the CPU only (the drawing calls included, not the GPU);
 ## `tools/run_tests.sh --windowed` measures the render too.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
-const SEED := 7
-## The house `perf/match_5v5_stress` measures its match in: the largest plan, pinned (see its
-## comment).
-const PLAN := "garage_home"
 const PER_SIDE := 5
-const WARMUP_S := 6.0
-## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired,
-## and some NPC knowing a hostile).
-const CONTACT_WITHIN := 20.0
 ## Frag, stun, frag, stun, frag, stun: one throw every `THROW_EVERY` frames (0.6 s), the click
 ## `CLICK_AFTER` frames after the slot is picked and the aim set (the facing settles in a frame or
 ## two standing; the 0.3 s wind-up is over before the next pick).
@@ -55,23 +46,12 @@ func describe() -> Dictionary:
 			+ "burst the average frame stays under 16.7 ms, p95 under 20 and no frame over 33.4.",
 		"tags": ["match", "ai", "scripted", "crowd", "grenade", "frag", "stun"],
 		"timeout": 60.0,
-		# As perf/match_5v5_stress: the match re-bakes the navmesh while furniture is shoved around
-		# (a blast shoves a lot of it), and the bake of overlapping footprints is now and then
-		# rejected by the engine. A nav bug this test is not about.
-		"allowed_logs": [
-			"Navigation map synchronization error",
-			"NavigationPolygon polygon convex partition failed",
-		],
+		"allowed_logs": Perf.MATCH_LOGS,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED, PLAN)
-	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
-	s.switch(&"ai.callouts", true)
-	s.switch(&"ai.vision", true)
-	s.switch(&"ai.pursuit", true)
-	s.match({ "defenders": { "count": PER_SIDE }, "invaders": { "count": PER_SIDE } })
+	Perf.configure_match(s, PER_SIDE)
 	# a person's wheel or camera keys would change what is drawn, so what is measured
 	s.lock_interaction([&"camera"])
 	# Far off the house until its first throw: it plays no part in the warm-up.
@@ -106,13 +86,7 @@ func run(t: TestContext) -> void:
 			"the thrower carries 3 frags and 3 stuns",
 	):
 		return
-	await t.seconds(WARMUP_S)
-	if not t.require(
-			await Perf.await_contact(t, "grenades in a 5v5 match", characters, CONTACT_WITHIN),
-			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
-					+ "knowing a hostile (%.1f s)")
-				% [CONTACT_WITHIN, t.time],
-	):
+	if not await Perf.warm_until_contact(t, "grenades in a 5v5 match", characters):
 		return
 
 	var nodes_before := Perf.nodes()

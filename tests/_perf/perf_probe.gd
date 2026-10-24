@@ -14,6 +14,52 @@ extends RefCounted
 const SMOOTH_AVG_MS := 16.7
 const SMOOTH_P95_MS := 20.0
 const SMOOTH_MAX_MS := 33.4
+## The match the match guards measure (`perf/match_5v5_stress`, `perf/match_10v10_stress`,
+## `perf/grenade_match_stress`, through `configure_match`): a generated house of seed `MATCH_SEED`
+## on the largest plan by floor area, `MATCH_PLAN` (garage_home: five rooms, 760k px²), pinned
+## rather than drawn from the seed: the match is measured in a full-size house whatever the
+## catalogue holds, and a plan added or dropped changes no seed's load. A small flat would put both
+## sides in each other's sight from the start, which is a different load.
+const MATCH_SEED := 7
+const MATCH_PLAN := "garage_home"
+## Test seconds a match guard's warm-up runs before it waits for contact (`warm_until_contact`).
+const MATCH_WARMUP_S := 6.0
+## The most (s) the warm-up runs on past `MATCH_WARMUP_S` for the sides to make contact (a shot
+## fired, and some NPC knowing a hostile).
+const MATCH_CONTACT_WITHIN := 20.0
+## The engine lines a match guard allows (`allowed_logs`): a real match re-bakes the navmesh while
+## furniture is shoved around, and now and then the bake of overlapping footprints is rejected by
+## the engine (about one run in five). That is a nav bug no guard is about; the bake's cost is part
+## of what each measures, so the lines are allowed rather than the re-bake switched off.
+const MATCH_LOGS := [
+	"Navigation map synchronization error",
+	"NavigationPolygon polygon convex partition failed",
+]
+
+
+## Declare a match guard's match in `s`: the house `MATCH_SEED` on `MATCH_PLAN`, `per_side`
+## defenders and as many invaders built as Main builds a match (`s.match`), scripted Von (combat,
+## engage) and the callouts, vision and pursuit on.
+static func configure_match(s: TestSetup, per_side: int) -> void:
+	s.house(MATCH_SEED, MATCH_PLAN)
+	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
+	s.switch(&"ai.callouts", true)
+	s.switch(&"ai.vision", true)
+	s.switch(&"ai.pursuit", true)
+	s.match({ "defenders": { "count": per_side }, "invaders": { "count": per_side } })
+
+
+## A match guard's warm-up: `MATCH_WARMUP_S` s, then on until its sides are in contact
+## (`await_contact` over `characters`, at most `MATCH_CONTACT_WITHIN` s more), `require`d as the
+## guard's premise. Returns whether it held (false: the test has ended).
+static func warm_until_contact(t: TestContext, label: String, characters: Array) -> bool:
+	await t.seconds(MATCH_WARMUP_S)
+	return t.require(
+		await await_contact(t, label, characters, MATCH_CONTACT_WITHIN),
+		("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
+				+ "knowing a hostile (%.1f s)")
+			% [MATCH_CONTACT_WITHIN, t.time],
+	)
 
 
 ## Run a match guard's warm-up on until its sides are in contact: a shot has been fired and some

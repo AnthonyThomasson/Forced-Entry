@@ -1,40 +1,30 @@
 extends GameTest
 ## Performance guard for the largest match the game means to carry: a 10v10 in a generated house
-## (the largest plan, `PLAN`), built as Main builds one (`s.match`, `MatchBuilder.populate`): the
-## defenders at clear spots in random rooms and the invader team in one group beside the front
-## door, each side with its spec loadout (the invaders' helmet and steel plates front and back, a
-## stun and a frag each; the defenders' plain clothes; a random gun each), styled and ranked (the
-## invaders' police unit: its lead, its sergeant, then troopers), one squad per side, every debug
-## overlay off; nav re-baker, blood, debris, sound and team radio on, with Von scripted so no
-## server is needed. Twenty NPCs sense, decide, path and fight; the house's walls hide most
-## hostiles from each, which is what keeps it within reach of the standard where an open arena of
-## twenty is not (perf/npc_crowd_stress). Each squad's members but its leader follow it
-## (`docs/leadership.md` LD19 to LD23), so what a squad costs (the leader's trail, the follow spots,
-## the follow primitive, the leash) is in the frame; every member but the leader following is a
-## premise. The sides are in contact before the window opens: after `WARMUP_S` the warm-up runs on
-## until a shot has been fired and some NPC knows a hostile (`Perf.await_contact`) at
-## once (at most `CONTACT_WITHIN` s more), so the frames cost the teams' fight (the leash filter,
-## combat within the leash, the leash break) and not only a walking crowd.
-## Then 300 frames are measured to the same standard as the 5v5 match: the average frame fits in
-## one 60 fps frame, with no spike over two. It logs when contact came, how many knew a hostile as
-## the window opened, the shots in the window and how many members were following at the end.
-## Headless measures CPU only; rendering is not in these numbers. Its max (and p95) miss the
-## standard on a quiet machine: an invader's decision that weighs its grenades (the throw spots and
-## the escape from the burst, in its decision snapshot) spikes in one frame (#98).
+## (the largest plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one
+## (`s.match`, `MatchBuilder.populate`): the defenders at clear spots in random rooms and the
+## invader team in one group beside the front door, each side with its spec loadout (the invaders'
+## helmet and steel plates front and back, a stun and a frag each; the defenders' plain clothes; a
+## random gun each), styled and ranked (the invaders' police unit: its lead, its sergeant, then
+## troopers), one squad per side, every debug overlay off; nav re-baker, blood, debris, sound and
+## team radio on, with Von scripted so no server is needed. Twenty NPCs sense, decide, path and
+## fight; the house's walls hide most hostiles from each, which is what keeps it within reach of the
+## standard where an open arena of twenty is not (perf/npc_crowd_stress). Each squad's members but
+## its leader follow it (`docs/leadership.md` LD19 to LD23), so what a squad costs (the leader's
+## trail, the follow spots, the follow primitive, the leash) is in the frame; every member but the
+## leader following is a premise. The sides are in contact before the window opens: after its
+## warm-up the match runs on until a shot has been fired and some NPC knows a hostile at once
+## (`Perf.warm_until_contact`), so the frames cost the teams' fight (the leash filter, combat within
+## the leash, the leash break) and not only a walking crowd. Then 300 frames are measured to the
+## same standard as the 5v5 match: the average frame fits in one 60 fps frame, with no spike over
+## two. It logs when contact came, how many knew a hostile as the window opened, the shots in the
+## window and how many members were following at the end. Headless measures CPU only; rendering is
+## not in these numbers. Its max (and p95) miss the standard on a quiet machine: an invader's
+## decision that weighs its grenades (the throw spots and the escape from the burst, in its decision
+## snapshot) spikes in one frame (#98).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-const SEED := 7
-## The house is the largest plan by floor area (garage_home: five rooms, 760k px²), pinned rather
-## than drawn from the seed: the match is measured in a full-size house whatever the catalogue
-## holds, and a plan added or dropped changes no seed's load. A small flat would put both sides in
-## each other's sight from the start, which is a different load.
-const PLAN := "garage_home"
 const PER_SIDE := 10
-const WARMUP_S := 6.0
-## The most (s) the warm-up runs on past `WARMUP_S` for the sides to make contact (a shot fired,
-## and some NPC knowing a hostile).
-const CONTACT_WITHIN := 20.0
 const MEASURE_FRAMES := 300
 const NODE_GROWTH := 5000
 
@@ -47,24 +37,12 @@ func describe() -> Dictionary:
 			+ "the average frame stays under 16.7 ms and no frame takes over two.",
 		"tags": ["match", "ai", "scripted", "crowd", "squad", "follow"],
 		"timeout": 60.0,
-		# A real match re-bakes the navmesh while furniture is shoved around, and now and then the
-		# bake of overlapping footprints is rejected by the engine (about one run in five). That is
-		# a nav bug this test is not about; the bake's cost is part of what it measures, so the two
-		# lines are allowed rather than the re-bake switched off.
-		"allowed_logs": [
-			"Navigation map synchronization error",
-			"NavigationPolygon polygon convex partition failed",
-		],
+		"allowed_logs": Perf.MATCH_LOGS,
 	}
 
 
 func configure(s: TestSetup) -> void:
-	s.house(SEED, PLAN)
-	s.von_script([{ "pick": "combat" }, { "pick": "engage" }])
-	s.switch(&"ai.callouts", true)
-	s.switch(&"ai.vision", true)
-	s.switch(&"ai.pursuit", true)
-	s.match({ "defenders": { "count": PER_SIDE }, "invaders": { "count": PER_SIDE } })
+	Perf.configure_match(s, PER_SIDE)
 
 
 func run(t: TestContext) -> void:
@@ -77,13 +55,7 @@ func run(t: TestContext) -> void:
 		return
 	if not _check_squads(t, characters):
 		return
-	await t.seconds(WARMUP_S)
-	if not t.require(
-			await Perf.await_contact(t, "10v10 match", characters, CONTACT_WITHIN),
-			("premise: the fight is on within %.0f s of the warm-up, a shot fired and some NPC "
-					+ "knowing a hostile (%.1f s)")
-				% [CONTACT_WITHIN, t.time],
-	):
+	if not await Perf.warm_until_contact(t, "10v10 match", characters):
 		return
 	var aware := characters.filter(func(c): return Perf.knows_hostile(c)).size()
 	var nodes_before := Perf.nodes()

@@ -794,7 +794,7 @@ before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), ga
 their match through `MatchBuilder` as Main builds one (`s.match`): the invader team beside the front door with its plates and grenades,
 styled and ranked, one squad a side, every member but the leader following it. `perf/match_10v10_team_stress` is folded into
 `match_10v10_stress`, which keeps its premises (one squad a side, the rank rule's leader, every member but the leader following, contact
-within `CONTACT_WITHIN`) and its logs; the 5v5 and the grenade match now require contact too (`Perf.await_contact`). So `tools/run_tests.sh
+within `Perf.MATCH_CONTACT_WITHIN`) and its logs; the 5v5 and the grenade match now require contact too (`Perf.warm_until_contact`). So `tools/run_tests.sh
 --domain=perf` runs eleven guards. Re-baselined headless (`--domain=perf --verbose --summary --no-lint`, three valid runs a side, each
 started at a 1-min load under 3.5 with no other headless Godot and discarded if the load went over 4; before 4af0b43, after 91400e6's
 guard code, measured before the branch was rebased onto #81), medians in ms per frame, avg / p95 / max against 16.7 / 20 / 33.4 (bold
@@ -828,7 +828,7 @@ none discarded). Each passed 12 of 12. In ms per frame, avg / p95 / max, against
 | grenades in a 5v5 match (`grenade_match_stress`) | 8.65 / 13.97 / 22.06 | 8.86 / 14.29 / 24.14 | 10.88 / 15.70 / 24.06 |
 
 The team guard opens its window only once the sides are in contact (a shot fired; the warm-up runs on past its 6 s for at most
-`CONTACT_WITHIN`, 20 s, and the guard fails without it), so what it measures is the teams' fight; in all three runs the first shot came
+`Perf.MATCH_CONTACT_WITHIN`, 20 s, and the guard fails without it), so what it measures is the teams' fight; in all three runs the first shot came
 within the warm-up (`PERF 10v10 team match contact at 6.0 s`), and the window ended with 13, 18 and 9 members following. The guard
 also requires that some NPC knows a hostile as the window opens (`known_contacts_for_display()`): in 8 runs on 2026-10-19 (14:10 to
 14:12, load 3.97 to 5.54) two NPCs did each time, while shots fired inside the window came in 1 of those 8 (12 shots) and 1 of 5 runs
