@@ -95,9 +95,10 @@ const FREE_SPOT_CLEAR := 40.0
 const NEW_WALK := 8.0
 ## Giving way to a walker: one closer than `GIVE_RANGE` (px), not at rest, whose straight course and
 ## the NPC's own come within `GIVE_CLEARANCE` (px, centre to centre) of each other in the next
-## `GIVE_HORIZON` seconds. The NPC gives way at most `GIVE_MAX` s to one walker. Even with the right
-## of way it stops for a walker on course for it closer than `GIVE_IMMINENT` (px): the walker may
-## not have seen it set off (a track takes a few frames to show a body moving).
+## `GIVE_HORIZON` seconds, or in the time its own walk still takes when that is shorter. The NPC
+## gives way at most `GIVE_MAX` s to one walker. Even with the right of way it stops for a walker on
+## course for it closer than `GIVE_IMMINENT` (px): the walker may not have seen it set off (a track
+## takes a few frames to show a body moving).
 const GIVE_RANGE := 160.0
 const GIVE_CLEARANCE := 36.0
 const GIVE_IMMINENT := 50.0
@@ -785,15 +786,19 @@ func _free_spot(from: Vector2) -> Vector2:
 
 ## Give way to a walker coming at the NPC (`move_input` already steers its walk): a known character
 ## in view, not at rest, within `GIVE_RANGE`, whose course and the NPC's would bring them within
-## `GIVE_CLEARANCE` of each other in the next `GIVE_HORIZON` s, unless the NPC has the right of way
-## (`_has_way`) and the walker is not yet on top of it (`GIVE_IMMINENT`). Giving way, it steps aside
-## off the walker's line when it stands on it (a spot on open floor, clear of the other bodies it
-## knows of, never toward the walker), else waits where it is, until the walker has gone by; at most
-## `GIVE_MAX` s for one walker.
+## `GIVE_CLEARANCE` of each other in the next `GIVE_HORIZON` s, or in the time the NPC's own walk
+## still takes when that is shorter (`_way_left` at its pace: its course reckoned only to the end of
+## its walk, so it never gives way to a walker its walk stops short of, as a follower closing on its
+## spot behind a leader walking on; near the end of its walk the look-ahead is that short for every
+## walker), unless the NPC has the right of way (`_has_way`) and the walker is not yet on top of it
+## (`GIVE_IMMINENT`). Giving way, it steps aside off the walker's line when it stands on it (a spot
+## on open floor, clear of the other bodies it knows of, never toward the walker), else waits where
+## it is, until the walker has gone by; at most `GIVE_MAX` s for one walker.
 func _give_way() -> void:
 	var me: Vector2 = _character.global_position
-	var mine: Vector2 = (_character.move_input
-			* maxf(_character.get_real_velocity().length(), PACE_FLOOR))
+	var pace := maxf(_character.get_real_velocity().length(), PACE_FLOOR)
+	var mine: Vector2 = _character.move_input * pace
+	var horizon := minf(GIVE_HORIZON, _way_left() / pace)
 	var other := {}
 	var nearest := INF
 	var imminent_only := false
@@ -804,7 +809,7 @@ func _give_way() -> void:
 		var gap: Vector2 = (b["pos"] as Vector2) - me
 		if vel.length() < REST_SPEED or gap.length() > GIVE_RANGE or gap.length() >= nearest:
 			continue
-		if not _converging(gap, vel - mine):
+		if not _converging(gap, vel - mine, horizon):
 			continue
 		var has_way := _has_way(b)
 		if has_way and gap.length() >= GIVE_IMMINENT:
@@ -867,13 +872,27 @@ func keep_off() -> void:
 
 
 ## Whether two bodies `gap` apart (the other minus this one) closing at relative velocity `rel_vel`
-## come within `GIVE_CLEARANCE` of each other within `GIVE_HORIZON` s.
-func _converging(gap: Vector2, rel_vel: Vector2) -> bool:
+## come within `GIVE_CLEARANCE` of each other within `horizon` s.
+func _converging(gap: Vector2, rel_vel: Vector2, horizon: float) -> bool:
 	var speed2 := rel_vel.length_squared()
 	if speed2 < 1.0 or gap.dot(rel_vel) >= 0.0:
 		return false
-	var t := clampf(-gap.dot(rel_vel) / speed2, 0.0, GIVE_HORIZON)
+	var t := clampf(-gap.dot(rel_vel) / speed2, 0.0, horizon)
 	return (gap + rel_vel * t).length() < GIVE_CLEARANCE
+
+
+## How far (px) the walk under way still goes: along the agent's path from where the NPC stands to
+## its end.
+func _way_left() -> float:
+	var path: PackedVector2Array = _agent.get_current_navigation_path()
+	var idx: int = _agent.get_current_navigation_path_index()
+	var here: Vector2 = _character.global_position
+	if idx >= path.size():
+		return here.distance_to(_goal)
+	var left := here.distance_to(path[idx])
+	for i in range(idx + 1, path.size()):
+		left += path[i - 1].distance_to(path[i])
+	return left
 
 
 ## Whether the NPC has the right of way over walker `b`: `b` sees it (it is near, or within `b`'s

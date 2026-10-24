@@ -1295,10 +1295,11 @@ func _wanted_posture() -> StringName:
 ## entry — a running character cannot shoot, so an entrant walks with its gun up from the moment it
 ## heads for the door), when the leaf asks for it (`params.run`) or the NPC is under fire, the
 ## destination is farther than `run_min_distance` (a follower: one fallen `follow_step` behind its
-## spot, whatever the leaf), and a run can be started (stamina `run_start_fraction`, or already
-## running). It never sprints with a shot to take or an empty gun to reload (a running character can
-## do neither), except a retreat (`params.run_through_fire`), which is about leaving the line, not
-## trading shots. The Character spends the stamina and runs dry on its own.
+## spot, whatever the leaf, and then until it is back within `follow_caught_up` of it), and a run
+## can be started (stamina `run_start_fraction`, or already running). It never sprints with a shot
+## to take or an empty gun to reload (a running character can do neither), except a retreat
+## (`params.run_through_fire`), which is about leaving the line, not trading shots. The Character
+## spends the stamina and runs dry on its own.
 func _should_run() -> bool:
 	if not run_enabled or _character.move_input == Vector2.ZERO:
 		return false
@@ -1320,9 +1321,10 @@ func _should_run() -> bool:
 		&"follow":
 			if _arrived:
 				return false
-			# A follower runs to catch up once it has fallen a place behind its spot.
+			# A follower runs to catch up once it has fallen a place behind its spot, and keeps
+			# running until it has caught up.
 			dest = squad.follow_spot(_character)
-			near = squad.follow_step
+			near = squad.follow_caught_up if _character.is_running() else squad.follow_step
 			run = true
 		_:
 			return false
@@ -1920,11 +1922,11 @@ func take_order_steps() -> Array:
 
 ## Follow (LD20 to LD22): keep to the spot the squad gives the NPC (`Squad.follow_spot`). The walk
 ## is re-aimed only once that spot has moved `follow_retarget` from where it is going, and is over
-## within `follow_arrive` of it or where its path ends short of one it cannot reach. There it
-## stands facing away from its leader (the leash's centre, its live position) and, at rest with
-## nothing to fight, tops up a low magazine.
-## The watch stage shoots what it sees on the way. Its spot gone (it leads now, or left the squad):
-## re-decide.
+## within `follow_arrive` of it or where its path ends short of one it cannot reach; a follower
+## running to catch up re-aims at its live spot there until it is within `follow_caught_up` of it.
+## There it stands facing away from its leader (the leash's centre, its live position) and, at rest
+## with nothing to fight, tops up a low magazine. The watch stage shoots what it sees on the way.
+## Its spot gone (it leads now, or left the squad): re-decide.
 func _apply_follow() -> void:
 	var spot: Vector2 = (squad.follow_spot(_character)
 			if squad != null and is_instance_valid(squad)
@@ -1939,6 +1941,11 @@ func _apply_follow() -> void:
 		_arrived = false
 	if not _arrived:
 		_arrived = _loco.reached(_follow_to, squad.follow_arrive)
+		if (_arrived and _character.is_running()
+				and _character.global_position.distance_to(spot) > squad.follow_caught_up):
+			# Running to catch up, it is not there until it has caught up: on to its live spot.
+			_follow_to = spot
+			_arrived = false
 		_follow_stood = GameClock.seconds()
 	if not _arrived:
 		_loco.move_to(_follow_to, squad.follow_arrive)

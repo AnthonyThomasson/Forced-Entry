@@ -1,6 +1,6 @@
 extends GameTest
 ## LD19 and LD21: a human leader gets the same rule. A puppet stands in for the human leader of a
-## squad of two invader NPCs, built and bound the way Main builds it with "Lead the team" on (the
+## squad of two invader NPCs, built and bound the way a match builds it with "Lead the team" on (the
 ## human handed to `Squad.setup` as `human`, `MatchBuilder.bind_squad`). The human walks a route
 ## along the back garden north of the Terrace house, west, and stops facing west. The NPCs follow
 ## it in a file on its trail while it walks (each spot `FOLLOW_GAP` + `FOLLOW_STEP` x its place
@@ -101,7 +101,13 @@ func run(t: TestContext) -> void:
 	var ringed := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return members.all(func(m): return _on_ring(me, m))
-	var rang := await t.until(ringed, Follow.FOLLOW_STILL_TIME + RING_WITHIN)
+	# The ring is laid once the human has stood `FOLLOW_STILL_TIME` (LD21): a file that halts within
+	# the ring's band is not on it yet.
+	var still := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return t.time - stopped_at >= Follow.FOLLOW_STILL_TIME
+	await t.until(still, Follow.FOLLOW_STILL_TIME + 1.0)
+	var rang := await t.until(ringed, RING_WITHIN)
 	await t.seconds(1.0)
 
 	for m: Node in members:
@@ -150,7 +156,7 @@ func run(t: TestContext) -> void:
 			"%s re-aims its walk only once its spot moved %.0f px (%d re-aims, the least %.1f px)"
 				% [m.name, Follow.FOLLOW_RETARGET, reaims[m].size(), least],
 		)
-	t.check(rang, "both rang the human within %.1f s of its stopping" % RING_WITHIN)
+	t.check(rang, "both rang the human within %.1f s of its standing still" % RING_WITHIN)
 	var tuned := {
 		"follow_gap": Follow.FOLLOW_GAP, "follow_step": Follow.FOLLOW_STEP,
 		"follow_ring": Follow.FOLLOW_RING, "follow_still_time": Follow.FOLLOW_STILL_TIME,

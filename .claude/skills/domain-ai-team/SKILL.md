@@ -84,7 +84,7 @@ that follows, when a child of it is in the group `npc_controllers` at `setup`, `
 `_orders`, the `&"order"` post) serves `issue` and them alike.
 
 **Following (`docs/leadership.md` LD19 to LD23).** `follows(member)`: alive, the squad has a leader, not the leader, an NPC (`_npcs`). The
-tunables are vars: `follow_gap` 55, `follow_step` 45, `follow_ring` 80, `follow_still_time` 0.8 s, `follow_retarget` 20, `follow_arrive` 10,
+tunables are vars: `follow_gap` 55, `follow_step` 45, `follow_caught_up` 20, `follow_ring` 80, `follow_still_time` 0.8 s, `follow_retarget` 20, `follow_arrive` 10,
 `leash` 320, `leash_break` 1.3. The trail and the spots are `SquadFollow`'s (`ai/team/squad_follow.gd`, a `RefCounted` the squad builds in
 `setup` with its openings and rooms, `_follow`; it reads the tunables, `leader()`, `members()`, `alive` and `follows` off the squad), with
 the constants `SquadFollow.TRAIL_STEP` 15, `SLOT_SNAP` 20, `RINGS` 3, `WAY_CLEARANCE` 32. The squad's `_physics_process` runs `track`: a
@@ -100,7 +100,7 @@ doorway. `_clear_of_way` then moves a follower or spot out of the lane ahead of 
 (`_taken`), else further ahead (170 / 215 / 260 px), only into `_visited` rooms; kept in `_aside` (member -> `{ spot, from, way }`: the spot,
 where the leader stood and the way it faced) while it clears the way, until the leader has moved a ring or turned back. The controller
 reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot`, `follow_retarget`,
-`follow_arrive`, `follow_still_time` and `follow_step`, and faces away from the leash centre the controller pushes. The leash binds only a
+`follow_arrive`, `follow_still_time`, `follow_step` and `follow_caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
 follower holding no order (LD23, the controller's `_leash_lead`): `follows` stays true for a member carrying an order (its follow spot, its
 place in the file and the rally's choice of followers still count it), but its controller pushes no leash while it holds one, so a member
 defending a room, ambushing or in a stack (held or a join) fights where the order takes it, however far its leader is.

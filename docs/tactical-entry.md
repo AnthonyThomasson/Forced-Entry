@@ -83,7 +83,7 @@ sight. The file forms on one side of the door, unless a member would have to cro
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
 32 px) short of the next slot along its side a teammate claims, re-planned as claims come in, so the walk into a slot never aims at a
 teammate's body (`entry.gd` `_approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
-free spot beside it, and gives way to one walking (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
+free spot beside it, and gives way to one walking across the way its walk still goes (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
 walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point the hold does not seal (the
 point it was walking to is dropped, and with it each next one at the slot or whose plain way passes the body holding it, `entry.gd`
 `_drop_sealed`; test `ai/entry/entry_held_walks_unsealed_waypoint`). With none left, and on a walk straight into the slot, it walks on into the slot unless the slot is sealed, by a body between the member

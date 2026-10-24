@@ -17,6 +17,8 @@ const Stack := preload("res://tests/_ai/stack_probe.gd")
 const FOLLOW_GAP := 55.0
 ## ... and each next one this much further.
 const FOLLOW_STEP := 45.0
+## A follower that runs to catch up keeps running until it is this near (px) its spot.
+const FOLLOW_CAUGHT_UP := 20.0
 ## The ring (px) a still leader's followers stand on, behind its facing, within its sight.
 const FOLLOW_RING := 80.0
 ## How many rings round a still leader hold slots, each `FOLLOW_STEP` further out than the last.

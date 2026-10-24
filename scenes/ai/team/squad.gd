@@ -85,6 +85,9 @@ var follow_gap := 55.0
 ## ... and each next one this much further (also the spacing of the slots on a ring, and of the
 ## rings).
 var follow_step := 45.0
+## A follower that has fallen `follow_step` behind its spot runs to catch up, and keeps running
+## until it is this near (px) its spot.
+var follow_caught_up := 20.0
 ## The ring (px) round a still leader its followers stand on, behind its facing.
 var follow_ring := 80.0
 ## Seconds the leader stands (within `SquadFollow.TRAIL_STEP`) before it counts as still.
