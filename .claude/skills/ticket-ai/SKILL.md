@@ -36,3 +36,10 @@ link the file from the plan. Don't shape the behaviour around what the AI, snaps
 - A red scenario test is tagged `gap` and its behaviour written into the `docs/` spec (as `docs/tactical-entry.md`
   E10–E15 were; `domain-testing`, "Running tests"): reported as GAP, not a run failure, and a FAIL the day it passes
   until the tag is dropped.
+
+## Audit: stale claims
+
+For each changed read of an entry claim (a `ClaimLedger`'s, or a `DoorStack` built from one), ask: "Which entry does this
+claim belong to, and what stops a stale one from counting?" The answer names the scope (the **stale claim** rule, "The
+stack" in `domain-ai-perception`) and the test with a claim left from an earlier entry through the same doorway. AI
+refactors carry the `ai` label too, so they get this question.

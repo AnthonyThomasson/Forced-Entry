@@ -31,7 +31,8 @@ from where it stands (`claim` / `ready` / `going_in` / `in`, `_step_at`: in its 
 at a `StackClaim.STACKING` step, so an AI on its `bang` still keeps the human's slot reserved), or `go_timeout` after the AI
 ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's stack module (`StackClaim`, a `ClaimLedger`, the `DoorStack`s it builds: the slot, side, point, crossing order
 (`crossing` / `ahead`), whether anyone is stacking, `has_slot`, and the markers' `layout`; `StackClaim.keeps_claim`: a grenade call is not a
-stack claim, nor is a callout that is only an order's progress, `order_step` with no `entry_step`, LD7) and `AgentEntry`'s geometry
+stack claim, nor is a callout that is only an order's progress, `order_step` with no `entry_step`, LD7; a rule that reads
+a claim keeps to the **stale claim** rule in "The stack", `domain-ai-perception`) and `AgentEntry`'s geometry
 (`set_house`, `geometry`, `stack_side_from`, `on_stack_side`, `opening_id`), and never moves the character. **Its own claim (LD24).** With `own_claims` set (Main sets it through `MatchSpawner.bind_squad` on the invaders' side only, D29:
 false unless set, so a human defender leader claims nothing of its own and rallies nobody), no allied stack forming in reach and the human
 leading a squad with another living member (`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;

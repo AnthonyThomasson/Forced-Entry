@@ -375,6 +375,11 @@ orchestrator and the team preload these files themselves; this folder is that se
   heard) and `openings_stacking()` (`{ opening, into }` for each doorway with a live `STACKING` claim, `into` the lowest-slot
   stacking claim's). A claim lapses `ttl` s after it was heard, on
   `GameClock` (LD1), and a dead or freed speaker's goes at once.
+- **Stale claim.** The ledger keeps each speaker's latest claim, whichever entry it was made for: a claim from the team's
+  last entry through a doorway still stands while the next one forms there. A rule that reads a claim names what makes it
+  the current entry's: its `order_id`, its `into`, or a frame since (`order_frame` / `crossed_frame`, as `released` scopes
+  the human's crossing by the order's frame). Its test includes a claim left from an earlier entry through the same
+  doorway, which counts for nothing.
 - **`DoorStack`** (`door_stack.gd`, `RefCounted`, `new(geometry, team)`): the doorway's `geometry` (`AgentEntry.geometry`; {} for the
   claims alone) and its claims (`team`), every slot rule settled the one way for whoever asks. A member asking about itself passes `me`,
   its own claim as it stands (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_*, step }`, each optional): it never hears
