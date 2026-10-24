@@ -21,8 +21,9 @@ GdUnitEngineTests checks, on the real engine through the harness probes in tests
 summary, report.json and bundles keep their shape, that gdUnit's JUnit and HTML reports land in the run's out dir with
 the same verdicts (a GAP skipped, "gap: expected to fail"), that a logged warning ends its test at once, that a
 requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work: --id, --domain
-and --skip-domain given twice add up, --repeat reruns a native suite and names its flaky case, and a selection that
-holds no test fails ("no test matched") while a --list that lists none passes.
+and --skip-domain given twice add up (in a --list and in a run of native suites), --repeat reruns a native suite and
+names its flaky case (a probe suite in a copy of the checkout), and a selection that holds no test fails ("no test
+matched") while a --list that lists none passes.
 FreshUserDirTests runs one native suite in a copy of the checkout whose user:// holds no logs/godot.log (a fresh
 clone, CI): gdUnit's own log monitor reads the run's log, nothing is logged outside a test, project.godot is untouched.
 """
@@ -54,6 +55,23 @@ def godot_binary():
     for p in sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")):
         return str(p)
     return os.environ.get("GODOT")
+
+
+def copy_checkout(dest: Path) -> Path:
+    """A copy of this checkout at `dest` (its tracked and untracked files, not the ignored ones nor artifacts/, and its
+    .godot import cache), for a run whose suites or settings must not appear in the live tree. It has no .git, so the
+    wrapper's clean-lint fingerprint cannot be taken there: run it with --no-lint."""
+    listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
+                            check=True, capture_output=True).stdout.decode()
+    for rel in sorted({p for p in listed.split("\0") if p}):
+        src = ROOT / rel
+        if rel.startswith("artifacts/") or not src.is_file():
+            continue
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest / rel)
+    if (ROOT / ".godot").is_dir():
+        shutil.copytree(ROOT / ".godot", dest / ".godot", symlinks=True)
+    return dest
 
 
 def scan(text: str, *flags: str):
@@ -134,6 +152,8 @@ echo "$head" > "$log"
 # A report of one passing test; `empty` one of no test at all (a selection that matched nothing).
 report() { printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+# A report of one passing case of a native suite (`<suite id>::<case>`).
+native() { printf '{"results": [{"id": "a/n_suite::test_x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 timed() {
   printf '{"results": [{"id": "a/x", "status": "PASS", "wall_ms": 120}, {"id": "a/z", "status": "PASS", "wall_ms": 80}, {"id": "a/s", "status": "SKIPPED", "wall_ms": 5}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
@@ -145,6 +165,7 @@ echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
 case "$FAKE_SCENARIO" in
   clean) report ;;
   empty) empty ;;
+  native) native ;;
   shard1_empty) if [ "$shard" = "1/2" ]; then empty; else report; fi ;;
   timed) timed ;;
   judged_error) echo "$judged" >> "$log"; report ;;
@@ -289,6 +310,18 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("cannot read the last report", out)
         self.assertIn(str(last), out, "it names the file")
         self.assertNotIn("nothing to rerun", out)
+
+    def test_an_explicit_shard_runs_native_suites_once_and_says_so(self):
+        # The native reruns of --repeat are the wrapper's own processes, which a --shard given by hand never gets.
+        code, out = self.run_wrapper("native", "--repeat=3", "--shard=0/1")
+        self.assertEqual(code, 0, out)
+        self.assertIn("NOTE native suites ran once (--shard)", out)
+        for scenario, args in (("native", ["--repeat=3"]), ("native", ["--shard=0/1"]),
+                               ("clean", ["--repeat=3", "--shard=0/1"])):
+            with self.subTest(scenario=scenario, args=args):
+                code, out = self.run_wrapper(scenario, *args)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("native suites ran once", out)
 
     def test_one_failing_shard_fails_the_whole_run(self):
         self.assertEqual(self.run_wrapper("shard1_error", "--jobs=2")[0], 1)
@@ -806,12 +839,14 @@ class GdUnitEngineTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_tests(self, *args, timeout=900, **probe_env):
-        """run_tests.sh with `args`; its per-checkout state ($TMPDIR) kept apart from the person's."""
+    def run_tests(self, *args, timeout=900, root=ROOT, **probe_env):
+        """run_tests.sh of the checkout at `root` with `args`; its per-checkout state ($TMPDIR) kept apart from the
+        person's."""
         env = {k: v for k, v in os.environ.items() if k not in self.PROBE_ENV}
         env.update(GODOT=godot_binary(), TMPDIR=str(Path(tempfile.mkdtemp(dir=self.tmp))), **probe_env)
         started = time.monotonic()
-        r = subprocess.run(["bash", str(RUN), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(["bash", str(root / "tools" / "run_tests.sh"), *args], cwd=root, env=env,
+                           capture_output=True, text=True, timeout=timeout)
         return Run(r.returncode, r.stdout + r.stderr, time.monotonic() - started)
 
     def probe(self, test_id, *flags, **probe_env):
@@ -963,6 +998,16 @@ class GdUnitEngineTests(unittest.TestCase):
                                                        "--skip-domain=projectile", "--skip-domain=worldgen")}
         self.assertEqual(domains, {"lighting"})
 
+    def test_repeated_domain_and_skip_domain_flags_add_up_in_a_run(self):
+        # A run, not --list: a native suite is picked by native_selected, which reads the flags itself.
+        selected = "--id=general/weighted_pick_suite,physics/deformation_outline_suite,ai/door_stack_suite"
+        for flags, domains in ((["--domain=general", "--domain=physics"], {"general", "physics"}),
+                               (["--skip-domain=general", "--skip-domain=physics"], {"ai"})):
+            with self.subTest(flags=flags):
+                run = self.run_tests("--no-lint", selected, *flags)
+                self.assertEqual(run.code, 0, run.out)
+                self.assertEqual({i.split("/")[0] for i in run.results}, domains, run.out)
+
     def test_json_prints_the_results(self):
         run = self.probe(self.VERDICT, "--json")
         line = next((l for l in run.out.splitlines() if l.startswith("JSON: ")), None)
@@ -975,8 +1020,9 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.summary[0], 2, run.out)
 
-    # A native suite written into tests/general/ for one test only: `test_counted` always passes, `test_flaky` fails
-    # on its second run (the runs are counted in the file GAME_TEST_FLAKY_COUNT names, so across processes).
+    # A native suite written into tests/general/ of a copy of the checkout (never the live tree, where another run
+    # would pick it up): `test_counted` always passes, `test_flaky` fails on its second run (the runs are counted in
+    # the file GAME_TEST_FLAKY_COUNT names, so across processes).
     FLAKY_NATIVE = "general/zz_flaky_native_probe_suite"
     FLAKY_NATIVE_SOURCE = """extends UnitSuite
 
@@ -995,14 +1041,11 @@ func test_flaky() -> void:
 """
 
     def test_repeat_reruns_a_native_suite_and_names_a_flaky_case(self):
-        probe = ROOT / "tests" / (self.FLAKY_NATIVE + ".gd")
+        copy = copy_checkout(Path(tempfile.mkdtemp(dir=self.tmp)) / "checkout")
+        (copy / "tests" / (self.FLAKY_NATIVE + ".gd")).write_text(self.FLAKY_NATIVE_SOURCE)
         count = Path(tempfile.mkdtemp(dir=self.tmp)) / "runs"
-        probe.write_text(self.FLAKY_NATIVE_SOURCE)
-        try:
-            run = self.run_tests("--no-lint", f"--id={self.FLAKY_NATIVE}", "--repeat=3", GAME_TEST_FLAKY_COUNT=str(count))
-        finally:
-            for f in (probe, probe.with_name(probe.name + ".uid")):
-                f.unlink(missing_ok=True)
+        run = self.run_tests("--no-lint", f"--id={self.FLAKY_NATIVE}", "--repeat=3", root=copy,
+                             GAME_TEST_FLAKY_COUNT=str(count))
         counted, flaky = self.FLAKY_NATIVE + "::test_counted", self.FLAKY_NATIVE + "::test_flaky"
         self.assertEqual(run.status(counted), ["PASS"] * 3, "each native case runs 3 times\n" + run.out)
         self.assertEqual(sorted(run.status(flaky)), ["FAIL", "PASS", "PASS"], run.out)
@@ -1057,17 +1100,7 @@ class FreshUserDirTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="fresh_user_dir_"))
-        cls.copy = cls.tmp / "checkout"
-        listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
-                                check=True, capture_output=True).stdout.decode()
-        for rel in sorted({p for p in listed.split("\0") if p}):
-            src = ROOT / rel
-            if rel.startswith("artifacts/") or not src.is_file():
-                continue
-            (cls.copy / rel).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, cls.copy / rel)
-        if (ROOT / ".godot").is_dir():
-            shutil.copytree(ROOT / ".godot", cls.copy / ".godot", symlinks=True)
+        cls.copy = copy_checkout(cls.tmp / "checkout")
         cls.user_dir_name = f"fe-fresh-user-dir-{cls.tmp.name}"
         cls.user_dir = os_data_dir() / cls.user_dir_name
         project = cls.copy / "project.godot"

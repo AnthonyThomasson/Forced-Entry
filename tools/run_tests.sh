@@ -61,7 +61,8 @@
 #                   (headless measures the CPU only) without being held to the display's refresh
 # Other
 #   --repeat=5      run each test 5 times, a native suite's cases too (it runs again in 4 more processes); names
-#                   FLAKY / FAILING tests
+#                   FLAKY / FAILING tests. With a --shard given by hand a native suite runs once ("NOTE native suites
+#                   ran once (--shard)").
 #   --seed=42       pin every house() test to seed 42
 #   --strict-exit   also fail on Godot's own end-of-process leak report (reported as a NOTE by default)
 #   --report=FILE   also write the run's merged report (results, stray_logs) to FILE (the in-game browser's Run all)
@@ -406,12 +407,32 @@ live_run() {
   return $code
 }
 
+# The native suites the runs that wrote the dirs given met (their records' `<suite id>::<case>` ids), as res://
+# paths, one per line.
+native_suites_met() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+seen = []
+for d in sys.argv[1:]:
+    try:
+        results = json.load(open(os.path.join(d, "report.json"))).get("results", [])
+    except Exception:
+        continue
+    for r in results:
+        suite = "res://tests/" + r["id"].split("::")[0] + ".gd"
+        if "::" in r["id"] and suite not in seen:
+            seen.append(suite)
+print("\n".join(seen))
+EOF
+}
+
 # One run of the runner with the given selection args, split over several processes when asked (see jobs_for). With
 # --repeat=N every selected test is listed N times in its process, but a native suite runs once a process: it runs
 # N-1 times more, each in a process of its own given only the native suites the run met, and the FLAKY / FAILING
-# lines and the totals are those of every process together.
+# lines and the totals are those of every process together. A --shard given by hand is one process: its native
+# suites run once, and a NOTE says so.
 run() {
-  local keep=1 sharded=0 listing=0 jobs x repeat=1
+  local keep=1 sharded=0 listing=0 jobs x repeat=1 once=0
   jobs=$(jobs_for "$@" ${args[@]+"${args[@]}"})
   [[ $jobs -gt 1 ]] && sharded=1
   for x in "$@" ${args[@]+"${args[@]}"}; do
@@ -419,6 +440,7 @@ run() {
   done
   if [[ "$repeat" =~ ^[0-9]+$ && $repeat -gt 1 ]]; then sharded=1; else repeat=1; fi
   for x in "$@" ${args[@]+"${args[@]}"}; do
+    case "$x" in --shard=*) [[ $repeat -gt 1 ]] && once=1 ;; esac
     case "$x" in --list|--self-test|--shard=*) sharded=0; repeat=1 ;; esac
     case "$x" in --list|--self-test) keep=0 ;; esac
     case "$x" in --list) listing=1 ;; esac
@@ -434,6 +456,9 @@ run() {
     fi
     [[ $keep -eq 1 ]] && save_reports "$out"
     scan_log "$out" $listing || code=1
+    if [[ $once -eq 1 && -n "$(native_suites_met "$out")" ]]; then
+      echo "NOTE native suites ran once (--shard)"
+    fi
     if [[ $listing -eq 0 ]] && no_test "$out"; then
       no_test_matched "$@" ${args[@]+"${args[@]}"}
       code=1
@@ -467,23 +492,9 @@ run() {
     live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
   fi
   if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
-    # The native suites the run met (its records' `<suite id>::<case>` ids), each run again in N-1 processes, one
-    # after another (a suite's own files are never shared by two processes at once).
-    ONLY_SUITES=$(python3 - "${dirs[@]}" <<'EOF'
-import json, os, sys
-seen = []
-for d in sys.argv[1:]:
-    try:
-        results = json.load(open(os.path.join(d, "report.json"))).get("results", [])
-    except Exception:
-        continue
-    for r in results:
-        suite = "res://tests/" + r["id"].split("::")[0] + ".gd"
-        if "::" in r["id"] and suite not in seen:
-            seen.append(suite)
-print("\n".join(seen))
-EOF
-)
+    # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
+    # never shared by two processes at once).
+    ONLY_SUITES=$(native_suites_met "${dirs[@]}")
     if [[ -n "$ONLY_SUITES" ]]; then
       for ((i = 1; i < repeat; i++)); do
         out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")

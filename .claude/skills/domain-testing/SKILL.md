@@ -88,7 +88,8 @@ and controller contract, EventBus and character signals) and never reaches into 
   per test (`wall_ms` in the report) and ends with a `Slowest:` line. `--verbose`, `--json` apply too.
 - **Other flags:** `--skip-domain=a,b` (leave those exact domains out; wins over every other selection, `--changed`'s included),
   `--repeat=N` (each test N times; names `FLAKY` / `FAILING` ones; a native suite, which runs once a process, runs
-  again in N-1 processes of its own, and the tally and totals are every process's together), `--seed=N` (every
+  again in N-1 processes of its own, and the tally and totals are every process's together; with a `--shard` given by
+  hand it runs once: `NOTE native suites ran once (--shard)`), `--seed=N` (every
   `house()` uses that seed), and, in the wrapper only, `--changed` (see below), `--report=FILE` and `--strict-exit`.
   Options take the `--name=value` form.
 - **`--changed`:** the wrapper maps each changed file (`git diff HEAD` plus untracked) to a domain and
