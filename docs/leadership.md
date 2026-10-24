@@ -535,20 +535,24 @@ status reads "keeping up with its leader" on the way and "by its leader" at its 
   room the leader has stood in since it led: a follower never goes first into a room its leader has not entered, and a leader turning back
   walks through its file. A spot beside the way is kept while it still clears the way, until the leader has moved a ring on or turned
   back, so a leader's swinging gaze (slicing a pie) does not send the follower to and fro.
-- **The walk** (`follow`). It is re-aimed only once the spot has moved `follow_retarget` (20 px) from where it is going (or, running to
-  catch up, on reaching where it was going: below), and is over within
+- **The walk** (`follow`). It is re-aimed only once the spot has moved `follow_retarget` (20 px) from where it is going (or, catching
+  up, on reaching where it was going: below), and is over within
   `follow_arrive` (10 px) of it, where its path ends short of a spot it cannot reach (the navigation agent done at the nearest reachable
   point), or when a body seals its only way. The member walks with its gun up (the watch stage shoots what it sees on the way).
-- **Catching up.** A follower runs, when a run can start, once it is more than `follow_step` (45 px) from its live spot, and keeps
-  running until it is back within `follow_caught_up` (20 px) of it: running, it re-aims at its live spot on reaching where its walk was
-  going, until it is that near. The run rule's other gates stay (no run with a shot to take or a reload due, the stamina, never in a
-  tactical entry, `domain-ai-behavior`). A run that stopped at `follow_step` would leave a follower on a long walk without stops walking
-  at its leader's pace that far behind its spot. Nor does a follower give way to its leader walking on ahead of it: the give-way check
-  looks ahead only for the time a walker's own walk still takes (at most its 1.2 s; Locomotion's give-way, `domain-ai-behavior`), and a
-  follower's walk ends at its spot, short of its leader.
+- **Catching up.** A follower runs, when a run can start, once it is more than `follow_step` (45 px) from its live spot, and from then
+  on is catching up until it is back within `follow_caught_up` (20 px) of it: it runs whenever it steps, and on reaching where its walk
+  was going, short of its live spot, re-aims at that spot, until it is that near. A walk over short of the spot (its path ends there, or
+  a body seals its only way) ends the catch-up too. A moment with no step (giving way to a walker, held short of a body, a step
+  `keep_off` stops) does not end the catch-up: the follower runs on when it steps again, on whatever stamina it has left (the stamina a
+  run needs to start is not asked again). The run rule's other gates stay and end it (no run with a shot to take or a reload due, the
+  stamina run dry, never in a tactical entry, `domain-ai-behavior`), and so does any other primitive than `follow`. A run that stopped
+  at `follow_step` would leave a follower on a long walk without stops walking at its leader's pace that far behind its spot. Nor does a
+  follower give way to its leader walking on ahead of it: the give-way check looks ahead only for the time a walker's own walk still
+  takes (at most its 1.2 s; Locomotion's give-way, `domain-ai-behavior`), and a follower's walk ends at its spot, short of its leader.
 
 Tests: LD19's, `follow_human_leader` for the file's spacing, the re-aim and the ring, `follow_catches_up` for the catch-up (a follower far
-behind a leader walking a long straight line comes back within `follow_caught_up` of its spot), `npc_give_way_walk_ends_short` for the
+behind a leader walking a long straight line comes back within `follow_caught_up` of its spot after each catch-up, through a teammate
+stepping into its way for a moment, and again after the leader has paused to look back), `npc_give_way_walk_ends_short` for the
 give-way (a walk ending short of a walker's course does not give way to it; one passing through it still does).
 
 **LD22. At rest.** At its spot a follower stands facing away from its leader. Once it has stood there `follow_still_time` (0.8 s) with no

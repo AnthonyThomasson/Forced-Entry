@@ -172,6 +172,11 @@ var _arrived := false
 var _follow_to := Vector2.INF
 ## When (game s, `GameClock`) the follower last came to a stop at its spot.
 var _follow_stood := 0.0
+## A follower running to catch up (LD21): set when its follow run starts, it holds through a tick
+## with no step (a give-way, a `keep_off` stop, a held walk) and is cleared once the follower is
+## within `follow_caught_up` of its live spot or its walk is over short of it, when a gate drops
+## the run (a shot to take, a reload due, its stamina dry) or when the primitive changes.
+var _catching_up := false
 ## A search/explore move that covers the room by sight on arrival (vs resolving at once).
 var _look_around := false
 ## Instance id of the contact being fought (0 = none).
@@ -1046,6 +1051,8 @@ func wants_decision(decide_timer_elapsed: bool) -> bool:
 
 ## Carry out the running primitive this tick.
 func apply(delta: float) -> void:
+	if _primitive != &"follow":
+		_catching_up = false
 	_combat.tick(delta)
 	_loco.sample(delta)  # Observation only (stuck overlay); never alters the tick.
 	# Every walk accounts for the characters the NPC knows of, and only those.
@@ -1294,18 +1301,31 @@ func _wanted_posture() -> StringName:
 ## arrived, a melee closing in; never an ambush, peek, room search, interaction, hold or tactical
 ## entry — a running character cannot shoot, so an entrant walks with its gun up from the moment it
 ## heads for the door), when the leaf asks for it (`params.run`) or the NPC is under fire, the
-## destination is farther than `run_min_distance` (a follower: one fallen `follow_step` behind its
-## spot, whatever the leaf, and then until it is back within `follow_caught_up` of it), and a run
-## can be started (stamina `run_start_fraction`, or already running). It never sprints with a shot
-## to take or an empty gun to reload (a running character can do neither), except a retreat
-## (`params.run_through_fire`), which is about leaving the line, not trading shots. The Character
-## spends the stamina and runs dry on its own.
+## destination is farther than `run_min_distance`, and a run can be started (stamina
+## `run_start_fraction`, or already running). It never sprints with a shot to take or an empty gun
+## to reload (a running character can do neither), except a retreat (`params.run_through_fire`),
+## which is about leaving the line, not trading shots. The Character spends the stamina and runs
+## dry on its own. A follower runs to catch up once it has fallen `follow_step` behind its spot,
+## whatever the leaf, and keeps on (`_catching_up`) until it is back within `follow_caught_up` of
+## it, through a tick with no step; the gates still drop that run.
 func _should_run() -> bool:
+	if _catching_up and _character.stamina_fraction() <= 0.0:
+		_catching_up = false  # Its stamina ran dry on the last frame's run.
 	if not run_enabled or _character.move_input == Vector2.ZERO:
 		return false
+	var go := _run_now()
+	if _primitive == &"follow":
+		_catching_up = go
+	return go
+
+
+## `_should_run`'s judgement on a tick the NPC steps: the primitive's destination, the leaf's ask
+## or fire, the distance, a shot or reload due and the stamina.
+func _run_now() -> bool:
 	var dest := _point
 	var near := run_min_distance
 	var run: bool = _params.get("run", false)
+	var running: bool = _character.is_running()
 	match _primitive:
 		&"move":
 			if _arrived or _look_around:
@@ -1322,9 +1342,11 @@ func _should_run() -> bool:
 			if _arrived:
 				return false
 			# A follower runs to catch up once it has fallen a place behind its spot, and keeps
-			# running until it has caught up.
+			# on until it has caught up: a stop on the way keeps the catch-up, and its next step
+			# runs on whatever stamina is left.
 			dest = squad.follow_spot(_character)
-			near = squad.follow_caught_up if _character.is_running() else squad.follow_step
+			near = squad.follow_caught_up if _catching_up else squad.follow_step
+			running = _catching_up
 			run = true
 		_:
 			return false
@@ -1337,7 +1359,7 @@ func _should_run() -> bool:
 		# A shot (or the reload an empty gun needs) is on: a running character can do neither, so
 		# walk and take it.
 		return false
-	return _character.is_running() or _character.stamina_fraction() >= run_start_fraction
+	return running or _character.stamina_fraction() >= run_start_fraction
 
 
 ## Move: walk to the destination (or into the destination room), aiming as the leaf asks (a threat
@@ -1923,7 +1945,8 @@ func take_order_steps() -> Array:
 ## Follow (LD20 to LD22): keep to the spot the squad gives the NPC (`Squad.follow_spot`). The walk
 ## is re-aimed only once that spot has moved `follow_retarget` from where it is going, and is over
 ## within `follow_arrive` of it or where its path ends short of one it cannot reach; a follower
-## running to catch up re-aims at its live spot there until it is within `follow_caught_up` of it.
+## catching up (`_catching_up`) whose walk target lagged its live spot re-aims at that spot there,
+## until it is within `follow_caught_up` of it. Its walk over, its catch-up is over too.
 ## There it stands facing away from its leader (the leash's centre, its live position) and, at rest
 ## with nothing to fight, tops up a low magazine. The watch stage shoots what it sees on the way.
 ## Its spot gone (it leads now, or left the squad): re-decide.
@@ -1941,9 +1964,10 @@ func _apply_follow() -> void:
 		_arrived = false
 	if not _arrived:
 		_arrived = _loco.reached(_follow_to, squad.follow_arrive)
-		if (_arrived and _character.is_running()
+		if (_arrived and _catching_up
+				and _follow_to.distance_to(spot) > squad.follow_arrive
 				and _character.global_position.distance_to(spot) > squad.follow_caught_up):
-			# Running to catch up, it is not there until it has caught up: on to its live spot.
+			# Catching up, it is not there until it has caught up: on to its live spot.
 			_follow_to = spot
 			_arrived = false
 		_follow_stood = GameClock.seconds()
@@ -1951,6 +1975,7 @@ func _apply_follow() -> void:
 		_loco.move_to(_follow_to, squad.follow_arrive)
 		_aim_move()
 		return
+	_catching_up = false
 	_character.move_input = Vector2.ZERO
 	var here: Vector2 = _character.global_position
 	var lead: Vector2 = _combat.leash_center
