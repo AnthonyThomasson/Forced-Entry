@@ -3,9 +3,8 @@ extends Node
 ## MCP, driven from `tools/gcmd.py`) control the running game with text commands. It never exists
 ## in an exported build — `_ready()` returns unless running from the editor binary — and stays off
 ## unless a listen port is set, so it is opt-in like the decision-server launcher.
-## `GODOT_CMD_PORT=off` keeps it off whatever port is set: the checks that never drive it
-## (tools/load_check.sh, tools/run_tests.sh, the coverage runner) run with it, so they never take a
-## port another run holds.
+## `GODOT_CMD_PORT=off` keeps it off whatever port is set: the headless checks that never drive it
+## run with it, so they never take a port another run holds.
 ##
 ## Commands are line-delimited over 127.0.0.1. Each line is either a curated verb (see `help`) or,
 ## if it matches no verb, a GDScript `Expression` evaluated against this node. Movement and actions
@@ -33,8 +32,7 @@ var _item_actions: Array = []
 var _match_start_ms: int = Time.get_ticks_msec()
 
 
-## Start listening only from an editor run, not turned off (`GODOT_CMD_PORT=off`), and only when a
-## port is configured; otherwise stay off.
+## Start listening only from an editor run and only when a port is configured; otherwise stay off.
 func _ready() -> void:
 	if not OS.has_feature("editor"):
 		return

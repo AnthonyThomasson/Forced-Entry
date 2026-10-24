@@ -144,7 +144,6 @@ class PlanTests(unittest.TestCase):
                 runner.resolve_jobs(bad)
 
 
-@needs_godot
 class GameEnvTests(unittest.TestCase):
     def test_a_process_in_the_copy_runs_with_the_command_server_off_over_the_callers_port(self):
         for port in (None, "9123"):
@@ -156,6 +155,7 @@ class GameEnvTests(unittest.TestCase):
                 self.assertEqual(runner.game_env(ROOT, FE_COVERAGE="x").get("GODOT_CMD_PORT"), "off")
 
 
+@needs_godot
 class WatchRunTests(unittest.TestCase):
     """`run --matches=2 --seed=100`: two Watch matches, seeds 100 and 101, in two processes, two at a time (the
     default `--jobs`)."""
