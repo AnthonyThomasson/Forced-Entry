@@ -1,8 +1,10 @@
 """.githooks/commit-msg: a commit whose `Co-Authored-By: Claude <model> <…>` line names another model than the branch's
 earlier Claude commits (`git log <base>..HEAD`, base `origin/main`, else `main`; merges walked too, commits without a
 Claude line ignored), or whose own Claude lines disagree, is refused, naming both models, the earlier commits' short
-hashes and the fix. A message with no Claude line, and the branch's first Claude commit, pass silently. An amend
-(`git commit --amend`, as a rebase's reword makes one) replaces HEAD, so HEAD is left out of the earlier commits.
+hashes and the fix. The fix's `git rebase --exec` command rewords the earlier commits with no editor, through the hook;
+when the earlier commits name more than one model among themselves, the hint picks none of theirs. A message with no
+Claude line, and the branch's first Claude commit, pass silently. An amend (`git commit --amend`, as a rebase's reword
+makes one) replaces HEAD, so HEAD is left out of the earlier commits.
 
 Each case is a temp git repo: `main` holds one human commit, and the work is on the branch `work`. The hook is run as
 git runs it (from the repo, the message file its argument), or through `git commit` with core.hooksPath set to a
@@ -78,6 +80,50 @@ class CommitMsgTests(unittest.TestCase):
             self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
             for text in ("Claude Haiku 5.5", "Claude Opus 5.5", first, second, OPUS, "rebase"):
                 self.assertIn(text, r.stderr)
+
+    def recipe(self, stderr: str) -> str:
+        """The command the hint gives to reword the earlier commits: its line indented by two spaces."""
+        lines = [ln.strip() for ln in stderr.splitlines() if ln.startswith("  git rebase")]
+        self.assertEqual(len(lines), 1, "one rebase command line in the hint\n" + stderr)
+        return lines[0]
+
+    def test_the_hints_rebase_rewords_the_earlier_commits_without_an_editor(self):
+        with TempDir("commit_msg_test.") as d:
+            repo = self.repo(d)
+            repo.commit("a.txt", message("First", HAIKU))
+            git(repo.root, "checkout", "-q", "-b", "side", "main")
+            repo.commit("side.txt", message("Side, by a person"))
+            git(repo.root, "checkout", "-q", "work")
+            git(repo.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "merge", "-q", "--no-ff", "side",
+                "-m", message("Merge side", HAIKU))
+            repo.commit("b.txt", message("Last", HAIKU))
+            r = repo.hook(message("Next", OPUS))
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            # As the agent runs it: no editor to open (an interactive rebase would fail on it), the hooks on.
+            for key, value in (("core.hooksPath", ".githooks"), ("user.name", "t"), ("user.email", "t@example.com")):
+                git(repo.root, "config", key, value)
+            done = subprocess.run(["bash", "-c", self.recipe(r.stderr)], cwd=repo.root,
+                                  env=clean_env(GIT_EDITOR="false", GIT_SEQUENCE_EDITOR="false"), capture_output=True,
+                                  text=True, timeout=120)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            log = git(repo.root, "log", "--format=%B", "main..work")
+            self.assertNotIn("Haiku", log)
+            self.assertEqual(log.count(OPUS), 3, "each earlier Claude commit reworded, the merge's included\n" + log)
+            self.assertIn("side.txt", git(repo.root, "ls-files"), "the merge is kept")
+            self.assert_passes(repo.hook(message("Next", OPUS)))
+
+    def test_earlier_commits_that_disagree_are_named_without_picking_one(self):
+        with TempDir("commit_msg_test.") as d:
+            repo = self.repo(d)
+            repo.commit("a.txt", message("First", OPUS))
+            repo.commit("b.txt", message("Second", HAIKU))
+            for mine in (OPUS, "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"):
+                with self.subTest(mine=mine):
+                    r = repo.hook(message("Third", mine))
+                    self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                    self.assertIn("more than one model", r.stderr)
+                    self.assertNotIn("edit this message's line to", r.stderr, "neither earlier model is the right one")
+                    self.assertIn("rebase", r.stderr)
 
     def test_the_branchs_model_passes(self):
         with TempDir("commit_msg_test.") as d:
