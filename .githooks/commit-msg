@@ -20,14 +20,16 @@ for ref in origin/main main; do
 done
 head="HEAD"
 ps -o args= -p "$PPID" 2>/dev/null | grep -qE '(^| )--amend( |$)' && head="HEAD^"
-history=""
-if [[ -n "$base" ]] && git rev-parse --verify -q "$head^{commit}" >/dev/null; then
-  # One record per commit: its short hash, then its message, NUL-separated.
-  history=$(git log -z --format='%h%n%B' "$base..$head" | base64)
-fi
+# The branch's earlier commits, one record each: its short hash, then its message, NUL-separated. Read by the check
+# as a file (a long branch's log would not fit in an argument).
+history() {
+  if [[ -n "$base" ]] && git rev-parse --verify -q "$head^{commit}" >/dev/null; then
+    git log -z --format='%h%n%B' "$base..$head"
+  fi
+}
 
-python3 - "$msg" "$base" "$history" <<'EOF'
-import base64, re, sys
+python3 - "$msg" "$base" <(history) <<'EOF'
+import re, sys
 from collections import OrderedDict
 
 CLAUDE = re.compile(r"^co-authored-by:\s*(claude\b.*?)\s*<[^>]*>\s*$", re.I)
@@ -48,7 +50,8 @@ def claude_lines(text):
     return out
 
 
-path, base, history = sys.argv[1], sys.argv[2], sys.argv[3]
+path, base = sys.argv[1], sys.argv[2]
+history = open(sys.argv[3], "rb").read().decode("utf-8", "replace")
 mine = claude_lines(open(path, encoding="utf-8", errors="replace").read())
 models = list(OrderedDict.fromkeys(model for model, _ in mine))
 if not models:
@@ -60,7 +63,7 @@ if len(models) > 1:
     sys.exit(1)
 
 earlier = OrderedDict()  # model -> (its first line, [short hashes])
-for record in base64.b64decode(history).decode("utf-8", "replace").split("\0"):
+for record in history.split("\0"):
     short, _, body = record.partition("\n")
     for model, line in claude_lines(body):
         hashes = earlier.setdefault(model, (line, []))[1]
