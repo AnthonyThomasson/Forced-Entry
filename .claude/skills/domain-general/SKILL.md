@@ -137,7 +137,10 @@ the defaults are stored, so a changed default still reaches an action the player
 control a running game with text commands. It is **off** unless the port — the `GODOT_CMD_PORT` env
 var (per-worktree, set by `tools/editor.sh`), else `application/debug/command_port` — is >
 0 and never exists in an exported build (`_ready()` bails when `OS.has_feature("editor")` is
-false). It listens on 127.0.0.1 with a line-delimited protocol: each line is a curated verb
+false). `GODOT_CMD_PORT=off` keeps it off whatever port is set (no listen, no warning): `tools/load_check.sh`,
+`tools/run_tests.sh` and the coverage runner (`tools/coverage/runner.py` `game_env`) always run Godot with it, over a
+port the caller set, so two worktrees' checks never clash on 9080 (`tools/tests/test_load_check.py` holds 9080 and
+passes the check). It listens on 127.0.0.1 with a line-delimited protocol: each line is a curated verb
 (`help`, `pos`, `tp X Y`, `slot N`, `move up|down|left|right [off]`, `stop`, `fire`, `punch`, `kick`,
 `interact`, `reload`, `crouch`, `aim X Y`, `match`, `ai`, `restart [seed]`, `menu`, `eval EXPR`) or, failing that, a GDScript `Expression`
 evaluated against the node (e.g. `scene().get_node("Player").speed`). Movement and actions are

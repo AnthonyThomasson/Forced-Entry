@@ -11,7 +11,8 @@ The spec and the tests are `docs/tactical-entry.md` (E1 to E22; the bang is also
 pie arc, corners, capacity) is the perception's (`agent_entry.gd`, "Entry geometry" in `domain-ai-perception`), read through the
 `AgentPerception` wrappers; the team's claims off the radio and every slot rule are the perception's stack module
 (`ai/perception/stack/`: `StackClaim`, `ClaimLedger`, `DoorStack`, "The stack" in `domain-ai-perception`), read as one `DoorStack` a
-tick (`AgentPerception.entry_stack(opening, into)`, `_read_stack`: `_stack`); the room is cleared by sight with `search_coverage.gd`
+tick (`AgentPerception.entry_stack(opening, into)`, `_read_stack`: `_stack`; a rule that reads a claim keeps to the **stale
+claim** rule there); the room is cleared by sight with `search_coverage.gd`
 (`domain-ai-coverage`). The human's side of the same radio is `PlayerStack` (`domain-ai-team`).
 
 ## The module

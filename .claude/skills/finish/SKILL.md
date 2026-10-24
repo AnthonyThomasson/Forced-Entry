@@ -18,10 +18,13 @@ whether to finish and invokes `finish` again.
 1. **Preconditions.** The branch (`git branch --show-current`) and `main`'s directory (the `worktree` entry with
    `branch refs/heads/main` in `git worktree list --porcelain`). Stop and tell the user if the branch is `main`, there
    is nothing to commit and nothing ahead of `main`, or `main`'s directory is not clean
-   (`git -C <main dir> status --short`).
+   (`git -C <main dir> status --short`). Then the branch's model: the `Co-Authored-By: Claude <model> <…>` lines of
+   `git log origin/main..HEAD` name one model; when they name more than one, stop and tell the user which commits name
+   which (the commit-msg hook refuses a mixed branch).
 2. **Commit.** No analysis or tests. Review `git status --short`; stage this work's files by name, including the `.uid`
-   beside every new or moved `.gd` (tracked here). Message: what changed and why, ending with the session's commit
-   attribution line. Anything left out is handled in step 6.
+   beside every new or moved `.gd` (tracked here). Message: what changed and why, ending with the branch's model's
+   `Co-Authored-By` line from step 1 (this skill runs pinned to another model, so the session's attribution line can
+   name the wrong one), or the session's line when no commit names one. Anything left out is handled in step 6.
 3. **Bring in main.** `git merge main`. Resolve only trivial conflicts; otherwise stop and show the conflicting files.
 4. **Land.** `git -C <main dir> merge --ff-only <branch>`. Refused because `main` moved: back to step 3. Never force or
    `--no-verify`.

@@ -7,7 +7,8 @@ extends RefCounted
 ##   [--include-von] [--require-von] [--repeat=N] [--seed=N] [--fail-fast] [--summary] [--verbose]
 ##   [--json] [--shots] [--shard=I/N] [--costs=<json>] [--out=<dir>]
 ## The selection is made once per process from the catalog (test_catalog.gd), as the batch runner
-## made it: `--domain` / `--id` keep exactly those, `--skip-domain` wins over all, the words are
+## made it: `--domain` / `--id` keep exactly those, `--skip-domain` wins over all (each of the three
+## a comma list, and a flag given again adds to it: `list_option`), the words are
 ## word prefixes (TestCatalog.matches), `--self-test` keeps only the harness's own tests and
 ## `--shard` one cost-balanced slice. Each wrapper suite lists the selected tests of its folder as
 ## its cases (`cases`), each `--repeat` times; a native suite runs whole or not at all
@@ -60,6 +61,16 @@ static func option(option_name: String, fallback := "") -> String:
 		if a.begins_with(option_name + "="):
 			return a.substr(option_name.length() + 1)
 	return fallback
+
+
+## The items of a comma-list option (`--id`, `--domain`, `--skip-domain`), every time it is given:
+## `--id=a --id=b` is `--id=a,b`.
+static func list_option(option_name: String) -> Array:
+	var out: Array = []
+	for a in args():
+		if a.begins_with(option_name + "="):
+			out.append_array(TestCatalog.csv(a.substr(option_name.length() + 1)))
+	return out
 
 
 ## Whether the bare option `flag_name` (`--summary`, `--self-test` ...) was given.
@@ -137,8 +148,8 @@ static func selection() -> Array:
 	var self_test := flag("--self-test")
 	var text := filter()
 	TestCatalog.show_internal = self_test
-	var domains := TestCatalog.csv(option("--domain"))
-	var skipped := TestCatalog.csv(option("--skip-domain"))
+	var domains := list_option("--domain")
+	var skipped := list_option("--skip-domain")
 	var keep := func(e): return (e["internal"] or not self_test) and TestCatalog.matches(e, text)
 	var picked := TestCatalog.discover(TestCatalog.ROOT, domains, ids(), skipped).filter(keep)
 	TestCatalog.show_internal = false
@@ -153,7 +164,7 @@ static func selection() -> Array:
 ## The exact ids asked for: `--id`, plus those that FAILED or TIMED OUT in the `--failed` report (a
 ## placeholder when it names none, so that `--failed` selects nothing rather than everything).
 static func ids() -> Array:
-	var out := TestCatalog.csv(option("--id"))
+	var out := list_option("--id")
 	var failed_from := option("--failed")
 	if failed_from != "":
 		out.append_array(_failed_ids(failed_from))
@@ -175,10 +186,10 @@ static func native_selected(path: String) -> bool:
 	if spec != "" and int(spec.get_slice("/", 0)) != 0:
 		return false
 	var entry := native_entry(path)
-	var domains := TestCatalog.csv(option("--domain"))
+	var domains := list_option("--domain")
 	if not domains.is_empty() and not domains.has(entry["domain"]):
 		return false
-	if TestCatalog.csv(option("--skip-domain")).has(entry["domain"]):
+	if list_option("--skip-domain").has(entry["domain"]):
 		return false
 	var wanted := ids()
 	var names_it := func(i: String):
@@ -224,7 +235,7 @@ static func begin() -> void:
 		"" if repeat() == 1 else "  repeat x%d" % repeat(),
 		"" if TestSetup.seed_override == 0 else "  seed %d" % TestSetup.seed_override,
 	])
-	var domain := option("--domain")
+	var domain := ",".join(list_option("--domain"))
 	var text := filter()
 	var spec := option("--shard")
 	var natives := native_suites_under(TestCatalog.ROOT).filter(native_selected).size()

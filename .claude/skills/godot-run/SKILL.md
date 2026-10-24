@@ -66,7 +66,8 @@ Load check first: never drive a game that doesn't parse.
 - Ready when the log shows `[cmd] listening on 127.0.0.1:<port>`. Nothing after ~10 s (display/GPU init hang): kill it
   and launch again.
 - The command server runs only from the editor binary, with a port (`GODOT_CMD_PORT`, else
-  `application/debug/command_port` = 9080). Never in an exported build.
+  `application/debug/command_port` = 9080). Never in an exported build. The checks run it with `GODOT_CMD_PORT=off`
+  (`domain-general`, "Dev command server"); `tools/editor.sh`, `gcmd.py` and `match.py` use a real port.
 - The change's tests in a window, for the user to watch: `tools/play_tests.sh` (no ids = the change's tests; it returns
   at once with the window's pid and log; `domain-testing`).
 

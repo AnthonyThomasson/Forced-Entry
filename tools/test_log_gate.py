@@ -20,7 +20,10 @@ run_tests.sh starts gdUnit's command-line tool (headless, `--fixed-fps 60`, a lo
 GdUnitEngineTests checks, on the real engine through the harness probes in tests/_harness/, that the verdicts, lines,
 summary, report.json and bundles keep their shape, that gdUnit's JUnit and HTML reports land in the run's out dir with
 the same verdicts (a GAP skipped, "gap: expected to fail"), that a logged warning ends its test at once, that a
-requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work.
+requires_von test with no server is skipped (FAIL under --require-von), and that the flags still work: --id, --domain
+and --skip-domain given twice add up (in a --list and in a run of native suites), --repeat reruns a native suite and
+names its flaky case (a probe suite in a copy of the checkout), and a selection that holds no test fails ("no test
+matched") while a --list that lists none passes.
 FreshUserDirTests runs one native suite in a copy of the checkout whose user:// holds no logs/godot.log (a fresh
 clone, CI): gdUnit's own log monitor reads the run's log, nothing is logged outside a test, project.godot is untouched.
 """
@@ -52,6 +55,23 @@ def godot_binary():
     for p in sorted(Path("/Applications").glob("Godot*.app/Contents/MacOS/Godot")):
         return str(p)
     return os.environ.get("GODOT")
+
+
+def copy_checkout(dest: Path) -> Path:
+    """A copy of this checkout at `dest` (its tracked and untracked files, not the ignored ones nor artifacts/, and its
+    .godot import cache), for a run whose suites or settings must not appear in the live tree. It has no .git, so the
+    wrapper's clean-lint fingerprint cannot be taken there: run it with --no-lint."""
+    listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
+                            check=True, capture_output=True).stdout.decode()
+    for rel in sorted({p for p in listed.split("\0") if p}):
+        src = ROOT / rel
+        if rel.startswith("artifacts/") or not src.is_file():
+            continue
+        (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest / rel)
+    if (ROOT / ".godot").is_dir():
+        shutil.copytree(ROOT / ".godot", dest / ".godot", symlinks=True)
+    return dest
 
 
 def scan(text: str, *flags: str):
@@ -129,7 +149,11 @@ done
 head='Godot Engine v4.4'
 judged='ERROR: a test provoked this (the runner already failed that test)'
 echo "$head" > "$log"
-report() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+# A report of one passing test; `empty` one of no test at all (a selection that matched nothing).
+report() { printf '{"results": [{"id": "a/x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+empty() { printf '{"results": [], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
+# A report of one passing case of a native suite (`<suite id>::<case>`).
+native() { printf '{"results": [{"id": "a/n_suite::test_x", "status": "PASS"}], "stray_logs": [], "log_end": %s}' "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"; }
 timed() {
   printf '{"results": [{"id": "a/x", "status": "PASS", "wall_ms": 120}, {"id": "a/z", "status": "PASS", "wall_ms": 80}, {"id": "a/s", "status": "SKIPPED", "wall_ms": 5}], "stray_logs": [], "log_end": %s}' \
     "$(wc -c < "$log" | tr -d ' ')" > "$out/report.json"
@@ -140,6 +164,9 @@ timed() {
 echo "0 passed, 0 failed, 0 timed out, 0 skipped, 0 gap"
 case "$FAKE_SCENARIO" in
   clean) report ;;
+  empty) empty ;;
+  native) native ;;
+  shard1_empty) if [ "$shard" = "1/2" ]; then empty; else report; fi ;;
   timed) timed ;;
   judged_error) echo "$judged" >> "$log"; report ;;
   shutdown_error) report; echo "ERROR: engine complained while quitting" >> "$log" ;;
@@ -254,6 +281,48 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("test_runner.tscn -- --play <words>", out)
         self.assertNotIn("passed,", out)
 
+    def test_a_selection_that_holds_no_test_fails_but_an_empty_shard_does_not(self):
+        code, out = self.run_wrapper("empty", "--id=a/nope")
+        self.assertEqual(code, 1, out)
+        self.assertIn("no test matched", out)
+        self.assertIn("--id=a/nope", out, "the message names the selection it was given")
+        code, out = self.run_wrapper("shard1_empty", "--jobs=2")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("no test matched", out)
+
+    def test_failed_after_a_clean_run_has_nothing_to_rerun(self):
+        state = Path(tempfile.mkdtemp(dir=self.tmp))
+        code, out = self.run_wrapper("failed", "--failed", state=state)
+        self.assertEqual(code, 2, "no previous run of this checkout: " + out)
+        self.assertEqual(self.run_wrapper("clean", state=state)[0], 0)
+        code, out = self.run_wrapper("clean", "--failed", state=state)
+        self.assertEqual(code, 0, out)
+        self.assertIn("no failed test in the last report: nothing to rerun", out)
+        self.assertNotIn("passed,", out, "nothing is run")
+
+    def test_failed_over_an_unreadable_last_report_is_refused_not_passed(self):
+        state = Path(tempfile.mkdtemp(dir=self.tmp))
+        self.assertEqual(self.run_wrapper("clean", state=state)[0], 0)
+        (last,) = state.glob("example_godot_last_report_*.json")
+        last.write_text("{ not json")
+        code, out = self.run_wrapper("clean", "--failed", state=state)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot read the last report", out)
+        self.assertIn(str(last), out, "it names the file")
+        self.assertNotIn("nothing to rerun", out)
+
+    def test_an_explicit_shard_runs_native_suites_once_and_says_so(self):
+        # The native reruns of --repeat are the wrapper's own processes, which a --shard given by hand never gets.
+        code, out = self.run_wrapper("native", "--repeat=3", "--shard=0/1")
+        self.assertEqual(code, 0, out)
+        self.assertIn("NOTE native suites ran once (--shard)", out)
+        for scenario, args in (("native", ["--repeat=3"]), ("native", ["--shard=0/1"]),
+                               ("clean", ["--repeat=3", "--shard=0/1"])):
+            with self.subTest(scenario=scenario, args=args):
+                code, out = self.run_wrapper(scenario, *args)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("native suites ran once", out)
+
     def test_one_failing_shard_fails_the_whole_run(self):
         self.assertEqual(self.run_wrapper("shard1_error", "--jobs=2")[0], 1)
         self.assertEqual(self.run_wrapper("clean", "--jobs=2")[0], 0)
@@ -289,11 +358,12 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(self.shards(self.run_wrapper("clean", "--jobs=3", "--id=a/x,b/y")[1]), 2)  # never more than the ids
 
     def changed(self, files, scenario="clean", *extra):
-        """What `--changed` runs when git reports exactly `files` as changed: the selection lines the fake prints."""
+        """What `--changed` runs when git reports exactly `files` as changed: the selection lines the fake prints, and
+        the wrapper's own `== ` headers and `No …` lines."""
         env = dict(os.environ, GODOT=str(self.fake), FAKE_SCENARIO=scenario, TMPDIR=str(self.tmp),
                    GAME_TEST_CHANGED_FILES="\n".join(files))
         r = subprocess.run(["bash", str(RUN), "--changed", "--no-lint", "--jobs=1", *extra], cwd=ROOT, env=env, capture_output=True, text=True)
-        return r.returncode, [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("selection:", "== "))]
+        return r.returncode, [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith(("selection:", "== ", "No "))]
 
     def test_changed_runs_only_an_edited_test_not_the_domains_that_compose_its_code(self):
         code, lines = self.changed(["tests/projectile/pistol_shot_wounds_test.gd"])
@@ -320,11 +390,132 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual([l for l in lines if l.startswith("selection:")], [])
 
+    def test_repeated_skip_domain_flags_add_up_in_the_wrapper(self):
+        code, lines = self.changed(["tests/_perf/perf_probe.gd"], "clean", "--skip-domain=perf", "--skip-domain=ai")
+        self.assertEqual(code, 0)
+        self.assertEqual([l for l in lines if l.startswith("selection:")], [], "perf is skipped by the first flag")
+
+    def test_repeated_id_flags_count_together_against_the_jobs(self):
+        self.assertEqual(self.shards(self.run_wrapper("clean", "--jobs=3", "--id=a/x", "--id=b/y")[1]), 2)
+
+    def test_changed_with_nothing_mapped_or_only_skipped_still_passes_and_says_which(self):
+        cases = ((["docs/hearing.md"], "No changed file maps to any tests (affected: none)."),
+                 # A perf test or suite under the hook's --skip-domain=perf: mapped, then left out.
+                 (["tests/perf/match_5v5_stress_test.gd"], "No test to run: the changed files map only to skipped domains (perf)."),
+                 (["tests/perf/perf_suite.gd"], "No test to run: the changed files map only to skipped domains (perf)."))
+        for files, says in cases:
+            with self.subTest(files=files):
+                code, lines = self.changed(files, "empty", "--skip-domain=perf")
+                self.assertEqual(code, 0, lines)
+                self.assertEqual([l for l in lines if l.startswith("selection:")], [])
+                self.assertTrue(any(says in l for l in lines), lines)
+
     def test_changed_does_not_repeat_a_test_whose_domain_already_runs(self):
         _, lines = self.changed(["scenes/ai/behavior/behavior.gd", "tests/ai/decision/goal_names_the_gun_test.gd",
                                  "tests/audio/bank_test.gd", "tests/audio/bank_test.gd.uid"])
         self.assertEqual([l for l in lines if l.startswith("selection:")],
                          ["selection: --domain=ai,perf", "selection: --id=audio/bank"])
+
+
+FAKE_STAGED_LINT = r"""#!/usr/bin/env bash
+# Stands in for tools/lint.sh: logs its arguments; with FAKE_LINT_FOREIGN=<path> reports a finding in that script.
+echo "lint $*" >> "$LINT_LOG"
+if [ -n "${FAKE_LINT_FOREIGN:-}" ]; then
+  echo "== GDScript analyzer (engine) =="
+  echo "res://$FAKE_LINT_FOREIGN  (1)"
+  exit 1
+fi
+exit 0
+"""
+
+
+class StagedChangedTests(unittest.TestCase):
+    """`--changed --staged` through git: a throwaway repo holding a copy of run_tests.sh (with scan_godot_log.py,
+    lint_staged.sh and lint_label.py) and a fake lint, with one scene edit staged, one left unstaged and one untracked
+    script. It maps only the staged file, lints only the staged script (labelling a finding elsewhere `not in this commit`), and never
+    records the whole-tree clean-lint fingerprint."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="staged_changed_"))
+        self.repo = self.tmp / "repo"
+        self.state = self.tmp / "state"
+        self.state.mkdir()
+        tools = self.repo / "tools"
+        tools.mkdir(parents=True)
+        for name in ("run_tests.sh", "scan_godot_log.py", "lint_staged.sh", "lint_label.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        (tools / "lint.sh").write_text(FAKE_STAGED_LINT)
+        (tools / "lint.sh").chmod(0o755)
+        self.fake = self.tmp / "fakegodot"
+        self.fake.write_text(FAKE_GODOT)
+        self.fake.chmod(0o755)
+        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "tests/ai/x_test.gd": "",
+                 "tests/ui/y_test.gd": "", "tests/physics/z_test.gd": "", "scenes/ai/a.gd": "extends Node\n",
+                 "scenes/ui/u.gd": "extends Node\n", "scenes/ui/u.tscn": "[gd_scene]\n"}
+        for rel, text in files.items():
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(text)
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+        with open(self.repo / "scenes/ai/a.gd", "a") as f:
+            f.write("# staged\n")
+        self.git("add", "scenes/ai/a.gd")
+        with open(self.repo / "scenes/ui/u.gd", "a") as f:
+            f.write("# not staged\n")
+        (self.repo / "scenes/physics").mkdir()
+        (self.repo / "scenes/physics/p.gd").write_text("extends Node\n")  # untracked
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def env(**extra):
+        """Without git's GIT_* variables (a run from inside a hook would act on this checkout)."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "GAME_TEST_CHANGED_FILES"}
+        env.update(extra)
+        return env
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.repo, env=self.env(), check=True, capture_output=True)
+
+    def run_changed(self, *args, **env):
+        lint_log = self.tmp / "lint.log"
+        lint_log.write_text("")
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed", "--jobs=1", *args],
+                           cwd=self.repo, capture_output=True, text=True, timeout=120,
+                           env=self.env(GODOT=str(self.fake), FAKE_SCENARIO="clean", TMPDIR=str(self.state),
+                                        LINT_LOG=str(lint_log), **env))
+        out = r.stdout + r.stderr
+        return r.returncode, out, [ln for ln in out.splitlines() if ln.startswith("selection:")], lint_log.read_text()
+
+    def test_it_maps_only_the_staged_files(self):
+        code, out, selection, _ = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(selection, ["selection: --domain=ai"], "not ui (unstaged) nor physics (untracked)\n" + out)
+        code, out, selection, _ = self.run_changed()
+        self.assertNotEqual(selection, ["selection: --domain=ai"], "without --staged the working tree counts\n" + out)
+
+    def test_its_lint_covers_only_the_staged_scripts_and_records_no_clean_lint(self):
+        code, out, _, lint = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(lint.splitlines(), ["lint scenes/ai/a.gd"], out)
+        self.assertEqual(list(self.state.glob("example_godot_lint_ok_*")), [], "a scoped lint is no whole-tree lint")
+
+    def test_a_staged_scene_alone_leaves_the_lint_nothing_to_check(self):
+        self.git("reset", "-q", "scenes/ai/a.gd")
+        with open(self.repo / "scenes/ui/u.tscn", "a") as f:
+            f.write("; staged\n")
+        self.git("add", "scenes/ui/u.tscn")
+        code, out, selection, lint = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(selection, ["selection: --domain=ui"], out)
+        self.assertEqual(lint, "", "no staged script: no lint\n" + out)
+
+    def test_a_lint_finding_in_a_script_not_staged_is_labelled(self):
+        code, out, _, _ = self.run_changed("--staged", FAKE_LINT_FOREIGN="scenes/ui/u.gd")
+        self.assertEqual(code, 1, out)
+        self.assertIn("not in this commit: scenes/ui/u.gd", out)
 
 
 class LintReportTests(unittest.TestCase):
@@ -480,13 +671,14 @@ class EngineTests(unittest.TestCase):
 GDUNIT_TOOL = "res://addons/gdUnit4/bin/GdUnitCmdTool.gd"
 
 FAKE_ARGV_GODOT = r"""#!/usr/bin/env bash
-# Stands in for Godot: records its argv (one argument per line) in $FAKE_ARGV_DIR, one file per process, and exits.
-# Started on the lint scene it prints a clean lint.
+# Stands in for Godot: records its argv (one argument per line) in $FAKE_ARGV_DIR, one file per process, and its
+# GODOT_CMD_PORT beside it (<pid>.port), and exits. Started on the lint scene it prints a clean lint.
 for a in "$@"; do
   if [ "$a" = "res://tools/lint_scripts.tscn" ]; then echo "LINT-PASS2"; echo "LINT-DONE 0"; exit 0; fi
 done
 f="$FAKE_ARGV_DIR/$$.argv"
 for a in "$@"; do printf '%s\n' "$a" >> "$f"; done
+echo "${GODOT_CMD_PORT-<unset>}" > "$FAKE_ARGV_DIR/$$.port"
 exit 0
 """
 
@@ -506,11 +698,14 @@ class GdUnitCommandLineTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def launches(self, *args):
-        """The argv of every engine process a run_tests.sh call started (the lint's aside)."""
+    def launches(self, *args, ports=None, **env_extra):
+        """The argv of every engine process a run_tests.sh call started (the lint's aside); with `ports` a list, each
+        one's GODOT_CMD_PORT is appended to it."""
         argv_dir = Path(tempfile.mkdtemp(dir=self.tmp))
-        env = dict(os.environ, GODOT=str(self.fake), FAKE_ARGV_DIR=str(argv_dir), TMPDIR=str(argv_dir))
+        env = dict(os.environ, GODOT=str(self.fake), FAKE_ARGV_DIR=str(argv_dir), TMPDIR=str(argv_dir), **env_extra)
         subprocess.run(["bash", str(RUN), "--no-lint", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+        if ports is not None:
+            ports += [f.with_suffix(".port").read_text().strip() for f in sorted(argv_dir.glob("*.argv"))]
         return [f.read_text().splitlines() for f in sorted(argv_dir.glob("*.argv"))]
 
     @staticmethod
@@ -547,6 +742,15 @@ class GdUnitCommandLineTests(unittest.TestCase):
         self.assertEqual(len(runs), 2, runs)
         for argv in runs:
             self.assert_shape(argv)
+
+    def test_every_engine_process_runs_with_the_command_server_off_over_the_callers_port(self):
+        for env in ({}, {"GODOT_CMD_PORT": "9123"}):
+            for args in (["--id=a/x"], ["--jobs=2", "--id=a/x,b/y"], ["--list"]):
+                with self.subTest(env=env, args=args):
+                    ports = []
+                    runs = self.launches(*args, ports=ports, **env)
+                    self.assertTrue(runs, "the run started the engine")
+                    self.assertEqual(ports, ["off"] * len(runs))
 
     def test_windowed_and_shots_runs_keep_a_window(self):
         for flag in ("--windowed", "--shots"):
@@ -624,7 +828,8 @@ class GdUnitEngineTests(unittest.TestCase):
     GAP = "_harness/gap_probe"
     HOLD = "_harness/warning_hold_probe"
     VON = "_harness/von_probe"
-    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT")
+    PROBE_ENV = ("GAME_TEST_PROBE", "GAME_TEST_VERDICT", "GAME_TEST_GAP", "GAME_TEST_HOLD", "GAME_TEST_VON_PORT",
+                 "GAME_TEST_FLAKY_COUNT")
 
     @classmethod
     def setUpClass(cls):
@@ -634,12 +839,14 @@ class GdUnitEngineTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_tests(self, *args, timeout=900, **probe_env):
-        """run_tests.sh with `args`; its per-checkout state ($TMPDIR) kept apart from the person's."""
+    def run_tests(self, *args, timeout=900, root=ROOT, **probe_env):
+        """run_tests.sh of the checkout at `root` with `args`; its per-checkout state ($TMPDIR) kept apart from the
+        person's."""
         env = {k: v for k, v in os.environ.items() if k not in self.PROBE_ENV}
         env.update(GODOT=godot_binary(), TMPDIR=str(Path(tempfile.mkdtemp(dir=self.tmp))), **probe_env)
         started = time.monotonic()
-        r = subprocess.run(["bash", str(RUN), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(["bash", str(root / "tools" / "run_tests.sh"), *args], cwd=root, env=env,
+                           capture_output=True, text=True, timeout=timeout)
         return Run(r.returncode, r.stdout + r.stderr, time.monotonic() - started)
 
     def probe(self, test_id, *flags, **probe_env):
@@ -751,12 +958,55 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertRegex(run.out, re.compile(r"^\d+ test\(s\)$", re.M))
         self.assertEqual(run.results, {}, "--list runs no test")
 
+    def test_list_matching_nothing_still_passes(self):
+        run = self.run_tests("--self-test", "--list", "zzqq_no_such_word")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertRegex(run.out, re.compile(r"^0 test\(s\)$", re.M))
+        self.assertNotIn("no test matched", run.out)
+
     def test_summary_prints_only_what_did_not_pass(self):
         run = self.run_tests("--self-test", f"--id={self.VERDICT},{self.GAP}", "--summary")
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.status(self.GAP), ["GAP"], run.out)
         self.assertEqual(run.status(self.VERDICT), [], "a PASS is not printed with --summary\n" + run.out)
         self.assertEqual(run.summary, (1, 0, 0, 0, 1), run.out)
+
+    def test_a_selection_matching_nothing_fails(self):
+        for args in (["--self-test", "--id=_harness/no_such_probe"], ["--self-test", "zzqq_no_such_word"],
+                     ["--no-lint", "--domain=projectile", "--skip-domain=projectile"]):
+            with self.subTest(args=args):
+                run = self.run_tests(*args, "--summary")
+                self.assertEqual(run.code, 1, run.out)
+                self.assertIn("no test matched", run.out)
+
+    def test_repeated_id_flags_add_up(self):
+        run = self.run_tests("--self-test", f"--id={self.VERDICT}", f"--id={self.GAP}", "--summary")
+        self.assertEqual(run.code, 0, run.out)
+        self.assertEqual(run.status(self.GAP), ["GAP"], "the second --id runs too\n" + run.out)
+        self.assertEqual(run.summary, (1, 0, 0, 0, 1), "the first --id runs too\n" + run.out)
+
+    def listed(self, *args):
+        """The ids a `--list` run with `args` prints."""
+        run = self.run_tests("--list", *args)
+        self.assertEqual(run.code, 0, run.out)
+        return {ln.split()[0] for ln in run.out.splitlines() if re.match(r"^[a-z_]+/\S+\s", ln)}
+
+    def test_repeated_domain_and_skip_domain_flags_add_up(self):
+        domains = {i.split("/")[0] for i in self.listed("--domain=projectile", "--domain=worldgen")}
+        self.assertEqual(domains, {"projectile", "worldgen"})
+        domains = {i.split("/")[0] for i in self.listed("--domain=projectile,worldgen,lighting",
+                                                       "--skip-domain=projectile", "--skip-domain=worldgen")}
+        self.assertEqual(domains, {"lighting"})
+
+    def test_repeated_domain_and_skip_domain_flags_add_up_in_a_run(self):
+        # A run, not --list: a native suite is picked by native_selected, which reads the flags itself.
+        selected = "--id=general/weighted_pick_suite,physics/deformation_outline_suite,ai/door_stack_suite"
+        for flags, domains in ((["--domain=general", "--domain=physics"], {"general", "physics"}),
+                               (["--skip-domain=general", "--skip-domain=physics"], {"ai"})):
+            with self.subTest(flags=flags):
+                run = self.run_tests("--no-lint", selected, *flags)
+                self.assertEqual(run.code, 0, run.out)
+                self.assertEqual({i.split("/")[0] for i in run.results}, domains, run.out)
 
     def test_json_prints_the_results(self):
         run = self.probe(self.VERDICT, "--json")
@@ -769,6 +1019,40 @@ class GdUnitEngineTests(unittest.TestCase):
         run = self.probe(self.VERDICT, "--repeat=2")
         self.assertEqual(run.code, 0, run.out)
         self.assertEqual(run.summary[0], 2, run.out)
+
+    # A native suite written into tests/general/ of a copy of the checkout (never the live tree, where another run
+    # would pick it up): `test_counted` always passes, `test_flaky` fails on its second run (the runs are counted in
+    # the file GAME_TEST_FLAKY_COUNT names, so across processes).
+    FLAKY_NATIVE = "general/zz_flaky_native_probe_suite"
+    FLAKY_NATIVE_SOURCE = """extends UnitSuite
+
+
+func test_counted() -> void:
+	assert_bool(true).is_true()
+
+
+func test_flaky() -> void:
+	var path := OS.get_environment("GAME_TEST_FLAKY_COUNT")
+	var runs := int(FileAccess.get_file_as_string(path)) if FileAccess.file_exists(path) else 0
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(str(runs + 1))
+	f.close()
+	assert_int(runs).override_failure_message("flaky probe: the second run fails").is_not_equal(1)
+"""
+
+    def test_repeat_reruns_a_native_suite_and_names_a_flaky_case(self):
+        copy = copy_checkout(Path(tempfile.mkdtemp(dir=self.tmp)) / "checkout")
+        (copy / "tests" / (self.FLAKY_NATIVE + ".gd")).write_text(self.FLAKY_NATIVE_SOURCE)
+        count = Path(tempfile.mkdtemp(dir=self.tmp)) / "runs"
+        run = self.run_tests("--no-lint", f"--id={self.FLAKY_NATIVE}", "--repeat=3", root=copy,
+                             GAME_TEST_FLAKY_COUNT=str(count))
+        counted, flaky = self.FLAKY_NATIVE + "::test_counted", self.FLAKY_NATIVE + "::test_flaky"
+        self.assertEqual(run.status(counted), ["PASS"] * 3, "each native case runs 3 times\n" + run.out)
+        self.assertEqual(sorted(run.status(flaky)), ["FAIL", "PASS", "PASS"], run.out)
+        self.assertRegex(run.out, re.compile(r"^FLAKY\s+2/3 passed\s+" + re.escape(flaky) + "$", re.M))
+        self.assertNotRegex(run.out, re.compile(r"^(FLAKY|FAILING).*test_counted", re.M))
+        self.assertEqual(run.summary, (5, 1, 0, 0, 0), run.out)
+        self.assertEqual(run.code, 1, run.out)
 
     def test_fail_fast_stops_after_the_first_failure(self):
         run = self.run_tests("--self-test", f"--id={self.GAP},{self.VERDICT}", "--fail-fast", GAME_TEST_GAP="pass")
@@ -816,17 +1100,7 @@ class FreshUserDirTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="fresh_user_dir_"))
-        cls.copy = cls.tmp / "checkout"
-        listed = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
-                                check=True, capture_output=True).stdout.decode()
-        for rel in sorted({p for p in listed.split("\0") if p}):
-            src = ROOT / rel
-            if rel.startswith("artifacts/") or not src.is_file():
-                continue
-            (cls.copy / rel).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, cls.copy / rel)
-        if (ROOT / ".godot").is_dir():
-            shutil.copytree(ROOT / ".godot", cls.copy / ".godot", symlinks=True)
+        cls.copy = copy_checkout(cls.tmp / "checkout")
         cls.user_dir_name = f"fe-fresh-user-dir-{cls.tmp.name}"
         cls.user_dir = os_data_dir() / cls.user_dir_name
         project = cls.copy / "project.godot"

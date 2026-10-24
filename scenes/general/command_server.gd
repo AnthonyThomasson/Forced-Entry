@@ -3,6 +3,8 @@ extends Node
 ## MCP, driven from `tools/gcmd.py`) control the running game with text commands. It never exists
 ## in an exported build — `_ready()` returns unless running from the editor binary — and stays off
 ## unless a listen port is set, so it is opt-in like the decision-server launcher.
+## `GODOT_CMD_PORT=off` keeps it off whatever port is set: the headless checks that never drive it
+## run with it, so they never take a port another run holds.
 ##
 ## Commands are line-delimited over 127.0.0.1. Each line is either a curated verb (see `help`) or,
 ## if it matches no verb, a GDScript `Expression` evaluated against this node. Movement and actions
@@ -12,7 +14,8 @@ extends Node
 ## names to inject input.
 
 ## Port to listen on; 0 falls back to the `GODOT_CMD_PORT` environment variable, then the
-## `application/debug/command_port` project setting, and 0 there too means the server never starts.
+## `application/debug/command_port` project setting, and 0 there too means the server never starts
+## (as does `GODOT_CMD_PORT=off`, whatever this or the setting says).
 @export var port: int = 0
 
 ## The listening socket; null when the server is off.
@@ -33,6 +36,9 @@ var _match_start_ms: int = Time.get_ticks_msec()
 func _ready() -> void:
 	if not OS.has_feature("editor"):
 		return
+	var env_port := OS.get_environment("GODOT_CMD_PORT")
+	if env_port == "off":
+		return
 	_move_actions = {
 		"up": Keybinds.MOVE_UP, "down": Keybinds.MOVE_DOWN,
 		"left": Keybinds.MOVE_LEFT, "right": Keybinds.MOVE_RIGHT,
@@ -42,7 +48,7 @@ func _ready() -> void:
 		Keybinds.ITEM_6, Keybinds.ITEM_7, Keybinds.ITEM_8, Keybinds.ITEM_9,
 	]
 	if port <= 0:
-		port = int(OS.get_environment("GODOT_CMD_PORT"))  # per-worktree override (tools/editor.sh)
+		port = int(env_port)  # per-worktree override (tools/editor.sh)
 	if port <= 0:
 		port = int(ProjectSettings.get_setting("application/debug/command_port", 0))
 	if port <= 0:

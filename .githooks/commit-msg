@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Git commit-msg hook: refuse a commit whose Claude co-author names another model than the branch's earlier commits.
+#   A Claude line is a `Co-Authored-By: Claude <model> <email>` line of the message (comment lines and what follows a
+#   scissors line left out: git strips them after this hook). A skill pinned with `model:` can switch the session's
+#   attribution reminder to its model while the session runs another, so a commit made then names the wrong one.
+#   - The message's own Claude lines name two models: refused.
+#   - Its model differs from one named by the Claude lines of `git log <base>..HEAD` (merges walked too, commits without
+#     a Claude line ignored): refused, naming both models, the earlier commits' short hashes and the fix: edit this
+#     message, or reword the earlier commits first if they are the wrong ones, with a `git rebase --exec` command that
+#     opens no editor and amends each one through this hook (a merge whose conflicts were resolved by hand stops it,
+#     to be resolved again and continued with `GIT_EDITOR=true git rebase --continue`). When the earlier commits name
+#     more than one model among themselves, the hint picks none of theirs: it says to reword the wrong ones, and gives
+#     the command that rewords every one to this message's model.
+#   - No Claude line in the message, or none in the branch's earlier commits: it passes, silently.
+#   The base is origin/main, else main. A local main ahead of origin/main (a push that failed) merged into the branch
+#   brings main's own commits into `<base>..HEAD`, and a model they name refuses this branch's commits: push main
+#   first, so origin/main holds them (never reword main's commits).
+#   An amend (`git commit --amend`, as a rebase's reword and the hint's `--exec` make one: read off the git process
+#   that runs this hook) replaces HEAD, so HEAD is left out of the earlier commits and the amend can put HEAD's own
+#   line right.
+# Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
+set -uo pipefail
+msg="$1"
+
+base=""
+for ref in origin/main main; do
+  if git rev-parse --verify -q "$ref^{commit}" >/dev/null; then base="$ref"; break; fi
+done
+head="HEAD"
+ps -o args= -p "$PPID" 2>/dev/null | grep -qE '(^| )--amend( |$)' && head="HEAD^"
+# The branch's earlier commits, one record each: its short hash, then its message, NUL-separated. Read by the check
+# as a file (a long branch's log would not fit in an argument).
+history() {
+  if [[ -n "$base" ]] && git rev-parse --verify -q "$head^{commit}" >/dev/null; then
+    git log -z --format='%h%n%B' "$base..$head"
+  fi
+}
+
+python3 - "$msg" "$base" <(history) <<'EOF'
+import re, shlex, sys
+from collections import OrderedDict
+
+CLAUDE = re.compile(r"^co-authored-by:\s*(claude\b.*?)\s*<[^>]*>\s*$", re.I)
+SCISSORS = re.compile(r"^# -+ >8 -+$")
+
+
+def claude_lines(text):
+    """The Claude co-author lines of a message, as git keeps it: comment lines and the scissors' tail left out."""
+    out = []
+    for line in text.splitlines():
+        if SCISSORS.match(line):
+            break
+        if line.startswith("#"):
+            continue
+        m = CLAUDE.match(line.strip())
+        if m:
+            out.append((re.sub(r"\s+", " ", m.group(1)), line.strip()))
+    return out
+
+
+path, base = sys.argv[1], sys.argv[2]
+history = open(sys.argv[3], "rb").read().decode("utf-8", "replace")
+mine = claude_lines(open(path, encoding="utf-8", errors="replace").read())
+models = list(OrderedDict.fromkeys(model for model, _ in mine))
+if not models:
+    sys.exit(0)
+if len(models) > 1:
+    print("commit-msg: this message's Co-Authored-By lines name more than one Claude model: "
+          + ", ".join(models) + ".\nFix: keep only the line of the model this session runs, and commit again.",
+          file=sys.stderr)
+    sys.exit(1)
+
+earlier = OrderedDict()  # model -> (its first line, [short hashes])
+for record in history.split("\0"):
+    short, _, body = record.partition("\n")
+    for model, line in claude_lines(body):
+        hashes = earlier.setdefault(model, (line, []))[1]
+        if short not in hashes:
+            hashes.append(short)
+others = [m for m in earlier if m != models[0]]
+if not others:
+    sys.exit(0)
+
+
+def sed_pattern(model):
+    """An ERE for `model` as the hook reads it: its words with any run of whitespace between them."""
+    return "[[:space:]]+".join(re.sub(r"([][\\/*+?(){}|^$])", r"\\\1", w) for w in model.split())
+
+
+def sed_replacement(text):
+    return re.sub(r"([\\/&])", r"\\\1", text)
+
+
+def double_quoted(text):
+    return '"' + re.sub(r'([\\"$`])', r"\\\1", text) + '"'
+
+
+# Each earlier commit rebased onto itself, its Claude line's model swapped by sed and the message amended through this
+# hook (an amend: HEAD left out), so the rebase opens no editor and stops at a commit the hook still refuses.
+edits = " ".join(
+    f"-e {double_quoted(f'/^[Cc]o-[Aa]uthored-[Bb]y:/s/{sed_pattern(m)}/{sed_replacement(models[0])}/')}"
+    for m in others)
+rebase = (f"git rebase --rebase-merges --exec "
+          f"{shlex.quote(f'git log -1 --format=%B | sed -E {edits} | git commit --amend -F -')} "
+          f"$(git merge-base {base} HEAD)")
+named = "; ".join(f"{m} ({', '.join(reversed(earlier[m][1]))})" for m in earlier)
+print(f"commit-msg: this message's Co-Authored-By names {models[0]}, but the branch's earlier commits since {base} "
+      f"name {named}.", file=sys.stderr)
+if len(earlier) > 1:
+    print(f"Fix: the earlier commits name more than one model among themselves, so reword the wrong ones first and "
+          f"then commit. If this session runs {models[0]}, this rewords every earlier one to it (no editor):",
+          file=sys.stderr)
+else:
+    print(f"Fix: edit this message's line to \"{earlier[others[0]][0]}\" and commit again; or, if the earlier commits "
+          f"carry the wrong model, reword them to {models[0]} first (no editor) and then commit:", file=sys.stderr)
+print(f"  {rebase}", file=sys.stderr)
+print("A merge whose conflicts were resolved by hand stops it there: resolve them again, `git add` them and run "
+      "`GIT_EDITOR=true git rebase --continue`.", file=sys.stderr)
+sys.exit(1)
+EOF

@@ -222,9 +222,11 @@ def godot_binary() -> str:
 
 def game_env(copy, **extra: str) -> dict:
     """The environment of a process run in the copy: this one's as workspace.copy_env gives it (git there finds no
-    repo), with GODOT set and FE_COVERAGE only when given."""
+    repo), with GODOT set, FE_COVERAGE only when given, and the dev command server off (GODOT_CMD_PORT=off, over any
+    port of the caller's): a coverage run never drives it, and a port another worktree's game or check holds would
+    fail the run on its "failed to listen" warning."""
     env = {k: v for k, v in workspace.copy_env(copy).items() if k != "FE_COVERAGE"}
-    env.update(GODOT=godot_binary(), **extra)
+    env.update(GODOT=godot_binary(), GODOT_CMD_PORT="off", **extra)
     return env
 
 

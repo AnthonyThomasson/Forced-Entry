@@ -5,7 +5,9 @@
 # a test is open (that test fails), between tests and at start-up (reported as "Logged outside any test"), and after
 # the run has finished judging (gdUnit's own reports, engine shutdown; tools/scan_godot_log.py reads that tail of each
 # process's log). The flags below reach the suites after `--` (scenes/testing/test_batch.gd); the verdict is read
-# from the run's report.json, gdUnit's own exit code only telling a crash.
+# from the run's report.json, gdUnit's own exit code only telling a crash. A run whose selection holds no test at all
+# (every shard together) ends on "no test matched the selection: <args>" and exits 1; a --list that lists none, and a
+# --changed run with nothing mapped, exit 0.
 #
 # Selecting tests
 #   tools/run_tests.sh                    every test (Von tests skipped)
@@ -14,17 +16,27 @@
 #   tools/run_tests.sh --domain=ai        only the tests of exactly that domain; comma list allowed
 #                                         (--domain=ai,navigation). No word-prefix matching.
 #   tools/run_tests.sh --id=ai/foo_bar    exactly that test id (comma list allowed)
+#                                         --id, --domain and --skip-domain given again add up, as one comma list:
+#                                         --id=a --id=b is --id=a,b
 #   tools/run_tests.sh --skip-domain=perf leave out the tests of exactly that domain (comma list allowed); wins over
 #                                         every other selection, --changed's included. The pre-commit hook skips perf:
 #                                         its frame-time budgets fail on a loaded machine, so they are a separate run.
 #   tools/run_tests.sh --failed           only the tests that FAILED / TIMED OUT in the previous run
-#                                         of this checkout (its report is kept in $TMPDIR)
+#                                         of this checkout (its report is kept in $TMPDIR); none: it says so
+#                                         ("nothing to rerun") and exits 0; a report it cannot read: exit 2
 #   tools/run_tests.sh --changed          tests for what uncommitted changes can affect: each changed
 #                                         scenes/<domain>/ plus the domains that compose it (see
 #                                         `affected` below), in ONE run; main.gd, root scenes,
 #                                         project.godot, worldgen, art and general run everything;
 #                                         testing adds --self-test. An edited tests/<d>/[<topic>/]<name>_test.gd
 #                                         runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
+#                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
+#                                         and exits 0.
+#   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
+#                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
+#                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
+#                                         file is staged; none when no script is), a finding in a script not staged
+#                                         labelled `not in this commit: <path>`. The pre-commit hook runs it.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
 #   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
@@ -48,14 +60,17 @@
 #   --windowed      windowed run with vsync off, in one process: a perf test's frame times then include the render
 #                   (headless measures the CPU only) without being held to the display's refresh
 # Other
-#   --repeat=5      run each match 5 times; names FLAKY / FAILING tests
+#   --repeat=5      run each test 5 times, a native suite's cases too (it runs again in 4 more processes); names
+#                   FLAKY / FAILING tests. With a --shard given by hand a native suite runs once ("NOTE native suites
+#                   ran once (--shard)").
 #   --seed=42       pin every house() test to seed 42
 #   --strict-exit   also fail on Godot's own end-of-process leak report (reported as a NOTE by default)
 #   --report=FILE   also write the run's merged report (results, stray_logs) to FILE (the in-game browser's Run all)
 #   --no-lint       skip the lint that runs first (tools/lint.sh, ~14 s: unused variables, integer division, shadowed
 #                   names ... the warnings of the editor's Debugger > Errors tab, the project lint rules, gdstyle). Any
 #                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
-#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR).
+#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; the lint of
+#                   --changed --staged never records one).
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner.
 # Every run ends with a `Slowest:` line (wall-clock ms per test).
@@ -66,6 +81,9 @@
 # printed output leaves out, in gdunit.txt.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Every engine process runs with the dev command server off (over any port the caller set): a test run never drives
+# it, and a port another worktree's game or run holds would otherwise fail the run on its "failed to listen" warning.
+export GODOT_CMD_PORT=off
 GODOT="${GODOT:-$( command -v godot || command -v godot4 \
   || ls /Applications/Godot*.app/Contents/MacOS/Godot 2>/dev/null | head -1 )}"
 if [[ -z "$GODOT" ]]; then
@@ -93,8 +111,9 @@ WINDOWED=0
 STRICT=
 JOBS=
 CHANGED=0
+STAGED=0
 LINT=1
-SKIP=""   # --skip-domain=a,b, also forwarded to the runner
+SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
 export RUN_TESTS_REPORT_TO=""   # --report=FILE (save_reports writes the merged report there too)
 args=()
 for a in "$@"; do
@@ -109,14 +128,27 @@ for a in "$@"; do
     --report=*) RUN_TESTS_REPORT_TO="${a#--report=}" ;;
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
+    --staged) STAGED=1 ;;
     --no-lint) LINT=0 ;;
-    --skip-domain=*) SKIP="${a#--skip-domain=}"; args+=("$a") ;;
+    --skip-domain=*) SKIP="${SKIP:+$SKIP,}${a#--skip-domain=}"; args+=("$a") ;;
     --failed)
       [[ -f "$LAST" ]] || { echo "No previous run of this checkout to take failures from." >&2; exit 2; }
-      args+=("--failed=$LAST") ;;
+      # 0: a failed test to rerun; 1: none; 3: the report cannot be read.
+      python3 -c 'import json, sys
+try:
+    results = json.load(open(sys.argv[1])).get("results", [])
+except (OSError, ValueError, AttributeError):
+    sys.exit(3)
+sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 1)' "$LAST" && found=0 || found=$?
+      case $found in
+        0) args+=("--failed=$LAST") ;;
+        1) echo "no failed test in the last report: nothing to rerun"; exit 0 ;;
+        *) echo "--failed: cannot read the last report ($LAST); run the tests again to write a new one." >&2; exit 2 ;;
+      esac ;;
     *) args+=("$a") ;;
   esac
 done
+[[ $STAGED -eq 1 && $CHANGED -eq 0 ]] && { echo "--staged goes with --changed (--changed --staged)" >&2; exit 2; }
 # --jobs=N|auto is explicit; without it a run of the whole suite uses auto and a selection (words, --id,
 # --domain, --failed, --repeat, --list ...) one process, since a process costs ~3 s to start and a few tests
 # do not repay it. Resolved per run() call in `jobs_for`.
@@ -133,15 +165,15 @@ if [[ $JOBS_EXPLICIT -eq 1 ]]; then
 fi
 # The number of processes for a run() with these arguments (the selection args it was called with + the global ones).
 jobs_for() {
-  local x ids n
+  local x ids="" n
   [[ $WINDOWED -eq 1 ]] && { echo 1; return; }  # one window, and no shard competing with what it measures
   if [[ $JOBS_EXPLICIT -eq 1 ]]; then
-    # No more processes than there are tests when the selection is a list of ids.
+    # No more processes than there are tests when the selection is a list of ids (every --id given).
     for x in "$@"; do
-      case "$x" in --id=*) ids="${x#--id=}"; n=$(echo "$ids" | tr ',' '\n' | grep -c . || true)
-                           if [[ $n -ge 1 && $n -lt $JOBS ]]; then echo "$n"; return; fi ;;
-      esac
+      case "$x" in --id=*) ids="$ids,${x#--id=}" ;; esac
     done
+    n=$(echo "$ids" | tr ',' '\n' | grep -c . || true)
+    if [[ $n -ge 1 && $n -lt $JOBS ]]; then echo "$n"; return; fi
     echo "$JOBS"; return
   fi
   for x in "$@"; do
@@ -226,14 +258,17 @@ EOF
 
 # Start one gdUnit process writing its log/report/bundles to $1 (a fresh dir); the selection args follow. Its console
 # goes whole to $1/gdunit.txt and, filtered (CONSOLE_FILTER), to stdout; the engine's stderr passes as it is. Its
-# reports go to $1/gdunit (-rd is resolved under res://, so the dir is named relative to the project). Returns the
-# run's verdict from $1/report.json (1 on a FAIL / TIMEOUT or a line logged outside any test), and 1 when gdUnit
-# crashed (an exit code other than its 0 / 100 failures / 101 orphans).
+# reports go to $1/gdunit (-rd is resolved under res://, so the dir is named relative to the project). The suites are
+# the selection's (suites_for), or those ONLY_SUITES names (res:// paths, one per line: a --repeat's native reruns).
+# Returns the run's verdict from $1/report.json (1 on a FAIL / TIMEOUT or a line logged outside any test), and 1 when
+# gdUnit crashed (an exit code other than its 0 / 100 failures / 101 orphans).
+ONLY_SUITES=""
 godot_run() {
   local out="$1"; shift
   local rel suites=() s code
   rel=$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1]))' "$out")
-  while IFS= read -r s; do [[ -n "$s" ]] && suites+=(-a "$s"); done < <(suites_for "$@")
+  while IFS= read -r s; do [[ -n "$s" ]] && suites+=(-a "$s"); done < <(
+    if [[ -n "$ONLY_SUITES" ]]; then echo "$ONLY_SUITES"; else suites_for "$@"; fi)
   set +e
   "$GODOT" $HEADLESS $NOVSYNC --path . --fixed-fps 60 --log-file "$out/godot.log" \
     -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -c -rc 1 -rd "res://$rel/gdunit" \
@@ -267,6 +302,23 @@ sys.exit(1 if bad else 0)
 EOF
 }
 
+# Whether the runs that wrote the dirs given held no test at all, catalog or native: every one wrote a report and none
+# has a result (a single empty shard is not an empty selection; a run that wrote no report is scan_log's to fail).
+no_test() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+try:
+    sys.exit(1 if any(json.load(open(os.path.join(d, "report.json"))).get("results") for d in sys.argv[1:]) else 0)
+except Exception:
+    sys.exit(1)
+EOF
+}
+
+# The line a run whose selection held no test ends on (it then exits 1), naming the selection: the args given.
+no_test_matched() {
+  echo "no test matched the selection: ${*:-the whole suite}"
+}
+
 # `--list [words]`: the tests a run with these args would select, one line each, and nothing run
 # (scenes/testing/test_list.gd); it writes no report, so its whole log is scanned.
 godot_list() {
@@ -276,19 +328,28 @@ godot_list() {
 
 # Merge the report.json of each dir given into $LAST (what --failed reads) and fold each test's wall-clock ms into
 # $COSTS (what --shard balances the processes by: the mean of the old and the new measurement; a skip or a timeout
-# says nothing about how long a test takes). With SLOWEST=1 it also prints the five slowest tests of the merged run.
+# says nothing about how long a test takes). With TALLY=1 it first prints the FLAKY / FAILING lines of the merged run
+# (a test that passed some of its runs / none), as each process prints its own; with SLOWEST=1 the five slowest tests.
 save_reports() {
-  python3 - "$LAST" "$COSTS" "${SLOWEST:-0}" "$@" <<'EOF'
+  python3 - "$LAST" "$COSTS" "${SLOWEST:-0}" "${TALLY:-0}" "$@" <<'EOF'
 import json, os, sys
-last, costs_path, slowest = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+last, costs_path, slowest, tally = sys.argv[1], sys.argv[2], sys.argv[3] == "1", sys.argv[4] == "1"
 results, stray = [], []
-for d in sys.argv[4:]:
+for d in sys.argv[5:]:
     try:
         data = json.load(open(os.path.join(d, "report.json")))
     except Exception:
         continue
     results += data.get("results", [])
     stray += data.get("stray_logs", [])
+if tally:
+    runs = {}
+    for r in results:
+        if r.get("status") != "SKIPPED":
+            runs.setdefault(r["id"], []).append(r.get("status") in ("PASS", "GAP"))
+    for test_id, passes in runs.items():
+        if not all(passes):
+            print("%s  %d/%d passed  %s" % ("FLAKY  " if any(passes) else "FAILING", sum(passes), len(passes), test_id))
 if results or stray:
     json.dump({"results": results, "stray_logs": stray}, open(last, "w"))
 if os.environ.get("RUN_TESTS_REPORT_TO"):
@@ -330,13 +391,57 @@ scan_log() {
   return $bad
 }
 
-# One run of the runner with the given selection args, split over several processes when asked (see jobs_for).
+# A process's lines left out where several processes make one run (a sharded run, a --repeat with native suites):
+# its banner, totals, FLAKY / FAILING lines and slowest list, printed once for every process together instead.
+QUIET='^(Godot Engine|Godot [0-9]|Running [0-9]+ test|[0-9]+ passed, |Report: |Slowest: |FLAKY |FAILING |$)'
+
+# One gdUnit process (godot_run) in dir $1, its lines printed as they come but the QUIET ones (all of them kept in
+# $1/stdout.txt), then its log's scan (scan_log); returns 1 when either fails.
+live_run() {
+  local out="$1" code
+  set +e
+  godot_run "$@" 2>&1 | tee "$out/stdout.txt" | grep --line-buffered -Ev "$QUIET"
+  code=${PIPESTATUS[0]}
+  set -e
+  scan_log "$out" 0 || code=1
+  return $code
+}
+
+# The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
+# paths, one per line.
+native_suites_met() {
+  python3 - "$@" <<'EOF'
+import json, os, sys
+seen = []
+for d in sys.argv[1:]:
+    try:
+        results = json.load(open(os.path.join(d, "report.json"))).get("results", [])
+    except Exception:
+        continue
+    for r in results:
+        suite = "res://tests/" + r["id"].split("::")[0] + ".gd"
+        if "::" in r["id"] and suite not in seen:
+            seen.append(suite)
+print("\n".join(seen))
+EOF
+}
+
+# One run of the runner with the given selection args, split over several processes when asked (see jobs_for). With
+# --repeat=N every selected test is listed N times in its process, but a native suite runs once a process: it runs
+# N-1 times more, each in a process of its own given only the native suites the run met, and the FLAKY / FAILING
+# lines and the totals are those of every process together. A --shard given by hand is one process: its native
+# suites run once, and a NOTE says so.
 run() {
-  local keep=1 sharded=0 listing=0 jobs x
+  local keep=1 sharded=0 listing=0 jobs x repeat=1 once=0
   jobs=$(jobs_for "$@" ${args[@]+"${args[@]}"})
   [[ $jobs -gt 1 ]] && sharded=1
   for x in "$@" ${args[@]+"${args[@]}"}; do
-    case "$x" in --list|--self-test|--shard=*) sharded=0 ;; esac
+    case "$x" in --repeat=*) repeat="${x#--repeat=}" ;; esac
+  done
+  if [[ "$repeat" =~ ^[0-9]+$ && $repeat -gt 1 ]]; then sharded=1; else repeat=1; fi
+  for x in "$@" ${args[@]+"${args[@]}"}; do
+    case "$x" in --shard=*) [[ $repeat -gt 1 ]] && once=1 ;; esac
+    case "$x" in --list|--self-test|--shard=*) sharded=0; repeat=1 ;; esac
     case "$x" in --list|--self-test) keep=0 ;; esac
     case "$x" in --list) listing=1 ;; esac
   done
@@ -351,34 +456,69 @@ run() {
     fi
     [[ $keep -eq 1 ]] && save_reports "$out"
     scan_log "$out" $listing || code=1
+    if [[ $once -eq 1 && -n "$(native_suites_met "$out")" ]]; then
+      echo "NOTE native suites ran once (--shard)"
+    fi
+    if [[ $listing -eq 0 ]] && no_test "$out"; then
+      no_test_matched "$@" ${args[@]+"${args[@]}"}
+      code=1
+    fi
     return $code
   fi
 
-  # Every shard reads the same costs snapshot (the file is only rewritten once they have all finished), so they
-  # all compute the same split.
-  local costs_args=()
-  [[ -f "$COSTS" ]] && costs_args=("--costs=$COSTS")
-  local dirs=() pids=() i
-  for ((i = 0; i < jobs; i++)); do
+  local costs_args=() shard_args=()
+  local dirs=() pids=() i status=0 pid fail_fast=0
+  for x in "$@" ${args[@]+"${args[@]}"}; do [[ "$x" == "--fail-fast" ]] && fail_fast=1; done
+  if [[ $jobs -gt 1 ]]; then
+    # Every shard reads the same costs snapshot (the file is only rewritten once they have all finished), so they
+    # all compute the same split. Each one's output is printed once they have all finished.
+    [[ -f "$COSTS" ]] && costs_args=("--costs=$COSTS")
+    for ((i = 0; i < jobs; i++)); do
+      out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+      dirs+=("$out")
+      shard_args=("--shard=$i/$jobs")
+      godot_run "$out" "$@" ${args[@]+"${args[@]}"} ${costs_args[@]+"${costs_args[@]}"} "${shard_args[@]}" \
+        >"$out/stdout.txt" 2>&1 &
+      pids+=($!)
+    done
+    for pid in "${pids[@]}"; do wait "$pid" || status=1; done
+    for out in "${dirs[@]}"; do
+      scan_log "$out" 0 >>"$out/stdout.txt" 2>&1 || status=1
+      grep -Ev "$QUIET" "$out/stdout.txt" || true
+    done
+  else
     out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
     dirs+=("$out")
-    godot_run "$out" "$@" ${args[@]+"${args[@]}"} ${costs_args[@]+"${costs_args[@]}"} --shard="$i/$jobs" >"$out/stdout.txt" 2>&1 &
-    pids+=($!)
-  done
-  local status=0 pid
-  for pid in "${pids[@]}"; do wait "$pid" || status=1; done
-  for ((i = 0; i < jobs; i++)); do scan_log "${dirs[$i]}" 0 >>"${dirs[$i]}/stdout.txt" 2>&1 || status=1; done
-  # Per-shard output without the repeated banners, totals and partial slowest lists, then one combined
-  # slowest list (not with --summary, like the runner) and one combined total.
-  for ((i = 0; i < jobs; i++)); do
-    grep -Ev '^(Godot Engine|Godot [0-9]|Running [0-9]+ test|[0-9]+ passed, |Report: |Slowest: |$)' "${dirs[$i]}/stdout.txt" || true
-  done
-  local files=() show_slowest=1
+    live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+  fi
+  if [[ $repeat -gt 1 ]] && ! [[ $fail_fast -eq 1 && $status -ne 0 ]]; then
+    # The native suites the run met, each run again in N-1 processes, one after another (a suite's own files are
+    # never shared by two processes at once).
+    ONLY_SUITES=$(native_suites_met "${dirs[@]}")
+    if [[ -n "$ONLY_SUITES" ]]; then
+      for ((i = 1; i < repeat; i++)); do
+        out=$(mktemp -d "${TMPDIR:-/tmp}/game_tests.XXXXXX")
+        dirs+=("$out")
+        live_run "$out" "$@" ${args[@]+"${args[@]}"} || status=1
+        [[ $fail_fast -eq 1 && $status -ne 0 ]] && break
+      done
+    fi
+    ONLY_SUITES=""
+  fi
+  # Then the FLAKY / FAILING lines of every process together (with --repeat), one combined slowest list (not with
+  # --summary, like the runner) and one combined total.
+  local files=() show_slowest=1 tally=0 shards=""
   for out in "${dirs[@]}"; do files+=("$out/stdout.txt"); done
   for x in "$@" ${args[@]+"${args[@]}"}; do [[ "$x" == "--summary" ]] && show_slowest=0; done
-  SLOWEST=$show_slowest save_reports "${dirs[@]}"
+  [[ $repeat -gt 1 ]] && tally=1
+  [[ $jobs -gt 1 ]] && shards="  ($jobs shards)"
+  TALLY=$tally SLOWEST=$show_slowest save_reports "${dirs[@]}"
   grep -h -E '^[0-9]+ passed, ' "${files[@]}" | sed -E 's/[^0-9]+/ /g' \
-    | awk -v n="$jobs" '{p+=$1; f+=$2; t+=$3; s+=$4; g+=$5} END {printf "%d passed, %d failed, %d timed out, %d skipped, %d gap  (%d shards)\n", p, f, t, s, g, n}'
+    | awk -v s="$shards" '{p+=$1; f+=$2; t+=$3; k+=$4; g+=$5} END {printf "%d passed, %d failed, %d timed out, %d skipped, %d gap%s\n", p, f, t, k, g, s}'
+  if no_test "${dirs[@]}"; then
+    no_test_matched "$@" ${args[@]+"${args[@]}"}
+    status=1
+  fi
   return $status
 }
 
@@ -416,13 +556,22 @@ lint_fingerprint() {
   { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; shasum "$f"; done; } \
     | shasum | cut -d' ' -f1
 }
+# With --changed --staged the lint covers what the commit holds (tools/lint_staged.sh: the staged scripts, or the
+# whole tree when a file that governs every script is staged). It may say nothing of the rest of the tree, so it never
+# records the clean-lint fingerprint.
 if [[ $LINT -eq 1 ]]; then
   fingerprint=$(lint_fingerprint)
   if [[ -f "$LINT_OK" && "$(cat "$LINT_OK")" == "$fingerprint" ]]; then
     echo "lint skipped: the sources are unchanged since the last clean lint" >&2
   else
-    lint_out=$("$(dirname "$0")/lint.sh" 2>&1) || { echo "$lint_out"; echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2; exit 1; }
-    echo "$fingerprint" > "$LINT_OK"
+    lint=("$(dirname "$0")/lint.sh")
+    [[ $STAGED -eq 1 ]] && lint=("$(dirname "$0")/lint_staged.sh")
+    if ! lint_out=$("${lint[@]}" 2>&1); then
+      echo "$lint_out"
+      echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2
+      exit 1
+    fi
+    [[ $STAGED -eq 0 ]] && echo "$fingerprint" > "$LINT_OK"
   fi
 fi
 
@@ -431,6 +580,8 @@ if [[ $CHANGED -eq 1 ]]; then
   # uses it to test the mapping below without crafting a working tree.
   if [[ -n "${GAME_TEST_CHANGED_FILES:-}" ]]; then
     files="$GAME_TEST_CHANGED_FILES"
+  elif [[ $STAGED -eq 1 ]]; then
+    files=$(git -c core.quotePath=false diff --cached --name-only)   # what the commit holds, not the working tree
   else
     files=$( { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u )
   fi
@@ -460,18 +611,24 @@ if [[ $CHANGED -eq 1 ]]; then
     esac
   done
   domains=$(echo $domains | tr ' ' '\n' | sort -u | tr '\n' ' ')
+  domains="${domains% }"
   status=0
+  skipped=""   # the domains a changed file maps to that --skip-domain leaves out
   ran=0
   if [[ " $domains " == *" all "* ]]; then
     ran=1
     echo "== all tests (a changed file can affect every domain) =="
     run || status=1
   else
+    # A domain or test --skip-domain leaves out maps to nothing (the hook's perf): a run of only those would be empty.
     existing=""
+    kept=0
     for d in $domains $exact; do
       [[ -d "tests/$d" && ",$existing," != *",$d,"* ]] && existing="$existing,$d"
+      [[ -d "tests/$d" && ",$SKIP," != *",$d,"* ]] && kept=1
+      [[ -d "tests/$d" && ",$SKIP," == *",$d,"* && ",$skipped," != *",$d,"* ]] && skipped="$skipped,$d"
     done
-    if [[ -n "$existing" ]]; then
+    if [[ $kept -eq 1 ]]; then
       ran=1
       echo "== ${existing#,} =="
       run "--domain=${existing#,}" || status=1
@@ -479,13 +636,16 @@ if [[ $CHANGED -eq 1 ]]; then
     # Changed test files whose domain is not already running above.
     only_ids=""
     for id in $ids; do
-      [[ ",$existing," == *",${id%%/*},"* ]] || only_ids="$only_ids,$id"
+      d="${id%%/*}"
+      [[ ",$SKIP," == *",$d,"* && ",$skipped," != *",$d,"* ]] && skipped="$skipped,$d"
+      [[ ",$existing," == *",$d,"* || ",$SKIP," == *",$d,"* ]] || only_ids="$only_ids,$id"
     done
     if [[ -n "$only_ids" ]]; then
       ran=1
       echo "== ${only_ids#,} =="
       run "--id=${only_ids#,}" || status=1
     fi
+    [[ $perf -eq 1 && ",$SKIP," == *",perf,"* && ",$skipped," != *",perf,"* ]] && skipped="$skipped,perf"
     if [[ $perf -eq 1 && ",$SKIP," != *",perf,"* ]]; then
       ran=1
       echo "== perf tests (tests/_perf changed) =="
@@ -497,7 +657,11 @@ if [[ $CHANGED -eq 1 ]]; then
     echo "== harness self-tests =="
     run --self-test || status=1
   fi
-  [[ $ran -eq 1 ]] || echo "No changed file maps to any tests (affected: ${domains:-none})."
+  if [[ $ran -eq 0 && -n "$skipped" ]]; then
+    echo "No test to run: the changed files map only to skipped domains (${skipped#,})."
+  elif [[ $ran -eq 0 ]]; then
+    echo "No changed file maps to any tests (affected: ${domains:-none})."
+  fi
   exit $status
 fi
 
