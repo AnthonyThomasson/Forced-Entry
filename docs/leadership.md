@@ -20,8 +20,8 @@ the planner's `confine_room` and leash, the behaviour's `defend`, `ambush` and `
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
-for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`build_squads`, `bind_squad`,
-`build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
+for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`squads_over`: `build_squads`,
+`bind_squad`, `build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
 human leads, the command menu and the order markers (`main.gd` `_build_command_menu`; `ui/hud/command_menu.gd`, `ui/hud/order_markers.gd`;
 the setup window's "Lead the team", `ui/menus/setup_menu.gd`; `Keybinds.COMMAND`), and in every played match points the stack markers at
 the human's side's squad (`main.gd` `_watch_side_stacks`, `ui/hud/stack_markers.gd`); the squad-leaders overlay is

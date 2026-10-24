@@ -311,10 +311,10 @@ func run(t: TestContext) -> void:
     the tree (`MatchBuilder.bind_npc`): the house's `rooms` and `openings`, and for an invader the front entrance as its
     `entry_point` (`MatchBuilder.entry_point_for`; none in a world with no front entrance, none for a defender).
   - Squads: `squads(opts := {})` builds one squad per faction over the setup's actors of that faction, in declaration order, as a
-    match builds its own (`MatchBuilder.build_squads`, after the actors spawn: the leader by rank, then declaration order, each member
-    handed its squad), and the squad-leaders overlay over them (`MatchBuilder.build_leader_overlay`). `opts.human` names an actor that
+    match builds its own (`MatchBuilder.squads_over`, the squad tail `populate` ends with, after the actors spawn: the leader by rank, then
+    declaration order, each member handed its squad), and the squad-leaders overlay over them, shown as the setup's overlays say. `opts.human` names an actor that
     leads its faction's squad as the human does: it is handed its stack radio (`MatchBuilder.bind_player`) and its squad through it,
-    `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (`build_squads`'
+    `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (`squads_over`'
     `claim_ttl`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets, so a squad of puppets
     radioing claims names the NPCs' 6 s (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
     that declares no squads has none: its NPCs pick their own goals.

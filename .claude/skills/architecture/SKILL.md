@@ -599,7 +599,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     actor enters), the character scenes plus the controller contract (7: each NPC actor bound by the match's one rule, `MatchBuilder.bind_npc`,
     before it joins the tree: the house's `rooms` / `openings` and, for an invader, the front entrance as its `entry_point`,
     `MatchBuilder.entry_point_for`), a declared match (`TestSetup.match`: `MatchBuilder.populate` over the staged world, read with
-    `TestContext.match()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.build_squads`, the human leader handed its
+    `TestContext.match()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.squads_over`, the human leader handed its
     stack radio through `MatchBuilder.bind_player`, read with `TestContext.squad(faction)` / `player_stack()`) — a puppet
     `ScriptedController` or `player_controller.gd` on `character/character_base.tscn` (the
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
@@ -902,11 +902,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `world`, or `WorldGen.generate` (1); `NavBuilder.build`, the `nav_debug.gd` overlay (`NavDebug`) and the `nav_updater.gd` re-baker
       (`NavUpdater`) (9); `WorldLighting.light(world, seed, rooms)` (20); then with `wait_nav` two physics frames and a wait until
       `NavBuilder.ready` holds on the planning map and on its steering map (at most `NAV_SYNC_MS`, 5000 ms of real time, then a
-      `push_error`), so no NPC is placed before the maps answer with this house. `populate(match, match_spec) -> Dictionary` over a staged
+      `push_error`), so no NPC is placed before the maps answer with this house. `populate(handle, match_spec) -> Dictionary` over a staged
       handle: the defenders and the invader team placed through `match_spawner.gd` from one RNG seeded with `seed` (or at the sides' `at`
-      points), each NPC bound before it joins the tree; the human joined to its side (its faction, its start, reparented just above the
-      house) and handed its stack radio; everyone armed, styled and ranked (`arm`); `build_squads`; `build_leader_overlay`; every overlay
-      but the holes (the stage's) started through `set_overlay` by the spec's `overlays`.
+      points), each NPC bound before it joins the tree (the spawner's `bind`, a `Callable` `populate` hands it: `bind_npc` with
+      `entry_point_for` the NPC's faction); the human joined to its side (its faction, its start, reparented just above the house);
+      everyone armed, styled and ranked (`arm`); `squads_over`; every other overlay but the holes (the stage's) started through
+      `set_overlay` by the spec's `overlays`.
     - **The match handle**, a plain dict: `{ world, house, rooms, openings, nav_region, nav_debug }` from `stage`, plus `combatants` (every
       character in spawn order, the human last), `squads` (faction -> `Squad`), `player_stack` (the human's `PlayerStack`, or null) and
       `leader_overlay` from `populate`.
@@ -921,8 +922,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
       XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
       defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, combatants, openings, rooms,
       human := {}, stack := null, claim_ttl := -1.0) -> Dictionary` (one `Squad` per faction, interface 21, keeping claims `claim_ttl` s,
-      or `callout_ttl_of` the side when it is negative) and `build_leader_overlay(world, squads) -> Node2D`.
-    - **Overlay routing, once:** `set_overlay(match, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and
+      or `callout_ttl_of` the side when it is negative) and `build_leader_overlay(world, squads) -> Node2D`; `squads_over(world, members,
+      rooms, openings, human := {}, leaders := false, claim_ttl := -1.0) -> Dictionary` is the squad tail `populate` and the Testing
+      world's declared squads share: the human (`human.node`) handed its stack radio (`bind_player`), then `build_squads`, then
+      `build_leader_overlay`, shown when `leaders`; it returns `{ squads, player_stack, leader_overlay }`.
+    - **Overlay routing, once:** `set_overlay(handle, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and
       `combatants`: `NAV_HOLES` to the `nav_debug`'s `show_holes`, `LEADERS` to the `leader_overlay`'s `show_leaders` (none, nothing), any
       other non-global flag to each combatant with an AI controller through `OverlayRegistry.apply`; `PERF` is the caller's own (22).
     - **The setup's specs** (Main's): `spec_from_setup(config, base := {}) -> Dictionary` reads the setup window's config (22) into a spec
@@ -933,14 +937,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `overlays` replaced by Main's flags) and wires the HUDs on the handle (17, 18, 21, 22); `{}` when the match was torn down while built.
     - The Testing domain (13): `TestWorld` stages through `stage` (`wait_nav` on), binds each NPC actor through `bind_npc` with
       `entry_point_for`, populates a declared match through `populate` (`TestSetup.match`, `TestContext.match()`), builds declared squads
-      through `build_squads` / `bind_player` / `build_leader_overlay` (`TestSetup.squads`) and routes its overlay toggles through
+      through `squads_over` (`TestSetup.squads`) and routes its overlay toggles through
       `set_overlay`; it has no bake, light, nav-wait or bind code of its own.
 
 ### Dependency graph (arrows = "calls / knows"; no cycles)
 
 ```
-main ──(start_match: build; spec_from_setup / random_spec; set_overlay)──▶ MatchBuilder (the root's match module) ─▶ match_spawner (placement: the NPC scenes)
-TestWorld (Testing) ──(stage / bind_npc / entry_point_for / populate / build_squads / bind_player / build_leader_overlay / set_overlay)──▶ MatchBuilder
+main ──(start_match: build; spec_from_setup / random_spec; set_overlay)──▶ MatchBuilder (the root's match module) ─▶ match_spawner (placement: the NPC scenes; bound through the `bind` Callable it is handed, so it never calls back)
+TestWorld (Testing) ──(stage / bind_npc / entry_point_for / populate / squads_over / set_overlay)──▶ MatchBuilder
 MatchBuilder ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
 MatchBuilder ─▶ NavBuilder (build, ready, steering_map; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  MatchBuilder ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds

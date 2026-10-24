@@ -112,10 +112,9 @@ func build(setup: TestSetup) -> void:
 
 
 ## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
-## declaration order, built and bound as a match's are (`MatchBuilder.build_squads`, keeping
-## claims the setup's `claim_ttl` when it names one), the human leader first handed its stack radio
-## (`MatchBuilder.bind_player`); and the squad-leaders overlay over them
-## (`MatchBuilder.build_leader_overlay`), started as the setup's overlays say.
+## declaration order, built and bound as a match's are (`MatchBuilder.squads_over`: the human
+## leader first handed its stack radio, the squads keeping claims the setup's `claim_ttl` when it
+## names one, and the squad-leaders overlay over them, shown as the setup's overlays say).
 func _build_squads(setup: TestSetup) -> void:
 	var members: Array = []
 	for a in setup.actors:
@@ -129,13 +128,18 @@ func _build_squads(setup: TestSetup) -> void:
 			push_error("TestWorld: squads' human '%s' is no actor" % human_id)
 		else:
 			human = { "node": node, "lead": true }
-			player_stack = MatchBuilder.bind_player(node, rooms, openings)
-	var claim_ttl := float((setup.squads_spec as Dictionary).get("claim_ttl", -1.0))
-	squads = MatchBuilder.build_squads(
-		self, members, openings, rooms, human, player_stack, claim_ttl,
+	var built := MatchBuilder.squads_over(
+		self,
+		members,
+		rooms,
+		openings,
+		human,
+		bool(_overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false)),
+		float((setup.squads_spec as Dictionary).get("claim_ttl", -1.0)),
 	)
-	_leader_overlay = MatchBuilder.build_leader_overlay(self, squads)
-	set_overlay(OVERLAY_REGISTRY.LEADERS, _overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false))
+	squads = built["squads"]
+	player_stack = built["player_stack"]
+	_leader_overlay = built["leader_overlay"]
 
 
 ## Undo every static override (call after freeing the world, or before rebuilding).

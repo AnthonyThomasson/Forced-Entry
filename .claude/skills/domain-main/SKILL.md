@@ -87,13 +87,14 @@ player_stack, leader_overlay }`). `build` is its two stages:
    test world wait) the world is stepped two physics frames (the walls' colliders go live on a step), then until `NavBuilder.ready` holds on
    the planning map and on its steering map, so no NPC is placed while a map still shows another navmesh (at most `NAV_SYNC_MS`, 5000 ms of
    real time, then a `push_error`; a world freed during the wait returns `{}`).
-2. **`populate`.** One RNG seeded with the spec's `seed` places the defenders, then the invader team, through a `match_spawner.gd` instance
-   (below), or puts a side's NPCs at its `at` points; each NPC is bound before it joins the tree. The human, when the spec names one, joins
+2. **`populate(handle, spec)`.** One RNG seeded with the spec's `seed` places the defenders, then the invader team, through a
+   `match_spawner.gd` instance (below), or puts a side's NPCs at its `at` points (`_place_side`, one branch for both sides); each NPC is bound
+   before it joins the tree, through the spawner's `bind` (a `Callable` `populate` sets: `bind_npc` with `entry_point_for` its faction). The human, when the spec names one, joins
    its side (`_join`: the side's faction, so its NPCs treat it as an ally; its start the spec's `human.at`, else for a defender a clear spot
    in a random room, while an invader starts where it stands, which for Main's `Player` is its anchor, `entrance_distance` below the front
-   entrance), is reparented under the world just above the house (draw order house < human < NPCs) and handed its stack radio
-   (`bind_player`). Then `arm` (every combatant, the human last), `build_squads`, `build_leader_overlay`, and every overlay but the holes
-   started through `set_overlay` by the spec's `overlays`.
+   entrance), is reparented under the world just above the house (draw order house < human < NPCs). Then `arm` (every combatant, the human
+   last), `squads_over` (below: the human's stack radio, the squads, the leaders overlay shown by the spec's `LEADERS`), and every other
+   overlay but the holes started through `set_overlay` by the spec's `overlays`.
 
 - **Arming** (`arm(characters, spec)`): every character gets its side's loadout (by its faction) through `LoadoutConfig.apply` →
   `Character.set_loadout` and `Character.set_outfit` — a chosen gun with its magazine and spares, its stun / frag grenade counts and its outfit
@@ -116,13 +117,17 @@ player_stack, leader_overlay }`). `build` is its two stages:
   (`bind_squad`: an NPC's controller's `squad`, and the human's `PlayerStack`, through `stack`, its `squad` and `own_claims`, true on the
   invaders' side only, so a human defender leader's step-ups rally nobody, D29). The leader is the squad's own rule (rank, then spawn order),
   or the human when it leads. Then `build_leader_overlay(world, squads)`: the `LeaderOverlay` (UI overlays, `watch` over every squad's
-  `view`), hidden until `set_overlay` shows it (LD12, LD28).
+  `view`), hidden until `set_overlay` shows it (LD12, LD28). **`squads_over(world, members, rooms, openings, human := {}, leaders := false,
+  claim_ttl := -1.0) -> { squads, player_stack, leader_overlay }`** is the squad tail both `populate` and the test world's declared squads
+  (`TestSetup.squads`) end with: the human (`human.node`) handed its stack radio (`bind_player`) first, then `build_squads`, then
+  `build_leader_overlay`, shown when `leaders`.
 - **The bind rule, once** (`bind_npc(npc, rooms, openings, entry_point)`): an NPC's controller is handed the house `rooms`, its `openings`
   (for tactical entry) and, when given, its `entry_point` **before the NPC joins the tree**, so its first tick already knows them; the
   controller is found by its contract (the child with `control` and `rooms`, interface 7), since the `npc_controllers` group is joined only in
   `_ready`. An invader's entry point is the front entrance (`front_entrance(openings)`, `entry_point_for(faction, openings)`), a defender's
-  none. The test world binds its NPC actors by the same call.
-- **Overlay routing, once** (`set_overlay(match, flag, on)`): `NAV_HOLES` to the handle's `nav_debug` (`show_holes`, redrawn), `LEADERS`
+  none (`_front_opening` is the one lookup of the front entrance among the openings: `front_entrance` returns its `pos`, and `populate`
+  hands the opening itself to the spawner). The test world binds its NPC actors by the same call.
+- **Overlay routing, once** (`set_overlay(handle, flag, on)`): `NAV_HOLES` to the handle's `nav_debug` (`show_holes`, redrawn), `LEADERS`
   to its `leader_overlay` (`show_leaders`; a world with no squads has none), any other non-global flag to every combatant with an AI
   controller through `OverlayRegistry.apply` (`domain-ui-overlays`); `PERF` is not the match's.
 - **The setup's specs:** `spec_from_setup(config, base)` and `random_spec(rng, base, most)` (the setup flow, above).
@@ -139,17 +144,19 @@ every NPC's own overlay).
 
 ## NPC placement (`match_spawner.gd`, a `RefCounted`)
 
-`MatchBuilder.populate` builds one per match (no other caller) and sets `world`, `spawn_clearance`, `invader_margin` and `openings` on it;
-it records every NPC it places in `combatants`, in spawn order.
+`MatchBuilder.populate` builds one per match and sets `world`, `spawn_clearance`, `invader_margin` and `bind` on it (`match_spawn_clear_test`
+builds one of its own, with no `bind`); it records every NPC it places in `combatants`, in spawn order. It never calls `MatchBuilder`: the
+builder hands it the bind rule as `bind`, so the dependency runs one way.
 
 - `spawn_defender(rooms, rng, index)` — a random room; `clear_spot(rect, rng)` returns its centre when clear, else the first clear point of
   `SPAWN_TRIES` (32) drawn from the rng (inset from the walls). **Clear** (`is_clear`) = at least `spawn_clearance` from every solid
   furniture footprint (`NavBuilder.furniture_holes`, read off the shapes, so it is right on the frame the house is built) and twice that from
   every combatant already placed; the centre again, logged, when nothing is clear. (A body spawned inside a piece is ejected with it and the
   piece's momentum flings it.)
-- `spawn_invader_team(rooms, rng, count, front_entrance, around := Vector2.INF)` — the invader team in one group (`docs/leadership.md`
+- `spawn_invader_team(rooms, rng, count, front, around := Vector2.INF)` — the invader team in one group (`docs/leadership.md`
   LD27), packed round one point:
-  - **beside the front door** (`_front_door` finds the front entrance among `openings`: its centre, the way out of its room, its width):
+  - **beside the front door** (`front`, the front entrance's opening `populate` found, `{}` with none; `_front_door` reads its centre, the way
+    out of its room and its width):
     `_beside_front_door` puts the point against the house's outside wall, `DOOR_SIDE_OFFSET` (120 px) along it from the doorway's centre,
     past the jamb and out of the doorway's straight line, on the side drawn from `rng` (so a pinned house seed pins it), and
     `spawn_clearance` out from the wall; the wall hides the team from inside;
@@ -158,10 +165,10 @@ it records every NPC it places in `combatants`, in spawn order.
   Each member takes `_group_spot`: the point, then rings twice `spawn_clearance` apart (about one slot per twice `spawn_clearance` of ring,
   `GROUP_RINGS` 6), the first spot `is_clear` of the furniture holes and every combatant placed (and `around`), `_outdoors` (out of every room
   grown by `spawn_clearance`, within twice `invader_margin` of the bounds) and, beside the front door, out of the doorway's straight strip
-  (`_in_strip`: within half its width of its centre along the wall); the point, logged, when none is. Each invader is handed the front
-  entrance as its entry point, so its controller heads straight for it.
-- `add_npc(scene, name, pos, rooms, entry_point := Vector2.ZERO)` instances the scene, sets its position, binds it
-  (`MatchBuilder.bind_npc`) and only THEN adds it under `world` (a body added at the world origin and moved afterwards overlaps whatever
+  (`_in_strip`: within half its width of its centre along the wall); the point, logged, when none is. Each invader is bound with the front
+  entrance as its entry point (`bind`), so its controller heads straight for it.
+- `add_npc(scene, name, pos)` instances the scene, sets its position, binds it (`bind.call(npc)`, when `bind` is valid) and only THEN
+  adds it under `world` (a body added at the world origin and moved afterwards overlaps whatever
   stands there for a frame, and the physics launches that piece across the map), and appends it to `combatants`; `npc_name` names the first
   of a kind plainly (`Defender`, `Invader`), the rest `<base> 2`, …
 

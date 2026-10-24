@@ -175,90 +175,112 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 	return populate(staged, match_spec)
 
 
-## Populate the staged match `match` (the handle `stage` returned) by `match_spec`: the defenders,
+## Populate the staged match `handle` (the handle `stage` returned) by `match_spec`: the defenders,
 ## each at a clear spot in a random room (or at the side's `at` points), then the invader team in
 ## one group outside the house (round the human's start when the human invades), each NPC bound to
-## the house (an invader heading for the front entrance first); the human joined to its side (its
-## faction, and its start: the spec's `human.at`, else for a defender a clear spot in a random
-## room) under the world, just above the house, and given its stack radio; everyone armed, styled
-## and ranked (`arm`); one squad per side (`build_squads`) and the squad-leaders overlay over them
-## (`build_leader_overlay`); every debug overlay but the navigation holes (the stage's) started as
-## the spec's `overlays` says (`set_overlay`: a flag it does not name off). Placement draws from one
-## RNG seeded with the spec's `seed`, so a pinned seed pins the match. Returns the handle with
-## `combatants` (every character in the match in spawn order, the human last), `squads` (by
-## faction), `player_stack` (the human's, or null) and `leader_overlay`.
-static func populate(match: Dictionary, match_spec: Dictionary) -> Dictionary:
+## the house before it joins the tree (`bind_npc`, an invader heading for the front entrance first);
+## the human joined to its side (its faction, and its start: the spec's `human.at`, else for a
+## defender a clear spot in a random room) under the world, just above the house; everyone armed,
+## styled and ranked (`arm`); the squads over them (`squads_over`: the human's stack radio, one
+## squad per side and the squad-leaders overlay, shown as the spec's `overlays` says); every other
+## debug overlay but the navigation holes (the stage's) started as the spec's `overlays` says
+## (`set_overlay`: a flag it does not name off). Placement draws from one RNG seeded with the spec's
+## `seed`, so a pinned seed pins the match. Returns the handle with `combatants` (every character in
+## the match in spawn order, the human last), `squads` (by faction), `player_stack` (the human's, or
+## null) and `leader_overlay`.
+static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
-	var world: Node2D = match["world"]
-	var rooms: Array = match["rooms"]
-	var openings: Array = match["openings"]
+	var world: Node2D = handle["world"]
+	var rooms: Array = handle["rooms"]
+	var openings: Array = handle["openings"]
 	var spawner = MATCH_SPAWNER.new()
 	spawner.world = world
 	spawner.spawn_clearance = float(match_spec["spawn_clearance"])
 	spawner.invader_margin = float(match_spec["invader_margin"])
-	spawner.openings = openings
-	var front := front_entrance(openings)
+	spawner.bind = func(npc: Node) -> void:
+		bind_npc(npc, rooms, openings, entry_point_for(npc.get("faction"), openings))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(match_spec["seed"])
 	var human := _human_of(match_spec)
 	var human_node: Node2D = human.get("node")
 	var human_invader: bool = human_node != null and human["side"] != &"defender"
-	var defenders: Dictionary = match_spec["defenders"]
-	var at: Array = defenders.get("at", [])
-	if at.is_empty():
-		for i in int(defenders.get("count", 0)):
-			spawner.spawn_defender(rooms, rng, i)
-	for i in at.size():
-		spawner.add_npc(
-			MATCH_SPAWNER.DEFENDER_SCENE,
-			spawner.npc_name("Defender", i),
-			at[i],
-			rooms,
-		)
-	var invaders: Dictionary = match_spec["invaders"]
-	at = invaders.get("at", [])
-	if at.is_empty():
-		spawner.spawn_invader_team(
-			rooms,
-			rng,
-			int(invaders.get("count", 0)),
-			front,
-			_start_of(human) if human_invader else Vector2.INF,
-		)
-	for i in at.size():
-		spawner.add_npc(
-			MATCH_SPAWNER.INVADER_SCENE,
-			spawner.npc_name("Invader", i),
-			at[i],
-			rooms,
-			front,
-		)
+	_place_side(
+		spawner,
+		match_spec["defenders"],
+		MATCH_SPAWNER.DEFENDER_SCENE,
+		"Defender",
+		func(count: int) -> void:
+			for i in count:
+				spawner.spawn_defender(rooms, rng, i),
+	)
+	_place_side(
+		spawner,
+		match_spec["invaders"],
+		MATCH_SPAWNER.INVADER_SCENE,
+		"Invader",
+		func(count: int) -> void:
+			spawner.spawn_invader_team(
+				rooms,
+				rng,
+				count,
+				_front_opening(openings),
+				_start_of(human) if human_invader else Vector2.INF,
+			),
+	)
 	var combatants: Array = spawner.combatants.filter(func(c): return is_instance_valid(c))
-	var stack: Node = null
 	if human_node != null:
-		_join(human_node, human_invader, human["at"], match, spawner, rng)
+		_join(human_node, human_invader, human["at"], handle, spawner, rng)
 		combatants.append(human_node)
-		stack = bind_player(human_node, rooms, openings)
 	arm(combatants, match_spec)
-	var out := match.duplicate()
-	out["combatants"] = combatants
-	out["squads"] = build_squads(world, combatants, openings, rooms, human, stack)
-	out["player_stack"] = stack
-	out["leader_overlay"] = build_leader_overlay(world, out["squads"])
 	var overlays: Dictionary = match_spec["overlays"]
+	var out := handle.duplicate()
+	out["combatants"] = combatants
+	out.merge(
+		squads_over(
+			world,
+			combatants,
+			rooms,
+			openings,
+			human,
+			bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false)),
+		),
+	)
 	for flag in OVERLAY_REGISTRY.defaults():
-		if flag != OVERLAY_REGISTRY.NAV_HOLES:
+		if flag != OVERLAY_REGISTRY.NAV_HOLES and flag != OVERLAY_REGISTRY.LEADERS:
 			set_overlay(out, flag, bool(overlays.get(flag, false)))
 	return out
+
+
+## Place the side `side` (the spec's `defenders` / `invaders`) through `spawner`: at its `at`
+## points, each a `scene` named from `base` (`npc_name`), or, when it names none, its `count` by the
+## side's own rule, `place` (called with the count).
+static func _place_side(
+	spawner: RefCounted,
+	side: Dictionary,
+	scene: PackedScene,
+	base: String,
+	place: Callable,
+) -> void:
+	var at: Array = side.get("at", [])
+	if at.is_empty():
+		place.call(int(side.get("count", 0)))
+	for i in at.size():
+		spawner.add_npc(scene, spawner.npc_name(base, i), at[i])
 
 
 ## The front entrance among `openings` (`WorldGen.get_openings`): its world point, or ZERO when the
 ## house has none.
 static func front_entrance(openings: Array) -> Vector2:
+	return _front_opening(openings).get("pos", Vector2.ZERO)
+
+
+## The front entrance among `openings` (`WorldGen.get_openings`): its opening (`{ pos, width,
+## front, exit, rooms }`), or `{}` when the house has none.
+static func _front_opening(openings: Array) -> Dictionary:
 	for o: Dictionary in openings:
 		if o.get("front", false):
-			return o["pos"]
-	return Vector2.ZERO
+			return o
+	return {}
 
 
 ## Where an NPC of `faction` heads first while outside every room (`bind_npc`'s `entry_point`): an
@@ -398,25 +420,25 @@ static func build_leader_overlay(world: Node, squads: Dictionary) -> Node2D:
 	return overlay
 
 
-## Turn the debug overlay `flag` (an `OverlayRegistry` row) on or off on the match `match` (a
+## Turn the debug overlay `flag` (an `OverlayRegistry` row) on or off on the match `handle` (a
 ## handle, or any dict with its `nav_debug`, `leader_overlay` and `combatants`): the navigation
 ## holes on its `nav_debug` (redrawn, since a paused overlay's own `_process` may not run), the
 ## squad leaders on its `leader_overlay` (a world with no squads has none: nothing happens), and
 ## any NPC's own overlay on each NPC among its `combatants` (a character with an AI controller,
 ## interface 7: the human has none of those overlays) through `OverlayRegistry.apply`. The
 ## performance flag is the caller's own overlay: nothing here.
-static func set_overlay(match: Dictionary, flag: String, on: bool) -> void:
+static func set_overlay(handle: Dictionary, flag: String, on: bool) -> void:
 	if flag == OVERLAY_REGISTRY.NAV_HOLES:
-		var nav_debug: Variant = match.get("nav_debug")
+		var nav_debug: Variant = handle.get("nav_debug")
 		if is_instance_valid(nav_debug):
 			nav_debug.show_holes = on
 			nav_debug.queue_redraw()
 	elif flag == OVERLAY_REGISTRY.LEADERS:
-		var overlay: Variant = match.get("leader_overlay")
+		var overlay: Variant = handle.get("leader_overlay")
 		if is_instance_valid(overlay):
 			overlay.show_leaders = on
 	elif not OVERLAY_REGISTRY.is_global(flag):
-		for npc: Variant in match.get("combatants", []):
+		for npc: Variant in handle.get("combatants", []):
 			if is_instance_valid(npc) and _controller_of(npc) != null:
 				OVERLAY_REGISTRY.apply(npc, { flag: on })
 
@@ -499,6 +521,33 @@ static func _wait_nav(world: Node2D) -> void:
 		await world.get_tree().physics_frame
 
 
+## The squads over `members` (a match's characters in spawn order, after `arm` has ranked them):
+## the human (`human.node`, leading its side when `human.lead`) first handed its stack radio
+## (`bind_player`), then one squad per side (`build_squads`, each keeping its members' claims
+## `claim_ttl` s, or, when it is negative, its NPCs' `callout_ttl`) and the squad-leaders overlay
+## over them (`build_leader_overlay`), shown when `leaders`. `populate` ends with it, and the
+## Testing world builds the squads a test declares through it. Returns
+## `{ squads, player_stack, leader_overlay }` (`player_stack` null with no human), for the match
+## handle.
+static func squads_over(
+	world: Node,
+	members: Array,
+	rooms: Array,
+	openings: Array,
+	human: Dictionary = {},
+	leaders := false,
+	claim_ttl := -1.0,
+) -> Dictionary:
+	var human_node: Variant = human.get("node")
+	var stack: Node = (bind_player(human_node, rooms, openings)
+			if is_instance_valid(human_node)
+			else null)
+	var squads := build_squads(world, members, openings, rooms, human, stack, claim_ttl)
+	var overlay := build_leader_overlay(world, squads)
+	set_overlay({ "leader_overlay": overlay }, OVERLAY_REGISTRY.LEADERS, leaders)
+	return { "squads": squads, "player_stack": stack, "leader_overlay": overlay }
+
+
 ## Hand an NPC's controller the house: its `rooms` (world-space rects), its `openings` (the
 ## doorways, for tactical entry) and, when given, an `entry_point` it heads for first while outside
 ## every room. Called BEFORE the NPC joins the tree, so its first tick already knows them; the
@@ -554,7 +603,7 @@ static func bind_player(player: Node, rooms: Array, openings: Array) -> Node:
 	return PLAYER_STACK.attach(player, rooms, openings)
 
 
-## Put the human `human` in the staged match `match` on its side: that side's faction (so its NPCs
+## Put the human `human` in the staged match `handle` on its side: that side's faction (so its NPCs
 ## treat it as an ally) and its start: `at` when given (not INF), else for a defender a clear spot
 ## in a random room drawn from `rng` (an invader starts where it stands). It is moved under the
 ## match's world, keeping where it stands, just above the house so the draw order stays house <
@@ -563,20 +612,20 @@ static func _join(
 	human: Node2D,
 	invading: bool,
 	at: Vector2,
-	match: Dictionary,
+	handle: Dictionary,
 	spawner: RefCounted,
 	rng: RandomNumberGenerator,
 ) -> void:
-	var rooms: Array = match["rooms"]
+	var rooms: Array = handle["rooms"]
 	human.set("faction", INVADER_FACTION if invading else DEFENDER_FACTION)
 	if at != Vector2.INF:
 		human.global_position = at
 	elif not invading and not rooms.is_empty():
 		human.global_position = spawner.clear_spot(rooms[rng.randi() % rooms.size()]["rect"], rng)
-	var world: Node2D = match["world"]
+	var world: Node2D = handle["world"]
 	if human.get_parent() != world:
 		human.reparent(world, true)
-	var house: Node = match["house"]
+	var house: Node = handle["house"]
 	world.move_child(human, house.get_index() + 1)
 
 

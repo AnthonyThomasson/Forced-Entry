@@ -2,8 +2,9 @@ extends RefCounted
 ## The match-assembly module's helper (`MatchBuilder.populate`): where and how a match's NPCs are
 ## placed. Defenders go to a clear spot in a random room, the invader team in one group outside the
 ## house, beside its front entrance (`spawn_invader_team`); each NPC is handed the house through
-## `MatchBuilder.bind_npc`, added under the match's `World` node and recorded in `combatants` (the
-## spectator camera, the match HUD and the overlays observe that list). Like `match_builder.gd` it
+## `bind` (the builder's `MatchBuilder.bind_npc`, before it joins the tree), added under the match's
+## `World` node and recorded in `combatants` (the spectator camera, the match HUD and the overlays
+## observe that list). Like `match_builder.gd` it
 ## knows the NPC scenes and the Navigation domain's `furniture_holes`; the placement rules live here
 ## so the builder only wires domains.
 
@@ -30,9 +31,9 @@ var spawn_clearance: float = 20.0
 var invader_margin: float = 80.0
 ## Every NPC placed so far, in spawn order.
 var combatants: Array = []
-## The house's doorways (`WorldGen.get_openings`), handed to every NPC it places alongside the
-## rooms.
-var openings: Array = []
+## How an NPC is handed the house (`bind.call(npc)`), called on each one before it joins the tree;
+## an invalid Callable (the default) binds nothing.
+var bind := Callable()
 
 
 ## Drop defender number `index` at a clear spot (`clear_spot`) in a random room. `rng` is seeded
@@ -42,7 +43,7 @@ func spawn_defender(rooms: Array, rng: RandomNumberGenerator, index: int) -> voi
 	if rooms.is_empty():
 		return
 	var room: Dictionary = rooms[rng.randi() % rooms.size()]
-	add_npc(DEFENDER_SCENE, npc_name("Defender", index), clear_spot(room["rect"], rng), rooms)
+	add_npc(DEFENDER_SCENE, npc_name("Defender", index), clear_spot(room["rect"], rng))
 
 
 ## Where a character can be dropped in room `rect`: its centre when clear, else the first clear
@@ -87,19 +88,19 @@ func is_clear(p: Vector2, holes: Array, taken: Array) -> bool:
 
 
 ## Drop an invader team of `count` in one group outside the house, so the squad starts together:
-## packed round one point beside the front entrance (`_beside_front_door`: against the outside wall
+## packed round one point beside the front entrance `front` (its opening, `{}` when the house has
+## none; `_beside_front_door`: against the outside wall
 ## on one side of the doorway, the side drawn from `rng`, so a pinned house seed pins it; the wall
 ## hides the team from inside), or, in a house with no front entrance, round one point of the
 ## perimeter `invader_margin` px out of the rooms' bounding box, drawn from `rng`; or round `around`
 ## when given (the human invader's spot, which a member then keeps clear of as of any combatant).
 ## Each member takes the spot `_group_spot` gives it, nearest the point first; beside the front
 ## entrance, none in the doorway's straight strip.
-## `front_entranceworld` is injected so each heads straight for the entrance rather than circling.
 func spawn_invader_team(
 	rooms: Array,
 	rng: RandomNumberGenerator,
 	count: int,
-	front_entranceworld: Vector2,
+	front: Dictionary,
 	around := Vector2.INF,
 ) -> void:
 	if rooms.is_empty():
@@ -110,7 +111,7 @@ func spawn_invader_team(
 	var centre := around
 	var door := {}
 	if centre == Vector2.INF:
-		door = _front_door(rooms)
+		door = _front_door(front, rooms)
 		if not door.is_empty():
 			centre = _beside_front_door(door, rng)
 	if centre == Vector2.INF:
@@ -127,21 +128,19 @@ func spawn_invader_team(
 			INVADER_SCENE,
 			npc_name("Invader", i),
 			_group_spot(centre, rooms, bounds, holes, taken, door),
-			rooms,
-			front_entranceworld,
 		)
 
 
-## The front entrance among `openings`: `{ pos, out, width }` (its centre, the way out of its room
-## and its width), or `{}` when the house has none.
-func _front_door(rooms: Array) -> Dictionary:
-	for o: Dictionary in openings:
-		if not o.get("front", false):
-			continue
-		for room: Dictionary in rooms:
-			if (o.get("rooms", []) as Array).has(room["key"]):
-				var pos: Vector2 = o["pos"]
-				return { "pos": pos, "out": _outward(room["rect"], pos), "width": o["width"] }
+## The front entrance `front` (its opening, `{ pos, width, rooms, ... }`) as the team is placed
+## by it: `{ pos, out, width }` (its centre, the way out of its room among `rooms` and its width),
+## or `{}` when there is none.
+func _front_door(front: Dictionary, rooms: Array) -> Dictionary:
+	if front.is_empty():
+		return {}
+	for room: Dictionary in rooms:
+		if (front.get("rooms", []) as Array).has(room["key"]):
+			var pos: Vector2 = front["pos"]
+			return { "pos": pos, "out": _outward(room["rect"], pos), "width": front["width"] }
 	return {}
 
 
@@ -228,22 +227,16 @@ func npc_name(base: String, index: int) -> String:
 	return base if index == 0 else "%s %d" % [base, index + 1]
 
 
-## Instance an NPC scene named `node_name` at `pos`, hand its controller the house's rooms, its
-## `openings` and optional entry point (`MatchBuilder.bind_npc`, before it joins the tree), and
-## record it as a combatant (for the spectator camera + match HUD). It joins the `World` node;
-## `MatchBuilder.arm` gives it its weapon afterwards. It is positioned BEFORE it joins the tree: a
-## body added at the world origin and moved afterwards overlaps whatever stands there for a moment,
-## and the physics launches that piece (or the NPC) across the map.
-func add_npc(
-	scene: PackedScene,
-	node_name: String,
-	pos: Vector2,
-	rooms: Array,
-	entry_point: Vector2 = Vector2.ZERO,
-) -> void:
+## Instance an NPC scene named `node_name` at `pos`, hand it the house (`bind`, before it joins the
+## tree) and record it as a combatant (for the spectator camera + match HUD). It joins the `World`
+## node; `MatchBuilder.arm` gives it its weapon afterwards. It is positioned BEFORE it joins the
+## tree: a body added at the world origin and moved afterwards overlaps whatever stands there for a
+## moment, and the physics launches that piece (or the NPC) across the map.
+func add_npc(scene: PackedScene, node_name: String, pos: Vector2) -> void:
 	var npc := scene.instantiate()
 	npc.name = node_name
 	npc.position = world.to_local(pos)
-	MatchBuilder.bind_npc(npc, rooms, openings, entry_point)
+	if bind.is_valid():
+		bind.call(npc)
 	world.add_child(npc)
 	combatants.append(npc)
