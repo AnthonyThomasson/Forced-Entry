@@ -13,9 +13,9 @@
 #      `gdstyle fmt --check` would change (`tools/gdstyle.sh fmt PATH` formats them), and one listing every finding of
 #      `gdstyle check` (every rule an error but quality/*: a line over 100 columns, member order, naming ...). Like the
 #      engine pass it skips a folder holding a .gdignore.
-# tools/run_tests.sh runs it first (on the staged scripts with --changed --staged), the Stop hook after a turn changed
-# what it reads, and the pre-commit hook on the staged scripts when a commit stages a script it reads but no game code
-# (the game tests lint them then).
+# tools/run_tests.sh runs it first, and the Stop hook after a turn changed what it reads. tools/lint_staged.sh runs it
+# on what a commit holds (the staged scripts, or the whole tree when a file that governs every script is staged); the
+# pre-commit hook and tools/run_tests.sh --changed --staged run that instead.
 #   tools/lint.sh [--quiet] [--rule=a,b | --skip-rule=a,b | --list-rules] [--no-gdstyle] [PATH...]
 #     --quiet          print nothing when clean
 #     --list-rules     list the rules (name and description) and exit; no engine pass

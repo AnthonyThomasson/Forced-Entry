@@ -33,10 +33,10 @@
 #                                         Nothing mapped, or only domains --skip-domain leaves out: it says which
 #                                         and exits 0.
 #   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
-#                                         the lint only on the staged scripts (as they are on disk; the whole tree
-#                                         when project.godot or a gdstyle file is staged; none when no script is),
-#                                         a finding in a script not staged labelled `not in this commit: <path>`.
-#                                         The pre-commit hook runs it.
+#                                         the lint of what the commit holds (tools/lint_staged.sh: the staged
+#                                         scripts as they are on disk; the whole tree when project.godot or a gdstyle
+#                                         file is staged; none when no script is), a finding in a script not staged
+#                                         labelled `not in this commit: <path>`. The pre-commit hook runs it.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
 #   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
@@ -69,8 +69,8 @@
 #   --no-lint       skip the lint that runs first (tools/lint.sh, ~14 s: unused variables, integer division, shadowed
 #                   names ... the warnings of the editor's Debugger > Errors tab, the project lint rules, gdstyle). Any
 #                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
-#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; a lint of
-#                   only the staged scripts, --changed --staged, never records one).
+#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; the lint of
+#                   --changed --staged never records one).
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner.
 # Every run ends with a `Slowest:` line (wall-clock ms per test).
@@ -407,7 +407,7 @@ live_run() {
   return $code
 }
 
-# The native suites the runs that wrote the dirs given met (their records' `<suite id>::<case>` ids), as res://
+# The native suites met by the runs that wrote the dirs given (their records' `<suite id>::<case>` ids), as res://
 # paths, one per line.
 native_suites_met() {
   python3 - "$@" <<'EOF'
@@ -556,43 +556,22 @@ lint_fingerprint() {
   { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; shasum "$f"; done; } \
     | shasum | cut -d' ' -f1
 }
-# With --changed --staged the lint covers what the commit holds: the staged scripts the lint reads (added, copied,
-# modified or renamed, not deleted; a .gd outside addons/ and the coverage tool's fixtures), as they are on disk, or the
-# whole tree when a file that governs every script is staged (project.godot, the gdstyle pass's own files). Such a
-# scoped lint says nothing of the rest of the tree, so it never records the clean-lint fingerprint.
-staged=""
-lint_paths=()
-scoped=0
-if [[ $STAGED -eq 1 ]]; then
-  staged=$(git -c core.quotePath=false diff --cached --name-only)
-  lintable=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=d \
-    | grep -vE '^(addons/|tools/coverage/tests/fixtures/)' \
-    | grep -E '\.gd$|^(project\.godot|gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$' || true)
-  if ! grep -qE '^(project\.godot|gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$' <<<"$lintable"; then
-    scoped=1
-    while IFS= read -r f; do [[ -n "$f" ]] && lint_paths+=("$f"); done <<<"$lintable"
-    if [[ $LINT -eq 1 && ${#lint_paths[@]} -eq 0 ]]; then
-      echo "lint skipped: the commit stages no script the lint reads" >&2
-      LINT=0
-    fi
-  fi
-fi
+# With --changed --staged the lint covers what the commit holds (tools/lint_staged.sh: the staged scripts, or the
+# whole tree when a file that governs every script is staged). It may say nothing of the rest of the tree, so it never
+# records the clean-lint fingerprint.
 if [[ $LINT -eq 1 ]]; then
   fingerprint=$(lint_fingerprint)
   if [[ -f "$LINT_OK" && "$(cat "$LINT_OK")" == "$fingerprint" ]]; then
     echo "lint skipped: the sources are unchanged since the last clean lint" >&2
   else
-    if ! lint_out=$("$(dirname "$0")/lint.sh" ${lint_paths[@]+"${lint_paths[@]}"} 2>&1); then
-      if [[ $STAGED -eq 1 ]]; then
-        held=()
-        while IFS= read -r f; do held+=("$f"); done <<<"$staged"
-        lint_out=$(python3 "$(dirname "$0")/lint_label.py" "${held[@]}" <<<"$lint_out")
-      fi
+    lint=("$(dirname "$0")/lint.sh")
+    [[ $STAGED -eq 1 ]] && lint=("$(dirname "$0")/lint_staged.sh")
+    if ! lint_out=$("${lint[@]}" 2>&1); then
       echo "$lint_out"
       echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2
       exit 1
     fi
-    [[ $scoped -eq 0 ]] && echo "$fingerprint" > "$LINT_OK"
+    [[ $STAGED -eq 0 ]] && echo "$fingerprint" > "$LINT_OK"
   fi
 fi
 
@@ -602,7 +581,7 @@ if [[ $CHANGED -eq 1 ]]; then
   if [[ -n "${GAME_TEST_CHANGED_FILES:-}" ]]; then
     files="$GAME_TEST_CHANGED_FILES"
   elif [[ $STAGED -eq 1 ]]; then
-    files="$staged"   # what the commit holds (git diff --cached), not the working tree
+    files=$(git -c core.quotePath=false diff --cached --name-only)   # what the commit holds, not the working tree
   else
     files=$( { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u )
   fi

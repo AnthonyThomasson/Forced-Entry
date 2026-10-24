@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Label the lint's findings in scripts a commit does not hold.
 
-  tools/lint.sh --quiet PATH... | python3 tools/lint_label.py PATH...
+  tools/lint.sh PATH... | python3 tools/lint_label.py STAGED_PATH...
 
 Copies the lint's output (stdin) to stdout, and appends `  [not in this commit: <path>]` to each line that starts with
-a script none of the PATHs is (a .gd path, with or without res://, after the line's indent): the script a finding is
+a script none of the STAGED_PATHs is (a .gd path, with or without res://, after the line's indent): the script a finding is
 in, as an engine pass header (`res://x.gd  (2)`) or a rule's or gdstyle's `x.gd:3: …` gives it. That is a finding the
 engine pass reached through a staged script (one it loads or preloads), which the commit did not make. A script a
-message only names (`Could not preload … 'res://y.gd'`) is not where the finding is, so it is left unlabelled. The
-pre-commit hook pipes its lint through it, and tools/run_tests.sh --changed --staged its own, each given the commit's
-staged paths.
+message only names (`Could not preload … 'res://y.gd'`) is not where the finding is, so it is left unlabelled.
+tools/lint_staged.sh (the lint of what a commit holds: the pre-commit hook's and tools/run_tests.sh --changed
+--staged's) pipes a failed lint through it, given the commit's staged paths.
 """
 import re
 import sys

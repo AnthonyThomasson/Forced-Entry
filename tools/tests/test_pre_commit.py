@@ -1,8 +1,8 @@
 """.githooks/pre-commit: when the commit stages anything under tools/, it runs the tool tests (Python unittest
 discovery over tools/) and aborts the commit when one fails; otherwise it leaves them alone. It runs
 `tools/run_tests.sh --changed …` when scenes/, tests/ or project.godot is staged, and only then. And it runs the lint
-(`tools/lint.sh --quiet`) when the commit stages a script the lint holds to its rules that the game tests do not lint
-for it: a .gd outside addons/ and the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own
+of what the commit holds (`tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts) when the commit stages a
+script the lint holds to its rules that the game tests do not lint for it: a .gd outside addons/ and the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own
 files (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py). When the game tests run they lint first
 (run_tests.sh), so the hook does not lint again. Before any of that it refuses a commit that leaves a script Godot
 imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without
@@ -13,10 +13,10 @@ renamed; not deleted ones), read as they are on disk, or the whole tree when a g
 are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is labelled
 `not in this commit: <path>`.
 
-Each case is a temp git repo holding a copy of this checkout's hook and tools/lint_label.py, a fake tools/run_tests.sh
-that logs its arguments (and fails when FAKE_GAME_FAIL=1, or on a lint finding when FAKE_GAME_FAIL=lint), a fake
-tools/lint.sh that does the same and, like the real one, fails on a line over 100 columns in the paths it is given (every
-script of the tree when none; FAKE_LINT_FAIL=1 fails it on a staged file, FAKE_LINT_FOREIGN=<path> on that file), and
+Each case is a temp git repo holding a copy of this checkout's hook, tools/lint_staged.sh (the lint of what the commit
+holds) and tools/lint_label.py, a fake tools/run_tests.sh that logs its arguments (and fails when FAKE_GAME_FAIL=1, or
+on a lint finding when FAKE_GAME_FAIL=lint), a fake tools/lint.sh that does the same and, like the real one, fails on a
+line over 100 columns in the paths it is given (every script of the tree when none; FAKE_LINT_FAIL=1 fails it on a staged file, FAKE_LINT_FOREIGN=<path> on that file), and
 one sentinel tool test, tools/tests/test_sentinel.py, that logs that it ran (and fails when SENTINEL_FAIL=1). Files are
 staged, then the hook runs as git runs it (from the repo, no arguments).
 Three cases commit through git itself: one shows a failure aborts the commit; one commits from a worktree of the
@@ -145,7 +145,8 @@ class HookRepo:
         (root / ".githooks").mkdir()
         shutil.copy2(HOOK, root / ".githooks" / "pre-commit")
         (root / "tools").mkdir()
-        shutil.copy2(ROOT / "tools" / "lint_label.py", root / "tools" / "lint_label.py")
+        for name in ("lint_staged.sh", "lint_label.py"):
+            shutil.copy2(ROOT / "tools" / name, root / "tools" / name)
         write(root, "tools/run_tests.sh", FAKE_RUN_TESTS, executable=True)
         write(root, "tools/lint.sh", FAKE_LINT, executable=True)
         for rel in ("tools/__init__.py", "tools/tests/__init__.py"):

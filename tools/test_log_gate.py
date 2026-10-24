@@ -430,9 +430,9 @@ exit 0
 
 
 class StagedChangedTests(unittest.TestCase):
-    """`--changed --staged` through git: a throwaway repo holding a copy of run_tests.sh (with scan_godot_log.py and
-    lint_label.py) and a fake lint, with one scene edit staged, one left unstaged and one untracked script. It maps
-    only the staged file, lints only the staged script (labelling a finding elsewhere `not in this commit`), and never
+    """`--changed --staged` through git: a throwaway repo holding a copy of run_tests.sh (with scan_godot_log.py,
+    lint_staged.sh and lint_label.py) and a fake lint, with one scene edit staged, one left unstaged and one untracked
+    script. It maps only the staged file, lints only the staged script (labelling a finding elsewhere `not in this commit`), and never
     records the whole-tree clean-lint fingerprint."""
 
     def setUp(self):
@@ -442,7 +442,7 @@ class StagedChangedTests(unittest.TestCase):
         self.state.mkdir()
         tools = self.repo / "tools"
         tools.mkdir(parents=True)
-        for name in ("run_tests.sh", "scan_godot_log.py", "lint_label.py"):
+        for name in ("run_tests.sh", "scan_godot_log.py", "lint_staged.sh", "lint_label.py"):
             shutil.copy2(ROOT / "tools" / name, tools / name)
         (tools / "lint.sh").write_text(FAKE_STAGED_LINT)
         (tools / "lint.sh").chmod(0o755)

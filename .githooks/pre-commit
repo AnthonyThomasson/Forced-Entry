@@ -10,14 +10,15 @@
 #   - Staged game code (scenes/, tests/, project.godot): the game tests the staged files can break
 #     (`tools/run_tests.sh --changed --staged`, picked from the index). The performance tests (domain perf) are left
 #     out: their frame-time budgets fail on a loaded machine, so run them on their own (`tools/run_tests.sh
-#     --domain=perf`). tools/run_tests.sh lints the staged scripts before its first test.
+#     --domain=perf`). tools/run_tests.sh runs the lint of what the commit holds before its first test.
 #   - Otherwise, a staged script the lint holds to its rules (a .gd outside addons/ and the coverage tool's fixtures:
 #     sandboxes/, tools/ ...) or a file of the gdstyle pass (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py):
-#     the lint, silent when it passes: `tools/lint.sh --quiet` on the staged scripts (added, copied, modified or
-#     renamed, not deleted), or on the whole tree when a gdstyle file is staged (it governs every script).
+#     the lint of what the commit holds, silent when it passes: `tools/lint_staged.sh --quiet`, tools/lint.sh on the
+#     staged scripts (added, copied, modified or renamed, not deleted), or on the whole tree when a gdstyle file is
+#     staged (it governs every script).
 #   - The lint reads a staged script as it is on disk: a script staged in part is checked with its unstaged hunks too.
 #     A finding in a script the commit does not hold (the engine pass reports one a staged script loads) is labelled
-#     `not in this commit: <path>` (tools/lint_label.py).
+#     `not in this commit: <path>`.
 # Enable with tools/install_hooks.sh; bypass with `git commit --no-verify`.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -67,22 +68,9 @@ fi
 
 grep -qE '^(scenes/|tests/|project\.godot$)' <<<"$staged" && game=1 || game=0
 
-# Read to the end (no grep -q): under pipefail an early exit would fail the first grep on a long list (SIGPIPE).
-# Deleted paths are left out (--diff-filter=d): there is nothing on disk to lint.
-lintable=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=d \
-  | grep -vE '^(addons/|tools/coverage/tests/fixtures/)' \
-  | grep -E '\.gd$|^(gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$')
-if [[ $game -eq 0 && -n "$lintable" ]]; then
-  # The staged scripts, or none (the whole tree) when a file of the gdstyle pass is among them.
-  paths=()
-  if ! grep -qE '^(gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$' <<<"$lintable"; then
-    while IFS= read -r f; do paths+=("$f"); done <<<"$lintable"
-  fi
-  out=$(tools/lint.sh --quiet ${paths[@]+"${paths[@]}"} 2>&1)
+if [[ $game -eq 0 ]]; then
+  out=$(tools/lint_staged.sh --quiet 2>&1)
   if [[ $? -ne 0 ]]; then
-    held=()
-    while IFS= read -r f; do held+=("$f"); done <<<"$staged"
-    out=$(python3 tools/lint_label.py "${held[@]}" <<<"$out")
     {
       echo "Lint failed; commit aborted (tools/lint.sh):"
       echo "$out"
