@@ -98,7 +98,11 @@ and controller contract, EventBus and character signals) and never reaches into 
   `tests/_vehicle` runs `vehicle`, `audio` and `general` (its users), `tests/_perf` runs the `perf` domain, `tests/_harness` the self-tests, and an unknown helper folder everything.
   An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
-  `tools/test_log_gate.py` tests this mapping.
+  `tools/test_log_gate.py` tests this mapping. **`--changed --staged`** (the pre-commit hook's) maps what is staged
+  (`git diff --cached`) instead, and lints only the staged scripts (added, copied, modified or renamed, as they are on
+  disk; the whole tree when `project.godot` or a gdstyle file is staged; no lint when no script is), labelling a finding
+  in a script not staged `not in this commit: <path>` (`tools/lint_label.py`); such a scoped lint never records the
+  clean-lint fingerprint. `test_log_gate.py`'s `StagedChangedTests` run it through git in a throwaway repo.
 - **Which command?**
 
   | Situation | Command |

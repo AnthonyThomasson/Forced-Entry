@@ -22,11 +22,13 @@ PATH`.
 The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it headless). A git pre-commit hook
 (`.githooks/pre-commit`) first refuses a commit that leaves a `.gd` under `scenes/`, `tests/`, `addons/` or `sandboxes/`
 without its `.gd.uid` or the reverse (`tools/load_check.sh --import` writes them), then runs the game tests a commit can
-break (`tools/run_tests.sh --changed`, which lints first), only when it touches `scenes/`, `tests/` or `project.godot`,
-and without the performance tests, which are a separate `tools/run_tests.sh --domain=perf`; when it touches `tools/`, it
-also runs the tool tests (`python3 -m unittest discover -s tools -t .`); when it touches no game code but a `.gd`
-outside `addons/` and the coverage tool's fixtures, or one of gdstyle's own files, it runs `tools/lint.sh`. Enable it
-once per clone with `tools/install_hooks.sh`.
+break (`tools/run_tests.sh --changed --staged`: picked from what is staged, which it lints first), only when it touches
+`scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate `tools/run_tests.sh
+--domain=perf`; when it touches `tools/`, it also runs the tool tests (`python3 -m unittest discover -s tools -t .`);
+when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, or one of gdstyle's own
+files, it runs `tools/lint.sh` on the staged scripts. It checks what the commit holds, not the working tree (a lint
+finding in a file the commit does not hold says `not in this commit: <path>`). Enable it once per clone with
+`tools/install_hooks.sh`.
 
 ## Agent skills
 

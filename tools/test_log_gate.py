@@ -368,6 +368,107 @@ class WrapperTests(unittest.TestCase):
                          ["selection: --domain=ai,perf", "selection: --id=audio/bank"])
 
 
+FAKE_STAGED_LINT = r"""#!/usr/bin/env bash
+# Stands in for tools/lint.sh: logs its arguments; with FAKE_LINT_FOREIGN=<path> reports a finding in that script.
+echo "lint $*" >> "$LINT_LOG"
+if [ -n "${FAKE_LINT_FOREIGN:-}" ]; then
+  echo "== GDScript analyzer (engine) =="
+  echo "res://$FAKE_LINT_FOREIGN  (1)"
+  exit 1
+fi
+exit 0
+"""
+
+
+class StagedChangedTests(unittest.TestCase):
+    """`--changed --staged` through git: a throwaway repo holding a copy of run_tests.sh (with scan_godot_log.py and
+    lint_label.py) and a fake lint, with one scene edit staged, one left unstaged and one untracked script. It maps
+    only the staged file, lints only the staged script (labelling a finding elsewhere `not in this commit`), and never
+    records the whole-tree clean-lint fingerprint."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="staged_changed_"))
+        self.repo = self.tmp / "repo"
+        self.state = self.tmp / "state"
+        self.state.mkdir()
+        tools = self.repo / "tools"
+        tools.mkdir(parents=True)
+        for name in ("run_tests.sh", "scan_godot_log.py", "lint_label.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        (tools / "lint.sh").write_text(FAKE_STAGED_LINT)
+        (tools / "lint.sh").chmod(0o755)
+        self.fake = self.tmp / "fakegodot"
+        self.fake.write_text(FAKE_GODOT)
+        self.fake.chmod(0o755)
+        files = {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "", "tests/ai/x_test.gd": "",
+                 "tests/ui/y_test.gd": "", "tests/physics/z_test.gd": "", "scenes/ai/a.gd": "extends Node\n",
+                 "scenes/ui/u.gd": "extends Node\n", "scenes/ui/u.tscn": "[gd_scene]\n"}
+        for rel, text in files.items():
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(text)
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+        with open(self.repo / "scenes/ai/a.gd", "a") as f:
+            f.write("# staged\n")
+        self.git("add", "scenes/ai/a.gd")
+        with open(self.repo / "scenes/ui/u.gd", "a") as f:
+            f.write("# not staged\n")
+        (self.repo / "scenes/physics").mkdir()
+        (self.repo / "scenes/physics/p.gd").write_text("extends Node\n")  # untracked
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def env(**extra):
+        """Without git's GIT_* variables (a run from inside a hook would act on this checkout)."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "GAME_TEST_CHANGED_FILES"}
+        env.update(extra)
+        return env
+
+    def git(self, *args):
+        subprocess.run(["git", *args], cwd=self.repo, env=self.env(), check=True, capture_output=True)
+
+    def run_changed(self, *args, **env):
+        lint_log = self.tmp / "lint.log"
+        lint_log.write_text("")
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--changed", "--jobs=1", *args],
+                           cwd=self.repo, capture_output=True, text=True, timeout=120,
+                           env=self.env(GODOT=str(self.fake), FAKE_SCENARIO="clean", TMPDIR=str(self.state),
+                                        LINT_LOG=str(lint_log), **env))
+        out = r.stdout + r.stderr
+        return r.returncode, out, [ln for ln in out.splitlines() if ln.startswith("selection:")], lint_log.read_text()
+
+    def test_it_maps_only_the_staged_files(self):
+        code, out, selection, _ = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(selection, ["selection: --domain=ai"], "not ui (unstaged) nor physics (untracked)\n" + out)
+        code, out, selection, _ = self.run_changed()
+        self.assertNotEqual(selection, ["selection: --domain=ai"], "without --staged the working tree counts\n" + out)
+
+    def test_its_lint_covers_only_the_staged_scripts_and_records_no_clean_lint(self):
+        code, out, _, lint = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(lint.splitlines(), ["lint scenes/ai/a.gd"], out)
+        self.assertEqual(list(self.state.glob("example_godot_lint_ok_*")), [], "a scoped lint is no whole-tree lint")
+
+    def test_a_staged_scene_alone_leaves_the_lint_nothing_to_check(self):
+        self.git("reset", "-q", "scenes/ai/a.gd")
+        with open(self.repo / "scenes/ui/u.tscn", "a") as f:
+            f.write("; staged\n")
+        self.git("add", "scenes/ui/u.tscn")
+        code, out, selection, lint = self.run_changed("--staged")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(selection, ["selection: --domain=ui"], out)
+        self.assertEqual(lint, "", "no staged script: no lint\n" + out)
+
+    def test_a_lint_finding_in_a_script_not_staged_is_labelled(self):
+        code, out, _, _ = self.run_changed("--staged", FAKE_LINT_FOREIGN="scenes/ui/u.gd")
+        self.assertEqual(code, 1, out)
+        self.assertIn("not in this commit: scenes/ui/u.gd", out)
+
+
 class LintReportTests(unittest.TestCase):
     """tools/lint_report.py on crafted logs of the lint scene."""
 

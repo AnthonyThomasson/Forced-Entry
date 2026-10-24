@@ -8,9 +8,16 @@ files (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py). When the game tes
 imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without
 its .gd, naming each and the import command (tools/load_check.sh --import), and runs nothing else.
 
-Each case is a temp git repo holding a copy of this checkout's hook, a fake tools/run_tests.sh that logs its arguments
-(and fails when FAKE_GAME_FAIL=1), a fake tools/lint.sh that does the same (and fails when FAKE_LINT_FAIL=1), and one
-sentinel tool test, tools/tests/test_sentinel.py, that logs that it ran (and fails when SENTINEL_FAIL=1). Files are
+It checks what the commit holds, not the working tree: the lint is given the staged scripts (added, copied, modified or
+renamed; not deleted ones), read as they are on disk, or the whole tree when a gdstyle file is staged; the game tests
+are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is labelled
+`not in this commit: <path>`.
+
+Each case is a temp git repo holding a copy of this checkout's hook and tools/lint_label.py, a fake tools/run_tests.sh
+that logs its arguments (and fails when FAKE_GAME_FAIL=1, or on a lint finding when FAKE_GAME_FAIL=lint), a fake
+tools/lint.sh that does the same and, like the real one, fails on a line over 100 columns in the paths it is given (every
+script of the tree when none; FAKE_LINT_FAIL=1 fails it on a staged file, FAKE_LINT_FOREIGN=<path> on that file), and
+one sentinel tool test, tools/tests/test_sentinel.py, that logs that it ran (and fails when SENTINEL_FAIL=1). Files are
 staged, then the hook runs as git runs it (from the repo, no arguments).
 Three cases commit through git itself: one shows a failure aborts the commit; one commits from a worktree of the
 repo a tool test that makes and commits in a throwaway repo of its own, and shows the commit made is the staged one
@@ -33,6 +40,13 @@ HOOK = ROOT / ".githooks" / "pre-commit"
 FAKE_RUN_TESTS = """#!/usr/bin/env bash
 echo "run_tests $*" >> "$HOOK_TEST_LOG"
 echo "run_tests GIT_DIR=${GIT_DIR-unset} GIT_INDEX_FILE=${GIT_INDEX_FILE-unset}" >> "$HOOK_TEST_LOG.env"
+if [[ "${FAKE_GAME_FAIL:-}" == lint ]]; then
+  echo "== gdstyle check: style findings =="
+  echo "  scenes/thing.gd:2:101: line too long (104 > 100) [format/max-line-length]"
+  echo "  FAIL"
+  echo "GDScript lint failed: no tests were run (--no-lint skips it)."
+  exit 1
+fi
 if [[ "${FAKE_GAME_FAIL:-}" == 1 ]]; then
   echo "FAIL  ai/fake_test  (1.0 sim, 10 ms)"
   echo "0 passed, 1 failed"
@@ -48,6 +62,23 @@ if [[ "${FAKE_LINT_FAIL:-}" == 1 ]]; then
   echo "FAIL"
   exit 1
 fi
+if [[ -n "${FAKE_LINT_FOREIGN:-}" ]]; then
+  # A finding in a file it was not given, as the engine pass reports a script one of them loads.
+  echo "== GDScript analyzer (engine) =="
+  echo "res://$FAKE_LINT_FOREIGN  (1)"
+  echo "  Parse Error: broken"
+  exit 1
+fi
+# Like the real lint: the paths given as they are on disk, or every script of the tree when none is given.
+paths=()
+for a in "$@"; do [[ "$a" == --* ]] || paths+=("$a"); done
+[[ ${#paths[@]} -eq 0 ]] && while IFS= read -r f; do paths+=("${f#./}"); done < <(find . -name '*.gd' -not -path './.git/*')
+bad=0
+for f in "${paths[@]}"; do
+  n=$(awk 'length > 100 { print NR; exit }' "$f")
+  [[ -n "$n" ]] && { echo "$f:$n:101: line too long [format/max-line-length]"; bad=1; }
+done
+exit $bad
 """
 SENTINEL = '''import os
 import unittest
@@ -106,6 +137,8 @@ class HookRepo:
         git(root.parent, "init", "-q", root.name)
         (root / ".githooks").mkdir()
         shutil.copy2(HOOK, root / ".githooks" / "pre-commit")
+        (root / "tools").mkdir()
+        shutil.copy2(ROOT / "tools" / "lint_label.py", root / "tools" / "lint_label.py")
         write(root, "tools/run_tests.sh", FAKE_RUN_TESTS, executable=True)
         write(root, "tools/lint.sh", FAKE_LINT, executable=True)
         for rel in ("tools/__init__.py", "tools/tests/__init__.py"):
@@ -251,7 +284,16 @@ class PreCommitTests(unittest.TestCase):
             r = repo.hook(SENTINEL_FAIL="1")
             self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
             self.assertEqual(repo.ran(), ["run_tests"])
-            self.assertIn("--changed", repo.log.read_text())
+            self.assertIn("--changed --staged", repo.log.read_text(), "the tests the staged files can break")
+            self.assertIn("--skip-domain=perf", repo.log.read_text())
+
+    def test_a_game_test_runs_lint_findings_are_shown(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.stage("scenes/thing.gd")
+            r = repo.hook(FAKE_GAME_FAIL="lint")
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("scenes/thing.gd:2:101: line too long", r.stderr, "the runner's lint findings")
 
     def test_scenes_and_tools_run_both(self):
         with TempDir("pre_commit_test.") as d:
@@ -269,7 +311,8 @@ class PreCommitTests(unittest.TestCase):
             self.assertEqual(r.returncode, 1)
             self.assertIn("test_sentinel_tool_check", r.stdout + r.stderr)
 
-    def assert_runs(self, rels: tuple[str, ...], expected: list[str]) -> None:
+    def assert_runs(self, rels: tuple[str, ...], expected: list[str], lint_args: str = "") -> None:
+        """Staging `rels` runs `expected`, silently; the lint, when it runs, given `lint_args` (none: the whole tree)."""
         with TempDir("pre_commit_test.") as d:
             repo = self.repo(d)
             repo.stage(*rels)
@@ -277,18 +320,24 @@ class PreCommitTests(unittest.TestCase):
             self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""), f"staged {rels}")
             self.assertEqual(repo.ran(), expected, f"staged {rels}")
             if "lint" in expected:
-                self.assertIn("lint --quiet\n", repo.log.read_text(), "the whole tree, quietly")
+                self.assertIn(f"lint --quiet{' ' + lint_args if lint_args else ''}\n", repo.log.read_text(),
+                              "quietly, on the staged scripts or, for a gdstyle file, the whole tree")
 
-    def test_a_sandbox_script_only_runs_the_lint_silently_when_it_passes(self):
-        self.assert_runs(("sandboxes/thing_sandbox.gd",), ["lint"])
+    def test_a_sandbox_script_only_runs_the_lint_on_it_silently_when_it_passes(self):
+        self.assert_runs(("sandboxes/thing_sandbox.gd",), ["lint"], "sandboxes/thing_sandbox.gd")
 
     def test_a_tools_script_runs_the_tool_tests_and_the_lint(self):
-        self.assert_runs(("tools/gdunit_discover.gd",), ["tool_tests", "lint"])
+        self.assert_runs(("tools/gdunit_discover.gd",), ["tool_tests", "lint"], "tools/gdunit_discover.gd")
 
     def test_a_script_in_a_tools_subfolder_runs_the_tool_tests_and_the_lint(self):
-        self.assert_runs(("tools/coverage/probe.gd",), ["tool_tests", "lint"])
+        self.assert_runs(("tools/coverage/probe.gd",), ["tool_tests", "lint"], "tools/coverage/probe.gd")
 
-    def test_the_gdstyle_config_only_runs_the_lint(self):
+    def test_two_staged_scripts_are_both_given_to_the_lint(self):
+        self.assert_runs(("sandboxes/thing_sandbox.gd", "tools/gdunit_discover.gd"), ["tool_tests", "lint"],
+                         "sandboxes/thing_sandbox.gd tools/gdunit_discover.gd")
+
+    def test_the_gdstyle_config_only_runs_the_lint_on_the_whole_tree(self):
+        # The pass's own files govern every script, so they lint them all.
         self.assert_runs(("gdstyle.toml",), ["lint"])
 
     def test_the_gdstyle_wrapper_runs_the_tool_tests_and_the_lint(self):
@@ -296,6 +345,56 @@ class PreCommitTests(unittest.TestCase):
 
     def test_the_gdstyle_pass_runs_the_tool_tests_and_the_lint(self):
         self.assert_runs(("tools/lint_gdstyle.py",), ["tool_tests", "lint"])
+
+    def test_an_unfinished_script_outside_the_commit_does_not_fail_it(self):
+        # Another agent's file in progress: untracked and over 100 columns, while the commit stages a clean script.
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            write(repo.root, "sandboxes/wip_sandbox.gd", "extends Node\n# " + "x" * 120 + "\n")
+            repo.stage("sandboxes/thing_sandbox.gd")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), ["lint"])
+            self.assertIn("lint --quiet sandboxes/thing_sandbox.gd\n", repo.log.read_text())
+
+    def test_a_staged_script_is_linted_as_it_is_on_disk(self):
+        # Partly staged: the unstaged hunk is what makes it fail (the lint reads the working tree).
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.stage("sandboxes/thing_sandbox.gd")
+            with open(repo.root / "sandboxes/thing_sandbox.gd", "a") as f:
+                f.write("# " + "x" * 120 + "\n")
+            r = repo.hook()
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+            self.assertIn("sandboxes/thing_sandbox.gd:3:101: line too long", r.stderr)
+
+    def test_a_deleted_script_is_not_given_to_the_lint(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "rm", "-q", "sandboxes/thing_sandbox.gd", "sandboxes/thing_sandbox.gd.uid")
+            repo.stage("tools/gdunit_discover.gd")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertIn("lint --quiet tools/gdunit_discover.gd\n", repo.log.read_text())
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            git(repo.root, "rm", "-q", "sandboxes/thing_sandbox.gd", "sandboxes/thing_sandbox.gd.uid")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), [], "a deletion alone leaves nothing to lint")
+
+    def test_a_finding_in_a_file_not_in_the_commit_is_labelled(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.stage("sandboxes/thing_sandbox.gd")
+            r = repo.hook(FAKE_LINT_FOREIGN="scenes/thing.gd")
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("not in this commit: scenes/thing.gd", r.stderr)
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.stage("sandboxes/thing_sandbox.gd")
+            r = repo.hook(FAKE_LINT_FAIL="1")
+            self.assertNotIn("not in this commit", r.stderr, "a finding in a staged file is not labelled")
 
     def test_a_script_staged_ahead_of_a_long_list_still_runs_the_lint(self):
         # Far more than a pipe holds after the script: a check that stops reading at the first match would fail.

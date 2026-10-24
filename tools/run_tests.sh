@@ -30,6 +30,11 @@
 #                                         project.godot, worldgen, art and general run everything;
 #                                         testing adds --self-test. An edited tests/<d>/[<topic>/]<name>_test.gd
 #                                         runs just that test; tests/_ai, _audio, _perf, _vehicle their users.
+#   tools/run_tests.sh --changed --staged the same for what is staged (git diff --cached), not the working tree, and
+#                                         the lint only on the staged scripts (as they are on disk; the whole tree
+#                                         when project.godot or a gdstyle file is staged; none when no script is),
+#                                         a finding in a script not staged labelled `not in this commit: <path>`.
+#                                         The pre-commit hook runs it.
 #   tools/run_tests.sh --list [words]     list matching tests (id, flags, tags, name) and exit
 #   tools/run_tests.sh --include-von ai   also run tests that need the Von decision server
 #   tools/run_tests.sh --require-von ai   Von tests FAIL instead of skipping when no server is live
@@ -61,7 +66,8 @@
 #   --no-lint       skip the lint that runs first (tools/lint.sh, ~14 s: unused variables, integer division, shadowed
 #                   names ... the warnings of the editor's Debugger > Errors tab, the project lint rules, gdstyle). Any
 #                   finding fails the run before a single test starts. Not run for --list or --self-test, nor when
-#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR).
+#                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; a lint of
+#                   only the staged scripts, --changed --staged, never records one).
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
 # batches, so it refuses --play and prints the command that launches the runner.
 # Every run ends with a `Slowest:` line (wall-clock ms per test).
@@ -102,6 +108,7 @@ WINDOWED=0
 STRICT=
 JOBS=
 CHANGED=0
+STAGED=0
 LINT=1
 SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
 export RUN_TESTS_REPORT_TO=""   # --report=FILE (save_reports writes the merged report there too)
@@ -118,6 +125,7 @@ for a in "$@"; do
     --report=*) RUN_TESTS_REPORT_TO="${a#--report=}" ;;
     --jobs=*) JOBS="${a#--jobs=}" ;;
     --changed) CHANGED=1 ;;
+    --staged) STAGED=1 ;;
     --no-lint) LINT=0 ;;
     --skip-domain=*) SKIP="${SKIP:+$SKIP,}${a#--skip-domain=}"; args+=("$a") ;;
     --failed)
@@ -131,6 +139,7 @@ for a in "$@"; do
     *) args+=("$a") ;;
   esac
 done
+[[ $STAGED -eq 1 && $CHANGED -eq 0 ]] && { echo "--staged goes with --changed (--changed --staged)" >&2; exit 2; }
 # --jobs=N|auto is explicit; without it a run of the whole suite uses auto and a selection (words, --id,
 # --domain, --failed, --repeat, --list ...) one process, since a process costs ~3 s to start and a few tests
 # do not repay it. Resolved per run() call in `jobs_for`.
@@ -528,13 +537,43 @@ lint_fingerprint() {
   { git rev-parse HEAD; git diff HEAD; git ls-files --others --exclude-standard | while read -r f; do echo "$f"; shasum "$f"; done; } \
     | shasum | cut -d' ' -f1
 }
+# With --changed --staged the lint covers what the commit holds: the staged scripts the lint reads (added, copied,
+# modified or renamed, not deleted; a .gd outside addons/ and the coverage tool's fixtures), as they are on disk, or the
+# whole tree when a file that governs every script is staged (project.godot, the gdstyle pass's own files). Such a
+# scoped lint says nothing of the rest of the tree, so it never records the clean-lint fingerprint.
+staged=""
+lint_paths=()
+scoped=0
+if [[ $STAGED -eq 1 ]]; then
+  staged=$(git -c core.quotePath=false diff --cached --name-only)
+  lintable=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=d \
+    | grep -vE '^(addons/|tools/coverage/tests/fixtures/)' \
+    | grep -E '\.gd$|^(project\.godot|gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$' || true)
+  if ! grep -qE '^(project\.godot|gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py)$' <<<"$lintable"; then
+    scoped=1
+    while IFS= read -r f; do [[ -n "$f" ]] && lint_paths+=("$f"); done <<<"$lintable"
+    if [[ $LINT -eq 1 && ${#lint_paths[@]} -eq 0 ]]; then
+      echo "lint skipped: the commit stages no script the lint reads" >&2
+      LINT=0
+    fi
+  fi
+fi
 if [[ $LINT -eq 1 ]]; then
   fingerprint=$(lint_fingerprint)
   if [[ -f "$LINT_OK" && "$(cat "$LINT_OK")" == "$fingerprint" ]]; then
     echo "lint skipped: the sources are unchanged since the last clean lint" >&2
   else
-    lint_out=$("$(dirname "$0")/lint.sh" 2>&1) || { echo "$lint_out"; echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2; exit 1; }
-    echo "$fingerprint" > "$LINT_OK"
+    if ! lint_out=$("$(dirname "$0")/lint.sh" ${lint_paths[@]+"${lint_paths[@]}"} 2>&1); then
+      if [[ $STAGED -eq 1 ]]; then
+        held=()
+        while IFS= read -r f; do held+=("$f"); done <<<"$staged"
+        lint_out=$(python3 "$(dirname "$0")/lint_label.py" "${held[@]}" <<<"$lint_out")
+      fi
+      echo "$lint_out"
+      echo "GDScript lint failed: no tests were run (--no-lint skips it)." >&2
+      exit 1
+    fi
+    [[ $scoped -eq 0 ]] && echo "$fingerprint" > "$LINT_OK"
   fi
 fi
 
@@ -543,6 +582,8 @@ if [[ $CHANGED -eq 1 ]]; then
   # uses it to test the mapping below without crafting a working tree.
   if [[ -n "${GAME_TEST_CHANGED_FILES:-}" ]]; then
     files="$GAME_TEST_CHANGED_FILES"
+  elif [[ $STAGED -eq 1 ]]; then
+    files="$staged"   # what the commit holds (git diff --cached), not the working tree
   else
     files=$( { git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u )
   fi
