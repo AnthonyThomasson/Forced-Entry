@@ -920,7 +920,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       the guns from `seed` XOR `LOADOUT_SEED_SALT`), `style(characters, match_spec) -> Array` (one `apply` style per character, from `seed`
       XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
       defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, combatants, openings, rooms,
-      human := {}, stack := null) -> Dictionary` (one `Squad` per faction, interface 21) and `build_leader_overlay(world, squads) -> Node2D`.
+      human := {}, stack := null, claim_ttl := -1.0) -> Dictionary` (one `Squad` per faction, interface 21, keeping claims `claim_ttl` s,
+      or `callout_ttl_of` the side when it is negative) and `build_leader_overlay(world, squads) -> Node2D`.
     - **Overlay routing, once:** `set_overlay(match, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and
       `combatants`: `NAV_HOLES` to the `nav_debug`'s `show_holes`, `LEADERS` to the `leader_overlay`'s `show_leaders` (none, nothing), any
       other non-global flag to each combatant with an AI controller through `OverlayRegistry.apply`; `PERF` is the caller's own (22).

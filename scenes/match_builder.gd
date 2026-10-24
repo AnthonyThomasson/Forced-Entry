@@ -348,7 +348,8 @@ static func styles_of(faction: StringName) -> Array[StringName]:
 ## squad's rule (rank, then spawn order), so after `arm` has ranked the unit; the human's side is
 ## led by the human when `human` (the spec's `{ node, side, lead }`) says it leads. The human is
 ## handed its squad through `stack`, its stack radio, with `own_claims` on the invaders' side only
-## (D29). Returns the squads by faction.
+## (D29). Each squad keeps its members' claims `claim_ttl` s, or, when it is negative, as long as
+## the side's NPCs keep a callout (`callout_ttl_of`). Returns the squads by faction.
 static func build_squads(
 	world: Node,
 	combatants: Array,
@@ -356,6 +357,7 @@ static func build_squads(
 	rooms: Array,
 	human: Dictionary = {},
 	stack: Node = null,
+	claim_ttl := -1.0,
 ) -> Dictionary:
 	var squads := {}
 	var human_node: Node = human.get("node")
@@ -373,7 +375,8 @@ static func build_squads(
 		var leader: Node = (human_node
 				if human.get("lead", false) and human_node != null and members.has(human_node)
 				else null)
-		squad.setup(faction, members, openings, rooms, leader, callout_ttl_of(members))
+		var ttl := claim_ttl if claim_ttl >= 0.0 else callout_ttl_of(members)
+		squad.setup(faction, members, openings, rooms, leader, ttl)
 		for member in members:
 			bind_squad(
 				member,

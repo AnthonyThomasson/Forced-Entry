@@ -6,11 +6,12 @@ extends GameTest
 ## the order still releases the held stack: its claim's `crossed_frame` is restamped each time its
 ## step goes from a waiting one to `going_in` or `in`.
 ##
-## The Terrace house's back door. The human (a puppet with the human's stack radio, as Main gives
-## it) stands near a teammate (`a`) stacking there, is reserved slot 2, walks to it, steps into the
-## funnel and back to its slot. Then its squad (built as Main builds it, the human leading) orders
-## `a` to stack there, held for the go; `a`'s claims say `ready` under the order. The squad says the
-## order is held; the human steps into the doorway, and the squad no longer says it.
+## The Terrace house's back door. The human (a puppet given the human's stack radio and its squad
+## as a match gives them, `s.squads` with `human`, the squad keeping a claim as long as the NPCs
+## keep a callout, `claim_ttl`) stands near a teammate (`a`) stacking there, is reserved slot 2,
+## walks to it, steps into the funnel and back to its slot. Then its squad, the human leading,
+## orders `a` to stack there, held for the go; `a`'s claims say `ready` under the order. The squad
+## says the order is held; the human steps into the doorway, and the squad no longer says it.
 ##
 ## Premise: the teammate is a puppet radioing its claims on the bus, not an AI invader: before the
 ## order nothing makes an AI stack and hold there for as long as the human's brush takes, and the
@@ -48,20 +49,18 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	Stack.human(s, &"a", Order.BACK_NORTH)
 	Stack.human(s, &"me", Stack.NEAR)
+	s.squads({ "human": &"me", "claim_ttl": CLAIM_TTL })
 
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var opening := String(door["id"])
 	var a := t.actor(&"a")
-	var squad := _squad(t, [t.actor(&"me"), a])
-	if not t.require(
-			squad != null and squad.has_method("view"),
-			"the squad is built (%s)" % Order.SQUAD_SCRIPT,
-	):
+	var squad := t.squad(&"invader")
+	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
 		return
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
 	var said := { "order": {}, "step": "claim" }  # What the puppet radios, every `REPEAT` s.
 	_radio_on(t, door, said)
@@ -130,17 +129,6 @@ func run(t: TestContext) -> void:
 		"the human's latest crossing is the held stack's go: the squad no longer says held (%s)"
 			% str(Order.member_view(squad, a)),
 	)
-
-
-## The invaders' squad over `members`, led by the first (the human), set up as Main sets one up
-## (`Squad.setup`) with the NPCs' claim ttl, `CLAIM_TTL`. Null when the script is missing.
-func _squad(t: TestContext, members: Array) -> Node:
-	if not ResourceLoader.exists(Order.SQUAD_SCRIPT):
-		return null
-	var s: Node = (load(Order.SQUAD_SCRIPT) as GDScript).new()
-	t.world.add_child(s)
-	s.setup(&"invader", members, t.world.openings, t.rooms, members[0], CLAIM_TTL)
-	return s
 
 
 ## Keep the puppet `a` radioing its claim on slot 1 at doorway `door` every `REPEAT` s for the rest

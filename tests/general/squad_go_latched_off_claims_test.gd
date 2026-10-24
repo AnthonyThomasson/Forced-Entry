@@ -4,10 +4,11 @@ extends GameTest
 ## or a member of that stack crossing), `Squad.view()` says the order is no longer `held`, and it
 ## stays so after the claims stop saying it, as each member keeps its own go.
 ##
-## The squad is built the way Main builds it over three puppet teammates and a puppet standing in
-## for the human leader, on the Terrace house, keeping a claim as long as the NPCs keep a callout
-## (`CLAIM_TTL`: Main reads it off the side's NPCs, and puppets have none), so a claim that stops
-## saying the go is still on the radio, saying something else. Two held stacks (`wait_go`) are
+## The squad is declared (`s.squads`, built and bound as a match's) over three puppet teammates and
+## a puppet standing in for the human leader (`human`), on the Terrace house, keeping a claim as
+## long as the NPCs keep a callout (`claim_ttl`, `CLAIM_TTL`: a match reads it off the side's NPCs,
+## and puppets have none), so a claim that stops saying the go is still on the radio, saying
+## something else. Two held stacks (`wait_go`) are
 ## ordered: `t1` and `t2` at the back door, `t3` at the hall / living room doorway. At the back door
 ## `t1` radios `order_go` once, then both radio plain `ready` claims again; at the hall doorway `t3`
 ## radios `going_in` (the D14 go), then `done`, its claim gone from the stack. No `go` is ever
@@ -48,17 +49,15 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"t2", &"puppet", Vector2(1000, 420), { "faction": &"invader" })
 	s.actor(&"t3", &"puppet", Vector2(1040, 520), { "faction": &"invader" })
 	s.actor(&"me", &"puppet", Vector2(1100, 600), { "faction": &"invader" })
+	s.squads({ "human": &"me", "claim_ttl": CLAIM_TTL })
 
 
 func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var t3 := t.actor(&"t3")
-	var squad := _squad(t, [t.actor(&"me"), t1, t2, t3])
-	if not t.require(
-			squad != null and squad.has_method("view"),
-			"the squad is built (%s)" % Order.SQUAD_SCRIPT,
-	):
+	var squad := t.squad(&"invader")
+	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
 		return
 	var back := Order.stack_order(squad, [t1, t2], Order.BACK_NORTH, "quiet", true)
 	var hall := Order.stack_order(squad, [t3], IN_LIVING, "quiet", true)
@@ -109,17 +108,6 @@ func run(t: TestContext) -> void:
 		not held.call(t3),
 		"the hall's order stays released once its member's crossing is off the radio",
 	)
-
-
-## The invaders' squad over `members`, led by the first (the human's stand-in), set up as Main sets
-## one up (`Squad.setup`) with the NPCs' claim ttl, `CLAIM_TTL`. Null when the script is missing.
-func _squad(t: TestContext, members: Array) -> Node:
-	if not ResourceLoader.exists(Order.SQUAD_SCRIPT):
-		return null
-	var s: Node = (load(Order.SQUAD_SCRIPT) as GDScript).new()
-	t.world.add_child(s)
-	s.setup(&"invader", members, t.world.openings, t.rooms, members[0], CLAIM_TTL)
-	return s
 
 
 ## Radio actor `who` (a puppet member) at entry step `step` on slot `slot` of held stack order
