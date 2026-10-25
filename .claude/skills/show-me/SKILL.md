@@ -21,9 +21,10 @@ plays the change's tests in a window for the user to watch; it runs no test batc
    `[cmd] listening` and any `SCRIPT ERROR` as below. A game already running is left as it is. Otherwise it
    prints the pid, command-server port and log path; after ~10 s check the log (`$TMPDIR/editor_<name>.log`) for
    `[cmd] listening on 127.0.0.1:<port>` and any `SCRIPT ERROR`.
-3. Report the name, port and pid in a line or two, whether it was already running, and any log errors. Leave it open.
-   The setup window shows the worktree name at the top. The editor picks up file changes when focused; a running game
-   needs Play restarted.
+3. Report the name, port and pid in a line or two, whether it was already running, and any log errors. Leave the
+   editor open. A game window this run opened (`game window opened`) gets its pid in the report, with "the ticket
+   workflow closes it after the feedback gate". The setup window shows the worktree name at the top. The editor picks
+   up file changes when focused; a running game needs Play restarted.
 4. Play the change's tests, from the worktree root, sandbox disabled:
 
    ```bash
@@ -32,9 +33,10 @@ plays the change's tests in a window for the user to watch; it runs no test batc
 
    With no arguments it queues every `tests/**/*_test.gd` added or changed since the merge-base with `origin/main`
    (committed, uncommitted or untracked), by id, opens one game window that plays them one after another, and returns
-   at once. Fire and forget: report the window's pid and log from its `test window pid … | log …` line, and list the
-   queued tests by each one's `"name"` from `describe()` in `tests/<id>_test.gd` (e.g. `Falling body keeps its draw
-   order`), one per line, not the id or file name. The user watches it and closes it; each verdict and a final
-   `Queue done:` line go to that log. Exit 2 with `nothing to play` means no tests yet (right after planning): say so;
-   any other exit 2 (no merge-base, no Godot found): report its message. A sandbox under `sandboxes/showroom/`
-   (`ticket-assets`) is not played: name it by its `describe()` name and say it opens from Tests → SANDBOXES.
+   at once. Fire and forget: report the window's pid and log from its `test window pid … | log …` line, with "the
+   ticket workflow closes it after the feedback gate", and list the queued tests by each one's `"name"` from
+   `describe()` in `tests/<id>_test.gd` (e.g. `Falling body keeps its draw order`), one per line, not the id or file
+   name. The user watches it; each verdict and a final `Queue done:` line go to that log. Exit 2 with `nothing to
+   play` means no tests yet (right after planning): say so; any other exit 2 (no merge-base, no Godot found): report
+   its message. A sandbox under `sandboxes/showroom/` (`ticket-assets`) is not played: name it by its `describe()`
+   name and say it opens from Tests → SANDBOXES.
