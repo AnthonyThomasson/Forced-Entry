@@ -33,6 +33,27 @@ func run(t: TestContext) -> void:
 	var rest: Vector3 = c.rig().point(Rig.ANKLE[0])
 	var still: Vector3 = c.rig().point(Rig.ANKLE[1])
 	puppet.kick()
+	var kick := await _watch_kick(t, c, rest, still)
+	var out: float = kick["out"]
+	t.check(out > 30.0, "the foot is thrown out along the aim (%.1f px)" % out)
+	t.check(out <= CharacterConfig.kick_reach + 0.5, "no further than kick_reach (%.1f px)" % out)
+	t.check(kick["high"] > rest.z + 10.0, "the foot is lifted (%.1f px up)" % kick["high"])
+	t.check(
+		kick["still_moved"] < 1.0,
+		"the other foot stays put (%.1f px)" % kick["still_moved"],
+	)
+	await t.seconds(0.5)
+	var back: Vector3 = c.rig().point(Rig.ANKLE[0])
+	t.check(
+		back.distance_to(rest) < 2.0,
+		"the foot is back at rest (%.1f px away)" % back.distance_to(rest),
+	)
+
+
+## Watch `c`'s kick for 30 frames, checking each frame that the kicking leg's bones keep their
+## length (`rest` and `still` its ankles at rest): `{ out, high, still_moved }`, how far the foot
+## went out along the aim and up at most, and how far the other foot moved.
+func _watch_kick(t: TestContext, c: Node, rest: Vector3, still: Vector3) -> Dictionary:
 	var out := 0.0
 	var high := 0.0
 	var still_moved := 0.0
@@ -58,13 +79,4 @@ func run(t: TestContext) -> void:
 				absf(got / want - 1.0) <= BONE_TOLERANCE,
 				"frame %d: the kicking %s is %.1f px, want %.1f" % [i, bone[0], got, want],
 			)
-	t.check(out > 30.0, "the foot is thrown out along the aim (%.1f px)" % out)
-	t.check(out <= CharacterConfig.kick_reach + 0.5, "no further than kick_reach (%.1f px)" % out)
-	t.check(high > rest.z + 10.0, "the foot is lifted (%.1f px up)" % high)
-	t.check(still_moved < 1.0, "the other foot stays put (%.1f px)" % still_moved)
-	await t.seconds(0.5)
-	var back: Vector3 = c.rig().point(Rig.ANKLE[0])
-	t.check(
-		back.distance_to(rest) < 2.0,
-		"the foot is back at rest (%.1f px away)" % back.distance_to(rest),
-	)
+	return { "out": out, "high": high, "still_moved": still_moved }

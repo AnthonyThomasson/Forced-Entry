@@ -42,6 +42,17 @@ func run(t: TestContext) -> void:
 	var visuals = t.actor(&"shooter").get_node("Visuals")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
+	_check_capsules(t, visuals, rng)
+	_check_fans_convex(t, visuals, rng)
+	_check_texture_uvs(t, visuals, rng)
+	_check_rings(t)
+	if not await _kill_targets(t):
+		return
+	await _check_fallen(t)
+
+
+## Limb capsules on random ends and radii (drawn from `rng`) are the plain sum's.
+func _check_capsules(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
 	var worst := 0.0
 	for n in 400:
 		var a := Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-40.0, 40.0))
@@ -56,8 +67,10 @@ func run(t: TestContext) -> void:
 		"limb capsules: the farthest point is %.6f px from the plain sum's" % worst,
 	)
 
-	# A capsule whose ends' radii differ by less than CAP_CONVEX of its length is drawn as a fan,
-	# uncut: it must be convex.
+
+## A capsule whose ends' radii differ by less than CAP_CONVEX of its length is drawn as a fan,
+## uncut: it must be convex.
+func _check_fans_convex(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
 	var fanned := 0
 	var concave := 0
 	for n in 3000:
@@ -76,7 +89,10 @@ func run(t: TestContext) -> void:
 		"capsules drawn as fans are convex (%d of %d are not)" % [concave, fanned],
 	)
 
-	worst = 0.0
+
+## The shoulders' shadow uvs (`_texture_uvs`) of random capsules are the plain sum's.
+func _check_texture_uvs(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
+	var worst := 0.0
 	for n in 100:
 		var size := Vector2(rng.randf_range(8.0, 60.0), rng.randf_range(8.0, 60.0))
 		var angle := rng.randf_range(-TAU, TAU)
@@ -95,7 +111,10 @@ func run(t: TestContext) -> void:
 		"texture uvs: the farthest is %.8f from the plain sum's" % worst,
 	)
 
-	worst = 0.0
+
+## A circle's `base_ring` is the plain sum's, and a fresh array on every call.
+func _check_rings(t: TestContext) -> void:
+	var worst := 0.0
 	for diameter in [6.0, 12.5, 28.0, 64.0]:
 		var plain := PackedVector2Array()
 		var count: int = maxi(3, PhysicsConfig.deform_circle_points)
@@ -117,6 +136,9 @@ func run(t: TestContext) -> void:
 		"circle rings: the farthest point is %.6f px from the plain sum's" % worst,
 	)
 
+
+## The shooter shoots each target dead. Whether they all died (false after a failed `require`).
+func _kill_targets(t: TestContext) -> bool:
 	var shooter := t.puppet(&"shooter")
 	for i in TARGETS:
 		var id := StringName("target%d" % i)
@@ -130,10 +152,16 @@ func run(t: TestContext) -> void:
 				),
 				"%s dies" % id,
 		):
-			return
+			return false
+	return true
+
+
+## The falling targets' trunk slices (as drawn and on the floor shadow) and outline, every frame
+## for 90 frames, are the plain sums'.
+func _check_fallen(t: TestContext) -> void:
 	var frames := 0
 	var outlines_differ := 0
-	worst = 0.0
+	var worst := 0.0
 	for f in 90:
 		await t.frames(1)
 		for i in TARGETS:
@@ -142,17 +170,7 @@ func run(t: TestContext) -> void:
 			if rd == null:
 				continue
 			var fallen = body.get_node("Visuals")
-			for shift in [Vector2.ZERO, fallen._shadow_shift()]:
-				var hulls: Array = fallen._trunk_hulls(rd, shift)
-				var plain := _plain_hulls(fallen, rd, shift)
-				if hulls.size() != plain.size():
-					worst = INF
-					continue
-				for k in hulls.size():
-					worst = maxf(
-						worst,
-						maxf(_outline_gap(hulls[k], plain[k]), _outline_gap(plain[k], hulls[k])),
-					)
+			worst = maxf(worst, _trunk_gap(fallen, rd))
 			if fallen._trunk_outline(rd) != _plain_outline(fallen, fallen._trunk_hulls(rd)):
 				outlines_differ += 1
 			frames += 1
@@ -167,6 +185,24 @@ func run(t: TestContext) -> void:
 		"the fallen trunk's outline is the plain union's in every frame (%d differ)"
 			% outlines_differ,
 	)
+
+
+## The farthest a slice of `fallen`'s trunk (ragdoll `rd`), as drawn and on the floor shadow, lies
+## from the plain sum's outline either way (INF when they count different slices).
+func _trunk_gap(fallen: Node, rd: RefCounted) -> float:
+	var worst := 0.0
+	for shift in [Vector2.ZERO, fallen._shadow_shift()]:
+		var hulls: Array = fallen._trunk_hulls(rd, shift)
+		var plain := _plain_hulls(fallen, rd, shift)
+		if hulls.size() != plain.size():
+			worst = INF
+			continue
+		for k in hulls.size():
+			worst = maxf(
+				worst,
+				maxf(_outline_gap(hulls[k], plain[k]), _outline_gap(plain[k], hulls[k])),
+			)
+	return worst
 
 
 ## Whether `poly` turns the same way at every corner (straight allowed): convex.
@@ -260,23 +296,36 @@ func _plain_capsule(a: Vector2, b: Vector2, ra: float, rb: float) -> PackedVecto
 
 ## `_trunk_hulls` as it was: each ring point placed in 3D, then seen from above shifted by its
 ## height.
-func _plain_hulls(visuals: Node, rd, shift: Vector2) -> Array:
+func _plain_hulls(visuals: Node, rd: RefCounted, shift: Vector2) -> Array:
 	var r: float = visuals.get_parent().radius
 	var basis: Basis = rd.torso()
 	var pelvis: Vector3 = rd.point(visuals.Rig.PELVIS)
 	var spine: float = (rd.point(visuals.Rig.CHEST) - pelvis).length()
-	var count: int = visuals.SECTION_POINTS
 	var rings := []
 	for t in visuals._trunk_steps():
 		var centre: Vector3 = pelvis + basis.y * t * spine
 		var half: Vector2 = visuals._section_at(t) * r
-		var ring := PackedVector2Array()
-		for k in count:
-			var around := Vector2.from_angle(TAU * k / count)
-			var p: Vector3 = centre + basis.x * around.x * half.x + basis.z * around.y * half.y
-			ring.append(Vector2(p.x, p.y) + shift * p.z)
-		rings.append(ring)
+		rings.append(_plain_ring(visuals, centre, basis, half, shift))
 	var hulls := []
 	for k in range(1, rings.size()):
 		hulls.append(visuals._grown(visuals._open(Geometry2D.convex_hull(rings[k - 1] + rings[k]))))
 	return hulls
+
+
+## One trunk section's ring as `_trunk_hulls` placed it: `SECTION_POINTS` points round `centre` in
+## the torso's `basis`, `half` its half-width and half-depth, seen from above shifted by `shift` a
+## unit of height.
+func _plain_ring(
+	visuals: Node,
+	centre: Vector3,
+	basis: Basis,
+	half: Vector2,
+	shift: Vector2,
+) -> PackedVector2Array:
+	var count: int = visuals.SECTION_POINTS
+	var ring := PackedVector2Array()
+	for k in count:
+		var around := Vector2.from_angle(TAU * k / count)
+		var p: Vector3 = centre + basis.x * around.x * half.x + basis.z * around.y * half.y
+		ring.append(Vector2(p.x, p.y) + shift * p.z)
+	return ring

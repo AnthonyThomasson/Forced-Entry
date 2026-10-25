@@ -35,7 +35,22 @@ func run(t: TestContext) -> void:
 	var r: float = t.actor(&"stand").radius
 	var standing := _shape(t.actor(&"stand"))
 	var crouched := _shape(t.actor(&"crouch"))
+	_check_spine(t, standing, crouched, r)
+	_check_stance(t, standing, crouched, r)
+	t.check(
+		t.actor(&"crouch").get_node("Visuals").draws_laid_out(),
+		"a crouch is drawn from the rig's trunk, its back showing",
+	)
+	t.check(
+		not t.actor(&"stand").get_node("Visuals").draws_laid_out(),
+		"a standing body is drawn as upright shoulders",
+	)
+	_check_bones(t, crouched, r)
 
+
+## The crouched spine (`crouched`, against `standing`: `_shape`s, `r` the body radius) pitches
+## forward, its chest lower and the head ahead, the body centred over the feet.
+func _check_spine(t: TestContext, standing: Dictionary, crouched: Dictionary, r: float) -> void:
 	t.check(
 		absf(standing["lean"]) < 0.05 * r,
 		"a standing chest is over its pelvis (%.1f px)" % standing["lean"],
@@ -58,6 +73,11 @@ func run(t: TestContext) -> void:
 		absf(crouched["centre"]) < 0.15 * r,
 		"the body stays centred over the feet (%.1f px off)" % crouched["centre"],
 	)
+
+
+## The crouched stance (`crouched`, against `standing`: `_shape`s, `r` the body radius): hips and
+## feet closer, knees leading, the head nearly over the shoulders, the gun hand still held out.
+func _check_stance(t: TestContext, standing: Dictionary, crouched: Dictionary, r: float) -> void:
 	t.check(
 		crouched["hip_gap"] < standing["hip_gap"] * 0.85,
 		"the hips are closer together (%.1f vs %.1f px)"
@@ -82,14 +102,10 @@ func run(t: TestContext) -> void:
 		"the gun hand is held out as far from the shoulder as standing (%.1f vs %.1f px)"
 			% [crouched["reach"], standing["reach"]],
 	)
-	t.check(
-		t.actor(&"crouch").get_node("Visuals").draws_laid_out(),
-		"a crouch is drawn from the rig's trunk, its back showing",
-	)
-	t.check(
-		not t.actor(&"stand").get_node("Visuals").draws_laid_out(),
-		"a standing body is drawn as upright shoulders",
-	)
+
+
+## The crouched leg bones (`crouched`, a `_shape`; `r` the body radius) keep their lengths.
+func _check_bones(t: TestContext, crouched: Dictionary, r: float) -> void:
 	for bone in ["thigh", "shin"]:
 		var want: float = ((CharacterConfig.body_thigh
 				if bone == "thigh"
@@ -105,7 +121,7 @@ func run(t: TestContext) -> void:
 ## head ahead of the chest, how far the pelvis and chest middle sits off the body centre, the gap
 ## between the hips and between the ankles, how far the knees are ahead of the hips, and the leg
 ## bones' lengths.
-func _shape(c) -> Dictionary:
+func _shape(c: Node) -> Dictionary:
 	var rig = c.rig()
 	var chest: Vector3 = rig.point(Rig.CHEST)
 	var pelvis: Vector3 = rig.point(Rig.PELVIS)

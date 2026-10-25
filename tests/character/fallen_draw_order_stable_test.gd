@@ -53,6 +53,36 @@ func run(t: TestContext) -> void:
 	var visuals = target.get_node("Visuals")
 	var band: float = visuals.get_script().get_script_constant_map()["STACK_BAND"]
 
+	var watch := FallWatch.new()
+	for i in 240:
+		var rd = target.ragdoll
+		if rd == null:
+			await t.frames(1)
+			continue
+		var parts: Array = visuals._fallen_parts(rd)
+		watch.sample(parts, _top(parts), visuals._fallen_order.duplicate(), band)
+		await t.frames(1)
+
+	t.trace("draw-order swaps", watch.swaps)
+	t.trace("swaps within the band", watch.near_swaps)
+	t.check(target.is_dead, "the target is dead")
+	t.check(watch.start_top > 0.0 and watch.low_top < watch.start_top * 0.5,
+		"the body fell: highest part went from %.1f to %.1f" % [watch.start_top, watch.low_top])
+	t.check(
+		watch.frames_sampled > 30,
+		"the draw order was sampled over the fall (%d frames)" % watch.frames_sampled,
+	)
+	t.check(
+		watch.near_swaps == 0,
+		"%d draw-order swaps happened while parts were within the stacking band"
+			% watch.near_swaps,
+	)
+
+
+## What the fall showed, frame by frame: the last drawn order and part heights, the highest part's
+## height at the start and its lowest, how many pairs swapped order and how many of them while
+## within the stacking band of one another, and how many frames were compared.
+class FallWatch:
 	var prev_order: Array = []
 	var prev_heights := {}
 	var start_top := -INF
@@ -60,44 +90,30 @@ func run(t: TestContext) -> void:
 	var swaps := 0
 	var near_swaps := 0
 	var frames_sampled := 0
-	for i in 240:
-		var rd = target.ragdoll
-		if rd == null:
-			await t.frames(1)
-			continue
-		var parts: Array = visuals._fallen_parts(rd)
+
+	## Take in one frame: its `parts` (key, height), the highest one's height `top` and the drawn
+	## `order`, a swap within `band` of height counted apart.
+	func sample(parts: Array, top: float, order: Array, band: float) -> void:
 		var heights := {}
 		for part in parts:
 			heights[part["key"]] = part["height"]
-		var top := _top(parts)
 		if start_top == -INF:
 			start_top = top
 		low_top = minf(low_top, top)
-		var order: Array = visuals._fallen_order.duplicate()
 		if not prev_order.is_empty() and order.size() == prev_order.size():
 			frames_sampled += 1
-			for a in order:
-				for b in order:
-					if prev_order.find(a) < prev_order.find(b) and order.find(a) > order.find(b):
-						swaps += 1
-						var was: float = absf(prev_heights[a] - prev_heights[b])
-						var now: float = absf(heights[a] - heights[b])
-						if was <= band and now <= band:
-							near_swaps += 1
+			_count_swaps(order, heights, band)
 		prev_order = order
 		prev_heights = heights
-		await t.frames(1)
 
-	t.trace("draw-order swaps", swaps)
-	t.trace("swaps within the band", near_swaps)
-	t.check(target.is_dead, "the target is dead")
-	t.check(start_top > 0.0 and low_top < start_top * 0.5,
-		"the body fell: highest part went from %.1f to %.1f" % [start_top, low_top])
-	t.check(
-		frames_sampled > 30,
-		"the draw order was sampled over the fall (%d frames)" % frames_sampled,
-	)
-	t.check(
-		near_swaps == 0,
-		"%d draw-order swaps happened while parts were within the stacking band" % near_swaps,
-	)
+	## Count the pairs `order` drew the other way round from the last frame, and those of them
+	## whose `heights` were within `band` of one another then and now.
+	func _count_swaps(order: Array, heights: Dictionary, band: float) -> void:
+		for a in order:
+			for b in order:
+				if prev_order.find(a) < prev_order.find(b) and order.find(a) > order.find(b):
+					swaps += 1
+					var was: float = absf(prev_heights[a] - prev_heights[b])
+					var now: float = absf(heights[a] - heights[b])
+					if was <= band and now <= band:
+						near_swaps += 1

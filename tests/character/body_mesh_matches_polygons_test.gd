@@ -47,6 +47,19 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	if not await _freeze_bodies(t):
+		return
+	await _repaint(t)
+	var walker = t.actor(&"walker").get_node("Visuals")
+	_check_meshes_used(t, walker)
+	if DisplayServer.get_name() == "headless":
+		return
+	await _check_pixels(t, walker)
+
+
+## Set the bodies walking, running, crouched, damaged and falling, then freeze them all mid-way.
+## Whether the fallen one is falling (false after a failed `require`).
+func _freeze_bodies(t: TestContext) -> bool:
 	t.puppet(&"walker").aim_at(Vector2(600, 0))
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	t.puppet(&"runner").aim_at(Vector2(0, 400))
@@ -65,12 +78,14 @@ func run(t: TestContext) -> void:
 	t.actor(&"fallen").take_damage(100.0)
 	await t.seconds(0.35)  # Mid-fall: the trunk tipped, its faces turned up.
 	if not t.require(t.actor(&"fallen").ragdoll != null, "the fallen body is falling"):
-		return
+		return false
 	for id in ACTORS:
 		t.actor(id).process_mode = Node.PROCESS_MODE_DISABLED
+	return true
 
-	await _repaint(t)
-	var walker = t.actor(&"walker").get_node("Visuals")
+
+## Headless too: the parts of every frozen body go through meshes (`walker` the walker's visuals).
+func _check_meshes_used(t: TestContext, walker: Node) -> void:
 	var segments := 0
 	for chain in walker._limbs(walker._rig):
 		segments += (chain["segs"] as Array).size()
@@ -97,15 +112,11 @@ func run(t: TestContext) -> void:
 			"%s: the limbs and the trunk's faces are meshes (%d)" % [id, visuals._meshes.used()],
 		)
 
-	if DisplayServer.get_name() == "headless":
-		return
-	var view := SubViewport.new()
-	view.size = Vector2i(FRAME.size * ZOOM)
-	view.transparent_bg = true
-	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	t.world.add_child(view)
-	view.world_2d = t.world.get_viewport().world_2d  # The world's canvas, none of the overlays.
-	view.canvas_transform = Transform2D(0.0, Vector2(ZOOM, ZOOM), 0.0, -FRAME.position * ZOOM)
+
+## Windowed: the frozen scene rendered magnified with meshes off, on and off again paints the same
+## pixels each way (`walker` the walker's visuals, whose meshes count the mode).
+func _check_pixels(t: TestContext, walker: Node) -> void:
+	var view := _comparison_view(t)
 	var images: Array[Image] = []
 	var used: Array[int] = []
 	for meshes in [false, true, false]:
@@ -127,6 +138,19 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(_differing(images[0], images[1]), 0, "polygons, then meshes: pixels differing")
 	t.expect_eq(_differing(images[1], images[2]), 0, "meshes, then polygons: pixels differing")
+
+
+## A view under the test's world rendering the world's canvas (none of the overlays), `FRAME`
+## magnified `ZOOM` times.
+func _comparison_view(t: TestContext) -> SubViewport:
+	var view := SubViewport.new()
+	view.size = Vector2i(FRAME.size * ZOOM)
+	view.transparent_bg = true
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	t.world.add_child(view)
+	view.world_2d = t.world.get_viewport().world_2d  # The world's canvas, none of the overlays.
+	view.canvas_transform = Transform2D(0.0, Vector2(ZOOM, ZOOM), 0.0, -FRAME.position * ZOOM)
+	return view
 
 
 ## Repaint every frozen body and its shadow, and let the repaint reach the renderer.
