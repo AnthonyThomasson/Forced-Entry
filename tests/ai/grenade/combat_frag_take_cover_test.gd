@@ -68,14 +68,22 @@ func run(t: TestContext) -> void:
 		"the invader threw its frag",
 	)
 	t.check(not Probe.callouts(t, &"frag_out", &"i").is_empty(), "and radioed frag out")
-
-	# From the throw to the bang: the posture the thrower holds.
-	var samples: Array = []
-	while Probe.booms(t, &"frag").is_empty() and t.time < float(thrown["time"]) + 6.0:
-		samples.append({ "t": t.time, "posture": inv.posture(), "p": inv.global_position })
-		await t.frames(1)
+	var samples := await _posture_until_bang(t, inv, float(thrown["time"]))
 	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
 		return
+	await _check_covered(t, inv, samples)
+
+
+# From the throw to the bang: the posture the thrower holds.
+func _posture_until_bang(t: TestContext, inv: Node, thrown_at: float) -> Array:
+	var samples: Array = []
+	while Probe.booms(t, &"frag").is_empty() and t.time < thrown_at + 6.0:
+		samples.append({ "t": t.time, "posture": inv.posture(), "p": inv.global_position })
+		await t.frames(1)
+	return samples
+
+
+func _check_covered(t: TestContext, inv: Node, samples: Array) -> void:
 	var boom: Dictionary = Probe.booms(t, &"frag")[0]
 	var at: Vector2 = boom["data"]["position"]
 	t.require(

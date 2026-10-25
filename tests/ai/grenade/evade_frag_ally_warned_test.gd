@@ -63,6 +63,22 @@ func run(t: TestContext) -> void:
 	if not t.require(await t.until(b.is_busy, 1.0), "set-up: B sits on the chair (is_busy)"):
 		return
 	await t.seconds(0.8)
+	var w := await _throw_and_watch_b(t, b, bb)
+	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
+		return
+	var boom: Dictionary = Probe.booms(t, &"frag")[0]
+	var at: Vector2 = boom["data"]["position"]
+	var called := Probe.callouts(t, &"grenade", &"a")
+	if not t.require(not called.is_empty(), "defender A radioed a grenade callout"):
+		return
+	var call_at: float = called[0]["time"]
+	_check_premise(t, b, at, call_at, w["b_path"])
+	_check_warned(t, b, boom, call_at, w)
+
+
+## Throws the frag onto the landing spot and follows B every frame until it goes off (or 6 s
+## pass): B's path, the sources it knew the grenade by and when it first had an escape spot.
+func _throw_and_watch_b(t: TestContext, b: Node, bb: Node) -> Dictionary:
 	var puppet := t.puppet(&"thrower")
 	puppet.select_slot(Probe.FRAG)
 	puppet.aim_at(LANDING)
@@ -80,17 +96,12 @@ func run(t: TestContext) -> void:
 		if escape_at == INF and (g.get("escape", Vector2.INF) as Vector2) != Vector2.INF:
 			escape_at = t.time
 		await t.frames(1)
-	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
-		return
-	var boom: Dictionary = Probe.booms(t, &"frag")[0]
-	var at: Vector2 = boom["data"]["position"]
-	var called := Probe.callouts(t, &"grenade", &"a")
-	if not t.require(not called.is_empty(), "defender A radioed a grenade callout"):
-		return
-	var call_at: float = called[0]["time"]
+	return { "sources": sources, "escape_at": escape_at, "b_path": b_path }
 
-	# The premise: where B sat when A radioed, it was in the grenade's line and its zone, and could
-	# not have heard it land.
+
+## The premise: where B sat when A radioed, it was in the grenade's line and its zone, and could
+## not have heard it land.
+func _check_premise(t: TestContext, b: Node, at: Vector2, call_at: float, b_path: Array) -> void:
 	var seat: Vector2 = b.global_position
 	for sample in b_path:
 		if float(sample["t"]) <= call_at:
@@ -107,6 +118,19 @@ func run(t: TestContext) -> void:
 		"(B was still seated when A radioed)",
 	)
 
+
+## B ran for an escape spot on A's call, knowing of the grenade only by it, and got clear.
+func _check_warned(
+	t: TestContext,
+	b: Node,
+	boom: Dictionary,
+	call_at: float,
+	w: Dictionary,
+) -> void:
+	var escape_at: float = w["escape_at"]
+	var sources: Dictionary = w["sources"]
+	var b_path: Array = w["b_path"]
+	var at: Vector2 = boom["data"]["position"]
 	t.check(escape_at != INF, "B ran for an escape spot (debug_grenades().escape was set)")
 	t.check(
 		escape_at >= call_at - 0.05 and escape_at <= call_at + 0.7,

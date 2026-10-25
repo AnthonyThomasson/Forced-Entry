@@ -95,80 +95,134 @@ func run(t: TestContext) -> void:
 		return
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
 	var door: String = Entry.BACK["id"]
-	var h := t.puppet(&"h")
-	var acts := { &"a": [], &"b": [], &"c": [] }
-	var phases := { &"a": [], &"b": [], &"c": [] }
-	var shown := Vector2.INF
-	var left := [INF, &""]
-	var called := [INF, &""]   # The bang call: its time and the thrower that made it.
-	var in_view := INF       # When the thrower first had the householder in view after the call.
-	var released := INF      # When the thrower's stun left its hand.
-	# The thrower's order when it did: the bang entry's for the planned stun, a COMBAT > GRENADE for
-	# one thrown after leaving.
-	var released_under := ""
-	var stepped_back := false
-	var end := t.time + 70.0
-	while t.time < end:
-		for id in IDS:
-			var brain := Entry.brain(t, id)
-			var act := str(brain.current_act())
-			if acts[id].is_empty() or acts[id].back()[1] != act:
-				acts[id].append([t.time, act])
-			var phase := str(Entry.entry(brain).get("phase", ""))
-			if phases[id].is_empty() or phases[id].back()[1] != phase:
-				phases[id].append([t.time, phase])
-			if (left[0] == INF
-					and act.begins_with("combat")
-					and phases[id].any(func(p): return AT_DOOR.has(p[1]))):
-				left = [t.time, id]
-		if called[0] == INF:
-			for c in Probe.raw(
-					t,
-					&"callout",
-					func(d): return (
-						String(d.get("entry_step", "")) == "bang"
-							and String(d.get("opening", "")) == door
-					),
-			):
-				called = [
-					float(c["time"]),
-					IDS.filter(func(id): return t.actor(id) == c["data"].get("speaker")).front(),
-				]
-				break
-			if called[0] < INF:
-				shown = _show_spot(t, _point(t, door), called[1])
-				if not t.require(
-						shown != Vector2.INF,
-						"set-up: a spot just inside the doorway is in view of the point and the "
-							+ "thrower, and of the front of the doorway, and out of the third "
-							+ "member's",
-				):
-					return
-				Probe.place(t, &"h", shown, Maps.DOOR_BACK + Vector2(200, 0))
-		elif released == INF:
-			var thrower: Node2D = t.actor(called[1])
-			if in_view == INF and _sees(t, thrower, t.actor(&"h").global_position):
-				in_view = t.time
-			if t.happened(
-					&"throw",
-					func(d): return d.get("attacker") == thrower and d.get("kind") == &"stun",
-			):
-				released = t.time
-				released_under = str(Entry.brain(t, called[1]).current_act())
-		if released < INF and not stepped_back:
-			stepped_back = true
-			h.walk_to(HIDDEN)
-		var burst := Probe.booms(t, &"stun").filter(
-			func(b): return Maps.HOUSE_KITCHEN.has_point(b["data"]["position"]),
-		)
-		if not burst.is_empty() and t.time > float(burst[0]["time"]) + BANG_WINDOW + 0.5:
-			break
-		if burst.is_empty() and t.time > float(called[0]) + KEPT + 1.0:
-			break  # No stun in the kitchen within `KEPT` s of the call: the verdict is in.
-		await t.frames(1)
+	var w := await _watch(t, door)
+	if w.is_empty():
+		return
 	var seen := {}
 	for id in IDS:
-		seen[id] = acts[id].map(func(p): return "%.1f %s" % [p[0], p[1]])
+		seen[id] = w["acts"][id].map(func(p): return "%.1f %s" % [p[0], p[1]])
+	if not _premises_held(t, door, w, seen):
+		return
+	_check_thrower_kept_then_fought(t, door, w, seen)
+	_check_burst(t, door, w)
+
+
+## Watches the members, the bang call, the thrower and the stun every frame until the verdict is
+## in (or 70 s pass), showing the householder in the doorway at the call and walking it back out
+## once the stun is thrown: what was seen, or {} when the householder's spot cannot be had.
+func _watch(t: TestContext, door: String) -> Dictionary:
+	var h := t.puppet(&"h")
+	var w := {
+		"acts": { &"a": [], &"b": [], &"c": [] },
+		"phases": { &"a": [], &"b": [], &"c": [] },
+		"left": [INF, &""],
+		"called": [INF, &""],  # The bang call: its time and the thrower that made it.
+		"in_view": INF,  # When the thrower first had the householder in view after the call.
+		"released": INF,  # When the thrower's stun left its hand.
+		# The thrower's order when it did: the bang entry's for the planned stun, a COMBAT >
+		# GRENADE for one thrown after leaving.
+		"released_under": "",
+		"stepped_back": false,
+	}
+	var end := t.time + 70.0
+	while t.time < end:
+		_note_members(t, w)
+		var calling: bool = w["called"][0] == INF
+		if calling and not _note_call(t, door, w):
+			return {}
+		if not calling and w["released"] == INF:
+			_note_thrower(t, w)
+		if w["released"] < INF and not w["stepped_back"]:
+			w["stepped_back"] = true
+			h.walk_to(HIDDEN)
+		if _verdict_in(t, w["called"]):
+			break
+		await t.frames(1)
+	return w
+
+
+## Notes each member's act and entry phase when they change, and the first member to leave the
+## door for COMBAT.
+func _note_members(t: TestContext, w: Dictionary) -> void:
+	var acts: Dictionary = w["acts"]
+	var phases: Dictionary = w["phases"]
+	for id in IDS:
+		var brain := Entry.brain(t, id)
+		var act := str(brain.current_act())
+		if acts[id].is_empty() or acts[id].back()[1] != act:
+			acts[id].append([t.time, act])
+		var phase := str(Entry.entry(brain).get("phase", ""))
+		if phases[id].is_empty() or phases[id].back()[1] != phase:
+			phases[id].append([t.time, phase])
+		if (w["left"][0] == INF
+				and act.begins_with("combat")
+				and phases[id].any(func(p): return AT_DOOR.has(p[1]))):
+			w["left"] = [t.time, id]
+
+
+## Notes the bang call on `door` and its thrower, and shows the householder just inside the doorway
+## then; false when no spot for it can be had.
+func _note_call(t: TestContext, door: String, w: Dictionary) -> bool:
+	for c in Probe.raw(
+			t,
+			&"callout",
+			func(d): return (
+				String(d.get("entry_step", "")) == "bang"
+					and String(d.get("opening", "")) == door
+			),
+	):
+		w["called"] = [
+			float(c["time"]),
+			IDS.filter(func(id): return t.actor(id) == c["data"].get("speaker")).front(),
+		]
+		break
+	if w["called"][0] < INF:
+		var shown := _show_spot(t, _point(t, door), w["called"][1])
+		if not t.require(
+				shown != Vector2.INF,
+				"set-up: a spot just inside the doorway is in view of the point and the "
+					+ "thrower, and of the front of the doorway, and out of the third "
+					+ "member's",
+		):
+			return false
+		Probe.place(t, &"h", shown, Maps.DOOR_BACK + Vector2(200, 0))
+	return true
+
+
+## Notes when the thrower first has the householder in view, and when (and under which order) its
+## stun leaves its hand.
+func _note_thrower(t: TestContext, w: Dictionary) -> void:
+	var called: Array = w["called"]
+	var thrower: Node2D = t.actor(called[1])
+	if w["in_view"] == INF and _sees(t, thrower, t.actor(&"h").global_position):
+		w["in_view"] = t.time
+	if t.happened(
+			&"throw",
+			func(d): return d.get("attacker") == thrower and d.get("kind") == &"stun",
+	):
+		w["released"] = t.time
+		w["released_under"] = str(Entry.brain(t, called[1]).current_act())
+
+
+## Whether the verdict is in: the stun in the kitchen went off longer ago than the bang window, or
+## none went off there within `KEPT` s of the call.
+func _verdict_in(t: TestContext, called: Array) -> bool:
+	var burst := Probe.booms(t, &"stun").filter(
+		func(b): return Maps.HOUSE_KITCHEN.has_point(b["data"]["position"]),
+	)
+	if not burst.is_empty() and t.time > float(burst[0]["time"]) + BANG_WINDOW + 0.5:
+		return true
+	# No stun in the kitchen within `KEPT` s of the call: the verdict is in.
+	return burst.is_empty() and t.time > float(called[0]) + KEPT + 1.0
+
+
+## The premises `require`d: the bang stack, the call, a member leaving before the release and the
+## thrower seeing the householder `LEAD` s before it.
+func _premises_held(t: TestContext, door: String, w: Dictionary, seen: Dictionary) -> bool:
+	var called: Array = w["called"]
+	var left: Array = w["left"]
+	var in_view: float = w["in_view"]
+	var released: float = w["released"]
 	var bang_claims := Entry.calls(t, "claim").filter(
 		func(c): return String(c.get("opening", "")) == door and c.get("bang") == true,
 	)
@@ -176,34 +230,37 @@ func run(t: TestContext) -> void:
 			not bang_claims.is_empty(),
 			"the stack claimed the back door in bang mode (acts %s)" % str(seen),
 	):
-		return
+		return false
 	if not t.require(called[0] < INF, "the bang was called (acts %s)" % str(seen)):
-		return
+		return false
 	if not t.require(
 			left[0] < released,
 			("a member left the stack for COMBAT before the stun left the thrower's hand (left %s "
 					+ "at %.2f s, released at %.2f s; acts %s)")
 				% [left[1], left[0], released, str(seen)],
 	):
-		return
-	if not t.require(
-			in_view <= released - LEAD,
-			("the thrower (%s) had the householder in view after the call, %.1f s or more before "
-					+ "the release (in view at %.2f s, call at %.2f s, released at %.2f s)")
-				% [called[1], LEAD, in_view, called[0], released],
-	):
-		return
-	var planned := Probe.booms(t, &"stun").filter(func(b): return (
-		Maps.HOUSE_KITCHEN.has_point(b["data"]["position"])
-			and b["data"].get("attacker") == t.actor(called[1])
-	))
-	var burst_at: float = float(planned[0]["time"]) if not planned.is_empty() else INF
+		return false
+	return t.require(
+		in_view <= released - LEAD,
+		("the thrower (%s) had the householder in view after the call, %.1f s or more before "
+				+ "the release (in view at %.2f s, call at %.2f s, released at %.2f s)")
+			% [called[1], LEAD, in_view, called[0], released],
+	)
+
+
+## The thrower kept to the bang from its call to the release, then fought from where it stood.
+func _check_thrower_kept_then_fought(
+		t: TestContext,
+		door: String,
+		w: Dictionary,
+		seen: Dictionary,
+) -> void:
+	var called: Array = w["called"]
+	var released: float = w["released"]
+	var released_under: String = w["released_under"]
+	var acts: Dictionary = w["acts"]
 	var kept: bool = (released_under.begins_with("search/stun_entry/%s" % door)
-			and acts[called[1]].all(func(a): return (
-				float(a[0]) <= float(called[0])
-					or float(a[0]) > released
-					or str(a[1]).begins_with("search/stun_entry/%s" % door)
-			)))
+			and _acts_kept(acts[called[1]], float(called[0]), released, door))
 	t.check(
 		kept,
 		("the thrower kept to the bang from its call to the release: the stun was the planned one, "
@@ -221,10 +278,31 @@ func run(t: TestContext) -> void:
 				+ "(released at %.2f s; %s's acts %s)")
 			% [FIGHT, released, called[1], str(seen[called[1]])],
 	)
+
+
+## Whether every act of `acts` (`[time, act]`) from the call to the release is the bang entry's on
+## `door`.
+func _acts_kept(acts: Array, called_at: float, released: float, door: String) -> bool:
+	return acts.all(func(a): return (
+		float(a[0]) <= called_at
+			or float(a[0]) > released
+			or str(a[1]).begins_with("search/stun_entry/%s" % door)
+	))
+
+
+## The planned stun went off in the kitchen in time, and a member still at the door went in on it.
+func _check_burst(t: TestContext, door: String, w: Dictionary) -> void:
+	var called: Array = w["called"]
+	var phases: Dictionary = w["phases"]
+	var planned := Probe.booms(t, &"stun").filter(func(b): return (
+		Maps.HOUSE_KITCHEN.has_point(b["data"]["position"])
+			and b["data"].get("attacker") == t.actor(called[1])
+	))
+	var burst_at: float = float(planned[0]["time"]) if not planned.is_empty() else INF
 	t.check(
 		burst_at <= float(called[0]) + KEPT,
 		("the planned stun went off in the kitchen within %.0f s of the call (call %.2f s, "
-				+ "released %.2f s, burst %.2f s)") % [KEPT, called[0], released, burst_at],
+				+ "released %.2f s, burst %.2f s)") % [KEPT, called[0], w["released"], burst_at],
 	)
 	if burst_at == INF:
 		return

@@ -48,6 +48,19 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(0.8)
+	var path := await _throw_and_follow(t, d)
+	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
+		return
+	var boom: Dictionary = Probe.booms(t, &"frag")[0]
+	var at: Vector2 = boom["data"]["position"]
+	await t.frames(3)
+	_check_callout(t, at)
+	_check_ran_clear(t, d, boom, path)
+
+
+# Throws the frag just past the defender and notes where it is each frame until it goes off (or 6
+# s pass).
+func _throw_and_follow(t: TestContext, d: Node) -> Array:
 	var puppet := t.puppet(&"thrower")
 	puppet.select_slot(Probe.FRAG)
 	puppet.aim_at(d.global_position + Vector2(60, 0))
@@ -60,12 +73,10 @@ func run(t: TestContext) -> void:
 	while t.time < clicked + 6.0 and Probe.booms(t, &"frag").is_empty():
 		path.append({ "t": t.time, "p": d.global_position })
 		await t.frames(1)
-	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
-		return
-	var boom: Dictionary = Probe.booms(t, &"frag")[0]
-	var at: Vector2 = boom["data"]["position"]
-	await t.frames(3)
+	return path
 
+
+func _check_callout(t: TestContext, at: Vector2) -> void:
 	var calls := Probe.callouts(t, &"grenade", &"d")
 	t.check(not calls.is_empty(), "the defender radioed a grenade callout")
 	if not calls.is_empty():
@@ -74,6 +85,10 @@ func run(t: TestContext) -> void:
 			"naming the grenade's spot (%s)" % str(calls[0]["data"].get("point")),
 		)
 		t.check(calls[0]["data"].get("kind") == &"frag", "and its kind")
+
+
+func _check_ran_clear(t: TestContext, d: Node, boom: Dictionary, path: Array) -> void:
+	var at: Vector2 = boom["data"]["position"]
 	var last: Array = path.filter(func(s): return float(s["t"]) >= float(boom["time"]) - 0.25)
 	var covered := last.all(func(s): return Probe.safe_from_frag(t, at, s["p"]))
 	t.check(
