@@ -41,16 +41,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var pieces: Array = []
-	for i in LAMPS:
-		pieces.append(t.object(StringName("lamp_%d" % i)))
-	for i in TUBES:
-		pieces.append(t.object(StringName("tube_%d" % i)))
-	var declared_total := 0
-	for piece: Node in pieces:
-		var n := Probe.declared(piece).size()
-		t.check(n > 0, "%s declares its light (get_lights())" % piece.name)
-		declared_total += n
+	var pieces := _pieces(t)
+	var declared_total := _declared_total(t, pieces)
 
 	var lighting := Probe.require_lighting(t)
 	if lighting == null:
@@ -60,6 +52,34 @@ func run(t: TestContext) -> void:
 			"the room declares more lights than the budget (%d)" % declared_total,
 	):
 		return
+	if not _check_floor(t, lighting):
+		return
+	_check_weakest_dropped(t, lighting, pieces, declared_total)
+
+
+## The lamps, then the tubes.
+func _pieces(t: TestContext) -> Array:
+	var pieces: Array = []
+	for i in LAMPS:
+		pieces.append(t.object(StringName("lamp_%d" % i)))
+	for i in TUBES:
+		pieces.append(t.object(StringName("tube_%d" % i)))
+	return pieces
+
+
+## How many lights `pieces` declare, checking each declares one.
+func _declared_total(t: TestContext, pieces: Array) -> int:
+	var declared_total := 0
+	for piece: Node in pieces:
+		var n := Probe.declared(piece).size()
+		t.check(n > 0, "%s declares its light (get_lights())" % piece.name)
+		declared_total += n
+	return declared_total
+
+
+## Check the budget and that the arena's one floor is reached by exactly it (and within Godot's
+## limit with the flashes); false when the arena has not one floor (the test has failed).
+func _check_floor(t: TestContext, lighting: WorldLighting) -> bool:
 	var budget: Dictionary = lighting.budget()
 	var per_floor := int(budget.get("per_floor", -1))
 	t.check(
@@ -70,7 +90,7 @@ func run(t: TestContext) -> void:
 	var lights: Array = lighting.lights()
 	var floors := Probe.floors(t.world.house)
 	if not t.require(floors.size() == 1, "the arena has one floor (%d)" % floors.size()):
-		return
+		return false
 	var ground: Node2D = floors[0]
 	var reaching := lights.filter(
 		func(l: Variant) -> bool: return l is PointLight2D and Probe.reaches(l, ground),
@@ -84,26 +104,17 @@ func run(t: TestContext) -> void:
 		"with the %d flashes the floor takes %d lights (at most %d)"
 			% [flashes.size(), reaching.size() + flashes.size(), Probe.ITEM_LIGHTS],
 	)
+	return true
 
-	# Each declared light is placed under its piece or dropped; the dropped ones are the weakest.
+
+## Each declared light of `pieces` is placed under its piece or dropped; the dropped ones are the
+## weakest.
+func _check_weakest_dropped(t: TestContext, lighting: WorldLighting, pieces: Array,
+		declared_total: int) -> void:
 	var kept_energy: Array[float] = []
 	var dropped_energy: Array[float] = []
 	for piece: Node in pieces:
-		var wanted := Probe.declared(piece)
-		var own := Probe.lights_of(lighting, piece)
-		var dropped := Probe.dropped_of(lighting, piece)
-		t.check(
-			own.size() + dropped.size() == wanted.size(),
-			"%s: %d lights declared, %d placed under it and %d dropped"
-				% [piece.name, wanted.size(), own.size(), dropped.size()],
-		)
-		var dropped_at := dropped.map(func(d: Dictionary) -> int: return int(d.get("index", -1)))
-		for i in wanted.size():
-			var energy := float((wanted[i] as Dictionary).get("energy", -1.0))
-			if dropped_at.has(i):
-				dropped_energy.append(energy)
-			else:
-				kept_energy.append(energy)
+		_sort_energies(t, lighting, piece, kept_energy, dropped_energy)
 	t.check(
 		not dropped_energy.is_empty(),
 		"the budget dropped some of the %d lights" % declared_total,
@@ -114,3 +125,24 @@ func run(t: TestContext) -> void:
 			"the dropped lights are the weakest (dropped up to %.2f, kept from %.2f)"
 				% [dropped_energy.max(), kept_energy.min()],
 		)
+
+
+## Check that each light `piece` declares is placed under it or dropped, appending its declared
+## energy to `kept_energy` or `dropped_energy`.
+func _sort_energies(t: TestContext, lighting: WorldLighting, piece: Node,
+		kept_energy: Array[float], dropped_energy: Array[float]) -> void:
+	var wanted := Probe.declared(piece)
+	var own := Probe.lights_of(lighting, piece)
+	var dropped := Probe.dropped_of(lighting, piece)
+	t.check(
+		own.size() + dropped.size() == wanted.size(),
+		"%s: %d lights declared, %d placed under it and %d dropped"
+			% [piece.name, wanted.size(), own.size(), dropped.size()],
+	)
+	var dropped_at := dropped.map(func(d: Dictionary) -> int: return int(d.get("index", -1)))
+	for i in wanted.size():
+		var energy := float((wanted[i] as Dictionary).get("energy", -1.0))
+		if dropped_at.has(i):
+			dropped_energy.append(energy)
+		else:
+			kept_energy.append(energy)

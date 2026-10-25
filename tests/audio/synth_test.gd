@@ -48,6 +48,16 @@ func _peak_between(stream: AudioStreamWAV, from: float, to: float) -> float:
 
 
 func run(t: TestContext) -> void:
+	_check_stream(t)
+	_check_pitch(t)
+	_check_delay(t)
+	_check_unplayable(t)
+	_check_drive(t)
+
+
+## A mixed recipe renders repeatably per seed, as a 16-bit mono stream at the peak level that fades
+## out.
+func _check_stream(t: TestContext) -> void:
 	var rate := SoundConfig.sample_rate
 	var mixed := {
 		"length": 0.3,
@@ -80,7 +90,10 @@ func run(t: TestContext) -> void:
 		"it fades out instead of ending on a click",
 	)
 
-	# Pitch: a 500 Hz tone and a 1000 Hz mode, undamped enough to count the first tenth of a second.
+
+## Pitch: a 500 Hz tone and a 1000 Hz mode, undamped enough to count the first tenth of a second;
+## a glide falls.
+func _check_pitch(t: TestContext) -> void:
 	var tone := SoundSynth.render(
 		{ "length": 0.2, "layers": [{ "type": "tone", "freq": 500.0, "decay": 2.0 }] },
 		1,
@@ -112,7 +125,9 @@ func run(t: TestContext) -> void:
 	t.check(early > 40, "the glide starts high (%d crossings in 30 ms)" % early)
 	t.check(_crossings(glide, 0.4) - _crossings(glide, 0.37) < int(early / 2.0), "and ends low")
 
-	# A delayed layer is silent until its time.
+
+## A delayed layer is silent until its time.
+func _check_delay(t: TestContext) -> void:
 	var late := SoundSynth.render(
 		{ "length": 0.3, "layers": [{ "type": "noise", "delay": 0.1, "decay": 0.05 }] },
 		1,
@@ -120,7 +135,10 @@ func run(t: TestContext) -> void:
 	t.check(_peak_between(late, 0.0, 0.095) == 0.0, "nothing sounds before the layer's delay")
 	t.check(_peak_between(late, 0.1, 0.15) > 0.5, "then it sounds")
 
-	# Nothing to play, or nothing it can carry: silence, no errors (an error would fail the test).
+
+## Nothing to play, or nothing it can carry: silence, no errors (an error would fail the test).
+func _check_unplayable(t: TestContext) -> void:
+	var rate := SoundConfig.sample_rate
 	var empty := SoundSynth.render({ "length": 0.1, "layers": [] }, 1)
 	t.expect_eq(SoundSynth.peak_of(empty), 0.0, "an empty recipe is silent")
 	var too_high := SoundSynth.render(
@@ -135,7 +153,9 @@ func run(t: TestContext) -> void:
 	var tiny := SoundSynth.render({}, 1)
 	t.check(tiny.data.size() >= 2, "a recipe with no length still renders a sample")
 
-	# Saturation keeps the same peak but fattens the waveform (more energy at equal peak).
+
+## Saturation keeps the same peak but fattens the waveform (more energy at equal peak).
+func _check_drive(t: TestContext) -> void:
 	var plain := SoundSynth.render(
 		{ "length": 0.1, "layers": [{ "type": "noise", "decay": 0.03 }] },
 		3,

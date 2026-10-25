@@ -30,6 +30,14 @@ func run(t: TestContext) -> void:
 	t.expect_eq(SoundSurface.at(Vector2(400, 900)), &"outdoor", "and below it")
 
 	var before := SoundSurface.count()
+	await _check_spawned(t, before)
+	_check_registry(t, before)
+	_check_mapping(t)
+	_check_catalogue(t)
+
+
+## A spawned floor registers itself over the older one (`before` floors registered) and goes.
+func _check_spawned(t: TestContext, before: int) -> void:
 	var carpet := FloorFactory.spawn(
 		Rect2(500, 100, 200, 200),
 		{
@@ -49,7 +57,9 @@ func run(t: TestContext) -> void:
 	t.expect_eq(SoundSurface.count(), before, "a floor unregisters when it goes")
 	t.expect_eq(SoundSurface.at(Vector2(600, 200)), &"wood", "and the floor beneath is heard again")
 
-	# Direct registration, newest first.
+
+## Direct registration, newest first; back to `before` floors after.
+func _check_registry(t: TestContext, before: int) -> void:
 	var low := SoundSurface.register(Rect2(1000, 0, 100, 100), "ceramic", "tiles")
 	var high := SoundSurface.register(Rect2(1050, 0, 100, 100), "stone", "concrete")
 	t.expect_eq(SoundSurface.at(Vector2(1020, 50)), &"tile", "tile where only tile lies")
@@ -73,6 +83,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(SoundSurface.count(), before, "the registry is back where it started")
 
+
+## A floor's material and pattern pick its surface.
+func _check_mapping(t: TestContext) -> void:
 	for case in [
 			["wood", "planks", &"wood"], ["wood", "parquet", &"wood"],
 			["ceramic", "tiles", &"tile"], ["ceramic", "checker", &"tile"],
@@ -85,7 +98,10 @@ func run(t: TestContext) -> void:
 			case[2],
 			"%s / %s" % [case[0], case[1]],
 		)
-	# Every floor the house catalogue can lay maps to a surface footsteps are voiced for.
+
+
+## Every floor the house catalogue can lay maps to a surface footsteps are voiced for.
+func _check_catalogue(t: TestContext) -> void:
 	for key in [
 			"oak_planks", "walnut_planks", "ash_planks", "grey_planks", "parquet", "white_tile",
 			"terracotta_tile", "slate_tile", "checker", "mosaic", "beige_carpet", "blue_carpet",

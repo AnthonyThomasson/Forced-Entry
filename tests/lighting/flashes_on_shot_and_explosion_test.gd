@@ -57,23 +57,8 @@ func run(t: TestContext) -> void:
 		not flashes.any(func(l: PointLight2D) -> bool: return Probe.lit(l)),
 		"no flash is lit before anything happens",
 	)
-	var casters := {
-		"wall": Probe.occluders_at(t.world, Vector2(450, 0)),
-		"wardrobe": Probe.own_occluders(t.object(&"wardrobe")),
-		"chair": Probe.own_occluders(t.object(&"chair")),
-		"gunner": Probe.own_occluders(t.actor(&"gunner")),
-	}
-	for what: String in casters:
-		var own: Array = casters[what]
-		if not t.require(not own.is_empty(), "the %s carries an occluder" % what):
-			return
-		var occ: LightOccluder2D = own[0]
-		t.check(
-			flashes.all(func(l: PointLight2D) -> bool: return (
-				l.shadow_item_cull_mask & occ.occluder_light_mask != 0
-			)),
-			"the %s shadows every flash (occluder %d)" % [what, occ.occluder_light_mask],
-		)
+	if not _check_casters(t, flashes):
+		return
 
 	var gunner := t.puppet(&"gunner")
 	gunner.aim_at(AIM)
@@ -94,6 +79,29 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await _flash(t, flashes, t.events_of(&"explosion")[0]["position"], "explosion", BLAST_GONE)
+
+
+## Check that the wall, the wardrobe, the chair and the gunner each carry an occluder that shadows
+## every one of `flashes`; false when one carries none (the test has failed).
+func _check_casters(t: TestContext, flashes: Array) -> bool:
+	var casters := {
+		"wall": Probe.occluders_at(t.world, Vector2(450, 0)),
+		"wardrobe": Probe.own_occluders(t.object(&"wardrobe")),
+		"chair": Probe.own_occluders(t.object(&"chair")),
+		"gunner": Probe.own_occluders(t.actor(&"gunner")),
+	}
+	for what: String in casters:
+		var own: Array = casters[what]
+		if not t.require(not own.is_empty(), "the %s carries an occluder" % what):
+			return false
+		var occ: LightOccluder2D = own[0]
+		t.check(
+			flashes.all(func(l: PointLight2D) -> bool: return (
+				l.shadow_item_cull_mask & occ.occluder_light_mask != 0
+			)),
+			"the %s shadows every flash (occluder %d)" % [what, occ.occluder_light_mask],
+		)
+	return true
 
 
 ## Check that a flash is lit near `at` within `LIT_WITHIN` frames of the `what` event, and that

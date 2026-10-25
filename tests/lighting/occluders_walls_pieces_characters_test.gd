@@ -50,9 +50,27 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var world: Node = t.world
+	var wall_occluder := _check_walls(t)
+	var piece_occluders := _check_pieces(t)
+	var body_occluder := _check_body(t)
+	if not await _check_walk(t):
+		return
+	if not await _check_dead(t):
+		return
 
-	# Walls: every run covered.
+	# Shadows by height: the overhead lamp by the walls only, the low TV by the walls and the tall
+	# wardrobe only.
+	var lighting := Probe.require_lighting(t)
+	if lighting == null:
+		return
+	var casters := { "wall": wall_occluder, "wardrobe": piece_occluders.get(&"wardrobe"),
+		"armchair": piece_occluders.get(&"armchair"), "walker": body_occluder }
+	_check_heights(t, lighting, casters)
+
+
+## Walls: every run covered. A wall's occluder (null for none).
+func _check_walls(t: TestContext) -> LightOccluder2D:
+	var world: Node = t.world
 	var wall_occluder: LightOccluder2D = null
 	for wall in world.find_children("*", "Node2D", true, false).filter(
 			func(n: Node) -> bool: return n.has_method(&"wall_segments"),
@@ -69,8 +87,12 @@ func run(t: TestContext) -> void:
 				)
 				if not over.is_empty() and wall_occluder == null:
 					wall_occluder = over[0]
+	return wall_occluder
 
-	# Solid pieces: their own occluder over their footprint; walk-over decor none.
+
+## Solid pieces: their own occluder over their footprint; walk-over decor none. Piece id -> its
+## occluder.
+func _check_pieces(t: TestContext) -> Dictionary:
 	var piece_occluders := {}
 	for id in [&"armchair", &"wardrobe", &"lamp", &"tv"]:
 		var piece: Node2D = t.object(id)
@@ -84,27 +106,41 @@ func run(t: TestContext) -> void:
 		Probe.own_occluders(t.object(&"rug")).is_empty(),
 		"the rug (walk-over decor) carries no occluder",
 	)
+	return piece_occluders
 
-	# Living characters: an occluder over the body that follows it.
+
+## Living characters: an occluder over the body. The walker's (null for none).
+func _check_body(t: TestContext) -> LightOccluder2D:
 	var walker: Node2D = t.actor(&"walker")
 	var body_occluder: LightOccluder2D = null
-	var at_start := Probe.occluders_at(world, walker.global_position)
+	var at_start := Probe.occluders_at(t.world, walker.global_position)
 	t.check(not at_start.is_empty(), "the living walker stands in an occluder")
 	if not at_start.is_empty():
 		body_occluder = at_start[0]
+	return body_occluder
+
+
+## The walker's occluder follows it as it walks; false when it does not arrive (the test has
+## failed).
+func _check_walk(t: TestContext) -> bool:
+	var walker: Node2D = t.actor(&"walker")
 	t.puppet(&"walker").walk_to(WALK_TO)
 	if not t.require(
 			await t.until(func() -> bool: return t.puppet(&"walker").has_arrived(), 4.0),
 			"the walker gets to %s" % WALK_TO,
 	):
-		return
+		return false
 	await t.frames(2)
 	t.check(
-		not Probe.occluders_at(world, walker.global_position).is_empty(),
+		not Probe.occluders_at(t.world, walker.global_position).is_empty(),
 		"the walker's occluder follows it (at %s)" % walker.global_position.round(),
 	)
+	return true
 
-	# The dead: no occluder.
+
+## The dead: no occluder. False when the victim does not die (the test has failed).
+func _check_dead(t: TestContext) -> bool:
+	var world: Node = t.world
 	var victim: Node2D = t.actor(&"victim")
 	t.check(
 		not Probe.occluders_at(world, victim.global_position).is_empty(),
@@ -112,7 +148,7 @@ func run(t: TestContext) -> void:
 	)
 	victim.take_damage(100_000.0)
 	if not t.require(await t.until(func() -> bool: return victim.is_dead, 1.0), "the victim dies"):
-		return
+		return false
 	await t.seconds(1.5)
 	t.check(Probe.own_occluders(victim).is_empty(), "the dead victim carries no casting occluder")
 	var lies: Array = [victim.global_position, victim.blood_origin()]
@@ -121,14 +157,12 @@ func run(t: TestContext) -> void:
 			Probe.occluders_at(world, p).is_empty(),
 			"no occluder over where the dead victim lies (%s)" % p.round(),
 		)
+	return true
 
-	# Shadows by height: the overhead lamp by the walls only, the low TV by the walls and the tall
-	# wardrobe only.
-	var lighting := Probe.require_lighting(t)
-	if lighting == null:
-		return
-	var casters := { "wall": wall_occluder, "wardrobe": piece_occluders.get(&"wardrobe"),
-		"armchair": piece_occluders.get(&"armchair"), "walker": body_occluder }
+
+## The lamp's light is shadowed by the wall's occluder only, the TV's by the wall's and the
+## wardrobe's only, of `casters` (name -> occluder, null for none found).
+func _check_heights(t: TestContext, lighting: WorldLighting, casters: Dictionary) -> void:
 	var shadowed_by := { &"lamp": ["wall"], &"tv": ["wall", "wardrobe"] }
 	for id: StringName in shadowed_by:
 		var own_lights := Probe.lights_of(lighting, t.object(id))

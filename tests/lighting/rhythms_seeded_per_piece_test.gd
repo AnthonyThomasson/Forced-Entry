@@ -61,15 +61,7 @@ func run(t: TestContext) -> void:
 	)
 	var traces_a := {}
 	var traces_b := {}
-	for key in keys_a:
-		traces_a[key] = []
-		traces_b[key] = []
-	for _i in FRAMES:
-		await t.frames(1)
-		for key in keys_a:
-			(traces_a[key] as Array).append(_energy(keys_a[key]))
-			if keys_b.has(key):
-				(traces_b[key] as Array).append(_energy(keys_b[key]))
+	await _record(t, keys_a, keys_b, traces_a, traces_b)
 
 	# Same seed, same rhythm.
 	for key: String in keys_a:
@@ -80,8 +72,27 @@ func run(t: TestContext) -> void:
 				"the light at %s flickers the same in both copies (apart by up to %.4f)"
 					% [key, off],
 			)
+	_check_own_rhythms(t, keys_a, traces_a)
 
-	# Different pieces differ.
+
+## Record `FRAMES` frames of each copy's light energies (`keys_a`, `keys_b`: `_keys`) into
+## `traces_a` and `traces_b` (key -> energy per frame).
+func _record(t: TestContext, keys_a: Dictionary, keys_b: Dictionary, traces_a: Dictionary,
+		traces_b: Dictionary) -> void:
+	for key in keys_a:
+		traces_a[key] = []
+		traces_b[key] = []
+	for _i in FRAMES:
+		await t.frames(1)
+		for key in keys_a:
+			(traces_a[key] as Array).append(_energy(keys_a[key]))
+			if keys_b.has(key):
+				(traces_b[key] as Array).append(_energy(keys_b[key]))
+
+
+## Different pieces differ: of the lights `keys_a` (`traces_a` their energies), those with a rhythm
+## that changes their energy keep rhythms of their own.
+func _check_own_rhythms(t: TestContext, keys_a: Dictionary, traces_a: Dictionary) -> void:
 	var changing: Array = keys_a.keys().filter(
 		func(k: String) -> bool: return _range(traces_a[k]) >= CHANGES,
 	)

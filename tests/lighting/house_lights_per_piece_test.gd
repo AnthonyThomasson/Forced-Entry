@@ -33,6 +33,33 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var house: Node2D = t.world.house
+	if not _check_kinds(t, house):
+		return
+
+	var lighting := Probe.require_lighting(t)
+	if lighting == null:
+		return
+	var lights: Array = lighting.lights()
+	var flashes: Array = lighting.flashes()
+	var budget: Dictionary = lighting.budget()
+	var per_floor := int(budget.get("per_floor", -1))
+	t.check(
+		per_floor > 0 and per_floor <= Probe.PER_FLOOR,
+		"the budget is at most %d lights a floor (%d)" % [Probe.PER_FLOOR, per_floor],
+	)
+	t.check(not flashes.is_empty(), "there is a flash pool")
+
+	var placed := {}
+	var room_lit := {}
+	_check_declared(t, lighting, placed, room_lit)
+	_check_lights(t, lights)
+	_check_owned(t, lighting, placed, room_lit)
+	_check_floors(t, lights, flashes, per_floor)
+
+
+## Check that `house` holds a piece of every light-giving kind and that each declares its light;
+## false when a kind is missing (the test has failed).
+func _check_kinds(t: TestContext, house: Node2D) -> bool:
 	var by_kind := {}
 	for piece in Probe.pieces(house):
 		var kind := Probe.light_kind(piece)
@@ -44,32 +71,21 @@ func run(t: TestContext) -> void:
 			"the house (seed %d) holds a lamp, a screen, a neon tube and a streetlight (found: %s)"
 				% [SEED, by_kind.keys()],
 	):
-		return
+		return false
 	for kind in kinds:
 		for piece: Node in by_kind[kind]:
 			t.check(
 				not Probe.declared(piece).is_empty(),
 				"the %s %s declares its light (get_lights())" % [kind, piece.name],
 			)
+	return true
 
-	var lighting := Probe.require_lighting(t)
-	if lighting == null:
-		return
-	var lights: Array = lighting.lights()
-	var fixtures: Array = lighting.fixtures()
-	var flashes: Array = lighting.flashes()
-	var budget: Dictionary = lighting.budget()
-	var per_floor := int(budget.get("per_floor", -1))
-	t.check(
-		per_floor > 0 and per_floor <= Probe.PER_FLOOR,
-		"the budget is at most %d lights a floor (%d)" % [Probe.PER_FLOOR, per_floor],
-	)
-	t.check(not flashes.is_empty(), "there is a flash pool")
 
-	# Each declared light is a PointLight2D under its piece, or a budget drop.
-	var placed := {}
-	var room_lit := {}
-	for piece in Probe.pieces(house):
+## Each declared light is a PointLight2D under its piece, or a budget drop: marks each placed light
+## in `placed` and the room each kept room light lights in `room_lit`.
+func _check_declared(t: TestContext, lighting: WorldLighting, placed: Dictionary,
+		room_lit: Dictionary) -> void:
+	for piece in Probe.pieces(t.world.house):
 		var wanted := Probe.declared(piece)
 		var own := Probe.lights_of(lighting, piece)
 		var dropped := Probe.dropped_of(lighting, piece)
@@ -84,6 +100,10 @@ func run(t: TestContext) -> void:
 		for i in wanted.size():
 			if (wanted[i] as Dictionary).get("room_light", false) and not dropped_at.has(i):
 				room_lit[_room_of(t.rooms, (piece as Node2D).global_position)] = true
+
+
+## Every one of `lights` is a shadowed PointLight2D with a texture.
+func _check_lights(t: TestContext, lights: Array) -> void:
 	for l in lights:
 		t.check(l is PointLight2D, "lights() holds only PointLight2Ds (%s)" % [l])
 		if l is PointLight2D:
@@ -92,6 +112,13 @@ func run(t: TestContext) -> void:
 				"%s has a light texture" % (l as Node).name,
 			)
 			t.check((l as PointLight2D).shadow_enabled, "%s casts shadows" % (l as Node).name)
+
+
+## Every fixture lies in its room, every light is a piece's (`placed`) or a fixture's, and every
+## room is lit by a piece's room light (`room_lit`) or a fixture.
+func _check_owned(t: TestContext, lighting: WorldLighting, placed: Dictionary,
+		room_lit: Dictionary) -> void:
+	var fixtures: Array = lighting.fixtures()
 	var fixture_lights := {}
 	for f: Dictionary in fixtures:
 		fixture_lights[f.get("light")] = true
@@ -101,7 +128,7 @@ func run(t: TestContext) -> void:
 				and rect.has_point((f["light"] as Node2D).global_position),
 			"the fixture of room %s is a PointLight2D inside it" % f.get("room", ""),
 		)
-	for l in lights:
+	for l in lighting.lights():
 		t.check(
 			placed.has(l) or fixture_lights.has(l),
 			"every light is a piece's or a fixture's (%s)" % (l as Node).name,
@@ -113,8 +140,10 @@ func run(t: TestContext) -> void:
 			"room %s is lit: by a piece's room light or by a fixture" % room["key"],
 		)
 
-	# No floor is reached by more than the budget, nor by more than 15 with every flash.
-	for ground: Node2D in Probe.floors(house):
+
+## No floor is reached by more than the budget, nor by more than 15 with every flash.
+func _check_floors(t: TestContext, lights: Array, flashes: Array, per_floor: int) -> void:
+	for ground: Node2D in Probe.floors(t.world.house):
 		var n := lights.filter(
 			func(l: Variant) -> bool: return l is PointLight2D and Probe.reaches(l, ground),
 		).size()

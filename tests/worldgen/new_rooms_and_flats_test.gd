@@ -207,50 +207,63 @@ func _check_pieces(t: TestContext, own: Dictionary) -> void:
 			var def := WorldGen.object_definition(key)
 			if def.is_empty():
 				continue
-			var size: Vector2 = def.get("size", Vector2.ZERO)
-			var solid: bool = def.get("solid", true)
-			var coverage: float = def.get("coverage", 0.0)
-			var penetration: float = def.get("penetration", 0.0)
-			t.check(String(def.get("name", "")) != "", "%s has a display name" % key)
-			t.check(
-				SHAPES.has(def.get("shape", "")),
-				"%s has a shape (%s)" % [key, def.get("shape", "")],
-			)
-			t.check(
-				size.x >= SIZE_RANGE.x
-					and size.y >= SIZE_RANGE.x
-					and size.x <= SIZE_RANGE.y
-					and size.y <= SIZE_RANGE.y,
-				"%s has a sane size (%s)" % [key, size],
-			)
-			t.check(
-				MATERIALS.has(def.get("material", "")),
-				"%s has a known material (%s)" % [key, def.get("material", "")],
-			)
-			t.check(
-				coverage >= 0.0
-					and coverage <= 100.0
-					and penetration >= 0.0
-					and penetration <= 100.0,
-				"%s has coverage and penetration within 0-100 (%s, %s)"
-					% [key, coverage, penetration],
-			)
-			t.check(
-				not solid or coverage > 0.0,
-				"%s is solid, so it covers something (coverage %s)" % [key, coverage],
-			)
-			t.check(float(def.get("weight", 0.0)) > 0.0, "%s has a weight" % key)
-			t.check(String(def.get("art", "")) != "", "%s is drawn by a painter (art)" % key)
-			var piece := ObjectFactory.spawn(def, FAR, t.world)
-			if t.check(piece != null, "%s spawns through ObjectFactory" % key):
-				var surface: Dictionary = piece.get_surface()
-				t.check(
-					surface["material"] == def.get("material", "")
-						and is_equal_approx(surface["coverage"], coverage)
-						and is_equal_approx(surface["penetration"], penetration),
-					"a spawned %s reports its surface (%s)" % [key, surface],
-				)
-				piece.free()
+			_check_definition(t, key, def)
+			_check_spawned(t, key, def)
+
+
+## Catalogue piece `key`'s definition `def` is sane: named, shaped, sized, of a known material,
+## with coverage, penetration and weight, and drawn by a painter.
+func _check_definition(t: TestContext, key: String, def: Dictionary) -> void:
+	var size: Vector2 = def.get("size", Vector2.ZERO)
+	var solid: bool = def.get("solid", true)
+	var coverage: float = def.get("coverage", 0.0)
+	var penetration: float = def.get("penetration", 0.0)
+	t.check(String(def.get("name", "")) != "", "%s has a display name" % key)
+	t.check(
+		SHAPES.has(def.get("shape", "")),
+		"%s has a shape (%s)" % [key, def.get("shape", "")],
+	)
+	t.check(
+		size.x >= SIZE_RANGE.x
+			and size.y >= SIZE_RANGE.x
+			and size.x <= SIZE_RANGE.y
+			and size.y <= SIZE_RANGE.y,
+		"%s has a sane size (%s)" % [key, size],
+	)
+	t.check(
+		MATERIALS.has(def.get("material", "")),
+		"%s has a known material (%s)" % [key, def.get("material", "")],
+	)
+	t.check(
+		coverage >= 0.0
+			and coverage <= 100.0
+			and penetration >= 0.0
+			and penetration <= 100.0,
+		"%s has coverage and penetration within 0-100 (%s, %s)"
+			% [key, coverage, penetration],
+	)
+	t.check(
+		not solid or coverage > 0.0,
+		"%s is solid, so it covers something (coverage %s)" % [key, coverage],
+	)
+	t.check(float(def.get("weight", 0.0)) > 0.0, "%s has a weight" % key)
+	t.check(String(def.get("art", "")) != "", "%s is drawn by a painter (art)" % key)
+
+
+## Piece `key` spawns through ObjectFactory into a piece reporting its definition `def`'s surface.
+func _check_spawned(t: TestContext, key: String, def: Dictionary) -> void:
+	var coverage: float = def.get("coverage", 0.0)
+	var penetration: float = def.get("penetration", 0.0)
+	var piece := ObjectFactory.spawn(def, FAR, t.world)
+	if t.check(piece != null, "%s spawns through ObjectFactory" % key):
+		var surface: Dictionary = piece.get_surface()
+		t.check(
+			surface["material"] == def.get("material", "")
+				and is_equal_approx(surface["coverage"], coverage)
+				and is_equal_approx(surface["penetration"], penetration),
+			"a spawned %s reports its surface (%s)" % [key, surface],
+		)
+		piece.free()
 
 
 ## The three new flats exist and between them use every new room type; the micro-flat is a studio, a
@@ -283,21 +296,7 @@ func _check_furnished(t: TestContext, own: Dictionary) -> void:
 			continue
 		for house_seed in SEEDS:
 			var house := WorldGen.generate(house_seed, plan, FAR, holder)
-			for room: Dictionary in WorldGen.get_rooms(house):
-				if not NEW_TYPES.has(room["type"]):
-					continue
-				rooms_seen += 1
-				var node := house.get_node_or_null(String(room["key"]).capitalize() + " Furniture")
-				var found: Array = []
-				if node:
-					for piece in node.get_children():
-						if piece.solid and _is_one_of(piece, own[room["type"]]):
-							found.append(piece.object_name)
-				t.check(
-					not found.is_empty(),
-					"%s seed %d: the %s (%s) holds one of its own pieces %s"
-						% [plan, house_seed, room["key"], room["type"], own[room["type"]]],
-				)
+			rooms_seen += _check_new_rooms(t, "%s seed %d" % [plan, house_seed], house, own)
 			house.free()
 	holder.free()
 	t.check(
@@ -306,15 +305,44 @@ func _check_furnished(t: TestContext, own: Dictionary) -> void:
 	)
 
 
+## In `house` (`label`), each room of a new type holds at least one of its own pieces (`own`).
+## Returns how many such rooms it has.
+func _check_new_rooms(t: TestContext, label: String, house: Node2D, own: Dictionary) -> int:
+	var seen := 0
+	for room: Dictionary in WorldGen.get_rooms(house):
+		if not NEW_TYPES.has(room["type"]):
+			continue
+		seen += 1
+		var found := _own_pieces_in(house, room, own[room["type"]])
+		t.check(
+			not found.is_empty(),
+			"%s: the %s (%s) holds one of its own pieces %s"
+				% [label, room["key"], room["type"], own[room["type"]]],
+		)
+	return seen
+
+
+## The names of the solid pieces in `room` of `house` made from one of the catalogue `keys`.
+func _own_pieces_in(house: Node2D, room: Dictionary, keys: Array) -> Array:
+	var node := house.get_node_or_null(String(room["key"]).capitalize() + " Furniture")
+	var found: Array = []
+	if node == null:
+		return found
+	for piece in node.get_children():
+		if piece.solid and _is_one_of(piece, keys):
+			found.append(piece.object_name)
+	return found
+
+
 ## Whether placed `piece` was made from one of the catalogue `keys` (its name, and its size either
 ## way round).
 func _is_one_of(piece: Node, keys: Array) -> bool:
 	for key: String in keys:
 		var def := WorldGen.object_definition(key)
+		if piece.object_name != def.get("name", ""):
+			continue
 		var size: Vector2 = def.get("size", Vector2.ZERO)
 		var placed: Vector2 = piece.size
-		if (piece.object_name == def.get("name", "")
-				and (placed.is_equal_approx(size)
-							or placed.is_equal_approx(Vector2(size.y, size.x)))):
+		if placed.is_equal_approx(size) or placed.is_equal_approx(Vector2(size.y, size.x)):
 			return true
 	return false

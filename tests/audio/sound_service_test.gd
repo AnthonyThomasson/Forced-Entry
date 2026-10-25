@@ -31,7 +31,26 @@ func _step(at: Vector2 = Vector2(400, 250), foot: int = 0) -> void:
 
 
 func run(t: TestContext) -> void:
-	# --- Voice caps: ten footsteps at once, three voices.
+	_check_caps(t)
+
+	# --- Voices free themselves once their clip has played.
+	await t.seconds(1.5)
+	t.expect_eq(Sound.active(), 0, "after the clips end no voice is sounding")
+
+	await _check_variety(t)
+
+	# --- Reset makes the service start over: the same events play the same way.
+	var run_a := _burst(t)
+	await t.seconds(0.5)
+	var run_b := _burst(t)
+	t.check(run_a == run_b, "after a reset the same burst picks the same variants and pitches")
+	t.check(run_a.size() == 12, "(a burst of %d)" % run_a.size())
+	_check_rng(t)
+	_check_range(t)
+
+
+## Voice caps: ten footsteps at once, three voices.
+func _check_caps(t: TestContext) -> void:
 	Sound.reset()
 	for i in 10:
 		_step()
@@ -44,11 +63,9 @@ func run(t: TestContext) -> void:
 	t.expect_eq(Sound.active(&"footstep"), 3, "without costing a step its voice")
 	t.expect_eq(Sound.active(), 4, "four voices in all")
 
-	# --- Voices free themselves once their clip has played.
-	await t.seconds(1.5)
-	t.expect_eq(Sound.active(), 0, "after the clips end no voice is sounding")
 
-	# --- Variety: many identical events do not repeat one clip.
+## Variety: many identical events do not repeat one clip.
+func _check_variety(t: TestContext) -> void:
 	Sound.reset()
 	var from := Probe.sounds(t, &"footstep").size()
 	for i in 24:
@@ -73,6 +90,11 @@ func run(t: TestContext) -> void:
 		pitches.size() > 12,
 		"pitch varies from step to step (%d distinct pitches)" % pitches.size(),
 	)
+	_check_swing(t, steps)
+
+
+## The `steps` (left feet) swing through the footstep jitter's pitch range and differ in loudness.
+func _check_swing(t: TestContext, steps: Array) -> void:
 	var swing: float = SoundConfig.pitch_jitter * SoundConfig.category_jitter_scale[&"footstep"]
 	var lo := 9.0
 	var hi := -9.0
@@ -97,14 +119,9 @@ func run(t: TestContext) -> void:
 		"and differ in loudness (%.1f dB apart)" % (loudest - quietest),
 	)
 
-	# --- Reset makes the service start over: the same events play the same way.
-	var run_a := _burst(t)
-	await t.seconds(0.5)
-	var run_b := _burst(t)
-	t.check(run_a == run_b, "after a reset the same burst picks the same variants and pitches")
-	t.check(run_a.size() == 12, "(a burst of %d)" % run_a.size())
 
-	# --- Sound never draws from the gameplay RNG.
+## Sound never draws from the gameplay RNG.
+func _check_rng(t: TestContext) -> void:
 	seed(4321)
 	var expected := randf()
 	seed(4321)
@@ -117,7 +134,9 @@ func run(t: TestContext) -> void:
 		)
 	t.expect_eq(randf(), expected, "a burst of sounds leaves the gameplay RNG where it was")
 
-	# --- Range: the pure function the service asks.
+
+## Range: the pure function the service asks.
+func _check_range(t: TestContext) -> void:
 	var centre := Vector2(1000, 1000)
 	SoundConfig.category_range = { &"footstep": 900.0, &"shot": 2400.0 }
 	t.check(

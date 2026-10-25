@@ -61,24 +61,29 @@ func _survey(t: TestContext, check_cover: bool) -> int:
 				var f: Dictionary = furniture[room["key"]]
 				pieces += f["count"]
 				if check_cover:
-					var floor_area := (room["rect"] as Rect2).grow(-12.0).get_area()
-					var floor_min: float = (MIN_COVER_CORRIDOR
-							if room["type"] in CORRIDORS
-							else MIN_COVER)
-					t.check(
-						f["area"] / floor_area >= floor_min,
-						"%s seed %d: the %s (%s) is %.0f%% furnished, at least %.0f%% expected" % [
-							plan,
-							house_seed,
-							room["key"],
-							room["type"],
-							100.0 * f["area"] / floor_area,
-							100.0 * floor_min,
-						],
-					)
+					_check_cover(t, "%s seed %d" % [plan, house_seed], room, f)
 			house.free()
 	holder.free()
 	return pieces
+
+
+## Room `room` of house `label` is furnished at least to its expected cover (`f` its solid
+## pieces' `{ count, area }`).
+func _check_cover(t: TestContext, label: String, room: Dictionary, f: Dictionary) -> void:
+	var floor_area := (room["rect"] as Rect2).grow(-12.0).get_area()
+	var floor_min: float = (MIN_COVER_CORRIDOR
+			if room["type"] in CORRIDORS
+			else MIN_COVER)
+	t.check(
+		f["area"] / floor_area >= floor_min,
+		"%s: the %s (%s) is %.0f%% furnished, at least %.0f%% expected" % [
+			label,
+			room["key"],
+			room["type"],
+			100.0 * f["area"] / floor_area,
+			100.0 * floor_min,
+		],
+	)
 
 
 func run(t: TestContext) -> void:

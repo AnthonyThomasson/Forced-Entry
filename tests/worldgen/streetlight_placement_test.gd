@@ -103,26 +103,22 @@ func _carved(holes: Array, p: Vector2) -> bool:
 	)
 
 
-func _check_house(t: TestContext, plan: String, house_seed: int, tally: Array) -> void:
-	var label := "%s seed %d" % [plan, house_seed]
-	var house := WorldGen.generate(house_seed, plan, ELSEWHERE, t.world)
-	await t.frames(1)
-	var rooms := WorldGen.get_rooms(house)
-	var bounds := _bounds(rooms)
-	var rect_of := {}
-	for room in rooms:
-		rect_of[room["key"]] = room["rect"]
-
-	# The front sidewalk: the sidewalk piece of the street along the house's south side.
+## The front sidewalk of `house`: the sidewalk piece of its street along the south side of its
+## rooms (`bounds`), or an empty rect.
+func _front_band(house: Node2D, bounds: Rect2) -> Rect2:
 	var band := Rect2()
 	for piece: Dictionary in WorldGen.get_street(house):
 		var r: Rect2 = piece["rect"]
 		if piece["kind"] == "sidewalk" and r.position.y >= bounds.end.y - 1.0:
 			band = r
-	if not t.check(band.has_area(), "%s: the street has a front sidewalk" % label):
-		house.queue_free()
-		return
+	return band
 
+
+## The no-lamp zone of each front or exit doorway of `house` (its `rooms`): `{ pos, strip }`.
+func _door_zones(house: Node2D, rooms: Array) -> Array:
+	var rect_of := {}
+	for room in rooms:
+		rect_of[room["key"]] = room["rect"]
 	var zones: Array = []
 	for door: Dictionary in WorldGen.get_openings(house):
 		if door["front"] or door["exit"]:
@@ -130,8 +126,20 @@ func _check_house(t: TestContext, plan: String, house_seed: int, tally: Array) -
 				"pos": door["pos"],
 				"strip": _strip(door, _outward(door, rect_of[door["rooms"][0]])),
 			})
-	var forbidden := _forbidden(zones, band)
+	return zones
 
+
+func _check_house(t: TestContext, plan: String, house_seed: int, tally: Array) -> void:
+	var label := "%s seed %d" % [plan, house_seed]
+	var house := WorldGen.generate(house_seed, plan, ELSEWHERE, t.world)
+	await t.frames(1)
+	var rooms := WorldGen.get_rooms(house)
+	var band := _front_band(house, _bounds(rooms))
+	if not t.check(band.has_area(), "%s: the street has a front sidewalk" % label):
+		house.queue_free()
+		return
+
+	var zones := _door_zones(house, rooms)
 	var lamps := WorldGen.get_streetlights(house)
 	tally[0] += lamps.size()
 	t.check(lamps.size() >= 1, "%s: streetlights stand along the front" % label)
@@ -139,52 +147,84 @@ func _check_house(t: TestContext, plan: String, house_seed: int, tally: Array) -
 	var xs: Array = []
 	for lamp: Dictionary in lamps:
 		var p: Vector2 = lamp["pos"]
-		var node := lamp["node"] as Node2D
 		xs.append(p.x)
 		var at := "%s: the streetlight at %s" % [label, p.round()]
-		t.check(band.grow(1.0).has_point(p), "%s stands on the front sidewalk %s" % [at, band])
-		for zone: Dictionary in zones:
-			var c: Vector2 = zone["pos"]
-			t.check(
-				p.distance_to(c) >= DOOR_CLEAR,
-				"%s is %.0f px from the doorway at %s (at least %.0f)"
-					% [at, p.distance_to(c), c, DOOR_CLEAR],
-			)
-			t.check(
-				not (zone["strip"] as Rect2).has_point(p),
-				"%s is in the strip out of the doorway at %s" % [at, c],
-			)
-		if not t.check(
-				node != null and house.is_ancestor_of(node),
-				"%s is a piece placed in the house" % at,
-		):
-			continue
-		t.check(node.global_position.distance_to(p) < 1.0, "%s: its node stands at its pos" % at)
+		_check_lamp_clear(t, at, p, zones, band)
+		_check_lamp_piece(t, at, lamp, house, holes)
+
+	xs.sort()
+	_check_spacing(t, label, xs, _forbidden(zones, band), band)
+	house.queue_free()
+	await t.frames(1)
+
+
+## The streetlight `at` (at `p`) stands on the front sidewalk `band`, clear of every doorway's
+## `zones`.
+func _check_lamp_clear(t: TestContext, at: String, p: Vector2, zones: Array, band: Rect2) -> void:
+	t.check(band.grow(1.0).has_point(p), "%s stands on the front sidewalk %s" % [at, band])
+	for zone: Dictionary in zones:
+		var c: Vector2 = zone["pos"]
 		t.check(
-			node is RigidBody2D and (node as RigidBody2D).freeze,
-			"%s is anchored (frozen)" % at,
+			p.distance_to(c) >= DOOR_CLEAR,
+			"%s is %.0f px from the doorway at %s (at least %.0f)"
+				% [at, p.distance_to(c), c, DOOR_CLEAR],
 		)
 		t.check(
-			node is CollisionObject2D
-				and (node as CollisionObject2D).collision_layer & PhysicsLayers.SOLID != 0,
-			"%s is solid (on PhysicsLayers.SOLID)" % at,
-		)
-		var surface: Dictionary = node.get_surface()
-		t.check(
-			surface["material"] == MATERIAL
-				and is_equal_approx(surface["coverage"], COVERAGE)
-				and is_equal_approx(surface["penetration"], PENETRATION),
-			"%s is a metal post (material %s, coverage %s, penetration %s)"
-				% [at, surface["material"], surface["coverage"], surface["penetration"]],
-		)
-		t.check(
-			_carved(holes, p),
-			"%s is carved into the nav map (NavBuilder.furniture_holes)" % at,
+			not (zone["strip"] as Rect2).has_point(p),
+			"%s is in the strip out of the doorway at %s" % [at, c],
 		)
 
-	# Spacing along the row: neighbours MIN_GAP..MAX_GAP apart, and the row runs the length of the
-	# front; a wider gap (or a longer bare end) only where a doorway's rule dropped a lamp.
-	xs.sort()
+
+## The streetlight `at` (`lamp`) is a solid, anchored metal post placed in `house`, carved into the
+## nav map (`holes`).
+func _check_lamp_piece(
+	t: TestContext,
+	at: String,
+	lamp: Dictionary,
+	house: Node2D,
+	holes: Array,
+) -> void:
+	var p: Vector2 = lamp["pos"]
+	var node := lamp["node"] as Node2D
+	if not t.check(
+			node != null and house.is_ancestor_of(node),
+			"%s is a piece placed in the house" % at,
+	):
+		return
+	t.check(node.global_position.distance_to(p) < 1.0, "%s: its node stands at its pos" % at)
+	t.check(
+		node is RigidBody2D and (node as RigidBody2D).freeze,
+		"%s is anchored (frozen)" % at,
+	)
+	t.check(
+		node is CollisionObject2D
+			and (node as CollisionObject2D).collision_layer & PhysicsLayers.SOLID != 0,
+		"%s is solid (on PhysicsLayers.SOLID)" % at,
+	)
+	var surface: Dictionary = node.get_surface()
+	t.check(
+		surface["material"] == MATERIAL
+			and is_equal_approx(surface["coverage"], COVERAGE)
+			and is_equal_approx(surface["penetration"], PENETRATION),
+		"%s is a metal post (material %s, coverage %s, penetration %s)"
+			% [at, surface["material"], surface["coverage"], surface["penetration"]],
+	)
+	t.check(
+		_carved(holes, p),
+		"%s is carved into the nav map (NavBuilder.furniture_holes)" % at,
+	)
+
+
+## Spacing along the row (`xs`, sorted, of house `label`): neighbours MIN_GAP..MAX_GAP apart, and
+## the row runs the length of the front `band`; a wider gap (or a longer bare end) only where a
+## doorway's rule (`forbidden`) dropped a lamp.
+func _check_spacing(
+	t: TestContext,
+	label: String,
+	xs: Array,
+	forbidden: Array,
+	band: Rect2,
+) -> void:
 	for i in range(1, xs.size()):
 		var gap: float = xs[i] - xs[i - 1]
 		t.check(
@@ -192,26 +232,25 @@ func _check_house(t: TestContext, plan: String, house_seed: int, tally: Array) -
 			"%s: streetlights at x %.0f and %.0f are %.0f px apart (at least %.0f)"
 				% [label, xs[i - 1], xs[i], gap, MIN_GAP],
 		)
+		var wide := "%s: a %.0f px gap between the streetlights at x %.0f and %.0f with no doorway"
 		t.check(
 			gap <= MAX_GAP or _explained(forbidden, xs[i - 1], xs[i]),
-			("%s: a %.0f px gap between the streetlights at x %.0f and %.0f with no doorway in it "
-					+ "(at most %.0f)") % [label, gap, xs[i - 1], xs[i], MAX_GAP],
+			(wide + " in it (at most %.0f)") % [label, gap, xs[i - 1], xs[i], MAX_GAP],
 		)
-	if not xs.is_empty():
-		var west: float = xs[0] - band.position.x
-		var east: float = band.end.x - xs[xs.size() - 1]
-		t.check(
-			west <= MAX_GAP or _explained(forbidden, band.position.x, xs[0]),
-			("%s: the first streetlight is %.0f px from the west end of the front with no doorway "
-					+ "between") % [label, west],
-		)
-		t.check(
-			east <= MAX_GAP or _explained(forbidden, xs[xs.size() - 1], band.end.x),
-			("%s: the last streetlight is %.0f px from the east end of the front with no doorway "
-					+ "between") % [label, east],
-		)
-	house.queue_free()
-	await t.frames(1)
+	if xs.is_empty():
+		return
+	var west: float = xs[0] - band.position.x
+	var east: float = band.end.x - xs[xs.size() - 1]
+	t.check(
+		west <= MAX_GAP or _explained(forbidden, band.position.x, xs[0]),
+		("%s: the first streetlight is %.0f px from the west end of the front with no doorway "
+				+ "between") % [label, west],
+	)
+	t.check(
+		east <= MAX_GAP or _explained(forbidden, xs[xs.size() - 1], band.end.x),
+		("%s: the last streetlight is %.0f px from the east end of the front with no doorway "
+				+ "between") % [label, east],
+	)
 
 
 func run(t: TestContext) -> void:

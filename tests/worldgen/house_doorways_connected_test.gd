@@ -80,26 +80,53 @@ func _check_house(t: TestContext, plan: String, house_seed: int) -> void:
 				and NavigationServer2D.map_get_closest_point_owner(map, centre) == region.get_rid())
 	await t.until(synced, 5.0, "%s: the nav map took in the house's navmesh" % label)
 
+	_check_rooms(t, label, map, rooms, openings)
+	_check_passable(t, label, map, openings, _rects_by_key(rooms))
+	_check_from_front(t, label, map, openings, _rects_by_key(rooms))
+
+	region.queue_free()
+	house.queue_free()
+	await t.frames(2)
+
+
+## Each room's rect by its key.
+func _rects_by_key(rooms: Array) -> Dictionary:
 	var rect_of := {}
 	for room in rooms:
 		rect_of[room["key"]] = room["rect"]
+	return rect_of
 
-	# Per room: every pair of its doorways connects.
+
+## Per room: every pair of its doorways connects.
+func _check_rooms(t: TestContext, label: String, map: RID, rooms: Array, openings: Array) -> void:
 	for room in rooms:
 		var rect: Rect2 = room["rect"]
 		var points: Array = []
 		for opening in openings:
 			if room["key"] in opening["rooms"]:
 				points.append(_inside(opening["pos"], rect))
-		for i in points.size():
-			for j in range(i + 1, points.size()):
-				t.check(
-					_reachable(map, points[i], points[j]),
-					"%s: doorways %s and %s in %s cannot reach each other"
-						% [label, points[i], points[j], room["key"]],
-				)
+		_check_pairs(t, label, map, points, room["key"])
 
-	# Each doorway is passable from either side.
+
+## Every pair of `points` (the doorways of room `key`) connects.
+func _check_pairs(t: TestContext, label: String, map: RID, points: Array, key: String) -> void:
+	for i in points.size():
+		for j in range(i + 1, points.size()):
+			t.check(
+				_reachable(map, points[i], points[j]),
+				"%s: doorways %s and %s in %s cannot reach each other"
+					% [label, points[i], points[j], key],
+			)
+
+
+## Each doorway is passable from either side.
+func _check_passable(
+	t: TestContext,
+	label: String,
+	map: RID,
+	openings: Array,
+	rect_of: Dictionary,
+) -> void:
 	for opening in openings:
 		var keys: Array = opening["rooms"]
 		var a: Vector2
@@ -113,23 +140,40 @@ func _check_house(t: TestContext, plan: String, house_seed: int) -> void:
 		t.check(_reachable(map, a, b) and _reachable(map, b, a),
 			"%s: doorway at %s (%s) cannot be passed through" % [label, opening["pos"], keys])
 
-	# Every doorway (so every room) is reachable from outside the front entrance.
+
+## Every doorway (so every room) is reachable from outside the front entrance.
+func _check_from_front(
+	t: TestContext,
+	label: String,
+	map: RID,
+	openings: Array,
+	rect_of: Dictionary,
+) -> void:
+	var sides := _doorway_sides(openings, rect_of)
 	for front in openings:
 		if not front["front"]:
 			continue
 		var start := _outside(front["pos"], rect_of[front["rooms"][0]])
-		for opening in openings:
-			for key in opening["rooms"]:
-				var target := _inside(opening["pos"], rect_of[key])
-				t.check(
-					_reachable(map, start, target),
-					"%s: doorway at %s into %s is not reachable from the front entrance"
-						% [label, opening["pos"], key],
-				)
+		for side: Dictionary in sides:
+			t.check(
+				_reachable(map, start, side["target"]),
+				"%s: doorway at %s into %s is not reachable from the front entrance"
+					% [label, side["pos"], side["key"]],
+			)
 
-	region.queue_free()
-	house.queue_free()
-	await t.frames(2)
+
+## Each side of every doorway: `{ pos, key, target }`, the doorway, the room on that side and the
+## point just inside it.
+func _doorway_sides(openings: Array, rect_of: Dictionary) -> Array:
+	var sides: Array = []
+	for opening in openings:
+		for key in opening["rooms"]:
+			sides.append({
+				"pos": opening["pos"],
+				"key": key,
+				"target": _inside(opening["pos"], rect_of[key]),
+			})
+	return sides
 
 
 func run(t: TestContext) -> void:

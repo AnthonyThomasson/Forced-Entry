@@ -69,7 +69,9 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
 - **Placement** (`room_furnisher.gd`) fits each arrangement's footprint against a random wall
   without overlap, rotates/mirrors it, then hands each object's definition to `ObjectFactory`
   (item `facing` mapped onto the wall by `_map_dir`, the same way positions are, and passed as
-  `opts.facing`). `furnish` returns the palette it picked. `_try_place` is the one place a piece is
+  `opts.facing`). `furnish(site, interior, rng)` returns the palette it picked. `HouseSpawner` hands the furnisher and the dresser
+  each room as a `RoomSite` (`room_site.gd`: the plan's `room`, its `wall_thickness`, the doorway boxes `blocked`, the
+  `solids` placed so far, its `furniture` node and the `run_seed`). `_try_place` is the one place a piece is
   committed (tags, spot search, occupied/walk-grid bookkeeping).
 - **Fill pass**: a recipe may carry `fill: { target, options }`. After its zones, `_fill` keeps drawing
   random `options` (through the same placement checks) until the room's solid footprints cover `target`
@@ -97,7 +99,7 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
   draw, so it costs no extra RNG and seeds keep their layouts.
 - **Run-down dressing** (`room_dresser.gd`, `RoomDresser`): World-Gen places, the Objects domain draws. Where things gather is
   `RoomDresser.anchor`: a corner, along a wall's foot, or just beside a solid piece (the footprints `RoomFurnisher.furnish`
-  appends to its `solids` out-array, from the catalogue sizes), and whatever lands there stays within `WorldGenConfig.dress_near`
+  appends to the room's `RoomSite.solids`, from the catalogue sizes), and whatever lands there stays within `WorldGenConfig.dress_near`
   of a wall line or a solid piece. Per room, after furnishing: **clutter** (`strew`): 0-2 walk-over pieces from the recipe's
   `clutter` (`[key, weight]` pairs; default `GeneralCatalog.CLUTTER`: `trash`, `cables`, `cable_nest`, `cardboard`, `puddle`, all
   non-solid `decor` catalogue pieces), no key twice, each its own size (`clutter_scale`) and `v` detail variant, off the solid

@@ -21,7 +21,15 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# Weight bands follow the guns' own penetration (SMG 0.8, pistol 1.0, rifle 2.2).
+	_check_shots(t)
+	_check_impacts(t)
+	_check_footsteps(t)
+	_check_reloads(t)
+	_check_voiced(t)
+
+
+## Weight bands follow the guns' own penetration (SMG 0.8, pistol 1.0, rifle 2.2); shots by gun.
+func _check_shots(t: TestContext) -> void:
 	t.expect_eq(SoundBank.band(0.8), "light", "an SMG round is light")
 	t.expect_eq(SoundBank.band(1.0), "medium", "a pistol round is medium")
 	t.expect_eq(SoundBank.band(2.2), "heavy", "a rifle round is heavy")
@@ -51,6 +59,9 @@ func run(t: TestContext) -> void:
 		"no gun at all, a light round: the SMG",
 	)
 
+
+## Impacts by material, outcome and band.
+func _check_impacts(t: TestContext) -> void:
 	t.expect_eq(
 		SoundBank.impact_profile("metal", &"ricochet", 2.2),
 		&"impact/metal/ricochet/heavy",
@@ -94,6 +105,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(SoundBank.impact_profile("metal", &"", 1.0), &"", "nor does no outcome")
 
+
+## Footsteps by surface and gait.
+func _check_footsteps(t: TestContext) -> void:
 	t.expect_eq(
 		SoundBank.footstep_profile(&"carpet", false),
 		&"footstep/carpet/walk",
@@ -111,6 +125,9 @@ func run(t: TestContext) -> void:
 		"an unknown surface is the open ground",
 	)
 
+
+## Reloads by gun and stage; every gun has both.
+func _check_reloads(t: TestContext) -> void:
 	t.expect_eq(
 		SoundBank.reload_profile(&"rifle", &"out"),
 		&"reload/rifle/out",
@@ -145,7 +162,9 @@ func run(t: TestContext) -> void:
 				"the %s has a reload %s sound" % [gun, stage],
 			)
 
-	# Whatever the functions name, the bank can voice.
+
+## Whatever the functions name, the bank can voice.
+func _check_voiced(t: TestContext) -> void:
 	var named: Array[StringName] = []
 	for material in [
 			"", "wood", "metal", "glass", "ceramic", "stone", "plastic", "fabric", "foliage",
