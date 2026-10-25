@@ -55,11 +55,10 @@ func run(t: TestContext) -> void:
 func _compare(t: TestContext, house: Node2D, when: String) -> void:
 	var rooms: Array = t.rooms
 	var furniture := NavBuilder.furniture_holes(house)
-	var own: Dictionary = NavBuilder._source_for(house, rooms, RADIUS, [], furniture)
+	var site := NavSite.new(house, rooms, RADIUS)
+	var own: Dictionary = NavBuilder._source_for(site, [], furniture)
 	var shared: Dictionary = NavBuilder._source_for(
-		house,
-		rooms,
-		RADIUS,
+		site,
 		[],
 		furniture,
 		NavBuilder._walls_of(house, RADIUS),
