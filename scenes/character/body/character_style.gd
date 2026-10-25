@@ -67,20 +67,25 @@ static func _sleeves(look: Dictionary) -> Array:
 			if long and look["patchwork"]:
 				out[look["patch_side"]] = look["patch"]
 		"borg":
-			out = [null, null]
-			# One sleeve torn off: the chrome side bare, or the patch side when neither or both are
-			# chrome.
-			if long:
-				var arms: Array = look["chrome_arm"]
-				var torn: int = (0
-						if arms[0] and not arms[1]
-						else 1
-						if arms[1] and not arms[0]
-						else look["patch_side"])
-				out[1 - torn] = shirt
+			out = _borg_sleeves(look, shirt, long)
 	for side in 2:
 		if look["chrome_arm"][side]:
 			out[side] = null
+	return out
+
+
+## A borg's sleeves in `shirt`: none on a short-sleeved one; on a `long` one, one sleeve torn off:
+## the chrome side bare, or the patch side when neither or both are chrome.
+static func _borg_sleeves(look: Dictionary, shirt: Variant, long: bool) -> Array:
+	var out: Array = [null, null]
+	if long:
+		var arms: Array = look["chrome_arm"]
+		var torn: int = (0
+				if arms[0] and not arms[1]
+				else 1
+				if arms[1] and not arms[0]
+				else look["patch_side"])
+		out[1 - torn] = shirt
 	return out
 
 

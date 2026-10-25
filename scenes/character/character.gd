@@ -333,15 +333,7 @@ func _walk_frame(delta: float) -> void:
 	_push_slow = _ease_push_slow(_apply_pushes(), delta)
 	_kick.update(self, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(
-		delta,
-		facing,
-		get_real_velocity(),
-		speed,
-		_stances(),
-		_hands.punch_amounts(),
-		stun_level(),
-	)
+	pose.update(delta, _pose_drive(get_real_velocity(), stun_level()))
 	_legs.update(self, delta)
 	_footsteps.update(self, _footprints)
 
@@ -511,7 +503,20 @@ func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
-	pose.update(delta, facing, step, speed, _stances(), _hands.punch_amounts(), stun)
+	pose.update(delta, _pose_drive(step, stun))
+
+
+## What drives the pose this frame: the aim, the walk at `moving` (px/s), each hand's stance and
+## punch, and the `stun_at` level.
+func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
+	var drive := PoseDrive.new()
+	drive.facing = facing
+	drive.velocity = moving
+	drive.top_speed = speed
+	drive.stances = _stances()
+	drive.punch = _hands.punch_amounts()
+	drive.stun = stun_at
+	return drive
 
 
 ## Keep the collision exception with `body` (one the character just left: an interaction's object, a
