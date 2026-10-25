@@ -10,15 +10,21 @@ extends RefCounted
 const MASK := PhysicsLayers.SOLID
 
 
-## Strike every body a circle of `radius` at world `at` overlaps, but `character` itself and those
-## already in `struck` (each one struck is added to it), shoving it by `impulse` and dealing it
-## `damage`. `what` names the strike in the log line and `note` ends its bracket. With `first_only`
-## it stops after the first body.
-static func strike(character: CollisionObject2D, at: Vector2, radius: float, impulse: Vector2,
-		damage: float, struck: Dictionary, first_only: bool, on_hit: Callable, what: String,
-		note := "") -> void:
+## Strike every body the `blow`'s circle overlaps, but `character` itself and those already in
+## `struck` (each one struck is added to it), shoving it by the blow's `impulse` and dealing it its
+## `damage`. With `first_only` it stops after the first body.
+static func strike(
+	character: CollisionObject2D,
+	blow: MeleeBlow,
+	struck: Dictionary,
+	first_only: bool,
+	on_hit: Callable,
+) -> void:
+	var at := blow.at
+	var impulse := blow.impulse
+	var damage := blow.damage
 	var shape := CircleShape2D.new()
-	shape.radius = radius
+	shape.radius = blow.radius
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
 	params.collision_mask = MASK
@@ -33,7 +39,8 @@ static func strike(character: CollisionObject2D, at: Vector2, radius: float, imp
 		if pushed:
 			body.apply_impulse(impulse, at - (body as Node2D).global_position)
 		GameLog.say("%s hit %s for %.1f damage, push %.0f (%s%s)" % [
-			what, body.name, damage, impulse.length(), "pushable" if pushed else "fixed", note])
+			blow.what, body.name, damage, impulse.length(), "pushable" if pushed else "fixed",
+			blow.note])
 		on_hit.call(body, damage)
 		if body.has_method("take_damage"):
 			body.take_damage(damage)

@@ -53,7 +53,7 @@ func clear() -> void:
 
 
 ## Rest both legs of `character` against what is near and shove what a foot swings into.
-func update(character, delta: float) -> void:
+func update(character: CharacterBody2D, delta: float) -> void:
 	var space: PhysicsDirectSpaceState2D = character.get_world_2d().direct_space_state
 	if not _anything_near(space, character):
 		clear()
@@ -64,7 +64,7 @@ func update(character, delta: float) -> void:
 
 
 ## Whether anything solid is within `NEAR` px of the body centre.
-func _anything_near(space: PhysicsDirectSpaceState2D, character) -> bool:
+func _anything_near(space: PhysicsDirectSpaceState2D, character: CharacterBody2D) -> bool:
 	var circle := CircleShape2D.new()
 	circle.radius = NEAR
 	var params := PhysicsShapeQueryParameters2D.new()
@@ -76,7 +76,13 @@ func _anything_near(space: PhysicsDirectSpaceState2D, character) -> bool:
 
 
 ## Side `i`'s resting ankle (local x/y), or null when neither it nor the knee meets anything.
-func _rest_leg(space: PhysicsDirectSpaceState2D, character, rig, i: int, delta: float) -> Variant:
+func _rest_leg(
+	space: PhysicsDirectSpaceState2D,
+	character: CharacterBody2D,
+	rig: Rig,
+	i: int,
+	delta: float,
+) -> Variant:
 	var wanted: Vector3 = rig.point(Rig.ANKLE[i])
 	var ankle_at := Vector2(wanted.x, wanted.y)
 	var rested := _sweep(space, character, ankle_at)
@@ -92,8 +98,8 @@ func _rest_leg(space: PhysicsDirectSpaceState2D, character, rig, i: int, delta: 
 		# The knee would pass through something: step the foot back by how far it overshot, then
 		# rest it again.
 		rested = _sweep(space, character, rested + overshoot)
-	_press(space, character, 2 + i, knee_wanted, knee_rested, delta)
-	_press(space, character, i, ankle_at, rested, delta)
+	_press(character, 2 + i, knee_wanted, knee_rested, delta)
+	_press(character, i, ankle_at, rested, delta)
 	if (rested.distance_to(ankle_at) <= REST_EPS
 			and knee_rested.distance_to(knee_wanted) <= REST_EPS):
 		return null
@@ -103,7 +109,11 @@ func _rest_leg(space: PhysicsDirectSpaceState2D, character, rig, i: int, delta: 
 ## The place `target` (local px) can be reached from the body centre by a foot-sized circle:
 ## `target` itself when the way is clear, else where it first touches a wall or solid piece, slid
 ## along the surface for what is left.
-func _sweep(space: PhysicsDirectSpaceState2D, character, target: Vector2) -> Vector2:
+func _sweep(
+	space: PhysicsDirectSpaceState2D,
+	character: CharacterBody2D,
+	target: Vector2,
+) -> Vector2:
 	return Sweep.circle(
 		space,
 		character.global_position,
@@ -116,8 +126,13 @@ func _sweep(space: PhysicsDirectSpaceState2D, character, target: Vector2) -> Vec
 ## Shove the light piece (if any) that a point wanted at `wanted` but rested at `rested` (local px)
 ## is pressing into. `slot` indexes `_prev`: how fast the point is moving, in the world, into the
 ## piece sets the strength.
-func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vector2,
-		rested: Vector2, delta: float) -> void:
+func _press(
+	character: CharacterBody2D,
+	slot: int,
+	wanted: Vector2,
+	rested: Vector2,
+	delta: float,
+) -> void:
 	var previous = _prev[slot]
 	_prev[slot] = wanted
 	var into := wanted - rested
@@ -130,7 +145,7 @@ func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vect
 	if approach <= 0.0:
 		return
 	var at: Vector2 = character.global_position + rested
-	var piece := _pushable_at(space, character, at)
+	var piece := _pushable_at(character.get_world_2d().direct_space_state, character, at)
 	if piece == null:
 		return
 	var strength := (clampf(approach / maxf(float(character.speed), 1.0), 0.0, 1.0)
@@ -148,7 +163,11 @@ func _press(space: PhysicsDirectSpaceState2D, character, slot: int, wanted: Vect
 
 ## The light, pushable piece touching a foot-sized circle at world point `at`, or null: a body that
 ## takes an impulse and has a mass, and is not another character.
-func _pushable_at(space: PhysicsDirectSpaceState2D, character, at: Vector2) -> Node:
+func _pushable_at(
+	space: PhysicsDirectSpaceState2D,
+	character: CharacterBody2D,
+	at: Vector2,
+) -> Node:
 	var circle := CircleShape2D.new()
 	circle.radius = CharacterConfig.leg_radius + 1.5
 	var params := PhysicsShapeQueryParameters2D.new()
