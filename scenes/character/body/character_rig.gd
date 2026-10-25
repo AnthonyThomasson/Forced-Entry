@@ -7,7 +7,7 @@ extends RefCounted
 ##   feet at its hip frame, which stays planted while the shoulders twist over it.
 ## - Each arm is two-bone IK from its shoulder to where the hands layer holds the fist, at the
 ##   grip height of its stance, the elbow bent toward the stance's pole. A hand out of reach pulls
-##   its shoulder after it (a punch's lean-in), up to CharacterConfig.body_shoulder_reach.
+##   its shoulder after it (a punch's lean-in), up to CharacterBodyConfig.shoulder_reach.
 ## - Each foot strides fore and aft, opposite to the arm on its side, lifting as it swings through;
 ##   the knee is IK bent forward.
 ## - A crouch lowers the hips to the character's eased posture height and pitches the spine forward
@@ -22,8 +22,8 @@ extends RefCounted
 ## Joints are read by index (the constants below, shared with the ragdoll) through `point(i)`, and
 ## each foot's direction through `toes(i)`. Index pairs are per hand side (0 = the character's right
 ## as drawn, 1 = the left). A rig also answers `torso()` and `face()`, so a crouched body is drawn
-## like a fallen one. Tuning: CharacterConfig.body_*, CharacterStanceConfig.stances,
-## CharacterPostureConfig.postures.
+## like a fallen one. Tuning: CharacterBodyConfig, CharacterStrideConfig,
+## CharacterStanceConfig.stances, CharacterPostureConfig.postures.
 
 const HEAD := 0
 const CHEST := 1
@@ -178,15 +178,15 @@ class Measures:
 		r = character.radius
 		_frames()
 		_heights(character)
-		upper = CharacterConfig.body_upper_arm * r
-		fore = CharacterConfig.body_forearm * r
-		thigh = CharacterConfig.body_thigh * r
-		shin = CharacterConfig.body_shin * r
-		arm_reach = (upper + fore) * CharacterConfig.body_arm_extension
+		upper = CharacterBodyConfig.upper_arm * r
+		fore = CharacterBodyConfig.forearm * r
+		thigh = CharacterBodyConfig.thigh * r
+		shin = CharacterBodyConfig.shin * r
+		arm_reach = (upper + fore) * CharacterBodyConfig.arm_extension
 		foot_z = CharacterConfig.ragdoll_limb_radius * r
-		hip_half = (CharacterConfig.body_hip_width * r
+		hip_half = (CharacterBodyConfig.hip_width * r
 				* lerpf(1.0, CharacterPostureConfig.body_crouch_hip_width, folded))
-		foot_half = (CharacterConfig.body_hip_width * r
+		foot_half = (CharacterBodyConfig.hip_width * r
 				* lerpf(1.0, CharacterPostureConfig.body_crouch_foot_gap, folded))
 		foot_fwd = CharacterPostureConfig.body_crouch_foot_ahead * r * folded - lean * 0.5
 		var item: Item = character.current_item()
@@ -215,12 +215,12 @@ class Measures:
 		folded = clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
 		# A stun hunches it on.
 		pitch = deg_to_rad(CharacterPostureConfig.body_crouch_pitch) * folded + pose.hunch()
-		spine = (CharacterConfig.body_shoulder_height - CharacterConfig.body_hip_height) * r
+		spine = (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * r
 		lean = spine * sin(pitch)
 		# A run sinks.
-		hip_z = ((CharacterConfig.body_hip_height
-				- CharacterConfig.body_run_hip_drop * pose.run_amount()) * r * height)
-		chest_z = CharacterConfig.body_hip_height * r * height + spine * cos(pitch)
+		hip_z = ((CharacterBodyConfig.hip_height
+				- CharacterStrideConfig.body_run_hip_drop * pose.run_amount()) * r * height)
+		chest_z = CharacterBodyConfig.hip_height * r * height + spine * cos(pitch)
 
 
 	## Place the joints of `character`, as measured, into the rig's `points` (sized for every
@@ -241,7 +241,7 @@ class Measures:
 	func _trunk() -> void:
 		var lunge := Vector3(pose.torso_offset.x, pose.torso_offset.y, 0.0)
 		var neck_pitch := pitch + deg_to_rad(CharacterPostureConfig.body_crouch_neck_pitch) * folded
-		var neck := (CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r
+		var neck := (CharacterBodyConfig.head_height - CharacterBodyConfig.shoulder_height) * r
 		_points[CHEST] = lunge + fwd * lean * 0.5 + UP * chest_z
 		_points[HEAD] = (Vector3(pose.head_offset.x, pose.head_offset.y, 0.0)
 				+ fwd * (lean * 0.5 + neck * sin(neck_pitch))
@@ -260,7 +260,7 @@ class Measures:
 	func _arm(character: CharacterBody2D, i: int) -> void:
 		var out := -1.0 if i == 0 else 1.0
 		var shoulder: Vector3 = (_points[CHEST]
-				+ right * out * CharacterConfig.body_shoulder_width * r)
+				+ right * out * CharacterBodyConfig.shoulder_width * r)
 		var grip: Vector2 = character.hand_position(i)
 		var hand := Vector3(grip.x, grip.y, pose.grip_height(i) * r * height)
 		hand.z = clampf(hand.z, shoulder.z - arm_reach * 0.98, shoulder.z + arm_reach * 0.98)
@@ -268,7 +268,7 @@ class Measures:
 		var rise := hand.z - shoulder.z
 		var flat_reach := sqrt(maxf(arm_reach * arm_reach - rise * rise, 0.0))
 		if flat.length() > flat_reach:
-			var follow := minf(flat.length() - flat_reach, CharacterConfig.body_shoulder_reach * r)
+			var follow := minf(flat.length() - flat_reach, CharacterBodyConfig.shoulder_reach * r)
 			shoulder += Vector3(flat.x, flat.y, 0.0).normalized() * follow
 		var pole: Vector3 = pose.elbow_pole(i)
 		_points[SHOULDER[i]] = shoulder
@@ -304,11 +304,15 @@ class Measures:
 		var phase: float = pose.stride_phase() + (0.0 if i == 0 else PI)
 		var walk: float = pose.walk_amount()
 		var run: float = pose.run_amount()  # A run strides wider and lifts higher.
-		var stride := lerpf(CharacterConfig.body_stride, CharacterConfig.body_run_stride, run) \
+		var stride := lerpf(
+			CharacterStrideConfig.body_stride,
+			CharacterStrideConfig.body_run_stride,
+			run,
+		) \
 			* lerpf(1.0, CharacterPostureConfig.body_crouch_stride, folded) * staggered
 		var foot_lift := lerpf(
-			CharacterConfig.body_foot_lift,
-			CharacterConfig.body_run_foot_lift,
+			CharacterStrideConfig.body_foot_lift,
+			CharacterStrideConfig.body_run_foot_lift,
 			run,
 		)
 		var step := -sin(phase) * walk * stride * r
@@ -326,10 +330,10 @@ class Measures:
 		var hip: Vector3 = _points[HIP[i]]
 		var ankle: Vector3 = _points[ANKLE[i]]
 		var aim := Vector3(character.facing.x, character.facing.y, 0.0)
-		var kick_z := CharacterConfig.kick_foot_height * r * height
+		var kick_z := CharacterMeleeConfig.kick_foot_height * r * height
 		var leg_rise := hip.z - kick_z
 		var reach := minf(
-			CharacterConfig.kick_reach,
+			CharacterMeleeConfig.kick_reach,
 			sqrt(maxf((thigh + shin) * (thigh + shin) - leg_rise * leg_rise, 0.0)) * 0.98,
 		)
 		var thrown := hip + aim * reach

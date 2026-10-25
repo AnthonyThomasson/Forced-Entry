@@ -878,7 +878,7 @@ func _fallen_parts(rd: RefCounted) -> Array:
 	var head: Vector3 = rd.point(Rig.HEAD)
 	var chest: Vector3 = rd.point(Rig.CHEST)
 	var neck := CharacterConfig.body_neck_width
-	var neck_length := (CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r
+	var neck_length := (CharacterBodyConfig.head_height - CharacterBodyConfig.shoulder_height) * r
 	var neck_seg := _painted(_seg(chest, head, neck, neck, neck_length), _skin)
 	parts.append(_keyed(_chain([neck_seg]), "neck"))
 	parts.append(_head_part(rd))
@@ -930,12 +930,12 @@ func _arm_chain(j: RefCounted, i: int) -> Dictionary:
 	var fore: Dictionary = _arm_parts[i]["fore"]
 	return _chain([
 		_painted(
-			_seg(shoulder, elbow, arm[0], arm[1], CharacterConfig.body_upper_arm * r),
+			_seg(shoulder, elbow, arm[0], arm[1], CharacterBodyConfig.upper_arm * r),
 			upper["color"],
 			upper["opts"],
 		),
 		_painted(
-			_seg(elbow, hand, arm[1], arm[2], CharacterConfig.body_forearm * r),
+			_seg(elbow, hand, arm[1], arm[2], CharacterBodyConfig.forearm * r),
 			fore["color"],
 			fore["opts"],
 		),
@@ -952,11 +952,11 @@ func _leg_chain(j: RefCounted, i: int) -> Dictionary:
 	var knee: Vector3 = j.point(Rig.KNEE[i])
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var calf := knee.lerp(ankle, 0.35)
-	var shin := CharacterConfig.body_shin * r
+	var shin := CharacterBodyConfig.shin * r
 	var opts: Dictionary = _leg_opts[i]
 	var segs := [
 		_painted(
-			_seg(j.point(Rig.HIP[i]), knee, leg[0], leg[1], CharacterConfig.body_thigh * r),
+			_seg(j.point(Rig.HIP[i]), knee, leg[0], leg[1], CharacterBodyConfig.thigh * r),
 			_pants,
 			opts["thigh"],
 		),
@@ -979,7 +979,7 @@ func _add_boot(segs: Array, j: RefCounted, i: int, calf: Vector3) -> void:
 	var knee: Vector3 = j.point(Rig.KNEE[i])
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var r: float = _character.radius
-	var shin := CharacterConfig.body_shin * r
+	var shin := CharacterBodyConfig.shin * r
 	var opts: Dictionary = _leg_opts[i]
 	var top := knee.lerp(ankle, BOOT_TOP)
 	var top_width: float = lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
@@ -1003,7 +1003,7 @@ func _foot_seg(j: RefCounted, i: int, grow: float) -> Dictionary:
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var toes: Vector3 = j.toes(i)
 	var r: float = _character.radius
-	var foot := CharacterConfig.body_foot * r
+	var foot := CharacterBodyConfig.foot * r
 	var heel := ankle - toes * foot * 0.25
 	var tip := ankle + toes * foot * 0.75
 	return _painted(

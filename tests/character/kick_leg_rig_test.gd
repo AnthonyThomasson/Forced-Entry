@@ -36,7 +36,10 @@ func run(t: TestContext) -> void:
 	var kick := await _watch_kick(t, c, rest, still)
 	var out: float = kick["out"]
 	t.check(out > 30.0, "the foot is thrown out along the aim (%.1f px)" % out)
-	t.check(out <= CharacterConfig.kick_reach + 0.5, "no further than kick_reach (%.1f px)" % out)
+	t.check(
+		out <= CharacterMeleeConfig.kick_reach + 0.5,
+		"no further than kick_reach (%.1f px)" % out,
+	)
 	t.check(kick["high"] > rest.z + 10.0, "the foot is lifted (%.1f px up)" % kick["high"])
 	t.check(
 		kick["still_moved"] < 1.0,
@@ -70,8 +73,8 @@ func _watch_kick(t: TestContext, c: Node, rest: Vector3, still: Vector3) -> Dict
 			rig.point(Rig.ANKLE[1 - leg]).distance_to(still if leg == 0 else rest),
 		)
 		for bone in [
-				["thigh", Rig.HIP, Rig.KNEE, CharacterConfig.body_thigh],
-				["shin", Rig.KNEE, Rig.ANKLE, CharacterConfig.body_shin],
+				["thigh", Rig.HIP, Rig.KNEE, CharacterBodyConfig.thigh],
+				["shin", Rig.KNEE, Rig.ANKLE, CharacterBodyConfig.shin],
 		]:
 			var want: float = bone[3] * r
 			var got: float = rig.point(bone[1][leg]).distance_to(rig.point(bone[2][leg]))

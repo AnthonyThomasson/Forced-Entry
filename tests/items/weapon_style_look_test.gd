@@ -36,8 +36,8 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.switch(&"nav.rebake", false)
 	# Held still, so every held drawing is lit for the same angle.
-	s.set_static(CharacterConfig, &"pose_breath", 0.0)
-	s.set_static(CharacterConfig, &"pose_glance", 0.0)
+	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)
+	s.set_static(CharacterPoseHeadConfig, &"glance", 0.0)
 	# Bare-handed: the holder's own drawing holds no item; the probes draw the items in its hand.
 	s.actor(
 		&"holder",

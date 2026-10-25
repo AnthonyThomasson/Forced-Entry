@@ -49,8 +49,8 @@ func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void
 		momentum,
 		blow,
 		fwd,
-		CharacterConfig.body_hip_height * r,
-		CharacterConfig.body_shoulder_height * r,
+		CharacterBodyConfig.hip_height * r,
+		CharacterBodyConfig.shoulder_height * r,
 	)
 
 

@@ -639,7 +639,7 @@ func posture_folded() -> float:
 ## forward-leaning chest, and so does a stunned hunch (the chest's shift as the spine pitches
 ## forward by the pose's `hunch()`).
 func posture_hand_ahead() -> float:
-	var spine := (CharacterConfig.body_shoulder_height - CharacterConfig.body_hip_height) * radius
+	var spine := (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * radius
 	return (CharacterPostureConfig.body_crouch_hand_ahead * posture_folded()
 			+ spine * sin(pose.hunch()) * 0.5)
 

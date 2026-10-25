@@ -136,8 +136,8 @@ func _check_arms(t: TestContext, c: Node, when: String) -> void:
 	var rig = c.rig()
 	var r: float = c.radius
 	var bones := [
-		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
-		["forearm", Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
+		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
+		["forearm", Rig.ELBOW, Rig.HAND, CharacterBodyConfig.forearm],
 	]
 	for i in 2:
 		for bone in bones:

@@ -121,8 +121,8 @@ func _arm_stretch(you: Node) -> float:
 	var rig = you.rig()
 	for arm in 2:
 		for bone in [
-				[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
-				[Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
+				[Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
+				[Rig.ELBOW, Rig.HAND, CharacterBodyConfig.forearm],
 		]:
 			var want: float = bone[2] * you.radius
 			most = maxf(

@@ -82,12 +82,12 @@ character stops stepping it), before the Hands child's `_physics_process`, so ha
 frame's pose.
 - `head_angle`, `hand_angles[hand]`, `weapon_angle`, `torso_angle` each chase `facing` on their
   own damped angular spring — the head first, a steady hand next, the weapon a touch behind the
-  hand holding it, each free hand at its own pace (`pose_hand_pace_spread`), the shoulders last —
-  so a turn ripples through the body. Past its `max_lag` a part is reeled in at `pose_lag_catch`
+  hand holding it, each free hand at its own pace (`CharacterPoseHandConfig.hand_pace_spread`), the shoulders last —
+  so a turn ripples through the body. Past its `max_lag` a part is reeled in at `CharacterPoseTurnConfig.lag_catch`
   rather than snapped, so a sudden flick stays continuous.
 - **Hips:** `hip_angle` (the feet's facing) is planted while standing, so the shoulders twist over
   feet that stay put, and turns to the walking direction while walking (a backward step keeps the
-  feet facing the aim). The shoulders may twist `pose_hip_twist` off the hips before the feet
+  feet facing the aim). The shoulders may twist `CharacterPoseTurnConfig.hip_twist` off the hips before the feet
   re-plant toward the aim.
 - A stride phase advances with distance walked: the shoulders sway, free hands swing fore/aft in
   opposite phase (their stance's `swing`) while a steady hand only drifts sideways
@@ -115,9 +115,10 @@ frame's pose.
   stride π/2 and foot 0 at 3π/2, so the cos term lengthens one foot's step and shortens the other's), `hip_sway` (local px, the rig's pelvis)
   shifts the hips over the planted foot by `CharacterStunConfig.stagger_sway` and `head_offset` lolls across by `CharacterStunConfig.stagger_bob`, both x `_stun` x the walk
   amount (nothing standing still). The pace and the drift are the character's, unchanged.
-- Tuning: `CharacterConfig.pose_*` (per-part spring `freq` / `damping` / `max_lag` for head, steady
-  hands, weapon, free hands, shoulders and hips; lag catch, hand pace spread, hip twist, stride,
-  sway, steady drift, punch twist and lunge, bob, lean, breath, glance, recoil) and
+- Tuning: `CharacterPoseTurnConfig` (the lag catch, the head's, shoulders' and hips' springs `freq` / `damping` /
+  `max_lag`, the hip twist), `CharacterPoseHandConfig` (the steady hands', weapon's and free hands' springs, the hand pace
+  spread, the steady drift), `CharacterPoseHeadConfig` (bob, lean, breath, glance), `CharacterStrideConfig.pose_*` (stride,
+  sway), `CharacterMeleeConfig.pose_punch_*` (punch twist and lunge), `CharacterStanceConfig.pose_recoil*` (recoil) and
   `CharacterStanceConfig.stances` / `stance_ease`.
 
 
@@ -155,12 +156,12 @@ by index (`HEAD`, `CHEST`, `PELVIS`, `BELLY`, `SPINE` and per-side `SHOULDER`, `
   one shared by every solve and refilled: the frames, the posture's heights and fold, the bone lengths, the feet's spacing),
   then places the trunk, each arm, each leg into the rig's points (`Measures.place`) and the rested feet.
 - Upper body: chest and shoulders sit in the pose's twisted torso frame, shifted by `torso_offset`;
-  hips and feet in its `hip_angle` frame. Proportions are `CharacterConfig.body_*`, in body radii
-  (shoulders at `body_shoulder_height`, hips at `body_hip_height`, arms `body_upper_arm` +
-  `body_forearm` ≈ 38 px, legs `body_thigh` + `body_shin`).
+  hips and feet in its `hip_angle` frame. Proportions are `CharacterBodyConfig`'s, in body radii
+  (shoulders at `shoulder_height`, hips at `hip_height`, arms `upper_arm` +
+  `forearm` ≈ 38 px, legs `thigh` + `shin`).
 - Arms: two-bone IK (`Measures.bend`) from each shoulder to where the hands layer holds the fist, at the
   stance's grip height, the elbow toward the stance's pole. If the hand is out of reach
-  (`body_arm_extension` of the arm's length) its shoulder follows it, up to `body_shoulder_reach`;
+  (`CharacterBodyConfig.arm_extension` of the arm's length) its shoulder follows it, up to `CharacterBodyConfig.shoulder_reach`;
   past that the forearm stretches a little.
 - Legs: each ankle strides along the hips' forward by `body_stride`, in opposition to the arm on its
   side, lifting `body_foot_lift` as it swings through; the knee is IK bent forward; toes follow
@@ -364,7 +365,7 @@ fist's *raw* punch position — which extends into what is hit, unlike the drawn
 (`apply_impulse(impulse, at)`, `at` the fist's offset from the body, or the butt's for a long gun, so a piece struck near an end turns) and deals damage, both scaled by the swing's range of motion (how fast the fist
 is moving this frame; 1.0 = full-speed extend). Before the damage it emits `punched(hand, body, damage)` (the strike's `on_hit`) → the
 character re-emits `hit_landed(body, damage, hand)`. A punch pushes but never deforms; walls (no
-`apply_impulse`) take damage without moving. Tuned by `CharacterConfig.punch_impulse` /
+`apply_impulse`) take damage without moving. Tuned by `CharacterMeleeConfig.punch_impulse` /
 `punch_damage` (walking push tuned by the same holder). Test: `tests/character/punch_turns_furniture_test.gd`. A long gun's butt strike (`domain-items`) shortens the hand's extension by `Item.strike_forward()` + `strike_short()` and queries the hit at the butt (`Item.strike_end`) once it is ahead of the fist; the other hand is placed rigidly on the barrel (`_raw_hand_position`: the weapon hand's place plus `strike_direction` x `strike_support_gap()`, toward the butt, gripping from the first frame of the swing) so both arms follow the turning gun, the swing takes `strike_tempo()` times a fist's extend/retract time (the damage's range of motion is normalised by it), and the redraw key carries both hands' punch amounts, since the gun turns with them.
 
 ## The leg kick
@@ -379,4 +380,4 @@ circle of `kick_radius` at `kick_reach * amount()` ahead of the body centre is q
 `body_strike.gd` strike, at most one body a frame): each body is hit once per kick, shoved by `kick_impulse` along `facing` at the foot (`apply_impulse(impulse, at)`, so a piece kicked near an end turns), reported as
 `kicked(body, damage)` and then dealt `kick_damage` (`take_damage`) at full strength; on `kicked` the character posts `hit_landed(body, damage, 2)` and the `&"hit"` event with outcome `punch` (so it sounds like
 a punch; louder for its damage), like a punch it never deforms. The legs layer rests the thrown foot against walls like any other. Cleared
-on an interaction and on death. Tuning: `CharacterConfig.kick_*`. Tests: `tests/character/kick_*_test.gd`.
+on an interaction and on death. Tuning: `CharacterMeleeConfig.kick_*`. Tests: `tests/character/kick_*_test.gd`.

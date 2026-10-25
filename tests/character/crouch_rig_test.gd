@@ -107,9 +107,9 @@ func _check_stance(t: TestContext, standing: Dictionary, crouched: Dictionary, r
 ## The crouched leg bones (`crouched`, a `_shape`; `r` the body radius) keep their lengths.
 func _check_bones(t: TestContext, crouched: Dictionary, r: float) -> void:
 	for bone in ["thigh", "shin"]:
-		var want: float = ((CharacterConfig.body_thigh
+		var want: float = ((CharacterBodyConfig.thigh
 				if bone == "thigh"
-				else CharacterConfig.body_shin) * r)
+				else CharacterBodyConfig.shin) * r)
 		var got: float = crouched[bone]
 		t.check(
 			absf(got - want) <= want * BONE_TOLERANCE,

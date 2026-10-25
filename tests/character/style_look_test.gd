@@ -54,8 +54,8 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	# Held still: a breathing or glancing body paints a few more textures as it moves, which two
 	# bodies would not share.
-	s.set_static(CharacterConfig, &"pose_breath", 0.0)
-	s.set_static(CharacterConfig, &"pose_glance", 0.0)
+	s.set_static(CharacterPoseHeadConfig, &"breath", 0.0)
+	s.set_static(CharacterPoseHeadConfig, &"glance", 0.0)
 	for i in STYLES.size():
 		var at := Vector2(280 + i * 60, Y)
 		s.actor(

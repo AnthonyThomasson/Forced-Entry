@@ -36,7 +36,7 @@ func _report(character: CharacterBody2D, footprints: BloodFootprints, foot: int)
 	var dir := Vector2(toes.x, toes.y)
 	var fall := Footfall.new()
 	fall.direction = dir
-	fall.length = CharacterConfig.body_foot * r
+	fall.length = CharacterBodyConfig.foot * r
 	fall.width = CharacterConfig.body_shoe_widths[0] * r
 	fall.at = character.global_position + Vector2(ankle.x, ankle.y) + dir * fall.length * 0.25
 	# Left foot (0) has its arch toward +y of the toe frame, right foot toward -y.

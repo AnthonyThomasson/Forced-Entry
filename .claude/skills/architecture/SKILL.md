@@ -1006,13 +1006,14 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into sixty-six `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-two `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
 `PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterPostureConfig`,
 `CharacterPaceConfig` (running, stamina, the outfit's weight), `CharacterPushConfig`, `CharacterStunConfig`, `CharacterHitConfig` (flesh,
 hit zones, sides), `CharacterShadowConfig`, `CharacterStyleConfig` (the styles), `CharacterStanceConfig` (stances, the muzzle, the
-raise, recoil), `CharacterConfig` (the punch and kick, the body, stride, pose, the fall and the art), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
+raise, recoil), `CharacterBodyConfig` (the skeleton), `CharacterStrideConfig`, `CharacterMeleeConfig` (punch and
+kick), `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterConfig` (the fall and the art), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
 (a wound's drips), `BloodSprayConfig` (a hit's spray), `BloodSplatConfig` (a splatter's shape), `BloodPoolConfig` (the
 bleed-out pool), `BloodSurfaceConfig` (the floor's grooves and soak), `BloodPrintConfig` (footprints), `BloodSmearConfig`
 (a smear's drag), `BloodSmearLookConfig` (a ribbon's look), `BloodTrailConfig` (blood pulled out of a pool), `ArtCanvasConfig` (the art pixel, the light,

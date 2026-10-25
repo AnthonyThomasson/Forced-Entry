@@ -46,11 +46,11 @@ func run(t: TestContext) -> void:
 			"the kick lands on the victim",
 	):
 		return
-	await t.seconds(CharacterConfig.kick_recover_time + 0.3)
+	await t.seconds(CharacterMeleeConfig.kick_recover_time + 0.3)
 	t.check(not you.is_kicking(), "the kick is over")
 	t.expect_near(
 		victim.health,
-		100.0 - CharacterConfig.kick_damage,
+		100.0 - CharacterMeleeConfig.kick_damage,
 		0.01,
 		"the victim lost exactly kick_damage (once)",
 	)
@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 	t.check(you.leg_kick_amount(1) == 0.0, "the left leg never kicks")
 	# A character is pushable too: the kick's shove, kick_impulse over the body's mass, is eaten by
 	# the knockback friction within a few frames, about a pixel of travel.
-	var knock: float = CharacterConfig.kick_impulse / victim.get_mass()
+	var knock: float = CharacterMeleeConfig.kick_impulse / victim.get_mass()
 	var travel: float = knock * knock / (2.0 * CharacterPushConfig.knockback_friction)
 	var shoved: Vector2 = victim.global_position - victim_start
 	t.check(

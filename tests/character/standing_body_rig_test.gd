@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 ## front with the other hand cupping it.
 func _check_stances(t: TestContext) -> void:
 	var r: float = t.actor(&"boxer").radius
-	var arm := (CharacterConfig.body_upper_arm + CharacterConfig.body_forearm) * r
+	var arm := (CharacterBodyConfig.upper_arm + CharacterBodyConfig.forearm) * r
 	for i in 2:
 		var low: float = t.actor(&"unarmed").rig().point(Rig.HAND[i]).z
 		var shoulder: float = t.actor(&"unarmed").rig().point(Rig.SHOULDER[i]).z
@@ -93,10 +93,10 @@ func _check_bones(t: TestContext, id: StringName, when: String) -> void:
 	var rig = c.rig()
 	var r: float = c.radius
 	var bones := [
-		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
-		["forearm", Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
-		["thigh", Rig.HIP, Rig.KNEE, CharacterConfig.body_thigh],
-		["shin", Rig.KNEE, Rig.ANKLE, CharacterConfig.body_shin],
+		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
+		["forearm", Rig.ELBOW, Rig.HAND, CharacterBodyConfig.forearm],
+		["thigh", Rig.HIP, Rig.KNEE, CharacterBodyConfig.thigh],
+		["shin", Rig.KNEE, Rig.ANKLE, CharacterBodyConfig.shin],
 	]
 	for i in 2:
 		for bone in bones:
@@ -133,11 +133,11 @@ func _check_punch(t: TestContext) -> void:
 		"the fist lands about %.0f px out (%.1f ahead)" % [landing, reach],
 	)
 	t.check(
-		twist > CharacterConfig.pose_punch_twist * 0.5,
+		twist > CharacterMeleeConfig.pose_punch_twist * 0.5,
 		"the shoulders twist into the punch (%.2f rad)" % twist,
 	)
 	t.check(
-		lean > CharacterConfig.pose_punch_lunge,
+		lean > CharacterMeleeConfig.pose_punch_lunge,
 		"the punching shoulder comes forward (%.1f px)" % lean,
 	)
 	await t.seconds(0.4)
@@ -163,12 +163,12 @@ func _check_hips(t: TestContext) -> void:
 		await t.seconds(0.1)
 		worst = maxf(worst, absf(angle_difference(unarmed.facing.angle(), unarmed.pose.hip_angle)))
 	t.check(
-		worst < CharacterConfig.pose_hip_twist + 0.3,
+		worst < CharacterPoseTurnConfig.hip_twist + 0.3,
 		"the hips are never twisted far past their limit (%.2f rad)" % worst,
 	)
 	t.check(
 		absf(angle_difference(unarmed.facing.angle(), unarmed.pose.hip_angle))
-			< CharacterConfig.pose_hip_twist + 0.15,
+			< CharacterPoseTurnConfig.hip_twist + 0.15,
 		"the feet end up within the twist limit of the aim",
 	)
 
@@ -196,7 +196,7 @@ func _check_stride(t: TestContext) -> void:
 		span = maxf(span, absf(fore[0][k]))
 		together += fore[0][k] * fore[1][k]
 	t.check(
-		span > CharacterConfig.body_stride * walker.radius * 0.6,
+		span > CharacterStrideConfig.body_stride * walker.radius * 0.6,
 		"the feet swing out fore and aft (%.1f px)" % span,
 	)
 	t.check(together < 0.0, "the feet swing in opposition (%.0f)" % together)

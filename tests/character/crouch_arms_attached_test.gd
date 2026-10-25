@@ -63,8 +63,8 @@ func run(t: TestContext) -> void:
 				% [i, start.distance_to(shoulders)],
 		)
 		for bone in [
-				[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
-				[Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
+				[Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
+				[Rig.ELBOW, Rig.HAND, CharacterBodyConfig.forearm],
 		]:
 			var want: float = bone[2] * r
 			var got: float = rig.point(bone[0][i]).distance_to(rig.point(bone[1][i]))

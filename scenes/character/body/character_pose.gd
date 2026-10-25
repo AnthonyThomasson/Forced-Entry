@@ -14,7 +14,8 @@ extends RefCounted
 ## hips swaying over the planted foot and the head lolling (docs/grenades.md G13). Owned and stepped
 ## by character.gd each physics frame; read by the hands (their rest pose), the rig (the joints) and
 ## the visuals (each part's angle and offset). Visual only: aim, shots and punches stay on `facing`.
-## Tuning: CharacterConfig.pose_*, and CharacterStunConfig's look_ease, hunch_pitch and stagger_*.
+## Tuning: CharacterPoseTurnConfig, CharacterPoseHandConfig, CharacterPoseHeadConfig, the stride's
+## CharacterStrideConfig.pose_*, and CharacterStunConfig's look_ease, hunch_pitch and stagger_*.
 
 ## A wavering hand (a stance's `waver`) also rises and falls, this many body radii per px of its
 ## wander across, this many seconds out of step with it.
@@ -128,8 +129,8 @@ func _step_stride(delta: float, velocity: Vector2, top_speed: float) -> void:
 		clampf((speed / maxf(top_speed, 1.0) - 1.0) / run_span, 0.0, 1.0),
 		1.0 - exp(-8.0 * delta),
 	)
-	var stride_length := lerpf(CharacterConfig.pose_stride_length,
-			CharacterConfig.pose_run_stride_length, _run)
+	var stride_length := lerpf(CharacterStrideConfig.pose_stride_length,
+			CharacterStrideConfig.pose_run_stride_length, _run)
 	stride_length *= lerpf(1.0, CharacterStunConfig.stagger_stride, _stun)
 	# A stunned walk staggers: one step comes longer than the next (a limp) and the pace of the
 	# steps wanders.
@@ -145,26 +146,26 @@ func _step_stride(delta: float, velocity: Vector2, top_speed: float) -> void:
 ## glances around while standing still and the shoulders sway with the walk.
 func _turn_parts(aim: float, delta: float) -> void:
 	var glance := (sin(_time * 0.5 + _phase) * 0.6 + sin(_time * 0.21 + _phase * 2.3) * 0.4) \
-		* CharacterConfig.pose_glance * (1.0 - _walk)
-	var sway := sin(_stride) * CharacterConfig.pose_walk_sway * _walk
+		* CharacterPoseHeadConfig.glance * (1.0 - _walk)
+	var sway := sin(_stride) * CharacterStrideConfig.pose_walk_sway * _walk
 	_head_vel = _accel(_head_vel, angle_difference(head_angle, aim + glance),
-		CharacterConfig.pose_head_freq, CharacterConfig.pose_head_damping, delta)
+		CharacterPoseTurnConfig.head_freq, CharacterPoseTurnConfig.head_damping, delta)
 	var head := _reel(head_angle + _head_vel * delta, _head_vel, aim,
-		CharacterConfig.pose_head_max_lag, delta)
+		CharacterPoseTurnConfig.head_max_lag, delta)
 	head_angle = head.x
 	_head_vel = head.y
 	for i in 2:
 		_turn_hand(i, aim, delta)
 	_weapon_vel = _accel(_weapon_vel, angle_difference(weapon_angle, aim),
-		CharacterConfig.pose_weapon_freq, CharacterConfig.pose_weapon_damping, delta)
+		CharacterPoseHandConfig.weapon_freq, CharacterPoseHandConfig.weapon_damping, delta)
 	var weapon := _reel(weapon_angle + _weapon_vel * delta, _weapon_vel, aim,
-		CharacterConfig.pose_weapon_max_lag, delta)
+		CharacterPoseHandConfig.weapon_max_lag, delta)
 	weapon_angle = weapon.x
 	_weapon_vel = weapon.y
 	_torso_vel = _accel(_torso_vel, angle_difference(_torso_core, aim + sway),
-		CharacterConfig.pose_torso_freq, CharacterConfig.pose_torso_damping, delta)
+		CharacterPoseTurnConfig.torso_freq, CharacterPoseTurnConfig.torso_damping, delta)
 	var torso := _reel(_torso_core + _torso_vel * delta, _torso_vel, aim,
-		CharacterConfig.pose_torso_max_lag, delta)
+		CharacterPoseTurnConfig.torso_max_lag, delta)
 	_torso_core = torso.x
 	_torso_vel = torso.y
 
@@ -172,14 +173,14 @@ func _turn_parts(aim: float, delta: float) -> void:
 ## Turn hand `i` toward `aim`: a steady one on the quick aim spring, a free one on the hand spring,
 ## each free hand at its own pace, so the pair doesn't turn as one rigid piece.
 func _turn_hand(i: int, aim: float, delta: float) -> void:
-	var freq := CharacterConfig.pose_aim_freq
-	var damping := CharacterConfig.pose_aim_damping
-	var max_lag := CharacterConfig.pose_aim_max_lag
+	var freq := CharacterPoseHandConfig.aim_freq
+	var damping := CharacterPoseHandConfig.aim_damping
+	var max_lag := CharacterPoseHandConfig.aim_max_lag
 	if not _steady[i]:
-		var pace := 1.0 + CharacterConfig.pose_hand_pace_spread * (-0.5 if i == 0 else 0.5)
-		freq = CharacterConfig.pose_hand_freq * pace
-		damping = CharacterConfig.pose_hand_damping
-		max_lag = CharacterConfig.pose_hand_max_lag
+		var pace := 1.0 + CharacterPoseHandConfig.hand_pace_spread * (-0.5 if i == 0 else 0.5)
+		freq = CharacterPoseHandConfig.hand_freq * pace
+		damping = CharacterPoseHandConfig.hand_damping
+		max_lag = CharacterPoseHandConfig.hand_max_lag
 	var vel := _accel(_hand_vels[i], angle_difference(hand_angles[i], aim), freq, damping, delta)
 	var hand := _reel(hand_angles[i] + vel * delta, vel, aim, max_lag, delta)
 	hand_angles[i] = hand.x
@@ -193,33 +194,33 @@ func _twist_torso(facing: Vector2, punch: Array) -> void:
 	var punching := maxf(punch[0], punch[1])
 	# The one on the forward-swinging arm's side comes forward. Added over the spring, which is far
 	# too slow to follow a stride.
-	var run_twist := -sin(_stride) * CharacterConfig.pose_run_sway * _run
+	var run_twist := -sin(_stride) * CharacterStrideConfig.pose_run_sway * _run
 	torso_angle = wrapf(
-		_torso_core + (punch[1] - punch[0]) * CharacterConfig.pose_punch_twist + run_twist,
+		_torso_core + (punch[1] - punch[0]) * CharacterMeleeConfig.pose_punch_twist + run_twist,
 		-PI,
 		PI,
 	)
 	# A runner leans into the run: the shoulders lead the hips along the way it travels.
-	torso_offset = facing * (punching * CharacterConfig.pose_punch_lunge) \
-		+ _move_dir * (CharacterConfig.pose_run_lean * _run)
+	torso_offset = facing * (punching * CharacterMeleeConfig.pose_punch_lunge) \
+		+ _move_dir * (CharacterStrideConfig.pose_run_lean * _run)
 
 
 ## The head's lean into the movement (`velocity` over `top_speed`), on a soft spring.
 func _step_lean(delta: float, velocity: Vector2, top_speed: float) -> void:
-	var lean_target := velocity / maxf(top_speed, 1.0) * CharacterConfig.pose_lean
+	var lean_target := velocity / maxf(top_speed, 1.0) * CharacterPoseHeadConfig.lean
 	_lean_vel = Vector2(
 		_accel(
 			_lean_vel.x,
 			lean_target.x - _lean.x,
-			CharacterConfig.pose_lean_freq,
-			CharacterConfig.pose_lean_damping,
+			CharacterPoseHeadConfig.lean_freq,
+			CharacterPoseHeadConfig.lean_damping,
 			delta,
 		),
 		_accel(
 			_lean_vel.y,
 			lean_target.y - _lean.y,
-			CharacterConfig.pose_lean_freq,
-			CharacterConfig.pose_lean_damping,
+			CharacterPoseHeadConfig.lean_freq,
+			CharacterPoseHeadConfig.lean_damping,
 			delta,
 		),
 	)
@@ -229,9 +230,9 @@ func _step_lean(delta: float, velocity: Vector2, top_speed: float) -> void:
 ## The head's shift (the lean, a breath along `facing`, a bob per step, the lunge) and a stagger's
 ## sway of the hips and loll of the head, then the shoulders' shift over the planted foot.
 func _place_head(facing: Vector2) -> void:
-	var breath := sin(_time * TAU / maxf(CharacterConfig.pose_breath_period, 0.1) + _phase) \
-		* CharacterConfig.pose_breath * (1.0 - _walk)
-	var bob := cos(_stride * 2.0) * CharacterConfig.pose_head_bob * _walk  # A bob per step.
+	var breath := sin(_time * TAU / maxf(CharacterPoseHeadConfig.breath_period, 0.1) + _phase) \
+		* CharacterPoseHeadConfig.breath * (1.0 - _walk)
+	var bob := cos(_stride * 2.0) * CharacterPoseHeadConfig.bob * _walk  # A bob per step.
 	# A stunned walk sways the hips over the planted foot (foot 0, the right, is planted while cos >
 	# 0) and lolls the head a quarter of a stride behind.
 	var across := Vector2.from_angle(hip_angle).orthogonal()
@@ -242,7 +243,7 @@ func _place_head(facing: Vector2) -> void:
 	# The upper body shifts over the planted foot each step (foot 0 is planted while cos > 0); the
 	# head is set before this, so it stays steady over the rocking shoulders.
 	torso_offset += Vector2.from_angle(hip_angle).orthogonal() * (-cos(_stride) \
-		* CharacterConfig.pose_run_shoulder_shift * _run)
+		* CharacterStrideConfig.pose_run_shoulder_shift * _run)
 
 
 ## The hips plant while standing and turn to the way the character walks (a backward step stays
@@ -254,10 +255,10 @@ func _step_hips(delta: float, aim: float) -> void:
 		if absf(angle_difference(aim, target)) > PI * 0.5:
 			target += PI  # Walking backward: the feet still face the aim.
 	# The hips' own spring never reels them in: their twist off the aim is held below.
-	var vel := _accel(_hip_vel, angle_difference(hip_angle, target), CharacterConfig.pose_hip_freq,
-		CharacterConfig.pose_hip_damping, delta)
+	var vel := _accel(_hip_vel, angle_difference(hip_angle, target),
+		CharacterPoseTurnConfig.hip_freq, CharacterPoseTurnConfig.hip_damping, delta)
 	var hips := _reel(hip_angle + vel * delta, vel, target, PI, delta)
-	var planted := _reel(hips.x, hips.y, aim, CharacterConfig.pose_hip_twist, delta)
+	var planted := _reel(hips.x, hips.y, aim, CharacterPoseTurnConfig.hip_twist, delta)
 	hip_angle = planted.x
 	_hip_vel = planted.y
 
@@ -269,7 +270,7 @@ func hand_offset(hand: int) -> Vector2:
 	var along := Vector2.from_angle(hand_angles[hand])
 	var step := sin(_stride + (0.0 if hand == 0 else PI)) * _walk
 	if _steady[hand]:
-		return (along.orthogonal() * (step * CharacterConfig.pose_aim_drift + _waver(hand, 0.0))
+		return (along.orthogonal() * (step * CharacterPoseHandConfig.aim_drift + _waver(hand, 0.0))
 				- along * _recoil[hand])
 	return along * (step * float(_stance[hand]["swing"]) - _recoil[hand])
 
@@ -299,7 +300,7 @@ func grip_height(hand: int) -> float:
 	# Running pumps the arms: the hand swinging forward rises toward the chest, the back one drops
 	# to the hip.
 	var step := sin(_stride + (0.0 if hand == 0 else PI))
-	return (_stance[hand]["height"] + step * CharacterConfig.pose_run_hand_rise * _run
+	return (_stance[hand]["height"] + step * CharacterStrideConfig.pose_run_hand_rise * _run
 			+ _waver(hand, WAVER_LAG) * WAVER_RISE)
 
 
@@ -310,7 +311,8 @@ func elbow_pole(hand: int) -> Vector3:
 	# shoulder, the hand and this pole, so a fixed pole would throw the elbow out sideways at one
 	# end of the swing).
 	var pole: Vector3 = _stance[hand]["elbow_pole"]
-	pole.z -= sin(_stride + (0.0 if hand == 0 else PI)) * CharacterConfig.pose_run_elbow_lift * _run
+	pole.z -= (sin(_stride + (0.0 if hand == 0 else PI)) * CharacterStrideConfig.pose_run_elbow_lift
+			* _run)
 	return pole
 
 
@@ -354,8 +356,8 @@ func kick(hand: int, strength := 1.0) -> void:
 		* float(_stance[other]["recoil_share"])
 	)
 	var side := -1.0 if hand == 0 else 1.0
-	_torso_vel -= (side * CharacterStanceConfig.pose_recoil_twist * CharacterConfig.pose_torso_freq
-			* strength)
+	_torso_vel -= (side * CharacterStanceConfig.pose_recoil_twist
+			* CharacterPoseTurnConfig.torso_freq * strength)
 
 
 ## A stance's configured values by name (an unknown name is a relaxed hand).
@@ -374,14 +376,14 @@ static func _eased(now: Dictionary, to: Dictionary, delta: float) -> Dictionary:
 	return out
 
 
-## `angle` past `max_lag` behind `aim` is reeled back in quickly (CharacterConfig.pose_lag_catch)
+## `angle` past `max_lag` behind `aim` is reeled back in quickly (CharacterPoseTurnConfig.lag_catch)
 ## rather than snapped, so a sudden flick drags it along smoothly instead of leaving it behind.
 ## Returns (angle, velocity).
 static func _reel(angle: float, vel: float, aim: float, max_lag: float, delta: float) -> Vector2:
 	var lag := angle_difference(aim, angle)
 	if absf(lag) > max_lag:
 		var excess := lag - signf(lag) * max_lag
-		angle -= excess * (1.0 - exp(-CharacterConfig.pose_lag_catch * delta))
+		angle -= excess * (1.0 - exp(-CharacterPoseTurnConfig.lag_catch * delta))
 		if signf(vel) == signf(lag):
 			vel = 0.0  # Moving further away from the aim: stop it there.
 	return Vector2(wrapf(angle, -PI, PI), vel)

@@ -6,7 +6,7 @@ extends RefCounted
 ## out (`character.leg_kick_amount(i)`), and during the strike a shape query at the foot reports
 ## every body it reaches, once each per kick: it shoves a pushable (`apply_impulse`) and damages
 ## whatever takes damage (`take_damage`), then emits `kicked`. Like a punch it never deforms what it
-## hits. Tuning: CharacterConfig.kick_*.
+## hits. Tuning: CharacterMeleeConfig.kick_*.
 
 ## A body was struck: the damage it was dealt (a kick is always full strength).
 signal kicked(body: Node, damage: float)
@@ -49,9 +49,9 @@ func is_active() -> bool:
 func amount() -> float:
 	match _phase:
 		Phase.STRIKE:
-			return clampf(_time / CharacterConfig.kick_strike_time, 0.0, 1.0)
+			return clampf(_time / CharacterMeleeConfig.kick_strike_time, 0.0, 1.0)
 		Phase.RECOVER:
-			return 1.0 - clampf(_time / CharacterConfig.kick_recover_time, 0.0, 1.0)
+			return 1.0 - clampf(_time / CharacterMeleeConfig.kick_recover_time, 0.0, 1.0)
 	return 0.0
 
 
@@ -69,23 +69,28 @@ func update(character: CharacterBody2D, delta: float) -> void:
 	_time += delta
 	if _phase == Phase.STRIKE:
 		_strike(character)
-		if _time >= CharacterConfig.kick_strike_time:
+		if _time >= CharacterMeleeConfig.kick_strike_time:
 			_phase = Phase.RECOVER
 			_time = 0.0
-	elif _time >= CharacterConfig.kick_recover_time:
+	elif _time >= CharacterMeleeConfig.kick_recover_time:
 		clear()
 
 
 ## Where the foot is, in the world: out along the facing by the throw so far.
 func foot_world(character: CharacterBody2D) -> Vector2:
-	return character.global_position + character.facing * (CharacterConfig.kick_reach * amount())
+	return (
+		character.global_position + character.facing * (CharacterMeleeConfig.kick_reach * amount())
+	)
 
 
 ## Shove and damage the first body the foot overlaps that this kick has not struck yet
 ## (`body_strike.gd`), at the foot, so a piece struck off-centre turns.
 func _strike(character: CharacterBody2D) -> void:
 	var blow := MeleeBlow.new(
-		foot_world(character), CharacterConfig.kick_radius,
-		character.facing * CharacterConfig.kick_impulse, CharacterConfig.kick_damage, "Kick",
+		foot_world(character),
+		CharacterMeleeConfig.kick_radius,
+		character.facing * CharacterMeleeConfig.kick_impulse,
+		CharacterMeleeConfig.kick_damage,
+		"Kick",
 	)
 	Strike.strike(character, blow, _hit_bodies, true, kicked.emit)

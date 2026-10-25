@@ -58,7 +58,7 @@ height, so a body on the floor would throw a shadow as long as a wall's. Only th
 `character_footsteps.gd` (a `RefCounted`, stepped by `character.gd` after the pose) spots each foot's landing:
 the foot is planted while `cos(stride_phase + (0|PI))` is >= 0, so a landing is cos rising through 0
 (only above `MIN_WALK` walk amount; none while an interaction holds the character or once dead). On a landing it
-solves the rig once, reports the sole (middle, toes, `body_foot` x radius long, `body_shoe_widths[0]` wide) to the
+solves the rig once, reports the sole (middle, toes, `CharacterBodyConfig.foot` x radius long, `body_shoe_widths[0]` wide) to the
 `BloodFootprints` child (Physics), which decides whether it prints, and posts a `&"footfall"` `EventBus` event
 (`{ position` (the sole)`, foot` (0 left / 1 right)`, speed, running, character` (itself)`, crouched` (`posture() == crouch`)` }`) which
 the Audio domain turns into a step on the floor under it and the AI hears by (whose step, and how far it carries by gait, `docs/hearing.md` H1).
