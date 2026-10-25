@@ -49,16 +49,16 @@ func run(t: TestContext) -> void:
 	var slow_at := -1.0
 	var leave_speed := -1.0
 	var deadline := t.time + 20.0
-	while t.time < deadline and me.vehicle() != null:
+	while t.time < deadline and me.use.vehicle() != null:
 		await t.frames(1)
 		if slow_at < 0.0 and car.speed() <= Probe.EXIT_MAX_SPEED:
 			slow_at = t.time - pressed
-		var leaving: bool = not me.is_in_vehicle()
+		var leaving: bool = not me.use.is_in_vehicle()
 		for d: Dictionary in car.doors():
 			leaving = leaving or float(d.get("open", 0.0)) > 0.02
 		if leave_speed < 0.0 and leaving:
 			leave_speed = car.speed()
-	if not t.require(me.vehicle() == null, "the driver gets out in the end"):
+	if not t.require(me.use.vehicle() == null, "the driver gets out in the end"):
 		return
 	t.check(
 		leave_speed >= 0.0 and leave_speed <= Probe.EXIT_MAX_SPEED + 2.0,

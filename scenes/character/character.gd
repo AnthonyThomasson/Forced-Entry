@@ -17,23 +17,12 @@ signal hit_landed(body: Node, damage: float, hand: int)
 
 ## The `hit_landed` hand code of a leg kick (0/1 are the punching hands, -1 a shot).
 const KICK_HAND := 2
-## Extra gap (px) around the body before the collision with a body it left (`keep_clear_of`) is
-## restored.
-const CLEAR_MARGIN := 3.0
-## Interaction component (Interaction domain): finds and runs object interactions. Composed in
-## code like the other components; the character only forwards `try_interact()` and reads
-## `is_busy()` / `interaction_label()`.
-const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
 const CharacterPose = preload("res://scenes/character/body/character_pose.gd")
 const CharacterRig = preload("res://scenes/character/body/character_rig.gd")
 const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.gd")
 const CharacterFootsteps = preload("res://scenes/character/character_footsteps.gd")
 const CharacterLegs = preload("res://scenes/character/body/character_legs.gd")
 const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
-## Vehicle component (Vehicles domain): boards, rides and leaves vehicles. Composed in code like the
-## interaction; the character forwards `try_use_vehicle()`, `vehicle()`, `is_in_vehicle()` and lets
-## it drive the ride each frame.
-const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## Radius of the placeholder circle. Matches chair size (28x28 → 14 radius).
 ## Body circle radius (px).
@@ -98,11 +87,9 @@ var weapon := CharacterWeapon.new(self)
 var ammo := CharacterAmmo.new(self)
 ## The stun (a grenade's flash and bang; `take_stun`; `character_stun.gd`).
 var stun := CharacterStun.new(self)
-## A ride in a vehicle (the Vehicles domain moves the character through `set_ride_pose` /
-## `end_ride`): posed by it rather than walking, its collision shape off, its held item put away;
-## the step its legs take through the vehicle.
-var _riding := false
-var _ride_step := Vector2.ZERO
+## What occupies the body: an object interaction, a vehicle ride, and the collision exceptions
+## both leave behind (`character_use.gd`).
+var use := CharacterUse.new(self)
 ## What the character wears (Items domain; `set_outfit`): its armour, its weight and, for the art,
 ## its look. A new one wears nothing (no armour, no weight).
 var _outfit := Outfit.new()
@@ -120,19 +107,10 @@ var _footsteps := CharacterFootsteps.new()
 var _legs := CharacterLegs.new()
 ## The leg kick under way, if any (see character_kick.gd).
 var _kick := CharacterKick.new()
-## The CharacterInteraction child, built in _ready().
-var _interaction: Node
-## The CharacterVehicleUse child, built in _ready().
-var _vehicle_use: Node
-## The bodies just left (an interaction's object, a vehicle) whose collision exception waits for the
-## body to clear them.
-var _clearing: Array = []  # untyped: a body freed while waiting stays in it until the next check
 ## The living body's shadow (a LightOccluder2D child on `LightMasks.CHARACTER`, turned with
 ## `facing`); null while `LightMasks.shadows` is off, and freed on death.
 var _occluder: LightOccluder2D
 
-## The body's collision circle (its shape built in _ready()).
-@onready var _shape: CollisionShape2D = $CollisionShape2D
 ## The Hands child (character_hands.gd): hand geometry, the punch.
 @onready var _hands := $Hands
 
@@ -145,7 +123,7 @@ func _ready() -> void:
 	# Build the body's collision circle to match `radius`.
 	var circle := CircleShape2D.new()
 	circle.radius = radius
-	_shape.shape = circle
+	($CollisionShape2D as CollisionShape2D).shape = circle
 
 	health = max_health
 
@@ -172,11 +150,7 @@ func _ready() -> void:
 	_footprints = BloodFootprints.new()
 	add_child(_footprints)
 
-	_interaction = CharacterInteraction.new()
-	add_child(_interaction)
-
-	_vehicle_use = CharacterVehicleUse.new()
-	add_child(_vehicle_use)
+	use.attach()
 
 	_occluder = LightMasks.occluder(_shadow_footprint(), LightMasks.CHARACTER)
 	if _occluder != null:
@@ -186,7 +160,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_physics_step(delta)
-	_restore_cleared()
+	use.restore_cleared()
 	_turn_shadow()
 
 
@@ -231,19 +205,10 @@ func _physics_step(delta: float) -> void:
 	movement.pull(delta)
 	# A ride in a vehicle overrides the controller's intent: it walks the character to the door,
 	# poses it in and out, and hands its keys on to the vehicle from the driver's seat.
-	_vehicle_use.control(delta)
+	use.control(delta)
 	ammo.update(delta)
-
-	if _riding:
-		_ride_frame(delta)
-		return
-
-	# While in an interaction the character is fully frozen: it holds the exact spot the
-	# interaction placed it (possibly overlapping the object, via a collision exception the
-	# interaction sets) and runs no movement, aim, knockback or push. Skipping move_and_slide /
-	# _apply_pushes is what keeps a seated body from being ejected or shoving its neighbours.
-	if _interaction.is_busy():
-		_frozen_frame(delta, Vector2.ZERO, stun.level())
+	# A ride or an interaction holds the body still: no move_and_slide, aim, knockback or push.
+	if use.hold_frame(delta):
 		return
 	_walk_frame(delta)
 
@@ -275,65 +240,7 @@ func _walk_frame(delta: float) -> void:
 	_footsteps.update(self, _footprints)
 
 
-# --- Controller-facing API -------------------------------------------------------------
-
-
-## Toggle an object interaction: start the best one in reach, or end the active one. Starting one
-## stands the character up (sitting or lying is its own posture). Ignored while using a vehicle.
-func try_interact() -> void:
-	if _vehicle_use.is_active():
-		return
-	_interaction.try_interact()
-	_stand_if_busy()
-
-
-## The reachable objects and their valid actions, for a controller that wants to choose
-## deliberately (an AI). Each entry is `{ object, specs }`; empty when nothing is in reach.
-func interactions_in_reach() -> Array:
-	return _interaction.interactions_in_reach()
-
-
-## Begin the action `id` on `object` if it is reachable and valid; true on success. Lets a
-## controller pick both the object and the action, unlike the random `try_interact()`.
-func interact_with(object: Node, id: String) -> bool:
-	if _vehicle_use.is_active():
-		return false
-	var began: bool = _interaction.interact_with(object, id)
-	_stand_if_busy()
-	return began
-
-
-## End the active interaction, if any (explicit stop, vs the `try_interact()` toggle).
-func end_interaction() -> void:
-	_interaction.end_interaction()
-
-
-## True while locked in an object interaction (sitting, lying, …) or using a vehicle (boarding,
-## riding, getting out).
-func is_busy() -> bool:
-	return _interaction.is_busy() or _vehicle_use.is_active()
-
-
-## E: get into the vehicle whose door is nearest (in reach, the vehicle slow enough), or out of the
-## one it sits in. Ignored while in an object interaction. The getting in and out is the Vehicles
-## domain's (CharacterVehicleUse).
-func try_use_vehicle() -> void:
-	if is_dead or _interaction.is_busy():
-		return
-	_vehicle_use.try_use_vehicle()
-	_stand_if_busy()
-
-
-## The vehicle the character is boarding, riding in or getting out of; null on foot.
-func vehicle() -> Node:
-	return _vehicle_use.vehicle()
-
-
-## True while the Vehicles domain poses the body for a ride (`set_ride_pose`, until `end_ride`):
-## boarding, seated or getting out. The ride's pose wins over the body's own (no hand over the
-## eyes).
-func is_riding() -> bool:
-	return _riding
+# --- The body (held, solved) and what it wears ------------------------------------
 
 
 ## Drop the cached rig: what it is solved from changed mid-frame (the held slot, a posture, a ride,
@@ -342,54 +249,10 @@ func invalidate_rig() -> void:
 	_rig_cache = null
 
 
-## True only while seated in a vehicle (not on the way in or out).
-func is_in_vehicle() -> bool:
-	return _vehicle_use.is_in_vehicle()
-
-
-## The Vehicles domain poses the riding character for this frame: at `at` (world), facing `toward`
-## (unit), folded `fold` (0 standing .. 1 seated: the crouch fold, so `movement.posture_folded()`
-## reads it), its legs stepping with `step` (px/s, its motion through the vehicle). The first pose
-## of a ride puts the held item away and takes the body off the physics layers (the vehicle carries
-## it).
-func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZERO) -> void:
-	if not _riding:
-		_riding = true
-		ammo.cancel()
-		_shape.set_deferred("disabled", true)
-	global_position = at
-	facing = toward.normalized()
-	movement.aim_point = at + facing * 64.0
-	movement.stand_up()
-	movement.fold(fold)
-	_ride_step = step
-	_rig_cache = null
-
-
-## The ride is over (out of the vehicle, or never posed): the character stands on its own feet where
-## it is, with its body back on the physics layers and its item in hand.
-func end_ride() -> void:
-	if _riding:
-		_riding = false
-		_shape.set_deferred("disabled", false)
-	_ride_step = Vector2.ZERO
-	movement.aim_point = global_position + facing * 64.0
-	_rig_cache = null
-
-
-## A frame of a ride: the vehicle has posed the body; it only breathes, its legs stepping with the
-## pose's step. The ride's pose wins over a stun's look (no hunch, no hand over the eyes), which
-## eases back in once out.
-func _ride_frame(delta: float) -> void:
-	movement.run_input = false
-	_frozen_frame(delta, _ride_step, 0.0)
-
-
-## A frame held still (an interaction, a ride): no movement or input, stamina refilling, any pending
-## shove dropped so moving again doesn't lurch, legs and kick cleared, and the pose updated with
-## `step` as its motion and `stun_at` as its stun level.
-func _frozen_frame(delta: float, step: Vector2, stun_at: float) -> void:
-	movement.hold(delta)
+## The body held still for a frame (`use.hold_frame`: an interaction, a ride): the hands on the
+## facing, the legs and the kick cleared, and the pose updated with `step` as its motion and
+## `stun_at` as its stun level.
+func hold_body(delta: float, step: Vector2, stun_at: float) -> void:
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
@@ -406,56 +269,6 @@ func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
 	_drive.punch = _hands.punch_amounts()
 	_drive.stun = stun_at
 	return _drive
-
-
-## Keep the collision exception with `body` (one the character just left: an interaction's object, a
-## vehicle) until the body (its circle plus `CLEAR_MARGIN`) no longer overlaps it, then drop it, so
-## restoring the collision never finds an overlap for the solver to eject either out of. A freed
-## body is forgotten.
-func keep_clear_of(body: Node) -> void:
-	if not _clearing.has(body):
-		_clearing.append(body)
-
-
-## Stop waiting to clear `body` (the character is back on or in it, so its exception stays); true
-## when it was waiting.
-func stop_clearing(body: Node) -> bool:
-	if not _clearing.has(body):
-		return false
-	_clearing.erase(body)
-	return true
-
-
-## Drop the collision exception with each body `keep_clear_of` waits on that the body has cleared
-## (once a physics frame, after the move).
-func _restore_cleared() -> void:
-	for i in range(_clearing.size() - 1, -1, -1):
-		var body = _clearing[i]  # untyped, as the list
-		if not is_instance_valid(body):
-			_clearing.remove_at(i)
-		elif not _overlaps(body):
-			remove_collision_exception_with(body)
-			_clearing.remove_at(i)
-
-
-## Whether the body (its circle plus `CLEAR_MARGIN`) overlaps `body`'s collider on the solid layer.
-func _overlaps(body: Node) -> bool:
-	var circle := CircleShape2D.new()
-	circle.radius = radius + CLEAR_MARGIN
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = circle
-	params.collision_mask = PhysicsLayers.SOLID
-	params.exclude = [get_rid()]
-	params.transform = Transform2D(0.0, global_position)
-	for result in get_world_2d().direct_space_state.intersect_shape(params, 32):
-		if result["collider"] == body:
-			return true
-	return false
-
-
-## The active interaction's HUD label, or "" when idle.
-func interaction_label() -> String:
-	return _interaction.active_label()
 
 
 ## Where side `i`'s ankle rests (local x/y px) against a wall or piece of furniture its leg has met,
@@ -503,13 +316,6 @@ func _turned_toward(want: Vector2, delta: float) -> Vector2:
 	return facing.rotated(clampf(facing.angle_to(want), -step, step)).normalized()
 
 
-## An interaction began: stand up for it, whatever the posture was (no cooldown, it is not a
-## controller's choice).
-func _stand_if_busy() -> void:
-	if is_busy():
-		movement.stand_up()
-
-
 ## A punch landed: surface it as hit_landed and post a world `&"hit"` event (like a projectile's)
 ## so listeners such as the AI learn who struck whom. The event is a `punch` outcome on the struck
 ## `material` (what its surface reports; "" for a wall or anything without one).
@@ -549,7 +355,7 @@ func is_attacking() -> bool:
 ## hurting what it reaches (character_kick.gd). False when dead, crouched, locked in an interaction
 ## or a kick is still under way.
 func leg_kick() -> bool:
-	if is_dead or is_busy() or movement.posture() != &"stand":
+	if is_dead or use.is_busy() or movement.posture() != &"stand":
 		return false
 	return _kick.start()
 
@@ -751,8 +557,8 @@ func _die(direction: Vector2) -> void:
 	if _occluder != null:  # A body on the floor casts no shadow.
 		_occluder.queue_free()
 		_occluder = null
-	end_interaction()
-	_vehicle_use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
+	use.end_interaction()
+	use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
 	var momentum := movement.momentum()
 	# The body falls from the standing skeleton, whatever it was doing.
 	movement.stand_up()

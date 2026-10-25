@@ -1,6 +1,6 @@
 extends GameTest
-## A puppet beside a chair sits on it through the interaction API (interact_with "sit"): it becomes
-## busy with the "Sit" label, and standing up (end_interaction) frees it again.
+## A puppet beside a chair sits on it through the interaction API (`use.interact_with` "sit"): it
+## becomes busy with the "Sit" label, and standing up (`use.end_interaction`) frees it again.
 
 
 func describe() -> Dictionary:
@@ -25,9 +25,9 @@ func run(t: TestContext) -> void:
 	p.aim_at(t.object(&"chair"))
 	await t.seconds(0.2)
 	p.interact(t.object(&"chair"), "sit")
-	if not t.require(await t.until(sitter.is_busy, 1.0), "sitting makes the character busy"):
+	if not t.require(await t.until(sitter.use.is_busy, 1.0), "sitting makes the character busy"):
 		return
-	t.expect_eq(sitter.interaction_label(), "Sit", "the HUD label names the interaction")
+	t.expect_eq(sitter.use.interaction_label(), "Sit", "the HUD label names the interaction")
 	t.check(p.failed_interactions.is_empty(), "the interaction was accepted")
 	p.end_interaction()
-	await t.until(func(): return not sitter.is_busy(), 1.0, "standing up frees the character")
+	await t.until(func(): return not sitter.use.is_busy(), 1.0, "standing up frees the character")

@@ -3,11 +3,11 @@ extends Camera2D
 ## approaches screen edges. The mouse wheel zooms, in either mode, as a lasting scale on the
 ## automatic zoom. In framing mode (the spectator view) the viewer can also take the camera by hand
 ## — pan with the camera keys or by pushing the mouse to a screen edge — and after `manual_hold`
-## seconds without panning the automatic framing eases back in.
-## An explosion on the EventBus shakes the view (through `Camera2D.offset`, so the follow and the
-## framing are untouched). Following (or framing) someone aboard a vehicle, the zoom eases out with
-## the vehicle's speed (its `view_zoom_out()`, read duck-typed through the target's `vehicle()`) and
-## back in as it slows. This file owns all camera tuning and follows the input pattern.
+## seconds without panning the automatic framing eases back in. An explosion on the EventBus shakes
+## the view (through `Camera2D.offset`, so the follow and the framing are untouched). Following (or
+## framing) someone aboard a vehicle, the zoom eases out with the vehicle's speed (its
+## `view_zoom_out()`, read duck-typed through the target's `use.vehicle()`) and back in as it slows.
+## This file owns all camera tuning and follows the input pattern.
 
 ## Higher = slower, smoother follow (the camera lerps by 1/follow_speed each frame).
 @export var follow_speed: float = 8.0
@@ -251,9 +251,9 @@ func _frame_combatants() -> void:
 
 ## How far `who`'s vehicle zooms the view out (0 on foot, or for a vehicle that does not say).
 func _drive_zoom_out(who: Node) -> float:
-	if not who.has_method("vehicle"):
+	if not "use" in who:
 		return 0.0
-	var ride: Variant = who.call("vehicle")
+	var ride: Variant = who.use.vehicle()
 	if not is_instance_valid(ride) or not (ride as Object).has_method("view_zoom_out"):
 		return 0.0
 	return clampf(float(ride.call("view_zoom_out")), 0.0, 0.9)

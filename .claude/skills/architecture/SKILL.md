@@ -304,8 +304,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    or with a long gun's barrel against a wall or object, and a gun holds back between rounds per its fire rate; a controller re-presses it
    every frame while the trigger is held when `weapon.is_automatic()`), `ammo.reload()` (R: a timed swap to
    the fullest carried magazine, taking the item's `reload_time()`; refused while running or busy and cancelled by running, switching items or
-   dying), `inventory.select_slot(id)`, `try_interact()` /
-   `interact_with(object, id)` / `end_interaction()`, `try_use_vehicle()` (E: get in or out, interface 19), and may read `damage_taken()` (accumulated hit
+   dying), `inventory.select_slot(id)`, `use.try_interact()` /
+   `use.interact_with(object, id)` / `use.end_interaction()`, `use.try_use_vehicle()` (E: get in or out, interface 19), and may read `damage_taken()` (accumulated hit
    damage, for injury sensing), `movement.posture()`, `movement.is_running()` / `movement.stamina_fraction()`, `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, slower while stunned or weighed down by the outfit: how an AI works out whether it gets somewhere in time) / `movement.posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`, what furniture must stand above to shield it), the reads of its `ammo` component (`character_ammo.gd`, `CharacterAmmo`) `ammo.rounds(slot := -1)` / `ammo.capacity(slot)` / `ammo.can_reload(slot)` /
    `ammo.spare_magazines()` / `ammo.is_reloading()` (the held item for slot -1; -1 rounds = no ammo), the reads of its `inventory` component (`character_inventory.gd`, `CharacterInventory`) `inventory.item_name(slot := -1)`, `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `is_attacking()` (a punch swing is under way), `inventory.gun_slot()` (the
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), the weapon reads (its `weapon` component, `character_weapon.gd`, `CharacterWeapon`) `weapon.blocked()` / `weapon.raise()` /
@@ -321,7 +321,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `{ type, name, condition }`: what the debug panel and the spectator inspector list), and where a round strikes it: `hit_zone(height)` (`feet` / `legs` / `torso` /
    `head` by height over the posture's coverage; `&""` below 0) and `hit_side(direction)` (`front` / `flank` / `back` against the shoulders' facing), with
    `get_surface_at` (interface 3); an outfit's weight slows `movement.run_speed()` and every pace;
-   while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `inventory.current_item()` is null
+   while the character rides a vehicle (interface 19, from the E press to its last step out) `use.is_busy()` is true, and `inventory.current_item()` is null
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
    drawn hunched and staggering, the free hand over the eyes while blind), `weapon.one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
@@ -368,9 +368,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 8. **Interaction ↔ Character & Objects** (kept deliberately isolated so it iterates alone)
    The character composes a `CharacterInteraction` component (`interaction/`) and exposes only
-   opaque forwards: `try_interact()` (the player's **Space** toggle), `interactions_in_reach()`
-   and `interact_with(object, id)` / `end_interaction()` (for a controller/AI), `is_busy()`
-   (movement/actions lock) and `interaction_label()` (HUD). It discovers objects through the
+   opaque forwards: `use.try_interact()` (the player's **Space** toggle), `use.interactions_in_reach()`
+   and `use.interact_with(object, id)` / `use.end_interaction()` (for a controller/AI), `use.is_busy()`
+   (movement/actions lock) and `use.interaction_label()` (HUD). It discovers objects through the
    **interactable contract** — every world object implements `get_interactions() -> Array` (plain
    data dicts: `id`, `label`, optional `move_to` / `requires_item`), advertised via the optional
    `interactions` object field. The character never learns what an interaction *means*. The component touches only its host's
@@ -378,8 +378,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `PhysicsLayers.SOLID`, interface 11, excluding the body's own `get_rid()`), `movement.aim_point` (the player's Space picks the reachable object
    nearest the cursor) and `inventory.has_item(id)` (an action's `requires_item`), and takes Godot's own collision exception
    (`add_collision_exception_with`) with the object a `move_to` puts it on. When an interaction ends the component hands
-   the object to the character's `keep_clear_of(body)`, which keeps their collision exception until the character's circle no longer
-   overlaps it (then drops it; a freed body is forgotten), and calls `stop_clearing(body) -> bool` when the character goes straight back
+   the object to the character's `use.keep_clear_of(body)`, which keeps their collision exception until the character's circle no longer
+   overlaps it (then drops it; a freed body is forgotten), and calls `use.stop_clearing(body) -> bool` when the character goes straight back
    onto that object, so its exception stays.
 
 9. **Main / Testing (through `MatchBuilder`) / AI → Navigation** (leaf: builds the map, everyone else just pathfinds)
@@ -525,7 +525,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  of each redefining the same magic number — the single point of truth for that layer id. The character's
 	  hand queries and leg sweeps (`character/body/`), a dropped item's glance (`items/dropped_item.gd`), a thrown grenade's flight (`items/thrown_grenade.gd`), the
 	  bullet's `collision_mask` (`projectile/projectile.gd`), the blast's lines (`projectile/explosion.gd`), Physics' `PhysicsConfig.wall_mask` and a vehicle's body layer and mask, door
-	  checks and pile queries (`scenes/vehicle/`) and the character's clearing check (`keep_clear_of`) read it too.
+	  checks and pile queries (`scenes/vehicle/`) and the character's clearing check (`use.keep_clear_of`) read it too.
     - `LightMasks` (`general/light_masks.gd`, a `class_name` static holder) — the light masks every domain builds its shadows and
 	  light layers on, so who shadows whom is decided in one place (`docs/lighting.md` L6): the occluder bits `WALL` 1,
 	  `FURNITURE` 2, `EMITTER` 4 (a solid piece that gives light: it shadows only the flashes), `CHARACTER` 8, `TALL` 16 (a solid
@@ -709,22 +709,22 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 19. **Character ↔ Vehicle: the drivable contract** (`scenes/vehicle/`; spec `docs/vehicles.md`)
     - **The character's side.** `character.gd` composes the Vehicles domain's `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`,
-      preloaded and added in `_ready` like `CharacterInteraction`) and forwards opaque calls: `try_use_vehicle()` (E, refused while dead or
-      in an object interaction: board by the door whose handle is nearest, or get out), `vehicle() -> Node` (the vehicle it is boarding, riding
-      in or getting out of; null on foot) and `is_in_vehicle()` (seated only). It steps the component once a physics frame right after its
+      preloaded and added in `_ready` like `CharacterInteraction`) and forwards opaque calls: `use.try_use_vehicle()` (E, refused while dead or
+      in an object interaction: board by the door whose handle is nearest, or get out), `use.vehicle() -> Node` (the vehicle it is boarding, riding
+      in or getting out of; null on foot) and `use.is_in_vehicle()` (seated only). It steps the component once a physics frame right after its
       controller (`control(delta)`), so a ride overrides that frame's intent, and calls `abandon()` from `_die` (the ride ends where the body is).
-      It asks the component `is_active()` (true from the E press to the last step out): while a ride lasts `is_busy()` is true and
-      `try_interact()` / `interact_with` are refused.
+      It asks the component `is_active()` (true from the E press to the last step out): while a ride lasts `use.is_busy()` is true and
+      `use.try_interact()` / `use.interact_with` are refused.
     - **What the Vehicles domain calls on the character.** During the walk to the door its controller fields `movement.move_input` / `movement.aim_point` /
       `movement.run_input` (interface 7), and from the driver's seat it reads `movement.move_input` / `movement.run_input` as the drive intent; then the ride API:
-      `set_ride_pose(at, toward, fold, step := Vector2.ZERO)` (world point, facing, fold 0 standing .. 1 seated, and `step`, the legs' motion
+      `use.set_ride_pose(at, toward, fold, step := Vector2.ZERO)` (world point, facing, fold 0 standing .. 1 seated, and `step`, the legs' motion
       through the vehicle's frame in px/s, so a carried body does not walk at the vehicle's speed): the first pose cancels a reload, puts the
       held item away (`inventory.current_item()` null) and disables the collision shape; the fold is the drawn crouch fold (`movement.posture_folded()` reads it);
-      and `end_ride()` (on its own feet again, shape on, item back). It also reads `facing`, `radius`, `movement.speed`, `global_position`, and for a
+      and `use.end_ride()` (on its own feet again, shape on, item back). It also reads `facing`, `radius`, `movement.speed`, `global_position`, and for a
       character it strikes (a body in the group `characters`, interface 7) `is_dead`, `health`, `velocity`, `get_mass()` and calls
       `apply_impulse` / `take_damage(amount)`; collision exceptions are Godot's own (`add_collision_exception_with` / `remove_...`); after a
-      ride the vehicle goes to the character's `keep_clear_of(body)` (as in interface 8: the exception is dropped once the body is clear of it),
-      and boarding the vehicle just left calls `stop_clearing(body)`.
+      ride the vehicle goes to the character's `use.keep_clear_of(body)` (as in interface 8: the exception is dropped once the body is clear of it),
+      and boarding the vehicle just left calls `use.stop_clearing(body)`.
     - **The vehicle** (`vehicle.gd`, a `RigidBody2D` on `PhysicsLayers.SOLID`, found by the group `vehicles`): `doors() -> Array`
       (`[{ id, kind` (`swing` / `slide` / `rear`)`, seat, handle, open` (0..1)`, hinge, angle, offset }]`, world space), `seats() -> Array`
       (`[{ id, occupant }]`), `driver() -> Node`, `board(character, door_id) -> RefCounted` (the ride, or null when that door cannot be used
@@ -736,8 +736,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `change_seat`, `release`, `open_door` / `close_door`, `start_engine` / `stop_engine`, `brake_input`, `exit_door`, `hit_marks`) is
       Vehicles-internal, for its ride and visuals.
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10)
-      and its painters (12). General's camera reads `target.vehicle().view_zoom_out()` duck-typed (`has_method`), never `VehicleDriveConfig`;
-      `player_controller.gd` calls `try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the tests place a vehicle:
+      and its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never `VehicleDriveConfig`;
+      `player_controller.gd` calls `use.try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the tests place a vehicle:
       Main, World-Gen, the nav map and the AI do not know them.
 
 20. **Main / Testing (through `MatchBuilder`) → Lighting, and the world's lights and shadows** (`scenes/lighting/`; spec `docs/lighting.md`; Lighting is a
@@ -987,7 +987,7 @@ main ──(Sound.focus = the human)──▶ Sound   /   Character (&"stun") �
 Explosion (&"explosion") ──▶ EventBus ──▶ Sound (the burst) / Camera (shake) / AIController
 ThrownGrenade (&"grenade") ──▶ EventBus ──▶ AIController (a grenade heard coming down)
 Vehicle (&"vehicle", &"engine", &"skid") ──▶ EventBus ──▶ Sound ──(engine_state / slip / speed, duck-typed)──▶ the vehicle's loops
-Camera ──(target.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
+Camera ──(target.use.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
 UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus / debug_clear_focus on the AI controller; DebugUI and the inspector outfit_view)
 DebugUI ─▶ LoadoutConfig.grenade_options (Items)
 main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / MatchBuilder (the world stage, binding) / Character scenes / EventBus

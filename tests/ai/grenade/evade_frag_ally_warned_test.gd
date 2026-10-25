@@ -9,8 +9,8 @@ extends GameTest
 ##
 ## Premises: the thrower is an invader *puppet* that cannot be killed (the scripted world event),
 ## armed here as Main arms a spawn; and the second defender is busy in an interaction (seated,
-## started through `interact_with` at the start of `run`), which is what keeps a defender in place
-## in a live house, where an idle one otherwise sets off to search a room within a third of a
+## started through `use.interact_with` at the start of `run`), which is what keeps a defender in
+## place in a live house, where an idle one otherwise sets off to search a room within a third of a
 ## second. A premise check reads where B sat when A radioed and where the grenade really came to
 ## rest, so a different set-up is a finding.
 
@@ -63,8 +63,8 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var bb := t.controller(&"b", &"current_act")
-	b.interact_with(t.object(&"chair"), "sit")
-	if not t.require(await t.until(b.is_busy, 1.0), "set-up: B sits on the chair (is_busy)"):
+	b.use.interact_with(t.object(&"chair"), "sit")
+	if not t.require(await t.until(b.use.is_busy, 1.0), "set-up: B sits on the chair (is_busy)"):
 		return
 	await t.seconds(0.8)
 	var w := await _throw_and_watch_b(t, b, bb)
@@ -93,7 +93,7 @@ func _throw_and_watch_b(t: TestContext, b: Node, bb: Node) -> Dictionary:
 	var escape_at := INF
 	var b_path: Array = []
 	while t.time < clicked + 6.0 and Probe.booms(t, &"frag").is_empty():
-		b_path.append({ "t": t.time, "p": b.global_position, "busy": b.is_busy() })
+		b_path.append({ "t": t.time, "p": b.global_position, "busy": b.use.is_busy() })
 		var g := Probe.grenades(bb)
 		for k in g.get("known", []):
 			sources[k.get("source")] = true

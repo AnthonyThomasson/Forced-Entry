@@ -26,7 +26,8 @@ its own child `Node2D`.
 - **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and
   forwards intent from its controller. Never draws. Its components (typed `RefCounted`s it holds as public properties and
   steps itself): `character_movement.gd` (`movement`, the controller's intent, the posture, running and stamina, the knockback and
-  the push slow), `character_inventory.gd` (`inventory`, the items carried and the held slot), `character_weapon.gd` (`weapon`, using the held item: firing, melee, the raise against a wall, recoil, the
+  the push slow), `character_use.gd` (`use`, what occupies the body: an object interaction, a vehicle ride, the collision exceptions
+  both leave behind), `character_inventory.gd` (`inventory`, the items carried and the held slot), `character_weapon.gd` (`weapon`, using the held item: firing, melee, the raise against a wall, recoil, the
   muzzle and aim, each hand's stance), `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
   grenade's flash and bang on the body).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
@@ -37,7 +38,7 @@ its own child `Node2D`.
 Ordering: a parent's `_physics_process` runs before its children's, so the hands see the
 character's fresh `facing`, and the character pulls its controller's intent (`movement.pull`) at the top of its own
 `_physics_process` (lag-free), after `movement.tick` (the posture's cooldown and ease), `stun.update` and `inventory.tick`; then the
-ride (`_vehicle_use.control`) and `ammo.update`, and on foot the facing, `weapon.update_raise`, `movement.walk` (the move and slide,
+ride (`use.control`) and `ammo.update`, then a ride or an interaction holds the body (`use.hold_frame`), else on foot the facing, `weapon.update_raise`, `movement.walk` (the move and slide,
 the pushes), the kick, the pose, the legs and the footsteps.
 
 ## Death
@@ -46,7 +47,7 @@ the pushes), the kick, the pose, the legs and the footsteps.
 `take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, frees its light occluder (below) and
 moves to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
 pools; `vehicle/fallen_body_under_vehicle`), ends any
-interaction, cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (`movement.momentum()`: walk + knockback,
+interaction (`use.end_interaction()`), cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`use.abandon()`, `CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (`movement.momentum()`: walk + knockback,
 including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;
 a returned node removes the slot (`inventory.drop_held`), so `inventory.current_item()` may be null on a corpse), then emits `died`.
 While dead `_physics_process` only steps the ragdoll (`step(delta, space, global_position)`); the
@@ -209,10 +210,10 @@ back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagd
 `inventory.set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
-(`stun.level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
+(`stun.level()`, on foot and in an interaction; 0 in a ride's frame (`use.hold_frame`), so a ride's pose wins and the look eases back in once out); the pose eases it
 (`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `weapon.stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while its `_covers_eyes(item)`: blind, not
-riding (`is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`weapon.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
+riding (`use.is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`weapon.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
 `hand_stance` is not `throw`). `weapon.one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
 `one_hand_spread_deg` to its spread, and `weapon.kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
 `movement.posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.gait.hunch()`) to the crouch's, so the hands (and the
@@ -221,27 +222,27 @@ long-gun raise ray, which follows the drawn reach) keep their reach past the lea
 
 ## Riding a vehicle (interface 19, `docs/vehicles.md`)
 
-The character composes the Vehicles domain's `CharacterVehicleUse` (`scenes/vehicle/character_vehicle_use.gd`, preloaded and
-added in `_ready` beside the interaction) and only forwards: `try_use_vehicle()` (E from `player_controller.gd` on
+The character's `use` component (`character_use.gd`, `CharacterUse`) composes the Vehicles domain's `CharacterVehicleUse`
+(`scenes/vehicle/character_vehicle_use.gd`, preloaded and added by `use.attach()` in `_ready` beside the interaction) and only forwards: `use.try_use_vehicle()` (E from `player_controller.gd` on
 `Keybinds.is_use_vehicle_just_pressed()`, the puppet's `use_vehicle()`; refused while dead or in an object interaction, and
-stands a crouched character up through `_stand_if_busy`), `vehicle()` and `is_in_vehicle()`. `_physics_process` calls
-`_vehicle_use.control(delta)` right after the controller, so the ride overrides that frame's intent (it walks the character to the
+stands a crouched character up through its `_stand_if_busy`), `use.vehicle()` and `use.is_in_vehicle()`. `_physics_process` calls
+`use.control(delta)` right after the controller, so the ride overrides that frame's intent (it walks the character to the
 door with `movement.move_input` / `movement.aim_point`, and from the driver's seat hands the keys on to the vehicle). While the ride lasts (`is_active()`)
-`is_busy()` is true and `try_interact()` / `interact_with` are refused.
+`use.is_busy()` is true and `use.try_interact()` / `use.interact_with` are refused.
 
-The Vehicles domain poses the body with `set_ride_pose(at, toward, fold, step)`: the first pose sets `_riding`, cancels a reload and
+The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose sets `use`'s `_riding`, cancels a reload and
 disables the collision shape (`set_deferred`); each pose sets `global_position`, `facing`, `movement.aim_point`, the posture to `stand` (`movement.stand_up()`) and
 the drawn height between standing and the crouch height by `fold` (`movement.fold(fold)`, so `movement.posture_folded()` and the body art read the seated fold), keeps
-`_ride_step` and drops `_rig_cache`. While `_riding` (`is_riding()`), `movement.tick` skips the posture's ease, `inventory.current_item()` returns null (the item put away: no
-firing, nothing drawn in the hands) and `_ride_frame` replaces the rest of the frame (`_frozen_frame`, the frame an interaction holds too): no movement, knockback or push, stamina refilling (`movement.hold`),
+`_ride_step` and drops the cached rig (`invalidate_rig()`). While `_riding` (`use.is_riding()`), `movement.tick` skips the posture's ease, `inventory.current_item()` returns null (the item put away: no
+firing, nothing drawn in the hands) and `use.hold_frame` replaces the rest of the frame (the frame an interaction holds too, the body's part `hold_body`): no movement, knockback or push, stamina refilling (`movement.hold`),
 legs and kick cleared, and `pose.update` with `_ride_step` as the motion and no stun (the stunned look waits until the ride is over) (the legs step with the pose through the vehicle's frame, not
-with the vehicle). `end_ride()` clears `_riding`, re-enables the shape, zeroes the step and points the aim along the facing. The collision
-exception with the vehicle is added at boarding; after the ride the component hands the vehicle to `keep_clear_of(body)`, below.
+with the vehicle). `use.end_ride()` clears `_riding`, re-enables the shape, zeroes the step and points the aim along the facing. The collision
+exception with the vehicle is added at boarding; after the ride the component hands the vehicle to `use.keep_clear_of(body)`, below.
 
-**Clearing a body just left** (interfaces 8 and 19). `keep_clear_of(body)` keeps the collision exception with an object an interaction's
-`move_to` put the character on, or a vehicle it rode, until the character's circle (+`CLEAR_MARGIN` 3 px, on `PhysicsLayers.SOLID`) no
-longer overlaps it, checked once a physics frame after the move (`_restore_cleared`), then drops it; a freed body is forgotten. Going
-straight back onto that object or into that vehicle calls `stop_clearing(body) -> bool`, so the exception stays.
+**Clearing a body just left** (interfaces 8 and 19). `use.keep_clear_of(body)` keeps the collision exception with an object an interaction's
+`move_to` put the character on, or a vehicle it rode, until the character's circle (+`CharacterUse.CLEAR_MARGIN` 3 px, on `PhysicsLayers.SOLID`) no
+longer overlaps it, checked once a physics frame after the move (`use.restore_cleared()`), then drops it; a freed body is forgotten. Going
+straight back onto that object or into that vehicle calls `use.stop_clearing(body) -> bool`, so the exception stays.
 Tests: `tests/vehicle/` (`domain-vehicle`), `tests/general/use_vehicle_key_test.gd`.
 
 ## Walking into furniture

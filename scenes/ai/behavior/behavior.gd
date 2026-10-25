@@ -3,40 +3,36 @@ extends Node
 ## its params — as concrete movement and actions on the character, and holds the System-Two state
 ## Von (a stateless single-shot ranker) lacks: the engaged contact, the peek-and-cover combat cycle,
 ## the interaction in progress, and the COMMITMENT that keeps a choice running until it completes or
-## a re-decision is due. The primitives:
-##   move     — go to `point` (or until entering `arrive_room`), aiming along the way (`aim`: travel
-##              / target / threat / point); a `look_around` search move covers the room by sight
-##              (`search_coverage.gd`): it turns and relocates until it has seen all of it.
-##   engage   — go to `point`, then fight `target_id` from there: `peek_cover` (step out, shoot,
-##              duck) or `ambush` (hold the covered spot, fire the moment a line opens).
-##   melee    — close on `target_id` and punch.
-##   interact — walk to `object`, run its interaction `id`, hold it for `interaction_dwell`.
-##   reload   — stand and swap in a fresh magazine (`Character.ammo.reload()`), then re-decide.
-##   entry    — go through doorway `opening` into room `into` as a team member or alone: stack,
-##              slice the pie, cross without stopping, take a corner, clear the room (`entry.gd`).
-##   throw    — walk to the throw spot `from` when it has one (`walk`), take a grenade in hand, aim
-##              at `point`, throw it, radio it and wait out the fuse with the gun back in hand
-##              (`combat.gd`; the GRENADE tactic, `docs/grenades.md` G17).
-##   defend   — the order to defend `room` (`docs/leadership.md` LD8): walk to the defend `spot`,
-##              then hold it with the gun on its doorway `door_pos` (or, with none, turning among
-##              the room's doorways), as long as the order stands.
-##   follow   — keep to the spot its squad gives it (`Squad.follow_spot`): walk there, stand there
-##              facing away from its leader, top up a low magazine at rest (`docs/leadership.md`
-##              LD20 to LD22).
-##   hold     — stay and watch.
-## Outside the primitives, **the evade reflex** (`set_evade`, `docs/grenades.md` G16) takes over the
-## NPC whatever it is doing, an entry included, while a live grenade threatens it: it runs to the
-## safe spot the perception found, crouches there if it is behind cover, holds facing away until the
-## burst, and re-decides. Whatever the primitive, a final WATCH stage (`watch.gd`,
-## `docs/gaze-and-fire.md`) puts a threat in sight under the NPC's eyes and gun and, with none,
-## makes it look down its path or at its doors. It never chooses WHAT to do — the planner does — and
-## applies no policy beyond the params it is handed (`confine_inside` keeps a territorial NPC from
-## chasing out of the house). It owns a `Locomotion` child for all pathing, a `Combat` module
-## (shots, punches, bursts, the peek-and-cover cycle) and a `SearchCoverage` module, reads the world
-## only through the PERCEPTION sub-domain (known contacts, combat geometry, engagement memory) and
-## drives the character only through its public controller contract (`movement.move_input` /
-## `movement.aim_point`, `select_slot`, `weapon.shoot`, `weapon.melee`, `interact_with`,
-## `end_interaction`). All tunables are set from the controller's exports by `apply_config(cfg)`.
+## a re-decision is due. The primitives: move     — go to `point` (or until entering `arrive_room`),
+## aiming along the way (`aim`: travel / target / threat / point); a `look_around` search move
+## covers the room by sight (`search_coverage.gd`): it turns and relocates until it has seen all of
+## it. engage   — go to `point`, then fight `target_id` from there: `peek_cover` (step out, shoot,
+## duck) or `ambush` (hold the covered spot, fire the moment a line opens). melee    — close on
+## `target_id` and punch. interact — walk to `object`, run its interaction `id`, hold it for
+## `interaction_dwell`. reload   — stand and swap in a fresh magazine (`Character.ammo.reload()`),
+## then re-decide. entry    — go through doorway `opening` into room `into` as a team member or
+## alone: stack, slice the pie, cross without stopping, take a corner, clear the room (`entry.gd`).
+## throw    — walk to the throw spot `from` when it has one (`walk`), take a grenade in hand, aim at
+## `point`, throw it, radio it and wait out the fuse with the gun back in hand (`combat.gd`; the
+## GRENADE tactic, `docs/grenades.md` G17). defend   — the order to defend `room`
+## (`docs/leadership.md` LD8): walk to the defend `spot`, then hold it with the gun on its doorway
+## `door_pos` (or, with none, turning among the room's doorways), as long as the order stands.
+## follow   — keep to the spot its squad gives it (`Squad.follow_spot`): walk there, stand there
+## facing away from its leader, top up a low magazine at rest (`docs/leadership.md` LD20 to LD22).
+## hold     — stay and watch. Outside the primitives, **the evade reflex** (`set_evade`,
+## `docs/grenades.md` G16) takes over the NPC whatever it is doing, an entry included, while a live
+## grenade threatens it: it runs to the safe spot the perception found, crouches there if it is
+## behind cover, holds facing away until the burst, and re-decides. Whatever the primitive, a final
+## WATCH stage (`watch.gd`, `docs/gaze-and-fire.md`) puts a threat in sight under the NPC's eyes and
+## gun and, with none, makes it look down its path or at its doors. It never chooses WHAT to do —
+## the planner does — and applies no policy beyond the params it is handed (`confine_inside` keeps a
+## territorial NPC from chasing out of the house). It owns a `Locomotion` child for all pathing, a
+## `Combat` module (shots, punches, bursts, the peek-and-cover cycle) and a `SearchCoverage` module,
+## reads the world only through the PERCEPTION sub-domain (known contacts, combat geometry,
+## engagement memory) and drives the character only through its public controller contract
+## (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`,
+## `weapon.melee`, `use.interact_with`, `use.end_interaction`). All tunables are set from the
+## controller's exports by `apply_config(cfg)`.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -1003,8 +999,8 @@ func service_interaction(delta: float, force: bool) -> bool:
 	if not _in_interaction:
 		return false
 	_interaction_timer -= delta
-	if force or not _character.is_busy() or _interaction_timer <= 0.0 or not _evade.is_empty():
-		_character.end_interaction()
+	if force or not _character.use.is_busy() or _interaction_timer <= 0.0 or not _evade.is_empty():
+		_character.use.end_interaction()
 		_in_interaction = false
 		_resolved = true  # Pick the next step right away rather than wait out the cadence.
 		return false
@@ -1229,7 +1225,7 @@ func _way_blocked() -> void:
 func _apply_watch(delta: float) -> void:
 	_threat = {}
 	_gaze = "primitive"
-	if _character.is_busy() or _own_gaze():
+	if _character.use.is_busy() or _own_gaze():
 		return
 	var t: Dictionary = _watch.threat(_hostiles, _engage_id)
 	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
@@ -1884,7 +1880,7 @@ func _apply_interact() -> void:
 	if not _act_armed:
 		_act_armed = true  # Let facing settle before acting.
 		return
-	if _character.interact_with(_target_obj, _interact_id):
+	if _character.use.interact_with(_target_obj, _interact_id):
 		_in_interaction = true
 		_interaction_timer = interaction_dwell
 	else:
@@ -2178,9 +2174,9 @@ func _evade_crouches() -> bool:
 ## then hold it, crouched when the spot is cover. With no spot to reach in time it stays and turns
 ## its back (a stun's flash then blinds it for the back-turned share only).
 func _apply_evade(delta: float) -> void:
-	if _character.is_busy():
+	if _character.use.is_busy():
 		# Up off the chair: a grenade outranks what it was doing, whoever started it.
-		_character.end_interaction()
+		_character.use.end_interaction()
 		_in_interaction = false
 	_threat = {}
 	_gaze = "evade"
@@ -2221,7 +2217,7 @@ func _evade_runs() -> bool:
 ## Whether the chosen interaction on `_target_obj` is currently reachable (lets the approach stop
 ## and the action begin).
 func _interaction_in_reach() -> bool:
-	for entry in _character.interactions_in_reach():
+	for entry in _character.use.interactions_in_reach():
 		if entry["object"] != _target_obj:
 			continue
 		for spec in entry["specs"]:

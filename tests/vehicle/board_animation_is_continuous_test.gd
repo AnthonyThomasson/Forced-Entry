@@ -109,7 +109,7 @@ func _sample_boarding(t: TestContext, car: Node2D, me: Node2D) -> Samples:
 		got.face.append(me.facing)
 		got.fold.append(float(me.movement.posture_folded()))
 		got.door.append(Probe.open_of(car, &"front_left"))
-		if got.seated_at < 0 and me.is_in_vehicle():
+		if got.seated_at < 0 and me.use.is_in_vehicle():
 			got.seated_at = got.pos.size() - 1
 		if got.seated_at >= 0 and got.door[-1] < 0.02 and got.pos.size() > got.seated_at + 5:
 			break

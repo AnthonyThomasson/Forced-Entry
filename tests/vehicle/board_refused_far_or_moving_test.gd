@@ -29,8 +29,8 @@ func _refused(t: TestContext, car: Node2D, me: Node) -> bool:
 	t.puppet(&"me").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(t, car, func(): return false, 1.5)
 	return (Probe.opened(watched, 0.05).is_empty()
-			and me.vehicle() == null
-			and not me.is_in_vehicle())
+			and me.use.vehicle() == null
+			and not me.use.is_in_vehicle())
 
 
 ## The distance from `at` to the nearest door handle of `car`.

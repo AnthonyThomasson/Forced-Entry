@@ -71,14 +71,14 @@ func _board_front(t: TestContext, car: Node2D) -> bool:
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,
-		func(): return front.is_in_vehicle(),
+		func(): return front.use.is_in_vehicle(),
 		6.0,
 	)
 	if not t.require(watched["done"], "the character at the front left gets in"):
 		return false
 	t.expect_eq(Probe.opened(watched), [&"front_left"], "only the front-left door opened")
 	t.expect_eq(Probe.seat_of(car, front), &"driver", "it sits in the driver's seat")
-	t.check(front.vehicle() == car, "its vehicle() is the car")
+	t.check(front.use.vehicle() == car, "its vehicle() is the car")
 	t.check(car.driver() == front, "the car's driver() is it")
 	await t.until(
 		func(): return Probe.open_of(car, &"front_left") < 0.05,
@@ -97,7 +97,7 @@ func _board_rear(t: TestContext, car: Node2D) -> void:
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,
-		func(): return rear.is_in_vehicle(),
+		func(): return rear.use.is_in_vehicle(),
 		6.0,
 	)
 	if not t.require(watched["done"], "the character at the rear right gets in"):

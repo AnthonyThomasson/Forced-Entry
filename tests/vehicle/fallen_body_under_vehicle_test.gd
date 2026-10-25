@@ -203,7 +203,7 @@ func _sample_seated(t: TestContext, scene: Scene, out: Dictionary) -> void:
 	var driver := scene.driver
 	var chassis := scene.chassis
 	var roof := scene.roof
-	if (driver.is_in_vehicle()
+	if (driver.use.is_in_vehicle()
 			and Probe.draws_above(driver, chassis)
 			and Probe.draws_above(roof, driver)):
 		return
@@ -211,7 +211,7 @@ func _sample_seated(t: TestContext, scene: Scene, out: Dictionary) -> void:
 	if out["first_seated"] == "":
 		out["first_seated"] = "t=%.2f seated %s, driver z %d, Chassis z %d, Roof z %d" % [
 			t.time,
-			driver.is_in_vehicle(),
+			driver.use.is_in_vehicle(),
 			Probe.absolute_z(driver),
 			Probe.absolute_z(chassis),
 			Probe.absolute_z(roof),

@@ -1,13 +1,14 @@
 extends Node
-## Vehicles domain: a character's use of vehicles (interface 19), composed by the character like its
-## CharacterInteraction, which only forwards opaque calls to it: `try_use_vehicle()` (E: board by
-## the nearest usable door, or get out), `vehicle()`, `is_in_vehicle()`, and once a physics frame
-## `control(delta)` (after its controller, so the ride overrides that frame's intent) and
-## `abandon()` on death. It finds vehicles through the group `vehicles` and steps the character's
-## ride (vehicle_boarding.gd), which moves the character through its own walk and its ride API
-## (`set_ride_pose`, `end_ride`). While the ride lasts the character keeps a collision exception
-## with the vehicle; once it is out, it hands the vehicle to the character's `keep_clear_of`, which
-## drops the exception as soon as the body has cleared the vehicle, so getting out never shoves it.
+## Vehicles domain: a character's use of vehicles (interface 19), composed by the character's `use`
+## (`CharacterUse`) like its CharacterInteraction, which only forwards opaque calls to it:
+## `try_use_vehicle()` (E: board by the nearest usable door, or get out), `vehicle()`,
+## `is_in_vehicle()`, and once a physics frame `control(delta)` (after its controller, so the ride
+## overrides that frame's intent) and `abandon()` on death. It finds vehicles through the group
+## `vehicles` and steps the character's ride (vehicle_boarding.gd), which moves the character
+## through its own walk and its ride API (`use.set_ride_pose`, `use.end_ride`). While the ride lasts
+## the character keeps a collision exception with the vehicle; once it is out, it hands the vehicle
+## to the character's `use.keep_clear_of`, which drops the exception as soon as the body has cleared
+## the vehicle, so getting out never shoves it.
 
 ## The ride under way (VehicleBoarding), from the E press to the last step out; null on foot.
 var _ride: RefCounted
@@ -39,7 +40,7 @@ func try_use_vehicle() -> void:
 		if ride != null:
 			_ride = ride
 			# Back into the vehicle just left: its exception stays.
-			_character.stop_clearing(c["vehicle"])
+			_character.use.stop_clearing(c["vehicle"])
 			return
 
 
@@ -59,18 +60,18 @@ func is_active() -> bool:
 
 
 ## Step the ride one physics frame (the character calls it after its controller). Once the character
-## is out, the vehicle goes to the character's `keep_clear_of`, which restores their collision as
-## soon as it has cleared the body.
+## is out, the vehicle goes to the character's `use.keep_clear_of`, which restores their collision
+## as soon as it has cleared the body.
 func control(delta: float) -> void:
 	if _ride == null:
 		return
 	if not is_instance_valid(_ride.vehicle):
 		_ride = null
-		_character.end_ride()
+		_character.use.end_ride()
 		return
 	_ride.step(delta)
 	if _ride.is_done():
-		_character.keep_clear_of(_ride.vehicle)
+		_character.use.keep_clear_of(_ride.vehicle)
 		_ride = null
 
 
@@ -81,6 +82,6 @@ func abandon() -> void:
 		return
 	if is_instance_valid(_ride.vehicle):
 		_ride.abandon()
-		_character.keep_clear_of(_ride.vehicle)
+		_character.use.keep_clear_of(_ride.vehicle)
 	_ride = null
-	_character.end_ride()
+	_character.use.end_ride()

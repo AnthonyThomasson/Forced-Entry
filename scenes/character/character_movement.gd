@@ -59,7 +59,7 @@ func pull(delta: float) -> void:
 ## ride poses the fold instead).
 func tick(delta: float) -> void:
 	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
-	if not character.is_riding():
+	if not character.use.is_riding():
 		_ease_posture(delta)
 
 
@@ -120,7 +120,7 @@ func set_posture(wanted: StringName) -> bool:
 	if wanted == _posture:
 		return true
 	if (character.is_dead
-			or character.is_busy()
+			or character.use.is_busy()
 			or _posture_cooldown > 0.0
 			or not CharacterPostureConfig.postures.has(wanted)):
 		return false

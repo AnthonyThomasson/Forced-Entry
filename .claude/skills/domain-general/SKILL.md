@@ -83,7 +83,7 @@ All input flows through the `Keybinds` autoload; gameplay never hard-codes actio
 `KEY_*`. To add/change an input: add an action constant, add its default to `DEFAULTS`, and expose
 a typed helper. `player_controller.gd` (Character domain) is the one gameplay consumer of
 Keybinds (movement, `RUN` — held, default Shift —, `CROUCH` (C) — a toggle, in the "Movement" group after Run — and the action keys, incl. `RELOAD`, default R, and `KICK`, default V, in the "Combat" group next to Punch and Fire, and `USE_VEHICLE`, default E, label
-"Get in / out of vehicle", in the "Interaction" group after Interact: `is_use_vehicle_just_pressed()` → `character.try_use_vehicle()`;
+"Get in / out of vehicle", in the "Interaction" group after Interact: `is_use_vehicle_just_pressed()` → `character.use.try_use_vehicle()`;
 while the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake, read by the Vehicles domain off the
 character's `movement.move_input` / `movement.run_input`, so driving adds no action). Everything else reads its own actions: `main.gd` and the test runner `MENU`, the spectator
 inspector `PAUSE`, the UI's command menu `COMMAND` ("Command teammates", default right mouse, in the "Interaction" group after Get in / out of
@@ -206,8 +206,8 @@ which no game code listens to: its readers are the test runner's event log and t
     cleared on `NOTIFICATION_WM_MOUSE_EXIT` / focus-out), so a cursor that left at an edge or has
     never moved can't drag the camera. `pan_enabled` off removes the pan (wheel still works); the
     test runner turns it off for a world with a human-driven player, where WASD walks.
-- **Zoom out while driving** (both modes): `_drive_zoom_out(who)` reads `who.vehicle().view_zoom_out()` duck-typed (`has_method` on the
-  target and on what `vehicle()` returns; 0 on foot, clamped to 0..0.9), never `VehicleDriveConfig`. Following, `_ease_zoom(1 − that)` scales the
+- **Zoom out while driving** (both modes): `_drive_zoom_out(who)` reads `who.use.vehicle().view_zoom_out()` duck-typed (`has_method` on the
+  target and on what `use.vehicle()` returns; 0 on foot, clamped to 0..0.9), never `VehicleDriveConfig`. Following, `_ease_zoom(1 − that)` scales the
   automatic zoom down, so the view widens with the vehicle's speed (`VehicleDriveConfig.zoom_out`, 0.35, at its top speed) and eases back
   in as it slows, at the follow easing; framing, the largest among the live framed targets is used. The wheel's `_zoom_bias` multiplies on
   top. Test: `tests/general/camera_zooms_out_driving_test.gd`.
@@ -235,4 +235,4 @@ human `Player` and `DebugUI`, points the camera at every combatant in framing mo
 for watching and regression-testing both AI agent-types (defender and invader). Composition-root
 wiring lives in `main.gd`; the General observers only read published contracts.
 
-**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.
+**Interfaces:** 7 (the `Keybinds` consumers and observers), 10 (EventBus), 11 (`PhysicsLayers`, `DrawLayers`, `LightMasks`, `GameClock`, `WeightedPick`, `MatchVerdict`), 14 (`Settings`, the dev command server), 15 (`GameLog`), 19 (the camera's `use.vehicle().view_zoom_out()`, `USE_VEHICLE`) — signatures in `architecture`.

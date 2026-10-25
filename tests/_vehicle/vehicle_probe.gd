@@ -2,15 +2,14 @@ extends RefCounted
 ## Shared bits for the vehicle tests (ticket #54, rules V1 to V9; not a test).
 ## `const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")`.
 ##
-## Everything is read through the drivable contract: the character's `try_use_vehicle()`,
-## `vehicle()`, `is_in_vehicle()` (true only while seated) and `movement.posture_folded()` (the ride
-## fold while in a vehicle); the vehicle's `doors()`
-## (`{ id, kind, seat, handle, open, hinge, angle, offset }` per door, world space), `seats()`
-## (`{ id, occupant }`), `driver()`, `speed()` (unsigned px/s), `engine_state()`
-## (`{ running, rpm, load }`), `slip()` (the slide amount, 0 while gripping), `wheel_angle()`,
-## `brake_lights()`, its `Chassis` / `Roof` draw layers, and the Vehicles holders' tuning. Nothing
-## here knows how a vehicle is built, and a read that does not exist yet fails a `require` instead
-## of a script error.
+## Everything is read through the drivable contract: the character's `use.try_use_vehicle()`,
+## `use.vehicle()`, `use.is_in_vehicle()` (true only while seated) and `movement.posture_folded()`
+## (the ride fold while in a vehicle); the vehicle's `doors()` (`{ id, kind, seat, handle, open,
+## hinge, angle, offset }` per door, world space), `seats()` (`{ id, occupant }`), `driver()`,
+## `speed()` (unsigned px/s), `engine_state()` (`{ running, rpm, load }`), `slip()` (the slide
+## amount, 0 while gripping), `wheel_angle()`, `brake_lights()`, its `Chassis` / `Roof` draw layers,
+## and the Vehicles holders' tuning. Nothing here knows how a vehicle is built, and a read that does
+## not exist yet fails a `require` instead of a script error.
 
 ## The plan's numbers: the spec, not the code.
 ## E picks a door whose handle is within this of the character.
@@ -75,7 +74,7 @@ static func ready(
 		var who := t.actor(c)
 		if not t.require(who != null, "actor %s exists" % c):
 			return false
-		if not has_reads(t, who, CHARACTER_READS, "character %s" % c):
+		if not has_reads(t, who.use, CHARACTER_READS, "character %s's use" % c):
 			return false
 	return true
 
@@ -320,15 +319,15 @@ static func move_vehicle(t: TestContext, v: Node2D, pos: Vector2, rot: float) ->
 static func board(t: TestContext, id: StringName, timeout := 6.0) -> bool:
 	var c := t.actor(id)
 	t.puppet(id).use_vehicle()
-	return await t.until(func(): return c.is_in_vehicle(), timeout)
+	return await t.until(func(): return c.use.is_in_vehicle(), timeout)
 
 
-## Press E for seated puppet `id` and wait until it is out (its `vehicle()` null) or `timeout`
+## Press E for seated puppet `id` and wait until it is out (its `use.vehicle()` null) or `timeout`
 ## passes.
 static func exit(t: TestContext, id: StringName, timeout := 8.0) -> bool:
 	var c := t.actor(id)
 	t.puppet(id).use_vehicle()
-	return await t.until(func(): return c.vehicle() == null, timeout)
+	return await t.until(func(): return c.use.vehicle() == null, timeout)
 
 
 ## Walk puppet `id` to door `door_id`'s stand point, press E and wait until seated. False when it

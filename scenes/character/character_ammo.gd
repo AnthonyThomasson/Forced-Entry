@@ -34,7 +34,7 @@ func _init(host: CharacterBody2D) -> void:
 func reload() -> void:
 	var item: Item = character.inventory.current_item()
 	if (character.is_dead
-			or character.is_busy()
+			or character.use.is_busy()
 			or character.movement.is_running()
 			or is_reloading()
 			or item == null
@@ -102,7 +102,7 @@ func capacity(slot := -1) -> int:
 func update(delta: float) -> void:
 	if _reloading_item == null:
 		return
-	if (character.is_busy()
+	if (character.use.is_busy()
 			or character.movement.is_running()
 			or character.inventory.current_item() != _reloading_item):
 		cancel()

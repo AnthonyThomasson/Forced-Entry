@@ -13,22 +13,22 @@ learns what an interaction *means* — add/retune actions in the catalogue data 
 
 `CharacterInteraction` shape-queries for reachable objects, keeps the actions whose
 `requires_item` gate passes (`character.inventory.has_item`), targets the object nearest the mouse
-(`movement.aim_point`), and runs a random one of its valid actions — freezing the character (`is_busy()`).
+(`movement.aim_point`), and runs a random one of its valid actions — freezing the character (`use.is_busy()`).
 For a `move_to` action it snaps the character onto the object and lets the two bodies overlap (a
 temporary `add_collision_exception_with`, so a seat/bed isn't shoved and the character isn't
 ejected), moving it back on exit. **Space** again stops and steps back. On exit (deferred out of the physics step) it hands the
-object to the character's `keep_clear_of(body)`, which lifts the exception only once the body has cleared the object by the
-character's `CLEAR_MARGIN`, so restoring the collision never finds an overlap to eject from; re-entering the object just left calls
-`stop_clearing(body)` first and keeps the exception it still has.
+object to the character's `use.keep_clear_of(body)`, which lifts the exception only once the body has cleared the object by the
+character's `CharacterUse.CLEAR_MARGIN`, so restoring the collision never finds an overlap to eject from; re-entering the object just left calls
+`use.stop_clearing(body)` first and keeps the exception it still has.
 
 The component reads the character's existing `facing`, `global_position`, `movement.aim_point`, `inventory.has_item(id)` and `get_rid()` (left out of
 its reach query), moves it, and takes and gives back the collision exception with Godot's own `add_collision_exception_with` and the
-character's `keep_clear_of` / `stop_clearing`. The reach query is a circle of `reach` px `front_offset` ahead along `facing`, on
+character's `use.keep_clear_of` / `use.stop_clearing`. The reach query is a circle of `reach` px `front_offset` ahead along `facing`, on
 `PhysicsLayers.SOLID` (`QUERY_MASK`). It discovers objects through the **interactable contract** — every
 world object implements `get_interactions() -> Array` (plain data dicts: `id`, `label`, optional
 `move_to` / `requires_item`), advertised via the optional `interactions` object field.
 
-A non-player controller uses `interactions_in_reach()` + `interact_with(object, id)` to pick a
+A non-player controller uses `use.interactions_in_reach()` + `use.interact_with(object, id)` to pick a
 specific object and action instead of the random toggle.
 
 **Interfaces:** 8 (Interaction ↔ Character & Objects), 11 (`PhysicsLayers.SOLID` for the reach query) — signatures in `architecture`.

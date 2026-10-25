@@ -6,7 +6,8 @@ extends Node2D
 ## it and returns the character to where it started. A `move_to` action additionally snaps the
 ## character onto the object and lets the two bodies overlap (a temporary collision exception, so
 ## sitting/lying puts the character ON the object without either ejecting or shoving the other);
-## actions without `move_to` act in place. The character forwards `try_interact()` (the player's
+## actions without `move_to` act in place. The character's `use` (`CharacterUse`) forwards
+## `try_interact()` (the player's
 ## random toggle) plus `interactions_in_reach()` / `interact_with(object, id)` / `end_interaction()`
 ## (a controller picking a specific object + action), and reads `is_busy()` / `active_label()`;
 ## it never learns what an interaction means, so this system can be iterated on its own.
@@ -136,7 +137,7 @@ func _begin(spec: Dictionary, object: Node) -> void:
 	_active_object = object
 	if spec.get("move_to", false):
 		# Re-entering the object just left keeps its existing exception.
-		if not _character.stop_clearing(object):
+		if not _character.use.stop_clearing(object):
 			_character.add_collision_exception_with(object)
 		_character.global_position = object.global_position
 
@@ -150,11 +151,11 @@ func _end() -> void:
 
 
 ## Restore the character to its start spot and hand the object off to the character's
-## `keep_clear_of`, which re-enables collision only once the body has separated from it (so no
+## `use.keep_clear_of`, which re-enables collision only once the body has separated from it (so no
 ## separation kick). Runs outside the physics step (deferred from _end), then clears the busy state.
 func _teardown() -> void:
 	_character.global_position = _return_position
 	if _active_object != null and _active.get("move_to", false):
-		_character.keep_clear_of(_active_object)
+		_character.use.keep_clear_of(_active_object)
 	_active = {}
 	_active_object = null

@@ -12,9 +12,9 @@ extends GameTest
 ## it, as tests/_ai/investigate_probe.gd posts it), at the start so it is in the first decision;
 ## both invaders are armed with a stun here because the test world keeps the default inventory, the
 ## way Main arms a spawn; and the defender is waiting in the room (seated on a kitchen chair facing
-## into it, started through `interact_with` at the start of `run`, as in `evade_frag_ally_warned`):
-## left to itself it walks out of the kitchen to search the living room within the 4 s the stack
-## takes to get its stun off, and the check is about someone in the room.
+## into it, started through `use.interact_with` at the start of `run`, as in
+## `evade_frag_ally_warned`): left to itself it walks out of the kitchen to search the living room
+## within the 4 s the stack takes to get its stun off, and the check is about someone in the room.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -53,9 +53,9 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var d := t.actor(&"d")
-	d.interact_with(t.object(&"chair"), "sit")
+	d.use.interact_with(t.object(&"chair"), "sit")
 	if not t.require(
-			await t.until(d.is_busy, 1.0),
+			await t.until(d.use.is_busy, 1.0),
 			"set-up: the defender sits on the kitchen chair (is_busy)",
 	):
 		return

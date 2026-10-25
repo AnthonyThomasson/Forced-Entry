@@ -14,7 +14,7 @@ place a threat is shot at, whichever primitive or entry phase is running.
 
 ## The stage (`Behavior._apply_watch`, run in `apply()` right after the primitive steered)
 
-1. Clears `_threat`; does nothing when the character `is_busy()` (frozen in an interaction) or the primitive is `melee` / `interact` /
+1. Clears `_threat`; does nothing when the character `use.is_busy()` (frozen in an interaction) or the primitive is `melee` / `interact` /
    an `engage` that has arrived (those aim at their own target), a `throw` whose grenade is not yet away (`Combat.throw_stage`: taking
    it in hand and throwing it, aimed at the spot) or an `entry` in its `bang` phase (turned away from the door for the stun).
 2. **Threat** (`Watch.threat(_hostiles, _engage_id)`): the engaged contact if `visible`, else the nearest visible, else the engaged one

@@ -376,7 +376,7 @@ func run(t: TestContext) -> void:
 - Puppet (`scripted_controller.gd`): `aim_at(node_or_point)`, `walk_to(point)` + `has_arrived()`
   (straight line, no pathing), `walk(dir)`, `set_run(on)` (holds run while moving), `set_posture(p)` (wants `stand` / `crouch`, written every frame like the AI does; `&""` stops asking), `toggle_crouch()` (one press of C), `stop()`, `select_slot(n)`, `punch()`, `kick()` (the leg kick), `shoot()` (one click), `hold_fire(on)` (hold the trigger: an automatic gun fires at its rate; a semi-auto one is unaffected), `reload()`,
   `interact(object, id)` (refusals land in `failed_interactions`), `end_interaction()`, `use_vehicle()` (one press of E: get in
-  by the nearest usable door, or out; ignored by a character without `try_use_vehicle`) and `drive(throttle, steer, handbrake)` (holds the
+  by the nearest usable door, or out; ignored by a character without a `use`) and `drive(throttle, steer, handbrake)` (holds the
   driving keys as the player's do: `movement.move_input` = `(steer, -throttle)` limited to length 1, `movement.run_input` = handbrake; `drive(0, 0, false)`
   lets go). Actions run on
   the character's next frame, and the character derives `facing` from the aim one frame later, so

@@ -57,7 +57,7 @@ func _board_watching(
 		if float(d.get("open", 0.0)) > out["open"]:
 			out["open"] = float(d.get("open", 0.0))
 			out["handle"] = d.get("handle", Vector2.ZERO)
-		if who.is_in_vehicle():
+		if who.use.is_in_vehicle():
 			out["seated"] = true
 		if out["seated"] and float(d.get("open", 0.0)) < 0.02:
 			break

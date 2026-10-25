@@ -53,12 +53,12 @@ func run(t: TestContext) -> void:
 	t.puppet(&"me").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(t, car, func(): return false, 2.0)
 	t.expect_eq(Probe.opened(watched, 0.05), [], "no door opens")
-	t.check(me.is_in_vehicle() and me.vehicle() == car, "the character stays in")
+	t.check(me.use.is_in_vehicle() and me.use.vehicle() == car, "the character stays in")
 	t.expect_eq(Probe.seat_of(car, me), &"driver", "in its seat")
 
 	await Probe.place(t, &"block_fr", Vector2(820, 560))
 	t.puppet(&"me").use_vehicle()
-	watched = await Probe.watch_doors(t, car, func(): return me.vehicle() == null, 8.0)
+	watched = await Probe.watch_doors(t, car, func(): return me.use.vehicle() == null, 8.0)
 	if not t.require(watched["done"], "with the front right cleared, E gets the character out"):
 		return
 	t.expect_eq(Probe.opened(watched, 0.05), [&"front_right"], "by the front-right door")

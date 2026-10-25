@@ -59,13 +59,13 @@ func _check_boarding(t: TestContext, car: Node2D) -> bool:
 	var folding_held := 0
 	var folding := 0
 	var deadline := t.time + 6.0
-	while t.time < deadline and not me.is_in_vehicle():
+	while t.time < deadline and not me.use.is_in_vehicle():
 		await t.frames(1)
-		if me.vehicle() != null and float(me.movement.posture_folded()) > 0.05:
+		if me.use.vehicle() != null and float(me.movement.posture_folded()) > 0.05:
 			folding += 1
 			if me.inventory.current_item() != null:
 				folding_held += 1
-	if not t.require(me.is_in_vehicle(), "it gets in"):
+	if not t.require(me.use.is_in_vehicle(), "it gets in"):
 		return false
 	t.check(
 		folding > 0 and folding_held == 0,
@@ -99,12 +99,12 @@ func _check_getting_out(t: TestContext, held_name: String) -> void:
 	var out_held := 0
 	var getting_out := 0
 	var deadline := t.time + 8.0
-	while t.time < deadline and me.vehicle() != null:
+	while t.time < deadline and me.use.vehicle() != null:
 		getting_out += 1
 		if me.inventory.current_item() != null and float(me.movement.posture_folded()) > 0.05:
 			out_held += 1
 		await t.frames(1)
-	if not t.require(me.vehicle() == null, "it gets out"):
+	if not t.require(me.use.vehicle() == null, "it gets out"):
 		return
 	t.check(
 		out_held == 0,

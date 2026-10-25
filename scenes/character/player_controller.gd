@@ -31,9 +31,9 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	if Keybinds.is_reload_just_pressed():
 		character.ammo.reload()
 	if Keybinds.is_interact_just_pressed():
-		character.try_interact()
+		character.use.try_interact()
 	if Keybinds.is_use_vehicle_just_pressed():
-		character.try_use_vehicle()
+		character.use.try_use_vehicle()
 
 
 ## Pull the trigger: once per click, and for as long as the button is held with an automatic gun

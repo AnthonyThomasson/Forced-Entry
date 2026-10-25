@@ -23,7 +23,7 @@ func _init(host: CharacterBody2D) -> void:
 
 ## The held item (none while riding in a vehicle: it is put away).
 func current_item() -> Item:
-	if character.is_riding():
+	if character.use.is_riding():
 		return null
 	return _items.get(_current_slot)
 
@@ -41,7 +41,7 @@ func item_in(slot: int) -> Item:
 ## Switch to inventory slot `slot`. Ignored while locked. Observers read the held item with
 ## current_item() (the debug HUD polls it).
 func select_slot(slot: int) -> void:
-	if character.is_busy():
+	if character.use.is_busy():
 		return
 	if slot in _items and slot != _current_slot:
 		character.ammo.cancel()

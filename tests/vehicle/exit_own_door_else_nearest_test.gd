@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 func _get_out(t: TestContext, car: Node2D) -> Dictionary:
 	var me := t.actor(&"me")
 	t.puppet(&"me").use_vehicle()
-	return await Probe.watch_doors(t, car, func(): return me.vehicle() == null, 8.0)
+	return await Probe.watch_doors(t, car, func(): return me.use.vehicle() == null, 8.0)
 
 
 func run(t: TestContext) -> void:
@@ -72,7 +72,7 @@ func _exit_own_door(t: TestContext, car: Node2D) -> bool:
 		(me.global_position - car.global_position).dot(Probe.right(car)) < 0.0,
 		"on the car's left side",
 	)
-	t.check(not me.is_in_vehicle() and Probe.seat_of(car, me) == &"", "it holds no seat")
+	t.check(not me.use.is_in_vehicle() and Probe.seat_of(car, me) == &"", "it holds no seat")
 	await t.until(
 		func(): return Probe.open_of(car, &"front_left") < 0.05,
 		2.0,

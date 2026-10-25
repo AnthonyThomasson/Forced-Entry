@@ -95,7 +95,7 @@ func _check_seated_clicks(t: TestContext, car: Node2D) -> void:
 
 	for id in RIDERS:
 		var who := t.actor(id)
-		t.check(who.is_in_vehicle(), "%s is still seated" % id)
+		t.check(who.use.is_in_vehicle(), "%s is still seated" % id)
 		t.check(
 			_since(t, mark, &"shot", id).is_empty(),
 			"no round leaves %s's barrel (%d shot events)"

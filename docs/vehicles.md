@@ -71,7 +71,7 @@ character further than a walking step; the facing turns at most 15 rad/s, toward
 eases from standing to seated (at most 0.05 a frame); the seated character ends inside the body, drawn over the chassis and under the
 roof), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
 the van about its back corner and never slides), `vehicle/death_while_boarding` (killed with the door half open: it dies where it
-stands, takes no seat, `vehicle()` is null, the door stays open), `vehicle/item_stowed_while_riding` (a character holding its pistol
+stands, takes no seat, `use.vehicle()` is null, the door stays open), `vehicle/item_stowed_while_riding` (a character holding its pistol
 has no item in hand from the fold into the seat until it is out again, then the pistol is back in hand; `inventory.current_item()` is null while it
 is posed by the ride).
 
@@ -202,7 +202,7 @@ vehicle; nothing under
   contract, seats and doors, contacts and harm, the hittable, the events), `vehicle_drive.gd` (the bicycle), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
   character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
-- **Character**: the forwards `try_use_vehicle()`, `vehicle()`, `is_in_vehicle()`, the ride API `set_ride_pose` / `end_ride`, `is_busy()`
+- **Character**: the forwards `use.try_use_vehicle()`, `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`
   over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE_VEHICLE` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
   the puppet's `use_vehicle()` and `drive(throttle, steer, handbrake)`.

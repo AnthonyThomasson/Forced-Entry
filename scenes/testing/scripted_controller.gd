@@ -4,7 +4,7 @@ extends Node
 ## character's own frame, through only the published controller API (`movement.move_input`,
 ## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `movement.toggle_crouch`,
 ## `weapon.melee`, `leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
-## `interact_with`, `end_interaction`, `try_use_vehicle`).
+## `use.interact_with`, `use.end_interaction`, `use.try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -135,17 +135,17 @@ func reload() -> void:
 ## Start interaction `id` on `object`; a refusal is recorded in `failed_interactions`.
 func interact(object: Node, id: String) -> void:
 	_pending.append(func(c):
-		if not c.interact_with(object, id):
+		if not c.use.interact_with(object, id):
 			failed_interactions.append([object, id]))
 
 
 ## Press E once (the player's use-vehicle key): board the nearest door's seat, or get out. A
-## character without `try_use_vehicle` ignores it, so a test written before the feature fails on its
-## own `require`.
+## character without a `use` (`use.try_use_vehicle`) ignores it, so a test written before the
+## feature fails on its own `require`.
 func use_vehicle() -> void:
 	_pending.append(func(c):
-		if c.has_method("try_use_vehicle"):
-			c.try_use_vehicle())
+		if "use" in c:
+			c.use.try_use_vehicle())
 
 
 ## Hold the driving keys, as the player's WASD and Shift do: `throttle` 1 is W, -1 is S; `steer` 1
@@ -159,4 +159,4 @@ func drive(throttle: float, steer: float, handbrake: bool) -> void:
 
 ## End the active interaction.
 func end_interaction() -> void:
-	_pending.append(func(c): c.end_interaction())
+	_pending.append(func(c): c.use.end_interaction())

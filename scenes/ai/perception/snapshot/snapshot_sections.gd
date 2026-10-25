@@ -35,8 +35,8 @@ func situation_text(rooms: Array) -> String:
 	var where := (("in the %s, inside the house" % _v.room_name(room["type"]))
 			if not room.is_empty()
 			else "outside the house")
-	var busy := ((" You are busy: %s." % _character.interaction_label())
-			if _character.is_busy()
+	var busy := ((" You are busy: %s." % _character.use.interaction_label())
+			if _character.use.is_busy()
 			else "")
 	return "You are %s, holding a %s.%s%s You are %s." % [
 		where, _character.inventory.current_item().display_name, busy,

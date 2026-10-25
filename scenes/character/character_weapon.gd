@@ -25,7 +25,7 @@ func _init(host: CharacterBody2D) -> void:
 ## Melee with the held item (F): runs its primary action. Ignored while locked in an interaction.
 func melee() -> void:
 	var item: Item = character.inventory.current_item()
-	if character.is_busy() or item == null:
+	if character.use.is_busy() or item == null:
 		return
 	item.primary(character)
 
@@ -36,7 +36,7 @@ func melee() -> void:
 ## rounds, per its fire rate.
 func shoot() -> bool:
 	var item: Item = character.inventory.current_item()
-	if (character.is_busy()
+	if (character.use.is_busy()
 			or item == null
 			or character.movement.is_running()
 			or character.ammo.is_reloading()):
@@ -185,7 +185,7 @@ func stances() -> Array:
 ## punch, a throw's wind-up.
 func _covers_eyes(item: Item) -> bool:
 	if (not character.stun.is_blind()
-			or character.is_riding()
+			or character.use.is_riding()
 			or character.movement.is_running()
 			or character.is_dead):
 		return false

@@ -40,8 +40,8 @@ func run(t: TestContext) -> void:
 			"the front-left door opens for the boarding",
 	):
 		return
-	t.check(not me.is_in_vehicle(), "the character is still on its way in")
-	t.check(me.vehicle() == car, "with the boarding under way, vehicle() is the car")
+	t.check(not me.use.is_in_vehicle(), "the character is still on its way in")
+	t.check(me.use.vehicle() == car, "with the boarding under way, vehicle() is the car")
 
 	var died_at: Vector2 = me.global_position
 	me.take_damage(1.0e6)
@@ -52,8 +52,8 @@ func run(t: TestContext) -> void:
 		me.global_position.distance_to(died_at) < 20.0,
 		"it falls where it was (%.1f px off)" % me.global_position.distance_to(died_at),
 	)
-	t.check(me.vehicle() == null, "its ride has ended (vehicle() is null)")
-	t.check(not me.is_in_vehicle(), "it is not in the car")
+	t.check(me.use.vehicle() == null, "its ride has ended (vehicle() is null)")
+	t.check(not me.use.is_in_vehicle(), "it is not in the car")
 	t.expect_eq(Probe.seat_of(car, me), &"", "it holds no seat")
 	t.check(Probe.occupant(car, &"driver") == null, "the driver's seat is empty")
 	t.check(

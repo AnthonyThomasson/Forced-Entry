@@ -65,7 +65,7 @@ func run(t: TestContext) -> void:
 	var watched: Dictionary = await Probe.watch_doors(
 		t,
 		car,
-		func(): return me.is_in_vehicle(),
+		func(): return me.use.is_in_vehicle(),
 		8.0,
 	)
 	if not t.require(watched["done"], "the character gets in"):

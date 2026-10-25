@@ -79,7 +79,7 @@ func _process(_delta: float) -> void:
 	var item_name: String = _character.inventory.item_name()
 	var reach: float = _character.inventory.item_reach()
 	var attack_active: bool = _character.is_attacking()
-	var interaction: String = _character.interaction_label()
+	var interaction: String = _character.use.interaction_label()
 
 	# Build debug text (bottom-right).
 	var debug_lines := [

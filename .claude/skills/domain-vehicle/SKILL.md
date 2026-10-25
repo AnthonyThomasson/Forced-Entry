@@ -11,11 +11,11 @@ does not know them (an NPC sees a parked one only as a solid body). The spec, ru
 it, is `docs/vehicles.md` (V1 to V9).
 
 ```
-player_controller (E) ─▶ Character.try_use_vehicle ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
-VehicleBoarding ──(movement.move_input / movement.aim_point, set_ride_pose, end_ride)──▶ Character;  seated driver: movement.move_input / movement.run_input ─▶ vehicle.drive_input
+player_controller (E) ─▶ Character.use.try_use_vehicle ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
+VehicleBoarding ──(movement.move_input / movement.aim_point, use.set_ride_pose, use.end_ride)──▶ Character;  seated driver: movement.move_input / movement.run_input ─▶ vehicle.drive_input
 vehicle._integrate_forces ─▶ VehicleDrive.step (the bicycle)   /   contacts ─▶ crash events, characters struck (apply_impulse, take_damage)
 vehicle ─▶ Deformable / Physics.spawn_debris / impact_impulse (hittable)   ;   Chassis / Roof (vehicle_visuals.gd) ─▶ painters ─▶ PixelArt
-vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound (Audio);   Camera ──(target.vehicle().view_zoom_out())──▶ vehicle
+vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound (Audio);   Camera ──(target.use.vehicle().view_zoom_out())──▶ vehicle
 ```
 
 ## Files
@@ -29,7 +29,7 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
 | `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out. |
-| `character_vehicle_use.gd` | `Node` composed by `character.gd` in code (like `CharacterInteraction`): finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `keep_clear_of`. |
+| `character_vehicle_use.gd` | `Node` composed by `character.gd` in code (like `CharacterInteraction`): finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `use.keep_clear_of`. |
 | `vehicle_visuals.gd` | Draw, on the `Chassis` (`DrawLayers.UNDER_VEHICLE`, −1) and `Roof` (`DrawLayers.ABOVE`, +1) children (`layer` export), which sandwich the occupants (`STANDING`, 0) and cover what lies on the floor (`LYING`, −2: a dead body, casings, a dropped item). |
 | `art/vehicle_art.gd` | The painters' shared helpers (the body's part dispatch `paint_parts`, vehicle frame → canvas, cached convex regions, door frames, side glass, the roof's `lamps` and the tail lamps, seats, dashboard, sills). |
 | `art/vehicle_paint.gd` (`VehiclePaint`) | `RefCounted` value object: the body being painted (canvas, its scale `k`, paint, kind and its `kinds` / `looks` rows), which the body painters make and every shared helper takes. |
@@ -130,17 +130,17 @@ overrides that frame's intent):
 | `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
 | `SHIFT_OUT` | Only when the exit door belongs to another seat: a slide across to it (`shift_time`). |
 | `OPEN_OUT`, `UNFOLD`, `STEP_OUT` | The door opens; the rise to the entry point (`fold_time`, fold 1 → 0, facing outward); the step to the stand point. |
-| `DONE` | `release`, the door closes, `character.end_ride()`. |
+| `DONE` | `release`, the door closes, `character.use.end_ride()`. |
 
 `is_seated()` is `SEATED`, `SHIFT_SEAT` or `BRAKE`. A **pose phase** eases position and fold with `smoothstep`, turns the
 heading at `turn_rate`, keeps positions in the vehicle's frame (so a moving vehicle carries the pose) and hands the
-character `set_ride_pose(world point, facing, fold, step)`, `step` = the motion through the vehicle's frame per second ×
+character `use.set_ride_pose(world point, facing, fold, step)`, `step` = the motion through the vehicle's frame per second ×
 (1 − fold), so the legs step with the pose and not with the vehicle. **Death** (`Character._die` → `abandon()`): the seat
-is freed, the door left as it is, `end_ride()`.
+is freed, the door left as it is, `use.end_ride()`.
 
-**After the ride** `CharacterVehicleUse` hands the vehicle to the character's `keep_clear_of(body)` (interface 19): the exception stays
-until the character's circle (+`CLEAR_MARGIN` 3 px) no longer overlaps the body, checked once a physics frame after its move, so stepping
-out never shoves the vehicle; boarding the same vehicle again calls `stop_clearing(body)` and keeps it.
+**After the ride** `CharacterVehicleUse` hands the vehicle to the character's `use.keep_clear_of(body)` (interface 19): the exception stays
+until the character's circle (+`CharacterUse.CLEAR_MARGIN` 3 px) no longer overlaps the body, checked once a physics frame after its move, so stepping
+out never shoves the vehicle; boarding the same vehicle again calls `use.stop_clearing(body)` and keeps it.
 
 ## Contacts and harm (V6)
 
@@ -278,7 +278,7 @@ rule to them. They read the vehicle only through the drivable contract via `test
   time `_integrate_forces` sees the contact.
 - **A corpse still blocks rigid bodies** (layer 0, but its mask still collides), hence the exception once a struck
   character is dead.
-- The character's collision shape is disabled with `set_deferred` on the first ride pose and enabled at `end_ride`;
+- The character's collision shape is disabled with `set_deferred` on the first ride pose and enabled at `use.end_ride`;
   the exception (from `board`) covers the walk to the door before that.
 - The van's side and rear-right doors lead to the same seat (`cargo_right`): taking one makes the other's seat taken.
 

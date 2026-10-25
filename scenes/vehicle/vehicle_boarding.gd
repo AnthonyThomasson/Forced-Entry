@@ -8,15 +8,15 @@ extends RefCounted
 ##    it arrives;
 ##  - OPEN: the door eases open while it stands;
 ##  - STEP_IN, FOLD: it steps into the gap, turns to face forward and folds down into the seat,
-##    every frame a pose the vehicle carries (`set_ride_pose(position, facing, fold)`, positions
+##    every frame a pose the vehicle carries (`use.set_ride_pose(position, facing, fold)`, positions
 ##    kept in the vehicle's frame);
 ##  - SEATED: the door shuts behind it; from the driver's seat its `movement.move_input` /
 ##    `movement.run_input` drive the vehicle. A passenger first slides across to an empty driver's
 ##    seat (SHIFT_SEAT);
 ##  - BRAKE, SHIFT_OUT, OPEN_OUT, UNFOLD, STEP_OUT: getting out is the reverse, after braking to a
 ##    stop (a driver above `exit_max_speed`) or waiting for one (a passenger), by its own door if
-##    clear, else the nearest clear one; it ends standing beside the door (`end_ride()`), which then
-##    shuts behind it.
+##    clear, else the nearest clear one; it ends standing beside the door (`use.end_ride()`), which
+##    then shuts behind it.
 ## Nothing interrupts it but death (`abandon`), which leaves the door as it is.
 
 enum Phase {
@@ -248,7 +248,7 @@ func _ride(_delta: float) -> void:
 func _hold_seat() -> void:
 	_posed = vehicle.seat_point(seat)
 	_heading = 0.0
-	character.set_ride_pose(vehicle.to_global(_posed), _world_facing(0.0), 1.0)
+	character.use.set_ride_pose(vehicle.to_global(_posed), _world_facing(0.0), 1.0)
 
 
 # --- On the way out --------------------------------------------------------------------
@@ -296,7 +296,7 @@ func _step_off() -> void:
 	phase = Phase.DONE
 	vehicle.release(character)
 	vehicle.close_door(_exit_door)
-	character.end_ride()
+	character.use.end_ride()
 
 
 # --- Poses -----------------------------------------------------------------------------
@@ -328,7 +328,7 @@ func _pose(delta: float) -> bool:
 	var stepped := ((at - _posed).rotated(vehicle.global_rotation) / maxf(delta, 0.001)
 			* (1.0 - fold))
 	_posed = at
-	character.set_ride_pose(vehicle.to_global(at), _world_facing(_heading), fold, stepped)
+	character.use.set_ride_pose(vehicle.to_global(at), _world_facing(_heading), fold, stepped)
 	return _clock >= _duration and absf(angle_difference(_heading, _turn_to)) < 0.01
 
 

@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 		speeds[1] = car.speed()
 	var got_out := await t.until(func():
 		sample.call()
-		return me.vehicle() == null, 8.0)
+		return me.use.vehicle() == null, 8.0)
 	if not t.require(got_out, "the driver gets out (at %.1f px/s)" % rolling):
 		return
 	t.check(

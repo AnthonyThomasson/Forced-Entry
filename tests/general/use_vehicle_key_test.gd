@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	await _tap(t, action)
 	if not t.require(
-			await t.until(func(): return you.is_in_vehicle(), 6.0),
+			await t.until(func(): return you.use.is_in_vehicle(), 6.0),
 			"pressing E beside the car gets the player in",
 	):
 		return
@@ -72,7 +72,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	await _tap(t, action)
 	t.check(
-		await t.until(func(): return you.vehicle() == null, 8.0),
+		await t.until(func(): return you.use.vehicle() == null, 8.0),
 		"pressing E again gets it out",
 	)
-	t.check(not you.is_in_vehicle(), "it is on foot")
+	t.check(not you.use.is_in_vehicle(), "it is on foot")
