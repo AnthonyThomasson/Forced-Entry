@@ -224,9 +224,9 @@ static func _spawner_for(handle: Dictionary, match_spec: Dictionary) -> RefCount
 	return spawner
 
 
-## Place both sides of `match_spec` through `spawner` from `rng`: the defenders each in a random
-## room, then the invader team beside the front entrance of `handle`'s house, round the spec's
-## `human` (`_human_of`) when it invades.
+## Place both sides of `match_spec` through `spawner` from `rng` (`_place_side`: a side with `at`
+## points at those): the defenders each in a random room, then the invader team beside the front
+## entrance of `handle`'s house, round the spec's `human` (`_human_of`) when it invades.
 static func _place_sides(
 	spawner: RefCounted,
 	match_spec: Dictionary,

@@ -87,7 +87,7 @@ func _check_latched(t: TestContext, squad: Node, back: Dictionary, hall: Diction
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var t3 := t.actor(&"t3")
-	_radio_go(t, &"t1", back, 1, "ready")
+	EventBus.post(&"callout", _claim(t1, back, 1, "ready", true))  # Once, saying the go came.
 	await t.frames(1)
 	t.check(
 		not _held(squad, t1) and not _held(squad, t2),
@@ -124,11 +124,6 @@ func _held(squad: Node, m: Node) -> bool:
 ## `order`, the claim an ordered NPC's entry radios in the wire format's field names (interface 10).
 func _radio(t: TestContext, who: StringName, order: Dictionary, slot: int, step: String) -> void:
 	EventBus.post(&"callout", _claim(t.actor(who), order, slot, step, false))
-
-
-## `_radio` with `order_go` set: the claim says the leader's go came.
-func _radio_go(t: TestContext, who: StringName, order: Dictionary, slot: int, step: String) -> void:
-	EventBus.post(&"callout", _claim(t.actor(who), order, slot, step, true))
 
 
 ## The claim puppet `c` radios at entry step `step` on slot `slot` of held stack order `order`;

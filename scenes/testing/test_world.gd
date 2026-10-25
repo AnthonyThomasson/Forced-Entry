@@ -105,7 +105,8 @@ func _spawn_objects(setup: TestSetup) -> void:
 
 ## The match `setup` declares (`TestSetup.match`), populated as Main's over the `staged` world
 ## (`MatchBuilder.populate`, its overrides over the world's `spec`; a human named by its test actor
-## is that node), with its squads, stack radio and leaders overlay kept.
+## is that node), with its squads, stack radio and leaders overlay kept; an error when `setup`
+## declares its own squads too.
 func _populate_match(setup: TestSetup, staged: Dictionary, spec: Dictionary) -> void:
 	var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)
 	var human: Variant = overrides.get("human")

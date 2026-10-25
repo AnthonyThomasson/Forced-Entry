@@ -49,7 +49,6 @@ func run(t: TestContext) -> void:
 
 ## A test row ticks itself; a domain row clears its tests.
 func _check_rows_tick(t: TestContext) -> void:
-	# A test row ticks itself.
 	_item("a/two").set_checked(0, true)
 	_window._apply_edit(_item("a/two"))
 	t.expect_eq(_checked, ["a/one", "a/two"], "ticking a test reports the set")
@@ -65,7 +64,6 @@ func _check_rows_tick(t: TestContext) -> void:
 ## Under a search, bulk checks and a domain row touch only the shown tests; Run hands back every
 ## tick, hidden or not, in list order.
 func _check_search(t: TestContext) -> void:
-	# Under a search, bulk checks touch only the shown tests.
 	_window._search.text = "alpha"
 	_window._search.text_changed.emit("alpha")
 	t.expect_eq(_window._test_items.keys(), ["a/one"], "the search shows one test")

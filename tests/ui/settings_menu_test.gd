@@ -54,7 +54,6 @@ func _check_rows(t: TestContext) -> void:
 ## The Debug checkbox starts as given and reports a change; Escape with nothing being captured goes
 ## back, while capturing it cancels the capture without going back.
 func _check_debug_and_escape(t: TestContext) -> void:
-	# The Debug checkbox starts as given and reports a change.
 	var debug_check: CheckBox = _menu.find_children("*", "CheckBox", true, false)[0]
 	t.check(debug_check.button_pressed, "Debug starts as given")
 	t.check(_debugs.is_empty(), "seeding Debug emits nothing")
@@ -79,7 +78,6 @@ func _check_debug_and_escape(t: TestContext) -> void:
 ## A key release or repeat is not a capture; the next press is, and a mouse press too. False when
 ## a capture was missed (the test ended).
 func _check_capture(t: TestContext) -> bool:
-	# A key release or repeat is not a capture; the next press is.
 	_key_button("Punch").pressed.emit()
 	var release := _key(KEY_H)
 	release.pressed = false
@@ -113,7 +111,6 @@ func _check_capture(t: TestContext) -> bool:
 
 ## New rows from the host replace the list and end any capture; Reset reports the row's action.
 func _check_new_rows(t: TestContext) -> void:
-	# New rows from the host replace the list and end any capture.
 	_key_button("Punch").pressed.emit()
 	var rows := _rows()
 	rows[1]["text"] = "H"

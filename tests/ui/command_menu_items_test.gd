@@ -265,7 +265,6 @@ func _check_deselect(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node)
 ## and closing unpauses.
 func _check_tick_and_escape(t: TestContext, menu: Node, got: Array, t2: Node) -> void:
 	var tree := t.world.get_tree()
-	# The ticked list: tick t2.
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
 	t.check(
@@ -333,7 +332,7 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	if not await _check_frag_greyed(t, menu):
 		return
 	var before := got.size()
-	await _check_held_stacks(t, menu, got, t1, t2)
+	await _check_held_stacks(t, menu, got, before, [t1, t2])
 	await _check_go(t, menu, got, t1, before)
 	await _check_no_go(t, menu)
 	await _check_ambush(t, menu, got, before, [t1, t2])
@@ -368,9 +367,17 @@ func _check_frag_greyed(t: TestContext, menu: Node) -> bool:
 	return true
 
 
-## A frag carried (by `t1`): the frag item is offered; with "Hold for my go" ticked the stack is
-## held, the box remembered while the match runs (D19); unticked, a stack goes when ready.
-func _check_held_stacks(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
+## A frag carried (by `everyone`'s first): the frag item is offered; with "Hold for my go" ticked
+## the stack is held, the box remembered while the match runs (D19); unticked, a stack goes when
+## ready. The part's requests are `got` from `before` on.
+func _check_held_stacks(
+	t: TestContext,
+	menu: Node,
+	got: Array,
+	before: int,
+	everyone: Array,
+) -> void:
+	var t1: Node = everyone[0]
 	Probe.arm(t1, 0, 1)
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -379,11 +386,10 @@ func _check_held_stacks(t: TestContext, menu: Node, got: Array, t1: Node, t2: No
 		"with a frag in the squad, \"with frag\" is offered",
 	)
 	_set_hold(menu, true)
-	var before := got.size()
 	Order.choose(menu, "Stack into the kitchen with frag")
 	await t.frames(1)
 	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
-		_expect_stack(t, got[before], StackWant.new("frag", true, [t1, t2]), "the held frag stack")
+		_expect_stack(t, got[before], StackWant.new("frag", true, everyone), "the held frag stack")
 	# D19: remembered while the match runs.
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -397,7 +403,7 @@ func _check_held_stacks(t: TestContext, menu: Node, got: Array, t1: Node, t2: No
 		_expect_stack(
 			t,
 			got[before + 1],
-			StackWant.new("quiet", true, [t1, t2]),
+			StackWant.new("quiet", true, everyone),
 			"the held quiet stack",
 		)
 	menu.open_at(Order.BACK_SOUTH)
@@ -409,7 +415,7 @@ func _check_held_stacks(t: TestContext, menu: Node, got: Array, t1: Node, t2: No
 		_expect_stack(
 			t,
 			got[before + 2],
-			StackWant.new("stun", false, [t1, t2]),
+			StackWant.new("stun", false, everyone),
 			"unticked, a stun stack that goes when ready",
 		)
 
