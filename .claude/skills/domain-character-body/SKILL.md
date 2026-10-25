@@ -155,14 +155,15 @@ legs layer solves its own unclamped rig (`Rig.new(character, false)`). `Characte
 by index (`HEAD`, `CHEST`, `PELVIS`, `BELLY`, `SPINE` and per-side `SHOULDER`, `HIP`, `ELBOW`,
 `HAND`, `KNEE`, `ANKLE`; side 0/1 matching the hands) and each foot's direction through `toes(i)`.
 `character_ragdoll.gd` re-exports the same indices.
-- A solve reads its measures off the character once (`CharacterRig.Measures`, the inner class at the end of `character_rig.gd`,
-  one shared by every solve and refilled: the frames, the posture's heights and fold, the bone lengths, the feet's spacing),
-  then places the trunk, each arm, each leg into the rig's points (`Measures.place`) and the rested feet.
+- A solve reads its measures off the character once (`CharacterRig.Measures`, an inner class of `character_rig.gd`,
+  one shared by every solve and refilled by `Measures._measure`: the bone lengths, the weapon hand, a stun's stagger, and in
+  `Measures.fold`, the inner class `Fold` built once with it, the frames, the posture's heights and fold and the feet's spacing),
+  then places the trunk, each arm, each leg into the rig's points (`Measures._place`) and the rested feet.
 - Upper body: chest and shoulders sit in the pose's twisted torso frame, shifted by `torso_offset`;
   hips and feet in its `hip_angle` frame. Proportions are `CharacterBodyConfig`'s, in body radii
   (shoulders at `shoulder_height`, hips at `hip_height`, arms `upper_arm` +
   `forearm` ≈ 38 px, legs `thigh` + `shin`).
-- Arms: two-bone IK (`Measures.bend`) from each shoulder to where the hands layer holds the fist, at the
+- Arms: two-bone IK (`Measures._bend`) from each shoulder to where the hands layer holds the fist, at the
   stance's grip height, the elbow toward the stance's pole. If the hand is out of reach
   (`CharacterBodyConfig.arm_extension` of the arm's length) its shoulder follows it, up to `CharacterBodyConfig.shoulder_reach`;
   past that the forearm stretches a little.
