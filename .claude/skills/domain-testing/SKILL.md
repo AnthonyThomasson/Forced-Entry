@@ -437,9 +437,9 @@ hostile now, `known_contacts_for_display()`; false for a dead or freed one). The
 `configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.match` with `per_side` a side, scripted Von, the
 callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` (6 s) and then `await_contact` (at most
 `MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `character/standing_body_repaints_on_change` keeps a count but is
-a functional test of its domain. A wall-clock budget belongs here and nowhere else: the lint rule `timing_in_perf` fails a
-`Time.get_ticks_usec()` under `tests/` outside `tests/perf/` and `tests/_perf/` (`Time.get_ticks_msec()`, a real-time wait's clock, is
-left alone), so no budget runs in the pre-commit hook.
+a functional test of its domain. A wall-clock budget belongs here and nowhere else: the lint rule `timing_in_perf`
+fails a `Time.get_ticks_usec()` under `tests/` outside `tests/perf/` and `tests/_perf/` (`Time.get_ticks_msec()`, a
+real-time wait's clock, is left alone), so no budget runs in the pre-commit hook.
 
 - **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max): the main-loop iteration the frame ran
   in, from its physics frame to the next iteration's first frame signal. Headless `--fixed-fps` outruns the clock and

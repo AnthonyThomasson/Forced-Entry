@@ -2,11 +2,11 @@
 # Run the tool tests (Python unittest over tools/: the lint rules, the coverage tool, the runner's and the hooks' own
 # tests ...) and exit with unittest's status (2 on an unknown argument).
 #   tools/tool_tests.sh            the whole discovery: python3 -m unittest discover -s tools -t .
-#   tools/tool_tests.sh --staged   only the test modules the staged tools/ and .githooks/ files can break, picked from
-#                                  the index by tools/tool_tests_pick.py: a staged test module runs itself, a staged file
-#                                  every module whose code names it (through the tools and the tests' helpers); a
-#                                  staged shared test helper, or a file no test names, runs the whole discovery. None
-#                                  of those staged: nothing runs. The pre-commit hook runs this.
+#   tools/tool_tests.sh --staged   only the test modules the staged tools/ and .githooks/ files can break, picked
+#                                  from the index by tools/tool_tests_pick.py: a staged test module runs itself, a
+#                                  staged file every module whose code names it (through the tools and the tests'
+#                                  helpers); a staged shared test helper, or a file no test names, runs the whole
+#                                  discovery. None of those staged: nothing runs. The pre-commit hook runs this.
 # The first line says what runs: `tool tests: <module>, ...`, `tool tests: all (<why>)` or `tool tests: none (...)`.
 # The tests run without git's GIT_* variables: git hands a hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every
 # git a test runs in a throwaway repo of its own would obey them and act on this repo instead.

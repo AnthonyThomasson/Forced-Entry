@@ -56,7 +56,7 @@ class PickTests(unittest.TestCase):
         picked = self.modules("tools/coverage.py")
         self.assertIn("tools.coverage.tests.test_runner_cli", picked, "it runs the tool through support.run_cli")
         self.assertNotIn("tools.tests.test_pre_commit", picked,
-                         "it imports only TempDir, clean_env and git from the coverage support, which never run the tool")
+                         "it imports only TempDir, clean_env and git from the coverage support: none runs the tool")
 
     def test_a_lint_rule_is_named_by_the_name_the_runner_loads_it_by(self):
         self.assertEqual(self.modules("tools/lint_rules/rules/timing_in_perf.py"),
