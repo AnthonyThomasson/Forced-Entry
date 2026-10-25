@@ -564,7 +564,7 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
 the approach, the stack's slots, the pie, the crossing, the corners, the ready barrier and the radio, the solo entry
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
-(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; `cadence` offsets its decide timer),
+(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `decide_interval` in its `gc` offsets its decide timer),
 `target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(t, prefix)` to check the
 order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
