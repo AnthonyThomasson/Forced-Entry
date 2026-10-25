@@ -11,7 +11,7 @@ var _fire_press_on_ui := false
 
 ## Called by the character at the top of its _physics_process, so the intent we write is
 ## used the same frame.
-func control(character, _delta: float) -> void:
+func control(character: CharacterBody2D, _delta: float) -> void:
 	character.move_input = Keybinds.get_move_vector()
 	character.run_input = Keybinds.is_run_pressed()
 	character.aim_point = character.get_global_mouse_position()
@@ -27,22 +27,24 @@ func control(character, _delta: float) -> void:
 		character.melee()
 	if Keybinds.is_kick_just_pressed():
 		character.leg_kick()
-	# A click on a HUD control (the overlay bar, a panel) belongs to the UI, not the gun. Input
-	# polling ignores GUI mouse filters, so ask the viewport what the pointer is over. A press that
-	# began on the UI stays the UI's however far it is dragged.
-	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
-	if Keybinds.is_fire_just_pressed():
-		_fire_press_on_ui = over_ui
-	# One shot per click; an automatic gun keeps firing for as long as the button is held (the gun
-	# paces itself).
-	if (not over_ui
-			and not _fire_press_on_ui
-			and (Keybinds.is_fire_just_pressed()
-						or (Keybinds.is_fire_pressed() and character.is_automatic()))):
-		character.shoot()
+	_fire(character)
 	if Keybinds.is_reload_just_pressed():
 		character.reload()
 	if Keybinds.is_interact_just_pressed():
 		character.try_interact()
 	if Keybinds.is_use_vehicle_just_pressed():
 		character.try_use_vehicle()
+
+
+## Pull the trigger: once per click, and for as long as the button is held with an automatic gun
+## (the gun paces itself). A click on a HUD control (the overlay bar, a panel) belongs to the UI,
+## not the gun. Input polling ignores GUI mouse filters, so ask the viewport what the pointer is
+## over. A press that began on the UI stays the UI's however far it is dragged.
+func _fire(character: CharacterBody2D) -> void:
+	var over_ui: bool = character.get_viewport().gui_get_hovered_control() != null
+	if Keybinds.is_fire_just_pressed():
+		_fire_press_on_ui = over_ui
+	if over_ui or _fire_press_on_ui:
+		return
+	if Keybinds.is_fire_just_pressed() or (Keybinds.is_fire_pressed() and character.is_automatic()):
+		character.shoot()
