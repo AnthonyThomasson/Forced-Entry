@@ -13,7 +13,7 @@ it, is `docs/vehicles.md` (V1 to V9).
 ```
 player_controller (E) ─▶ Character.use.try_use_vehicle ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
 VehicleBoarding ──(movement.move_input / movement.aim_point, use.set_ride_pose, use.end_ride)──▶ Character;  seated driver: movement.move_input / movement.run_input ─▶ vehicle.drive_input
-vehicle._integrate_forces ─▶ VehicleDrive.step (the bicycle)   /   contacts ─▶ crash events, characters struck (apply_impulse, take_damage)
+vehicle._integrate_forces ─▶ VehicleDrive.step (the bicycle)   /   _contacts (VehicleContacts) ─▶ crash events, characters struck (apply_impulse, take_damage)
 vehicle ─▶ Deformable / Physics.spawn_debris / impact_impulse (hittable)   ;   Chassis / Roof (vehicle_visuals.gd) ─▶ painters ─▶ PixelArt
 vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound (Audio);   Camera ──(target.use.vehicle().view_zoom_out())──▶ vehicle
 ```
@@ -24,7 +24,8 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 |---|---|
 | `vehicle_config.gd` (`VehicleConfig`) | Static holder: one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
 | `vehicle_boarding_config.gd`, `vehicle_door_config.gd`, `vehicle_drive_config.gd`, `vehicle_collision_config.gd`, `vehicle_art_config.gd` | Static holders of the numbers every vehicle shares, one per topic: getting in and out (`VehicleBoardingConfig`), the doors' motion (`VehicleDoorConfig`), driving and the camera (`VehicleDriveConfig`), collisions (`VehicleCollisionConfig`), the look (`VehicleArtConfig`). |
-| `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, contacts, skids and every event the domain posts. Group `vehicles`. |
+| `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, skids and `post` (every `vehicle` event the domain posts goes through it). Group `vehicles`. |
+| `vehicle_contacts.gd` (`VehicleContacts`) | `RefCounted`, the body's private `_contacts`, built once with it: the contacts and harm (V6, below), `read(state)` / `remember(state)` in `_integrate_forces` around the drive's step, `apply()` in `_physics_process`. |
 | `vehicle_drive.gd` | `RefCounted` (preloaded): the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`; `lock(row, speed)` is the full lock at a speed. |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
@@ -144,8 +145,8 @@ out never shoves the vehicle; boarding the same vehicle again calls `use.stop_cl
 
 ## Contacts and harm (V6)
 
-`_read_contacts` (in `_integrate_forces`) keeps each touching body's strongest contact; the **closing speed** is taken
-from the velocities the previous step began with (`_last_velocity`, `_last_spin`) against the other body's velocity at
+The body's `_contacts` (`VehicleContacts`, `vehicle_contacts.gd`): `read(state)` (in `_integrate_forces`) keeps each touching body's strongest contact; the **closing speed** is taken
+from the velocities the previous step began with (`_last_velocity`, `_last_spin`, kept by `remember(state)` after the drive's step) against the other body's velocity at
 the point (a `CharacterBody2D`'s own `velocity`, since its server velocity is not its own motion), along the normal out
 of the vehicle. A body not touching last step is a new impact.
 
@@ -168,10 +169,10 @@ of the vehicle. A body not touching last step is a new impact.
   members' masses; `e` = `harm_bounce` on a first touch by a character, the row's `bounce` by a piece, 0 while it keeps
   pushing) sets the vehicle's normal velocity to `_last_velocity · n − J / m_v`, and every member slower than the pile's new
   speed `pile speed + J / m_p` is queued a shove up to it (`apply_impulse(n × mass × gap)`: a character's knockback, a
-  piece's native pushable). Each living character not in a pile for `rehit_time` (`_piled`, on the vehicle's own `_clock`)
+  piece's native pushable). Each living character not in a pile for `rehit_time` (`_piled`, on the contacts' own `_clock`)
   is queued a blow at `closing × m_v / (m_v + through)` (`through`: the pieces' mass between it and the vehicle). One
   run-in is one blow: the knockback friction stops a struck character faster than the car, which then catches it again.
-- `_apply_struck` (in `_physics_process`, outside the flush, where a death may change bodies) applies the shoves and blows:
+- `apply()` (in `_physics_process`, outside the flush, where a death may change bodies) applies the shoves and blows:
   `bump_character` (above `crash_min_speed`) and `take_damage(health × inverse_lerp(harm_min_speed, harm_kill_speed,
   speed))`. A dead body met at a contact keeps the vehicle's normal velocity (rolled over) and gets a collision exception (a
   corpse is on no layer but still blocks a rigid body through its mask). `process_physics_priority` −1 runs the vehicle before
@@ -222,7 +223,7 @@ rest) and the decals under it, and under the living and the occupants (`STANDING
 
 | Topic | Payload | Posted |
 |---|---|---|
-| `&"vehicle"` | `{ position, kind, stage }`: `ignition` (vehicle centre), `door_open` / `slide_open` (handle; a shut door starting to open), `door_close` / `slide_close` (handle; the frame it shuts), `crash` (+ `speed`, `material`), `bump_character` (+ `speed`) | `_post` |
+| `&"vehicle"` | `{ position, kind, stage }`: `ignition` (vehicle centre), `door_open` / `slide_open` (handle; a shut door starting to open), `door_close` / `slide_close` (handle; the frame it shuts), `crash` (+ `speed`, `material`), `bump_character` (+ `speed`) | `post` |
 | `&"engine"` | `{ vehicle, kind, stage }` `start` / `stop` | `start_engine` / `stop_engine` |
 | `&"skid"` | `{ vehicle, stage }` `start` / `stop` | `_update_skid`: start above `skid_start_slip`, stop below `skid_stop_slip` (or at rest) |
 

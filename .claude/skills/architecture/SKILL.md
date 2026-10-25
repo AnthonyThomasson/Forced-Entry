@@ -745,8 +745,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `brake_lights()` and `view_zoom_out()` (`VehicleDriveConfig.zoom_out` × speed / top speed: how far a camera following someone
       aboard zooms out). Its two draw layers are part of the contract too (the tests find them by name): the child `Chassis` (`layer`
       export `"chassis"`, at `DrawLayers.UNDER_VEHICLE`) and the child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`). Everything else on it (`half_size`, `outline`, `row`, `door_list`, `seat_point`, `occupant`, `is_free`, `reserve`,
-      `change_seat`, `release`, `open_door` / `close_door`, `start_engine` / `stop_engine`, `brake_input`, `exit_door`, `hit_marks`) is
-      Vehicles-internal, for its ride and visuals.
+      `change_seat`, `release`, `open_door` / `close_door`, `start_engine` / `stop_engine`, `brake_input`, `exit_door`, `hit_marks`, `post`
+      (a `vehicle` event)) is Vehicles-internal, for its ride and visuals.
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10)
       and its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never `VehicleDriveConfig`;
       `player_controller.gd` calls `use.try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the tests place a vehicle:
