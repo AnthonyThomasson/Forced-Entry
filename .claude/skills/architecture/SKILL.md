@@ -246,7 +246,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `drop(user, velocity) -> Node2D` (let go
    as its user dies: a gun leaves a skidding `DroppedItem` in the world, the default leaves
    nothing; the dropped node's `DroppedItem.item` is that very item). It holds typed parts, each built once with it, a base the kind may subclass and hands up
-   through `super(...)`:
+   through `super(...)` (`docs/adr/0005-items-and-vehicle-split-into-typed-parts.md`):
    - **`strike`** (`ItemStrike`, `items/item_strike.gd`): the melee geometry the character's hands read. Its numbers are `ahead`, `turn`,
      `short`, `support_gap`, `tempo` and `hand`; `swing(amount)` / `direction(aim, amount)` / `end(aim, amount)` / `forward()` follow
      from them. A fist's are the defaults. A long gun's (a `GunConfig` row with `raises_at_contact`) make its punch swing it nearly across
@@ -1083,9 +1083,13 @@ Three conventions hold across domains; the per-domain specifics live in each dom
 - **Typed components.** A body too big for one file is split into **typed components** held as public properties
   (`character.movement`, `character.inventory`, …), each one topic, at most 15 vars and 20 public methods; callers name the
   component (no forwarders on the body), and the body keeps only what scenes author, what every domain reads as plain
-  state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`). A
+  state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`,
+  `docs/adr/0005-items-and-vehicle-split-into-typed-parts.md`). A
   component is a `class_name` `RefCounted`, or a `class_name` Node child where a scene authors it (the character's
-  `Wardrobe`, `CharacterWardrobe`): the one scene script with a `class_name`, so the body can type it.
+  `Wardrobe`, `CharacterWardrobe`): the one scene script with a `class_name`, so the body can type it. A polymorphic
+  base splits the same way, per concern: each part a small base its kinds subclass where they behave differently
+  (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row; and no part holds its
+  owner (`RefCounted` cycles never free).
 
 ## Running & verifying
 
