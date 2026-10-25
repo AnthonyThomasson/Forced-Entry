@@ -879,7 +879,8 @@ or the runner starts, and parses
   `test_report_hook.gd`, `run_tests.sh` or `scan_godot_log.py`. The same file tests the lint: `lint_report.py` on
   crafted logs, `run_tests.sh` stopping on a lint failure, the real engine through `tools/lint.sh` (the project is
   clean; a probe script's warnings are found) and the gdstyle pass on probe scripts (an unformatted one and a line over
-  100 columns fail). Run it after editing `tools/lint*` or `gdstyle.toml` too. `tools/test_gdunit_wrap.py` runs
+  100 columns fail), each probe written into a copy of the checkout (`copy_checkout()`). Run it after editing
+  `tools/lint*` or `gdstyle.toml` too. `tools/test_gdunit_wrap.py` runs
   gdUnit's own discovery (`tools/gdunit_discover.gd`) and checks that every catalog test is one wrapper case, by id,
   and the harness tests are in the self-test suite alone: run it after adding or moving a suite.
   `tools/test_gdunit_panel.py` runs the tests as the editor's GdUnit panel does ("The GdUnit panel", above).

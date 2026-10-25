@@ -30,6 +30,9 @@ trigger per case).
   tests are `tools/test_log_gate.py` (verdicts, lines, report, flags, the log gate; a fake Godot and the real engine) and
   `tools/test_gdunit_wrap.py` (every catalog test one wrapper case, by id) and `tools/test_gdunit_panel.py` (a run as the
   editor's GdUnit panel starts it: its verdicts and a clean checkout), with `--self-test` (`domain-testing`).
+- **A tool test writes only in a temp dir or a copy of the checkout** (`copy_checkout()` in `tools/test_log_gate.py`,
+  or a throwaway git repo), never in the live tree, where another run in the worktree would see its probe;
+  `tools/tests/test_tool_tests_stay_out.py` fails on a write to a path built from `ROOT`.
 - Both in one ticket: test only the tool part. Game code added so a tool can read it is a tool change: test it and
   keep `architecture` true.
 

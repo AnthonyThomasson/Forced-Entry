@@ -5,7 +5,8 @@
   python3 tools/test_log_gate.py --headed   also the real engine WITH a window (batch --shots and the in-game runner)
 
 (The GDScript lint that runs first has its own tests at the end: lint_report.py on crafted logs, run_tests.sh
-aborting on a lint failure, the real engine through tools/lint.sh, and gdstyle in tools/lint.sh on probe scripts.)
+aborting on a lint failure, the clean-lint fingerprint in a throwaway repo, the real engine through tools/lint.sh, and
+gdstyle in tools/lint.sh on probe scripts, each written into a copy of the checkout.)
 
 Three layers, because the gate has three parts:
   1. tools/scan_godot_log.py on crafted logs (what counts as an error, the shutdown leak NOTE, --from offsets).
@@ -252,25 +253,6 @@ class WrapperTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("passed,", out)
 
-    def test_a_clean_lint_is_not_repeated_on_an_unchanged_tree_but_any_change_runs_it_again(self):
-        state = Path(tempfile.mkdtemp(dir=self.tmp))
-        self.assertEqual(self.run_wrapper("clean", lint="clean", state=state)[0], 0)
-        # Same sources: the lint is skipped, so a lint that would now fail does not stop the run.
-        code, out = self.run_wrapper("clean", lint="dirty", state=state)
-        self.assertEqual(code, 0)
-        self.assertIn("lint skipped", out)
-        # A new untracked file changes the fingerprint: the lint runs again and fails.
-        probe = ROOT / "zz_lint_skip_probe.tmp"
-        probe.write_text("changed")
-        try:
-            code, out = self.run_wrapper("clean", lint="dirty", state=state)
-        finally:
-            probe.unlink()
-        self.assertEqual(code, 1)
-        self.assertIn("no tests were run", out)
-        # The failed lint recorded nothing, and with the probe gone the tree is the one the clean lint saw: skipped again.
-        self.assertEqual(self.run_wrapper("clean", lint="dirty", state=state)[0], 0)
-
     def test_no_lint_flag_and_listing_skip_the_lint(self):
         self.assertEqual(self.run_wrapper("clean", "--no-lint", lint="dirty")[0], 0)
         self.assertEqual(self.run_wrapper("listing_clean", "--list", lint="dirty")[0], 0)
@@ -450,6 +432,71 @@ class FlagListTests(unittest.TestCase):
         self.assertEqual(set(self.wrapper_list("BATCH_FLAGS")) & set(self.wrapper_list("WRAPPER_FLAGS")), set())
 
 
+FAKE_LINT = r"""#!/usr/bin/env bash
+# Stands in for tools/lint.sh: a warning and exit 1 with FAKE_LINT=dirty, clean otherwise.
+if [ "$FAKE_LINT" = "dirty" ]; then
+  echo "ERROR: 'The local variable \"a\" is declared but never used in the block.'"
+  exit 1
+fi
+exit 0
+"""
+
+
+class LintFingerprintTests(unittest.TestCase):
+    """The clean-lint fingerprint (HEAD plus every uncommitted change) through git: a throwaway repo holding a copy of
+    run_tests.sh (with scan_godot_log.py) and a fake lint, so the untracked file that changes the fingerprint is
+    written there, not in this checkout."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="lint_fingerprint_"))
+        self.repo = self.tmp / "repo"
+        self.state = self.tmp / "state"
+        self.state.mkdir()
+        tools = self.repo / "tools"
+        tools.mkdir(parents=True)
+        for name in ("run_tests.sh", "scan_godot_log.py"):
+            shutil.copy2(ROOT / "tools" / name, tools / name)
+        (tools / "lint.sh").write_text(FAKE_LINT)
+        (tools / "lint.sh").chmod(0o755)
+        self.fake = self.tmp / "fakegodot"
+        self.fake.write_text(FAKE_GODOT)
+        self.fake.chmod(0o755)
+        for rel, text in {".gitignore": ".godot/\n", ".godot/global_script_class_cache.cfg": "",
+                          "scenes/a.gd": "extends Node\n"}.items():
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(text)
+        env = StagedChangedTests.env()
+        for args in (["init", "-q"], ["add", "-A"],
+                     ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base"]):
+            subprocess.run(["git", *args], cwd=self.repo, env=env, check=True, capture_output=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_wrapper(self, lint):
+        r = subprocess.run(["bash", str(self.repo / "tools" / "run_tests.sh"), "--jobs=1"], cwd=self.repo,
+                           capture_output=True, text=True, timeout=120,
+                           env=StagedChangedTests.env(GODOT=str(self.fake), FAKE_SCENARIO="clean", FAKE_LINT=lint,
+                                                      TMPDIR=str(self.state)))
+        return r.returncode, r.stdout + r.stderr
+
+    def test_a_clean_lint_is_not_repeated_on_an_unchanged_tree_but_any_change_runs_it_again(self):
+        self.assertEqual(self.run_wrapper("clean")[0], 0)
+        # Same sources: the lint is skipped, so a lint that would now fail does not stop the run.
+        code, out = self.run_wrapper("dirty")
+        self.assertEqual(code, 0, out)
+        self.assertIn("lint skipped", out)
+        # A new untracked file changes the fingerprint: the lint runs again and fails.
+        probe = self.repo / "zz_lint_skip_probe.tmp"
+        probe.write_text("changed")
+        code, out = self.run_wrapper("dirty")
+        self.assertEqual(code, 1, out)
+        self.assertIn("no tests were run", out)
+        # The failed lint recorded nothing, and with the probe gone the tree is the one the clean lint saw: skipped again.
+        probe.unlink()
+        self.assertEqual(self.run_wrapper("dirty")[0], 0)
+
+
 FAKE_STAGED_LINT = r"""#!/usr/bin/env bash
 # Stands in for tools/lint.sh: logs its arguments; with FAKE_LINT_FOREIGN=<path> reports a finding in that script.
 echo "lint $*" >> "$LINT_LOG"
@@ -590,13 +637,14 @@ class LintReportTests(unittest.TestCase):
 
 @unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
 class LintEngineTests(unittest.TestCase):
-    """The real engine: the project lints clean, and a script with warnings is caught with its exact lines."""
+    """The real engine: the project lints clean, and a script with warnings is caught with its exact lines (written
+    into a copy of the checkout, so no other run in this worktree sees it)."""
 
-    PROBE = ROOT / "tests" / "_harness" / "zz_lint_probe.gd"
+    PROBE = "tests/_harness/zz_lint_probe.gd"
 
-    def lint(self, *args):
+    def lint(self, *args, root=ROOT):
         env = dict(os.environ, GODOT=godot_binary())
-        r = subprocess.run(["bash", str(ROOT / "tools" / "lint.sh"), *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=300)
+        r = subprocess.run(["bash", str(root / "tools" / "lint.sh"), *args], cwd=root, env=env, capture_output=True, text=True, timeout=300)
         return r.returncode, r.stdout + r.stderr
 
     def test_the_project_is_clean(self):
@@ -604,11 +652,10 @@ class LintEngineTests(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
     def test_warnings_are_found_per_file_with_the_division_pinpointed(self):
-        self.PROBE.write_text("extends RefCounted\n\n\nfunc f(wrap: bool) -> int:\n\tvar unused := 1\n\treturn 5 / 2\n")
-        try:
-            code, out = self.lint("tests/_harness/zz_lint_probe.gd")
-        finally:
-            self.PROBE.unlink()
+        with tempfile.TemporaryDirectory(prefix="lint_probe_") as tmp:
+            copy = copy_checkout(Path(tmp))
+            (copy / self.PROBE).write_text("extends RefCounted\n\n\nfunc f(wrap: bool) -> int:\n\tvar unused := 1\n\treturn 5 / 2\n")
+            code, out = self.lint(self.PROBE, root=copy)
         self.assertEqual(code, 1, out)
         self.assertIn("res://tests/_harness/zz_lint_probe.gd  (4)", out)
         self.assertIn("declared but never used", out)
@@ -625,16 +672,22 @@ class GdStyleLintTests(unittest.TestCase):
     UNFORMATTED = "extends RefCounted\n\n\nfunc total()->int:\n\tvar a:=1+2\n\treturn a\n"  # no spaces round '+'
     LONG_LINE = "extends RefCounted\n\nconst MESSAGE := \"%s\"\n" % ("a long line only a person can shorten, never the formatter, " * 2)
 
+    @classmethod
+    def setUpClass(cls):
+        # The probes go in a copy of the checkout, so no other run in this worktree sees them.
+        cls.tmp = Path(tempfile.mkdtemp(prefix="gdstyle_probe_"))
+        cls.copy = copy_checkout(cls.tmp)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
     def lint_probe(self, name, text):
-        probe = ROOT / "tests" / "_harness" / f"zz_style_{name}_probe.gd"
-        probe.write_text(text)
-        try:
-            env = dict(os.environ, GODOT=godot_binary())
-            r = subprocess.run(["bash", str(ROOT / "tools" / "lint.sh"), probe.relative_to(ROOT).as_posix()], cwd=ROOT, env=env,
-                               capture_output=True, text=True, timeout=600)
-        finally:
-            for f in (probe, probe.with_name(probe.name + ".uid")):
-                f.unlink(missing_ok=True)
+        probe = f"tests/_harness/zz_style_{name}_probe.gd"
+        (self.copy / probe).write_text(text)
+        env = dict(os.environ, GODOT=godot_binary())
+        r = subprocess.run(["bash", str(self.copy / "tools" / "lint.sh"), probe], cwd=self.copy, env=env,
+                           capture_output=True, text=True, timeout=600)
         return r.returncode, r.stdout + r.stderr
 
     def test_the_probes_are_what_they_claim(self):
