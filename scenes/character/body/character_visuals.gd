@@ -85,12 +85,8 @@ static var _CAP_ROUND := _arc(0.0, TAU / (CAP_POINTS * 2), CAP_POINTS * 2)
 ## `TAU * k / SECTION_POINTS`.
 static var _SECTION_RING := _ring(SECTION_POINTS)
 
-## Draws the body's floor shadow; inside a CanvasGroup (which carries the shadow's alpha) so
-## overlapping parts don't darken twice.
-var _shadow: Node2D
-## The textured parts drawn on the body and on its shadow, as meshes kept from draw to draw.
+## The textured parts drawn on the body, as meshes kept from draw to draw.
 var _meshes: BodyMeshes
-var _shadow_meshes: BodyMeshes
 ## The fallen body has been drawn at rest: nothing left to redraw.
 var _settled_drawn := false
 ## The fallen parts' keys, lowest first, as last drawn (see `_stack`).
@@ -152,6 +148,8 @@ var _hand_parts: Array[Dictionary] = []
 var _limb_chains: Array = []
 var _limbs_of: RefCounted = null
 var _limbs_frame := -1
+## The body's floor shadow (`body_shadow.gd`).
+var shadow: BodyShadow
 
 ## Character — body radius, pose, rig, held item.
 @onready var _character := get_parent()
@@ -162,7 +160,8 @@ var _limbs_frame := -1
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_meshes = BodyMeshes.new(self)
-	_build_shadow()
+	shadow = BodyShadow.new(self, _character, _hands)
+	shadow.node.draw.connect(_draw_shadow)
 	_dress()
 
 
@@ -186,13 +185,13 @@ func _process(_delta: float) -> void:
 		if key != _redraw_key:
 			_redraw_key = key
 			queue_redraw()
-			_shadow.queue_redraw()
+			shadow.node.queue_redraw()
 		return
 	if _settled_drawn:
 		return
 	_settled_drawn = ragdoll.is_settled()
 	queue_redraw()
-	_shadow.queue_redraw()
+	shadow.node.queue_redraw()
 
 
 func _draw() -> void:
@@ -208,6 +207,21 @@ func _draw() -> void:
 		_draw_lying(rig)
 		return
 	_draw_standing(rig)
+
+
+## The body's floor shadow (the shadow node's draw), standing or fallen: standing, the shoulders'
+## silhouette first, then the rest of the body.
+func _draw_shadow() -> void:
+	shadow.meshes.begin()
+	var rd = _character.ragdoll
+	if rd != null:
+		shadow.draw_fallen(rd)
+	elif draws_laid_out():
+		shadow.draw_fallen(_rig if _rig != null else _character.rig())
+	else:
+		var rig: Rig = _rig if _rig != null else _character.rig()
+		var shift := shadow.shift()
+		shadow.draw_standing(rig, shift, _draw_shoulders_shadow(rig, shift))
 
 
 ## The standing body from `rig`: the legs and arms, the weapon under the shoulders, a hanging hand
@@ -507,39 +521,6 @@ func _shoulder_art(angle: float) -> Texture2D:
 	)
 
 
-## The standing body's floor shadow, drawn into the shadow group: the shoulders' own silhouette
-## through the deformed outline, then each limb, fist and the head, every point shifted away from
-## the light by its height.
-func _draw_standing_shadow() -> void:
-	var rig: Rig = _rig if _rig != null else _character.rig()
-	var shift := _shadow_shift()
-	var lift := _draw_shoulders_shadow(rig, shift)
-	var limbs := _limbs(rig)
-	# All one black (the shadow group shows what any part covers, whatever the order): one kept
-	# mesh, or without meshes one batch.
-	var solid: BodyMeshes.Solid = null
-	var fills: RefCounted = null
-	if BodyMeshes.enabled:
-		solid = _shadow_meshes.solid(Color.BLACK)
-		fills = solid
-	else:
-		fills = FillBatch.new(_shadow)
-	var bounds := Rect2(lift, Vector2.ZERO)  # What the limbs and the discs cover.
-	for i in 2:
-		for chain in [limbs[i], limbs[2 + i]]:
-			bounds = bounds.merge(_draw_limb_shadow(chain, shift, fills))
-		var hand := _cast(rig.point(Rig.HAND[i]), shift)
-		fills.circle(hand, _hands.hand_radius, Color.BLACK)
-		bounds = bounds.merge(Rect2(hand, Vector2.ZERO).grow(_hands.hand_radius))
-	var head := _cast(rig.point(Rig.HEAD), shift)
-	var head_radius: float = CharacterRagdollConfig.head_radius * _character.radius
-	fills.circle(head, head_radius, Color.BLACK)
-	if solid:
-		solid.flush(bounds.merge(Rect2(head, Vector2.ZERO).grow(head_radius)))
-	else:
-		fills.flush()
-
-
 ## The shoulders' own deformed silhouette on the floor shadow, at the rig's chest (the lunge)
 ## shifted from the light (`shift`, per px of height). Returns where it lies.
 func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
@@ -552,8 +533,9 @@ func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
 	# Undented, it is the intact ring already.
 	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
 		poly = Deformation.base_ring("circle", size)
-	var lift := _cast(rig.point(Rig.CHEST), shift)  # The shoulders' lunge, shifted from the light.
-	_shadow_meshes.draw(
+	# The shoulders' lunge, shifted from the light.
+	var lift := BodyShadow.cast(rig.point(Rig.CHEST), shift)
+	shadow.meshes.draw(
 		Transform2D(0.0, lift) * poly,
 		_texture_uvs(poly, size, angle),
 		_shoulder_art(angle),
@@ -576,36 +558,6 @@ static func _texture_uvs(
 	var to_uv := Transform2D(Vector2(c / size.x, -s / size.y), Vector2(s / size.x, c / size.y),
 			Vector2(0.5, 0.5))
 	return to_uv * poly
-
-
-## How far a point on the body is shifted on the floor shadow per px of its height: away from the
-## light (see `_cast`).
-func _shadow_shift() -> Vector2:
-	return global_transform.basis_xform_inv(-ArtCanvasConfig.light_from.normalized()).normalized() \
-		* CharacterShadowConfig.body_shadow_per_height
-
-
-## A 3D point's place on the floor shadow: its flat position shifted away from the light by its
-## height (`shift`, from `_shadow_shift`, per px).
-static func _cast(p: Vector3, shift: Vector2) -> Vector2:
-	return Vector2(p.x, p.y) + shift * p.z
-
-
-## One limb chain's floor shadow: each segment's capsule shifted from the light (`_cast`), added to
-## `fills` (a `FillBatch` or a `BodyMeshes.Solid`). Returns the rect the capsules lie in.
-func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills: RefCounted) -> Rect2:
-	var bounds := Rect2()
-	var reach := 0.0
-	for seg in chain["segs"]:
-		var a := _cast(seg["a"], shift)
-		var b := _cast(seg["b"], shift)
-		var ra: float = seg["ra"]
-		var rb: float = seg["rb"]
-		_fill_capsule(fills, _capsule(a, b, ra, rb), _convex(a, b, ra, rb), Color.BLACK)
-		bounds = Rect2(a, Vector2.ZERO) if reach == 0.0 else bounds.expand(a)
-		bounds = bounds.expand(b)
-		reach = maxf(reach, maxf(seg["ra"], seg["rb"]))
-	return bounds.grow(reach)
 
 
 ## The head at the pose's offset and angle, casting its shadow onto the shoulders first (the head
@@ -763,31 +715,6 @@ func _through(impacts: Array, center: Vector2, radius: float) -> Array:
 # naturally as it tips toward or away from the camera.
 
 
-## The shadow layer: a CanvasGroup behind the body carrying the shadow's alpha, around the node
-## the body's shadow draws on (opaque, so overlapping parts merge into one shade).
-func _build_shadow() -> void:
-	var group := CanvasGroup.new()
-	group.show_behind_parent = true
-	group.self_modulate = Color(1.0, 1.0, 1.0, ArtCanvasConfig.drop_shadow_alpha)
-	add_child(group)
-	_shadow = Node2D.new()
-	_shadow_meshes = BodyMeshes.new(_shadow)
-	group.add_child(_shadow)
-	_shadow.draw.connect(_draw_body_shadow)
-
-
-## The body's floor shadow, standing or fallen.
-func _draw_body_shadow() -> void:
-	_shadow_meshes.begin()
-	var rd = _character.ragdoll
-	if rd != null:
-		_draw_fallen_shadow(rd)
-	elif draws_laid_out():
-		_draw_fallen_shadow(_rig if _rig != null else _character.rig())
-	else:
-		_draw_standing_shadow()
-
-
 ## Every part of the fallen body, lowest first. A living body bent over draws its own head
 ## (`with_head` off) over the weapon and the hands; `before_trunk` draws the weapon just under the
 ## trunk.
@@ -830,30 +757,6 @@ func _stack(parts: Array) -> Array:
 	for part in parts:
 		_fallen_order.append(part["key"])
 	return parts
-
-
-## The fallen body's floor shadow: each part's silhouette with every point shifted away from the
-## light by its height, so the shadow closes in under the body as it lands.
-func _draw_fallen_shadow(rd: RefCounted) -> void:
-	var shift := _shadow_shift()
-	var fills := FillBatch.new(_shadow)
-	for part in _fallen_parts(rd):
-		match part["kind"]:
-			"chain":
-				_draw_limb_shadow(part, shift, fills)
-			"hand":
-				fills.circle(_cast(part["at"], shift), _hands.hand_radius, Color.BLACK)
-			"head":
-				fills.circle(
-					_cast(part["at"], shift),
-					CharacterRagdollConfig.head_radius * _character.radius,
-					Color.BLACK,
-				)
-	# The trunk's slices, each its own polygon: the shadow group flattens overlapping black into one
-	# shade, so they render as the one outline the body draws, without the union that outline costs.
-	for hull in _trunk_hulls(rd, shift):
-		fills.fill(hull, Color.BLACK)
-	fills.flush()  # All one black: the shadow group shows what any part covers, whatever the order.
 
 
 ## The fallen body's parts as dicts with their `kind` and mean `height`: limb chains (arms, legs
@@ -1205,7 +1108,7 @@ static func _trunk_steps() -> PackedFloat32Array:
 
 
 ## The trunk's outline seen from above, each point shifted by `shift` per px of its height (zero: as
-## drawn; `_shadow_shift`: on the floor shadow): the union of the hulls of each pair of
+## drawn; `BodyShadow.shift`: on the floor shadow): the union of the hulls of each pair of
 ## neighbouring cross-sections (ellipses across the spine, eased between
 ## CharacterArtConfig.ragdoll_trunk_sections and domed at both ends), so it is waisted and rounded
 ## from any side and shrinks to the shoulders seen from above.
@@ -1263,7 +1166,9 @@ func _trunk_hulls(rd: RefCounted, shift := Vector2.ZERO) -> Array[PackedVector2A
 		var ring := PackedVector2Array()
 		for around in _SECTION_RING:
 			ring.append(
-				_cast(centre + basis.x * around.x * half.x + basis.z * around.y * half.y, shift),
+				BodyShadow.cast(
+					centre + basis.x * around.x * half.x + basis.z * around.y * half.y, shift,
+				),
 			)
 		rings.append(ring)
 	var hulls: Array[PackedVector2Array] = []

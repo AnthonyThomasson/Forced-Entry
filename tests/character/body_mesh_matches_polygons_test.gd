@@ -95,7 +95,7 @@ func _check_meshes_used(t: TestContext, walker: Node) -> void:
 		"every limb segment of a standing body is a mesh, and its shoulders, fists and head",
 	)
 	t.expect_eq(
-		walker._shadow_meshes.used(),
+		walker.shadow.meshes.used(),
 		2,
 		"its shadow is two: the shoulders and every plain black shape",
 	)
@@ -158,7 +158,7 @@ func _repaint(t: TestContext) -> void:
 	for id in ACTORS:
 		var visuals = t.actor(id).get_node("Visuals")
 		visuals.queue_redraw()
-		visuals._shadow.queue_redraw()
+		visuals.shadow.node.queue_redraw()
 	await t.frames(3)
 
 

@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
-pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its part `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -50,7 +50,7 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   (`tests/character/fallen_draw_order_stable_test.gd`). Test: `tests/character/offscreen_body_is_not_drawn_test.gd`.
   **What a repaint costs.** Windowed, every polygon command builds a vertex and an index buffer and frees them the next frame (~10 µs),
   so the parts that are one polygon each are drawn as **meshes the body keeps** (`body_meshes.gd`, `BodyMeshes`: one pool on the body,
-  `_meshes`, one on its shadow, `_shadow_meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
+  `_meshes`, one on its shadow, `shadow.meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
   `Deformation.draw_shape` would map the art onto, from the published `shape_polygon` / `is_valid_polygon` / `base_ring`, in white
   darkened by `Deformation.darken(damage_total)`), the shoulders' floor shadow and a folded or fallen trunk's faces, and the standing
   floor shadow's plain black shapes as one mesh (`BodyMeshes.Solid`: gathered as `FillBatch` gathers them, drawn black). A mesh is cut
@@ -249,7 +249,7 @@ over from the last frame (`_stack`): a pair swaps only once their heights differ
   `body_crouch_foot_gap`), stands the feet ahead of the pelvis so the knees lead (`body_crouch_foot_ahead`), staggers the weapon hand's foot back
   (`body_crouch_stagger`) and shortens the stride (`body_crouch_stride`). The rig also answers `torso()` and `face()`, so a body folded past
   `FOLD_DRAW` is drawn by `_draw_lying`: `_draw_fallen(rig, false, weapon)` (a lofted trunk showing its back, the limbs by height), then the weapon and
-  fists on top, with its shadow from `_draw_fallen_shadow`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
+  fists on top, with its shadow from `shadow.draw_fallen`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
   art (seam, backpack, the vest's back panel and plate wear) with the shoulders' over it.
   **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a
   crouch's forward lean carries them with the sleeves. `posture_hand_ahead()` (`body_crouch_hand_ahead` x `posture_folded()`) is added to every
@@ -322,9 +322,10 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   `texture_angle`, the damage, `marks` false) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtCanvasConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
-  shadow (living and fallen alike) is one `CanvasGroup` of opaque shapes carrying
-  `ArtCanvasConfig.drop_shadow_alpha` — the shoulders' own deformed silhouette, each limb's capsule, the
-  fists and the head — every point shifted away from the light by `body_shadow_per_height × height`,
+  shadow (living and fallen alike, `body_shadow.gd`, the visuals' `shadow`: it builds the group and the node it draws on, and the
+  visuals connect that node's draw) is one `CanvasGroup` of opaque shapes carrying
+  `ArtCanvasConfig.drop_shadow_alpha` — the shoulders' own deformed silhouette (the visuals draw it first, from their shoulder art), each
+  limb's capsule, the fists and the head (`shadow.draw_standing`; fallen or folded, `shadow.draw_fallen`) — every point shifted away from the light by `body_shadow_per_height × height` (`BodyShadow.cast`, by `shadow.shift()`),
   so overlaps don't darken twice. It is redrawn with the body (see the Draw layer above), so only when
   the standing body's drawing changes.
 - **Wounds turn with the shoulders:** `take_hit` records impacts relative to them

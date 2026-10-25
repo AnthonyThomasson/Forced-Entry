@@ -191,7 +191,7 @@ func _check_fallen(t: TestContext) -> void:
 ## from the plain sum's outline either way (INF when they count different slices).
 func _trunk_gap(fallen: Node, rd: RefCounted) -> float:
 	var worst := 0.0
-	for shift in [Vector2.ZERO, fallen._shadow_shift()]:
+	for shift in [Vector2.ZERO, fallen.shadow.shift()]:
 		var hulls: Array = fallen._trunk_hulls(rd, shift)
 		var plain := _plain_hulls(fallen, rd, shift)
 		if hulls.size() != plain.size():
