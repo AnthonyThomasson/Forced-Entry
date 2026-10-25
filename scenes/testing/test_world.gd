@@ -268,9 +268,10 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 	var character := scene.instantiate()
 	character.name = String(a["id"])
 	_add_controller(character, kind)
+	# A `component:prop` key sets that prop of the character's component (`movement:speed`).
 	var props: Dictionary = a["props"]
 	for prop in props:
-		character.set(prop, props[prop])
+		character.set_indexed(NodePath(String(prop)), props[prop])
 	_apply_actor_switches(character, switches)
 	_apply_child_props(character, a)
 	OVERLAY_REGISTRY.apply(character, _overlay_flags)

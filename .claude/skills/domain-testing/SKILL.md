@@ -320,8 +320,8 @@ func run(t: TestContext) -> void:
     place before they join the tree; a kind with no scene places nothing and `t.vehicle(id)` is then null. The world then waits
     one physics frame before the actors, because a new body joins the physics space only at the next step.
   - Actors: `actor(id, kind, pos, props)`. Kind is `puppet` (scripted), `player` (human-driven),
-    `defender`, `invader`, or a scene path. `props` are set on the character before `_ready` (for
-    example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, and the ammo props
+    `defender`, `invader`, or a scene path. `props` are set on the character before `_ready` (a `component:prop` key on that component of it, through
+    `set_indexed`: `"pose:_stride"`, `tests/general/test_world_component_prop`; for example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, and the ammo props
     `start_rounds` (what the starting gun is loaded with; -1 = full) and `spare_magazine_types` (e.g. `[]` for none,
     `[&"extended"]`; the default is two standard magazines for each gun, so a test counting spares sets it)). Actors built here
     keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
