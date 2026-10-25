@@ -120,6 +120,11 @@ func hand_position(hand: int) -> Vector2:
 	return _hand_pos[hand]
 
 
+## World-space center of a hand (the character is never rotated, so world = origin + local).
+func world(hand: int) -> Vector2:
+	return _character.global_position + _hand_pos[hand]
+
+
 ## How far a hand is thrown, 0 (resting) .. 1 (fully punched).
 func punch_amount(hand: int) -> float:
 	return _punch[hand]
@@ -138,7 +143,7 @@ func _raw_hand_position(hand: int) -> Vector2:
 		var thrown: float = _punch[item.weapon_hand()]
 		if thrown > 0.0:
 			var barrel := item.strike_direction(
-				Vector2.from_angle(_character.pose.weapon_angle),
+				Vector2.from_angle(_character.anatomy.pose.weapon_angle),
 				thrown,
 			)
 			# Gripping at once (not eased in with the swing), or the hand would cut across the
@@ -152,7 +157,7 @@ func _raw_hand_position(hand: int) -> Vector2:
 
 ## The hand's place from its stance and its own punch extension alone.
 func _stance_hand_position(hand: int) -> Vector2:
-	var pose = _character.pose
+	var pose = _character.anatomy.pose
 	var along := Vector2.from_angle(pose.hand_angles[hand])
 	var side := -1.0 if hand == 0 else 1.0
 	var forward: float = pose.arms.rest_forward(hand) + _character.movement.posture_hand_ahead()

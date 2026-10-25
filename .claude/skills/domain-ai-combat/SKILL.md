@@ -29,7 +29,7 @@ smoothly. A peek shoots only once the facing has settled on the contact (`AIM_TO
 of an empty gun, where the cover phase reloads it), not after a refused one. **Ambush** holds the covered spot and fires the moment a line opens (facing settled). (`Combat.ambush` is the ENGAGE spot's stance;
 the ordered `ambush` primitive, `docs/leadership.md` LD15, is not this module's: it is `Behavior._apply_defend`'s walk and hold at a post,
 and its shots are the watch stage's, `domain-ai-behavior`.) **Melee** closes to `punch_range` and strikes on the
-cooldown (no cover cycle): `Combat.strike` kicks (`Combat.kick`, `Character.leg_kick()`) while standing with a gun in hand, so the gun stays in hand,
+cooldown (no cover cycle): `Combat.strike` kicks (`Combat.kick`, the character's `anatomy.leg_kick()`) while standing with a gun in hand, so the gun stays in hand,
 and otherwise (crouched, or no gun held) equips the fists and punches (`Combat.punch`). With `hold_ground` (a territorial NPC fighting a contact outside), spots are restricted to inside
 the house, the peek fallback holds instead of advancing, and melee won't chase out of the house. With a `room` (a member ordered to defend
 it, `docs/leadership.md` LD8) the peek and cover spots are restricted to inside that room whatever the contact, and `hold_ground` is set

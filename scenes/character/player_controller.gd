@@ -26,7 +26,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	if Keybinds.is_punch_just_pressed():
 		character.weapon.melee()
 	if Keybinds.is_kick_just_pressed():
-		character.leg_kick()
+		character.anatomy.leg_kick()
 	_fire(character)
 	if Keybinds.is_reload_just_pressed():
 		character.ammo.reload()

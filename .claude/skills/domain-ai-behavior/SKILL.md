@@ -9,7 +9,7 @@ The ACT half: it runs the LEAF the decision planner chose — one primitive with
 concrete movement + actions, and holds the System-Two state Von (a stateless ranker) lacks. It never
 chooses WHAT to do and applies no policy beyond its params. It reads the world only through the
 perception sub-domain and drives the character only through its public controller contract
-(`movement.move_input`/`movement.aim_point`/`movement.run_input`, `movement.set_posture`, `inventory.select_slot`, `weapon.shoot`, `weapon.melee`, `leg_kick`, `ammo.reload`, `use.interact_with`,
+(`movement.move_input`/`movement.aim_point`/`movement.run_input`, `movement.set_posture`, `inventory.select_slot`, `weapon.shoot`, `weapon.melee`, `anatomy.leg_kick`, `ammo.reload`, `use.interact_with`,
 `use.end_interaction`: interface 7).
 
 Files:

@@ -7,7 +7,7 @@ extends RefCounted
 ## - each ankle is swept from the body centre toward where the rig would put it (a foot-sized
 ##   circle, like the hands, `body_sweep.gd`) and rests at the first wall or solid piece it meets,
 ##   sliding the leftover along the surface; the rig reads it back through
-##   `character.foot_clamp(i)`;
+##   `character.anatomy.legs.ankle(i)`;
 ## - the knee is judged the same way from the leg the ankle leaves: a knee that would pass through
 ##   something moves the foot back by what it overshot (a crouch facing a wall keeps its knees off
 ##   it), up to `KNEE_TRIES`;

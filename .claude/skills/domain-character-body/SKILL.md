@@ -7,23 +7,37 @@ description: Deep implementation detail for the Character body sub-domain (scene
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
 pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`, `body_laid_out` and its `body_trunk`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
-`domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
+`domain-character`) owns state and physics and steps these each frame through its `anatomy` (`character_anatomy.gd`, below); nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
 `FillBatch` (11) and `GameLog` (15), and the Character tuning holders (`class_name` static holders): this sub-domain's own in `body/` (`CharacterStrideConfig`,
 `CharacterMeleeConfig`, `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterRagdollConfig`,
 `CharacterRagdollJointConfig`) and the ones it shares with the root in `character/` (`CharacterBodyConfig`, `CharacterPostureConfig`,
 `CharacterStanceConfig`, `CharacterStunConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterShadowConfig`, `CharacterRagdollFallConfig`). `character_base.tscn` attaches
-`character_hands.gd` and `character_visuals.gd` as the `Hands` / `Visuals` children (the NPC scenes and `main.tscn`'s `Player` inherit or instance it); the rest are `RefCounted` helpers the character owns.
+`character_hands.gd` and `character_visuals.gd` as the `Hands` / `Visuals` children (the NPC scenes and `main.tscn`'s `Player` inherit or instance it); the rest are `RefCounted` helpers the character's `anatomy` owns.
+
+## The anatomy (`character_anatomy.gd`)
+
+`CharacterAnatomy` (`class_name`, a `RefCounted` built once with the character as its `anatomy`) holds the body's animate parts and
+steps them: `pose`, `hands` (the `Hands` child), `legs`, `kick`, `footsteps` (character_footsteps.gd, `domain-character`), `ragdoll`
+(null while alive), `deformable` (the flesh's dents, a `Deformable` child), `wound` (a `BloodWound` child) and `occluder` (the shadow).
+`attach()` (from the character's `_ready`) finds the hands and adds the node parts as children (the dents, the wound, the footprints and
+the shadow). Each physics frame on foot `step(delta)` runs the kick, the pose (its `PoseDrive` refilled by `_pose_drive`), the legs and
+the footsteps; once dead it steps the ragdoll and, once it has settled, bleeds out. `hold(delta, moving, stun_at)` is the frame a ride or
+an interaction holds the body (`use.hold_frame`); `wound_by(hit)` dents, throws the blood debris and starts the bleeding; `die()` drops the
+rig, stops the bleeding, sets `CharacterArtConfig.ragdoll_z_index` and frees the shadow; `fall(momentum, direction)` lets the legs and the
+kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing. Its reads: `rig()` / `invalidate_rig()` (below),
+`leg_kick()` / `is_kicking()` / `leg_kick_amount(i)` (the kick, below).
 
 ## Animate and draw
 
 - **Animate** (`character_hands.gd`, a child `Node2D`) owns hand geometry, the punch tween, and
-  punch hit detection; exposes `hand_position(i)`, `punch_amount(i)` and the `punched` signal.
-  `character_pose.gd` (a `RefCounted` the character owns as `pose`) owns the living motion of head,
+  punch hit detection; exposes `hand_position(i)` (local), `world(i)` (world), `punch(i)`, `punch_amount(i)`, `is_attacking()`
+  and the `punched` signal (the character's `anatomy.hands`).
+  `character_pose.gd` (a `RefCounted` the anatomy owns as `pose`) owns the living motion of head,
   shoulders, hips and hands, and each hand's stance (below), through its springs, `arms` and `gait`; `character_rig.gd` (a `RefCounted`
-  solved by `character.rig()`, once per physics frame) owns the standing skeleton, the 3D joints of the arms and legs
-  (below); `character_ragdoll.gd` (owned as `ragdoll` once dead) owns the fall.
+  solved by `anatomy.rig()`, once per physics frame) owns the standing skeleton, the 3D joints of the arms and legs
+  (below); `character_ragdoll.gd` (the anatomy's `ragdoll` once dead) owns the fall.
 - **Draw** (`character_visuals.gd`) owns appearance: a drop shadow, the legs and shoes, the arms
   (sleeve, then forearm), then `item.draw_weapon()` (under the torso, so a long gun's butt is tucked behind the shoulder), the shoulders (at the pose's lunge), then both fists (gripping the weapon; a hand gripping below `HAND_OVER_HEIGHT`, i.e. hanging relaxed, is drawn *before* the shoulders so they cover it — `tests/character/hanging_hands_under_shoulders_test.gd`), then the
   head last (it is the highest part, so it covers the gun and fists; its shadow falls on the shoulders), then a hand gripping at or
@@ -77,8 +91,8 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
 ## Pose (the living motion)
 
 `character_pose.gd` layers motion over the aim; it is visual only (aim, shots and punches stay on
-`facing`). `character.gd` steps it with `pose.update(delta, drive)`, a `PoseDrive` (`pose_drive.gd`), one per character (`_drive`),
-its `_pose_drive` refills each frame: `facing`, `velocity` (`get_real_velocity()`), `top_speed` (`speed`), `stances` (the held item's `hand_stance(0)` / `(1)`),
+`facing`). The anatomy steps it with `pose.update(delta, drive)`, a `PoseDrive` (`pose_drive.gd`), one per character (`_drive`),
+its `_pose_drive` refills each frame: `facing`, `velocity` (`get_real_velocity()`), `top_speed` (`movement.speed`), `stances` (the held item's `hand_stance(0)` / `(1)`),
 `punch` (`Hands.punch_amounts()`) and `stun`,
 right after `move_and_slide()` (and with zero velocity while busy in an interaction; a dead
 character stops stepping it), before the Hands child's `_physics_process`, so hands build on this
@@ -152,7 +166,7 @@ leave (`weapon.muzzle_origin(hand)`); `CharacterWeapon._muzzle_ahead(item)` fall
 ## The rig (the standing skeleton)
 
 `character_rig.gd` solves the body's 3D joints (local x/y plus height z) from the live pose and the
-hands. `character.rig()` solves it once per physics frame and hands every caller in that frame the same rig (the pose,
+hands. `anatomy.rig()` solves it once per physics frame and hands every caller in that frame the same rig (the pose,
 the hands and the feet's rests change only in `_physics_process`; selecting a slot, taking a posture and dying drop the
 cached one at once, since they change its inputs mid-frame), so the draw, a footfall and a test share one solve; the
 legs layer solves its own unclamped rig (`Rig.new(character, false)`). `CharacterRig.solves` counts every solve for
@@ -259,7 +273,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
 - **Legs** (`character_legs.gd`, a `RefCounted` stepped after the pose; spec P5): each ankle is swept from the body centre to where the unobstructed rig
   (`CharacterRig.new(self, false)`) would put it (a `leg_radius` circle through `body_sweep.gd`, as the hands are) and rests at the first wall, solid piece
   or character it meets, sliding the leftover; a knee that would pass through something moves the foot back (`KNEE_TRIES`); the rig reads the result
-  through `foot_clamp(i)` (null = unobstructed) and re-solves the knee (`CharacterRig.knee_at`). A foot or knee swinging into a pushable
+  through `anatomy.legs.ankle(i)` (null = unobstructed) and re-solves the knee (`CharacterRig.knee_at`). A foot or knee swinging into a pushable
   (`apply_impulse` + `get_mass`, never another character) shoves it by `leg_push_impulse` scaled by its world speed into the piece and how far it wanted
   to go, at the point where the leg rests, through `shove` in the body's own `character_push.gd` (`domain-character`): a piece pressed near an end turns, and its
   contact point is carried at no more than walking pace; a foot at rest pushes nothing. Nothing is cast unless something is within `NEAR` px; cleared while
@@ -380,10 +394,10 @@ character re-emits `hit_landed(body, damage, hand)`. A punch pushes but never de
 
 ## The leg kick
 
-`character_kick.gd` (a `RefCounted` the character owns as `_kick`, stepped each physics frame after `move_and_slide` and before
-`pose.update`) is the leg kick, independent of the held item and always with the right leg (side 0). `Character.leg_kick()` starts it (false when dead, crouched, in an interaction or a
+`character_kick.gd` (a `RefCounted` the anatomy owns as `kick`, stepped each physics frame after `move_and_slide` and before
+`pose.update`) is the leg kick, independent of the held item and always with the right leg (side 0). `anatomy.leg_kick()` starts it (false when dead, crouched, in an interaction or a
 kick is already under way), then a STRIKE (`kick_strike_time`, the foot thrown out) and a RECOVER
-(`kick_recover_time`, drawn back) run; `amount()` is the foot's 0..1 extension, read by the rig through `character.leg_kick_amount(i)`.
+(`kick_recover_time`, drawn back) run; `amount()` is the foot's 0..1 extension, read by the rig through `anatomy.leg_kick_amount(i)`.
 The rig lifts the kicking ankle to `kick_foot_height` (body radii) first and throws it out along `facing` (never past `kick_reach` or the
 leg's length at that height), the knee bent up toward the aim and the toes following; the other leg keeps striding. During the strike a
 circle of `kick_radius` at `kick_reach * amount()` ahead of the body centre is queried on `PhysicsLayers.SOLID` (the punch's

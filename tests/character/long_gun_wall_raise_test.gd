@@ -128,7 +128,7 @@ func _check_backing_off(t: TestContext) -> void:
 
 ## Both arms keep (about) their configured length.
 func _check_arms(t: TestContext, c: Node, when: String) -> void:
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var r: float = c.radius
 	var bones := [
 		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],

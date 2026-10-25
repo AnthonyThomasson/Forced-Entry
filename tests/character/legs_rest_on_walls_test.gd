@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 
 	var id := &"crouch"
 	var c = t.actor(id)
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	for i in 2:
 		for joint in [Rig.ANKLE[i], Rig.KNEE[i]]:
 			var at: float = c.global_position.x + (rig.point(joint) as Vector3).x
@@ -47,6 +47,7 @@ func run(t: TestContext) -> void:
 			)
 
 	t.check(
-		t.actor(&"open").foot_clamp(0) == null and t.actor(&"open").foot_clamp(1) == null,
+		(t.actor(&"open").anatomy.legs.ankle(0) == null
+				and t.actor(&"open").anatomy.legs.ankle(1) == null),
 		"a body in the open has no leg held",
 	)

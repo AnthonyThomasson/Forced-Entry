@@ -29,7 +29,9 @@ its own child `Node2D`.
   the push slow), `character_use.gd` (`use`, what occupies the body: an object interaction, a vehicle ride, the collision exceptions
   both leave behind), `character_inventory.gd` (`inventory`, the items carried and the held slot), `character_weapon.gd` (`weapon`, using the held item: firing, melee, the raise against a wall, recoil, the
   muzzle and aim, each hand's stance), `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
-  grenade's flash and bang on the body).
+  grenade's flash and bang on the body), and `body/character_anatomy.gd` (`anatomy`, `CharacterAnatomy`: the body's animate parts it
+  steps, the pose, the rig, the `Hands` child, the legs, the kick, the footsteps, the flesh's dents and bleeding, the shadow and the
+  ragdoll; `domain-character-body`).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
   punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
   `character_legs.gd` (feet against walls), `body_sweep.gd` (the collide-and-slide hands and legs share), `body_strike.gd` (the melee strike punch and kick share), `character_ragdoll.gd` (the fall) and `character_visuals.gd` + `character_style.gd` (the look a style resolves to) + the painters in `body/art/` (appearance).
@@ -38,43 +40,43 @@ its own child `Node2D`.
 Ordering: a parent's `_physics_process` runs before its children's, so the hands see the
 character's fresh `facing`, and the character pulls its controller's intent (`movement.pull`) at the top of its own
 `_physics_process` (lag-free), after `movement.tick` (the posture's cooldown and ease), `stun.update` and `inventory.tick`; then the
-ride (`use.control`) and `ammo.update`, then a ride or an interaction holds the body (`use.hold_frame`), else on foot the facing, `weapon.update_raise`, `movement.walk` (the move and slide,
-the pushes), the kick, the pose, the legs and the footsteps.
+ride (`use.control`) and `ammo.update`, then a ride or an interaction holds the body (`use.hold_frame`, `anatomy.hold`), else on foot the facing, `weapon.update_raise`, `movement.walk` (the move and slide,
+the pushes) and `anatomy.step` (the kick, the pose, the legs and the footsteps).
 
 ## Death
 
 `_apply_damage(amount, direction)` (shared by `take_hit`, which passes the shot's direction, and
-`take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, frees its light occluder (below) and
-moves to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
+`take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, and `anatomy.die()` stops the bleeding,
+frees its light occluder (below) and moves it to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
 pools; `vehicle/fallen_body_under_vehicle`), ends any
-interaction (`use.end_interaction()`), cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`use.abandon()`, `CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (`movement.momentum()`: walk + knockback,
+interaction (`use.end_interaction()`), cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`use.abandon()`, `CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `anatomy.ragdoll` from the rig's joints (`anatomy.fall`) with the body's momentum (`movement.momentum()`: walk + knockback,
 including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;
 a returned node removes the slot (`inventory.drop_held`), so `inventory.current_item()` may be null on a corpse), then emits `died`.
-While dead `_physics_process` only steps the ragdoll (`step(delta, space, global_position)`); the
+While dead `_physics_process` only steps the ragdoll (`anatomy.step`: `ragdoll.step(delta, space, global_position)`); the
 pose and hands stop. How the ragdoll is built and drawn is in `domain-character-body`.
 
 
 **Bleeding out:** `blood_origin()` is the character's position while alive and its trunk's middle
-once fallen (blood drips and pools sample it). When the ragdoll first settles the character calls
-`Physics.bleed_out(get_parent(), self, [get_rid()])`, so a pool spreads out from under the body.
+once fallen (blood drips and pools sample it). When the ragdoll first settles `anatomy.step` calls
+`Physics.bleed_out(get_parent(), character, [character.get_rid()])`, so a pool spreads out from under the body.
 
 
 ## The body's shadow (interface 20, `docs/lighting.md` L6)
 
-A living character casts a shadow: `_ready` builds a `LightOccluder2D` child through General's `LightMasks.occluder` (none while
+A living character casts a shadow: `anatomy.attach()` (from `_ready`) builds a `LightOccluder2D` child through General's `LightMasks.occluder` (none while
 `LightMasks.shadows` is off) on `LightMasks.CHARACTER`, an oval `CharacterShadowConfig.depth` (0.72) radii deep along its +x by
-`CharacterShadowConfig.width` (1.05) across, a `CharacterShadowConfig.sides`-gon (`_shadow_footprint`). It moves with the body (its parent, never rotated) and
-`_turn_shadow` (after each physics step) turns it to `facing` only when the facing has turned. `_die` frees it: a 2D occluder has no
+`CharacterShadowConfig.width` (1.05) across, a `CharacterShadowConfig.sides`-gon (`anatomy._shadow_footprint`). It moves with the body (its parent, never rotated) and
+`anatomy.turn_shadow()` (after each physics step) turns it to `facing` only when the facing has turned. `anatomy.die()` frees it: a 2D occluder has no
 height, so a body on the floor would throw a shadow as long as a wall's. Only the flashes are shadowed by a body
 (`docs/lighting.md` L6); the Lighting domain leaves the characters out of a flash's shadows while one stands in it. Test: `tests/lighting/occluders_walls_pieces_characters`.
 
 ## Footsteps (bloody footprints)
 
-`character_footsteps.gd` (a `RefCounted`, stepped by `character.gd` after the pose) spots each foot's landing:
-the foot is planted while `cos(pose.gait.stride_phase() + (0|PI))` is >= 0, so a landing is cos rising through 0
+`character_footsteps.gd` (a `RefCounted`, the `anatomy`'s `footsteps`, stepped by `anatomy.step` after the pose) spots each foot's landing:
+the foot is planted while `cos(anatomy.pose.gait.stride_phase() + (0|PI))` is >= 0, so a landing is cos rising through 0
 (only above `MIN_WALK` walk amount; none while an interaction holds the character or once dead). On a landing it
 solves the rig once, reports the sole (middle, toes, `CharacterBodyConfig.foot` x radius long, `body_shoe_widths[0]` wide) to the
-`BloodFootprints` child (Physics), which decides whether it prints, and posts a `&"footfall"` `EventBus` event
+`BloodFootprints` child (Physics; its `footprints`, added by `anatomy.attach()`), which decides whether it prints, and posts a `&"footfall"` `EventBus` event
 (`{ position` (the sole)`, foot` (0 left / 1 right)`, speed, running, character` (itself)`, crouched` (`movement.posture() == crouch`)` }`) which
 the Audio domain turns into a step on the floor under it and the AI hears by (whose step, and how far it carries by gait, `docs/hearing.md` H1).
 Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
@@ -86,7 +88,7 @@ running, switching items, an interaction or death never posts `done`. Test: `tes
 ## A long gun against a wall (the raise)
 
 An item whose `raises_at_contact()` is true (SMG, rifle) is judged every physics frame by the `weapon` component's `update_raise(delta)` (`character_weapon.gd`, after `facing` is
-set, before `pose.update`; skipped in an interaction). The barrel is a ray from beside the body centre (the weapon hand's lateral) along the
+set, before `anatomy.step`'s `pose.update`; skipped in an interaction). The barrel is a ray from beside the body centre (the weapon hand's lateral) along the
 aim, as far as the gun reaches **held normally** — the item's *un-raised* stance forward plus `muzzle_ahead()`, never the raised one, or pulling
 it up would clear the ray and drop it again. `CharacterHands.solid_distance(from, dir, max)` does the cast (it owns the physics-space query and
 `HAND_MASK`) and **ignores other characters**: a gun against a person is not against a wall, and a dead body is on no layer. It blocks when something is within
@@ -110,7 +112,7 @@ the turning of `facing`, which stays on `character.gd`. (`CharacterStanceConfig.
   `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, as it is now, slower while stunned or weighed down by the outfit): the AI's grenade geometry judges a spot by them and keeps no copy of the numbers
   (`tests/character/posture_and_run_reads_test.gd`).
 - **Effects:** `_move_speed()` multiplies the posture's `speed` row (1.0 / 0.6); running (`_update_stamina`) needs `_posture == stand`, so a
-  refused run costs no stamina; shooting, reloading and `weapon.melee()` work in every posture (`leg_kick()` only standing); `get_surface().coverage` is the
+  refused run costs no stamina; shooting, reloading and `weapon.melee()` work in every posture (`anatomy.leg_kick()` only standing); `get_surface().coverage` is the
   posture's row (60 / 35: a bullet strikes what stands above its one height, see the Projectile skill); starting an interaction stands the
   character up (`movement.stand_up()`) and locks the posture; `_die` stands it (and resets the drawn body, `movement.fold(0.0)`) before the ragdoll is built, so a body falls from the standing skeleton.
   The collision circle (and `radius`) never change.
@@ -132,7 +134,7 @@ walk `movement.speed` as its `top_speed`, so the walk amount stays at 1 while th
 an interaction counts as not running. `weapon.shoot()` does nothing while running (`weapon.melee()` still works).
 Reads: `movement.is_running()`, `movement.stamina_fraction()`. Test: `tests/character/run_speed_stamina_test.gd`.
 
-The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `pose.gait.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
+The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `anatomy.pose.gait.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
 
 ## Ammo and reloading
 
@@ -148,7 +150,7 @@ is busy, running or no longer holds that item, else counts down and calls `item.
 ignored mid-reload; switching slot, a ride's first pose and dying cancel it (`ammo.cancel()`); magazines are lost with the body.
 An item reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
 Reads: `ammo.is_reloading()`, `ammo.rounds(slot)`, `ammo.capacity(slot)`, `ammo.can_reload(slot)`, `ammo.spare_magazines()`; on the
-weapon `weapon.is_automatic()`; on the root `is_attacking()` (a punch swing); the `inventory` component's
+weapon `weapon.is_automatic()`; on the hands `anatomy.hands.is_attacking()` (a punch swing); the `inventory` component's
 (`character_inventory.gd`, `CharacterInventory`: the items carried, slot id -> `Item`, and the held slot) `inventory.item_name(slot)`,
 the held-item reads `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.item_in(slot)` (the held item for a negative slot) and `inventory.has_item(id)` (is a slot carried),
 `inventory.gun_slot()` (the gun it fights with: the held item if it takes ammo, else the lowest slot that does, else −1: how the AI finds
@@ -179,7 +181,7 @@ through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` han
 `outfit_view()` the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
 - **Where a round strikes.** `hit_zone(height)`: the bullet's `HitInfo.height` over `movement.posture_coverage(movement.posture())` against `CharacterHitConfig.zones`
   (`feet` up to 0.08, `legs` 0.45, `torso` 0.85, `head` above; the same fractions standing and crouched), `&""` for a height below 0 (a blast).
-  `hit_side(direction)`: the angle between `-direction` and `pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
+  `hit_side(direction)`: the angle between `-direction` and `anatomy.pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
   `side_back_deg` 120, `flank` between.
 - **`get_surface_at(height, direction)`** (interface 3, which the projectile asks first): `get_surface()` where `Outfit.layer(zone, side)` is empty or the
   height is below 0; over armour, that surface with the layer's `penetration`, `material`, `color`, `stop_power` and `inner_material` (the body's own
@@ -206,17 +208,17 @@ selects `inventory.gun_slot()` (else the fists). `weapon.aim_target()` is the ai
 `CharacterStunConfig.recover_tail` (the four stun numbers, `CharacterStunConfig.speed`, `CharacterStunConfig.sway`, `recover_tail` and `CharacterStunConfig.drift`, are the body's tuning and live in `CharacterStunConfig`: the
 Character reads nothing of `GrenadeConfig`), and while it is above 0 `movement`'s `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`weapon.aim_sway`, by `stun.wander`: two
 out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun.is_blind()` / `stun.is_deaf()` read it, `stun.update(delta)` counts it down each physics frame and `stun.view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
-back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
+back (`apply_impulse`), a dead one's ragdoll (`anatomy.ragdoll`) is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
 `inventory.set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
-**The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
+**The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `anatomy.pose.update`'s `PoseDrive` carries the stun level
 (`stun.level()`, on foot and in an interaction; 0 in a ride's frame (`use.hold_frame`), so a ride's pose wins and the look eases back in once out); the pose eases it
 (`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `weapon.stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while its `_covers_eyes(item)`: blind, not
-riding (`use.is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`weapon.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
+riding (`use.is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`anatomy.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
 `hand_stance` is not `throw`). `weapon.one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
 `one_hand_spread_deg` to its spread, and `weapon.kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
-`movement.posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.gait.hunch()`) to the crouch's, so the hands (and the
+`movement.posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `anatomy.pose.gait.hunch()`) to the crouch's, so the hands (and the
 long-gun raise ray, which follows the drawn reach) keep their reach past the leaning chest. Tests: `tests/character/stunned_hand_over_eyes_test.gd`,
 `stunned_hunch_and_stagger_test.gd`, `tests/items/one_handed_fire_test.gd`.
 
@@ -233,9 +235,9 @@ door with `movement.move_input` / `movement.aim_point`, and from the driver's se
 The Vehicles domain poses the body with `use.set_ride_pose(at, toward, fold, step)`: the first pose sets `use`'s `_riding`, cancels a reload and
 disables the collision shape (`set_deferred`); each pose sets `global_position`, `facing`, `movement.aim_point`, the posture to `stand` (`movement.stand_up()`) and
 the drawn height between standing and the crouch height by `fold` (`movement.fold(fold)`, so `movement.posture_folded()` and the body art read the seated fold), keeps
-`_ride_step` and drops the cached rig (`invalidate_rig()`). While `_riding` (`use.is_riding()`), `movement.tick` skips the posture's ease, `inventory.current_item()` returns null (the item put away: no
-firing, nothing drawn in the hands) and `use.hold_frame` replaces the rest of the frame (the frame an interaction holds too, the body's part `hold_body`): no movement, knockback or push, stamina refilling (`movement.hold`),
-legs and kick cleared, and `pose.update` with `_ride_step` as the motion and no stun (the stunned look waits until the ride is over) (the legs step with the pose through the vehicle's frame, not
+`_ride_step` and drops the cached rig (`anatomy.invalidate_rig()`). While `_riding` (`use.is_riding()`), `movement.tick` skips the posture's ease, `inventory.current_item()` returns null (the item put away: no
+firing, nothing drawn in the hands) and `use.hold_frame` replaces the rest of the frame (the frame an interaction holds too, the body's part `anatomy.hold`): no movement, knockback or push, stamina refilling (`movement.hold`),
+legs and kick cleared, and `anatomy.pose.update` with `_ride_step` as the motion and no stun (the stunned look waits until the ride is over) (the legs step with the pose through the vehicle's frame, not
 with the vehicle). `use.end_ride()` clears `_riding`, re-enables the shape, zeroes the step and points the aim along the facing. The collision
 exception with the vehicle is added at boarding; after the ride the component hands the vehicle to `use.keep_clear_of(body)`, below.
 

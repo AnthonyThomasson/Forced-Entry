@@ -4,11 +4,11 @@ class_name Item extends RefCounted
 ## secondary (LMB) actions do, how each hand is held, how its weapon is rendered, and what it leaves
 ## behind when its user dies (drop).
 ## The character calls into these; an Item talks back only through the small character API
-## (facing, weapon.facing(), weapon.raise(), punch(), punch_amount(), weapon.kick(),
-## hand_position(), hand_world(), weapon.muzzle_origin(), world_root(), report_shot(),
-## weapon.aim_target(), weapon.aim_sway(), weapon.one_handed(), current_item(), and for reloading
-## ammo.best_magazine() / ammo.take_magazine() / ammo.stow_magazine()), so Items and the Character
-## are otherwise independent.
+## (facing, weapon.facing(), weapon.raise(), anatomy.hands.punch(), anatomy.hands.punch_amount(),
+## weapon.kick(), anatomy.hands.hand_position(), anatomy.hands.world(), weapon.muzzle_origin(),
+## world_root(), report_shot(), weapon.aim_target(), weapon.aim_sway(), weapon.one_handed(),
+## current_item(), and for reloading ammo.best_magazine() / ammo.take_magazine() /
+## ammo.stow_magazine()), so Items and the Character are otherwise independent.
 
 ## Shown in the HUD.
 var display_name := "Item"

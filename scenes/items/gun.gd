@@ -213,7 +213,7 @@ func strike_tempo() -> float:
 
 ## F: a melee jab with the weapon hand; a long gun swings round and leads with its butt.
 func primary(user: Node2D) -> void:
-	user.punch(weapon_hand())
+	user.anatomy.hands.punch(weapon_hand())
 
 
 ## LMB: fire a bullet from the muzzle and eject a casing (both live in world space); the gun kicks
@@ -248,7 +248,7 @@ func secondary(user: Node2D) -> bool:
 	shot.penetration = power
 	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
-	CasingSpawner.spawn(user.hand_world(hand), user.facing, user.world_root())
+	CasingSpawner.spawn(user.anatomy.hands.world(hand), user.facing, user.world_root())
 	user.weapon.kick(hand, float(stat("recoil", 1.0)))
 	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on
 	# its way.
@@ -263,11 +263,11 @@ func secondary(user: Node2D) -> bool:
 func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var facing: Vector2 = user.weapon.facing()
 	# A punch turns a long gun about its grip until the butt leads.
-	facing = strike_direction(facing, user.punch_amount(weapon_hand()))
+	facing = strike_direction(facing, user.anatomy.hands.punch_amount(weapon_hand()))
 	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
 	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
 	var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
-	var centre: Vector2 = (user.hand_position(weapon_hand())
+	var centre: Vector2 = (user.anatomy.hands.hand_position(weapon_hand())
 			+ facing * (size.y * 0.5 - grip_back() * shrink))
 	_draw_art(canvas, centre, facing, size)
 
@@ -275,7 +275,7 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 ## The dead hand lets go: the gun leaves from where it was drawn and skids off at `velocity`.
 func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var facing: Vector2 = user.weapon.facing()
-	var hand: Vector2 = user.hand_world(weapon_hand())
+	var hand: Vector2 = user.anatomy.hands.world(weapon_hand())
 	var at := hand + facing * (art_size().y * 0.5 - grip_back())
 	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)
 	dropped.place(user.world_root(), at, hand)

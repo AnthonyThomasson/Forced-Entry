@@ -3,33 +3,37 @@ extends RefCounted
 ## walk cycle. It reports the sole to the Physics domain's BloodFootprints, which decides whether it
 ## prints blood, and posts a `footfall` event on the EventBus (the Audio domain makes the step). A
 ## foot lands when its lift (max(-cos(phase), 0), see character_rig.gd) returns to the floor, i.e.
-## cos(phase) rises through zero, at the forward end of its stride. Stepped by character.gd after
-## the pose each physics frame; one rig solve per footfall, none otherwise. The event says whose
-## step it is (`character`) and its gait (`running`, `crouched`), which the AI hears by.
+## cos(phase) rises through zero, at the forward end of its stride. Stepped by the character's
+## `anatomy` after the pose each physics frame; one rig solve per footfall, none otherwise. The
+## event says whose step it is (`character`) and its gait (`running`, `crouched`), which the AI
+## hears by.
 
 const CharacterRig = preload("res://scenes/character/body/character_rig.gd")
 ## Below this walk amount (0..1) a shuffle makes no steps.
 const MIN_WALK := 0.2
 
+## The character's bloody footprints (Physics domain component), which each footfall is reported to;
+## added as the character's child by its `anatomy.attach()`.
+var footprints: BloodFootprints
 ## Per foot: cos(phase) last frame.
 var _last_cos := [1.0, 1.0]
 
 
 ## Check both feet of `character` and report any footfall to `footprints`.
-func update(character: CharacterBody2D, footprints: BloodFootprints) -> void:
-	var pose = character.pose
+func update(character: CharacterBody2D) -> void:
+	var pose = character.anatomy.pose
 	var phase: float = pose.gait.stride_phase()
 	for i in 2:
 		var c := cos(phase + (0.0 if i == 0 else PI))
 		var landed: bool = _last_cos[i] < 0.0 and c >= 0.0 and pose.gait.walk_amount() >= MIN_WALK
 		_last_cos[i] = c
 		if landed:
-			_report(character, footprints, i)
+			_report(character, i)
 
 
 ## Solve the rig for a foot that has just landed and hand its sole's geometry to `footprints`.
-func _report(character: CharacterBody2D, footprints: BloodFootprints, foot: int) -> void:
-	var rig: CharacterRig = character.rig()
+func _report(character: CharacterBody2D, foot: int) -> void:
+	var rig: CharacterRig = character.anatomy.rig()
 	var r: float = character.radius
 	var ankle := rig.point(CharacterRig.ANKLE[foot])
 	var toes := rig.toes(foot)

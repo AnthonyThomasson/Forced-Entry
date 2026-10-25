@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.frames(2)
 	var victim := t.actor(&"victim")
-	var wound: BloodWound = victim._wound
+	var wound: BloodWound = victim.anatomy.wound
 	seed(SEED)
 
 	# Read in the same frame: the read finishes the spray first.

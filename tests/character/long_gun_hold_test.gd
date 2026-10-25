@@ -60,7 +60,8 @@ func run(t: TestContext) -> void:
 		)
 	var rifle = t.actor(&"rifle_man")
 	t.check(
-		rifle.hand_position(1).dot(rifle.facing) > rifle.hand_position(0).dot(rifle.facing) + 8.0,
+		(rifle.anatomy.hands.hand_position(1).dot(rifle.facing)
+				> rifle.anatomy.hands.hand_position(0).dot(rifle.facing) + 8.0),
 		"the rifle's other hand reaches out along the barrel past the trigger hand",
 	)
 
@@ -76,7 +77,7 @@ func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Di
 
 	_check_other_hand(t, gun, c, item)
 	var muzzle: Vector2 = (c.weapon.muzzle_origin(item.weapon_hand())
-			- c.hand_world(item.weapon_hand()))
+			- c.anatomy.hands.world(item.weapon_hand()))
 	t.expect_near(
 		muzzle.length(),
 		item.muzzle_ahead(),
@@ -84,9 +85,9 @@ func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Di
 		"%s: the muzzle sits muzzle_ahead past the weapon hand" % gun,
 	)
 	var f: Vector2 = c.facing
-	var grip: Vector2 = c.hand_position(item.weapon_hand())
+	var grip: Vector2 = c.anatomy.hands.hand_position(item.weapon_hand())
 	lengths[gun] = item.art_size().y
-	var shoulder: Vector3 = c.rig().point(Rig.SHOULDER[item.weapon_hand()])
+	var shoulder: Vector3 = c.anatomy.rig().point(Rig.SHOULDER[item.weapon_hand()])
 	butts[gun] = (grip - f * item.grip_back()).distance_to(Vector2(shoulder.x, shoulder.y))
 	_check_grip_side(t, gun, c, item)
 
@@ -94,8 +95,8 @@ func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Di
 ## `gun`'s other hand (held by `c`) is on the barrel's line, between its butt and its muzzle.
 func _check_other_hand(t: TestContext, gun: StringName, c: Node, item: GunItem) -> void:
 	var f: Vector2 = c.facing
-	var grip: Vector2 = c.hand_position(item.weapon_hand())
-	var fore: Vector2 = c.hand_position(1 - item.weapon_hand())
+	var grip: Vector2 = c.anatomy.hands.hand_position(item.weapon_hand())
+	var fore: Vector2 = c.anatomy.hands.hand_position(1 - item.weapon_hand())
 	var butt := grip.dot(f) - item.grip_back()
 	var tip := grip.dot(f) + item.muzzle_ahead()
 	t.check(
@@ -113,8 +114,8 @@ func _check_other_hand(t: TestContext, gun: StringName, c: Node, item: GunItem) 
 ## `gun`'s weapon hand (held by `c`) is on the right; a pistol's two fists are together on the grip.
 func _check_grip_side(t: TestContext, gun: StringName, c: Node, item: GunItem) -> void:
 	var f: Vector2 = c.facing
-	var grip: Vector2 = c.hand_position(item.weapon_hand())
-	var fore: Vector2 = c.hand_position(1 - item.weapon_hand())
+	var grip: Vector2 = c.anatomy.hands.hand_position(item.weapon_hand())
+	var fore: Vector2 = c.anatomy.hands.hand_position(1 - item.weapon_hand())
 	t.check(
 		grip.dot(f.orthogonal()) < 0.0,
 		"%s: the weapon hand is on the character's right (%.1f px across)"
@@ -134,7 +135,7 @@ func _check_grip_side(t: TestContext, gun: StringName, c: Node, item: GunItem) -
 
 ## Both arms keep (about) their configured length.
 func _check_arms(t: TestContext, c: Node, when: String) -> void:
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var r: float = c.radius
 	var bones := [
 		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],

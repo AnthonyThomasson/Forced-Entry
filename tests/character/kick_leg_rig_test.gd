@@ -30,8 +30,8 @@ func run(t: TestContext) -> void:
 	var puppet := t.puppet(&"kicker")
 	puppet.aim_at(Vector2(700, 250))
 	await t.seconds(0.4)
-	var rest: Vector3 = c.rig().point(Rig.ANKLE[0])
-	var still: Vector3 = c.rig().point(Rig.ANKLE[1])
+	var rest: Vector3 = c.anatomy.rig().point(Rig.ANKLE[0])
+	var still: Vector3 = c.anatomy.rig().point(Rig.ANKLE[1])
 	puppet.kick()
 	var kick := await _watch_kick(t, c, rest, still)
 	var out: float = kick["out"]
@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 		"the other foot stays put (%.1f px)" % kick["still_moved"],
 	)
 	await t.seconds(0.5)
-	var back: Vector3 = c.rig().point(Rig.ANKLE[0])
+	var back: Vector3 = c.anatomy.rig().point(Rig.ANKLE[0])
 	t.check(
 		back.distance_to(rest) < 2.0,
 		"the foot is back at rest (%.1f px away)" % back.distance_to(rest),
@@ -64,7 +64,7 @@ func _watch_kick(t: TestContext, c: Node, rest: Vector3, still: Vector3) -> Dict
 	for i in 30:
 		await t.frames(1)
 		var leg := 0  # The right leg always kicks.
-		var rig = c.rig()
+		var rig = c.anatomy.rig()
 		var ankle: Vector3 = rig.point(Rig.ANKLE[leg])
 		out = maxf(out, Vector2(ankle.x, ankle.y).dot(c.facing))
 		high = maxf(high, ankle.z)

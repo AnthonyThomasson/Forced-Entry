@@ -42,7 +42,7 @@ func configure(s: TestSetup) -> void:
 
 ## The area of the trunk outline of `target`, seen from above (0 before it has fallen).
 func _outline_area(target: Node) -> float:
-	var rd = target.ragdoll
+	var rd = target.anatomy.ragdoll
 	if rd == null:
 		return 0.0
 	var visuals = target.get_node("Visuals")
@@ -84,7 +84,7 @@ func _sample_areas(t: TestContext) -> Dictionary:
 		series[i] = []
 	var at_rest := func() -> bool:
 		for i in TARGETS:
-			var rd = t.actor(StringName("target%d" % i)).ragdoll
+			var rd = t.actor(StringName("target%d" % i)).anatomy.ragdoll
 			if rd == null or not rd.is_settled():
 				return false
 		return true

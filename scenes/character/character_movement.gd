@@ -126,7 +126,7 @@ func set_posture(wanted: StringName) -> bool:
 		return false
 	_posture = wanted
 	_posture_cooldown = CharacterPostureConfig.change_time
-	character.invalidate_rig()
+	character.anatomy.invalidate_rig()
 	return true
 
 
@@ -167,7 +167,7 @@ func posture_hand_ahead() -> float:
 	var spine: float = ((CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height)
 			* character.radius)
 	return (CharacterPostureConfig.body_crouch_hand_ahead * posture_folded()
-			+ spine * sin(character.pose.gait.hunch()) * 0.5)
+			+ spine * sin(character.anatomy.pose.gait.hunch()) * 0.5)
 
 
 ## True while moving at run speed (asked to run, moving, and not out of stamina).

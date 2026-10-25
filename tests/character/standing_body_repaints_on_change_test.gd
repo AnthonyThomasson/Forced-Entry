@@ -58,7 +58,7 @@ func run(t: TestContext) -> void:
 	hit.normal = Vector2.LEFT
 	hit.direction = Vector2.RIGHT
 	hit.damage = 1.0
-	still._deformable.record(hit, still.pose.torso_angle)
+	still.anatomy.deformable.record(hit, still.anatomy.pose.torso_angle)
 	await t.frames(2)
 	t.check(_redraws(t, &"still") > wound_before, "a new wound repainted the body")
 

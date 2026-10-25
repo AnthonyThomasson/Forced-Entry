@@ -34,12 +34,12 @@ func run(t: TestContext) -> void:
 	var victim := t.actor(&"victim")
 	kicker.aim_at(victim.global_position)
 	await t.seconds(0.3)
-	t.check(not you.is_kicking(), "not kicking before V")
+	t.check(not you.anatomy.is_kicking(), "not kicking before V")
 	var victim_start: Vector2 = victim.global_position
 	kicker.kick()
 	await t.frames(2)
-	t.check(you.is_kicking(), "a kick is under way")
-	t.check(not you.leg_kick(), "a second kick is refused mid-kick")
+	t.check(you.anatomy.is_kicking(), "a kick is under way")
+	t.check(not you.anatomy.leg_kick(), "a second kick is refused mid-kick")
 	var landed := func(d): return d["actor"] == &"kicker" and d["body"] == victim and d["hand"] == 2
 	if not t.require(
 			await t.until(func(): return t.happened(&"hit_landed", landed), 1.0),
@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(CharacterMeleeConfig.kick_recover_time + 0.3)
-	t.check(not you.is_kicking(), "the kick is over")
+	t.check(not you.anatomy.is_kicking(), "the kick is over")
 	t.expect_near(
 		victim.health,
 		100.0 - CharacterMeleeConfig.kick_damage,
@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	var hit := func(d):
 		return d["attacker"] == you and d["victim"] == victim and d["outcome"] == &"punch"
 	t.check(t.happened(&"hit", hit), "a punch-outcome hit event names the kicker as attacker")
-	t.check(you.leg_kick_amount(1) == 0.0, "the left leg never kicks")
+	t.check(you.anatomy.leg_kick_amount(1) == 0.0, "the left leg never kicks")
 	# A character is pushable too: the kick's shove, kick_impulse over the body's mass, is eaten by
 	# the knockback friction within a few frames, about a pixel of travel.
 	var knock: float = CharacterMeleeConfig.kick_impulse / victim.get_mass()

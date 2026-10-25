@@ -64,8 +64,8 @@ var _shin := 0.0
 
 ## Solve the skeleton of `character` as it stands now. With `with_legs` (the default) each ankle
 ## takes the place the legs layer rested it at against a wall or piece of furniture
-## (`character.foot_clamp(i)`, when it has one); the legs layer itself solves without, to learn
-## where the legs would go unobstructed.
+## (`character.anatomy.legs.ankle(i)`, when it has one); the legs layer itself solves without, to
+## learn where the legs would go unobstructed.
 func _init(character: CharacterBody2D, with_legs := true) -> void:
 	solves += 1
 	var m := _measures
@@ -79,11 +79,11 @@ func _init(character: CharacterBody2D, with_legs := true) -> void:
 		_rest_feet(character)
 
 
-## Each ankle the legs layer rested against something (`character.foot_clamp(i)`) moved there, its
-## knee re-solved.
+## Each ankle the legs layer rested against something (`character.anatomy.legs.ankle(i)`) moved
+## there, its knee re-solved.
 func _rest_feet(character: CharacterBody2D) -> void:
 	for i in 2:
-		var rested: Variant = character.foot_clamp(i)
+		var rested: Variant = character.anatomy.legs.ankle(i)
 		if rested != null:
 			var ankle: Vector3 = _points[ANKLE[i]]
 			ankle.x = (rested as Vector2).x
@@ -128,7 +128,7 @@ func torso() -> Basis:
 ## each arm and leg. The rig keeps one (`_measures`) for every solve, taken afresh by `_measure`
 ## each time, so a solve allocates no measures and its steps read them as their own.
 class Measures:
-	## The pose the solve reads (the character's `pose`).
+	## The pose the solve reads (the character's `anatomy.pose`).
 	var pose: Pose
 	## The body radius.
 	var r := 0.0
@@ -155,7 +155,7 @@ class Measures:
 
 	## Take the measures of `character` as it stands now, every field anew.
 	func _measure(character: CharacterBody2D) -> void:
-		pose = character.pose
+		pose = character.anatomy.pose
 		r = character.radius
 		fold.take(character, pose, r)
 		upper = CharacterBodyConfig.upper_arm * r
@@ -211,7 +211,7 @@ class Measures:
 		var out := -1.0 if i == 0 else 1.0
 		var shoulder: Vector3 = (_points[CHEST]
 				+ f.right * out * CharacterBodyConfig.shoulder_width * r)
-		var grip: Vector2 = character.hand_position(i)
+		var grip: Vector2 = character.anatomy.hands.hand_position(i)
 		var hand := Vector3(grip.x, grip.y, pose.arms.grip_height(i) * r * f.height)
 		hand.z = clampf(hand.z, shoulder.z - arm_reach * 0.98, shoulder.z + arm_reach * 0.98)
 		var flat := Vector2(hand.x - shoulder.x, hand.y - shoulder.y)
@@ -241,7 +241,7 @@ class Measures:
 		_points[ANKLE[i]] = _stride_ankle(i)
 		_knee_poles[i] = f.hip_fwd
 		_toes[i] = f.hip_fwd
-		var kick: float = character.leg_kick_amount(i)
+		var kick: float = character.anatomy.leg_kick_amount(i)
 		if kick > 0.0:
 			_kick_leg(character, i, kick)
 		_points[KNEE[i]] = _bend(_points[HIP[i]], _points[ANKLE[i]], thigh, shin, _knee_poles[i])

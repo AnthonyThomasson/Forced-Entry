@@ -41,7 +41,7 @@ Test: `character/hit_zone_by_bullet_height`.
 Test: `character/hit_zone_by_bullet_height`.
 
 **O4. Sides.** The side a round strikes is the angle between the way back along its direction (toward the shooter) and the
-shoulders' facing (`pose.torso_angle`): **front** up to **60 degrees**, **back** from **120 degrees**, the **flank** between
+shoulders' facing (`anatomy.pose.torso_angle`): **front** up to **60 degrees**, **back** from **120 degrees**, the **flank** between
 (`CharacterHitConfig.side_front_deg` / `side_back_deg`, `Character.hit_side(direction)`).
 Test: `projectile/plate_covers_front_back_not_flank` (rounds 0, 45, 90, 135 and 180 degrees off the front).
 

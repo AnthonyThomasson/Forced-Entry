@@ -203,7 +203,8 @@ func _check_fallen(t: TestContext) -> void:
 	fallen.take_damage(100.0)
 	if not t.require(
 			await t.until(
-				func(): return fallen.ragdoll != null and fallen.ragdoll.is_settled(),
+				func():
+					return fallen.anatomy.ragdoll != null and fallen.anatomy.ragdoll.is_settled(),
 				6.0,
 			),
 			"the body falls and comes to rest",

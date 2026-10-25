@@ -338,7 +338,7 @@ func strike() -> void:
 func kick() -> void:
 	_perception.note_engaged()
 	fire_timer = fire_cooldown
-	_character.leg_kick()
+	_character.anatomy.leg_kick()
 
 
 ## Equip the fists and throw a punch, refreshing the combat engagement.

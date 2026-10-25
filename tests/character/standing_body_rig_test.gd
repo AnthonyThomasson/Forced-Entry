@@ -52,23 +52,23 @@ func _check_stances(t: TestContext) -> void:
 	var r: float = t.actor(&"boxer").radius
 	var arm := (CharacterBodyConfig.upper_arm + CharacterBodyConfig.forearm) * r
 	for i in 2:
-		var low: float = t.actor(&"unarmed").rig().point(Rig.HAND[i]).z
-		var shoulder: float = t.actor(&"unarmed").rig().point(Rig.SHOULDER[i]).z
+		var low: float = t.actor(&"unarmed").anatomy.rig().point(Rig.HAND[i]).z
+		var shoulder: float = t.actor(&"unarmed").anatomy.rig().point(Rig.SHOULDER[i]).z
 		t.check(
 			low < shoulder - arm * 0.8,
 			"an unarmed hand hangs well below the shoulder (side %d, %.0f px)"
 				% [i, shoulder - low],
 		)
-		var raised: float = t.actor(&"boxer").rig().point(Rig.HAND[i]).z
-		var guard_shoulder: float = t.actor(&"boxer").rig().point(Rig.SHOULDER[i]).z
+		var raised: float = t.actor(&"boxer").anatomy.rig().point(Rig.HAND[i]).z
+		var guard_shoulder: float = t.actor(&"boxer").anatomy.rig().point(Rig.SHOULDER[i]).z
 		t.check(
 			raised > guard_shoulder - arm * 0.3,
 			"a fist is held up near the shoulder (side %d, %.0f px below)"
 				% [i, guard_shoulder - raised],
 		)
 	var gunner = t.actor(&"gunner")
-	var aiming: Vector2 = gunner.hand_position(0)
-	var cupping: Vector2 = gunner.hand_position(1)
+	var aiming: Vector2 = gunner.anatomy.hands.hand_position(0)
+	var cupping: Vector2 = gunner.anatomy.hands.hand_position(1)
 	t.check(
 		aiming.dot(gunner.facing) > 20.0,
 		"the pistol hand reaches out in front (%.1f px ahead)" % aiming.dot(gunner.facing),
@@ -77,7 +77,7 @@ func _check_stances(t: TestContext) -> void:
 		aiming.distance_to(cupping) < 12.0,
 		"the other hand cups it (%.1f px apart)" % aiming.distance_to(cupping),
 	)
-	var muzzle: Vector2 = gunner.weapon.muzzle_origin(0) - gunner.hand_world(0)
+	var muzzle: Vector2 = gunner.weapon.muzzle_origin(0) - gunner.anatomy.hands.world(0)
 	t.expect_near(
 		muzzle.length(),
 		CharacterStanceConfig.muzzle_ahead,
@@ -90,7 +90,7 @@ func _check_stances(t: TestContext) -> void:
 ## it.
 func _check_bones(t: TestContext, id: StringName, when: String) -> void:
 	var c = t.actor(id)
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var r: float = c.radius
 	var bones := [
 		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
@@ -105,7 +105,7 @@ func _check_bones(t: TestContext, id: StringName, when: String) -> void:
 			t.check(absf(got / want - 1.0) <= BONE_TOLERANCE,
 				"%s: %s's %s (side %d) is %.1f px, want %.1f" % [when, id, bone[0], i, got, want])
 		var hand: Vector3 = rig.point(Rig.HAND[i])
-		t.check(Vector2(hand.x, hand.y).distance_to(c.hand_position(i)) < 0.01,
+		t.check(Vector2(hand.x, hand.y).distance_to(c.anatomy.hands.hand_position(i)) < 0.01,
 			"%s: %s's rig hand %d is where the hands layer holds it" % [when, id, i])
 
 
@@ -114,7 +114,7 @@ func _check_bones(t: TestContext, id: StringName, when: String) -> void:
 func _check_punch(t: TestContext) -> void:
 	var boxer = t.actor(&"boxer")
 	var hands = boxer.get_node("Hands")
-	var rest_angle: float = boxer.pose.torso_angle
+	var rest_angle: float = boxer.anatomy.pose.torso_angle
 	t.puppet(&"boxer").punch()  # Hand 0 first.
 	var reach := 0.0
 	var twist := 0.0
@@ -123,9 +123,9 @@ func _check_punch(t: TestContext) -> void:
 		await t.frames(1)
 		if hands.punch_amount(0) > 0.5:
 			_check_bones(t, &"boxer", "mid-punch")
-		reach = maxf(reach, boxer.hand_position(0).dot(boxer.facing))
-		twist = maxf(twist, absf(angle_difference(rest_angle, boxer.pose.torso_angle)))
-		var shoulder: Vector3 = boxer.rig().point(Rig.SHOULDER[0])
+		reach = maxf(reach, boxer.anatomy.hands.hand_position(0).dot(boxer.facing))
+		twist = maxf(twist, absf(angle_difference(rest_angle, boxer.anatomy.pose.torso_angle)))
+		var shoulder: Vector3 = boxer.anatomy.rig().point(Rig.SHOULDER[0])
 		lean = maxf(lean, Vector2(shoulder.x, shoulder.y).dot(boxer.facing))
 	var landing: float = (boxer.radius + hands.hand_radius + hands.punch_gap
 			+ boxer.inventory.item_reach())
@@ -142,33 +142,39 @@ func _check_punch(t: TestContext) -> void:
 		"the punching shoulder comes forward (%.1f px)" % lean,
 	)
 	await t.seconds(0.4)
-	t.check(boxer.pose.torso_offset.length() < 0.1, "the lunge settles once the punch is back")
+	t.check(
+		boxer.anatomy.pose.torso_offset.length() < 0.1,
+		"the lunge settles once the punch is back",
+	)
 
 
 ## Hips stay planted under small turns of the aim, and follow once the shoulders twist past the
 ## limit.
 func _check_hips(t: TestContext) -> void:
 	var unarmed = t.actor(&"unarmed")
-	var planted: float = unarmed.pose.hip_angle
+	var planted: float = unarmed.anatomy.pose.hip_angle
 	var off := Vector2(2000.0, 100.0 + 2000.0 * tan(deg_to_rad(20.0)))
 	t.puppet(&"unarmed").aim_at(off)
 	await t.seconds(0.8)
 	t.check(
-		absf(angle_difference(planted, unarmed.pose.hip_angle)) < 0.05,
+		absf(angle_difference(planted, unarmed.anatomy.pose.hip_angle)) < 0.05,
 		"the feet stay planted for a small turn (moved %.2f rad)"
-			% absf(angle_difference(planted, unarmed.pose.hip_angle)),
+			% absf(angle_difference(planted, unarmed.anatomy.pose.hip_angle)),
 	)
 	t.puppet(&"unarmed").aim_at(Vector2(200.0, -2000.0))
 	var worst := 0.0
 	for i in 20:
 		await t.seconds(0.1)
-		worst = maxf(worst, absf(angle_difference(unarmed.facing.angle(), unarmed.pose.hip_angle)))
+		worst = maxf(
+			worst,
+			absf(angle_difference(unarmed.facing.angle(), unarmed.anatomy.pose.hip_angle)),
+		)
 	t.check(
 		worst < CharacterPoseTurnConfig.hip_twist + 0.3,
 		"the hips are never twisted far past their limit (%.2f rad)" % worst,
 	)
 	t.check(
-		absf(angle_difference(unarmed.facing.angle(), unarmed.pose.hip_angle))
+		absf(angle_difference(unarmed.facing.angle(), unarmed.anatomy.pose.hip_angle))
 			< CharacterPoseTurnConfig.hip_twist + 0.15,
 		"the feet end up within the twist limit of the aim",
 	)
@@ -183,7 +189,7 @@ func _check_stride(t: TestContext) -> void:
 	var lift := 0.0
 	for k in 40:
 		await t.frames(3)
-		var rig = walker.rig()
+		var rig = walker.anatomy.rig()
 		for i in 2:
 			var ankle: Vector3 = rig.point(Rig.ANKLE[i])
 			fore[i].append(ankle.x - rig.point(Rig.HIP[i]).x)
@@ -212,13 +218,16 @@ func _check_death(t: TestContext) -> void:
 	var gunner = t.actor(&"gunner")
 	var joints := [Rig.ELBOW[0], Rig.HAND[1], Rig.KNEE[0], Rig.ANKLE[1], Rig.SHOULDER[1], Rig.HEAD]
 	var before := {}
-	var rig = gunner.rig()
+	var rig = gunner.anatomy.rig()
 	for j in joints:
 		before[j] = rig.point(j)
 	gunner.take_damage(500.0)
-	t.require(gunner.is_dead and gunner.ragdoll != null, "the gunner dies and starts to fall")
+	t.require(
+		gunner.is_dead and gunner.anatomy.ragdoll != null,
+		"the gunner dies and starts to fall",
+	)
 	for j in joints:
-		var now: Vector3 = gunner.ragdoll.point(j)
+		var now: Vector3 = gunner.anatomy.ragdoll.point(j)
 		t.check(
 			now.distance_to(before[j]) < 0.5,
 			"joint %d starts where it stood (%.2f px off)" % [j, now.distance_to(before[j])],

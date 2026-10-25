@@ -108,7 +108,7 @@ func _release() -> void:
 	var user := _user
 	_windup_left = -1.0
 	_user = null
-	var from: Vector2 = user.hand_world(weapon_hand())
+	var from: Vector2 = user.anatomy.hands.world(weapon_hand())
 	var world: Node = user.world_root()
 	count -= 1
 	var throw := GrenadeThrow.new()
@@ -129,7 +129,8 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var size := art_size()
 	var angle := facing.angle() - PI * 0.5
 	var tex := _texture(PixelArt.snap_angle(angle), true)
-	canvas.draw_set_transform(user.hand_position(weapon_hand()) + facing * 2.0, angle, Vector2.ONE)
+	var hand: Vector2 = user.anatomy.hands.hand_position(weapon_hand())
+	canvas.draw_set_transform(hand + facing * 2.0, angle, Vector2.ONE)
 	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 

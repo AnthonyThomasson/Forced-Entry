@@ -55,7 +55,7 @@ func run(t: TestContext) -> void:
 
 	var watch := FallWatch.new()
 	for i in 240:
-		var rd = target.ragdoll
+		var rd = target.anatomy.ragdoll
 		if rd == null:
 			await t.frames(1)
 			continue

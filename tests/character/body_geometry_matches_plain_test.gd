@@ -166,7 +166,7 @@ func _check_fallen(t: TestContext) -> void:
 		await t.frames(1)
 		for i in TARGETS:
 			var body := t.actor(StringName("target%d" % i))
-			var rd = body.ragdoll
+			var rd = body.anatomy.ragdoll
 			if rd == null:
 				continue
 			var fallen = body.get_node("Visuals")

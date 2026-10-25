@@ -98,11 +98,11 @@ func _process(_delta: float) -> void:
 			_redraw_key = PackedInt32Array()
 		return
 	_offscreen = false
-	var ragdoll = _character.ragdoll
+	var ragdoll = _character.anatomy.ragdoll
 	if dress.refresh(_character):
 		_settled_drawn = false  # A body at rest repaints what it now wears.
 	if ragdoll == null:
-		_rig = _character.rig()
+		_rig = _character.anatomy.rig()
 		var key := _redraw_key_of(_rig)
 		if key != _redraw_key:
 			_redraw_key = key
@@ -119,12 +119,12 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	art.clear()
 	meshes.begin()
-	if _character.ragdoll:
-		laid.draw(_character.ragdoll)
+	if _character.anatomy.ragdoll:
+		laid.draw(_character.anatomy.ragdoll)
 		return
 	redraws += 1
 	draw_order.clear()
-	var rig: Rig = _rig if _rig != null else _character.rig()
+	var rig: Rig = _rig if _rig != null else _character.anatomy.rig()
 	if draws_laid_out():
 		_draw_lying(rig)
 		return
@@ -135,13 +135,13 @@ func _draw() -> void:
 ## silhouette first, then the rest of the body.
 func _draw_shadow() -> void:
 	shadow.meshes.begin()
-	var rd = _character.ragdoll
+	var rd = _character.anatomy.ragdoll
 	if rd != null:
 		shadow.draw_fallen(rd)
 	elif draws_laid_out():
-		shadow.draw_fallen(_rig if _rig != null else _character.rig())
+		shadow.draw_fallen(_rig if _rig != null else _character.anatomy.rig())
 	else:
-		var rig: Rig = _rig if _rig != null else _character.rig()
+		var rig: Rig = _rig if _rig != null else _character.anatomy.rig()
 		var shift := shadow.shift()
 		shadow.draw_standing(rig, shift, _draw_shoulders_shadow(rig, shift))
 
@@ -149,11 +149,11 @@ func _draw_shadow() -> void:
 ## The standing body from `rig`: the legs and arms, the weapon under the shoulders, a hanging hand
 ## under them too, the shoulders, the other fists, the head, a hand over the face, then the wounds.
 func _draw_standing(rig: Rig) -> void:
-	var pose: Pose = _character.pose
+	var pose: Pose = _character.anatomy.pose
 	# The shoulders sit where the rig puts the chest: the torso's lunge, plus the forward shift of a
 	# folded spine, so the sleeves meet them in a crouch.
 	var lunge := _rig_xy(rig, Rig.CHEST)
-	var deformable = _character._deformable
+	var deformable = _character.anatomy.deformable
 	# Impacts are recorded relative to the shoulders (character.take_hit), so they turn with them.
 	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
 	# The same wounds in the character's frame, for the parts.
@@ -220,7 +220,7 @@ func _in_view() -> bool:
 ## (which carry the lunge, the head's offset and the hands' places), the angles the shoulders, head,
 ## fists and weapon are turned by, the held slot, and the wounds that dent and darken the parts.
 func _redraw_key_of(rig: Rig) -> PackedInt32Array:
-	var pose = _character.pose
+	var pose = _character.anatomy.pose
 	var key := PackedInt32Array()
 	for i in 17:
 		var p: Vector3 = rig.point(i)
@@ -244,8 +244,8 @@ func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 	key.append(roundi(_character.weapon.raise() / REDRAW_RAISE_STEP))
 	for hand in 2:
 		# A punch swings a long gun round.
-		key.append(roundi(_character.punch_amount(hand) / REDRAW_RAISE_STEP))
-	var deformable = _character._deformable
+		key.append(roundi(_character.anatomy.hands.punch_amount(hand) / REDRAW_RAISE_STEP))
+	var deformable = _character.anatomy.deformable
 	if deformable:
 		key.append(deformable.impacts.size())
 		key.append(roundi(deformable.damage_total * 100.0))
@@ -263,12 +263,12 @@ func drawn_art() -> Array:
 ## Where the standing body's shoulders are drawn (local px): the rig's chest, so the sleeves meet
 ## them.
 func shoulder_centre() -> Vector2:
-	return _rig_xy(_character.rig(), Rig.CHEST)
+	return _rig_xy(_character.anatomy.rig(), Rig.CHEST)
 
 
 ## Where the standing body's head is drawn (local px): the rig's head.
 func head_centre() -> Vector2:
-	return _rig_xy(_character.rig(), Rig.HEAD)
+	return _rig_xy(_character.anatomy.rig(), Rig.HEAD)
 
 
 ## The floor-plane (x, y) of rig `joint`, dropping its height.
@@ -287,7 +287,7 @@ func draws_laid_out() -> bool:
 ## fallen body is drawn (a lofted trunk showing its back, the limbs laid out), then what it holds
 ## and its fists on top.
 func _draw_lying(rig: Rig) -> void:
-	var pose = _character.pose
+	var pose = _character.anatomy.pose
 	var item: Item = _character.inventory.current_item()
 	# The weapon goes under the trunk: its butt is tucked behind the shoulder, the barrel shows
 	# beyond.
@@ -334,8 +334,8 @@ func _shoulder_art(angle: float) -> Texture2D:
 ## The shoulders' own deformed silhouette on the floor shadow, at the rig's chest (the lunge)
 ## shifted from the light (`shift`, per px of height). Returns where it lies.
 func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
-	var pose: Pose = _character.pose
-	var deformable = _character._deformable
+	var pose: Pose = _character.anatomy.pose
+	var deformable = _character.anatomy.deformable
 	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
 	var size := _shoulder_size()
 	var angle: float = pose.torso_angle - PI * 0.5

@@ -36,7 +36,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	await t.frames(2)
 	var victim := t.actor(&"victim")
-	var wound: BloodWound = victim._wound
+	var wound: BloodWound = victim.anatomy.wound
 	var differing: Array = []
 	var splats := 0
 	var unfinished := 0

@@ -22,20 +22,20 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var you := t.actor(&"you")
 	await t.seconds(0.3)
-	t.check(not you.is_kicking(), "not kicking before the key")
+	t.check(not you.anatomy.is_kicking(), "not kicking before the key")
 
 	await _tap(t)
-	t.check(you.is_kicking(), "the kick key starts a kick")
+	t.check(you.anatomy.is_kicking(), "the kick key starts a kick")
 	t.expect_eq(you.inventory.current_slot(), 3, "the pistol stays in hand")
 	await t.seconds(
 		CharacterMeleeConfig.kick_strike_time + CharacterMeleeConfig.kick_recover_time + 0.2
 	)
-	t.check(not you.is_kicking(), "the kick ends")
+	t.check(not you.anatomy.is_kicking(), "the kick ends")
 
 	t.check(you.movement.set_posture(&"crouch"), "crouches")
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	await _tap(t)
-	t.check(not you.is_kicking(), "a crouched character cannot kick")
+	t.check(not you.anatomy.is_kicking(), "a crouched character cannot kick")
 	await t.seconds(1.0)
 
 

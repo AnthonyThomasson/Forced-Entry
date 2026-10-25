@@ -3,10 +3,10 @@ extends RefCounted
 ## always with the right leg (side `LEG`, as the hands' side 0). `start()` begins one, `update()`
 ## runs it each physics frame: the foot is thrown out along the facing (STRIKE), then drawn back
 ## (RECOVER); no new kick starts until it is done. The rig draws the foot at `amount()` of the way
-## out (`character.leg_kick_amount(i)`), and during the strike a shape query at the foot reports
-## every body it reaches, once each per kick: it shoves a pushable (`apply_impulse`) and damages
-## whatever takes damage (`take_damage`), then emits `kicked`. Like a punch it never deforms what it
-## hits. Tuning: CharacterMeleeConfig.kick_*.
+## out (`character.anatomy.leg_kick_amount(i)`), and during the strike a shape query at the foot
+## reports every body it reaches, once each per kick: it shoves a pushable (`apply_impulse`) and
+## damages whatever takes damage (`take_damage`), then emits `kicked`. Like a punch it never deforms
+## what it hits. Tuning: CharacterMeleeConfig.kick_*.
 
 ## A body was struck: the damage it was dealt (a kick is always full strength).
 signal kicked(body: Node, damage: float)

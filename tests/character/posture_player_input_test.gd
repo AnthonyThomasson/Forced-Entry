@@ -52,13 +52,13 @@ func run(t: TestContext) -> void:
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.weapon.melee()
 	await t.frames(3)
-	t.check(you.is_attacking(), "a crouched character can punch")
+	t.check(you.anatomy.hands.is_attacking(), "a crouched character can punch")
 	await t.seconds(1.0)
 	t.check(you.movement.set_posture(&"stand"), "stands up")
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.weapon.melee()
 	await t.frames(3)
-	t.check(you.is_attacking(), "a standing character can")
+	t.check(you.anatomy.hands.is_attacking(), "a standing character can")
 	await t.seconds(1.0)
 
 

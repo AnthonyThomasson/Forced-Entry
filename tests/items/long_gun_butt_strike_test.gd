@@ -48,9 +48,8 @@ func run(t: TestContext) -> void:
 		await t.frames(1)
 		for id in peak:
 			var you := t.actor(id)
-			peak[id] = maxf(
-				peak[id], you.inventory.current_item().strike_swing(you.punch_amount(0)),
-			)
+			var swing: float = you.anatomy.hands.punch_amount(0)
+			peak[id] = maxf(peak[id], you.inventory.current_item().strike_swing(swing))
 	for id in [&"rifle", &"smg"]:
 		var you := t.actor(id)
 		t.check(
@@ -89,8 +88,8 @@ func _check_two_handed_swing(t: TestContext) -> void:
 	puppet.punch()
 	for i in 40:
 		await t.frames(1)
-		var amount: float = you.punch_amount(0)
-		var apart: Vector2 = you.hand_position(1) - you.hand_position(0)
+		var amount: float = you.anatomy.hands.punch_amount(0)
+		var apart: Vector2 = you.anatomy.hands.hand_position(1) - you.anatomy.hands.hand_position(0)
 		if amount > 0.15:
 			worst = maxf(worst, absf(apart.length() - gap))
 		stretch = maxf(stretch, _arm_stretch(you))
@@ -123,7 +122,7 @@ func _check_two_handed_swing(t: TestContext) -> void:
 ## now, as a fraction of it (0 when none is).
 func _arm_stretch(you: Node) -> float:
 	var most := 0.0
-	var rig = you.rig()
+	var rig = you.anatomy.rig()
 	for arm in 2:
 		for bone in [
 				[Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
@@ -154,5 +153,5 @@ class Across:
 		tilt = minf(tilt, absf(barrel.dot(you.facing)))
 		butt_ahead = maxf(butt_ahead, butt.dot(you.facing))
 		muzzle_ahead = minf(muzzle_ahead, muzzle.dot(you.facing))
-		var centre: Vector2 = you.hand_position(0) + butt
+		var centre: Vector2 = you.anatomy.hands.hand_position(0) + butt
 		butt_off = minf(butt_off, absf(centre.dot(you.facing.orthogonal())))

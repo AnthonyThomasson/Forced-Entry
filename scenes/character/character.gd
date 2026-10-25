@@ -3,10 +3,9 @@ extends CharacterBody2D
 ## the item inventory, and the knockback it takes from shoves. It reads its intent from a pluggable
 ## controller child (any node with a `control(character, delta)` method): the controller
 ## writes `movement.move_input` / `movement.aim_point` and calls `weapon.melee` / `weapon.shoot` /
-## `inventory.select_slot`. Drawing is in character_visuals.gd, the hand/punch/fist geometry in
-## character_hands.gd, the living motion of head, shoulders, hips and hands in character_pose.gd
-## (stepped here each physics frame), the standing skeleton the limbs are drawn from in
-## character_rig.gd, and the body's fall on death in character_ragdoll.gd (stepped here once dead).
+## `inventory.select_slot`. Drawing is in character_visuals.gd; the body's animate parts (the living
+## motion, the rig, the hands, the legs, the kick, the footsteps, the wounds, the shadow and the
+## fall on death) are its `anatomy` (character_anatomy.gd), stepped here each physics frame.
 
 ## Emitted once when health drops to zero.
 signal died
@@ -17,12 +16,7 @@ signal hit_landed(body: Node, damage: float, hand: int)
 
 ## The `hit_landed` hand code of a leg kick (0/1 are the punching hands, -1 a shot).
 const KICK_HAND := 2
-const CharacterPose = preload("res://scenes/character/body/character_pose.gd")
-const CharacterRig = preload("res://scenes/character/body/character_rig.gd")
 const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.gd")
-const CharacterFootsteps = preload("res://scenes/character/character_footsteps.gd")
-const CharacterLegs = preload("res://scenes/character/body/character_legs.gd")
-const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
 
 ## Radius of the placeholder circle. Matches chair size (28x28 → 14 radius).
 ## Body circle radius (px).
@@ -63,19 +57,6 @@ var health: float
 var is_dead: bool = false
 ## Unit vector from the character toward its aim point; read by the hands and visuals.
 var facing := Vector2.RIGHT
-## The body's living motion (head, shoulders, hips and hands chasing `facing`); read by the hands,
-## rig and visuals.
-var pose: CharacterPose = CharacterPose.new()
-## The falling body once dead (null while alive): stepped here, drawn by the visuals.
-var ragdoll: CharacterRagdoll
-## What drives `pose`, refilled each physics frame (see `_pose_drive`).
-var _drive := PoseDrive.new()
-## The standing rig solved for `_rig_frame` (see `rig()`).
-var _rig_cache: CharacterRig = null
-## The physics frame `_rig_cache` was solved in.
-var _rig_frame := -1
-## True once the dead body has come to rest and started bleeding out.
-var _bled_out := false
 ## The controller's intent, the posture, running and stamina, knockback and the push slow
 ## (`character_movement.gd`).
 var movement := CharacterMovement.new(self)
@@ -90,29 +71,12 @@ var stun := CharacterStun.new(self)
 ## What occupies the body: an object interaction, a vehicle ride, and the collision exceptions
 ## both leave behind (`character_use.gd`).
 var use := CharacterUse.new(self)
+## The body's animate parts: the pose, the rig, the hands, the legs, the kick, the footsteps, the
+## wounds, the shadow and the fall (`body/character_anatomy.gd`).
+var anatomy := CharacterAnatomy.new(self)
 ## What the character wears (Items domain; `set_outfit`): its armour, its weight and, for the art,
 ## its look. A new one wears nothing (no armour, no weight).
 var _outfit := Outfit.new()
-## Damage dents/chunks recorded when the character is shot; read by the visuals and the
-## collider rebuild. The character is flesh — a hittable surface like furniture.
-var _deformable: Deformable
-## Splatter and dripping from this character's wounds (Physics domain component).
-var _wound: BloodWound
-## Bloody footprints from blood the feet walk through (Physics domain component), fed by
-## `_footsteps`.
-var _footprints: BloodFootprints
-## Detects footfalls and feeds `_footprints`.
-var _footsteps := CharacterFootsteps.new()
-## Rests the legs against walls and furniture and shoves light pieces (see character_legs.gd).
-var _legs := CharacterLegs.new()
-## The leg kick under way, if any (see character_kick.gd).
-var _kick := CharacterKick.new()
-## The living body's shadow (a LightOccluder2D child on `LightMasks.CHARACTER`, turned with
-## `facing`); null while `LightMasks.shadows` is off, and freed on death.
-var _occluder: LightOccluder2D
-
-## The Hands child (character_hands.gd): hand geometry, the punch.
-@onready var _hands := $Hands
 
 
 func _ready() -> void:
@@ -130,69 +94,24 @@ func _ready() -> void:
 	movement.controller = _find_controller()
 	inventory.stock()
 	ammo.restock(ammo.spare_magazine_types)
+	anatomy.attach()
 	# Re-emit the hands' punch as a unified hit_landed (melee → hand 0/1, with its dealt damage).
-	weapon.hands = _hands
-	_hands.punched.connect(_on_punched)
-	_kick.kicked.connect(_on_kicked)
-
-	# Compose the flesh deformation component; its impacts dent the drawn silhouette (visual
-	# only — the body keeps its circular hitbox). No carved chunks, since a chunk's reach
-	# would span this small body and fold it.
-	_deformable = Deformable.new()
-	_deformable.max_depth = CharacterHitConfig.flesh_deform_max_depth
-	_deformable.allow_chunks = CharacterHitConfig.flesh_allow_chunks
-	_deformable.max_impacts = CharacterHitConfig.flesh_deform_max_impacts
-	add_child(_deformable)
-
-	_wound = BloodWound.new()
-	add_child(_wound)
-
-	_footprints = BloodFootprints.new()
-	add_child(_footprints)
-
+	anatomy.hands.punched.connect(_on_punched)
+	anatomy.kick.kicked.connect(_on_kicked)
 	use.attach()
-
-	_occluder = LightMasks.occluder(_shadow_footprint(), LightMasks.CHARACTER)
-	if _occluder != null:
-		add_child(_occluder)
-		_occluder.rotation = facing.angle()
 
 
 func _physics_process(delta: float) -> void:
 	_physics_step(delta)
 	use.restore_cleared()
-	_turn_shadow()
-
-
-## The living body's shadow footprint, in its own frame with +x along the facing
-## (CharacterShadowConfig).
-func _shadow_footprint() -> PackedVector2Array:
-	var poly := PackedVector2Array()
-	var sides := maxi(3, CharacterShadowConfig.sides)
-	for k in sides:
-		var a := TAU * k / sides
-		poly.append(Vector2(
-			cos(a) * radius * CharacterShadowConfig.depth,
-			sin(a) * radius * CharacterShadowConfig.width,
-		))
-	return poly
-
-
-## Turn the shadow with the facing (it moves with the body, its parent); only when the facing has
-## turned.
-func _turn_shadow() -> void:
-	if _occluder == null:
-		return
-	var angle := facing.angle()
-	if not is_equal_approx(_occluder.rotation, angle):
-		_occluder.rotation = angle
+	anatomy.turn_shadow()
 
 
 ## One physics frame of the body: a dead one's ragdoll, else the controller's intent, the ride or
 ## interaction, and the walk.
 func _physics_step(delta: float) -> void:
 	if is_dead:
-		_fall_frame(delta)
+		anatomy.step(delta)
 		return
 
 	movement.tick(delta)
@@ -213,16 +132,8 @@ func _physics_step(delta: float) -> void:
 	_walk_frame(delta)
 
 
-## One physics frame of a dead body: its ragdoll falls, and once it has settled it bleeds out.
-func _fall_frame(delta: float) -> void:
-	ragdoll.step(delta, get_world_2d().direct_space_state, global_position)
-	if ragdoll.is_settled() and not _bled_out:
-		_bled_out = true
-		Physics.bleed_out(get_parent(), self, [get_rid()])
-
-
-## One physics frame on foot: the aim turned, the walk moved and slid, the pushes, the kick, the
-## pose, the legs and the footsteps.
+## One physics frame on foot: the aim turned, the walk moved and slid, the pushes, then the body
+## (`anatomy.step`: the kick, the pose, the legs and the footsteps).
 func _walk_frame(delta: float) -> void:
 	# Aim toward the aim point. Guard the degenerate zero-length case.
 	var to_aim := movement.aim_point - global_position
@@ -230,51 +141,13 @@ func _walk_frame(delta: float) -> void:
 		facing = _turned_toward(to_aim.normalized(), delta)
 	# A parent's _physics_process runs before its children's, so the hands see this fresh
 	# facing on the same frame.
-	_hands.facing = facing
+	anatomy.hands.facing = facing
 	weapon.update_raise(delta)
 	movement.walk(delta)
-	_kick.update(self, delta)
-	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(delta, _pose_drive(get_real_velocity(), stun.level()))
-	_legs.update(self, delta)
-	_footsteps.update(self, _footprints)
+	anatomy.step(delta)
 
 
-# --- The body (held, solved) and what it wears ------------------------------------
-
-
-## Drop the cached rig: what it is solved from changed mid-frame (the held slot, a posture, a ride,
-## death), so the next `rig()` solves it afresh.
-func invalidate_rig() -> void:
-	_rig_cache = null
-
-
-## The body held still for a frame (`use.hold_frame`: an interaction, a ride): the hands on the
-## facing, the legs and the kick cleared, and the pose updated with `step` as its motion and
-## `stun_at` as its stun level.
-func hold_body(delta: float, step: Vector2, stun_at: float) -> void:
-	_hands.facing = facing
-	_legs.clear()
-	_kick.clear()
-	pose.update(delta, _pose_drive(step, stun_at))
-
-
-## What drives the pose this frame (`_drive`, refilled): the aim, the walk at `moving` (px/s), each
-## hand's stance and punch, and the `stun_at` level.
-func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
-	_drive.facing = facing
-	_drive.velocity = moving
-	_drive.top_speed = movement.speed
-	_drive.stances = weapon.stances()
-	_drive.punch = _hands.punch_amounts()
-	_drive.stun = stun_at
-	return _drive
-
-
-## Where side `i`'s ankle rests (local x/y px) against a wall or piece of furniture its leg has met,
-## or null when nothing is in its way. The rig draws the leg there (see character_legs.gd).
-func foot_clamp(i: int) -> Variant:
-	return _legs.ankle(i)
+# --- What it wears ------------------------------------------------------------------
 
 
 ## Dress the character in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`,
@@ -344,63 +217,6 @@ func _post_melee_hit(hand: int, body: Node, damage: float) -> void:
 
 
 # --- Item-facing API (what an Item may call on its user) --------------------------------
-
-
-## True while a punch swing is in progress.
-func is_attacking() -> bool:
-	return _hands.is_attacking()
-
-
-## Kick with the right leg, whatever is held: the foot is thrown out along `facing`, shoving and
-## hurting what it reaches (character_kick.gd). False when dead, crouched, locked in an interaction
-## or a kick is still under way.
-func leg_kick() -> bool:
-	if is_dead or use.is_busy() or movement.posture() != &"stand":
-		return false
-	return _kick.start()
-
-
-## True while a kick is under way (the foot thrown out and drawn back).
-func is_kicking() -> bool:
-	return _kick.is_active()
-
-
-## How far out side `i`'s foot is thrown, 0 (not kicking with that leg) .. 1 (fully thrown). The rig
-## draws the leg by it.
-func leg_kick_amount(i: int) -> float:
-	return _kick.amount() if i == CharacterKick.LEG else 0.0
-
-
-## Throw a punch with the given hand (the item decides which).
-func punch(hand: int) -> void:
-	_hands.punch(hand)
-
-
-## How far `hand` is thrown, 0 (resting) .. 1 (fully punched); an item draws its swing by it.
-func punch_amount(hand: int) -> float:
-	return _hands.punch_amount(hand)
-
-
-## Local-space center of a hand (0 left, 1 right).
-func hand_position(hand: int) -> Vector2:
-	return _hands.hand_position(hand)
-
-
-## World-space center of a hand (the character is never rotated, so world = origin + local).
-func hand_world(hand: int) -> Vector2:
-	return global_position + _hands.hand_position(hand)
-
-
-## The standing skeleton as it is held right now (see character_rig.gd), for the visuals and
-## anything that wants the arms' and legs' joints. Solved once per physics frame and shared: the
-## pose, the hands and the feet's rests change only in `_physics_process`, so every caller in the
-## same frame (the draw, a footfall, a test) gets the one solve.
-func rig() -> CharacterRig:
-	var frame := Engine.get_physics_frames()
-	if _rig_cache == null or _rig_frame != frame:
-		_rig_cache = CharacterRig.new(self)
-		_rig_frame = frame
-	return _rig_cache
 
 
 ## The scene node transient projectiles/casings/debris spawn into (world space, not under us).
@@ -479,7 +295,8 @@ func hit_zone(height: float) -> StringName:
 func hit_side(direction: Vector2) -> StringName:
 	if direction.length() < 0.001:
 		return &"front"
-	var off := rad_to_deg(absf(Vector2.from_angle(pose.torso_angle).angle_to(-direction)))
+	var shoulders := Vector2.from_angle(anatomy.pose.torso_angle)
+	var off := rad_to_deg(absf(shoulders.angle_to(-direction)))
 	if off <= CharacterHitConfig.side_front_deg:
 		return &"front"
 	return &"back" if off >= CharacterHitConfig.side_back_deg else &"flank"
@@ -518,11 +335,10 @@ func take_hit(hit: HitInfo) -> void:
 	_apply_damage(damage * float(armour["blunt"]), hit.direction)
 
 
-## A hit that wounds: the dent, the blood debris and the bleeding, and `damage` off health.
+## A hit that wounds: the dent, the blood debris and the bleeding (`anatomy.wound_by`), and `damage`
+## off health.
 func _wound_by(hit: HitInfo, damage: float) -> void:
-	_deformable.record(hit, pose.torso_angle)
-	Physics.spawn_debris(get_parent(), hit, get_surface())
-	_wound.record(hit)
+	anatomy.wound_by(hit)
 	_apply_damage(damage, hit.direction)
 
 
@@ -546,17 +362,13 @@ func _apply_damage(amount: float, direction := Vector2.ZERO) -> void:
 ## the hand lets go of what it held. Emits `died` for observers.
 func _die(direction: Vector2) -> void:
 	is_dead = true
-	_rig_cache = null
 	ammo.cancel()
-	_wound.stop()
+	# The body stops bleeding, is drawn beneath the living and casts no shadow.
+	anatomy.die()
 	# A corpse is just a body on the floor: clear its collision layer so the living (and bullets,
 	# punches, sight lines and the dropped item, all on layer 1) pass right over it instead of being
-	# blocked, and draw it beneath them.
+	# blocked.
 	collision_layer = 0
-	z_index = CharacterArtConfig.ragdoll_z_index
-	if _occluder != null:  # A body on the floor casts no shadow.
-		_occluder.queue_free()
-		_occluder = null
 	use.end_interaction()
 	use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
 	var momentum := movement.momentum()
@@ -564,9 +376,7 @@ func _die(direction: Vector2) -> void:
 	movement.stand_up()
 	movement.fold(0.0)
 	stun.clear()  # A dead body sees and hears nothing more to fade.
-	_legs.clear()
-	_kick.clear()
-	ragdoll = CharacterRagdoll.new(self, momentum, direction)
+	anatomy.fall(momentum, direction)
 	inventory.drop_held(momentum)
 	velocity = Vector2.ZERO
 	died.emit()
@@ -575,6 +385,7 @@ func _die(direction: Vector2) -> void:
 ## Where this body's blood leaves it (world): its position while alive; once fallen, the middle of
 ## the trunk where it lies. Blood pools sample it, so they spill from the body, not where it stood.
 func blood_origin() -> Vector2:
+	var ragdoll := anatomy.ragdoll
 	if ragdoll == null:
 		return global_position
 	var mid: Vector3 = ((ragdoll.point(CharacterRagdoll.CHEST)
@@ -585,7 +396,7 @@ func blood_origin() -> Vector2:
 ## Total accumulated hit damage this character has taken, read from its deformation record. Lets a
 ## controller sense how hurt the character is (0 when unscathed).
 func damage_taken() -> float:
-	return _deformable.damage_total if _deformable else 0.0
+	return anatomy.deformable.damage_total if anatomy.deformable else 0.0
 
 
 # --- Pushable contract (interface 5: Knockback transfers, blasts, a walking character, punch, kick)
@@ -606,7 +417,7 @@ func blast_push(from: Vector2, impulse: float) -> void:
 			if global_position.distance_squared_to(from) > 0.01
 			else Vector2.RIGHT)
 	if is_dead:
-		ragdoll.blast(away * impulse / get_mass())
+		anatomy.ragdoll.blast(away * impulse / get_mass())
 	else:
 		apply_impulse(away * impulse)
 

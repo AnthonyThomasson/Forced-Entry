@@ -38,7 +38,7 @@ var _frame := 0
 ## over along `blow` (the killing hit's direction; zero for none).
 func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void:
 	var r: float = character.radius
-	var f2 := Vector2.from_angle(character.pose.torso_angle)
+	var f2 := Vector2.from_angle(character.anatomy.pose.torso_angle)
 	var fwd := Vector3(f2.x, f2.y, 0.0)
 	_add_points(Rig.new(character), r)
 	_add_bones()

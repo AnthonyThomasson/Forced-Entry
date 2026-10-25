@@ -65,7 +65,7 @@ func _one_handed(c: Node) -> Variant:
 ## and how high (body radii).
 func _hold(c: Node) -> Dictionary:
 	var item: Item = c.inventory.current_item()
-	var hand: Vector3 = c.rig().point(Rig.HAND[item.weapon_hand()])
+	var hand: Vector3 = c.anatomy.rig().point(Rig.HAND[item.weapon_hand()])
 	return {
 		"ahead": Vector2(hand.x, hand.y).dot(c.facing),
 		"height": hand.z / c.radius,

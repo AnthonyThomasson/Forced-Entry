@@ -122,7 +122,7 @@ func _check_bones(t: TestContext, crouched: Dictionary, r: float) -> void:
 ## between the hips and between the ankles, how far the knees are ahead of the hips, and the leg
 ## bones' lengths.
 func _shape(c: Node) -> Dictionary:
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var chest: Vector3 = rig.point(Rig.CHEST)
 	var pelvis: Vector3 = rig.point(Rig.PELVIS)
 	var head: Vector3 = rig.point(Rig.HEAD)

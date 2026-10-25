@@ -29,7 +29,7 @@ func run(t: TestContext) -> void:
 	puppet.aim_at(Vector2(3900, 300))
 	await t.seconds(1.0)
 
-	var aimed: float = body.hand_position(WEAPON_HAND).length()
+	var aimed: float = body.anatomy.hands.hand_position(WEAPON_HAND).length()
 	t.check(aimed > 22.0, "standing, the pistol hand reaches out to aim (%.1f px)" % aimed)
 	var shots := t.spawned("Projectile").size()
 	puppet.shoot()
@@ -84,7 +84,7 @@ func _check_run_gait(t: TestContext, running: Dictionary, walk: Dictionary) -> v
 ## Running, `body`'s pistol hangs by the side and does not fire; stopped, it comes back up and
 ## fires again.
 func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
-	var carried: float = body.hand_position(WEAPON_HAND).length()
+	var carried: float = body.anatomy.hands.hand_position(WEAPON_HAND).length()
 	t.check(carried < 19.0, "running, the pistol hand hangs by the side (%.1f px)" % carried)
 	var shots := t.spawned("Projectile").size()
 	puppet.shoot()
@@ -95,7 +95,10 @@ func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
 	puppet.stop()
 	await t.seconds(0.8)
 	t.check(not body.movement.is_running(), "stopped")
-	t.check(body.hand_position(WEAPON_HAND).length() > 22.0, "the pistol hand comes back up to aim")
+	t.check(
+		body.anatomy.hands.hand_position(WEAPON_HAND).length() > 22.0,
+		"the pistol hand comes back up to aim",
+	)
 	puppet.shoot()
 	await t.frames(3)
 	t.check(
@@ -111,7 +114,7 @@ func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
 ## (px) between the two hands, and `rock` > 0 when the shoulder on the side of the forward-swinging
 ## hand is the forward one.
 func _gait(t: TestContext, body: Node) -> Dictionary:
-	var gait := Gait.new(body.pose.gait.stride_phase())
+	var gait := Gait.new(body.anatomy.pose.gait.stride_phase())
 	for k in 60:
 		await t.frames(2)
 		gait.take(body)
@@ -137,11 +140,14 @@ class Gait:
 
 	## Take in `body`'s pose now.
 	func take(body: Node) -> void:
-		var rig = body.rig()
-		var phase: float = body.pose.gait.stride_phase()
+		var rig = body.anatomy.rig()
+		var phase: float = body.anatomy.pose.gait.stride_phase()
 		stride += fposmod(phase - last, TAU)
 		last = phase
-		head = [minf(head[0], body.pose.head_offset.y), maxf(head[1], body.pose.head_offset.y)]
+		head = [
+			minf(head[0], body.anatomy.pose.head_offset.y),
+			maxf(head[1], body.anatomy.pose.head_offset.y),
+		]
 		# How far an elbow sits out past both its hand and its shoulder (the run is along x).
 		for i in 2:
 			var out := absf(rig.point(Rig.ELBOW[i]).y)
@@ -153,13 +159,13 @@ class Gait:
 		for i in 2:
 			span = maxf(span, absf(rig.point(Rig.ANKLE[i]).x - rig.point(Rig.HIP[i]).x))
 		lateral = [
-			minf(lateral[0], body.pose.torso_offset.y),
-			maxf(lateral[1], body.pose.torso_offset.y),
+			minf(lateral[0], body.anatomy.pose.torso_offset.y),
+			maxf(lateral[1], body.anatomy.pose.torso_offset.y),
 		]
-		var off := angle_difference(body.facing.angle(), body.pose.torso_angle)
+		var off := angle_difference(body.facing.angle(), body.anatomy.pose.torso_angle)
 		turn = [minf(turn[0], off), maxf(turn[1], off)]
 		rock += (rig.point(Rig.SHOULDER[0]).x - rig.point(Rig.SHOULDER[1]).x) \
-			* (body.hand_position(0).x - body.hand_position(1).x)
+			* (body.anatomy.hands.hand_position(0).x - body.anatomy.hands.hand_position(1).x)
 
 	## The gait as `_gait` tells it.
 	func summary() -> Dictionary:

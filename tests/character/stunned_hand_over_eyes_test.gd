@@ -55,7 +55,7 @@ func _free(c: Node) -> int:
 ## How far `c`'s free hand is from its head (in body radii), and whether it is on the face's side of
 ## the head.
 func _to_face(c: Node) -> Dictionary:
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var hand: Vector3 = rig.point(Rig.HAND[_free(c)])
 	var head: Vector3 = rig.point(Rig.HEAD)
 	var ahead: float = Vector2(hand.x - head.x, hand.y - head.y).dot(c.facing)
@@ -75,7 +75,7 @@ func _watch_jumps(t: TestContext, ids: Array, jumps: Dictionary, until: Array) -
 	var last := {}
 	while not until[0]:
 		for id: StringName in ids:
-			var rig = t.actor(id).rig()
+			var rig = t.actor(id).anatomy.rig()
 			var now := [rig.point(Rig.HAND[0]), rig.point(Rig.HAND[1]), rig.point(Rig.HEAD)]
 			if last.has(id):
 				var j: Dictionary = jumps[id]

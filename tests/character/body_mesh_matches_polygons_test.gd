@@ -73,11 +73,11 @@ func _freeze_bodies(t: TestContext) -> bool:
 	hit.normal = Vector2.LEFT
 	hit.direction = Vector2.RIGHT
 	hit.damage = 20.0
-	hurt_body._deformable.record(hit, hurt_body.pose.torso_angle)
+	hurt_body.anatomy.deformable.record(hit, hurt_body.anatomy.pose.torso_angle)
 	await t.seconds(0.8)
 	t.actor(&"fallen").take_damage(100.0)
 	await t.seconds(0.35)  # Mid-fall: the trunk tipped, its faces turned up.
-	if not t.require(t.actor(&"fallen").ragdoll != null, "the fallen body is falling"):
+	if not t.require(t.actor(&"fallen").anatomy.ragdoll != null, "the fallen body is falling"):
 		return false
 	for id in ACTORS:
 		t.actor(id).process_mode = Node.PROCESS_MODE_DISABLED

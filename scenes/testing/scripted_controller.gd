@@ -3,7 +3,7 @@ extends Node
 ## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
 ## character's own frame, through only the published controller API (`movement.move_input`,
 ## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `movement.toggle_crouch`,
-## `weapon.melee`, `leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
+## `weapon.melee`, `anatomy.leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
 ## `use.interact_with`, `use.end_interaction`, `use.try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
@@ -113,7 +113,7 @@ func punch() -> void:
 
 ## Kick with a leg (V), whatever is held.
 func kick() -> void:
-	_pending.append(func(c): c.leg_kick())
+	_pending.append(func(c): c.anatomy.leg_kick())
 
 
 ## Use the held item's secondary action once (a click of LMB: fire a round).

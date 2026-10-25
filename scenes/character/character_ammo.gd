@@ -135,7 +135,7 @@ func _post(item: Item, stage: StringName) -> void:
 	EventBus.post(
 		&"reload",
 		{
-			"position": character.hand_world(item.weapon_hand()), "gun": item.gun_id(),
+			"position": character.anatomy.hands.world(item.weapon_hand()), "gun": item.gun_id(),
 			"stage": stage, "power": item.round_power(), "character": character,
 		},
 	)

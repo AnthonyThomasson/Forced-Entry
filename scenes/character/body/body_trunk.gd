@@ -307,7 +307,7 @@ func _face_art(face: Dictionary) -> Dictionary:
 ## and chest, and shows only while that patch of skin faces the camera — the chest's wounds on a
 ## body lying on its back, the back's on one lying face down.
 func _draw_wounds(rd: RefCounted) -> void:
-	var deformable = _character._deformable
+	var deformable = _character.anatomy.deformable
 	if deformable == null:
 		return
 	var basis: Basis = rd.torso()

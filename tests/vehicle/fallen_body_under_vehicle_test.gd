@@ -135,7 +135,7 @@ func _sample_after_death(t: TestContext, scene: Scene) -> Dictionary:
 	}
 	p.drive(-1.0, 0.0, false)
 	var deadline := t.time + 3.0
-	while t.time < deadline and (Probe.along(car) > 2.0 or not victim.ragdoll.is_settled()):
+	while t.time < deadline and (Probe.along(car) > 2.0 or not victim.anatomy.ragdoll.is_settled()):
 		await t.frames(1)
 		_sample(t, scene, samples)
 	p.drive(0.0, 0.0, false)

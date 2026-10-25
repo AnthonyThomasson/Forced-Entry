@@ -122,6 +122,19 @@ class FakeUser:
 	extends RefCounted
 
 	var weapon := FakeWeapon.new()
+	var anatomy := FakeAnatomy.new()
+
+
+## Stands in for the character's body: its hands.
+class FakeAnatomy:
+	extends RefCounted
+
+	var hands := FakeHands.new()
+
+
+## Stands in for the character's hands: where they hold the item and how far they punch.
+class FakeHands:
+	extends RefCounted
 
 	## How far a hand is thrown in a punch: 0, no punch.
 	func punch_amount(_hand: int) -> float:

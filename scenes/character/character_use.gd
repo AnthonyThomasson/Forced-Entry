@@ -134,7 +134,7 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 	character.movement.stand_up()
 	character.movement.fold(fold)
 	_ride_step = step
-	character.invalidate_rig()
+	character.anatomy.invalidate_rig()
 
 
 ## The ride is over (out of the vehicle, or never posed): the character stands on its own feet where
@@ -145,7 +145,7 @@ func end_ride() -> void:
 		_shape.set_deferred("disabled", false)
 	_ride_step = Vector2.ZERO
 	character.movement.aim_point = character.global_position + character.facing * 64.0
-	character.invalidate_rig()
+	character.anatomy.invalidate_rig()
 
 
 ## Step the ride, right after the controller: it overrides that frame's intent (it walks the
@@ -166,11 +166,11 @@ func hold_frame(delta: float) -> bool:
 	if _riding:
 		movement.run_input = false
 		movement.hold(delta)
-		character.hold_body(delta, _ride_step, 0.0)
+		character.anatomy.hold(delta, _ride_step, 0.0)
 		return true
 	if _interaction.is_busy():
 		movement.hold(delta)
-		character.hold_body(delta, Vector2.ZERO, character.stun.level())
+		character.anatomy.hold(delta, Vector2.ZERO, character.stun.level())
 		return true
 	return false
 

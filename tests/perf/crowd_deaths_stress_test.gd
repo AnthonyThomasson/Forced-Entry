@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 
 	var settled := func():
 		for i in count:
-			if not t.actor(_id(i)).ragdoll.is_settled():
+			if not t.actor(_id(i)).anatomy.ragdoll.is_settled():
 				return false
 		return true
 	t.check(await t.until(settled, SETTLE_TIMEOUT), "every ragdoll comes to rest")

@@ -57,7 +57,7 @@ func configure(s: TestSetup) -> void:
 
 ## The forward pitch (degrees) of `c`'s spine, from the pelvis to the chest, along its facing.
 func _pitch(c: Node) -> float:
-	var rig = c.rig()
+	var rig = c.anatomy.rig()
 	var chest: Vector3 = rig.point(Rig.CHEST)
 	var pelvis: Vector3 = rig.point(Rig.PELVIS)
 	var lean: float = Vector2(chest.x - pelvis.x, chest.y - pelvis.y).dot(c.facing)
@@ -76,7 +76,7 @@ func _watch_jumps(t: TestContext, ids: Array, jumps: Dictionary, until: Array) -
 	var last := {}
 	while not until[0]:
 		for id: StringName in ids:
-			var rig = t.actor(id).rig()
+			var rig = t.actor(id).anatomy.rig()
 			var now := [rig.point(Rig.HEAD), rig.point(Rig.PELVIS)]
 			if last.has(id):
 				jumps[id] = maxf(
@@ -97,7 +97,7 @@ func _gait(t: TestContext, id: StringName, lane: float, seconds: float) -> Dicti
 	var c := t.actor(id)
 	var from: Vector2 = c.global_position
 	var since := t.events_of(&"footfall").size()
-	var walk := Walk.new(c.pose.gait.stride_phase())
+	var walk := Walk.new(c.anatomy.pose.gait.stride_phase())
 	var frames := int(seconds * 60.0)
 	for i in frames:
 		await t.frames(1)
@@ -312,9 +312,9 @@ class Walk:
 
 	## Take in `c`'s place and pose now, walking along `lane`.
 	func take(c: Node, lane: float) -> void:
-		var rig = c.rig()
+		var rig = c.anatomy.rig()
 		drift = maxf(drift, absf(c.global_position.y - lane))
-		var now: float = c.pose.gait.stride_phase()
+		var now: float = c.anatomy.pose.gait.stride_phase()
 		phase += fposmod(now - last_phase, TAU)
 		last_phase = now
 		var pelvis: Vector3 = rig.point(Rig.PELVIS)

@@ -6,9 +6,6 @@ class_name CharacterWeapon extends RefCounted
 
 ## The character holding the item.
 var character: CharacterBody2D
-## The character's `Hands` node (`character_hands.gd`), which casts the barrel's ray. Set by the
-## character's `_ready`.
-var hands: Node2D
 ## The held weapon's barrel is against a wall or object (only a weapon that `raises_at_contact`): it
 ## is held pointing up and cannot shoot. Set at once; `_raise` eases toward it (0 = held to the aim
 ## .. 1 = fully up).
@@ -73,7 +70,7 @@ func raise() -> float:
 ## The drawn direction of a held weapon: it trails the aim a little as the character turns. Visual
 ## only — shots still leave along the character's `facing`.
 func facing() -> Vector2:
-	return Vector2.from_angle(character.pose.weapon_angle)
+	return Vector2.from_angle(character.anatomy.pose.weapon_angle)
 
 
 ## Recoil: throw `hand` back and twist the shoulders, as a fired weapon does (the item calls it);
@@ -84,14 +81,14 @@ func kick(hand: int, strength := 1.0) -> void:
 	var item: Item = character.inventory.current_item()
 	if item != null and item.raises_at_contact() and one_handed():
 		strength *= CharacterStanceConfig.one_hand_recoil
-	character.pose.arms.kick(hand, strength)
+	character.anatomy.pose.arms.kick(hand, strength)
 
 
 ## World muzzle point for a weapon in `hand`: the held item's `muzzle_ahead()` past it (a long gun
 ## reaches further than a pistol), along the aim.
 func muzzle_origin(hand: int) -> Vector2:
 	var item: Item = character.inventory.current_item()
-	return character.hand_world(hand) + character.facing * _muzzle_ahead(item)
+	return character.anatomy.hands.world(hand) + character.facing * _muzzle_ahead(item)
 
 
 ## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim
@@ -142,7 +139,8 @@ func update_raise(delta: float) -> void:
 		var aim: Vector2 = character.facing
 		var from: Vector2 = character.global_position + aim.orthogonal() * lateral
 		var margin := 0.0 if not _blocked else CharacterStanceConfig.weapon_contact_margin
-		_blocked = hands.solid_distance(from, aim, reach + margin + 1.0) < reach + margin
+		var clear: float = character.anatomy.hands.solid_distance(from, aim, reach + margin + 1.0)
+		_blocked = clear < reach + margin
 	_raise = move_toward(
 		_raise,
 		1.0 if _blocked else 0.0,
@@ -189,7 +187,7 @@ func _covers_eyes(item: Item) -> bool:
 			or character.movement.is_running()
 			or character.is_dead):
 		return false
-	if character.ammo.is_reloading() or hands.is_attacking():
+	if character.ammo.is_reloading() or character.anatomy.hands.is_attacking():
 		return false
 	return item == null or item.hand_stance(item.weapon_hand()) != &"throw"
 

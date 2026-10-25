@@ -1,8 +1,8 @@
 extends GameTest
-## `Character.rig()` solves the standing skeleton once per physics frame and hands every caller in
-## that frame the same solve: repeated calls within a frame add no solve and return the same joints,
-## a frame in which the body turned gives new joints, and a walking body costs one standing solve a
-## frame however often its draw and footsteps ask.
+## The character's `anatomy.rig()` solves the standing skeleton once per physics frame and hands
+## every caller in that frame the same solve: repeated calls within a frame add no solve and return
+## the same joints, a frame in which the body turned gives new joints, and a walking body costs one
+## standing solve a frame however often its draw and footsteps ask.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 const FRAMES := 60
@@ -29,19 +29,19 @@ func run(t: TestContext) -> void:
 	var c = t.actor(&"walker")
 	await t.frames(2)
 	var before: int = Rig.solves
-	var first = c.rig()
+	var first = c.anatomy.rig()
 	var hand_a: Vector3 = first.point(Rig.HAND[0])
 	for i in 5:
-		c.rig()
+		c.anatomy.rig()
 	t.check(
 		Rig.solves - before <= 1,
 		"six rig() calls in one frame cost at most one solve (%d)" % (Rig.solves - before),
 	)
-	t.check(c.rig() == first, "every call in the frame returns the same rig")
+	t.check(c.anatomy.rig() == first, "every call in the frame returns the same rig")
 
 	t.puppet(&"walker").aim_at(Vector2(150, 0))
 	await t.seconds(0.5)  # The body turns at its own rate.
-	var hand_b: Vector3 = c.rig().point(Rig.HAND[0])
+	var hand_b: Vector3 = c.anatomy.rig().point(Rig.HAND[0])
 	t.check(
 		hand_a.distance_to(hand_b) > 1.0,
 		"once the body has turned, rig() gives new joints (moved %.1f px)"

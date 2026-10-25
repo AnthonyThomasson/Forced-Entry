@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 		head.x > shoulders.x,
 		"and the head is ahead of them (%.1f vs %.1f px)" % [head.x, shoulders.x],
 	)
-	var rig = crouched.rig()
+	var rig = crouched.anatomy.rig()
 	for i in 2:
 		var start := Vector2(rig.point(Rig.SHOULDER[i]).x, rig.point(Rig.SHOULDER[i]).y)
 		t.check(

@@ -46,7 +46,7 @@ func select_slot(slot: int) -> void:
 	if slot in _items and slot != _current_slot:
 		character.ammo.cancel()
 		_current_slot = slot
-		character.invalidate_rig()  # The weapon hand may change: the rig is solved afresh.
+		character.anatomy.invalidate_rig()  # The weapon hand may change: the rig is solved afresh.
 		# Judged for the new item now, so a shot in this same frame can't slip past a wall.
 		character.weapon.update_raise(0.0)
 
@@ -163,7 +163,7 @@ func tick(delta: float) -> void:
 		_current_slot = (ItemRegistry.FISTS_SLOT
 				if ItemRegistry.FISTS_SLOT in _items
 				else ItemRegistry.UNARMED_SLOT)
-	character.invalidate_rig()  # The weapon hand may change: the rig is solved afresh.
+	character.anatomy.invalidate_rig()  # The weapon hand may change: the rig is solved afresh.
 	character.weapon.update_raise(0.0)
 
 
