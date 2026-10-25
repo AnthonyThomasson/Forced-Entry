@@ -63,6 +63,45 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"inv", &"current_act")
+	var walk := await _walk(t, inv, mate, brain)
+	if not t.require(
+			walk["went"],
+			"the invader went to investigate the gunfire (%s)" % brain.current_act(),
+	):
+		return
+	if not t.require(
+			walk["doors"],
+			"premise: the walk kept out of the store room doorway's view on the avoid map",
+	):
+		return
+	if not t.require(walk["saw"], "premise: the walker saw the teammate before it got to it"):
+		return
+	var bumps: Array = walk["bumps"]
+	var gap: float = inv.global_position.distance_to(GOAL)
+	t.check(
+		bumps.is_empty(),
+		"it never walks into the teammate on its destination (%s)" % Bump.describe(bumps),
+	)
+	t.check(
+		walk["stood"] < Bump.PRESSED_MAX,
+		"it never stands pressed against the teammate (stood %.2f s within %.0f px of it)"
+			% [walk["stood"], Bump.PRESSED_GAP],
+	)
+	t.check(
+		mate.global_position.distance_to(GOAL) < 3.0,
+		"the teammate is not moved (%.1f px off its spot)" % mate.global_position.distance_to(GOAL),
+	)
+	t.check(
+		walk["done"] and gap < BESIDE,
+		"the walk ends beside the taken destination (%.0f px from it, %s)"
+			% [gap, brain.current_act()],
+	)
+
+
+# The walk to investigate the gunfire, watched until it ends (at most 25 s): whether it went on the
+# avoid map (`doors`), saw the teammate short of it (`saw`), the longest it stood pressed against it
+# (`stood`), whether it set off (`went`) and ended (`done`), and the `bumps`.
+func _walk(t: TestContext, inv: Node, mate: Node, brain: Node) -> Dictionary:
 	# the walk went on the avoid map (an Array: a lambda captures a bool by value)
 	var doors := [false]
 	# the walker saw the teammate while still more than a body's width short of it
@@ -82,35 +121,7 @@ func run(t: TestContext) -> void:
 		went[0] = went[0] or investigating
 		done[0] = done[0] or (went[0] and not investigating)
 		return done[0])
-	if not t.require(
-			went[0],
-			"the invader went to investigate the gunfire (%s)" % brain.current_act(),
-	):
-		return
-	if not t.require(
-			doors[0],
-			"premise: the walk kept out of the store room doorway's view on the avoid map",
-	):
-		return
-	if not t.require(saw[0], "premise: the walker saw the teammate before it got to it"):
-		return
-	var bumps: Array = seen["bumps"]
-	var gap: float = inv.global_position.distance_to(GOAL)
-	t.check(
-		bumps.is_empty(),
-		"it never walks into the teammate on its destination (%s)" % Bump.describe(bumps),
-	)
-	t.check(
-		stood[0] < Bump.PRESSED_MAX,
-		"it never stands pressed against the teammate (stood %.2f s within %.0f px of it)"
-			% [stood[0], Bump.PRESSED_GAP],
-	)
-	t.check(
-		mate.global_position.distance_to(GOAL) < 3.0,
-		"the teammate is not moved (%.1f px off its spot)" % mate.global_position.distance_to(GOAL),
-	)
-	t.check(
-		done[0] and gap < BESIDE,
-		"the walk ends beside the taken destination (%.0f px from it, %s)"
-			% [gap, brain.current_act()],
-	)
+	return {
+		"doors": doors[0], "saw": saw[0], "stood": stood[0], "went": went[0], "done": done[0],
+		"bumps": seen["bumps"],
+	}

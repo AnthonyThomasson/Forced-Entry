@@ -63,42 +63,7 @@ func run(t: TestContext) -> void:
 		"replanned_at": INF, "last": walker.global_position,
 	}
 	var seen: Dictionary = await Bump.watch(t, [&"walker", &"mate"], WATCH_S, func():
-		var p: Vector2 = walker.global_position
-		var speed: float = p.distance_to(st["last"]) * Engine.physics_ticks_per_second
-		st["last"] = p
-		if not st["sealed"] and p.distance_to(mate.global_position) < STOP_NEAR:
-			var through := NavBuilder.route(NavBuilder.steering_map(map), p, EAST.get_center())
-			st["sealed"] = through[through.size() - 1].x < DOOR.x
-		var state: Dictionary = brain.debug_state()
-		var loco: Dictionary = state.get("loco", {})
-		var target = loco.get("target", [])
-		if st["stopped_at"] == INF:
-			var gap: float = p.distance_to(mate.global_position)
-			if (speed < STILL_SPEED
-					and p.x < DOOR.x - 20.0
-					and gap < STOP_NEAR
-					and gap > Bump.RADIUS * 2.0 + Bump.CONTACT_TOL):
-				st["still"] = float(st["still"]) + 1.0 / Engine.physics_ticks_per_second
-				if st["still"] >= WAIT_MIN:
-					st["stopped_at"] = t.time
-					st["target"] = (Vector2(target[0], target[1])
-							if target is Array and target.size() == 2
-							else Vector2.INF)
-					st["walks"] = int(state.get("decisions", 0))
-			else:
-				st["still"] = 0.0
-		elif st["replanned_at"] == INF:
-			var now_target: Vector2 = (Vector2(target[0], target[1])
-					if target is Array and target.size() == 2
-					else Vector2.INF)
-			var moved_off: bool = (st["target"] != Vector2.INF
-					and now_target != Vector2.INF
-					and now_target.distance_to(st["target"]) > 40.0)
-			var blocked_walk: bool = (int(state.get("decisions", 0)) > int(st["walks"])
-					and String(state.get("decision_reason", "")) == "way blocked")
-			if moved_off or blocked_walk:
-				st["replanned_at"] = t.time
-		return false)
+		return _tick(t, st, brain, map))
 	if not t.require(
 			String(brain.current_act()).contains("room_east")
 				or t.von_requests().any(func(r): return String(r["pick"]) == "room_east"),
@@ -121,6 +86,10 @@ func run(t: TestContext) -> void:
 		mate.global_position.distance_to(DOOR) < 3.0,
 		"the teammate is not moved (%.1f px off its spot)" % mate.global_position.distance_to(DOOR),
 	)
+	_check_wait(t, st, walker, brain)
+
+
+func _check_wait(t: TestContext, st: Dictionary, walker: Node, brain: Node) -> void:
 	t.check(
 		st["stopped_at"] < INF,
 		("it stops short of the teammate and waits (still %.1f s or more within %.0f px of it on "
@@ -138,3 +107,72 @@ func run(t: TestContext) -> void:
 					"never" if st["replanned_at"] == INF else "%.1f s" % st["replanned_at"],
 				],
 		)
+
+
+# One frame of the watch into `st`: whether the teammate seals the doorway on the steering map once
+# the walker is near, when the walker stopped short of it and waited, and when it re-planned.
+func _tick(t: TestContext, st: Dictionary, brain: Node, map: RID) -> bool:
+	var walker := t.actor(&"walker")
+	var mate := t.actor(&"mate")
+	var p: Vector2 = walker.global_position
+	var speed: float = p.distance_to(st["last"]) * Engine.physics_ticks_per_second
+	st["last"] = p
+	if not st["sealed"] and p.distance_to(mate.global_position) < STOP_NEAR:
+		var through := NavBuilder.route(NavBuilder.steering_map(map), p, EAST.get_center())
+		st["sealed"] = through[through.size() - 1].x < DOOR.x
+	var state: Dictionary = brain.debug_state()
+	var loco: Dictionary = state.get("loco", {})
+	var target := _point(loco.get("target", []))
+	if st["stopped_at"] == INF:
+		var gap: float = p.distance_to(mate.global_position)
+		_track_stop(
+			t,
+			st,
+			state,
+			target,
+			(speed < STILL_SPEED
+					and p.x < DOOR.x - 20.0
+					and gap < STOP_NEAR
+					and gap > Bump.RADIUS * 2.0 + Bump.CONTACT_TOL),
+		)
+	elif st["replanned_at"] == INF:
+		_track_replan(t, st, state, target)
+	return false
+
+
+# The walker's wait short of the teammate (`waiting` this frame), into `st`: once it has held
+# `WAIT_MIN`, when it stopped, its walk's target then and its decisions so far.
+func _track_stop(
+		t: TestContext,
+		st: Dictionary,
+		state: Dictionary,
+		target: Vector2,
+		waiting: bool,
+) -> void:
+	if waiting:
+		st["still"] = float(st["still"]) + 1.0 / Engine.physics_ticks_per_second
+		if st["still"] >= WAIT_MIN:
+			st["stopped_at"] = t.time
+			st["target"] = target
+			st["walks"] = int(state.get("decisions", 0))
+	else:
+		st["still"] = 0.0
+
+
+# The walker's re-plan once stopped, into `st`: when its walk's target moved off the one it stopped
+# with, or it decided again on a blocked way.
+func _track_replan(t: TestContext, st: Dictionary, state: Dictionary, target: Vector2) -> void:
+	var moved_off: bool = (st["target"] != Vector2.INF
+			and target != Vector2.INF
+			and target.distance_to(st["target"]) > 40.0)
+	var blocked_walk: bool = (int(state.get("decisions", 0)) > int(st["walks"])
+			and String(state.get("decision_reason", "")) == "way blocked")
+	if moved_off or blocked_walk:
+		st["replanned_at"] = t.time
+
+
+# A walk's target as the debug state gives it (`[x, y]`), or Vector2.INF without one.
+func _point(target: Variant) -> Vector2:
+	return (Vector2(target[0], target[1])
+			if target is Array and target.size() == 2
+			else Vector2.INF)

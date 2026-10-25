@@ -39,19 +39,8 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var mate := t.actor(&"mate")
 	var brain := Entry.brain(t, &"inv")
-	var has_slot := func(): return Entry.entry(brain).get("stack_point", null) is Vector2
-	if not t.require(
-			await t.until(has_slot, 10.0),
-			"the invader chose the back door and its slot (%s, %s)"
-				% [brain.current_act(), Entry.entry(brain)],
-	):
-		return
-	var slot: Vector2 = Entry.entry(brain)["stack_point"]
-	if not t.require(
-			inv.global_position.distance_to(slot) > 60.0,
-			"premise: the invader is still away from its slot (%.0f px)"
-				% inv.global_position.distance_to(slot),
-	):
+	var slot := await _slot(t, inv, brain)
+	if slot == Vector2.INF:
 		return
 	mate.global_position = slot
 	await t.frames(1)
@@ -74,6 +63,30 @@ func run(t: TestContext) -> void:
 		mate.global_position.distance_to(slot) < 3.0,
 		"the teammate is not moved (%.1f px off the slot)" % mate.global_position.distance_to(slot),
 	)
+	_check_rest(t, brain, slot, rest)
+
+
+func _slot(t: TestContext, inv: Node, brain: Node) -> Vector2:
+	var has_slot := func(): return Entry.entry(brain).get("stack_point", null) is Vector2
+	if not t.require(
+			await t.until(has_slot, 10.0),
+			"the invader chose the back door and its slot (%s, %s)"
+				% [brain.current_act(), Entry.entry(brain)],
+	):
+		return Vector2.INF
+	var slot: Vector2 = Entry.entry(brain)["stack_point"]
+	if not t.require(
+			inv.global_position.distance_to(slot) > 60.0,
+			"premise: the invader is still away from its slot (%.0f px)"
+				% inv.global_position.distance_to(slot),
+	):
+		return Vector2.INF
+	return slot
+
+
+func _check_rest(t: TestContext, brain: Node, slot: Vector2, rest: Vector2) -> void:
+	var inv := t.actor(&"inv")
+	var mate := t.actor(&"mate")
 	if not t.check(
 			rest != Vector2.INF,
 			"it ends its walk to the slot (at %s, %.0f px from the slot, phase %s)" % [

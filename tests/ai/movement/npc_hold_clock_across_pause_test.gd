@@ -61,12 +61,50 @@ func run(t: TestContext) -> void:
 	var brain := t.controller(&"walker", &"current_act")
 	var loco := func() -> Dictionary: return brain.debug_state().get("loco", {})
 	var held := func(): return String(loco.call().get("way", "")) == "held"
+	var hold_from := await _stands_held(t, walker, brain, loco, held)
+	if hold_from == Vector2.INF:
+		return
+	var walks := int(brain.debug_state().get("decisions", 0))
+	var before := await _nudge(t, mate, loco, held)
+	if before < 0.0:
+		return
+	var left_at := t.time
+	await Order.pause_for(t, PAUSE_S)
+	if not t.require(
+			await t.until(held, 0.4),
+			"premise: the same hold begins again once the game runs (%s)" % loco.call(),
+	):
+		return
+	if not _same_hold(
+			t,
+			t.time - left_at,
+			walker.global_position.distance_to(hold_from),
+			int(brain.debug_state().get("decisions", 0)) == walks,
+	):
+		return
+	var now := float(loco.call().get("held_for", 0.0))
+	t.check(
+		now >= before,
+		("its clock carries on through the pause (%.2f s held before the hold ended, %.2f s once "
+				+ "it began again; %.0f wall s paused)") % [before, now, PAUSE_S],
+	)
+
+
+# Waits for the walk to be held short of the teammate and the walker to stand still in it; where
+# the hold began, or Vector2.INF when a premise fails.
+func _stands_held(
+		t: TestContext,
+		walker: Node,
+		brain: Node,
+		loco: Callable,
+		held: Callable,
+) -> Vector2:
 	if not t.require(
 			await t.until(held, 8.0),
 			"premise: the walker's walk is held short of the teammate in the doorway (%s, %s)"
 				% [loco.call(), brain.current_act()],
 	):
-		return
+		return Vector2.INF
 	var hold_from: Vector2 = walker.global_position
 	var st := { "last": walker.global_position, "speed": INF }
 	var standing_held := func():
@@ -81,8 +119,13 @@ func run(t: TestContext) -> void:
 			("premise: the walker stands still, its walk held short of the teammate in the doorway "
 					+ "(%s, %s)") % [loco.call(), brain.current_act()],
 	):
-		return
-	var walks := int(brain.debug_state().get("decisions", 0))
+		return Vector2.INF
+	return hold_from
+
+
+# Nudges the teammate on along the walk until the hold ends; how long the walk had been held then,
+# or -1 when the hold does not end.
+func _nudge(t: TestContext, mate: Node, loco: Callable, held: Callable) -> float:
 	var before := float(loco.call().get("held_for", 0.0))
 	mate.global_position += Vector2(NUDGE_PX, 0)
 	var ended := false
@@ -96,27 +139,17 @@ func run(t: TestContext) -> void:
 			ended,
 			"premise: the nudged teammate reads as moving and the hold ends (%s)" % loco.call(),
 	):
-		return
-	var left_at := t.time
-	await Order.pause_for(t, PAUSE_S)
-	if not t.require(
-			await t.until(held, 0.4),
-			"premise: the same hold begins again once the game runs (%s)" % loco.call(),
-	):
-		return
-	var again := t.time - left_at
-	var moved: float = walker.global_position.distance_to(hold_from)
-	if not t.require(
-			again <= HOLD_GAP
-				and moved <= HOLD_MOVED
-				and int(brain.debug_state().get("decisions", 0)) == walks,
-			("premise: it is the same hold, begun again %.2f s of game time after it ended, %.1f "
-					+ "px from where it began, on the same walk") % [again, moved],
-	):
-		return
-	var now := float(loco.call().get("held_for", 0.0))
-	t.check(
-		now >= before,
-		("its clock carries on through the pause (%.2f s held before the hold ended, %.2f s once "
-				+ "it began again; %.0f wall s paused)") % [before, now, PAUSE_S],
+		return -1.0
+	return before
+
+
+# Whether the hold begun again is the same one: `again` s of game time after it ended, `moved` px
+# from where it began, on the same walk (`same_walk`).
+func _same_hold(t: TestContext, again: float, moved: float, same_walk: bool) -> bool:
+	return t.require(
+		again <= HOLD_GAP
+			and moved <= HOLD_MOVED
+			and same_walk,
+		("premise: it is the same hold, begun again %.2f s of game time after it ended, %.1f "
+				+ "px from where it began, on the same walk") % [again, moved],
 	)
