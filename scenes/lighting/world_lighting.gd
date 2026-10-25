@@ -155,10 +155,17 @@ func _build(root: Node2D, rooms: Array) -> void:
 	for ground: Node2D in root.get_tree().get_nodes_in_group(&"floors"):
 		if root.is_ancestor_of(ground):
 			floors.add_floor(ground)
-	## `[piece, index, spec, order]` per declared light.
-	var candidates: Array = []
 	## Room key -> true for a room a piece's `room_light` stands in.
 	var lit_rooms := {}
+	_place(_candidates(root, rooms, lit_rooms), rooms, floors, lit_rooms)
+	_flash_pool()
+	EventBus.posted.connect(_on_posted)
+
+
+## `[piece, index, spec, order]` per light declared under `root` (by a node with `get_lights()`, not
+## this one's), marking in `lit_rooms` the room (of `rooms`) a piece's `room_light` stands in.
+func _candidates(root: Node2D, rooms: Array, lit_rooms: Dictionary) -> Array:
+	var candidates: Array = []
 	for node in root.find_children("*", "", true, false):
 		if node == self or is_ancestor_of(node):
 			continue
@@ -168,8 +175,13 @@ func _build(root: Node2D, rooms: Array) -> void:
 				candidates.append([node, i, specs[i], candidates.size()])
 				if (specs[i] as Dictionary).get("room_light", false):
 					lit_rooms[_room_of(rooms, (node as Node2D).global_position)] = true
+	return candidates
 
-	# A room's own fixture first (always counted), then the declared lights strongest first.
+
+## Place the lights within the `floors`' budget: a room's own fixture first (always counted, for a
+## room not in `lit_rooms`), then the `candidates` (`_candidates`) strongest first, then the fixture
+## of a room whose every room light the budget left out.
+func _place(candidates: Array, rooms: Array, floors: Budget, lit_rooms: Dictionary) -> void:
 	for room: Dictionary in rooms:
 		if not lit_rooms.has(room["key"]):
 			_fixture(room, floors, true)
@@ -187,12 +199,12 @@ func _build(root: Node2D, rooms: Array) -> void:
 		if lit_rooms.has(room["key"]) and not kept_rooms.has(room["key"]):
 			_fixture(room, floors, false)
 
+
+## The flash pool: `LightingConfig.flash_pool` disabled flashes under this node, none lit yet.
+func _flash_pool() -> void:
 	for k in LightingConfig.flash_pool:
 		var flash := _point(
-			Color.WHITE,
-			0.0,
-			1.0,
-			&"round",
+			{ "colour": Color.WHITE, "energy": 0.0, "radius": 1.0, "shape": &"round" },
 			false,
 			LightMasks.ALL_SHADOWS,
 			LightMasks.HOUSE | LightMasks.STREET,
@@ -208,7 +220,6 @@ func _build(root: Node2D, rooms: Array) -> void:
 	_flash_hold.fill(0.0)
 	_flash_life.fill(0.0)
 	_flash_t.fill(0.0)
-	EventBus.posted.connect(_on_posted)
 
 
 ## The dusk sky on the street, unshadowed (a directional shadow would run to the edge of the view).
@@ -233,10 +244,7 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -
 	var energy := float(spec.get("energy", 1.0))
 	var overhead: bool = spec.get("height", &"low") == &"overhead"
 	var mask := LightMasks.OVERHEAD_SHADOWS if overhead else LightMasks.LOW_SHADOWS
-	var l := _point(
-		spec.get("colour", Color.WHITE), energy, float(spec.get("radius", 100.0)),
-		spec.get("shape", &"round"), overhead, mask, item_mask,
-	)
+	var l := _point(spec, overhead, mask, item_mask)
 	l.position = spec.get("offset", Vector2.ZERO)
 	l.rotation = float(spec.get("turn", 0.0))
 	if not floors.take(Budget.box_of(l, piece.global_transform * l.transform), item_mask):
@@ -260,10 +268,13 @@ func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 			+ LightingConfig.fixture_reach_pad,
 		LightingConfig.fixture_reach_range.x, LightingConfig.fixture_reach_range.y,
 	)
-	var l := _point(
-		LightingConfig.fixture_color, LightingConfig.fixture_energy, reach * 0.5, &"round", true,
-		LightMasks.OVERHEAD_SHADOWS, LightMasks.HOUSE,
-	)
+	var look := {
+		"colour": LightingConfig.fixture_color,
+		"energy": LightingConfig.fixture_energy,
+		"radius": reach * 0.5,
+		"shape": &"round",
+	}
+	var l := _point(look, true, LightMasks.OVERHEAD_SHADOWS, LightMasks.HOUSE)
 	l.position = to_local(rect.get_center())
 	if not floors.take(Budget.box_of(l, global_transform * l.transform), LightMasks.HOUSE, always):
 		l.free()
@@ -300,18 +311,22 @@ func _keep(l: PointLight2D, energy: float, kinds: Array, seed_value: int, glow: 
 	_lights.append(l)
 
 
-## A shadowed PointLight2D of `colour` at `energy`, its pool `radius` px out along its long axis in
-## the texture of `shape` (`round`, `wide`, `tube`; an `overhead` light's pools downward), shadowed
-## by the occluders in `shadow_mask`, lighting the items in `item_mask`.
-static func _point(colour: Color, energy: float, radius: float, shape: StringName, overhead: bool,
-		shadow_mask: int, item_mask: int) -> PointLight2D:
+## A shadowed PointLight2D of the look in `spec` (a declared light's keys: `colour` at `energy`, its
+## pool `radius` px out along its long axis in the texture of `shape`: `round`, `wide`, `tube`;
+## white, 1.0, 100 px and round when absent; an `overhead` light's pools downward), shadowed by the
+## occluders in `shadow_mask`, lighting the items in `item_mask`.
+static func _point(spec: Dictionary, overhead: bool, shadow_mask: int,
+		item_mask: int) -> PointLight2D:
+	var colour: Color = spec.get("colour", Color.WHITE)
+	var radius := float(spec.get("radius", 100.0))
+	var shape: StringName = spec.get("shape", &"round")
 	if not LightingConfig.textures.has(shape):
 		shape = &"round"
 	var l := PointLight2D.new()
 	l.texture = _texture(shape, overhead)
 	l.texture_scale = radius * 2.0 / float((LightingConfig.textures[shape] as Vector2i).x)
 	l.color = colour
-	l.energy = energy
+	l.energy = float(spec.get("energy", 1.0))
 	l.shadow_enabled = true
 	l.shadow_filter = Light2D.SHADOW_FILTER_NONE  # Hard edges, as pixel art; the cheapest.
 	l.shadow_item_cull_mask = shadow_mask

@@ -24,12 +24,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var bow := maxi(1, roundi(back_d * 0.3))
 	var inset := maxi(1, int(c.w / 14.0))
 
-	# Spindles run from under the rail down beneath the seat's back edge.
-	var slats: int = opts.get("slats", ObjectArtConfig.chair_slats)
-	for i in slats:
-		var x := roundi(float(i + 1) * c.w / (slats + 1)) - 1
-		var spindle := PixelCanvas.rounded(Rect2i(x, rail_th - 1, 2, back_d - rail_th + 2), 0)
-		c.fill(spindle, t.dark, _SLAT_HEIGHT)
+	_spindles(c, opts, back_d, rail_th, t)
 
 	# Seat: worn centre, grain across, bevelled edge.
 	var seat_rect := Rect2i(inset, back_d - 1, c.w - 2 * inset, c.h - back_d + 1)
@@ -56,6 +51,17 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 
 	c.cast_shadows()
 	worn_wood(c)
+
+
+## The spindles (`opts.slats` of them, in the tones `t`), running from under the rail (`rail_th`
+## thick) down beneath the seat's back edge (`back_d` from the back).
+static func _spindles(c: PixelCanvas, opts: Dictionary, back_d: int, rail_th: int,
+		t: Dictionary) -> void:
+	var slats: int = opts.get("slats", ObjectArtConfig.chair_slats)
+	for i in slats:
+		var x := roundi(float(i + 1) * c.w / (slats + 1)) - 1
+		var spindle := PixelCanvas.rounded(Rect2i(x, rail_th - 1, 2, back_d - rail_th + 2), 0)
+		c.fill(spindle, t.dark, _SLAT_HEIGHT)
 
 
 ## The run-down finish of a wooden surface (a chair, a table, a desk): grime, scratches, cup rings,

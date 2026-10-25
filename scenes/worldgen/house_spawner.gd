@@ -45,73 +45,104 @@ static func spawn(
 	house.position = front_entrance_world - (front[0]["pos"] as Vector2)
 	parent.add_child(house)
 
-	var wall_thickness: float = plan["wall_thickness"]
 	var blocked := _opening_clearances(rooms, openings)
-
-	# Room rects in WORLD space (captured after mirroring), for callers that spawn entities
-	# into rooms. Exposed via WorldGen.get_rooms(house).
-	var rooms_world: Array = []
 	var clutter_world: Array = []
-	## Per room, for the wear pass: `[room, floor definition, solids]`.
+	## Per room, for the wear pass: `[site, floor definition]`.
 	var dressing: Array = []
-
 	for room in rooms:
-		var rect: Rect2 = room["rect"]
-		var room_name := (room["key"] as String).capitalize()
-		var walls := RoomWalls.new()
-		walls.thickness = wall_thickness
-		walls.openings = WallFactory.openings_for(rect, openings)
-		walls.style = GeneralCatalog.WALL
-		WallFactory.spawn(rect, walls, room_name, house)
-
-		var furniture := Node2D.new()
-		furniture.name = room_name + " Furniture"
-		house.add_child(furniture)
-		var interior := rect.grow(-(wall_thickness * 0.5 + INTERIOR_MARGIN))
-		var solids: Array = []
-		var palette := RoomFurnisher.furnish(
-			room["type"], interior, blocked, rng, furniture, solids,
-		)
-		var recipe := ArrangementDefinitions.get_recipe(room["type"])
-		for piece: Dictionary in RoomDresser.strew(
-				room, recipe.get("clutter", GeneralCatalog.CLUTTER), solids, blocked,
-				wall_thickness, rng.seed, furniture,
-		):
-			clutter_world.append({
-				"room": room["key"],
-				"key": piece["key"],
-				"node": piece["node"],
-			})
-		# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
-		var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
-		if not floor_def.is_empty():
-			FloorFactory.spawn(rect, floor_def, room_name + " Floor", house)
-		dressing.append([room, floor_def, solids])
-
-		rooms_world.append({
-			"key": room["key"], "type": room["type"],
-			"rect": Rect2(house.position + rect.position, rect.size),
-		})
-
+		var site := _site(room, plan["wall_thickness"], blocked, rng.seed)
+		dressing.append([site, _build_room(site, openings, rng, house, clutter_world)])
 	# Wear after every room stands, so a mark on a shared wall draws over both rooms' caps.
-	var wear_world: Array = []
-	for entry: Array in dressing:
-		for cluster: Dictionary in RoomDresser.wear(
-				entry[0], entry[1], entry[2], openings, wall_thickness, rng.seed, house,
-		):
-			wear_world.append({
-				"room": entry[0]["key"],
-				"pos": house.position + (cluster["pos"] as Vector2),
-				"layer": cluster["layer"],
-			})
+	var wear_world := _wear(dressing, openings, house)
 
-	house.set_meta("rooms", rooms_world)
+	house.set_meta("rooms", _rooms_world(rooms, house.position))
 	house.set_meta("openings", _openings_world(rooms, openings, house.position))
 	house.set_meta("clutter", clutter_world)
 	house.set_meta("wear", wear_world)
 	house.set_meta("street", _street(rooms, house, rng.seed))
 	house.set_meta("streetlights", _streetlights(rooms, openings, house, rng.seed))
 	return house
+
+
+## A room of the plan as RoomFurnisher and RoomDresser read it (its furniture node not built yet).
+static func _site(
+	room: Dictionary,
+	wall_thickness: float,
+	blocked: Array,
+	run_seed: int,
+) -> RoomSite:
+	var site := RoomSite.new()
+	site.room = room
+	site.wall_thickness = wall_thickness
+	site.blocked = blocked
+	site.run_seed = run_seed
+	return site
+
+
+## Build `site`'s room under `house`: its walls (every doorway of `openings` on them cut in), its
+## furniture (RoomFurnisher, drawing from `rng`) and clutter (RoomDresser, appended to
+## `clutter_world` as `{ room, key, node }`) under a node of its own, then its floor, the one its
+## furnishing palette names. Returns that floor's definition ({} for none).
+static func _build_room(
+	site: RoomSite,
+	openings: Array,
+	rng: RandomNumberGenerator,
+	house: Node2D,
+	clutter_world: Array,
+) -> Dictionary:
+	var rect: Rect2 = site.room["rect"]
+	var room_name := (site.room["key"] as String).capitalize()
+	var walls := RoomWalls.new()
+	walls.thickness = site.wall_thickness
+	walls.openings = WallFactory.openings_for(rect, openings)
+	walls.style = GeneralCatalog.WALL
+	WallFactory.spawn(rect, walls, room_name, house)
+
+	site.furniture = Node2D.new()
+	site.furniture.name = room_name + " Furniture"
+	house.add_child(site.furniture)
+	var interior := rect.grow(-(site.wall_thickness * 0.5 + INTERIOR_MARGIN))
+	var palette := RoomFurnisher.furnish(site, interior, rng)
+	var recipe := ArrangementDefinitions.get_recipe(site.room["type"])
+	for piece: Dictionary in RoomDresser.strew(site, recipe.get("clutter", GeneralCatalog.CLUTTER)):
+		clutter_world.append({
+			"room": site.room["key"],
+			"key": piece["key"],
+			"node": piece["node"],
+		})
+	# The floor runs to the wall centerlines, so the walls cover the seams between rooms.
+	var floor_def: Dictionary = GeneralCatalog.FLOORS.get(palette.get("floor", ""), {})
+	if not floor_def.is_empty():
+		FloorFactory.spawn(rect, floor_def, room_name + " Floor", house)
+	return floor_def
+
+
+## Each room's wear (`dressing`: `[site, floor definition]` per room, its walls cut short of
+## `openings`) laid under `house`, as `[{ room, pos, layer }]` (`pos` in world space).
+static func _wear(dressing: Array, openings: Array, house: Node2D) -> Array:
+	var wear_world: Array = []
+	for entry: Array in dressing:
+		var site: RoomSite = entry[0]
+		for cluster: Dictionary in RoomDresser.wear(site, entry[1], openings, house):
+			wear_world.append({
+				"room": site.room["key"],
+				"pos": house.position + (cluster["pos"] as Vector2),
+				"layer": cluster["layer"],
+			})
+	return wear_world
+
+
+## Room rects in WORLD space (`origin` the house's position, after mirroring), for callers that
+## spawn entities into rooms: `[{ key, type, rect }]`, exposed via WorldGen.get_rooms(house).
+static func _rooms_world(rooms: Array, origin: Vector2) -> Array:
+	var rooms_world: Array = []
+	for room in rooms:
+		var rect: Rect2 = room["rect"]
+		rooms_world.append({
+			"key": room["key"], "type": room["type"],
+			"rect": Rect2(origin + rect.position, rect.size),
+		})
+	return rooms_world
 
 
 ## The street lamps along the front sidewalk, spawned under `house` (a `Street Lamps` node) through
@@ -124,26 +155,19 @@ static func spawn(
 static func _streetlights(rooms: Array, openings: Array, house: Node2D, run_seed: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([run_seed, "streetlights"])
-	var bounds := _bounds(rooms)
-	var side := WorldGenConfig.street_sidewalk
-	var every := WorldGenConfig.streetlight_every
-	var west := bounds.position.x - side
-	var length := bounds.size.x + side * 2.0
-	var count := maxi(1, int(length / every))
-	var first := west + (length - (count - 1) * every) * 0.5
-	var y := bounds.end.y + side - WorldGenConfig.streetlight_curb
+	var row := _lamp_row(rooms)
 	var zones := _door_zones(rooms, openings)
 	var holder := Node2D.new()
 	holder.name = "Street Lamps"
 	house.add_child(holder)
 	var out: Array = []
-	for i in count:
+	for i: int in row["count"]:
 		var at := Vector2(
-			first + i * every + rng.randf_range(
+			row["first"] + i * WorldGenConfig.streetlight_every + rng.randf_range(
 				-WorldGenConfig.streetlight_jitter,
 				WorldGenConfig.streetlight_jitter,
 			),
-			y,
+			row["y"],
 		)
 		var neon := "cyan" if rng.randf() < 0.5 else "magenta"
 		var definition := ObjectDefinitions.get_definition("street_sign"
@@ -159,6 +183,23 @@ static func _streetlights(rooms: Array, openings: Array, house: Node2D, run_seed
 		)
 		out.append({ "pos": house.position + at, "node": node })
 	return out
+
+
+## The row the street lamps stand in along the front sidewalk of `rooms`, before their jitter:
+## `{ first, count, y }`, the first lamp's x, how many (one about every
+## `WorldGenConfig.streetlight_every` px, the row centred on the front) and the posts' y,
+## `streetlight_curb` px in from the curb.
+static func _lamp_row(rooms: Array) -> Dictionary:
+	var bounds := _bounds(rooms)
+	var side := WorldGenConfig.street_sidewalk
+	var every := WorldGenConfig.streetlight_every
+	var length := bounds.size.x + side * 2.0
+	var count := maxi(1, int(length / every))
+	return {
+		"first": bounds.position.x - side + (length - (count - 1) * every) * 0.5,
+		"count": count,
+		"y": bounds.end.y + side - WorldGenConfig.streetlight_curb,
+	}
 
 
 ## Where a lamp of `definition` at `at` with its arm out along `facing` stands: its post's bounding
@@ -233,12 +274,43 @@ static func _bounds(rooms: Array) -> Rect2:
 ## space).
 static func _street(rooms: Array, house: Node2D, run_seed: int) -> Array:
 	var bounds := _bounds(rooms)
+	var walk := bounds.grow(WorldGenConfig.street_sidewalk)
+	var outer := bounds.grow(WorldGenConfig.street_reach)
+	var pieces := _street_pieces(bounds)
+	var out: Array = []
+	for i in pieces.size():
+		var piece: Array = pieces[i]
+		var kind: String = piece[0]
+		var street_key := "sidewalk" if kind == "sidewalk" else "asphalt"
+		var definition: Dictionary = GeneralCatalog.STREET[street_key].duplicate(true)
+		definition["marks"] = {
+			"seed": hash([run_seed, "street", i]),
+			"edges": piece[2],
+			"lane": piece[3],
+		}
+		definition["tile_from"] = walk.position if kind == "sidewalk" else outer.position
+		var node := FloorFactory.spawn(
+			piece[1],
+			definition,
+			"%s %d" % [kind.capitalize(), i % 4 + 1],
+			house,
+		)
+		out.append({
+			"kind": kind,
+			"rect": Rect2(house.position + (piece[1] as Rect2).position, (piece[1] as Rect2).size),
+			"node": node,
+		})
+	return out
+
+
+## The street ring's pieces round `bounds` (the rooms'), `[kind, rect, the edges its curb
+## (sidewalk) or gutter (road) runs along, lane]`: the four sidewalks, then the four roads.
+static func _street_pieces(bounds: Rect2) -> Array:
 	var side := WorldGenConfig.street_sidewalk
 	var walk := bounds.grow(side)
 	var outer := bounds.grow(WorldGenConfig.street_reach)
 	var road := WorldGenConfig.street_reach - side
-	# [kind, rect, the edges its curb (sidewalk) or gutter (road) runs along, lane].
-	var pieces := [
+	return [
 		[
 			"sidewalk",
 			Rect2(walk.position.x, walk.position.y, walk.size.x, side),
@@ -278,30 +350,6 @@ static func _street(rooms: Array, house: Node2D, run_seed: int) -> Array:
 		],
 		["street", Rect2(walk.end.x, walk.position.y, road, walk.size.y), [Vector2.LEFT], false],
 	]
-	var out: Array = []
-	for i in pieces.size():
-		var piece: Array = pieces[i]
-		var kind: String = piece[0]
-		var street_key := "sidewalk" if kind == "sidewalk" else "asphalt"
-		var definition: Dictionary = GeneralCatalog.STREET[street_key].duplicate(true)
-		definition["marks"] = {
-			"seed": hash([run_seed, "street", i]),
-			"edges": piece[2],
-			"lane": piece[3],
-		}
-		definition["tile_from"] = walk.position if kind == "sidewalk" else outer.position
-		var node := FloorFactory.spawn(
-			piece[1],
-			definition,
-			"%s %d" % [kind.capitalize(), i % 4 + 1],
-			house,
-		)
-		out.append({
-			"kind": kind,
-			"rect": Rect2(house.position + (piece[1] as Rect2).position, (piece[1] as Rect2).size),
-			"node": node,
-		})
-	return out
 
 
 ## Every doorway as `{ pos, width, front, exit, rooms }` in WORLD space; `rooms` are the keys of the
@@ -332,28 +380,36 @@ static func room_keys_on(rooms: Array, opening: Dictionary) -> Array:
 static func _validate(rooms: Array, openings: Array, plan_key: String) -> void:
 	for i in range(rooms.size()):
 		for j in range(i + 1, rooms.size()):
-			var a: Rect2 = rooms[i]["rect"]
-			var b: Rect2 = rooms[j]["rect"]
-			if a.grow(-1.0).intersects(b.grow(-1.0)):
-				push_warning("House %s: rooms %s and %s overlap"
-						% [plan_key, rooms[i]["key"], rooms[j]["key"]])
+			_warn_overlap(rooms[i], rooms[j], plan_key)
 
 	for opening in openings:
-		var touching := rooms.filter(func(room: Dictionary) -> bool:
-			return not WallFactory.openings_for(room["rect"], [opening]).is_empty()).size()
-		if opening.get("front", false) or opening.get("exit", false):
-			if touching != 1:
-				push_warning("House %s: %s at %s is not on exactly one room wall" % [
-					plan_key,
-					"front entrance" if opening.get("front", false) else "exit",
-					opening["pos"],
-				])
-		elif touching != 2:
-			push_warning("House %s: interior opening at %s is not on a shared wall"
-					% [plan_key, opening["pos"]])
+		_warn_misplaced(rooms, opening, plan_key)
 
 	for problem: String in LayoutRules.check(rooms, _openings_world(rooms, openings, Vector2.ZERO)):
 		push_warning("House %s: %s" % [plan_key, problem])
+
+
+## Warn when rooms `a` and `b` of plan `plan_key` overlap.
+static func _warn_overlap(a: Dictionary, b: Dictionary, plan_key: String) -> void:
+	if (a["rect"] as Rect2).grow(-1.0).intersects((b["rect"] as Rect2).grow(-1.0)):
+		push_warning("House %s: rooms %s and %s overlap" % [plan_key, a["key"], b["key"]])
+
+
+## Warn when `opening` of plan `plan_key` is not on the walls it should be on: a front entrance or
+## an exit on exactly one room's wall, an interior opening on a wall two rooms share.
+static func _warn_misplaced(rooms: Array, opening: Dictionary, plan_key: String) -> void:
+	var touching := rooms.filter(func(room: Dictionary) -> bool:
+		return not WallFactory.openings_for(room["rect"], [opening]).is_empty()).size()
+	if opening.get("front", false) or opening.get("exit", false):
+		if touching != 1:
+			push_warning("House %s: %s at %s is not on exactly one room wall" % [
+				plan_key,
+				"front entrance" if opening.get("front", false) else "exit",
+				opening["pos"],
+			])
+	elif touching != 2:
+		push_warning("House %s: interior opening at %s is not on a shared wall"
+				% [plan_key, opening["pos"]])
 
 
 ## Flip the floorplan left-to-right for extra layout variety.

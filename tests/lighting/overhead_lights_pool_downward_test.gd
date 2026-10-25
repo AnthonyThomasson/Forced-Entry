@@ -48,50 +48,16 @@ func run(t: TestContext) -> void:
 	var lighting := Probe.require_lighting(t)
 	if lighting == null:
 		return
-	var heights := {
-		&"lamp": "overhead", &"tv": "low", &"street_lamp": "overhead", &"sign": "overhead",
-	}
 	## `[what, light]`
 	var overhead: Array = []
-	for id: StringName in heights:
-		var piece: Node2D = t.object(id)
-		var declared := Probe.declared(piece)
-		if not t.require(not declared.is_empty(), "the %s declares its light" % id):
-			return
-		var height := String((declared[0] as Dictionary).get("height", ""))
-		t.check(
-			height == heights[id],
-			"the %s's light is %s (declares %s)"
-				% [id, heights[id], "no height" if height == "" else height],
-		)
-		var own := Probe.lights_of(lighting, piece)
-		if not t.require(not own.is_empty(), "the %s has its light" % id):
-			return
-		var light: PointLight2D = own[0]
-		var half := Probe.profile(light, 0.5)
-		if heights[id] == "overhead":
-			overhead.append([String(id), light])
-		else:
-			t.check(
-				half >= 0.0 and half < Probe.LOW_HALF_MAX,
-				"the %s's low glow falls off: %.2f of its centre at half its radius (under %.2f)"
-					% [id, half, Probe.LOW_HALF_MAX],
-			)
+	if not _check_heights(t, lighting, overhead):
+		return
 	var fixtures: Array = lighting.fixtures()
 	var bare := fixtures.filter(func(f: Dictionary) -> bool: return String(f["room"]) == "bare")
 	if t.require(not bare.is_empty(), "the bare room has its ceiling fixture"):
 		overhead.append(["fixture", bare[0]["light"]])
 
-	var every: Array = overhead.duplicate()
-	every.append(["tv", Probe.lights_of(lighting, t.object(&"tv"))[0]])
-	for entry: Array in every:
-		var step := Probe.largest_step(entry[1])
-		t.check(
-			step >= 0.0 and step <= Probe.SMOOTH_STEP_MAX,
-			"the %s's pool fades smoothly: its largest step is %.2f of its centre (at most %.2f)"
-				% [entry[0], step, Probe.SMOOTH_STEP_MAX],
-		)
-
+	_check_smooth(t, lighting, overhead)
 	for entry: Array in overhead:
 		var half := Probe.profile(entry[1], 0.5)
 		t.check(
@@ -106,7 +72,58 @@ func run(t: TestContext) -> void:
 		absf(lamp_radius - Probe.LAMP_POOL) <= Probe.LAMP_POOL_SLACK,
 		"the lamp's pool is %.0f px in radius (%.0f)" % [Probe.LAMP_POOL, lamp_radius],
 	)
+	_check_street_pools(t, lighting)
 
+
+## Each piece's light is declared at its height and placed; a low light's glow falls off, an
+## overhead one is appended to `overhead` as `[what, light]`. False when a piece declares or has
+## no light (the test has failed).
+func _check_heights(t: TestContext, lighting: WorldLighting, overhead: Array) -> bool:
+	var heights := {
+		&"lamp": "overhead", &"tv": "low", &"street_lamp": "overhead", &"sign": "overhead",
+	}
+	for id: StringName in heights:
+		var piece: Node2D = t.object(id)
+		var declared := Probe.declared(piece)
+		if not t.require(not declared.is_empty(), "the %s declares its light" % id):
+			return false
+		var height := String((declared[0] as Dictionary).get("height", ""))
+		t.check(
+			height == heights[id],
+			"the %s's light is %s (declares %s)"
+				% [id, heights[id], "no height" if height == "" else height],
+		)
+		var own := Probe.lights_of(lighting, piece)
+		if not t.require(not own.is_empty(), "the %s has its light" % id):
+			return false
+		var light: PointLight2D = own[0]
+		var half := Probe.profile(light, 0.5)
+		if heights[id] == "overhead":
+			overhead.append([String(id), light])
+		else:
+			t.check(
+				half >= 0.0 and half < Probe.LOW_HALF_MAX,
+				"the %s's low glow falls off: %.2f of its centre at half its radius (under %.2f)"
+					% [id, half, Probe.LOW_HALF_MAX],
+			)
+	return true
+
+
+## Every `overhead` light's pool and the TV's fade smoothly.
+func _check_smooth(t: TestContext, lighting: WorldLighting, overhead: Array) -> void:
+	var every: Array = overhead.duplicate()
+	every.append(["tv", Probe.lights_of(lighting, t.object(&"tv"))[0]])
+	for entry: Array in every:
+		var step := Probe.largest_step(entry[1])
+		t.check(
+			step >= 0.0 and step <= Probe.SMOOTH_STEP_MAX,
+			"the %s's pool fades smoothly: its largest step is %.2f of its centre (at most %.2f)"
+				% [entry[0], step, Probe.SMOOTH_STEP_MAX],
+		)
+
+
+## The street lamp's and the sign's pools are tight and under their heads.
+func _check_street_pools(t: TestContext, lighting: WorldLighting) -> void:
 	for id: StringName in [&"street_lamp", &"sign"]:
 		var piece: Node2D = t.object(id)
 		var head := piece.find_child("Overhang", true, false) as CanvasItem

@@ -80,7 +80,8 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
 
 ## Hit particles (entry and exit bursts)
 
-`HitParticles.spawn(position, direction, parent, surface, kind, strength)` (`hit_particles.gd`, static) bursts a one-shot
+`HitParticles.spawn(parent, hit, surface, kind, strength)` (`hit_particles.gd`, static; where and which way from the `HitInfo` and the kind:
+an entry or impact burst at `hit.position` out along the normal, an exit burst at `hit.exit_position` on along the shot) bursts a one-shot
 `CPUParticles2D` (named `HitParticles`, frees itself on `finished`, `Despawner`-tracked, no gravity: top-down) styled by
 `surface.material` from its `STYLES` table (wood splinters, metal sparks, glass shards, ceramic, fabric puff, foliage,
 flesh/blood droplets, `default` plaster dust for walls). `Kind.EXIT` (the strongest burst, thrown on along the shot) is paired with a much weaker `Kind.ENTRY` when a round passes through

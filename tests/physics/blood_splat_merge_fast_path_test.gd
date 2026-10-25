@@ -34,15 +34,16 @@ func run(t: TestContext) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = SEED + i
 		var at := Vector2(rng.randf_range(20.0, 380.0), rng.randf_range(20.0, 280.0))
-		var size := rng.randf_range(1.0, 7.0)
-		var direction := (Vector2.from_angle(rng.randf() * TAU)
+		var throw := BloodThrow.new()
+		throw.size = rng.randf_range(1.0, 7.0)
+		throw.direction = (Vector2.from_angle(rng.randf() * TAU)
 				if rng.randf() < 0.8
 				else Vector2.ZERO)
-		var energy := rng.randf()
+		throw.energy = rng.randf()
 		seed(SEED + i)
-		var fast := _splat(t, BloodSplat, at, size, direction, energy)
+		var fast := _splat(t, BloodSplat, at, throw)
 		seed(SEED + i)
-		var full := _splat(t, EveryPairSplat, at, size, direction, energy)
+		var full := _splat(t, EveryPairSplat, at, throw)
 		outlines += fast.shapes.size()
 		if fast.shapes != full.shapes:
 			differing += 1
@@ -55,19 +56,13 @@ func run(t: TestContext) -> void:
 	)
 
 
-func _splat(
-	t: TestContext,
-	script: Script,
-	at: Vector2,
-	size: float,
-	direction: Vector2,
-	energy: float,
-) -> Node:
+## A splat of `script` set up at world `at` as `throw` says.
+func _splat(t: TestContext, script: Script, at: Vector2, throw: BloodThrow) -> Node:
 	var node := Node2D.new()
 	node.script = script
 	t.world.add_child(node)
 	node.global_position = at
-	node.call(&"setup", size, direction, energy, [])
+	node.call(&"setup", throw.size, throw.direction, throw.energy, throw.exclude)
 	return node
 
 

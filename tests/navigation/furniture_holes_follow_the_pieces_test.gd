@@ -61,7 +61,12 @@ func run(t: TestContext) -> void:
 			and (after[index] as PackedVector2Array) != (before[index] as PackedVector2Array),
 		"and the moved piece's hole moved with it",
 	)
+	await _check_shot_up(t, house, moved)
 
+
+## Shoot `moved` up: once its collider is rebuilt from the dents, the holes are still a fresh
+## measurement's.
+func _check_shot_up(t: TestContext, house: Node2D, moved: RigidBody2D) -> void:
 	var hit := HitInfo.new()
 	hit.position = moved.global_position + Vector2(12.0, 0.0)
 	hit.normal = Vector2.RIGHT

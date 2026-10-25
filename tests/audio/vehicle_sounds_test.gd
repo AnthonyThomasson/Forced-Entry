@@ -100,8 +100,22 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var van := t.vehicle(&"van") as Node2D
+	_check_library(t)
+	if not await _check_driving(t, car):
+		return
+	if not await _check_slide(t, van):
+		return
 
-	# --- The library.
+	# --- Crashes: louder the faster.
+	var crash_min: Variant = Probe.config_value(&"crash_min_speed")
+	if not t.require(crash_min != null, "VehicleConfig.crash_min_speed exists"):
+		return
+	await _check_crashes(t, float(crash_min))
+	await _check_bump(t, float(crash_min))
+
+
+## The library: the vehicles' profiles are in the bank, and the van's engine is the deeper.
+func _check_library(t: TestContext) -> void:
 	var bank := SoundBank.profiles()
 	for profile in PROFILES:
 		t.check(bank.has(profile), "the sound bank has %s" % profile)
@@ -115,13 +129,28 @@ func run(t: TestContext) -> void:
 				% [SoundProbe.low_share(van_engine), SoundProbe.low_share(car_engine)],
 		)
 
-	# --- Getting in: the door, the ignition, the engine.
+
+## Getting into `car`, driving it (the revs, a slide) and getting out; false when a step could not
+## be taken (the test has failed).
+func _check_driving(t: TestContext, car: Node2D) -> bool:
+	if not await _check_boarding(t, car):
+		return false
+	if not await _check_revs(t, car):
+		return false
+	await _check_skid(t, car)
+	return await _check_exit(t, car)
+
+
+## Getting in: the door, the ignition, the engine. False when the driver does not get in or no
+## engine voice plays (the test has failed).
+func _check_boarding(t: TestContext, car: Node2D) -> bool:
+	var service: Node = Sound
 	var mark := t.events.size()
 	if not t.require(
 			await Probe.board_by(t, &"me", car, &"front_left"),
 			"the driver gets into the car",
 	):
-		return
+		return false
 	await t.until(func(): return Probe.open_of(car, &"front_left") < 0.02, 2.0)
 	await t.seconds(0.3)
 	t.check(
@@ -151,9 +180,14 @@ func run(t: TestContext) -> void:
 	t.check(not _sounds(t, mark, "engine/car").is_empty(), "with an engine/car sound")
 	var idle: Dictionary = service.loop_of(car, &"engine")
 	if not t.require(not idle.is_empty(), "one looping engine voice plays for the running car"):
-		return
+		return false
+	return true
 
-	# --- The engine's pitch follows the revs.
+
+## The engine's pitch follows the revs. False when the car does not get up to speed (the test has
+## failed).
+func _check_revs(t: TestContext, car: Node2D) -> bool:
+	var service: Node = Sound
 	await t.seconds(1.0)
 	var idle_pitch := float(service.loop_of(car, &"engine").get("pitch", 0.0))
 	var idle_rpm := float(car.engine_state().get("rpm", 0.0))
@@ -161,7 +195,7 @@ func run(t: TestContext) -> void:
 			await Probe.reach_speed(t, &"me", car, 150.0, 6.0),
 			"the car reaches 150 px/s",
 	):
-		return
+		return false
 	t.puppet(&"me").drive(1.0, 0.0, false)
 	await t.frames(2)
 	var fast_pitch := float(service.loop_of(car, &"engine").get("pitch", 0.0))
@@ -171,9 +205,13 @@ func run(t: TestContext) -> void:
 			% [idle_pitch, fast_pitch],
 	)
 	t.check(float(car.engine_state().get("rpm", 0.0)) > idle_rpm, "with the revs")
+	return true
 
-	# --- A handbrake slide squeals.
-	mark = t.events.size()
+
+## A handbrake slide squeals.
+func _check_skid(t: TestContext, car: Node2D) -> void:
+	var service: Node = Sound
+	var mark := t.events.size()
 	var squealed := false
 	t.puppet(&"me").drive(0.0, 1.0, true)
 	var deadline := t.time + 1.0
@@ -208,10 +246,13 @@ func run(t: TestContext) -> void:
 	)
 	t.check(service.loop_of(car, &"skid").is_empty(), "and its voice is gone")
 
-	# --- Getting out cuts the engine.
-	mark = t.events.size()
+
+## Getting out cuts the engine. False when the driver does not get out (the test has failed).
+func _check_exit(t: TestContext, car: Node2D) -> bool:
+	var service: Node = Sound
+	var mark := t.events.size()
 	if not t.require(await Probe.exit(t, &"me"), "the driver gets out"):
-		return
+		return false
 	await t.until(
 		func(): return Probe.open_of(car, &"front_left") < 0.02,
 		2.0,
@@ -227,14 +268,17 @@ func run(t: TestContext) -> void:
 		"the engine is cut (an engine stop event)",
 	)
 	t.check(service.loop_of(car, &"engine").is_empty(), "and its voice is gone")
+	return true
 
-	# --- The van's slide door rolls and thunks.
-	mark = t.events.size()
+
+## The van's slide door rolls and thunks. False when nobody gets in by it (the test has failed).
+func _check_slide(t: TestContext, van: Node2D) -> bool:
+	var mark := t.events.size()
 	if not t.require(
 			await Probe.board_by(t, &"side", van, &"side"),
 			"a character gets into the van by the side door",
 	):
-		return
+		return false
 	await t.until(func(): return Probe.open_of(van, &"side") < 0.02, 2.0)
 	await t.seconds(0.3)
 	t.check(
@@ -251,19 +295,21 @@ func run(t: TestContext) -> void:
 		_since(t, mark, &"vehicle", func(d): return d.get("kind") != &"van").is_empty(),
 		"the van's events name it a van",
 	)
+	return true
 
-	# --- Crashes: louder the faster.
-	var crash_min: Variant = Probe.config_value(&"crash_min_speed")
-	if not t.require(crash_min != null, "VehicleConfig.crash_min_speed exists"):
-		return
-	var soft := await _crash(t, &"slow", float(crash_min) * 1.5)
-	var hard := await _crash(t, &"fast", float(crash_min) * 4.0)
+
+## Crashes, above `crash_min` px/s: louder the faster.
+func _check_crashes(t: TestContext, crash_min: float) -> void:
+	var soft := await _crash(t, &"slow", crash_min * 1.5)
+	var hard := await _crash(t, &"fast", crash_min * 4.0)
 	t.check(
 		hard > soft + 1.0,
 		"the faster crash is the louder (%.1f against %.1f dB)" % [hard, soft],
 	)
 
-	# --- A car striking a character thuds.
+
+## A car striking a character (at least twice `crash_min` px/s) thuds.
+func _check_bump(t: TestContext, crash_min: float) -> void:
 	var bump := t.vehicle(&"bump") as Node2D
 	var radius: float = t.actor(&"dummy").radius
 	await Probe.place(
@@ -271,8 +317,8 @@ func run(t: TestContext) -> void:
 		&"dummy",
 		Probe.edge(bump, Probe.forward(bump)) + Probe.forward(bump) * (radius + 8.0),
 	)
-	mark = t.events.size()
-	bump.set("linear_velocity", Probe.forward(bump) * maxf(float(crash_min) * 2.0, 150.0))
+	var mark := t.events.size()
+	bump.set("linear_velocity", Probe.forward(bump) * maxf(crash_min * 2.0, 150.0))
 	await t.seconds(1.0)
 	var bumps := _stage(t, mark, &"bump_character")
 	if t.check(not bumps.is_empty(), "striking a character posts bump_character"):

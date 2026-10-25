@@ -516,46 +516,74 @@ static func _key(profile: StringName, variant: int) -> String:
 ## The synthesis recipe of `profile` ({} if unknown).
 static func recipe_for(profile: StringName) -> Dictionary:
 	var p := String(profile).split("/")
-	match p[0]:
+	if p.size() == 2:
+		return _named_recipe(p[0], p[1])
+	return _parted_recipe(p, profile)
+
+
+## The recipe of a two-part profile, `family/id` ({} if unknown).
+static func _named_recipe(family: String, id: String) -> Dictionary:
+	var recipe := {}
+	match family:
 		"shot":
-			return _shot(p[1]) if p.size() == 2 and SHOTS.has(p[1]) else {}
+			if SHOTS.has(id):
+				recipe = _shot(id)
+		"throw":
+			if THROWS.has(id):
+				recipe = _throw(id)
+		"explosion":
+			if EXPLOSIONS.has(id):
+				recipe = _explosion(id)
+		"tinnitus":
+			if id == "whine":
+				recipe = _tinnitus()
+		"engine":
+			if VEHICLES.has(id):
+				recipe = _engine(id)
+		"ignition":
+			if VEHICLES.has(id):
+				recipe = _ignition(id)
+		"skid":
+			if id == "tyre":
+				recipe = _skid()
+	return recipe
+
+
+## The recipe of a profile of three parts or more (`p`, split from `profile`), {} if unknown.
+static func _parted_recipe(p: PackedStringArray, profile: StringName) -> Dictionary:
+	var recipe := {}
+	match p[0]:
 		"impact":
-			if p.size() == 3 and p[2] == "punch" and MATERIALS.has(p[1]):
-				return _impact(p[1], "punch", "medium")
-			if (p.size() == 4
-					and MATERIALS.has(p[1])
-					and OUTCOMES.has(StringName(p[2]))
-					and BANDS.has(p[3])):
-				return _impact(p[1], p[2], p[3])
+			recipe = _impact_recipe(p)
 		"footstep":
 			if p.size() == 3 and FOOTSTEPS.has(p[1]) and (p[2] == "walk" or p[2] == "run"):
-				return _footstep(p[1], p[2] == "run")
+				recipe = _footstep(p[1], p[2] == "run")
 		"reload":
 			if p.size() == 3 and RELOADS.has(p[1]) and RELOAD_STAGES.has(p[2]):
-				return _reload(p[1], p[2])
-		"throw":
-			return _throw(p[1]) if p.size() == 2 and THROWS.has(p[1]) else {}
+				recipe = _reload(p[1], p[2])
 		"grenade":
 			if p.size() == 3 and GRENADE_BODIES.has(p[1]) and GRENADE_SURFACES.has(p[2]):
-				return _grenade(p[1], p[2])
-		"explosion":
-			return _explosion(p[1]) if p.size() == 2 and EXPLOSIONS.has(p[1]) else {}
-		"tinnitus":
-			return _tinnitus() if p.size() == 2 and p[1] == "whine" else {}
-		"engine":
-			return _engine(p[1]) if p.size() == 2 and VEHICLES.has(p[1]) else {}
-		"ignition":
-			return _ignition(p[1]) if p.size() == 2 and VEHICLES.has(p[1]) else {}
+				recipe = _grenade(p[1], p[2])
 		"door":
 			if (p.size() == 3
 					and VEHICLES.has(p[1])
 					and door_profile(StringName(p[1]), StringName(p[2])) == profile):
-				return _door(p[1], p[2])
-		"skid":
-			return _skid() if p.size() == 2 and p[1] == "tyre" else {}
+				recipe = _door(p[1], p[2])
 		"crash":
 			if p.size() == 3 and MATERIALS.has(p[1]) and CRASH_BANDS.has(p[2]):
-				return _crash(p[1], p[2])
+				recipe = _crash(p[1], p[2])
+	return recipe
+
+
+## The recipe of an `impact/...` profile (`p`, split), {} if unknown.
+static func _impact_recipe(p: PackedStringArray) -> Dictionary:
+	if p.size() == 3 and p[2] == "punch" and MATERIALS.has(p[1]):
+		return _impact(p[1], "punch", "medium")
+	if (p.size() == 4
+			and MATERIALS.has(p[1])
+			and OUTCOMES.has(StringName(p[2]))
+			and BANDS.has(p[3])):
+		return _impact(p[1], p[2], p[3])
 	return {}
 
 
@@ -623,15 +651,52 @@ static func _shot(gun: String) -> Dictionary:
 static func _impact(material: String, outcome: String, band_id: String) -> Dictionary:
 	var m: Dictionary = MATERIALS[material]
 	var b: Dictionary = BANDS[band_id]
-	var pitch: float = b["pitch"] if outcome != "punch" else 1.0
-	var crack: float = b["crack"] if outcome != "punch" else 1.0
-	var body: float = b["body"] if outcome != "punch" else 0.8
-	var sub: float = b["sub"] if outcome != "punch" else 0.0
-	var hard: bool = m["hard"]
-	var thump: float = m["thump"]
-	var heft: float = m.get("heft", 0.0) if outcome != "punch" else 0.0
+	var s := _strike(b, m, outcome)
+	var layers := []
+	var length := _impact_ring(layers, m, s, outcome)
+	var crack: float = s["crack"]
 	var grit: float = m["grit"]
 	var lp: float = m["lp"]
+	layers.append({
+		"type": "noise", "gain": (0.35 if outcome == "punch" else 0.7) * crack,
+		"decay": grit + 0.004, "lp": lp, "hp": 120.0, "attack": 0.0004,
+	})
+	length = maxf(length, _impact_weight(layers, m, s))
+	match outcome:
+		"penetrate":
+			length = maxf(length, _impact_through(layers, m, s))
+		"ricochet":
+			length = maxf(length, _impact_ricochet(layers, m["hard"], s))
+		"punch":
+			if material == "flesh":
+				layers.append({
+					"type": "noise", "gain": 0.5, "decay": 0.018, "lp": 3500.0, "hp": 600.0,
+				})
+	return {
+		"length": clampf(length, 0.12, 0.9),
+		"level_db": (-6.0 if outcome == "punch" else float(b["db"])) + float(m["db"]),
+		"layers": layers,
+	}
+
+
+## How a round of band `b` (or a fist, `outcome` "punch") strikes material `m`: its `pitch`,
+## `crack`, `body` and `sub` (the band's, or a punch's own), and the material's `heft` (none for a
+## punch).
+static func _strike(b: Dictionary, m: Dictionary, outcome: String) -> Dictionary:
+	if outcome == "punch":
+		return { "pitch": 1.0, "crack": 1.0, "body": 0.8, "sub": 0.0, "heft": 0.0 }
+	return {
+		"pitch": float(b["pitch"]), "crack": float(b["crack"]), "body": float(b["body"]),
+		"sub": float(b["sub"]), "heft": float(m.get("heft", 0.0)),
+	}
+
+
+## Add the ring of material `m` struck as `s` (a `_strike`) in `outcome` to `layers`; returns the
+## clip length it needs (at least 0.12 s).
+static func _impact_ring(layers: Array, m: Dictionary, s: Dictionary, outcome: String) -> float:
+	var hard: bool = m["hard"]
+	var heft: float = s["heft"]
+	var pitch: float = s["pitch"]
 	# How hard the material rings in this outcome: a ricochet off something hard keeps ringing, one
 	# off something soft barely does, a punch only taps it.
 	var ring_gain := 0.35
@@ -648,7 +713,6 @@ static func _impact(material: String, outcome: String, band_id: String) -> Dicti
 	if hard and outcome != "ricochet":
 		ring_gain *= 0.7  # a hard thing struck without glancing off rings less than it thuds
 		ring_gain *= 1.0 - 0.35 * heft
-	var layers := []
 	var length := 0.12
 	var freqs: Array = []
 	var decays: Array = []
@@ -669,75 +733,84 @@ static func _impact(material: String, outcome: String, band_id: String) -> Dicti
 			"decays": decays,
 			"detune": 0.03,
 		})
-	layers.append({
-		"type": "noise", "gain": (0.35 if outcome == "punch" else 0.7) * crack,
-		"decay": grit + 0.004, "lp": lp, "hp": 120.0, "attack": 0.0004,
-	})
-	# Every hit has weight, whatever it struck: a low thump (the material only decides how much of
-	# it), and under a heavier round a deep boom as well. This is what makes a strong hit land as
-	# one rather than ring thinly.
+	return length
+
+
+## Add the weight every hit has, whatever it struck, to `layers`: a low thump (the material `m`
+## only decides how much of it), and under a heavier round (`s`, a `_strike`) a deep boom as well.
+## This is what makes a strong hit land as one rather than ring thinly. Returns the clip length the
+## boom needs (0 without one).
+static func _impact_weight(layers: Array, m: Dictionary, s: Dictionary) -> float:
+	var thump: float = m["thump"]
+	var pitch: float = s["pitch"]
+	var body: float = s["body"]
+	var heft: float = s["heft"]
+	var sub: float = s["sub"]
 	layers.append({
 		"type": "tone", "gain": (0.65 + 0.35 * thump) * body * (1.0 + 0.8 * heft),
 		"freq": 150.0 * pitch, "freq_end": 55.0 * pitch, "sweep": 0.018,
 		"decay": 0.06 + 0.03 * thump + 0.03 * body + 0.04 * heft,
 	})
-	if sub > 0.0:
+	if sub <= 0.0:
+		return 0.0
+	layers.append({
+		"type": "tone", "gain": sub * (0.8 + 0.4 * thump), "freq": 72.0 * pitch,
+		"freq_end": 40.0 * pitch, "sweep": 0.03, "decay": 0.07 + 0.05 * sub,
+	})
+	return 0.14 + 0.06 * sub
+
+
+## Add what a round (`s`, a `_strike`) going through material `m` adds to `layers`: a crunch of what
+## it broke, a hiss of air behind it, a deeper thud. Returns the clip length it needs.
+static func _impact_through(layers: Array, m: Dictionary, s: Dictionary) -> float:
+	var crack: float = s["crack"]
+	var pitch: float = s["pitch"]
+	var grit: float = m["grit"]
+	var lp: float = m["lp"]
+	var thump: float = m["thump"]
+	layers.append({
+		"type": "noise", "gain": 0.6 * crack, "decay": grit * 2.0 + 0.01, "lp": lp * 0.7,
+		"hp": 120.0, "delay": 0.004, "attack": 0.001,
+	})
+	layers.append({
+		"type": "noise", "gain": 0.15 * crack, "decay": 0.05, "lp": 7000.0, "hp": 2500.0,
+		"delay": 0.012, "attack": 0.004,
+	})
+	layers.append({
+		"type": "tone", "gain": 0.35 + 0.4 * thump, "freq": 120.0 * pitch,
+		"freq_end": 48.0 * pitch, "sweep": 0.02, "decay": 0.08, "delay": 0.006,
+	})
+	return 0.22
+
+
+## Add what a round (`s`, a `_strike`) glancing off adds to `layers`: a sharp tick, then off a
+## `hard` material its whine, else a whip. Returns the clip length it needs.
+static func _impact_ricochet(layers: Array, hard: bool, s: Dictionary) -> float:
+	var crack: float = s["crack"]
+	var pitch: float = s["pitch"]
+	layers.append({
+		"type": "noise",
+		"gain": 0.5 * crack,
+		"decay": 0.005,
+		"lp": 9500.0,
+		"hp": 2500.0,
+	})
+	if hard:
+		# The whine of a spinning, flattened round: high, falling.
 		layers.append({
-			"type": "tone", "gain": sub * (0.8 + 0.4 * thump), "freq": 72.0 * pitch,
-			"freq_end": 40.0 * pitch, "sweep": 0.03, "decay": 0.07 + 0.05 * sub,
+			"type": "tone", "gain": 0.35, "freq": 4300.0 * pitch,
+			"freq_end": 1500.0 * pitch, "sweep": 0.11, "decay": 0.22,
 		})
-		length = maxf(length, 0.14 + 0.06 * sub)
-	match outcome:
-		"penetrate":
-			# Through and out: a crunch of what it broke, a hiss of air behind it, a deeper thud.
-			layers.append({
-				"type": "noise", "gain": 0.6 * crack, "decay": grit * 2.0 + 0.01, "lp": lp * 0.7,
-				"hp": 120.0, "delay": 0.004, "attack": 0.001,
-			})
-			layers.append({
-				"type": "noise", "gain": 0.15 * crack, "decay": 0.05, "lp": 7000.0, "hp": 2500.0,
-				"delay": 0.012, "attack": 0.004,
-			})
-			layers.append({
-				"type": "tone", "gain": 0.35 + 0.4 * thump, "freq": 120.0 * pitch,
-				"freq_end": 48.0 * pitch, "sweep": 0.02, "decay": 0.08, "delay": 0.006,
-			})
-			length = maxf(length, 0.22)
-		"ricochet":
-			layers.append({
-				"type": "noise",
-				"gain": 0.5 * crack,
-				"decay": 0.005,
-				"lp": 9500.0,
-				"hp": 2500.0,
-			})
-			if hard:
-				# The whine of a spinning, flattened round: high, falling.
-				layers.append({
-					"type": "tone", "gain": 0.35, "freq": 4300.0 * pitch,
-					"freq_end": 1500.0 * pitch, "sweep": 0.11, "decay": 0.22,
-				})
-				length = maxf(length, 0.7)
-			else:
-				layers.append({
-					"type": "noise",
-					"gain": 0.5 * crack,
-					"decay": 0.05,
-					"lp": 9000.0,
-					"hp": 2500.0,
-					"attack": 0.003,
-				})
-				length = maxf(length, 0.2)
-		"punch":
-			if material == "flesh":
-				layers.append({
-					"type": "noise", "gain": 0.5, "decay": 0.018, "lp": 3500.0, "hp": 600.0,
-				})
-	return {
-		"length": clampf(length, 0.12, 0.9),
-		"level_db": (-6.0 if outcome == "punch" else float(b["db"])) + float(m["db"]),
-		"layers": layers,
-	}
+		return 0.7
+	layers.append({
+		"type": "noise",
+		"gain": 0.5 * crack,
+		"decay": 0.05,
+		"lp": 9000.0,
+		"hp": 2500.0,
+		"attack": 0.003,
+	})
+	return 0.2
 
 
 ## The recipe of a step on `surface`: the heel thump, a softer toe tap after it, the scuff and a
@@ -794,68 +867,71 @@ static func _footstep(surface: String, running: bool) -> Dictionary:
 static func _reload(gun: String, stage: String) -> Dictionary:
 	var g: Dictionary = RELOADS[gun]
 	var p: float = g["pitch"]
-	var layers := []
-	var length := 0.3
-	if stage == "out":
-		# One dry click as the catch lets go, and a faint tick of the magazine dropping free.
-		layers = [
-			{
-				"type": "noise",
-				"gain": 0.8,
-				"decay": 0.004,
-				"lp": 5000.0 * p,
-				"hp": 1800.0,
-				"attack": 0.0002,
-			},
-			{
-				"type": "tone",
-				"gain": 0.15,
-				"freq": 140.0 * p,
-				"freq_end": 90.0 * p,
-				"sweep": 0.012,
-				"decay": 0.025,
-				"delay": 0.14,
-			},
-			{
-				"type": "noise", "gain": 0.2, "decay": 0.008, "lp": 2500.0, "hp": 400.0,
-				"delay": 0.14,
-			},
-		]
-		length = 0.22
-	else:
-		var rack: float = g["rack"]
-		# Two small clicks: the magazine seating, then the action racked. No rasp, ring or slam.
-		layers = [
-			{
-				"type": "noise",
-				"gain": 0.5,
-				"decay": 0.007,
-				"lp": 3800.0 * p,
-				"hp": 1200.0,
-				"delay": 0.09,
-				"attack": 0.0003,
-			},
-			{
-				"type": "tone", "gain": 0.12, "freq": float(g["seat"]),
-				"freq_end": float(g["seat"]) * 0.6, "sweep": 0.01, "decay": 0.02, "delay": 0.09,
-			},
-			{
-				"type": "noise",
-				"gain": 0.6,
-				"decay": 0.009,
-				"lp": 4000.0 * p,
-				"hp": 900.0,
-				"delay": 0.09 + rack,
-				"attack": 0.0003,
-			},
-		]
-		length = 0.09 + rack + 0.1
+	var out := stage == "out"
 	return {
-		"length": length,
-		"level_db": float(g["db"]) + (-6.0 if stage == "out" else -4.0),
+		"length": 0.22 if out else 0.09 + float(g["rack"]) + 0.1,
+		"level_db": float(g["db"]) + (-6.0 if out else -4.0),
 		"vary": 0.06,
-		"layers": layers,
+		"layers": _reload_out(p) if out else _reload_in(g, p),
 	}
+
+
+## A magazine going out at pitch `p`: one dry click as the catch lets go, and a faint tick of the
+## magazine dropping free.
+static func _reload_out(p: float) -> Array:
+	return [
+		{
+			"type": "noise",
+			"gain": 0.8,
+			"decay": 0.004,
+			"lp": 5000.0 * p,
+			"hp": 1800.0,
+			"attack": 0.0002,
+		},
+		{
+			"type": "tone",
+			"gain": 0.15,
+			"freq": 140.0 * p,
+			"freq_end": 90.0 * p,
+			"sweep": 0.012,
+			"decay": 0.025,
+			"delay": 0.14,
+		},
+		{
+			"type": "noise", "gain": 0.2, "decay": 0.008, "lp": 2500.0, "hp": 400.0,
+			"delay": 0.14,
+		},
+	]
+
+
+## A magazine of reload row `g` coming in at pitch `p`: two small clicks, the magazine seating, then
+## the action racked. No rasp, ring or slam.
+static func _reload_in(g: Dictionary, p: float) -> Array:
+	var rack: float = g["rack"]
+	return [
+		{
+			"type": "noise",
+			"gain": 0.5,
+			"decay": 0.007,
+			"lp": 3800.0 * p,
+			"hp": 1200.0,
+			"delay": 0.09,
+			"attack": 0.0003,
+		},
+		{
+			"type": "tone", "gain": 0.12, "freq": float(g["seat"]),
+			"freq_end": float(g["seat"]) * 0.6, "sweep": 0.01, "decay": 0.02, "delay": 0.09,
+		},
+		{
+			"type": "noise",
+			"gain": 0.6,
+			"decay": 0.009,
+			"lp": 4000.0 * p,
+			"hp": 900.0,
+			"delay": 0.09 + rack,
+			"attack": 0.0003,
+		},
+	]
 
 
 ## A grenade leaving the hand: the lever springs off with a ping and the arm whips it away in a
@@ -895,56 +971,70 @@ static func _throw(kind: String) -> Dictionary:
 static func _grenade(kind: String, surface: String) -> Dictionary:
 	var b: Dictionary = GRENADE_BODIES[kind]
 	var s: Dictionary = GRENADE_SURFACES[surface]
+	return {
+		"length": 0.4, "level_db": float(b["db"]) + float(s["db"]), "vary": 0.12,
+		"layers": _grenade_contact(b, s) + _grenade_rattle(b, s),
+	}
+
+
+## A grenade of body `b` striking surface `s`: the floor's thud, the crack of contact and the
+## shell's ring, as much as the floor leaves.
+static func _grenade_contact(b: Dictionary, s: Dictionary) -> Array:
 	var thud: Array = s["thud"]
 	var knock: Array = s["knock"]
 	var ring: float = s["ring"]
-	return {
-		"length": 0.4, "level_db": float(b["db"]) + float(s["db"]), "vary": 0.12,
-		"layers": [
-			{
-				"type": "tone",
-				"gain": thud[3],
-				"freq": thud[0],
-				"freq_end": thud[1],
-				"sweep": 0.015,
-				"decay": thud[2],
-			},
-			{
-				"type": "noise",
-				"gain": knock[3],
-				"lp": knock[0],
-				"hp": knock[1],
-				"decay": knock[2],
-				"attack": 0.0003,
-			},
-			{
-				"type": "modes",
-				"gain": 0.55 * ring,
-				"freqs": b["modes"],
-				"amps": b["amps"],
-				"decays": b["decays"],
-				"detune": 0.03,
-			},
-			{
-				"type": "noise",
-				"gain": knock[3] * 0.4,
-				"lp": knock[0],
-				"hp": knock[1],
-				"decay": knock[2],
-				"delay": 0.07,
-				"attack": 0.0003,
-			},
-			{
-				"type": "modes",
-				"gain": 0.2 * ring,
-				"freqs": b["modes"],
-				"amps": b["amps"],
-				"decays": b["decays"],
-				"delay": 0.07,
-				"detune": 0.03,
-			},
-		],
-	}
+	return [
+		{
+			"type": "tone",
+			"gain": thud[3],
+			"freq": thud[0],
+			"freq_end": thud[1],
+			"sweep": 0.015,
+			"decay": thud[2],
+		},
+		{
+			"type": "noise",
+			"gain": knock[3],
+			"lp": knock[0],
+			"hp": knock[1],
+			"decay": knock[2],
+			"attack": 0.0003,
+		},
+		{
+			"type": "modes",
+			"gain": 0.55 * ring,
+			"freqs": b["modes"],
+			"amps": b["amps"],
+			"decays": b["decays"],
+			"detune": 0.03,
+		},
+	]
+
+
+## The smaller second tick of a grenade of body `b` rattling over surface `s`.
+static func _grenade_rattle(b: Dictionary, s: Dictionary) -> Array:
+	var knock: Array = s["knock"]
+	var ring: float = s["ring"]
+	return [
+		{
+			"type": "noise",
+			"gain": knock[3] * 0.4,
+			"lp": knock[0],
+			"hp": knock[1],
+			"decay": knock[2],
+			"delay": 0.07,
+			"attack": 0.0003,
+		},
+		{
+			"type": "modes",
+			"gain": 0.2 * ring,
+			"freqs": b["modes"],
+			"amps": b["amps"],
+			"decays": b["decays"],
+			"delay": 0.07,
+			"detune": 0.03,
+		},
+	]
 
 
 ## A burst of `kind`. The frag fills the second (the longest a profile may run), the stun's bang is
@@ -952,68 +1042,72 @@ static func _grenade(kind: String, surface: String) -> Dictionary:
 static func _explosion(kind: String) -> Dictionary:
 	var level := float(EXPLOSIONS[kind]["db"])
 	if kind == "frag":
-		return {
-			"length": 0.97, "level_db": level, "drive": 2.2,
-			"layers": [
-				{
-					"type": "noise", "gain": 1.0, "decay": 0.018, "lp": 8000.0, "hp": 250.0,
-					"attack": 0.0005,
-				},
-				{
-					"type": "tone", "gain": 1.6, "freq": 105.0, "freq_end": 32.0, "sweep": 0.09,
-					"decay": 0.30,
-				},
-				{
-					"type": "tone", "gain": 1.2, "freq": 52.0, "freq_end": 26.0, "sweep": 0.15,
-					"decay": 0.55,
-				},
-				{
-					"type": "noise", "gain": 1.1, "decay": 0.30, "lp": 520.0, "hp": 30.0,
-					"attack": 0.008, "delay": 0.005,
-				},
-				{
-					"type": "noise", "gain": 0.6, "decay": 0.12, "lp": 2200.0, "hp": 200.0,
-					"attack": 0.003,
-				},
-				{
-					"type": "noise", "gain": 0.55, "decay": 0.20, "lp": 380.0, "hp": 20.0,
-					"attack": 0.08, "delay": 0.12,
-				},
-				{
-					"type": "noise", "gain": 0.18, "decay": 0.22, "lp": 3500.0, "hp": 700.0,
-					"attack": 0.05, "delay": 0.2,
-				},
-			],
-		}
-	return {
-		"length": 0.42, "level_db": level, "drive": 3.5,
-		"layers": [
-			{
-				"type": "noise", "gain": 1.5, "decay": 0.012, "lp": 11_000.0, "hp": 1800.0,
-				"attack": 0.0002,
-			},
-			{
-				"type": "noise", "gain": 1.0, "decay": 0.05, "lp": 9000.0, "hp": 900.0,
-				"attack": 0.0004,
-			},
-			{
-				"type": "modes",
-				"gain": 0.55,
-				"freqs": [2900.0, 4300.0, 6100.0],
-				"amps": [1.0, 0.8, 0.5],
-				"decays": [0.09, 0.06, 0.04],
-				"detune": 0.02,
-			},
-			{
-				"type": "tone", "gain": 0.55, "freq": 150.0, "freq_end": 70.0, "sweep": 0.02,
-				"decay": 0.05,
-			},
-			{
-				"type": "noise", "gain": 0.35, "decay": 0.12, "lp": 4500.0, "hp": 600.0,
-				"attack": 0.004, "delay": 0.015,
-			},
-		],
-	}
+		return { "length": 0.97, "level_db": level, "drive": 2.2, "layers": _frag_burst() }
+	return { "length": 0.42, "level_db": level, "drive": 3.5, "layers": _stun_bang() }
+
+
+## A frag's burst: a crack, the boom and a sub-bass, a roar and a rumble, debris pattering down.
+static func _frag_burst() -> Array:
+	return [
+		{
+			"type": "noise", "gain": 1.0, "decay": 0.018, "lp": 8000.0, "hp": 250.0,
+			"attack": 0.0005,
+		},
+		{
+			"type": "tone", "gain": 1.6, "freq": 105.0, "freq_end": 32.0, "sweep": 0.09,
+			"decay": 0.30,
+		},
+		{
+			"type": "tone", "gain": 1.2, "freq": 52.0, "freq_end": 26.0, "sweep": 0.15,
+			"decay": 0.55,
+		},
+		{
+			"type": "noise", "gain": 1.1, "decay": 0.30, "lp": 520.0, "hp": 30.0,
+			"attack": 0.008, "delay": 0.005,
+		},
+		{
+			"type": "noise", "gain": 0.6, "decay": 0.12, "lp": 2200.0, "hp": 200.0,
+			"attack": 0.003,
+		},
+		{
+			"type": "noise", "gain": 0.55, "decay": 0.20, "lp": 380.0, "hp": 20.0,
+			"attack": 0.08, "delay": 0.12,
+		},
+		{
+			"type": "noise", "gain": 0.18, "decay": 0.22, "lp": 3500.0, "hp": 700.0,
+			"attack": 0.05, "delay": 0.2,
+		},
+	]
+
+
+## A stun's bang: sharp, bright (a ring of high partials) and soon over.
+static func _stun_bang() -> Array:
+	return [
+		{
+			"type": "noise", "gain": 1.5, "decay": 0.012, "lp": 11_000.0, "hp": 1800.0,
+			"attack": 0.0002,
+		},
+		{
+			"type": "noise", "gain": 1.0, "decay": 0.05, "lp": 9000.0, "hp": 900.0,
+			"attack": 0.0004,
+		},
+		{
+			"type": "modes",
+			"gain": 0.55,
+			"freqs": [2900.0, 4300.0, 6100.0],
+			"amps": [1.0, 0.8, 0.5],
+			"decays": [0.09, 0.06, 0.04],
+			"detune": 0.02,
+		},
+		{
+			"type": "tone", "gain": 0.55, "freq": 150.0, "freq_end": 70.0, "sweep": 0.02,
+			"decay": 0.05,
+		},
+		{
+			"type": "noise", "gain": 0.35, "decay": 0.12, "lp": 4500.0, "hp": 600.0,
+			"attack": 0.004, "delay": 0.015,
+		},
+	]
 
 
 ## The ringing in the ears: a thin whine that loops without a seam for as long as it is played.
@@ -1076,6 +1170,17 @@ static func _ignition(kind: String) -> Dictionary:
 	var crank: Array = v["crank"]
 	var strokes: int = crank[0]
 	var gap: float = crank[1]
+	var layers := _cranking(v)
+	layers.append_array(_catching(v, strokes * gap))
+	return { "length": 0.98, "level_db": -2.0 + float(v["db"]), "drive": 1.3, "layers": layers }
+
+
+## The starter of vehicle row `v` cranking its strokes: each a burst of noise, the geared whine
+## slowing at the compression, and its low knock.
+static func _cranking(v: Dictionary) -> Array:
+	var crank: Array = v["crank"]
+	var strokes: int = crank[0]
+	var gap: float = crank[1]
 	var whine: float = crank[2]
 	var low: float = v["pipe"][0][0]
 	var layers := []
@@ -1103,13 +1208,20 @@ static func _ignition(kind: String) -> Dictionary:
 			"decay": 0.04,
 			"delay": stroke,
 		})
-	# It catches: firings close up as it revs, then open out to the idle's beat.
-	var at := strokes * gap + 0.02
+	return layers
+
+
+## The engine of vehicle row `v` catching once the starter has cranked for `cranked` s: firings
+## close up as it revs, then open out to the idle's beat.
+static func _catching(v: Dictionary, cranked: float) -> Array:
+	var low: float = v["pipe"][0][0]
+	var layers := []
+	var at := cranked + 0.02
 	var idle := 1.0 / float(v["rate"])
 	var k := 0
 	while at < 0.93:
 		var rev := clampf(float(k) / 7.0, 0.0, 1.0)
-		var settle := clampf((at - (strokes * gap + 0.25)) / 0.3, 0.0, 1.0)
+		var settle := clampf((at - (cranked + 0.25)) / 0.3, 0.0, 1.0)
 		var spacing := lerpf(lerpf(idle * 1.6, idle * 0.62, rev), idle * 0.95, settle)
 		var level := lerpf(lerpf(0.6, 1.2, rev), 0.75, settle) * (0.85 if k % 2 == 1 else 1.0)
 		layers.append({
@@ -1131,7 +1243,7 @@ static func _ignition(kind: String) -> Dictionary:
 		})
 		at += spacing
 		k += 1
-	return { "length": 0.98, "level_db": -2.0 + float(v["db"]), "drive": 1.3, "layers": layers }
+	return layers
 
 
 ## A door of `kind`, in a reload's register: dry mechanical clicks over a low thunk, nothing that
@@ -1141,198 +1253,246 @@ static func _ignition(kind: String) -> Dictionary:
 ## door's `slide_open` rolls back on its runners into the stop, its `slide_close` is the heavy thunk
 ## of it shutting with the catch clicking home.
 static func _door(kind: String, stage: String) -> Dictionary:
-	var v: Dictionary = VEHICLES[kind]
-	var door: Array = v["door"]
+	var door: Array = VEHICLES[kind]["door"]
 	var p: float = door[0]
 	var db: float = door[1]
 	match stage:
 		"open":
-			return { "length": 0.3, "level_db": -5.0 + db, "vary": 0.08, "layers": [
-				# The handle's click, then the latch letting go: two dry clicks, a knock under the
-				# second.
-				{
-					"type": "noise",
-					"gain": 0.35,
-					"decay": 0.003,
-					"lp": 4500.0 * p,
-					"hp": 1500.0,
-					"attack": 0.0002,
-				},
-				{
-					"type": "noise",
-					"gain": 0.4,
-					"decay": 0.004,
-					"lp": 1900.0 * p,
-					"hp": 400.0,
-					"delay": 0.035,
-					"attack": 0.0003,
-				},
-				{
-					"type": "tone",
-					"gain": 0.75,
-					"freq": 140.0 * p,
-					"freq_end": 80.0 * p,
-					"sweep": 0.012,
-					"decay": 0.03,
-					"delay": 0.035,
-				},
-				{ "type": "modes", "gain": 0.3, "freqs": [190.0 * p, 255.0 * p], "amps": [1.0, 0.5],
-					"decays": [0.03, 0.02], "delay": 0.035, "detune": 0.02 },
-				# The door coming off its seal: a soft, low thump as it swings free.
-				{
-					"type": "tone",
-					"gain": 0.6,
-					"freq": 100.0 * p,
-					"freq_end": 58.0 * p,
-					"sweep": 0.02,
-					"decay": 0.05,
-					"delay": 0.06,
-				},
-				{
-					"type": "noise",
-					"gain": 0.25,
-					"attack": 0.004,
-					"decay": 0.03,
-					"lp": 420.0 * p,
-					"hp": 60.0,
-					"delay": 0.06,
-				},
-			] }
+			return {
+				"length": 0.3, "level_db": -5.0 + db, "vary": 0.08,
+				"layers": _door_latch(p) + _door_seal(p),
+			}
 		"close":
-			return { "length": 0.42, "level_db": -1.0 + db, "vary": 0.06, "drive": 1.2, "layers": [
-				# The door's weight thumping home and the body's low panels taking it.
-				{
-					"type": "tone",
-					"gain": 1.2,
-					"freq": 125.0 * p,
-					"freq_end": 48.0 * p,
-					"sweep": 0.02,
-					"decay": 0.09,
-				},
-				{ "type": "modes", "gain": 0.7, "freqs": [150.0 * p, 230.0 * p],
-					"amps": [1.0, 0.55], "decays": [0.07, 0.045], "detune": 0.02 },
-				{
-					"type": "noise",
-					"gain": 0.9,
-					"decay": 0.014,
-					"lp": 1100.0 * p,
-					"hp": 80.0,
-					"attack": 0.0004,
-				},
-				# The latch clicking shut into the slam, and a dull knock of the trim after it.
-				{
-					"type": "noise",
-					"gain": 0.3,
-					"decay": 0.003,
-					"lp": 4000.0 * p,
-					"hp": 1400.0,
-					"delay": 0.012,
-					"attack": 0.0002,
-				},
-				{
-					"type": "tone",
-					"gain": 0.3,
-					"freq": 180.0 * p,
-					"freq_end": 120.0 * p,
-					"sweep": 0.01,
-					"decay": 0.02,
-					"delay": 0.05,
-				},
-			] }
+			return {
+				"length": 0.42, "level_db": -1.0 + db, "vary": 0.06, "drive": 1.2,
+				"layers": _door_slam(p),
+			}
 		"slide_open":
-			var rattle := []
-			for i in 11:
-				rattle.append({
-					"type": "noise", "gain": 0.16 + 0.05 * (i % 3), "decay": 0.003, "lp": 2600.0,
-					"hp": 500.0, "delay": 0.07 + 0.037 * i + 0.006 * (i % 2),
-				})
-			return { "length": 0.68, "level_db": -3.0 + db, "vary": 0.06, "layers": rattle + [
-				{
-					"type": "noise",
-					"gain": 0.5,
-					"decay": 0.004,
-					"lp": 6000.0,
-					"hp": 1800.0,
-					"attack": 0.0002,
-				},
-				{
-					"type": "tone",
-					"gain": 0.4,
-					"freq": 140.0,
-					"freq_end": 85.0,
-					"sweep": 0.015,
-					"decay": 0.03,
-					"delay": 0.02,
-				},
-				# The runners: a low rumble with a rattle in it, rolling for the length of the
-				# track.
-				{
-					"type": "noise",
-					"gain": 0.75,
-					"attack": 0.12,
-					"decay": 0.16,
-					"lp": 650.0,
-					"hp": 70.0,
-					"delay": 0.04,
-				},
-				# Into the stop.
-				{
-					"type": "tone",
-					"gain": 0.7,
-					"freq": 115.0,
-					"freq_end": 60.0,
-					"sweep": 0.015,
-					"decay": 0.04,
-					"delay": 0.5,
-				},
-				{
-					"type": "noise",
-					"gain": 0.5,
-					"decay": 0.01,
-					"lp": 2600.0,
-					"hp": 200.0,
-					"delay": 0.5,
-				},
-			] }
+			return {
+				"length": 0.68, "level_db": -3.0 + db, "vary": 0.06,
+				"layers": _slide_rattle() + _slide_release() + _slide_run(),
+			}
 		"slide_close":
-			return { "length": 0.5, "level_db": 0.0 + db, "vary": 0.06, "drive": 1.3, "layers": [
-				# The heavy door running into its frame, the body's low panels taking it, and the
-				# catch clicking home.
-				{
-					"type": "tone",
-					"gain": 1.3,
-					"freq": 105.0,
-					"freq_end": 42.0,
-					"sweep": 0.022,
-					"decay": 0.1,
-				},
-				{
-					"type": "modes",
-					"gain": 0.7,
-					"freqs": [130.0, 210.0],
-					"amps": [1.0, 0.6],
-					"decays": [0.08, 0.05],
-					"detune": 0.02,
-				},
-				{
-					"type": "noise",
-					"gain": 1.0,
-					"decay": 0.016,
-					"lp": 1000.0,
-					"hp": 70.0,
-					"attack": 0.0004,
-				},
-				{
-					"type": "noise",
-					"gain": 0.35,
-					"decay": 0.004,
-					"lp": 4000.0,
-					"hp": 1300.0,
-					"delay": 0.02,
-					"attack": 0.0002,
-				},
-			] }
+			return {
+				"length": 0.5, "level_db": 0.0 + db, "vary": 0.06, "drive": 1.3,
+				"layers": _slide_shut(),
+			}
 	return {}
+
+
+## A door at pitch `p` opening: the handle's click, then the latch letting go.
+static func _door_latch(p: float) -> Array:
+	return [
+		# The handle's click, then the latch letting go: two dry clicks, a knock under the
+		# second.
+		{
+			"type": "noise",
+			"gain": 0.35,
+			"decay": 0.003,
+			"lp": 4500.0 * p,
+			"hp": 1500.0,
+			"attack": 0.0002,
+		},
+		{
+			"type": "noise",
+			"gain": 0.4,
+			"decay": 0.004,
+			"lp": 1900.0 * p,
+			"hp": 400.0,
+			"delay": 0.035,
+			"attack": 0.0003,
+		},
+		{
+			"type": "tone",
+			"gain": 0.75,
+			"freq": 140.0 * p,
+			"freq_end": 80.0 * p,
+			"sweep": 0.012,
+			"decay": 0.03,
+			"delay": 0.035,
+		},
+		{ "type": "modes", "gain": 0.3, "freqs": [190.0 * p, 255.0 * p], "amps": [1.0, 0.5],
+			"decays": [0.03, 0.02], "delay": 0.035, "detune": 0.02 },
+	]
+
+
+## A door at pitch `p` coming off its seal.
+static func _door_seal(p: float) -> Array:
+	return [
+		# The door coming off its seal: a soft, low thump as it swings free.
+		{
+			"type": "tone",
+			"gain": 0.6,
+			"freq": 100.0 * p,
+			"freq_end": 58.0 * p,
+			"sweep": 0.02,
+			"decay": 0.05,
+			"delay": 0.06,
+		},
+		{
+			"type": "noise",
+			"gain": 0.25,
+			"attack": 0.004,
+			"decay": 0.03,
+			"lp": 420.0 * p,
+			"hp": 60.0,
+			"delay": 0.06,
+		},
+	]
+
+
+## A door at pitch `p` slammed shut.
+static func _door_slam(p: float) -> Array:
+	return [
+		# The door's weight thumping home and the body's low panels taking it.
+		{
+			"type": "tone",
+			"gain": 1.2,
+			"freq": 125.0 * p,
+			"freq_end": 48.0 * p,
+			"sweep": 0.02,
+			"decay": 0.09,
+		},
+		{ "type": "modes", "gain": 0.7, "freqs": [150.0 * p, 230.0 * p],
+			"amps": [1.0, 0.55], "decays": [0.07, 0.045], "detune": 0.02 },
+		{
+			"type": "noise",
+			"gain": 0.9,
+			"decay": 0.014,
+			"lp": 1100.0 * p,
+			"hp": 80.0,
+			"attack": 0.0004,
+		},
+		# The latch clicking shut into the slam, and a dull knock of the trim after it.
+		{
+			"type": "noise",
+			"gain": 0.3,
+			"decay": 0.003,
+			"lp": 4000.0 * p,
+			"hp": 1400.0,
+			"delay": 0.012,
+			"attack": 0.0002,
+		},
+		{
+			"type": "tone",
+			"gain": 0.3,
+			"freq": 180.0 * p,
+			"freq_end": 120.0 * p,
+			"sweep": 0.01,
+			"decay": 0.02,
+			"delay": 0.05,
+		},
+	]
+
+
+## A sliding door's runners rattling as it rolls back.
+static func _slide_rattle() -> Array:
+	var rattle := []
+	for i in 11:
+		rattle.append({
+			"type": "noise", "gain": 0.16 + 0.05 * (i % 3), "decay": 0.003, "lp": 2600.0,
+			"hp": 500.0, "delay": 0.07 + 0.037 * i + 0.006 * (i % 2),
+		})
+	return rattle
+
+
+## A sliding door's catch letting go.
+static func _slide_release() -> Array:
+	return [
+		{
+			"type": "noise",
+			"gain": 0.5,
+			"decay": 0.004,
+			"lp": 6000.0,
+			"hp": 1800.0,
+			"attack": 0.0002,
+		},
+		{
+			"type": "tone",
+			"gain": 0.4,
+			"freq": 140.0,
+			"freq_end": 85.0,
+			"sweep": 0.015,
+			"decay": 0.03,
+			"delay": 0.02,
+		},
+	]
+
+
+## A sliding door rolling back on its runners and into the stop.
+static func _slide_run() -> Array:
+	return [
+		# The runners: a low rumble with a rattle in it, rolling for the length of the
+		# track.
+		{
+			"type": "noise",
+			"gain": 0.75,
+			"attack": 0.12,
+			"decay": 0.16,
+			"lp": 650.0,
+			"hp": 70.0,
+			"delay": 0.04,
+		},
+		# Into the stop.
+		{
+			"type": "tone",
+			"gain": 0.7,
+			"freq": 115.0,
+			"freq_end": 60.0,
+			"sweep": 0.015,
+			"decay": 0.04,
+			"delay": 0.5,
+		},
+		{
+			"type": "noise",
+			"gain": 0.5,
+			"decay": 0.01,
+			"lp": 2600.0,
+			"hp": 200.0,
+			"delay": 0.5,
+		},
+	]
+
+
+## A sliding door shutting.
+static func _slide_shut() -> Array:
+	return [
+		# The heavy door running into its frame, the body's low panels taking it, and the
+		# catch clicking home.
+		{
+			"type": "tone",
+			"gain": 1.3,
+			"freq": 105.0,
+			"freq_end": 42.0,
+			"sweep": 0.022,
+			"decay": 0.1,
+		},
+		{
+			"type": "modes",
+			"gain": 0.7,
+			"freqs": [130.0, 210.0],
+			"amps": [1.0, 0.6],
+			"decays": [0.08, 0.05],
+			"detune": 0.02,
+		},
+		{
+			"type": "noise",
+			"gain": 1.0,
+			"decay": 0.016,
+			"lp": 1000.0,
+			"hp": 70.0,
+			"attack": 0.0004,
+		},
+		{
+			"type": "noise",
+			"gain": 0.35,
+			"decay": 0.004,
+			"lp": 4000.0,
+			"hp": 1300.0,
+			"delay": 0.02,
+			"attack": 0.0002,
+		},
+	]
 
 
 ## Tyres sliding over the ground: a screech (the rubber's stick-slip ringing the carcass at a few
@@ -1364,7 +1524,6 @@ static func _crash(material: String, band_id: String) -> Dictionary:
 	var m: Dictionary = MATERIALS[material]
 	var b: Dictionary = CRASH_BANDS[band_id]
 	var body: float = b["body"]
-	var crunch: float = b["crunch"]
 	var layers := [
 		{
 			"type": "tone",
@@ -1376,26 +1535,51 @@ static func _crash(material: String, band_id: String) -> Dictionary:
 		},
 	]
 	if material == "flesh":
-		layers.append({
-			"type": "tone", "gain": 1.0, "freq": 115.0, "freq_end": 55.0, "sweep": 0.02,
-			"decay": 0.07,
-		})
-		layers.append({
-			"type": "noise", "gain": 0.7, "decay": 0.03, "lp": 900.0, "hp": 80.0, "attack": 0.001,
-		})
-		layers.append({
-			"type": "modes",
-			"gain": 0.6,
-			"freqs": [170.0, 380.0],
-			"amps": [1.0, 0.6],
-			"decays": [0.06, 0.04],
-		})
+		layers.append_array(_crash_thud())
 		return {
 			"length": float(b["length"]) * 0.7,
 			"level_db": float(b["db"]) - 2.0,
 			"vary": 0.1,
 			"layers": layers,
 		}
+	layers.append_array(_crash_fold(b))
+	layers.append_array(_crash_struck(m))
+	layers.append_array(_crash_after(b))
+	return {
+		"length": b["length"],
+		"level_db": float(b["db"]) + float(m["db"]) * 0.5,
+		"vary": 0.1,
+		"drive": 1.5,
+		"layers": layers,
+	}
+
+
+## A character struck: a dull, heavy thud on the bonnet.
+static func _crash_thud() -> Array:
+	var layers := []
+	layers.append({
+		"type": "tone", "gain": 1.0, "freq": 115.0, "freq_end": 55.0, "sweep": 0.02,
+		"decay": 0.07,
+	})
+	layers.append({
+		"type": "noise", "gain": 0.7, "decay": 0.03, "lp": 900.0, "hp": 80.0, "attack": 0.001,
+	})
+	layers.append({
+		"type": "modes",
+		"gain": 0.6,
+		"freqs": [170.0, 380.0],
+		"amps": [1.0, 0.6],
+		"decays": [0.06, 0.04],
+	})
+	return layers
+
+
+## The vehicle of crash band `b` folding: a boom under a hard one, the sheet metal crunching and its
+## panels ringing.
+static func _crash_fold(b: Dictionary) -> Array:
+	var body: float = b["body"]
+	var crunch: float = b["crunch"]
+	var layers := []
 	if body > 1.0:
 		layers.append({
 			"type": "tone",
@@ -1426,6 +1610,12 @@ static func _crash(material: String, band_id: String) -> Dictionary:
 		"type": "modes", "gain": 0.8, "freqs": [170.0, 380.0, 690.0], "amps": [1.0, 0.8, 0.55],
 		"decays": [0.035 + 0.03 * body, 0.03 + 0.02 * body, 0.025], "detune": 0.03,
 	})
+	return layers
+
+
+## The struck material `m`'s own ring and crack.
+static func _crash_struck(m: Dictionary) -> Array:
+	var layers := []
 	var freqs := []
 	for f: float in m["modes"]:
 		freqs.append(f * 0.85)
@@ -1446,6 +1636,12 @@ static func _crash(material: String, band_id: String) -> Dictionary:
 		"hp": 150.0,
 		"attack": 0.0005,
 	})
+	return layers
+
+
+## What a crash of band `b` throws after it: glass and bits.
+static func _crash_after(b: Dictionary) -> Array:
+	var layers := []
 	for i in roundi(2.0 * float(b["glass"])):
 		layers.append({
 			"type": "modes", "gain": 0.12, "freqs": [3200.0, 4700.0, 6100.0],
@@ -1461,10 +1657,4 @@ static func _crash(material: String, band_id: String) -> Dictionary:
 			"hp": 600.0,
 			"delay": 0.15 + 0.09 * i,
 		})
-	return {
-		"length": b["length"],
-		"level_db": float(b["db"]) + float(m["db"]) * 0.5,
-		"vary": 0.1,
-		"drive": 1.5,
-		"layers": layers,
-	}
+	return layers

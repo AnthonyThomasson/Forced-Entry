@@ -36,6 +36,22 @@ func run(t: TestContext) -> void:
 	for c in pool.flow.cells:
 		rim = maxf(rim, pool.global_position.x + (c.x + 1) * BloodConfig.flow_cell_size)
 	t.expect_eq(pool.flow.trail.size(), 0, "nothing dragged out yet")
+	await _push_across(t)
+	var layer := BloodDecals.find(t.object(&"chair").get_parent())
+	if not t.require(layer != null and layer.ribbon_count() > 0, "the chair left streaks"):
+		return
+	var reach := 0.0
+	for c in pool.flow.trail:
+		reach = maxf(reach, pool.global_position.x + c.x * BloodConfig.flow_cell_size)
+	t.check(
+		reach > rim + 20.0,
+		"the pool's own outline was pulled out past its old rim (%.0f vs %.0f)" % [reach, rim],
+	)
+	_check_streaks(t, layer)
+
+
+## The pusher shoves the chair out of the pool and on across the room.
+func _push_across(t: TestContext) -> void:
 	t.puppet(&"pusher").walk(Vector2.RIGHT)
 	await t.until(
 		func(): return t.object(&"chair").global_position.x > 400.0,
@@ -55,16 +71,10 @@ func run(t: TestContext) -> void:
 		"the chair is pushed across",
 	)
 	t.puppet(&"pusher").stop()
-	var layer := BloodDecals.find(t.object(&"chair").get_parent())
-	if not t.require(layer != null and layer.ribbon_count() > 0, "the chair left streaks"):
-		return
-	var reach := 0.0
-	for c in pool.flow.trail:
-		reach = maxf(reach, pool.global_position.x + c.x * BloodConfig.flow_cell_size)
-	t.check(
-		reach > rim + 20.0,
-		"the pool's own outline was pulled out past its old rim (%.0f vs %.0f)" % [reach, rim],
-	)
+
+
+## The streaks in `layer` reach past the pool, start from nothing and rise gradually.
+func _check_streaks(t: TestContext, layer: BloodDecals) -> void:
 	var jump := 0.0
 	var start := 1.0
 	var beyond := 0

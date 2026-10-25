@@ -112,14 +112,8 @@ func _same_as_fresh(item: Item) -> int:
 	if image == null:
 		return -1
 	var base_key := PixelArt._key(drawn["painter"], size, colour, opts)
-	var fresh := PixelArt._paint(
-		drawn["painter"],
-		PixelArt._resolution(size),
-		colour,
-		-angle,
-		opts,
-		base_key,
-	).img
+	var canvas := PixelArt._canvas(PixelArt._resolution(size), -angle, base_key)
+	var fresh := PixelArt._paint(drawn["painter"], canvas, colour, opts).img
 	return 1 if image.get_data() == fresh.get_data() else 0
 
 

@@ -84,12 +84,21 @@ func run(t: TestContext) -> void:
 			"the streetlight has a CanvasItem named Overhang drawing its overhead part",
 	):
 		return
+	var walker: Node2D = t.actor(&"walker")
+	var stand := _stand_under(t, def, overhang, walker)
+	if stand == Vector2.INF:
+		return
+	walker.global_position = stand
+	await t.seconds(0.5)
+	_check_nothing_solid(t, lamp, overhang, walker, stand)
+	_check_draws_over(t, overhang, walker)
+
+
+## Where to stand `walker` under the far end of the overhang, along the line from the post out
+## through it; `Vector2.INF` once the overhang does not reach far enough (the test is over).
+func _stand_under(t: TestContext, def: Dictionary, overhang: CanvasItem, walker: Node2D) -> Vector2:
 	var drawn: Rect2 = overhang.get_rect()
 	var area: Rect2 = overhang.get_global_transform() * drawn
-
-	# Stand the puppet under the far end of the overhang, along the line from the post out through
-	# it.
-	var walker: Node2D = t.actor(&"walker")
 	var radius: float = walker.radius
 	var post_radius: float = maxf(def["size"].x, def["size"].y) * 0.5
 	var out := (area.get_center() - LAMP_AT).normalized()
@@ -104,10 +113,19 @@ func run(t: TestContext) -> void:
 			("the overhang reaches beyond the footprint, far enough for a body to stand under it "
 					+ "(it reaches %.0f px from the post's centre)") % reach,
 	):
-		return
-	walker.global_position = stand
-	await t.seconds(0.5)
+		return Vector2.INF
+	return stand
 
+
+## Nothing pushed `walker` from `stand`, nothing solid is there, the overhang has no collider and
+## the `lamp`'s post is solid.
+func _check_nothing_solid(
+	t: TestContext,
+	lamp: Node2D,
+	overhang: CanvasItem,
+	walker: Node2D,
+	stand: Vector2,
+) -> void:
 	var moved := walker.global_position.distance_to(stand)
 	t.check(
 		moved < STAY,
@@ -129,6 +147,9 @@ func run(t: TestContext) -> void:
 		"the post itself is solid",
 	)
 
+
+## The overhang draws over every visible part of `walker`.
+func _check_draws_over(t: TestContext, overhang: CanvasItem, walker: Node2D) -> void:
 	var items: Array = [walker]
 	items.append_array(walker.find_children("*", "CanvasItem", true, false))
 	for item: CanvasItem in items:

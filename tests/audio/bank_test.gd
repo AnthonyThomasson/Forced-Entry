@@ -25,6 +25,14 @@ func run(t: TestContext) -> void:
 	t.check(profiles.size() > 100, "the bank lists its profiles (%d)" % profiles.size())
 	t.expect_eq(profiles.size(), _unique(profiles).size(), "none is listed twice")
 
+	_check_renders(t, profiles)
+	_check_cache(t, profiles)
+	_check_differ(t)
+	_check_design(t)
+
+
+## Every one of `profiles` renders a sane clip, from a cold cache, and is cached.
+func _check_renders(t: TestContext, profiles: Array) -> void:
 	SoundBank.clear_cache()
 	var bad: Array[String] = []
 	for profile in profiles:
@@ -41,6 +49,9 @@ func run(t: TestContext) -> void:
 	t.check(bad.is_empty(), "every profile renders a sane clip: %s" % ", ".join(bad.slice(0, 5)))
 	t.expect_eq(SoundBank.cached_count(), profiles.size(), "each render was cached")
 
+
+## A cached render is returned again, rendering nothing new; a second variant is its own render.
+func _check_cache(t: TestContext, profiles: Array) -> void:
 	var first := SoundBank.sound(&"shot/pistol", 0)
 	t.check(
 		SoundBank.sound(&"shot/pistol", 0)["stream"] == first["stream"],
@@ -52,6 +63,9 @@ func run(t: TestContext) -> void:
 		"a second variant is a different render",
 	)
 
+
+## Neighbouring profiles sound different; what is not a profile is refused.
+func _check_differ(t: TestContext) -> void:
 	for pair in [
 		[&"impact/metal/blocked/medium", &"impact/wood/blocked/medium"],
 		[&"impact/wood/blocked/medium", &"impact/wood/penetrate/medium"],
@@ -79,7 +93,9 @@ func run(t: TestContext) -> void:
 			"'%s' is not a profile" % bogus,
 		)
 
-	# The design, in numbers.
+
+## The design, in numbers.
+func _check_design(t: TestContext) -> void:
 	t.check(
 		_length(&"impact/metal/ricochet/medium") > _length(&"impact/wood/blocked/medium") * 2.0,
 		"a ricochet off metal rings far longer than a hit on wood",

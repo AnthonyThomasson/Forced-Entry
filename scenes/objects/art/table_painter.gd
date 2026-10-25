@@ -65,39 +65,51 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 		var a := roundi(float(i) * span / n)
 		var b := roundi(float(i + 1) * span / n)
 		var r := Rect2i(0, a, length, b - a) if along_x else Rect2i(a, 0, b - a, length)
-		var shift := c.rng.randf_range(-0.05, 0.05)
-		var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
-		c.paint_over(r, tone)
-		c.grain(PixelCanvas.rounded(r, 0), ArtConfig.wood_grain_density, tone.darkened(0.12),
-				tone.lightened(0.06), { "along_x": along_x })
+		var tone := _plank_face(c, base, r, along_x)
 		if c.rng.randf() < ArtConfig.wood_knot_chance and b - a >= 4 and length >= 12:
-			var k_along := c.rng.randi_range(5, length - 6)
-			var k_across := int((a + b) / 2.0)
-			var kp := Vector2i(k_along, k_across) if along_x else Vector2i(k_across, k_along)
-			c.knot(kp.x, kp.y, tone.darkened(0.4), tone.darkened(0.2))
+			_knot(c, along_x, Rect2i(0, a, length, b - a), tone)
 		if i > 0:
-			_seam(c, along_x, a, 0, length, t.shadow)
+			_seam(c, along_x, a, length, t.shadow)
 			seams.append(a)
 		# A long plank is two boards end to end; neighbours stagger their joints.
 		if length >= 50:
-			var joint := roundi(length * (0.3 if i % 2 == 0 else 0.65) + c.rng.randi_range(-4, 4))
-			for j in range(a + (1 if i > 0 else 0), b):
-				var jp := Vector2i(joint, j) if along_x else Vector2i(j, joint)
-				if c.at(jp.x, jp.y).a > 0.0:
-					c.px(jp.x, jp.y, t.shadow)
+			_butt_joint(c, along_x, Rect2i(0, a, length, b - a), i, t.shadow)
 	return seams
 
 
-## A 1px seam line at `across` running `from`..`to` along the planks (drawn pixels only).
-static func _seam(
-	c: PixelCanvas,
-	along_x: bool,
-	across: int,
-	from: int,
-	to: int,
-	col: Color,
-) -> void:
-	for i in range(from, to):
+## One plank's face over `r` in a tone of `base` drawn per plank, with its grain (along x when
+## `along_x`); returns the tone.
+static func _plank_face(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -> Color:
+	var shift := c.rng.randf_range(-0.05, 0.05)
+	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
+	c.paint_over(r, tone)
+	c.grain(PixelCanvas.rounded(r, 0), ArtConfig.wood_grain_density, tone.darkened(0.12),
+			tone.lightened(0.06), { "along_x": along_x })
+	return tone
+
+
+## A knot in the plank `lane` (x along the planks, y across them) in a dark `tone`, somewhere along
+## its middle.
+static func _knot(c: PixelCanvas, along_x: bool, lane: Rect2i, tone: Color) -> void:
+	var k_along := c.rng.randi_range(5, lane.size.x - 6)
+	var k_across := int((lane.position.y + lane.end.y) / 2.0)
+	var kp := Vector2i(k_along, k_across) if along_x else Vector2i(k_across, k_along)
+	c.knot(kp.x, kp.y, tone.darkened(0.4), tone.darkened(0.2))
+
+
+## The butt joint across the `i`-th plank `lane` (x along the planks, y across them) in `col`, a
+## third or two thirds along by its parity so neighbours stagger (drawn pixels only).
+static func _butt_joint(c: PixelCanvas, along_x: bool, lane: Rect2i, i: int, col: Color) -> void:
+	var joint := roundi(lane.size.x * (0.3 if i % 2 == 0 else 0.65) + c.rng.randi_range(-4, 4))
+	for j in range(lane.position.y + (1 if i > 0 else 0), lane.end.y):
+		var jp := Vector2i(joint, j) if along_x else Vector2i(j, joint)
+		if c.at(jp.x, jp.y).a > 0.0:
+			c.px(jp.x, jp.y, col)
+
+
+## A 1px seam line at `across` running 0..`to` along the planks (drawn pixels only).
+static func _seam(c: PixelCanvas, along_x: bool, across: int, to: int, col: Color) -> void:
+	for i in range(0, to):
 		var p := Vector2i(i, across) if along_x else Vector2i(across, i)
 		if c.at(p.x, p.y).a > 0.0:
 			c.px(p.x, p.y, col)
@@ -139,12 +151,24 @@ static func _runner(c: PixelCanvas) -> void:
 	var span := c.h if along_x else c.w
 	var width := maxi(5, roundi(span * float(ObjectArtConfig.table_runner_width)))
 	var a := int((span - width) / 2.0)
-	var mid := a + int(width / 2.0)
 	var col := ObjectArtConfig.table_runner_color
-	var rt := PixelCanvas.tones(col)
 	var r := Rect2i(1, a, length - 2, width) if along_x else Rect2i(a, 1, width, length - 2)
 	c.fill(PixelCanvas.rounded(r, 0), col, _RUNNER_HEIGHT)
 	c.speckle(r, col, ArtConfig.fabric_speckle)
+	_runner_weave(c, along_x, Rect2i(0, a, length, width))
+
+
+## The runner's weave over its `lane` (x along the runner, y across it): the border stripes, the
+## diamonds down its middle and the fringe, every other thread at each end.
+static func _runner_weave(c: PixelCanvas, along_x: bool, lane: Rect2i) -> void:
+	var length := lane.size.x
+	var a := lane.position.y
+	var width := lane.size.y
+	var mid := a + int(width / 2.0)
+	var col := ObjectArtConfig.table_runner_color
+	var rt := PixelCanvas.tones(col)
+	var motif := maxi(2, int(width / 2.0) - 3)
+	var period := motif * 2 + 2
 	for i in range(1, length - 1):
 		for s in [a, a + width - 1]:
 			_dot(c, along_x, i, s, rt.dark)
@@ -152,8 +176,6 @@ static func _runner(c: PixelCanvas) -> void:
 			for s in [a + 2, a + width - 3]:
 				_dot(c, along_x, i, s, rt.light if i % 2 == 0 else col)
 		# Diamonds: |offset from the motif centre along| + |offset across| == radius.
-		var motif := maxi(2, int(width / 2.0) - 3)
-		var period := motif * 2 + 2
 		var along_off := absi((i + int(period / 2.0)) % period - int(period / 2.0))
 		if i > 3 and i < length - 4 and along_off <= motif:
 			for s in [mid - (motif - along_off), mid + (motif - along_off)]:

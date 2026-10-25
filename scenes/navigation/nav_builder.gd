@@ -84,7 +84,7 @@ static func build(
 	parent: Node,
 	agent_radius: float = 14.0,
 ) -> NavigationRegion2D:
-	var job := _source_for(house, rooms, agent_radius)
+	var job := _source_for(NavSite.new(house, rooms, agent_radius))
 	if job.is_empty():
 		return null
 	var nav_poly := _bake_job(job, house.position)
@@ -121,7 +121,7 @@ static func rebake(
 	rooms: Array,
 	agent_radius: float = 14.0,
 ) -> void:
-	var job := _source_for(house, rooms, agent_radius)
+	var job := _source_for(NavSite.new(house, rooms, agent_radius))
 	if job.is_empty():
 		return
 	region.navigation_polygon = _bake_job(job, house.position)
@@ -140,25 +140,23 @@ static func rebake_steering(
 ) -> void:
 	_rebake_steering(
 		region,
-		house,
-		rooms,
-		agent_radius,
+		NavSite.new(house, rooms, agent_radius),
 		furniture_holes(house),
 		character_holes(house.get_parent()),
 	)
 
 
-## `rebake_steering` from footprints already measured this frame: `furniture` (`furniture_holes`)
-## and `characters` (`character_holes`). `nav_updater.gd` measures them once a tick for its
-## comparison and both bakes.
-static func _rebake_steering(region: NavigationRegion2D, house: Node2D, rooms: Array,
-		agent_radius: float, furniture: Array, characters: Array, walls: Dictionary = {}) -> void:
+## `rebake_steering` of `site` from footprints already measured this frame: `furniture`
+## (`furniture_holes`) and `characters` (`character_holes`). `nav_updater.gd` measures them once a
+## tick for its comparison and both bakes.
+static func _rebake_steering(region: NavigationRegion2D, site: NavSite, furniture: Array,
+		characters: Array, walls: Dictionary = {}) -> void:
 	var steering := steering_region(region)
 	if steering == null:
 		return
-	var job := _source_for(house, rooms, agent_radius, characters, furniture, walls)
+	var job := _source_for(site, characters, furniture, walls)
 	if not job.is_empty():
-		steering.navigation_polygon = _bake_job(job, house.position)
+		steering.navigation_polygon = _bake_job(job, site.house.position)
 
 
 ## The steering region of `region` (the planning region `build` returned): the same house with the
@@ -193,7 +191,7 @@ static func _add_steering_region(
 	var characters := character_holes(house.get_parent())
 	var nav_poly := (planning_poly
 			if characters.is_empty()
-			else _bake_polygon(house, rooms, agent_radius, characters))
+			else _bake_polygon(NavSite.new(house, rooms, agent_radius), characters))
 	var steering := NavigationRegion2D.new()
 	steering.name = STEERING_NAME
 	steering.navigation_polygon = nav_poly
@@ -263,20 +261,20 @@ static func _new_map() -> RID:
 ## footprints; `nav_updater.gd` drives `_rebake_async`.
 static func rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
 		agent_radius: float = 14.0, done: Callable = Callable()) -> void:
-	_rebake_async(region, house, rooms, agent_radius, furniture_holes(house), done)
+	_rebake_async(region, NavSite.new(house, rooms, agent_radius), furniture_holes(house), done)
 
 
-## `rebake_async` from the furniture footprints already measured this frame (`furniture_holes`), as
-## `_rebake_steering`.
-static func _rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Array,
-		agent_radius: float, furniture: Array, done: Callable, walls: Dictionary = {}) -> void:
-	var job := _source_for(house, rooms, agent_radius, [], furniture, walls)
+## `rebake_async` of `site` from the furniture footprints already measured this frame
+## (`furniture_holes`), as `_rebake_steering`.
+static func _rebake_async(region: NavigationRegion2D, site: NavSite, furniture: Array,
+		done: Callable, walls: Dictionary = {}) -> void:
+	var job := _source_for(site, [], furniture, walls)
 	if job.is_empty():
 		if done.is_valid():
 			done.call()
 		return
 	var nav_poly: NavigationPolygon = job["poly"]
-	var origin := house.position
+	var origin := site.house.position
 	_remember_source(region, job)
 	# Held weakly: a lambda that captures a node freed before it runs logs an engine error (a world
 	# torn down mid-bake).
@@ -291,24 +289,19 @@ static func _rebake_async(region: NavigationRegion2D, house: Node2D, rooms: Arra
 			done.call())
 
 
-## Bake a NavigationPolygon for `house` over `rooms` at `agent_radius`: the house bounds minus the
-## static wall colliders (doorways stay open) minus each solid furniture footprint (carved as a
-## hole) and minus each of `characters` (footprints from `character_holes`; none = the planning
-## bake). Returns null if there are no rooms. In the house's LOCAL frame — the region offsets it
-## into world space. `build` bakes its steering region's first polygon with it. It goes through
-## `_source_for` + `_bake_job` like every other bake, so all carve furniture holes identically, and
-## `_bake_job` welds the result to the 1 px grid (`_weld_vertices`): every hole that meets a wall, a
-## character's and a piece of furniture's, needs it.
-static func _bake_polygon(
-	house: Node2D,
-	rooms: Array,
-	agent_radius: float,
-	characters: Array = [],
-) -> NavigationPolygon:
-	var job := _source_for(house, rooms, agent_radius, characters)
+## Bake a NavigationPolygon for `site` (its house over its rooms at its agent radius): the house
+## bounds minus the static wall colliders (doorways stay open) minus each solid furniture footprint
+## (carved as a hole) and minus each of `characters` (footprints from `character_holes`; none = the
+## planning bake). Returns null if there are no rooms. In the house's LOCAL frame — the region
+## offsets it into world space. `build` bakes its steering region's first polygon with it. It goes
+## through `_source_for` + `_bake_job` like every other bake, so all carve furniture holes
+## identically, and `_bake_job` welds the result to the 1 px grid (`_weld_vertices`): every hole
+## that meets a wall, a character's and a piece of furniture's, needs it.
+static func _bake_polygon(site: NavSite, characters: Array = []) -> NavigationPolygon:
+	var job := _source_for(site, characters)
 	if job.is_empty():
 		return null
-	return _bake_job(job, house.position)
+	return _bake_job(job, site.house.position)
 
 
 ## Bake a gathered job (`_source_for`) at once, welded and without slivers; `origin` is the region's
@@ -325,9 +318,10 @@ static func _bake_job(job: Dictionary, origin: Vector2) -> NavigationPolygon:
 ## agent radius set) and its source geometry (`source`: the walls, the walkable footprint, the
 ## furniture holes and each of `characters`). {} with no rooms. `_bake_job` bakes it at once;
 ## `_rebake_async` hands it to the server's worker thread.
-static func _source_for(house: Node2D, rooms: Array, agent_radius: float, characters: Array = [],
-		furniture: Variant = null, walls: Dictionary = {}) -> Dictionary:
-	var bounds := _bounds(rooms)
+static func _source_for(site: NavSite, characters: Array = [], furniture: Variant = null,
+		walls: Dictionary = {}) -> Dictionary:
+	var house := site.house
+	var bounds := _bounds(site.rooms)
 	if bounds.size == Vector2.ZERO:
 		return {}
 	bounds = bounds.grow(BOUNDS_PAD)
@@ -337,13 +331,13 @@ static func _source_for(house: Node2D, rooms: Array, agent_radius: float, charac
 	# silently misaligns the walls and seals the doorways.
 	var local_bounds := Rect2(bounds.position - house.position, bounds.size)
 
-	var nav_poly := _new_polygon(agent_radius)
+	var nav_poly := _new_polygon(site.agent_radius)
 
 	var source := NavigationMeshSourceGeometryData2D.new()
 	# Obstructions: the house's static colliders (walls), on the map's grid (`_walls_of`, or `walls`
 	# when the caller parsed them this frame). Parsing resets the source data, so it comes before
 	# the traversable footprint is added.
-	var parsed := walls if not walls.is_empty() else _walls_of(house, agent_radius)
+	var parsed := walls if not walls.is_empty() else _walls_of(house, site.agent_radius)
 	source.set_traversable_outlines(parsed["traversable"])
 	source.set_obstruction_outlines(parsed["obstruction"])
 	source.set_projected_obstructions(parsed["projected"])

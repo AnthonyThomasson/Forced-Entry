@@ -39,8 +39,17 @@ func run(t: TestContext) -> void:
 	for who in [&"pistol_man", &"smg_man", &"rifle_man", &"fickle_man", &"dry_man"]:
 		t.puppet(who).reload()
 	await t.frames(3)
+	_check_first_beat(t)
 
-	# --- The first beat is immediate.
+	# --- One changes his mind: switching to fists cancels the reload.
+	await t.seconds(0.5)
+	t.puppet(&"fickle_man").select_slot(2)
+	await _check_second_beat(t, started)
+	await _check_finished(t)
+
+
+## The first beat is immediate.
+func _check_first_beat(t: TestContext) -> void:
 	var heard := Probe.sounds(t, &"reload")
 	var profiles := Probe.profiles(heard)
 	for profile in [&"reload/pistol/out", &"reload/smg/out", &"reload/rifle/out"]:
@@ -59,11 +68,9 @@ func run(t: TestContext) -> void:
 		"the man with no magazine to load made no sound",
 	)
 
-	# --- One changes his mind: switching to fists cancels the reload.
-	await t.seconds(0.5)
-	t.puppet(&"fickle_man").select_slot(2)
 
-	# --- The second beat arrives when the reload is done, in each gun's own time.
+## The second beat arrives when the reload is done (begun at `started`), in each gun's own time.
+func _check_second_beat(t: TestContext, started: float) -> void:
 	var times := {}
 	for pair in [[&"reload/pistol/in", 1.5], [&"reload/smg/in", 1.8], [&"reload/rifle/in", 2.4]]:
 		var profile: StringName = pair[0]
@@ -91,6 +98,9 @@ func run(t: TestContext) -> void:
 		"the longer the gun's reload, the later its second beat",
 	)
 
+
+## Three reloads finished, the cancelled one did not; the events name the gun.
+func _check_finished(t: TestContext) -> void:
 	await t.seconds(0.8)
 	var finished := Probe.sounds(t, &"reload").filter(
 		func(d): return String(d["profile"]).ends_with("/in"),

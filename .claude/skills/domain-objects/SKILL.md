@@ -157,8 +157,8 @@ light's `glow`, below).
 damage is placed in the world (below), so no mark repeats on the tile's grid.
 
 - `object_art.gd` — the painter registry: `PAINTERS` maps an `art` id to its painter;
-  `texture(art, size, color, facing, material, opts)` renders it via `PixelArt.render` (a cardinal
-  facing), `tile(art, color, material, opts)` at the painter's own `tile_size(opts)` (floors), `emissive` / `tile_emissive`, `groove` /
+  `texture(art, size, color, facing, opts)` renders it via `PixelArt.render` (a cardinal
+  facing; the finish is `opts.material`, as `tile`'s `material` argument), `tile(art, color, material, opts)` at the painter's own `tile_size(opts)` (floors), `emissive` / `tile_emissive`, `groove` /
   `porous` (a tiling painter's blood grooves and soak), `neon_for`, `drawn_color`.
 - Painters (`*_painter.gd`, each `static paint(canvas, base, material, opts)`): `sofa` (also the
   armchair), `table` (+ `gaps`, `props`; desks, benches, the workbench), `chair`, `cabinet`

@@ -22,7 +22,9 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var at := Vector2(200, 200)
-	BloodSpawner.splat(t.world, at, 30.0, Vector2.RIGHT, 0.0, [])
+	var throw := BloodThrow.new()
+	throw.size = 30.0
+	BloodSpawner.splat(t.world, at, throw)
 	await t.frames(2)
 	t.check(
 		BloodField.wetness_at(at) > 0.5,

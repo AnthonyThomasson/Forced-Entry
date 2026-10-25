@@ -76,20 +76,31 @@ func step(delta: float) -> float:
 		&"failing":
 			return _failing()
 		&"blink":
-			var at := fmod(_t + _phase, _period) / _period
-			if at < _duty:
-				return 1.0
-			var off := (at - _duty) / (1.0 - _duty)
-			return 1.0 if _double and off > 0.45 and off < 0.6 else 0.0
+			return _blink()
 		&"shimmer":
-			if _t >= _next:
-				_next = _t + _rng.randf_range(1.5, 6.0)
-				_level = _rng.randf_range(0.7, 1.15)
-			return _level * (0.9 + 0.06 * sin(_t * 23.0 + _phase) + 0.04 * sin(_t * 61.0)
-					+ 0.04 * (_rng.randf() - 0.5))
+			return _shimmer()
 		&"pulse":
 			return 0.65 + 0.35 * (0.5 + 0.5 * sin(TAU * _t / _period + _phase))
 	return 1.0
+
+
+## blink: on for its duty share of each period, then off (a double blink flashes once more in the
+## off part).
+func _blink() -> float:
+	var at := fmod(_t + _phase, _period) / _period
+	if at < _duty:
+		return 1.0
+	var off := (at - _duty) / (1.0 - _duty)
+	return 1.0 if _double and off > 0.45 and off < 0.6 else 0.0
+
+
+## shimmer: a wavering level that settles on a new one every few seconds.
+func _shimmer() -> float:
+	if _t >= _next:
+		_next = _t + _rng.randf_range(1.5, 6.0)
+		_level = _rng.randf_range(0.7, 1.15)
+	return _level * (0.9 + 0.06 * sin(_t * 23.0 + _phase) + 0.04 * sin(_t * 61.0)
+			+ 0.04 * (_rng.randf() - 0.5))
 
 
 ## failing: lit (on), a burst of stutters, or dark a moment before it catches again.

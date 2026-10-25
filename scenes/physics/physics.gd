@@ -35,28 +35,18 @@ static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> voi
 	# full-strength burst.
 	var through := hit.has_exit
 	HitParticles.spawn(
-		hit.position,
-		spray,
 		parent,
+		hit,
 		surface,
 		HitParticles.Kind.ENTRY if through else HitParticles.Kind.IMPACT,
 		strength,
 	)
 	if through:
-		var out := hit.exit_normal if hit.exit_normal.length() > 0.001 else hit.direction
-		HitParticles.spawn(
-			hit.exit_position,
-			(out + hit.direction).normalized(),
-			parent,
-			surface,
-			HitParticles.Kind.EXIT,
-			strength,
-		)
+		HitParticles.spawn(parent, hit, surface, HitParticles.Kind.EXIT, strength)
 	if hit.blood > 0.0 and BloodConfig.enabled:
 		HitParticles.spawn(
-			hit.position,
-			spray,
 			parent,
+			hit,
 			{ "material": "blood" },
 			HitParticles.Kind.IMPACT,
 			hit.blood * 0.7,

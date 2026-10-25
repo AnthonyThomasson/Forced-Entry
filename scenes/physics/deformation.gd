@@ -131,39 +131,52 @@ static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
 	out.resize(n)
 	for i in n:
 		var p: Vector2 = ring[i]
-		var offset := Vector2.ZERO
-		for impact in impacts:
-			var d: float = p.distance_to(impact["pos"])
-			var reach: float = (radius
-					* (PhysicsConfig.deform_chunk_reach_scale if impact["chunk"] else 1.0))
-			if d >= reach:
-				continue
-			var t := 1.0 - d / reach  # 1 at the impact, 0 at the edge of reach
-			if impact["chunk"]:
-				# Deep carve + seeded jitter so the bite looks torn, not smooth.
-				var rng := RandomNumberGenerator.new()
-				rng.seed = int(impact["seed"]) + i * 7
-				var jag := 1.0 + rng.randf_range(
-					-PhysicsConfig.deform_chunk_jitter,
-					PhysicsConfig.deform_chunk_jitter,
-				)
-				offset += (impact["inward"] * impact["depth"] * PhysicsConfig.deform_chunk_depth
-						* smoothstep(0.0, 1.0, t) * jag)
-			else:
-				offset += impact["inward"] * impact["depth"] * (t * t)
-		# A push along the outline (a corner dented from one face slides along the other) goes at
-		# most `NEIGHBOUR_REACH` of the way toward either neighbour, so no point passes one and
-		# folds the ring onto itself; a push into the face is untouched.
-		for q: Vector2 in [ring[(i + n - 1) % n], ring[(i + 1) % n]]:
-			var toward := (q - p).normalized()
-			var cap := p.distance_to(q) * NEIGHBOUR_REACH
-			var along := offset.dot(toward)
-			if along > cap:
-				offset -= toward * (along - cap)
+		var offset := _cap_along(ring, i, _dent_offset(p, i, impacts, radius))
 		# Clamp the displacement so a dent can't push the point past the object's opposite
 		# face (which would grow the silhouette out the back on repeated hits).
 		out[i] = _clamp_inside(ring, center, p, offset, core)
 	return out
+
+
+## The summed push of `impacts` on ring point `i` at `p`: a smooth dent from each within `radius`,
+## a deep jagged notch from a chunk within its wider reach.
+static func _dent_offset(p: Vector2, i: int, impacts: Array, radius: float) -> Vector2:
+	var offset := Vector2.ZERO
+	for impact in impacts:
+		var d: float = p.distance_to(impact["pos"])
+		var reach: float = (radius
+				* (PhysicsConfig.deform_chunk_reach_scale if impact["chunk"] else 1.0))
+		if d >= reach:
+			continue
+		var t := 1.0 - d / reach  # 1 at the impact, 0 at the edge of reach
+		if impact["chunk"]:
+			# Deep carve + seeded jitter so the bite looks torn, not smooth.
+			var rng := RandomNumberGenerator.new()
+			rng.seed = int(impact["seed"]) + i * 7
+			var jag := 1.0 + rng.randf_range(
+				-PhysicsConfig.deform_chunk_jitter,
+				PhysicsConfig.deform_chunk_jitter,
+			)
+			offset += (impact["inward"] * impact["depth"] * PhysicsConfig.deform_chunk_depth
+					* smoothstep(0.0, 1.0, t) * jag)
+		else:
+			offset += impact["inward"] * impact["depth"] * (t * t)
+	return offset
+
+
+## Ring point `i`'s `offset` with its push along the outline (a corner dented from one face slides
+## along the other) cut to at most `NEIGHBOUR_REACH` of the way toward either neighbour, so no point
+## passes one and folds the ring onto itself; a push into the face is untouched.
+static func _cap_along(ring: PackedVector2Array, i: int, offset: Vector2) -> Vector2:
+	var n := ring.size()
+	var p := ring[i]
+	for q: Vector2 in [ring[(i + n - 1) % n], ring[(i + 1) % n]]:
+		var toward := (q - p).normalized()
+		var cap := p.distance_to(q) * NEIGHBOUR_REACH
+		var along := offset.dot(toward)
+		if along > cap:
+			offset -= toward * (along - cap)
+	return offset
 
 
 ## Centroid (average) of a ring of points, used as the interior limit a dent can't pass.
@@ -364,14 +377,6 @@ static func shapes_of(pieces: Array) -> Array:
 ## triangulation, wound like the polygon, and keep merging two pieces across a shared edge
 ## while the union stays convex. Needs `is_valid_polygon(polygon)`.
 static func _convex_pieces(polygon: PackedVector2Array) -> Array:
-	var sign_ := -1.0 if Geometry2D.is_polygon_clockwise(polygon) else 1.0
-	var tris := Geometry2D.triangulate_polygon(polygon)
-	var pieces: Array = []
-	for t in range(0, tris.size(), 3):
-		var tri := [tris[t], tris[t + 1], tris[t + 2]]
-		if _turn(polygon, tri[0], tri[1], tri[2]) * sign_ < 0.0:
-			tri = [tri[0], tri[2], tri[1]]
-		pieces.append(tri)
 	# The scan takes the first pair, in piece order, that is neighbours across an edge and whose
 	# union is convex, merges it and scans again. Only neighbours can merge, so they are found
 	# through a map of who owns each directed edge (a piece's edge i -> j meets its neighbour's j ->
@@ -380,59 +385,19 @@ static func _convex_pieces(polygon: PackedVector2Array) -> Array:
 	# again: every pair there was tried and failed, but those with the piece the merge just made
 	# (`fresh`), which are tried first, in order, before the scan goes on from it. The same merges
 	# happen in the same order as a scan from the start.
-	var count := polygon.size()
-	var ids: Array = range(pieces.size())
-	var next_id := pieces.size()
-	var owner := {}
-	for p in pieces.size():
-		_own_edges(owner, pieces[p], ids[p], count, true)
-	var failed := {}
+	var scan := PieceScan.new(polygon)
 	# the scan goes on from this piece; every pair before it has failed, but those with `fresh`
 	var from := 0
 	var fresh := -1  # the piece the last merge made (-1: none yet)
 	while true:
-		var merge := Vector2i(-1, -1)
-		var union: Array = []
-		if fresh > 0:
-			var before: Array = []
-			for other in _neighbour_ids(owner, pieces[fresh], count):
-				var x: int = ids.find(other)
-				if x < fresh:
-					before.append(x)
-			before.sort()
-			for x in before:
-				union = _try_merge(polygon, pieces, ids, failed, x, fresh, sign_)
-				if not union.is_empty():
-					merge = Vector2i(x, fresh)
-					break
-		if merge.x < 0:
-			for a in range(maxi(from, 0), pieces.size()):
-				var neighbours: Array = []
-				for other in _neighbour_ids(owner, pieces[a], count):
-					var b: int = ids.find(other)
-					if b > a:
-						neighbours.append(b)
-				neighbours.sort()
-				for b in neighbours:
-					union = _try_merge(polygon, pieces, ids, failed, a, b, sign_)
-					if not union.is_empty():
-						merge = Vector2i(a, b)
-						break
-				if merge.x >= 0:
-					break
-		if merge.x < 0:
+		var found: Array = scan.merge_with(fresh) if fresh > 0 else []
+		if found.is_empty():
+			found = scan.first_merge(from)
+		if found.is_empty():
 			break
-		_own_edges(owner, pieces[merge.x], ids[merge.x], count, false)
-		_own_edges(owner, pieces[merge.y], ids[merge.y], count, false)
-		pieces[merge.x] = union
-		ids[merge.x] = next_id
-		next_id += 1
-		_own_edges(owner, union, ids[merge.x], count, true)
-		pieces.remove_at(merge.y)
-		ids.remove_at(merge.y)
-		from = merge.x
-		fresh = merge.x
-	return pieces
+		from = scan.apply(found[0], found[1])
+		fresh = from
+	return scan.pieces
 
 
 ## The ids of the pieces across each edge of piece `loop`, in the loop's order (`owner` as
@@ -444,24 +409,6 @@ static func _neighbour_ids(owner: Dictionary, loop: Array, count: int) -> Array:
 		if other != null:
 			out.append(other)
 	return out
-
-
-## The convex piece the neighbouring pieces at positions `a` < `b` merge into
-## (`_merge_across_edge`), or [] when they do not; a pair that does not is remembered in `failed`
-## (by the pieces' ids) and not tried again.
-static func _try_merge(polygon: PackedVector2Array, pieces: Array, ids: Array, failed: Dictionary,
-		a: int, b: int, sign_: float) -> Array:
-	var pair: int = mini(ids[a], ids[b]) * PIECE_PAIR_STRIDE + maxi(ids[a], ids[b])
-	if failed.has(pair):
-		return []
-	var union := _merge_across_edge(pieces[a], pieces[b])
-	# Both pieces are convex already, so only the two corners where they now join can turn the wrong
-	# way: the union's first vertex and the one ending piece a's run (see _merge_across_edge).
-	if union.is_empty() or not (_turns_right_at(polygon, union, 0, sign_)
-			and _turns_right_at(polygon, union, pieces[a].size() - 1, sign_)):
-		failed[pair] = true
-		return []
-	return union
 
 
 ## Record (`add`) or forget the directed edges of piece `loop` in `owner`, keyed
@@ -679,3 +626,101 @@ static func _draw_outline(canvas: CanvasItem, ring: PackedVector2Array, color: C
 	var closed := ring.duplicate()
 	closed.append(ring[0])
 	canvas.draw_polyline(closed, color, 1.5, true)
+
+
+## `_convex_pieces`' merge scan over one polygon: the pieces as vertex-index loops (from its
+## triangulation, wound like the polygon), each piece's id, who owns each directed edge
+## (`_own_edges`) and the neighbouring pairs that failed to merge, by the pieces' ids.
+class PieceScan:
+	## The pieces, as vertex-index loops, in order.
+	var pieces: Array = []
+	## The polygon cut.
+	var _polygon: PackedVector2Array
+	## +1 / -1: the polygon's winding.
+	var _sign: float
+	## Each piece's id, by its position in `pieces`.
+	var _ids: Array = []
+	## The id the next merged piece takes.
+	var _next_id := 0
+	## The piece id owning each directed edge (`_own_edges`).
+	var _owner := {}
+	## The neighbouring pairs that failed to merge, by their ids.
+	var _failed := {}
+	## The polygon's vertex count (the edge keys' stride).
+	var _count := 0
+
+	func _init(polygon: PackedVector2Array) -> void:
+		_polygon = polygon
+		_sign = -1.0 if Geometry2D.is_polygon_clockwise(polygon) else 1.0
+		var tris := Geometry2D.triangulate_polygon(polygon)
+		for t in range(0, tris.size(), 3):
+			var tri := [tris[t], tris[t + 1], tris[t + 2]]
+			if Deformation._turn(polygon, tri[0], tri[1], tri[2]) * _sign < 0.0:
+				tri = [tri[0], tri[2], tri[1]]
+			pieces.append(tri)
+		_count = polygon.size()
+		_ids = range(pieces.size())
+		_next_id = pieces.size()
+		for p in pieces.size():
+			Deformation._own_edges(_owner, pieces[p], _ids[p], _count, true)
+
+	## The first merge of the piece at `fresh` with a neighbour before it, in their order, as
+	## `[Vector2i(that one, fresh), union]`, or [] when none merges.
+	func merge_with(fresh: int) -> Array:
+		var before: Array = []
+		for other in Deformation._neighbour_ids(_owner, pieces[fresh], _count):
+			var x: int = _ids.find(other)
+			if x < fresh:
+				before.append(x)
+		before.sort()
+		for x in before:
+			var union := _try_merge(x, fresh)
+			if not union.is_empty():
+				return [Vector2i(x, fresh), union]
+		return []
+
+	## The first merge of a piece from `from` on with a neighbour after it, as
+	## `[Vector2i(a, b), union]`, or [] when none merges.
+	func first_merge(from: int) -> Array:
+		for a in range(maxi(from, 0), pieces.size()):
+			var neighbours: Array = []
+			for other in Deformation._neighbour_ids(_owner, pieces[a], _count):
+				var b: int = _ids.find(other)
+				if b > a:
+					neighbours.append(b)
+			neighbours.sort()
+			for b in neighbours:
+				var union := _try_merge(a, b)
+				if not union.is_empty():
+					return [Vector2i(a, b), union]
+		return []
+
+	## The convex piece the neighbouring pieces at positions `a` < `b` merge into
+	## (`_merge_across_edge`), or [] when they do not; a pair that does not is remembered (by the
+	## pieces' ids) and not tried again.
+	func _try_merge(a: int, b: int) -> Array:
+		var pair: int = (mini(_ids[a], _ids[b]) * Deformation.PIECE_PAIR_STRIDE
+				+ maxi(_ids[a], _ids[b]))
+		if _failed.has(pair):
+			return []
+		var union := Deformation._merge_across_edge(pieces[a], pieces[b])
+		# Both pieces are convex already, so only the two corners where they now join can turn the
+		# wrong way: the union's first vertex and the one ending piece a's run (see
+		# _merge_across_edge).
+		if union.is_empty() or not (Deformation._turns_right_at(_polygon, union, 0, _sign)
+				and Deformation._turns_right_at(_polygon, union, pieces[a].size() - 1, _sign)):
+			_failed[pair] = true
+			return []
+		return union
+
+	## Put `union` in place of the pieces at `merge` (x < y), under a new id; returns where it is.
+	func apply(merge: Vector2i, union: Array) -> int:
+		Deformation._own_edges(_owner, pieces[merge.x], _ids[merge.x], _count, false)
+		Deformation._own_edges(_owner, pieces[merge.y], _ids[merge.y], _count, false)
+		pieces[merge.x] = union
+		_ids[merge.x] = _next_id
+		_next_id += 1
+		Deformation._own_edges(_owner, union, _ids[merge.x], _count, true)
+		pieces.remove_at(merge.y)
+		_ids.remove_at(merge.y)
+		return merge.x

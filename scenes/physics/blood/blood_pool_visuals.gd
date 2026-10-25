@@ -89,6 +89,32 @@ func _draw_flow() -> void:
 		return
 	var covered: Array = flow.cells.keys() + flow.trail.keys()
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_prepare_material()
+	var box := _field_box(covered)
+	var image := Image.create_from_data(
+		box.size.x,
+		box.size.y,
+		false,
+		Image.FORMAT_RG8,
+		_field_bytes(flow, covered, box),
+	)
+	var size := BloodConfig.flow_cell_size
+	_flow_material.set_shader_parameter("field_px", Vector2(box.size) * size)
+	_flow_material.set_shader_parameter("tuft_spread", BloodConfig.soak_tuft_spread)
+	_flow_material.set_shader_parameter("tuft_px", BloodConfig.soak_tuft_size)
+	_flow_material.set_shader_parameter("tuft_contrast", BloodConfig.soak_tuft_contrast)
+	_flow_material.set_shader_parameter("soak_opacity", BloodConfig.soak_opacity)
+	# Held in a member: a texture freed at the end of _draw would render white.
+	_flow_texture = ImageTexture.create_from_image(image)
+	draw_texture_rect(
+		_flow_texture,
+		Rect2(Vector2(box.position) * size, Vector2(box.size) * size),
+		false,
+	)
+
+
+## The threshold shader's material (made on first use) with the blood's colours.
+func _prepare_material() -> void:
 	if _flow_material == null:
 		var shader := Shader.new()
 		shader.code = FLOW_SHADER
@@ -100,6 +126,9 @@ func _draw_flow() -> void:
 	_flow_material.set_shader_parameter("rim_color", base.darkened(BloodConfig.flow_edge_darken))
 	_flow_material.set_shader_parameter("opacity", BloodConfig.color.a)
 
+
+## The cells the field spans: every `covered` cell and `PAD` empty ones round them.
+static func _field_box(covered: Array) -> Rect2i:
 	var lo := Vector2i(1 << 20, 1 << 20)
 	var hi := Vector2i(-(1 << 20), -(1 << 20))
 	for c in covered:
@@ -107,20 +136,23 @@ func _draw_flow() -> void:
 		hi = Vector2i(maxi(hi.x, c.x), maxi(hi.y, c.y))
 	lo -= Vector2i(PAD, PAD)
 	hi += Vector2i(PAD, PAD)
-	var w := hi.x - lo.x + 1
-	var h := hi.y - lo.y + 1
+	return Rect2i(lo, hi - lo + Vector2i.ONE)
 
+
+## The field over `box` as RG8 bytes: red = the fill, box-blurred; green = how far the blood has
+## sunk in (left at cell resolution; the texture filtering smooths it, and the shader soaks it in
+## tuft by tuft).
+static func _field_bytes(flow: BloodFlow, covered: Array, box: Rect2i) -> PackedByteArray:
+	var lo := box.position
+	var w := box.size.x
 	var field := PackedFloat32Array()
-	field.resize(w * h)
+	field.resize(w * box.size.y)
 	for c in covered:
 		field[(c.y - lo.y) * w + (c.x - lo.x)] = flow.fill(c)
 	for pass_i in BLUR_PASSES:
-		field = _box_blur(field, w, h)
-
-	# Red = fill, green = how far the blood has sunk in (left at cell resolution;
-	# the texture filtering smooths it, and the shader soaks it in tuft by tuft).
+		field = _box_blur(field, w, box.size.y)
 	var bytes := PackedByteArray()
-	bytes.resize(w * h * 2)
+	bytes.resize(field.size() * 2)
 	for i in field.size():
 		bytes[i * 2] = int(clampf(field[i], 0.0, 1.0) * 255.0)
 	if flow.has_porous():
@@ -128,16 +160,7 @@ func _draw_flow() -> void:
 			bytes[((c.y - lo.y) * w + (c.x - lo.x)) * 2 + 1] = int(
 				clampf(flow.soak_level(c), 0.0, 1.0) * 255.0,
 			)
-	var image := Image.create_from_data(w, h, false, Image.FORMAT_RG8, bytes)
-	var size := BloodConfig.flow_cell_size
-	_flow_material.set_shader_parameter("field_px", Vector2(w, h) * size)
-	_flow_material.set_shader_parameter("tuft_spread", BloodConfig.soak_tuft_spread)
-	_flow_material.set_shader_parameter("tuft_px", BloodConfig.soak_tuft_size)
-	_flow_material.set_shader_parameter("tuft_contrast", BloodConfig.soak_tuft_contrast)
-	_flow_material.set_shader_parameter("soak_opacity", BloodConfig.soak_opacity)
-	# Held in a member: a texture freed at the end of _draw would render white.
-	_flow_texture = ImageTexture.create_from_image(image)
-	draw_texture_rect(_flow_texture, Rect2(Vector2(lo) * size, Vector2(w, h) * size), false)
+	return bytes
 
 
 ## One 3x3 box-blur pass (edges read as empty), as the sum of each cell's three-cell row sums above,

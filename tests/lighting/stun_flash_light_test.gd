@@ -64,14 +64,7 @@ func run(t: TestContext) -> void:
 	var at: Vector2 = t.events_of(&"explosion")[0]["position"]
 	var burst := t.time
 
-	var flash: PointLight2D = null
-	for _i in LIT_WITHIN:
-		for l: PointLight2D in flashes:
-			if Probe.lit(l) and l.global_position.distance_to(at) <= Probe.FLASH_NEAR:
-				flash = l
-		if flash != null:
-			break
-		await t.frames(1)
+	var flash := await _find_flash(t, flashes, at)
 	if not t.require(
 			flash != null,
 			"the stun lights a flash within %.0f px of its burst within %d frames"
@@ -89,8 +82,54 @@ func run(t: TestContext) -> void:
 		"it is shadowed by walls and furniture, as every flash (shadows %s, mask %d)"
 			% [str(flash.shadow_enabled), flash.shadow_item_cull_mask],
 	)
+	await _check_fade(t, flash, burst)
 
-	# Its energy each frame from now on, until it is dark or DARK_BY + 0.5 s have passed.
+
+## The one of `flashes` lit within `Probe.FLASH_NEAR` of `at` within `LIT_WITHIN` frames (null for
+## none).
+func _find_flash(t: TestContext, flashes: Array, at: Vector2) -> PointLight2D:
+	var flash: PointLight2D = null
+	for _i in LIT_WITHIN:
+		for l: PointLight2D in flashes:
+			if Probe.lit(l) and l.global_position.distance_to(at) <= Probe.FLASH_NEAR:
+				flash = l
+		if flash != null:
+			break
+		await t.frames(1)
+	return flash
+
+
+## `flash`, lit at `burst` (s), is bright, holds its peak a few frames, is still lit after
+## `STILL_LIT` s and dark by `DARK_BY`.
+func _check_fade(t: TestContext, flash: PointLight2D, burst: float) -> void:
+	var trace := await _trace(t, flash, burst)
+	var energies: Array = trace["energies"]
+	var peak := 0.0
+	for e: float in energies:
+		peak = maxf(peak, e)
+	var held := _held(energies, peak)
+	var dark_at: float = trace["dark_at"]
+	t.check(
+		peak >= MIN_PEAK,
+		"the flash is bright, well over a frag's (peak energy %.2f, at least %.1f)"
+			% [peak, MIN_PEAK],
+	)
+	t.check(
+		held >= HELD_FRAMES,
+		"it holds its full brightness for an instant (%d frames at its peak, want %d)"
+			% [held, HELD_FRAMES],
+	)
+	t.check(trace["lit_at_still"], "it is still lit %.2f s after the burst" % STILL_LIT)
+	t.check(
+		dark_at >= 0.0 and dark_at <= DARK_BY,
+		"and dark within about a second (dark after %.2f s)" % dark_at,
+	)
+
+
+## `flash`'s energy each frame from now on, until it is dark or `DARK_BY` + 0.5 s have passed since
+## `burst`: `{ energies, lit_at_still, dark_at }` (`dark_at` s after the burst, -1 when it never
+## went dark).
+func _trace(t: TestContext, flash: PointLight2D, burst: float) -> Dictionary:
 	var energies: Array = []
 	var lit_at_still := false
 	var dark_at := -1.0
@@ -104,27 +143,15 @@ func run(t: TestContext) -> void:
 		if dark_at >= 0.0:
 			break
 		await t.frames(1)
-	var peak := 0.0
-	for e: float in energies:
-		peak = maxf(peak, e)
+	return { "energies": energies, "lit_at_still": lit_at_still, "dark_at": dark_at }
+
+
+## The length of the first run of `energies` within 5 % of `peak`.
+func _held(energies: Array, peak: float) -> int:
 	var held := 0
 	for e: float in energies:
 		if e >= peak * 0.95:
 			held += 1
 		elif held > 0:
 			break
-	t.check(
-		peak >= MIN_PEAK,
-		"the flash is bright, well over a frag's (peak energy %.2f, at least %.1f)"
-			% [peak, MIN_PEAK],
-	)
-	t.check(
-		held >= HELD_FRAMES,
-		"it holds its full brightness for an instant (%d frames at its peak, want %d)"
-			% [held, HELD_FRAMES],
-	)
-	t.check(lit_at_still, "it is still lit %.2f s after the burst" % STILL_LIT)
-	t.check(
-		dark_at >= 0.0 and dark_at <= DARK_BY,
-		"and dark within about a second (dark after %.2f s)" % dark_at,
-	)
+	return held

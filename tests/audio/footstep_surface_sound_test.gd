@@ -57,6 +57,13 @@ func run(t: TestContext) -> void:
 	# 150 px/s over 640 px is ~4.3 s; a stride of 48 px per step pair means ~6 steps/s.
 	t.check(steps.size() <= 40, "at a walking cadence, not a stampede (%d)" % steps.size())
 
+	_check_floors(t, steps)
+	_check_feet(t)
+	await _check_run(t, steps)
+
+
+## The walked `steps` sounded like the floor under them, some on each.
+func _check_floors(t: TestContext, steps: Array) -> void:
 	var on_wood := steps.filter(func(d): return d["position"].x < CARPET.position.x - 25.0)
 	var on_carpet := steps.filter(func(d): return d["position"].x > CARPET.position.x + 25.0)
 	t.check(
@@ -74,6 +81,9 @@ func run(t: TestContext) -> void:
 		"every step on the carpet sounded like carpet",
 	)
 
+
+## The feet landed in turn.
+func _check_feet(t: TestContext) -> void:
 	var feet := t.events_of(&"footfall").map(func(d): return d["foot"])
 	var alternating := true
 	for i in range(1, feet.size()):
@@ -81,7 +91,12 @@ func run(t: TestContext) -> void:
 			alternating = false
 	t.check(alternating and feet.size() >= 12, "the feet landed in turn (%d steps)" % feet.size())
 
-	# Running back across the whole room: run steps, and fewer of them per distance than walking.
+
+## Running back across the whole room: run steps, and fewer of them per distance than walking
+## (`steps`).
+func _check_run(t: TestContext, steps: Array) -> void:
+	var walker := t.puppet(&"walker")
+	var body := t.actor(&"walker")
 	var before := steps.size()
 	var start_x: float = body.global_position.x
 	walker.set_run(true)

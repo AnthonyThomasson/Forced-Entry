@@ -37,10 +37,32 @@ func run(t: TestContext) -> void:
 	var straight := NavBuilder.path_length(NavBuilder.route(world_map, FROM, TO))
 	t.check(straight < 620.0, "the plain route goes straight across (%.0f px)" % straight)
 
+	var map: RID = await _check_round_the_hole(t, region, straight)
+	if not map.is_valid():
+		return
+	var other: RID = await _check_another_key(t, region, map, straight)
+	if not other.is_valid():
+		return
+
+	# Only `other` is asked for from here on: `map` goes idle (on the wall clock, which a headless
+	# run outpaces: wait it out) and is freed with its region.
+	OS.delay_msec(450)
+	NavBuilder.avoid_map(region, "elsewhere", [])
+	t.check(
+		await t.until(func(): return not NavigationServer2D.get_maps().has(map), 5.0),
+		"a map nobody asks for is freed",
+	)
+	t.check(NavigationServer2D.get_maps().has(other), "the one still asked for is kept")
+
+
+## The avoid map of the middle hole: cached by its key, baked, its route round the hole, the world's
+## map untouched. Returns it, or an invalid RID once a premise has ended the test.
+func _check_round_the_hole(t: TestContext, region: NavigationRegion2D, straight: float) -> RID:
+	var world_map := t.world.get_world_2d().navigation_map
 	var hole := PackedVector2Array(HOLE)
 	var map := NavBuilder.avoid_map(region, "middle", [hole])
 	if not t.require(map.is_valid(), "avoid_map answers a map"):
-		return
+		return RID()
 	t.check(
 		NavBuilder.avoid_map(region, "middle", [hole]) == map,
 		"the same key answers the same map",
@@ -49,7 +71,7 @@ func run(t: TestContext) -> void:
 			await t.until(func(): return NavBuilder.ready(map), 8.0),
 			"the avoid map is baked and answers queries",
 	):
-		return
+		return RID()
 	var path := NavBuilder.route(map, FROM, TO)
 	var length := NavBuilder.path_length(path)
 	t.check(
@@ -65,7 +87,17 @@ func run(t: TestContext) -> void:
 		is_equal_approx(NavBuilder.path_length(NavBuilder.route(world_map, FROM, TO)), straight),
 		"the world's own map still goes straight through",
 	)
+	return map
 
+
+## Another key's avoid map, a hole off the route: another map, its route straight. Returns it, or an
+## invalid RID once a premise has ended the test.
+func _check_another_key(
+	t: TestContext,
+	region: NavigationRegion2D,
+	map: RID,
+	straight: float,
+) -> RID:
 	var other := NavBuilder.avoid_map(
 		region,
 		"elsewhere",
@@ -83,18 +115,9 @@ func run(t: TestContext) -> void:
 			await t.until(func(): return NavBuilder.ready(other), 8.0),
 			"the other map is baked too",
 	):
-		return
+		return RID()
 	t.check(
 		is_equal_approx(NavBuilder.path_length(NavBuilder.route(other, FROM, TO)), straight),
 		"and a hole off the route leaves the route straight",
 	)
-
-	# Only `other` is asked for from here on: `map` goes idle (on the wall clock, which a headless
-	# run outpaces: wait it out) and is freed with its region.
-	OS.delay_msec(450)
-	NavBuilder.avoid_map(region, "elsewhere", [])
-	t.check(
-		await t.until(func(): return not NavigationServer2D.get_maps().has(map), 5.0),
-		"a map nobody asks for is freed",
-	)
-	t.check(NavigationServer2D.get_maps().has(other), "the one still asked for is kept")
+	return other

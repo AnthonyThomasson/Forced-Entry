@@ -28,7 +28,7 @@ NavigationServer cannot merge ("navigation map synchronization error"). Overlapp
 then fused (`_union_outlines`, which skips the polygon merge for two outlines whose bounding boxes are apart: the union would keep them as two; `tests/navigation/furniture_union_fast_path_test.gd` pins it to the every-pair merge) and every outline is snapped to the 1 px grid with repeated points dropped (`_on_grid`). The bake runs in the
 house's local frame and the region is offset by `house.position`, so the map lands in world space.
 The composition root's match builder (`MatchBuilder.stage`, Main's match and every test world alike) calls it once after the house is built. `build` and every re-bake share one private path,
-`_source_for` (gathers the source geometry) then `_bake_job` (bakes it), so both carve furniture holes identically.
+`_source_for` (gathers the source geometry of a `NavSite`, `nav_site.gd`: the house, its rooms and the agent radius) then `_bake_job` (bakes it), so both carve furniture holes identically.
 
 ## Characters at rest are holes too (the steering map)
 

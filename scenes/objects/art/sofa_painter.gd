@@ -36,39 +36,15 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		roundi(seat_w / float(opts.get("cushion_width", ObjectArtConfig.sofa_cushion_width))), 1,
 		int(opts.get("max_cushions", ObjectArtConfig.sofa_max_cushions)),
 	)
-	# Back cushions lean away from the light overhead, so they sit a shade darker than the seat.
+	# The back cushions' tone (`_backrest`).
 	var back_tone := base.darkened(0.1)
 
 	# The frame shows only in the gaps between cushions.
 	c.fill(full, t.shadow, _FRAME_HEIGHT)
 
-	# Seat cushions.
-	for i in n:
-		var x0 := arm_w + roundi(float(i) * seat_w / n)
-		var x1 := arm_w + roundi(float(i + 1) * seat_w / n)
-		_cushion(c, Rect2i(x0, back_d - 1, x1 - x0, c.h - back_d), base, _SEAT_HEIGHT)
-
-	# Backrest: a rolled top across the full width over a row of back cushions.
-	var back := PixelCanvas.rounded(Rect2i(0, 0, c.w, back_d), 4)
-	c.fill(back, base, _BACK_HEIGHT)
-	c.bevel(back, 2, 2, t.highlight, t.dark)
-	c.bevel(back, 3, 3, t.light, t.dark)
-	var roll := maxi(3, int(back_d / 3.0))
-	for i in n:
-		var x0 := arm_w + roundi(float(i) * seat_w / n)
-		var x1 := arm_w + roundi(float(i + 1) * seat_w / n)
-		_cushion(c, Rect2i(x0, roll, x1 - x0, back_d - roll + 1), back_tone, _BACK_CUSHION_HEIGHT)
-
-	# Rolled armrests, a ridge of light along each roll.
-	for x: int in [0, c.w - arm_w]:
-		var arm := PixelCanvas.rounded(Rect2i(x, 0, arm_w, c.h), 4)
-		c.fill(arm, base, _ARM_HEIGHT)
-		c.bevel(arm, 2, 2, t.highlight, t.shadow)
-		c.bevel(arm, 3, 3, t.light, t.dark)
-		var ridge := x + int(arm_w / 2.0) + (-1 if c.light.x < 0.0 else 0)
-		for y in range(4, c.h - 4):
-			c.px(ridge, y, t.light)
-		c.outline(arm, t.outline)
+	_seat_cushions(c, base, back_d, arm_w, n)
+	_backrest(c, base, back_d, arm_w, n)
+	_arms(c, base, arm_w)
 
 	if opts.get("pillows", ObjectArtConfig.sofa_pillows):
 		_pillows(c, base, back_d, arm_w, seat_w)
@@ -79,6 +55,51 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.cast_shadows()
 	c.outline(full, t.outline)
 	upholstery(c)
+
+
+## The `n` seat cushions in `base` side by side between the `arm_w` armrests, in front of the
+## backrest (`back_d` deep).
+static func _seat_cushions(c: PixelCanvas, base: Color, back_d: int, arm_w: int, n: int) -> void:
+	var seat_w := c.w - 2 * arm_w
+	for i in n:
+		var x0 := arm_w + roundi(float(i) * seat_w / n)
+		var x1 := arm_w + roundi(float(i + 1) * seat_w / n)
+		_cushion(c, Rect2i(x0, back_d - 1, x1 - x0, c.h - back_d), base, _SEAT_HEIGHT)
+
+
+## The backrest (`back_d` deep): a rolled top across the full width over a row of `n` back cushions,
+## which lean away from the light overhead, so they sit a shade darker than the seat.
+static func _backrest(c: PixelCanvas, base: Color, back_d: int, arm_w: int, n: int) -> void:
+	var t := PixelCanvas.tones(base)
+	var seat_w := c.w - 2 * arm_w
+	var back := PixelCanvas.rounded(Rect2i(0, 0, c.w, back_d), 4)
+	c.fill(back, base, _BACK_HEIGHT)
+	c.bevel(back, 2, 2, t.highlight, t.dark)
+	c.bevel(back, 3, 3, t.light, t.dark)
+	var roll := maxi(3, int(back_d / 3.0))
+	for i in n:
+		var x0 := arm_w + roundi(float(i) * seat_w / n)
+		var x1 := arm_w + roundi(float(i + 1) * seat_w / n)
+		_cushion(
+			c,
+			Rect2i(x0, roll, x1 - x0, back_d - roll + 1),
+			base.darkened(0.1),
+			_BACK_CUSHION_HEIGHT,
+		)
+
+
+## The rolled armrests (`arm_w` wide) at both ends, a ridge of light along each roll.
+static func _arms(c: PixelCanvas, base: Color, arm_w: int) -> void:
+	var t := PixelCanvas.tones(base)
+	for x: int in [0, c.w - arm_w]:
+		var arm := PixelCanvas.rounded(Rect2i(x, 0, arm_w, c.h), 4)
+		c.fill(arm, base, _ARM_HEIGHT)
+		c.bevel(arm, 2, 2, t.highlight, t.shadow)
+		c.bevel(arm, 3, 3, t.light, t.dark)
+		var ridge := x + int(arm_w / 2.0) + (-1 if c.light.x < 0.0 else 0)
+		for y in range(4, c.h - 4):
+			c.px(ridge, y, t.light)
+		c.outline(arm, t.outline)
 
 
 ## The run-down finish of an upholstered seat (a sofa, an armchair, an office chair): grime, a tear

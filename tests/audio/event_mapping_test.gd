@@ -50,10 +50,44 @@ func run(t: TestContext) -> void:
 	Sound.reset()
 
 	var at := Vector2(123, 234)
+	if not _check_shots(t, at):
+		return
+	_check_hits(t, at)
+	_check_hit_loudness(t, at)
+
+	# Footfalls: the floor under the foot and the gait pick the sound.
+	var inside := Vector2(400, 250)
+	_check_footfall_profiles(t, inside)
+	_check_footfall_levels(t, inside)
+	_check_reloads(t, at)
+
+	# Steps swing wider than shots: many identical steps spread further than many identical shots.
+	var step_pitch := _spread(t, &"footfall", { "position": inside, "foot": 0, "speed": 150.0 })
+	var shot_pitch := _spread(t, &"shot", { "position": at, "gun": &"pistol" })
+	t.check(
+		step_pitch > shot_pitch,
+		"steps vary more in pitch than shots (%.3f vs %.3f)" % [step_pitch, shot_pitch],
+	)
+
+	# Other topics are none of its business.
+	t.expect_eq(
+		_post(t, &"callout", { "speaker": null }).size(),
+		0,
+		"a radio callout makes no sound",
+	)
+	t.expect_eq(
+		_post(t, &"sound", { "kind": &"shot", "profile": &"shot/rifle" }).size(),
+		1,
+		"and a `sound` event is only itself (it is not played again)",
+	)
+
+
+## Shots by gun, fired at `at`; false when the first makes no sound (the test has failed).
+func _check_shots(t: TestContext, at: Vector2) -> bool:
 	var shot := _post(t, &"shot", { "position": at, "gun": &"rifle", "power": 2.2 })
 	t.expect_eq(shot.size(), 1, "a shot makes one sound")
 	if not t.require(shot.size() == 1, "the shot sounded"):
-		return
+		return false
 	t.expect_eq(shot[0]["kind"], &"shot", "of the shot kind")
 	t.expect_eq(shot[0]["profile"], &"shot/rifle", "voiced as the rifle")
 	t.expect_eq(shot[0]["position"], at, "where it was fired")
@@ -67,7 +101,11 @@ func run(t: TestContext) -> void:
 		&"shot/pistol",
 		"a shot with no gun and no power is a medium round",
 	)
+	return true
 
+
+## Hits by outcome, material and the round's weight, at `at`; a hit no outcome voices is silent.
+func _check_hits(t: TestContext, at: Vector2) -> void:
 	for case in [
 			[
 				{ "outcome": &"ricochet", "material": "metal", "power": 2.2 },
@@ -113,7 +151,9 @@ func run(t: TestContext) -> void:
 		"an outcome nobody voices is silent",
 	)
 
-	# Impact loudness: a faster round and a harder punch are louder.
+
+## Impact loudness: a faster round and a harder punch are louder.
+func _check_hit_loudness(t: TestContext, at: Vector2) -> void:
 	var slow: Dictionary = _post(
 		t,
 		&"hit",
@@ -151,8 +191,9 @@ func run(t: TestContext) -> void:
 			% [hard["volume_db"], soft["volume_db"]],
 	)
 
-	# Footfalls: the floor under the foot and the gait pick the sound.
-	var inside := Vector2(400, 250)
+
+## A footfall `inside` the arena is on its wood floor, by its gait; one outside the house outdoors.
+func _check_footfall_profiles(t: TestContext, inside: Vector2) -> void:
 	var outside := Vector2(-300, 250)
 	t.expect_eq(
 		_post(
@@ -178,6 +219,10 @@ func run(t: TestContext) -> void:
 		)[0]["profile"],
 		&"footstep/outdoor/walk", "walking outside the house",
 	)
+
+
+## A brisk step is louder than a slow one, and the feet differ in pitch.
+func _check_footfall_levels(t: TestContext, inside: Vector2) -> void:
 	var quiet: Dictionary = _post(
 		t,
 		&"footfall",
@@ -209,7 +254,9 @@ func run(t: TestContext) -> void:
 			% [right["pitch"], left["pitch"]],
 	)
 
-	# Reloads: the magazine out when it starts, in when it finishes; anything else makes no sound.
+
+## Reloads: the magazine out when it starts, in when it finishes; anything else makes no sound.
+func _check_reloads(t: TestContext, at: Vector2) -> void:
 	t.expect_eq(
 		_post(
 			t,
@@ -247,24 +294,4 @@ func run(t: TestContext) -> void:
 		_post(t, &"reload", { "position": at, "gun": &"pistol", "stage": &"start" })[0]["kind"],
 		&"reload",
 		"of the reload kind",
-	)
-
-	# Steps swing wider than shots: many identical steps spread further than many identical shots.
-	var step_pitch := _spread(t, &"footfall", { "position": inside, "foot": 0, "speed": 150.0 })
-	var shot_pitch := _spread(t, &"shot", { "position": at, "gun": &"pistol" })
-	t.check(
-		step_pitch > shot_pitch,
-		"steps vary more in pitch than shots (%.3f vs %.3f)" % [step_pitch, shot_pitch],
-	)
-
-	# Other topics are none of its business.
-	t.expect_eq(
-		_post(t, &"callout", { "speaker": null }).size(),
-		0,
-		"a radio callout makes no sound",
-	)
-	t.expect_eq(
-		_post(t, &"sound", { "kind": &"shot", "profile": &"shot/rifle" }).size(),
-		1,
-		"and a `sound` event is only itself (it is not played again)",
 	)

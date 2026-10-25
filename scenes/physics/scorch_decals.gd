@@ -39,9 +39,9 @@ func burn(at: Vector2, radius: float) -> void:
 	for j in range(-rows, rows):
 		var y := (float(j) + 0.5) * step
 		var edge := sqrt(maxf(radius * radius - y * y, 0.0)) * randf_range(0.78, 1.12)
-		_row(rects, tones, at, j, step, edge, rim)
+		_row(rects, tones, at + Vector2(0.0, j * step), edge, rim)
 		var core := sqrt(maxf(pow(radius * CORE_SHARE, 2.0) - y * y, 0.0)) * randf_range(0.8, 1.1)
-		_row(rects, tones, at, j, step, core, base)
+		_row(rects, tones, at + Vector2(0.0, j * step), core, base)
 	for _i in SPECKS:
 		var spot := at + Vector2.from_angle(randf() * TAU) * radius * randf_range(0.9, 1.35)
 		rects.append(Rect2((spot / step).floor() * step, Vector2(step, step)))
@@ -50,21 +50,14 @@ func burn(at: Vector2, radius: float) -> void:
 	_add({ "chunk": _chunk_cell(at), "rects": rects, "tones": tones }, Despawner.max_scene_objects)
 
 
-## One row `j` (counted from the mark's centre) of a disc, `half` px each way from `at`, stepped to
-## the pixel grid.
-func _row(
-	rects: Array[Rect2],
-	tones: Array[Color],
-	at: Vector2,
-	j: int,
-	step: float,
-	half: float,
-	tone: Color,
-) -> void:
+## One row of a disc, centred on `row_at`, `half` px each way, stepped to the pixel grid.
+func _row(rects: Array[Rect2], tones: Array[Color], row_at: Vector2, half: float,
+		tone: Color) -> void:
+	var step := maxf(PhysicsConfig.explosion_pixel, 1.0)
 	var cells := roundi(half / step)
 	if cells <= 0:
 		return
-	rects.append(Rect2(at + Vector2(-cells * step, j * step), Vector2(2.0 * cells * step, step)))
+	rects.append(Rect2(row_at + Vector2(-cells * step, 0.0), Vector2(2.0 * cells * step, step)))
 	tones.append(tone)
 
 

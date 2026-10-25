@@ -81,57 +81,105 @@ static func linked(type_a: String, type_b: String) -> bool:
 ## `{ key, type, rect }`, `openings` are `{ pos, front, rooms, … }` — in any one coordinate space (a
 ## plan's, or the world's).
 static func check(rooms: Array, openings: Array) -> Array:
-	var problems: Array = []
 	var type_of := {}
 	var graph := { OUTSIDE: [] }
-	var bounds := Rect2()
-	for i in range(rooms.size()):
-		var room: Dictionary = rooms[i]
+	for room: Dictionary in rooms:
 		type_of[room["key"]] = room["type"]
 		graph[room["key"]] = []
-		bounds = room["rect"] if i == 0 else bounds.merge(room["rect"])
-
-	var fronts := 0
 	var doors := {}  # room key -> interior doors it has
-	for opening in openings:
-		var keys: Array = opening["rooms"]
-		var is_front: bool = opening.get("front", false)
-		if is_front:
-			fronts += 1
-		if keys.size() == 1:
-			var key: String = keys[0]
-			if is_front:
-				if not rule(type_of[key])["front"]:
-					problems.append("the front door opens into %s" % _describe(key, type_of))
-				if absf((opening["pos"] as Vector2).y - bounds.end.y) > 1.0:
-					problems.append("the front door at %s is not on the house's south wall"
-							% [opening["pos"]])
-			elif not rule(type_of[key])["exit"]:
-				problems.append("an exterior door opens into %s" % _describe(key, type_of))
-			graph[key].append(OUTSIDE)
-			graph[OUTSIDE].append(key)
-		elif keys.size() == 2 and not is_front:
-			var a: String = keys[0]
-			var b: String = keys[1]
-			if not linked(type_of[a], type_of[b]):
-				problems.append("a door joins %s and %s"
-						% [_describe(a, type_of), _describe(b, type_of)])
-			graph[a].append(b)
-			graph[b].append(a)
-			doors[a] = doors.get(a, 0) + 1
-			doors[b] = doors.get(b, 0) + 1
-		else:
-			problems.append("the doorway at %s joins %d rooms%s"
-					% [opening["pos"], keys.size(), " (a front entrance)" if is_front else ""])
-	if fronts != 1:
-		problems.append("the house needs exactly one front door, not %d" % fronts)
-
+	var problems := _door_problems(openings, type_of, _bounds(rooms), graph, doors)
 	for key in type_of:
 		var max_doors: int = rule(type_of[key])["max_doors"]
 		if doors.get(key, 0) > max_doors:
 			problems.append("%s has %d doors (at most %d)"
 					% [_describe(key, type_of), doors[key], max_doors])
+	problems.append_array(_reach_problems(type_of, graph))
+	return problems
 
+
+## The bounds of `rooms`' rects.
+static func _bounds(rooms: Array) -> Rect2:
+	var bounds := Rect2()
+	for i in range(rooms.size()):
+		bounds = rooms[i]["rect"] if i == 0 else bounds.merge(rooms[i]["rect"])
+	return bounds
+
+
+## Every doorway's violations (and the front door count's), joining the rooms each one opens in
+## `graph` (OUTSIDE for an exterior door) and counting each room's interior doors in `doors`.
+## `type_of` maps a room key to its type, `bounds` are the rooms'.
+static func _door_problems(
+	openings: Array,
+	type_of: Dictionary,
+	bounds: Rect2,
+	graph: Dictionary,
+	doors: Dictionary,
+) -> Array:
+	var problems: Array = []
+	var fronts := 0
+	for opening: Dictionary in openings:
+		var keys: Array = opening["rooms"]
+		var is_front: bool = opening.get("front", false)
+		if is_front:
+			fronts += 1
+		if keys.size() == 1:
+			problems.append_array(_exterior_problems(opening, keys[0], type_of, bounds, graph))
+		elif keys.size() == 2 and not is_front:
+			problems.append_array(_interior_problems(keys[0], keys[1], type_of, graph, doors))
+		else:
+			problems.append("the doorway at %s joins %d rooms%s"
+					% [opening["pos"], keys.size(), " (a front entrance)" if is_front else ""])
+	if fronts != 1:
+		problems.append("the house needs exactly one front door, not %d" % fronts)
+	return problems
+
+
+## An exterior door's violations (`opening` into room `key`): a front door into a room that may not
+## carry it or off the house's south wall (of `bounds`), an exit into one that may not have one. It
+## joins the room to OUTSIDE in `graph`.
+static func _exterior_problems(
+	opening: Dictionary,
+	key: String,
+	type_of: Dictionary,
+	bounds: Rect2,
+	graph: Dictionary,
+) -> Array:
+	var problems: Array = []
+	var front: bool = opening.get("front", false)
+	if front and not rule(type_of[key])["front"]:
+		problems.append("the front door opens into %s" % _describe(key, type_of))
+	if front and absf((opening["pos"] as Vector2).y - bounds.end.y) > 1.0:
+		problems.append("the front door at %s is not on the house's south wall" % [opening["pos"]])
+	if not front and not rule(type_of[key])["exit"]:
+		problems.append("an exterior door opens into %s" % _describe(key, type_of))
+	graph[key].append(OUTSIDE)
+	graph[OUTSIDE].append(key)
+	return problems
+
+
+## An interior door's violation between rooms `a` and `b`, if their types may not share a door. It
+## joins them in `graph` and counts it for both in `doors`.
+static func _interior_problems(
+	a: String,
+	b: String,
+	type_of: Dictionary,
+	graph: Dictionary,
+	doors: Dictionary,
+) -> Array:
+	var problems: Array = []
+	if not linked(type_of[a], type_of[b]):
+		problems.append("a door joins %s and %s" % [_describe(a, type_of), _describe(b, type_of)])
+	graph[a].append(b)
+	graph[b].append(a)
+	doors[a] = doors.get(a, 0) + 1
+	doors[b] = doors.get(b, 0) + 1
+	return problems
+
+
+## The rooms (`type_of`: key -> type) nothing reaches from outside along `graph`, and those walked
+## through that must not be.
+static func _reach_problems(type_of: Dictionary, graph: Dictionary) -> Array:
+	var problems: Array = []
 	var from_outside := _reached(graph, "")
 	for key in type_of:
 		if not from_outside.has(key):
@@ -141,13 +189,27 @@ static func check(rooms: Array, openings: Array) -> Array:
 	for key in type_of:
 		if rule(type_of[key])["through"] or not from_outside.has(key):
 			continue
-		var without := _reached(graph, key)
-		for other in type_of:
-			if other == key or not from_outside.has(other) or without.has(other):
-				continue
-			if rule(type_of[other])["through"] or _only_neighbour(graph, other) != key:
-				problems.append("%s is a pass-through: reaching %s means walking through it"
-						% [_describe(key, type_of), _describe(other, type_of)])
+		problems.append_array(_pass_through(key, type_of, graph, from_outside))
+	return problems
+
+
+## Room `key` walked through: each room reached from outside (`from_outside`) only through `key`
+## is a violation, but for a private dead end hanging off it (one that may not be walked through
+## itself, whose only neighbour is `key`: an en-suite).
+static func _pass_through(
+	key: String,
+	type_of: Dictionary,
+	graph: Dictionary,
+	from_outside: Dictionary,
+) -> Array:
+	var problems: Array = []
+	var without := _reached(graph, key)
+	for other in type_of:
+		if other == key or not from_outside.has(other) or without.has(other):
+			continue
+		if rule(type_of[other])["through"] or _only_neighbour(graph, other) != key:
+			problems.append("%s is a pass-through: reaching %s means walking through it"
+					% [_describe(key, type_of), _describe(other, type_of)])
 	return problems
 
 

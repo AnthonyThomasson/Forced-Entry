@@ -54,6 +54,13 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.screenshot("rug_soaked")
+	_check_soaked(t, on_rug, covered_before)
+	_check_floor(t, on_floor)
+	await _check_rug_gone(t, rug)
+
+
+## The rug's blood has sunk in, still covering the `covered_before` cells, and is dry to touch.
+func _check_soaked(t: TestContext, on_rug: Node, covered_before: int) -> void:
 	t.expect_near(on_rug.flow.soak_level(Vector2i.ZERO), 1.0, 0.01, "rug blood has sunk in")
 	t.expect_near(
 		on_rug.flow.fill(Vector2i.ZERO),
@@ -66,6 +73,10 @@ func run(t: TestContext) -> void:
 		BloodField.wetness_at(on_rug.global_position) < 0.05,
 		"soaked blood is not wet enough to pick up",
 	)
+
+
+## The bare floor's blood stays filled and wet.
+func _check_floor(t: TestContext, on_floor: Node) -> void:
 	t.expect_near(
 		on_floor.flow.fill(Vector2i.ZERO),
 		1.0,
@@ -74,6 +85,9 @@ func run(t: TestContext) -> void:
 	)
 	t.check(BloodField.wetness_at(on_floor.global_position) > 0.8, "blood on bare floor stays wet")
 
+
+## The rug is a porous surface until it is freed.
+func _check_rug_gone(t: TestContext, rug: Node) -> void:
 	t.check(BloodSurface.is_porous(Vector2(250, 250)), "the rug is a porous surface")
 	rug.queue_free()
 	await t.frames(2)

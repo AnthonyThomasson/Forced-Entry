@@ -35,12 +35,13 @@ const FURNITURE_CLEAR := 22.0
 const WALL_CLEAR := 8.0
 
 
-## `interior` and `blocked` rects are in `parent`'s coordinate space. Returns the palette picked
+## Furnish `site`'s room (its `type`'s recipe) within `interior`, clear of its doorway boxes, under
+## its furniture node, drawing from `rng` (rects in the house's space). Returns the palette picked
 ## for the room (its `wood` / `fabric` tones and `floor` key), or {} if the type has no recipe. The
-## footprint of every solid piece it spawns is appended to `solids` (rects in `parent`'s space, from
-## the catalogue's sizes).
-static func furnish(room_type: String, interior: Rect2, blocked: Array, rng: RandomNumberGenerator,
-		parent: Node, solids: Array = []) -> Dictionary:
+## footprint of every solid piece it spawns is appended to `site.solids` (from the catalogue's
+## sizes).
+static func furnish(site: RoomSite, interior: Rect2, rng: RandomNumberGenerator) -> Dictionary:
+	var room_type: String = site.room["type"]
 	var recipe := ArrangementDefinitions.get_recipe(room_type)
 	if recipe.is_empty():
 		push_error("No furnishing recipe for room type: ", room_type)
@@ -53,14 +54,20 @@ static func furnish(room_type: String, interior: Rect2, blocked: Array, rng: Ran
 	# (walkability can make a tight room unable to fit it) is re-rolled instead of spawned.
 	var plan := {}
 	for attempt in range(PLAN_ATTEMPTS):
-		plan = _plan(recipe, interior, blocked, rng)
+		plan = _plan(recipe, interior, site.blocked, rng)
 		if plan["missing"].is_empty():
 			break
 	for zone_options in plan["missing"]:
 		push_warning("RoomFurnisher: no room for required zone %s in %s"
 				% [zone_options, room_type])
 	for placement in plan["placements"]:
-		_spawn_items(placement["arrangement"], placement["spot"], palette, parent, solids)
+		_spawn_items(
+			placement["arrangement"],
+			placement["spot"],
+			palette,
+			site.furniture,
+			site.solids,
+		)
 	return palette
 
 
@@ -179,10 +186,7 @@ static func _find_spot(
 	var mirror := rng.randf() < 0.5
 
 	if arrangement.get("placement", "wall") == "center":
-		var fits := func(rect: Rect2) -> bool:
-			return (_fits(rect, interior, occupied) and _leaves_no_slot(rect, walk)
-					and _keeps_walkable(rect, walk))
-		return _centre_spot(fp, interior, mirror, rng, fits)
+		return _centre_spot(fp, interior, mirror, rng, _spot_check(interior, occupied, walk))
 
 	for orient in _shuffled([Orient.TOP, Orient.BOTTOM, Orient.LEFT, Orient.RIGHT], rng):
 		var wall_length := (interior.size.x
@@ -198,6 +202,14 @@ static func _find_spot(
 					and _keeps_walkable(rect, walk)):
 				return { "rect": rect, "orient": orient, "mirror": mirror }
 	return {}
+
+
+## Whether a rect is a free spot: it fits `interior` clear of `occupied`, leaves no dead slot and
+## keeps the room's doorways walkable (`walk`).
+static func _spot_check(interior: Rect2, occupied: Array, walk: Dictionary) -> Callable:
+	return func(rect: Rect2) -> bool:
+		return (_fits(rect, interior, occupied) and _leaves_no_slot(rect, walk)
+				and _keeps_walkable(rect, walk))
 
 
 ## Like a free-standing spot, but for a "ground" arrangement: dead center first, then random,
@@ -252,13 +264,7 @@ static func _walk_state(interior: Rect2, blocked: Array) -> Dictionary:
 	for clearance: Rect2 in blocked:
 		if not clearance.intersects(interior):
 			continue
-		var cells: Array = []
-		for i in range(cols * rows):
-			if (grid[i] == 0
-					and clearance.has_point(_cell_center(
-							interior, i % cols, int(i / float(cols)),
-					))):
-				cells.append(i)
+		var cells := _free_cells_in(clearance, grid, interior, cols)
 		if not cells.is_empty():
 			doors.append(cells)
 	return {
@@ -269,6 +275,20 @@ static func _walk_state(interior: Rect2, blocked: Array) -> Dictionary:
 		"doors": doors,
 		"furniture": [],
 	}
+
+
+## The free cells of the walk `grid` (`cols` wide, over `interior`) whose centres lie in `area`.
+static func _free_cells_in(
+	area: Rect2,
+	grid: PackedByteArray,
+	interior: Rect2,
+	cols: int,
+) -> Array:
+	var cells: Array = []
+	for i in range(grid.size()):
+		if grid[i] == 0 and area.has_point(_cell_center(interior, i % cols, int(i / float(cols)))):
+			cells.append(i)
+	return cells
 
 
 ## The centre of walk-grid cell (`col`, `row`) in world space.
@@ -406,19 +426,7 @@ static func _spawn_items(
 
 	for item in arrangement["items"]:
 		var key: String = item["key"]
-		var local: Vector2 = item["pos"]
-		if mirror:
-			local.x = fp.x - local.x
-		var mapped: Vector2
-		match orient:
-			Orient.TOP:
-				mapped = local
-			Orient.BOTTOM:
-				mapped = Vector2(local.x, fp.y - local.y)
-			Orient.LEFT:
-				mapped = Vector2(local.y, local.x)
-			_:
-				mapped = Vector2(fp.y - local.y, local.x)
+		var mapped := _map_pos(item["pos"], fp, orient, mirror)
 
 		# World-Gen owns the catalogue: look the definition up here and hand the plain
 		# dict to the Objects factory (which never knows about ObjectDefinitions).
@@ -435,10 +443,31 @@ static func _spawn_items(
 			opts["color"] = palette[material]
 		ObjectFactory.spawn(definition, rect.position + mapped, parent, opts)
 		if definition.get("solid", true):
-			var size: Vector2 = definition["size"]
-			if opts["rotated"]:
-				size = Vector2(size.y, size.x)
-			solids.append(Rect2(rect.position + mapped - size * 0.5, size))
+			solids.append(_footprint(definition, rect.position + mapped, opts["rotated"]))
+
+
+## Map a point `local` from an arrangement's top-wall frame (footprint `fp`) onto the chosen wall:
+## mirror flips x; LEFT/RIGHT swap the axes.
+static func _map_pos(local: Vector2, fp: Vector2, orient: int, mirror: bool) -> Vector2:
+	if mirror:
+		local.x = fp.x - local.x
+	match orient:
+		Orient.TOP:
+			return local
+		Orient.BOTTOM:
+			return Vector2(local.x, fp.y - local.y)
+		Orient.LEFT:
+			return Vector2(local.y, local.x)
+		_:
+			return Vector2(fp.y - local.y, local.x)
+
+
+## The footprint of a piece of `definition` centred on `at`, its size turned when `rotated`.
+static func _footprint(definition: Dictionary, at: Vector2, rotated: bool) -> Rect2:
+	var size: Vector2 = definition["size"]
+	if rotated:
+		size = Vector2(size.y, size.x)
+	return Rect2(at - size * 0.5, size)
 
 
 ## Map a direction from the arrangement's top-wall frame onto the chosen wall, the same way

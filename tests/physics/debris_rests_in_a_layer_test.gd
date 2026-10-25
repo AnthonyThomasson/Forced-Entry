@@ -58,6 +58,12 @@ func run(t: TestContext) -> void:
 		layer.count() == seen.size(),
 		"every chip that flew is now in the layer (%d of %d)" % [layer.count(), seen.size()],
 	)
+	_check_near_strikes(t, layer)
+	_check_cap(t, layer)
+
+
+## Each chip in `layer` rests a short throw from something the round struck.
+func _check_near_strikes(t: TestContext, layer: DebrisLayer) -> void:
 	var struck: Array = t.events_of(&"hit").map(func(d): return d["position"])
 	var far := 0
 	for chip in layer.items():
@@ -71,6 +77,9 @@ func run(t: TestContext) -> void:
 		"each rests a short throw from something the round struck (%d farther than 80 px)" % far,
 	)
 
+
+## Past the cap, `layer` holds exactly the cap and drops its oldest chip.
+func _check_cap(t: TestContext, layer: DebrisLayer) -> void:
 	var cap_before: int = Despawner.max_scene_objects
 	Despawner.max_scene_objects = CAP
 	var oldest: Dictionary = layer.items()[0]

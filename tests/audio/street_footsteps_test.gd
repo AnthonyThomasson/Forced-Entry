@@ -75,11 +75,13 @@ func run(t: TestContext) -> void:
 	var kinds := street.map(func(e: Dictionary) -> String: return String(e.get("kind", "")))
 	t.check(kinds.has("street"), "the ring has street (%s)" % [kinds])
 	t.check(kinds.has("sidewalk"), "the ring has sidewalk (%s)" % [kinds])
+	_check_pieces(t, house, street)
+	_check_ring(t, street, outside)
 
+
+## Each piece of `street` is drawn in `house`, out of its rooms, and registers no sound surface.
+func _check_pieces(t: TestContext, house: Node2D, street: Array) -> void:
 	var rooms := WorldGen.get_rooms(house)
-	var bounds: Rect2 = rooms[0]["rect"]
-	for room: Dictionary in rooms:
-		bounds = bounds.merge(room["rect"])
 	for e: Dictionary in street:
 		var rect: Rect2 = e.get("rect", Rect2())
 		var node: Variant = e.get("node")
@@ -98,7 +100,14 @@ func run(t: TestContext) -> void:
 			"the %s at %s registers no sound surface" % [e.get("kind", ""), rect],
 		)
 
-	# The ring goes all the way round: each side and each corner of the house, a little way out.
+
+## The ring goes all the way round: each side and each corner of the house, a little way out; and
+## every step `outside` landed on it.
+func _check_ring(t: TestContext, street: Array, outside: Array) -> void:
+	var rooms := WorldGen.get_rooms(t.world.house)
+	var bounds: Rect2 = rooms[0]["rect"]
+	for room: Dictionary in rooms:
+		bounds = bounds.merge(room["rect"])
 	var c := bounds.get_center()
 	for p: Vector2 in [
 		Vector2(c.x, bounds.position.y - OUT), Vector2(c.x, bounds.end.y + OUT),

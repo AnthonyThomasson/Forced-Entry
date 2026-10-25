@@ -96,25 +96,33 @@ static func pieces(root: Node) -> Array:
 ## of them.
 static func light_kind(piece: Node) -> String:
 	var opts: Dictionary = piece.get("art_opts") if piece.get("art_opts") is Dictionary else {}
-	match String(piece.get("art")):
-		"lamp":
-			return "lamp"
-		"streetlight":
-			return "streetlight"
+	var art := String(piece.get("art"))
+	if art == "lamp" or art == "streetlight":
+		return art
+	return _kind_by_opts(art, opts)
+
+
+## What light-giving kind a piece of `art` drawn with `opts` is ("screen", "neon tube"), or "" for
+## none of them (`light_kind` past the arts that always give light).
+static func _kind_by_opts(art: String, opts: Dictionary) -> String:
+	match art:
 		"appliance":
 			return "screen" if String(opts.get("panel", "")) == "tv" else ""
 		"table":
-			var props: Array = opts.get("props", [])
-			return ("screen"
-					if props.any(func(p: Variant) -> bool: return (
-						p is Dictionary and p.get("kind", "") == "monitor"
-					))
-					else "")
+			return "screen" if _has_monitor(opts) else ""
 		"tech":
 			return "screen" if String(opts.get("kind", "")) == "monitor_wall" else ""
 		"decor":
 			return "neon tube" if String(opts.get("kind", "")) == "neon_tube" else ""
 	return ""
+
+
+## Whether a table drawn with `opts` carries a monitor among its props.
+static func _has_monitor(opts: Dictionary) -> bool:
+	var props: Array = opts.get("props", [])
+	return props.any(func(p: Variant) -> bool: return (
+		p is Dictionary and p.get("kind", "") == "monitor"
+	))
 
 
 ## The lights `piece` (a piece from `pieces`) declares: its `get_lights()`.

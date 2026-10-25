@@ -72,6 +72,12 @@ static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep
 	c.fill(bowl, floor_col, 1)
 	c.bevel(bowl, 1, 1, t.shadow, t.light)
 	c.bevel(bowl, 2, 3 if deep else 2, t.dark, floor_col.lightened(0.05))
+	_drain_and_tap(c, r, splash, top)
+
+
+## The drain in the middle of the basin `r` and the mixer tap reaching it from the backsplash
+## (`splash` deep; the basin's top edge at `top`), with its two handles.
+static func _drain_and_tap(c: PixelCanvas, r: Rect2i, splash: int, top: int) -> void:
 	var centre := r.position + r.size / 2
 	var metal := ObjectArtConfig.counter_tap_color
 	var drain := PixelCanvas.disc(centre, 2)

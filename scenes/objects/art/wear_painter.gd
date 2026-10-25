@@ -23,6 +23,9 @@ const SUBFLOOR := Color(0.07, 0.06, 0.05)
 const SCREED := Color(0.2, 0.19, 0.17)
 const BRICK := Color(0.46, 0.22, 0.14)
 const MORTAR := Color(0.62, 0.56, 0.46)
+## A broken slab corner's grit, mostly dark, now and then paler.
+const _GRIT := Color(0.12, 0.11, 0.1, 0.9)
+const _GRIT_PALE := Color(0.3, 0.28, 0.25, 0.9)
 
 
 ## Paint the mark `kind` onto `c` (`base`: the surface's own tone, for the marks that tint it).
@@ -129,27 +132,44 @@ static func _missing_cells(c: PixelCanvas, cell: int, nx: int, ny: int) -> void:
 			if Vector2i(gx, gy) != gone[0] and c.rng.randf() < 0.45:
 				gone.append(Vector2i(gx, gy))
 	for g in gone:
-		var r := Rect2i(g.x * cell + 1, g.y * cell + 1, cell - 1, cell - 1)
-		for y in range(r.position.y, r.end.y):
-			for x in range(r.position.x, r.end.x):
-				var edge := (x == r.position.x
-						or y == r.position.y
-						or x == r.end.x - 1
-						or y == r.end.y - 1)
-				if edge and c.rng.randf() < 0.3:
-					continue  # A chip of tile still stuck at the edge.
-				c.img.set_pixel(x, y, SCREED if c.rng.randf() < 0.82 else SCREED.lightened(0.18))
+		_knock_out(c, Rect2i(g.x * cell + 1, g.y * cell + 1, cell - 1, cell - 1))
 	if gone.size() < nx * ny:
-		for gy in ny:
-			for gx in nx:
-				if not gone.has(Vector2i(gx, gy)):
-					var a := Vector2i(gx * cell + 2, gy * cell + c.rng.randi_range(2, cell - 2))
-					var p := a
-					for _k in cell - 3:
-						c.img.set_pixel(p.x, p.y, Color(0.03, 0.03, 0.03, 0.75))
-						p += Vector2i(1, c.rng.randi_range(-1, 1))
-						p.y = clampi(p.y, gy * cell + 1, gy * cell + cell - 1)
-					return
+		_crack_one_left(c, cell, nx, ny, gone)
+
+
+## The screed under a tile knocked out of `r`, with crumbs, a chip of tile still stuck here and
+## there at its edge.
+static func _knock_out(c: PixelCanvas, r: Rect2i) -> void:
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var edge := (x == r.position.x
+					or y == r.position.y
+					or x == r.end.x - 1
+					or y == r.end.y - 1)
+			if edge and c.rng.randf() < 0.3:
+				continue  # A chip of tile still stuck at the edge.
+			c.img.set_pixel(x, y, SCREED if c.rng.randf() < 0.82 else SCREED.lightened(0.18))
+
+
+## A crack across the first tile of the `nx` x `ny` block of `cell` px tiles left in place (not in
+## `gone`).
+static func _crack_one_left(c: PixelCanvas, cell: int, nx: int, ny: int,
+		gone: Array[Vector2i]) -> void:
+	for gy in ny:
+		for gx in nx:
+			if not gone.has(Vector2i(gx, gy)):
+				_tile_crack(c, cell, Vector2i(gx, gy))
+				return
+
+
+## A dark hairline crack wandering across the tile at grid cell `g` of a `cell` px grid.
+static func _tile_crack(c: PixelCanvas, cell: int, g: Vector2i) -> void:
+	var a := Vector2i(g.x * cell + 2, g.y * cell + c.rng.randi_range(2, cell - 2))
+	var p := a
+	for _k in cell - 3:
+		c.img.set_pixel(p.x, p.y, Color(0.03, 0.03, 0.03, 0.75))
+		p += Vector2i(1, c.rng.randi_range(-1, 1))
+		p.y = clampi(p.y, g.y * cell + 1, g.y * cell + cell - 1)
 
 
 ## A crack: a jagged line wandering along the canvas's long side, with one short branch.
@@ -163,20 +183,27 @@ static func _crack(c: PixelCanvas, col: Color, alpha: float) -> void:
 		if c.has(p.x, p.y):
 			c.img.set_pixel(p.x, p.y, Color(col, alpha))
 		if k == branch_at:
-			var q := p
-			var turn := (Vector2i(1, c.rng.randi_range(0, 1) * 2 - 1)
-					if horizontal
-					else Vector2i(c.rng.randi_range(0, 1) * 2 - 1, 1))
-			for _j in c.rng.randi_range(4, maxi(5, int(length / 4.0))):
-				q += (turn
-						if c.rng.randf() < 0.6
-						else (Vector2i(1, 0) if horizontal else Vector2i(0, 1)))
-				if c.has(q.x, q.y):
-					c.img.set_pixel(q.x, q.y, Color(col, alpha * 0.8))
+			_crack_branch(c, p, horizontal, length, Color(col, alpha * 0.8))
 		p += (Vector2i(1, c.rng.randi_range(-1, 1))
 				if horizontal
 				else Vector2i(c.rng.randi_range(-1, 1), 1))
 		p = p.clamp(Vector2i.ZERO, Vector2i(c.w - 1, c.h - 1))
+
+
+## The crack's short branch from `p`, turning off it to one side, in `col` (a crack `length` px
+## long along x when `horizontal`).
+static func _crack_branch(c: PixelCanvas, p: Vector2i, horizontal: bool, length: int,
+		col: Color) -> void:
+	var q := p
+	var turn := (Vector2i(1, c.rng.randi_range(0, 1) * 2 - 1)
+			if horizontal
+			else Vector2i(c.rng.randi_range(0, 1) * 2 - 1, 1))
+	for _j in c.rng.randi_range(4, maxi(5, int(length / 4.0))):
+		q += (turn
+				if c.rng.randf() < 0.6
+				else (Vector2i(1, 0) if horizontal else Vector2i(0, 1)))
+		if c.has(q.x, q.y):
+			c.img.set_pixel(q.x, q.y, col)
 
 
 ## A lobed, dithered blot of `col` fading out from its middle, filling the canvas's oval; `tide`
@@ -384,10 +411,4 @@ static func _chip(c: PixelCanvas) -> void:
 		for x in c.w:
 			var d := absf(x - corner.x) + absf(y - corner.y)
 			if d < reach * 0.8 + c.rng.randf_range(-1.5, 1.5):
-				c.img.set_pixel(
-					x,
-					y,
-					Color(0.12, 0.11, 0.1, 0.9)
-						if c.rng.randf() < 0.8
-						else Color(0.3, 0.28, 0.25, 0.9),
-				)
+				c.img.set_pixel(x, y, _GRIT if c.rng.randf() < 0.8 else _GRIT_PALE)

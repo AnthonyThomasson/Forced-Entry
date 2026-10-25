@@ -115,6 +115,41 @@ func _check_house(
 	for room: Dictionary in rooms:
 		room_of[room["key"]] = room
 
+	_check_wear_layers(t, house, label, wear, room_of)
+	for entry: Dictionary in clutter:
+		t.check(
+			room_of.has(entry.get("room", "")),
+			"%s: a clutter piece names a room of the house (%s)" % [label, entry.get("room", "")],
+		)
+
+	for room: Dictionary in rooms:
+		var key: String = room["key"]
+		var where := "%s: the %s (%s)" % [label, key, room["type"]]
+		var layout := _check_room_wear(t, where, room, house, wear)
+		if not layout.is_empty():
+			tally["worn"] += 1
+			if not layouts.has(room["type"]):
+				layouts[room["type"]] = []
+			layouts[room["type"]].append({ "label": where, "layout": layout })
+
+		var placed := clutter.filter(func(e: Dictionary) -> bool: return e.get("room", "") == key)
+		_check_room_clutter(t, where, room, house, placed)
+		if not placed.is_empty():
+			tally["cluttered"] += 1
+		tally["rooms"] += 1
+
+	_check_clutter_not_carved(t, house, label, clutter)
+
+
+## Each room's wear in `house` (`label`) is drawn by one layer of its own in the house, and every
+## cluster names a room of it (`room_of`).
+func _check_wear_layers(
+	t: TestContext,
+	house: Node2D,
+	label: String,
+	wear: Array,
+	room_of: Dictionary,
+) -> void:
 	var layer_of := {}  # room key -> the layer drawing its wear
 	for entry: Dictionary in wear:
 		var key: String = entry.get("room", "")
@@ -129,93 +164,120 @@ func _check_house(
 			"%s: the %s's wear is drawn by a layer in the house" % [label, key],
 		)
 		if layer is Node:
-			if layer_of.has(key):
-				t.check(layer_of[key] == layer, "%s: the %s's wear is one layer" % [label, key])
-			else:
-				t.check(
-					not layer_of.values().has(layer),
-					"%s: the %s's wear has a layer of its own, not another room's" % [label, key],
-				)
-				layer_of[key] = layer
+			_check_own_layer(t, "%s: the %s's wear" % [label, key], key, layer, layer_of)
 
-	for entry: Dictionary in clutter:
+
+## Room `key`'s wear (`what`) is drawn by `layer` alone, and no other room's (`layer_of`: room key
+## -> the layer seen drawing its wear, which `layer` joins).
+func _check_own_layer(
+	t: TestContext,
+	what: String,
+	key: String,
+	layer: Node,
+	layer_of: Dictionary,
+) -> void:
+	if layer_of.has(key):
+		t.check(layer_of[key] == layer, "%s is one layer" % what)
+		return
+	t.check(
+		not layer_of.values().has(layer),
+		"%s has a layer of its own, not another room's" % what,
+	)
+	layer_of[key] = layer
+
+
+## `room`'s wear clusters (of `house`'s `wear`; `where` names it): at most MAX_WEAR, each in the
+## room by a wall, corner or furniture. Returns their layout: each cluster's offset in the room,
+## sorted.
+func _check_room_wear(
+	t: TestContext,
+	where: String,
+	room: Dictionary,
+	house: Node2D,
+	wear: Array,
+) -> Array:
+	var rect: Rect2 = room["rect"]
+	var pieces := _solid_pieces(house, rect)
+	var clusters := wear.filter(
+		func(e: Dictionary) -> bool: return e.get("room", "") == room["key"],
+	)
+	t.check(
+		clusters.size() <= MAX_WEAR,
+		"%s has %d wear clusters, at most %d" % [where, clusters.size(), MAX_WEAR],
+	)
+	var layout: Array = []
+	for c: Dictionary in clusters:
+		var p: Vector2 = c["pos"]
+		t.check(rect.has_point(p), "%s: a wear cluster at %s lies in the room" % [where, p])
+		var gap := _to_anchor(p, rect, pieces)
 		t.check(
-			room_of.has(entry.get("room", "")),
-			"%s: a clutter piece names a room of the house (%s)" % [label, entry.get("room", "")],
+			gap <= NEAR,
+			"%s: the wear at %s is by a wall, corner or furniture (%.0f px away, at most %.0f)"
+				% [where, p, gap, NEAR],
+		)
+		layout.append(Vector2i((p - rect.position).round()))
+	layout.sort()
+	return layout
+
+
+## `room`'s clutter `placed` (`where` names it): at most MAX_CLUTTER, no kind twice, each non-solid
+## catalogue decor placed in `house`, in the room by a wall, corner or furniture, with no collider
+## on the SOLID layer.
+func _check_room_clutter(
+	t: TestContext,
+	where: String,
+	room: Dictionary,
+	house: Node2D,
+	placed: Array,
+) -> void:
+	var rect: Rect2 = room["rect"]
+	var pieces := _solid_pieces(house, rect)
+	t.check(
+		placed.size() <= MAX_CLUTTER,
+		"%s has %d clutter pieces, at most %d" % [where, placed.size(), MAX_CLUTTER],
+	)
+	var kinds: Array = []
+	for c: Dictionary in placed:
+		var kind: String = c.get("key", "")
+		t.check(not kinds.has(kind), "%s has the clutter %s only once" % [where, kind])
+		kinds.append(kind)
+		var def := WorldGen.object_definition(kind)
+		t.check(
+			not def.is_empty() and not def.get("solid", true),
+			"%s: the clutter %s is non-solid catalogue decor" % [where, kind],
+		)
+		var node: Variant = c.get("node")
+		if not t.check(
+				node is Node2D and house.is_ancestor_of(node),
+				"%s: the clutter %s is placed in the house" % [where, kind],
+		):
+			continue
+		t.check(
+			not ("solid" in node) or not node.solid,
+			"%s: the placed %s is not solid" % [where, kind],
+		)
+		t.check(
+			not _collides_solid(node),
+			"%s: the placed %s has no collider on the SOLID layer" % [where, kind],
+		)
+		var p: Vector2 = node.global_position
+		t.check(rect.has_point(p), "%s: the %s at %s lies in the room" % [where, kind, p])
+		var gap := _to_anchor(p, rect, pieces, node)
+		t.check(
+			gap <= NEAR,
+			"%s: the %s at %s is by a wall, corner or furniture (%.0f px away, at most %.0f)"
+				% [where, kind, p, gap, NEAR],
 		)
 
-	for room: Dictionary in rooms:
-		var key: String = room["key"]
-		var rect: Rect2 = room["rect"]
-		var where := "%s: the %s (%s)" % [label, key, room["type"]]
-		var pieces := _solid_pieces(house, rect)
 
-		var clusters := wear.filter(func(e: Dictionary) -> bool: return e.get("room", "") == key)
-		t.check(
-			clusters.size() <= MAX_WEAR,
-			"%s has %d wear clusters, at most %d" % [where, clusters.size(), MAX_WEAR],
-		)
-		var layout: Array = []
-		for c: Dictionary in clusters:
-			var p: Vector2 = c["pos"]
-			t.check(rect.has_point(p), "%s: a wear cluster at %s lies in the room" % [where, p])
-			var gap := _to_anchor(p, rect, pieces)
-			t.check(
-				gap <= NEAR,
-				"%s: the wear at %s is by a wall, corner or furniture (%.0f px away, at most %.0f)"
-					% [where, p, gap, NEAR],
-			)
-			layout.append(Vector2i((p - rect.position).round()))
-		layout.sort()
-		if not layout.is_empty():
-			tally["worn"] += 1
-			if not layouts.has(room["type"]):
-				layouts[room["type"]] = []
-			layouts[room["type"]].append({ "label": where, "layout": layout })
-
-		var placed := clutter.filter(func(e: Dictionary) -> bool: return e.get("room", "") == key)
-		t.check(
-			placed.size() <= MAX_CLUTTER,
-			"%s has %d clutter pieces, at most %d" % [where, placed.size(), MAX_CLUTTER],
-		)
-		if not placed.is_empty():
-			tally["cluttered"] += 1
-		var kinds: Array = []
-		for c: Dictionary in placed:
-			var kind: String = c.get("key", "")
-			t.check(not kinds.has(kind), "%s has the clutter %s only once" % [where, kind])
-			kinds.append(kind)
-			var def := WorldGen.object_definition(kind)
-			t.check(
-				not def.is_empty() and not def.get("solid", true),
-				"%s: the clutter %s is non-solid catalogue decor" % [where, kind],
-			)
-			var node: Variant = c.get("node")
-			if not t.check(
-					node is Node2D and house.is_ancestor_of(node),
-					"%s: the clutter %s is placed in the house" % [where, kind],
-			):
-				continue
-			t.check(
-				not ("solid" in node) or not node.solid,
-				"%s: the placed %s is not solid" % [where, kind],
-			)
-			t.check(
-				not _collides_solid(node),
-				"%s: the placed %s has no collider on the SOLID layer" % [where, kind],
-			)
-			var p: Vector2 = node.global_position
-			t.check(rect.has_point(p), "%s: the %s at %s lies in the room" % [where, kind, p])
-			var gap := _to_anchor(p, rect, pieces, node)
-			t.check(
-				gap <= NEAR,
-				"%s: the %s at %s is by a wall, corner or furniture (%.0f px away, at most %.0f)"
-					% [where, kind, p, gap, NEAR],
-			)
-		tally["rooms"] += 1
-
-	# Clutter is never carved into the nav map: taking it out of the house leaves the furniture
-	# holes as they were.
+## Clutter is never carved into the nav map: taking it out of `house` (`label`) leaves the furniture
+## holes as they were.
+func _check_clutter_not_carved(
+	t: TestContext,
+	house: Node2D,
+	label: String,
+	clutter: Array,
+) -> void:
 	var holes := NavBuilder.furniture_holes(house).size()
 	var lifted: Array = []
 	for c: Dictionary in clutter:
@@ -230,6 +292,17 @@ func _check_house(
 	)
 	for pair: Array in lifted:
 		pair[1].add_child(pair[0])
+
+
+## Two rooms of one type (`same`: [{ label, layout }]) never share a wear layout.
+func _check_layouts_differ(t: TestContext, same: Array) -> void:
+	for i in same.size():
+		for j in range(i + 1, same.size()):
+			t.check(
+				same[i]["layout"] != same[j]["layout"],
+				"%s and %s have different wear (%s)"
+					% [same[i]["label"], same[j]["label"], same[i]["layout"]],
+			)
 
 
 func run(t: TestContext) -> void:
@@ -255,11 +328,4 @@ func run(t: TestContext) -> void:
 
 	# The wear is seeded per room: two rooms of one type never share a layout.
 	for room_type: String in layouts:
-		var same: Array = layouts[room_type]
-		for i in same.size():
-			for j in range(i + 1, same.size()):
-				t.check(
-					same[i]["layout"] != same[j]["layout"],
-					"%s and %s have different wear (%s)"
-						% [same[i]["label"], same[j]["label"], same[i]["layout"]],
-				)
+		_check_layouts_differ(t, layouts[room_type])

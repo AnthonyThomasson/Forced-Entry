@@ -60,7 +60,7 @@ func _good_doors() -> Array:
 	]
 
 
-## LayoutRules accepts a logical layout and reports each kind of illogical one.
+## LayoutRules accepts a logical layout and reports each kind of illogical front door.
 func _check_validator(t: TestContext) -> void:
 	t.check(
 		LayoutRules.check(_good_rooms(), _good_doors()).is_empty(),
@@ -89,9 +89,12 @@ func _check_validator(t: TestContext) -> void:
 		"a front door off the south wall is reported",
 	)
 
-	rooms = _good_rooms()
+
+## LayoutRules reports each kind of illogical interior door and room, and accepts a back door.
+func _check_rooms_and_doors(t: TestContext) -> void:
+	var rooms := _good_rooms()
 	rooms.append(_room("kitchen", "kitchen", Rect2(400, 300, 200, 300)))
-	doors = _good_doors()
+	var doors := _good_doors()
 	doors.append(_door(Vector2(500, 300), ["bathroom", "kitchen"]))
 	var problems := LayoutRules.check(rooms, doors)
 	t.check(_reports(problems, "joins the bathroom"), "a kitchen <-> bathroom door is reported")
@@ -165,5 +168,6 @@ func _check_new_room_types(t: TestContext) -> void:
 
 func run(t: TestContext) -> void:
 	_check_validator(t)
+	_check_rooms_and_doors(t)
 	_check_new_room_types(t)
 	await t.frames(1)

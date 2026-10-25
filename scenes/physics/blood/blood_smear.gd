@@ -100,11 +100,17 @@ func _drag(f: Dictionary, pos: Vector2, body: Node) -> void:
 		_close(f, at)
 		return
 	_feed_pool(f, at)
-	var decals := BloodDecals.layer(body.get_parent())
 	if f["ribbon"] == null:
 		f["run"] = 0.0
 	else:
 		f["run"] += dist
+	_lay(f, at, wet, BloodDecals.layer(body.get_parent()))
+	f["soak"] = maxf(f["soak"] - dist * BloodConfig.smear_decay_per_px * f["decay"], 0.0)
+
+
+## Lay finger `f`'s ribbon on to `at` in `decals` (starting one, or a fresh one past the point
+## cap), over floor `wet` already.
+func _lay(f: Dictionary, at: Vector2, wet: float, decals: BloodDecals) -> void:
 	var soak: float = clampf(f["soak"], 0.0, 1.0)
 	# A ribbon eases in along its first px (a tongue, never a cut edge) and is see-through over
 	# blood that is already there, so it fades in exactly as the puddle's own coverage fades out.
@@ -129,7 +135,6 @@ func _drag(f: Dictionary, pos: Vector2, body: Node) -> void:
 			# carry on in a fresh one, seamlessly
 			f["ribbon"] = decals.ribbon_begin(at, width, alpha)
 			f["run"] = BloodConfig.smear_fade_in  # already eased in: no second tongue
-	f["soak"] = maxf(f["soak"] - dist * BloodConfig.smear_decay_per_px * f["decay"], 0.0)
 
 
 ## A finger carrying plenty of blood near a pool pulls that blood out of the pool: the pool's own

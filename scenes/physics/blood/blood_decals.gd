@@ -146,11 +146,20 @@ class DecalChunk:
 	## bend or a pinched tail can never fail triangulation.
 	func _draw_ribbon(m: Dictionary, color: Color) -> void:
 		var pts: PackedVector2Array = m["points"]
-		var widths: PackedFloat32Array = m["widths"]
-		var alphas: PackedFloat32Array = m["alphas"]
 		var n := pts.size()
 		if n < 2:
 			return
+		var normals := _ribbon_normals(pts)
+		var none := PackedVector2Array()
+		for i in n - 1:
+			if pts[i].distance_squared_to(pts[i + 1]) < 0.0001:
+				continue
+			_draw_segment(m, normals, i, color, none)
+
+	## Each ribbon point's unit normal (along the line through its neighbours), ZERO where they
+	## meet.
+	static func _ribbon_normals(pts: PackedVector2Array) -> PackedVector2Array:
+		var n := pts.size()
 		var normals := PackedVector2Array()
 		normals.resize(n)
 		for i in n:
@@ -160,28 +169,30 @@ class DecalChunk:
 			normals[i] = (tangent.normalized().orthogonal()
 					if tangent.length_squared() > 0.0001
 					else Vector2.ZERO)
-		var none := PackedVector2Array()
-		for i in n - 1:
-			if pts[i].distance_squared_to(pts[i + 1]) < 0.0001:
-				continue
-			var mid_a := Color(color.r, color.g, color.b, color.a * alphas[i])
-			var mid_b := Color(color.r, color.g, color.b, color.a * alphas[i + 1])
-			var edge_a := Color(color.r, color.g, color.b, mid_a.a * BloodConfig.smear_feather)
-			var edge_b := Color(color.r, color.g, color.b, mid_b.a * BloodConfig.smear_feather)
-			var la := pts[i] + normals[i] * widths[i] * 0.5
-			var ra := pts[i] - normals[i] * widths[i] * 0.5
-			var lb := pts[i + 1] + normals[i + 1] * widths[i + 1] * 0.5
-			var rb := pts[i + 1] - normals[i + 1] * widths[i + 1] * 0.5
-			draw_primitive(
-				PackedVector2Array([la, pts[i], pts[i + 1], lb]),
-				PackedColorArray([edge_a, mid_a, mid_b, edge_b]),
-				none,
-			)
-			draw_primitive(
-				PackedVector2Array([pts[i], ra, rb, pts[i + 1]]),
-				PackedColorArray([mid_a, edge_a, edge_b, mid_b]),
-				none,
-			)
+		return normals
+
+	## The two quads of ribbon `m`'s segment from point `i` to the next (`none`: no UVs).
+	func _draw_segment(m: Dictionary, normals: PackedVector2Array, i: int, color: Color,
+			none: PackedVector2Array) -> void:
+		var pts: PackedVector2Array = m["points"]
+		var widths: PackedFloat32Array = m["widths"]
+		var alphas: PackedFloat32Array = m["alphas"]
+		var mid_a := Color(color.r, color.g, color.b, color.a * alphas[i])
+		var mid_b := Color(color.r, color.g, color.b, color.a * alphas[i + 1])
+		var edge_a := Color(color.r, color.g, color.b, mid_a.a * BloodConfig.smear_feather)
+		var edge_b := Color(color.r, color.g, color.b, mid_b.a * BloodConfig.smear_feather)
+		var half_a := normals[i] * widths[i] * 0.5
+		var half_b := normals[i + 1] * widths[i + 1] * 0.5
+		draw_primitive(
+			PackedVector2Array([pts[i] + half_a, pts[i], pts[i + 1], pts[i + 1] + half_b]),
+			PackedColorArray([edge_a, mid_a, mid_b, edge_b]),
+			none,
+		)
+		draw_primitive(
+			PackedVector2Array([pts[i], pts[i] - half_a, pts[i + 1] - half_b, pts[i + 1]]),
+			PackedColorArray([mid_a, edge_a, edge_b, mid_b]),
+			none,
+		)
 
 	## Whether any mark in this chunk is still drying, so it needs its periodic redraw.
 	func _has_drying() -> bool:

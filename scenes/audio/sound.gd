@@ -174,60 +174,17 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 				data,
 			)
 		&"hit":
-			var outcome := StringName(data.get("outcome", &""))
-			if outcome != &"":
-				var profile := SoundBank.impact_profile(
-					String(data.get("material", "")),
-					outcome,
-					float(data.get("power", 1.0)),
-				)
-				if profile != &"":
-					_play(IMPACT, profile, data, _impact_db(outcome, data))
+			_on_hit(data)
 		&"footfall":
-			var at: Vector2 = data.get("position", Vector2.ZERO)
-			var profile := SoundBank.footstep_profile(
-				SoundSurface.at(at),
-				bool(data.get("running", false)),
-			)
-			var pace := clampf(float(data.get("speed", 150.0)) / 150.0, 0.5, 1.5)
-			# Left and right feet differ a touch in pitch.
-			_play(
-				FOOTSTEP,
-				profile,
-				data,
-				linear_to_db(pace),
-				0.97 if int(data.get("foot", 0)) == 0 else 1.03,
-			)
+			_on_footfall(data)
 		&"reload":
-			# The event says "start" / "done"; the sound is the magazine going out / coming in.
-			var stage := (&"out"
-					if data.get("stage", &"") == &"start"
-					else (&"in" if data.get("stage", &"") == &"done" else &""))
-			var profile := SoundBank.reload_profile(
-				data.get("gun", &""),
-				stage,
-				float(data.get("power", 1.0)),
-			)
-			if profile != &"":
-				_play(RELOAD, profile, data)
+			_on_reload(data)
 		&"throw":
-			var profile := SoundBank.throw_profile(data.get("kind", &""))
-			if profile != &"":
-				_play(THROW, profile, data)
+			_play_named(THROW, SoundBank.throw_profile(data.get("kind", &"")), data)
 		&"grenade":
-			# A bounce clatters, voiced by the floor it lands on; the rest that follows it is
-			# silent.
-			if data.get("stage", &"") == &"bounce":
-				var profile := SoundBank.grenade_profile(
-					data.get("kind", &""),
-					SoundSurface.at(data.get("position", Vector2.ZERO)),
-				)
-				if profile != &"":
-					_play(GRENADE, profile, data)
+			_on_grenade(data)
 		&"explosion":
-			var profile := SoundBank.explosion_profile(data.get("kind", &""))
-			if profile != &"":
-				_play(EXPLOSION, profile, data)
+			_play_named(EXPLOSION, SoundBank.explosion_profile(data.get("kind", &"")), data)
 		&"stun":
 			if (data.get("character") == focus
 					and focus != null
@@ -235,18 +192,87 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 				_start_tinnitus(data)
 		&"vehicle":
 			_vehicle_sound(data)
-		&"engine":
-			var vehicle: Variant = data.get("vehicle")
-			if data.get("stage") == &"start":
-				_start_loop(ENGINE, vehicle, SoundBank.engine_profile(data.get("kind", &"")))
-			elif data.get("stage") == &"stop":
-				_stop_loop(vehicle, ENGINE)
-		&"skid":
-			var vehicle: Variant = data.get("vehicle")
-			if data.get("stage") == &"start":
-				_start_loop(SKID, vehicle, SoundBank.skid_profile())
-			elif data.get("stage") == &"stop":
-				_stop_loop(vehicle, SKID)
+		&"engine", &"skid":
+			_loop_event(topic, data)
+
+
+## Play `profile` for the category at the event, unless the event named no sound (`&""`).
+func _play_named(category: StringName, profile: StringName, data: Dictionary) -> void:
+	if profile != &"":
+		_play(category, profile, data)
+
+
+## A hit that says how it met the surface (not a blast's): the impact of its material, outcome and
+## round weight, louder by its speed or a punch's damage.
+func _on_hit(data: Dictionary) -> void:
+	var outcome := StringName(data.get("outcome", &""))
+	if outcome == &"":
+		return
+	var profile := SoundBank.impact_profile(
+		String(data.get("material", "")),
+		outcome,
+		float(data.get("power", 1.0)),
+	)
+	if profile != &"":
+		_play(IMPACT, profile, data, _impact_db(outcome, data))
+
+
+## A foot landing: the step of the floor under it and the gait, louder the faster.
+func _on_footfall(data: Dictionary) -> void:
+	var at: Vector2 = data.get("position", Vector2.ZERO)
+	var profile := SoundBank.footstep_profile(
+		SoundSurface.at(at),
+		bool(data.get("running", false)),
+	)
+	var pace := clampf(float(data.get("speed", 150.0)) / 150.0, 0.5, 1.5)
+	# Left and right feet differ a touch in pitch.
+	_play(
+		FOOTSTEP,
+		profile,
+		data,
+		linear_to_db(pace),
+		0.97 if int(data.get("foot", 0)) == 0 else 1.03,
+	)
+
+
+## A grenade's event: a bounce clatters, voiced by the floor it lands on; the rest that follows it
+## is silent.
+func _on_grenade(data: Dictionary) -> void:
+	if data.get("stage", &"") != &"bounce":
+		return
+	_play_named(
+		GRENADE,
+		SoundBank.grenade_profile(
+			data.get("kind", &""),
+			SoundSurface.at(data.get("position", Vector2.ZERO)),
+		),
+		data,
+	)
+
+
+## A reload's start or end: the event says "start" / "done"; the sound is the magazine going out /
+## coming in.
+func _on_reload(data: Dictionary) -> void:
+	var stage := (&"out"
+			if data.get("stage", &"") == &"start"
+			else (&"in" if data.get("stage", &"") == &"done" else &""))
+	_play_named(
+		RELOAD,
+		SoundBank.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0))),
+		data,
+	)
+
+
+## A vehicle's `engine` / `skid` event (`category` its topic): start or stop that loop.
+func _loop_event(category: StringName, data: Dictionary) -> void:
+	var vehicle: Variant = data.get("vehicle")
+	if data.get("stage") == &"start":
+		var profile := (SoundBank.engine_profile(data.get("kind", &""))
+				if category == ENGINE
+				else SoundBank.skid_profile())
+		_start_loop(category, vehicle, profile)
+	elif data.get("stage") == &"stop":
+		_stop_loop(vehicle, category)
 
 
 ## A one-shot vehicle sound: the ignition, a door, a crash (louder the faster, by what was struck)
@@ -280,10 +306,10 @@ func _impact_db(outcome: StringName, data: Dictionary) -> float:
 	return linear_to_db(clampf(float(data.get("speed_factor", 1.0)), 0.25, 1.3))
 
 
-## Play one sound of `profile` for the category at `data.position` on `bus`: pick a variant, find a
-## voice, post the event. Returns the voice, or {} when nothing played.
+## Play one sound of `profile` for the category at `data.position`: pick a variant, find a voice,
+## post the event. Returns the voice, or {} when nothing played.
 func _play(category: StringName, profile: StringName, data: Dictionary, extra_db: float = 0.0,
-		pitch_scale: float = 1.0, bus: StringName = GAME_BUS) -> Dictionary:
+		pitch_scale: float = 1.0) -> Dictionary:
 	var at: Vector2 = data.get("position", Vector2.ZERO)
 	var reach := _reach(category, at)
 	if reach <= 0.0:
@@ -297,7 +323,14 @@ func _play(category: StringName, profile: StringName, data: Dictionary, extra_db
 			* (1.0 + _rng.randf_range(-SoundConfig.pitch_jitter, SoundConfig.pitch_jitter) * swing))
 	var volume := _level(category, entry) + extra_db \
 		+ _rng.randf_range(-SoundConfig.volume_jitter_db, SoundConfig.volume_jitter_db) * swing
-	return _voice(category, profile, variant, entry["stream"], at, volume, pitch, reach, bus)
+	return _voice(
+		{
+			"kind": category, "profile": profile, "variant": variant, "position": at,
+			"volume_db": volume, "pitch": pitch,
+		},
+		entry["stream"],
+		reach,
+	)
 
 
 ## A sound's level before what the event adds: its profile's own, the master's and its category's.
@@ -306,29 +339,25 @@ func _level(category: StringName, entry: Dictionary) -> float:
 			+ float(SoundConfig.category_db.get(category, 0.0)))
 
 
-## Start `stream` (variant `variant` of `profile`) on a voice of `category` at `at`, heard up to
-## `reach`, and announce it.
-func _voice(category: StringName, profile: StringName, variant: int, stream: AudioStreamWAV,
-		at: Vector2, volume: float, pitch: float, reach: float,
-		bus: StringName = GAME_BUS) -> Dictionary:
+## Start `stream` on a voice at `reach`, the sound `sound` describes (the `&"sound"` event:
+## `kind` its category, `profile`, `variant`, `position`, `volume_db`, `pitch`), and announce it.
+## The tinnitus plays on the Master bus, so the muffle does not dull it; everything else on the game
+## bus.
+func _voice(sound: Dictionary, stream: AudioStreamWAV, reach: float) -> Dictionary:
+	var category: StringName = sound["kind"]
+	var pitch: float = sound["pitch"]
 	var voice := _acquire(category)
 	var player: AudioStreamPlayer2D = voice["player"]
 	player.stream = stream
-	player.volume_db = volume
+	player.volume_db = sound["volume_db"]
 	player.pitch_scale = pitch
 	player.max_distance = reach
-	player.bus = bus
-	player.global_position = at
+	player.bus = &"Master" if category == TINNITUS else GAME_BUS
+	player.global_position = sound["position"]
 	player.play()
 	voice["started"] = _now
 	voice["until"] = _now + stream.get_length() / pitch + 0.02
-	EventBus.post(
-		&"sound",
-		{
-			"kind": category, "profile": profile, "variant": variant, "position": at,
-			"volume_db": volume, "pitch": pitch,
-		},
-	)
+	EventBus.post(&"sound", sound)
 	return voice
 
 
@@ -342,14 +371,7 @@ func _start_tinnitus(data: Dictionary) -> void:
 	var at: Vector2 = ((focus as Node2D).global_position
 			if focus is Node2D
 			else data.get("position", Vector2.ZERO))
-	var voice := _play(
-		TINNITUS,
-		SoundBank.tinnitus_profile(),
-		{ "position": at },
-		loudness,
-		1.0,
-		&"Master",
-	)
+	var voice := _play(TINNITUS, SoundBank.tinnitus_profile(), { "position": at }, loudness)
 	if voice.is_empty():
 		return
 	voice["until"] = _now + deaf
@@ -607,8 +629,12 @@ func _start_loop(category: StringName, vehicle: Variant, profile: StringName) ->
 	loop["volume_db"] = aim["volume_db"]
 	var at := (vehicle as Node2D).global_position
 	var voice := _voice(
-		category, profile, int(_last_variant.get(profile, 0)), entry["stream"], at,
-		loop["volume_db"], loop["pitch"], _range(category),
+		{
+			"kind": category, "profile": profile, "variant": int(_last_variant.get(profile, 0)),
+			"position": at, "volume_db": loop["volume_db"], "pitch": loop["pitch"],
+		},
+		entry["stream"],
+		_range(category),
 	)
 	voice["until"] = INF  # It plays until it is stopped.
 	voice["loop"] = key

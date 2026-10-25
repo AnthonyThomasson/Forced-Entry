@@ -64,43 +64,63 @@ func run(t: TestContext) -> void:
 	t.check(takes >= 4, "footsteps have several takes (%d)" % takes)
 	for surface in ["wood", "tile", "stone", "concrete", "carpet", "outdoor"]:
 		for gait in ["walk", "run"]:
-			var profile := StringName("footstep/%s/%s" % [surface, gait])
-			var all: Array = []
-			for v in takes:
-				all.append(Probe.samples(profile, v))
-			var total := 0.0
-			var pairs := 0
-			var identical := 0
-			for i in takes:
-				for j in range(i + 1, takes):
-					if all[i] == all[j]:
-						identical += 1
-					total += _similarity(all[i], all[j])
-					pairs += 1
-			t.expect_eq(identical, 0, "%s: no two takes are the same" % profile)
-			t.check(
-				total / pairs < 0.85,
-				"%s: takes are only loosely alike (mean similarity %.2f)"
-					% [profile, total / pairs],
-			)
+			_check_profile(t, StringName("footstep/%s/%s" % [surface, gait]), takes)
 
-			var heel := 0.0
-			var loudness: Array = []
-			for v in takes:
-				var s: PackedFloat32Array = all[v]
-				var totals := _magnitude_totals(s)
-				heel = _peak(totals, 0.0, 30.0)
-				# The toe beat: after the heel's first 30 ms, before the step's tail.
-				var toe := _peak(totals, 35.0, 110.0)
-				t.check(
-					toe > heel * 0.12,
-					"%s take %d has a toe tap after the heel (%.3f vs heel %.3f)"
-						% [profile, v, toe, heel],
-				)
-				var energy := 0.0
-				for x in s:
-					energy += x * x
-				loudness.append(energy)
-			var lo: float = loudness.min()
-			var hi: float = loudness.max()
-			t.check(hi > lo * 1.12, "%s: takes differ in loudness (%.2f..%.2f)" % [profile, lo, hi])
+
+## `profile`'s `takes` takes differ from one another, each a heel and a toe beat.
+func _check_profile(t: TestContext, profile: StringName, takes: int) -> void:
+	var all: Array = []
+	for v in takes:
+		all.append(Probe.samples(profile, v))
+	_check_alike(t, profile, all)
+	_check_beats(t, profile, all)
+
+
+## No two of `profile`'s takes (`all`, their samples) are the same, and they are only loosely alike.
+func _check_alike(t: TestContext, profile: StringName, all: Array) -> void:
+	var takes := all.size()
+	var total := 0.0
+	var pairs := 0
+	var identical := 0
+	for i in takes:
+		for j in range(i + 1, takes):
+			if all[i] == all[j]:
+				identical += 1
+			total += _similarity(all[i], all[j])
+			pairs += 1
+	t.expect_eq(identical, 0, "%s: no two takes are the same" % profile)
+	t.check(
+		total / pairs < 0.85,
+		"%s: takes are only loosely alike (mean similarity %.2f)"
+			% [profile, total / pairs],
+	)
+
+
+## Each of `profile`'s takes (`all`, their samples) has a toe tap after the heel, and the takes
+## differ in loudness.
+func _check_beats(t: TestContext, profile: StringName, all: Array) -> void:
+	var heel := 0.0
+	var loudness: Array = []
+	for v in all.size():
+		var s: PackedFloat32Array = all[v]
+		var totals := _magnitude_totals(s)
+		heel = _peak(totals, 0.0, 30.0)
+		# The toe beat: after the heel's first 30 ms, before the step's tail.
+		var toe := _peak(totals, 35.0, 110.0)
+		t.check(
+			toe > heel * 0.12,
+			"%s take %d has a toe tap after the heel (%.3f vs heel %.3f)"
+				% [profile, v, toe, heel],
+		)
+		loudness.append(_energy(s))
+	var lo: float = loudness.min()
+	var hi: float = loudness.max()
+	t.check(hi > lo * 1.12, "%s: takes differ in loudness (%.2f..%.2f)" % [profile, lo, hi])
+
+
+## The sum of the squares of `s`.
+func _energy(s: PackedFloat32Array) -> float:
+	var energy := 0.0
+	for x in s:
+		energy += x * x
+	return energy

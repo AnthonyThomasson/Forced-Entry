@@ -13,27 +13,28 @@ extends RefCounted
 ## The tile size (world px) for the `pattern` in `opts`.
 static func tile_size(opts: Dictionary) -> Vector2:
 	var cell := float(ObjectArtConfig.floor_tile_px)
+	# Plain tiles: a 4×4 block, so per-tile tone and glare repeat less visibly.
+	var size := Vector2(cell * 4, cell * 4)
 	match String(opts.get("pattern", "planks")):
 		"planks":
-			return Vector2(
+			size = Vector2(
 				ObjectArtConfig.floor_plank_length * 2,
 				ObjectArtConfig.floor_plank_px * 8,
 			)
 		"parquet":
-			return Vector2(
+			size = Vector2(
 				ObjectArtConfig.floor_parquet_px * 2,
 				ObjectArtConfig.floor_parquet_px * 2,
 			)
 		"checker":
-			return Vector2(cell * 2, cell * 2)
+			size = Vector2(cell * 2, cell * 2)
 		"mosaic":
-			return Vector2(ObjectArtConfig.floor_mosaic_px * 6, ObjectArtConfig.floor_mosaic_px * 6)
+			size = Vector2(ObjectArtConfig.floor_mosaic_px * 6, ObjectArtConfig.floor_mosaic_px * 6)
 		"carpet":
-			return Vector2(64, 64)
+			size = Vector2(64, 64)
 		"concrete":
-			return Vector2(ObjectArtConfig.floor_slab_px, ObjectArtConfig.floor_slab_px)
-	# Plain tiles: a 4×4 block, so per-tile tone and glare repeat less visibly.
-	return Vector2(cell * 4, cell * 4)
+			size = Vector2(ObjectArtConfig.floor_slab_px, ObjectArtConfig.floor_slab_px)
+	return size
 
 
 ## Whether the floor `pattern` soaks liquid up instead of letting it run (carpet).
@@ -106,16 +107,9 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 		"parquet":
 			_parquet(c, base, t)
 		"tiles":
-			_tiles(c, base, material, ObjectArtConfig.floor_tile_px, false, base)
+			_tiles(c, base, material, false, base)
 		"checker":
-			_tiles(
-				c,
-				base,
-				material,
-				ObjectArtConfig.floor_tile_px,
-				true,
-				opts.get("alt", base.darkened(0.65)),
-			)
+			_tiles(c, base, material, true, opts.get("alt", base.darkened(0.65)))
 		"mosaic":
 			_mosaic(c, base)
 		"carpet":
@@ -139,10 +133,7 @@ static func _grimy(c: PixelCanvas, pattern: String) -> void:
 			var cell := (maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / ArtConfig.pixel_size))
 					if pattern == "mosaic"
 					else maxi(4, roundi(ObjectArtConfig.floor_tile_px / ArtConfig.pixel_size)))
-			for y in c.h:
-				for x in c.w:
-					if x % cell == 0 or y % cell == 0:
-						_dirty(c, x, y, ObjectArtConfig.floor_grout_dirt, 0.7)
+			_grout_dirt(c, cell)
 	for _i in int(c.w * c.h * ObjectArtConfig.floor_grime_density):
 		var dark := c.rng.randf() < 0.75
 		_dirty(
@@ -150,6 +141,14 @@ static func _grimy(c: PixelCanvas, pattern: String) -> void:
 			ObjectArtConfig.floor_grime_dark if dark else ObjectArtConfig.floor_grime_pale,
 			c.rng.randf_range(0.08, 0.2),
 		)
+
+
+## The dirt packed into the grout of a grid of `cell` px tiles (on each tile's top and left edges).
+static func _grout_dirt(c: PixelCanvas, cell: int) -> void:
+	for y in c.h:
+		for x in c.w:
+			if x % cell == 0 or y % cell == 0:
+				_dirty(c, x, y, ObjectArtConfig.floor_grout_dirt, 0.7)
 
 
 ## Blend the pixel at (x, y) `amount` toward `col`.
@@ -201,35 +200,36 @@ static func _parquet(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 			for s in strips:
 				var a := int(s * cell / float(strips))
 				var b := int((s + 1) * cell / float(strips))
-				var r := (Rect2i(gx * cell, gy * cell + a, cell, b - a)
-						if along_x
-						else Rect2i(gx * cell + a, gy * cell, b - a, cell))
-				var shift := c.rng.randf_range(-0.07, 0.07)
-				var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
-				var strip := PixelCanvas.rounded(r, 0)
-				c.fill(strip, tone)
-				c.grain(
-					strip,
-					ArtConfig.wood_grain_density,
-					tone.darkened(0.12),
-					tone.lightened(0.05),
-					{ "along_x": along_x },
-				)
-				c.outline(strip, tone.darkened(0.16))
+				var r := Rect2i(gx * cell, gy * cell + a, cell, b - a)
+				if not along_x:
+					r = Rect2i(gx * cell + a, gy * cell, b - a, cell)
+				_parquet_strip(c, base, r, along_x)
 			c.outline(PixelCanvas.rounded(Rect2i(gx * cell, gy * cell, cell, cell), 0), t.shadow)
 
 
-## Square tiles with grout lines (on the tile's top and left edges, so they wrap), a bevelled glaze
-## per tile and a little glare; `checker` alternates `alt` with `base`.
-static func _tiles(
-	c: PixelCanvas,
-	base: Color,
-	material: String,
-	size: int,
-	checker: bool,
-	alt: Color,
-) -> void:
-	var cell := maxi(4, roundi(size / ArtConfig.pixel_size))
+## One parquet strip over `r` in a tone of `base` drawn per strip, its grain along x when
+## `along_x`, outlined darker.
+static func _parquet_strip(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -> void:
+	var shift := c.rng.randf_range(-0.07, 0.07)
+	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
+	var strip := PixelCanvas.rounded(r, 0)
+	c.fill(strip, tone)
+	c.grain(
+		strip,
+		ArtConfig.wood_grain_density,
+		tone.darkened(0.12),
+		tone.lightened(0.05),
+		{ "along_x": along_x },
+	)
+	c.outline(strip, tone.darkened(0.16))
+
+
+## Square tiles (ObjectArtConfig.floor_tile_px) with grout lines (on the tile's top and left edges,
+## so they wrap), a bevelled glaze per tile and a little glare; `checker` alternates `alt` with
+## `base`.
+static func _tiles(c: PixelCanvas, base: Color, material: String, checker: bool,
+		alt: Color) -> void:
+	var cell := maxi(4, roundi(ObjectArtConfig.floor_tile_px / ArtConfig.pixel_size))
 	var grout := base.darkened(0.25) if base.get_luminance() > 0.35 else base.lightened(0.3)
 	for gy in int(c.h / float(cell)):
 		for gx in int(c.w / float(cell)):
@@ -241,17 +241,23 @@ static func _tiles(
 				1,
 			)
 			c.fill(tile, col)
-			if material == "ceramic" or material == "glass":
-				c.speckle(tile.bounds, col, 0.03, 0.03)
-				if c.rng.randf() < ObjectArtConfig.floor_glare_chance:
-					c.glare(tile, col.lightened(0.4), 1)
-			else:
-				c.surface(tile, material, col)
+			_glaze(c, tile, col, material)
 			c.bevel(tile, 1, 1, col.lightened(0.12), col.darkened(0.12))
 	for g in range(0, c.w, cell):
 		c.line(Vector2i(g, 0), Vector2i(g, c.h - 1), grout)
 	for g in range(0, c.h, cell):
 		c.line(Vector2i(0, g), Vector2i(c.w - 1, g), grout)
+
+
+## A tile's face in `col`: a glazed one (`material` ceramic or glass) speckled with now and then a
+## glare, any other the `material` finish.
+static func _glaze(c: PixelCanvas, tile: PixelCanvas.Shape, col: Color, material: String) -> void:
+	if material == "ceramic" or material == "glass":
+		c.speckle(tile.bounds, col, 0.03, 0.03)
+		if c.rng.randf() < ObjectArtConfig.floor_glare_chance:
+			c.glare(tile, col.lightened(0.4), 1)
+	else:
+		c.surface(tile, material, col)
 
 
 ## Small square tiles in four mixed tones of `base`, with light grout.

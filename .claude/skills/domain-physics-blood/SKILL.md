@@ -6,7 +6,7 @@ description: Deep implementation detail for the Physics blood sub-domain (scenes
 # Physics · Blood sub-domain (`scenes/physics/blood/`)
 
 Self-contained and separate from debris / deformation: `blood_config, blood_field, blood_decals, blood_splat, blood_pool,
-blood_pool_visuals, blood_flow, blood_smear, blood_footprints, blood_wound, blood_spawner, blood_surface`. The rest of
+blood_pool_visuals, blood_flow, blood_smear, blood_footprints, footfall, blood_wound, blood_spawner, blood_throw, blood_surface`. The rest of
 `physics/` (hit packet, knockback, deformation, debris, hit particles, ragdoll) reaches it only through `Physics.spawn_debris`
 (a hit that carries blood; the bloody mark a bullet's `HitInfo.blood` leaves on an object is drawn by the core's
 `Deformation.draw_marks`) and `Physics.bleed_out`; every other domain meets it through the classes in interface 4, all
@@ -22,7 +22,8 @@ Three parts, all tuned by `BloodConfig`: a wound's **spray**, its **drips**, and
 
 - `BloodWound` (`class_name`, a Node the character composes like `Knockback`; the character's `take_hit` calls `record`): `record(hit)` throws
   `ceil(damage / hit_splat_damage)` splatters (max `hit_splat_max`) out the wound's exit side at once (plus one out the exit
-  wound) and merges them side by side: each is begun as it is thrown (`BloodSpawner.splat(..., whole = false)` →
+  wound) and merges them side by side: each is begun as it is thrown (`BloodSpawner.splat(parent, at, throw: BloodThrow, whole = false)`, `blood_throw.gd`:
+  `size`, `direction`, `energy`, `exclude` →
   `BloodSplat.begin`: its random shapes and wall rays on the main thread, in `setup`'s order; its outlines merged by the same
   fold, `_fold`, on a worker thread; its wet highlight added and its drying started at once) and `record` returns without
   waiting for the merges: `BloodSplat.defer_finish` finishes them (`finish`: waits for the merge, registers the splat with the

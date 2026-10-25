@@ -32,32 +32,41 @@ func run(t: TestContext) -> void:
 	for n in FIELDS:
 		var w := rng.randi_range(7, 48)
 		var h := rng.randi_range(7, 48)
-		var field := PackedFloat32Array()
-		field.resize(w * h)
-		var centre := Vector2(rng.randf_range(0.3, 0.7) * w, rng.randf_range(0.3, 0.7) * h)
-		var reach := rng.randf_range(2.0, minf(w, h) * 0.4)
-		for y in range(3, h - 3):
-			for x in range(3, w - 3):
-				var d := Vector2(x, y).distance_to(centre)
-				if d < reach:
-					field[y * w + x] = clampf(
-						1.0 - d / reach + rng.randf_range(-0.2, 0.2),
-						0.0,
-						1.0,
-					)
-				elif rng.randf() < 0.05:
-					field[y * w + x] = rng.randf() * 1e-6  # a faint fringe
-		var fast := field
-		var plain := field
-		for pass_i in 2:
-			fast = PoolVisuals._box_blur(fast, w, h)
-			plain = _plain_blur(plain, w, h)
-			cells += w * h
-			for i in fast.size():
-				if fast[i] != plain[i]:
-					differing += 1
+		differing += _differing(_random_field(rng, w, h), w, h)
+		cells += 2 * w * h
 	t.check(cells > 50_000, "cells compared (%d)" % cells)
 	t.check(differing == 0, "%d of %d blurred cells differ from the plain sum" % [differing, cells])
+
+
+## A `w` x `h` fill field: a rough blob round a random centre, a faint fringe scattered round it and
+## an empty border.
+func _random_field(rng: RandomNumberGenerator, w: int, h: int) -> PackedFloat32Array:
+	var field := PackedFloat32Array()
+	field.resize(w * h)
+	var centre := Vector2(rng.randf_range(0.3, 0.7) * w, rng.randf_range(0.3, 0.7) * h)
+	var reach := rng.randf_range(2.0, minf(w, h) * 0.4)
+	for y in range(3, h - 3):
+		for x in range(3, w - 3):
+			var d := Vector2(x, y).distance_to(centre)
+			if d < reach:
+				field[y * w + x] = clampf(1.0 - d / reach + rng.randf_range(-0.2, 0.2), 0.0, 1.0)
+			elif rng.randf() < 0.05:
+				field[y * w + x] = rng.randf() * 1e-6  # a faint fringe
+	return field
+
+
+## How many cells of two blur passes over `field` differ between `_box_blur` and the plain sum.
+func _differing(field: PackedFloat32Array, w: int, h: int) -> int:
+	var differing := 0
+	var fast := field
+	var plain := field
+	for pass_i in 2:
+		fast = PoolVisuals._box_blur(fast, w, h)
+		plain = _plain_blur(plain, w, h)
+		for i in fast.size():
+			if fast[i] != plain[i]:
+				differing += 1
+	return differing
 
 
 ## `_box_blur` as it was: the nine cells added one by one.

@@ -53,7 +53,11 @@ func run(t: TestContext) -> void:
 			% [missing.size(), ", ".join(missing.slice(0, 5))],
 	)
 	t.expect_eq(SoundBank.cached_count(), library.size(), "and nothing else")
+	_check_same_bytes(t, library)
 
+
+## Every `STRIDE`th pre-warmed sound of `library` (cached) is an on-demand render's bytes.
+func _check_same_bytes(t: TestContext, library: Array) -> void:
 	var warmed := {}
 	for i in range(0, library.size(), STRIDE):
 		warmed[i] = SoundBank.sound(library[i][0], library[i][1])

@@ -87,34 +87,44 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 
 ## Cardboard boxes of assorted sizes with tape and flap seams, and the odd paint tin.
 static func _boxes(c: PixelCanvas, well: Rect2i) -> void:
-	var card := ObjectArtConfig.shelf_box_color
 	var x := well.position.x + 1
 	while x < well.end.x - 4:
 		var depth := maxi(4, roundi(well.size.y * c.rng.randf_range(0.6, 0.95)))
 		if c.rng.randf() < 0.3:
-			var rad := mini(int(depth / 2.0), 5)
-			var o := Vector2i(x + rad, well.position.y + rad + 1)
-			var tin := PixelCanvas.disc(o, rad)
-			var label := Props.pick(c, "books")
-			c.fill(tin, ObjectArtConfig.prop_colors["metal"], _CONTENT_HEIGHT)
-			c.outline(tin, ObjectArtConfig.prop_colors["metal"].darkened(0.4))
-			c.outline(PixelCanvas.disc(o, maxi(1, rad - 2)), label)
-			x += rad * 2 + 2
-			continue
-		var bw := mini(c.rng.randi_range(10, 22), well.end.x - x - 1)
-		var r := Rect2i(x, well.position.y + 1, bw, depth)
-		var tone := card.darkened(c.rng.randf_range(0.0, 0.15))
-		var box := PixelCanvas.rounded(r, 0)
-		c.fill(box, tone, _CONTENT_HEIGHT)
-		c.bevel(box, 1, 1, tone.lightened(0.12), tone.darkened(0.25))
-		c.line(
-			Vector2i(r.position.x + 1, r.position.y + int(r.size.y / 2.0)),
-			Vector2i(r.end.x - 2, r.position.y + int(r.size.y / 2.0)),
-			tone.darkened(0.3),
-		)
-		var tape := r.position.x + int(r.size.x / 2.0)
-		c.line(Vector2i(tape, r.position.y + 1), Vector2i(tape, r.end.y - 2), tone.lightened(0.25))
-		x += bw + 1
+			x += _tin(c, x, well, depth)
+		else:
+			x += _box(c, x, well, depth)
+
+
+## A paint tin at column `x` of the `well`, as wide as `depth` allows; returns the px it takes.
+static func _tin(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
+	var rad := mini(int(depth / 2.0), 5)
+	var o := Vector2i(x + rad, well.position.y + rad + 1)
+	var tin := PixelCanvas.disc(o, rad)
+	var label := Props.pick(c, "books")
+	c.fill(tin, ObjectArtConfig.prop_colors["metal"], _CONTENT_HEIGHT)
+	c.outline(tin, ObjectArtConfig.prop_colors["metal"].darkened(0.4))
+	c.outline(PixelCanvas.disc(o, maxi(1, rad - 2)), label)
+	return rad * 2 + 2
+
+
+## A cardboard box `depth` deep at column `x` of the `well`, with its flap seam and tape; returns
+## the px it takes.
+static func _box(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
+	var bw := mini(c.rng.randi_range(10, 22), well.end.x - x - 1)
+	var r := Rect2i(x, well.position.y + 1, bw, depth)
+	var tone := ObjectArtConfig.shelf_box_color.darkened(c.rng.randf_range(0.0, 0.15))
+	var box := PixelCanvas.rounded(r, 0)
+	c.fill(box, tone, _CONTENT_HEIGHT)
+	c.bevel(box, 1, 1, tone.lightened(0.12), tone.darkened(0.25))
+	c.line(
+		Vector2i(r.position.x + 1, r.position.y + int(r.size.y / 2.0)),
+		Vector2i(r.end.x - 2, r.position.y + int(r.size.y / 2.0)),
+		tone.darkened(0.3),
+	)
+	var tape := r.position.x + int(r.size.x / 2.0)
+	c.line(Vector2i(tape, r.position.y + 1), Vector2i(tape, r.end.y - 2), tone.lightened(0.25))
+	return bw + 1
 
 
 ## Pairs of shoes, toes toward the front: two soles with a dark opening near the heel.

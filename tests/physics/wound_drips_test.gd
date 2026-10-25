@@ -37,17 +37,8 @@ func run(t: TestContext) -> void:
 	var spray: int = t.spawned("BloodSplat").size()
 	t.check(spray >= 1, "the hit sprays splatter at once (%d)" % spray)
 
-	# Note the sim time of each splatter that lands after the spray.
 	var drips_wanted := ceili(HIT_DAMAGE * BloodConfig.drips_per_damage)
-	var times: Array = []
-	var seen := spray
-	var deadline := t.time + BloodConfig.drip_interval_max * drips_wanted + 2.0
-	while times.size() < drips_wanted and t.time < deadline:
-		await t.frames(1)
-		var now: int = t.spawned("BloodSplat").size()
-		while seen < now:
-			times.append(t.time)
-			seen += 1
+	var times: Array = await _drip_times(t, spray, drips_wanted)
 	if not t.require(
 			times.size() == drips_wanted,
 			"the wound drips %d times (saw %d)" % [drips_wanted, times.size()],
@@ -66,3 +57,18 @@ func run(t: TestContext) -> void:
 	var count: int = t.spawned("BloodSplat").size()
 	await t.seconds(BloodConfig.drip_interval_max + 1.0)
 	t.expect_eq(t.spawned("BloodSplat").size(), count, "no more drips once the budget is spent")
+
+
+## The sim time of each splatter that lands after the `spray` splatters, until `drips_wanted` have
+## or the drips could no longer come.
+func _drip_times(t: TestContext, spray: int, drips_wanted: int) -> Array:
+	var times: Array = []
+	var seen := spray
+	var deadline := t.time + BloodConfig.drip_interval_max * drips_wanted + 2.0
+	while times.size() < drips_wanted and t.time < deadline:
+		await t.frames(1)
+		var now: int = t.spawned("BloodSplat").size()
+		while seen < now:
+			times.append(t.time)
+			seen += 1
+	return times

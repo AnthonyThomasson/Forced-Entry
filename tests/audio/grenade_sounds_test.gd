@@ -45,11 +45,20 @@ func run(t: TestContext) -> void:
 			"Sound.focus and Sound.muffled() exist",
 	):
 		return
+	if not await _check_frag(t):
+		return
+	if not await _check_stun(t):
+		return
+	_check_tones(t)
+	await _check_tinnitus(t)
 
-	# --- The frag: a throw, bounces, an explosion.
+
+## The frag: a throw, bounces, an explosion. False when it does not go off (the test has failed).
+func _check_frag(t: TestContext) -> bool:
+	var thrower := t.actor(&"thrower")
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, AIM)
 	if not t.require(await Probe.wait_boom(t, &"frag", 6.0), "the frag goes off"):
-		return
+		return false
 	await t.frames(3)
 	var throws := SoundProbe.sounds(t, &"throw", "throw/")
 	t.check(not throws.is_empty(), "the throw is heard (a throw/ sound)")
@@ -73,11 +82,14 @@ func run(t: TestContext) -> void:
 			and (frag_sounds[0]["position"] as Vector2).distance_to(boom_at) < 30.0,
 		"the frag explosion is heard once, where it went off (explosion/frag)",
 	)
+	return true
 
-	# --- The stun: its bang.
+
+## The stun: its bang. False when it does not go off (the test has failed).
+func _check_stun(t: TestContext) -> bool:
 	await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
 	if not t.require(await Probe.wait_boom(t, &"stun", 5.0), "the stun goes off"):
-		return
+		return false
 	await t.frames(3)
 	var bang := SoundProbe.sounds(t, &"explosion", "explosion/stun")
 	t.check(bang.size() == 1, "the stun's bang is heard once (explosion/stun)")
@@ -85,8 +97,11 @@ func run(t: TestContext) -> void:
 		SoundProbe.sounds(t, &"tinnitus").is_empty(),
 		"with no focus character set nobody gets a tinnitus whine, though the thrower was deafened",
 	)
+	return true
 
-	# --- What the two sound like: the blast is long and low, the bang short and bright.
+
+## What the two sound like: the blast is long and low, the bang short and bright.
+func _check_tones(t: TestContext) -> void:
 	if t.require(
 			SoundBank.profiles().has(&"explosion/frag")
 				and SoundBank.profiles().has(&"explosion/stun"),
@@ -108,7 +123,10 @@ func run(t: TestContext) -> void:
 			"while the bang is the sharper sound",
 		)
 
-	# --- Tinnitus and the muffle, for the focus only.
+
+## Tinnitus and the muffle, for the focus only.
+func _check_tinnitus(t: TestContext) -> void:
+	var service: Node = Sound
 	service.set("focus", t.actor(&"human"))
 	var human := t.actor(&"human")
 	var other := t.actor(&"other")
