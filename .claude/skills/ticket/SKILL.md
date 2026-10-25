@@ -175,9 +175,9 @@ reuses an open one. `ticket-assets`: also before the showroom's first feedback r
 
 All green: you tell the user in a few lines what is built and passing, rerun `show-me` (it reuses the editor and plays
 the change's tests in a fresh window, `tools/play_tests.sh`), point them at the editor (Play restarted for the latest
-code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). After the answer,
+code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). After "looks right",
 `kill` the game and test window pids `show-me` reported in this run (never the editor's) and say so in one line,
-unless the user says they are still watching. Feedback is a new round: update `## Agent Brief` and `## Plan` if
+unless the user says they are still watching; "I have changes" leaves them open. Feedback is a new round: update `## Agent Brief` and `## Plan` if
 scope moved (accepted again after a `change-report`), test first, code, green, ask again. Audit only once the
 behaviour is right.
 
