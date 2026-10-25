@@ -60,25 +60,12 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	var m := t.match()
 	var me: Node2D = t.actor(&"me")
-	var npcs: Array = (m.get("combatants", []) as Array).filter(func(c): return c != me)
-	if not t.require(npcs.size() == 1, "premise: the match has its one invader NPC"):
+	var ai := await _reserved_behind(t, me)
+	if ai == null:
 		return
-	var ai: Node2D = npcs[0]
-	var stack: Node = m["player_stack"]
+	var stack: Node = t.match()["player_stack"]
 	var brain: Node = TestContext.controller_of(ai)
-	ai.set("speed", 0.0)  # Held until the human stands in its slot (the premise).
-	if not t.require(
-			stack != null and stack.get_parent() == me,
-			"the human has a stack radio (MatchBuilder.bind_player)",
-	):
-		return
-	if not t.require(
-			await t.until(func(): return Stack.mine(stack) == 2, 20.0),
-			"the human was reserved slot 2 behind the AI (act %s)" % brain.current_act(),
-	):
-		return
 	t.expect_eq(int(brain.debug_entry().get("slot", 0)), 1, "the AI holds slot 1")
 	var mine := Stack.slot_point(stack, 2)
 	var target := Stack.slot_point(stack, 1)
@@ -94,6 +81,41 @@ func run(t: TestContext) -> void:
 	me.global_position = mine
 	await t.seconds(1.0)
 	ai.set("speed", 150.0)
+	var st := await _watch_ai(t, ai, me, brain, target)
+	_check_ready(t, ai, brain, target, st)
+	_check_way(t, ai, st)
+
+
+## The match's one invader NPC, held still until the human was reserved slot 2 behind it; null when
+## a premise fails.
+func _reserved_behind(t: TestContext, me: Node2D) -> Node2D:
+	var m := t.match()
+	var npcs: Array = (m.get("combatants", []) as Array).filter(func(c): return c != me)
+	if not t.require(npcs.size() == 1, "premise: the match has its one invader NPC"):
+		return null
+	var ai: Node2D = npcs[0]
+	var stack: Node = m["player_stack"]
+	var brain: Node = TestContext.controller_of(ai)
+	ai.set("speed", 0.0)  # Held until the human stands in its slot (the premise).
+	if not t.require(
+			stack != null and stack.get_parent() == me,
+			"the human has a stack radio (MatchBuilder.bind_player)",
+	):
+		return null
+	if not t.require(
+			await t.until(func(): return Stack.mine(stack) == 2, 20.0),
+			"the human was reserved slot 2 behind the AI (act %s)" % brain.current_act(),
+	):
+		return null
+	return ai
+
+
+## The AI's way to its slot `target`, watched until it radios ready (at most `REACH_S`): the
+## longest it stood still and where (`longest`, `longest_at`), how far the human was moved
+## (`moved`), the longest its walk was held (`held_max`), the ways it walked (`ways`) and the
+## `bumps`.
+func _watch_ai(t: TestContext, ai: Node2D, me: Node2D, brain: Node, target: Vector2) -> Dictionary:
+	var door := Entry.BACK
 	var human_at: Vector2 = me.global_position
 	# Lambdas capture plain values by copy: the per-frame state lives in one Dictionary.
 	var st := {
@@ -117,10 +139,13 @@ func run(t: TestContext) -> void:
 		t.trace("ai_out", Entry.outward(door, p))
 		return not _calls(t, ai, "ready").is_empty()
 	var seen := await Bump.watch(t, [ai, me], REACH_S, sample)
+	st["bumps"] = seen["bumps"]
+	return st
+
+
+## The AI reached its slot `target` and radioed ready.
+func _check_ready(t: TestContext, ai: Node2D, brain: Node, target: Vector2, st: Dictionary) -> void:
 	var ready := _calls(t, ai, "ready")
-	var into_me := (seen["bumps"] as Array).filter(
-		func(b): return b["walker"] == StringName(ai.name),
-	)
 	t.check(
 		not ready.is_empty(),
 		("the AI reached slot 1 and radioed ready within %.0f s (phase %s at %s, %.0f px from its "
@@ -135,6 +160,13 @@ func run(t: TestContext) -> void:
 			ai.global_position.distance_to(target) <= 12.0,
 			"it stands in slot 1 (%.0f px off)" % ai.global_position.distance_to(target),
 		)
+
+
+## On its way the AI never walked into the human, moved it or stood still `STILL_CAP`.
+func _check_way(t: TestContext, ai: Node2D, st: Dictionary) -> void:
+	var into_me := (st["bumps"] as Array).filter(
+		func(b): return b["walker"] == StringName(ai.name),
+	)
 	t.check(into_me.is_empty(), "the AI never walks into the human (%s)" % Bump.describe(into_me))
 	t.check(
 		float(st["moved"]) <= HUMAN_MOVE_MAX,

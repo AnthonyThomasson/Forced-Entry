@@ -48,22 +48,7 @@ func run(t: TestContext) -> void:
 	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
 	await t.seconds(0.3)
-	var order := Order.stack_order(squad, [t.actor(&"a")], Order.BACK_NORTH, "stun", false)
-	if not t.require(not order.is_empty(), "the squad posts the stun stack order (issue)"):
-		return
-	var settled := [0, 0]  # The human's slot last frame, and the frames it has held it.
-	var reserved := func():
-		var now := Stack.mine(stack)
-		settled[1] = settled[1] + 1 if now == settled[0] and now > 0 else 0
-		settled[0] = now
-		return settled[1] >= 20
-	if not t.require(
-			await t.until(reserved, 30.0),
-			"the human is reserved a slot at the back door (act %s)" % Entry.brain(
-				t,
-				&"a",
-			).current_act(),
-	):
+	if not await _reserved_in_stun_stack(t, squad, stack):
 		return
 	var mine := Stack.mine(stack)
 	if not t.require(
@@ -71,16 +56,43 @@ func run(t: TestContext) -> void:
 			"the human walks to its slot %d" % mine,
 	):
 		return
-	var called := func(): return not Entry.calls(t, "bang", &"a").is_empty()
-	if not t.require(
-			await t.until(called, 40.0),
-			"the AI calls the bang (premise: it throws the stack's stun; act %s, its steps %s)"
-				% [
-					Entry.brain(t, &"a").current_act(),
-					str(Stack.calls_at(t, &"a", opening).map(func(d): return d["entry_step"])),
-				],
-	):
+	if not await _bang_called(t, opening):
 		return
+	await _check_kept(t, stack, mine, opening)
+
+
+func _reserved_in_stun_stack(t: TestContext, squad: Node, stack: Node) -> bool:
+	var order := Order.stack_order(squad, [t.actor(&"a")], Order.BACK_NORTH, "stun", false)
+	if not t.require(not order.is_empty(), "the squad posts the stun stack order (issue)"):
+		return false
+	var settled := [0, 0]  # The human's slot last frame, and the frames it has held it.
+	var reserved := func():
+		var now := Stack.mine(stack)
+		settled[1] = settled[1] + 1 if now == settled[0] and now > 0 else 0
+		settled[0] = now
+		return settled[1] >= 20
+	return t.require(
+		await t.until(reserved, 30.0),
+		"the human is reserved a slot at the back door (act %s)" % Entry.brain(
+			t,
+			&"a",
+		).current_act(),
+	)
+
+
+func _bang_called(t: TestContext, opening: String) -> bool:
+	var called := func(): return not Entry.calls(t, "bang", &"a").is_empty()
+	return t.require(
+		await t.until(called, 40.0),
+		"the AI calls the bang (premise: it throws the stack's stun; act %s, its steps %s)"
+			% [
+				Entry.brain(t, &"a").current_act(),
+				str(Stack.calls_at(t, &"a", opening).map(func(d): return d["entry_step"])),
+			],
+	)
+
+
+func _check_kept(t: TestContext, stack: Node, mine: int, opening: String) -> void:
 	var kept := [true, ""]  # Whether the human kept its slot every frame, and the first lapse.
 	var burst := func():
 		if Stack.mine(stack) != mine and kept[0]:

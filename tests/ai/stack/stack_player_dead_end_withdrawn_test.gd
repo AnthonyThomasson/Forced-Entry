@@ -59,6 +59,31 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var f := _frame(t)
+	if f.is_empty():
+		return
+	var capacity := _dead_end_capacity(t, f)
+	if capacity.is_empty():
+		return
+	var holds := int(capacity["count"])
+	var me := t.actor(&"me")
+	# On a point the kitchenette holds a member on: in it, on the navmesh, off furniture, out of
+	# the doorway's funnel.
+	me.global_position = capacity["points"][-1]
+	await t.frames(2)
+	if not _mates_first(t, me):
+		return
+	var stack := Stack.attach(t, &"me")
+	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
+		return
+	var opening := String(f["id"])
+	if not await _pushed_past(t, stack, opening):
+		return
+	_check_claims(t, stack, opening, holds)
+
+
+## The way in from `FROM` into `INTO` (its frame); {} when the house has not exactly one.
+func _frame(t: TestContext) -> Dictionary:
 	var found := Slots.frames(t.world.openings, t.rooms).filter(
 		func(fr): return String(fr["from"]) == FROM and String(fr["room_key"]) == INTO,
 	)
@@ -66,8 +91,13 @@ func run(t: TestContext) -> void:
 			found.size() == 1,
 			"set-up: %s has one doorway from the %s into the %s" % [PLAN, FROM, INTO],
 	):
-		return
-	var f: Dictionary = found[0]
+		return {}
+	return found[0]
+
+
+## The test's own packing of the dead end behind way `f` (`Slots.dead_end_capacity`), once it is a
+## dead end holding one member per teammate; {} when a set-up premise fails.
+func _dead_end_capacity(t: TestContext, f: Dictionary) -> Dictionary:
 	var w2d := t.world.get_world_2d()
 	var w := Slots.world_of(
 		t.rooms, t.world.openings, w2d.navigation_map, w2d.direct_space_state, t.world.house,
@@ -79,36 +109,38 @@ func run(t: TestContext) -> void:
 				Slots.way_kind(w, f),
 			],
 	):
-		return
+		return {}
 	var capacity := Slots.dead_end_capacity(w, f, {})
 	var holds := int(capacity["count"])
 	if not t.require(
 			holds == MATES.size(),
 			"set-up: the %s holds %d (the test's own packing: %d)" % [FROM, MATES.size(), holds],
 	):
-		return
-	var me := t.actor(&"me")
-	# On a point the kitchenette holds a member on: in it, on the navmesh, off furniture, out of
-	# the doorway's funnel.
-	me.global_position = capacity["points"][-1]
-	await t.frames(2)
+		return {}
+	return capacity
+
+
+## Whether every teammate has a lower instance id than the human `me` (a set-up premise).
+func _mates_first(t: TestContext, me: Node) -> bool:
 	for id in MATES:
 		if not t.require(
 				t.actor(id).get_instance_id() < me.get_instance_id(),
 				"set-up: %s has a lower instance id than the human (its claim keeps a slot)" % id,
 		):
-			return
-	var stack := Stack.attach(t, &"me")
-	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
-		return
-	var opening := String(f["id"])
+			return false
+	return true
+
+
+## The human is reserved slot 2 behind the point, then each teammate in turn claims its slot until
+## it radios abort; false when a step fails.
+func _pushed_past(t: TestContext, stack: Node, opening: String) -> bool:
 	# The puppets claiming so far: id -> slot.
 	var claiming := { MATES[0]: 1 }
 	if not t.require(
 			await _radioing(t, claiming, opening, func(): return Stack.mine(stack) > 0),
 			"the human is reserved a slot in the %s's stack" % FROM,
 	):
-		return
+		return false
 	t.expect_eq(Stack.mine(stack), 2, "behind the point: slot 2")
 	var aborted := func(): return not Entry.calls(t, "abort", &"me").is_empty()
 	for i in range(1, MATES.size()):
@@ -120,8 +152,12 @@ func run(t: TestContext) -> void:
 		await _radioing(
 			t, claiming, opening, func(): return aborted.call() or Stack.mine(stack) != held,
 		)
-	if not t.require(aborted.call(), "the human's claim is withdrawn: it radios abort"):
-		return
+	return t.require(aborted.call(), "the human's claim is withdrawn: it radios abort")
+
+
+## Every slot the human claimed on `opening` is one of the `holds` the dead end holds, the last of
+## them its last, and no reservation is left.
+func _check_claims(t: TestContext, stack: Node, opening: String, holds: int) -> void:
 	var claims := Stack.calls_at(t, &"me", opening).filter(
 		func(d): return String(d["entry_step"]) != "abort",
 	)
