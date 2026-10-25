@@ -56,7 +56,16 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
-	_view = {
+	_view = _first_view(me, t1, t2)
+	markers.watch(func(): return _view)
+	await t.frames(2)
+	await _check_part_one(t, markers, t1, t2)
+	await _part_two(t, markers, t1, t2)
+
+
+## The squad's first view: `me` leading, `t1` defending the kitchen, `t2` with no order.
+func _first_view(me: Node, t1: Node, t2: Node) -> Dictionary:
+	return {
 		"leader": me,
 		"members": [
 			{ "node": me, "order": {}, "step": "" },
@@ -73,8 +82,11 @@ func run(t: TestContext) -> void:
 			{ "node": t2, "order": {}, "step": "" },
 		],
 	}
-	markers.watch(func(): return _view)
-	await t.frames(2)
+
+
+## No marker on the leader, one order target per member with an order, the selected teammate ringed
+## where it stands until the selection is cleared.
+func _check_part_one(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 	t.check(
 		_of(markers, "leader").is_empty(),
 		"no marker on the leader (the squad-leaders debug overlay's)",
@@ -111,8 +123,6 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	t.check(_of(markers, "selected").is_empty(), "clearing the selection clears its highlight")
 
-	await _part_two(t, markers, t1, t2)
-
 
 ## LD16 (`docs/leadership.md`, part 2): the markers name the new order kinds at their targets: a
 ## stack's mode and whether it is held for go ("Stack (frag, hold) · in position"), and an ambush
@@ -146,6 +156,13 @@ func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 		"a held frag stack is named with its mode and hold",
 	)
 	t.expect_eq(_label_for(markers, t2), "Ambush · in position", "an ambush is named Ambush")
+	await _check_stun_labels(t, markers, t1)
+	await _check_join_label(t, markers, t1)
+
+
+## A stun stack of `t1` held for go is named with its mode and hold, one not held with its mode
+## alone.
+func _check_stun_labels(t: TestContext, markers: Node, t1: Node) -> void:
 	_view["members"][1]["order"] = {
 		"id": "o5",
 		"kind": "stack",
@@ -179,8 +196,11 @@ func _part_two(t: TestContext, markers: Node, t1: Node, t2: Node) -> void:
 		"Stack (stun) · moving",
 		"a stun stack not held for go is named with its mode alone",
 	)
-	# LD24: the stack a leader's own claim rallies its free followers into (a `stack`
-	# order in mode `join`) is the member joining the leader's stack, named "Join stack".
+
+
+## LD24: the stack a leader's own claim rallies its free followers into (a `stack` order in mode
+## `join`) is the member (`t1`) joining the leader's stack, named "Join stack".
+func _check_join_label(t: TestContext, markers: Node, t1: Node) -> void:
 	_view["members"][1]["order"] = {
 		"id": "o7",
 		"kind": "stack",

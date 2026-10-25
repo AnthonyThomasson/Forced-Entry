@@ -29,6 +29,17 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var shapes := _shapes()
+	_check_batch(t, shapes)
+	await _check_direct(t, shapes)
+	if DisplayServer.get_name() == "headless":
+		return
+	await _check_pixels(t, shapes)
+
+
+## `SHAPES` seeded shapes, `[kind, data, color]`: every third a disc (`circle`, data `[centre,
+## radius]`), else every fifth a convex polygon (`convex`), the rest a star-ish ring (`poly`).
+func _shapes() -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
 	var shapes: Array = []
@@ -38,51 +49,45 @@ func run(t: TestContext) -> void:
 		if i % 3 == 0:
 			shapes.append(["circle", [at, rng.randf_range(0.4, 2.5)], color])
 		elif i % 5 == 0:
-			var ring := PackedVector2Array()  # a convex polygon, added uncut (`fill_convex`)
-			var corners := rng.randi_range(3, 14)
-			var r := rng.randf_range(0.8, 2.6)
-			for k in corners:
-				ring.append(at
-						+ Vector2.from_angle(TAU * k / corners) * r
-							* Vector2(1.0, rng.randf_range(0.6, 1.0) if k == 0 else 1.0))
-			shapes.append(["convex", ring, color])
+			shapes.append(["convex", _convex_ring(rng, at), color])
 		else:
-			var poly := PackedVector2Array()
-			var count := rng.randi_range(3, 14)
-			for k in count:  # a star-ish, often concave ring
-				poly.append(at + Vector2.from_angle(TAU * k / count) * rng.randf_range(0.6, 2.8))
-			shapes.append(["poly", poly, color])
+			shapes.append(["poly", _star(rng, at), color])
+	return shapes
 
-	# What the batch hands the renderer.
+
+## A convex polygon round `at`, added uncut (`fill_convex`), drawn from `rng`.
+func _convex_ring(rng: RandomNumberGenerator, at: Vector2) -> PackedVector2Array:
+	var ring := PackedVector2Array()
+	var corners := rng.randi_range(3, 14)
+	var r := rng.randf_range(0.8, 2.6)
+	for k in corners:
+		ring.append(at
+				+ Vector2.from_angle(TAU * k / corners) * r
+					* Vector2(1.0, rng.randf_range(0.6, 1.0) if k == 0 else 1.0))
+	return ring
+
+
+## A star-ish, often concave ring round `at`, drawn from `rng`.
+func _star(rng: RandomNumberGenerator, at: Vector2) -> PackedVector2Array:
+	var poly := PackedVector2Array()
+	var count := rng.randi_range(3, 14)
+	for k in count:
+		poly.append(at + Vector2.from_angle(TAU * k / count) * rng.randf_range(0.6, 2.8))
+	return poly
+
+
+## What the batch hands the renderer: every shape's corners, each polygon's own triangles in order,
+## each in its shape's colour.
+func _check_batch(t: TestContext, shapes: Array) -> void:
 	var batch := FillBatch.new(t.world)
 	var want_points := PackedVector2Array()
 	var want_indices := PackedInt32Array()
 	var want_colors := PackedColorArray()
 	for shape in shapes:
-		var poly: PackedVector2Array
-		if shape[0] == "convex":
-			poly = shape[1]
-			batch.fill_convex(poly, shape[2])
-		elif shape[0] == "poly":
-			poly = shape[1]
-			if Geometry2D.triangulate_polygon(poly).is_empty():
-				continue  # left to the engine: not a batch's
-			batch.fill(poly, shape[2])
-		else:
-			var centre: Vector2 = shape[1][0]
-			var radius: float = shape[1][1]
-			batch.circle(centre, radius, shape[2])
-			poly = PackedVector2Array()
-			for k in 64:
-				poly.append(centre + Vector2(cos(TAU * k / 64.0), sin(TAU * k / 64.0)) * radius)
-		var base := want_points.size()
-		if shape[0] == "poly":
-			for index in Geometry2D.triangulate_polygon(poly):
-				want_indices.append(base + index)
-		else:
-			# a convex polygon or the 64-gon: the fan from its first corner
-			for k in range(1, poly.size() - 1):
-				want_indices.append_array([base, base + k, base + k + 1])
+		var poly := _add_shape(batch, shape)
+		if poly.is_empty():
+			continue  # left to the engine: not a batch's
+		want_indices.append_array(_triangles(shape[0], poly, want_points.size()))
 		want_points.append_array(poly)
 		for k in poly.size():
 			want_colors.append(shape[2])
@@ -101,6 +106,44 @@ func run(t: TestContext) -> void:
 	)
 	t.check(batch._colors == want_colors, "in each shape's colour")
 
+
+## Adds `shape` to `batch`; returns the corners it stands for (a disc's 64-gon), empty for a polygon
+## that cannot be triangulated (left to the engine).
+func _add_shape(batch: FillBatch, shape: Array) -> PackedVector2Array:
+	var poly: PackedVector2Array
+	if shape[0] == "convex":
+		poly = shape[1]
+		batch.fill_convex(poly, shape[2])
+	elif shape[0] == "poly":
+		poly = shape[1]
+		if Geometry2D.triangulate_polygon(poly).is_empty():
+			return PackedVector2Array()
+		batch.fill(poly, shape[2])
+	else:
+		var centre: Vector2 = shape[1][0]
+		var radius: float = shape[1][1]
+		batch.circle(centre, radius, shape[2])
+		poly = PackedVector2Array()
+		for k in 64:
+			poly.append(centre + Vector2(cos(TAU * k / 64.0), sin(TAU * k / 64.0)) * radius)
+	return poly
+
+
+## The triangles of a shape of `kind` with corners `poly`, its first corner at index `base`.
+func _triangles(kind: String, poly: PackedVector2Array, base: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	if kind == "poly":
+		for index in Geometry2D.triangulate_polygon(poly):
+			out.append(base + index)
+	else:
+		# a convex polygon or the 64-gon: the fan from its first corner
+		for k in range(1, poly.size() - 1):
+			out.append_array([base, base + k, base + k + 1])
+	return out
+
+
+## Unbatched (the headless display's way), a batch holds nothing: each shape is drawn as it comes.
+func _check_direct(t: TestContext, shapes: Array) -> void:
 	var direct := Direct.new()
 	direct.shapes = shapes
 	t.world.add_child(direct)
@@ -110,23 +153,12 @@ func run(t: TestContext) -> void:
 		"unbatched, a batch holds nothing: each shape was drawn as it came (%d held)" % direct.held,
 	)
 
-	if DisplayServer.get_name() == "headless":
-		return
+
+## Windowed: the shapes rendered with the plain draw calls and batched give the same pixels.
+func _check_pixels(t: TestContext, shapes: Array) -> void:
 	var images := []
 	for batched in [false, true]:
-		var view := SubViewport.new()
-		view.size = Vector2i(600, 600)
-		view.transparent_bg = true
-		view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-		t.world.add_child(view)
-		view.canvas_transform = Transform2D(0.0, Vector2(60.0, 60.0), 0.0, Vector2(300.0, 300.0))
-		var node := Shapes.new()
-		node.shapes = shapes
-		node.batched = batched
-		view.add_child(node)
-		await t.frames(3)
-		await RenderingServer.frame_post_draw
-		images.append(view.get_texture().get_image())
+		images.append(await _render(t, shapes, batched))
 	var differing := 0
 	var painted := 0
 	var a: Image = images[0]
@@ -142,6 +174,23 @@ func run(t: TestContext) -> void:
 		"rendered, %d of %d pixels differ from the plain draw calls"
 			% [differing, a.get_width() * a.get_height()],
 	)
+
+
+## The image of `shapes` rendered magnified in a viewport of their own, `batched` or not.
+func _render(t: TestContext, shapes: Array, batched: bool) -> Image:
+	var view := SubViewport.new()
+	view.size = Vector2i(600, 600)
+	view.transparent_bg = true
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	t.world.add_child(view)
+	view.canvas_transform = Transform2D(0.0, Vector2(60.0, 60.0), 0.0, Vector2(300.0, 300.0))
+	var node := Shapes.new()
+	node.shapes = shapes
+	node.batched = batched
+	view.add_child(node)
+	await t.frames(3)
+	await RenderingServer.frame_post_draw
+	return view.get_texture().get_image()
 
 
 class Shapes:

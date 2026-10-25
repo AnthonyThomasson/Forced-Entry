@@ -104,33 +104,40 @@ func run(t: TestContext) -> void:
 ## `{ entries, targets, added }` (`added` the connected callable).
 func _watch(t: TestContext, viewport: SubViewport) -> Dictionary:
 	var watch := { "entries": [], "targets": {} }
-	var added := func(node: Node) -> void:
-		if not (node is CharacterBody2D and viewport.is_ancestor_of(node)):
-			return
-		if TestContext.controller_of(node, &"control") == null:
-			return
-		if node.get_children().all(func(c): return not ("rooms" in c)):
-			return
-		(watch["entries"] as Array).append(_maps_now(viewport, node))
-		for child in node.get_children():
-			if child is NavigationAgent2D:
-				var agent: NavigationAgent2D = child
-				agent.path_changed.connect(func() -> void:
-					if not (watch["targets"] as Dictionary).has(node.name):
-						var point := agent.target_position
-						var map := agent.get_navigation_map()
-						# A map that never synchronized shows no navmesh (and asking it is an
-						# engine error).
-						var off := INF
-						if NavigationServer2D.map_get_iteration_id(map) != 0:
-							off = NavigationServer2D.map_get_closest_point(
-								map,
-								point,
-							).distance_to(point)
-						watch["targets"][node.name] = { "point": point, "off": off })
+	var added := func(node: Node) -> void: _on_added(watch, viewport, node)
 	watch["added"] = added
 	t.world.get_tree().node_added.connect(added)
 	return watch
+
+
+## A node entered the tree: when it is an NPC under `viewport` (a body with a controller that has
+## `rooms`), note how the maps stand in `watch`'s `entries` and watch its agents' first path.
+func _on_added(watch: Dictionary, viewport: SubViewport, node: Node) -> void:
+	if not (node is CharacterBody2D and viewport.is_ancestor_of(node)):
+		return
+	if TestContext.controller_of(node, &"control") == null:
+		return
+	if node.get_children().all(func(c): return not ("rooms" in c)):
+		return
+	(watch["entries"] as Array).append(_maps_now(viewport, node))
+	for child in node.get_children():
+		if child is NavigationAgent2D:
+			var agent: NavigationAgent2D = child
+			agent.path_changed.connect(func() -> void: _note_target(watch, node, agent))
+
+
+## `npc`'s `agent` changed its path: the first time, note its target in `watch`'s `targets` with how
+## far it lies from its map's navmesh on this frame.
+func _note_target(watch: Dictionary, npc: Node, agent: NavigationAgent2D) -> void:
+	if (watch["targets"] as Dictionary).has(npc.name):
+		return
+	var point := agent.target_position
+	var map := agent.get_navigation_map()
+	# A map that never synchronized shows no navmesh (and asking it is an engine error).
+	var off := INF
+	if NavigationServer2D.map_get_iteration_id(map) != 0:
+		off = NavigationServer2D.map_get_closest_point(map, point).distance_to(point)
+	watch["targets"][npc.name] = { "point": point, "off": off }
 
 
 ## How the maps of `viewport`'s world stand on the frame `npc` enters: `{ npc, planning, steering,

@@ -60,25 +60,9 @@ func run(t: TestContext) -> void:
 	# where a person would see it.
 	Order.player_screen(t)
 	_keybind(t)
-	var menu := Order.command_menu(t)
-	if not t.require(
-			menu != null,
-			"the command menu script exists (%s)" % Order.COMMAND_MENU_SCRIPT,
-	):
+	var menu := _premise_menu(t)
+	if menu == null:
 		return
-	if not t.require(
-			menu.has_method("setup")
-				and menu.has_method("open_at")
-				and menu.has_method("items")
-				and menu.has_signal("order_requested"),
-			"it has setup, open_at, items and order_requested",
-	):
-		return
-	t.expect_eq(
-		menu.process_mode,
-		Node.PROCESS_MODE_ALWAYS,
-		"it runs while the tree is paused (PROCESS_MODE_ALWAYS)",
-	)
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	_view = {
@@ -99,10 +83,49 @@ func run(t: TestContext) -> void:
 		"teammates": [t1, t2], "view": func(): return _view, "resolve": squad.resolve })
 	var got: Array = []
 	menu.order_requested.connect(func(d): got.append(d))
-	var tree := t.world.get_tree()
+	await _check_doorway(t, menu, got, t1, t2)
+	await _check_stun_carried(t, menu, got, t1, t2)
+	await _check_room(t, menu, got, t1, t2)
+	await _check_select(t, menu, got, t1)
+	await _check_cancel(t, menu, got, t1)
+	await _check_deselect(t, menu, got, t1, t2)
+	await _check_tick_and_escape(t, menu, got, t2)
+	if not await _check_clicks(t, menu, got, t1, t2):
+		return
+	await _part_two(t, menu, got, t1, t2)
+	t.world.get_tree().paused = false
 
-	# A doorway, nothing selected (the whole squad), no stun carried: both stack items, the stun one
-	# greyed.
+
+## The command menu, built, with setup, open_at, items and order_requested, running while the tree
+## is paused; null when a premise failed (the test ended).
+func _premise_menu(t: TestContext) -> Node:
+	var menu := Order.command_menu(t)
+	if not t.require(
+			menu != null,
+			"the command menu script exists (%s)" % Order.COMMAND_MENU_SCRIPT,
+	):
+		return null
+	if not t.require(
+			menu.has_method("setup")
+				and menu.has_method("open_at")
+				and menu.has_method("items")
+				and menu.has_signal("order_requested"),
+			"it has setup, open_at, items and order_requested",
+	):
+		return null
+	t.expect_eq(
+		menu.process_mode,
+		Node.PROCESS_MODE_ALWAYS,
+		"it runs while the tree is paused (PROCESS_MODE_ALWAYS)",
+	)
+	return menu
+
+
+## A doorway, nothing selected (the whole squad: `t1`, `t2`), no stun carried: both stack items, the
+## stun one greyed; choosing the quiet one while paused emits its request (into `got`) and closes
+## the menu.
+func _check_doorway(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
+	var tree := t.world.get_tree()
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(tree.paused, "opening the menu pauses the tree")
@@ -132,7 +155,9 @@ func run(t: TestContext) -> void:
 	t.check(not tree.paused, "choosing an order closes the menu and unpauses")
 	t.check(Order.items(menu).is_empty(), "and the menu offers nothing once closed")
 
-	# A stun carried by one teammate: the stun item is offered for the squad.
+
+## A stun carried by one teammate (`t2`): the stun item is offered for the squad.
+func _check_stun_carried(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
 	Probe.arm(t2, 1, 0)
 	menu.open_at(Order.BACK_ON)
 	await t.frames(1)
@@ -150,7 +175,9 @@ func run(t: TestContext) -> void:
 			"carrying the click on the opening (%s)" % str(got[1].get("pos")),
 		)
 
-	# A room.
+
+## A room offers its defend item and no stack item; the defend order goes to the whole squad.
+func _check_room(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
 	t.check(
@@ -164,8 +191,10 @@ func run(t: TestContext) -> void:
 		_expect_order(t, got[2], "defend_room", [t1, t2], "the defend order to the whole squad")
 		t.expect_eq(String(got[2].get("room", "")), "kitchen", "for the kitchen")
 
-	# A teammate: select it; the next order goes to it alone, and the stun is greyed again (it
-	# carries none).
+
+## A teammate (`t1`): select it; the next order goes to it alone, and the stun is greyed again (it
+## carries none).
+func _check_select(t: TestContext, menu: Node, got: Array, t1: Node) -> void:
 	menu.open_at(t1.global_position)
 	await t.frames(1)
 	var select := _named(menu, "select", t1)
@@ -191,7 +220,9 @@ func run(t: TestContext) -> void:
 	if t.check(got.size() == 4, "choosing it emits order_requested"):
 		_expect_order(t, got[3], "stack", [t1], "the order to the selected teammate only")
 
-	# A selected member with an order: "Cancel order".
+
+## A selected member (`t1`) with an order: "Cancel order".
+func _check_cancel(t: TestContext, menu: Node, got: Array, t1: Node) -> void:
 	_view["members"][0]["order"] = { "id": "o1", "kind": "defend_room", "room": "kitchen" }
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -204,7 +235,9 @@ func run(t: TestContext) -> void:
 	if t.check(got.size() == 5, "choosing it emits order_requested"):
 		_expect_order(t, got[4], "cancel", [t1], "the cancel for the selected member")
 
-	# Deselect it: the whole squad again.
+
+## Deselect `t1`: the whole squad again.
+func _check_deselect(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
 	menu.open_at(t1.global_position)
 	await t.frames(1)
 	var deselect := _named(menu, "deselect", t1)
@@ -227,6 +260,11 @@ func run(t: TestContext) -> void:
 			"deselected, the order goes to the whole squad",
 		)
 
+
+## The ticked list: tick `t2`, the order goes to it; then Escape closes the menu without an order,
+## and closing unpauses.
+func _check_tick_and_escape(t: TestContext, menu: Node, got: Array, t2: Node) -> void:
+	var tree := t.world.get_tree()
 	# The ticked list: tick t2.
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
@@ -247,13 +285,17 @@ func run(t: TestContext) -> void:
 	t.check(not tree.paused and Order.items(menu).is_empty(), "Escape closes the menu and unpauses")
 	t.expect_eq(got.size(), 7, "with no order")
 
-	# Right-click opens it on what is under the cursor; a left-click on a teammate's body toggles it
-	# while paused. The premise of a click: the view holds still. The runner's camera eases in from
-	# where the previous test left it (and on while paused), and an injected click is handled a
-	# frame after it is aimed, so a moving view puts it somewhere else.
+
+## Right-click opens it on what is under the cursor; a left-click on a teammate's body (`t1`)
+## toggles it while paused. The premise of a click: the view holds still. The runner's camera eases
+## in from where the previous test left it (and on while paused), and an injected click is handled
+## a frame after it is aimed, so a moving view puts it somewhere else. False when the view never
+## held still (the tree unpaused, the test ended).
+func _check_clicks(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> bool:
+	var tree := t.world.get_tree()
 	if not t.require(await Order.view_still(t), "the view holds still before the clicks"):
 		tree.paused = false
-		return
+		return false
 	Order.click(t, Order.BACK_SOUTH, MOUSE_BUTTON_RIGHT)
 	await t.frames(2)
 	t.check(
@@ -274,9 +316,7 @@ func run(t: TestContext) -> void:
 			"a left-click on t1's body while paused added it to the selection (t2 was ticked)",
 		)
 	tree.paused = false
-
-	await _part_two(t, menu, got, t1, t2)
-	tree.paused = false
+	return true
 
 
 ## LD16 (`docs/leadership.md`, part 2): on a doorway the menu also offers "... with frag" (greyed
@@ -290,7 +330,18 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	Order.tick(menu, String(t1.name), false)
 	Order.tick(menu, String(t2.name), false)
 	Probe.arm(t1, 0, 0)  # t2 carries the stun it was armed with above, and no frag.
+	if not await _check_frag_greyed(t, menu):
+		return
+	var before := got.size()
+	await _check_held_stacks(t, menu, got, t1, t2)
+	await _check_go(t, menu, got, t1, before)
+	await _check_no_go(t, menu)
+	await _check_ambush(t, menu, got, before, [t1, t2])
 
+
+## On a doorway with no frag carried: the frag item greyed, the ambush item, no Go, and the "Hold
+## for my go" checkbox, off by default. False when the checkbox is missing.
+func _check_frag_greyed(t: TestContext, menu: Node) -> bool:
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	var frag := Order.item(menu, "Stack into the kitchen with frag")
@@ -311,11 +362,15 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	var hold := _hold_box(menu)
 	if not t.check(hold != null, "the panel has a \"Hold for my go\" checkbox"):
 		menu.close()
-		return
+		return false
 	t.check(not hold.button_pressed, "off by default")
 	menu.close()
+	return true
 
-	# A frag carried: the frag item is offered; with "Hold for my go" ticked the stack is held.
+
+## A frag carried (by `t1`): the frag item is offered; with "Hold for my go" ticked the stack is
+## held, the box remembered while the match runs (D19); unticked, a stack goes when ready.
+func _check_held_stacks(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
 	Probe.arm(t1, 0, 1)
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -328,7 +383,7 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	Order.choose(menu, "Stack into the kitchen with frag")
 	await t.frames(1)
 	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
-		_expect_stack(t, got[before], "frag", true, [t1, t2], "the held frag stack")
+		_expect_stack(t, got[before], StackWant.new("frag", true, [t1, t2]), "the held frag stack")
 	# D19: remembered while the match runs.
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
@@ -339,7 +394,12 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	Order.choose(menu, "Stack into the kitchen (quiet)")
 	await t.frames(1)
 	if t.check(got.size() == before + 2, "choosing it emits order_requested"):
-		_expect_stack(t, got[before + 1], "quiet", true, [t1, t2], "the held quiet stack")
+		_expect_stack(
+			t,
+			got[before + 1],
+			StackWant.new("quiet", true, [t1, t2]),
+			"the held quiet stack",
+		)
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	_set_hold(menu, false)
@@ -349,14 +409,15 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 		_expect_stack(
 			t,
 			got[before + 2],
-			"stun",
-			false,
-			[t1, t2],
+			StackWant.new("stun", false, [t1, t2]),
 			"unticked, a stun stack that goes when ready",
 		)
 
-	# Go: offered only on a doorway where a member of the view holds a held stack (its view row's
-	# `held`, at that opening), whatever the selection.
+
+## Go: offered only on a doorway where a member of the view holds a held stack (its view row's
+## `held`, at that opening), whatever the selection (only `t1` selected, `t2` holding it); the
+## part's requests are `got` from `before` on.
+func _check_go(t: TestContext, menu: Node, got: Array, t1: Node, before: int) -> void:
 	_view["members"][0]["order"] = {}
 	_view["members"][1]["order"] = {
 		"id": "o3",
@@ -387,6 +448,10 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 			"carrying the click (%s)" % str(got[before + 3].get("pos")),
 		)
 	Order.tick(menu, String(t1.name), false)
+
+
+## No Go for a stack that goes when ready, nor for a held stack at another doorway.
+func _check_no_go(t: TestContext, menu: Node) -> void:
 	_view["members"][1]["order"]["wait_go"] = false
 	_view["members"][1]["held"] = false
 	menu.open_at(Order.BACK_SOUTH)
@@ -408,11 +473,14 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 	_view["members"][1]["order"] = {}
 	_view["members"][1]["held"] = false
 
-	# Ambush, for the whole squad.
+
+## Ambush, for the whole squad (`everyone`); by an interior doorway, from the side clicked. The
+## part's requests are `got` from `before` on.
+func _check_ambush(t: TestContext, menu: Node, got: Array, before: int, everyone: Array) -> void:
 	Order.choose(menu, "Ambush the doorway from the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == before + 5, "choosing the ambush emits order_requested"):
-		_expect_order(t, got[before + 4], "ambush", [t1, t2], "the ambush to the whole squad")
+		_expect_order(t, got[before + 4], "ambush", everyone, "the ambush to the whole squad")
 		t.check(
 			(got[before + 4].get("pos", Vector2.INF) as Vector2).is_equal_approx(Order.BACK_SOUTH),
 			"carrying the click (%s)" % str(got[before + 4].get("pos")),
@@ -452,21 +520,18 @@ func _set_hold(menu: Node, on: bool) -> void:
 
 ## Check an emitted stack request of part 2: its recipients, `mode`, `wait_go` and part 1's `bang`
 ## (mode != quiet).
-func _expect_stack(
-	t: TestContext,
-	request: Dictionary,
-	mode: String,
-	wait_go: bool,
-	to: Array,
-	what: String,
-) -> void:
-	_expect_order(t, request, "stack", to, what)
-	t.expect_eq(String(request.get("mode", "")), mode, "%s: mode %s" % [what, mode])
-	t.expect_eq(request.get("wait_go"), wait_go, "%s: wait_go %s" % [what, str(wait_go)])
+func _expect_stack(t: TestContext, request: Dictionary, want: StackWant, what: String) -> void:
+	_expect_order(t, request, "stack", want.to, what)
+	t.expect_eq(String(request.get("mode", "")), want.mode, "%s: mode %s" % [what, want.mode])
+	t.expect_eq(
+		request.get("wait_go"),
+		want.wait_go,
+		"%s: wait_go %s" % [what, str(want.wait_go)],
+	)
 	t.expect_eq(
 		request.get("bang"),
-		mode != "quiet",
-		"%s: bang %s (mode != quiet)" % [what, str(mode != "quiet")],
+		want.mode != "quiet",
+		"%s: bang %s (mode != quiet)" % [what, str(want.mode != "quiet")],
 	)
 
 
@@ -525,3 +590,18 @@ func _key(key: Key) -> void:
 		ev.physical_keycode = key
 		ev.pressed = pressed
 		TestContext.inject(ev)
+
+
+## The stack request part 2 expects: its `mode`, its `wait_go` and its recipients `to`.
+class StackWant extends RefCounted:
+	## quiet / stun / frag.
+	var mode: String
+	## Whether it waits for the leader's go.
+	var wait_go: bool
+	## The recipients, as a set.
+	var to: Array
+
+	func _init(want_mode: String, want_wait_go: bool, want_to: Array) -> void:
+		mode = want_mode
+		wait_go = want_wait_go
+		to = want_to

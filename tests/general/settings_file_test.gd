@@ -26,13 +26,29 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	Keybinds.reset_all()
 	_remove_scratch()
+	_check_no_file(t)
+	if not _check_saves(t):
+		return
+	_check_reload(t)
+	_check_setup(t)
+	_check_rows(t)
+	_check_reset(t)
+	_check_partial(t)
+	await _check_unreadable(t)
+	Keybinds.reset_all()
+	_remove_scratch()
 
-	# No file: the defaults stand.
+
+## No file: the defaults stand.
+func _check_no_file(t: TestContext) -> void:
 	Settings.load_file()
 	t.check(Keybinds.overrides().is_empty(), "no file leaves the default bindings")
 	t.expect_eq(Settings.debug, true, "no file leaves Debug as it was")
 
-	# Changes save immediately, and only the differences are written.
+
+## Changes save immediately, and only the differences are written; false when the file is not a
+## JSON object (the test ended).
+func _check_saves(t: TestContext) -> bool:
 	Settings.set_debug(false)
 	t.check(FileAccess.file_exists(SCRATCH), "changing Debug writes the file")
 	t.check(Settings.rebind(Keybinds.PUNCH, _key(KEY_G)), "a rebind is accepted")
@@ -42,18 +58,23 @@ func run(t: TestContext) -> void:
 	)
 	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(SCRATCH))
 	if not t.require(saved is Dictionary, "the file is a JSON object"):
-		return
+		return false
 	t.expect_eq(saved["debug"], false, "the file records Debug")
 	t.expect_eq(saved["keybinds"].keys(), [Keybinds.PUNCH], "only the changed binding is written")
+	return true
 
-	# A reload (a new launch) restores both.
+
+## A reload (a new launch) restores both.
+func _check_reload(t: TestContext) -> void:
 	Settings.debug = true
 	Keybinds.reset_all()
 	Settings.load_file()
 	t.expect_eq(Settings.debug, false, "a reload restores Debug")
 	t.check(_key(KEY_G).is_action(Keybinds.PUNCH), "a reload restores the rebinding")
 
-	# The setup window's choices are remembered too (the start mode is not).
+
+## The setup window's choices are remembered too (the start mode is not).
+func _check_setup(t: TestContext) -> void:
 	Settings.set_setup({
 		"mode": "watch",
 		"side": "invader",
@@ -67,7 +88,9 @@ func run(t: TestContext) -> void:
 	t.expect_eq(int(Settings.setup["defenders"]["count"]), 3, "a reload restores a side's choices")
 	t.check(not Settings.setup.has("mode"), "the start mode is not remembered")
 
-	# The page's rows reflect the live state.
+
+## The page's rows reflect the live state.
+func _check_rows(t: TestContext) -> void:
 	var rows := Settings.binding_rows()
 	t.expect_eq(rows.size(), Keybinds.LABELS.size(), "one row per rebindable action")
 	var punch: Dictionary = rows.filter(func(r): return r["action"] == Keybinds.PUNCH)[0]
@@ -82,7 +105,9 @@ func run(t: TestContext) -> void:
 		"a shared binding is listed by label",
 	)
 
-	# Reset saves too.
+
+## Reset saves too.
+func _check_reset(t: TestContext) -> void:
 	Settings.reset(Keybinds.PUNCH)
 	Settings.reset(Keybinds.MOVE_UP)
 	Keybinds.reset_all()
@@ -94,22 +119,23 @@ func run(t: TestContext) -> void:
 	t.check(Keybinds.overrides().is_empty(), "reset_all is saved")
 	t.expect_eq(Settings.debug, false, "reset_all leaves Debug alone")
 
-	# A file that names only some things changes only those.
+
+## A file that names only some things changes only those.
+func _check_partial(t: TestContext) -> void:
 	_write('{ "keybinds": { "move_up": { "key": %d } } }' % KEY_UP)
 	Settings.debug = true
 	Settings.load_file()
 	t.expect_eq(Settings.debug, true, "a file without Debug leaves it as it was")
 	t.check(_key(KEY_UP).is_action(Keybinds.MOVE_UP), "the bindings it names are applied")
 
-	# An unreadable file is a warning and the defaults.
+
+## An unreadable file is a warning and the defaults.
+func _check_unreadable(t: TestContext) -> void:
 	t.expect_log("not a readable settings file")
 	_write("{ this is not json")
 	Settings.load_file()
 	t.check(Keybinds.overrides().is_empty(), "a corrupt file falls back to the default bindings")
 	await t.seconds(0.2)  # let the log watcher see the warning
-
-	Keybinds.reset_all()
-	_remove_scratch()
 
 
 func _key(code: Key) -> InputEventKey:

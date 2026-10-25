@@ -82,6 +82,15 @@ func run(t: TestContext) -> void:
 		t.expect_eq(c.style, unit, "%s wears the match's unit" % c.name)
 		_check_items(t, c, [INVADER_WEAPON])
 	_check_ranks(t, invaders, defenders, "armed")
+	var styles := _check_defenders(t, defenders)
+	_check_reseeded(t, invaders, defenders, unit, styles)
+	_check_units(t, invaders)
+
+
+## Each of the armed `defenders` is seeded merc or borg with a look seed of its own, carrying
+## defender weapons; the crew has both styles and both weapon styles among it. Returns each
+## defender's style.
+func _check_defenders(t: TestContext, defenders: Array) -> Dictionary:
 	var styles := {}  # defender -> its style
 	var weapons := {}  # weapon style -> true
 	var seeds := {}  # look seed -> true
@@ -107,8 +116,18 @@ func run(t: TestContext) -> void:
 		seeds.size() == DEFENDERS,
 		"each defender has a look seed of its own (%d distinct of %d)" % [seeds.size(), DEFENDERS],
 	)
+	return styles
 
-	# Drawn from the seed: the same seed arms the same way.
+
+## Drawn from the seed: the same seed arms the same way (the invaders' `unit`, each defender's
+## style in `styles`, the ranks).
+func _check_reseeded(
+	t: TestContext,
+	invaders: Array,
+	defenders: Array,
+	unit: StringName,
+	styles: Dictionary,
+) -> void:
 	MatchBuilder.arm(defenders + invaders, _spec(SEED))
 	t.expect_eq(
 		invaders[0].style,
@@ -119,7 +138,9 @@ func run(t: TestContext) -> void:
 		t.expect_eq(c.style, styles[c], "re-armed with the same seed, %s keeps its style" % c.name)
 	_check_ranks(t, invaders, defenders, "re-armed")
 
-	# Across seeds both units come up, one per match.
+
+## Across seeds both units come up, one per match, worn by all the `invaders`.
+func _check_units(t: TestContext, invaders: Array) -> void:
 	var units := {}
 	for s in range(1, UNIT_SEEDS + 1):
 		MatchBuilder.arm(invaders, _spec(s))

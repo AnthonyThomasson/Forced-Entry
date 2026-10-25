@@ -45,19 +45,26 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var t1 := t.actor(&"t1")
-	var t2 := t.actor(&"t2")
-	var t3 := t.actor(&"t3")
-	var me := t.actor(&"me")
 	var squad := t.squad(&"invader")
 	if not t.require(
 			squad != null,
 			"the invaders' squad is declared (s.squads)",
 	):
 		return
+	_check_modes(t, squad)
+	var held := _held_stack(t, squad)
+	if held.is_empty():
+		return
+	_check_go(t, squad, held)
+	_check_go_without_holder(t, squad)
+	_check_ambush(t, squad)
+	await _check_leader_death(t, squad)
 
-	# The stack's mode and hold: a part-1 request (bang, no mode, no wait_go) is a stun stack that
-	# goes when ready; quiet likewise.
+
+## The stack's mode and hold: a part-1 request (bang, no mode, no wait_go) is a stun stack that
+## goes when ready; quiet likewise; a frag stack keeps its mode.
+func _check_modes(t: TestContext, squad: Node) -> void:
+	var t3 := t.actor(&"t3")
 	var stun := Order.issue(
 		squad,
 		{ "kind": Order.STACK, "to": [t3], "pos": Order.BACK_NORTH, "bang": true },
@@ -97,7 +104,12 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(frag.get("bang"), true, "with bang true (mode != quiet)")
 
-	# A held stun stack at the back door for t1 and t2.
+
+## A held stun stack at the back door for t1 and t2: the order `squad` posted, {} when it posted
+## none (the test ended).
+func _held_stack(t: TestContext, squad: Node) -> Dictionary:
+	var t1 := t.actor(&"t1")
+	var t2 := t.actor(&"t2")
 	var held := Order.issue(
 		squad,
 		{
@@ -110,7 +122,7 @@ func run(t: TestContext) -> void:
 		},
 	)
 	if not t.require(not held.is_empty(), "the held stack is posted (issue)"):
-		return
+		return held
 	t.expect_eq(
 		held.get("wait_go"),
 		true,
@@ -118,9 +130,15 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(String(held.get("mode", "")), "stun", "and its mode, stun")
 	t.expect_eq(String(held.get("opening", "")), BACK, "at the back door")
+	return held
 
-	# Go: resolved to the doorway, to the holders of the held stack there only, whatever the request
-	# names; the stack orders stay held.
+
+## Go: resolved to the doorway, to the holders of the `held` stack there only, whatever the request
+## names; the stack orders stay held.
+func _check_go(t: TestContext, squad: Node, held: Dictionary) -> void:
+	var t1 := t.actor(&"t1")
+	var t2 := t.actor(&"t2")
+	var t3 := t.actor(&"t3")
 	t.check(
 		not squad.resolve({ "kind": "go", "pos": Order.BACK_NORTH }).is_empty(),
 		"resolve answers a go at the back door (%s)"
@@ -146,13 +164,18 @@ func run(t: TestContext) -> void:
 				% [m.name, str(kept)],
 		)
 
-	# A go where nobody holds a held stack: nothing to post. t3's latest stack (go when ready) at
-	# the back door does not count.
+
+## A go where nobody holds a held stack: nothing to post. t3's latest stack (go when ready) at the
+## back door does not count.
+func _check_go_without_holder(t: TestContext, squad: Node) -> void:
 	var none := Order.issue(squad, { "kind": "go", "pos": Vector2(690, 330) })
 	t.check(none.is_empty(), "a go at a doorway with no held stack posts nothing (%s)" % str(none))
 
-	# Ambush: the doorway and the room on the click's side of its wall plane; an exterior door's is
-	# the house's room.
+
+## Ambush: the doorway and the room on the click's side of its wall plane; an exterior door's is the
+## house's room.
+func _check_ambush(t: TestContext, squad: Node) -> void:
+	var t3 := t.actor(&"t3")
 	var from_living := Order.issue(squad, { "kind": "ambush", "to": [t3], "pos": IN_LIVING })
 	if t.check(
 			not from_living.is_empty(),
@@ -187,8 +210,13 @@ func run(t: TestContext) -> void:
 		"an exterior door clicked from outside: the house's room (resolve %s)" % str(exterior),
 	)
 
-	# D12: the leader that gave a held order dies before any go; its held orders are released (a go
-	# with auto: true to their holders).
+
+## D12: the leader that gave a held order dies before any go; its held orders are released (a go
+## with auto: true to their holders).
+func _check_leader_death(t: TestContext, squad: Node) -> void:
+	var t1 := t.actor(&"t1")
+	var t2 := t.actor(&"t2")
+	var me := t.actor(&"me")
 	var again := Order.issue(
 		squad,
 		{

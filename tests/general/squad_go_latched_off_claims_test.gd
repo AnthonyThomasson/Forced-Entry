@@ -67,7 +67,6 @@ func run(t: TestContext) -> void:
 			"set-up: two held stacks are ordered, at two doorways",
 	):
 		return
-	var held := func(m: Node) -> bool: return bool(Order.member_view(squad, m).get("held", false))
 	# Plain claims under each order: everyone in its slot, nobody saying the go came.
 	var plain := func():
 		_radio(t, &"t1", back, 1, "ready")
@@ -75,23 +74,30 @@ func run(t: TestContext) -> void:
 		_radio(t, &"t3", hall, 1, "ready")
 	await _repeat(t, plain, QUIET)
 	if not t.require(
-			held.call(t1) and held.call(t2) and held.call(t3),
+			_held(squad, t1) and _held(squad, t2) and _held(squad, t3),
 			"set-up: every member's order is held while the claims say no go",
 	):
 		return
+	await _check_latched(t, squad, back, hall)
 
-	# The back door's claims say the go came, once.
-	_radio(t, &"t1", back, 1, "ready", true)
+
+## The `back` door's claims say the go came, once, and the `hall`'s member crosses then is done:
+## each order is no longer held, and stays so once the claims stop saying the go came.
+func _check_latched(t: TestContext, squad: Node, back: Dictionary, hall: Dictionary) -> void:
+	var t1 := t.actor(&"t1")
+	var t2 := t.actor(&"t2")
+	var t3 := t.actor(&"t3")
+	_radio_go(t, &"t1", back, 1, "ready")
 	await t.frames(1)
 	t.check(
-		not held.call(t1) and not held.call(t2),
+		not _held(squad, t1) and not _held(squad, t2),
 		"a claim under the back door's order saying order_go: its orders are no longer held",
 	)
-	t.check(held.call(t3), "the hall's held stack is not released by another order's go")
+	t.check(_held(squad, t3), "the hall's held stack is not released by another order's go")
 	# The hall's member crosses (D14), then is done: its claim leaves the stack.
 	_radio(t, &"t3", hall, 1, "going_in")
 	await t.frames(1)
-	t.check(not held.call(t3), "the hall's member crossing: its order is no longer held")
+	t.check(not _held(squad, t3), "the hall's member crossing: its order is no longer held")
 	_radio(t, &"t3", hall, 1, "done")
 
 	# The claims stop saying the go came: plain claims at the back door, none at the hall.
@@ -100,34 +106,41 @@ func run(t: TestContext) -> void:
 		_radio(t, &"t2", back, 2, "ready")
 	await _repeat(t, after, AFTER)
 	t.check(
-		not held.call(t1) and not held.call(t2),
+		not _held(squad, t1) and not _held(squad, t2),
 		"the back door's orders stay released once the claims stop saying order_go",
 	)
 	t.check(
-		not held.call(t3),
+		not _held(squad, t3),
 		"the hall's order stays released once its member's crossing is off the radio",
 	)
 
 
+## Whether `m`'s order is held in `squad`'s view.
+func _held(squad: Node, m: Node) -> bool:
+	return bool(Order.member_view(squad, m).get("held", false))
+
+
 ## Radio actor `who` (a puppet member) at entry step `step` on slot `slot` of held stack order
-## `order`, the claim an ordered NPC's entry radios in the wire format's field names (interface 10):
-## `order_go` says the leader's go came.
-func _radio(
-	t: TestContext,
-	who: StringName,
-	order: Dictionary,
-	slot: int,
-	step: String,
-	go := false,
-) -> void:
-	var c := t.actor(who)
-	EventBus.post(&"callout", {
+## `order`, the claim an ordered NPC's entry radios in the wire format's field names (interface 10).
+func _radio(t: TestContext, who: StringName, order: Dictionary, slot: int, step: String) -> void:
+	EventBus.post(&"callout", _claim(t.actor(who), order, slot, step, false))
+
+
+## `_radio` with `order_go` set: the claim says the leader's go came.
+func _radio_go(t: TestContext, who: StringName, order: Dictionary, slot: int, step: String) -> void:
+	EventBus.post(&"callout", _claim(t.actor(who), order, slot, step, true))
+
+
+## The claim puppet `c` radios at entry step `step` on slot `slot` of held stack order `order`;
+## `go` its `order_go`.
+func _claim(c: Node, order: Dictionary, slot: int, step: String, go: bool) -> Dictionary:
+	return {
 		"speaker": c, "faction": c.faction, "position": c.global_position, "status": "",
 		"path": "", "label": "", "target_id": 0, "point": c.global_position,
 		"opening": order["opening"], "into": order["into"], "slot": slot, "side": 1,
 		"entry_step": step, "order_id": order["id"], "order_mode": "quiet", "order_hold": true,
 		"order_go": go,
-	})
+	}
 
 
 ## Call `say` every `REPEAT` s for `span` s.

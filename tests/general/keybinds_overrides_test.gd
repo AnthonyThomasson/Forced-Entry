@@ -17,6 +17,18 @@ func describe() -> Dictionary:
 
 func run(t: TestContext) -> void:
 	Keybinds.reset_all()
+	_check_defaults(t)
+	_check_key(t)
+	_check_mouse(t)
+	_check_conflicts(t)
+	_check_reset(t)
+	_check_read_back(t)
+	Keybinds.reset_all()
+
+
+## The defaults: each action's starting input, no overrides, every action labelled and grouped, and
+## the deliberately shared inputs not flagged.
+func _check_defaults(t: TestContext) -> void:
 	t.expect_eq(Keybinds.text_of(Keybinds.INTERACT), "Space", "Interact starts on Space")
 	t.expect_eq(
 		Keybinds.text_of(Keybinds.FIRE),
@@ -41,7 +53,9 @@ func run(t: TestContext) -> void:
 		"Interact and Pause share Space without a conflict",
 	)
 
-	# A key, stored by its physical position.
+
+## A key, stored by its physical position.
+func _check_key(t: TestContext) -> void:
 	var punch_f := _key(KEY_F)
 	t.check(punch_f.is_action(Keybinds.PUNCH), "Punch starts on F")
 	t.check(Keybinds.bind(Keybinds.PUNCH, _key(KEY_G)), "a key can be bound")
@@ -53,7 +67,9 @@ func run(t: TestContext) -> void:
 		"only the changed action is reported",
 	)
 
-	# A mouse button, and the inputs that can't be bound.
+
+## A mouse button, and the inputs that can't be bound.
+func _check_mouse(t: TestContext) -> void:
 	var right_click := InputEventMouseButton.new()
 	right_click.button_index = MOUSE_BUTTON_RIGHT
 	t.check(Keybinds.bind(Keybinds.FIRE, right_click), "a mouse button can be bound")
@@ -68,7 +84,9 @@ func run(t: TestContext) -> void:
 	t.check(not Keybinds.bind(Keybinds.FIRE, InputEventKey.new()), "an empty key is refused")
 	t.expect_eq(Keybinds.text_of(Keybinds.FIRE), "Mouse Right", "refused binds change nothing")
 
-	# Two actions on one input are flagged, from both sides.
+
+## Two actions on one input are flagged, from both sides.
+func _check_conflicts(t: TestContext) -> void:
 	Keybinds.bind(Keybinds.PUNCH, _key(KEY_W))
 	t.expect_eq(
 		Keybinds.conflicts_of(Keybinds.PUNCH),
@@ -77,14 +95,18 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(Keybinds.conflicts_of(Keybinds.MOVE_UP), [Keybinds.PUNCH], "and Move up with Punch")
 
-	# Resetting puts defaults back; the report empties as the differences go.
+
+## Resetting puts defaults back; the report empties as the differences go.
+func _check_reset(t: TestContext) -> void:
 	Keybinds.reset(Keybinds.PUNCH)
 	t.check(_key(KEY_F).is_action(Keybinds.PUNCH), "reset puts Punch back on F")
 	t.expect_eq(Keybinds.overrides().keys(), [Keybinds.FIRE], "only Fire still differs")
 	Keybinds.reset_all()
 	t.check(Keybinds.overrides().is_empty(), "reset_all clears every difference")
 
-	# Reading overrides back: JSON numbers are floats, and junk entries are skipped one by one.
+
+## Reading overrides back: JSON numbers are floats, and junk entries are skipped one by one.
+func _check_read_back(t: TestContext) -> void:
 	Keybinds.apply_overrides({
 		Keybinds.PUNCH: { "key": float(KEY_G) },
 		Keybinds.FIRE: { "mouse": float(MOUSE_BUTTON_MIDDLE) },
@@ -101,9 +123,8 @@ func run(t: TestContext) -> void:
 	)
 	t.check(not InputMap.has_action("no_such_action"), "an unknown action is not created")
 
-	Keybinds.reset_all()
 
-
+## A key event at the physical position `code`.
 func _key(code: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.physical_keycode = code

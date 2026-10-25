@@ -92,7 +92,11 @@ func run(t: TestContext) -> void:
 			"the same seed gives the same point (%s and %s)"
 				% [str(centre.round()), str(other.round())],
 		)
+	await _check_played(t)
 
+
+## Played as an invader, the team stands round the human's spot.
+func _check_played(t: TestContext) -> void:
 	var played := await _match(t, false)
 	if not t.require(not played.is_empty(), "Main built the match with a human invader"):
 		return
@@ -111,12 +115,7 @@ func run(t: TestContext) -> void:
 ## read where it placed everyone, and free it: `{ invaders, defenders, rooms, bounds, human }`
 ## (each `{ name, pos }`, read before the match is freed), {} when Main built nothing.
 func _match(t: TestContext, spectator: bool) -> Dictionary:
-	var viewport := SubViewport.new()
-	viewport.world_2d = World2D.new()
-	viewport.disable_3d = true
-	viewport.size = Vector2i(64, 64)
-	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	t.world.add_child(viewport)
+	var viewport := _viewport(t)
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
 	main.set("house_seed", SEED)
@@ -125,13 +124,7 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	main.set("spectator_mode", spectator)
 	main.set("player_side", &"invader")
 	main.set("debug_overlays", false)
-	var player: Node2D = (load(PLAYER_SCENE) as PackedScene).instantiate()
-	player.name = "Player"
-	var brain: Node = PlayerController.new()
-	brain.name = "PlayerController"
-	player.add_child(brain)
-	player.position = HUMAN_AT
-	player.set("max_health", 1_000_000.0)
+	var player := _player()
 	main.add_child(player)
 	var menu := CanvasLayer.new()
 	menu.name = "SetupMenu"
@@ -164,6 +157,30 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	await t.frames(2)
 	Keybinds.reset_all()
 	return out
+
+
+## A world of its own under the test's world, for one match: a small viewport that never renders.
+func _viewport(t: TestContext) -> SubViewport:
+	var viewport := SubViewport.new()
+	viewport.world_2d = World2D.new()
+	viewport.disable_3d = true
+	viewport.size = Vector2i(64, 64)
+	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	t.world.add_child(viewport)
+	return viewport
+
+
+## The scene's `Player` as Main finds it: a player character with its controller, at `HUMAN_AT`,
+## that does not die.
+func _player() -> Node2D:
+	var player: Node2D = (load(PLAYER_SCENE) as PackedScene).instantiate()
+	player.name = "Player"
+	var brain: Node = PlayerController.new()
+	brain.name = "PlayerController"
+	player.add_child(brain)
+	player.position = HUMAN_AT
+	player.set("max_health", 1_000_000.0)
+	return player
 
 
 ## The node Main builds its match under in `viewport` (the `match_world` group, interface 14), else

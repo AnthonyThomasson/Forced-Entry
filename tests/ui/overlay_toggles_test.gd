@@ -37,8 +37,14 @@ func run(t: TestContext) -> void:
 		"Perception (0/%d)" % perception.size(),
 		"group count starts at 0",
 	)
+	_check_group_header(t, perception, total)
+	_check_all(t, total)
+	_bar.queue_free()
 
-	# A group header turns on just its group.
+
+## A group header turns on just its group (`perception`, of `total` overlays); pressed again, all
+## on → all off; mixed → all on, only the missing flags emit.
+func _check_group_header(t: TestContext, perception: Array, total: int) -> void:
 	_button("Perception").pressed.emit()
 	t.expect_eq(_events.size(), perception.size(), "one event per flag in the group")
 	for ev in _events:
@@ -66,14 +72,14 @@ func run(t: TestContext) -> void:
 	_button("Perception").pressed.emit()
 	t.expect_eq(_events.size(), perception.size() - 1, "only flags that were off emit")
 
-	# All turns every overlay on, then off.
+
+## All turns every overlay (`total`) on, then off.
+func _check_all(t: TestContext, total: int) -> void:
 	_events.clear()
 	_button("All").pressed.emit()
 	t.expect_eq(_label("All"), "All (%d/%d)" % [total, total], "All turns everything on")
 	_button("All").pressed.emit()
 	t.expect_eq(_label("All"), "All (0/%d)" % total, "All again turns everything off")
-
-	_bar.queue_free()
 
 
 func _button(prefix: String) -> Button:

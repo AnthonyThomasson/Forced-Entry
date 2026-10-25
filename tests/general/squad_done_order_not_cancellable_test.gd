@@ -67,7 +67,15 @@ func run(t: TestContext) -> void:
 			% str(Order.labels(menu)),
 	)
 	menu.close()
+	await _check_progress(t, squad, order)
+	await _check_refused_dies(t, menu)
 
+
+## `t1` radios done on `order` and `t2` refused: the done one holds no order in `squad`'s view, the
+## refused one still does.
+func _check_progress(t: TestContext, squad: Node, order: Dictionary) -> void:
+	var t1 := t.actor(&"t1")
+	var t2 := t.actor(&"t2")
 	_radio(t1, order, "done")
 	_radio(t2, order, "refused")
 	await t.frames(1)
@@ -84,7 +92,10 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(String(refused.get("step", "")), "refused", "with its step refused")
 
-	# The refused one dies: it holds nothing any more, and the menu leaves it out.
+
+## The refused one (`t2`) dies: it holds nothing any more, and the `menu` leaves it out.
+func _check_refused_dies(t: TestContext, menu: Node) -> void:
+	var t2 := t.actor(&"t2")
 	t2.take_damage(t2.max_health * 2.0)
 	await t.frames(1)
 	menu.open_at(CLICK)

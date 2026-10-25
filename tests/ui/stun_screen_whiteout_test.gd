@@ -31,6 +31,19 @@ func run(t: TestContext) -> void:
 	t.world.add_child(screen)
 	var human := t.actor(&"human")
 	screen.watch(human)
+	await _check_no_white(t, screen, human)
+
+	if not t.require(Probe.stun(human, 4.0, 4.0), "Character.take_stun exists"):
+		return
+	await t.frames(3)
+	var burst: Dictionary = screen.drawn()
+	_check_burst(t, burst)
+	await _check_fade(t, screen, burst)
+
+
+## Nothing is drawn while `human` sees, for another's flash, or for a bang that only deafens it
+## (waited out).
+func _check_no_white(t: TestContext, screen: Node, human: Node) -> void:
 	await t.frames(3)
 	var rest: Dictionary = screen.drawn()
 	t.check(
@@ -52,10 +65,10 @@ func run(t: TestContext) -> void:
 	)
 	await t.until(func(): return not Probe.deaf(human), 6.0)
 
-	if not t.require(Probe.stun(human, 4.0, 4.0), "Character.take_stun exists"):
-		return
-	await t.frames(3)
-	var burst: Dictionary = screen.drawn()
+
+## At the burst (`burst`, the screen's `drawn()`): white, the afterimage held, the blind time left
+## read from the character.
+func _check_burst(t: TestContext, burst: Dictionary) -> void:
 	t.check(
 		float(burst.get("white", 0.0)) >= 0.9,
 		"the screen is white at the burst (%.2f)" % float(burst.get("white", 0.0)),
@@ -66,6 +79,10 @@ func run(t: TestContext) -> void:
 		"and the blind time left is read from the character (%.2f s)"
 			% float(burst.get("remaining", 0.0)),
 	)
+
+
+## The white fades steadily from `burst` over the blind time, then the screen is clear again.
+func _check_fade(t: TestContext, screen: Node, burst: Dictionary) -> void:
 	var seen := []
 	for second in [0.5, 1.0, 1.0, 1.0]:  # 0.5, 1.5, 2.5, 3.5 s after the burst
 		await t.seconds(second)
