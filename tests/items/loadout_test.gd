@@ -24,7 +24,15 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
+	_check_named_gun(t, rng)
+	_check_random_gun(t, rng)
+	_check_fallbacks(t)
+	_check_options(t)
+	_check_random_loadouts(t, rng)
 
+
+## A loadout naming the SMG, its extended magazine and three spares arms the gunman with them.
+func _check_named_gun(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var gunman := t.actor(&"gunman")
 	var armed := LoadoutConfig.apply(
 		gunman,
@@ -41,6 +49,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(gunman.spare_magazines(), 3, "three spares are carried")
 
+
+## A random weapon draws a real gun, with that gun's own spares.
+func _check_random_gun(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var lottery := t.actor(&"lottery")
 	var drawn := LoadoutConfig.apply(lottery, { "weapon": LoadoutConfig.RANDOM }, rng)
 	t.check(not GunConfig.row(drawn).is_empty(), "random draws a real gun (%s)" % drawn)
@@ -50,7 +61,9 @@ func run(t: TestContext) -> void:
 		"with that gun's own spares",
 	)
 
-	# Blank or unknown choices fall back to random; spares are capped.
+
+## Blank or unknown choices fall back to random; spares are capped.
+func _check_fallbacks(t: TestContext) -> void:
 	t.expect_eq(
 		LoadoutConfig.normalize({ "weapon": &"nonsense" })["weapon"],
 		LoadoutConfig.RANDOM,
@@ -62,8 +75,10 @@ func run(t: TestContext) -> void:
 		"spares are capped",
 	)
 
-	# options(): Random first, then every gun, each with only its own gun's magazines (its own
-	# listed first).
+
+## options(): Random first, then every gun, each with only its own gun's magazines (its own
+## listed first).
+func _check_options(t: TestContext) -> void:
 	var options := LoadoutConfig.options()
 	t.expect_eq(options[0]["id"], LoadoutConfig.RANDOM, "Random is listed first")
 	t.expect_eq(options.size(), GunConfig.guns.size() + 1, "every gun is offered")
@@ -82,6 +97,9 @@ func run(t: TestContext) -> void:
 				"%s only offers its own magazines" % gun,
 			)
 
+
+## Every random loadout is a valid one, naming a real gun.
+func _check_random_loadouts(t: TestContext, rng: RandomNumberGenerator) -> void:
 	for i in 40:
 		var pick := LoadoutConfig.random(rng)
 		t.check(

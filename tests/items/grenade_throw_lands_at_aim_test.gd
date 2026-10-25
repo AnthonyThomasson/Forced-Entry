@@ -51,6 +51,23 @@ func run(t: TestContext) -> void:
 			"selecting slot 8 holds the frag grenade",
 	):
 		return
+	var thrown := await _throw_first(t, thrower)
+	if thrown.is_empty():
+		return
+	if not await _check_burst(t, thrown):
+		return
+
+	# R14: the range is 550 px for both kinds. A frag, then a stun, each aimed 540 px out, lands
+	# within the same scatter of its aim.
+	Probe.arm(thrower, 1, 1)
+	for kind: StringName in [&"frag", &"stun"]:
+		if not await _check_far_throw(t, thrower, kind):
+			return
+
+
+## `thrower` clicks with its frag held: the wind-up, the throw event, one grenade spent and one
+## live. Returns the raw `throw` event ({} after a failed `require`).
+func _throw_first(t: TestContext, thrower: Node) -> Dictionary:
 	var clicked := t.time
 	t.puppet(&"thrower").shoot()
 	await t.frames(6)
@@ -62,7 +79,7 @@ func run(t: TestContext) -> void:
 			await t.until(func(): return t.happened(&"throw"), 1.5),
 			"the grenade leaves the hand and a throw event is posted",
 	):
-		return
+		return {}
 	var thrown: Dictionary = Probe.raw(t, &"throw")[0]
 	t.check(
 		absf(float(thrown["time"]) - clicked - Probe.WINDUP) < 0.1,
@@ -83,9 +100,14 @@ func run(t: TestContext) -> void:
 		thrower.current_item().hand_stance(0) != &"throw",
 		"the wind-up is over once it has left the hand",
 	)
+	return thrown
 
+
+## The frag `thrown` (its raw `throw` event) goes off after its fuse within the scatter of the aim
+## point. Whether it went off (false after a failed `require`).
+func _check_burst(t: TestContext, thrown: Dictionary) -> bool:
 	if not t.require(await Probe.wait_boom(t, &"frag", 5.0), "the frag grenade goes off"):
-		return
+		return false
 	var boom: Dictionary = Probe.booms(t, &"frag")[0]
 	t.check(
 		absf(float(boom["time"]) - float(thrown["time"]) - Probe.FUSE_FRAG) < 0.2,
@@ -97,34 +119,36 @@ func run(t: TestContext) -> void:
 		"it lies within %.0f px of the aim point when it goes off (%.0f px)"
 			% [SCATTER, landed.distance_to(AIM)],
 	)
+	return true
 
-	# R14: the range is 550 px for both kinds. A frag, then a stun, each aimed 540 px out, lands
-	# within the same scatter of its aim.
-	Probe.arm(thrower, 1, 1)
-	for kind: StringName in [&"frag", &"stun"]:
-		var slot := Probe.FRAG if kind == &"frag" else Probe.STUN
-		t.expect_near(
-			float(thrower.throw_stats(slot).get("max_range", -1.0)),
-			THROW_RANGE,
-			0.01,
-			"a %s reports the 550 px throw range" % kind,
-		)
-		var before := Probe.booms(t, kind).size()
-		await Probe.throw_at(t, &"thrower", slot, FAR_AIM)
-		if not t.require(
-				await Probe.wait_boom(t, kind, 6.0, before + 1),
-				"the %s aimed 540 px away goes off" % kind,
-		):
-			return
-		var far: Vector2 = Probe.booms(t, kind)[before]["data"]["position"]
-		t.check(
-			far.distance_to(FAR_AIM) <= SCATTER,
-			("a %s aimed 540 px away (within the 550 px range) lies within %.0f px of its aim when "
-					+ "it goes off (%.0f px off, %.0f px from the thrower)")
-				% [
-					kind,
-					SCATTER,
-					far.distance_to(FAR_AIM),
-					far.distance_to(thrower.global_position),
-				],
-		)
+
+## A `kind` grenade reports the 550 px range and, aimed 540 px out, lands within the scatter of its
+## aim. Whether it went off (false after a failed `require`).
+func _check_far_throw(t: TestContext, thrower: Node, kind: StringName) -> bool:
+	var slot := Probe.FRAG if kind == &"frag" else Probe.STUN
+	t.expect_near(
+		float(thrower.throw_stats(slot).get("max_range", -1.0)),
+		THROW_RANGE,
+		0.01,
+		"a %s reports the 550 px throw range" % kind,
+	)
+	var before := Probe.booms(t, kind).size()
+	await Probe.throw_at(t, &"thrower", slot, FAR_AIM)
+	if not t.require(
+			await Probe.wait_boom(t, kind, 6.0, before + 1),
+			"the %s aimed 540 px away goes off" % kind,
+	):
+		return false
+	var far: Vector2 = Probe.booms(t, kind)[before]["data"]["position"]
+	t.check(
+		far.distance_to(FAR_AIM) <= SCATTER,
+		("a %s aimed 540 px away (within the 550 px range) lies within %.0f px of its aim when "
+				+ "it goes off (%.0f px off, %.0f px from the thrower)")
+			% [
+				kind,
+				SCATTER,
+				far.distance_to(FAR_AIM),
+				far.distance_to(thrower.global_position),
+			],
+	)
+	return true

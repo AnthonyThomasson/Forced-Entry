@@ -23,7 +23,15 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# Seeded draws: the same seed gives the same guns, and over many draws every gun comes up.
+	_check_seeded_draws(t)
+	# The loadout: bare hands, fists, the key and the one gun; its own spares.
+	var body := t.actor(&"newcomer")
+	for slot in GUN_SLOTS:
+		_check_loadout(t, body, slot)
+
+
+## Seeded draws: the same seed gives the same guns, and over many draws every gun comes up.
+func _check_seeded_draws(t: TestContext) -> void:
 	var a := RandomNumberGenerator.new()
 	var b := RandomNumberGenerator.new()
 	a.seed = 12_345
@@ -42,39 +50,40 @@ func run(t: TestContext) -> void:
 		"every gun comes up in 60 draws (%s)" % [seen.keys()],
 	)
 
-	# The loadout: bare hands, fists, the key and the one gun; its own spares.
-	var body := t.actor(&"newcomer")
-	for slot in GUN_SLOTS:
-		var kit := CharacterKit.new()
-		kit.slots = ItemRegistry.loadout_for(slot)
-		kit.hold_slot = slot
-		kit.spare_types = ItemRegistry.spares_for(slot)
-		body.set_loadout(kit)
-		var gun: StringName = GunConfig.gun_in_slot(slot)
-		for plain in [1, 2, 4]:
-			t.check(body.has_item(plain), "slot %d: carries slot %d" % [slot, plain])
-		for other in GUN_SLOTS:
-			t.expect_eq(
-				body.has_item(other),
-				other == slot,
-				"slot %d: carries only its own gun (slot %d)" % [slot, other],
+
+## `body` given the loadout of the gun in `slot` carries just that gun, holds it, loaded full, with
+## only its own spares.
+func _check_loadout(t: TestContext, body: Node, slot: int) -> void:
+	var kit := CharacterKit.new()
+	kit.slots = ItemRegistry.loadout_for(slot)
+	kit.hold_slot = slot
+	kit.spare_types = ItemRegistry.spares_for(slot)
+	body.set_loadout(kit)
+	var gun: StringName = GunConfig.gun_in_slot(slot)
+	for plain in [1, 2, 4]:
+		t.check(body.has_item(plain), "slot %d: carries slot %d" % [slot, plain])
+	for other in GUN_SLOTS:
+		t.expect_eq(
+			body.has_item(other),
+			other == slot,
+			"slot %d: carries only its own gun (slot %d)" % [slot, other],
+		)
+	t.expect_eq(body.current_slot(), slot, "slot %d: holds it" % slot)
+	t.expect_eq(body.gun_slot(), slot, "slot %d: it is the gun it fights with" % slot)
+	t.expect_eq(
+		body.ammo(),
+		MagazineConfig.capacity_of(StringName(GunConfig.row(gun)["magazine"])),
+		"slot %d: it is loaded full" % slot,
+	)
+	t.expect_eq(
+		body.spare_magazines(),
+		int(GunConfig.row(gun)["spare_magazines"]),
+		"slot %d: carries its spares" % slot,
+	)
+	t.check(body.best_magazine(gun) != null, "slot %d: they are for its gun" % slot)
+	for other_gun: StringName in GunConfig.guns:
+		if other_gun != gun:
+			t.check(
+				body.best_magazine(other_gun) == null,
+				"slot %d: no spares for the %s" % [slot, other_gun],
 			)
-		t.expect_eq(body.current_slot(), slot, "slot %d: holds it" % slot)
-		t.expect_eq(body.gun_slot(), slot, "slot %d: it is the gun it fights with" % slot)
-		t.expect_eq(
-			body.ammo(),
-			MagazineConfig.capacity_of(StringName(GunConfig.row(gun)["magazine"])),
-			"slot %d: it is loaded full" % slot,
-		)
-		t.expect_eq(
-			body.spare_magazines(),
-			int(GunConfig.row(gun)["spare_magazines"]),
-			"slot %d: carries its spares" % slot,
-		)
-		t.check(body.best_magazine(gun) != null, "slot %d: they are for its gun" % slot)
-		for other_gun: StringName in GunConfig.guns:
-			if other_gun != gun:
-				t.check(
-					body.best_magazine(other_gun) == null,
-					"slot %d: no spares for the %s" % [slot, other_gun],
-				)

@@ -23,7 +23,14 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# Built loaded, each with its row's magazine, and the capacities are told apart.
+	_check_built_loaded(t)
+	var body := t.actor(&"gunman")
+	_check_carried(t, body)
+	await _check_rifle_reload(t, body)
+
+
+## Built loaded, each with its row's magazine, and the capacities are told apart.
+func _check_built_loaded(t: TestContext) -> void:
 	var capacities := {}
 	for gun: StringName in GunConfig.guns:
 		var item: GunItem = ItemRegistry.create(int(GunConfig.row(gun)["slot"]))
@@ -43,7 +50,9 @@ func run(t: TestContext) -> void:
 		"the three guns hold different numbers of rounds (%s)" % capacities,
 	)
 
-	var body := t.actor(&"gunman")
+
+## The gunman's half-spent rifle and the rifle magazine it carries, which fits nothing else.
+func _check_carried(t: TestContext, body: Node) -> void:
 	t.expect_eq(body.ammo(6), 2, "the rifle starts with the 2 rounds asked for")
 	t.expect_eq(
 		body.ammo_capacity(6),
@@ -59,7 +68,9 @@ func run(t: TestContext) -> void:
 		"the pistol and the SMG have nothing to reload from",
 	)
 
-	# A reload takes the rifle magazine's own time, not the pistol's.
+
+## A reload takes the rifle magazine's own time, not the pistol's.
+func _check_rifle_reload(t: TestContext, body: Node) -> void:
 	var rifle_time := MagazineConfig.reload_time_of(&"rifle_standard")
 	t.check(
 		rifle_time > MagazineConfig.reload_time,
