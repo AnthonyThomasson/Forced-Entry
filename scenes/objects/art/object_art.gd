@@ -41,11 +41,11 @@ const PAINTERS := {
 	"hotplate": preload("res://scenes/objects/art/hotplate_painter.gd"),
 }
 ## The painters that draw several kinds of piece (`kind` in the options): their neon share is the
-## kind's (ObjectArtConfig.neon_share), not the painter's.
+## kind's (ObjectArtLightConfig.neon_share), not the painter's.
 const BY_KIND := ["tech", "recliner", "clinic"]
 ## The painters whose colour inputs are already the colours they draw in (the wear marks are tinted
-## from a floor's drawn tone, the street and the decor draw ObjectArtConfig's own): not graded
-## again.
+## from a floor's drawn tone, the street and the decor draw their ObjectArt*Config holders' own):
+## not graded again.
 const AS_GIVEN := ["wear", "street", "decor"]
 
 
@@ -122,8 +122,8 @@ static func porous(art: String, opts: Dictionary) -> bool:
 
 ## The neon a piece drawn by `art` with `opts` takes, picked per piece from `piece_seed`
 ## (deterministic: the same piece in the same house always gets the same): `"cyan"`, `"magenta"`, or
-## `""` for none. Only the light-giving kinds in ObjectArtConfig.neon_share ever do, that share of
-## them.
+## `""` for none. Only the light-giving kinds in ObjectArtLightConfig.neon_share ever do, that share
+## of them.
 static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 	var kind := art
 	if BY_KIND.has(art):
@@ -136,7 +136,7 @@ static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 		):
 			return ""
 		kind = "desk"
-	var share: float = ObjectArtConfig.neon_share.get(kind, 0.0)
+	var share: float = ObjectArtLightConfig.neon_share.get(kind, 0.0)
 	var roll := absi(hash([kind, piece_seed]))
 	if share <= 0.0 or float(roll % 1000) / 1000.0 >= share:
 		return ""

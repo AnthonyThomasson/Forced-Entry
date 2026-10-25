@@ -2,14 +2,14 @@ extends RefCounted
 ## The run-down look every Objects painter draws in (Objects domain, private): rust & grime, with a
 ## share of neon. A painter draws its piece's shape as before, in the colours ObjectArt hands it
 ## (`grade`: any catalogue colour washed toward dun, rust and nicotine yellow) and the
-## ObjectArtConfig colour knobs, then finishes it here: grime blotches, stains, tears and tape on
+## ObjectArt*Config colour knobs, then finishes it here: grime blotches, stains, tears and tape on
 ## upholstery, scratches, cup rings and burns on wood, rust and stickers on metal, cracks in
 ## porcelain and glass. A piece the factory gave a `neon` option (`ObjectArt.neon_for`: a share of
 ## the light-giving pieces) takes a cyan or magenta trim or screen. No light is painted in: what
 ## gives light (a screen's face, a tube, a bulb, an LED) is drawn bright and `glowing`
 ## (PixelCanvas), so it can be drawn unshaded later, and nothing round it is lit. Every mark is per
 ## piece, never in a repeating floor or wall tile (their wear is placed in the world:
-## wear_painter.gd). Tuning: ObjectArtConfig.grade_*, decay_*, neon_*.
+## wear_painter.gd). Tuning: ObjectArtDecayConfig, ObjectArtLightConfig's neon.
 
 ## Brown: coffee, water, worse.
 const STAIN := Color(0.3, 0.2, 0.1)
@@ -36,15 +36,17 @@ const STICKERS: Array[Color] = [
 
 
 ## `col` in the run-down palette: its hue pulled toward rust and dun (a grey taking a dun hue), its
-## saturation and value squeezed toward a dull middle (ObjectArtConfig.grade_*). ObjectArt grades
-## every piece's, floor's and wall's colour.
+## saturation and value squeezed toward a dull middle (ObjectArtDecayConfig.grade_*). ObjectArt
+## grades every piece's, floor's and wall's colour.
 static func grade(col: Color) -> Color:
-	var grey := col.s <= ObjectArtConfig.grade_grey_saturation
-	var hue := (ObjectArtConfig.grade_grey_hue
+	var grey := col.s <= ObjectArtDecayConfig.grade_grey_saturation
+	var hue := (ObjectArtDecayConfig.grade_grey_hue
 			if grey
-			else lerpf(col.h, ObjectArtConfig.grade_hue, ObjectArtConfig.grade_hue_pull))
-	var sat := col.s * ObjectArtConfig.grade_saturation.x + ObjectArtConfig.grade_saturation.y
-	var val := col.v * ObjectArtConfig.grade_value.x + ObjectArtConfig.grade_value.y
+			else lerpf(col.h, ObjectArtDecayConfig.grade_hue, ObjectArtDecayConfig.grade_hue_pull))
+	var sat := (
+		col.s * ObjectArtDecayConfig.grade_saturation.x + ObjectArtDecayConfig.grade_saturation.y
+	)
+	var val := col.v * ObjectArtDecayConfig.grade_value.x + ObjectArtDecayConfig.grade_value.y
 	return Color.from_hsv(hue, clampf(sat, 0.0, 1.0), clampf(val, 0.0, 1.0), col.a)
 
 
@@ -53,9 +55,9 @@ static func grade(col: Color) -> Color:
 static func neon(opts: Dictionary) -> Color:
 	match String(opts.get("neon", "")):
 		"cyan":
-			return ObjectArtConfig.neon_cyan
+			return ObjectArtLightConfig.neon_cyan
 		"magenta":
-			return ObjectArtConfig.neon_magenta
+			return ObjectArtLightConfig.neon_magenta
 	return Color(0, 0, 0, 0)
 
 
@@ -63,17 +65,17 @@ static func neon(opts: Dictionary) -> Color:
 ## one, else the sick green of a cheap screen.
 static func screen_color(opts: Dictionary) -> Color:
 	var lit := neon(opts)
-	return lit if lit.a > 0.0 else ObjectArtConfig.decay_screen_color
+	return lit if lit.a > 0.0 else ObjectArtLightConfig.decay_screen_color
 
 
 # --- Grime over a drawn piece ---------------------------------------------------------------------
 
 
-## Grime blotches over the whole piece, about one per `ObjectArtConfig.decay_grime_area` art px² (at
+## Grime blotches over the whole piece, about one per `ObjectArtDecayConfig.grime_area` art px² (at
 ## least two): darker, dithered pixels fading out from each blotch's middle.
 static func grime(c: PixelCanvas, amount := -1.0, radius := 5) -> void:
-	var strength := ObjectArtConfig.decay_grime_amount if amount < 0.0 else amount
-	blotches(c, maxi(2, int(c.w * c.h / ObjectArtConfig.decay_grime_area)), strength, radius)
+	var strength := ObjectArtDecayConfig.grime_amount if amount < 0.0 else amount
+	blotches(c, maxi(2, int(c.w * c.h / ObjectArtDecayConfig.grime_area)), strength, radius)
 
 
 ## `count` grime blotches of up to `radius` px, `amount` darker at their middle.

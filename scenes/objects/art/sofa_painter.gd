@@ -4,8 +4,8 @@ extends RefCounted
 ## at both ends, puffy seat cushions lined up under the back cushions, optional throw pillows in
 ## the back corners, and a speckled weave over the upholstery. Raised parts shade the seat beside
 ## them. Run down (decay.gd): grimy, torn to the stuffing, patched with tape, stained. Options
-## (`art_opts`, defaulting to ObjectArtConfig.sofa_*): `back_depth`, `arm_width`, `cushion_width`,
-## `max_cushions`, `pillows`.
+## (`art_opts`, defaulting to ObjectArtFabricConfig.sofa_*): `back_depth`, `arm_width`,
+## `cushion_width`, `max_cushions`, `pillows`.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows, floor-up.
@@ -22,19 +22,20 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var t := PixelCanvas.tones(base)
 	var full := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 4)
 	var back_d := clampi(
-		roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.sofa_back_depth))),
+		roundi(c.h * float(opts.get("back_depth", ObjectArtFabricConfig.sofa_back_depth))),
 		4,
 		int(c.h / 2.0),
 	)
 	var arm_w := clampi(
-		roundi(c.w * float(opts.get("arm_width", ObjectArtConfig.sofa_arm_width))),
+		roundi(c.w * float(opts.get("arm_width", ObjectArtFabricConfig.sofa_arm_width))),
 		3,
 		int(c.w / 4.0),
 	)
 	var seat_w := c.w - 2 * arm_w
+	var cushion_w := float(opts.get("cushion_width", ObjectArtFabricConfig.sofa_cushion_width))
 	var n := clampi(
-		roundi(seat_w / float(opts.get("cushion_width", ObjectArtConfig.sofa_cushion_width))), 1,
-		int(opts.get("max_cushions", ObjectArtConfig.sofa_max_cushions)),
+		roundi(seat_w / cushion_w), 1,
+		int(opts.get("max_cushions", ObjectArtFabricConfig.sofa_max_cushions)),
 	)
 	# The back cushions' tone (`_backrest`).
 	var back_tone := base.darkened(0.1)
@@ -46,7 +47,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	_backrest(c, base, back_d, arm_w, n)
 	_arms(c, base, arm_w)
 
-	if opts.get("pillows", ObjectArtConfig.sofa_pillows):
+	if opts.get("pillows", ObjectArtFabricConfig.sofa_pillows):
 		_pillows(c, base, back_d, arm_w, seat_w)
 
 	var bounds := Rect2i(0, 0, c.w, c.h)
@@ -128,7 +129,7 @@ static func _pillows(c: PixelCanvas, base: Color, back_d: int, arm_w: int, seat_
 	var size := mini(roundi(back_d * 1.0), int(seat_w / 4.0))
 	if size < 6:
 		return
-	var col := Color.from_hsv(fposmod(base.h + ObjectArtConfig.sofa_pillow_hue_shift, 1.0),
+	var col := Color.from_hsv(fposmod(base.h + ObjectArtFabricConfig.sofa_pillow_hue_shift, 1.0),
 			clampf(base.s * 1.15, 0.0, 1.0), clampf(base.v * 1.05, 0.0, 1.0))
 	var pt := PixelCanvas.tones(col)
 	var y := back_d - 3

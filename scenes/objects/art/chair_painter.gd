@@ -2,8 +2,8 @@ extends RefCounted
 ## Top-down pixel-art wooden CHAIR painter (Objects domain, private). Painted in the canonical
 ## frame (front of the seat at +y): a rounded seat with a paler worn centre, cross grain and a
 ## bevelled edge, and across the back a curved crest rail whose ends sag toward the seat, joined
-## to it by spindles. Options (`art_opts`, defaulting to ObjectArtConfig.chair_*): `back_depth`,
-## `slats`. Run down (decay.gd): grime, scratches, cup rings and cigarette burns.
+## to it by spindles. Options (`art_opts`, defaulting to ObjectArtTableConfig.chair_*):
+## `back_depth`, `slats`. Run down (decay.gd): grime, scratches, cup rings and cigarette burns.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows: the back stands over the seat.
@@ -16,7 +16,7 @@ const _RAIL_HEIGHT := 5
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
 	var back_d := clampi(
-		roundi(c.h * float(opts.get("back_depth", ObjectArtConfig.chair_back_depth))),
+		roundi(c.h * float(opts.get("back_depth", ObjectArtTableConfig.chair_back_depth))),
 		3,
 		int(c.h / 2.0),
 	)
@@ -57,7 +57,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 ## thick) down beneath the seat's back edge (`back_d` from the back).
 static func _spindles(c: PixelCanvas, opts: Dictionary, back_d: int, rail_th: int,
 		t: Dictionary) -> void:
-	var slats: int = opts.get("slats", ObjectArtConfig.chair_slats)
+	var slats: int = opts.get("slats", ObjectArtTableConfig.chair_slats)
 	for i in slats:
 		var x := roundi(float(i + 1) * c.w / (slats + 1)) - 1
 		var spindle := PixelCanvas.rounded(Rect2i(x, rail_th - 1, 2, back_d - rail_th + 2), 0)

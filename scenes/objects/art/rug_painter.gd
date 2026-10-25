@@ -3,14 +3,15 @@ extends RefCounted
 ## a pale inner line and a stitched band, a patterned field (a stepped central medallion with
 ## corner pieces, or stripes) and fringe at both short ends. A `plush` mat: rounded, densely tufted
 ## with a darker rim. Run down (decay.gd): grime, stains, moth holes through to the floor. Options
-## (`art_opts`, defaulting to ObjectArtConfig.rug_*): `pattern` ("medallion" | "stripes" | "plush").
+## (`art_opts`, defaulting to ObjectArtFabricConfig.rug_*): `pattern` ("medallion" | "stripes" |
+## "plush").
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 
 
 ## Paint a rug onto `c` in `base` fabric.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var pattern := String(opts.get("pattern", ObjectArtConfig.rug_pattern))
+	var pattern := String(opts.get("pattern", ObjectArtFabricConfig.rug_pattern))
 	if pattern == "plush":
 		_plush(c, base)
 		_worn(c)
@@ -97,7 +98,7 @@ static func _medallion(c: PixelCanvas, field: Rect2i, base: Color, border_col: C
 
 ## Fringe threads past both short ends: every other thread, a pale knot where it leaves the rug.
 static func _fringe(c: PixelCanvas, body: Rect2i, length: int, along_x: bool) -> void:
-	var col := ObjectArtConfig.rug_fringe_color
+	var col := ObjectArtFabricConfig.rug_fringe_color
 	var span := body.size.y if along_x else body.size.x
 	for a in range(1, span - 1, 2):
 		for i in length:

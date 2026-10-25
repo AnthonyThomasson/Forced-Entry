@@ -7,7 +7,7 @@ extends "res://scenes/objects/decals/decal_layer.gd"
 ## (the sides facing the road); on a road the worn lane dashes down its middle (`lane`), cracks,
 ## patches and oil, and litter and puddles gathered in the gutter along `edges` (the sides by the
 ## sidewalk), the odd puddle out on the road. Draw-only, registers nothing. Tuning:
-## ObjectArtConfig.street_*.
+## ObjectArtStreetConfig.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const RoomWear = preload("res://scenes/objects/decals/room_wear.gd")
@@ -28,7 +28,7 @@ func _draw() -> void:
 	super()
 	if not _sidewalk:
 		return
-	var curb := ObjectArtConfig.street_curb_color
+	var curb := ObjectArtStreetConfig.curb_color
 	for side: Vector2 in _edges:  # The curb: a dark band along the edge, a paler line inside it.
 		draw_rect(_edge_band(side, 0.0, 2.0), curb)
 		draw_rect(_edge_band(side, 2.0, 1.0), curb.lightened(0.25))
@@ -91,7 +91,7 @@ func _mark(rng: RandomNumberGenerator, kind: String, r: Rect2, tone: Color, extr
 	var facing: Vector2 = ([Vector2.LEFT, Vector2.RIGHT][rng.randi_range(0, 1)]
 			if r.size.y > r.size.x
 			else [Vector2.DOWN, Vector2.UP][rng.randi_range(0, 1)])
-	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtConfig.wear_variants - 1) }
+	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtWearConfig.variants - 1) }
 	opts.merge(extra)
 	add(ObjectArt.texture("wear", r.size, tone, facing, opts), r)
 
@@ -110,13 +110,13 @@ static func _mark_rect(rng: RandomNumberGenerator, at: Vector2, size: Vector2) -
 ## The odd slab of another shade (a newer one, a dirtier one) or with a broken corner, in clusters
 ## of one to three neighbouring slabs on the slab grid.
 func _slabs(rng: RandomNumberGenerator, tile_offset: Vector2) -> void:
-	var slab := ObjectArtConfig.street_slab_px
+	var slab := ObjectArtStreetConfig.slab_px
 	# Where the slab grid starts.
 	var origin := -Vector2(fposmod(tile_offset.x, slab), fposmod(tile_offset.y, slab))
 	var cells := Vector2i(ceili((_size.x - origin.x) / slab), ceili((_size.y - origin.y) / slab))
 	var taken := {}
 	var bounds := Rect2(Vector2.ZERO, _size)
-	for _c in int(_length() / ObjectArtConfig.street_slab_cluster_run) + 1:
+	for _c in int(_length() / ObjectArtStreetConfig.slab_cluster_run) + 1:
 		var cell := Vector2i(rng.randi_range(0, cells.x - 1), rng.randi_range(0, cells.y - 1))
 		for _m in rng.randi_range(1, 3):
 			var at: Vector2i = cell + ([
@@ -135,7 +135,7 @@ func _slabs(rng: RandomNumberGenerator, tile_offset: Vector2) -> void:
 
 ## The slab in `r` made odd: mostly another shade of the pavement, else a broken corner.
 func _odd_slab(rng: RandomNumberGenerator, r: Rect2) -> void:
-	var pavement := ObjectArtConfig.street_sidewalk_color
+	var pavement := ObjectArtStreetConfig.sidewalk_color
 	if rng.randf() < 0.7:
 		var shade := [-2, -1, 1, 2][rng.randi_range(0, 3)] as int
 		var tone := (pavement.lightened(0.05 * shade)
@@ -154,10 +154,10 @@ func _odd_slab(rng: RandomNumberGenerator, r: Rect2) -> void:
 ## Clusters of 1-2 cracks, stains, gum and weeds along the sidewalk.
 func _walk_wear(rng: RandomNumberGenerator) -> void:
 	var bounds := Rect2(Vector2.ZERO, _size)
-	for _c in int(_length() / ObjectArtConfig.street_walk_cluster_run):
+	for _c in int(_length() / ObjectArtStreetConfig.walk_cluster_run):
 		var p := _along(rng, 4.0)
 		for _m in rng.randi_range(1, 2):
-			var kind: String = WeightedPick.pick(rng, ObjectArtConfig.street_walk_wear)
+			var kind: String = WeightedPick.pick(rng, ObjectArtStreetConfig.walk_wear)
 			var size := (Vector2(rng.randf_range(24, 40), rng.randf_range(8, 14))
 					if kind in ["crack", "weeds"]
 					else Vector2(rng.randf_range(10, 22), rng.randf_range(8, 18)))
@@ -167,7 +167,7 @@ func _walk_wear(rng: RandomNumberGenerator) -> void:
 				size,
 			)
 			if bounds.encloses(r):
-				_mark(rng, kind, r, ObjectArtConfig.street_sidewalk_color)
+				_mark(rng, kind, r, ObjectArtStreetConfig.sidewalk_color)
 
 
 # --- Road -----------------------------------------------------------------------------------------
@@ -188,24 +188,24 @@ func _lane(rng: RandomNumberGenerator) -> void:
 			var r := (Rect2(Vector2(t, across), Vector2(length, width))
 					if along_x
 					else Rect2(Vector2(across, t), Vector2(width, length)))
-			_mark(rng, "dash", r.abs(), ObjectArtConfig.street_lane_color, { "fade": fade })
+			_mark(rng, "dash", r.abs(), ObjectArtStreetConfig.lane_color, { "fade": fade })
 		t += length + rng.randf_range(24.0, 32.0)
 
 
 ## Clusters of 1-3 cracks, patches and oil out on the road, off its gutter.
 func _road_wear(rng: RandomNumberGenerator) -> void:
 	var bounds := Rect2(Vector2.ZERO, _size).grow(-4.0)
-	for _c in int(_size.x * _size.y / ObjectArtConfig.street_road_cluster_area):
+	for _c in int(_size.x * _size.y / ObjectArtStreetConfig.road_cluster_area):
 		var p := Vector2(
 			rng.randf_range(30, maxf(30, _size.x - 30)),
 			rng.randf_range(30, maxf(30, _size.y - 30)),
 		)
 		for _m in rng.randi_range(1, 3):
 			var at := p + Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(0, 50)
-			var kind: String = WeightedPick.pick(rng, ObjectArtConfig.street_road_wear)
+			var kind: String = WeightedPick.pick(rng, ObjectArtStreetConfig.road_wear)
 			var r := _mark_rect(rng, at, _road_mark_size(rng, kind))
 			if bounds.encloses(r) and not _in_gutter(r):
-				_mark(rng, kind, r, ObjectArtConfig.street_asphalt_color)
+				_mark(rng, kind, r, ObjectArtStreetConfig.asphalt_color)
 
 
 ## The size of a road mark of `kind`: a long crack, a patch, or a smaller stain.
@@ -223,7 +223,7 @@ static func _road_mark_size(rng: RandomNumberGenerator, kind: String) -> Vector2
 func _strew(rng: RandomNumberGenerator) -> void:
 	for side: Vector2 in _edges:
 		var run := _size.x if side.x == 0.0 else _size.y
-		for _c in int(run / ObjectArtConfig.street_litter_cluster_run * 0.7):
+		for _c in int(run / ObjectArtStreetConfig.litter_cluster_run * 0.7):
 			var t := rng.randf() * run
 			var depth := rng.randf_range(4.0, GUTTER)
 			_litter_cluster(rng, _gutter_point(side, t, depth))
@@ -277,7 +277,7 @@ func _litter_piece(rng: RandomNumberGenerator, at: Vector2, puddle: bool) -> voi
 	_litter.append(r)
 	var opts := {
 		"kind": "puddle" if puddle else "trash",
-		"v": rng.randi_range(0, ObjectArtConfig.wear_variants - 1),
+		"v": rng.randi_range(0, ObjectArtWearConfig.variants - 1),
 	}
 	add(ObjectArt.texture("decor", size, Color.BLACK, facing, opts), r)
 

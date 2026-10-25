@@ -3,8 +3,8 @@ extends RefCounted
 ## toward +y): tyres peeking out at the four corners, a glossy rounded body with hood creases and
 ## a gloss highlight, headlights and a grille up front and tail lights behind, a tinted windscreen
 ## and rear window around a raised roof, door seams with handles, and wing mirrors. A beater: its
-## paint gone to rust-brown (ObjectArtConfig.car_beater), a primer-grey door, rust, scratches and
-## grime (decay.gd). No options.
+## paint gone to rust-brown (ObjectArtOutdoorConfig.car_beater), a primer-grey door, rust, scratches
+## and grime (decay.gd). No options.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows, floor-up.
@@ -15,7 +15,10 @@ const _ROOF_HEIGHT := 10
 
 ## Paint a car onto `c` in `base` paint, nose toward +y.
 static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: Dictionary) -> void:
-	var base := paint_color.lerp(ObjectArtConfig.car_beater_color, ObjectArtConfig.car_beater)
+	var base := paint_color.lerp(
+		ObjectArtOutdoorConfig.car_beater_color,
+		ObjectArtOutdoorConfig.car_beater,
+	)
 	var t := PixelCanvas.tones(base)
 	var tyre_w := maxi(4, roundi(c.w * 0.1))
 	_tyres(c, tyre_w)
@@ -38,7 +41,7 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 
 ## The four tyres, `tyre_w` wide, peeking out at the corners, treads striped.
 static func _tyres(c: PixelCanvas, tyre_w: int) -> void:
-	var tyre := ObjectArtConfig.car_tyre_color
+	var tyre := ObjectArtOutdoorConfig.car_tyre_color
 	var tyre_h := maxi(6, roundi(c.h * 0.14))
 	for fy in [0.14, 0.72]:
 		for x in [0, c.w - tyre_w]:
@@ -62,7 +65,7 @@ static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary)
 		var lamp := PixelCanvas.ellipse(
 			Rect2i(cx + side * roundi(body_rect.size.x * 0.32) - 5, c.h - 9, 10, 6),
 		)
-		c.fill(lamp, ObjectArtConfig.car_light_color, _BODY_HEIGHT)
+		c.fill(lamp, ObjectArtOutdoorConfig.car_light_color, _BODY_HEIGHT)
 		c.outline(lamp, t.outline)
 		var tail := PixelCanvas.rounded(
 			Rect2i(cx + side * roundi(body_rect.size.x * 0.32) - 5, 2, 10, 3),
@@ -94,7 +97,7 @@ static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary)
 
 ## The tinted windscreen and rear window, and the raised roof between them with its side windows.
 static func _glazing(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary) -> void:
-	var glass := ObjectArtConfig.car_glass_color
+	var glass := ObjectArtOutdoorConfig.car_glass_color
 	var screen := PixelCanvas.rounded(
 		Rect2i(
 			body_rect.position.x + 8,

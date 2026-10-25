@@ -16,12 +16,12 @@ const _BLANKET_HEIGHT := 4
 
 ## Paint a bed onto `c` with a `base` blanket, foot toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var ticking := ObjectArtConfig.bed_mattress_color
+	var ticking := ObjectArtFabricConfig.bed_mattress_color
 	var mt := PixelCanvas.tones(ticking)
 	var rect := Rect2i(3, 6, c.w - 6, c.h - 9)
 	var mattress := PixelCanvas.rounded(rect, 4)
 	c.fill(mattress, ticking, _MATTRESS_HEIGHT)
-	for y in range(rect.position.y + 3, rect.end.y - 2, ObjectArtConfig.bed_stripe_px):
+	for y in range(rect.position.y + 3, rect.end.y - 2, ObjectArtFabricConfig.bed_stripe_px):
 		for x in range(rect.position.x + 2, rect.end.x - 2, 2):
 			c.px(x, y, mt.dark)
 	c.bevel(mattress, 1, 2, mt.light, mt.dark)

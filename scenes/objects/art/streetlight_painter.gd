@@ -8,8 +8,9 @@ extends RefCounted
 ## head, its lens facing the road) or `sign` (a dark board, a neon tube round its edge and two bars
 ## of letters). Canonical frame: the front (+y) is out over the road. Run down (decay.gd): grime and
 ## rust. What gives light (the lens, the sign's tube and letters) is drawn glowing: the lens in
-## ObjectArtConfig.streetlight_lens_color, the sign in its `neon` (cyan or magenta). The catalogue
-## colour is the post's paint (and its debris'). Knobs: ObjectArtConfig.streetlight_*.
+## ObjectArtOutdoorConfig.streetlight_lens_color, the sign in its `neon` (cyan or magenta). The
+## catalogue colour is the post's paint (and its debris'). Knobs:
+## ObjectArtOutdoorConfig.streetlight_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 ## Heights for cast shadows.
@@ -23,13 +24,15 @@ const _HEAD_HEIGHT := 22
 ## over the road (+y).
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	if String(opts.get("part", "pole")) == "overhang":
-		var head_at := c.h - int(opts.get("head_px", ObjectArtConfig.streetlight_head_px) / 2.0) - 1
+		var head_at := (
+			c.h - int(opts.get("head_px", ObjectArtOutdoorConfig.streetlight_head_px) / 2.0) - 1
+		)
 		_arm(c, head_at)
-		if String(opts.get("head", ObjectArtConfig.streetlight_head)) == "sign":
+		if String(opts.get("head", ObjectArtOutdoorConfig.streetlight_head)) == "sign":
 			_sign(
 				c,
 				head_at,
-				Decay.neon(opts) if Decay.neon(opts).a > 0.0 else ObjectArtConfig.neon_magenta,
+				Decay.neon(opts) if Decay.neon(opts).a > 0.0 else ObjectArtLightConfig.neon_magenta,
 			)
 		else:
 			_cobra(c, head_at)
@@ -45,7 +48,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 static func _pole(c: PixelCanvas, base: Color) -> void:
 	var mid := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var half := int(mini(c.w, c.h) / 2.0) - 1
-	var plate_col := ObjectArtConfig.streetlight_plate_color
+	var plate_col := ObjectArtOutdoorConfig.streetlight_plate_color
 	var pt := PixelCanvas.tones(plate_col)
 	var plate := PixelCanvas.disc(mid, half)
 	c.fill(plate, plate_col, _PLATE_HEIGHT)
@@ -60,7 +63,7 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 	c.fill(post, base, _POST_HEIGHT)
 	c.bevel(post, 1, 1, t.highlight, t.shadow)
 	c.outline(post, t.outline)
-	c.px(mid.x + 1, mid.y - r + 1, ObjectArtConfig.streetlight_flyer_color, _POST_HEIGHT)
+	c.px(mid.x + 1, mid.y - r + 1, ObjectArtOutdoorConfig.streetlight_flyer_color, _POST_HEIGHT)
 	c.px(mid.x + 2, mid.y - r + 1, Decay.STICKERS[0], _POST_HEIGHT)
 	c.px(mid.x - 1, mid.y + 1, Decay.RUST_DARK, _POST_HEIGHT)
 
@@ -68,7 +71,7 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 ## The arm from the post's top (the canvas' top centre) out to just short of the head at `head_at`.
 static func _arm(c: PixelCanvas, head_at: int) -> void:
 	var x := int(c.w / 2.0)
-	var t := PixelCanvas.tones(ObjectArtConfig.streetlight_head_color)
+	var t := PixelCanvas.tones(ObjectArtOutdoorConfig.streetlight_head_color)
 	# The cap the arm leaves the post by.
 	c.fill(PixelCanvas.disc(Vector2i(x, 1), 2), t.dark, _ARM_HEIGHT)
 	for y in range(1, head_at - 4):
@@ -79,7 +82,7 @@ static func _arm(c: PixelCanvas, head_at: int) -> void:
 ## A dented cobra head at the arm's end, its lens facing down at the road, glowing.
 static func _cobra(c: PixelCanvas, head_at: int) -> void:
 	var x := int(c.w / 2.0)
-	var col := ObjectArtConfig.streetlight_head_color
+	var col := ObjectArtOutdoorConfig.streetlight_head_color
 	var t := PixelCanvas.tones(col)
 	var rx := maxi(3, int(c.w / 2.0) - 2)
 	var head := PixelCanvas.ellipse(Rect2i(x - rx, head_at - 7, rx * 2, 15))
@@ -88,7 +91,7 @@ static func _cobra(c: PixelCanvas, head_at: int) -> void:
 	c.outline(head, t.outline)
 	c.px(x + 3, head_at - 3, t.shadow, _HEAD_HEIGHT)  # A dent.
 	c.px(x + 4, head_at - 2, t.shadow, _HEAD_HEIGHT)
-	var lens := ObjectArtConfig.streetlight_lens_color
+	var lens := ObjectArtOutdoorConfig.streetlight_lens_color
 	c.glowing(func() -> void:
 		c.fill(PixelCanvas.ellipse(Rect2i(x - 3, head_at - 2, 6, 7)), lens, _HEAD_HEIGHT))
 
@@ -96,7 +99,7 @@ static func _cobra(c: PixelCanvas, head_at: int) -> void:
 ## A neon sign at the arm's end: a dark board, its tube run round the edge and two bars of letters,
 ## glowing in `neon`.
 static func _sign(c: PixelCanvas, head_at: int, neon: Color) -> void:
-	var board_col := ObjectArtConfig.streetlight_sign_color
+	var board_col := ObjectArtOutdoorConfig.streetlight_sign_color
 	var board := PixelCanvas.rounded(Rect2i(1, head_at - 6, c.w - 2, 12), 1)
 	c.fill(board, board_col, _HEAD_HEIGHT)
 	c.outline(board, PixelCanvas.tones(board_col).outline)

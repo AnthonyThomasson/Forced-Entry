@@ -28,7 +28,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 
 ## A frame around glass with two glare streaks.
 static func _mirror(c: PixelCanvas, glass: Color) -> void:
-	var frame_col := ObjectArtConfig.fixture_frame_color
+	var frame_col := ObjectArtDecorConfig.fixture_frame_color
 	var ft := PixelCanvas.tones(frame_col)
 	var frame := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(frame, frame_col, _BAR_HEIGHT)
@@ -46,7 +46,7 @@ static func _towels(c: PixelCanvas, metal: Color) -> void:
 	c.line(Vector2i(1, cy - 1), Vector2i(c.w - 2, cy - 1), metal.lightened(0.3))
 	for x in [2, c.w - 3]:
 		c.fill(PixelCanvas.disc(Vector2i(x, cy), 2), metal.darkened(0.2), _BAR_HEIGHT)
-	var list: Array = ObjectArtConfig.prop_colors["towels"]
+	var list: Array = ObjectArtDecorConfig.prop_colors["towels"]
 	var n := clampi(int(c.w / 18.0), 1, 3)
 	var tw := int((c.w - 10) / float(n)) - 2
 	for i in n:

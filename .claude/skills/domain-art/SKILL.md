@@ -89,7 +89,7 @@ Shared tuning in two holders. `ArtCanvasConfig`, what every painting shares: `pi
 shadow (`drop_shadow_per_coverage`, `drop_shadow_max` — read by the object and vehicle visuals; `drop_shadow_alpha` — also by
 the character, a dropped item and a grenade) and cast shadow. `ArtSurfaceConfig`, how a surface is shaded: the tone ramp and the
 surface-finish densities. Domain-specific proportions and colors stay in
-each domain's config (`ObjectArtConfig`, `CharacterConfig.art_*`).
+each domain's config (the `ObjectArt*Config` holders, `CharacterConfig.art_*`).
 
 **Interfaces:** 12 (Objects / Character / Items / Vehicles → Art) and 13 (a sandbox's own painter, e.g. a `ticket-assets`
 showroom) — signatures in `architecture`.

@@ -2,7 +2,7 @@ extends RefCounted
 ## Top-down pixel-art TABLE painter (Objects domain, private). A planked wooden top — planks
 ## along the long side with dark seams, staggered butt joints, a slight tone per plank, grain and
 ## the odd knot — inside a light-aware bevelled rim with rounded corners, optionally dressed with
-## props. Options (`art_opts`, defaulting to ObjectArtConfig.table_*): `plank_px`, `rim_px`,
+## props. Options (`art_opts`, defaulting to ObjectArtTableConfig.table_*): `plank_px`, `rim_px`,
 ## `corner_radius`, `inset` (a recessed centre panel), `runner` (a cloth runner down the long
 ## axis), `gaps` (open slats, as on a bench), `props` and `neon` (a desk's: its screens and a neon
 ## strip set round its edge, glowing). Run down like a chair (scratches, cup rings, burns). A table
@@ -20,13 +20,13 @@ const _RUNNER_HEIGHT := 3
 ## Paint a table onto `c` in `base` wood.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
-	var radius: int = opts.get("corner_radius", ObjectArtConfig.table_corner_radius)
-	var rim: int = opts.get("rim_px", ObjectArtConfig.table_rim_px)
+	var radius: int = opts.get("corner_radius", ObjectArtTableConfig.table_corner_radius)
+	var rim: int = opts.get("rim_px", ObjectArtTableConfig.table_rim_px)
 	var top := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), radius)
 
 	c.fill(top, base, _TOP_HEIGHT)
 	var seams := _planks(c, base, t, opts)
-	if opts.get("inset", ObjectArtConfig.table_inset):
+	if opts.get("inset", ObjectArtTableConfig.table_inset):
 		_inset(c, radius, base, t, opts)
 	c.bevel(top, 2, 2, t.highlight, t.shadow)
 	c.bevel(top, 3, 1 + rim, t.light, t.dark)
@@ -37,7 +37,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
 				0,
 			))
-	if opts.get("runner", ObjectArtConfig.table_runner):
+	if opts.get("runner", ObjectArtTableConfig.table_runner):
 		_runner(c)
 	Props.draw_all(
 		c,
@@ -59,7 +59,7 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 	var along_x := c.w >= c.h
 	var span := c.h if along_x else c.w
 	var length := c.w if along_x else c.h
-	var plank_px := maxi(3, int(opts.get("plank_px", ObjectArtConfig.table_plank_px)))
+	var plank_px := maxi(3, int(opts.get("plank_px", ObjectArtTableConfig.table_plank_px)))
 	var n := maxi(1, roundi(float(span) / plank_px))
 	for i in n:
 		var a := roundi(float(i) * span / n)
@@ -124,7 +124,7 @@ static func _inset(
 	t: Dictionary,
 	opts: Dictionary,
 ) -> void:
-	var margin: int = opts.get("inset_margin", ObjectArtConfig.table_inset_margin)
+	var margin: int = opts.get("inset_margin", ObjectArtTableConfig.table_inset_margin)
 	margin = mini(margin, int(mini(c.w, c.h) / 4.0))
 	var inner_rect := Rect2i(0, 0, c.w, c.h).grow(-margin)
 	if inner_rect.size.x < 4 or inner_rect.size.y < 4:
@@ -149,9 +149,9 @@ static func _runner(c: PixelCanvas) -> void:
 	var along_x := c.w >= c.h
 	var length := c.w if along_x else c.h
 	var span := c.h if along_x else c.w
-	var width := maxi(5, roundi(span * float(ObjectArtConfig.table_runner_width)))
+	var width := maxi(5, roundi(span * float(ObjectArtTableConfig.table_runner_width)))
 	var a := int((span - width) / 2.0)
-	var col := ObjectArtConfig.table_runner_color
+	var col := ObjectArtTableConfig.table_runner_color
 	var r := Rect2i(1, a, length - 2, width) if along_x else Rect2i(a, 1, width, length - 2)
 	c.fill(PixelCanvas.rounded(r, 0), col, _RUNNER_HEIGHT)
 	c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)
@@ -165,7 +165,7 @@ static func _runner_weave(c: PixelCanvas, along_x: bool, lane: Rect2i) -> void:
 	var a := lane.position.y
 	var width := lane.size.y
 	var mid := a + int(width / 2.0)
-	var col := ObjectArtConfig.table_runner_color
+	var col := ObjectArtTableConfig.table_runner_color
 	var rt := PixelCanvas.tones(col)
 	var motif := maxi(2, int(width / 2.0) - 3)
 	var period := motif * 2 + 2

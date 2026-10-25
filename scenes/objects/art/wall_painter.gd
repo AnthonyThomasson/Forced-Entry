@@ -6,7 +6,7 @@ extends RefCounted
 ## only evenly: a fine grime of single darker pixels (its peeling, stains, cracks and cables are
 ## placed in the world: wear_painter.gd). The tile is symmetric across the thickness, so it reads
 ## the same whichever side of a wall faces a room. Options (`art_opts`, defaulting to
-## ObjectArtConfig.wall_*): `pattern` ("plaster" | "brick").
+## ObjectArtWallConfig): `pattern` ("plaster" | "brick").
 
 
 ## Paint one wall tile onto `c` in `base` (x along the wall, y across it).
@@ -14,7 +14,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var t := PixelCanvas.tones(base)
 	var cap := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(cap, base)
-	if String(opts.get("pattern", ObjectArtConfig.wall_pattern)) == "brick":
+	if String(opts.get("pattern", ObjectArtWallConfig.pattern)) == "brick":
 		_brick(c, base, t)
 	else:
 		c.speckle(Rect2i(0, 0, c.w, c.h), base, 0.18, 0.04)
@@ -29,7 +29,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 ## An even, fine grime of single darker pixels, mirrored across the thickness: no mark big enough to
 ## show the tile's repeat.
 static func _grime(c: PixelCanvas) -> void:
-	for _i in int(c.w * c.h * ObjectArtConfig.wall_grime_density):
+	for _i in int(c.w * c.h * ObjectArtWallConfig.grime_density):
 		var x := c.rng.randi_range(0, c.w - 1)
 		var y := c.rng.randi_range(0, int(c.h / 2.0))
 		var amount := c.rng.randf_range(0.06, 0.18)

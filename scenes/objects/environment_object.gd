@@ -50,7 +50,7 @@ const OCCLUDER_SIDES := 12
 @export var interactions: Array = []
 ## Pixel-art painter id ("sofa", "table", "chair"); "" draws the flat shape and its label.
 @export var art: String = ""
-## Per-piece painter overrides (see ObjectArtConfig), e.g. { "runner": true }.
+## Per-piece painter overrides (see the ObjectArt*Config holders), e.g. { "runner": true }.
 @export var art_opts: Dictionary = {}
 ## Which way the piece's front faces, in its local frame (a cardinal direction). Visual only:
 ## it orients the art (a sofa's seat, a chair's seat away from its back rail).
@@ -101,7 +101,7 @@ func _ready() -> void:
 		# Non-solid decor never moves or collides: freeze it (a shapeless RigidBody2D would
 		# be invalid) and draw it beneath everything else.
 		freeze = true
-		z_index = ObjectArtConfig.rug_z_index
+		z_index = ObjectArtLayerConfig.rug_z_index
 		# Never moves, so its footprint is fixed: blood that reaches cloth (a rug, a mat) sinks in
 		# (Physics blood); it runs past the rest of the walk-over decor (litter, cables, a puddle, a
 		# neon tube).

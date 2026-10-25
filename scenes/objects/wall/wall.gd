@@ -26,7 +26,7 @@ const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 ## left/right walls start at the top).
 @export var openings: Array = []
 ## Pixel-art cap: the tiling painter id ("" = a flat gray line), its base color (its debris takes
-## the colour it is drawn in) and painter options (see ObjectArtConfig.wall_*). Read by
+## the colour it is drawn in) and painter options (see ObjectArtWallConfig). Read by
 ## wall_visuals.gd.
 @export var art: String = ""
 ## Cap base color.

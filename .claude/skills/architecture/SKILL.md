@@ -537,12 +537,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  body) and the Lighting domain (interface 20).
     - `DrawLayers` (`general/draw_layers.gd`, a `class_name` static holder) — the world's draw-order ladder, one rung per kind of thing,
 	  so what lies on the floor, what a vehicle covers and what flies over it keep one order across domains: `FLOOR` −5 (Objects' `Floor`,
-	  via `ObjectArtConfig.floor_z_index`) < `RUG` −4 (rugs and mats, `ObjectArtConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, a
+	  via `ObjectArtLayerConfig.floor_z_index`) < `RUG` −4 (rugs and mats, `ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, a
 	  bleed-out pool, prints and smears, the scorch decals; `BloodConfig.z_index` / `print_z_index`) < `LYING` −2 (a dead body,
 	  `CharacterConfig.ragdoll_z_index`; a spent casing, Projectile; a `DroppedItem` and a grenade at rest, Items) < `UNDER_VEHICLE` −1
 	  (a vehicle's `Chassis`) < `STANDING` 0 (Godot's default: the living, a vehicle's occupants, furniture, walls) < `ABOVE` 1 (a
 	  vehicle's `Roof`, a grenade in flight, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`) < `OVERHEAD` 2 (a piece's `Overhang`, Objects:
-	  `ObjectArtConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4 (Physics' `ExplosionFx`). A domain's own z knob is initialised from its rung,
+	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4 (Physics' `ExplosionFx`). A domain's own z knob is initialised from its rung,
 	  never a bare number; within a rung the scene tree decides. `docs/vehicles.md` V3 / V6 (a body struck down lies under the vehicle).
     - `GameClock` (`general/game_clock.gd`, an autoload node, `PROCESS_MODE_PAUSABLE`) — the pausable game clock: it counts physics
 	  frames in `_physics_process`, so it stands still while the tree is paused. `GameClock.msec() -> int` (frames × 1000 /
@@ -1006,7 +1006,7 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into forty-four `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into fifty-eight `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
 `PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterConfig` (walking
@@ -1014,8 +1014,11 @@ push + punch + being stunned + hit zones, sides and the outfit's weight + the ch
 (a wound's drips), `BloodSprayConfig` (a hit's spray), `BloodSplatConfig` (a splatter's shape), `BloodPoolConfig` (the
 bleed-out pool), `BloodSurfaceConfig` (the floor's grooves and soak), `BloodPrintConfig` (footprints), `BloodSmearConfig`
 (a smear's drag), `BloodSmearLookConfig` (a ribbon's look), `BloodTrailConfig` (blood pulled out of a pool), `ArtCanvasConfig` (the art pixel, the light,
-turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
-floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenFillConfig` (World-Gen's
+turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtTableConfig`, `ObjectArtFabricConfig`,
+`ObjectArtStorageConfig`, `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig`, `ObjectArtOutdoorConfig`, `ObjectArtClinicConfig`,
+`ObjectArtTechConfig` (Objects' painter proportions/colors per kind of piece, the props), `ObjectArtLightConfig` (what a piece gives as
+light, the neon share), `ObjectArtLayerConfig` (Objects' z rungs), `ObjectArtFloorConfig` and `ObjectArtWallConfig` (the tiles),
+`ObjectArtDecayConfig` (the palette grade and grime), `ObjectArtWearConfig` (wear marks), `ObjectArtStreetConfig` (the street), `WorldGenFillConfig` (World-Gen's
 furnishing fill pass), `WorldGenDressConfig` (the run-down dressing's placement), `WorldGenStreetConfig` (the street ring and its street lamps), `MagazineConfig` (Items: magazine
 types, capacities and reload times), `GunConfig` (Items: one row per gun — damage, fire rate, penetration,
 muzzle speed, spread, recoil, magazine, whether it raises at a wall, its looks per weapon style), `GrenadeConfig` (Items: one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its looks per weapon style), `OutfitConfig` (Items: the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a plate's durability), `SoundConfig` (Audio: the master switch, category volumes, voice caps and ranges, pitch/volume jitter), `SoundLibraryConfig` (the sample rate, variants, round-weight bands), `SoundDeafnessConfig` (the muffle and the tinnitus) and `SoundVehicleConfig` (the vehicles' engine, skid and crash numbers), `VehicleConfig` (Vehicles: one row per kind — size, mass, engine, brakes, steering, grip, doors and seats — one `looks` row per kind), `VehicleBoardingConfig` (getting in and out), `VehicleDoorConfig` (the doors' motion),

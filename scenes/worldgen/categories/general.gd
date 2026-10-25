@@ -667,7 +667,7 @@ const STREET := {
 		"art_opts": { "kind": "sidewalk" },
 	},
 }
-## The house wall style handed to WallFactory: a plaster cap (see ObjectArtConfig.wall_*),
+## The house wall style handed to WallFactory: a plaster cap (see ObjectArtWallConfig),
 ## nicotine-yellow (drawn run-down and dun, like every colour the Objects painters take).
 const WALL := {
 	"art": "wall",

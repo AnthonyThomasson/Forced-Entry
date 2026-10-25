@@ -8,7 +8,7 @@ class_name ObjectFactory
 ##   material, coverage, penetration, weight, solid, interactions (all optional);
 ##   anchored (optional, default false: a solid piece that never moves, frozen static; still struck,
 ##   dented, throwing debris); art (an `ObjectArt` painter id, e.g. "sofa"; omitted = flat shape +
-##   label) and art_opts (painter overrides, see ObjectArtConfig) (optional);
+##   label) and art_opts (painter overrides, see the ObjectArt*Config holders) (optional);
 ##   overhang (optional `{ size, reach }`: an overhead part beyond the footprint, a streetlight's
 ##     arm and head, drawn by the piece's painter with `part: "overhang"`, `size` across x out,
 ##     centred `reach` px out along the facing, above the characters, with no collider: the child

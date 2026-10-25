@@ -9,7 +9,7 @@ extends RefCounted
 ## Canonical frame: the front toward +y, the back against the wall. Run down (decay.gd): grime,
 ## rust, stickers. What gives light (the screens, the LEDs) is drawn glowing, in the piece's `neon`
 ## or the cheap screens' green (Decay.screen_color). The catalogue colour is the casing's. Knobs:
-## ObjectArtConfig.tech_*.
+## ObjectArtTechConfig.tech_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const Props = preload("res://scenes/objects/art/props.gd")
@@ -52,7 +52,7 @@ static func box(
 
 ## The rail, the screens (every third a dimmer one), the cables off the back and the keyboard ledge.
 static func _monitor_wall(c: PixelCanvas, base: Color, screen: Color) -> void:
-	var dark := ObjectArtConfig.tech_dark_color
+	var dark := ObjectArtTechConfig.tech_dark_color
 	box(c, Rect2i(0, 0, c.w, 4), dark, _RAIL_HEIGHT, 1)
 	var n := maxi(3, int(c.w / 30.0))
 	var mw := int((c.w - 4) / float(n)) - 2
@@ -72,7 +72,7 @@ static func _monitor_wall(c: PixelCanvas, base: Color, screen: Color) -> void:
 			_RAIL_HEIGHT - 1,
 		)
 	var ledge := Rect2i(2, 8 + depth, c.w - 4, maxi(4, c.h - 10 - depth))
-	box(c, ledge, ObjectArtConfig.tech_ledge_color, _LEDGE_HEIGHT, 1)
+	box(c, ledge, ObjectArtTechConfig.tech_ledge_color, _LEDGE_HEIGHT, 1)
 	var mid_y := ledge.position.y + int(ledge.size.y / 2.0)
 	Props.draw(c, "keyboard", Vector2i(int(c.w / 2.0), mid_y))
 	Props.draw(c, "mug", Vector2i(c.w - 14, mid_y))
@@ -90,8 +90,8 @@ static func _server_rack(c: PixelCanvas, base: Color, screen: Color) -> void:
 			c.px(x + 1, y, t.shadow)
 	var leds: Array[Color] = [
 		screen,
-		ObjectArtConfig.tech_led_colors[0],
-		ObjectArtConfig.tech_led_colors[1],
+		ObjectArtTechConfig.tech_led_colors[0],
+		ObjectArtTechConfig.tech_led_colors[1],
 	]
 	for x in range(3, c.w - 3, 2):
 		if c.rng.randf() < 0.7:
@@ -102,6 +102,6 @@ static func _server_rack(c: PixelCanvas, base: Color, screen: Color) -> void:
 	c.line(
 		Vector2i(int(c.w / 2.0) - 3, 0),
 		Vector2i(int(c.w / 2.0) + 3, 0),
-		ObjectArtConfig.tech_dark_color,
+		ObjectArtTechConfig.tech_dark_color,
 		_RACK_HEIGHT,
 	)

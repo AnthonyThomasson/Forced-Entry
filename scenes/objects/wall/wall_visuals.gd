@@ -33,7 +33,7 @@ func _ready() -> void:
 	if _wall.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		var tile_size := Vector2(ObjectArtConfig.wall_tile_px, _wall.wall_thickness)
+		var tile_size := Vector2(ObjectArtWallConfig.tile_px, _wall.wall_thickness)
 		_tile = ObjectArt.texture(
 			_wall.art,
 			tile_size,
@@ -100,5 +100,5 @@ func _look(texture: Texture2D) -> WallLook:
 	look.thickness = _wall.wall_thickness
 	look.color = line_color
 	look.texture = texture
-	look.tile_length = ObjectArtConfig.wall_tile_px
+	look.tile_length = ObjectArtWallConfig.tile_px
 	return look

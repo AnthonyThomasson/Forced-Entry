@@ -2,7 +2,7 @@ extends RefCounted
 ## Top-down pixel-art open SHELF painter (Objects domain, private). Painted in the canonical frame
 ## (front toward +y): a material frame around a shadowed well, filled with what the shelf holds as
 ## seen from above — rows of book tops, cardboard boxes and paint tins, or pairs of shoes. Metal
-## frames show corner uprights. Options (`art_opts`, defaulting to ObjectArtConfig.shelf_*):
+## frames show corner uprights. Options (`art_opts`, defaulting to ObjectArtStorageConfig.shelf_*):
 ## `contents` ("books" | "boxes" | "shoes"), `neon` (a neon strip round the frame, glowing). Run
 ## down like a cabinet.
 
@@ -23,7 +23,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	var border := maxi(2, roundi(mini(c.w, c.h) * 0.08))
 	var well := Rect2i(0, 0, c.w, c.h).grow(-border)
 	c.fill(PixelCanvas.rounded(well, 0), t.shadow.darkened(0.3), 1)
-	match String(opts.get("contents", ObjectArtConfig.shelf_contents)):
+	match String(opts.get("contents", ObjectArtStorageConfig.shelf_contents)):
 		"books":
 			_books(c, well)
 		"boxes":
@@ -52,7 +52,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 ## Book tops standing against the back: covers in assorted colors around a pale page block, the
 ## odd gap, and every so often a small vase on the shelf.
 static func _books(c: PixelCanvas, well: Rect2i) -> void:
-	var paper: Color = ObjectArtConfig.prop_colors["paper"]
+	var paper: Color = ObjectArtDecorConfig.prop_colors["paper"]
 	var x := well.position.x
 	while x < well.end.x - 1:
 		var roll := c.rng.randf()
@@ -63,7 +63,7 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 			var o := Vector2i(x + 3, well.position.y + mini(4, int(well.size.y / 3.0)))
 			c.fill(
 				PixelCanvas.disc(o, 2),
-				ObjectArtConfig.prop_colors["glaze"],
+				ObjectArtDecorConfig.prop_colors["glaze"],
 				_CONTENT_HEIGHT + 1,
 			)
 			x += 7
@@ -102,8 +102,8 @@ static func _tin(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
 	var o := Vector2i(x + rad, well.position.y + rad + 1)
 	var tin := PixelCanvas.disc(o, rad)
 	var label := Props.pick(c, "books")
-	c.fill(tin, ObjectArtConfig.prop_colors["metal"], _CONTENT_HEIGHT)
-	c.outline(tin, ObjectArtConfig.prop_colors["metal"].darkened(0.4))
+	c.fill(tin, ObjectArtDecorConfig.prop_colors["metal"], _CONTENT_HEIGHT)
+	c.outline(tin, ObjectArtDecorConfig.prop_colors["metal"].darkened(0.4))
 	c.outline(PixelCanvas.disc(o, maxi(1, rad - 2)), label)
 	return rad * 2 + 2
 
@@ -113,7 +113,7 @@ static func _tin(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
 static func _box(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
 	var bw := mini(c.rng.randi_range(10, 22), well.end.x - x - 1)
 	var r := Rect2i(x, well.position.y + 1, bw, depth)
-	var tone := ObjectArtConfig.shelf_box_color.darkened(c.rng.randf_range(0.0, 0.15))
+	var tone := ObjectArtStorageConfig.shelf_box_color.darkened(c.rng.randf_range(0.0, 0.15))
 	var box := PixelCanvas.rounded(r, 0)
 	c.fill(box, tone, _CONTENT_HEIGHT)
 	c.bevel(box, 1, 1, tone.lightened(0.12), tone.darkened(0.25))

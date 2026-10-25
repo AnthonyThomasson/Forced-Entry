@@ -41,7 +41,7 @@ var _sound_id := -1
 
 func _ready() -> void:
 	add_to_group(&"floors")
-	z_index = ObjectArtConfig.floor_z_index
+	z_index = ObjectArtLayerConfig.floor_z_index
 	if light_layer == "street":
 		# Every canvas item of the floor (its visuals, marks and light-source overlay: children, so
 		# ready by now).

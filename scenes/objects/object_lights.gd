@@ -12,7 +12,7 @@ extends RefCounted
 ##   above the heads, a lamp's bulb, a street lamp's head; `low`: a screen, a tube, LEDs; which
 ##   shadows it, and whether it pools downward, is the Lighting domain's) and `glow` (the piece's
 ##   `Emissive` overlay that shows the source, dimming with the light; null when it has none).
-## Tuning: ObjectArtConfig.light_specs (the per-kind numbers) and the painters' colours.
+## Tuning: ObjectArtLightConfig.light_specs (the per-kind numbers) and the painters' colours.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 
@@ -23,7 +23,7 @@ static func of(piece: Node2D) -> Array:
 	var kind := _kind(piece)
 	if kind == "":
 		return []
-	var spec: Dictionary = ObjectArtConfig.light_specs.get(kind, {})
+	var spec: Dictionary = ObjectArtLightConfig.light_specs.get(kind, {})
 	if spec.is_empty():
 		return []
 	var ahead: Vector2 = (piece.facing as Vector2).normalized()
@@ -33,7 +33,7 @@ static func of(piece: Node2D) -> Array:
 	var light := {
 		"offset": _front_offset(piece.size, ahead, spec),
 		"turn": 0.0,
-		"colour": neon if neon.a > 0.0 else ObjectArtConfig.decay_screen_color,
+		"colour": neon if neon.a > 0.0 else ObjectArtLightConfig.decay_screen_color,
 		"energy": float(spec["energy"]),
 		"radius": float(spec.get("radius", 0.0)),
 		"shape": spec.get("shape", &"round"),
@@ -70,21 +70,21 @@ static func _by_kind(
 	var spill := ahead.angle() + PI * 0.5  # A screen's pool lies across its front.
 	match kind:
 		"lamp":
-			light["colour"] = neon if neon.a > 0.0 else ObjectArtConfig.lamp_glow_color
+			light["colour"] = neon if neon.a > 0.0 else ObjectArtDecorConfig.lamp_glow_color
 		"tv", "desk":
 			light["turn"] = spill
 		"monitor_wall":
 			light["turn"] = spill
 			light["radius"] = maxf(absf(size.dot(ahead.orthogonal())) * 0.85, light["radius"])
 		"server_rack":
-			light["colour"] = neon if neon.a > 0.0 else ObjectArtConfig.tech_led_colors[-1]
+			light["colour"] = neon if neon.a > 0.0 else ObjectArtTechConfig.tech_led_colors[-1]
 		"surgical":
-			light["colour"] = ObjectArtConfig.recliner_lamp_color
+			light["colour"] = ObjectArtClinicConfig.recliner_lamp_color
 		"scanner":
 			light["turn"] = ahead.angle()  # The beam runs out along the post's face.
-			light["colour"] = ObjectArtConfig.security_beam_color
+			light["colour"] = ObjectArtTechConfig.security_beam_color
 		"hotplate":
-			light["colour"] = ObjectArtConfig.hotplate_ring_color
+			light["colour"] = ObjectArtKitchenBathConfig.hotplate_ring_color
 		"neon_tube":
 			light["colour"] = Decay.neon({ "neon": opts.get("tone", "cyan") })
 			light["turn"] = 0.0 if size.x >= size.y else PI * 0.5  # Along the tube.
@@ -103,13 +103,13 @@ static func _street_head(light: Dictionary, kind: String, piece: Node2D, neon: C
 	if overhang != null:
 		light["offset"] = (overhang.get_rect() as Rect2).get_center()
 		light["glow"] = _overlay(overhang)
-	light["colour"] = ObjectArtConfig.streetlight_lens_color if kind == "cobra" \
-		else (neon if neon.a > 0.0 else ObjectArtConfig.neon_magenta)
+	light["colour"] = ObjectArtOutdoorConfig.streetlight_lens_color if kind == "cobra" \
+		else (neon if neon.a > 0.0 else ObjectArtLightConfig.neon_magenta)
 	light["street"] = true
 
 
-## Which row of ObjectArtConfig.light_specs `piece` gives light by ("" for none): by its painter and
-## options, or, for a piece with a neon option and no light of its own, its trim.
+## Which row of ObjectArtLightConfig.light_specs `piece` gives light by ("" for none): by its
+## painter and options, or, for a piece with a neon option and no light of its own, its trim.
 static func _kind(piece: Node2D) -> String:
 	var art: String = piece.art
 	var opts: Dictionary = piece.art_opts
@@ -121,7 +121,7 @@ static func _kind(piece: Node2D) -> String:
 		"recliner":
 			return String(opts.get("kind", "rig"))
 		"streetlight":
-			return String(opts.get("head", ObjectArtConfig.streetlight_head))
+			return String(opts.get("head", ObjectArtOutdoorConfig.streetlight_head))
 		"decor":
 			return "neon_tube" if String(opts.get("kind", "")) == "neon_tube" else ""
 	var own := _variant_kind(art, opts)

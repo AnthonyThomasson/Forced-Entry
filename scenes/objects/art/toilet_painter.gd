@@ -22,17 +22,17 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	c.bevel(bowl, 1, 2, t.highlight, t.dark)
 	c.outline(bowl, t.shadow)
 	var water := PixelCanvas.ellipse(bowl_rect.grow(-maxi(2, int(c.w / 10.0))))
-	c.fill(water, ObjectArtConfig.bath_water_color, 1)
+	c.fill(water, ObjectArtKitchenBathConfig.bath_water_color, 1)
 	c.bevel(
 		water,
 		1,
 		1,
-		ObjectArtConfig.bath_water_color.darkened(0.25),
-		ObjectArtConfig.bath_water_color.lightened(0.2),
+		ObjectArtKitchenBathConfig.bath_water_color.darkened(0.25),
+		ObjectArtKitchenBathConfig.bath_water_color.lightened(0.2),
 	)
 	c.fill(
 		PixelCanvas.ellipse(bowl_rect.grow(-maxi(4, int(c.w / 5.0)))),
-		ObjectArtConfig.bath_water_color.darkened(0.12),
+		ObjectArtKitchenBathConfig.bath_water_color.darkened(0.12),
 	)
 	c.glare(water, Color(0.95, 0.98, 1.0), 1)
 
@@ -44,7 +44,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	c.bevel(tank, 1, 2, t.highlight, t.dark)
 	c.outline(tank, t.shadow)
 	var button := PixelCanvas.disc(tank_rect.position + tank_rect.size / 2, 1)
-	c.fill(button, ObjectArtConfig.counter_tap_color, _TANK_HEIGHT + 1)
+	c.fill(button, ObjectArtKitchenBathConfig.counter_tap_color, _TANK_HEIGHT + 1)
 	c.cast_shadows()
 	porcelain(c)
 

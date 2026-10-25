@@ -8,7 +8,7 @@ extends Node2D
 ## stretch (peeling plaster, a water stain, a hairline crack, a run of stapled cable). Drawn by two
 ## decal layers (decal_layer.gd): the floor marks on the floor's rung (`FloorWear`), the wall marks
 ## on the walls' (`WallWear`); built after the house's floors and walls, so each draws over them.
-## One per room, so it is lit like that room's floor. Draw-only. Tuning: ObjectArtConfig.wear_*.
+## One per room, so it is lit like that room's floor. Draw-only. Tuning: ObjectArtWearConfig.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const DecalLayer = preload("res://scenes/objects/decals/decal_layer.gd")
@@ -30,24 +30,24 @@ func setup(
 	clusters: Array,
 ) -> Node2D:
 	position = rect.position
-	_floor_layer = DecalLayer.new().setup("FloorWear", ObjectArtConfig.floor_z_index)
+	_floor_layer = DecalLayer.new().setup("FloorWear", ObjectArtLayerConfig.floor_z_index)
 	_wall_layer = DecalLayer.new().setup("WallWear", DrawLayers.STANDING)
 	add_child(_floor_layer)
 	add_child(_wall_layer)
 	var room := Rect2(Vector2.ZERO, rect.size)
-	var inner := room.grow(-(wall_thickness * 0.5 + ObjectArtConfig.wear_inset))
+	var inner := room.grow(-(wall_thickness * 0.5 + ObjectArtWearConfig.inset))
 	var pattern := _pattern_of(floor_definition)
 	var placed: Array[Rect2] = []
 	for cluster: Dictionary in clusters:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(cluster.get("seed", 0))
 		var at: Vector2 = (cluster["pos"] as Vector2) - rect.position
-		if (ObjectArtConfig.wear_floor_kinds.has(pattern)
+		if (ObjectArtWearConfig.floor_kinds.has(pattern)
 				and inner.size.x >= 40.0
 				and inner.size.y >= 40.0):
 			_floor_marks(rng, at, inner, floor_definition, placed)
 		var wall: Array = cluster.get("wall", [])
-		if wall.size() == 2 and rng.randf() < ObjectArtConfig.wear_wall_chance:
+		if wall.size() == 2 and rng.randf() < ObjectArtWearConfig.wall_chance:
 			_wall_mark(
 				rng,
 				(wall[0] as Vector2) - rect.position,
@@ -78,25 +78,25 @@ func _floor_marks(
 	var pattern := _pattern_of(floor_definition)
 	var tone := ObjectArt.drawn_color(floor_definition.get("color", Color.GRAY))
 	var marks := (1
-			if rng.randf() < ObjectArtConfig.wear_one_chance
-			else (2 if rng.randf() < ObjectArtConfig.wear_two_chance else 3))
+			if rng.randf() < ObjectArtWearConfig.one_chance
+			else (2 if rng.randf() < ObjectArtWearConfig.two_chance else 3))
 	for m in marks:
-		var spread := ObjectArtConfig.wear_spread
+		var spread := ObjectArtWearConfig.spread
 		var offset := (Vector2.ZERO
 				if m == 0
 				else Vector2.RIGHT.rotated(rng.randf() * TAU) * rng.randf_range(spread.x, spread.y))
-		var kind: String = WeightedPick.pick(rng, ObjectArtConfig.wear_floor_kinds[pattern])
+		var kind: String = WeightedPick.pick(rng, ObjectArtWearConfig.floor_kinds[pattern])
 		var mark := _floor_mark(kind, at + offset, pattern, rng)
 		if mark.is_empty():
 			continue
 		var r := _fit(mark["rect"], inner, mark["step"])
-		var crowded := func(q: Rect2) -> bool: return q.grow(ObjectArtConfig.wear_gap).intersects(r)
+		var crowded := func(q: Rect2) -> bool: return q.grow(ObjectArtWearConfig.gap).intersects(r)
 		if not inner.encloses(r) or placed.any(crowded):
 			continue
 		placed.append(r)
 		var opts: Dictionary = mark["opts"]
 		opts["kind"] = kind
-		opts["v"] = rng.randi_range(0, ObjectArtConfig.wear_variants - 1)
+		opts["v"] = rng.randi_range(0, ObjectArtWearConfig.variants - 1)
 		_floor_layer.add(ObjectArt.texture("wear", r.size, tone, mark["facing"], opts), r)
 
 
@@ -117,7 +117,7 @@ static func _floor_mark(
 			return _strip_gap(p, rng)
 		"missing_cells":
 			return _missing_cells(p, pattern, rng)
-	if not ObjectArtConfig.wear_sizes.has(kind):
+	if not ObjectArtWearConfig.sizes.has(kind):
 		return {}
 	return _free_mark(kind, p, rng)
 
@@ -125,7 +125,7 @@ static func _floor_mark(
 ## A plank gap near `p`: one or two plank rows broken out along a row.
 static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / px))
+	var row_h := maxi(3, roundi(ObjectArtFloorConfig.plank_px / px))
 	var rows := 1 if rng.randf() < 0.7 else 2
 	var length := roundf(rng.randf_range(20, 56) / px)
 	var row := floori(p.y / (row_h * px))
@@ -147,7 +147,7 @@ static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 ## the next), or two side by side.
 static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var cell := ObjectArtConfig.floor_parquet_px / px
+	var cell := ObjectArtFloorConfig.parquet_px / px
 	var strip := maxi(2, int(cell / 4.0))
 	var g := Vector2i(floori(p.x / (cell * px)), floori(p.y / (cell * px)))
 	var s := rng.randi_range(0, int(cell / strip) - 1)
@@ -167,9 +167,9 @@ static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 ## Tiles knocked out of a block of the tile (or `mosaic`) grid near `p`.
 static func _missing_cells(p: Vector2, pattern: String, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var cell := (maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / px))
+	var cell := (maxi(3, roundi(ObjectArtFloorConfig.mosaic_px / px))
 			if pattern == "mosaic"
-			else maxi(4, roundi(ObjectArtConfig.floor_tile_px / px)))
+			else maxi(4, roundi(ObjectArtFloorConfig.tile_px / px)))
 	var most := 3 if pattern == "mosaic" else 2
 	var n := Vector2i(rng.randi_range(1, most), rng.randi_range(1, most))
 	var g := Vector2i(floori(p.x / (cell * px)), floori(p.y / (cell * px)))
@@ -182,12 +182,12 @@ static func _missing_cells(p: Vector2, pattern: String, rng: RandomNumberGenerat
 	}
 
 
-## A free mark of `kind` (one ObjectArtConfig.wear_sizes knows) centred near `p`, of a size within
+## A free mark of `kind` (one ObjectArtWearConfig.sizes knows) centred near `p`, of a size within
 ## its bounds, turned a random quarter.
 static func _free_mark(kind: String, p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 	var px := ArtCanvasConfig.pixel_size
-	var lo: Vector2 = ObjectArtConfig.wear_sizes[kind][0]
-	var hi: Vector2 = ObjectArtConfig.wear_sizes[kind][1]
+	var lo: Vector2 = ObjectArtWearConfig.sizes[kind][0]
+	var hi: Vector2 = ObjectArtWearConfig.sizes[kind][1]
 	var size := ((Vector2(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y)) / 2.0).round()
 			* 2.0)
 	var turned := rng.randf() < 0.5
@@ -229,8 +229,8 @@ func _wall_mark(
 ) -> void:
 	var a := from.min(to)  # A wall runs along x or y: walk it from its lower end.
 	var length := a.distance_to(from.max(to))
-	var kind: String = WeightedPick.pick(rng, ObjectArtConfig.wear_wall_kinds)
-	var span: Vector2 = ObjectArtConfig.wear_wall_lengths[kind]
+	var kind: String = WeightedPick.pick(rng, ObjectArtWearConfig.wall_kinds)
+	var span: Vector2 = ObjectArtWearConfig.wall_lengths[kind]
 	var mark := roundf(minf(rng.randf_range(span.x, span.y), length - 8.0))
 	if mark < span.x:
 		return
@@ -239,9 +239,9 @@ func _wall_mark(
 	var r := _wall_rect(a + dir * s, dir, mark, thickness)
 	# The art runs along its canvas's length, turned onto a wall along y.
 	var facing := Vector2.DOWN if absf(dir.x) > 0.5 else Vector2.RIGHT
-	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtConfig.wear_variants - 1) }
+	var opts := { "kind": kind, "v": rng.randi_range(0, ObjectArtWearConfig.variants - 1) }
 	_wall_layer.add(
-		ObjectArt.texture("wear", r.size, ObjectArtConfig.wear_plaster_color, facing, opts),
+		ObjectArt.texture("wear", r.size, ObjectArtWearConfig.plaster_color, facing, opts),
 		r,
 	)
 

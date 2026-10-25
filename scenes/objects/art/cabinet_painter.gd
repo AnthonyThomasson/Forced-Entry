@@ -3,7 +3,7 @@ extends RefCounted
 ## canonical frame (front toward +y): a material-finished top, optionally framed by crown moulding,
 ## glazed (showing stacked plates) or a hinged lid with straps, and along the front a lip strip
 ## showing the doors or drawers with their handles. Options (`art_opts`, defaulting to
-## ObjectArtConfig.cabinet_*): `front` ("doors" | "drawers" | "lid" | "none"), `count`,
+## ObjectArtStorageConfig.cabinet_*): `front` ("doors" | "drawers" | "lid" | "none"), `count`,
 ## `front_depth`, `crown`, `top` ("solid" | "glass" | "lid"), `labels`, `handle` (a Color), `props`,
 ## `neon` (a neon under-glow along the front, glowing). Run down (decay.gd: `casegoods`): grime,
 ## scratches, stickers, rust on metal.
@@ -18,7 +18,7 @@ const _BODY_HEIGHT := 4
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
 	var lip := clampi(
-		roundi(c.h * float(opts.get("front_depth", ObjectArtConfig.cabinet_front_depth))),
+		roundi(c.h * float(opts.get("front_depth", ObjectArtStorageConfig.cabinet_front_depth))),
 		2,
 		int(c.h / 3.0),
 	)
@@ -28,7 +28,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 
 	c.fill(body, base, _BODY_HEIGHT)
 	c.surface(top, material, base)
-	if opts.get("crown", ObjectArtConfig.cabinet_crown):
+	if opts.get("crown", ObjectArtStorageConfig.cabinet_crown):
 		c.bevel(top, 2, 3, t.highlight, t.dark)
 		c.outline(PixelCanvas.rounded(top_rect.grow(-4), 1), t.dark)
 	else:
@@ -69,11 +69,11 @@ static func _front(c: PixelCanvas, strip: Rect2i, base: Color, opts: Dictionary)
 			else (base.darkened(0.14) if facing_light < -0.3 else base.darkened(0.05)))
 	c.paint_over(strip, face)
 	c.line(Vector2i(1, strip.position.y), Vector2i(c.w - 2, strip.position.y), t.shadow)
-	var kind := String(opts.get("front", ObjectArtConfig.cabinet_front))
+	var kind := String(opts.get("front", ObjectArtStorageConfig.cabinet_front))
 	if kind == "none" or strip.size.y < 2:
 		return
-	var n := maxi(1, int(opts.get("count", ObjectArtConfig.cabinet_count)))
-	var handle: Color = opts.get("handle", ObjectArtConfig.cabinet_handle_color)
+	var n := maxi(1, int(opts.get("count", ObjectArtStorageConfig.cabinet_count)))
+	var handle: Color = opts.get("handle", ObjectArtStorageConfig.cabinet_handle_color)
 	var seams: Array[int] = []
 	for i in range(1, n):
 		var x := roundi(float(i) * c.w / n)
@@ -132,13 +132,13 @@ static func _glass_top(c: PixelCanvas, top_rect: Rect2i, t: Dictionary) -> void:
 	if pane.size.x < 6 or pane.size.y < 6:
 		return
 	var glass := PixelCanvas.rounded(pane, 1)
-	c.fill(glass, ObjectArtConfig.cabinet_glass_color)
+	c.fill(glass, ObjectArtStorageConfig.cabinet_glass_color)
 	var r := mini(int(pane.size.y / 2.0) - 1, 6)
 	var x := pane.position.x + r + 1
 	while x + r < pane.end.x:
 		Props.draw(c, "plate", Vector2i(x, pane.position.y + int(pane.size.y / 2.0)))
 		x += r * 2 + 3
-	c.glare(glass, ObjectArtConfig.cabinet_glass_color.lightened(0.5), 2)
+	c.glare(glass, ObjectArtStorageConfig.cabinet_glass_color.lightened(0.5), 2)
 	c.outline(glass, t.shadow)
 
 
@@ -155,6 +155,6 @@ static func _lid(c: PixelCanvas, top_rect: Rect2i, base: Color, t: Dictionary) -
 			_BODY_HEIGHT,
 		)
 		c.line(Vector2i(x - 2, top_rect.position.y), Vector2i(x - 2, top_rect.end.y - 1), t.shadow)
-	var metal := ObjectArtConfig.cabinet_handle_color
+	var metal := ObjectArtStorageConfig.cabinet_handle_color
 	for p in [Vector2i(1, 1), Vector2i(top_rect.size.x - 3, 1)]:
 		c.fill(PixelCanvas.rounded(Rect2i(p, Vector2i(2, 2)), 0), metal)

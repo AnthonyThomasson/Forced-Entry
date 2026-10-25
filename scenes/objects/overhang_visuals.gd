@@ -1,13 +1,14 @@
 extends Node2D
 ## Objects domain: draws an EnvironmentObject's OVERHANG, the overhead part of a piece that reaches
 ## out beyond its footprint (a streetlight's arm and lamp head over the road), as the child
-## `Overhang`. It hangs above whoever walks under it: drawn at `ObjectArtConfig.overhang_z_index`
-## (`DrawLayers.OVERHEAD`, absolute), over the living and a vehicle's roof, and it has no collider
-## (only the piece's footprint is solid). Its art is the piece's own painter with `part: "overhang"`
-## in the options, at the overhang's `size` (across x out, in the canonical frame), centred `reach`
-## px from the piece's centre along its facing. What in it gives light (a lens, a sign's tube) is
-## drawn again over it by a child `Emissive` layer (emissive_layer.gd), as on the piece. Draw-only:
-## it reads its parent's look fields and the definition's `overhang` (`{ size, reach }`).
+## `Overhang`. It hangs above whoever walks under it: drawn at
+## `ObjectArtLayerConfig.overhang_z_index` (`DrawLayers.OVERHEAD`, absolute), over the living and a
+## vehicle's roof, and it has no collider (only the piece's footprint is solid). Its art is the
+## piece's own painter with `part: "overhang"` in the options, at the overhang's `size` (across x
+## out, in the canonical frame), centred `reach` px from the piece's centre along its facing. What
+## in it gives light (a lens, a sign's tube) is drawn again over it by a child `Emissive` layer
+## (emissive_layer.gd), as on the piece. Draw-only: it reads its parent's look fields and the
+## definition's `overhang` (`{ size, reach }`).
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -32,7 +33,7 @@ func _draw() -> void:
 func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 	name = "Overhang"
 	z_as_relative = false
-	z_index = ObjectArtConfig.overhang_z_index
+	z_index = ObjectArtLayerConfig.overhang_z_index
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var facing: Vector2 = piece.facing
 	var canonical: Vector2 = overhang.get("size", Vector2.ZERO)

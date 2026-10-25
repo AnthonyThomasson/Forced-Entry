@@ -39,7 +39,7 @@ the tree, so it has counted the current frame before any NPC reads it.
 `RUG` −4, `BLOOD` −3 (blood and scorch decals), `LYING` −2 (a dead body, casings, a dropped item, a grenade at rest),
 `UNDER_VEHICLE` −1 (a vehicle's chassis), `STANDING` 0 (the default: the living, furniture, walls), `ABOVE` 1 (a vehicle's roof, a
 grenade in flight, the UI's stack markers), `OVERHEAD` 2 (a piece's overhang: a streetlight's arm and head over the road; a room's ceiling fixture), `EFFECTS` 4
-(an explosion's flash and smoke). Every domain's z knob starts from its rung (`ObjectArtConfig`,
+(an explosion's flash and smoke). Every domain's z knob starts from its rung (`ObjectArtLayerConfig`,
 `BloodConfig`, `CharacterConfig`, the casing, the dropped item and grenade, the vehicle's layers, `ExplosionFx`, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`), so a new layer is a
 rung here, not a number in a domain.
 

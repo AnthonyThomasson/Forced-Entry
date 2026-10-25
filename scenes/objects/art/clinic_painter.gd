@@ -6,7 +6,7 @@ extends RefCounted
 ##   `cyberware_shelf`: an open steel shelf of cyberware, chrome arms with joints, eyes, chips with
 ##   pins and jars.
 ## Canonical frame: the front toward +y. The catalogue colour is the steel's. Run down (decay.gd):
-## grime, rust, scratches. Knobs: ObjectArtConfig.clinic_*.
+## grime, rust, scratches. Knobs: ObjectArtClinicConfig.clinic_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const Tech = preload("res://scenes/objects/art/tech_painter.gd")
@@ -33,8 +33,8 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 static func _cart(c: PixelCanvas, base: Color, screen: Color) -> void:
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _BODY_HEIGHT, 2)
 	var tray := Rect2i(3, 3, c.w - 6, c.h - 6)
-	c.fill(PixelCanvas.rounded(tray, 1), ObjectArtConfig.clinic_tray_color, _BODY_HEIGHT)
-	var steel := ObjectArtConfig.clinic_chrome_color
+	c.fill(PixelCanvas.rounded(tray, 1), ObjectArtClinicConfig.clinic_tray_color, _BODY_HEIGHT)
+	var steel := ObjectArtClinicConfig.clinic_chrome_color
 	for i in 4:
 		var x := tray.position.x + 3 + i * 4
 		c.line(
@@ -43,7 +43,7 @@ static func _cart(c: PixelCanvas, base: Color, screen: Color) -> void:
 			steel,
 			_TOOL_HEIGHT,
 		)
-		c.px(x, tray.position.y + 2, ObjectArtConfig.tech_dark_color, _TOOL_HEIGHT)
+		c.px(x, tray.position.y + 2, ObjectArtTechConfig.tech_dark_color, _TOOL_HEIGHT)
 	var sy := tray.end.y - 3
 	c.line(
 		Vector2i(tray.position.x + 2, sy),
@@ -59,8 +59,8 @@ static func _cart(c: PixelCanvas, base: Color, screen: Color) -> void:
 static func _shelf(c: PixelCanvas, base: Color) -> void:
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _SHELF_HEIGHT, 1)
 	var well := Rect2i(3, 3, c.w - 6, c.h - 6)
-	c.fill(PixelCanvas.rounded(well, 0), ObjectArtConfig.tech_dark_color, 1)
-	var chrome := ObjectArtConfig.clinic_chrome_color
+	c.fill(PixelCanvas.rounded(well, 0), ObjectArtTechConfig.tech_dark_color, 1)
+	var chrome := ObjectArtClinicConfig.clinic_chrome_color
 	var x := well.position.x + 2
 	while x < well.end.x - 6:
 		match c.rng.randi_range(0, 3):
@@ -72,8 +72,12 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 					x + 3,
 					well.position.y + c.rng.randi_range(4, maxi(4, well.size.y - 5)),
 				)
-				c.fill(PixelCanvas.disc(o, 3), ObjectArtConfig.clinic_eye_color, _TOOL_HEIGHT)
-				c.fill(PixelCanvas.disc(o, 1), ObjectArtConfig.clinic_joint_color, _TOOL_HEIGHT)
+				c.fill(PixelCanvas.disc(o, 3), ObjectArtClinicConfig.clinic_eye_color, _TOOL_HEIGHT)
+				c.fill(
+					PixelCanvas.disc(o, 1),
+					ObjectArtClinicConfig.clinic_joint_color,
+					_TOOL_HEIGHT,
+				)
 				x += 8
 			2:  # A chip with its pins.
 				var r := Rect2i(
@@ -82,14 +86,18 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 					6,
 					5,
 				)
-				c.fill(PixelCanvas.rounded(r, 0), ObjectArtConfig.clinic_chip_color, _TOOL_HEIGHT)
+				c.fill(
+					PixelCanvas.rounded(r, 0),
+					ObjectArtClinicConfig.clinic_chip_color,
+					_TOOL_HEIGHT,
+				)
 				for k in range(r.position.x, r.end.x, 2):
-					c.px(k, r.position.y - 1, ObjectArtConfig.clinic_pin_color, _TOOL_HEIGHT)
-					c.px(k, r.end.y, ObjectArtConfig.clinic_pin_color, _TOOL_HEIGHT)
+					c.px(k, r.position.y - 1, ObjectArtClinicConfig.clinic_pin_color, _TOOL_HEIGHT)
+					c.px(k, r.end.y, ObjectArtClinicConfig.clinic_pin_color, _TOOL_HEIGHT)
 				x += 8
 			_:  # A jar.
 				var o := Vector2i(x + 3, well.position.y + 5)
-				c.fill(PixelCanvas.disc(o, 3), ObjectArtConfig.clinic_jar_color, _TOOL_HEIGHT)
+				c.fill(PixelCanvas.disc(o, 3), ObjectArtClinicConfig.clinic_jar_color, _TOOL_HEIGHT)
 				c.outline(PixelCanvas.disc(o, 3), chrome)
 				x += 8
 
@@ -105,6 +113,6 @@ static func _arm(c: PixelCanvas, x: int, well: Rect2i, chrome: Color) -> void:
 	)
 	c.fill(
 		PixelCanvas.disc(Vector2i(x, well.position.y + int(well.size.y / 2.0)), 1),
-		ObjectArtConfig.clinic_joint_color,
+		ObjectArtClinicConfig.clinic_joint_color,
 		_TOOL_HEIGHT,
 	)

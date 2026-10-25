@@ -64,5 +64,5 @@ static func _coats(c: PixelCanvas, o: Vector2i, radius: int, spin: float) -> voi
 
 ## A random coat color.
 static func _pick(c: PixelCanvas) -> Color:
-	var list: Array = ObjectArtConfig.prop_colors["coats"]
+	var list: Array = ObjectArtDecorConfig.prop_colors["coats"]
 	return list[c.rng.randi_range(0, list.size() - 1)]

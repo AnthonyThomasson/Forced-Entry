@@ -5,10 +5,11 @@ extends RefCounted
 ##   `rig`: the netrunner's jack-in rig, padded in the catalogue colour (the room palette's fabric),
 ##     a neural halo of LEDs round the headrest and cables off it to the back; the halo glows in its
 ##     `neon` (or the cheap screens' green).
-##   `surgical`: the ripperdoc's chair, padded in pale vinyl (ObjectArtConfig.recliner_vinyl_color),
+## `surgical`: the ripperdoc's chair, padded in pale vinyl
+## (ObjectArtClinicConfig.recliner_vinyl_color),
 ##     strapped, a lamp on an arm over the chest; the lamp glows.
 ## Run down (decay.gd): the padding torn and taped, grime, rust on the frame. Knobs:
-## ObjectArtConfig.recliner_*.
+## ObjectArtClinicConfig.recliner_*.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 const Tech = preload("res://scenes/objects/art/tech_painter.gd")
@@ -25,9 +26,9 @@ const _SECTIONS := [[0.0, 0.18], [0.2, 0.52], [0.54, 0.74], [0.76, 1.0]]
 ## toward -y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var surgical := String(opts.get("kind", "rig")) == "surgical"
-	var pad: Color = ObjectArtConfig.recliner_vinyl_color if surgical else base
+	var pad: Color = ObjectArtClinicConfig.recliner_vinyl_color if surgical else base
 	var frame := PixelCanvas.rounded(Rect2i(4, 2, c.w - 8, c.h - 4), 6)
-	c.fill(frame, ObjectArtConfig.tech_dark_color, _FRAME_HEIGHT)
+	c.fill(frame, ObjectArtTechConfig.tech_dark_color, _FRAME_HEIGHT)
 	var inner := Rect2i(7, 4, c.w - 14, c.h - 8)
 	for k in _SECTIONS.size():
 		var y0 := inner.position.y + roundi(inner.size.y * _SECTIONS[k][0])
@@ -44,7 +45,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		Tech.box(
 			c,
 			Rect2i(x, roundi(c.h * 0.36), 4, roundi(c.h * 0.3)),
-			ObjectArtConfig.recliner_frame_color,
+			ObjectArtClinicConfig.recliner_frame_color,
 			_ARM_HEIGHT,
 			1,
 		)
@@ -61,30 +62,30 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 
 ## The surgical chair's two straps and its lamp on an arm from a mount behind, the lamp glowing.
 static func _straps_and_lamp(c: PixelCanvas, inner: Rect2i) -> void:
-	var dark := ObjectArtConfig.tech_dark_color
+	var dark := ObjectArtTechConfig.tech_dark_color
 	for f in [0.36, 0.62]:
 		var y := inner.position.y + roundi(inner.size.y * f)
 		c.line(Vector2i(inner.position.x, y), Vector2i(inner.end.x - 1, y), dark, _PAD_HEIGHT + 1)
 		c.px(
 			int(c.w / 2.0),
 			y,
-			ObjectArtConfig.recliner_frame_color.lightened(0.3),
+			ObjectArtClinicConfig.recliner_frame_color.lightened(0.3),
 			_PAD_HEIGHT + 1,
 		)
 	var lamp := Vector2i(int(c.w / 2.0), roundi(c.h * 0.42))
-	c.line(Vector2i(c.w - 2, 4), lamp, ObjectArtConfig.recliner_frame_color, _LAMP_HEIGHT - 1)
+	c.line(Vector2i(c.w - 2, 4), lamp, ObjectArtClinicConfig.recliner_frame_color, _LAMP_HEIGHT - 1)
 	var head := PixelCanvas.disc(lamp, 6)
-	c.fill(head, ObjectArtConfig.recliner_frame_color, _LAMP_HEIGHT)
+	c.fill(head, ObjectArtClinicConfig.recliner_frame_color, _LAMP_HEIGHT)
 	c.outline(head, dark)
 	c.glowing(func() -> void:
-		c.fill(PixelCanvas.disc(lamp, 3), ObjectArtConfig.recliner_lamp_color, _LAMP_HEIGHT))
+		c.fill(PixelCanvas.disc(lamp, 3), ObjectArtClinicConfig.recliner_lamp_color, _LAMP_HEIGHT))
 
 
 ## The rig's neural halo of LEDs round the headrest (glowing, every other one in `screen`) and its
 ## cables off to the back.
 static func _halo(c: PixelCanvas, inner: Rect2i, screen: Color) -> void:
 	var o := Vector2i(int(c.w / 2.0), inner.position.y + 5)
-	var other := ObjectArtConfig.tech_led_colors[0]
+	var other := ObjectArtTechConfig.tech_led_colors[0]
 	c.glowing(func() -> void:
 		for i in 10:
 			var a := PI + PI * i / 9.0
@@ -94,6 +95,6 @@ static func _halo(c: PixelCanvas, inner: Rect2i, screen: Color) -> void:
 		c.line(
 			Vector2i(o.x + dx, inner.position.y),
 			Vector2i(o.x + dx * 2, 0),
-			ObjectArtConfig.tech_dark_color.lightened(0.2),
+			ObjectArtTechConfig.tech_dark_color.lightened(0.2),
 			_PAD_HEIGHT + 2,
 		)

@@ -9,7 +9,7 @@ the masks are General's `LightMasks` (`architecture` interface 11), the lights a
 domains' (interface 20).
 
 All distances are px and times seconds. The numbers are the Lighting holders' (`LightingConfig`, `LightingFixtureConfig`, `LightingTextureConfig`, in `scenes/lighting/`) and, for what
-each piece gives, `ObjectArtConfig.light_specs`.
+each piece gives, `ObjectArtLightConfig.light_specs`.
 
 ## What is built
 

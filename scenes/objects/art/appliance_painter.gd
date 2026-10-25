@@ -6,8 +6,9 @@ extends RefCounted
 ## dryer's solid lid and vents — or a TV: a boxy old CRT, its cracked screen to the front. Run down
 ## (decay.gd): grime, rust, stickers and grease. Displays and the CRT's screen give light: drawn
 ## glowing, in the cheap screens' green or the piece's neon. Options (`art_opts`, defaulting to
-## ObjectArtConfig.appliance_*): `panel` ("plain" | "burners" | "fridge" | "microwave" | "washer" |
-## "dryer" | "tv"), `neon` (the CRT's screen, or a display lit along the top of any other).
+## ObjectArtKitchenBathConfig.appliance_*): `panel` ("plain" | "burners" | "fridge" | "microwave" |
+## "washer" | "dryer" | "tv"), `neon` (the CRT's screen, or a display lit along the top of any
+## other).
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
@@ -19,7 +20,7 @@ const _KNOB_HEIGHT := 6
 ## Paint an appliance onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
-	var panel := String(opts.get("panel", ObjectArtConfig.appliance_panel))
+	var panel := String(opts.get("panel", ObjectArtKitchenBathConfig.appliance_panel))
 	var glow := Decay.screen_color(opts)
 	if panel == "tv":
 		_crt(c, glow)
@@ -55,7 +56,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 static func _burners(c: PixelCanvas, t: Dictionary) -> void:
 	var strip := maxi(4, roundi(c.h * 0.16))
 	c.paint_over(Rect2i(2, c.h - strip - 1, c.w - 4, strip), t.shadow)
-	var metal := ObjectArtConfig.appliance_metal_color
+	var metal := ObjectArtKitchenBathConfig.appliance_metal_color
 	for i in 4:
 		var kx := roundi((i + 0.5) * c.w / 4.0)
 		c.fill(
@@ -99,7 +100,7 @@ static func _fridge(c: PixelCanvas, t: Dictionary) -> void:
 	var lip := maxi(3, roundi(c.h * 0.08))
 	c.paint_over(Rect2i(2, c.h - lip - 1, c.w - 4, lip), t.dark)
 	c.line(Vector2i(int(c.w / 2.0), c.h - lip - 1), Vector2i(int(c.w / 2.0), c.h - 2), t.outline)
-	var metal := ObjectArtConfig.appliance_metal_color
+	var metal := ObjectArtKitchenBathConfig.appliance_metal_color
 	for x in [int(c.w / 2.0) - 3, int(c.w / 2.0) + 2]:
 		c.fill(PixelCanvas.rounded(Rect2i(x, c.h - lip - 3, 1, lip + 3), 0), metal, _KNOB_HEIGHT)
 
@@ -123,8 +124,8 @@ static func _microwave(c: PixelCanvas, t: Dictionary, glow: Color) -> void:
 		),
 		1,
 	)
-	c.fill(window, ObjectArtConfig.appliance_glass_color)
-	c.glare(window, ObjectArtConfig.appliance_glass_color.lightened(0.35), 1)
+	c.fill(window, ObjectArtKitchenBathConfig.appliance_glass_color)
+	c.glare(window, ObjectArtKitchenBathConfig.appliance_glass_color.lightened(0.35), 1)
 	var pad_x := strip.position.x + roundi(strip.size.x * 0.7)
 	Decay.display(
 		c,
@@ -142,7 +143,7 @@ static func _microwave(c: PixelCanvas, t: Dictionary, glow: Color) -> void:
 static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow: Color) -> void:
 	var panel_h := maxi(4, roundi(c.h * 0.16))
 	c.paint_over(Rect2i(2, 2, c.w - 4, panel_h), t.dark)
-	var metal := ObjectArtConfig.appliance_metal_color
+	var metal := ObjectArtKitchenBathConfig.appliance_metal_color
 	var dial := Vector2i(c.w - 4 - int(panel_h / 2.0), 2 + int(panel_h / 2.0))
 	c.fill(PixelCanvas.disc(dial, maxi(1, int(panel_h / 2.0) - 1)), metal, _KNOB_HEIGHT)
 	c.px(dial.x, dial.y - 1, t.outline)
@@ -161,7 +162,10 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 	c.outline(ring, t.shadow)
 	if washer:
 		var glass := PixelCanvas.disc(o, rad - 2)
-		c.fill(glass, ObjectArtConfig.appliance_glass_color.lerp(Color(0.4, 0.6, 0.8), 0.4))
+		c.fill(
+			glass,
+			ObjectArtKitchenBathConfig.appliance_glass_color.lerp(Color(0.4, 0.6, 0.8), 0.4),
+		)
 		for i in 4:
 			var a := c.rng.randf() * TAU
 			var p := (o
@@ -182,7 +186,7 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 ## A TV: a boxy old CRT from above, grimy grey plastic, vents over its deep back, its screen to the
 ## front glowing in `glow` and cracked across.
 static func _crt(c: PixelCanvas, glow: Color) -> void:
-	var case_col := ObjectArtConfig.appliance_crt_color
+	var case_col := ObjectArtKitchenBathConfig.appliance_crt_color
 	var t := PixelCanvas.tones(case_col)
 	var box := PixelCanvas.rounded(Rect2i(int(c.w * 0.18), 1, int(c.w * 0.64), c.h - 3), 3)
 	c.fill(box, case_col, _BODY_HEIGHT + 2)

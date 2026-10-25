@@ -2,10 +2,10 @@ extends RefCounted
 ## Top-down pixel-art COUNTER painter (worktops, islands, vanities; Objects domain, private).
 ## Painted in the canonical frame (front toward +y): a stone or ceramic top with a backsplash
 ## along the back, a bullnose front edge, optionally a sunken basin with drain and mixer tap, and
-## an island's seating overhang. Options (`art_opts`, defaulting to ObjectArtConfig.counter_*):
-## `basin` ("none" | "single" | "deep"), `backsplash`, `overhang`, `props`, `neon` (a neon
-## under-glow along the front, glowing). Run down (decay.gd): grime, food and grease stains,
-## scratches.
+## an island's seating overhang. Options (`art_opts`, defaulting to
+## ObjectArtKitchenBathConfig.counter_*): `basin` ("none" | "single" | "deep"), `backsplash`,
+## `overhang`, `props`, `neon` (a neon under-glow along the front, glowing). Run down (decay.gd):
+## grime, food and grease stains, scratches.
 
 const Props = preload("res://scenes/objects/art/props.gd")
 const Decay = preload("res://scenes/objects/art/decay.gd")
@@ -23,7 +23,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.surface(body, material, base)
 
 	var splash := 0
-	if opts.get("backsplash", ObjectArtConfig.counter_backsplash):
+	if opts.get("backsplash", ObjectArtKitchenBathConfig.counter_backsplash):
 		splash = maxi(2, roundi(c.h * 0.07))
 		var band := PixelCanvas.rounded(Rect2i(0, 0, c.w, splash), 1)
 		c.fill(band, t.dark, _SPLASH_HEIGHT)
@@ -79,7 +79,7 @@ static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep
 ## (`splash` deep; the basin's top edge at `top`), with its two handles.
 static func _drain_and_tap(c: PixelCanvas, r: Rect2i, splash: int, top: int) -> void:
 	var centre := r.position + r.size / 2
-	var metal := ObjectArtConfig.counter_tap_color
+	var metal := ObjectArtKitchenBathConfig.counter_tap_color
 	var drain := PixelCanvas.disc(centre, 2)
 	c.fill(drain, metal.darkened(0.3))
 	c.px(centre.x, centre.y, metal.darkened(0.7))

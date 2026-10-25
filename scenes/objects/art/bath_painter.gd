@@ -45,7 +45,7 @@ static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 
 ## The tub's water inside `basin_rect`, with ripples and glare.
 static func _water(c: PixelCanvas, basin_rect: Rect2i) -> void:
-	var water_col := ObjectArtConfig.bath_water_color
+	var water_col := ObjectArtKitchenBathConfig.bath_water_color
 	var water_rect := basin_rect.grow(-3)
 	var water := PixelCanvas.rounded(
 		water_rect,
@@ -64,7 +64,7 @@ static func _water(c: PixelCanvas, basin_rect: Rect2i) -> void:
 ## The tub's drain at the left end of `basin_rect` and its mixer tap across the `lip`.
 static func _tub_tap(c: PixelCanvas, basin_rect: Rect2i, lip: int) -> void:
 	var cy := int(c.h / 2.0)
-	var metal := ObjectArtConfig.counter_tap_color
+	var metal := ObjectArtKitchenBathConfig.counter_tap_color
 	var drain := Vector2i(basin_rect.position.x + 7, cy)
 	c.fill(PixelCanvas.disc(drain, 2), metal.darkened(0.25))
 	c.px(drain.x, drain.y, metal.darkened(0.6))
@@ -80,7 +80,7 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 	var tray := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(tray, base, _TRAY_HEIGHT)
 	c.surface(tray, material if material != "glass" else "ceramic", base)
-	var cell := maxi(4, ObjectArtConfig.bath_tile_px)
+	var cell := maxi(4, ObjectArtKitchenBathConfig.bath_tile_px)
 	var grout := base.darkened(0.14)
 	for x in range(3, c.w - 3, cell):
 		c.line(Vector2i(x, 3), Vector2i(x, c.h - 4), grout)
@@ -88,7 +88,7 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 		c.line(Vector2i(3, y), Vector2i(c.w - 4, y), grout)
 	c.bevel(tray, 1, 2, t.light, t.dark)
 	c.outline(tray, t.shadow)
-	var metal := ObjectArtConfig.counter_tap_color
+	var metal := ObjectArtKitchenBathConfig.counter_tap_color
 	_shower_drain(c, metal)
 	_shower_screen(c)
 	_shower_head(c, metal)
@@ -106,7 +106,7 @@ static func _shower_drain(c: PixelCanvas, metal: Color) -> void:
 
 ## The glass screen along the shower's front and right side.
 static func _shower_screen(c: PixelCanvas) -> void:
-	var glass := ObjectArtConfig.shower_glass_color
+	var glass := ObjectArtKitchenBathConfig.shower_glass_color
 	var band := 2
 	c.fill(PixelCanvas.rounded(Rect2i(0, c.h - band, c.w, band), 0), glass, _FIXTURE_HEIGHT)
 	c.fill(PixelCanvas.rounded(Rect2i(c.w - band, 0, band, c.h), 0), glass, _FIXTURE_HEIGHT)

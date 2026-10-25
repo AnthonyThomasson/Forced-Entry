@@ -3,8 +3,8 @@ extends RefCounted
 ## mugs, books, bowls, tools and the like, drawn by the table / cabinet / counter painters from a
 ## piece's `art_opts.props` list. Each prop is painted in the host's canonical frame (front toward
 ## +y), raised so it casts a shadow onto the surface, with sizes in art px scaled by
-## ArtCanvasConfig.pixel_size and colors from ObjectArtConfig.prop_colors. A monitor's lit screen
-## edge is drawn `glowing` (it gives light), in the host's screen colour.
+## ArtCanvasConfig.pixel_size and colors from ObjectArtDecorConfig.prop_colors. A monitor's lit
+## screen edge is drawn `glowing` (it gives light), in the host's screen colour.
 
 ## Props stand above the surface they sit on (cast-shadow height).
 const _HEIGHT := 7
@@ -56,12 +56,12 @@ static func _o(n: float) -> int:
 
 ## A prop palette color by name.
 static func _col(name: String) -> Color:
-	return ObjectArtConfig.prop_colors.get(name, Color.MAGENTA)
+	return ObjectArtDecorConfig.prop_colors.get(name, Color.MAGENTA)
 
 
 ## A random entry of the prop palette list `name` (shared with the shelf and appliance painters).
 static func pick(c: PixelCanvas, name: String) -> Color:
-	var list: Array = ObjectArtConfig.prop_colors.get(name, [Color.MAGENTA])
+	var list: Array = ObjectArtDecorConfig.prop_colors.get(name, [Color.MAGENTA])
 	return list[c.rng.randi_range(0, list.size() - 1)]
 
 
