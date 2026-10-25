@@ -38,12 +38,7 @@ func run(t: TestContext) -> void:
 	var checked := 0
 	for batch in ROUNDS:
 		for w in WRITES_PER_ROUND:
-			var topic: StringName = TOPICS[rng.randi() % TOPICS.size()]
-			var key: String = KEYS[rng.randi() % KEYS.size()]
-			var ttl: float = LIFETIMES[rng.randi() % LIFETIMES.size()]
-			var data := { "v": batch * 100 + w, "id": rng.randi() % 4 }
-			real.remember(topic, data, ttl, key)
-			plain.remember(topic, data, ttl, key)
+			_write(rng, real, plain, batch, w)
 			if rng.randf() < 0.3:
 				var mid := _compare(real, plain, rng)
 				checked += 1
@@ -71,34 +66,77 @@ func run(t: TestContext) -> void:
 	)
 
 
+## One random write, the same to both memories: write `w` of batch `batch`.
+func _write(
+		rng: RandomNumberGenerator,
+		real: RefCounted,
+		plain: RefCounted,
+		batch: int,
+		w: int,
+) -> void:
+	var topic: StringName = TOPICS[rng.randi() % TOPICS.size()]
+	var key: String = KEYS[rng.randi() % KEYS.size()]
+	var ttl: float = LIFETIMES[rng.randi() % LIFETIMES.size()]
+	var data := { "v": batch * 100 + w, "id": rng.randi() % 4 }
+	real.remember(topic, data, ttl, key)
+	plain.remember(topic, data, ttl, key)
+
+
 ## Every reader of both memories on a random topic, field and value; "" when they agree, else what
 ## differed.
 func _compare(real: RefCounted, plain: RefCounted, rng: RandomNumberGenerator) -> String:
 	if real.size() != plain.size():
 		return "size %d vs %d" % [real.size(), plain.size()]
 	for topic in TOPICS:
-		if real.is_fresh(topic) != plain.is_fresh(topic):
-			return "is_fresh(%s)" % topic
-		if real.recall(topic) != plain.recall(topic):
-			return "recall(%s)" % topic
-		var a: Array = real.recall_all(topic)
-		var b: Array = plain.recall_all(topic)
-		if a != b:
-			return "recall_all(%s): %s vs %s" % [topic, a, b]
-		var aged_real: Array = real.recall_aged(topic)
-		var aged_plain: Array = plain.recall_aged(topic)
-		if aged_real.size() != aged_plain.size():
-			return "recall_aged(%s) size %d vs %d" % [topic, aged_real.size(), aged_plain.size()]
-		for i in aged_real.size():
-			if (aged_real[i]["data"] != aged_plain[i]["data"]
-					or absf(aged_real[i]["age"] - aged_plain[i]["age"]) > AGE_TOLERANCE_S):
-				return "recall_aged(%s)[%d]" % [topic, i]
-		var id := rng.randi() % 4
-		var age_real: float = real.age_of(topic, "id", id)
-		var age_plain: float = plain.age_of(topic, "id", id)
-		if (is_inf(age_real) != is_inf(age_plain)
-				or (not is_inf(age_real) and absf(age_real - age_plain) > AGE_TOLERANCE_S)):
-			return "age_of(%s, id, %d): %s vs %s" % [topic, id, age_real, age_plain]
+		var diff := _compare_topic(real, plain, rng, topic)
+		if diff != "":
+			return diff
+	return _compare_fresh(real, plain)
+
+
+## The readers of `topic` on both memories, with a random `id` value; "" when they agree, else what
+## differed.
+func _compare_topic(
+		real: RefCounted,
+		plain: RefCounted,
+		rng: RandomNumberGenerator,
+		topic: StringName,
+) -> String:
+	if real.is_fresh(topic) != plain.is_fresh(topic):
+		return "is_fresh(%s)" % topic
+	if real.recall(topic) != plain.recall(topic):
+		return "recall(%s)" % topic
+	var a: Array = real.recall_all(topic)
+	var b: Array = plain.recall_all(topic)
+	if a != b:
+		return "recall_all(%s): %s vs %s" % [topic, a, b]
+	var aged := _compare_aged(real, plain, topic)
+	if aged != "":
+		return aged
+	var id := rng.randi() % 4
+	var age_real: float = real.age_of(topic, "id", id)
+	var age_plain: float = plain.age_of(topic, "id", id)
+	if (is_inf(age_real) != is_inf(age_plain)
+			or (not is_inf(age_real) and absf(age_real - age_plain) > AGE_TOLERANCE_S)):
+		return "age_of(%s, id, %d): %s vs %s" % [topic, id, age_real, age_plain]
+	return ""
+
+
+## `recall_aged(topic)` on both memories; "" when they agree, else what differed.
+func _compare_aged(real: RefCounted, plain: RefCounted, topic: StringName) -> String:
+	var aged_real: Array = real.recall_aged(topic)
+	var aged_plain: Array = plain.recall_aged(topic)
+	if aged_real.size() != aged_plain.size():
+		return "recall_aged(%s) size %d vs %d" % [topic, aged_real.size(), aged_plain.size()]
+	for i in aged_real.size():
+		if (aged_real[i]["data"] != aged_plain[i]["data"]
+				or absf(aged_real[i]["age"] - aged_plain[i]["age"]) > AGE_TOLERANCE_S):
+			return "recall_aged(%s)[%d]" % [topic, i]
+	return ""
+
+
+## `fresh()` on both memories; "" when they agree, else what differed.
+func _compare_fresh(real: RefCounted, plain: RefCounted) -> String:
 	var fresh_real: Array = real.fresh()
 	var fresh_plain: Array = plain.fresh()
 	if fresh_real.size() != fresh_plain.size():

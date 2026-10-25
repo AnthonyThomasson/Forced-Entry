@@ -117,75 +117,105 @@ func run(t: TestContext) -> void:
 	if not t.require(brain != null, "set-up: the listener is an NPC"):
 		return
 	for p in PHASES:
-		var who := t.puppet(p["id"])
-		var walker := t.actor(p["id"])
-		var before := _heard(brain)
-		var steps_from := t.events.size()
-		who.set_posture(&"crouch" if p["gait"] == &"crouch" else &"stand")
-		who.set_run(p["gait"] == &"run")
-		await t.seconds(0.6)
-		var ends := [
-			Vector2(p["x"], LISTENER.y + p["half"]),
-			Vector2(p["x"], LISTENER.y - p["half"]),
-		]
-		var leg := 0
-		var end_at := t.time + PACE_TIME
-		who.walk_to(ends[0])
-		while t.time < end_at:
-			if who.has_arrived():
-				leg = (leg + 1) % 2
-				who.walk_to(ends[leg])
-			await t.frames(1)
-		who.stop()
-		who.set_run(false)
-		await t.seconds(0.3)
-		var lane := Rect2(
-			float(p["x"]) - 30.0,
-			LISTENER.y - float(p["half"]) - 30.0,
-			60.0,
-			float(p["half"]) * 2.0 + 60.0,
-		)
-		var steps: Array = t.events.slice(steps_from).filter(
-			func(e): return e["topic"] == &"footfall" and lane.has_point(e["data"]["position"]),
-		)
-		if not t.require(
-				steps.size() >= 4,
-				"set-up: %s paced its lane (%d footfalls)" % [p["id"], steps.size()],
-		):
+		if not await _phase(t, brain, p):
 			return
+
+
+## Phase `p`: its walker paces its lane in its gait, and the listener hears it or not; false when
+## the set-up fails.
+func _phase(t: TestContext, brain: Node, p: Dictionary) -> bool:
+	var who := t.puppet(p["id"])
+	var walker := t.actor(p["id"])
+	var before := _heard(brain)
+	var steps_from := t.events.size()
+	who.set_posture(&"crouch" if p["gait"] == &"crouch" else &"stand")
+	who.set_run(p["gait"] == &"run")
+	await t.seconds(0.6)
+	await _pace(t, who, p)
+	var lane := Rect2(
+		float(p["x"]) - 30.0,
+		LISTENER.y - float(p["half"]) - 30.0,
+		60.0,
+		float(p["half"]) * 2.0 + 60.0,
+	)
+	var steps: Array = t.events.slice(steps_from).filter(
+		func(e): return e["topic"] == &"footfall" and lane.has_point(e["data"]["position"]),
+	)
+	if not t.require(
+			steps.size() >= 4,
+			"set-up: %s paced its lane (%d footfalls)" % [p["id"], steps.size()],
+	):
+		return false
+	_check_steps(t, p, steps, walker)
+	_check_heard(t, brain, p, steps, before)
+	return true
+
+
+## `who` paces up and down phase `p`'s lane for `PACE_TIME`, then stops and settles.
+func _pace(t: TestContext, who: Node, p: Dictionary) -> void:
+	var ends := [
+		Vector2(p["x"], LISTENER.y + p["half"]),
+		Vector2(p["x"], LISTENER.y - p["half"]),
+	]
+	var leg := 0
+	var end_at := t.time + PACE_TIME
+	who.walk_to(ends[0])
+	while t.time < end_at:
+		if who.has_arrived():
+			leg = (leg + 1) % 2
+			who.walk_to(ends[leg])
+		await t.frames(1)
+	who.stop()
+	who.set_run(false)
+	await t.seconds(0.3)
+
+
+## Phase `p`'s footfalls `steps` say whose they are, whether crouched and, on a run, running.
+func _check_steps(t: TestContext, p: Dictionary, steps: Array, walker: Node) -> void:
+	t.check(
+		steps.all(func(e): return e["data"].get("character") == walker),
+		"%s's footfalls say whose they are (footfall `character`)" % p["id"],
+	)
+	t.check(
+		steps.all(func(e): return (
+			bool(e["data"].get("crouched", not (p["gait"] == &"crouch")))
+				== (p["gait"] == &"crouch")
+		)),
+		"%s's footfalls say crouched = %s" % [p["id"], p["gait"] == &"crouch"],
+	)
+	if p["gait"] == &"run":
 		t.check(
-			steps.all(func(e): return e["data"].get("character") == walker),
-			"%s's footfalls say whose they are (footfall `character`)" % p["id"],
+			steps.any(func(e): return bool(e["data"].get("running", false))),
+			"%s ran" % p["id"],
 		)
+
+
+## The listener heard phase `p`'s walker near its lane, or heard nothing new, as the phase says;
+## `before` is what it had heard before the phase.
+func _check_heard(
+		t: TestContext,
+		brain: Node,
+		p: Dictionary,
+		steps: Array,
+		before: Array,
+) -> void:
+	var new := _heard(brain).filter(func(h): return not before.has(h))
+	var near_lane := new.filter(func(h: Vector2): return absf(h.x - float(p["x"])) < 50.0)
+	var nearest := INF
+	for s in steps:
+		nearest = minf(nearest, (s["data"]["position"] as Vector2).distance_to(LISTENER))
+	if not p["heard"]:
 		t.check(
-			steps.all(func(e): return (
-				bool(e["data"].get("crouched", not (p["gait"] == &"crouch")))
-					== (p["gait"] == &"crouch")
-			)),
-			"%s's footfalls say crouched = %s" % [p["id"], p["gait"] == &"crouch"],
+			new.is_empty(),
+			"the listener did not hear %s (%d footfalls, the nearest %.0f px off; heard at %s)"
+				% [p["id"], steps.size(), nearest, str(new)],
 		)
-		if p["gait"] == &"run":
-			t.check(
-				steps.any(func(e): return bool(e["data"].get("running", false))),
-				"%s ran" % p["id"],
-			)
-		var new := _heard(brain).filter(func(h): return not before.has(h))
-		var near_lane := new.filter(func(h: Vector2): return absf(h.x - float(p["x"])) < 50.0)
-		var nearest := INF
-		for s in steps:
-			nearest = minf(nearest, (s["data"]["position"] as Vector2).distance_to(LISTENER))
-		if p["heard"]:
-			t.check(
-				not near_lane.is_empty(),
-				("the listener heard %s through the wall (%d footfalls, the nearest %.0f px off; "
-						+ "%d new heard)") % [p["id"], steps.size(), nearest, new.size()],
-			)
-		else:
-			t.check(
-				new.is_empty(),
-				"the listener did not hear %s (%d footfalls, the nearest %.0f px off; heard at %s)"
-					% [p["id"], steps.size(), nearest, str(new)],
-			)
+		return
+	t.check(
+		not near_lane.is_empty(),
+		("the listener heard %s through the wall (%d footfalls, the nearest %.0f px off; "
+				+ "%d new heard)") % [p["id"], steps.size(), nearest, new.size()],
+	)
 
 
 ## The spots the listener has heard footsteps at, from its memory (`debug_memory()["footsteps"]`:

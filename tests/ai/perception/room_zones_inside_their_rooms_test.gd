@@ -79,17 +79,24 @@ func run(t: TestContext) -> void:
 	var misplaced: Array = []
 	var seen := 0
 	for npc in handle["combatants"]:
-		var brain: Node = TestContext.controller_of(npc)
-		for zone: Dictionary in brain.debug_zones():
-			if not ROOM_CATEGORIES.has(zone["category"]):
-				continue
-			seen += 1
-			var why := _problem(rooms, zone)
-			if why != "":
-				misplaced.append("%s: %s (%s) at %s %s"
-						% [npc.name, zone["label"], zone["category"], zone["point"], why])
+		seen += _room_zones(npc, rooms, misplaced)
 	t.require(seen > 0, "the NPCs weighed room points")
 	t.check(misplaced.is_empty(), "every room point lies in its room: %s" % [misplaced])
+
+
+## How many room points `npc` weighs; each that is not in its room is added to `misplaced`.
+func _room_zones(npc: Node, rooms: Array, misplaced: Array) -> int:
+	var seen := 0
+	var brain: Node = TestContext.controller_of(npc)
+	for zone: Dictionary in brain.debug_zones():
+		if not ROOM_CATEGORIES.has(zone["category"]):
+			continue
+		seen += 1
+		var why := _problem(rooms, zone)
+		if why != "":
+			misplaced.append("%s: %s (%s) at %s %s"
+					% [npc.name, zone["label"], zone["category"], zone["point"], why])
+	return seen
 
 
 ## What is wrong with `zone`'s point ("" = nothing): outside every room, or in a room of another

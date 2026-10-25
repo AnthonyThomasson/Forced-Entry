@@ -59,30 +59,7 @@ func run(t: TestContext) -> void:
 	var b := Order.brain(t, &"a")
 	var target := t.actor(&"target")
 	var mate := t.actor(&"mate")
-	if not t.require(
-			await t.until(func(): return _contact(b, target).get("visible", false), 3.0),
-			"the NPC sees the target (premise)",
-	):
-		return
-	EventBus.post(
-		&"callout",
-		{
-			"speaker": mate, "faction": mate.faction, "position": mate.global_position,
-			"status": "", "path": "search/enter", "label": "SEARCH - ENTER", "target_id": 0,
-			"point": mate.global_position,
-		},
-	)
-	if not t.require(
-			await t.until(func(): return not _callout(b, mate).is_empty(), 1.0),
-			"the NPC heard the ally's callout (premise)",
-	):
-		return
-	target.global_position = HIDDEN
-	target.velocity = Vector2.ZERO
-	if not t.require(
-			await t.until(func(): return not _contact(b, target).get("visible", true), 1.0),
-			"the target is out of the NPC's sight (premise)",
-	):
+	if not await _hidden_after_callout(t, b, target, mate):
 		return
 	var contact_age := float(_contact(b, target).get("age", INF))
 	var callout_age := float(_callout(b, mate).get("age", INF))
@@ -110,6 +87,37 @@ func run(t: TestContext) -> void:
 		"the callout aged no more than the frames around the pause (%.2f s before, %s after)"
 			% [callout_age, str(heard.get("age", "gone"))],
 	)
+
+
+## The premises before the pause: the NPC sees the target, hears the ally's callout, and the target
+## is then out of its sight; false when one fails.
+func _hidden_after_callout(t: TestContext, b: Node, target: Node, mate: Node) -> bool:
+	if not t.require(
+			await t.until(func(): return _contact(b, target).get("visible", false), 3.0),
+			"the NPC sees the target (premise)",
+	):
+		return false
+	EventBus.post(
+		&"callout",
+		{
+			"speaker": mate, "faction": mate.faction, "position": mate.global_position,
+			"status": "", "path": "search/enter", "label": "SEARCH - ENTER", "target_id": 0,
+			"point": mate.global_position,
+		},
+	)
+	if not t.require(
+			await t.until(func(): return not _callout(b, mate).is_empty(), 1.0),
+			"the NPC heard the ally's callout (premise)",
+	):
+		return false
+	target.global_position = HIDDEN
+	target.velocity = Vector2.ZERO
+	if not t.require(
+			await t.until(func(): return not _contact(b, target).get("visible", true), 1.0),
+			"the target is out of the NPC's sight (premise)",
+	):
+		return false
+	return true
 
 
 ## What the NPC knows of character `who` (`known_contacts_for_display()`:
