@@ -51,7 +51,13 @@ static func _solid_query() -> PhysicsRayQueryParameters2D:
 ## Whether `point` is visible to an agent at `from_pos` facing `facing`, given a physics space state
 ## and the rids to exclude from the sight raycast (typically the agent itself). See the class note
 ## for the full rule. `space` may be null (treated as an unobstructed line) for geometry-only tests.
-func can_see(from_pos: Vector2, facing: Vector2, point: Vector2, space, exclude: Array) -> bool:
+func can_see(
+	from_pos: Vector2,
+	facing: Vector2,
+	point: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+) -> bool:
 	if not enabled:
 		return true
 	if not _in_view(from_pos, facing, point):
@@ -86,7 +92,13 @@ func _in_view(from_pos: Vector2, facing: Vector2, point: Vector2) -> bool:
 ## position. The node itself is excluded from the sight ray (it is the endpoint, so its own collider
 ## must not count as something blocking the line to it); the line is clear when nothing ELSE is
 ## between.
-func can_see_node(node: Node2D, from_pos: Vector2, facing: Vector2, space, exclude: Array) -> bool:
+func can_see_node(
+	node: Node2D,
+	from_pos: Vector2,
+	facing: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
 	if not enabled:
@@ -111,7 +123,12 @@ func can_see_node(node: Node2D, from_pos: Vector2, facing: Vector2, space, exclu
 ## skipped collider each pass, so the walk always terminates (there are finitely many colliders on
 ## the line). Ignores `enabled`: it answers what the line is, the callers decide whether sight is
 ## gated.
-func sight_hit(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
+func sight_hit(
+	space: PhysicsDirectSpaceState2D,
+	from: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> Dictionary:
 	var ex := exclude
 	while true:
 		var hit := raycast(space, from, to, ex)
@@ -127,13 +144,18 @@ func sight_hit(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 
 
 ## Whether the straight line `from`→`to` is broken for SIGHT (`sight_hit`).
-func _sight_blocked(space, from: Vector2, to: Vector2, exclude: Array) -> bool:
+func _sight_blocked(
+	space: PhysicsDirectSpaceState2D,
+	from: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> bool:
 	return not sight_hit(space, from, to, exclude).is_empty()
 
 
 ## The coverage (0–100 height proxy) of a ray-hit collider, read through the hittable contract. An
 ## unknown collider (no get_surface) is treated as fully blocking so sight never leaks past it.
-func _hit_coverage(collider) -> float:
+func _hit_coverage(collider: Object) -> float:
 	if collider != null and collider.has_method("get_surface"):
 		return float(collider.get_surface().get("coverage", 100.0))
 	return 100.0
@@ -142,14 +164,19 @@ func _hit_coverage(collider) -> float:
 ## Whether the straight segment `from`→`to` hits a wall or solid object on the query layer. A pure
 ## geometry test — it ignores `enabled`, so line-of-fire and cover stay physical even when sight is
 ## disabled (vision gates what the agent KNOWS; this gates what a straight line can reach).
-func blocked(space, from: Vector2, to: Vector2, exclude: Array) -> bool:
+func blocked(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, exclude: Array) -> bool:
 	return not raycast(space, from, to, exclude).is_empty()
 
 
 ## The first solid hit along `from`→`to` on the query layer, or an empty dict when the line is
 ## clear. Callers that need the blocking collider itself (e.g. a cover test) use this instead of
 ## `blocked()`.
-func raycast(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
+func raycast(
+	space: PhysicsDirectSpaceState2D,
+	from: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> Dictionary:
 	_query.from = from  # One query object, refilled: a snapshot casts thousands of rays.
 	_query.to = to
 	_query.exclude = exclude
@@ -159,7 +186,7 @@ func raycast(space, from: Vector2, to: Vector2, exclude: Array) -> Dictionary:
 ## The first WALL along `from`→`to` (a static body: furniture, which is a rigid body, and characters
 ## are looked through), or {} when the line reaches `to`. What bounds a doorway's view
 ## (`AgentDoorViews.door_view`).
-func wall_hit(space, from: Vector2, to: Vector2) -> Dictionary:
+func wall_hit(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> Dictionary:
 	var ex: Array = []
 	while true:
 		var hit := raycast(space, from, to, ex)

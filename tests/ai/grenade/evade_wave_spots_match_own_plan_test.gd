@@ -171,14 +171,28 @@ func _plain_escape(g, space, map: RID, kind: StringName, radius: float, burst: V
 	var out_r: float = g.zone_radius(kind, radius) + AgentThrow.OUTSIDE_SLACK
 	var reach: float = g.cover_reach(kind)
 	var spots: Array = []
-	for p in g._candidates(space, burst, from, out_r, exclude, kind):
+	var threat := GrenadeThreat.new()
+	threat.kind = kind
+	threat.radius = radius
+	threat.burst = burst
+	for p in g._candidates(space, threat, from, exclude):
 		var q := NavBuilder.snap(map, p)
 		if q.distance_to(p) > AgentThrow.SNAP_TOLERANCE:
 			continue
 		var crouch := false
 		if (q.distance_to(burst) < out_r
-				and not g._covered(space, burst, q, g.stand_height(), exclude, reach)):
-			if not g._covered(space, burst, q, g.crouch_height(), exclude, reach):
+				and not g._covered(
+					space,
+					burst,
+					q,
+					AgentThrow._cover_rule(g.stand_height(), exclude, reach),
+				)):
+			if not g._covered(
+				space,
+				burst,
+				q,
+				AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
+			):
 				continue
 			crouch = true
 		spots.append({ "spot": q, "crouch": crouch })

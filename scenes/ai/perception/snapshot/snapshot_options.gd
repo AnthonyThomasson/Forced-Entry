@@ -52,18 +52,17 @@ var _suspicion: AgentSuspicion
 var _ledger: RefCounted
 
 
-## Capture the collaborators the groups read. Called once by `AgentSnapshot.setup()`.
-func setup(vocab: SnapshotVocab, memory: RefCounted, tactics: RefCounted, entry: RefCounted,
-		views: RefCounted, throw: AgentThrow, suspicion: AgentSuspicion,
-		ledger: RefCounted) -> void:
+## Capture the shared vocabulary and the collaborators the groups read (`sources`). Called once by
+## `AgentSnapshot.setup()`.
+func setup(vocab: SnapshotVocab, sources: SnapshotSources) -> void:
 	_v = vocab
-	_memory = memory
-	_tactics = tactics
-	_entry = entry
-	_views = views
-	_throw = throw
-	_suspicion = suspicion
-	_ledger = ledger
+	_memory = sources.memory
+	_tactics = sources.tactics
+	_entry = sources.entry
+	_views = sources.views
+	_throw = sources.throw
+	_suspicion = sources.suspicion
+	_ledger = sources.ledger
 
 
 ## Start a decision's option groups: forget what the last one worked out (`know` is set by the
@@ -80,38 +79,11 @@ func bind(character: Node) -> void:
 ## Which hostile to fight: one option per known hostile, with what makes it urgent or easy.
 func hostile_group(ctx: Dictionary, hostiles: Array, analyses: Dictionary) -> Dictionary:
 	var options: Array = []
-	var self_pos: Vector2 = ctx["self_pos"]
 	for t in hostiles.slice(0, _v.max_options_per_level):
 		var a: Dictionary = analyses[t["id"]]
-		# Only what tells the hostiles apart — common facts ("hostile") blur the match.
-		var parts: Array = [
-			t["name"],
-			"in sight" if t["visible"] else "last seen %s" % _v.recency(t["age"]),
-			"%s, %s of you"
-				% [_v.dist_band(self_pos.distance_to(t["pos"])), _v.compass(t["pos"] - self_pos)],
-		]
-		if (t.get("vel", Vector2.ZERO) as Vector2).length() >= _v.still_speed:
-			parts.append(_v.move_text(t, self_pos))
-		var aim := _v.aim_text(t, self_pos, ctx["allies"])
-		if aim != "":
-			parts.append(aim)
-		if t.get("item", "") != "Pistol":
-			parts.append("holding a %s" % t.get("item", "nothing"))
-		if t["reason"] == "attacked you":
-			parts.append("they attacked you")
-		var wound := _v.wound_band(t.get("wound_dmg", 0.0))
-		if wound != "":
-			parts.append(wound)
-		if _v.blind_text(t) != "":
-			parts.append(_v.blind_text(t))
-		parts.append("you have a clear shot at them"
-				if a["line"]["clear"] and a["line"]["in_range"]
-				else "your line to them is blocked")
-		var fighting := _allies_on(ctx, t)
-		if fighting != "":
-			parts.append("%s is already on them" % fighting)
 		options.append({
-			"id": "t_%d" % t["id"], "label": t["name"], "desc": " — ".join(parts),
+			"id": "t_%d" % t["id"], "label": t["name"],
+			"desc": " — ".join(_hostile_parts(ctx, t, a)),
 			"bind": {
 				"target": t["name"], "target_id": t["id"],
 				"blinded": ("%s is blinded by a flash and cannot see you, or " % t["name"])
@@ -120,6 +92,41 @@ func hostile_group(ctx: Dictionary, hostiles: Array, analyses: Dictionary) -> Di
 			},
 		})
 	return { "summary": "", "options": options }
+
+
+## What tells hostile `t` (geometry `a`) apart from the others, in a fixed order: its name, whether
+## it is in sight, its distance and bearing, then its movement, aim, item, an attack, wounds, a
+## flash, the line to it and the ally already on it. Only what tells the hostiles apart — common
+## facts ("hostile") blur the match.
+func _hostile_parts(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Array:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var parts: Array = [
+		t["name"],
+		"in sight" if t["visible"] else "last seen %s" % _v.recency(t["age"]),
+		"%s, %s of you"
+			% [_v.dist_band(self_pos.distance_to(t["pos"])), _v.compass(t["pos"] - self_pos)],
+	]
+	if (t.get("vel", Vector2.ZERO) as Vector2).length() >= _v.still_speed:
+		parts.append(_v.move_text(t, self_pos))
+	var aim := _v.aim_text(t, self_pos, ctx["allies"])
+	if aim != "":
+		parts.append(aim)
+	if t.get("item", "") != "Pistol":
+		parts.append("holding a %s" % t.get("item", "nothing"))
+	if t["reason"] == "attacked you":
+		parts.append("they attacked you")
+	var wound := _v.wound_band(t.get("wound_dmg", 0.0))
+	if wound != "":
+		parts.append(wound)
+	if _v.blind_text(t) != "":
+		parts.append(_v.blind_text(t))
+	parts.append("you have a clear shot at them"
+			if a["line"]["clear"] and a["line"]["in_range"]
+			else "your line to them is blocked")
+	var fighting := _allies_on(ctx, t)
+	if fighting != "":
+		parts.append("%s is already on them" % fighting)
+	return parts
 
 
 ## Reloading the gun: one option, offered only while a carried magazine would add rounds, so the
@@ -156,17 +163,29 @@ func fire_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 		var lead := "fire from %s%s" % [place, (", %s of them" % dir) if s["cover"] != "" else ""]
 		options.append(_spot_option("fire_" + dir.replace("-", "_"), place, lead, s, true))
 	if not f["ambush"].is_empty():
-		var amb: Dictionary = f["ambush"]
-		var cover: String = amb["cover"] if amb["cover"] != "" else "cover"
-		var desc := ("wait in ambush behind the %s — you shoot when they show — %s"
-				% [cover, _v.coming_text(t, self_pos)])
-		if not amb["exposed_to"].is_empty():
-			desc += " — also exposed to %s" % ", ".join(amb["exposed_to"])
-		options.append({
-			"id": "ambush", "label": "ambush behind the %s" % cover, "desc": desc,
-			"params": { "point": amb["point"], "style": &"ambush" },
-			"tags": { "inside": _v.is_inside(amb["point"]) },
-		})
+		options.append(_fire_ambush_option(t, f["ambush"], self_pos))
+	return { "summary": _fire_summary(t, f), "options": options }
+
+
+## The ambush option of hostile `t`'s fire group: wait behind the cover of ambush spot `amb` for
+## them to show.
+func _fire_ambush_option(t: Dictionary, amb: Dictionary, self_pos: Vector2) -> Dictionary:
+	var cover: String = amb["cover"] if amb["cover"] != "" else "cover"
+	var desc := ("wait in ambush behind the %s — you shoot when they show — %s"
+			% [cover, _v.coming_text(t, self_pos)])
+	if not amb["exposed_to"].is_empty():
+		desc += " — also exposed to %s" % ", ".join(amb["exposed_to"])
+	return {
+		"id": "ambush", "label": "ambush behind the %s" % cover, "desc": desc,
+		"params": { "point": amb["point"], "style": &"ambush" },
+		"tags": { "inside": _v.is_inside(amb["point"]) },
+	}
+
+
+## The FIRE branch summary over hostile `t`'s fire spots `f`: where the best one is (where it
+## stands, a spot around them, or an ambush), and how wounded they look.
+func _fire_summary(t: Dictionary, f: Dictionary) -> String:
+	var tpos: Vector2 = t["pos"]
 	var summary := ""
 	if not f["here"].is_empty():
 		summary = "from where you stand"
@@ -177,7 +196,7 @@ func fire_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 	var wound := _v.wound_band(t.get("wound_dmg", 0.0))
 	if summary != "" and wound != "":
 		summary += "; they %s" % wound.replace("looks", "look")
-	return { "summary": summary, "options": options }
+	return summary
 
 
 ## Which side to flank hostile `t` from: one option per reachable side other than the NPC's own.
@@ -187,30 +206,13 @@ func flank_group(t: Dictionary, a: Dictionary, rooms: Array) -> Dictionary:
 	var open: Array = []
 	for s in a["flanks"]:
 		var room := SnapshotVocab.room_at(s["point"], rooms)
-		var place: String = (("in the %s" % _v.room_name(room["type"]))
-				if not room.is_empty()
-				else "outside the house")
-		var parts: Array = [
-			"%s — %s of them, %s"
-				% [SnapshotVocab.SIDE_WORDS[s["side"]], _v.compass(s["point"] - tpos), place],
-			_v.side_status(s),
-			"clear shot from there" if s["clear_shot"] else "line blocked from there",
-			("cover close by (the %s)" % s["cover"]) if s["cover"] != "" else "in the open",
-			_v.route_text(s["route_len"], s["route_exposed"]) + " route",
-		]
-		if s["heading_toward"]:
-			parts.append("they are moving toward that side")
-		if not s["exposed_to"].is_empty():
-			parts.append("also exposed to %s" % ", ".join(s["exposed_to"]))
-		if s["ally_lane"] != "":
-			parts.append("in %s's line of fire" % s["ally_lane"])
 		options.append({
 			"id": "side_" + s["side"],
 			"label": "%s (%s)" % [
 				SnapshotVocab.SIDE_WORDS[s["side"]],
 				_v.room_name(room["type"]) if not room.is_empty() else "outside",
 			],
-			"desc": " — ".join(parts),
+			"desc": " — ".join(_flank_parts(s, tpos, room)),
 			"params": { "point": s["point"] },
 			"tags": _geo_tags(
 				s,
@@ -235,6 +237,30 @@ func flank_group(t: Dictionary, a: Dictionary, rooms: Array) -> Dictionary:
 		"summary_inside": _flank_summary(a["flanks"], inside_open, rooms),
 		"options": options,
 	}
+
+
+## What a flank side option says of side `s` (in `room`, {} outside) round a hostile at `tpos`:
+## which side and where, who holds it, the shot and cover from there, the route, and what makes it
+## risky.
+func _flank_parts(s: Dictionary, tpos: Vector2, room: Dictionary) -> Array:
+	var place: String = (("in the %s" % _v.room_name(room["type"]))
+			if not room.is_empty()
+			else "outside the house")
+	var parts: Array = [
+		"%s — %s of them, %s"
+			% [SnapshotVocab.SIDE_WORDS[s["side"]], _v.compass(s["point"] - tpos), place],
+		_v.side_status(s),
+		"clear shot from there" if s["clear_shot"] else "line blocked from there",
+		("cover close by (the %s)" % s["cover"]) if s["cover"] != "" else "in the open",
+		_v.route_text(s["route_len"], s["route_exposed"]) + " route",
+	]
+	if s["heading_toward"]:
+		parts.append("they are moving toward that side")
+	if not s["exposed_to"].is_empty():
+		parts.append("also exposed to %s" % ", ".join(s["exposed_to"]))
+	if s["ally_lane"] != "":
+		parts.append("in %s's line of fire" % s["ally_lane"])
+	return parts
 
 
 ## Throwing a grenade at hostile `t`, one option per kind carried (a frag first), offered against a
@@ -265,12 +291,13 @@ func grenade_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 			ctx,
 			kind,
 			spot,
-			t["id"],
 			Rect2() if held.is_empty() else held["rect"],
 			true,
 		)
 		if option.is_empty():
 			continue
+		if t["id"] != 0:
+			option["params"]["target_id"] = t["id"]
 		option["id"] = what
 		option["label"] = (("%s %s behind their cover" % [what, t["name"]])
 				if hidden
@@ -349,48 +376,54 @@ func _shots_aim(ctx: Dictionary, kind: StringName) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var here := SnapshotVocab.room_at(self_pos, _v.rooms)
 	for shot: Dictionary in _memory.recall_all(&"shot_from"):
-		var at: Vector2 = shot["at"]
-		var line := AgentSuspicion.shot_line(_v.rooms, shot)
-		var best := {}
-		var nearest := INF
-		for room in _v.rooms:
-			if not here.is_empty() and room["key"] == here["key"]:
-				continue
-			var r: Rect2 = room["rect"]
-			var poly := PackedVector2Array([
-				r.position,
-				Vector2(r.end.x, r.position.y),
-				r.end,
-				Vector2(r.position.x, r.end.y),
-			])
-			for piece: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(line, poly):
-				var d := at.distance_to(piece[0])
-				if d < nearest:
-					nearest = d
-					best = { "room": room, "from": piece[0], "to": piece[piece.size() - 1] }
+		var best := _shot_stretch(AgentSuspicion.shot_line(_v.rooms, shot), shot["at"], here)
 		if best.is_empty():
 			continue
 		for walk: bool in [false, true]:
 			for share: float in SHOT_AIM_SHARES:
 				var spot: Vector2 = (best["from"] as Vector2).lerp(best["to"], share)
-				var option := _throw_option(ctx, kind, spot, 0, best["room"]["rect"], walk)
+				var option := _throw_option(ctx, kind, spot, best["room"]["rect"], walk)
 				if not option.is_empty():
 					return { "option": option, "room": best["room"] }
 	return {}
 
 
-## One grenade throw of `kind` onto `spot` (at hostile `target_id`, 0 for none), with its params and
-## the tags the GRENADE tactic drops it by, or {} when there is no lob onto it in range from where
-## the NPC stands nor (with `walk`) from a throw spot a short walk away (agent_tactics.gd
-## `throw_spot`; never inside `keep_out`, the room the NPC is outside of that it throws into).
-## `params.from` is where it throws from (where it stands, or the throw spot, with `params.walk`):
-## the danger zone and the way out of it are judged from there. The caller words it (`id`, `label`,
-## `desc`).
+## The stretch of the line back from a shot (`line`, the shot landing at `at`) inside the room it
+## comes into first, nearest `at`, among the rooms but the one the NPC is in (`here`):
+## `{ room, from, to }`, from where it comes into the room to where it leaves; {} when it runs into
+## none.
+func _shot_stretch(line: PackedVector2Array, at: Vector2, here: Dictionary) -> Dictionary:
+	var best := {}
+	var nearest := INF
+	for room in _v.rooms:
+		if not here.is_empty() and room["key"] == here["key"]:
+			continue
+		var r: Rect2 = room["rect"]
+		var poly := PackedVector2Array([
+			r.position,
+			Vector2(r.end.x, r.position.y),
+			r.end,
+			Vector2(r.position.x, r.end.y),
+		])
+		for piece: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(line, poly):
+			var d := at.distance_to(piece[0])
+			if d < nearest:
+				nearest = d
+				best = { "room": room, "from": piece[0], "to": piece[piece.size() - 1] }
+	return best
+
+
+## One grenade throw of `kind` onto `spot`, with its params and the tags the GRENADE tactic drops it
+## by, or {} when there is no lob onto it in range from where the NPC stands nor (with `walk`) from
+## a throw spot a short walk away (agent_tactics.gd `throw_spot`; never inside `keep_out`, the room
+## the NPC is outside of that it throws into). `params.from` is where it throws from (where it
+## stands, or the throw spot, with `params.walk`): the danger zone and the way out of it are judged
+## from there. The caller words it (`id`, `label`, `desc`) and adds the hostile it is thrown at
+## (`params.target_id`).
 func _throw_option(
 	ctx: Dictionary,
 	kind: StringName,
 	spot: Vector2,
-	target_id: int,
 	keep_out: Rect2,
 	walk: bool,
 ) -> Dictionary:
@@ -402,33 +435,14 @@ func _throw_option(
 	if not _throw.can_lob(space, self_pos, spot, _throw.range_of(kind), rids):
 		if not walk:
 			return {}
-		var reach := _throw.reach_of(kind)
-		# A frag and a stun of the same reach share their throw spot.
-		var key := [spot, reach, keep_out]
-		if not _throw_spots.has(key):
-			var lob := func(p: Vector2) -> bool:
-				return _throw.throw_clear_on_arrival(space, p, spot, rids)
-			var walk_to := func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
-			_throw_spots[key] = _tactics.throw_spot(ctx, spot, reach, lob, rids, keep_out, walk_to)
-		var way: Dictionary = _throw_spots[key]
+		var way := _throw_way(ctx, kind, spot, keep_out)
 		if way.is_empty():
 			return {}
 		from = way["point"]
 		route = way["route_len"]
 	var radius := _throw.radius_of(kind)
 	var ally := _ally_in_blast(ctx, kind, radius, spot)
-	var cornered := false
-	if _throw.in_zone(space, kind, radius, spot, from, _throw.stand_height(), rids):
-		var threat := GrenadeThreat.new()
-		threat.kind = kind
-		threat.radius = radius
-		threat.burst = spot
-		threat.fuse_left = _throw.fuse_of(kind)
-		var runner := GrenadeRunner.new()
-		runner.from = from
-		runner.speed = _throw.run_speed()
-		var out: Dictionary = _throw.escape(space, ctx["map"], threat, runner, rids)
-		cornered = (out["spot"] as Vector2) == Vector2.INF
+	var cornered := _cornered(ctx, kind, radius, spot, from)
 	var params := {
 		"point": spot,
 		"kind": kind,
@@ -437,10 +451,55 @@ func _throw_option(
 		"from": from,
 		"walk": from != self_pos,
 	}
-	if target_id != 0:
-		params["target_id"] = target_id
 	return { "params": params, "route_len": route,
 		"tags": { "inside": _v.is_inside(spot), "ally_in_blast": ally, "no_safe_spot": cornered } }
+
+
+## The throw spot to throw a grenade of `kind` onto `spot` from, never inside `keep_out`
+## (`AgentTactics.throw_spot`: `{ point, route_len, ... }`, {} for none), worked out once per
+## decision: a frag and a stun of the same reach share their throw spot.
+func _throw_way(ctx: Dictionary, kind: StringName, spot: Vector2, keep_out: Rect2) -> Dictionary:
+	var space = ctx["space"]
+	var rids: Array = know["character_rids"]
+	var reach := _throw.reach_of(kind)
+	# A frag and a stun of the same reach share their throw spot.
+	var key := [spot, reach, keep_out]
+	if not _throw_spots.has(key):
+		var aim := ThrowAim.new()
+		aim.spot = spot
+		aim.reach = reach
+		aim.keep_out = keep_out
+		aim.lob = func(p: Vector2) -> bool:
+			return _throw.throw_clear_on_arrival(space, p, spot, rids)
+		aim.route = func(p: Vector2) -> Dictionary: return _throw_walk(ctx, p)
+		_throw_spots[key] = _tactics.throw_spot(ctx, aim, rids)
+	return _throw_spots[key]
+
+
+## Whether the NPC, throwing a grenade of `kind` and `radius` onto `spot` from `from`, would be in
+## its danger zone there with no way to get safe before the fuse is out (`AgentThrow.escape` finds
+## no spot or cover in time).
+func _cornered(
+	ctx: Dictionary,
+	kind: StringName,
+	radius: float,
+	spot: Vector2,
+	from: Vector2,
+) -> bool:
+	var space = ctx["space"]
+	var rids: Array = know["character_rids"]
+	var threat := GrenadeThreat.new()
+	threat.kind = kind
+	threat.radius = radius
+	threat.burst = spot
+	if not _throw.in_zone(space, threat, from, _throw.stand_height(), rids):
+		return false
+	threat.fuse_left = _throw.fuse_of(kind)
+	var runner := GrenadeRunner.new()
+	runner.from = from
+	runner.speed = _throw.run_speed()
+	var out: Dictionary = _throw.escape(space, ctx["map"], threat, runner, rids)
+	return (out["spot"] as Vector2) == Vector2.INF
 
 
 ## The walk to throw spot `p` as the NPC would walk it (agent_door_views.gd `walk_route`: round the
@@ -491,16 +550,12 @@ func _ally_in_blast(ctx: Dictionary, kind: StringName, radius: float, spot: Vect
 	for c in ctx["callouts"]:
 		if not found.has(c["id"]):
 			found[c["id"]] = c.get("position", Vector2.INF)
+	var threat := GrenadeThreat.new()
+	threat.kind = kind
+	threat.radius = radius
+	threat.burst = spot
 	for pos: Vector2 in found.values():
-		if _throw.in_zone(
-				ctx["space"],
-				kind,
-				radius,
-				spot,
-				pos,
-				_throw.stand_height(),
-				know["character_rids"],
-		):
+		if _throw.in_zone(ctx["space"], threat, pos, _throw.stand_height(), know["character_rids"]):
 			return true
 	return false
 
@@ -567,27 +622,14 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 	if threats.is_empty():
 		return { "summary": "", "options": [] }
 	var spots: Array = _tactics.retreat_positions(ctx, threats, known_rooms)
-	spots.sort_custom(func(x, y):
-		if x["hidden"] != y["hidden"]:
-			return x["hidden"]
-		if (x["cover"] != "") != (y["cover"] != ""):
-			return x["cover"] != ""
-		return x["route_len"] < y["route_len"])
+	spots.sort_custom(_retreat_before)
 	var options: Array = []
 	for s in spots:
 		if options.size() >= _v.max_options_per_level:
 			break
-		var id := ""
-		var lead := ""
-		if s.get("ally", "") != "":
-			id = "fall_ally_" + str(s["ally"]).to_lower()
-			lead = "fall back to %s" % s["ally"]
-		elif s.get("room", "") != "":
-			id = "fall_" + str(s["room"]).to_lower().replace(" ", "_")
-			lead = "fall back to the %s" % s["room"]
-		else:
-			id = "fall_cover"
-			lead = "back off behind the %s close by" % (s["cover"] if s["cover"] != "" else "cover")
+		var named := _retreat_name(s)
+		var id: String = named[0]
+		var lead: String = named[1]
 		if options.any(func(o): return o["id"] == id):
 			continue
 		var parts: Array = [
@@ -611,6 +653,32 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 	}
 
 
+## The order retreat spots are offered in: out of every threat's sight first, then with cover close
+## by, then the shortest route.
+func _retreat_before(x: Dictionary, y: Dictionary) -> bool:
+	if x["hidden"] != y["hidden"]:
+		return x["hidden"]
+	if (x["cover"] != "") != (y["cover"] != ""):
+		return x["cover"] != ""
+	return x["route_len"] < y["route_len"]
+
+
+## A retreat spot's option id and its lead words, `[id, lead]`: toward the ally it lies by, into the
+## room it is in, else behind the cover close by.
+func _retreat_name(s: Dictionary) -> Array:
+	if s.get("ally", "") != "":
+		return ["fall_ally_" + str(s["ally"]).to_lower(), "fall back to %s" % s["ally"]]
+	if s.get("room", "") != "":
+		return [
+			"fall_" + str(s["room"]).to_lower().replace(" ", "_"),
+			"fall back to the %s" % s["room"],
+		]
+	return [
+		"fall_cover",
+		"back off behind the %s close by" % (s["cover"] if s["cover"] != "" else "cover"),
+	]
+
+
 ## What to investigate: lost hostiles (where last seen, and where they were heading), gunfire and
 ## footsteps heard, where unseen shots came from, and allies' radio calls for support — freshest
 ## first. What makes a room suspect (`AgentSuspicion`: a hostile last seen in it, by its doorway or
@@ -619,7 +687,37 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 ## hands it over only while a stun can be thrown): that room is entered, and the entry says why
 ## (docs/grenades.md G18).
 func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
-	var self_pos: Vector2 = ctx["self_pos"]
+	var leads: Array = (_lost_leads(ctx, entered)
+			+ _heard_leads(ctx, &"heard_gunfire", "gunfire", entered)
+			+ _heard_leads(ctx, &"heard_footsteps", "footsteps", entered)
+			+ _shooter_lead(ctx, hostiles, entered)
+			+ _ally_leads(ctx, entered))
+	# A lead checked more recently than the event behind it is spent (fresh news there is offered
+	# again).
+	leads = leads.filter(
+		func(l): return not _memory.age_of(&"checked_lead", "id", l["id"]) < l["age"],
+	)
+	leads.sort_custom(func(x, y): return x["age"] < y["age"])
+	var options: Array = []
+	for l in leads.slice(0, _v.max_options_per_level):
+		options.append({
+			"id": l["id"], "label": l["label"], "desc": l["desc"],
+			"params": { "point": l["point"], "lead": l["id"] },
+			"tags": { "inside": _v.is_inside(l["point"]) },
+		})
+	var summary := ""
+	if not options.is_empty():
+		summary = "%d lead%s (freshest: %s)" % [
+			leads.size(),
+			"" if leads.size() == 1 else "s",
+			options[0]["desc"].get_slice(" — ", 0),
+		]
+	return { "summary": summary, "options": options }
+
+
+## The leads of the hostiles the NPC has lost track of: where it last saw each, and where a moving
+## one was heading; none for a hostile whose room is one of `entered`.
+func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 	var leads: Array = []
 	for c in know["lost"].filter(
 			func(c): return not _entered_any(entered, _suspicion.lost_rooms(_v.rooms, c).keys()),
@@ -649,50 +747,59 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 				],
 				"point": ahead,
 			})
-	for rec in _memory.recall_aged(&"heard_gunfire"):
+	return leads
+
+
+## The leads of what the NPC heard, memory topic `topic` (`heard_gunfire` / `heard_footsteps`)
+## worded as `what` (`gunfire` / `footsteps`): one per point heard, none in a room of `entered`.
+func _heard_leads(ctx: Dictionary, topic: StringName, what: String, entered: Dictionary) -> Array:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var leads: Array = []
+	for rec in _memory.recall_aged(topic):
 		var pos: Vector2 = rec["data"]["pos"]
 		if _entered_at(entered, pos):
 			continue
 		leads.append({
 			"age": rec["age"],
-			"id": "lead_gunfire_%d_%d" % [floori(pos.x / 200.0), floori(pos.y / 200.0)],
-			"label": "gunfire to the %s" % _v.compass(pos - self_pos),
-			"desc": "gunfire heard to the %s, %s — %s — %s route" % [
-				_v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
+			"id": "lead_%s_%d_%d" % [what, floori(pos.x / 200.0), floori(pos.y / 200.0)],
+			"label": "%s to the %s" % [what, _v.compass(pos - self_pos)],
+			"desc": "%s heard to the %s, %s — %s — %s route" % [
+				what, _v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
 				_v.route_band(_route_len(ctx, pos)),
 			],
 			"point": NavBuilder.snap(ctx["map"], pos),
 		})
-	for rec in _memory.recall_aged(&"heard_footsteps"):
-		var pos: Vector2 = rec["data"]["pos"]
-		if _entered_at(entered, pos):
-			continue
-		leads.append({
-			"age": rec["age"],
-			"id": "lead_footsteps_%d_%d" % [floori(pos.x / 200.0), floori(pos.y / 200.0)],
-			"label": "footsteps to the %s" % _v.compass(pos - self_pos),
-			"desc": "footsteps heard to the %s, %s — %s — %s route" % [
-				_v.compass(pos - self_pos), _v.place(pos), _v.recency(rec["age"]),
-				_v.route_band(_route_len(ctx, pos)),
-			],
-			"point": NavBuilder.snap(ctx["map"], pos),
-		})
+	return leads
+
+
+## The lead toward where the shots at the NPC came from, under fire with no hostile known: `[lead]`,
+## or `[]` when the line back from the newest shot runs into a room of `entered` or the walk there
+## ends where the NPC stands.
+func _shooter_lead(ctx: Dictionary, hostiles: Array, entered: Dictionary) -> Array:
 	var shot: Dictionary = _memory.recall(&"shot_from")
-	if (_memory.under_fire()
-			and hostiles.is_empty()
-			and not (not shot.is_empty()
-						and _entered_any(entered, AgentSuspicion.shot_rooms(_v.rooms, shot)))):
-		var from: Vector2 = _memory.under_fire_from()
-		var origin: Vector2 = _shot_origin(ctx)
-		# The point toward the shots is measured from where the NPC stands, so reaching it never
-		# spends it: one the walk to which ends where it stands (shots from beyond the walkable
-		# ground) is not a lead, as for LOCATE (`AgentTactics.where_it_stands`).
-		if not _tactics.where_it_stands(ctx, origin):
-			leads.append({
-				"age": 0.0, "id": "lead_shooter", "label": "where the shots came from",
-				"desc": "where the shots at you came from — the %s, just now" % _v.compass(from),
-				"point": origin,
-			})
+	if not _memory.under_fire() or not hostiles.is_empty():
+		return []
+	if not shot.is_empty() and _entered_any(entered, AgentSuspicion.shot_rooms(_v.rooms, shot)):
+		return []
+	var from: Vector2 = _memory.under_fire_from()
+	var origin: Vector2 = _shot_origin(ctx)
+	# The point toward the shots is measured from where the NPC stands, so reaching it never spends
+	# it: one the walk to which ends where it stands (shots from beyond the walkable ground) is not
+	# a lead, as for LOCATE (`AgentTactics.where_it_stands`).
+	if _tactics.where_it_stands(ctx, origin):
+		return []
+	return [{
+		"age": 0.0, "id": "lead_shooter", "label": "where the shots came from",
+		"desc": "where the shots at you came from — the %s, just now" % _v.compass(from),
+		"point": origin,
+	}]
+
+
+## The leads of the allies' combat calls on the radio: support each where it fights; none for a
+## fight in a room of `entered`.
+func _ally_leads(ctx: Dictionary, entered: Dictionary) -> Array:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var leads: Array = []
 	for c in ctx["callouts"]:
 		if (not str(c.get("path", "")).begins_with("combat")
 				or _entered_at(entered, c.get("target_pos", Vector2.INF))):
@@ -707,27 +814,7 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 			],
 			"point": NavBuilder.snap(ctx["map"], at),
 		})
-	# A lead checked more recently than the event behind it is spent (fresh news there is offered
-	# again).
-	leads = leads.filter(
-		func(l): return not _memory.age_of(&"checked_lead", "id", l["id"]) < l["age"],
-	)
-	leads.sort_custom(func(x, y): return x["age"] < y["age"])
-	var options: Array = []
-	for l in leads.slice(0, _v.max_options_per_level):
-		options.append({
-			"id": l["id"], "label": l["label"], "desc": l["desc"],
-			"params": { "point": l["point"], "lead": l["id"] },
-			"tags": { "inside": _v.is_inside(l["point"]) },
-		})
-	var summary := ""
-	if not options.is_empty():
-		summary = "%d lead%s (freshest: %s)" % [
-			leads.size(),
-			"" if leads.size() == 1 else "s",
-			options[0]["desc"].get_slice(" — ", 0),
-		]
-	return { "summary": summary, "options": options }
+	return leads
 
 
 ## Whether world point `p` lies in a room of `entered` (the rooms a doorway of ENTER leads into).
@@ -818,20 +905,26 @@ func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := 
 	for c in candidates:
 		if options.size() >= _v.max_options_per_level:
 			break
-		var room: Dictionary = c["room"]
-		options.append({
-			"id": "room_%s" % room["key"], "label": "the %s" % _v.room_name(room["type"]),
-			"desc": "the %s — %s — %s route" % [
-				_v.room_name(room["type"]),
-				"unsearched" if c["stale"] else "searched %s" % _v.recency(c["age"]),
-				_v.route_band(c["len"]),
-			],
-			"params": { "point": c["point"], "look_around": true }, "tags": { "inside": true },
-		})
+		options.append(_search_option(c))
 	var summary := "%d of %d known rooms unsearched" % [unsearched, known_rooms.size()]
 	if known_rooms.is_empty():
 		summary = "find your way into the house and explore it"
 	return { "summary": summary, "options": options }
+
+
+## The option of a room to search, candidate `c` of `search_group`: the room, whether it is
+## unsearched or when it was searched, and the route there.
+func _search_option(c: Dictionary) -> Dictionary:
+	var room: Dictionary = c["room"]
+	return {
+		"id": "room_%s" % room["key"], "label": "the %s" % _v.room_name(room["type"]),
+		"desc": "the %s — %s — %s route" % [
+			_v.room_name(room["type"]),
+			"unsearched" if c["stale"] else "searched %s" % _v.recency(c["age"]),
+			_v.route_band(c["len"]),
+		],
+		"params": { "point": c["point"], "look_around": true }, "tags": { "inside": true },
+	}
 
 
 ## The doorways the NPC could enter a room by, for a tactical entry (ENTER): from outside the outer
@@ -849,57 +942,75 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 	var why: Dictionary = _suspicion.rooms_suspected(rooms, know["lost"], ctx["callouts"])
 	var picks: Array = []
 	for e in _entry.entries_from(str(here.get("key", ""))):
-		var into: String = e["into"]
-		var status := "unexplored"
-		if known.has(into) or known.has(StringName(into)):
-			if _memory.age_of(&"cleared_room", "key", into) <= _v.search_memory_ttl:
-				continue  # Cleared lately: nothing to clear.
-			status = "unsearched"
-		var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
-		if g.is_empty():
-			continue
-		# The slot and side its entry's `begin` would take, claiming now from where it stands, by
-		# the stack's claim chain (`DoorStack.claim`), the side asked for its own from there.
-		var stack: RefCounted = _ledger.stack(e["id"], g)
-		var at: Dictionary = stack.claim(
-			{ "id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos },
-			func(_n): return _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"]),
-		)
-		if not at["held"]:
-			continue  # A dead end already holding all it can (E20): no slot for this NPC there.
-		var point: Vector2 = at["point"]
-		if point == Vector2.INF:
-			continue  # A slot laid nowhere (no open floor nor tail past the wall): no place.
-		picks.append({
-			"e": e, "status": status, "point": point, "slot": at["slot"],
-			"len": _route_len(ctx, point),
-			"suspect": why.get(into, []).map(func(w): return SUSPECT_PHRASES[w]),
-		})
+		var pick := _entry_pick(ctx, e, known, why)
+		if not pick.is_empty():
+			picks.append(pick)
 	picks.sort_custom(func(x, y):
 		if x["suspect"].is_empty() != y["suspect"].is_empty():
 			return not x["suspect"].is_empty()  # A room a hostile is suspected in first.
 		return x["len"] < y["len"])
 	var options: Array = []
 	for p in picks.slice(0, _v.max_options_per_level):
-		var e: Dictionary = p["e"]
-		var room := SnapshotVocab.room_by_key(rooms, e["into"])
-		var place := ("the doorway into the %s" % _v.room_name(room["type"])
-				if p["status"] == "unsearched"
-				else "the doorway to the %s" % _v.compass((e["pos"] as Vector2) - self_pos))
-		options.append({
-			"id": e["id"], "label": place,
-			"desc": " — ".join([place]
-					+ (p["suspect"] if not p["suspect"].is_empty() else [p["status"]])
-					+ ["%s route" % _v.route_band(p["len"])]),
-			"params": {
-				"opening": e["id"],
-				"into": e["into"],
-				"point": p["point"],
-				"slot": p["slot"],
-			},
-			"tags": { "inside": not here.is_empty() },
-		})
+		options.append(_entry_option(p, rooms, self_pos, here))
 	return { "summary": options[0]["desc"] if not options.is_empty() else "", "options": options }
+
+
+## Doorway `e` as an entry the NPC could make (`known`: the room keys it knows, `why`: why each room
+## is suspect): `{ e, status, point, slot, len, suspect }`, its place being the slot and side its
+## entry's `begin` would take; {} for a room cleared lately, a doorway with no geometry, or no slot
+## or place for this NPC there.
+func _entry_pick(ctx: Dictionary, e: Dictionary, known: Dictionary, why: Dictionary) -> Dictionary:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var into: String = e["into"]
+	var status := "unexplored"
+	if known.has(into) or known.has(StringName(into)):
+		if _memory.age_of(&"cleared_room", "key", into) <= _v.search_memory_ttl:
+			return {}  # Cleared lately: nothing to clear.
+		status = "unsearched"
+	var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
+	if g.is_empty():
+		return {}
+	# The slot and side its entry's `begin` would take, claiming now from where it stands, by the
+	# stack's claim chain (`DoorStack.claim`), the side asked for its own from there.
+	var stack: RefCounted = _ledger.stack(e["id"], g)
+	var at: Dictionary = stack.claim(
+		{ "id": ctx["self_id"], "slot": 0, "frame": GameClock.frame(), "pos": self_pos },
+		func(_n): return _entry.stack_side_from(stack, self_pos, ctx["map"], ctx["space"]),
+	)
+	if not at["held"]:
+		return {}  # A dead end already holding all it can (E20): no slot for this NPC there.
+	var point: Vector2 = at["point"]
+	if point == Vector2.INF:
+		return {}  # A slot laid nowhere (no open floor nor tail past the wall): no place.
+	return {
+		"e": e, "status": status, "point": point, "slot": at["slot"],
+		"len": _route_len(ctx, point),
+		"suspect": why.get(into, []).map(func(w): return SUSPECT_PHRASES[w]),
+	}
+
+
+## The ENTER option of entry pick `p`: the doorway, named by the room it leads into once searched
+## before, else by direction from `self_pos`; why its room is suspect (or its status) and the route.
+## `here` is the room the NPC stands in ({} outside).
+func _entry_option(p: Dictionary, rooms: Array, self_pos: Vector2, here: Dictionary) -> Dictionary:
+	var e: Dictionary = p["e"]
+	var room := SnapshotVocab.room_by_key(rooms, e["into"])
+	var place := ("the doorway into the %s" % _v.room_name(room["type"])
+			if p["status"] == "unsearched"
+			else "the doorway to the %s" % _v.compass((e["pos"] as Vector2) - self_pos))
+	return {
+		"id": e["id"], "label": place,
+		"desc": " — ".join([place]
+				+ (p["suspect"] if not p["suspect"].is_empty() else [p["status"]])
+				+ ["%s route" % _v.route_band(p["len"])]),
+		"params": {
+			"opening": e["id"],
+			"into": e["into"],
+			"point": p["point"],
+			"slot": p["slot"],
+		},
+		"tags": { "inside": not here.is_empty() },
+	}
 
 
 ## The keys of the rooms the doorways of an `entry_group` lead into: those are entered by ENTER, not
@@ -1009,120 +1120,155 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
 	if order.is_empty():
 		return { "summary": "", "options": [] }
-	var kind := String(order.get("kind", ""))
 	var option := {}
-	match kind:
+	match String(order.get("kind", "")):
 		"defend_room":
-			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
-			if room.is_empty():
-				return { "summary": "", "options": [] }
-			var to: Array = (order.get("to", []) as Array).filter(
-				func(m): return is_instance_valid(m),
-			)
-			var nth := maxi(to.find(_character), 0)
-			var at: Dictionary = _entry.defend_spot(
-				String(room["key"]),
-				nth,
-				to.size(),
-				ctx["map"],
-				ctx["space"],
-			)
-			if at.is_empty():
-				return { "summary": "", "options": [] }
-			var params := {
-				"room": String(room["key"]),
-				"spot": at["spot"],
-				"door": at["door"],
-				"order_id": order["id"],
-			}
-			if at["door_pos"] != Vector2.INF:
-				params["door_pos"] = at["door_pos"]
-			var label := "defend the %s" % _v.room_name(room["type"])
-			option = {
-				"id": "defend_%s" % room["key"], "label": label, "desc": label,
-				"primitive": &"defend", "params": params, "tags": { "inside": true },
-			}
+			option = _defend_order_option(ctx, order, rooms)
 		"stack":
-			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
-			var g: Dictionary = ({}
-					if into.is_empty()
-					else _entry.geometry(
-						String(order.get("opening", "")),
-						String(into["key"]),
-						ctx["map"],
-						ctx["space"],
-					))
-			if g.is_empty():
-				return { "summary": "", "options": [] }
-			if StackClaim.is_join(order):
-				# The leader's own stack (LD24, D10): the member's own entry, joining it (no side,
-				# no mode of the order's). A dead end with no slot for it is no join: refused, it
-				# follows again (LD25).
-				if not _has_place(order, g, ctx):
-					return { "summary": "", "options": [] }
-				var joined := "the doorway into the %s" % _v.room_name(into["type"])
-				option = {
-					"id": "stack_%s" % order["opening"], "label": joined, "desc": joined,
-					"primitive": &"entry",
-					"params": {
-						"opening": String(order["opening"]), "into": String(into["key"]),
-						"bang": false, "join": true, "order_id": order["id"],
-					},
-					"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
-				}
-				return { "summary": joined, "options": [option] }
-			if not _has_place(order, g, ctx):
-				# Past what a dead end holds (E20, rule 6): no slot for it. The order stands,
-				# refused: it holds where it is.
-				var hold := ("hold where you are: no room at the doorway into the %s"
-						% _v.room_name(into["type"]))
-				option = {
-					"id": "hold_%s" % order["opening"], "label": hold, "desc": hold,
-					"primitive": &"hold", "params": { "order_id": order["id"], "refused": true },
-					"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
-				}
-				return { "summary": hold, "options": [option] }
-			var bang := bool(order.get("bang", false))
-			var params := {
-				"opening": String(order["opening"]), "into": String(into["key"]), "bang": bang,
-				"mode": String(order["mode"]), "wait_go": bool(order.get("wait_go", false)),
-				"go": bool(order.get("go", false)), "split": bool(order.get("split", false)),
-				"order_id": order["id"],
-			}
-			if order.get("stack_at") is Vector2:
-				params["stack_at"] = order["stack_at"]
-			var label := ("the doorway into the %s%s"
-					% [_v.room_name(into["type"]), " with a %s" % params["mode"] if bang else ""])
-			option = {
-				"id": "stack_%s" % order["opening"], "label": label, "desc": label,
-				"primitive": &"entry", "params": params,
-				"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
-			}
+			option = _stack_order_option(ctx, order, rooms)
 		"ambush":
-			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
-			if room.is_empty():
-				return { "summary": "", "options": [] }
-			var to: Array = (order.get("to", []) as Array).filter(
-				func(m): return is_instance_valid(m),
-			)
-			var at: Dictionary = _entry.ambush_spot(
-				String(order.get("opening", "")), String(room["key"]), maxi(to.find(_character), 0),
-				to.size(), ctx["map"], ctx["space"],
-			)
-			if at.is_empty():
-				return { "summary": "", "options": [] }
-			var params := {
-				"opening": String(order["opening"]), "room": String(room["key"]),
-				"spot": at["spot"], "door_pos": at["door_pos"], "order_id": order["id"],
-			}
-			var label := "ambush the doorway from the %s" % _v.room_name(room["type"])
-			option = {
-				"id": "ambush_%s" % order["opening"], "label": label, "desc": label,
-				"primitive": &"ambush", "params": params, "tags": { "inside": true },
-			}
-		_:
-			return { "summary": "", "options": [] }
+			option = _ambush_order_option(ctx, order, rooms)
+	if option.is_empty():
+		return { "summary": "", "options": [] }
 	return { "summary": option["label"], "options": [option] }
+
+
+## The ORDER option of a `defend_room` order: a `defend` of the room at this member's defend spot
+## (`AgentEntry.defend_spot`), its gun on its doorway; {} for a room it does not know or no spot.
+func _defend_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
+	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	if room.is_empty():
+		return {}
+	var to: Array = (order.get("to", []) as Array).filter(
+		func(m): return is_instance_valid(m),
+	)
+	var nth := maxi(to.find(_character), 0)
+	var at: Dictionary = _entry.defend_spot(
+		String(room["key"]),
+		nth,
+		to.size(),
+		ctx["map"],
+		ctx["space"],
+	)
+	if at.is_empty():
+		return {}
+	var params := {
+		"room": String(room["key"]),
+		"spot": at["spot"],
+		"door": at["door"],
+		"order_id": order["id"],
+	}
+	if at["door_pos"] != Vector2.INF:
+		params["door_pos"] = at["door_pos"]
+	var label := "defend the %s" % _v.room_name(room["type"])
+	return {
+		"id": "defend_%s" % room["key"], "label": label, "desc": label,
+		"primitive": &"defend", "params": params, "tags": { "inside": true },
+	}
+
+
+## The ORDER option of a `stack` order: a join (`_join_order_option`), an ordered entry
+## (`_entry_order_option`), or a hold where it stands at a dead end with no slot for it
+## (`_hold_order_option`); {} for a room or doorway it does not know, or a join with no slot.
+func _stack_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
+	var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
+	if into.is_empty():
+		return {}
+	var g: Dictionary = _entry.geometry(
+		String(order.get("opening", "")),
+		String(into["key"]),
+		ctx["map"],
+		ctx["space"],
+	)
+	if g.is_empty():
+		return {}
+	if StackClaim.is_join(order):
+		# The leader's own stack (LD24, D10): the member's own entry, joining it (no side, no mode
+		# of the order's). A dead end with no slot for it is no join: refused, it follows again
+		# (LD25).
+		return _join_order_option(ctx, order, into) if _has_place(order, g, ctx) else {}
+	if not _has_place(order, g, ctx):
+		# Past what a dead end holds (E20, rule 6): no slot for it. The order stands, refused: it
+		# holds where it is.
+		return _hold_order_option(ctx, order, into)
+	return _entry_order_option(ctx, order, into)
+
+
+## The ORDER option of a join into room `into`: the member's own `entry`, joining the leader's
+## stack (`join`, `bang` false, the order's id).
+func _join_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -> Dictionary:
+	var joined := "the doorway into the %s" % _v.room_name(into["type"])
+	return {
+		"id": "stack_%s" % order["opening"], "label": joined, "desc": joined,
+		"primitive": &"entry",
+		"params": {
+			"opening": String(order["opening"]), "into": String(into["key"]),
+			"bang": false, "join": true, "order_id": order["id"],
+		},
+		"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
+	}
+
+
+## The ORDER option of a stack order into room `into` with no slot for this member: a `hold` where
+## it stands, the order kept and refused (`refused` in its params).
+func _hold_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -> Dictionary:
+	var hold := ("hold where you are: no room at the doorway into the %s"
+			% _v.room_name(into["type"]))
+	return {
+		"id": "hold_%s" % order["opening"], "label": hold, "desc": hold,
+		"primitive": &"hold", "params": { "order_id": order["id"], "refused": true },
+		"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
+	}
+
+
+## The ORDER option of a stack order into room `into`: an `entry` the order's way (`bang`, `mode`,
+## `wait_go`, `go`, the side: `split` or `stack_at`).
+func _entry_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -> Dictionary:
+	var bang := bool(order.get("bang", false))
+	var params := {
+		"opening": String(order["opening"]), "into": String(into["key"]), "bang": bang,
+		"mode": String(order["mode"]), "wait_go": bool(order.get("wait_go", false)),
+		"go": bool(order.get("go", false)), "split": bool(order.get("split", false)),
+		"order_id": order["id"],
+	}
+	if order.get("stack_at") is Vector2:
+		params["stack_at"] = order["stack_at"]
+	var label := ("the doorway into the %s%s"
+			% [_v.room_name(into["type"]), " with a %s" % params["mode"] if bang else ""])
+	return {
+		"id": "stack_%s" % order["opening"], "label": label, "desc": label,
+		"primitive": &"entry", "params": params,
+		"tags": { "inside": _v.is_inside(ctx["self_pos"]) },
+	}
+
+
+## The ORDER option of an `ambush` order: an `ambush` of the doorway from the ordered room at this
+## member's post (`AgentEntry.ambush_spot`), its gun on the threshold; {} for a room it does not
+## know or no post.
+func _ambush_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
+	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	if room.is_empty():
+		return {}
+	var to: Array = (order.get("to", []) as Array).filter(
+		func(m): return is_instance_valid(m),
+	)
+	var at: Dictionary = _entry.ambush_spot(
+		_entry.geometry(
+			String(order.get("opening", "")), String(room["key"]), ctx["map"], ctx["space"],
+		),
+		maxi(to.find(_character), 0), to.size(), ctx["map"], ctx["space"],
+	)
+	if at.is_empty():
+		return {}
+	var params := {
+		"opening": String(order["opening"]), "room": String(room["key"]),
+		"spot": at["spot"], "door_pos": at["door_pos"], "order_id": order["id"],
+	}
+	var label := "ambush the doorway from the %s" % _v.room_name(room["type"])
+	return {
+		"id": "ambush_%s" % order["opening"], "label": label, "desc": label,
+		"primitive": &"ambush", "params": params, "tags": { "inside": true },
+	}
 
 
 ## Whether the doorway of stack order `order` (geometry `g`) has a slot for this NPC: the one it

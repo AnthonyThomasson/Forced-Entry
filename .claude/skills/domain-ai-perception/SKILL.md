@@ -105,7 +105,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
 - `quick_facts()` — cheap facts (under fire, engaged, hostile known) between decisions.
 - `sense(rooms, goal, activity) -> { facts, sections, sections_per_target, options }` — the
   BUILD pass (below). `activity` is the behaviour's current-activity line.
-- Combat geometry for the behaviour: `has_line_to(target, point)`, `combat_spots(target, tgt_pos, radius, count)`,
+- Combat geometry for the behaviour: `has_line_to(target, point)`, `combat_spots(target, tgt_pos, radius)` (a ring of `combat_ring_count` points),
   `note_engaged` / `engaged_fresh` / `under_fire`; `memory_size()` and
   `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
 - Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_stack(opening_id, into := "") -> DoorStack` (the doorway's
@@ -222,7 +222,7 @@ A character is never cover; a blocking object is
 named by its `object_name`, a character by its name, anything else as "wall".
 `combat_spots` (ring around the NPC: fire vs cover) also serves the behaviour's peek-and-cover.
 
-**Throw spots** (`throw_spot(ctx, spot, reach, lob, ex, keep_out)`, issue #51 R13 / R15, `docs/grenades.md` G17): where to throw onto `spot` from when the lob
+**Throw spots** (`throw_spot(ctx, aim: ThrowAim, ex)`, `ThrowAim` (`ai/perception/throw_aim.gd`) carrying the `spot`, the `reach`, `keep_out`, the `lob` test and the `route`, issue #51 R13 / R15, `docs/grenades.md` G17): where to throw onto `spot` from when the lob
 from where the NPC stands fails (out of range or not clear). Candidates on rings round the NPC (`THROW_RINGS` 48 to 240 px, `THROW_DIRECTIONS` 16, none past
 `throw_spot_walk`) and round the spot (`THROW_REACH_SHARES` 0.95 / 0.8 of `reach`), cheap tests first (straight distance under `throw_spot_walk`, snapped onto the
 navmesh within `SNAP_TOLERANCE`, within `reach` of the spot, more than a `STRIDE` away, not inside `keep_out` (the room the hostile holds, or the shots' room),
@@ -322,7 +322,7 @@ than `DEFEND_FUNNEL_DEPTH`), then with a sight line to its doorway, low furnitur
 from the best; a lone member of a room with several doorways takes the spot that sees the most. `{ spot, door, door_pos, doors }` (`door` ""
 and `door_pos` INF for that lone member, who turns among them). The snapshot's `order` group calls it. `static normal_into(rect, pos)` (the
 unit normal into a room from the edge a doorway lies on, `AgentDoorViews.normal_into`) is also read by the squad (`ai/team/squad.gd`).
-**Ambush posts (`docs/leadership.md` LD15, D17).** `ambush_spot(id, room_key, nth, count, map, space)` is where member `nth` of `count` ordered
+**Ambush posts (`docs/leadership.md` LD15, D17).** `ambush_spot(g, nth, count, map, space)` (`g` the entry geometry `geometry(id, room_key, map, space)`) is where member `nth` of `count` ordered
 to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
 many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
 doorway and room side in `_posts` once worked out on a baked map, cleared by `set_house`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
@@ -384,7 +384,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   claims alone) and its claims (`team`), every slot rule settled the one way for whoever asks. A member asking about itself passes `me`,
   its own claim as it stands (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_*, step }`, each optional): it never hears
   its own on the radio. `slot_for(me)` (E2: the lowest free slot, `free_slot`; two claims on one slot made on the same frame and side settle
-  by distance to the slot's point, laid among the rest, `_wins`, within 0.5 px or otherwise the lower instance id, and a slot claimed on
+  by distance to the slot's point, laid among the rest, `_verdict` / `_settles`, within 0.5 px or otherwise the lower instance id, and a slot claimed on
   that frame by someone farther is taken from them, so the settling runs down the stack; a move-up holds against a plain claim and its
   holder takes the freed slot); `settle(me) -> { slot, side, place, point }` (E19 to E22, with the move-up rewrite, `_moved_up`: a claim
   still on a slot a member moved up into counts at the slot that member freed, for every reader); `points(me)`; `layout(me := {})` (the
@@ -431,7 +431,7 @@ source }` (`radius` = `AgentThrow.radius_of(kind)`, off the `throw_stats()` just
 
 **The danger zone and the safe spot (`agent_throw.gd`).** The cover rule is the blast's own (G7), asked of the Projectile System so the AI keeps no copy (`shielded` calls `Explosion.shields`, interface 3): from the burst a wall always stops the line, furniture
 stops it when its `coverage` is above the body's height (the standing and crouched heights the character reports, `Character.posture_coverage`, read each `observe` by `learn_body` into `stand_height()` / `crouch_height()`; 60 and 35, `docs/cover-and-stance.md`), characters stop
-nothing. `in_zone(space, kind, radius, burst, p, height, exclude)`: within `zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
+nothing. `in_zone(space, threat: GrenadeThreat, p, height, exclude)` (the threat's `kind`, `radius` and `burst`): within `zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
 `escape(space, map, threat: GrenadeThreat, runner: GrenadeRunner, exclude)` (`GrenadeThreat`, `ai/perception/grenade_threat.gd`: the
 grenade's `kind`, `radius`, `burst` and `fuse_left`; `GrenadeRunner`, `ai/perception/grenade_runner.gd`: the NPC's `from` and `speed`) returns `{ spot, crouch, route }`: candidates are the circle just outside the zone (`zone + OUTSIDE_SLACK` 30 px), the shadows behind what the rays from the burst
 meet (the first stopper for a crouched and for a standing body, `Explosion.first_stop`, 32 and 72 px behind it) and rings round the NPC; each is snapped onto the navmesh (`NavBuilder.snap`, dropped
@@ -463,7 +463,7 @@ the worst wave measured (8 NPCs planning on one frame) went from 35.9 ms of plan
 that frame).
 
 **Cover from a flash.** For a stun (`AgentThrow.cover_reach(kind)`, the `flash_cover_reach` of the stun's stats, 30 px, learned off the grenade: below) a piece of furniture shields a body from the burst only when the body is within that many px of it
-(`shielded`'s `reach`, handed to `Explosion.shields` as its `CoverRule`'s `cover_reach`); a wall always does; a frag's blast keeps the plain rule. `escape` also tries a spot right against the far face of each stopper near the burst (`FAR_PROBE`, `FAR_STEP`).
+(`shielded(space, burst, p, cover: CoverRule)`, its `cover_reach`, handed on to `Explosion.shields`); a wall always does; a frag's blast keeps the plain rule. `escape` also tries a spot right against the far face of each stopper near the burst (`FAR_PROBE`, `FAR_STEP`).
 
 **Its own grenade (`_note_own`).** A grenade the NPC threw is known at once, and until a bounce marks it landed its spot is where it was aimed (`Character.aim_target()` from the hand, no further than that kind's throw range, `AgentThrow.range_of`), not the hand
 it just left, so the zone it is in is the one the burst will have. **Replanning** is counted in `GameClock` frames (`REPLAN_EVERY` s of game time), not wall-clock ms: a fast headless run outruns the wall clock, and it runs on through a pause.

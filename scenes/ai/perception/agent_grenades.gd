@@ -73,7 +73,12 @@ func bind(character: Node) -> void:
 ## The SEE pass, every tick: the NPC's own grenades (always known) and the live ones in its view
 ## cone with a clear line (`vision` is the sight sense), their points following them; `blind` sees
 ## none that it did not know. Gone ones are forgotten.
-func observe(vision: RefCounted, space, exclude: Array, blind: bool) -> void:
+func observe(
+	vision: RefCounted,
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+	blind: bool,
+) -> void:
 	_forget_gone()
 	if not enabled:
 		return
@@ -152,12 +157,17 @@ static func is_call(status: Variant) -> bool:
 ## it.
 func burst(at: Vector2, kind: StringName) -> void:
 	for id in _known.keys():
-		var rec: Dictionary = _known[id]
-		if (rec["kind"] == kind
-				and (not is_instance_valid(rec["node"])
-							or (rec["node"].global_position as Vector2).distance_to(at)
-								<= LANDED_NEAR)):
+		if _went_off(_known[id], at, kind):
 			_drop(id)
+
+
+## Whether known grenade `rec` is the one of `kind` that went off at `at`: of that kind, and gone or
+## within `LANDED_NEAR` px of it.
+func _went_off(rec: Dictionary, at: Vector2, kind: StringName) -> bool:
+	if rec["kind"] != kind:
+		return false
+	return (not is_instance_valid(rec["node"])
+			or (rec["node"].global_position as Vector2).distance_to(at) <= LANDED_NEAR)
 
 
 ## Note grenade `node` as known at `point` by `source`: the first source stays (how the NPC came to
@@ -245,31 +255,18 @@ func known() -> Array:
 ## grenade's zone, made again as the grenade moves, and kept while it lives, so the NPC holds its
 ## spot until the burst. `exclude` is every character's rid (a body shields nothing); `map` the
 ## navigation map.
-func plan(space, map: RID, exclude: Array) -> Dictionary:
+func plan(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array) -> Dictionary:
 	if _known.is_empty():
 		return {}
-	var self_pos: Vector2 = _character.global_position
 	var height := float(_character.get_surface().get("coverage", throw.stand_height()))
-	var now := GameClock.frame()
 	var best := {}
 	var best_fuse := INF
 	for id in _known:
-		var rec: Dictionary = _known[id]
-		var fuse := float(rec["node"].call("fuse_left"))
-		var plan_: Dictionary = _plans.get(id, {})
-		var point: Vector2 = rec["point"]
+		var plan_ := _current_plan(space, map, exclude, id, height)
 		if plan_.is_empty():
-			if not throw.in_zone(
-					space, rec["kind"], rec["radius"], point, self_pos, height, exclude,
-			):
-				continue
-			plan_ = _make(space, map, exclude, id, rec, fuse)
-		elif (point != plan_["point"]
-				and now - int(plan_["at"]) >= ceili(REPLAN_EVERY * Engine.physics_ticks_per_second)
-				and ((plan_["point"] as Vector2).distance_to(point) >= REPLAN_DIST
-							or not _still_safe(space, exclude, rec, plan_, point))):
-			plan_ = _make(space, map, exclude, id, rec, fuse)
+			continue
 		_plans[id] = plan_
+		var fuse := float(_known[id]["node"].call("fuse_left"))
 		if fuse < best_fuse:
 			best_fuse = fuse
 			best = plan_
@@ -283,26 +280,80 @@ func plan(space, map: RID, exclude: Array) -> Dictionary:
 	return out
 
 
+## The plan for known grenade `id` now, for a body `height` tall where the NPC stands: its plan,
+## made again when it is due (`_replan_due`); a fresh one when it has none and the NPC is inside its
+## zone; else {}.
+func _current_plan(
+	space: PhysicsDirectSpaceState2D,
+	map: RID,
+	exclude: Array,
+	id: int,
+	height: float,
+) -> Dictionary:
+	var rec: Dictionary = _known[id]
+	var plan_: Dictionary = _plans.get(id, {})
+	if plan_.is_empty():
+		var self_pos: Vector2 = _character.global_position
+		if throw.in_zone(space, _threat_of(rec, rec["point"]), self_pos, height, exclude):
+			return _make(space, map, exclude, id)
+		return {}
+	if _replan_due(space, exclude, rec, plan_):
+		return _make(space, map, exclude, id)
+	return plan_
+
+
+## Whether `plan_` for grenade `rec` is made again: the grenade has moved since it was made, at
+## least `REPLAN_EVERY` s of game frames ago, and by `REPLAN_DIST` px or onto a line to its spot
+## (`_still_safe`).
+func _replan_due(
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+	rec: Dictionary,
+	plan_: Dictionary,
+) -> bool:
+	var point: Vector2 = rec["point"]
+	if point == plan_["point"]:
+		return false
+	if (GameClock.frame() - int(plan_["at"])
+			< ceili(REPLAN_EVERY * Engine.physics_ticks_per_second)):
+		return false
+	return ((plan_["point"] as Vector2).distance_to(point) >= REPLAN_DIST
+			or not _still_safe(space, exclude, rec, plan_, point))
+
+
 ## Whether the spot of `plan_` still keeps a body clear of grenade `rec` now that it lies at
 ## `point`: outside its zone, or shielded from it (crouched, for a crouching plan). A grenade that
 ## rolled on a few px past where its plan was made, by a doorway, can bring the spot into its line;
 ## the plan is then made again whatever the distance. A plan with no spot stands until the grenade
 ## moves on.
-func _still_safe(space, exclude: Array, rec: Dictionary, plan_: Dictionary, point: Vector2) -> bool:
+func _still_safe(
+	space: PhysicsDirectSpaceState2D,
+	exclude: Array,
+	rec: Dictionary,
+	plan_: Dictionary,
+	point: Vector2,
+) -> bool:
 	var spot: Vector2 = plan_["spot"]
 	if spot == Vector2.INF:
 		return true
 	var height := throw.crouch_height() if plan_["crouch"] else throw.stand_height()
-	return not throw.in_zone(space, rec["kind"], rec["radius"], point, spot, height, exclude)
+	return not throw.in_zone(space, _threat_of(rec, point), spot, height, exclude)
 
 
-## A fresh plan for grenade `id` (record `rec`) from where the NPC stands.
-func _make(space, map: RID, exclude: Array, id: int, rec: Dictionary, fuse: float) -> Dictionary:
+## Known grenade `rec` as a danger bursting at `at`: its kind and danger radius (no fuse).
+static func _threat_of(rec: Dictionary, at: Vector2) -> GrenadeThreat:
 	var threat := GrenadeThreat.new()
 	threat.kind = rec["kind"]
 	threat.radius = rec["radius"]
-	threat.burst = rec["point"]
-	threat.fuse_left = fuse
+	threat.burst = at
+	return threat
+
+
+## A fresh plan for known grenade `id` from where the NPC stands.
+func _make(space: PhysicsDirectSpaceState2D, map: RID, exclude: Array, id: int) -> Dictionary:
+	var rec: Dictionary = _known[id]
+	var threat := _threat_of(rec, rec["point"])
+	threat.fuse_left = float(rec["node"].call("fuse_left"))
 	var runner := GrenadeRunner.new()
 	runner.from = _character.global_position
 	runner.speed = throw.run_speed()
@@ -324,13 +375,20 @@ func announcements() -> Array:
 		if rec.is_empty() or not rec["landed"] or not rec["source"] in [&"seen", &"heard"]:
 			continue
 		var told: Dictionary = _told.get(id, {})
-		var due: bool = (told.is_empty()
-				or (rec["rested"]
-						and not told["rested"]
-						and (told["point"] as Vector2).distance_to(rec["point"]) >= RECALL_DIST))
+		var due := _due(rec, told)
 		if due:
 			_told[id] = { "point": rec["point"], "rested": rec["rested"] }
 			out.append({ "point": rec["point"], "kind": rec["kind"] })
 		elif rec["rested"] and not told["rested"]:
 			told["rested"] = true
 	return out
+
+
+## Whether grenade `rec` is to be radioed now, `told` being what was radioed of it ({} for nothing
+## yet): first when it came down, and again once it rests `RECALL_DIST` px or more from there.
+static func _due(rec: Dictionary, told: Dictionary) -> bool:
+	if told.is_empty():
+		return true
+	return (rec["rested"]
+			and not told["rested"]
+			and (told["point"] as Vector2).distance_to(rec["point"]) >= RECALL_DIST)

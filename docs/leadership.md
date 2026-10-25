@@ -403,7 +403,7 @@ before the stack is in: quiet, `bang_off`, claims saying `order_mode` frag, noth
 **LD15. Ambush a door.** An `ambush` order `{ opening, room, beyond, pos }` names a doorway and the room it is ambushed from: the room on
 the side of the doorway's wall plane the leader's click lies on (D17; an exterior door: the house's room), `beyond` the room on the other
 side ("" for an exterior door). The member waits in that room for whoever comes through the doorway.
-- **The post (D17).** `AgentEntry.ambush_spot(opening, room, nth, count, map, space)`, beside `defend_spot`: candidates `AMBUSH_DEPTHS`
+- **The post (D17).** `AgentEntry.ambush_spot(geometry, nth, count, map, space)` (`geometry` the entry geometry of `opening` into `room`), beside `defend_spot`: candidates `AMBUSH_DEPTHS`
   (40 to 160 px) back from the doorway's wall and `AMBUSH_LATERALS` (30 to 260 px) along it past the jamb, inside the room's walls by
   `AMBUSH_INSET` (22 px), snapped onto the navmesh, with a sight line to the threshold and off the doorway's axis (past its jamb by
   `DEFEND_BODY`, 14 px). Ranked by how many of the doorway's lookouts see the post (the slots and pie steps of an entry into the room by

@@ -61,7 +61,7 @@ func bind(character: Node) -> void:
 
 
 ## A room type as Von reads it ("kitchen_living" → "kitchen living").
-func room_name(kind) -> String:
+func room_name(kind: String) -> String:
 	return str(kind).replace("_", " ")
 
 
