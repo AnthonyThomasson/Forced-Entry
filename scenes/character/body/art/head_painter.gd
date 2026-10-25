@@ -30,7 +30,7 @@ const _SKIN := Color(0.80, 0.62, 0.48)
 
 ## Head radius (art px) for a body `width` px across.
 static func radius_for(width: int) -> int:
-	return maxi(3, roundi(width * CharacterConfig.art_head_size))
+	return maxi(3, roundi(width * CharacterArtConfig.head_size))
 
 
 ## Canvas side (art px) for a head of radius `r`.

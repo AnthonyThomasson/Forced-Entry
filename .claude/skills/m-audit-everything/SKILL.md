@@ -153,7 +153,7 @@ python3 -I tools/audit_scan.py events    # each EventBus topic's listeners, payl
 ### 1c. Vestigial configuration (worker 1b)
 
 An `@export`, `const` or `project.godot` setting nothing branches on (it looks like a working control). Check the
-config holders (`BallisticsFlightConfig`, `PhysicsConfig`, `CharacterConfig`, `BloodConfig`, `SoundConfig`, …) and controller
+config holders (`BallisticsFlightConfig`, `PhysicsConfig`, `CharacterPostureConfig`, `BloodConfig`, `SoundConfig`, …) and controller
 exports for values only passed along; `dead` already catches unread ones.
 
 ## Brief 2 — Redundancy (worker 2)

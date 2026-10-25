@@ -183,7 +183,7 @@ class Measures:
 		thigh = CharacterBodyConfig.thigh * r
 		shin = CharacterBodyConfig.shin * r
 		arm_reach = (upper + fore) * CharacterBodyConfig.arm_extension
-		foot_z = CharacterConfig.ragdoll_limb_radius * r
+		foot_z = CharacterRagdollConfig.limb_radius * r
 		hip_half = (CharacterBodyConfig.hip_width * r
 				* lerpf(1.0, CharacterPostureConfig.body_crouch_hip_width, folded))
 		foot_half = (CharacterBodyConfig.hip_width * r
@@ -251,8 +251,8 @@ class Measures:
 		var mid: Vector3 = (_points[CHEST] + _points[PELVIS]) * 0.5
 		# Out of the chest, square to the leaning spine.
 		var belly := fwd * cos(pitch) - UP * sin(pitch)
-		_points[BELLY] = mid + belly * CharacterConfig.ragdoll_belly * r
-		_points[SPINE] = mid - belly * CharacterConfig.ragdoll_belly * r
+		_points[BELLY] = mid + belly * CharacterRagdollConfig.belly * r
+		_points[SPINE] = mid - belly * CharacterRagdollConfig.belly * r
 
 
 	## Side `i`'s arm: the shoulder reaches for the fist the hands layer holds, at its stance's grip

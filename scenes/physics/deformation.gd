@@ -3,7 +3,7 @@ class_name Deformation
 ## characters and vehicles (their visuals and, for furniture/walls, collider rebuilds), so the drawn
 ## silhouette and any collider come from the same deformed polygon. The caller owns the
 ## impact list. Tuning lives in PhysicsDeformConfig and PhysicsDeformLookConfig (and, for a
-## character, CharacterConfig).
+## character, CharacterHitConfig).
 ##
 ## An "impact" is a Dictionary in the drawer's local space:
 ##   pos:    Vector2  contact point

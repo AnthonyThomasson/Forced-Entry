@@ -539,7 +539,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  so what lies on the floor, what a vehicle covers and what flies over it keep one order across domains: `FLOOR` −5 (Objects' `Floor`,
 	  via `ObjectArtLayerConfig.floor_z_index`) < `RUG` −4 (rugs and mats, `ObjectArtLayerConfig.rug_z_index`) < `BLOOD` −3 (Physics: splats, a
 	  bleed-out pool, prints and smears, the scorch decals; `BloodConfig.z_index` / `print_z_index`) < `LYING` −2 (a dead body,
-	  `CharacterConfig.ragdoll_z_index`; a spent casing, Projectile; a `DroppedItem` and a grenade at rest, Items) < `UNDER_VEHICLE` −1
+	  `CharacterArtConfig.ragdoll_z_index`; a spent casing, Projectile; a `DroppedItem` and a grenade at rest, Items) < `UNDER_VEHICLE` −1
 	  (a vehicle's `Chassis`) < `STANDING` 0 (Godot's default: the living, a vehicle's occupants, furniture, walls) < `ABOVE` 1 (a
 	  vehicle's `Roof`, a grenade in flight, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`) < `OVERHEAD` 2 (a piece's `Overhang`, Objects:
 	  `ObjectArtLayerConfig.overhang_z_index`, a streetlight's arm and head; a room's ceiling fixture, Lighting) < `EFFECTS` 4 (Physics' `ExplosionFx`). A domain's own z knob is initialised from its rung,
@@ -1006,26 +1006,45 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-two `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
-`BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
-(going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
-`PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterPostureConfig`,
-`CharacterPaceConfig` (running, stamina, the outfit's weight), `CharacterPushConfig`, `CharacterStunConfig`, `CharacterHitConfig` (flesh,
-hit zones, sides), `CharacterShadowConfig`, `CharacterStyleConfig` (the styles), `CharacterStanceConfig` (stances, the muzzle, the
-raise, recoil), `CharacterBodyConfig` (the skeleton), `CharacterStrideConfig`, `CharacterMeleeConfig` (punch and
-kick), `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterConfig` (the fall and the art), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
-(a wound's drips), `BloodSprayConfig` (a hit's spray), `BloodSplatConfig` (a splatter's shape), `BloodPoolConfig` (the
-bleed-out pool), `BloodSurfaceConfig` (the floor's grooves and soak), `BloodPrintConfig` (footprints), `BloodSmearConfig`
-(a smear's drag), `BloodSmearLookConfig` (a ribbon's look), `BloodTrailConfig` (blood pulled out of a pool), `ArtCanvasConfig` (the art pixel, the light,
-turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtTableConfig`, `ObjectArtFabricConfig`,
-`ObjectArtStorageConfig`, `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig`, `ObjectArtOutdoorConfig`, `ObjectArtClinicConfig`,
-`ObjectArtTechConfig` (Objects' painter proportions/colors per kind of piece, the props), `ObjectArtLightConfig` (what a piece gives as
-light, the neon share), `ObjectArtLayerConfig` (Objects' z rungs), `ObjectArtFloorConfig` and `ObjectArtWallConfig` (the tiles),
-`ObjectArtDecayConfig` (the palette grade and grime), `ObjectArtWearConfig` (wear marks), `ObjectArtStreetConfig` (the street), `WorldGenFillConfig` (World-Gen's
-furnishing fill pass), `WorldGenDressConfig` (the run-down dressing's placement), `WorldGenStreetConfig` (the street ring and its street lamps), `MagazineConfig` (Items: magazine
-types, capacities and reload times), `GunConfig` (Items: one row per gun — damage, fire rate, penetration,
-muzzle speed, spread, recoil, magazine, whether it raises at a wall, its looks per weapon style), `GrenadeConfig` (Items: one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its looks per weapon style), `OutfitConfig` (Items: the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a plate's durability), `SoundConfig` (Audio: the master switch, category volumes, voice caps and ranges, pitch/volume jitter), `SoundLibraryConfig` (the sample rate, variants, round-weight bands), `SoundDeafnessConfig` (the muffle and the tinnitus) and `SoundVehicleConfig` (the vehicles' engine, skid and crash numbers), `VehicleConfig` (Vehicles: one row per kind — size, mass, engine, brakes, steering, grip, doors and seats — one `looks` row per kind), `VehicleBoardingConfig` (getting in and out), `VehicleDoorConfig` (the doors' motion),
-`VehicleDriveConfig` (driving and the camera), `VehicleCollisionConfig` (harm and crashes), `VehicleArtConfig` (the look), `LightingConfig` (Lighting: the master switch, the dusk, the flashes and the per-floor budget), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (the light textures) and `LoadoutConfig` (Items: the setup choices' bounds — spare magazines, grenades — and the default outfit). World-Gen's `LayoutRules` (which rooms may
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-five `class_name` static holders, one per topic, each with 15 vars or fewer
+(`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
+`grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
+**Projectile:** `BallisticsFlightConfig` (speeds, a bullet's height and the fly-over, a surfaceless collider),
+`BallisticsPenetrationConfig` (going through, the blood a round carries out), `BallisticsRicochetConfig`.
+**Physics:** `PhysicsConfig` (the wall mask, the debris and hit-particle switches and particle caps),
+`PhysicsImpactConfig` (a hit's shove, furniture bodies' damping), `PhysicsDeformConfig` (dents, chunks, the collider
+rebuild: interface 4's defaults), `PhysicsDeformLookConfig` (cracks, holes, scorch, darkening, the blood mark),
+`PhysicsRagdollConfig` (the solver), `PhysicsExplosionConfig` (the burst's look); and blood's `BloodConfig` (the master
+switch, the colours, the draw layers, the decal cap and drying), `BloodDripConfig`, `BloodSprayConfig`,
+`BloodSplatConfig`, `BloodPoolConfig`, `BloodSurfaceConfig`, `BloodPrintConfig`, `BloodSmearConfig`,
+`BloodSmearLookConfig` and `BloodTrailConfig`.
+**Character:** `CharacterPostureConfig`, `CharacterPaceConfig` (running, stamina, the outfit's weight),
+`CharacterPushConfig`, `CharacterMeleeConfig` (punch and kick), `CharacterStunConfig`, `CharacterHitConfig` (flesh, hit
+zones, sides), `CharacterShadowConfig`, `CharacterArtConfig`, `CharacterStyleConfig` (the styles), `CharacterBodyConfig`
+(the skeleton), `CharacterStrideConfig`, `CharacterStanceConfig` (stances, the muzzle, the raise, recoil),
+`CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterRagdollConfig`,
+`CharacterRagdollJointConfig` and `CharacterRagdollFallConfig`.
+**Art:** `ArtCanvasConfig` (the art pixel, the light, turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes).
+**Objects** (its painters, floors, walls and the run-down look): `ObjectArtTableConfig`, `ObjectArtFabricConfig`,
+`ObjectArtStorageConfig`, `ObjectArtKitchenBathConfig`, `ObjectArtDecorConfig`, `ObjectArtOutdoorConfig`,
+`ObjectArtClinicConfig`, `ObjectArtTechConfig`, `ObjectArtLightConfig` (light specs, neon), `ObjectArtLayerConfig` (its
+z rungs), `ObjectArtFloorConfig`, `ObjectArtWallConfig`, `ObjectArtDecayConfig`, `ObjectArtWearConfig` and
+`ObjectArtStreetConfig`.
+**World-Gen:** `WorldGenFillConfig`, `WorldGenDressConfig` (the run-down dressing's placement) and
+`WorldGenStreetConfig` (the street ring and its street lamps).
+**Items:** `MagazineConfig` (magazine types, capacities and reload times), `GunConfig` (one row per gun — damage, fire rate,
+penetration, muzzle speed, spread, recoil, magazine, whether it raises at a wall, its looks per weapon style), `GrenadeConfig` (one
+row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its looks per weapon style), `OutfitConfig`
+(the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a
+plate's durability) and `LoadoutConfig` (the setup choices' bounds — spare magazines, grenades — and the default outfit).
+**Audio:** `SoundConfig` (the master switch, levels, jitter, voices, ranges), `SoundLibraryConfig` (rate, peak, variants,
+weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
+**Vehicles:** `VehicleConfig` (one `kinds` and one `looks` row per kind), `VehicleBoardingConfig`,
+`VehicleDoorConfig`, `VehicleDriveConfig` (with the camera's zoom-out), `VehicleCollisionConfig` and `VehicleArtConfig`.
+**Lighting:** `LightingConfig` (the master switch, the dusk, the flashes and the per-floor budget),
+`LightingFixtureConfig` and `LightingTextureConfig`.
+A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
+holder. World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not
 tuning. There is no `Config` autoload. Three more static holders are not tuning but shared ids (General, interface 11):
 `PhysicsLayers` (a physics-layer id, the same role `Wall.Side` plays for doorway sides), `DrawLayers` (the shared draw-order

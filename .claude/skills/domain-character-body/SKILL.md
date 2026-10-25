@@ -10,7 +10,10 @@ character_kick` (animate; `body_sweep` is the collide-and-slide the hands and le
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
-`FillBatch` (11) and `GameLog` (15), and `CharacterConfig` (this domain's tuning holder, in `character/`). `character_base.tscn` attaches
+`FillBatch` (11) and `GameLog` (15), and the Character tuning holders (`class_name` static holders): this sub-domain's own in `body/` (`CharacterStrideConfig`,
+`CharacterMeleeConfig`, `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterRagdollConfig`,
+`CharacterRagdollJointConfig`) and the ones it shares with the root in `character/` (`CharacterBodyConfig`, `CharacterPostureConfig`,
+`CharacterStanceConfig`, `CharacterStunConfig`, `CharacterArtConfig`, `CharacterStyleConfig`, `CharacterShadowConfig`, `CharacterRagdollFallConfig`). `character_base.tscn` attaches
 `character_hands.gd` and `character_visuals.gd` as the `Hands` / `Visuals` children (the NPC scenes and `main.tscn`'s `Player` inherit or instance it); the rest are `RefCounted` helpers the character owns.
 
 ## Animate and draw
@@ -185,14 +188,14 @@ hands):
 - Limits in the trunk's frame (x toward hand 1's shoulder, y up the spine, z out of the chest):
   swing cones at the neck (rest up), shoulders and hips (rest down, out/in mirrored per side), and
   one-way hinges at the elbows (bend toward the front) and knees (toward the back), so no joint
-  ever bends backward. Ranges are `CharacterConfig.ragdoll_*_limits` / `_bend` / `_slack` (degrees).
+  ever bends backward. Ranges are `CharacterRagdollJointConfig`'s `*_limits` / `*_bend` / `*_slack` (degrees).
 - Starts exactly in the rig's pose (`character_rig.gd`): trunk upright turned to `pose.torso_angle`,
   head at `head_offset`, fists where the hands hold them (elbows by two-bone IK), feet striding
   under the hips, knees a touch bent.
 - Launch: every point carries the momentum, the upper body is pushed along the blow
-  (`ragdoll_hit_topple`, fading to nothing at the hips; weaker and along the momentum or a random
-  way with no blow), the knees buckle forward (`ragdoll_knee_buckle`) and each point gets a random
-  jolt (`ragdoll_jitter`). The legs give out, then the body topples and settles (≈ 2–3 s), then sleeps.
+  (`CharacterRagdollFallConfig.hit_topple`, fading to nothing at the hips; weaker and along the momentum or a random
+  way with no blow), the knees buckle forward (`CharacterRagdollFallConfig.knee_buckle`) and each point gets a random
+  jolt (`CharacterRagdollFallConfig.jitter`). The legs give out, then the body topples and settles (≈ 2–3 s), then sleeps.
 - Reads for the visuals: `point(i)`, `torso()` (the trunk's basis), `face()`, `toes(i)` (a
   trunk-frame direction carried onto the bone by the shortest turn), `is_settled()`.
 

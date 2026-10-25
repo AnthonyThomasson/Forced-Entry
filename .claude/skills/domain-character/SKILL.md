@@ -1,6 +1,6 @@
 ---
 name: domain-character
-description: Overview and root-body detail for the Character domain (scenes/character/) — the player character (built so other character types can exist): facing, movement, postures and running, the weapon raise against a wall, ammo / reloading and loadout, the outfit (hit zones, sides, armour in take_hit, its weight), its style (how it is drawn: set_style, look_seed, rank), its shadow (the living body's light occluder), death, footsteps, walking into furniture, riding a vehicle (the forwards to the Vehicles domain's CharacterVehicleUse and the ride pose) and the player/NPC scene wiring. The body itself (skeleton, pose, legs, hands and punch, ragdoll fall, all drawing and pixel art) is the sub-domain `domain-character-body` (scenes/character/body/). Use when editing character.gd, player_controller.gd, character_footsteps.gd, character_push.gd, character_config.gd or the character scenes. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Overview and root-body detail for the Character domain (scenes/character/) — the player character (built so other character types can exist): facing, movement, postures and running, the weapon raise against a wall, ammo / reloading and loadout, the outfit (hit zones, sides, armour in take_hit, its weight), its style (how it is drawn: set_style, look_seed, rank), its shadow (the living body's light occluder), death, footsteps, walking into furniture, riding a vehicle (the forwards to the Vehicles domain's CharacterVehicleUse and the ride pose) and the player/NPC scene wiring. The body itself (skeleton, pose, legs, hands and punch, ragdoll fall, all drawing and pixel art) is the sub-domain `domain-character-body` (scenes/character/body/). Use when editing character.gd, player_controller.gd, character_footsteps.gd, character_push.gd, the Character*Config tuning holders or the character scenes. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Character domain
@@ -8,6 +8,14 @@ description: Overview and root-body detail for the Character domain (scenes/char
 Owns the player character, built so other character types can exist. Reads intent from a
 pluggable controller child and integrates knockback into locomotion (it is the one "pushable"
 that isn't a RigidBody2D — it integrates knockback into its own walk).
+
+## Tuning
+
+One `class_name` static holder per topic (`grep -r "class_name Character.*Config" scenes/character`). In `character/`:
+`CharacterPostureConfig` (stand or crouch), `CharacterPaceConfig` (running, stamina, the outfit's weight), `CharacterPushConfig` (walking
+into pieces, being shoved), `CharacterStunConfig`, `CharacterHitConfig` (flesh, hit zones, sides), `CharacterShadowConfig`,
+`CharacterArtConfig`, `CharacterStyleConfig` (the styles), `CharacterBodyConfig` (the skeleton), `CharacterStanceConfig` (stances,
+the muzzle, the raise, recoil) and `CharacterRagdollFallConfig` (the fall's launch); the body's own in `body/` (`domain-character-body`).
 
 ## Layering (control / animate / draw)
 
@@ -30,7 +38,7 @@ character's fresh `facing`, and the character pulls its controller's intent at t
 
 `_apply_damage(amount, direction)` (shared by `take_hit`, which passes the shot's direction, and
 `take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, frees its light occluder (below) and
-moves to `CharacterConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
+moves to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
 pools; `vehicle/fallen_body_under_vehicle`), ends any
 interaction, abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (walk + knockback,
 including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;

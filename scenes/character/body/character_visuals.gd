@@ -249,8 +249,8 @@ func _draw_standing(rig: Rig) -> void:
 	_draw_face_hands(pose, placed, damage_total)
 	# Wound marks over everything, so a hit hand shows its wound: dark-red holes and cracks that
 	# read as bloody gashes (config-driven).
-	Deformation.draw_marks(self, placed, CharacterConfig.flesh_crack_color,
-		CharacterConfig.flesh_hole_color, CharacterConfig.flesh_scorch_color)
+	Deformation.draw_marks(self, placed, CharacterArtConfig.flesh_crack_color,
+		CharacterArtConfig.flesh_hole_color, CharacterArtConfig.flesh_scorch_color)
 
 
 ## The shoulders at the `lunge`: the art through the flesh silhouette deformed by the shots
@@ -263,7 +263,7 @@ func _draw_shoulders(pose: Pose, lunge: Vector2, impacts: Array, damage_total: f
 	_draw_round(
 		_shoulder_size(),
 		impacts,
-		_round_look(body, torso, damage_total, _shirt, CharacterConfig.flesh_crack_color),
+		_round_look(body, torso, damage_total, _shirt, CharacterArtConfig.flesh_crack_color),
 	)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	draw_order.append(&"torso")
@@ -532,7 +532,7 @@ func _draw_standing_shadow() -> void:
 		fills.circle(hand, _hands.hand_radius, Color.BLACK)
 		bounds = bounds.merge(Rect2(hand, Vector2.ZERO).grow(_hands.hand_radius))
 	var head := _cast(rig.point(Rig.HEAD), shift)
-	var head_radius: float = CharacterConfig.ragdoll_head_radius * _character.radius
+	var head_radius: float = CharacterRagdollConfig.head_radius * _character.radius
 	fills.circle(head, head_radius, Color.BLACK)
 	if solid:
 		solid.flush(bounds.merge(Rect2(head, Vector2.ZERO).grow(head_radius)))
@@ -846,7 +846,7 @@ func _draw_fallen_shadow(rd: RefCounted) -> void:
 			"head":
 				fills.circle(
 					_cast(part["at"], shift),
-					CharacterConfig.ragdoll_head_radius * _character.radius,
+					CharacterRagdollConfig.head_radius * _character.radius,
 					Color.BLACK,
 				)
 	# The trunk's slices, each its own polygon: the shadow group flattens overlapping black into one
@@ -877,7 +877,7 @@ func _fallen_parts(rd: RefCounted) -> Array:
 		})
 	var head: Vector3 = rd.point(Rig.HEAD)
 	var chest: Vector3 = rd.point(Rig.CHEST)
-	var neck := CharacterConfig.body_neck_width
+	var neck := CharacterArtConfig.body_neck_width
 	var neck_length := (CharacterBodyConfig.head_height - CharacterBodyConfig.shoulder_height) * r
 	var neck_seg := _painted(_seg(chest, head, neck, neck, neck_length), _skin)
 	parts.append(_keyed(_chain([neck_seg]), "neck"))
@@ -922,7 +922,7 @@ func _limbs(j: RefCounted) -> Array:
 ## (`_arm_parts`).
 func _arm_chain(j: RefCounted, i: int) -> Dictionary:
 	var r: float = _character.radius
-	var arm: Array = CharacterConfig.body_arm_widths
+	var arm: Array = CharacterArtConfig.body_arm_widths
 	var shoulder: Vector3 = j.point(Rig.SHOULDER[i])
 	var elbow: Vector3 = j.point(Rig.ELBOW[i])
 	var hand: Vector3 = j.point(Rig.HAND[i])
@@ -948,7 +948,7 @@ func _arm_chain(j: RefCounted, i: int) -> Dictionary:
 ## little wider.
 func _leg_chain(j: RefCounted, i: int) -> Dictionary:
 	var r: float = _character.radius
-	var leg: Array = CharacterConfig.body_leg_widths
+	var leg: Array = CharacterArtConfig.body_leg_widths
 	var knee: Vector3 = j.point(Rig.KNEE[i])
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var calf := knee.lerp(ankle, 0.35)
@@ -975,7 +975,7 @@ func _leg_chain(j: RefCounted, i: int) -> Dictionary:
 ## Side `i`'s boot added to its leg's `segs` from the joints of `j`: the shin from the `calf` to the
 ## boot's top, the boot's shaft down to the ankle, a little wider, and the boot.
 func _add_boot(segs: Array, j: RefCounted, i: int, calf: Vector3) -> void:
-	var leg: Array = CharacterConfig.body_leg_widths
+	var leg: Array = CharacterArtConfig.body_leg_widths
 	var knee: Vector3 = j.point(Rig.KNEE[i])
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var r: float = _character.radius
@@ -999,7 +999,7 @@ func _add_boot(segs: Array, j: RefCounted, i: int, calf: Vector3) -> void:
 ## Side `i`'s shoe (`grow` body radii wider: a boot) along the way the foot of `j` points, a
 ## quarter of it behind the ankle.
 func _foot_seg(j: RefCounted, i: int, grow: float) -> Dictionary:
-	var shoe: Array = CharacterConfig.body_shoe_widths
+	var shoe: Array = CharacterArtConfig.body_shoe_widths
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var toes: Vector3 = j.toes(i)
 	var r: float = _character.radius
@@ -1167,7 +1167,7 @@ static func _flat(p: Vector3) -> Vector2:
 ## Vector2(half-width, half-depth) in body radii, eased between the configured sections so the
 ## outline curves; past either end it rounds off in a dome.
 static func _section_at(t: float) -> Vector2:
-	var sections: Array = CharacterConfig.ragdoll_trunk_sections
+	var sections: Array = CharacterArtConfig.ragdoll_trunk_sections
 	var first: Vector3 = sections[0]
 	var last: Vector3 = sections[sections.size() - 1]
 	if t < first.x:
@@ -1191,7 +1191,7 @@ static func _dome(s: float) -> float:
 ## The spine fractions the trunk's outline is lofted through: the domes under the hips and over the
 ## shoulders, and evenly between them.
 static func _trunk_steps() -> PackedFloat32Array:
-	var sections: Array = CharacterConfig.ragdoll_trunk_sections
+	var sections: Array = CharacterArtConfig.ragdoll_trunk_sections
 	var t0: float = (sections[0] as Vector3).x
 	var t1: float = (sections[sections.size() - 1] as Vector3).x
 	var out := PackedFloat32Array()
@@ -1207,8 +1207,8 @@ static func _trunk_steps() -> PackedFloat32Array:
 ## The trunk's outline seen from above, each point shifted by `shift` per px of its height (zero: as
 ## drawn; `_shadow_shift`: on the floor shadow): the union of the hulls of each pair of
 ## neighbouring cross-sections (ellipses across the spine, eased between
-## CharacterConfig.ragdoll_trunk_sections and domed at both ends), so it is waisted and rounded from
-## any side and shrinks to the shoulders seen from above.
+## CharacterArtConfig.ragdoll_trunk_sections and domed at both ends), so it is waisted and rounded
+## from any side and shrinks to the shoulders seen from above.
 func _trunk_outline(rd: RefCounted, shift := Vector2.ZERO) -> PackedVector2Array:
 	var outline := PackedVector2Array()
 	var hulls := _trunk_hulls(rd, shift)
@@ -1249,7 +1249,7 @@ func _trunk_outline(rd: RefCounted, shift := Vector2.ZERO) -> PackedVector2Array
 
 ## The trunk's slices seen from above, shifted by `shift` per px of height (as `_trunk_outline`):
 ## the hull of each pair of neighbouring cross-sections (ellipses across the spine, eased between
-## CharacterConfig.ragdoll_trunk_sections and domed at both ends), each grown by `HULL_OVERLAP`.
+## CharacterArtConfig.ragdoll_trunk_sections and domed at both ends), each grown by `HULL_OVERLAP`.
 ## Their union is the trunk's outline (`_trunk_outline`); the shadow draws them as they are.
 func _trunk_hulls(rd: RefCounted, shift := Vector2.ZERO) -> Array[PackedVector2Array]:
 	var r: float = _character.radius
@@ -1335,7 +1335,7 @@ func _trunk_faces(rd: RefCounted) -> Array:
 	var basis: Basis = rd.torso()
 	var pelvis: Vector3 = rd.point(Rig.PELVIS)
 	var spine: float = (rd.point(Rig.CHEST) - pelvis).length()
-	var sections: Array = CharacterConfig.ragdoll_trunk_sections
+	var sections: Array = CharacterArtConfig.ragdoll_trunk_sections
 	var bottom: float = ((sections[0] as Vector3).x - DOME_BOTTOM) * spine
 	var top: float = ((sections[sections.size() - 1] as Vector3).x + DOME_TOP) * spine
 	var mid: Vector3 = pelvis + basis.y * (bottom + top) * 0.5
@@ -1356,7 +1356,7 @@ func _trunk_faces(rd: RefCounted) -> Array:
 ## by `basis`, about the trunk's `mid` point, `length` px along the spine.
 func _trunk_sides(basis: Basis, mid: Vector3, length: float) -> Array:
 	var r: float = _character.radius
-	var depth := CharacterConfig.art_shoulder_depth * r
+	var depth := CharacterArtConfig.shoulder_depth * r
 	var side := signf(basis.x.z) if basis.x.z != 0.0 else 1.0
 	var facing := signf(basis.z.z) if basis.z.z != 0.0 else 1.0
 	return [
@@ -1418,8 +1418,8 @@ func _draw_wounds(rd: RefCounted) -> void:
 		if not wound.is_empty():
 			wounds.append(wound)
 	Deformation.draw_marks(
-		self, wounds, CharacterConfig.flesh_crack_color, CharacterConfig.flesh_hole_color,
-		CharacterConfig.flesh_scorch_color,
+		self, wounds, CharacterArtConfig.flesh_crack_color, CharacterArtConfig.flesh_hole_color,
+		CharacterArtConfig.flesh_scorch_color,
 	)
 
 

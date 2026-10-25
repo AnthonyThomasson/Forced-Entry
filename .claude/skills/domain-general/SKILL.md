@@ -40,7 +40,7 @@ the tree, so it has counted the current frame before any NPC reads it.
 `UNDER_VEHICLE` −1 (a vehicle's chassis), `STANDING` 0 (the default: the living, furniture, walls), `ABOVE` 1 (a vehicle's roof, a
 grenade in flight, the UI's stack markers), `OVERHEAD` 2 (a piece's overhang: a streetlight's arm and head over the road; a room's ceiling fixture), `EFFECTS` 4
 (an explosion's flash and smoke). Every domain's z knob starts from its rung (`ObjectArtLayerConfig`,
-`BloodConfig`, `CharacterConfig`, the casing, the dropped item and grenade, the vehicle's layers, `ExplosionFx`, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`), so a new layer is a
+`BloodConfig`, `CharacterArtConfig`, the casing, the dropped item and grenade, the vehicle's layers, `ExplosionFx`, the UI's `StackMarkers`, `OrderMarkers` and `LeaderOverlay`), so a new layer is a
 rung here, not a number in a domain.
 
 `fill_batch.gd` (`class_name FillBatch`, a `RefCounted`, shared drawing infrastructure like `DrawLayers`) draws plain-coloured

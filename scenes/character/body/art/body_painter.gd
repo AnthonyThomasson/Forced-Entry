@@ -33,7 +33,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	var t := PixelCanvas.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var head_r := HeadPainter.radius_for(c.w)
-	var depth := roundi(c.h * CharacterConfig.art_shoulder_depth)
+	var depth := roundi(c.h * CharacterArtConfig.shoulder_depth)
 	var span := Rect2i(1, o.y - int(depth / 2.0) - 1, c.w - 2, depth)
 	var shoulders := PixelCanvas.ellipse(span)
 	c.fill(shoulders, base, _SHOULDER)

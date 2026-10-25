@@ -1403,7 +1403,7 @@ func _die(direction: Vector2) -> void:
 	# punches, sight lines and the dropped item, all on layer 1) pass right over it instead of being
 	# blocked, and draw it beneath them.
 	collision_layer = 0
-	z_index = CharacterConfig.ragdoll_z_index
+	z_index = CharacterArtConfig.ragdoll_z_index
 	if _occluder != null:  # A body on the floor casts no shadow.
 		_occluder.queue_free()
 		_occluder = null
@@ -1449,7 +1449,7 @@ func _drop_item(momentum: Vector2) -> void:
 	var item := current_item()
 	if item == null:
 		return
-	var toss := (Vector2.from_angle(randf() * TAU) * CharacterConfig.ragdoll_drop_toss
+	var toss := (Vector2.from_angle(randf() * TAU) * CharacterRagdollFallConfig.drop_toss
 			* randf_range(0.5, 1.0))
 	if item.drop(self, momentum + toss):
 		_items.erase(_current_slot)

@@ -7,7 +7,7 @@ class_name PhysicsConfig
 ## `PhysicsDeformConfig` and `PhysicsDeformLookConfig`, the ragdoll solver `PhysicsRagdollConfig`
 ## and a grenade burst's look `PhysicsExplosionConfig`; blood is its own sub-domain's
 ## (`BloodConfig`). Ballistics (fly-over/ricochet/penetration) live in the Ballistics holders
-## (`BallisticsFlightConfig` ...); the character's walking-push knobs in CharacterConfig.
+## (`BallisticsFlightConfig` ...); the character's walking-push knobs in CharacterPushConfig.
 
 ## Physics layer mask walls and furniture live on: the ragdoll's wall sweep and the blood pools' and
 ## flows' collision queries all test against it.

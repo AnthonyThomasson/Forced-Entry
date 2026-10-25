@@ -201,7 +201,7 @@ func _check_stride(t: TestContext) -> void:
 	)
 	t.check(together < 0.0, "the feet swing in opposition (%.0f)" % together)
 	t.check(
-		lift > CharacterConfig.ragdoll_limb_radius * walker.radius + 1.0,
+		lift > CharacterRagdollConfig.limb_radius * walker.radius + 1.0,
 		"a swinging foot lifts off the floor (%.1f px)" % lift,
 	)
 

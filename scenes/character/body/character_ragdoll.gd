@@ -7,7 +7,7 @@ extends RefCounted
 ## along the killing blow and a buckle at the knees, then left to fall. Owned and stepped by
 ## character.gd once dead; read by the visuals, which draw it top-down by height. Index pairs are
 ## per hand side (0 = right as drawn, 1 = left), matching the hands. Tuning:
-## CharacterConfig.ragdoll_*.
+## CharacterRagdollConfig, CharacterRagdollJointConfig and CharacterRagdollFallConfig.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 # Joint indices, shared with the rig the body starts from.
@@ -56,33 +56,33 @@ func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void
 
 ## One point per joint of `rig`, by index, sized and weighed for a body of radius `r`.
 func _add_points(rig: Rig, r: float) -> void:
-	var torso_r := CharacterConfig.ragdoll_torso_radius * r
-	var limb_r := CharacterConfig.ragdoll_limb_radius * r
+	var torso_r := CharacterRagdollConfig.torso_radius * r
+	var limb_r := CharacterRagdollConfig.limb_radius * r
 	body.add_point(
 		rig.point(HEAD),
-		CharacterConfig.ragdoll_head_radius * r,
-		CharacterConfig.ragdoll_head_mass,
+		CharacterRagdollConfig.head_radius * r,
+		CharacterRagdollConfig.head_mass,
 	)
-	body.add_point(rig.point(CHEST), torso_r, CharacterConfig.ragdoll_torso_mass)
-	body.add_point(rig.point(PELVIS), torso_r, CharacterConfig.ragdoll_torso_mass)
+	body.add_point(rig.point(CHEST), torso_r, CharacterRagdollConfig.torso_mass)
+	body.add_point(rig.point(PELVIS), torso_r, CharacterRagdollConfig.torso_mass)
 	# Belly and back sit off the spine, their radii reaching just to the trunk's surface, so the
 	# trunk lies flat on either side (rather than rocking on a keel) and can never fold through
 	# itself.
-	var skin := maxf(torso_r - CharacterConfig.ragdoll_belly * r, 0.05 * r)
-	body.add_point(rig.point(BELLY), skin, CharacterConfig.ragdoll_torso_mass)
+	var skin := maxf(torso_r - CharacterRagdollConfig.belly * r, 0.05 * r)
+	body.add_point(rig.point(BELLY), skin, CharacterRagdollConfig.torso_mass)
 	for i in 2:
-		body.add_point(rig.point(SHOULDER[i]), limb_r, CharacterConfig.ragdoll_torso_mass)
+		body.add_point(rig.point(SHOULDER[i]), limb_r, CharacterRagdollConfig.torso_mass)
 	for i in 2:
-		body.add_point(rig.point(HIP[i]), torso_r * 0.8, CharacterConfig.ragdoll_torso_mass)
+		body.add_point(rig.point(HIP[i]), torso_r * 0.8, CharacterRagdollConfig.torso_mass)
 	for i in 2:
-		body.add_point(rig.point(ELBOW[i]), limb_r, CharacterConfig.ragdoll_elbow_mass)
+		body.add_point(rig.point(ELBOW[i]), limb_r, CharacterRagdollConfig.elbow_mass)
 	for i in 2:
-		body.add_point(rig.point(HAND[i]), limb_r, CharacterConfig.ragdoll_hand_mass)
+		body.add_point(rig.point(HAND[i]), limb_r, CharacterRagdollConfig.hand_mass)
 	for i in 2:
-		body.add_point(rig.point(KNEE[i]), limb_r, CharacterConfig.ragdoll_knee_mass)
+		body.add_point(rig.point(KNEE[i]), limb_r, CharacterRagdollConfig.knee_mass)
 	for i in 2:
-		body.add_point(rig.point(ANKLE[i]), limb_r, CharacterConfig.ragdoll_ankle_mass)
-	body.add_point(rig.point(SPINE), skin, CharacterConfig.ragdoll_torso_mass)
+		body.add_point(rig.point(ANKLE[i]), limb_r, CharacterRagdollConfig.ankle_mass)
+	body.add_point(rig.point(SPINE), skin, CharacterRagdollConfig.torso_mass)
 
 
 ## The rigid trunk and the bones to the head, elbows, fists, knees and ankles.
@@ -99,12 +99,12 @@ func _add_bones() -> void:
 ## The limits in the trunk's frame: the neck's, shoulders' and hips' swing cones and the elbows' and
 ## knees' hinges.
 func _add_limits() -> void:
-	body.add_swing(_frame, CHEST, HEAD, UP, _limits(CharacterConfig.ragdoll_neck_limits, 1))
+	body.add_swing(_frame, CHEST, HEAD, UP, _limits(CharacterRagdollJointConfig.neck_limits, 1))
 	var elbow_limits := _hinge(
-		FRONT, CharacterConfig.ragdoll_elbow_bend, CharacterConfig.ragdoll_elbow_slack,
+		FRONT, CharacterRagdollJointConfig.elbow_bend, CharacterRagdollJointConfig.elbow_slack,
 	)
 	var knee_limits := _hinge(
-		BACK, CharacterConfig.ragdoll_knee_bend, CharacterConfig.ragdoll_knee_slack,
+		BACK, CharacterRagdollJointConfig.knee_bend, CharacterRagdollJointConfig.knee_slack,
 	)
 	for i in 2:
 		body.add_swing(
@@ -112,7 +112,7 @@ func _add_limits() -> void:
 			SHOULDER[i],
 			ELBOW[i],
 			DOWN,
-			_limits(CharacterConfig.ragdoll_shoulder_limits, i),
+			_limits(CharacterRagdollJointConfig.shoulder_limits, i),
 		)
 		body.add_hinge(_frame, SHOULDER[i], ELBOW[i], HAND[i], elbow_limits)
 		body.add_swing(
@@ -120,7 +120,7 @@ func _add_limits() -> void:
 			HIP[i],
 			KNEE[i],
 			DOWN,
-			_limits(CharacterConfig.ragdoll_hip_limits, i),
+			_limits(CharacterRagdollJointConfig.hip_limits, i),
 		)
 		body.add_hinge(_frame, HIP[i], KNEE[i], ANKLE[i], knee_limits)
 
@@ -135,7 +135,7 @@ func _launch(
 	hip_z: float,
 	shoulder_z: float,
 ) -> void:
-	var topple := CharacterConfig.ragdoll_hit_topple
+	var topple := CharacterRagdollFallConfig.hit_topple
 	var dir := blow
 	if dir.length() < 0.001:
 		dir = momentum if momentum.length() > 1.0 else Vector2.from_angle(randf() * TAU)
@@ -143,13 +143,13 @@ func _launch(
 	dir = dir.normalized()
 	var base := Vector3(momentum.x, momentum.y, 0.0)
 	var push := Vector3(dir.x, dir.y, 0.0) * topple
-	var jitter := CharacterConfig.ragdoll_jitter
+	var jitter := CharacterRagdollFallConfig.jitter
 	for i in body.point_count():
 		var lift := clampf((body.point(i).z - hip_z) / maxf(shoulder_z - hip_z, 1.0), 0.0, 1.2)
 		var jolt := Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * jitter
 		body.push(i, base + push * lift + jolt)
 	for i in 2:
-		body.push(KNEE[i], fwd * CharacterConfig.ragdoll_knee_buckle)
+		body.push(KNEE[i], fwd * CharacterRagdollFallConfig.knee_buckle)
 
 
 ## Advance the fall (see Ragdoll.step).
@@ -161,7 +161,7 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 ## hop up, and a body that had come to rest wakes.
 func blast(velocity: Vector2) -> void:
 	body.wake()
-	var lift := velocity.length() * CharacterConfig.ragdoll_blast_lift
+	var lift := velocity.length() * CharacterRagdollFallConfig.blast_lift
 	for i in body.point_count():
 		body.push(i, Vector3(velocity.x, velocity.y, lift))
 
