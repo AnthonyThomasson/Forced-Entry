@@ -11,4 +11,4 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	c.bevel(lens, 1, 1, base.lightened(0.5), base.darkened(0.2))
 	var core := Rect2i(1, 1, maxi(c.w - 2, 1), maxi(c.h - 2, 1))
 	c.fill(PixelCanvas.rounded(core, 1), base.lightened(0.35))
-	c.outline(lens, VehicleConfig.trim_color)
+	c.outline(lens, VehicleArtConfig.trim_color)

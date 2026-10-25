@@ -34,8 +34,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"slow") or not Probe.ready(t, &"mid") or not Probe.ready(t, &"fast"):
 		return
-	var kill: Variant = Probe.config_value(&"VehicleConfig", &"harm_kill_speed")
-	if not t.require(kill != null, "VehicleConfig.harm_kill_speed exists"):
+	var kill: Variant = Probe.config_value(&"VehicleCollisionConfig", &"harm_kill_speed")
+	if not t.require(kill != null, "VehicleCollisionConfig.harm_kill_speed exists"):
 		return
 	var mid := (Probe.HARM_MIN_SPEED + float(kill)) / 2.0
 	if not t.require(

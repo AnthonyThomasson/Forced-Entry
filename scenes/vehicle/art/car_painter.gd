@@ -41,7 +41,7 @@ static func _body(v: VehiclePaint) -> void:
 	var base := v.base
 	var t := PixelCanvas.tones(base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
 	var body := PixelCanvas.rounded(
 		Art.box(v, -half.x, half.x, -half.y, half.y),
@@ -62,7 +62,7 @@ static func _body(v: VehiclePaint) -> void:
 static func _grille(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
 	var head: Vector2 = v.look["head"]
 	var grille := PixelCanvas.rounded(
@@ -137,8 +137,8 @@ static func _cabin(v: VehiclePaint) -> void:
 	var floor_shape := PixelCanvas.rounded(
 		Art.box(v, boot, v.look["bonnet"], -belt, belt), roundi(4 * k)
 	)
-	c.fill(floor_shape, VehicleConfig.interior_color, _FLOOR)
-	c.surface(floor_shape, "fabric", VehicleConfig.interior_color)
+	c.fill(floor_shape, VehicleArtConfig.interior_color, _FLOOR)
+	c.surface(floor_shape, "fabric", VehicleArtConfig.interior_color)
 	Art.sills(v)
 	var driver: Vector2 = v.row["seats"][&"driver"]
 	Art.dashboard(v, belt - 1.0)
@@ -148,7 +148,7 @@ static func _cabin(v: VehiclePaint) -> void:
 		Art.box(v, boot, boot + 14.0, -belt + 2.0, belt - 2.0),
 		roundi(2 * k),
 	)
-	c.fill(shelf, VehicleConfig.interior_color.darkened(0.2), 2)
+	c.fill(shelf, VehicleArtConfig.interior_color.darkened(0.2), 2)
 
 
 ## The console between the front seats, beside the `driver`'s seat, and its gear knob.
@@ -158,18 +158,18 @@ static func _console(v: VehiclePaint, driver: Vector2) -> void:
 		Art.box(v, driver.x - 12.0, (v.look["dash"] as Vector2).x, -5.0, 5.0),
 		roundi(2 * v.k),
 	)
-	c.fill(console, VehicleConfig.trim_color.lightened(0.08), 3)
+	c.fill(console, VehicleArtConfig.trim_color.lightened(0.08), 3)
 	c.bevel(
 		console,
 		1,
 		1,
-		VehicleConfig.trim_color.lightened(0.25),
-		VehicleConfig.trim_color.darkened(0.3),
+		VehicleArtConfig.trim_color.lightened(0.25),
+		VehicleArtConfig.trim_color.darkened(0.3),
 	)
 	var knob := Art.at(v, Vector2(driver.x + 14.0, 0.0))
 	c.fill(
 		PixelCanvas.disc(knob, maxi(1, roundi(1.5 * v.k))),
-		VehicleConfig.trim_color.lightened(0.3),
+		VehicleArtConfig.trim_color.lightened(0.3),
 		4,
 	)
 
@@ -203,7 +203,7 @@ static func _windows(v: VehiclePaint) -> void:
 		return absf(p.y) <= Art.screen_edge(look, p.x) - 1.0 and p.x <= bonnet - 1.0
 	var windscreen := Art.region(v, Art.box(v, roof.x, bonnet, -screen_half, screen_half),
 			"car_screen/%s" % v.kind, in_screen)
-	_glass(v.canvas, windscreen, VehicleConfig.glass_color, VehicleConfig.trim_color)
+	_glass(v.canvas, windscreen, VehicleArtConfig.glass_color, VehicleArtConfig.trim_color)
 	_rear_window(v)
 
 
@@ -220,7 +220,7 @@ static func _rear_window(v: VehiclePaint) -> void:
 		return absf(p.y) <= rear.call(p.x) - 1.0 and p.x >= boot + 1.0
 	var back := Art.region(v, Art.box(v, boot, roof.y, -roof_half, roof_half),
 			"car_rear/%s" % v.kind, in_rear)
-	_glass(v.canvas, back, VehicleConfig.glass_color, VehicleConfig.trim_color)
+	_glass(v.canvas, back, VehicleArtConfig.glass_color, VehicleArtConfig.trim_color)
 
 
 ## The roof: a lighter, raised panel with a sheen.

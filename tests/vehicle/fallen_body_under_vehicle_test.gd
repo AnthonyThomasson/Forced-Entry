@@ -87,8 +87,8 @@ func _set_up(t: TestContext) -> Scene:
 			"the car has its Chassis and Roof draw layers",
 	):
 		return null
-	var kill: Variant = Probe.config_value(&"VehicleConfig", &"harm_kill_speed")
-	if not t.require(kill != null, "VehicleConfig.harm_kill_speed exists"):
+	var kill: Variant = Probe.config_value(&"VehicleCollisionConfig", &"harm_kill_speed")
+	if not t.require(kill != null, "VehicleCollisionConfig.harm_kill_speed exists"):
 		return null
 	scene.kill_speed = float(kill)
 	var car := scene.car
@@ -269,5 +269,5 @@ class Scene:
 	var half_length: float = 0.0
 	## Half the car's width, centre to side (px).
 	var half_width: float = 0.0
-	## VehicleConfig.harm_kill_speed (px/s).
+	## VehicleCollisionConfig.harm_kill_speed (px/s).
 	var kill_speed: float = 0.0

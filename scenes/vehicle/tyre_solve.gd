@@ -28,9 +28,9 @@ var _j_front := 0.0
 var _j_rear := 0.0
 
 
-## Solve the sideways impulses over `VehicleConfig.tyre_iterations` passes for a vehicle of `row`
-## with its front wheels at `wheel_angle`, over a step of `dt` s; the handbrake (`handbrake`) leaves
-## the rear its `handbrake_grip` share. Leaves the velocity solved.
+## Solve the sideways impulses over `VehicleDriveConfig.tyre_iterations` passes for a vehicle of
+## `row` with its front wheels at `wheel_angle`, over a step of `dt` s; the handbrake (`handbrake`)
+## leaves the rear its `handbrake_grip` share. Leaves the velocity solved.
 func solve(row: Dictionary, wheel_angle: float, handbrake: bool, dt: float) -> void:
 	_front = row["axle_front"]
 	_back = -float(row["axle_rear"])
@@ -41,7 +41,7 @@ func solve(row: Dictionary, wheel_angle: float, handbrake: bool, dt: float) -> v
 	_grip_front = float(row["grip_front"]) * mass * 0.5 * dt
 	_grip_rear = (float(row["grip_rear"])
 			* (float(row["handbrake_grip"]) if handbrake else 1.0) * mass * 0.5 * dt)
-	for _i in VehicleConfig.tyre_iterations:
+	for _i in VehicleDriveConfig.tyre_iterations:
 		_front_pass()
 		_rear_pass()
 

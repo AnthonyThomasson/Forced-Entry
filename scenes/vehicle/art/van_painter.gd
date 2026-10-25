@@ -53,7 +53,7 @@ static func _bumpers(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var k := v.k
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
 	var nose := PixelCanvas.rounded(
 		Art.box(v, half.x - bumper, half.x, -half.y + 3.0, half.y - 3.0),
@@ -85,7 +85,7 @@ static func _nose(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var t := PixelCanvas.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
 	var bonnet: float = v.look["bonnet"]
 	var belt: float = v.look["belt"]
@@ -121,15 +121,15 @@ static func _nose(v: VehiclePaint) -> void:
 static func _cab(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var k := v.k
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var belt: float = v.look["belt"]
 	var driver: Vector2 = v.row["seats"][&"driver"]
 	var bulkhead: float = (v.look["pillars"][0] as Vector2).y
 	var cab := PixelCanvas.rounded(
 		Art.box(v, bulkhead, v.look["bonnet"], -belt, belt), roundi(3 * k)
 	)
-	c.fill(cab, VehicleConfig.interior_color, _FLOOR)
-	c.surface(cab, "fabric", VehicleConfig.interior_color)
+	c.fill(cab, VehicleArtConfig.interior_color, _FLOOR)
+	c.surface(cab, "fabric", VehicleArtConfig.interior_color)
 	Art.dashboard(v, belt - 1.0)
 	var cover := PixelCanvas.rounded(
 		Art.box(v, driver.x - 14.0, (v.look["dash"] as Vector2).x, -9.0, 9.0),
@@ -148,7 +148,7 @@ static func _cargo_bay(v: VehiclePaint) -> void:
 	var bumper: float = v.look["bumper"]
 	var belt: float = v.look["belt"]
 	var bulkhead: float = (v.look["pillars"][0] as Vector2).y
-	var wood := VehicleConfig.cargo_floor_color
+	var wood := VehicleArtConfig.cargo_floor_color
 	var bay := PixelCanvas.rounded(
 		Art.box(v, -half.x + bumper - 2.0, bulkhead - 4.0, -belt, belt),
 		roundi(2 * v.k),
@@ -205,9 +205,9 @@ static func _roof(v: VehiclePaint) -> void:
 		return absf(p.y) <= Art.screen_edge(look, p.x) - 1.0 and p.x <= bonnet - 1.0
 	var windscreen := Art.region(v, Art.box(v, roof.x, bonnet, -screen_half, screen_half),
 			"van_screen/%s" % v.kind, in_screen)
-	c.fill(windscreen, VehicleConfig.glass_color, _PILLAR - 1)
-	c.glare(windscreen, Color(VehicleConfig.glass_color.lightened(0.55), 0.6), 3)
-	c.outline(windscreen, VehicleConfig.trim_color)
+	c.fill(windscreen, VehicleArtConfig.glass_color, _PILLAR - 1)
+	c.glare(windscreen, Color(VehicleArtConfig.glass_color.lightened(0.55), 0.6), 3)
+	c.outline(windscreen, VehicleArtConfig.trim_color)
 	_roof_panel(v)
 	Art.lamps(v, 2.0, 1, _BODY + 1, _ROOF)
 

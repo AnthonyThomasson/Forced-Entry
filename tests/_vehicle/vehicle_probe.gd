@@ -8,8 +8,8 @@ extends RefCounted
 ## offset }` per door, world space), `seats()` (`{ id, occupant
 ## }`), `driver()`, `speed()` (unsigned px/s), `engine_state()` (`{ running, rpm, load
 ## }`), `slip()` (the slide amount, 0 while gripping), `wheel_angle()`, `brake_lights()`, its
-## `Chassis` / `Roof` draw layers, and `VehicleConfig`'s tuning. Nothing here knows how a vehicle is
-## built, and a read that does not exist yet fails a `require` instead of a script error.
+## `Chassis` / `Roof` draw layers, and the Vehicles holders' tuning. Nothing here knows how a
+## vehicle is built, and a read that does not exist yet fails a `require` instead of a script error.
 
 ## The plan's numbers: the spec, not the code.
 ## E picks a door whose handle is within this of the character.
@@ -89,8 +89,9 @@ static func has_reads(t: TestContext, node: Object, methods: Array, what: String
 	)
 
 
-## The Vehicles domain's static holder `holder` (`VehicleConfig` ...), looked up by class name, so a
-## test naming one still parses before it exists. A missing holder is an error, and null.
+## The Vehicles domain's static holder `holder` (`VehicleConfig`, `VehicleCollisionConfig` ...),
+## looked up by class name, so a test naming one still parses before it exists. A missing holder is
+## an error, and null.
 static func config(holder: StringName) -> Script:
 	for c in ProjectSettings.get_global_class_list():
 		if c["class"] == holder:

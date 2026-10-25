@@ -47,11 +47,11 @@ func _init(def: Dictionary) -> void:
 func update(delta: float) -> bool:
 	if _progress == _target:
 		return false
-	var time := (VehicleConfig.slide_time
+	var time := (VehicleDoorConfig.slide_time
 			if kind == &"slide"
-			else (VehicleConfig.door_open_time
+			else (VehicleDoorConfig.open_time
 					if _target > _progress
-					else VehicleConfig.door_close_time))
+					else VehicleDoorConfig.close_time))
 	_progress = move_toward(_progress, _target, delta / maxf(time, 0.01))
 	return _progress == 0.0 and _target == 0.0
 
@@ -91,7 +91,10 @@ func offset() -> Vector2:
 	if kind != &"slide":
 		return Vector2.ZERO
 	var a := amount()
-	return Vector2(-length * a, 0.0) + outward * VehicleConfig.slide_pop * clampf(a * 4.0, 0.0, 1.0)
+	return Vector2(
+		-length * a,
+		0.0,
+	) + outward * VehicleDoorConfig.slide_pop * clampf(a * 4.0, 0.0, 1.0)
 
 
 ## The handle where the door is now (local).
@@ -106,11 +109,11 @@ func handle_now() -> Vector2:
 ## the door opens and shuts beside it. A sliding door's stand point is out from the front of its
 ## opening, clear of the track it rolls back along.
 func stand_point(radius: float) -> Vector2:
-	var out := radius + VehicleConfig.stand_out
+	var out := radius + VehicleDoorConfig.stand_out
 	if kind == &"slide":
 		return handle + Vector2(-8.0, 0.0) + outward * out
 	var along := (handle - hinge).normalized()
-	var reach := length + radius + VehicleConfig.door_clearance
+	var reach := length + radius + VehicleDoorConfig.clearance
 	var past := maxf(4.0, sqrt(maxf(reach * reach - out * out, 0.0)) - length)
 	return handle + along * past + outward * out
 
@@ -157,9 +160,9 @@ func info(vehicle: Node2D) -> Dictionary:
 ## the door, or the strip beside the body that a sliding door rolls along.
 func _sweep_shape() -> ConvexPolygonShape2D:
 	var points := PackedVector2Array()
-	var clearance := VehicleConfig.door_clearance
+	var clearance := VehicleDoorConfig.clearance
 	if kind == &"slide":
-		var depth := outward * (VehicleConfig.slide_pop + 2.0 + clearance)
+		var depth := outward * (VehicleDoorConfig.slide_pop + 2.0 + clearance)
 		var back := hinge + Vector2(-2.0 * length - clearance, 0.0)
 		points = PackedVector2Array([hinge, back, back + depth, hinge + depth])
 	else:

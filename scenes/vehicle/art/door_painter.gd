@@ -44,8 +44,8 @@ static func door_def(kind: StringName, id: StringName) -> Dictionary:
 ## The door from above: skin, moulding, frame, trim, handle and shut lines.
 static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -> void:
 	var t := PixelCanvas.tones(base)
-	var trim := VehicleConfig.trim_color
-	var inside := VehicleConfig.interior_color.lightened(0.08)
+	var trim := VehicleArtConfig.trim_color
+	var inside := VehicleArtConfig.interior_color.lightened(0.08)
 	# Column `i` px in from the outside face.
 	var col := func(i: int) -> int: return c.w - 1 - i if outer > 0.0 else i
 	var band := func(from: int, to: int) -> Rect2i:
@@ -83,7 +83,7 @@ static func _armrest(c: PixelCanvas, col: Callable, inside: Color) -> void:
 ## rear door's near its far end), in the column `col(i)` px in from the outside face; `t` the
 ## paint's tones.
 static func _handle(c: PixelCanvas, def: Dictionary, col: Callable, t: Dictionary) -> void:
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var from_hinge := (def["handle"] as Vector2).distance_to(def["hinge"])
 	var row := clampi(
 		c.h - 1 - roundi(from_hinge) + (4 if from_hinge < c.h * 0.5 else 2),
@@ -107,7 +107,11 @@ static func _shut_lines(c: PixelCanvas, def: Dictionary, col: Callable, t: Dicti
 			c.line(Vector2i(col.call(3), 2), Vector2i(col.call(3), c.h - 3), t["shadow"])
 		&"rear":
 			for r in [c.h - 7, roundi(c.h * 0.55)]:  # hinge straps
-				c.line(Vector2i(col.call(0), r), Vector2i(col.call(2), r), VehicleConfig.trim_color)
+				c.line(
+					Vector2i(col.call(0), r),
+					Vector2i(col.call(2), r),
+					VehicleArtConfig.trim_color,
+				)
 
 
 ## The side window: tinted glass with a glint and a black rubber round it, the shape of the door's
@@ -125,10 +129,10 @@ static func _glass(c: PixelCanvas, kind: StringName, def: Dictionary) -> void:
 		return Art.convex(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 			var p := Vector2(rect.position.x + (y + 0.5) / k, centre.y - (x + 0.5 - c.w * 0.5) / k)
 			return Art.in_door_glass(gaps, look, p)))
-	var glass := VehicleConfig.glass_color
+	var glass := VehicleArtConfig.glass_color
 	c.fill(pane, glass, _GLASS)
 	c.glare(pane, Color(glass.lightened(0.55), 0.6), 1)
-	c.outline(pane, VehicleConfig.trim_color)
+	c.outline(pane, VehicleArtConfig.trim_color)
 
 
 ## Where door `id`'s side glass lies (vehicle frame): its span along the body, from the roof out to
@@ -151,7 +155,7 @@ static func _mirror(c: PixelCanvas, base: Color) -> void:
 	c.bevel(housing, 1, 1, t["highlight"], t["shadow"])
 	c.fill(
 		PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, 2), 0),
-		VehicleConfig.glass_color.darkened(0.3),
+		VehicleArtConfig.glass_color.darkened(0.3),
 		_GLASS,
 	)
 	c.outline(housing, t["outline"])

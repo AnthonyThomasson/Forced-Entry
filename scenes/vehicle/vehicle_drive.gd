@@ -66,10 +66,10 @@ func step(
 
 	# Sideways: each axle's impulse cancels its slip up to its grip, both solved together.
 	tyres.solve(row, wheel_angle, intent["handbrake"], dt)
-	slip = clampf(tyres.left() / maxf(speed, VehicleConfig.slip_reference_speed), 0.0, 1.0)
+	slip = clampf(tyres.left() / maxf(speed, VehicleDriveConfig.slip_reference_speed), 0.0, 1.0)
 
 	# At rest with nothing pushing, the tyres hold it still.
-	if (push == 0.0 and Vector2(tyres.vx, tyres.vy).length() < VehicleConfig.stop_speed
+	if (push == 0.0 and Vector2(tyres.vx, tyres.vy).length() < VehicleDriveConfig.stop_speed
 			and absf(tyres.w) < 0.05):
 		tyres.vx = 0.0
 		tyres.vy = 0.0
@@ -91,7 +91,7 @@ func _steer(row: Dictionary, steer: float, speed: float, dt: float) -> void:
 ## back, none while `hold` holds the brakes or the throttle is against the motion (it brakes then,
 ## `_resist`).
 func _push(row: Dictionary, mass: float, vx: float, throttle: float, hold: bool) -> float:
-	var engage := VehicleConfig.reverse_engage_speed
+	var engage := VehicleDriveConfig.reverse_engage_speed
 	if hold:
 		return 0.0
 	if throttle > 0.0 and vx >= -engage:
@@ -106,11 +106,11 @@ func _push(row: Dictionary, mass: float, vx: float, throttle: float, hold: bool)
 ## brakes while the `intent` holds them or the `throttle` is against the motion, the handbrake. Sets
 ## `braking` (the brake lights).
 func _resist(row: Dictionary, vx: float, throttle: float, intent: Dictionary) -> float:
-	var engage := VehicleConfig.reverse_engage_speed
+	var engage := VehicleDriveConfig.reverse_engage_speed
 	var resist: float = float(row["rolling"]) + float(row["drag"]) * vx * vx
 	braking = false
 	if intent["brake"]:
-		braking = absf(vx) > VehicleConfig.stop_speed
+		braking = absf(vx) > VehicleDriveConfig.stop_speed
 		resist += float(row["brake"])
 	elif throttle > 0.0 and vx < -engage:
 		braking = true
@@ -158,11 +158,14 @@ func _update_engine(row: Dictionary, vx: float, throttle: float, running: bool, 
 		rpm = 0.0
 		engine_load = 0.0
 		return
-	var gears := maxi(VehicleConfig.gears, 1)
+	var gears := maxi(VehicleDriveConfig.gears, 1)
 	var share := clampf(absf(vx) / float(row["top_speed"]), 0.0, 0.999) * gears
 	var gear := int(share)
-	var low := VehicleConfig.idle_rpm if gear == 0 else 0.55
+	var low := VehicleDriveConfig.idle_rpm if gear == 0 else 0.55
 	var target := lerpf(low, 1.0, share - gear)
-	target = maxf(target, VehicleConfig.idle_rpm + 0.25 * absf(throttle) * (1.0 - share / gears))
+	target = maxf(
+		target,
+		VehicleDriveConfig.idle_rpm + 0.25 * absf(throttle) * (1.0 - share / gears),
+	)
 	rpm = move_toward(rpm, target, 3.0 * dt) if absf(rpm - target) < 0.3 else target
 	engine_load = absf(throttle)

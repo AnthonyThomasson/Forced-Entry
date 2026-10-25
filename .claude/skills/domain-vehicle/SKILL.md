@@ -22,7 +22,8 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 
 | File | Role |
 |---|---|
-| `vehicle_config.gd` (`VehicleConfig`) | Static holder: the shared numbers (getting in and out, driving, collisions, camera, the look) and one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
+| `vehicle_config.gd` (`VehicleConfig`) | Static holder: one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
+| `vehicle_boarding_config.gd`, `vehicle_door_config.gd`, `vehicle_drive_config.gd`, `vehicle_collision_config.gd`, `vehicle_art_config.gd` | Static holders of the numbers every vehicle shares, one per topic: getting in and out (`VehicleBoardingConfig`), the doors' motion (`VehicleDoorConfig`), driving and the camera (`VehicleDriveConfig`), collisions (`VehicleCollisionConfig`), the look (`VehicleArtConfig`). |
 | `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, contacts, skids and every event the domain posts. Group `vehicles`. |
 | `vehicle_drive.gd` | `RefCounted` (preloaded): the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`; `lock(row, speed)` is the full lock at a speed. |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
@@ -91,7 +92,7 @@ the rear seats). The van: front_left / front_right `swing`, `side` (`slide`, rig
 rear_right (`rear`, swinging out behind about the back corners) → `cargo_left` / `cargo_right` (the side door and the
 rear-right door share a seat).
 
-- **Open amount:** progress 0..1, linear in time (`door_open_time` / `door_close_time` for a swing or rear door,
+- **Open amount:** progress 0..1, linear in time (`VehicleDoorConfig.open_time` / `close_time` for a swing or rear door,
   `slide_time` for a slide), read eased as `amount()` = 1 − (1 − p)² (fast open that settles; a close gathers speed into
   the slam). `update(delta)` returns true on the frame a closing door shuts (the vehicle posts the close then).
 - **Pose:** a swing or rear door turns `angle()` = ±`open_angle × amount` about its hinge, the sign chosen so its free
@@ -101,8 +102,8 @@ rear-right door share a seat).
   hinge) until clear of the swing; a slide door's is out from the front of its opening, clear of its track.
   **Entry point:** the middle of the opening, `0.4 × radius` outside the body.
 - **`is_clear(vehicle, exclude, radius)`:** one `ConvexPolygonShape2D` query (mask `SOLID`, the vehicle and the user
-  excluded) over the swept sector (the door's arm `door_clearance` longer, 7 rays over `open_angle`) or the slide track
-  (twice the door's length back, `slide_pop + 2 + door_clearance` deep), then a circle of the user's radius at the
+  excluded) over the swept sector (the door's arm `VehicleDoorConfig.clearance` longer, 7 rays over `open_angle`) or the slide track
+  (twice the door's length back, `slide_pop + 2 + clearance` deep), then a circle of the user's radius at the
   stand point. A wall, furniture, a character or another vehicle there blocks it.
 - **Seats:** `_seats` (id → holder, from boarding start to the last step out) and `_reserved` (a passenger on its way
   across); `is_free(id)` needs both empty. `release(character)` frees its seat and reservation and, for the driver's
@@ -227,17 +228,18 @@ rest) and the decals under it, and under the living and the occupants (`STANDING
 
 Audio voices them and follows the loops by reading `engine_state()`, `slip()` and `speed()` duck-typed (`domain-audio`).
 
-## Tuning (`VehicleConfig`)
+## Tuning (`VehicleConfig` and the topic holders)
 
-- **In and out:** `door_reach` 60, `board_max_speed` 20, `exit_max_speed` 20, `door_open_time` / `door_close_time` 0.35,
-  `slide_time` 0.5, `slide_pop` 3, `fold_time` 0.5, `shift_time` 0.6, `step_pace` 0.55, `step_min_time` 0.2, `turn_rate` 9,
-  `face_tolerance` 0.25, `walk_timeout` 4, `stand_out` 16, `door_clearance` 3, `walk_margin` 2.
-- **Driving:** `stop_speed` 1, `reverse_engage_speed` 2, `tyre_iterations` 8, `slip_reference_speed` 30, `skid_start_slip`
-  0.08 / `skid_stop_slip` 0.04, `gears` 4, `idle_rpm` 0.18.
-- **Collisions:** `harm_min_speed` 90, `harm_kill_speed` 300, `harm_bounce` 0.4, `pile_gap` 4, `pile_depth` 4, `pile_reach` 150,
-  `rehit_time` 0.5, `crash_min_speed` 60, `dent_max_depth` 3,
-  `dent_max_impacts` 24. **Camera:** `drive_zoom_out` 0.35 (read through `view_zoom_out()`; General never reads it).
-- **Look:** `tyre_color`, `hub_color`, `glass_color` (alpha 0.42: see-through), `interior_color`, `seat_color`, `trim_color`,
+- **In and out** (`VehicleBoardingConfig`): `door_reach` 60, `board_max_speed` 20, `exit_max_speed` 20, `fold_time` 0.5,
+  `shift_time` 0.6, `step_pace` 0.55, `step_min_time` 0.2, `turn_rate` 9, `face_tolerance` 0.25, `walk_timeout` 4,
+  `walk_margin` 2. **The doors** (`VehicleDoorConfig`): `open_time` / `close_time` 0.35, `slide_time` 0.5, `slide_pop` 3,
+  `stand_out` 16, `clearance` 3.
+- **Driving** (`VehicleDriveConfig`): `stop_speed` 1, `reverse_engage_speed` 2, `tyre_iterations` 8, `slip_reference_speed` 30,
+  `skid_start_slip` 0.08 / `skid_stop_slip` 0.04, `gears` 4, `idle_rpm` 0.18. **Camera:** `zoom_out` 0.35 (read through
+  `view_zoom_out()`; General never reads it).
+- **Collisions** (`VehicleCollisionConfig`): `harm_min_speed` 90, `harm_kill_speed` 300, `harm_bounce` 0.4, `pile_gap` 4,
+  `pile_depth` 4, `pile_reach` 150, `rehit_time` 0.5, `crash_min_speed` 60, `dent_max_depth` 3, `dent_max_impacts` 24.
+- **Look** (`VehicleArtConfig`, and `VehicleConfig.looks`): `tyre_color`, `hub_color`, `glass_color` (alpha 0.42: see-through), `interior_color`, `seat_color`, `trim_color`,
   `cargo_floor_color`, `headlight_color`, `tail_off_color` / `tail_on_color`, `brake_glow`, `glass_fade` 0.3, `redraw_step`
   0.02, `redraw_turn_step` 0.01, and `looks` per kind (bumper, bonnet, boot, roof, roof_half, belt, screen_half,
   rear_half, pillars, glass spans per door, a_pillar, door_depth, dash, wheel, mirror doors, head / tail lamp spans, lamp).

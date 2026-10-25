@@ -1,116 +1,11 @@
 class_name VehicleConfig
-## Vehicles domain tuning (a static holder, like CharacterConfig): one row per kind of vehicle in
-## `kinds`, and the numbers every vehicle shares (reach, the board and exit speeds, the door and
-## fold times, harm and crash speeds). Distances are px, speeds px/s, accelerations px/s², angles
+## Vehicles domain tuning, the per-kind rows (a static holder, like GunConfig): one row per kind of
+## vehicle in `kinds` and one in `looks`. Distances are px, speeds px/s, accelerations px/s², angles
 ## rad. Rotation 0 = the nose toward +x; a vehicle's own frame has x forward and y toward its right
-## side (its left side is toward -y).
+## side (its left side is toward -y). The numbers every vehicle shares live in the domain's topic
+## holders: `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`,
+## `VehicleCollisionConfig` and `VehicleArtConfig`.
 
-# --- Getting in and out (V1-V4) ----------------------------------------------------------
-
-## E picks a door whose handle is within this of the character.
-static var door_reach: float = 60.0
-## Boarding only while the vehicle moves slower than this.
-static var board_max_speed: float = 20.0
-## E while seated above this first brakes the vehicle to a stop (a driver) or waits for it (a
-## passenger).
-static var exit_max_speed: float = 20.0
-## A swing or rear door eases open in this long (ease-out) and shut in this long (it gathers speed
-## into the slam).
-static var door_open_time: float = 0.35
-static var door_close_time: float = 0.35
-## A sliding door rolls open and shut in this long.
-static var slide_time: float = 0.5
-## How far (px) a sliding door stands out from the body while it rolls.
-static var slide_pop: float = 3.0
-## The fold down into the seat (and the rise out of it) takes this long.
-static var fold_time: float = 0.5
-## The slide across the bench to another seat takes this long.
-static var shift_time: float = 0.6
-## The step into and out of the gap is taken at this share of the character's walk speed (its peak
-## is 1.5x the average).
-static var step_pace: float = 0.55
-## The shortest step into or out of the gap (s).
-static var step_min_time: float = 0.2
-## How fast (rad/s) the character turns while it boards or gets out.
-static var turn_rate: float = 9.0
-## Facing within this (rad) of the handle counts as facing the door, so the step in can begin.
-static var face_tolerance: float = 0.25
-## Giving up on a walk to the door that has not arrived in this long (s): something is in the way.
-static var walk_timeout: float = 4.0
-## The stand point beside a door is this far (px) out from the body, beyond the character's radius.
-static var stand_out: float = 16.0
-## The swept door (or the stand point) must clear what stands near it by this much (px).
-static var door_clearance: float = 3.0
-## The walk round the body keeps this far (px) beyond the character's radius off it.
-static var walk_margin: float = 2.0
-# --- Driving (V5) ------------------------------------------------------------------------
-## Below this (with no throttle) a vehicle holds still: the tyres' static grip.
-static var stop_speed: float = 1.0
-## S reverses (W drives forward again) only once the vehicle is this slow the other way.
-static var reverse_engage_speed: float = 2.0
-## The tyre impulses are solved this many times a frame (both axles together).
-static var tyre_iterations: int = 8
-## slip() is the sliding speed over at least this speed (so a slow shuffle does not read as a
-## slide).
-static var slip_reference_speed: float = 30.0
-## A `skid` starts above this slip() and stops below the second.
-static var skid_start_slip: float = 0.08
-static var skid_stop_slip: float = 0.04
-## The engine's gears: revs climb through each band of the top speed and drop at the change.
-static var gears: int = 4
-## Revs at idle, as a share of the redline.
-static var idle_rpm: float = 0.18
-# --- Collisions (V6) ---------------------------------------------------------------------
-## A character struck slower than this (closing speed) is shoved, not hurt.
-static var harm_min_speed: float = 90.0
-## A character struck at this closing speed or faster is killed; between the two, hurt in
-## proportion.
-static var harm_kill_speed: float = 300.0
-## How much of the closing speed a struck character bounces off with (0 = carried along at the
-## vehicle's speed).
-static var harm_bounce: float = 0.4
-## A pile in front of the vehicle (a character struck and what it is pressed against, or a piece
-## pressed against a character): bodies this close (px) along the push press on one another, at most
-## this many are followed, and a piece's characters are looked for within this far (px) of it.
-static var pile_gap: float = 4.0
-static var pile_depth: int = 4
-static var pile_reach: float = 150.0
-## A character struck again within this long (s) of the last time it was in a pile is the same
-## run-in: shoved on, not hurt again.
-static var rehit_time: float = 0.5
-## An impact faster than this posts a crash (or a bump on a character).
-static var crash_min_speed: float = 60.0
-## The body's dents: deepest (px) and how many are remembered.
-static var dent_max_depth: float = 3.0
-static var dent_max_impacts: int = 24
-# --- Camera (V8) -------------------------------------------------------------------------
-## While driving, the camera zooms out by this share at the vehicle's top speed.
-static var drive_zoom_out: float = 0.35
-# --- Look (V3): the painters' colours, and each kind's `looks` row below ------------------
-## The tyres' rubber and the hubs.
-static var tyre_color: Color = Color(0.1, 0.1, 0.11)
-static var hub_color: Color = Color(0.5, 0.51, 0.53)
-## The glass: tinted, and see-through (its alpha), so a seated occupant shows under it.
-static var glass_color: Color = Color(0.3, 0.42, 0.5, 0.42)
-## The cabin's floor, the seats, and the black trim (bumpers, rubbers, dashboard, grille).
-static var interior_color: Color = Color(0.17, 0.16, 0.16)
-static var seat_color: Color = Color(0.27, 0.25, 0.23)
-static var trim_color: Color = Color(0.12, 0.12, 0.13)
-## A van's cargo floor (plywood over the metal).
-static var cargo_floor_color: Color = Color(0.45, 0.37, 0.27)
-## The lamps: headlights, and the tail lights dark and lit (braking), with the glow a lit one throws
-## on the ground.
-static var headlight_color: Color = Color(0.93, 0.92, 0.82)
-static var tail_off_color: Color = Color(0.46, 0.09, 0.08)
-static var tail_on_color: Color = Color(1.0, 0.2, 0.13)
-static var brake_glow: Color = Color(1.0, 0.15, 0.08, 0.3)
-## Door glass fades out over the first this share of the door's opening (the window goes with the
-## door).
-static var glass_fade: float = 0.3
-## The drawing is repainted when the wheels turn or a door moves this much (rad, open share), or the
-## body this much (rad).
-static var redraw_step: float = 0.02
-static var redraw_turn_step: float = 0.01
 ## The look of each kind, in the vehicle's frame (x forward, y right; px): how deep the `bumper`s
 ## are; where the `bonnet` ends at the windscreen's base and the `boot` begins at the rear window's;
 ## the `roof` panel's front and back x and half width (`roof_half`); the `belt` line's half width
@@ -142,7 +37,6 @@ static var looks := {
 		"lamp": 4.0,
 	},
 }
-# --- The kinds ---------------------------------------------------------------------------
 ## One row per kind. `size` is the body (length along x, width along y); `corner` its chamfer;
 ## `coverage`, `penetration` and `material` its ballistic surface (`get_surface`), `bounce` and
 ## `friction` its contact with what it strikes. `mass` is the rigid body's, `engine_force` (mass x

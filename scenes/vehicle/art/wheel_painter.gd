@@ -18,5 +18,5 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 		var inset := 1 if posmod(y, 6) < 3 else 2
 		c.line(Vector2i(inset, y), Vector2i(c.w - 1 - inset, y), t["outline"])
 	var hub := Rect2i(c.w - 2, roundi(c.h * 0.3), 1, maxi(roundi(c.h * 0.4), 1))
-	c.fill(PixelCanvas.rounded(hub, 0), VehicleConfig.hub_color, _HEIGHT + 1)
+	c.fill(PixelCanvas.rounded(hub, 0), VehicleArtConfig.hub_color, _HEIGHT + 1)
 	c.outline(tyre, t["outline"])

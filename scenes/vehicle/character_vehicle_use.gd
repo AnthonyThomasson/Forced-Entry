@@ -17,9 +17,9 @@ var _ride: RefCounted
 
 
 ## E: seated, get out (braking or waiting for the vehicle to slow first); on foot, board by the door
-## whose handle is nearest, among those within `VehicleConfig.door_reach` of a vehicle moving slower
-## than `board_max_speed`, skipping a door that cannot open for the next nearest. Nothing happens on
-## the way in or out, or with no usable door.
+## whose handle is nearest, among those within `VehicleBoardingConfig.door_reach` of a vehicle
+## moving slower than `board_max_speed`, skipping a door that cannot open for the next nearest.
+## Nothing happens on the way in or out, or with no usable door.
 func try_use_vehicle() -> void:
 	if _ride != null:
 		if _ride.is_seated():
@@ -27,11 +27,11 @@ func try_use_vehicle() -> void:
 		return
 	var candidates := []
 	for near in _character.get_tree().get_nodes_in_group(&"vehicles"):
-		if not near is Node2D or near.speed() >= VehicleConfig.board_max_speed:
+		if not near is Node2D or near.speed() >= VehicleBoardingConfig.board_max_speed:
 			continue
 		for door: Dictionary in near.doors():
 			var distance: float = _character.global_position.distance_to(door["handle"])
-			if distance <= VehicleConfig.door_reach:
+			if distance <= VehicleBoardingConfig.door_reach:
 				candidates.append({ "vehicle": near, "door": door["id"], "distance": distance })
 	candidates.sort_custom(func(a, b): return a["distance"] < b["distance"])
 	for c: Dictionary in candidates:

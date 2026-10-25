@@ -199,16 +199,16 @@ static func lamps(v: VehiclePaint, head_extra: float, head_round: int, head_heig
 	var head: Vector2 = look["head"]
 	for r in both(v, half.x - length - head_extra, half.x - 1.0, head.x, head.y):
 		var lamp := PixelCanvas.rounded(r, roundi(head_round * k))
-		c.fill(lamp, VehicleConfig.headlight_color, head_height)
-		c.bevel(lamp, 1, 1, Color.WHITE, VehicleConfig.headlight_color.darkened(0.3))
-		c.outline(lamp, VehicleConfig.trim_color)
+		c.fill(lamp, VehicleArtConfig.headlight_color, head_height)
+		c.bevel(lamp, 1, 1, Color.WHITE, VehicleArtConfig.headlight_color.darkened(0.3))
+		c.outline(lamp, VehicleArtConfig.trim_color)
 	for rect: Rect2 in tail_lamps(row, look):
 		var lamp := PixelCanvas.rounded(
 			box(v, rect.position.x, rect.end.x, rect.position.y, rect.end.y),
 			roundi(1 * k),
 		)
-		c.fill(lamp, VehicleConfig.tail_off_color, tail_height)
-		c.outline(lamp, VehicleConfig.trim_color)
+		c.fill(lamp, VehicleArtConfig.tail_off_color, tail_height)
+		c.outline(lamp, VehicleArtConfig.trim_color)
 
 
 ## The tail lights (vehicle-frame rects, left then right): at the tail's corners, the `looks` row's
@@ -238,7 +238,7 @@ static func seats(v: VehiclePaint, rear_x: float) -> void:
 static func _seat(v: VehiclePaint, p: Vector2, bench: bool) -> void:
 	var c := v.canvas
 	var k := v.k
-	var cloth := VehicleConfig.seat_color
+	var cloth := VehicleArtConfig.seat_color
 	var t := PixelCanvas.tones(cloth)
 	var half := 13.0 if bench else 11.0
 	var cushion := PixelCanvas.rounded(
@@ -273,7 +273,7 @@ static func dashboard(v: VehiclePaint, half: float) -> void:
 	var dash: Vector2 = v.look["dash"]
 	var wheel_x: float = v.look["wheel"]
 	var driver: Vector2 = v.row["seats"][&"driver"]
-	var trim := VehicleConfig.trim_color
+	var trim := VehicleArtConfig.trim_color
 	var t := PixelCanvas.tones(trim.lightened(0.12))
 	var board := PixelCanvas.rounded(box(v, dash.x, dash.y, -half, half), roundi(3 * v.k))
 	c.fill(board, t["base"], 5)
@@ -300,7 +300,7 @@ static func sills(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var doors: Array = v.row["doors"]
 	var belt: float = v.look["belt"]
-	var sill := VehicleConfig.interior_color.darkened(0.25)
+	var sill := VehicleArtConfig.interior_color.darkened(0.25)
 	for def: Dictionary in doors:
 		var hinge: Vector2 = def["hinge"]
 		var length: float = door_frame(def)["length"]

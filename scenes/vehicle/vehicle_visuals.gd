@@ -93,10 +93,10 @@ func _warm_ahead() -> void:
 
 ## The rounded inputs the layer was last painted for.
 func _key() -> PackedInt32Array:
-	var step := VehicleConfig.redraw_step
+	var step := VehicleArtConfig.redraw_step
 	var key := PackedInt32Array([
 		_light_step(global_rotation + BODY_TURN),
-		roundi(global_rotation / VehicleConfig.redraw_turn_step),
+		roundi(global_rotation / VehicleArtConfig.redraw_turn_step),
 	])
 	for d in _vehicle.door_list():
 		key.append(roundi(d.amount() / step))
@@ -134,7 +134,7 @@ func _draw_wheels() -> void:
 	for x: float in [row["axle_front"], row["axle_rear"]]:
 		var angle: float = BODY_TURN + (_vehicle.wheel_angle() if x == row["axle_front"] else 0.0)
 		var tex := PixelArt.render_turned(
-			WheelPainter, size, VehicleConfig.tyre_color, _lit(angle), RUBBER,
+			WheelPainter, size, VehicleArtConfig.tyre_color, _lit(angle), RUBBER,
 		)
 		for side in [-1.0, 1.0]:
 			draw_set_transform(Vector2(x, side * (half.y - wheel.y * 0.35)), angle)
@@ -187,7 +187,7 @@ func _draw_door_glass() -> void:
 	for d in _vehicle.door_list():
 		if not glazed.has(d.id):
 			continue
-		var alpha := 1.0 - clampf(d.amount() / maxf(VehicleConfig.glass_fade, 0.01), 0.0, 1.0)
+		var alpha := 1.0 - clampf(d.amount() / maxf(VehicleArtConfig.glass_fade, 0.01), 0.0, 1.0)
 		if alpha <= 0.0:
 			continue
 		var rect: Rect2 = DoorPainter.glass_rect(_vehicle.kind, d.id)
@@ -223,7 +223,7 @@ func _draw_brake_lights() -> void:
 	if not _vehicle.brake_lights():
 		return
 	draw_set_transform(Vector2.ZERO)
-	var glow := VehicleConfig.brake_glow
+	var glow := VehicleArtConfig.brake_glow
 	for rect: Rect2 in Art.tail_lamps(_vehicle.row(), VehicleConfig.looks[_vehicle.kind]):
 		draw_rect(
 			Rect2(rect.position + Vector2(-5.0, -2.0), rect.size + Vector2(5.0, 4.0)),
@@ -233,7 +233,7 @@ func _draw_brake_lights() -> void:
 	for rect: Rect2 in Art.tail_lamps(_vehicle.row(), VehicleConfig.looks[_vehicle.kind]):
 		var size := Vector2(rect.size.y, rect.size.x)
 		var tex := PixelArt.render_turned(
-			LampPainter, size, VehicleConfig.tail_on_color, _lit(BODY_TURN), GLASS,
+			LampPainter, size, VehicleArtConfig.tail_on_color, _lit(BODY_TURN), GLASS,
 		)
 		draw_set_transform(rect.get_center(), BODY_TURN)
 		draw_texture_rect(tex, Rect2(-size * 0.5, size), false)

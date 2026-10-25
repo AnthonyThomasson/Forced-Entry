@@ -207,8 +207,8 @@ which no game code listens to: its readers are the test runner's event log and t
     never moved can't drag the camera. `pan_enabled` off removes the pan (wheel still works); the
     test runner turns it off for a world with a human-driven player, where WASD walks.
 - **Zoom out while driving** (both modes): `_drive_zoom_out(who)` reads `who.vehicle().view_zoom_out()` duck-typed (`has_method` on the
-  target and on what `vehicle()` returns; 0 on foot, clamped to 0..0.9), never `VehicleConfig`. Following, `_ease_zoom(1 − that)` scales the
-  automatic zoom down, so the view widens with the vehicle's speed (`VehicleConfig.drive_zoom_out`, 0.35, at its top speed) and eases back
+  target and on what `vehicle()` returns; 0 on foot, clamped to 0..0.9), never `VehicleDriveConfig`. Following, `_ease_zoom(1 − that)` scales the
+  automatic zoom down, so the view widens with the vehicle's speed (`VehicleDriveConfig.zoom_out`, 0.35, at its top speed) and eases back
   in as it slows, at the follow easing; framing, the largest among the live framed targets is used. The wheel's `_zoom_bias` multiplies on
   top. Test: `tests/general/camera_zooms_out_driving_test.gd`.
 - **Explosion shake** (`&"explosion"` on the EventBus, both modes): a burst adds trauma (0..1) = `shake_frag` (1.0) / `shake_stun` (0.5) times

@@ -17,7 +17,8 @@ test's category is the folder between its domain and its file"), which fails the
 (`vehicle/top_speed`, `vehicle/launch_and_brake`): tops 1280 / 880; 0 → 640 in 0.75 s, van 0 → 440 in 0.97 s; stop from the top
 1.42 / 1.70 s.
 
-All distances are px, speeds px/s and times seconds. The numbers are `VehicleConfig`'s (`scenes/vehicle/vehicle_config.gd`). A
+All distances are px, speeds px/s and times seconds. The numbers are the Vehicles holders' (`scenes/vehicle/vehicle_*_config.gd`: `VehicleConfig`'s per-kind rows and the
+shared `VehicleBoardingConfig`, `VehicleDoorConfig`, `VehicleDriveConfig`, `VehicleCollisionConfig`, `VehicleArtConfig`). A
 vehicle's own frame has x forward (its nose) and y toward its right side.
 
 ## Behaviours
@@ -50,12 +51,12 @@ doors leads to a cargo seat).
 1. The character walks with its own walk cycle (never running) round the body to a stand point just outside the handle, clear of the
    door's swing, turning at `turn_rate` **9** rad/s to face the door over the last stretch. A walk that has not arrived in `walk_timeout`
    **4** (something is in the way), or a vehicle that starts to move, gives the boarding up and frees the seat.
-2. The door eases open: a swing door on its front hinge (`door_open_time` **0.35**, eased out); the van's sliding door rolls back
+2. The door eases open: a swing door on its front hinge (`VehicleDoorConfig.open_time` **0.35**, eased out); the van's sliding door rolls back
    along the body (`slide_time` **0.5**); its rear doors swing out behind about the back corners.
 3. Once the door is open and the character faces it (within `face_tolerance` **0.25** rad), it steps into the gap (eased, its peak
    speed under its walk), turns to face forward and folds down into the seat (`fold_time` **0.5**, eased: the crouch fold carried on
    to seated).
-4. The door eases shut behind it (`door_close_time` **0.35**, gathering speed into the slam).
+4. The door eases shut behind it (`VehicleDoorConfig.close_time` **0.35**, gathering speed into the slam).
 
 The character's position, facing and fold change continuously every frame (no teleport). Seated, it is drawn between the vehicle's
 chassis layer (under it) and its roof layer (over it): only the part under the tinted, see-through glass shows. The two layers take their
@@ -183,7 +184,7 @@ brighter than the brightest reload take and keeps over 0.75 of its energy under 
 within the library's time budget).
 
 **V8. Camera.** The camera follows the character, which the seat carries. While it is aboard a moving vehicle the zoom eases out with the
-vehicle's speed (`drive_zoom_out` **0.35** at the top speed, in proportion below it) and back in as it slows.
+vehicle's speed (`VehicleDriveConfig.zoom_out` **0.35** at the top speed, in proportion below it) and back in as it slows.
 Tests: `general/camera_zooms_out_driving` (the on-foot zoom while parked, zoomed out at 35 % of the car's top speed and further at 70 %,
 back to the on-foot zoom once stopped, still following the driver).
 
@@ -197,7 +198,7 @@ vehicle; nothing under
 
 ## How the rules are enforced
 
-- **Vehicles** (`scenes/vehicle/`): `VehicleConfig` (the numbers, one `kinds` and one `looks` row per kind), `vehicle.gd` (the body, the
+- **Vehicles** (`scenes/vehicle/`): `VehicleConfig` (one `kinds` and one `looks` row per kind) and the topic holders (the shared numbers), `vehicle.gd` (the body, the
   contract, seats and doors, contacts and harm, the hittable, the events), `vehicle_drive.gd` (the bicycle), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
   character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
@@ -205,7 +206,7 @@ vehicle; nothing under
   over the ride, `current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE_VEHICLE` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
   the puppet's `use_vehicle()` and `drive(throttle, steer, handbrake)`.
-- **The tests reach all of it duck-typed** (`has_method`, `call`, groups, `VehicleConfig` read by name), so a read that is missing fails a
+- **The tests reach all of it duck-typed** (`has_method`, `call`, groups, the Vehicles holders read by name), so a read that is missing fails a
   `require` instead of a script error.
 
 ## Numbers

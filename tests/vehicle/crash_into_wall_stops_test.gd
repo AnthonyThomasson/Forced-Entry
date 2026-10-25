@@ -28,8 +28,8 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	var crash_min: Variant = Probe.config_value(&"VehicleConfig", &"crash_min_speed")
-	if not t.require(crash_min != null, "VehicleConfig.crash_min_speed exists"):
+	var crash_min: Variant = Probe.config_value(&"VehicleCollisionConfig", &"crash_min_speed")
+	if not t.require(crash_min != null, "VehicleCollisionConfig.crash_min_speed exists"):
 		return
 	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
 		return

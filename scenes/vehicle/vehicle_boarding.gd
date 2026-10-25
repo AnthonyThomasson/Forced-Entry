@@ -86,7 +86,13 @@ func step(delta: float) -> void:
 			_wait_for_door(delta)
 		Phase.STEP_IN:
 			if _pose(delta):
-				_begin_pose(Phase.FOLD, vehicle.seat_point(seat), VehicleConfig.fold_time, 1.0, 0.0)
+				_begin_pose(
+					Phase.FOLD,
+					vehicle.seat_point(seat),
+					VehicleBoardingConfig.fold_time,
+					1.0,
+					0.0,
+				)
 		Phase.FOLD:
 			if _pose(delta):
 				_sit()
@@ -107,8 +113,8 @@ func step(delta: float) -> void:
 			_pose(delta)
 			if _exit_door.is_open():
 				_begin_pose(
-					Phase.UNFOLD, _exit_door.entry_point(character.radius), VehicleConfig.fold_time,
-					0.0, _exit_door.outward.angle(),
+					Phase.UNFOLD, _exit_door.entry_point(character.radius),
+					VehicleBoardingConfig.fold_time, 0.0, _exit_door.outward.angle(),
 				)
 		Phase.UNFOLD:
 			if _pose(delta):
@@ -135,7 +141,7 @@ func is_done() -> bool:
 func request_exit() -> void:
 	if phase != Phase.SEATED:
 		return
-	_braking = seat == &"driver" and vehicle.speed() > VehicleConfig.exit_max_speed
+	_braking = seat == &"driver" and vehicle.speed() > VehicleBoardingConfig.exit_max_speed
 	phase = Phase.BRAKE
 
 
@@ -153,7 +159,8 @@ func abandon() -> void:
 ## starts moving or the walk does not arrive in time (something stands in the way).
 func _walk(delta: float) -> void:
 	_clock += delta
-	if vehicle.speed() >= VehicleConfig.board_max_speed or _clock > VehicleConfig.walk_timeout:
+	if (vehicle.speed() >= VehicleBoardingConfig.board_max_speed
+			or _clock > VehicleBoardingConfig.walk_timeout):
 		_give_up()
 		return
 	var pos: Vector2 = character.global_position
@@ -177,12 +184,12 @@ func _walk(delta: float) -> void:
 func _wait_for_door(delta: float) -> void:
 	character.move_input = Vector2.ZERO
 	character.run_input = false
-	if vehicle.speed() >= VehicleConfig.board_max_speed:
+	if vehicle.speed() >= VehicleBoardingConfig.board_max_speed:
 		_give_up()
 		return
 	var want := _to_handle()
 	_turn(want, delta)
-	if door.is_open() and absf(_facing.angle_to(want)) <= VehicleConfig.face_tolerance:
+	if door.is_open() and absf(_facing.angle_to(want)) <= VehicleBoardingConfig.face_tolerance:
 		_heading = _facing.rotated(-vehicle.global_rotation).angle()
 		_posed = vehicle.to_local(character.global_position)
 		var entry := door.entry_point(character.radius)
@@ -197,7 +204,11 @@ func _sit() -> void:
 	if seat == &"passenger" and vehicle.is_free(&"driver"):
 		vehicle.reserve(character, &"driver")
 		_begin_pose(
-			Phase.SHIFT_SEAT, vehicle.seat_point(&"driver"), VehicleConfig.shift_time, 1.0, 0.0
+			Phase.SHIFT_SEAT,
+			vehicle.seat_point(&"driver"),
+			VehicleBoardingConfig.shift_time,
+			1.0,
+			0.0,
 		)
 		return
 	_start_if_driving()
@@ -247,10 +258,10 @@ func _brake(_delta: float) -> void:
 	_hold_seat()
 	character.move_input = Vector2.ZERO
 	character.run_input = false
-	if _braking and vehicle.speed() >= VehicleConfig.stop_speed:
+	if _braking and vehicle.speed() >= VehicleDriveConfig.stop_speed:
 		vehicle.brake_input(character)
 		return
-	if not _braking and vehicle.speed() > VehicleConfig.exit_max_speed:
+	if not _braking and vehicle.speed() > VehicleBoardingConfig.exit_max_speed:
 		return
 	_braking = false
 	_exit_door = vehicle.exit_door(character, seat, door)
@@ -261,7 +272,11 @@ func _brake(_delta: float) -> void:
 		vehicle.stop_engine()
 	if _exit_door.seat != seat:
 		_begin_pose(
-			Phase.SHIFT_OUT, vehicle.seat_point(_exit_door.seat), VehicleConfig.shift_time, 1.0, 0.0
+			Phase.SHIFT_OUT,
+			vehicle.seat_point(_exit_door.seat),
+			VehicleBoardingConfig.shift_time,
+			1.0,
+			0.0,
 		)
 	else:
 		_open_out()
@@ -306,7 +321,7 @@ func _pose(delta: float) -> bool:
 	var k := smoothstep(0.0, 1.0, clampf(_clock / maxf(_duration, 0.001), 0.0, 1.0))
 	var at := _from.lerp(_to, k)
 	var fold := lerpf(_fold_from, _fold_to, k)
-	_heading = rotate_toward(_heading, _turn_to, VehicleConfig.turn_rate * delta)
+	_heading = rotate_toward(_heading, _turn_to, VehicleBoardingConfig.turn_rate * delta)
 	# The legs step with the motion through the vehicle's frame, less the further they are folded.
 	var stepped := ((at - _posed).rotated(vehicle.global_rotation) / maxf(delta, 0.001)
 			* (1.0 - fold))
@@ -318,8 +333,8 @@ func _pose(delta: float) -> bool:
 ## How long a step from `a` to `b` (vehicle frame) takes at the stepping pace: its eased peak stays
 ## under the walk.
 func _step_time(a: Vector2, b: Vector2) -> float:
-	var pace := maxf(float(character.speed) * VehicleConfig.step_pace, 1.0)
-	return maxf(VehicleConfig.step_min_time, 1.5 * a.distance_to(b) / pace)
+	var pace := maxf(float(character.speed) * VehicleBoardingConfig.step_pace, 1.0)
+	return maxf(VehicleBoardingConfig.step_min_time, 1.5 * a.distance_to(b) / pace)
 
 
 ## The world facing of heading `angle` in the vehicle's frame.
@@ -331,7 +346,7 @@ func _world_facing(angle: float) -> Vector2:
 ## rate, through its aim (a standing character faces its aim at once).
 func _turn(want: Vector2, delta: float) -> void:
 	if want.length_squared() > 0.0001:
-		var most := VehicleConfig.turn_rate * delta
+		var most := VehicleBoardingConfig.turn_rate * delta
 		_facing = _facing.rotated(clampf(_facing.angle_to(want), -most, most)).normalized()
 	character.aim_point = character.global_position + _facing * 64.0
 
@@ -360,7 +375,7 @@ func _left_to_walk(pos: Vector2) -> float:
 ## is shorter.
 func _path(from: Vector2, to: Vector2) -> Array[Vector2]:
 	var half: Vector2 = (vehicle.half_size()
-			+ Vector2.ONE * (float(character.radius) + VehicleConfig.walk_margin))
+			+ Vector2.ONE * (float(character.radius) + VehicleBoardingConfig.walk_margin))
 	var straight: Array[Vector2] = [to]
 	if not _crosses(from, to, half):
 		return straight

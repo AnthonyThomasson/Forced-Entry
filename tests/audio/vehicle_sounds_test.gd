@@ -107,8 +107,8 @@ func run(t: TestContext) -> void:
 		return
 
 	# --- Crashes: louder the faster.
-	var crash_min: Variant = Probe.config_value(&"VehicleConfig", &"crash_min_speed")
-	if not t.require(crash_min != null, "VehicleConfig.crash_min_speed exists"):
+	var crash_min: Variant = Probe.config_value(&"VehicleCollisionConfig", &"crash_min_speed")
+	if not t.require(crash_min != null, "VehicleCollisionConfig.crash_min_speed exists"):
 		return
 	await _check_crashes(t, float(crash_min))
 	await _check_bump(t, float(crash_min))

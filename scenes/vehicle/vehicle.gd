@@ -97,9 +97,9 @@ func _ready() -> void:
 	for id in _row["seats"]:
 		_seats[id] = null
 	_deformable = Deformable.new()
-	_deformable.max_depth = VehicleConfig.dent_max_depth
+	_deformable.max_depth = VehicleCollisionConfig.dent_max_depth
 	_deformable.allow_chunks = false
-	_deformable.max_impacts = VehicleConfig.dent_max_impacts
+	_deformable.max_impacts = VehicleCollisionConfig.dent_max_impacts
 	add_child(_deformable)
 
 
@@ -148,7 +148,7 @@ func driver() -> Node:
 func board(character: Node2D, door_id: StringName) -> RefCounted:
 	var by := _door(door_id)
 	if (by == null
-			or speed() >= VehicleConfig.board_max_speed
+			or speed() >= VehicleBoardingConfig.board_max_speed
 			or _rides.has(character)
 			or not is_free(by.seat)):
 		return null
@@ -207,10 +207,10 @@ func brake_lights() -> bool:
 	return _drive.braking
 
 
-## How far a camera following someone aboard zooms out (V8): `VehicleConfig.drive_zoom_out` at the
+## How far a camera following someone aboard zooms out (V8): `VehicleDriveConfig.zoom_out` at the
 ## top speed, in proportion below it, none at rest.
 func view_zoom_out() -> float:
-	return VehicleConfig.drive_zoom_out * clampf(speed() / float(_row["top_speed"]), 0.0, 1.0)
+	return VehicleDriveConfig.zoom_out * clampf(speed() / float(_row["top_speed"]), 0.0, 1.0)
 
 
 # --- Hittable contract (interface 3) -----------------------------------------------------
@@ -387,7 +387,7 @@ func _read_contacts(state: PhysicsDirectBodyState2D) -> void:
 			_meet(state, struck[id], done)
 	_touching = touching
 	for id in _piled.keys():
-		if _clock - float(_piled[id]) > VehicleConfig.rehit_time:
+		if _clock - float(_piled[id]) > VehicleCollisionConfig.rehit_time:
 			_piled.erase(id)
 
 
@@ -439,7 +439,7 @@ func _meet(state: PhysicsDirectBodyState2D, hit: Dictionary, done: Dictionary) -
 		done[(member["body"] as Node).get_instance_id()] = true
 	if pile.get("people", 0) > 0:
 		_strike_pile(state, hit, pile)
-	elif hit["new"] and hit["speed"] > VehicleConfig.crash_min_speed:
+	elif hit["new"] and hit["speed"] > VehicleCollisionConfig.crash_min_speed:
 		_post_crash(hit, body, hit["speed"])
 
 
@@ -495,7 +495,7 @@ func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictio
 		return
 	if pile["blocked"] != null:
 		# Pinned: the vehicle stops as the solver stopped it, as on a wall.
-		if hit["new"] and closing > VehicleConfig.crash_min_speed:
+		if hit["new"] and closing > VehicleCollisionConfig.crash_min_speed:
 			_post_crash(hit, pile["blocked"], closing)
 	else:
 		_shove_pile(state, hit, members, closing, pile_speed)
@@ -516,7 +516,7 @@ func _shove_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, members: Arra
 	var bounce := 0.0
 	if hit["new"]:
 		var first_is_character: bool = (members[0] as Dictionary)["character"]
-		bounce = VehicleConfig.harm_bounce if first_is_character else float(_row["bounce"])
+		bounce = VehicleCollisionConfig.harm_bounce if first_is_character else float(_row["bounce"])
 	var impulse := (1.0 + bounce) * closing * mass * pile_mass / (mass + pile_mass)
 	var along := _last_velocity.dot(normal) - impulse / mass
 	state.linear_velocity += normal * (along - state.linear_velocity.dot(normal))
@@ -578,7 +578,7 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 	var exclude: Array[RID] = [get_rid(), first.get_rid()]
 	var blocked: Node = null
 	var i := 0
-	while i < members.size() and members.size() < VehicleConfig.pile_depth:
+	while i < members.size() and members.size() < VehicleCollisionConfig.pile_depth:
 		var member: Dictionary = members[i]
 		i += 1
 		var found := _pressed_by(member, normal, exclude)
@@ -588,7 +588,7 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 		var through: float = (member["through"]
 				+ (0.0 if member["character"] else float(member["mass"])))
 		for body: Node in found.get("bodies", []):
-			if members.size() >= VehicleConfig.pile_depth:
+			if members.size() >= VehicleCollisionConfig.pile_depth:
 				break
 			exclude.append(body.get_rid())
 			members.append({
@@ -627,7 +627,10 @@ func _pressed_by_character(space: PhysicsDirectSpaceState2D,
 		query: PhysicsShapeQueryParameters2D, body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
 	(query.shape as CircleShape2D).radius = body.radius
-	query.transform = Transform2D(0.0, body.global_position + normal * VehicleConfig.pile_gap)
+	query.transform = Transform2D(
+		0.0,
+		body.global_position + normal * VehicleCollisionConfig.pile_gap,
+	)
 	var met := space.intersect_shape(query, 8)
 	for result: Dictionary in met:
 		var other := result["collider"] as Node2D
@@ -656,7 +659,7 @@ static func _alive_ahead(other: Node2D, body: Node2D, normal: Vector2) -> bool:
 func _pressing_piece(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
 		body: Node2D, normal: Vector2) -> Dictionary:
 	var bodies: Array = []
-	(query.shape as CircleShape2D).radius = VehicleConfig.pile_reach
+	(query.shape as CircleShape2D).radius = VehicleCollisionConfig.pile_reach
 	query.transform = Transform2D(0.0, body.global_position)
 	for result: Dictionary in space.intersect_shape(query, 16):
 		var other := result["collider"] as Node2D
@@ -678,7 +681,10 @@ func _presses(space: PhysicsDirectSpaceState2D, other: Node2D, piece: Node2D,
 	own.radius = other.radius
 	back.shape = own
 	back.collision_mask = PhysicsLayers.SOLID
-	back.transform = Transform2D(0.0, other.global_position - normal * VehicleConfig.pile_gap)
+	back.transform = Transform2D(
+		0.0,
+		other.global_position - normal * VehicleCollisionConfig.pile_gap,
+	)
 	back.exclude = [get_rid(), other.get_rid()]
 	for touched: Dictionary in space.intersect_shape(back, 8):
 		if touched["collider"] == piece:
@@ -729,10 +735,10 @@ func _apply_struck() -> void:
 		var closing: float = hit["harm"]
 		if not character or closing <= 0.0:
 			continue
-		if closing > VehicleConfig.crash_min_speed:
+		if closing > VehicleCollisionConfig.crash_min_speed:
 			_post(&"bump_character", hit["position"], { "speed": closing })
 		var harm := inverse_lerp(
-			VehicleConfig.harm_min_speed, VehicleConfig.harm_kill_speed, closing,
+			VehicleCollisionConfig.harm_min_speed, VehicleCollisionConfig.harm_kill_speed, closing,
 		)
 		if harm > 0.0:
 			body.take_damage(float(body.health) * minf(harm, 1.0))
@@ -768,9 +774,10 @@ static func _is_piece(body: Node) -> bool:
 
 ## Post a `skid` start when the tyres begin to slide and a stop when they grip again.
 func _update_skid() -> void:
-	var sliding := (_drive.slip
-				> (VehicleConfig.skid_stop_slip if _skidding else VehicleConfig.skid_start_slip)
-			and speed() > VehicleConfig.stop_speed)
+	var threshold := (
+		VehicleDriveConfig.skid_stop_slip if _skidding else VehicleDriveConfig.skid_start_slip
+	)
+	var sliding := _drive.slip > threshold and speed() > VehicleDriveConfig.stop_speed
 	if sliding == _skidding:
 		return
 	_skidding = sliding
