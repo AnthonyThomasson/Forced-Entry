@@ -48,6 +48,11 @@ func run(t: TestContext) -> void:
 		await t.until(func(): return String(brain.current_act()).contains("advance"), 10.0),
 		"the runner advances (%s)" % brain.current_act(),
 	)
+	await _check_runs(t, runner, walker)
+	await _check_shots(t, runner)
+
+
+func _check_runs(t: TestContext, runner: Node, walker: Node) -> void:
 	var top_runner := 0.0
 	var top_walker := 0.0
 	for i in 90:
@@ -66,6 +71,8 @@ func run(t: TestContext) -> void:
 		"running spent stamina (%.2f)" % runner.stamina_fraction(),
 	)
 
+
+func _check_shots(t: TestContext, runner: Node) -> void:
 	# Into range: the shot is available, so the run ends and the shots come while it is still
 	# closing in.
 	var hostile := t.actor(&"far_a")

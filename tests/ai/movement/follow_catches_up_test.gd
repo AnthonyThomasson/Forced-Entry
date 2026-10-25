@@ -83,50 +83,15 @@ func run(t: TestContext) -> void:
 		return
 	if not t.require(squad.follows(m), "premise: the NPC follows the human (Squad.follows)"):
 		return
-	var puppet := t.puppet(&"me")
-	var w := Follow.new_watch()
-	# One sample a frame: `[sim s, px off its spot, running, stamina]`.
-	var samples: Array = []
-	var step_in := { "state": "waiting" }
-	puppet.walk_to(PAUSE_AT)
-	await _watch(t, w, squad, samples, step_in, func(): return puppet.has_arrived(), 30.0)
-	puppet.aim_at(FROM)
-	var pause_end := t.time + PAUSE_S
-	await _watch(t, w, squad, samples, step_in, func(): return t.time >= pause_end, PAUSE_S + 1.0)
-	puppet.aim_at(TO)
-	puppet.walk_to(TO)
-	var walked_on := t.time
-	await _watch(t, w, squad, samples, step_in, func(): return puppet.has_arrived(), 30.0)
-
-	if not t.require(
-			Follow.took(w, m, "follow"),
-			"the NPC follows the human (FOLLOW; acts %s)" % Follow.acts_of(w, m),
-	):
+	var rec := Record.new()
+	rec.squad = squad
+	rec.w = Follow.new_watch()
+	var walked_on := await _walk(t, rec)
+	if not _walked(t, rec, m):
 		return
-	if not t.require(puppet.has_arrived(), "premise: the human walked to the end of the hall"):
-		return
-	if not t.require(
-			step_in["state"] == "done" and float(step_in["stood_off"]) <= Follow.FOLLOW_STEP,
-			"premise: the teammate stepped into the NPC's catch-up and the NPC stood for it within "
-				+ "%.0f px of its spot (%s)" % [Follow.FOLLOW_STEP, step_in],
-	):
-		return
-	var runs := _runs(samples)
-	var catch_ups: Array = runs.filter(func(r): return float(r["stamina"]) >= RUN_START)
-	var stepped_into: Array = runs.filter(func(r): return float(r["end"]) >= float(step_in["at"]))
-	if not t.require(
-			not stepped_into.is_empty() and float(stepped_into[0]["stamina"]) >= RUN_START,
-			"premise: the catch-up the teammate stepped into ended with stamina to spare, so it "
-				+ "is judged (runs %s)" % [runs],
-	):
-		return
-	if not t.require(
-			catch_ups.size() >= 2
-				and catch_ups.any(func(r): return float(r["end"]) < walked_on)
-				and catch_ups.any(func(r): return float(r["end"]) >= walked_on),
-			"premise: the NPC ran to catch up at least twice, before the human walked on from its "
-				+ "pause at %.1f s and after (runs %s)" % [walked_on, runs],
-	):
+	var runs := _runs(rec.samples)
+	var catch_ups := _catch_ups(t, runs, rec.step_in, walked_on)
+	if catch_ups.is_empty():
 		return
 	var short: Array = catch_ups.filter(
 		func(r): return float(r["closest"]) > Follow.FOLLOW_CAUGHT_UP
@@ -143,29 +108,81 @@ func run(t: TestContext) -> void:
 		"the squad's follow_caught_up is LD21's (%s, not %s)"
 			% [tuned, Follow.FOLLOW_CAUGHT_UP],
 	)
-	t.expect_eq(Follow.asked(w, m), 0, "the follower asked Von nothing")
+	t.expect_eq(Follow.asked(rec.w, m), 0, "the follower asked Von nothing")
 
 
-## Sample the human and the NPC every physics frame into `w` and `samples` until `done` holds (at
-## most `limit_s` sim s), putting the teammate into the NPC's first catch-up as `step_in` says.
-func _watch(
-		t: TestContext,
-		w: Dictionary,
-		squad: Node,
-		samples: Array,
-		step_in: Dictionary,
-		done: Callable,
-		limit_s: float,
-) -> void:
+## The human's walk: to `PAUSE_AT`, a pause looking back at `FROM`, then on to `TO`, watched all the
+## way; when it walked on from the pause (sim s).
+func _walk(t: TestContext, rec: Record) -> float:
+	var puppet := t.puppet(&"me")
+	puppet.walk_to(PAUSE_AT)
+	await _watch(t, rec, func(): return puppet.has_arrived(), 30.0)
+	puppet.aim_at(FROM)
+	var pause_end := t.time + PAUSE_S
+	await _watch(t, rec, func(): return t.time >= pause_end, PAUSE_S + 1.0)
+	puppet.aim_at(TO)
+	puppet.walk_to(TO)
+	var walked_on := t.time
+	await _watch(t, rec, func(): return puppet.has_arrived(), 30.0)
+	return walked_on
+
+
+## The premises of the walk: the NPC followed, the human reached the end of the hall and the
+## teammate stepped into the NPC's catch-up; false when one fails.
+func _walked(t: TestContext, rec: Record, m: Node) -> bool:
+	if not t.require(
+			Follow.took(rec.w, m, "follow"),
+			"the NPC follows the human (FOLLOW; acts %s)" % Follow.acts_of(rec.w, m),
+	):
+		return false
+	if not t.require(
+			t.puppet(&"me").has_arrived(),
+			"premise: the human walked to the end of the hall",
+	):
+		return false
+	var step_in := rec.step_in
+	return t.require(
+		step_in["state"] == "done" and float(step_in["stood_off"]) <= Follow.FOLLOW_STEP,
+		"premise: the teammate stepped into the NPC's catch-up and the NPC stood for it within "
+			+ "%.0f px of its spot (%s)" % [Follow.FOLLOW_STEP, step_in],
+	)
+
+
+## The catch-up runs of `runs` (those that ended with stamina to spare), once the one the teammate
+## stepped into is one and there are some before and after the human walked on at `walked_on`;
+## empty when a premise fails.
+func _catch_ups(t: TestContext, runs: Array, step_in: Dictionary, walked_on: float) -> Array:
+	var catch_ups: Array = runs.filter(func(r): return float(r["stamina"]) >= RUN_START)
+	var stepped_into: Array = runs.filter(func(r): return float(r["end"]) >= float(step_in["at"]))
+	if not t.require(
+			not stepped_into.is_empty() and float(stepped_into[0]["stamina"]) >= RUN_START,
+			"premise: the catch-up the teammate stepped into ended with stamina to spare, so it "
+				+ "is judged (runs %s)" % [runs],
+	):
+		return []
+	if not t.require(
+			catch_ups.size() >= 2
+				and catch_ups.any(func(r): return float(r["end"]) < walked_on)
+				and catch_ups.any(func(r): return float(r["end"]) >= walked_on),
+			"premise: the NPC ran to catch up at least twice, before the human walked on from its "
+				+ "pause at %.1f s and after (runs %s)" % [walked_on, runs],
+	):
+		return []
+	return catch_ups
+
+
+## Sample the human and the NPC every physics frame into `rec` until `done` holds (at most
+## `limit_s` sim s), putting the teammate into the NPC's first catch-up as `rec.step_in` says.
+func _watch(t: TestContext, rec: Record, done: Callable, limit_s: float) -> void:
 	var me := t.actor(&"me")
 	var m := t.actor(&"m")
 	var end := t.time + limit_s
 	while not done.call() and t.time < end:
-		Follow.tick(w, t, [me, m], squad)
-		var spot: Vector2 = squad.follow_spot(m)
+		Follow.tick(rec.w, t, [me, m], rec.squad)
+		var spot: Vector2 = rec.squad.follow_spot(m)
 		var d: float = m.global_position.distance_to(spot)
-		samples.append([t.time, d, m.is_running(), m.stamina_fraction()])
-		_step_in(t, step_in, m, spot, d)
+		rec.samples.append([t.time, d, m.is_running(), m.stamina_fraction()])
+		_step_in(t, rec.step_in, m, spot, d)
 		t.trace("off spot", d)
 		await t.frames(1)
 
@@ -227,3 +244,13 @@ func _run_end(samples: Array, i: int) -> Dictionary:
 		"closest": snappedf(closest, 0.1),
 		"stamina": snappedf(float(samples[i][3]), 0.01),
 	}
+
+
+## What the walk is watched into: the team's record (`Follow.tick`) with the squad that names the
+## leader, one sample a frame (`[sim s, px off its spot, running, stamina]`) and the teammate's step
+## into the NPC's way (`_step_in`).
+class Record:
+	var w: Dictionary = {}
+	var squad: Node
+	var samples: Array = []
+	var step_in: Dictionary = { "state": "waiting" }

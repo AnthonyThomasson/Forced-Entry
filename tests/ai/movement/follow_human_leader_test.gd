@@ -55,44 +55,84 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var squad := t.squad(&"invader")
 	var me := t.actor(&"me")
-	if not t.require(squad.leader() == me, "the human leads (premise: Lead the team)"):
+	var members := _members(t, squad, me)
+	if members.is_empty():
 		return
+	await t.seconds(1.5)
+	var nodes: Array = [me] + members
+	var w := Follow.new_watch()
+	# Per follower: how far its spot lies behind the human on the straight legs (`spacing`), and how
+	# far each re-aim of its walk moved where it was going (`reaims`, from `aimed`); `viewed` is
+	# `squad.view()` mid-walk, with where the human stood then.
+	var rec := { "spacing": {}, "reaims": {}, "aimed": {}, "viewed": {} }
+	await _walk_route(t, squad, nodes, w, rec)
+	await _stand(t, squad, nodes, w, rec)
+
+	_check_ring(t, me, members, w, float(rec["stopped_at"]))
+	_check_file(t, members, rec)
+	t.check(rec["rang"], "both rang the human within %.1f s of its standing still" % RING_WITHIN)
+	_check_tunables(t, squad)
+	_check_view(t, members, rec["viewed"])
+	t.check(
+		members.all(func(m): return Follow.asked(w, m) == 0),
+		"the followers asked Von nothing (%s)"
+			% str(members.map(func(m): return Follow.asked(w, m))),
+	)
+
+
+## The two NPC teammates, once the human leads and both follow it; empty when a premise fails.
+func _members(t: TestContext, squad: Node, me: Node) -> Array:
+	if not t.require(squad.leader() == me, "the human leads (premise: Lead the team)"):
+		return []
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	if not t.require(
 			members.all(func(m): return squad.follows(m)),
 			"premise: both NPCs follow the human (Squad.follows)",
 	):
-		return
-	await t.seconds(1.5)
-	var nodes: Array = [me] + members
-	var w := Follow.new_watch()
+		return []
+	return members
+
+
+## The human walks `ROUTE`, the team sampled into `w` and `rec` every frame.
+func _walk_route(t: TestContext, squad: Node, nodes: Array, w: Dictionary, rec: Dictionary) -> void:
+	var me: Node = nodes[0]
+	var members: Array = nodes.slice(1)
 	var puppet := t.puppet(&"me")
-	# Per follower: how far its spot lies behind the human on the straight legs, and how far each
-	# re-aim of its walk moved where it was going.
-	var spacing := {}
-	var reaims := {}
-	var aimed := {}
-	var viewed := {}  # `squad.view()` mid-walk, with where the human stood then.
 	for m: Node in members:
-		spacing[m] = []
-		reaims[m] = []
+		rec["spacing"][m] = []
+		rec["reaims"][m] = []
 	for leg in ROUTE.size():
 		var point: Vector2 = ROUTE[leg]
 		puppet.aim_at(point)
 		puppet.walk_to(point)
 		while not puppet.has_arrived() and t.time < 60.0:
 			Follow.tick(w, t, nodes, squad)
-			if leg == 1 and viewed.is_empty() and me.global_position.x <= VIEW_AT_X:
-				viewed = { "view": squad.view(), "lead": me.global_position }
+			if leg == 1 and rec["viewed"].is_empty() and me.global_position.x <= VIEW_AT_X:
+				rec["viewed"] = { "view": squad.view(), "lead": me.global_position }
 			for m: Node in members:
-				if leg > 0:
-					spacing[m].append(squad.follow_spot(m).distance_to(me.global_position))
-				var to := Follow.walk_target(m)
-				if Follow.following(m) and to != Vector2.INF:
-					if aimed.has(m) and to.distance_to(aimed[m]) > 0.0:
-						reaims[m].append(to.distance_to(aimed[m]))
-					aimed[m] = to
+				_sample(squad, me, m, leg, rec)
 			await t.frames(1)
+
+
+## Follower `m`'s sample on leg `leg` into `rec`: its spot's distance behind the human past the
+## first leg, and the move of where its walk goes when it re-aims.
+func _sample(squad: Node, me: Node, m: Node, leg: int, rec: Dictionary) -> void:
+	if leg > 0:
+		rec["spacing"][m].append(squad.follow_spot(m).distance_to(me.global_position))
+	var to := Follow.walk_target(m)
+	var aimed: Dictionary = rec["aimed"]
+	if Follow.following(m) and to != Vector2.INF:
+		if aimed.has(m) and to.distance_to(aimed[m]) > 0.0:
+			rec["reaims"][m].append(to.distance_to(aimed[m]))
+		aimed[m] = to
+
+
+## The human stops and looks along `LOOK`; into `rec`: when it stopped (`stopped_at`), the walk's
+## record (`walked`) and whether both followers rang it within `RING_WITHIN` (`rang`).
+func _stand(t: TestContext, squad: Node, nodes: Array, w: Dictionary, rec: Dictionary) -> void:
+	var me: Node = nodes[0]
+	var members: Array = nodes.slice(1)
+	var puppet := t.puppet(&"me")
 	puppet.stop()
 	puppet.aim_at(LOOK)
 	var stopped_at := t.time
@@ -109,7 +149,17 @@ func run(t: TestContext) -> void:
 	await t.until(still, Follow.FOLLOW_STILL_TIME + 1.0)
 	var rang := await t.until(ringed, RING_WITHIN)
 	await t.seconds(1.0)
+	rec.merge({ "stopped_at": stopped_at, "walked": walked, "rang": rang }, true)
 
+
+## Each follower follows, and stands on the ring round the human, behind its facing, facing out.
+func _check_ring(
+		t: TestContext,
+		me: Node,
+		members: Array,
+		w: Dictionary,
+		stopped_at: float,
+) -> void:
 	for m: Node in members:
 		t.check(
 			Follow.took(w, m, "follow"),
@@ -132,6 +182,14 @@ func run(t: TestContext) -> void:
 			"%s faces outward from the human (facing %s, offset %s)"
 				% [m.name, str(m.get("facing")), str(off.round())],
 		)
+
+
+## Over the walk each follower kept within a band of the human, its spot at its place in the file,
+## and re-aimed its walk only once its spot had moved `FOLLOW_RETARGET`.
+func _check_file(t: TestContext, members: Array, rec: Dictionary) -> void:
+	var walked: Dictionary = rec["walked"]
+	var spacing: Dictionary = rec["spacing"]
+	var reaims: Dictionary = rec["reaims"]
 	for i in members.size():
 		var m: Node = members[i]
 		var gaps := Follow.gaps(walked, m, 2.5)
@@ -156,7 +214,10 @@ func run(t: TestContext) -> void:
 			"%s re-aims its walk only once its spot moved %.0f px (%d re-aims, the least %.1f px)"
 				% [m.name, Follow.FOLLOW_RETARGET, reaims[m].size(), least],
 		)
-	t.check(rang, "both rang the human within %.1f s of its standing still" % RING_WITHIN)
+
+
+## The squad's follow tunables are the spec's.
+func _check_tunables(t: TestContext, squad: Node) -> void:
 	var tuned := {
 		"follow_gap": Follow.FOLLOW_GAP, "follow_step": Follow.FOLLOW_STEP,
 		"follow_ring": Follow.FOLLOW_RING, "follow_still_time": Follow.FOLLOW_STILL_TIME,
@@ -171,6 +232,11 @@ func run(t: TestContext) -> void:
 		"the squad's follow tunables are LD21 to LD23's (off: %s)"
 			% str(off_spec.map(func(k): return "%s %s, not %s" % [k, squad.get(k), tuned[k]])),
 	)
+
+
+## The squad's view read mid-walk (`viewed`) holds the trail and the leash, and each member's row
+## its own follow spot in the file.
+func _check_view(t: TestContext, members: Array, viewed: Dictionary) -> void:
 	var view: Dictionary = viewed.get("view", {})
 	var rows: Array = view.get("members", [])
 	var trail: Array = view.get("trail", [])
@@ -194,11 +260,6 @@ func run(t: TestContext) -> void:
 				str(lead.round()),
 				str(rows.map(func(r): return [Follow.name_of(r["node"]), r["follow_spot"]])),
 			],
-	)
-	t.check(
-		members.all(func(m): return Follow.asked(w, m) == 0),
-		"the followers asked Von nothing (%s)"
-			% str(members.map(func(m): return Follow.asked(w, m))),
 	)
 
 

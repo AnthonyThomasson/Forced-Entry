@@ -37,30 +37,8 @@ func run(t: TestContext) -> void:
 	var walker := t.puppet(&"inv")
 	var d := t.actor(&"d")
 	var brain := t.controller(&"d", &"debug_memory")
-	var leg := 0
-	walker.walk_to(LANE[1])
 	var seen: Array = []
-	var footsteps_lead := func() -> bool:
-		var act := str(brain.current_act())
-		if not seen.has(act):
-			seen.append(act)
-		if not act.begins_with("investigate/"):
-			return false
-		var lead_id := act.get_slice("/", 1)
-		for z in brain.debug_zones():
-			if (z["category"] == &"lead"
-					and str(z["desc"]).contains("footsteps")
-					and _zone_id(brain, lead_id, z)):
-				return true
-		return false
-	var end := t.time + 60.0
-	var took := false
-	while t.time < end and not took:
-		if walker.has_arrived():
-			leg = (leg + 1) % 2
-			walker.walk_to(LANE[leg])
-		took = footsteps_lead.call()
-		await t.frames(1)
+	var took := await _walk_until_lead(t, walker, brain, seen)
 	var heard: Array = brain.debug_memory().get("footsteps", [])
 	if not t.require(
 			not heard.is_empty() or took,
@@ -83,6 +61,35 @@ func run(t: TestContext) -> void:
 			"and headed for the kitchen (from %s to %s)"
 				% [from.round(), d.global_position.round()],
 		)
+
+
+## Walks the invader up and down `LANE` for at most 60 s, until the defender takes INVESTIGATE on
+## a footsteps lead; whether it did. Each act it takes is added to `seen`.
+func _walk_until_lead(t: TestContext, walker: Node, brain: Node, seen: Array) -> bool:
+	var leg := 0
+	walker.walk_to(LANE[1])
+	var footsteps_lead := func() -> bool:
+		var act := str(brain.current_act())
+		if not seen.has(act):
+			seen.append(act)
+		if not act.begins_with("investigate/"):
+			return false
+		var lead_id := act.get_slice("/", 1)
+		for z in brain.debug_zones():
+			if (z["category"] == &"lead"
+					and str(z["desc"]).contains("footsteps")
+					and _zone_id(brain, lead_id, z)):
+				return true
+		return false
+	var end := t.time + 60.0
+	var took := false
+	while t.time < end and not took:
+		if walker.has_arrived():
+			leg = (leg + 1) % 2
+			walker.walk_to(LANE[leg])
+		took = footsteps_lead.call()
+		await t.frames(1)
+	return took
 
 
 ## Whether lead zone `z` is the option `lead_id` of the brain's last walk (the INVESTIGATE level

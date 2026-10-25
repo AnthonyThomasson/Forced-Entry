@@ -78,32 +78,7 @@ func run(t: TestContext) -> void:
 		return
 	for i in members.size():
 		var m: Node = members[i]
-		t.check(
-			Follow.took(w, m, "follow"),
-			"%s carried out FOLLOW (acts %s)" % [m.name, Follow.acts_of(w, m)],
-		)
-		var gaps := Follow.gaps(w, m, SETTLE_S)
-		var p50 := Follow.percentile(gaps, 0.5)
-		var p90 := Follow.percentile(gaps, 0.9)
-		t.trace("%s gap p50" % m.name, p50)
-		t.check(
-			p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
-			"%s stays within a band of the leader (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
-				% [m.name, p50, Follow.band_p50(i), p90, Follow.BAND_P90],
-		)
-		for k in 2:
-			t.check(
-				Follow.went_through(w, m, lead_moves[k]),
-				"%s went through the leader's doorway %d (%s -> %s at %.1f s) with it (moves %s)"
-					% [
-						m.name,
-						k + 1,
-						lead_moves[k][1],
-						lead_moves[k][2],
-						lead_moves[k][0],
-						str(w["moves"].get(m, [])),
-					],
-			)
+		_check_follows(t, w, m, i, lead_moves)
 		t.expect_eq(
 			Follow.asked(w, m),
 			0,
@@ -111,3 +86,32 @@ func run(t: TestContext) -> void:
 				% [m.name, Follow.acts_of(w, m)],
 		)
 	t.check(Follow.asked(w, lead) > 0, "the leader decided through Von as ever")
+
+
+func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: Array) -> void:
+	t.check(
+		Follow.took(w, m, "follow"),
+		"%s carried out FOLLOW (acts %s)" % [m.name, Follow.acts_of(w, m)],
+	)
+	var gaps := Follow.gaps(w, m, SETTLE_S)
+	var p50 := Follow.percentile(gaps, 0.5)
+	var p90 := Follow.percentile(gaps, 0.9)
+	t.trace("%s gap p50" % m.name, p50)
+	t.check(
+		p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
+		"%s stays within a band of the leader (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
+			% [m.name, p50, Follow.band_p50(i), p90, Follow.BAND_P90],
+	)
+	for k in 2:
+		t.check(
+			Follow.went_through(w, m, lead_moves[k]),
+			"%s went through the leader's doorway %d (%s -> %s at %.1f s) with it (moves %s)"
+				% [
+					m.name,
+					k + 1,
+					lead_moves[k][1],
+					lead_moves[k][2],
+					lead_moves[k][0],
+					str(w["moves"].get(m, [])),
+				],
+		)
