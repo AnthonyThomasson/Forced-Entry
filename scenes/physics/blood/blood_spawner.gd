@@ -30,14 +30,18 @@ static func splat(parent: Node, position: Vector2, throw: BloodThrow, whole := t
 
 
 ## Start `source`'s bleed-out pool where its blood leaves it (`blood_origin()`, else its position):
-## a flood-fill (BloodConfig.bleed_out_*, flow_*) flowing slowly around obstacles into one pool.
+## a flood-fill (BloodPoolConfig.bleed_out_*, flow_*) flowing slowly around obstacles into one pool.
 ## Returns the pool.
 static func bleed(parent: Node, source: Node2D, exclude: Array) -> Node:
 	var at: Vector2 = (source.blood_origin()
 			if source.has_method("blood_origin")
 			else source.global_position)
 	var pool := _new_pool(at, parent)
-	pool.seed_bleed_out(BloodConfig.bleed_out_cells, BloodConfig.bleed_out_duration, exclude)
+	pool.seed_bleed_out(
+		BloodPoolConfig.bleed_out_cells,
+		BloodPoolConfig.bleed_out_duration,
+		exclude,
+	)
 	return pool
 
 

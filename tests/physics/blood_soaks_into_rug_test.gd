@@ -17,7 +17,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
 	s.switch(&"physics.blood", true)
-	s.set_static(BloodConfig, &"soak_time", 2.0)
+	s.set_static(BloodSurfaceConfig, &"soak_time", 2.0)
 	s.object(&"rug", "rug", Vector2(250, 250))
 
 

@@ -12,13 +12,17 @@ blood_pool_visuals, blood_flow, blood_smear, blood_footprints, footfall, blood_w
 `Deformation.draw_marks`) and `Physics.bleed_out`; every other domain meets it through the classes in interface 4, all
 resolved by `class_name`. It imports nothing outside Physics except `Despawner`, `DrawLayers` and `FillBatch` (General).
 
-**Master switches** (`BloodConfig.enabled`, and under it `footprints_enabled` / `smear_enabled`, `surface_flow`): off, `BloodWound.record` /
+**Master switches** (`BloodConfig.enabled`, and under it `BloodPrintConfig.footprints_enabled` / `BloodSmearConfig.enabled`,
+`BloodSurfaceConfig.surface_flow`): off, `BloodWound.record` /
 `Physics.bleed_out` spawn nothing (`bleed_out` returns null); used by the Testing domain's `physics.blood` switch. `BloodSpawner` adds each
 splatter and pool with a readable name (`BloodSplat`, `BloodSplat2`, … / `BloodPool`, …) so observers can tell them apart.
-`BloodConfig` is a `class_name` static holder (splatter, drips, bleed-out, flow, footprints, smears); `PhysicsConfig.wall_mask` is the
+`BloodConfig` is a `class_name` static holder (the master switch, the colours, the draw layers, the decal layer's cap and
+drying), beside one per topic: `BloodDripConfig`, `BloodSprayConfig`, `BloodSplatConfig`, `BloodPoolConfig`,
+`BloodSurfaceConfig`, `BloodPrintConfig`, `BloodSmearConfig`, `BloodSmearLookConfig` and `BloodTrailConfig`; `PhysicsConfig.wall_mask` is the
 layer the splat clipping and flow queries treat as blocking.
 
-Three parts, all tuned by `BloodConfig`: a wound's **spray**, its **drips**, and a dead body's **bleed-out**.
+Three parts: a wound's **spray** (`BloodSprayConfig`), its **drips** (`BloodDripConfig`), and a dead body's **bleed-out**
+(`BloodPoolConfig`).
 
 - `BloodWound` (`class_name`, a Node the character composes like `Knockback`; the character's `take_hit` calls `record`): `record(hit)` throws
   `ceil(damage / hit_splat_damage)` splatters (max `hit_splat_max`) out the wound's exit side at once (plus one out the exit
@@ -35,9 +39,9 @@ Three parts, all tuned by `BloodConfig`: a wound's **spray**, its **drips**, and
   `blood_spray_does_not_wait_test.gd` checks `record` returns with merges running, that a read or the frame's end finishes them, and
   their age; `spray_side_by_side` off builds each whole). A drip is still built whole (`setup`). Then it adds
   `ceil(damage * drips_per_damage)` to a drip budget (cap `max_pending_drips`). While it lasts, one drop falls
-  every random `drip_interval_min..max` s (3..10) from the host's `blood_origin()`; it keeps the host's
-  `velocity` for `drip_fall_time`, so a walker's drops land ahead and splat stretched along its heading
-  (`energy` = speed / `drip_full_energy_speed`). `stop()` on death ends dripping. Each body keeps at most
+  every random `BloodDripConfig.interval_min..max` s (3..10) from the host's `blood_origin()`; it keeps the host's
+  `velocity` for `BloodDripConfig.fall_time`, so a walker's drops land ahead and splat stretched along its heading
+  (`energy` = speed / `BloodDripConfig.full_energy_speed`). `stop()` on death ends dripping. Each body keeps at most
   `max_splats_per_body` splatters (oldest freed); the global `Despawner` cap applies too.
 - `BloodSplat` (`blood_splat.gd`, built by `BloodSpawner.splat`, named `BloodSplat`, `Despawner`-tracked,
   colliderless): one impact, built once in `setup(radius, direction, energy, exclude)` and then static. A lumpy
@@ -50,10 +54,10 @@ Three parts, all tuned by `BloodConfig`: a wound's **spray**, its **drips**, and
   run through `BloodSplat.drawable` once built: about 1 splat in 100,000 unions into a polygon the engine
   cannot triangulate, which is swapped for its convex hull (or dropped) instead of logging an error when drawn.
   Test: `tests/physics/blood_splat_shapes_valid_test.gd`. A wet highlight fleck
-  fades and the colour dries to `dried_color` over `splat_dry_time`. Shape knobs: `splat_*`, `drip_size_*`.
+  fades and the colour dries to `dried_color` over `BloodSplatConfig.dry_time`. Shape knobs: `BloodSplatConfig`, `BloodDripConfig.size_min` / `size_max`.
 - Bleed-out: `Physics.bleed_out(parent, source, exclude)` (`BloodSpawner.bleed`) starts a dead body's pool where
   its blood leaves it (`blood_origin()`: the trunk's middle once fallen): a `BloodPool` holding
-  `BloodConfig.bleed_out_cells` grid cells claimed by a `BloodFlow` flood-fill: cheapest-first with
+  `BloodPoolConfig.bleed_out_cells` grid cells claimed by a `BloodFlow` flood-fill: cheapest-first with
   noise-roughened cost (`flow_*` tuning), cells overlapping a `PhysicsConfig.wall_mask` collider never fill, so the
   puddle is one continuous irregular shape wrapping around walls and furniture. All cells are claimed up front (a
   batch per frame); a front then sweeps through flow-cost over `bleed_out_duration`, so each cell's fill rises
@@ -66,7 +70,7 @@ surfaces (Objects' floors) register a world rect + a `groove` Callable, so blood
 (`groove_resist`), slowly across smooth surface (`smooth_resist`) and slowest over a porous surface
 (`porous_resist`: carpet floors and rugs); outdoors = 1. Newest-registered surface wins on overlap, except
 that any porous surface at a point counts (`BloodSurface.is_porous`), so a rug over tile is porous whichever
-registered first. Master switch `BloodConfig.surface_flow`.
+registered first. Master switch `BloodSurfaceConfig.surface_flow`.
 
 **Soaking.** Blood on a porous surface sinks in: once the flood has mostly reached a porous cell (>= 0.5),
 `BloodFlow.tick(delta)` (called from `BloodPool`, which keeps processing after the front settles while
@@ -83,33 +87,34 @@ faint crease where tufts meet. Only colour and opacity change, so some tufts are
 ## Footprints and smears (blood that is carried)
 
 A carrier soaks up a *load* (0..1) of wet blood where it touches it and deposits it with the load fading,
-so trails taper. All tuning is `BloodConfig` (`footprints_enabled`, `smear_enabled`, `pickup_gain`,
-`print_*`, `smear_*`, `thick_blood`, `pool_wet_time`, `splat_wetness`).
+so trails taper. Tuning: `BloodPrintConfig` (`footprints_enabled`, `pickup_gain`,
+`thick_blood`, `pool_wet_time`, `splat_wetness`, the prints), `BloodSmearConfig` (`enabled`, the fingers, the drag),
+`BloodSmearLookConfig` (a ribbon's look) and `BloodTrailConfig` (blood pulled out of a pool).
 - `BloodField` (static): `wetness_at(world_pos) -> 0..1` (finishing every splat still pending first). `BloodSplat.setup` (or
   `finish`, aged from `begin`'s frame) and `BloodPool.seed_bleed_out` register themselves (spatial hash for splatters, a list for
   pools; entries drop on `tree_exited`). A
-  splatter is a thin film (`splat_wetness`) drying to 0 over `splat_dry_time`; a pool is its flow fill, wet for
+  splatter is a thin film (`splat_wetness`) drying to 0 over `BloodSplatConfig.dry_time`; a pool is its flow fill, wet for
   `pool_wet_time`. Dried blood returns 0. Ages count physics frames.
 - `BloodDecals` (one per parent via `layer(parent)` / `find(parent)`; extends Physics' `chunked_layer.gd`, `domain-physics`): batches prints
   (polygons, each run of them one General `FillBatch`) and smear ribbons at `BloodConfig.print_z_index` in the shared chunked store, whose chunks redraw only when they gain a mark or a
   ribbon grows (and, its own chunk draw, at 2 Hz while drying, `print_dry_time`); its cap is `print_max` (not the Despawner).
   `ribbon_begin(point, width, alpha) -> mark`, `ribbon_extend(mark, point, width, alpha)` (width 0 = taper to a
   point), `ribbon_count()`; a ribbon is drawn as two quads per segment via `draw_primitive`, solid on its centre line
-  and fading to `smear_feather` at the edges. `items()` / `print_count()` for tests. `print_at` drops polygons the
+  and fading to `BloodSmearLookConfig.feather` at the edges. `items()` / `print_count()` for tests. `print_at` drops polygons the
   engine can't triangulate.
 - `BloodFootprints` (Node child of a walker): `step(foot, fall: Footfall)` per footfall (`footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`; the character's `character_footsteps.gd` calls it). Per foot id: soak `max(load, wetness *
   pickup_gain)` (sampled heel/middle/toe), stamp a mirrored sole (heel, arch on the `inner` side, ball, toe) with
-  alpha from the load unless already in thick blood, then lose `print_decay`. Low load = thin arch + rough edge;
+  alpha from the load unless already in thick blood, then lose `BloodPrintConfig.decay`. Low load = thin arch + rough edge;
   speed and load slip the print forward.
 - `BloodSmear` (Node child of a RigidBody2D): `set_footprint(local polygon)` lays a grid of "fingers" fixed to the
-  body; while `linear_velocity` > `smear_min_speed` each finger soaks blood under it and every
-  `smear_segment_length` px extends its ribbon: width `smear_width` x spacing x sqrt(load), alpha from load, the
-  centre line wandering on smooth noise (`smear_wobble`, `smear_wobble_freq`) so streaks drift and cross. Load falls
-  by `smear_decay_per_px`; below `smear_break_load` the ribbon breaks into dry-brush dashes; where it ends (rest,
+  body; while `linear_velocity` > `BloodSmearConfig.min_speed` each finger soaks blood under it and every
+  `BloodSmearConfig.segment_length` px extends its ribbon: width `BloodSmearLookConfig.width` x spacing x sqrt(load), alpha from load, the
+  centre line wandering on smooth noise (`BloodSmearLookConfig.wobble`, `BloodSmearLookConfig.wobble_freq`) so streaks drift and cross. Load falls
+  by `BloodSmearConfig.decay_per_px`; below `BloodSmearConfig.break_load` the ribbon breaks into dry-brush dashes; where it ends (rest,
   no load) it tapers to a point. Per-finger variation makes streaks end and thicken unevenly.
   **Blending into the puddle:** a finger lays a ribbon even over blood already there, but the ribbon is
-  see-through where the floor is wet (`smear_absorb_lo..hi` on `BloodField` wetness), eases in over its first
-  `smear_fade_in` px, and its opacity may only rise `smear_alpha_rise` per sample, so the streak swells out of a
+  see-through where the floor is wet (`BloodSmearLookConfig.absorb_lo..hi` on `BloodField` wetness), eases in over its first
+  `BloodSmearLookConfig.fade_in` px, and its opacity may only rise `BloodSmearLookConfig.alpha_rise` per sample, so the streak swells out of a
   splatter's crisp edge or a pool's soft rim with no start line (`thick_blood` gates footprints only).
   **Pulled out of a pool:** a finger carrying >= `smear_trail_min` load within `smear_trail_reach` px of a pool calls
   `BloodPool.drag_out(pos, load x smear_trail_gain)`, which adds `BloodFlow.trail` cells (3x3, max-merged, capped at

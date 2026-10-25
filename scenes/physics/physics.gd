@@ -62,8 +62,8 @@ static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> voi
 	DebrisSpawner.spawn(hit.position, spray, parent, base_color, material)
 
 
-## Start a dead body's bleed-out: one slow, flowing pool (BloodConfig.bleed_out_*) spreading from
-## where its blood leaves it — `source.blood_origin()` if it has one (where it lies), else its
+## Start a dead body's bleed-out: one slow, flowing pool (BloodPoolConfig.bleed_out_*) spreading
+## from where its blood leaves it — `source.blood_origin()` if it has one (where it lies), else its
 ## position — added under `parent`. `exclude` is the body's RID(s). Returns the pool (null while
 ## BloodConfig.enabled is off).
 static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:

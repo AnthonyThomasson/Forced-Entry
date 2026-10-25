@@ -37,6 +37,6 @@ func run(t: TestContext) -> void:
 	if not t.require(victim.is_dead, "the victim dies"):
 		return
 	var after_death: int = t.spawned("BloodSplat").size()
-	await t.seconds(BloodConfig.drip_interval_max + 2.0)
+	await t.seconds(BloodDripConfig.interval_max + 2.0)
 	t.expect_eq(t.spawned("BloodSplat").size(), after_death, "no drips land after death")
 	t.check(not t.spawned("BloodPool").is_empty(), "the bleed-out pool spreads instead")

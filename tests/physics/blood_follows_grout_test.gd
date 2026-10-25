@@ -56,15 +56,15 @@ func run(t: TestContext) -> void:
 	if not t.require(pool != null, "the body bled out a flowing pool"):
 		return
 	await t.until(
-		func(): return pool.flow.cells.size() >= BloodConfig.bleed_out_cells,
+		func(): return pool.flow.cells.size() >= BloodPoolConfig.bleed_out_cells,
 		6.0,
 		"the flow claims all its cells",
 	)
 	var on := 0
 	for c in pool.flow.cells:
 		var p: Vector2 = (pool.global_position
-				+ (Vector2(c) + Vector2(0.5, 0.5)) * BloodConfig.flow_cell_size)
-		if floor_node.flow_groove(p, BloodConfig.groove_half_width) > 0.5:
+				+ (Vector2(c) + Vector2(0.5, 0.5)) * BloodPoolConfig.flow_cell_size)
+		if floor_node.flow_groove(p, BloodSurfaceConfig.groove_half_width) > 0.5:
 			on += 1
 	var share := float(on) / maxf(pool.flow.cells.size(), 1)
 	t.trace("grout share of bleed-out cells", share)

@@ -2,9 +2,9 @@ class_name BloodField
 ## Physics System, blood: where wet blood lies on the floor, for anything that walks or slides
 ## through it (BloodFootprints, BloodSmear). Splatters and pools register themselves; `wetness_at`
 ## answers 0..1 at a world point: a splatter is a thin film (`splat_wetness`) that dries to nothing
-## over `splat_dry_time`, a pool is its flow fill, wet for `pool_wet_time`. Dried blood returns 0,
-## so it leaves no prints. Ages run on physics frames so they follow game time. Entries drop out
-## when their node leaves the tree.
+## over `BloodSplatConfig.dry_time`, a pool is its flow fill, wet for `pool_wet_time`. Dried blood
+## returns 0, so it leaves no prints. Ages run on physics frames so they follow game time. Entries
+## drop out when their node leaves the tree.
 
 ## Side (px) of a spatial-hash cell for splatters.
 const CELL := 64.0
@@ -68,7 +68,7 @@ static func _splat_wetness(pos: Vector2) -> float:
 		if not is_instance_valid(obj):
 			continue
 		var node := obj as Node2D
-		var wet := _wet(s["born"], BloodConfig.splat_dry_time) * BloodConfig.splat_wetness
+		var wet := _wet(s["born"], BloodSplatConfig.dry_time) * BloodPrintConfig.splat_wetness
 		if wet <= best:
 			continue
 		var local := pos - node.global_position
@@ -93,9 +93,11 @@ static func _pool_wetness(pos: Vector2) -> float:
 		var flow = pool.get("flow")
 		if flow == null:
 			continue
-		var cell := Vector2i(((pos - pool.global_position) / BloodConfig.flow_cell_size).floor())
+		var cell := Vector2i(
+			((pos - pool.global_position) / BloodPoolConfig.flow_cell_size).floor()
+		)
 		if flow.covers(cell):
-			best = maxf(best, flow.wetness(cell) * _wet(p["born"], BloodConfig.pool_wet_time))
+			best = maxf(best, flow.wetness(cell) * _wet(p["born"], BloodPrintConfig.pool_wet_time))
 	return best
 
 
@@ -108,7 +110,7 @@ static func pool_near(pos: Vector2, radius: float) -> Node2D:
 		var flow = obj.get("flow")
 		if flow == null:
 			continue
-		var size := BloodConfig.flow_cell_size
+		var size := BloodPoolConfig.flow_cell_size
 		var centre := Vector2i(((pos - (obj as Node2D).global_position) / size).floor())
 		var reach := ceili(radius / size)
 		for dx in range(-reach, reach + 1):

@@ -98,12 +98,12 @@ func _draw_flow() -> void:
 		Image.FORMAT_RG8,
 		_field_bytes(flow, covered, box),
 	)
-	var size := BloodConfig.flow_cell_size
+	var size := BloodPoolConfig.flow_cell_size
 	_flow_material.set_shader_parameter("field_px", Vector2(box.size) * size)
-	_flow_material.set_shader_parameter("tuft_spread", BloodConfig.soak_tuft_spread)
-	_flow_material.set_shader_parameter("tuft_px", BloodConfig.soak_tuft_size)
-	_flow_material.set_shader_parameter("tuft_contrast", BloodConfig.soak_tuft_contrast)
-	_flow_material.set_shader_parameter("soak_opacity", BloodConfig.soak_opacity)
+	_flow_material.set_shader_parameter("tuft_spread", BloodSurfaceConfig.soak_tuft_spread)
+	_flow_material.set_shader_parameter("tuft_px", BloodSurfaceConfig.soak_tuft_size)
+	_flow_material.set_shader_parameter("tuft_contrast", BloodSurfaceConfig.soak_tuft_contrast)
+	_flow_material.set_shader_parameter("soak_opacity", BloodSurfaceConfig.soak_opacity)
 	# Held in a member: a texture freed at the end of _draw would render white.
 	_flow_texture = ImageTexture.create_from_image(image)
 	draw_texture_rect(
@@ -123,7 +123,10 @@ func _prepare_material() -> void:
 		material = _flow_material
 	var base := Color(BloodConfig.color.r, BloodConfig.color.g, BloodConfig.color.b, 1.0)
 	_flow_material.set_shader_parameter("blood_color", base)
-	_flow_material.set_shader_parameter("rim_color", base.darkened(BloodConfig.flow_edge_darken))
+	_flow_material.set_shader_parameter(
+		"rim_color",
+		base.darkened(BloodPoolConfig.flow_edge_darken),
+	)
 	_flow_material.set_shader_parameter("opacity", BloodConfig.color.a)
 
 

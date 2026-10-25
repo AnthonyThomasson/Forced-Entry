@@ -53,8 +53,8 @@ func run(t: TestContext) -> void:
 ## The `trail` starts at the splatter and each foot's prints only fade past it.
 func _check_fading(t: TestContext, trail: Array) -> void:
 	var first_x: float = trail[0]["poly"][0].x
-	# A satellite droplet lands up to `splat_satellite_reach_max` (3.4) core radii out, so a foot
-	# may print that far short.
+	# A satellite droplet lands up to `BloodSplatConfig.satellite_reach_max` (3.4) core radii out,
+	# so a foot may print that far short.
 	t.check(
 		first_x > SPLAT_AT.x - SPLAT_SIZE * 4.0,
 		"no prints before the splatter (first at x=%.0f)" % first_x,

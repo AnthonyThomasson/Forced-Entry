@@ -182,7 +182,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 own way (the character's kept meshes, `domain-character-body`) in the same colour.
    - `Physics.impact_impulse(hit) -> Vector2`, `Physics.spawn_debris(world, hit, surface)` (objects, the character and a vehicle)
 	 `BloodWound` (Node child, character: `record(hit)` on a hit throws a splatter spray and owes drips, one
-	 `BloodSplat` every `BloodConfig.drip_interval_min..max` s from the body's blood origin; `stop()` on death)
+	 `BloodSplat` every `BloodDripConfig.interval_min..max` s from the body's blood origin; `stop()` on death)
 	 and `Physics.bleed_out(parent, source, exclude)`
 	 (a dead character, once its body comes to rest: one slow, wide pool). A blood source may expose
 	 `blood_origin() -> Vector2` (where its blood leaves it, in world space); pools emerge there instead
@@ -195,11 +195,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 `BloodFootprints` (Node child, character: `step(foot, fall: Footfall)` (`Footfall`,
 	 `physics/blood/footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`) on each footfall prints a sole if the foot is carrying wet blood) / `BloodSmear` (Node child, objects:
 	 `set_footprint(local_polygon)`, then drags blood out of a puddle as feathered, wandering ribbons while the body slides).
-	 Both need `BloodConfig.enabled` and their own switch (`footprints_enabled` / `smear_enabled`).
+	 Both need `BloodConfig.enabled` and their own switch (`BloodPrintConfig.footprints_enabled` / `BloodSmearConfig.enabled`).
    - `BloodSurface` (static registry): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` /
 	 `unregister(id)` — Objects' `Floor` registers its room so a bleed-out flow runs along grout/seams, and rugs register as porous
 	 (blood sinks into carpet and rugs, `is_porous(pos)`)
-	 (`resistance(pos)` is read only by Physics' `BloodFlow`; `BloodConfig.surface_flow` off ignores floors).
+	 (`resistance(pos)` is read only by Physics' `BloodFlow`; `BloodSurfaceConfig.surface_flow` off ignores floors).
    - `Ragdoll` (`RefCounted`, character on death): a generic 3D point-mass body over the floor plane
 	 (x/y + height z). Built with `add_point(at, radius, mass)`, `add_bone(a, b)` / `add_rigid(indices)`,
 	 `add_frame(origin, up, right, forward_hint)`, `add_swing(frame, joint, child, rest, limits)`
@@ -1006,11 +1006,14 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into thirty-five `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into forty-four `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
 `PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterConfig` (walking
-push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood splatter, drips and bleed-out), `ArtCanvasConfig` (the art pixel, the light,
+push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
+(a wound's drips), `BloodSprayConfig` (a hit's spray), `BloodSplatConfig` (a splatter's shape), `BloodPoolConfig` (the
+bleed-out pool), `BloodSurfaceConfig` (the floor's grooves and soak), `BloodPrintConfig` (footprints), `BloodSmearConfig`
+(a smear's drag), `BloodSmearLookConfig` (a ribbon's look), `BloodTrailConfig` (blood pulled out of a pool), `ArtCanvasConfig` (the art pixel, the light,
 turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
 floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenFillConfig` (World-Gen's
 furnishing fill pass), `WorldGenDressConfig` (the run-down dressing's placement), `WorldGenStreetConfig` (the street ring and its street lamps), `MagazineConfig` (Items: magazine

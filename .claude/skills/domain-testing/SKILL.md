@@ -922,8 +922,8 @@ Statics are restored after every test (`TestWorld.restore`). Current switches:
 | `nav.rebake` | `NavUpdater.enabled`. |
 | `audio.sound` | `SoundConfig.enabled`: shots, impacts, footsteps, reloads and the grenades' throw, bounce and burst make `sound` events and voices. |
 | `physics.blood` | `BloodConfig.enabled`. |
-| `physics.footprints` | `BloodConfig.footprints_enabled`. |
-| `physics.smear` | `BloodConfig.smear_enabled`. |
+| `physics.footprints` | `BloodPrintConfig.footprints_enabled`. |
+| `physics.smear` | `BloodSmearConfig.enabled`. |
 | `physics.debris` | `PhysicsConfig.debris_enabled`. |
 | `physics.hit_particles` | `PhysicsConfig.hit_particles_enabled`. |
 | `lighting.enabled` | `LightingConfig.enabled` and General's `LightMasks.shadows`: the dusk lighting (ambient, sky, piece lights and fixtures, flashes) and every occluder (walls, pieces, characters). The test world is lit like a match by default; a sandbox that lights itself turns it off. |

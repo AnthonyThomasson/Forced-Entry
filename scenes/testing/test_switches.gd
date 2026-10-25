@@ -70,11 +70,11 @@ static var ROWS := {
 	},
 	&"physics.footprints": {
 		"description": "Walkers who step in wet blood leave bloody footprints.",
-		"static": [[BloodConfig, &"footprints_enabled"]],
+		"static": [[BloodPrintConfig, &"footprints_enabled"]],
 	},
 	&"physics.smear": {
 		"description": "Objects pushed through wet blood smear it into streaks.",
-		"static": [[BloodConfig, &"smear_enabled"]],
+		"static": [[BloodSmearConfig, &"enabled"]],
 	},
 	&"physics.debris": {
 		"description": "Hits spray material chips.",

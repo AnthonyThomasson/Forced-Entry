@@ -34,7 +34,7 @@ func run(t: TestContext) -> void:
 		return
 	var rim := 0.0
 	for c in pool.flow.cells:
-		rim = maxf(rim, pool.global_position.x + (c.x + 1) * BloodConfig.flow_cell_size)
+		rim = maxf(rim, pool.global_position.x + (c.x + 1) * BloodPoolConfig.flow_cell_size)
 	t.expect_eq(pool.flow.trail.size(), 0, "nothing dragged out yet")
 	await _push_across(t)
 	var layer := BloodDecals.find(t.object(&"chair").get_parent())
@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 		return
 	var reach := 0.0
 	for c in pool.flow.trail:
-		reach = maxf(reach, pool.global_position.x + c.x * BloodConfig.flow_cell_size)
+		reach = maxf(reach, pool.global_position.x + c.x * BloodPoolConfig.flow_cell_size)
 	t.check(
 		reach > rim + 20.0,
 		"the pool's own outline was pulled out past its old rim (%.0f vs %.0f)" % [reach, rim],

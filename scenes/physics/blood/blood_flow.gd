@@ -50,11 +50,11 @@ var _origin: Vector2i
 
 
 func _init(aim: Vector2, exclude: Array) -> void:
-	_size = BloodConfig.flow_cell_size
+	_size = BloodPoolConfig.flow_cell_size
 	_aim = aim
 	_exclude = exclude
 	_noise.seed = randi()
-	_noise.frequency = BloodConfig.flow_noise_frequency
+	_noise.frequency = BloodPoolConfig.flow_noise_frequency
 	_probe.size = Vector2.ONE * _size * 0.8
 	_origin = Vector2i.ZERO
 	_frontier[_origin] = 0.0
@@ -74,12 +74,12 @@ func advance(delta: float, duration: float) -> void:
 	if not _soak.is_empty() and not cells.is_empty():
 		slow = lerpf(
 			1.0,
-			maxf(BloodConfig.porous_spread_slowdown, 1.0),
+			maxf(BloodSurfaceConfig.porous_spread_slowdown, 1.0),
 			float(_soak.size()) / cells.size(),
 		)
 	_progress = minf(_progress + delta / (maxf(duration, 0.001) * slow), 1.0)
 	var eased := 1.0 - (1.0 - _progress) * (1.0 - _progress)
-	front = (_last_cost + BloodConfig.flow_soft_edge) * eased
+	front = (_last_cost + BloodPoolConfig.flow_soft_edge) * eased
 
 
 ## True once the front has covered every cell.
@@ -121,14 +121,14 @@ func soaking() -> bool:
 func tick(delta: float) -> void:
 	for c in _soak:
 		if _soak[c] < 1.0 and _flood(c) >= 0.5:
-			_soak[c] = minf(_soak[c] + delta / maxf(BloodConfig.soak_time, 0.001), 1.0)
+			_soak[c] = minf(_soak[c] + delta / maxf(BloodSurfaceConfig.soak_time, 0.001), 1.0)
 
 
 ## The flood-fill level (0..1) of cell `c` at the current front, before anything soaks in.
 func _flood(c: Vector2i) -> float:
 	if not cells.has(c):
 		return 0.0
-	var t := clampf((front - cells[c]) / maxf(BloodConfig.flow_soft_edge, 0.001), 0.0, 1.0)
+	var t := clampf((front - cells[c]) / maxf(BloodPoolConfig.flow_soft_edge, 0.001), 0.0, 1.0)
 	return t * t * (3.0 - 2.0 * t)
 
 
@@ -139,27 +139,31 @@ func covers(c: Vector2i) -> bool:
 
 ## Drag blood out onto cell `c` and the ring around it: raise them to `level` (the centre) and a
 ## little less (the ring), never lowering one. The level tapers linearly to nothing at
-## `BloodConfig.pool_trail_length` px from the flooded cells, and stops growing at
-## `BloodConfig.pool_trail_max` trail cells.
+## `BloodTrailConfig.pool_trail_length` px from the flooded cells, and stops growing at
+## `BloodTrailConfig.pool_trail_max` trail cells.
 func add_trail(c: Vector2i, level: float) -> void:
-	level *= 1.0 - clampf(_rim_distance(c) / maxf(BloodConfig.pool_trail_length, 0.001), 0.0, 1.0)
+	level *= 1.0 - clampf(
+		_rim_distance(c) / maxf(BloodTrailConfig.pool_trail_length, 0.001),
+		0.0,
+		1.0,
+	)
 	if level <= 0.0:
 		return
 	for dx in range(-1, 2):
 		for dy in range(-1, 2):
 			var n := c + Vector2i(dx, dy)
-			if not trail.has(n) and trail.size() >= BloodConfig.pool_trail_max:
+			if not trail.has(n) and trail.size() >= BloodTrailConfig.pool_trail_max:
 				continue
 			var l := level if dx == 0 and dy == 0 else level * 0.75
 			trail[n] = maxf(trail.get(n, 0.0), clampf(l, 0.0, 1.0))
 
 
 ## Distance (px) from cell `c` to the nearest flooded cell (0 inside the pool), searched no farther
-## than `BloodConfig.pool_trail_length`; beyond that it returns the limit.
+## than `BloodTrailConfig.pool_trail_length`; beyond that it returns the limit.
 func _rim_distance(c: Vector2i) -> float:
 	if cells.has(c):
 		return 0.0
-	var reach := ceili(BloodConfig.pool_trail_length / _size)
+	var reach := ceili(BloodTrailConfig.pool_trail_length / _size)
 	var best := float(reach)
 	for dx in range(-reach, reach + 1):
 		for dy in range(-reach, reach + 1):
@@ -174,9 +178,9 @@ func _cell_center(c: Vector2i) -> Vector2:
 
 
 ## How much of the bleed-out cell budget the claimed cells have used: a cell on porous surface costs
-## `BloodConfig.porous_cell_weight`, so a pool on carpet covers less ground.
+## `BloodSurfaceConfig.porous_cell_weight`, so a pool on carpet covers less ground.
 func budget_used() -> float:
-	return cells.size() + _soak.size() * (maxf(BloodConfig.porous_cell_weight, 1.0) - 1.0)
+	return cells.size() + _soak.size() * (maxf(BloodSurfaceConfig.porous_cell_weight, 1.0) - 1.0)
 
 
 ## Claim up to `count` more cells, cheapest first, stopping once `budget` is used (see
@@ -202,8 +206,8 @@ func step(
 			if cells.has(n) or _is_blocked(n, space, origin_global):
 				continue
 			var dir := Vector2(d).normalized()
-			var rough := 1.0 + _noise.get_noise_2d(n.x, n.y) * BloodConfig.flow_noise_strength
-			var lean := 1.0 - BloodConfig.flow_aim_bias * dir.dot(_aim)
+			var rough := 1.0 + _noise.get_noise_2d(n.x, n.y) * BloodPoolConfig.flow_noise_strength
+			var lean := 1.0 - BloodPoolConfig.flow_aim_bias * dir.dot(_aim)
 			var next := cost + Vector2(d).length() * maxf(rough, 0.15) * maxf(lean, 0.2) \
 					* _surface_resist(n, origin_global)
 			if not _frontier.has(n) or next < _frontier[n]:

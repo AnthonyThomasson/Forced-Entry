@@ -8,7 +8,8 @@ const HITS_PER_FRAME := 4
 const FRAMES := 150
 # Frame budgets are the smooth-match standard (Perf.SMOOTH_*). The pool limit is a count, so it is
 # tight.
-const BLOOD_SPLAT_LIMIT := 80  # BloodConfig.max_splats_per_body, plus slack for ones not yet freed
+# BloodSplatConfig.max_splats_per_body, plus slack for ones not yet freed.
+const BLOOD_SPLAT_LIMIT := 80
 
 
 func describe() -> Dictionary:

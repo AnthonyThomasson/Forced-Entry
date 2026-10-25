@@ -142,8 +142,8 @@ class DecalChunk:
 		soles.flush()
 
 	## A ribbon as two quads per segment (each half of the band), solid along the centre line and
-	## fading to `smear_feather` of that at the edges. Quads are drawn as raw triangles, so a sharp
-	## bend or a pinched tail can never fail triangulation.
+	## fading to `BloodSmearLookConfig.feather` of that at the edges. Quads are drawn as raw
+	## triangles, so a sharp bend or a pinched tail can never fail triangulation.
 	func _draw_ribbon(m: Dictionary, color: Color) -> void:
 		var pts: PackedVector2Array = m["points"]
 		var n := pts.size()
@@ -179,8 +179,8 @@ class DecalChunk:
 		var alphas: PackedFloat32Array = m["alphas"]
 		var mid_a := Color(color.r, color.g, color.b, color.a * alphas[i])
 		var mid_b := Color(color.r, color.g, color.b, color.a * alphas[i + 1])
-		var edge_a := Color(color.r, color.g, color.b, mid_a.a * BloodConfig.smear_feather)
-		var edge_b := Color(color.r, color.g, color.b, mid_b.a * BloodConfig.smear_feather)
+		var edge_a := Color(color.r, color.g, color.b, mid_a.a * BloodSmearLookConfig.feather)
+		var edge_b := Color(color.r, color.g, color.b, mid_b.a * BloodSmearLookConfig.feather)
 		var half_a := normals[i] * widths[i] * 0.5
 		var half_b := normals[i + 1] * widths[i + 1] * 0.5
 		draw_primitive(

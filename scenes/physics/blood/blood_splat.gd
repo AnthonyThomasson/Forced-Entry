@@ -180,8 +180,8 @@ func _complete(kept: Array[PackedVector2Array]) -> void:
 func _core(e: float) -> PackedVector2Array:
 	var raw := PackedFloat32Array()
 	for i in CORE_VERTS:
-		raw.append(1.0 + randf_range(-BloodConfig.splat_wobble, BloodConfig.splat_wobble))
-	var rx := _radius * (1.0 + BloodConfig.splat_stretch * e)
+		raw.append(1.0 + randf_range(-BloodSplatConfig.wobble, BloodSplatConfig.wobble))
+	var rx := _radius * (1.0 + BloodSplatConfig.stretch * e)
 	var ry := _radius * (1.0 - 0.25 * e)
 	var points := PackedVector2Array()
 	for i in CORE_VERTS:
@@ -197,7 +197,7 @@ func _core(e: float) -> PackedVector2Array:
 ## tip. A spike whose tip would cross a wall is shortened to stop short of it.
 func _spikes(e: float) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
-	var count := randi_range(BloodConfig.splat_spikes_min, BloodConfig.splat_spikes_max)
+	var count := randi_range(BloodSplatConfig.spikes_min, BloodSplatConfig.spikes_max)
 	var offset := randf() * TAU
 	for i in count:
 		_spike(offset + TAU * (i + randf_range(-0.35, 0.35)) / count, e, out)
@@ -209,14 +209,14 @@ func _spikes(e: float) -> Array[PackedVector2Array]:
 func _spike(a: float, e: float, out: Array[PackedVector2Array]) -> void:
 	var fwd := cos(a)
 	var length := lerpf(
-		BloodConfig.splat_spike_length_min,
-		BloodConfig.splat_spike_length_max,
+		BloodSplatConfig.spike_length_min,
+		BloodSplatConfig.spike_length_max,
 		pow(randf(), 1.5),
 	)
 	length *= 1.0 + e * 0.9 * maxf(fwd, 0.0)
 	length *= 1.0 - 0.35 * e * maxf(-fwd, 0.0)
 	var dir := Vector2.from_angle(a)
-	var base_r := _radius * 0.7 * (1.0 + BloodConfig.splat_stretch * e * absf(fwd))
+	var base_r := _radius * 0.7 * (1.0 + BloodSplatConfig.stretch * e * absf(fwd))
 	var tip_r := base_r + length * _radius
 	var free := _free_fraction(dir * tip_r)
 	if free < 1.0:
@@ -242,13 +242,13 @@ func _spike(a: float, e: float, out: Array[PackedVector2Array]) -> void:
 ## farther they land, elongated outward. Any whose path from the core is blocked are dropped.
 func _satellites(e: float) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
-	var count := randi_range(BloodConfig.splat_satellites_min, BloodConfig.splat_satellites_max)
+	var count := randi_range(BloodSplatConfig.satellites_min, BloodSplatConfig.satellites_max)
 	for i in count:
 		var a := randf() * TAU
 		var fwd := cos(a)
 		var reach := randf_range(
-			BloodConfig.splat_satellite_reach_min,
-			BloodConfig.splat_satellite_reach_max,
+			BloodSplatConfig.satellite_reach_min,
+			BloodSplatConfig.satellite_reach_max,
 		)
 		reach *= 1.0 + e * 0.8 * maxf(fwd, 0.0)
 		var dir := Vector2.from_angle(a)
@@ -256,8 +256,8 @@ func _satellites(e: float) -> Array[PackedVector2Array]:
 		if _free_fraction(at) < 1.0:
 			continue
 		var t := inverse_lerp(
-			BloodConfig.splat_satellite_reach_min,
-			BloodConfig.splat_satellite_reach_max * 1.8,
+			BloodSplatConfig.satellite_reach_min,
+			BloodSplatConfig.satellite_reach_max * 1.8,
 			reach,
 		)
 		var size := (_radius * (0.08 + pow(randf(), 2.0) * 0.22)
@@ -337,7 +337,7 @@ static func _box_of(poly: PackedVector2Array) -> Rect2:
 
 ## A lighter fleck on the core so fresh blood reads wet; it fades as the splat dries.
 func _add_highlight() -> void:
-	var glint: Color = BloodConfig.splat_highlight
+	var glint: Color = BloodSplatConfig.highlight
 	if glint.a <= 0.0 or _radius < 2.0:
 		return
 	var fleck := Polygon2D.new()
@@ -352,9 +352,10 @@ func _add_highlight() -> void:
 	add_child(fleck)
 
 
-## Dry from the wet color to the dried one over `splat_dry_time`; the highlight fades out with it.
+## Dry from the wet color to the dried one over `BloodSplatConfig.dry_time`; the highlight fades out
+## with it.
 func _dry() -> void:
-	var seconds := BloodConfig.splat_dry_time
+	var seconds := BloodSplatConfig.dry_time
 	if seconds <= 0.0:
 		return
 	var wet: Color = BloodConfig.color

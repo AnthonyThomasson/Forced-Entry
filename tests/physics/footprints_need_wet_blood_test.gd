@@ -17,7 +17,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 700))
 	s.switch(&"physics.blood", true)
-	s.set_static(BloodConfig, &"splat_dry_time", 3.0)
+	s.set_static(BloodSplatConfig, &"dry_time", 3.0)
 	s.actor(&"clean", &"puppet", Vector2(100, 100))
 	s.actor(&"dried", &"puppet", Vector2(100, 300))
 	s.actor(&"fresh", &"puppet", Vector2(100, 500))

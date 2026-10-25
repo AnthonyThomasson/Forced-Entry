@@ -143,7 +143,7 @@ sleep after one step of an explosion's push. The Character domain's `CharacterRa
 ## Blood (its own sub-domain: `scenes/physics/blood/`)
 
 Wound spray and drips (`BloodWound`), splatters, a dead body's bleed-out pool and its floor-steered flow, and blood that is
-carried (wetness, footprints, smears) are the **`domain-physics-blood`** skill — load it for anything in `physics/blood/` or `BloodConfig`.
+carried (wetness, footprints, smears) are the **`domain-physics-blood`** skill — load it for anything in `physics/blood/` or the `Blood*Config` holders.
 The core keeps only the entry points: `Physics.spawn_debris` (draws a bullet's `HitInfo.blood` as droplets and a mark, see above) and
 `Physics.bleed_out(parent, source, exclude)`.
 
@@ -151,8 +151,8 @@ The core keeps only the entry points: `Physics.spawn_debris` (draws a bullet's `
 
 `PhysicsConfig.debris_enabled` is the debris master switch (off: `Physics.spawn_debris` spawns nothing; the Testing domain's
 `physics.debris` switch). `PhysicsConfig` holds `wall_mask`
-(the layer the ragdoll sweep and the blood queries treat as blocking). `BloodConfig` (blood tuning and its master switches) is
-documented in `domain-physics-blood`. A hit's shove and the furniture body's damping are `PhysicsImpactConfig`, the dents'
+(the layer the ragdoll sweep and the blood queries treat as blocking). `BloodConfig` (blood's master switch and shared values) and its
+topic holders (`BloodDripConfig` ...) are documented in `domain-physics-blood`. A hit's shove and the furniture body's damping are `PhysicsImpactConfig`, the dents'
 shape `PhysicsDeformConfig` and how they are drawn `PhysicsDeformLookConfig`, the ragdoll solver `PhysicsRagdollConfig` and a
 burst's look `PhysicsExplosionConfig`. All are `class_name` static holders — there is no `Config` autoload.
 

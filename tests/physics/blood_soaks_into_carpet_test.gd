@@ -1,8 +1,8 @@
 extends GameTest
 ## Two bleed-out pools in one room, one on a carpet floor and one on glazed tile. Once the front has
-## swept out and BloodConfig.soak_time has passed, the carpet's blood has sunk in: it covers exactly
-## the floor it covered (no shrinking, no holes; it is only translucent) but is no longer wet enough
-## to leave prints or smears. The pool on tile is unchanged.
+## swept out and BloodSurfaceConfig.soak_time has passed, the carpet's blood has sunk in: it covers
+## exactly the floor it covered (no shrinking, no holes; it is only translucent) but is no longer
+## wet enough to leave prints or smears. The pool on tile is unchanged.
 
 
 func describe() -> Dictionary:
@@ -18,7 +18,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
 	s.switch(&"physics.blood", true)
-	s.set_static(BloodConfig, &"soak_time", 2.0)
+	s.set_static(BloodSurfaceConfig, &"soak_time", 2.0)
 
 
 func run(t: TestContext) -> void:

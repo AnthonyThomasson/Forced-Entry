@@ -56,5 +56,8 @@ func _claiming() -> bool:
 func drag_out(pos: Vector2, level: float) -> void:
 	if flow == null:
 		return
-	flow.add_trail(Vector2i(((pos - global_position) / BloodConfig.flow_cell_size).floor()), level)
+	flow.add_trail(
+		Vector2i(((pos - global_position) / BloodPoolConfig.flow_cell_size).floor()),
+		level,
+	)
 	_visuals.queue_redraw()

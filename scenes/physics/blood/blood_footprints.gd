@@ -6,7 +6,7 @@ extends Node
 ## opacity follows the load, which drops a little per print, so the trail fades out over a dozen
 ## steps. A low load prints broken and patchy (the arch and edges drop out); a fast, heavy foot
 ## slips a little forward. Prints go to the world's BloodDecals. Nothing is stamped in blood that is
-## already thick, nor with BloodConfig.footprints_enabled off.
+## already thick, nor with BloodPrintConfig.footprints_enabled off.
 
 ## Points along the sole outline, per side.
 const SOLE_STEPS := 14
@@ -19,7 +19,7 @@ var _load: Dictionary = {}
 ## unit `direction`, sole `length` x `width` px, moving at `speed` px/s, its arch on the `inner`
 ## side (+1/-1) of the direction's frame (+y = `direction.orthogonal()`).
 func step(foot: int, fall: Footfall) -> void:
-	if not (BloodConfig.enabled and BloodConfig.footprints_enabled):
+	if not (BloodConfig.enabled and BloodPrintConfig.footprints_enabled):
 		return
 	var host := get_parent()
 	if host == null or host.get_parent() == null:
@@ -30,16 +30,16 @@ func step(foot: int, fall: Footfall) -> void:
 	var wet := 0.0
 	for k in [-0.35, 0.0, 0.35]:
 		wet = maxf(wet, BloodField.wetness_at(at + direction * length * k))
-	var soak: float = maxf(_load.get(foot, 0.0), wet * BloodConfig.pickup_gain)
-	if soak >= BloodConfig.print_min_load and wet < BloodConfig.thick_blood:
+	var soak: float = maxf(_load.get(foot, 0.0), wet * BloodPrintConfig.pickup_gain)
+	if soak >= BloodPrintConfig.min_load and wet < BloodPrintConfig.thick_blood:
 		var poly := _sole(fall, soak)
 		var alpha := lerpf(
-			BloodConfig.print_alpha_min,
-			BloodConfig.print_alpha_max,
+			BloodPrintConfig.alpha_min,
+			BloodPrintConfig.alpha_max,
 			clampf(soak, 0.0, 1.0),
 		)
 		BloodDecals.layer(host.get_parent()).print_at(poly, alpha)
-		soak -= BloodConfig.print_decay
+		soak -= BloodPrintConfig.decay
 	_load[foot] = maxf(soak, 0.0)
 
 
@@ -49,10 +49,10 @@ func step(foot: int, fall: Footfall) -> void:
 func _sole(fall: Footfall, soak: float) -> PackedVector2Array:
 	var fraction := clampf(soak, 0.0, 1.0)
 	var length := (fall.length
-			+ BloodConfig.print_slip * fraction * clampf(fall.speed / 120.0, 0.0, 1.0))
-	var turn := randf_range(-1.0, 1.0) * BloodConfig.print_turn_jitter
+			+ BloodPrintConfig.slip * fraction * clampf(fall.speed / 120.0, 0.0, 1.0))
+	var turn := randf_range(-1.0, 1.0) * BloodPrintConfig.turn_jitter
 	var forward := fall.direction.rotated(turn)
-	var centre := fall.at + Vector2.from_angle(randf() * TAU) * randf() * BloodConfig.print_jitter
+	var centre := fall.at + Vector2.from_angle(randf() * TAU) * randf() * BloodPrintConfig.jitter
 	var frame := PackedVector2Array([centre, forward, forward.orthogonal()])
 	return _dedupe(_sole_outline(frame, length, fall.width, fall.inner, fraction))
 
