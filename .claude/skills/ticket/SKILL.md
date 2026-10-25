@@ -85,7 +85,9 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   | the session's retro (`session-retro`) | `retro` |
 
   Pass the name as `--task-title` to `worker-start`, then name the tab:
-  `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"` (handle from the `worker-start` receipt).
+  `orca terminal rename --terminal <agentTerminalHandle> --title "<name>"`. The handle is `agentTerminalHandle` of
+  the `orca orchestration worker-list --json` row whose `dispatchId` is the `worker-start` receipt's (the row appears
+  a few seconds after the start; the receipt itself holds no handle).
 - **Heartbeats:** tell every worker in its brief: each `--phase` is a 1–2 sentence status (what it is on, what is
   done), never a bare `implementing`. Relay each to the user in one line with the worker's name, no commentary.
 - **Ack or resend:** tell every worker in its brief:
