@@ -24,7 +24,8 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 |---|---|
 | `vehicle_config.gd` (`VehicleConfig`) | Static holder: one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
 | `vehicle_boarding_config.gd`, `vehicle_door_config.gd`, `vehicle_drive_config.gd`, `vehicle_collision_config.gd`, `vehicle_art_config.gd` | Static holders of the numbers every vehicle shares, one per topic: getting in and out (`VehicleBoardingConfig`), the doors' motion (`VehicleDoorConfig`), driving and the camera (`VehicleDriveConfig`), collisions (`VehicleCollisionConfig`), the look (`VehicleArtConfig`). |
-| `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, skids and `post` (every `vehicle` event the domain posts goes through it). Group `vehicles`. |
+| `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, its parts (`cabin`, `drive`, `_contacts`) and `post` (every `vehicle` event the domain posts goes through it). Group `vehicles`. |
+| `vehicle_cabin.gd` (`VehicleCabin`) | `RefCounted`, the body's `cabin`, built once in its `_ready` from its row: the doors and seats and whose ride is whose (below): `door_list`, `door(id)`, `seat_ids`, `seat_point`, `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` / `close_door`, `exit_door`, `take_seat` / `ride_of` (the rides `board` and `exit` start and end) and `update(delta)` (the doors' step and their closing posts). |
 | `vehicle_contacts.gd` (`VehicleContacts`) | `RefCounted`, the body's private `_contacts`, built once with it: the contacts and harm (V6, below), `read(state)` / `remember(state)` in `_integrate_forces` around the drive's step, `apply()` in `_physics_process`. |
 | `vehicle_drive.gd` | `RefCounted` (preloaded), the body's public `drive`, built once with it: the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`, the drive `intent` and whether the engine is `running`; `lock(row, speed)` is the full lock at a speed; `start_engine` / `stop_engine`, `brake_input(character)` and `update_skid()` (the skids). |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
@@ -85,7 +86,7 @@ a stop, never reverse); a cut engine (`drive.stop_engine`) zeroes it.
   least `idle_rpm + 0.25 × |throttle|` (less of that extra as the speed rises); `engine_load` = |throttle| (0 while braking). Both 0 when the engine is off.
 - `can_sleep` is off while the engine runs (the wheels and revs follow the driver at rest).
 
-## Doors and seats (`vehicle_door.gd`)
+## Doors and seats (`vehicle_door.gd`, the `cabin`'s)
 
 Each `kinds` row has `seats` (id → local point) and `doors` (`id`, `kind`, `seat`, `hinge`, `handle`, `open_angle` or a
 slide's `length`). The car: four `swing` doors (front_left → `driver`, front_right → `passenger`, rear_left / rear_right →
@@ -106,16 +107,16 @@ rear-right door share a seat).
   excluded) over the swept sector (the door's arm `VehicleDoorConfig.clearance` longer, 7 rays over `open_angle`) or the slide track
   (twice the door's length back, `slide_pop + 2 + clearance` deep), then a circle of the user's radius at the
   stand point. A wall, furniture, a character or another vehicle there blocks it.
-- **Seats:** `_seats` (id → holder, from boarding start to the last step out) and `_reserved` (a passenger on its way
-  across); `is_free(id)` needs both empty. `release(character)` frees its seat and reservation and, for the driver's
-  seat, cuts the engine.
+- **Seats** (the body's `cabin`, `VehicleCabin`): `_seats` (id → holder, from boarding start to the last step out) and `_reserved` (a passenger on its way
+  across); `cabin.is_free(id)` needs both empty. `cabin.release(character)` frees its seat and reservation and, for the driver's
+  seat, cuts the engine (`drive.stop_engine`).
 
 ## Getting in and out: the ride (`vehicle_boarding.gd`, V1–V4)
 
 **Picking the door** (`CharacterVehicleUse.try_use_vehicle`, E): seated → `vehicle.exit(self)`; on foot → every door of
 every vehicle in the group `vehicles` moving slower than `board_max_speed`, whose handle is within `door_reach`, sorted by
 distance, and the first whose `board(character, door)` returns a ride wins. `board` refuses at speed, a taken seat, a
-character already riding, or a door that is not `is_clear`; on success it takes the seat and adds a collision exception
+character already riding, or a door that is not `is_clear`; on success it takes the seat (`cabin.take_seat`, which starts the ride) and adds a collision exception
 character → vehicle. Nothing happens on the way in or out, or with no usable door.
 
 **Phases** (`Phase`, stepped by `CharacterVehicleUse.control` every physics frame after the controller, so the ride
@@ -124,14 +125,14 @@ overrides that frame's intent):
 | Phase | What happens |
 |---|---|
 | `WALK` | The character walks with its own walk (`movement.move_input`, never `movement.run_input`) along waypoints round the body (`_path`: straight, or round one or two corners of the box inflated by its radius + `walk_margin`), facing turned at `turn_rate` through `movement.aim_point` (where it walks, the handle over the last 18 px). Given up (seat freed, door closed) if the vehicle moves at `board_max_speed` or the walk takes over `walk_timeout`. |
-| `OPEN` | `open_door` (posts `door_open` / `slide_open` as a shut door starts to move); it turns to the handle and waits for the door to be fully open and itself within `face_tolerance`. |
+| `OPEN` | `cabin.open_door` (posts `door_open` / `slide_open` as a shut door starts to move); it turns to the handle and waits for the door to be fully open and itself within `face_tolerance`. |
 | `STEP_IN` | A pose phase to the entry point over `_step_time` (1.5 × distance / (`speed × step_pace`), at least `step_min_time`: the smoothstep's peak stays under the walk). |
 | `FOLD` | A pose phase to the seat over `fold_time`, fold 0 → 1, heading turned to forward. |
-| `SEATED` | The door closes behind it; the driver starts the engine (`drive.start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `movement.move_input` / `movement.run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
-| `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `drive.brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
+| `SEATED` | The door closes behind it; the driver starts the engine (`drive.start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `cabin.change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `movement.move_input` / `movement.run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
+| `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `drive.brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `cabin.exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
 | `SHIFT_OUT` | Only when the exit door belongs to another seat: a slide across to it (`shift_time`). |
 | `OPEN_OUT`, `UNFOLD`, `STEP_OUT` | The door opens; the rise to the entry point (`fold_time`, fold 1 → 0, facing outward); the step to the stand point. |
-| `DONE` | `release`, the door closes, `character.use.end_ride()`. |
+| `DONE` | `cabin.release`, the door closes, `character.use.end_ride()`. |
 
 `is_seated()` is `SEATED`, `SHIFT_SEAT` or `BRAKE`. A **pose phase** eases position and fold with `smoothstep`, turns the
 heading at `turn_rate`, keeps positions in the vehicle's frame (so a moving vehicle carries the pose) and hands the

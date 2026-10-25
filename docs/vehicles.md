@@ -199,7 +199,8 @@ vehicle; nothing under
 ## How the rules are enforced
 
 - **Vehicles** (`scenes/vehicle/`): `VehicleConfig` (one `kinds` and one `looks` row per kind) and the topic holders (the shared numbers), `vehicle.gd` (the body, the
-  contract, seats and doors, contacts and harm, the hittable, the events), `vehicle_drive.gd` (the bicycle), `vehicle_door.gd` (the open
+  contract, the hittable, the events), `vehicle_cabin.gd` (seats and doors), `vehicle_contacts.gd` (contacts and harm),
+  `vehicle_drive.gd` (the bicycle, the drive intent, the engine and the skids), `vehicle_door.gd` (the open
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
   character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
 - **Character**: the forwards `use.try_use_vehicle()`, `use.vehicle()`, `use.is_in_vehicle()`, the ride API `use.set_ride_pose` / `use.end_ride`, `use.is_busy()`

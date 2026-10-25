@@ -98,7 +98,7 @@ func _key() -> PackedInt32Array:
 		_light_step(global_rotation + BODY_TURN),
 		roundi(global_rotation / VehicleArtConfig.redraw_turn_step),
 	])
-	for d in _vehicle.door_list():
+	for d in _vehicle.cabin.door_list():
 		key.append(roundi(d.amount() / step))
 	if layer == "chassis":
 		key.append(roundi(_vehicle.wheel_angle() / step))
@@ -166,7 +166,7 @@ func _body_size() -> Vector2:
 ## its offset. Its thickness lies inside the body's edge when shut.
 func _draw_doors() -> void:
 	var depth: float = VehicleConfig.looks[_vehicle.kind]["door_depth"]
-	for d in _vehicle.door_list():
+	for d in _vehicle.cabin.door_list():
 		var frame: Dictionary = _doors[d.id]["frame"]
 		var size := Vector2(depth, frame["length"])
 		var angle: float = frame["turn"] + d.angle()
@@ -184,7 +184,7 @@ func _draw_doors() -> void:
 ## window goes with it).
 func _draw_door_glass() -> void:
 	var glazed: Dictionary = VehicleConfig.looks[_vehicle.kind]["glass"]
-	for d in _vehicle.door_list():
+	for d in _vehicle.cabin.door_list():
 		if not glazed.has(d.id):
 			continue
 		var alpha := 1.0 - clampf(d.amount() / maxf(VehicleArtConfig.glass_fade, 0.01), 0.0, 1.0)
@@ -261,7 +261,7 @@ static func _light_step(angle: float) -> int:
 
 ## The door object `id`, or null.
 func _door(id: StringName) -> VehicleDoor:
-	for d in _vehicle.door_list():
+	for d in _vehicle.cabin.door_list():
 		if d.id == id:
 			return d
 	return null

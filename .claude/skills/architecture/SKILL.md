@@ -746,8 +746,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
       aboard zooms out). Its two draw layers are part of the contract too (the tests find them by name): the child `Chassis` (`layer`
       export `"chassis"`, at `DrawLayers.UNDER_VEHICLE`) and the child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`). Everything else on it is Vehicles-internal, for its ride and visuals:
       - `half_size`, `outline`, `row`, `hit_marks` and `post` (a `vehicle` event);
-      - the doors and seats: `door_list`, `seat_point`, `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` /
-        `close_door`, `exit_door`;
+      - its `cabin` (`VehicleCabin`, `vehicle/vehicle_cabin.gd`: the doors and seats, `door_list`, `door`, `seat_point`,
+        `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` / `close_door`, `exit_door`, and the rides);
       - its `drive` (the driving model, `vehicle_drive.gd`, with the intent and the engine: `start_engine` / `stop_engine`,
         `brake_input`);
       - its contacts (`VehicleContacts`, `vehicle/vehicle_contacts.gd`, V6).

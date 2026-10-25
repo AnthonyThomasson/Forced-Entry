@@ -90,7 +90,7 @@ func step(delta: float) -> void:
 			if _pose(delta):
 				_begin_pose(
 					Phase.FOLD,
-					vehicle.seat_point(seat),
+					vehicle.cabin.seat_point(seat),
 					VehicleBoardingConfig.fold_time,
 					1.0,
 					0.0,
@@ -100,7 +100,7 @@ func step(delta: float) -> void:
 				_sit()
 		Phase.SHIFT_SEAT:
 			if _pose(delta):
-				vehicle.change_seat(character, &"driver")
+				vehicle.cabin.change_seat(character, &"driver")
 				seat = &"driver"
 				phase = Phase.SEATED
 				_start_if_driving()
@@ -150,7 +150,7 @@ func request_exit() -> void:
 ## The character died: its seat is given up where it is, and the door is left as it is.
 func abandon() -> void:
 	if phase != Phase.DONE:
-		vehicle.release(character)
+		vehicle.cabin.release(character)
 	phase = Phase.DONE
 
 
@@ -172,7 +172,7 @@ func _walk(delta: float) -> void:
 	if _route.is_empty():
 		character.movement.move_input = Vector2.ZERO
 		phase = Phase.OPEN
-		vehicle.open_door(door)
+		vehicle.cabin.open_door(door)
 		_turn(_to_handle(), delta)
 		return
 	var to: Vector2 = vehicle.to_global(_route[0]) - pos
@@ -202,12 +202,12 @@ func _wait_for_door(delta: float) -> void:
 ## with nobody at the wheel slides across to it first.
 func _sit() -> void:
 	phase = Phase.SEATED
-	vehicle.close_door(door)
-	if seat == &"passenger" and vehicle.is_free(&"driver"):
-		vehicle.reserve(character, &"driver")
+	vehicle.cabin.close_door(door)
+	if seat == &"passenger" and vehicle.cabin.is_free(&"driver"):
+		vehicle.cabin.reserve(character, &"driver")
 		_begin_pose(
 			Phase.SHIFT_SEAT,
-			vehicle.seat_point(&"driver"),
+			vehicle.cabin.seat_point(&"driver"),
 			VehicleBoardingConfig.shift_time,
 			1.0,
 			0.0,
@@ -226,8 +226,8 @@ func _start_if_driving() -> void:
 ## shuts.
 func _give_up() -> void:
 	character.movement.move_input = Vector2.ZERO
-	vehicle.release(character)
-	vehicle.close_door(door)
+	vehicle.cabin.release(character)
+	vehicle.cabin.close_door(door)
 	phase = Phase.DONE
 
 
@@ -246,7 +246,7 @@ func _ride(_delta: float) -> void:
 
 ## Sit still in the seat, facing forward.
 func _hold_seat() -> void:
-	_posed = vehicle.seat_point(seat)
+	_posed = vehicle.cabin.seat_point(seat)
 	_heading = 0.0
 	character.use.set_ride_pose(vehicle.to_global(_posed), _world_facing(0.0), 1.0)
 
@@ -266,7 +266,7 @@ func _brake(_delta: float) -> void:
 	if not _braking and vehicle.speed() > VehicleBoardingConfig.exit_max_speed:
 		return
 	_braking = false
-	_exit_door = vehicle.exit_door(character, seat, door)
+	_exit_door = vehicle.cabin.exit_door(character, seat, door)
 	if _exit_door == null:
 		phase = Phase.SEATED
 		return
@@ -275,7 +275,7 @@ func _brake(_delta: float) -> void:
 	if _exit_door.seat != seat:
 		_begin_pose(
 			Phase.SHIFT_OUT,
-			vehicle.seat_point(_exit_door.seat),
+			vehicle.cabin.seat_point(_exit_door.seat),
 			VehicleBoardingConfig.shift_time,
 			1.0,
 			0.0,
@@ -286,7 +286,7 @@ func _brake(_delta: float) -> void:
 
 ## Open the way out and wait in the seat beside it.
 func _open_out() -> void:
-	vehicle.open_door(_exit_door)
+	vehicle.cabin.open_door(_exit_door)
 	_begin_pose(Phase.OPEN_OUT, _posed, 0.0, 1.0, _heading)
 
 
@@ -294,8 +294,8 @@ func _open_out() -> void:
 ## its own again.
 func _step_off() -> void:
 	phase = Phase.DONE
-	vehicle.release(character)
-	vehicle.close_door(_exit_door)
+	vehicle.cabin.release(character)
+	vehicle.cabin.close_door(_exit_door)
 	character.use.end_ride()
 
 
