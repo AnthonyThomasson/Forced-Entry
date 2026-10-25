@@ -397,8 +397,8 @@ func _defend_candidate(
 
 
 ## Where member `nth` of `count` ordered to ambush a doorway from the room it leads into waits, `g`
-## being that way in's entry geometry (`geometry(id, room_key)`) (`docs/leadership.md` LD15, D17): a
-## post in the room, off the doorway's axis, back from its wall and inside the room's
+## being that way in's entry geometry (`geometry(id, room_key, map, space)`) (`docs/leadership.md`
+## LD15, D17): a post in the room, off the doorway's axis, back from its wall and inside the room's
 ## walls, out of the fatal funnel of every doorway of the room, with a sight line to the threshold,
 ## and unseen from outside: no sight line to it from any slot or pie step of an entry into the room
 ## by that doorway. Among the hidden posts, one with low furniture on its line to the threshold

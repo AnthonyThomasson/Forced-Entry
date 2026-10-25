@@ -12,9 +12,13 @@ and calls `build()` once per decision; its `apply_config(cfg)` sets the tunables
 
 Files:
 - `agent_snapshot.gd` — `build(rooms, goal, activity, knowledge) -> { facts, sections, sections_per_target,
-  options, gun }`: the **facts** literal, the per-hostile loop (`_analyze`), and the assembly of the dict; `fill_goal(goal)`;
+  options, gun }`: the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
+  `_option_groups`); `fill_goal(goal)`; `setup(sources: SnapshotSources)` (once, from the perception's `setup()`), which builds the
+  vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`);
   `bind(character)` (from the perception's own `bind`) hands the NPC's body to it and to the vocabulary, the sections and the option
   groups, each holding it as `_character`, so none of their functions takes the character.
+- `snapshot/snapshot_sources.gd` — `SnapshotSources`, the perception's modules the snapshot reads (`memory`, `tactics`, `entry`, `views`,
+  `ledger`, `throw`, `suspicion`), filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, every tunable the perception sets from the controller's exports
   (`shoot_range`, `punch_range`, `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `flank_ally_radius`,
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
@@ -30,9 +34,9 @@ Files:
   melee_group, advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group,
   explore_group, interaction_group, room_group, order_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
 
-Add a **fact** in the `facts` literal of `build()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
-`build()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
-`snapshot_options.gd` plus a key in the `options` dict. A fact the tree does not gate on is available vocabulary for new rules
+Add a **fact** in the `facts` literal of `_facts()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
+`_state_sections()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
+`snapshot_options.gd` plus a key in `_option_groups()`'s `options` dict. A fact the tree does not gate on is available vocabulary for new rules
 (`tools/audit_scan.py facts` lists those).
 
 ## The snapshot (what the planner walks) — built by `agent_snapshot.gd`

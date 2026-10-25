@@ -323,7 +323,8 @@ func apply_config(cfg: Node) -> void:
 	_apply_entry_config(cfg)
 
 
-## Set the entry module's tunables from `cfg`, the controller's Entry exports (`apply_config`).
+## Set the entry module's tunables from `cfg` (`apply_config`): the controller's Entry exports, its
+## `squad` and the look rate.
 func _apply_entry_config(cfg: Node) -> void:
 	_entry.ready_timeout = cfg.entry_ready_timeout
 	_entry.listen_time = cfg.entry_listen_time
