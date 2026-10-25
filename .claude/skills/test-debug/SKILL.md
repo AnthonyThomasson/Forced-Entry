@@ -42,6 +42,11 @@ gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 
 - Waited a fixed time instead of `t.until(...)`, or fired before the facing caught up (aim, wait ~0.5 s, fire): test bug.
 - An engine error/warning logged: real; fix the code (or `expect_log` / `allowed_logs` if intended).
+- A behaviour that misses a band or a distance (a follower too far behind, a walker off its line): trace the actor
+  frame by frame through the miss window before calling it test slack or proposing a design. Series and p50s hide a
+  per-frame stall. Trace `move_input`, `run_input`, the destination and any body it gives way to, as one `[dbg]` line
+  (the temporary-trace rule below). A frame with no step that no rule names is a code bug. A question to the user
+  about the miss quotes the trace.
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never
   assign a config holder directly in a test.
 - A failure the diff cannot reach (a test of a domain the change leaves untouched, or one failing on `main` too): rerun
