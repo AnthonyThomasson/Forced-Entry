@@ -59,16 +59,7 @@ func build(setup: TestSetup) -> void:
 			push_error("TestWorld: unknown switch '%s'" % switch_name)
 	_apply_statics(setup)
 	_build_world(setup.resolved_world())
-	# Objects go under the house/arena root (like furnished pieces) so the nav bake carves them.
-	for o in setup.objects:
-		var opts: Dictionary = o["opts"].duplicate()
-		opts["name"] = String(o["id"])
-		objects[o["id"]] = ObjectFactory.spawn(
-			o["definition"],
-			house.to_local(o["position"]),
-			house,
-			opts,
-		)
+	_spawn_objects(setup)
 	_overlay_flags = {}
 	for flag in OVERLAY_REGISTRY.defaults():
 		_overlay_flags[flag] = setup.overlays.has(flag)
@@ -92,23 +83,44 @@ func build(setup: TestSetup) -> void:
 	for a in setup.actors:
 		actors[a["id"]] = _spawn_actor(a, setup.switches)
 	if setup.match_spec is Dictionary:
-		var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)
-		var human: Variant = overrides.get("human")
-		if human is Dictionary and (human as Dictionary).has("actor"):
-			# The human a test actor: the match joins that node to its side.
-			human = (human as Dictionary).duplicate()
-			human["node"] = actors.get(human["actor"])
-			human.erase("actor")
-			overrides["human"] = human
-		match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
-		squads = match_handle["squads"]
-		player_stack = match_handle["player_stack"]
-		_leader_overlay = match_handle["leader_overlay"]
-		if setup.squads_spec is Dictionary:
-			push_error("TestWorld: a setup declares its squads or a match, not both")
+		_populate_match(setup, staged, spec)
 	elif setup.squads_spec is Dictionary:
 		_build_squads(setup)
 	_apply_world_switches(setup.switches)
+
+
+## The objects `setup` places, under the house/arena root (like furnished pieces) so the nav bake
+## carves them.
+func _spawn_objects(setup: TestSetup) -> void:
+	for o in setup.objects:
+		var opts: Dictionary = o["opts"].duplicate()
+		opts["name"] = String(o["id"])
+		objects[o["id"]] = ObjectFactory.spawn(
+			o["definition"],
+			house.to_local(o["position"]),
+			house,
+			opts,
+		)
+
+
+## The match `setup` declares (`TestSetup.match`), populated as Main's over the `staged` world
+## (`MatchBuilder.populate`, its overrides over the world's `spec`; a human named by its test actor
+## is that node), with its squads, stack radio and leaders overlay kept.
+func _populate_match(setup: TestSetup, staged: Dictionary, spec: Dictionary) -> void:
+	var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)
+	var human: Variant = overrides.get("human")
+	if human is Dictionary and (human as Dictionary).has("actor"):
+		# The human a test actor: the match joins that node to its side.
+		human = (human as Dictionary).duplicate()
+		human["node"] = actors.get(human["actor"])
+		human.erase("actor")
+		overrides["human"] = human
+	match_handle = MatchBuilder.populate(staged, MatchBuilder.spec(overrides))
+	squads = match_handle["squads"]
+	player_stack = match_handle["player_stack"]
+	_leader_overlay = match_handle["leader_overlay"]
+	if setup.squads_spec is Dictionary:
+		push_error("TestWorld: a setup declares its squads or a match, not both")
 
 
 ## The squads `setup` declares (`TestSetup.squads`): one per faction over its actors, in
@@ -247,37 +259,12 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 		return null
 	var character := scene.instantiate()
 	character.name = String(a["id"])
-	if kind == &"puppet":
-		var puppet: Node = ScriptedController.new()
-		puppet.name = "ScriptedController"
-		character.add_child(puppet)
-	elif kind == &"player":
-		var human: Node = PlayerController.new()
-		human.name = "PlayerController"
-		character.add_child(human)
+	_add_controller(character, kind)
 	var props: Dictionary = a["props"]
 	for prop in props:
 		character.set(prop, props[prop])
-	for switch_name in switches:
-		var row: Dictionary = TestSwitches.row(switch_name).get("actor", {})
-		if row.is_empty():
-			continue
-		var target: Node
-		if row.get("controller", false):
-			target = TestContext.controller_of(character)
-		else:
-			target = character if row["child"] == "" else character.get_node_or_null(row["child"])
-		if target != null:
-			for prop in row["props"]:
-				target.set(prop, switches[switch_name])
-	var children: Dictionary = a["children"]
-	for child_path in children:
-		var child := character.get_node_or_null(child_path)
-		if child == null:
-			push_error("TestWorld: actor '%s' has no child '%s'" % [a["id"], child_path])
-			continue
-		for prop in children[child_path]:
-			child.set(prop, children[child_path][prop])
+	_apply_actor_switches(character, switches)
+	_apply_child_props(character, a)
 	OVERLAY_REGISTRY.apply(character, _overlay_flags)
 	# The AI learns the house's rooms, its doorways and, for an invader, the front entrance by
 	# Main's own rule, before it joins the tree.
@@ -292,6 +279,48 @@ func _spawn_actor(a: Dictionary, switches: Dictionary) -> Node:
 	character.position = to_local(a["position"])
 	add_child(character)
 	return character
+
+
+## The controller a `puppet` (the scripted one) or a `player` (the human one) actor of `kind` is
+## driven by, added under `character`; other kinds bring their own.
+func _add_controller(character: Node, kind: StringName) -> void:
+	if kind == &"puppet":
+		var puppet: Node = ScriptedController.new()
+		puppet.name = "ScriptedController"
+		character.add_child(puppet)
+	elif kind == &"player":
+		var human: Node = PlayerController.new()
+		human.name = "PlayerController"
+		character.add_child(human)
+
+
+## Apply the switch rows that target an actor (`character` itself, a child of it or its
+## controller), each prop set to the switch's value.
+func _apply_actor_switches(character: Node, switches: Dictionary) -> void:
+	for switch_name in switches:
+		var row: Dictionary = TestSwitches.row(switch_name).get("actor", {})
+		if row.is_empty():
+			continue
+		var target: Node
+		if row.get("controller", false):
+			target = TestContext.controller_of(character)
+		else:
+			target = character if row["child"] == "" else character.get_node_or_null(row["child"])
+		if target != null:
+			for prop in row["props"]:
+				target.set(prop, switches[switch_name])
+
+
+## Set the props actor `a` names on children of `character` (`TestSetup.set_props`).
+func _apply_child_props(character: Node, a: Dictionary) -> void:
+	var children: Dictionary = a["children"]
+	for child_path in children:
+		var child := character.get_node_or_null(child_path)
+		if child == null:
+			push_error("TestWorld: actor '%s' has no child '%s'" % [a["id"], child_path])
+			continue
+		for prop in children[child_path]:
+			child.set(prop, children[child_path][prop])
 
 
 ## Apply the switch rows that target a node of the built world.

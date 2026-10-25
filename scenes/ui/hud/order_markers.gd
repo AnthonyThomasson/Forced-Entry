@@ -60,28 +60,7 @@ func _draw() -> void:
 				draw_arc(at, TARGET_RADIUS, 0.0, TAU, 24, color, 2.5)
 				if not labelled.has(at):
 					labelled[at] = true
-					var text: String = m["label"]
-					var size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE)
-					var text_at := at + Vector2(-size.x * 0.5, -TARGET_RADIUS - 6.0)
-					draw_string_outline(
-						font,
-						text_at,
-						text,
-						HORIZONTAL_ALIGNMENT_LEFT,
-						-1,
-						FONT_SIZE,
-						4,
-						Color(0, 0, 0, 0.9),
-					)
-					draw_string(
-						font,
-						text_at,
-						text,
-						HORIZONTAL_ALIGNMENT_LEFT,
-						-1,
-						FONT_SIZE,
-						Color(color, 1.0),
-					)
+					_draw_label(font, at, m["label"], color)
 			"selected":
 				draw_arc(at, SELECTED_RADIUS, 0.0, TAU, 32, SELECTED_COLOR, 3.0)
 
@@ -144,9 +123,34 @@ func _label_of(order: Dictionary, step: String, held: bool) -> String:
 	return what if step == "" else "%s · %s" % [what, step.replace("_", " ")]
 
 
-## Whether `n` is a living character.
-func _alive(n) -> bool:
+## Whether `n` is a living character (any value: a member may have been freed).
+func _alive(n: Variant) -> bool:
 	return n is Node2D and is_instance_valid(n) and n.get("is_dead") != true
+
+
+## The words `text` over the target ring at `at`, outlined, in `color` made opaque.
+func _draw_label(font: Font, at: Vector2, text: String, color: Color) -> void:
+	var size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE)
+	var text_at := at + Vector2(-size.x * 0.5, -TARGET_RADIUS - 6.0)
+	draw_string_outline(
+		font,
+		text_at,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		FONT_SIZE,
+		4,
+		Color(0, 0, 0, 0.9),
+	)
+	draw_string(
+		font,
+		text_at,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		FONT_SIZE,
+		Color(color, 1.0),
+	)
 
 
 ## A dashed line from `a` to `b`.

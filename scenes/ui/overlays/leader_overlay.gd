@@ -62,17 +62,21 @@ func _draw() -> void:
 			"line":
 				draw_line(to_local(c["from"]), to_local(c["to"]), SPOT_COLOR, 1.0)
 			"trail":
-				var points: Array = c["points"]
-				for i in points.size() - 1:
-					draw_dashed_line(
-						to_local(points[i]),
-						to_local(points[i + 1]),
-						TRAIL_COLOR,
-						1.5,
-						DOT,
-					)
+				_draw_trail(c["points"])
 			"crown":
 				_draw_crown(to_local(c["point"]) + Vector2(0, -LIFT))
+
+
+## The leader's trail through `points` (world), dotted.
+func _draw_trail(points: Array) -> void:
+	for i in points.size() - 1:
+		draw_dashed_line(
+			to_local(points[i]),
+			to_local(points[i + 1]),
+			TRAIL_COLOR,
+			1.5,
+			DOT,
+		)
 
 
 ## A crown with its top at `top` (local).
@@ -137,6 +141,6 @@ func _squad_marks() -> Array:
 	return out
 
 
-## Whether `who` is a living character in the world.
-func _alive(who) -> bool:
+## Whether `who` is a living character in the world (any value: a member may have been freed).
+func _alive(who: Variant) -> bool:
 	return who is Node2D and is_instance_valid(who) and who.get("is_dead") != true

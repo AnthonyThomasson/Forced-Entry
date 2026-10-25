@@ -115,6 +115,8 @@ func spawn_invader_team(
 	if centre == Vector2.INF:
 		centre = perimeter_point(bounds.grow(invader_margin), rng.randf())
 	var holes := NavBuilder.furniture_holes(world)
+	var outside := func(p: Vector2) -> bool:
+		return _outdoors(p, rooms, bounds) and not _in_strip(p, door)
 	for i in count:
 		var taken: Array = []
 		for c in combatants:
@@ -125,7 +127,7 @@ func spawn_invader_team(
 		add_npc(
 			INVADER_SCENE,
 			npc_name("Invader", i),
-			_group_spot(centre, rooms, bounds, holes, taken, door),
+			_group_spot(centre, holes, taken, outside),
 		)
 
 
@@ -167,23 +169,16 @@ func _outward(rect: Rect2, pos: Vector2) -> Vector2:
 
 ## The spot nearest `centre` for one more member of a group: `centre` itself, then the points of
 ## rings twice `spawn_clearance` apart round it (about one per twice `spawn_clearance` along each
-## ring), the first that is clear of `holes` and `taken` (`is_clear`) and `_outdoors`, and, given a
-## front entrance `door` (`_front_door`), out of its straight strip (`_in_strip`). `centre` when
-## none is.
-func _group_spot(
-	centre: Vector2,
-	rooms: Array,
-	bounds: Rect2,
-	holes: Array,
-	taken: Array,
-	door := {},
-) -> Vector2:
+## ring), the first that is `outside` (the team's rule: `_outdoors`, and, given a front entrance,
+## out of its straight strip, `_in_strip`) and clear of `holes` and `taken` (`is_clear`). `centre`
+## when none is.
+func _group_spot(centre: Vector2, holes: Array, taken: Array, outside: Callable) -> Vector2:
 	var step := spawn_clearance * 2.0
 	for ring in GROUP_RINGS + 1:
 		var slots := maxi(1, floori(TAU * ring))
 		for k in slots:
 			var p := centre + Vector2.from_angle(TAU * k / slots) * step * ring
-			if _outdoors(p, rooms, bounds) and is_clear(p, holes, taken) and not _in_strip(p, door):
+			if outside.call(p) and is_clear(p, holes, taken):
 				return p
 	GameLog.say("No clear spawn spot round %s; using it" % centre)
 	return centre

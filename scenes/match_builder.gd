@@ -193,20 +193,49 @@ static func build(match_spec: Dictionary, world: Node2D) -> Dictionary:
 ## null) and `leader_overlay`.
 static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	match_spec = spec(match_spec)
-	var world: Node2D = handle["world"]
+	var spawner := _spawner_for(handle, match_spec)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(match_spec["seed"])
+	var human := _human_of(match_spec)
+	_place_sides(spawner, match_spec, handle, rng, human)
+	var combatants: Array = spawner.combatants.filter(func(c): return is_instance_valid(c))
+	if human["node"] != null:
+		_join(human, handle, spawner, rng)
+		combatants.append(human["node"])
+	arm(combatants, match_spec)
+	var out := handle.duplicate()
+	out["combatants"] = combatants
+	_finish(out, match_spec, human)
+	return out
+
+
+## The placement helper (`match_spawner.gd`) for the staged match `handle`, with `match_spec`'s
+## clearances, binding each NPC it places by the match's one rule (`bind_npc`, with
+## `entry_point_for` its faction).
+static func _spawner_for(handle: Dictionary, match_spec: Dictionary) -> RefCounted:
 	var rooms: Array = handle["rooms"]
 	var openings: Array = handle["openings"]
 	var spawner = MATCH_SPAWNER.new()
-	spawner.world = world
+	spawner.world = handle["world"]
 	spawner.spawn_clearance = float(match_spec["spawn_clearance"])
 	spawner.invader_margin = float(match_spec["invader_margin"])
 	spawner.bind = func(npc: Node) -> void:
 		bind_npc(npc, rooms, openings, entry_point_for(npc.get("faction"), openings))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(match_spec["seed"])
-	var human := _human_of(match_spec)
-	var human_node: Node2D = human.get("node")
-	var human_invader: bool = human_node != null and human["side"] != &"defender"
+	return spawner
+
+
+## Place both sides of `match_spec` through `spawner` from `rng`: the defenders each in a random
+## room, then the invader team beside the front entrance of `handle`'s house, round the spec's
+## `human` (`_human_of`) when it invades.
+static func _place_sides(
+	spawner: RefCounted,
+	match_spec: Dictionary,
+	handle: Dictionary,
+	rng: RandomNumberGenerator,
+	human: Dictionary,
+) -> void:
+	var rooms: Array = handle["rooms"]
+	var openings: Array = handle["openings"]
 	_place_side(
 		spawner,
 		match_spec["defenders"],
@@ -227,29 +256,32 @@ static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 				rng,
 				count,
 				_front_opening(openings),
-				_start_of(human) if human_invader else Vector2.INF,
+				_start_of(human) if _invading(human) else Vector2.INF,
 			),
 	)
-	var combatants: Array = spawner.combatants.filter(func(c): return is_instance_valid(c))
-	if human_node != null:
-		_join(human_node, human_invader, human["at"], handle, spawner, rng)
-		combatants.append(human_node)
-	arm(combatants, match_spec)
+
+
+## The squads over the match handle `out`'s `combatants` (`squads_over`: the spec's `human`'s stack
+## radio, one squad per side and the squad-leaders overlay, shown as `match_spec`'s `overlays`
+## says), merged into `out`; then every other debug overlay but the navigation holes (the stage's)
+## started as the `overlays` say (`set_overlay`: a flag it does not name off).
+static func _finish(out: Dictionary, match_spec: Dictionary, human: Dictionary) -> void:
 	var overlays: Dictionary = match_spec["overlays"]
-	var out := handle.duplicate()
-	out["combatants"] = combatants
 	var squads_spec := SquadsSpec.new()
-	squads_spec.members = combatants
-	squads_spec.openings = openings
-	squads_spec.rooms = rooms
+	squads_spec.members = out["combatants"]
+	squads_spec.openings = out["openings"]
+	squads_spec.rooms = out["rooms"]
 	squads_spec.human = human
 	out.merge(
-		squads_over(world, squads_spec, bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false))),
+		squads_over(
+			out["world"],
+			squads_spec,
+			bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false)),
+		),
 	)
 	for flag in OVERLAY_REGISTRY.defaults():
 		if flag != OVERLAY_REGISTRY.NAV_HOLES and flag != OVERLAY_REGISTRY.LEADERS:
 			set_overlay(out, flag, bool(overlays.get(flag, false)))
-	return out
 
 
 ## Place the side `side` (the spec's `defenders` / `invaders`) through `spawner`: at its `at`
@@ -327,33 +359,52 @@ static func style(characters: Array, match_spec: Dictionary) -> Array:
 	var unit: StringName = (units[looks.randi() % units.size()]
 			if not units.is_empty()
 			else CharacterConfig.default_style)
-	var human := _human_of(match_spec)
-	var human_node: Node = human.get("node")
-	var human_lead: bool = (human["lead"]
-			and human_node != null
-			and characters.has(human_node)
-			and human_node.get("faction") == INVADER_FACTION)
+	var lead := _leading_invader(characters, match_spec)
 	# The unit's first is its lead, the next its sergeant, the rest troopers.
-	var rank := 1 if human_lead else 2
+	var rank := 1 if lead != null else 2
 	var out: Array = []
 	for character in characters:
 		var defending: bool = character.get("faction") == DEFENDER_FACTION
-		var look: StringName = unit
-		if defending and not crews.is_empty():
-			look = crews[looks.randi() % crews.size()]
-		var weapons: Array = CharacterConfig.styles[look].get("weapons", [&"police"])
-		var drawn := {
-			"look": look,
-			"seed": looks.randi(),
-			"weapon": weapons[looks.randi() % weapons.size()],
-		}
-		if not defending and human_lead and character == human_node:
+		var drawn := _drawn_style(looks, unit, crews, defending)
+		if not defending and lead != null and character == lead:
 			drawn["rank"] = 2
 		elif not defending:
 			drawn["rank"] = rank
 			rank = maxi(rank - 1, 0)
 		out.append(drawn)
 	return out
+
+
+## The spec's human when it leads the unit (`human.lead`, an invader among `characters`), else null.
+static func _leading_invader(characters: Array, match_spec: Dictionary) -> Node:
+	var human := _human_of(match_spec)
+	var node: Node = human.get("node")
+	if (human["lead"]
+			and node != null
+			and characters.has(node)
+			and node.get("faction") == INVADER_FACTION):
+		return node
+	return null
+
+
+## One character's style drawn from `looks`: the unit's `unit` look, or for a `defending` one one of
+## the `crews` looks (when there are any); then its look seed and one of that look's weapon styles.
+## `{ look, seed, weapon }`.
+static func _drawn_style(
+	looks: RandomNumberGenerator,
+	unit: StringName,
+	crews: Array[StringName],
+	defending: bool,
+) -> Dictionary:
+	var look: StringName = unit
+	if defending and not crews.is_empty():
+		look = crews[looks.randi() % crews.size()]
+	var weapons: Array = CharacterConfig.styles[look].get("weapons", [&"police"])
+	return {
+		"look": look,
+		"seed": looks.randi(),
+		"weapon": weapons[looks.randi() % weapons.size()],
+	}
 
 
 ## The styles (`CharacterConfig.styles` keys) of the side `faction` fights on, in table order.
@@ -594,30 +645,36 @@ static func bind_player(player: Node, rooms: Array, openings: Array) -> Node:
 	return PLAYER_STACK.attach(player, rooms, openings)
 
 
-## Put the human `human` in the staged match `handle` on its side: that side's faction (so its NPCs
-## treat it as an ally) and its start: `at` when given (not INF), else for a defender a clear spot
-## in a random room drawn from `rng` (an invader starts where it stands). It is moved under the
-## match's world, keeping where it stands, just above the house so the draw order stays house <
-## human < NPCs.
+## Put the spec's human (`_human_of`) in the staged match `handle` on its side: that side's faction
+## (so its NPCs treat it as an ally) and its start: its `at` when given (not INF), else for a
+## defender a clear spot in a random room drawn from `rng` through `spawner` (an invader starts
+## where it stands). It is moved under the match's world, keeping where it stands, just above the
+## house so the draw order stays house < human < NPCs.
 static func _join(
-	human: Node2D,
-	invading: bool,
-	at: Vector2,
+	human: Dictionary,
 	handle: Dictionary,
 	spawner: RefCounted,
 	rng: RandomNumberGenerator,
 ) -> void:
+	var node: Node2D = human["node"]
+	var invading := _invading(human)
+	var at: Vector2 = human["at"]
 	var rooms: Array = handle["rooms"]
-	human.set("faction", INVADER_FACTION if invading else DEFENDER_FACTION)
+	node.set("faction", INVADER_FACTION if invading else DEFENDER_FACTION)
 	if at != Vector2.INF:
-		human.global_position = at
+		node.global_position = at
 	elif not invading and not rooms.is_empty():
-		human.global_position = spawner.clear_spot(rooms[rng.randi() % rooms.size()]["rect"], rng)
+		node.global_position = spawner.clear_spot(rooms[rng.randi() % rooms.size()]["rect"], rng)
 	var world: Node2D = handle["world"]
-	if human.get_parent() != world:
-		human.reparent(world, true)
+	if node.get_parent() != world:
+		node.reparent(world, true)
 	var house: Node = handle["house"]
-	world.move_child(human, house.get_index() + 1)
+	world.move_child(node, house.get_index() + 1)
+
+
+## Whether the spec's human (`_human_of`) is there and joins the invaders.
+static func _invading(human: Dictionary) -> bool:
+	return human["node"] != null and human["side"] != &"defender"
 
 
 ## The spec's human as `{ node, side, lead, at }`: `node` null when there is none (or it was

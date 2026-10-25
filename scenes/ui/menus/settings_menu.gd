@@ -122,7 +122,11 @@ func _build_ui(debug_on: bool) -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 4)
 	scroll.add_child(_list)
+	_build_buttons(box)
 
+
+## The bottom row under `box`: "Reset all keys" on the left, "Back" on the right.
+func _build_buttons(box: VBoxContainer) -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	box.add_child(buttons)

@@ -94,6 +94,15 @@ func _fit_scroll() -> void:
 
 ## Lay out the dimmer, the centred panel and its controls, seeded from `defaults`.
 func _build_ui(defaults: Dictionary) -> void:
+	var box := _build_frame()
+	_build_heading(box, defaults)
+	_build_choices(box, defaults)
+	_build_buttons(box)
+
+
+## The dimmer and the centred panel, its content scrolling when the window is too short; returns
+## the box the controls go in.
+func _build_frame() -> VBoxContainer:
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -121,7 +130,11 @@ func _build_ui(defaults: Dictionary) -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 20)
 	margin.add_child(box)
+	return box
 
+
+## The run's ticket (when `defaults` names one) and the title, under `box`.
+func _build_heading(box: VBoxContainer, defaults: Dictionary) -> void:
 	var ticket := str(defaults.get("ticket", "")).strip_edges()
 	if not ticket.is_empty():
 		var ticket_label := Label.new()
@@ -138,6 +151,10 @@ func _build_ui(defaults: Dictionary) -> void:
 	title.add_theme_font_size_override("font_size", 64)
 	box.add_child(title)
 
+
+## The match's choices under `box`, seeded from `defaults`: the side, "Lead the team", the seed,
+## each side's column, and the (hidden) status line.
+func _build_choices(box: VBoxContainer, defaults: Dictionary) -> void:
 	_side_option = _option_row(
 		box,
 		"Play as",
@@ -164,6 +181,9 @@ func _build_ui(defaults: Dictionary) -> void:
 	_status.visible = false
 	box.add_child(_status)
 
+
+## The Start / Watch / Endless row, then the Tests and Settings buttons, under `box`.
+func _build_buttons(box: VBoxContainer) -> void:
 	var starts := HBoxContainer.new()
 	starts.add_theme_constant_override("separation", 12)
 	box.add_child(starts)

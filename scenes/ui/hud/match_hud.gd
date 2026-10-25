@@ -105,55 +105,47 @@ func _decide(verdict: String) -> void:
 ## Build the shared chrome: the top timer, the centre verdict banner and the countdown under it.
 func _build_ui() -> void:
 	_timer_label = _add_label(
-		0.5,
-		0.0,
-		Vector2(-130, 16),
-		Vector2(260, 52),
+		Vector2(0.5, 0.0),
+		Rect2(Vector2(-130, 16), Vector2(260, 52)),
 		34,
 		Color.WHITE,
 		HORIZONTAL_ALIGNMENT_CENTER,
 	)
 	_verdict_label = _add_label(
-		0.5,
-		0.4,
-		Vector2(-350, 0),
-		Vector2(700, 88),
+		Vector2(0.5, 0.4),
+		Rect2(Vector2(-350, 0), Vector2(700, 88)),
 		62,
 		Color.GOLD,
 		HORIZONTAL_ALIGNMENT_CENTER,
 	)
 	_countdown_label = _add_label(
-		0.5,
-		0.4,
-		Vector2(-350, 96),
-		Vector2(700, 48),
+		Vector2(0.5, 0.4),
+		Rect2(Vector2(-350, 96), Vector2(700, 48)),
 		30,
 		Color.WHITE,
 		HORIZONTAL_ALIGNMENT_CENTER,
 	)
 
 
-## Create and return a Label anchored at (`ax`,`ay`) with the given offset, size, font size, colour
-## and horizontal alignment.
+## Create and return a Label anchored at `anchor` with `box` its offset rect from there, the
+## given font size, colour and horizontal alignment.
 func _add_label(
-	ax: float,
-	ay: float,
-	pos: Vector2,
-	size: Vector2,
+	anchor: Vector2,
+	box: Rect2,
 	font_size: int,
 	color: Color,
 	align: HorizontalAlignment,
 ) -> Label:
 	var label := Label.new()
 	add_child(label)
-	label.anchor_left = ax
-	label.anchor_right = ax
-	label.anchor_top = ay
-	label.anchor_bottom = ay
-	label.offset_left = pos.x
-	label.offset_top = pos.y
-	label.offset_right = pos.x + size.x
-	label.offset_bottom = pos.y + size.y
+	label.anchor_left = anchor.x
+	label.anchor_right = anchor.x
+	label.anchor_top = anchor.y
+	label.anchor_bottom = anchor.y
+	label.offset_left = box.position.x
+	label.offset_top = box.position.y
+	label.offset_right = box.end.x
+	label.offset_bottom = box.end.y
 	label.horizontal_alignment = align
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)

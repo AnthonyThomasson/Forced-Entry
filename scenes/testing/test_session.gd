@@ -34,6 +34,8 @@ const REALTIME_FPS := 60
 ## launcher never starts a server (no server there = no server), which is how tools/test_log_gate.py
 ## makes "no server" on purpose.
 const VON_PORT_ENV := "GAME_TEST_VON_PORT"
+## The skip reason of a Von test when no server is live (a failure under `--require-von`).
+const VON_NOT_LIVE := "the Von decision server is not live"
 
 ## The Von launcher, made by the first requires_von test.
 static var _launcher: Node = null
@@ -119,20 +121,12 @@ func start(test_entry: Dictionary) -> void:
 	_concluded = false
 	var skip_reason := ""
 	if entry["requires_von"]:
-		if not include_von and not require_von:
-			skip_reason = "needs the Von decision server (pass --include-von)"
-		else:
-			# Von answers in real time: a batch run's `--fixed-fps` sim outpaces it (game-time
-			# timers like the HTTP timeout expire early), so pace this test in real time.
-			_realtime = true
-			if not await _await_von():
-				skip_reason = "the Von decision server is not live"
-				if require_von:
-					ctx = TestContext.new(get_tree(), entry)
-					ctx.check(false, "The Von decision server is not live (--require-von)")
-					ctx.finish("FAIL")
-					return
+		skip_reason = await _von_skip_reason()
 	ctx = TestContext.new(get_tree(), entry)
+	if skip_reason == VON_NOT_LIVE and require_von:
+		ctx.check(false, "The Von decision server is not live (--require-von)")
+		ctx.finish("FAIL")
+		return
 	if shots:
 		ctx.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
 	if entry["error"] != "":
@@ -146,17 +140,7 @@ func start(test_entry: Dictionary) -> void:
 	setup = TestSetup.new()
 	test.configure(setup)
 	configured.emit(setup)
-	world = TestWorldScript.new()
-	world.name = "TestWorld"
-	world.process_mode = Node.PROCESS_MODE_PAUSABLE  # not inherited from an always-on host
-	add_child(world)
-	world.child_entered_tree.connect(
-		func(n: Node): _on_event(&"spawned", { "node": n, "name": String(n.name) }),
-	)
-	world.child_exiting_tree.connect(
-		func(n: Node): _on_event(&"removed", { "node": n, "name": String(n.name) }),
-	)
-	EventBus.posted.connect(_on_event)
+	_open_world()
 	_building = true
 	await world.build(setup)
 	_building = false
@@ -169,6 +153,35 @@ func start(test_entry: Dictionary) -> void:
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
+
+
+## Why the open Von test does not run, "" when it does: skipped unless Von tests are included, else
+## `VON_NOT_LIVE` when the launcher finds no server. A Von test that runs is paced in real time.
+func _von_skip_reason() -> String:
+	if not include_von and not require_von:
+		return "needs the Von decision server (pass --include-von)"
+	# Von answers in real time: a batch run's `--fixed-fps` sim outpaces it (game-time timers like
+	# the HTTP timeout expire early), so pace this test in real time.
+	_realtime = true
+	if not await _await_von():
+		return VON_NOT_LIVE
+	return ""
+
+
+## Add the open test's world (pausable), its direct children's arrivals and departures and every
+## EventBus event recorded on the test's event log.
+func _open_world() -> void:
+	world = TestWorldScript.new()
+	world.name = "TestWorld"
+	world.process_mode = Node.PROCESS_MODE_PAUSABLE  # not inherited from an always-on host
+	add_child(world)
+	world.child_entered_tree.connect(
+		func(n: Node): _on_event(&"spawned", { "node": n, "name": String(n.name) }),
+	)
+	world.child_exiting_tree.connect(
+		func(n: Node): _on_event(&"removed", { "node": n, "name": String(n.name) }),
+	)
+	EventBus.posted.connect(_on_event)
 
 
 ## Free the open world (restoring statics), let any logs from the teardown land on the test, then

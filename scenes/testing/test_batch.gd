@@ -180,12 +180,24 @@ static func ids() -> Array:
 static func native_selected(path: String) -> bool:
 	if not selecting():
 		return true
+	if _natives_held():
+		return false
+	return _native_wanted(native_entry(path))
+
+
+## Whether no native suite runs in this process at all: a self-test run, after a `--fail-fast`
+## stop, or a shard but the first.
+static func _natives_held() -> bool:
 	if stopped or flag("--self-test"):
-		return false
+		return true
 	var spec := option("--shard")
-	if spec != "" and int(spec.get_slice("/", 0)) != 0:
-		return false
-	var entry := native_entry(path)
+	return spec != "" and int(spec.get_slice("/", 0)) != 0
+
+
+## Whether the selection names the native suite `entry` (`native_entry`): its domain selected
+## (`--domain`, `--skip-domain`), an `--id` naming it or one of its cases, and the filter words
+## matching its path and name.
+static func _native_wanted(entry: Dictionary) -> bool:
 	var domains := list_option("--domain")
 	if not domains.is_empty() and not domains.has(entry["domain"]):
 		return false

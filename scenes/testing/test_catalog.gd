@@ -160,11 +160,7 @@ static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -
 	var parts := spec.split("/")
 	var count := maxi(1, int(parts[1])) if parts.size() == 2 else 1
 	var index := clampi(int(parts[0]), 0, count - 1)
-	var fallback := _median(costs.values())
-	var cost_of := func(e: Dictionary) -> float:
-		if costs.is_empty():
-			return float(e.get("timeout", 1.0))
-		return float(costs[e["id"]]) if costs.has(e["id"]) else fallback
+	var cost_of := _cost_of(costs)
 	var loads: Array = []
 	loads.resize(count)
 	loads.fill(0.0)
@@ -175,6 +171,27 @@ static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -
 				loads[0] += cost_of.call(e)
 		else:
 			rest.append(e)
+	var mine := _deal(rest, loads, cost_of, index)
+	var out: Array = []
+	for e in entries:
+		if mine.has(e) or (e["requires_von"] and index == 0):
+			out.append(e)
+	return out
+
+
+## A test entry's cost as `shard` weighs it: its wall-clock ms in `costs` (an id it lacks costs the
+## median of those it has), or with no `costs` its declared `timeout`.
+static func _cost_of(costs: Dictionary) -> Callable:
+	var fallback := _median(costs.values())
+	return func(e: Dictionary) -> float:
+		if costs.is_empty():
+			return float(e.get("timeout", 1.0))
+		return float(costs[e["id"]]) if costs.has(e["id"]) else fallback
+
+
+## Deal `rest`, costliest first (ties by id), each to the shard of `loads` (each shard's cost so
+## far, added to as it goes) with the least cost; returns those dealt to shard `index`.
+static func _deal(rest: Array, loads: Array, cost_of: Callable, index: int) -> Array:
 	var order := rest.duplicate()
 	order.sort_custom(func(a, b):
 		var ca: float = cost_of.call(a)
@@ -183,17 +200,13 @@ static func shard(entries: Array, spec: String, costs := {}, von_runs := true) -
 	var mine: Array = []
 	for e in order:
 		var lightest := 0
-		for k in count:
+		for k in loads.size():
 			if loads[k] < loads[lightest]:
 				lightest = k
 		loads[lightest] += cost_of.call(e)
 		if lightest == index:
 			mine.append(e)
-	var out: Array = []
-	for e in entries:
-		if mine.has(e) or (e["requires_von"] and index == 0):
-			out.append(e)
-	return out
+	return mine
 
 
 ## The per-test wall-clock costs (id -> ms) in the JSON file at `path` (what `shard` balances by);
