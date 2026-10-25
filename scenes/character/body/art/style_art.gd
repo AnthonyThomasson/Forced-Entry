@@ -54,18 +54,17 @@ static func edge(c: PixelCanvas, shape: PixelCanvas.Shape, look: Dictionary) -> 
 		c.bevel(shape, 1, 1, col, col.darkened(0.4))
 
 
-## A vertical line at column `x` from row `y0` to `y1` (exclusive), only where `shape` is: a stripe
-## kept on the garment.
+## A vertical line down `line` (a rect one px wide: its column, from its top row to its end),
+## only where `shape` is: a stripe kept on the garment.
 static func column(
 	c: PixelCanvas,
 	shape: PixelCanvas.Shape,
-	x: int,
-	y0: int,
-	y1: int,
+	line: Rect2i,
 	col: Color,
 	height: int,
 ) -> void:
-	for y in range(y0, y1):
+	var x := line.position.x
+	for y in range(line.position.y, line.end.y):
 		if shape.has(x, y):
 			c.px(x, y, col, height)
 
