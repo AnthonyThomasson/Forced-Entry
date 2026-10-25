@@ -96,14 +96,18 @@ Load `orchestration`. You are the coordinator: one task per phase of the kind sk
   - once a batch is handled, the next `orca orchestration check` passes `--ack <its deliveryId>`: `check` replays the
     oldest unacknowledged batch, and every later message waits behind it, so a batch repeating a message already
     handled means a missing ack, not an empty inbox;
-  - a decision it must wait on goes through the blocking `orca orchestration ask --question "<text>"`.
+  - a decision it must wait on goes through the blocking `orca orchestration ask --question "<text>"`; an `ask` that
+    times out is still pending: resume it with `orca orchestration ask --resume <its message id>` until it is
+    answered. The turn ends only after `worker_done`.
 
   Read the whole inbox each time; answer each question with `reply --id <that question's id>` (a blocking `ask` is
   separate from an escalation on the same subject). No `received <id>` within ~5 min: `worker-read --dispatch <id>
   --source terminal`, find the message it is blocked on, reply to that id or `send --to dispatch:<id>` quoting the
   question. A heartbeat saying it waits on an answer you already sent: the answer is stuck behind an unacknowledged
   batch, so type into its terminal, `orca terminal send --terminal <its handle> --text "Run orca orchestration check
-  --ack <your last batch's deliveryId>: my answer is behind it." --enter`.
+  --ack <your last batch's deliveryId>: my answer is behind it." --enter`. A `reply` does not wake an idle worker: a
+  reply to an `ask` older than its timeout (10 min by default) is followed, in the same turn, by `orca terminal send
+  --terminal <its handle> --text "Your question <id> is answered: run orca orchestration check." --enter`.
 - **Check each phase** before the next: read the result and diff, rerun its check yourself.
 - **Sequential by default** (one worktree, shared Godot runs); parallel only for independent phases, each in its own
   worktree.
@@ -171,8 +175,11 @@ reuses an open one. `ticket-assets`: also before the showroom's first feedback r
 
 All green: you tell the user in a few lines what is built and passing, rerun `show-me` (it reuses the editor and plays
 the change's tests in a fresh window, `tools/play_tests.sh`), point them at the editor (Play restarted for the latest
-code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). Feedback is a
-new round: update `## Agent Brief` and `## Plan` if scope moved (accepted again after a `change-report`), test first, code, green, ask again. Audit only once the behaviour is right.
+code) and at that window, and ask ("looks right, go on to the audit" / "I have changes"). After the answer,
+`kill` the game and test window pids `show-me` reported in this run (never the editor's) and say so in one line,
+unless the user says they are still watching. Feedback is a new round: update `## Agent Brief` and `## Plan` if
+scope moved (accepted again after a `change-report`), test first, code, green, ask again. Audit only once the
+behaviour is right.
 
 ### Audit
 
