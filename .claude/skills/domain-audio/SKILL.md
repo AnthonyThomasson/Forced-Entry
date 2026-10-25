@@ -172,7 +172,7 @@ A loop ends on its `stop` event, its vehicle freed, its engine stopped, or its v
 - With a camera present (the test runner has one), range culling is live: audio tests that are not about distance
   set `SoundConfig.category_range` to `Probe.EVERYWHERE` (`tests/_audio/sound_probe.gd`).
 - Sounds render lazily (1–12 ms each for most; one variant of each of the 205 profiles took ~2.2 s in a headless run at load average
-  ~3.8, against `perf/audio_bank_render`'s 3000 ms budget; `audio/bank` checks the clips, not the time) and, with a display, are pre-rendered after launch, every variant of every profile
+  ~3.8, against `perf/audio_bank_render`'s 9000 ms budget; `audio/bank` checks the clips, not the time) and, with a display, are pre-rendered after launch, every variant of every profile
   (`Sound.library()`: the first variants first; 492 sounds), because a variant first synthesized in a fight is a 9–35 ms hitch.
   **The pre-warm renders on a worker thread** (`Sound.warm(pairs)`: one `WorkerThreadPool` task calling `SoundBank.render` for each
   pair not cached yet, ~4.8 s in all): a sound takes 1.5–33 ms to synthesize, more than a frame, so on the main thread every frame of

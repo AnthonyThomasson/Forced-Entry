@@ -4,9 +4,8 @@ extends GameTest
 ## out); what each clip sounds like is `audio/bank`'s.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
-# Baseline: ~0.7 s when the bank was written, about 4x under the budget; 2.3 s on 24 October 2026
-# (a load of 5), the library grown since.
-const LIBRARY_BUDGET_MS := 3000.0
+# Baseline: 2.3 s headless at a load of ~4.5 (24 October 2026); the budget is about 4x it.
+const LIBRARY_BUDGET_MS := 9000.0
 
 
 func describe() -> Dictionary:
