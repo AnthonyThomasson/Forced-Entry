@@ -107,6 +107,12 @@ static var min_hop_speed: float = 40.0
 ## Shortest a lob's flight is held to (s), so a throw at the thrower's feet is a drop, not an
 ## instant arrival.
 static var min_flight_time: float = 0.3
+## A thrown grenade's size against walls and what it strikes (px).
+static var radius: float = 3.0
+## Spin deceleration of a thrown grenade on the floor (rad/s²).
+static var spin_friction: float = 14.0
+## A thrown grenade's shadow shift per px of height.
+static var shadow_per_height: float = 0.06
 
 
 ## The row for `kind` (empty for an unknown id).

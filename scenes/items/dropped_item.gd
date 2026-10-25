@@ -1,29 +1,13 @@
 class_name DroppedItem extends Node2D
 ## Items domain: an item let go into the world: a dead character's weapon, or a thrown grenade's
 ## spoon. It falls from hand height, bounces, then skids across the floor with a fading spin until
-## it stops, glancing off walls and solid furniture (layer 1). Drawn by the item's own
-## draw_dropped() over a shadow that closes in as it lands. Visual only: nothing picks it up, and a
-## dropped weapon is never despawned (a grenade's spoon is, grenade_spoon.gd).
+## it stops, glancing off walls and solid furniture (layer 1), as `DroppedItemConfig` tunes it.
+## Drawn by the item's `art.draw_dropped()` over a shadow that closes in as it lands. Visual only:
+## nothing picks it up, and a dropped weapon is never despawned (a grenade's spoon is,
+## grenade_spoon.gd).
 
 ## Physics layers it glances off (walls + solid furniture).
 const WALL_MASK := PhysicsLayers.SOLID
-
-## Fall acceleration (px/s²), as a falling body's.
-@export var gravity: float = 610.0
-## Height it is let go from (px): about hand height.
-@export var start_height: float = 50.0
-## Share of its fall speed each bounce keeps.
-@export var bounce: float = 0.35
-## Skid deceleration on the floor (px/s²).
-@export var friction: float = 520.0
-## Share of its speed kept glancing off a wall.
-@export var wall_bounce: float = 0.45
-## Spin deceleration on the floor (rad/s²).
-@export var spin_friction: float = 14.0
-## Its size against walls (px).
-@export var radius: float = 3.0
-## Shadow shift per px of height.
-@export var shadow_per_height: float = 0.06
 
 ## The item lying here (draws itself).
 var item: Item
@@ -39,30 +23,30 @@ var _angle := 0.0
 var _spin := 0.0
 ## How it lies, passed to draw_dropped (`flip`: which side is up).
 var _landing := {}
-## Reused wall sweep (a circle of `radius`).
+## Reused wall sweep (a circle of `DroppedItemConfig.radius`).
 var _query: PhysicsShapeQueryParameters2D
 
 
 func _ready() -> void:
 	z_index = DrawLayers.LYING  # Beneath the living and a vehicle's chassis, like a fallen body.
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_height = start_height
+	_height = DroppedItemConfig.start_height
 	var circle := CircleShape2D.new()
-	circle.radius = radius
+	circle.radius = DroppedItemConfig.radius
 	_query = PhysicsShapeQueryParameters2D.new()
 	_query.shape = circle
 	_query.collision_mask = WALL_MASK
 
 
 func _physics_process(delta: float) -> void:
-	_rise -= gravity * delta
+	_rise -= DroppedItemConfig.gravity * delta
 	_height += _rise * delta
 	var grounded := _height <= 0.0
 	if grounded:
 		_height = 0.0
-		_rise = -_rise * bounce if _rise < -40.0 else 0.0
-		_velocity = _velocity.move_toward(Vector2.ZERO, friction * delta)
-		_spin = move_toward(_spin, 0.0, spin_friction * delta)
+		_rise = -_rise * DroppedItemConfig.bounce if _rise < -40.0 else 0.0
+		_velocity = _velocity.move_toward(Vector2.ZERO, DroppedItemConfig.friction * delta)
+		_spin = move_toward(_spin, 0.0, DroppedItemConfig.spin_friction * delta)
 	_slide(_velocity * delta)
 	_angle += _spin * delta
 	queue_redraw()
@@ -75,8 +59,13 @@ func _draw() -> void:
 		return
 	var toward := -ArtCanvasConfig.light_from.normalized()
 	var away := global_transform.basis_xform_inv(toward).normalized()
-	item.art.draw_dropped(self, away * (0.5 + _height * shadow_per_height), _angle,
-		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha), _landing)
+	item.art.draw_dropped(
+		self,
+		away * (0.5 + _height * DroppedItemConfig.shadow_per_height),
+		_angle,
+		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
+		_landing,
+	)
 	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
 
 
@@ -119,5 +108,5 @@ func _slide(motion: Vector2, glance: bool = true) -> void:
 	_query.motion = Vector2.ZERO
 	var info := space.get_rest_info(_query)
 	var normal: Vector2 = info["normal"] if info.has("normal") else -motion.normalized()
-	_velocity = _velocity.bounce(normal) * wall_bounce
+	_velocity = _velocity.bounce(normal) * DroppedItemConfig.wall_bounce
 	_spin *= -0.5

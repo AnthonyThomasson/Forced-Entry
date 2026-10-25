@@ -1019,7 +1019,7 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-five `class_name` static holders, one per topic, each with 15 vars or fewer
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-six `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
 `grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
 **Projectile:** `BallisticsFlightConfig` (speeds, a bullet's height and the fly-over, a surfaceless collider),
@@ -1048,7 +1048,7 @@ z rungs), `ObjectArtFloorConfig`, `ObjectArtWallConfig`, `ObjectArtDecayConfig`,
 **Items:** `MagazineConfig` (magazine types, capacities and reload times), `GunConfig` (one row per gun — damage, fire rate,
 penetration, muzzle speed, spread, recoil, magazine, whether it raises at a wall, its sizes and hold, its looks per weapon style),
 `GrenadeConfig` (one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its art size, its looks per
-weapon style), `OutfitConfig`
+weapon style — and the flight every kind shares), `DroppedItemConfig` (how an item let go falls, bounces, skids and spins), `OutfitConfig`
 (the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a
 plate's durability) and `LoadoutConfig` (the setup choices' bounds — spare magazines, grenades — and the default outfit).
 **Audio:** `SoundConfig` (the master switch, levels, jitter, voices, ranges), `SoundLibraryConfig` (rate, peak, variants,

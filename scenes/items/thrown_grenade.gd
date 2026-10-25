@@ -7,7 +7,7 @@ class_name ThrownGrenade extends Node2D
 ## group `live_grenades` (`kind`, `fuse_left()`, `throw_stats()`, `thrower`) for perception to
 ## query.
 ##
-## The lob is planned once at the throw (`plan`): its flight time and gravity are solved so the
+## The lob is planned once at the throw (`_plan`): its flight time and gravity are solved so the
 ## grenade comes to REST at the aim point (the touchdown, a bounce or two and the skid are simulated
 ## with the very integrator the node then runs), except that a throw is capped at the row's
 ## `max_range` of first touchdown, and rolls on a little past it. The plan is then flown over the
@@ -42,13 +42,6 @@ const THROWER_CLEAR := 40.0
 ## No bodies passed (once the grenade is clear of its thrower).
 const NOBODY: Array[RID] = []
 
-## Its size against walls (px).
-@export var radius: float = 3.0
-## Spin deceleration on the floor (rad/s²).
-@export var spin_friction: float = 14.0
-## Shadow shift per px of height.
-@export var shadow_per_height: float = 0.06
-
 ## Which grenade this is (a `GrenadeConfig` id) and who threw it (may be gone by the time it goes
 ## off).
 var kind: StringName = &""
@@ -70,7 +63,7 @@ var _angle := 0.0
 var _spin := 0.0
 ## It has come to rest (the `rest` event was posted).
 var _resting := false
-## Reused sweep (a circle of `radius`).
+## Reused sweep (a circle of `GrenadeConfig.radius`).
 var _query: PhysicsShapeQueryParameters2D
 ## The thrower's body, passed for the first `THROWER_CLEAR` px of flight.
 var _thrower_rid: Array[RID] = []
@@ -81,7 +74,7 @@ var _flown := 0.0
 func _ready() -> void:
 	add_to_group(&"live_grenades")
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_query = _sweep_query(radius)
+	_query = _sweep_query(GrenadeConfig.radius)
 	_update_layer()
 
 
@@ -95,7 +88,7 @@ func _physics_process(delta: float) -> void:
 	var landed := _motion.step(delta)
 	_slide(_direction * _motion.speed * delta)
 	if _motion.rolling:
-		_spin = move_toward(_spin, 0.0, spin_friction * delta)
+		_spin = move_toward(_spin, 0.0, GrenadeConfig.spin_friction * delta)
 	_angle += _spin * delta
 	_update_layer()
 	if landed:
@@ -112,8 +105,12 @@ func _draw() -> void:
 		return
 	var toward := -ArtCanvasConfig.light_from.normalized()
 	var away := global_transform.basis_xform_inv(toward).normalized()
-	item.art.draw_dropped(self, away * (0.5 + _motion.height * shadow_per_height), _angle,
-		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha))
+	item.art.draw_dropped(
+		self,
+		away * (0.5 + _motion.height * GrenadeConfig.shadow_per_height),
+		_angle,
+		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
+	)
 	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
 
 
@@ -140,9 +137,9 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	course.to = to
 	course.direction = node._direction
 	course.space = parent.get_viewport().find_world_2d().direct_space_state
-	course.query = _sweep_query(node.radius)
+	course.query = _sweep_query(GrenadeConfig.radius)
 	course.passed = node._thrower_rid
-	var lob := _fit(row, plan(row, from.distance_to(to)), course)
+	var lob := _fit(row, _plan(row, from.distance_to(to)), course)
 	node._motion = _motion_for(row, lob)
 	node._angle = node._direction.angle()
 	node._spin = randf_range(8.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
@@ -155,7 +152,7 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 ## `{ time, rise, gravity, speed, reach }` (the flight time, the launch's vertical speed, the
 ## gravity it is flown under, the speed across the floor and how far it first touches down). A throw
 ## aimed past what `max_range` allows first touches down at `max_range` and rolls on from there.
-static func plan(row: Dictionary, distance: float) -> Dictionary:
+static func _plan(row: Dictionary, distance: float) -> Dictionary:
 	var cap := float(row.get("max_range", 550.0))
 	var reach := cap
 	if _simulate(row, cap).y > distance:

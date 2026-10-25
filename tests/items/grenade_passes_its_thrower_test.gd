@@ -12,7 +12,7 @@ const AT := Vector2(300, 250)
 ## 6 px behind the thrower and 18 px to its right as it faces east.
 const RELEASE := Vector2(294, 268)
 const AIM := Vector2(400, 210)
-## A thrown grenade's size against what it strikes (`ThrownGrenade.radius`).
+## A thrown grenade's size against what it strikes (`GrenadeConfig.radius`).
 const GRENADE_RADIUS := 3.0
 
 
