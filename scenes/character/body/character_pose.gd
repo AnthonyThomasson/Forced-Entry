@@ -16,18 +16,6 @@ extends RefCounted
 ## the visuals (each part's angle and offset). Visual only: aim, shots and punches stay on `facing`.
 ## Tuning: CharacterConfig.pose_*, stun_look_ease, stun_hunch_pitch and stun_stagger_*.
 
-## The parts that turn toward the aim on a damped spring of their own: the head, a steady (aiming
-## or supporting) hand, each free hand, a held weapon, the shoulders and the hips.
-enum Spring {
-	HEAD,
-	AIM,
-	HAND_0,
-	HAND_1,
-	WEAPON,
-	TORSO,
-	HIPS,
-}
-
 ## A wavering hand (a stance's `waver`) also rises and falls, this many body radii per px of its
 ## wander across, this many seconds out of step with it.
 const WAVER_RISE := 0.05
@@ -152,22 +140,50 @@ func _step_stride(delta: float, velocity: Vector2, top_speed: float) -> void:
 		_move_dir = velocity / speed
 
 
-## Turn the head, each hand, the weapon and the shoulders' spring toward `aim`, each on its own.
+## Turn the head, each hand, the weapon and the shoulders' spring toward `aim`, each on its own
+## spring (see `_accel`), each reeled back in when it trails the aim too far (see `_reel`): the head
+## glances around while standing still and the shoulders sway with the walk.
 func _turn_parts(aim: float, delta: float) -> void:
-	var head := _turn(head_angle, _head_vel, aim, Spring.HEAD, delta)
+	var glance := (sin(_time * 0.5 + _phase) * 0.6 + sin(_time * 0.21 + _phase * 2.3) * 0.4) \
+		* CharacterConfig.pose_glance * (1.0 - _walk)
+	var sway := sin(_stride) * CharacterConfig.pose_walk_sway * _walk
+	_head_vel = _accel(_head_vel, angle_difference(head_angle, aim + glance),
+		CharacterConfig.pose_head_freq, CharacterConfig.pose_head_damping, delta)
+	var head := _reel(head_angle + _head_vel * delta, _head_vel, aim,
+		CharacterConfig.pose_head_max_lag, delta)
 	head_angle = head.x
 	_head_vel = head.y
 	for i in 2:
-		var spring := Spring.AIM if _steady[i] else (Spring.HAND_0 if i == 0 else Spring.HAND_1)
-		var hand := _turn(hand_angles[i], _hand_vels[i], aim, spring, delta)
-		hand_angles[i] = hand.x
-		_hand_vels[i] = hand.y
-	var weapon := _turn(weapon_angle, _weapon_vel, aim, Spring.WEAPON, delta)
+		_turn_hand(i, aim, delta)
+	_weapon_vel = _accel(_weapon_vel, angle_difference(weapon_angle, aim),
+		CharacterConfig.pose_weapon_freq, CharacterConfig.pose_weapon_damping, delta)
+	var weapon := _reel(weapon_angle + _weapon_vel * delta, _weapon_vel, aim,
+		CharacterConfig.pose_weapon_max_lag, delta)
 	weapon_angle = weapon.x
 	_weapon_vel = weapon.y
-	var torso := _turn(_torso_core, _torso_vel, aim, Spring.TORSO, delta)
+	_torso_vel = _accel(_torso_vel, angle_difference(_torso_core, aim + sway),
+		CharacterConfig.pose_torso_freq, CharacterConfig.pose_torso_damping, delta)
+	var torso := _reel(_torso_core + _torso_vel * delta, _torso_vel, aim,
+		CharacterConfig.pose_torso_max_lag, delta)
 	_torso_core = torso.x
 	_torso_vel = torso.y
+
+
+## Turn hand `i` toward `aim`: a steady one on the quick aim spring, a free one on the hand spring,
+## each free hand at its own pace, so the pair doesn't turn as one rigid piece.
+func _turn_hand(i: int, aim: float, delta: float) -> void:
+	var freq := CharacterConfig.pose_aim_freq
+	var damping := CharacterConfig.pose_aim_damping
+	var max_lag := CharacterConfig.pose_aim_max_lag
+	if not _steady[i]:
+		var pace := 1.0 + CharacterConfig.pose_hand_pace_spread * (-0.5 if i == 0 else 0.5)
+		freq = CharacterConfig.pose_hand_freq * pace
+		damping = CharacterConfig.pose_hand_damping
+		max_lag = CharacterConfig.pose_hand_max_lag
+	var vel := _accel(_hand_vels[i], angle_difference(hand_angles[i], aim), freq, damping, delta)
+	var hand := _reel(hand_angles[i] + vel * delta, vel, aim, max_lag, delta)
+	hand_angles[i] = hand.x
+	_hand_vels[i] = hand.y
 
 
 ## The shoulders' angle and lunge over their spring: a punch (each hand's extension in `punch`)
@@ -237,7 +253,10 @@ func _step_hips(delta: float, aim: float) -> void:
 		target = _move_dir.angle()
 		if absf(angle_difference(aim, target)) > PI * 0.5:
 			target += PI  # Walking backward: the feet still face the aim.
-	var hips := _turn(hip_angle, _hip_vel, target, Spring.HIPS, delta)
+	# The hips' own spring never reels them in: their twist off the aim is held below.
+	var vel := _accel(_hip_vel, angle_difference(hip_angle, target), CharacterConfig.pose_hip_freq,
+		CharacterConfig.pose_hip_damping, delta)
+	var hips := _reel(hip_angle + vel * delta, vel, target, PI, delta)
 	var planted := _reel(hips.x, hips.y, aim, CharacterConfig.pose_hip_twist, delta)
 	hip_angle = planted.x
 	_hip_vel = planted.y
@@ -349,82 +368,6 @@ static func _eased(now: Dictionary, to: Dictionary, delta: float) -> Dictionary:
 	out["waver"] = lerpf(now.get("waver", 0.0), to.get("waver", 0.0), k)
 	out["elbow_pole"] = (now["elbow_pole"] as Vector3).lerp(to["elbow_pole"], k)
 	return out
-
-
-## One step of a part's angle chasing `aim` (plus its `_offset`) on its `spring`, reeled back in
-## when it trails the aim by more than the spring's `_max_lag` (see `_reel`). Returns (angle,
-## velocity).
-func _turn(angle: float, vel: float, aim: float, spring: Spring, delta: float) -> Vector2:
-	vel = _accel(
-		vel, angle_difference(angle, aim + _offset(spring)), _freq(spring), _damping(spring), delta,
-	)
-	angle += vel * delta
-	return _reel(angle, vel, aim, _max_lag(spring), delta)
-
-
-## How far off the aim `spring`'s part settles (rad): the head glances around while standing still,
-## the shoulders sway with the walk; the rest none.
-func _offset(spring: Spring) -> float:
-	match spring:
-		Spring.HEAD:
-			return ((sin(_time * 0.5 + _phase) * 0.6 + sin(_time * 0.21 + _phase * 2.3) * 0.4)
-					* CharacterConfig.pose_glance * (1.0 - _walk))
-		Spring.TORSO:
-			return sin(_stride) * CharacterConfig.pose_walk_sway * _walk
-	return 0.0
-
-
-## `spring`'s natural frequency (rad/s): each free hand at its own pace, so the pair doesn't turn
-## as one rigid piece.
-static func _freq(spring: Spring) -> float:
-	match spring:
-		Spring.HEAD:
-			return CharacterConfig.pose_head_freq
-		Spring.AIM:
-			return CharacterConfig.pose_aim_freq
-		Spring.HAND_0, Spring.HAND_1:
-			var pace := 1.0 + CharacterConfig.pose_hand_pace_spread * (
-				-0.5 if spring == Spring.HAND_0 else 0.5
-			)
-			return CharacterConfig.pose_hand_freq * pace
-		Spring.WEAPON:
-			return CharacterConfig.pose_weapon_freq
-		Spring.TORSO:
-			return CharacterConfig.pose_torso_freq
-	return CharacterConfig.pose_hip_freq
-
-
-## `spring`'s damping ratio.
-static func _damping(spring: Spring) -> float:
-	match spring:
-		Spring.HEAD:
-			return CharacterConfig.pose_head_damping
-		Spring.AIM:
-			return CharacterConfig.pose_aim_damping
-		Spring.HAND_0, Spring.HAND_1:
-			return CharacterConfig.pose_hand_damping
-		Spring.WEAPON:
-			return CharacterConfig.pose_weapon_damping
-		Spring.TORSO:
-			return CharacterConfig.pose_torso_damping
-	return CharacterConfig.pose_hip_damping
-
-
-## How far `spring`'s part may trail the aim before it is reeled in (rad; the hips never are: their
-## twist is held by `_step_hips`).
-static func _max_lag(spring: Spring) -> float:
-	match spring:
-		Spring.HEAD:
-			return CharacterConfig.pose_head_max_lag
-		Spring.AIM:
-			return CharacterConfig.pose_aim_max_lag
-		Spring.HAND_0, Spring.HAND_1:
-			return CharacterConfig.pose_hand_max_lag
-		Spring.WEAPON:
-			return CharacterConfig.pose_weapon_max_lag
-		Spring.TORSO:
-			return CharacterConfig.pose_torso_max_lag
-	return PI
 
 
 ## `angle` past `max_lag` behind `aim` is reeled back in quickly (CharacterConfig.pose_lag_catch)

@@ -90,6 +90,8 @@ var facing := Vector2.RIGHT
 var pose: CharacterPose = CharacterPose.new()
 ## The falling body once dead (null while alive): stepped here, drawn by the visuals.
 var ragdoll: CharacterRagdoll
+## What drives `pose`, refilled each physics frame (see `_pose_drive`).
+var _drive := PoseDrive.new()
 ## The standing rig solved for `_rig_frame` (see `rig()`).
 var _rig_cache: CharacterRig = null
 ## The physics frame `_rig_cache` was solved in.
@@ -506,17 +508,16 @@ func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
 	pose.update(delta, _pose_drive(step, stun))
 
 
-## What drives the pose this frame: the aim, the walk at `moving` (px/s), each hand's stance and
-## punch, and the `stun_at` level.
+## What drives the pose this frame (`_drive`, refilled): the aim, the walk at `moving` (px/s), each
+## hand's stance and punch, and the `stun_at` level.
 func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
-	var drive := PoseDrive.new()
-	drive.facing = facing
-	drive.velocity = moving
-	drive.top_speed = speed
-	drive.stances = _stances()
-	drive.punch = _hands.punch_amounts()
-	drive.stun = stun_at
-	return drive
+	_drive.facing = facing
+	_drive.velocity = moving
+	_drive.top_speed = speed
+	_drive.stances = _stances()
+	_drive.punch = _hands.punch_amounts()
+	_drive.stun = stun_at
+	return _drive
 
 
 ## Keep the collision exception with `body` (one the character just left: an interaction's object, a

@@ -107,6 +107,8 @@ var redraws := 0
 var draw_order: Array[StringName] = []
 ## The textures the last draw of the body painted, in order (`drawn_art`).
 var _art: Array[Texture2D] = []
+## How the round part being drawn is drawn: one look, refilled for each part (`_round_look`).
+var _look := ShapeLook.new()
 ## The look as drawn: the character's style and what it wears in it. Resolved by `_dress` only when
 ## the outfit (`Outfit.revision`) or the style (`Character.style`, `look_seed`, `rank`) changes, so
 ## the per-frame cost is two ints compared.
@@ -665,24 +667,23 @@ func _draw_part(at: Vector2, size: Vector2, impacts: Array, look: ShapeLook) -> 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## How a round part is drawn: its art `tex` turned by `angle` within its silhouette, darkened by
-## `damage_total`, `fill` and `outline` its colours where it has no art, its hit marks left for
-## later.
-static func _round_look(
+## How a round part is drawn (`_look`, refilled): its art `tex` turned by `angle` within its
+## silhouette, darkened by `damage_total`, `fill` and `outline` its colours where it has no art, its
+## hit marks left for later.
+func _round_look(
 	tex: Texture2D,
 	angle: float,
 	damage_total: float,
 	fill: Color,
 	outline: Color,
 ) -> ShapeLook:
-	var look := ShapeLook.new()
-	look.fill = fill
-	look.outline = outline
-	look.damage_total = damage_total
-	look.texture = tex
-	look.texture_angle = angle
-	look.marks = false
-	return look
+	_look.fill = fill
+	_look.outline = outline
+	_look.damage_total = damage_total
+	_look.texture = tex
+	_look.texture_angle = angle
+	_look.marks = false
+	return _look
 
 
 ## A round part (`size` px across) drawn as `look` says, through its silhouette dented by `impacts`,
@@ -1059,8 +1060,10 @@ func _draw_chain(chain: Dictionary) -> void:
 ## Segment `seg`'s capsule a pixel wider all round added to `outlines`, in its colour's outline tone
 ## (PixelCanvas.tones).
 static func _outline_seg(outlines: FillBatch, seg: Dictionary) -> void:
-	var a := _flat(seg["a"])
-	var b := _flat(seg["b"])
+	var a3: Vector3 = seg["a"]
+	var b3: Vector3 = seg["b"]
+	var a := Vector2(a3.x, a3.y)
+	var b := Vector2(b3.x, b3.y)
 	var ra: float = seg["ra"] + 1.0
 	var rb: float = seg["rb"] + 1.0
 	var tone := (seg["color"] as Color).darkened(ArtConfig.tone_outline)
@@ -1077,37 +1080,25 @@ func _draw_segment(seg: Dictionary) -> void:
 	var span := a.distance_to(b)
 	var dir := (b - a) / span if span > 0.01 else Vector2.DOWN
 	var widest := maxf(ra, rb)
-	var tex := _segment_art(seg, widest, dir.angle() - PI * 0.5)
+	var tex := PixelArt.render_turned(
+		LimbPainter,
+		Vector2(roundf(widest * 2.0), roundf(float(seg["length"]) + ra + rb)),
+		seg["color"],
+		PixelArt.snap_angle(dir.angle() - PI * 0.5),
+		seg["opts"],
+	)
 	_art.append(tex)
 	var poly := _capsule(a, b, ra, rb)
 	_meshes.draw(
-		poly, _strip_uvs(a, b, ra, rb) * poly, tex, Color.WHITE,
+		poly, _strip_uvs(a, dir, span, ra, rb) * poly, tex, Color.WHITE,
 		Rect2(a.min(b), (b - a).abs()).grow(widest),
 	)
 
 
-## Segment `seg`'s shaded strip (limb_painter.gd), `widest` px in radius across and its length plus
-## both ends' radii along, at whole pixels, lit for the step nearest `angle`.
-func _segment_art(seg: Dictionary, widest: float, angle: float) -> Texture2D:
-	var size := Vector2(
-		roundf(widest * 2.0),
-		roundf(float(seg["length"]) + float(seg["ra"]) + float(seg["rb"])),
-	)
-	return PixelArt.render_turned(
-		LimbPainter,
-		size,
-		seg["color"],
-		PixelArt.snap_angle(angle),
-		seg["opts"],
-	)
-
-
-## The transform from canvas px to a strip's uvs on the capsule from `a` (radius `ra`) to `b`
-## (`rb`): across the strip, the offset from the axis over the strip's width; along it, from `ra`
-## behind `a` over the whole length.
-static func _strip_uvs(a: Vector2, b: Vector2, ra: float, rb: float) -> Transform2D:
-	var span := a.distance_to(b)
-	var dir := (b - a) / span if span > 0.01 else Vector2.DOWN
+## The transform from canvas px to a strip's uvs on the capsule from `a` (radius `ra`) `span` px
+## along `dir` to its other end (`rb`): across the strip, the offset from the axis over the strip's
+## width; along it, from `ra` behind `a` over the whole length.
+static func _strip_uvs(a: Vector2, dir: Vector2, span: float, ra: float, rb: float) -> Transform2D:
 	var across := dir.orthogonal() / (maxf(ra, rb) * 2.0)
 	var along := dir / (span + ra + rb)
 	return Transform2D(Vector2(across.x, along.x), Vector2(across.y, along.y),

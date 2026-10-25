@@ -74,8 +74,8 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
 ## Pose (the living motion)
 
 `character_pose.gd` layers motion over the aim; it is visual only (aim, shots and punches stay on
-`facing`). `character.gd` steps it with `pose.update(delta, drive)`, a `PoseDrive` (`pose_drive.gd`) its `_pose_drive` fills
-each frame: `facing`, `velocity` (`get_real_velocity()`), `top_speed` (`speed`), `stances` (the held item's `hand_stance(0)` / `(1)`),
+`facing`). `character.gd` steps it with `pose.update(delta, drive)`, a `PoseDrive` (`pose_drive.gd`), one per character (`_drive`),
+its `_pose_drive` refills each frame: `facing`, `velocity` (`get_real_velocity()`), `top_speed` (`speed`), `stances` (the held item's `hand_stance(0)` / `(1)`),
 `punch` (`Hands.punch_amounts()`) and `stun`,
 right after `move_and_slide()` (and with zero velocity while busy in an interaction; a dead
 character stops stepping it), before the Hands child's `_physics_process`, so hands build on this
@@ -151,13 +151,14 @@ legs layer solves its own unclamped rig (`Rig.new(character, false)`). `Characte
 by index (`HEAD`, `CHEST`, `PELVIS`, `BELLY`, `SPINE` and per-side `SHOULDER`, `HIP`, `ELBOW`,
 `HAND`, `KNEE`, `ANKLE`; side 0/1 matching the hands) and each foot's direction through `toes(i)`.
 `character_ragdoll.gd` re-exports the same indices.
-- A solve reads its measures off the character once (`RigMeasures`, `rig_measures.gd`: the frames, the posture's heights and fold,
-  the bone lengths, the feet's spacing), then places the trunk, each arm, each leg and the rested feet.
+- A solve reads its measures off the character once (`CharacterRig.Measures`, the inner class at the end of `character_rig.gd`,
+  one shared by every solve and refilled: the frames, the posture's heights and fold, the bone lengths, the feet's spacing),
+  then places the trunk, each arm, each leg into the rig's points (`Measures.place`) and the rested feet.
 - Upper body: chest and shoulders sit in the pose's twisted torso frame, shifted by `torso_offset`;
   hips and feet in its `hip_angle` frame. Proportions are `CharacterConfig.body_*`, in body radii
   (shoulders at `body_shoulder_height`, hips at `body_hip_height`, arms `body_upper_arm` +
   `body_forearm` ≈ 38 px, legs `body_thigh` + `body_shin`).
-- Arms: two-bone IK (`_bend`) from each shoulder to where the hands layer holds the fist, at the
+- Arms: two-bone IK (`Measures.bend`) from each shoulder to where the hands layer holds the fist, at the
   stance's grip height, the elbow toward the stance's pole. If the hand is out of reach
   (`body_arm_extension` of the arm's length) its shoulder follows it, up to `body_shoulder_reach`;
   past that the forearm stretches a little.
@@ -307,7 +308,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
   `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
   `Deformation.darken`, or `Deformation.draw_shape(..., look)` headless or with `BodyMeshes.enabled`
-  off: the same polygon either way, above; both read the part's `ShapeLook` from `_round_look`: the `texture`, its
+  off: the same polygon either way, above; both read the part's `ShapeLook` from `_round_look`, which refills the one the visuals keep (`_look`): the `texture`, its
   `texture_angle`, the damage, `marks` false) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
