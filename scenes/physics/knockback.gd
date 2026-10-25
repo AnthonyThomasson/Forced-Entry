@@ -5,7 +5,7 @@ class_name Knockback extends Node
 ## the body. The "pushable" contract itself is the body's native `apply_impulse(v, at)` /
 ## `get_mass()`. The engine integrates motion, collisions, pivoting and settling; this
 ## component only feeds it impulses and hands momentum to the kinematic character on contact.
-## All tuning is PhysicsConfig.body_* / impact_*.
+## All tuning is PhysicsImpactConfig.
 
 ## Sentinel for `apply_impulse`'s optional contact point (a central shove when omitted).
 const _NO_POINT := Vector2(INF, INF)
@@ -21,11 +21,11 @@ func _ready() -> void:
 	_body = get_parent()
 	_body.mass = effective_mass()
 	_body.gravity_scale = 0.0
-	_body.linear_damp = PhysicsConfig.body_linear_damp
-	_body.angular_damp = PhysicsConfig.body_angular_damp
+	_body.linear_damp = PhysicsImpactConfig.body_linear_damp
+	_body.angular_damp = PhysicsImpactConfig.body_angular_damp
 	_body.can_sleep = true
 	_body.continuous_cd = (RigidBody2D.CCD_MODE_CAST_RAY
-			if PhysicsConfig.body_continuous_cd
+			if PhysicsImpactConfig.body_continuous_cd
 			else RigidBody2D.CCD_MODE_DISABLED)
 	# Pin the center of mass to the origin so a carved object still rotates about its
 	# origin-centered drawn silhouette instead of a shifted mass center.
@@ -57,6 +57,6 @@ func apply_impulse(impulse: Vector2, at_world: Vector2 = _NO_POINT) -> void:
 func _on_body_entered(body: Node) -> void:
 	if body is RigidBody2D or not body.has_method("apply_impulse"):
 		return
-	var transfer := _body.linear_velocity * effective_mass() * PhysicsConfig.impact_transfer_scale
+	var transfer := _body.linear_velocity * effective_mass() * PhysicsImpactConfig.transfer_scale
 	if transfer.length_squared() > 0.0:
 		body.apply_impulse(transfer)

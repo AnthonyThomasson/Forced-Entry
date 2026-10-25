@@ -24,7 +24,7 @@ body walking into it stops as at a wall, and its `take_hit` skips the `Knockback
 dented (`Deformable`, the collider rebuilt from the dents), throws debris and is carved into the nav map
 (`tests/objects/anchored_piece`, `tests/navigation/anchored_hole`). A character's shoves (walking push, leg press, punch, kick) pass the contact offset as
 `at`, so a piece pushed near one end slides and turns about a point near the far end, one pushed in the middle of a side just
-slides; the turn is the body's own torque, damped by `PhysicsConfig.body_angular_damp`. A melee punch is a range-of-motion-scaled
+slides; the turn is the body's own torque, damped by `PhysicsImpactConfig.body_angular_damp`. A melee punch is a range-of-motion-scaled
 shove at the fist.
 
 ## The interactable contract (interface 8)

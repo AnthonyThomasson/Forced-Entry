@@ -2,7 +2,8 @@ class_name Deformation
 ## Physics System: stateless damage-deformation geometry + rendering, shared by furniture, walls,
 ## characters and vehicles (their visuals and, for furniture/walls, collider rebuilds), so the drawn
 ## silhouette and any collider come from the same deformed polygon. The caller owns the
-## impact list. Tuning lives in PhysicsConfig.deform_* (and, for a character, CharacterConfig).
+## impact list. Tuning lives in PhysicsDeformConfig and PhysicsDeformLookConfig (and, for a
+## character, CharacterConfig).
 ##
 ## An "impact" is a Dictionary in the drawer's local space:
 ##   pos:    Vector2  contact point
@@ -40,8 +41,8 @@ static var _wall_cache := {}
 
 ## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage`
 ## dealt, in a body that caves as `dent` says: its depth `damage *
-## PhysicsConfig.deform_depth_per_damage`, at most `dent.max_depth`; a chunk when
-## `dent.allow_chunks` and `damage` reaches `PhysicsConfig.deform_chunk_damage`; a fresh `randi()`
+## PhysicsDeformConfig.depth_per_damage`, at most `dent.max_depth`; a chunk when
+## `dent.allow_chunks` and `damage` reaches `PhysicsDeformConfig.chunk_damage`; a fresh `randi()`
 ## seed; `blood` carried.
 static func new_impact(
 	pos: Vector2,
@@ -52,8 +53,8 @@ static func new_impact(
 ) -> Dictionary:
 	return {
 		"pos": pos, "inward": inward,
-		"depth": minf(damage * PhysicsConfig.deform_depth_per_damage, dent.max_depth),
-		"chunk": dent.allow_chunks and damage >= PhysicsConfig.deform_chunk_damage,
+		"depth": minf(damage * PhysicsDeformConfig.depth_per_damage, dent.max_depth),
+		"chunk": dent.allow_chunks and damage >= PhysicsDeformConfig.chunk_damage,
 		"seed": randi(), "blood": blood,
 	}
 
@@ -79,7 +80,7 @@ static func _ring(shape: String, size: Vector2, kept: bool) -> PackedVector2Arra
 			var radius := size.x * 0.5
 			# The unit ring scaled: a fresh array each call (callers may change theirs), with no
 			# trig per point.
-			var n := maxi(3, PhysicsConfig.deform_circle_points)
+			var n := maxi(3, PhysicsDeformConfig.circle_points)
 			var unit := _unit_ring(n) if kept else _unit_points(n)
 			return Transform2D(0.0, Vector2(radius, radius), 0.0, Vector2.ZERO) * unit
 		_:  # "square" / "rect"
@@ -88,7 +89,7 @@ static func _ring(shape: String, size: Vector2, kept: bool) -> PackedVector2Arra
 				Vector2(-half.x, -half.y), Vector2(half.x, -half.y),
 				Vector2(half.x, half.y), Vector2(-half.x, half.y),
 			]
-			var per: int = maxi(1, PhysicsConfig.deform_rect_points_per_edge)
+			var per: int = maxi(1, PhysicsDeformConfig.rect_points_per_edge)
 			for c in 4:
 				var a: Vector2 = corners[c]
 				var b: Vector2 = corners[(c + 1) % 4]
@@ -122,7 +123,7 @@ static func _unit_points(n: int) -> PackedVector2Array:
 ## shape center (which would fold the polygon inside out), nor pass a neighbour along the
 ## outline (`NEIGHBOUR_REACH`).
 static func deform(ring: PackedVector2Array, impacts: Array, radius: float,
-		core: float = PhysicsConfig.deform_back_margin) -> PackedVector2Array:
+		core: float = PhysicsDeformConfig.back_margin) -> PackedVector2Array:
 	if impacts.is_empty():
 		return ring
 	var center := _centroid(ring)
@@ -145,7 +146,7 @@ static func _dent_offset(p: Vector2, i: int, impacts: Array, radius: float) -> V
 	for impact in impacts:
 		var d: float = p.distance_to(impact["pos"])
 		var reach: float = (radius
-				* (PhysicsConfig.deform_chunk_reach_scale if impact["chunk"] else 1.0))
+				* (PhysicsDeformConfig.chunk_reach_scale if impact["chunk"] else 1.0))
 		if d >= reach:
 			continue
 		var t := 1.0 - d / reach  # 1 at the impact, 0 at the edge of reach
@@ -154,10 +155,10 @@ static func _dent_offset(p: Vector2, i: int, impacts: Array, radius: float) -> V
 			var rng := RandomNumberGenerator.new()
 			rng.seed = int(impact["seed"]) + i * 7
 			var jag := 1.0 + rng.randf_range(
-				-PhysicsConfig.deform_chunk_jitter,
-				PhysicsConfig.deform_chunk_jitter,
+				-PhysicsDeformConfig.chunk_jitter,
+				PhysicsDeformConfig.chunk_jitter,
 			)
-			offset += (impact["inward"] * impact["depth"] * PhysicsConfig.deform_chunk_depth
+			offset += (impact["inward"] * impact["depth"] * PhysicsDeformConfig.chunk_depth
 					* smoothstep(0.0, 1.0, t) * jag)
 		else:
 			offset += impact["inward"] * impact["depth"] * (t * t)
@@ -204,7 +205,7 @@ static func _clamp_inside(ring: PackedVector2Array, center: Vector2, p: Vector2,
 	if not Geometry2D.is_point_in_polygon(p + dir * 0.05, ring):
 		return p
 	var span := _exit_distance(ring, p, dir)
-	var limit := maxf(span - PhysicsConfig.deform_back_margin, 0.0)
+	var limit := maxf(span - PhysicsDeformConfig.back_margin, 0.0)
 	# Stop the point at the edge of the central core, so it keeps its distance from the
 	# center. On big furniture this is slack (dents are far shallower); on a small body (a
 	# character) it is what lets dents go deep without opposite edges crossing.
@@ -240,10 +241,10 @@ static func shape_polygon(shape: String, size: Vector2, impacts: Array) -> Packe
 	if impacts.is_empty():
 		return _shape_polygon(shape, size, impacts)
 	var inputs: Array = [
-		shape, size, impacts, PhysicsConfig.deform_core_fraction, PhysicsConfig.deform_radius,
-		PhysicsConfig.deform_back_margin, PhysicsConfig.deform_circle_points,
-		PhysicsConfig.deform_rect_points_per_edge, PhysicsConfig.deform_chunk_reach_scale,
-		PhysicsConfig.deform_chunk_jitter, PhysicsConfig.deform_chunk_depth,
+		shape, size, impacts, PhysicsDeformConfig.core_fraction, PhysicsDeformConfig.radius,
+		PhysicsDeformConfig.back_margin, PhysicsDeformConfig.circle_points,
+		PhysicsDeformConfig.rect_points_per_edge, PhysicsDeformConfig.chunk_reach_scale,
+		PhysicsDeformConfig.chunk_jitter, PhysicsDeformConfig.chunk_depth,
 	]
 	var key := inputs.hash()
 	var kept = _polygon_cache.get(key)
@@ -264,8 +265,8 @@ static func _shape_polygon(
 	impacts: Array,
 	kept := true,
 ) -> PackedVector2Array:
-	var core := minf(size.x, size.y) * 0.5 * PhysicsConfig.deform_core_fraction
-	return deform(_ring(shape, size, kept), impacts, PhysicsConfig.deform_radius, core)
+	var core := minf(size.x, size.y) * 0.5 * PhysicsDeformConfig.core_fraction
+	return deform(_ring(shape, size, kept), impacts, PhysicsDeformConfig.radius, core)
 
 
 ## Deformed polygon for one wall segment: a thick rectangle (quad) along the centerline
@@ -283,9 +284,9 @@ static func wall_polygon(
 	# one is struck: the last few are kept like `shape_polygon`'s, keyed by everything they are made
 	# from.
 	var inputs: Array = [
-		a, b, thickness, impacts, PhysicsConfig.deform_radius, PhysicsConfig.deform_back_margin,
-		PhysicsConfig.deform_chunk_reach_scale, PhysicsConfig.deform_chunk_jitter,
-		PhysicsConfig.deform_chunk_depth,
+		a, b, thickness, impacts, PhysicsDeformConfig.radius, PhysicsDeformConfig.back_margin,
+		PhysicsDeformConfig.chunk_reach_scale, PhysicsDeformConfig.chunk_jitter,
+		PhysicsDeformConfig.chunk_depth,
 	]
 	var key := inputs.hash()
 	var kept = _wall_cache.get(key)
@@ -315,7 +316,7 @@ static func _wall_polygon(
 		ring.append(s.lerp(e, float(i) / float(steps)) + half_n)
 	for i in steps + 1:  # far edge (-half_n): e -> s
 		ring.append(e.lerp(s, float(i) / float(steps)) - half_n)
-	return deform(ring, impacts, PhysicsConfig.deform_radius)
+	return deform(ring, impacts, PhysicsDeformConfig.radius)
 
 
 ## True when `poly` is a valid simple polygon the engine can triangulate. A silhouette
@@ -461,14 +462,15 @@ static func _turns_right_at(
 
 
 ## How far (0..1, `Color.darkened`'s weight) `draw_shape` darkens a shape that has taken
-## `damage_total` damage: up to `PhysicsConfig.deform_darken_max`, reached at `deform_darken_full`.
+## `damage_total` damage: up to `PhysicsDeformLookConfig.darken_max`, reached at
+## `deform_darken_full`.
 ## A textured shape is drawn in white darkened by it, so a caller drawing a textured shape's own
 ## way draws it in the same colour.
 static func darken(damage_total: float) -> float:
-	if damage_total <= 0.0 or PhysicsConfig.deform_darken_full <= 0.0:
+	if damage_total <= 0.0 or PhysicsDeformLookConfig.darken_full <= 0.0:
 		return 0.0
-	return (clampf(damage_total / PhysicsConfig.deform_darken_full, 0.0, 1.0)
-			* PhysicsConfig.deform_darken_max)
+	return (clampf(damage_total / PhysicsDeformLookConfig.darken_full, 0.0, 1.0)
+			* PhysicsDeformLookConfig.darken_max)
 
 
 ## Draw a deformed primitive shape (furniture, characters) dented by `impacts`, as `look` says:
@@ -561,7 +563,7 @@ static func _impact_apex(impact: Dictionary) -> Vector2:
 	var inward: Vector2 = impact["inward"]
 	var d: float = impact["depth"]
 	if impact["chunk"]:
-		d *= PhysicsConfig.deform_chunk_depth
+		d *= PhysicsDeformConfig.chunk_depth
 	var apex := pos + inward * d
 	# Same guard deform() uses: never let the point cross the shape center.
 	if apex.dot(pos) < 0.0:
@@ -571,11 +573,11 @@ static func _impact_apex(impact: Dictionary) -> Vector2:
 
 ## Bullet holes + radiating cracks + faint scorch for each impact, seated in its dent.
 ## `crack_color` tints the radiating cracks, `hole_color` the central hole, `scorch_color`
-## the faint halo (its alpha comes from PhysicsConfig, so only its RGB matters).
+## the faint halo (its alpha comes from PhysicsDeformLookConfig, so only its RGB matters).
 static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, hole_color: Color,
 		scorch_color: Color) -> void:
 	var scorch := scorch_color
-	scorch.a = PhysicsConfig.deform_scorch_alpha
+	scorch.a = PhysicsDeformLookConfig.scorch_alpha
 	# Each mark's discs in one command (General's FillBatch), drawn before its cracks.
 	var discs := FillBatch.new(canvas)
 	for impact in impacts:
@@ -584,22 +586,22 @@ static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, h
 		var blood: float = impact.get("blood", 0.0)
 		if blood > 0.0:
 			_draw_blood_mark(discs, p, blood, int(impact["seed"]))
-		discs.circle(p, PhysicsConfig.deform_scorch_radius + depth, scorch)
-		discs.circle(p, maxf(1.5, depth * PhysicsConfig.deform_hole_radius_scale), hole_color)
+		discs.circle(p, PhysicsDeformLookConfig.scorch_radius + depth, scorch)
+		discs.circle(p, maxf(1.5, depth * PhysicsDeformLookConfig.hole_radius_scale), hole_color)
 		discs.flush()
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(impact["seed"])
-		var count := 2 + int(clampf(depth * PhysicsConfig.deform_crack_count, 0.0, 5.0))
+		var count := 2 + int(clampf(depth * PhysicsDeformLookConfig.crack_count, 0.0, 5.0))
 		for _c in count:
 			var ang := rng.randf_range(0.0, TAU)
-			var length := (PhysicsConfig.deform_crack_length * rng.randf_range(0.5, 1.0)
+			var length := (PhysicsDeformLookConfig.crack_length * rng.randf_range(0.5, 1.0)
 					* (1.0 + depth * 0.15))
 			var jitter := Vector2(cos(ang), sin(ang)).orthogonal() * rng.randf_range(-2.0, 2.0)
 			canvas.draw_line(
 				p,
 				p + Vector2(cos(ang), sin(ang)) * length + jitter,
 				crack_color,
-				PhysicsConfig.deform_crack_width,
+				PhysicsDeformLookConfig.crack_width,
 			)
 
 
@@ -607,11 +609,11 @@ static func draw_marks(canvas: CanvasItem, impacts: Array, crack_color: Color, h
 ## around it, scaled and faded by how much blood arrived (`blood` 0..1). Seeded per impact so it
 ## never shimmers.
 static func _draw_blood_mark(discs: FillBatch, at: Vector2, blood: float, seed_value: int) -> void:
-	var color := PhysicsConfig.blood_mark_color
+	var color := PhysicsDeformLookConfig.blood_mark_color
 	color.a = clampf(0.45 + blood * 0.5, 0.0, 1.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value + 7
-	var radius := PhysicsConfig.blood_mark_radius * (0.6 + blood * 0.6)
+	var radius := PhysicsDeformLookConfig.blood_mark_radius * (0.6 + blood * 0.6)
 	discs.circle(at, radius, color)
 	for _i in 3 + int(blood * 4.0):
 		var ang := rng.randf_range(0.0, TAU)

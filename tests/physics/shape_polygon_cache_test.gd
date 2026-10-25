@@ -20,7 +20,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 400, 300))
 	# restored after the test
-	s.set_static(PhysicsConfig, "deform_radius", PhysicsConfig.deform_radius)
+	s.set_static(PhysicsDeformConfig, "radius", PhysicsDeformConfig.radius)
 
 
 func _impacts(rng: RandomNumberGenerator, size: Vector2, count: int) -> Array:
@@ -71,7 +71,7 @@ func _check_changed_inputs(t: TestContext, rng: RandomNumberGenerator) -> void:
 			== Deformation._shape_polygon("circle", other_size, dents),
 		"another size is computed afresh",
 	)
-	PhysicsConfig.deform_radius = 12.0
+	PhysicsDeformConfig.radius = 12.0
 	t.check(
 		Deformation.shape_polygon("circle", dented_size, dents)
 			== Deformation._shape_polygon("circle", dented_size, dents),

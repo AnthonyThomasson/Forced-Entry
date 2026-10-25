@@ -186,7 +186,7 @@ func get_interactions() -> Array:
 ## (`ColliderCuts`), and the first rebuild of the batch cuts the others on worker threads beside its
 ## own. The collider changes in its deferred rebuild, into the pieces a cut there would make.
 func _on_deformable_changed() -> void:
-	if solid and PhysicsConfig.deform_update_collider and not _collider_rebuild_queued:
+	if solid and PhysicsDeformConfig.update_collider and not _collider_rebuild_queued:
 		_collider_rebuild_queued = true
 		_cut = ColliderCuts.queue(_prepare_cut)
 		call_deferred("_rebuild_collider")

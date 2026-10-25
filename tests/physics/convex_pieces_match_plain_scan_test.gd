@@ -33,11 +33,11 @@ func run(t: TestContext) -> void:
 		var shape: String = SHAPES[n % SHAPES.size()]
 		var size := Vector2(rng.randf_range(24.0, 90.0), rng.randf_range(24.0, 90.0))
 		var impacts: Array = []
-		for k in rng.randi_range(0, PhysicsConfig.deform_max_impacts):
+		for k in rng.randi_range(0, PhysicsDeformConfig.max_impacts):
 			var at := Vector2.from_angle(rng.randf() * TAU) * size.x * 0.5
 			impacts.append({
 				"pos": at, "inward": -at.normalized(),
-				"depth": rng.randf_range(1.0, PhysicsConfig.deform_max_depth),
+				"depth": rng.randf_range(1.0, PhysicsDeformConfig.max_depth),
 				"chunk": rng.randf() < 0.3, "seed": rng.randi(), "blood": 0.0,
 			})
 		var poly := Deformation.shape_polygon(shape, size, impacts)

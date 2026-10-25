@@ -117,7 +117,7 @@ func _check_rings(t: TestContext) -> void:
 	var worst := 0.0
 	for diameter in [6.0, 12.5, 28.0, 64.0]:
 		var plain := PackedVector2Array()
-		var count: int = maxi(3, PhysicsConfig.deform_circle_points)
+		var count: int = maxi(3, PhysicsDeformConfig.circle_points)
 		for i in count:
 			var at := TAU * float(i) / float(count)
 			plain.append(Vector2(cos(at), sin(at)) * diameter * 0.5)
@@ -127,7 +127,7 @@ func _check_rings(t: TestContext) -> void:
 		ring.append(Vector2(999.0, 999.0))
 	var again := Deformation.base_ring("circle", Vector2(64.0, 64.0))
 	t.check(
-		again.size() == maxi(3, PhysicsConfig.deform_circle_points)
+		again.size() == maxi(3, PhysicsDeformConfig.circle_points)
 			and not again.has(Vector2(999.0, 999.0)),
 		"a circle's ring is a fresh array on every call (%d points)" % again.size(),
 	)

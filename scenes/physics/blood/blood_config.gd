@@ -3,10 +3,11 @@ class_name BloodConfig
 ## read as `BloodConfig.<name>`; there is no instance and no autoload.
 ##
 ## Blood is its own physical reaction, kept separate from the debris and deformation knobs in
-## PhysicsConfig. A wounded body (BloodWound) throws a quick spray of splatters when it is hit, then
-## keeps dripping: one drop every `drip_interval_min`..`drip_interval_max` seconds while the wound
-## lasts, each landing as a BloodSplat. A dead body also bleeds out one slow, wide pool
-## (`bleed_out_*`) from where it came to rest.
+## PhysicsConfig and PhysicsDeformConfig. A wounded body (BloodWound) throws a quick spray of
+## splatters when it is hit, then keeps dripping: one drop every
+## `drip_interval_min`..`drip_interval_max` seconds while the wound lasts, each landing as a
+## BloodSplat. A dead body also bleeds out one slow, wide pool (`bleed_out_*`) from where it came to
+## rest.
 
 ## Master switch for blood: off = hits leave no splatter or drips and dead bodies no bleed-out
 ## (BloodWound.record / Physics.bleed_out spawn nothing).

@@ -161,7 +161,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    - `Deformable` (Node child): `record(hit, turn = 0.0)`, `impacts`, `damage_total`, `changed`
 	 signal (`turn`: the body's drawn turn beyond its node rotation; the character passes its facing), and three per-body knobs its owner
 	 sets: `max_depth` (the deepest one dent caves, px), `allow_chunks` (a hard hit carves a missing piece) and `max_impacts` (how many
-	 dents it remembers), each defaulting to `PhysicsConfig.deform_*` (the character sets its softer flesh values from `CharacterConfig`). A
+	 dents it remembers), each defaulting to `PhysicsDeformConfig`'s (the character sets its softer flesh values from `CharacterConfig`). A
 	 vehicle composes one (no `Knockback`: it is its own `RigidBody2D`) with chunks off and does not rebuild its collider from the dents.
    - `Deformation` (static): silhouette/collider polygons + drawing (`draw_shape(canvas, shape, size, impacts, look: ShapeLook)`
 	 and `draw_wall(canvas, a, b, impacts, look: WallLook)` optionally textured — `ShapeLook` (`physics/shape_look.gd`: `fill`,
@@ -175,7 +175,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
 	 computed without the caches: all pure, so they may run on a worker thread). An impact record (the dicts in `impacts`) is built by
 	 `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`DentLimits`, `physics/dent_limits.gd`: `max_depth`, `allow_chunks`,
-	 `max_depth` defaulting to `PhysicsConfig.deform_max_depth`, `allow_chunks` to true) and kept by `push_impact(list, impact, max_impacts)` (oldest
+	 `max_depth` defaulting to `PhysicsDeformConfig.max_depth`, `allow_chunks` to true) and kept by `push_impact(list, impact, max_impacts)` (oldest
 	 dropped past the cap): `Deformable.record` and Objects' wall, which keeps an impact list per segment, both build through them. `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour. `darken(damage_total) -> float` is how far `draw_shape` darkens a shape that has taken that
 	 damage (`Color.darkened`'s weight; a textured shape is white darkened by it), for a caller that draws a textured shape's polygon its
@@ -211,12 +211,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
      grenade's burst, `ExplosionFx` nodes `ExplosionFlash` and `ExplosionFireball` (frag only: a stun's white flash is the Lighting domain's flash
      light, interface 20) and `ExplosionSmoke`, which draw themselves in stepped
      pixel rows and free themselves (Despawner-tracked), and a frag's scorch mark in the world's `ScorchDecals` layer (batched like `BloodDecals`,
-     capped by `Despawner.max_scene_objects`). Looks and timings are `PhysicsConfig.explosion_looks`; `PhysicsConfig.explosion_fx_enabled` off
+     capped by `Despawner.max_scene_objects`). Looks and timings are `PhysicsExplosionConfig.looks`; `PhysicsExplosionConfig.fx_enabled` off
      spawns none of it. `Ragdoll.wake()` restarts a sleeping body's clocks so an explosion's push is simulated (the character's `blast_push`).
-   - `PhysicsConfig` (`class_name` static holder, see below) — the deformation tuning
-	 (`deform_depth_per_damage`, `deform_max_depth`, `deform_chunk_damage`, `deform_max_impacts`,
-	 `deform_update_collider`) that Objects reads directly when recording damage, and the ragdoll
-	 solver's `ragdoll_*` tuning (read only by `Ragdoll` itself).
+   - `PhysicsDeformConfig` (`class_name` static holder, see below) — the deformation tuning
+	 (`depth_per_damage`, `max_depth`, `chunk_damage`, `max_impacts`, `update_collider`) that Objects reads
+	 directly when recording damage; `PhysicsRagdollConfig` (static holder) — the ragdoll solver's tuning
+	 (read only by `Ragdoll` itself).
    Physics imports nothing from other domains but General's infrastructure (`Despawner` for debris, hit particles, blood and
    the explosion effects, `PhysicsLayers` for `PhysicsConfig.wall_mask`, `DrawLayers` for its z knobs, `FillBatch` for its many
    plain-coloured shapes).
@@ -1006,9 +1006,10 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into twenty-five `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into thirty `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
-(going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (impact, debris and hit particles, deformation, the explosion's look, the ragdoll solver), `CharacterConfig` (walking
+(going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
+`PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterConfig` (walking
 push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood splatter, drips and bleed-out), `ArtCanvasConfig` (the art pixel, the light,
 turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
 floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenFillConfig` (World-Gen's

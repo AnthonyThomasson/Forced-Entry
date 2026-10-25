@@ -11,12 +11,12 @@ class_name Physics
 ## Impulse a hit imparts to the struck object, before the object's own mass divides it
 ## (that happens in Knockback.apply_impulse). Follows the striker's travel direction,
 ## scaled by its speed factor and by whether it penetrated (a pass-through dumps less
-## momentum than a ricochet/embed). Tuned by PhysicsConfig.impact_*.
+## momentum than a ricochet/embed). Tuned by PhysicsImpactConfig.
 static func impact_impulse(hit: HitInfo) -> Vector2:
-	var force_scale := (PhysicsConfig.impact_penetration_scale
+	var force_scale := (PhysicsImpactConfig.penetration_scale
 			if hit.penetrated
-			else PhysicsConfig.impact_no_penetration_scale)
-	return hit.direction * PhysicsConfig.impact_impulse * hit.speed_factor * force_scale
+			else PhysicsImpactConfig.no_penetration_scale)
+	return hit.direction * PhysicsImpactConfig.impulse * hit.speed_factor * force_scale
 
 
 ## Show a hit: a particle burst at the entry point (weak, with a much stronger one at the exit when
@@ -53,7 +53,7 @@ static func spawn_debris(parent: Node, hit: HitInfo, surface: Dictionary) -> voi
 		)
 		if PhysicsConfig.debris_enabled:
 			DebrisSpawner.spawn(
-				hit.position, spray, parent, PhysicsConfig.blood_mark_color, "flesh",
+				hit.position, spray, parent, PhysicsDeformLookConfig.blood_mark_color, "flesh",
 			)
 	if not PhysicsConfig.debris_enabled:
 		return
@@ -75,8 +75,8 @@ static func bleed_out(parent: Node, source: Node2D, exclude: Array) -> Node:
 ## Show a grenade's burst of `kind` (`&"frag"` or `&"stun"`) at world point `at` under `world`: a
 ## bright flash, for a frag a fireball puff and, with smoke drifting off, a scorch left on the floor
 ## under it; a stun is a white flash and thin smoke. Looks and timings are
-## `PhysicsConfig.explosion_looks`; spawns nothing while `PhysicsConfig.explosion_fx_enabled` is
+## `PhysicsExplosionConfig.looks`; spawns nothing while `PhysicsExplosionConfig.fx_enabled` is
 ## off.
 static func spawn_explosion(world: Node, at: Vector2, kind: StringName) -> void:
-	if PhysicsConfig.explosion_fx_enabled:
+	if PhysicsExplosionConfig.fx_enabled:
 		ExplosionFx.spawn(world, at, kind)

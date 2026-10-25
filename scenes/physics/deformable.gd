@@ -7,7 +7,7 @@ class_name Deformable extends Node
 ## Per-body fields (max_depth / allow_chunks / max_impacts) let a small body dent gently without
 ## folding. Walls keep their own per-segment recording instead (their geometry isn't a
 ## single centered shape), but they build each impact through the same Deformation.new_impact /
-## push_impact and PhysicsConfig knobs.
+## push_impact and PhysicsDeformConfig knobs.
 
 ## Emitted after an impact is recorded, so visuals redraw and the collider rebuilds.
 signal changed
@@ -19,13 +19,13 @@ var impacts: Array = []
 var damage_total := 0.0
 ## Deepest a single dent may cave (px). Defaults to the furniture value; a small body (a
 ## character) sets this lower so a dent stays a fraction of its radius.
-var max_depth := PhysicsConfig.deform_max_depth
+var max_depth := PhysicsDeformConfig.max_depth
 ## Whether a hard hit carves a jagged "missing piece". Furniture allows it; a small body
 ## disables it, since a chunk reach spanning the whole silhouette self-intersects it.
 var allow_chunks := true
 ## How many impacts are remembered (oldest dropped past this). A small body keeps fewer, so
 ## dents from many directions can't pile up and pinch the silhouette toward its core.
-var max_impacts := PhysicsConfig.deform_max_impacts
+var max_impacts := PhysicsDeformConfig.max_impacts
 ## The deformed body (parent).
 var _body: Node2D
 

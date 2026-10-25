@@ -4,6 +4,6 @@ class_name DentLimits extends RefCounted
 ## defaults, which Objects' wall keeps); a small body (a character) sets softer values.
 
 ## The deepest a single dent caves, px.
-var max_depth: float = PhysicsConfig.deform_max_depth
-## Whether a hit of `PhysicsConfig.deform_chunk_damage` or more carves a jagged missing piece.
+var max_depth: float = PhysicsDeformConfig.max_depth
+## Whether a hit of `PhysicsDeformConfig.chunk_damage` or more carves a jagged missing piece.
 var allow_chunks: bool = true

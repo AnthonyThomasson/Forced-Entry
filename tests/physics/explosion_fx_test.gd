@@ -2,7 +2,7 @@ extends GameTest
 ## The look of a burst (Physics): `Physics.spawn_explosion(world, at, kind)` puts a bright flash, a
 ## fireball puff and drifting smoke in the world for a frag (a scorch decal stays under it), and
 ## only thin smoke for a stun: its white flash is the lighting's flash light (S8, ticket #56;
-## `lighting/stun_flash_light`), no drawn disc; with `PhysicsConfig.explosion_fx_enabled` off it
+## `lighting/stun_flash_light`), no drawn disc; with `PhysicsExplosionConfig.fx_enabled` off it
 ## spawns none of it.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -14,7 +14,7 @@ func describe() -> Dictionary:
 		"name": "An explosion spawns its effects, and none with the switch off",
 		"description": "spawn_explosion for a frag makes a flash, a fireball and smoke plus a "
 			+ "scorch decal; for a stun thin smoke only (its flash is a light); with "
-			+ "explosion_fx_enabled off, nothing.",
+			+ "PhysicsExplosionConfig.fx_enabled off, nothing.",
 		"tags": ["grenade", "explosion", "fx", "physics"],
 		"timeout": 12.0,
 	}
@@ -22,7 +22,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
-	s.set_static(PhysicsConfig, &"explosion_fx_enabled", true)
+	s.set_static(PhysicsExplosionConfig, &"fx_enabled", true)
 
 
 ## The effect nodes named `part` anywhere in the world.
@@ -32,10 +32,10 @@ func _nodes(t: TestContext, part: String) -> Array:
 
 func run(t: TestContext) -> void:
 	var physics: GDScript = Physics
-	var config: GDScript = PhysicsConfig
+	var config: GDScript = PhysicsExplosionConfig
 	if not t.require(
-			physics.has_method("spawn_explosion") and config.get("explosion_fx_enabled") != null,
-			"Physics.spawn_explosion and PhysicsConfig.explosion_fx_enabled exist",
+			physics.has_method("spawn_explosion") and config.get("fx_enabled") != null,
+			"Physics.spawn_explosion and PhysicsExplosionConfig.fx_enabled exist",
 	):
 		return
 	physics.call("spawn_explosion", t.world, AT, &"frag")
@@ -67,7 +67,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(_nodes(t, "Scorch").size(), scorch, "and no scorch")
 
 	await t.seconds(4.0)
-	config.set("explosion_fx_enabled", false)
+	config.set("fx_enabled", false)
 	var all := _nodes(t, "Explosion").size() + _nodes(t, "Scorch").size()
 	physics.call("spawn_explosion", t.world, AT + Vector2(-200, 0), &"frag")
 	physics.call("spawn_explosion", t.world, AT + Vector2(0, 100), &"stun")
@@ -77,4 +77,4 @@ func run(t: TestContext) -> void:
 		all,
 		"with the master switch off no effect is spawned",
 	)
-	config.set("explosion_fx_enabled", true)
+	config.set("fx_enabled", true)

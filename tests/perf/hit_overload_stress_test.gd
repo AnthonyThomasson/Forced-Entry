@@ -1,7 +1,7 @@
 extends GameTest
 ## Performance guard: hundreds of hits land on one chair and one character. Deformation, debris and
-## blood each have a cap (`deform_max_impacts`, the Despawner, the per-body splatter cap); the caps
-## hold and frame cost stays within budget while the hits land.
+## blood each have a cap (`PhysicsDeformConfig.max_impacts`, the Despawner, the per-body splatter
+## cap); the caps hold and frame cost stays within budget while the hits land.
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const HITS_PER_FRAME := 4
@@ -60,9 +60,9 @@ func run(t: TestContext) -> void:
 	Perf.within_frames(t, "hit overload", stats)
 
 	t.check(
-		deformable.impacts.size() <= PhysicsConfig.deform_max_impacts,
+		deformable.impacts.size() <= PhysicsDeformConfig.max_impacts,
 		"recorded dents stay capped (%d, cap %d)"
-			% [deformable.impacts.size(), PhysicsConfig.deform_max_impacts],
+			% [deformable.impacts.size(), PhysicsDeformConfig.max_impacts],
 	)
 	t.check(
 		Despawner.count() <= Despawner.max_scene_objects,

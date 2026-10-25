@@ -196,7 +196,7 @@ the deaf time, but only for the character `Sound.focus` names (Main sets the hum
 profile `explosion/frag`: big, low, a long tail) and the stun's bang (`explosion/stun`: sharp, very loud, short). The camera shakes
 on `&"explosion"` by distance and kind (`Camera2D.offset`: a frag beside it hardest, farther less, none far off, a stun less than a
 frag), and the burst has its look: a flash, a fireball puff and smoke, with a scorch left under a frag, and only thin smoke for a stun
-(`Physics.spawn_explosion`, off with `PhysicsConfig.explosion_fx_enabled`). *(Amended by issue #56.)* A stun's white flash is a light, not
+(`Physics.spawn_explosion`, off with `PhysicsExplosionConfig.fx_enabled`). *(Amended by issue #56.)* A stun's white flash is a light, not
 a drawn disc: the lighting's stun flash (`docs/lighting.md` L9), far brighter than a frag's, shadowed by the walls and the furniture, held
 at full brightness for an instant and faded over 0.7 s. The player's own whiteout above is unchanged.
 Tests: `ui/stun_screen_whiteout`, `audio/grenade_sounds`, `general/camera_shakes_on_explosion`, `physics/explosion_fx`,

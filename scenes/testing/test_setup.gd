@@ -174,7 +174,7 @@ func switch(name: StringName, on: bool) -> TestSetup:
 	return self
 
 
-## Override a `static var` on a config holder (e.g. `PhysicsConfig`, "impact_impulse") for this
+## Override a `static var` on a config holder (e.g. `PhysicsImpactConfig`, "impulse") for this
 ## test; the original value is restored afterwards.
 func set_static(script: Script, prop: StringName, value: Variant) -> TestSetup:
 	statics.append([script, prop, value])

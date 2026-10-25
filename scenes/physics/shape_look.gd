@@ -14,7 +14,8 @@ var damage_total: float = 0.0
 var crack_color: Color = Deformation.NO_COLOR
 ## The bullet holes' colour; `Deformation.NO_COLOR` = the default hole colour.
 var hole_color: Color = Deformation.NO_COLOR
-## The faint scorch halo's colour (its alpha is PhysicsConfig's); `Deformation.NO_COLOR` = black.
+## The faint scorch halo's colour (its alpha is PhysicsDeformLookConfig's); `Deformation.NO_COLOR` =
+## black.
 var scorch_color: Color = Deformation.NO_COLOR
 ## The art spanning the shape's footprint, drawn through the dented silhouette instead of the fill
 ## and outline (null = filled and outlined).

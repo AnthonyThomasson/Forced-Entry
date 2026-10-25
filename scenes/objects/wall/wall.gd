@@ -113,13 +113,13 @@ func _record_segment_damage(
 	var inward := _inward(world_pos, world_normal, segs[best_i])
 	var arr: Array = _seg_impacts.get(best_i, [])
 	var impact := Deformation.new_impact(local_pos, inward, amount, blood, DentLimits.new())
-	Deformation.push_impact(arr, impact, PhysicsConfig.deform_max_impacts)
+	Deformation.push_impact(arr, impact, PhysicsDeformConfig.max_impacts)
 	_seg_impacts[best_i] = arr
 	if _visuals:
 		_visuals.redraw_segment(best_i)
 	# Rebuild the segment collider to follow the deformed shape (deferred — take_hit runs
 	# mid-physics from the projectile, when swapping shapes is disallowed).
-	if PhysicsConfig.deform_update_collider and not _rebuild_queued.has(best_i):
+	if PhysicsDeformConfig.update_collider and not _rebuild_queued.has(best_i):
 		_rebuild_queued[best_i] = true
 		# cut beside the others' (see environment_object.gd)
 		_seg_cuts[best_i] = ColliderCuts.queue(_prepare_cut.bind(best_i))

@@ -3,7 +3,7 @@ extends "res://scenes/physics/chunked_layer.gd"
 ## Physics System: a layer of scorch marks (the black burn a frag leaves on the floor) under a world
 ## node, batching every mark so a floor full of them costs a few draw calls and no nodes of their
 ## own (`chunked_layer.gd`, as `DebrisLayer` and `BloodDecals`). A mark is stepped rows of
-## `PhysicsConfig.explosion_pixel` px, ragged at the edge, a darker core inside a lighter rim, with
+## `PhysicsExplosionConfig.pixel` px, ragged at the edge, a darker core inside a lighter rim, with
 ## a few specks flung out round it. Marks are grouped in `CHUNK`-px squares and only the chunk that
 ## gained or lost one redraws. The oldest are dropped past `Despawner.max_scene_objects`, the same
 ## bound every other kept mark answers to. Drawn at the blood decals' depth, under the furniture and
@@ -30,10 +30,10 @@ static func layer(parent: Node) -> ScorchDecals:
 
 ## Burn a mark of `radius` px at world `at`.
 func burn(at: Vector2, radius: float) -> void:
-	var step := maxf(PhysicsConfig.explosion_pixel, 1.0)
+	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
 	var rects: Array[Rect2] = []
 	var tones: Array[Color] = []
-	var base := PhysicsConfig.scorch_color
+	var base := PhysicsExplosionConfig.scorch_color
 	var rim := Color(base.r, base.g, base.b, base.a * RIM_ALPHA)
 	var rows := int(ceil(radius / step))
 	for j in range(-rows, rows):
@@ -53,7 +53,7 @@ func burn(at: Vector2, radius: float) -> void:
 ## One row of a disc, centred on `row_at`, `half` px each way, stepped to the pixel grid.
 func _row(rects: Array[Rect2], tones: Array[Color], row_at: Vector2, half: float,
 		tone: Color) -> void:
-	var step := maxf(PhysicsConfig.explosion_pixel, 1.0)
+	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
 	var cells := roundi(half / step)
 	if cells <= 0:
 		return

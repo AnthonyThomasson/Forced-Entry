@@ -3,10 +3,10 @@ class_name ExplosionFx
 ## flash, a fireball puff that swells and cools, smoke that drifts off and fades, and a scorch left
 ## on the floor; a stun is thin smoke only (its white flash is the Lighting domain's flash light,
 ## lit by the `explosion` event: `docs/lighting.md` L9). Each is one colliderless node that draws
-## itself in stepped rows of `PhysicsConfig.explosion_pixel` px (the pixel look of the debris and
+## itself in stepped rows of `PhysicsExplosionConfig.pixel` px (the pixel look of the debris and
 ## the blood), animates in `_process` and frees itself when its life is over, Despawner-tracked. The
 ## scorch is a mark in the world's `ScorchDecals` layer. Looks and timings:
-## `PhysicsConfig.explosion_looks`.
+## `PhysicsExplosionConfig.looks`.
 
 ## Draw order of the flash, fireball and smoke: above the living and a vehicle's roof.
 const Z_INDEX := DrawLayers.EFFECTS
@@ -21,7 +21,7 @@ const LOBE_REACH := 0.45
 
 ## Put the burst of `kind` at `at` under `world`.
 static func spawn(world: Node, at: Vector2, kind: StringName) -> void:
-	var look: Dictionary = PhysicsConfig.explosion_looks.get(kind, {})
+	var look: Dictionary = PhysicsExplosionConfig.looks.get(kind, {})
 	if look.is_empty():
 		return
 	if float(look.get("flash_radius", 0.0)) > 0.0:
@@ -48,7 +48,7 @@ static func _add(world: Node, fx: Node2D, node_name: String, at: Vector2, look: 
 ## A disc of `radius` px about `center` drawn as rows of `step` px, so it has the stepped edge of
 ## the rest of the art.
 static func pixel_disc(canvas: CanvasItem, center: Vector2, radius: float, color: Color) -> void:
-	var step := maxf(PhysicsConfig.explosion_pixel, 1.0)
+	var step := maxf(PhysicsExplosionConfig.pixel, 1.0)
 	var rows := int(ceil(radius / step))
 	for j in range(-rows, rows):
 		var y := (float(j) + 0.5) * step

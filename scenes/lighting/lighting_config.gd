@@ -21,7 +21,7 @@ static var sky_energy := 0.42
 ## item takes that the budget keeps free). Each kind: colour, energy, pool diameter (px; an
 ## explosion's at least `radius × reach_per_radius`), how long (s) it holds its full energy (`hold`,
 ## none when absent) and how long (s) it then falls off to dark (`life`). The stun's is its burst's
-## whole look (no drawn disc, `PhysicsConfig.explosion_looks`): a far brighter white held an
+## whole look (no drawn disc, `PhysicsExplosionConfig.looks`): a far brighter white held an
 ## instant, then faded.
 static var flash_pool := 3
 static var flashes: Dictionary = {

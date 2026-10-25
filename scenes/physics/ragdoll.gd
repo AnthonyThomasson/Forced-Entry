@@ -5,7 +5,7 @@ class_name Ragdoll extends RefCounted
 ## and solid furniture (layer 1) block x/y moves. It knows nothing of what the body is: the owner
 ## adds points, bones, frames (an orientation read off three points) and limits (swing cones and
 ## anatomical hinges, set in a frame), seeds velocities, then calls step() each physics frame until
-## it sleeps. Tuning: PhysicsConfig.ragdoll_*.
+## it sleeps. Tuning: PhysicsRagdollConfig.
 
 enum {
 	SWING,
@@ -144,8 +144,8 @@ func frame_basis(f: int) -> Basis:
 
 
 ## Wake a body that had gone to sleep and start its sleep clocks afresh, so a push is simulated and
-## the body does not go straight back to sleep through `ragdoll_max_time` (an explosion throws a
-## fallen body).
+## the body does not go straight back to sleep through `PhysicsRagdollConfig.max_time` (an explosion
+## throws a fallen body).
 func wake() -> void:
 	asleep = false
 	_time = 0.0
@@ -160,15 +160,15 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 	if not _primed:
 		_primed = true
 		_pull_out_of_walls(space, origin)
-	var n := maxi(1, PhysicsConfig.ragdoll_substeps)
+	var n := maxi(1, PhysicsRagdollConfig.substeps)
 	for _s in n:
 		_substep(delta / n, space, origin)
 	_time += delta
 	var fastest := 0.0
 	for v in _vel:
 		fastest = maxf(fastest, v.length())
-	_still = _still + delta if fastest < PhysicsConfig.ragdoll_sleep_speed else 0.0
-	if _still >= PhysicsConfig.ragdoll_sleep_time or _time >= PhysicsConfig.ragdoll_max_time:
+	_still = _still + delta if fastest < PhysicsRagdollConfig.sleep_speed else 0.0
+	if _still >= PhysicsRagdollConfig.sleep_time or _time >= PhysicsRagdollConfig.max_time:
 		asleep = true
 		_vel.fill(Vector3.ZERO)
 
@@ -190,8 +190,8 @@ func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 ## Move every point on under gravity and air drag over `h` s, noting its vertical speed in `fall`
 ## and its speed in `free`.
 func _predict(h: float, fall: PackedFloat32Array, free: PackedFloat32Array) -> void:
-	var gravity := Vector3(0.0, 0.0, -PhysicsConfig.ragdoll_gravity)
-	var drag := exp(-PhysicsConfig.ragdoll_air_drag * h)
+	var gravity := Vector3(0.0, 0.0, -PhysicsRagdollConfig.gravity)
+	var drag := exp(-PhysicsRagdollConfig.air_drag * h)
 	for i in _pos.size():
 		_vel[i] = (_vel[i] + gravity * h) * drag
 		_prev[i] = _pos[i]
@@ -200,9 +200,9 @@ func _predict(h: float, fall: PackedFloat32Array, free: PackedFloat32Array) -> v
 		free[i] = _vel[i].length()
 
 
-## `ragdoll_iterations` passes of the bones, the limits and the floor.
+## `PhysicsRagdollConfig.iterations` passes of the bones, the limits and the floor.
 func _solve_constraints() -> void:
-	for _k in maxi(1, PhysicsConfig.ragdoll_iterations):
+	for _k in maxi(1, PhysicsRagdollConfig.iterations):
 		for bone in _bones:
 			_solve_bone(bone)
 		for limit in _limits:
@@ -216,17 +216,17 @@ func _solve_constraints() -> void:
 ## Each point's velocity from its move over `h` s, held to what it came in with (`free`), with the
 ## floor's bounce (from its vertical speed before, `fall`) and friction.
 func _derive_velocities(h: float, fall: PackedFloat32Array, free: PackedFloat32Array) -> void:
-	var friction := PhysicsConfig.ragdoll_floor_friction * h
-	var gain := PhysicsConfig.ragdoll_max_push * h
+	var friction := PhysicsRagdollConfig.floor_friction * h
+	var gain := PhysicsRagdollConfig.max_push * h
 	for i in _pos.size():
 		# The constraints may pass momentum along the body but never pump it up: a point leaves them
-		# no faster than it came in, plus a push no harder than `ragdoll_max_push`.
+		# no faster than it came in, plus a push no harder than `PhysicsRagdollConfig.max_push`.
 		var v := ((_pos[i] - _prev[i]) / h).limit_length(
-			minf(free[i] + gain, PhysicsConfig.ragdoll_max_speed),
+			minf(free[i] + gain, PhysicsRagdollConfig.max_speed),
 		)
 		if _pos[i].z <= _radius[i] + 0.01:
 			if _prev[i].z > _radius[i] + 0.01 and fall[i] < 0.0:
-				v.z = -fall[i] * PhysicsConfig.ragdoll_floor_bounce
+				v.z = -fall[i] * PhysicsRagdollConfig.floor_bounce
 			var flat := Vector2(v.x, v.y).move_toward(Vector2.ZERO, friction)
 			v.x = flat.x
 			v.y = flat.y
@@ -235,7 +235,7 @@ func _derive_velocities(h: float, fall: PackedFloat32Array, free: PackedFloat32A
 
 ## Pull each limited child's velocity toward its joint's over `h` s, so limbs swing heavy.
 func _joint_friction(h: float) -> void:
-	var hold := 1.0 - exp(-PhysicsConfig.ragdoll_joint_friction * h)
+	var hold := 1.0 - exp(-PhysicsRagdollConfig.joint_friction * h)
 	for limit in _limits:
 		var j: int = limit["joint"]
 		var c: int = limit["child"]
