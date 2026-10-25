@@ -69,6 +69,7 @@ func run(t: TestContext) -> void:
 	)
 
 
+## One drawn case in room `rect`: a burst and a runner near it, each kind of grenade compared.
 func _compare_case(ctx: Dictionary, tally: Dictionary, rect: Rect2) -> void:
 	var map: RID = ctx["map"]
 	var rng: RandomNumberGenerator = ctx["rng"]
@@ -84,6 +85,8 @@ func _compare_case(ctx: Dictionary, tally: Dictionary, rect: Rect2) -> void:
 		_compare_kind(ctx, tally, kind, burst, from)
 
 
+## The escape from a `kind` grenade bursting at `burst`, for a runner at `from`, against the plain
+## search; counted in `tally`, a difference listed there.
 func _compare_kind(
 		ctx: Dictionary,
 		tally: Dictionary,
@@ -112,6 +115,7 @@ func _compare_kind(
 				% [kind, burst.round(), from.round(), fast, plain])
 
 
+## The grenade as the escape takes it.
 func _threat(kind: StringName, radius: float, burst: Vector2, fuse: float) -> GrenadeThreat:
 	var threat := GrenadeThreat.new()
 	threat.kind = kind
@@ -121,6 +125,7 @@ func _threat(kind: StringName, radius: float, burst: Vector2, fuse: float) -> Gr
 	return threat
 
 
+## The runner as the escape takes it.
 func _runner(from: Vector2, speed: float) -> GrenadeRunner:
 	var runner := GrenadeRunner.new()
 	runner.from = from

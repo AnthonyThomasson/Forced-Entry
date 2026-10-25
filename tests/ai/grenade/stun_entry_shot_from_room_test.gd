@@ -109,6 +109,8 @@ func _watch_until_in(t: TestContext) -> Dictionary:
 	return w
 
 
+## One frame of member `id` in `w`: whether it knows it is shot at and from where, its act,
+## its entry phase, and when it first stood in the kitchen.
 func _note_member(t: TestContext, id: StringName, w: Dictionary) -> void:
 	var brain := Entry.brain(t, id)
 	var state: Dictionary = brain.debug_state()

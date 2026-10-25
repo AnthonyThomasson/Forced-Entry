@@ -69,6 +69,7 @@ func run(t: TestContext) -> void:
 	_check_crossing(t, burst_at, watched["phases"])
 
 
+## The leader orders the frag stack on the back door; both members claim it under the order.
 func _stack_claimed(t: TestContext, door: String) -> bool:
 	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
@@ -93,7 +94,7 @@ func _stack_claimed(t: TestContext, door: String) -> bool:
 	)
 
 
-# Watch each member's place and entry phase every frame until the point goes in.
+## Watch each member's place and entry phase every frame until the point goes in.
 func _watch_until_in(t: TestContext) -> Dictionary:
 	var samples: Array = []
 	var phases := {}
@@ -111,6 +112,7 @@ func _watch_until_in(t: TestContext) -> Dictionary:
 	return { "samples": samples, "phases": phases }
 
 
+## A frag was thrown, by the second of the stack; false when none was.
 func _check_second_threw(t: TestContext, door: String) -> bool:
 	var frag_throws := t.events_of(&"throw", func(d): return d.get("kind") == &"frag")
 	if not t.check(
@@ -133,7 +135,7 @@ func _check_second_threw(t: TestContext, door: String) -> bool:
 	return true
 
 
-# When the frag went off, its burst checked against where each member stood; -1 when it did not.
+## When the frag went off, its burst checked against where each member stood; -1 when it did not.
 func _check_burst(t: TestContext, samples: Array) -> float:
 	var booms := Probe.booms(t, &"frag")
 	if not t.check(not booms.is_empty(), "the frag went off"):
@@ -157,6 +159,7 @@ func _check_burst(t: TestContext, samples: Array) -> float:
 	return burst_at
 
 
+## The point goes in on the burst, and no member slices the pie.
 func _check_crossing(t: TestContext, burst_at: float, phases: Dictionary) -> void:
 	if not t.check(not Entry.calls(t, "going_in").is_empty(), "the point goes in"):
 		return

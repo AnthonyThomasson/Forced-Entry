@@ -18,7 +18,6 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Reach := preload("res://tests/_ai/reach_probe.gd")
-const IDS := [&"near", &"wrong", &"beyond", &"outside"]
 ## Where each member starts.
 const STARTS := {
 		&"near": "in the same room, near along the wall, on the order's side",

@@ -85,6 +85,7 @@ func run(t: TestContext) -> void:
 	_check_plans(t, ctx["checked"])
 
 
+## Each NPC's own AgentThrow, bound to its body, with its controller's evade margin.
 func _own_throws(npcs: Array) -> Dictionary:
 	var own := {}
 	for npc: Node in npcs:
@@ -96,6 +97,8 @@ func _own_throws(npcs: Array) -> Dictionary:
 	return own
 
 
+## The probe that runs after every NPC's physics frame: on a frame the grenade's start was noted,
+## each NPC's plan is checked.
 func _late_probe(t: TestContext, ctx: Dictionary) -> LateProbe:
 	var start: Dictionary = ctx["start"]
 	var npcs: Array = ctx["npcs"]
@@ -112,6 +115,7 @@ func _late_probe(t: TestContext, ctx: Dictionary) -> LateProbe:
 	return late
 
 
+## A new evade spot `npc` holds this frame, kept in `ctx.checked` beside its own plain search's.
 func _check_plan(t: TestContext, ctx: Dictionary, npc: Node, grenade: Node) -> void:
 	var brain := TestContext.controller_of(npc)
 	var seen: Dictionary = Probe.grenades(brain)
@@ -133,6 +137,7 @@ func _check_plan(t: TestContext, ctx: Dictionary, npc: Node, grenade: Node) -> v
 	})
 
 
+## The plain search for `npc`, from where it stood and how fast it ran as the frame began.
 func _plain_for(
 		t: TestContext,
 		ctx: Dictionary,
@@ -156,6 +161,7 @@ func _plain_for(
 	return plain
 
 
+## The thrower lobs its frag at the landing; until it goes off, each frame's start is noted.
 func _throw_frag(t: TestContext, ctx: Dictionary) -> bool:
 	var puppet := t.puppet(&"thrower")
 	puppet.select_slot(Probe.FRAG)
@@ -171,6 +177,7 @@ func _throw_frag(t: TestContext, ctx: Dictionary) -> bool:
 	return t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off")
 
 
+## The frame's start: its frame, the live grenade's fuse, and each NPC's place and pace.
 func _note_start(t: TestContext, ctx: Dictionary) -> void:
 	var live := Probe.live(t)
 	var start: Dictionary = ctx["start"]
@@ -182,6 +189,7 @@ func _note_start(t: TestContext, ctx: Dictionary) -> void:
 		start[npc] = { "from": (npc as Node2D).global_position, "speed": own[npc].run_speed() }
 
 
+## Every defender planned, enough of them on one frame, and every plan matched its plain search.
 func _check_plans(t: TestContext, checked: Array) -> void:
 	var planned := {}    # npc name -> true
 	var per_frame := {}  # frame -> how many NPCs made a plan on it

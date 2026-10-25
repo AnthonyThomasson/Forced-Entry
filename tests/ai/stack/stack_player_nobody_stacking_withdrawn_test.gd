@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 			"set-up: the human keeps its slot while its teammate stacks (%.0f s)" % HOLD,
 	):
 		return
-	Stack.radio(t, &"a", opening, into, [1, 1, "abort"])
+	Stack.radio(t, &"a", opening, into, { "slot": 1, "side": 1, "entry_step": "abort" })
 	var at := t.time
 	t.check(
 		await t.until(aborted, PROMPT),
@@ -95,6 +95,6 @@ func _radioing(
 			return false
 		if t.time - said >= REPEAT:
 			said = t.time
-			Stack.radio(t, &"a", opening, into, [1, 1])
+			Stack.radio(t, &"a", opening, into, { "slot": 1, "side": 1 })
 		await t.frames(1)
 	return true

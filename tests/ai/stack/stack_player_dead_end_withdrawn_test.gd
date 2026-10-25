@@ -189,6 +189,6 @@ func _radioing(t: TestContext, claiming: Dictionary, opening: String, done: Call
 		if t.time - said >= REPEAT:
 			said = t.time
 			for id in claiming:
-				Stack.radio(t, id, opening, INTO, [claiming[id], 1])
+				Stack.radio(t, id, opening, INTO, { "slot": claiming[id], "side": 1 })
 		await t.frames(1)
 	return true

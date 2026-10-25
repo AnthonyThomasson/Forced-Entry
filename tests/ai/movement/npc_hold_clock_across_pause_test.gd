@@ -90,8 +90,8 @@ func run(t: TestContext) -> void:
 	)
 
 
-# Waits for the walk to be held short of the teammate and the walker to stand still in it; where
-# the hold began, or Vector2.INF when a premise fails.
+## Waits for the walk to be held short of the teammate and the walker to stand still in it; where
+## the hold began, or Vector2.INF when a premise fails.
 func _stands_held(
 		t: TestContext,
 		walker: Node,
@@ -123,8 +123,8 @@ func _stands_held(
 	return hold_from
 
 
-# Nudges the teammate on along the walk until the hold ends; how long the walk had been held then,
-# or -1 when the hold does not end.
+## Nudges the teammate on along the walk until the hold ends; how long the walk had been held then,
+## or -1 when the hold does not end.
 func _nudge(t: TestContext, mate: Node, loco: Callable, held: Callable) -> float:
 	var before := float(loco.call().get("held_for", 0.0))
 	mate.global_position += Vector2(NUDGE_PX, 0)
@@ -143,8 +143,8 @@ func _nudge(t: TestContext, mate: Node, loco: Callable, held: Callable) -> float
 	return before
 
 
-# Whether the hold begun again is the same one: `again` s of game time after it ended, `moved` px
-# from where it began, on the same walk (`same_walk`).
+## Whether the hold begun again is the same one: `again` s of game time after it ended, `moved` px
+## from where it began, on the same walk (`same_walk`).
 func _same_hold(t: TestContext, again: float, moved: float, same_walk: bool) -> bool:
 	return t.require(
 		again <= HOLD_GAP

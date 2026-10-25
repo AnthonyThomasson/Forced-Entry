@@ -77,9 +77,9 @@ static func crossing(door: Dictionary) -> Array:
 	return [pos + out * 70.0, pos, pos - out * INSIDE_DEPTH + out.orthogonal() * INSIDE_OFFSET]
 
 
-## Radio actor `who` (a puppet teammate) holding stack slot `at[0]` on side `at[1]` of doorway
-## `opening` into room `into` at entry step `at[2]` ("claim" when `at` is `[slot, side]`): the
-## claim an NPC's entry radios, in the wire format's field names (interface 10). A puppet's claims
+## Radio actor `who` (a puppet teammate) holding a stack slot of doorway `opening` into room `into`:
+## `claim` names its `slot`, its `side` and its `entry_step` ("claim" when it names none), in the
+## wire format's field names: the claim an NPC's entry radios (interface 10). A puppet's claims
 ## stand for an AI teammate's where the AI's own timing would make the test a race: the human's
 ## `PlayerStack` reads only the bus.
 static func radio(
@@ -87,14 +87,14 @@ static func radio(
 	who: StringName,
 	opening: String,
 	into: String,
-	at: Array,
+	claim: Dictionary,
 ) -> void:
 	var c := t.actor(who)
 	EventBus.post(&"callout", {
 		"speaker": c, "faction": c.faction, "position": c.global_position, "status": "",
 		"path": "", "label": "", "target_id": 0, "point": c.global_position,
-		"opening": opening, "into": into, "slot": int(at[0]), "side": int(at[1]),
-		"entry_step": String(at[2]) if at.size() > 2 else "claim",
+		"opening": opening, "into": into, "slot": int(claim["slot"]), "side": int(claim["side"]),
+		"entry_step": String(claim.get("entry_step", "claim")),
 	})
 
 

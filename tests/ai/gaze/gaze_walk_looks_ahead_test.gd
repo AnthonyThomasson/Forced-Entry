@@ -75,8 +75,8 @@ func run(t: TestContext) -> void:
 	t.expect_eq(wall_frames, 0, "no wall dead ahead at 70 px while it walks")
 
 
-# The angle (deg) between sample `i`'s facing and where the invader is `LOOK_AHEAD` s on, or -1 with
-# no sample that late.
+## The angle (deg) between sample `i`'s facing and where the invader is `LOOK_AHEAD` s on, or -1
+## with no sample that late.
 func _off_ahead(samples: Array, i: int) -> float:
 	var s: Dictionary = samples[i]
 	# The test's own copy of "where it will be": the sample LOOK_AHEAD s on.
