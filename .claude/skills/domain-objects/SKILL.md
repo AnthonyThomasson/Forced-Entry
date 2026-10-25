@@ -194,7 +194,7 @@ damage is placed in the world (below), so no mark repeats on the tile's grid.
 ## Wear and the street's marks (`objects/decals/`, interface 2)
 
 Damage is decals placed in the world, never in a tile. `decal_layer.gd` is a draw-only batch of `[texture, rect]` marks.
-- **A room's wear** (`WearFactory.spawn`, `decals/room_wear.gd`): World-Gen places the clusters (where wear gathers, seeded);
+- **A room's wear** (`WearFactory.spawn` over a `WearPlan`, `wear_plan.gd`; `decals/room_wear.gd`): World-Gen places the clusters (where wear gathers, seeded);
   the room's wear node decides each cluster's 1-3 floor marks, following the room's floor pattern (planks break along a plank
   row, tiles go missing on the tile grid, carpet wears bald, concrete cracks and takes oil; grid marks snap to the floor's grid,
   every mark its own size, turn and `v` variant), and with `wear_wall_chance` a mark on the free stretch of wall the cluster is
@@ -209,7 +209,7 @@ Object fields for art: `art`, `art_opts` (from the definition) and `facing` (`op
 World-Gen; visual only, a cardinal direction in the local frame — the `rotated` size swap still
 owns the footprint). The visuals draw a drop shadow — the art's own alpha through the deformed
 outline, offset away from the light in world space by `coverage × drop_shadow_per_coverage`
-(capped; non-solid decor casts none) — then `Deformation.draw_shape(..., texture)` so dents and
+(capped; non-solid decor casts none) — then `Deformation.draw_shape(..., look)` (its `ShapeLook` carrying the `texture`) so dents and
 chunks cut into the art. The drop shadow is the visuals' `DropShadow` child (`show_behind_parent`), drawn in the piece's own frame
 and placed at the shadow's offset (`_shadow_shift`): a turn moves that child, it repaints nothing. A piece repaints (art and shadow)
 only when its `Deformable` recorded an impact, not every frame (a house has ~90 pieces); a hit also queues one deferred
@@ -224,10 +224,10 @@ copies the dents and returns a pure job, `Deformation.cut_shape` / `cut_wall`) a
 as it stands then (else cuts it there, `_pieces_of`). A cut whose piece leaves the tree first is dropped (`cancel()`, in `_exit_tree`;
 a running one is waited for). Each collider changes in its own deferred call, into the pieces a cut at the rebuild would make, and a piece hit several
 times in a frame is cut once (`tests/objects/blast_colliders_match_plain_test.gd`, which also checks cuts ran on workers through
-`ColliderCuts.started`, and `wall_dents_share_a_rebuild_test.gd`). Test: `tests/objects/drop_shadow_follows_turn_test.gd`. Walls: `WallFactory`'s `style` sets `art` / `art_color` / `art_opts` on
+`ColliderCuts.started`, and `wall_dents_share_a_rebuild_test.gd`). Test: `tests/objects/drop_shadow_follows_turn_test.gd`. Walls: `WallFactory.spawn` takes a room's walls as a `RoomWalls` (`room_walls.gd`: `thickness`, `openings`, `style`); the `style` sets `art` / `art_color` / `art_opts` on
 the wall (its debris takes the drawn colour); `wall_visuals.gd` fetches a
-`wall_tile_px × wall_thickness` tile and passes it to `Deformation.draw_wall(..., texture,
-wall_tile_px)`. To add a painter: write `<name>_painter.gd` (its shape, then its run-down finish from `decay.gd`, anything that
+`wall_tile_px × wall_thickness` tile and passes it to `Deformation.draw_wall(..., look)` (a `WallLook`
+with that `texture` and `tile_length` `wall_tile_px`). To add a painter: write `<name>_painter.gd` (its shape, then its run-down finish from `decay.gd`, anything that
 gives light inside `canvas.glowing`), register it in `ObjectArt.PAINTERS`,
 add its knobs to `ObjectArtConfig`, and set `"art": "<name>"` on catalogue definitions.
 

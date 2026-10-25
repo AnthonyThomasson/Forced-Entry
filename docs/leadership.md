@@ -230,7 +230,7 @@ up, walks the doorway's view when a way round exists or bumps a teammate; `tests
 
 **LD10. Lead the team.** The setup window has a "Lead the team" checkbox, off by default, which applies to Start only (a played match;
 Watch and Endless ignore it). It is reported as the window's `lead` and saved with the rest of its choices (`Settings.set_setup`), so the
-window reopens with it as it was left. With it on, the human leads its side's squad (`Squad.setup`'s `human`), and a human invader is the
+window reopens with it as it was left. With it on, the human leads its side's squad (the `human` of `Squad.setup`'s `SquadRoster`), and a human invader is the
 unit's lead (`rank` 2): the first NPC invader is its sergeant (1) and the rest troopers (0). The style draws are the same either way: each
 character gets the style, look seed and weapon style it would get with it off. With it off, nothing changes: the human invader is ranked
 last of the unit as before, the squads are led by their own rule, and neither the command menu nor the order markers are built.

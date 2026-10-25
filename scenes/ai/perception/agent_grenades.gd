@@ -298,10 +298,15 @@ func _still_safe(space, exclude: Array, rec: Dictionary, plan_: Dictionary, poin
 
 ## A fresh plan for grenade `id` (record `rec`) from where the NPC stands.
 func _make(space, map: RID, exclude: Array, id: int, rec: Dictionary, fuse: float) -> Dictionary:
-	var found: Dictionary = throw.escape(
-		space, map, rec["kind"], rec["radius"], rec["point"], _character.global_position, fuse,
-		throw.run_speed(), exclude,
-	)
+	var threat := GrenadeThreat.new()
+	threat.kind = rec["kind"]
+	threat.radius = rec["radius"]
+	threat.burst = rec["point"]
+	threat.fuse_left = fuse
+	var runner := GrenadeRunner.new()
+	runner.from = _character.global_position
+	runner.speed = throw.run_speed()
+	var found: Dictionary = throw.escape(space, map, threat, runner, exclude)
 	return {
 		"id": id, "point": rec["point"], "kind": rec["kind"], "radius": rec["radius"],
 		"spot": found["spot"], "crouch": found["crouch"], "at": GameClock.frame(),

@@ -65,9 +65,15 @@ func run(t: TestContext) -> void:
 			var radius: float = geometry.radius_of(kind)
 			var fuse := rng.randf_range(0.6, 3.0)
 			var speed := rng.randf_range(90.0, 260.0)
-			var fast: Dictionary = geometry.escape(
-				space, map, kind, radius, burst, from, fuse, speed, exclude,
-			)
+			var threat := GrenadeThreat.new()
+			threat.kind = kind
+			threat.radius = radius
+			threat.burst = burst
+			threat.fuse_left = fuse
+			var runner := GrenadeRunner.new()
+			runner.from = from
+			runner.speed = speed
+			var fast: Dictionary = geometry.escape(space, map, threat, runner, exclude)
 			var plain := _plain_escape(
 				geometry, space, map, kind, radius, burst, from, fuse, speed, exclude,
 			)

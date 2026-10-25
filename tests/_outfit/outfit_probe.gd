@@ -149,17 +149,19 @@ static func fire(
 	BallisticsConfig.bullet_height = height
 	if gun == &"fragment":
 		var frag := GrenadeConfig.row(&"frag")
-		var fragment := ProjectileSpawner.spawn(
-			from, dir, t.world, null, 0.0, float(frag["fragment_speed"]),
-			float(frag["fragment_penetration"]), float(frag["fragment_range"]),
-		)
+		var shard := Shot.new()
+		shard.muzzle_speed = float(frag["fragment_speed"])
+		shard.penetration = float(frag["fragment_penetration"])
+		shard.max_range = float(frag["fragment_range"])
+		var fragment := ProjectileSpawner.spawn(from, dir, t.world, shard)
 		fragment.set("damage", float(frag["fragment_damage"]))
 		return fragment
 	var row := GunConfig.row(gun)
-	return ProjectileSpawner.spawn(
-		from, dir, t.world, null, float(row["damage"]), float(row["muzzle_speed"]),
-		float(row["penetration"]),
-	)
+	var shot := Shot.new()
+	shot.item_damage = float(row["damage"])
+	shot.muzzle_speed = float(row["muzzle_speed"])
+	shot.penetration = float(row["penetration"])
+	return ProjectileSpawner.spawn(from, dir, t.world, shot)
 
 
 # --- Shooting lanes: a target, a witness behind it, one round each --------------------------------

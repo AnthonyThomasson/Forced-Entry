@@ -28,6 +28,9 @@ const BODY_TURN := -PI * 0.5
 ## A wing mirror's size (across, along) and how far from the hinge along the door it stands.
 const MIRROR := Vector2(5, 8)
 const MIRROR_AT := 9.0
+## The painter options of a tyre and of a lamp: their `material` (`PixelArt`'s option).
+const RUBBER := { "material": "rubber" }
+const GLASS := { "material": "glass" }
 
 ## "chassis" (under the occupants) or "roof" (over them).
 @export_enum("chassis", "roof") var layer: String = "chassis"
@@ -130,7 +133,7 @@ func _draw_wheels() -> void:
 	for x: float in [row["axle_front"], row["axle_rear"]]:
 		var angle: float = BODY_TURN + (_vehicle.wheel_angle() if x == row["axle_front"] else 0.0)
 		var tex := PixelArt.render_turned(
-			WheelPainter, size, VehicleConfig.tyre_color, _lit(angle), "rubber",
+			WheelPainter, size, VehicleConfig.tyre_color, _lit(angle), RUBBER,
 		)
 		for side in [-1.0, 1.0]:
 			draw_set_transform(Vector2(x, side * (half.y - wheel.y * 0.35)), angle)
@@ -147,8 +150,8 @@ func _draw_body() -> void:
 ## The body's art for this layer, lit for drawing at `angle` in the vehicle's frame.
 func _body_texture(angle: float) -> Texture2D:
 	return PixelArt.render_turned(
-		PAINTERS.get(_vehicle.kind, CarPainter), _body_size(), _vehicle.color, _lit(angle), "metal",
-		{ "kind": _vehicle.kind, "part": layer },
+		PAINTERS.get(_vehicle.kind, CarPainter), _body_size(), _vehicle.color, _lit(angle),
+		{ "kind": _vehicle.kind, "part": layer, "material": "metal" },
 	)
 
 
@@ -166,8 +169,8 @@ func _draw_doors() -> void:
 		var frame: Dictionary = _doors[d.id]["frame"]
 		var size := Vector2(depth, frame["length"])
 		var angle: float = frame["turn"] + d.angle()
-		var tex := PixelArt.render_turned(DoorPainter, size, _vehicle.color, _lit(angle), "metal",
-				{ "kind": _vehicle.kind, "door": d.id, "part": "panel" })
+		var tex := PixelArt.render_turned(DoorPainter, size, _vehicle.color, _lit(angle),
+				{ "kind": _vehicle.kind, "door": d.id, "part": "panel", "material": "metal" })
 		draw_set_transform(d.hinge + d.offset(), angle)
 		draw_texture_rect(
 			tex,
@@ -189,8 +192,8 @@ func _draw_door_glass() -> void:
 		var rect: Rect2 = DoorPainter.glass_rect(_vehicle.kind, d.id)
 		var size := Vector2(rect.size.y, rect.size.x)
 		var tex := PixelArt.render_turned(
-			DoorPainter, size, _vehicle.color, _lit(BODY_TURN), "glass",
-			{ "kind": _vehicle.kind, "door": d.id, "part": "glass" },
+			DoorPainter, size, _vehicle.color, _lit(BODY_TURN),
+			{ "kind": _vehicle.kind, "door": d.id, "part": "glass", "material": "glass" },
 		)
 		draw_set_transform(rect.get_center(), BODY_TURN)
 		draw_texture_rect(tex, Rect2(-size * 0.5, size), false, Color(1.0, 1.0, 1.0, alpha))
@@ -204,8 +207,8 @@ func _draw_mirrors() -> void:
 			continue
 		var frame: Dictionary = _doors[id]["frame"]
 		var angle: float = frame["turn"] + d.angle()
-		var tex := PixelArt.render_turned(DoorPainter, MIRROR, _vehicle.color, _lit(angle), "metal",
-				{ "kind": _vehicle.kind, "door": id, "part": "mirror" })
+		var tex := PixelArt.render_turned(DoorPainter, MIRROR, _vehicle.color, _lit(angle),
+				{ "kind": _vehicle.kind, "door": id, "part": "mirror", "material": "metal" })
 		draw_set_transform(d.hinge + d.offset(), angle)
 		draw_texture_rect(
 			tex,
@@ -229,7 +232,7 @@ func _draw_brake_lights() -> void:
 	for rect: Rect2 in Art.tail_lamps(_vehicle.row(), VehicleConfig.looks[_vehicle.kind]):
 		var size := Vector2(rect.size.y, rect.size.x)
 		var tex := PixelArt.render_turned(
-			LampPainter, size, VehicleConfig.tail_on_color, _lit(BODY_TURN), "glass",
+			LampPainter, size, VehicleConfig.tail_on_color, _lit(BODY_TURN), GLASS,
 		)
 		draw_set_transform(rect.get_center(), BODY_TURN)
 		draw_texture_rect(tex, Rect2(-size * 0.5, size), false)

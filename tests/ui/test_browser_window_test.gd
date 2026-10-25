@@ -26,7 +26,9 @@ func run(t: TestContext) -> void:
 	t.world.add_child(_window)
 	_window.run_queue_requested.connect(func(paths): _queued = paths)
 	_window.checked_changed.connect(func(ids): _checked = ids)
-	_window.open(_tests(), [], {}, _matcher, "", "", ["a/one"])
+	var state := TestBrowserState.new()
+	state.checked = ["a/one"]
+	_window.open(_tests(), [], {}, _matcher, state)
 
 	# The rows keep their labels (a check cell must not lose its text).
 	t.check(_item("a/one").get_text(0).contains("Alpha one"), "a test row shows its name")

@@ -44,19 +44,19 @@ static func openings_for(rect: Rect2, doors: Array) -> Array:
 	return cut
 
 
-## `rect` is the room's outline (walls run along its centerline); `openings` are doorways
-## in Wall.Side format (see wall.gd). `style` is the cap's look: `art` (a tiling painter id),
-## `color`, `art_opts`; empty = a flat gray line.
-static func spawn(rect: Rect2, thickness: float, openings: Array, wall_name: String, parent: Node,
-		style: Dictionary = {}) -> Node:
+## `rect` is the room's outline (walls run along its centerline); `walls` says how they are built:
+## their `thickness`, their `openings` (doorways in Wall.Side format, see wall.gd) and their `style`
+## (the cap's look: `art` (a tiling painter id), `color`, `art_opts`; empty = a flat gray line).
+static func spawn(rect: Rect2, walls: RoomWalls, wall_name: String, parent: Node) -> Node:
 	var wall := StaticBody2D.new()
 	wall.name = wall_name
 	wall.position = rect.position
 	wall.script = WallScript
 
 	wall.size = rect.size
-	wall.wall_thickness = thickness
-	wall.openings = openings
+	wall.wall_thickness = walls.thickness
+	wall.openings = walls.openings
+	var style := walls.style
 	wall.art = style.get("art", "")
 	wall.art_color = style.get("color", Color(0.6, 0.6, 0.6))
 	wall.art_opts = style.get("art_opts", {})

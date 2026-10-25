@@ -75,11 +75,10 @@ func run(t: TestContext) -> void:
 
 	# No gun at all: the fists.
 	var bare := t.actor(&"bare")
-	bare.set_loadout(
-		[ItemRegistry.UNARMED_SLOT, ItemRegistry.FISTS_SLOT, Probe.FRAG],
-		Probe.FRAG,
-		[],
-	)
+	var kit := CharacterKit.new()
+	kit.slots = [ItemRegistry.UNARMED_SLOT, ItemRegistry.FISTS_SLOT, Probe.FRAG]
+	kit.hold_slot = Probe.FRAG
+	bare.set_loadout(kit)
 	t.puppet(&"bare").aim_at(Vector2(500, 450))
 	await t.seconds(0.4)
 	if not t.require(

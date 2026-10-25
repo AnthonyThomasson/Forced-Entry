@@ -190,14 +190,14 @@ static func apply(
 		counts.get(ItemRegistry.STUN_SLOT, 0),
 		counts.get(ItemRegistry.FRAG_SLOT, 0),
 	)
-	character.set_loadout(
-		slots,
-		slot,
-		spare_types,
-		magazine,
-		counts,
-		StringName(style.get("weapon", &"police")),
-	)
+	var kit := CharacterKit.new()
+	kit.slots = slots
+	kit.hold_slot = slot
+	kit.spare_types = spare_types
+	kit.loaded_magazine = magazine
+	kit.grenades = counts
+	kit.weapon_style = StringName(style.get("weapon", &"police"))
+	character.set_loadout(kit)
 	return gun
 
 

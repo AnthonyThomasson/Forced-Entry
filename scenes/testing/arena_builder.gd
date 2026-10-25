@@ -15,13 +15,9 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 	if not floor_def.is_empty():
 		FloorFactory.spawn(rect, floor_def, "Arena Floor", root)
 	if world.get("walls", true):
-		WallFactory.spawn(
-			rect,
-			float(world.get("thickness", 12.0)),
-			[],
-			"Arena Walls",
-			root,
-			WorldGen.wall_style(),
-		)
+		var walls := RoomWalls.new()
+		walls.thickness = float(world.get("thickness", 12.0))
+		walls.style = WorldGen.wall_style()
+		WallFactory.spawn(rect, walls, "Arena Walls", root)
 	WorldGen.annotate_layout(root, [{ "key": "arena", "type": "arena", "rect": rect }])
 	return root

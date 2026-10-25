@@ -182,7 +182,7 @@ static func _vase(c: PixelCanvas, o: Vector2i) -> void:
 static func _cutting_board(c: PixelCanvas, o: Vector2i) -> void:
 	var r := _box(o, 16, 11)
 	var s := _block(c, r, 2, _col("wood_light"))
-	c.grain(s, true, 0.05, _col("wood_light").darkened(0.12), _col("wood_light").lightened(0.06))
+	c.grain(s, 0.05, _col("wood_light").darkened(0.12), _col("wood_light").lightened(0.06))
 	c.outline(s, _col("wood_light").darkened(0.4))
 	var k := r.position + Vector2i(_u(3), int(r.size.y / 2.0))
 	c.line(k, k + Vector2i(_u(7), 0), _col("metal").lightened(0.2), _HEIGHT + 1)

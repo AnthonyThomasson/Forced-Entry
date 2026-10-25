@@ -338,6 +338,8 @@ func _dress() -> bool:
 			dress[side + "_wear"] = ceili((1.0
 					- clampf(float(plate.get("condition", 1.0)), 0.0, 1.0))
 					* VestPainter.WEAR_STEPS)
+	# The shoulders and the torso are painted in fabric (`PixelArt`'s `material` option).
+	dress["material"] = "fabric"
 	_shoulder_opts = dress
 	_torso_opts = {}
 	for face in ["front", "back", "side"]:
@@ -358,6 +360,10 @@ func _dress() -> bool:
 		_chrome_shin.append(look["chrome_leg"][i])
 		if _chrome_shin[i]:
 			parts["shin"]["chrome"] = true
+		# Each part's `material` (`PixelArt`'s option): the trousers fabric, a chrome shin metal,
+		# the boot's shaft and the shoe none.
+		for part in ["thigh", "knee", "shin"]:
+			parts[part]["material"] = "metal" if part == "shin" and _chrome_shin[i] else "fabric"
 		_leg_opts.append(parts)
 		var chrome: bool = look["chrome_arm"][i]
 		var hand := { "look": id, "side": -1 if i == 0 else 1 }
@@ -375,18 +381,21 @@ func _dress() -> bool:
 
 
 ## Side `side`'s arm segment `part` ("upper" to the elbow, "fore" to the fist) in `look` (handle
-## `id`): chrome, a sleeve (a long one down to its cuff at the wrist) or bare skin.
+## `id`): chrome, a sleeve (a long one down to its cuff at the wrist) or bare skin, its painter
+## options carrying its `material` (`PixelArt`'s option: metal, fabric, none for skin).
 func _arm_part(look: Dictionary, id: int, side: int, part: String) -> Dictionary:
 	var opts := { "look": id, "part": part, "side": side }
 	if look["chrome_arm"][side]:
 		opts["chrome"] = true
-		return { "color": _chrome, "material": "metal", "opts": opts }
+		opts["material"] = "metal"
+		return { "color": _chrome, "opts": opts }
 	var sleeve: Variant = look["sleeves"][side]
 	if sleeve != null and (part == "upper" or look["body"] == "long_sleeves"):
 		opts["cuff"] = part == "fore"
-		return { "color": sleeve, "material": "fabric", "opts": opts }
+		opts["material"] = "fabric"
+		return { "color": sleeve, "opts": opts }
 	opts["skin"] = true
-	return { "color": _skin, "material": "", "opts": opts }
+	return { "color": _skin, "opts": opts }
 
 
 ## `value` if it is a colour, else a neutral grey (a part its style names no colour for).
@@ -461,7 +470,6 @@ func _shoulder_art(angle: float) -> Texture2D:
 		_shoulder_size(),
 		_shirt,
 		PixelArt.snap_angle(angle),
-		"fabric",
 		_shoulder_opts,
 	)
 
@@ -571,7 +579,6 @@ func _draw_head(pose, rig, impacts: Array, damage_total: float) -> void:
 		size,
 		_skin,
 		PixelArt.snap_angle(angle),
-		"",
 		_head_opts,
 	)
 	var at := _rig_xy(rig, Rig.HEAD)  # The pose's offset, plus the neck's pitch in a crouch.
@@ -598,7 +605,6 @@ func _draw_hand(hand: int, angle: float, impacts: Array, damage_total: float) ->
 		size,
 		part["color"],
 		PixelArt.snap_angle(angle),
-		"",
 		part["opts"],
 	)
 	_draw_part(tex, size, _hands.hand_position(hand), angle, impacts, damage_total, part["color"])
@@ -622,10 +628,14 @@ func _draw_part(tex: Texture2D, size: Vector2, at: Vector2, angle: float, impact
 func _draw_round(tex: Texture2D, size: Vector2, angle: float, impacts: Array, damage_total: float,
 		fill: Color, outline: Color) -> void:
 	if not BodyMeshes.enabled:
-		Deformation.draw_shape(
-			self, "circle", size, fill, outline, impacts, damage_total, Deformation.NO_COLOR,
-			Deformation.NO_COLOR, Deformation.NO_COLOR, tex, angle, false,
-		)
+		var look := ShapeLook.new()
+		look.fill = fill
+		look.outline = outline
+		look.damage_total = damage_total
+		look.texture = tex
+		look.texture_angle = angle
+		look.marks = false
+		Deformation.draw_shape(self, "circle", size, impacts, look)
 		return
 	var poly := Deformation.shape_polygon("circle", size, impacts)
 	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
@@ -814,7 +824,7 @@ func _fallen_parts(rd) -> Array:
 			_seg(
 				chest, head, neck, neck,
 				(CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r,
-				_skin, "",
+				_skin,
 			),
 		]),
 		"neck",
@@ -874,7 +884,6 @@ func _arm_chain(j, i: int) -> Dictionary:
 			arm[1],
 			CharacterConfig.body_upper_arm * r,
 			upper["color"],
-			upper["material"],
 			upper["opts"],
 		),
 		_seg(
@@ -884,7 +893,6 @@ func _arm_chain(j, i: int) -> Dictionary:
 			arm[2],
 			CharacterConfig.body_forearm * r,
 			fore["color"],
-			fore["material"],
 			fore["opts"],
 		),
 	])
@@ -907,7 +915,6 @@ func _leg_chain(j, i: int) -> Dictionary:
 	var shin := CharacterConfig.body_shin * r
 	var opts: Dictionary = _leg_opts[i]
 	var shin_col := _chrome if _chrome_shin[i] else _pants
-	var shin_finish := "metal" if _chrome_shin[i] else "fabric"
 	var segs := [
 		_seg(
 			hip,
@@ -916,10 +923,9 @@ func _leg_chain(j, i: int) -> Dictionary:
 			leg[1],
 			CharacterConfig.body_thigh * r,
 			_pants,
-			"fabric",
 			opts["thigh"],
 		),
-		_seg(knee, calf, leg[1], leg[2], shin * 0.35, _pants, "fabric", opts["knee"]),
+		_seg(knee, calf, leg[1], leg[2], shin * 0.35, _pants, opts["knee"]),
 	]
 	var heel := ankle - toes * foot * 0.25
 	var tip := ankle + toes * foot * 0.75
@@ -928,7 +934,7 @@ func _leg_chain(j, i: int) -> Dictionary:
 		var top_width: float = lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
 		segs.append(_seg(
 			calf, top, leg[2], top_width - BOOT_GROW, shin * (BOOT_TOP - 0.35), shin_col,
-			shin_finish, opts["shin"],
+			opts["shin"],
 		))
 		segs.append(_seg(
 			top,
@@ -937,7 +943,6 @@ func _leg_chain(j, i: int) -> Dictionary:
 			leg[3] + BOOT_GROW,
 			shin * (1.0 - BOOT_TOP),
 			_shoes,
-			"",
 			opts["shaft"],
 		))
 		segs.append(_seg(
@@ -947,24 +952,24 @@ func _leg_chain(j, i: int) -> Dictionary:
 			shoe[1] + BOOT_GROW,
 			foot,
 			_shoes,
-			"",
 			opts["foot"],
 		))
 	else:
 		segs.append(_seg(
-			calf, ankle, leg[2], leg[3], shin * 0.65, shin_col, shin_finish, opts["shin"],
+			calf, ankle, leg[2], leg[3], shin * 0.65, shin_col, opts["shin"],
 		))
-		segs.append(_seg(heel, tip, shoe[0], shoe[1], foot, _shoes, "", opts["foot"]))
+		segs.append(_seg(heel, tip, shoe[0], shoe[1], foot, _shoes, opts["foot"]))
 	return _chain(segs)
 
 
 ## One tapered limb segment from `a` to `b` (3D): its widths at each end in body radii, the true
-## `length` (px) its art is painted at, its color and material.
+## `length` (px) its art is painted at, its color and its painter options (its `material` among
+## them).
 func _seg(a: Vector3, b: Vector3, width_a: float, width_b: float, length: float, color: Color,
-		finish: String, opts: Dictionary = _PLAIN) -> Dictionary:
+		opts: Dictionary = _PLAIN) -> Dictionary:
 	var r: float = _character.radius
 	return { "a": a, "b": b, "ra": width_a * r * 0.5, "rb": width_b * r * 0.5, "length": length,
-		"color": color, "material": finish, "opts": opts }
+		"color": color, "opts": opts }
 
 
 ## A limb chain: its segments, sorted as one part by their mean height.
@@ -1017,7 +1022,6 @@ func _draw_segment(seg: Dictionary) -> void:
 		size,
 		seg["color"],
 		PixelArt.snap_angle(angle),
-		seg["material"],
 		seg["opts"],
 	)
 	_art.append(tex)
@@ -1306,13 +1310,11 @@ func _face_art(face: Dictionary) -> Dictionary:
 			art_size,
 			_shirt,
 			PixelArt.snap_angle(angle),
-			"fabric",
 			_shoulder_opts,
 		)
 	else:
 		tex = PixelArt.render_turned(
-			TorsoPainter, art_size, _shirt, PixelArt.snap_angle(angle), "fabric",
-			_torso_opts[face["kind"]],
+			TorsoPainter, art_size, _shirt, PixelArt.snap_angle(angle), _torso_opts[face["kind"]],
 		)
 	return { "texture": tex, "center": _flat(face["centre"]), "x": ax, "y": ay, "size": size }
 
@@ -1372,7 +1374,6 @@ func _draw_fallen_hand(hand: Dictionary) -> void:
 		size,
 		part["color"],
 		PixelArt.snap_angle(angle),
-		"",
 		part["opts"],
 	)
 	_art.append(tex)
@@ -1397,7 +1398,6 @@ func _draw_fallen_head(head: Dictionary) -> void:
 		size,
 		_skin,
 		PixelArt.snap_angle(angle),
-		"",
 		_head_opts,
 	)
 	_art.append(tex)

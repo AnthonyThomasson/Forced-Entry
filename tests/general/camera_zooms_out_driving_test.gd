@@ -33,7 +33,7 @@ func configure(s: TestSetup) -> void:
 ## Hold puppet "me" near `target` px/s for `duration` s and return the camera's zoom at the end.
 func _cruise(t: TestContext, car: Node2D, cam: Camera2D, target: float, duration: float) -> float:
 	await Probe.reach_speed(t, &"me", car, target, 8.0)
-	await Probe.hold_speed(t, &"me", car, target, 0.0, false, duration)
+	await Probe.hold_speed(t, &"me", car, Probe.hold(target, 0.0, duration))
 	return cam.zoom.x
 
 

@@ -111,7 +111,13 @@ func _release() -> void:
 	var from: Vector2 = user.hand_world(weapon_hand())
 	var world: Node = user.world_root()
 	count -= 1
-	ThrownGrenade.spawn(kind, from, user.aim_target(), user, world, style)
+	var throw := GrenadeThrow.new()
+	throw.kind = kind
+	throw.from = from
+	throw.to = user.aim_target()
+	throw.thrower = user
+	throw.style = style
+	ThrownGrenade.spawn(throw, world)
 	GrenadeSpoon.pop(from, (user.aim_target() - from).angle(), world)
 	EventBus.post(&"throw", { "position": from, "kind": kind, "attacker": user })
 
@@ -154,7 +160,10 @@ func prepaint() -> void:
 		for spoon in [true, false]:
 			PixelArt.render_turned(
 				drawn["painter"], art_size(), drawn["shell"], PixelArt.snap_angle(k * step),
-				drawn["finish"], { "kind": kind, "look": _look_handle(drawn), "spoon": spoon },
+				{
+					"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
+					"material": drawn["finish"],
+				},
 			)
 
 
@@ -163,8 +172,11 @@ func prepaint() -> void:
 func _texture(angle: float, spoon: bool) -> Texture2D:
 	var drawn := look()
 	var tex := PixelArt.render_turned(
-		drawn["painter"], art_size(), drawn["shell"], angle, drawn["finish"],
-		{ "kind": kind, "look": _look_handle(drawn), "spoon": spoon },
+		drawn["painter"], art_size(), drawn["shell"], angle,
+		{
+			"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
+			"material": drawn["finish"],
+		},
 	)
 	_note_drawn(tex)
 	return tex

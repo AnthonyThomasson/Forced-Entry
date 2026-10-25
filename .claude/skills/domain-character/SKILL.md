@@ -123,7 +123,7 @@ The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway an
 The character carries spare magazines (`_magazines`, `Magazine` items) beside its inventory: they are never in
 `_items`, so no number key or interaction can select them. They come from the exports `spare_magazine_types`
 (`MagazineConfig.types` ids, default two standard magazines for each gun) and `start_rounds` (what the starting gun is loaded with;
-negative = full), which tests and sandboxes set through `actor(..., props)`. `set_loadout(slots, hold_slot, spare_types, loaded_magazine := &"", grenades := {}, weapon_style := &"police")` re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; `loaded_magazine` picks the type the gun starts loaded with). `reload()` (R, or the AI's reload
+negative = full), which tests and sandboxes set through `actor(..., props)`. `set_loadout(kit: CharacterKit)` (`character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with). `reload()` (R, or the AI's reload
 primitive) starts a timer of the held item's `reload_time()` on it if its `can_reload(self)` says a carried
 magazine would add rounds, and sets the item's `reloading` flag (a gun's support hand eases to the `reload`
 stance while it is up). `_update_reload` runs right after the controller: it cancels the reload when the character
@@ -139,7 +139,7 @@ is still cycling between rounds. `_physics_process` ticks every carried item (`I
 cooldown is in step with the frame that pulls the trigger. A controller re-presses `shoot()` every frame while the trigger is held when
 `is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
 
-**Loadout.** `set_loadout(slots, hold_slot, spare_types, loaded_magazine := &"", grenades := {}, weapon_style := &"police")` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.style`: looks only), the carried
+**Loadout.** `set_loadout(kit: CharacterKit)` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.style`: looks only), the carried
 magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
 (`ItemRegistry.loadout_for` / `spares_for`); tests that do not call it keep `default_inventory()` — every item.
 
@@ -187,7 +187,7 @@ selects `gun_slot()` (else the fists). `aim_target()` is the aim point swayed by
 Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `stun_speed`, running is refused, the walk drifts (`_stun_drift`) and the aim sways (`aim_sway`: two
 out-of-step sines, up to `stun_sway` degrees x the level). `stun_view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
 back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterConfig.stances`) is the wind-up's drawn-back arm.
-`set_loadout(..., grenades := {})` takes a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
+`set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update` takes the stun level as its last
 argument (`stun_level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it

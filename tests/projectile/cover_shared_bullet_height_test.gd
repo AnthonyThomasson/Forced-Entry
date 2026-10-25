@@ -109,7 +109,7 @@ func _volley(t: TestContext, height: float, count: int) -> void:
 	BallisticsConfig.bullet_height = height
 	for lane: StringName in LANES:
 		for i in count:
-			ProjectileSpawner.spawn(Vector2(SHOOT_X, LANES[lane]), Vector2.RIGHT, t.world, null)
+			ProjectileSpawner.spawn(Vector2(SHOOT_X, LANES[lane]), Vector2.RIGHT, t.world)
 	await t.seconds(0.6)
 
 

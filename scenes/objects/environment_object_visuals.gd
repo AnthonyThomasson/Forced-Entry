@@ -76,13 +76,17 @@ func _draw() -> void:
 	var impacts: Array = deformable.impacts if deformable else []
 	var damage_total: float = deformable.damage_total if deformable else 0.0
 
+	var look := ShapeLook.new()
+	look.fill = color
+	look.damage_total = damage_total
 	if _art:  # (its drop shadow is the `_drop_shadow` child's, behind this)
-		var marks := color.darkened(ArtConfig.tone_outline)
-		Deformation.draw_shape(self, shape, size, color, marks, impacts, damage_total,
-				Deformation.NO_COLOR, Deformation.NO_COLOR, Deformation.NO_COLOR, _art)
+		look.outline = color.darkened(ArtConfig.tone_outline)
+		look.texture = _art
+		Deformation.draw_shape(self, shape, size, impacts, look)
 		return
 
-	Deformation.draw_shape(self, shape, size, color, text_color, impacts, damage_total)
+	look.outline = text_color
+	Deformation.draw_shape(self, shape, size, impacts, look)
 
 	# Draw the object's name centered on it.
 	var name_text: String = _obj.object_name
@@ -104,11 +108,13 @@ func emissive_layer() -> Node2D:
 func draw_emissive(layer: CanvasItem) -> void:
 	var deformable = _obj._deformable
 	var impacts: Array = deformable.impacts if deformable else []
-	Deformation.draw_shape(
-		layer, _obj.shape_type, _obj.size, _obj.color, _obj.color, impacts,
-		deformable.damage_total if deformable else 0.0, Deformation.NO_COLOR, Deformation.NO_COLOR,
-		Deformation.NO_COLOR, _emissive, 0.0, false,
-	)
+	var look := ShapeLook.new()
+	look.fill = _obj.color
+	look.outline = _obj.color
+	look.damage_total = deformable.damage_total if deformable else 0.0
+	look.texture = _emissive
+	look.marks = false
+	Deformation.draw_shape(layer, _obj.shape_type, _obj.size, impacts, look)
 
 
 ## The art's silhouette (its alpha, through the deformed outline) cast on the floor away from the

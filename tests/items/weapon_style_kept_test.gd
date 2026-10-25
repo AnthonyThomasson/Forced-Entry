@@ -1,9 +1,9 @@
 extends GameTest
 ## R3 (ticket #61): a dropped gun and a thrown grenade keep the weapon style they were held in.
-## - Three gunmen armed in `scrap` (pistol, SMG, rifle; `Character.set_loadout(..., weapon_style)`)
-##   die; the `DroppedItem` each one's gun leaves is drawn in scrap while it skids and once at rest:
-##   every texture it paints is one the scrap gun paints lying at some lighting step either side up,
-##   and none is one the police or pipe gun paints so.
+## - Three gunmen armed in `scrap` (pistol, SMG, rifle; `Character.set_loadout(kit)`, the kit's
+##   `weapon_style`) die; the `DroppedItem` each one's gun leaves is drawn in scrap while it skids
+##   and once at rest: every texture it paints is one the scrap gun paints lying at some lighting
+##   step either side up, and none is one the police or pipe gun paints so.
 ## - A thrower armed with a `pipe` frag throws it; the `ThrownGrenade` is drawn in pipe in flight
 ##   (`DrawLayers.ABOVE`) and at rest (`DrawLayers.LYING`): every texture is one the pipe frag
 ##   paints lying at some step, none one the police or scrap frag paints.
@@ -83,16 +83,9 @@ func run(t: TestContext) -> void:
 		)
 	for gun: StringName in GUNMEN:
 		var slot: int = StyleProbe.GUNS[gun]
-		t.actor(gun).set_loadout([1, slot], slot, [], &"", {}, KEPT_GUN_STYLE)
+		t.actor(gun).set_loadout(StyleProbe.kit(slot, KEPT_GUN_STYLE))
 	var frag_slot: int = StyleProbe.GRENADES[&"frag"]
-	t.actor(&"thrower").set_loadout(
-		[1, frag_slot],
-		frag_slot,
-		[],
-		&"",
-		{ frag_slot: 1 },
-		KEPT_GRENADE_STYLE,
-	)
+	t.actor(&"thrower").set_loadout(StyleProbe.kit(frag_slot, KEPT_GRENADE_STYLE, { frag_slot: 1 }))
 	await t.seconds(0.5)
 	for kind: StringName in probes:
 		refs[kind] = {}

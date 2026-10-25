@@ -21,14 +21,11 @@ static func build(world: Dictionary, parent: Node) -> Node2D:
 		var floor_def := WorldGen.floor_definition(String(room.get("floor", "oak_planks")))
 		if not floor_def.is_empty():
 			FloorFactory.spawn(rect, floor_def, key.capitalize() + " Floor", root)
-		WallFactory.spawn(
-			rect,
-			thickness,
-			WallFactory.openings_for(rect, doors),
-			key.capitalize(),
-			root,
-			WorldGen.wall_style(),
-		)
+		var walls := RoomWalls.new()
+		walls.thickness = thickness
+		walls.openings = WallFactory.openings_for(rect, doors)
+		walls.style = WorldGen.wall_style()
+		WallFactory.spawn(rect, walls, key.capitalize(), root)
 		rooms.append({ "key": room["key"], "type": room.get("type", room["key"]), "rect": rect })
 	WorldGen.annotate_layout(root, rooms, doors)
 	return root

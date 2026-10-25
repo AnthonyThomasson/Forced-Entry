@@ -66,8 +66,8 @@ const SETUP_LOADOUT_KEYS := ["weapon", "magazine", "spares", "stuns", "frags", "
 ## Most wall-clock ms `stage` waits for the navigation maps to answer with the house's navmesh (a
 ## map synchronizes on a worker thread, so a loaded machine is slow in real time, not in frames).
 const NAV_SYNC_MS := 5000
-## The `claim_ttl` that `build_squads` and `squads_over` read as "as long as the side's NPCs keep a
-## callout" (`callout_ttl_of`): any negative value.
+## The `claim_ttl` (`SquadsSpec`) that `build_squads` and `squads_over` read as "as long as the
+## side's NPCs keep a callout" (`callout_ttl_of`): any negative value.
 const CLAIM_TTL_OF_NPCS := -1.0
 
 
@@ -238,15 +238,13 @@ static func populate(handle: Dictionary, match_spec: Dictionary) -> Dictionary:
 	var overlays: Dictionary = match_spec["overlays"]
 	var out := handle.duplicate()
 	out["combatants"] = combatants
+	var squads_spec := SquadsSpec.new()
+	squads_spec.members = combatants
+	squads_spec.openings = openings
+	squads_spec.rooms = rooms
+	squads_spec.human = human
 	out.merge(
-		squads_over(
-			world,
-			combatants,
-			openings,
-			rooms,
-			human,
-			bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false)),
-		),
+		squads_over(world, squads_spec, bool(overlays.get(OVERLAY_REGISTRY.LEADERS, false))),
 	)
 	for flag in OVERLAY_REGISTRY.defaults():
 		if flag != OVERLAY_REGISTRY.NAV_HOLES and flag != OVERLAY_REGISTRY.LEADERS:
@@ -367,28 +365,22 @@ static func styles_of(faction: StringName) -> Array[StringName]:
 	return out
 
 
-## One squad per side over `combatants` (in spawn order), the house's `openings` and `rooms`, under
-## `world`, each member handed its own (`bind_squad`; `docs/leadership.md` LD3): the leader by the
-## squad's rule (rank, then spawn order), so after `arm` has ranked the unit; the human's side is
-## led by the human when `human` (the spec's `{ node, side, lead }`) says it leads. The human is
-## handed its squad through `stack`, its stack radio, with `own_claims` on the invaders' side only
-## (D29). Each squad keeps its members' claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`, as long
-## as the side's NPCs keep a callout (`callout_ttl_of`). Returns the squads by faction.
-static func build_squads(
-	world: Node,
-	combatants: Array,
-	openings: Array,
-	rooms: Array,
-	human: Dictionary = {},
-	stack: Node = null,
-	claim_ttl := CLAIM_TTL_OF_NPCS,
-) -> Dictionary:
+## One squad per side over `squads_spec`'s `members` (in spawn order), the house's `openings` and
+## `rooms`, under `world`, each member handed its own (`bind_squad`; `docs/leadership.md` LD3): the
+## leader by the squad's rule (rank, then spawn order), so after `arm` has ranked the unit; the
+## human's side is led by the human when its `human` (the spec's `{ node, side, lead }`) says it
+## leads. The human is handed its squad through `stack`, its stack radio, with `own_claims` on the
+## invaders' side only (D29). Each squad keeps its members' claims `claim_ttl` s, or, at
+## `CLAIM_TTL_OF_NPCS`, as long as the side's NPCs keep a callout (`callout_ttl_of`). Returns the
+## squads by faction.
+static func build_squads(world: Node, squads_spec: SquadsSpec, stack: Node = null) -> Dictionary:
 	var squads := {}
+	var human := squads_spec.human
 	var human_node: Node = human.get("node")
 	if human_node != null and not is_instance_valid(human_node):
 		human_node = null
 	for faction in [DEFENDER_FACTION, INVADER_FACTION]:
-		var members: Array = combatants.filter(
+		var members: Array = squads_spec.members.filter(
 			func(c): return is_instance_valid(c) and c.get("faction") == faction,
 		)
 		if members.is_empty():
@@ -396,11 +388,15 @@ static func build_squads(
 		var squad: Node = SQUAD.new()
 		squad.name = "Squad_%s" % faction
 		world.add_child(squad)
-		var leader: Node = (human_node
+		var roster := SquadRoster.new()
+		roster.faction = faction
+		roster.members = members
+		roster.human = (human_node
 				if human.get("lead", false) and human_node != null and members.has(human_node)
 				else null)
-		var ttl := claim_ttl if claim_ttl >= 0.0 else callout_ttl_of(members)
-		squad.setup(faction, members, openings, rooms, leader, ttl)
+		var ttl := squads_spec.claim_ttl
+		roster.claim_ttl = ttl if ttl >= 0.0 else callout_ttl_of(members)
+		squad.setup(roster, squads_spec.openings, squads_spec.rooms)
 		for member in members:
 			bind_squad(
 				member,
@@ -524,28 +520,20 @@ static func _wait_nav(world: Node2D) -> void:
 		await world.get_tree().physics_frame
 
 
-## The squads over `members` (a match's characters in spawn order, after `arm` has ranked them),
-## the house's `openings` and `rooms`: the human (`human.node`, leading its side when `human.lead`)
-## first handed its stack radio (`bind_player`), then one squad per side (`build_squads`, each
-## keeping its members' claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`, as long as its NPCs keep a
-## callout) and the squad-leaders overlay over them (`build_leader_overlay`), shown when `leaders`.
-## `populate` ends with it, and the Testing world builds the squads a test declares through it.
-## Returns `{ squads, player_stack, leader_overlay }` (`player_stack` null with no human), for the
-## match handle.
-static func squads_over(
-	world: Node,
-	members: Array,
-	openings: Array,
-	rooms: Array,
-	human: Dictionary = {},
-	leaders := false,
-	claim_ttl := CLAIM_TTL_OF_NPCS,
-) -> Dictionary:
-	var human_node: Variant = human.get("node")
-	var stack: Node = (bind_player(human_node, rooms, openings)
+## The squads over `squads_spec` (its `members`, a match's characters in spawn order after `arm`
+## has ranked them, and the house's `openings` and `rooms`): its `human` (`human.node`, leading its
+## side when `human.lead`) first handed its stack radio (`bind_player`), then one squad per side
+## (`build_squads`, each keeping its members' claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`, as
+## long as its NPCs keep a callout) and the squad-leaders overlay over them
+## (`build_leader_overlay`), shown when `leaders`. `populate` ends with it, and the Testing world
+## builds the squads a test declares through it. Returns `{ squads, player_stack, leader_overlay }`
+## (`player_stack` null with no human), for the match handle.
+static func squads_over(world: Node, squads_spec: SquadsSpec, leaders := false) -> Dictionary:
+	var human_node: Variant = squads_spec.human.get("node")
+	var stack: Node = (bind_player(human_node, squads_spec.rooms, squads_spec.openings)
 			if is_instance_valid(human_node)
 			else null)
-	var squads := build_squads(world, members, openings, rooms, human, stack, claim_ttl)
+	var squads := build_squads(world, squads_spec, stack)
 	var overlay := build_leader_overlay(world, squads)
 	set_overlay({ "leader_overlay": overlay }, OVERLAY_REGISTRY.LEADERS, leaders)
 	return { "squads": squads, "player_stack": stack, "leader_overlay": overlay }

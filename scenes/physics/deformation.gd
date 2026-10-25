@@ -39,22 +39,22 @@ static var _wall_cache := {}
 
 
 ## An impact (above) at `pos` caving along `inward` (both in the caller's local space) from `damage`
-## dealt: its depth `damage * PhysicsConfig.deform_depth_per_damage`, at most `max_depth`; a chunk
-## when `allow_chunks` and `damage` reaches `PhysicsConfig.deform_chunk_damage`; a fresh `randi()`
+## dealt, in a body that caves as `dent` says: its depth `damage *
+## PhysicsConfig.deform_depth_per_damage`, at most `dent.max_depth`; a chunk when
+## `dent.allow_chunks` and `damage` reaches `PhysicsConfig.deform_chunk_damage`; a fresh `randi()`
 ## seed; `blood` carried.
 static func new_impact(
 	pos: Vector2,
 	inward: Vector2,
 	damage: float,
 	blood: float,
-	max_depth: float,
-	allow_chunks: bool,
+	dent: DentLimits,
 ) -> Dictionary:
 	return {
 		"pos": pos, "inward": inward,
-		"depth": minf(damage * PhysicsConfig.deform_depth_per_damage, max_depth),
-		"chunk": allow_chunks and damage >= PhysicsConfig.deform_chunk_damage, "seed": randi(),
-		"blood": blood,
+		"depth": minf(damage * PhysicsConfig.deform_depth_per_damage, dent.max_depth),
+		"chunk": dent.allow_chunks and damage >= PhysicsConfig.deform_chunk_damage,
+		"seed": randi(), "blood": blood,
 	}
 
 
@@ -524,29 +524,34 @@ static func darken(damage_total: float) -> float:
 			* PhysicsConfig.deform_darken_max)
 
 
-## Draw a deformed primitive shape (furniture, characters): filled polygon (darkened by
-## accumulated damage), outline, then crack/hole marks. `crack_color`/`hole_color` override
-## the mark colors (e.g. red cracks on flesh); left as NO_COLOR they derive from `outline`.
-## With a `texture` (spanning the `size` footprint) the polygon is drawn textured instead of
-## filled and unoutlined: the dents cut into the image rather than squash it. `texture_angle`
-## turns the image within the (unturned) silhouette — a round body facing any way. Without
-## `marks` the hit marks are left to the caller (draw_marks), to draw over parts layered on top.
-static func draw_shape(canvas: CanvasItem, shape: String, size: Vector2, fill: Color,
-		outline: Color, impacts: Array, damage_total: float,
-		crack_color: Color = NO_COLOR, hole_color: Color = NO_COLOR, scorch_color: Color = NO_COLOR,
-		texture: Texture2D = null, texture_angle: float = 0.0, marks: bool = true) -> void:
+## Draw a deformed primitive shape (furniture, characters) dented by `impacts`, as `look` says:
+## filled polygon (darkened by the damage it shows), outline, then crack/hole marks. Its
+## `crack_color`/`hole_color` override the mark colors (e.g. red cracks on flesh); left as NO_COLOR
+## they derive from `outline`. With a `texture` (spanning the `size` footprint) the polygon is
+## drawn textured instead of filled and unoutlined: the dents cut into the image rather than squash
+## it. `texture_angle` turns the image within the (unturned) silhouette — a round body facing any
+## way. Without `marks` the hit marks are left to the caller (draw_marks), to draw over parts
+## layered on top.
+static func draw_shape(
+	canvas: CanvasItem,
+	shape: String,
+	size: Vector2,
+	impacts: Array,
+	look: ShapeLook,
+) -> void:
 	var poly := shape_polygon(shape, size, impacts)
 	# Fall back to the intact outline if the dents pinched the silhouette into a polygon the
 	# renderer can't triangulate; the hit marks below still show the damage. Undented, it is that
 	# outline already.
 	if not impacts.is_empty() and not is_valid_polygon(poly):
 		poly = base_ring(shape, size)
-	var dark := darken(damage_total)
+	var dark := darken(look.damage_total)
+	var texture := look.texture
 	if texture:
 		# Each point turned back by `texture_angle`, over the size, from the art's centre: one
 		# transform of the whole ring.
-		var c := cos(texture_angle)
-		var s := sin(texture_angle)
+		var c := cos(look.texture_angle)
+		var s := sin(look.texture_angle)
 		var to_uv := Transform2D(
 			Vector2(c / size.x, -s / size.y),
 			Vector2(s / size.x, c / size.y),
@@ -554,22 +559,32 @@ static func draw_shape(canvas: CanvasItem, shape: String, size: Vector2, fill: C
 		)
 		canvas.draw_colored_polygon(poly, Color.WHITE.darkened(dark), to_uv * poly, texture)
 	else:
-		canvas.draw_colored_polygon(poly, fill.darkened(dark))
-		_draw_outline(canvas, poly, outline)
-	if not marks:
+		canvas.draw_colored_polygon(poly, look.fill.darkened(dark))
+		_draw_outline(canvas, poly, look.outline)
+	if not look.marks:
 		return
-	var cc := crack_color if crack_color.a > 0.0 else outline.darkened(0.3)
-	var hc := hole_color if hole_color.a > 0.0 else HOLE_COLOR
-	var sc := scorch_color if scorch_color.a > 0.0 else Color.BLACK
+	var cc := look.crack_color if look.crack_color.a > 0.0 else look.outline.darkened(0.3)
+	var hc := look.hole_color if look.hole_color.a > 0.0 else HOLE_COLOR
+	var sc := look.scorch_color if look.scorch_color.a > 0.0 else Color.BLACK
 	draw_marks(canvas, impacts, cc, hc, sc)
 
 
-## Draw one deformed wall segment (fill + outline + marks). With a `texture` (a repeating tile
-## `tile_length` px long, x along the wall and y across its thickness) the polygon is drawn
-## textured in the segment's own frame instead of filled and outlined, so the tile runs along the
-## wall whichever way it points and dents cut into it (the canvas item must repeat textures).
-static func draw_wall(canvas: CanvasItem, a: Vector2, b: Vector2, thickness: float,
-		color: Color, impacts: Array, texture: Texture2D = null, tile_length: float = 0.0) -> void:
+## Draw one deformed wall segment from `a` to `b` dented by `impacts`, as `look` says (fill +
+## outline + marks). With a `texture` (a repeating tile `tile_length` px long, x along the wall and
+## y across its thickness) the polygon is drawn textured in the segment's own frame instead of
+## filled and outlined, so the tile runs along the wall whichever way it points and dents cut into
+## it (the canvas item must repeat textures).
+static func draw_wall(
+	canvas: CanvasItem,
+	a: Vector2,
+	b: Vector2,
+	impacts: Array,
+	look: WallLook,
+) -> void:
+	var thickness := look.thickness
+	var color := look.color
+	var texture := look.texture
+	var tile_length := look.tile_length
 	var poly := wall_polygon(a, b, thickness, impacts)
 	# Many dents can pinch the segment into a polygon the renderer can't triangulate; draw it
 	# undented that frame (the hit marks below still show the damage). Undented, it is that polygon

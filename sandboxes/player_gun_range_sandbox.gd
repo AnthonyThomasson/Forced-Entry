@@ -246,8 +246,12 @@ class Restock extends Node:
 	## Arm the player with every slot it started with and `GRENADES` of each grenade, holding what
 	## it holds.
 	func _arm() -> void:
-		_player.set_loadout(_slots, _player.current_slot(), _player.spare_magazine_types, &"",
-			{ ItemRegistry.STUN_SLOT: GRENADES, ItemRegistry.FRAG_SLOT: GRENADES })
+		var kit := CharacterKit.new()
+		kit.slots = _slots
+		kit.hold_slot = _player.current_slot()
+		kit.spare_types = _player.spare_magazine_types
+		kit.grenades = { ItemRegistry.STUN_SLOT: GRENADES, ItemRegistry.FRAG_SLOT: GRENADES }
+		_player.set_loadout(kit)
 
 
 ## The cover spot's dummy: crouched against the couch, walked back to its spot once a blast has

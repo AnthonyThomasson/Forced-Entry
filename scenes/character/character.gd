@@ -663,21 +663,20 @@ func gun_slot() -> int:
 	return best
 
 
-## Carry only the items in `slots` (see `ItemRegistry`), holding `hold_slot`, with the spare
-## magazines named by `spare_types` (`MagazineConfig.types` ids): how a spawner arms a character
-## with its gun. Starts every gun loaded as `start_rounds` says (in `loaded_magazine` when that type
-## fits the gun, else the gun's own); a reload in progress is dropped. Safe after `add_child`, so a
-## spawner can re-arm a scene-placed character. A grenade slot among `slots` holds `grenades[slot]`
-## of them (else `start_rounds`, or one). Every item carries the weapon style `weapon_style`
-## (`Item.style`: how it is drawn, never what it does).
-func set_loadout(slots: Array, hold_slot: int, spare_types: Array,
-		loaded_magazine: StringName = &"", grenades := {},
-		weapon_style: StringName = &"police") -> void:
+## Carry only what `kit` says: the items in its `slots` (see `ItemRegistry`), holding its
+## `hold_slot`, with the spare magazines named by its `spare_types` (`MagazineConfig.types` ids):
+## how a spawner arms a character with its gun. Starts every gun loaded as `start_rounds` says (in
+## the kit's `loaded_magazine` when that type fits the gun, else the gun's own); a reload in
+## progress is dropped. Safe after `add_child`, so a spawner can re-arm a scene-placed character. A
+## grenade slot among `slots` holds `grenades[slot]` of them (else `start_rounds`, or one). Every
+## item carries the kit's `weapon_style` (`Item.style`: how it is drawn, never what it does).
+func set_loadout(kit: CharacterKit) -> void:
 	_cancel_reload()
 	_items = ItemRegistry.inventory_for(
-		slots, start_rounds, loaded_magazine, grenades, weapon_style,
+		kit.slots, start_rounds, kit.loaded_magazine, kit.grenades, kit.weapon_style,
 	)
-	_magazines = ItemRegistry.create_magazines(spare_types)
+	_magazines = ItemRegistry.create_magazines(kit.spare_types)
+	var hold_slot := kit.hold_slot
 	_current_slot = (hold_slot
 			if hold_slot in _items
 			else (_items.keys()[0] if not _items.is_empty() else hold_slot))

@@ -419,17 +419,15 @@ func _throw_option(
 	var ally := _ally_in_blast(ctx, kind, radius, spot)
 	var cornered := false
 	if _throw.in_zone(space, kind, radius, spot, from, _throw.stand_height(), rids):
-		var out: Dictionary = _throw.escape(
-			space,
-			ctx["map"],
-			kind,
-			radius,
-			spot,
-			from,
-			_throw.fuse_of(kind),
-			_throw.run_speed(),
-			rids,
-		)
+		var threat := GrenadeThreat.new()
+		threat.kind = kind
+		threat.radius = radius
+		threat.burst = spot
+		threat.fuse_left = _throw.fuse_of(kind)
+		var runner := GrenadeRunner.new()
+		runner.from = from
+		runner.speed = _throw.run_speed()
+		var out: Dictionary = _throw.escape(space, ctx["map"], threat, runner, rids)
 		cornered = (out["spot"] as Vector2) == Vector2.INF
 	var params := {
 		"point": spot,

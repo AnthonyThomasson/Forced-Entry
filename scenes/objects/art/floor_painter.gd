@@ -175,11 +175,10 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 		var plank := PixelCanvas.rounded(Rect2i(0, y + 1, c.w, row_h - 1), 0)
 		c.grain(
 			plank,
-			true,
 			ArtConfig.wood_grain_density,
 			base.darkened(0.13),
 			base.lightened(0.06),
-			true,
+			{ "wraps": true },
 		)
 		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.shadow)
 		if c.rng.randf() < ArtConfig.wood_knot_chance:
@@ -211,10 +210,10 @@ static func _parquet(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 				c.fill(strip, tone)
 				c.grain(
 					strip,
-					along_x,
 					ArtConfig.wood_grain_density,
 					tone.darkened(0.12),
 					tone.lightened(0.05),
+					{ "along_x": along_x },
 				)
 				c.outline(strip, tone.darkened(0.16))
 			c.outline(PixelCanvas.rounded(Rect2i(gx * cell, gy * cell, cell, cell), 0), t.shadow)

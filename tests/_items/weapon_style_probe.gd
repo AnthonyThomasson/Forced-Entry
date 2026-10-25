@@ -35,6 +35,17 @@ static func make(slot: int, style: StringName) -> Item:
 	return item
 
 
+## What a character armed with the item in `slot` alone carries (bare hands, slot 1, beside it),
+## holding it, in weapon `style`, with `grenades` (slot -> count): for `Character.set_loadout`.
+static func kit(slot: int, style: StringName, grenades := {}) -> CharacterKit:
+	var out := CharacterKit.new()
+	out.slots = [1, slot]
+	out.hold_slot = slot
+	out.grenades = grenades
+	out.weapon_style = style
+	return out
+
+
 ## A probe drawing `item` under the test's world at `at`: in `user`'s hand when `held`, else lying
 ## along `angle` with `opts`.
 static func probe(

@@ -70,19 +70,17 @@ func run(t: TestContext) -> void:
 		}
 				if item is GunItem
 				else { "kind": item.kind, "look": item._look_handle(drawn), "spoon": false })
+		opts["material"] = drawn["finish"]
 		var angle := PixelArt.snap_angle(TAU * 5.0 / ArtConfig.turn_steps)
-		var image := PixelArt.render_turned(
-			drawn["painter"], size, colour, angle, drawn["finish"], opts,
-		).get_image()
+		var image := PixelArt.render_turned(drawn["painter"], size, colour, angle, opts).get_image()
 		if image == null:
 			continue
-		var base_key := PixelArt._key(drawn["painter"], size, colour, drawn["finish"], opts)
+		var base_key := PixelArt._key(drawn["painter"], size, colour, opts)
 		var fresh := PixelArt._paint(
 			drawn["painter"],
 			PixelArt._resolution(size),
 			colour,
 			-angle,
-			drawn["finish"],
 			opts,
 			base_key,
 		).img

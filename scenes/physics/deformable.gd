@@ -44,9 +44,10 @@ func record(hit: HitInfo, turn: float = 0.0) -> void:
 	var inward := xf.basis_xform(-hit.normal).normalized().rotated(-turn)  # into the surface
 	if inward.length() < 0.01:
 		inward = -local_pos.normalized() if local_pos.length() > 0.01 else Vector2.DOWN
-	var impact := Deformation.new_impact(
-		local_pos, inward, hit.damage, hit.blood, max_depth, allow_chunks,
-	)
+	var dent := DentLimits.new()
+	dent.max_depth = max_depth
+	dent.allow_chunks = allow_chunks
+	var impact := Deformation.new_impact(local_pos, inward, hit.damage, hit.blood, dent)
 	Deformation.push_impact(impacts, impact, max_impacts)
 	damage_total += hit.damage
 	changed.emit()

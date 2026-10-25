@@ -8,7 +8,8 @@ description: Deep implementation detail for the UI testing sub-domain (scenes/ui
 The two widgets the Testing domain's browser and runner show. Both take plain dicts and emit signals (architecture interface 13: *nothing depends on Testing*); `domain-testing` covers the host side. See `domain-ui` for what all UI scripts share.
 
 - `test_browser_window.gd` — the **test browser window** (`TestBrowserWindow` CanvasLayer, hosted by the
-  Testing domain's `test_browser.tscn`). `open(tests, sandboxes, results, matcher, filter, selected, checked)` builds a
+  Testing domain's `test_browser.tscn`). `open(tests, sandboxes, results, matcher, state: TestBrowserState = null)` (`TestBrowserState`,
+  `ui/testing/test_browser_state.gd`: the `filter`, `selected` and `checked` to restore; null, none) builds a
   full-screen window: a search box (filtered by the host's `matcher(test, text)`), a `Tree` of tests grouped
   by domain and, under a domain, by topic folder (`tests/ai/entry/`: a topic row without the ▶ button), marked ✓/✗/⏱/–/○ by last result (○ = GAP), `[Von]` tag, a separate SANDBOXES section after the tests (`open(tests, sandboxes, …)`), a details pane (description, world,
   tags, switches with off in red, Von need) and Run all / a status line / Back / Play. Play,

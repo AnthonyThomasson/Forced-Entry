@@ -15,29 +15,24 @@ const SOLE_STEPS := 14
 var _load: Dictionary = {}
 
 
-## A foot lands at world `at` (the middle of the sole), toes toward unit `direction`, sole `length`
-## x `width` px, moving at `speed` px/s. `inner` is +1/-1: which side of the direction's frame (+y =
-## `direction.orthogonal()`) the foot's arch faces.
-func step(
-	foot: int,
-	at: Vector2,
-	direction: Vector2,
-	length: float,
-	width: float,
-	inner: float,
-	speed: float,
-) -> void:
+## The owner's foot `foot` lands as `fall` says: at world `at` (the middle of the sole), toes toward
+## unit `direction`, sole `length` x `width` px, moving at `speed` px/s, its arch on the `inner`
+## side (+1/-1) of the direction's frame (+y = `direction.orthogonal()`).
+func step(foot: int, fall: Footfall) -> void:
 	if not (BloodConfig.enabled and BloodConfig.footprints_enabled):
 		return
 	var host := get_parent()
 	if host == null or host.get_parent() == null:
 		return
+	var at := fall.at
+	var direction := fall.direction
+	var length := fall.length
 	var wet := 0.0
 	for k in [-0.35, 0.0, 0.35]:
 		wet = maxf(wet, BloodField.wetness_at(at + direction * length * k))
 	var soak: float = maxf(_load.get(foot, 0.0), wet * BloodConfig.pickup_gain)
 	if soak >= BloodConfig.print_min_load and wet < BloodConfig.thick_blood:
-		var poly := _sole(at, direction, length, width, inner, soak, speed)
+		var poly := _sole(at, direction, length, fall.width, fall.inner, soak, fall.speed)
 		var alpha := lerpf(
 			BloodConfig.print_alpha_min,
 			BloodConfig.print_alpha_max,

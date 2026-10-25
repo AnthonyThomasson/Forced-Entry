@@ -241,8 +241,12 @@ func secondary(user) -> bool:
 	if spread > 0.0:
 		direction = direction.rotated(randf_range(-spread, spread))
 	var power := round_power()
-	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), user, damage(),
-		float(stat("muzzle_speed", -1.0)), power)
+	var shot := Shot.new()
+	shot.shooter = user
+	shot.item_damage = damage()
+	shot.muzzle_speed = float(stat("muzzle_speed", -1.0))
+	shot.penetration = power
+	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
 	CasingSpawner.spawn(user.hand_world(hand), user.facing, user.world_root())
 	user.kick(hand, float(stat("recoil", 1.0)))
@@ -285,8 +289,11 @@ func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color
 	var flip: bool = opts.get("flip", false)
 	var drawn := look()
 	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn), drawn["finish"],
-		{ "gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip },
+		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn),
+		{
+			"gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip,
+			"material": drawn["finish"],
+		},
 	)
 	_note_drawn(tex)
 	canvas.draw_set_transform(at, turn, Vector2.ONE)
@@ -317,13 +324,15 @@ func prepaint() -> void:
 				size,
 				drawn["body"],
 				angle,
-				drawn["finish"],
-				{ "gun": gun, "look": handle },
+				{ "gun": gun, "look": handle, "material": drawn["finish"] },
 			)
 		for flip in [false, true]:
 			PixelArt.render_turned(
-				drawn["painter"], flat_size(), drawn["body"], angle, drawn["finish"],
-				{ "gun": gun, "look": handle, "flat": true, "flip": flip },
+				drawn["painter"], flat_size(), drawn["body"], angle,
+				{
+					"gun": gun, "look": handle, "flat": true, "flip": flip,
+					"material": drawn["finish"],
+				},
 			)
 
 
@@ -333,8 +342,8 @@ func _draw_art(canvas: CanvasItem, centre: Vector2, facing: Vector2, size: Vecto
 	var angle := facing.angle() - PI * 0.5
 	var drawn := look()
 	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle), drawn["finish"],
-		{ "gun": gun, "look": _look_handle(drawn) },
+		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle),
+		{ "gun": gun, "look": _look_handle(drawn), "material": drawn["finish"] },
 	)
 	_note_drawn(tex)
 	canvas.draw_set_transform(centre, angle, Vector2.ONE)

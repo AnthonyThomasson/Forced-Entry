@@ -26,7 +26,7 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   off, its own `max_depth` / `max_impacts`, and leaves its collider alone (it does not listen to `changed`); it has no
   `Knockback`, being a `RigidBody2D` of its own, and draws the dents with `Deformation.draw_marks`.
 - `Deformation` — the polygon math + drawing (shared by furniture and walls). It owns the impact schema: `new_impact(pos, inward,
-  damage, blood, max_depth, allow_chunks)` builds one (depth from `deform_depth_per_damage`, a chunk past `deform_chunk_damage`, a
+  damage, blood, dent: DentLimits)` (`dent_limits.gd`: `max_depth`, `allow_chunks`) builds one (depth from `deform_depth_per_damage`, a chunk past `deform_chunk_damage`, a
   fresh seed) and `push_impact(list, impact, max_impacts)` adds it, dropping the oldest; `Deformable.record` and Objects' wall
   segments both record through them. `deform` moves each ring point by its dents' summed push, kept inside the outline
   (`_clamp_inside`) and at most `NEIGHBOUR_REACH` (0.45) of the way toward either ring neighbour along the outline, so a
@@ -47,14 +47,14 @@ infrastructure (`Despawner`, `PhysicsLayers`, `DrawLayers`, `FillBatch`).
   ring and skips the triangulation check for an undented shape (it is the intact ring already); `draw_marks` draws each mark's
   discs as one General `FillBatch` before its cracks (one batch per mark, not per call: every mark's discs ahead of every crack
   changed ~19% of the painted pixels where dents cluster, a later mark's discs covering an earlier mark's cracks; #78). `draw_shape` takes
-  an optional `texture`: the deformed polygon is then drawn textured (UVs from the intact
+  its look as a `ShapeLook` (`shape_look.gd`; `draw_wall`'s is a `WallLook`, `wall_look.gd`), with an optional `texture`: the deformed polygon is then drawn textured (UVs from the intact
   footprint, so dents cut into the image), tinted darker by damage (white darkened by `darken(damage_total)`: up to
   `deform_darken_max`, reached at `deform_darken_full`; published so the character's kept meshes draw its textured parts in the same
   colour), without the smooth outline;
   `texture_angle` turns the image within the unturned silhouette (a round body facing any way);
   with `marks` false the hit marks are left to the caller's `draw_marks`, to draw over parts
   layered on top.
-  `draw_wall` takes an optional repeating `texture` + `tile_length`: UVs run in the segment's own
+  `draw_wall`'s `WallLook` takes an optional repeating `texture` + `tile_length`: UVs run in the segment's own
   frame (u along the wall per tile, v across its thickness), so the tile follows every wall.
 - `DebrisSpawner` / `Debris` / `DebrisLayer` — material-styled chips (`STYLES` table). A chip is a node only while it
   flies (Despawner-tracked); as it lands it hands its place, turn, colour, size and shape to the parent's `DebrisLayer`
@@ -103,9 +103,9 @@ plus z = height; gravity pulls to z = 0.
   orthonormal frame read off three points every step; forward signed by the hint),
   `add_swing(frame, joint, child, rest, {right, left, front, back})` (a cone around `rest` along the
   frame's y, its reach toward each frame axis in radians, blended linearly by direction between
-  them) and `add_hinge(frame, parent, joint, child, rest, bend, min, max, slack)` (a one-way hinge:
-  the bend side `bend` is carried onto the live parent bone by the shortest turn from `rest`; the
-  child's bend off straight is held to [min, max] and its twist off that plane to ±slack).
+  them) and `add_hinge(frame, parent, joint, child, limits: HingeLimits)` (`hinge_limits.gd`: `rest`, `bend`,
+  `min_angle`, `max_angle`, `slack`; a one-way hinge: the bend side `bend` is carried onto the live parent bone by the shortest turn from `rest`; the
+  child's bend off straight is held to [min_angle, max_angle] and its twist off that plane to ±slack).
   `push(i, v)` seeds velocities; `exclude` lists colliders the wall sweep ignores.
 - `step(delta, space, origin)`: position-based dynamics in `ragdoll_substeps` sub-steps — predict
   under gravity and air drag; `ragdoll_iterations` passes of bones, limits and the floor (limits

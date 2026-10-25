@@ -51,7 +51,12 @@ func run(t: TestContext) -> void:
 				% [RELEASE.distance_to(AT), reach, closest.distance_to(AT)],
 	):
 		return
-	ThrownGrenade.spawn(&"stun", RELEASE, AIM, thrower, thrower.world_root())
+	var throw := GrenadeThrow.new()
+	throw.kind = &"stun"
+	throw.from = RELEASE
+	throw.to = AIM
+	throw.thrower = thrower
+	ThrownGrenade.spawn(throw, thrower.world_root())
 	if not t.require(
 			await t.until(
 				func(): return t.happened(&"grenade", func(d): return d.get("stage") == &"rest"),

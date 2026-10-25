@@ -132,9 +132,7 @@ func _record_segment_damage(
 		var perp := (seg[1] - seg[0]).normalized().orthogonal()
 		inward = perp if perp.dot(local_pos - size * 0.5) > 0.0 else -perp
 	var arr: Array = _seg_impacts.get(best_i, [])
-	var impact := Deformation.new_impact(
-		local_pos, inward, amount, blood, PhysicsConfig.deform_max_depth, true,
-	)
+	var impact := Deformation.new_impact(local_pos, inward, amount, blood, DentLimits.new())
 	Deformation.push_impact(arr, impact, PhysicsConfig.deform_max_impacts)
 	_seg_impacts[best_i] = arr
 	if _visuals:

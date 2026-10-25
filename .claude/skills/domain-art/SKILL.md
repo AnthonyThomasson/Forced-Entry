@@ -25,15 +25,16 @@ the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, 
 
 ## PixelArt (`pixel_art.gd`) — the renderer
 
-- `render(painter, size, color, facing, material, opts)` — for a cardinal `facing`: paints at
+- `render(painter, size, color, facing := Vector2.DOWN, opts := {})` — the surface finish rides in `opts.material`
+  (handed to the painter as its `material`, the rest as its `opts`; the cache key holds it in a field of its own). For a cardinal `facing`: paints at
   `size / ArtConfig.pixel_size`, lit for that facing, then turns the image (`rotate_90/180`).
   Furniture, walls, floor tiles.
-- `render_turned(painter, size, color, angle, material, opts)` — the image stays canonical but is
+- `render_turned(painter, size, color, angle, opts := {})` — the image stays canonical but is
   lit as if turned by `angle`; the caller draws it rotated (`draw_set_transform`, or
-  `Deformation.draw_shape(..., texture_angle)`). Callers pass `snap_angle(angle)` (one of
+  `Deformation.draw_shape` with its `ShapeLook.texture_angle`). Callers pass `snap_angle(angle)` (one of
   `ArtConfig.turn_steps` lighting steps) and rotate to the exact angle when drawing — smooth
   turning, few cached textures, world-consistent light. Characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
-- `emissive(painter, size, color, facing, material, opts)` — the emissive twin of `render`'s texture for the same inputs: what
+- `emissive(painter, size, color, facing := Vector2.DOWN, opts := {})` — the emissive twin of `render`'s texture for the same inputs: what
   the painter drew `glowing` (PixelCanvas), in the art's colours, transparent elsewhere, same size and turn; null when nothing in
   it glows. Kept from the same paint (`_emissive`, beside `_cache`), so asking costs no second paint. `render_turned` keeps none.
 - `handle(look) -> int` / `look_of(opts) -> Dictionary` — a painter's big look (a character style's resolved look, a gun's or
@@ -79,7 +80,8 @@ through snapshots).
   its far side from the light, via the height layer), `tones(base)` (outline … highlight ramp).
 - **Surface finishes:** `surface(shape, material, base, along_x, wraps)` — wood grain, brushed
   metal, stone flecks, ceramic/glass glare, fabric weave, plastic grain — plus `speckle` (sampled;
-  matches 8-bit pixels with a tolerance), `grain`/`knot` (`wraps` for seamless tiles).
+  matches 8-bit pixels with a tolerance), `grain(s, density, dark, pale, opts := {})` (`opts.along_x`, default true,
+  `opts.wraps` for seamless tiles) / `knot`.
 
 ## ArtConfig (`art_config.gd`)
 

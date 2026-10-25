@@ -122,10 +122,10 @@ func _turn(t: TestContext, id: StringName, settle: float, fit: float) -> Diction
 	# [the largest slip angle, the speed summed over the stretch] (an Array: a lambda captures plain
 	# locals by value).
 	var seen := [0.0, 0.0]
-	await Probe.hold_speed(t, driver, v, target, 1.0, false, settle, func():
+	await Probe.hold_speed(t, driver, v, Probe.hold(target, 1.0, settle), func():
 		seen[0] = maxf(seen[0], slip_angle(v))
 		t.trace("%s slip angle" % id, slip_angle(v)))
-	await Probe.hold_speed(t, driver, v, target, 1.0, false, fit, func():
+	await Probe.hold_speed(t, driver, v, Probe.hold(target, 1.0, fit), func():
 		points.append(v.global_position)
 		seen[0] = maxf(seen[0], slip_angle(v))
 		seen[1] += v.speed()
@@ -186,7 +186,9 @@ func run(t: TestContext) -> void:
 		if fast:
 			v.set("linear_velocity", Probe.forward(v) * float(LANES[id][2]))
 		else:
-			await Probe.hold_speed(t, LANES[id][0], v, float(LANES[id][2]), 0.0, false, SLOW_RUN_UP)
+			await Probe.hold_speed(
+				t, LANES[id][0], v, Probe.hold(float(LANES[id][2]), 0.0, SLOW_RUN_UP),
+			)
 		var turned: Dictionary = await _turn(
 			t,
 			id,

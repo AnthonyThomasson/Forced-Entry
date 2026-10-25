@@ -432,7 +432,8 @@ source }` (`radius` = `AgentThrow.radius_of(kind)`, off the `throw_stats()` just
 **The danger zone and the safe spot (`agent_throw.gd`).** The cover rule is the blast's own (G7), asked of the Projectile System so the AI keeps no copy (`shielded` calls `Explosion.shields`, interface 3): from the burst a wall always stops the line, furniture
 stops it when its `coverage` is above the body's height (the standing and crouched heights the character reports, `Character.posture_coverage`, read each `observe` by `learn_body` into `stand_height()` / `crouch_height()`; 60 and 35, `docs/cover-and-stance.md`), characters stop
 nothing. `in_zone(space, kind, radius, burst, p, height, exclude)`: within `zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
-`escape(...)` returns `{ spot, crouch, route }`: candidates are the circle just outside the zone (`zone + OUTSIDE_SLACK` 30 px), the shadows behind what the rays from the burst
+`escape(space, map, threat: GrenadeThreat, runner: GrenadeRunner, exclude)` (`GrenadeThreat`, `ai/perception/grenade_threat.gd`: the
+grenade's `kind`, `radius`, `burst` and `fuse_left`; `GrenadeRunner`, `ai/perception/grenade_runner.gd`: the NPC's `from` and `speed`) returns `{ spot, crouch, route }`: candidates are the circle just outside the zone (`zone + OUTSIDE_SLACK` 30 px), the shadows behind what the rays from the burst
 meet (the first stopper for a crouched and for a standing body, `Explosion.first_stop`, 32 and 72 px behind it) and rings round the NPC; each is snapped onto the navmesh (`NavBuilder.snap`, dropped
 if pulled more than 40 px), judged (outside the zone, or shielded standing = out of line, or shielded only crouched = `crouch`), **every** survivor is routed
 (many candidates are the same point, the standing and crouching probes meeting the same wall: each point is snapped, each spot judged and each
@@ -462,7 +463,7 @@ the worst wave measured (8 NPCs planning on one frame) went from 35.9 ms of plan
 that frame).
 
 **Cover from a flash.** For a stun (`AgentThrow.cover_reach(kind)`, the `flash_cover_reach` of the stun's stats, 30 px, learned off the grenade: below) a piece of furniture shields a body from the burst only when the body is within that many px of it
-(`shielded`'s `reach`, handed to `Explosion.shields` as its `cover_reach`); a wall always does; a frag's blast keeps the plain rule. `escape` also tries a spot right against the far face of each stopper near the burst (`FAR_PROBE`, `FAR_STEP`).
+(`shielded`'s `reach`, handed to `Explosion.shields` as its `CoverRule`'s `cover_reach`); a wall always does; a frag's blast keeps the plain rule. `escape` also tries a spot right against the far face of each stopper near the burst (`FAR_PROBE`, `FAR_STEP`).
 
 **Its own grenade (`_note_own`).** A grenade the NPC threw is known at once, and until a bounce marks it landed its spot is where it was aimed (`Character.aim_target()` from the hand, no further than that kind's throw range, `AgentThrow.range_of`), not the hand
 it just left, so the zone it is in is the one the burst will have. **Replanning** is counted in `GameClock` frames (`REPLAN_EVERY` s of game time), not wall-clock ms: a fast headless run outruns the wall clock, and it runs on through a pause.

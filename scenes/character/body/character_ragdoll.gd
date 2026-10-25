@@ -83,8 +83,12 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 
 	_frame = body.add_frame(PELVIS, CHEST, SHOULDER[1], fwd)
 	body.add_swing(_frame, CHEST, HEAD, UP, _limits(CharacterConfig.ragdoll_neck_limits, 1))
-	var elbow := CharacterConfig.ragdoll_elbow_bend
-	var knee := CharacterConfig.ragdoll_knee_bend
+	var elbow_limits := _hinge(
+		FRONT, CharacterConfig.ragdoll_elbow_bend, CharacterConfig.ragdoll_elbow_slack,
+	)
+	var knee_limits := _hinge(
+		BACK, CharacterConfig.ragdoll_knee_bend, CharacterConfig.ragdoll_knee_slack,
+	)
 	for i in 2:
 		body.add_swing(
 			_frame,
@@ -93,8 +97,7 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 			DOWN,
 			_limits(CharacterConfig.ragdoll_shoulder_limits, i),
 		)
-		body.add_hinge(_frame, SHOULDER[i], ELBOW[i], HAND[i], DOWN, FRONT, deg_to_rad(elbow.x),
-			deg_to_rad(elbow.y), deg_to_rad(CharacterConfig.ragdoll_elbow_slack))
+		body.add_hinge(_frame, SHOULDER[i], ELBOW[i], HAND[i], elbow_limits)
 		body.add_swing(
 			_frame,
 			HIP[i],
@@ -102,8 +105,7 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 			DOWN,
 			_limits(CharacterConfig.ragdoll_hip_limits, i),
 		)
-		body.add_hinge(_frame, HIP[i], KNEE[i], ANKLE[i], DOWN, BACK, deg_to_rad(knee.x),
-			deg_to_rad(knee.y), deg_to_rad(CharacterConfig.ragdoll_knee_slack))
+		body.add_hinge(_frame, HIP[i], KNEE[i], ANKLE[i], knee_limits)
 
 	_launch(momentum, blow, fwd, hip_z, shoulder_z)
 
@@ -194,3 +196,15 @@ static func _limits(deg: Dictionary, i: int) -> Dictionary:
 		"front": deg_to_rad(deg["front"]), "back": deg_to_rad(deg["back"]),
 		"right": out if i == 1 else across, "left": across if i == 1 else out,
 	}
+
+
+## A limb's hinge below a joint (the elbow, the knee) hanging `DOWN` in the frame, bending toward
+## `bend`: its bend range `range_deg` (x the least, y the most, degrees) and twist `slack_deg`.
+static func _hinge(bend: Vector3, range_deg: Vector2, slack_deg: float) -> HingeLimits:
+	var limits := HingeLimits.new()
+	limits.rest = DOWN
+	limits.bend = bend
+	limits.min_angle = deg_to_rad(range_deg.x)
+	limits.max_angle = deg_to_rad(range_deg.y)
+	limits.slack = deg_to_rad(slack_deg)
+	return limits

@@ -71,15 +71,12 @@ func emissive_layer() -> Node2D:
 ## Draw the light-giving pixels of the cap onto `layer` (the `Emissive` child) along every segment,
 ## as the cap is.
 func draw_emissive(layer: CanvasItem) -> void:
-	var t: float = _wall.wall_thickness
+	var look := _look(_emissive)
 	var segs: Array = _wall.wall_segments()
 	for i in segs.size():
 		var seg: PackedVector2Array = segs[i]
 		if not seg[0].is_equal_approx(seg[1]):
-			Deformation.draw_wall(
-				layer, seg[0], seg[1], t, line_color, _wall._seg_impacts.get(i, []), _emissive,
-				ObjectArtConfig.wall_tile_px,
-			)
+			Deformation.draw_wall(layer, seg[0], seg[1], _wall._seg_impacts.get(i, []), look)
 
 
 ## Segment `i` on its child `piece`: the deformed segment (dents / missing pieces where damaged) +
@@ -89,7 +86,15 @@ func _draw_segment(piece: Node2D, i: int) -> void:
 	var seg: PackedVector2Array = _segs[i]
 	if seg[0].is_equal_approx(seg[1]):
 		return
-	Deformation.draw_wall(
-		piece, seg[0], seg[1], _wall.wall_thickness, line_color, _wall._seg_impacts.get(i, []),
-		_tile, ObjectArtConfig.wall_tile_px,
-	)
+	Deformation.draw_wall(piece, seg[0], seg[1], _wall._seg_impacts.get(i, []), _look(_tile))
+
+
+## How a segment of this wall is drawn: its thickness and line colour, with `texture` tiled along
+## it.
+func _look(texture: Texture2D) -> WallLook:
+	var look := WallLook.new()
+	look.thickness = _wall.wall_thickness
+	look.color = line_color
+	look.texture = texture
+	look.tile_length = ObjectArtConfig.wall_tile_px
+	return look

@@ -34,20 +34,23 @@ func _report(character, footprints: BloodFootprints, foot: int) -> void:
 	var ankle := rig.point(CharacterRig.ANKLE[foot])
 	var toes := rig.toes(foot)
 	var dir := Vector2(toes.x, toes.y)
-	var length := CharacterConfig.body_foot * r
-	var width: float = CharacterConfig.body_shoe_widths[0] * r
-	var at: Vector2 = character.global_position + Vector2(ankle.x, ankle.y) + dir * length * 0.25
+	var fall := Footfall.new()
+	fall.direction = dir
+	fall.length = CharacterConfig.body_foot * r
+	fall.width = CharacterConfig.body_shoe_widths[0] * r
+	fall.at = character.global_position + Vector2(ankle.x, ankle.y) + dir * fall.length * 0.25
 	# Left foot (0) has its arch toward +y of the toe frame, right foot toward -y.
-	var inner := 1.0 if foot == 0 else -1.0
-	var speed: float = character.get_real_velocity().length()
-	footprints.step(foot, at, dir, length, width, inner, speed)
+	fall.inner = 1.0 if foot == 0 else -1.0
+	fall.speed = character.get_real_velocity().length()
+	footprints.step(foot, fall)
 	# The footfall itself, for whoever listens (the Audio domain picks the sound from the floor it
 	# lands on; the AI hears whose it is and how it was walked: running carries far, a crouched step
 	# hardly at all).
 	EventBus.post(
 		&"footfall",
 		{
-			"position": at, "foot": foot, "speed": speed, "running": character.is_running(),
-			"character": character, "crouched": character.posture() == &"crouch",
+			"position": fall.at, "foot": foot, "speed": fall.speed,
+			"running": character.is_running(), "character": character,
+			"crouched": character.posture() == &"crouch",
 		},
 	)

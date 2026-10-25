@@ -37,12 +37,13 @@ func _ready() -> void:
 	window.run_queue_requested.connect(_on_run_queue)
 	window.checked_changed.connect(func(ids: Array): Engine.set_meta(TestCatalog.META_CHECKED, ids))
 	window.filter_changed.connect(func(t: String): Engine.set_meta(META_FILTER, t))
+	var state := TestBrowserState.new()
+	state.filter = String(Engine.get_meta(META_FILTER, ""))
+	state.selected = String(Engine.get_meta(TestCatalog.META_SELECTION, ""))
+	state.checked = Engine.get_meta(TestCatalog.META_CHECKED, [])
 	window.open(
 		TestCatalog.discover(), TestCatalog.discover_sandboxes(),
-		Engine.get_meta(TestCatalog.META_RESULTS, {}), TestCatalog.matches,
-		String(Engine.get_meta(META_FILTER, "")),
-		String(Engine.get_meta(TestCatalog.META_SELECTION, "")),
-		Engine.get_meta(TestCatalog.META_CHECKED, []),
+		Engine.get_meta(TestCatalog.META_RESULTS, {}), TestCatalog.matches, state,
 	)
 
 

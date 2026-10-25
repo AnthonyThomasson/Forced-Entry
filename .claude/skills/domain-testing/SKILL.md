@@ -333,8 +333,8 @@ func run(t: TestContext) -> void:
     match builds its own (`MatchBuilder.squads_over`, the squad tail `populate` ends with, after the actors spawn: the leader by rank, then
     declaration order, each member handed its squad), and the squad-leaders overlay over them, shown as the setup's overlays say. `opts.human` names an actor that
     leads its faction's squad as the human does: it is handed its stack radio (`MatchBuilder.bind_player`) and its squad through it,
-    `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (`squads_over`'
-    `claim_ttl`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets alone, so a squad of
+    `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (the `SquadsSpec`'s
+    `claim_ttl` it hands `squads_over`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets alone, so a squad of
     puppets keeps no claim unless `claim_ttl` names one: the two that radio claims name the NPCs' 6 s
     (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
     that declares no squads has none: its NPCs pick their own goals.

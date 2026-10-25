@@ -414,20 +414,18 @@ func surface(
 		"wood":
 			grain(
 				s,
-				along_x,
 				ArtConfig.wood_grain_density,
 				base.darkened(0.12),
 				base.lightened(0.07),
-				wraps,
+				{ "along_x": along_x, "wraps": wraps },
 			)
 		"metal":
 			grain(
 				s,
-				along_x,
 				ArtConfig.metal_brush_density,
 				base.lightened(0.07),
 				base.darkened(0.05),
-				wraps,
+				{ "along_x": along_x, "wraps": wraps },
 			)
 		"stone":
 			speckle(s.bounds, base, ArtConfig.stone_fleck_density, 0.16)
@@ -466,17 +464,13 @@ static func _same(stored: Color, col: Color) -> bool:
 			and absf(stored.b - col.b) < TOLERANCE and absf(stored.a - col.a) < TOLERANCE
 
 
-## Wood grain over the drawn pixels of shape `s`: long, gently wandering streaks running along x
-## (or y), each a dark line with the odd pale fleck beside it. `wraps` continues a streak past the
-## far end back at the near end, so a tile repeats seamlessly.
-func grain(
-	s: Shape,
-	along_x: bool,
-	density: float,
-	dark: Color,
-	pale: Color,
-	wraps: bool = false,
-) -> void:
+## Wood grain over the drawn pixels of shape `s`, `density` streaks per px of its bounds: long,
+## gently wandering streaks, each a `dark` line with the odd `pale` fleck beside it. `opts`:
+## `along_x` (bool, default true: the streaks run along x, else along y) and `wraps` (bool, default
+## false: a streak continues past the far end back at the near end, so a tile repeats seamlessly).
+func grain(s: Shape, density: float, dark: Color, pale: Color, opts: Dictionary = {}) -> void:
+	var along_x: bool = opts.get("along_x", true)
+	var wraps: bool = opts.get("wraps", false)
 	var r := s.bounds
 	var length := r.size.x if along_x else r.size.y
 	var across := r.size.y if along_x else r.size.x

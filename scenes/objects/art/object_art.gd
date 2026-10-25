@@ -76,8 +76,7 @@ static func texture(art: String, size: Vector2, color: Color, facing: Vector2,
 		size,
 		_color(art, color),
 		facing,
-		material,
-		_graded(art, opts),
+		_graded(art, opts).merged({ "material": material }, true),
 	)
 
 
@@ -93,8 +92,7 @@ static func emissive(art: String, size: Vector2, color: Color, facing: Vector2,
 		size,
 		_color(art, color),
 		facing,
-		material,
-		_graded(art, opts),
+		_graded(art, opts).merged({ "material": material }, true),
 	)
 
 

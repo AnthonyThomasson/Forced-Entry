@@ -72,28 +72,28 @@ var _run_checked: Button
 var _running := false
 
 
-## Build the window over `tests`, marking `results`, with `filter` prefilled and `selected` (a test
-## path) highlighted and `checked` (test ids) ticked. `matcher(test, text) -> bool` decides which
-## tests a search shows.
+## Build the window over `tests`, marking `results`, showing `state` again: its `filter` prefilled,
+## its `selected` (a test path) highlighted and its `checked` (test ids) ticked (null: none of
+## them). `matcher(test, text) -> bool` decides which tests a search shows.
 func open(
 	tests: Array,
 	sandboxes: Array,
 	results: Dictionary,
 	matcher: Callable,
-	filter := "",
-	selected := "",
-	checked: Array = [],
+	state: TestBrowserState = null,
 ) -> void:
+	if state == null:
+		state = TestBrowserState.new()
 	_tests = tests
 	for t in tests:
-		if checked.has(t["id"]) and t.get("error", "") == "":
+		if state.checked.has(t["id"]) and t.get("error", "") == "":
 			_checked[t["id"]] = true
 	_sandboxes = sandboxes
 	_matcher = matcher
 	_results = results
 	_build_ui()
-	_search.text = filter
-	_refresh(selected)
+	_search.text = state.filter
+	_refresh(state.selected)
 	_search.grab_focus()
 
 

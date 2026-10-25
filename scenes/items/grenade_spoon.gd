@@ -8,6 +8,8 @@ const SpoonPainter = preload("res://scenes/items/art/spoon_painter.gd")
 const SIZE := Vector2(3.0, 8.0)
 ## Speed (px/s) it is flung off at, to the side of the throw.
 const TOSS := 90.0
+## Its painter's options: painted in metal (`PixelArt`'s `material`).
+const METAL := { "material": "metal" }
 
 
 func _init() -> void:
@@ -35,7 +37,7 @@ func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color
 		SIZE,
 		Color(0.62, 0.64, 0.68),
 		PixelArt.snap_angle(turn),
-		"metal",
+		METAL,
 	)
 	_note_drawn(tex)
 	canvas.draw_set_transform(at, turn, Vector2.ONE)

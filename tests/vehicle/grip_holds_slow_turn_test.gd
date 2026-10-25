@@ -30,13 +30,13 @@ func run(t: TestContext) -> void:
 	var tail := Probe.tail_offset(car).x
 	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
 		return
-	await Probe.hold_speed(t, &"me", car, 40.0, 0.0, false, 1.0)
+	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 0.0, 1.0))
 	var heading := car.global_rotation
 	# [the most forward pivot, the most rearward, the peak slip(), frames turning] (an Array: a
 	# lambda captures plain locals by value).
 	var seen := [-INF, INF, 0.0, 0]
-	await Probe.hold_speed(t, &"me", car, 40.0, 1.0, false, 0.5)
-	await Probe.hold_speed(t, &"me", car, 40.0, 1.0, false, 2.0, func():
+	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 1.0, 0.5))
+	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 1.0, 2.0), func():
 		var x := Probe.pivot(car)
 		if x != INF:
 			seen[0] = maxf(seen[0], x)

@@ -58,14 +58,11 @@ static func spawn(
 	for room in rooms:
 		var rect: Rect2 = room["rect"]
 		var room_name := (room["key"] as String).capitalize()
-		WallFactory.spawn(
-			rect,
-			wall_thickness,
-			WallFactory.openings_for(rect, openings),
-			room_name,
-			house,
-			GeneralCatalog.WALL,
-		)
+		var walls := RoomWalls.new()
+		walls.thickness = wall_thickness
+		walls.openings = WallFactory.openings_for(rect, openings)
+		walls.style = GeneralCatalog.WALL
+		WallFactory.spawn(rect, walls, room_name, house)
 
 		var furniture := Node2D.new()
 		furniture.name = room_name + " Furniture"

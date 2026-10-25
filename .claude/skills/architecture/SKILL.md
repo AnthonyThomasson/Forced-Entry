@@ -103,16 +103,16 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 debris) and `overhang` (`{ size, reach }`: an overhead part drawn beyond the footprint by the piece's painter with
 	 `part: "overhang"`, `size` across x out, centred `reach` px out along its facing; a child CanvasItem named `Overhang` with
 	 `get_rect() -> Rect2` (the area it draws, in its own frame), at `DrawLayers.OVERHEAD` above the characters, with no collider).
-   - `WallFactory.spawn(rect: Rect2, thickness, openings, name, parent, style = {}) -> Node` —
-	 `style` is the cap's look (`art`, `color`, `art_opts`); empty = a flat gray line.
+   - `WallFactory.spawn(rect: Rect2, walls: RoomWalls, name, parent) -> Node` — `RoomWalls` (`objects/room_walls.gd`):
+	 `thickness`, `openings` and `style`, the cap's look (`art`, `color`, `art_opts`); an empty `style` = a flat gray line.
    - `FloorFactory.spawn(rect: Rect2, definition: Dictionary, name, parent) -> Node` — a room's
 	 floor or a piece of the street (no collider), from a floor definition (`art`, `color`, `material`, `art_opts`, and optionally
 	 `sound_surface` (false: registers no `SoundSurface`, the street), `marks` (`{ seed, lane, edges }`: the street's world-placed
 	 marks, curb and gutter litter, laid by Objects over the piece), `tile_from` (the point in `parent`'s space its repeating
 	 tile is laid from, so neighbouring pieces share one grid) and `light_layer` (`"street"`: the piece and its canvas items on
 	 `LightMasks.STREET`, interface 20)).
-   - `WearFactory.spawn(rect: Rect2, floor_definition: Dictionary, wall_thickness, clusters: Array, name, parent) -> Node2D` — a
-	 room's wear: World-Gen places the clusters (`{ pos, wall, seed }`: centre, the free stretch of wall `[a, b]` it is by or `[]`,
+   - `WearFactory.spawn(rect: Rect2, plan: WearPlan, name, parent) -> Node2D` — a room's wear, from a `WearPlan`
+	 (`objects/wear_plan.gd`: `floor_definition`, `wall_thickness`, `clusters`): World-Gen places the clusters (`{ pos, wall, seed }`: centre, the free stretch of wall `[a, b]` it is by or `[]`,
 	 the seed of its marks, in `parent`'s space); Objects decides each cluster's marks (on the floor, following its pattern, and
 	 often on that wall) and draws them. Built after the house's floors and walls; one node per room.
    - `WallFactory.openings_for(rect: Rect2, doors: Array) -> Array` — the `{ pos, width }` doorways that lie
@@ -150,9 +150,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `material` it posts. `Explosion` finds the characters under the world by the group `characters` (interface 7), reads their `is_dead`, `facing`, `get_surface()`, and calls
    `take_stun` / `take_damage` / `blast_push` / `take_hit` on them, and `apply_impulse` on a pushable (capped by `get_mass()`): the sanctioned surface. Its
    cover rule (G7, `docs/grenades.md`) is published as two read-only line queries the AI's perception asks of a grenade, so the AI keeps no copy:
-   `Explosion.shields(space, burst, p, height, exclude, cover_reach := INF) -> bool` (whether a wall, or a piece of furniture whose `coverage` is
-   above `height`, stands between a burst and a body `height` tall at `p`; with a finite `cover_reach`, a stun's flash, a piece only when `p` is
-   within that many px of it) and `Explosion.first_stop(space, a, b, height, exclude) -> Dictionary` (the first wall or piece on the line that
+   `Explosion.shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`,
+   `cover_reach` := INF; whether a wall, or a piece of furniture whose `coverage` is above `height`, stands between a burst and a body
+   `height` tall at `p`; with a finite `cover_reach`, a stun's flash, a piece only when `p` is within that many px of it) and `Explosion.first_stop(space, a, b, height, exclude) -> Dictionary` (the first wall or piece on the line that
    stops it for that height, as its ray hit, or `{}`). An object also carries `object_name` (its display name), which the AI's wording reads.
 
 4. **Objects/Character/Vehicles → Physics** (objects, the character and a vehicle compose physics; Physics is a leaf domain)
@@ -163,16 +163,19 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 sets: `max_depth` (the deepest one dent caves, px), `allow_chunks` (a hard hit carves a missing piece) and `max_impacts` (how many
 	 dents it remembers), each defaulting to `PhysicsConfig.deform_*` (the character sets its softer flesh values from `CharacterConfig`). A
 	 vehicle composes one (no `Knockback`: it is its own `RigidBody2D`) with chunks off and does not rebuild its collider from the dents.
-   - `Deformation` (static): silhouette/collider polygons + drawing (`draw_shape` and
-	 `draw_wall` optionally textured — `draw_shape` also turned by `texture_angle`, its hit marks
-	 optional for a caller drawing them over later layers with `draw_marks` — so pixel art is drawn
-	 through the dented silhouette). The polygons are `base_ring(shape, size)` (a primitive's undented ring),
+   - `Deformation` (static): silhouette/collider polygons + drawing (`draw_shape(canvas, shape, size, impacts, look: ShapeLook)`
+	 and `draw_wall(canvas, a, b, impacts, look: WallLook)` optionally textured — `ShapeLook` (`physics/shape_look.gd`: `fill`,
+	 `outline`, `damage_total`, `crack_color` / `hole_color` / `scorch_color`, `texture`, `texture_angle`, `marks`) also turns the
+	 texture by `texture_angle`, its hit marks optional (`marks`) for a caller drawing them over later layers with `draw_marks`;
+	 `WallLook` (`physics/wall_look.gd`: `thickness`, `color`, `texture`, `tile_length`) — so pixel art is drawn through the
+	 dented silhouette). The polygons are `base_ring(shape, size)` (a primitive's undented ring),
 	 `shape_polygon(shape, size, impacts)` (a piece's or the character's dented silhouette, cached), `wall_polygon(a, b, thickness, impacts)`
 	 (a dented wall segment), `is_valid_polygon(poly)` (callers skip a self-touching one that frame), `convex_pieces(polygon)` (the
 	 convex pieces a dented collider is rebuilt from, as their points) and `shapes_of(pieces)` (their `ConvexPolygonShape2D`s); and
 	 `cut_shape(shape, size, impacts)` / `cut_wall(a, b, thickness, impacts)` -> `[polygon, pieces]`, a dented silhouette and its pieces
 	 computed without the caches: all pure, so they may run on a worker thread). An impact record (the dicts in `impacts`) is built by
-	 `new_impact(pos, inward, damage, blood, max_depth, allow_chunks)` and kept by `push_impact(list, impact, max_impacts)` (oldest
+	 `new_impact(pos, inward, damage, blood, dent: DentLimits)` (`DentLimits`, `physics/dent_limits.gd`: `max_depth`, `allow_chunks`,
+	 `max_depth` defaulting to `PhysicsConfig.deform_max_depth`, `allow_chunks` to true) and kept by `push_impact(list, impact, max_impacts)` (oldest
 	 dropped past the cap): `Deformable.record` and Objects' wall, which keeps an impact list per segment, both build through them. `NO_COLOR` is the sentinel a caller passes to take a
 	 drawing call's default colour. `darken(damage_total) -> float` is how far `draw_shape` darkens a shape that has taken that
 	 damage (`Color.darkened`'s weight; a textured shape is white darkened by it), for a caller that draws a textured shape's polygon its
@@ -189,8 +192,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 pools are added with readable names (`BloodSplat`, `BloodSplat2`, … / `BloodPool`, …).
    - `BloodField` (static registry, Physics-internal: `BloodSplat`/`BloodPool` register themselves) /
 	 `BloodDecals` (a batched layer under a world node, `BloodDecals.layer(parent)`) /
-	 `BloodFootprints` (Node child, character: `step(foot, at, direction, length, width, inner, speed)` on
-	 each footfall prints a sole if the foot is carrying wet blood) / `BloodSmear` (Node child, objects:
+	 `BloodFootprints` (Node child, character: `step(foot, fall: Footfall)` (`Footfall`,
+	 `physics/blood/footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`) on each footfall prints a sole if the foot is carrying wet blood) / `BloodSmear` (Node child, objects:
 	 `set_footprint(local_polygon)`, then drags blood out of a puddle as feathered, wandering ribbons while the body slides).
 	 Both need `BloodConfig.enabled` and their own switch (`footprints_enabled` / `smear_enabled`).
    - `BloodSurface` (static registry): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` /
@@ -200,8 +203,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    - `Ragdoll` (`RefCounted`, character on death): a generic 3D point-mass body over the floor plane
 	 (x/y + height z). Built with `add_point(at, radius, mass)`, `add_bone(a, b)` / `add_rigid(indices)`,
 	 `add_frame(origin, up, right, forward_hint)`, `add_swing(frame, joint, child, rest, limits)`
-	 (cone limit) and `add_hinge(frame, parent, joint, child, rest, bend, min, max, slack)` (one-way
-	 hinge), seeded with `push(i, v)`, stepped with `step(delta, space, origin)` until `asleep`; read
+	 (cone limit) and `add_hinge(frame, parent, joint, child, limits: HingeLimits)` (one-way
+	 hinge; `HingeLimits`, `physics/hinge_limits.gd`: `rest`, `bend`, `min_angle`, `max_angle`, `slack`), seeded with `push(i, v)`, stepped with `step(delta, space, origin)` until `asleep`; read
 	 with `point(i)` / `point_count()` / `frame_basis(f)`; `exclude` lists colliders its wall sweep
 	 ignores. The Character domain owns the humanoid skeleton built on it.
    - `Physics.spawn_explosion(world, at, kind)` (`kind` `&"frag"` / `&"stun"`; called by the Projectile System's `Explosion`): the look of a
@@ -285,8 +288,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
    with its own capacity and optional `reload_time`) is carried
    by the character, never held or selectable; a gun loads one and each shot spends a round. For a reload
    an item calls the character's `best_magazine(gun)` / `take_magazine(gun)` / `stow_magazine(m)`. Items reach into the
-   Projectile System in two places. A gun fires through `ProjectileSpawner.spawn(position, direction, parent, ignore = null, item_damage = 0.0,
-   muzzle_speed = -1.0, penetration = 1.0, max_range = -1.0, strikes_shooter = false) -> Node` (the round; the gun connects its
+   Projectile System in two places. A gun fires through `ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null) -> Node` (`Shot`,
+   `projectile/shot.gd`: `shooter` (the body the round ignores), `item_damage` = 0.0, `muzzle_speed` = -1.0, `penetration` = 1.0,
+   `max_range` = -1.0, `strikes_shooter` = false; null, all defaults) (the round; the gun connects its
    `hit(body, damage)` signal to its user's `report_shot`) and ejects a case through `CasingSpawner.spawn(position, direction, parent) -> Node`;
    a `ThrownGrenade` calls `Explosion.frag` / `Explosion.stun` (above).
 
@@ -305,7 +309,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `spare_magazines()` / `is_reloading()` (the held item for slot -1; -1 rounds = no ammo), `item_name(slot := -1)`, `current_item()` / `current_slot()` / `item_reach()` / `has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `is_attacking()` (a punch swing is under way), `gun_slot()` (the
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), `weapon_blocked()` / `weapon_raise()` /
    `is_automatic()`, `item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `aim_target()` (the swayed aim point a grenade
-   is thrown to, interface 6: where the AI expects its own grenade to come down), `set_loadout(slots, hold_slot, spare_types, loaded_magazine := &"", grenades := {}, weapon_style := &"police")` (carry only those slots, holding one, with those spare
+   is thrown to, interface 6: where the AI expects its own grenade to come down), `set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
+   `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
    magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
    how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
    the defenders' crew; `zenitex` when never given one), `look_seed` (exported: its own variety within the style), `rank` (a police unit's: 0 trooper, 1 sergeant,
@@ -568,9 +573,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  the `match` verb only in a 1v1).
 
 12. **Objects / Character / Items / Vehicles → Art** (leaf: the pixel-art engine; each domain owns its painters)
-    - `PixelArt.render(painter, size, color, facing, material, opts) -> Texture2D` — a painter's art
-	  at a cardinal facing (the image is turned); furniture, walls, floors.
-    - `PixelArt.render_turned(painter, size, color, angle, material, opts) -> Texture2D` + `PixelArt.snap_angle(angle)`
+    - `PixelArt.render(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` — a painter's art
+	  at a cardinal facing (the image is turned); furniture, walls, floors. The surface finish rides in the options:
+	  `opts.material` (`ArtConfig`'s finish, `""` none), handed to the painter as its `material`, the rest as its `opts`.
+    - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)`
 	  — canonical art lit for a snapped angle, drawn rotated by the caller to the exact one;
 	  characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
     - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`):
@@ -579,7 +585,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`; `PixelCanvas.line_points(a, b) -> Array[Vector2i]` (the
 	  points of a 1 px line, the one Bresenham `line` draws along) is walked by Objects' `art/decay.gd` for its lines and scratches. **What gives light** (a screen's
 	  face, a tube, a bulb, an LED) a painter draws inside `canvas.glowing(draw: Callable, area := Rect2i())`, which marks every pixel
-	  the drawing changes as emissive; `PixelArt.emissive(painter, size, color, facing, material, opts) -> Texture2D` returns those
+	  the drawing changes as emissive; `PixelArt.emissive(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` returns those
 	  pixels of `render`'s texture for the same inputs (same paint, cached beside it; transparent elsewhere, null when nothing in it
 	  glows), for a caller that draws light sources unshaded. A painter's options carry a big look (a character style's resolved look,
 	  a weapon style's colours) as an int handle, never the look itself: `PixelArt.handle(look) -> int` registers it (the look's hash) and
@@ -628,7 +634,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16). Main
     reaches it only by changing scene to `testing/test_browser.tscn`, and the browser's Back changes scene back to
     `main.tscn`; beyond that scene change Testing knows only the root's match builder (23); the UI widgets it shows
-    (`test_browser_window.gd`, `test_result_hud.gd`) take plain dicts and emit signals. Nothing
+    (`test_browser_window.gd`, `test_result_hud.gd`) take plain dicts (the window's `TestBrowserState` too, a UI value object) and emit signals. Nothing
     depends on Testing. Its one outward dependency beyond the game is the gdUnit4 addon (`addons/gdUnit4/`, v5.1.1): its
     base suites `GameTestSuite` and `UnitSuite` extend `GdUnitTestSuite`, and its session hook (`test_report_hook.gd`, named in
     `project.godot`'s `[gdunit4]` section) writes a run's report, steps the editor's GdUnit panel's run as `--fixed-fps` steps
@@ -764,8 +770,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `docs/leadership.md`)
     - The match builder builds one `Squad` (a `Node`) per side after arming the characters (`MatchBuilder.build_squads`, interface 23: under
       Main's `World` in every match, under a test world for a declared match or declared squads):
-      `Squad.setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)` (`roster` the side's characters in spawn order; `human` when the human
-      leads; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchBuilder.callout_ttl_of(members)`
+      `Squad.setup(roster: SquadRoster, openings, rooms)` (`SquadRoster`, `ai/team/squad_roster.gd`: `faction`; `members` the side's characters in
+      spawn order; `human` when the human leads, else null; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchBuilder.callout_ttl_of(members)`
       off each one's controller (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
       `MatchBuilder.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
       same contract, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,
@@ -920,11 +926,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - **Arming and squads:** `arm(characters, match_spec)` (each by its faction's side loadout through `LoadoutConfig.apply`, interface 6,
       the guns from `seed` XOR `LOADOUT_SEED_SALT`), `style(characters, match_spec) -> Array` (one `apply` style per character, from `seed`
       XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
-      defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, combatants, openings, rooms,
-      human := {}, stack := null, claim_ttl := CLAIM_TTL_OF_NPCS) -> Dictionary` (one `Squad` per faction, interface 21, keeping claims
-      `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS` (any negative value), `callout_ttl_of` the side) and `build_leader_overlay(world, squads) ->
-      Node2D`; `squads_over(world, members, openings, rooms, human := {}, leaders := false, claim_ttl := CLAIM_TTL_OF_NPCS) ->
-      Dictionary` (its Arrays in `build_squads`' order, as `Squad.setup` takes them) is the squad tail `populate` and the Testing
+      defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, squads_spec: SquadsSpec,
+      stack := null) -> Dictionary` (`SquadsSpec`, `scenes/squads_spec.gd`: `members` (the combatants), `openings`, `rooms`, `human` := {},
+      `claim_ttl` := `CLAIM_TTL_OF_NPCS`; one `Squad` per faction, interface 21, keeping claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`
+      (any negative value), `callout_ttl_of` the side) and `build_leader_overlay(world, squads) -> Node2D`;
+      `squads_over(world, squads_spec: SquadsSpec, leaders := false) -> Dictionary` (its Arrays in `build_squads`' order, as `Squad.setup` takes them) is the squad tail `populate` and the Testing
       world's declared squads share: the human (`human.node`) handed its stack radio (`bind_player`), then `build_squads`, then
       `build_leader_overlay`, shown when `leaders`; it returns `{ squads, player_stack, leader_overlay }`.
     - **Overlay routing, once:** `set_overlay(handle, flag, on)` on a handle, or any dict with its `nav_debug`, `leader_overlay` and

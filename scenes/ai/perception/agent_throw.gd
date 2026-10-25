@@ -228,7 +228,11 @@ func shielded(
 	exclude: Array,
 	reach := INF,
 ) -> bool:
-	return Explosion.shields(space, burst, p, height, exclude, reach)
+	var cover := CoverRule.new()
+	cover.height = height
+	cover.exclude = exclude
+	cover.cover_reach = reach
+	return Explosion.shields(space, burst, p, cover)
 
 
 ## How near (px) a body must be to furniture for it to shield it from a burst of `kind`: a stun's
@@ -240,19 +244,27 @@ func cover_reach(kind: StringName) -> float:
 # --- The escape -----------------------------------------------------------------------------------
 
 
-## The nearest (by route) safe spot the NPC at `from` can reach before a grenade of `kind` (danger
-## `radius`) at `burst` goes off in `fuse_left` s, walking `speed` px/s: `{ spot, crouch, route }`
-## (`crouch`: it is behind furniture that shields a crouched body only), or `{ spot: Vector2.INF }`
-## when there is none in time. Candidates are the circle just outside the zone, the shadows behind
-## whatever stands round the burst and a ring round the NPC; each is snapped onto the navmesh and
-## judged by the shielding rule, every one that passes is routed (a straight line says nothing: a
-## spot just behind a wall can be a house away by walking) and the shortest route that is in time
-## wins. What depends on the burst alone (the candidates round it, each candidate's spot on the
-## navmesh, each spot's verdict) is shared with every NPC that asks about the same burst on the same
-## physics frame (`_shared_burst`); the routes are the NPC's own.
-func escape(space, map: RID, kind: StringName, radius: float, burst: Vector2, from: Vector2,
-		fuse_left: float, speed: float, exclude: Array) -> Dictionary:
-	var out_r := zone_radius(kind, radius) + OUTSIDE_SLACK
+## The nearest (by route) safe spot the `runner` (at `from`, walking `speed` px/s) can reach before
+## the grenade `threat` (its `kind`, danger `radius`, at `burst`) goes off in `fuse_left` s:
+## `{ spot, crouch, route }` (`crouch`: it is behind furniture that shields a crouched body only),
+## or `{ spot: Vector2.INF }` when there is none in time. Candidates are the circle just outside the
+## zone, the shadows behind whatever stands round the burst and a ring round the NPC; each is
+## snapped onto the navmesh and judged by the shielding rule, every one that passes is routed (a
+## straight line says nothing: a spot just behind a wall can be a house away by walking) and the
+## shortest route that is in time wins. What depends on the burst alone (the candidates round it,
+## each candidate's spot on the navmesh, each spot's verdict) is shared with every NPC that asks
+## about the same burst on the same physics frame (`_shared_burst`); the routes are the NPC's own.
+func escape(
+	space,
+	map: RID,
+	threat: GrenadeThreat,
+	runner: GrenadeRunner,
+	exclude: Array,
+) -> Dictionary:
+	var kind := threat.kind
+	var burst := threat.burst
+	var from := runner.from
+	var out_r := zone_radius(kind, threat.radius) + OUTSIDE_SLACK
 	var reach := cover_reach(kind)
 	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap
 	# onto the same spot, so each point is snapped, each spot judged and each route measured once:
@@ -281,7 +293,7 @@ func escape(space, map: RID, kind: StringName, radius: float, burst: Vector2, fr
 		if verdict != NOT_SAFE:
 			spots.append({ "spot": q, "crouch": verdict == SAFE_CROUCHED })
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var allowed := maxf(fuse_left - ARRIVE_MARGIN, 0.0) * speed
+	var allowed := maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed
 	var routes := {}  # spot -> its route's length
 	for s: Dictionary in spots:
 		var length: float = routes.get(s["spot"], -1.0)

@@ -355,18 +355,33 @@ static func reach_speed(
 	return ok
 
 
-## Drive for `duration` s holding `steer` (and `handbrake`), the throttle on below `target` px/s and
-## off above it, calling `sample` each frame.
-static func hold_speed(t: TestContext, id: StringName, v: Node, target: float, steer: float,
-		handbrake: bool, duration: float, sample := Callable()) -> void:
+## Puppet `id` drives `v` as `plan` says: for its `duration` s holding its `steer` (and
+## `handbrake`), the throttle on below its `target` px/s and off above it, calling `sample` each
+## frame.
+static func hold_speed(
+	t: TestContext,
+	id: StringName,
+	v: Node,
+	plan: Hold,
+	sample := Callable(),
+) -> void:
 	var p := t.puppet(id)
-	var deadline := t.time + duration
+	var deadline := t.time + plan.duration
 	while t.time < deadline:
-		p.drive(1.0 if v.speed() < target else 0.0, steer, handbrake)
+		p.drive(1.0 if v.speed() < plan.target else 0.0, plan.steer, plan.handbrake)
 		await t.frames(1)
 		if sample.is_valid():
 			sample.call()
 	p.drive(0.0, 0.0, false)
+
+
+## A `Hold` near `target` px/s for `duration` s, holding `steer`, the handbrake off.
+static func hold(target: float, steer: float, duration: float) -> Hold:
+	var out := Hold.new()
+	out.target = target
+	out.steer = steer
+	out.duration = duration
+	return out
 
 
 # --- Drawing --------------------------------------------------------------------------------
@@ -409,3 +424,15 @@ static func everywhere() -> Dictionary:
 	for k in SOUND_CATEGORIES:
 		out[k] = 1.0e9
 	return out
+
+
+## How `hold_speed` drives: the speed it keeps near, its steer and handbrake, and for how long.
+class Hold:
+	## The speed it keeps near, px/s: the throttle on below it, off above it.
+	var target: float = 0.0
+	## The steer held, -1..1.
+	var steer: float = 0.0
+	## Whether the handbrake is held.
+	var handbrake: bool = false
+	## How long it drives, s.
+	var duration: float = 0.0

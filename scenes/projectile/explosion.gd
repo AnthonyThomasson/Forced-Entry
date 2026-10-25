@@ -135,12 +135,16 @@ static func _fragments(at: Vector2, world: Node, source: Node, row: Dictionary) 
 	var count := int(row.get("fragments", 0))
 	if count <= 0:
 		return
+	var shot := Shot.new()
+	shot.shooter = source
+	shot.muzzle_speed = float(row.get("fragment_speed", -1.0))
+	shot.penetration = float(row.get("fragment_penetration", 1.0))
+	shot.max_range = float(row.get("fragment_range", -1.0))
+	shot.strikes_shooter = true
 	var turn := randf() * TAU
 	for i in count:
 		var angle := turn + TAU * (float(i) + randf_range(-0.4, 0.4)) / float(count)
-		var fragment := ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, source, 0.0,
-			float(row.get("fragment_speed", -1.0)), float(row.get("fragment_penetration", 1.0)),
-			float(row.get("fragment_range", -1.0)), true)
+		var fragment := ProjectileSpawner.spawn(at, Vector2.from_angle(angle), world, shot)
 		fragment.set("damage", float(row.get("fragment_damage", 10.0)))
 
 
@@ -208,21 +212,19 @@ static func _bodies_near(
 	return out
 
 
-## Whether something between `burst` and `p` shields a body `height` tall at `p` from a burst there
-## (G7): a wall, or a piece of furniture whose `coverage` is above `height` (the lower ones are
-## cleared); with a finite `cover_reach` (a stun's flash, G11) a piece only when `p` is within that
-## many px of it on the burst's side. `exclude` holds the rids the line passes through (the
-## characters'). The rule the blast and the flash keep, which the AI's perception asks of a grenade
-## (interface 3).
+## Whether something between `burst` and `p` shields a body at `p` from a burst there (G7), by
+## `cover`: a wall, or a piece of furniture whose `coverage` is above the body's `height` (the lower
+## ones are cleared); with a finite `cover_reach` (a stun's flash, G11) a piece only when `p` is
+## within that many px of it on the burst's side. The line passes through `cover.exclude` (the
+## characters' rids). The rule the blast and the flash keep, which the AI's perception asks of a
+## grenade (interface 3).
 static func shields(
 	space: PhysicsDirectSpaceState2D,
 	burst: Vector2,
 	p: Vector2,
-	height: float,
-	exclude: Array,
-	cover_reach := INF,
+	cover: CoverRule,
 ) -> bool:
-	return not _walk(space, burst, p, height, exclude, cover_reach).is_empty()
+	return not _walk(space, burst, p, cover.height, cover.exclude, cover.cover_reach).is_empty()
 
 
 ## The first wall or piece of furniture on the line from `a` to `b` that stops it for a body

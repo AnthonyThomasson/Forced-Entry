@@ -71,7 +71,12 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var mate := t.actor(&"mate")
-	ThrownGrenade.spawn(&"stun", MATE_RELEASE, MATE_AIM, mate, mate.world_root())
+	var throw := GrenadeThrow.new()
+	throw.kind = &"stun"
+	throw.from = MATE_RELEASE
+	throw.to = MATE_AIM
+	throw.thrower = mate
+	ThrownGrenade.spawn(throw, mate.world_root())
 	var mine := func(d): return d.get("attacker") == inv
 	if not t.require(
 			await t.until(func(): return t.happened(&"throw", mine), 1.0),

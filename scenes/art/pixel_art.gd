@@ -13,6 +13,10 @@ class_name PixelArt
 ## What a painter draws `glowing` (PixelCanvas: a screen's face, a tube, a bulb) is kept for a
 ## `render`ed piece as a second, EMISSIVE texture of only those pixels (`emissive()`), from the same
 ## paint, for callers that draw light sources unshaded.
+## Every entry point takes the painter's `opts`, which it hands the painter as they are, but for one
+## key of its own: `material` (String, default ""), the `material` the painter's `paint` is given
+## (the surface finish its tones are drawn in: "fabric", "metal", ...), taken off the `opts` the
+## painter sees. Textures differ by it as by any option.
 
 ## Most `render_turned` calls remembered by their exact arguments (see `_turned_memo`) before the
 ## memo is dropped and refills.
@@ -33,18 +37,19 @@ static var _turned_memo: Dictionary = {}
 static var _looks: Dictionary = {}
 
 
-## `painter`'s art for a footprint of `size` world px whose front faces the cardinal `facing`.
+## `painter`'s art for a footprint of `size` world px whose front faces the cardinal `facing`, with
+## `opts` (its `material` key PixelArt's own, above).
 static func render(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
-		material: String = "", opts: Dictionary = {}) -> Texture2D:
+		opts: Dictionary = {}) -> Texture2D:
 	# Clockwise quarter turns taking the canonical front (+y) onto `facing`.
 	var turns := posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
-	var base_key := _key(painter, size, color, material, opts)
+	var base_key := _key(painter, size, color, opts)
 	var key := "%s|f%d" % [base_key, turns]
 	if _cache.has(key):
 		return _cache[key]
 	var res := _resolution(size)
 	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
-	var canvas := _paint(painter, canon, color, -turns * PI * 0.5, material, opts, base_key)
+	var canvas := _paint(painter, canon, color, -turns * PI * 0.5, opts, base_key)
 	var glow := canvas.emissive()
 	_emissive[key] = null if glow == null else ImageTexture.create_from_image(_turned(glow, turns))
 	return _store(key, _turned(canvas.img, turns))
@@ -54,10 +59,10 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 ## yet): what the painter drew `glowing`, in the art's own colours, transparent elsewhere, the same
 ## size and orientation; null when it drew nothing glowing.
 static func emissive(painter: Script, size: Vector2, color: Color, facing: Vector2 = Vector2.DOWN,
-		material: String = "", opts: Dictionary = {}) -> Texture2D:
-	render(painter, size, color, facing, material, opts)
+		opts: Dictionary = {}) -> Texture2D:
+	render(painter, size, color, facing, opts)
 	var turns := posmod(roundi(Vector2.DOWN.angle_to(facing) / (PI * 0.5)), 4)
-	return _emissive.get("%s|f%d" % [_key(painter, size, color, material, opts), turns])
+	return _emissive.get("%s|f%d" % [_key(painter, size, color, opts), turns])
 
 
 ## `img` turned by `turns` clockwise quarter turns.
@@ -73,28 +78,25 @@ static func _turned(img: Image, turns: int) -> Image:
 
 
 ## `painter`'s art for a footprint of `size` world px in its canonical frame, lit as it will look
-## once drawn rotated by `angle` (radians, clockwise on screen). Callers snap `angle` to a few
-## steps so the cache stays small.
+## once drawn rotated by `angle` (radians, clockwise on screen), with `opts` (its `material` key
+## PixelArt's own, above). Callers snap `angle` to a few steps so the cache stays small.
 static func render_turned(painter: Script, size: Vector2, color: Color, angle: float,
-		material: String = "", opts: Dictionary = {}) -> Texture2D:
-	var memo_key: Array = [painter, size, color, material, opts, ArtConfig.pixel_size, angle]
+		opts: Dictionary = {}) -> Texture2D:
+	var memo_key: Array = [painter, size, color, opts, ArtConfig.pixel_size, angle]
 	var memo: Variant = _turned_memo.get(memo_key)
 	if memo != null:
 		return memo
-	var base_key := _key(painter, size, color, material, opts)
+	var base_key := _key(painter, size, color, opts)
 	var key := "%s|a%.4f" % [base_key, angle]
 	var tex: Texture2D
 	if _cache.has(key):
 		tex = _cache[key]
 	else:
-		tex = _store(
-			key,
-			_paint(painter, _resolution(size), color, -angle, material, opts, base_key).img,
-		)
+		tex = _store(key, _paint(painter, _resolution(size), color, -angle, opts, base_key).img)
 	if _turned_memo.size() >= TURNED_MEMO_MAX:
 		_turned_memo.clear()
 	# The caller may change its dictionary later; the memo keeps the values it was asked with.
-	memo_key[4] = opts.duplicate(true)
+	memo_key[3] = opts.duplicate(true)
 	_turned_memo[memo_key] = tex
 	return tex
 
@@ -127,30 +129,42 @@ static func _resolution(size: Vector2) -> Vector2i:
 	return Vector2i((size / maxf(ArtConfig.pixel_size, 0.01)).round())
 
 
-## The cache key of a painter's inputs, without orientation.
-static func _key(
-	painter: Script,
-	size: Vector2,
-	color: Color,
-	material: String,
-	opts: Dictionary,
-) -> String:
+## The cache key of a painter's inputs, without orientation: the material (`opts.material`) and
+## the painter's own options, as `_paint` hands them over.
+static func _key(painter: Script, size: Vector2, color: Color, opts: Dictionary) -> String:
 	return ("%s|%v|%s|%s|%s|%s"
-			% [painter.resource_path, size, color.to_html(), material, opts, ArtConfig.pixel_size])
+			% [
+				painter.resource_path,
+				size,
+				color.to_html(),
+				opts.get("material", ""),
+				_painter_opts(opts),
+				ArtConfig.pixel_size,
+			])
 
 
-## Paint `painter` onto a fresh canvas of `res` with the world light turned by `light_turn`; returns
-## the canvas.
+## Paint `painter` onto a fresh canvas of `res` with the world light turned by `light_turn`, handing
+## it `opts`' `material` as its own argument and the rest as its options; returns the canvas.
 static func _paint(painter: Script, res: Vector2i, color: Color, light_turn: float,
-		material: String, opts: Dictionary, seed_key: String) -> PixelCanvas:
+		opts: Dictionary, seed_key: String) -> PixelCanvas:
 	var canvas := PixelCanvas.new(
 		res.x,
 		res.y,
 		hash(seed_key),
 		ArtConfig.light_from.rotated(light_turn),
 	)
-	painter.paint(canvas, color, material, opts)
+	painter.paint(canvas, color, String(opts.get("material", "")), _painter_opts(opts))
 	return canvas
+
+
+## `opts` without its `material` key: the options a painter is handed (`opts` itself when it has
+## none, else a copy).
+static func _painter_opts(opts: Dictionary) -> Dictionary:
+	if not opts.has("material"):
+		return opts
+	var own := opts.duplicate()
+	own.erase("material")
+	return own
 
 
 ## Cache `img` as a texture under `key` and return it.

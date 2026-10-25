@@ -60,9 +60,12 @@ const PANEL_WIDTH := 440.0
 ## `leader` its human leader or null (no `PlayerStack`). For the squads no setup declares: a test
 ## with one squad per side declares them (`s.squads`, read with `t.squad`).
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
-	var openings: Array = t.world.get("openings") if t.world.get("openings") != null else []
-	var human := { "node": leader, "lead": true } if leader != null else {}
-	var built := MatchBuilder.build_squads(t.world, members, openings, t.rooms, human)
+	var spec := SquadsSpec.new()
+	spec.members = members
+	spec.openings = t.world.get("openings") if t.world.get("openings") != null else []
+	spec.rooms = t.rooms
+	spec.human = { "node": leader, "lead": true } if leader != null else {}
+	var built := MatchBuilder.build_squads(t.world, spec)
 	return built.get(faction)
 
 

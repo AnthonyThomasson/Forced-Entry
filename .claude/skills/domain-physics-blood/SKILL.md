@@ -96,7 +96,7 @@ so trails taper. All tuning is `BloodConfig` (`footprints_enabled`, `smear_enabl
   point), `ribbon_count()`; a ribbon is drawn as two quads per segment via `draw_primitive`, solid on its centre line
   and fading to `smear_feather` at the edges. `items()` / `print_count()` for tests. `print_at` drops polygons the
   engine can't triangulate.
-- `BloodFootprints` (Node child of a walker): `step(...)` per footfall (the character's `character_footsteps.gd` calls it). Per foot id: soak `max(load, wetness *
+- `BloodFootprints` (Node child of a walker): `step(foot, fall: Footfall)` per footfall (`footfall.gd`: `at`, `direction`, `length`, `width`, `inner`, `speed`; the character's `character_footsteps.gd` calls it). Per foot id: soak `max(load, wetness *
   pickup_gain)` (sampled heel/middle/toe), stamp a mirrored sole (heel, arch on the `inner` side, ball, toe) with
   alpha from the load unless already in thick blood, then lose `print_decay`. Low load = thin arch + rough edge;
   speed and load slip the print forward.

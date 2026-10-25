@@ -82,14 +82,10 @@ func run(t: TestContext) -> void:
 		)
 		floor_node.free()
 
-	var wall := WallFactory.spawn(
-		Rect2(FAR, Vector2(200, 200)),
-		12.0,
-		[],
-		"Probe wall",
-		t.world,
-		WorldGen.wall_style(),
-	)
+	var walls := RoomWalls.new()
+	walls.thickness = 12.0
+	walls.style = WorldGen.wall_style()
+	var wall := WallFactory.spawn(Rect2(FAR, Vector2(200, 200)), walls, "Probe wall", t.world)
 	t.expect_eq(
 		wall.get_surface()["material"],
 		"",

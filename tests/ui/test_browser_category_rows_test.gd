@@ -25,7 +25,7 @@ func run(t: TestContext) -> void:
 	_window = Browser.new()
 	t.world.add_child(_window)
 	_window.checked_changed.connect(func(ids): _checked = ids)
-	_window.open(_tests(), [], {}, func(_entry, _text): return true, "", "", [])
+	_window.open(_tests(), [], {}, func(_entry, _text): return true)
 
 	var topic: TreeItem = _window._groups["a/x"]
 	var domain: TreeItem = _window._groups["a"]

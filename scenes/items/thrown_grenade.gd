@@ -116,23 +116,24 @@ func _draw() -> void:
 	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
 
 
-## Let a grenade of `kind` go from `from` toward `to`, thrown by `by`, into `parent` (the world
-## root), drawn in the weapon style `style` of the item it was thrown from (`Item.style`; omitted =
-## the default style, `GrenadeConfig.default_style`).
-static func spawn(grenade: StringName, from: Vector2, to: Vector2, by: Node, parent: Node,
-		style: StringName = GrenadeConfig.default_style) -> ThrownGrenade:
-	var row := GrenadeConfig.row(grenade)
+## Let a grenade go as `throw` says (of its `kind`, from `from` toward `to`, thrown by `thrower`,
+## drawn in the weapon style `style` of the item it was thrown from, `Item.style`) into `parent`
+## (the world root).
+static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
+	var from := throw.from
+	var to := throw.to
+	var row := GrenadeConfig.row(throw.kind)
 	var node := ThrownGrenade.new()
-	node.name = "Thrown%s" % grenade.capitalize()
-	node.kind = grenade
-	node.thrower = by
+	node.name = "Thrown%s" % throw.kind.capitalize()
+	node.kind = throw.kind
+	node.thrower = throw.thrower
 	node.item = ItemRegistry.create(int(row.get("slot", -1)), 1)
-	node.item.style = style
+	node.item.style = throw.style
 	node._row = row.duplicate()
 	node._fuse = float(row.get("fuse", 3.0))
 	node._direction = (to - from).normalized() if from.distance_to(to) > 0.5 else Vector2.RIGHT
-	if by is CollisionObject2D:
-		node._thrower_rid = [(by as CollisionObject2D).get_rid()]
+	if throw.thrower is CollisionObject2D:
+		node._thrower_rid = [(throw.thrower as CollisionObject2D).get_rid()]
 	var lob := _fit(
 		row, plan(row, from.distance_to(to)), from, to, node._direction,
 		parent.get_viewport().find_world_2d().direct_space_state, _sweep_query(node.radius),

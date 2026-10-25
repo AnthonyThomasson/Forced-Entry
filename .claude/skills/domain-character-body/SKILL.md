@@ -303,7 +303,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   lit for the nearest of `ArtConfig.turn_steps` steps — and draws it rotated to the exact angle of
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
   `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
-  `Deformation.darken`, or `Deformation.draw_shape(..., texture, texture_angle, false)` headless or with `BodyMeshes.enabled`
+  `Deformation.darken`, or `Deformation.draw_shape(..., look)` (a `ShapeLook` with the `texture`, its `texture_angle` and `marks` false) headless or with `BodyMeshes.enabled`
   off: the same polygon either way, above) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor

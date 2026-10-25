@@ -128,14 +128,18 @@ func _build_squads(setup: TestSetup) -> void:
 			push_error("TestWorld: squads' human '%s' is no actor" % human_id)
 		else:
 			human = { "node": node, "lead": true }
+	var spec := SquadsSpec.new()
+	spec.members = members
+	spec.openings = openings
+	spec.rooms = rooms
+	spec.human = human
+	spec.claim_ttl = float(
+		(setup.squads_spec as Dictionary).get("claim_ttl", MatchBuilder.CLAIM_TTL_OF_NPCS),
+	)
 	var built := MatchBuilder.squads_over(
 		self,
-		members,
-		openings,
-		rooms,
-		human,
+		spec,
 		bool(_overlay_flags.get(OVERLAY_REGISTRY.LEADERS, false)),
-		float((setup.squads_spec as Dictionary).get("claim_ttl", MatchBuilder.CLAIM_TTL_OF_NPCS)),
 	)
 	squads = built["squads"]
 	player_stack = built["player_stack"]

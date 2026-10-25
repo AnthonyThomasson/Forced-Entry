@@ -45,7 +45,11 @@ func run(t: TestContext) -> void:
 	# The loadout: bare hands, fists, the key and the one gun; its own spares.
 	var body := t.actor(&"newcomer")
 	for slot in GUN_SLOTS:
-		body.set_loadout(ItemRegistry.loadout_for(slot), slot, ItemRegistry.spares_for(slot))
+		var kit := CharacterKit.new()
+		kit.slots = ItemRegistry.loadout_for(slot)
+		kit.hold_slot = slot
+		kit.spare_types = ItemRegistry.spares_for(slot)
+		body.set_loadout(kit)
 		var gun: StringName = GunConfig.gun_in_slot(slot)
 		for plain in [1, 2, 4]:
 			t.check(body.has_item(plain), "slot %d: carries slot %d" % [slot, plain])

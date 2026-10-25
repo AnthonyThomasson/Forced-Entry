@@ -68,8 +68,8 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 		var shift := c.rng.randf_range(-0.05, 0.05)
 		var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
 		c.paint_over(r, tone)
-		c.grain(PixelCanvas.rounded(r, 0), along_x, ArtConfig.wood_grain_density,
-				tone.darkened(0.12), tone.lightened(0.06))
+		c.grain(PixelCanvas.rounded(r, 0), ArtConfig.wood_grain_density, tone.darkened(0.12),
+				tone.lightened(0.06), { "along_x": along_x })
 		if c.rng.randf() < ArtConfig.wood_knot_chance and b - a >= 4 and length >= 12:
 			var k_along := c.rng.randi_range(5, length - 6)
 			var k_across := int((a + b) / 2.0)
@@ -122,10 +122,10 @@ static func _inset(
 	c.fill(inner, inlay)
 	c.grain(
 		inner,
-		c.w >= c.h,
 		ArtConfig.wood_grain_density,
 		inlay.darkened(0.12),
 		inlay.lightened(0.05),
+		{ "along_x": c.w >= c.h },
 	)
 	c.bevel(inner, 1, 1, t.shadow, t.light)
 	c.bevel(inner, 2, 2, t.dark, inlay)

@@ -116,11 +116,13 @@ static func wear(room: Dictionary, floor_definition: Dictionary, solids: Array, 
 			break
 	if clusters.is_empty():
 		return []
+	var plan := WearPlan.new()
+	plan.floor_definition = floor_definition
+	plan.wall_thickness = wall_thickness
+	plan.clusters = clusters
 	var layer := WearFactory.spawn(
 		rect,
-		floor_definition,
-		wall_thickness,
-		clusters,
+		plan,
 		(room["key"] as String).capitalize() + " Wear",
 		parent,
 	)

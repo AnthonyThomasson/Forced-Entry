@@ -99,16 +99,16 @@ func add_swing(frame: int, joint: int, child: int, rest: Vector3, limits: Dictio
 
 
 ## An anatomical hinge at `joint` between the parent bone (`parent` → `joint`) and the child bone
-## (`joint` → `child`). Its bend side is the frame-space `bend` (square to the frame-space `rest`)
-## carried by the shortest turn taking `rest` onto the live parent bone, so the hinge keeps a
-## sensible plane in any limb pose. The child's bend off straight is held to [min_angle, max_angle]
-## toward that side, and its twist out of the plane to ±`slack` (radians).
-func add_hinge(frame: int, parent: int, joint: int, child: int, rest: Vector3, bend: Vector3,
-		min_angle: float, max_angle: float, slack: float) -> void:
+## (`joint` → `child`), shaped by `limits`. Its bend side is the frame-space `limits.bend` (square
+## to the frame-space `limits.rest`) carried by the shortest turn taking `rest` onto the live parent
+## bone, so the hinge keeps a sensible plane in any limb pose. The child's bend off straight is held
+## to [`min_angle`, `max_angle`] toward that side, and its twist out of the plane to ±`slack`
+## (radians).
+func add_hinge(frame: int, parent: int, joint: int, child: int, limits: HingeLimits) -> void:
 	_limits.append({
 		"kind": HINGE, "frame": frame, "parent": parent, "joint": joint, "child": child,
-		"rest": rest.normalized(), "bend": bend.normalized(), "min": min_angle, "max": max_angle,
-		"slack": slack,
+		"rest": limits.rest.normalized(), "bend": limits.bend.normalized(),
+		"min": limits.min_angle, "max": limits.max_angle, "slack": limits.slack,
 	})
 
 

@@ -540,7 +540,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
   (`take_stun`, `is_blind`, `is_deaf`, `stun_level`, `stun_view`; its numbers are `CharacterConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).
-- **Projectile**: `Explosion.frag` / `Explosion.stun`, and `ProjectileSpawner.spawn`'s `max_range`. **Physics**: the explosion FX.
+- **Projectile**: `Explosion.frag` / `Explosion.stun`, and the `max_range` of the `Shot` `ProjectileSpawner.spawn` takes. **Physics**: the explosion FX.
   **Audio**, **General** (camera, EventBus topics `throw`, `grenade`, `explosion`, `stun`), **UI** (`StunScreen`, the setup window,
   the overlay table) and **AI** (perception of live grenades, the throw geometry, the `grenade` and `stun_entry` nodes, the `throw`
   primitive, the evade reflex, the blind-fire roll and holding fire, the bang phase of `entry.gd`, the overlay).

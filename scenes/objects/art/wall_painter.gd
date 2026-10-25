@@ -18,7 +18,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		_brick(c, base, t)
 	else:
 		c.speckle(Rect2i(0, 0, c.w, c.h), base, 0.18, 0.04)
-		c.grain(cap, true, 0.004, base.darkened(0.05), base.lightened(0.04), true)
+		c.grain(cap, 0.004, base.darkened(0.05), base.lightened(0.04), { "wraps": true })
 	for y in [1, c.h - 2]:
 		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.light)
 	for y in [0, c.h - 1]:

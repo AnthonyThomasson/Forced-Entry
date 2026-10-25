@@ -6,10 +6,10 @@ extends Node
 ##
 ## **The leader (LD3).** The member of the highest `rank`, the first in spawn order among equals:
 ## the invaders' unit lead (rank 2), and, a defenders' crew carrying no rank, its first spawned. A
-## squad the human leads (`setup`'s `human`) is led by the human. **Succession (LD4).** When the
-## leader dies, the next in line by the same rule leads at once and the squad posts `&"leader"`
-## `{ faction, leader, previous }` (interface 10). The orders already given stand; a later order
-## replaces them.
+## squad the human leads (its roster's `human`, `setup`) is led by the human. **Succession (LD4).**
+## When the leader dies, the next in line by the same rule leads at once and the squad posts
+## `&"leader"` `{ faction, leader, previous }` (interface 10). The orders already given stand; a
+## later order replaces them.
 ##
 ## **Orders (LD5).** `issue(request)` turns what a leader asks for
 ## (`{ kind, to, pos?, room?, bang? }`, the command menu's plain dict) into an order in the AI's
@@ -145,25 +145,19 @@ func _physics_process(_delta: float) -> void:
 		_follow.track()
 
 
-## Set the squad up: `faction`, its members (`roster`) in spawn order, the house's `openings` and
-## `rooms`, the `human` when the human leads (null: the leader is the rule's) and `claim_ttl`, how
-## long its NPCs keep a callout they heard (their `callout_ttl`, `MatchBuilder.callout_ttl_of`): a
-## member's entry claim stays in its stacks as long (0: none is kept). Listens to each member's
-## `died` and to the radio from here on.
-func setup(
-	faction: StringName,
-	roster: Array,
-	openings: Array,
-	rooms: Array,
-	human: Node = null,
-	claim_ttl := 0.0,
-) -> void:
-	_faction = faction
-	_ledger.setup({ "faction": faction, "range": 0.0, "ttl": claim_ttl })
-	_members = roster.filter(func(m): return m is Node and is_instance_valid(m))
+## Set the squad up from `roster` (its `faction`, its `members` in spawn order, the `human` when the
+## human leads (null: the leader is the rule's) and `claim_ttl`, how long its NPCs keep a callout
+## they heard (their `callout_ttl`, `MatchBuilder.callout_ttl_of`): a member's entry claim stays in
+## its stacks as long (0: none is kept)) over the house's `openings` and `rooms`. Listens to each
+## member's `died` and to the radio from here on.
+func setup(roster: SquadRoster, openings: Array, rooms: Array) -> void:
+	_faction = roster.faction
+	_ledger.setup({ "faction": roster.faction, "range": 0.0, "ttl": roster.claim_ttl })
+	_members = roster.members.filter(func(m): return m is Node and is_instance_valid(m))
 	_openings = openings
 	_rooms = rooms
 	_entry.set_house(openings, rooms)
+	var human := roster.human
 	_human = human if human != null and _members.has(human) else null
 	for m: Node in _members:
 		if m.has_signal(&"died"):

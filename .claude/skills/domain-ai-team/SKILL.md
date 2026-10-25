@@ -48,7 +48,7 @@ the human's only on a crossing begun since the order was issued (`crossed_frame`
 `ai/stack/stack_player_go_after_funnel_brush` (the human brushes the funnel before the order, steps in after it, and the squad releases it).
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` the match builder builds under the match's `World` (or a test world) after
-arming the characters (`MatchBuilder.build_squads`: `setup(faction, roster, openings, rooms, human := null, claim_ttl := 0.0)`) and hands each NPC (`MatchBuilder.bind_squad`: the
+arming the characters (`MatchBuilder.build_squads`: `setup(roster: SquadRoster, openings, rooms)`, the roster (`squad_roster.gd`) its `faction`, `members`, `human` and `claim_ttl`) and hands each NPC (`MatchBuilder.bind_squad`: the
 controller's `squad`). Its leader is the highest `rank`, the first spawned among equals (the human when it leads); on the leader's `died`
 the next leads within the frame and it posts `&"leader"` `{ faction, leader, previous }`. `issue(request)` turns a leader's plain request
 (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (each stamped by `_post_order` with the `GameClock.frame()` it is

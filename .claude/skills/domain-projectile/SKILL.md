@@ -42,7 +42,7 @@ Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_s
    do to the damage is the character's `take_hit`, `domain-character`).
 
 **Two kinds of penetration.** `P` is a property of the *target's surface* (flesh 15, a wardrobe 55, a wall 100); `p` is the *bullet's* power, set
-per gun by `ProjectileSpawner.spawn(..., muzzle_speed, penetration)` from `GunConfig` (pistol 1.0, SMG 0.8, rifle 2.2). A higher `p` loses less speed to
+per gun by the `Shot` handed to `ProjectileSpawner.spawn` (its `muzzle_speed`, `penetration`) from `GunConfig` (pistol 1.0, SMG 0.8, rifle 2.2). A higher `p` loses less speed to
 the same surface and needs less speed to get through, so a pistol round (3200 px/s) dies in a wall (it leaves at ~320 px/s) while a rifle round
 (4400 px/s, `p` 2.2) leaves it at ~59% speed and can wound someone behind it, with its damage scaled down by the speed it has left. `muzzle_speed` also sets
 `v`'s reference, so the pistol (3200 = `BallisticsConfig.projectile_speed`) is unchanged. Tests: `tests/projectile/gun_penetration_test.gd`,
@@ -70,9 +70,9 @@ non-flesh surface it strikes (any outcome but fly-over) within `blood_carry_dist
 
 `projectile.gd` / `casing.gd` are control; `projectile_visuals.gd` / `casing_visuals.gd` draw.
 `projectile_spawner.gd` / `casing_spawner.gd` are the spawn entry points the guns call
-(`ProjectileSpawner.spawn(position, direction, parent, ignore, item_damage, muzzle_speed := -1, penetration := 1.0, max_range := -1, strikes_shooter := false)`).
-`max_range` is `Projectile.max_distance`: the round is spent exactly there (the last step is clamped, so it is never seen past it); `strikes_shooter`
-leaves `ignore` in the sweep, so the shooter can be hit while still being the `attacker` of its hits (a grenade's fragments). A bullet is added with a
+(`ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null)`; `Shot`, `projectile/shot.gd`: `shooter`, `item_damage` = 0.0,
+`muzzle_speed` = -1, `penetration` = 1.0, `max_range` = -1, `strikes_shooter` = false; null, all defaults). `max_range` is `Projectile.max_distance`: the round is spent exactly there (the last step is clamped, so it is never seen past it); `strikes_shooter`
+leaves the `shooter` in the sweep, so the shooter can be hit while still being the `attacker` of its hits (a grenade's fragments). A bullet is added with a
 readable name (`Projectile`, `Projectile2`, ...), which is how the tests count them. A casing is Despawner-tracked by
 `CasingSpawner`; its toss lasts `eject_time` (~0.3 s), then it rests, drawn at `DrawLayers.LYING` (−2: on the floor, under the
 living and a vehicle's chassis).
@@ -92,7 +92,7 @@ ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; 
   flash; the bang asks it with `walls_only` (only a wall stops the line: furniture muffles nothing). `_reach` runs on `_walk(space, at, to, height,
   exclude, cover_reach, walls_only, target)`, the one walk past what does not stop the line (`_stops`; `_against` for a finite `cover_reach`), which
   counts a line that has cleared `MAX_CLEARED` pieces as stopped. Two read-only statics put the same walk to the AI's perception (interface 3):
-  `shields(space, burst, p, height, exclude, cover_reach := INF) -> bool` (whether a body `height` tall at `p` is shielded from a burst at
+  `shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`, `cover_reach` := INF; whether a body `height` tall at `p` is shielded from a burst at
   `burst`, the AI's grenade dodging) and `first_stop(space, a, b, height, exclude) -> Dictionary` (the ray hit of the first wall or piece that
   stops the line, `{}` when none does: where it looks for the shadow behind cover).
 - **Frag blast** (`_blast`): the bodies near are the circle's overlaps on the solid layer (walls left out: they only block) plus every dead character
@@ -101,8 +101,8 @@ ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; 
   `&"hit"` with `outcome` `&"blast"`, the thrower as `attacker`. A dead body is not struck (nothing to damage) but is shoved. Every body reached
   is then shoved away by `blast_impulse` with the same fall-off, capped at `mass * blast_max_speed` so a light chair is not fired across the house:
   `blast_push(from, impulse)` on a character (living: knockback; dead: its ragdoll thrown and woken, `Ragdoll.wake()`), `apply_impulse(v)` on furniture.
-- **Fragments** (`_fragments`): `fragments` bullets evenly round the circle (each jittered within its share), through `ProjectileSpawner.spawn` with the
-  row's `fragment_speed`, `fragment_penetration`, `fragment_range` and `strikes_shooter`; their `damage` is `fragment_damage` at full speed head-on
+- **Fragments** (`_fragments`): `fragments` bullets evenly round the circle (each jittered within its share), through `ProjectileSpawner.spawn` with one `Shot`
+  shared by all of them: the row's `fragment_speed`, `fragment_penetration`, `fragment_range` and `strikes_shooter`; their `damage` is `fragment_damage` at full speed head-on
   (not added to the bullet's base, unlike a gun's `damage`). So cover, penetration, ricochet, blood, debris and impact sounds all work as for bullets.
 - **Stun** (`stun`): every living character within the larger of `flash_radius` and `bang_radius`. The **flash** works by sight: with a clear line
   it blinds `max_blind * (flash_radius - d) / (flash_radius - flash_full)` (full inside `flash_full`) times the facing factor (the dot of its `facing` with the
