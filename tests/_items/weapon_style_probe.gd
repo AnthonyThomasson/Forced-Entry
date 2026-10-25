@@ -46,23 +46,32 @@ static func kit(slot: int, style: StringName, grenades := {}) -> CharacterKit:
 	return out
 
 
-## A probe drawing `item` under the test's world at `at`: in `user`'s hand when `held`, else lying
-## along `angle` with `opts`.
-static func probe(
+## A probe drawing `item` under the test's world at `at`, in `user`'s hand.
+static func held_probe(t: TestContext, item: Item, at: Vector2, user: Node) -> DrawProbe:
+	var p := DrawProbe.new()
+	p.item = item
+	p.user = user
+	p.held = true
+	return _placed(t, p, at)
+
+
+## A probe drawing `item` under the test's world at `at`, lying along `angle` with `opts`.
+static func lying_probe(
 	t: TestContext,
 	item: Item,
 	at: Vector2,
-	held: bool,
-	user: Node = null,
 	angle := 0.0,
 	opts := {},
 ) -> DrawProbe:
 	var p := DrawProbe.new()
 	p.item = item
-	p.user = user
-	p.held = held
 	p.angle = angle
 	p.opts = opts
+	return _placed(t, p, at)
+
+
+## Probe `p` put under the test's world at `at`, its first draw asked for.
+static func _placed(t: TestContext, p: DrawProbe, at: Vector2) -> DrawProbe:
 	p.position = at
 	t.world.add_child(p)
 	p.queue_redraw()
@@ -85,7 +94,7 @@ static func lying_everywhere(t: TestContext, slot: int, style: StringName, at: V
 	var out: Array = []
 	for angle in every_step():
 		for flip in [false, true]:
-			out.append(probe(t, make(slot, style), at, false, null, angle, { "flip": flip }))
+			out.append(lying_probe(t, make(slot, style), at, angle, { "flip": flip }))
 	return out
 
 

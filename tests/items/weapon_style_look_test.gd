@@ -62,64 +62,89 @@ func run(t: TestContext) -> void:
 	for kind: StringName in kinds:
 		probes[kind] = {}
 		for style: StringName in styles:
-			var as_style := StyleProbe.DEFAULT_STYLE if style == &"twin" else style
-			var slot: int = kinds[kind]
-			var item := StyleProbe.make(slot, as_style)
-			if style == &"":
-				t.expect_eq(
-					item.style,
-					StyleProbe.DEFAULT_STYLE,
-					"a %s never given a style has the style police (Item.style)" % kind,
-				)
-			probes[kind][style] = {
-				&"held": StyleProbe.probe(t, item, HOLDER_AT, true, holder),
-				&"lying": StyleProbe.probe(
-					t,
-					StyleProbe.make(slot, as_style),
-					HOLDER_AT,
-					false,
-					null,
-					LYING_ANGLE,
-					{ "flip": false },
-				),
-				&"lying_flipped": StyleProbe.probe(
-					t,
-					StyleProbe.make(slot, as_style),
-					HOLDER_AT,
-					false,
-					null,
-					LYING_ANGLE,
-					{ "flip": true },
-				),
-			}
+			probes[kind][style] = _lay_views(t, kind, kinds[kind], style, holder)
 	await t.frames(2)
 
 	for kind: StringName in kinds:
-		var drawn := {}  # style -> view -> set
-		for style: StringName in styles:
-			drawn[style] = {}
-			for view: StringName in VIEWS:
-				drawn[style][view] = StyleProbe.drawn(probes[kind][style][view].item)
-				t.check(
-					not drawn[style][view].is_empty(),
-					"the %s (%s) is drawn %s" % [kind, _name(style), view],
-				)
+		var drawn := _drawn_views(t, kind, probes[kind], styles)
 		for view: StringName in VIEWS:
-			if not t.check(drawn[&"twin"][view] == drawn[&"police"][view],
-					"two police %ss draw alike %s (the comparison's premise)" % [kind, view]):
-				continue
-			for i in StyleProbe.STYLES.size():
-				for j in range(i + 1, StyleProbe.STYLES.size()):
-					var a := StyleProbe.STYLES[i]
-					var b := StyleProbe.STYLES[j]
-					t.check(
-						drawn[a][view] != drawn[b][view],
-						"%s, a %s %s and a %s %s are drawn differently" % [view, a, kind, b, kind],
-					)
+			_check_view(t, kind, view, drawn)
+
+
+## The probes of one `kind` item (inventory `slot`) in `style` (`&"twin"` = a second police item),
+## view -> probe: held in `holder`'s hand and lying either side up.
+func _lay_views(
+	t: TestContext,
+	kind: StringName,
+	slot: int,
+	style: StringName,
+	holder: Node,
+) -> Dictionary:
+	var as_style := StyleProbe.DEFAULT_STYLE if style == &"twin" else style
+	var item := StyleProbe.make(slot, as_style)
+	if style == &"":
+		t.expect_eq(
+			item.style,
+			StyleProbe.DEFAULT_STYLE,
+			"a %s never given a style has the style police (Item.style)" % kind,
+		)
+	return {
+		&"held": StyleProbe.held_probe(t, item, HOLDER_AT, holder),
+		&"lying": StyleProbe.lying_probe(
+			t,
+			StyleProbe.make(slot, as_style),
+			HOLDER_AT,
+			LYING_ANGLE,
+			{ "flip": false },
+		),
+		&"lying_flipped": StyleProbe.lying_probe(
+			t,
+			StyleProbe.make(slot, as_style),
+			HOLDER_AT,
+			LYING_ANGLE,
+			{ "flip": true },
+		),
+	}
+
+
+## What each of `kind`'s `probes` (style -> view -> probe) drew, style -> view -> set, each
+## checked drawn.
+func _drawn_views(
+	t: TestContext,
+	kind: StringName,
+	probes: Dictionary,
+	styles: Array,
+) -> Dictionary:
+	var drawn := {}
+	for style: StringName in styles:
+		drawn[style] = {}
+		for view: StringName in VIEWS:
+			drawn[style][view] = StyleProbe.drawn(probes[style][view].item)
 			t.check(
-				drawn[&""][view] == drawn[&"police"][view],
-				"%s, a %s never given a style draws as a police one" % [view, kind],
+				not drawn[style][view].is_empty(),
+				"the %s (%s) is drawn %s" % [kind, _name(style), view],
 			)
+	return drawn
+
+
+## Check `kind`'s drawings (`drawn`, style -> view -> set) in `view`: two police items alike (the
+## premise), every style apart from every other, the one never given a style as police.
+func _check_view(t: TestContext, kind: StringName, view: StringName, drawn: Dictionary) -> void:
+	if not t.check(drawn[&"twin"][view] == drawn[&"police"][view],
+			"two police %ss draw alike %s (the comparison's premise)" % [kind, view]):
+		return
+	for i in StyleProbe.STYLES.size():
+		for j in range(i + 1, StyleProbe.STYLES.size()):
+			var a := StyleProbe.STYLES[i]
+			var b := StyleProbe.STYLES[j]
+			t.check(
+				drawn[a][view] != drawn[b][view],
+				"%s, a %s %s and a %s %s are drawn differently" % [view, a, kind, b, kind],
+			)
+	t.check(
+		drawn[&""][view] == drawn[&"police"][view],
+		"%s, a %s never given a style draws as a police one" % [view, kind],
+	)
 
 
 ## How a style is named in a message.

@@ -61,8 +61,22 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# kind -> style -> the set of textures it paints lying at every step either side up
-	var refs := {}
+	var probes := _lay_references(t)
+	_arm(t)
+	await t.seconds(0.5)
+	var refs := _references(t, probes)
+	if refs.is_empty():
+		return
+	var dropped := await _drop_guns(t)
+	if dropped.is_empty():
+		return
+	await _check_dropped(t, dropped, refs)
+	await _check_thrown(t, refs)
+
+
+## The reference probes, kind -> style -> probes: each gun and the frag lying in every style at
+## every step either side up.
+func _lay_references(t: TestContext) -> Dictionary:
 	var probes := {}
 	for gun: StringName in GUNMEN:
 		probes[gun] = {}
@@ -81,12 +95,22 @@ func run(t: TestContext) -> void:
 			style,
 			PROBES_AT,
 		)
+	return probes
+
+
+## Arm each gunman with its gun in scrap and the thrower with one pipe frag.
+func _arm(t: TestContext) -> void:
 	for gun: StringName in GUNMEN:
 		var slot: int = StyleProbe.GUNS[gun]
 		t.actor(gun).set_loadout(StyleProbe.kit(slot, KEPT_GUN_STYLE))
 	var frag_slot: int = StyleProbe.GRENADES[&"frag"]
 	t.actor(&"thrower").set_loadout(StyleProbe.kit(frag_slot, KEPT_GRENADE_STYLE, { frag_slot: 1 }))
-	await t.seconds(0.5)
+
+
+## What `probes` drew, kind -> style -> the set of textures it paints lying at every step either
+## side up; {} after a failed `require` (a reference drew nothing).
+func _references(t: TestContext, probes: Dictionary) -> Dictionary:
+	var refs := {}
 	for kind: StringName in probes:
 		refs[kind] = {}
 		for style in StyleProbe.STYLES:
@@ -95,9 +119,13 @@ func run(t: TestContext) -> void:
 					not refs[kind][style].is_empty(),
 					"the %s %s is drawn lying (the reference)" % [style, kind],
 			):
-				return
+				return {}
+	return refs
 
-	# The gunmen die holding their scrap guns.
+
+## The gunmen die holding their scrap guns; returns gun -> the `DroppedItem` its gun left ({} after
+## a failed `require`).
+func _drop_guns(t: TestContext) -> Dictionary:
 	var held := {}  # gun -> the item its gunman holds
 	for gun: StringName in GUNMEN:
 		var c := t.actor(gun)
@@ -109,19 +137,29 @@ func run(t: TestContext) -> void:
 		)
 		c.take_damage(100_000.0)
 	var dropped := {}  # gun -> its DroppedItem
-	var found := await t.until(func() -> bool:
-		for n in t.world.get_children():
-			if n is DroppedItem:
-				for gun: StringName in held:
-					if n.item == held[gun]:
-						dropped[gun] = n
-		return dropped.size() == GUNMEN.size(), 2.0)
+	var found := await t.until(func() -> bool: return _collect_dropped(t, held, dropped), 2.0)
 	if not t.require(
 			found,
 			"each dead gunman's gun lies in the world as a DroppedItem (found %s)"
 				% [dropped.keys()],
 	):
-		return
+		return {}
+	return dropped
+
+
+## Gather into `dropped` (gun -> its `DroppedItem`) each `held` gun now lying in the world; whether
+## every gunman's is.
+func _collect_dropped(t: TestContext, held: Dictionary, dropped: Dictionary) -> bool:
+	for n in t.world.get_children():
+		if n is DroppedItem:
+			for gun: StringName in held:
+				if n.item == held[gun]:
+					dropped[gun] = n
+	return dropped.size() == GUNMEN.size()
+
+
+## Check each `dropped` gun is drawn in scrap while it skids and once at rest, against `refs`.
+func _check_dropped(t: TestContext, dropped: Dictionary, refs: Dictionary) -> void:
 	var skidding := {}  # gun -> what it drew while it moved
 	for i in 6:
 		await t.frames(SAMPLE_FRAMES)
@@ -144,7 +182,10 @@ func run(t: TestContext) -> void:
 			"the dropped %s, at rest," % gun,
 		)
 
-	# The thrower throws its pipe frag.
+
+## The thrower throws its pipe frag: check it is drawn in pipe in flight and at rest, against
+## `refs`.
+func _check_thrown(t: TestContext, refs: Dictionary) -> void:
 	var thrower := t.actor(&"thrower")
 	t.expect_eq(
 		thrower.current_item().style,
@@ -160,15 +201,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var grenade: ThrownGrenade = _live(t)[0]
-	var aloft := {}
-	var frames := 0
-	while (is_instance_valid(grenade)
-			and grenade.z_index != DrawLayers.LYING
-			and frames < MAX_FLIGHT_FRAMES):
-		await t.frames(1)
-		frames += 1
-		if is_instance_valid(grenade) and grenade.z_index == DrawLayers.ABOVE:
-			aloft.merge(StyleProbe.drawn(grenade.item))
+	var aloft := await _drawn_aloft(t, grenade)
 	if not t.require(
 			await t.until(
 				func() -> bool: return t.happened(
@@ -191,6 +224,21 @@ func run(t: TestContext) -> void:
 	)
 	_check_drawn(t, aloft, refs[&"frag"], KEPT_GRENADE_STYLE, "the thrown frag, in flight,")
 	_check_drawn(t, lying, refs[&"frag"], KEPT_GRENADE_STYLE, "the thrown frag, at rest,")
+
+
+## What `grenade` drew while aloft (`DrawLayers.ABOVE`), watched each frame until it lies, bursts
+## or `MAX_FLIGHT_FRAMES` pass.
+func _drawn_aloft(t: TestContext, grenade: ThrownGrenade) -> Dictionary:
+	var aloft := {}
+	var frames := 0
+	while (is_instance_valid(grenade)
+			and grenade.z_index != DrawLayers.LYING
+			and frames < MAX_FLIGHT_FRAMES):
+		await t.frames(1)
+		frames += 1
+		if is_instance_valid(grenade) and grenade.z_index == DrawLayers.ABOVE:
+			aloft.merge(StyleProbe.drawn(grenade.item))
+	return aloft
 
 
 ## Check that `drawn` (what a dropped or thrown item painted) is drawn in `style`: not empty, every
