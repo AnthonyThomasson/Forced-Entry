@@ -41,9 +41,9 @@ func configure(s: TestSetup) -> void:
 		s,
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
 	)
-	Flank.npc(s, &"open_n", OPEN_N, {}, &"invader", OPEN_H)
+	Flank.npc(s, &"open_n", OPEN_N, {}, { "look_at": OPEN_H })
 	Probe.hostile(s, &"open_h", OPEN_H, OPEN_N)
-	Flank.npc(s, &"hide_n", HIDE_N, {}, &"invader", HIDE_H)
+	Flank.npc(s, &"hide_n", HIDE_N, {}, { "look_at": HIDE_H })
 	Probe.hostile(s, &"hide_h", HIDE_H, HIDE_N)
 
 

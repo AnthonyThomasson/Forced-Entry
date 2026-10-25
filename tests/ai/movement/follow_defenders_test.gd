@@ -85,7 +85,7 @@ func run(t: TestContext) -> void:
 	var done := func(rec: Dictionary) -> bool:
 		var moves: Array = rec["moves"].get(lead, [])
 		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
-	var w: Dictionary = await Follow.watch(t, crew, squad, WATCH_S, done, each)
+	var w: Dictionary = await Follow.watch(t, crew, squad, WATCH_S, { "stop": done, "each": each })
 	var radius: float = Follow.brain_of(lead).hit_awareness_radius
 	if not t.require(
 			clear[0] > radius,

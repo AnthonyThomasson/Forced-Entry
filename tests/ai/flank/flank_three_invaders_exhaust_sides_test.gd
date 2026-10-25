@@ -34,8 +34,13 @@ func configure(s: TestSetup) -> void:
 			# trigger keeps the magazines from running dry, which would take flank off the menu.
 			"fire_cooldown": 2.0,
 		}
-		Flank.npc(s, StringName("npc%d" % i), Vector2(250, 320 + 60 * i), tuning, &"invader",
-				TARGET_POS)
+		Flank.npc(
+			s,
+			StringName("npc%d" % i),
+			Vector2(250, 320 + 60 * i),
+			tuning,
+			{ "look_at": TARGET_POS },
+		)
 	Flank.target(s, &"target", TARGET_POS, LOOK)
 
 

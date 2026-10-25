@@ -46,9 +46,9 @@ func configure(s: TestSetup) -> void:
 			{ "pick": "retreat" },
 		],
 	)
-	Flank.npc(s, &"far", FAR_N, {}, &"invader", FAR_H)
+	Flank.npc(s, &"far", FAR_N, {}, { "look_at": FAR_H })
 	Probe.hostile(s, &"far_h", FAR_H, FAR_N)
-	Flank.npc(s, &"near", NEAR_N, {}, &"invader", NEAR_H)
+	Flank.npc(s, &"near", NEAR_N, {}, { "look_at": NEAR_H })
 	Probe.hostile(s, &"near_h", NEAR_H, NEAR_N)
 
 

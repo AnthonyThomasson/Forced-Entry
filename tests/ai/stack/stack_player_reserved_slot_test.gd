@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 	Entry.rules(s, Entry.BACK)
 	# A long ready timeout so the point is still waiting in its stack while the reservation is read,
 	# and through the range and ttl checks after it.
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 60.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 60.0 })
 	Stack.human(s, &"me", Stack.NEAR)
 
 

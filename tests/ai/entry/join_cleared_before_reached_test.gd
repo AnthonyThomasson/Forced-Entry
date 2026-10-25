@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	var trooper := t.actor(&"trooper")
 	var nodes: Array = [lead, t.actor(&"sergeant"), trooper]
 	var own := func(_rec: Dictionary) -> bool: return not Follow.own_claims(t, lead).is_empty()
-	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, own)
+	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, { "stop": own })
 	var claims := Follow.own_claims(t, lead)
 	if not t.require(
 			not claims.is_empty(),

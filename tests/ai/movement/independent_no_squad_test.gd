@@ -35,7 +35,7 @@ func run(t: TestContext) -> void:
 		return
 	var went_in := func(_rec: Dictionary) -> bool:
 		return not Follow.calls_of(t, inv, "going_in").is_empty()
-	var w: Dictionary = await Follow.watch(t, [inv], null, WATCH_S, went_in)
+	var w: Dictionary = await Follow.watch(t, [inv], null, WATCH_S, { "stop": went_in })
 
 	if not t.require(
 			Follow.asked(w, inv) > 0,

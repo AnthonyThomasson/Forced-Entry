@@ -80,37 +80,56 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var offences: Array = []
-	var kinds := {}   # way_kind -> the ways in of that kind ("<house> <door>>room")
-	var swept := 0
+	# offences: what breaks the rules; kinds: way_kind -> the ways in of that kind
+	# ("<house> <door>>room")
+	var found := { "offences": [], "kinds": {} }
 	var terrace := t.world.get_world_2d()
-	swept += _sweep(
+	var swept := _sweep(
 		t,
-		"terrace",
-		t.world.house,
-		t.rooms,
-		t.world.openings,
-		terrace.navigation_map,
-		terrace.direct_space_state,
-		offences,
-		kinds,
+		{
+			"label": "terrace", "house": t.world.house, "rooms": t.rooms,
+			"openings": t.world.openings, "map": terrace.navigation_map,
+			"space": terrace.direct_space_state,
+		},
+		found,
 	)
 	for plan in HouseDefinitions.get_all():
 		for house_seed in SEEDS:
-			var built: Dictionary = await _build_house(t, String(plan), int(house_seed))
-			if not t.require(
-					not built.is_empty(),
-					"the %s house (seed %d) is built and its navigation map comes up"
-						% [plan, house_seed],
-			):
+			var read: int = await _sweep_plan(t, String(plan), int(house_seed), found)
+			if read < 0:
 				return
-			var w2d: World2D = built["viewport"].world_2d
-			swept += _sweep(
-				t, "%s#%d" % [plan, house_seed], built["house"], built["rooms"], built["openings"],
-				w2d.navigation_map, w2d.direct_space_state, offences, kinds,
-			)
-			built["viewport"].queue_free()
-			await t.frames(1)
+			swept += read
+	_check_swept(t, swept, found["kinds"])
+	_report(t, found["offences"])
+
+
+## Build generated house `plan` from `house_seed` (`_build_house`) and sweep it into `found`
+## (`_sweep`): how many ways in it read, or -1 when it was not built.
+func _sweep_plan(t: TestContext, plan: String, house_seed: int, found: Dictionary) -> int:
+	var built: Dictionary = await _build_house(t, plan, house_seed)
+	if not t.require(
+			not built.is_empty(),
+			"the %s house (seed %d) is built and its navigation map comes up" % [plan, house_seed],
+	):
+		return -1
+	var w2d: World2D = built["viewport"].world_2d
+	var read := _sweep(
+		t,
+		{
+			"label": "%s#%d" % [plan, house_seed], "house": built["house"],
+			"rooms": built["rooms"], "openings": built["openings"], "map": w2d.navigation_map,
+			"space": w2d.direct_space_state,
+		},
+		found,
+	)
+	built["viewport"].queue_free()
+	await t.frames(1)
+	return read
+
+
+## The checks that the sweep read the ways in of every kind: `swept` ways in all told, `kinds`
+## (way_kind -> its ways in) by kind.
+func _check_swept(t: TestContext, swept: int, kinds: Dictionary) -> void:
 	t.check(
 		swept > 0,
 		("the sweep read some stacks (%d ways in: %d against a wall, %d where every wall spot is "
@@ -144,7 +163,6 @@ func run(t: TestContext) -> void:
 				"; ".join(kinds.get("short_views", [])),
 			],
 	)
-	_report(t, offences)
 
 
 ## Build generated house `plan` from `house_seed` in a world of its own, baked, and wait for its
@@ -180,123 +198,183 @@ func _build_house(t: TestContext, plan: String, house_seed: int) -> Dictionary:
 	}
 
 
-## Sweep every way into every room of one house (`label`), adding what breaks the rules to
-## `offences`. Returns how many ways in it read.
-func _sweep(t: TestContext, label: String, house: Node2D, rooms: Array, openings: Array, map: RID,
-		space: PhysicsDirectSpaceState2D, offences: Array, kinds: Dictionary) -> int:
-	var entry := Slots.entry_geometry(openings, rooms)
+## Sweep every way into every room of one house (`where`: `{ label, house, rooms, openings, map,
+## space }`), adding what breaks the rules to `found.offences` and each way in to `found.kinds`.
+## Returns how many ways in it read.
+func _sweep(t: TestContext, where: Dictionary, found: Dictionary) -> int:
+	var entry := Slots.entry_geometry(where["openings"], where["rooms"])
 	if not t.require(entry != null, "the entry geometry script exists (%s)" % Slots.ENTRY_SCRIPT):
 		return 0
-	var w := Slots.world_of(rooms, openings, map, space, house)
-	var cache := {}
-	# "<door> <side> <n> <rule>" -> true: one line per slot and rule, at the smallest stack that
-	# shows it.
-	var seen := {}
+	var w := Slots.world_of(
+		where["rooms"], where["openings"], where["map"], where["space"], where["house"],
+	)
+	# The sweep of this house: its world, `point_faults`' cache, and `seen`
+	# ("<door> <side> <n> <rule>" -> true: one line per slot and rule, at the smallest stack that
+	# shows it).
+	var sweep := {
+		"label": where["label"], "w": w, "cache": {}, "seen": {}, "offences": found["offences"],
+		"kinds": found["kinds"],
+	}
 	var read := 0
 	for f: Dictionary in w["frames"]:
-		var door := "%s>%s" % [f["id"], f["room_key"]]
-		var g: Dictionary = entry.geometry(f["id"], f["room_key"], map, space)
+		var g: Dictionary = entry.geometry(f["id"], f["room_key"], where["map"], where["space"])
 		if g.is_empty():
-			offences.append({
-				"house": label, "door": door, "side": 0, "n": 0, "count": 0, "point": Vector2.INF,
-				"rule": "geometry", "why": "the AI has no entry geometry for it",
+			(found["offences"] as Array).append({
+				"house": where["label"], "door": "%s>%s" % [f["id"], f["room_key"]], "side": 0,
+				"n": 0, "count": 0, "point": Vector2.INF, "rule": "geometry",
+				"why": "the AI has no entry geometry for it",
 			})
 			continue
 		read += 1
-		var kind := Slots.way_kind(w, f)
-		var capacity: Dictionary = (Slots.dead_end_capacity(w, f, cache)
-				if kind == "dead_end"
-				else {})
-		kinds[kind] = kinds.get(kind, []) + [
-			"%s %s%s" % [
-				label,
-				door,
-				(" (holds %d)" % int(capacity["count"])) if kind == "dead_end" else "",
-			],
-		]
-		if kind == "views":
-			door += " (every wall spot in another doorway's view)"
-		elif kind == "open_floor":
-			door += " (no wall spot)"
-		elif kind == "dead_end":
-			door += " (no wall spot, a dead end holding %d)" % int(capacity["count"])
-		var spots: Array = Slots.wall_spots(w, f) if kind == "views" else []
-		var lays := {}   # "<side> <count>" -> layout
+		var way := _way(sweep, f, g)
 		for side in [1, -1]:
 			for count in range(1, Slots.MAX_STACK + 1):
-				lays["%d %d" % [side, count]] = Slots.layout(g, count, side)
-		if kind == "wall":
-			var wall := _wall_capacity(w, f, cache, lays)
-			if int(wall["count"]) < Slots.MAX_STACK:
-				capacity = { "wall": wall }
-				door += " (a short wall holding %d)" % int(wall["count"])
-				kinds["short_wall"] = kinds.get("short_wall", []) + [
-					"%s %s>%s (holds %d)" % [label, f["id"], f["room_key"], int(wall["count"])],
-				]
-		elif kind == "views":
-			var extra: Array = []
-			for key in lays:
-				extra.append_array((lays[key]["slots"] as Array).map(func(s): return s["point"]))
-			var views := Slots.views_capacity(w, f, cache, spots, extra)
-			if not views.is_empty() and int(views["count"]) < Slots.MAX_STACK:
-				capacity = { "wall": views }
-				door = (door.trim_suffix(")")
-						+ ", its fewest-seen spots holding %d)" % int(views["count"]))
-				kinds["short_views"] = kinds.get("short_views", []) + [
-					"%s %s>%s (holds %d, seen from at most %d)"
-						% [label, f["id"], f["room_key"], int(views["count"]), int(views["bar"])],
-				]
-		for side in [1, -1]:
-			for count in range(1, Slots.MAX_STACK + 1):
-				var bar := Slots.fewest_views_bar(spots, count) if kind == "views" else 0
-				var lay: Dictionary = lays["%d %d" % [side, count]]
-				var slots: Array = lay["slots"]
-				var judged := capacity
-				var caps := ""
-				var short := Slots.is_short_wall(kind, capacity, count)
-				if short:
-					var need := count - int(capacity["wall"]["count"])
-					var in_band := func(s): return Slots.in_wall_band(w, f, s["point"])
-					var taken: Array = slots.filter(in_band).map(func(s): return s["point"])
-					var open := Slots.open_floor_capacity(w, f, cache, taken, need)
-					open["need"] = need
-					judged = { "wall": capacity["wall"], "open": open }
-					caps = Slots.capacity_text(w, f, judged)
-				for s in slots:
-					var slot_kind := kind
-					if short and not Slots.in_wall_band(w, f, s["point"]):
-						slot_kind = "overflow"
-					for fault in Slots.point_faults(w, f, s["point"], cache, slot_kind, bar):
-						_add(
-							offences,
-							seen,
-							label,
-							door,
-							side,
-							int(s["n"]),
-							count,
-							s["point"],
-							fault[0],
-							_with_caps(fault[1], caps),
-						)
-				for fault in Slots.stack_faults(w, f, slots, count, side, kind, judged):
-					var at: Vector2 = Vector2.INF
-					for s in slots:
-						if int(s["n"]) == int(fault[0]):
-							at = s["point"]
-					_add(
-						offences,
-						seen,
-						label,
-						door,
-						side,
-						int(fault[0]),
-						count,
-						at,
-						fault[1],
-						_with_caps(fault[2], caps),
-					)
+				_judge_stack(sweep, way, side, count)
 	return read
+
+
+## The way in by frame `f` (the AI's geometry `g`) as the sweep judges it: `{ f, kind, door,
+## capacity, spots, lays }` (its `way_kind`; its words for the messages; what it holds, on a dead
+## end or a short wall; its wall spots on a `views` way in; `lays`: "<side> <count>" -> layout),
+## noted in `sweep.kinds`.
+func _way(sweep: Dictionary, f: Dictionary, g: Dictionary) -> Dictionary:
+	var w: Dictionary = sweep["w"]
+	var door := "%s>%s" % [f["id"], f["room_key"]]
+	var kind := Slots.way_kind(w, f)
+	var capacity: Dictionary = (Slots.dead_end_capacity(w, f, sweep["cache"])
+			if kind == "dead_end"
+			else {})
+	_note(sweep, kind, "%s %s%s" % [
+		sweep["label"],
+		door,
+		(" (holds %d)" % int(capacity["count"])) if kind == "dead_end" else "",
+	])
+	if kind == "views":
+		door += " (every wall spot in another doorway's view)"
+	elif kind == "open_floor":
+		door += " (no wall spot)"
+	elif kind == "dead_end":
+		door += " (no wall spot, a dead end holding %d)" % int(capacity["count"])
+	var way := {
+		"f": f, "kind": kind, "door": door, "capacity": capacity,
+		"spots": Slots.wall_spots(w, f) if kind == "views" else [], "lays": {},
+	}
+	for side in [1, -1]:
+		for count in range(1, Slots.MAX_STACK + 1):
+			way["lays"]["%d %d" % [side, count]] = Slots.layout(g, count, side)
+	if kind == "wall":
+		_short_wall(sweep, way)
+	elif kind == "views":
+		_short_views(sweep, way)
+	return way
+
+
+## Add the way in `entry` (in words) to the ways in of kind `kind` in `sweep.kinds`.
+func _note(sweep: Dictionary, kind: String, entry: String) -> void:
+	var kinds: Dictionary = sweep["kinds"]
+	kinds[kind] = kinds.get(kind, []) + [entry]
+
+
+## On a `wall` way in, what its wall band holds (`_wall_capacity`): a short wall's capacity and
+## words, noted in `sweep.kinds`, when it holds fewer than `MAX_STACK`.
+func _short_wall(sweep: Dictionary, way: Dictionary) -> void:
+	var f: Dictionary = way["f"]
+	var wall := _wall_capacity(sweep["w"], f, sweep["cache"], way["lays"])
+	if int(wall["count"]) >= Slots.MAX_STACK:
+		return
+	way["capacity"] = { "wall": wall }
+	way["door"] += " (a short wall holding %d)" % int(wall["count"])
+	_note(
+		sweep,
+		"short_wall",
+		"%s %s>%s (holds %d)" % [sweep["label"], f["id"], f["room_key"], int(wall["count"])],
+	)
+
+
+## On a `views` way in, what its band's fewest-seen spots hold (`Slots.views_capacity`, with the
+## way in's own slots): a short wall's capacity and words, noted in `sweep.kinds`, when they hold
+## fewer than `MAX_STACK`.
+func _short_views(sweep: Dictionary, way: Dictionary) -> void:
+	var f: Dictionary = way["f"]
+	var extra: Array = []
+	for key in way["lays"]:
+		extra.append_array((way["lays"][key]["slots"] as Array).map(func(s): return s["point"]))
+	var views := Slots.views_capacity(sweep["w"], f, sweep["cache"], way["spots"], extra)
+	if views.is_empty() or int(views["count"]) >= Slots.MAX_STACK:
+		return
+	way["capacity"] = { "wall": views }
+	way["door"] = (String(way["door"]).trim_suffix(")")
+			+ ", its fewest-seen spots holding %d)" % int(views["count"]))
+	_note(
+		sweep,
+		"short_views",
+		"%s %s>%s (holds %d, seen from at most %d)"
+			% [sweep["label"], f["id"], f["room_key"], int(views["count"]), int(views["bar"])],
+	)
+
+
+## Judge the stack of `count` on side `side` of the way in `way`: each slot's rules
+## (`Slots.point_faults`), then the stack's (`Slots.stack_faults`), adding what breaks to `sweep`.
+func _judge_stack(sweep: Dictionary, way: Dictionary, side: int, count: int) -> void:
+	var kind: String = way["kind"]
+	var stack := {
+		"side": side, "count": count,
+		"slots": way["lays"]["%d %d" % [side, count]]["slots"],
+		"bar": Slots.fewest_views_bar(way["spots"], count) if kind == "views" else 0,
+		"short": Slots.is_short_wall(kind, way["capacity"], count), "judged": way["capacity"],
+		"caps": "",
+	}
+	if stack["short"]:
+		stack["judged"] = _judged_short(sweep, way, stack)
+		stack["caps"] = Slots.capacity_text(sweep["w"], way["f"], stack["judged"])
+	for s in stack["slots"]:
+		_judge_slot(sweep, way, stack, s)
+	var w: Dictionary = sweep["w"]
+	var f: Dictionary = way["f"]
+	var faults := Slots.stack_faults(
+		w, f, { "slots": stack["slots"], "count": count, "side": side }, kind, stack["judged"],
+	)
+	for fault in faults:
+		var at: Vector2 = Vector2.INF
+		for s in stack["slots"]:
+			if int(s["n"]) == int(fault[0]):
+				at = s["point"]
+		_add(sweep, {
+			"house": sweep["label"], "door": way["door"], "side": side, "n": int(fault[0]),
+			"count": count, "point": at, "rule": fault[1],
+			"why": _with_caps(fault[2], stack["caps"]),
+		})
+
+
+## A short wall's capacities for `stack` (`{ wall, open }`): the wall's, and what the open floor
+## then holds beside the stack's own wall slots, up to the members past the wall.
+func _judged_short(sweep: Dictionary, way: Dictionary, stack: Dictionary) -> Dictionary:
+	var w: Dictionary = sweep["w"]
+	var f: Dictionary = way["f"]
+	var capacity: Dictionary = way["capacity"]
+	var need := int(stack["count"]) - int(capacity["wall"]["count"])
+	var in_band := func(s): return Slots.in_wall_band(w, f, s["point"])
+	var taken: Array = (stack["slots"] as Array).filter(in_band).map(func(s): return s["point"])
+	var open := Slots.open_floor_capacity(w, f, sweep["cache"], taken, need)
+	open["need"] = need
+	return { "wall": capacity["wall"], "open": open }
+
+
+## Judge slot `s` of `stack` by its own rules (`Slots.point_faults`: the way in's kind, or
+## `overflow` for a short wall's slot off its band), adding what breaks to `sweep`.
+func _judge_slot(sweep: Dictionary, way: Dictionary, stack: Dictionary, s: Dictionary) -> void:
+	var w: Dictionary = sweep["w"]
+	var f: Dictionary = way["f"]
+	var slot_kind: String = way["kind"]
+	if stack["short"] and not Slots.in_wall_band(w, f, s["point"]):
+		slot_kind = "overflow"
+	var rules := { "kind": slot_kind, "bar": stack["bar"] }
+	for fault in Slots.point_faults(w, f, s["point"], sweep["cache"], rules):
+		_add(sweep, {
+			"house": sweep["label"], "door": way["door"], "side": stack["side"],
+			"n": int(s["n"]), "count": stack["count"], "point": s["point"], "rule": fault[0],
+			"why": _with_caps(fault[1], stack["caps"]),
+		})
 
 
 ## What frame `f`'s wall band holds (`Slots.wall_capacity`), `{ count, points }`: when a stack of
@@ -313,20 +391,25 @@ func _wall_capacity(
 	for key in lays:
 		var points: Array = (lays[key]["slots"] as Array).map(func(s): return s["point"])
 		extra.append_array(points)
-		if (points.size() < Slots.MAX_STACK
-					or not points.all(func(p): return (
-						Slots.in_wall_band(w, f, p)
-							and Slots.point_faults(w, f, p, cache, "wall").is_empty()
-					))):
-			continue
-		var spaced := true
-		for i in points.size():
-			for j in range(i + 1, points.size()):
-				spaced = (spaced
-						and (points[i] as Vector2).distance_to(points[j]) >= Slots.STACK_SPACING)
-		if spaced:
+		if _packs_six(w, f, cache, points):
 			return { "count": points.size(), "points": points }
 	return Slots.wall_capacity(w, f, cache, extra)
+
+
+## Whether `points` (a layout's) are `MAX_STACK` valid wall-band points of frame `f`, pairwise at
+## least the slot spacing apart.
+func _packs_six(w: Dictionary, f: Dictionary, cache: Dictionary, points: Array) -> bool:
+	var valid := func(p): return (
+		Slots.in_wall_band(w, f, p)
+			and Slots.point_faults(w, f, p, cache, { "kind": "wall" }).is_empty()
+	)
+	if points.size() < Slots.MAX_STACK or not points.all(valid):
+		return false
+	for i in points.size():
+		for j in range(i + 1, points.size()):
+			if (points[i] as Vector2).distance_to(points[j]) < Slots.STACK_SPACING:
+				return false
+	return true
 
 
 ## `why` with a short wall's capacities (`caps`) added, unless it names them already.
@@ -334,26 +417,16 @@ static func _with_caps(why: String, caps: String) -> String:
 	return why if caps == "" or why.contains(caps) else "%s %s" % [why, caps]
 
 
-func _add(
-	offences: Array,
-	seen: Dictionary,
-	house: String,
-	door: String,
-	side: int,
-	n: int,
-	count: int,
-	point: Vector2,
-	rule: String,
-	why: String,
-) -> void:
-	var key := "%s %s %d %d %s" % [house, door, side, n, rule]
-	if seen.has(key):
+## Note `offence` (`{ house, door, side, n, count, point, rule, why }`) in `sweep.offences`, once
+## per house, door, side, slot and rule (at the smallest stack that shows it, `sweep.seen`).
+func _add(sweep: Dictionary, offence: Dictionary) -> void:
+	var key := "%s %s %d %d %s" % [
+		offence["house"], offence["door"], offence["side"], offence["n"], offence["rule"],
+	]
+	if sweep["seen"].has(key):
 		return
-	seen[key] = true
-	offences.append({
-		"house": house, "door": door, "side": side, "n": n, "count": count, "point": point,
-		"rule": rule, "why": why,
-	})
+	sweep["seen"][key] = true
+	(sweep["offences"] as Array).append(offence)
 
 
 ## One check per house and rule, listing every offending doorway, side and slot; then a summary line

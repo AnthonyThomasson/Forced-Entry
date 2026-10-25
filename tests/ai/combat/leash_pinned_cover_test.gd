@@ -67,7 +67,7 @@ func run(t: TestContext) -> void:
 		if d > float(farthest[0]):
 			farthest[0] = d
 			farthest[1] = Follow.act(m)
-	var w: Dictionary = await Follow.watch(t, [me, m], squad, WATCH_S, Callable(), each)
+	var w: Dictionary = await Follow.watch(t, [me, m], squad, WATCH_S, { "each": each })
 	gunman.hold_fire(false)
 
 	if not t.require(

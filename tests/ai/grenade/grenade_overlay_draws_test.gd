@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 			{ "pick": "retreat" },
 		],
 	)
-	Flank.npc(s, &"n", NPC_AT, {}, &"invader", HOSTILE_AT)
+	Flank.npc(s, &"n", NPC_AT, {}, { "look_at": HOSTILE_AT })
 	Probe.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 	s.actor(&"d", &"defender", Vector2(600, 330), { "facing": Vector2.LEFT })
 	s.show_overlays(["show_grenades"])

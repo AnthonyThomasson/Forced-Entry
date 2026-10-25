@@ -54,9 +54,9 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"point", Vector2(960, 60), 0.4)
-	Entry.npc(s, &"far", Vector2(1150, -150), 0.45, {}, { "speed": 0.0 })
-	Entry.npc(s, &"joiner", JOINER_START, 0.7, {}, { "rank": 1 })
+	Entry.npc(s, &"point", Vector2(960, 60))
+	Entry.npc(s, &"far", Vector2(1150, -150), { "decide_interval": 0.45 }, { "speed": 0.0 })
+	Entry.npc(s, &"joiner", JOINER_START, { "decide_interval": 0.7 }, { "rank": 1 })
 	s.set_static(DecisionStub, &"fail", true)
 	s.actor(&"lead", &"puppet", Vector2(1300, 700), { "faction": &"invader" })
 	s.squads({ "human": &"lead" })

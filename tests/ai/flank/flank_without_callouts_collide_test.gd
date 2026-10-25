@@ -24,14 +24,13 @@ func configure(s: TestSetup) -> void:
 	Maps.warehouse(s)
 	Flank.rules(s)
 	s.switch(&"ai.callouts", false)
-	Flank.npc(s, &"a", A_POS, {}, &"invader", TARGET_POS)
+	Flank.npc(s, &"a", A_POS, {}, { "look_at": TARGET_POS })
 	Flank.npc(
 		s,
 		&"b",
 		B_POS,
 		{ "max_commit_time": 0.55, "tactic_interval": 0.55, "decide_interval": 0.55 },
-		&"invader",
-		TARGET_POS,
+		{ "look_at": TARGET_POS },
 	)
 	Flank.target(s, &"target", TARGET_POS, A_POS)
 

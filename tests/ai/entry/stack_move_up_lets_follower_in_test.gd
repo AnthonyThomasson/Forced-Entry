@@ -54,4 +54,4 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Reach.run(t, Reach.frame(t, Vector2(500, -360), "garage"), IDS, &"lead", 1, STARTS)
+	await Reach.run(t, Reach.frame(t, Vector2(500, -360), "garage"), &"lead", 1, STARTS)

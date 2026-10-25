@@ -25,7 +25,7 @@ func configure(s: TestSetup) -> void:
 	Maps.warehouse(s)
 	s.object(&"pillar_south", Maps.PILLAR, PILLAR_POS)
 	Flank.rules(s)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"invader", TARGET_POS)
+	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, NPC_POS)
 
 

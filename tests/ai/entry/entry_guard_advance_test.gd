@@ -25,7 +25,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.guard_rules(s, ["combat", "advance", "rush"])
-	Entry.npc(s, &"inv", START, 0.4, {}, { "facing": Vector2.LEFT })
+	Entry.npc(s, &"inv", START, {}, { "facing": Vector2.LEFT })
 	Entry.target(s, &"tgt", TARGET, Vector2(0, 190), { "max_health": 30.0 })
 
 

@@ -25,7 +25,7 @@ func configure(s: TestSetup) -> void:
 	Flank.rules(s)
 	s.switch(&"ai.hostile_on_trespass", true)
 	s.switch(&"ai.territory", false)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"defender", TARGET_POS)
+	Flank.npc(s, &"npc", NPC_POS, {}, { "kind": &"defender", "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, LOOKING_AT, { "faction": &"invader" })
 
 

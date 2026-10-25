@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 		# a screen south of the target
 		s.object(StringName("screen_%d" % i), "shelving", Vector2(500 + i * 90, 440))
 	Flank.rules(s)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"invader", TARGET_POS)
+	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, NPC_POS)
 
 

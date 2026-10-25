@@ -50,16 +50,17 @@ static func rules(s: TestSetup, script: Array = SCRIPT_LEFT) -> void:
 
 ## An NPC held in place so the geometry it judges stays fixed: no movement (`speed` 0) and a short
 ## commit/tactic cadence so it re-decides every ~0.4 s and a test can read a full decision after a
-## moment. `look_at` sets its starting facing (default: unset), `gc` overrides GoalController
-## exports.
+## moment. `gc` overrides GoalController exports; `opts` holds `kind` (the actor kind, default
+## `&"invader"`) and `look_at` (a point that sets its starting facing; default: unset).
 static func npc(
 	s: TestSetup,
 	id: StringName,
 	pos: Vector2,
 	gc: Dictionary = {},
-	kind: StringName = &"invader",
-	look_at := Vector2.INF,
+	opts: Dictionary = {},
 ) -> void:
+	var kind: StringName = opts.get("kind", &"invader")
+	var look_at: Vector2 = opts.get("look_at", Vector2.INF)
 	var props := { "speed": 0.0 }
 	if look_at != Vector2.INF:
 		# starts looking at the fight, so the target is in its view cone

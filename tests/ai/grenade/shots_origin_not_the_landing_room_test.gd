@@ -50,7 +50,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"a",
 		IN_KITCHEN,
-		0.4,
 		{ "max_commit_time": 0.4, "tactic_interval": 0.4 },
 		{ "facing": Vector2.LEFT, "speed": 0.0 },
 	)

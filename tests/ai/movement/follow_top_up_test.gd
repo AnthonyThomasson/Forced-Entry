@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 		[me, m],
 		squad,
 		WITHIN,
-		func(_rec: Dictionary) -> bool: return reloaded.call(),
+		{ "stop": func(_rec: Dictionary) -> bool: return reloaded.call() },
 	)
 
 	t.check(

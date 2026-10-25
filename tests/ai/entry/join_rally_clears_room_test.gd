@@ -45,7 +45,7 @@ func run(t: TestContext) -> void:
 		return
 	var own_claim := func(_rec: Dictionary) -> bool:
 		return not Follow.own_claims(t, lead).is_empty()
-	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, own_claim)
+	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, { "stop": own_claim })
 	var claims := Follow.own_claims(t, lead)
 	if not t.require(
 			not claims.is_empty(),

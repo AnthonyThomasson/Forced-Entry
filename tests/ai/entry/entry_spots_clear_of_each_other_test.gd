@@ -33,10 +33,10 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(960, 40), 0.4)
-	Entry.npc(s, &"b", Vector2(985, 100), 0.55)
-	Entry.npc(s, &"c", Vector2(990, 280), 0.7)
-	Entry.npc(s, &"d", Vector2(960, 340), 0.85)
+	Entry.npc(s, &"a", Vector2(960, 40))
+	Entry.npc(s, &"b", Vector2(985, 100), { "decide_interval": 0.55 })
+	Entry.npc(s, &"c", Vector2(990, 280), { "decide_interval": 0.7 })
+	Entry.npc(s, &"d", Vector2(960, 340), { "decide_interval": 0.85 })
 
 
 func run(t: TestContext) -> void:

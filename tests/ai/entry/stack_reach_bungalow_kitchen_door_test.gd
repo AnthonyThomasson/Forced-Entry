@@ -58,4 +58,4 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Reach.run(t, Reach.frame(t, Vector2(-230, -170), "kitchen"), IDS, &"lead", 1, STARTS)
+	await Reach.run(t, Reach.frame(t, Vector2(-230, -170), "kitchen"), &"lead", 1, STARTS)

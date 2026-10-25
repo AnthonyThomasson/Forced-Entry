@@ -93,7 +93,7 @@ func _check_crossing(t: TestContext, samples: Array, door: Dictionary) -> void:
 				+ "at %.2f s)") % [covered, crossed],
 	)
 	var span := View.crossing_span(t, samples, &"inv", door, crossed)
-	var paused := View.longest_pause_in_view(t, samples, &"inv", door, 20.0, span[0], span[1])
+	var paused := View.longest_pause_in_view(t, samples, &"inv", door, span)
 	t.check(
 		paused < NO_STOP,
 		"it crossed the view without stopping (longest stop %.2f s, in the view %.2f to %.2f s)"

@@ -108,6 +108,6 @@ func _radioing(
 		if t.time - said >= REPEAT:
 			said = t.time
 			for id in claiming:
-				Stack.radio(t, id, opening, into, claiming[id][0], claiming[id][1])
+				Stack.radio(t, id, opening, into, claiming[id])
 		await t.frames(1)
 	return true

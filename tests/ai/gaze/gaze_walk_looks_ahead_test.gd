@@ -35,7 +35,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"inv",
 		Maps.HALL_MIDDLE,
-		0.4,
 		{ "familiar_with_house": true },
 		{ "facing": Vector2.LEFT, "aim_point": Maps.HALL_MIDDLE + Vector2.LEFT * 100.0 },
 	)

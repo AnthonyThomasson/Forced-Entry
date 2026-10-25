@@ -66,11 +66,7 @@ static func share_facing(
 		total += 1
 		var best := 360.0
 		for p in points:
-			best = minf(
-				best,
-				rad_to_deg(absf((s["facing"][id] as Vector2).angle_to((p as Vector2)
-						- (s["pos"][id] as Vector2)))),
-			)
+			best = minf(best, _off_facing(s, id, p))
 		if best <= degrees:
 			hits += 1
 	return float(hits) / float(maxi(total, 1))
@@ -95,3 +91,8 @@ static func points_faced(
 			if d <= degrees and not faced.has(i):
 				faced.append(i)
 	return faced
+
+
+## How far (degrees) actor `id`'s facing in sample `s` is off the direction to `p`.
+static func _off_facing(s: Dictionary, id: StringName, p: Vector2) -> float:
+	return rad_to_deg(absf((s["facing"][id] as Vector2).angle_to(p - (s["pos"][id] as Vector2))))

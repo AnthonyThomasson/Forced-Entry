@@ -93,8 +93,7 @@ func run(t: TestContext) -> void:
 		[me, m],
 		squad,
 		WATCH_S,
-		func(_rec): return t.happened(&"hit_landed", struck),
-		each,
+		{ "stop": func(_rec): return t.happened(&"hit_landed", struck), "each": each },
 	)
 	if not t.require(
 			t.happened(&"hit", func(d): return d.get("attacker") == gunman),

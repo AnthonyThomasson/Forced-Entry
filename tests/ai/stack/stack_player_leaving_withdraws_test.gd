@@ -22,7 +22,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	# A long ready timeout so the point is still stacking while the human leaves.
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 60.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 60.0 })
 	Stack.human(s, &"me", Stack.NEAR)
 
 

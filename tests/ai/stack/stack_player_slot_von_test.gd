@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 	# as in every entry test.
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4)
+	Entry.npc(s, &"a", Vector2(930, 90))
 	Stack.human(s, &"me", Stack.NEAR)
 
 

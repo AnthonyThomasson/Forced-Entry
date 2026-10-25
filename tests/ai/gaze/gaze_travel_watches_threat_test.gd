@@ -31,7 +31,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"inv",
 		START,
-		0.4,
 		{ "familiar_with_house": true, "pursue_hostiles": false },
 		{ "facing": Vector2.RIGHT, "aim_point": HOSTILE_AT },
 	)

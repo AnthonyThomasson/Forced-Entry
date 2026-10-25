@@ -62,7 +62,7 @@ func run(t: TestContext) -> void:
 	var done := func(rec: Dictionary) -> bool:
 		var moves: Array = rec["moves"].get(lead, [])
 		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
-	var w: Dictionary = await Follow.watch(t, nodes, squad, WATCH_S, done)
+	var w: Dictionary = await Follow.watch(t, nodes, squad, WATCH_S, { "stop": done })
 
 	if not t.require(
 			Follow.took(w, lead, "search"),
