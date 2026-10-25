@@ -1,6 +1,6 @@
 extends GameTest
 ## Performance guard for the thing a player watches: a 5v5 match in a generated house (the largest
-## plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one (`s.match`,
+## plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one (`s.declared_match`,
 ## `MatchBuilder.populate`): the defenders at clear spots in random rooms and the invader team in
 ## one group beside the front door, each side with its spec loadout (the invaders' helmet and steel
 ## plates front and back, a stun and a frag each; the defenders' plain clothes; a random gun each),
@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters: Array = t.match().get("combatants", [])
+	var characters: Array = t.match_handle().get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"ten combatants spawned (%d)" % characters.size(),

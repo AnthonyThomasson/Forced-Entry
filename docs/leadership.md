@@ -68,7 +68,7 @@ Tests: `general/squad_leader_rule` (invaders by rank, then spawn order; defender
 `&"leader"` `{ faction, leader, previous }`. The orders already given stand (but for the dead human leader's defends and ambushes, LD26); a
 later order, from the new leader, replaces them. The followers re-centre on the new leader, which stops following (LD19).
 
-Tests: `general/squad_succession` (a match built as Main builds one, `s.match` on the bare Terrace house: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
+Tests: `general/squad_succession` (a match built as Main builds one, `s.declared_match` on the bare Terrace house: the lead invader killed, the sergeant leads within a frame, one `leader` event, the
 trooper keeps its order, a newer order from the sergeant replaces it).
 
 **LD5. Order transport.** A squad posts each order its leader gives as `&"order"` `{ id, leader, faction, to, kind, ... }`, kinds
@@ -805,7 +805,7 @@ before its audit fixes, the same morning (06:52 to 07:03, load 3.07 to 7.28), ga
 ## Performance
 
 **Since the match builder (issue #95).** The three match guards (`match_5v5_stress`, `match_10v10_stress`, `grenade_match_stress`) build
-their match through `MatchBuilder` as Main builds one (`s.match`): the invader team beside the front door with its plates and grenades,
+their match through `MatchBuilder` as Main builds one (`s.declared_match`): the invader team beside the front door with its plates and grenades,
 styled and ranked, one squad a side, every member but the leader following it. `perf/match_10v10_team_stress` is folded into
 `match_10v10_stress`, which keeps its premises (one squad a side, the rank rule's leader, every member but the leader following, contact
 within `Perf.MATCH_CONTACT_WITHIN`) and its logs; the 5v5 and the grenade match now require contact too (`Perf.warm_until_contact`). So `tools/run_tests.sh

@@ -30,15 +30,15 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.layout([{ "key": "room", "type": "living_room", "rect": ROOM }], [])
 	s.von_down()
-	s.match({ "seed": 3, "defenders": { "count": 0 }, "invaders": { "count": INVADERS } })
+	s.declared_match({ "seed": 3, "defenders": { "count": 0 }, "invaders": { "count": INVADERS } })
 
 
 func run(t: TestContext) -> void:
-	var team: Array = t.match().get("combatants", [])
+	var team: Array = t.match_handle().get("combatants", [])
 	if not t.require(team.size() == INVADERS, "premise: four invaders placed (%d)" % team.size()):
 		return
 	if not t.require(
-			not (t.match()["openings"] as Array).any(func(o): return o.get("front", false)),
+			not (t.match_handle()["openings"] as Array).any(func(o): return o.get("front", false)),
 			"premise: the house has no front door",
 	):
 		return

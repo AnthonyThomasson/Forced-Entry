@@ -12,8 +12,8 @@
 #   3. gdstyle (tools/gdstyle.sh, pinned; config gdstyle.toml), by tools/lint_gdstyle.py: a section listing the scripts
 #      `gdstyle fmt --check` would change (`tools/gdstyle.sh fmt PATH` formats them), and one listing every finding of
 #      `gdstyle check` (a line over 100 columns, member order, naming ...: every rule an error but some quality/* ones,
-#      five off by decision and the rest until issue #76 turns them on, 18 on then, as gdstyle.toml says). Like the
-#      engine pass it skips a folder holding a .gdignore.
+#      15 on, five off by decision and the three structural ones until stage 3 of issue #76 turns them on, 18 on then,
+#      as gdstyle.toml says). Like the engine pass it skips a folder holding a .gdignore.
 # tools/run_tests.sh runs it first, and the Stop hook after a turn changed what it reads. tools/lint_staged.sh runs it
 # on what a commit holds (the staged scripts, or the whole tree when a file that governs every script is staged); the
 # pre-commit hook and tools/run_tests.sh --changed --staged run that instead.

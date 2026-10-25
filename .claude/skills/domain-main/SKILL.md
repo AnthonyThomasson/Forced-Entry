@@ -175,7 +175,7 @@ builder hands it the bind rule as `bind`, so the dependency runs one way.
 
 ## Tests
 
-- The module: `tests/general/match_builder_builds_match_test.gd` (`s.match` on a generated house: the handle's world, rooms and openings, the
+- The module: `tests/general/match_builder_builds_match_test.gd` (`s.declared_match` on a generated house: the handle's world, rooms and openings, the
   counts, the invaders' kit, unit and ranks, one squad per faction led by the rank rule, every controller bound with rooms, openings, the
   front entrance and its squad), `match_nav_ready_before_spawn_test.gd` (both maps `NavBuilder.ready` as the first NPC enters, its first walk
   target on the navmesh, for the module and for Main run whole; a match torn down during the wait places nobody),

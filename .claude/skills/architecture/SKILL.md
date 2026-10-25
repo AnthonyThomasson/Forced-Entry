@@ -604,8 +604,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     (20: `WorldLighting.light` after the nav bake) are Main's own path, then the wait until both navigation maps are `ready` before any
     actor enters), the character scenes plus the controller contract (7: each NPC actor bound by the match's one rule, `MatchBuilder.bind_npc`,
     before it joins the tree: the house's `rooms` / `openings` and, for an invader, the front entrance as its `entry_point`,
-    `MatchBuilder.entry_point_for`), a declared match (`TestSetup.match`: `MatchBuilder.populate` over the staged world, read with
-    `TestContext.match()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.squads_over`, the human leader handed its
+    `MatchBuilder.entry_point_for`), a declared match (`TestSetup.declared_match`: `MatchBuilder.populate` over the staged world, read with
+    `TestContext.match_handle()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.squads_over`, the human leader handed its
     stack radio through `MatchBuilder.bind_player`, read with `TestContext.squad(faction)` / `player_stack()`) — a puppet
     `ScriptedController` or `player_controller.gd` on `character/character_base.tscn` (the
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
@@ -943,7 +943,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - **Main's one way in:** `Main.start_match(spec) -> Dictionary` builds `spec` under a fresh `World` node (`MatchBuilder.build`, the spec's
       `overlays` replaced by Main's flags) and wires the HUDs on the handle (17, 18, 21, 22); `{}` when the match was torn down while built.
     - The Testing domain (13): `TestWorld` stages through `stage` (`wait_nav` on), binds each NPC actor through `bind_npc` with
-      `entry_point_for`, populates a declared match through `populate` (`TestSetup.match`, `TestContext.match()`), builds declared squads
+      `entry_point_for`, populates a declared match through `populate` (`TestSetup.declared_match`, `TestContext.match_handle()`), builds declared squads
       through `squads_over` (`TestSetup.squads`) and routes its overlay toggles through
       `set_overlay`; it has no bake, light, nav-wait or bind code of its own.
 
@@ -1048,10 +1048,13 @@ Two conventions hold across domains; the per-domain specifics live in each domai
      Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
      (`tools/lint_rules/`, one section each), then gdstyle's two (`gdstyle fmt --check`: a script the formatter would change;
      `gdstyle check`: the rules `gdstyle.toml` turns on, among them lines over 100 columns and member order, and of its
-     `quality/*` rules `unnecessary-pass`, `self-comparison`, `duplicate-dict-key`, `duplicated-load`, `max-inner-classes`,
-     `no-self-assign`, `unreachable-code` and `no-else-return`; five are off by decision (`no-debug-print`, `await-in-loop`,
-     `empty-function`, `allocation-in-loop`, `process-get-node`; the reasons beside them in `gdstyle.toml`), and the rest
-     turn on as issue #76 goes, 18 on at its end); any finding fails it, and it runs first in every
+     `quality/*` rules 15, at gdstyle's default thresholds: `unnecessary-pass`, `self-comparison`, `duplicate-dict-key`,
+     `duplicated-load`, `max-inner-classes`, `no-self-assign`, `unreachable-code`, `no-else-return` and the function-level
+     `max-function-length`, `max-parameters`, `type-hint`, `max-nesting-depth`, `max-returns`, `max-branches` and
+     `max-local-variables`; five are off by decision (`no-debug-print`, `await-in-loop`, `empty-function`,
+     `allocation-in-loop`, `process-get-node`; the reasons beside them in `gdstyle.toml`), and the three structural ones
+     (`max-file-length`, `max-class-variables`, `max-public-methods`) turn on in issue #76's stage 3, 18 on at its end);
+     any finding fails it, and it runs first in every
      `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH` formats a script. Fix the code;
      never silence a warning (`audit`).
   2. **Behaves?** `tools/run_tests.sh [words]` runs every test headless and deterministically through gdUnit4's command-line

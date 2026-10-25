@@ -4,9 +4,9 @@ extends GameTest
 ## `{ faction, leader, previous }`, and the orders already given stand; a later order (from the new
 ## leader) replaces them.
 ##
-## The match is built the way Main builds one (`s.match`, populated through `MatchBuilder` on the
-## bare Terrace house: its three invaders at their start points, ranked as a match ranks its unit,
-## lead, sergeant, trooper, and given their squad). The leader is killed with `take_damage`.
+## The match is built the way Main builds one (`s.declared_match`, populated through `MatchBuilder`
+## on the bare Terrace house: its three invaders at their start points, ranked as a match ranks its
+## unit, lead, sergeant, trooper, and given their squad). The leader is killed with `take_damage`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
@@ -28,11 +28,11 @@ func configure(s: TestSetup) -> void:
 	# Scripted Von (the first option offered): the members' own decisions are not under test.
 	Maps.house(s, false)
 	s.von_script([])
-	s.match({ "defenders": { "count": 0 }, "invaders": { "at": INVADERS } })
+	s.declared_match({ "defenders": { "count": 0 }, "invaders": { "at": INVADERS } })
 
 
 func run(t: TestContext) -> void:
-	var built := t.match()
+	var built := t.match_handle()
 	var npcs: Array = built.get("combatants", [])
 	if not t.require(npcs.size() == 3, "the match has its three invaders"):
 		return

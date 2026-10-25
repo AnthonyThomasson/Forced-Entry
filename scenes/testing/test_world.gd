@@ -22,8 +22,8 @@ var house: Node2D
 var rooms: Array = []
 ## Its doorways (`WorldGen.get_openings`), injected into every NPC beside `rooms`.
 var openings: Array = []
-## The match `TestSetup.match` declared, populated over this world (`MatchBuilder.populate`'s
-## handle); {} when none.
+## The match `TestSetup.declared_match` declared, populated over this world
+## (`MatchBuilder.populate`'s handle); {} when none.
 var match_handle: Dictionary = {}
 ## The squads `TestSetup.squads` declared, by faction (`MatchBuilder.build_squads`), and the human
 ## leader's stack radio (`MatchBuilder.bind_player`), or null; or the declared match's own.
@@ -42,7 +42,7 @@ var _overlay_flags: Dictionary = {}
 ## updater.
 var _nav_debug: Node2D = null
 ## The squad-leaders overlay (the "Squad leaders" toggle), built with the squads a setup declares
-## (`TestSetup.squads` or `TestSetup.match`); null in a world that declares none.
+## (`TestSetup.squads` or `TestSetup.declared_match`); null in a world that declares none.
 var _leader_overlay: Node2D = null
 
 
@@ -103,9 +103,9 @@ func _spawn_objects(setup: TestSetup) -> void:
 		)
 
 
-## The match `setup` declares (`TestSetup.match`), populated as Main's over the `staged` world
-## (`MatchBuilder.populate`, its overrides over the world's `spec`; a human named by its test actor
-## is that node), with its squads, stack radio and leaders overlay kept; an error when `setup`
+## The match `setup` declares (`TestSetup.declared_match`), populated as Main's over the `staged`
+## world (`MatchBuilder.populate`, its overrides over the world's `spec`; a human named by its test
+## actor is that node), with its squads, stack radio and leaders overlay kept; an error when `setup`
 ## declares its own squads too.
 func _populate_match(setup: TestSetup, staged: Dictionary, spec: Dictionary) -> void:
 	var overrides: Dictionary = (setup.match_spec as Dictionary).merged(spec)

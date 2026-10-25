@@ -2,9 +2,9 @@ extends RefCounted
 ## Shared helpers for the tests that watch a match's NPCs in a generated house
 ## (tests/ai/investigate/defenders_stay_in_house_*, `ai/entry/entry_team_no_bumping`,
 ## `ai/movement/follow_defenders`; not a test itself): `house` declares the house and a match over
-## it placed the way Main places one (`s.match`, `MatchBuilder.populate`: the defenders each at a
-## clear spot in a random room, the invader team in one group outside the house beside its front
-## entrance, heading for it; everyone armed, styled and in its side's squad), `side` reads one
+## it placed the way Main places one (`s.declared_match`, `MatchBuilder.populate`: the defenders
+## each at a clear spot in a random room, the invader team in one group outside the house beside its
+## front entrance, heading for it; everyone armed, styled and in its side's squad), `side` reads one
 ## side's NPCs off it, and `watch` tells whether a defender ever steps outside.
 
 ## How far past a room's rectangle (px) a defender may stand before it has left: a doorway's depth.
@@ -15,13 +15,13 @@ const SLACK := 30.0
 ## `defenders` defenders and `invaders` invaders, its placement seeded with the house's seed.
 static func house(s: TestSetup, seed_value: int, defenders: int, invaders: int) -> void:
 	s.house(seed_value)
-	s.match({ "defenders": { "count": defenders }, "invaders": { "count": invaders } })
+	s.declared_match({ "defenders": { "count": defenders }, "invaders": { "count": invaders } })
 
 
 ## The match's NPCs of `faction` (`&"household"` the defenders, `&"invader"` the invaders), in
 ## spawn order.
 static func side(t: TestContext, faction: StringName) -> Array:
-	return (t.match().get("combatants", []) as Array).filter(
+	return (t.match_handle().get("combatants", []) as Array).filter(
 		func(c): return is_instance_valid(c) and c.get("faction") == faction,
 	)
 

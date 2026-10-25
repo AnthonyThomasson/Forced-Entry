@@ -45,8 +45,9 @@ tools/gdstyle.sh fmt [paths]      # format scripts the way gdstyle's pass wants 
   step 5). It prints a section per pass: `== GDScript analyzer (engine) ==`, then `== <rule>: <description> ==` for each
   project lint rule (`tools/lint_rules/README.md`), then `== gdstyle fmt --check: … ==` (each script the formatter would
   change, with the `tools/gdstyle.sh fmt <path>` that fixes it) and `== gdstyle check: … ==` (`path:line:col: message
-  [rule]`: a line over 100 columns, member order, naming, the `quality/*` rules `gdstyle.toml` turns on, ...), each
-  ending in `PASS` or `FAIL`; any failing section
+  [rule]`: a line over 100 columns, member order, naming, the 15 `quality/*` rules `gdstyle.toml` turns on (five are
+  off by decision, and `max-file-length`, `max-class-variables` and `max-public-methods` turn on in stage 3 of issue
+  #76), ...), each ending in `PASS` or `FAIL`; any failing section
   fails the lint. `--list-rules` lists the rules, `--rule=a,b` runs only those (no engine or gdstyle pass, so no
   Godot), `--skip-rule=a,b` every rule but those, `--no-gdstyle` leaves gdstyle out. Every `.gd` outside `addons/`,
   `.godot/`, `artifacts/` and the coverage tool's fixtures is held to it, `tools/` and `sandboxes/` included. gdstyle

@@ -1,6 +1,6 @@
 extends GameTest
-## The match-assembly module (`MatchBuilder.populate`, declared with `s.match`, read with
-## `t.match()`): a match populated on a generated house is the match Main plays. The handle's
+## The match-assembly module (`MatchBuilder.populate`, declared with `s.declared_match`, read with
+## `t.match_handle()`): a match populated on a generated house is the match Main plays. The handle's
 ## world, rooms and openings are those of the house; each side has its count; the invaders carry
 ## Main's default kit (1 stun, 1 frag, a steel III plate front and back: `docs/outfits.md` O11) and
 ## are one police unit (`zenitex` or `trauma`, O15) ranked lead (2), sergeant (1), the rest troopers
@@ -24,10 +24,11 @@ const PLATE := &"steel_iii"
 func describe() -> Dictionary:
 	return {
 		"name": "MatchBuilder builds the match Main plays",
-		"description": "A match declared with s.match on a generated house: the handle names the "
-			+ "house's world, rooms and openings; each side has its count; the invaders carry a "
-			+ "stun, a frag and plates and are one police unit ranked lead and sergeant; one squad "
-			+ "per side led by the rank rule; every NPC bound to the house and its squad.",
+		"description": "A match declared with s.declared_match on a generated house: the handle "
+			+ "names the house's world, rooms and openings; each side has its count; the invaders "
+			+ "carry a stun, a frag and plates and are one police unit ranked lead and sergeant; "
+			+ "one squad per side led by the rank rule; every NPC bound to the house and its "
+			+ "squad.",
 		"tags": ["setup", "match", "spawn", "squad", "leadership"],
 		"timeout": 10.0,
 	}
@@ -36,12 +37,12 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.house(SEED, "", ENTRANCE)
 	s.von_down()
-	s.match({ "defenders": { "count": DEFENDERS }, "invaders": { "count": INVADERS } })
+	s.declared_match({ "defenders": { "count": DEFENDERS }, "invaders": { "count": INVADERS } })
 
 
 func run(t: TestContext) -> void:
-	var handle: Dictionary = t.match()
-	if not t.require(not handle.is_empty(), "t.match() returns the match's handle"):
+	var handle: Dictionary = t.match_handle()
+	if not t.require(not handle.is_empty(), "t.match_handle() returns the match's handle"):
 		return
 	var brains := {}
 	for c in handle.get("combatants", []):

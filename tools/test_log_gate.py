@@ -669,6 +669,22 @@ class GdStyleLintTests(unittest.TestCase):
         "quality/unreachable-code": "extends RefCounted\n\n\nfunc f(a: Array) -> int:\n\tfor x: int in a:\n\t\tif x > 0:\n"
                                     "\t\t\tbreak\n\t\t\treturn x\n\treturn 0\n",
         "quality/no-else-return": "extends RefCounted\n\n\nfunc f(a: bool) -> int:\n\tif a:\n\t\treturn 1\n\telse:\n\t\treturn 2\n",
+        # The function-level rules, each one past gdstyle's default: 50 lines (header included), 5 parameters, 10
+        # locals, nesting 4, 8 branches, 6 returns.
+        "quality/max-function-length": "extends RefCounted\n\n\nfunc f() -> int:\n\tvar total := 0\n" + "\ttotal += 1\n" * 50
+                                       + "\treturn total\n",
+        "quality/max-parameters": "extends RefCounted\n\n\nfunc f(a: int, b: int, c: int, d: int, e: int, g: int) -> int:\n"
+                                  "\treturn a + b + c + d + e + g\n",
+        "quality/type-hint": "extends RefCounted\n\n\nfunc f(a) -> int:\n\treturn a + 1\n",
+        "quality/max-nesting-depth": "extends RefCounted\n\n\nfunc f(a: int) -> int:\n"
+                                     + "".join("\t" * (i + 1) + f"if a > {i}:\n" for i in range(5)) + "\t" * 6 + "return 1\n"
+                                     + "\treturn 0\n",
+        "quality/max-returns": "extends RefCounted\n\n\nfunc f(a: int) -> int:\n"
+                               + "".join(f"\tif a == {i}:\n\t\treturn {i}\n" for i in range(6)) + "\treturn -1\n",
+        "quality/max-branches": "extends RefCounted\n\n\nfunc f(a: int) -> int:\n\tvar total := 0\n"
+                                + "".join(f"\tif a > {i}:\n\t\ttotal += {i}\n" for i in range(9)) + "\treturn total\n",
+        "quality/max-local-variables": "extends RefCounted\n\n\nfunc f() -> int:\n\tvar v0 := 1\n"
+                                       + "".join(f"\tvar v{i} := v{i - 1} + 1\n" for i in range(1, 11)) + "\treturn v10\n",
     }
     QUALITY_OFF_BY_DECISION = {
         "quality/no-debug-print": "extends RefCounted\n\n\nfunc f() -> void:\n\tprint(\"x\")\n",
@@ -678,11 +694,7 @@ class GdStyleLintTests(unittest.TestCase):
         # No node in it: gdstyle reads a % format with a call after it as a %UniqueNode lookup.
         "quality/process-get-node": "extends Node\n\n\nfunc _process(delta: float) -> void:\n\tset_meta(\"t\", \"%d\" % ceili(delta))\n",
     }
-    QUALITY_NOT_YET = (
-        "quality/max-function-length", "quality/max-file-length", "quality/max-parameters", "quality/type-hint",
-        "quality/max-class-variables", "quality/max-public-methods", "quality/max-nesting-depth", "quality/max-returns",
-        "quality/max-branches", "quality/max-local-variables",
-    )
+    QUALITY_NOT_YET = ("quality/max-file-length", "quality/max-class-variables", "quality/max-public-methods")
     FINDING = re.compile(r"^\s+(\S+\.gd):\d+:\d+: .* \[([\w/-]+)\]$", re.M)  # a `gdstyle check` line of lint.sh
 
     @classmethod

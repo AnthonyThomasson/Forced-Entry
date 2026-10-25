@@ -24,8 +24,9 @@ interface 23), the module Main builds its matches with, so a test world is stage
   integer division (it recompiles the script once per `/`). Then the project lint rules (`tools/lint_rules/`) and
   gdstyle (`tools/gdstyle.sh`, pinned v0.4.0; config `gdstyle.toml`): `gdstyle fmt --check` names every script the
   formatter would change, `gdstyle check` every finding of its rules (a line over 100 columns, tabs, member order,
-  naming, ...: all errors but some `quality/*` ones, five off by decision and the rest until issue #76 turns them on,
-  18 on then, as `gdstyle.toml` says); one finding fails the run like a warning. Run `tools/lint.sh scenes/x.gd`
+  naming, ...: all errors but some `quality/*` ones, 15 on, five off by decision and the three structural ones,
+  `max-file-length`, `max-class-variables` and `max-public-methods`, until stage 3 of issue #76 turns them on, 18 on
+  then, as `gdstyle.toml` says); one finding fails the run like a warning. Run `tools/lint.sh scenes/x.gd`
   for one script and `tools/gdstyle.sh fmt scenes/x.gd` to format it. Fix the code: never silence a warning or a
   finding (see `audit`).
 - **CLI:** `tools/run_tests.sh [filter words] [--include-von]` runs every test through gdUnit4's command-line tool:
@@ -323,7 +324,7 @@ func run(t: TestContext) -> void:
     example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, and the ammo props
     `start_rounds` (what the starting gun is loaded with; -1 = full) and `spare_magazine_types` (e.g. `[]` for none,
     `[&"extended"]`; the default is two standard magazines for each gun, so a test counting spares sets it)). Actors built here
-    keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `match`) arms a spawn
+    keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
     with its side's loadout (`MatchBuilder.arm`, `Character.set_loadout`). To retune a gun for one test, `set_static(GunConfig, "guns", modified_copy)` (e.g. spread 0 for a
     straight shot). Use
     `set_props(id, "GoalController", {...})` for a child's exports. An NPC actor is bound by the match's own rule before it joins
@@ -338,11 +339,11 @@ func run(t: TestContext) -> void:
     puppets keeps no claim unless `claim_ttl` names one: the two that radio claims name the NPCs' 6 s
     (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
     that declares no squads has none: its NPCs pick their own goals.
-  - A whole match: `match(overrides := {})` populates one over the staged world as Main does (`MatchBuilder.populate`, after the
+  - A whole match: `declared_match(overrides := {})` populates one over the staged world as Main does (`MatchBuilder.populate`, after the
     actors): `overrides` are `MatchBuilder.spec`'s (each side's `count`, `loadout` and `at`, `human`, `spawn_clearance`,
     `invader_margin`, ...), the world's seed its `seed` unless they name one, the setup's overlays its `overlays`. Its `human` may
     name an actor (`{ actor, side, lead, at }`, `actor` in place of `node`): that actor is joined to its side, armed and handed its
-    stack radio. The match's NPCs are not test actors: read them off `t.match()`. Declare `squads` or `match`, not both (an error).
+    stack radio. The match's NPCs are not test actors: read them off `t.match_handle()`. Declare `squads` or `declared_match`, not both (an error).
   - Behaviour: `switch(name, on)` (table below) and `set_static(ConfigClass, prop, value)`.
   - Scripted Von: `von_script([{ pick: id, question: substring? }, …])` replaces the server with those
     picks (first rule whose id is offered; else the first offered option), so an AI test needs no server
@@ -358,7 +359,7 @@ func run(t: TestContext) -> void:
     `await t.until(cond, timeout, msg := "") -> bool` (with `msg`, a timeout records a failed check).
   - Lookup: `t.actor(id)`, `t.puppet(id)` (the ScriptedController), `t.object(id)`, `t.vehicle(id)`,
     `t.controller(id, method)` (e.g. `&"current_act"` for an NPC brain; `TestContext.controller_of(character, method := &"control")`
-    is the same for a character that is not a test actor, e.g. a match's NPC), `t.world`, `t.rooms`, `t.time`; `t.match()` (the
+    is the same for a character that is not a test actor, e.g. a match's NPC), `t.world`, `t.rooms`, `t.time`; `t.match_handle()` (the
     declared match's handle, `{ world, house, rooms, openings, nav_region, nav_debug, combatants, squads, player_stack,
     leader_overlay }`, {} with none), `t.squad(faction)` (the declared squad of that faction, `squads`' or the match's, null with none)
     and `t.player_stack()` (the human leader's stack radio, null with none).
@@ -416,7 +417,7 @@ selector. They are ordinary tests that load other domains, so they live apart fr
 
 | Test | Load |
 |---|---|
-| `perf/match_5v5_stress` | the whole-match case, built as Main builds one (`s.match({ defenders: { count }, invaders: { count } })` over `s.house(Perf.MATCH_SEED, Perf.MATCH_PLAN)`, through `MatchBuilder.populate`: `Perf.configure_match`): a generated house pinned to the largest plan, `garage_home` (so a catalogue change never shrinks the house it fights in), five defenders at clear spots in random rooms and five invaders in one group beside the front door, each side with its spec loadout (the invaders' helmet, plate carrier and steel plates front and back, a stun and a frag each; the defenders' plain clothes; a random gun each), styled and ranked, one squad per side, every debug overlay off (the spec's `overlays` default), nav re-baker, blood, debris, sound and radio on, scripted Von; the sides in contact before the window opens (`Perf.await_contact`, a premise) |
+| `perf/match_5v5_stress` | the whole-match case, built as Main builds one (`s.declared_match({ defenders: { count }, invaders: { count } })` over `s.house(Perf.MATCH_SEED, Perf.MATCH_PLAN)`, through `MatchBuilder.populate`: `Perf.configure_match`): a generated house pinned to the largest plan, `garage_home` (so a catalogue change never shrinks the house it fights in), five defenders at clear spots in random rooms and five invaders in one group beside the front door, each side with its spec loadout (the invaders' helmet, plate carrier and steel plates front and back, a stun and a frag each; the defenders' plain clothes; a random gun each), styled and ranked, one squad per side, every debug overlay off (the spec's `overlays` default), nav re-baker, blood, debris, sound and radio on, scripted Von; the sides in contact before the window opens (`Perf.await_contact`, a premise) |
 | `perf/match_10v10_stress` | the same with ten a side: the largest match the game means to carry, held to the same standard. Each squad's members but its leader follow it (every member but the leader following is a premise), so the squads' cost (the trail, the follow spots, the `follow` primitive, the leash) is in the frame, and the sides are in contact as the window opens, so it measures the teams' fight; it logs when contact came (`PERF 10v10 match contact at <s> s`), the window (`PERF 10v10 match window: <n> knowing a hostile as it opened, <n> shots in it`) and the follow count (`PERF 10v10 match node growth ..., <n> following at the end`). **Red on a quiet machine** (its p95 and max), by the user's decision: an invader's decision that weighs its grenades (the throw spots and the escape from the burst, in its decision snapshot) spikes in one frame; the standard is untouched and the fix is #98 |
 | `perf/npc_crowd_stress` | twelve scripted-Von NPCs sensing, deciding and shooting in one open furnished arena (everyone sees everyone: the decision snapshot's worst case) |
 | `perf/automatic_fire_stress` | SMGs and rifles on the trigger plus pistols clicking into furniture: one run covers the single-shot and the automatic path |
@@ -436,7 +437,7 @@ preload(...)`; not a test), with the match guards' contact: `await_contact(t, la
 on until a shot has been fired and some NPC among `characters` knows a hostile at once (at most `limit_s` s more), logs `PERF
 <label> contact at <s> s` and returns whether contact came (the guard `require`s it), and `knows_hostile(c)` (an NPC knowing a
 hostile now, `known_contacts_for_display()`; false for a dead or freed one). The three match guards share one match and one warm-up:
-`configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.match` with `per_side` a side, scripted Von, the
+`configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.declared_match` with `per_side` a side, scripted Von, the
 callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` (6 s) and then `await_contact` (at most
 `MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `character/standing_body_repaints_on_change` keeps a count but is
 a functional test of its domain. A wall-clock budget belongs here and nowhere else: the lint rule `timing_in_perf`
@@ -611,7 +612,7 @@ Main does: declared with `s.squads({ "human": id })` and read with `t.player_sta
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points
 (`Stack.crossing(door)` goes in through a door). A late AI joiner is held back like in `entry_ally_joins_stack` (`entry_enabled` false,
 speed 0) until the human has its slot. `stack_player_slot_von` runs the whole thing with the real Von server (`requires_von`).
-`stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.match`, below) and its human is the player's own character and
+`stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.declared_match`, below) and its human is the player's own character and
 controller, given its stack through `MatchBuilder.bind_player`. The UI half is `tests/ui/stack_markers_draw_test.gd` (a fake stack with a
 `view()`), the wiring `tests/general/stack_player_wiring_test.gd`.
 
@@ -623,12 +624,12 @@ rest and how far it was shoved; `of_kind`, `collisions` (a head-on pair's two bu
 `pressed_watch(walker, other)` is a clock of the walker standing pressed against the other (still, centres under `PRESSED_GAP` 45 px: what `keep_off`
 leaves of a walk into a body, short of a bump), called once a frame, against `PRESSED_MAX` (0.5 s). The
 mechanism tests are `tests/ai/movement/npc_*` (scripted Von, a puppet teammate standing still), the scenario `tests/ai/entry/entry_team_no_bumping`
-(real Von, four invaders placed as a match places its team: `s.match` through `tests/_ai/house_probe.gd`). A test that a held walk re-plans reads `debug_state()["decisions"]` / `["decision_reason"]`
+(real Von, four invaders placed as a match places its team: `s.declared_match` through `tests/_ai/house_probe.gd`). A test that a held walk re-plans reads `debug_state()["decisions"]` / `["decision_reason"]`
 ("way blocked"): an auto-picked level asks Von nothing (`tests/ai/entry/entry_held_walk_replans` for an entry's walk).
 
 **A match built as Main builds one.** Every test world is staged as Main's match is (`MatchBuilder.stage`, `wait_nav` on: it waits until
 the navigation maps answer with the world before an actor spawns, and Main's match waits the same way, `general/match_nav_ready_before_spawn`).
-A test that wants Main's whole match declares it (`s.match`, read with `t.match()`); its human may be a test actor: in
+A test that wants Main's whole match declares it (`s.declared_match`, read with `t.match_handle()`); its human may be a test actor: in
 `tests/ai/stack/stack_ai_goes_round_player_in_slot` it is the player's own character and controller (no input), joined to the invaders
 and handed its stack radio as a match's human is (`MatchBuilder.bind_player`). A test of Main itself runs Main whole through its public
 members with `tests/_main/main_probe.gd` (`const MainProbe := preload(...)`; not a test): `open(parent, exports, player_at := ZERO)` (Main with
@@ -676,7 +677,7 @@ LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet
 preload(...)`; not a test): the spec's numbers as its own consts (`FOLLOW_GAP`, `FOLLOW_STEP`, `FOLLOW_CAUGHT_UP`, `FOLLOW_RING`, `FOLLOW_RINGS`,
 `FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `FOLLOW_ARRIVE`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
 (`band_p50(i)`: the `i`-th follower's place in the file plus `BAND_LAG`, 45 px of walking lag, at the median; `BAND_P90`); the squad
-is the test's declared one (`s.squads` or `s.match`, read with `t.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
+is the test's declared one (`s.squads` or `s.declared_match`, read with `t.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
 (`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
 `watch`, `asked`: the Von questions of a member's walks, `gaps`, `took`, `acts_of`, `went_through`, `off_spot_tick`); and the leash
 chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contrast `leash_free_chase`, which binds no squad). The tests
@@ -713,7 +714,7 @@ wall from a held defender, read off `debug_memory()["footsteps"]` and the `footf
 
 `defenders_stay_in_house_quiet` (scripted) and `defenders_stay_in_house_quiet_von` (real Von, invaders outside as at the start of a match)
 watch every defender of a generated house (`tests/_ai/house_probe.gd`: `house(s, seed, defenders, invaders)` declares the house and a
-match over it, `s.match`, placed and armed as Main's; `side(t, faction)` reads one side's NPCs off `t.match()`; `watch`, whose failure message carries each
+match over it, `s.declared_match`, placed and armed as Main's; `side(t, faction)` reads one side's NPCs off `t.match_handle()`; `watch`, whose failure message carries each
 defender's trail and what Von was last asked) and sweep with `--seed=N`. `move_stops_on_arrival` gives
 the scripted Von a real server's reply time by raising `DecisionStub.latency_frames` in `run` (`von_script` registered it, so it is restored after the test).
 

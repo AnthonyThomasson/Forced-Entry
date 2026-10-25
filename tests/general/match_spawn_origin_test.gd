@@ -5,8 +5,8 @@ extends GameTest
 ## and it flew across the map into whatever character was in its way (a "character spawns or is
 ## pushed way far away from the level"). House seed 18 with the front entrance at the game's (440,
 ## 350) puts a kitchen counter against the origin. The match is populated over the test's house as
-## Main populates one (`s.match`, `MatchBuilder.populate`): one defender and one invader, placed
-## from the house seed.
+## Main populates one (`s.declared_match`, `MatchBuilder.populate`): one defender and one invader,
+## placed from the house seed.
 
 const SEED := 18
 ## Where `main.gd` puts the front entrance (its scene anchor, `entrance_distance` above it).
@@ -33,7 +33,7 @@ func configure(s: TestSetup) -> void:
 	s.house(SEED, "", FRONT_ENTRANCE)
 	s.von_down()   # the NPCs hold steady, so any movement is physics alone
 	s.switch(&"ai.hostile_on_trespass", false)
-	s.match({ "defenders": { "count": 1 }, "invaders": { "count": 1 } })
+	s.declared_match({ "defenders": { "count": 1 }, "invaders": { "count": 1 } })
 
 
 func run(t: TestContext) -> void:
@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	_collect_bodies(t.world, pieces)
 	var piece_starts: Array = pieces.map(func(p): return (p as Node2D).global_position)
 
-	var npcs: Array = (t.match().get("combatants", []) as Array).duplicate()
+	var npcs: Array = (t.match_handle().get("combatants", []) as Array).duplicate()
 	if not t.require(npcs.size() == 2, "a defender and an invader spawned"):
 		return
 	for npc: Node2D in npcs:

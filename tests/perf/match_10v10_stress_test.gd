@@ -1,26 +1,26 @@
 extends GameTest
 ## Performance guard for the largest match the game means to carry: a 10v10 in a generated house
 ## (the largest plan, `Perf.MATCH_PLAN`; `Perf.configure_match`), built as Main builds one
-## (`s.match`, `MatchBuilder.populate`): the defenders at clear spots in random rooms and the
-## invader team in one group beside the front door, each side with its spec loadout (the invaders'
-## helmet and steel plates front and back, a stun and a frag each; the defenders' plain clothes; a
-## random gun each), styled and ranked (the invaders' police unit: its lead, its sergeant, then
-## troopers), one squad per side, every debug overlay off; nav re-baker, blood, debris, sound and
-## team radio on, with Von scripted so no server is needed. Twenty NPCs sense, decide, path and
-## fight; the house's walls hide most hostiles from each, which is what keeps it within reach of the
-## standard where an open arena of twenty is not (perf/npc_crowd_stress). Each squad's members but
-## its leader follow it (`docs/leadership.md` LD19 to LD23), so what a squad costs (the leader's
-## trail, the follow spots, the follow primitive, the leash) is in the frame; every member but the
-## leader following is a premise. The sides are in contact before the window opens: after its
-## warm-up the match runs on until a shot has been fired and some NPC knows a hostile at once
-## (`Perf.warm_until_contact`), so the frames cost the teams' fight (the leash filter, combat within
-## the leash, the leash break) and not only a walking crowd. Then 300 frames are measured to the
-## same standard as the 5v5 match: the average frame fits in one 60 fps frame, with no spike over
-## two. It logs when contact came, how many knew a hostile as the window opened, the shots in the
-## window and how many members were following at the end. Headless measures CPU only; rendering is
-## not in these numbers. Its max (and p95) miss the standard on a quiet machine: an invader's
-## decision that weighs its grenades (the throw spots and the escape from the burst, in its decision
-## snapshot) spikes in one frame (#98).
+## (`s.declared_match`, `MatchBuilder.populate`): the defenders at clear spots in random rooms and
+## the invader team in one group beside the front door, each side with its spec loadout (the
+## invaders' helmet and steel plates front and back, a stun and a frag each; the defenders' plain
+## clothes; a random gun each), styled and ranked (the invaders' police unit: its lead, its
+## sergeant, then troopers), one squad per side, every debug overlay off; nav re-baker, blood,
+## debris, sound and team radio on, with Von scripted so no server is needed. Twenty NPCs sense,
+## decide, path and fight; the house's walls hide most hostiles from each, which is what keeps it
+## within reach of the standard where an open arena of twenty is not (perf/npc_crowd_stress). Each
+## squad's members but its leader follow it (`docs/leadership.md` LD19 to LD23), so what a squad
+## costs (the leader's trail, the follow spots, the follow primitive, the leash) is in the frame;
+## every member but the leader following is a premise. The sides are in contact before the window
+## opens: after its warm-up the match runs on until a shot has been fired and some NPC knows a
+## hostile at once (`Perf.warm_until_contact`), so the frames cost the teams' fight (the leash
+## filter, combat within the leash, the leash break) and not only a walking crowd. Then 300 frames
+## are measured to the same standard as the 5v5 match: the average frame fits in one 60 fps frame,
+## with no spike over two. It logs when contact came, how many knew a hostile as the window opened,
+## the shots in the window and how many members were following at the end. Headless measures CPU
+## only; rendering is not in these numbers. Its max (and p95) miss the standard on a quiet machine:
+## an invader's decision that weighs its grenades (the throw spots and the escape from the burst, in
+## its decision snapshot) spikes in one frame (#98).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const Perf := preload("res://tests/_perf/perf_probe.gd")
@@ -47,7 +47,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters: Array = t.match().get("combatants", [])
+	var characters: Array = t.match_handle().get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"twenty combatants spawned (%d)" % characters.size(),
@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 ## equals), and every member but the leader following it (`Squad.follows`). False (the test ended)
 ## when one does not hold.
 func _check_squads(t: TestContext, characters: Array) -> bool:
-	var squads: Dictionary = t.match().get("squads", {})
+	var squads: Dictionary = t.match_handle().get("squads", {})
 	if not t.require(
 		squads.size() == 2,
 		"premise: one squad per side is built (%d)" % squads.size(),

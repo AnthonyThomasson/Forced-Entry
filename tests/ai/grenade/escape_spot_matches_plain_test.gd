@@ -106,7 +106,10 @@ func _compare_kind(
 		space, map, _threat(kind, radius, burst, fuse), _runner(from, speed), exclude,
 	)
 	var plain := _plain_escape(
-		geometry, space, map, kind, radius, burst, from, fuse, speed, exclude,
+		geometry,
+		{ "space": space, "map": map, "exclude": exclude },
+		_threat(kind, radius, burst, fuse),
+		_runner(from, speed),
 	)
 	tally["compared"] += 1
 	tally["found"] += 1 if fast["spot"] != Vector2.INF else 0
@@ -133,39 +136,80 @@ func _runner(from: Vector2, speed: float) -> GrenadeRunner:
 	return runner
 
 
-## `AgentThrow.escape` as it was: every candidate snapped, judged and routed.
-func _plain_escape(g, space, map: RID, kind: StringName, radius: float, burst: Vector2,
-		from: Vector2, fuse_left: float, speed: float, exclude: Array) -> Dictionary:
-	var out_r: float = g.zone_radius(kind, radius) + AgentThrow.OUTSIDE_SLACK
-	var reach: float = g.cover_reach(kind)
+## `AgentThrow.escape` as it was: every candidate snapped, judged and routed. `search` is the
+## search's world (`space`, `map`, `exclude`).
+func _plain_escape(
+		g: AgentThrow,
+		search: Dictionary,
+		threat: GrenadeThreat,
+		runner: GrenadeRunner,
+) -> Dictionary:
+	var spots := _plain_spots(g, search, threat, runner.from)
+	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
+	return _plain_best(search["map"], spots, runner.from, allowed)
+
+
+## Every candidate of the plain search snapped and judged: `{ spot, crouch }` for each that lands
+## out of the burst's zone or shielded from it, `crouch` when only a crouched body is shielded.
+func _plain_spots(
+		g: AgentThrow,
+		search: Dictionary,
+		threat: GrenadeThreat,
+		from: Vector2,
+) -> Array:
+	var map: RID = search["map"]
+	var zone := {
+		"burst": threat.burst,
+		"out_r": g.zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
+		"reach": g.cover_reach(threat.kind),
+	}
 	var spots: Array = []
-	var threat := GrenadeThreat.new()
-	threat.kind = kind
-	threat.radius = radius
-	threat.burst = burst
-	for p in g._candidates(space, threat, from, exclude):
+	# The candidates' grenade as the plain search builds it: its kind, radius and burst.
+	var around := GrenadeThreat.new()
+	around.kind = threat.kind
+	around.radius = threat.radius
+	around.burst = threat.burst
+	for p in g._candidates(search["space"], around, from, search["exclude"]):
 		var q := NavBuilder.snap(map, p)
 		if q.distance_to(p) > AgentThrow.SNAP_TOLERANCE:
 			continue
-		var crouch := false
-		if (q.distance_to(burst) < out_r
-				and not g._covered(
-					space,
-					burst,
-					q,
-					AgentThrow._cover_rule(g.stand_height(), exclude, reach),
-				)):
-			if not g._covered(
+		var spot := _plain_spot(g, search, q, zone)
+		if not spot.is_empty():
+			spots.append(spot)
+	return spots
+
+
+## The plain search's verdict on the snapped candidate `q` for the burst `zone` (`burst`, `out_r`,
+## `reach`): `{ spot, crouch }`, `crouch` when only a crouched body is shielded there; `{}` when it
+## is inside the zone and shielded neither way.
+func _plain_spot(g: AgentThrow, search: Dictionary, q: Vector2, zone: Dictionary) -> Dictionary:
+	var space: PhysicsDirectSpaceState2D = search["space"]
+	var exclude: Array = search["exclude"]
+	var burst: Vector2 = zone["burst"]
+	var reach: float = zone["reach"]
+	var crouch := false
+	if (q.distance_to(burst) < zone["out_r"]
+			and not g._covered(
 				space,
 				burst,
 				q,
-				AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
-			):
-				continue
-			crouch = true
-		spots.append({ "spot": q, "crouch": crouch })
+				AgentThrow._cover_rule(g.stand_height(), exclude, reach),
+			)):
+		if not g._covered(
+			space,
+			burst,
+			q,
+			AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
+		):
+			return {}
+		crouch = true
+	return { "spot": q, "crouch": crouch }
+
+
+## Of `spots`, the one with the shortest route from `from` within `allowed` px:
+## `{ spot, crouch, route }`, `spot` INF when none is in time.
+func _plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var allowed := maxf(fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * speed
 	for s: Dictionary in spots:
 		var length := NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))
 		if length <= allowed and length < best["route"]:

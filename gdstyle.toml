@@ -1,6 +1,6 @@
 # gdstyle (https://github.com/atelico/gdstyle, v0.4.0, run through tools/gdstyle.sh): the formatter and style lint
-# tools/lint.sh runs over every project script. Every rule is an error but some quality/* rules (below): five off by
-# decision, the reason beside each, and those a later stage of issue #76 turns on (18 on once it is done).
+# tools/lint.sh runs over every project script. Every rule is an error but some quality/* rules (below): 15 on, five
+# off by decision, the reason beside each, and the three structural ones stage 3 of issue #76 turns on (18 on then).
 
 max_line_length = 100
 use_tabs = true
@@ -53,20 +53,20 @@ exclude = ["addons", ".godot", "artifacts", "tools/coverage/tests/fixtures"]
 "quality/no-self-assign" = "error"
 "quality/unreachable-code" = "error"
 "quality/no-else-return" = "error"
+"quality/max-function-length" = "error"
+"quality/max-parameters" = "error"
+"quality/type-hint" = "error"
+"quality/max-nesting-depth" = "error"
+"quality/max-returns" = "error"
+"quality/max-branches" = "error"
+"quality/max-local-variables" = "error"
 # Off by decision, each for the reason beside it:
 "quality/no-debug-print" = "off" # GameLog.say must print() (interface 15); runner and tools print by design
 "quality/await-in-loop" = "off" # `for ...: await t.seconds(...)` is how a GameTest steps time
 "quality/empty-function" = "off" # virtual hooks (Item.primary, GameTest.configure ...) stay empty to override
 "quality/allocation-in-loop" = "off" # setup loops that must make N nodes: spawning, wear, debris
 "quality/process-get-node" = "off" # gdstyle v0.4.0 reads a % format in _process() as a %Node lookup
-# Off until a later stage of #76 brings the tree to zero findings under each and turns it on:
-"quality/max-function-length" = "off"
+# Off until stage 3 of #76 (the structural splits) brings the tree to zero findings under each and turns it on:
 "quality/max-file-length" = "off"
-"quality/max-parameters" = "off"
-"quality/type-hint" = "off"
 "quality/max-class-variables" = "off"
 "quality/max-public-methods" = "off"
-"quality/max-nesting-depth" = "off"
-"quality/max-returns" = "off"
-"quality/max-branches" = "off"
-"quality/max-local-variables" = "off"

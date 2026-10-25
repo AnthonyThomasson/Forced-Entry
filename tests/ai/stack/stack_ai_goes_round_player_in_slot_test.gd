@@ -6,13 +6,13 @@ extends GameTest
 ## moves it, and it never stands still for `STILL_CAP` s or more on the way (a stop short of the
 ## human, a moment's wait and a new plan within 5 s is the most it may do; it never waits for ever).
 ##
-## The match is built the way `main.gd` builds one (`s.match`, populated through `MatchBuilder` on
-## the bare Terrace house: its one invader NPC at its start point, armed, styled and ranked, the
-## squads built), its human a test actor: the player's character with the player's controller (no
-## input: it stands still), joined to the invaders and given its stack radio as a match gives it
-## (`MatchBuilder.bind_player`). The AI is held where it starts (speed 0) until the human stands in
-## its slot: the premise is an AI arriving at a stack the human is already in. Scripted Von (ENTER
-## the back door) and the shared entry switches; nothing else changed.
+## The match is built the way `main.gd` builds one (`s.declared_match`, populated through
+## `MatchBuilder` on the bare Terrace house: its one invader NPC at its start point, armed, styled
+## and ranked, the squads built), its human a test actor: the player's character with the player's
+## controller (no input: it stands still), joined to the invaders and given its stack radio as a
+## match gives it (`MatchBuilder.bind_player`). The AI is held where it starts (speed 0) until the
+## human stands in its slot: the premise is an AI arriving at a stack the human is already in.
+## Scripted Von (ENTER the back door) and the shared entry switches; nothing else changed.
 
 const Bump := preload("res://tests/_ai/bump_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
@@ -51,7 +51,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	s.actor(&"me", &"player", HUMAN_START, { "max_health": 1_000_000.0 })
-	s.match({
+	s.declared_match({
 		"defenders": { "count": 0 },
 		"invaders": { "at": [AI_START] },
 		"human": { "actor": &"me", "side": &"invader" },
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	var ai := await _reserved_behind(t, me)
 	if ai == null:
 		return
-	var stack: Node = t.match()["player_stack"]
+	var stack: Node = t.match_handle()["player_stack"]
 	var brain: Node = TestContext.controller_of(ai)
 	t.expect_eq(int(brain.debug_entry().get("slot", 0)), 1, "the AI holds slot 1")
 	var mine := Stack.slot_point(stack, 2)
@@ -89,7 +89,7 @@ func run(t: TestContext) -> void:
 ## The match's one invader NPC, held still until the human was reserved slot 2 behind it; null when
 ## a premise fails.
 func _reserved_behind(t: TestContext, me: Node2D) -> Node2D:
-	var m := t.match()
+	var m := t.match_handle()
 	var npcs: Array = (m.get("combatants", []) as Array).filter(func(c): return c != me)
 	if not t.require(npcs.size() == 1, "premise: the match has its one invader NPC"):
 		return null
