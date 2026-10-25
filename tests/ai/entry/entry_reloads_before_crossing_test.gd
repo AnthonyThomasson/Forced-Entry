@@ -41,6 +41,18 @@ func run(t: TestContext) -> void:
 	var ammo_at_cross: int = inv.ammo()
 	var through := func(): return Entry.first_call_time(t, "in", &"inv", door["id"]) < INF
 	await Entry.watch(t, [&"inv"], door, 8.0, through)
+	_check_topped_off(t, inv, door, ammo_at_cross, capacity)
+
+
+## Checks the reload happened while stacked, between ready and going in, and not in the threshold,
+## and that the invader crossed with `capacity` rounds.
+func _check_topped_off(
+		t: TestContext,
+		inv: Node,
+		door: Dictionary,
+		ammo_at_cross: int,
+		capacity: int,
+) -> void:
 	var ready_at := Entry.first_call_time(t, "ready", &"inv", door["id"])
 	var going_at := Entry.first_call_time(t, "going_in", &"inv", door["id"])
 	var in_at := Entry.first_call_time(t, "in", &"inv", door["id"])

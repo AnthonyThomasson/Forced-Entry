@@ -92,131 +92,152 @@ static func click(f: Dictionary, side: int) -> Vector2:
 			+ (f["along"] as Vector2) * side * (float(f["width"]) * 0.5 + CLICK_PAST))
 
 
-## Order the members `ids` (invader actors) to stack on frame `f`, starting on side `side`, held for
-## the go, through the squad led by the puppet `lead` (the setup's `s.squads`); watch them form the
-## stack; check each member as above (D4, D20). `starts` names each member's starting place for the
-## messages (`{ id: "near along the wall" }`).
+## Order the members (invader actors: the keys of `starts`, in order) to stack on frame `f`,
+## starting on side `side`, held for the go, through the squad led by the puppet `lead` (the
+## setup's `s.squads`); watch them form the stack; check each member as above (D4, D20). `starts`
+## names each member's starting place for the messages (`{ id: "near along the wall" }`).
 static func run(
 	t: TestContext,
 	f: Dictionary,
-	ids: Array,
 	lead: StringName,
 	side: int,
 	starts: Dictionary,
 ) -> void:
-	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
+	var ids: Array = starts.keys()
+	# The watch's record: where each member started, the order's time, the samples, and per member
+	# the sim time it last came to stand in its claimed slot (INF while it is not in it), the first
+	# such time (since its last detour ended), and its entry-guard detours
+	# ([{ opening, into, start, end, from, paused }], `end` and `from` INF while one runs).
+	var rec := {
+		"starts": starts, "start": {}, "t0": 0.0, "samples": [], "arrived": {}, "ever": {},
+		"detours": {},
+	}
+	if not _order_stack(t, f, lead, side, rec):
 		return
-	var squad := t.squad(&"invader")
-	if not t.require(
-			squad != null and squad.leader() == t.actor(lead),
-			"set-up: the squad is declared (s.squads) and led by %s" % lead,
-	):
-		return
-	var members: Array = ids.map(func(id): return t.actor(id))
-	var start := {}
-	for id in ids:
-		start[id] = t.actor(id).global_position
-	var order := Order.stack_order(squad, members, click(f, side), "quiet", true)
-	if not t.require(
-			not order.is_empty(),
-			"the squad posts the stack order on %s (issue)" % f["id"],
-	):
-		return
-	if not t.require(
-			String(order.get("opening", "")) == String(f["id"])
-				and String(order.get("into", "")) == String(f["room_key"]),
-			"set-up: the order names %s into the %s (it named %s into %s)"
-				% [f["id"], f["room_key"], order.get("opening"), order.get("into")],
-	):
-		return
-	var t0 := t.time
-	var samples: Array = []
-	# id -> sim time it last came to stand in its claimed slot (INF while it is not in it)
-	var arrived := {}
-	var ever := {}      # id -> the first such time (since its last detour ended)
-	# id -> [{ opening, into, start, end, from, paused }]: its entry-guard detours (`end` and `from`
-	# INF while one runs)
-	var detours := {}
-	var stop := func() -> bool:
-		var pos := {}
-		var facing := {}
-		# id -> { slot, spot, side } of its running entry at the order's doorway ({} in a detour or
-		# with none)
-		var slots := {}
-		var all_in := true
-		var latest := -INF
-		for id in ids:
-			var a := t.actor(id)
-			pos[id] = a.global_position
-			facing[id] = a.facing
-			var e := Entry.entry(Entry.brain(t, id))
-			var spot = e.get("stack_point", Vector2.INF)
-			slots[id] = ({}
-					if e.is_empty() or _detour(f, e)
-					else {
-						"slot": int(e.get("slot", 0)), "side": int(e.get("side", 0)),
-						"spot": spot if spot is Vector2 else Vector2.INF,
-					})
-			var detour := _detour(f, e)
-			var runs: Array = detours.get(id, [])
-			var running: bool = not runs.is_empty() and float(runs[runs.size() - 1]["end"]) == INF
-			if detour and not running:
-				runs.append({
-					"opening": String(e.get("opening", "")), "into": String(e.get("into", "")),
-					"start": t.time, "end": INF, "from": Vector2.INF,
-					"paused": _order_paused(t, id),
-				})
-				detours[id] = runs
-			elif detour:
-				# One detour may run straight into the next: the latest.
-				runs[runs.size() - 1]["opening"] = String(e.get("opening", ""))
-				runs[runs.size() - 1]["into"] = String(e.get("into", ""))
-			elif running:
-				runs[runs.size() - 1]["end"] = t.time
-				runs[runs.size() - 1]["from"] = a.global_position
-			if detour:
-				ever.erase(id)   # Timed from the detour's end: an earlier arrival does not count.
-			var inside: bool = (not detour
-					and String(e.get("phase", "")) == "stack"
-					and spot is Vector2
-					and spot != Vector2.INF
-					and a.global_position.distance_to(spot) <= SLOT_REACH)
-			if inside:
-				if float(arrived.get(id, INF)) == INF:
-					arrived[id] = t.time
-				if not ever.has(id):
-					ever[id] = t.time
-				latest = maxf(latest, float(arrived[id]))
-			else:
-				arrived[id] = INF
-				all_in = false
-		samples.append({ "t": t.time, "pos": pos, "facing": facing, "slots": slots })
-		return (all_in and t.time - latest >= HOLD_S) or t.time - t0 >= WATCH_CAP
+	rec["t0"] = t.time
+	var stop := func() -> bool: return _sample(t, f, ids, rec)
 	var seen: Dictionary = await Bump.watch(t, ids, WATCH_CAP + 1.0, stop)
-	var map: RID = t.world.get_world_2d().navigation_map
-	var moves := move_ups(t, ids, String(f["id"]))
+	rec["map"] = t.world.get_world_2d().navigation_map
+	rec["moves"] = move_ups(t, ids, String(f["id"]))
 	for id in ids:
-		await _check_member(
-			t,
-			f,
-			id,
-			String(starts.get(id, "")),
-			start[id],
-			t0,
-			float(ever.get(id, INF)),
-			samples,
-			map,
-			detours.get(id, []),
-			moves,
-		)
-	for m: Dictionary in moves:
-		_check_move_up(t, f, m, moves, samples)
+		await _check_member(t, f, id, rec)
+	for m: Dictionary in rec["moves"]:
+		_check_move_up(t, f, m, rec["moves"], rec["samples"])
 	var bumps: Array = seen["bumps"]
 	t.check(
 		bumps.is_empty(),
 		"nobody bumps a teammate on the way to the stack (%d bump(s): %s)"
 			% [bumps.size(), Bump.describe(bumps)],
 	)
+
+
+## `run`'s set-up and order: `require` the doorway, the squad led by `lead`, and the stack order its
+## squad posts for the members (`rec.starts`' keys) on side `side` of frame `f`, noting where each
+## stood then in `rec.start`; false when one failed.
+static func _order_stack(
+		t: TestContext, f: Dictionary, lead: StringName, side: int, rec: Dictionary
+) -> bool:
+	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
+		return false
+	var squad := t.squad(&"invader")
+	if not t.require(
+			squad != null and squad.leader() == t.actor(lead),
+			"set-up: the squad is declared (s.squads) and led by %s" % lead,
+	):
+		return false
+	var ids: Array = rec["starts"].keys()
+	var members: Array = ids.map(func(id): return t.actor(id))
+	for id in ids:
+		rec["start"][id] = t.actor(id).global_position
+	var order := Order.stack_order(squad, members, click(f, side), "quiet", true)
+	if not t.require(
+			not order.is_empty(),
+			"the squad posts the stack order on %s (issue)" % f["id"],
+	):
+		return false
+	return t.require(
+		String(order.get("opening", "")) == String(f["id"])
+			and String(order.get("into", "")) == String(f["room_key"]),
+		"set-up: the order names %s into the %s (it named %s into %s)"
+			% [f["id"], f["room_key"], order.get("opening"), order.get("into")],
+	)
+
+
+## One frame of `run`'s watch of the members `ids` on frame `f`, recorded in `rec`; whether the
+## watch is over (every member has stood in its slot `HOLD_S`, or `WATCH_CAP` is out).
+static func _sample(t: TestContext, f: Dictionary, ids: Array, rec: Dictionary) -> bool:
+	# slots: id -> { slot, spot, side } of its running entry at the order's doorway ({} in a detour
+	# or with none)
+	var sample := { "t": t.time, "pos": {}, "facing": {}, "slots": {} }
+	var all_in := true
+	var latest := -INF
+	for id in ids:
+		var arrived := _sample_member(t, f, id, rec, sample)
+		if arrived == INF:
+			all_in = false
+		else:
+			latest = maxf(latest, arrived)
+	(rec["samples"] as Array).append(sample)
+	return (all_in and t.time - latest >= HOLD_S) or t.time - float(rec["t0"]) >= WATCH_CAP
+
+
+## Member `id`'s part of this frame's `sample` (and of `rec`): the sim time it came to stand in its
+## claimed slot, or INF when it is not in it.
+static func _sample_member(
+		t: TestContext, f: Dictionary, id: StringName, rec: Dictionary, sample: Dictionary
+) -> float:
+	var a := t.actor(id)
+	sample["pos"][id] = a.global_position
+	sample["facing"][id] = a.facing
+	var e := Entry.entry(Entry.brain(t, id))
+	var spot = e.get("stack_point", Vector2.INF)
+	sample["slots"][id] = ({}
+			if e.is_empty() or _detour(f, e)
+			else {
+				"slot": int(e.get("slot", 0)), "side": int(e.get("side", 0)),
+				"spot": spot if spot is Vector2 else Vector2.INF,
+			})
+	_track_detour(t, f, id, e, rec)
+	var inside: bool = (not _detour(f, e)
+			and String(e.get("phase", "")) == "stack"
+			and spot is Vector2
+			and spot != Vector2.INF
+			and a.global_position.distance_to(spot) <= SLOT_REACH)
+	var arrived: Dictionary = rec["arrived"]
+	if not inside:
+		arrived[id] = INF
+		return INF
+	if float(arrived.get(id, INF)) == INF:
+		arrived[id] = t.time
+	if not rec["ever"].has(id):
+		rec["ever"][id] = t.time
+	return float(arrived[id])
+
+
+## Keeps member `id`'s entry-guard detours in `rec` up to date with its running entry `e`.
+static func _track_detour(
+		t: TestContext, f: Dictionary, id: StringName, e: Dictionary, rec: Dictionary
+) -> void:
+	var detour := _detour(f, e)
+	var detours: Dictionary = rec["detours"]
+	var runs: Array = detours.get(id, [])
+	var running: bool = not runs.is_empty() and float(runs[runs.size() - 1]["end"]) == INF
+	if detour and not running:
+		runs.append({
+			"opening": String(e.get("opening", "")), "into": String(e.get("into", "")),
+			"start": t.time, "end": INF, "from": Vector2.INF,
+			"paused": _order_paused(t, id),
+		})
+		detours[id] = runs
+	elif detour:
+		# One detour may run straight into the next: the latest.
+		runs[runs.size() - 1]["opening"] = String(e.get("opening", ""))
+		runs[runs.size() - 1]["into"] = String(e.get("into", ""))
+	elif running:
+		runs[runs.size() - 1]["end"] = t.time
+		runs[runs.size() - 1]["from"] = t.actor(id).global_position
+	if detour:
+		rec["ever"].erase(id)   # Timed from the detour's end: an earlier arrival does not count.
 
 
 ## Whether `e` (a member's `debug_entry()`) is an entry-guard detour of the stack on frame `f`: an
@@ -236,16 +257,44 @@ static func _order_paused(t: TestContext, id: StringName) -> bool:
 			and bool((b.debug_state().get("order", {}) as Dictionary).get("paused", false)))
 
 
-## Rule 9 for one member `id` that started at `from` (`where`, in words) when the order came at `t0`
-## and first stood in its slot at `first_in` (INF: never; since its last detour ended), its
-## entry-guard detours `detours` (`run`'s), the stack's move-ups `moves` (`move_ups`).
-static func _check_member(t: TestContext, f: Dictionary, id: StringName, where: String,
-		from: Vector2, t0: float, first_in: float, samples: Array, map: RID, detours: Array = [],
-		moves: Array = []) -> void:
-	var a := t.actor(id)
+## Rule 9 for one member `id` of `run`'s record `rec`: it started at `rec.start[id]`
+## (`rec.starts[id]`, in words) when the order came at `rec.t0` and first stood in its slot at
+## `rec.ever[id]` (INF: never; since its last detour ended), its entry-guard detours
+## `rec.detours[id]`, the stack's move-ups `rec.moves` (`move_ups`).
+static func _check_member(t: TestContext, f: Dictionary, id: StringName, rec: Dictionary) -> void:
 	var e := Entry.entry(Entry.brain(t, id))
 	var spot = e.get("stack_point", Vector2.INF)
-	var label := "%s (%s)" % [id, where]
+	var label := _label(rec, id)
+	_check_in_claimed_slot(t, f, id, label, e)
+	var claims := Entry.calls(t, "", id).filter(
+		func(c): return String(c.get("opening", "")) == String(f["id"]),
+	)
+	var aborts := claims.filter(func(c): return String(c.get("entry_step", "")) == "abort")
+	t.check(
+		aborts.is_empty(),
+		"%s never gives its claim up (abort radioed %d time(s))" % [label, aborts.size()],
+	)
+	_check_never_back(t, f, id, label, rec["moves"])
+	if not (spot is Vector2 and spot != Vector2.INF):
+		return
+	var timing := _timed_from(t, f, id, rec)
+	timing["to"] = spot
+	await _check_walk_time(t, f, id, rec, timing)
+	await _check_view(t, f, id, rec, spot)
+
+
+## Member `id` and its starting place in words (`rec.starts`), for a message.
+static func _label(rec: Dictionary, id: StringName) -> String:
+	return "%s (%s)" % [id, String(rec["starts"].get(id, ""))]
+
+
+## `_check_member`'s check that member `id` (`label`, its running entry `e`) ends in the slot it
+## claimed.
+static func _check_in_claimed_slot(
+		t: TestContext, f: Dictionary, id: StringName, label: String, e: Dictionary
+) -> void:
+	var a := t.actor(id)
+	var spot = e.get("stack_point", Vector2.INF)
 	var phase := String(e.get("phase", ""))
 	var in_slot: bool = (spot is Vector2
 			and spot != Vector2.INF
@@ -255,30 +304,31 @@ static func _check_member(t: TestContext, f: Dictionary, id: StringName, where: 
 	var claimed: bool = (not said.is_empty()
 			and String(e.get("opening", "")) == String(f["id"])
 			and int(e.get("slot", 0)) == int(said["slot"]))
+	var latest := (
+		"slot %d at %.1f s" % [said["slot"], said["at"]]
+			if not said.is_empty()
+			else "none radioed at %s" % f["id"]
+	)
+	var off: float = (a.global_position.distance_to(spot)
+			if spot is Vector2 and spot != Vector2.INF
+			else INF)
 	t.check(
 		in_slot and claimed,
 		("%s ends in the slot it claimed (its latest claim: %s; at %s, its entry through %s, slot "
 				+ "%s at %s, phase %s, %.0f px off)")
 			% [
-				label,
-				"slot %d at %.1f s" % [said["slot"], said["at"]]
-					if not said.is_empty()
-					else "none radioed at %s" % f["id"],
-				str(a.global_position.round()), e.get("opening", "-"), str(e.get("slot")),
-				str(spot.round()) if spot is Vector2 and spot != Vector2.INF else "-", phase,
-				a.global_position.distance_to(spot)
-					if spot is Vector2 and spot != Vector2.INF
-					else INF,
+				label, latest, str(a.global_position.round()), e.get("opening", "-"),
+				str(e.get("slot")),
+				str(spot.round()) if spot is Vector2 and spot != Vector2.INF else "-", phase, off,
 			],
 	)
-	var claims := Entry.calls(t, "", id).filter(
-		func(c): return String(c.get("opening", "")) == String(f["id"]),
-	)
-	var aborts := claims.filter(func(c): return String(c.get("entry_step", "")) == "abort")
-	t.check(
-		aborts.is_empty(),
-		"%s never gives its claim up (abort radioed %d time(s))" % [label, aborts.size()],
-	)
+
+
+## `_check_member`'s check that member `id` (`label`) never takes the back of the stack: each rise
+## of its slot is the other half of one of the stack's move-ups `moves`.
+static func _check_never_back(
+		t: TestContext, f: Dictionary, id: StringName, label: String, moves: Array
+) -> void:
 	var backs: Array = []     # its rises that are no move-up's other half
 	var halves: Array = []    # its rises that are, as the move-up's words
 	for r: Dictionary in _slot_changes(t, id, String(f["id"])):
@@ -287,9 +337,9 @@ static func _check_member(t: TestContext, f: Dictionary, id: StringName, where: 
 		var m := _move_up_of(moves, id, r)
 		if m.is_empty():
 			backs.append("%d -> %d at %.1f s" % [r["from"], r["to"], r["at"]])
-		else:
-			halves.append("%s moved up %d -> %d at %.1f s, it took %d at %.1f s"
-					% [m["mover"], m["from"], m["to"], m["at"], m["from"], m["late_at"]])
+			continue
+		halves.append("%s moved up %d -> %d at %.1f s, it took %d at %.1f s"
+				% [m["mover"], m["from"], m["to"], m["at"], m["from"], m["late_at"]])
 	var own: Array = moves.filter(func(m): return m["mover"] == id).map(func(m): return (
 		"%d -> %d at %.1f s (%s took %d)" % [m["from"], m["to"], m["at"], m["late"], m["from"]]
 	))
@@ -303,82 +353,120 @@ static func _check_member(t: TestContext, f: Dictionary, id: StringName, where: 
 				", ".join(own) if not own.is_empty() else "never",
 			],
 	)
-	if spot is Vector2 and spot != Vector2.INF:
-		var timed_from := from
-		var timed_at := t0
-		var since := ""
-		if not detours.is_empty():
-			var last: Dictionary = detours[detours.size() - 1]
-			var other_claims := Entry.calls(t, "claim", id).filter(func(c): return (
-				String(c.get("opening", "")) != String(f["id"])
-					or String(c.get("into", "")) != String(f["room_key"])
-			))
-			since = ((" from the end of its last entry-guard detour (%d detour(s), %d claim(s) "
-						+ "radioed elsewhere; the last through %s into the %s, from %.1f s; the "
-						+ "order paused behind it: %s at its start, %s now)")
-					% [
-						detours.size(),
-						other_claims.size(),
-						last["opening"],
-						last["into"],
-						last["start"],
-						last["paused"],
-						_order_paused(t, id),
-					])
-			timed_from = last["from"]
-			timed_at = float(last["end"])
-			if timed_at != INF:
-				since = (since.trim_suffix(")")
-						+ "; it ended at %.1f s at %s)" % [timed_at, str(timed_from.round())])
-		if timed_at == INF:
-			t.check(
-				false,
-				("%s is in its slot within its route's walking time + %.0f s%s: the detour never "
-						+ "ended (still running when the watch ended at %.1f s)")
-					% [label, SLACK_S, since, t.time],
-			)
-		else:
-			var kept := await keep_out_route(t, f, timed_from, spot, map)
-			var route_len: float
-			var route_kind: String
-			if kept.has("path"):
-				route_len = NavBuilder.path_length(kept["path"])
-				route_kind = "the way round the %s and the doorway's view" % f["room_key"]
-			else:
-				route_len = NavBuilder.path_length(NavBuilder.route(map, timed_from, spot))
-				route_kind = "the plain route: %s" % kept["why"]
-			var budget := route_len / maxf(float(a.walk_speed()), 1.0) + SLACK_S
-			t.check(
-				first_in - timed_at <= budget,
-				("%s is in its slot within its route's walking time + %.0f s%s (%.1f s; route %.0f "
-						+ "px, %s, at %.0f px/s: %.1f s allowed)")
-					% [
-						label,
-						SLACK_S,
-						since,
-						first_in - timed_at,
-						route_len,
-						route_kind,
-						a.walk_speed(),
-						budget,
-					],
-			)
-		var round_way := await way_round(t, f, from, spot, map)
-		if round_way == "":
-			var in_view := View.time_in_view(t, samples, id, f)
-			t.check(
-				in_view <= VIEW_SLACK_S,
-				"%s never walks the doorway's view (%.2f s in it; a way round exists)"
-					% [label, in_view],
-			)
-			var cross := front_crossings(t, f, samples, id)
-			t.check(
-				cross.is_empty(),
-				"%s never crosses the door's front close in (a way round exists): %s"
-					% [label, ", ".join(cross)],
-			)
-		else:
-			t.check(true, "%s: %s" % [label, round_way])
+
+
+## Where and when member `id`'s walk to its slot is timed from: `{ from, at, since }`, where it
+## stood when the order came, or the end of its last entry-guard detour (`at` INF while that still
+## runs); `since` says which for the message ("" for the order).
+static func _timed_from(
+	t: TestContext,
+	f: Dictionary,
+	id: StringName,
+	rec: Dictionary,
+) -> Dictionary:
+	var detours: Array = rec["detours"].get(id, [])
+	if detours.is_empty():
+		return { "from": rec["start"][id], "at": float(rec["t0"]), "since": "" }
+	var last: Dictionary = detours[detours.size() - 1]
+	var other_claims := Entry.calls(t, "claim", id).filter(func(c): return (
+		String(c.get("opening", "")) != String(f["id"])
+			or String(c.get("into", "")) != String(f["room_key"])
+	))
+	var since := ((" from the end of its last entry-guard detour (%d detour(s), %d claim(s) "
+				+ "radioed elsewhere; the last through %s into the %s, from %.1f s; the "
+				+ "order paused behind it: %s at its start, %s now)")
+			% [
+				detours.size(),
+				other_claims.size(),
+				last["opening"],
+				last["into"],
+				last["start"],
+				last["paused"],
+				_order_paused(t, id),
+			])
+	var timed_from: Vector2 = last["from"]
+	var timed_at := float(last["end"])
+	if timed_at != INF:
+		since = (since.trim_suffix(")")
+				+ "; it ended at %.1f s at %s)" % [timed_at, str(timed_from.round())])
+	return { "from": timed_from, "at": timed_at, "since": since }
+
+
+## `_check_member`'s check that member `id` is in its slot (`timing.to`) within its route's walking
+## time + `SLACK_S`, timed as `timing` (`_timed_from`) says: the route that keeps out of the room
+## being entered and the doorway's view when one reaches the slot, else the plain route.
+static func _check_walk_time(
+		t: TestContext, f: Dictionary, id: StringName, rec: Dictionary, timing: Dictionary
+) -> void:
+	var label := _label(rec, id)
+	var timed_at: float = timing["at"]
+	if not _detour_ended(t, label, timing):
+		return
+	var a := t.actor(id)
+	var map: RID = rec["map"]
+	var kept := await keep_out_route(t, f, timing["from"], timing["to"], map)
+	var route_len: float
+	var route_kind: String
+	if kept.has("path"):
+		route_len = NavBuilder.path_length(kept["path"])
+		route_kind = "the way round the %s and the doorway's view" % f["room_key"]
+	else:
+		route_len = NavBuilder.path_length(NavBuilder.route(map, timing["from"], timing["to"]))
+		route_kind = "the plain route: %s" % kept["why"]
+	var budget := route_len / maxf(float(a.walk_speed()), 1.0) + SLACK_S
+	var took := float(rec["ever"].get(id, INF)) - timed_at
+	t.check(
+		took <= budget,
+		("%s is in its slot within its route's walking time + %.0f s%s (%.1f s; route %.0f "
+				+ "px, %s, at %.0f px/s: %.1f s allowed)")
+			% [
+				label,
+				SLACK_S,
+				timing["since"],
+				took,
+				route_len,
+				route_kind,
+				a.walk_speed(),
+				budget,
+			],
+	)
+
+
+## `_check_walk_time`'s failed check when the detour its walk is timed from (`timing`) never ended;
+## true when it did.
+static func _detour_ended(t: TestContext, label: String, timing: Dictionary) -> bool:
+	if float(timing["at"]) != INF:
+		return true
+	t.check(
+		false,
+		("%s is in its slot within its route's walking time + %.0f s%s: the detour never "
+				+ "ended (still running when the watch ended at %.1f s)")
+			% [label, SLACK_S, timing["since"], t.time],
+	)
+	return false
+
+
+## `_check_member`'s checks that member `id` never walks the doorway's view nor crosses the door's
+## front close in on its way to `spot`, when a way round exists from where it started.
+static func _check_view(
+		t: TestContext, f: Dictionary, id: StringName, rec: Dictionary, spot: Vector2
+) -> void:
+	var label := _label(rec, id)
+	var round_way := await way_round(t, f, rec["start"][id], spot, rec["map"])
+	if round_way != "":
+		t.check(true, "%s: %s" % [label, round_way])
+		return
+	var in_view := View.time_in_view(t, rec["samples"], id, f)
+	t.check(
+		in_view <= VIEW_SLACK_S,
+		"%s never walks the doorway's view (%.2f s in it; a way round exists)" % [label, in_view],
+	)
+	var cross := front_crossings(t, f, rec["samples"], id)
+	t.check(
+		cross.is_empty(),
+		"%s never crosses the door's front close in (a way round exists): %s"
+			% [label, ", ".join(cross)],
+	)
 
 
 ## Every change of `id`'s claimed slot at doorway `opening` on the radio after it settled
@@ -446,24 +534,39 @@ static func move_ups(t: TestContext, ids: Array, opening: String) -> Array:
 		for r: Dictionary in changes[late]:
 			if r["step"] != "claim" or int(r["to"]) <= int(r["from"]):
 				continue
-			var paired := false
-			for mover in ids:
-				if mover == late or paired:
-					continue
-				for d: Dictionary in changes[mover]:
-					if (d["step"] == "claim"
-							and int(d["to"]) == int(r["from"])
-							and int(d["from"]) == int(r["to"])
-							and int(d["side"]) == int(r["side"])
-							and absf(float(d["at"]) - float(r["at"])) <= MOVE_UP_S):
-						out.append({
-							"mover": mover, "late": late, "from": int(d["from"]),
-							"to": int(d["to"]), "at": float(d["at"]), "late_at": float(r["at"]),
-							"side": int(d["side"]), "side_before": int(d["side_before"]),
-						})
-						paired = true
-						break
+			var m := _pair_rise(changes, ids, late, r)
+			if not m.is_empty():
+				out.append(m)
 	return out
+
+
+## The move-up whose other half is `late`'s rise `r` (`_slot_changes`), read off the members' slot
+## changes `changes` (id -> `_slot_changes`; the members `ids` tried in turn): the first mover's
+## claim of exactly the number `r` rose from, coming down from exactly the number it rose to, on
+## the same side and within `MOVE_UP_S` of it; {} when none is.
+static func _pair_rise(changes: Dictionary, ids: Array, late: Variant, r: Dictionary) -> Dictionary:
+	for mover in ids:
+		if mover == late:
+			continue
+		for d: Dictionary in changes[mover]:
+			if not _halves_of_move_up(d, r):
+				continue
+			return {
+				"mover": mover, "late": late, "from": int(d["from"]), "to": int(d["to"]),
+				"at": float(d["at"]), "late_at": float(r["at"]), "side": int(d["side"]),
+				"side_before": int(d["side_before"]),
+			}
+	return {}
+
+
+## Whether the slot changes `d` (a mover's claim) and `r` (a latecomer's rise) are the two halves of
+## one move-up.
+static func _halves_of_move_up(d: Dictionary, r: Dictionary) -> bool:
+	return (d["step"] == "claim"
+			and int(d["to"]) == int(r["from"])
+			and int(d["from"]) == int(r["to"])
+			and int(d["side"]) == int(r["side"])
+			and absf(float(d["at"]) - float(r["at"])) <= MOVE_UP_S)
 
 
 ## The move-up among `moves` whose other half is `late`'s slot change `r` (`_slot_changes`), or {}.
@@ -490,33 +593,9 @@ static func _check_move_up(
 	samples: Array,
 ) -> void:
 	var mover: StringName = m["mover"]
-	var before := {}
-	for s: Dictionary in samples:
-		if float(s["t"]) >= float(m["at"]):
-			break
-		before = s
-	var stood := "no sample before it"
-	var standing := false
-	if not before.is_empty():
-		var held: Dictionary = (before["slots"] as Dictionary).get(mover, {})
-		var at: Vector2 = before["pos"][mover]
-		if held.is_empty():
-			stood = "its entry was not at %s at %.1f s" % [f["id"], before["t"]]
-		else:
-			var off := at.distance_to(held["spot"]) if held["spot"] != Vector2.INF else INF
-			standing = int(held["slot"]) == int(m["from"]) and off <= SLOT_REACH
-			stood = ("at %.1f s it held slot %d, %.0f px off its point"
-					% [before["t"], held["slot"], off])
+	var stand := _stood(f, m, samples)
 	var lower: bool = int(m["to"]) < int(m["from"]) and int(m["side"]) == int(m["side_before"])
-	var last := int(m["to"])
-	var later := true
-	while later:
-		later = false
-		for n: Dictionary in moves:
-			if n["mover"] == mover and int(n["from"]) == last and float(n["at"]) > float(m["at"]):
-				last = int(n["to"])
-				later = true
-				break
+	var last := _last_slot(m, moves)
 	var a := t.actor(mover)
 	var e := Entry.entry(Entry.brain(t, mover))
 	var spot = e.get("stack_point", Vector2.INF)
@@ -528,17 +607,63 @@ static func _check_move_up(
 			and String(e.get("phase", "")) == "stack"
 			and off_end <= SLOT_REACH)
 	t.check(
-		standing and lower and ends,
+		stand["standing"] and lower and ends,
 		("%s's move-up %d -> %d at %.1f s (%s took %d) is a real one: it stood in its slot (%s), "
 				+ "the new slot is lower on its own file (side %d, from side %d), and it ends in "
 				+ "%s (slot %s through %s, phase %s, %.0f px off)")
 			% [
-				mover, m["from"], m["to"], m["at"], m["late"], m["from"], stood, m["side"],
+				mover, m["from"], m["to"], m["at"], m["late"], m["from"], stand["stood"], m["side"],
 				m["side_before"],
 				"slot %d" % last if last == int(m["to"]) else "slot %d, its later move-up's" % last,
 				str(e.get("slot")), e.get("opening", "-"), e.get("phase", "-"), off_end,
 			],
 	)
+
+
+## Whether the mover of move-up `m` stood in its own slot when it moved, by the last of `samples`
+## before the claim: `{ standing, stood }` (`stood`: what it was doing, in words).
+static func _stood(f: Dictionary, m: Dictionary, samples: Array) -> Dictionary:
+	var mover: StringName = m["mover"]
+	var before := {}
+	for s: Dictionary in samples:
+		if float(s["t"]) >= float(m["at"]):
+			break
+		before = s
+	if before.is_empty():
+		return { "standing": false, "stood": "no sample before it" }
+	var held: Dictionary = (before["slots"] as Dictionary).get(mover, {})
+	var at: Vector2 = before["pos"][mover]
+	if held.is_empty():
+		return {
+			"standing": false,
+			"stood": "its entry was not at %s at %.1f s" % [f["id"], before["t"]],
+		}
+	var off := at.distance_to(held["spot"]) if held["spot"] != Vector2.INF else INF
+	return {
+		"standing": int(held["slot"]) == int(m["from"]) and off <= SLOT_REACH,
+		"stood": "at %.1f s it held slot %d, %.0f px off its point" % [
+			before["t"],
+			held["slot"],
+			off,
+		],
+	}
+
+
+## The slot the mover of move-up `m` ends the stack's move-ups `moves` in: `m`'s new slot, or that
+## of its later move-ups from it in turn.
+static func _last_slot(m: Dictionary, moves: Array) -> int:
+	var last := int(m["to"])
+	var later := true
+	while later:
+		later = false
+		for n: Dictionary in moves:
+			if (n["mover"] == m["mover"]
+					and int(n["from"]) == last
+					and float(n["at"]) > float(m["at"])):
+				last = int(n["to"])
+				later = true
+				break
+	return last
 
 
 ## The times member `id` crossed the door's axis close in: on its outer side, at a point inside the
@@ -640,14 +765,10 @@ static func keep_out_route(
 		return { "why": "the avoid map never came up" }
 	var path := NavBuilder.route(avoid, from, to)
 	if path.is_empty() or path[path.size() - 1].distance_to(to) > ROUTE_REACH:
-		return {
-			"why": ("no route round the %s and the doorway's view reaches the slot (it ends %.0f "
-					+ "px off)")
-				% [
-					f["room_key"],
-					path[path.size() - 1].distance_to(to) if not path.is_empty() else INF,
-				],
-		}
+		var off := path[path.size() - 1].distance_to(to) if not path.is_empty() else INF
+		var why := (("no route round the %s and the doorway's view reaches the slot (it ends %.0f "
+				+ "px off)") % [f["room_key"], off])
+		return { "why": why }
 	if _route_through(f, view, Array(path)):
 		return {
 			"why": "the avoid map's route still runs through the %s or the doorway's view"

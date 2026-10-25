@@ -50,18 +50,7 @@ func run(t: TestContext) -> void:
 			"the stack carries a stun each, the lone invader none",
 	):
 		return
-	var hall_door: String = Entry.HALL_LIVING["id"]
-	var samples := { &"a": [], &"b": [], &"lone": [] }
-	var done := func() -> bool:
-		for id in samples:
-			var phase := str(Entry.entry(Entry.brain(t, id)).get("phase", ""))
-			if samples[id].is_empty() or samples[id].back()[1] != phase:
-				samples[id].append([t.time, phase])
-		var lead := Listen.point(t)
-		return (lead != &""
-				and Listen.first(samples[lead], "pie") < INF
-				and Listen.first(samples[&"lone"], "pie") < INF)
-	await t.until(done, 40.0)
+	var samples := await _watch_until_both_pie(t)
 	var p := Listen.point(t)
 	if not t.require(p != &"", "the stack claimed the back door"):
 		return
@@ -85,6 +74,28 @@ func run(t: TestContext) -> void:
 		Entry.calls(t, "bang").is_empty() and not t.happened(&"throw"),
 		"with nothing heard, the entry stayed quiet",
 	)
+	_check_lone_at_once(t, samples)
+
+
+# Each invader's entry phases, noted until the stack's point and the lone invader have both begun
+# the pie (or 40 s pass).
+func _watch_until_both_pie(t: TestContext) -> Dictionary:
+	var samples := { &"a": [], &"b": [], &"lone": [] }
+	var done := func() -> bool:
+		for id in samples:
+			var phase := str(Entry.entry(Entry.brain(t, id)).get("phase", ""))
+			if samples[id].is_empty() or samples[id].back()[1] != phase:
+				samples[id].append([t.time, phase])
+		var lead := Listen.point(t)
+		return (lead != &""
+				and Listen.first(samples[lead], "pie") < INF
+				and Listen.first(samples[&"lone"], "pie") < INF)
+	await t.until(done, 40.0)
+	return samples
+
+
+func _check_lone_at_once(t: TestContext, samples: Dictionary) -> void:
+	var hall_door: String = Entry.HALL_LIVING["id"]
 	var lone_ready := Entry.first_call_time(t, "ready", &"lone", hall_door)
 	if t.check(
 			lone_ready < INF,

@@ -41,47 +41,23 @@ func run(t: TestContext) -> void:
 	geometry.bind(npc)
 	geometry.learn_carried()
 	geometry.learn_body()
-	var space: PhysicsDirectSpaceState2D = npc.get_world_2d().direct_space_state
-	var map: RID = npc.get_world_2d().navigation_map
-	var exclude := Probe.character_rids(t)
-	var rooms: Array = t.rooms
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	var compared := 0
-	var differing: Array = []
-	var found := 0
+	var ctx := {
+		"geometry": geometry,
+		"space": npc.get_world_2d().direct_space_state,
+		"map": npc.get_world_2d().navigation_map,
+		"exclude": Probe.character_rids(t),
+		"rng": rng,
+	}
+	var rooms: Array = t.rooms
+	var tally := { "compared": 0, "found": 0, "differing": [] }
 	for n in CASES:
 		var room: Dictionary = rooms[n % rooms.size()]
-		var rect: Rect2 = room["rect"]
-		var burst := NavBuilder.snap(
-			map,
-			rect.position + Vector2(rng.randf(), rng.randf()) * rect.size,
-		)
-		var from := NavBuilder.snap(
-			map,
-			burst + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, NEAR),
-		)
-		for kind in [&"frag", &"stun"]:
-			var radius: float = geometry.radius_of(kind)
-			var fuse := rng.randf_range(0.6, 3.0)
-			var speed := rng.randf_range(90.0, 260.0)
-			var threat := GrenadeThreat.new()
-			threat.kind = kind
-			threat.radius = radius
-			threat.burst = burst
-			threat.fuse_left = fuse
-			var runner := GrenadeRunner.new()
-			runner.from = from
-			runner.speed = speed
-			var fast: Dictionary = geometry.escape(space, map, threat, runner, exclude)
-			var plain := _plain_escape(
-				geometry, space, map, kind, radius, burst, from, fuse, speed, exclude,
-			)
-			compared += 1
-			found += 1 if fast["spot"] != Vector2.INF else 0
-			if fast != plain:
-				differing.append("%s at %s from %s: %s, plain %s"
-						% [kind, burst.round(), from.round(), fast, plain])
+		_compare_case(ctx, tally, room["rect"])
+	var compared: int = tally["compared"]
+	var found: int = tally["found"]
+	var differing: Array = tally["differing"]
 	t.check(
 		compared == CASES * 2 and found >= CASES / 2.0,
 		"escapes compared (%d, %d with a spot)" % [compared, found],
@@ -91,6 +67,70 @@ func run(t: TestContext) -> void:
 		"%d of %d escapes differ from the plain search: %s"
 			% [differing.size(), compared, differing.slice(0, 3)],
 	)
+
+
+## One drawn case in room `rect`: a burst and a runner near it, each kind of grenade compared.
+func _compare_case(ctx: Dictionary, tally: Dictionary, rect: Rect2) -> void:
+	var map: RID = ctx["map"]
+	var rng: RandomNumberGenerator = ctx["rng"]
+	var burst := NavBuilder.snap(
+		map,
+		rect.position + Vector2(rng.randf(), rng.randf()) * rect.size,
+	)
+	var from := NavBuilder.snap(
+		map,
+		burst + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(20.0, NEAR),
+	)
+	for kind in [&"frag", &"stun"]:
+		_compare_kind(ctx, tally, kind, burst, from)
+
+
+## The escape from a `kind` grenade bursting at `burst`, for a runner at `from`, against the plain
+## search; counted in `tally`, a difference listed there.
+func _compare_kind(
+		ctx: Dictionary,
+		tally: Dictionary,
+		kind: StringName,
+		burst: Vector2,
+		from: Vector2,
+) -> void:
+	var geometry = ctx["geometry"]
+	var space: PhysicsDirectSpaceState2D = ctx["space"]
+	var map: RID = ctx["map"]
+	var exclude: Array = ctx["exclude"]
+	var rng: RandomNumberGenerator = ctx["rng"]
+	var radius: float = geometry.radius_of(kind)
+	var fuse := rng.randf_range(0.6, 3.0)
+	var speed := rng.randf_range(90.0, 260.0)
+	var fast: Dictionary = geometry.escape(
+		space, map, _threat(kind, radius, burst, fuse), _runner(from, speed), exclude,
+	)
+	var plain := _plain_escape(
+		geometry, space, map, kind, radius, burst, from, fuse, speed, exclude,
+	)
+	tally["compared"] += 1
+	tally["found"] += 1 if fast["spot"] != Vector2.INF else 0
+	if fast != plain:
+		tally["differing"].append("%s at %s from %s: %s, plain %s"
+				% [kind, burst.round(), from.round(), fast, plain])
+
+
+## The grenade as the escape takes it.
+func _threat(kind: StringName, radius: float, burst: Vector2, fuse: float) -> GrenadeThreat:
+	var threat := GrenadeThreat.new()
+	threat.kind = kind
+	threat.radius = radius
+	threat.burst = burst
+	threat.fuse_left = fuse
+	return threat
+
+
+## The runner as the escape takes it.
+func _runner(from: Vector2, speed: float) -> GrenadeRunner:
+	var runner := GrenadeRunner.new()
+	runner.from = from
+	runner.speed = speed
+	return runner
 
 
 ## `AgentThrow.escape` as it was: every candidate snapped, judged and routed.

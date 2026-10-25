@@ -53,26 +53,50 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
+	if not _set_up(t, inv):
+		return
+	var brain := t.controller(&"i", &"debug_zones")
+	var seen := await _watch_first_combat(t, brain, inv)
+	var first: Dictionary = seen["first"]
+	if not t.require(
+			not first.is_empty() and (first["pos"] as Vector2).distance_to(I_AT) <= 12.0,
+			"the invader made a COMBAT decision where it stands (walks %s)"
+				% str(Spot.describe(seen["walks"])),
+	):
+		return
+	t.check(
+		first["combat"].has("grenade"),
+		"GRENADE was offered (offered %s)" % str(first["combat"]),
+	)
+	if not _check_throw_from_here(t, seen["zones"]):
+		return
+	await _check_thrown_from_here(t, inv)
+
+
+func _set_up(t: TestContext, inv: Node) -> bool:
 	if not t.require(
 			Probe.count(inv, Probe.STUN) == 1,
 			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),
 	):
-		return
+		return false
 	var hand: Vector2 = inv.throw_release_offset(Probe.STUN)
 	if not t.require(
 			hand.y < 0.0,
 			"set-up: the retuned stance holds the throwing hand to the thrower's left (offset %s)"
 				% str(hand),
 	):
-		return
-	if not t.require(
-			Probe.line_clear(t, I_AT, H_AT)
-				and Spot.hand_lob_clear(t, inv, I_AT, H_AT)
-				and I_AT.distance_to(H_AT) <= Probe.MAX_RANGE,
-			"set-up: in sight and in range, and the lob from the left hand clears the jamb",
-	):
-		return
-	var brain := t.controller(&"i", &"debug_zones")
+		return false
+	return t.require(
+		Probe.line_clear(t, I_AT, H_AT)
+			and Spot.hand_lob_clear(t, inv, I_AT, H_AT)
+			and I_AT.distance_to(H_AT) <= Probe.MAX_RANGE,
+		"set-up: in sight and in range, and the lob from the left hand clears the jamb",
+	)
+
+
+# Follows the invader's decision walks until it has made a COMBAT decision and thrown (or 15 s
+# pass): its first COMBAT walk, the throw zones it weighed then, and every walk.
+func _watch_first_combat(t: TestContext, brain: Node, inv: Node) -> Dictionary:
 	var state := {}
 	var walks: Array = []
 	var first := {}
@@ -88,16 +112,10 @@ func run(t: TestContext) -> void:
 		return (not first.is_empty()
 				and t.happened(&"throw", func(d): return d.get("attacker") == inv))
 	await t.until(watch, 15.0)
-	if not t.require(
-			not first.is_empty() and (first["pos"] as Vector2).distance_to(I_AT) <= 12.0,
-			"the invader made a COMBAT decision where it stands (walks %s)"
-				% str(Spot.describe(walks)),
-	):
-		return
-	t.check(
-		first["combat"].has("grenade"),
-		"GRENADE was offered (offered %s)" % str(first["combat"]),
-	)
+	return { "first": first, "zones": zones, "walks": walks }
+
+
+func _check_throw_from_here(t: TestContext, zones: Array) -> bool:
 	var near := zones.filter(func(z): return (
 		(z["point"] as Vector2).distance_to(H_AT) < 60.0 and Spot.from_of(z) != Vector2.INF
 	))
@@ -105,12 +123,16 @@ func run(t: TestContext) -> void:
 			not near.is_empty(),
 			"the throw it weighed names where it throws from (zones %s)" % str(zones),
 	):
-		return
+		return false
 	var from := Spot.from_of(near[0])
 	t.check(
 		from.distance_to(I_AT) <= 12.0,
 		"it throws from where it stands, not from a throw spot (%s)" % str(from.round()),
 	)
+	return true
+
+
+func _check_thrown_from_here(t: TestContext, inv: Node) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if t.check(not throws.is_empty(), "the invader threw (acts %s)" % Probe.acts(t, &"i")):
 		var at: Vector2 = throws[0]["data"]["position"]

@@ -44,24 +44,47 @@ func run(t: TestContext) -> void:
 	var hostile := t.actor(&"h")
 	t.puppet(&"h").set_posture(&"crouch")
 	Probe.arm(inv, 0, 1)
+	if not await _set_up(t, inv, hostile):
+		return
+	var target := "t_%d" % hostile.get_instance_id()
+	var w := await _watch_until_thrown(t, inv, target)
+	var seen: Array = w["seen"]
+	if not t.require(
+			w["fighting_outside"],
+			"the invader fought the householder from outside the kitchen (acts %s)" % str(seen),
+	):
+		return
+	t.check(
+		w["offered"],
+		"GRENADE was offered against the householder behind the sofa (acts %s)" % str(seen),
+	)
+	if not _check_thrown_from_outside(t, inv, seen):
+		return
+	await _check_frag_caught_householder(t, inv, hostile)
+
+
+func _set_up(t: TestContext, inv: Node, hostile: Node) -> bool:
 	if not t.require(
 			Probe.count(inv, Probe.FRAG) == 1,
 			"the invader carries a frag grenade (Character.item_count(8) = %d)"
 				% Probe.count(inv, Probe.FRAG),
 	):
-		return
+		return false
 	if not t.require(
 			await t.until(func(): return hostile.posture() == &"crouch", 2.0),
 			"set-up: the householder crouches behind the sofa",
 	):
-		return
-	if not t.require(
-			not Probe.line_clear(t, INVADER_AT, HOSTILE_AT),
-			"set-up: the sofa stands on the line from the invader to the householder",
-	):
-		return
+		return false
+	return t.require(
+		not Probe.line_clear(t, INVADER_AT, HOSTILE_AT),
+		"set-up: the sofa stands on the line from the invader to the householder",
+	)
+
+
+# Notes the invader's acts, whether it fought the householder from outside the kitchen and whether
+# GRENADE was offered, until something is thrown (or 60 s pass).
+func _watch_until_thrown(t: TestContext, inv: Node, target: String) -> Dictionary:
 	var brain := t.controller(&"i", &"current_act")
-	var target := "t_%d" % hostile.get_instance_id()
 	var seen: Array = []
 	var offered := [false]
 	var fighting_outside := [false]
@@ -76,26 +99,25 @@ func run(t: TestContext) -> void:
 			offered[0] = true
 		return t.happened(&"throw")
 	await t.until(watch, 60.0)
-	if not t.require(
-			fighting_outside[0],
-			"the invader fought the householder from outside the kitchen (acts %s)" % str(seen),
-	):
-		return
-	t.check(
-		offered[0],
-		"GRENADE was offered against the householder behind the sofa (acts %s)" % str(seen),
-	)
+	return { "seen": seen, "offered": offered[0], "fighting_outside": fighting_outside[0] }
+
+
+func _check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if not t.check(
 			not throws.is_empty() and throws[0]["data"].get("kind") == &"frag",
 			"the invader threw its frag (acts %s)" % str(seen),
 	):
-		return
+		return false
 	t.check(
 		not Maps.HOUSE_KITCHEN.has_point(throws[0]["data"]["position"]),
 		"from outside the kitchen (thrown at %s)"
 			% str((throws[0]["data"]["position"] as Vector2).round()),
 	)
+	return true
+
+
+func _check_frag_caught_householder(t: TestContext, inv: Node, hostile: Node) -> void:
 	if t.check(await Probe.wait_boom(t, &"frag", 6.0), "the frag went off"):
 		var at: Vector2 = Probe.booms(t, &"frag")[0]["data"]["position"]
 		t.check(

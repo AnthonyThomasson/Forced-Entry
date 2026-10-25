@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"chest_ne", "tool_chest", Vector2(900, 90))
 	Flank.rules(s)
 	# only the lane rule is under test, not the target-clearance rule
-	Flank.npc(s, &"npc", NPC_POS, { "route_clearance": 40.0 }, &"invader", TARGET_POS)
+	Flank.npc(s, &"npc", NPC_POS, { "route_clearance": 40.0 }, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, BUDDY_POS)
 	Flank.ally(s, &"buddy", BUDDY_POS, { "aim_point": TARGET_POS })
 

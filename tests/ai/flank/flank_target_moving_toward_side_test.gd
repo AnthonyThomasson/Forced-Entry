@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"island_e", "island", Vector2(900, 400))
 	s.object(&"pillar_w", Maps.PILLAR, Vector2(330, 330))
 	Flank.rules(s)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"invader", TARGET_START)
+	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_START })
 	Flank.target(s, &"target", TARGET_START, NPC_POS, { "speed": 70.0 })
 
 

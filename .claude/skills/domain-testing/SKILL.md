@@ -564,7 +564,7 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
 the approach, the stack's slots, the pie, the crossing, the corners, the ready barrier and the radio, the solo entry
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
-(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; `cadence` offsets its decide timer),
+(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `decide_interval` in its `gc` offsets its decide timer),
 `target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(t, prefix)` to check the
 order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
@@ -692,8 +692,8 @@ by path), `layout(g, count, side)` (the slots, read only through the published r
 `room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them the native suite
 `tests/ai/door_stack_suite.gd` feeds plain claim dicts to the stack module (`StackClaim`'s codec and its not-a-claim rule, a `ClaimLedger`,
 `DoorStack`'s slot rules: same-frame ties, move-up, the human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
-(`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, ids, lead,
-side, starts)`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
+(`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, lead, side,
+starts)`, the members the keys of `starts`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
 walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of
 a real move-up, `move_ups` / `_check_move_up`), never the doorway's view nor its front close in when a way round exists (`way_round`,
 `front_crossings`), no bump; the nine `tests/ai/entry/stack_reach_*` use it.

@@ -50,7 +50,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"a",
 		IN_KITCHEN,
-		0.4,
 		{ "max_commit_time": 0.4, "tactic_interval": 0.4 },
 		{ "facing": Vector2.LEFT, "speed": 0.0 },
 	)
@@ -70,19 +69,32 @@ func run(t: TestContext) -> void:
 		},
 	)
 	var brain := Entry.brain(t, &"a")
+	if not await _shot_taken(t, brain):
+		return
+	if not await _decided_from_hall(t, inv, brain):
+		return
+	_check_offers(t, brain)
+
+
+## Whether the shot was taken in as one at the invader, its line back running from the kitchen
+## into the living room.
+func _shot_taken(t: TestContext, brain: Node) -> bool:
 	var taken := func(): return not (brain.debug_memory().get("shot_from", []) as Array).is_empty()
 	if not t.require(
 			await t.until(taken, 3.0),
 			"the shot was taken in as one at the invader (act %s)" % brain.current_act(),
 	):
-		return
+		return false
 	var shot: Dictionary = brain.debug_memory()["shot_from"][0]
-	if not t.require(
-			_runs_into(shot, Maps.HOUSE_KITCHEN) and _runs_into(shot, Maps.HOUSE_LIVING),
-			"set-up: the line back from the shot runs from the kitchen into the living room (%s)"
-				% str(shot),
-	):
-		return
+	return t.require(
+		_runs_into(shot, Maps.HOUSE_KITCHEN) and _runs_into(shot, Maps.HOUSE_LIVING),
+		"set-up: the line back from the shot runs from the kitchen into the living room (%s)"
+			% str(shot),
+	)
+
+
+## Moves the invader into the hall; whether it decided again from there, still under fire.
+func _decided_from_hall(t: TestContext, inv: Node, brain: Node) -> bool:
 	inv.global_position = IN_HALL
 	var decisions := int(brain.debug_state().get("decisions", 0))
 	var from_hall := func():
@@ -93,12 +105,15 @@ func run(t: TestContext) -> void:
 			"the invader decided again from the hall (act %s, at %s)"
 				% [brain.current_act(), inv.global_position.round()],
 	):
-		return
-	if not t.require(
-			brain.debug_state().get("under_fire", false),
-			"it is still under fire when it decides from the hall",
-	):
-		return
+		return false
+	return t.require(
+		brain.debug_state().get("under_fire", false),
+		"it is still under fire when it decides from the hall",
+	)
+
+
+## The entries and the throws offered from the hall point at the living room, not the kitchen.
+func _check_offers(t: TestContext, brain: Node) -> void:
 	var living := _entry_by(brain, Maps.DOOR_HALL_LIVING)
 	var kitchen := _entry_by(brain, Maps.DOOR_HALL_KITCHEN)
 	t.check(

@@ -267,17 +267,18 @@ static func acts_of(w: Dictionary, c: Node) -> String:
 	))
 
 
-## Watch `nodes` (characters) every physics frame for up to `duration` sim s, or until `stop`
-## (called with the record) returns true; `s` is their squad (or null). `each`, when valid, is
-## called every frame with the record. Returns the record (`new_watch`).
+## Watch `nodes` (characters) every physics frame for up to `duration` sim s, or until
+## `hooks.stop` (called with the record) returns true; `s` is their squad (or null). `hooks.each`,
+## when given, is called every frame with the record. Returns the record (`new_watch`).
 static func watch(
 	t: TestContext,
 	nodes: Array,
 	s: Node,
 	duration: float,
-	stop := Callable(),
-	each := Callable(),
+	hooks: Dictionary = {},
 ) -> Dictionary:
+	var stop: Callable = hooks.get("stop", Callable())
+	var each: Callable = hooks.get("each", Callable())
 	var w := new_watch()
 	var end := t.time + duration
 	while t.time < end:

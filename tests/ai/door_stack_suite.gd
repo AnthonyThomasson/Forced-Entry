@@ -272,20 +272,11 @@ func test_a_same_frame_tie_with_the_human_goes_to_the_nearer_claim() -> void:
 	var near := _slot_at(1, 1) + Vector2(0, 30)
 	var far := _slot_at(1, 1) + Vector2(0, 150)
 	for human_first in [true, false]:
-		var human: Node = pair[1] if human_first else pair[0]
-		var ai: Node = pair[0] if human_first else pair[1]
-		var human_at := near if human_first else far
-		var ai_at := far if human_first else near
-		var humans := _claim(human, {
-			"slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": human_at, "human": true,
-		})
-		var ais := _claim(ai, { "slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": ai_at })
-		var ai_reads: int = DoorStack.new(_door(), [humans]).slot_for(_me(ai, 1, ai_at))
-		var human_reads: int = DoorStack.new(_door(), [ais]).slot_for(_me(human, 1, human_at))
+		var reads := _tie_reads(pair, human_first, near, far)
 		var nearer := "the human" if human_first else "the AI"
-		assert_array([human_reads, ai_reads]).override_failure_message(
+		assert_array(reads).override_failure_message(
 			"%s stood nearer: it keeps slot 1, the other takes 2 (human, AI: %s)"
-				% [nearer, str([human_reads, ai_reads])],
+				% [nearer, str(reads)],
 		).is_equal([1, 2] if human_first else [2, 1])
 
 
@@ -529,9 +520,12 @@ func test_a_split_stack_evens_its_sides_by_moving_its_last_claimer() -> void:
 	var c := _speaker()
 	var me := _speaker()
 	var one_sided := [_claim(a, { "slot": 1, "side": 1 }), _claim(b, { "slot": 2, "side": 1 })]
-	var second := { "id": me.get_instance_id(), "slot": 2 }
-	var pair: RefCounted = DoorStack.new(_door(), [one_sided[0]])
-	assert_int(pair.split_side(second, 1)).override_failure_message(
+	assert_int(
+		DoorStack.new(
+			_door(),
+			[one_sided[0]],
+		).split_side({ "id": me.get_instance_id(), "slot": 2 }, 1),
+	).override_failure_message(
 		"a second on the point's side, none across: two more there, it takes the other side",
 	).is_equal(-1)
 	var mine := { "id": me.get_instance_id(), "slot": 3 }
@@ -726,6 +720,24 @@ func _me(speaker: Node, slot: int, pos := Vector2(0, 200)) -> Dictionary:
 	return {
 		"id": speaker.get_instance_id(), "slot": slot, "side": 1, "frame": FRAME, "pos": pos,
 	}
+
+
+## `test_a_same_frame_tie_with_the_human_goes_to_the_nearer_claim`'s same-frame tie of the
+## speakers `pair` on slot 1, the human (the higher instance id when `human_first`, else the lower)
+## claiming from `near` when `human_first` (else `far`) and the AI from the other: `[the human's
+## slot, the AI's]`, each read from the other's claim.
+func _tie_reads(pair: Array, human_first: bool, near: Vector2, far: Vector2) -> Array:
+	var human: Node = pair[1] if human_first else pair[0]
+	var ai: Node = pair[0] if human_first else pair[1]
+	var human_at := near if human_first else far
+	var ai_at := far if human_first else near
+	var humans := _claim(human, {
+		"slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": human_at, "human": true,
+	})
+	var ais := _claim(ai, { "slot": 1, "side": 1, "claim_frame": FRAME, "claim_pos": ai_at })
+	var ai_reads: int = DoorStack.new(_door(), [humans]).slot_for(_me(ai, 1, ai_at))
+	var human_reads: int = DoorStack.new(_door(), [ais]).slot_for(_me(human, 1, human_at))
+	return [human_reads, ai_reads]
 
 
 ## Two speakers, the lower instance id first.

@@ -79,6 +79,26 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 
 	# --- The back door: the human dawdles, then steps into its slot. ---
+	if not await _back_stack_ready(t, squad, stack):
+		return
+	var crossed := await _back_waits(t, stack)
+	if not crossed:
+		await _step_into_slot(t, stack)
+
+	# --- The front door: the human dawdles, then walks away. ---
+	var front_id := "door_0_415"
+	# Done with the back door: put it by the front door's stack.
+	t.actor(&"me").global_position = LOITER_FRONT[0]
+	await t.seconds(0.5)
+	if not await _front_stack_ready(t, squad, stack, front_id):
+		return
+	var early := await _front_waits(t, front_id)
+	await _walk_away_frees(t, front_id, early)
+
+
+## The back door's stack is ordered, the human is reserved a slot in it as its leader, and a and b
+## are ready. False when one of these never happens.
+func _back_stack_ready(t: TestContext, squad: Node, stack: Node) -> bool:
 	var back: Dictionary = Entry.BACK
 	if not t.require(
 			not Order.stack_order(
@@ -90,23 +110,28 @@ func run(t: TestContext) -> void:
 			).is_empty(),
 			"the squad posts the stack order on the back door (issue)",
 	):
-		return
+		return false
 	if not t.require(
 			await _reserved(t, stack, back["id"]),
 			"the human is reserved a slot at the back door (and keeps it)",
 	):
-		return
+		return false
 	t.check(
 		_leads(t, back["id"]),
 		"the human's claim at the back door says it leads the stack (leader: true, %s)"
 			% str(_my_claim(t, back["id"])),
 	)
 	var ready := func(): return Order.all_called(t, BACK_IDS, "ready", back["id"])
-	if not t.require(
-			await t.until(ready, 30.0),
-			"a and b are ready in their slots at the back door",
-	):
-		return
+	return t.require(
+		await t.until(ready, 30.0),
+		"a and b are ready in their slots at the back door",
+	)
+
+
+## The human dawdles `DAWDLE_BACK` s out of its slot at the back door: nobody crosses, and it still
+## holds its slot. Returns whether someone crossed.
+func _back_waits(t: TestContext, stack: Node) -> bool:
+	var back: Dictionary = Entry.BACK
 	var crossed := not await _dawdle(
 		t,
 		LOITER_BACK,
@@ -133,38 +158,44 @@ func run(t: TestContext) -> void:
 		Stack.mine(stack) > 0 and String(Stack.view(stack).get("opening", "")) == back["id"],
 		"the human still holds its slot after dawdling (view %s)" % str(Stack.view(stack)),
 	)
-	if not crossed:
-		var mine := Stack.mine(stack)
-		if t.require(
-				await Stack.walk(t, &"me", [Stack.slot_point(stack, mine)], 15.0),
-				"the human steps into its slot %d" % mine,
-		):
-			await t.until(
-				func(): return Entry.first_call_time(t, "ready", &"me", back["id"]) < INF,
-				3.0,
-			)
-			var in_slot := Entry.first_call_time(t, "ready", &"me", back["id"])
-			t.check(in_slot < INF, "the human's stack radios ready in its slot")
-			var gone := await t.until(
-				func(): return not _went_in(t, BACK_IDS, back["id"]).is_empty(),
-				GO_WITHIN,
-			)
-			t.check(
-				gone,
-				"the stack goes once its leader stands in its slot (within %.0f s)" % GO_WITHIN,
-			)
-			if gone:
-				t.check(
-					_first_going(t, BACK_IDS, back["id"]) >= in_slot,
-					"and only after it (human ready at %.2f s, first going_in at %.2f s)"
-						% [in_slot, _first_going(t, BACK_IDS, back["id"])],
-				)
+	return crossed
 
-	# --- The front door: the human dawdles, then walks away. ---
-	var front_id := "door_0_415"
-	# Done with the back door: put it by the front door's stack.
-	t.actor(&"me").global_position = LOITER_FRONT[0]
-	await t.seconds(0.5)
+
+## The human steps into its slot at the back door; the stack goes once it stands there, and only
+## after it.
+func _step_into_slot(t: TestContext, stack: Node) -> void:
+	var back: Dictionary = Entry.BACK
+	var mine := Stack.mine(stack)
+	if not t.require(
+			await Stack.walk(t, &"me", [Stack.slot_point(stack, mine)], 15.0),
+			"the human steps into its slot %d" % mine,
+	):
+		return
+	await t.until(
+		func(): return Entry.first_call_time(t, "ready", &"me", back["id"]) < INF,
+		3.0,
+	)
+	var in_slot := Entry.first_call_time(t, "ready", &"me", back["id"])
+	t.check(in_slot < INF, "the human's stack radios ready in its slot")
+	var gone := await t.until(
+		func(): return not _went_in(t, BACK_IDS, back["id"]).is_empty(),
+		GO_WITHIN,
+	)
+	t.check(
+		gone,
+		"the stack goes once its leader stands in its slot (within %.0f s)" % GO_WITHIN,
+	)
+	if gone:
+		t.check(
+			_first_going(t, BACK_IDS, back["id"]) >= in_slot,
+			"and only after it (human ready at %.2f s, first going_in at %.2f s)"
+				% [in_slot, _first_going(t, BACK_IDS, back["id"])],
+		)
+
+
+## The front door's stack is ordered, the human is reserved a slot in it, and c and d are ready.
+## False when one of these never happens.
+func _front_stack_ready(t: TestContext, squad: Node, stack: Node, front_id: String) -> bool:
 	if not t.require(
 			not Order.stack_order(
 				squad,
@@ -175,18 +206,22 @@ func run(t: TestContext) -> void:
 			).is_empty(),
 			"the squad posts the stack order on the front door (issue)",
 	):
-		return
+		return false
 	if not t.require(
 			await _reserved(t, stack, front_id),
 			"the human is reserved a slot at the front door (and keeps it)",
 	):
-		return
+		return false
 	var front_ready := func(): return Order.all_called(t, FRONT_IDS, "ready", front_id)
-	if not t.require(
-			await t.until(front_ready, 30.0),
-			"c and d are ready in their slots at the front door",
-	):
-		return
+	return t.require(
+		await t.until(front_ready, 30.0),
+		"c and d are ready in their slots at the front door",
+	)
+
+
+## The human dawdles `DAWDLE_FRONT` s out of its slot at the front door: nobody crosses. Returns
+## whether someone crossed.
+func _front_waits(t: TestContext, front_id: String) -> bool:
 	var early := not await _dawdle(
 		t,
 		LOITER_FRONT,
@@ -198,6 +233,12 @@ func run(t: TestContext) -> void:
 		("nobody crosses at the front door while the human dawdles %.0f s out of its slot (%s went "
 				+ "in)") % [DAWDLE_FRONT, str(_went_in(t, FRONT_IDS, front_id))],
 	)
+	return early
+
+
+## The human walks away: its slot at the front door is withdrawn, which frees the stack to go, after
+## the withdrawal (unless someone crossed `early`).
+func _walk_away_frees(t: TestContext, front_id: String, early: bool) -> void:
 	var walked_at := t.time
 	var p := t.puppet(&"me")
 	p.walk_to(AWAY)

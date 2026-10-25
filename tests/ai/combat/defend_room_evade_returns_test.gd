@@ -56,20 +56,31 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
+	if not await _holds_on_order(t, d, b):
+		return
+	if not await _driven_out(t, d):
+		return
+	await _walks_back(t, d, b)
+
+
+func _holds_on_order(t: TestContext, d: Node, b: Node) -> bool:
 	var squad := t.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "box_room" })
 	if not t.require(
 			await t.until(func(): return Order.on_order(b) and Order.primitive(b) == "defend", 5.0),
 			"the defender takes the order (act %s)" % b.current_act(),
 	):
-		return
+		return false
 	await t.seconds(3.0)
 	if not t.require(
 			Maps.BOX_ROOM.has_point(d.global_position),
 			"it holds inside the box room (premise; at %s)" % str(d.global_position.round()),
 	):
-		return
+		return false
+	return true
 
+
+func _driven_out(t: TestContext, d: Node) -> bool:
 	Probe.arm(t.actor(&"thrower"), 0, 1)
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, LANDING)
 	# Premise: once the frag is away the thrower walks off east along the corridor, out of the
@@ -84,15 +95,18 @@ func run(t: TestContext) -> void:
 		left = left or not Maps.BOX_ROOM.has_point(d.global_position)
 		await t.frames(1)
 	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
-		return
+		return false
 	if not t.require(
 			left,
 			("the frag drove the defender out of the box room (premise: it was in the danger zone; "
 					+ "it stayed at %s)") % str(d.global_position.round()),
 	):
-		return
+		return false
 	t.check(not d.is_dead, "it survived the burst")
+	return true
 
+
+func _walks_back(t: TestContext, d: Node, b: Node) -> void:
 	var back := await t.until(
 		func(): return Maps.BOX_ROOM.has_point(d.global_position) and Order.on_order(b),
 		15.0,

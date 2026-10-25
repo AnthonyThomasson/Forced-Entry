@@ -57,33 +57,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Probe.gunfire(GUNFIRE)
-	var map := t.world.get_world_2d().navigation_map
-	var plain := NavBuilder.route(map, START, GUNFIRE)
-	var plain_len := NavBuilder.path_length(plain)
-	var crosses := false
-	for i in range(1, plain.size()):
-		for k in 20:
-			crosses = crosses or View.in_view(t, STORE_DOOR, plain[i - 1].lerp(plain[i], k / 20.0))
-	if not t.require(
-			crosses,
-			"set-up: the plain route to the gunfire crosses the store room doorway's view (%.0f px)"
-				% plain_len,
-	):
-		return
-	var round_len := (NavBuilder.path_length(NavBuilder.route(map, START, ROUND[0]))
-			+ ROUND[0].distance_to(ROUND[1])
-			+ NavBuilder.path_length(NavBuilder.route(map, ROUND[1], GUNFIRE)))
-	if not t.require(
-			round_len <= View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
-			"set-up: the way round the view is within the cap (%.0f px against %.0f px plain)"
-				% [round_len, plain_len],
-	):
-		return
-	if not t.require(
-			not View.in_view(t, STORE_DOOR, ROUND[0], 0.0)
-				and not View.in_view(t, STORE_DOOR, ROUND[1], 0.0),
-			"set-up: the way round passes below the view's far end",
-	):
+	if not _set_up_holds(t):
 		return
 	var inv := t.actor(&"inv")
 	var there := func(): return inv.global_position.x > 750.0
@@ -106,3 +80,35 @@ func run(t: TestContext) -> void:
 		p.y > View.polygon(STORE_DOOR)[1].y and absf(p.x - STORE_DOOR["pos"].x) < 60.0
 	))
 	t.check(below, "it went round the far end of the view")
+
+
+## The set-up: the plain route crosses the store room doorway's view, and the way round below its
+## far end is within the cap. False when one does not hold.
+func _set_up_holds(t: TestContext) -> bool:
+	var map := t.world.get_world_2d().navigation_map
+	var plain := NavBuilder.route(map, START, GUNFIRE)
+	var plain_len := NavBuilder.path_length(plain)
+	var crosses := false
+	for i in range(1, plain.size()):
+		for k in 20:
+			crosses = crosses or View.in_view(t, STORE_DOOR, plain[i - 1].lerp(plain[i], k / 20.0))
+	if not t.require(
+			crosses,
+			"set-up: the plain route to the gunfire crosses the store room doorway's view (%.0f px)"
+				% plain_len,
+	):
+		return false
+	var round_len := (NavBuilder.path_length(NavBuilder.route(map, START, ROUND[0]))
+			+ ROUND[0].distance_to(ROUND[1])
+			+ NavBuilder.path_length(NavBuilder.route(map, ROUND[1], GUNFIRE)))
+	if not t.require(
+			round_len <= View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
+			"set-up: the way round the view is within the cap (%.0f px against %.0f px plain)"
+				% [round_len, plain_len],
+	):
+		return false
+	return t.require(
+		not View.in_view(t, STORE_DOOR, ROUND[0], 0.0)
+			and not View.in_view(t, STORE_DOOR, ROUND[1], 0.0),
+		"set-up: the way round passes below the view's far end",
+	)

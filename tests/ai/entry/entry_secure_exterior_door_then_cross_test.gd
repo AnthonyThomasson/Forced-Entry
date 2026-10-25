@@ -45,18 +45,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	Probe.gunfire(GUNFIRE)
 	var door := Entry.FRONT
-	var map := t.world.get_world_2d().navigation_map
-	var plain := NavBuilder.route(map, START, GUNFIRE)
-	var plain_len := NavBuilder.path_length(plain)
-	# Round the east side of the house, the only other way: well past 2 x the plain route + 300 px.
-	var round_len := (NavBuilder.path_length(NavBuilder.route(map, START, Vector2(900, -100)))
-			+ NavBuilder.path_length(NavBuilder.route(map, Vector2(900, -100), Vector2(900, 600)))
-			+ NavBuilder.path_length(NavBuilder.route(map, Vector2(900, 600), GUNFIRE)))
-	if not t.require(
-			round_len > View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
-			"set-up: no way round within the cap (plain %.0f px, round the house %.0f px)"
-				% [plain_len, round_len],
-	):
+	if not _no_way_round(t):
 		return
 	var inv := t.actor(&"inv")
 	var there := func(): return inv.global_position.y > Maps.HOUSE_BOUNDS.end.y + 30.0
@@ -71,6 +60,28 @@ func run(t: TestContext) -> void:
 				% [act, inv.global_position.round()],
 	):
 		return
+	_check_crossing(t, samples, door)
+
+
+## The set-up: the way round the house's east side is past the cap. False when it is not.
+func _no_way_round(t: TestContext) -> bool:
+	var map := t.world.get_world_2d().navigation_map
+	var plain := NavBuilder.route(map, START, GUNFIRE)
+	var plain_len := NavBuilder.path_length(plain)
+	# Round the east side of the house, the only other way: well past 2 x the plain route + 300 px.
+	var round_len := (NavBuilder.path_length(NavBuilder.route(map, START, Vector2(900, -100)))
+			+ NavBuilder.path_length(NavBuilder.route(map, Vector2(900, -100), Vector2(900, 600)))
+			+ NavBuilder.path_length(NavBuilder.route(map, Vector2(900, 600), GUNFIRE)))
+	return t.require(
+		round_len > View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
+		"set-up: no way round within the cap (plain %.0f px, round the house %.0f px)"
+			% [plain_len, round_len],
+	)
+
+
+## The checks of the crossing: the door covered from beside the jamb first, then its view crossed
+## without stopping and never crossed back, and nothing on the radio.
+func _check_crossing(t: TestContext, samples: Array, door: Dictionary) -> void:
 	var from_side := signf(Entry.lateral(door, START))
 	var crossed := View.axis_crossed_at(samples, &"inv", door, from_side)
 	if not t.require(crossed < INF, "set-up: the walk crossed the doorway's line of sight"):
@@ -82,7 +93,7 @@ func run(t: TestContext) -> void:
 				+ "at %.2f s)") % [covered, crossed],
 	)
 	var span := View.crossing_span(t, samples, &"inv", door, crossed)
-	var paused := View.longest_pause_in_view(t, samples, &"inv", door, 20.0, span[0], span[1])
+	var paused := View.longest_pause_in_view(t, samples, &"inv", door, span)
 	t.check(
 		paused < NO_STOP,
 		"it crossed the view without stopping (longest stop %.2f s, in the view %.2f to %.2f s)"

@@ -67,12 +67,7 @@ func run(t: TestContext) -> void:
 		"spot": Vector2.INF,
 	}
 	while t.time < 40.0:
-		st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
-		if float(st["radio_in"]) <= 0.0:
-			st["radio_in"] = 0.5
-			_radio(t.actor(&"p1"), 1, claim_frame)
-			_radio(t.actor(&"p2"), 2, claim_frame)
-			_radio(t.actor(&"p3"), 3, claim_frame)
+		_radio_claims(t, st, claim_frame)
 		for c in Entry.calls(t, "claim", &"walker"):
 			if not (st["slots"] as Array).has(int(c["slot"])):
 				(st["slots"] as Array).append(int(c["slot"]))
@@ -105,6 +100,21 @@ func run(t: TestContext) -> void:
 			"premise: it came in from the east of slot 3, and slot 3's holder stepped into it then",
 	):
 		return
+	_judge(t, st)
+
+
+## Every half second the three puppets radio their claims again (slots 1 to 3).
+func _radio_claims(t: TestContext, st: Dictionary, claim_frame: int) -> void:
+	st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
+	if float(st["radio_in"]) <= 0.0:
+		st["radio_in"] = 0.5
+		_radio(t.actor(&"p1"), 1, claim_frame)
+		_radio(t.actor(&"p2"), 2, claim_frame)
+		_radio(t.actor(&"p3"), 3, claim_frame)
+
+
+## The checks: no abort, slot 4 kept and reached by the way round.
+func _judge(t: TestContext, st: Dictionary) -> void:
 	t.check(Entry.calls(t, "abort", &"walker").is_empty(), "it never gives the entry up (abort)")
 	t.check((st["slots"] as Array).size() == 1, "it keeps slot 4 (claimed %s)" % [st["slots"]])
 	t.check(

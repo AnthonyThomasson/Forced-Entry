@@ -41,6 +41,32 @@ func run(t: TestContext) -> void:
 		return
 	var phases := { &"north": [], &"south": [] }
 	var samples: Array = []
+	await _record(t, door, phases, samples)
+	var claimed := IDS.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF)
+	if not t.require(
+			claimed,
+			"both invaders claimed the back door (acts %s, %s)"
+				% [Entry.brain(t, &"north").current_act(), Entry.brain(t, &"south").current_act()],
+	):
+		return
+
+	# Each stacks on its own side: where it stood when it radioed ready, and the side its claim
+	# carries.
+	var ready_at := _check_own_sides(t, door)
+
+	# Neither crossed the door's view before the entry: outside, each kept to its own side of the
+	# door's axis until it went in (its own pie arc lies in the view on its side, so being in the
+	# view is not the test; walking across the axis through it is).
+	_check_kept_sides(t, door, ready_at, samples, phases)
+
+	# The criss-cross: the point (first claimer) to the far side's corner, then the other side's
+	# front man to the opposite one.
+	_check_criss_cross(t, door, ready_at, samples)
+
+
+## Samples both invaders into `samples`, and each one's entry phase into `phases`, until both
+## radio `in` (100 s at most), then 3 s more.
+func _record(t: TestContext, door: Dictionary, phases: Dictionary, samples: Array) -> void:
 	var both_in := func():
 		return IDS.all(func(id): return Entry.first_call_time(t, "in", id, door["id"]) < INF)
 	var end := t.time + 100.0
@@ -62,16 +88,11 @@ func run(t: TestContext) -> void:
 			facing[id] = t.actor(id).facing
 		samples.append({ "t": t.time, "pos": pos, "facing": facing })
 		await t.frames(1)
-	var claimed := IDS.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF)
-	if not t.require(
-			claimed,
-			"both invaders claimed the back door (acts %s, %s)"
-				% [Entry.brain(t, &"north").current_act(), Entry.brain(t, &"south").current_act()],
-	):
-		return
 
-	# Each stacks on its own side: where it stood when it radioed ready, and the side its claim
-	# carries.
+
+## Checks each stacked on its own side and their claims carry different sides; returns where each
+## stood when it radioed ready (`Vector2.INF`: never).
+func _check_own_sides(t: TestContext, door: Dictionary) -> Dictionary:
 	var ready_at := {}
 	for id in IDS:
 		var readies := Entry.calls(t, "ready", id).filter(
@@ -95,10 +116,19 @@ func run(t: TestContext) -> void:
 		).filter(func(c): return String(c.get("opening", "")) == door["id"])
 		return mine.back().get("side", 0) if not mine.is_empty() else 0)
 	t.check(sides[0] != sides[1], "their claims carry different sides (%s)" % str(sides))
+	return ready_at
 
-	# Neither crossed the door's view before the entry: outside, each kept to its own side of the
-	# door's axis until it went in (its own pie arc lies in the view on its side, so being in the
-	# view is not the test; walking across the axis through it is).
+
+## Checks each kept to its own side of the door's axis until it went in, and sliced its own half of
+## the pie.
+func _check_kept_sides(
+		t: TestContext,
+		door: Dictionary,
+		ready_at: Dictionary,
+		samples: Array,
+		phases: Dictionary,
+) -> void:
+	var in_pie := func(p): return p[1] == "pie"
 	for id in IDS:
 		var own_side := (signf(Entry.lateral(door, ready_at[id]))
 				if ready_at[id] != Vector2.INF
@@ -109,10 +139,7 @@ func run(t: TestContext) -> void:
 			if float(s["t"]) >= going:
 				break
 			var p: Vector2 = s["pos"][id]
-			if (Entry.outward(door, p) > 0.0
-					and View.in_view(t, door, p)
-					and signf(Entry.lateral(door, p)) == -own_side
-					and absf(Entry.lateral(door, p)) > 20.0):
+			if _across(t, door, p, own_side):
 				crossed_at = s["t"]
 				break
 		t.check(
@@ -120,13 +147,26 @@ func run(t: TestContext) -> void:
 			("%s never crossed the back door's view to the other side before it went in (across at "
 					+ "%.2f s, going_in at %.2f s)") % [id, crossed_at, going],
 		)
-		t.check(
-			phases[id].any(func(p): return p[1] == "pie"),
-			"%s sliced its own half of the pie" % id,
-		)
+		t.check(phases[id].any(in_pie), "%s sliced its own half of the pie" % id)
 
-	# The criss-cross: the point (first claimer) to the far side's corner, then the other side's
-	# front man to the opposite one.
+
+## Whether `p` is outside the door, in its view, and more than 20 px across its axis from
+## `own_side`.
+func _across(t: TestContext, door: Dictionary, p: Vector2, own_side: float) -> bool:
+	return (Entry.outward(door, p) > 0.0
+			and View.in_view(t, door, p)
+			and signf(Entry.lateral(door, p)) == -own_side
+			and absf(Entry.lateral(door, p)) > 20.0)
+
+
+## Checks the point went in first and the other side's front man after the point's `in`, each to
+## the corner on the far side from its stack.
+func _check_criss_cross(
+		t: TestContext,
+		door: Dictionary,
+		ready_at: Dictionary,
+		samples: Array,
+) -> void:
 	var point_id: StringName = (&"north"
 			if Entry.first_call_time(t, "claim", &"north", door["id"])
 				<= Entry.first_call_time(t, "claim", &"south", door["id"])

@@ -40,12 +40,11 @@ func configure(s: TestSetup) -> void:
 	Entry.rules(s, Entry.BACK)
 	# A long ready timeout so the point is still waiting in its stack while the reservation is read,
 	# and through the range and ttl checks after it.
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 60.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 60.0 })
 	Stack.human(s, &"me", Stack.NEAR)
 
 
 func run(t: TestContext) -> void:
-	var door := Entry.BACK
 	var stack := Stack.attach(t, &"me")
 	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
 		return
@@ -54,6 +53,25 @@ func run(t: TestContext) -> void:
 			"the human was reserved a slot (act %s)" % Entry.brain(t, &"a").current_act(),
 	):
 		return
+	var point := Stack.slot_point(stack, 2)
+	_check_view(t, stack, point)
+	var my_claims := _claims(t)
+	if my_claims.is_empty():
+		return
+	var first: Dictionary = my_claims[0]
+	_check_first_claim(t, first)
+	# A few steps toward its slot (still a claim, not in it): the heartbeat repeats the claim as it
+	# was made. The puppet stops within its `arrive_distance` (6 px) of where it walks to.
+	var toward := Stack.NEAR.move_toward(point, 40.0)
+	if not t.require(await Stack.walk(t, &"me", [toward], 5.0), "the human steps toward its slot"):
+		return
+	if not await _check_repeat(t, first, my_claims.size(), toward):
+		return
+	await _check_lapse(t, stack)
+
+
+func _check_view(t: TestContext, stack: Node, point: Vector2) -> void:
+	var door := Entry.BACK
 	var v := Stack.view(stack)
 	t.expect_eq(
 		str(v.get("opening", "")),
@@ -65,7 +83,6 @@ func run(t: TestContext) -> void:
 		2,
 		"the human is reserved the first free slot, behind the AI point",
 	)
-	var point := Stack.slot_point(stack, 2)
 	t.check(
 		point != Vector2.INF and Entry.beside_door(door, point),
 		"the human's slot is against the wall beside the door (%s)" % point,
@@ -79,13 +96,19 @@ func run(t: TestContext) -> void:
 		mine_slots.size() == 1 and int(mine_slots[0]["n"]) == 2,
 		"exactly the human's own slot is flagged mine",
 	)
+
+
+# The human's claims so far, once both it and the AI radioed one and its first matches the AI's;
+# empty when the premise fails.
+func _claims(t: TestContext) -> Array:
+	var door := Entry.BACK
 	var ai_claims := Entry.calls(t, "claim", &"a")
 	var my_claims := Entry.calls(t, "claim", &"me")
 	if not t.require(
 			not ai_claims.is_empty() and not my_claims.is_empty(),
 			"both radioed a claim (the human's is on the radio like an NPC's)",
 	):
-		return
+		return []
 	t.expect_eq(int(ai_claims[0].get("slot", 0)), 1, "the AI took slot 1")
 	t.expect_eq(int(my_claims[0].get("slot", 0)), 2, "the human's claim is slot 2")
 	t.expect_eq(
@@ -98,7 +121,10 @@ func run(t: TestContext) -> void:
 		int(ai_claims[0].get("side", 0)),
 		"on the AI's side of the door",
 	)
-	var first: Dictionary = my_claims[0]
+	return my_claims
+
+
+func _check_first_claim(t: TestContext, first: Dictionary) -> void:
 	t.check(
 		int(first.get("claim_frame", -1)) >= 0,
 		"the human's claim says the frame it was made on (%s)" % first.get("claim_frame"),
@@ -114,15 +140,14 @@ func run(t: TestContext) -> void:
 		"it says bang: true (it holds no stack back)",
 	)
 	t.check(first.has("stuns") and int(first["stuns"]) == 0, "and stuns: 0 (it throws nothing)")
-	# A few steps toward its slot (still a claim, not in it): the heartbeat repeats the claim as it
-	# was made. The puppet stops within its `arrive_distance` (6 px) of where it walks to.
-	var toward := Stack.NEAR.move_toward(point, 40.0)
-	if not t.require(await Stack.walk(t, &"me", [toward], 5.0), "the human steps toward its slot"):
-		return
-	var said := my_claims.size()
+
+
+# The heartbeat repeats the `first` claim (of `said` so far) as it was made, the human now near
+# `toward`; false when no repeat comes.
+func _check_repeat(t: TestContext, first: Dictionary, said: int, toward: Vector2) -> bool:
 	var repeated := func(): return Entry.calls(t, "claim", &"me").size() > said
 	if not t.require(await t.until(repeated, 5.0), "the human's claim is repeated (heartbeat)"):
-		return
+		return false
 	var again: Dictionary = Entry.calls(t, "claim", &"me")[-1]
 	t.expect_eq(
 		int(again.get("claim_frame", -2)),
@@ -135,6 +160,10 @@ func run(t: TestContext) -> void:
 		"and the spot it was made from, not where the human stands now (%s, now at %s)"
 			% [again.get("claim_pos"), again.get("position")],
 	)
+	return true
+
+
+func _check_lapse(t: TestContext, stack: Node) -> void:
 	# The exports set after `attach`: a range short of the teammate (none of its claims heard from
 	# now on) and a long ttl (its last one heard stays live that long).
 	var gap: float = t.actor(&"me").global_position.distance_to(t.actor(&"a").global_position)

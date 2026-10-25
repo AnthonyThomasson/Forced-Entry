@@ -83,6 +83,18 @@ func run(t: TestContext) -> void:
 			"the north invader carries a stun and the south one a frag",
 	):
 		return
+	var seen := await _watch_until_thrown(t, n, so)
+	var walks: Dictionary = seen["walks"]
+	var zones: Dictionary = seen["zones"]
+	if not await _check_north(t, n, walks, zones):
+		return
+	_check_south(t, walks, zones)
+
+
+# Follows both invaders' decision walks until the north one has thrown and the south one has made
+# a COMBAT decision (or 25 s pass): each one's walks and the grenade zones of its first COMBAT
+# decision.
+func _watch_until_thrown(t: TestContext, n: Node, so: Node) -> Dictionary:
 	var nb := t.controller(&"n", &"debug_zones")
 	var sb := t.controller(&"s", &"debug_zones")
 	var states := { &"n": {}, &"s": {} }
@@ -97,21 +109,24 @@ func run(t: TestContext) -> void:
 				zones[pair[0]] = Spot.throws(pair[1])
 		return t.happened(&"throw", func(d): return d.get("attacker") == n) and zones[&"s"] != null
 	await t.until(thrown, 25.0)
+	return { "walks": walks, "zones": zones }
 
-	# North: out of range where it stands, offered through a throw spot, walks there and throws.
+
+# North: out of range where it stands, offered through a throw spot, walks there and throws.
+func _check_north(t: TestContext, n: Node, walks: Dictionary, zones: Dictionary) -> bool:
 	var first: Array = walks[&"n"].filter(func(w): return not w["combat"].is_empty())
 	if not t.require(
 			not first.is_empty(),
 			"the north invader made a COMBAT decision (walks %s)" % str(Spot.describe(walks[&"n"])),
 	):
-		return
+		return false
 	var w0: Dictionary = first[0]
 	if not t.require(
 			(w0["pos"] as Vector2).distance_to(N_H) > Spot.THROW_RANGE,
 			"set-up: it decided from out of throw range (%.0f px from the hostile)"
 				% (w0["pos"] as Vector2).distance_to(N_H),
 	):
-		return
+		return false
 	t.check(
 		w0["combat"].has("grenade"),
 		"GRENADE was offered from out of range, through a throw spot (offered %s)"
@@ -125,52 +140,68 @@ func run(t: TestContext) -> void:
 			"the throw it weighed names a throw spot (debug_zones grenade `from`; zones %s)"
 				% str(zones[&"n"]),
 	):
-		var z: Dictionary = near[0]
-		var from := Spot.from_of(z)
-		var point: Vector2 = z["point"]
-		var way := Spot.walk(t, w0["pos"], from)
-		t.check(
-			from.distance_to(w0["pos"]) >= 40.0,
-			"the throw spot is not where it stands (%s, it stood at %s)"
-				% [str(from.round()), str((w0["pos"] as Vector2).round())],
-		)
-		t.check(
-			from.distance_to(point) <= Spot.THROW_RANGE,
-			"the throw spot is within throw range of the hostile's spot (%.0f px)"
-				% from.distance_to(point),
-		)
-		t.check(Spot.lob_clear(t, from, point), "with a clear lob from it to the hostile's spot")
-		t.check(
-			way["reaches"] and float(way["len"]) <= Spot.SHORT_WALK,
-			"reached by a short walk (%.0f px, reaches %s)" % [way["len"], str(way["reaches"])],
-		)
-		t.check(
-			not z["tags"].get("no_safe_spot", false),
-			"and it is safe to throw from (no_safe_spot %s)" % str(z["tags"].get("no_safe_spot")),
-		)
-		var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == n)
-		if t.check(
-				not throws.is_empty(),
-				"the north invader threw (walks %s)" % str(Spot.describe(walks[&"n"])),
-		):
-			var at: Vector2 = throws[0]["data"]["position"]
-			t.check(
-				at.distance_to(from) <= 30.0,
-				"from the throw spot (thrown at %s, the spot %s)"
-					% [str(at.round()), str(from.round())],
-			)
-			t.check(
-				at.distance_to(N_H) <= Spot.THROW_RANGE,
-				"within throw range of the hostile (%.0f px)" % at.distance_to(N_H),
-			)
-			if t.check(await Probe.wait_boom(t, &"stun", 4.0), "the stun went off"):
-				var boom: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
-				t.check(
-					boom.distance_to(N_H) < 110.0,
-					"on the hostile's spot (%.0f px from it)" % boom.distance_to(N_H),
-				)
+		await _check_north_spot(t, n, walks, near[0], w0)
+	return true
 
-	# South: the self-safety tag is judged from the throw spot.
+
+func _check_north_spot(
+		t: TestContext,
+		n: Node,
+		walks: Dictionary,
+		z: Dictionary,
+		w0: Dictionary,
+) -> void:
+	var from := Spot.from_of(z)
+	var point: Vector2 = z["point"]
+	var way := Spot.walk(t, w0["pos"], from)
+	t.check(
+		from.distance_to(w0["pos"]) >= 40.0,
+		"the throw spot is not where it stands (%s, it stood at %s)"
+			% [str(from.round()), str((w0["pos"] as Vector2).round())],
+	)
+	t.check(
+		from.distance_to(point) <= Spot.THROW_RANGE,
+		"the throw spot is within throw range of the hostile's spot (%.0f px)"
+			% from.distance_to(point),
+	)
+	t.check(Spot.lob_clear(t, from, point), "with a clear lob from it to the hostile's spot")
+	t.check(
+		way["reaches"] and float(way["len"]) <= Spot.SHORT_WALK,
+		"reached by a short walk (%.0f px, reaches %s)" % [way["len"], str(way["reaches"])],
+	)
+	t.check(
+		not z["tags"].get("no_safe_spot", false),
+		"and it is safe to throw from (no_safe_spot %s)" % str(z["tags"].get("no_safe_spot")),
+	)
+	await _check_north_throw(t, n, walks, from)
+
+
+func _check_north_throw(t: TestContext, n: Node, walks: Dictionary, from: Vector2) -> void:
+	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == n)
+	if t.check(
+			not throws.is_empty(),
+			"the north invader threw (walks %s)" % str(Spot.describe(walks[&"n"])),
+	):
+		var at: Vector2 = throws[0]["data"]["position"]
+		t.check(
+			at.distance_to(from) <= 30.0,
+			"from the throw spot (thrown at %s, the spot %s)"
+				% [str(at.round()), str(from.round())],
+		)
+		t.check(
+			at.distance_to(N_H) <= Spot.THROW_RANGE,
+			"within throw range of the hostile (%.0f px)" % at.distance_to(N_H),
+		)
+		if t.check(await Probe.wait_boom(t, &"stun", 4.0), "the stun went off"):
+			var boom: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
+			t.check(
+				boom.distance_to(N_H) < 110.0,
+				"on the hostile's spot (%.0f px from it)" % boom.distance_to(N_H),
+			)
+
+
+# South: the self-safety tag is judged from the throw spot.
+func _check_south(t: TestContext, walks: Dictionary, zones: Dictionary) -> void:
 	var south: Array = walks[&"s"].filter(func(w): return not w["combat"].is_empty())
 	if not t.require(
 			not south.is_empty()

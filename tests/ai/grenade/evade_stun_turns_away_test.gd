@@ -47,6 +47,24 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(0.8)
+	var at_bang := await _throw_and_follow(t, d)
+	if not t.require(not Probe.booms(t, &"stun").is_empty(), "the stun went off"):
+		return
+	var at: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
+	await t.frames(2)
+	var pos_at_bang: Vector2 = at_bang["pos"]
+	if not t.require(
+			pos_at_bang.distance_to(at) < Probe.FLASH_RADIUS,
+			"set-up: the defender was still inside the flash radius when it went off (%.0f px)"
+				% pos_at_bang.distance_to(at),
+	):
+		return
+	_check_back_turned(t, d, at, pos_at_bang, at_bang["facing"])
+
+
+# Throws the stun just beside the defender and follows where it stands and faces until it goes
+# off (or 4 s pass): both at the bang.
+func _throw_and_follow(t: TestContext, d: Node) -> Dictionary:
 	var puppet := t.puppet(&"thrower")
 	puppet.select_slot(Probe.STUN)
 	var aim: Vector2 = d.global_position + Vector2(-50, 35)
@@ -60,16 +78,16 @@ func run(t: TestContext) -> void:
 		facing_at_bang = d.facing
 		pos_at_bang = d.global_position
 		await t.frames(1)
-	if not t.require(not Probe.booms(t, &"stun").is_empty(), "the stun went off"):
-		return
-	var at: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
-	await t.frames(2)
-	if not t.require(
-			pos_at_bang.distance_to(at) < Probe.FLASH_RADIUS,
-			"set-up: the defender was still inside the flash radius when it went off (%.0f px)"
-				% pos_at_bang.distance_to(at),
-	):
-		return
+	return { "facing": facing_at_bang, "pos": pos_at_bang }
+
+
+func _check_back_turned(
+		t: TestContext,
+		d: Node,
+		at: Vector2,
+		pos_at_bang: Vector2,
+		facing_at_bang: Vector2,
+) -> void:
 	var to_burst := (at - pos_at_bang).normalized()
 	t.check(
 		facing_at_bang.dot(to_burst) <= -0.5,

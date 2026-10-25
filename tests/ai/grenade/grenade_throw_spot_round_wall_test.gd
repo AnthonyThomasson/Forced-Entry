@@ -64,18 +64,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
-	if not t.require(
-			Probe.count(inv, Probe.STUN) == 1,
-			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),
-	):
-		return
-	if not t.require(
-			Probe.line_clear(t, I_AT, H_AT)
-				and not Spot.lob_clear(t, BEHIND, H_AT)
-				and BEHIND.distance_to(H_AT) <= Probe.MAX_RANGE,
-			"set-up: the householder is in sight through the doorway from the start; from behind "
-				+ "the wall there is no lob to it, in range",
-	):
+	if not _set_up(t, inv):
 		return
 	var brain := t.controller(&"i", &"debug_zones")
 	if not t.require(
@@ -86,6 +75,45 @@ func run(t: TestContext) -> void:
 			"the invader asked its first question, in sight",
 	):
 		return
+	var state := await _move_behind(t, inv, brain)
+	if state.is_empty():
+		return
+	var seen := await _watch_behind(t, brain, inv, state)
+	var behind: Dictionary = seen["behind"]
+	if not t.require(
+			not behind.is_empty(),
+			"the invader made a COMBAT decision from behind the wall (walks %s; acts %s)"
+				% [str(Spot.describe(seen["walks"])), Probe.acts(t, &"i")],
+	):
+		return
+	t.check(
+		behind["combat"].has("grenade"),
+		"from behind the wall, GRENADE was offered (offered %s)" % str(behind["combat"]),
+	)
+	var from := _check_throw_spot(t, seen["zones"])
+	if from == Vector2.INF:
+		return
+	await _check_thrown_from(t, inv, from)
+
+
+func _set_up(t: TestContext, inv: Node) -> bool:
+	if not t.require(
+			Probe.count(inv, Probe.STUN) == 1,
+			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),
+	):
+		return false
+	return t.require(
+		Probe.line_clear(t, I_AT, H_AT)
+			and not Spot.lob_clear(t, BEHIND, H_AT)
+			and BEHIND.distance_to(H_AT) <= Probe.MAX_RANGE,
+		"set-up: the householder is in sight through the doorway from the start; from behind "
+			+ "the wall there is no lob to it, in range",
+	)
+
+
+# Moves the invader behind the wall while its first question is in flight, which fails; the walk
+# state `Spot.note` follows from then on, or `{}` when the set-up fails.
+func _move_behind(t: TestContext, inv: Node, brain: Node) -> Dictionary:
 	# The walk in flight was started in sight: only the walks started after the move count as made
 	# behind the wall. Von is down for it.
 	var state := { "count": int(brain.debug_state().get("decisions", 0)), "logged": true }
@@ -102,7 +130,13 @@ func run(t: TestContext) -> void:
 			("set-up: the question asked in sight failed, so no order made in sight was carried "
 					+ "out (requests %s)") % str(t.von_requests().map(func(r): return r["pick"])),
 	):
-		return
+		return {}
+	return state
+
+
+# Follows the invader's decision walks until it has made a COMBAT decision from behind the wall
+# and thrown (or 20 s pass): that walk, the throw zones it weighed then, and every walk.
+func _watch_behind(t: TestContext, brain: Node, inv: Node, state: Dictionary) -> Dictionary:
 	var walks: Array = []
 	var behind := {}
 	var zones: Array = []
@@ -117,16 +151,11 @@ func run(t: TestContext) -> void:
 		return (not behind.is_empty()
 				and t.happened(&"throw", func(d): return d.get("attacker") == inv))
 	await t.until(decided_behind, 20.0)
-	if not t.require(
-			not behind.is_empty(),
-			"the invader made a COMBAT decision from behind the wall (walks %s; acts %s)"
-				% [str(Spot.describe(walks)), Probe.acts(t, &"i")],
-	):
-		return
-	t.check(
-		behind["combat"].has("grenade"),
-		"from behind the wall, GRENADE was offered (offered %s)" % str(behind["combat"]),
-	)
+	return { "behind": behind, "zones": zones, "walks": walks }
+
+
+# The throw spot the weighed throw names, checked; `Vector2.INF` when it names none.
+func _check_throw_spot(t: TestContext, zones: Array) -> Vector2:
 	var near := zones.filter(func(z): return (
 		(z["point"] as Vector2).distance_to(H_AT) < 60.0 and Spot.from_of(z) != Vector2.INF
 	))
@@ -134,7 +163,7 @@ func run(t: TestContext) -> void:
 			not near.is_empty(),
 			"through a throw spot (debug_zones grenade `from`; zones %s)" % str(zones),
 	):
-		return
+		return Vector2.INF
 	var from := Spot.from_of(near[0])
 	var point: Vector2 = near[0]["point"]
 	var way := Spot.walk(t, BEHIND, from)
@@ -153,6 +182,10 @@ func run(t: TestContext) -> void:
 		"a short walk from behind the wall (%.0f px, reaches %s)"
 			% [way["len"], str(way["reaches"])],
 	)
+	return from
+
+
+func _check_thrown_from(t: TestContext, inv: Node, from: Vector2) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if t.check(not throws.is_empty(), "the invader threw (acts %s)" % Probe.acts(t, &"i")):
 		var at: Vector2 = throws[0]["data"]["position"]

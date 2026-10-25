@@ -10,7 +10,6 @@ extends GameTest
 ## abort, keep out of the doorway's view, and never bump a teammate (`tests/_ai/reach_probe.gd`).
 
 const Reach := preload("res://tests/_ai/reach_probe.gd")
-const IDS := [&"near", &"wrong", &"far", &"beyond"]
 ## `far`'s speed (px/s; a walk is 150): it reaches the stack after `beyond` stands in its slot.
 const FAR_SPEED := 60.0
 ## Where each member starts.
@@ -57,4 +56,4 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Reach.run(t, Reach.frame(t, Vector2(500, -360), "garage"), IDS, &"lead", 1, STARTS)
+	await Reach.run(t, Reach.frame(t, Vector2(500, -360), "garage"), &"lead", 1, STARTS)

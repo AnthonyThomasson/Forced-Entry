@@ -23,18 +23,33 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(960, 60), 0.4)
-	Entry.npc(s, &"b", Vector2(985, 110), 0.55)
+	Entry.npc(s, &"a", Vector2(960, 60))
+	Entry.npc(s, &"b", Vector2(985, 110), { "decide_interval": 0.55 })
 	s.show_overlays(["show_entry", "show_entry_team"])
 
 
 func run(t: TestContext) -> void:
 	var seen := { "stack": {}, "pie": {}, "cover": {} }
-	var guard_before := {}
-	var shoot_at := {}
 	var done := func():
 		return (not Entry.calls(t, "cover", &"a").is_empty()
 				and not Entry.calls(t, "cover", &"b").is_empty())
+	var guard_before := await _record_views(t, seen, done)
+	if not t.require(done.call(), "the pair cleared the kitchen and covered its doorways on"):
+		return
+	await t.seconds(1.0)
+	t.screenshot("cover")
+
+	_check_stacked(t, seen)
+	_check_pie(t, seen)
+	_check_covering(t)
+	t.check(guard_before.has("ahead") and guard_before.has("rearm"), "the guard's view is reported")
+
+
+## Follows both views until `done` (60 s at most): keeps the first entry view of each phase in
+## `seen` and returns the first guard view reported.
+func _record_views(t: TestContext, seen: Dictionary, done: Callable) -> Dictionary:
+	var guard_before := {}
+	var shoot_at := {}
 	var end := t.time + 60.0
 	while t.time < end and not done.call():
 		for id in [&"a", &"b"]:
@@ -53,11 +68,11 @@ func run(t: TestContext) -> void:
 				t.screenshot(phase)  # With --shots: what the overlays draw in each phase.
 				shoot_at.erase(phase)
 		await t.frames(1)
-	if not t.require(done.call(), "the pair cleared the kitchen and covered its doorways on"):
-		return
-	await t.seconds(1.0)
-	t.screenshot("cover")
+	return guard_before
 
+
+## Checks the stacked view: the back door, its slots and corners, the own slot and the role.
+func _check_stacked(t: TestContext, seen: Dictionary) -> void:
 	var stacked: Dictionary = seen["stack"]
 	if t.check(not stacked.is_empty(), "a stacked view was reported"):
 		t.expect_eq(String(stacked["opening"]), Entry.BACK["id"], "the view names the back door")
@@ -72,6 +87,10 @@ func run(t: TestContext) -> void:
 		t.expect_eq((stacked["corners"] as Array).size(), 4, "the kitchen's four corners")
 		t.check((stacked["my_slot"] as Vector2) != Vector2.INF, "its own slot point")
 		t.check(str(stacked["role"]) in ["point", "follower"], "a team role (%s)" % stacked["role"])
+
+
+## Checks the pie view: the steps still to walk, the room points unseen and the teammate.
+func _check_pie(t: TestContext, seen: Dictionary) -> void:
 	var pie: Dictionary = seen["pie"]
 	if t.check(not pie.is_empty(), "a pie view was reported"):
 		t.check(not (pie["pie_queue"] as Array).is_empty(), "the pie steps still to walk")
@@ -80,6 +99,11 @@ func run(t: TestContext) -> void:
 			"the room points still unseen from outside",
 		)
 		t.check(not (pie["team"] as Array).is_empty(), "the teammate off the radio")
+
+
+## Checks each of the pair covers its own one of the kitchen's doorways on and regards the kitchen
+## as cleared.
+func _check_covering(t: TestContext) -> void:
 	var covering: Array = []
 	for id in [&"a", &"b"]:
 		var v: Dictionary = Entry.brain(t, id).debug_entry_view()
@@ -103,4 +127,3 @@ func run(t: TestContext) -> void:
 		covering.size() == 2 and covering[0] != covering[1],
 		"each covers its own doorway (%s)" % str(covering),
 	)
-	t.check(guard_before.has("ahead") and guard_before.has("rearm"), "the guard's view is reported")

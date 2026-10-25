@@ -21,7 +21,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	# A long ready timeout so the stack is still forming when the late invader turns up.
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": 40.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 40.0 })
 	# Held back (it neither enters nor moves) until the human has its slot: the premise is a late
 	# joiner, as in the solo-entry ally test.
 	# It starts north of the door, on the human's side: a one-sided stack (a late AI from the other
@@ -30,7 +30,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"b",
 		Vector2(980, -70),
-		0.4,
 		{ "entry_enabled": false, "max_commit_time": 0.5, "entry_ready_timeout": 40.0 },
 		{ "speed": 0.0 },
 	)

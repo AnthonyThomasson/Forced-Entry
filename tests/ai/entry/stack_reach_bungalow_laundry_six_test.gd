@@ -19,7 +19,6 @@ extends GameTest
 ## in it).
 
 const Reach := preload("res://tests/_ai/reach_probe.gd")
-const IDS := [&"near", &"wrong", &"far", &"beyond", &"far_end", &"outside"]
 ## Where each member starts.
 const STARTS := {
 		&"near": "in the same room, near along the wall, on the order's side",
@@ -66,7 +65,6 @@ func run(t: TestContext) -> void:
 	await Reach.run(
 		t,
 		Reach.frame(t, Vector2(-530, -340), "laundry_room"),
-		IDS,
 		&"lead",
 		-1,
 		STARTS,

@@ -54,6 +54,33 @@ func run(t: TestContext) -> void:
 	var brain := Entry.brain(t, &"i")
 	var seen: Array = []
 	var phases: Array = []
+	await _watch_until_crossed(t, brain, door, seen, phases)
+	if not t.require(
+			seen.any(func(a): return str(a).contains("/grenade/")),
+			"the invader took GRENADE (acts %s)" % str(seen),
+	):
+		return
+	var boom := _own_stun_in_kitchen(t, inv, seen)
+	if boom == INF:
+		return
+	var going := _going_in_after(t, inv, door, boom)
+	if not t.require(
+			going < INF,
+			"after the burst it went in by the back door (acts %s)" % str(seen),
+	):
+		return
+	_check_crossed_at_once(t, phases, boom, going)
+
+
+## Notes the invader's acts in `seen` and its entry phase each frame in `phases` (`[time, phase]`)
+## until it goes in by `door` after a stun's burst (or 80 s pass).
+func _watch_until_crossed(
+		t: TestContext,
+		brain: Node,
+		door: Dictionary,
+		seen: Array,
+		phases: Array,
+) -> void:
 	var went_in := func() -> bool:
 		var act := str(brain.current_act())
 		if not seen.has(act):
@@ -64,18 +91,21 @@ func run(t: TestContext) -> void:
 		var crossed := Entry.first_call_time(t, "going_in", &"i", door["id"])
 		return burst < INF and crossed > burst and crossed < INF
 	await t.until(went_in, 80.0)
-	if not t.require(
-			seen.any(func(a): return str(a).contains("/grenade/")),
-			"the invader took GRENADE (acts %s)" % str(seen),
-	):
-		return
+
+
+## When the invader's own stun went off in the kitchen; INF when it did not.
+func _own_stun_in_kitchen(t: TestContext, inv: Node, seen: Array) -> float:
 	var booms := Probe.booms(t, &"stun").filter(func(b): return b["data"].get("attacker") == inv)
 	if not t.require(
 			not booms.is_empty() and Maps.HOUSE_KITCHEN.has_point(booms[0]["data"]["position"]),
 			"the invader's own stun went off in the kitchen (acts %s)" % str(seen),
 	):
-		return
-	var boom := float(booms[0]["time"])
+		return INF
+	return float(booms[0]["time"])
+
+
+## When the invader first radioed going in by `door` after `boom`; INF when it did not.
+func _going_in_after(t: TestContext, inv: Node, door: Dictionary, boom: float) -> float:
 	var going := INF
 	for c in Probe.raw(
 			t,
@@ -89,11 +119,11 @@ func run(t: TestContext) -> void:
 		if float(c["time"]) > boom:
 			going = float(c["time"])
 			break
-	if not t.require(
-			going < INF,
-			"after the burst it went in by the back door (acts %s)" % str(seen),
-	):
-		return
+	return going
+
+
+## Between the burst and going in it sliced no pie and crossed from its slot at once.
+func _check_crossed_at_once(t: TestContext, phases: Array, boom: float, going: float) -> void:
 	var between := phases.filter(func(p): return float(p[0]) >= boom and float(p[0]) <= going)
 	t.check(
 		not between.any(func(p): return p[1] == "pie"),

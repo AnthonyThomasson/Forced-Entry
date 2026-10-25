@@ -67,7 +67,13 @@ func run(t: TestContext) -> void:
 			"the stack forms: both radio ready",
 	):
 		return
+	if not await _held(t):
+		return
+	await _check_go(t, squad)
 
+
+# Whether, while held, nobody called the bang, threw or went in.
+func _held(t: TestContext) -> bool:
 	var acted := func():
 		return (t.happened(&"throw")
 				or not Entry.calls(t, "bang").is_empty()
@@ -83,9 +89,10 @@ func run(t: TestContext) -> void:
 				Entry.calls(t, "going_in").size(),
 			],
 	)
-	if early:
-		return
+	return not early
 
+
+func _check_go(t: TestContext, squad: Node) -> void:
 	var go := Order.go(squad, Order.BACK_NORTH)
 	if not t.require(
 			not go.is_empty(),

@@ -23,7 +23,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.warehouse(s)
 	Flank.rules(s)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"invader", TARGET_POS)
+	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, LOOKING_AT)
 
 

@@ -67,4 +67,4 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 `gaze_walk_looks_ahead`, `gaze_search_turns_to_threat`, `gaze_travel_watches_threat`, `entry_guard_fires_from_outside`,
 `fire_dry_gun_on_move_reloads`, `combat_waits_for_facing` (`Combat` driven with fakes), `engaged_retargets_to_visible` (`Behavior` driven
 with fakes), `ai_runs_to_destination` (W6), `retreat_keeps_running`; helper `tests/_ai/gaze_probe.gd`. A held NPC needs a look direction
-to see a target at start (a starting `facing`, e.g. `Flank.npc`'s `look_at`): an unset `aim_point` looks where its body points.
+to see a target at start (a starting `facing`, e.g. `Flank.npc`'s `opts.look_at`): an unset `aim_point` looks where its body points.

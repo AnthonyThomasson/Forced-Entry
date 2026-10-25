@@ -56,9 +56,7 @@ func run(t: TestContext) -> void:
 			break
 		investigated = investigated or str(deaf_brain.current_act()).begins_with("investigate")
 		var target: Array = deaf_brain.debug_state().get("loco", {}).get("target", [])
-		to_kitchen = (to_kitchen
-				or (target.size() == 2
-						and Maps.HOUSE_KITCHEN.has_point(Vector2(target[0], target[1]))))
+		to_kitchen = to_kitchen or _in_kitchen(target)
 		waited += 1
 		await t.frames(1)
 	if not t.require(
@@ -79,3 +77,7 @@ func run(t: TestContext) -> void:
 	t.check(Probe.deaf(deaf), "(it is still deaf)")
 	t.check(not investigated, "it never took an investigate order while it was deaf")
 	t.check(not to_kitchen, "and never set off for the kitchen, where the shot was")
+
+
+func _in_kitchen(target: Array) -> bool:
+	return target.size() == 2 and Maps.HOUSE_KITCHEN.has_point(Vector2(target[0], target[1]))

@@ -65,12 +65,7 @@ func run(t: TestContext) -> void:
 		"settled_at": INF,
 	}
 	while t.time < 40.0:
-		st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
-		if float(st["radio_in"]) <= 0.0:
-			st["radio_in"] = 0.5
-			_radio(t.actor(&"p1"), 1, claim_frame)
-			_radio(t.actor(&"p2"), 2, claim_frame)
-			_radio(t.actor(&"p3"), int(st["p3_slot"]), claim_frame)
+		_radio_claims(t, st, claim_frame)
 		var e: Dictionary = Entry.entry(brain)
 		var spot: Vector2 = e["stack_point"] if e.get("stack_point") is Vector2 else Vector2.INF
 		var here: Vector2 = walker.global_position
@@ -103,6 +98,21 @@ func run(t: TestContext) -> void:
 			"premise: it claimed slot 4 behind the teammates' 1 to 3 and stood in it",
 	):
 		return
+	_judge(t, st)
+
+
+## Every half second the three puppets radio their claims again (slots 1, 2 and slot 3's holder's).
+func _radio_claims(t: TestContext, st: Dictionary, claim_frame: int) -> void:
+	st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
+	if float(st["radio_in"]) <= 0.0:
+		st["radio_in"] = 0.5
+		_radio(t.actor(&"p1"), 1, claim_frame)
+		_radio(t.actor(&"p2"), 2, claim_frame)
+		_radio(t.actor(&"p3"), int(st["p3_slot"]), claim_frame)
+
+
+## The checks: no move-up while the latecomer is near, no abort, and in its slot as it comes in.
+func _judge(t: TestContext, st: Dictionary) -> void:
 	t.check(
 		st["moved_at"] == INF,
 		("it does not move up into slot 3 while slot 3's holder stands %.0f px from slot 4 (moved "

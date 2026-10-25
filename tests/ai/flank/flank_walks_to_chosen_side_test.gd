@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"low_cover", "coffee_table", TABLE_POS)
 	# the NPC may shove furniture on its way; re-baking overlapping holes logs a nav sync error
 	s.switch(&"nav.rebake", false)
-	Flank.npc(s, &"npc", NPC_POS, {}, &"invader", TARGET_POS)   # held for now, see run()
+	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })   # held for now, see run()
 	Flank.target(s, &"target", TARGET_POS, NPC_POS)
 
 

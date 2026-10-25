@@ -51,42 +51,13 @@ func run(t: TestContext) -> void:
 	var follower := t.actor(&"f")
 	var squad := t.squad(&"invader")
 	var stack := t.player_stack()
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return
-	if not t.require(
-			squad.leader() == me and squad.follows(follower),
-			"premise: the human leads, and f follows it",
-	):
+	if not _leads_with_radio(t, stack, squad, me, follower):
 		return
 	await t.seconds(0.3)
 	var door := String(Entry.BACK["id"])
-	var stackers: Array = STACKERS.map(func(id): return t.actor(id))
-	if not t.require(
-			not Order.stack_order(squad, stackers, Order.BACK_NORTH, "quiet", false).is_empty(),
-			"premise: the human orders a and b to stack at the back door (issue)",
-	):
+	if not await _ordered_stack_ready(t, squad, stack, door):
 		return
-	var reserved := func() -> bool:
-		return String(Stack.view(stack).get("opening", "")) == door and Stack.mine(stack) > 0
-	if not t.require(
-			await t.until(reserved, 20.0),
-			"premise: the human is reserved a slot in the ordered stack at the back door (E16)",
-	):
-		return
-	var ready := func(): return Order.all_called(t, STACKERS, "ready", door)
-	if not t.require(await t.until(ready, 30.0), "premise: a and b stand ready in their slots"):
-		return
-	var mine := Stack.mine(stack)
-	if not t.require(
-			await Stack.walk(t, &"me", [Stack.slot_point(stack, mine)], 15.0),
-			"premise: the human steps into its slot %d" % mine,
-	):
-		return
-	var in_slot := func() -> bool: return Follow.first_call(t, me, "ready", door) < INF
-	if not t.require(
-			await t.until(in_slot, 3.0),
-			"premise: the human's stack radios ready in its slot",
-	):
+	if not await _human_in_slot(t, stack, me, door):
 		return
 	await t.seconds(AFTER_READY)
 
@@ -99,4 +70,51 @@ func run(t: TestContext) -> void:
 	t.check(
 		Follow.first_call(t, follower, "claim", door) == INF,
 		"f, holding no order, took no slot at the back door",
+	)
+
+
+func _leads_with_radio(
+		t: TestContext,
+		stack: Node,
+		squad: Node,
+		me: Node,
+		follower: Node,
+) -> bool:
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
+		return false
+	return t.require(
+		squad.leader() == me and squad.follows(follower),
+		"premise: the human leads, and f follows it",
+	)
+
+
+func _ordered_stack_ready(t: TestContext, squad: Node, stack: Node, door: String) -> bool:
+	var stackers: Array = STACKERS.map(func(id): return t.actor(id))
+	if not t.require(
+			not Order.stack_order(squad, stackers, Order.BACK_NORTH, "quiet", false).is_empty(),
+			"premise: the human orders a and b to stack at the back door (issue)",
+	):
+		return false
+	var reserved := func() -> bool:
+		return String(Stack.view(stack).get("opening", "")) == door and Stack.mine(stack) > 0
+	if not t.require(
+			await t.until(reserved, 20.0),
+			"premise: the human is reserved a slot in the ordered stack at the back door (E16)",
+	):
+		return false
+	var ready := func(): return Order.all_called(t, STACKERS, "ready", door)
+	return t.require(await t.until(ready, 30.0), "premise: a and b stand ready in their slots")
+
+
+func _human_in_slot(t: TestContext, stack: Node, me: Node, door: String) -> bool:
+	var mine := Stack.mine(stack)
+	if not t.require(
+			await Stack.walk(t, &"me", [Stack.slot_point(stack, mine)], 15.0),
+			"premise: the human steps into its slot %d" % mine,
+	):
+		return false
+	var in_slot := func() -> bool: return Follow.first_call(t, me, "ready", door) < INF
+	return t.require(
+		await t.until(in_slot, 3.0),
+		"premise: the human's stack radios ready in its slot",
 	)

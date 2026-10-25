@@ -359,7 +359,7 @@ static func panel_rect(menu: Node) -> Rect2:
 ## a selected body. The menu is closed (the tree unpaused) at the end.
 static func check_dock(t: TestContext, at: Vector2, lead: Node, mates: Array, half: String) -> void:
 	player_screen(t)
-	var menu: Node = await open_selected(t, at, lead, mates, half, {})
+	var menu: Node = await open_selected(t, at, lead, mates, { "half": half })
 	if menu == null:
 		return
 	var screen := t.world.get_viewport().get_visible_rect()
@@ -406,12 +406,10 @@ static func check_clear_of_bar(
 			"the overlay toggle bar exists (%s)" % OVERLAY_TOGGLES_SCRIPT,
 	):
 		return
-	var bar_script := load(OVERLAY_TOGGLES_SCRIPT) as GDScript
-	var bar: Node = bar_script.new()
-	bar.name = "OverlayToggles"
-	t.world.add_child(bar)
-	bar.setup({})
-	var right_clear := float(bar_script.get_script_constant_map().get("RESERVED_WIDTH", 0.0))
+	var bar := _overlay_bar(t)
+	var right_clear := float(
+		(bar.get_script() as GDScript).get_script_constant_map().get("RESERVED_WIDTH", 0.0),
+	)
 	var bar_panel: Control = null
 	for child in bar.get_children():
 		if child is PanelContainer:
@@ -421,30 +419,45 @@ static func check_clear_of_bar(
 			"the bar reserves a column (RESERVED_WIDTH %s) and shows a panel" % right_clear,
 	):
 		return
-	var menu: Node = await open_selected(
-		t,
-		at,
-		lead,
-		mates,
-		"left",
-		{ "right_clear": right_clear },
-		layout != "crowded",
-	)
+	var menu: Node = await open_selected(t, at, lead, mates, {
+		"half": "left", "setup": { "right_clear": right_clear }, "by_click": layout != "crowded",
+	})
 	if menu == null:
 		return
-	var screen := t.world.get_viewport().get_visible_rect()
-	var bar_rect := bar_panel.get_global_rect()
-	var right_edge := screen.end.x - right_clear - PANEL_EDGE
-	var column := right_edge - PANEL_WIDTH
-	var at_screen := screen_of(t, at)
-	var points: Array = [at_screen] + mates.map(
+	var right_edge := t.world.get_viewport().get_visible_rect().end.x - right_clear - PANEL_EDGE
+	var points: Array = [screen_of(t, at)] + mates.map(
 		func(m: Node) -> Vector2: return screen_of(t, m.global_position),
 	)
-	var right_of: float = points.reduce(
-		func(x: float, p: Vector2) -> float: return maxf(x, p.x),
-		-INF,
-	)
 	var rect := panel_rect(menu)
+	_check_docked_right(t, rect, at, right_edge, bar_panel.get_global_rect())
+	match layout:
+		"beside":
+			_check_beside(t, rect, right_edge - PANEL_WIDTH, points)
+			check_uncovered(t, rect, at, mates)
+		"vertical":
+			_check_vertical(t, rect, right_edge - PANEL_WIDTH, points)
+			check_uncovered(t, rect, at, mates)
+		"crowded":
+			_check_crowded(t, rect, right_edge, points)
+	menu.close()
+
+
+## A real overlay toggle bar (`OverlayToggles`) in the world, set up as Main sets it up.
+static func _overlay_bar(t: TestContext) -> Node:
+	var bar: Node = (load(OVERLAY_TOGGLES_SCRIPT) as GDScript).new()
+	bar.name = "OverlayToggles"
+	t.world.add_child(bar)
+	bar.setup({})
+	return bar
+
+
+## `check_clear_of_bar`'s checks of the panel `rect` docked right: it shows, its right edge is at
+## `right_edge`, and it meets neither the bar's panel (`bar_rect`) nor the click at world point
+## `at`.
+static func _check_docked_right(
+		t: TestContext, rect: Rect2, at: Vector2, right_edge: float, bar_rect: Rect2
+) -> void:
+	var at_screen := screen_of(t, at)
 	t.check(rect.has_area(), "the panel shows (panel %s)" % str(rect))
 	t.expect_near(
 		rect.end.x,
@@ -461,117 +474,103 @@ static func check_clear_of_bar(
 		not rect.has_point(at_screen),
 		"the panel does not cover the click %s (panel %s)" % [str(at_screen), str(rect)],
 	)
-	match layout:
-		"beside":
-			t.check(
-				right_of < column,
-				"the premise: the panel's least column from x %s lies right of %s"
-					% [column, str(points)],
-			)
-			t.check(
-				rect.position.x > right_of,
-				"the panel %s docks beside the click and the bodies %s" % [str(rect), str(points)],
-			)
-			check_uncovered(t, rect, at, mates)
-		"vertical":
-			t.check(
-				right_of > column,
-				"the premise: the panel's least column from x %s holds the click or a body of %s"
-					% [column, str(points)],
-			)
-			var top: float = points.reduce(
-				func(y: float, p: Vector2) -> float: return minf(y, p.y),
-				INF,
-			)
-			var bottom: float = points.reduce(
-				func(y: float, p: Vector2) -> float: return maxf(y, p.y),
-				-INF,
-			)
-			t.check(
-				rect.end.y < top or rect.position.y > bottom,
-				"the panel %s docks above or below the click and the bodies %s"
-					% [str(rect), str(points)],
-			)
-			check_uncovered(t, rect, at, mates)
-		"crowded":
-			var height := rect.size.y
-			var caught := points.filter(func(p: Vector2) -> bool: return (
-				p.x > right_edge - rect.size.x
-				and p.y > screen.end.y - PANEL_EDGE - height
-				and p.y < screen.position.y + PANEL_EDGE + height
-			))
-			t.check(
-				not caught.is_empty(),
-				"the premise: a panel %s tall docked on the right covers one of %s whether at the "
-					% [height, str(points)] + "top or at the bottom",
-			)
-			var centre: Vector2 = points.reduce(
-				func(sum: Vector2, p: Vector2) -> Vector2: return sum + p,
-				Vector2.ZERO,
-			) / points.size()
-			var at_top := centre.y >= screen.get_center().y
-			t.expect_near(
-				rect.position.y if at_top else rect.end.y,
-				(screen.position.y + PANEL_EDGE) if at_top else (screen.end.y - PANEL_EDGE),
-				1.0,
-				"the click and the bodies centred at %s, the panel %s docks at the %s of the screen"
-					% [str(centre), str(rect), "top" if at_top else "bottom"],
-			)
-	menu.close()
+
+
+## The rightmost x of `points` (screen points).
+static func _right_of(points: Array) -> float:
+	return points.reduce(func(x: float, p: Vector2) -> float: return maxf(x, p.x), -INF)
+
+
+## `check_clear_of_bar`'s `"beside"` checks: the click and the bodies (`points`) lie left of the
+## panel's least `column` (premise), and the panel `rect` lies right of them all.
+static func _check_beside(t: TestContext, rect: Rect2, column: float, points: Array) -> void:
+	var right_of := _right_of(points)
+	t.check(
+		right_of < column,
+		"the premise: the panel's least column from x %s lies right of %s" % [column, str(points)],
+	)
+	t.check(
+		rect.position.x > right_of,
+		"the panel %s docks beside the click and the bodies %s" % [str(rect), str(points)],
+	)
+
+
+## `check_clear_of_bar`'s `"vertical"` checks: the panel's least `column` holds the click or a body
+## of `points` (premise), and the panel `rect` docks above or below them all.
+static func _check_vertical(t: TestContext, rect: Rect2, column: float, points: Array) -> void:
+	t.check(
+		_right_of(points) > column,
+		"the premise: the panel's least column from x %s holds the click or a body of %s"
+			% [column, str(points)],
+	)
+	var top: float = points.reduce(func(y: float, p: Vector2) -> float: return minf(y, p.y), INF)
+	var bottom: float = points.reduce(
+		func(y: float, p: Vector2) -> float: return maxf(y, p.y),
+		-INF,
+	)
+	t.check(
+		rect.end.y < top or rect.position.y > bottom,
+		"the panel %s docks above or below the click and the bodies %s" % [str(rect), str(points)],
+	)
+
+
+## `check_clear_of_bar`'s `"crowded"` checks: a panel docked on the right (its right edge at
+## `right_edge`) covers one of `points` whether at the top or the bottom (premise), and the panel
+## `rect` docks on the vertical side away from their centre.
+static func _check_crowded(t: TestContext, rect: Rect2, right_edge: float, points: Array) -> void:
+	var screen := t.world.get_viewport().get_visible_rect()
+	var height := rect.size.y
+	var caught := points.filter(func(p: Vector2) -> bool: return (
+		p.x > right_edge - rect.size.x
+		and p.y > screen.end.y - PANEL_EDGE - height
+		and p.y < screen.position.y + PANEL_EDGE + height
+	))
+	t.check(
+		not caught.is_empty(),
+		"the premise: a panel %s tall docked on the right covers one of %s whether at the "
+			% [height, str(points)] + "top or at the bottom",
+	)
+	var centre: Vector2 = points.reduce(
+		func(sum: Vector2, p: Vector2) -> Vector2: return sum + p,
+		Vector2.ZERO,
+	) / points.size()
+	var at_top := centre.y >= screen.get_center().y
+	t.expect_near(
+		rect.position.y if at_top else rect.end.y,
+		(screen.position.y + PANEL_EDGE) if at_top else (screen.end.y - PANEL_EDGE),
+		1.0,
+		"the click and the bodies centred at %s, the panel %s docks at the %s of the screen"
+			% [str(centre), str(rect), "top" if at_top else "bottom"],
+	)
 
 
 ## On a player's screen (call `player_screen` first), a command menu set up as Main sets it up for
-## the human leader `lead` and its teammates `mates` (plus `extra` setup keys) is opened by a
+## the human leader `lead` and its teammates `mates` (plus `how.setup`'s setup keys) is opened by a
 ## right-click at world point `at`, then each of `mates` is selected by a left-click on its body
-## (`by_click`) or by ticking its box in the panel.
-## The premise: the click and every selected body lie on screen, in `half` (`"left"` or `"right"`).
-## Checks that the clicks selected them; the open menu, or null when a premise failed.
+## (`how.by_click`, true by default) or by ticking its box in the panel.
+## The premise: the click and every selected body lie on screen, in `how.half` (`"left"` or
+## `"right"`). Checks that the clicks selected them; the open menu, or null when a premise failed.
 static func open_selected(
 	t: TestContext,
 	at: Vector2,
 	lead: Node,
 	mates: Array,
-	half: String,
-	extra: Dictionary,
-	by_click := true,
+	how: Dictionary,
 ) -> Node:
+	var by_click: bool = how.get("by_click", true)
 	var menu := command_menu(t)
 	if not t.require(
 			menu != null and menu.has_method("setup") and menu.has_signal("selection_changed"),
 			"the command menu exists, with setup and selection_changed (%s)" % COMMAND_MENU_SCRIPT,
 	):
 		return null
-	var members: Array = [lead] + mates
-	var side_squad := squad(t, lead.faction, members, lead)
-	if not t.require(
-			side_squad != null and side_squad.has_method("resolve"),
-			"the squad resolves a click",
-	):
+	if not _set_up_menu(t, menu, lead, mates, how.get("setup", {})):
 		return null
-	var squad_view := {
-		"leader": lead,
-		"members": members.map(func(n): return { "node": n, "order": {}, "step": "" }),
-	}
-	menu.setup({
-		"rooms": t.rooms, "teammates": mates, "view": func(): return squad_view,
-		"resolve": side_squad.resolve, "leader": lead,
-	}.merged(extra))
 	var selected: Array = []
 	menu.selection_changed.connect(func(nodes: Array) -> void: selected.assign(nodes))
 	if not t.require(await view_still(t), "the view holds still before the clicks"):
 		return null
-	var screen := t.world.get_viewport().get_visible_rect()
-	var mid := screen.get_center().x
-	var points: Array = [screen_of(t, at)] + mates.map(
-		func(m): return screen_of(t, m.global_position),
-	)
-	if not t.require(
-			points.all(func(p: Vector2) -> bool: return (
-				screen.has_point(p) and (p.x < mid if half == "left" else p.x >= mid)
-			)),
-			"the premise: the click and the bodies to select are on screen, %s half (%s of %s)"
-				% [half, str(points), str(screen)],
-	):
+	if not _on_screen(t, at, mates, String(how["half"])):
 		return null
 	click(t, at, MOUSE_BUTTON_RIGHT)
 	await t.frames(2)
@@ -591,6 +590,46 @@ static func open_selected(
 		],
 	)
 	return menu
+
+
+## Sets `menu` up as Main sets it up for the human leader `lead` and its teammates `mates`, plus
+## `extra` setup keys; false when their squad does not resolve a click.
+static func _set_up_menu(
+		t: TestContext, menu: Node, lead: Node, mates: Array, extra: Dictionary
+) -> bool:
+	var members: Array = [lead] + mates
+	var side_squad := squad(t, lead.faction, members, lead)
+	if not t.require(
+			side_squad != null and side_squad.has_method("resolve"),
+			"the squad resolves a click",
+	):
+		return false
+	var squad_view := {
+		"leader": lead,
+		"members": members.map(func(n): return { "node": n, "order": {}, "step": "" }),
+	}
+	menu.setup({
+		"rooms": t.rooms, "teammates": mates, "view": func(): return squad_view,
+		"resolve": side_squad.resolve, "leader": lead,
+	}.merged(extra))
+	return true
+
+
+## `open_selected`'s premise: the click at world point `at` and the bodies of `mates` are on screen,
+## in `half` (`"left"` or `"right"`).
+static func _on_screen(t: TestContext, at: Vector2, mates: Array, half: String) -> bool:
+	var screen := t.world.get_viewport().get_visible_rect()
+	var mid := screen.get_center().x
+	var points: Array = [screen_of(t, at)] + mates.map(
+		func(m): return screen_of(t, m.global_position),
+	)
+	return t.require(
+		points.all(func(p: Vector2) -> bool: return (
+			screen.has_point(p) and (p.x < mid if half == "left" else p.x >= mid)
+		)),
+		"the premise: the click and the bodies to select are on screen, %s half (%s of %s)"
+			% [half, str(points), str(screen)],
+	)
 
 
 ## Checks that the command menu's panel `rect` holds neither the click at world point `at` nor the

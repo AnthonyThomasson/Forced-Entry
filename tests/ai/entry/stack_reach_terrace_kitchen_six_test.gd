@@ -18,7 +18,6 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Reach := preload("res://tests/_ai/reach_probe.gd")
-const IDS := [&"near", &"wrong", &"far", &"beyond", &"far_end", &"outside"]
 ## Where each member starts.
 const STARTS := {
 		&"near": "in the same room, near along the wall, on the order's side",
@@ -62,4 +61,4 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Reach.run(t, Reach.frame(t, Vector2(690, 360), "kitchen"), IDS, &"lead", 1, STARTS)
+	await Reach.run(t, Reach.frame(t, Vector2(690, 360), "kitchen"), &"lead", 1, STARTS)

@@ -63,41 +63,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
-	var ally := t.actor(&"ally")
-	EventBus.post(
-		&"callout",
-		{
-			"speaker": ally, "faction": ally.faction, "position": ally.global_position,
-			"status": "", "path": "", "label": "", "target_id": 0, "point": ally.global_position,
-			"entry_step": "clear", "opening": FRONT["id"], "cleared_room": "front_room",
-		},
-	)
+	_radio_clear(t)
 	var cleared_ms := Time.get_ticks_msec()
 	var cleared_t := t.time
-	Probe.gunfire(EAST)
-	var east := func(): return inv.global_position.distance_to(EAST) < 40.0
-	var first := await Entry.watch(t, [&"inv"], FRONT, 40.0, east)
-	if not t.require(
-			east.call() and Entry.asked(t, "investigate"),
-			"the invader investigated the gunfire east of the house (act %s, at %s)"
-				% [Entry.brain(t, &"inv").current_act(), inv.global_position.round()],
-	):
+	if not await _first_walk_plain(t, inv, cleared_ms):
 		return
-	var first_ms := Time.get_ticks_msec() - cleared_ms
-	if not t.require(
-			first_ms < View.PASS_CLEAR_TIME * 1000.0 * 0.5,
-			"set-up: the first walk ended well within the minute (%.1f s after the clear)"
-				% (first_ms / 1000.0),
-	):
-		return
-	t.check(
-		View.first_in_view(t, first, &"inv", FRONT) < INF,
-		"just after the clear it walked the plain way, through the front door's view",
-	)
-	t.check(
-		View.time_covering(first, &"inv", FRONT) < COVERED,
-		"and did not stop to cover the door (%.1f s)" % View.time_covering(first, &"inv", FRONT),
-	)
 
 	# Hold it on the far side until the clear is more than a minute old, on the wall clock and in
 	# sim time.
@@ -109,6 +79,55 @@ func run(t: TestContext) -> void:
 		cleared_t,
 		View.PASS_CLEAR_TIME + 1.0,
 	)
+	await _second_walk_avoids_or_covers(t, inv)
+
+
+## The ally radios the front room clear.
+func _radio_clear(t: TestContext) -> void:
+	var ally := t.actor(&"ally")
+	EventBus.post(
+		&"callout",
+		{
+			"speaker": ally, "faction": ally.faction, "position": ally.global_position,
+			"status": "", "path": "", "label": "", "target_id": 0, "point": ally.global_position,
+			"entry_step": "clear", "opening": FRONT["id"], "cleared_room": "front_room",
+		},
+	)
+
+
+## Sent east just after the clear, the invader walks the plain way through the front door's view
+## without covering the door. False when the set-up failed.
+func _first_walk_plain(t: TestContext, inv: Node, cleared_ms: int) -> bool:
+	Probe.gunfire(EAST)
+	var east := func(): return inv.global_position.distance_to(EAST) < 40.0
+	var first := await Entry.watch(t, [&"inv"], FRONT, 40.0, east)
+	if not t.require(
+			east.call() and Entry.asked(t, "investigate"),
+			"the invader investigated the gunfire east of the house (act %s, at %s)"
+				% [Entry.brain(t, &"inv").current_act(), inv.global_position.round()],
+	):
+		return false
+	var first_ms := Time.get_ticks_msec() - cleared_ms
+	if not t.require(
+			first_ms < View.PASS_CLEAR_TIME * 1000.0 * 0.5,
+			"set-up: the first walk ended well within the minute (%.1f s after the clear)"
+				% (first_ms / 1000.0),
+	):
+		return false
+	t.check(
+		View.first_in_view(t, first, &"inv", FRONT) < INF,
+		"just after the clear it walked the plain way, through the front door's view",
+	)
+	t.check(
+		View.time_covering(first, &"inv", FRONT) < COVERED,
+		"and did not stop to cover the door (%.1f s)" % View.time_covering(first, &"inv", FRONT),
+	)
+	return true
+
+
+## Sent back west once the clear is over a minute old, the invader goes round the front door's
+## view or covers the door first.
+func _second_walk_avoids_or_covers(t: TestContext, inv: Node) -> void:
 	Probe.gunfire(WEST)
 	var investigating_west := func():
 		return str(Entry.brain(t, &"inv").current_act()).contains("lead_gunfire_-1")

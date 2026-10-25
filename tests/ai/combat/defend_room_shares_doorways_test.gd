@@ -78,28 +78,34 @@ func run(t: TestContext) -> void:
 				"%s's doorway is one of the living room's (%s)" % [id, doors[i]],
 		):
 			continue
-		var p: Vector2 = t.actor(id).global_position
-		t.check(
-			Maps.HOUSE_LIVING.has_point(p),
-			"%s holds inside the living room (%s)" % [id, str(p.round())],
-		)
-		var inward: Vector2 = door["inward"]
-		var lateral := absf((p - (door["pos"] as Vector2)).dot(inward.orthogonal()))
-		var back: float = (p - (door["pos"] as Vector2)).dot(inward)
-		t.check(
-			lateral >= float(door["width"]) * 0.5 + BODY,
-			"%s stands off its doorway's axis (%.0f px along the wall from its centre)"
-				% [id, lateral],
-		)
-		t.check(
-			back >= BACK_FROM_WALL,
-			"%s stands back in the room, out of the funnel (%.0f px from the wall)" % [id, back],
-		)
-		var share := await _share_on_door(t, id, door["pos"], 2.0)
-		t.check(
-			share >= 0.7,
-			"%s keeps its gun on its doorway (%.0f%% of 2 s)" % [id, share * 100.0],
-		)
+		await _check_holds(t, id, door)
+
+
+## Actor `id`'s hold on `door`: inside the living room, off its axis, back from the wall, its gun on
+## it.
+func _check_holds(t: TestContext, id: StringName, door: Dictionary) -> void:
+	var p: Vector2 = t.actor(id).global_position
+	t.check(
+		Maps.HOUSE_LIVING.has_point(p),
+		"%s holds inside the living room (%s)" % [id, str(p.round())],
+	)
+	var inward: Vector2 = door["inward"]
+	var lateral := absf((p - (door["pos"] as Vector2)).dot(inward.orthogonal()))
+	var back: float = (p - (door["pos"] as Vector2)).dot(inward)
+	t.check(
+		lateral >= float(door["width"]) * 0.5 + BODY,
+		"%s stands off its doorway's axis (%.0f px along the wall from its centre)"
+			% [id, lateral],
+	)
+	t.check(
+		back >= BACK_FROM_WALL,
+		"%s stands back in the room, out of the funnel (%.0f px from the wall)" % [id, back],
+	)
+	var share := await _share_on_door(t, id, door["pos"], 2.0)
+	t.check(
+		share >= 0.7,
+		"%s keeps its gun on its doorway (%.0f%% of 2 s)" % [id, share * 100.0],
+	)
 
 
 ## The doorway a defend order's `door` param names, as an id of `DOORS`: the id itself, or the

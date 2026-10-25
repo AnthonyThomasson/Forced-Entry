@@ -21,7 +21,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), 0.4, { "entry_ready_timeout": TIMEOUT })
+	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": TIMEOUT })
 	Stack.human(s, &"me", Stack.NEAR)
 
 

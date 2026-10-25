@@ -54,6 +54,11 @@ func run(t: TestContext) -> void:
 				% Entry.brain(t, &"inv").current_act(),
 	):
 		return
+	_check_crossed(t, samples, door, hits)
+
+
+## Checks the hit landed as the invader crossed and it carried on through, in and off the doorway.
+func _check_crossed(t: TestContext, samples: Array, door: Dictionary, hits: Array) -> void:
 	var at := Entry.pos_at(samples, &"inv", hits[0])
 	t.check(
 		Entry.in_funnel(door, at) or Entry.outward(door, at) < 0.0,

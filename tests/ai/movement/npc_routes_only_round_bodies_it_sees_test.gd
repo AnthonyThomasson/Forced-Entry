@@ -55,6 +55,18 @@ func run(t: TestContext) -> void:
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"walker", &"current_act")
 	var map := t.world.get_world_2d().navigation_map
+	if not _wall_between(t, walker, mate):
+		return
+	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
+	var st := { "near_north": INF, "south_turn": INF, "dest": Vector2.INF, "sealed": false }
+	var seen: Dictionary = await Bump.watch(t, [&"walker", &"mate"], 25.0, func():
+		return _tick(t, st, brain, map, walker.global_position))
+	if not _sent_past_mate(t, st, brain):
+		return
+	_check_route(t, st, map, seen)
+
+
+func _wall_between(t: TestContext, walker: Node, mate: Node) -> bool:
 	var space := t.world.get_world_2d().direct_space_state
 	var ray := PhysicsRayQueryParameters2D.create(
 		START,
@@ -62,48 +74,59 @@ func run(t: TestContext) -> void:
 		PhysicsLayers.SOLID,
 		[walker.get_rid(), mate.get_rid()],
 	)
-	if not t.require(
-			not space.intersect_ray(ray).is_empty(),
-			"premise: a wall stands between the walker's start and the teammate",
-	):
-		return
-	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
-	var st := { "near_north": INF, "south_turn": INF, "dest": Vector2.INF, "sealed": false }
-	var seen: Dictionary = await Bump.watch(t, [&"walker", &"mate"], 25.0, func():
-		var p: Vector2 = walker.global_position
-		if st["dest"] == Vector2.INF:
-			var point = brain.debug_state().get("params", {}).get("point", null)
-			if (point is Array
-					and point.size() == 2
-					and String(brain.current_act()).contains("room_corridor")):
-				st["dest"] = Vector2(point[0], point[1])
-		if st["dest"] != Vector2.INF and not st["sealed"]:
-			var through := NavBuilder.route(NavBuilder.steering_map(map), p, st["dest"])
-			var direct := NavBuilder.route(map, p, st["dest"])
-			st["sealed"] = NavBuilder.path_length(through) > NavBuilder.path_length(direct) + 1.0
-			st["sealed_at"] = t.time
-		if st["near_north"] == INF and p.distance_to(NORTH_DOOR) < AT_DOOR:
-			st["near_north"] = t.time
-		if st["south_turn"] == INF and p.x < NORTH_DOOR.x and p.y > NORTH_DOOR.y + AT_DOOR:
-			st["south_turn"] = t.time
-		return CORRIDOR.has_point(p) and p.y > MATE.y + 40.0)
+	return t.require(
+		not space.intersect_ray(ray).is_empty(),
+		"premise: a wall stands between the walker's start and the teammate",
+	)
+
+
+# One frame of the watch, the walker at `p`, into `st`; whether it has got past the teammate.
+func _tick(t: TestContext, st: Dictionary, brain: Node, map: RID, p: Vector2) -> bool:
+	if st["dest"] == Vector2.INF:
+		st["dest"] = _dest(brain)
+	if st["dest"] != Vector2.INF and not st["sealed"]:
+		var through := NavBuilder.route(NavBuilder.steering_map(map), p, st["dest"])
+		var direct := NavBuilder.route(map, p, st["dest"])
+		st["sealed"] = NavBuilder.path_length(through) > NavBuilder.path_length(direct) + 1.0
+		st["sealed_at"] = t.time
+	if st["near_north"] == INF and p.distance_to(NORTH_DOOR) < AT_DOOR:
+		st["near_north"] = t.time
+	if st["south_turn"] == INF and p.x < NORTH_DOOR.x and p.y > NORTH_DOOR.y + AT_DOOR:
+		st["south_turn"] = t.time
+	return CORRIDOR.has_point(p) and p.y > MATE.y + 40.0
+
+
+# The destination of the walker's search of the corridor, or Vector2.INF before it has one.
+func _dest(brain: Node) -> Vector2:
+	var point = brain.debug_state().get("params", {}).get("point", null)
+	if (point is Array
+			and point.size() == 2
+			and String(brain.current_act()).contains("room_corridor")):
+		return Vector2(point[0], point[1])
+	return Vector2.INF
+
+
+func _sent_past_mate(t: TestContext, st: Dictionary, brain: Node) -> bool:
 	if not t.require(
 			st["dest"] != Vector2.INF,
 			"the walker was sent to search the corridor (%s)" % brain.current_act(),
 	):
-		return
+		return false
 	var dest: Vector2 = st["dest"]
 	if not t.require(
 			dest.y > MATE.y + 40.0,
 			"premise: the walk's destination (%s) lies past the teammate" % dest.round(),
 	):
-		return
-	if not t.require(
-			st["sealed"],
-			("premise: the steering map had the teammate carved out across the corridor during the "
-					+ "walk (dest %s)") % st["dest"].round(),
-	):
-		return
+		return false
+	return t.require(
+		st["sealed"],
+		("premise: the steering map had the teammate carved out across the corridor during the "
+				+ "walk (dest %s)") % st["dest"].round(),
+	)
+
+
+func _check_route(t: TestContext, st: Dictionary, map: RID, seen: Dictionary) -> void:
+	var dest: Vector2 = st["dest"]
 	GameLog.say("sight test: dest %s, teammate carved by %.2f s, near north %s, turned south %s"
 			% [dest.round(), st["sealed_at"], st["near_north"], st["south_turn"]])
 	var plain := NavBuilder.path_length(NavBuilder.route(map, START, dest))

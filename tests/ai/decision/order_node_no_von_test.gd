@@ -30,54 +30,58 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var a := Order.brain(t, &"a")
 	var boss := t.actor(&"boss")
+	var decided := func(): return (
+		not t.von_requests().is_empty()
+			and not bool(a.debug_brain().get("pending", true))
+	)
 	if not t.require(
-			await t.until(
-				func(): return (
-					not t.von_requests().is_empty()
-						and not bool(a.debug_brain().get("pending", true))
-				),
-				5.0,
-			),
+			await t.until(decided, 5.0),
 			"the invader has made a decision of its own first, asking Von (premise)",
 	):
 		return
 	for room in ["kitchen", "living_room"]:
-		var asked := t.von_requests().size()
-		var walks := Order.decisions(a)
-		Order.post({
-			"id": "order_%s" % room,
-			"leader": boss,
-			"faction": boss.faction,
-			"to": [t.actor(&"a")],
-			"kind": Order.DEFEND,
-			"room": room,
-		})
-		var took := await t.until(
-			func(): return Order.on_order(a) and String(_order_params(a).get("room", "")) == room,
-			3.0,
-		)
-		if not t.check(
-				took,
-				"the order to defend the %s is adopted (act %s, params %s)"
-					% [room, a.current_act(), str(_order_params(a))],
-		):
-			continue
-		t.check(Order.decisions(a) > walks, "by a decision walk the order forced")
-		t.expect_eq(
-			t.von_requests().size(),
-			asked,
-			"no question was asked of Von from the order to its adoption (%s)" % room,
-		)
-		var levels := Order.levels(a)
-		t.check(
-			not levels.is_empty() and String(levels[0].get("node", "")) == "order",
-			"the walk started at the ORDER node (%s)"
-				% str(levels.map(func(l): return l.get("node"))),
-		)
-		t.check(
-			levels.all(func(l): return bool(l.get("auto", false))),
-			"every level of it was auto-picked",
-		)
+		await _check_order(t, a, boss, room)
+
+
+## An order to defend `room` posted by `boss` to `a` is adopted by a walk that asks Von nothing,
+## starting at the ORDER node, every level auto-picked.
+func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
+	var asked := t.von_requests().size()
+	var walks := Order.decisions(a)
+	Order.post({
+		"id": "order_%s" % room,
+		"leader": boss,
+		"faction": boss.faction,
+		"to": [t.actor(&"a")],
+		"kind": Order.DEFEND,
+		"room": room,
+	})
+	var took := await t.until(
+		func(): return Order.on_order(a) and String(_order_params(a).get("room", "")) == room,
+		3.0,
+	)
+	if not t.check(
+			took,
+			"the order to defend the %s is adopted (act %s, params %s)"
+				% [room, a.current_act(), str(_order_params(a))],
+	):
+		return
+	t.check(Order.decisions(a) > walks, "by a decision walk the order forced")
+	t.expect_eq(
+		t.von_requests().size(),
+		asked,
+		"no question was asked of Von from the order to its adoption (%s)" % room,
+	)
+	var levels := Order.levels(a)
+	t.check(
+		not levels.is_empty() and String(levels[0].get("node", "")) == "order",
+		"the walk started at the ORDER node (%s)"
+			% str(levels.map(func(l): return l.get("node"))),
+	)
+	t.check(
+		levels.all(func(l): return bool(l.get("auto", false))),
+		"every level of it was auto-picked",
+	)
 
 
 ## The params of the order the NPC carries out (`debug_state()["order"]`): the order's own also

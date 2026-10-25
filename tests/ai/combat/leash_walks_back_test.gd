@@ -59,34 +59,9 @@ func run(t: TestContext) -> void:
 			"the NPC fights the target in sight (act %s)" % Follow.act(m),
 	):
 		return
-	var lead := t.puppet(&"me")
-	lead.aim_at(LEAD_TO)
-	# The leader runs: LD23 keeps the fighter's spots within the leash of the leader's live
-	# position, so behind a walking leader they trail it short of the break (414 px at most against
-	# 416); only a leader outpacing the fighter leaves it past 1.3 leashes.
-	lead.set_run(true)
-	lead.walk_to(LEAD_TO)
 	var w := Follow.new_watch()
-	# The distance is sampled during the walk, not once the leader has arrived: the break starts
-	# acting as soon as the NPC is past the break, so by the leader's arrival it may already be
-	# walking back. `broke_at` is when it first was past the break, which its re-decision follows.
-	var brk := Follow.LEASH * Follow.LEASH_BREAK
-	var left := [0.0]
-	var broke_at := [INF]
-	var walked := func() -> bool:
-		Follow.tick(w, t, [me, m], squad)
-		var d: float = m.global_position.distance_to(me.global_position)
-		left[0] = maxf(left[0], d)
-		if d > brk and broke_at[0] == INF:
-			broke_at[0] = t.time
-		return lead.has_arrived()
-	if not t.require(await t.until(walked, 10.0), "the leader ran off to %s" % str(LEAD_TO)):
-		return
-	if not t.require(
-			left[0] > brk,
-			"premise: the NPC was left past 1.3 leashes during the walk (%.0f px, break %.0f)"
-				% [left[0], brk],
-	):
+	var broke_at := await _left_behind(t, w, squad, me, m)
+	if broke_at < 0.0:
 		return
 	var back := func() -> bool:
 		Follow.tick(w, t, [me, m], squad)
@@ -101,11 +76,47 @@ func run(t: TestContext) -> void:
 				Follow.acts_of(w, m),
 			],
 	)
+	_check_refollowed(t, w, m, broke_at)
+
+
+func _left_behind(t: TestContext, w: Dictionary, squad: Node, me: Node, m: Node) -> float:
+	var lead := t.puppet(&"me")
+	lead.aim_at(LEAD_TO)
+	# The leader runs: LD23 keeps the fighter's spots within the leash of the leader's live
+	# position, so behind a walking leader they trail it short of the break (414 px at most against
+	# 416); only a leader outpacing the fighter leaves it past 1.3 leashes.
+	lead.set_run(true)
+	lead.walk_to(LEAD_TO)
+	# The distance is sampled during the walk, not once the leader has arrived: the break starts
+	# acting as soon as the NPC is past the break, so by the leader's arrival it may already be
+	# walking back. `broke_at` is when it first was past the break, which its re-decision follows.
+	var brk := Follow.LEASH * Follow.LEASH_BREAK
+	var left := [0.0]
+	var broke_at := [INF]
+	var walked := func() -> bool:
+		Follow.tick(w, t, [me, m], squad)
+		var d: float = m.global_position.distance_to(me.global_position)
+		left[0] = maxf(left[0], d)
+		if d > brk and broke_at[0] == INF:
+			broke_at[0] = t.time
+		return lead.has_arrived()
+	if not t.require(await t.until(walked, 10.0), "the leader ran off to %s" % str(LEAD_TO)):
+		return -1.0
+	if not t.require(
+			left[0] > brk,
+			"premise: the NPC was left past 1.3 leashes during the walk (%.0f px, break %.0f)"
+				% [left[0], brk],
+	):
+		return -1.0
+	return broke_at[0]
+
+
+func _check_refollowed(t: TestContext, w: Dictionary, m: Node, broke_at: float) -> void:
 	var refollowed := (w["acts"].get(m, []) as Array).any(
-		func(p): return float(p[0]) >= broke_at[0] and String(p[1]).begins_with("follow"),
+		func(p): return float(p[0]) >= broke_at and String(p[1]).begins_with("follow"),
 	)
 	t.check(
 		refollowed,
 		"past the break (at %.1f s) the NPC re-decided and took FOLLOW (acts %s)"
-			% [broke_at[0], Follow.acts_of(w, m)],
+			% [broke_at, Follow.acts_of(w, m)],
 	)

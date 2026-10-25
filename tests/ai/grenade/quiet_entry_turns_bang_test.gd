@@ -37,25 +37,33 @@ func run(t: TestContext) -> void:
 			"both invaders carry a stun grenade (Character.item_count(7))",
 	):
 		return
+	if not await _quiet_stack_waiting(t):
+		return
+	Investigate.gunfire(Maps.KITCHEN_CENTRE)
+	var heard := t.time
+	await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 40.0)
+	_check_turned_to_bang(t, heard)
+
+
+func _quiet_stack_waiting(t: TestContext) -> bool:
 	var claimed := func():
 		return Bang.IDS.all(func(id): return not Entry.calls(t, "claim", id).is_empty())
 	if not t.require(await t.until(claimed, 10.0), "both claimed the back door"):
-		return
+		return false
 	if not t.require(
 			Bang.IDS.all(
 				func(id): return Entry.calls(t, "", id).all(func(c): return c.get("bang") == false),
 			),
 			"set-up: both went for it quietly (ENTER)",
 	):
-		return
-	if not t.require(
-			Entry.calls(t, "going_in").is_empty(),
-			"set-up: nobody had gone in when the gunfire came",
-	):
-		return
-	Investigate.gunfire(Maps.KITCHEN_CENTRE)
-	var heard := t.time
-	await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 40.0)
+		return false
+	return t.require(
+		Entry.calls(t, "going_in").is_empty(),
+		"set-up: nobody had gone in when the gunfire came",
+	)
+
+
+func _check_turned_to_bang(t: TestContext, heard: float) -> void:
 	var steps := func(step: String) -> Array:
 		return Probe.raw(t, &"callout", func(d): return String(d.get("entry_step", "")) == step)
 	var went_in: float = (steps.call("going_in")[0]["time"]

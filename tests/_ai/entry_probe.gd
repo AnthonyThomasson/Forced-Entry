@@ -122,21 +122,21 @@ static func guard_rules(s: TestSetup, picks: Array) -> void:
 	s.switch(&"projectile.flyover", false)
 
 
-## An invader at `pos` that walks (unlike `flank_probe.npc`, which holds still). `cadence` offsets
-## its decide timers so two invaders never decide on the same frame unless a test wants them to;
-## `gc` overrides GoalController exports, `props` the character's.
+## An invader at `pos` that walks (unlike `flank_probe.npc`, which holds still), deciding every
+## 0.4 s; `gc` overrides GoalController exports (a `decide_interval` of its own offsets its decide
+## timers so two invaders never decide on the same frame unless a test wants them to), `props` the
+## character's.
 static func npc(
 	s: TestSetup,
 	id: StringName,
 	pos: Vector2,
-	cadence := 0.4,
 	gc: Dictionary = {},
 	props: Dictionary = {},
 ) -> void:
 	var p := { "max_health": 1_000_000.0 }
 	p.merge(props, true)
 	s.actor(id, &"invader", pos, p)
-	var g := { "decide_interval": cadence, "tactic_interval": 3.0, "max_commit_time": 30.0 }
+	var g := { "decide_interval": 0.4, "tactic_interval": 3.0, "max_commit_time": 30.0 }
 	g.merge(gc, true)
 	s.set_props(id, "GoalController", g)
 

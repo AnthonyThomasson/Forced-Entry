@@ -31,7 +31,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.guard_rules(s, ["combat", "advance", "rush"])
-	Entry.npc(s, &"inv", START, 0.4, {}, { "facing": Vector2.LEFT })
+	Entry.npc(s, &"inv", START, {}, { "facing": Vector2.LEFT })
 	Entry.target(s, &"householder", TARGET, START, { "faction": &"household" })
 	Entry.target(s, &"shooter", SHOOTER, START, { "start_slot": 3, "faction": &"household" })
 

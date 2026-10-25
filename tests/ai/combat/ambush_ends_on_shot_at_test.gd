@@ -53,6 +53,15 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
+	var brain := await _take_post(t, a)
+	if brain == null:
+		return
+	if not await _holds_through_footsteps(t, a, brain):
+		return
+	await _ends_on_shots(t, a, brain)
+
+
+func _take_post(t: TestContext, a: Node) -> Node:
 	var squad := t.squad(&"household")
 	await t.seconds(0.5)
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [a], "pos": CLICK })
@@ -60,19 +69,22 @@ func run(t: TestContext) -> void:
 			not order.is_empty(),
 			"the squad posts the ambush order (issue of kind ambush returned %s)" % str(order),
 	):
-		return
+		return null
 	var brain := Order.brain(t, &"a")
 	if not t.require(
 			await t.until(func(): return Order.primitive(brain) == "ambush", 5.0),
 			"the defender takes the ambush (primitive %s)" % Order.primitive(brain),
 	):
-		return
+		return null
 	if not t.require(
 			await t.until(func(): return not Order.progress(t, "in_position", a).is_empty(), 20.0),
 			"it reaches its post and radios in_position",
 	):
-		return
+		return null
+	return brain
 
+
+func _holds_through_footsteps(t: TestContext, a: Node, brain: Node) -> bool:
 	var intruder := t.puppet(&"intruder")
 	var intruder_node := t.actor(&"intruder")
 	intruder.walk_to(HALL_MID)
@@ -86,13 +98,16 @@ func run(t: TestContext) -> void:
 			"the intruder walks the hall out of the ambusher's sight (premise: no clear line from "
 				+ "the post)",
 	):
-		return
+		return false
 	t.check(
 		Order.progress(t, "done", a).is_empty() and Order.primitive(brain) == "ambush",
 		"footsteps out of sight do not end the ambush (primitive %s, done %d)"
 			% [Order.primitive(brain), Order.progress(t, "done", a).size()],
 	)
+	return true
 
+
+func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
 	var shot_at := t.time
 	# Counted before the shots: a follower's next decision (FOLLOW, LD19) can land on the frame it
 	# radios done.

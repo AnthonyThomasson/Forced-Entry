@@ -63,6 +63,19 @@ func run(t: TestContext) -> void:
 			"the squad posts the stack order on %s (issue)" % f["id"],
 	):
 		return
+	var walk := await _watch_approach(t, f, member)
+	var spot: Vector2 = walk["spot"]
+	if not t.require(spot != Vector2.INF, "the member claims a slot at %s" % f["id"]):
+		return
+	if not await _routes_set_up(t, f, start, spot):
+		return
+	_check_approach(t, walk)
+
+
+## Follows the member's approach until it stands in its slot (`WATCH_CAP` s at most): its slot point
+## ("spot"), the first time it stood in the kitchen ("in_kitchen", [t, pos]) and when it reached
+## its slot ("reached", s from the start of the watch).
+func _watch_approach(t: TestContext, f: Dictionary, member: Node2D) -> Dictionary:
 	var kitchen: Rect2 = (f["room"] as Rect2).grow(-INSET)
 	var spot := Vector2.INF
 	var in_kitchen: Array = []   # [t, pos] the first time it stood in the kitchen
@@ -81,15 +94,19 @@ func run(t: TestContext) -> void:
 			reached = t.time - t0
 			break
 		await t.frames(1)
-	if not t.require(spot != Vector2.INF, "the member claims a slot at %s" % f["id"]):
-		return
+	return { "spot": spot, "in_kitchen": in_kitchen, "reached": reached }
+
+
+## The set-up: the way round the doorway's view alone runs through the kitchen, and a way round
+## both exists. False when either does not hold.
+func _routes_set_up(t: TestContext, f: Dictionary, start: Vector2, spot: Vector2) -> bool:
 	var through := await _view_only_route_crosses(t, f, start, spot)
 	if not t.require(
 			through == "",
 			("set-up: the way round the doorway's view alone, from the garden to the slot, runs "
 					+ "through the kitchen (%s)") % through,
 	):
-		return
+		return false
 	var round_both: Dictionary = await Reach.keep_out_route(
 		t,
 		f,
@@ -97,12 +114,18 @@ func run(t: TestContext) -> void:
 		spot,
 		t.world.get_world_2d().navigation_map,
 	)
-	if not t.require(
-			round_both.has("path"),
-			("set-up: a way from the garden to the slot keeps out of both the kitchen and the "
-					+ "doorway's view (%s)") % round_both.get("why", ""),
-	):
-		return
+	return t.require(
+		round_both.has("path"),
+		("set-up: a way from the garden to the slot keeps out of both the kitchen and the "
+				+ "doorway's view (%s)") % round_both.get("why", ""),
+	)
+
+
+## The checks: the member reached its slot and never stood in the kitchen on the way.
+func _check_approach(t: TestContext, walk: Dictionary) -> void:
+	var spot: Vector2 = walk["spot"]
+	var reached: float = walk["reached"]
+	var in_kitchen: Array = walk["in_kitchen"]
 	t.check(
 		reached != INF,
 		"the member reaches its slot at %s within %.0f s (%s)"

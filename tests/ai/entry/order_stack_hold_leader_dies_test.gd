@@ -67,6 +67,11 @@ func run(t: TestContext) -> void:
 	if crossed:
 		return
 
+	await _goes_without_leader(t)
+
+
+## The leader dies; with nobody to say go, the ready stack goes in on its own, after the death.
+func _goes_without_leader(t: TestContext) -> void:
 	var gos := Order.orders(t).filter(
 		func(o): return String(o.get("kind", "")) == Order.GO and o.get("auto") != true,
 	).size()

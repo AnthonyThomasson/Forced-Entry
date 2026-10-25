@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 		if d > float(farthest[0]):
 			farthest[0] = d
 			farthest[1] = Follow.act(m)
-	var w: Dictionary = await Follow.watch(t, [me, m], null, WATCH_S, Callable(), each)
+	var w: Dictionary = await Follow.watch(t, [me, m], null, WATCH_S, { "each": each })
 
 	if not t.require(
 			t.actor(&"target").global_position.distance_to(me.global_position) > Follow.LEASH * 2.0,

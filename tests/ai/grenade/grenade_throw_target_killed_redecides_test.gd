@@ -69,6 +69,15 @@ func run(t: TestContext) -> void:
 			"the invader asked its first question, in sight",
 	):
 		return
+	if not await _move_behind(t, inv, brain):
+		return
+	var decisions := await _kill_target_on_the_walk(t, hh, brain)
+	if decisions < 0:
+		return
+	await _check_redecided(t, inv, brain, decisions)
+
+
+func _move_behind(t: TestContext, inv: Node, brain: Node) -> bool:
 	DecisionStub.fail = true
 	inv.global_position = BEHIND
 	inv.velocity = Vector2.ZERO
@@ -77,12 +86,16 @@ func run(t: TestContext) -> void:
 		5.0,
 	)
 	DecisionStub.fail = false
-	if not t.require(
-			failed and t.von_requests().size() == 1 and str(t.von_requests()[0]["pick"]) == "",
-			("set-up: the question asked in sight failed, so no order made in sight was carried "
-					+ "out (requests %s)") % str(t.von_requests().map(func(r): return r["pick"])),
-	):
-		return
+	return t.require(
+		failed and t.von_requests().size() == 1 and str(t.von_requests()[0]["pick"]) == "",
+		("set-up: the question asked in sight failed, so no order made in sight was carried "
+				+ "out (requests %s)") % str(t.von_requests().map(func(r): return r["pick"])),
+	)
+
+
+# Kills the householder once the invader walks to its throw spot: the decisions made by then, or -1
+# when the set-up fails.
+func _kill_target_on_the_walk(t: TestContext, hh: Node, brain: Node) -> int:
 	var walking := func() -> bool:
 		return ("grenade" in brain.current_act()
 				and "walking to the throw spot" in brain.debug_status())
@@ -91,11 +104,15 @@ func run(t: TestContext) -> void:
 			"set-up: the invader took GRENADE through a throw spot and walks to it (acts %s)"
 				% Probe.acts(t, &"i"),
 	):
-		return
+		return -1
 	var decisions := int(brain.debug_state().get("decisions", 0))
 	hh.take_damage(hh.max_health * 2.0)
 	if not t.require(hh.is_dead, "set-up: the householder is dead"):
-		return
+		return -1
+	return decisions
+
+
+func _check_redecided(t: TestContext, inv: Node, brain: Node, decisions: int) -> void:
 	var redecided := await t.until(
 		func(): return int(brain.debug_state().get("decisions", 0)) > decisions,
 		1.0,

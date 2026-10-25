@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
 		return
 	# The point's side first: 1 along the wall (the radio's terms, whichever side that is).
-	var claiming := { &"a": [1, 1], &"b": [2, 1] }
+	var claiming := { &"a": { "slot": 1, "side": 1 }, &"b": { "slot": 2, "side": 1 } }
 	if not t.require(
 			await _radioing(t, claiming, opening, into, func(): return Stack.mine(stack) > 0),
 			"the human is reserved a slot at the back door",
@@ -77,7 +77,7 @@ func run(t: TestContext) -> void:
 		return
 	var said := first.size()
 	# The point's claim moves to the other side of the door.
-	claiming[&"a"] = [1, -1]
+	claiming[&"a"] = { "slot": 1, "side": -1 }
 	var follows := func():
 		var calls := Stack.calls_at(t, &"me", opening)
 		return calls.size() > said and int(calls[-1].get("side", 0)) == -1
@@ -91,7 +91,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(Stack.mine(stack), 3, "and shown in its view")
 
 
-## Keep the puppets in `claiming` (id -> [slot, side]) radioing their claims on `opening` into
+## Keep the puppets in `claiming` (id -> { slot, side }) radioing their claims on `opening` into
 ## `into` every `REPEAT` s until `done` holds or 5 s have passed; whether it held.
 func _radioing(
 	t: TestContext,
@@ -108,6 +108,6 @@ func _radioing(
 		if t.time - said >= REPEAT:
 			said = t.time
 			for id in claiming:
-				Stack.radio(t, id, opening, into, claiming[id][0], claiming[id][1])
+				Stack.radio(t, id, opening, into, claiming[id])
 		await t.frames(1)
 	return true

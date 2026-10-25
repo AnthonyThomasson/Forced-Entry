@@ -43,7 +43,20 @@ func run(t: TestContext) -> void:
 		a.get_instance_id(),
 		"it starts out fighting A",
 	)
+	_check_retargets(t, behavior, a, b, both_seen)
+	for n in [a, b, perception, behavior, cfg]:
+		n.free()
 
+
+## Fighting A, it stays with A while A is in view or nobody is, and moves to B once only B is;
+## `both_seen` is the contacts of both in view.
+func _check_retargets(
+		t: TestContext,
+		behavior: Behavior,
+		a: Node2D,
+		b: Node2D,
+		both_seen: Array,
+) -> void:
 	behavior.update_known(
 		[_contact(a, Vector2(300, 0), true), _contact(b, Vector2(300, 200), false)],
 		0.016,
@@ -77,9 +90,6 @@ func run(t: TestContext) -> void:
 		b.get_instance_id(),
 		"A out of sight, B in view: it fights B",
 	)
-
-	for n in [a, b, perception, behavior, cfg]:
-		n.free()
 
 
 ## A known hostile contact the way perception hands it over.

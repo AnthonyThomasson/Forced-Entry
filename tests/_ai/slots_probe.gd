@@ -397,7 +397,7 @@ static func dead_end_capacity(w: Dictionary, f: Dictionary, cache: Dictionary) -
 		var x := rect.position.x
 		while x <= rect.end.x:
 			var p := Vector2(x, y)
-			if point_faults(w, f, p, cache, "dead_end").is_empty():
+			if point_faults(w, f, p, cache, { "kind": "dead_end" }).is_empty():
 				pts.append(p)
 			x += CAPACITY_GRID
 		y += CAPACITY_GRID
@@ -491,43 +491,51 @@ static func in_wall_band(w: Dictionary, f: Dictionary, p: Vector2) -> bool:
 ## (`_packing`). The points are a `CAPACITY_GRID` px grid over the band, laid from the jamb's
 ## clearance out along the wall to the stack side's room's edge (outdoors, `ROOM_FOR_ONE_REACH`),
 ## plus `extra` (the way in's own slots that are valid wall points: a valid point is one wherever it
-## lies). `{ count, points }`. With kind `views` and a `bar` (`views_capacity`), a valid point is
-## one that keeps the `views` rules at that bar instead, and the result carries the `bar`.
+## lies). `{ count, points }`. With `rules` `{ kind: "views", bar }` (`views_capacity`), a valid
+## point is one that keeps the `views` rules at that bar instead, and the result carries the `bar`.
 static func wall_capacity(
 	w: Dictionary,
 	f: Dictionary,
 	cache: Dictionary,
 	extra: Array = [],
-	kind := "wall",
-	bar := 0,
+	rules: Dictionary = {},
 ) -> Dictionary:
 	var pts := PackedVector2Array()
-	var pos: Vector2 = f["pos"]
-	var out: Vector2 = f["out"]
-	var start := float(f["width"]) * 0.5 + BESIDE
 	for side in [1, -1]:
-		var along: Vector2 = (f["along"] as Vector2) * side
-		var reach := ROOM_FOR_ONE_REACH
-		if String(f["from"]) != "":
-			reach = _ray_to_edge(f["from_rect"], pos, along) + ROOM_INSET
-		var lat := start
-		while lat <= reach:
-			var o := ROW1_MIN
-			while o <= ROW2_MAX:
-				var p: Vector2 = pos + out * o + along * lat
-				if in_wall_band(w, f, p) and point_faults(w, f, p, cache, kind, bar).is_empty():
-					pts.append(p)
-				o += CAPACITY_GRID
-			lat += CAPACITY_GRID
+		pts.append_array(_band_grid(w, f, cache, rules, side))
 	for p: Vector2 in extra:
 		if (in_wall_band(w, f, p)
-				and point_faults(w, f, p, cache, kind, bar).is_empty()
+				and point_faults(w, f, p, cache, rules).is_empty()
 				and not pts.has(p)):
 			pts.append(p)
 	var found := _capacity(pts, MAX_STACK)
-	if kind == "views":
-		found["bar"] = bar
+	if String(rules.get("kind", "wall")) == "views":
+		found["bar"] = int(rules.get("bar", 0))
 	return found
+
+
+## `wall_capacity`'s grid on side `side` of frame `f`: its points in the wall band that keep
+## `rules` (`point_faults`).
+static func _band_grid(
+		w: Dictionary, f: Dictionary, cache: Dictionary, rules: Dictionary, side: int
+) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var pos: Vector2 = f["pos"]
+	var out: Vector2 = f["out"]
+	var along: Vector2 = (f["along"] as Vector2) * side
+	var reach := ROOM_FOR_ONE_REACH
+	if String(f["from"]) != "":
+		reach = _ray_to_edge(f["from_rect"], pos, along) + ROOM_INSET
+	var lat := float(f["width"]) * 0.5 + BESIDE
+	while lat <= reach:
+		var o := ROW1_MIN
+		while o <= ROW2_MAX:
+			var p: Vector2 = pos + out * o + along * lat
+			if in_wall_band(w, f, p) and point_faults(w, f, p, cache, rules).is_empty():
+				pts.append(p)
+			o += CAPACITY_GRID
+		lat += CAPACITY_GRID
+	return pts
 
 
 ## How many members the wall band of a `views` way in (`way_kind`) holds by its fewest-seen spots
@@ -551,8 +559,7 @@ static func views_capacity(
 		f,
 		cache,
 		spots.map(func(s): return s["point"]) + extra,
-		"views",
-		fewest_views_bar(spots, MAX_STACK),
+		{ "kind": "views", "bar": fewest_views_bar(spots, MAX_STACK) },
 	)
 
 
@@ -570,6 +577,18 @@ static func open_floor_points(
 	if cache.has(key):
 		return cache[key]
 	var pts := PackedVector2Array()
+	for p: Vector2 in _floor_grid(f):
+		if (not in_wall_band(w, f, p)
+				and point_faults(w, f, p, cache, { "kind": "overflow" }).is_empty()):
+			pts.append(p)
+	cache[key] = pts
+	return pts
+
+
+## `open_floor_points`' grid: a `CAPACITY_GRID` px grid over frame `f`'s stack side's room (by
+## `ROOM_INSET`), or outdoors over a box out from the door `ROOM_FOR_ONE_REACH` px along the wall
+## either side and out from it.
+static func _floor_grid(f: Dictionary) -> Array:
 	var cands: Array = []
 	if String(f["from"]) != "":
 		var rect: Rect2 = (f["from_rect"] as Rect2).grow(-ROOM_INSET)
@@ -580,20 +599,18 @@ static func open_floor_points(
 				cands.append(Vector2(x, y))
 				x += CAPACITY_GRID
 			y += CAPACITY_GRID
-	else:
-		var lat := -ROOM_FOR_ONE_REACH
-		while lat <= ROOM_FOR_ONE_REACH:
-			var o := ROOM_INSET
-			while o <= ROOM_FOR_ONE_REACH:
-				cands.append((f["pos"] as Vector2) + (f["out"] as Vector2) * o
-						+ (f["along"] as Vector2) * lat)
-				o += CAPACITY_GRID
-			lat += CAPACITY_GRID
-	for p: Vector2 in cands:
-		if not in_wall_band(w, f, p) and point_faults(w, f, p, cache, "overflow").is_empty():
-			pts.append(p)
-	cache[key] = pts
-	return pts
+		return cands
+	var pos: Vector2 = f["pos"]
+	var out: Vector2 = f["out"]
+	var along: Vector2 = f["along"]
+	var lat := -ROOM_FOR_ONE_REACH
+	while lat <= ROOM_FOR_ONE_REACH:
+		var o := ROOM_INSET
+		while o <= ROOM_FOR_ONE_REACH:
+			cands.append(pos + out * o + along * lat)
+			o += CAPACITY_GRID
+		lat += CAPACITY_GRID
+	return cands
 
 
 ## How many more members the open floor of a short wall's way in then holds, beside the wall slots
@@ -643,30 +660,44 @@ static func view_count(w: Dictionary, f: Dictionary, p: Vector2) -> int:
 ## `[{ point, side, views }]`.
 static func wall_spots(w: Dictionary, f: Dictionary) -> Array:
 	var spots: Array = []
+	for side in [1, -1]:
+		spots.append_array(_wall_spots_on(w, f, side))
+	return spots
+
+
+## `wall_spots` on side `side` of the door, nearest the door first, up to the wall's end (another
+## doorway's funnel).
+static func _wall_spots_on(w: Dictionary, f: Dictionary, side: int) -> Array:
+	var spots: Array = []
 	var pos: Vector2 = f["pos"]
 	var out: Vector2 = f["out"]
-	for side in [1, -1]:
-		var along: Vector2 = (f["along"] as Vector2) * side
-		var reach := ROOM_FOR_ONE_REACH
-		if String(f["from"]) != "":
-			reach = _ray_to_edge(f["from_rect"], pos + out * ROOM_FOR_ONE_OUT, along)
-		var past := float(f["width"]) * 0.5 + ROOM_FOR_ONE_PAST
-		var walled := false
-		while past <= reach and not walled:
-			for o in [ROOM_FOR_ONE_OUT, ROOM_FOR_ONE_OUT - 6.0, ROOM_FOR_ONE_OUT + 8.0]:
-				var p: Vector2 = pos + out * o + along * past
-				if in_other_funnel(w, f, p) != "":
-					walled = true   # The wall's end: another doorway's funnel.
-					break
-				if (in_stack_room(w, f, p) != ""
-						or on_navmesh(w, p) != ""
-						or reachable(w, f, p) != ""
-						or clear_of_furniture(w, p) != ""):
-					continue
-				spots.append({ "point": p, "side": side, "views": view_count(w, f, p) })
+	var along: Vector2 = (f["along"] as Vector2) * side
+	var reach := ROOM_FOR_ONE_REACH
+	if String(f["from"]) != "":
+		reach = _ray_to_edge(f["from_rect"], pos + out * ROOM_FOR_ONE_OUT, along)
+	var past := float(f["width"]) * 0.5 + ROOM_FOR_ONE_PAST
+	var walled := false
+	while past <= reach and not walled:
+		for o in [ROOM_FOR_ONE_OUT, ROOM_FOR_ONE_OUT - 6.0, ROOM_FOR_ONE_OUT + 8.0]:
+			var p: Vector2 = pos + out * o + along * past
+			if in_other_funnel(w, f, p) != "":
+				walled = true   # The wall's end: another doorway's funnel.
 				break
-			past += ROOM_FOR_ONE_STEP
+			if _not_a_spot(w, f, p):
+				continue
+			spots.append({ "point": p, "side": side, "views": view_count(w, f, p) })
+			break
+		past += ROOM_FOR_ONE_STEP
 	return spots
+
+
+## Whether `p` breaks a rule of `wall_spots` but the other doorways' views: outside the stack side,
+## off the navmesh, unreached from the stack side, or on furniture.
+static func _not_a_spot(w: Dictionary, f: Dictionary, p: Vector2) -> bool:
+	return (in_stack_room(w, f, p) != ""
+			or on_navmesh(w, p) != ""
+			or reachable(w, f, p) != ""
+			or clear_of_furniture(w, p) != "")
 
 
 ## The most other doorways a slot of a stack of `count` may be seen from on a `views` way in: the
@@ -737,12 +768,12 @@ static func tail_fault(w: Dictionary, f: Dictionary, p: Vector2) -> String:
 
 
 ## Every rule one slot `p` breaks, as `[rule, why]` pairs (empty when it keeps them all), on a way
-## in of kind `kind` (`way_kind`):
+## in of kind `rules.kind` (`way_kind`; `wall` when not given):
 ## - `wall`: E20 (in the stack side's room, on the navmesh, reached from the stack side, out of the
 ##   other doorways' views and funnels), E22 (off furniture), E2 / E21 (beside the door, against the
 ##   wall or a step out from it);
-## - `views`: the same, but seen from no more other doorways than `bar` (`fewest_views_bar`) instead
-##   of out of every view;
+## - `views`: the same, but seen from no more other doorways than `rules.bar` (`fewest_views_bar`)
+##   instead of out of every view;
 ## - `open_floor`: in the stack side's room on its open floor (on the navmesh, reached, off
 ##   furniture, out of the other doorways' funnels, off the door's axis by a body, out of its
 ##   funnel), or else a tail spot (`tail_fault`);
@@ -757,45 +788,55 @@ static func point_faults(
 	f: Dictionary,
 	p: Vector2,
 	cache: Dictionary,
-	kind := "wall",
-	bar := 0,
+	rules: Dictionary = {},
 ) -> Array:
+	var kind := String(rules.get("kind", "wall"))
+	var bar := int(rules.get("bar", 0))
 	var key := "%s>%s@%s %s %d" % [f["id"], f["room_key"], str(p.round()), kind, bar]
 	if cache.has(key):
 		return cache[key]
-	var out: Array = []
 	var why := in_stack_room(w, f, p)
-	if why != "" and kind == "open_floor":
-		var tail := tail_fault(w, f, p)
-		if tail != "":
-			out.append([
-				"E20 fallback: the tail in the room it came by",
-				"%s, and %s" % [why, tail],
-			])
-		cache[key] = out
-		return out
-	if why != "" and kind == "dead_end":
+	var out: Array
+	if (why != ""
+			and (kind == "open_floor"
+				or kind == "dead_end"
+				or (kind == "overflow" and String(f["from"]) != ""))):
+		out = _outside_room_faults(w, f, p, kind, why)
+	else:
+		out = _point_rule_faults(w, f, p, rules, why)
+		out.append_array(_placement_faults(f, p, kind))
+	cache[key] = out
+	return out
+
+
+## `point_faults` for a slot `p` outside the stack side's room (`why`) on an `open_floor`,
+## `dead_end` or `overflow` way in: a tail spot's faults, or the dead end's.
+static func _outside_room_faults(
+		w: Dictionary, f: Dictionary, p: Vector2, kind: String, why: String
+) -> Array:
+	var out: Array = []
+	if kind == "dead_end" or (kind == "overflow" and ways_into_stack_room(w, f).is_empty()):
 		out.append([
 			"E20 fallback: a dead end's slots all in its room",
 			"%s, and the %s has no other doorway for a tail to hold at" % [why, f["from"]],
 		])
-		cache[key] = out
 		return out
-	if why != "" and kind == "overflow" and String(f["from"]) != "":
-		if ways_into_stack_room(w, f).is_empty():
-			out.append([
-				"E20 fallback: a dead end's slots all in its room",
-				"%s, and the %s has no other doorway for a tail to hold at" % [why, f["from"]],
-			])
-		else:
-			var tail := tail_fault(w, f, p)
-			if tail != "":
-				out.append([
-					"E20 fallback: the tail in the room it came by",
-					"%s, and %s" % [why, tail],
-				])
-		cache[key] = out
-		return out
+	var tail := tail_fault(w, f, p)
+	if tail != "":
+		out.append([
+			"E20 fallback: the tail in the room it came by",
+			"%s, and %s" % [why, tail],
+		])
+	return out
+
+
+## `point_faults`' E20 and E22 rules for slot `p` (`why`: why it is not in the stack side's room,
+## or ""), by `rules`.
+static func _point_rule_faults(
+		w: Dictionary, f: Dictionary, p: Vector2, rules: Dictionary, why: String
+) -> Array:
+	var kind := String(rules.get("kind", "wall"))
+	var out: Array = []
 	if why != "":
 		out.append(["E20 in the stack's room", why])
 	why = on_navmesh(w, p)
@@ -810,16 +851,30 @@ static func point_faults(
 	if why != "":
 		out.append(["E20 out of other doorways' view and funnel", why])
 	if kind == "views":
-		var seen := view_count(w, f, p)
-		if seen > bar:
-			out.append([
-				"E20 fallback: seen from the fewest other doorways",
-				("seen from %d other doorway(s) (%s) where the wall's spots seen from %d would "
-						+ "hold the stack") % [seen, in_other_view(w, f, p), bar],
-			])
+		out.append_array(_views_faults(w, f, p, int(rules.get("bar", 0))))
 	why = clear_of_furniture(w, p)
 	if why != "":
 		out.append(["E22 off furniture", why])
+	return out
+
+
+## `point_faults`' `views` rule for slot `p`: seen from no more other doorways than `bar`.
+static func _views_faults(w: Dictionary, f: Dictionary, p: Vector2, bar: int) -> Array:
+	var seen := view_count(w, f, p)
+	if seen <= bar:
+		return []
+	return [[
+		"E20 fallback: seen from the fewest other doorways",
+		("seen from %d other doorway(s) (%s) where the wall's spots seen from %d would "
+				+ "hold the stack") % [seen, in_other_view(w, f, p), bar],
+	]]
+
+
+## `point_faults`' rules for where slot `p` stands against the door on a way in of kind `kind`: on
+## the open floor off the door's axis and out of its funnel, else beside the door against the wall
+## or a step out from it.
+static func _placement_faults(f: Dictionary, p: Vector2, kind: String) -> Array:
+	var out: Array = []
 	var lateral := absf(Entry.lateral(f, p))
 	if kind == "open_floor" or kind == "dead_end" or kind == "overflow":
 		if lateral < BODY:
@@ -832,7 +887,6 @@ static func point_faults(
 				"E20 fallback: open floor out of the door's funnel",
 				"in the funnel (%.0f px out, %.0f px along)" % [Entry.outward(f, p), lateral],
 			])
-		cache[key] = out
 		return out
 	if lateral < float(f["width"]) * 0.5 + BESIDE:
 		out.append([
@@ -843,15 +897,14 @@ static func point_faults(
 	var o := Entry.outward(f, p)
 	if o < ROW1_MIN or o > ROW2_MAX:
 		out.append(["E2/E21 against the wall or a step out", "%.0f px out from the wall plane" % o])
-	cache[key] = out
 	return out
 
 
-## The rules a whole stack's layout (`slots`, from `layout`) breaks as a stack, for a stack of
-## `count` on side `side` of frame `f`: one slot per member numbered 1..count, spacing kept (E2,
-## E22), each file nearest the door first (E2), the point on the asked side when it has room (E21:
-## an ordered stack starts on the order's side), a second file only once neither side has room
-## (E21). `[n, rule, why]` triples (`n` 0 for the stack as a whole). On an `open_floor` way in
+## The rules a whole stack's layout (`stack.slots`, from `layout`) breaks as a stack, for a stack of
+## `stack.count` on side `stack.side` of frame `f`: one slot per member numbered 1..count, spacing
+## kept (E2, E22), each file nearest the door first (E2), the point on the asked side when it has
+## room (E21: an ordered stack starts on the order's side), a second file only once neither side has
+## room (E21). `[n, rule, why]` triples (`n` 0 for the stack as a whole). On an `open_floor` way in
 ## (`way_kind`) the files give way to rule 6's: the tail (the slots outside the stack side's room)
 ## comes after every slot in it. On a `dead_end` way in the stack takes as many slots as the room
 ## holds (`capacity`, from `dead_end_capacity`): exactly min(count, its count), numbered 1.., and no
@@ -866,83 +919,141 @@ static func point_faults(
 static func stack_faults(
 	w: Dictionary,
 	f: Dictionary,
-	slots: Array,
-	count: int,
-	side: int,
+	stack: Dictionary,
 	kind := "wall",
 	capacity := {},
 ) -> Array:
-	var out: Array = []
-	var numbers: Array = slots.map(func(s): return int(s["n"]))
-	var sorted_numbers := numbers.duplicate()
-	sorted_numbers.sort()
-	if is_short_wall(kind, capacity, count):
-		out.append_array(short_wall_faults(w, f, slots, count, capacity))
-	elif kind == "dead_end":
-		var holds := int(capacity.get("count", 0))
-		var wanted_here: Array = range(1, mini(count, holds) + 1)
-		if sorted_numbers != wanted_here:
-			var points: Array = (capacity.get("points", []) as Array).map(
-				func(p): return str((p as Vector2).round()),
-			)
-			out.append([
-				0,
-				"E20 fallback: a dead end takes as many slots as its room holds",
-				("slots %s for a stack of %d, where the %s holds %d at %.0f px apart (the test's "
-						+ "own packing: %s), so slots %s")
-					% [
-						str(numbers),
-						count,
-						f["from"],
-						holds,
-						STACK_SPACING,
-						", ".join(points)
-							if not points.is_empty()
-							else "no point keeps the open-floor rules",
-						str(wanted_here),
-					],
-			])
-	elif sorted_numbers != range(1, count + 1):
-		out.append([0, "one slot per member", "slots %s for a stack of %d" % [str(numbers), count]])
-	for i in slots.size():
-		for j in range(i + 1, slots.size()):
-			var d := (slots[i]["point"] as Vector2).distance_to(slots[j]["point"])
-			if d < MIN_SPACING:
-				out.append([
-					int(slots[j]["n"]),
-					"E2/E22 spacing kept",
-					"%.0f px from slot %d" % [d, int(slots[i]["n"])],
-				])
+	var slots: Array = stack["slots"]
+	var out := _count_faults(w, f, stack, kind, capacity)
+	out.append_array(_spacing_faults(slots))
 	if kind == "dead_end":
 		# Every slot in the room (`point_faults`), spacing kept (above): no files, no tail.
 		return out
 	if kind == "open_floor":
-		for s in slots:
-			if in_stack_room(w, f, s["point"]) == "":
-				continue   # In the room; `s` is the tail's below.
-			for o in slots:
-				if int(o["n"]) > int(s["n"]) and in_stack_room(w, f, o["point"]) == "":
-					out.append([
-						int(o["n"]),
-						"E20 fallback: the tail last",
-						"in the %s, after slot %d of the tail" % [f["from"], int(s["n"])],
-					])
+		out.append_array(_tail_last_faults(w, f, slots))
 		return out
-	if is_short_wall(kind, capacity, count):
+	if is_short_wall(kind, capacity, int(stack["count"])):
 		# The files are the wall's; the overflow is judged above.
 		slots = slots.filter(func(s): return in_wall_band(w, f, s["point"]))
+	out.append_array(_file_faults(f, slots))
+	out.append_array(_side_faults(w, f, slots, int(stack["side"])))
+	return out
+
+
+## `stack_faults`' rules on how many slots `stack` has and their numbers: a short wall's chain
+## (`short_wall_faults`), a dead end's cap, else one slot per member.
+static func _count_faults(
+		w: Dictionary, f: Dictionary, stack: Dictionary, kind: String, capacity: Dictionary
+) -> Array:
+	var slots: Array = stack["slots"]
+	var count := int(stack["count"])
+	var numbers: Array = slots.map(func(s): return int(s["n"]))
+	var sorted_numbers := numbers.duplicate()
+	sorted_numbers.sort()
+	if is_short_wall(kind, capacity, count):
+		return short_wall_faults(w, f, slots, count, capacity)
+	if kind == "dead_end":
+		return _dead_end_faults(f, numbers, count, capacity)
+	if sorted_numbers != range(1, count + 1):
+		return [[0, "one slot per member", "slots %s for a stack of %d" % [str(numbers), count]]]
+	return []
+
+
+## `stack_faults`' dead-end cap: the slots numbered `numbers` of a stack of `count` are exactly
+## 1..min(count, what the room holds) (`capacity`, `dead_end_capacity`).
+static func _dead_end_faults(
+		f: Dictionary, numbers: Array, count: int, capacity: Dictionary
+) -> Array:
+	var holds := int(capacity.get("count", 0))
+	var wanted_here: Array = range(1, mini(count, holds) + 1)
+	var sorted_numbers := numbers.duplicate()
+	sorted_numbers.sort()
+	if sorted_numbers == wanted_here:
+		return []
+	var points: Array = (capacity.get("points", []) as Array).map(
+		func(p): return str((p as Vector2).round()),
+	)
+	var packing := (", ".join(points)
+			if not points.is_empty()
+			else "no point keeps the open-floor rules")
+	return [[
+		0,
+		"E20 fallback: a dead end takes as many slots as its room holds",
+		("slots %s for a stack of %d, where the %s holds %d at %.0f px apart (the test's "
+				+ "own packing: %s), so slots %s")
+			% [str(numbers), count, f["from"], holds, STACK_SPACING, packing, str(wanted_here)],
+	]]
+
+
+## `stack_faults`' spacing rule: every slot of `slots` at least `MIN_SPACING` from each earlier one.
+static func _spacing_faults(slots: Array) -> Array:
+	var out: Array = []
+	for i in slots.size():
+		out.append_array(_too_close_to(slots, i))
+	return out
+
+
+## The slots after slot `slots[i]` closer to it than `MIN_SPACING`, as `_spacing_faults`' faults.
+static func _too_close_to(slots: Array, i: int) -> Array:
+	var out: Array = []
+	for j in range(i + 1, slots.size()):
+		var d := (slots[i]["point"] as Vector2).distance_to(slots[j]["point"])
+		if d < MIN_SPACING:
+			out.append([
+				int(slots[j]["n"]),
+				"E2/E22 spacing kept",
+				"%.0f px from slot %d" % [d, int(slots[i]["n"])],
+			])
+	return out
+
+
+## `stack_faults`' open-floor rule: every slot in the stack side's room is numbered before every
+## slot of the tail (outside it).
+static func _tail_last_faults(w: Dictionary, f: Dictionary, slots: Array) -> Array:
+	var out: Array = []
 	for s in slots:
+		if in_stack_room(w, f, s["point"]) == "":
+			continue   # In the room; `s` is the tail's below.
 		for o in slots:
-			if (int(o["n"]) <= int(s["n"])
-					or side_of(f, o["point"]) != side_of(f, s["point"])
-					or _row(f, o["point"]) != _row(f, s["point"])):
-				continue
-			if absf(Entry.lateral(f, o["point"])) < absf(Entry.lateral(f, s["point"])):
+			if int(o["n"]) > int(s["n"]) and in_stack_room(w, f, o["point"]) == "":
 				out.append([
 					int(o["n"]),
-					"E2 file nearest the door first",
-					"nearer the door than slot %d in its file" % int(s["n"]),
+					"E20 fallback: the tail last",
+					"in the %s, after slot %d of the tail" % [f["from"], int(s["n"])],
 				])
+	return out
+
+
+## `stack_faults`' file rule: in each file (a side and a row), the slots nearest the door first.
+static func _file_faults(f: Dictionary, slots: Array) -> Array:
+	var out: Array = []
+	for s in slots:
+		out.append_array(_nearer_in_file(f, slots, s))
+	return out
+
+
+## The slots of `slots` numbered after slot `s` in its file yet nearer the door, as `_file_faults`'
+## faults.
+static func _nearer_in_file(f: Dictionary, slots: Array, s: Dictionary) -> Array:
+	var out: Array = []
+	for o in slots:
+		if (int(o["n"]) <= int(s["n"])
+				or side_of(f, o["point"]) != side_of(f, s["point"])
+				or _row(f, o["point"]) != _row(f, s["point"])):
+			continue
+		if absf(Entry.lateral(f, o["point"])) < absf(Entry.lateral(f, s["point"])):
+			out.append([
+				int(o["n"]),
+				"E2 file nearest the door first",
+				"nearer the door than slot %d in its file" % int(s["n"]),
+			])
+	return out
+
+
+## `stack_faults`' E21 rules for a stack ordered on side `side`: its point on that side when it has
+## room, and a second file only once neither side has room and no slot.
+static func _side_faults(w: Dictionary, f: Dictionary, slots: Array, side: int) -> Array:
+	var out: Array = []
 	var first: Array = slots.filter(func(s): return int(s["n"]) == 1)
 	if not first.is_empty() and side_of(f, first[0]["point"]) != side and side_has_room(w, f, side):
 		out.append([
@@ -953,17 +1064,18 @@ static func stack_faults(
 	var second: Array = slots.filter(
 		func(s): return _row(f, s["point"]) == 2 and in_stack_room(w, f, s["point"]) == "",
 	)
-	if not second.is_empty():
-		for s in [1, -1]:
-			var used: bool = slots.any(
-				func(x): return _row(f, x["point"]) == 1 and side_of(f, x["point"]) == s,
-			)
-			if not used and side_has_room(w, f, s):
-				out.append([
-					int(second[0]["n"]),
-					"E21 the other side before a second file",
-					"a second file while side %+d has room and no slot" % s,
-				])
+	if second.is_empty():
+		return out
+	for s in [1, -1]:
+		var used: bool = slots.any(
+			func(x): return _row(f, x["point"]) == 1 and side_of(f, x["point"]) == s,
+		)
+		if not used and side_has_room(w, f, s):
+			out.append([
+				int(second[0]["n"]),
+				"E21 the other side before a second file",
+				"a second file while side %+d has room and no slot" % s,
+			])
 	return out
 
 
@@ -1025,89 +1137,145 @@ static func short_wall_faults(
 	count: int,
 	capacity: Dictionary,
 ) -> Array:
-	var out: Array = []
-	var holds := int(capacity["wall"]["count"])
+	var chain := _short_wall_chain(w, f, slots, count, capacity)
+	var out := _wall_part_faults(chain)
+	out.append_array(_overflow_part_faults(w, f, chain))
+	out.append_array(_floor_part_faults(f, chain))
+	out.append_array(_chain_number_faults(chain))
+	return out
+
+
+## What `short_wall_faults` judges a short wall's stack of `count` (`slots`, `capacity`) by: the
+## slots by number (`ordered`) and by part (`walls` in the band, `on_floor` in the room off it,
+## `tail` outside the room, `overflow` off the band), what the wall takes (`want_wall`), what the
+## open floor holds (`opens`) and takes (`want_floor`), whether a tail may hold (`tail_ok`), how
+## many slots in all (`want_total`), and the capacities for the messages (`caps`).
+static func _short_wall_chain(
+		w: Dictionary, f: Dictionary, slots: Array, count: int, capacity: Dictionary
+) -> Dictionary:
 	var opens := int((capacity.get("open", {}) as Dictionary).get("count", 0))
-	var want_wall := mini(count, holds)
+	var want_wall := mini(count, int(capacity["wall"]["count"]))
 	var want_floor := mini(count - want_wall, opens)
 	var tail_ok := String(f["from"]) != "" and not ways_into_stack_room(w, f).is_empty()
-	var want_total := count if tail_ok else want_wall + want_floor
-	var caps := capacity_text(w, f, capacity)
 	var ordered := slots.duplicate()
 	ordered.sort_custom(func(a, b): return int(a["n"]) < int(b["n"]))
-	var walls: Array = ordered.filter(func(s): return in_wall_band(w, f, s["point"]))
-	var on_floor: Array = ordered.filter(
-		func(s): return not in_wall_band(w, f, s["point"]) and in_stack_room(w, f, s["point"]) == ""
-	)
-	var tail: Array = ordered.filter(func(s): return in_stack_room(w, f, s["point"]) != "")
-	var overflow: Array = ordered.filter(func(s): return not in_wall_band(w, f, s["point"]))
+	return {
+		"count": count, "opens": opens, "want_wall": want_wall, "want_floor": want_floor,
+		"tail_ok": tail_ok, "want_total": count if tail_ok else want_wall + want_floor,
+		"caps": capacity_text(w, f, capacity), "ordered": ordered,
+		"walls": ordered.filter(func(s): return in_wall_band(w, f, s["point"])),
+		"on_floor": ordered.filter(func(s): return (
+			not in_wall_band(w, f, s["point"]) and in_stack_room(w, f, s["point"]) == ""
+		)),
+		"tail": ordered.filter(func(s): return in_stack_room(w, f, s["point"]) != ""),
+		"overflow": ordered.filter(func(s): return not in_wall_band(w, f, s["point"])),
+	}
+
+
+## `short_wall_faults`' wall rules (`chain`, `_short_wall_chain`): the wall full before its
+## overflow, and no more wall slots than the wall takes.
+static func _wall_part_faults(chain: Dictionary) -> Array:
+	var out: Array = []
+	var walls: Array = chain["walls"]
+	var overflow: Array = chain["overflow"]
+	var want_wall: int = chain["want_wall"]
 	if walls.size() < want_wall and not overflow.is_empty():
 		out.append([
 			int(overflow[0]["n"]),
 			"E20 fallback: a short wall full before its overflow",
 			"off the wall with %d wall slot(s) where the wall takes %d %s"
-				% [walls.size(), want_wall, caps],
+				% [walls.size(), want_wall, chain["caps"]],
 		])
 	for i in range(want_wall, walls.size()):
 		out.append([
 			int(walls[i]["n"]),
 			"E20 fallback: no more wall slots than the wall holds",
 			"wall slot %d of %d where the wall takes %d %s"
-				% [i + 1, walls.size(), want_wall, caps],
+				% [i + 1, walls.size(), want_wall, chain["caps"]],
 		])
-	if not walls.is_empty():
-		var last_wall := int(walls[walls.size() - 1]["n"])
-		for o in overflow:
-			if int(o["n"]) < last_wall:
-				out.append([
-					int(o["n"]),
-					"E20 fallback: the overflow numbered after every wall slot",
-					"%s before wall slot %d %s" % [
-						"on the open floor"
-							if in_stack_room(w, f, o["point"]) == ""
-							else "in the tail",
-						last_wall,
-						caps,
-					],
-				])
+	return out
+
+
+## `short_wall_faults`' rule that the overflow (`chain`) is numbered after every wall slot.
+static func _overflow_part_faults(w: Dictionary, f: Dictionary, chain: Dictionary) -> Array:
+	var out: Array = []
+	var walls: Array = chain["walls"]
+	if walls.is_empty():
+		return out
+	var last_wall := int(walls[walls.size() - 1]["n"])
+	for o in chain["overflow"]:
+		if int(o["n"]) >= last_wall:
+			continue
+		var where := "on the open floor" if in_stack_room(w, f, o["point"]) == "" else "in the tail"
+		out.append([
+			int(o["n"]),
+			"E20 fallback: the overflow numbered after every wall slot",
+			"%s before wall slot %d %s" % [where, last_wall, chain["caps"]],
+		])
+	return out
+
+
+## `short_wall_faults`' open-floor rules (`chain`): no more open-floor slots than it holds, the open
+## floor full before the tail, and the tail last.
+static func _floor_part_faults(f: Dictionary, chain: Dictionary) -> Array:
+	var out: Array = []
+	var on_floor: Array = chain["on_floor"]
+	var tail: Array = chain["tail"]
+	var opens: int = chain["opens"]
 	for i in range(opens, on_floor.size()):
 		out.append([
 			int(on_floor[i]["n"]),
 			"E20 fallback: no more open-floor slots than the open floor holds",
-			"open-floor slot %d of %d where it holds %d %s" % [i + 1, on_floor.size(), opens, caps],
+			"open-floor slot %d of %d where it holds %d %s"
+				% [i + 1, on_floor.size(), opens, chain["caps"]],
 		])
-	if not tail.is_empty() and on_floor.size() < want_floor:
+	if not tail.is_empty() and on_floor.size() < int(chain["want_floor"]):
 		out.append([
 			int(tail[0]["n"]),
 			"E20 fallback: the open floor full before the tail",
 			"a tail slot with %d open-floor slot(s) where it takes %d %s"
-				% [on_floor.size(), want_floor, caps],
+				% [on_floor.size(), chain["want_floor"], chain["caps"]],
 		])
-	for t in tail:
-		for s in on_floor:
-			if int(s["n"]) > int(t["n"]):
-				out.append([
-					int(s["n"]),
-					"E20 fallback: the tail last",
-					"in the %s, after slot %d of the tail %s" % [f["from"], int(t["n"]), caps],
-				])
-	var numbers: Array = ordered.map(func(s): return int(s["n"]))
-	if numbers != range(1, want_total + 1):
-		if tail_ok:
+	for tail_slot in tail:
+		out.append_array(_floor_after_tail(f, chain, tail_slot))
+	return out
+
+
+## The open-floor slots of `chain` numbered after its tail slot `tail_slot`, as
+## `_floor_part_faults`' faults.
+static func _floor_after_tail(f: Dictionary, chain: Dictionary, tail_slot: Dictionary) -> Array:
+	var out: Array = []
+	for s in chain["on_floor"]:
+		if int(s["n"]) > int(tail_slot["n"]):
 			out.append([
-				0,
-				"one slot per member",
-				"slots %s for a stack of %d %s" % [str(numbers), count, caps],
-			])
-		else:
-			out.append([
-				0,
-				"E20 fallback: a short wall's dead end takes as many as its wall and open floor "
-					+ "hold",
-				"slots %s for a stack of %d, so slots %s %s"
-					% [str(numbers), count, str(range(1, want_total + 1)), caps],
+				int(s["n"]),
+				"E20 fallback: the tail last",
+				"in the %s, after slot %d of the tail %s"
+					% [f["from"], int(tail_slot["n"]), chain["caps"]],
 			])
 	return out
+
+
+## `short_wall_faults`' numbering (`chain`): slots 1..`want_total`, one per member where a tail may
+## hold, else the dead-end cap of the wall and the open floor.
+static func _chain_number_faults(chain: Dictionary) -> Array:
+	var numbers: Array = (chain["ordered"] as Array).map(func(s): return int(s["n"]))
+	var want_total: int = chain["want_total"]
+	if numbers == range(1, want_total + 1):
+		return []
+	if chain["tail_ok"]:
+		return [[
+			0,
+			"one slot per member",
+			"slots %s for a stack of %d %s" % [str(numbers), chain["count"], chain["caps"]],
+		]]
+	return [[
+		0,
+		"E20 fallback: a short wall's dead end takes as many as its wall and open floor "
+			+ "hold",
+		"slots %s for a stack of %d, so slots %s %s"
+			% [str(numbers), chain["count"], str(range(1, want_total + 1)), chain["caps"]],
+	]]
 
 
 ## Which file `p` stands in by its distance from the wall plane: 1 against the wall, 2 a step out.

@@ -21,8 +21,8 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(960, 60), 0.4)
-	Entry.npc(s, &"b", Vector2(985, 110), 0.55)
+	Entry.npc(s, &"a", Vector2(960, 60))
+	Entry.npc(s, &"b", Vector2(985, 110), { "decide_interval": 0.55 })
 
 
 func run(t: TestContext) -> void:

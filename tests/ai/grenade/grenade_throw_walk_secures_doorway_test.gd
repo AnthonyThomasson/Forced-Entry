@@ -73,22 +73,49 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"i")
 	Probe.arm(inv, 1, 0)
+	if not _set_up(t, inv):
+		return
+	var brain := t.controller(&"i", &"debug_zones")
+	var seen := await _watch_until_thrown(t, brain, inv)
+	var first: Dictionary = seen["first"]
+	if not t.require(
+			not first.is_empty() and (first["pos"] as Vector2).distance_to(I_AT) <= 12.0,
+			"the invader made a COMBAT decision where it stands (walks %s)"
+				% str(Spot.describe(seen["walks"])),
+	):
+		return
+	t.check(
+		first["combat"].has("grenade"),
+		"GRENADE was offered from out of range (offered %s)" % str(first["combat"]),
+	)
+	var from := _check_throw_spot(t, seen["zones"])
+	if from == Vector2.INF:
+		return
+	_check_secured(t, inv, seen["secured"], seen["entered_view"])
+	await _check_thrown_from(t, inv, from)
+
+
+func _set_up(t: TestContext, inv: Node) -> bool:
 	if not t.require(
 			Probe.count(inv, Probe.STUN) == 1,
 			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),
 	):
-		return
-	if not t.require(
-			I_AT.distance_to(H_AT) > Spot.THROW_RANGE
-				and not View.in_view(t, DOOR, I_AT)
-				and View.in_view(t, DOOR, Vector2(STUDY_DOOR.x, CORRIDOR.end.y - 20.0))
-				and View.in_view(t, DOOR, Vector2(STUDY_DOOR.x, CORRIDOR.position.y + 20.0))
-				and STUDY_DOOR.x - H_AT.x > Probe.MAX_RANGE - 15.0 - 80.0,
-			"set-up: out of throw range, outside the study doorway's view, which fills the "
-				+ "corridor in front of it; every spot in reach is past it",
-	):
-		return
-	var brain := t.controller(&"i", &"debug_zones")
+		return false
+	return t.require(
+		I_AT.distance_to(H_AT) > Spot.THROW_RANGE
+			and not View.in_view(t, DOOR, I_AT)
+			and View.in_view(t, DOOR, Vector2(STUDY_DOOR.x, CORRIDOR.end.y - 20.0))
+			and View.in_view(t, DOOR, Vector2(STUDY_DOOR.x, CORRIDOR.position.y + 20.0))
+			and STUDY_DOOR.x - H_AT.x > Probe.MAX_RANGE - 15.0 - 80.0,
+		"set-up: out of throw range, outside the study doorway's view, which fills the "
+			+ "corridor in front of it; every spot in reach is past it",
+	)
+
+
+# Follows the invader until it throws (or 30 s pass): its first COMBAT walk, the throw zones it
+# weighed then, every walk, when and where it secured the study's doorway and when it first stood
+# in the doorway's view.
+func _watch_until_thrown(t: TestContext, brain: Node, inv: Node) -> Dictionary:
 	var state := {}
 	var walks: Array = []
 	var first := {}
@@ -114,26 +141,31 @@ func run(t: TestContext) -> void:
 			entered_view[0] = t.time
 		return t.happened(&"throw", func(d): return d.get("attacker") == inv)
 	await t.until(watch, 30.0)
-	if not t.require(
-			not first.is_empty() and (first["pos"] as Vector2).distance_to(I_AT) <= 12.0,
-			"the invader made a COMBAT decision where it stands (walks %s)"
-				% str(Spot.describe(walks)),
-	):
-		return
-	t.check(
-		first["combat"].has("grenade"),
-		"GRENADE was offered from out of range (offered %s)" % str(first["combat"]),
-	)
+	return {
+		"first": first,
+		"zones": zones,
+		"walks": walks,
+		"secured": secured,
+		"entered_view": entered_view,
+	}
+
+
+# The throw spot the weighed throw names, checked; `Vector2.INF` when it names none.
+func _check_throw_spot(t: TestContext, zones: Array) -> Vector2:
 	var near := zones.filter(func(z): return (
 		(z["point"] as Vector2).distance_to(H_AT) < 60.0 and Spot.from_of(z) != Vector2.INF
 	))
 	if not t.check(not near.is_empty(), "through a throw spot (zones %s)" % str(zones)):
-		return
+		return Vector2.INF
 	var from := Spot.from_of(near[0])
 	t.check(
 		from.x < STUDY_DOOR.x and from.distance_to(H_AT) <= Spot.THROW_RANGE,
 		"the throw spot is past the study's doorway, in range (%s)" % str(from.round()),
 	)
+	return from
+
+
+func _check_secured(t: TestContext, inv: Node, secured: Dictionary, entered_view: Array) -> void:
 	t.check(
 		secured["at"] >= 0.0,
 		"on the way it secured the study's doorway from beside its jamb (an entry with secure, "
@@ -154,6 +186,9 @@ func run(t: TestContext) -> void:
 			).size() > 0,
 		"without going into the study",
 	)
+
+
+func _check_thrown_from(t: TestContext, inv: Node, from: Vector2) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if t.check(not throws.is_empty(), "then it threw (acts %s)" % Probe.acts(t, &"i")):
 		var at: Vector2 = throws[0]["data"]["position"]

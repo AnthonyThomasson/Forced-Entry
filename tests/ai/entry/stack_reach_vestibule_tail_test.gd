@@ -77,7 +77,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Reach.run(t, Reach.frame(t, DOOR_OFFICE, "office"), IDS, &"lead", 1, STARTS)
+	await Reach.run(t, Reach.frame(t, DOOR_OFFICE, "office"), &"lead", 1, STARTS)
 	# Rule 6: the vestibule holds two; the other two are the tail, in the lobby at its doorway into
 	# the vestibule.
 	var inside: Array = []

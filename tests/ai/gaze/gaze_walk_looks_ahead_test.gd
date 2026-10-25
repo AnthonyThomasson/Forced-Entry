@@ -35,7 +35,6 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"inv",
 		Maps.HALL_MIDDLE,
-		0.4,
 		{ "familiar_with_house": true },
 		{ "facing": Vector2.LEFT, "aim_point": Maps.HALL_MIDDLE + Vector2.LEFT * 100.0 },
 	)
@@ -59,13 +58,9 @@ func run(t: TestContext) -> void:
 			continue
 		if Gaze.wall_ahead(inv, 70.0, s["pos"][&"inv"], s["facing"][&"inv"]):
 			wall_frames += 1
-		# The test's own copy of "where it will be": the sample LOOK_AHEAD s on.
-		for j in range(i, samples.size()):
-			if float(samples[j]["t"]) >= float(s["t"]) + LOOK_AHEAD:
-				var ahead: Vector2 = samples[j]["pos"][&"inv"]
-				offs.append(rad_to_deg(absf((s["facing"][&"inv"] as Vector2).angle_to(ahead
-						- (s["pos"][&"inv"] as Vector2)))))
-				break
+		var off := _off_ahead(samples, i)
+		if off >= 0.0:
+			offs.append(off)
 	if not t.require(offs.size() > 30, "it walked far enough to judge (%d samples)" % offs.size()):
 		return
 	offs.sort()
@@ -78,3 +73,16 @@ func run(t: TestContext) -> void:
 				+ "limit %.0f)") % [LOOK_AHEAD, p95, HALF_CONE],
 	)
 	t.expect_eq(wall_frames, 0, "no wall dead ahead at 70 px while it walks")
+
+
+## The angle (deg) between sample `i`'s facing and where the invader is `LOOK_AHEAD` s on, or -1
+## with no sample that late.
+func _off_ahead(samples: Array, i: int) -> float:
+	var s: Dictionary = samples[i]
+	# The test's own copy of "where it will be": the sample LOOK_AHEAD s on.
+	for j in range(i, samples.size()):
+		if float(samples[j]["t"]) >= float(s["t"]) + LOOK_AHEAD:
+			var ahead: Vector2 = samples[j]["pos"][&"inv"]
+			return rad_to_deg(absf((s["facing"][&"inv"] as Vector2).angle_to(ahead
+					- (s["pos"][&"inv"] as Vector2))))
+	return -1.0

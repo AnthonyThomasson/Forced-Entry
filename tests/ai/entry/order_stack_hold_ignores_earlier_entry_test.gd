@@ -80,24 +80,34 @@ func run(t: TestContext) -> void:
 			"set-up: the order goes into the %s, the room the cover claim holds" % into,
 	):
 		return
+	if not await _stack_ready(t, members, door):
+		return
+
+	if not await _holds(t, squad, members):
+		return
+
+	if not await _go_then_in(t, squad, members, door):
+		return
+	covering[0] = false
+
+
+## All three take the ordered path and radio ready. False when they did not.
+func _stack_ready(t: TestContext, members: Array, door: String) -> bool:
 	var claimed := func():
 		return members.all(func(m): return not Order.ordered_claims(t, m, door).is_empty())
 	if not t.require(
 			await t.until(claimed, 30.0),
 			"set-up: all three took the ordered path (claims at the back door carrying the order)",
 	):
-		return
+		return false
 	var ready := await t.until(func(): return Order.all_called(t, IDS, "ready", door), 45.0)
 	t.check(ready, "the stack forms: all three radio ready")
-	if not ready:
-		return
+	return ready
 
-	var held := func(): return members.all(
-		func(m): return bool(Order.member_view(squad, m).get("held", false))
-	)
-	var phases := func(): return IDS.map(
-		func(id): return String(Entry.entry(Entry.brain(t, id)).get("phase", ""))
-	)
+
+## Watches the held stack `HOLD` s: nobody radios going_in, slices the pie or crosses, and the
+## squad's view says held. False when it broke.
+func _holds(t: TestContext, squad: Node, members: Array) -> bool:
 	var broke := ""
 	var hold_end := t.time + HOLD
 	while t.time < hold_end and broke == "":
@@ -105,9 +115,9 @@ func run(t: TestContext) -> void:
 				func(c): return c.get("speaker") in members
 		).is_empty():
 			broke = "a member radioed going_in"
-		elif phases.call().has("pie") or phases.call().has("cross"):
-			broke = "a member sliced the pie or crossed (phases %s)" % str(phases.call())
-		elif not held.call():
+		elif _phases(t).has("pie") or _phases(t).has("cross"):
+			broke = "a member sliced the pie or crossed (phases %s)" % str(_phases(t))
+		elif not _held(squad, members):
 			broke = "the squad's view no longer says held"
 		await t.frames(1)
 	t.check(
@@ -115,15 +125,18 @@ func run(t: TestContext) -> void:
 		"the held stack keeps holding through the earlier entry's cover claim for %.0f s: %s"
 			% [HOLD, broke if broke != "" else "it held"],
 	)
-	if broke != "":
-		return
+	return broke == ""
 
+
+## The leader's go is posted; it releases the held orders, and all three go in, none before it.
+## False when the go was not posted.
+func _go_then_in(t: TestContext, squad: Node, members: Array, door: String) -> bool:
 	var go := Order.go(squad, Order.BACK_NORTH)
 	if not t.require(not go.is_empty(), "the leader's go is posted (issue of kind go)"):
-		return
+		return false
 	var go_at := t.time
 	t.check(
-		await t.until(func(): return not held.call(), 2.0),
+		await t.until(func(): return not _held(squad, members), 2.0),
 		"after the go the squad's view no longer says the orders are held",
 	)
 	var all_in := func():
@@ -138,7 +151,21 @@ func run(t: TestContext) -> void:
 		IDS.all(func(id): return Entry.first_call_time(t, "going_in", id, door) >= go_at),
 		"nobody went in before the go (go at %.2f s)" % go_at,
 	)
-	covering[0] = false
+	return true
+
+
+## Whether the squad's view says every one of `members`' orders is held.
+func _held(squad: Node, members: Array) -> bool:
+	return members.all(
+		func(m): return bool(Order.member_view(squad, m).get("held", false))
+	)
+
+
+## Each member's entry phase.
+func _phases(t: TestContext) -> Array:
+	return IDS.map(
+		func(id): return String(Entry.entry(Entry.brain(t, id)).get("phase", ""))
+	)
 
 
 ## Keep the earlier entry's member (`earlier`) radioing `cover` on doorway `door` into `into` every

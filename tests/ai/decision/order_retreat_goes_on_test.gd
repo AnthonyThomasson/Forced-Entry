@@ -80,25 +80,7 @@ func run(t: TestContext) -> void:
 	var b := Order.brain(t, &"d")
 	var squad := t.squad(&"household")
 	await t.seconds(0.5)
-	Order.gunfire_near(d)
-	var retreating := func():
-		return (Order.primitive(b) == "move"
-				and String(b.current_act()).begins_with("combat")
-				and String(b.current_act()).contains("retreat"))
-	if not t.require(
-			await t.until(retreating, 5.0),
-			"the defender falls back under fire (premise; %s)" % b.current_act(),
-	):
-		return
-	await t.seconds(0.5)
-	var was: Vector2 = d.global_position
-	await t.seconds(0.25)
-	var pace: float = d.global_position.distance_to(was) / 0.25
-	if not t.require(
-			pace >= 40.0 and retreating.call(),
-			"premise: it is on its retreat when the order comes (%.0f px/s, %s)"
-				% [pace, b.current_act()],
-	):
+	if not await _on_retreat(t, d, b):
 		return
 	# restored after the test (von_script registered it)
 	DecisionStub.latency_frames = LATENCY_FRAMES
@@ -111,6 +93,34 @@ func run(t: TestContext) -> void:
 			"the order starts a decision at once (LD6)",
 	):
 		return
+	await _check_keeps_moving(t, d, b)
+
+
+func _on_retreat(t: TestContext, d: Node, b: Node) -> bool:
+	Order.gunfire_near(d)
+	var retreating := func():
+		return (Order.primitive(b) == "move"
+				and String(b.current_act()).begins_with("combat")
+				and String(b.current_act()).contains("retreat"))
+	if not t.require(
+			await t.until(retreating, 5.0),
+			"the defender falls back under fire (premise; %s)" % b.current_act(),
+	):
+		return false
+	await t.seconds(0.5)
+	var was: Vector2 = d.global_position
+	await t.seconds(0.25)
+	var pace: float = d.global_position.distance_to(was) / 0.25
+	if not t.require(
+			pace >= 40.0 and retreating.call(),
+			"premise: it is on its retreat when the order comes (%.0f px/s, %s)"
+				% [pace, b.current_act()],
+	):
+		return false
+	return true
+
+
+func _check_keeps_moving(t: TestContext, d: Node, b: Node) -> void:
 	var from := t.time
 	await t.seconds(SETTLE)
 	var last: Vector2 = d.global_position
@@ -121,17 +131,14 @@ func run(t: TestContext) -> void:
 		moved += d.global_position.distance_to(last)
 		last = d.global_position
 	var wait := t.time - from
+	var levels := Order.levels(b).map(
+		func(l): return [l.get("node"), l.get("offered"), l.get("auto")],
+	)
 	if not t.require(
 			wait >= SETTLE + MEASURE,
 			("premise: the decision made with the order waits on Von for the whole span (%.2f s; a "
 					+ "combat one, %s; levels %s)")
-				% [
-					wait,
-					b.current_act(),
-					Order.levels(b).map(
-						func(l): return [l.get("node"), l.get("offered"), l.get("auto")],
-					),
-				],
+				% [wait, b.current_act(), levels],
 	):
 		return
 	t.check(

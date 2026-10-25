@@ -75,42 +75,70 @@ func run(t: TestContext) -> void:
 		for c in Entry.calls(t, "claim", &"walker"):
 			if not (st["slots"] as Array).has(int(c["slot"])):
 				(st["slots"] as Array).append(int(c["slot"]))
-		var e: Dictionary = brain.debug_entry_view().get("entry", {})
-		var phase := String(e.get("phase", ""))
-		var here: Vector2 = walker.global_position
-		if ((st["first"] as Array).is_empty()
-				and phase == "approach"
-				and not (e.get("waypoints", []) as Array).is_empty()):
-			st["first"] = (e["waypoints"] as Array).duplicate()
-			st["spot"] = e["my_slot"]
-			if (st["first"] as Array).size() > 1:
-				st["next"] = st["first"][1]
-		if POCKET.has_point(here):
-			st["in_pocket"] = true
-		var trail: Array = st["trail"]
-		trail.append([t.time, here])
-		while trail.size() > 1 and float(trail[0][0]) < t.time - STILL_WINDOW:
-			trail.pop_front()
-		var still: bool = (float(trail[0][0]) <= t.time - STILL_WINDOW + 0.02
-				and (trail[0][1] as Vector2).distance_to(here) < STILL_PX)
-		if (st["still_at"] == INF
-				and phase == "approach"
-				and still
-				and here.distance_to(GAP) < 100.0):
-			st["still_at"] = t.time - STILL_WINDOW
-		elif st["still_at"] != INF and st["on_at"] == INF and not still:
-			st["on_at"] = t.time - STILL_WINDOW
-		if st["next"] != Vector2.INF and here.distance_to(st["next"]) <= WAYPOINT_NEAR:
-			st["near_next"] = minf(float(st["near_next"]), t.time)
-		if (st["in_slot_at"] == INF
-				and phase == "stack"
-				and here.distance_to(st["spot"]) <= SLOT_NEAR):
-			st["in_slot_at"] = t.time
+		if _watch(t, st, walker, brain):
 			break
-		if not Entry.calls(t, "abort", &"walker").is_empty():
-			break
-		t.trace("walker_to_body", here.distance_to(GAP))
 		await t.frames(1)
+	if not _premises_hold(t, st):
+		return
+	_judge(t, st)
+
+
+## One frame's watch: notes into `st` the approach's first waypoints, the pocket, the hold and the
+## walk on, the next waypoint reached and the walker in its slot. True when it is in its slot or
+## has given the entry up.
+func _watch(t: TestContext, st: Dictionary, walker: Node, brain: Node) -> bool:
+	var e: Dictionary = brain.debug_entry_view().get("entry", {})
+	var phase := String(e.get("phase", ""))
+	var here: Vector2 = walker.global_position
+	_note_first(st, e, phase)
+	if POCKET.has_point(here):
+		st["in_pocket"] = true
+	_note_still(t, st, phase, here)
+	if st["next"] != Vector2.INF and here.distance_to(st["next"]) <= WAYPOINT_NEAR:
+		st["near_next"] = minf(float(st["near_next"]), t.time)
+	if (st["in_slot_at"] == INF
+			and phase == "stack"
+			and here.distance_to(st["spot"]) <= SLOT_NEAR):
+		st["in_slot_at"] = t.time
+		return true
+	if not Entry.calls(t, "abort", &"walker").is_empty():
+		return true
+	t.trace("walker_to_body", here.distance_to(GAP))
+	return false
+
+
+## Keeps the approach's waypoints, its slot point and the waypoint after the first, the first time
+## it has any.
+func _note_first(st: Dictionary, e: Dictionary, phase: String) -> void:
+	if ((st["first"] as Array).is_empty()
+			and phase == "approach"
+			and not (e.get("waypoints", []) as Array).is_empty()):
+		st["first"] = (e["waypoints"] as Array).duplicate()
+		st["spot"] = e["my_slot"]
+		if (st["first"] as Array).size() > 1:
+			st["next"] = st["first"][1]
+
+
+## Notes when the walker began to stand held near the gap, and when it walked on.
+func _note_still(t: TestContext, st: Dictionary, phase: String, here: Vector2) -> void:
+	var trail: Array = st["trail"]
+	trail.append([t.time, here])
+	while trail.size() > 1 and float(trail[0][0]) < t.time - STILL_WINDOW:
+		trail.pop_front()
+	var still: bool = (float(trail[0][0]) <= t.time - STILL_WINDOW + 0.02
+			and (trail[0][1] as Vector2).distance_to(here) < STILL_PX)
+	if (st["still_at"] == INF
+			and phase == "approach"
+			and still
+			and here.distance_to(GAP) < 100.0):
+		st["still_at"] = t.time - STILL_WINDOW
+	elif st["still_at"] != INF and st["on_at"] == INF and not still:
+		st["on_at"] = t.time - STILL_WINDOW
+
+
+## The premises: the first waypoint in the pocket and the next outside it, and the walk there held
+## short of the body.
+func _premises_hold(t: TestContext, st: Dictionary) -> bool:
 	var first: Array = st["first"]
 	if not t.require(
 			not first.is_empty()
@@ -120,12 +148,16 @@ func run(t: TestContext) -> void:
 			("premise: its approach's first waypoint lies in the pocket behind the body and the "
 					+ "next one outside it (%s)") % [first],
 	):
-		return
-	if not t.require(
-			st["still_at"] != INF,
-			"premise: its walk to the first waypoint stood held short of the body in the gap",
-	):
-		return
+		return false
+	return t.require(
+		st["still_at"] != INF,
+		"premise: its walk to the first waypoint stood held short of the body in the gap",
+	)
+
+
+## The checks: its slot kept, out of the pocket, on soon after the hold, past the next waypoint and
+## into its slot.
+func _judge(t: TestContext, st: Dictionary) -> void:
 	t.check(Entry.calls(t, "abort", &"walker").is_empty(), "it never gives the entry up (abort)")
 	t.check((st["slots"] as Array) == [1], "it keeps slot 1 (claimed %s)" % [st["slots"]])
 	t.check(not bool(st["in_pocket"]), "it never goes into the pocket the body holds")

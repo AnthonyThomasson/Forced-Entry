@@ -54,16 +54,7 @@ func run(t: TestContext) -> void:
 		return
 	var door := String(Entry.BACK["id"])
 	var w := Follow.new_watch()
-	var read := {}  # Member -> every `order` section its decision snapshots held.
-	var in_all := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
-		for m in members:
-			var b := Follow.brain_of(m)
-			var said := String(b.debug_state().get("sections", {}).get("order", "")) if b else ""
-			if said != "" and not (read.get(m, []) as Array).has(said):
-				read[m] = (read.get(m, []) as Array) + [said]
-		return nodes.all(func(c): return Follow.first_call(t, c, "going_in", door) < INF)
-	await t.until(in_all, 70.0)
+	var read := await _wait_all_in(t, w, nodes, squad, door)
 	if not t.require(
 			Follow.own_claims(t, lead).any(
 				func(e): return String(e["data"].get("opening", "")) == door,
@@ -75,6 +66,42 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	_check_joined(t, w, members, door, read)
+	_check_quiet(t, nodes, door)
+
+
+## Watches (70 s at most) until all of `nodes` went in by `door`; returns every `order` section the
+## members' (all but the lead, the first) decision snapshots held, by member.
+func _wait_all_in(
+		t: TestContext,
+		w: Dictionary,
+		nodes: Array,
+		squad: Node,
+		door: String,
+) -> Dictionary:
+	var members: Array = nodes.slice(1)
+	var read := {}  # Member -> every `order` section its decision snapshots held.
+	var in_all := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		for m in members:
+			var b := Follow.brain_of(m)
+			var said := String(b.debug_state().get("sections", {}).get("order", "")) if b else ""
+			if said != "" and not (read.get(m, []) as Array).has(said):
+				read[m] = (read.get(m, []) as Array) + [said]
+		return nodes.all(func(c): return Follow.first_call(t, c, "going_in", door) < INF)
+	await t.until(in_all, 70.0)
+	return read
+
+
+## Checks the lead's claim gave both `members` a join order on the back door, each read its order
+## sentence, and they asked Von nothing.
+func _check_joined(
+		t: TestContext,
+		w: Dictionary,
+		members: Array,
+		door: String,
+		read: Dictionary,
+) -> void:
 	var joins := Follow.raw_joins(t)
 	var to: Array = joins[0]["data"].get("to", []) if not joins.is_empty() else []
 	t.check(
@@ -94,6 +121,11 @@ func run(t: TestContext) -> void:
 		"the members asked Von nothing: they joined by the order (asks %s)"
 			% str(members.map(func(m): return Follow.asked(w, m))),
 	)
+
+
+## Checks all of `nodes` went in quietly: no bang claimed or radioed, no stun off, and the sergeant
+## (the second) still carries its stun.
+func _check_quiet(t: TestContext, nodes: Array, door: String) -> void:
 	var going: Array = nodes.map(func(c): return Follow.first_call(t, c, "going_in", door))
 	if not t.check(
 			going.all(func(g): return g < INF),
@@ -122,6 +154,6 @@ func run(t: TestContext) -> void:
 			% [str(booms.map(func(b): return b["data"]["position"])), first_in],
 	)
 	t.check(
-		Probe.count(members[0], Probe.STUN) == 1,
-		"the sergeant still carries its stun (%d)" % Probe.count(members[0], Probe.STUN),
+		Probe.count(nodes[1], Probe.STUN) == 1,
+		"the sergeant still carries its stun (%d)" % Probe.count(nodes[1], Probe.STUN),
 	)

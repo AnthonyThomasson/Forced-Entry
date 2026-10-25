@@ -47,45 +47,56 @@ func run(t: TestContext) -> void:
 	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	for side in ["south", "north"]:
-		var click := Order.BACK_SOUTH if side == "south" else Order.BACK_NORTH
-		var order := Order.issue(
-			squad,
-			{ "kind": Order.STACK, "to": [t.actor(&"a")], "pos": click, "bang": false },
-		)
-		if not t.check(
-				not order.is_empty(),
-				"the squad posts the order for a click %s of the opening (issue)" % side,
-		):
-			continue
-		t.expect_eq(
-			String(order.get("opening", "")),
-			Entry.BACK["id"],
-			"a click %s of the opening is on the back door" % side,
-		)
-		t.expect_eq(String(order.get("into", "")), "kitchen", "and goes into the kitchen")
-		t.check(
-			not bool(order.get("split", false)),
-			"a click beside the opening is not a split stack",
-		)
-		var stood := await t.until(
-			func(): return (
-				Order.stacked(t, &"a") and Order.back_side(t.actor(&"a").global_position) == side
-			),
-			20.0,
-		)
-		t.check(
-			stood,
-			"clicked %s of the opening, the member stacks %s of the door (stack point %s, at %s)"
-				% [
-					side, side, str(Order.stack_point(t, &"a").round()),
-					str(t.actor(&"a").global_position.round()),
-				],
-		)
-		t.check(
-			Order.back_side(Order.stack_point(t, &"a")) == side,
-			"its slot is %s of the door (%s)" % [side, str(Order.stack_point(t, &"a").round())],
-		)
+		await _stack_on_side(t, squad, side)
 
+	_check_clicks(t, squad)
+
+
+## Ordered with a click `side` of the back door's opening, the member stacks on that side.
+func _stack_on_side(t: TestContext, squad: Node, side: String) -> void:
+	var click := Order.BACK_SOUTH if side == "south" else Order.BACK_NORTH
+	var order := Order.issue(
+		squad,
+		{ "kind": Order.STACK, "to": [t.actor(&"a")], "pos": click, "bang": false },
+	)
+	if not t.check(
+			not order.is_empty(),
+			"the squad posts the order for a click %s of the opening (issue)" % side,
+	):
+		return
+	t.expect_eq(
+		String(order.get("opening", "")),
+		Entry.BACK["id"],
+		"a click %s of the opening is on the back door" % side,
+	)
+	t.expect_eq(String(order.get("into", "")), "kitchen", "and goes into the kitchen")
+	t.check(
+		not bool(order.get("split", false)),
+		"a click beside the opening is not a split stack",
+	)
+	var stood := await t.until(
+		func(): return (
+			Order.stacked(t, &"a") and Order.back_side(t.actor(&"a").global_position) == side
+		),
+		20.0,
+	)
+	t.check(
+		stood,
+		"clicked %s of the opening, the member stacks %s of the door (stack point %s, at %s)"
+			% [
+				side, side, str(Order.stack_point(t, &"a").round()),
+				str(t.actor(&"a").global_position.round()),
+			],
+	)
+	t.check(
+		Order.back_side(Order.stack_point(t, &"a")) == side,
+		"its slot is %s of the door (%s)" % [side, str(Order.stack_point(t, &"a").round())],
+	)
+
+
+## The squad's resolution of four more clicks, read off the orders it posts: inside the kitchen at
+## the back door, either side of the kitchen–living doorway, and on the back door's opening.
+func _check_clicks(t: TestContext, squad: Node) -> void:
 	var inside := Order.issue(
 		squad,
 		{

@@ -26,8 +26,14 @@ func configure(s: TestSetup) -> void:
 	Flank.rules(s)
 	var disabled: Array[StringName] = [&"flank"]
 	# both start looking at the target
-	Flank.npc(s, &"disabled", DISABLED_POS, { "disabled_nodes": disabled }, &"invader", TARGET_POS)
-	Flank.npc(s, &"control", CONTROL_POS, {}, &"invader", TARGET_POS)
+	Flank.npc(
+		s,
+		&"disabled",
+		DISABLED_POS,
+		{ "disabled_nodes": disabled },
+		{ "look_at": TARGET_POS },
+	)
+	Flank.npc(s, &"control", CONTROL_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, Vector2(150, 415))
 
 

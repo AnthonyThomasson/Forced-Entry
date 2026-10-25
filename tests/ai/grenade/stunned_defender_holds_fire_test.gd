@@ -61,44 +61,66 @@ func run(t: TestContext) -> void:
 		"the defender's GoalController has blind_fire_chance, set to 0 (%s)"
 			% str(brain.get("blind_fire_chance")),
 	)
+	var fighting := func(): return (
+		not _known(brain, p).is_empty() and str(brain.current_act()).begins_with("combat")
+	)
 	if not t.require(
-			await t.until(
-				func(): return (
-					not _known(brain, p).is_empty()
-						and str(brain.current_act()).begins_with("combat")
-				),
-				20.0,
-			),
+			await t.until(fighting, 20.0),
 			"the defender knows the invader and is fighting it (acting: %s)"
 				% str(brain.current_act()),
 	):
 		return
 	var seen_at: Vector2 = _known(brain, p).get("pos", FIRST_SPOT)
 
-	var seen := {}
-	# A round already in flight left the barrel before the flash: not a blind one.
-	for n in t.world.get_children():
-		if String(n.name).begins_with("Projectile") and n is Node2D and n.get("ignore") == d:
-			seen[n.get_instance_id()] = true
+	var shots := { "seen": _in_flight(t, d), "blind_rounds": 0 }  # rounds fired while blind
 	if not t.require(Probe.stun(d, BLIND, BLIND), "Character.take_stun(blind, deaf) exists"):
 		return
 	var flashed := t.time
 	t.puppet(&"p").walk_to(SECOND_SPOT)
-	var blind_rounds := [0]  # rounds the defender fired while blind
-	var capture := func() -> void:
-		for n in t.world.get_children():
-			if (String(n.name).begins_with("Projectile")
-					and n is Node2D
-					and not seen.has(n.get_instance_id())
-					and n.get("ignore") == d):
-				seen[n.get_instance_id()] = true
-				if Probe.blind(d):
-					blind_rounds[0] += 1
 	await t.frames(1)
 	t.check(Probe.blind(d), "the flash blinded the defender (is_blind)")
 	while t.time < flashed + 3.5:
-		capture.call()
+		_capture(t, d, shots)
 		await t.frames(1)
+	_check_held_at_old_spot(t, brain, p, seen_at)
+
+	while Probe.blind(d) and t.time < flashed + BLIND + 2.0:
+		_capture(t, d, shots)
+		await t.frames(1)
+	t.check(t.time - flashed >= BLIND - 0.5, "(the blindness ran its course)")
+	t.check(
+		shots["blind_rounds"] == 0,
+		"it held its fire while blind (%d rounds fired blind)" % shots["blind_rounds"],
+	)
+	await _check_sees_again(t, brain, p)
+
+
+## The defender's rounds already in flight, which left the barrel before the flash: not blind
+## ones. `{ instance id: true }`.
+func _in_flight(t: TestContext, d: Node) -> Dictionary:
+	var seen := {}
+	for n in t.world.get_children():
+		if String(n.name).begins_with("Projectile") and n is Node2D and n.get("ignore") == d:
+			seen[n.get_instance_id()] = true
+	return seen
+
+
+## Counts each round the defender fired blind that has appeared since the last frame.
+func _capture(t: TestContext, d: Node, shots: Dictionary) -> void:
+	var seen: Dictionary = shots["seen"]
+	for n in t.world.get_children():
+		if (String(n.name).begins_with("Projectile")
+				and n is Node2D
+				and not seen.has(n.get_instance_id())
+				and n.get("ignore") == d):
+			seen[n.get_instance_id()] = true
+			if Probe.blind(d):
+				shots["blind_rounds"] += 1
+
+
+## The invader walked across the defender's front, and the defender still holds it at the spot it
+## last saw it, unseen.
+func _check_held_at_old_spot(t: TestContext, brain: Node, p: Node, seen_at: Vector2) -> void:
 	t.check(t.puppet(&"p").has_arrived(), "the invader walked across the defender's front")
 	var known := _known(brain, p)
 	t.check(
@@ -108,16 +130,9 @@ func run(t: TestContext) -> void:
 	)
 	t.check(not known.is_empty() and not bool(known.get("visible", true)), "and does not see it")
 
-	while Probe.blind(d) and t.time < flashed + BLIND + 2.0:
-		capture.call()
-		await t.frames(1)
-	t.check(t.time - flashed >= BLIND - 0.5, "(the blindness ran its course)")
-	t.check(
-		blind_rounds[0] == 0,
-		"it held its fire while blind (%d rounds fired blind)" % blind_rounds[0],
-	)
 
-	# The blindness is over: it sees the invader again, where it is now.
+## The blindness is over: it sees the invader again, where it is now.
+func _check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
 	t.check(
 		await t.until(
 			func(): return (

@@ -45,56 +45,81 @@ const PRESSED_MAX := 0.5
 ## shove, where, walker_doing, other_doing }`: names, whether the other was at rest, sim times, px
 ## shoved, the walker's position when it began, and what each was doing then.
 static func watch(t: TestContext, who: Array, duration: float, stop := Callable()) -> Dictionary:
-	var bumps: Array = []
-	var last_bump := {}   # "walker>other" -> that pair's latest bump
-	var last_pos := {}
+	# the bumps, each pair's latest ("walker>other" -> bump), each body's last position
+	var seen := { "bumps": [], "last_bump": {}, "last_pos": {} }
 	var nearest := INF
 	var end := t.time + duration
 	while t.time < end:
-		var live := {}
-		for w in who:
-			var a: Node = w if w is Node else t.actor(w)
-			if a != null and is_instance_valid(a) and not a.is_dead:
-				live[StringName(a.name) if w is Node else w] = a
+		var live := _live(t, who)
 		var closest := INF
 		for w in live:
 			for o in live:
-				if w == o:
-					continue
-				var walker: Node2D = live[w]
-				var other: Node2D = live[o]
-				var gap: Vector2 = other.global_position - walker.global_position
-				closest = minf(closest, gap.length())
-				if gap.length() > RADIUS * 2.0 + CONTACT_TOL or gap.length() < 0.001:
-					continue
-				var steer: Vector2 = walker.move_input
-				if (steer.length() < STEERING
-						or steer.normalized().dot(gap.normalized()) < INTO_CONE):
-					continue
-				var key := "%s>%s" % [w, o]
-				var other_still := (other.move_input as Vector2).length() < STEERING
-				var bump: Dictionary = last_bump.get(key, {})
-				if bump.is_empty() or t.time - float(bump["end"]) > MERGE_GAP:
-					bump = {
-						"walker": w, "other": o, "at_rest": other_still, "start": t.time,
-						"end": t.time, "shove": 0.0, "where": walker.global_position,
-						"walker_doing": doing(walker), "other_doing": doing(other),
-					}
-					bumps.append(bump)
-					last_bump[key] = bump
-				bump["end"] = t.time
-				if other_still and last_pos.has(o):
-					bump["shove"] = (float(bump["shove"])
-							+ other.global_position.distance_to(last_pos[o]))
+				if w != o:
+					closest = minf(closest, _sample_pair(t, w, o, live, seen))
 		for id in live:
-			last_pos[id] = live[id].global_position
+			seen["last_pos"][id] = live[id].global_position
 		if closest < INF:
 			t.trace("closest_pair", closest)
 			nearest = minf(nearest, closest)
 		if stop.is_valid() and stop.call():
 			break
 		await t.frames(1)
-	return { "bumps": bumps, "closest": nearest }
+	return { "bumps": seen["bumps"], "closest": nearest }
+
+
+## The living characters of `who` this frame, by name: an actor id, or a node's node name.
+static func _live(t: TestContext, who: Array) -> Dictionary:
+	var live := {}
+	for w in who:
+		var a: Node = w if w is Node else t.actor(w)
+		if a != null and is_instance_valid(a) and not a.is_dead:
+			live[StringName(a.name) if w is Node else w] = a
+	return live
+
+
+## One frame of `w` and `o` (names in `live`): records `w` walking into `o` in `seen`, and returns
+## the gap between their centres (px).
+static func _sample_pair(
+		t: TestContext, w: Variant, o: Variant, live: Dictionary, seen: Dictionary
+) -> float:
+	var walker: Node2D = live[w]
+	var other: Node2D = live[o]
+	var gap: Vector2 = other.global_position - walker.global_position
+	if gap.length() > RADIUS * 2.0 + CONTACT_TOL or gap.length() < 0.001:
+		return gap.length()
+	var steer: Vector2 = walker.move_input
+	if (steer.length() < STEERING
+			or steer.normalized().dot(gap.normalized()) < INTO_CONE):
+		return gap.length()
+	var other_still := (other.move_input as Vector2).length() < STEERING
+	var bump := _bump(t, w, o, live, seen)
+	bump["end"] = t.time
+	var last_pos: Dictionary = seen["last_pos"]
+	if other_still and last_pos.has(o):
+		bump["shove"] = float(bump["shove"]) + other.global_position.distance_to(last_pos[o])
+	return gap.length()
+
+
+## The bump `w` walking into `o` is part of this frame: the pair's latest, or a new one (recorded in
+## `seen`) when there is none or the latest ended more than `MERGE_GAP` s ago.
+static func _bump(
+		t: TestContext, w: Variant, o: Variant, live: Dictionary, seen: Dictionary
+) -> Dictionary:
+	var walker: Node2D = live[w]
+	var other: Node2D = live[o]
+	var key := "%s>%s" % [w, o]
+	var last_bump: Dictionary = seen["last_bump"]
+	var bump: Dictionary = last_bump.get(key, {})
+	if bump.is_empty() or t.time - float(bump["end"]) > MERGE_GAP:
+		bump = {
+			"walker": w, "other": o,
+			"at_rest": (other.move_input as Vector2).length() < STEERING, "start": t.time,
+			"end": t.time, "shove": 0.0, "where": walker.global_position,
+			"walker_doing": doing(walker), "other_doing": doing(other),
+		}
+		(seen["bumps"] as Array).append(bump)
+		last_bump[key] = bump
+	return bump
 
 
 ## A clock of `walker` standing pressed against `other` (see `PRESSED_GAP`): call the returned

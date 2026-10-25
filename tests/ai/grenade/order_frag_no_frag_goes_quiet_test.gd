@@ -81,6 +81,11 @@ func run(t: TestContext) -> void:
 			"both claim the back door under the order (claims carrying order_id)",
 	):
 		return
+	_check_ordered_modes(t, door)
+	await _check_quiet_entry(t)
+
+
+func _check_ordered_modes(t: TestContext, door: String) -> void:
 	for id in IDS:
 		var modes := Order.ordered_claims(t, t.actor(id), door).map(
 			func(c): return str(c.get("order_mode", "")),
@@ -90,6 +95,8 @@ func run(t: TestContext) -> void:
 			"%s's ordered claims carry the order's mode, frag (%s)" % [id, str(modes.slice(0, 3))],
 		)
 
+
+func _check_quiet_entry(t: TestContext) -> void:
 	t.check(
 		await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 45.0),
 		"the stack goes in",

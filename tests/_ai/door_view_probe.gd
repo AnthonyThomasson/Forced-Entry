@@ -25,25 +25,21 @@ const PASS_CLEAR_TIME := 60.0
 ## agent cuts a path's corners by up to 16 px, so a walk that keeps to the edge is not taken for one
 ## that crosses it.
 const EDGE_MARGIN := 10.0
+## A body in the view slower than this (px/s) has stopped there (`longest_pause_in_view`).
+const PAUSE_SPEED := 20.0
+## `time_covering`: how far (px) out from the wall plane a cover stands, and how slow (px/s) it
+## moves.
+const COVER_REACH := 90.0
+const COVER_SPEED := 40.0
 
 
 ## The view of `door` as a polygon: jamb, far end of the ray through it, far end of the other ray,
 ## the other jamb.
 static func polygon(door: Dictionary, depth := DEPTH) -> PackedVector2Array:
 	var pos: Vector2 = door["pos"]
-	var out: Vector2 = door["out"]
-	var along := out.orthogonal()
+	var along := (door["out"] as Vector2).orthogonal()
 	var half := float(door["width"]) * 0.5
-	var room: Rect2 = door["room"]
-	var corners := [
-		room.position,
-		Vector2(room.end.x, room.position.y),
-		room.end,
-		Vector2(room.position.x, room.end.y),
-	]
-	# The two far corners: the ones deepest into the room (least outward).
-	corners.sort_custom(func(a, b): return (a - pos).dot(out) < (b - pos).dot(out))
-	var far := [corners[0], corners[1]]
+	var far := _far_corners(door)
 	var jamb_a := pos - along * half
 	var jamb_b := pos + along * half
 	# Each jamb is seen past by the far corner on the other side of the door's axis.
@@ -51,9 +47,12 @@ static func polygon(door: Dictionary, depth := DEPTH) -> PackedVector2Array:
 			if (far[0] - pos).dot(along) > (far[1] - pos).dot(along)
 			else far[1])
 	var corner_for_b: Vector2 = far[1] if corner_for_a == far[0] else far[0]
-	var end_a := jamb_a + (jamb_a - corner_for_a).normalized() * depth
-	var end_b := jamb_b + (jamb_b - corner_for_b).normalized() * depth
-	return PackedVector2Array([jamb_a, end_a, end_b, jamb_b])
+	return PackedVector2Array([
+		jamb_a,
+		jamb_a + (jamb_a - corner_for_a).normalized() * depth,
+		jamb_b + (jamb_b - corner_for_b).normalized() * depth,
+		jamb_b,
+	])
 
 
 ## Whether a body at `p` stands in the view of `door`: inside the polygon by more than `margin` px,
@@ -96,17 +95,18 @@ static func time_in_view(t: TestContext, samples: Array, id: StringName, door: D
 	return total
 
 
-## The longest run (s) actor `id` spent in the view of `door` moving slower than `still_speed` px/s:
-## a stop in the view. `from` / `to` limit it to the samples between those sim times.
+## The longest run (s) actor `id` spent in the view of `door` moving slower than `PAUSE_SPEED`
+## px/s: a stop in the view. `span` (`[from, to]`, sim times, as `crossing_span` gives) limits it to
+## the samples between those times.
 static func longest_pause_in_view(
 	t: TestContext,
 	samples: Array,
 	id: StringName,
 	door: Dictionary,
-	still_speed := 20.0,
-	from := -INF,
-	to := INF,
+	span := [-INF, INF],
 ) -> float:
+	var from := float(span[0])
+	var to := float(span[1])
 	var longest := 0.0
 	var run := 0.0
 	for i in range(1, samples.size()):
@@ -120,7 +120,7 @@ static func longest_pause_in_view(
 		var dt: float = float(b["t"]) - float(a["t"])
 		var p: Vector2 = b["pos"][id]
 		var speed := (p - (a["pos"][id] as Vector2)).length() / maxf(dt, 0.0001)
-		if in_view(t, door, p) and speed < still_speed:
+		if in_view(t, door, p) and speed < PAUSE_SPEED:
 			run += dt
 			longest = maxf(longest, run)
 		else:
@@ -181,16 +181,14 @@ static func crossing_span(
 
 
 ## How long (s) actor `id` stood and pointed its gun through `door` from its outer side, within
-## `reach` px of the wall plane (beside the jamb, or slicing one side of the pie), in the samples
-## before `before`: what securing it is (E15). Only while it moves slower than `still_speed` px/s: a
-## walk past the door looking down its path toward it is not a cover.
+## `COVER_REACH` px of the wall plane (beside the jamb, or slicing one side of the pie), in the
+## samples before `before`: what securing it is (E15). Only while it moves slower than `COVER_SPEED`
+## px/s: a walk past the door looking down its path toward it is not a cover.
 static func time_covering(
 	samples: Array,
 	id: StringName,
 	door: Dictionary,
 	before := INF,
-	reach := 90.0,
-	still_speed := 40.0,
 ) -> float:
 	var total := 0.0
 	for i in range(1, samples.size()):
@@ -205,8 +203,8 @@ static func time_covering(
 		var speed := (p - (a["pos"][id] as Vector2)).length() / maxf(dt, 0.0001)
 		var o := Entry.outward(door, p)
 		if (o > 0.0
-				and o < reach
-				and speed < still_speed
+				and o < COVER_REACH
+				and speed < COVER_SPEED
 				and Entry.faces_through(door, p, s["facing"][id])):
 			total += dt
 	return total
@@ -231,6 +229,21 @@ static func wait_wall(
 
 
 # --- internals ------------------------------------------------------------------------------------
+
+
+## The two far corners of the room of `door`: the ones deepest into the room (least outward).
+static func _far_corners(door: Dictionary) -> Array:
+	var pos: Vector2 = door["pos"]
+	var out: Vector2 = door["out"]
+	var room: Rect2 = door["room"]
+	var corners := [
+		room.position,
+		Vector2(room.end.x, room.position.y),
+		room.end,
+		Vector2(room.position.x, room.end.y),
+	]
+	corners.sort_custom(func(a, b): return (a - pos).dot(out) < (b - pos).dot(out))
+	return [corners[0], corners[1]]
 
 
 ## The distance (px) from `p` to the nearest edge of `poly`.

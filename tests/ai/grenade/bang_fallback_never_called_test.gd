@@ -45,6 +45,18 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var side := int(Entry.entry(brain).get("side", 0))
+	var phases := await _radio_ready_until_in(t, brain, side, seen)
+	if not _went_in(t, seen, phases):
+		return
+	_check_quiet(t, phases)
+
+
+func _radio_ready_until_in(
+		t: TestContext,
+		brain: Node,
+		side: int,
+		seen: Dictionary,
+) -> Array:
 	var next := 0.0
 	var phases: Array = []
 	var end := t.time + 40.0
@@ -57,16 +69,22 @@ func run(t: TestContext) -> void:
 		if phases.is_empty() or phases.back() != phase:
 			phases.append(phase)
 		await t.frames(1)
+	return phases
+
+
+func _went_in(t: TestContext, seen: Dictionary, phases: Array) -> bool:
 	if not t.require(
 			Bang.took(seen, "stun_entry"),
 			"the AI took STUN ENTRY (acts: %s)" % str(seen),
 	):
-		return
-	if not t.require(
-			not Entry.calls(t, "going_in").is_empty(),
-			"the AI went in (phases: %s)" % str(phases),
-	):
-		return
+		return false
+	return t.require(
+		not Entry.calls(t, "going_in").is_empty(),
+		"the AI went in (phases: %s)" % str(phases),
+	)
+
+
+func _check_quiet(t: TestContext, phases: Array) -> void:
 	var ready := Entry.first_call_time(t, "ready", &"a")
 	var went_in := Entry.first_call_time(t, "going_in", &"a")
 	t.check(

@@ -130,53 +130,63 @@ static func check_stun_entry(t: TestContext, result: Dictionary, why: String) ->
 ## in with, not its first decision.
 static func watch_in(t: TestContext, duration: float, tick := Callable()) -> Dictionary:
 	var members := ids(t)
-	var seen := {}
-	var acts := {}
-	var heard_at := {}
-	var going_in := {}
-	var in_kitchen := {}
+	var out := {
+		"seen": {}, "acts": {}, "entered_kitchen": false, "heard_at": {}, "going_in": {},
+		"in_kitchen": {},
+	}
+	var going_in: Dictionary = out["going_in"]
 	for id in members:
-		seen[id] = []
-		acts[id] = []
-		heard_at[id] = INF
+		out["seen"][id] = []
+		out["acts"][id] = []
+		out["heard_at"][id] = INF
 		going_in[id] = INF
-		in_kitchen[id] = INF
-	var entered := false
-	var door := Entry.BACK
+		out["in_kitchen"][id] = INF
 	var end := t.time + duration
 	while t.time < end and members.any(func(id): return going_in[id] == INF):
 		for id in members:
-			var brain := Entry.brain(t, id)
-			var act := str(brain.current_act())
-			if not seen[id].has(act):
-				seen[id].append(act)
-			if acts[id].is_empty() or acts[id].back()[1] != act:
-				acts[id].append([t.time, act])
-			if heard_at[id] == INF and not brain.debug_memory().get("footsteps", []).is_empty():
-				heard_at[id] = t.time
-			var at: Vector2 = t.actor(id).global_position
-			if in_kitchen[id] == INF and Maps.HOUSE_KITCHEN.grow(-Entry.INSIDE_DEPTH).has_point(at):
-				in_kitchen[id] = t.time
-			if Entry.in_room(door, at) and Entry.calls(t, "claim").is_empty():
-				entered = true
-			if (going_in[id] == INF
-					and not Probe.raw(
-						t,
-						&"callout",
-						func(d): return (
-							d.get("speaker") == t.actor(id)
-								and String(d.get("entry_step", "")) == "going_in"
-								and String(d.get("opening", "")) == door["id"]
-						),
-					).is_empty()):
-				going_in[id] = t.time
+			_sample_member(t, id, out)
 		if tick.is_valid():
 			tick.call(t.time)
 		await t.frames(1)
-	return {
-		"seen": seen, "acts": acts, "entered_kitchen": entered, "heard_at": heard_at,
-		"going_in": going_in, "in_kitchen": in_kitchen,
-	}
+	return out
+
+
+## One frame of member `id` for `watch_in`, recorded in its result `out`.
+static func _sample_member(t: TestContext, id: StringName, out: Dictionary) -> void:
+	var brain := Entry.brain(t, id)
+	var act := str(brain.current_act())
+	var seen: Array = out["seen"][id]
+	if not seen.has(act):
+		seen.append(act)
+	var acts: Array = out["acts"][id]
+	if acts.is_empty() or acts.back()[1] != act:
+		acts.append([t.time, act])
+	var heard_at: Dictionary = out["heard_at"]
+	if heard_at[id] == INF and not brain.debug_memory().get("footsteps", []).is_empty():
+		heard_at[id] = t.time
+	var at: Vector2 = t.actor(id).global_position
+	var in_kitchen: Dictionary = out["in_kitchen"]
+	if in_kitchen[id] == INF and Maps.HOUSE_KITCHEN.grow(-Entry.INSIDE_DEPTH).has_point(at):
+		in_kitchen[id] = t.time
+	if Entry.in_room(Entry.BACK, at) and Entry.calls(t, "claim").is_empty():
+		out["entered_kitchen"] = true
+	var going_in: Dictionary = out["going_in"]
+	if going_in[id] == INF and _radioed_going_in(t, id):
+		going_in[id] = t.time
+
+
+## Whether member `id` has radioed `going_in` for the back door.
+static func _radioed_going_in(t: TestContext, id: StringName) -> bool:
+	var door := Entry.BACK
+	return not Probe.raw(
+		t,
+		&"callout",
+		func(d): return (
+			d.get("speaker") == t.actor(id)
+				and String(d.get("entry_step", "")) == "going_in"
+				and String(d.get("opening", "")) == door["id"]
+		),
+	).is_empty()
 
 
 ## The act member `id` was carrying out at sim time `at`, from `watch_in`'s result ("" before its
@@ -214,28 +224,12 @@ static func check_stun_entry_gone_in(t: TestContext, result: Dictionary, why: St
 		return
 	var stun_entry := "search/stun_entry/%s" % Entry.BACK["id"]
 	for id in result["acts"]:
-		var took := INF
-		for pair in result["acts"][id]:
-			if String(pair[1]).begins_with(stun_entry):
-				took = float(pair[0])
-				break
-		if not t.require(
-				float(result["heard_at"][id]) <= took,
-				("%s heard the steps (its footsteps memory) before it took STUN ENTRY (heard at "
-						+ "%.2f s, STUN ENTRY at %.2f s; acts %s)")
-					% [id, result["heard_at"][id], took, str(result["acts"][id])],
-		):
+		if not _heard_before(t, result, stun_entry, id):
 			return
 	var first_in := INF
 	for id in result["going_in"]:
-		var at: float = result["going_in"][id]
-		first_in = minf(first_in, at)
-		t.check(
-			at < INF and act_at(result, id, at).begins_with(stun_entry),
-			("with %s, %s went in under STUN ENTRY into the kitchen (going_in at %.2f s under "
-					+ "'%s'; acts %s)")
-				% [why, id, at, act_at(result, id, at), str(result["acts"][id])],
-		)
+		first_in = minf(first_in, float(result["going_in"][id]))
+		_check_went_in_under(t, result, why, stun_entry, id)
 	var bangs := Probe.raw(t, &"callout", func(d): return String(d.get("entry_step", "")) == "bang")
 	t.check(
 		not bangs.is_empty() and float(bangs[0]["time"]) < first_in,
@@ -257,3 +251,35 @@ static func check_stun_entry_gone_in(t: TestContext, result: Dictionary, why: St
 			"%s stood in the kitchen only after the burst (in at %.2f s, burst at %.2f s)"
 				% [id, result["in_kitchen"][id], burst],
 		)
+
+
+## `check_stun_entry_gone_in`'s `require` that member `id` heard the steps before it took
+## `stun_entry` (the act's prefix).
+static func _heard_before(
+		t: TestContext, result: Dictionary, stun_entry: String, id: StringName
+) -> bool:
+	var took := INF
+	for pair in result["acts"][id]:
+		if String(pair[1]).begins_with(stun_entry):
+			took = float(pair[0])
+			break
+	return t.require(
+		float(result["heard_at"][id]) <= took,
+		("%s heard the steps (its footsteps memory) before it took STUN ENTRY (heard at "
+				+ "%.2f s, STUN ENTRY at %.2f s; acts %s)")
+			% [id, result["heard_at"][id], took, str(result["acts"][id])],
+	)
+
+
+## `check_stun_entry_gone_in`'s check that member `id` went in under STUN ENTRY (`stun_entry`, the
+## act's prefix), with `why` the reason the room is suspect.
+static func _check_went_in_under(
+		t: TestContext, result: Dictionary, why: String, stun_entry: String, id: StringName
+) -> void:
+	var at: float = result["going_in"][id]
+	t.check(
+		at < INF and act_at(result, id, at).begins_with(stun_entry),
+		("with %s, %s went in under STUN ENTRY into the kitchen (going_in at %.2f s under "
+				+ "'%s'; acts %s)")
+			% [why, id, at, act_at(result, id, at), str(result["acts"][id])],
+	)

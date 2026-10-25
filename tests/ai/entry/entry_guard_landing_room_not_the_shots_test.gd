@@ -40,7 +40,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.guard_rules(s, ["combat", "advance", "rush"])
-	Entry.npc(s, &"inv", IN_KITCHEN, 0.4, {}, { "facing": Vector2.RIGHT })
+	Entry.npc(s, &"inv", IN_KITCHEN, {}, { "facing": Vector2.RIGHT })
 	Entry.target(s, &"householder", TARGET, IN_HALL, { "faction": &"household" })
 
 

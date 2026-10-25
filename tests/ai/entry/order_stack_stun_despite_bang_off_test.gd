@@ -67,14 +67,25 @@ func run(t: TestContext) -> void:
 			"both claim the back door under the order (claims carrying order_id)",
 	):
 		return
+	await _veto_until_in(t)
+	if not t.require(not Entry.calls(t, "going_in").is_empty(), "the point goes in"):
+		return
+	_check_banged(t)
+
+
+## Radios the teammate's veto every second until the point goes in (50 s into the test at most).
+func _veto_until_in(t: TestContext) -> void:
 	var next_veto := 0.0
 	while Entry.calls(t, "going_in").is_empty() and t.time < 50.0:
 		if t.time >= next_veto:
 			_veto(t)
 			next_veto = t.time + 1.0
 		await t.frames(1)
-	if not t.require(not Entry.calls(t, "going_in").is_empty(), "the point goes in"):
-		return
+
+
+## Checks the bang was called and a stun went off in the kitchen before anyone went in, and every
+## ordered claim stayed in bang mode.
+func _check_banged(t: TestContext) -> void:
 	var went_in: float = Order.first_time(
 		t,
 		&"callout",

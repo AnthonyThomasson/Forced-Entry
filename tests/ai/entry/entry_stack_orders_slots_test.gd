@@ -21,9 +21,9 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(960, 40), 0.4, { "entry_ready_timeout": 30.0 })
-	Entry.npc(s, &"b", Vector2(985, 100), 0.55, { "entry_ready_timeout": 30.0 })
-	Entry.npc(s, &"c", Vector2(990, 280), 0.7, { "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"a", Vector2(960, 40), { "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"b", Vector2(985, 100), { "decide_interval": 0.55, "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"c", Vector2(990, 280), { "decide_interval": 0.7, "entry_ready_timeout": 30.0 })
 
 
 func run(t: TestContext) -> void:

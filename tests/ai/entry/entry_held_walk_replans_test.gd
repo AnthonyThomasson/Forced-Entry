@@ -62,7 +62,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var walker := t.actor(&"walker")
 	var mate := t.actor(&"mate")
 	var brain := Entry.brain(t, &"walker")
 	var map := t.world.get_world_2d().navigation_map
@@ -72,36 +71,7 @@ func run(t: TestContext) -> void:
 		"replans": 0, "aborts": 0, "entered": false,
 	}
 	var seen: Dictionary = await Bump.watch(t, [&"walker", &"mate"], WATCH_S, func():
-		var p: Vector2 = walker.global_position
-		var state: Dictionary = brain.debug_state()
-		var loco: Dictionary = state.get("loco", {})
-		if String(brain.current_act()).contains(DOOR["id"]):
-			st["entered"] = true
-		if not st["sealed"] and p.distance_to(mate.global_position) < STOP_NEAR:
-			var through := NavBuilder.route(
-				NavBuilder.steering_map(map),
-				p,
-				DOOR["pos"] + Vector2(-40, 0),
-			)
-			st["sealed"] = through[through.size() - 1].x < ROW_X
-		var aborts := Entry.calls(t, "abort", &"walker").size()
-		var blocked_walk: bool = (int(state.get("decisions", 0)) > int(st["walks"])
-				and String(state.get("decision_reason", "")) == "way blocked")
-		st["walks"] = int(state.get("decisions", 0))
-		if aborts > int(st["aborts"]) or blocked_walk:
-			st["replans"] = int(st["replans"]) + 1
-			st["held_since"] = INF if String(loco.get("way", "")) != "held" else t.time
-		st["aborts"] = aborts
-		if (String(loco.get("way", "")) == "held"
-				and p.distance_to(mate.global_position) < STOP_NEAR):
-			if st["held_since"] == INF:
-				st["held_since"] = t.time
-			elif t.time - float(st["held_since"]) > float(st["longest"]):
-				st["longest"] = t.time - float(st["held_since"])
-				st["longest_at"] = p
-		else:
-			st["held_since"] = INF
-		t.trace("walker_to_mate", p.distance_to(mate.global_position))
+		_watch(t, st, mate, brain, map)
 		return false)
 	if not t.require(
 			st["entered"],
@@ -113,6 +83,46 @@ func run(t: TestContext) -> void:
 		"premise: the steering map had the gap sealed by the teammate when the walker came near",
 	):
 		return
+	_judge(t, st, seen, mate, brain)
+
+
+## One frame's watch: notes into `st` the ENTER order, whether the gap is sealed, each re-plan
+## (an abort or a "way blocked" decision) and the longest hold short of the teammate.
+func _watch(t: TestContext, st: Dictionary, mate: Node, brain: Node, map: RID) -> void:
+	var p: Vector2 = t.actor(&"walker").global_position
+	var state: Dictionary = brain.debug_state()
+	var loco: Dictionary = state.get("loco", {})
+	if String(brain.current_act()).contains(DOOR["id"]):
+		st["entered"] = true
+	if not st["sealed"] and p.distance_to(mate.global_position) < STOP_NEAR:
+		var through := NavBuilder.route(
+			NavBuilder.steering_map(map),
+			p,
+			DOOR["pos"] + Vector2(-40, 0),
+		)
+		st["sealed"] = through[through.size() - 1].x < ROW_X
+	var aborts := Entry.calls(t, "abort", &"walker").size()
+	var blocked_walk: bool = (int(state.get("decisions", 0)) > int(st["walks"])
+			and String(state.get("decision_reason", "")) == "way blocked")
+	st["walks"] = int(state.get("decisions", 0))
+	if aborts > int(st["aborts"]) or blocked_walk:
+		st["replans"] = int(st["replans"]) + 1
+		st["held_since"] = INF if String(loco.get("way", "")) != "held" else t.time
+	st["aborts"] = aborts
+	if (String(loco.get("way", "")) == "held"
+			and p.distance_to(mate.global_position) < STOP_NEAR):
+		if st["held_since"] == INF:
+			st["held_since"] = t.time
+		elif t.time - float(st["held_since"]) > float(st["longest"]):
+			st["longest"] = t.time - float(st["held_since"])
+			st["longest_at"] = p
+	else:
+		st["held_since"] = INF
+	t.trace("walker_to_mate", p.distance_to(mate.global_position))
+
+
+## The checks: no bump into the teammate, which is not moved, and a re-plan soon after each hold.
+func _judge(t: TestContext, st: Dictionary, seen: Dictionary, mate: Node, brain: Node) -> void:
 	var bumps: Array = seen["bumps"]
 	t.check(
 		bumps.is_empty(),

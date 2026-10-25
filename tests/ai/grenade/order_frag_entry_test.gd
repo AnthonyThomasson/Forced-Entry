@@ -58,6 +58,19 @@ func run(t: TestContext) -> void:
 			"both invaders carry a frag (premise: Character.item_count(8))",
 	):
 		return
+	if not await _stack_claimed(t, door):
+		return
+	var watched := await _watch_until_in(t)
+	if not _check_second_threw(t, door):
+		return
+	var burst_at := _check_burst(t, watched["samples"])
+	if burst_at < 0.0:
+		return
+	_check_crossing(t, burst_at, watched["phases"])
+
+
+## The leader orders the frag stack on the back door; both members claim it under the order.
+func _stack_claimed(t: TestContext, door: String) -> bool:
 	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
@@ -68,20 +81,21 @@ func run(t: TestContext) -> void:
 		false,
 	)
 	if not t.require(not order.is_empty(), "the squad posts the frag stack order (issue)"):
-		return
+		return false
 	t.check(
 		String(order.get("mode", "")) == "frag",
 		"the order's mode is frag (%s)" % str(order.get("mode")),
 	)
 	var claimed := func():
 		return IDS.all(func(id): return not Order.ordered_claims(t, t.actor(id), door).is_empty())
-	if not t.require(
-			await t.until(claimed, 10.0),
-			"both claim the back door under the order (claims carrying order_id)",
-	):
-		return
+	return t.require(
+		await t.until(claimed, 10.0),
+		"both claim the back door under the order (claims carrying order_id)",
+	)
 
-	# Watch each member's place and entry phase every frame until the point goes in.
+
+## Watch each member's place and entry phase every frame until the point goes in.
+func _watch_until_in(t: TestContext) -> Dictionary:
 	var samples: Array = []
 	var phases := {}
 	for id in IDS:
@@ -95,7 +109,11 @@ func run(t: TestContext) -> void:
 				phases[id].append(ph)
 		samples.append(row)
 		await t.frames(1)
+	return { "samples": samples, "phases": phases }
 
+
+## A frag was thrown, by the second of the stack; false when none was.
+func _check_second_threw(t: TestContext, door: String) -> bool:
 	var frag_throws := t.events_of(&"throw", func(d): return d.get("kind") == &"frag")
 	if not t.check(
 			not frag_throws.is_empty(),
@@ -106,7 +124,7 @@ func run(t: TestContext) -> void:
 				))),
 			],
 	):
-		return
+		return false
 	var thrower = frag_throws[0].get("attacker")
 	var second: StringName = Order.by_slot(t, IDS, door)[1]
 	t.check(
@@ -114,9 +132,14 @@ func run(t: TestContext) -> void:
 		"the second of the stack threw it (%s, slot 2 is %s)"
 			% [thrower.name if thrower is Node else str(thrower), second],
 	)
+	return true
+
+
+## When the frag went off, its burst checked against where each member stood; -1 when it did not.
+func _check_burst(t: TestContext, samples: Array) -> float:
 	var booms := Probe.booms(t, &"frag")
 	if not t.check(not booms.is_empty(), "the frag went off"):
-		return
+		return -1.0
 	var burst: Vector2 = booms[0]["data"]["position"]
 	var burst_at := float(booms[0]["time"])
 	t.check(Maps.HOUSE_KITCHEN.has_point(burst), "in the kitchen (%s)" % str(burst.round()))
@@ -133,6 +156,11 @@ func run(t: TestContext) -> void:
 					"clear" if Probe.line_clear(t, burst, p) else "blocked",
 				],
 		)
+	return burst_at
+
+
+## The point goes in on the burst, and no member slices the pie.
+func _check_crossing(t: TestContext, burst_at: float, phases: Dictionary) -> void:
 	if not t.check(not Entry.calls(t, "going_in").is_empty(), "the point goes in"):
 		return
 	var going := Order.first_time(

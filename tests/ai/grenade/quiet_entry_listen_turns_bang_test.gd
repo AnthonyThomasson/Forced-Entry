@@ -57,8 +57,23 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var ready := Entry.first_call_time(t, "ready", p, Entry.BACK["id"])
-	var h := t.puppet(&"h")
 	var samples: Array = []
+	var heard := await _watch_until_in(t, p, ready, samples)
+	if not t.require(
+			heard < INF,
+			"set-up: the stack heard the householder's steps (footsteps memory)",
+	):
+		return
+	var bang_called := _bang_called_at(t)
+	_check_listened(t, ready, samples, heard, bang_called)
+	_check_turned_to_bang(t, bang_called)
+
+
+# Notes the point's entry phases in `samples` and walks the householder to and fro past the door
+# from `AFTER` s after the point's ready, until someone goes in (or 40 s pass): when the stack first
+# heard its steps (INF when it did not).
+func _watch_until_in(t: TestContext, p: StringName, ready: float, samples: Array) -> float:
+	var h := t.puppet(&"h")
 	var heard := [INF]
 	var walking := [false]
 	var leg := [BEAT_B]
@@ -66,37 +81,56 @@ func run(t: TestContext) -> void:
 		var phase := str(Entry.entry(Entry.brain(t, p)).get("phase", ""))
 		if samples.is_empty() or samples.back()[1] != phase:
 			samples.append([t.time, phase])
-		if not walking[0] and t.time >= ready + AFTER:
-			walking[0] = true
-			h.walk_to(leg[0])
-		elif walking[0] and h.has_arrived():
-			leg[0] = BEAT_A if leg[0] == BEAT_B else BEAT_B
-			h.walk_to(leg[0])
-		if (heard[0] == INF
-					and Listen.IDS.any(func(id): return not Entry.brain(t, id).debug_memory().get(
-						"footsteps",
-						[],
-					).is_empty())):
+		_pace(t, h, ready, walking, leg)
+		if heard[0] == INF and _steps_heard(t):
 			heard[0] = t.time
 		return not Entry.calls(t, "going_in").is_empty()
 	await t.until(gone_in, 40.0)
-	if not t.require(
-			heard[0] < INF,
-			"set-up: the stack heard the householder's steps (footsteps memory)",
-	):
-		return
+	return heard[0]
+
+
+func _pace(t: TestContext, h: Node, ready: float, walking: Array, leg: Array) -> void:
+	if not walking[0] and t.time >= ready + AFTER:
+		walking[0] = true
+		h.walk_to(leg[0])
+	elif walking[0] and h.has_arrived():
+		leg[0] = BEAT_A if leg[0] == BEAT_B else BEAT_B
+		h.walk_to(leg[0])
+
+
+func _steps_heard(t: TestContext) -> bool:
+	return Listen.IDS.any(func(id): return not Entry.brain(t, id).debug_memory().get(
+		"footsteps",
+		[],
+	).is_empty())
+
+
+func _bang_called_at(t: TestContext) -> float:
 	var bang_called := INF
 	for c in Probe.raw(t, &"callout", func(d): return String(d.get("entry_step", "")) == "bang"):
 		bang_called = float(c["time"])
 		break
+	return bang_called
+
+
+func _check_listened(
+		t: TestContext,
+		ready: float,
+		samples: Array,
+		heard: float,
+		bang_called: float,
+) -> void:
 	var pie := Listen.first(samples, "pie", ready)
 	t.check(
-		pie > minf(heard[0], bang_called),
+		pie > minf(heard, bang_called),
 		("the point was still listening in its slot when the steps were heard: it had not started "
 				+ "the pie (pie at %.2f s, steps heard at %.2f s, bang called at %.2f s, its "
 				+ "ready at %.2f s; phases %s)")
-			% [pie, heard[0], bang_called, ready, str(samples)],
+			% [pie, heard, bang_called, ready, str(samples)],
 	)
+
+
+func _check_turned_to_bang(t: TestContext, bang_called: float) -> void:
 	var going_in: float = (float(Probe.raw(
 		t,
 		&"callout",

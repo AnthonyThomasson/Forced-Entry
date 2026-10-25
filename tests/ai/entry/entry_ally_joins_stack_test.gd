@@ -20,14 +20,13 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 80), 0.4)
+	Entry.npc(s, &"a", Vector2(930, 80))
 	# Held back: not entering and not moving until the test lets it join. A short commit keeps it
 	# re-deciding.
 	Entry.npc(
 		s,
 		&"b",
 		Vector2(990, 330),
-		0.4,
 		{ "entry_enabled": false, "max_commit_time": 0.5 },
 		{ "speed": 0.0 },
 	)

@@ -60,36 +60,10 @@ func run(t: TestContext) -> void:
 	var round_len := (NavBuilder.path_length(NavBuilder.route(map, START, ROUND[0]))
 			+ ROUND[0].distance_to(ROUND[1])
 			+ NavBuilder.path_length(NavBuilder.route(map, ROUND[1], GUNFIRE)))
-	if not t.require(
-			crosses and plain_len <= SHORT,
-			"set-up: the plain route is short and runs through the front door's view (%.0f px)"
-				% plain_len,
-	):
-		return
-	if not t.require(
-			round_len > SHORT
-				and round_len <= MEDIUM
-				and round_len <= View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
-			"set-up: the way round is medium and within the cap (%.0f px)" % round_len,
-	):
-		return
-	if not t.require(
-			View.polygon(FRONT)[1].y > 320.0,
-			"set-up: the view covers the outdoor strip south of the house, so the only way round "
-				+ "is the north side",
-	):
+	if not _set_up_holds(t, crosses, plain_len, round_len):
 		return
 	var brain := t.controller(&"inv", &"debug_zones")
-	if not t.require(
-			await t.until(
-				func(): return (
-					brain.debug_state().get("decisions", 0) >= 1
-						and not brain.debug_zones().is_empty()
-				),
-				5.0,
-			),
-			"set-up: the invader made its first decision",
-	):
+	if not await _first_decision(t, brain):
 		return
 	var leads: Array = brain.debug_zones().filter(
 		func(z): return z["category"] == &"lead" and str(z["desc"]).contains("gunfire"),
@@ -106,3 +80,35 @@ func run(t: TestContext) -> void:
 		("its option reads the band of the route walked round the door's view, medium (%.0f px), "
 				+ "not the plain short one (%.0f px): \"%s\"") % [round_len, plain_len, desc],
 	)
+
+
+## The set-up: the plain route is short and through the front door's view, the way round is medium
+## and within the cap, and the view leaves only the north side. False when one does not hold.
+func _set_up_holds(t: TestContext, crosses: bool, plain_len: float, round_len: float) -> bool:
+	if not t.require(
+			crosses and plain_len <= SHORT,
+			"set-up: the plain route is short and runs through the front door's view (%.0f px)"
+				% plain_len,
+	):
+		return false
+	if not t.require(
+			round_len > SHORT
+				and round_len <= MEDIUM
+				and round_len <= View.AVOID_RATIO * plain_len + View.AVOID_SLACK,
+			"set-up: the way round is medium and within the cap (%.0f px)" % round_len,
+	):
+		return false
+	return t.require(
+		View.polygon(FRONT)[1].y > 320.0,
+		"set-up: the view covers the outdoor strip south of the house, so the only way round "
+			+ "is the north side",
+	)
+
+
+## Waits (5 s at most) for the invader's first decision. False when it never came.
+func _first_decision(t: TestContext, brain: Node) -> bool:
+	var decided := func(): return (
+		brain.debug_state().get("decisions", 0) >= 1
+			and not brain.debug_zones().is_empty()
+	)
+	return t.require(await t.until(decided, 5.0), "set-up: the invader made its first decision")

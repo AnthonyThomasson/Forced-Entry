@@ -72,18 +72,32 @@ func run(t: TestContext) -> void:
 		func(o): return String(o.get("kind", "")) == Order.GO,
 	).size()
 
+	if not await _claimed_held(t, door):
+		return
+	await _goes_on_latched_go(t, door, gos_before)
+
+
+## Both claim the back door under the order, and their claims say it was ordered held. False when
+## they never claimed.
+func _claimed_held(t: TestContext, door: String) -> bool:
 	var claimed := func():
 		return IDS.all(func(id): return not Order.ordered_claims(t, t.actor(id), door).is_empty())
 	if not t.require(
 			await t.until(claimed, 10.0),
 			"both claim the back door under the order (claims carrying order_id)",
 	):
-		return
+		return false
 	for id in IDS:
 		var held := Order.ordered_claims(t, t.actor(id), door).filter(
 			func(c): return c.get("order_hold") == true,
 		)
 		t.check(not held.is_empty(), "%s's claims say the stack was ordered held (order_hold)" % id)
+	return true
+
+
+## The stack forms, and the point goes in once it is ready, on the latched go, with no second go
+## than the `gos_before` already posted.
+func _goes_on_latched_go(t: TestContext, door: String, gos_before: int) -> void:
 	if not t.require(
 			await t.until(func(): return Order.all_called(t, IDS, "ready", door), 30.0),
 			"the stack forms: both radio ready",

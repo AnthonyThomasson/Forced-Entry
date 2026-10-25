@@ -64,14 +64,11 @@ func run(t: TestContext) -> void:
 		"the defender's GoalController has blind_fire_chance, set to 1 (%s)"
 			% str(brain.get("blind_fire_chance")),
 	)
+	var fighting := func(): return (
+		not _known(brain, p).is_empty() and str(brain.current_act()).begins_with("combat")
+	)
 	if not t.require(
-			await t.until(
-				func(): return (
-					not _known(brain, p).is_empty()
-						and str(brain.current_act()).begins_with("combat")
-				),
-				20.0,
-			),
+			await t.until(fighting, 20.0),
 			"the defender knows the invader and is fighting it (acting: %s)"
 				% str(brain.current_act()),
 	):
@@ -82,27 +79,48 @@ func run(t: TestContext) -> void:
 		return
 	var flashed := t.time
 	t.puppet(&"p").walk_to(SECOND_SPOT)
-	var seen := {}
-	# the direction of each round the defender fires, read the frame it appears
-	var dirs: Array = []
-	# rounds fired blind while the defender was not holding its gun one-handed
-	var two_handed := [0]
-	var capture := func() -> void:
-		for n in t.world.get_children():
-			if (String(n.name).begins_with("Projectile")
-					and n is Node2D
-					and not seen.has(n.get_instance_id())
-					and n.get("ignore") == d):
-				seen[n.get_instance_id()] = true
-				dirs.append(n.get("direction"))
-				if (Probe.blind(d)
-						and not (d.has_method("one_handed") and bool(d.call("one_handed")))):
-					two_handed[0] += 1
+	var shots := {
+		"seen": {},
+		# the direction of each round the defender fires, read the frame it appears
+		"dirs": [],
+		# rounds fired blind while the defender was not holding its gun one-handed
+		"two_handed": 0,
+	}
 	await t.frames(30)
 	t.check(Probe.blind(d), "the flash blinded the defender (is_blind)")
 	while t.time < flashed + 3.5:
-		capture.call()
+		_capture(t, d, shots)
 		await t.frames(1)
+	_check_held_at_old_spot(t, brain, p, seen_at)
+
+	# Its shots while blind go to the old spot, within the sway, never to where the invader really
+	# is.
+	while Probe.blind(d) and t.time < flashed + BLIND + 2.0:
+		_capture(t, d, shots)
+		await t.frames(1)
+	_check_blind_shots(t, d, shots, seen_at, flashed)
+	await _check_sees_again(t, brain, p)
+
+
+## Notes each round the defender fired that has appeared since the last frame: its direction, and
+## whether it was fired blind with the gun held two-handed.
+func _capture(t: TestContext, d: Node, shots: Dictionary) -> void:
+	var seen: Dictionary = shots["seen"]
+	for n in t.world.get_children():
+		if (String(n.name).begins_with("Projectile")
+				and n is Node2D
+				and not seen.has(n.get_instance_id())
+				and n.get("ignore") == d):
+			seen[n.get_instance_id()] = true
+			shots["dirs"].append(n.get("direction"))
+			if (Probe.blind(d)
+					and not (d.has_method("one_handed") and bool(d.call("one_handed")))):
+				shots["two_handed"] += 1
+
+
+## The invader walked across the defender's front, and the defender still holds it at the spot it
+## last saw it, unseen.
+func _check_held_at_old_spot(t: TestContext, brain: Node, p: Node, seen_at: Vector2) -> void:
 	t.check(t.puppet(&"p").has_arrived(), "the invader walked across the defender's front")
 	var known := _known(brain, p)
 	t.check(
@@ -112,11 +130,18 @@ func run(t: TestContext) -> void:
 	)
 	t.check(not known.is_empty() and not bool(known.get("visible", true)), "and does not see it")
 
-	# Its shots while blind go to the old spot, within the sway, never to where the invader really
-	# is.
-	while Probe.blind(d) and t.time < flashed + BLIND + 2.0:
-		capture.call()
-		await t.frames(1)
+
+## Its shots while blind went one-handed toward the old spot, within the sway, and the blindness
+## ran its course.
+func _check_blind_shots(
+		t: TestContext,
+		d: Node,
+		shots: Dictionary,
+		seen_at: Vector2,
+		flashed: float,
+) -> void:
+	var dirs: Array = shots["dirs"]
+	var two_handed: int = shots["two_handed"]
 	var to_old: Vector2 = (seen_at - d.global_position).normalized()
 	var to_new: Vector2 = (SECOND_SPOT - d.global_position).normalized()
 	var worst := 0.0
@@ -124,9 +149,9 @@ func run(t: TestContext) -> void:
 		worst = maxf(worst, absf(rad_to_deg(to_old.angle_to(dir))))
 	t.check(dirs.size() >= 2, "it fired blindly while the flash lasted (%d rounds)" % dirs.size())
 	t.check(
-		not dirs.is_empty() and two_handed[0] == 0,
+		not dirs.is_empty() and two_handed == 0,
 		"every blind round was fired one-handed, the other hand over its eyes (%d of %d were not)"
-			% [two_handed[0], dirs.size()],
+			% [two_handed, dirs.size()],
 	)
 	t.check(
 		worst <= 28.0,
@@ -136,7 +161,9 @@ func run(t: TestContext) -> void:
 	)
 	t.check(t.time - flashed >= BLIND - 0.5, "(the blindness ran its course)")
 
-	# The blindness is over: it sees the invader again, where it is now, and decides afresh.
+
+## The blindness is over: it sees the invader again, where it is now, and decides afresh.
+func _check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
 	t.check(
 		await t.until(
 			func(): return (

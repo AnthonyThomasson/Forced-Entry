@@ -64,16 +64,8 @@ func run(t: TestContext) -> void:
 			func(c): return c["node"] == mate and c["visible"]
 		)
 		if not carved[0] and sees and walker.global_position.x < NEAR_DOOR.x - 30.0:
-			var through := NavBuilder.route(
-				NavBuilder.steering_map(map),
-				walker.global_position,
-				EAST.get_center(),
-			)
-			var direct := NavBuilder.route(map, walker.global_position, EAST.get_center())
-			carved[0] = (through[through.size() - 1].distance_to(EAST.get_center()) > 24.0
-					or NavBuilder.path_length(through) > NavBuilder.path_length(direct) + 1.0)
+			carved[0] = _carved(map, walker.global_position)
 		return arrived.call())
-	var dest = brain.debug_state().get("params", {}).get("point", null)
 	if not t.require(
 			String(brain.current_act()).contains("room_east"),
 			"the walker was sent to the east room (%s)" % brain.current_act(),
@@ -85,15 +77,20 @@ func run(t: TestContext) -> void:
 				+ "before it reached the doorway",
 	):
 		return
-	var target: Vector2 = Vector2(dest[0], dest[1]) if dest is Array else EAST.get_center()
-	var plain := NavBuilder.path_length(NavBuilder.route(map, START, target))
-	var round_by_far := START.distance_to(FAR_DOOR) + FAR_DOOR.distance_to(target)
-	if not t.require(
-			round_by_far > plain * DETOUR_RATIO + DETOUR_SLACK,
-			("premise: the way round (%.0f px) costs more than %.1f x the plain walk (%.0f px) + "
-					+ "%.0f px") % [round_by_far, DETOUR_RATIO, plain, DETOUR_SLACK],
-	):
+	if not _is_detour(t, brain, map):
 		return
+	_check_walk(t, brain, seen, arrived, deepest[0])
+
+
+func _check_walk(
+		t: TestContext,
+		brain: Node,
+		seen: Dictionary,
+		arrived: Callable,
+		deepest: float,
+) -> void:
+	var walker := t.actor(&"walker")
+	var mate := t.actor(&"mate")
 	var bumps: Array = seen["bumps"]
 	t.trace("mate_moved", mate.global_position.distance_to(NEAR_DOOR))
 	t.check(
@@ -111,6 +108,31 @@ func run(t: TestContext) -> void:
 			% mate.global_position.distance_to(NEAR_DOOR),
 	)
 	t.check(
-		deepest[0] > FAR_DOOR.y - 100.0,
-		"it goes round by the far doorway (deepest on the west side y=%.0f)" % deepest[0],
+		deepest > FAR_DOOR.y - 100.0,
+		"it goes round by the far doorway (deepest on the west side y=%.0f)" % deepest,
 	)
+
+
+func _carved(map: RID, from: Vector2) -> bool:
+	var through := NavBuilder.route(
+		NavBuilder.steering_map(map),
+		from,
+		EAST.get_center(),
+	)
+	var direct := NavBuilder.route(map, from, EAST.get_center())
+	return (through[through.size() - 1].distance_to(EAST.get_center()) > 24.0
+			or NavBuilder.path_length(through) > NavBuilder.path_length(direct) + 1.0)
+
+
+func _is_detour(t: TestContext, brain: Node, map: RID) -> bool:
+	var dest = brain.debug_state().get("params", {}).get("point", null)
+	var target: Vector2 = Vector2(dest[0], dest[1]) if dest is Array else EAST.get_center()
+	var plain := NavBuilder.path_length(NavBuilder.route(map, START, target))
+	var round_by_far := START.distance_to(FAR_DOOR) + FAR_DOOR.distance_to(target)
+	if not t.require(
+			round_by_far > plain * DETOUR_RATIO + DETOUR_SLACK,
+			("premise: the way round (%.0f px) costs more than %.1f x the plain walk (%.0f px) + "
+					+ "%.0f px") % [round_by_far, DETOUR_RATIO, plain, DETOUR_SLACK],
+	):
+		return false
+	return true

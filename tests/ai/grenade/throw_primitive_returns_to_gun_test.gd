@@ -46,9 +46,9 @@ func configure(s: TestSetup) -> void:
 			{ "pick": "retreat" },
 		],
 	)
-	Flank.npc(s, &"far", FAR_N, {}, &"invader", FAR_H)
+	Flank.npc(s, &"far", FAR_N, {}, { "look_at": FAR_H })
 	Probe.hostile(s, &"far_h", FAR_H, FAR_N)
-	Flank.npc(s, &"near", NEAR_N, {}, &"invader", NEAR_H)
+	Flank.npc(s, &"near", NEAR_N, {}, { "look_at": NEAR_H })
 	Probe.hostile(s, &"near_h", NEAR_H, NEAR_N)
 
 
@@ -65,6 +65,18 @@ func run(t: TestContext) -> void:
 				% [Probe.count(far, Probe.FRAG), Probe.count(near, Probe.FRAG)],
 	):
 		return
+	if not await _both_chose_grenade(t):
+		return
+	if not await _both_threw(t, far, near):
+		return
+	var posture := await _posture_until_booms(t, near)
+	if not t.require(Probe.booms(t, &"frag").size() >= 2, "both frags went off"):
+		return
+	_check_booms(t, far, near, posture)
+	await _check_back_on_pistol(t, far, near)
+
+
+func _both_chose_grenade(t: TestContext) -> bool:
 	var far_brain := t.controller(&"far", &"current_act")
 	var near_brain := t.controller(&"near", &"current_act")
 	var chose := await t.until(
@@ -74,14 +86,15 @@ func run(t: TestContext) -> void:
 		),
 		10.0,
 	)
-	if not t.require(
-			chose,
-			"Von's GRENADE pick became both running orders (acting: %s / %s)"
-				% [str(far_brain.current_act()), str(near_brain.current_act())],
-	):
-		return
+	return t.require(
+		chose,
+		"Von's GRENADE pick became both running orders (acting: %s / %s)"
+			% [str(far_brain.current_act()), str(near_brain.current_act())],
+	)
+
+
+func _both_threw(t: TestContext, far: Node, near: Node) -> bool:
 	var held := { &"far": false, &"near": false }
-	var posture := []  # the near invader's posture each frame from its throw to the bang
 	var thrown := await t.until(func():
 		for id in held:
 			held[id] = held[id] or t.actor(id).current_slot() == Probe.FRAG
@@ -90,7 +103,7 @@ func run(t: TestContext) -> void:
 			func(d): return d.get("attacker") == near,
 		) and t.happened(&"throw", func(d): return d.get("attacker") == far), 8.0)
 	if not t.require(thrown, "both invaders threw their grenade"):
-		return
+		return false
 	t.check(held[&"far"] and held[&"near"], "each took the grenade in hand to throw it")
 	for id in [&"far", &"near"]:
 		var who: Node = t.actor(id)
@@ -100,12 +113,20 @@ func run(t: TestContext) -> void:
 			"%s threw its frag" % id,
 		)
 		t.check(not Probe.callouts(t, &"frag_out", id).is_empty(), "and radioed frag out")
+	return true
+
+
+# The near invader's posture each frame from its throw to the bang (or 8 s).
+func _posture_until_booms(t: TestContext, near: Node) -> Array:
+	var posture := []
 	var end := t.time + 8.0
 	while Probe.booms(t, &"frag").size() < 2 and t.time < end:
 		posture.append({ "t": t.time, "posture": near.posture() })
 		await t.frames(1)
-	if not t.require(Probe.booms(t, &"frag").size() >= 2, "both frags went off"):
-		return
+	return posture
+
+
+func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void:
 	var booms := Probe.booms(t, &"frag")
 	var near_boom: Dictionary = (booms[0]
 			if (booms[0]["data"]["position"] as Vector2).distance_to(NEAR_H)
@@ -138,7 +159,9 @@ func run(t: TestContext) -> void:
 	)
 	t.check(Probe.blast_hits(t, far).is_empty(), "the one 420 px off was never in it")
 
-	# Both end up on their pistol, and Von is asked again.
+
+# Both end up on their pistol, and Von is asked again.
+func _check_back_on_pistol(t: TestContext, far: Node, near: Node) -> void:
 	var asked := t.von_requests().size()
 	await t.seconds(2.0)
 	t.expect_eq(far.current_slot(), Probe.PISTOL, "the far invader is on its pistol after the bang")

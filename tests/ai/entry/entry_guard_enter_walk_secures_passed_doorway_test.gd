@@ -34,6 +34,25 @@ func run(t: TestContext) -> void:
 	var brain := Entry.brain(t, &"inv")
 	var samples: Array = []
 	var starts := {}
+	await _record_walk(t, brain, samples, starts)
+	if not t.require(
+			Entry.asked(t, Entry.SPINE_C["id"]),
+			"the order was ENTER for room C's doorway (act %s)" % brain.current_act(),
+	):
+		return
+	if not t.require(
+			Entry.first_call_time(t, "going_in", &"inv", Entry.SPINE_C["id"]) < INF,
+			"it stacked at room C's door and went in (act %s)" % brain.current_act(),
+	):
+		return
+	for door in [Entry.SPINE_A, Entry.SPINE_B]:
+		if not _check_door_secured(t, samples, starts, door):
+			return
+
+
+## Samples the invader until it goes in at room C (80 s at most) into `samples`, and counts in
+## `starts` each start of an entry by its "opening|secure" key.
+func _record_walk(t: TestContext, brain: Node, samples: Array, starts: Dictionary) -> void:
 	var was := ""
 	var end := t.time + 80.0
 	while t.time < end and Entry.first_call_time(t, "going_in", &"inv", Entry.SPINE_C["id"]) == INF:
@@ -48,43 +67,43 @@ func run(t: TestContext) -> void:
 			starts[key] = int(starts.get(key, 0)) + 1
 		was = key
 		await t.frames(1)
-	if not t.require(
-			Entry.asked(t, Entry.SPINE_C["id"]),
-			"the order was ENTER for room C's doorway (act %s)" % brain.current_act(),
-	):
-		return
-	if not t.require(
-			Entry.first_call_time(t, "going_in", &"inv", Entry.SPINE_C["id"]) < INF,
-			"it stacked at room C's door and went in (act %s)" % brain.current_act(),
-	):
-		return
-	for door in [Entry.SPINE_A, Entry.SPINE_B]:
-		var abreast := float(door["pos"].x) + float(door["width"]) * 0.5 + BODY
-		var passed_at := INF
-		for s in samples:
-			if (s["pos"][&"inv"] as Vector2).x > abreast:
-				passed_at = s["t"]
-				break
-		if not t.require(passed_at < INF, "%s was passed on the way" % door["id"]):
-			return
-		var before := samples.filter(func(s): return s["t"] <= passed_at)
-		var covered := Entry.time_facing_through(
-			before,
-			&"inv",
-			door,
-			func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0,
-		)
-		t.check(
-			covered >= COVERED,
-			"%s was covered from beside its jamb before the invader was abreast of it (%.1f s)"
-				% [door["id"], covered],
-		)
-		t.expect_eq(
-			int(starts.get("%s|true" % door["id"], 0)),
-			1,
-			"%s was secured once, not again when the order carried on" % door["id"],
-		)
-		t.check(
-			Entry.first_call_time(t, "claim", &"inv", door["id"]) == INF,
-			"%s was secured without a claim on the radio" % door["id"],
-		)
+
+
+## Checks `door` was passed, covered from beside its jamb first, secured once and without a claim.
+## False when it was never passed.
+func _check_door_secured(
+		t: TestContext,
+		samples: Array,
+		starts: Dictionary,
+		door: Dictionary,
+) -> bool:
+	var abreast := float(door["pos"].x) + float(door["width"]) * 0.5 + BODY
+	var passed_at := INF
+	for s in samples:
+		if (s["pos"][&"inv"] as Vector2).x > abreast:
+			passed_at = s["t"]
+			break
+	if not t.require(passed_at < INF, "%s was passed on the way" % door["id"]):
+		return false
+	var before := samples.filter(func(s): return s["t"] <= passed_at)
+	var covered := Entry.time_facing_through(
+		before,
+		&"inv",
+		door,
+		func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0,
+	)
+	t.check(
+		covered >= COVERED,
+		"%s was covered from beside its jamb before the invader was abreast of it (%.1f s)"
+			% [door["id"], covered],
+	)
+	t.expect_eq(
+		int(starts.get("%s|true" % door["id"], 0)),
+		1,
+		"%s was secured once, not again when the order carried on" % door["id"],
+	)
+	t.check(
+		Entry.first_call_time(t, "claim", &"inv", door["id"]) == INF,
+		"%s was secured without a claim on the radio" % door["id"],
+	)
+	return true

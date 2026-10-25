@@ -50,48 +50,22 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var crew := House.side(t, &"household")
-	if not t.require(crew.size() == CREW, "three defenders placed as Main places them"):
-		return
-	var squad := t.squad(&"household")
-	if not t.require(squad != null, "premise: the match built the defenders' squad"):
+	var squad := _squad_of(t, crew)
+	if squad == null:
 		return
 	var lead: Node = crew[0]
-	if not t.require(squad.leader() == lead, "the first spawned leads (premise: LD3)"):
-		return
 	var members: Array = crew.slice(1)
-	if not t.require(
-			members.all(func(m): return squad.follows(m)),
-			"premise: both members follow (Squad.follows: alive, not the leader)",
-	):
-		return
-	var clocks := {}
-	var spots := {}
+	# What the watch keeps per member (`clocks`: its off-spot clock, `spots`: its follow spot's
+	# distance from the leader) and of the gunfire (`heard`, and how far it landed from the crew,
+	# `clear`).
+	var track := { "clocks": {}, "spots": {}, "heard": false, "clear": INF }
 	for m in members:
-		clocks[m] = {}
-		spots[m] = []
-	var heard := [false]
-	var clear := [INF]
-	var each := func(_rec: Dictionary) -> void:
-		if not heard[0] and t.time >= GUNFIRE_AT:
-			heard[0] = true
-			var at := _far_point(_farthest_room(t, lead.global_position), crew)
-			clear[0] = _nearest(at, crew)
-			Investigate.gunfire(at)
-		for m: Node in members:
-			Follow.off_spot_tick(t, squad, m, clocks[m])
-			var spot: Vector2 = squad.follow_spot(m)
-			if spot != Vector2.INF and t.time >= SETTLE_S:
-				spots[m].append(spot.distance_to(lead.global_position))
-	var done := func(rec: Dictionary) -> bool:
-		var moves: Array = rec["moves"].get(lead, [])
-		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
-	var w: Dictionary = await Follow.watch(t, crew, squad, WATCH_S, done, each)
-	var radius: float = Follow.brain_of(lead).hit_awareness_radius
-	if not t.require(
-			clear[0] > radius,
-			"premise: the gunfire landed beyond the crew's hit awareness (%.0f px off, radius %.0f)"
-				% [clear[0], radius],
-	):
+		track["clocks"][m] = {}
+		track["spots"][m] = []
+	var each := _each(t, squad, crew, track)
+	var done := _done(t, lead)
+	var w: Dictionary = await Follow.watch(t, crew, squad, WATCH_S, { "stop": done, "each": each })
+	if not _beyond_awareness(t, lead, float(track["clear"])):
 		return
 
 	var lead_moves: Array = w["moves"].get(lead, [])
@@ -103,50 +77,8 @@ func run(t: TestContext) -> void:
 		return
 	for i in members.size():
 		var m: Node = members[i]
-		t.check(
-			Follow.took(w, m, "follow"),
-			"%s follows its leader (FOLLOW; acts %s)" % [m.name, Follow.acts_of(w, m)],
-		)
-		var gaps := Follow.gaps(w, m, SETTLE_S)
-		var p50 := Follow.percentile(gaps, 0.5)
-		var p90 := Follow.percentile(gaps, 0.9)
-		t.check(
-			p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
-			"%s stays within a band of the leader (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
-				% [m.name, p50, Follow.band_p50(i), p90, Follow.BAND_P90],
-		)
-		for k in 2:
-			t.check(
-				Follow.went_through(w, m, lead_moves[k]),
-				"%s went through the leader's doorway %d (%s -> %s at %.1f s) (moves %s)"
-					% [
-						m.name,
-						k + 1,
-						lead_moves[k][1],
-						lead_moves[k][2],
-						lead_moves[k][0],
-						str(w["moves"].get(m, [])),
-					],
-			)
-		# The spot itself is LD21's: its place in the file while the leader walks, a slot on one
-		# of the rings round it once it stands (the first ring is often out of the leader's sight
-		# indoors), the median between the two (D28's step aside is rare).
-		var place := Follow.FOLLOW_GAP + Follow.FOLLOW_STEP * i
-		var outer := Follow.FOLLOW_RING + Follow.FOLLOW_STEP * (Follow.FOLLOW_RINGS - 1)
-		var spot_p50 := Follow.percentile(spots[m], 0.5)
-		t.check(
-			spot_p50 >= minf(place, Follow.FOLLOW_RING) - SPOT_SLACK
-				and spot_p50 <= maxf(place, outer) + SPOT_SLACK,
-			"%s's follow spot keeps to its place by the leader: %.0f px back in the file or on the "
-				% [m.name, place]
-				+ "rings %.0f to %.0f px (median %.0f px off the leader, within %.0f; %d samples)"
-				% [Follow.FOLLOW_RING, outer, spot_p50, SPOT_SLACK, spots[m].size()],
-		)
-		t.check(
-			float(clocks[m].get("longest", 0.0)) <= Follow.STUCK_S,
-			"%s was never more than %.0f s off its spot (longest %.1f s)"
-				% [m.name, Follow.STUCK_S, float(clocks[m].get("longest", 0.0))],
-		)
+		_check_follows(t, w, m, i, lead_moves)
+		_check_spot(t, m, i, track)
 		t.expect_eq(
 			Follow.asked(w, m),
 			0,
@@ -154,6 +86,119 @@ func run(t: TestContext) -> void:
 				% [m.name, Follow.acts_of(w, m)],
 		)
 	t.check(Follow.asked(w, lead) > 0, "the leader decided through Von as ever")
+
+
+## The match's squad of `crew`, once its premises hold (three placed, the first spawned leading,
+## both others following); null when one fails.
+func _squad_of(t: TestContext, crew: Array) -> Node:
+	if not t.require(crew.size() == CREW, "three defenders placed as Main places them"):
+		return null
+	var squad := t.squad(&"household")
+	if not t.require(squad != null, "premise: the match built the defenders' squad"):
+		return null
+	var lead: Node = crew[0]
+	if not t.require(squad.leader() == lead, "the first spawned leads (premise: LD3)"):
+		return null
+	var members: Array = crew.slice(1)
+	if not t.require(
+			members.all(func(m): return squad.follows(m)),
+			"premise: both members follow (Squad.follows: alive, not the leader)",
+	):
+		return null
+	return squad
+
+
+## The watch's per-frame step: the gunfire at `GUNFIRE_AT`, far from the crew, then each member's
+## off-spot clock and follow spot into `track`.
+func _each(t: TestContext, squad: Node, crew: Array, track: Dictionary) -> Callable:
+	var lead: Node = crew[0]
+	var members: Array = crew.slice(1)
+	var clocks: Dictionary = track["clocks"]
+	var spots: Dictionary = track["spots"]
+	return func(_rec: Dictionary) -> void:
+		if not track["heard"] and t.time >= GUNFIRE_AT:
+			track["heard"] = true
+			var at := _far_point(_farthest_room(t, lead.global_position), crew)
+			track["clear"] = _nearest(at, crew)
+			Investigate.gunfire(at)
+		for m: Node in members:
+			Follow.off_spot_tick(t, squad, m, clocks[m])
+			var spot: Vector2 = squad.follow_spot(m)
+			if spot != Vector2.INF and t.time >= SETTLE_S:
+				spots[m].append(spot.distance_to(lead.global_position))
+
+
+## The watch's end: 15 s after the leader's second doorway.
+func _done(t: TestContext, lead: Node) -> Callable:
+	return func(rec: Dictionary) -> bool:
+		var moves: Array = rec["moves"].get(lead, [])
+		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
+
+
+## Whether the gunfire landed `clear` px from the crew, beyond its hit awareness (a premise).
+func _beyond_awareness(t: TestContext, lead: Node, clear: float) -> bool:
+	var radius: float = Follow.brain_of(lead).hit_awareness_radius
+	return t.require(
+		clear > radius,
+		"premise: the gunfire landed beyond the crew's hit awareness (%.0f px off, radius %.0f)"
+			% [clear, radius],
+	)
+
+
+## Member `m` (the `i`th) follows: FOLLOW taken, within a band of the leader, through the leader's
+## first two doorways `lead_moves`.
+func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: Array) -> void:
+	t.check(
+		Follow.took(w, m, "follow"),
+		"%s follows its leader (FOLLOW; acts %s)" % [m.name, Follow.acts_of(w, m)],
+	)
+	var gaps := Follow.gaps(w, m, SETTLE_S)
+	var p50 := Follow.percentile(gaps, 0.5)
+	var p90 := Follow.percentile(gaps, 0.9)
+	t.check(
+		p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
+		"%s stays within a band of the leader (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
+			% [m.name, p50, Follow.band_p50(i), p90, Follow.BAND_P90],
+	)
+	for k in 2:
+		t.check(
+			Follow.went_through(w, m, lead_moves[k]),
+			"%s went through the leader's doorway %d (%s -> %s at %.1f s) (moves %s)"
+				% [
+					m.name,
+					k + 1,
+					lead_moves[k][1],
+					lead_moves[k][2],
+					lead_moves[k][0],
+					str(w["moves"].get(m, [])),
+				],
+		)
+
+
+## Member `m`'s (the `i`th) follow spot keeps to its place by the leader, and it was never long off
+## it, as `track` holds them.
+func _check_spot(t: TestContext, m: Node, i: int, track: Dictionary) -> void:
+	var spots: Array = track["spots"][m]
+	var clock: Dictionary = track["clocks"][m]
+	# The spot itself is LD21's: its place in the file while the leader walks, a slot on one
+	# of the rings round it once it stands (the first ring is often out of the leader's sight
+	# indoors), the median between the two (D28's step aside is rare).
+	var place := Follow.FOLLOW_GAP + Follow.FOLLOW_STEP * i
+	var outer := Follow.FOLLOW_RING + Follow.FOLLOW_STEP * (Follow.FOLLOW_RINGS - 1)
+	var spot_p50 := Follow.percentile(spots, 0.5)
+	t.check(
+		spot_p50 >= minf(place, Follow.FOLLOW_RING) - SPOT_SLACK
+			and spot_p50 <= maxf(place, outer) + SPOT_SLACK,
+		"%s's follow spot keeps to its place by the leader: %.0f px back in the file or on the "
+			% [m.name, place]
+			+ "rings %.0f to %.0f px (median %.0f px off the leader, within %.0f; %d samples)"
+			% [Follow.FOLLOW_RING, outer, spot_p50, SPOT_SLACK, spots.size()],
+	)
+	t.check(
+		float(clock.get("longest", 0.0)) <= Follow.STUCK_S,
+		"%s was never more than %.0f s off its spot (longest %.1f s)"
+			% [m.name, Follow.STUCK_S, float(clock.get("longest", 0.0))],
+	)
 
 
 ## The house room (its rect) whose centre is farthest from `p`.

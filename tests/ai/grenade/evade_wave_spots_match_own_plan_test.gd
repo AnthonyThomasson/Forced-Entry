@@ -66,9 +66,27 @@ func run(t: TestContext) -> void:
 	if not t.require(Probe.count(thrower, Probe.FRAG) == 1, "the thrower carries a frag"):
 		return
 	var npcs: Array = DEFENDERS.keys().map(func(id: StringName) -> Node: return t.actor(id))
-	var space: PhysicsDirectSpaceState2D = thrower.get_world_2d().direct_space_state
-	var map: RID = thrower.get_world_2d().navigation_map
-	# npc -> its AgentThrow: its heights, the grenades it knows the numbers of, its pace
+	var ctx := {
+		"npcs": npcs,
+		"space": thrower.get_world_2d().direct_space_state,
+		"map": thrower.get_world_2d().navigation_map,
+		# npc -> its AgentThrow: its heights, the grenades it knows the numbers of, its pace
+		"own": _own_throws(npcs),
+	}
+	await t.seconds(0.6)
+
+	ctx["start"] = {}  # the frame's start: { frame, fuse, npc -> { from, speed } }
+	ctx["last"] = {}  # npc -> the evade spot it held at the end of the last frame
+	ctx["checked"] = []  # { npc, frame, spot, plain }
+	t.world.add_child(_late_probe(t, ctx))
+
+	if not await _throw_frag(t, ctx):
+		return
+	_check_plans(t, ctx["checked"])
+
+
+## Each NPC's own AgentThrow, bound to its body, with its controller's evade margin.
+func _own_throws(npcs: Array) -> Dictionary:
 	var own := {}
 	for npc: Node in npcs:
 		var g = AgentThrow.new()
@@ -76,11 +94,14 @@ func run(t: TestContext) -> void:
 		g.bind(npc)
 		g.evade_margin = float(TestContext.controller_of(npc).get("evade_margin"))
 		own[npc] = g
-	await t.seconds(0.6)
+	return own
 
-	var start := {}      # the frame's start: { frame, fuse, npc -> { from, speed } }
-	var last := {}       # npc -> the evade spot it held at the end of the last frame
-	var checked: Array = []  # { npc, frame, spot, plain }
+
+## The probe that runs after every NPC's physics frame: on a frame the grenade's start was noted,
+## each NPC's plan is checked.
+func _late_probe(t: TestContext, ctx: Dictionary) -> LateProbe:
+	var start: Dictionary = ctx["start"]
+	var npcs: Array = ctx["npcs"]
 	var late := LateProbe.new()
 	late.process_physics_priority = 1000
 	late.each = func() -> void:
@@ -90,34 +111,58 @@ func run(t: TestContext) -> void:
 		if live.is_empty():
 			return
 		for npc: Node in npcs:
-			var brain := TestContext.controller_of(npc)
-			var seen: Dictionary = Probe.grenades(brain)
-			var spot: Vector2 = seen.get("escape", Vector2.INF)
-			if spot == last.get(npc, Vector2.INF):
-				continue
-			last[npc] = spot
-			var known: Array = seen.get("known", [])
-			if known.is_empty():
-				continue
-			var g = own[npc]
-			var grenade: Node = live[0]
-			g.learn_carried()
-			g.learn_body()
-			g.learn(grenade.call("throw_stats"))
-			var kind: StringName = known[0]["kind"]
-			var at: Dictionary = start[npc]
-			var plain := _plain_escape(
-				g, space, map, kind, g.radius_of(kind), known[0]["point"], at["from"],
-				float(start["fuse"]), float(at["speed"]), Probe.character_rids(t),
-			)
-			checked.append({
-				"npc": npc.name,
-				"frame": start["frame"],
-				"spot": spot,
-				"plain": plain["spot"],
-			})
-	t.world.add_child(late)
+			_check_plan(t, ctx, npc, live[0])
+	return late
 
+
+## A new evade spot `npc` holds this frame, kept in `ctx.checked` beside its own plain search's.
+func _check_plan(t: TestContext, ctx: Dictionary, npc: Node, grenade: Node) -> void:
+	var brain := TestContext.controller_of(npc)
+	var seen: Dictionary = Probe.grenades(brain)
+	var spot: Vector2 = seen.get("escape", Vector2.INF)
+	var last: Dictionary = ctx["last"]
+	if spot == last.get(npc, Vector2.INF):
+		return
+	last[npc] = spot
+	var known: Array = seen.get("known", [])
+	if known.is_empty():
+		return
+	var plain := _plain_for(t, ctx, npc, grenade, known)
+	var checked: Array = ctx["checked"]
+	checked.append({
+		"npc": npc.name,
+		"frame": ctx["start"]["frame"],
+		"spot": spot,
+		"plain": plain["spot"],
+	})
+
+
+## The plain search for `npc`, from where it stood and how fast it ran as the frame began.
+func _plain_for(
+		t: TestContext,
+		ctx: Dictionary,
+		npc: Node,
+		grenade: Node,
+		known: Array,
+) -> Dictionary:
+	var g = ctx["own"][npc]
+	var space: PhysicsDirectSpaceState2D = ctx["space"]
+	var map: RID = ctx["map"]
+	var start: Dictionary = ctx["start"]
+	g.learn_carried()
+	g.learn_body()
+	g.learn(grenade.call("throw_stats"))
+	var kind: StringName = known[0]["kind"]
+	var at: Dictionary = start[npc]
+	var plain := _plain_escape(
+		g, space, map, kind, g.radius_of(kind), known[0]["point"], at["from"],
+		float(start["fuse"]), float(at["speed"]), Probe.character_rids(t),
+	)
+	return plain
+
+
+## The thrower lobs its frag at the landing; until it goes off, each frame's start is noted.
+func _throw_frag(t: TestContext, ctx: Dictionary) -> bool:
 	var puppet := t.puppet(&"thrower")
 	puppet.select_slot(Probe.FRAG)
 	puppet.aim_at(LANDING)
@@ -128,15 +173,24 @@ func run(t: TestContext) -> void:
 	var deadline := t.time + 6.0
 	while t.time < deadline and Probe.booms(t, &"frag").is_empty():
 		await t.frames(1)
-		var live := Probe.live(t)
-		start.clear()  # (Filled in place: the late probe's lambda holds this dictionary.)
-		start["frame"] = Engine.get_physics_frames()
-		start["fuse"] = float(live[0].call("fuse_left")) if not live.is_empty() else 0.0
-		for npc: Node in npcs:
-			start[npc] = { "from": (npc as Node2D).global_position, "speed": own[npc].run_speed() }
-	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
-		return
+		_note_start(t, ctx)
+	return t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off")
 
+
+## The frame's start: its frame, the live grenade's fuse, and each NPC's place and pace.
+func _note_start(t: TestContext, ctx: Dictionary) -> void:
+	var live := Probe.live(t)
+	var start: Dictionary = ctx["start"]
+	var own: Dictionary = ctx["own"]
+	start.clear()  # (Filled in place: the late probe's lambda holds this dictionary.)
+	start["frame"] = Engine.get_physics_frames()
+	start["fuse"] = float(live[0].call("fuse_left")) if not live.is_empty() else 0.0
+	for npc: Node in ctx["npcs"]:
+		start[npc] = { "from": (npc as Node2D).global_position, "speed": own[npc].run_speed() }
+
+
+## Every defender planned, enough of them on one frame, and every plan matched its plain search.
+func _check_plans(t: TestContext, checked: Array) -> void:
 	var planned := {}    # npc name -> true
 	var per_frame := {}  # frame -> how many NPCs made a plan on it
 	var differing: Array = []

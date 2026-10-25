@@ -57,45 +57,89 @@ func run(t: TestContext) -> void:
 	var opening := String(door["id"])
 	var a := t.actor(&"a")
 	var squad := t.squad(&"invader")
-	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
-		return
 	var stack := t.player_stack()
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
+	if not _declared(t, squad, stack):
 		return
 	var said := { "order": {}, "step": "claim" }  # What the puppet radios, every `REPEAT` s.
 	_radio_on(t, door, said)
+	var slot := await _ready_in_slot(t, stack)
+	if slot == Vector2.INF:
+		return
+
+	# The brush: into the funnel and back to its slot, before any order.
+	var funnel: Vector2 = door["pos"] + (door["out"] as Vector2) * FUNNEL_STEP
+	var brush := await _brush(t, stack, slot, funnel)
+	if brush.is_empty():
+		return
+	var order := await _held_order(t, squad, a, brush["call"], said)
+	if order.is_empty():
+		return
+
+	if not t.require(
+			await Stack.walk(t, &"me", [funnel], 8.0)
+				and await t.until(func(): return _step(stack) == "going_in", 2.0),
+			"the human steps into the doorway again, after the order (going_in)",
+	):
+		return
+	await _check_go(t, squad, a, opening, order)
+
+
+## Whether the invaders' squad is declared and the human has its stack radio (set-up premises).
+func _declared(t: TestContext, squad: Node, stack: Node) -> bool:
+	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
+		return false
+	return t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)")
+
+
+## The human is reserved slot 2 behind its teammate, walks to it and is ready; the slot, or
+## Vector2.INF when a step fails.
+func _ready_in_slot(t: TestContext, stack: Node) -> Vector2:
 	if not t.require(
 			await t.until(func(): return Stack.mine(stack) == 2, 10.0),
 			"the human is reserved slot 2 behind its teammate (it holds %d)" % Stack.mine(stack),
 	):
-		return
+		return Vector2.INF
 	var slot := Stack.slot_point(stack, 2)
 	if not t.require(
 			await Stack.walk(t, &"me", [slot], 10.0)
 				and await t.until(func(): return _step(stack) == "ready", 3.0),
 			"the human walks to its slot and is ready",
 	):
-		return
+		return Vector2.INF
+	return slot
 
-	# The brush: into the funnel and back to its slot, before any order.
-	var funnel: Vector2 = door["pos"] + (door["out"] as Vector2) * FUNNEL_STEP
+
+## The human steps into the funnel and back to its `slot`: `{ call }`, its going-in call of the
+## brush, or {} when a step fails.
+func _brush(t: TestContext, stack: Node, slot: Vector2, funnel: Vector2) -> Dictionary:
 	if not t.require(
 			await Stack.walk(t, &"me", [funnel], 8.0)
 				and await t.until(func(): return _step(stack) == "going_in", 2.0),
 			"the human steps into the doorway's funnel (going_in)",
 	):
-		return
-	var brushed := _last_call(t, opening, "going_in")
+		return {}
+	var brushed := _last_call(t, String(Entry.BACK["id"]), "going_in")
 	if not t.require(
 			await Stack.walk(t, &"me", [slot], 8.0)
 				and await t.until(func(): return _step(stack) == "ready", 3.0),
 			"and back to its slot (ready)",
 	):
-		return
+		return {}
+	return { "call": brushed }
 
+
+## The squad posts a held stack order to `a`, after the brush's crossing (`brushed`), and the
+## puppet radios ready under it (`said`); the order, or {} when the set-up fails.
+func _held_order(
+		t: TestContext,
+		squad: Node,
+		a: Node,
+		brushed: Dictionary,
+		said: Dictionary,
+) -> Dictionary:
 	var order := Order.stack_order(squad, [a], Order.BACK_NORTH, "quiet", true)
 	if not t.require(not order.is_empty(), "the squad posts the held stack order (issue)"):
-		return
+		return {}
 	t.check(
 		int(brushed.get("crossed_frame", -1)) >= 0
 			and int(brushed["crossed_frame"]) < int(order.get("frame", -1)),
@@ -110,14 +154,18 @@ func run(t: TestContext) -> void:
 			"set-up: the squad says the order is held, the brush before it no go (%s)"
 				% str(Order.member_view(squad, a)),
 	):
-		return
+		return {}
+	return order
 
-	if not t.require(
-			await Stack.walk(t, &"me", [funnel], 8.0)
-				and await t.until(func(): return _step(stack) == "going_in", 2.0),
-			"the human steps into the doorway again, after the order (going_in)",
-	):
-		return
+
+## The human's crossing since the order is the held stack's go.
+func _check_go(
+		t: TestContext,
+		squad: Node,
+		a: Node,
+		opening: String,
+		order: Dictionary,
+) -> void:
 	var stepped := _last_call(t, opening, "going_in")
 	t.check(
 		int(stepped.get("crossed_frame", -1)) >= int(order["frame"]),

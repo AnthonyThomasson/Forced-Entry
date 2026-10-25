@@ -63,12 +63,57 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var mate := t.actor(&"mate")
 	var brain := t.controller(&"inv", &"current_act")
+	var there := func(): return inv.global_position.x > 750.0
+	var walk := await _walk(t, inv, mate, brain, there)
+	if not t.require(
+			str(brain.current_act()).begins_with("investigate"),
+			"the invader went to investigate the gunfire (%s)" % brain.current_act(),
+	):
+		return
+	if not t.require(
+			walk["doors"],
+			"premise: the walk kept out of the store room doorway's view on the avoid map",
+	):
+		return
+	if not t.require(walk["saw"], "premise: the walker saw the teammate before it got to it"):
+		return
+	var bumps: Array = walk["bumps"]
+	t.trace("mate_moved", mate.global_position.distance_to(MATE))
+	t.check(
+		bumps.is_empty(),
+		"it never walks into the teammate at rest (%s)" % Bump.describe(bumps),
+	)
+	t.check(
+		walk["stood"] < Bump.PRESSED_MAX,
+		"it never stands pressed against the teammate (stood %.2f s within %.0f px of it)"
+			% [walk["stood"], Bump.PRESSED_GAP],
+	)
+	t.check(
+		mate.global_position.distance_to(MATE) < 3.0,
+		"the teammate is not moved (%.1f px off its spot)" % mate.global_position.distance_to(MATE),
+	)
+	var ways: Array = walk["ways"]
+	var rounded := ways.find("round")
+	t.check(
+		rounded < 0 or ways.slice(rounded).has("doors"),
+		"once round the teammate it keeps out of the view again (ways %s)" % [ways],
+	)
+	t.check(
+		there.call(),
+		"the walker gets to the hall's east end (at %s, %s)"
+			% [inv.global_position.round(), brain.current_act()],
+	)
+
+
+# The walk to investigate the gunfire, watched until it is `there` (at most 30 s): whether it went
+# on the avoid map (`doors`), the ways it went (`ways`), whether it saw the teammate short of it
+# (`saw`), the longest it stood pressed against it (`stood`), and the `bumps`.
+func _walk(t: TestContext, inv: Node, mate: Node, brain: Node, there: Callable) -> Dictionary:
 	# the walk went on the avoid map (an Array: a lambda captures a bool by value)
 	var doors := [false]
 	var ways := []        # the ways the walk went, in order, each once per change
 	# the walker saw the teammate while still more than a body's width short of it
 	var saw := [false]
-	var there := func(): return inv.global_position.x > 750.0
 	var pressed := Bump.pressed_watch(inv, mate)
 	var stood := [0.0]    # the longest the walker stood pressed against the teammate
 	var seen: Dictionary = await Bump.watch(t, [&"inv", &"mate"], 30.0, func():
@@ -82,40 +127,7 @@ func run(t: TestContext) -> void:
 			)
 		stood[0] = pressed.call()
 		return there.call())
-	if not t.require(
-			str(brain.current_act()).begins_with("investigate"),
-			"the invader went to investigate the gunfire (%s)" % brain.current_act(),
-	):
-		return
-	if not t.require(
-			doors[0],
-			"premise: the walk kept out of the store room doorway's view on the avoid map",
-	):
-		return
-	if not t.require(saw[0], "premise: the walker saw the teammate before it got to it"):
-		return
-	var bumps: Array = seen["bumps"]
-	t.trace("mate_moved", mate.global_position.distance_to(MATE))
-	t.check(
-		bumps.is_empty(),
-		"it never walks into the teammate at rest (%s)" % Bump.describe(bumps),
-	)
-	t.check(
-		stood[0] < Bump.PRESSED_MAX,
-		"it never stands pressed against the teammate (stood %.2f s within %.0f px of it)"
-			% [stood[0], Bump.PRESSED_GAP],
-	)
-	t.check(
-		mate.global_position.distance_to(MATE) < 3.0,
-		"the teammate is not moved (%.1f px off its spot)" % mate.global_position.distance_to(MATE),
-	)
-	var rounded := ways.find("round")
-	t.check(
-		rounded < 0 or ways.slice(rounded).has("doors"),
-		"once round the teammate it keeps out of the view again (ways %s)" % [ways],
-	)
-	t.check(
-		there.call(),
-		"the walker gets to the hall's east end (at %s, %s)"
-			% [inv.global_position.round(), brain.current_act()],
-	)
+	return {
+		"doors": doors[0], "ways": ways, "saw": saw[0], "stood": stood[0],
+		"bumps": seen["bumps"],
+	}
