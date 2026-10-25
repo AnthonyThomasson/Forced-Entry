@@ -1,5 +1,6 @@
 # gdstyle (https://github.com/atelico/gdstyle, v0.4.0, run through tools/gdstyle.sh): the formatter and style lint
-# tools/lint.sh runs over every project script. Every rule is an error, except the quality/* rules, which are off.
+# tools/lint.sh runs over every project script. Every rule is an error but some quality/* rules (below): five off by
+# decision, the reason beside each, and those a later stage of issue #76 turns on (18 on once it is done).
 
 max_line_length = 100
 use_tabs = true
@@ -43,25 +44,28 @@ exclude = ["addons", ".godot", "artifacts", "tools/coverage/tests/fixtures"]
 "format/large-number-underscores" = "error"
 "format/enum-one-per-line" = "error"
 "order/class-member-order" = "error"
+# The quality/* rules (issue #76) at gdstyle's default thresholds. On, as errors:
+"quality/unnecessary-pass" = "error"
+"quality/self-comparison" = "error"
+"quality/duplicate-dict-key" = "error"
+"quality/duplicated-load" = "error"
+"quality/max-inner-classes" = "error"
+"quality/no-self-assign" = "error"
+"quality/unreachable-code" = "error"
+"quality/no-else-return" = "error"
+# Off by decision, each for the reason beside it:
+"quality/no-debug-print" = "off" # GameLog.say must print() (interface 15); runner and tools print by design
+"quality/await-in-loop" = "off" # `for ...: await t.seconds(...)` is how a GameTest steps time
+"quality/empty-function" = "off" # virtual hooks (Item.primary, GameTest.configure ...) stay empty to override
+"quality/allocation-in-loop" = "off" # setup loops that must make N nodes: spawning, wear, debris
+"quality/process-get-node" = "off" # gdstyle v0.4.0 reads a % format in _process() as a %Node lookup
+# Off until a later stage of #76 brings the tree to zero findings under each and turns it on:
 "quality/max-function-length" = "off"
 "quality/max-file-length" = "off"
 "quality/max-parameters" = "off"
-"quality/unnecessary-pass" = "off"
-"quality/no-debug-print" = "off"
-"quality/self-comparison" = "off"
-"quality/no-self-assign" = "off"
-"quality/duplicate-dict-key" = "off"
-"quality/duplicated-load" = "off"
 "quality/type-hint" = "off"
-"quality/empty-function" = "off"
 "quality/max-class-variables" = "off"
 "quality/max-public-methods" = "off"
-"quality/max-inner-classes" = "off"
-"quality/no-else-return" = "off"
-"quality/unreachable-code" = "off"
-"quality/await-in-loop" = "off"
-"quality/allocation-in-loop" = "off"
-"quality/process-get-node" = "off"
 "quality/max-nesting-depth" = "off"
 "quality/max-returns" = "off"
 "quality/max-branches" = "off"

@@ -932,10 +932,12 @@ func _slot_ok(c: Dictionary, p: Vector2, with_views: bool, open: bool, routed :=
 	var rel: Vector2 = p - (c["pos"] as Vector2)
 	var lateral := absf(rel.dot(c["along"]))
 	var outward := rel.dot(c["out"])
-	if open:
-		if lateral < SLOT_BODY or (lateral < c["half"] and absf(outward) < StackClaim.FUNNEL_DEPTH):
-			return false
-	elif lateral < c["half"] + SLOT_BODY:
+	var on_axis_or_funnel: bool = (
+		lateral < SLOT_BODY or (lateral < c["half"] and absf(outward) < StackClaim.FUNNEL_DEPTH)
+	)
+	if open and on_axis_or_funnel:
+		return false
+	if not open and lateral < c["half"] + SLOT_BODY:
 		return false
 	if (not _in_stack_side(c, p)
 			or _in_other_funnel(c, p)

@@ -1041,9 +1041,13 @@ Two conventions hold across domains; the per-domain specifics live in each domai
      **Clean?** `tools/lint.sh [paths]` (about 14 s for the whole tree, nearly all of it the engine pass) prints every GDScript analyzer warning of the editor's
      Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
      (`tools/lint_rules/`, one section each), then gdstyle's two (`gdstyle fmt --check`: a script the formatter would change;
-     `gdstyle check`: every rule of `gdstyle.toml` but `quality/*`, among them lines over 100 columns and member order); any
-     finding fails it, and it runs first in every `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH`
-     formats a script. Fix the code; never silence a warning (`audit`).
+     `gdstyle check`: the rules `gdstyle.toml` turns on, among them lines over 100 columns and member order, and of its
+     `quality/*` rules `unnecessary-pass`, `self-comparison`, `duplicate-dict-key`, `duplicated-load`, `max-inner-classes`,
+     `no-self-assign`, `unreachable-code` and `no-else-return`; five are off by decision (`no-debug-print`, `await-in-loop`,
+     `empty-function`, `allocation-in-loop`, `process-get-node`; the reasons beside them in `gdstyle.toml`), and the rest
+     turn on as issue #76 goes, 18 on at its end); any finding fails it, and it runs first in every
+     `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH` formats a script. Fix the code;
+     never silence a warning (`audit`).
   2. **Behaves?** `tools/run_tests.sh [words]` runs every test headless and deterministically through gdUnit4's command-line
      tool: the simulation tests (`tests/**/*_test.gd`, `GameTest`s, through their folder's wrapper suite) and the native
      pure-logic suites (`*_suite.gd` extending `UnitSuite`)

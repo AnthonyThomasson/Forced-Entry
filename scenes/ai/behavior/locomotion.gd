@@ -471,10 +471,10 @@ func _last_stretch() -> void:
 		return
 	if _way == Way.DOORS:
 		_doors_map = RID()  # Decided: no way round for the rest of this walk.
-	elif _taker(_resting(_goal, PASS_CLEARANCE), _goal) != Vector2.INF:
-		return  # A body stands on the goal: the hold and the free spot beside it are `_check`'s.
-	else:
+	elif _taker(_resting(_goal, PASS_CLEARANCE), _goal) == Vector2.INF:
 		_last_leg = true
+	else:
+		return  # A body stands on the goal: the hold and the free spot beside it are `_check`'s.
 	_set_way(Way.PLAIN)
 	_agent.target_position = _goal
 

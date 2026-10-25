@@ -212,9 +212,9 @@ func perimeter_point(rect: Rect2, frac: float) -> Vector2:
 	var d := frac * 4.0  # Four equal sides.
 	if d < 1.0:
 		return Vector2(lerpf(rect.position.x, rect.end.x, d), rect.position.y)          # top
-	elif d < 2.0:
+	if d < 2.0:
 		return Vector2(rect.end.x, lerpf(rect.position.y, rect.end.y, d - 1.0))         # right
-	elif d < 3.0:
+	if d < 3.0:
 		return Vector2(lerpf(rect.end.x, rect.position.x, d - 2.0), rect.end.y)         # bottom
 	return Vector2(rect.position.x, lerpf(rect.end.y, rect.position.y, d - 3.0))        # left
 

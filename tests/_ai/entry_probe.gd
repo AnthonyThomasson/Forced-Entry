@@ -332,12 +332,12 @@ static func first_stop_in_room(
 		var dt: float = b["t"] - a["t"]
 		var p: Vector2 = b["pos"][id]
 		var speed: float = (p - (a["pos"][id] as Vector2)).length() / maxf(dt, 0.0001)
-		if in_room(door, p) and speed < still_speed:
-			run += dt
-			if run >= still_time:
-				return p
-		else:
+		if not (in_room(door, p) and speed < still_speed):
 			run = 0.0
+			continue
+		run += dt
+		if run >= still_time:
+			return p
 	return Vector2.INF
 
 

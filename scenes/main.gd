@@ -129,6 +129,9 @@ var _settings_menu: CanvasLayer = null
 ## Dev-only Von server launcher (AI). The match start waits on it so no NPC decides against a cold
 ## server; absent (or resolved to "none coming") it imposes no delay.
 @onready var _von_launcher: Node = get_node_or_null("DecisionServerLauncher")
+## The match HUD (UI): the timer, the verdict and the endless run's countdown; null in a Main built
+## without it.
+@onready var _match_hud: CanvasLayer = get_node_or_null("MatchHUD")
 
 
 func _ready() -> void:
@@ -139,9 +142,8 @@ func _ready() -> void:
 	Settings.load_file()
 	_overlay_flags = _initial_overlays()
 	_anchor = _player.global_position
-	var hud := get_node_or_null("MatchHUD")
-	if hud and hud.has_signal("match_ended"):
-		hud.match_ended.connect(_on_match_ended)
+	if _match_hud and _match_hud.has_signal("match_ended"):
+		_match_hud.match_ended.connect(_on_match_ended)
 	# A scripted restart (the dev command server's `restart`) sets `skip_setup` so a reloaded scene
 	# builds immediately — the headless match harness never clicks the setup window. A fresh launch
 	# opens the window first and builds the world once the player presses Start.
@@ -186,14 +188,13 @@ func _process(delta: float) -> void:
 	if _next_match_in < 0.0:
 		return
 	_next_match_in -= delta
-	var hud := get_node_or_null("MatchHUD")
 	if _next_match_in > 0.0:
-		if hud:
-			hud.set_countdown("Next match in %d...  (Esc to stop)" % ceili(_next_match_in))
+		if _match_hud:
+			_match_hud.set_countdown("Next match in %d...  (Esc to stop)" % ceili(_next_match_in))
 		return
 	_next_match_in = -1.0
-	if hud:
-		hud.set_countdown("")
+	if _match_hud:
+		_match_hud.set_countdown("")
 	_teardown_world()
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -484,9 +485,8 @@ func _teardown_world() -> void:
 ## Start the match HUD on `combatants` (every character in the match, a human included, so a result
 ## is shown whichever way the match is played). An endless run gives it a time limit.
 func _begin_match_hud(combatants: Array) -> void:
-	var hud := get_node_or_null("MatchHUD")
-	if hud and hud.has_method("begin"):
-		hud.begin(combatants, endless_time_limit if _endless else 0.0)
+	if _match_hud and _match_hud.has_method("begin"):
+		_match_hud.begin(combatants, endless_time_limit if _endless else 0.0)
 
 
 ## Turn the scene into a pure AI spectator match: drop the human player and its player-HUD, point

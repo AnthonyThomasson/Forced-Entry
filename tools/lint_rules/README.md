@@ -2,7 +2,8 @@
 
 `tools/lint.sh` runs three passes: the engine's GDScript analyzer, then every rule in `tools/lint_rules/rules/`, then
 gdstyle (`tools/lint_gdstyle.py`: `gdstyle fmt --check` and `gdstyle check` through the pinned `tools/gdstyle.sh`,
-config `gdstyle.toml`: 100 columns, tabs, every rule an error but `quality/*`). A rule is a project-specific check
+config `gdstyle.toml`: 100 columns, tabs, every rule an error but some `quality/*` ones, five off by decision and the
+rest until issue #76 turns them on, 18 on then). A rule is a project-specific check
 neither the engine nor gdstyle can make: a domain reaching into another's internals, game code naming a dev tool, a
 banned call. One failing rule fails the lint, so it gates `tools/run_tests.sh`, the Stop hook and the pre-commit hook
 with no extra wiring.

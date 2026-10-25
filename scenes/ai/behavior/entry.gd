@@ -1560,9 +1560,7 @@ func _tick_stack(team: Array, delta: float) -> void:
 			if _stack_ready(team) and (not hostile_in_view or _in_bang_window()):
 				# The burst: in at once, no pie, whatever stands in view while the window lasts.
 				_start_cross(team)
-		elif _waits_for_bang(team) or _listening(team):
-			return
-		else:
+		elif not (_waits_for_bang(team) or _listening(team)):
 			_start_pie(team)
 		return
 	if _slices_own_half(team):
@@ -2059,10 +2057,9 @@ func _note_burst() -> void:
 		return
 	if not burst.get("team", false):
 		return
-	if phase == "bang":
-		if burst["kind"] != _kind:
-			return
-	elif not phase in ["approach", "stack", "pie"]:
+	if not phase in ["bang", "approach", "stack", "pie"]:
+		return
+	if phase == "bang" and burst["kind"] != _kind:
 		return
 	_burst_seen = int(burst["frame"])
 	_burst_at = _time

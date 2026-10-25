@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The gdstyle pass of tools/lint.sh: `gdstyle fmt --check` and `gdstyle check` (through tools/gdstyle.sh, the pinned
-gdstyle; gdstyle.toml at the root is its config), one section each in lint.sh's style, failing on any finding.
+gdstyle; gdstyle.toml at the root is its config: every rule an error but some quality/* ones, five off by decision and
+the rest until issue #76 turns them on, 18 on then), one section each in lint.sh's style, failing on any finding.
 
   python3 tools/lint_gdstyle.py [--quiet] [PATH...]
 

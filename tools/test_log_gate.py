@@ -6,7 +6,8 @@
 
 (The GDScript lint that runs first has its own tests at the end: lint_report.py on crafted logs, run_tests.sh
 aborting on a lint failure, the clean-lint fingerprint in a throwaway repo, the real engine through tools/lint.sh, and
-gdstyle in tools/lint.sh on probe scripts, each written into a copy of the checkout.)
+gdstyle in tools/lint.sh on probe scripts, a probe per quality/* rule of gdstyle.toml on or off by decision among them,
+each written into a copy of the checkout.)
 
 Three layers, because the gate has three parts:
   1. tools/scan_godot_log.py on crafted logs (what counts as an error, the shutdown leak NOTE, --from offsets).
@@ -38,6 +39,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -643,11 +645,45 @@ class LintEngineTests(unittest.TestCase):
 @unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")
 class GdStyleLintTests(unittest.TestCase):
     """tools/lint.sh runs gdstyle (v0.4.0, fetched by tools/gdstyle.sh): a script `gdstyle fmt --check` would change
-    fails it, and so does a line over 100 columns the formatter leaves alone; a formatted script passes."""
+    fails it, and so does a line over 100 columns the formatter leaves alone; a formatted script passes.
+
+    gdstyle's quality/* rules (issue #76) are each in exactly one of three tables, read against gdstyle.toml: a rule
+    on has a probe that breaks it alone, which tools/lint.sh fails naming the rule; a rule off by decision (its reason
+    beside it in gdstyle.toml) has a probe that breaks it, which tools/lint.sh passes; a rule not yet on turns on in a
+    later stage of #76, which moves it into QUALITY_ON with its probe."""
 
     CLEAN = "extends RefCounted\n\n\nfunc total() -> int:\n\tvar a := 1 + 2\n\treturn a\n"
     UNFORMATTED = "extends RefCounted\n\n\nfunc total()->int:\n\tvar a:=1+2\n\treturn a\n"  # no spaces round '+'
     LONG_LINE = "extends RefCounted\n\nconst MESSAGE := \"%s\"\n" % ("a long line only a person can shorten, never the formatter, " * 2)
+
+    QUALITY_ON = {
+        "quality/unnecessary-pass": "extends RefCounted\n\n\nfunc f(a: Array) -> void:\n\ta.clear()\n\tpass\n",
+        "quality/self-comparison": "extends RefCounted\n\n\nfunc f(a: int) -> bool:\n\treturn a == a\n",
+        # A key only known at run time: the same literal key twice is the engine's own parse error.
+        "quality/duplicate-dict-key": "extends RefCounted\n\n\nfunc f(key: String) -> Dictionary:\n\treturn { key: 1, key: 2 }\n",
+        "quality/duplicated-load": "extends RefCounted\n\n\nfunc f() -> Array:\n"
+                                   "\treturn [load(\"res://tools/lint_scripts.gd\"), load(\"res://tools/lint_scripts.gd\")]\n",
+        "quality/max-inner-classes": "extends RefCounted\n" + "".join(f"\n\nclass {c}:\n\tvar a := 0\n" for c in "ABCDEF"),
+        "quality/no-self-assign": "extends RefCounted\n\nvar count := 0\n\n\nfunc f() -> void:\n\tcount = count\n",
+        # After a `break`: the engine's own analyzer warns of a statement after a `return`.
+        "quality/unreachable-code": "extends RefCounted\n\n\nfunc f(a: Array) -> int:\n\tfor x: int in a:\n\t\tif x > 0:\n"
+                                    "\t\t\tbreak\n\t\t\treturn x\n\treturn 0\n",
+        "quality/no-else-return": "extends RefCounted\n\n\nfunc f(a: bool) -> int:\n\tif a:\n\t\treturn 1\n\telse:\n\t\treturn 2\n",
+    }
+    QUALITY_OFF_BY_DECISION = {
+        "quality/no-debug-print": "extends RefCounted\n\n\nfunc f() -> void:\n\tprint(\"x\")\n",
+        "quality/await-in-loop": "extends Node\n\n\nfunc f() -> void:\n\tfor i in 3:\n\t\tawait get_tree().process_frame\n",
+        "quality/empty-function": "extends RefCounted\n\n\nfunc f() -> void:\n\tpass\n",
+        "quality/allocation-in-loop": "extends Node\n\n\nfunc f() -> void:\n\tfor i in 3:\n\t\tadd_child(Node.new())\n",
+        # No node in it: gdstyle reads a % format with a call after it as a %UniqueNode lookup.
+        "quality/process-get-node": "extends Node\n\n\nfunc _process(delta: float) -> void:\n\tset_meta(\"t\", \"%d\" % ceili(delta))\n",
+    }
+    QUALITY_NOT_YET = (
+        "quality/max-function-length", "quality/max-file-length", "quality/max-parameters", "quality/type-hint",
+        "quality/max-class-variables", "quality/max-public-methods", "quality/max-nesting-depth", "quality/max-returns",
+        "quality/max-branches", "quality/max-local-variables",
+    )
+    FINDING = re.compile(r"^\s+(\S+\.gd):\d+:\d+: .* \[([\w/-]+)\]$", re.M)  # a `gdstyle check` line of lint.sh
 
     @classmethod
     def setUpClass(cls):
@@ -659,13 +695,35 @@ class GdStyleLintTests(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def lint_probe(self, name, text):
+    def write_probe(self, name, text):
         probe = f"tests/_harness/zz_style_{name}_probe.gd"
         (self.copy / probe).write_text(text)
+        return probe
+
+    def lint(self, *paths):
         env = dict(os.environ, GODOT=godot_binary())
-        r = subprocess.run(["bash", str(self.copy / "tools" / "lint.sh"), probe], cwd=self.copy, env=env,
+        r = subprocess.run(["bash", str(self.copy / "tools" / "lint.sh"), *paths], cwd=self.copy, env=env,
                            capture_output=True, text=True, timeout=600)
         return r.returncode, r.stdout + r.stderr
+
+    def lint_probe(self, name, text):
+        return self.lint(self.write_probe(name, text))
+
+    def quality_probe(self, rule):
+        rules = {**self.QUALITY_ON, **self.QUALITY_OFF_BY_DECISION}
+        return self.write_probe("quality_" + rule.removeprefix("quality/").replace("-", "_"), rules[rule])
+
+    @staticmethod
+    def quality_rules():
+        with open(ROOT / "gdstyle.toml", "rb") as f:
+            return {k: v for k, v in tomllib.load(f)["rules"].items() if k.startswith("quality/")}
+
+    def set_every_quality_rule(self, level):
+        """Every quality/* rule of the copy's gdstyle.toml at `level` until the test ends."""
+        config = self.copy / "gdstyle.toml"
+        text = config.read_text()
+        self.addCleanup(config.write_text, text)
+        config.write_text(re.sub(r'^("quality/[\w-]+") = "\w+"', rf'\1 = "{level}"', text, flags=re.M))
 
     def test_the_probes_are_what_they_claim(self):
         self.assertTrue(all(len(line) <= 100 for line in self.CLEAN.splitlines() + self.UNFORMATTED.splitlines()))
@@ -685,6 +743,47 @@ class GdStyleLintTests(unittest.TestCase):
         self.assertEqual(code, 1, "a 100-column limit\n" + out)
         self.assertIn("zz_style_long_line_probe.gd", out)
         self.assertIn("max-line-length", out)
+
+    def test_every_quality_rule_is_in_exactly_one_table(self):
+        rules = self.quality_rules()
+        tables = [set(self.QUALITY_ON), set(self.QUALITY_OFF_BY_DECISION), set(self.QUALITY_NOT_YET)]
+        self.assertEqual(sum(len(t) for t in tables), len(set().union(*tables)), "a rule in two tables")
+        self.assertEqual(set().union(*tables), set(rules), "a quality/* rule of gdstyle.toml without a row, or a row for none")
+        self.assertEqual(tables[0], {r for r, level in rules.items() if level == "error"}, "QUALITY_ON is the rules on")
+        config = (ROOT / "gdstyle.toml").read_text()
+        for rule in self.QUALITY_OFF_BY_DECISION:
+            self.assertRegex(config, rf'(?m)^"{rule}" = "off" +# \S', f"{rule}: its reason beside it in gdstyle.toml")
+
+    def test_the_quality_probes_are_what_they_claim(self):
+        """Each quality probe is clean with every quality/* rule off, and with every one on breaks its own alone."""
+        probes = {rule: self.quality_probe(rule) for rule in {**self.QUALITY_ON, **self.QUALITY_OFF_BY_DECISION}}
+        self.set_every_quality_rule("off")
+        code, out = self.lint(*probes.values())
+        self.assertEqual(code, 0, "a probe breaks something besides its quality rule\n" + out)
+        self.doCleanups()
+        self.set_every_quality_rule("error")
+        code, out = self.lint(*probes.values())
+        found = {}
+        for path, rule in self.FINDING.findall(out):
+            found.setdefault(path, set()).add(rule)
+        for rule, probe in probes.items():
+            with self.subTest(rule):
+                self.assertEqual(found.get(probe), {rule}, out)
+
+    def test_a_quality_rule_on_fails_its_probe(self):
+        for rule in self.QUALITY_ON:
+            with self.subTest(rule):
+                probe = self.quality_probe(rule)
+                code, out = self.lint(probe)
+                self.assertEqual(code, 1, out)
+                self.assertIn(f"{probe}:", out)
+                self.assertIn(f"[{rule}]", out)
+
+    def test_a_quality_rule_off_by_decision_passes_its_probe(self):
+        for rule in self.QUALITY_OFF_BY_DECISION:
+            with self.subTest(rule):
+                code, out = self.lint(self.quality_probe(rule))
+                self.assertEqual(code, 0, out)
 
 
 @unittest.skipUnless(godot_binary(), "no Godot binary (set GODOT=/path/to/Godot)")

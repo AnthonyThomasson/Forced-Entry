@@ -1380,7 +1380,10 @@ func _apply_move(delta: float) -> void:
 				_resolved = true
 	if not _arrived:
 		_loco.move_to(_point)
-	elif _look_around:
+	elif not _look_around:
+		# Arrived: stand. (The last steering input would walk it on into the wall ahead.)
+		_character.move_input = Vector2.ZERO
+	else:
 		if _coverage.step(delta):  # Look around until the room is covered by sight.
 			_look_around = false
 			_resolved = true
@@ -1388,9 +1391,6 @@ func _apply_move(delta: float) -> void:
 			if covered != "":
 				_perception.mark_cleared(covered)  # Seen all of it: cleared, as by an entry.
 		return
-	else:
-		# Arrived: stand. (The last steering input would walk it on into the wall ahead.)
-		_character.move_input = Vector2.ZERO
 	_aim_move()
 
 
@@ -1674,15 +1674,14 @@ func _entry_guard() -> void:
 	var gate: Dictionary = _perception.threshold_ahead(
 		walk["path"], walk["index"], entry_guard_range,
 	)
-	if _perception.under_fire():
-		if gate.is_empty() or not _into_the_shots(str(gate["into"])):
-			# Under fire: no time to stack or to secure what it passes, but for a walk into the room
-			# the shots came from.
-			return
-	else:
+	if not _perception.under_fire():
 		var passing := _passing_gate(walk, gate)
 		if not passing.is_empty():
 			gate = passing
+	elif gate.is_empty() or not _into_the_shots(str(gate["into"])):
+		# Under fire: no time to stack or to secure what it passes, but for a walk into the room the
+		# shots came from.
+		return
 	if gate.is_empty() or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock:
 		return
 	_begin_detour(gate)

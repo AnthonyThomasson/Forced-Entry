@@ -127,10 +127,9 @@ func _make_label(align: HorizontalAlignment, size: int) -> Label:
 	return label
 
 
-## Pause or resume the whole tree (this node keeps running — PROCESS_MODE_ALWAYS) and show/hide the
-## hint.
-func _set_paused(paused: bool) -> void:
-	get_tree().paused = paused
+## Pause or resume the whole tree (this node keeps running — PROCESS_MODE_ALWAYS).
+func _set_paused(pause: bool) -> void:
+	get_tree().paused = pause
 
 
 ## World point under screen point `screen` (the world's canvas transform: the framing camera's

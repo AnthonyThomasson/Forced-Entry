@@ -52,9 +52,10 @@ func run(t: TestContext) -> void:
 	var sample := func() -> void:
 		speeds[0] = maxf(speeds[0], car.speed() - speeds[1])
 		speeds[1] = car.speed()
-	if not t.require(await t.until(func():
+	var got_out := await t.until(func():
 		sample.call()
-		return me.vehicle() == null, 8.0), "the driver gets out (at %.1f px/s)" % rolling):
+		return me.vehicle() == null, 8.0)
+	if not t.require(got_out, "the driver gets out (at %.1f px/s)" % rolling):
 		return
 	t.check(
 		not car.engine_state().get("running", true),
