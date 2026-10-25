@@ -53,7 +53,7 @@ static func cast(p: Vector3, shift_by: Vector2) -> Vector2:
 ## The standing body's floor shadow from `rig` after the shoulders' silhouette (drawn at `lift`):
 ## each limb, fist and the head, every point shifted from the light by `shift_by` per px of height.
 func draw_standing(rig: Rig, shift_by: Vector2, lift: Vector2) -> void:
-	var limbs: Array = _visuals._limbs(rig)
+	var limbs: Array = _visuals.limbs.chains(rig)
 	# All one black (the shadow group shows what any part covers, whatever the order): one kept
 	# mesh, or without meshes one batch.
 	var solid: BodyMeshes.Solid = null
@@ -114,8 +114,8 @@ func _draw_limb(chain: Dictionary, shift_by: Vector2, fills: RefCounted) -> Rect
 		var b := cast(seg["b"], shift_by)
 		var ra: float = seg["ra"]
 		var rb: float = seg["rb"]
-		_visuals._fill_capsule(
-			fills, _visuals._capsule(a, b, ra, rb), _visuals._convex(a, b, ra, rb), Color.BLACK,
+		BodyLimbs.fill_capsule(
+			fills, BodyLimbs.capsule(a, b, ra, rb), BodyLimbs.convex(a, b, ra, rb), Color.BLACK,
 		)
 		bounds = Rect2(a, Vector2.ZERO) if reach == 0.0 else bounds.expand(a)
 		bounds = bounds.expand(b)

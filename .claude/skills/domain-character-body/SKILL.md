@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
-pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -50,7 +50,7 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   (`tests/character/fallen_draw_order_stable_test.gd`). Test: `tests/character/offscreen_body_is_not_drawn_test.gd`.
   **What a repaint costs.** Windowed, every polygon command builds a vertex and an index buffer and frees them the next frame (~10 µs),
   so the parts that are one polygon each are drawn as **meshes the body keeps** (`body_meshes.gd`, `BodyMeshes`: one pool on the body,
-  `_meshes`, one on its shadow, `shadow.meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
+  `meshes`, one on its shadow, `shadow.meshes`): every limb segment, the shoulders, fists and head (`_draw_round`: the polygon and uvs
   `Deformation.draw_shape` would map the art onto, from the published `shape_polygon` / `is_valid_polygon` / `base_ring`, in white
   darkened by `Deformation.darken(damage_total)`), the shoulders' floor shadow and a folded or fallen trunk's faces, and the standing
   floor shadow's plain black shapes as one mesh (`BodyMeshes.Solid`: gathered as `FillBatch` gathers them, drawn black). A mesh is cut
@@ -67,11 +67,11 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   capsules in one command before its fills, and the fallen body's floor shadow (limb capsules, fists, head, trunk slices) in one.
   `tests/character/body_mesh_matches_polygons_test.gd` checks which parts are meshes and, windowed, renders frozen bodies (walking,
   running, damaged, crouched, falling) with meshes off, on and off, every pixel the same (#78).
-  The body's and the shadow's draws share one set of limb chains (`_limbs`, built once for both, dropped at every `_process`). Capsules, the shoulders'
-  shadow uvs and a segment's uvs are each one transform of a unit outline (`_capsule`, `_texture_uvs`; float rounding only) and the
+  The body's and the shadow's draws share one set of limb chains (`limbs.chains`, `body_limbs.gd`, built once for both, dropped (`limbs.drop()`) at every `_process`). Capsules, the shoulders'
+  shadow uvs and a segment's uvs are each one transform of a unit outline (`BodyLimbs.capsule`, `_texture_uvs`; float rounding only) and the
   trunk's slices the plain point sums with the shadow's shift in place of a callable;
-  A limb capsule whose ends' radii differ by less than `CAP_CONVEX` of its length is convex and goes into a batch as a fan, uncut
-  (`_convex`, `_fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
+  A limb capsule whose ends' radii differ by less than `BodyLimbs.CAP_CONVEX` of its length is convex and goes into a batch as a fan, uncut
+  (`BodyLimbs.convex`, `BodyLimbs.fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
   `tests/character/body_geometry_matches_plain_test.gd` pins them (the trunk's slices and outline exactly).
 
 ## Pose (the living motion)
@@ -311,7 +311,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   white stripe, the Trauma Team's red guard), bare skin, chrome (rings, a borg's glowing seam), police trousers (piping) or armoured ones (knee pads,
   the Zenitex's white bar and segmented shins, a cargo pocket), a crew's pockets, patches and chrome knee caps, polished police shoes and boots (the
   Trauma Team's red soles), a merc's muddy laced boots, a borg's steel toe caps. The visuals map each strip onto the limb's tapered capsule between two
-  rig joints (the same drawing the fallen body uses: `_arm_chain` / `_leg_chain` / `_draw_chain`). Standing, the sleeve and forearm of each arm and
+  rig joints (the same drawing the fallen body uses: `limbs`' `_arm_chain` / `_leg_chain` / `draw_chain`). Standing, the sleeve and forearm of each arm and
   the leg and shoe on each side draw under or around the shoulders (legs lowest, then arms, then the shoulders at `torso_offset`).
 - `character_visuals.gd` renders each with `PixelArt.render_turned(..., snap_angle(angle), ...)` —
   lit for the nearest of `ArtCanvasConfig.turn_steps` steps — and draws it rotated to the exact angle of

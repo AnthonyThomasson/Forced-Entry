@@ -1,11 +1,11 @@
 extends GameTest
 ## The body's drawing builds its shapes with one transform of a unit outline each
-## (character_visuals.gd: `_capsule` for every limb segment and its shadow, `_texture_uvs` for the
-## shoulders' shadow; Deformation: a circle's `base_ring` and the uvs of `draw_shape`), where it
-## once placed each point with its own trig, and `_trunk_hulls` takes the floor shadow's shift in
-## place of a projection callable. This pins those shapes to the plain point-by-point sums (the
-## trunk's exactly), on random limbs and on real falling bodies, so the body is drawn where it
-## always was.
+## (body_limbs.gd: `capsule` for every limb segment and its shadow; character_visuals.gd:
+## `_texture_uvs` for the shoulders' shadow; Deformation: a circle's `base_ring` and the uvs of
+## `draw_shape`), where it once placed each point with its own trig, and `_trunk_hulls` takes the
+## floor shadow's shift in place of a projection callable. This pins those shapes to the plain
+## point-by-point sums (the trunk's exactly), on random limbs and on real falling bodies, so the
+## body is drawn where it always was.
 
 const SEED := 5151
 const TARGETS := 2
@@ -42,8 +42,8 @@ func run(t: TestContext) -> void:
 	var visuals = t.actor(&"shooter").get_node("Visuals")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	_check_capsules(t, visuals, rng)
-	_check_fans_convex(t, visuals, rng)
+	_check_capsules(t, rng)
+	_check_fans_convex(t, rng)
 	_check_texture_uvs(t, visuals, rng)
 	_check_rings(t)
 	if not await _kill_targets(t):
@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 
 
 ## Limb capsules on random ends and radii (drawn from `rng`) are the plain sum's.
-func _check_capsules(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
+func _check_capsules(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var worst := 0.0
 	for n in 400:
 		var a := Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-40.0, 40.0))
@@ -61,7 +61,7 @@ func _check_capsules(t: TestContext, visuals: Node, rng: RandomNumberGenerator) 
 					* (rng.randf_range(0.0, 1.0) if n % 5 == 0 else rng.randf_range(0.5, 40.0)))
 		var ra := rng.randf_range(1.0, 8.0)
 		var rb := rng.randf_range(1.0, 8.0)
-		worst = maxf(worst, _gap(visuals._capsule(a, b, ra, rb), _plain_capsule(a, b, ra, rb)))
+		worst = maxf(worst, _gap(BodyLimbs.capsule(a, b, ra, rb), _plain_capsule(a, b, ra, rb)))
 	t.check(
 		worst <= TOLERANCE,
 		"limb capsules: the farthest point is %.6f px from the plain sum's" % worst,
@@ -70,7 +70,7 @@ func _check_capsules(t: TestContext, visuals: Node, rng: RandomNumberGenerator) 
 
 ## A capsule whose ends' radii differ by less than CAP_CONVEX of its length is drawn as a fan,
 ## uncut: it must be convex.
-func _check_fans_convex(t: TestContext, visuals: Node, rng: RandomNumberGenerator) -> void:
+func _check_fans_convex(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var fanned := 0
 	var concave := 0
 	for n in 3000:
@@ -79,10 +79,10 @@ func _check_fans_convex(t: TestContext, visuals: Node, rng: RandomNumberGenerato
 		var ra := rng.randf_range(0.5, 9.0)
 		var rb := rng.randf_range(0.5, 9.0)
 		var span := a.distance_to(b)
-		if not (span < 0.5 or absf(ra - rb) < span * visuals.CAP_CONVEX):
+		if not (span < 0.5 or absf(ra - rb) < span * BodyLimbs.CAP_CONVEX):
 			continue
 		fanned += 1
-		if not _convex(visuals._capsule(a, b, ra, rb)):
+		if not _convex(BodyLimbs.capsule(a, b, ra, rb)):
 			concave += 1
 	t.check(
 		fanned > 500 and concave == 0,
@@ -96,7 +96,7 @@ func _check_texture_uvs(t: TestContext, visuals: Node, rng: RandomNumberGenerato
 	for n in 100:
 		var size := Vector2(rng.randf_range(8.0, 60.0), rng.randf_range(8.0, 60.0))
 		var angle := rng.randf_range(-TAU, TAU)
-		var poly: PackedVector2Array = visuals._capsule(
+		var poly: PackedVector2Array = BodyLimbs.capsule(
 			Vector2.ZERO,
 			Vector2(rng.randf_range(1.0, 20.0), 0.0).rotated(angle),
 			6.0,
@@ -276,9 +276,9 @@ func _plain_outline(visuals: Node, hulls: Array) -> PackedVector2Array:
 	return outline
 
 
-## `_capsule` as it was: each point from its own angle.
+## `BodyLimbs.capsule` as it was: each point from its own angle.
 func _plain_capsule(a: Vector2, b: Vector2, ra: float, rb: float) -> PackedVector2Array:
-	var points: int = 6  # CharacterVisuals.CAP_POINTS
+	var points: int = 6  # BodyLimbs.CAP_POINTS
 	var span := a.distance_to(b)
 	var out := PackedVector2Array()
 	if span < 0.5:

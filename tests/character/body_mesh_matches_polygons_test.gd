@@ -87,10 +87,10 @@ func _freeze_bodies(t: TestContext) -> bool:
 ## Headless too: the parts of every frozen body go through meshes (`walker` the walker's visuals).
 func _check_meshes_used(t: TestContext, walker: Node) -> void:
 	var segments := 0
-	for chain in walker._limbs(walker._rig):
+	for chain in walker.limbs.chains(walker._rig):
 		segments += (chain["segs"] as Array).size()
 	t.expect_eq(
-		walker._meshes.used(),
+		walker.meshes.used(),
 		segments + ROUND_PARTS,
 		"every limb segment of a standing body is a mesh, and its shoulders, fists and head",
 	)
@@ -101,15 +101,15 @@ func _check_meshes_used(t: TestContext, walker: Node) -> void:
 	)
 	var hurt = t.actor(&"hurt").get_node("Visuals")
 	t.expect_eq(
-		hurt._meshes.used(),
+		hurt.meshes.used(),
 		segments + ROUND_PARTS,
 		"a damaged body's darkened shoulders, fists and head are meshes too",
 	)
 	for id in [&"crouched", &"fallen"]:
 		var visuals = t.actor(id).get_node("Visuals")
 		t.check(
-			visuals._meshes.used() > segments,
-			"%s: the limbs and the trunk's faces are meshes (%d)" % [id, visuals._meshes.used()],
+			visuals.meshes.used() > segments,
+			"%s: the limbs and the trunk's faces are meshes (%d)" % [id, visuals.meshes.used()],
 		)
 
 
@@ -124,7 +124,7 @@ func _check_pixels(t: TestContext, walker: Node) -> void:
 		await _repaint(t)
 		await RenderingServer.frame_post_draw
 		images.append(view.get_texture().get_image())
-		used.append(walker._meshes.used())
+		used.append(walker.meshes.used())
 	BodyMeshes.enabled = true
 	t.check(used[0] == 0 and used[2] == 0 and used[1] > 0, "meshes only when on (%s)" % [used])
 	var painted := 0
