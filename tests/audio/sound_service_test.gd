@@ -80,7 +80,7 @@ func _check_variety(t: TestContext) -> void:
 		pitches[snappedf(steps[i]["pitch"], 0.001)] = true
 		if i > 0 and steps[i]["variant"] == steps[i - 1]["variant"]:
 			repeats += 1
-	var wanted := int(SoundConfig.category_variants[&"footstep"])
+	var wanted := int(SoundLibraryConfig.category_variants[&"footstep"])
 	t.check(
 		variants.size() >= wanted - 1,
 		"a step draws on its many takes (%d of %d variants used)" % [variants.size(), wanted],

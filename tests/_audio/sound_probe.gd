@@ -48,7 +48,7 @@ static func brightness(s: PackedFloat32Array) -> float:
 ## The share of `s`'s energy below about `hz` (two one-pole low-passes in a row), 0..1: how much low
 ## body it has.
 static func low_share(s: PackedFloat32Array, hz: float = 250.0) -> float:
-	var a := 1.0 - exp(-TAU * hz / SoundConfig.sample_rate)
+	var a := 1.0 - exp(-TAU * hz / SoundLibraryConfig.sample_rate)
 	var one := 0.0
 	var two := 0.0
 	var low := 0.0

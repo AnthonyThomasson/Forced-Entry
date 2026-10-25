@@ -1,8 +1,8 @@
 extends GameTest
 ## The synth turns a recipe into a 16-bit mono stream: the same recipe and seed always give the same
-## bytes, a different seed different noise, the loudest sample sits at SoundConfig.peak, each layer
-## type sounds at the pitch it asks for, a layer's delay holds it back, and a recipe it cannot voice
-## (no layers, past the sample rate's limit) renders silence without a fuss.
+## bytes, a different seed different noise, the loudest sample sits at SoundLibraryConfig.peak, each
+## layer type sounds at the pitch it asks for, a layer's delay holds it back, and a recipe it cannot
+## voice (no layers, past the sample rate's limit) renders silence without a fuss.
 
 
 func describe() -> Dictionary:
@@ -58,7 +58,7 @@ func run(t: TestContext) -> void:
 ## A mixed recipe renders repeatably per seed, as a 16-bit mono stream at the peak level that fades
 ## out.
 func _check_stream(t: TestContext) -> void:
-	var rate := SoundConfig.sample_rate
+	var rate := SoundLibraryConfig.sample_rate
 	var mixed := {
 		"length": 0.3,
 		"layers": [
@@ -82,7 +82,7 @@ func _check_stream(t: TestContext) -> void:
 		"as long as the recipe says (%.3f s)" % a.get_length(),
 	)
 	t.check(
-		absf(SoundSynth.peak_of(a) - SoundConfig.peak) < 0.01,
+		absf(SoundSynth.peak_of(a) - SoundLibraryConfig.peak) < 0.01,
 		"normalized to the peak level (%.3f)" % SoundSynth.peak_of(a),
 	)
 	t.check(
@@ -138,7 +138,7 @@ func _check_delay(t: TestContext) -> void:
 
 ## Nothing to play, or nothing it can carry: silence, no errors (an error would fail the test).
 func _check_unplayable(t: TestContext) -> void:
-	var rate := SoundConfig.sample_rate
+	var rate := SoundLibraryConfig.sample_rate
 	var empty := SoundSynth.render({ "length": 0.1, "layers": [] }, 1)
 	t.expect_eq(SoundSynth.peak_of(empty), 0.0, "an empty recipe is silent")
 	var too_high := SoundSynth.render(
@@ -165,7 +165,7 @@ func _check_drive(t: TestContext) -> void:
 		3,
 	)
 	t.check(
-		absf(SoundSynth.peak_of(driven) - SoundConfig.peak) < 0.01,
+		absf(SoundSynth.peak_of(driven) - SoundLibraryConfig.peak) < 0.01,
 		"saturation still peaks at the peak level (%.3f)" % SoundSynth.peak_of(driven),
 	)
 	t.check(

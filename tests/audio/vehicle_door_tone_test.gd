@@ -76,4 +76,9 @@ func run(t: TestContext) -> void:
 
 ## The take numbers `category` renders (as the Sound service picks them).
 func _takes(category: StringName) -> Array:
-	return range(maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1))
+	return range(
+		maxi(
+			int(SoundLibraryConfig.category_variants.get(category, SoundLibraryConfig.variants)),
+			1,
+		)
+	)

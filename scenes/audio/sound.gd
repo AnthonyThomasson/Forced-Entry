@@ -68,7 +68,7 @@ var _muffle := 0.0
 var _bus := -1
 ## Whether this service added the game bus (and so removes it at exit).
 var _bus_made := false
-## Picks variants and jitter (seeded from `SoundConfig.rng_seed`; never the gameplay RNG).
+## Picks variants and jitter (seeded from `SoundLibraryConfig.rng_seed`; never the gameplay RNG).
 var _rng := RandomNumberGenerator.new()
 ## Simulated seconds since the service started (advances with the tree, so it stops when the game
 ## pauses).
@@ -92,10 +92,10 @@ var _loops: Dictionary = {}
 
 
 func _ready() -> void:
-	_rng.seed = SoundConfig.rng_seed
+	_rng.seed = SoundLibraryConfig.rng_seed
 	_make_bus()
 	EventBus.posted.connect(_on_posted)
-	if SoundConfig.prewarm and DisplayServer.get_name() != "headless":
+	if SoundLibraryConfig.prewarm and DisplayServer.get_name() != "headless":
 		warm(library())
 
 
@@ -159,7 +159,7 @@ func reset() -> void:
 	_last_variant.clear()
 	_tinnitus = {}
 	_loops.clear()
-	_rng.seed = SoundConfig.rng_seed
+	_rng.seed = SoundLibraryConfig.rng_seed
 
 
 ## Turn an EventBus event into a sound when it is one the service voices (see the topics above).
@@ -293,7 +293,7 @@ func _vehicle_sound(data: Dictionary) -> void:
 					if stage == &"bump_character"
 					else String(data.get("material", "")))
 			profile = SoundBank.crash_profile(material, speed)
-			extra_db = linear_to_db(clampf(speed / SoundConfig.crash_speed_ref, 0.5, 1.6))
+			extra_db = linear_to_db(clampf(speed / SoundVehicleConfig.crash_speed_ref, 0.5, 1.6))
 	if profile != &"":
 		_play(VEHICLE, profile, data, extra_db)
 
@@ -367,7 +367,7 @@ func _start_tinnitus(data: Dictionary) -> void:
 	var deaf := _deaf_left()
 	if deaf <= 0.0:
 		return
-	var loudness := linear_to_db(clampf(deaf / SoundConfig.tinnitus_full_s, 0.3, 1.0))
+	var loudness := linear_to_db(clampf(deaf / SoundDeafnessConfig.tinnitus_full_s, 0.3, 1.0))
 	var at: Vector2 = ((focus as Node2D).global_position
 			if focus is Node2D
 			else data.get("position", Vector2.ZERO))
@@ -391,13 +391,21 @@ func _deaf_left() -> float:
 func _hear_stun(delta: float) -> void:
 	var deaf := _deaf_left()
 	var target := 1.0 if deaf > 0.0 else 0.0
-	var rate := SoundConfig.muffle_attack if target > _muffle else SoundConfig.muffle_release
+	var rate := (
+		SoundDeafnessConfig.muffle_attack
+		if target > _muffle
+		else SoundDeafnessConfig.muffle_release
+	)
 	_muffle = move_toward(_muffle, target, rate * delta)
 	if _bus >= 0:
 		var filter := AudioServer.get_bus_effect(_bus, 0) as AudioEffectLowPassFilter
 		AudioServer.set_bus_effect_enabled(_bus, 0, _muffle > 0.0)
 		filter.cutoff_hz = exp(
-			lerpf(log(SoundConfig.muffle_open_hz), log(SoundConfig.muffle_cutoff_hz), _muffle),
+			lerpf(
+				log(SoundDeafnessConfig.muffle_open_hz),
+				log(SoundDeafnessConfig.muffle_cutoff_hz),
+				_muffle,
+			),
 		)
 	if _tinnitus.is_empty():
 		return
@@ -409,7 +417,7 @@ func _hear_stun(delta: float) -> void:
 		return
 	_tinnitus["until"] = _now + deaf
 	player.volume_db = (_tinnitus_db
-			+ linear_to_db(clampf(deaf / SoundConfig.tinnitus_tail, 0.001, 1.0)))
+			+ linear_to_db(clampf(deaf / SoundDeafnessConfig.tinnitus_tail, 0.001, 1.0)))
 	if focus is Node2D:
 		player.global_position = (focus as Node2D).global_position
 
@@ -454,7 +462,10 @@ static func reach_from(
 ## A variant of `profile` other than the one played last; a category may have more takes than the
 ## default.
 func _pick_variant(category: StringName, profile: StringName) -> int:
-	var n := maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1)
+	var n := maxi(
+		int(SoundLibraryConfig.category_variants.get(category, SoundLibraryConfig.variants)),
+		1,
+	)
 	var v := _rng.randi() % n
 	if n > 1 and _last_variant.get(profile, -1) == v:
 		v = (v + 1) % n
@@ -515,7 +526,10 @@ func library() -> Array:
 ## first part).
 func _variants_of(profile: StringName) -> int:
 	var category := StringName(String(profile).get_slice("/", 0))
-	return maxi(int(SoundConfig.category_variants.get(category, SoundConfig.variants)), 1)
+	return maxi(
+		int(SoundLibraryConfig.category_variants.get(category, SoundLibraryConfig.variants)),
+		1,
+	)
 
 
 ## Pre-render `pairs` (`[profile, variant]`, those not cached yet, in order) on a worker thread, so
@@ -667,7 +681,7 @@ func _end_loop(key: String) -> void:
 func _follow_loops(delta: float) -> void:
 	if _loops.is_empty():
 		return
-	var glide := 1.0 - exp(-SoundConfig.loop_ease * delta)
+	var glide := 1.0 - exp(-SoundVehicleConfig.loop_ease * delta)
 	for key: String in _loops.keys():
 		var loop: Dictionary = _loops[key]
 		var voice: Dictionary = loop["voice"]
@@ -701,20 +715,24 @@ func _loop_aim(loop: Dictionary) -> Dictionary:
 		var rpm := clampf(float(state.get("rpm", 0.0)), 0.0, 1.0)
 		var throttle := clampf(float(state.get("load", 0.0)), 0.0, 1.0)
 		return {
-			"pitch": lerpf(SoundConfig.engine_pitch.x, SoundConfig.engine_pitch.y, rpm),
-			"volume_db": level - SoundConfig.engine_load_db * (1.0 - throttle)
-				+ SoundConfig.engine_rev_db * rpm,
+			"pitch": lerpf(
+				SoundVehicleConfig.engine_pitch.x,
+				SoundVehicleConfig.engine_pitch.y,
+				rpm,
+			),
+			"volume_db": level - SoundVehicleConfig.engine_load_db * (1.0 - throttle)
+				+ SoundVehicleConfig.engine_rev_db * rpm,
 		}
 	if not vehicle.has_method("slip"):
 		return {}
 	var slip := clampf(float(vehicle.call("slip")), 0.0, 1.0)
 	var speed := (float(vehicle.call("speed"))
 			if vehicle.has_method("speed")
-			else SoundConfig.skid_full_speed)
-	var amount := (clampf(slip / maxf(SoundConfig.skid_full_slip, 0.01), 0.1, 1.0)
-			* clampf(speed / SoundConfig.skid_full_speed, 0.25, 1.0))
+			else SoundVehicleConfig.skid_full_speed)
+	var amount := (clampf(slip / maxf(SoundVehicleConfig.skid_full_slip, 0.01), 0.1, 1.0)
+			* clampf(speed / SoundVehicleConfig.skid_full_speed, 0.25, 1.0))
 	return {
-		"pitch": 1.0 + SoundConfig.skid_pitch * slip,
+		"pitch": 1.0 + SoundVehicleConfig.skid_pitch * slip,
 		"volume_db": level + linear_to_db(amount),
 	}
 

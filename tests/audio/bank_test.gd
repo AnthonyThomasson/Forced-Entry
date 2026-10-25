@@ -44,7 +44,7 @@ func _check_renders(t: TestContext, profiles: Array) -> void:
 		var peak := SoundSynth.peak_of(stream)
 		if stream.get_length() < 0.05 or stream.get_length() > 1.0:
 			bad.append("%s is %.2f s long" % [profile, stream.get_length()])
-		if peak < SoundConfig.peak - 0.02 or peak > SoundConfig.peak + 0.01:
+		if peak < SoundLibraryConfig.peak - 0.02 or peak > SoundLibraryConfig.peak + 0.01:
 			bad.append("%s peaks at %.2f" % [profile, peak])
 	t.check(bad.is_empty(), "every profile renders a sane clip: %s" % ", ".join(bad.slice(0, 5)))
 	t.expect_eq(SoundBank.cached_count(), profiles.size(), "each render was cached")

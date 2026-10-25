@@ -36,11 +36,11 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(
 		Sound._variants_of(&"footstep/wood/walk"),
-		SoundConfig.category_variants[&"footstep"],
+		SoundLibraryConfig.category_variants[&"footstep"],
 		"a step has its own variant count",
 	)
 	t.expect_eq(
 		Sound._variants_of(&"shot/pistol"),
-		SoundConfig.variants,
+		SoundLibraryConfig.variants,
 		"a shot has the default count",
 	)

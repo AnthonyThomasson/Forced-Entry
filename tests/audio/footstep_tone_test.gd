@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var takes := int(SoundConfig.category_variants[&"footstep"])
+	var takes := int(SoundLibraryConfig.category_variants[&"footstep"])
 	var worst := 0.0
 	for surface in ["wood", "tile", "stone", "concrete", "carpet", "outdoor"]:
 		for gait in ["walk", "run"]:

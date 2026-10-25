@@ -24,11 +24,11 @@ class_name SoundSynth
 ## `vary` (0..1) makes every render of a recipe its own take: each layer's gain, decay, glide,
 ## cut-offs, partial levels and delay are nudged by up to that fraction (a pitch by about half of
 ## it), drawn from the seed, so one recipe yields many distinct but related sounds. A footstep wants
-## it; a gunshot does not. The mix is normalized to SoundConfig.peak, optionally saturated, and
-## faded out over its last few ms. A `loop` recipe is not faded and its stream loops forward over
-## the whole clip. In a loop, whatever a layer still sounds past the clip's end comes round again at
-## its start (a pulse near the end rings on into the beginning), so decaying layers join without a
-## seam; a steady tone must still be a whole number of cycles of the length.
+## it; a gunshot does not. The mix is normalized to SoundLibraryConfig.peak, optionally saturated,
+## and faded out over its last few ms. A `loop` recipe is not faded and its stream loops forward
+## over the whole clip. In a loop, whatever a layer still sounds past the clip's end comes round
+## again at its start (a pulse near the end rings on into the beginning), so decaying layers join
+## without a seam; a steady tone must still be a whole number of cycles of the length.
 
 ## An envelope below this has ended; a layer stops there instead of running to the end of the clip.
 const SILENCE := 0.0006
@@ -40,7 +40,7 @@ const FADE_OUT := 0.004
 
 ## Render `recipe` to a stream. `seed_value` fixes its noise and detune.
 static func render(recipe: Dictionary, seed_value: int) -> AudioStreamWAV:
-	var rate := SoundConfig.sample_rate
+	var rate := SoundLibraryConfig.sample_rate
 	var count := maxi(int(float(recipe.get("length", 0.3)) * rate), 1)
 	var mix := PackedFloat32Array()
 	mix.resize(count)
@@ -437,7 +437,7 @@ static func _to_stream(
 		var v := mix[i] / top if top > 0.000001 else 0.0
 		if drive > 0.0:
 			v = tanh(v * drive) * norm
-		v *= SoundConfig.peak
+		v *= SoundLibraryConfig.peak
 		if fade > 0 and i >= count - fade:
 			v *= float(count - i) / fade
 		bytes.encode_s16(i * 2, clampi(int(v * 32_767.0), -32_767, 32_767))

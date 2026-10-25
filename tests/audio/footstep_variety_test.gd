@@ -60,7 +60,7 @@ func _similarity(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 
 
 func run(t: TestContext) -> void:
-	var takes := int(SoundConfig.category_variants[&"footstep"])
+	var takes := int(SoundLibraryConfig.category_variants[&"footstep"])
 	t.check(takes >= 4, "footsteps have several takes (%d)" % takes)
 	for surface in ["wood", "tile", "stone", "concrete", "carpet", "outdoor"]:
 		for gait in ["walk", "run"]:

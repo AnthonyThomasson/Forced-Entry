@@ -13,7 +13,7 @@ class_name SoundBank
 ##             anything else.
 ##   outcome   what the bullet did: `blocked` (embedded), `penetrate` (went through), `ricochet`; a
 ##   fist is `punch`. band      the projectile's weight, from its penetration power
-##             (`SoundConfig.light_power_max` / `heavy_power_min`): `light` (SMG), `medium`
+##             (`SoundLibraryConfig.light_power_max` / `heavy_power_min`): `light` (SMG), `medium`
 ##             (pistol), `heavy` (rifle).
 ##   surface   the floor underfoot (SoundSurface): wood tile stone concrete carpet outdoor.
 ##   gait      `walk` or `run`.
@@ -25,8 +25,8 @@ class_name SoundBank
 ##             `engine/<vehicle>` (a seamless loop the service pitches by the revs),
 ##             `ignition/<vehicle>`, `door/<vehicle>/<open|close|slide_open|slide_close>`; the
 ##             tyres' `skid/tyre` (a loop); and `crash/<material>/<band>`, the band by the closing
-##             speed (SoundConfig.crash_medium_speed / crash_heavy_speed), `flesh` for a character
-##             struck.
+##             speed (SoundVehicleConfig.crash_medium_speed / crash_heavy_speed), `flesh` for a
+##             character struck.
 
 ## Penetration outcomes a bullet impact is voiced for (a punch is its own thing).
 const OUTCOMES: Array[StringName] = [&"blocked", &"penetrate", &"ricochet"]
@@ -315,9 +315,9 @@ static var main_thread_renders := 0
 
 ## The band (`light` / `medium` / `heavy`) a projectile of penetration `power` is voiced in.
 static func band(power: float) -> String:
-	if power < SoundConfig.light_power_max:
+	if power < SoundLibraryConfig.light_power_max:
 		return "light"
-	if power >= SoundConfig.heavy_power_min:
+	if power >= SoundLibraryConfig.heavy_power_min:
 		return "heavy"
 	return "medium"
 
@@ -414,9 +414,9 @@ static func skid_profile() -> StringName:
 
 ## The crash band (`light` / `medium` / `heavy`) of an impact at closing speed `speed` (px/s).
 static func crash_band(speed: float) -> String:
-	if speed >= SoundConfig.crash_heavy_speed:
+	if speed >= SoundVehicleConfig.crash_heavy_speed:
 		return "heavy"
-	if speed >= SoundConfig.crash_medium_speed:
+	if speed >= SoundVehicleConfig.crash_medium_speed:
 		return "medium"
 	return "light"
 
