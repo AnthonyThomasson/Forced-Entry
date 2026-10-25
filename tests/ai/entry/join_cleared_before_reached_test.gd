@@ -51,22 +51,9 @@ func run(t: TestContext) -> void:
 		return
 	var opening := String(claims[0]["data"].get("opening", ""))
 	var into := String(claims[0]["data"].get("into", ""))
-	var cleared := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
-		return not Follow.clears(t, into).is_empty()
-	if not t.require(
-			await t.until(cleared, 60.0),
-			"premise: the %s is cleared (acts %s / %s)"
-				% [into, Follow.acts_of(w, lead), Follow.acts_of(w, nodes[1])],
-	):
+	if not await _room_cleared(t, w, nodes, squad, into):
 		return
-	var clear_at := float(
-		t.events.filter(func(e): return (
-			e["topic"] == &"callout"
-				and String(e["data"].get("entry_step", "")) == "clear"
-				and String(e["data"].get("cleared_room", "")) == into
-		))[0]["time"]
-	)
+	var clear_at := _clear_time(t, into)
 	if not t.require(
 			Follow.first_call(t, trooper, "ready", opening) == INF
 				and Follow.first_call(t, trooper, "abort", opening) == INF,
@@ -75,6 +62,46 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	_check_join(t, w, trooper, opening)
+	await _follows_at_once(t, w, nodes, squad, clear_at)
+	await t.seconds(3.0)
+	t.check(
+		Follow.first_call(t, trooper, "going_in", opening) == INF,
+		"the trooper never went in by %s" % opening,
+	)
+
+
+## Waits (60 s at most) for the lead's stack to clear `into`. False when it never did.
+func _room_cleared(
+		t: TestContext,
+		w: Dictionary,
+		nodes: Array,
+		squad: Node,
+		into: String,
+) -> bool:
+	var cleared := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return not Follow.clears(t, into).is_empty()
+	return t.require(
+		await t.until(cleared, 60.0),
+		"premise: the %s is cleared (acts %s / %s)"
+			% [into, Follow.acts_of(w, nodes[0]), Follow.acts_of(w, nodes[1])],
+	)
+
+
+## The sim time of the first `clear` radioed for `into`.
+func _clear_time(t: TestContext, into: String) -> float:
+	return float(
+		t.events.filter(func(e): return (
+			e["topic"] == &"callout"
+				and String(e["data"].get("entry_step", "")) == "clear"
+				and String(e["data"].get("cleared_room", "")) == into
+		))[0]["time"]
+	)
+
+
+## Checks the lead's claim gave the trooper a join order and it went to the stack by it.
+func _check_join(t: TestContext, w: Dictionary, trooper: Node, opening: String) -> void:
 	var joins := Follow.raw_joins(t)
 	t.check(
 		joins.any(func(e): return (e["data"].get("to", []) as Array).has(trooper)),
@@ -88,6 +115,17 @@ func run(t: TestContext) -> void:
 			trooper,
 		),
 	)
+
+
+## Checks the trooper (the third of `nodes`) follows the lead within `FOLLOW_WITHIN` s of the clear.
+func _follows_at_once(
+		t: TestContext,
+		w: Dictionary,
+		nodes: Array,
+		squad: Node,
+		clear_at: float,
+) -> void:
+	var trooper: Node = nodes[2]
 	var follows := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return Follow.following(trooper) and Follow.entry(trooper).is_empty()
@@ -101,9 +139,4 @@ func run(t: TestContext) -> void:
 				str(Follow.entry(trooper).get("phase", "none")),
 				Follow.acts_of(w, trooper),
 			],
-	)
-	await t.seconds(3.0)
-	t.check(
-		Follow.first_call(t, trooper, "going_in", opening) == INF,
-		"the trooper never went in by %s" % opening,
 	)

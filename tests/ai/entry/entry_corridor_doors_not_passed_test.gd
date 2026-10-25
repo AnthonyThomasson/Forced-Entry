@@ -45,24 +45,29 @@ func run(t: TestContext) -> void:
 	):
 		return
 	for door in [Entry.SPINE_A, Entry.SPINE_B]:
-		var abreast := float(door["pos"].x) + float(door["width"]) * 0.5 + BODY
-		var passed_at := INF
-		for s in samples:
-			if s["pos"].has(&"inv") and (s["pos"][&"inv"] as Vector2).x > abreast:
-				passed_at = s["t"]
-				break
-		if passed_at == INF:
-			continue  # Never walked past it: nothing was left behind.
-		var before := samples.filter(func(s): return s["t"] <= passed_at)
-		var entered := Entry.first_call_time(t, "going_in", &"inv", door["id"]) <= passed_at
-		var covered := Entry.time_facing_through(
-			before,
-			&"inv",
-			door,
-			func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0,
-		)
-		t.check(
-			entered or covered >= COVERED,
-			("%s was searched or secured before the invader walked past it (entered: %s, gun "
-					+ "through it from beside: %.1f s)") % [door["id"], entered, covered],
-		)
+		_check_door_secured(t, samples, door)
+
+
+## Checks `door` was entered or covered from beside its jamb before the invader walked past it.
+func _check_door_secured(t: TestContext, samples: Array, door: Dictionary) -> void:
+	var abreast := float(door["pos"].x) + float(door["width"]) * 0.5 + BODY
+	var passed_at := INF
+	for s in samples:
+		if s["pos"].has(&"inv") and (s["pos"][&"inv"] as Vector2).x > abreast:
+			passed_at = s["t"]
+			break
+	if passed_at == INF:
+		return  # Never walked past it: nothing was left behind.
+	var before := samples.filter(func(s): return s["t"] <= passed_at)
+	var entered := Entry.first_call_time(t, "going_in", &"inv", door["id"]) <= passed_at
+	var covered := Entry.time_facing_through(
+		before,
+		&"inv",
+		door,
+		func(p: Vector2): return Entry.outward(door, p) > 0.0 and Entry.outward(door, p) < 90.0,
+	)
+	t.check(
+		entered or covered >= COVERED,
+		("%s was searched or secured before the invader walked past it (entered: %s, gun "
+				+ "through it from beside: %.1f s)") % [door["id"], entered, covered],
+	)

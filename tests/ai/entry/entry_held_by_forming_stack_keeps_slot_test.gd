@@ -79,50 +79,15 @@ func run(t: TestContext) -> void:
 	var mate := t.puppet(&"mate")
 	var brain := Entry.brain(t, &"walker")
 	var claim_frame := GameClock.frame()
-	# Lambdas capture plain values by copy, so the state the watch updates lives in one Dictionary.
+	# The state each frame's watch updates, in one Dictionary.
 	var st := {
 		"radio_in": 0.0, "held_bare": 0.0, "held_bare_at": INF, "aside_at": INF, "slots": [],
 		"in_slot_at": INF, "spot": Vector2.INF, "rise_at": INF,
 	}
-	var watch := func() -> bool:
-		st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
-		if float(st["radio_in"]) <= 0.0:
-			st["radio_in"] = 0.5
-			_radio(t.actor(&"mate"), 1, claim_frame)
-			_radio(t.actor(&"far_mate"), 3, claim_frame)
-		for c in Entry.calls(t, "claim", &"walker"):
-			if not (st["slots"] as Array).has(int(c["slot"])):
-				(st["slots"] as Array).append(int(c["slot"]))
-				if (st["slots"] as Array).size() > 1 and st["rise_at"] == INF:
-					st["rise_at"] = t.time
-		var e: Dictionary = Entry.entry(brain)
-		var view: Dictionary = brain.debug_entry_view().get("entry", {})
-		var loco: Dictionary = brain.debug_state().get("loco", {})
-		var bare: bool = (String(e.get("phase", "")) == "approach"
-				and (view.get("waypoints", [1]) as Array).is_empty())
-		if (bare
-				and String(loco.get("way", "")) == "held"
-				and walker.global_position.distance_to(t.actor(&"mate").global_position) < 140.0):
-			if st["held_bare_at"] == INF:
-				st["held_bare_at"] = t.time - float(loco.get("held_for", 0.0))
-			st["held_bare"] = t.time - float(st["held_bare_at"])
-		if steps_aside() and st["aside_at"] == INF and float(st["held_bare"]) >= HELD_S:
-			st["aside_at"] = t.time
-		if e.get("stack_point") is Vector2:
-			st["spot"] = e["stack_point"]
-		if (st["in_slot_at"] == INF
-				and String(e.get("phase", "")) == "stack"
-				and walker.global_position.distance_to(st["spot"]) <= SLOT_NEAR):
-			st["in_slot_at"] = t.time
-		t.trace(
-			"walker_to_mate",
-			walker.global_position.distance_to(t.actor(&"mate").global_position),
-		)
-		return st["aside_at"] != INF and not steps_aside() or st["in_slot_at"] != INF
 	# The leg of `ASIDE` the teammate in the gap is walking (-1: not yet stepping aside).
 	var leg := -1
 	while t.time < 30.0:
-		if watch.call():
+		if _watch(t, st, walker, brain, claim_frame):
 			break
 		if st["aside_at"] != INF and leg < ASIDE.size() - 1 and (leg < 0 or mate.has_arrived()):
 			leg += 1
@@ -147,6 +112,62 @@ func run(t: TestContext) -> void:
 	):
 		return
 	_judge(t, st)
+
+
+## One frame's watch: radios the puppets' claims, notes the walker's claims, its hold with no
+## waypoint left, the teammate's step aside and the walker in its slot, into `st`. True when the
+## case is decided.
+func _watch(
+		t: TestContext,
+		st: Dictionary,
+		walker: Node,
+		brain: Node,
+		claim_frame: int,
+) -> bool:
+	_radio_claims(t, st, claim_frame)
+	_note_slots(t, st)
+	var e: Dictionary = Entry.entry(brain)
+	var view: Dictionary = brain.debug_entry_view().get("entry", {})
+	var loco: Dictionary = brain.debug_state().get("loco", {})
+	var bare: bool = (String(e.get("phase", "")) == "approach"
+			and (view.get("waypoints", [1]) as Array).is_empty())
+	if (bare
+			and String(loco.get("way", "")) == "held"
+			and walker.global_position.distance_to(t.actor(&"mate").global_position) < 140.0):
+		if st["held_bare_at"] == INF:
+			st["held_bare_at"] = t.time - float(loco.get("held_for", 0.0))
+		st["held_bare"] = t.time - float(st["held_bare_at"])
+	if steps_aside() and st["aside_at"] == INF and float(st["held_bare"]) >= HELD_S:
+		st["aside_at"] = t.time
+	if e.get("stack_point") is Vector2:
+		st["spot"] = e["stack_point"]
+	if (st["in_slot_at"] == INF
+			and String(e.get("phase", "")) == "stack"
+			and walker.global_position.distance_to(st["spot"]) <= SLOT_NEAR):
+		st["in_slot_at"] = t.time
+	t.trace(
+		"walker_to_mate",
+		walker.global_position.distance_to(t.actor(&"mate").global_position),
+	)
+	return st["aside_at"] != INF and not steps_aside() or st["in_slot_at"] != INF
+
+
+## Every half second the two puppets radio their claims again (slots 1 and 3).
+func _radio_claims(t: TestContext, st: Dictionary, claim_frame: int) -> void:
+	st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
+	if float(st["radio_in"]) <= 0.0:
+		st["radio_in"] = 0.5
+		_radio(t.actor(&"mate"), 1, claim_frame)
+		_radio(t.actor(&"far_mate"), 3, claim_frame)
+
+
+## Notes each slot the walker has claimed, in order, and when its slot first rose.
+func _note_slots(t: TestContext, st: Dictionary) -> void:
+	for c in Entry.calls(t, "claim", &"walker"):
+		if not (st["slots"] as Array).has(int(c["slot"])):
+			(st["slots"] as Array).append(int(c["slot"]))
+			if (st["slots"] as Array).size() > 1 and st["rise_at"] == INF:
+				st["rise_at"] = t.time
 
 
 ## The checks of this case: it kept its slot under the cap and reached it once the teammate stepped

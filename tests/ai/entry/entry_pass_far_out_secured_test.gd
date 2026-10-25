@@ -59,27 +59,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Probe.gunfire(GUNFIRE)
-	# The premise: the view bars the hall from the store room's wall to within a body of the south
-	# wall, so no way round it.
-	var gap := HALL.end.y - View.polygon(DOOR)[1].y
-	if not t.require(
-			gap < 28.0,
-			"set-up: the view reaches to within a body of the hall's south wall (%.0f px left)"
-				% gap,
-	):
-		return
-	var plain := NavBuilder.route(t.world.get_world_2d().navigation_map, START, GUNFIRE)
-	var out_at := -1.0
-	for i in range(1, plain.size()):
-		for k in 20:
-			var p := plain[i - 1].lerp(plain[i], k / 20.0)
-			if out_at < 0.0 and View.in_view(t, DOOR, p):
-				out_at = Entry.outward(DOOR, p)
-	if not t.require(
-			out_at > 150.0,
-			"set-up: the plain route crosses the view more than 150 px out from the wall (%.0f px)"
-				% out_at,
-	):
+	if not _set_up_holds(t):
 		return
 	var inv := t.actor(&"inv")
 	var there := func(): return inv.global_position.x > 700.0
@@ -92,6 +72,38 @@ func run(t: TestContext) -> void:
 					+ "(act %s, at %s)") % [act, inv.global_position.round()],
 	):
 		return
+	_check_crossing(t, samples)
+
+
+## The set-up: the view reaches to within a body of the hall's south wall, and the plain route
+## crosses it more than 150 px out from the wall. False when either does not hold.
+func _set_up_holds(t: TestContext) -> bool:
+	# The premise: the view bars the hall from the store room's wall to within a body of the south
+	# wall, so no way round it.
+	var gap := HALL.end.y - View.polygon(DOOR)[1].y
+	if not t.require(
+			gap < 28.0,
+			"set-up: the view reaches to within a body of the hall's south wall (%.0f px left)"
+				% gap,
+	):
+		return false
+	var plain := NavBuilder.route(t.world.get_world_2d().navigation_map, START, GUNFIRE)
+	var out_at := -1.0
+	for i in range(1, plain.size()):
+		for k in 20:
+			var p := plain[i - 1].lerp(plain[i], k / 20.0)
+			if out_at < 0.0 and View.in_view(t, DOOR, p):
+				out_at = Entry.outward(DOOR, p)
+	return t.require(
+		out_at > 150.0,
+		"set-up: the plain route crosses the view more than 150 px out from the wall (%.0f px)"
+			% out_at,
+	)
+
+
+## The checks of the crossing: the doorway covered from beside the jamb first, then the view
+## crossed without stopping and never crossed back.
+func _check_crossing(t: TestContext, samples: Array) -> void:
 	var from_side := signf(Entry.lateral(DOOR, START))
 	var crossed := View.axis_crossed_at(samples, &"inv", DOOR, from_side)
 	if not t.require(crossed < INF, "set-up: the walk crossed the doorway's line of sight"):

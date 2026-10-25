@@ -79,61 +79,89 @@ func run(t: TestContext) -> void:
 		"spot": Vector2.INF, "reaims": 0, "trail": [],
 	}
 	while t.time < 30.0:
-		st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
-		st["flip_in"] = float(st["flip_in"]) - 1.0 / Engine.physics_ticks_per_second
-		if float(st["flip_in"]) <= 0.0 and st["still_at"] != INF:
-			st["flip_in"] = FLIP_S
-			st["side"] = -int(st["side"])
-			st["radio_in"] = 0.0
-		if float(st["radio_in"]) <= 0.0:
-			st["radio_in"] = 0.5
-			_radio(mate, 1, int(st["side"]), claim_frame)
-			_radio(t.actor(&"far_mate"), 3, 1, claim_frame)
-		for c in Entry.calls(t, "claim", &"walker"):
-			if not (st["slots"] as Array).has(int(c["slot"])):
-				(st["slots"] as Array).append(int(c["slot"]))
-				if (st["slots"] as Array).size() > 1 and st["rise_at"] == INF:
-					st["rise_at"] = t.time
-		var e: Dictionary = Entry.entry(brain)
-		var trail: Array = st["trail"]
-		trail.append([t.time, walker.global_position])
-		while trail.size() > 1 and float(trail[0][0]) < t.time - STILL_WINDOW:
-			trail.pop_front()
-		var still: bool = (float(trail[0][0]) <= t.time - STILL_WINDOW + 0.02
-				and (trail[0][1] as Vector2).distance_to(walker.global_position) < STILL_PX)
-		if (st["still_at"] == INF
-				and String(e.get("phase", "")) == "approach"
-				and still
-				and walker.global_position.distance_to(mate.global_position) < NEAR_MATE):
-			st["still_at"] = t.time - STILL_WINDOW
-		if e.get("stack_point") is Vector2:
-			if (st["still_at"] != INF
-					and st["rise_at"] == INF
-					and (st["spot"] as Vector2).distance_to(e["stack_point"]) > REAIM_PX):
-				st["reaims"] = int(st["reaims"]) + 1
-			st["spot"] = e["stack_point"]
-		t.trace("walker_to_mate", walker.global_position.distance_to(mate.global_position))
+		_radio_claims(t, st, mate, claim_frame)
+		_note_slots(t, st)
+		_watch_walker(t, st, walker, mate, brain)
 		if st["rise_at"] != INF or not Entry.calls(t, "abort", &"walker").is_empty():
 			break
 		if st["still_at"] != INF and t.time > float(st["still_at"]) + CAP + LATE_S + 4.0:
 			break
 		await t.frames(1)
+	if not _premises_hold(t, st):
+		return
+	_judge(t, st)
+
+
+## Every half second the two puppets radio their claims again (slots 1 and 3); once the walker
+## stands, the teammate in the gap flips its side every `FLIP_S` s and radios at once.
+func _radio_claims(t: TestContext, st: Dictionary, mate: Node, claim_frame: int) -> void:
+	st["radio_in"] = float(st["radio_in"]) - 1.0 / Engine.physics_ticks_per_second
+	st["flip_in"] = float(st["flip_in"]) - 1.0 / Engine.physics_ticks_per_second
+	if float(st["flip_in"]) <= 0.0 and st["still_at"] != INF:
+		st["flip_in"] = FLIP_S
+		st["side"] = -int(st["side"])
+		st["radio_in"] = 0.0
+	if float(st["radio_in"]) <= 0.0:
+		st["radio_in"] = 0.5
+		_radio(mate, 1, int(st["side"]), claim_frame)
+		_radio(t.actor(&"far_mate"), 3, 1, claim_frame)
+
+
+## Notes each slot the walker has claimed, in order, and when its slot first rose.
+func _note_slots(t: TestContext, st: Dictionary) -> void:
+	for c in Entry.calls(t, "claim", &"walker"):
+		if not (st["slots"] as Array).has(int(c["slot"])):
+			(st["slots"] as Array).append(int(c["slot"]))
+			if (st["slots"] as Array).size() > 1 and st["rise_at"] == INF:
+				st["rise_at"] = t.time
+
+
+## Notes when the walker began to stand held near the teammate in the gap, and each time its slot
+## point moved enough to aim its walk again while it stood.
+func _watch_walker(t: TestContext, st: Dictionary, walker: Node, mate: Node, brain: Node) -> void:
+	var e: Dictionary = Entry.entry(brain)
+	var trail: Array = st["trail"]
+	trail.append([t.time, walker.global_position])
+	while trail.size() > 1 and float(trail[0][0]) < t.time - STILL_WINDOW:
+		trail.pop_front()
+	var still: bool = (float(trail[0][0]) <= t.time - STILL_WINDOW + 0.02
+			and (trail[0][1] as Vector2).distance_to(walker.global_position) < STILL_PX)
+	if (st["still_at"] == INF
+			and String(e.get("phase", "")) == "approach"
+			and still
+			and walker.global_position.distance_to(mate.global_position) < NEAR_MATE):
+		st["still_at"] = t.time - STILL_WINDOW
+	if e.get("stack_point") is Vector2:
+		if (st["still_at"] != INF
+				and st["rise_at"] == INF
+				and (st["spot"] as Vector2).distance_to(e["stack_point"]) > REAIM_PX):
+			st["reaims"] = int(st["reaims"]) + 1
+		st["spot"] = e["stack_point"]
+	t.trace("walker_to_mate", walker.global_position.distance_to(mate.global_position))
+
+
+## The premises: slot 2 claimed, the walk stood held short of the teammate, its slot point moved
+## at least twice while it stood.
+func _premises_hold(t: TestContext, st: Dictionary) -> bool:
 	if not t.require(
 			(st["slots"] as Array).size() > 0 and int(st["slots"][0]) == 2,
 			"premise: it claimed slot 2 behind the teammate's slot 1 (%s)" % [st["slots"]],
 	):
-		return
+		return false
 	if not t.require(
 			st["still_at"] != INF,
 			"premise: its walk to the stack stood held short of the teammate in the gap",
 	):
-		return
-	if not t.require(
-			int(st["reaims"]) >= 2,
-			("premise: its slot point moved more than %.0f px at least twice while it stood (%d "
-					+ "times)") % [REAIM_PX, st["reaims"]],
-	):
-		return
+		return false
+	return t.require(
+		int(st["reaims"]) >= 2,
+		("premise: its slot point moved more than %.0f px at least twice while it stood (%d "
+				+ "times)") % [REAIM_PX, st["reaims"]],
+	)
+
+
+## The checks: no abort, and the back of the stack taken once it had stood the cap.
+func _judge(t: TestContext, st: Dictionary) -> void:
 	var to_rise := float(st["rise_at"]) - float(st["still_at"])
 	t.check(
 		Entry.calls(t, "abort", &"walker").is_empty(),
