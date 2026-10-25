@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
-pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its part `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -32,7 +32,7 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   `draw_order` records what the last living draw painted (`weapon`, `torso`, `hands`, `head`) for `tests/character/head_over_gun_test.gd`. Once dead it draws the fallen body instead (below).
   **A standing body is repainted only when its drawing changes.** Each frame `_process` solves the rig once
   (shared by the body's and the shadow's draw) and rounds its inputs to a key: every joint and foot, the
-  shoulder / head / fist / weapon angles, the weapon raise (`REDRAW_RAISE_STEP`), the held slot, the wound count and damage, and the resolved look's hash (`_look_key`, the outfit below). The key is rounded
+  shoulder / head / fist / weapon angles, the weapon raise (`REDRAW_RAISE_STEP`), the held slot, the wound count and damage, and the resolved look's hash (`dress.look_key`, the outfit below). The key is rounded
   to `REDRAW_POS_STEP` (0.1 px) and `REDRAW_ANGLE_STEP` (0.02 rad), below a visible pixel at the body's
   size; `queue_redraw()` (body and shadow) runs only when the key changes. A character standing still drifts
   by less than a step most frames (breath, glance), so it repaints about once in 15 frames; a walking one
@@ -336,7 +336,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   depth scaled by part size / body radius. A hand mid-punch has left its wounds behind. Limbs are
   not dented (shots hit the body circle). While the upper body lunges, wounds move with it.
 - **The look** (`docs/outfits.md` O12, O15). The character's style (`Character.style`, `look_seed`, `rank`) and what it wears decide everything: `Visuals`
-  has no look exports. `_dress()` asks `character.outfit().look(style)` (each garment's look in that style: its `kind` and a `color` or a palette name)
+  has no look exports. Its `dress` (`body_dress.gd`, `BodyDress`) resolves it: `refresh(character)` asks `character.outfit().look(style)` (each garment's look in that style: its `kind` and a `color` or a palette name)
   and `character_style.gd`'s `resolve(style, seed, rank, worn)` for the whole look: the style's row (`CharacterStyleConfig.styles`: its livery's marks, its
   palettes, `bare` (what is drawn where nothing is worn on the body, legs or feet)) and the character's own variety drawn from its look seed in a fixed
   order (skin, hair and hair style, gloves, a pack, eyes and face, the glow and ink colours, tattoos, inlays, a headset, a spine rig, cables, a patched
@@ -344,11 +344,11 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   names by the seed and the palette's name, so a colour stays put as the clothes change), each side's sleeve (a colour, or null: bare or chrome) and a
   carrier's front and back panels. It registers the look with `PixelArt.handle` and builds, once per change, the painters' options (the handle, the
   plates' colours and wear step `ceil((1 − condition) × WEAR_STEPS)`), each arm segment's colour, finish and options (`_arm_part`: chrome, a sleeve,
-  a long one to its cuff, or bare skin), each leg part's options and a chrome shin, and each fist's colour (gloves, skin or chrome) and options. Boots:
+  a long one to its cuff, or bare skin), each leg part's options and a chrome shin (its `chrome` key; `shin_colour(i)`), and each fist's colour (gloves, skin or chrome) and options. Boots:
   the shin's lower part, from `BOOT_TOP` 0.62 down to the ankle, becomes the boot's shaft, `BOOT_GROW` 0.06 body radii wider. For every body, dressed
-  or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`_trunk_faces`, above). `_dress`
-  runs only when `Outfit.revision` or the character's look revision (bumped by `style`, `look_seed` and `rank`) moves (two int compares a frame);
-  when the resolved look's hash `_look_key` changes it joins the redraw key and a settled fallen body repaints (`_settled_drawn = false`), also on its
+  or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`_trunk_faces`, above). `refresh`
+  resolves it only when `Outfit.revision` or the character's look revision (bumped by `style`, `look_seed` and `rank`) moves (two int compares a frame);
+  when the resolved look's hash `look_key` changes (it returns true) it joins the redraw key and a settled fallen body repaints (`_settled_drawn = false`), also on its
   first frame back in view after a change made off screen. Tests: `tests/character/outfit_art_test.gd`, `style_look_test.gd`.
 
 Ordering: a parent's `_physics_process` runs before its children's, so the hands see the
