@@ -73,8 +73,13 @@ func run(t: TestContext) -> void:
 				return
 	await t.seconds(0.5)
 
-	# --- The launch: full throttle from rest; when each reaches its target, and how fast it was at
-	# its deadline.
+	await _check_launch(t)
+	await _check_brakes(t)
+
+
+## The launch: full throttle from rest; when each reaches its target, and how fast it was at its
+## deadline.
+func _check_launch(t: TestContext) -> void:
 	var reached := {}
 	var at_deadline := {}
 	for id in LAUNCH:
@@ -90,6 +95,12 @@ func run(t: TestContext) -> void:
 			if not reached.has(id) and v.speed() >= float(LAUNCH[id][2]):
 				reached[id] = t.time - start
 				t.puppet(LAUNCH[id][0]).drive(-1.0, 0.0, false)
+	_judge_launch(t, reached, at_deadline)
+
+
+## Each launch lane braked, and judged: `reached` (id -> s to its target) within its time, else
+## `at_deadline` (id -> its speed at its deadline) told.
+func _judge_launch(t: TestContext, reached: Dictionary, at_deadline: Dictionary) -> void:
 	for id in LAUNCH:
 		t.puppet(LAUNCH[id][0]).drive(-1.0, 0.0, false)
 		var target: float = LAUNCH[id][2]
@@ -101,28 +112,36 @@ func run(t: TestContext) -> void:
 					% [LAUNCH[id][1], target, within, reached[id]],
 			)
 		else:
-			t.check(
-				false,
-				("the %s reaches %.0f px/s within %.1f s (only %.0f px/s at %.1f s, under %.0f "
-						+ "after %.1f s)")
-					% [
-						LAUNCH[id][1],
-						target,
-						within,
-						float(at_deadline.get(id, 0.0)),
-						within,
-						target,
-						LAUNCH_RUN,
-					],
-			)
+			t.check(false, _launch_missed(id, at_deadline))
 
-	# --- The brakes: each set rolling at its top speed straight ahead, S held at once until it
-	# stops.
+
+## The failed check's message for launch lane `id`, which never reached its target: how fast it
+## was at its deadline (`at_deadline`).
+func _launch_missed(id: StringName, at_deadline: Dictionary) -> String:
+	var target: float = LAUNCH[id][2]
+	var within: float = LAUNCH[id][3]
+	return (
+		("the %s reaches %.0f px/s within %.1f s (only %.0f px/s at %.1f s, under %.0f "
+				+ "after %.1f s)")
+			% [
+				LAUNCH[id][1],
+				target,
+				within,
+				float(at_deadline.get(id, 0.0)),
+				within,
+				target,
+				LAUNCH_RUN,
+			]
+	)
+
+
+## The brakes: each set rolling at its top speed straight ahead, S held at once until it stops.
+func _check_brakes(t: TestContext) -> void:
 	for id in BRAKE:
 		var v := t.vehicle(id) as Node2D
 		v.set("linear_velocity", Probe.forward(v) * float(BRAKE[id][2]))
 		t.puppet(BRAKE[id][0]).drive(-1.0, 0.0, false)
-	start = t.time
+	var start := t.time
 	var stopped := {}
 	var first := {}
 	while t.time < start + BRAKE_RUN and stopped.size() < BRAKE.size():
@@ -137,6 +156,12 @@ func run(t: TestContext) -> void:
 			if not stopped.has(id) and Probe.along(v) <= STOPPED:
 				stopped[id] = t.time - start
 				t.puppet(BRAKE[id][0]).drive(0.0, 0.0, false)
+	_judge_brakes(t, stopped, first)
+
+
+## Each brake lane let go, and judged: `first` (id -> its speed on the first braking frame) at its
+## top speed, and `stopped` (id -> s to a stop) within its time.
+func _judge_brakes(t: TestContext, stopped: Dictionary, first: Dictionary) -> void:
 	for id in BRAKE:
 		t.puppet(BRAKE[id][0]).drive(0.0, 0.0, false)
 		var top: float = BRAKE[id][2]

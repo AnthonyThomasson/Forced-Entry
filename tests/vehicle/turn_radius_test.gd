@@ -71,26 +71,14 @@ static func fit_circle(points: Array) -> Dictionary:
 	for p: Vector2 in points:
 		mean += p
 	mean /= points.size()
-	var sxx := 0.0
-	var sxy := 0.0
-	var syy := 0.0
-	var sxz := 0.0
-	var syz := 0.0
-	for p: Vector2 in points:
-		var q := p - mean
-		var z := q.length_squared()
-		sxx += q.x * q.x
-		sxy += q.x * q.y
-		syy += q.y * q.y
-		sxz += q.x * z
-		syz += q.y * z
+	var m := _moments(points, mean)
 	# With centred points the sums of x and y are 0, so D and E come from a 2x2 system: [sxx sxy;
 	# sxy syy] [D E] = -[sxz syz].
-	var det := sxx * syy - sxy * sxy
+	var det := m.sxx * m.syy - m.sxy * m.sxy
 	if absf(det) < 1e-6:
 		return {}
-	var d := (-sxz * syy + syz * sxy) / det
-	var e := (-syz * sxx + sxz * sxy) / det
+	var d := (-m.sxz * m.syy + m.syz * m.sxy) / det
+	var e := (-m.syz * m.sxx + m.sxz * m.sxy) / det
 	var centre := Vector2(-d / 2.0, -e / 2.0)
 	var r2 := 0.0
 	for p: Vector2 in points:
@@ -100,6 +88,20 @@ static func fit_circle(points: Array) -> Dictionary:
 	for p: Vector2 in points:
 		err += pow((p - mean - centre).length() - radius, 2.0)
 	return { "centre": centre + mean, "radius": radius, "rms": sqrt(err / points.size()) }
+
+
+## The sums `fit_circle`'s normal equations are built from, over `points` centred on `mean`.
+static func _moments(points: Array, mean: Vector2) -> Moments:
+	var m := Moments.new()
+	for p: Vector2 in points:
+		var q := p - mean
+		var z := q.length_squared()
+		m.sxx += q.x * q.x
+		m.sxy += q.x * q.y
+		m.syy += q.y * q.y
+		m.sxz += q.x * z
+		m.syz += q.y * z
+	return m
 
 
 ## The body slip angle (rad, unsigned): between where the vehicle heads and where it moves. 0 below
@@ -196,3 +198,17 @@ func run(t: TestContext) -> void:
 			FAST_FIT if fast else SLOW_FIT,
 		)
 		_judge(t, id, turned)
+
+
+## The sums of a circle fit over centred points q (z = |q|²): Σx², Σxy, Σy², Σxz, Σyz.
+class Moments:
+	## Σ x².
+	var sxx: float = 0.0
+	## Σ x y.
+	var sxy: float = 0.0
+	## Σ y².
+	var syy: float = 0.0
+	## Σ x z.
+	var sxz: float = 0.0
+	## Σ y z.
+	var syz: float = 0.0

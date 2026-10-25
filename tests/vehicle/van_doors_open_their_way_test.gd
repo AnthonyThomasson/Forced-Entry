@@ -68,6 +68,17 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"van", [&"side", &"back"]):
 		return
 	var van := t.vehicle(&"van") as Node2D
+	if not _check_layout(t, van):
+		return
+	var tail := Probe.edge(van, -Probe.forward(van))
+	if not await _check_side(t, van):
+		return
+	await _check_rear(t, van, tail)
+
+
+## The van's doors and seats are the spec's, and it reports its side and rear handles (false: ends
+## the test).
+func _check_layout(t: TestContext, van: Node2D) -> bool:
 	var doors := {}
 	for d: Dictionary in van.doors():
 		doors[d.get("id")] = [d.get("kind"), d.get("seat")]
@@ -81,17 +92,17 @@ func run(t: TestContext) -> void:
 		Probe.sorted(Probe.VAN_SEATS),
 		"the van's seats",
 	)
-	if not t.require(
-			Probe.door(van, &"side").has("handle") and Probe.door(van, &"rear_left").has("handle"),
-			"the van reports its side and rear handles",
-	):
-		return
-	var tail := Probe.edge(van, -Probe.forward(van))
+	return t.require(
+		Probe.door(van, &"side").has("handle") and Probe.door(van, &"rear_left").has("handle"),
+		"the van reports its side and rear handles",
+	)
 
-	# --- The side door slides back along the body.
+
+## The side door slides back along the body (false: no one got in by it, the test has ended).
+func _check_side(t: TestContext, van: Node2D) -> bool:
 	var side: Dictionary = await _board_watching(t, van, &"side", &"side")
 	if not t.require(side["seated"], "the character gets in by the side door"):
-		return
+		return false
 	var slid: Vector2 = side["offset"]
 	t.check(
 		slid.length() >= 15.0,
@@ -107,8 +118,11 @@ func run(t: TestContext) -> void:
 		&"cargo_right",
 		"the side door leads to the right cargo seat",
 	)
+	return true
 
-	# --- A rear door swings out behind the van.
+
+## A rear door swings out behind the van (past `tail`, the van's back edge).
+func _check_rear(t: TestContext, van: Node2D, tail: Vector2) -> void:
 	var back: Dictionary = await _board_watching(t, van, &"back", &"rear_left")
 	if not t.require(back["seated"], "the character gets in by the rear-left door"):
 		return
