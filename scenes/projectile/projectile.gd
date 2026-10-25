@@ -113,18 +113,9 @@ func _sweep(to: Vector2) -> Dictionary:
 ## object owns the shove/deform/debris). Mutates direction/speed/_exclude and re-emits `hit`.
 func _resolve(result: Dictionary) -> void:
 	var body: Node = result.collider
-	var rid: RID = result.rid
-	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square.
-	var n: Vector2 = result.normal
-	var squareness := 1.0 if n.length() < 0.001 else absf(direction.dot(n))
-	# Incoming speed relative to this round's own muzzle speed: a fast shot hits harder.
-	var speed_factor := speed / muzzle_speed if muzzle_speed > 0.0 else 1.0
 	# Captured before the ricochet branch reassigns `direction`; the shove follows the shot in.
 	var incoming := direction
-
 	var surface := _surface_for(body, incoming)
-	var coverage: float = surface["coverage"]
-	var penetration: float = surface["penetration"]
 
 	# 1. Fly over cover: the bullet is higher than the object stands. No damage, exclude the body,
 	#    keep flying.
@@ -132,47 +123,31 @@ func _resolve(result: Dictionary) -> void:
 	# flown over too: cover 50 and a body of 60 -> a shot lower than 50 meets the cover (and may
 	# punch through to the body), one between 50 and 60 clears the cover and strikes only the body,
 	# and a higher one misses both.
-	if height >= _flyover_height(coverage):
-		_exclude.append(rid)
+	if height >= _flyover_height(surface["coverage"]):
+		_exclude.append(result.rid)
 		GameLog.say("Shot flew over %s" % body.name)
 		return
 
+	var info := _hit_info(result, incoming)
+	# Squareness: |travel · normal|, 1 = head-on. A degenerate normal counts as square.
+	var n: Vector2 = result.normal
+	var squareness := 1.0 if n.length() < 0.001 else absf(direction.dot(n))
 	# 2. Ricochet off hard material at a glancing angle: reflect at reduced speed/damage.
 	# Not excluded — a bounced bullet can strike the same surface again.
-	if (penetration >= BallisticsConfig.penetration_bounce_min
+	if (float(surface["penetration"]) >= BallisticsConfig.penetration_bounce_min
 			and squareness < BallisticsConfig.bounce_square_max):
-		var bounce_dmg := (damage * squareness * speed_factor
-				* BallisticsConfig.bounce_damage_retention)
-		direction = direction.bounce(n).normalized()
-		rotation = direction.angle()
-		speed *= BallisticsConfig.bounce_speed_retention
-		GameLog.say("Shot ricocheted off %s for %.0f damage (%.0f%% square)"
-				% [body.name, bounce_dmg, squareness * 100.0])
-		_deal(
-			body,
-			_hit_info(result, incoming, speed_factor, bounce_dmg, false, _take_blood(surface)),
-			&"ricochet",
-			surface,
-		)
+		_ricochet(body, info, squareness, surface)
 		return
 
-	var dealt := damage * squareness * speed_factor
+	info.damage = damage * squareness * info.speed_factor
 	# 3. Armour (a surface with a `stop_power`, a character's vest or helmet): a round weaker than
-	#    it is stopped, deals the
-	# impact and embeds; one that beats it is through, penetrates and strikes what lies under it
-	# (`inner_material`, flesh).
+	#    it is stopped, deals the impact and embeds; one that beats it is through, penetrates and
+	#    strikes what lies under it (`inner_material`, flesh).
 	var stop_power := float(surface.get("stop_power", 0.0))
 	if stop_power > 0.0:
-		if penetration_power * speed_factor < stop_power:
-			GameLog.say("Shot stopped by %s's armour for %.0f damage (%.0f%% square)"
-					% [body.name, dealt, squareness * 100.0])
-			speed = 0.0
-			_deal(
-				body,
-				_hit_info(result, incoming, speed_factor, dealt, false, _take_blood(surface)),
-				&"blocked",
-				surface,
-			)
+		if penetration_power * info.speed_factor < stop_power:
+			_embed(body, info, "Shot stopped by %s's armour for %.0f damage (%.0f%% square)"
+					% [body.name, info.damage, squareness * 100.0], surface)
 			return
 		surface = surface.merged(
 			{ "material": surface.get("inner_material", surface.get("material", "")) },
@@ -181,17 +156,41 @@ func _resolve(result: Dictionary) -> void:
 	# 4a. Too slow to punch through (a more penetrating round needs less speed): deal the impact and
 	# embed (zeroed speed frees the bullet). A round through armour always goes on.
 	elif speed < BallisticsConfig.penetration_min_speed / penetration_power:
-		GameLog.say("Shot blocked by %s for %.0f damage (%.0f%% square)"
-				% [body.name, dealt, squareness * 100.0])
-		speed = 0.0
-		_deal(
-			body,
-			_hit_info(result, incoming, speed_factor, dealt, false, _take_blood(surface)),
-			&"blocked",
-			surface,
-		)
+		_embed(body, info, "Shot blocked by %s for %.0f damage (%.0f%% square)"
+				% [body.name, info.damage, squareness * 100.0], surface)
 		return
-	# 4b. Penetrate: deal damage, bleed speed (more when glancing/hard), deflect slightly.
+	_penetrate(result, info, squareness, surface)
+
+
+## 2. Glance off `body`'s hard `surface`, `squareness` square, the round reflected at reduced speed
+## and dealing a share of its damage through `info`.
+func _ricochet(body: Node, info: HitInfo, squareness: float, surface: Dictionary) -> void:
+	info.damage = (damage * squareness * info.speed_factor
+			* BallisticsConfig.bounce_damage_retention)
+	direction = direction.bounce(info.normal).normalized()
+	rotation = direction.angle()
+	speed *= BallisticsConfig.bounce_speed_retention
+	GameLog.say("Shot ricocheted off %s for %.0f damage (%.0f%% square)"
+			% [body.name, info.damage, squareness * 100.0])
+	info.blood = _take_blood(surface)
+	_deal(body, info, &"ricochet", surface)
+
+
+## 3 / 4a. Stopped in `body` (its armour, or too slow to punch through): `said` logged, the impact
+## in `info` dealt and the round embedded (zeroed speed frees the bullet).
+func _embed(body: Node, info: HitInfo, said: String, surface: Dictionary) -> void:
+	GameLog.say(said)
+	speed = 0.0
+	info.blood = _take_blood(surface)
+	_deal(body, info, &"blocked", surface)
+
+
+## 4b. Penetrate the body `result` struck: deal the damage in `info`, bleed speed (more when
+## glancing, `squareness`, or hard, the `surface`'s penetration), deflect slightly; leaving a body
+## (flesh) it carries that body's blood on from the exit.
+func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: Dictionary) -> void:
+	var body: Node = result.collider
+	var penetration: float = surface["penetration"]
 	var loss := clampf(
 		(penetration / 100.0) * BallisticsConfig.penetrate_loss_scale * (2.0 - squareness)
 			/ penetration_power,
@@ -203,13 +202,13 @@ func _resolve(result: Dictionary) -> void:
 			/ penetration_power)
 	direction = direction.rotated(randf_range(-j, j))
 	rotation = direction.angle()
-	_exclude.append(rid)
+	_exclude.append(result.rid)
 	GameLog.say("Shot penetrated %s for %.0f damage (%.0f%% square)"
-			% [body.name, dealt, squareness * 100.0])
-	var info := _hit_info(result, incoming, speed_factor, dealt, true, _take_blood(surface))
-	_find_exit(info, result.position, rid, incoming)
+			% [body.name, info.damage, squareness * 100.0])
+	info.penetrated = true
+	info.blood = _take_blood(surface)
+	_find_exit(info, result.position, result.rid, info.direction)
 	_deal(body, info, &"penetrate", surface)
-	# Leaving a body (flesh) it carries that body's blood on from the exit.
 	if StringName(surface.get("material", "")) == BallisticsConfig.blood_material:
 		_blood_from = (_traveled
 				+ (info.exit_position.distance_to(result.position) if info.has_exit else 0.0))
@@ -236,17 +235,16 @@ func _surface_for(body: Node, travel: Vector2) -> Dictionary:
 	}
 
 
-## Build the HitInfo handed to the struck object for one damaging interaction.
-func _hit_info(result: Dictionary, incoming: Vector2, speed_factor: float, dealt: float,
-		penetrated: bool, blood: float = 0.0) -> HitInfo:
+## Build the HitInfo handed to the struck object for one damaging interaction, from the ray
+## `result` and the `incoming` travel: its speed factor (the incoming speed relative to this round's
+## own muzzle speed: a fast shot hits harder) taken now; the outcome fills in the damage, whether it
+## penetrated and the blood.
+func _hit_info(result: Dictionary, incoming: Vector2) -> HitInfo:
 	var info := HitInfo.new()
 	info.position = result.position
 	info.normal = result.normal
 	info.direction = incoming
-	info.damage = dealt
-	info.speed_factor = speed_factor
-	info.penetrated = penetrated
-	info.blood = blood
+	info.speed_factor = speed / muzzle_speed if muzzle_speed > 0.0 else 1.0
 	info.height = height
 	info.source = self
 	return info
