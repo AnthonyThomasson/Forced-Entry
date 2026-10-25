@@ -42,7 +42,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 600))
 	s.switch(&"nav.rebake", false)
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	var walker_y := EAST_BENCH.y - HALF_DEPTH - BODY_RADIUS - START_GAP
 	s.object(&"east_bench", "bench", EAST_BENCH)
 	s.actor(

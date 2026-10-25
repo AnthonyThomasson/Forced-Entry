@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 	# A character is pushable too: the kick's shove, kick_impulse over the body's mass, is eaten by
 	# the knockback friction within a few frames, about a pixel of travel.
 	var knock: float = CharacterConfig.kick_impulse / victim.get_mass()
-	var travel: float = knock * knock / (2.0 * CharacterConfig.push_knockback_friction)
+	var travel: float = knock * knock / (2.0 * CharacterPushConfig.knockback_friction)
 	var shoved: Vector2 = victim.global_position - victim_start
 	t.check(
 		shoved.x > travel * 0.5,

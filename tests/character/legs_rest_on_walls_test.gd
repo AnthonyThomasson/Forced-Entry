@@ -21,7 +21,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 500))
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.switch(&"nav.rebake", false)
 	# Faces west, pressed against the west wall.
 	s.actor(&"crouch", &"puppet", Vector2(21, 250), { "start_slot": 3 })

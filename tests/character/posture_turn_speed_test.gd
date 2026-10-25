@@ -19,7 +19,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 600))
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.switch(&"nav.rebake", false)
 	s.actor(&"stand", &"puppet", Vector2(200, 100), { "start_slot": 1 })
 	s.actor(&"crouch", &"puppet", Vector2(200, 300), { "start_slot": 1 })
@@ -55,7 +55,7 @@ func run(t: TestContext) -> void:
 		await t.frames(1)
 	t.check(took.size() == 2, "every body came round (%s)" % [took])
 	t.check(took[&"stand"] < 0.1, "standing faces the new aim at once (%.2f s)" % took[&"stand"])
-	var crouch_turn: float = CharacterConfig.postures[&"crouch"]["turn"]
+	var crouch_turn: float = CharacterPostureConfig.postures[&"crouch"]["turn"]
 	t.expect_near(
 		took[&"crouch"],
 		PI / crouch_turn,

@@ -358,7 +358,7 @@ static func style(characters: Array, match_spec: Dictionary) -> Array:
 	var crews := styles_of(DEFENDER_FACTION)
 	var unit: StringName = (units[looks.randi() % units.size()]
 			if not units.is_empty()
-			else CharacterConfig.default_style)
+			else CharacterStyleConfig.default_style)
 	var lead := _leading_invader(characters, match_spec)
 	# The unit's first is its lead, the next its sergeant, the rest troopers.
 	var rank := 1 if lead != null else 2
@@ -399,7 +399,7 @@ static func _drawn_style(
 	var look: StringName = unit
 	if defending and not crews.is_empty():
 		look = crews[looks.randi() % crews.size()]
-	var weapons: Array = CharacterConfig.styles[look].get("weapons", [&"police"])
+	var weapons: Array = CharacterStyleConfig.styles[look].get("weapons", [&"police"])
 	return {
 		"look": look,
 		"seed": looks.randi(),
@@ -407,11 +407,11 @@ static func _drawn_style(
 	}
 
 
-## The styles (`CharacterConfig.styles` keys) of the side `faction` fights on, in table order.
+## The styles (`CharacterStyleConfig.styles` keys) of the side `faction` fights on, in table order.
 static func styles_of(faction: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
-	for key: StringName in CharacterConfig.styles:
-		if CharacterConfig.styles[key].get("side", &"") == faction:
+	for key: StringName in CharacterStyleConfig.styles:
+		if CharacterStyleConfig.styles[key].get("side", &"") == faction:
 			out.append(key)
 	return out
 

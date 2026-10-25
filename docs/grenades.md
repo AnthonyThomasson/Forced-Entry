@@ -159,31 +159,31 @@ behind a couch or a wardrobe is deafened for the whole of its distance. Within `
 `point_blank_damage` **5**. A stun does no other damage.
 Tests: `character/stun_bang_by_range`, `stun_bang_through_furniture`.
 
-**G13. Being stunned** (the character, for the player and an NPC alike). While disoriented a character moves at most `stun_speed` **x0.45**
-of its speed, with a slow drift, cannot run, and its aim sways: a wandering offset of up to `stun_sway` **25 degrees**, applied to
+**G13. Being stunned** (the character, for the player and an NPC alike). While disoriented a character moves at most `CharacterStunConfig.speed` **x0.45**
+of its speed, with a slow drift, cannot run, and its aim sways: a wandering offset of up to `CharacterStunConfig.sway` **25 degrees**, applied to
 where its shots go. The effect tails off over the last `recover_tail` **1.5 s** (the level falls linearly from 1 to 0 over that time),
 and then it is as before. `Character.take_stun(blind, deaf)` applies it (and posts `&"stun"`), `is_blind()`, `is_deaf()` and
 `stun_level()` (0..1) read it, `stun_view()` gives `{ blind, blind_total, deaf, level }` (seconds left blind and deaf, the blind
 seconds at the burst, the level) to the UI, and a new stun takes the longer of the old and new timers, blind and deaf each. The four numbers live in
-`CharacterConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `posture_coverage(posture)` (the
+`CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `posture_coverage(posture)` (the
 height of the body standing and crouched, on the coverage scale), `run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
 `walk_speed()` (px/s walking, slowed the same way: what the AI counts on once its stamina is low), so the AI keeps no copy of any.
 *(Amended by issue #56: the stunned look, and firing one-handed.)* A stunned character also looks it, every character alike (the player,
-an NPC, a test puppet); all of it is drawn only, eases in and out with the level (`stun_look_ease` **6/s**: no hand or head jumps in a
+an NPC, a test puppet); all of it is drawn only, eases in and out with the level (`CharacterStunConfig.look_ease` **6/s**: no hand or head jumps in a
 frame), and while it rides a vehicle the ride's pose wins (none of it shows until it is out):
 - **Hand over the eyes.** While blind, the free hand (the one the held item's `weapon_hand()` does not name) goes to the `eyes` stance, the
   palm over the face (drawn over the head), and back as sight returns. A reload, a punch or a throw's wind-up takes it away for as long
   as it needs that hand. A bang that only deafens leaves both hands where they were.
-- **Hunch.** The spine and the neck pitch forward by `stun_hunch_pitch` **15 degrees** x the level, on top of a crouch's own pitch; a
+- **Hunch.** The spine and the neck pitch forward by `CharacterStunConfig.hunch_pitch` **15 degrees** x the level, on top of a crouch's own pitch; a
   deaf-only stun hunches too. The arms keep their reach past the leaning chest, as in a crouch.
-- **Stagger.** Walking, its strides are shorter (`stun_stagger_stride` **x0.55**) and uneven (a limp, `stun_stagger_limp` **0.4**, and a
-  wandering pace, `stun_stagger_wander` **0.3**), its hips sway (`stun_stagger_sway` **4 px**) over the planted foot and its head lolls
-  (`stun_stagger_bob` **3 px**), all by the level. The pace stays `stun_speed` and the drift stays.
+- **Stagger.** Walking, its strides are shorter (`CharacterStunConfig.stagger_stride` **x0.55**) and uneven (a limp, `CharacterStunConfig.stagger_limp` **0.4**, and a
+  wandering pace, `CharacterStunConfig.stagger_wander` **0.3**), its hips sway (`CharacterStunConfig.stagger_sway` **4 px**) over the planted foot and its head lolls
+  (`CharacterStunConfig.stagger_bob` **3 px**), all by the level. The pace stays `CharacterStunConfig.speed` and the drift stays.
 - **One-handed.** While the free hand covers the eyes, a gun is held in the weapon hand alone, in the `one_hand` stance (the arm out, the
   gun lower than a two-handed grip, wandering `waver` **3 px**), and `Character.one_handed()` is true (false for anything but a gun, and
   while the free hand is away). A round fired so leaves within the gun's `spread_deg` plus its `GunConfig` row's `one_hand_spread_deg`
   (pistol **3**, SMG **6**, rifle **8 degrees**), the player's as an NPC's, and a long gun kicks `one_hand_recoil` **x1.75** harder.
-The look's numbers live in `CharacterConfig` with the other four, the spread in `GunConfig`.
+The look's numbers live in `CharacterStunConfig` with the other four, the spread in `GunConfig`.
 Tests: `character/stunned_slow_and_sway`, `character/posture_and_run_reads`, `ai/grenade/throw_timing_counts_slowed_walk`,
 `character/stunned_hand_over_eyes`, `character/stunned_hunch_and_stagger`, `items/one_handed_fire`.
 
@@ -537,7 +537,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
 - **Character**: `item_count`, `throw_stats`, `aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
-  (`take_stun`, `is_blind`, `is_deaf`, `stun_level`, `stun_view`; its numbers are `CharacterConfig`'s) and its effect on speed, running and aim, the stunned look
+  (`take_stun`, `is_blind`, `is_deaf`, `stun_level`, `stun_view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).
 - **Projectile**: `Explosion.frag` / `Explosion.stun`, and the `max_range` of the `Shot` `ProjectileSpawner.spawn` takes. **Physics**: the explosion FX.

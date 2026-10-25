@@ -47,7 +47,7 @@ match-assembly module, **`MatchBuilder`** (`scenes/match_builder.gd`, interface 
 a match spec goes in (`Main.start_match(spec)` is Main's one way into a match), a match handle comes out. It asks World-Gen for a house,
 bakes the nav map and lights it (`WorldLighting.light`, interface 20) right after the bake, waits until the navigation maps answer with the
 new house, places the NPCs, arms and styles every character for its side (its loadout; the match's police unit or a defender's crew style
-and weapon style, read off `CharacterConfig.styles`), ranks the unit and builds the squads. The Testing domain's world stages its own
+and weapon style, read off `CharacterStyleConfig.styles`), ranks the unit and builds the squads. The Testing domain's world stages its own
 worlds and binds its NPCs through the same module, and builds a declared match or declared squads with it, so a test measures the match Main
 plays. Match lifecycle (Start / Watch / Endless, teardown, the Von-server wait), the placement rules and the exports are the
 **`domain-main`** skill. `project.godot` autoloads only five: `Keybinds`, `Despawner`, `EventBus` and `GameClock` (all
@@ -161,7 +161,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    - `Deformable` (Node child): `record(hit, turn = 0.0)`, `impacts`, `damage_total`, `changed`
 	 signal (`turn`: the body's drawn turn beyond its node rotation; the character passes its facing), and three per-body knobs its owner
 	 sets: `max_depth` (the deepest one dent caves, px), `allow_chunks` (a hard hit carves a missing piece) and `max_impacts` (how many
-	 dents it remembers), each defaulting to `PhysicsDeformConfig`'s (the character sets its softer flesh values from `CharacterConfig`). A
+	 dents it remembers), each defaulting to `PhysicsDeformConfig`'s (the character sets its softer flesh values from `CharacterHitConfig`). A
 	 vehicle composes one (no `Knockback`: it is its own `RigidBody2D`) with chunks off and does not rebuild its collider from the dents.
    - `Deformation` (static): silhouette/collider polygons + drawing (`draw_shape(canvas, shape, size, impacts, look: ShapeLook)`
 	 and `draw_wall(canvas, a, b, impacts, look: WallLook)` optionally textured — `ShapeLook` (`physics/shape_look.gd`: `fill`,
@@ -236,12 +236,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 6. **Items ↔ Character**
    `Item` (`items/item.gd`): `display_name`, `reach`, `hand_stance(hand) -> StringName` (how that
-   hand is held — the name of a `CharacterConfig.stances` entry: `relaxed`, `guard`, `aim`, `support`;
+   hand is held — the name of a `CharacterStanceConfig.stances` entry: `relaxed`, `guard`, `aim`, `support`;
    the character's pose eases each hand to it and the rig bends the arm to reach it; the character itself overrides it with `run` while running
    and, while blind, puts the free hand in `eyes` and a gun's weapon hand in `one_hand`, `docs/grenades.md` G13), `primary(user)` (F), the melee hooks the character's hands read, `strike_direction(aim, amount)` / `strike_end(aim, amount)` / `strike_forward()` / `strike_short()` / `strike_support_gap()` / `strike_tempo()` (a long gun's punch swings it nearly across the body, butt leading; `GunItem` overrides `strike_ahead()` / `strike_turn()`, from which the direction, end and forward follow, and the short, support gap and tempo),
    `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (the item's own clocks; the character ticks
    every item it carries each physics frame), `is_automatic()` (holding the trigger keeps firing), `weapon_hand()`,
-   `muzzle_ahead()` (px past the weapon hand where bullets leave; negative = the character's `CharacterConfig.muzzle_ahead`),
+   `muzzle_ahead()` (px past the weapon hand where bullets leave; negative = the character's `CharacterStanceConfig.muzzle_ahead`),
    `raises_at_contact()` / `raised_stance(hand)` (a long gun's barrel against a wall or object: held pointing up, cannot fire),
    `draw_weapon(canvas, user)`, `drop(user, velocity) -> Node2D` (let go
    as its user dies: a gun leaves a skidding `DroppedItem` in the world, the default leaves
@@ -312,7 +312,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    is thrown to, interface 6: where the AI expects its own grenade to come down), `set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
    `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
    magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
-   how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
+   how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterStyleConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
    the defenders' crew; `zenitex` when never given one), `look_seed` (exported: its own variety within the style), `rank` (a police unit's: 0 trooper, 1 sergeant,
    2 lead) and `set_style(style, seed, rank := 0)` (`LoadoutConfig.apply` calls it);
    what it wears (`docs/outfits.md`): `set_outfit(ids)` (`{ head, body, vest, pants, feet, front_plate, back_plate }`, replacing the whole outfit; `LoadoutConfig.apply`
@@ -322,7 +322,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `get_surface_at` (interface 3); an outfit's weight slows `run_speed()` and every pace;
    while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `current_item()` is null
    while it is posed by the ride (the item put away);
-   the stun (a grenade's flash and bang): `take_stun(blind, deaf)`, `is_blind()`, `is_deaf()`, `stun_level()` (0..1 disorientation: slowed to `CharacterConfig.stun_speed`, no running, aim sway;
+   the stun (a grenade's flash and bang): `take_stun(blind, deaf)`, `is_blind()`, `is_deaf()`, `stun_level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
    drawn hunched and staggering, the free hand over the eyes while blind), `one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun_view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
    another character's `facing`, `damage_taken()`, `is_reloading()`, `posture()`, `current_item()` and `faction` — but only while it can SEE that character
    (aim, visible wounds, a reload in progress and the posture are things it perceives); the exceptions are three reads of an unseen character's `faction`,
@@ -927,7 +927,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - **Arming and squads:** `arm(characters, match_spec)` (each by its faction's side loadout through `LoadoutConfig.apply`, interface 6,
       the guns from `seed` XOR `LOADOUT_SEED_SALT`), `style(characters, match_spec) -> Array` (one `apply` style per character, from `seed`
       XOR `STYLE_SEED_SALT`: the match's police unit and its ranks, lead 2, sergeant 1, troopers 0, a leading human invader the lead; each
-      defender a crew style; read off `CharacterConfig.styles`, `styles_of(faction)`), `build_squads(world, squads_spec: SquadsSpec,
+      defender a crew style; read off `CharacterStyleConfig.styles`, `styles_of(faction)`), `build_squads(world, squads_spec: SquadsSpec,
       stack := null) -> Dictionary` (`SquadsSpec`, `scenes/squads_spec.gd`: `members` (the combatants), `openings`, `rooms`, `human` := {},
       `claim_ttl` := `CLAIM_TTL_OF_NPCS`; one `Squad` per faction, interface 21, keeping claims `claim_ttl` s, or, at `CLAIM_TTL_OF_NPCS`
       (any negative value), `callout_ttl_of` the side) and `build_leader_overlay(world, squads) -> Node2D`;
@@ -957,7 +957,7 @@ MatchBuilder ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory /
 MatchBuilder ─▶ NavBuilder (build, ready, steering_map; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  MatchBuilder ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds
 MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
-MatchBuilder ──(the styles' side / weapons)──▶ CharacterConfig.styles
+MatchBuilder ──(the styles' side / weapons)──▶ CharacterStyleConfig.styles
 main ─▶ Settings ─▶ Keybinds   /   main ─▶ SettingsMenu (UI; signals only, no dependency on Settings)
 main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out);  MatchBuilder ─▶ LeaderOverlay / OverlayRegistry (UI: build_leader_overlay, set_overlay)
 main ──(is_resolved / resolved: the Von wait)──▶ DecisionServerLauncher (AI)
@@ -1006,11 +1006,13 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into fifty-eight `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into sixty-six `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (Physics: the wall mask, debris and hit particles), `PhysicsImpactConfig` (a hit's shove, the furniture body),
-`PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterConfig` (walking
-push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
+`PhysicsDeformConfig` (the dents' shape), `PhysicsDeformLookConfig` (how a dent is drawn), `PhysicsRagdollConfig` (the ragdoll solver), `PhysicsExplosionConfig` (a burst's look), `CharacterPostureConfig`,
+`CharacterPaceConfig` (running, stamina, the outfit's weight), `CharacterPushConfig`, `CharacterStunConfig`, `CharacterHitConfig` (flesh,
+hit zones, sides), `CharacterShadowConfig`, `CharacterStyleConfig` (the styles), `CharacterStanceConfig` (stances, the muzzle, the
+raise, recoil), `CharacterConfig` (the punch and kick, the body, stride, pose, the fall and the art), `BloodConfig` (blood's master switch, colours, draw layers and decal cap), `BloodDripConfig`
 (a wound's drips), `BloodSprayConfig` (a hit's spray), `BloodSplatConfig` (a splatter's shape), `BloodPoolConfig` (the
 bleed-out pool), `BloodSurfaceConfig` (the floor's grooves and soak), `BloodPrintConfig` (footprints), `BloodSmearConfig`
 (a smear's drag), `BloodSmearLookConfig` (a ribbon's look), `BloodTrailConfig` (blood pulled out of a pool), `ArtCanvasConfig` (the art pixel, the light,

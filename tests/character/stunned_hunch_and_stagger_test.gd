@@ -1,7 +1,7 @@
 extends GameTest
 ## S2, S3 (ticket #56, `docs/grenades.md` G13): a stunned character bends over a little and
 ## staggers.
-## - Hunch (S2): the spine and neck pitch forward by `CharacterConfig.stun_hunch_pitch` x
+## - Hunch (S2): the spine and neck pitch forward by `CharacterStunConfig.hunch_pitch` x
 ##   `stun_level()`, on top of a crouch's own pitch, and a bang that only deafens hunches too. It
 ##   eases in and out with the level.
 ## - Stagger (S3): walking stunned, the strides are shorter and uneven, the hips sway and the head
@@ -25,10 +25,10 @@ const LANE_STUNNED := 450.0
 func describe() -> Dictionary:
 	return {
 		"name": "A stunned character hunches and staggers",
-		"description": "Stunned, the spine pitches forward by stun_hunch_pitch x stun_level "
-			+ "(crouched too, deaf-only too), easing in and out; walking, the strides are shorter "
-			+ "and uneven, the hips sway and the head bobs, at 0.45 of the speed with the drift; "
-			+ "no jumps.",
+		"description": "Stunned, the spine pitches forward by CharacterStunConfig.hunch_pitch x "
+			+ "stun_level (crouched too, deaf-only too), easing in and out; walking, the strides "
+			+ "are shorter and uneven, the hips sway and the head bobs, at 0.45 of the speed with "
+			+ "the drift; no jumps.",
 		"tags": ["grenade", "stun", "pose", "rig", "stride", "character"],
 		"timeout": 40.0,
 	}
@@ -37,7 +37,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 3200, 900))
 	s.switch(&"nav.rebake", false)
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.actor(&"stand", &"puppet", Vector2(150, 750), { "start_slot": 3, "max_health": 100_000.0 })
 	s.actor(&"crouch", &"puppet", Vector2(450, 750), { "start_slot": 3, "max_health": 100_000.0 })
 	s.actor(&"deaf", &"puppet", Vector2(750, 750), { "start_slot": 3, "max_health": 100_000.0 })
@@ -64,9 +64,9 @@ func _pitch(c: Node) -> float:
 	return rad_to_deg(atan2(lean, chest.z - pelvis.z))
 
 
-## `CharacterConfig.stun_hunch_pitch` (rad), read by name; -1 when it does not exist.
+## `CharacterStunConfig.hunch_pitch` (rad), read by name; -1 when it does not exist.
 func _hunch() -> float:
-	var v: Variant = (CharacterConfig as Script).get(&"stun_hunch_pitch")
+	var v: Variant = (CharacterStunConfig as Script).get(&"hunch_pitch")
 	return float(v) if v != null else -1.0
 
 
@@ -151,7 +151,7 @@ func run(t: TestContext) -> void:
 	t.puppet(&"crouch").set_posture(&"crouch")
 	await t.seconds(1.5)
 	var hunch := _hunch()
-	t.check(hunch > 0.0, "CharacterConfig.stun_hunch_pitch exists (%s)" % str(hunch))
+	t.check(hunch > 0.0, "CharacterStunConfig.hunch_pitch exists (%s)" % str(hunch))
 	var upright := _pitch(t.actor(&"stand"))
 	var crouched := _pitch(t.actor(&"crouch"))
 	t.check(absf(upright) < 3.0, "unstunned, a standing spine is upright (%.1f degrees)" % upright)
@@ -196,7 +196,7 @@ func _check_hunch(t: TestContext, hunch: float, upright: float, crouched: float)
 	)
 	t.check(
 		hunch > 0.0 and absf(bent - upright - hunch * level) <= PITCH_TOLERANCE,
-		"stunned, the spine pitches forward by stun_hunch_pitch x level (%.1f degrees, want %.1f)"
+		"stunned, the spine pitches forward by hunch_pitch x level (%.1f degrees, want %.1f)"
 			% [bent - upright, hunch * level],
 	)
 	var bent_crouched := _pitch(t.actor(&"crouch"))

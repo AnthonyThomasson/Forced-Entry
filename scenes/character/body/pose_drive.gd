@@ -7,7 +7,7 @@ var facing := Vector2.RIGHT
 ## How it moves (px/s), and its top walking speed.
 var velocity := Vector2.ZERO
 var top_speed := 0.0
-## Per hand: the stance it is held in (a `CharacterConfig.stances` name) and its punch's
+## Per hand: the stance it is held in (a `CharacterStanceConfig.stances` name) and its punch's
 ## extension, 0 (resting) .. 1 (fully punched).
 var stances: Array = []
 var punch: Array = []

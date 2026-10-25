@@ -76,7 +76,7 @@ Lights follow their piece by being its children; the occluders follow theirs the
   12-gon for a round piece; `EMITTER` when it gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall
   builds one per segment, the collider's rect (`WALL`); the street's floors (catalogue `light_layer: "street"`) put themselves and
   their canvas items on `STREET`; every `Emissive` overlay draws through an unshaded CanvasItemMaterial.
-- **Character** (`domain-character`): an oval occluder (`CharacterConfig.shadow_depth` / `_width` / `_sides`) on `CHARACTER`,
+- **Character** (`domain-character`): an oval occluder (`CharacterShadowConfig.depth` / `_width` / `_sides`) on `CHARACTER`,
   turned with `facing` when it turns, freed in `_die`.
 
 ## Adding to it

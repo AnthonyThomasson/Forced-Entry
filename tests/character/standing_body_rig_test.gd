@@ -80,7 +80,7 @@ func _check_stances(t: TestContext) -> void:
 	var muzzle: Vector2 = gunner.muzzle_origin(0) - gunner.hand_world(0)
 	t.expect_near(
 		muzzle.length(),
-		CharacterConfig.muzzle_ahead,
+		CharacterStanceConfig.muzzle_ahead,
 		0.01,
 		"the muzzle sits muzzle_ahead past the weapon hand",
 	)

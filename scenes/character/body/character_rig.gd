@@ -14,15 +14,16 @@ extends RefCounted
 ##   about the pelvis (the neck pitching on, so the head sits ahead of and above the shoulders); the
 ##   hips and feet come together, the feet standing a little ahead of the pelvis so the knees lead.
 ## - A stunned body hunches: the spine and the neck pitch forward by the pose's `hunch()` on top of
-##   any crouch, its stride is shorter (`stun_stagger_stride`) and its pelvis sways with the pose's
+## any crouch, its stride is shorter (`CharacterStunConfig.stagger_stride`) and its pelvis sways
+## with the pose's
 ##   `hip_sway`.
 ## - Each ankle rests where the legs layer (character_legs.gd) stopped it against a wall or piece of
 ##   furniture.
 ## Joints are read by index (the constants below, shared with the ragdoll) through `point(i)`, and
 ## each foot's direction through `toes(i)`. Index pairs are per hand side (0 = the character's right
 ## as drawn, 1 = the left). A rig also answers `torso()` and `face()`, so a crouched body is drawn
-## like a fallen one. Tuning: CharacterConfig.body_*, CharacterConfig.stances,
-## CharacterConfig.postures.
+## like a fallen one. Tuning: CharacterConfig.body_*, CharacterStanceConfig.stances,
+## CharacterPostureConfig.postures.
 
 const HEAD := 0
 const CHEST := 1
@@ -184,14 +185,14 @@ class Measures:
 		arm_reach = (upper + fore) * CharacterConfig.body_arm_extension
 		foot_z = CharacterConfig.ragdoll_limb_radius * r
 		hip_half = (CharacterConfig.body_hip_width * r
-				* lerpf(1.0, CharacterConfig.body_crouch_hip_width, folded))
+				* lerpf(1.0, CharacterPostureConfig.body_crouch_hip_width, folded))
 		foot_half = (CharacterConfig.body_hip_width * r
-				* lerpf(1.0, CharacterConfig.body_crouch_foot_gap, folded))
-		foot_fwd = CharacterConfig.body_crouch_foot_ahead * r * folded - lean * 0.5
+				* lerpf(1.0, CharacterPostureConfig.body_crouch_foot_gap, folded))
+		foot_fwd = CharacterPostureConfig.body_crouch_foot_ahead * r * folded - lean * 0.5
 		var item: Item = character.current_item()
 		weapon_hand = item.weapon_hand() if item != null else 0
 		# A stunned walk's shorter steps.
-		staggered = lerpf(1.0, CharacterConfig.stun_stagger_stride, pose.stun_amount())
+		staggered = lerpf(1.0, CharacterStunConfig.stagger_stride, pose.stun_amount())
 
 
 	## The shoulders' frame (turned to the pose's torso angle) and the hips' (its hip angle).
@@ -210,10 +211,10 @@ class Measures:
 	## of the pelvis so the knees lead over the toes.
 	func _heights(character: CharacterBody2D) -> void:
 		height = character.posture_height()
-		var crouch_height: float = CharacterConfig.postures[&"crouch"]["height"]
+		var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
 		folded = clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
 		# A stun hunches it on.
-		pitch = deg_to_rad(CharacterConfig.body_crouch_pitch) * folded + pose.hunch()
+		pitch = deg_to_rad(CharacterPostureConfig.body_crouch_pitch) * folded + pose.hunch()
 		spine = (CharacterConfig.body_shoulder_height - CharacterConfig.body_hip_height) * r
 		lean = spine * sin(pitch)
 		# A run sinks.
@@ -239,7 +240,7 @@ class Measures:
 	## them; the pelvis half the lean back, swayed by a stagger.
 	func _trunk() -> void:
 		var lunge := Vector3(pose.torso_offset.x, pose.torso_offset.y, 0.0)
-		var neck_pitch := pitch + deg_to_rad(CharacterConfig.body_crouch_neck_pitch) * folded
+		var neck_pitch := pitch + deg_to_rad(CharacterPostureConfig.body_crouch_neck_pitch) * folded
 		var neck := (CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r
 		_points[CHEST] = lunge + fwd * lean * 0.5 + UP * chest_z
 		_points[HEAD] = (Vector3(pose.head_offset.x, pose.head_offset.y, 0.0)
@@ -304,7 +305,7 @@ class Measures:
 		var walk: float = pose.walk_amount()
 		var run: float = pose.run_amount()  # A run strides wider and lifts higher.
 		var stride := lerpf(CharacterConfig.body_stride, CharacterConfig.body_run_stride, run) \
-			* lerpf(1.0, CharacterConfig.body_crouch_stride, folded) * staggered
+			* lerpf(1.0, CharacterPostureConfig.body_crouch_stride, folded) * staggered
 		var foot_lift := lerpf(
 			CharacterConfig.body_foot_lift,
 			CharacterConfig.body_run_foot_lift,
@@ -312,8 +313,8 @@ class Measures:
 		)
 		var step := -sin(phase) * walk * stride * r
 		var lift := maxf(-cos(phase), 0.0) * walk * foot_lift * r  # Off the floor mid-swing.
-		var stagger := ((-0.5 if i == weapon_hand else 0.5) * CharacterConfig.body_crouch_stagger
-				* r * folded)
+		var stagger := ((-0.5 if i == weapon_hand else 0.5)
+				* CharacterPostureConfig.body_crouch_stagger * r * folded)
 		var base := hip_right * out * foot_half + hip_fwd * (foot_fwd + stagger)
 		return Vector3(base.x, base.y, foot_z + lift) + hip_fwd * step
 

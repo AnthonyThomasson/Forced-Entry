@@ -18,7 +18,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 8000, 600))
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.actor(&"walker", &"puppet", Vector2(100, 300), { "start_slot": 2 })
 
 
@@ -39,7 +39,9 @@ func run(t: TestContext) -> void:
 	puppet.set_posture(&"crouch")
 	await t.seconds(0.3)
 	t.check(body.posture() == &"crouch", "the puppet crouches")
-	var crouch_speed: float = WALK_SPEED * float(CharacterConfig.postures[&"crouch"]["speed"])
+	var crouch_speed: float = (
+		WALK_SPEED * float(CharacterPostureConfig.postures[&"crouch"]["speed"])
+	)
 	t.expect_near(
 		body.get_real_velocity().length(),
 		crouch_speed,
@@ -67,7 +69,7 @@ func run(t: TestContext) -> void:
 	t.check(body.is_running(), "standing with run held runs")
 	t.expect_near(
 		body.get_real_velocity().length(),
-		WALK_SPEED * CharacterConfig.run_speed_mult,
+		WALK_SPEED * CharacterPaceConfig.run_speed_mult,
 		5.0,
 		"at run speed",
 	)

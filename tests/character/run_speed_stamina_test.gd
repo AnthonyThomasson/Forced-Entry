@@ -18,9 +18,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 4000, 600))
-	s.set_static(CharacterConfig, &"run_stamina_seconds", 1.0)
-	s.set_static(CharacterConfig, &"stamina_regen_per_sec", 0.5)
-	s.set_static(CharacterConfig, &"run_resume_fraction", 0.3)
+	s.set_static(CharacterPaceConfig, &"run_stamina_seconds", 1.0)
+	s.set_static(CharacterPaceConfig, &"stamina_regen_per_sec", 0.5)
+	s.set_static(CharacterPaceConfig, &"run_resume_fraction", 0.3)
 	s.actor(&"runner", &"puppet", Vector2(100, 300), { "start_slot": 2 })
 
 
@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 	t.check(body.is_running(), "running while holding run and moving")
 	t.expect_near(
 		body.get_real_velocity().length(),
-		WALK_SPEED * CharacterConfig.run_speed_mult,
+		WALK_SPEED * CharacterPaceConfig.run_speed_mult,
 		5.0,
 		"runs at run speed",
 	)
@@ -78,6 +78,6 @@ func _check_runs_dry(t: TestContext, body: Node) -> void:
 		"runs again after stamina refills",
 	)
 	t.check(
-		body.stamina_fraction() >= CharacterConfig.run_resume_fraction - 0.05,
+		body.stamina_fraction() >= CharacterPaceConfig.run_resume_fraction - 0.05,
 		"not before the resume fraction",
 	)

@@ -55,7 +55,7 @@ const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.
 @export var faction: StringName = &"player"
 ## Maximum health. Characters start at this value; configurable per character in the inspector.
 @export var max_health: float = 50.0
-## The style it is drawn in (`docs/outfits.md`, styles; a key of `CharacterConfig.styles`):
+## The style it is drawn in (`docs/outfits.md`, styles; a key of `CharacterStyleConfig.styles`):
 ## `zenitex` or `trauma` (the invaders' police units), `merc` or `borg` (the defenders' crew). What
 ## it wears is drawn in the style, and its own variety (skin, hair, implants, the colours a defender
 ## found its garments in) is drawn from `look_seed`. Looks only: nothing it does changes. A
@@ -107,14 +107,14 @@ var aim_point := Vector2.ZERO
 var run_input := false
 ## Stamina as a fraction of a full bar; spent while running, regained otherwise.
 var stamina := 1.0
-## Ran dry: walks until stamina refills to `CharacterConfig.run_resume_fraction`.
+## Ran dry: walks until stamina refills to `CharacterPaceConfig.run_resume_fraction`.
 var _exhausted := false
 ## Running this frame.
 var _running := false
-## The body's height: a `CharacterConfig.postures` key (`stand` or `crouch`). A crouch is a
+## The body's height: a `CharacterPostureConfig.postures` key (`stand` or `crouch`). A crouch is a
 ## smaller target and slower; only a standing character can run. Set through `set_posture()`.
 var _posture: StringName = &"stand"
-## Seconds until the posture may change again (`CharacterConfig.posture_change_time` after each
+## Seconds until the posture may change again (`CharacterPostureConfig.change_time` after each
 ## change).
 var _posture_cooldown := 0.0
 ## What the body is drawn at, easing toward the posture: its height as a share of a standing one (1
@@ -212,9 +212,9 @@ func _ready() -> void:
 	# only — the body keeps its circular hitbox). No carved chunks, since a chunk's reach
 	# would span this small body and fold it.
 	_deformable = Deformable.new()
-	_deformable.max_depth = CharacterConfig.flesh_deform_max_depth
-	_deformable.allow_chunks = CharacterConfig.flesh_allow_chunks
-	_deformable.max_impacts = CharacterConfig.flesh_deform_max_impacts
+	_deformable.max_depth = CharacterHitConfig.flesh_deform_max_depth
+	_deformable.allow_chunks = CharacterHitConfig.flesh_allow_chunks
+	_deformable.max_impacts = CharacterHitConfig.flesh_deform_max_impacts
 	add_child(_deformable)
 
 	_wound = BloodWound.new()
@@ -242,15 +242,15 @@ func _physics_process(delta: float) -> void:
 
 
 ## The living body's shadow footprint, in its own frame with +x along the facing
-## (CharacterConfig.shadow_*).
+## (CharacterShadowConfig).
 func _shadow_footprint() -> PackedVector2Array:
 	var poly := PackedVector2Array()
-	var sides := maxi(3, CharacterConfig.shadow_sides)
+	var sides := maxi(3, CharacterShadowConfig.sides)
 	for k in sides:
 		var a := TAU * k / sides
 		poly.append(Vector2(
-			cos(a) * radius * CharacterConfig.shadow_depth,
-			sin(a) * radius * CharacterConfig.shadow_width,
+			cos(a) * radius * CharacterShadowConfig.depth,
+			sin(a) * radius * CharacterShadowConfig.width,
 		))
 	return poly
 
@@ -325,12 +325,12 @@ func _walk_frame(delta: float) -> void:
 	_update_weapon_raise(delta)
 
 	_update_stamina(run_input and _posture == &"stand" and stun_level() <= 0.0
-			and move_input.length() > CharacterConfig.run_min_input, delta)
+			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
 	velocity = move_input * _move_speed() * _push_slow + _knockback + _stun_drift()
 	move_and_slide()
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
-		CharacterConfig.push_knockback_friction * delta,
+		CharacterPushConfig.knockback_friction * delta,
 	)
 	_push_slow = _ease_push_slow(_apply_pushes(), delta)
 	_kick.update(self, delta)
@@ -469,7 +469,7 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 	facing = toward.normalized()
 	aim_point = at + facing * 64.0
 	_posture = &"stand"
-	var crouch_height: float = CharacterConfig.postures[&"crouch"]["height"]
+	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
 	_posture_height = lerpf(1.0, crouch_height, clampf(fold, 0.0, 1.0))
 	_ride_step = step
 	_rig_cache = null
@@ -576,10 +576,10 @@ func is_running() -> bool:
 
 
 ## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,
-## `CharacterConfig.postures`): what a piece of furniture must stand above to shield it.
+## `CharacterPostureConfig.postures`): what a piece of furniture must stand above to shield it.
 ## `get_surface()` answers for the posture it is in.
 func posture_coverage(which: StringName) -> float:
-	return float(CharacterConfig.postures[which]["coverage"])
+	return float(CharacterPostureConfig.postures[which]["coverage"])
 
 
 ## Stamina left, 0..1 of a full bar.
@@ -587,18 +587,21 @@ func stamina_fraction() -> float:
 	return stamina
 
 
-## Take a posture: `stand` or `crouch` (`CharacterConfig.postures`). True when the character is in
-## it afterwards, so asking for the posture it already holds is a harmless `true`: a controller can
-## write its wanted posture every frame. Refused (false) while dead, locked in an interaction, or
-## within `CharacterConfig.posture_change_time` of the last change. A crouch is slower, a smaller
-## target and cannot run.
+## Take a posture: `stand` or `crouch` (`CharacterPostureConfig.postures`). True when the character
+## is in it afterwards, so asking for the posture it already holds is a harmless `true`: a
+## controller can write its wanted posture every frame. Refused (false) while dead, locked in an
+## interaction, or within `CharacterPostureConfig.change_time` of the last change. A crouch is
+## slower, a smaller target and cannot run.
 func set_posture(wanted: StringName) -> bool:
 	if wanted == _posture:
 		return true
-	if is_dead or is_busy() or _posture_cooldown > 0.0 or not CharacterConfig.postures.has(wanted):
+	if (is_dead
+			or is_busy()
+			or _posture_cooldown > 0.0
+			or not CharacterPostureConfig.postures.has(wanted)):
 		return false
 	_posture = wanted
-	_posture_cooldown = CharacterConfig.posture_change_time
+	_posture_cooldown = CharacterPostureConfig.change_time
 	_rig_cache = null
 	return true
 
@@ -628,7 +631,7 @@ func posture_height() -> float:
 ## How folded the drawn body is, 0 (standing) .. 1 (crouched): the share the rig pitches the spine
 ## by.
 func posture_folded() -> float:
-	var crouch_height: float = CharacterConfig.postures[&"crouch"]["height"]
+	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
 	return clampf((1.0 - _posture_height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
 
 
@@ -637,7 +640,7 @@ func posture_folded() -> float:
 ## forward by the pose's `hunch()`).
 func posture_hand_ahead() -> float:
 	var spine := (CharacterConfig.body_shoulder_height - CharacterConfig.body_hip_height) * radius
-	return (CharacterConfig.body_crouch_hand_ahead * posture_folded()
+	return (CharacterPostureConfig.body_crouch_hand_ahead * posture_folded()
 			+ spine * sin(pose.hunch()) * 0.5)
 
 
@@ -708,9 +711,9 @@ func set_outfit(ids: Dictionary) -> void:
 	_outfit.set_ids(ids)
 
 
-## Draw the character in `new_style` (a key of `CharacterConfig.styles`) with its own variety from
-## `seed_value`, and a police unit's `new_rank` (0 trooper, 1 sergeant, 2 lead): how Main styles a
-## spawn (through `LoadoutConfig.apply`). Looks only.
+## Draw the character in `new_style` (a key of `CharacterStyleConfig.styles`) with its own variety
+## from `seed_value`, and a police unit's `new_rank` (0 trooper, 1 sergeant, 2 lead): how Main
+## styles a spawn (through `LoadoutConfig.apply`). Looks only.
 func set_style(new_style: StringName, seed_value: int, new_rank := 0) -> void:
 	style = new_style
 	look_seed = seed_value
@@ -820,31 +823,31 @@ func _cancel_reload() -> void:
 ## Only a weapon that `raises_at_contact()` is ever blocked. The barrel is a ray from beside the
 ## body centre along the aim, as far as the weapon reaches held normally (never as raised, or
 ## pulling it up would clear it and drop it again); it blocks when something solid is within that
-## reach, and stays blocked until there is `CharacterConfig.weapon_contact_margin` of clearance, so
-## the weapon does not flicker at the edge.
+## reach, and stays blocked until there is `CharacterStanceConfig.weapon_contact_margin` of
+## clearance, so the weapon does not flicker at the edge.
 func _update_weapon_raise(delta: float) -> void:
 	var item := current_item()
 	if item == null or not item.raises_at_contact():
 		_blocked = false
 	else:
 		var hand := item.weapon_hand()
-		var stance: Dictionary = CharacterConfig.stances.get(
+		var stance: Dictionary = CharacterStanceConfig.stances.get(
 			item.hand_stance(hand),
-			CharacterConfig.stances[&"relaxed"],
+			CharacterStanceConfig.stances[&"relaxed"],
 		)
 		var reach: float = float(stance["forward"]) + posture_hand_ahead() + _muzzle_ahead(item)
 		var lateral: float = float(stance["lateral"]) * (-1.0 if hand == 0 else 1.0)
 		var from := global_position + facing.orthogonal() * lateral
-		var margin := 0.0 if not _blocked else CharacterConfig.weapon_contact_margin
+		var margin := 0.0 if not _blocked else CharacterStanceConfig.weapon_contact_margin
 		_blocked = _hands.solid_distance(from, facing, reach + margin + 1.0) < reach + margin
 	_raise = move_toward(
 		_raise,
 		1.0 if _blocked else 0.0,
-		CharacterConfig.weapon_raise_speed * delta,
+		CharacterStanceConfig.weapon_raise_speed * delta,
 	)
 
 
-## Walking speed (slower in a lower posture, slowed to `CharacterConfig.stun_speed` while stunned
+## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
 ## and by the outfit's weight), or run speed while running (only possible standing and not stunned).
 func _move_speed() -> float:
 	return _speed_in(_posture, _running)
@@ -853,22 +856,22 @@ func _move_speed() -> float:
 ## The speed (px/s) the body covers ground at in posture `which`, running or walking, as it is now
 ## (stunned or not, and weighed down by what it wears).
 func _speed_in(which: StringName, running: bool) -> float:
-	return (speed * float(CharacterConfig.postures[which]["speed"])
-			* (CharacterConfig.run_speed_mult if running else 1.0)
-			* lerpf(1.0, CharacterConfig.stun_speed, stun_level()) * _weight_speed())
+	return (speed * float(CharacterPostureConfig.postures[which]["speed"])
+			* (CharacterPaceConfig.run_speed_mult if running else 1.0)
+			* lerpf(1.0, CharacterStunConfig.speed, stun_level()) * _weight_speed())
 
 
 ## The kg worn above what the body carries at its tuned speed
-## (`CharacterConfig.outfit_free_weight`).
+## (`CharacterPaceConfig.outfit_free_weight`).
 func _extra_weight() -> float:
-	return maxf(_outfit.weight() - CharacterConfig.outfit_free_weight, 0.0)
+	return maxf(_outfit.weight() - CharacterPaceConfig.outfit_free_weight, 0.0)
 
 
 ## The share of its speed the outfit's weight leaves the body (1 = unencumbered).
 func _weight_speed() -> float:
 	return maxf(
-		1.0 - _extra_weight() * CharacterConfig.outfit_speed_per_kg,
-		CharacterConfig.outfit_speed_min,
+		1.0 - _extra_weight() * CharacterPaceConfig.outfit_speed_per_kg,
+		CharacterPaceConfig.outfit_speed_min,
 	)
 
 
@@ -888,7 +891,7 @@ func walk_speed() -> float:
 ## `turn` rate (rad/s) crouched, so a low body takes longer to come round. The aim point itself is
 ## never held back.
 func _turned_toward(want: Vector2, delta: float) -> Vector2:
-	var rate: float = CharacterConfig.postures[_posture]["turn"]
+	var rate: float = CharacterPostureConfig.postures[_posture]["turn"]
 	if rate <= 0.0:
 		return want
 	var step := rate * delta
@@ -898,10 +901,10 @@ func _turned_toward(want: Vector2, delta: float) -> Vector2:
 ## Ease the drawn body toward the posture (it snaps the last hair, so a settled body stops
 ## changing).
 func _ease_posture(delta: float) -> void:
-	var k := 1.0 - exp(-CharacterConfig.posture_ease * delta)
+	var k := 1.0 - exp(-CharacterPostureConfig.posture_ease * delta)
 	_posture_height = _eased_to(
 		_posture_height,
-		float(CharacterConfig.postures[_posture]["height"]),
+		float(CharacterPostureConfig.postures[_posture]["height"]),
 		k,
 	)
 
@@ -924,14 +927,14 @@ func _stand_if_busy() -> void:
 func _update_stamina(wants_run: bool, delta: float) -> void:
 	_running = wants_run and not _exhausted and stamina > 0.0
 	if _running:
-		var strain := 1.0 + _extra_weight() * CharacterConfig.outfit_stamina_per_kg
-		stamina = maxf(stamina - delta * strain / CharacterConfig.run_stamina_seconds, 0.0)
+		var strain := 1.0 + _extra_weight() * CharacterPaceConfig.outfit_stamina_per_kg
+		stamina = maxf(stamina - delta * strain / CharacterPaceConfig.run_stamina_seconds, 0.0)
 		if stamina <= 0.0:
 			_exhausted = true
 			_running = false
 	else:
-		stamina = minf(stamina + delta * CharacterConfig.stamina_regen_per_sec, 1.0)
-		if _exhausted and stamina >= CharacterConfig.run_resume_fraction:
+		stamina = minf(stamina + delta * CharacterPaceConfig.stamina_regen_per_sec, 1.0)
+		if _exhausted and stamina >= CharacterPaceConfig.run_resume_fraction:
 			_exhausted = false
 
 
@@ -1016,14 +1019,14 @@ func throw_stats(slot := -1) -> Dictionary:
 
 ## Where a grenade leaves this character's hand when it throws one standing: the hand the item in
 ## `slot` (the held one by default) is thrown with (its `weapon_hand()`; the right hand, 0, for an
-## item that is not thrown or an empty slot), in the `throw` stance (`CharacterConfig.stances`), as
-## an offset from the body centre in the character's own frame: `x` px ahead of it (negative:
-## behind), `y` px to its right. The AI judges a lob from there (docs/grenades.md G17) instead of
-## keeping a copy of the stance.
+## item that is not thrown or an empty slot), in the `throw` stance
+## (`CharacterStanceConfig.stances`), as an offset from the body centre in the character's own
+## frame: `x` px ahead of it (negative: behind), `y` px to its right. The AI judges a lob from there
+## (docs/grenades.md G17) instead of keeping a copy of the stance.
 func throw_release_offset(slot := -1) -> Vector2:
 	var item := _item_in(slot)
 	var hand := item.weapon_hand() if item != null and item.is_throwable() else 0
-	var stance: Dictionary = CharacterConfig.stances[&"throw"]
+	var stance: Dictionary = CharacterStanceConfig.stances[&"throw"]
 	# Hand 0 rests to the character's right, hand 1 to its left (character_hands.gd).
 	return Vector2(
 		float(stance["forward"]),
@@ -1059,11 +1062,11 @@ func leg_kick_amount(i: int) -> float:
 ## Recoil: throw `hand` back and twist the shoulders, as a fired weapon does (the item calls it);
 ## `strength` scales it (1 = a pistol's), so a light automatic's stream of rounds does not pile up.
 ## A long gun (one too long for a wall, `raises_at_contact`) fired one-handed kicks
-## `CharacterConfig.one_hand_recoil` times harder.
+## `CharacterStanceConfig.one_hand_recoil` times harder.
 func kick(hand: int, strength := 1.0) -> void:
 	var item: Item = current_item()
 	if item != null and item.raises_at_contact() and one_handed():
-		strength *= CharacterConfig.one_hand_recoil
+		strength *= CharacterStanceConfig.one_hand_recoil
 	pose.kick(hand, strength)
 
 
@@ -1080,20 +1083,20 @@ func aim_target() -> Vector2:
 
 
 ## How far (rad) the aim has swayed off where the character points: 0 unless stunned, then up to
-## `CharacterConfig.stun_sway` at the full stun, wandering. A gun turns each shot by it; `facing`
+## `CharacterStunConfig.sway` at the full stun, wandering. A gun turns each shot by it; `facing`
 ## itself, and so the drawn body and weapon, stays on the aim.
 func aim_sway() -> float:
 	var level := stun_level()
 	return (0.0
 			if level <= 0.0
-			else deg_to_rad(CharacterConfig.stun_sway) * level * _stun_wander(0.0))
+			else deg_to_rad(CharacterStunConfig.sway) * level * _stun_wander(0.0))
 
 
-## How each hand is held (CharacterConfig.stances names), as the held item asks: arms hang with
-## nothing held. Running puts both arms down at the sides whatever is held; a weapon whose barrel is
-## against a wall or object is held raised, as the item says. Blind, the free hand covers the eyes
-## (`eyes`) and a gun is held in the weapon hand alone (`one_hand`; raised off a wall, its raised
-## grip), unless the item needs that hand (`_covers_eyes`).
+## How each hand is held (CharacterStanceConfig.stances names), as the held item asks: arms hang
+## with nothing held. Running puts both arms down at the sides whatever is held; a weapon whose
+## barrel is against a wall or object is held raised, as the item says. Blind, the free hand covers
+## the eyes (`eyes`) and a gun is held in the weapon hand alone (`one_hand`; raised off a wall, its
+## raised grip), unless the item needs that hand (`_covers_eyes`).
 func _stances() -> Array:
 	if _running:
 		return [&"run", &"run"]
@@ -1159,10 +1162,10 @@ func muzzle_origin(hand: int) -> Vector2:
 
 
 ## How far past the weapon hand `item`'s muzzle is: its own `muzzle_ahead()`, or
-## `CharacterConfig.muzzle_ahead` for an item that gives none (or no item).
+## `CharacterStanceConfig.muzzle_ahead` for an item that gives none (or no item).
 func _muzzle_ahead(item: Item) -> float:
 	var ahead := item.muzzle_ahead() if item != null else -1.0
-	return ahead if ahead >= 0.0 else CharacterConfig.muzzle_ahead
+	return ahead if ahead >= 0.0 else CharacterStanceConfig.muzzle_ahead
 
 
 ## The standing skeleton as it is held right now (see character_rig.gd), for the visuals and
@@ -1222,11 +1225,11 @@ func is_deaf() -> bool:
 
 
 ## How disoriented the character is, 0 (not at all) .. 1 (fully): full while the longer of the blind
-## and deaf times has more than `CharacterConfig.recover_tail` seconds to run, then falling linearly
-## to 0 over that tail.
+## and deaf times has more than `CharacterStunConfig.recover_tail` seconds to run, then falling
+## linearly to 0 over that tail.
 func stun_level() -> float:
 	return clampf(
-		maxf(_blind_left, _deaf_left) / maxf(CharacterConfig.recover_tail, 0.01),
+		maxf(_blind_left, _deaf_left) / maxf(CharacterStunConfig.recover_tail, 0.01),
 		0.0,
 		1.0,
 	)
@@ -1265,7 +1268,7 @@ func _stun_drift() -> Vector2:
 	var level := stun_level()
 	if level <= 0.0 or move_input.length_squared() < 0.0001:
 		return Vector2.ZERO
-	return (move_input.orthogonal().normalized() * CharacterConfig.stun_drift * level
+	return (move_input.orthogonal().normalized() * CharacterStunConfig.drift * level
 			* _stun_wander(1.7))
 
 
@@ -1277,10 +1280,10 @@ func _stun_drift() -> Vector2:
 ## for debris styling. Read by the Projectile System.
 func get_surface() -> Dictionary:
 	return {
-		"coverage": CharacterConfig.postures[_posture]["coverage"],
-		"penetration": CharacterConfig.flesh_penetration,
-		"material": CharacterConfig.flesh_material,
-		"color": CharacterConfig.flesh_color,
+		"coverage": CharacterPostureConfig.postures[_posture]["coverage"],
+		"penetration": CharacterHitConfig.flesh_penetration,
+		"material": CharacterHitConfig.flesh_material,
+		"color": CharacterHitConfig.flesh_color,
 	}
 
 
@@ -1308,13 +1311,13 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 
 
 ## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (0..100) strikes:
-## its height over the posture's coverage against `CharacterConfig.hit_zones`. `&""` for no height
+## its height over the posture's coverage against `CharacterHitConfig.zones`. `&""` for no height
 ## (below 0: a blast, the whole body).
 func hit_zone(height: float) -> StringName:
 	if height < 0.0:
 		return &""
 	var share := height / maxf(posture_coverage(_posture), 0.001)
-	for row: Array in CharacterConfig.hit_zones:
+	for row: Array in CharacterHitConfig.zones:
 		if share <= float(row[1]):
 			return row[0]
 	return &"head"
@@ -1322,19 +1325,19 @@ func hit_zone(height: float) -> StringName:
 
 ## The side (`&"front"`, `&"flank"`, `&"back"`) a blow travelling along `direction` strikes: the
 ## angle between the way back along it and the shoulders' facing (`pose.torso_angle`) against
-## `CharacterConfig.side_front_deg` / `side_back_deg`.
+## `CharacterHitConfig.side_front_deg` / `side_back_deg`.
 func hit_side(direction: Vector2) -> StringName:
 	if direction.length() < 0.001:
 		return &"front"
 	var off := rad_to_deg(absf(Vector2.from_angle(pose.torso_angle).angle_to(-direction)))
-	if off <= CharacterConfig.side_front_deg:
+	if off <= CharacterHitConfig.side_front_deg:
 		return &"front"
-	return &"back" if off >= CharacterConfig.side_back_deg else &"flank"
+	return &"back" if off >= CharacterHitConfig.side_back_deg else &"flank"
 
 
 ## Take a hit: shove along the impact (folded into locomotion via the pushable path), then hurt by
 ## where it struck (the striker fills in a HitInfo; `docs/outfits.md` O2 to O9). A round's zone
-## (`hit_zone` of its `height`) scales its damage (`CharacterConfig.zone_damage`). Where armour
+## (`hit_zone` of its `height`) scales its damage (`CharacterHitConfig.zone_damage`). Where armour
 ## covers that zone and side (`Outfit.layer`), the hit wears its plate, and a round that did not get
 ## through it (`penetrated` false: stopped or glanced off) deals only the armour's `blunt` share: no
 ## wound, no blood, its debris the armour's; one that got through deals all but the armour's
@@ -1348,7 +1351,7 @@ func take_hit(hit: HitInfo) -> void:
 		_wound_by(hit, hit.damage * (1.0 - float(_outfit.layer(&"torso", side).get("blast", 0.0))))
 		return
 	var zone := hit_zone(hit.height)
-	var damage := hit.damage * float(CharacterConfig.zone_damage.get(zone, 1.0))
+	var damage := hit.damage * float(CharacterHitConfig.zone_damage.get(zone, 1.0))
 	var armour := _outfit.layer(zone, side)
 	if armour.is_empty():
 		_wound_by(hit, damage)
@@ -1475,7 +1478,7 @@ func damage_taken() -> float:
 ## origin) is the pushable contract's; a character does not turn, so a shove anywhere on it is a
 ## central one.
 func apply_impulse(impulse: Vector2, _at := Vector2.ZERO) -> void:
-	_knockback += impulse / maxf(CharacterConfig.player_mass, 0.5)
+	_knockback += impulse / maxf(CharacterPushConfig.player_mass, 0.5)
 
 
 ## An explosion's shove: away from the blast point `from`, `impulse` hard (the units of
@@ -1493,7 +1496,7 @@ func blast_push(from: Vector2, impulse: float) -> void:
 
 ## The character's mass, used by pushers to scale their shove.
 func get_mass() -> float:
-	return maxf(CharacterConfig.player_mass, 0.5)
+	return maxf(CharacterPushConfig.player_mass, 0.5)
 
 
 # --- Walking-push (shove furniture the body slid against; be slowed by it) --------------
@@ -1514,7 +1517,7 @@ func _apply_pushes() -> float:
 			continue
 		# The normal points back toward the character, so "into the object" is -normal.
 		var dir := -collision.get_normal()
-		var impulse := (CharacterConfig.push_impulse * input_strength
+		var impulse := (CharacterPushConfig.impulse * input_strength
 				* get_physics_process_delta_time())
 		if not collider.has_method("get_mass"):
 			collider.apply_impulse(dir * impulse)
@@ -1533,8 +1536,8 @@ func _apply_pushes() -> float:
 	if heaviest <= 0.0:
 		return 1.0
 	return clampf(
-		1.0 - heaviest * CharacterConfig.push_slow_per_weight,
-		CharacterConfig.push_slow_min,
+		1.0 - heaviest * CharacterPushConfig.slow_per_weight,
+		CharacterPushConfig.slow_min,
 		1.0,
 	)
 
@@ -1544,7 +1547,7 @@ func _apply_pushes() -> float:
 func _ease_push_slow(target: float, delta: float) -> float:
 	if target <= _push_slow:
 		return target
-	return minf(target, _push_slow + CharacterConfig.push_slow_release * delta)
+	return minf(target, _push_slow + CharacterPushConfig.slow_release * delta)
 
 
 ## First child that can drive this character (has a `control` method).

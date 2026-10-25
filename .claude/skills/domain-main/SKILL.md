@@ -103,7 +103,7 @@ player_stack, leader_overlay }`). `build` is its two stages:
   `LoadoutConfig.default_outfit`: a t-shirt, jeans and shoes). The gun is the chosen one or by default one random gun drawn from an RNG seeded
   with the spec's seed XOR `LOADOUT_SEED_SALT`, so a pinned seed pins the loadouts without shifting placement. Each is styled as it is armed
   (`style(characters, spec)`, `docs/outfits.md` O15), from a second RNG seeded with the seed XOR `STYLE_SEED_SALT` (so the styles never shift
-  the guns): its first draw is the match's police unit, one of the `CharacterConfig.styles` whose `side` is the invaders' (`styles_of`:
+  the guns): its first draw is the match's police unit, one of the `CharacterStyleConfig.styles` whose `side` is the invaders' (`styles_of`:
   `zenitex`, `trauma`), worn by every invader, the human invader too, the first of them its lead (`rank` 2) and the second its sergeant (1),
   the rest troopers (0) (with the spec's `human.lead`, a human invader is the lead and the NPC invaders are ranked from the sergeant down, the
   draws unchanged: LD10); each defender, the human defender too, draws one of the defenders' styles (`merc`, `borg`), a look seed of its own

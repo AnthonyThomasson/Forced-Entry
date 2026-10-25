@@ -1,8 +1,8 @@
 extends RefCounted
 ## Character body: how a character looks in its style (`Character.style`, `look_seed`, `rank`;
-## `docs/outfits.md`, styles). `resolve` turns the style's row (`CharacterConfig.styles`) and what
-## the character wears in that style (`Outfit.look(style)`) into the one look every body painter
-## draws from (registered with `PixelArt.handle`, the painters read it back with
+## `docs/outfits.md`, styles). `resolve` turns the style's row (`CharacterStyleConfig.styles`) and
+## what the character wears in that style (`Outfit.look(style)`) into the one look every body
+## painter draws from (registered with `PixelArt.handle`, the painters read it back with
 ## `PixelArt.look_of`):
 ## - the character's own variety, drawn from its look seed in a fixed order (`_variety`): skin, hair
 ##   and hair style, gloves, a pack, its optics and face, the colours of its eyes and ink, the
@@ -22,12 +22,12 @@ const _COLOURS := {
 }
 
 
-## The look of a character in `style` (unknown = `CharacterConfig.default_style`) with variety seed
-## `seed_value` and police `rank`, wearing `worn` (`Outfit.look(style)`).
+## The look of a character in `style` (unknown = `CharacterStyleConfig.default_style`) with variety
+## seed `seed_value` and police `rank`, wearing `worn` (`Outfit.look(style)`).
 static func resolve(style: StringName, seed_value: int, rank: int, worn: Dictionary) -> Dictionary:
-	if not CharacterConfig.styles.has(style):
-		style = CharacterConfig.default_style
-	var row: Dictionary = CharacterConfig.styles[style]
+	if not CharacterStyleConfig.styles.has(style):
+		style = CharacterStyleConfig.default_style
+	var row: Dictionary = CharacterStyleConfig.styles[style]
 	var look := _variety(row, style, seed_value)
 	look["style"] = String(style)
 	look["police"] = bool(row.get("police", false))

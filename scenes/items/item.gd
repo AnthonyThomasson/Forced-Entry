@@ -32,8 +32,8 @@ var _look_id := 0
 
 
 ## How `hand` (0 = right as drawn, 1 = left) is held while this item is out: the name of a stance in
-## CharacterConfig.stances — "relaxed" (arm hanging), "guard" (fists up), "aim" (arm out, steady,
-## holding a weapon) or "support" (cupping the aiming hand). Default: relaxed.
+## CharacterStanceConfig.stances — "relaxed" (arm hanging), "guard" (fists up), "aim" (arm out,
+## steady, holding a weapon) or "support" (cupping the aiming hand). Default: relaxed.
 func hand_stance(_hand: int) -> StringName:
 	return &"relaxed"
 
@@ -133,8 +133,8 @@ func raises_at_contact() -> bool:
 	return false
 
 
-## How `hand` is held while the weapon is raised off a wall or object (a `CharacterConfig.stances`
-## name). Default: held as usual.
+## How `hand` is held while the weapon is raised off a wall or object (a
+## `CharacterStanceConfig.stances` name). Default: held as usual.
 func raised_stance(hand: int) -> StringName:
 	return hand_stance(hand)
 

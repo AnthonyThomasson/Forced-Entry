@@ -32,17 +32,17 @@ Tests: `items/loadout_outfit`, `character/hit_zone_by_bullet_height` (nobody dre
 **O2. Hit zones.** A bullet's height (0..100, `docs/cover-and-stance.md` H1) over the body's posture coverage picks the zone, feet up:
 **feet** up to 0.08, **legs** up to 0.45, **torso** up to 0.85, **head** above. The same fractions standing (coverage 60: feet up to 4.8, legs to
 27, torso to 51, head 51 to 60) and crouched (coverage 35: feet to 2.8, legs to 15.75, torso to 29.75, head above). So the same height can
-be a standing body's legs and a crouched one's torso. (`CharacterConfig.hit_zones`, `Character.hit_zone(height)`.)
+be a standing body's legs and a crouched one's torso. (`CharacterHitConfig.zones`, `Character.hit_zone(height)`.)
 Test: `character/hit_zone_by_bullet_height`.
 
 **O3. Zone damage.** A round's damage is scaled by its zone: head **x2**, torso **x1**, legs and feet **x0.6**
-(`CharacterConfig.zone_damage`). A pistol round deals 50 to a head, 25 to a torso and 15 to a leg. Melee (a punch or a kick, through
+(`CharacterHitConfig.zone_damage`). A pistol round deals 50 to a head, 25 to a torso and 15 to a leg. Melee (a punch or a kick, through
 `take_damage`) is not zoned and a blast has no zone (O9).
 Test: `character/hit_zone_by_bullet_height`.
 
 **O4. Sides.** The side a round strikes is the angle between the way back along its direction (toward the shooter) and the
 shoulders' facing (`pose.torso_angle`): **front** up to **60 degrees**, **back** from **120 degrees**, the **flank** between
-(`CharacterConfig.side_front_deg` / `side_back_deg`, `Character.hit_side(direction)`).
+(`CharacterHitConfig.side_front_deg` / `side_back_deg`, `Character.hit_side(direction)`).
 Test: `projectile/plate_covers_front_back_not_flank` (rounds 0, 45, 90, 135 and 180 degrees off the front).
 
 ### Armour
@@ -165,7 +165,7 @@ glowing optics, a chrome face plate, a spine rig and cables, torn sleeves, welde
 in a style is its `OutfitConfig` row's `looks` (the same garment kind in every style; a police unit's livery colour, or the name of the palette
 a crew member draws its colour from); the rest of the look and each character's own variety (skin, hair and hair style, gloves, a pack, eyes and
 face, tattoos, inlays, a headset, a spine rig, cables, chrome arms and shin, the colours a crew member found its clothes in) is the style's row
-in `CharacterConfig.styles`, drawn from the character's `look_seed`. A police unit's rank shows: the lead's stripe across the helmet
+in `CharacterStyleConfig.styles`, drawn from the character's `look_seed`. A police unit's rank shows: the lead's stripe across the helmet
 (`Character.rank` 2), the sergeant's chevrons (1). `Character.set_style(style, seed, rank := 0)` sets them (or the exported `style` and
 `look_seed` before `_ready`); a character never given a style is a `zenitex` (a test's puppet, a dummy, the gun range), the defender NPC scene a
 `merc`. A style is looks only: the armour layers, the weight, the surfaces a round meets, the setup window's choices and the garment names are
@@ -207,8 +207,8 @@ a soft panel).
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `set_outfit`, `outfit()`, `outfit_view()`, `get_surface_at`, `hit_zone`, `hit_side`, and `take_hit`'s zone, armour, wear and
-  blast steps; the weight in `_speed_in` and the run's stamina; the zone and weight numbers in `CharacterConfig`. The style: `style`,
-  `look_seed`, `rank`, `set_style`, `CharacterConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
+  blast steps; the weight in `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style: `style`,
+  `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
   resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `outfit().look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
   height -1. **Physics**: `HitInfo.height`. **Audio**: the `composite` impact material.

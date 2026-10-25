@@ -1,6 +1,6 @@
 extends RefCounted
 ## What the character painters share (Character domain, private): the marks of the styles
-## (`CharacterConfig.styles`: the Zenitex and Trauma Team police units, the merc and borg crew)
+## (`CharacterStyleConfig.styles`: the Zenitex and Trauma Team police units, the merc and borg crew)
 ## drawn on a PixelCanvas: chrome, tattoo ink, black plates set in the skin, a livery's edge sheen,
 ## stripes, crosses, stencils, tape and a plate's wear.
 ##

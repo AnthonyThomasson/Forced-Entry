@@ -582,7 +582,7 @@ static func _texture_uvs(
 ## light (see `_cast`).
 func _shadow_shift() -> Vector2:
 	return global_transform.basis_xform_inv(-ArtCanvasConfig.light_from.normalized()).normalized() \
-		* CharacterConfig.body_shadow_per_height
+		* CharacterShadowConfig.body_shadow_per_height
 
 
 ## A 3D point's place on the floor shadow: its flat position shifted away from the light by its

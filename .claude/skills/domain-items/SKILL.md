@@ -58,7 +58,7 @@ A subclass supplies only its sizes and its hold (its look is its `GunConfig` row
 - **Pistol** (`pistol.gd`): 5×13 art, held at arm's length (`aim`) with the other fist beside it on the grip (`support`: same forward point, both hands together).
 - **SMG** (`smg.gd`): 6×28 art, `GRIP_BACK` 10; shouldered (butt on the right shoulder; `smg_grip` / `smg_fore`), the other hand out on the shroud.
 - **One-handed** (issue #56): the character, not the gun, holds it in one hand while blind: it puts the weapon hand in its own `one_hand` stance
-  and the other over the eyes (`domain-character`), and a long gun (`raises_at_contact`) kicks `CharacterConfig.one_hand_recoil` harder there; the
+  and the other over the eyes (`domain-character`), and a long gun (`raises_at_contact`) kicks `CharacterStanceConfig.one_hand_recoil` harder there; the
   gun only reads `one_handed()` for the spread. Test: `tests/items/one_handed_fire_test.gd`.
 - **Zeroing:** `GunItem.secondary` aims the round from the muzzle at the point `GunConfig.zero_range` (300 px) ahead on the aim line, not parallel to `facing`, so a
   shouldered gun (muzzle 9 px off the line) still hits where the character points; the spread is applied around that direction.
@@ -90,7 +90,7 @@ builds a gun loaded with its `GunConfig.magazine` type (`rounds` < 0 = full). Th
 ## Adding an item
 
 Write an `Item` subclass in `items/` and add a case in `ItemRegistry.create`. To add a **gun**: a row in `GunConfig.guns` (with a free
-`slot`, and `looks`: `_looks()`, or rows of its own whose painter draws its `gun` id), a `GunItem` subclass (sizes, `grip_back`, stances — add any new stance rows to `CharacterConfig.stances`), a case in
+`slot`, and `looks`: `_looks()`, or rows of its own whose painter draws its `gun` id), a `GunItem` subclass (sizes, `grip_back`, stances — add any new stance rows to `CharacterStanceConfig.stances`), a case in
 `ItemRegistry._new_gun`, and magazine rows in `MagazineConfig.types` for its `gun` id.
 
 ## Loadouts
@@ -107,7 +107,7 @@ magazine and carrying `spares` of it; `random` draws a gun from `rng`; every ite
 included, then made valid by `outfit_of`, so a plate drawn without a carrier is cleared) drawn after the gun, so a seed's gun does not depend on it. `ItemRegistry.create` / `inventory_for` take an optional loaded-`magazine` override.
 
 **Weapon style.** Every `Item` carries a `style` (`&"police"` by default): the weapon style it is drawn in, its wielder's (`police` issue for the
-invaders, `scrap` or `pipe` drawn per defender, `CharacterConfig.styles`' `weapons`). `ItemRegistry.inventory_for(slots, rounds, magazine, grenades,
+invaders, `scrap` or `pipe` drawn per defender, `CharacterStyleConfig.styles`' `weapons`). `ItemRegistry.inventory_for(slots, rounds, magazine, grenades,
 style := &"police")` stamps it on every item it makes; `Character.set_loadout` passes it on from `LoadoutConfig.apply`'s `style.weapon`. It never
 changes what an item does (`GunConfig`, `GrenadeConfig`, holds, muzzle points and sounds are the same in every style). How each style looks is
 "Weapon looks" below. Tests: `tests/general/match_styles_test.gd`, `tests/items/weapon_style_look_test.gd`, `weapon_style_kept_test.gd` and
@@ -123,7 +123,7 @@ and `PLATE_SLOTS` `front_plate back_plate`, String keys like a loadout's; `PLATE
 - `garments`: `name`, `slot`, `weight` (kg), `plates` (true = holds a front and back plate: the plate carrier only), `looks` (one row per character style,
   `zenitex`, `trauma`, `merc`, `borg`, built by `_looks`: `kind`, the painter's name for the garment, the same in every style: `cap`, `helmet`, `short_sleeves`,
   `long_sleeves`, `vest`, `carrier`, `jeans`, `tactical`, `shoes`, `boots`; and a police unit's livery `color` or a crew's `palette`, the name of the
-  `CharacterConfig.styles` palette the wearer draws its colour from; `default_style` (`zenitex`) for a style with no row) and, for the helmet, the tactical vest and the plate carrier, `armour`: `zones` (of `feet legs torso head`), optional `sides` (of `front flank back`; absent = all round) and the
+  `CharacterStyleConfig.styles` palette the wearer draws its colour from; `default_style` (`zenitex`) for a style with no row) and, for the helmet, the tactical vest and the plate carrier, `armour`: `zones` (of `feet legs torso head`), optional `sides` (of `front flank back`; absent = all round) and the
   protection numbers.
 - `plates` (soft IIIA insert, steel III, ceramic IV): the protection numbers plus `name`, `weight` and `durability`.
 
@@ -209,7 +209,7 @@ side profile lying on the floor — receiver with sights and muzzle, grip (and, 
 
 Two throwables, slots `ItemRegistry.STUN_SLOT` 7 and `FRAG_SLOT` 8, each a *count* (`uses_left()`; every other item answers -1, `is_throwable()` false).
 `GrenadeConfig` (static holder, a row per kind: `fuse`, `windup`, `max_range` (550 px for both: issue #51 R14), `throw_speed`, `arc_height`, `restitution`, `friction` and the effect numbers
-`Explosion` reads, a stun's including `flash_cover_reach`: furniture shields from the flash only within that many px of the body); the stun's effect on the body (`stun_speed`, `stun_sway`, `recover_tail`, `stun_drift`) is `CharacterConfig`'s. `GrenadeItem` (`StunGrenadeItem` / `FragGrenadeItem` supply kind and size; the look is the row's) tells what it is through `throw_stats()` (`Item` default {}): `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, made by `GrenadeConfig.stats_of(kind, row)` (`flash_cover_reach` INF for a frag), which `Character.throw_stats(slot)` forwards and a live `ThrownGrenade.throw_stats()` answers from the row it was thrown with: the one read the AI throws by (interface 6/7), tested by `items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`:
+`Explosion` reads, a stun's including `flash_cover_reach`: furniture shields from the flash only within that many px of the body); the stun's effect on the body (`speed`, `sway`, `recover_tail`, `drift`) is `CharacterStunConfig`'s. `GrenadeItem` (`StunGrenadeItem` / `FragGrenadeItem` supply kind and size; the look is the row's) tells what it is through `throw_stats()` (`Item` default {}): `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, made by `GrenadeConfig.stats_of(kind, row)` (`flash_cover_reach` INF for a frag), which `Character.throw_stats(slot)` forwards and a live `ThrownGrenade.throw_stats()` answers from the row it was thrown with: the one read the AI throws by (interface 6/7), tested by `items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`:
 `secondary` starts a throw (`throw` stance for `windup` s, counted in `tick`; a death or a switch of slot during it throws nothing), `_release` spends one, hands a `ThrownGrenade` the hand's
 position, `user.aim_target()` and its own weapon style (`ThrownGrenade.spawn(throw: GrenadeThrow, parent)`; `GrenadeThrow`, `items/grenade_throw.gd`: `kind`, `from`, `to`, `thrower`, `style`: the grenade's `item`, which draws it, is made in it), pops a `GrenadeSpoon` (a tracked `DroppedItem`) and posts `&"throw"`. `Character` empties a slot whose count reached 0 and takes up the gun (else the fists).
 `ThrownGrenade` (a world `Node2D`, group `live_grenades`) flies a lob **planned** at the throw (`plan`: flight time and gravity solved so it comes to *rest* at the aim, simulated with the

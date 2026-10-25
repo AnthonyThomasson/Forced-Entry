@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	t.check(not you.is_kicking(), "the kick ends")
 
 	t.check(you.set_posture(&"crouch"), "crouches")
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	await _tap(t)
 	t.check(not you.is_kicking(), "a crouched character cannot kick")
 	await t.seconds(1.0)

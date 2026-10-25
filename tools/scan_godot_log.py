@@ -14,7 +14,7 @@ One class of output is reported as a NOTE and does not fail the scan unless --st
 end-of-process leak report ("ObjectDB instances leaked at exit", "resources still in use at exit", "RID
 allocations ... leaked at exit", the SelfList `p_elem->_root != this` line printed beside it). The engine prints it
 when the process tears down with script resources still referenced; a run that touches a character together with
-a reflectively read config holder (e.g. `CharacterConfig`) shows it, whatever the test checks.
+a reflectively read config holder (e.g. `CharacterStunConfig`) shows it, whatever the test checks.
 """
 import re
 import sys

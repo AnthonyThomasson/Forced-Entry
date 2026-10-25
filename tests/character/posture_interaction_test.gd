@@ -15,7 +15,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 500, 400))
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.actor(&"sitter", &"puppet", Vector2(220, 200))
 	s.actor(&"victim", &"puppet", Vector2(220, 330))
 	s.object(&"chair", "chair", Vector2(258, 200))

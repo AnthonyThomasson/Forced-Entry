@@ -16,7 +16,7 @@ extends RefCounted
 ##   driven faster than the character walks (the body's own push, `character_push.gd`). A fixed wall
 ##   only stops the leg, and a foot at rest pushes nothing.
 ## Other characters are solid to a leg (it rests against them) but are never shoved by it. Nothing
-## is cast while nothing is near. Tuning: CharacterConfig.leg_*.
+## is cast while nothing is near. Tuning: CharacterPushConfig.leg_*.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 ## The collide-and-slide a leg makes toward where the rig wants it (shared with the hands).
@@ -118,7 +118,7 @@ func _sweep(
 		space,
 		character.global_position,
 		target,
-		CharacterConfig.leg_radius,
+		CharacterPushConfig.leg_radius,
 		[character.get_rid()],
 	)
 
@@ -155,7 +155,7 @@ func _press(
 	Push.shove(
 		piece,
 		dir,
-		CharacterConfig.leg_push_impulse * strength * delta,
+		CharacterPushConfig.leg_push_impulse * strength * delta,
 		at,
 		float(character.speed),
 	)
@@ -169,7 +169,7 @@ func _pushable_at(
 	at: Vector2,
 ) -> Node:
 	var circle := CircleShape2D.new()
-	circle.radius = CharacterConfig.leg_radius + 1.5
+	circle.radius = CharacterPushConfig.leg_radius + 1.5
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = circle
 	params.collision_mask = MASK

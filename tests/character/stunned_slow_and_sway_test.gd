@@ -1,9 +1,9 @@
 extends GameTest
-## G13: a stunned character (player and NPC alike) is slowed to at most `stun_speed` x0.45 with a
-## slow drift, cannot run, and its aim sways (a wandering offset up to `stun_sway` 25 degrees
-## applied to where its shots go). The effect tails off over the last `recover_tail` 1.5 s and then
-## it is as before. `stun_level()` reads 0..1; a new stun takes the longer of the old and the new
-## timers.
+## G13: a stunned character (player and NPC alike) is slowed to at most `CharacterStunConfig.speed`
+## x0.45 with a slow drift, cannot run, and its aim sways (a wandering offset up to
+## `CharacterStunConfig.sway` 25 degrees applied to where its shots go). The effect tails off over
+## the last `recover_tail` 1.5 s and then it is as before. `stun_level()` reads 0..1; a new stun
+## takes the longer of the old and the new timers.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const SPEED := 150.0

@@ -19,7 +19,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 4000, 600))
 	s.switch(&"nav.rebake", false)
-	s.set_static(CharacterConfig, &"run_stamina_seconds", 30.0)
+	s.set_static(CharacterPaceConfig, &"run_stamina_seconds", 30.0)
 	s.actor(&"runner", &"puppet", Vector2(100, 300), { "start_slot": 3 })
 
 

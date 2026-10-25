@@ -2,7 +2,7 @@ extends GameTest
 ## G16: the speed an NPC counts on to reach a safe spot before the fuse runs out
 ## (`AgentThrow.run_speed`) is, once its stamina is low, its walk as the body is now
 ## (`Character.walk_speed()`), not its tuned `speed`: a stunned body walks at
-## `CharacterConfig.stun_speed` of it and a full plated kit about 8% slower, so both count on less.
+## `CharacterStunConfig.speed` of it and a full plated kit about 8% slower, so both count on less.
 ## Three bodies with the same `speed` and an empty stamina bar: one bare, one stunned, one in the
 ## plated kit.
 
@@ -49,10 +49,10 @@ func run(t: TestContext) -> void:
 			% [counted[&"bare"], bare.speed],
 	)
 	t.check(
-		is_equal_approx(counted[&"stunned"], bare.speed * CharacterConfig.stun_speed),
-		("the stunned one on stun_speed of it (%.0f px/s against %.0f), though its tuned speed is "
-				+ "the same (%.0f)")
-			% [counted[&"stunned"], bare.speed * CharacterConfig.stun_speed, stunned.speed],
+		is_equal_approx(counted[&"stunned"], bare.speed * CharacterStunConfig.speed),
+		("the stunned one on CharacterStunConfig.speed of it (%.0f px/s against %.0f), though its "
+				+ "tuned speed is the same (%.0f)")
+			% [counted[&"stunned"], bare.speed * CharacterStunConfig.speed, stunned.speed],
 	)
 	var share: float = counted[&"plated"] / counted[&"bare"]
 	t.check(

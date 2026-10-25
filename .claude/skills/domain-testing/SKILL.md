@@ -864,7 +864,7 @@ or the runner starts, and parses
   a crash, a run that never started), once per shard. Any hit prints `Logged outside any test` and fails the run. Godot's own
   end-of-process leak report ("ObjectDB instances leaked at exit", "resources still in use at exit") is a `NOTE`
   by default (`--strict-exit` fails it): runs that touch a character together with a reflectively read config
-  holder such as `CharacterConfig` print it at exit whatever the test does. `tools/load_check.sh` applies the same
+  holder such as `CharacterStunConfig` print it at exit whatever the test does. `tools/load_check.sh` applies the same
   gate to a plain headless start-up.
 - **Headless or windowed.** The gate reads the log file, so it is the same either way: `tools/run_tests.sh --shots`
   runs gdUnit with a window, and a `tools/play_tests.sh` window follows its own log (`--log-file` + `--out`) as a

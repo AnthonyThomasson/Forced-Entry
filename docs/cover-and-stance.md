@@ -4,7 +4,7 @@ How a bullet decides what it meets, how crouching changes who gets hit, and what
 does with its posture. The tests named under each behaviour assert this document.
 
 Coverage is a **height**, 0 to 100, on one scale for everything a bullet can meet: furniture, walls and
-bodies. The pieces: `projectile.gd` (the bullet), `character.gd` and `character_config.gd` (the postures),
+bodies. The pieces: `projectile.gd` (the bullet), `character.gd` and `character_posture_config.gd` (the postures),
 `agent_tactics.gd` / `behavior.gd` (how an NPC uses them). See the `domain-projectile`,
 `domain-character` and `domain-ai-behavior` skills.
 
@@ -26,7 +26,7 @@ usual penetration), 10 fly over the cover and strike only the body, and 40 miss 
 behind the same cover is struck by no shot that cleared it, and the cover stops what it meets.
 Tests: `cover_shared_bullet_height`.
 
-**P1. Postures.** A character is standing or crouching (`Character.set_posture`, the player's C toggle). Each is a row of `CharacterConfig.postures`:
+**P1. Postures.** A character is standing or crouching (`Character.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`:
 
 | posture | coverage (height) | speed | other |
 |---|---|---|---|
@@ -39,7 +39,7 @@ A body's `get_surface().coverage` is its posture's, so a crouch is struck by few
 stamina) unless standing.
 Tests: `posture_speed`, `posture_player_input`, `posture_hit_chance`.
 
-**P2. Changing posture.** C toggles stand and crouch. A change waits out `posture_change_time` after the last one.
+**P2. Changing posture.** C toggles stand and crouch. A change waits out `CharacterPostureConfig.change_time` after the last one.
 Sitting or lying on an object stands the character up and locks the posture while it lasts; a dead
 character takes none and falls from the standing skeleton.
 Tests: `posture_player_input`, `posture_interaction`.

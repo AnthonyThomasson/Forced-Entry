@@ -47,8 +47,8 @@ once fallen (blood drips and pools sample it). When the ragdoll first settles th
 ## The body's shadow (interface 20, `docs/lighting.md` L6)
 
 A living character casts a shadow: `_ready` builds a `LightOccluder2D` child through General's `LightMasks.occluder` (none while
-`LightMasks.shadows` is off) on `LightMasks.CHARACTER`, an oval `CharacterConfig.shadow_depth` (0.72) radii deep along its +x by
-`shadow_width` (1.05) across, a `shadow_sides`-gon (`_shadow_footprint`). It moves with the body (its parent, never rotated) and
+`LightMasks.shadows` is off) on `LightMasks.CHARACTER`, an oval `CharacterShadowConfig.depth` (0.72) radii deep along its +x by
+`CharacterShadowConfig.width` (1.05) across, a `CharacterShadowConfig.sides`-gon (`_shadow_footprint`). It moves with the body (its parent, never rotated) and
 `_turn_shadow` (after each physics step) turns it to `facing` only when the facing has turned. `_die` frees it: a 2D occluder has no
 height, so a body on the floor would throw a shadow as long as a wall's. Only the flashes are shadowed by a body
 (`docs/lighting.md` L6); the Lighting domain leaves the characters out of a flash's shadows while one stands in it. Test: `tests/lighting/occluders_walls_pieces_characters`.
@@ -75,9 +75,9 @@ set, before `pose.update`; skipped in an interaction). The barrel is a ray from 
 aim, as far as the gun reaches **held normally** — the item's *un-raised* stance forward plus `muzzle_ahead()`, never the raised one, or pulling
 it up would clear the ray and drop it again. `CharacterHands.solid_distance(from, dir, max)` does the cast (it owns the physics-space query and
 `HAND_MASK`) and **ignores other characters**: a gun against a person is not against a wall, and a dead body is on no layer. It blocks when something is within
-the reach, and stays blocked until `CharacterConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `_blocked` is
+the reach, and stays blocked until `CharacterStanceConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `_blocked` is
 set at once (`weapon_blocked()`: `shoot()` returns false, a gun cannot fire), while `weapon_raise()` (0..1) eases toward it at
-`CharacterConfig.weapon_raise_speed` for the art. While blocked, `_stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
+`CharacterStanceConfig.weapon_raise_speed` for the art. While blocked, `_stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
 `GunItem.draw_weapon` shortens the barrel by `weapon_raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
 `character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint. `select_slot`, `set_loadout` and **`shoot()` itself** re-judge it
 at once: a controller acts before the frame's own check runs (and on a character's very first frame none has run), so trusting last frame's `_blocked`
@@ -86,10 +86,10 @@ holds: `tests/character/long_gun_hold_test.gd`.
 
 ## Postures (crouch)
 
-A character is **standing or crouching** (`_posture`, a `CharacterConfig.postures` key: `stand` / `crouch`). Spec and
-numbers: `docs/cover-and-stance.md`. (`CharacterConfig.stances` is how a *hand* is held; the body is a *posture*.)
+A character is **standing or crouching** (`_posture`, a `CharacterPostureConfig.postures` key: `stand` / `crouch`). Spec and
+numbers: `docs/cover-and-stance.md`. (`CharacterStanceConfig.stances` is how a *hand* is held; the body is a *posture*.)
 - **API** (interface 7): `set_posture(p) -> bool` (idempotent, so a controller may write it every frame; refused while dead, in an interaction or
-  within `posture_change_time` of the last change), `toggle_crouch()` (C: stand<->crouch); reads `posture()`. The player's key comes from `Keybinds.CROUCH` through `player_controller.gd`; the puppet has `set_posture` / `toggle_crouch`.
+  within `CharacterPostureConfig.change_time` of the last change), `toggle_crouch()` (C: stand<->crouch); reads `posture()`. The player's key comes from `Keybinds.CROUCH` through `player_controller.gd`; the puppet has `set_posture` / `toggle_crouch`.
 - **Reads for a controller:** `posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`: what furniture must stand above to shield it) and
   `run_speed()` / `walk_speed()` (px/s standing, running / walking, as it is now, slower while stunned or weighed down by the outfit): the AI's grenade geometry judges a spot by them and keeps no copy of the numbers
   (`tests/character/posture_and_run_reads_test.gd`).
@@ -145,11 +145,11 @@ magazines and the held slot (dropping any reload, re-judging the raise). A match
 
 ## The style (`docs/outfits.md` O15)
 
-How the character is drawn, looks only: `style` (exported, a `CharacterConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the
+How the character is drawn, looks only: `style` (exported, a `CharacterStyleConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the
 defenders' crew; `zenitex` by default, the defender NPC scene `merc`), `look_seed` (exported: its own variety within the style) and `rank` (a police
 unit's: 0 trooper, 1 sergeant, 2 lead). `set_style(style, seed, rank := 0)` sets all three (a match through `LoadoutConfig.apply`'s `style`, `MatchBuilder.style`; tests through it
 or the props). Each setter bumps `_look_revision`, which the visuals compare once a frame to re-resolve the look (`domain-character-body`). The
-style rows (`CharacterConfig.styles`: side, police, weapon styles, palettes, bare clothes, skin, hair, gloves, pack, livery marks, chrome, optics,
+style rows (`CharacterStyleConfig.styles`: side, police, weapon styles, palettes, bare clothes, skin, hair, gloves, pack, livery marks, chrome, optics,
 implant chances) and `default_style` are this domain's tuning. Tests: `tests/character/style_look_test.gd`, `tests/general/match_styles_test.gd`.
 
 ## The outfit: hit zones, sides, armour, weight (`docs/outfits.md` O1 to O10)
@@ -157,7 +157,7 @@ implant chances) and `default_style` are this domain's tuning. Tests: `tests/cha
 The character owns an `Outfit` (Items, `_outfit`; a new one wears nothing). `set_outfit(ids)` replaces the whole worn set (Main dresses every spawn
 through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` hands the art the `Outfit` (its `look(style)` and `revision`, `domain-character-body`),
 `outfit_view()` the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
-- **Where a round strikes.** `hit_zone(height)`: the bullet's `HitInfo.height` over `posture_coverage(_posture)` against `CharacterConfig.hit_zones`
+- **Where a round strikes.** `hit_zone(height)`: the bullet's `HitInfo.height` over `posture_coverage(_posture)` against `CharacterHitConfig.zones`
   (`feet` up to 0.08, `legs` 0.45, `torso` 0.85, `head` above; the same fractions standing and crouched), `&""` for a height below 0 (a blast).
   `hit_side(direction)`: the angle between `-direction` and `pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
   `side_back_deg` 120, `flank` between.
@@ -165,7 +165,7 @@ through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` han
   height is below 0; over armour, that surface with the layer's `penetration`, `material`, `color`, `stop_power` and `inner_material` (the body's own
   material, flesh).
 - **`take_hit`.** The shove is always applied. A hit with height below 0 (a frag's blast) is not zoned: its damage less the torso layer's `blast` share for
-  that side wounds (`_wound_by`). Otherwise the damage is scaled by `CharacterConfig.zone_damage` (head 2, torso 1, legs and feet 0.6). No layer there:
+  that side wounds (`_wound_by`). Otherwise the damage is scaled by `CharacterHitConfig.zone_damage` (head 2, torso 1, legs and feet 0.6). No layer there:
   it wounds for the zoned damage (`_wound_by`). Over a layer it first wears the plate (`Outfit.wear(zone, side, hit.damage)`: the unscaled damage); then a hit that got through
   (`hit.penetrated`) wounds for `(1 − reduction)` of the zoned damage, and one that did not (stopped or glanced off, `penetrated` false: the projectile
   guarantees a round that beats `stop_power` penetrates) deals only `blunt` of it through `_apply_damage`, with debris of the armour's material and colour
@@ -183,19 +183,19 @@ Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows
 `item_count(slot := -1)` reads a grenade slot's count; `throw_stats(slot := -1)` forwards the item's `throw_stats()` (a grenade's `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot), which the AI throws by; `throw_release_offset(slot := -1)` is where that grenade leaves the hand, standing: the `throw` stance's `forward` and `lateral` for the item's `weapon_hand()` (hand 0, the right, for anything else), as `Vector2(ahead, right)` in the character's frame, which the AI judges a lob from (test `tests/ai/grenade/grenade_lob_follows_throw_stance_test.gd`). `_empty_spent_slots` (after the items tick) erases a grenade slot whose last grenade is thrown and, if it was held,
 selects `gun_slot()` (else the fists). `aim_target()` is the aim point swayed by `aim_sway()`; `GunItem.secondary` turns each shot by `aim_sway()` (0 unless stunned).
 `take_stun(blind, deaf)` takes the longer of the old and new timers (blind and deaf each) and posts `&"stun"` (`{ character, position, blind, deaf }`); `stun_level()` (0..1) is the longer remaining timer over
-`CharacterConfig.recover_tail` (the four stun numbers, `stun_speed`, `stun_sway`, `recover_tail` and `stun_drift`, are the body's tuning and live in `CharacterConfig`: the
-Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `stun_speed`, running is refused, the walk drifts (`_stun_drift`) and the aim sways (`aim_sway`: two
-out-of-step sines, up to `stun_sway` degrees x the level). `stun_view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
-back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterConfig.stances`) is the wind-up's drawn-back arm.
+`CharacterStunConfig.recover_tail` (the four stun numbers, `CharacterStunConfig.speed`, `CharacterStunConfig.sway`, `recover_tail` and `CharacterStunConfig.drift`, are the body's tuning and live in `CharacterStunConfig`: the
+Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`_stun_drift`) and the aim sways (`aim_sway`: two
+out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun_view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
+back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
 `set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
 (`stun_level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
-(`stun_look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
+(`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while `_covers_eyes(item)`: blind, not
 riding, running or dead, not reloading (`_reloading_item`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
 `hand_stance` is not `throw`). `one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
-`one_hand_spread_deg` to its spread, and `kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterConfig.one_hand_recoil`.
+`one_hand_spread_deg` to its spread, and `kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
 `posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.hunch()`) to the crouch's, so the hands (and the
 long-gun raise ray, which follows the drawn reach) keep their reach past the leaning chest. Tests: `tests/character/stunned_hand_over_eyes_test.gd`,
 `stunned_hunch_and_stagger_test.gd`, `tests/items/one_handed_fire_test.gd`.
@@ -227,16 +227,16 @@ Tests: `tests/vehicle/` (`domain-vehicle`), `tests/general/use_vehicle_key_test.
 
 ## Walking into furniture
 
-`_apply_pushes()` shoves each pushable the body slid into with `push_impulse` per *second* of contact
+`_apply_pushes()` shoves each pushable the body slid into with `CharacterPushConfig.impulse` per *second* of contact
 (× `delta`) at the **contact point** (`collision.get_position()`), through `CharacterPush.shove(piece, dir, impulse, at_world, speed)`
 (`character_push.gd`, shared with the leg press in `domain-character-body`): the impulse lands off-centre, so a piece pushed near one
 end slides and turns about a point near the far end, one pushed in the middle of a side just slides. The shove is capped so the
-*contact point* (linear velocity plus spin) is carried at no more than `speed × push_carry_factor` along the push, worked out with the
+*contact point* (linear velocity plus spin) is carried at no more than `speed × CharacterPushConfig.carry_factor` along the push, worked out with the
 piece's effective mass at that point (mass and the physics server's inverse inertia), so a turning end is never flung ahead of the
 walker (the cap uses the walker's intent along the contact normal). Another character (no `linear_velocity`) takes the shove uncapped and
 ignores the point.
-The body runs in `MOTION_MODE_FLOATING` (top-down: no floor), otherwise a body it walks "down" into would be ridden as a platform and lend the character its launch velocity. The resulting slow-down (`push_slow_per_weight`,
-floored by `push_slow_min`) applies at once but eases back at `push_slow_release`/s, so a lost-contact
+The body runs in `MOTION_MODE_FLOATING` (top-down: no floor), otherwise a body it walks "down" into would be ridden as a platform and lend the character its launch velocity. The resulting slow-down (`CharacterPushConfig.slow_per_weight`,
+floored by `CharacterPushConfig.slow_min`) applies at once but eases back at `CharacterPushConfig.slow_release`/s, so a lost-contact
 frame doesn't snap speed. Tests: `tests/character/walk_into_furniture_speed_test.gd`, `walk_into_sofa_turns_test.gd`.
 
 ## Facing

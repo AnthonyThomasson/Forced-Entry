@@ -4,15 +4,16 @@ extends RefCounted
 ## torque turns it: a sofa pushed at one end slides and swings about a point near the far end, one
 ## pushed in the middle of a side just slides. The piece is carried rather than launched: the
 ## impulse is capped so the CONTACT POINT (the piece's linear velocity plus its spin about the
-## centre) is never driven faster along the push than the pusher's pace x `push_carry_factor`. The
-## cap is worked out with the piece's effective mass at that point (its mass and inertia together),
-## so a turning end is held to the same pace as a sliding one. A piece with no `linear_velocity`
-## (another character) takes the shove uncapped and ignores the point.
+## centre) is never driven faster along the push than the pusher's pace x
+## `CharacterPushConfig.carry_factor`. The cap is worked out with the piece's effective mass at that
+## point (its mass and inertia together), so a turning end is held to the same pace as a sliding
+## one. A piece with no `linear_velocity` (another character) takes the shove uncapped and ignores
+## the point.
 
 
 ## Shove `piece` (a pushable: `apply_impulse(v, at)` + `get_mass()`) along unit `dir` with up to
 ## `impulse`, at world point `at_world`, carried at no more than `speed` (px/s, the pusher's pace
-## along `dir`) x `push_carry_factor`.
+## along `dir`) x `CharacterPushConfig.carry_factor`.
 static func shove(
 	piece: Object,
 	dir: Vector2,
@@ -24,7 +25,7 @@ static func shove(
 	if "linear_velocity" in piece:
 		var spin: float = piece.angular_velocity
 		var contact_velocity: Vector2 = piece.linear_velocity + Vector2(-at.y, at.x) * spin
-		var gap := maxf(speed * CharacterConfig.push_carry_factor - contact_velocity.dot(dir), 0.0)
+		var gap := maxf(speed * CharacterPushConfig.carry_factor - contact_velocity.dot(dir), 0.0)
 		# How fast one unit of impulse at `at` moves that point along `dir`: the slide plus the turn
 		# it causes.
 		var lever := at.cross(dir)

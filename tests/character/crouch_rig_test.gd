@@ -21,7 +21,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 600, 400))
-	s.set_static(CharacterConfig, &"posture_change_time", 0.0)
+	s.set_static(CharacterPostureConfig, &"change_time", 0.0)
 	s.switch(&"nav.rebake", false)
 	s.actor(&"stand", &"puppet", Vector2(150, 100), { "start_slot": 3 })
 	s.actor(&"crouch", &"puppet", Vector2(150, 250), { "start_slot": 3 })

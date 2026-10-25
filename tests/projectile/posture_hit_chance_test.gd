@@ -62,7 +62,7 @@ func run(t: TestContext) -> void:
 	var rate := {}
 	for lane: StringName in LANES:
 		rate[lane] = float(_hits(t, lane) - before[lane]) / shots
-		var want: float = float(CharacterConfig.postures[lane]["coverage"]) / 100.0
+		var want: float = float(CharacterPostureConfig.postures[lane]["coverage"]) / 100.0
 		t.expect_near(
 			rate[lane],
 			want,

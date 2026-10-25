@@ -33,9 +33,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	var stances: Dictionary = CharacterConfig.stances.duplicate(true)
+	var stances: Dictionary = CharacterStanceConfig.stances.duplicate(true)
 	stances[&"throw"]["lateral"] = -float(stances[&"throw"]["lateral"])
-	s.set_static(CharacterConfig, &"stances", stances)
+	s.set_static(CharacterStanceConfig, &"stances", stances)
 	s.von_script([
 		{ "pick": "combat" },
 		{ "pick": "grenade" },

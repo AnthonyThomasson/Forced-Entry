@@ -1,6 +1,7 @@
 extends GameTest
 ## The human's posture key, pressed through the real input action: C crouches and stands back up. A
-## posture change has to wait out `posture_change_time`, and a crouched character can still punch.
+## posture change has to wait out `CharacterPostureConfig.change_time`, and a crouched character can
+## still punch.
 
 
 func describe() -> Dictionary:
@@ -39,19 +40,19 @@ func run(t: TestContext) -> void:
 	await t.frames(2)
 	Input.action_release(Keybinds.CROUCH)
 	t.expect_eq(you.posture(), &"crouch", "a press inside the change time is ignored")
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	t.check(you.set_posture(&"stand"), "a controller's request is taken once the change time is up")
 
 	# Crouched or standing, the character can punch.
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	t.check(you.set_posture(&"crouch"), "crouches again")
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.melee()
 	await t.frames(3)
 	t.check(you.is_attacking(), "a crouched character can punch")
 	await t.seconds(1.0)
 	t.check(you.set_posture(&"stand"), "stands up")
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.melee()
 	await t.frames(3)
 	t.check(you.is_attacking(), "a standing character can")
@@ -64,4 +65,4 @@ func _tap(t: TestContext, action: String) -> void:
 	Input.action_press(action)
 	await t.frames(2)
 	Input.action_release(action)
-	await t.seconds(CharacterConfig.posture_change_time + 0.1)
+	await t.seconds(CharacterPostureConfig.change_time + 0.1)

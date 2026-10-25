@@ -41,7 +41,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 3200, 900))
 	s.switch(&"nav.rebake", false)
 	s.switch(&"audio.sound", false)
-	s.set_static(CharacterConfig, &"stun_sway", 0.0)
+	s.set_static(CharacterStunConfig, &"sway", 0.0)
 	var y := 120.0
 	for gun: StringName in GUNS:
 		s.actor(

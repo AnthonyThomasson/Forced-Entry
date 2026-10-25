@@ -12,15 +12,17 @@ class_name OutfitConfig
 ##   name        display name (the setup window, the debug panel, the inspector).
 ##   slot        the outfit slot it is worn in.
 ##   weight      kg; the outfit's total slows the walk and tires the run
-##   (`CharacterConfig.outfit_*`). plates      true = it holds a front and a back plate (the plate
-##   carrier); a plate is worn only in such a garment. looks       what the art draws, per character
+##               (`CharacterPaceConfig.outfit_*`).
+##   plates      true = it holds a front and a back plate (the plate carrier); a plate is worn only
+##               in such a garment.
+##   looks       what the art draws, per character
 ##               style (`Character.style`: `zenitex` and `trauma`, the police units; `merc` and
 ##               `borg`, the defenders' crew; a style with no row draws `default_style`'s): `kind`
 ##               (the painter's name for the garment: `cap`, `helmet`, `short_sleeves`,
 ##               `long_sleeves`, `vest`, `carrier`, `jeans`, `tactical`, `shoes`, `boots`, the same
 ##               in every style) and either `color` (a police unit's livery) or `palette` (the name
-##               of the `CharacterConfig.styles` palette each character draws its colour from: a
-##               crew's scavenged gear).
+##               of the `CharacterStyleConfig.styles` palette each character draws its colour from:
+##               a crew's scavenged gear).
 ##   armour      absent = no protection (looks and weight only). Else the zones it covers (`zones`,
 ##               of `feet legs torso head`), the sides (`sides`, of `front flank back`; absent = all
 ##               round) and the protection numbers below.
