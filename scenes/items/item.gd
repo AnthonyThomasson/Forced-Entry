@@ -39,13 +39,13 @@ func hand_stance(_hand: int) -> StringName:
 
 
 ## Primary action (F). Default: nothing (unarmed).
-func primary(_user) -> void:
+func primary(_user: Node2D) -> void:
 	pass
 
 
 ## Secondary action (left-click); true when it did something (a gun: a round left the barrel).
 ## Default: nothing.
-func secondary(_user) -> bool:
+func secondary(_user: Node2D) -> bool:
 	return false
 
 
@@ -187,13 +187,13 @@ func reload_time() -> float:
 
 ## Whether reloading would change anything: a carried magazine fuller than what is loaded. Default:
 ## no.
-func can_reload(_user) -> bool:
+func can_reload(_user: Node2D) -> bool:
 	return false
 
 
 ## The reload time is up: swap the loaded magazine for a carried one (through the character's
 ## best_magazine / take_magazine / stow_magazine). Default: nothing.
-func finish_reload(_user) -> void:
+func finish_reload(_user: Node2D) -> void:
 	pass
 
 
@@ -232,13 +232,13 @@ func prepaint() -> void:
 
 
 ## Draw the item's weapon art onto `canvas` (the character's visuals Node2D). Default: none.
-func draw_weapon(_canvas: CanvasItem, _user) -> void:
+func draw_weapon(_canvas: CanvasItem, _user: Object) -> void:
 	pass
 
 
 ## Let go of the item into the world (its user has died), flying off at `velocity`; returns the
 ## dropped node, or null when nothing is left behind (the default).
-func drop(_user, _velocity: Vector2) -> Node2D:
+func drop(_user: Node2D, _velocity: Vector2) -> Node2D:
 	return null
 
 

@@ -162,8 +162,8 @@ Items-private:
 | `scrap` (taped scrap) | rusted steel, a wooden stock, grey tape round guard, grip and stock, a rust-coloured magazine | a rusty olive frag egg and a tin-can stun, each taped round the middle |
 | `pipe` (pipe guns) | a box action and a pipe barrel with clamp bands, copper wire, weld beads, a plank stock with a ragged end | a capped pipe bomb with a red fuse and a soda-can stun with a white band, each wrapped in copper wire |
 
-The painters share `art/weapon_art.gd`: the paint itself (`paint_gun(c, opts, crude, wood_stock, wood_grip, flat_marks, held_marks)`:
-held or lying, the silhouette, the style's marks through the two callables, the muzzle and the shadows; `paint_grenade(c, opts, body)`: the cap
+The painters share `art/weapon_art.gd`: the paint itself (`paint_gun(c, opts, flat_marks, held_marks)`:
+held or lying, the silhouette (the style's `crude`, `wood_stock` and `wood_grip` flags, in `opts`), the style's marks through the two callables, the muzzle and the shadows; `paint_grenade(c, opts, body)`: the cap
 length, the style's shell, marks and cap through `body`, the lever and the shadows), so a style painter keeps only its flags and marks; the guns' two silhouettes (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`; a `crude` one is the
 pipe guns' short box action with the pipe for a barrel), the grenades' `shell` / `cap` / `lever`, the marks' helpers. The look travels as a handle: a
 painter's options carry the look as an int (`opts.look`, Art's `PixelArt.handle`, the row's hash; read back with `PixelArt.look_of`) and never the row, since PixelArt hashes the options

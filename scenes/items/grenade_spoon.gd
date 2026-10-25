@@ -23,7 +23,9 @@ static func pop(at: Vector2, throw_angle: float, parent: Node) -> Node:
 	var side := 1.0 if randf() < 0.5 else -1.0
 	var velocity := (Vector2.from_angle(throw_angle + side * randf_range(1.0, 2.0)) * TOSS
 			* randf_range(0.6, 1.0))
-	var node := DroppedItem.spawn(GrenadeSpoon.new(), at, randf() * TAU, velocity, parent, at)
+	var node := DroppedItem.spawn(
+		GrenadeSpoon.new(), Transform2D(randf() * TAU, at), velocity, parent, at
+	)
 	Despawner.track(node)
 	return node
 

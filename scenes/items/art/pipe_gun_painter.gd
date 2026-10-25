@@ -7,11 +7,13 @@ extends RefCounted
 ## game's top-down frame; flat, lying on its side (`flip` the side up).
 
 const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
+## Its silhouette, in the options `WeaponArt.paint_gun` reads.
+const SILHOUETTE := { "crude": true, "wood_stock": true, "wood_grip": true }
 
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	WeaponArt.paint_gun(c, opts, true, true, true, _flat_marks, _held_marks)
+	WeaponArt.paint_gun(c, opts.merged(SILHOUETTE), _flat_marks, _held_marks)
 
 
 ## Clamp bands down the pipe, copper wire where it leaves the action, weld beads down the box's left

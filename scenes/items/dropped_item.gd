@@ -79,21 +79,22 @@ func _draw() -> void:
 	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
 
 
-## Let `dropped` go at world point `at`, pointing along `angle`, flying off at `velocity`, into
-## `parent`. `held_from` is a clear point it was held from (the hand): if `at` lies inside a wall,
-## the item starts where the way from there first meets it instead.
-static func spawn(dropped: Item, at: Vector2, angle: float, velocity: Vector2, parent: Node,
+## Let `dropped` go at `placed` (its world point `placed.origin`, pointing along
+## `placed.get_rotation()`), flying off at `velocity`, into `parent`. `held_from` is a clear point
+## it was held from (the hand): if the point lies inside a wall, the item starts where the way from
+## there first meets it instead.
+static func spawn(dropped: Item, placed: Transform2D, velocity: Vector2, parent: Node,
 		held_from: Vector2) -> DroppedItem:
 	var node := DroppedItem.new()
 	node.name = "Dropped%s" % dropped.display_name
 	node.item = dropped
-	node._angle = angle
+	node._angle = placed.get_rotation()
 	node._velocity = velocity
 	node._spin = randf_range(6.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
 	node._landing = { "flip": randf() < 0.5 }
 	parent.add_child(node)
 	node.global_position = held_from
-	node._slide(at - held_from, false)
+	node._slide(placed.origin - held_from, false)
 	return node
 
 
