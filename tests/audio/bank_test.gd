@@ -1,20 +1,16 @@
 extends GameTest
 ## The sound bank can voice every profile it lists: each renders to a sane clip (not silent, not
 ## clipping, a believable length), the render is cached, variants and different sounds really
-## differ, unknown profiles are refused, and the whole library renders inside a generous time
-## budget. A few intent checks pin down the design: metal rings longer than wood, a rifle roars
-## longer than an SMG, carpet is quieter than tile, a heavier round is louder.
-
-## The whole library takes ~0.7 s to render on the machine it was written on; the budget is about 4x
-## that.
-const LIBRARY_BUDGET_MS := 3000.0
+## differ, and unknown profiles are refused. A few intent checks pin down the design: metal rings
+## longer than wood, a rifle roars longer than an SMG, carpet is quieter than tile, a heavier round
+## is louder. How fast the library renders is a perf guard, `perf/audio_bank_render`.
 
 
 func describe() -> Dictionary:
 	return {
 		"name": "The sound bank voices every profile",
 		"description": "Every profile renders a sane, cached clip; variants and neighbouring "
-			+ "profiles differ; unknown profiles are refused; the library renders within budget.",
+			+ "profiles differ; unknown profiles are refused.",
 		"tags": ["sound", "bank"],
 		"timeout": 15.0,
 	}
@@ -30,7 +26,6 @@ func run(t: TestContext) -> void:
 	t.expect_eq(profiles.size(), _unique(profiles).size(), "none is listed twice")
 
 	SoundBank.clear_cache()
-	var started := Time.get_ticks_usec()
 	var bad: Array[String] = []
 	for profile in profiles:
 		var entry := SoundBank.sound(profile, 0)
@@ -43,13 +38,7 @@ func run(t: TestContext) -> void:
 			bad.append("%s is %.2f s long" % [profile, stream.get_length()])
 		if peak < SoundConfig.peak - 0.02 or peak > SoundConfig.peak + 0.01:
 			bad.append("%s peaks at %.2f" % [profile, peak])
-	var spent := (Time.get_ticks_usec() - started) / 1000.0
 	t.check(bad.is_empty(), "every profile renders a sane clip: %s" % ", ".join(bad.slice(0, 5)))
-	t.trace("library render ms", spent)
-	t.check(
-		spent < LIBRARY_BUDGET_MS,
-		"the library renders within budget (%.0f ms of %.0f)" % [spent, LIBRARY_BUDGET_MS],
-	)
 	t.expect_eq(SoundBank.cached_count(), profiles.size(), "each render was cached")
 
 	var first := SoundBank.sound(&"shot/pistol", 0)

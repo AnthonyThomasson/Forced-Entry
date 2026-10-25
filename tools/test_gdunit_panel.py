@@ -47,7 +47,7 @@ CLICK_TESTS = ["ui/command_menu_items", "ui/inspector_outfit"]
 TIMING_TESTS = [
     "perf/automatic_fire_stress", "perf/crowd_deaths_stress", "perf/furniture_pile_stress",
     "perf/grenade_burst_stress", "perf/grenade_match_stress", "perf/hit_overload_stress",
-    "perf/match_10v10_stress", "perf/npc_crowd_stress", "audio/bank",
+    "perf/match_10v10_stress", "perf/npc_crowd_stress", "perf/audio_bank_render",
 ]
 
 

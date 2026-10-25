@@ -421,11 +421,11 @@ selector. They are ordinary tests that load other domains, so they live apart fr
 | `perf/hit_overload_stress` | hundreds of hits on one chair and one character: deformation, debris, blood and their caps |
 | `perf/crowd_deaths_stress` | a whole 5v5 (ten characters) killed in one frame: ragdolls, blood, bleed-out |
 | `perf/furniture_pile_stress` | 120 rigid bodies shoved at once |
-| `perf/bake_and_path_stress`, `perf/generate_houses_stress` | one-shot work: nav re-bake and path queries, world-gen |
+| `perf/bake_and_path_stress`, `perf/generate_houses_stress`, `perf/audio_bank_render` | one-shot work: nav re-bake and path queries, world-gen, the whole sound library rendered from a cold cache |
 | `perf/grenade_match_stress` | P1 of `docs/grenades.md`: the 5v5 of `match_5v5_stress`, and once the sides are in contact a puppet on the invaders' side (a test actor, not one of the match's, carrying the three of each P1 names) throws three frags and three stuns among the fighters over about 3 s (through the controller contract); measured from the first throw to 3 s after the last burst. The match's invaders carry grenades of their own, so its premise (all six went off) and its among-the-fighters check count only the puppet's: its blasts by `attacker`, its stuns by the frames its own stun bursts went off in |
 | `perf/grenade_burst_stress` | P2: a frag and a stun going off together among twelve pieces of furniture and eight characters in an arena (blood, debris, hit particles and sound on, `nav.rebake` off); the burst frame and the 2 s after it |
 
-Eleven guards in all. `tools/run_tests.sh --domain=perf` (or the word `perf`) runs just them; `match_10v10_stress` is red on a
+Twelve guards in all. `tools/run_tests.sh --domain=perf` (or the word `perf`) runs just them; `match_10v10_stress` is red on a
 quiet machine until #98. The pre-commit hook leaves them out (`--skip-domain=perf`): their frame-time budgets fail when the
 machine is busy, so run them on their own before a push that touches a per-frame path. They stay in the default run, balanced
 across shards by measured cost like every test, and `--changed` adds the domain whenever a scene they exercise changes
@@ -436,8 +436,10 @@ on until a shot has been fired and some NPC among `characters` knows a hostile a
 hostile now, `known_contacts_for_display()`; false for a dead or freed one). The three match guards share one match and one warm-up:
 `configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.match` with `per_side` a side, scripted Von, the
 callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` (6 s) and then `await_contact` (at most
-`MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `audio/bank` and `character/standing_body_repaints_on_change` keep a budget or a count but
-are functional tests of their domain.
+`MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `character/standing_body_repaints_on_change` keeps a count but is
+a functional test of its domain. A wall-clock budget belongs here and nowhere else: the lint rule `timing_in_perf` fails a
+`Time.get_ticks_usec()` under `tests/` outside `tests/perf/` and `tests/_perf/` (`Time.get_ticks_msec()`, a real-time wait's clock, is
+left alone), so no budget runs in the pre-commit hook.
 
 - **Measured:** wall-clock ms per frame (`Perf.frame_stats` -> avg / p95 / max): the main-loop iteration the frame ran
   in, from its physics frame to the next iteration's first frame signal. Headless `--fixed-fps` outruns the clock and
