@@ -219,7 +219,7 @@ func _sit() -> void:
 ## In the driver's seat: start the engine.
 func _start_if_driving() -> void:
 	if seat == &"driver":
-		vehicle.start_engine()
+		vehicle.drive.start_engine()
 
 
 ## Give up boarding before the step in: the seat is free again and the door (if it began to open)
@@ -261,7 +261,7 @@ func _brake(_delta: float) -> void:
 	character.movement.move_input = Vector2.ZERO
 	character.movement.run_input = false
 	if _braking and vehicle.speed() >= VehicleDriveConfig.stop_speed:
-		vehicle.brake_input(character)
+		vehicle.drive.brake_input(character)
 		return
 	if not _braking and vehicle.speed() > VehicleBoardingConfig.exit_max_speed:
 		return
@@ -271,7 +271,7 @@ func _brake(_delta: float) -> void:
 		phase = Phase.SEATED
 		return
 	if seat == &"driver":
-		vehicle.stop_engine()
+		vehicle.drive.stop_engine()
 	if _exit_door.seat != seat:
 		_begin_pose(
 			Phase.SHIFT_OUT,

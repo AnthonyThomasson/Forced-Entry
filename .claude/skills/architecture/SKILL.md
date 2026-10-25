@@ -744,9 +744,13 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `speed()` (px/s, unsigned), `engine_state()` (`{ running, rpm, load }`), `slip()` (0 while the tyres grip), `wheel_angle()`,
       `brake_lights()` and `view_zoom_out()` (`VehicleDriveConfig.zoom_out` × speed / top speed: how far a camera following someone
       aboard zooms out). Its two draw layers are part of the contract too (the tests find them by name): the child `Chassis` (`layer`
-      export `"chassis"`, at `DrawLayers.UNDER_VEHICLE`) and the child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`). Everything else on it (`half_size`, `outline`, `row`, `door_list`, `seat_point`, `occupant`, `is_free`, `reserve`,
-      `change_seat`, `release`, `open_door` / `close_door`, `start_engine` / `stop_engine`, `brake_input`, `exit_door`, `hit_marks`, `post`
-      (a `vehicle` event)) is Vehicles-internal, for its ride and visuals.
+      export `"chassis"`, at `DrawLayers.UNDER_VEHICLE`) and the child `Roof` (`layer` `"roof"`, at `DrawLayers.ABOVE`). Everything else on it is Vehicles-internal, for its ride and visuals:
+      - `half_size`, `outline`, `row`, `hit_marks` and `post` (a `vehicle` event);
+      - the doors and seats: `door_list`, `seat_point`, `occupant`, `is_free`, `reserve`, `change_seat`, `release`, `open_door` /
+        `close_door`, `exit_door`;
+      - its `drive` (the driving model, `vehicle_drive.gd`, with the intent and the engine: `start_engine` / `stop_engine`,
+        `brake_input`);
+      - its contacts (`VehicleContacts`, `vehicle/vehicle_contacts.gd`, V6).
     - **Its other contracts:** hittable (3), Deformable / debris / impulse (4), pushable (5), the `vehicle` / `engine` / `skid` topics (10)
       and its painters (12). General's camera reads `target.use.vehicle().view_zoom_out()` duck-typed (`has_method`), never `VehicleDriveConfig`;
       `player_controller.gd` calls `use.try_use_vehicle()` on `Keybinds.USE_VEHICLE` (E). Only the sandbox and the tests place a vehicle:
@@ -1048,7 +1052,8 @@ z rungs), `ObjectArtFloorConfig`, `ObjectArtWallConfig`, `ObjectArtDecayConfig`,
 **Items:** `MagazineConfig` (magazine types, capacities and reload times), `GunConfig` (one row per gun — damage, fire rate,
 penetration, muzzle speed, spread, recoil, magazine, whether it raises at a wall, its sizes and hold, its looks per weapon style),
 `GrenadeConfig` (one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its art size, its looks per
-weapon style — and the flight every kind shares), `DroppedItemConfig` (how an item let go falls, bounces, skids and spins), `OutfitConfig`
+weapon style, and a thrown grenade's size, spin and shadow), `DroppedItemConfig` (a dropped item's fall, bounce, skid and shadow),
+`OutfitConfig`
 (the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a
 plate's durability) and `LoadoutConfig` (the setup choices' bounds — spare magazines, grenades — and the default outfit).
 **Audio:** `SoundConfig` (the master switch, levels, jitter, voices, ranges), `SoundLibraryConfig` (rate, peak, variants,

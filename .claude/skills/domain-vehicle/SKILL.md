@@ -13,7 +13,7 @@ it, is `docs/vehicles.md` (V1 to V9).
 ```
 player_controller (E) ─▶ Character.use.try_use_vehicle ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
 VehicleBoarding ──(movement.move_input / movement.aim_point, use.set_ride_pose, use.end_ride)──▶ Character;  seated driver: movement.move_input / movement.run_input ─▶ vehicle.drive_input
-vehicle._integrate_forces ─▶ VehicleDrive.step (the bicycle)   /   _contacts (VehicleContacts) ─▶ crash events, characters struck (apply_impulse, take_damage)
+vehicle._integrate_forces ─▶ drive.step (VehicleDrive, the bicycle)   /   _contacts (VehicleContacts) ─▶ crash events, characters struck (apply_impulse, take_damage)
 vehicle ─▶ Deformable / Physics.spawn_debris / impact_impulse (hittable)   ;   Chassis / Roof (vehicle_visuals.gd) ─▶ painters ─▶ PixelArt
 vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound (Audio);   Camera ──(target.use.vehicle().view_zoom_out())──▶ vehicle
 ```
@@ -26,7 +26,7 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 | `vehicle_boarding_config.gd`, `vehicle_door_config.gd`, `vehicle_drive_config.gd`, `vehicle_collision_config.gd`, `vehicle_art_config.gd` | Static holders of the numbers every vehicle shares, one per topic: getting in and out (`VehicleBoardingConfig`), the doors' motion (`VehicleDoorConfig`), driving and the camera (`VehicleDriveConfig`), collisions (`VehicleCollisionConfig`), the look (`VehicleArtConfig`). |
 | `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, skids and `post` (every `vehicle` event the domain posts goes through it). Group `vehicles`. |
 | `vehicle_contacts.gd` (`VehicleContacts`) | `RefCounted`, the body's private `_contacts`, built once with it: the contacts and harm (V6, below), `read(state)` / `remember(state)` in `_integrate_forces` around the drive's step, `apply()` in `_physics_process`. |
-| `vehicle_drive.gd` | `RefCounted` (preloaded): the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`; `lock(row, speed)` is the full lock at a speed. |
+| `vehicle_drive.gd` | `RefCounted` (preloaded), the body's public `drive`, built once with it: the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`, the drive `intent` and whether the engine is `running`; `lock(row, speed)` is the full lock at a speed; `start_engine` / `stop_engine`, `brake_input(character)` and `update_skid()` (the skids). |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
 | `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out. |
@@ -53,10 +53,10 @@ connects its `changed`, so the collider is never rebuilt from the dents.
 
 ## Driving (`vehicle_drive.gd`, V5)
 
-`_integrate_forces` reads the contacts first, then `VehicleDrive.step(state, row, intent, running)` writes the body's
-velocities for the next step (the engine then moves it and resolves collisions). The intent is
-`{ throttle, steer, handbrake, brake }` from `drive_input` (driver only, engine running) or `brake_input` (`brake`: hold to
-a stop, never reverse); a cut engine zeroes it.
+`_integrate_forces` reads the contacts first, then the body's `drive` (`VehicleDrive`) `step(state, row)` writes the body's
+velocities for the next step (the engine then moves it and resolves collisions) from its own `intent` and `running`. The intent is
+`{ throttle, steer, handbrake, brake }` from the body's `drive_input` (driver only, engine running) or `drive.brake_input` (`brake`: hold to
+a stop, never reverse); a cut engine (`drive.stop_engine`) zeroes it.
 
 - **Steering:** `steer_share` (−1..1) moves toward the input at `steer_rate / steer_angle` per s (full lock in the same time at
   any speed) and `wheel_angle` = `steer_share × lock(row, speed)`. `lock` is `steer_angle` while slow; at speed it is
@@ -127,8 +127,8 @@ overrides that frame's intent):
 | `OPEN` | `open_door` (posts `door_open` / `slide_open` as a shut door starts to move); it turns to the handle and waits for the door to be fully open and itself within `face_tolerance`. |
 | `STEP_IN` | A pose phase to the entry point over `_step_time` (1.5 × distance / (`speed × step_pace`), at least `step_min_time`: the smoothstep's peak stays under the walk). |
 | `FOLD` | A pose phase to the seat over `fold_time`, fold 0 → 1, heading turned to forward. |
-| `SEATED` | The door closes behind it; the driver starts the engine (`start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `movement.move_input` / `movement.run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
-| `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
+| `SEATED` | The door closes behind it; the driver starts the engine (`drive.start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `movement.move_input` / `movement.run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
+| `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `drive.brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
 | `SHIFT_OUT` | Only when the exit door belongs to another seat: a slide across to it (`shift_time`). |
 | `OPEN_OUT`, `UNFOLD`, `STEP_OUT` | The door opens; the rise to the entry point (`fold_time`, fold 1 → 0, facing outward); the step to the stand point. |
 | `DONE` | `release`, the door closes, `character.use.end_ride()`. |
@@ -224,8 +224,8 @@ rest) and the decals under it, and under the living and the occupants (`STANDING
 | Topic | Payload | Posted |
 |---|---|---|
 | `&"vehicle"` | `{ position, kind, stage }`: `ignition` (vehicle centre), `door_open` / `slide_open` (handle; a shut door starting to open), `door_close` / `slide_close` (handle; the frame it shuts), `crash` (+ `speed`, `material`), `bump_character` (+ `speed`) | `post` |
-| `&"engine"` | `{ vehicle, kind, stage }` `start` / `stop` | `start_engine` / `stop_engine` |
-| `&"skid"` | `{ vehicle, stage }` `start` / `stop` | `_update_skid`: start above `skid_start_slip`, stop below `skid_stop_slip` (or at rest) |
+| `&"engine"` | `{ vehicle, kind, stage }` `start` / `stop` | `drive.start_engine` / `drive.stop_engine` |
+| `&"skid"` | `{ vehicle, stage }` `start` / `stop` | `drive.update_skid()`: start above `skid_start_slip`, stop below `skid_stop_slip` (or at rest) |
 
 Audio voices them and follows the loops by reading `engine_state()`, `slip()` and `speed()` duck-typed (`domain-audio`).
 

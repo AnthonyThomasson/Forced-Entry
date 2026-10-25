@@ -15,6 +15,10 @@ extends RefCounted
 ##    the front (`grip_rear` over `grip_front`, weighed by where the axles sit), so at the limit the
 ##    front lets go first and the vehicle runs wide instead of spinning; the handbrake drops the
 ##    rear's grip and swings the tail out. What is left sliding is `slip`.
+## It also holds what it is driven by: the drive intent its driver hands on through the body
+## (`drive_input`, `brake_input`) and whether the engine runs (`start_engine` / `stop_engine`), and
+## it posts the skids (`update_skid`). Built once with its body (the vehicle's `drive`), which it
+## holds (a node, so no reference cycle) for the events and its sleep.
 ## All tuning is the kind's `VehicleConfig.kinds` row.
 
 ## The front wheels' steering angle (rad, + = to the right).
@@ -31,17 +35,24 @@ var slip := 0.0
 ## The engine's revs (0..1 of the redline) and load (0..1), for its sound.
 var rpm := 0.0
 var engine_load := 0.0
+## The vehicle it drives.
+var vehicle: RigidBody2D
+## The drive intent the driver handed on (`{ throttle, steer, handbrake, brake }`: the body's
+## `drive_input`, or `brake_input`); zero with nobody at the wheel.
+var intent := { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": false }
+## The engine runs.
+var running := false
+## A `skid` is under way.
+var _skidding := false
 
 
-## Step the model one physics step on `state`, for a vehicle of `row` driven by `intent`
-## (`{ throttle, steer, handbrake, brake }`: `brake` holds the brakes to a stop and never reverses).
-## `running` is whether the engine runs.
-func step(
-	state: PhysicsDirectBodyState2D,
-	row: Dictionary,
-	intent: Dictionary,
-	running: bool,
-) -> void:
+func _init(body: RigidBody2D) -> void:
+	vehicle = body
+
+
+## Step the model one physics step on `state`, for a vehicle of `row` driven by its `intent`
+## (`brake` holds the brakes to a stop and never reverses), while the engine runs (`running`).
+func step(state: PhysicsDirectBodyState2D, row: Dictionary) -> void:
 	var dt := state.step
 	var fwd := state.transform.x.normalized()
 	var right := state.transform.y.normalized()
@@ -61,7 +72,7 @@ func step(
 	# Along the front: the engine (or reverse) pushes, the brakes, rolling resistance and drag hold
 	# back toward a stop.
 	var push := _push(row, tyres.mass, tyres.vx, throttle, intent["brake"])
-	var resist := _resist(row, tyres.vx, throttle, intent)
+	var resist := _resist(row, tyres.vx, throttle)
 	tyres.vx = move_toward(tyres.vx + push * dt, 0.0, resist * dt)
 
 	# Sideways: each axle's impulse cancels its slip up to its grip, both solved together.
@@ -76,7 +87,7 @@ func step(
 		tyres.w = 0.0
 	state.linear_velocity = fwd * tyres.vx + right * tyres.vy
 	state.angular_velocity = tyres.w
-	_update_engine(row, tyres.vx, throttle if not braking else 0.0, running, dt)
+	_update_engine(row, tyres.vx, throttle if not braking else 0.0, dt)
 
 
 ## Ease `steer_share` toward the `steer` input (-1..1) at a rate that reaches full lock in
@@ -105,7 +116,7 @@ func _push(row: Dictionary, mass: float, vx: float, throttle: float, hold: bool)
 ## What holds the vehicle back toward a stop at `vx` (px/s²): rolling resistance and drag, the
 ## brakes while the `intent` holds them or the `throttle` is against the motion, the handbrake. Sets
 ## `braking` (the brake lights).
-func _resist(row: Dictionary, vx: float, throttle: float, intent: Dictionary) -> float:
+func _resist(row: Dictionary, vx: float, throttle: float) -> float:
 	var engage := VehicleDriveConfig.reverse_engage_speed
 	var resist: float = float(row["rolling"]) + float(row["drag"]) * vx * vx
 	braking = false
@@ -152,8 +163,8 @@ func _engine(row: Dictionary, mass: float, vx: float) -> float:
 
 
 ## The engine's revs and load: idle at rest, climbing through each gear's share of the top speed and
-## dropping at the change; the load is the throttle held. Off: both 0.
-func _update_engine(row: Dictionary, vx: float, throttle: float, running: bool, dt: float) -> void:
+## dropping at the change; the load is the throttle held. Off (not `running`): both 0.
+func _update_engine(row: Dictionary, vx: float, throttle: float, dt: float) -> void:
 	if not running:
 		rpm = 0.0
 		engine_load = 0.0
@@ -169,3 +180,42 @@ func _update_engine(row: Dictionary, vx: float, throttle: float, running: bool, 
 	)
 	rpm = move_toward(rpm, target, 3.0 * dt) if absf(rpm - target) < 0.3 else target
 	engine_load = absf(throttle)
+
+
+## The driver has sat down: the ignition cranks and the engine runs.
+func start_engine() -> void:
+	if running:
+		return
+	running = true
+	vehicle.can_sleep = false  # Its wheels and revs follow the driver even at rest.
+	vehicle.sleeping = false
+	vehicle.post(&"ignition", vehicle.global_position)
+	EventBus.post(&"engine", { "vehicle": vehicle, "kind": vehicle.kind, "stage": &"start" })
+
+
+## Cut the engine (the driver has left the seat): nobody drives it, and it rolls to a stop.
+func stop_engine() -> void:
+	intent = { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": false }
+	if not running:
+		return
+	running = false
+	vehicle.can_sleep = true
+	EventBus.post(&"engine", { "vehicle": vehicle, "kind": vehicle.kind, "stage": &"stop" })
+
+
+## The driver brakes to a stop (getting out at speed).
+func brake_input(character: Node2D) -> void:
+	if vehicle.driver() == character:
+		intent = { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": true }
+
+
+## Post a `skid` start when the tyres begin to slide and a stop when they grip again.
+func update_skid() -> void:
+	var threshold := (
+		VehicleDriveConfig.skid_stop_slip if _skidding else VehicleDriveConfig.skid_start_slip
+	)
+	var sliding: bool = slip > threshold and vehicle.speed() > VehicleDriveConfig.stop_speed
+	if sliding == _skidding:
+		return
+	_skidding = sliding
+	EventBus.post(&"skid", { "vehicle": vehicle, "stage": &"start" if sliding else &"stop" })

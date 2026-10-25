@@ -15,7 +15,7 @@ extends RigidBody2D
 ## `get_mass()`. Its contacts post crashes, and a character it strikes (directly, or through a piece
 ## of furniture pressed against it) is knocked back and hurt by the closing speed, the vehicle
 ## losing only the momentum the character and what it is pressed against take. The `vehicle`,
-## `engine` and `skid` EventBus topics are posted here.
+## `engine` and `skid` EventBus topics are posted here and by its parts (`post`).
 
 const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const VehicleDrive = preload("res://scenes/vehicle/vehicle_drive.gd")
@@ -37,15 +37,9 @@ var _seats: Dictionary = {}
 var _reserved: Dictionary = {}
 ## Character -> its ride (VehicleBoarding), from the E press to its last step out.
 var _rides: Dictionary = {}
-## The driving model, stepped in `_integrate_forces`.
-var _drive := VehicleDrive.new()
-## The drive intent the driver handed on (`drive_input` / `brake_input`); zero with nobody at the
-## wheel.
-var _intent := { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": false }
-## The engine runs.
-var _running := false
-## A `skid` is under way.
-var _skidding := false
+## The driving model (`VehicleDrive`), stepped in `_integrate_forces`: the drive intent, the engine
+## and the skids.
+var drive := VehicleDrive.new(self)
 ## Records the dents.
 var _deformable: Deformable
 ## Its contacts: the crashes, and the characters and furniture it strikes (`VehicleContacts`).
@@ -94,12 +88,12 @@ func _physics_process(delta: float) -> void:
 		if d.update(delta):
 			post(&"slide_close" if d.kind == &"slide" else &"door_close", to_global(d.handle))
 	_contacts.apply()
-	_update_skid()
+	drive.update_skid()
 
 
 func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	_contacts.read(state)
-	_drive.step(state, _row, _intent, _running)
+	drive.step(state, _row)
 	_contacts.remember(state)
 
 
@@ -159,9 +153,9 @@ func exit(character: Node2D) -> bool:
 ## The drive intent from `character`'s keys: `throttle` (1 = W, -1 = S: brake, then reverse),
 ## `steer` (1 = right, relative to the vehicle) and `handbrake`. Only the driver drives.
 func drive_input(character: Node2D, throttle: float, steer: float, handbrake: bool) -> void:
-	if driver() != character or not _running:
+	if driver() != character or not drive.running:
 		return
-	_intent = { "throttle": throttle, "steer": steer, "handbrake": handbrake, "brake": false }
+	drive.intent = { "throttle": throttle, "steer": steer, "handbrake": handbrake, "brake": false }
 	if throttle != 0.0 or steer != 0.0:
 		sleeping = false
 
@@ -174,22 +168,22 @@ func speed() -> float:
 ## The engine: `{ running, rpm, load }` (revs 0..1 of the redline with a gear-like rise and drop,
 ## load the throttle).
 func engine_state() -> Dictionary:
-	return { "running": _running, "rpm": _drive.rpm, "load": _drive.engine_load }
+	return { "running": drive.running, "rpm": drive.rpm, "load": drive.engine_load }
 
 
 ## How much it slides: 0 while the tyres grip, rising with the slide.
 func slip() -> float:
-	return _drive.slip
+	return drive.slip
 
 
 ## The front wheels' steering angle (rad, + = to the right), as they are drawn.
 func wheel_angle() -> float:
-	return _drive.wheel_angle
+	return drive.wheel_angle
 
 
 ## True while braking (the brake lights show).
 func brake_lights() -> bool:
-	return _drive.braking
+	return drive.braking
 
 
 ## How far a camera following someone aboard zooms out (V8): `VehicleDriveConfig.zoom_out` at the
@@ -291,7 +285,7 @@ func release(character: Node2D) -> void:
 		if _seats[s] == character:
 			_seats[s] = null
 			if s == &"driver":
-				stop_engine()
+				drive.stop_engine()
 	for s in _reserved.keys():
 		if _reserved[s] == character:
 			_reserved.erase(s)
@@ -307,33 +301,6 @@ func open_door(which: VehicleDoor) -> void:
 ## Close `which` (the slam is posted when it shuts).
 func close_door(which: VehicleDoor) -> void:
 	which.close()
-
-
-## The driver has sat down: the ignition cranks and the engine runs.
-func start_engine() -> void:
-	if _running:
-		return
-	_running = true
-	can_sleep = false  # Its wheels and revs follow the driver even at rest.
-	sleeping = false
-	post(&"ignition", global_position)
-	EventBus.post(&"engine", { "vehicle": self, "kind": kind, "stage": &"start" })
-
-
-## Cut the engine (the driver has left the seat): nobody drives it, and it rolls to a stop.
-func stop_engine() -> void:
-	_intent = { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": false }
-	if not _running:
-		return
-	_running = false
-	can_sleep = true
-	EventBus.post(&"engine", { "vehicle": self, "kind": kind, "stage": &"stop" })
-
-
-## The driver brakes to a stop (getting out at speed).
-func brake_input(character: Node2D) -> void:
-	if driver() == character:
-		_intent = { "throttle": 0.0, "steer": 0.0, "handbrake": false, "brake": true }
 
 
 ## The door `character`, in `seat`, gets out by: `own` (the one it got in by) when clear, else the
@@ -352,21 +319,6 @@ func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> Vehicle
 			best = d
 			best_distance = distance
 	return best
-
-
-# --- Skids -------------------------------------------------------------------------------
-
-
-## Post a `skid` start when the tyres begin to slide and a stop when they grip again.
-func _update_skid() -> void:
-	var threshold := (
-		VehicleDriveConfig.skid_stop_slip if _skidding else VehicleDriveConfig.skid_start_slip
-	)
-	var sliding := _drive.slip > threshold and speed() > VehicleDriveConfig.stop_speed
-	if sliding == _skidding:
-		return
-	_skidding = sliding
-	EventBus.post(&"skid", { "vehicle": self, "stage": &"start" if sliding else &"stop" })
 
 
 # --- Helpers -----------------------------------------------------------------------------
