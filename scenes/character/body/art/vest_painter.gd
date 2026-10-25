@@ -35,48 +35,56 @@ static func paint_top(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionar
 	var kind := String(look.get("vest", ""))
 	if kind == "":
 		return
-	var style := String(look.get("style", ""))
+	if kind == "vest":
+		_top_vest(c, o, span, look)
+		return
+	_top_carrier(c, o, span, opts)
+
+
+## A soft vest from above: a merc's chest rig, or the padded panel cut to the shoulders.
+static func _top_vest(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
+	if String(look.get("style", "")) == "merc":
+		_top_chest_rig(c, o, span, look)
+		return
+	var half := roundi(c.w * 0.3)
+	# The panel hugs the shoulders: a rounded block across the trunk, cut to the shoulders' own
+	# outline.
+	var block := PixelCanvas.rounded(
+		Rect2i(o.x - half, span.position.y, half * 2 + 1, span.size.y),
+		4,
+	)
+	var shoulders := PixelCanvas.ellipse(span)
+	var body := PixelCanvas.Shape.new(
+		block.bounds,
+		func(x: int, y: int) -> bool: return block.has(x, y) and shoulders.has(x, y),
+	)
+	_fill(c, body, _col(look, "vest_col"), false, look)
+	_marks_top(c, o, span, look, "vest")
+
+
+## A merc's chest rig from above: dark webbing straps over both shoulders, a pouch on each flank and
+## a row across the front (what shows past the head from above, whatever drab top is under them).
+static func _top_chest_rig(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
 	var half := roundi(c.w * 0.3)
 	var col := _col(look, "vest_col")
-	var t := PixelCanvas.tones(col)
-	var finish := "metal" if style == "borg" else "fabric"
-	if kind == "vest":
-		if style == "merc":
-			# A chest rig: dark webbing straps over both shoulders, a pouch on each flank and a row
-			# across the front (what shows past the head from above, whatever drab top is under
-			# them).
-			for side in [-1, 1]:
-				for dx in [0, 1]:
-					var x: int = o.x + side * (half - 3 + dx)
-					c.line(
-						Vector2i(x, span.position.y + 1),
-						Vector2i(x, span.end.y - 2),
-						_STRAP,
-						_VEST,
-					)
-				var flank := PixelCanvas.rounded(
-					Rect2i(o.x + side * (half - 1) - (2 if side > 0 else 0), o.y - 2, 3, 5),
-					0,
-				)
-				c.fill(flank, col.darkened(0.1), _POUCH)
-				c.outline(flank, _STRAP)
-			_pouches(c, Rect2i(o.x - half, span.end.y - 4, half * 2 + 1, 3), 4, col)
-			return
-		# The panel hugs the shoulders: a rounded block across the trunk, cut to the shoulders' own
-		# outline.
-		var block := PixelCanvas.rounded(
-			Rect2i(o.x - half, span.position.y, half * 2 + 1, span.size.y),
-			4,
+	for side in [-1, 1]:
+		for dx in [0, 1]:
+			var x: int = o.x + side * (half - 3 + dx)
+			c.line(Vector2i(x, span.position.y + 1), Vector2i(x, span.end.y - 2), _STRAP, _VEST)
+		var flank := PixelCanvas.rounded(
+			Rect2i(o.x + side * (half - 1) - (2 if side > 0 else 0), o.y - 2, 3, 5),
+			0,
 		)
-		var shoulders := PixelCanvas.ellipse(span)
-		var body := PixelCanvas.Shape.new(
-			block.bounds,
-			func(x: int, y: int) -> bool: return block.has(x, y) and shoulders.has(x, y),
-		)
-		_fill(c, body, col, _VEST, finish, false, look)
-		_marks_top(c, o, span, half, look, kind)
-		return
-	# The carrier: shoulder straps beside the neck between the panels.
+		c.fill(flank, col.darkened(0.1), _POUCH)
+		c.outline(flank, _STRAP)
+	_pouches(c, Rect2i(o.x - half, span.end.y - 4, half * 2 + 1, 3), 4, col)
+
+
+## A plate carrier from above: shoulder straps beside the neck between the front and back panels.
+static func _top_carrier(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionary) -> void:
+	var look := PixelArt.look_of(opts)
+	var half := roundi(c.w * 0.3)
+	var t := PixelCanvas.tones(_col(look, "vest_col"))
 	for side in [-1, 1]:
 		c.line(
 			Vector2i(o.x + side * (half - 2), span.position.y),
@@ -85,19 +93,33 @@ static func paint_top(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionar
 			_VEST,
 		)
 	for face in ["front", "back"]:
-		var front: bool = face == "front"
-		var y := span.end.y - 4 if front else span.position.y - 2
-		var panel := PixelCanvas.rounded(Rect2i(o.x - half, y, half * 2 + 1, 6), 2)
-		var plated: bool = opts.has(face + "_plate")
-		var cover := _col(look, face + "_cover")
-		_fill(c, panel, cover, _PLATE if plated else _VEST, finish, plated, look)
-		if plated:
-			_wear(c, panel.bounds.grow(-1), face, opts, cover)
-		if front:
-			_pouches(c, Rect2i(o.x - half + 1, y + 3, half * 2 - 1, 3), 3, cover)
-		else:
-			c.line(Vector2i(o.x - 1, y + 1), Vector2i(o.x + 1, y + 1), _STRAP, _POUCH)
-	_marks_top(c, o, span, half, look, kind)
+		_top_panel(c, o, span, opts, face)
+	_marks_top(c, o, span, look, "carrier")
+
+
+## The carrier's `face` ("front" | "back") panel from above: its plate's wear, the pouches in front
+## or the drag handle behind.
+static func _top_panel(
+	c: PixelCanvas,
+	o: Vector2i,
+	span: Rect2i,
+	opts: Dictionary,
+	face: String,
+) -> void:
+	var look := PixelArt.look_of(opts)
+	var half := roundi(c.w * 0.3)
+	var front := face == "front"
+	var y := span.end.y - 4 if front else span.position.y - 2
+	var panel := PixelCanvas.rounded(Rect2i(o.x - half, y, half * 2 + 1, 6), 2)
+	var plated: bool = opts.has(face + "_plate")
+	var cover := _col(look, face + "_cover")
+	_fill(c, panel, cover, plated, look)
+	if plated:
+		_wear(c, panel.bounds.grow(-1), face, opts, cover)
+	if front:
+		_pouches(c, Rect2i(o.x - half + 1, y + 3, half * 2 - 1, 3), 3, cover)
+	else:
+		c.line(Vector2i(o.x - 1, y + 1), Vector2i(o.x + 1, y + 1), _STRAP, _POUCH)
 
 
 ## The vest on the trunk's `face` ("front" | "back" | "side"): a canvas spanning the trunk,
@@ -107,38 +129,55 @@ static func paint_face(c: PixelCanvas, face: String, waist: int, opts: Dictionar
 	var kind := String(look.get("vest", ""))
 	if kind == "":
 		return
-	var style := String(look.get("style", ""))
+	if face == "side":
+		_face_flank(c, waist, look)
+		return
+	if kind == "vest" and String(look.get("style", "")) == "merc":
+		_face_chest_rig(c, face, waist, look)
+		return
+	_face_panel(c, face, waist, opts)
+
+
+## The flank: the cummerbund or the vest's side panel, under the arm.
+static func _face_flank(c: PixelCanvas, waist: int, look: Dictionary) -> void:
 	var col := _col(look, "vest_col")
 	var t := PixelCanvas.tones(col)
 	var bottom := waist - 1
-	var finish := "metal" if style == "borg" else "fabric"
-	if face == "side":
-		# The flank: the cummerbund or the vest's side panel, under the arm.
-		var band := PixelCanvas.rounded(
-			Rect2i(0, roundi(waist * 0.35), c.w, bottom - roundi(waist * 0.35)),
-			0,
-		)
-		_fill(c, band, col, _VEST, finish, false, look)
-		for y in range(band.bounds.position.y + 2, bottom, 3):
-			c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.dark, _VEST)
-		return
-	var cx := int(c.w / 2.0)
-	if kind == "vest" and style == "merc":
-		# The chest rig: pouches across the front, its straps crossed over the back.
-		if face == "front":
-			_pouches(c, Rect2i(1, roundi(waist * 0.45), c.w - 2, 5), 4, col)
-			for x in [3, c.w - 4]:
-				c.line(Vector2i(x, 0), Vector2i(x, roundi(waist * 0.45)), t.dark, _VEST)
-		else:
-			c.line(Vector2i(2, 0), Vector2i(c.w - 3, bottom - 2), t.dark, _VEST)
-			c.line(Vector2i(c.w - 3, 0), Vector2i(2, bottom - 2), t.dark, _VEST)
-		return
+	var band := PixelCanvas.rounded(
+		Rect2i(0, roundi(waist * 0.35), c.w, bottom - roundi(waist * 0.35)),
+		0,
+	)
+	_fill(c, band, col, false, look)
+	for y in range(band.bounds.position.y + 2, bottom, 3):
+		c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.dark, _VEST)
+
+
+## A merc's chest rig on the trunk: pouches across the front, its straps crossed over the back.
+static func _face_chest_rig(c: PixelCanvas, face: String, waist: int, look: Dictionary) -> void:
+	var col := _col(look, "vest_col")
+	var t := PixelCanvas.tones(col)
+	var bottom := waist - 1
+	if face == "front":
+		_pouches(c, Rect2i(1, roundi(waist * 0.45), c.w - 2, 5), 4, col)
+		for x in [3, c.w - 4]:
+			c.line(Vector2i(x, 0), Vector2i(x, roundi(waist * 0.45)), t.dark, _VEST)
+	else:
+		c.line(Vector2i(2, 0), Vector2i(c.w - 3, bottom - 2), t.dark, _VEST)
+		c.line(Vector2i(c.w - 3, 0), Vector2i(2, bottom - 2), t.dark, _VEST)
+
+
+## The vest's or the carrier's front or back panel on the trunk: straps up over the shoulders, a
+## plate's wear, then its fittings and the style's marks.
+static func _face_panel(c: PixelCanvas, face: String, waist: int, opts: Dictionary) -> void:
+	var look := PixelArt.look_of(opts)
+	var kind := String(look.get("vest", ""))
+	var bottom := waist - 1
 	var inset := 1 if kind == "vest" else 2
 	var top := 4 if kind == "vest" else 2
 	var plated: bool = kind == "carrier" and opts.has(face + "_plate")
-	var cover := col if kind == "vest" else _col(look, face + "_cover")
-	var panel := PixelCanvas.rounded(Rect2i(inset, top, c.w - inset * 2, bottom - top), 2)
-	_fill(c, panel, cover, _PLATE if plated else _VEST, finish, plated, look)
+	var cover := _col(look, "vest_col") if kind == "vest" else _col(look, face + "_cover")
+	var r := Rect2i(inset, top, c.w - inset * 2, bottom - top)
+	_fill(c, PixelCanvas.rounded(r, 2), cover, plated, look)
 	for x in [inset + 2, c.w - inset - 3]:  # Straps up over the shoulders.
 		c.line(Vector2i(x, 0), Vector2i(x, top), PixelCanvas.tones(cover).dark, _VEST)
 	if plated:
@@ -149,23 +188,49 @@ static func paint_face(c: PixelCanvas, face: String, waist: int, opts: Dictionar
 			opts,
 			cover,
 		)
+	_face_fittings(c, face, kind, r, cover)
+	_marks_face(c, face, r, look, kind)
+
+
+## On the panel `r` in `cover`: a carrier's pouches in front or its drag handle on the back, a
+## vest's zip in front.
+static func _face_fittings(
+	c: PixelCanvas,
+	face: String,
+	kind: String,
+	r: Rect2i,
+	cover: Color,
+) -> void:
+	var cx := int(c.w / 2.0)
 	if kind == "carrier":
 		if face == "front":
-			_pouches(c, Rect2i(inset + 1, bottom - 5, c.w - inset * 2 - 2, 4), 3, cover)
+			_pouches(c, Rect2i(r.position.x + 1, r.end.y - 5, r.size.x - 2, 4), 3, cover)
 		else:
 			# The drag handle.
-			c.fill(PixelCanvas.rounded(Rect2i(cx - 2, top, 5, 2), 0), _STRAP, _POUCH)
+			c.fill(PixelCanvas.rounded(Rect2i(cx - 2, r.position.y, 5, 2), 0), _STRAP, _POUCH)
 	elif face == "front":
-		c.line(Vector2i(cx, top + 1), Vector2i(cx, bottom - 1), t.shadow, _VEST)  # The zip.
-	_marks_face(c, face, cx, top, bottom, look, kind)
+		# The zip.
+		c.line(
+			Vector2i(cx, r.position.y + 1),
+			Vector2i(cx, r.end.y - 1),
+			PixelCanvas.tones(cover).shadow,
+			_VEST,
+		)
 
 
-## A panel `s` in `col`: its finish, a bevel (raised where a plate sits), the livery's edge sheen
-## and an outline.
-static func _fill(c: PixelCanvas, s: PixelCanvas.Shape, col: Color, height: int, finish: String,
-		plated: bool, look: Dictionary) -> void:
+## A panel `s` in `col`: its finish (the look's style's: a borg's welded steel, else fabric), a
+## bevel (raised where a plate sits), the livery's edge sheen and an outline; a plate's panel stands
+## higher.
+static func _fill(
+	c: PixelCanvas,
+	s: PixelCanvas.Shape,
+	col: Color,
+	plated: bool,
+	look: Dictionary,
+) -> void:
 	var t := PixelCanvas.tones(col)
-	c.fill(s, col, height)
+	var finish := "metal" if String(look.get("style", "")) == "borg" else "fabric"
+	c.fill(s, col, _PLATE if plated else _VEST)
 	c.surface(s, finish, col)
 	c.bevel(s, 1, 2 if plated else 1, t.highlight if plated else t.light, t.dark)
 	StyleArt.edge(c, s, look)
@@ -204,10 +269,10 @@ static func _marks_top(
 	c: PixelCanvas,
 	o: Vector2i,
 	span: Rect2i,
-	half: int,
 	look: Dictionary,
 	kind: String,
 ) -> void:
+	var half := roundi(c.w * 0.3)
 	var trim: Color = look.get("trim", Color.WHITE)
 	var chest := span.end.y - 3 if kind == "vest" else span.end.y - 5
 	var front_edge := span.end.y - 2 if kind == "vest" else span.end.y + 1
@@ -230,12 +295,13 @@ static func _marks_top(
 static func _marks_face(
 	c: PixelCanvas,
 	face: String,
-	cx: int,
-	top: int,
-	bottom: int,
+	r: Rect2i,
 	look: Dictionary,
 	kind: String,
 ) -> void:
+	var cx := int(c.w / 2.0)
+	var top := r.position.y
+	var bottom := r.end.y
 	var trim: Color = look.get("trim", Color.WHITE)
 	var chest := top + 3
 	match String(look.get("style", "")):
@@ -248,11 +314,8 @@ static func _marks_face(
 			StyleArt.cross(c, Vector2i(cx, chest + 2), trim, _MARK, 2)
 		"merc":
 			if kind == "carrier":
-				c.fill(
-					PixelCanvas.rounded(Rect2i(cx - 5, chest, 4, 3), 0),
-					_col(look, "back_cover"),
-					_MARK,
-				)
+				var patch := PixelCanvas.rounded(Rect2i(cx - 5, chest, 4, 3), 0)
+				c.fill(patch, _col(look, "back_cover"), _MARK)
 		"borg":
 			for y in [top + 1, bottom - 2]:
 				for x in [3, c.w - 4]:
