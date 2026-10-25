@@ -99,7 +99,7 @@ func draw_fallen(rd: RefCounted) -> void:
 				)
 	# The trunk's slices, each its own polygon: the shadow group flattens overlapping black into one
 	# shade, so they render as the one outline the body draws, without the union that outline costs.
-	for hull in _visuals._trunk_hulls(rd, shift_by):
+	for hull in _visuals.trunk.hulls(rd, shift_by):
 		fills.fill(hull, Color.BLACK)
 	fills.flush()  # All one black: the shadow group shows what any part covers, whatever the order.
 

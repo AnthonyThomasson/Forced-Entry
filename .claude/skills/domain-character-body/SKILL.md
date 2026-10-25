@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
-pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`, `body_trunk`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -220,14 +220,14 @@ over from the last frame (`_stack`): a pair swaps only once their heights differ
   thighs and shins in the pants (a chrome shin in chrome), shoes (along `toes(i)`). Fists (`HandPainter`)
   turn along the forearm; the head (`HeadPainter`) to where the face looks, or front toward the neck
   when it looks up or down.
-- The trunk is lofted: ellipse cross-sections across the spine, eased between
+- The trunk (`body_trunk.gd`, `BodyTrunk`: `draw(rd)`, and its slices `hulls(rd, shift)` for the shadow) is lofted: ellipse cross-sections across the spine, eased between
   `ragdoll_trunk_sections` (spine fraction, half-width, half-depth) and domed at both ends; its
   outline is the union of each neighbouring pair's hull — waisted and rounded from any side, the
   shoulder ellipse from above. Each hull grows by `HULL_OVERLAP` so neighbours overlap in area
   (seen edge-on they share only a line, and the union can come apart, flashing the torso as one
   small slice for a frame as the body landed); a union still in pieces falls back to the two slices'
   convex hull. Test: `tests/character/fallen_trunk_outline_steady_test.gd`. It fills with the shirt, then maps the trunk's sides across it
-  (`_trunk_faces` / `_face_art`: UVs from each side's projected axes; the art is requested at whole pixels, because the spine's
+  (`_faces` / `_face_art`: UVs from each side's projected axes; the art is requested at whole pixels, because the spine's
   length flexes every frame and an exact size would paint and cache a new texture each frame): first the most visible of chest, back and flank,
   `torso_painter.gd` (a full strip that covers the outline: the shirt down to a belt with its style's chest mark, an open jacket or a tank top, pants
   on the hips; the vest's face over it; the back with a seam, a spine rig, cables and the pack; a flank), and over it, when the top is turned up more still (a crouch's
@@ -346,7 +346,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   plates' colours and wear step `ceil((1 − condition) × WEAR_STEPS)`), each arm segment's colour, finish and options (`_arm_part`: chrome, a sleeve,
   a long one to its cuff, or bare skin), each leg part's options and a chrome shin (its `chrome` key; `shin_colour(i)`), and each fist's colour (gloves, skin or chrome) and options. Boots:
   the shin's lower part, from `BOOT_TOP` 0.62 down to the ankle, becomes the boot's shaft, `BOOT_GROW` 0.06 body radii wider. For every body, dressed
-  or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`_trunk_faces`, above). `refresh`
+  or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`BodyTrunk._faces`, above). `refresh`
   resolves it only when `Outfit.revision` or the character's look revision (bumped by `style`, `look_seed` and `rank`) moves (two int compares a frame);
   when the resolved look's hash `look_key` changes (it returns true) it joins the redraw key and a settled fallen body repaints (`_settled_drawn = false`), also on its
   first frame back in view after a change made off screen. Tests: `tests/character/outfit_art_test.gd`, `style_look_test.gd`.

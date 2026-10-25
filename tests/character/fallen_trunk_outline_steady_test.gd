@@ -1,5 +1,5 @@
 extends GameTest
-## A falling body's trunk keeps its outline (character_visuals.gd, `_trunk_outline`). The outline is
+## A falling body's trunk keeps its outline (body_trunk.gd, `_outline`). The outline is
 ## the union of the hulls of neighbouring cross-sections; seen edge-on those hulls touch only along
 ## a line and the union can come apart, leaving the torso as one small slice for a single frame as
 ## the body lands. Shoots several targets so a few real ragdolls land, and checks that no trunk's
@@ -46,8 +46,8 @@ func _outline_area(target: Node) -> float:
 	if rd == null:
 		return 0.0
 	var visuals = target.get_node("Visuals")
-	var outline: PackedVector2Array = visuals._trunk_outline(rd)
-	return visuals._area(outline)
+	var outline: PackedVector2Array = visuals.trunk._outline(rd)
+	return BodyTrunk._area(outline)
 
 
 func run(t: TestContext) -> void:

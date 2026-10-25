@@ -2,7 +2,7 @@ extends GameTest
 ## The body's drawing builds its shapes with one transform of a unit outline each
 ## (body_limbs.gd: `capsule` for every limb segment and its shadow; character_visuals.gd:
 ## `_texture_uvs` for the shoulders' shadow; Deformation: a circle's `base_ring` and the uvs of
-## `draw_shape`), where it once placed each point with its own trig, and `_trunk_hulls` takes the
+## `draw_shape`), where it once placed each point with its own trig, and `BodyTrunk.hulls` takes the
 ## floor shadow's shift in place of a projection callable. This pins those shapes to the plain
 ## point-by-point sums (the trunk's exactly), on random limbs and on real falling bodies, so the
 ## body is drawn where it always was.
@@ -171,7 +171,7 @@ func _check_fallen(t: TestContext) -> void:
 				continue
 			var fallen = body.get_node("Visuals")
 			worst = maxf(worst, _trunk_gap(fallen, rd))
-			if fallen._trunk_outline(rd) != _plain_outline(fallen, fallen._trunk_hulls(rd)):
+			if fallen.trunk._outline(rd) != _plain_outline(fallen.trunk.hulls(rd)):
 				outlines_differ += 1
 			frames += 1
 	t.check(frames >= 60, "falling trunks compared (%d)" % frames)
@@ -192,7 +192,7 @@ func _check_fallen(t: TestContext) -> void:
 func _trunk_gap(fallen: Node, rd: RefCounted) -> float:
 	var worst := 0.0
 	for shift in [Vector2.ZERO, fallen.shadow.shift()]:
-		var hulls: Array = fallen._trunk_hulls(rd, shift)
+		var hulls: Array = fallen.trunk.hulls(rd, shift)
 		var plain := _plain_hulls(fallen, rd, shift)
 		if hulls.size() != plain.size():
 			worst = INF
@@ -247,8 +247,8 @@ func _outline_gap(a: PackedVector2Array, b: PackedVector2Array) -> float:
 	return out
 
 
-## `_trunk_outline` as it was: every union's pieces weighed by their area.
-func _plain_outline(visuals: Node, hulls: Array) -> PackedVector2Array:
+## `BodyTrunk._outline` as it was: every union's pieces weighed by their area.
+func _plain_outline(hulls: Array) -> PackedVector2Array:
 	var outline := PackedVector2Array()
 	for hull in hulls:
 		if outline.is_empty():
@@ -258,21 +258,21 @@ func _plain_outline(visuals: Node, hulls: Array) -> PackedVector2Array:
 		var best_area := 0.0
 		var outer := 0
 		for poly in Geometry2D.merge_polygons(outline, hull):
-			var area: float = visuals._area(poly)
+			var area: float = BodyTrunk._area(poly)
 			if area > best_area:
 				best = poly
 				best_area = area
-			if not Geometry2D.is_polygon_clockwise(poly) and area > visuals.PIECE_MIN_AREA:
+			if not Geometry2D.is_polygon_clockwise(poly) and area > BodyTrunk.PIECE_MIN_AREA:
 				outer += 1
 		if outer > 1:
-			outline = visuals._open(Geometry2D.convex_hull(outline + hull))
+			outline = BodyTrunk._open(Geometry2D.convex_hull(outline + hull))
 		else:
 			outline = best if best.size() >= 3 else outline
 	if Geometry2D.triangulate_polygon(outline).is_empty():
 		var everything := PackedVector2Array()
 		for hull in hulls:
 			everything.append_array(hull)
-		outline = visuals._open(Geometry2D.convex_hull(everything))
+		outline = BodyTrunk._open(Geometry2D.convex_hull(everything))
 	return outline
 
 
@@ -294,7 +294,7 @@ func _plain_capsule(a: Vector2, b: Vector2, ra: float, rb: float) -> PackedVecto
 	return out
 
 
-## `_trunk_hulls` as it was: each ring point placed in 3D, then seen from above shifted by its
+## `BodyTrunk.hulls` as it was: each ring point placed in 3D, then seen from above shifted by its
 ## height.
 func _plain_hulls(visuals: Node, rd: RefCounted, shift: Vector2) -> Array:
 	var r: float = visuals.get_parent().radius
@@ -302,27 +302,28 @@ func _plain_hulls(visuals: Node, rd: RefCounted, shift: Vector2) -> Array:
 	var pelvis: Vector3 = rd.point(visuals.Rig.PELVIS)
 	var spine: float = (rd.point(visuals.Rig.CHEST) - pelvis).length()
 	var rings := []
-	for t in visuals._trunk_steps():
+	for t in BodyTrunk._steps():
 		var centre: Vector3 = pelvis + basis.y * t * spine
-		var half: Vector2 = visuals._section_at(t) * r
-		rings.append(_plain_ring(visuals, centre, basis, half, shift))
+		var half: Vector2 = BodyTrunk._section_at(t) * r
+		rings.append(_plain_ring(centre, basis, half, shift))
 	var hulls := []
 	for k in range(1, rings.size()):
-		hulls.append(visuals._grown(visuals._open(Geometry2D.convex_hull(rings[k - 1] + rings[k]))))
+		hulls.append(
+			BodyTrunk._grown(BodyTrunk._open(Geometry2D.convex_hull(rings[k - 1] + rings[k]))),
+		)
 	return hulls
 
 
-## One trunk section's ring as `_trunk_hulls` placed it: `SECTION_POINTS` points round `centre` in
-## the torso's `basis`, `half` its half-width and half-depth, seen from above shifted by `shift` a
-## unit of height.
+## One trunk section's ring as `BodyTrunk.hulls` placed it: `SECTION_POINTS` points round `centre`
+## in the torso's `basis`, `half` its half-width and half-depth, seen from above shifted by `shift`
+## a unit of height.
 func _plain_ring(
-	visuals: Node,
 	centre: Vector3,
 	basis: Basis,
 	half: Vector2,
 	shift: Vector2,
 ) -> PackedVector2Array:
-	var count: int = visuals.SECTION_POINTS
+	var count: int = BodyTrunk.SECTION_POINTS
 	var ring := PackedVector2Array()
 	for k in count:
 		var around := Vector2.from_angle(TAU * k / count)
