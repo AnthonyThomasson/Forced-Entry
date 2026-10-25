@@ -85,7 +85,7 @@ func draw_standing(rig: Rig, shift_by: Vector2, lift: Vector2) -> void:
 func draw_fallen(rd: RefCounted) -> void:
 	var shift_by := shift()
 	var fills := FillBatch.new(node)
-	for part in _visuals._fallen_parts(rd):
+	for part in _visuals.laid.parts_of(rd):
 		match part["kind"]:
 			"chain":
 				_draw_limb(part, shift_by, fills)
@@ -99,7 +99,7 @@ func draw_fallen(rd: RefCounted) -> void:
 				)
 	# The trunk's slices, each its own polygon: the shadow group flattens overlapping black into one
 	# shade, so they render as the one outline the body draws, without the union that outline costs.
-	for hull in _visuals.trunk.hulls(rd, shift_by):
+	for hull in _visuals.laid.trunk.hulls(rd, shift_by):
 		fills.fill(hull, Color.BLACK)
 	fills.flush()  # All one black: the shadow group shows what any part covers, whatever the order.
 

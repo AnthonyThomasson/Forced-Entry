@@ -46,7 +46,7 @@ func _outline_area(target: Node) -> float:
 	if rd == null:
 		return 0.0
 	var visuals = target.get_node("Visuals")
-	var outline: PackedVector2Array = visuals.trunk._outline(rd)
+	var outline: PackedVector2Array = visuals.laid.trunk._outline(rd)
 	return BodyTrunk._area(outline)
 
 

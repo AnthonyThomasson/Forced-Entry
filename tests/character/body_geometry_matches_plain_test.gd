@@ -171,7 +171,7 @@ func _check_fallen(t: TestContext) -> void:
 				continue
 			var fallen = body.get_node("Visuals")
 			worst = maxf(worst, _trunk_gap(fallen, rd))
-			if fallen.trunk._outline(rd) != _plain_outline(fallen.trunk.hulls(rd)):
+			if fallen.laid.trunk._outline(rd) != _plain_outline(fallen.laid.trunk.hulls(rd)):
 				outlines_differ += 1
 			frames += 1
 	t.check(frames >= 60, "falling trunks compared (%d)" % frames)
@@ -192,7 +192,7 @@ func _check_fallen(t: TestContext) -> void:
 func _trunk_gap(fallen: Node, rd: RefCounted) -> float:
 	var worst := 0.0
 	for shift in [Vector2.ZERO, fallen.shadow.shift()]:
-		var hulls: Array = fallen.trunk.hulls(rd, shift)
+		var hulls: Array = fallen.laid.trunk.hulls(rd, shift)
 		var plain := _plain_hulls(fallen, rd, shift)
 		if hulls.size() != plain.size():
 			worst = INF

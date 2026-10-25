@@ -6,7 +6,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 # Character · Body sub-domain (`scenes/character/body/`)
 
 Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
-pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`, `body_trunk`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`, `body_laid_out` and its `body_trunk`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -205,10 +205,10 @@ hands):
 - Reads for the visuals: `point(i)`, `torso()` (the trunk's basis), `face()`, `toes(i)` (a
   trunk-frame direction carried onto the bone by the shortest turn), `is_settled()`.
 
-**Drawing the fallen body** (`character_visuals.gd`, `_draw_fallen`): every part from its 3D
+**Drawing the fallen body** (`body_laid_out.gd`, the visuals' `laid`: `draw(rd, with_head, before_trunk)`; the shadow casts its `parts_of(rd)`): every part from its 3D
 points seen from above, sorted by height (lowest first), so a standing body hides its legs under
 the shoulders and a toppling one reveals them; lengths foreshorten as parts tip. The order carries
-over from the last frame (`_stack`): a pair swaps only once their heights differ by more than
+over from the last frame (`_stack`, `_order`): a pair swaps only once their heights differ by more than
 `STACK_BAND`, so a limb lying across the trunk doesn't flicker over and under it. Test:
 `tests/character/fallen_draw_order_stable_test.gd`.
 - Limbs are chains of tapered capsules between the projected joints (the true silhouette of a limb
@@ -220,7 +220,7 @@ over from the last frame (`_stack`): a pair swaps only once their heights differ
   thighs and shins in the pants (a chrome shin in chrome), shoes (along `toes(i)`). Fists (`HandPainter`)
   turn along the forearm; the head (`HeadPainter`) to where the face looks, or front toward the neck
   when it looks up or down.
-- The trunk (`body_trunk.gd`, `BodyTrunk`: `draw(rd)`, and its slices `hulls(rd, shift)` for the shadow) is lofted: ellipse cross-sections across the spine, eased between
+- The trunk (`body_trunk.gd`, `BodyTrunk`, the laid-out body's `trunk`: `draw(rd)`, and its slices `hulls(rd, shift)` for the shadow) is lofted: ellipse cross-sections across the spine, eased between
   `ragdoll_trunk_sections` (spine fraction, half-width, half-depth) and domed at both ends; its
   outline is the union of each neighbouring pair's hull — waisted and rounded from any side, the
   shoulder ellipse from above. Each hull grows by `HULL_OVERLAP` so neighbours overlap in area
@@ -248,7 +248,7 @@ over from the last frame (`_stack`): a pair swaps only once their heights differ
   stays centred over its feet, and the neck pitches on, `body_crouch_neck_pitch`), narrows the hips and feet (`body_crouch_hip_width` /
   `body_crouch_foot_gap`), stands the feet ahead of the pelvis so the knees lead (`body_crouch_foot_ahead`), staggers the weapon hand's foot back
   (`body_crouch_stagger`) and shortens the stride (`body_crouch_stride`). The rig also answers `torso()` and `face()`, so a body folded past
-  `FOLD_DRAW` is drawn by `_draw_lying`: `_draw_fallen(rig, false, weapon)` (a lofted trunk showing its back, the limbs by height), then the weapon and
+  `FOLD_DRAW` is drawn by `_draw_lying`: `laid.draw(rig, false, weapon)` (a lofted trunk showing its back, the limbs by height), then the weapon and
   fists on top, with its shadow from `shadow.draw_fallen`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
   art (seam, backpack, the vest's back panel and plate wear) with the shoulders' over it.
   **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a

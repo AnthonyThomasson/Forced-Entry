@@ -1,9 +1,9 @@
 extends GameTest
-## A falling body's parts keep their draw order (character_visuals.gd, `_stack`). A pair of parts
+## A falling body's parts keep their draw order (body_laid_out.gd, `_stack`). A pair of parts
 ## only swaps over or under each other once their heights differ by more than STACK_BAND; while they
 ## sit within the band of one another, the order they were drawn in holds, so a limb lying across
 ## the trunk does not flicker. Shoots a one-hit target and, every frame of its fall, checks that no
-## pair swapped while both were within the band. Reads the last drawn order (`_fallen_order`) and
+## pair swapped while both were within the band. Reads the last drawn order (`laid._order`) and
 ## the parts' heights; draws nothing.
 
 
@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 
 	var target: Node = t.actor(&"target")
 	var visuals = target.get_node("Visuals")
-	var band: float = visuals.get_script().get_script_constant_map()["STACK_BAND"]
+	var band: float = BodyLaidOut.STACK_BAND
 
 	var watch := FallWatch.new()
 	for i in 240:
@@ -59,8 +59,8 @@ func run(t: TestContext) -> void:
 		if rd == null:
 			await t.frames(1)
 			continue
-		var parts: Array = visuals._fallen_parts(rd)
-		watch.sample(parts, _top(parts), visuals._fallen_order.duplicate(), band)
+		var parts: Array = visuals.laid.parts_of(rd)
+		watch.sample(parts, _top(parts), visuals.laid._order.duplicate(), band)
 		await t.frames(1)
 
 	t.trace("draw-order swaps", watch.swaps)
