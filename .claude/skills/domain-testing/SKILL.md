@@ -93,7 +93,10 @@ interface 23), the module Main builds its matches with, so a test world is stage
   again in N-1 processes of its own, and the tally and totals are every process's together; with a `--shard` given by
   hand it runs once: `NOTE native suites ran once (--shard)`), `--seed=N` (every
   `house()` uses that seed), and, in the wrapper only, `--changed` (see below), `--report=FILE` and `--strict-exit`.
-  Options take the `--name=value` form.
+  Options take the `--name=value` form. Any other `--` argument (a typo such as `--domian=ai`, or two flags quoted
+  into one argument) exits 2 with `unknown flag: <arg>` and the header's usage lines: the wrapper forwards only the
+  flags in its `BATCH_FLAGS` list, and `tools/test_log_gate.py`'s `FlagListTests` checks that every flag the batch
+  reads is there (or in `WRAPPER_FLAGS`, the ones the wrapper gives the batch itself).
 - **`--changed`:** the wrapper maps each changed file (`git diff HEAD` plus untracked) to a domain and
   runs those domains plus the ones that compose them (its `affected()` table, from the architecture
   dependency graph) in **one** process; `main.gd`, root scenes, `project.godot`, worldgen, art, general, audio, lighting and testing

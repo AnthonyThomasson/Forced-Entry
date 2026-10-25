@@ -72,7 +72,8 @@
 #                   the sources are unchanged since the last clean lint (fingerprint kept in $TMPDIR; the lint of
 #                   --changed --staged never records one).
 # Not here: --play <words> (play one test or sandbox in the runner) is the runner's own flag; this wrapper only runs
-# batches, so it refuses --play and prints the command that launches the runner.
+# batches, so it refuses --play and prints the command that launches the runner. Any other flag not listed above, or
+# several flags quoted into one argument, exits 2 with `unknown flag: <arg>` and these usage lines.
 # Every run ends with a `Slowest:` line (wall-clock ms per test).
 # A failed test prints its final actor state and a `bundle:` path to a JSON with its event log,
 # state and traces. Each invocation gets its own engine log, report and bundles in a fresh temp dir
@@ -114,6 +115,22 @@ CHANGED=0
 STAGED=0
 LINT=1
 SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
+# The flags forwarded to the batch as given (scenes/testing/test_batch.gd reads them; `=` ones take a value), and the
+# ones the wrapper gives it itself, never from the command line. Any other argument starting with `--`, or one holding
+# a space (two flags quoted into one argument), is refused: the batch would drop it and run everything.
+# tools/test_log_gate.py (FlagListTests) checks that every flag the batch reads is in one of the two lists.
+BATCH_FLAGS=(--domain= --id= --skip-domain= --repeat= --seed= --shard= --list --self-test --include-von --require-von
+  --summary --verbose --json --shots --fail-fast)
+WRAPPER_FLAGS=(--out= --costs= --failed=)
+batch_flag() {
+  local f
+  [[ "$1" == *[[:space:]]* ]] && return 1
+  for f in "${BATCH_FLAGS[@]}"; do
+    if [[ "$f" == *= ]]; then [[ "$1" == "$f"?* ]] && return 0
+    else [[ "$1" == "$f" ]] && return 0; fi
+  done
+  return 1
+}
 export RUN_TESTS_REPORT_TO=""   # --report=FILE (save_reports writes the merged report there too)
 args=()
 for a in "$@"; do
@@ -145,6 +162,13 @@ sys.exit(0 if any(r.get("status") in ("FAIL", "TIMEOUT") for r in results) else 
         1) echo "no failed test in the last report: nothing to rerun"; exit 0 ;;
         *) echo "--failed: cannot read the last report ($LAST); run the tests again to write a new one." >&2; exit 2 ;;
       esac ;;
+    --*)
+      batch_flag "$a" || {
+        echo "unknown flag: $a" >&2
+        sed -n '/^# Selecting tests/,/^# Not here:/{/^# Not here:/d;s/^# \{0,1\}//;p;}' tools/run_tests.sh >&2
+        exit 2
+      }
+      args+=("$a") ;;
     *) args+=("$a") ;;
   esac
 done

@@ -281,6 +281,16 @@ class WrapperTests(unittest.TestCase):
         self.assertIn("test_runner.tscn -- --play <words>", out)
         self.assertNotIn("passed,", out)
 
+    def test_an_unknown_flag_is_refused_with_the_usage(self):
+        # A mistyped flag, and two flags quoted into one argument (zsh does not split "$sel"), would otherwise reach
+        # the batch, which drops them, and run the whole suite in place of the narrow run asked for.
+        for arg in ("--domian=ai", "--self-test --id=_harness/nope"):
+            code, out = self.run_wrapper("clean", arg)
+            self.assertEqual(code, 2, out)
+            self.assertIn(f"unknown flag: {arg}", out)
+            self.assertIn("Selecting tests", out, "the usage lines of the header follow")
+            self.assertNotIn("passed,", out)
+
     def test_a_selection_that_holds_no_test_fails_but_an_empty_shard_does_not(self):
         code, out = self.run_wrapper("empty", "--id=a/nope")
         self.assertEqual(code, 1, out)
@@ -415,6 +425,29 @@ class WrapperTests(unittest.TestCase):
                                  "tests/audio/bank_test.gd", "tests/audio/bank_test.gd.uid"])
         self.assertEqual([l for l in lines if l.startswith("selection:")],
                          ["selection: --domain=ai,perf", "selection: --id=audio/bank"])
+
+
+class FlagListTests(unittest.TestCase):
+    """run_tests.sh forwards only the flags in its BATCH_FLAGS list and refuses every other `--` argument, so each
+    flag the batch reads (scenes/testing/: `option`, `list_option` and `flag` of TestBatch) must be in that list or in
+    the wrapper's own WRAPPER_FLAGS (the ones it gives the batch itself), or the batch could never be given it."""
+
+    @staticmethod
+    def wrapper_list(name):
+        m = re.search(rf"^{name}=\(([^)]*)\)", RUN.read_text(), re.M)
+        assert m, f"run_tests.sh has no {name}=(...) list"
+        return m.group(1).split()
+
+    def test_every_flag_the_batch_reads_is_one_the_wrapper_knows(self):
+        known = {f.rstrip("=") for f in self.wrapper_list("BATCH_FLAGS") + self.wrapper_list("WRAPPER_FLAGS")}
+        read = set()
+        for gd in sorted((ROOT / "scenes" / "testing").glob("*.gd")):
+            read |= set(re.findall(r'\b(?:option|list_option|flag)\("(--[a-z-]+)"', gd.read_text()))
+        self.assertIn("--domain", read, "premise: the batch's options are found")
+        self.assertEqual(sorted(read - known), [], "flags the batch reads that run_tests.sh would refuse")
+
+    def test_the_flags_the_wrapper_gives_itself_are_not_forwarded(self):
+        self.assertEqual(set(self.wrapper_list("BATCH_FLAGS")) & set(self.wrapper_list("WRAPPER_FLAGS")), set())
 
 
 FAKE_STAGED_LINT = r"""#!/usr/bin/env bash
