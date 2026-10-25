@@ -38,27 +38,45 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	if not Probe.ready(t, &"car", [&"me"]):
+	if not _premises(t):
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	if not Probe.has_reads(t, me, [&"posture_folded"], "character me"):
+	var handle: Vector2 = Probe.door(car, &"front_left")["handle"]
+	if not await _start_in_reach(t, car):
 		return
+	var got := await _sample_boarding(t, car, me)
+	if not t.require(got.seated_at >= 0, "the character gets in"):
+		return
+	_check_steps(t, me, got)
+	_check_facing(t, car, handle, got)
+	_check_door(t, got)
+	_check_fold(t, got)
+	_check_seated(t, car, me)
+
+
+## The car and the character have the reads the test samples, the front-left handle and the
+## Chassis and Roof draw layers (false: ends the test).
+func _premises(t: TestContext) -> bool:
+	if not Probe.ready(t, &"car", [&"me"]):
+		return false
+	var car := t.vehicle(&"car") as Node2D
+	if not Probe.has_reads(t, t.actor(&"me"), [&"posture_folded"], "character me"):
+		return false
 	if not t.require(
 			Probe.door(car, &"front_left").has("handle"),
 			"the car reports its front-left handle",
 	):
-		return
-	var chassis := Probe.layer(car, "Chassis")
-	var roof := Probe.layer(car, "Roof")
-	if not t.require(
-			chassis != null and roof != null,
-			"the car has its Chassis and Roof draw layers",
-	):
-		return
+		return false
+	return t.require(
+		Probe.layer(car, "Chassis") != null and Probe.layer(car, "Roof") != null,
+		"the car has its Chassis and Roof draw layers",
+	)
 
-	# In reach of the front-left handle but not at it (ahead of it and out from the side), facing
-	# away from the car, so the boarding has a walk and a turn to make.
+
+## In reach of the front-left handle but not at it (ahead of it and out from the side), facing
+## away from the car, so the boarding has a walk and a turn to make (false: ends the test).
+func _start_in_reach(t: TestContext, car: Node2D) -> bool:
 	var d := Probe.door(car, &"front_left")
 	var handle: Vector2 = d["handle"]
 	var start := handle + Probe.outward(car, d) * 35.0 + Probe.forward(car) * 25.0
@@ -66,39 +84,39 @@ func run(t: TestContext) -> void:
 			start.distance_to(handle) < Probe.DOOR_REACH,
 			"the start is in reach of the front-left handle",
 	):
-		return
+		return false
 	await Probe.place(t, &"me", start)
 	var puppet := t.puppet(&"me")
 	puppet.aim_at(start + (start - car.global_position))
 	await t.seconds(0.4)
 	puppet.aim_at(null)
+	return true
 
-	# Every frame from the press until the door is shut behind the seated character (or 6 s).
-	var pos: Array[Vector2] = []
-	var face: Array[Vector2] = []
-	var fold: Array[float] = []
-	var door: Array[float] = []
-	var seated_at := -1
-	puppet.use_vehicle()
+
+## Every frame from the press until the door is shut behind the seated character (or 6 s).
+func _sample_boarding(t: TestContext, car: Node2D, me: Node2D) -> Samples:
+	var got := Samples.new()
+	t.puppet(&"me").use_vehicle()
 	var deadline := t.time + 6.0
 	while t.time < deadline:
 		await t.frames(1)
-		pos.append(me.global_position)
-		face.append(me.facing)
-		fold.append(float(me.posture_folded()))
-		door.append(Probe.open_of(car, &"front_left"))
-		if seated_at < 0 and me.is_in_vehicle():
-			seated_at = pos.size() - 1
-		if seated_at >= 0 and door[-1] < 0.02 and pos.size() > seated_at + 5:
+		got.pos.append(me.global_position)
+		got.face.append(me.facing)
+		got.fold.append(float(me.posture_folded()))
+		got.door.append(Probe.open_of(car, &"front_left"))
+		if got.seated_at < 0 and me.is_in_vehicle():
+			got.seated_at = got.pos.size() - 1
+		if got.seated_at >= 0 and got.door[-1] < 0.02 and got.pos.size() > got.seated_at + 5:
 			break
-	if not t.require(seated_at >= 0, "the character gets in"):
-		return
+	return got
 
-	# Position: no frame steps further than the character's own walk does in a frame.
+
+## Position: no frame steps further than the character's own walk does in a frame.
+func _check_steps(t: TestContext, me: Node2D, got: Samples) -> void:
 	var walk_step: float = me.speed / Engine.physics_ticks_per_second * 1.2
 	var worst_step := 0.0
-	for i in range(1, pos.size()):
-		worst_step = maxf(worst_step, pos[i].distance_to(pos[i - 1]))
+	for i in range(1, got.pos.size()):
+		worst_step = maxf(worst_step, got.pos[i].distance_to(got.pos[i - 1]))
 	t.trace("step", worst_step)
 	t.check(
 		worst_step <= walk_step,
@@ -106,7 +124,11 @@ func run(t: TestContext) -> void:
 			% [worst_step, walk_step],
 	)
 
-	# Facing: smooth, toward the door at some point before the fold, forward at the end.
+
+## Facing: smooth, toward the door (its `handle`) at some point before the fold, forward at the
+## end.
+func _check_facing(t: TestContext, car: Node2D, handle: Vector2, got: Samples) -> void:
+	var face := got.face
 	var worst_turn := 0.0
 	for i in range(1, face.size()):
 		worst_turn = maxf(worst_turn, absf(face[i - 1].angle_to(face[i])))
@@ -114,10 +136,10 @@ func run(t: TestContext) -> void:
 		worst_turn <= MAX_TURN_PER_FRAME,
 		"the facing turns smoothly (worst %.3f rad in a frame)" % worst_turn,
 	)
-	var fold_starts := _first(fold, func(x): return x > 0.1)
+	var fold_starts := _first(got.fold, func(x): return x > 0.1)
 	var faced_door := false
 	for i in range(0, fold_starts if fold_starts >= 0 else face.size()):
-		var to_door := handle - pos[i]
+		var to_door := handle - got.pos[i]
 		if to_door.length() > 1.0 and face[i].dot(to_door.normalized()) > 0.7:
 			faced_door = true
 	t.check(faced_door, "it turns to face the door before folding in")
@@ -126,13 +148,14 @@ func run(t: TestContext) -> void:
 		"it ends facing forward (dot %.2f)" % face[-1].dot(Probe.forward(car)),
 	)
 
-	# The door: eases open, is open before the fold starts, eases shut after the fold is done.
+
+## The door: eases open, is open before the fold starts, eases shut after the fold is done.
+func _check_door(t: TestContext, got: Samples) -> void:
+	var door := got.door
 	var peak: float = door.max()
 	t.check(peak >= 0.9, "the door opens (most %.2f)" % peak)
 	t.check(door[-1] <= 0.05, "the door is shut at the end (%.2f)" % door[-1])
-	var worst_door := 0.0
-	for i in range(1, door.size()):
-		worst_door = maxf(worst_door, absf(door[i] - door[i - 1]))
+	var worst_door := _worst_change(door)
 	t.check(
 		worst_door <= MAX_DOOR_PER_FRAME,
 		"the door eases, never snaps (worst %.3f in a frame)" % worst_door,
@@ -145,6 +168,7 @@ func run(t: TestContext) -> void:
 			_about(took, Probe.DOOR_OPEN_TIME),
 			"the door takes about %.2f s to open (%.2f s)" % [Probe.DOOR_OPEN_TIME, took],
 		)
+	var fold_starts := _first(got.fold, func(x): return x > 0.1)
 	var door_open_by := _first(door, func(x): return x >= 0.8)
 	t.check(
 		door_open_by >= 0 and fold_starts >= 0 and door_open_by <= fold_starts,
@@ -158,21 +182,23 @@ func run(t: TestContext) -> void:
 			closing = i
 			break
 	t.check(
-		closing >= 0 and fold[closing] >= 0.8,
+		closing >= 0 and got.fold[closing] >= 0.8,
 		"the door shuts only once the character is folded in (fold %.2f as it closes)"
-			% (fold[closing] if closing >= 0 else -1.0),
+			% (got.fold[closing] if closing >= 0 else -1.0),
 	)
 
-	# The fold: from standing to seated, eased.
+
+## The fold: from standing to seated, eased.
+func _check_fold(t: TestContext, got: Samples) -> void:
+	var fold := got.fold
 	t.check(fold[0] < 0.1, "the character starts standing (fold %.2f)" % fold[0])
 	t.check(
-		fold[seated_at] >= 0.9,
-		"it is folded into the seat once seated (fold %.2f)" % fold[seated_at],
+		fold[got.seated_at] >= 0.9,
+		"it is folded into the seat once seated (fold %.2f)" % fold[got.seated_at],
 	)
-	var worst_fold := 0.0
-	for i in range(1, fold.size()):
-		worst_fold = maxf(worst_fold, absf(fold[i] - fold[i - 1]))
+	var worst_fold := _worst_change(fold)
 	t.check(worst_fold <= MAX_FOLD_PER_FRAME, "the fold eases (worst %.3f in a frame)" % worst_fold)
+	var fold_starts := _first(fold, func(x): return x > 0.1)
 	var folded := _first(fold, func(x): return x >= 0.9)
 	if fold_starts >= 0 and folded >= 0:
 		var fold_time := float(folded - fold_starts) / Engine.physics_ticks_per_second
@@ -181,14 +207,19 @@ func run(t: TestContext) -> void:
 			"the fold takes about %.2f s (%.2f s)" % [Probe.FOLD_TIME, fold_time],
 		)
 
-	# Seated: inside the body, over the chassis and under the roof.
+
+## Seated: inside the body, over the chassis and under the roof.
+func _check_seated(t: TestContext, car: Node2D, me: Node2D) -> void:
 	var reach_in := car.global_position.distance_to(Probe.edge(car, -Probe.forward(car)))
 	t.check(
 		me.global_position.distance_to(car.global_position) < reach_in,
 		"the character ends inside the car's body",
 	)
-	t.check(Probe.draws_above(me, chassis), "the seated character is drawn over the chassis")
-	t.check(Probe.draws_above(roof, me), "and under the roof")
+	t.check(
+		Probe.draws_above(me, Probe.layer(car, "Chassis")),
+		"the seated character is drawn over the chassis",
+	)
+	t.check(Probe.draws_above(Probe.layer(car, "Roof"), me), "and under the roof")
 
 
 ## Whether a measured ease of `took` s fits a full time of `full` s.
@@ -202,3 +233,26 @@ func _first(values: Array, test: Callable) -> int:
 		if test.call(values[i]):
 			return i
 	return -1
+
+
+## The largest change in `values` from one frame to the next.
+func _worst_change(values: Array[float]) -> float:
+	var worst := 0.0
+	for i in range(1, values.size()):
+		worst = maxf(worst, absf(values[i] - values[i - 1]))
+	return worst
+
+
+## The boarding sampled every frame: the character's position, facing and fold, the front-left
+## door's open amount, and the frame it was first seated.
+class Samples:
+	## The character's position each frame.
+	var pos: Array[Vector2] = []
+	## Its facing each frame.
+	var face: Array[Vector2] = []
+	## Its fold each frame, 0 standing to 1 seated.
+	var fold: Array[float] = []
+	## The front-left door's open amount each frame.
+	var door: Array[float] = []
+	## The first frame it was in the vehicle, or -1.
+	var seated_at: int = -1
