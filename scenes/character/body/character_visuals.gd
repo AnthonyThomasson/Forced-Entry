@@ -236,12 +236,12 @@ func _draw_standing(rig: Rig) -> void:
 	# it.
 	var hung: Array[int] = []
 	for hand in 2:
-		if pose.grip_height(hand) < HAND_OVER_HEIGHT:
+		if pose.arms.grip_height(hand) < HAND_OVER_HEIGHT:
 			hung.append(hand)
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
 	_draw_shoulders(pose, lunge, impacts, damage_total)
 	for hand in 2:
-		if not hung.has(hand) and pose.grip_height(hand) < HAND_ON_FACE_HEIGHT:
+		if not hung.has(hand) and pose.arms.grip_height(hand) < HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
 	draw_order.append(&"hands")
 	_draw_head(pose, rig, placed, damage_total)  # The highest part: over the gun and the fists.
@@ -473,7 +473,7 @@ func _draw_lying(rig: Rig) -> void:
 			draw_order.append(&"weapon")
 	_draw_fallen(rig, false, weapon)
 	for hand in 2:
-		if pose.grip_height(hand) < HAND_ON_FACE_HEIGHT:
+		if pose.arms.grip_height(hand) < HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, [], 0.0)
 	draw_order.append(&"hands")
 	_draw_fallen_head(_head_part(rig))  # The highest part: over the gun and the fists.
@@ -485,7 +485,7 @@ func _draw_lying(rig: Rig) -> void:
 ## `face_hand` joins the draw order when one is.
 func _draw_face_hands(pose: Pose, placed: Array, damage_total: float) -> void:
 	for hand in 2:
-		if pose.grip_height(hand) >= HAND_ON_FACE_HEIGHT:
+		if pose.arms.grip_height(hand) >= HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
 			draw_order.append(&"face_hand")
 

@@ -18,10 +18,10 @@ var _last_cos := [1.0, 1.0]
 ## Check both feet of `character` and report any footfall to `footprints`.
 func update(character: CharacterBody2D, footprints: BloodFootprints) -> void:
 	var pose = character.pose
-	var phase: float = pose.stride_phase()
+	var phase: float = pose.gait.stride_phase()
 	for i in 2:
 		var c := cos(phase + (0.0 if i == 0 else PI))
-		var landed: bool = _last_cos[i] < 0.0 and c >= 0.0 and pose.walk_amount() >= MIN_WALK
+		var landed: bool = _last_cos[i] < 0.0 and c >= 0.0 and pose.gait.walk_amount() >= MIN_WALK
 		_last_cos[i] = c
 		if landed:
 			_report(character, footprints, i)

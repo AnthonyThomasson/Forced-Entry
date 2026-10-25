@@ -167,7 +167,7 @@ class Measures:
 		var item: Item = character.current_item()
 		weapon_hand = item.weapon_hand() if item != null else 0
 		# A stunned walk's shorter steps.
-		staggered = lerpf(1.0, CharacterStunConfig.stagger_stride, pose.stun_amount())
+		staggered = lerpf(1.0, CharacterStunConfig.stagger_stride, pose.gait.stun_amount())
 
 
 	## Place the joints of `character`, as measured, into the rig's `points` (sized for every
@@ -212,7 +212,7 @@ class Measures:
 		var shoulder: Vector3 = (_points[CHEST]
 				+ f.right * out * CharacterBodyConfig.shoulder_width * r)
 		var grip: Vector2 = character.hand_position(i)
-		var hand := Vector3(grip.x, grip.y, pose.grip_height(i) * r * f.height)
+		var hand := Vector3(grip.x, grip.y, pose.arms.grip_height(i) * r * f.height)
 		hand.z = clampf(hand.z, shoulder.z - arm_reach * 0.98, shoulder.z + arm_reach * 0.98)
 		var flat := Vector2(hand.x - shoulder.x, hand.y - shoulder.y)
 		var rise := hand.z - shoulder.z
@@ -220,7 +220,7 @@ class Measures:
 		if flat.length() > flat_reach:
 			var follow := minf(flat.length() - flat_reach, CharacterBodyConfig.shoulder_reach * r)
 			shoulder += Vector3(flat.x, flat.y, 0.0).normalized() * follow
-		var pole: Vector3 = pose.elbow_pole(i)
+		var pole: Vector3 = pose.arms.elbow_pole(i)
 		_points[SHOULDER[i]] = shoulder
 		_points[HAND[i]] = hand
 		_points[ELBOW[i]] = _bend(
@@ -252,9 +252,9 @@ class Measures:
 	## ahead of the pelvis and staggered (the weapon hand's side back), and takes a shorter step.
 	func _stride_ankle(i: int) -> Vector3:
 		var f := fold
-		var phase: float = pose.stride_phase() + (0.0 if i == 0 else PI)
-		var walk: float = pose.walk_amount()
-		var run: float = pose.run_amount()  # A run strides wider and lifts higher.
+		var phase: float = pose.gait.stride_phase() + (0.0 if i == 0 else PI)
+		var walk: float = pose.gait.walk_amount()
+		var run: float = pose.gait.run_amount()  # A run strides wider and lifts higher.
 		var stride := lerpf(
 			CharacterStrideConfig.body_stride,
 			CharacterStrideConfig.body_run_stride,
@@ -367,10 +367,10 @@ class Fold:
 		var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
 		folded = clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
 		# A stun hunches it on.
-		pitch = deg_to_rad(CharacterPostureConfig.body_crouch_pitch) * folded + pose.hunch()
+		pitch = deg_to_rad(CharacterPostureConfig.body_crouch_pitch) * folded + pose.gait.hunch()
 		spine = (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * r
 		lean = spine * sin(pitch)
 		# A run sinks.
 		hip_z = ((CharacterBodyConfig.hip_height
-				- CharacterStrideConfig.body_run_hip_drop * pose.run_amount()) * r * height)
+				- CharacterStrideConfig.body_run_hip_drop * pose.gait.run_amount()) * r * height)
 		chest_z = CharacterBodyConfig.hip_height * r * height + spine * cos(pitch)

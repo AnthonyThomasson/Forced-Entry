@@ -5,8 +5,8 @@ description: Deep implementation detail for the Character body sub-domain (scene
 
 # Character · Body sub-domain (`scenes/character/body/`)
 
-Everything that gives the character a body: `character_rig, character_legs, character_pose, character_ragdoll, character_hands,
-character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
+Everything that gives the character a body: `character_rig, character_legs, character_pose` (with its parts `pose_springs, pose_arms,
+pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
@@ -21,7 +21,7 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
 - **Animate** (`character_hands.gd`, a child `Node2D`) owns hand geometry, the punch tween, and
   punch hit detection; exposes `hand_position(i)`, `punch_amount(i)` and the `punched` signal.
   `character_pose.gd` (a `RefCounted` the character owns as `pose`) owns the living motion of head,
-  shoulders, hips and hands, and each hand's stance (below); `character_rig.gd` (a `RefCounted`
+  shoulders, hips and hands, and each hand's stance (below), through its springs, `arms` and `gait`; `character_rig.gd` (a `RefCounted`
   solved by `character.rig()`, once per physics frame) owns the standing skeleton, the 3D joints of the arms and legs
   (below); `character_ragdoll.gd` (owned as `ragdoll` once dead) owns the fall.
 - **Draw** (`character_visuals.gd`) owns appearance: a drop shadow, the legs and shoes, the arms
@@ -82,7 +82,12 @@ its `_pose_drive` refills each frame: `facing`, `velocity` (`get_real_velocity()
 `punch` (`Hands.punch_amounts()`) and `stun`,
 right after `move_and_slide()` (and with zero velocity while busy in an interaction; a dead
 character stops stepping it), before the Hands child's `_physics_process`, so hands build on this
-frame's pose.
+frame's pose. The pose publishes the angles and offsets below and keeps three parts, each a `class_name` `RefCounted`
+built once with it, which `update` steps in this order: `arms` (`pose_arms.gd`, `PoseArms`: each hand's stance, swing and
+recoil), `gait` (`pose_gait.gd`, `PoseGait`: the stride, the walk and run, the stun as shown, the clock and phase the breath,
+glances and a hand's wander run on) and its private `_springs` (`pose_springs.gd`, `PoseSprings`: the head's, hands', weapon's,
+shoulders' and hips' springs, `chase`, which writes the published angles; its static `accel` is the one damped spring every
+part steps by).
 - `head_angle`, `hand_angles[hand]`, `weapon_angle`, `torso_angle` each chase `facing` on their
   own damped angular spring — the head first, a steady hand next, the weapon a touch behind the
   hand holding it, each free hand at its own pace (`CharacterPoseHandConfig.hand_pace_spread`), the shoulders last —
@@ -94,7 +99,7 @@ frame's pose.
   re-plant toward the aim.
 - A stride phase advances with distance walked: the shoulders sway, free hands swing fore/aft in
   opposite phase (their stance's `swing`) while a steady hand only drifts sideways
-  (`hand_offset(hand)`), the head bobs per step, and the rig strides the feet. `head_offset` leans
+  (`arms.hand_offset(hand, along)`, `along` the hand's frame), the head bobs per step, and the rig strides the feet. `head_offset` leans
   the head into the movement on a soft spring plus a slow breath; standing still the head also
   glances a little off the aim. Each character gets a random phase.
 - **Punch mechanics:** the fist lands about 51 px from the body centre but an arm is 38 px, so a
@@ -103,16 +108,16 @@ frame's pose.
   against it stay consistent) and `torso_offset` lunges the upper body along `facing`
   (`pose_punch_lunge`; the head's `head_offset` includes it). The rig adds a capped residual shoulder
   lean-in.
-- **Stances:** each hand eases (`stance_ease`) toward the stance its item names. `rest_forward(hand)`,
+- **Stances:** each hand eases (`stance_ease`) toward the stance its item names. `arms.rest_forward(hand)`,
   `rest_lateral(hand)`, `grip_height(hand)` and `elbow_pole(hand)` are the eased values the hands layer
   and the rig read.
 - `weapon_angle` is published as the character's `weapon_facing()`, which an item draws its weapon
   along.
-- `kick(hand, strength := 1.0)` (the character's `kick`, called by a gun on firing with its `recoil`) throws the hand back on a
+- `arms.kick(hand, strength := 1.0)` (the character's `kick`, called by a gun on firing with its `recoil`) throws the hand back on a
   recoil spring and twists the shoulders back on its side, `strength` times a pistol's; the other hand feels its stance's
   `recoil_share` (a supporting hand recoils with the weapon hand).
 - **The stunned look** (`docs/grenades.md` G13). The drive's `stun` (the character's `stun_level()`, 0 in a ride) is eased into
-  `_stun` at `CharacterStunConfig.look_ease` (`stun_amount()`), so the look comes on and goes without a jump. `hunch()` is `CharacterStunConfig.hunch_pitch` x it (rad, the rig's).
+  the gait's `_stun` at `CharacterStunConfig.look_ease` (`gait.stun_amount()`), so the look comes on and goes without a jump. `gait.hunch()` is `CharacterStunConfig.hunch_pitch` x it (rad, the rig's).
   The stagger: the stride length (and the rig's foot swing) shrinks to `CharacterStunConfig.stagger_stride`, the stride phase advances unevenly (x `1 + stun x
   (stagger_limp x cos(stride) + stagger_wander x a slow sine)`: one step longer than the next, the pace wandering; foot 1 lands at
   stride π/2 and foot 0 at 3π/2, so the cos term lengthens one foot's step and shortens the other's), `hip_sway` (local px, the rig's pelvis)
@@ -136,7 +141,7 @@ pose frame, from the body center), grip `height` (body radii, for the arm's IK),
 for the next magazine, named by a gun's support hand while it reloads). Two are the character's own, never an item's: while blind, `eyes` (the free
 hand's palm over the face, 7.0 radii up, 9 px ahead) and `one_hand` (a gun's weapon hand alone: out 24 px, low at 5.2 radii, its optional `waver`
 key 3 px: a steady hand with a `waver` wanders that far across its frame and `WAVER_RISE` radii per px up and down, `WAVER_LAG` s out of step,
-two out-of-step sines in `pose._waver`; `_eased` lerps it like the other numbers, 0 for a row without one); `domain-character`'s `_stances()` picks them. The long guns have their own pairs, sized by the gun: `smg_grip` / `smg_fore`
+two out-of-step sines in `PoseArms._waver`; `_eased` lerps it like the other numbers, 0 for a row without one); `domain-character`'s `_stances()` picks them. The long guns have their own pairs, sized by the gun: `smg_grip` / `smg_fore`
 and `rifle_grip` / `rifle_fore` (the butt in the right shoulder; the SMG's barrel line is 9 px to the character's right of the aim line, the rifle's only 5 px so it is held up in front of the face as if looking down the sight; the grip hand
 just ahead of it, the other hand out along the handguard); both hands lie on one line along the barrel (hand 0 at +`lateral`, hand 1 at
 −`lateral`) and an arm's stretch stays within the rig's tolerance. `ready_grip` / `ready_fore` are the shared **raised** pair (below).
@@ -170,8 +175,8 @@ by index (`HEAD`, `CHEST`, `PELVIS`, `BELLY`, `SPINE` and per-side `SHOULDER`, `
 - Legs: each ankle strides along the hips' forward by `body_stride`, in opposition to the arm on its
   side, lifting `body_foot_lift` as it swings through; the knee is IK bent forward; toes follow
   `hip_angle`.
-- A stun hunches it: the spine's `pitch` gains the pose's `hunch()` on top of any crouch (the neck pitching on by it too), the pelvis
-  takes the pose's `hip_sway`, and the feet's stride is scaled by `CharacterStunConfig.stagger_stride` at the pose's `stun_amount()`. Test:
+- A stun hunches it: the spine's `pitch` gains the pose's `gait.hunch()` on top of any crouch (the neck pitching on by it too), the pelvis
+  takes the pose's `hip_sway`, and the feet's stride is scaled by `CharacterStunConfig.stagger_stride` at the pose's `gait.stun_amount()`. Test:
   `tests/character/stunned_hunch_and_stagger_test.gd`.
 - The same rig is what the ragdoll starts from, so a body dies in exactly the pose it was drawn in.
 - Test: `tests/character/standing_body_rig_test.gd` (bone lengths, stances, punch landing, hips,
@@ -260,19 +265,19 @@ over from the last frame (`_stack`): a pair swaps only once their heights differ
   contact point is carried at no more than walking pace; a foot at rest pushes nothing. Nothing is cast unless something is within `NEAR` px; cleared while
   busy in an interaction and on death. Tests: `tests/character/legs_rest_on_walls_test.gd`, `leg_press_turns_furniture_test.gd`.
 
-**The run's legs and arms.** `pose.run_amount()` (0..1, smoothed from the speed past walking pace) blends the rig's
+**The run's legs and arms.** `pose.gait.run_amount()` (0..1, smoothed from the speed past walking pace) blends the rig's
 foot swing and lift from `body_stride` / `body_foot_lift` to `body_run_stride` / `body_run_foot_lift`, the stride
 length from `pose_stride_length` to `pose_run_stride_length`, and sinks the hips by `body_run_hip_drop` so the knees
 stay bent. A planted foot only stays put on the ground when the stride is 2π × the foot's swing (~130 px); shorter and
 the feet scurry and everything stride-locked wobbles at 3+ Hz. While `_running`, `_stances()` ignores the held item
 and puts both hands in the `run` stance: arms pumping at the sides, a pistol simply carried in its hand, and the
-`stance_ease` blend lifts it back to aim on stopping. `grip_height` adds `pose_run_hand_rise` so the forward-swinging
+`stance_ease` blend lifts it back to aim on stopping. `arms.grip_height` adds `pose_run_hand_rise` so the forward-swinging
 hand rises toward the chest and the back one drops to the hip (keep the lowest ≥ ~4.1 body radii or the arm
-overstretches). An elbow's bend lies in the plane through the shoulder, the hand and the pole, so `elbow_pole` adds
+overstretches). An elbow's bend lies in the plane through the shoulder, the hand and the pole, so `arms.elbow_pole` adds
 `pose_run_elbow_lift` of vertical swing with the arm (down under a forward hand, up behind a back one); a fixed pole
 would throw the elbow out sideways at one end of the swing.
 
-**The run's shoulders.** Added over the torso spring (too slow to follow a stride) and scaled by `run_amount()`: the
+**The run's shoulders.** Added over the torso spring (too slow to follow a stride) and scaled by `gait.run_amount()`: the
 shoulders counter-rotate by `pose_run_sway` (the one on the forward-swinging arm's side comes forward), lead the hips by
 `pose_run_lean` along the travel direction, and shift `pose_run_shoulder_shift` px sideways over the planted foot each
 step. The lean and the side shift go through `torso_offset`, so the rig, wounds and fall follow; the counter-rotation is
@@ -352,8 +357,8 @@ character's fresh `facing`, and the character pulls its controller's intent at t
 ## Hands and the punch
 
 - **Hands:** two circles at a rest pose built in each hand's pose frame (`hand_angles[hand]` + its
-  perpendicular): the hand's stance (`pose.rest_forward` / `rest_lateral`, from
-  `CharacterStanceConfig.stances`) plus `pose.hand_offset(hand)` for walk swing and recoil, the punch
+  perpendicular): the hand's stance (`pose.arms.rest_forward` / `rest_lateral`, from
+  `CharacterStanceConfig.stances`) plus `pose.arms.hand_offset(hand, along)` for walk swing and recoil, the punch
   extending straight along `facing`, collision-resolved so they rest on walls/objects (the rig's
   arm just bends more when a wall pulls the hand in). Tunable via `character_hands.gd`'s exports:
   `hand_radius` and `punch_gap`. A punch swings the fist from its rest pose to `punch_gap + reach`

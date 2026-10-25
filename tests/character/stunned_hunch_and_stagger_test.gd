@@ -97,7 +97,7 @@ func _gait(t: TestContext, id: StringName, lane: float, seconds: float) -> Dicti
 	var c := t.actor(id)
 	var from: Vector2 = c.global_position
 	var since := t.events_of(&"footfall").size()
-	var walk := Walk.new(c.pose.stride_phase())
+	var walk := Walk.new(c.pose.gait.stride_phase())
 	var frames := int(seconds * 60.0)
 	for i in frames:
 		await t.frames(1)
@@ -314,7 +314,7 @@ class Walk:
 	func take(c: Node, lane: float) -> void:
 		var rig = c.rig()
 		drift = maxf(drift, absf(c.global_position.y - lane))
-		var now: float = c.pose.stride_phase()
+		var now: float = c.pose.gait.stride_phase()
 		phase += fposmod(now - last_phase, TAU)
 		last_phase = now
 		var pelvis: Vector3 = rig.point(Rig.PELVIS)

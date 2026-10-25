@@ -641,7 +641,7 @@ func posture_folded() -> float:
 func posture_hand_ahead() -> float:
 	var spine := (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * radius
 	return (CharacterPostureConfig.body_crouch_hand_ahead * posture_folded()
-			+ spine * sin(pose.hunch()) * 0.5)
+			+ spine * sin(pose.gait.hunch()) * 0.5)
 
 
 ## True while a reload is in progress.
@@ -1067,7 +1067,7 @@ func kick(hand: int, strength := 1.0) -> void:
 	var item: Item = current_item()
 	if item != null and item.raises_at_contact() and one_handed():
 		strength *= CharacterStanceConfig.one_hand_recoil
-	pose.kick(hand, strength)
+	pose.arms.kick(hand, strength)
 
 
 ## The drawn direction of a held weapon: it trails the aim a little as the character turns. Visual

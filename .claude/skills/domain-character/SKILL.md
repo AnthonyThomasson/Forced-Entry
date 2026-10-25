@@ -64,7 +64,7 @@ height, so a body on the floor would throw a shadow as long as a wall's. Only th
 ## Footsteps (bloody footprints)
 
 `character_footsteps.gd` (a `RefCounted`, stepped by `character.gd` after the pose) spots each foot's landing:
-the foot is planted while `cos(stride_phase + (0|PI))` is >= 0, so a landing is cos rising through 0
+the foot is planted while `cos(pose.gait.stride_phase() + (0|PI))` is >= 0, so a landing is cos rising through 0
 (only above `MIN_WALK` walk amount; none while an interaction holds the character or once dead). On a landing it
 solves the rig once, reports the sole (middle, toes, `CharacterBodyConfig.foot` x radius long, `body_shoe_widths[0]` wide) to the
 `BloodFootprints` child (Physics), which decides whether it prints, and posts a `&"footfall"` `EventBus` event
@@ -124,7 +124,7 @@ walk `speed` as its `top_speed`, so the walk amount stays at 1 while the stride 
 an interaction counts as not running. `shoot()` does nothing while running (`melee()` still works).
 Reads: `is_running()`, `stamina_fraction()`. Test: `tests/character/run_speed_stamina_test.gd`.
 
-The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `pose.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
+The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `pose.gait.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
 
 ## Ammo and reloading
 
@@ -204,7 +204,7 @@ held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raise
 riding, running or dead, not reloading (`_reloading_item`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
 `hand_stance` is not `throw`). `one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
 `one_hand_spread_deg` to its spread, and `kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
-`posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.hunch()`) to the crouch's, so the hands (and the
+`posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.gait.hunch()`) to the crouch's, so the hands (and the
 long-gun raise ray, which follows the drawn reach) keep their reach past the leaning chest. Tests: `tests/character/stunned_hand_over_eyes_test.gd`,
 `stunned_hunch_and_stagger_test.gd`, `tests/items/one_handed_fire_test.gd`.
 

@@ -26,10 +26,10 @@ func run(t: TestContext) -> void:
 	var unarmed = t.actor(&"unarmed").get_node("Visuals")
 	var armed = t.actor(&"armed").get_node("Visuals")
 	t.check(
-		t.actor(&"unarmed").pose.grip_height(0) < unarmed.HAND_OVER_HEIGHT,
+		t.actor(&"unarmed").pose.arms.grip_height(0) < unarmed.HAND_OVER_HEIGHT,
 		"unarmed hands grip below the shoulders",
 	)
 	t.check(
-		t.actor(&"armed").pose.grip_height(0) >= armed.HAND_OVER_HEIGHT,
+		t.actor(&"armed").pose.arms.grip_height(0) >= armed.HAND_OVER_HEIGHT,
 		"a gun's hands grip at the shoulders",
 	)

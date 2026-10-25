@@ -111,7 +111,7 @@ func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
 ## (px) between the two hands, and `rock` > 0 when the shoulder on the side of the forward-swinging
 ## hand is the forward one.
 func _gait(t: TestContext, body: Node) -> Dictionary:
-	var gait := Gait.new(body.pose.stride_phase())
+	var gait := Gait.new(body.pose.gait.stride_phase())
 	for k in 60:
 		await t.frames(2)
 		gait.take(body)
@@ -138,7 +138,7 @@ class Gait:
 	## Take in `body`'s pose now.
 	func take(body: Node) -> void:
 		var rig = body.rig()
-		var phase: float = body.pose.stride_phase()
+		var phase: float = body.pose.gait.stride_phase()
 		stride += fposmod(phase - last, TAU)
 		last = phase
 		head = [minf(head[0], body.pose.head_offset.y), maxf(head[1], body.pose.head_offset.y)]
