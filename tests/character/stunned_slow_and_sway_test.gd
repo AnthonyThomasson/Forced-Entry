@@ -85,8 +85,16 @@ func run(t: TestContext) -> void:
 	t.puppet(&"shooter").aim_at(t.actor(&"target"))
 	t.puppet(&"walker").aim_at(Vector2(1100, 150))
 	await t.seconds(0.5)
+	await _check_before(t, walker)
+	await _check_shooter_stunned(t)
+	await _check_walker_stunned(t, walker)
+	await _check_tail(t, walker)
+	await _check_after(t, walker)
+	_check_timers(t)
 
-	# --- Before: the baseline, so the numbers below mean something.
+
+## Before: the baseline, so the numbers below mean something.
+func _check_before(t: TestContext, walker: Node) -> void:
 	var normal := await _walk_speed(t, 0.6)
 	t.check(normal > SPEED * 0.9, "unstunned the walker covers %.0f px/s" % normal)
 	t.puppet(&"walker").set_run(true)
@@ -102,7 +110,9 @@ func run(t: TestContext) -> void:
 		"unstunned, a zero-spread pistol shoots straight (%.1f degrees off)" % straight_before,
 	)
 
-	# --- The shooter is stunned for 6 s: its zero-spread shots stray, and are only the sway.
+
+## The shooter is stunned for 6 s: its zero-spread shots stray, and are only the sway.
+func _check_shooter_stunned(t: TestContext) -> void:
 	await _top_up(t)
 	Probe.stun(t.actor(&"shooter"), 6.0, 6.0)
 	await t.seconds(0.3)
@@ -110,7 +120,9 @@ func run(t: TestContext) -> void:
 	t.check(stray >= 5.0, "its shots go astray: the aim sways %.1f degrees at the worst" % stray)
 	t.check(stray <= 28.0, "but never more than the 25 degree sway (%.1f)" % stray)
 
-	# --- The walker is stunned for 4 s.
+
+## The walker is stunned for 4 s: it walks slowly and cannot run.
+func _check_walker_stunned(t: TestContext, walker: Node) -> void:
 	Probe.stun(walker, 4.0, 4.0)
 	await t.seconds(0.3)
 	t.check(
@@ -130,7 +142,9 @@ func run(t: TestContext) -> void:
 	t.puppet(&"walker").stop()
 	t.puppet(&"walker").set_run(false)
 
-	# --- The tail: over the last 1.5 s the effect eases off.
+
+## The tail: over the last 1.5 s the effect eases off.
+func _check_tail(t: TestContext, walker: Node) -> void:
 	var view := Probe.view(walker)
 	t.check(
 		view.has("blind") and view.has("deaf") and view.has("level"),
@@ -143,7 +157,9 @@ func run(t: TestContext) -> void:
 		"with 0.75 s of the stun left the level has tailed to about half (%.2f)" % tail,
 	)
 
-	# --- After: back to normal.
+
+## After: back to normal.
+func _check_after(t: TestContext, walker: Node) -> void:
 	await t.until(
 		func(): return Probe.level(walker) <= 0.0 and Probe.level(t.actor(&"shooter")) <= 0.0,
 		6.0,
@@ -158,7 +174,9 @@ func run(t: TestContext) -> void:
 		"and the shooter shoots straight again (%.1f degrees off)" % straight_after,
 	)
 
-	# --- A new stun takes the longer of the old and the new timers.
+
+## A new stun takes the longer of the old and the new timers.
+func _check_timers(t: TestContext) -> void:
 	var other := t.actor(&"target")
 	Probe.stun(other, 4.0, 4.0)
 	Probe.stun(other, 1.0, 1.0)

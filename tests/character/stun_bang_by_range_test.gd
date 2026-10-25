@@ -40,37 +40,12 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var thrower := t.actor(&"thrower")
-	Probe.arm(thrower, 1, 0)
-	if not t.require(
-			Probe.count(thrower, Probe.STUN) == 1,
-			"the thrower carries a stun grenade (Character.item_count(7) = %d)"
-				% Probe.count(thrower, Probe.STUN),
-	):
+	var at := await _bang(t)
+	if at == Vector2.INF:
 		return
-	await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
-	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
-		return
-	var burst := Probe.rest_point(t)
-	for id in VICTIMS:
-		Probe.place(t, id, burst + VICTIMS[id], burst)
-	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
-		return
-	var at: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
 	await t.frames(2)
 	for id in VICTIMS:
-		var c := t.actor(id)
-		var d: float = c.global_position.distance_to(at)
-		var events := Probe.stuns(t, c)
-		var got := float(events[0]["data"].get("deaf", 0.0)) if not events.is_empty() else 0.0
-		var want := Probe.expected_deaf(d)
-		t.check(
-			absf(got - want) <= SLACK,
-			"%s (%.0f px): deaf for %.2f s, the fall-off gives %.2f" % [id, d, got, want],
-		)
-		t.check(Probe.deaf(c) == (want > 0.0), "%s is_deaf() is %s" % [id, want > 0.0])
-		if id != &"point_blank":
-			t.expect_near(c.health, 100.0, 0.01, "%s takes no damage from a stun" % id)
+		_check_victim(t, id, at)
 	var pb := t.actor(&"point_blank")
 	t.expect_near(
 		100.0 - pb.health,
@@ -78,7 +53,58 @@ func run(t: TestContext) -> void:
 		0.01,
 		"a character within 30 px also takes the 5 point-blank damage",
 	)
+	_check_walled(t, at)
 
+	# The deafness ends on schedule.
+	await t.seconds(1.0)
+	t.check(
+		not Probe.deaf(t.actor(&"d300")),
+		"the character 300 px away hears again within a second",
+	)
+	t.check(Probe.deaf(t.actor(&"d100")), "the one 100 px away is still deaf")
+
+
+## The thrower's stun comes to rest, the victims are stood round it, and it goes off; returns where
+## it burst (`Vector2.INF` after a failed `require`).
+func _bang(t: TestContext) -> Vector2:
+	var thrower := t.actor(&"thrower")
+	Probe.arm(thrower, 1, 0)
+	if not t.require(
+			Probe.count(thrower, Probe.STUN) == 1,
+			"the thrower carries a stun grenade (Character.item_count(7) = %d)"
+				% Probe.count(thrower, Probe.STUN),
+	):
+		return Vector2.INF
+	await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
+	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
+		return Vector2.INF
+	var burst := Probe.rest_point(t)
+	for id in VICTIMS:
+		Probe.place(t, id, burst + VICTIMS[id], burst)
+	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
+		return Vector2.INF
+	return Probe.booms(t, &"stun")[0]["data"]["position"]
+
+
+## Victim `id` is deafened for the fall-off at its distance from the burst `at`, and only the one at
+## point blank is hurt.
+func _check_victim(t: TestContext, id: StringName, at: Vector2) -> void:
+	var c := t.actor(id)
+	var d: float = c.global_position.distance_to(at)
+	var events := Probe.stuns(t, c)
+	var got := float(events[0]["data"].get("deaf", 0.0)) if not events.is_empty() else 0.0
+	var want := Probe.expected_deaf(d)
+	t.check(
+		absf(got - want) <= SLACK,
+		"%s (%.0f px): deaf for %.2f s, the fall-off gives %.2f" % [id, d, got, want],
+	)
+	t.check(Probe.deaf(c) == (want > 0.0), "%s is_deaf() is %s" % [id, want > 0.0])
+	if id != &"point_blank":
+		t.expect_near(c.health, 100.0, 0.01, "%s takes no damage from a stun" % id)
+
+
+## The bang at `at` reaches the one behind the wall at 0.4 of the open-air time.
+func _check_walled(t: TestContext, at: Vector2) -> void:
 	var walled := t.actor(&"walled")
 	var dw: float = walled.global_position.distance_to(at)
 	var walled_events := Probe.stuns(t, walled)
@@ -94,11 +120,3 @@ func run(t: TestContext) -> void:
 		"at 0.4 of the open-air time (%.2f s, expected %.2f)"
 			% [through, Probe.expected_deaf(dw, Probe.WALL_FACTOR)],
 	)
-
-	# The deafness ends on schedule.
-	await t.seconds(1.0)
-	t.check(
-		not Probe.deaf(t.actor(&"d300")),
-		"the character 300 px away hears again within a second",
-	)
-	t.check(Probe.deaf(t.actor(&"d100")), "the one 100 px away is still deaf")

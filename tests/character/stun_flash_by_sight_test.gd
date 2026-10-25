@@ -43,6 +43,40 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var at := await _flash(t)
+	if at == Vector2.INF:
+		return
+	await t.frames(2)
+	var lines := []
+	for who: StringName in [&"facing", &"side", &"back", &"near"]:
+		_check_victim(t, who, at, lines)
+	var near_events := Probe.stuns(t, t.actor(&"near"))
+	if not near_events.is_empty():
+		t.check(
+			float(near_events[0]["data"].get("blind", 0.0)) >= Probe.MAX_BLIND - 0.1,
+			"inside 100 px, facing it, the blindness is the full 5 s",
+		)
+	t.check(
+		_blind_of(t, &"facing") > _blind_of(t, &"side")
+			and _blind_of(t, &"side") > _blind_of(t, &"back")
+			and _blind_of(t, &"back") > 0.0,
+		("facing the burst blinds longer than side-on, which blinds longer than a back turned to "
+				+ "it (%s)") % ", ".join(lines),
+	)
+	_check_walled(t, at)
+
+	# The blindness ends: a back turned lasts well under a second.
+	await t.seconds(1.3)
+	t.check(
+		not Probe.blind(t.actor(&"back")),
+		"the victim with its back turned can see again after its short blindness",
+	)
+	t.check(Probe.blind(t.actor(&"facing")), "while the one that faced the burst is still blind")
+
+
+## The thrower's stun comes to rest, the victims are stood round it, and it goes off after its
+## fuse; returns where it burst (`Vector2.INF` after a failed `require`).
+func _flash(t: TestContext) -> Vector2:
 	var thrower := t.actor(&"thrower")
 	Probe.arm(thrower, 1, 0)
 	if not t.require(
@@ -50,56 +84,52 @@ func run(t: TestContext) -> void:
 			"the thrower carries a stun grenade (Character.item_count(7) = %d)"
 				% Probe.count(thrower, Probe.STUN),
 	):
-		return
+		return Vector2.INF
 	var clicked: float = await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
 	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
-		return
+		return Vector2.INF
 	var burst := Probe.rest_point(t)
 	Probe.place(t, &"facing", burst + Vector2(0, -200), burst)
 	Probe.place(t, &"side", burst + Vector2(0, 200), burst + Vector2(0, 200) + Vector2(100, 0))
 	Probe.place(t, &"back", burst + Vector2(-200, 0), burst + Vector2(-300, 0))
 	Probe.place(t, &"near", burst + Vector2(60, 60), burst)
 	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
-		return
+		return Vector2.INF
 	var boom: Dictionary = Probe.booms(t, &"stun")[0]
 	t.check(
 		absf(float(boom["time"]) - clicked - Probe.WINDUP - Probe.FUSE_STUN) < 0.25,
 		"it goes off 1.5 s after release (%.2f s after the click)"
 			% (float(boom["time"]) - clicked),
 	)
-	var at: Vector2 = boom["data"]["position"]
-	await t.frames(2)
-	var lines := []
-	for who in [&"facing", &"side", &"back", &"near"]:
-		var c := t.actor(who)
-		var events := Probe.stuns(t, c)
-		if not t.check(not events.is_empty(), "the %s victim is stunned (a stun event)" % who):
-			continue
-		var got := float(events[0]["data"].get("blind", -1.0))
-		var want := Probe.expected_blind(c.global_position, c.facing, at)
-		lines.append("%s %.2f" % [who, got])
-		t.check(
-			absf(got - want) <= SLACK,
-			"%s: blinded %.2f s, the formula gives %.2f (%.0f px from the burst)"
-				% [who, got, want, c.global_position.distance_to(at)],
-		)
-		t.check(Probe.blind(c), "%s is_blind() once the flash has gone" % who)
-	var near_events := Probe.stuns(t, t.actor(&"near"))
-	if not near_events.is_empty():
-		t.check(
-			float(near_events[0]["data"].get("blind", 0.0)) >= Probe.MAX_BLIND - 0.1,
-			"inside 100 px, facing it, the blindness is the full 5 s",
-		)
-	var blind_by := func(who: StringName) -> float:
-		var e := Probe.stuns(t, t.actor(who))
-		return float(e[0]["data"].get("blind", 0.0)) if not e.is_empty() else -1.0
+	return boom["data"]["position"]
+
+
+## Victim `who` is blinded for the time the formula gives at its distance from and facing to the
+## burst `at`; its blind time goes into `lines` for the order check's message.
+func _check_victim(t: TestContext, who: StringName, at: Vector2, lines: Array) -> void:
+	var c := t.actor(who)
+	var events := Probe.stuns(t, c)
+	if not t.check(not events.is_empty(), "the %s victim is stunned (a stun event)" % who):
+		return
+	var got := float(events[0]["data"].get("blind", -1.0))
+	var want := Probe.expected_blind(c.global_position, c.facing, at)
+	lines.append("%s %.2f" % [who, got])
 	t.check(
-		blind_by.call(&"facing") > blind_by.call(&"side")
-			and blind_by.call(&"side") > blind_by.call(&"back")
-			and blind_by.call(&"back") > 0.0,
-		("facing the burst blinds longer than side-on, which blinds longer than a back turned to "
-				+ "it (%s)") % ", ".join(lines),
+		absf(got - want) <= SLACK,
+		"%s: blinded %.2f s, the formula gives %.2f (%.0f px from the burst)"
+			% [who, got, want, c.global_position.distance_to(at)],
 	)
+	t.check(Probe.blind(c), "%s is_blind() once the flash has gone" % who)
+
+
+## How long victim `who`'s stun blinded it (-1 with no stun event).
+func _blind_of(t: TestContext, who: StringName) -> float:
+	var e := Probe.stuns(t, t.actor(who))
+	return float(e[0]["data"].get("blind", 0.0)) if not e.is_empty() else -1.0
+
+
+## The one behind the wall, inside the flash radius of the burst at `at`, is not blinded.
+func _check_walled(t: TestContext, at: Vector2) -> void:
 	var walled := t.actor(&"walled")
 	t.check(
 		walled.global_position.distance_to(at) < Probe.FLASH_RADIUS,
@@ -115,11 +145,3 @@ func run(t: TestContext) -> void:
 		walled_events.is_empty() or float(walled_events[0]["data"].get("blind", 0.0)) == 0.0,
 		"and no blind time is recorded for it",
 	)
-
-	# The blindness ends: a back turned lasts well under a second.
-	await t.seconds(1.3)
-	t.check(
-		not Probe.blind(t.actor(&"back")),
-		"the victim with its back turned can see again after its short blindness",
-	)
-	t.check(Probe.blind(t.actor(&"facing")), "while the one that faced the burst is still blind")
