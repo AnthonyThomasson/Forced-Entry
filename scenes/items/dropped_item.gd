@@ -75,9 +75,9 @@ func _draw() -> void:
 		return
 	var toward := -ArtCanvasConfig.light_from.normalized()
 	var away := global_transform.basis_xform_inv(toward).normalized()
-	item.draw_dropped(self, away * (0.5 + _height * shadow_per_height), _angle,
+	item.art.draw_dropped(self, away * (0.5 + _height * shadow_per_height), _angle,
 		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha), _landing)
-	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
+	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE, _landing)
 
 
 ## Let `dropped` go pointing along `angle`, flying off at `velocity`; `place` puts it in the world.

@@ -97,7 +97,7 @@ it up would clear the ray and drop it again. `CharacterHands.solid_distance(from
 the reach, and stays blocked until `CharacterStanceConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `_blocked` is
 set at once (`weapon.blocked()`: `weapon.shoot()` returns false, a gun cannot fire), while `weapon.raise()` (0..1) eases toward it at
 `CharacterStanceConfig.weapon_raise_speed` for the art. While blocked, `weapon.stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
-`GunItem.draw_weapon` shortens the barrel by `weapon.raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
+`GunArt.draw_weapon` (the gun's `art` part) shortens the barrel by `weapon.raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
 `character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint. `inventory.select_slot`, `inventory.set_loadout` (`weapon.reset_raise()`, lowered at once) and **`weapon.shoot()` itself** re-judge it
 at once: a controller acts before the frame's own check runs (and on a character's very first frame none has run), so trusting last frame's `_blocked`
 let a long gun fired point-blank into a wall leave through it. Test: `tests/character/long_gun_wall_raise_test.gd` (incl. a shot on the first frame);
@@ -163,7 +163,7 @@ is still cycling between rounds. `_physics_process` ticks every carried item (`I
 cooldown is in step with the frame that pulls the trigger. A controller re-presses `weapon.shoot()` every frame while the trigger is held when
 `weapon.is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
 
-**Loadout.** `inventory.set_loadout(kit: CharacterKit)` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.style`: looks only), the carried
+**Loadout.** `inventory.set_loadout(kit: CharacterKit)` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.art.style`: looks only), the carried
 magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
 (`ItemRegistry.loadout_for` / `spares_for`); tests that do not call it keep `default_inventory()` — every item (`inventory.stock()`, at `_ready`, holding the root's `start_slot`).
 

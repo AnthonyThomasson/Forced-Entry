@@ -11,9 +11,9 @@ static var default_style: StringName = &"zenitex"
 ## `look_seed`:
 ##   side         the faction a match styles in it (`MatchBuilder.style`): `invader` (the police
 ##   units) or `household`. police       a uniformed police unit (its rank marks, its livery's
-##   marks) rather than a criminal's gear. weapons      the weapon styles (`Item.style`) a character
-##   in it is armed with, one drawn per character. palettes     name -> colours, one drawn per
-##   character and palette (a garment look's `palette`; a police unit's are single). bare
+##   marks) rather than a criminal's gear. weapons      the weapon styles (`ItemArt.style`) a
+##   character in it is armed with, one drawn per character. palettes     name -> colours, one drawn
+##   per character and palette (a garment look's `palette`; a police unit's are single). bare
 ##   garment slot -> the palette of what is drawn where nothing is worn there (`body`, `pants`,
 ##                `feet`). skin, hair   the skin tones and hair colours drawn from; `hair_styles`
 ##                style -> weight (`short`, `long`, `buzz`, `bald`, `mohawk`).

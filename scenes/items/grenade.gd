@@ -6,12 +6,9 @@ class_name GrenadeItem extends Item
 ## leaves the hand as a `ThrownGrenade` flying to the character's `weapon.aim_target()`. The fuse
 ## starts on release; there is no cooking. A character that dies, or puts the grenade away, during
 ## the wind-up throws nothing. When the last one is thrown the character empties the slot
-## (`Character`). It is drawn in its weapon style (`Item.style`) by the row's look
-## (`GrenadeConfig.look`: the painter and colours) at the row's `art_size`, and a thrown one keeps
-## it. A subclass (`StunGrenadeItem`, `FragGrenadeItem`) only names its row (`super(KIND)`).
-
-## The kinds and styles whose art `prepaint` has painted: [kind, style] -> true.
-static var _prepainted := {}
+## (`Character`). It is drawn by its `art` part (`GrenadeArt`), in its weapon style by the row's
+## look at the row's `art_size`, and a thrown one keeps it. A subclass (`StunGrenadeItem`,
+## `FragGrenadeItem`) only names its row (`super(KIND)`).
 
 ## The kind's id: its `GrenadeConfig` row. Named by the subclass (`super(KIND)`).
 var kind: StringName = &""
@@ -25,7 +22,7 @@ var _user: Node
 
 func _init(id: StringName) -> void:
 	kind = id
-	super()
+	super(null, null, GrenadeArt.new(id, weapon_hand()))
 	display_name = str(_stat("name", display_name))
 	reach = 28.0
 
@@ -36,17 +33,6 @@ func _init(id: StringName) -> void:
 ## A value from this kind's `GrenadeConfig` row (`fallback` when the row has none).
 func _stat(key: String, fallback: Variant = null) -> Variant:
 	return GrenadeConfig.row(kind).get(key, fallback)
-
-
-## The art's footprint (px): width across, length along (the row's `art_size`).
-func _art_size() -> Vector2:
-	return _stat("art_size", Vector2.ZERO)
-
-
-## How it is drawn: its row's look in its weapon style (`GrenadeConfig.look`: `painter`, colours,
-## `finish`).
-func look() -> Dictionary:
-	return GrenadeConfig.look(kind, style)
 
 
 # --- Item contract --------------------------------------------------------------------------
@@ -120,68 +106,7 @@ func _release() -> void:
 	throw.from = from
 	throw.to = user.weapon.aim_target()
 	throw.thrower = user
-	throw.style = style
+	throw.style = art.style
 	ThrownGrenade.spawn(throw, world)
 	GrenadeSpoon.pop(from, (user.weapon.aim_target() - from).angle(), world)
 	EventBus.post(&"throw", { "position": from, "kind": kind, "attacker": user })
-
-
-## Draw the grenade in the hand, the lever still held down (in the look's lever colour): lit for the
-## nearest lighting step, drawn rotated to the exact angle of the character's `weapon.facing()`.
-func draw_weapon(canvas: CanvasItem, user: Object) -> void:
-	var facing: Vector2 = user.weapon.facing()
-	var size := _art_size()
-	var angle := facing.angle() - PI * 0.5
-	var tex := _texture(PixelArt.snap_angle(angle), true)
-	var hand: Vector2 = user.anatomy.hands.hand_position(weapon_hand())
-	canvas.draw_set_transform(hand + facing * 2.0, angle, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-## The grenade in the air or on the floor (the lever gone), centered at `at` and pointing along
-## `angle`.
-func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
-		_opts: Dictionary = {}) -> void:
-	var turn := angle - PI * 0.5
-	var size := _art_size()
-	var tex := _texture(PixelArt.snap_angle(turn), false)
-	canvas.draw_set_transform(at, turn, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false, modulate)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-## Paint this grenade's art ahead of time, once per kind and style: at every lighting step, lever
-## held (in the hand) and gone (in the air, on the floor), as `_texture` asks for it. The same
-## cached textures: what is drawn never changes.
-func prepaint() -> void:
-	var key := [kind, style]
-	if _prepainted.has(key):
-		return
-	_prepainted[key] = true
-	var drawn := look()
-	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
-	for k in ArtCanvasConfig.turn_steps:
-		for spoon in [true, false]:
-			PixelArt.render_turned(
-				drawn["painter"], _art_size(), drawn["shell"], PixelArt.snap_angle(k * step),
-				{
-					"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
-					"material": drawn["finish"],
-				},
-			)
-
-
-## The grenade's art in its look, lit for the lighting step `angle`, with the lever held down
-## (`spoon`) or gone.
-func _texture(angle: float, spoon: bool) -> Texture2D:
-	var drawn := look()
-	var tex := PixelArt.render_turned(
-		drawn["painter"], _art_size(), drawn["shell"], angle,
-		{
-			"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
-			"material": drawn["finish"],
-		},
-	)
-	_note_drawn(tex)
-	return tex

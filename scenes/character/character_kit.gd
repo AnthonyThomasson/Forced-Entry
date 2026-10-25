@@ -15,5 +15,5 @@ var loaded_magazine: StringName = &""
 ## How many grenades a grenade slot among `slots` holds, by slot (a slot missing = the character's
 ## `start_rounds`, or one).
 var grenades: Dictionary = {}
-## The weapon style every item carries (`Item.style`: how it is drawn, never what it does).
+## The weapon style every item carries (`ItemArt.style`: how it is drawn, never what it does).
 var weapon_style: StringName = &"police"

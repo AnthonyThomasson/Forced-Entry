@@ -243,17 +243,19 @@ interfaces it takes part in (by number) and describes how they're implemented.
    every item it carries each physics frame), `is_automatic()` (holding the trigger keeps firing), `weapon_hand()`,
    `muzzle_ahead()` (px past the weapon hand where bullets leave; negative = the character's `CharacterStanceConfig.muzzle_ahead`),
    `raises_at_contact()` / `raised_stance(hand)` (a long gun's barrel against a wall or object: held pointing up, cannot fire),
-   `draw_weapon(canvas, user)`, `drop(user, velocity) -> Node2D` (let go
+   `drop(user, velocity) -> Node2D` (let go
    as its user dies: a gun leaves a skidding `DroppedItem` in the world, the default leaves
-   nothing; the dropped node's `DroppedItem.item` is that very item) and `draw_dropped(canvas, at, angle, modulate, opts)` (how it looks lying loose; `opts.flip`
-   is which side landed up), and `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in
-   the frame it was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by
-   them, like `CharacterVisuals.drawn_art()`). It holds typed parts, each built once with it, a base the kind may subclass and hands up
+   nothing; the dropped node's `DroppedItem.item` is that very item). It holds typed parts, each built once with it, a base the kind may subclass and hands up
    through `super(...)`:
    - **`strike`** (`ItemStrike`, `items/item_strike.gd`): the melee geometry the character's hands read. Its numbers are `ahead`, `turn`,
      `short`, `support_gap`, `tempo` and `hand`; `swing(amount)` / `direction(aim, amount)` / `end(aim, amount)` / `forward()` follow
      from them. A fist's are the defaults. A long gun's (a `GunConfig` row with `raises_at_contact`) make its punch swing it nearly across
      the body, butt leading.
+   - **`art`** (`ItemArt`, `items/item_art.gd`; `GunArt`, `GrenadeArt`, `SpoonArt`): how it is drawn: `style` (the weapon style, below),
+     `draw_weapon(canvas, user)`, `draw_dropped(canvas, at, angle, modulate, opts)` (how it looks lying loose; `opts.flip` is which side
+     landed up), `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in the frame it
+     was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by them, like
+     `CharacterVisuals.drawn_art()`) and `prepaint()`.
    - **`ammo`** (`ItemAmmo`, `items/item_ammo.gd`; `GunAmmo`, `items/gun_ammo.gd`): inert hooks the gun's overrides fill:
      `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`, `finish_reload(user)`; the `reloading` flag
      the character sets; a gun's loaded `magazine`.
@@ -274,11 +276,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
    id taking `default_outfit`'s: plain clothes, and clears both plates unless the vest holds plates), `apply(character, loadout, rng, style := {}) -> gun id` (arms it through `Character.inventory.set_loadout` and dresses it in the whole
    outfit through `Character.wardrobe.outfit.set_ids`; `style` = how it is all drawn, looks only: `look` / `seed` /
    `rank` passed to `Character.wardrobe.set_style`, absent = the character's style left as it is, and `weapon`, the weapon style passed to
-   `Character.inventory.set_loadout`, absent = `police`) and `random(rng)` (with `random_outfit(rng)`, drawn after the gun). **Weapon style:** every `Item` has a `style`
+   `Character.inventory.set_loadout`, absent = `police`) and `random(rng)` (with `random_outfit(rng)`, drawn after the gun). **Weapon style:** every `Item`'s `art.style`
    (`&"police"` for the invaders, `&"scrap"` / `&"pipe"` for a defender; default `police`), the look it is drawn in, never what it does: a gun
    or grenade draws its `GunConfig` / `GrenadeConfig` row's `looks` row for it (the painter and its colours; `GunConfig.look(gun, style)` /
    `GrenadeConfig.look(kind, style)`, `default_style` `police` for a style it has no row for), held, dropped (either side up) and, for a
-   grenade, in flight and at rest; a dropped gun is the item it was, and a thrown grenade's `item` takes its thrower's item's style. **Outfits** (`docs/outfits.md`): `OutfitConfig`
+   grenade, in flight and at rest; a dropped gun is the item it was, and a thrown grenade's `item` takes its thrower's item's `art.style`. **Outfits** (`docs/outfits.md`): `OutfitConfig`
    (static holder: the garment and plate rows, a garment's `looks` per character style (`zenitex`, `trauma`, `merc`, `borg`: its `kind` and a `color`
    or a `palette` name, `default_style` for a style it has no row for), `GARMENT_SLOTS` / `PLATE_SLOTS` (String keys `head body vest pants feet
    front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`) and `Outfit` (`RefCounted`, one character's worn set: `set_ids(ids)`, `ids()`, `worn(slot)`, `condition(slot)`,
@@ -322,7 +324,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `weapon.is_automatic()`, `inventory.item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `inventory.throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `inventory.throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `weapon.aim_target()` (the swayed aim point a grenade
    is thrown to, interface 6: where the AI expects its own grenade to come down), `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
    `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
-   magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
+   magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.art.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
    how it is drawn (`docs/outfits.md` O15, looks only), on its `wardrobe` (the `Wardrobe` child, `character_wardrobe.gd`, `CharacterWardrobe`):
    `wardrobe.style` (exported; a `CharacterStyleConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
    the defenders' crew; `zenitex` when never given one), `wardrobe.look_seed` (exported: its own variety within the style), `wardrobe.rank` (a police unit's: 0 trooper, 1 sergeant,

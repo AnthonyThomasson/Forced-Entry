@@ -2,22 +2,13 @@ class_name GunItem extends Item
 ## Items domain: a gun held in the right hand: the logic every firearm shares, driven by its row in
 ## `GunConfig` (damage, fire rate, penetration, muzzle speed, spread, recoil, whether it is
 ## automatic and whether its barrel is too long to use against a wall). F still jabs with the weapon
-## hand (melee); left-click fires a projectile and ejects a casing. It is drawn in its weapon style
-## (`Item.style`) by the row's look (`GunConfig.look`: the painter and colours). Its sizes and how
-## it is held are its row's too (`art_size`, `flat_size`, `grip_back` and the stances): a subclass
-## (`PistolItem`, `SmgItem`, `RifleItem`) only names its row (`super(GUN)`). Items reach into the
-## Projectile System in two places: here, via ProjectileSpawner / CasingSpawner (a shot's `hit` is
-## forwarded back to the character's `report_shot` for the HUD), and ThrownGrenade, via
-## `Explosion.frag` / `Explosion.stun`.
-
-## How far the pulled-up barrel shortens at full raise (fraction of its length): pointed up, a
-## top-down view sees it foreshortened. The art is re-rendered at `RAISE_STEPS` lengths between full
-## and this, so it stays crisp and cached.
-const RAISED_LENGTH := 0.42
-const RAISE_STEPS := 5
-
-## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
-static var _prepainted := {}
+## hand (melee); left-click fires a projectile and ejects a casing. It is drawn by its `art` part
+## (`GunArt`), in its weapon style by the row's look. Its sizes and how it is held are its row's
+## too (`art_size`, `flat_size`, `grip_back` and the stances): a subclass (`PistolItem`, `SmgItem`,
+## `RifleItem`) only names its row (`super(GUN)`). Items reach into the Projectile System in two
+## places: here, via ProjectileSpawner / CasingSpawner (a shot's `hit` is forwarded back to the
+## character's `report_shot` for the HUD), and ThrownGrenade, via `Explosion.frag` /
+## `Explosion.stun`.
 
 ## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Named by
 ## the subclass (`super(GUN)`).
@@ -33,7 +24,8 @@ var _load: GunAmmo
 func _init(id: StringName) -> void:
 	gun = id
 	_load = GunAmmo.new(id)
-	super(_long_gun_strike() if raises_at_contact() else null, _load)
+	var melee := _long_gun_strike() if raises_at_contact() else ItemStrike.new()
+	super(melee, _load, GunArt.new(id, melee))
 	display_name = str(_stat("name", display_name))
 	reach = 32.0
 
@@ -62,11 +54,6 @@ func _art_size() -> Vector2:
 	return _stat("art_size", Vector2.ZERO)
 
 
-## The flat art's footprint (px): its profile across, its length along (the row's `flat_size`).
-func _flat_size() -> Vector2:
-	return _stat("flat_size", Vector2.ZERO)
-
-
 ## How far the butt end sits behind the weapon hand's center (px; the row's `grip_back`).
 func _grip_back() -> float:
 	return float(_stat("grip_back", 0.0))
@@ -83,12 +70,6 @@ func _long_gun_strike() -> ItemStrike:
 	long_gun.support_gap = ItemStrike.SUPPORT_GAP
 	long_gun.tempo = ItemStrike.LONG_TEMPO
 	return long_gun
-
-
-## How it is drawn: its row's look in its weapon style (`GunConfig.look`: `painter`, colours,
-## `finish`).
-func look() -> Dictionary:
-	return GunConfig.look(gun, style)
 
 
 # --- Item contract --------------------------------------------------------------------------
@@ -186,23 +167,6 @@ func secondary(user: Node2D) -> bool:
 	return true
 
 
-## Draw the gun's pixel art at the weapon hand, its butt behind the hand and the muzzle along the
-## character's weapon.facing() (trailing the aim a touch as it turns): lit for the nearest lighting
-## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the
-## hand.
-func draw_weapon(canvas: CanvasItem, user: Object) -> void:
-	var facing: Vector2 = user.weapon.facing()
-	# A punch turns a long gun about its grip until the butt leads.
-	facing = strike.direction(facing, user.anatomy.hands.punch_amount(weapon_hand()))
-	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
-	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
-	var art_size := _art_size()
-	var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
-	var centre: Vector2 = (user.anatomy.hands.hand_position(weapon_hand())
-			+ facing * (size.y * 0.5 - _grip_back() * shrink))
-	_draw_art(canvas, centre, facing, size)
-
-
 ## The dead hand lets go: the gun leaves from where it was drawn and skids off at `velocity`.
 func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var facing: Vector2 = user.weapon.facing()
@@ -211,75 +175,3 @@ func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)
 	dropped.place(user.world_root(), at, hand)
 	return dropped
-
-
-## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter
-## lying (`flat`); `opts.flip` picks the side facing up.
-func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
-		opts: Dictionary = {}) -> void:
-	var turn := angle - PI * 0.5
-	var size := _flat_size()
-	var flip: bool = opts.get("flip", false)
-	var drawn := look()
-	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(turn),
-		{
-			"gun": gun, "look": _look_handle(drawn), "flat": true, "flip": flip,
-			"material": drawn["finish"],
-		},
-	)
-	_note_drawn(tex)
-	canvas.draw_set_transform(at, turn, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false, modulate)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-## Paint this gun's art ahead of time, once per gun and style: held at every raise step
-## (`draw_weapon`) and lying on the floor either side up (`draw_dropped`), each at every lighting
-## step. A gun turns, is raised off walls and skids from a dead hand through those, and each first
-## paint (0.3 to 0.5 ms) would land in the busiest frames of a fight. The same calls the draws make,
-## so the same cached textures: what is drawn never changes.
-func prepaint() -> void:
-	var key := [gun, style]
-	if _prepainted.has(key):
-		return
-	_prepainted[key] = true
-	var drawn := look()
-	var handle := _look_handle(drawn)
-	var art_size := _art_size()
-	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
-	for k in ArtCanvasConfig.turn_steps:
-		var angle := PixelArt.snap_angle(k * step)
-		for raise in RAISE_STEPS + 1:
-			var shrink := lerpf(1.0, RAISED_LENGTH, float(raise) / RAISE_STEPS)
-			var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
-			PixelArt.render_turned(
-				drawn["painter"],
-				size,
-				drawn["body"],
-				angle,
-				{ "gun": gun, "look": handle, "material": drawn["finish"] },
-			)
-		for flip in [false, true]:
-			PixelArt.render_turned(
-				drawn["painter"], _flat_size(), drawn["body"], angle,
-				{
-					"gun": gun, "look": handle, "flat": true, "flip": flip,
-					"material": drawn["finish"],
-				},
-			)
-
-
-## The held art of `size` centered at `centre`, muzzle along `facing`, in its look's painter: lit
-## for the nearest lighting step, drawn rotated to the exact angle.
-func _draw_art(canvas: CanvasItem, centre: Vector2, facing: Vector2, size: Vector2) -> void:
-	var angle := facing.angle() - PI * 0.5
-	var drawn := look()
-	var tex := PixelArt.render_turned(
-		drawn["painter"], size, drawn["body"], PixelArt.snap_angle(angle),
-		{ "gun": gun, "look": _look_handle(drawn), "material": drawn["finish"] },
-	)
-	_note_drawn(tex)
-	canvas.draw_set_transform(centre, angle, Vector2.ONE)
-	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false)
-	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -151,8 +151,8 @@ static func grenade_counts(loadout: Dictionary) -> Dictionary:
 ## `wardrobe.outfit.set_ids`), replacing whatever it wore. `style` is how it is all drawn (looks
 ## only): `look` (the character's style, with its `seed` and a police unit's `rank`, via
 ## `CharacterWardrobe.set_style`; absent = the character's style is left as it is) and `weapon` (the
-## weapon style every item it carries is drawn in, `Item.style`; absent = `police`). Returns the gun
-## id it was armed with.
+## weapon style every item it carries is drawn in, `ItemArt.style`; absent = `police`). Returns the
+## gun id it was armed with.
 static func apply(
 	character: Node,
 	loadout: Dictionary,

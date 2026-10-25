@@ -47,15 +47,15 @@ static func default_inventory(rounds := -1) -> Dictionary:
 
 ## A fresh inventory of just the given slots (an empty slot id is skipped). A gun comes loaded with
 ## `magazine` when that type fits it. A grenade slot holds `grenades[slot]` of them, else `rounds`
-## (as `create`). Every item made carries the weapon style `style` (`Item.style`).
+## (as `create`). Every item made carries the weapon style `style` (`ItemArt.style`).
 static func inventory_for(slots: Array, rounds := -1, magazine: StringName = &"", grenades := {},
 		style: StringName = &"police") -> Dictionary:
 	var inv := {}
 	for id in slots:
 		var item := create(int(id), int(grenades.get(int(id), rounds)), magazine)
 		if item != null:
-			item.style = style
-			item.prepaint()  # its art, before a fight first draws it (Item.prepaint)
+			item.art.style = style
+			item.art.prepaint()  # its art, before a fight first draws it (ItemArt.prepaint)
 			inv[int(id)] = item
 	return inv
 

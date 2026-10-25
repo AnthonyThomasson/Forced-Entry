@@ -9,7 +9,7 @@ Everything that gives the character a body: `character_rig, character_legs, char
 pose_gait`)`, character_ragdoll, character_hands, character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` (with its parts `body_dress`, `body_limbs`, `body_shadow`, `body_laid_out` and its `body_trunk`) plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame through its `anatomy` (`character_anatomy.gd`, below); nothing here decides what the character *does*. Cross-domain
 edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
-(its stances, `draw_weapon`, its `strike` part) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
+(its stances, its `strike` part and its `art` part's `draw_weapon`) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
 `FillBatch` (11) and `GameLog` (15), and the Character tuning holders (`class_name` static holders): this sub-domain's own in `body/` (`CharacterStrideConfig`,
 `CharacterMeleeConfig`, `CharacterPoseTurnConfig`, `CharacterPoseHandConfig`, `CharacterPoseHeadConfig`, `CharacterRagdollConfig`,
 `CharacterRagdollJointConfig`) and the ones it shares with the root in `character/` (`CharacterBodyConfig`, `CharacterPostureConfig`,
@@ -39,7 +39,7 @@ kick go and builds the ragdoll; `turn_shadow()` turns the shadow with the facing
   solved by `anatomy.rig()`, once per physics frame) owns the standing skeleton, the 3D joints of the arms and legs
   (below); `character_ragdoll.gd` (the anatomy's `ragdoll` once dead) owns the fall.
 - **Draw** (`character_visuals.gd`) owns appearance: a drop shadow, the legs and shoes, the arms
-  (sleeve, then forearm), then `item.draw_weapon()` (under the torso, so a long gun's butt is tucked behind the shoulder), the shoulders (at the pose's lunge), then both fists (gripping the weapon; a hand gripping below `HAND_OVER_HEIGHT`, i.e. hanging relaxed, is drawn *before* the shoulders so they cover it — `tests/character/hanging_hands_under_shoulders_test.gd`), then the
+  (sleeve, then forearm), then `item.art.draw_weapon()` (under the torso, so a long gun's butt is tucked behind the shoulder), the shoulders (at the pose's lunge), then both fists (gripping the weapon; a hand gripping below `HAND_OVER_HEIGHT`, i.e. hanging relaxed, is drawn *before* the shoulders so they cover it — `tests/character/hanging_hands_under_shoulders_test.gd`), then the
   head last (it is the highest part, so it covers the gun and fists; its shadow falls on the shoulders), then a hand gripping at or
   above `HAND_ON_FACE_HEIGHT` (6.9 body radii: only the blinded `eyes` stance) over the face (`_draw_face_hands`, `face_hand` in `draw_order`), then the
   wound marks over all of it. A crouch (`_draw_lying`) keeps the same order: the head leaves the fallen-body stack and is drawn after the fists.

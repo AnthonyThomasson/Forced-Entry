@@ -112,13 +112,13 @@ func _draw() -> void:
 		return
 	var toward := -ArtCanvasConfig.light_from.normalized()
 	var away := global_transform.basis_xform_inv(toward).normalized()
-	item.draw_dropped(self, away * (0.5 + _motion.height * shadow_per_height), _angle,
+	item.art.draw_dropped(self, away * (0.5 + _motion.height * shadow_per_height), _angle,
 		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha))
-	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
+	item.art.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
 
 
 ## Let a grenade go as `throw` says (of its `kind`, from `from` toward `to`, thrown by `thrower`,
-## drawn in the weapon style `style` of the item it was thrown from, `Item.style`) into `parent`
+## drawn in the weapon style `style` of the item it was thrown from, `ItemArt.style`) into `parent`
 ## (the world root).
 static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	var from := throw.from
@@ -129,7 +129,7 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	node.kind = throw.kind
 	node.thrower = throw.thrower
 	node.item = ItemRegistry.create(int(row.get("slot", -1)), 1)
-	node.item.style = throw.style
+	node.item.art.style = throw.style
 	node._row = row.duplicate()
 	node._fuse = float(row.get("fuse", 3.0))
 	node._direction = (to - from).normalized() if from.distance_to(to) > 0.5 else Vector2.RIGHT

@@ -7,8 +7,8 @@ extends Node2D
 ## Shots dent and darken the shoulders and any part they passed through. Each part is lit for the
 ## nearest lighting step and drawn rotated to its exact angle. Reads the body radius, pose, rig,
 ## held item and wounds from the character and hand positions/size from the hands sibling.
-## Appearance only — no item-specific weapon logic lives here (that's each Item's draw_weapon()).
-## Once dead it draws the fallen ragdoll instead. How it looks is its style
+## Appearance only — no item-specific weapon logic lives here (that's each item's
+## `art.draw_weapon()`). Once dead it draws the fallen ragdoll instead. How it looks is its style
 ## (`CharacterWardrobe.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears
 ## drawn in that style (`dress`, `body_dress.gd`, through `character_style.gd`): the headwear, the
 ## shirt and its sleeves, a vest and its plates' wear, the pants and the footwear, and its own skin,
@@ -168,7 +168,7 @@ func _draw_standing(rig: Rig) -> void:
 	# The weapon goes under the torso: its butt is tucked behind the shoulder, the barrel shows
 	# beyond.
 	if item:
-		item.draw_weapon(self, _character)
+		item.art.draw_weapon(self, _character)
 		draw_order.append(&"weapon")
 	# A hand hanging at the side (below HAND_OVER_HEIGHT) is lower than the shoulders, so they cover
 	# it.
@@ -296,7 +296,7 @@ func _draw_lying(rig: Rig) -> void:
 	# beyond.
 	var weapon := func() -> void:
 		if item:
-			item.draw_weapon(self, _character)
+			item.art.draw_weapon(self, _character)
 			draw_order.append(&"weapon")
 	laid.draw(rig, false, weapon)
 	for hand in 2:

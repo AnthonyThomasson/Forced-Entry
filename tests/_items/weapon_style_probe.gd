@@ -1,9 +1,9 @@
 extends RefCounted
 ## Shared by the weapon-style tests (ticket #61, R3): how a gun or grenade is DRAWN in a weapon
-## style, read through the published `Item.drawn_art()` (the textures the item's last `draw_weapon`
-## / `draw_dropped` painted, like `CharacterVisuals.drawn_art()`). Art is cached by what it depicts,
-## so two items drawn alike paint the very same textures and a changed look new ones: a drawing is
-## compared as the set of its textures' instance ids.
+## style, read through the published `ItemArt.drawn_art()` (the textures the item's last
+## `draw_weapon` / `draw_dropped` painted, like `CharacterVisuals.drawn_art()`). Art is cached by
+## what it depicts, so two items drawn alike paint the very same textures and a changed look new
+## ones: a drawing is compared as the set of its textures' instance ids.
 ## An item is drawn on a `DrawProbe` (a plain `Node2D` of the test's whose `_draw` calls the item's
 ## published `draw_weapon(canvas, user)` or `draw_dropped(canvas, at, angle, modulate, opts)`), one
 ## probe per item, since `drawn_art` is its last draw only. Not a test
@@ -18,20 +18,20 @@ const GUNS := { &"pistol": 3, &"smg": 5, &"rifle": 6 }
 const GRENADES := { &"frag": 8, &"stun": 7 }
 
 
-## The textures `item`'s last draw painted (`Item.drawn_art()`), as a set of their instance ids.
+## The textures `item`'s last draw painted (`ItemArt.drawn_art()`), as a set of their instance ids.
 static func drawn(item: Item) -> Dictionary:
 	var out := {}
-	for tex in item.drawn_art():
+	for tex in item.art.drawn_art():
 		out[(tex as Object).get_instance_id() if tex is Object else 0] = true
 	return out
 
 
-## A fresh item for inventory `slot` in weapon `style` (`Item.style`); `&""` leaves it never given
-## one.
+## A fresh item for inventory `slot` in weapon `style` (`ItemArt.style`); `&""` leaves it never
+## given one.
 static func make(slot: int, style: StringName) -> Item:
 	var item := ItemRegistry.create(slot)
 	if style != &"":
-		item.style = style
+		item.art.style = style
 	return item
 
 
@@ -131,6 +131,6 @@ class DrawProbe extends Node2D:
 		if item == null:
 			return
 		if held:
-			item.draw_weapon(self, user)
+			item.art.draw_weapon(self, user)
 		else:
-			item.draw_dropped(self, Vector2.ZERO, angle, Color.WHITE, opts)
+			item.art.draw_dropped(self, Vector2.ZERO, angle, Color.WHITE, opts)

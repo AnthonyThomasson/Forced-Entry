@@ -31,7 +31,7 @@ class_name GunConfig
 ##                     `CharacterStanceConfig.stances` name).
 ##   raised_grip_stance, raised_fore_stance   the same while the weapon is raised off a wall or
 ##                     object.
-##   looks             how it is drawn, per weapon style (`Item.style`: `police` issue, taped
+##   looks             how it is drawn, per weapon style (`ItemArt.style`: `police` issue, taped
 ##                     `scrap`, `pipe` guns; a style with no row draws `default_style`'s): `painter`
 ##                     (held and lying, items/art/) and the colours of its parts, `body` (slide or
 ##                     receiver), `stock`, `guard`, `grip`, `barrel`, `magazine` (seen lying) and
@@ -46,7 +46,7 @@ const PipeGunPainter = preload("res://scenes/items/art/pipe_gun_painter.gd")
 ## (a shouldered gun's is several px off the line) angled to cross the aim line there, so shots land
 ## where the character points at a normal range instead of running parallel to it.
 static var zero_range: float = 300.0
-## The weapon style a gun is drawn in when its `looks` has no row for its `Item.style`.
+## The weapon style a gun is drawn in when its `looks` has no row for its `ItemArt.style`.
 static var default_style: StringName = &"police"
 static var guns: Dictionary = {
 	&"pistol": {

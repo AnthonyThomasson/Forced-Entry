@@ -124,7 +124,7 @@ func gun_slot() -> int:
 ## the kit's `loaded_magazine` when that type fits the gun, else the gun's own); a reload in
 ## progress is dropped. Safe after `add_child`, so a spawner can re-arm a scene-placed character. A
 ## grenade slot among `slots` holds `grenades[slot]` of them (else `start_rounds`, or one). Every
-## item carries the kit's `weapon_style` (`Item.style`: how it is drawn, never what it does).
+## item carries the kit's `weapon_style` (`ItemArt.style`: how it is drawn, never what it does).
 func set_loadout(kit: CharacterKit) -> void:
 	character.ammo.cancel()
 	_items = ItemRegistry.inventory_for(

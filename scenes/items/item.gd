@@ -1,8 +1,8 @@
 class_name Item extends RefCounted
 ## Items domain: base class for a thing the character can hold and act with. An Item is pure
 ## behaviour + a little state (e.g. which fist punches next); it owns what the primary (F) and
-## secondary (LMB) actions do, how each hand is held, how its weapon is rendered, and what it leaves
-## behind when its user dies (drop).
+## secondary (LMB) actions do, how each hand is held, and what it leaves behind when its user dies
+## (drop); how it is drawn is its `art` part.
 ## The character calls into these; an Item talks back only through the small character API
 ## (facing, weapon.facing(), weapon.raise(), anatomy.hands.punch(), anatomy.hands.punch_amount(),
 ## weapon.kick(), anatomy.hands.hand_position(), anatomy.hands.world(), weapon.muzzle_origin(),
@@ -14,12 +14,6 @@ class_name Item extends RefCounted
 var display_name := "Item"
 ## Punch reach (px), read by the hands to size the swing.
 var reach := 28.0
-## The weapon style it is drawn in, its wielder's (`police` issue for the invaders, `scrap` or
-## `pipe` for a defender): stamped on every item a loadout makes (`ItemRegistry.inventory_for`, from
-## `LoadoutConfig.apply`). An item never given one is `police`. A gun or grenade draws its config
-## row's look for it (`GunConfig.look` / `GrenadeConfig.look`); a dropped gun and a thrown grenade
-## keep it. Looks only: nothing it does depends on it.
-var style: StringName = &"police"
 ## Its melee geometry, which the character's hands read through a blow (`ItemStrike`): a fist's
 ## unless its kind hands up its own. Built once with the item.
 var strike: ItemStrike
@@ -27,21 +21,18 @@ var strike: ItemStrike
 ## components call: no ammo unless its kind hands up its own (a gun's `GunAmmo`). Built once with
 ## the item.
 var ammo: ItemAmmo
-## The textures the last frame's draws of the item painted, in order (`drawn_art`).
-var _art: Array[Texture2D] = []
-## The process frame `_art` was painted in.
-var _art_frame := -1
-## The look last drawn (a config `looks` row) and its painters' handle, so it is hashed once.
-var _look_row := {}
-## The painters' handle of `_look_row`.
-var _look_id := 0
+## How it is drawn and in which weapon style (`ItemArt`), which the character's visuals, a
+## `DroppedItem` and a `ThrownGrenade` call: nothing drawn unless its kind hands up its own (a
+## gun's `GunArt`, a grenade's `GrenadeArt`). Built once with the item.
+var art: ItemArt
 
 
 ## Build the item with its kind's parts: each one a kind hands up through `super(...)`, else the
-## inert default (a fist's strike, no ammo).
-func _init(melee: ItemStrike = null, loaded: ItemAmmo = null) -> void:
+## inert default (a fist's strike, no ammo, nothing drawn).
+func _init(melee: ItemStrike = null, loaded: ItemAmmo = null, drawing: ItemArt = null) -> void:
 	strike = melee if melee != null else ItemStrike.new()
 	ammo = loaded if loaded != null else ItemAmmo.new()
+	art = drawing if drawing != null else ItemArt.new()
 	strike.hand = weapon_hand()
 
 
@@ -130,54 +121,7 @@ func throw_stats() -> Dictionary:
 	return {}
 
 
-## The textures the item's last draw (`draw_weapon` or `draw_dropped`, every call in the frame it
-## was last drawn: a lying item's shadow and art) painted, in order. Pixel art is cached by what it
-## depicts, so the same drawing gives the same textures and a changed look new ones. Empty for an
-## item never drawn or that draws nothing.
-func drawn_art() -> Array:
-	return _art.duplicate()
-
-
-## Record `tex` as painted by this frame's draw of the item (`drawn_art`).
-func _note_drawn(tex: Texture2D) -> void:
-	var frame := Engine.get_process_frames()
-	if frame != _art_frame:
-		_art_frame = frame
-		_art.clear()
-	if not _art.has(tex):
-		_art.append(tex)
-
-
-## The painters' handle of `look` (a gun's or grenade's config `looks` row, `PixelArt.handle`),
-## registered again only when the row drawn is another one (a new style, or a config row replaced).
-func _look_handle(look: Dictionary) -> int:
-	if not is_same(look, _look_row):
-		_look_row = look
-		_look_id = PixelArt.handle(look)
-	return _look_id
-
-
-## Paint ahead of time the art this item can be drawn with, so no first paint lands mid-fight
-## (`ItemRegistry` asks every item it makes). Only fills PixelArt's cache with the textures the
-## draws would paint: what is drawn never changes. Default: none.
-func prepaint() -> void:
-	pass
-
-
-## Draw the item's weapon art onto `canvas` (the character's visuals Node2D). Default: none.
-func draw_weapon(_canvas: CanvasItem, _user: Object) -> void:
-	pass
-
-
 ## Let go of the item into the world (its user has died), flying off at `velocity`; returns the
 ## dropped node, or null when nothing is left behind (the default).
 func drop(_user: Node2D, _velocity: Vector2) -> Node2D:
 	return null
-
-
-## Draw the item lying loose, centered at `at` on `canvas` and pointing along `angle`, tinted by
-## `modulate` (its art, or its shadow). `opts` is how it landed, picked once when dropped
-## (`flip`: which side faces up). Default: none.
-func draw_dropped(_canvas: CanvasItem, _at: Vector2, _angle: float, _modulate: Color = Color.WHITE,
-		_opts: Dictionary = {}) -> void:
-	pass

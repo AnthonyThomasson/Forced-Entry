@@ -1,5 +1,5 @@
 extends GameTest
-## Every gun and grenade an inventory makes paints its art ahead of time (`Item.prepaint`, from
+## Every gun and grenade an inventory makes paints its art ahead of time (`ItemArt.prepaint`, from
 ## `ItemRegistry.inventory_for`): a gun held at every raise step and lying either side up, a grenade
 ## with its lever held and gone, each at every lighting step. It only fills PixelArt's cache with
 ## what the draws would paint. This makes each weapon style's guns and grenades, then draws them
@@ -95,18 +95,18 @@ func _check_fresh_paints(t: TestContext, items: Array) -> void:
 ## fresh paint of the same inputs gives: 1 the same, 0 different, -1 when the renderer hands no
 ## image back.
 func _same_as_fresh(item: Item) -> int:
-	var drawn: Dictionary = item.look()
+	var drawn: Dictionary = item.art.look()
 	var size: Vector2 = (GunConfig.row(item.gun)["flat_size"] if item is GunItem
 			else GrenadeConfig.row(item.kind)["art_size"])
 	var colour: Color = drawn["body"] if item is GunItem else drawn["shell"]
 	var opts := ({
 		"gun": item.gun,
-		"look": item._look_handle(drawn),
+		"look": item.art._look_handle(drawn),
 		"flat": true,
 		"flip": true,
 	}
 			if item is GunItem
-			else { "kind": item.kind, "look": item._look_handle(drawn), "spoon": false })
+			else { "kind": item.kind, "look": item.art._look_handle(drawn), "spoon": false })
 	opts["material"] = drawn["finish"]
 	var angle := PixelArt.snap_angle(TAU * 5.0 / ArtCanvasConfig.turn_steps)
 	var image := PixelArt.render_turned(drawn["painter"], size, colour, angle, opts).get_image()
@@ -178,8 +178,8 @@ class Drawer:
 			for item: Item in items:
 				user.weapon.aim = Vector2.from_angle(rng.randf() * TAU)
 				user.weapon.lift = rng.randf() if i % 2 == 0 else float(rng.randi_range(0, 1))
-				item.draw_weapon(self, user)
-				item.draw_dropped(
+				item.art.draw_weapon(self, user)
+				item.art.draw_dropped(
 					self,
 					Vector2.ZERO,
 					rng.randf_range(-TAU, TAU),

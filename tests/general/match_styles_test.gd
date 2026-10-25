@@ -14,7 +14,7 @@ extends GameTest
 ##   (`CharacterWardrobe.rank` 2), the second the sergeant (1), the rest troopers (0); a defender
 ##   has no rank.
 ## Read through `CharacterWardrobe.style` / `look_seed` / `rank` and each carried gun's and
-## grenade's `Item.style`.
+## grenade's `ItemArt.style`.
 
 const DEFENDERS := 12
 const INVADERS := 4
@@ -207,7 +207,7 @@ func _check_items(t: TestContext, c: Node, allowed: Array) -> Variant:
 			continue
 		c.inventory.select_slot(slot)
 		var item: Item = c.inventory.current_item()
-		var style: StringName = item.style
+		var style: StringName = item.art.style
 		t.check(
 			style in allowed,
 			"%s's %s has a weapon style in %s (got %s)" % [

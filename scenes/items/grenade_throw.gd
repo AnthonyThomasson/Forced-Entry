@@ -11,6 +11,6 @@ var from: Vector2 = Vector2.ZERO
 var to: Vector2 = Vector2.ZERO
 ## Who threw it (its sweep skips the thrower's body; null = nobody).
 var thrower: Node = null
-## The weapon style it is drawn in, its item's (`Item.style`; left alone = the default style,
+## The weapon style it is drawn in, its item's (`ItemArt.style`; left alone = the default style,
 ## `GrenadeConfig.default_style`).
 var style: StringName = GrenadeConfig.default_style

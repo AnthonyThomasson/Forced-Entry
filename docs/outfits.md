@@ -173,7 +173,7 @@ the same in every style. A match styles its crews as it arms them (`MatchBuilder
 so the styles never shift the guns or the placement): one unit drawn for every invader, the human invader too, its first the lead and its
 second the sergeant; each defender, the human defender too, drawn merc or borg with a look seed of its own. `LoadoutConfig.apply(character,
 loadout, rng, style)` passes the style on (`{ look, seed, rank, weapon }`), and `weapon` is the weapon style every item the character carries
-is drawn in (`Item.style`: `police` for the invaders, `scrap` or `pipe` drawn per defender; an item never given one is `police`).
+is drawn in (`Item.art.style`: `police` for the invaders, `scrap` or `pipe` drawn per defender; an item never given one is `police`).
 A gun or grenade is drawn in it held, dropped (either side up) and, a grenade, in flight and at rest: **police issue** (gunmetal, a red and
 blue light bar, a white serial; gunmetal grenades with red and blue marks), **taped scrap** (rusted steel, a wooden stock, grey tape, a rust
 magazine; a taped rusty olive frag, a taped tin-can stun) or **pipe guns** (a pipe barrel with clamp bands, a plank stock, copper wire, welds;
@@ -205,7 +205,7 @@ a soft panel).
 
 - **Items** (`scenes/items/`): `OutfitConfig` (the rows above, the slots, zones and sides), `Outfit` (the worn set, `layer`, `wear`, `weight`,
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
-  `random`, and the style `apply` passes on), `Item.style` (stamped by `ItemRegistry.inventory_for`).
+  `random`, and the style `apply` passes on), `Item.art.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `_hit_zone`, `_hit_side`, and `take_hit`'s zone, armour, wear and
   blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which

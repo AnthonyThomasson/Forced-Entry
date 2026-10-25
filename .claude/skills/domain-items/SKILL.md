@@ -1,6 +1,6 @@
 ---
 name: domain-items
-description: Deep implementation detail for the Items domain (scenes/items/) — the things the character holds and the actions they perform (fists, the guns — pistol, SMG, assault rifle —, key, unarmed). Use when editing scenes/items/ or working on item slots, the Item contract, adding a new item or gun, GunConfig (damage, fire rate, penetration, spread, recoil), how a long gun is held and raised against a wall, magazines, an item dropped on death (DroppedItem), outfits (OutfitConfig garments and armour plates, Outfit: armour layers, plate wear, weight, look), loadouts, weapon styles (how a gun or grenade is drawn: the GunConfig / GrenadeConfig looks, the items/art painters, Item.drawn_art), or a gun's link into the projectile system. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the Items domain (scenes/items/) — the things the character holds and the actions they perform (fists, the guns — pistol, SMG, assault rifle —, key, unarmed). Use when editing scenes/items/ or working on item slots, the Item contract, adding a new item or gun, GunConfig (damage, fire rate, penetration, spread, recoil), how a long gun is held and raised against a wall, magazines, an item dropped on death (DroppedItem), outfits (OutfitConfig garments and armour plates, Outfit: armour layers, plate wear, weight, look), loadouts, weapon styles (how a gun or grenade is drawn: the GunConfig / GrenadeConfig looks, the items/art painters, an item's `art` part, ItemArt.drawn_art), or a gun's link into the projectile system. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Items domain
@@ -49,14 +49,15 @@ rifle 22 dmg / 0.11 s / auto / ×2.2 / 4400 px/s / 24 rounds. They are one table
 (the loaded magazine type's, `MagazineConfig.reload_time_of`); below), `secondary(user) -> bool` (refuses while reloading, empty or still cycling;
 else spends a round, rotates the aim by the spread (wider by `one_hand_spread_deg` while `user.weapon.one_handed()`, interface 6; the player's as an NPC's), calls `ProjectileSpawner.spawn(muzzle_origin, dir, world, shot)` (a `Shot`: `shooter` the user, its
 `item_damage`, `muzzle_speed` and `penetration`), ejects a casing, kicks the hand and posts a `&"shot"` event on `EventBus`
-(`{ position` (muzzle)`, gun, attacker, power }`, which the Audio domain voices)) and `primary` (a melee jab with the weapon hand; a long gun, the SMG or rifle, **strikes with its butt**, swung in **both hands**, by the gun's `strike` part (`ItemStrike`, `item_strike.gd`: plain data built once in `GunItem._init` from its row, `ahead` its `grip_back`, a fist's defaults for the pistol): `strike.direction(aim, amount)` turns the barrel about the weapon hand, outward from the body, by `strike.turn` (`ItemStrike.STRIKE_TURN`, 105 degrees) x `strike.swing(amount)`, so it ends nearly across the body with the butt centred on the aim and a little ahead of the muzzle (`draw_weapon` draws it so; `strike.end(aim, amount)` is the butt relative to the hand); the other hand grips `strike.support_gap` (`ItemStrike.SUPPORT_GAP`, negative: toward the butt) along the barrel; the blow is thrown `strike.tempo` (2x, `ItemStrike.LONG_TEMPO`) slower than a fist and lands `strike.short` (`ItemStrike.STRIKE_SHORT`) px short of one; the hands layer shortens the hand's extension by `strike.forward()` (the butt's forward reach at the end of the turn) and queries the hit at `strike.end` once it is ahead of the hand, so the blow lands about as far out as before; a pistol just jabs). **Fire rate** is a cooldown: `tick(delta)`
+(`{ position` (muzzle)`, gun, attacker, power }`, which the Audio domain voices)) and `primary` (a melee jab with the weapon hand; a long gun, the SMG or rifle, **strikes with its butt**, swung in **both hands**, by the gun's `strike` part (`ItemStrike`, `item_strike.gd`: plain data built once in `GunItem._init` from its row, `ahead` its `grip_back`, a fist's defaults for the pistol): `strike.direction(aim, amount)` turns the barrel about the weapon hand, outward from the body, by `strike.turn` (`ItemStrike.STRIKE_TURN`, 105 degrees) x `strike.swing(amount)`, so it ends nearly across the body with the butt centred on the aim and a little ahead of the muzzle (its `art` part's `draw_weapon` draws it so; `strike.end(aim, amount)` is the butt relative to the hand); the other hand grips `strike.support_gap` (`ItemStrike.SUPPORT_GAP`, negative: toward the butt) along the barrel; the blow is thrown `strike.tempo` (2x, `ItemStrike.LONG_TEMPO`) slower than a fist and lands `strike.short` (`ItemStrike.STRIKE_SHORT`) px short of one; the hands layer shortens the hand's extension by `strike.forward()` (the butt's forward reach at the end of the turn) and queries the hit at `strike.end` once it is ahead of the hand, so the blow lands about as far out as before; a pistol just jabs). **Fire rate** is a cooldown: `tick(delta)`
 counts it down (the character ticks every item it carries, before its controller runs, so it is deterministic and independent of the
 wall clock); firing does `cooldown += fire_interval`, carrying an overshoot so 0.07 s is not rounded to 5 frames, with the idle credit
 capped at one frame so a gun never bursts to catch up.
 
 `GunItem._init(id)` takes its gun id (also the `Magazine.gun` key) and reads everything else off that row, its sizes and its hold
-included (`art_size`, `flat_size`, `grip_back` and the four stances above; its look is the row's too, "Weapon looks" below): a subclass
-only names its row (`const GUN`, `super(GUN)`). `muzzle_ahead()` = the row's `art_size.y − grip_back` (the pistol's is 11), which `Character.weapon.muzzle_origin` uses, so a long gun's muzzle is further out.
+included (`art_size`, `flat_size`, `grip_back` and the four stances above; its look is the row's too, "Weapon looks" below), and builds its
+parts, handing them up through `super(...)`: its `GunAmmo`, its `ItemStrike` and its `art`, a `GunArt` (`gun_art.gd`, handed the strike). A
+subclass only names its row (`const GUN`, `super(GUN)`). `muzzle_ahead()` = the row's `art_size.y − grip_back` (the pistol's is 11), which `Character.weapon.muzzle_origin` uses, so a long gun's muzzle is further out.
 
 - **Pistol** (`pistol.gd`): 5×13 art, held at arm's length (`aim`) with the other fist beside it on the grip (`support`: same forward point, both hands together).
 - **SMG** (`smg.gd`): 6×28 art, `grip_back` 10; shouldered (butt on the right shoulder; `smg_grip` / `smg_fore`), the other hand out on the shroud.
@@ -72,8 +73,8 @@ only names its row (`const GUN`, `super(GUN)`). `muzzle_ahead()` = the row's `ar
 
 A long gun (SMG, rifle) cannot be used against a wall or object: `Item.raises_at_contact()` makes the character test the barrel each frame
 (see `domain-character`). While it touches, `raised_stance(hand)` (`ready_grip` / `ready_fore`: hands drawn in to the chest) is held, and
-`draw_weapon` reads `user.weapon.raise()` (0..1) to foreshorten the barrel — "pointed up" seen from above — rendering the painter at
-`RAISE_STEPS` lengths down to `RAISED_LENGTH` (crisp and cached, not a stretched texture), scaled about the weapon hand. `weapon.shoot()` does
+its `art` part's `draw_weapon` (`GunArt`) reads `user.weapon.raise()` (0..1) to foreshorten the barrel — "pointed up" seen from above — rendering
+the painter at `GunArt.RAISE_STEPS` lengths down to `GunArt.RAISED_LENGTH` (crisp and cached, not a stretched texture), scaled about the weapon hand. `weapon.shoot()` does
 nothing while it is raised. The pistol does not raise.
 
 ## Ammo, magazines and reloading
@@ -95,7 +96,8 @@ builds a gun loaded with its `GunConfig.magazine` type (`rounds` < 0 = full). Ev
 
 ## Adding an item
 
-Write an `Item` subclass in `items/` and add a case in `ItemRegistry.create`. To add a **gun**: a row in `GunConfig.guns` (with a free
+Write an `Item` subclass in `items/` (and, if it is drawn, an `ItemArt` subclass it hands up through `super(...)`) and add a
+case in `ItemRegistry.create`. To add a **gun**: a row in `GunConfig.guns` (with a free
 `slot`, and `looks`: `_looks()`, or rows of its own whose painter draws its `gun` id), its sizes, `grip_back` and stances in that row (add any new stance rows to `CharacterStanceConfig.stances`), a `GunItem` subclass naming it (`super(GUN)`), a case in
 `ItemRegistry._new_gun`, and magazine rows in `MagazineConfig.types` for its `gun` id.
 
@@ -112,7 +114,7 @@ magazine and carrying `spares` of it; `random` draws a gun from `rng`; every ite
 `docs/outfits.md` O15), and returns the gun id, `random(rng)` draws a valid loadout, its outfit (`random_outfit(rng)`: each slot any of its choices, None
 included, then made valid by `outfit_of`, so a plate drawn without a carrier is cleared) drawn after the gun, so a seed's gun does not depend on it. `ItemRegistry.create` / `inventory_for` take an optional loaded-`magazine` override.
 
-**Weapon style.** Every `Item` carries a `style` (`&"police"` by default): the weapon style it is drawn in, its wielder's (`police` issue for the
+**Weapon style.** Every `Item`'s `art` part carries a `style` (`ItemArt.style`, `&"police"` by default): the weapon style it is drawn in, its wielder's (`police` issue for the
 invaders, `scrap` or `pipe` drawn per defender, `CharacterStyleConfig.styles`' `weapons`). `ItemRegistry.inventory_for(slots, rounds, magazine, grenades,
 style := &"police")` stamps it on every item it makes; `Character.inventory.set_loadout` passes it on from `LoadoutConfig.apply`'s `style.weapon`. It never
 changes what an item does (`GunConfig`, `GrenadeConfig`, holds, muzzle points and sounds are the same in every style). How each style looks is
@@ -156,7 +158,10 @@ and the stop itself the projectile's (`domain-projectile`).
 
 ## Weapon looks (`items/art/`)
 
-A gun or grenade is drawn in its weapon style (`Item.style`) by its config row's `looks` row for that style: `GunConfig.look(gun, style)` /
+An item is drawn by its `art` part (`ItemArt`, `item_art.gd`, built once with it: the base, which draws nothing, for the fists, unarmed, key and
+magazine; a gun's `GunArt`, `gun_art.gd`; a grenade's `GrenadeArt`, `grenade_art.gd`; the spoon's `SpoonArt`, `spoon_art.gd`). It holds the
+gun or grenade id it draws and what else it needs (a gun's `strike`, a grenade's hand), never the item.
+A gun or grenade is drawn in its weapon style (`ItemArt.style`) by its config row's `looks` row for that style: `GunConfig.look(gun, style)` /
 `GrenadeConfig.look(kind, style)` (`default_style` `police` for a style the row has none for). A look row is the `painter` and the colours it
 draws in (a gun: `body`, `stock`, `guard`, `grip`, `barrel`, `magazine`; a grenade: `shell`, `cap`, `lever`; and each style's marks), plus the
 `finish`. Every gun shares the three gun looks (`GunConfig._looks()`); each grenade kind has its own. One painter per style and kind of weapon,
@@ -173,14 +178,14 @@ held or lying, the silhouette (the style's `crude`, `wood_stock` and `wood_grip`
 length, the style's shell, marks and cap through `body`, the lever and the shadows), so a style painter keeps only its flags and marks; the guns' two silhouettes (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`; a `crude` one is the
 pipe guns' short box action with the pipe for a barrel), the grenades' `shell` / `cap` / `lever`, the marks' helpers. The look travels as a handle: a
 painter's options carry the look as an int (`opts.look`, Art's `PixelArt.handle`, the row's hash; read back with `PixelArt.look_of`) and never the row, since PixelArt hashes the options
-on every call; an item registers its row once (`Item._look_handle`, again only when the row drawn is another one). Options: a gun's `{ gun, look }`
+on every call; an item registers its row once (`ItemArt._look_handle`, again only when the row drawn is another one). Options: a gun's `{ gun, look }`
 held, `{ gun, look, flat, flip }` lying; a grenade's `{ kind, look, spoon }` (`spoon`: the lever held down, in the look's `lever` colour; thrown
-or at rest it is gone). The popped spoon (`GrenadeSpoon`, `spoon_painter.gd`) is the same in every style. Sizes, hold points, muzzle points and
-raised-barrel lengths are the item's, so every style sits where every other does. Every draw records its texture (`Item._note_drawn`) for
-`drawn_art()`: the textures the item's last draw painted (all its calls in the frame it was last drawn), compared by the weapon-style tests.
-**Prepainting.** `ItemRegistry.inventory_for` asks every item it makes to `prepaint()` (a no-op on `Item`): a gun paints its art held at
+or at rest it is gone). The popped spoon (`GrenadeSpoon`, drawn by its `SpoonArt` with `spoon_painter.gd`) is the same in every style. Sizes, hold points, muzzle points and
+raised-barrel lengths are the item's, so every style sits where every other does. Every draw records its texture (`ItemArt._note_drawn`) for
+`art.drawn_art()`: the textures the item's last draw painted (all its calls in the frame it was last drawn), compared by the weapon-style tests.
+**Prepainting.** `ItemRegistry.inventory_for` asks every item it makes for `art.prepaint()` (a no-op on the base `ItemArt`): a gun paints its art held at
 every raise step and lying either side up, a grenade with its lever held and gone, each at every lighting step (`ArtCanvasConfig.turn_steps`),
-once per gun or kind and style (`_prepainted`), with the very calls its draws make. It only fills PixelArt's cache, so what is drawn never
+once per gun or kind and style (`GunArt._prepainted`, `GrenadeArt._prepainted`), with the very calls its draws make. It only fills PixelArt's cache, so what is drawn never
 changes; a first paint (0.3 to 0.5 ms, more lying) lands before a fight, not in its busiest frames (a dead hand's gun skidding through the
 steps). It costs about 230 ms per weapon style, once per process, when the first inventory in that style is made (a match's spawns).
 Test: `tests/items/prepaint_covers_the_draws_test.gd` (no draw of any style paints a new texture; windowed, prepainted equals a fresh
@@ -188,7 +193,7 @@ paint).
 
 ## Gun art
 
-A gun's `draw_weapon` draws its look's painter through the Art domain:
+A gun's `art.draw_weapon` (`GunArt`) draws its look's painter through the Art domain:
 `PixelArt.render_turned(painter, size, look.body, PixelArt.snap_angle(angle), { gun, look, material: look.finish })`, drawn rotated to the exact angle of the character's
 `weapon.facing()` (which trails the aim a touch as it turns) with its butt its row's `grip_back` px behind the weapon hand. Painters draw in the
 canonical frame — muzzle toward +y, butt at y = 0 — and scale their parts from `c.w` / `c.h`, so the same painter renders the shortened raised
@@ -204,10 +209,10 @@ When its user dies the character calls `item.drop(user, velocity)`. The base `It
 that spot is inside a wall. The dropped item falls from about hand height on a pseudo-height,
 bounces, skids to a stop with a fading spin and glances off walls and solid furniture (circle
 `cast_motion` on layer 1); it picks which side lands up once (`flip`) and draws through
-`item.draw_dropped(canvas, at, angle, modulate, opts)` over
+`item.art.draw_dropped(canvas, at, angle, modulate, opts)` over
 a shadow that closes in as it lands, at `DrawLayers.LYING` (−2: over the blood, under the living and a vehicle's chassis), and stops processing once at rest. Tuning is
 its exports. Visual only: nothing picks it up and the Despawner never frees it. A gun's
-`draw_dropped` paints its look's painter lying (`flat`): the gun's
+`art.draw_dropped` paints its look's painter lying (`flat`): the gun's
 side profile lying on the floor — receiver with sights and muzzle, grip (and, on the long guns, magazine and stock) raked off one side
 (`flip` mirrors it) — at its row's `flat_size`.
 

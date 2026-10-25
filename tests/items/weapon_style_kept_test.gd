@@ -8,7 +8,7 @@ extends GameTest
 ##   (`DrawLayers.ABOVE`) and at rest (`DrawLayers.LYING`): every texture is one the pipe frag
 ##   paints lying at some step, none one the police or scrap frag paints.
 ## The reference drawings are the published `draw_dropped` of fresh items on the test's probes;
-## every drawing is read through `Item.drawn_art()` of the `DroppedItem`'s / `ThrownGrenade`'s
+## every drawing is read through `ItemArt.drawn_art()` of the `DroppedItem`'s / `ThrownGrenade`'s
 ## `item` (`tests/_items/weapon_style_probe.gd`).
 
 const StyleProbe := preload("res://tests/_items/weapon_style_probe.gd")
@@ -133,7 +133,7 @@ func _drop_guns(t: TestContext) -> Dictionary:
 		var c := t.actor(gun)
 		held[gun] = c.inventory.current_item()
 		t.expect_eq(
-			held[gun].style,
+			held[gun].art.style,
 			KEPT_GUN_STYLE,
 			"the %s's gunman holds it in scrap (the premise)" % gun,
 		)
@@ -171,9 +171,9 @@ func _check_dropped(t: TestContext, dropped: Dictionary, refs: Dictionary) -> vo
 	for gun: StringName in dropped:
 		var item: Item = dropped[gun].item
 		t.expect_eq(
-			item.style,
+			item.art.style,
 			KEPT_GUN_STYLE,
-			"the dropped %s keeps the style scrap (Item.style)" % gun,
+			"the dropped %s keeps the style scrap (ItemArt.style)" % gun,
 		)
 		_check_drawn(t, skidding[gun], refs[gun], KEPT_GUN_STYLE, "the dropped %s, skidding," % gun)
 		_check_drawn(
@@ -190,7 +190,7 @@ func _check_dropped(t: TestContext, dropped: Dictionary, refs: Dictionary) -> vo
 func _check_thrown(t: TestContext, refs: Dictionary) -> void:
 	var thrower := t.actor(&"thrower")
 	t.expect_eq(
-		thrower.inventory.current_item().style,
+		thrower.inventory.current_item().art.style,
 		KEPT_GRENADE_STYLE,
 		"the thrower holds its frag in pipe (the premise)",
 	)
@@ -220,9 +220,9 @@ func _check_thrown(t: TestContext, refs: Dictionary) -> void:
 	await t.frames(2)
 	var lying := StyleProbe.drawn(grenade.item)
 	t.expect_eq(
-		grenade.item.style,
+		grenade.item.art.style,
 		KEPT_GRENADE_STYLE,
-		"the thrown frag keeps the style pipe (Item.style)",
+		"the thrown frag keeps the style pipe (ItemArt.style)",
 	)
 	_check_drawn(t, aloft, refs[&"frag"], KEPT_GRENADE_STYLE, "the thrown frag, in flight,")
 	_check_drawn(t, lying, refs[&"frag"], KEPT_GRENADE_STYLE, "the thrown frag, at rest,")

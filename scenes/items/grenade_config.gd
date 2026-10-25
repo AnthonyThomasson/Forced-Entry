@@ -19,12 +19,12 @@ class_name GrenadeConfig
 ##   restitution    share of its speed a bounce keeps (the floor's and a wall's).
 ##   friction       px/s² the floor skids it to a stop with.
 ##   art_size       the art's footprint (px): width across, length from base to fuze.
-##   looks          how it is drawn, per weapon style (`Item.style`: `police` issue, taped `scrap`,
-##                  `pipe`; a style with no row draws `default_style`'s): `painter` (in the hand, in
-##                  flight and at rest, items/art/), the colours of its `shell`, its fuze or `cap`
-##                  and the `lever` held down in the hand, and of the marks the painter draws
-##                  (`light` / `light2`, `trim`, `rust`, `tape`, `wire`, `band`, `fuse`), `finish`
-##                  the shell's surface. Looks only.
+##   looks          how it is drawn, per weapon style (`ItemArt.style`: `police` issue, taped
+##                  `scrap`, `pipe`; a style with no row draws `default_style`'s): `painter` (in the
+##                  hand, in flight and at rest, items/art/), the colours of its `shell`, its fuze
+##                  or `cap` and the `lever` held down in the hand, and of the marks the painter
+##                  draws (`light` / `light2`, `trim`, `rust`, `tape`, `wire`, `band`, `fuse`),
+##                  `finish` the shell's surface. Looks only.
 ## Frag only:
 ##   blast_radius, kill_radius, blast_damage   full damage out to `kill_radius`, falling linearly to
 ##   0 at `blast_radius`. blast_impulse  shove at the blast point (`apply_impulse` units), falling
@@ -99,7 +99,7 @@ static var grenades: Dictionary = {
 		},
 	},
 }
-## The weapon style a grenade is drawn in when its `looks` has no row for its `Item.style`.
+## The weapon style a grenade is drawn in when its `looks` has no row for its `ItemArt.style`.
 static var default_style: StringName = &"police"
 ## A landing slower than this vertical speed (px/s) is not a bounce but the grenade rolling to a
 ## stop.

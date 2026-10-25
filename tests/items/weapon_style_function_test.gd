@@ -131,7 +131,7 @@ func _fire(t: TestContext, gun: StringName, style: StringName) -> Dictionary:
 	_place(t, &"target", TARGET_AT, SHOOTER_AT)
 	await t.seconds(SETTLE)
 	t.expect_eq(
-		shooter.inventory.current_item().style,
+		shooter.inventory.current_item().art.style,
 		style,
 		"the shooter holds the %s in %s (the premise)" % [gun, style],
 	)
@@ -319,7 +319,11 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 	_place(t, dummy_id, THROW_TO + DUMMY_OFFSET[kind], THROW_TO)
 	await t.seconds(SETTLE)
 	var item: Item = thrower.inventory.current_item()
-	t.expect_eq(item.style, style, "the thrower holds the %s in %s (the premise)" % [kind, style])
+	t.expect_eq(
+		item.art.style,
+		style,
+		"the thrower holds the %s in %s (the premise)" % [kind, style],
+	)
 	var out := { "stats": item.throw_stats() }
 	var mark := t.events.size()
 	t.puppet(&"thrower").shoot()

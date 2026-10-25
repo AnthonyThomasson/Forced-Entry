@@ -1,8 +1,8 @@
 extends GameTest
 ## R3 (ticket #61, weapon style follows the wielder): a gun or grenade is drawn in its weapon style
-## (`Item.style`: `police` issue, taped `scrap` or `pipe`), and an item never given one is drawn as
-## `police`. For each gun (pistol, SMG, rifle) and grenade (frag, stun), one item per style and one
-## never given a style, each drawn on its own probe in the same frame by the same holder:
+## (`ItemArt.style`: `police` issue, taped `scrap` or `pipe`), and an item never given one is drawn
+## as `police`. For each gun (pistol, SMG, rifle) and grenade (frag, stun), one item per style and
+## one never given a style, each drawn on its own probe in the same frame by the same holder:
 ## - two `police` items of a kind draw alike (the comparison's premise: the same look paints the
 ##   same textures);
 ## - held (`draw_weapon`, in a still holder's hand) and lying with either side up (`draw_dropped`,
@@ -10,7 +10,7 @@ extends GameTest
 ##   from every other style;
 ## - the item never given a style has the style `police` and draws as the `police` one, held and
 ##   lying.
-## Read through `Item.drawn_art()` (`tests/_items/weapon_style_probe.gd`).
+## Read through `ItemArt.drawn_art()` (`tests/_items/weapon_style_probe.gd`).
 
 const StyleProbe := preload("res://tests/_items/weapon_style_probe.gd")
 const HOLDER_AT := Vector2(400, 250)
@@ -84,9 +84,9 @@ func _lay_views(
 	var item := StyleProbe.make(slot, as_style)
 	if style == &"":
 		t.expect_eq(
-			item.style,
+			item.art.style,
 			StyleProbe.DEFAULT_STYLE,
-			"a %s never given a style has the style police (Item.style)" % kind,
+			"a %s never given a style has the style police (ItemArt.style)" % kind,
 		)
 	return {
 		&"held": StyleProbe.held_probe(t, item, HOLDER_AT, holder),
