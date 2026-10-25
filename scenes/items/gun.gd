@@ -3,12 +3,12 @@ class_name GunItem extends Item
 ## `GunConfig` (damage, fire rate, penetration, muzzle speed, spread, recoil, whether it is
 ## automatic and whether its barrel is too long to use against a wall). F still jabs with the weapon
 ## hand (melee); left-click fires a projectile and ejects a casing. It is drawn in its weapon style
-## (`Item.style`) by the row's look (`GunConfig.look`: the painter and colours). A subclass supplies
-## only its sizes and how it is held (`PistolItem`, `SmgItem`, `RifleItem`): the gun id, the art's
-## footprints, where the hand grips it and the stances. Items reach into the Projectile System in
-## two places: here, via ProjectileSpawner / CasingSpawner (a shot's `hit` is forwarded back to the
-## character's `report_shot` for the HUD), and ThrownGrenade, via `Explosion.frag` /
-## `Explosion.stun`.
+## (`Item.style`) by the row's look (`GunConfig.look`: the painter and colours). Its sizes and how
+## it is held are its row's too (`art_size`, `flat_size`, `grip_back` and the stances): a subclass
+## (`PistolItem`, `SmgItem`, `RifleItem`) only names its row (`super(GUN)`). Items reach into the
+## Projectile System in two places: here, via ProjectileSpawner / CasingSpawner (a shot's `hit` is
+## forwarded back to the character's `report_shot` for the HUD), and ThrownGrenade, via
+## `Explosion.frag` / `Explosion.stun`.
 
 ## How far the pulled-up barrel shortens at full raise (fraction of its length): pointed up, a
 ## top-down view sees it foreshortened. The art is re-rendered at `RAISE_STEPS` lengths between full
@@ -27,8 +27,8 @@ const STRIKE_SHORT := 5.0
 ## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
 static var _prepainted := {}
 
-## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Set by the
-## subclass.
+## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Named by
+## the subclass (`super(GUN)`).
 var gun: StringName = &""
 ## The magazine it is loaded with (null = unloaded); every shot spends one of its rounds.
 var magazine: Magazine
@@ -38,60 +38,44 @@ var magazine: Magazine
 var _cooldown := 0.0
 
 
-# --- What a subclass supplies: sizes and hold --------------------------------------------------
-
-
-## The held art's footprint (px): width across, length from butt to muzzle.
-func art_size() -> Vector2:
-	return Vector2(5.0, 13.0)
-
-
-## The flat art's footprint (px): its profile across, its length along.
-func flat_size() -> Vector2:
-	return Vector2(9.0, 14.0)
-
-
-## How far the butt end sits behind the weapon hand's center (px).
-func grip_back() -> float:
-	return 2.0
-
-
-## The weapon hand's stance, held normally.
-func grip_stance() -> StringName:
-	return &"aim"
-
-
-## The other hand's stance, held normally.
-func fore_stance() -> StringName:
-	return &"support"
-
-
-## The weapon hand's stance while the weapon is raised off a wall or object.
-func raised_grip_stance() -> StringName:
-	return grip_stance()
-
-
-## The other hand's stance while the weapon is raised off a wall or object.
-func raised_fore_stance() -> StringName:
-	return fore_stance()
+func _init(id: StringName) -> void:
+	gun = id
+	display_name = str(_stat("name", display_name))
+	reach = 32.0
 
 
 # --- Stats (read live from GunConfig, so tuning it takes effect at once) ---------------------
 
 
 ## A value from this gun's `GunConfig` row (`fallback` when the row has none).
-func stat(key: String, fallback: Variant = null) -> Variant:
+func _stat(key: String, fallback: Variant = null) -> Variant:
 	return GunConfig.row(gun).get(key, fallback)
 
 
 ## Damage added on top of the projectile's own base damage at fire time.
-func damage() -> float:
-	return float(stat("damage", 0.0))
+func _damage() -> float:
+	return float(_stat("damage", 0.0))
 
 
 ## Seconds between rounds.
-func fire_interval() -> float:
-	return float(stat("fire_interval", 0.0))
+func _fire_interval() -> float:
+	return float(_stat("fire_interval", 0.0))
+
+
+## The held art's footprint (px): width across, length from butt to muzzle (the row's
+## `art_size`).
+func _art_size() -> Vector2:
+	return _stat("art_size", Vector2.ZERO)
+
+
+## The flat art's footprint (px): its profile across, its length along (the row's `flat_size`).
+func _flat_size() -> Vector2:
+	return _stat("flat_size", Vector2.ZERO)
+
+
+## How far the butt end sits behind the weapon hand's center (px; the row's `grip_back`).
+func _grip_back() -> float:
+	return float(_stat("grip_back", 0.0))
 
 
 ## How it is drawn: its row's look in its weapon style (`GunConfig.look`: `painter`, colours,
@@ -110,38 +94,38 @@ func gun_id() -> StringName:
 
 ## The penetration power of its rounds (the row's `penetration`).
 func round_power() -> float:
-	return float(stat("penetration", 1.0))
+	return float(_stat("penetration", 1.0))
 
 
 ## The weapon hand aims the gun and holds its grip; the other hand holds it forward, or while
 ## reloading drops to the belt for the next magazine.
 func hand_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
-		return grip_stance()
-	return &"reload" if reloading else fore_stance()
+		return _stat("grip_stance", &"aim")
+	return &"reload" if reloading else _stat("fore_stance", &"support")
 
 
 ## How `hand` is held while the weapon is raised: the weapon hand's raised stance; the other hand's,
 ## or the belt while reloading.
 func raised_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
-		return raised_grip_stance()
-	return &"reload" if reloading else raised_fore_stance()
+		return _stat("raised_grip_stance", &"aim")
+	return &"reload" if reloading else _stat("raised_fore_stance", &"support")
 
 
 ## Whether holding the trigger keeps firing (the row's `automatic`).
 func is_automatic() -> bool:
-	return bool(stat("automatic", false))
+	return bool(_stat("automatic", false))
 
 
 ## Whether the barrel is too long to use against a wall (the row's `raises_at_contact`).
 func raises_at_contact() -> bool:
-	return bool(stat("raises_at_contact", false))
+	return bool(_stat("raises_at_contact", false))
 
 
 ## Past the hand: the art's length less the butt behind it.
 func muzzle_ahead() -> float:
-	return art_size().y - grip_back()
+	return _art_size().y - _grip_back()
 
 
 ## Count the time between rounds down. The credit for an overshoot is capped at one frame, so a gun
@@ -162,7 +146,7 @@ func ammo_capacity() -> int:
 
 ## How long a reload takes: the loaded magazine's type decides (`MagazineConfig.reload_time_of`).
 func reload_time() -> float:
-	var type: StringName = magazine.type if magazine else StringName(stat("magazine", &"standard"))
+	var type: StringName = magazine.type if magazine else StringName(_stat("magazine", &"standard"))
 	return MagazineConfig.reload_time_of(type)
 
 
@@ -186,7 +170,7 @@ func finish_reload(user: Node2D) -> void:
 
 ## A long gun (the kind too long for a wall) strikes with its butt: its length behind the grip.
 func strike_ahead() -> float:
-	return grip_back() if raises_at_contact() else 0.0
+	return _grip_back() if raises_at_contact() else 0.0
 
 
 ## How far (px) the other hand grips ahead of the weapon hand along the barrel: it holds the gun
@@ -224,7 +208,7 @@ func secondary(user: Node2D) -> bool:
 	if reloading or rounds_loaded() <= 0 or _cooldown > 0.0:
 		return false
 	magazine.rounds -= 1
-	_cooldown += fire_interval()
+	_cooldown += _fire_interval()
 	var hand := weapon_hand()
 	var muzzle: Vector2 = user.weapon.muzzle_origin(hand)
 	# Zeroed: the round crosses the aim line `zero_range` ahead of the body, so a gun held off the
@@ -233,23 +217,23 @@ func secondary(user: Node2D) -> bool:
 			- muzzle).normalized()
 	# A stunned character's aim wanders off the line.
 	direction = direction.rotated(user.weapon.aim_sway())
-	var spread_deg := float(stat("spread_deg", 0.0))
+	var spread_deg := float(_stat("spread_deg", 0.0))
 	# Held in one hand (the other over its eyes): the gun wanders off the line.
 	if user.weapon.one_handed():
-		spread_deg += float(stat("one_hand_spread_deg", 0.0))
+		spread_deg += float(_stat("one_hand_spread_deg", 0.0))
 	var spread := deg_to_rad(spread_deg)
 	if spread > 0.0:
 		direction = direction.rotated(randf_range(-spread, spread))
 	var power := round_power()
 	var shot := Shot.new()
 	shot.shooter = user
-	shot.item_damage = damage()
-	shot.muzzle_speed = float(stat("muzzle_speed", -1.0))
+	shot.item_damage = _damage()
+	shot.muzzle_speed = float(_stat("muzzle_speed", -1.0))
 	shot.penetration = power
 	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
 	CasingSpawner.spawn(user.anatomy.hands.world(hand), user.facing, user.world_root())
-	user.weapon.kick(hand, float(stat("recoil", 1.0)))
+	user.weapon.kick(hand, float(_stat("recoil", 1.0)))
 	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on
 	# its way.
 	EventBus.post(&"shot", { "position": muzzle, "gun": gun, "attacker": user, "power": power })
@@ -266,9 +250,10 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	facing = strike_direction(facing, user.anatomy.hands.punch_amount(weapon_hand()))
 	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
 	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
-	var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
+	var art_size := _art_size()
+	var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
 	var centre: Vector2 = (user.anatomy.hands.hand_position(weapon_hand())
-			+ facing * (size.y * 0.5 - grip_back() * shrink))
+			+ facing * (size.y * 0.5 - _grip_back() * shrink))
 	_draw_art(canvas, centre, facing, size)
 
 
@@ -276,7 +261,7 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var facing: Vector2 = user.weapon.facing()
 	var hand: Vector2 = user.anatomy.hands.world(weapon_hand())
-	var at := hand + facing * (art_size().y * 0.5 - grip_back())
+	var at := hand + facing * (_art_size().y * 0.5 - _grip_back())
 	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)
 	dropped.place(user.world_root(), at, hand)
 	return dropped
@@ -287,7 +272,7 @@ func drop(user: Node2D, velocity: Vector2) -> Node2D:
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
 		opts: Dictionary = {}) -> void:
 	var turn := angle - PI * 0.5
-	var size := flat_size()
+	var size := _flat_size()
 	var flip: bool = opts.get("flip", false)
 	var drawn := look()
 	var tex := PixelArt.render_turned(
@@ -315,12 +300,13 @@ func prepaint() -> void:
 	_prepainted[key] = true
 	var drawn := look()
 	var handle := _look_handle(drawn)
+	var art_size := _art_size()
 	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
 	for k in ArtCanvasConfig.turn_steps:
 		var angle := PixelArt.snap_angle(k * step)
 		for raise in RAISE_STEPS + 1:
 			var shrink := lerpf(1.0, RAISED_LENGTH, float(raise) / RAISE_STEPS)
-			var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
+			var size := Vector2(art_size.x, maxf(roundf(art_size.y * shrink), 4.0))
 			PixelArt.render_turned(
 				drawn["painter"],
 				size,
@@ -330,7 +316,7 @@ func prepaint() -> void:
 			)
 		for flip in [false, true]:
 			PixelArt.render_turned(
-				drawn["painter"], flat_size(), drawn["body"], angle,
+				drawn["painter"], _flat_size(), drawn["body"], angle,
 				{
 					"gun": gun, "look": handle, "flat": true, "flip": flip,
 					"material": drawn["finish"],

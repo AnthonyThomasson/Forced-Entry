@@ -149,7 +149,8 @@ class Across:
 	func take(item: GunItem, you: Node, amount: float) -> void:
 		var barrel := item.strike_direction(you.facing, amount)
 		var butt: Vector2 = item.strike_end(you.facing, amount)
-		var muzzle: Vector2 = barrel * (item.art_size().y - item.grip_back())
+		var row := GunConfig.row(item.gun)
+		var muzzle: Vector2 = barrel * (row["art_size"].y - row["grip_back"])
 		tilt = minf(tilt, absf(barrel.dot(you.facing)))
 		butt_ahead = maxf(butt_ahead, butt.dot(you.facing))
 		muzzle_ahead = minf(muzzle_ahead, muzzle.dot(you.facing))

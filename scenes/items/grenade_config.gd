@@ -18,6 +18,7 @@ class_name GrenadeConfig
 ##                  height at that point is flown over, anything taller is struck.
 ##   restitution    share of its speed a bounce keeps (the floor's and a wall's).
 ##   friction       px/s² the floor skids it to a stop with.
+##   art_size       the art's footprint (px): width across, length from base to fuze.
 ##   looks          how it is drawn, per weapon style (`Item.style`: `police` issue, taped `scrap`,
 ##                  `pipe`; a style with no row draws `default_style`'s): `painter` (in the hand, in
 ##                  flight and at rest, items/art/), the colours of its `shell`, its fuze or `cap`
@@ -51,7 +52,7 @@ static var grenades: Dictionary = {
 		"throw_speed": 720.0, "release_height": 50.0, "arc_height": 82.0, "restitution": 0.35,
 		"friction": 700.0, "flash_radius": 400.0, "flash_full": 100.0, "max_blind": 5.0,
 		"flash_cover_reach": 30.0, "bang_radius": 350.0, "max_deaf": 6.0, "wall_factor": 0.4,
-		"point_blank": 30.0, "point_blank_damage": 5.0,
+		"point_blank": 30.0, "point_blank_damage": 5.0, "art_size": Vector2(6.0, 11.0),
 		"looks": {
 			&"police": {
 				"painter": PoliceGrenadePainter, "finish": "metal",
@@ -77,7 +78,7 @@ static var grenades: Dictionary = {
 		"friction": 700.0, "blast_radius": 250.0, "kill_radius": 120.0, "blast_damage": 60.0,
 		"blast_impulse": 12_000.0, "blast_max_speed": 700.0, "fragments": 40,
 		"fragment_damage": 12.0, "fragment_speed": 3600.0, "fragment_range": 500.0,
-		"fragment_penetration": 0.4,
+		"fragment_penetration": 0.4, "art_size": Vector2(8.0, 10.0),
 		"looks": {
 			&"police": {
 				"painter": PoliceGrenadePainter, "finish": "metal",

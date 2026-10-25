@@ -280,9 +280,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `world_root()` (also read by the AI: the characters it perceives are the group `characters` under it), `report_shot(body, dmg)`, `weapon.kick(hand, strength := 1.0)` (recoil: throws that hand back; `strength` scales it),
    `weapon.facing()` (the drawn weapon direction, trailing the aim; shots still use `facing`), `weapon.aim_target()` (the aim point a grenade is thrown to) / `weapon.aim_sway()` (rad, the stun's wandering turn of every shot and throw; 0 unstunned), `weapon.one_handed()`
    (a held gun is in the weapon hand alone, the free hand over the eyes while blind: a gun's round then adds its row's `one_hand_spread_deg`) and `weapon.raise()` (0..1, how far
-   a long gun is raised off a wall, for its art). **Guns:** every firearm is a `GunItem` (`items/gun.gd`) tuned by its row in
+   a long gun is raised off a wall, for its art). **Guns:** every firearm is a `GunItem` (`items/gun.gd`), built by its gun id and tuned by its row in
    `GunConfig` (damage, `fire_interval`, `automatic`, `penetration`, `muzzle_speed`, `spread_deg`, `one_hand_spread_deg`, `recoil`, its default magazine,
-   `raises_at_contact`); `PistolItem` / `SmgItem` / `RifleItem` supply only their sizes and hold (the look is the row's `looks`, above). **Ammo:** `Item` has inert hooks
+   `raises_at_contact`; its sizes, `art_size`, `flat_size`, `grip_back`, and its hold, `grip_stance`, `fore_stance`, `raised_grip_stance`,
+   `raised_fore_stance`); `PistolItem` / `SmgItem` / `RifleItem` only name their row (`super(GUN)`; the look is the row's `looks`, above). **Ammo:** `Item` has inert hooks
    `rounds_loaded()` / `ammo_capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`, `finish_reload(user)` and a
    `reloading` flag the character sets. **Gun identity:** `gun_id()` (the `GunConfig` id, `&""` for a non-gun) and `round_power()`
    (the penetration power of its rounds, 1 for a non-gun), which the character reads for its `reload` event. A `Magazine` (an `Item` subclass, types in `MagazineConfig`, each tied to one `gun` id,
@@ -1035,8 +1036,9 @@ z rungs), `ObjectArtFloorConfig`, `ObjectArtWallConfig`, `ObjectArtDecayConfig`,
 **World-Gen:** `WorldGenFillConfig`, `WorldGenDressConfig` (the run-down dressing's placement) and
 `WorldGenStreetConfig` (the street ring and its street lamps).
 **Items:** `MagazineConfig` (magazine types, capacities and reload times), `GunConfig` (one row per gun — damage, fire rate,
-penetration, muzzle speed, spread, recoil, magazine, whether it raises at a wall, its looks per weapon style), `GrenadeConfig` (one
-row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its looks per weapon style), `OutfitConfig`
+penetration, muzzle speed, spread, recoil, magazine, whether it raises at a wall, its sizes and hold, its looks per weapon style),
+`GrenadeConfig` (one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its art size, its looks per
+weapon style), `OutfitConfig`
 (the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a
 plate's durability) and `LoadoutConfig` (the setup choices' bounds — spare magazines, grenades — and the default outfit).
 **Audio:** `SoundConfig` (the master switch, levels, jitter, voices, ranges), `SoundLibraryConfig` (rate, peak, variants,

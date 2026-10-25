@@ -96,7 +96,8 @@ func _check_fresh_paints(t: TestContext, items: Array) -> void:
 ## image back.
 func _same_as_fresh(item: Item) -> int:
 	var drawn: Dictionary = item.look()
-	var size: Vector2 = item.flat_size() if item is GunItem else item.art_size()
+	var size: Vector2 = (GunConfig.row(item.gun)["flat_size"] if item is GunItem
+			else GrenadeConfig.row(item.kind)["art_size"])
 	var colour: Color = drawn["body"] if item is GunItem else drawn["shell"]
 	var opts := ({
 		"gun": item.gun,

@@ -7,13 +7,13 @@ class_name GrenadeItem extends Item
 ## starts on release; there is no cooking. A character that dies, or puts the grenade away, during
 ## the wind-up throws nothing. When the last one is thrown the character empties the slot
 ## (`Character`). It is drawn in its weapon style (`Item.style`) by the row's look
-## (`GrenadeConfig.look`: the painter and colours), and a thrown one keeps it. A subclass supplies
-## only the kind id and the art's size (`StunGrenadeItem`, `FragGrenadeItem`).
+## (`GrenadeConfig.look`: the painter and colours) at the row's `art_size`, and a thrown one keeps
+## it. A subclass (`StunGrenadeItem`, `FragGrenadeItem`) only names its row (`super(KIND)`).
 
 ## The kinds and styles whose art `prepaint` has painted: [kind, style] -> true.
 static var _prepainted := {}
 
-## The kind's id: its `GrenadeConfig` row. Set by the subclass.
+## The kind's id: its `GrenadeConfig` row. Named by the subclass (`super(KIND)`).
 var kind: StringName = &""
 ## Grenades left in this slot.
 var count := 1
@@ -23,20 +23,23 @@ var _windup_left := -1.0
 var _user: Node
 
 
-# --- What a subclass supplies: size ---------------------------------------------------------
-
-
-## The art's footprint (px): width across, length along.
-func art_size() -> Vector2:
-	return Vector2(6.0, 9.0)
+func _init(id: StringName) -> void:
+	kind = id
+	display_name = str(_stat("name", display_name))
+	reach = 28.0
 
 
 # --- Stats (read live from GrenadeConfig, so tuning it takes effect at once) --------------------
 
 
 ## A value from this kind's `GrenadeConfig` row (`fallback` when the row has none).
-func stat(key: String, fallback: Variant = null) -> Variant:
+func _stat(key: String, fallback: Variant = null) -> Variant:
 	return GrenadeConfig.row(kind).get(key, fallback)
+
+
+## The art's footprint (px): width across, length along (the row's `art_size`).
+func _art_size() -> Vector2:
+	return _stat("art_size", Vector2.ZERO)
 
 
 ## How it is drawn: its row's look in its weapon style (`GrenadeConfig.look`: `painter`, colours,
@@ -84,7 +87,7 @@ func secondary(user: Node2D) -> bool:
 	if count <= 0 or is_winding_up():
 		return false
 	_user = user
-	_windup_left = float(stat("windup", 0.3))
+	_windup_left = float(_stat("windup", 0.3))
 	return true
 
 
@@ -126,7 +129,7 @@ func _release() -> void:
 ## nearest lighting step, drawn rotated to the exact angle of the character's `weapon.facing()`.
 func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var facing: Vector2 = user.weapon.facing()
-	var size := art_size()
+	var size := _art_size()
 	var angle := facing.angle() - PI * 0.5
 	var tex := _texture(PixelArt.snap_angle(angle), true)
 	var hand: Vector2 = user.anatomy.hands.hand_position(weapon_hand())
@@ -140,7 +143,7 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 func draw_dropped(canvas: CanvasItem, at: Vector2, angle: float, modulate: Color = Color.WHITE,
 		_opts: Dictionary = {}) -> void:
 	var turn := angle - PI * 0.5
-	var size := art_size()
+	var size := _art_size()
 	var tex := _texture(PixelArt.snap_angle(turn), false)
 	canvas.draw_set_transform(at, turn, Vector2.ONE)
 	canvas.draw_texture_rect(tex, Rect2(-size * 0.5, size), false, modulate)
@@ -160,7 +163,7 @@ func prepaint() -> void:
 	for k in ArtCanvasConfig.turn_steps:
 		for spoon in [true, false]:
 			PixelArt.render_turned(
-				drawn["painter"], art_size(), drawn["shell"], PixelArt.snap_angle(k * step),
+				drawn["painter"], _art_size(), drawn["shell"], PixelArt.snap_angle(k * step),
 				{
 					"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
 					"material": drawn["finish"],
@@ -173,7 +176,7 @@ func prepaint() -> void:
 func _texture(angle: float, spoon: bool) -> Texture2D:
 	var drawn := look()
 	var tex := PixelArt.render_turned(
-		drawn["painter"], art_size(), drawn["shell"], angle,
+		drawn["painter"], _art_size(), drawn["shell"], angle,
 		{
 			"kind": kind, "look": _look_handle(drawn), "spoon": spoon,
 			"material": drawn["finish"],

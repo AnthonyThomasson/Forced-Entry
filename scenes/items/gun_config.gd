@@ -2,8 +2,8 @@ class_name GunConfig
 
 ## Tuning for the guns (Items domain). Static vars, like the other config holders, so a test or tool
 ## can change them (tests restore them with `set_static`). One row per gun, by gun id (`GunItem.gun`
-## / `Magazine.gun`); add a row, a `GunItem` subclass and a case in `ItemRegistry._new_gun` to add a
-## gun.
+## / `Magazine.gun`); add a row, a `GunItem` subclass naming it and a case in
+## `ItemRegistry._new_gun` to add a gun.
 ##
 ## Row keys:
 ##   name              display name (HUD, and how the AI words it: "Your pistol is loaded").
@@ -23,6 +23,14 @@ class_name GunConfig
 ##   spare_magazines   how many of that type a character who carries it also carries spare.
 ##   raises_at_contact the barrel is too long to fire at a wall: it points up and cannot shoot while
 ##                     it touches a wall or object (the pistol is short enough to fire point-blank).
+##   art_size          the held art's footprint (px): width across, length from butt to muzzle.
+##   flat_size         the art's footprint lying flat on its side (px): its profile across, its
+##                     length along.
+##   grip_back         how far (px) the butt end sits behind the weapon hand's centre.
+##   grip_stance, fore_stance   how the weapon hand and the other hand are held (a
+##                     `CharacterStanceConfig.stances` name).
+##   raised_grip_stance, raised_fore_stance   the same while the weapon is raised off a wall or
+##                     object.
 ##   looks             how it is drawn, per weapon style (`Item.style`: `police` issue, taped
 ##                     `scrap`, `pipe` guns; a style with no row draws `default_style`'s): `painter`
 ##                     (held and lying, items/art/) and the colours of its parts, `body` (slide or
@@ -45,19 +53,28 @@ static var guns: Dictionary = {
 		"name": "Pistol", "slot": 3, "damage": 15.0, "fire_interval": 0.10, "automatic": false,
 		"penetration": 1.0, "muzzle_speed": 3200.0, "spread_deg": 0.0, "recoil": 1.0,
 		"one_hand_spread_deg": 3.0, "magazine": &"standard", "spare_magazines": 2,
-		"raises_at_contact": false, "looks": _looks(),
+		"raises_at_contact": false, "art_size": Vector2(5.0, 13.0),
+		"flat_size": Vector2(9.0, 14.0), "grip_back": 2.0, "grip_stance": &"aim",
+		"fore_stance": &"support", "raised_grip_stance": &"aim", "raised_fore_stance": &"support",
+		"looks": _looks(),
 	},
 	&"smg": {
 		"name": "SMG", "slot": 5, "damage": 5.0, "fire_interval": 0.07, "automatic": true,
 		"penetration": 0.8, "muzzle_speed": 2900.0, "spread_deg": 2.5, "recoil": 0.55,
 		"one_hand_spread_deg": 6.0, "magazine": &"smg_standard", "spare_magazines": 2,
-		"raises_at_contact": true, "looks": _looks(),
+		"raises_at_contact": true, "art_size": Vector2(6.0, 28.0),
+		"flat_size": Vector2(11.0, 22.0), "grip_back": 10.0, "grip_stance": &"smg_grip",
+		"fore_stance": &"smg_fore", "raised_grip_stance": &"ready_grip",
+		"raised_fore_stance": &"ready_fore", "looks": _looks(),
 	},
 	&"rifle": {
 		"name": "Assault rifle", "slot": 6, "damage": 22.0, "fire_interval": 0.11,
 		"automatic": true, "penetration": 2.2, "muzzle_speed": 4400.0, "spread_deg": 0.8,
 		"recoil": 1.2, "one_hand_spread_deg": 8.0, "magazine": &"rifle_standard",
-		"spare_magazines": 2, "raises_at_contact": true, "looks": _looks(),
+		"spare_magazines": 2, "raises_at_contact": true, "art_size": Vector2(7.0, 36.0),
+		"flat_size": Vector2(12.0, 38.0), "grip_back": 13.0, "grip_stance": &"rifle_grip",
+		"fore_stance": &"rifle_fore", "raised_grip_stance": &"ready_grip",
+		"raised_fore_stance": &"ready_fore", "looks": _looks(),
 	},
 }
 

@@ -86,9 +86,10 @@ func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Di
 	)
 	var f: Vector2 = c.facing
 	var grip: Vector2 = c.anatomy.hands.hand_position(item.weapon_hand())
-	lengths[gun] = item.art_size().y
+	lengths[gun] = GunConfig.row(gun)["art_size"].y
 	var shoulder: Vector3 = c.anatomy.rig().point(Rig.SHOULDER[item.weapon_hand()])
-	butts[gun] = (grip - f * item.grip_back()).distance_to(Vector2(shoulder.x, shoulder.y))
+	var grip_back: float = GunConfig.row(gun)["grip_back"]
+	butts[gun] = (grip - f * grip_back).distance_to(Vector2(shoulder.x, shoulder.y))
 	_check_grip_side(t, gun, c, item)
 
 
@@ -97,7 +98,7 @@ func _check_other_hand(t: TestContext, gun: StringName, c: Node, item: GunItem) 
 	var f: Vector2 = c.facing
 	var grip: Vector2 = c.anatomy.hands.hand_position(item.weapon_hand())
 	var fore: Vector2 = c.anatomy.hands.hand_position(1 - item.weapon_hand())
-	var butt := grip.dot(f) - item.grip_back()
+	var butt: float = grip.dot(f) - GunConfig.row(gun)["grip_back"]
 	var tip := grip.dot(f) + item.muzzle_ahead()
 	t.check(
 		absf((fore - grip).dot(f.orthogonal())) <= LINE_TOLERANCE,
