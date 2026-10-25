@@ -140,9 +140,9 @@ to 0.86). Keep a new door sound's high clicks short and its weight under ~150 Hz
 ## Deafness: `Sound.focus`, `muffled()` and the tinnitus (G14)
 
 `Sound.focus` is a character node (Main sets the human when there is one and clears it at teardown; null = nobody's ears, so an
-AI's stun is silent). Audio reads only its `stun_view()` (`deaf`), duck-typed, so it stays a leaf.
+AI's stun is silent). Audio reads only its `stun.view()` (`deaf`), duck-typed, so it stays a leaf.
 
-- **`muffled()`** is true while the focus's `stun_view().deaf` is above 0 (false for a null, freed or non-stunnable focus), so it
+- **`muffled()`** is true while the focus's `stun.view().deaf` is above 0 (false for a null, freed or non-stunnable focus), so it
   lifts exactly when the character's deafness ends, a longer second stun included.
 - **The muffle:** every game voice plays on the `GameSound` bus (made in `Sound._ready`, sent to Master, an
   `AudioEffectLowPassFilter` on it); while muffled the filter closes toward `muffle_cutoff_hz` at `muffle_attack` a second (so the bang
@@ -150,7 +150,7 @@ AI's stun is silent). Audio reads only its `stun_view()` (`deaf`), duck-typed, s
   driver accepts the bus and its effect and nothing is heard, so a test asserts `muffled()`.
 - **The tinnitus:** a `&"stun"` event for the focus with `deaf` > 0 starts one `tinnitus/whine` voice on the Master bus (so the muffle
   does not dull it), once per stun (the category's one voice is replaced by a second stun). The voice loops and **follows the
-  deafness**: each frame its `until` and volume come from `stun_view().deaf`, fading over `tinnitus_tail` (1.5 s) and cut when the
+  deafness**: each frame its `until` and volume come from `stun.view().deaf`, fading over `tinnitus_tail` (1.5 s) and cut when the
   deafness ends; a stun shorter than `tinnitus_full_s` starts it quieter. Its range is `1e6` (it is in the listener's own head).
 
 ## Vehicle loops (`engine`, `skid`)

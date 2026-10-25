@@ -6,7 +6,7 @@ extends CanvasLayer
 ## watches the one character it is given, so someone else's flash changes nothing.
 ##
 ## A decoupled observer like the other HUDs: `watch(character)` then it reads the character's
-## `stun_view()` (`{ blind, blind_total, deaf, level }`) and listens to the `&"stun"` events for the
+## `stun.view()` (`{ blind, blind_total, deaf, level }`) and listens to the `&"stun"` events for the
 ## moment a flash lands (to take the afterimage). `drawn()` is what is shown:
 ## `{ white, afterimage, remaining }` (what the test reads). Main builds it for the human.
 
@@ -51,7 +51,7 @@ func _process(_delta: float) -> void:
 	_refresh()
 
 
-## Show the stun of `character` (anything with `stun_view()`).
+## Show the stun of `character` (anything with a `stun`, its `view()`).
 func watch(character: Node) -> void:
 	_character = character
 	_refresh()
@@ -69,8 +69,8 @@ func drawn() -> Dictionary:
 func _refresh() -> void:
 	var was := _white
 	var view: Dictionary = {}
-	if _character != null and is_instance_valid(_character) and _character.has_method("stun_view"):
-		view = _character.call("stun_view")
+	if _character != null and is_instance_valid(_character) and "stun" in _character:
+		view = _character.stun.view()
 	_remaining = float(view.get("blind", 0.0))
 	var total := float(view.get("blind_total", 0.0))
 	_white = clampf(_remaining / total, 0.0, 1.0) if _remaining > 0.0 and total > 0.0 else 0.0

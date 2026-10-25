@@ -528,7 +528,7 @@ func _build_markers() -> void:
 
 ## The human's stun: the white-out of a flash (a `CanvasLayer` under `World`, watching the human)
 ## and, through `Sound.focus`, the muffle and tinnitus of a bang. Both read the human's
-## `stun_view()`; neither knows of the other.
+## `stun.view()`; neither knows of the other.
 func _build_stun_screen() -> void:
 	Sound.focus = _human
 	var screen: CanvasLayer = STUN_SCREEN.new()

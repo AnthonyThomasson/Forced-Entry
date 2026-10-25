@@ -149,7 +149,7 @@ func fire_at_will(target: Dictionary) -> void:
 ## Whether the NPC holds its fire: blind, and this blinding's roll said it does not fire blind
 ## (G15). It shoots again once it can see.
 func holds_fire() -> bool:
-	return not blind_fire and _character.is_blind()
+	return not blind_fire and _character.stun.is_blind()
 
 
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.

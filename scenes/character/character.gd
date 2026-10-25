@@ -135,14 +135,8 @@ var _reload_left := 0.0
 var _blocked := false
 ## How far the held weapon is raised off the aim, 0..1, easing toward `_blocked`.
 var _raise := 0.0
-## The stun (a grenade's flash and bang; `take_stun`): seconds left blind and deaf, the blind
-## seconds at the burst, and the clock and phases the aim sways and the walk drifts by while it
-## lasts. See `stun_level()`.
-var _blind_left := 0.0
-var _blind_total := 0.0
-var _deaf_left := 0.0
-var _stun_clock := 0.0
-var _stun_phase := Vector2.ZERO
+## The stun (a grenade's flash and bang; `take_stun`; `character_stun.gd`).
+var stun := CharacterStun.new(self)
 ## A ride in a vehicle (the Vehicles domain moves the character through `set_ride_pose` /
 ## `end_ride`): posed by it rather than walking, its collision shape off, its held item put away;
 ## the step its legs take through the vehicle.
@@ -275,7 +269,7 @@ func _physics_step(delta: float) -> void:
 	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
 	if not _riding:  # In a vehicle the ride poses the fold.
 		_ease_posture(delta)
-	_update_stun(delta)
+	stun.update(delta)
 	# Items keep their own clocks (a gun's time between rounds, a grenade's wind-up); tick them
 	# before the controller pulls the trigger, so a round that is due this frame can leave this
 	# frame.
@@ -299,7 +293,7 @@ func _physics_step(delta: float) -> void:
 	# interaction sets) and runs no movement, aim, knockback or push. Skipping move_and_slide /
 	# _apply_pushes is what keeps a seated body from being ejected or shoving its neighbours.
 	if _interaction.is_busy():
-		_frozen_frame(delta, Vector2.ZERO, stun_level())
+		_frozen_frame(delta, Vector2.ZERO, stun.level())
 		return
 	_walk_frame(delta)
 
@@ -324,9 +318,9 @@ func _walk_frame(delta: float) -> void:
 	_hands.facing = facing
 	_update_weapon_raise(delta)
 
-	_update_stamina(run_input and _posture == &"stand" and stun_level() <= 0.0
+	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
 			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
-	velocity = move_input * _move_speed() * _push_slow + _knockback + _stun_drift()
+	velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
 	move_and_slide()
 	_knockback = _knockback.move_toward(
 		Vector2.ZERO,
@@ -335,7 +329,7 @@ func _walk_frame(delta: float) -> void:
 	_push_slow = _ease_push_slow(_apply_pushes(), delta)
 	_kick.update(self, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(delta, _pose_drive(get_real_velocity(), stun_level()))
+	pose.update(delta, _pose_drive(get_real_velocity(), stun.level()))
 	_legs.update(self, delta)
 	_footsteps.update(self, _footprints)
 
@@ -496,8 +490,8 @@ func _ride_frame(delta: float) -> void:
 
 ## A frame held still (an interaction, a ride): no movement or input, stamina refilling, any pending
 ## shove dropped so moving again doesn't lurch, legs and kick cleared, and the pose updated with
-## `step` as its motion and `stun` as its stun level.
-func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
+## `step` as its motion and `stun_at` as its stun level.
+func _frozen_frame(delta: float, step: Vector2, stun_at: float) -> void:
 	move_input = Vector2.ZERO
 	velocity = Vector2.ZERO
 	_update_stamina(false, delta)
@@ -505,7 +499,7 @@ func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
-	pose.update(delta, _pose_drive(step, stun))
+	pose.update(delta, _pose_drive(step, stun_at))
 
 
 ## What drives the pose this frame (`_drive`, refilled): the aim, the walk at `moving` (px/s), each
@@ -858,7 +852,7 @@ func _move_speed() -> float:
 func _speed_in(which: StringName, running: bool) -> float:
 	return (speed * float(CharacterPostureConfig.postures[which]["speed"])
 			* (CharacterPaceConfig.run_speed_mult if running else 1.0)
-			* lerpf(1.0, CharacterStunConfig.speed, stun_level()) * _weight_speed())
+			* lerpf(1.0, CharacterStunConfig.speed, stun.level()) * _weight_speed())
 
 
 ## The kg worn above what the body carries at its tuned speed
@@ -1086,10 +1080,10 @@ func aim_target() -> Vector2:
 ## `CharacterStunConfig.sway` at the full stun, wandering. A gun turns each shot by it; `facing`
 ## itself, and so the drawn body and weapon, stays on the aim.
 func aim_sway() -> float:
-	var level := stun_level()
+	var level := stun.level()
 	return (0.0
 			if level <= 0.0
-			else deg_to_rad(CharacterStunConfig.sway) * level * _stun_wander(0.0))
+			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(0.0))
 
 
 ## How each hand is held (CharacterStanceConfig.stances names), as the held item asks: arms hang
@@ -1120,7 +1114,7 @@ func _stances() -> Array:
 ## blind, on its own feet (a ride's pose wins), and not while the item needs that hand: a reload, a
 ## punch, a throw's wind-up.
 func _covers_eyes(item: Item) -> bool:
-	if not is_blind() or _riding or _running or is_dead:
+	if not stun.is_blind() or _riding or _running or is_dead:
 		return false
 	if _reloading_item != null or _hands.is_attacking():
 		return false
@@ -1193,83 +1187,10 @@ func report_shot(body: Node, damage: float) -> void:
 # --- The stun (a grenade's flash and bang; docs/grenades.md G13) -------------------------
 
 
-## Blind and deafen the character for `blind` and `deaf` seconds (a grenade's burst). A new stun
-## takes the longer of the old and the new timers, blind and deaf each, and posts `&"stun"`
-## `{ character, position, blind, deaf }`. While either lasts the character is disoriented
-## (`stun_level()`): slowed, drifting, unable to run and its aim swaying. A stun that is neither
-## does nothing; a dead character cannot be stunned.
+## An explosion's stun (interface 3): blind and deafen the character for `blind` and `deaf` seconds
+## (`stun.take`).
 func take_stun(blind: float, deaf: float) -> void:
-	if is_dead or (blind <= 0.0 and deaf <= 0.0):
-		return
-	if stun_level() <= 0.0:
-		_stun_clock = 0.0
-		_stun_phase = Vector2(randf() * TAU, randf() * TAU)
-	if blind > _blind_left:
-		_blind_left = blind
-		_blind_total = blind
-	_deaf_left = maxf(_deaf_left, deaf)
-	EventBus.post(
-		&"stun",
-		{ "character": self, "position": global_position, "blind": blind, "deaf": deaf },
-	)
-
-
-## True while flash-blinded.
-func is_blind() -> bool:
-	return _blind_left > 0.0
-
-
-## True while deafened.
-func is_deaf() -> bool:
-	return _deaf_left > 0.0
-
-
-## How disoriented the character is, 0 (not at all) .. 1 (fully): full while the longer of the blind
-## and deaf times has more than `CharacterStunConfig.recover_tail` seconds to run, then falling
-## linearly to 0 over that tail.
-func stun_level() -> float:
-	return clampf(
-		maxf(_blind_left, _deaf_left) / maxf(CharacterStunConfig.recover_tail, 0.01),
-		0.0,
-		1.0,
-	)
-
-
-## What a stun looks like from outside, for the UI: `{ blind, blind_total, deaf, level }` (seconds
-## left blind and deaf, the blind seconds at the burst, the disorientation 0..1).
-func stun_view() -> Dictionary:
-	return {
-		"blind": _blind_left,
-		"blind_total": _blind_total,
-		"deaf": _deaf_left,
-		"level": stun_level(),
-	}
-
-
-## Count the stun down.
-func _update_stun(delta: float) -> void:
-	if _blind_left <= 0.0 and _deaf_left <= 0.0:
-		return
-	_stun_clock += delta
-	_blind_left = maxf(_blind_left - delta, 0.0)
-	_deaf_left = maxf(_deaf_left - delta, 0.0)
-
-
-## A slow wandering value in -1..1 that a stunned character's aim and walk follow (two out-of-step
-## sines).
-func _stun_wander(offset: float) -> float:
-	return (0.6 * sin(_stun_clock * 1.1 + _stun_phase.x + offset)
-			+ 0.4 * sin(_stun_clock * 2.3 + _stun_phase.y + offset))
-
-
-## The sideways drift (px/s) of a stunned walk: across the way it is walking, wandering with the
-## stun.
-func _stun_drift() -> Vector2:
-	var level := stun_level()
-	if level <= 0.0 or move_input.length_squared() < 0.0001:
-		return Vector2.ZERO
-	return (move_input.orthogonal().normalized() * CharacterStunConfig.drift * level
-			* _stun_wander(1.7))
+	stun.take(blind, deaf)
 
 
 # --- Hittable contract (struck by projectiles: flesh surface + deformation) -------------
@@ -1413,8 +1334,7 @@ func _die(direction: Vector2) -> void:
 	# The body falls from the standing skeleton, whatever it was doing.
 	_posture = &"stand"
 	_posture_height = 1.0
-	_blind_left = 0.0  # A dead body sees and hears nothing more to fade.
-	_deaf_left = 0.0
+	stun.clear()  # A dead body sees and hears nothing more to fade.
 	_legs.clear()
 	_kick.clear()
 	ragdoll = CharacterRagdoll.new(self, momentum, direction)

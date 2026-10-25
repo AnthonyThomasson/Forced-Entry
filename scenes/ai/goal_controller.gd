@@ -888,7 +888,7 @@ func _force_now(reason: String) -> void:
 ## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
 ## (`_force`, the elapsed timer) and asks again next frame.
 func _should_decide() -> bool:
-	if _behavior.committed() or _behavior.evading() or _character.is_blind():
+	if _behavior.committed() or _behavior.evading() or _character.stun.is_blind():
 		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
 		# burst (G16).
 		return false
@@ -905,7 +905,7 @@ func _should_decide() -> bool:
 ## calls for a different starting node (e.g. it came under fire mid-way through choosing a room to
 ## search → straight to COMBAT). Otherwise the walk in flight already fits; let it finish.
 func _maybe_interrupt() -> void:
-	if _behavior.evading() or _character.is_blind():
+	if _behavior.evading() or _character.stun.is_blind():
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
 	# the order, and a walk the order replaces stands until one made with it lands.
@@ -947,7 +947,7 @@ func _process_events() -> void:
 	if _event_queue.is_empty():
 		return
 	# A deafened NPC hears no gunfire, no footsteps, no hit elsewhere and no radio call (G15).
-	var deaf: bool = _character.is_deaf()
+	var deaf: bool = _character.stun.is_deaf()
 	for ev in _event_queue:
 		match ev[0]:
 			&"hit":
@@ -988,7 +988,7 @@ func _react_to_grenades() -> void:
 	for grenade in _perception.grenade_announcements():
 		if send_callouts:
 			_post_grenade_call(grenade)
-	var blind: bool = _character.is_blind()
+	var blind: bool = _character.stun.is_blind()
 	if blind and not _was_blind:
 		# One draw per blinding, whatever the chance, so the sequence does not depend on it.
 		var draw := _rng.randf()

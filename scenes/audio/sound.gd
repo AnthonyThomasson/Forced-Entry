@@ -26,7 +26,7 @@ extends Node
 ## could show.
 ##
 ## `focus` is the character whose ears this is (Main sets the human; nothing hears for an AI). While
-## it is deafened (`stun_view().deaf`) `muffled()` is true: game audio goes through a low-pass on
+## it is deafened (`stun.view().deaf`) `muffled()` is true: game audio goes through a low-pass on
 ## its own bus, closing at once and lifting slowly, and a tinnitus whine (a looping voice that
 ## follows the deafness and is cut when it ends) plays once per stun.
 ##
@@ -381,9 +381,9 @@ func _start_tinnitus(data: Dictionary) -> void:
 
 ## Seconds `focus` stays deaf (0 with no focus, a dead or freed one, or one that cannot be stunned).
 func _deaf_left() -> float:
-	if focus == null or not is_instance_valid(focus) or not focus.has_method("stun_view"):
+	if focus == null or not is_instance_valid(focus) or "stun" not in focus:
 		return 0.0
-	return float(focus.call("stun_view").get("deaf", 0.0))
+	return float(focus.stun.view().get("deaf", 0.0))
 
 
 ## Every frame: the muffle closes while `focus` is deaf and lifts when it is not, and the tinnitus

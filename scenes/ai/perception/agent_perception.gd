@@ -834,7 +834,7 @@ func _see_characters(rooms: Array) -> void:
 	_visible_before = _visible_now
 	_visible_now = swap
 	_visible_now.clear()
-	_blind = _character.is_blind()
+	_blind = _character.stun.is_blind()
 	if _blind:
 		_looked.clear()
 	for other in (_other_characters() if not _blind else []):
@@ -1056,7 +1056,7 @@ func _callouts() -> Array:
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
 ## policy.
 func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
-	if not familiar_with_house and not _character.is_blind():
+	if not familiar_with_house and not _character.stun.is_blind():
 		_learn_by_sight(rooms)
 	var self_pos: Vector2 = _character.global_position
 	var carried := AgentThrow.carried(_character)

@@ -135,7 +135,7 @@ goes, running when `run_enabled` and stamina allow), then holds it facing away f
 turning to a threat, no shot). With no spot in time it stays, facing away (a stun then blinds it for the back-turned share only), crouched for a frag. When the plan ends (the burst) `_resolved` forces
 a new decision. Read-outs: `evading()`, `evade_spot()` (the controller's `debug_grenades().escape`), `debug_state()["evade"]`. Tests: `tests/ai/grenade/evade_*`.
 
-**A blinded NPC** (`Character.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on
+**A blinded NPC** (`Character.stun.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on
 (it stumbles: the character is slowed and drifts); the perception keeps its contacts (so the watch stage's engaged-contact pick, or the arrived peek-and-cover, fires at the hostile's last-known
 spot with the character's aim sway, G13) and sees no new one. Whether it fires blind is the orchestrator's one roll as it goes blind (from not blind),
 `_rng.randf() < blind_fire_chance` (1 always fires; export, Grenades group, 0.5; `_rng` the controller's own `RandomNumberGenerator`, seeded once at bind from

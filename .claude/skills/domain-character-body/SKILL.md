@@ -116,7 +116,7 @@ part steps by).
 - `arms.kick(hand, strength := 1.0)` (the character's `kick`, called by a gun on firing with its `recoil`) throws the hand back on a
   recoil spring and twists the shoulders back on its side, `strength` times a pistol's; the other hand feels its stance's
   `recoil_share` (a supporting hand recoils with the weapon hand).
-- **The stunned look** (`docs/grenades.md` G13). The drive's `stun` (the character's `stun_level()`, 0 in a ride) is eased into
+- **The stunned look** (`docs/grenades.md` G13). The drive's `stun` (the character's `stun.level()`, 0 in a ride) is eased into
   the gait's `_stun` at `CharacterStunConfig.look_ease` (`gait.stun_amount()`), so the look comes on and goes without a jump. `gait.hunch()` is `CharacterStunConfig.hunch_pitch` x it (rad, the rig's).
   The stagger: the stride length (and the rig's foot swing) shrinks to `CharacterStunConfig.stagger_stride`, the stride phase advances unevenly (x `1 + stun x
   (stagger_limp x cos(stride) + stagger_wander x a slow sine)`: one step longer than the next, the pace wandering; foot 1 lands at

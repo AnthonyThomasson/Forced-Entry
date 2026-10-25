@@ -24,7 +24,8 @@ scripts; cross-file calls resolve through `$` / `get_parent()`). A "draw" file i
 its own child `Node2D`.
 
 - **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and
-  forwards intent from its controller. Never draws.
+  forwards intent from its controller. Never draws. Its components (typed `RefCounted`s it holds as public properties and
+  steps itself): `character_stun.gd` (`stun`, a grenade's flash and bang on the body).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
   punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
   `character_legs.gd` (feet against walls), `body_sweep.gd` (the collide-and-slide hands and legs share), `body_strike.gd` (the melee strike punch and kick share), `character_ragdoll.gd` (the fall) and `character_visuals.gd` + `character_style.gd` (the look a style resolves to) + the painters in `body/art/` (appearance).
@@ -40,7 +41,7 @@ character's fresh `facing`, and the character pulls its controller's intent at t
 `take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, frees its light occluder (below) and
 moves to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
 pools; `vehicle/fallen_body_under_vehicle`), ends any
-interaction, abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (walk + knockback,
+interaction, clears the stun (`stun.clear()`), abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (walk + knockback,
 including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;
 a returned node removes the slot, so `current_item()` may be null on a corpse), then emits `died`.
 While dead `_physics_process` only steps the ragdoll (`step(delta, space, global_position)`); the
@@ -190,15 +191,15 @@ Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows
 
 `item_count(slot := -1)` reads a grenade slot's count; `throw_stats(slot := -1)` forwards the item's `throw_stats()` (a grenade's `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot), which the AI throws by; `throw_release_offset(slot := -1)` is where that grenade leaves the hand, standing: the `throw` stance's `forward` and `lateral` for the item's `weapon_hand()` (hand 0, the right, for anything else), as `Vector2(ahead, right)` in the character's frame, which the AI judges a lob from (test `tests/ai/grenade/grenade_lob_follows_throw_stance_test.gd`). `_empty_spent_slots` (after the items tick) erases a grenade slot whose last grenade is thrown and, if it was held,
 selects `gun_slot()` (else the fists). `aim_target()` is the aim point swayed by `aim_sway()`; `GunItem.secondary` turns each shot by `aim_sway()` (0 unless stunned).
-`take_stun(blind, deaf)` takes the longer of the old and new timers (blind and deaf each) and posts `&"stun"` (`{ character, position, blind, deaf }`); `stun_level()` (0..1) is the longer remaining timer over
+`take_stun(blind, deaf)` (an explosion's hook, on the body) hands the stun to its `stun` component (`character_stun.gd`, `CharacterStun`), whose `take(blind, deaf)` takes the longer of the old and new timers (blind and deaf each) and posts `&"stun"` (`{ character, position, blind, deaf }`); `stun.level()` (0..1) is the longer remaining timer over
 `CharacterStunConfig.recover_tail` (the four stun numbers, `CharacterStunConfig.speed`, `CharacterStunConfig.sway`, `recover_tail` and `CharacterStunConfig.drift`, are the body's tuning and live in `CharacterStunConfig`: the
-Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`_stun_drift`) and the aim sways (`aim_sway`: two
-out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun_view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
+Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`aim_sway`, by `stun.wander`: two
+out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun.is_blind()` / `stun.is_deaf()` read it, `stun.update(delta)` counts it down each physics frame and `stun.view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
 back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
 `set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
-(`stun_level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
+(`stun.level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
 (`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while `_covers_eyes(item)`: blind, not
 riding, running or dead, not reloading (`_reloading_item`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
@@ -273,4 +274,4 @@ landed punch (or leg kick, `_on_kicked`, hand code `KICK_HAND`) is surfaced as `
 `attacker = self` (like a projectile's), so a punch counts as an attack for AI hostility. The event also carries
 `outcome = &"punch"` and the struck `material` (the victim's `get_surface()`, `""` when it has none), for the Audio domain.
 
-**Interfaces:** 3 (hittable), 4 (Character → Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID` for the body's hand, leg and strike queries and the clearing check; `DrawLayers.LYING` for the fallen body; `LightMasks.CHARACTER` for its shadow; `FillBatch` for the body's plain-coloured shapes), 12 (Character → Art), 15 (`GameLog`, a landed blow's log line), 18 (`stun_view()`, read off `Sound.focus`), 19 (Character ↔ Vehicle), 20 (the body's occluder; `is_dead` / `radius` read by the lighting) — signatures in `architecture`.
+**Interfaces:** 3 (hittable), 4 (Character → Physics), 5 (pushable), 6 (Items ↔ Character), 7 (Character ↔ Controller), 8 (Interaction), 10 (EventBus), 11 (`PhysicsLayers.SOLID` for the body's hand, leg and strike queries and the clearing check; `DrawLayers.LYING` for the fallen body; `LightMasks.CHARACTER` for its shadow; `FillBatch` for the body's plain-coloured shapes), 12 (Character → Art), 15 (`GameLog`, a landed blow's log line), 18 (`stun.view()`, read off `Sound.focus`), 19 (Character ↔ Vehicle), 20 (the body's occluder; `is_dead` / `radius` read by the lighting) — signatures in `architecture`.

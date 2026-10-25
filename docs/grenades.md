@@ -162,8 +162,8 @@ Tests: `character/stun_bang_by_range`, `stun_bang_through_furniture`.
 **G13. Being stunned** (the character, for the player and an NPC alike). While disoriented a character moves at most `CharacterStunConfig.speed` **x0.45**
 of its speed, with a slow drift, cannot run, and its aim sways: a wandering offset of up to `CharacterStunConfig.sway` **25 degrees**, applied to
 where its shots go. The effect tails off over the last `recover_tail` **1.5 s** (the level falls linearly from 1 to 0 over that time),
-and then it is as before. `Character.take_stun(blind, deaf)` applies it (and posts `&"stun"`), `is_blind()`, `is_deaf()` and
-`stun_level()` (0..1) read it, `stun_view()` gives `{ blind, blind_total, deaf, level }` (seconds left blind and deaf, the blind
+and then it is as before. `Character.take_stun(blind, deaf)` applies it (and posts `&"stun"`), its `stun`'s `is_blind()`, `is_deaf()` and
+`level()` (0..1) read it, `stun.view()` gives `{ blind, blind_total, deaf, level }` (seconds left blind and deaf, the blind
 seconds at the burst, the level) to the UI, and a new stun takes the longer of the old and new timers, blind and deaf each. The four numbers live in
 `CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `posture_coverage(posture)` (the
 height of the body standing and crouched, on the coverage scale), `run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
@@ -537,7 +537,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
 - **Character**: `item_count`, `throw_stats`, `aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
-  (`take_stun`, `is_blind`, `is_deaf`, `stun_level`, `stun_view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
+  (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).
 - **Projectile**: `Explosion.frag` / `Explosion.stun`, and the `max_range` of the `Shot` `ProjectileSpawner.spawn` takes. **Physics**: the explosion FX.

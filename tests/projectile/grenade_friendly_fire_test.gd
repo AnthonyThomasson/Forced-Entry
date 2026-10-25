@@ -69,4 +69,4 @@ func run(t: TestContext) -> void:
 		not mate_stun.is_empty() and float(mate_stun[0]["data"].get("deaf", 0.0)) > 0.0,
 		"so is its teammate",
 	)
-	t.check(Probe.deaf(thrower) and Probe.deaf(mate), "both are deaf (is_deaf)")
+	t.check(Probe.deaf(thrower) and Probe.deaf(mate), "both are deaf (stun.is_deaf)")

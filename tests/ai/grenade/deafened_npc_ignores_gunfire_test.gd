@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 	if not t.require(Probe.stun(deaf, 0.0, 8.0), "Character.take_stun(blind, deaf) exists"):
 		return
 	await t.frames(3)
-	t.require(Probe.deaf(deaf), "set-up: the defender is deaf (is_deaf)")
+	t.require(Probe.deaf(deaf), "set-up: the defender is deaf (stun.is_deaf)")
 	var hears_brain := t.controller(&"hears", &"current_act")
 	var deaf_brain := t.controller(&"deaf", &"current_act")
 	await t.seconds(1.0)

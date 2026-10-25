@@ -98,7 +98,7 @@ func _check_victim(t: TestContext, id: StringName, at: Vector2) -> void:
 		absf(got - want) <= SLACK,
 		"%s (%.0f px): deaf for %.2f s, the fall-off gives %.2f" % [id, d, got, want],
 	)
-	t.check(Probe.deaf(c) == (want > 0.0), "%s is_deaf() is %s" % [id, want > 0.0])
+	t.check(Probe.deaf(c) == (want > 0.0), "%s stun.is_deaf() is %s" % [id, want > 0.0])
 	if id != &"point_blank":
 		t.expect_near(c.health, 100.0, 0.01, "%s takes no damage from a stun" % id)
 

@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 	var flashed := t.time
 	t.puppet(&"p").walk_to(SECOND_SPOT)
 	await t.frames(1)
-	t.check(Probe.blind(d), "the flash blinded the defender (is_blind)")
+	t.check(Probe.blind(d), "the flash blinded the defender (stun.is_blind)")
 	while t.time < flashed + 3.5:
 		_capture(t, d, shots)
 		await t.frames(1)

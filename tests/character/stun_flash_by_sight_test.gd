@@ -119,7 +119,7 @@ func _check_victim(t: TestContext, who: StringName, at: Vector2, lines: Array) -
 		"%s: blinded %.2f s, the formula gives %.2f (%.0f px from the burst)"
 			% [who, got, want, c.global_position.distance_to(at)],
 	)
-	t.check(Probe.blind(c), "%s is_blind() once the flash has gone" % who)
+	t.check(Probe.blind(c), "%s stun.is_blind() once the flash has gone" % who)
 
 
 ## How long victim `who`'s stun blinded it (-1 with no stun event).

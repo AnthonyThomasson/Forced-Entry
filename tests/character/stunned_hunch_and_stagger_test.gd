@@ -2,7 +2,7 @@ extends GameTest
 ## S2, S3 (ticket #56, `docs/grenades.md` G13): a stunned character bends over a little and
 ## staggers.
 ## - Hunch (S2): the spine and neck pitch forward by `CharacterStunConfig.hunch_pitch` x
-##   `stun_level()`, on top of a crouch's own pitch, and a bang that only deafens hunches too. It
+##   `stun.level()`, on top of a crouch's own pitch, and a bang that only deafens hunches too. It
 ##   eases in and out with the level.
 ## - Stagger (S3): walking stunned, the strides are shorter and uneven, the hips sway and the head
 ##   bobs more than walking unstunned. The pace stays G13's x0.45 and the walk still drifts.
@@ -26,7 +26,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "A stunned character hunches and staggers",
 		"description": "Stunned, the spine pitches forward by CharacterStunConfig.hunch_pitch x "
-			+ "stun_level (crouched too, deaf-only too), easing in and out; walking, the strides "
+			+ "stun.level (crouched too, deaf-only too), easing in and out; walking, the strides "
 			+ "are shorter and uneven, the hips sway and the head bobs, at 0.45 of the speed with "
 			+ "the drift; no jumps.",
 		"tags": ["grenade", "stun", "pose", "rig", "stride", "character"],

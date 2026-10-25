@@ -51,23 +51,23 @@ static func count(c: Node, slot: int) -> int:
 	return int(c.call("item_count", slot)) if c.has_method("item_count") else -1
 
 
-## `c.is_blind()` / `is_deaf()` / `stun_level()`; false / 0.0 while the Character lacks them.
+## `c.stun.is_blind()` / `is_deaf()` / `level()`; false / 0.0 while the Character lacks a stun.
 static func blind(c: Node) -> bool:
-	return bool(c.call("is_blind")) if c.has_method("is_blind") else false
+	return bool(c.stun.is_blind()) if "stun" in c else false
 
 
 static func deaf(c: Node) -> bool:
-	return bool(c.call("is_deaf")) if c.has_method("is_deaf") else false
+	return bool(c.stun.is_deaf()) if "stun" in c else false
 
 
 static func level(c: Node) -> float:
-	return float(c.call("stun_level")) if c.has_method("stun_level") else 0.0
+	return float(c.stun.level()) if "stun" in c else 0.0
 
 
-## `c.stun_view()` (seconds left blind / deaf, the burst's blind time, the level 0..1); {} while it
+## `c.stun.view()` (seconds left blind / deaf, the burst's blind time, the level 0..1); {} while it
 ## does not exist.
 static func view(c: Node) -> Dictionary:
-	return c.call("stun_view") if c.has_method("stun_view") else {}
+	return c.stun.view() if "stun" in c else {}
 
 
 ## Stun `c` as a grenade's burst would (`Character.take_stun(blind, deaf)`); false while it does not

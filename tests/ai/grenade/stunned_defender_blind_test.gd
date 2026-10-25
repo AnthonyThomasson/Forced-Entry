@@ -87,7 +87,7 @@ func run(t: TestContext) -> void:
 		"two_handed": 0,
 	}
 	await t.frames(30)
-	t.check(Probe.blind(d), "the flash blinded the defender (is_blind)")
+	t.check(Probe.blind(d), "the flash blinded the defender (stun.is_blind)")
 	while t.time < flashed + 3.5:
 		_capture(t, d, shots)
 		await t.frames(1)

@@ -322,8 +322,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `get_surface_at` (interface 3); an outfit's weight slows `run_speed()` and every pace;
    while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `current_item()` is null
    while it is posed by the ride (the item put away);
-   the stun (a grenade's flash and bang): `take_stun(blind, deaf)`, `is_blind()`, `is_deaf()`, `stun_level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
-   drawn hunched and staggering, the free hand over the eyes while blind), `one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun_view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
+   the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
+   drawn hunched and staggering, the free hand over the eyes while blind), `one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
    another character's `facing`, `damage_taken()`, `is_reloading()`, `posture()`, `current_item()` and `faction` — but only while it can SEE that character
    (aim, visible wounds, a reload in progress and the posture are things it perceives); the exceptions are three reads of an unseen character's `faction`,
    which stand for knowing who its own team is: the faction of a character whose footstep it hears (the `footfall` event's `character`, interface 10), so its
@@ -700,11 +700,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 18. **Main → Audio: `Sound.focus`** (whose ears the player has; Audio stays a leaf)
     - `Sound.focus: Node` (a plain var on the `Sound` autoload): the character a bang deafens *for the player*. Main sets it to the human when there is
-      one (`_build_stun_screen`) and clears it at teardown; null = nobody (a spectator match, a test). Audio reads only the focus's `stun_view()` (interface 7)
-      duck-typed: while `stun_view().deaf` > 0, `Sound.muffled()` is true, the game audio goes through a low-pass and one `tinnitus/whine` sound
+      one (`_build_stun_screen`) and clears it at teardown; null = nobody (a spectator match, a test). Audio reads only the focus's `stun.view()` (interface 7)
+      duck-typed: while `stun.view().deaf` > 0, `Sound.muffled()` is true, the game audio goes through a low-pass and one `tinnitus/whine` sound
       (kind `&"tinnitus"`) plays per stun, following the deafness (`docs/grenades.md` G14). A blind-only stun, or the stun of any other character, changes nothing.
     - The sight half of the same stun is the UI's `StunScreen` (`ui/hud/stun_screen.gd`, `watch(character)`, `drawn()`), built by Main for the human and reading
-      `stun_view()` (`blind`, `blind_total`) and the `&"stun"` event; it knows nothing of Audio, nor Audio of it.
+      `stun.view()` (`blind`, `blind_total`) and the `&"stun"` event; it knows nothing of Audio, nor Audio of it.
 
 19. **Character ↔ Vehicle: the drivable contract** (`scenes/vehicle/`; spec `docs/vehicles.md`)
     - **The character's side.** `character.gd` composes the Vehicles domain's `CharacterVehicleUse` (`vehicle/character_vehicle_use.gd`,
