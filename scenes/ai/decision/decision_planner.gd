@@ -460,7 +460,7 @@ func _requires_ok(names: Array) -> bool:
 
 ## An option group from the snapshot: the bound target's own group of that name first, else the
 ## global one. Each group is { summary, options: [{ id, label, desc, params, tags }] }.
-func _group(group_name) -> Dictionary:
+func _group(group_name: StringName) -> Dictionary:
 	var options: Dictionary = _snap.get("options", {})
 	if _binding.has("target_id"):
 		var per: Dictionary = options.get("per_target", {}).get(_binding["target_id"], {})

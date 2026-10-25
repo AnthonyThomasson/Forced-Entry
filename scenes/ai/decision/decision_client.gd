@@ -157,7 +157,7 @@ func _error_detail(body: PackedByteArray) -> String:
 ## else the highest-probability offered id. Von's distributions are often flat (low confidence), so
 ## taking the top pick — rather than sampling — keeps the NPC decisive instead of jittering. Empty
 ## when no offered option is present.
-func _pick(answer) -> String:
+func _pick(answer: Variant) -> String:
 	if not answer is Dictionary:
 		return ""
 	var choice = answer.get("choice")

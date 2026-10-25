@@ -749,17 +749,34 @@ func _contact_digest() -> Array:
 ## in, perceive, let the behaviour resolve what it knows + honour its commitments, start a decision
 ## walk only when free to (or restart one a new situation has overtaken), then let the behaviour
 ## carry out the running primitive.
-func control(character, delta: float) -> void:
+func control(character: Node, delta: float) -> void:
 	if character.is_dead:
 		return
 	if _character == null:
-		_character = character
-		_rng.seed = hash("%s %s" % [character.name, character.global_position.round()])
-		_perception.bind(character)
-		_behavior.bind(character)
-		_client.set_npc_name(_npc_name())
+		_bind_body(character)
 	_decide_timer -= delta
-	# SENSE.
+	_sense(character, delta)
+	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
+	if _behavior.service_interaction(delta, _force):
+		return
+	_take_resolved()
+	_think()
+	_act(delta)
+
+
+## Takes `character` as the NPC's body on its first tick: seeds the controller's RNG from its name
+## and spawn spot, and hands it to the perception and the behaviour.
+func _bind_body(character: Node) -> void:
+	_character = character
+	_rng.seed = hash("%s %s" % [character.name, character.global_position.round()])
+	_perception.bind(character)
+	_behavior.bind(character)
+	_client.set_npc_name(_npc_name())
+
+
+## SENSE: folds the queued events in, perceives, and lets the behaviour adopt the hostiles it knows
+## (reconsidering at once when the engaged contact is lost) before the salient-event check.
+func _sense(character: Node, delta: float) -> void:
 	_process_events()
 	_follow_squad()
 	_perception.openings = openings
@@ -773,22 +790,31 @@ func control(character, delta: float) -> void:
 	if _behavior.update_known(known, delta):
 		_force_now("lost the engaged contact") # Lost the engaged contact mid-fight → reconsider.
 	_check_salient()
-	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
-	if _behavior.service_interaction(delta, _force):
-		return
+
+
+## A task the behaviour resolved forces a decision at once, with the reason it gives; a lead it
+## reached is checked off.
+func _take_resolved() -> void:
 	var why: String = _behavior.resolve_reason()
 	if _behavior.take_resolved():
 		_force_now(why if why != "" else "task resolved")
 		var lead: String = _behavior.reached_lead()
 		if lead != "":
 			_perception.check_lead(lead) # Reached it and found nothing: don't send it back there.
-	# THINK.
+
+
+## THINK: restarts a decision walk a forced decision has overtaken, or starts one when free to.
+func _think() -> void:
 	if _planner.is_pending():
 		if _force:
 			_maybe_interrupt()
 	elif _should_decide():
 		_start_decision()
-	# ACT.
+
+
+## ACT: the behaviour carries out the running primitive, then the entry turn, the entry and throw
+## calls and the order's progress go out.
+func _act(delta: float) -> void:
 	_behavior.apply(delta)
 	if _behavior.take_entry_turned():
 		_on_entry_turned()

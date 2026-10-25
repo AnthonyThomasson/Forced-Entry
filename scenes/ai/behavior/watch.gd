@@ -44,7 +44,7 @@ var _character: Node
 ## `delta`, and aim it there (100 px out); returns the new gaze angle. From the current facing, not
 ## a stored angle: something else (a threat) may have held its eyes meanwhile. The one way a gaze is
 ## turned: the doors here, a searcher's unseen points, an entry's pie and corners.
-static func ease_gaze(character, point: Vector2, rate: float, delta: float) -> float:
+static func ease_gaze(character: Node, point: Vector2, rate: float, delta: float) -> float:
 	var self_pos: Vector2 = character.global_position
 	var angle := rotate_toward(
 		(character.facing as Vector2).angle(),
