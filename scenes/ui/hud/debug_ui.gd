@@ -110,7 +110,7 @@ func _process(_delta: float) -> void:
 		debug_lines.append("  (none)")
 
 	_label.text = "\n".join(debug_lines)
-	_outfit_label.text = "\n".join(["=== OUTFIT ==="] + OutfitLines.of(_character.outfit_view()))
+	_outfit_label.text = _outfit_text()
 
 	# Update hit display (top-left).
 	if _last_hit_time > 0:
@@ -124,6 +124,11 @@ func _process(_delta: float) -> void:
 			_last_hit_time = 0.0
 	else:
 		_hit_display_label.text = ""
+
+
+## The outfit panel's text: its heading, then what the character wears (`OutfitLines`).
+func _outfit_text() -> String:
+	return "\n".join(["=== OUTFIT ==="] + OutfitLines.of(_character.wardrobe.outfit.view()))
 
 
 ## "Ammo: 7/12  (+2 mags)" for a held gun ("reloading…" mid-swap), "Ammo: —" for an item without

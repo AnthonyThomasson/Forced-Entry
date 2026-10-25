@@ -349,8 +349,8 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   crossed it before they struck the body: each is re-seated where the shot entered the part, its
   depth scaled by part size / body radius. A hand mid-punch has left its wounds behind. Limbs are
   not dented (shots hit the body circle). While the upper body lunges, wounds move with it.
-- **The look** (`docs/outfits.md` O12, O15). The character's style (`Character.style`, `look_seed`, `rank`) and what it wears decide everything: `Visuals`
-  has no look exports. Its `dress` (`body_dress.gd`, `BodyDress`) resolves it: `refresh(character)` asks `character.outfit().look(style)` (each garment's look in that style: its `kind` and a `color` or a palette name)
+- **The look** (`docs/outfits.md` O12, O15). The character's style (its `wardrobe`, `CharacterWardrobe`: `style`, `look_seed`, `rank`) and what it wears decide everything: `Visuals`
+  has no look exports. Its `dress` (`body_dress.gd`, `BodyDress`) resolves it: `refresh(wardrobe)` asks `wardrobe.outfit.look(style)` (each garment's look in that style: its `kind` and a `color` or a palette name)
   and `character_style.gd`'s `resolve(style, seed, rank, worn)` for the whole look: the style's row (`CharacterStyleConfig.styles`: its livery's marks, its
   palettes, `bare` (what is drawn where nothing is worn on the body, legs or feet)) and the character's own variety drawn from its look seed in a fixed
   order (skin, hair and hair style, gloves, a pack, eyes and face, the glow and ink colours, tattoos, inlays, a headset, a spine rig, cables, a patched
@@ -361,7 +361,7 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   a long one to its cuff, or bare skin), each leg part's options and a chrome shin (its `chrome` key; `shin_colour(i)`), and each fist's colour (gloves, skin or chrome) and options. Boots:
   the shin's lower part, from `BOOT_TOP` 0.62 down to the ankle, becomes the boot's shaft, `BOOT_GROW` 0.06 body radii wider. For every body, dressed
   or not, the crouched and falling trunk map the most visible of chest, back and flank under the shoulders' art (`BodyTrunk._faces`, above). `refresh`
-  resolves it only when `Outfit.revision` or the character's look revision (bumped by `style`, `look_seed` and `rank`) moves (two int compares a frame);
+  resolves it only when `Outfit.revision` or `wardrobe.revision` (bumped by `style`, `look_seed` and `rank`) moves (two int compares a frame);
   when the resolved look's hash `look_key` changes (it returns true) it joins the redraw key and a settled fallen body repaints (`_settled_drawn = false`), also on its
   first frame back in view after a change made off screen. Tests: `tests/character/outfit_art_test.gd`, `style_look_test.gd`.
 

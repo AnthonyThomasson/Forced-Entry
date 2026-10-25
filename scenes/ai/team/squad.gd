@@ -35,9 +35,9 @@ extends Node
 ## **Progress (LD7).** The members radio how their order goes (`&"callout"` with `order_id` and
 ## `order_step`: moving, in_position, done, refused); the squad keeps each one's latest step for
 ## `view()`, which the order markers draw. A done order is no longer held. It reads its members only
-## through the Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the
-## leader's `facing`; a member is an NPC, one that may follow, when a child of it is in the group
-## `npc_controllers` at `setup`, interface 7) and the bus, never an NPC's brain.
+## through the Character API (`wardrobe.rank`, `is_dead`, the `died` signal, `global_position`, and
+## the leader's `facing`; a member is an NPC, one that may follow, when a child of it is in the
+## group `npc_controllers` at `setup`, interface 7) and the bus, never an NPC's brain.
 ##
 ## **Following (LD19 to LD23).** Every living NPC member but the leader follows it (`follows`): it
 ## picks no goal of its own and keeps to the spot the squad gives it (`follow_spot`). While the
@@ -501,13 +501,13 @@ func _rect_of(key: String) -> Rect2:
 
 
 ## The leader by the rule (LD3): the human while it leads and lives; else the living member of the
-## highest `rank`, the first in spawn order among equals; null when nobody is left.
+## highest `wardrobe.rank`, the first in spawn order among equals; null when nobody is left.
 func _next_leader() -> Node:
 	if _human != null and alive(_human):
 		return _human
 	var best: Node = null
 	for m: Node in _members:
-		if alive(m) and (best == null or int(m.get("rank")) > int(best.get("rank"))):
+		if alive(m) and (best == null or int(m.wardrobe.rank) > int(best.wardrobe.rank)):
 			best = m
 	return best
 

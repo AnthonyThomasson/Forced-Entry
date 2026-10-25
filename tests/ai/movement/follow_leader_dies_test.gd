@@ -35,9 +35,12 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.warehouse(s)
-	s.actor(&"lead", &"invader", Vector2(330, 400), { "rank": 2 })
-	s.actor(&"sergeant", &"invader", Vector2(280, 440), { "rank": 1 })
-	s.actor(&"trooper", &"invader", Vector2(260, 380), { "rank": 0 })
+	s.actor(&"lead", &"invader", Vector2(330, 400))
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
+	s.actor(&"sergeant", &"invader", Vector2(280, 440))
+	s.set_props(&"sergeant", "Wardrobe", { "rank": 1 })
+	s.actor(&"trooper", &"invader", Vector2(260, 380))
+	s.set_props(&"trooper", "Wardrobe", { "rank": 0 })
 	s.squads()
 
 

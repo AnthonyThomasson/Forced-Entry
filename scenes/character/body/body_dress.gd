@@ -1,10 +1,11 @@
 class_name BodyDress extends RefCounted
 ## What each part of the body is drawn in (`character_visuals.gd`'s `dress`): the character's style
-## (`Character.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears drawn in
-## that style (`Outfit.look(style)`), resolved through `character_style.gd` and registered for the
-## painters (`PixelArt.handle`: they get its handle). Resolved again (`refresh`) only when the
-## outfit (`Outfit.revision`) or the style changes, so the per-frame cost is two ints compared. The
-## visuals draw the shoulders, the head and the fists in it, the limbs and the trunk their parts.
+## (`CharacterWardrobe.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears
+## drawn in that style (`Outfit.look(style)`), resolved through `character_style.gd` and registered
+## for the painters (`PixelArt.handle`: they get its handle). Resolved again (`refresh`) only when
+## the outfit (`Outfit.revision`) or the style changes, so the per-frame cost is two ints compared.
+## The visuals draw the shoulders, the head and the fists in it, the limbs and the trunk their
+## parts.
 
 const CharacterStyle = preload("res://scenes/character/body/character_style.gd")
 const VestPainter = preload("res://scenes/character/body/art/vest_painter.gd")
@@ -44,19 +45,19 @@ var _worn_revision := -1
 var _style_revision := -1
 
 
-## Resolve the look of `character` again if its outfit or its style changed since the last time:
-## the shirt, pants and shoes (boots: a laced shaft up the shin), the skin, each arm's sleeve, bare
-## skin or chrome, a chrome shin, each fist (gloves, skin or chrome), and the plates' colours and
-## wear, rounded to `VestPainter.WEAR_STEPS`. Returns whether the resolved look changed.
-func refresh(character: Node) -> bool:
-	var outfit: Outfit = character.outfit()
-	if outfit.revision == _worn_revision and character._look_revision == _style_revision:
+## Resolve the look again if the character's outfit or its style (its `wardrobe`) changed since the
+## last time: the shirt, pants and shoes (boots: a laced shaft up the shin), the skin, each arm's
+## sleeve, bare skin or chrome, a chrome shin, each fist (gloves, skin or chrome), and the plates'
+## colours and wear, rounded to `VestPainter.WEAR_STEPS`. Returns whether the resolved look changed.
+func refresh(wardrobe: CharacterWardrobe) -> bool:
+	var outfit: Outfit = wardrobe.outfit
+	if outfit.revision == _worn_revision and wardrobe.revision == _style_revision:
 		return false
 	_worn_revision = outfit.revision
-	_style_revision = character._look_revision
-	var style: StringName = character.style
+	_style_revision = wardrobe.revision
+	var style: StringName = wardrobe.style
 	var worn := outfit.look(style)
-	var look := CharacterStyle.resolve(style, character.look_seed, character.rank, worn)
+	var look := CharacterStyle.resolve(style, wardrobe.look_seed, wardrobe.rank, worn)
 	var id := PixelArt.handle(look)
 	shirt = _colour(look["shirt"])
 	pants = _colour(look["pants_col"])

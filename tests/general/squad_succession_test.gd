@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 	if not t.require(npcs.size() == 3, "the match has its three invaders"):
 		return
 	t.expect_eq(
-		npcs.map(func(n): return int(n.rank)),
+		npcs.map(func(n): return int(n.wardrobe.rank)),
 		[2, 1, 0],
 		"premise: ranked as a match ranks its unit (lead, sergeant, trooper)",
 	)

@@ -327,7 +327,8 @@ func run(t: TestContext) -> void:
     keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
     with its side's loadout (`MatchBuilder.arm`, `Character.inventory.set_loadout`). To retune a gun for one test, `set_static(GunConfig, "guns", modified_copy)` (e.g. spread 0 for a
     straight shot). Use
-    `set_props(id, "GoalController", {...})` for a child's exports. An NPC actor is bound by the match's own rule before it joins
+    `set_props(id, "GoalController", {...})` for a child's exports (the look is the `Wardrobe` child's: `set_props(id, "Wardrobe", { "rank": 2 })`,
+    `look_seed`, `style`). An NPC actor is bound by the match's own rule before it joins
     the tree (`MatchBuilder.bind_npc`): the house's `rooms` and `openings`, and for an invader the front entrance as its
     `entry_point` (`MatchBuilder.entry_point_for`; none in a world with no front entrance, none for a defender).
   - Squads: `squads(opts := {})` builds one squad per faction over the setup's actors of that faction, in declaration order, as a

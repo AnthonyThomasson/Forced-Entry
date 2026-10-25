@@ -33,9 +33,12 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2, "max_health": 1_000_000.0 })
-	s.actor(&"sergeant", &"invader", Vector2(100, -120), { "rank": 1 })
-	s.actor(&"trooper", &"invader", Vector2(40, -80), { "rank": 0 })
+	s.actor(&"lead", &"invader", Vector2(960, 150), { "max_health": 1_000_000.0 })
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
+	s.actor(&"sergeant", &"invader", Vector2(100, -120))
+	s.set_props(&"sergeant", "Wardrobe", { "rank": 1 })
+	s.actor(&"trooper", &"invader", Vector2(40, -80))
+	s.set_props(&"trooper", "Wardrobe", { "rank": 0 })
 	s.squads()
 
 

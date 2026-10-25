@@ -100,11 +100,13 @@ func _check_squads(t: TestContext, characters: Array) -> bool:
 				"premise: every %s NPC's controller has its side's squad" % faction,
 		):
 			return false
-		var lead: Node = side.reduce(func(a, c): return c if int(c.rank) > int(a.rank) else a)
+		var lead: Node = side.reduce(
+			func(a, c): return c if int(c.wardrobe.rank) > int(a.wardrobe.rank) else a
+		)
 		if not t.require(
 				squad.leader() == lead,
 				"premise: the %s leader is the rank rule's (%s, rank %d; got %s)"
-					% [faction, lead.name, int(lead.rank), Follow.name_of(squad.leader())],
+					% [faction, lead.name, int(lead.wardrobe.rank), Follow.name_of(squad.leader())],
 		):
 			return false
 		if not t.require(

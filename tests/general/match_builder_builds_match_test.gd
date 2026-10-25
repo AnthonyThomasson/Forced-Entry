@@ -98,7 +98,7 @@ func _check_kit(t: TestContext, defenders: Array, invaders: Array) -> void:
 			1,
 			"%s carries one frag" % c.name,
 		)
-		var kit: Dictionary = c.outfit_view()
+		var kit: Dictionary = c.wardrobe.outfit.view()
 		t.check(
 			kit["front_plate"]["type"] == PLATE and kit["back_plate"]["type"] == PLATE,
 			"%s wears a steel III plate front and back (%s, %s)"
@@ -110,15 +110,15 @@ func _check_kit(t: TestContext, defenders: Array, invaders: Array) -> void:
 				and c.inventory.item_count(ItemRegistry.FRAG_SLOT) == 0,
 			"defender %s carries no grenades" % c.name,
 		)
-	var unit: StringName = invaders[0].style if not invaders.is_empty() else &""
+	var unit: StringName = invaders[0].wardrobe.style if not invaders.is_empty() else &""
 	t.check(POLICE_UNITS.has(unit), "the invaders are a police unit (%s)" % unit)
 	t.check(
-		invaders.all(func(c): return c.style == unit),
+		invaders.all(func(c): return c.wardrobe.style == unit),
 		"every invader wears the one unit's style (%s)"
-			% str(invaders.map(func(c): return c.style)),
+			% str(invaders.map(func(c): return c.wardrobe.style)),
 	)
 	t.expect_eq(
-		invaders.map(func(c): return c.rank),
+		invaders.map(func(c): return c.wardrobe.rank),
 		[2, 1, 0],
 		"the invaders are ranked lead, sergeant, trooper in spawn order",
 	)

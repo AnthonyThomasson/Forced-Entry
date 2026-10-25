@@ -38,11 +38,11 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var i := [t.actor(&"i0"), t.actor(&"i1"), t.actor(&"i2"), t.actor(&"i3"), t.actor(&"i4")]
 	# Spawn order i0..i4; the ranks a match's unit would carry, the lead (2) not first.
-	i[0].rank = 0
-	i[1].rank = 1
-	i[2].rank = 2
-	i[3].rank = 0
-	i[4].rank = 2
+	i[0].wardrobe.rank = 0
+	i[1].wardrobe.rank = 1
+	i[2].wardrobe.rank = 2
+	i[3].wardrobe.rank = 0
+	i[4].wardrobe.rank = 2
 	var invaders := Order.squad(t, &"invader", i)
 	if not t.require(invaders != null, "the invaders' squad is built (Order.squad)"):
 		return

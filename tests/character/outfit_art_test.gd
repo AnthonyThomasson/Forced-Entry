@@ -151,7 +151,7 @@ func _check_crouched_carrier(t: TestContext) -> void:
 	# Its look in the body's style.
 	var carrier_color: Color = OutfitConfig.garment(
 		&"plate_carrier",
-	)["looks"][crouched.style]["color"]
+	)["looks"][crouched.wardrobe.style]["color"]
 	var in_carrier := _painted_in(crouched, carrier_color)
 	t.check(
 		in_carrier >= 2,

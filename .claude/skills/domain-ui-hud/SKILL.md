@@ -5,7 +5,7 @@ description: Deep implementation detail for the UI hud sub-domain (scenes/ui/hud
 
 # UI · HUD sub-domain (`scenes/ui/hud/`)
 
-The in-game observers: each reads only the Character public API / signals (incl. `outfit_view()`), the AI controller's `debug_zones()` / `known_contacts_for_display()`, a squad's `view()` callable (the command menu and the order markers) and its `resolve()` (the command menu) and, for the stun screen, the EventBus `&"stun"` topic. See `domain-ui` for what all UI scripts share.
+The in-game observers: each reads only the Character public API / signals (incl. `wardrobe.outfit.view()`), the AI controller's `debug_zones()` / `known_contacts_for_display()`, a squad's `view()` callable (the command menu and the order markers) and its `resolve()` (the command menu) and, for the stun screen, the EventBus `&"stun"` topic. See `domain-ui` for what all UI scripts share.
 
 - `debug_ui.gd` — the **player debug panel** (`DebugUI` node). Bottom-right stats block: current
   item slot, an ammo line (`Ammo: 7/12  (+2 mags)`, "reloading…" mid-swap, "—" for an item without ammo, read through
@@ -13,7 +13,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   (punch left/right, kick or gunshot) and damage; the bottom-right "Last Hit" block adds the time since. Attaches to its character by the
   exported `character_path`; listens to `hit_landed` on the character; freed in spectator mode. Font sizes: stats 34pt, hit banner 32pt.
   Bottom left (26pt, growing up from the bottom edge: free), an `=== OUTFIT ===` block of
-  `OutfitLines.of(outfit_view())`, refreshed every frame (`docs/outfits.md` O13). Tested by `tests/ui/debug_panel_outfit_test.gd`.
+  `OutfitLines.of(wardrobe.outfit.view())`, refreshed every frame (`docs/outfits.md` O13). Tested by `tests/ui/debug_panel_outfit_test.gd`.
 
 - `match_hud.gd` — the **spectator match HUD** (`MatchHUD` node). `begin(combatants, time_limit := 0.0)` wires it to
   any number of characters (a human included); it is **re-entrant** (an endless run calls it for each new match),
@@ -34,17 +34,17 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `debug_zones()`) highlights that point (the controller's `debug_focus`, which its tactics overlay rings; `debug_clear_focus` clears it) and fills a detail panel — top-left,
   below the match HUD's timer — with the zone's kind, label and Von's reasoning (`desc`). It runs `PROCESS_MODE_ALWAYS` so Space/clicks work while
   paused (freeze the match, then inspect). Decoupled like the other observers: reads the combatants'
-  public `global_position` and `outfit_view()`, the camera, and each NPC's `debug_zones()`, and flips the debug-overlay
+  public `global_position` and `wardrobe.outfit.view()`, the camera, and each NPC's `debug_zones()`, and flips the debug-overlay
   toggles (every per-NPC flag of the overlay registry) through `OverlayRegistry.apply` (`domain-ui-overlays`), as Main does: a selection
   applies `flags` to the selected NPC and all-off to every other, `set_flag` re-applies `flags` to the selected one. Reads `Keybinds.PAUSE` (Space; shares it with
   `INTERACT`, unused in the player-less match). A mouse-ignoring detail label (with text shadow).
-  While an NPC is selected, an outfit panel (22pt, shadowed, mouse-ignoring) lists `<name> — OUTFIT` and `OutfitLines.of(outfit_view())`, at the bottom
+  While an NPC is selected, an outfit panel (22pt, shadowed, mouse-ignoring) lists `<name> — OUTFIT` and `OutfitLines.of(wardrobe.outfit.view())`, at the bottom
   right with its right edge `right_clear + OUTFIT_GAP` (10 px) from the screen edge, clear of the
   toggle bar's column, growing up and to the left; refreshed on select and every frame (`_refresh_outfit`), so plate wear shows live;
   hidden with no selection. Tested by `tests/ui/inspector_outfit_test.gd`.
 
 - `outfit_lines.gd` — the **outfit lines** (a `RefCounted` with one static, preloaded by the debug panel and the inspector). `OutfitLines.of(view)` turns a
-  character's `outfit_view()` into one line per slot in the view's order: a garment `Head: Helmet`, a plate `Front plate: Ceramic IV plate 68%`
+  character's `wardrobe.outfit.view()` into one line per slot in the view's order: a garment `Head: Helmet`, a plate `Front plate: Ceramic IV plate 68%`
   (`"%d%%" % roundi(condition * 100)`), `—` for nothing worn. It reads nothing but the view.
 
 - `hud_probe.gd` — the **controller probe** (a `RefCounted` with one static, preloaded by the inspector).

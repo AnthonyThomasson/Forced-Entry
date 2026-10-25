@@ -262,8 +262,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    vest choice that holds plates marked `plates: true`, each plate row `plate: true`),
    `normalize(loadout)` (a `{ weapon, magazine, spares, stuns, frags, outfit }` dict made valid; `outfit_of(loadout)` fills every outfit slot, a missing or unfitting
    id taking `default_outfit`'s: plain clothes, and clears both plates unless the vest holds plates), `apply(character, loadout, rng, style := {}) -> gun id` (arms it through `Character.inventory.set_loadout` and dresses it in the whole
-   outfit through `Character.set_outfit`; `style` = how it is all drawn, looks only: `look` / `seed` /
-   `rank` passed to `Character.set_style`, absent = the character's style left as it is, and `weapon`, the weapon style passed to
+   outfit through `Character.wardrobe.outfit.set_ids`; `style` = how it is all drawn, looks only: `look` / `seed` /
+   `rank` passed to `Character.wardrobe.set_style`, absent = the character's style left as it is, and `weapon`, the weapon style passed to
    `Character.inventory.set_loadout`, absent = `police`) and `random(rng)` (with `random_outfit(rng)`, drawn after the gun). **Weapon style:** every `Item` has a `style`
    (`&"police"` for the invaders, `&"scrap"` / `&"pipe"` for a defender; default `police`), the look it is drawn in, never what it does: a gun
    or grenade draws its `GunConfig` / `GrenadeConfig` row's `looks` row for it (the painter and its colours; `GunConfig.look(gun, style)` /
@@ -314,11 +314,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
    is thrown to, interface 6: where the AI expects its own grenade to come down), `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
    `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
    magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
-   how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterStyleConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
-   the defenders' crew; `zenitex` when never given one), `look_seed` (exported: its own variety within the style), `rank` (a police unit's: 0 trooper, 1 sergeant,
-   2 lead) and `set_style(style, seed, rank := 0)` (`LoadoutConfig.apply` calls it);
-   what it wears (`docs/outfits.md`): `set_outfit(ids)` (`{ head, body, vest, pants, feet, front_plate, back_plate }`, replacing the whole outfit; `LoadoutConfig.apply`
-   calls it), `outfit() -> Outfit` (what its art reads `look(style)` and `revision` from) and `outfit_view()` (each garment slot -> its name, "" for none; each plate slot ->
+   how it is drawn (`docs/outfits.md` O15, looks only), on its `wardrobe` (the `Wardrobe` child, `character_wardrobe.gd`, `CharacterWardrobe`):
+   `wardrobe.style` (exported; a `CharacterStyleConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
+   the defenders' crew; `zenitex` when never given one), `wardrobe.look_seed` (exported: its own variety within the style), `wardrobe.rank` (a police unit's: 0 trooper, 1 sergeant,
+   2 lead) and `wardrobe.set_style(style, seed, rank := 0)` (`LoadoutConfig.apply` calls it);
+   what it wears (`docs/outfits.md`): `wardrobe.outfit` (an `Outfit`): `wardrobe.outfit.set_ids(ids)` (`{ head, body, vest, pants, feet, front_plate, back_plate }`, replacing the whole outfit; `LoadoutConfig.apply`
+   calls it), the `Outfit` its art reads `look(style)` and `revision` from, and `wardrobe.outfit.view()` (each garment slot -> its name, "" for none; each plate slot ->
    `{ type, name, condition }`: what the debug panel and the spectator inspector list), and where a round strikes it: `hit_zone(height)` (`feet` / `legs` / `torso` /
    `head` by height over the posture's coverage; `&""` below 0) and `hit_side(direction)` (`front` / `flank` / `back` against the shoulders' facing), with
    `get_surface_at` (interface 3); an outfit's weight slows `movement.run_speed()` and every pace;
@@ -779,11 +780,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `MatchBuilder.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
       same contract, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,
       true for the invaders' side only, D29). The squad reads its members only through the
-      Character API (`rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
+      Character API (`wardrobe.rank`, `is_dead`, the `died` signal, `global_position`, and the leader's `facing`; a member is an NPC, one that may
       follow, when a child of it is in the group `npc_controllers` at `setup`, interface 7) and lays its stacks and its follow spots on the
       navigation map and physics space of its own viewport's `World2D` (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
       Every squad coordinates, with no switch (`docs/leadership.md` LD3, LD19 to LD26).
-    - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `rank`, the first in spawn order among equals, so the invaders'
+    - Reads: `leader() -> Node` (LD3: the human when it leads; else the highest `wardrobe.rank`, the first in spawn order among equals, so the invaders'
       unit lead and the defenders' first spawned), `members() -> Array`, `alive(member) -> bool`, and `view() -> Dictionary`
       (`{ leader, members: [{ node, order, step, held, follow_spot }], stacks, trail, leash }`: the order each member holds, the posted dict or {} (a held stack a `go` released
       carries `go: true`), its latest `order_step` and `held` (its order is a stack that waits for the leader's go and no go has released yet,
@@ -958,7 +959,7 @@ TestWorld (Testing) ──(stage / bind_npc / entry_point_for / populate / squad
 MatchBuilder ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
 MatchBuilder ─▶ NavBuilder (build, ready, steering_map; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  MatchBuilder ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds
-MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.inventory.set_loadout / set_outfit / set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
+MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.inventory.set_loadout / wardrobe.outfit.set_ids / wardrobe.set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
 MatchBuilder ──(the styles' side / weapons)──▶ CharacterStyleConfig.styles
 main ─▶ Settings ─▶ Keybinds   /   main ─▶ SettingsMenu (UI; signals only, no dependency on Settings)
 main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out);  MatchBuilder ─▶ LeaderOverlay / OverlayRegistry (UI: build_leader_overlay, set_overlay)
@@ -989,7 +990,7 @@ Explosion (&"explosion") ──▶ EventBus ──▶ Sound (the burst) / Camera
 ThrownGrenade (&"grenade") ──▶ EventBus ──▶ AIController (a grenade heard coming down)
 Vehicle (&"vehicle", &"engine", &"skid") ──▶ EventBus ──▶ Sound ──(engine_state / slip / speed, duck-typed)──▶ the vehicle's loops
 Camera ──(target.use.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
-UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus / debug_clear_focus on the AI controller; DebugUI and the inspector outfit_view)
+UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus / debug_clear_focus on the AI controller; DebugUI and the inspector wardrobe.outfit.view())
 DebugUI ─▶ LoadoutConfig.grenade_options (Items)
 main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / MatchBuilder (the world stage, binding) / Character scenes / EventBus
 Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D

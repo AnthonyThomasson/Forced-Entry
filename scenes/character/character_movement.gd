@@ -209,7 +209,7 @@ func _speed_in(which: StringName, running: bool) -> float:
 ## The kg worn above what the body carries at its tuned speed
 ## (`CharacterPaceConfig.outfit_free_weight`).
 func _extra_weight() -> float:
-	return maxf(character.outfit().weight() - CharacterPaceConfig.outfit_free_weight, 0.0)
+	return maxf(character.wardrobe.outfit.weight() - CharacterPaceConfig.outfit_free_weight, 0.0)
 
 
 ## The share of its speed the outfit's weight leaves the body (1 = unencumbered).

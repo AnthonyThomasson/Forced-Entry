@@ -181,18 +181,18 @@ func _zone_at(world: Vector2) -> Dictionary:
 	return best
 
 
-## Show what the selected NPC wears (its `outfit_view()`), or hide the list when nothing (or no
-## character) is selected.
+## Show what the selected NPC wears (its `wardrobe.outfit.view()`), or hide the list when nothing
+## (or no character) is selected.
 func _refresh_outfit() -> void:
 	if _outfit == null:
 		return
 	var shown := (_selected != null
 			and is_instance_valid(_selected)
-			and _selected.has_method("outfit_view"))
+			and "wardrobe" in _selected)
 	_outfit.visible = shown
 	if shown:
 		_outfit.text = "\n".join(["%s — OUTFIT" % _selected.name]
-				+ OutfitLines.of(_selected.outfit_view()))
+				+ OutfitLines.of(_selected.wardrobe.outfit.view()))
 
 
 ## Select `npc` (null = none): show only the selected NPC's own overlays and cache its controller

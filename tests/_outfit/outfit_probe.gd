@@ -3,8 +3,9 @@ extends RefCounted
 ## preload("res://tests/_outfit/outfit_probe.gd")` (not `Outfit`: that is the Items class). The
 ## behaviour they assert is `docs/outfits.md` (O1 to O14 = the rules of the plan on issue #38).
 ##
-## The outfit API is called directly: `Character.set_outfit(ids)` / `outfit_view()` (behind
-## `has_api`, so a body without them fails a named check rather than an engine error) and
+## The outfit API is called directly: the character's `wardrobe.outfit.set_ids(ids)` /
+## `wardrobe.outfit.view()` (behind `has_api`, so a body without them fails a named check rather
+## than an engine error) and
 ## `LoadoutConfig.outfit_options()`. `Visuals.drawn_art()` (the textures the last draw of the body
 ## painted, in order) is reached by `has_method` / `call`: the Visuals script has no class_name.
 ##
@@ -13,8 +14,8 @@ extends RefCounted
 ## `BallisticsFlightConfig.bullet_height`, so a round meets a body square on at a known zone. A test
 ## that fires calls `pin_height(s)` in `configure`, so the height it sets in `run` is restored.
 
-## The outfit slots, in the order the setup window lists them: the String keys of `set_outfit`'s
-## ids, of `outfit_view()` and of a loadout's `outfit` (like a loadout's own keys); the garment ids
+## The outfit slots, in the order the setup window lists them: the String keys of `set_ids`'s ids,
+## of `view()` and of a loadout's `outfit` (like a loadout's own keys); the garment ids
 ## are StringNames.
 const SLOTS: Array[String] = ["head", "body", "vest", "pants", "feet", "front_plate", "back_plate"]
 ## The garments of each slot (O1) and the plates (O8). `&""` = nothing worn there.
@@ -64,9 +65,9 @@ static func pin_height(s: TestSetup, height := 40.0) -> void:
 	s.set_static(BallisticsFlightConfig, &"bullet_height", height)
 
 
-## Whether `c` has the outfit API (`set_outfit` and `outfit_view`).
+## Whether `c` has the outfit API (its `wardrobe`, with the `outfit` it wears).
 static func has_api(c: Node) -> bool:
-	return c.has_method("set_outfit") and c.has_method("outfit_view")
+	return "wardrobe" in c
 
 
 ## `require` that the outfit API exists on `c`, naming what is missing. Use as
@@ -74,7 +75,8 @@ static func has_api(c: Node) -> bool:
 static func require_api(t: TestContext, c: Node) -> bool:
 	return t.require(
 		has_api(c),
-		"Character.set_outfit(ids) and Character.outfit_view() exist (docs/outfits.md O1)",
+		"the character's wardrobe.outfit.set_ids(ids) and wardrobe.outfit.view() exist "
+			+ "(docs/outfits.md O1)",
 	)
 
 
@@ -83,14 +85,14 @@ static func require_api(t: TestContext, c: Node) -> bool:
 static func wear(c: Node, ids: Dictionary) -> bool:
 	if not has_api(c):
 		return false
-	c.set_outfit(ids)
+	c.wardrobe.outfit.set_ids(ids)
 	return true
 
 
-## `c.outfit_view()`: `{ head, body, vest, pants, feet }` garment names and `front_plate` /
-## `back_plate` as `{ type, condition }`.
+## `c.wardrobe.outfit.view()`: `{ head, body, vest, pants, feet }` garment names and
+## `front_plate` / `back_plate` as `{ type, condition }`.
 static func view(c: Node) -> Dictionary:
-	return c.outfit_view() if has_api(c) else {}
+	return c.wardrobe.outfit.view() if has_api(c) else {}
 
 
 ## The condition (1 new .. 0 spent) of the plate on `side` (`"front_plate"` / `"back_plate"`); -1

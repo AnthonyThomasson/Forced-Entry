@@ -23,7 +23,7 @@ is its `dealt` damage (`damage x squareness x speed_factor`, the pistol's 25 and
 plate carrier), `pants` (jeans, tactical pants), `feet` (shoes, boots), `front_plate` and `back_plate` (soft IIIA insert, steel III plate,
 ceramic IV plate). Ids are StringNames, `&""` = nothing worn. Head, vest and both plates may be left empty; once an outfit is chosen the
 body, pants and feet are always worn. A plate is worn only in a garment that holds plates (the plate carrier): one put in any other vest,
-or with no vest, is dropped. `Character.set_outfit(ids)` replaces the whole outfit; `outfit_view()` reads it (O13). A character never
+or with no vest, is dropped. `Character.wardrobe.outfit.set_ids(ids)` replaces the whole outfit; `wardrobe.outfit.view()` reads it (O13). A character never
 dressed (the scene defaults, tests) wears nothing: no protection, no weight and its style's own clothes (O15); only O2 and O3 apply to it.
 Tests: `items/loadout_outfit`, `character/hit_zone_by_bullet_height` (nobody dressed), `character/outfit_weight_slows` (the bare body).
 
@@ -84,7 +84,7 @@ stop power falls linearly with its condition toward the soft panel's under it: `
 rifle's 2.2); the steel plate loses 0.016 a hit, so it stops 18 of them and the 19th gets through. A plate left in its slot when the outfit
 is set again keeps its condition; a new one starts at 1.
 Tests: `projectile/plate_wears_out` (eight rifle rounds: the ceramic stops the first and lets one through within the eight, the steel stops all; both
-conditions fall in `outfit_view()`, the ceramic's further), `projectile/plate_covers_front_back_not_flank` (no plates, or soft inserts, let a rifle round
+conditions fall in `wardrobe.outfit.view()`, the ceramic's further), `projectile/plate_covers_front_back_not_flank` (no plates, or soft inserts, let a rifle round
 through the front; the soft panel still stops a pistol in the flank).
 
 **O9. Grenades.** A frag's fragments are bullets (O2 to O8: the soft panel and the plates stop them, the legs and head take them bare). A
@@ -147,14 +147,14 @@ crouched carrier shows on the back; a fallen body's carrier taken off changes it
 
 **O13. Display.** The player debug panel (bottom left, `=== OUTFIT ===`) and the spectator inspector (bottom right while an NPC is selected,
 `<name> — OUTFIT`) list what the character wears, one line per slot: `Head: Helmet`, a plate as `Front plate: Ceramic IV plate 68%`
-(its condition, `roundi(condition x 100)`), `—` for nothing worn. Both read only `outfit_view()`; the inspector refreshes every frame, so wear shows live.
+(its condition, `roundi(condition x 100)`), `—` for nothing worn. Both read only `wardrobe.outfit.view()`; the inspector refreshes every frame, so wear shows live.
 Tests: `ui/debug_panel_outfit`, `ui/inspector_outfit` (nothing listed before a click on the NPC, nor after a click on empty ground).
 
 **O14. The AI is unaware.** NPCs do not know what anyone wears: nothing worn enters their decisions, the snapshot Von reads or their aim. A
 stopped round still posts its `&"hit"` (an NPC hears it and is "attacked"), but it raises no `damage_taken()`, so it is not a visible wound.
 No test: there is nothing new to assert.
 
-**O15. Styles.** Every character is drawn in a style, `Character.style`: the invaders are cyberpunk police, one unit a
+**O15. Styles.** Every character is drawn in a style, `Character.wardrobe.style`: the invaders are cyberpunk police, one unit a
 match, **Zenitex** (`zenitex`: cool charcoal with light grey edges on every garment, two white stripes across each shoulder cap, segmented
 shoulder plates on a shirt, a white stencil along the vest's front and back edges with a red lamp, white forearm stripes and knee-pad bars, a
 faceless helmet with a light rim and a white glint on its visor, gloves, a pack) or **Trauma Team** (`trauma`: a white helmet red over the
@@ -166,8 +166,8 @@ in a style is its `OutfitConfig` row's `looks` (the same garment kind in every s
 a crew member draws its colour from); the rest of the look and each character's own variety (skin, hair and hair style, gloves, a pack, eyes and
 face, tattoos, inlays, a headset, a spine rig, cables, chrome arms and shin, the colours a crew member found its clothes in) is the style's row
 in `CharacterStyleConfig.styles`, drawn from the character's `look_seed`. A police unit's rank shows: the lead's stripe across the helmet
-(`Character.rank` 2), the sergeant's chevrons (1). `Character.set_style(style, seed, rank := 0)` sets them (or the exported `style` and
-`look_seed` before `_ready`); a character never given a style is a `zenitex` (a test's puppet, a dummy, the gun range), the defender NPC scene a
+(`wardrobe.rank` 2), the sergeant's chevrons (1). `Character.wardrobe.set_style(style, seed, rank := 0)` sets them (or the `Wardrobe` child's
+exported `style`, `look_seed` and `rank` before `_ready`); a character never given a style is a `zenitex` (a test's puppet, a dummy, the gun range), the defender NPC scene a
 `merc`. A style is looks only: the armour layers, the weight, the surfaces a round meets, the setup window's choices and the garment names are
 the same in every style. A match styles its crews as it arms them (`MatchBuilder.arm` / `style`, from the house seed through its own salted RNG,
 so the styles never shift the guns or the placement): one unit drawn for every invader, the human invader too, its first the lead and its
@@ -206,10 +206,10 @@ a soft panel).
 - **Items** (`scenes/items/`): `OutfitConfig` (the rows above, the slots, zones and sides), `Outfit` (the worn set, `layer`, `wear`, `weight`,
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.style` (stamped by `ItemRegistry.inventory_for`).
-- **Character**: `set_outfit`, `outfit()`, `outfit_view()`, `get_surface_at`, `hit_zone`, `hit_side`, and `take_hit`'s zone, armour, wear and
-  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style: `style`,
+- **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `hit_zone`, `hit_side`, and `take_hit`'s zone, armour, wear and
+  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
-  resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `outfit().look(style)`.
+  resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `wardrobe.outfit.look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry
   height -1. **Physics**: `HitInfo.height`. **Audio**: the `composite` impact material.
 - **UI** (the setup window's picks, `outfit_lines.gd` for the debug panel and the inspector) and **Main** (the outfit through the setup window and

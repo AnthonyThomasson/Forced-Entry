@@ -1,14 +1,15 @@
 extends GameTest
 ## R1 (ticket #61, styles by side): a character carries a `style` (`zenitex` / `trauma` for the
-## invaders, `merc` / `borg` for the defenders), set through `Character.set_style(style, seed)`; the
-## look of what it wears comes from the garment *and* the style, while what the outfit does stays
-## the same. Five bodies in the same outfit, held perfectly still (no breath, no glance), so a
-## drawing is the same textures frame after frame and two bodies drawn alike paint the very same
-## textures:
+## invaders, `merc` / `borg` for the defenders), set through
+## `CharacterWardrobe.set_style(style, seed)`; the look of what it wears comes from the garment
+## *and* the style, while what the outfit does stays the same. Five bodies in the same outfit, held
+## perfectly still (no breath, no glance), so a drawing is the same textures frame after frame and
+## two bodies drawn alike paint the very same textures:
 ## - unstyled, the five draw alike (the premise: nothing else tells them apart);
 ## - each style draws the outfit differently from every other style (plated kit and plain clothes);
-## - each style's armour layers (`outfit().layer` over every zone and side), `outfit().weight()` and
-##   `get_surface_at` at every zone's height from every side are the unstyled body's;
+## - each style's armour layers (`wardrobe.outfit.layer` over every zone and side),
+##   `wardrobe.outfit.weight()` and `get_surface_at` at every zone's height from every side are the
+##   unstyled body's;
 ## - a character never given a style is a `zenitex` and draws as one (the same look seed);
 ## - the rank marks (`docs/outfits.md`, styles): in the plated kit a police unit's sergeant (rank 1,
 ##   chevrons) and lead (rank 2, the helmet stripe) each draw differently from a trooper (rank 0),
@@ -62,8 +63,9 @@ func configure(s: TestSetup) -> void:
 			STYLES[i],
 			&"puppet",
 			at,
-			{ "facing": Vector2.DOWN, "movement:aim_point": at + AIM_AHEAD, "look_seed": SEED },
+			{ "facing": Vector2.DOWN, "movement:aim_point": at + AIM_AHEAD },
 		)
+		s.set_props(STYLES[i], "Wardrobe", { "look_seed": SEED })
 	s.actor(
 		&"plain",
 		&"puppet",
@@ -71,9 +73,9 @@ func configure(s: TestSetup) -> void:
 		{
 			"facing": Vector2.DOWN,
 			"movement:aim_point": Vector2(520, Y) + AIM_AHEAD,
-			"look_seed": SEED,
 		},
 	)
+	s.set_props(&"plain", "Wardrobe", { "look_seed": SEED })
 	s.camera_follow(STYLES + [&"plain"])
 
 
@@ -93,20 +95,20 @@ func run(t: TestContext) -> void:
 
 	# A character never given a style is a zenitex.
 	t.expect_eq(
-		plain.style,
+		plain.wardrobe.style,
 		&"zenitex",
-		"a character with no style has the style zenitex (Character.style)",
+		"a character with no style has the style zenitex (CharacterWardrobe.style)",
 	)
 	t.expect_eq(
-		plain.look_seed,
+		plain.wardrobe.look_seed,
 		SEED,
-		"its look seed is the one it was given (Character.look_seed)",
+		"its look seed is the one it was given (CharacterWardrobe.look_seed)",
 	)
 
 	for style in STYLES:
 		var c := t.actor(style)
-		c.set_style(style, SEED)
-		t.expect_eq(c.style, style, "set_style(%s) sets Character.style" % style)
+		c.wardrobe.set_style(style, SEED)
+		t.expect_eq(c.wardrobe.style, style, "set_style(%s) sets CharacterWardrobe.style" % style)
 
 	for outfit: Array in OUTFITS:
 		await _check_outfit(t, outfit, plain)
@@ -164,13 +166,13 @@ func _check_ranks(t: TestContext) -> void:
 		by_rank[style] = []
 	for rank in RANKS:
 		for style in STYLES:
-			t.actor(style).set_style(style, SEED, rank)
+			t.actor(style).wardrobe.set_style(style, SEED, rank)
 		await t.seconds(0.5)
 		for style in STYLES:
 			t.expect_eq(
-				t.actor(style).rank,
+				t.actor(style).wardrobe.rank,
 				rank,
-				"set_style(%s, seed, %d) sets Character.rank" % [style, rank],
+				"set_style(%s, seed, %d) sets CharacterWardrobe.rank" % [style, rank],
 			)
 			by_rank[style].append(_set_of(OutfitProbe.art(t.actor(style))))
 	for style in STYLES:
@@ -208,13 +210,13 @@ func _check_same_function(t: TestContext, c: Node, plain: Node, what: String) ->
 	for zone in ZONES:
 		for side in SIDES:
 			t.expect_eq(
-				c.outfit().layer(zone, side),
-				plain.outfit().layer(zone, side),
+				c.wardrobe.outfit.layer(zone, side),
+				plain.wardrobe.outfit.layer(zone, side),
 				"%s: the armour layer at %s %s is unchanged" % [what, zone, side],
 			)
 	t.expect_eq(
-		c.outfit().weight(),
-		plain.outfit().weight(),
+		c.wardrobe.outfit.weight(),
+		plain.wardrobe.outfit.weight(),
 		"%s: the outfit weighs the same" % what,
 	)
 	for zone in ZONES:

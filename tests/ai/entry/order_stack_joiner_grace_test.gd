@@ -62,7 +62,8 @@ func configure(s: TestSetup) -> void:
 		{ "decide_interval": 0.45 },
 		{ "movement:speed": 0.0 },
 	)
-	Entry.npc(s, &"joiner", JOINER_START, { "decide_interval": 0.7 }, { "rank": 1 })
+	Entry.npc(s, &"joiner", JOINER_START, { "decide_interval": 0.7 })
+	s.set_props(&"joiner", "Wardrobe", { "rank": 1 })
 	s.set_static(DecisionStub, &"fail", true)
 	s.actor(&"lead", &"puppet", Vector2(1300, 700), { "faction": &"invader" })
 	s.squads({ "human": &"lead" })

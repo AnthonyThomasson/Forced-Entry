@@ -16,8 +16,9 @@ class_name OutfitConfig
 ##   plates      true = it holds a front and a back plate (the plate carrier); a plate is worn only
 ##               in such a garment.
 ##   looks       what the art draws, per character
-##               style (`Character.style`: `zenitex` and `trauma`, the police units; `merc` and
-##               `borg`, the defenders' crew; a style with no row draws `default_style`'s): `kind`
+##               style (`CharacterWardrobe.style`: `zenitex` and `trauma`, the police units;
+##               `merc` and `borg`, the defenders' crew; a style with no row draws
+##               `default_style`'s): `kind`
 ##               (the painter's name for the garment: `cap`, `helmet`, `short_sleeves`,
 ##               `long_sleeves`, `vest`, `carrier`, `jeans`, `tactical`, `shoes`, `boots`, the same
 ##               in every style) and either `color` (a police unit's livery) or `palette` (the name

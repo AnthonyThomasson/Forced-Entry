@@ -1,7 +1,7 @@
 class_name Outfit extends RefCounted
 ## What one character wears (Items domain; `docs/outfits.md`): a garment or nothing in each slot of
 ## `OutfitConfig`, the plate carrier's two plates and their condition. The Character owns one
-## (`Character.set_outfit`) and asks it what stands between a round and the body (`layer`), wears
+## (`wardrobe.outfit.set_ids`) and asks it what stands between a round and the body (`layer`), wears
 ## its plates by the hits they take (`wear`) and weighs it (`weight`); the art reads `look(style)`
 ## and the UI `view()`. A new Outfit wears nothing: no protection, no weight, the style's own look.
 

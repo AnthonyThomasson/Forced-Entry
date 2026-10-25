@@ -40,11 +40,16 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(980, 330), { "rank": 2 })
-	s.actor(&"sergeant", &"invader", Vector2(1000, 400), { "rank": 1, "max_health": 1_000_000.0 })
-	s.actor(&"defender", &"invader", Vector2(240, 150), { "rank": 0, "max_health": 1_000_000.0 })
-	s.actor(&"ambusher", &"invader", Vector2(560, 415), { "rank": 0, "max_health": 1_000_000.0 })
-	s.actor(&"stacker", &"invader", Vector2(960, 60), { "rank": 0, "max_health": 1_000_000.0 })
+	Stack.human(s, &"me", Vector2(980, 330))
+	s.set_props(&"me", "Wardrobe", { "rank": 2 })
+	s.actor(&"sergeant", &"invader", Vector2(1000, 400), { "max_health": 1_000_000.0 })
+	s.set_props(&"sergeant", "Wardrobe", { "rank": 1 })
+	s.actor(&"defender", &"invader", Vector2(240, 150), { "max_health": 1_000_000.0 })
+	s.set_props(&"defender", "Wardrobe", { "rank": 0 })
+	s.actor(&"ambusher", &"invader", Vector2(560, 415), { "max_health": 1_000_000.0 })
+	s.set_props(&"ambusher", "Wardrobe", { "rank": 0 })
+	s.actor(&"stacker", &"invader", Vector2(960, 60), { "max_health": 1_000_000.0 })
+	s.set_props(&"stacker", "Wardrobe", { "rank": 0 })
 	s.squads({ "human": &"me" })
 
 

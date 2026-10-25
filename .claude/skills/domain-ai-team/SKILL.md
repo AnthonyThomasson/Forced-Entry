@@ -49,7 +49,7 @@ the human's only on a crossing begun since the order was issued (`crossed_frame`
 
 **The squad (`ai/team/squad.gd`, `docs/leadership.md` LD3 to LD7 and LD19 to LD26, interface 21).** One per side, a `Node` the match builder builds under the match's `World` (or a test world) after
 arming the characters (`MatchBuilder.build_squads`: `setup(roster: SquadRoster, openings, rooms)`, the roster (`squad_roster.gd`) its `faction`, `members`, `human` and `claim_ttl`) and hands each NPC (`MatchBuilder.bind_squad`: the
-controller's `squad`). Its leader is the highest `rank`, the first spawned among equals (the human when it leads); on the leader's `died`
+controller's `squad`). Its leader is the highest `wardrobe.rank`, the first spawned among equals (the human when it leads); on the leader's `died`
 the next leads within the frame and it posts `&"leader"` `{ faction, leader, previous }`. `issue(request)` turns a leader's plain request
 (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an `&"order"` (each stamped by `_post_order` with the `GameClock.frame()` it is
 issued on, `frame`, as is a `go`) (`defend_room` / `stack` / `ambush` / `cancel`: the room key, or
@@ -79,7 +79,7 @@ the human's `PlayerStack` among them), at each doorway `ClaimLedger.openings_sta
 (slots 1 to the last claimed over the geometry its own `AgentEntry` lays, each where its holder stands it, a slot a dead end does not hold
 left out), `there` its holder at `ready` / `bang` (`StackClaim.IN_SLOT`), `mine` the human's; the UI's stack
 markers draw it, laid on the navigation map and physics space of the world the squad itself is in (its viewport's `World2D`). It reads its
-members only through the Character API (`rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
+members only through the Character API (`wardrobe.rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
 that follows, when a child of it is in the group `npc_controllers` at `setup`, `_npcs`) and the bus, and reuses `AgentEntry.opening_id` /
 `normal_into` and the stack module (`StackClaim`, `ClaimLedger`). The only orders it posts of its own are the rally's joins and the cancels below; `_post_order` (the id,
 `_orders`, the `&"order"` post) serves `issue` and them alike.
@@ -120,7 +120,7 @@ Tests: `tests/general/` (`squad_*`, `squad_takeover_from_human`, `lead_rank`, `s
 claim; `human_leader_rallies`, `human_rally_spares_ordered`, `human_stack_slot_no_rally`, `human_defender_leader_no_rally`), `tests/ai/movement/` (`follow_*`, `independent_no_squad`), `tests/ai/combat/`
 (`leash_*`, and for an ordered member off the leash `defend_room_stays_inside` and `ordered_melee_off_leash`), the ordered entries and joins in `tests/ai/entry/` (`order_*`, `join_*`), `tests/general/test_world_invader_bound_as_match` and the UI's `tests/ui/` (`stack_markers_draw`, `order_markers_draw`, `command_menu_*`, `leader_overlay_draw`).
 
-**Interfaces:** 7 (the Character API a squad reads: `rank`, `is_dead`, `died`, the leader's `global_position` and `facing`), 9 (the map
+**Interfaces:** 7 (the Character API a squad reads: `wardrobe.rank`, `is_dead`, `died`, the leader's `global_position` and `facing`), 9 (the map
 queries `PlayerStack`, the squad's stack slots and the follow spots go through), 10 (EventBus: `&"callout"` entry claims, aborts and order steps
 in, `&"callout"` the human's claim, `&"order"` (with the rally's `join` and the cancels), `&"leader"` out), 17
 (`PlayerStack`, `StackMarkers`), 21 (`Squad`, the command menu, order markers and leader overlay) — signatures in `architecture`.

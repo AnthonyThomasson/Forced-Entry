@@ -102,7 +102,7 @@ added to `GunConfig` is offered automatically; `grenade_options()` and `outfit_o
 unless the vest holds plates),
 `apply(character, loadout, rng, style := {})` calls `Character.inventory.set_loadout` (bare hands, fists, key and the one gun, loaded with the chosen
 magazine and carrying `spares` of it; `random` draws a gun from `rng`; every item in the weapon style `style.weapon`, default `police`) and
-`Character.set_outfit` (the whole outfit, replacing what it wore), and with a `style.look` `Character.set_style(look, seed, rank)` (looks only,
+`Character.wardrobe.outfit.set_ids` (the whole outfit, replacing what it wore), and with a `style.look` `Character.wardrobe.set_style(look, seed, rank)` (looks only,
 `docs/outfits.md` O15), and returns the gun id, `random(rng)` draws a valid loadout, its outfit (`random_outfit(rng)`: each slot any of its choices, None
 included, then made valid by `outfit_of`, so a plate drawn without a carrier is cleared) drawn after the gun, so a seed's gun does not depend on it. `ItemRegistry.create` / `inventory_for` take an optional loaded-`magazine` override.
 
@@ -133,7 +133,7 @@ stopped round strikes: debris, the hit event, the impact sound), `blunt` (share 
 through) and `blast` (share cut from a frag's blast). Helpers: `garment(id)`, `plate(id)`, `slots()`, `may_be_empty(slot)`, `choices(slot)`, `fits(slot, id)`,
 `name_of(slot, id)`.
 
-`Outfit` (`RefCounted`) is one character's worn set; the Character owns one (`Character.set_outfit` / `outfit()`). `Outfit.new(ids)` / `set_ids(ids)` replace
+`Outfit` (`RefCounted`) is one character's worn set; the Character's wardrobe owns one (`Character.wardrobe.outfit`). `Outfit.new(ids)` / `set_ids(ids)` replace
 everything worn (an unfitting id = nothing; a plate is kept only while the vest `holds_plates()`; a plate left in its slot keeps its condition, a new one
 starts at 1). Reads: `ids()`, `worn(slot)`, `condition(slot)` (1 new .. 0 spent). `layer(zone, side)` is the armour a round meets there — `{}`, or the
 strongest covering garment's numbers, or over them the plate on that side: its numbers, its stop power `lerp(panel's, max(plate's, panel's), condition)`,

@@ -33,9 +33,12 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK, [{ "pick": "search" }])
-	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2 })
-	s.actor(&"sergeant", &"invader", Vector2(1000, 100), { "rank": 1 })
-	s.actor(&"trooper", &"invader", Vector2(1000, 250), { "rank": 0 })
+	s.actor(&"lead", &"invader", Vector2(960, 150))
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
+	s.actor(&"sergeant", &"invader", Vector2(1000, 100))
+	s.set_props(&"sergeant", "Wardrobe", { "rank": 1 })
+	s.actor(&"trooper", &"invader", Vector2(1000, 250))
+	s.set_props(&"trooper", "Wardrobe", { "rank": 0 })
 	s.squads()
 
 

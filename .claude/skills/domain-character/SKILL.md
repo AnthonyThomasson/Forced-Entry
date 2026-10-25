@@ -1,6 +1,6 @@
 ---
 name: domain-character
-description: Overview and root-body detail for the Character domain (scenes/character/) — the player character (built so other character types can exist): facing, movement, postures and running, the weapon raise against a wall, ammo / reloading and loadout, the outfit (hit zones, sides, armour in take_hit, its weight), its style (how it is drawn: set_style, look_seed, rank), its shadow (the living body's light occluder), death, footsteps, walking into furniture, riding a vehicle (the forwards to the Vehicles domain's CharacterVehicleUse and the ride pose) and the player/NPC scene wiring. The body itself (skeleton, pose, legs, hands and punch, ragdoll fall, all drawing and pixel art) is the sub-domain `domain-character-body` (scenes/character/body/). Use when editing character.gd, player_controller.gd, character_footsteps.gd, character_push.gd, the Character*Config tuning holders or the character scenes. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Overview and root-body detail for the Character domain (scenes/character/) — the player character (built so other character types can exist): facing, movement, postures and running, the weapon raise against a wall, ammo / reloading and loadout, the outfit (hit zones, sides, armour in take_hit, its weight), its style (how it is drawn, its wardrobe: set_style, look_seed, rank), its shadow (the living body's light occluder), death, footsteps, walking into furniture, riding a vehicle (the forwards to the Vehicles domain's CharacterVehicleUse and the ride pose) and the player/NPC scene wiring. The body itself (skeleton, pose, legs, hands and punch, ragdoll fall, all drawing and pixel art) is the sub-domain `domain-character-body` (scenes/character/body/). Use when editing character.gd, player_controller.gd, character_footsteps.gd, character_push.gd, the Character*Config tuning holders or the character scenes. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Character domain
@@ -167,18 +167,20 @@ magazines and the held slot (dropping any reload, re-judging the raise). A match
 
 ## The style (`docs/outfits.md` O15)
 
-How the character is drawn, looks only: `style` (exported, a `CharacterStyleConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the
-defenders' crew; `zenitex` by default, the defender NPC scene `merc`), `look_seed` (exported: its own variety within the style) and `rank` (a police
-unit's: 0 trooper, 1 sergeant, 2 lead). `set_style(style, seed, rank := 0)` sets all three (a match through `LoadoutConfig.apply`'s `style`, `MatchBuilder.style`; tests through it
-or the props). Each setter bumps `_look_revision`, which the visuals compare once a frame to re-resolve the look (`domain-character-body`). The
+How the character is drawn, looks only, on its `wardrobe` (`character_wardrobe.gd`, `CharacterWardrobe`: a `Node`, the `Wardrobe` child of
+`character_base.tscn`, so a scene can author its style; the root finds it in `_enter_tree`, before any child's `_ready` reads it): `style` (exported, a
+`CharacterStyleConfig.styles` key: `zenitex` / `trauma`, the police units, `merc` / `borg`, the defenders' crew; `zenitex` by default, the defender NPC
+scene's `Wardrobe` `merc`), `look_seed` (exported: its own variety within the style) and `rank` (exported, a police unit's: 0 trooper, 1 sergeant, 2 lead).
+`wardrobe.set_style(style, seed, rank := 0)` sets all three (a match through `LoadoutConfig.apply`'s `style`, `MatchBuilder.style`; tests through it
+or the actor's `Wardrobe` child props, `set_props(id, "Wardrobe", { rank = … })`). Each setter bumps `wardrobe.revision`, which the visuals compare once a frame to re-resolve the look (`domain-character-body`). The
 style rows (`CharacterStyleConfig.styles`: side, police, weapon styles, palettes, bare clothes, skin, hair, gloves, pack, livery marks, chrome, optics,
 implant chances) and `default_style` are this domain's tuning. Tests: `tests/character/style_look_test.gd`, `tests/general/match_styles_test.gd`.
 
 ## The outfit: hit zones, sides, armour, weight (`docs/outfits.md` O1 to O10)
 
-The character owns an `Outfit` (Items, `_outfit`; a new one wears nothing). `set_outfit(ids)` replaces the whole worn set (Main dresses every spawn
-through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` hands the art the `Outfit` (its `look(style)` and `revision`, `domain-character-body`),
-`outfit_view()` the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
+The character's wardrobe owns an `Outfit` (Items, `wardrobe.outfit`; a new one wears nothing). `wardrobe.outfit.set_ids(ids)` replaces the whole worn set (Main dresses every spawn
+through `LoadoutConfig.apply`; tests through it or `set_ids`); the art reads the `Outfit`'s `look(style)` and `revision` (`domain-character-body`),
+the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
 - **Where a round strikes.** `hit_zone(height)`: the bullet's `HitInfo.height` over `movement.posture_coverage(movement.posture())` against `CharacterHitConfig.zones`
   (`feet` up to 0.08, `legs` 0.45, `torso` 0.85, `head` above; the same fractions standing and crouched), `&""` for a height below 0 (a blast).
   `hit_side(direction)`: the angle between `-direction` and `anatomy.pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
@@ -193,7 +195,7 @@ through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` han
   guarantees a round that beats `stop_power` penetrates) deals only `blunt` of it through `_apply_damage`, with debris of the armour's material and colour
   and no `Deformable` record (so `damage_taken()` does not rise), no `BloodWound`. `_wound_by(hit, damage)` is the wounding path: the dent, the blood
   debris, the bleeding and the damage. Melee (`take_damage`) is not zoned and meets no armour.
-- **Weight.** `movement`'s `_speed_in` multiplies every pace by `_weight_speed()` = `max(1 − extra × outfit_speed_per_kg, outfit_speed_min)` (0.0067, 0.6), `extra` the kg worn above
+- **Weight** (`wardrobe.outfit.weight()`). `movement`'s `_speed_in` multiplies every pace by `_weight_speed()` = `max(1 − extra × outfit_speed_per_kg, outfit_speed_min)` (0.0067, 0.6), `extra` the kg worn above
   `outfit_free_weight` (2: plain clothes weigh nothing extra), so `_move_speed()` and `movement.run_speed()` slow with it; `_update_stamina` spends the run's stamina
   `1 + extra × outfit_stamina_per_kg` (0.025) times as fast. The invaders' plated kit (14 kg) is about 8% slower and spends 1.3x.
 Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows_test.gd`, `outfit_art_test.gd`, and the armour ones in `tests/projectile/`

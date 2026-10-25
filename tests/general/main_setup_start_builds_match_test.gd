@@ -116,7 +116,7 @@ func _check_sides(t: TestContext, world: Node) -> void:
 			"%s carries the invaders' choice: a rifle, two stuns, no frag (%s)"
 				% [c.name, _kit(c)],
 		)
-		var ids: Dictionary = c.outfit().ids()
+		var ids: Dictionary = c.wardrobe.outfit.ids()
 		t.check(
 			ids.get("vest") == &"plate_carrier"
 				and ids.get("front_plate") == &"steel_iii"

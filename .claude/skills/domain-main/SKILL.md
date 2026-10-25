@@ -97,7 +97,7 @@ player_stack, leader_overlay }`). `build` is its two stages:
    overlay but the holes started through `set_overlay` by the spec's `overlays`.
 
 - **Arming** (`arm(characters, spec)`): every character gets its side's loadout (by its faction) through `LoadoutConfig.apply` →
-  `Character.inventory.set_loadout` and `Character.set_outfit` — a chosen gun with its magazine and spares, its stun / frag grenade counts and its outfit
+  `Character.inventory.set_loadout` and `Character.wardrobe.outfit.set_ids` — a chosen gun with its magazine and spares, its stun / frag grenade counts and its outfit
   (`docs/outfits.md` O11). By default invaders carry 1 + 1 grenades and wear a helmet, a shirt, a plate carrier with a steel III plate front
   and back, tactical pants and boots (`INVADER_LOADOUT`); defenders 0 + 0 in plain clothes (`DEFENDER_LOADOUT` `{}`, so
   `LoadoutConfig.default_outfit`: a t-shirt, jeans and shoes). The gun is the chosen one or by default one random gun drawn from an RNG seeded

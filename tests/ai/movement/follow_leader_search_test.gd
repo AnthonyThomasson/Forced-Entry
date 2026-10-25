@@ -36,14 +36,17 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s)
 	# Ranked as Main ranks a unit: the lead, the sergeant, a trooper (the leader by the rank rule).
-	s.actor(&"lead", &"invader", Vector2(930, 40), { "rank": 2 })
+	s.actor(&"lead", &"invader", Vector2(930, 40))
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
 	# Premise: the leader searches by walking into the rooms, with no tactical entry of its own
 	# (`entry_enabled` off: no ENTER, no stack claim), so this is LD21's file behind a leader that
 	# walks through doorways. A leader's own stack rallying its team (LD24) is the join
 	# tests' (`tests/ai/entry/join_*`).
 	s.set_props(&"lead", "GoalController", { "entry_enabled": false })
-	s.actor(&"m1", &"invader", Vector2(975, 75), { "rank": 1 })
-	s.actor(&"m2", &"invader", Vector2(985, 125), { "rank": 0 })
+	s.actor(&"m1", &"invader", Vector2(975, 75))
+	s.set_props(&"m1", "Wardrobe", { "rank": 1 })
+	s.actor(&"m2", &"invader", Vector2(985, 125))
+	s.set_props(&"m2", "Wardrobe", { "rank": 0 })
 	s.squads()
 
 

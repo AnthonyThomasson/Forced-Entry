@@ -27,30 +27,7 @@ const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.
 @export var faction: StringName = &"player"
 ## Maximum health. Characters start at this value; configurable per character in the inspector.
 @export var max_health: float = 50.0
-## The style it is drawn in (`docs/outfits.md`, styles; a key of `CharacterStyleConfig.styles`):
-## `zenitex` or `trauma` (the invaders' police units), `merc` or `borg` (the defenders' crew). What
-## it wears is drawn in the style, and its own variety (skin, hair, implants, the colours a defender
-## found its garments in) is drawn from `look_seed`. Looks only: nothing it does changes. A
-## character never given one is a `zenitex`. Set before `_ready` (as a prop) or with `set_style`.
-@export var style: StringName = &"zenitex":
-	set(v):
-		style = v
-		_look_revision += 1
-## The seed of its own variety within its style.
-@export var look_seed: int = 0:
-	set(v):
-		look_seed = v
-		_look_revision += 1
 
-## A police unit's rank marks: 0 a trooper, 1 the sergeant (chevrons on the shoulder), 2 the lead (a
-## stripe across the helmet).
-var rank: int = 0:
-	set(v):
-		rank = v
-		_look_revision += 1
-## Bumped by every change of `style`, `look_seed` or `rank`: the visuals re-resolve the look when it
-## moves.
-var _look_revision := 0
 ## Current health, initialised to max_health. Read-only outside this script.
 var health: float
 ## True once the character has died; gates all movement and action permanently.
@@ -74,9 +51,13 @@ var use := CharacterUse.new(self)
 ## The body's animate parts: the pose, the rig, the hands, the legs, the kick, the footsteps, the
 ## wounds, the shadow and the fall (`body/character_anatomy.gd`).
 var anatomy := CharacterAnatomy.new(self)
-## What the character wears (Items domain; `set_outfit`): its armour, its weight and, for the art,
-## its look. A new one wears nothing (no armour, no weight).
-var _outfit := Outfit.new()
+## How it is drawn and what it wears: its style, look seed and rank, and its `Outfit` (the
+## `Wardrobe` child, `character_wardrobe.gd`; found in `_enter_tree`, before any child's `_ready`).
+var wardrobe: CharacterWardrobe
+
+
+func _enter_tree() -> void:
+	wardrobe = $Wardrobe as CharacterWardrobe
 
 
 func _ready() -> void:
@@ -145,37 +126,6 @@ func _walk_frame(delta: float) -> void:
 	weapon.update_raise(delta)
 	movement.walk(delta)
 	anatomy.step(delta)
-
-
-# --- What it wears ------------------------------------------------------------------
-
-
-## Dress the character in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`,
-## String keys, StringName ids; a missing or empty one = nothing there), replacing everything worn
-## before: its armour, its weight and its look (`docs/outfits.md`). How Main dresses a spawn
-## (through `LoadoutConfig.apply`); a character never dressed wears nothing.
-func set_outfit(ids: Dictionary) -> void:
-	_outfit.set_ids(ids)
-
-
-## Draw the character in `new_style` (a key of `CharacterStyleConfig.styles`) with its own variety
-## from `seed_value`, and a police unit's `new_rank` (0 trooper, 1 sergeant, 2 lead): how Main
-## styles a spawn (through `LoadoutConfig.apply`). Looks only.
-func set_style(new_style: StringName, seed_value: int, new_rank := 0) -> void:
-	style = new_style
-	look_seed = seed_value
-	rank = new_rank
-
-
-## What the character wears (the `Outfit` the art reads its `look(style)` from).
-func outfit() -> Outfit:
-	return _outfit
-
-
-## What it wears, for the UI: each garment slot -> the garment's name ("" for nothing), each plate
-## slot -> `{ type, name, condition }`.
-func outfit_view() -> Dictionary:
-	return _outfit.view()
 
 
 ## `facing` turned toward the unit vector `want`: at once standing, but no faster than the posture's
@@ -262,7 +212,7 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	var surface := get_surface()
 	if height < 0.0:
 		return surface
-	var armour := _outfit.layer(hit_zone(height), hit_side(direction))
+	var armour := wardrobe.outfit.layer(hit_zone(height), hit_side(direction))
 	if armour.is_empty():
 		return surface
 	surface["inner_material"] = surface["material"]
@@ -314,16 +264,17 @@ func hit_side(direction: Vector2) -> StringName:
 func take_hit(hit: HitInfo) -> void:
 	apply_impulse(Physics.impact_impulse(hit))
 	var side := hit_side(hit.direction)
+	var outfit := wardrobe.outfit
 	if hit.height < 0.0:
-		_wound_by(hit, hit.damage * (1.0 - float(_outfit.layer(&"torso", side).get("blast", 0.0))))
+		_wound_by(hit, hit.damage * (1.0 - float(outfit.layer(&"torso", side).get("blast", 0.0))))
 		return
 	var zone := hit_zone(hit.height)
 	var damage := hit.damage * float(CharacterHitConfig.zone_damage.get(zone, 1.0))
-	var armour := _outfit.layer(zone, side)
+	var armour := outfit.layer(zone, side)
 	if armour.is_empty():
 		_wound_by(hit, damage)
 		return
-	_outfit.wear(zone, side, hit.damage)
+	outfit.wear(zone, side, hit.damage)
 	if hit.penetrated:
 		_wound_by(hit, damage * (1.0 - float(armour["reduction"])))
 		return

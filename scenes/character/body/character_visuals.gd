@@ -8,11 +8,11 @@ extends Node2D
 ## nearest lighting step and drawn rotated to its exact angle. Reads the body radius, pose, rig,
 ## held item and wounds from the character and hand positions/size from the hands sibling.
 ## Appearance only — no item-specific weapon logic lives here (that's each Item's draw_weapon()).
-## Once dead it draws the fallen ragdoll instead. How it looks is its style (`Character.style`,
-## `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears drawn in that style (`dress`,
-## `body_dress.gd`, through `character_style.gd`): the headwear, the shirt and its sleeves, a vest
-## and its plates' wear, the pants and the footwear, and its own skin, hair, gloves, pack and
-## implants.
+## Once dead it draws the fallen ragdoll instead. How it looks is its style
+## (`CharacterWardrobe.style`, `look_seed`, `rank`; `docs/outfits.md`, styles) and what it wears
+## drawn in that style (`dress`, `body_dress.gd`, through `character_style.gd`): the headwear, the
+## shirt and its sleeves, a vest and its plates' wear, the pants and the footwear, and its own skin,
+## hair, gloves, pack and implants.
 
 const BodyPainter = preload("res://scenes/character/body/art/body_painter.gd")
 const HeadPainter = preload("res://scenes/character/body/art/head_painter.gd")
@@ -84,7 +84,7 @@ func _ready() -> void:
 	shadow = BodyShadow.new(self, _character, _hands)
 	shadow.node.draw.connect(_draw_shadow)
 	dress = BodyDress.new()
-	dress.refresh(_character)
+	dress.refresh(_character.wardrobe)
 	limbs = BodyLimbs.new(self, _character, dress)
 	laid = BodyLaidOut.new(self, _character, _hands, dress, limbs)
 
@@ -99,7 +99,7 @@ func _process(_delta: float) -> void:
 		return
 	_offscreen = false
 	var ragdoll = _character.anatomy.ragdoll
-	if dress.refresh(_character):
+	if dress.refresh(_character.wardrobe):
 		_settled_drawn = false  # A body at rest repaints what it now wears.
 	if ragdoll == null:
 		_rig = _character.anatomy.rig()

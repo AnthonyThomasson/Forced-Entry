@@ -167,7 +167,7 @@ func run(t: TestContext) -> void:
 	for i in LANES.size():
 		var lane: Dictionary = LANES[i]
 		var dummy := t.actor(_lane_id(i))
-		dummy.set_outfit(lane["outfit"])
+		dummy.wardrobe.outfit.set_ids(lane["outfit"])
 		var home := _home(i)
 		var puppet := t.puppet(_lane_id(i))
 		puppet.aim_at(home + (lane["facing"] as Vector2) * 300.0)
@@ -369,7 +369,7 @@ class Station extends Node2D:
 		var out: Array[String] = ["%d. %s" % [_number, _lane["title"]]]
 		if _lane.has("note"):
 			out.append("(%s)" % _lane["note"])
-		for line in OutfitLines.of(_dummy.outfit_view()):
+		for line in OutfitLines.of(_dummy.wardrobe.outfit.view()):
 			if not line.ends_with(": —"):
 				out.append(line)
 		out.append("Dead"

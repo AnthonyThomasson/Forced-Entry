@@ -56,7 +56,7 @@ func run(t: TestContext) -> void:
 		"the style draws are unchanged (each character's style and look seed)",
 	)
 	for c in cast:
-		c.rank = 0
+		c.wardrobe.rank = 0
 
 	Settings.set_setup({
 		"side": "invader",
@@ -85,6 +85,6 @@ func _armed(t: TestContext, lead: bool) -> Dictionary:
 	)
 	MatchBuilder.arm(cast, spec)
 	return {
-		"ranks": cast.map(func(c): return int(c.rank)),
-		"looks": cast.map(func(c): return [String(c.style), int(c.look_seed)]),
+		"ranks": cast.map(func(c): return int(c.wardrobe.rank)),
+		"looks": cast.map(func(c): return [String(c.wardrobe.style), int(c.wardrobe.look_seed)]),
 	}

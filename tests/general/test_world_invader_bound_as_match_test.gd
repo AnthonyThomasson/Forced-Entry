@@ -33,7 +33,8 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.switch(&"ai.entry", false)
 	s.von_script([{ "pick": "search" }, { "pick": "entrance" }])
-	s.actor(&"lead", &"invader", LEAD_AT, { "rank": 2 })
+	s.actor(&"lead", &"invader", LEAD_AT)
+	s.set_props(&"lead", "Wardrobe", { "rank": 2 })
 	s.actor(&"partner", &"invader", PARTNER_AT)
 	s.squads()
 

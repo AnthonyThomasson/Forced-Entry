@@ -4,6 +4,8 @@
 
 [node name="Defender" instance=ExtResource("1_base")]
 faction = &"household"
+
+[node name="Wardrobe" parent="."]
 style = &"merc"
 
 [node name="GoalController" parent="."]
