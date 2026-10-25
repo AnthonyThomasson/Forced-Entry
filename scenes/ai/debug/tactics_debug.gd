@@ -81,7 +81,6 @@ func _paint() -> void:
 ## unsearched / unknown), with its type + status tagged in the corner — so the room reasoning the
 ## tactical points are placed against is visible, and the colours read as a legend.
 func _draw_room_zones() -> void:
-	var font: Font = ThemeDB.fallback_font
 	for room in _controller.debug_room_zones():
 		var status: StringName = room["status"]
 		var color: Color = ROOM_COLORS.get(status, Color.WHITE)
@@ -90,8 +89,10 @@ func _draw_room_zones() -> void:
 		draw_rect(local, Color(color, 0.08), true)
 		draw_rect(local, color, false, 2.0)
 		DebugText.string(
-			self, font, local.position + Vector2(ROOM_LABEL_INSET, ROOM_LABEL_INSET + FONT_SIZE),
-			"%s · %s" % [room["type"], String(status)], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE,
+			self,
+			local.position + Vector2(ROOM_LABEL_INSET, ROOM_LABEL_INSET + FONT_SIZE),
+			"%s · %s" % [room["type"], String(status)],
+			FONT_SIZE,
 			color,
 		)
 
@@ -108,7 +109,6 @@ func _draw_focus() -> void:
 ## Draw each candidate zone as a translucent disc + outline + a dot at its exact point, and label
 ## each category once (beside its first marker) so the colours read as a legend.
 func _draw_point_zones() -> void:
-	var font: Font = ThemeDB.fallback_font
 	var labelled := {}
 	for zone in _controller.debug_zones():
 		var category: StringName = zone["category"]
@@ -120,6 +120,9 @@ func _draw_point_zones() -> void:
 		if not labelled.has(category):
 			labelled[category] = true
 			DebugText.string(
-				self, font, p + Vector2(ZONE_RADIUS + 2.0, FONT_SIZE * 0.4), String(category),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color,
+				self,
+				p + Vector2(ZONE_RADIUS + 2.0, FONT_SIZE * 0.4),
+				String(category),
+				FONT_SIZE,
+				color,
 			)

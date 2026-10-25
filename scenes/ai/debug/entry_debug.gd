@@ -207,23 +207,30 @@ func _covering(e: Dictionary) -> void:
 		return
 	var sweep: Array = e["sweep"]
 	for w in e["watch"]:
-		var held: bool = w["id"] == e["covering"] or sweep.has(w["id"])
-		var col := Color(COVER, 0.95 if held else 0.25)
-		var from: Vector2 = w["spot"] if sweep.is_empty() else _character.global_position
-		var pos: Vector2 = w["pos"]
-		_line(from, pos, col, 1.5 if held else 1.0)
-		var dir := (pos - from).normalized()
-		var far := 160.0
-		var wedge := PackedVector2Array([
-			to_local(pos), to_local(pos + dir.rotated(COVER_WEDGE) * far),
-			to_local(pos + dir.rotated(-COVER_WEDGE) * far),
-		])
-		draw_colored_polygon(wedge, Color(COVER, 0.18 if held else 0.05))
-		if w["id"] == e["covering"]:
-			_ring(w["spot"], 9.0, COVER, 2.0)
-		var at := sweep.find(w["id"])
-		if at >= 0:
-			_label(pos, "look %d" % (at + 1), COVER, Vector2(8, -8))
+		_cover_door(e, w, sweep)
+
+
+## Doorway on `w` of entry view `e`: the line from where it is covered (where the NPC stands, for a
+## lone entrant's `sweep`) through it and a wedge into the room beyond, bright when it is held, with
+## the ring of the spot this NPC covers it from and its number in the sweep.
+func _cover_door(e: Dictionary, w: Dictionary, sweep: Array) -> void:
+	var held: bool = w["id"] == e["covering"] or sweep.has(w["id"])
+	var col := Color(COVER, 0.95 if held else 0.25)
+	var from: Vector2 = w["spot"] if sweep.is_empty() else _character.global_position
+	var pos: Vector2 = w["pos"]
+	_line(from, pos, col, 1.5 if held else 1.0)
+	var dir := (pos - from).normalized()
+	var far := 160.0
+	var wedge := PackedVector2Array([
+		to_local(pos), to_local(pos + dir.rotated(COVER_WEDGE) * far),
+		to_local(pos + dir.rotated(-COVER_WEDGE) * far),
+	])
+	draw_colored_polygon(wedge, Color(COVER, 0.18 if held else 0.05))
+	if w["id"] == e["covering"]:
+		_ring(w["spot"], 9.0, COVER, 2.0)
+	var at := sweep.find(w["id"])
+	if at >= 0:
+		_label(pos, "look %d" % (at + 1), COVER, Vector2(8, -8))
 
 
 ## Where the NPC is looking (and so where its gun points).

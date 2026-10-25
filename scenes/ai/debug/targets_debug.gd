@@ -30,34 +30,10 @@ func _paint() -> void:
 	var req = c.get("requested_point")
 	var snapped_to = c.get("point")
 	if req != null and snapped_to != null and prim in ["move", "engage"]:
-		var reachable: bool = c["reachable"]
-		var col := SNAPPED if reachable else UNREACHABLE
-		_line(me, snapped_to, Color(col, 0.35), 1.0)
-		draw_circle(to_local(snapped_to), 5.0, col)
-		_ring(snapped_to, 11.0, col, 2.0)
-		var moved: float = (req as Vector2).distance_to(snapped_to)
-		if moved > 4.0:
-			# The requested point was off the navmesh (inside furniture / a wall): show the snap.
-			draw_circle(to_local(req), 3.0, REQUESTED)
-			_line(req, snapped_to, Color(REQUESTED, 0.6), 1.0)
-		var tag := ("arrived" if c["arrived"] else "→ destination") if reachable else "UNREACHABLE"
-		if str(c["arrive_room"]) != "":
-			tag += " · until in room"
-		_label(snapped_to, tag, col, Vector2(14, 4))
+		_paint_destination(c, me, req, snapped_to)
 	var obj = c.get("object_pos")
 	if obj != null:
-		_line(me, obj, Color(OBJECT, 0.6), 1.5)
-		_ring(obj, 14.0, OBJECT, 2.0)
-		if c["in_interaction"]:
-			_timer_arc(
-				obj,
-				19.0,
-				c["interaction_timer"] / maxf(c["interaction_dwell"], 0.01),
-				OBJECT,
-			)
-			_label(obj, "using %.1fs" % c["interaction_timer"], OBJECT, Vector2(20, 4))
-		else:
-			_label(obj, "walking to use", OBJECT, Vector2(20, 4))
+		_paint_object(c, me, obj)
 	var watch = c.get("watch_pos")
 	if watch != null:
 		_line(me, watch, Color(WATCH, 0.5), 1.0)
@@ -66,3 +42,39 @@ func _paint() -> void:
 	var checked: Array = _controller.debug_memory().get("checked_leads", [])
 	if not checked.is_empty():
 		_label(me, "%d leads checked" % checked.size(), Color(1, 1, 1, 0.55), Vector2(-30, 76))
+
+
+## The move or engage destination of combat state `c` as snapped onto the navmesh, from `me`:
+## green when reachable, the requested point `req` and its snap when it was off the navmesh, and
+## whether the NPC has arrived.
+func _paint_destination(c: Dictionary, me: Vector2, req: Vector2, snapped_to: Vector2) -> void:
+	var reachable: bool = c["reachable"]
+	var col := SNAPPED if reachable else UNREACHABLE
+	_line(me, snapped_to, Color(col, 0.35), 1.0)
+	draw_circle(to_local(snapped_to), 5.0, col)
+	_ring(snapped_to, 11.0, col, 2.0)
+	var moved: float = req.distance_to(snapped_to)
+	if moved > 4.0:
+		# The requested point was off the navmesh (inside furniture / a wall): show the snap.
+		draw_circle(to_local(req), 3.0, REQUESTED)
+		_line(req, snapped_to, Color(REQUESTED, 0.6), 1.0)
+	var tag := ("arrived" if c["arrived"] else "→ destination") if reachable else "UNREACHABLE"
+	if str(c["arrive_room"]) != "":
+		tag += " · until in room"
+	_label(snapped_to, tag, col, Vector2(14, 4))
+
+
+## The object the NPC uses or walks to use, at `obj`, from `me`, with the interaction's timer.
+func _paint_object(c: Dictionary, me: Vector2, obj: Vector2) -> void:
+	_line(me, obj, Color(OBJECT, 0.6), 1.5)
+	_ring(obj, 14.0, OBJECT, 2.0)
+	if c["in_interaction"]:
+		_timer_arc(
+			obj,
+			19.0,
+			c["interaction_timer"] / maxf(c["interaction_dwell"], 0.01),
+			OBJECT,
+		)
+		_label(obj, "using %.1fs" % c["interaction_timer"], OBJECT, Vector2(20, 4))
+	else:
+		_label(obj, "walking to use", OBJECT, Vector2(20, 4))
