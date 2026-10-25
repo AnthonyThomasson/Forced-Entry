@@ -13,7 +13,8 @@ weapon `style`. `ammo` (`ItemAmmo`, subclassed by `GunAmmo`) is its load and rel
 contract, gun identity and throwing. What differs between kinds only as data goes into the kind's config row: a gun's
 sizes, grip and stances in `GunConfig`, a grenade's art size in `GrenadeConfig`. `PistolItem`, `SmgItem` and `RifleItem`
 only name their row. No part holds its item: items are `RefCounted` and are made mid-fight, so a cycle would never be
-freed. A part holds the ids it needs, and is handed the user on each call.
+freed. A part holds the ids it needs, and is handed the user on each call
+(`tests/items/item_parts_free_suite.gd`: every item dropped and let go frees itself).
 
 The vehicle is split as the character was (ADR 0004). `cabin` (`VehicleCabin`) holds the doors, seats and rides. The
 existing driving model, `drive`, takes the intent, the engine and the skid. A private `_contacts`

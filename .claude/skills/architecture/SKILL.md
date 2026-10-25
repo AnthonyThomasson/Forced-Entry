@@ -1088,8 +1088,9 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   component is a `class_name` `RefCounted`, or a `class_name` Node child where a scene authors it (the character's
   `Wardrobe`, `CharacterWardrobe`): the one scene script with a `class_name`, so the body can type it. A polymorphic
   base splits the same way, per concern: each part a small base its kinds subclass where they behave differently
-  (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row; and no part holds its
-  owner (`RefCounted` cycles never free).
+  (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row; and no part holds a
+  `RefCounted` owner (a cycle never frees: an item's parts are handed the user on each call), while a node's may hold
+  it (the vehicle's).
 
 ## Running & verifying
 

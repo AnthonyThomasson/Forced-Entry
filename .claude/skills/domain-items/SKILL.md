@@ -85,7 +85,7 @@ holder; add a row to `types` for a new magazine): standard / extended for each g
 reloads slower. A magazine only fits its own `gun` (`Character.ammo.best_magazine(gun)` filters on it). Magazines are **carried by the character, never
 held**: they are not in any slot, so nothing can switch to them, and several can be carried (`ItemRegistry.create_magazines(type_ids)`).
 An item's load is its `ammo` part (`ItemAmmo`, `item_ammo.gd`: built once with the item, holding no reference to it, the user passed
-in on each call). A gun's is a `GunAmmo` (`gun_ammo.gd`, its `gun` id and the loaded `magazine: Magazine`), built in `GunItem._init` and
+in on each call; no part holds its item, so a dropped item frees itself, `tests/items/item_parts_free_suite.gd`). A gun's is a `GunAmmo` (`gun_ammo.gd`, its `gun` id and the loaded `magazine: Magazine`), built in `GunItem._init` and
 handed up through `super(...)`: the gun spends one round of `ammo.magazine` per shot (`secondary` does nothing when empty or reloading, with no
 casing and no recoil) and its `ammo` reports `rounds_loaded()` / `capacity()`. `ammo.can_reload(user)` is true when a carried magazine
 holds more rounds than the loaded one; `ammo.finish_reload(user)` seats the fullest compatible spare (`user.ammo.take_magazine`) and
@@ -181,7 +181,7 @@ painter's options carry the look as an int (`opts.look`, Art's `PixelArt.handle`
 on every call; an item registers its row once (`ItemArt._look_handle`, again only when the row drawn is another one). Options: a gun's `{ gun, look }`
 held, `{ gun, look, flat, flip }` lying; a grenade's `{ kind, look, spoon }` (`spoon`: the lever held down, in the look's `lever` colour; thrown
 or at rest it is gone). The popped spoon (`GrenadeSpoon`, drawn by its `SpoonArt` with `spoon_painter.gd`) is the same in every style. Sizes, hold points, muzzle points and
-raised-barrel lengths are the item's, so every style sits where every other does. Every draw records its texture (`ItemArt._note_drawn`) for
+raised-barrel lengths are the kind's (its `GunConfig` / `GrenadeConfig` row, `GunArt.RAISED_LENGTH`), so every style sits where every other does. Every draw records its texture (`ItemArt._note_drawn`) for
 `art.drawn_art()`: the textures the item's last draw painted (all its calls in the frame it was last drawn), compared by the weapon-style tests.
 **Prepainting.** `ItemRegistry.inventory_for` asks every item it makes for `art.prepaint()` (a no-op on the base `ItemArt`): a gun paints its art held at
 every raise step and lying either side up, a grenade with its lever held and gone, each at every lighting step (`ArtCanvasConfig.turn_steps`),
