@@ -34,7 +34,7 @@ static func create(id: int, rounds := -1, magazine: StringName = &"") -> Item:
 	if item != null:
 		var type := magazine if MagazineConfig.types.get(magazine, {}).get("gun", &"") == gun \
 				else StringName(GunConfig.row(gun).get("magazine", &"standard"))
-		item.magazine = Magazine.create(type, rounds)
+		(item.ammo as GunAmmo).magazine = Magazine.create(type, rounds)
 	return item
 
 

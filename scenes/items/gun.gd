@@ -22,17 +22,18 @@ static var _prepainted := {}
 ## The gun's id: its `GunConfig` row and the kind of magazine it takes (`Magazine.gun`). Named by
 ## the subclass (`super(GUN)`).
 var gun: StringName = &""
-## The magazine it is loaded with (null = unloaded); every shot spends one of its rounds.
-var magazine: Magazine
 ## Seconds until the next round may leave. Counts down in `tick`; firing adds the fire interval, so
 ## an overshoot carries into the next round and the rate holds even when it is not a whole number of
 ## frames.
 var _cooldown := 0.0
+## Its `ammo` part as what it is, the gun's load (`GunAmmo`), so a shot spends a round with no cast.
+var _load: GunAmmo
 
 
 func _init(id: StringName) -> void:
 	gun = id
-	super(_long_gun_strike() if raises_at_contact() else null)
+	_load = GunAmmo.new(id)
+	super(_long_gun_strike() if raises_at_contact() else null, _load)
 	display_name = str(_stat("name", display_name))
 	reach = 32.0
 
@@ -108,7 +109,7 @@ func round_power() -> float:
 func hand_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
 		return _stat("grip_stance", &"aim")
-	return &"reload" if reloading else _stat("fore_stance", &"support")
+	return &"reload" if ammo.reloading else _stat("fore_stance", &"support")
 
 
 ## How `hand` is held while the weapon is raised: the weapon hand's raised stance; the other hand's,
@@ -116,7 +117,7 @@ func hand_stance(hand: int) -> StringName:
 func raised_stance(hand: int) -> StringName:
 	if hand == weapon_hand():
 		return _stat("raised_grip_stance", &"aim")
-	return &"reload" if reloading else _stat("raised_fore_stance", &"support")
+	return &"reload" if ammo.reloading else _stat("raised_fore_stance", &"support")
 
 
 ## Whether holding the trigger keeps firing (the row's `automatic`).
@@ -140,40 +141,6 @@ func tick(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, -delta)
 
 
-## Rounds left in the loaded magazine (0 when unloaded).
-func rounds_loaded() -> int:
-	return magazine.rounds if magazine else 0
-
-
-## Rounds the loaded magazine holds when full (0 when unloaded).
-func ammo_capacity() -> int:
-	return magazine.capacity if magazine else 0
-
-
-## How long a reload takes: the loaded magazine's type decides (`MagazineConfig.reload_time_of`).
-func reload_time() -> float:
-	var type: StringName = magazine.type if magazine else StringName(_stat("magazine", &"standard"))
-	return MagazineConfig.reload_time_of(type)
-
-
-## A carried magazine holds more rounds than the one loaded.
-func can_reload(user: Node2D) -> bool:
-	var best: Magazine = user.ammo.best_magazine(gun)
-	return best != null and best.rounds > rounds_loaded()
-
-
-## Seat the fullest carried magazine; the one it replaces goes back into the carried store unless it
-## is empty (nothing refills a magazine, so an empty one is dropped).
-func finish_reload(user: Node2D) -> void:
-	var fresh: Magazine = user.ammo.take_magazine(gun)
-	if fresh == null:
-		return
-	var spent := magazine
-	magazine = fresh
-	if spent != null and spent.rounds > 0:
-		user.ammo.stow_magazine(spent)
-
-
 ## F: a melee jab with the weapon hand; a long gun swings round and leads with its butt.
 func primary(user: Node2D) -> void:
 	user.anatomy.hands.punch(weapon_hand())
@@ -184,9 +151,9 @@ func primary(user: Node2D) -> void:
 ## leaves within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user
 ## holds it in one hand (`weapon.one_handed()`). True when a round left the barrel.
 func secondary(user: Node2D) -> bool:
-	if reloading or rounds_loaded() <= 0 or _cooldown > 0.0:
+	if _load.reloading or _load.rounds_loaded() <= 0 or _cooldown > 0.0:
 		return false
-	magazine.rounds -= 1
+	_load.magazine.rounds -= 1
 	_cooldown += _fire_interval()
 	var hand := weapon_hand()
 	var muzzle: Vector2 = user.weapon.muzzle_origin(hand)

@@ -2,9 +2,9 @@ class_name CharacterAmmo extends RefCounted
 ## The magazines a character carries and its reloading (`character.gd`'s `ammo`). The spare
 ## magazines (`Magazine` items) are never inventory slots, so no number key or interaction can
 ## select them; magazines are lost with the body. A reload (`reload`) runs the held item's
-## `reload_time()` and is counted down each physics frame (`update`), right after the controller;
-## switching slot, a ride and death cancel it (`cancel`). It posts `&"reload"` on `EventBus` at its
-## start and once done.
+## `ammo.reload_time()` and is counted down each physics frame (`update`), right after the
+## controller; switching slot, a ride and death cancel it (`cancel`). It posts `&"reload"` on
+## `EventBus` at its start and once done.
 
 ## The character carrying the magazines.
 var character: CharacterBody2D
@@ -28,7 +28,7 @@ func _init(host: CharacterBody2D) -> void:
 
 
 ## Reload the held item (R): start swapping in the fullest carried magazine, which takes
-## the item's `reload_time()`. Ignored when dead, locked in an interaction, running, already
+## the item's `ammo.reload_time()`. Ignored when dead, locked in an interaction, running, already
 ## reloading, or when no carried magazine would add rounds. Switching items, running or an
 ## interaction cancels it.
 func reload() -> void:
@@ -38,11 +38,11 @@ func reload() -> void:
 			or character.movement.is_running()
 			or is_reloading()
 			or item == null
-			or not item.can_reload(character)):
+			or not item.ammo.can_reload(character)):
 		return
 	_reloading_item = item
-	_reload_left = item.reload_time()
-	item.reloading = true
+	_reload_left = item.ammo.reload_time()
+	item.ammo.reloading = true
 	_post(item, &"start")
 
 
@@ -54,7 +54,7 @@ func is_reloading() -> bool:
 ## Whether a reload of the item in `slot` (the held one by default) would add rounds right now.
 func can_reload(slot := -1) -> bool:
 	var item: Item = character.inventory.item_in(slot)
-	return item != null and not is_reloading() and item.can_reload(character)
+	return item != null and not is_reloading() and item.ammo.can_reload(character)
 
 
 ## How many spare magazines are carried.
@@ -87,14 +87,14 @@ func stow_magazine(mag: Magazine) -> void:
 ## Rounds loaded in the item in `slot` (the held one by default), or -1 if it has no ammo.
 func rounds(slot := -1) -> int:
 	var item: Item = character.inventory.item_in(slot)
-	return item.rounds_loaded() if item else -1
+	return item.ammo.rounds_loaded() if item else -1
 
 
 ## Rounds a full load of the item in `slot` (the held one by default) holds, or -1 if it has no
 ## ammo.
 func capacity(slot := -1) -> int:
 	var item: Item = character.inventory.item_in(slot)
-	return item.ammo_capacity() if item else -1
+	return item.ammo.capacity() if item else -1
 
 
 ## Count a reload down; it is dropped if its item is no longer held, the character is locked in an
@@ -112,14 +112,14 @@ func update(delta: float) -> void:
 		return
 	var item := _reloading_item
 	cancel()
-	item.finish_reload(character)
+	item.ammo.finish_reload(character)
 	_post(item, &"done")
 
 
-## Stop any reload in progress and clear the item's `reloading` flag.
+## Stop any reload in progress and clear the item's `ammo.reloading` flag.
 func cancel() -> void:
 	if _reloading_item != null:
-		_reloading_item.reloading = false
+		_reloading_item.ammo.reloading = false
 	_reloading_item = null
 
 

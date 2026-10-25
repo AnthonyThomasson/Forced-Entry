@@ -145,12 +145,12 @@ items) beside its inventory: they are never in the inventory's `_items`, so no n
 `ammo.spare_magazine_types` (`MagazineConfig.types` ids, default two standard magazines for each gun; carried from the
 character's `_ready` through `ammo.restock`) and the inventory's `start_rounds` (what the starting gun is loaded with;
 negative = full), which tests and sandboxes set through `actor(..., props)` (`"ammo:spare_magazine_types"`, `"inventory:start_rounds"`). `inventory.set_loadout(kit: CharacterKit)` (`character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with; its `spare_types` go to `ammo.restock`). `ammo.reload()` (R, or the AI's reload
-primitive) starts a timer of the held item's `reload_time()` on it if its `can_reload(character)` says a carried
-magazine would add rounds, and sets the item's `reloading` flag (a gun's support hand eases to the `reload`
+primitive) starts a timer of the held item's `ammo.reload_time()` on it if its `ammo.can_reload(character)` says a carried
+magazine would add rounds, and sets the item's `ammo.reloading` flag (a gun's support hand eases to the `reload`
 stance while it is up). `ammo.update(delta)` runs right after the controller: it cancels the reload when the character
-is busy, running or no longer holds that item, else counts down and calls `item.finish_reload(character)`. `weapon.shoot()` is
+is busy, running or no longer holds that item, else counts down and calls `item.ammo.finish_reload(character)`. `weapon.shoot()` is
 ignored mid-reload; switching slot, a ride's first pose and dying cancel it (`ammo.cancel()`); magazines are lost with the body.
-An item reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
+An item's `ammo` part reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
 Reads: `ammo.is_reloading()`, `ammo.rounds(slot)`, `ammo.capacity(slot)`, `ammo.can_reload(slot)`, `ammo.spare_magazines()`; on the
 weapon `weapon.is_automatic()`; on the hands `anatomy.hands.is_attacking()` (a punch swing); the `inventory` component's
 (`character_inventory.gd`, `CharacterInventory`: the items carried, slot id -> `Item`, and the held slot) `inventory.item_name(slot)`,

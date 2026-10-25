@@ -36,12 +36,16 @@ func _check_built_loaded(t: TestContext) -> void:
 		var item: GunItem = ItemRegistry.create(int(GunConfig.row(gun)["slot"]))
 		var type := StringName(GunConfig.row(gun)["magazine"])
 		t.expect_eq(
-			item.rounds_loaded(),
+			item.ammo.rounds_loaded(),
 			MagazineConfig.capacity_of(type),
 			"a new %s is built full" % gun,
 		)
-		t.expect_eq(item.magazine.gun, gun, "the %s's default magazine fits the %s" % [gun, gun])
-		capacities[gun] = item.ammo_capacity()
+		t.expect_eq(
+			(item.ammo as GunAmmo).magazine.gun,
+			gun,
+			"the %s's default magazine fits the %s" % [gun, gun],
+		)
+		capacities[gun] = item.ammo.capacity()
 	t.check(
 		capacities.values().size() == 3
 			and capacities[&"pistol"] != capacities[&"smg"]

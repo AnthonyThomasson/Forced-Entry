@@ -7,15 +7,13 @@ class_name Item extends RefCounted
 ## (facing, weapon.facing(), weapon.raise(), anatomy.hands.punch(), anatomy.hands.punch_amount(),
 ## weapon.kick(), anatomy.hands.hand_position(), anatomy.hands.world(), weapon.muzzle_origin(),
 ## world_root(), report_shot(), weapon.aim_target(), weapon.aim_sway(), weapon.one_handed(),
-## current_item(), and for reloading ammo.best_magazine() / ammo.take_magazine() /
+## current_item(), and for its `ammo` part's reload ammo.best_magazine() / ammo.take_magazine() /
 ## ammo.stow_magazine()), so Items and the Character are otherwise independent.
 
 ## Shown in the HUD.
 var display_name := "Item"
 ## Punch reach (px), read by the hands to size the swing.
 var reach := 28.0
-## True while the character is reloading this item (the character sets and clears it).
-var reloading := false
 ## The weapon style it is drawn in, its wielder's (`police` issue for the invaders, `scrap` or
 ## `pipe` for a defender): stamped on every item a loadout makes (`ItemRegistry.inventory_for`, from
 ## `LoadoutConfig.apply`). An item never given one is `police`. A gun or grenade draws its config
@@ -25,6 +23,10 @@ var style: StringName = &"police"
 ## Its melee geometry, which the character's hands read through a blow (`ItemStrike`): a fist's
 ## unless its kind hands up its own. Built once with the item.
 var strike: ItemStrike
+## What it is loaded with and its reload (`ItemAmmo`), which the character's `ammo` and `inventory`
+## components call: no ammo unless its kind hands up its own (a gun's `GunAmmo`). Built once with
+## the item.
+var ammo: ItemAmmo
 ## The textures the last frame's draws of the item painted, in order (`drawn_art`).
 var _art: Array[Texture2D] = []
 ## The process frame `_art` was painted in.
@@ -36,9 +38,10 @@ var _look_id := 0
 
 
 ## Build the item with its kind's parts: each one a kind hands up through `super(...)`, else the
-## inert default (a fist's strike).
-func _init(melee: ItemStrike = null) -> void:
+## inert default (a fist's strike, no ammo).
+func _init(melee: ItemStrike = null, loaded: ItemAmmo = null) -> void:
 	strike = melee if melee != null else ItemStrike.new()
+	ammo = loaded if loaded != null else ItemAmmo.new()
 	strike.hand = weapon_hand()
 
 
@@ -96,16 +99,6 @@ func raised_stance(hand: int) -> StringName:
 	return hand_stance(hand)
 
 
-## Rounds loaded right now, or -1 for an item with no ammo (the default).
-func rounds_loaded() -> int:
-	return -1
-
-
-## Rounds a full load holds, or -1 for an item with no ammo (the default).
-func ammo_capacity() -> int:
-	return -1
-
-
 ## The id of the gun this item is (a `GunConfig` row), or &"" for an item that is not a gun (the
 ## default).
 func gun_id() -> StringName:
@@ -135,23 +128,6 @@ func is_throwable() -> bool:
 ## Default: nothing ({}), as for every item that is not thrown.
 func throw_stats() -> Dictionary:
 	return {}
-
-
-## Seconds a reload of this item takes. Default: 0 (instant).
-func reload_time() -> float:
-	return 0.0
-
-
-## Whether reloading would change anything: a carried magazine fuller than what is loaded. Default:
-## no.
-func can_reload(_user: Node2D) -> bool:
-	return false
-
-
-## The reload time is up: swap the loaded magazine for a carried one (through the character's
-## best_magazine / take_magazine / stow_magazine). Default: nothing.
-func finish_reload(_user: Node2D) -> void:
-	pass
 
 
 ## The textures the item's last draw (`draw_weapon` or `draw_dropped`, every call in the frame it

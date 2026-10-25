@@ -254,6 +254,9 @@ interfaces it takes part in (by number) and describes how they're implemented.
      `short`, `support_gap`, `tempo` and `hand`; `swing(amount)` / `direction(aim, amount)` / `end(aim, amount)` / `forward()` follow
      from them. A fist's are the defaults. A long gun's (a `GunConfig` row with `raises_at_contact`) make its punch swing it nearly across
      the body, butt leading.
+   - **`ammo`** (`ItemAmmo`, `items/item_ammo.gd`; `GunAmmo`, `items/gun_ammo.gd`): inert hooks the gun's overrides fill:
+     `rounds_loaded()` / `capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`, `finish_reload(user)`; the `reloading` flag
+     the character sets; a gun's loaded `magazine`.
 
    The character
    calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun, or the frag of an entry its leader ordered in with one); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns and frags as `inventory.item_count(ItemRegistry.STUN_SLOT)` / `inventory.item_count(ItemRegistry.FRAG_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
@@ -290,13 +293,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
    a long gun is raised off a wall, for its art). **Guns:** every firearm is a `GunItem` (`items/gun.gd`), built by its gun id and tuned by its row in
    `GunConfig` (damage, `fire_interval`, `automatic`, `penetration`, `muzzle_speed`, `spread_deg`, `one_hand_spread_deg`, `recoil`, its default magazine,
    `raises_at_contact`; its sizes, `art_size`, `flat_size`, `grip_back`, and its hold, `grip_stance`, `fore_stance`, `raised_grip_stance`,
-   `raised_fore_stance`); `PistolItem` / `SmgItem` / `RifleItem` only name their row (`super(GUN)`; the look is the row's `looks`, above). **Ammo:** `Item` has inert hooks
-   `rounds_loaded()` / `ammo_capacity()` (-1 = no ammo), `reload_time()`, `can_reload(user)`, `finish_reload(user)` and a
-   `reloading` flag the character sets. **Gun identity:** `gun_id()` (the `GunConfig` id, `&""` for a non-gun) and `round_power()`
+   `raised_fore_stance`); `PistolItem` / `SmgItem` / `RifleItem` only name their row (`super(GUN)`; the look is the row's `looks`, above). **Ammo:** the `ammo` part (above). **Gun identity:** `gun_id()` (the `GunConfig` id, `&""` for a non-gun) and `round_power()`
    (the penetration power of its rounds, 1 for a non-gun), which the character reads for its `reload` event. A `Magazine` (an `Item` subclass, types in `MagazineConfig`, each tied to one `gun` id,
    with its own capacity and optional `reload_time`) is carried
    by the character, never held or selectable; a gun loads one and each shot spends a round. For a reload
-   an item calls the character's `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`. Items reach into the
+   its `ammo` part calls the character's `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`. Items reach into the
    Projectile System in two places. A gun fires through `ProjectileSpawner.spawn(position, direction, parent, shot: Shot = null) -> Node` (`Shot`,
    `projectile/shot.gd`: `shooter` (the body the round ignores), `item_damage` = 0.0, `muzzle_speed` = -1.0, `penetration` = 1.0,
    `max_range` = -1.0, `strikes_shooter` = false; null, all defaults) (the round; the gun connects its
@@ -312,7 +313,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `movement.toggle_crouch()`), `weapon.melee()` (F), `anatomy.leg_kick() -> bool` (a right-leg kick along the facing, whatever is held; false while dead, crouched, busy or a kick is under way; reads `anatomy.is_kicking()`; **not** the recoil `weapon.kick(hand, strength)` above), `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading,
    or with a long gun's barrel against a wall or object, and a gun holds back between rounds per its fire rate; a controller re-presses it
    every frame while the trigger is held when `weapon.is_automatic()`), `ammo.reload()` (R: a timed swap to
-   the fullest carried magazine, taking the item's `reload_time()`; refused while running or busy and cancelled by running, switching items or
+   the fullest carried magazine, taking the item's `ammo.reload_time()`; refused while running or busy and cancelled by running, switching items or
    dying), `inventory.select_slot(id)`, `use.try_interact()` /
    `use.interact_with(object, id)` / `use.end_interaction()`, `use.try_use_vehicle()` (E: get in or out, interface 19), and may read `damage_taken()` (accumulated hit
    damage, for injury sensing), `movement.posture()`, `movement.is_running()` / `movement.stamina_fraction()`, `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, slower while stunned or weighed down by the outfit: how an AI works out whether it gets somewhere in time) / `movement.posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`, what furniture must stand above to shield it), the reads of its `ammo` component (`character_ammo.gd`, `CharacterAmmo`) `ammo.rounds(slot := -1)` / `ammo.capacity(slot)` / `ammo.can_reload(slot)` /

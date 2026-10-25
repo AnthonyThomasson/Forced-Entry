@@ -45,8 +45,8 @@ Every firearm is a `GunItem` (`class_name GunItem extends Item`) whose numbers c
 First-pass numbers: pistol 15 dmg / 0.10 s / semi / ×1.0 / 12 rounds; SMG 5 dmg / 0.07 s / auto / ×0.8 / 2.5° / 32 rounds;
 rifle 22 dmg / 0.11 s / auto / ×2.2 / 4400 px/s / 24 rounds. They are one table, for tuning.
 
-`GunItem` holds everything a gun does: the magazine, `rounds_loaded` / `ammo_capacity` / `can_reload` / `finish_reload`, `reload_time()`
-(the loaded magazine type's, `MagazineConfig.reload_time_of`), `secondary(user) -> bool` (refuses while reloading, empty or still cycling;
+`GunItem` holds everything a gun does: its load (its `ammo` part, a `GunAmmo`, `gun_ammo.gd`: the `magazine`, `rounds_loaded` / `capacity` / `can_reload` / `finish_reload`, `reload_time()`
+(the loaded magazine type's, `MagazineConfig.reload_time_of`); below), `secondary(user) -> bool` (refuses while reloading, empty or still cycling;
 else spends a round, rotates the aim by the spread (wider by `one_hand_spread_deg` while `user.weapon.one_handed()`, interface 6; the player's as an NPC's), calls `ProjectileSpawner.spawn(muzzle_origin, dir, world, shot)` (a `Shot`: `shooter` the user, its
 `item_damage`, `muzzle_speed` and `penetration`), ejects a casing, kicks the hand and posts a `&"shot"` event on `EventBus`
 (`{ position` (muzzle)`, gun, attacker, power }`, which the Audio domain voices)) and `primary` (a melee jab with the weapon hand; a long gun, the SMG or rifle, **strikes with its butt**, swung in **both hands**, by the gun's `strike` part (`ItemStrike`, `item_strike.gd`: plain data built once in `GunItem._init` from its row, `ahead` its `grip_back`, a fist's defaults for the pistol): `strike.direction(aim, amount)` turns the barrel about the weapon hand, outward from the body, by `strike.turn` (`ItemStrike.STRIKE_TURN`, 105 degrees) x `strike.swing(amount)`, so it ends nearly across the body with the butt centred on the aim and a little ahead of the muzzle (`draw_weapon` draws it so; `strike.end(aim, amount)` is the butt relative to the hand); the other hand grips `strike.support_gap` (`ItemStrike.SUPPORT_GAP`, negative: toward the butt) along the barrel; the blow is thrown `strike.tempo` (2x, `ItemStrike.LONG_TEMPO`) slower than a fist and lands `strike.short` (`ItemStrike.STRIKE_SHORT`) px short of one; the hands layer shortens the hand's extension by `strike.forward()` (the butt's forward reach at the end of the turn) and queries the hit at `strike.end` once it is ahead of the hand, so the blow lands about as far out as before; a pistol just jabs). **Fire rate** is a cooldown: `tick(delta)`
@@ -83,11 +83,14 @@ for a `gun`. Types, capacities, optional per-type `reload_time` and the shared f
 holder; add a row to `types` for a new magazine): standard / extended for each gun — pistol 12 / 20, SMG 32 / 50, rifle 24 / 40, rifle and SMG
 reloads slower. A magazine only fits its own `gun` (`Character.ammo.best_magazine(gun)` filters on it). Magazines are **carried by the character, never
 held**: they are not in any slot, so nothing can switch to them, and several can be carried (`ItemRegistry.create_magazines(type_ids)`).
-A gun (`magazine: Magazine`) spends one round per shot (`secondary` does nothing when empty or reloading, with no
-casing and no recoil) and reports `rounds_loaded()` / `ammo_capacity()`. `can_reload(user)` is true when a carried magazine
-holds more rounds than the loaded one; `finish_reload(user)` seats the fullest compatible spare (`user.ammo.take_magazine`) and
-stows the old one with its remaining rounds (`user.ammo.stow_magazine`), dropping it only if empty. `ItemRegistry.create(slot, rounds)`
-builds a gun loaded with its `GunConfig.magazine` type (`rounds` < 0 = full). The base `Item` keeps all of this inert
+An item's load is its `ammo` part (`ItemAmmo`, `item_ammo.gd`: built once with the item, holding no reference to it, the user passed
+in on each call). A gun's is a `GunAmmo` (`gun_ammo.gd`, its `gun` id and the loaded `magazine: Magazine`), built in `GunItem._init` and
+handed up through `super(...)`: the gun spends one round of `ammo.magazine` per shot (`secondary` does nothing when empty or reloading, with no
+casing and no recoil) and its `ammo` reports `rounds_loaded()` / `capacity()`. `ammo.can_reload(user)` is true when a carried magazine
+holds more rounds than the loaded one; `ammo.finish_reload(user)` seats the fullest compatible spare (`user.ammo.take_magazine`) and
+stows the old one with its remaining rounds (`user.ammo.stow_magazine`), dropping it only if empty; `ammo.reloading` is the flag the
+character sets while it reloads. `ItemRegistry.create(slot, rounds)`
+builds a gun loaded with its `GunConfig.magazine` type (`rounds` < 0 = full). Every other item keeps the inert base `ItemAmmo`
 (`rounds_loaded()` = -1). The reload timer and R binding are the Character's, see `domain-character`.
 
 ## Adding an item

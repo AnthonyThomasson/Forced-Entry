@@ -109,11 +109,11 @@ func throw_release_offset(slot := -1) -> Vector2:
 ## the lowest slot holding something that does; -1 with none.
 func gun_slot() -> int:
 	var held := current_item()
-	if held != null and held.ammo_capacity() >= 0:
+	if held != null and held.ammo.capacity() >= 0:
 		return _current_slot
 	var best := -1
 	for slot: int in _items:
-		if _items[slot].ammo_capacity() >= 0 and (best < 0 or slot < best):
+		if _items[slot].ammo.capacity() >= 0 and (best < 0 or slot < best):
 			best = slot
 	return best
 
