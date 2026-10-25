@@ -37,8 +37,18 @@ func run(t: TestContext) -> void:
 	t.expect_eq(_window._checked.keys(), ["a/one"], "the host's ticks are restored")
 	t.check(_item("a/one").is_checked(0), "a restored tick shows")
 	t.expect_eq(_window._run_checked.text, "Run 1 checked", "the run button counts the ticks")
+	_check_rows_tick(t)
+	_check_search(t)
+	await _check_clicks(t)
 
-	# A test row ticks itself.
+	# A headless run in progress blocks the queue button; a script error cannot be ticked.
+	_window.set_run_status("Running…", true)
+	t.check(_window._run_checked.disabled, "Run checked waits for a headless run")
+	t.check(not _window._checked.has("b/broken"), "a test whose script fails is never ticked")
+
+
+## A test row ticks itself; a domain row clears its tests.
+func _check_rows_tick(t: TestContext) -> void:
 	_item("a/two").set_checked(0, true)
 	_window._apply_edit(_item("a/two"))
 	t.expect_eq(_checked, ["a/one", "a/two"], "ticking a test reports the set")
@@ -50,7 +60,10 @@ func run(t: TestContext) -> void:
 	t.check(_checked.is_empty(), "clearing a domain row clears its tests")
 	t.check(_window._run_checked.disabled, "nothing ticked leaves Run disabled")
 
-	# Under a search, bulk checks touch only the shown tests.
+
+## Under a search, bulk checks and a domain row touch only the shown tests; Run hands back every
+## tick, hidden or not, in list order.
+func _check_search(t: TestContext) -> void:
 	_window._search.text = "alpha"
 	_window._search.text_changed.emit("alpha")
 	t.expect_eq(_window._test_items.keys(), ["a/one"], "the search shows one test")
@@ -82,8 +95,10 @@ func run(t: TestContext) -> void:
 		"Run emits the ticked paths in list order",
 	)
 
-	# Real clicks: the box toggles, a double-click on the label opens the test, one on the box does
-	# not.
+
+## Real clicks: the box toggles, a double-click on the label opens the test, one on the box does
+## not; a click on a domain row's box ticks every test it holds.
+func _check_clicks(t: TestContext) -> void:
 	var played: Array = []
 	var root_window := t.world.get_window()
 	var window_size := root_window.size
@@ -100,7 +115,12 @@ func run(t: TestContext) -> void:
 	t.check(played.is_empty(), "a single click on the label only selects")
 	await _click(t, "b/two", false, true)
 	t.expect_eq(played, ["res://tests/b/two_test.gd"], "a double-click on the label opens the test")
-	# A real click on a domain row's box ticks every test it holds.
+	await _check_domain_box_click(t)
+	root_window.size = window_size
+
+
+## A real click on a domain row's box ticks every test it holds.
+func _check_domain_box_click(t: TestContext) -> void:
 	_window._set_checked(["a/one", "a/two"], false)
 	await t.frames(1)
 	# the fold arrow sits left of the box
@@ -121,12 +141,6 @@ func run(t: TestContext) -> void:
 		_window._checked.has("a/one") and _window._checked.has("a/two"),
 		"clicking a domain row's box ticks its tests",
 	)
-	root_window.size = window_size
-
-	# A headless run in progress blocks the queue button; a script error cannot be ticked.
-	_window.set_run_status("Running…", true)
-	t.check(_window._run_checked.disabled, "Run checked waits for a headless run")
-	t.check(not _window._checked.has("b/broken"), "a test whose script fails is never ticked")
 
 
 func _tests() -> Array:

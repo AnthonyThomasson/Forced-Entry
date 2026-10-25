@@ -67,21 +67,7 @@ func _ready() -> void:
 	# The command line's queue on the runner's first visit owns a fresh log: startup errors count
 	# too.
 	_watch.begin(out != "" and cli_queue)
-	_session = TestSessionScript.new()
-	_session.name = "TestSession"
-	_session.watch = _watch
-	_session.launcher_parent = self
-	_session.bundle_dir = out.path_join("failures") if out != "" else BUNDLE_DIR
-	add_child(_session)
-	_session.status.connect(func(text: String):
-		if _hud != null:
-			_hud.show_status(text))
-	_session.configured.connect(_on_configured)
-	_session.world_built.connect(_on_world_built)
-	_session.verdict_changed.connect(func(flipped: Dictionary):
-		_print_result(flipped)
-		if _hud != null:
-			_hud.show_result(flipped))
+	_start_session(out)
 	if args.has("--play"):
 		_select_from_cli(args)
 	if cli_queue:
@@ -119,13 +105,7 @@ func _exit_tree() -> void:
 func _input(event: InputEvent) -> void:
 	if (_locked.has(&"camera")
 			and not event.has_meta(TestContext.INJECTED_META)
-			and (event is InputEventPanGesture
-						or event.is_action(Keybinds.ZOOM_IN)
-						or event.is_action(Keybinds.ZOOM_OUT)
-						or event.is_action(Keybinds.CAMERA_LEFT)
-						or event.is_action(Keybinds.CAMERA_RIGHT)
-						or event.is_action(Keybinds.CAMERA_UP)
-						or event.is_action(Keybinds.CAMERA_DOWN))):
+			and _is_camera_event(event)):
 		get_viewport().set_input_as_handled()
 
 
@@ -136,6 +116,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		_back_to_browser()
 	elif event.is_action_pressed(Keybinds.PAUSE) and not _has_player and not _locked.has(&"pause"):
 		_set_paused(not get_tree().paused)
+
+
+## The test session every test is played through (its bundles under `out`'s `failures/` when the
+## run was given one), wired to the banner and the verdict lines.
+func _start_session(out: String) -> void:
+	_session = TestSessionScript.new()
+	_session.name = "TestSession"
+	_session.watch = _watch
+	_session.launcher_parent = self
+	_session.bundle_dir = out.path_join("failures") if out != "" else BUNDLE_DIR
+	add_child(_session)
+	_session.status.connect(func(text: String):
+		if _hud != null:
+			_hud.show_status(text))
+	_session.configured.connect(_on_configured)
+	_session.world_built.connect(_on_world_built)
+	_session.verdict_changed.connect(func(flipped: Dictionary):
+		_print_result(flipped)
+		if _hud != null:
+			_hud.show_result(flipped))
+
+
+## Whether `event` moves a camera: a trackpad gesture, the wheel's zoom or a camera key.
+func _is_camera_event(event: InputEvent) -> bool:
+	return (event is InputEventPanGesture
+			or event.is_action(Keybinds.ZOOM_IN)
+			or event.is_action(Keybinds.ZOOM_OUT)
+			or event.is_action(Keybinds.CAMERA_LEFT)
+			or event.is_action(Keybinds.CAMERA_RIGHT)
+			or event.is_action(Keybinds.CAMERA_UP)
+			or event.is_action(Keybinds.CAMERA_DOWN))
 
 
 ## Freeze or resume the open test's world (the banner, overlay bar and this runner keep running).

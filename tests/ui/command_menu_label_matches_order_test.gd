@@ -57,38 +57,44 @@ func run(t: TestContext) -> void:
 	var got: Array = []
 	menu.order_requested.connect(func(d): got.append(d))
 	for click: Vector2 in [KITCHEN_SIDE, LIVING_SIDE, ON_PLANE]:
-		menu.open_at(click)
-		await t.frames(1)
-		var quiet := Order.item(menu, "(quiet)")
-		if not t.check(
-				not quiet.is_empty(),
-				"a click at %s offers a quiet stack (items %s)"
-					% [str(click), str(Order.labels(menu))],
-		):
-			menu.close()
-			continue
-		var label := String(quiet["label"])
-		var asked := got.size()
-		Order.choose(menu, label)
-		await t.frames(1)
-		if not t.check(
-				got.size() == asked + 1,
-				"choosing it at %s emits order_requested" % str(click),
-		):
-			continue
-		var order := Order.issue(squad, got[asked])
-		if not t.check(
-				not order.is_empty(),
-				"the squad posts the order for the click at %s" % str(click),
-		):
-			continue
-		var into := _type_of(t, String(order.get("into", "")))
-		t.expect_eq(
-			label,
-			"Stack into the %s (quiet)" % into,
-			"the click at %s: the label names the room the order goes into (%s)"
-				% [str(click), order.get("into")],
-		)
+		await _check_click(t, menu, squad, got, click)
+
+
+## A click at `click`: the menu offers a quiet stack, choosing it emits an order (into `got`) the
+## squad posts, and the item's label names the room that order goes into.
+func _check_click(t: TestContext, menu: Node, squad: Node, got: Array, click: Vector2) -> void:
+	menu.open_at(click)
+	await t.frames(1)
+	var quiet := Order.item(menu, "(quiet)")
+	if not t.check(
+			not quiet.is_empty(),
+			"a click at %s offers a quiet stack (items %s)"
+				% [str(click), str(Order.labels(menu))],
+	):
+		menu.close()
+		return
+	var label := String(quiet["label"])
+	var asked := got.size()
+	Order.choose(menu, label)
+	await t.frames(1)
+	if not t.check(
+			got.size() == asked + 1,
+			"choosing it at %s emits order_requested" % str(click),
+	):
+		return
+	var order := Order.issue(squad, got[asked])
+	if not t.check(
+			not order.is_empty(),
+			"the squad posts the order for the click at %s" % str(click),
+	):
+		return
+	var into := _type_of(t, String(order.get("into", "")))
+	t.expect_eq(
+		label,
+		"Stack into the %s (quiet)" % into,
+		"the click at %s: the label names the room the order goes into (%s)"
+			% [str(click), order.get("into")],
+	)
 
 
 ## Room `key`'s type in words ("living_room" -> "living room"), as the menu names a room.

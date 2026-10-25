@@ -219,53 +219,15 @@ func items() -> Array:
 ## Rebuild the panel for the point the menu is open on: its title, the recipients line and the
 ## items.
 func _refresh() -> void:
-	var offered: Array = []
 	var mate := _teammate_at(_click)
 	var door := {} if mate != null else _stack_at(_click)
+	var offered: Array
 	if mate != null:
-		_title.text = String(mate.name)
-		var picked := _selection.has(mate)
-		offered.append(_item(
-			"%s %s" % ["Deselect" if picked else "Select", mate.name],
-			false,
-			_toggle.bind(mate, not picked),
-		))
-		var held := _held_order_of(mate)
-		if not held.is_empty():
-			offered.append(_item(
-				"Go into the %s" % _room_name(_room_by_key(String(held.get("into", "")))),
-				false,
-				_go.bind(held["pos"]),
-			))
+		offered = _teammate_items(mate)
 	elif not door.is_empty():
-		var into := _room_name(_room_by_key(String(door.get("into", ""))))
-		_title.text = "Doorway into the %s" % into
-		if _held_at(String(door.get("opening", ""))):
-			offered.append(_item("Go into the %s" % into, false, _go.bind(_click)))
-		offered.append(_item("Stack into the %s (quiet)" % into, false, _stack.bind("quiet")))
-		offered.append(_item(
-			"Stack into the %s with stun" % into, not _recipients_carry(ItemRegistry.STUN_SLOT),
-			_stack.bind("stun"), "Nobody it would go to carries a stun grenade.",
-		))
-		offered.append(_item(
-			"Stack into the %s with frag" % into, not _recipients_carry(ItemRegistry.FRAG_SLOT),
-			_stack.bind("frag"), "Nobody it would go to carries a frag grenade.",
-		))
-		var from := _ambush_from(_click)
-		if from != "":
-			offered.append(_item(
-				"Ambush the doorway from the %s" % _room_name(_room_by_key(from)), false,
-				_order.bind({ "kind": "ambush", "pos": _click }),
-			))
+		offered = _doorway_items(door)
 	else:
-		var room := _room_at(_click)
-		_title.text = "The %s" % _room_name(room) if not room.is_empty() else "Outside"
-		if not room.is_empty():
-			offered.append(_item(
-				"Defend the %s" % _room_name(room),
-				false,
-				_order.bind({ "kind": "defend_room", "room": String(room["key"]) }),
-			))
+		offered = _room_items()
 	if not _ordered_recipients().is_empty():
 		offered.append(_item("Cancel order", false, _cancel))
 	_recipients.text = ("Orders go to: %s"
@@ -275,6 +237,69 @@ func _refresh() -> void:
 	_set_items(offered)
 	_dock()
 	_mark.queue_redraw()
+
+
+## The title and items for a click on teammate `mate`: select or deselect it, and go into the room
+## of the held stack it holds.
+func _teammate_items(mate: Node) -> Array:
+	_title.text = String(mate.name)
+	var picked := _selection.has(mate)
+	var offered: Array = [
+		_item(
+			"%s %s" % ["Deselect" if picked else "Select", mate.name],
+			false,
+			_toggle.bind(mate, not picked),
+		),
+	]
+	var held := _held_order_of(mate)
+	if not held.is_empty():
+		offered.append(_item(
+			"Go into the %s" % _room_name(_room_by_key(String(held.get("into", "")))),
+			false,
+			_go.bind(held["pos"]),
+		))
+	return offered
+
+
+## The title and items for a click on the doorway `door` (`_stack_at`): go while a held stack waits
+## there, the three stacks (stun and frag greyed while no recipient carries one) and the ambush.
+func _doorway_items(door: Dictionary) -> Array:
+	var into := _room_name(_room_by_key(String(door.get("into", ""))))
+	_title.text = "Doorway into the %s" % into
+	var offered: Array = []
+	if _held_at(String(door.get("opening", ""))):
+		offered.append(_item("Go into the %s" % into, false, _go.bind(_click)))
+	offered.append(_item("Stack into the %s (quiet)" % into, false, _stack.bind("quiet")))
+	offered.append(_item(
+		"Stack into the %s with stun" % into, not _recipients_carry(ItemRegistry.STUN_SLOT),
+		_stack.bind("stun"), "Nobody it would go to carries a stun grenade.",
+	))
+	offered.append(_item(
+		"Stack into the %s with frag" % into, not _recipients_carry(ItemRegistry.FRAG_SLOT),
+		_stack.bind("frag"), "Nobody it would go to carries a frag grenade.",
+	))
+	var from := _ambush_from(_click)
+	if from != "":
+		offered.append(_item(
+			"Ambush the doorway from the %s" % _room_name(_room_by_key(from)), false,
+			_order.bind({ "kind": "ambush", "pos": _click }),
+		))
+	return offered
+
+
+## The title and items for a click on a room (defend it) or outside every room (none).
+func _room_items() -> Array:
+	var room := _room_at(_click)
+	_title.text = "The %s" % _room_name(room) if not room.is_empty() else "Outside"
+	if room.is_empty():
+		return []
+	return [
+		_item(
+			"Defend the %s" % _room_name(room),
+			false,
+			_order.bind({ "kind": "defend_room", "room": String(room["key"]) }),
+		),
+	]
 
 
 ## The living teammate nearest world point `at` within `PICK_RADIUS`, or null.
@@ -437,8 +462,8 @@ func _drop_dead() -> void:
 				box.disabled = true
 
 
-## Whether `n` is a living character.
-func _alive(n) -> bool:
+## Whether `n` is a living character (any value: a teammate may have been freed).
+func _alive(n: Variant) -> bool:
 	return n is Node and is_instance_valid(n) and n.get("is_dead") != true
 
 
@@ -462,43 +487,10 @@ func _may_open() -> bool:
 ## docks that covers none of them, else the first that leaves the click clear, else that side away.
 func _dock() -> void:
 	var screen := get_viewport().get_visible_rect()
-	var points: Array = [_screen_of(_click)]
-	points.append_array(_selection.filter(_alive).map(
-		func(n: Node) -> Vector2: return _screen_of(n.global_position),
-	))
+	var points := _dock_points()
 	var right: bool = points[0].x < screen.get_center().x
 	# Each vertical dock as [anchor, offset, grows up]: below the timer, the top, the bottom.
-	var below_timer := [0.0, PANEL_TOP, false]
-	var dock: Array = below_timer
-	if right:
-		var size := _panel.get_combined_minimum_size()
-		size.x = maxf(size.x, PANEL_WIDTH)
-		var top := [0.0, PANEL_EDGE, false]
-		var bottom := [1.0, -PANEL_EDGE, true]
-		var centre: Vector2 = points.reduce(
-			func(sum, p): return sum + p,
-			Vector2.ZERO,
-		) / points.size()
-		var away := [top, bottom] if centre.y >= screen.get_center().y else [bottom, top]
-		var docks: Array = [below_timer] + away
-		var rect_of := func(d: Array) -> Rect2:
-			var y: float = screen.position.y + d[0] * screen.size.y + d[1]
-			return Rect2(
-				Vector2(
-					screen.end.x - _right_clear - PANEL_EDGE - size.x,
-					y - (size.y if d[2] else 0.0),
-				),
-				size,
-			)
-		var clear_all := docks.filter(
-			func(d: Array) -> bool: return points.all(_clear_of.bind(rect_of.call(d))),
-		)
-		var clear_click := docks.filter(
-			func(d: Array) -> bool: return _clear_of(points[0], rect_of.call(d)),
-		)
-		dock = (clear_all[0] if not clear_all.is_empty()
-				else clear_click[0] if not clear_click.is_empty()
-				else away[0])
+	var dock: Array = _right_dock(screen, points) if right else [0.0, PANEL_TOP, false]
 	var edge := 1.0 if right else 0.0
 	var gap := -(PANEL_EDGE + _right_clear) if right else PANEL_EDGE
 	# Pushing the opposite anchor along: a left anchor moved past the right one would be held back.
@@ -511,6 +503,55 @@ func _dock() -> void:
 	)
 	_panel.grow_vertical = (
 		Control.GROW_DIRECTION_BEGIN if dock[2] else Control.GROW_DIRECTION_END
+	)
+
+
+## The screen points the panel keeps clear of: the click it is open on first, then each selected
+## living teammate's body.
+func _dock_points() -> Array:
+	var points: Array = [_screen_of(_click)]
+	points.append_array(_selection.filter(_alive).map(
+		func(n: Node) -> Vector2: return _screen_of(n.global_position),
+	))
+	return points
+
+
+## The vertical dock (`[anchor, offset, grows up]`) of a panel docked on the right of `screen`:
+## below the timer, then the top or the bottom, the side away from the centre of `points` first;
+## the first that keeps clear of all `points`, else the first clear of the click (`points[0]`),
+## else that side away.
+func _right_dock(screen: Rect2, points: Array) -> Array:
+	var size := _panel.get_combined_minimum_size()
+	size.x = maxf(size.x, PANEL_WIDTH)
+	var top := [0.0, PANEL_EDGE, false]
+	var bottom := [1.0, -PANEL_EDGE, true]
+	var centre: Vector2 = points.reduce(
+		func(sum, p): return sum + p,
+		Vector2.ZERO,
+	) / points.size()
+	var away := [top, bottom] if centre.y >= screen.get_center().y else [bottom, top]
+	var docks: Array = [[0.0, PANEL_TOP, false]] + away
+	var clear_all := docks.filter(
+		func(d: Array) -> bool: return points.all(_clear_of.bind(_dock_rect(screen, size, d))),
+	)
+	var clear_click := docks.filter(
+		func(d: Array) -> bool: return _clear_of(points[0], _dock_rect(screen, size, d)),
+	)
+	return (clear_all[0] if not clear_all.is_empty()
+			else clear_click[0] if not clear_click.is_empty()
+			else away[0])
+
+
+## The screen rect of a panel of `size` docked on the right of `screen` at the vertical dock `d`
+## (`[anchor, offset, grows up]`).
+func _dock_rect(screen: Rect2, size: Vector2, d: Array) -> Rect2:
+	var y: float = screen.position.y + d[0] * screen.size.y + d[1]
+	return Rect2(
+		Vector2(
+			screen.end.x - _right_clear - PANEL_EDGE - size.x,
+			y - (size.y if d[2] else 0.0),
+		),
+		size,
 	)
 
 
@@ -568,7 +609,6 @@ func _build() -> void:
 	_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_mark.draw.connect(_draw_mark)
 	add_child(_mark)
-
 	_panel = PanelContainer.new()
 	_panel.name = "Panel"
 	_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
@@ -596,6 +636,14 @@ func _build() -> void:
 	_hold_box.toggled.connect(func(on: bool): _hold_go = on)
 	box.add_child(_hold_box)
 	box.add_child(HSeparator.new())
+	_build_teammates(box)
+	var hint := _label(box, HINT_FONT)
+	hint.text = "Click a teammate to select it · Esc closes"
+	hint.modulate = Color(1, 1, 1, 0.6)
+
+
+## The "Teammates" heading and a box per teammate under `box`, each ticking it into the selection.
+func _build_teammates(box: VBoxContainer) -> void:
 	var heading := _label(box, LIST_FONT)
 	heading.text = "Teammates"
 	_list_box = VBoxContainer.new()
@@ -608,9 +656,6 @@ func _build() -> void:
 		check.toggled.connect(func(on: bool): _toggle(mate, on))
 		_list_box.add_child(check)
 		_checks[mate.get_instance_id()] = check
-	var hint := _label(box, HINT_FONT)
-	hint.text = "Click a teammate to select it · Esc closes"
-	hint.modulate = Color(1, 1, 1, 0.6)
 
 
 ## A new Label at font size `size`, added under `parent`.

@@ -90,89 +90,101 @@ func _squad_stacks(t: TestContext, markers: Node2D, stack: FakeStack) -> void:
 	# Two teammates' stacks, the human in neither: an ordered one at the back door (the point there,
 	# the second on its way, a free slot left by a member that took the back) and the AI's own at
 	# the front door, split across it with a second file on its north side.
-	var back_door := {
-		"opening": "door_840_190", "into": "kitchen", "door": Vector2(840, 190),
-		"slots": [
-			{
-				"n": 1,
-				"point": Vector2(868, 127),
-				"holder": 11,
-				"held": true,
-				"there": true,
-				"mine": false,
-				"side": 1,
-				"row": 1,
-			},
-			{
-				"n": 2,
-				"point": Vector2(868, 83),
-				"holder": 12,
-				"held": true,
-				"there": false,
-				"mine": false,
-				"side": 1,
-				"row": 1,
-			},
-			{
-				"n": 3,
-				"point": Vector2(868, 39),
-				"holder": 0,
-				"held": false,
-				"there": false,
-				"mine": false,
-				"side": 1,
-				"row": 1,
-			},
-			{
-				"n": 4,
-				"point": Vector2(868, -5),
-				"holder": 13,
-				"held": true,
-				"there": false,
-				"mine": false,
-				"side": 1,
-				"row": 1,
-			},
-		],
-	}
-	var front_door := {
-		"opening": "door_0_415", "into": "hall", "door": Vector2(0, 415),
-		"slots": [
-			{
-				"n": 1,
-				"point": Vector2(-28, 357),
-				"holder": 21,
-				"held": true,
-				"there": true,
-				"mine": false,
-				"side": 1,
-				"row": 1,
-			},
-			{
-				"n": 2,
-				"point": Vector2(-28, 473),
-				"holder": 22,
-				"held": true,
-				"there": true,
-				"mine": false,
-				"side": -1,
-				"row": 1,
-			},
-			{
-				"n": 3,
-				"point": Vector2(-72, 357),
-				"holder": 23,
-				"held": true,
-				"there": false,
-				"mine": false,
-				"side": 1,
-				"row": 2,
-			},
-		],
-	}
+	var back_door := _back_door()
+	var front_door := _front_door()
 	squad.current = { "stacks": [back_door, front_door] }
 	await t.frames(2)
-	var drawn: Array = markers.drawn()
+	_check_teammates_stacks(t, markers.drawn())
+
+	# The human joins the back door's stack: its own slot (3) from its PlayerStack, bright, and
+	# drawn once.
+	_join_human(back_door, stack)
+	squad.current = { "stacks": [back_door, front_door] }
+	await t.frames(2)
+	_check_human_joined(t, markers.drawn())
+
+	# The front door's stack is through: it leaves the squad's view, and its rings go.
+	squad.current = { "stacks": [back_door] }
+	await t.frames(2)
+	t.expect_eq(
+		_of(markers.drawn(), "door_0_415").size(),
+		0,
+		"a stack's rings go once it is through",
+	)
+	t.expect_eq(
+		_numbers(_of(markers.drawn(), "door_840_190")),
+		[1, 2, 3, 4],
+		"the one still forming stays",
+	)
+	stack.current = {}
+	squad.current = { "stacks": [] }
+	await t.frames(2)
+	t.expect_eq((markers.drawn() as Array).size(), 0, "nothing is left once every stack is through")
+
+
+## The ordered stack at the back door in the squad's view: the point there, the second on its way,
+## a free slot left by a member that took the back.
+func _back_door() -> Dictionary:
+	return {
+		"opening": "door_840_190", "into": "kitchen", "door": Vector2(840, 190),
+		"slots": _slots([
+			[1, Vector2(868, 127), 11, true, true, 1, 1],
+			[2, Vector2(868, 83), 12, true, false, 1, 1],
+			[3, Vector2(868, 39), 0, false, false, 1, 1],
+			[4, Vector2(868, -5), 13, true, false, 1, 1],
+		]),
+	}
+
+
+## The AI's own stack at the front door in the squad's view, split across it with a second file on
+## its north side.
+func _front_door() -> Dictionary:
+	return {
+		"opening": "door_0_415", "into": "hall", "door": Vector2(0, 415),
+		"slots": _slots([
+			[1, Vector2(-28, 357), 21, true, true, 1, 1],
+			[2, Vector2(-28, 473), 22, true, true, -1, 1],
+			[3, Vector2(-72, 357), 23, true, false, 1, 2],
+		]),
+	}
+
+
+## The squad view's slots of `rows`, each `[n, point, holder, held, there, side, row]`, none the
+## human's (`mine` false).
+func _slots(rows: Array) -> Array:
+	return rows.map(func(r: Array) -> Dictionary: return {
+		"n": r[0], "point": r[1], "holder": r[2], "held": r[3], "there": r[4], "mine": false,
+		"side": r[5], "row": r[6],
+	})
+
+
+## The human takes slot 3 of `back_door` (the squad's view, `mine`) and its PlayerStack `stack`
+## claims it too.
+func _join_human(back_door: Dictionary, stack: FakeStack) -> void:
+	back_door["slots"][2] = {
+		"n": 3,
+		"point": Vector2(868, 39),
+		"holder": 99,
+		"held": true,
+		"there": false,
+		"mine": true,
+		"side": 1,
+		"row": 1,
+	}
+	stack.current = {
+		"opening": "door_840_190", "door": Vector2(840, 190), "mine": 3, "step": "claim",
+		"slots": [
+			{ "n": 1, "point": Vector2(868, 127), "mine": false, "held": true },
+			{ "n": 2, "point": Vector2(868, 83), "mine": false, "held": true },
+			{ "n": 3, "point": Vector2(868, 39), "mine": true, "held": true },
+			{ "n": 4, "point": Vector2(868, -5), "mine": false, "held": true },
+		],
+	}
+
+
+## The two teammates' stacks in `drawn`: every slot, numbered in claim order, none the human's;
+## filled, dim and faint by holder; both sides and the second file where their slots are.
+func _check_teammates_stacks(t: TestContext, drawn: Array) -> void:
 	t.expect_eq(
 		drawn.size(),
 		7,
@@ -206,6 +218,12 @@ func _squad_stacks(t: TestContext, markers: Node2D, stack: FakeStack) -> void:
 		_at(_ring(at_back, 4), Vector2(868, -5)),
 		"each drawn where its slot is (%s)" % str(_ring(at_back, 4)),
 	)
+	_check_split_front(t, at_front)
+
+
+## The front door's split stack in `at_front`: both sides drawn, the other side's ring and the
+## second file's where their slots are.
+func _check_split_front(t: TestContext, at_front: Array) -> void:
 	var sides := at_front.map(func(d): return int(d.get("side", 0)))
 	t.check(
 		sides.has(1) and sides.has(-1),
@@ -220,31 +238,11 @@ func _squad_stacks(t: TestContext, markers: Node2D, stack: FakeStack) -> void:
 		"a second file's ring, a step out (%s)" % str(_ring(at_front, 3)),
 	)
 
-	# The human joins the back door's stack: its own slot (3) from its PlayerStack, bright, and
-	# drawn once.
-	back_door["slots"][2] = {
-		"n": 3,
-		"point": Vector2(868, 39),
-		"holder": 99,
-		"held": true,
-		"there": false,
-		"mine": true,
-		"side": 1,
-		"row": 1,
-	}
-	stack.current = {
-		"opening": "door_840_190", "door": Vector2(840, 190), "mine": 3, "step": "claim",
-		"slots": [
-			{ "n": 1, "point": Vector2(868, 127), "mine": false, "held": true },
-			{ "n": 2, "point": Vector2(868, 83), "mine": false, "held": true },
-			{ "n": 3, "point": Vector2(868, 39), "mine": true, "held": true },
-			{ "n": 4, "point": Vector2(868, -5), "mine": false, "held": true },
-		],
-	}
-	squad.current = { "stacks": [back_door, front_door] }
-	await t.frames(2)
-	drawn = markers.drawn()
-	at_back = _of(drawn, "door_840_190")
+
+## With the human in the back door's stack, `drawn` holds each of its slots once, the human's own
+## the only bright one, and the other stack still.
+func _check_human_joined(t: TestContext, drawn: Array) -> void:
+	var at_back := _of(drawn, "door_840_190")
 	t.expect_eq(
 		_numbers(at_back),
 		[1, 2, 3, 4],
@@ -260,24 +258,6 @@ func _squad_stacks(t: TestContext, markers: Node2D, stack: FakeStack) -> void:
 		[1, 2, 3],
 		"the other stack is still drawn meanwhile",
 	)
-
-	# The front door's stack is through: it leaves the squad's view, and its rings go.
-	squad.current = { "stacks": [back_door] }
-	await t.frames(2)
-	t.expect_eq(
-		_of(markers.drawn(), "door_0_415").size(),
-		0,
-		"a stack's rings go once it is through",
-	)
-	t.expect_eq(
-		_numbers(_of(markers.drawn(), "door_840_190")),
-		[1, 2, 3, 4],
-		"the one still forming stays",
-	)
-	stack.current = {}
-	squad.current = { "stacks": [] }
-	await t.frames(2)
-	t.expect_eq((markers.drawn() as Array).size(), 0, "nothing is left once every stack is through")
 
 
 ## The rings drawn at doorway `opening`.

@@ -54,13 +54,7 @@ func _run() -> void:
 	var timeout := 600.0
 	if OS.has_environment("GDUNIT_PANEL_TIMEOUT"):
 		timeout = float(OS.get_environment("GDUNIT_PANEL_TIMEOUT"))
-	var picked: Array[GdUnitTestCase] = []
-	var id_of := RegEx.create_from_string(CASE_ID)
-	for c: GdUnitTestCase in await GdUnitTestDiscoverer.run():
-		var found := id_of.search(c.display_name)
-		if found != null and found.get_string(1) in ids:
-			picked.append(c)
-			_cases[str(c.guid)] = [found.get_string(1), c.display_name]
+	var picked := await _pick(ids)
 	_server = GdUnitTcpServer.new()
 	root.add_child(_server)
 	var started := _server.start(FIRST_PORT)
@@ -76,23 +70,7 @@ func _run() -> void:
 		push_error(saved.error_message())
 		quit(1)
 		return
-	var args: Array[String] = []
-	if OS.get_environment("GDUNIT_PANEL_HEADLESS") == "1":
-		args.append("--headless")
-	args.append_array(
-		["--no-window", "--path", ProjectSettings.globalize_path("res://"), RUNNER_SCENE],
-	)
-	var pid := OS.create_process(OS.get_executable_path(), args)
-	print("RUNNER %d %s" % [pid, " ".join(args)])
-	var deadline := Time.get_ticks_msec() + int(timeout * 1000.0)
-	while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
-		if _closed_at >= 0 and Time.get_ticks_msec() > _closed_at + HANG_UP_MS:
-			break
-		await process_frame
-	var end := "exited"
-	if OS.is_process_running(pid):
-		end = "stopped" if _closed_at >= 0 else "timeout"
-		OS.kill(pid)
+	var end := await _await_runner(_start_runner(), timeout)
 	# The last events may still be in the socket when the runner has quit.
 	for i in 30:
 		await process_frame
@@ -105,6 +83,48 @@ func _run() -> void:
 	GdUnitTools.dispose_all()
 	await GdUnitMemoryObserver.gc_on_guarded_instances()
 	quit()
+
+
+## The discovered cases of the catalog ids `ids` (each kept in `_cases` by its guid), as "Run
+## overall" discovers them.
+func _pick(ids: PackedStringArray) -> Array[GdUnitTestCase]:
+	var picked: Array[GdUnitTestCase] = []
+	var id_of := RegEx.create_from_string(CASE_ID)
+	for c: GdUnitTestCase in await GdUnitTestDiscoverer.run():
+		var found := id_of.search(c.display_name)
+		if found != null and found.get_string(1) in ids:
+			picked.append(c)
+			_cases[str(c.guid)] = [found.get_string(1), c.display_name]
+	return picked
+
+
+## Starts the runner with the panel's arguments (`--headless` first when asked) and prints its
+## `RUNNER` line; returns its pid.
+func _start_runner() -> int:
+	var args: Array[String] = []
+	if OS.get_environment("GDUNIT_PANEL_HEADLESS") == "1":
+		args.append("--headless")
+	args.append_array(
+		["--no-window", "--path", ProjectSettings.globalize_path("res://"), RUNNER_SCENE],
+	)
+	var pid := OS.create_process(OS.get_executable_path(), args)
+	print("RUNNER %d %s" % [pid, " ".join(args)])
+	return pid
+
+
+## Waits for the runner `pid` to quit, to hang up `HANG_UP_MS` after its session closed, or for
+## `timeout` s, killing it if it still runs; returns how it ended: `exited`, `stopped`, `timeout`.
+func _await_runner(pid: int, timeout: float) -> String:
+	var deadline := Time.get_ticks_msec() + int(timeout * 1000.0)
+	while OS.is_process_running(pid) and Time.get_ticks_msec() < deadline:
+		if _closed_at >= 0 and Time.get_ticks_msec() > _closed_at + HANG_UP_MS:
+			break
+		await process_frame
+	var end := "exited"
+	if OS.is_process_running(pid):
+		end = "stopped" if _closed_at >= 0 else "timeout"
+		OS.kill(pid)
+	return end
 
 
 ## A report from the runner: print each case that ended.

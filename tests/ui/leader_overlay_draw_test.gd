@@ -171,7 +171,18 @@ func _check_main(t: TestContext) -> void:
 		_crowned(overlay, lead) and _crowned(overlay, boss),
 		"the bar's toggle shows a crown over each squad's leader (%s)" % str(overlay.drawn()),
 	)
-	var view: Dictionary = squads[&"invader"].view()
+	_check_real_view(t, squads[&"invader"], overlay, lead)
+	main.set_overlay(Registry.LEADERS, false)
+	await t.frames(2)
+	t.check(overlay.drawn().is_empty(), "toggled off, the crowns go")
+	await MainProbe.close(t, viewport)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
+
+
+## A real `squad`'s view() carries leash, trail and each member's follow spot, and `overlay` rings
+## its leader `lead` with the leash.
+func _check_real_view(t: TestContext, squad: Node, overlay: Node, lead: Node) -> void:
+	var view: Dictionary = squad.view()
 	t.check(
 		view.has("leash") and view.has("trail")
 			and (view.get("members", []) as Array).all(func(m): return m.has("follow_spot")),
@@ -183,11 +194,6 @@ func _check_main(t: TestContext) -> void:
 		"the bar's toggle shows the leash ring round the invaders' leader (%s)"
 			% str(overlay.drawn()),
 	)
-	main.set_overlay(Registry.LEADERS, false)
-	await t.frames(2)
-	t.check(overlay.drawn().is_empty(), "toggled off, the crowns go")
-	await MainProbe.close(t, viewport)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 
 
 ## The squad's leash ring, follow spots, lines and trail (LD28), off fake views: drawn while
@@ -195,33 +201,11 @@ func _check_main(t: TestContext) -> void:
 func _check_follow(t: TestContext, overlay: Node, lead: Node, next: Node, boss: Node) -> void:
 	var spot := Vector2(210, 330)
 	var trail := [Vector2(150, 300), Vector2(240, 260), Vector2(330, 220)]
-	_views = [
-		{
-			"leader": lead,
-			"leash": 320.0,
-			"trail": trail,
-			"members": [
-				{ "node": lead, "order": {}, "follow_spot": Vector2.INF },
-				{ "node": next, "order": {}, "follow_spot": spot },
-			],
-		},
-		{
-			"leader": boss,
-			"leash": 320.0,
-			"trail": [],
-			"members": [{ "node": boss, "order": {}, "follow_spot": Vector2.INF }],
-		},
-	]
+	_views = _fake_views(lead, next, boss, spot, trail)
 	await t.frames(2)
 	var rings := _of(overlay, "leash")
 	t.check(
-		rings.size() == 2
-			and rings.any(func(e): return (
-				e.get("node") == lead
-					and (e.get("point", Vector2.INF) as Vector2).distance_to(lead.global_position)
-						< 2.0
-					and is_equal_approx(float(e.get("radius", 0.0)), 320.0)
-			)),
+		rings.size() == 2 and rings.any(func(e): return _rings_lead(e, lead)),
 		"a leash ring of 320 px round each living leader (%s)" % str(rings),
 	)
 	var spots := _of(overlay, "spot")
@@ -252,6 +236,37 @@ func _check_follow(t: TestContext, overlay: Node, lead: Node, next: Node, boss: 
 	overlay.show_leaders = false
 	await t.frames(2)
 	t.check(overlay.drawn().is_empty(), "off, no ring, spot, line or trail is drawn")
+
+
+## The fake views: `lead` leading with a leash of 320 px and `trail`, `next` following to `spot`;
+## `boss` leading the other squad alone.
+func _fake_views(lead: Node, next: Node, boss: Node, spot: Vector2, trail: Array) -> Array:
+	return [
+		{
+			"leader": lead,
+			"leash": 320.0,
+			"trail": trail,
+			"members": [
+				{ "node": lead, "order": {}, "follow_spot": Vector2.INF },
+				{ "node": next, "order": {}, "follow_spot": spot },
+			],
+		},
+		{
+			"leader": boss,
+			"leash": 320.0,
+			"trail": [],
+			"members": [{ "node": boss, "order": {}, "follow_spot": Vector2.INF }],
+		},
+	]
+
+
+## Whether the drawn leash ring `e` is a 320 px one round `lead` where it stands.
+func _rings_lead(e: Dictionary, lead: Node) -> bool:
+	return (
+		e.get("node") == lead
+			and (e.get("point", Vector2.INF) as Vector2).distance_to(lead.global_position) < 2.0
+			and is_equal_approx(float(e.get("radius", 0.0)), 320.0)
+	)
 
 
 ## The crowns drawn by every squad-leaders overlay under `world` (a child with `show_leaders`).

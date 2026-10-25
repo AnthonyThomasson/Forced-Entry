@@ -80,15 +80,31 @@ func run(t: TestContext) -> void:
 			"the thrower carries a frag and a stun",
 	):
 		return
+	var frag: Node = await _throw_both(t)
+	if frag == null:
+		return
+	await t.until(
+		func() -> bool: return not is_instance_valid(frag) or frag.fuse_left() <= 2.0 / 60.0,
+		4.0,
+	)
+	var start := t.time
+	var nodes_before := Perf.nodes()
+	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
+	if not _window_holds_bursts(t, start):
+		return
+	Perf.within_frames(t, "frag and stun burst", stats)
+	_check_struck(t, nodes_before)
 
-	# The frag first, then the stun once the frag has as long left as the stun's fuse and wind-up:
-	# they go off together.
+
+## The frag first, then the stun once the frag has as long left as the stun's fuse and wind-up:
+## they go off together. Returns the live frag, or null when a premise failed (the test ended).
+func _throw_both(t: TestContext) -> Node:
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, CENTRE)
 	if not t.require(
 			await t.until(func() -> bool: return not Probe.live(t).is_empty(), 1.0),
 			"the frag left the hand",
 	):
-		return
+		return null
 	var frag: Node = Probe.live(t)[0]
 	await Probe.ready(t, &"thrower", Probe.STUN, CENTRE)
 	await t.until(
@@ -102,29 +118,27 @@ func run(t: TestContext) -> void:
 			await t.until(func() -> bool: return Probe.live(t).size() == 2, 1.0),
 			"the stun left the hand while the frag was live",
 	):
-		return
+		return null
+	return frag
 
-	await t.until(
-		func() -> bool: return not is_instance_valid(frag) or frag.fuse_left() <= 2.0 / 60.0,
-		4.0,
-	)
-	var start := t.time
-	var nodes_before := Perf.nodes()
-	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
+
+## The premise that the window begun at `start` held both bursts and the `AFTER_S` after them.
+func _window_holds_bursts(t: TestContext, start: float) -> bool:
 	var booms := Probe.booms(t)
 	if not t.require(booms.size() == 2, "both grenades went off (%d bursts)" % booms.size()):
-		return
+		return false
 	var first := minf(float(booms[0]["time"]), float(booms[1]["time"]))
 	var last := maxf(float(booms[0]["time"]), float(booms[1]["time"]))
-	if not t.require(
+	return t.require(
 			first >= start and t.time - last >= AFTER_S - 0.05,
 			("the window holds both bursts (at +%.2f and +%.2f s) and the %.0f s after them (it "
 					+ "ran %.2f s)") % [first - start, last - start, AFTER_S, t.time - start],
-	):
-		return
-	Perf.within_frames(
-		t, "frag and stun burst", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
 	)
+
+
+## The burst struck the crowd: blast hits and stuns on at least four each (logged with the dead and
+## the node growth since `nodes_before`).
+func _check_struck(t: TestContext, nodes_before: int) -> void:
 	var hits := Probe.raw(
 		t,
 		&"hit",

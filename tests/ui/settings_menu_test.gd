@@ -32,8 +32,16 @@ func run(t: TestContext) -> void:
 	_menu.debug_changed.connect(func(on): _debugs.append(on))
 	_menu.back_requested.connect(func(): _backs += 1)
 	_menu.open({ "debug": true, "rows": _rows() })
+	_check_rows(t)
+	_check_debug_and_escape(t)
+	if not _check_capture(t):
+		return
+	_check_new_rows(t)
+	_menu.queue_free()
 
-	# The rows draw from the dicts.
+
+## The rows draw from the dicts.
+func _check_rows(t: TestContext) -> void:
 	for label in ["Move up", "Punch", "Fire"]:
 		t.check(_row(label) != null, "a row for %s" % label)
 	t.expect_eq(_key_button("Punch").text, "G", "the key button shows the row's text")
@@ -42,7 +50,10 @@ func run(t: TestContext) -> void:
 	t.check(not _reset_button("Punch").disabled, "a changed row can be reset")
 	t.check(_reset_button("Move up").disabled, "an unchanged row has nothing to reset")
 
-	# The Debug checkbox starts as given and reports a change.
+
+## The Debug checkbox starts as given and reports a change; Escape with nothing being captured goes
+## back, while capturing it cancels the capture without going back.
+func _check_debug_and_escape(t: TestContext) -> void:
 	var debug_check: CheckBox = _menu.find_children("*", "CheckBox", true, false)[0]
 	t.check(debug_check.button_pressed, "Debug starts as given")
 	t.check(_debugs.is_empty(), "seeding Debug emits nothing")
@@ -63,7 +74,10 @@ func run(t: TestContext) -> void:
 		"a cancelled capture rebinds nothing and does not go back",
 	)
 
-	# A key release or repeat is not a capture; the next press is.
+
+## A key release or repeat is not a capture; the next press is, and a mouse press too. False when
+## a capture was missed (the test ended).
+func _check_capture(t: TestContext) -> bool:
 	_key_button("Punch").pressed.emit()
 	var release := _key(KEY_H)
 	release.pressed = false
@@ -74,7 +88,7 @@ func run(t: TestContext) -> void:
 	t.check(_rebinds.is_empty(), "a release or an echo is not captured")
 	_menu._input(_key(KEY_H))
 	if not t.require(_rebinds.size() == 1, "a key press is captured"):
-		return
+		return false
 	t.expect_eq(_rebinds[0][0], "punch", "for the row being captured")
 	t.expect_eq((_rebinds[0][1] as InputEventKey).physical_keycode, KEY_H, "with the key pressed")
 	t.expect_eq(_key_button("Punch").text, "G", "the window waits for the host's new rows")
@@ -86,14 +100,17 @@ func run(t: TestContext) -> void:
 	click.pressed = true
 	_menu._input(click)
 	if not t.require(_rebinds.size() == 2, "a mouse press is captured"):
-		return
+		return false
 	t.expect_eq(
 		(_rebinds[1][1] as InputEventMouseButton).button_index,
 		MOUSE_BUTTON_RIGHT,
 		"with the button pressed",
 	)
+	return true
 
-	# New rows from the host replace the list and end any capture.
+
+## New rows from the host replace the list and end any capture; Reset reports the row's action.
+func _check_new_rows(t: TestContext) -> void:
 	_key_button("Punch").pressed.emit()
 	var rows := _rows()
 	rows[1]["text"] = "H"
@@ -103,8 +120,6 @@ func run(t: TestContext) -> void:
 	# Reset reports the row's action.
 	_reset_button("Punch").pressed.emit()
 	t.expect_eq(_resets, ["punch"], "Reset reports its action")
-
-	_menu.queue_free()
 
 
 func _rows() -> Array:

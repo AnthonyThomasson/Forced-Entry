@@ -66,33 +66,57 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
 	var characters: Array = t.match().get("combatants", [])
-	if not t.require(
-			characters.size() == PER_SIDE * 2,
-			"ten combatants spawned (%d)" % characters.size(),
-	):
+	if not _set_up(t, characters):
 		return
-	_player_screen(t)
-	var camera := t.world.get_viewport().get_camera_2d()
-	if not t.require(
-			camera != null and camera.has_method("frame"),
-			"the runner's camera can frame the fight",
-	):
-		return
-	camera.frame(characters)
 	var thrower := t.actor(&"thrower")
-	Probe.arm(thrower, 3, 3)
-	if not t.require(
-			Probe.count(thrower, Probe.FRAG) == 3 and Probe.count(thrower, Probe.STUN) == 3,
-			"the thrower carries 3 frags and 3 stuns",
-	):
-		return
 	if not await Perf.warm_until_contact(t, "grenades in a 5v5 match", characters):
 		return
 
 	var nodes_before := Perf.nodes()
 	var start := t.time
 	var targets: Array = []
-	var throw := func(i: int) -> void:
+	var stats := await Perf.frame_stats(t, MEASURE_FRAMES, _throws(t, characters, targets))
+	var end := t.time
+
+	# The puppet's own bursts: an NPC's grenade is load, not one of the six.
+	var booms := Probe.booms(t).filter(
+		func(b: Dictionary) -> bool: return b["data"].get("attacker") == thrower,
+	)
+	if not _window_holds_bursts(t, booms, start, end, targets):
+		return
+	Perf.within_frames(t, "grenades in a 5v5 match", stats)
+	_check_struck(t, booms, nodes_before)
+
+
+## The premises before the warm-up: the match's ten `characters` spawned, the runner's camera
+## framing them on a player's screen, the thrower armed with three frags and three stuns. False
+## when one failed (the test ended).
+func _set_up(t: TestContext, characters: Array) -> bool:
+	if not t.require(
+			characters.size() == PER_SIDE * 2,
+			"ten combatants spawned (%d)" % characters.size(),
+	):
+		return false
+	_player_screen(t)
+	var camera := t.world.get_viewport().get_camera_2d()
+	if not t.require(
+			camera != null and camera.has_method("frame"),
+			"the runner's camera can frame the fight",
+	):
+		return false
+	camera.frame(characters)
+	var thrower := t.actor(&"thrower")
+	Probe.arm(thrower, 3, 3)
+	return t.require(
+			Probe.count(thrower, Probe.FRAG) == 3 and Probe.count(thrower, Probe.STUN) == 3,
+			"the thrower carries 3 frags and 3 stuns",
+	)
+
+
+## The per-frame script of the window: each `THROW_EVERY` frames the puppet picks the next of
+## `THROWS` (where it throws appended to `targets`) and clicks `CLICK_AFTER` frames later.
+func _throws(t: TestContext, characters: Array, targets: Array) -> Callable:
+	return func(i: int) -> void:
 		var k := int(i / float(THROW_EVERY))
 		if k >= THROWS.size():
 			return
@@ -102,13 +126,17 @@ func run(t: TestContext) -> void:
 			t.puppet(&"thrower").select_slot(THROWS[k])
 		elif step == CLICK_AFTER:
 			t.puppet(&"thrower").shoot()
-	var stats := await Perf.frame_stats(t, MEASURE_FRAMES, throw)
-	var end := t.time
 
-	# The puppet's own bursts: an NPC's grenade is load, not one of the six.
-	var booms := Probe.booms(t).filter(
-		func(b: Dictionary) -> bool: return b["data"].get("attacker") == thrower,
-	)
+
+## The premises on the window from `start` to `end` (s): all six of the puppet's `booms` inside it
+## (`targets` where it threw), and it running `AFTER_LAST_S` past the last.
+func _window_holds_bursts(
+	t: TestContext,
+	booms: Array,
+	start: float,
+	end: float,
+	targets: Array,
+) -> bool:
 	var last := -INF
 	for b: Dictionary in booms:
 		last = maxf(last, float(b["time"]))
@@ -117,19 +145,19 @@ func run(t: TestContext) -> void:
 			"all six grenades went off inside the window (%d bursts; thrown at %s)"
 				% [booms.size(), str(targets)],
 	):
-		return
-	if not t.require(
+		return false
+	return t.require(
 			end - last >= AFTER_LAST_S - 0.05,
 			"the window runs %.1f s past the last burst (%.2f s after the first throw)"
 				% [end - last, last - start],
-	):
-		return
-	Perf.within_frames(
-		t, "grenades in a 5v5 match", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS,
-		Perf.SMOOTH_MAX_MS,
 	)
-	# The puppet's own: its frags' blast hits, and the stuns of the frames its stuns went off in
-	# (a `stun` event names no thrower).
+
+
+## The puppet's own grenades (`booms`) went off among the fighters: its frags' blast hits and the
+## stuns of the frames its stuns went off in (a `stun` event names no thrower); and the node growth
+## since `nodes_before` is within budget.
+func _check_struck(t: TestContext, booms: Array, nodes_before: int) -> void:
+	var thrower := t.actor(&"thrower")
 	var hits := Probe.raw(
 		t,
 		&"hit",

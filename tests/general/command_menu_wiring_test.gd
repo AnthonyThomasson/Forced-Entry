@@ -58,9 +58,27 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var viewport := MainProbe.viewport(t)
 	var main = MainProbe.open(viewport)
+	var me := t.actor(&"me")
+	var built: Dictionary = await _start(viewport, main, me)
+	var menu := _premise_menu(t, built, me)
+	if menu == null:
+		await MainProbe.close(t, viewport)
+		return
+	var npcs: Array = (built["combatants"] as Array).filter(func(c): return c != me)
+	if not await _order_stack(t, menu, npcs):
+		await MainProbe.close(t, viewport)
+		return
+	await _check_claims(t, npcs)
+	await _hold_then_go(t, menu, npcs)
+	await MainProbe.close(t, viewport)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
+
+
+## Main's match from the window's config over a base naming the bare Terrace house, the NPC
+## invaders' start points and `me` as the human: what `main.start_match` returns.
+func _start(viewport: SubViewport, main: Variant, me: Node) -> Dictionary:
 	var layout := TestSetup.new()
 	Maps.house(layout, false)
-	var me := t.actor(&"me")
 	var base := MatchBuilder.spec({
 		"house": MainProbe.house(layout, viewport),
 		"invaders": { "at": NPC_AT },
@@ -71,32 +89,40 @@ func run(t: TestContext) -> void:
 			"defenders": { "count": 0 }, "invaders": { "count": 2 } },
 		base,
 	)
-	var built: Dictionary = await main.start_match(spec)
+	return await main.start_match(spec)
+
+
+## The premises on the match `built`: Main built it, armed the two NPC invaders with a stun each,
+## built the invaders' squad led by `me`, and put the command menu in its world. The menu, or null
+## when a premise failed.
+func _premise_menu(t: TestContext, built: Dictionary, me: Node) -> Node:
 	if not t.require(not built.is_empty(), "premise: Main built the match (start_match)"):
-		await MainProbe.close(t, viewport)
-		return
+		return null
 	var npcs: Array = (built["combatants"] as Array).filter(func(c): return c != me)
 	if not t.require(
 			npcs.size() == 2 and npcs.all(func(n): return Probe.count(n, Probe.STUN) >= 1),
 			"Main armed the two NPC invaders with a stun each (premise: the invaders' loadout)",
 	):
-		await MainProbe.close(t, viewport)
-		return
+		return null
 	var squad: Node = (built["squads"] as Dictionary).get(&"invader")
 	if not t.require(
 			squad != null and squad.leader() == me,
 			"Main built the invaders' squad, led by the human (Lead the team)",
 	):
-		await MainProbe.close(t, viewport)
-		return
+		return null
 	var menu := _find_menu(built["world"])
 	if not t.require(
 			menu != null,
 			"the command menu is in the match's world (a node with open_at under World)",
 	):
-		await MainProbe.close(t, viewport)
-		return
+		return null
+	return menu
 
+
+## The leader ticks both `npcs` in the menu, opens it on the back door, ticks "Hold for my go" and
+## chooses "Stack into the kitchen with stun"; false when the item was not offered (the tree
+## unpaused, the test ended).
+func _order_stack(t: TestContext, menu: Node, npcs: Array) -> bool:
 	for npc in npcs:
 		t.check(
 			Order.tick(menu, String(npc.name), true),
@@ -111,15 +137,18 @@ func run(t: TestContext) -> void:
 			"it offers \"Stack into the kitchen with stun\" (items %s)" % str(Order.labels(menu)),
 	):
 		t.world.get_tree().paused = false
-		await MainProbe.close(t, viewport)
-		return
+		return false
 	await t.frames(1)
 	t.check(not t.world.get_tree().paused, "choosing it closes the menu and unpauses")
 	t.check(
 		not Order.orders(t).is_empty(),
 		"the squad posted the order (Main wired order_requested to Squad.issue)",
 	)
+	return true
 
+
+## Both `npcs` claim slots at the back door under the order, in bang mode.
+func _check_claims(t: TestContext, npcs: Array) -> void:
 	var claimed := func():
 		return npcs.all(func(n): return not Order.ordered_claims(t, n, Entry.BACK["id"]).is_empty())
 	t.check(
@@ -133,9 +162,6 @@ func run(t: TestContext) -> void:
 			"%s claims in bang mode (%s)"
 				% [n.name, str(claims.map(func(c): return c.get("bang")))],
 		)
-	await _hold_then_go(t, menu, npcs)
-	await MainProbe.close(t, viewport)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 
 
 ## LD13 / LD16 (part 2): the stun stack was ordered with "Hold for my go" ticked, so it holds once

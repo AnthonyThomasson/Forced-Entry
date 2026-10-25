@@ -38,6 +38,27 @@ var _group_flags: Dictionary = {}
 func setup(flags: Dictionary) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 10
+	_build_frame()
+	_all_button = Button.new()  # click to flip every overlay
+	_all_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_all_button.focus_mode = Control.FOCUS_NONE
+	_all_button.add_theme_font_size_override("font_size", int(14 * SCALE))
+	_all_button.pressed.connect(func(): _on_bulk_pressed(_all_flags()))
+	_body.add_child(_all_button)
+	var group := ""
+	for e in Registry.ENTRIES:
+		if e["group"] != group:
+			group = e["group"]
+			_add_group_title(group)
+		(_group_flags[group] as Array).append(e["flag"])
+		_add_flag_button(e, flags)
+	_refresh_bulk()
+	_set_collapsed(false)
+
+
+## The bar's frame: its panel at the top right, the title row (the drag handle and the collapse
+## header) and the body the buttons go in.
+func _build_frame() -> void:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.anchor_left = 1.0
@@ -67,40 +88,35 @@ func setup(flags: Dictionary) -> void:
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", int(2 * SCALE))
 	box.add_child(_body)
-	_all_button = Button.new()  # click to flip every overlay
-	_all_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_all_button.focus_mode = Control.FOCUS_NONE
-	_all_button.add_theme_font_size_override("font_size", int(14 * SCALE))
-	_all_button.pressed.connect(func(): _on_bulk_pressed(_all_flags()))
-	_body.add_child(_all_button)
-	var group := ""
-	for e in Registry.ENTRIES:
-		if e["group"] != group:
-			group = e["group"]
-			_group_flags[group] = []
-			var title := Button.new()  # click to flip the whole group
-			title.flat = true
-			title.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			title.focus_mode = Control.FOCUS_NONE
-			title.add_theme_font_size_override("font_size", int(12 * SCALE))
-			title.modulate = Color(1, 1, 1, 0.7)
-			title.pressed.connect(_on_bulk_pressed.bind(_group_flags[group]))
-			_body.add_child(title)
-			_group_buttons[group] = title
-		(_group_flags[group] as Array).append(e["flag"])
-		var b := Button.new()
-		b.toggle_mode = true
-		b.text = e["label"]
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		# keep Space (pause / interact) from re-pressing a focused button
-		b.focus_mode = Control.FOCUS_NONE
-		b.add_theme_font_size_override("font_size", int(14 * SCALE))
-		b.button_pressed = bool(flags.get(e["flag"], e["default"]))
-		b.toggled.connect(_on_toggled.bind(e["flag"]))
-		_body.add_child(b)
-		_buttons[e["flag"]] = b
-	_refresh_bulk()
-	_set_collapsed(false)
+
+
+## The title button of `group` (click to flip the whole group), its flag list started empty.
+func _add_group_title(group: String) -> void:
+	_group_flags[group] = []
+	var title := Button.new()
+	title.flat = true
+	title.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.focus_mode = Control.FOCUS_NONE
+	title.add_theme_font_size_override("font_size", int(12 * SCALE))
+	title.modulate = Color(1, 1, 1, 0.7)
+	title.pressed.connect(_on_bulk_pressed.bind(_group_flags[group]))
+	_body.add_child(title)
+	_group_buttons[group] = title
+
+
+## The toggle button of registry entry `e`, pressed as `flags` says (else its default).
+func _add_flag_button(e: Dictionary, flags: Dictionary) -> void:
+	var b := Button.new()
+	b.toggle_mode = true
+	b.text = e["label"]
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# keep Space (pause / interact) from re-pressing a focused button
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", int(14 * SCALE))
+	b.button_pressed = bool(flags.get(e["flag"], e["default"]))
+	b.toggled.connect(_on_toggled.bind(e["flag"]))
+	_body.add_child(b)
+	_buttons[e["flag"]] = b
 
 
 ## Set a flag's button without emitting (e.g. when something else changed the flag).

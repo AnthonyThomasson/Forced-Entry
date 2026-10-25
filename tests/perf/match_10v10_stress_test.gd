@@ -67,9 +67,7 @@ func run(t: TestContext) -> void:
 		"PERF 10v10 match window: %d knowing a hostile as it opened, %d shots in it"
 			% [aware, shots],
 	)
-	Perf.within_frames(
-		t, "10v10 match", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
-	)
+	Perf.within_frames(t, "10v10 match", stats)
 	t.check(
 		not t.von_requests().is_empty(),
 		"the NPCs asked for decisions (%d asks)" % t.von_requests().size(),

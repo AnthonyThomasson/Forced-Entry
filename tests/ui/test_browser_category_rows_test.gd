@@ -43,8 +43,13 @@ func run(t: TestContext) -> void:
 		domain.get_button_count(0) > 0 and topic.get_button_count(0) == 0,
 		"only the domain row has the run button",
 	)
+	_check_ticking(t, topic, domain)
+	_check_run_and_marks(t, domain)
 
-	# Ticking a topic row ticks only its tests; the domain row is then partly ticked.
+
+## Ticking a `topic` row ticks only its tests; the `domain` row is then partly ticked, and ticked
+## once every topic is.
+func _check_ticking(t: TestContext, topic: TreeItem, domain: TreeItem) -> void:
 	topic.set_checked(0, true)
 	_window._apply_edit(topic)
 	t.expect_eq(_checked, ["a/one", "a/two"], "ticking a topic row ticks only that topic's tests")
@@ -60,12 +65,14 @@ func run(t: TestContext) -> void:
 		"every test of the domain ticked shows the domain ticked",
 	)
 
-	# A run starting and ending touches only the domain rows (an engine error would fail the test).
+
+## A run starting and ending touches only the `domain` rows (an engine error would fail the test);
+## a GAP result has its mark.
+func _check_run_and_marks(t: TestContext, domain: TreeItem) -> void:
 	_window.set_run_status("Running…", true)
 	t.check(domain.is_button_disabled(0, 0), "a headless run disables the domain's run button")
 	_window.set_run_status("", false)
 	t.check(not domain.is_button_disabled(0, 0), "and enables it again")
-
 	# A GAP result has its mark.
 	_window.set_results({ "a/one": "GAP", "a/two": "PASS" })
 	t.check(

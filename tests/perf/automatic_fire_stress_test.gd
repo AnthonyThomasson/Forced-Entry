@@ -83,21 +83,10 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var guns: Array = []  # the automatic guns, which hold the trigger
-	for i in SMGS.size():
-		var gun := t.puppet(StringName("smg%d" % i))
-		gun.aim_at(Vector2(700, SMGS[i].y))
-		guns.append(gun)
-	for i in RIFLES.size():
-		var gun := t.puppet(StringName("rifle%d" % i))
-		gun.aim_at(Vector2(700, RIFLES[i].y))
-		guns.append(gun)
-	var pistols: Array = []
+	var guns := _aim_automatics(t)  # the automatic guns, which hold the trigger
+	var pistols := _aim_pistols(t)
 	var pistol_bodies: Array = []
 	for i in PISTOLS.size():
-		var gun := t.puppet(StringName("pistol%d" % i))
-		gun.aim_at(Vector2(700, PISTOLS[i].y))
-		pistols.append(gun)
 		pistol_bodies.append(t.actor(StringName("pistol%d" % i)))
 	await t.seconds(0.5)
 	var nodes_before := Perf.nodes()
@@ -111,10 +100,46 @@ func run(t: TestContext) -> void:
 	var stats := await Perf.frame_stats(t, FIRE_FRAMES, click)
 	for gun in guns:
 		gun.hold_fire(false)
-	Perf.within_frames(
-		t, "gunfire", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
+	Perf.within_frames(t, "gunfire", stats)
+
+	_check_rates(t)
+	_check_pistol_hits(t, pistol_bodies)
+	t.check(
+		Despawner.count() <= Despawner.max_scene_objects,
+		"the Despawner cap holds (%d tracked)" % Despawner.count(),
 	)
 
+	await t.seconds(8.0)  # let projectiles, casings and chips drain
+	_check_drained(t, nodes_before)
+
+
+## The SMG and rifle puppets, each aimed across the room at its row.
+func _aim_automatics(t: TestContext) -> Array:
+	var guns: Array = []
+	for i in SMGS.size():
+		var gun := t.puppet(StringName("smg%d" % i))
+		gun.aim_at(Vector2(700, SMGS[i].y))
+		guns.append(gun)
+	for i in RIFLES.size():
+		var gun := t.puppet(StringName("rifle%d" % i))
+		gun.aim_at(Vector2(700, RIFLES[i].y))
+		guns.append(gun)
+	return guns
+
+
+## The pistol puppets, each aimed across the room at its row.
+func _aim_pistols(t: TestContext) -> Array:
+	var pistols: Array = []
+	for i in PISTOLS.size():
+		var gun := t.puppet(StringName("pistol%d" % i))
+		gun.aim_at(Vector2(700, PISTOLS[i].y))
+		pistols.append(gun)
+	return pistols
+
+
+## The automatic guns fired at their rates over the window: at least 80 % of the rounds their
+## `fire_interval`s allow.
+func _check_rates(t: TestContext) -> void:
 	var seconds := float(FIRE_FRAMES) / float(Engine.physics_ticks_per_second)
 	var wanted := 0.0
 	for gun_id in [&"smg", &"rifle"]:
@@ -130,8 +155,11 @@ func run(t: TestContext) -> void:
 		float(fired) >= wanted * 0.8,
 		"the guns really fired at their rates (%d rounds, wanted about %.0f)" % [fired, wanted],
 	)
-	# Every pistol round ends at furniture or a wall, so each one that left the barrel is at least
-	# one hit.
+
+
+## Every pistol round ends at furniture or a wall, so each one that left the barrel of
+## `pistol_bodies` is at least one hit.
+func _check_pistol_hits(t: TestContext, pistol_bodies: Array) -> void:
 	var pistol_rounds := 0
 	for body in pistol_bodies:
 		pistol_rounds += body.ammo_capacity(3) - body.ammo(3)
@@ -143,12 +171,11 @@ func run(t: TestContext) -> void:
 		pistol_rounds > 0 and pistol_hits >= pistol_rounds,
 		"the pistols' rounds landed hits (%d hits for %d rounds)" % [pistol_hits, pistol_rounds],
 	)
-	t.check(
-		Despawner.count() <= Despawner.max_scene_objects,
-		"the Despawner cap holds (%d tracked)" % Despawner.count(),
-	)
 
-	await t.seconds(8.0)  # let projectiles, casings and chips drain
+
+## After the drain, the nodes grown since `nodes_before` are within budget and the Despawner cap
+## still holds.
+func _check_drained(t: TestContext, nodes_before: int) -> void:
 	var grown := Perf.nodes() - nodes_before
 	GameLog.say("PERF gunfire node growth after drain %d (Despawner tracks %d)"
 			% [grown, Despawner.count()])

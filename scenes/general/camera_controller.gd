@@ -272,19 +272,20 @@ func _calculate_target_position() -> Vector2:
 
 	var dir_to_mouse := to_mouse.normalized()
 
-	# Determine how far from screen center the mouse is (screen space, 0-1).
+	# Offset camera toward the mouse.
+	var look_offset := dir_to_mouse * look_ahead_distance * _edge_factor()
+
+	return player_pos + look_offset
+
+
+## How far the look-ahead is ramped up (0-1): how far from screen centre the mouse is (screen
+## space), against the longer axis (x or y) scaled by `look_ahead_threshold`.
+func _edge_factor() -> float:
 	var screen_size := get_viewport_rect().size
 	var mouse_screen := get_viewport().get_mouse_position()
 	var screen_center := screen_size / 2.0
 	var edge_offset := (mouse_screen - screen_center).abs()
-
-	# Ramp up look-ahead as mouse approaches edges. Use the longer axis (x or y).
 	var threshold_pixels := maxf(screen_size.x, screen_size.y) * 0.5 * look_ahead_threshold
-	var edge_factor := (minf(1.0, edge_offset.length() / threshold_pixels)
+	return (minf(1.0, edge_offset.length() / threshold_pixels)
 			if threshold_pixels > 0
 			else 0.0)
-
-	# Offset camera toward the mouse.
-	var look_offset := dir_to_mouse * look_ahead_distance * edge_factor
-
-	return player_pos + look_offset

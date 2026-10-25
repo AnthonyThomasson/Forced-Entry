@@ -537,7 +537,7 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
   budget in all three.
 - **The standard:** a match runs without frame loss, so every frame-based test holds `Perf.SMOOTH_AVG_MS` (16.7, one 60 fps
   frame, the Performance overlay's target), `SMOOTH_P95_MS` (20) and `SMOOTH_MAX_MS` (33.4, two frames) through
-  `Perf.within_frames`, at the scale of the largest match (twenty characters, `match_10v10_stress`), with no looser tail.
+  `Perf.within_frames(t, label, stats)` (which holds a `frame_stats` result to those three itself), at the scale of the largest match (twenty characters, `match_10v10_stress`), with no looser tail.
   One-shot work
   (`Perf.time_ms`) keeps a `const` budget at the top of its test, about 4x the baseline stated in the comment above it.
   `Perf.within` prints `PERF <label> <value> (budget <limit>)`, traces it, and fails the check with the value. Counts

@@ -42,8 +42,13 @@ func run(t: TestContext) -> void:
 		[0, 0],
 		"the defenders' are none",
 	)
+	await _check_old_save(t)
+	await _check_chosen_counts(t)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
 
-	# A save from before the grenades: it names the counts of people and guns only.
+
+## A save from before the grenades: it names the counts of people and guns only.
+func _check_old_save(t: TestContext) -> void:
 	_write({
 		"setup": {
 			"side": "invader",
@@ -70,7 +75,9 @@ func run(t: TestContext) -> void:
 		"the defenders keep none",
 	)
 
-	# The counts a player chose are saved with the setup and come back.
+
+## The counts a player chose are saved with the setup and come back.
+func _check_chosen_counts(t: TestContext) -> void:
 	Settings.set_setup({
 		"mode": "watch",
 		"side": "defender",
@@ -79,7 +86,7 @@ func run(t: TestContext) -> void:
 		"invaders": { "count": 2, "stuns": 0, "frags": 2 },
 	})
 	Settings.setup = {}
-	merged = await _window(t)
+	var merged := await _window(t)
 	t.expect_eq(
 		[int(merged["defenders"]["stuns"]), int(merged["defenders"]["frags"])],
 		[3, 0],
@@ -90,7 +97,6 @@ func run(t: TestContext) -> void:
 		[0, 2],
 		"and the invaders' (a chosen 0 is not the default)",
 	)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
 
 
 ## Launch Main as a fresh launch does (it loads the settings file and opens the setup window) and

@@ -45,9 +45,7 @@ func run(t: TestContext) -> void:
 		return
 	var nodes_before := Perf.nodes()
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
-	Perf.within_frames(
-		t, "5v5 match", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
-	)
+	Perf.within_frames(t, "5v5 match", stats)
 	t.check(
 		not t.von_requests().is_empty(),
 		"the NPCs asked for decisions (%d asks)" % t.von_requests().size(),

@@ -30,8 +30,21 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# The world is stepped before the test starts, so its walls are already solid and its navmesh
-	# live.
+	_check_first_frame(t)
+	await t.seconds(0.5)
+	t.expect_eq(t.rooms.size(), 2, "both rooms are registered")
+	var openings := WorldGen.get_openings(t.world.house)
+	if t.require(openings.size() == 1, "the doorway is registered"):
+		t.expect_eq(openings[0]["rooms"].size(), 2, "it joins the two rooms")
+		t.expect_eq(openings[0]["front"], false, "and is not an entrance")
+	_check_wall_and_door(t)
+	_check_door_path(t)
+	_check_table_hole(t)
+
+
+## The world is stepped before the test starts, so its walls are already solid and its navmesh
+## live.
+func _check_first_frame(t: TestContext) -> void:
 	var first := t.world.get_world_2d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters2D.create(Vector2(200, 60), Vector2(400, 60)),
 	)
@@ -40,13 +53,10 @@ func run(t: TestContext) -> void:
 		NavigationServer2D.map_get_iteration_id(t.world.get_world_2d().navigation_map) > 0,
 		"and the navmesh is live",
 	)
-	await t.seconds(0.5)
-	t.expect_eq(t.rooms.size(), 2, "both rooms are registered")
-	var openings := WorldGen.get_openings(t.world.house)
-	if t.require(openings.size() == 1, "the doorway is registered"):
-		t.expect_eq(openings[0]["rooms"].size(), 2, "it joins the two rooms")
-		t.expect_eq(openings[0]["front"], false, "and is not an entrance")
 
+
+## The shared wall stops a line between the rooms; the doorway lets it through.
+func _check_wall_and_door(t: TestContext) -> void:
 	var space := t.world.get_world_2d().direct_space_state
 	var wall_hit := space.intersect_ray(
 		PhysicsRayQueryParameters2D.create(Vector2(200, 60), Vector2(400, 60)),
@@ -57,6 +67,9 @@ func run(t: TestContext) -> void:
 	)
 	t.check(door_hit.is_empty(), "the doorway lets the same line through")
 
+
+## A path between the rooms exists and crosses the shared wall at the doorway.
+func _check_door_path(t: TestContext) -> void:
 	var map := t.world.get_world_2d().navigation_map
 	var from := Vector2(100, 60)
 	var to := Vector2(500, 60)
@@ -69,6 +82,10 @@ func run(t: TestContext) -> void:
 			passes_door = passes_door or absf(crossing_y - DOOR.y) <= 50.0
 	t.check(passes_door, "that path crosses the shared wall at the doorway")
 
+
+## The table is a hole in the navmesh: the path round it is longer than the straight line.
+func _check_table_hole(t: TestContext) -> void:
+	var map := t.world.get_world_2d().navigation_map
 	var around := NavigationServer2D.map_get_path(map, Vector2(60, 150), Vector2(240, 150), true)
 	var length := 0.0
 	for i in range(1, around.size()):

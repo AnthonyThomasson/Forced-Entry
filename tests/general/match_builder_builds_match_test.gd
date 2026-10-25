@@ -54,24 +54,38 @@ func run(t: TestContext) -> void:
 		return
 	t.check(handle.get("rooms") == t.rooms, "the handle's rooms are the house's")
 	t.check(handle.get("openings") == openings, "the handle's openings are the house's")
-	var front := Vector2.ZERO
-	for o: Dictionary in openings:
-		if o.get("front", false):
-			front = o["pos"]
+	var front := _front(openings)
 	if not t.require(front != Vector2.ZERO, "premise: the house has a front entrance"):
 		return
 
 	var combatants: Array = handle.get("combatants", [])
-	var defenders := combatants.filter(
-		func(c): return c.get("faction") == MatchBuilder.DEFENDER_FACTION
-	)
-	var invaders := combatants.filter(
-		func(c): return c.get("faction") == MatchBuilder.INVADER_FACTION
-	)
+	var defenders := _side(combatants, MatchBuilder.DEFENDER_FACTION)
+	var invaders := _side(combatants, MatchBuilder.INVADER_FACTION)
 	t.expect_eq(defenders.size(), DEFENDERS, "the defenders number their count")
 	t.expect_eq(invaders.size(), INVADERS, "the invaders number their count")
 	t.expect_eq(combatants.size(), DEFENDERS + INVADERS, "nobody else is in the match")
+	_check_kit(t, defenders, invaders)
+	_check_squads(t, handle.get("squads", {}), defenders, invaders)
+	_check_bound(t, handle, brains, front)
 
+
+## The position of the front entrance among `openings`, `Vector2.ZERO` with none.
+func _front(openings: Array) -> Vector2:
+	var front := Vector2.ZERO
+	for o: Dictionary in openings:
+		if o.get("front", false):
+			front = o["pos"]
+	return front
+
+
+## The `combatants` of `faction`, in spawn order.
+func _side(combatants: Array, faction: StringName) -> Array:
+	return combatants.filter(func(c): return c.get("faction") == faction)
+
+
+## The invaders carry Main's default kit and are one police unit ranked in spawn order; the
+## defenders carry no grenades.
+func _check_kit(t: TestContext, defenders: Array, invaders: Array) -> void:
 	for c in invaders:
 		t.expect_eq(c.item_count(ItemRegistry.STUN_SLOT), 1, "%s carries one stun" % c.name)
 		t.expect_eq(c.item_count(ItemRegistry.FRAG_SLOT), 1, "%s carries one frag" % c.name)
@@ -99,7 +113,9 @@ func run(t: TestContext) -> void:
 		"the invaders are ranked lead, sergeant, trooper in spawn order",
 	)
 
-	var squads: Dictionary = handle.get("squads", {})
+
+## One squad per faction in `squads`, each over its side's NPCs and led by the rank rule.
+func _check_squads(t: TestContext, squads: Dictionary, defenders: Array, invaders: Array) -> void:
 	t.expect_eq(squads.size(), 2, "one squad per faction")
 	var sides := {
 		MatchBuilder.DEFENDER_FACTION: defenders,
@@ -116,6 +132,15 @@ func run(t: TestContext) -> void:
 			"the %s squad is led by %s by the rank rule (led by %s)"
 				% [faction, members[0].name, squad.leader().name if squad.leader() else "nobody"],
 		)
+
+
+## Every combatant of `handle`'s controller (in `brains`, read before their first tick) has the
+## house's rooms and openings and its side's squad, an invader the `front` entrance as its
+## `entry_point`.
+func _check_bound(t: TestContext, handle: Dictionary, brains: Dictionary, front: Vector2) -> void:
+	var combatants: Array = handle.get("combatants", [])
+	var openings: Array = t.world.get("openings")
+	var squads: Dictionary = handle.get("squads", {})
 	for c in combatants:
 		var brain: Node = brains[c]
 		if not t.check(brain != null, "%s has a controller" % c.name):
@@ -126,7 +151,7 @@ func run(t: TestContext) -> void:
 			brain.squad == squads.get(c.get("faction")),
 			"%s's controller has its side's squad" % c.name,
 		)
-	for c in invaders:
+	for c in _side(combatants, MatchBuilder.INVADER_FACTION):
 		t.check(
 			brains[c] != null and brains[c].entry_point == front,
 			"invader %s heads for the front entrance %s (entry_point %s)"

@@ -340,14 +340,7 @@ func on_log(entry: Dictionary) -> void:
 func conclude(manual: bool) -> String:
 	if not _concluded:
 		_concluded = true
-		for e in _expected_logs:
-			if e["count"] > 0:
-				check(
-					false,
-					"Expected log never appeared: /%s/ (%d more)" % [e["pattern"], e["count"]],
-				)
-		if checks.is_empty() and not manual and status != "SKIPPED":
-			check(false, "The test made no assertions")
+		_close_checks(manual)
 	if status == "SKIPPED":
 		return status
 	if _timed_out:
@@ -355,16 +348,35 @@ func conclude(manual: bool) -> String:
 	else:
 		status = "FAIL" if checks.any(func(c): return not c["ok"]) else "PASS"
 	if _gap:
-		if _gap_passed or status == "PASS":
-			if not _gap_passed:
-				_gap_passed = true
-				check(false, "passes: drop the gap tag")
-			status = "FAIL"
-		else:
-			status = "GAP"
-			if reason == "":
-				reason = "expected to fail (tagged gap)"
+		_gap_verdict()
 	return status
+
+
+## The checks the end of a run adds, once: one failed per expected log that never appeared, and one
+## for a test that asserted nothing (not `manual`, not skipped).
+func _close_checks(manual: bool) -> void:
+	for e in _expected_logs:
+		if e["count"] > 0:
+			check(
+				false,
+				"Expected log never appeared: /%s/ (%d more)" % [e["pattern"], e["count"]],
+			)
+	if checks.is_empty() and not manual and status != "SKIPPED":
+		check(false, "The test made no assertions")
+
+
+## A `gap` test's status: its FAIL or TIMEOUT is GAP (with a default reason), a pass a FAIL with a
+## failed check that says to drop the tag (added once).
+func _gap_verdict() -> void:
+	if _gap_passed or status == "PASS":
+		if not _gap_passed:
+			_gap_passed = true
+			check(false, "passes: drop the gap tag")
+		status = "FAIL"
+	else:
+		status = "GAP"
+		if reason == "":
+			reason = "expected to fail (tagged gap)"
 
 
 ## Register what the world placed (called by the runner after the build).
@@ -389,20 +401,8 @@ func snapshot() -> Dictionary:
 	var out := { "actors": {}, "objects": {}, "vehicles": {} }
 	for id in _actors:
 		var a: Node = actor(id)
-		if a == null:
-			continue
-		var s := { "position": _vec(a.global_position) if a is Node2D else "" }
-		for prop in ["health", "max_health", "is_dead", "faction", "move_input"]:
-			if prop in a:
-				s[prop] = _plain(a.get(prop))
-		for child in a.get_children():
-			if child.is_in_group(&"npc_controllers"):
-				var act: Variant = child.current_act()
-				s["act"] = ("/".join(PackedStringArray(act.map(func(x): return str(x))))
-						if act is Array
-						else str(act))
-				s["status"] = str(child.debug_status())
-		out["actors"][String(id)] = s
+		if a != null:
+			out["actors"][String(id)] = _actor_state(a)
 	for id in _objects:
 		var o: Node = object(id)
 		if o is Node2D:
@@ -410,14 +410,36 @@ func snapshot() -> Dictionary:
 	for id in _vehicles:
 		var v: Node = vehicle(id)
 		if v is Node2D:
-			var row := {
-				"position": _vec(v.global_position),
-				"rotation": snappedf(v.global_rotation, 0.01),
-			}
-			if v.has_method("speed"):
-				row["speed"] = snappedf(v.speed(), 0.1)
-			out["vehicles"][String(id)] = row
+			out["vehicles"][String(id)] = _vehicle_state(v)
 	return out
+
+
+## One actor's row of `snapshot`: its position, health/death, faction and move input, and an NPC
+## brain's decision path and status.
+func _actor_state(a: Node) -> Dictionary:
+	var s := { "position": _vec(a.global_position) if a is Node2D else "" }
+	for prop in ["health", "max_health", "is_dead", "faction", "move_input"]:
+		if prop in a:
+			s[prop] = _plain(a.get(prop))
+	for child in a.get_children():
+		if child.is_in_group(&"npc_controllers"):
+			var act: Variant = child.current_act()
+			s["act"] = ("/".join(PackedStringArray(act.map(func(x): return str(x))))
+					if act is Array
+					else str(act))
+			s["status"] = str(child.debug_status())
+	return s
+
+
+## One vehicle's row of `snapshot`: its position, rotation and, when it has one, speed.
+func _vehicle_state(v: Node2D) -> Dictionary:
+	var row := {
+		"position": _vec(v.global_position),
+		"rotation": snappedf(v.global_rotation, 0.01),
+	}
+	if v.has_method("speed"):
+		row["speed"] = snappedf(v.speed(), 0.1)
+	return row
 
 
 ## The event log as JSON-safe rows `{ topic, time, data }` (nodes become their names).
@@ -440,23 +462,33 @@ static func _vec(v: Vector2) -> String:
 ## `v` reduced to JSON-safe values: nodes → their names, vectors → text, containers recursed.
 static func _plain(v: Variant) -> Variant:
 	if typeof(v) == TYPE_OBJECT:
-		if not is_instance_valid(v):
-			return "<freed>"
-		return String(v.name) if v is Node else str(v)
+		return _plain_object(v)
 	if v is Vector2:
 		return _vec(v)
-	if v is Dictionary:
-		var d := {}
-		for k in v:
-			d[str(k)] = _plain(v[k])
-		return d
-	if v is Array:
-		return v.map(func(x): return _plain(x))
+	if v is Dictionary or v is Array:
+		return _plain_container(v)
 	if v is StringName:
 		return String(v)
 	if v == null or v is bool or v is int or v is float or v is String:
 		return v
 	return str(v)
+
+
+## An object reduced as `_plain` does: a node its name, a freed one "<freed>", any other its text.
+static func _plain_object(v: Variant) -> String:
+	if not is_instance_valid(v):
+		return "<freed>"
+	return String(v.name) if v is Node else str(v)
+
+
+## A Dictionary (keys as text) or an Array with each value reduced by `_plain`.
+static func _plain_container(v: Variant) -> Variant:
+	if v is Array:
+		return v.map(func(x): return _plain(x))
+	var d := {}
+	for k in v:
+		d[str(k)] = _plain(v[k])
+	return d
 
 
 ## Append an observed event.

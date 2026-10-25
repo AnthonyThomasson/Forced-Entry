@@ -70,7 +70,11 @@ func run(t: TestContext) -> void:
 		starts[0].distance_to(starts[1]) >= BODY_RADIUS * 2.0,
 		"the two defenders start apart (%s, %s)" % [starts[0], starts[1]],
 	)
+	await _check_stays(t, npcs, starts)
 
+
+## Over 1.5 s, each of `npcs` stays where it started (`starts`), traced as `drift_<n>`.
+func _check_stays(t: TestContext, npcs: Array, starts: Array) -> void:
 	var elapsed := 0.0
 	while elapsed < 1.5:
 		await t.seconds(0.1)

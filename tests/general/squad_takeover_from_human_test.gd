@@ -52,27 +52,62 @@ func run(t: TestContext) -> void:
 	var squad := t.squad(&"invader")
 	if not t.require(squad != null, "premise: the invaders' squad is built (s.squads)"):
 		return
+	await t.seconds(0.3)
+	if not _give_orders(t, squad):
+		return
+	var w := Follow.new_watch()
+	if not await _wait_in_place(t, squad, w):
+		return
+
 	var me := t.actor(&"me")
-	var sergeant := t.actor(&"sergeant")
+	me.take_damage(1.0e9)
+	if not t.require(me.is_dead, "the human is dead"):
+		return
+	var died_at := t.time
+	await t.frames(1)
+	t.check(
+		squad.leader() == t.actor(&"sergeant"),
+		"the sergeant leads within the frame (leader %s)" % Follow.name_of(squad.leader()),
+	)
+	await _wait_takeover(t, squad, w, died_at)
+	_check_orders_ended(t, died_at)
+	if not _check_following(t, squad, w):
+		return
+	_check_rally(t, died_at)
+
+
+## The members the human orders: the defender, the ambusher and the stacker.
+func _members(t: TestContext) -> Array:
+	return [t.actor(&"defender"), t.actor(&"ambusher"), t.actor(&"stacker")]
+
+
+## The human's three orders: the defender defends the living room, the ambusher ambushes the hall's
+## doorway into the kitchen, the stacker stacks held on the back door. False when one was not posted
+## (the test ended).
+func _give_orders(t: TestContext, squad: Node) -> bool:
+	var defend := Order.issue(
+		squad,
+		{ "kind": Order.DEFEND, "to": [t.actor(&"defender")], "room": "living_room" },
+	)
+	var ambush := Order.issue(
+		squad,
+		{ "kind": Order.AMBUSH, "to": [t.actor(&"ambusher")], "pos": AMBUSH_AT },
+	)
+	var held := Order.stack_order(squad, [t.actor(&"stacker")], Order.BACK_NORTH, "quiet", true)
+	return t.require(
+			not defend.is_empty() and not ambush.is_empty() and not held.is_empty(),
+			"premise: the human's three orders are posted (issue)",
+	)
+
+
+## Waits (ticking the follow watch `w`) for the defender and the ambusher to hold their posts and
+## the stack to be ready; false when they did not in time (the test ended).
+func _wait_in_place(t: TestContext, squad: Node, w: Dictionary) -> bool:
 	var defender := t.actor(&"defender")
 	var ambusher := t.actor(&"ambusher")
 	var stacker := t.actor(&"stacker")
-	var members: Array = [defender, ambusher, stacker]
-	var nodes: Array = [sergeant] + members
-	await t.seconds(0.3)
-	var defend := Order.issue(
-		squad,
-		{ "kind": Order.DEFEND, "to": [defender], "room": "living_room" },
-	)
-	var ambush := Order.issue(squad, { "kind": Order.AMBUSH, "to": [ambusher], "pos": AMBUSH_AT })
-	var held := Order.stack_order(squad, [stacker], Order.BACK_NORTH, "quiet", true)
-	if not t.require(
-			not defend.is_empty() and not ambush.is_empty() and not held.is_empty(),
-			"premise: the human's three orders are posted (issue)",
-	):
-		return
+	var nodes: Array = [t.actor(&"sergeant")] + _members(t)
 	var door := String(Order.Entry.BACK["id"])
-	var w := Follow.new_watch()
 	var in_place := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return (
@@ -80,30 +115,42 @@ func run(t: TestContext) -> void:
 				and not Order.progress(t, "in_position", ambusher).is_empty()
 				and Follow.first_call(t, stacker, "ready", door) < INF
 		)
-	if not t.require(
+	return t.require(
 			await t.until(in_place, IN_PLACE_WITHIN),
 			"premise: the defender and the ambusher hold their posts and the stack is ready",
-	):
-		return
-
-	me.take_damage(1.0e9)
-	if not t.require(me.is_dead, "the human is dead"):
-		return
-	var died_at := t.time
-	await t.frames(1)
-	t.check(
-		squad.leader() == sergeant,
-		"the sergeant leads within the frame (leader %s)" % Follow.name_of(squad.leader()),
 	)
-	var rallied := func() -> Array:
-		return Follow.raw_joins(t).filter(func(e): return (
-			float(e["time"]) > died_at and e["data"].get("leader") == sergeant
-		))
+
+
+## Waits (ticking the follow watch `w`) until every member follows and the sergeant has rallied
+## them since `died_at`, or `TAKEOVER_WITHIN` s.
+func _wait_takeover(t: TestContext, squad: Node, w: Dictionary, died_at: float) -> void:
+	var members := _members(t)
+	var nodes: Array = [t.actor(&"sergeant")] + members
 	var done := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
-		return members.all(func(m): return Follow.following(m)) and not rallied.call().is_empty()
+		return (
+			members.all(func(m): return Follow.following(m))
+				and not _rallied(t, died_at).is_empty()
+		)
 	await t.until(done, TAKEOVER_WITHIN)
 
+
+## The sergeant's joins (raw `&"order"` events of kind join) since `died_at`.
+func _rallied(t: TestContext, died_at: float) -> Array:
+	var sergeant := t.actor(&"sergeant")
+	return Follow.raw_joins(t).filter(func(e): return (
+		float(e["time"]) > died_at and e["data"].get("leader") == sergeant
+	))
+
+
+## Since `died_at`: one cancel, to the defender and the ambusher only; the held stack released (an
+## auto go to the stacker, D12), gone in and the kitchen called clear.
+func _check_orders_ended(t: TestContext, died_at: float) -> void:
+	var defender := t.actor(&"defender")
+	var ambusher := t.actor(&"ambusher")
+	var stacker := t.actor(&"stacker")
+	var sergeant := t.actor(&"sergeant")
+	var door := String(Order.Entry.BACK["id"])
 	var cancels := Follow.raw_orders(t, Order.CANCEL).filter(
 		func(e): return float(e["time"]) >= died_at,
 	)
@@ -134,11 +181,19 @@ func run(t: TestContext) -> void:
 			and not Follow.clears(t, "kitchen").is_empty(),
 		"the stacker finished the human's stack: went in and the kitchen was called clear",
 	)
+
+
+## Each member follows the new leader once its order is over, and the sergeant, now the leader, no
+## longer follows (acts from the follow watch `w`). False when the squad does not count both
+## members as following (the test ended).
+func _check_following(t: TestContext, squad: Node, w: Dictionary) -> bool:
+	var members := _members(t)
+	var sergeant := t.actor(&"sergeant")
 	if not t.require(
 			members.all(func(m): return squad.follows(m)),
 			"premise: both members follow the new leader (Squad.follows)",
 	):
-		return
+		return false
 	for m: Node in members:
 		t.check(
 			Follow.following(m),
@@ -149,10 +204,15 @@ func run(t: TestContext) -> void:
 		not Follow.following(sergeant),
 		"the sergeant, now the leader, no longer follows (acts %s)" % Follow.acts_of(w, sergeant),
 	)
-	# D24: a rally's join goes only to the members holding no order at
-	# that moment; one still on another order (here, the stacker on the human's released stack at
-	# the same doorway, when the sergeant's first claim joins it) keeps it, and is in that stack.
-	var joins: Array = rallied.call()
+	return true
+
+
+## D24: a rally's join (the sergeant's first since `died_at`) goes only to the members holding no
+## order at that moment; one still on another order (here, the stacker on the human's released stack
+## at the same doorway, when the sergeant's first claim joins it) keeps it, and is in that stack.
+func _check_rally(t: TestContext, died_at: float) -> void:
+	var members := _members(t)
+	var joins: Array = _rallied(t, died_at)
 	var joined: Array = joins[0]["data"].get("to", []) if not joins.is_empty() else []
 	var holding: Array = members.filter(
 		func(m): return not joins.is_empty() and not _held_before(t, m, joins[0]).is_empty(),
@@ -167,22 +227,28 @@ func run(t: TestContext) -> void:
 			+ "nobody holding one (joins %s; own claims %s)"
 			% [
 				str(joins.map(func(e): return e["data"])),
-				str(Follow.own_claims(t, sergeant).map(
+				str(Follow.own_claims(t, t.actor(&"sergeant")).map(
 					func(e): return [snappedf(float(e["time"]), 0.1), e["data"].get("opening")],
 				)),
 			],
 	)
 	if not joins.is_empty():
-		var opening := String(joins[0]["data"].get("opening", ""))
-		t.check(
-			holding.all(func(m): return (
-				String(_held_before(t, m, joins[0]).get("kind", "")) == Order.STACK
-					and String(_held_before(t, m, joins[0]).get("opening", "")) == opening
-			)),
-			"each member left out of it is in that same stack, on the human's stack order at %s "
-				% opening
-				+ "(%s)" % str(holding.map(func(n): return Follow.name_of(n))),
-		)
+		_check_left_out(t, holding, joins[0])
+
+
+## Each member in `holding` (left out of the rally's `join`) is in that same stack, on the human's
+## stack order at its doorway.
+func _check_left_out(t: TestContext, holding: Array, join: Dictionary) -> void:
+	var opening := String(join["data"].get("opening", ""))
+	t.check(
+		holding.all(func(m): return (
+			String(_held_before(t, m, join).get("kind", "")) == Order.STACK
+				and String(_held_before(t, m, join).get("opening", "")) == opening
+		)),
+		"each member left out of it is in that same stack, on the human's stack order at %s "
+			% opening
+			+ "(%s)" % str(holding.map(func(n): return Follow.name_of(n))),
+	)
 
 
 ## The order `m` held just before the event `until` (a raw `&"order"` event), by the radio: the

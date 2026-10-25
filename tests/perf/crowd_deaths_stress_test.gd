@@ -55,9 +55,7 @@ func run(t: TestContext) -> void:
 	t.check(t.actor(_id(0)).is_dead and t.actor(_id(count - 1)).is_dead, "the crowd is dead")
 
 	var fall := await Perf.frame_stats(t, FALL_FRAMES)
-	Perf.within_frames(
-		t, "crowd fall", fall, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
-	)
+	Perf.within_frames(t, "crowd fall", fall)
 
 	var settled := func():
 		for i in count:

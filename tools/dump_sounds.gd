@@ -12,16 +12,9 @@ extends SceneTree
 
 
 func _init() -> void:
-	var out := "user://sound_dump"
-	var variants := 1
-	var filter := ""
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--out="):
-			out = arg.substr(6)
-		elif arg.begins_with("--variants="):
-			variants = maxi(int(arg.substr(11)), 1)
-		elif arg.begins_with("--filter="):
-			filter = arg.substr(9)
+	var opts := _options()
+	var out: String = opts["out"]
+	var filter: String = opts["filter"]
 	DirAccess.make_dir_recursive_absolute(out)
 	var total_ms := 0.0
 	var worst_ms := 0.0
@@ -29,20 +22,40 @@ func _init() -> void:
 	for profile in SoundBank.profiles():
 		if filter != "" and not String(profile).contains(filter):
 			continue
-		for v in variants:
-			var t0 := Time.get_ticks_usec()
-			var entry := SoundBank.sound(profile, v)
-			var ms := (Time.get_ticks_usec() - t0) / 1000.0
-			var stream: AudioStreamWAV = entry["stream"]
-			var file := "%s/%s_v%d.wav" % [out, String(profile).replace("/", "_"), v]
-			var err := stream.save_to_wav(file)
-			print("%-40s %.3fs  peak %.2f  %.1f ms%s" % [
-				profile, stream.get_length(), SoundSynth.peak_of(stream), ms,
-				"" if err == OK else "  SAVE FAILED %d" % err,
-			])
+		for v in opts["variants"]:
+			var ms := _dump(profile, v, out)
 			total_ms += ms
 			worst_ms = maxf(worst_ms, ms)
 			count += 1
 	print("%d sounds, %.0f ms total, %.1f ms worst, written to %s"
 			% [count, total_ms, worst_ms, ProjectSettings.globalize_path(out)])
 	quit()
+
+
+## The command line's options: `{ out, variants, filter }`, each defaulted.
+func _options() -> Dictionary:
+	var opts := { "out": "user://sound_dump", "variants": 1, "filter": "" }
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--out="):
+			opts["out"] = arg.substr(6)
+		elif arg.begins_with("--variants="):
+			opts["variants"] = maxi(int(arg.substr(11)), 1)
+		elif arg.begins_with("--filter="):
+			opts["filter"] = arg.substr(9)
+	return opts
+
+
+## Renders variant `v` of `profile`, writes it under `out` and prints its line; returns the
+## milliseconds the render took.
+func _dump(profile: StringName, v: int, out: String) -> float:
+	var t0 := Time.get_ticks_usec()
+	var entry := SoundBank.sound(profile, v)
+	var ms := (Time.get_ticks_usec() - t0) / 1000.0
+	var stream: AudioStreamWAV = entry["stream"]
+	var file := "%s/%s_v%d.wav" % [out, String(profile).replace("/", "_"), v]
+	var err := stream.save_to_wav(file)
+	print("%-40s %.3fs  peak %.2f  %.1f ms%s" % [
+		profile, stream.get_length(), SoundSynth.peak_of(stream), ms,
+		"" if err == OK else "  SAVE FAILED %d" % err,
+	])
+	return ms

@@ -111,7 +111,13 @@ func _build_ui() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 16)
 	margin.add_child(box)
+	_build_header(box)
+	_build_split(box)
+	_build_buttons(box)
 
+
+## The header row under `box`: the title, the search, the check-shown button and the count.
+func _build_header(box: VBoxContainer) -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 20)
 	box.add_child(header)
@@ -140,6 +146,9 @@ func _build_ui() -> void:
 	_count.modulate = Color(1, 1, 1, 0.7)
 	header.add_child(_count)
 
+
+## The list (a Tree, domain and topic rows over the tests) beside the details pane, under `box`.
+func _build_split(box: VBoxContainer) -> void:
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(split)
@@ -162,6 +171,9 @@ func _build_ui() -> void:
 	_details.add_theme_font_size_override("bold_font_size", 26)
 	split.add_child(_details)
 
+
+## The bottom row under `box`: Run all, the run status, Back, Run N checked and Play.
+func _build_buttons(box: VBoxContainer) -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 16)
 	box.add_child(buttons)
@@ -221,76 +233,14 @@ func _refresh(keep: String) -> void:
 	_groups.clear()
 	_test_items.clear()
 	_shown_by_domain.clear()
-	var first: TreeItem = null
-	var keep_item: TreeItem = null
-	var shown := 0
+	var shown: Array = []  # every row shown, in order: the tests, then the sandboxes
 	for t in _tests:
-		if not _matcher.call(t, _search.text):
-			continue
-		shown += 1
-		var domain: String = t["domain"]
-		if not _groups.has(domain):
-			var g := _tree.create_item(root)
-			# The mode comes first: changing a cell's mode clears its text.
-			g.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-			g.set_editable(0, true)
-			g.set_text(0, domain.to_upper())
-			g.set_selectable(0, false)
-			g.set_custom_color(0, Color(0.7, 0.75, 0.85))
-			g.set_metadata(0, domain)
-			g.add_button(
-				0,
-				_run_icon(),
-				0,
-				_running,
-				"Run the %d %s tests" % [_runnable_count(domain), domain],
-			)
-			_groups[domain] = g
-		var keys := [domain]
-		var category: String = t.get("category", "")
-		if category != "":
-			var key := domain + "/" + category
-			if not _groups.has(key):
-				var c := _tree.create_item(_groups[domain])
-				c.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-				c.set_editable(0, true)
-				c.set_text(0, category)
-				c.set_selectable(0, false)
-				c.set_custom_color(0, Color(0.6, 0.65, 0.75))
-				c.set_metadata(0, key)
-				_groups[key] = c
-			keys.append(key)
-		var item := _tree.create_item(_groups[keys[-1]])
-		if t.get("error", "") == "":
-			# before the text: a mode change clears it
-			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-			item.set_editable(0, true)
-		var status: String = _results.get(t["id"], "")
-		var mark: String = STATUS_MARKS.get(status, " ")
-		var suffix := ""
-		if t.get("requires_von", false):
-			suffix += "  [Von]"
-		item.set_text(0, "%s  %s%s" % [mark, t["name"], suffix])
-		if RESULT_HUD.STATUS_COLORS.has(status):
-			item.set_custom_color(0, RESULT_HUD.STATUS_COLORS[status])
-		elif t.get("error", "") != "":
-			item.set_custom_color(0, RESULT_HUD.STATUS_COLORS["FAIL"])
-		item.set_metadata(0, t)
-		if t.get("error", "") == "":
-			_test_items[t["id"]] = item
-			for key in keys:
-				if not _shown_by_domain.has(key):
-					_shown_by_domain[key] = []
-				_shown_by_domain[key].append(t["id"])
-		if first == null:
-			first = item
-		if t["path"] == keep:
-			keep_item = item
+		if _matcher.call(t, _search.text):
+			shown.append(_add_test_row(root, t))
 	var sandbox_group: TreeItem = null
 	for t in _sandboxes:
 		if not _matcher.call(t, _search.text):
 			continue
-		shown += 1
 		if sandbox_group == null:
 			sandbox_group = _tree.create_item(root)
 			sandbox_group.set_text(0, "SANDBOXES  (play by hand, not tests)")
@@ -299,19 +249,106 @@ func _refresh(keep: String) -> void:
 		var sandbox_item := _tree.create_item(sandbox_group)
 		sandbox_item.set_text(0, "    " + String(t["name"]))
 		sandbox_item.set_metadata(0, t)
-		if first == null:
-			first = sandbox_item
-		if t["path"] == keep:
-			keep_item = sandbox_item
-	_shown_count = shown
+		shown.append(sandbox_item)
+	_shown_count = shown.size()
 	_sync_checks()
-	var pick := keep_item if keep_item != null else first
+	var pick := _pick_of(shown, keep)
 	if pick != null:
 		pick.select(0)
 		_tree.scroll_to_item(pick)
 	else:
 		_details.text = "[i]No tests match.[/i]"
 	_play.disabled = pick == null
+
+
+## The row of test `t`, under its domain's row (and its topic's, when it has a `category`), each
+## made under `root` the first time; a runnable test (no script error) is kept for the checks,
+## shown under each of its groups.
+func _add_test_row(root: TreeItem, t: Dictionary) -> TreeItem:
+	var domain: String = t["domain"]
+	if not _groups.has(domain):
+		_groups[domain] = _domain_row(root, domain)
+	var keys := [domain]
+	var category: String = t.get("category", "")
+	if category != "":
+		var key := domain + "/" + category
+		if not _groups.has(key):
+			_groups[key] = _topic_row(_groups[domain], category, key)
+		keys.append(key)
+	var item := _test_row(_groups[keys[-1]], t)
+	if t.get("error", "") == "":
+		_test_items[t["id"]] = item
+		for key in keys:
+			if not _shown_by_domain.has(key):
+				_shown_by_domain[key] = []
+			_shown_by_domain[key].append(t["id"])
+	return item
+
+
+## A domain's row under `root`: a checkbox over its tests and the ▶ button that runs them.
+func _domain_row(root: TreeItem, domain: String) -> TreeItem:
+	var g := _tree.create_item(root)
+	# The mode comes first: changing a cell's mode clears its text.
+	g.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+	g.set_editable(0, true)
+	g.set_text(0, domain.to_upper())
+	g.set_selectable(0, false)
+	g.set_custom_color(0, Color(0.7, 0.75, 0.85))
+	g.set_metadata(0, domain)
+	g.add_button(
+		0,
+		_run_icon(),
+		0,
+		_running,
+		"Run the %d %s tests" % [_runnable_count(domain), domain],
+	)
+	return g
+
+
+## A topic's row (`category`, its group key `key`) under its domain's row `parent`: a checkbox.
+func _topic_row(parent: TreeItem, category: String, key: String) -> TreeItem:
+	var c := _tree.create_item(parent)
+	c.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+	c.set_editable(0, true)
+	c.set_text(0, category)
+	c.set_selectable(0, false)
+	c.set_custom_color(0, Color(0.6, 0.65, 0.75))
+	c.set_metadata(0, key)
+	return c
+
+
+## Test `t`'s row under `parent`: its last result's mark, name and "[Von]", coloured by that result
+## (a script error red); a checkbox unless it has a script error.
+func _test_row(parent: TreeItem, t: Dictionary) -> TreeItem:
+	var item := _tree.create_item(parent)
+	if t.get("error", "") == "":
+		# before the text: a mode change clears it
+		item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+		item.set_editable(0, true)
+	var status: String = _results.get(t["id"], "")
+	var mark: String = STATUS_MARKS.get(status, " ")
+	var suffix := ""
+	if t.get("requires_von", false):
+		suffix += "  [Von]"
+	item.set_text(0, "%s  %s%s" % [mark, t["name"], suffix])
+	if RESULT_HUD.STATUS_COLORS.has(status):
+		item.set_custom_color(0, RESULT_HUD.STATUS_COLORS[status])
+	elif t.get("error", "") != "":
+		item.set_custom_color(0, RESULT_HUD.STATUS_COLORS["FAIL"])
+	item.set_metadata(0, t)
+	return item
+
+
+## The row to select among `shown`: the one whose test or sandbox is at path `keep`, else the
+## first; null when nothing is shown.
+func _pick_of(shown: Array, keep: String) -> TreeItem:
+	var keep_item: TreeItem = null
+	for item: TreeItem in shown:
+		if (item.get_metadata(0) as Dictionary)["path"] == keep:
+			keep_item = item
+	if keep_item != null:
+		return keep_item
+	return shown[0] if not shown.is_empty() else null
 
 
 ## A double-click on a test's label opens it. Godot raises `item_activated` for rows without a
@@ -446,6 +483,14 @@ func _show_details() -> void:
 	if String(t.get("description", "")) != "":
 		lines.append("\n" + String(t["description"]))
 	lines.append("")
+	lines.append_array(_setup_lines(t))
+	_details.text = "\n".join(lines)
+
+
+## The details pane's lines about how test `t` runs: its world, tags, switches, locks, Von, a
+## sandbox's hint and its last result.
+func _setup_lines(t: Dictionary) -> PackedStringArray:
+	var lines := PackedStringArray()
 	lines.append("World: %s" % t.get("world", "?"))
 	if not (t.get("tags", []) as Array).is_empty():
 		lines.append("Tags: %s" % ", ".join(t["tags"]))
@@ -464,7 +509,7 @@ func _show_details() -> void:
 	var status: String = _results.get(t["id"], "")
 	if status != "":
 		lines.append("Last result: %s" % status)
-	_details.text = "\n".join(lines)
+	return lines
 
 
 ## Emit `play_requested` for the selected test, if any.

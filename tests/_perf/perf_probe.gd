@@ -136,18 +136,7 @@ static func frame_stats(t: TestContext, frames: int, each := Callable()) -> Dict
 		last = now
 		last_iteration = iteration
 	stop.call()
-	if samples.is_empty():
-		return { "avg_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0 }
-	var sorted := samples.duplicate()
-	sorted.sort()
-	var total := 0.0
-	for s in samples:
-		total += s
-	return {
-		"avg_ms": total / samples.size(),
-		"p95_ms": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.95))],
-		"max_ms": sorted[sorted.size() - 1],
-	}
+	return _stats_of(samples)
 
 
 ## Live nodes in the whole scene tree (and detached trees), for leak checks.
@@ -163,15 +152,26 @@ static func within(t: TestContext, label: String, value: float, limit: float) ->
 	return t.check(value <= limit, "%s: %.2f is over its budget of %.2f" % [label, value, limit])
 
 
-## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms).
-static func within_frames(
-	t: TestContext,
-	label: String,
-	stats: Dictionary,
-	avg_limit: float,
-	p95_limit: float,
-	max_limit: float,
-) -> void:
-	within(t, label + " avg ms/frame", stats["avg_ms"], avg_limit)
-	within(t, label + " p95 ms/frame", stats["p95_ms"], p95_limit)
-	within(t, label + " max ms/frame", stats["max_ms"], max_limit)
+## `within` for each of a `frame_stats` result's average, 95th percentile and worst frame (ms),
+## against the frame standard every frame-based test holds: `SMOOTH_AVG_MS`, `SMOOTH_P95_MS`,
+## `SMOOTH_MAX_MS`.
+static func within_frames(t: TestContext, label: String, stats: Dictionary) -> void:
+	within(t, label + " avg ms/frame", stats["avg_ms"], SMOOTH_AVG_MS)
+	within(t, label + " p95 ms/frame", stats["p95_ms"], SMOOTH_P95_MS)
+	within(t, label + " max ms/frame", stats["max_ms"], SMOOTH_MAX_MS)
+
+
+## The `{ avg_ms, p95_ms, max_ms }` of the frame times `samples` (ms), zeros for none.
+static func _stats_of(samples: Array[float]) -> Dictionary:
+	if samples.is_empty():
+		return { "avg_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0 }
+	var sorted := samples.duplicate()
+	sorted.sort()
+	var total := 0.0
+	for s in samples:
+		total += s
+	return {
+		"avg_ms": total / samples.size(),
+		"p95_ms": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.95))],
+		"max_ms": sorted[sorted.size() - 1],
+	}

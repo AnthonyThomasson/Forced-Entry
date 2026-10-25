@@ -236,22 +236,7 @@ func _check_outfits(t: TestContext) -> void:
 	menu.open({ "side": "invader", "seed": 7, "weapons": WEAPONS, "outfits": OUTFITS,
 		"defenders": { "count": 2, "weapon": "pistol", "outfit": PLAIN },
 		"invaders": { "count": 3, "weapon": "pistol", "outfit": PLATED } })
-	for column: String in ["DefendersColumn", "InvadersColumn"]:
-		for row: Dictionary in OUTFITS:
-			var pick := _pick(menu, column, row["slot"])
-			if t.check(
-					pick != null,
-					"%s has an outfit pick for the %s (Outfit_%s)"
-						% [column, row["slot"], row["slot"]],
-			):
-				var labels: Array = []
-				for i in pick.item_count:
-					labels.append(pick.get_item_text(i))
-				t.expect_eq(
-					labels,
-					row["choices"].map(func(c): return c["label"]),
-					"the %s pick offers that slot's choices" % row["slot"],
-				)
+	_check_outfit_picks(t, menu)
 	var config: Dictionary = menu.current_config()
 	t.expect_eq(
 		config.get("defenders", {}).get("outfit"),
@@ -263,7 +248,46 @@ func _check_outfits(t: TestContext) -> void:
 		PLATED,
 		"the invaders' seeded outfit is shown",
 	)
+	_check_start_reports(t, menu)
+	var kept: Dictionary = menu.current_config()
+	menu.queue_free()
+	var again := SetupMenu.new()
+	t.world.add_child(again)
+	again.open(kept.merged({ "weapons": WEAPONS, "outfits": OUTFITS }))
+	t.expect_eq(
+		again.current_config(),
+		kept,
+		"reopening with the remembered config restores the outfits",
+	)
+	again.queue_free()
 
+
+## Each column of `menu` has an outfit pick per slot, offering that slot's choices.
+func _check_outfit_picks(t: TestContext, menu: Node) -> void:
+	for column: String in ["DefendersColumn", "InvadersColumn"]:
+		for row: Dictionary in OUTFITS:
+			_check_outfit_pick(t, menu, column, row)
+
+
+## `column` of `menu` has an outfit pick for the slot of `row`, offering that row's choices.
+func _check_outfit_pick(t: TestContext, menu: Node, column: String, row: Dictionary) -> void:
+	var pick := _pick(menu, column, row["slot"])
+	if t.check(
+			pick != null,
+			"%s has an outfit pick for the %s (Outfit_%s)" % [column, row["slot"], row["slot"]],
+	):
+		var labels: Array = []
+		for i in pick.item_count:
+			labels.append(pick.get_item_text(i))
+		t.expect_eq(
+			labels,
+			row["choices"].map(func(c): return c["label"]),
+			"the %s pick offers that slot's choices" % row["slot"],
+		)
+
+
+## A pick changed in `menu` (the defenders' helmet) is what Start reports, beside the picks kept.
+func _check_start_reports(t: TestContext, menu: Node) -> void:
 	var head := _pick(menu, "DefendersColumn", "head")
 	if head != null:
 		head.select(2)  # Helmet
@@ -280,17 +304,6 @@ func _check_outfits(t: TestContext) -> void:
 		)
 		t.expect_eq(defenders.get("body"), "tshirt", "the other slots keep their picks")
 		t.expect_eq(got[0]["invaders"].get("outfit"), PLATED, "each side reports its own outfit")
-	var kept: Dictionary = menu.current_config()
-	menu.queue_free()
-	var again := SetupMenu.new()
-	t.world.add_child(again)
-	again.open(kept.merged({ "weapons": WEAPONS, "outfits": OUTFITS }))
-	t.expect_eq(
-		again.current_config(),
-		kept,
-		"reopening with the remembered config restores the outfits",
-	)
-	again.queue_free()
 
 
 ## 11b: a side's plate picks follow its vest pick. The window is driven with the real rows
@@ -324,47 +337,50 @@ func _check_plates(t: TestContext) -> void:
 	menu.queue_free()
 
 	for i in COLUMNS.size():
-		var column: String = COLUMNS[i]
-		var side: String = SIDES[i]
-		# Carrier on: the plates are picked and reported; tactical vest: off and cleared; carrier
-		# again: on; a plate picked is reported by Start.
-		menu = _plates_menu(t, rows)
-		_choose(menu, column, "vest", "plate_carrier")
-		_expect_plates_on(t, menu, column, "the plate carrier picked")
-		_choose(menu, column, "front_plate", "steel_iii")
-		_choose(menu, column, "back_plate", "ceramic_iv")
-		var outfit: Dictionary = menu.current_config().get(side, {}).get("outfit", {})
-		t.expect_eq(
-			[outfit.get("front_plate"), outfit.get("back_plate")], ["steel_iii", "ceramic_iv"],
-			"%s: plates picked with the carrier are reported (current_config)" % side,
-		)
-		_choose(menu, column, "vest", "tactical_vest")
-		_expect_plates_off(t, menu, column, "switched from the carrier to the tactical vest")
-		_choose(menu, column, "vest", "plate_carrier")
-		_expect_plates_on(t, menu, column, "the plate carrier picked again")
-		_choose(menu, column, "front_plate", "ceramic_iv")
-		outfit = _start(menu).get(side, {}).get("outfit", {})
-		t.expect_eq(outfit.get("vest"), "plate_carrier", "%s: Start reports the carrier" % side)
-		t.expect_eq(
-			outfit.get("front_plate"),
-			"ceramic_iv",
-			"%s: Start reports the front plate picked with the carrier" % side,
-		)
-		menu.queue_free()
+		_check_plates_side(t, rows, COLUMNS[i], SIDES[i])
 
-		# Carrier with plates, then no vest: off, "None", and Start reports no plates.
-		menu = _plates_menu(t, rows)
-		_choose(menu, column, "vest", "plate_carrier")
-		_choose(menu, column, "front_plate", "steel_iii")
-		_choose(menu, column, "back_plate", "steel_iii")
-		_choose(menu, column, "vest", "")
-		_expect_plates_off(t, menu, column, "switched from the carrier to no vest")
-		outfit = _start(menu).get(side, {}).get("outfit", {})
-		t.expect_eq(
-			[outfit.get("vest"), outfit.get("front_plate"), outfit.get("back_plate")], ["", "", ""],
-			"%s: Start reports no vest and no plates" % side,
-		)
-		menu.queue_free()
+
+## `column` (the window's column of `side`, on `rows`): carrier on, the plates are picked and
+## reported; tactical vest: off and cleared; carrier again: on; a plate picked is reported by Start.
+## Then carrier with plates, then no vest: off, "None", and Start reports no plates.
+func _check_plates_side(t: TestContext, rows: Array, column: String, side: String) -> void:
+	var menu := _plates_menu(t, rows)
+	_choose(menu, column, "vest", "plate_carrier")
+	_expect_plates_on(t, menu, column, "the plate carrier picked")
+	_choose(menu, column, "front_plate", "steel_iii")
+	_choose(menu, column, "back_plate", "ceramic_iv")
+	var outfit: Dictionary = menu.current_config().get(side, {}).get("outfit", {})
+	t.expect_eq(
+		[outfit.get("front_plate"), outfit.get("back_plate")], ["steel_iii", "ceramic_iv"],
+		"%s: plates picked with the carrier are reported (current_config)" % side,
+	)
+	_choose(menu, column, "vest", "tactical_vest")
+	_expect_plates_off(t, menu, column, "switched from the carrier to the tactical vest")
+	_choose(menu, column, "vest", "plate_carrier")
+	_expect_plates_on(t, menu, column, "the plate carrier picked again")
+	_choose(menu, column, "front_plate", "ceramic_iv")
+	outfit = _start(menu).get(side, {}).get("outfit", {})
+	t.expect_eq(outfit.get("vest"), "plate_carrier", "%s: Start reports the carrier" % side)
+	t.expect_eq(
+		outfit.get("front_plate"),
+		"ceramic_iv",
+		"%s: Start reports the front plate picked with the carrier" % side,
+	)
+	menu.queue_free()
+
+	# Carrier with plates, then no vest: off, "None", and Start reports no plates.
+	menu = _plates_menu(t, rows)
+	_choose(menu, column, "vest", "plate_carrier")
+	_choose(menu, column, "front_plate", "steel_iii")
+	_choose(menu, column, "back_plate", "steel_iii")
+	_choose(menu, column, "vest", "")
+	_expect_plates_off(t, menu, column, "switched from the carrier to no vest")
+	outfit = _start(menu).get(side, {}).get("outfit", {})
+	t.expect_eq(
+		[outfit.get("vest"), outfit.get("front_plate"), outfit.get("back_plate")], ["", "", ""],
+		"%s: Start reports no vest and no plates" % side,
+	)
+	menu.queue_free()
 
 
 ## A setup window on `rows`, both sides seeded with plates but no carrier.

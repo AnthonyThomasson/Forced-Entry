@@ -84,6 +84,15 @@ func run(t: TestContext) -> void:
 		await MainProbe.close(t, viewport)
 		return
 	var world := _world(main)
+	_check_sides(t, world)
+	_check_squad(t, world)
+	await MainProbe.close(t, viewport)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
+
+
+## The match under `world` has the chosen counts, the human on the invaders' side, and each side
+## armed and dressed as chosen.
+func _check_sides(t: TestContext, world: Node) -> void:
 	var player: Node = world.get_node("Player")
 	var defenders := _npcs(world, MatchBuilder.DEFENDER_FACTION)
 	var invaders := _npcs(world, MatchBuilder.INVADER_FACTION)
@@ -116,6 +125,11 @@ func run(t: TestContext) -> void:
 				% [c.name, str(ids)],
 		)
 
+
+## The human under `world` has its stack radio and leads its side's squad, the invader NPCs in it.
+func _check_squad(t: TestContext, world: Node) -> void:
+	var player: Node = world.get_node("Player")
+	var invaders := _npcs(world, MatchBuilder.INVADER_FACTION)
 	var stack := _stack_of(player)
 	t.check(stack != null, "the human has its stack radio (a PlayerStack)")
 	var squad: Node = stack.get("squad") if stack != null else null
@@ -128,8 +142,6 @@ func run(t: TestContext) -> void:
 		invaders.all(func(npc): return TestContext.controller_of(npc).get("squad") == squad),
 		"the invader NPCs are in the human's squad",
 	)
-	await MainProbe.close(t, viewport)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(SCRATCH))
 
 
 ## Main's match world (its child in the group `match_world`), or null before Start.

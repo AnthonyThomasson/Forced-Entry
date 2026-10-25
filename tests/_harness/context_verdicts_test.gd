@@ -27,6 +27,14 @@ static func _entry(severity: String, message: String) -> Dictionary:
 
 
 func run(t: TestContext) -> void:
+	_check_logs(t)
+	_check_assertions(t)
+	_check_gaps(t)
+
+
+## Logged lines: an unexpected warning fails, an expected one is consumed (and fails when it never
+## comes), `allowed_logs` and `fail_on_warnings` off let them pass.
+func _check_logs(t: TestContext) -> void:
 	var c := _ctx(t)
 	c.check(true, "fine")
 	c.on_log(_entry("warning", "stray warning"))
@@ -60,7 +68,10 @@ func run(t: TestContext) -> void:
 	t.expect_eq(c.conclude(false), "PASS", "fail_on_warnings off ignores warnings")
 	c.free()
 
-	c = _ctx(t)
+
+## Assertions: none fails a non-manual test, skip stays SKIPPED, a failed require ends it as FAIL.
+func _check_assertions(t: TestContext) -> void:
+	var c := _ctx(t)
 	t.expect_eq(c.conclude(false), "FAIL", "a non-manual test with no assertions fails")
 	c.free()
 	c = _ctx(t)
@@ -77,7 +88,11 @@ func run(t: TestContext) -> void:
 	t.check(c.is_finished and c.conclude(false) == "FAIL", "a failed require ends the test as FAIL")
 	c.free()
 
-	c = _ctx(t, { "tags": ["ai", "gap"] })
+
+## Gap tests and timeouts: a failing or timed-out gap test is GAP, a passing one FAIL with a check
+## that says to drop the tag, a timeout stays TIMEOUT; each verdict holds when re-decided.
+func _check_gaps(t: TestContext) -> void:
+	var c := _ctx(t, { "tags": ["ai", "gap"] })
 	c.check(false, "not yet")
 	t.expect_eq(c.conclude(false), "GAP", "a gap test that fails is GAP")
 	t.expect_eq(c.conclude(false), "GAP", "and stays GAP when re-decided")

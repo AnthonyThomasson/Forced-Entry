@@ -48,26 +48,38 @@ func run(t: TestContext) -> void:
 			"the match hands each NPC its squad (MatchBuilder.bind_squad)",
 	):
 		return
-	var lead: Node = npcs[0]
-	var sergeant: Node = npcs[1]
-	var trooper: Node = npcs[2]
-	if not t.require(squad.leader() == lead, "the lead leads before it dies (premise)"):
+	if not t.require(squad.leader() == npcs[0], "the lead leads before it dies (premise)"):
 		return
 	await t.seconds(0.5)
+	if not await _give_order(t, squad, npcs[2]):
+		return
+	if not await _check_succession(t, squad, npcs):
+		return
+	await _check_orders_stand(t, squad, npcs)
 
+
+## The squad posts a defend order to the `trooper` and it takes it; false when either fails (the
+## test ended).
+func _give_order(t: TestContext, squad: Node, trooper: Node) -> bool:
 	var given := Order.issue(squad, { "kind": Order.DEFEND, "to": [trooper], "room": "kitchen" })
 	if not t.require(not given.is_empty(), "the squad posts the order (issue)"):
-		return
+		return false
 	var brain := TestContext.controller_of(trooper, &"current_act")
-	if not t.require(
+	return t.require(
 			await t.until(func(): return Order.on_order(brain), 3.0),
 			"the trooper takes the order (act %s)" % brain.current_act(),
-	):
-		return
+	)
 
+
+## The lead (the first of `npcs`) is killed: the sergeant (the second) leads within a frame, one
+## leader event names both, and the squad's view names the new leader. False when the lead did not
+## die (the test ended).
+func _check_succession(t: TestContext, squad: Node, npcs: Array) -> bool:
+	var lead: Node = npcs[0]
+	var sergeant: Node = npcs[1]
 	lead.take_damage(1.0e9)
 	if not t.require(lead.is_dead, "the lead is dead"):
-		return
+		return false
 	await t.frames(1)
 	t.check(
 		squad.leader() == sergeant,
@@ -82,7 +94,15 @@ func run(t: TestContext) -> void:
 				% [_name(calls[0].get("leader")), _name(calls[0].get("previous"))],
 		)
 	t.check(Order.view(squad).get("leader") == sergeant, "the squad's view names the new leader")
+	return true
 
+
+## The trooper (the third of `npcs`) keeps its order through the succession, and a later order,
+## from the new leader (the second), replaces it.
+func _check_orders_stand(t: TestContext, squad: Node, npcs: Array) -> void:
+	var sergeant: Node = npcs[1]
+	var trooper: Node = npcs[2]
+	var brain := TestContext.controller_of(trooper, &"current_act")
 	await t.seconds(2.0)
 	var kept: Dictionary = Order.member_view(squad, trooper).get("order", {})
 	t.check(

@@ -97,11 +97,7 @@ func run(t: TestContext) -> void:
 ## Returns the side of the door (1 / -1 along the wall) the members stand on (their mean), 0 when
 ## the premise fails.
 func _check(t: TestContext, label: String, handle: Dictionary) -> int:
-	var rooms: Array = handle["rooms"]
-	var front := {}
-	for o: Dictionary in handle["openings"]:
-		if o.get("front", false):
-			front = Slots.frame(o, String(o["rooms"][0]), rooms)
+	var front := _front_frame(handle)
 	var invaders: Array = []
 	var defenders: Array = []
 	for c: Node2D in handle["combatants"]:
@@ -114,13 +110,42 @@ func _check(t: TestContext, label: String, handle: Dictionary) -> int:
 				% [label, INVADERS, DEFENDERS, invaders.size(), defenders.size()],
 	):
 		return 0
+	var side := _side_of(invaders, front)
+	_check_members(t, label, handle, side)
+	_check_defenders(t, label, defenders)
+	return side
+
+
+## The front door of match `handle` framed from its first room (`Slots.frame`), {} with none.
+func _front_frame(handle: Dictionary) -> Dictionary:
+	var front := {}
+	for o: Dictionary in handle["openings"]:
+		if o.get("front", false):
+			front = Slots.frame(o, String(o["rooms"][0]), handle["rooms"])
+	return front
+
+
+## The side of the door `front` (1 / -1 along the wall) the `invaders` stand on (their mean).
+func _side_of(invaders: Array, front: Dictionary) -> int:
 	var door: Vector2 = front["pos"]
 	var along: Vector2 = front["along"]
 	var mean := Vector2.ZERO
 	for c: Node2D in invaders:
 		mean += c.global_position
 	mean /= invaders.size()
-	var side := 1 if (mean - door).dot(along) >= 0.0 else -1
+	return 1 if (mean - door).dot(along) >= 0.0 else -1
+
+
+## Each invader of match `handle` stands on `side` of its front door: out of the door's straight
+## strip, packed round the group point, outside the rooms and near the door.
+func _check_members(t: TestContext, label: String, handle: Dictionary, side: int) -> void:
+	var front := _front_frame(handle)
+	var rooms: Array = handle["rooms"]
+	var invaders: Array = (handle["combatants"] as Array).filter(
+		func(c): return c.get("faction") == &"invader",
+	)
+	var door: Vector2 = front["pos"]
+	var along: Vector2 = front["along"]
 	var point := door + along * side * SIDE_OFFSET + (front["out"] as Vector2) * CLEARANCE
 	var members := str(invaders.map(func(c): return (c as Node2D).global_position.round()))
 	var where := "%s: the group point %s (door %s, members at %s)" % [
@@ -152,6 +177,10 @@ func _check(t: TestContext, label: String, handle: Dictionary) -> int:
 			"%s starts within %.0f px of the front door's centre (%.0f px)"
 				% [at, NEAR_DOOR + RING * RINGS, p.distance_to(door)],
 		)
+
+
+## No one of the `defenders` knows a hostile on the first frame.
+func _check_defenders(t: TestContext, label: String, defenders: Array) -> void:
 	for c: Node2D in defenders:
 		var brain := TestContext.controller_of(c)
 		var known: Array = brain.debug_state().get("contacts", []).filter(
@@ -161,4 +190,3 @@ func _check(t: TestContext, label: String, handle: Dictionary) -> int:
 			known.is_empty(),
 			"%s: %s knows no hostile on the first frame (knows %s)" % [label, c.name, known],
 		)
-	return side

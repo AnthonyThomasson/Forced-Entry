@@ -117,91 +117,137 @@ func _execute(line: String) -> String:
 	if line.is_empty():
 		return ""
 	var parts := line.split(" ", false)
-	match parts[0]:
-		"help":
-			return ("verbs: help, pos, tp X Y, slot N, move up|down|left|right [off], stop, "
-					+ "fire, punch, kick, reload, interact, crouch, aim X Y, match, ai, restart "
-						+ "[seed], menu, eval EXPR; " + "anything else = GDScript expression")
-		"match":
-			return _match_status()
-		"ai":
-			return _ai_status()
-		"menu":
-			# Return to the pre-game setup window (the same as pressing Escape) so a fresh match can
-			# be configured. Composition-root owns the window, so defer to main's return_to_setup().
-			var s := scene()
-			if s == null or not s.has_method("return_to_setup"):
-				return "no scene"
-			s.return_to_setup()
-			return "ok"
-		"restart":
-			# Reload for a fresh matchup. An optional seed pins the next layout; `skip_setup` makes
-			# the reloaded scene build immediately rather than reopening the pre-game setup window
-			# (the harness never clicks it). Engine meta survives the scene reload; main.gd reads
-			# both.
-			if parts.size() >= 2:
-				Engine.set_meta("match_seed", parts[1].to_int())
-			Engine.set_meta("skip_setup", true)
-			get_tree().reload_current_scene()
-			return "ok"
-		"pos":
-			var p := player()
-			return "no player" if p == null else str(p.global_position)
-		"tp":
-			if parts.size() < 3:
-				return "usage: tp X Y"
-			var p := player()
-			if p == null:
-				return "no player"
-			p.global_position = Vector2(parts[1].to_float(), parts[2].to_float())
-			return "ok"
-		"slot":
-			if parts.size() < 2:
-				return "usage: slot N"
-			var n := parts[1].to_int()
-			if n < 1 or n > _item_actions.size():
-				return "usage: slot 1-9"
-			tap(_item_actions[n - 1])
-			return "ok"
-		"move":
-			if parts.size() < 2 or not _move_actions.has(parts[1]):
-				return "usage: move up|down|left|right [off]"
-			var action: StringName = _move_actions[parts[1]]
-			if parts.size() >= 3 and parts[2] == "off":
-				release(action)
-			else:
-				press(action)
-			return "ok"
-		"stop":
-			for action in _move_actions.values():
-				release(action)
-			return "ok"
-		"fire":
-			tap(Keybinds.FIRE)
-			return "ok"
-		"punch":
-			tap(Keybinds.PUNCH)
-			return "ok"
-		"kick":
-			tap(Keybinds.KICK)
-			return "ok"
-		"reload":
-			tap(Keybinds.RELOAD)
-			return "ok"
-		"interact":
-			tap(Keybinds.INTERACT)
-			return "ok"
-		"crouch":
-			tap(Keybinds.CROUCH)
-			return "ok"
-		"aim":
-			if parts.size() < 3:
-				return "usage: aim X Y"
-			return _aim(Vector2(parts[1].to_float(), parts[2].to_float()))
-		"eval":
-			return _eval(line.substr(5))
-		_:
-			return _eval(line)
+	var taps := _tap_verbs()
+	if taps.has(parts[0]):
+		tap(taps[parts[0]])
+		return "ok"
+	if parts[0] == "eval":
+		return _eval(line.substr(5))
+	var verbs := _verbs()
+	if verbs.has(parts[0]):
+		return (verbs[parts[0]] as Callable).call(parts)
+	return _eval(line)
+
+
+## The verbs that tap one action: verb -> Keybinds action.
+func _tap_verbs() -> Dictionary:
+	return {
+		"fire": Keybinds.FIRE,
+		"punch": Keybinds.PUNCH,
+		"kick": Keybinds.KICK,
+		"reload": Keybinds.RELOAD,
+		"interact": Keybinds.INTERACT,
+		"crouch": Keybinds.CROUCH,
+	}
+
+
+## Every other curated verb: verb -> its handler, which takes the line's words.
+func _verbs() -> Dictionary:
+	return {
+		"help": _verb_help,
+		"match": _verb_match,
+		"ai": _verb_ai,
+		"menu": _verb_menu,
+		"restart": _verb_restart,
+		"pos": _verb_pos,
+		"tp": _verb_tp,
+		"slot": _verb_slot,
+		"move": _verb_move,
+		"stop": _verb_stop,
+		"aim": _verb_aim,
+	}
+
+
+## `help`: the verbs, one line.
+func _verb_help(_parts: PackedStringArray) -> String:
+	return ("verbs: help, pos, tp X Y, slot N, move up|down|left|right [off], stop, "
+			+ "fire, punch, kick, reload, interact, crouch, aim X Y, match, ai, restart "
+			+ "[seed], menu, eval EXPR; " + "anything else = GDScript expression")
+
+
+## `match`: every combatant's status, the verdict and the elapsed time (`_match_status`).
+func _verb_match(_parts: PackedStringArray) -> String:
+	return _match_status()
+
+
+## `ai`: every AI combatant's brain as JSON (`_ai_status`).
+func _verb_ai(_parts: PackedStringArray) -> String:
+	return _ai_status()
+
+
+## Return to the pre-game setup window (the same as pressing Escape) so a fresh match can be
+## configured. Composition-root owns the window, so defer to main's return_to_setup().
+func _verb_menu(_parts: PackedStringArray) -> String:
+	var s := scene()
+	if s == null or not s.has_method("return_to_setup"):
+		return "no scene"
+	s.return_to_setup()
+	return "ok"
+
+
+## Reload for a fresh matchup. An optional seed pins the next layout; `skip_setup` makes the
+## reloaded scene build immediately rather than reopening the pre-game setup window (the harness
+## never clicks it). Engine meta survives the scene reload; main.gd reads both.
+func _verb_restart(parts: PackedStringArray) -> String:
+	if parts.size() >= 2:
+		Engine.set_meta("match_seed", parts[1].to_int())
+	Engine.set_meta("skip_setup", true)
+	get_tree().reload_current_scene()
+	return "ok"
+
+
+## `pos`: where the player stands.
+func _verb_pos(_parts: PackedStringArray) -> String:
+	var p := player()
+	return "no player" if p == null else str(p.global_position)
+
+
+## `tp X Y`: teleport the player there.
+func _verb_tp(parts: PackedStringArray) -> String:
+	if parts.size() < 3:
+		return "usage: tp X Y"
+	var p := player()
+	if p == null:
+		return "no player"
+	p.global_position = Vector2(parts[1].to_float(), parts[2].to_float())
+	return "ok"
+
+
+## `slot N`: tap the item key of slot N (1-9).
+func _verb_slot(parts: PackedStringArray) -> String:
+	if parts.size() < 2:
+		return "usage: slot N"
+	var n := parts[1].to_int()
+	if n < 1 or n > _item_actions.size():
+		return "usage: slot 1-9"
+	tap(_item_actions[n - 1])
+	return "ok"
+
+
+## `move up|down|left|right [off]`: hold, or with `off` release, that direction.
+func _verb_move(parts: PackedStringArray) -> String:
+	if parts.size() < 2 or not _move_actions.has(parts[1]):
+		return "usage: move up|down|left|right [off]"
+	var action: StringName = _move_actions[parts[1]]
+	if parts.size() >= 3 and parts[2] == "off":
+		release(action)
+	else:
+		press(action)
+	return "ok"
+
+
+## `stop`: release every direction.
+func _verb_stop(_parts: PackedStringArray) -> String:
+	for action in _move_actions.values():
+		release(action)
+	return "ok"
+
+
+## `aim X Y`: warp the cursor to that world point (`_aim`).
+func _verb_aim(parts: PackedStringArray) -> String:
+	if parts.size() < 3:
+		return "usage: aim X Y"
+	return _aim(Vector2(parts[1].to_float(), parts[2].to_float()))
 
 
 ## Evaluate `text` as a GDScript expression against this node, returning the result or an error.
