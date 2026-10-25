@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Claude Code hook: a macOS banner, and the question read aloud, only when a session is waiting on the user —
-# an AskUserQuestion (PreToolUse: the question and its options), a permission prompt or an agent needing input
-# (Notification), or a reply whose last paragraph ends by asking something (Stop). Everything else stays silent;
-# the built-in notifications are off (preferredNotifChannel) so this is the one source. The banner is titled with
-# the session's folder, so an Orca worktree says which worker is asking. Wired in .claude/settings.json.
+# Claude Code hook: a macOS banner with the question, and a spoken "<worktree> needs you", only when a session is
+# waiting on the user — an AskUserQuestion (PreToolUse: the question and its options), a permission prompt or an
+# agent needing input (Notification), or a reply whose last paragraph ends by asking something (Stop). Everything
+# else stays silent; the built-in notifications are off (preferredNotifChannel) so this is the one source. The
+# banner is titled with the session's folder, so an Orca worktree says which worker is asking. Wired in
+# .claude/settings.json.
 #
 # Mute the voice (keep the banner): "mute": true in .claude/hooks/needs_you.json of the main checkout, which every
 # worktree reads, so one switch quiets every agent; missing means unmuted. NEEDS_YOU_DRY_RUN=1 prints instead.
@@ -74,7 +75,7 @@ git_common=$(git -C "$hooks_dir" rev-parse --path-format=absolute --git-common-d
 settings=${git_common:+$(dirname "$git_common")/.claude/hooks/needs_you.json}
 [ -f "${settings:-}" ] || settings=$hooks_dir/needs_you.json
 if [ "$(jq -r '.mute // false' "$settings" 2>/dev/null)" != "true" ]; then
-  nohup /usr/bin/lockf -k "${TMPDIR:-/tmp}/needs-you.say.lock" /usr/bin/say -- "From ${agent//[-_]/ }: $text" \
+  nohup /usr/bin/lockf -k "${TMPDIR:-/tmp}/needs-you.say.lock" /usr/bin/say -- "${agent//[-_]/ } needs you" \
     >/dev/null 2>&1 &
 fi
 exit 0
