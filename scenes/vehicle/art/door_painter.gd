@@ -60,7 +60,15 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 	c.fill(PixelCanvas.rounded(band.call(2, 3), 0), trim, _HEIGHT + 1)
 	var lining := PixelCanvas.rounded(band.call(c.w - 2, c.w), 0)
 	c.fill(lining, inside, _HEIGHT)
-	# An armrest along the middle of the lining.
+	_armrest(c, col, inside)
+	_handle(c, def, col, t)
+	_shut_lines(c, def, col, t)
+	c.cast_shadows()
+
+
+## An armrest along the middle of the lining (`inside`), in the two columns `col(i)` px in from the
+## outside face the lining takes.
+static func _armrest(c: PixelCanvas, col: Callable, inside: Color) -> void:
 	var rest_col: int = col.call(c.w - 2)
 	var rest := Rect2i(
 		mini(rest_col, col.call(c.w - 1)),
@@ -69,7 +77,13 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 		maxi(roundi(c.h * 0.3), 2),
 	)
 	c.fill(PixelCanvas.rounded(rest, 0), inside.lightened(0.15), _HEIGHT + 1)
-	# The handle, on the skin where it is pulled (a sliding door's near its front edge).
+
+
+## The handle on the skin of door `def` where it is pulled (a sliding door's near its front edge, a
+## rear door's near its far end), in the column `col(i)` px in from the outside face; `t` the
+## paint's tones.
+static func _handle(c: PixelCanvas, def: Dictionary, col: Callable, t: Dictionary) -> void:
+	var trim := VehicleConfig.trim_color
 	var from_hinge := (def["handle"] as Vector2).distance_to(def["hinge"])
 	var row := clampi(
 		c.h - 1 - roundi(from_hinge) + (4 if from_hinge < c.h * 0.5 else 2),
@@ -80,7 +94,11 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 		row = clampi(roundi(c.h * 0.12), 2, c.h - 6)
 	c.line(Vector2i(col.call(0), row), Vector2i(col.call(0), row + 3), trim)
 	c.px(col.call(1), row + 1, t["highlight"])
-	# Shut lines at both ends.
+
+
+## Shut lines at both ends of door `def`, and a sliding door's rail groove or a rear door's hinge
+## straps (columns `col(i)` px in from the outside face; `t` the paint's tones).
+static func _shut_lines(c: PixelCanvas, def: Dictionary, col: Callable, t: Dictionary) -> void:
 	c.line(Vector2i(0, 0), Vector2i(c.w - 1, 0), t["outline"])
 	c.line(Vector2i(0, c.h - 1), Vector2i(c.w - 1, c.h - 1), t["outline"])
 	match def["kind"]:
@@ -89,8 +107,7 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 			c.line(Vector2i(col.call(3), 2), Vector2i(col.call(3), c.h - 3), t["shadow"])
 		&"rear":
 			for r in [c.h - 7, roundi(c.h * 0.55)]:  # hinge straps
-				c.line(Vector2i(col.call(0), r), Vector2i(col.call(2), r), trim)
-	c.cast_shadows()
+				c.line(Vector2i(col.call(0), r), Vector2i(col.call(2), r), VehicleConfig.trim_color)
 
 
 ## The side window: tinted glass with a glint and a black rubber round it, the shape of the door's

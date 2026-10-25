@@ -86,14 +86,7 @@ func step(delta: float) -> void:
 			_wait_for_door(delta)
 		Phase.STEP_IN:
 			if _pose(delta):
-				_begin_pose(
-					Phase.FOLD,
-					vehicle.seat_point(seat),
-					VehicleConfig.fold_time,
-					0.0,
-					1.0,
-					0.0,
-				)
+				_begin_pose(Phase.FOLD, vehicle.seat_point(seat), VehicleConfig.fold_time, 1.0, 0.0)
 		Phase.FOLD:
 			if _pose(delta):
 				_sit()
@@ -115,18 +108,13 @@ func step(delta: float) -> void:
 			if _exit_door.is_open():
 				_begin_pose(
 					Phase.UNFOLD, _exit_door.entry_point(character.radius), VehicleConfig.fold_time,
-					1.0, 0.0, _exit_door.outward.angle(),
+					0.0, _exit_door.outward.angle(),
 				)
 		Phase.UNFOLD:
 			if _pose(delta):
 				var stand: Vector2 = _exit_door.stand_point(character.radius)
 				_begin_pose(
-					Phase.STEP_OUT,
-					stand,
-					_step_time(_posed, stand),
-					0.0,
-					0.0,
-					(stand - _posed).angle(),
+					Phase.STEP_OUT, stand, _step_time(_posed, stand), 0.0, (stand - _posed).angle()
 				)
 		Phase.STEP_OUT:
 			if _pose(delta):
@@ -198,7 +186,7 @@ func _wait_for_door(delta: float) -> void:
 		_heading = _facing.rotated(-vehicle.global_rotation).angle()
 		_posed = vehicle.to_local(character.global_position)
 		var entry := door.entry_point(character.radius)
-		_begin_pose(Phase.STEP_IN, entry, _step_time(_posed, entry), 0.0, 0.0, 0.0)
+		_begin_pose(Phase.STEP_IN, entry, _step_time(_posed, entry), 0.0, 0.0)
 
 
 ## Folded into the seat: the door shuts behind it, and the engine starts for a driver. A passenger
@@ -209,12 +197,7 @@ func _sit() -> void:
 	if seat == &"passenger" and vehicle.is_free(&"driver"):
 		vehicle.reserve(character, &"driver")
 		_begin_pose(
-			Phase.SHIFT_SEAT,
-			vehicle.seat_point(&"driver"),
-			VehicleConfig.shift_time,
-			1.0,
-			1.0,
-			0.0,
+			Phase.SHIFT_SEAT, vehicle.seat_point(&"driver"), VehicleConfig.shift_time, 1.0, 0.0
 		)
 		return
 	_start_if_driving()
@@ -278,12 +261,7 @@ func _brake(_delta: float) -> void:
 		vehicle.stop_engine()
 	if _exit_door.seat != seat:
 		_begin_pose(
-			Phase.SHIFT_OUT,
-			vehicle.seat_point(_exit_door.seat),
-			VehicleConfig.shift_time,
-			1.0,
-			1.0,
-			0.0,
+			Phase.SHIFT_OUT, vehicle.seat_point(_exit_door.seat), VehicleConfig.shift_time, 1.0, 0.0
 		)
 	else:
 		_open_out()
@@ -292,7 +270,7 @@ func _brake(_delta: float) -> void:
 ## Open the way out and wait in the seat beside it.
 func _open_out() -> void:
 	vehicle.open_door(_exit_door)
-	_begin_pose(Phase.OPEN_OUT, _posed, 0.0, 1.0, 1.0, _heading)
+	_begin_pose(Phase.OPEN_OUT, _posed, 0.0, 1.0, _heading)
 
 
 ## Out and standing beside the door: the seat is free, the door shuts behind it and the character is
@@ -308,21 +286,15 @@ func _step_off() -> void:
 
 
 ## Begin pose phase `next`: from where the character is posed to `to` (vehicle frame) in `duration`
-## s, the fold easing from `fold_from` to `fold_to` and the facing turning toward `turn_to`.
-func _begin_pose(
-	next: Phase,
-	to: Vector2,
-	duration: float,
-	fold_from: float,
-	fold_to: float,
-	turn_to: float,
-) -> void:
+## s, the fold easing from where the last pose phase left it (0 before the first) to `fold_to` and
+## the facing turning toward `turn_to`.
+func _begin_pose(next: Phase, to: Vector2, duration: float, fold_to: float, turn_to: float) -> void:
 	phase = next
 	_clock = 0.0
 	_duration = duration
 	_from = _posed
 	_to = to
-	_fold_from = fold_from
+	_fold_from = _fold_to
 	_fold_to = fold_to
 	_turn_to = turn_to
 

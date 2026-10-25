@@ -45,91 +45,82 @@ func step(
 	var dt := state.step
 	var fwd := state.transform.x.normalized()
 	var right := state.transform.y.normalized()
-	var v := state.linear_velocity
-	var w := state.angular_velocity
-	var vx := v.dot(fwd)
-	var vy := v.dot(right)
-	var speed := v.length()
-	var mass := 1.0 / maxf(state.inverse_mass, 0.0001)
-	var inertia := 1.0 / maxf(state.inverse_inertia, 0.000001)
+	var speed := state.linear_velocity.length()
 	var throttle: float = clampf(intent["throttle"], -1.0, 1.0) if running else 0.0
-	var hold: bool = intent["brake"]
-	var handbrake: bool = intent["handbrake"]
+	var tyres := TyreSolve.new()
+	tyres.vx = state.linear_velocity.dot(fwd)
+	tyres.vy = state.linear_velocity.dot(right)
+	tyres.w = state.angular_velocity
+	tyres.mass = 1.0 / maxf(state.inverse_mass, 0.0001)
+	tyres.inertia = 1.0 / maxf(state.inverse_inertia, 0.000001)
 
 	# Steering: the share eased toward the input (full lock in steer_angle / steer_rate s), times
 	# the lock at this speed.
-	var rate: float = float(row["steer_rate"]) / float(row["steer_angle"])
-	steer_share = move_toward(steer_share, clampf(intent["steer"], -1.0, 1.0), rate * dt)
-	wheel_angle = steer_share * lock(row, speed)
+	_steer(row, intent["steer"], speed, dt)
 
 	# Along the front: the engine (or reverse) pushes, the brakes, rolling resistance and drag hold
 	# back toward a stop.
-	var engage := VehicleConfig.reverse_engage_speed
-	var push := 0.0
-	var resist: float = float(row["rolling"]) + float(row["drag"]) * vx * vx
-	braking = false
-	if hold:
-		braking = absf(vx) > VehicleConfig.stop_speed
-		resist += float(row["brake"])
-	elif throttle > 0.0:
-		if vx < -engage:
-			braking = true
-			resist += float(row["brake"]) * throttle
-		else:
-			push = throttle * _engine(row, mass, vx)
-	elif throttle < 0.0:
-		if vx > engage:
-			braking = true
-			resist += float(row["brake"]) * -throttle
-		else:
-			push = (throttle * float(row["reverse_force"]) / mass
-					* maxf(0.0, 1.0 - pow(maxf(-vx, 0.0) / float(row["reverse_speed"]), 3.0)))
-	if handbrake:
-		resist += float(row["handbrake_brake"])
-	vx = move_toward(vx + push * dt, 0.0, resist * dt)
+	var push := _push(row, tyres.mass, tyres.vx, throttle, intent["brake"])
+	var resist := _resist(row, tyres.vx, throttle, intent)
+	tyres.vx = move_toward(tyres.vx + push * dt, 0.0, resist * dt)
 
 	# Sideways: each axle's impulse cancels its slip up to its grip, both solved together.
-	var front: float = row["axle_front"]
-	var back: float = -float(row["axle_rear"])
-	var c := cos(wheel_angle)
-	var s := sin(wheel_angle)
-	var k_front := 1.0 / mass + (front * c) * (front * c) / inertia
-	var k_rear := 1.0 / mass + back * back / inertia
-	var grip_front: float = float(row["grip_front"]) * mass * 0.5 * dt
-	var grip_rear: float = (float(row["grip_rear"])
-			* (float(row["handbrake_grip"]) if handbrake else 1.0) * mass * 0.5 * dt)
-	var j_front := 0.0
-	var j_rear := 0.0
-	for i in VehicleConfig.tyre_iterations:
-		var slide_front := -vx * s + (vy + w * front) * c
-		var next := clampf(j_front - slide_front / k_front, -grip_front, grip_front)
-		var d := next - j_front
-		j_front = next
-		vx += -s * d / mass
-		vy += c * d / mass
-		w += front * c * d / inertia
-		var slide_rear := vy - w * back
-		next = clampf(j_rear - slide_rear / k_rear, -grip_rear, grip_rear)
-		d = next - j_rear
-		j_rear = next
-		vy += d / mass
-		w -= back * d / inertia
-	var left_front := absf(-vx * s + (vy + w * front) * c)
-	var left_rear := absf(vy - w * back)
-	slip = clampf(
-		maxf(left_front, left_rear) / maxf(speed, VehicleConfig.slip_reference_speed),
-		0.0,
-		1.0,
-	)
+	tyres.solve(row, wheel_angle, intent["handbrake"], dt)
+	slip = clampf(tyres.left() / maxf(speed, VehicleConfig.slip_reference_speed), 0.0, 1.0)
 
 	# At rest with nothing pushing, the tyres hold it still.
-	if push == 0.0 and Vector2(vx, vy).length() < VehicleConfig.stop_speed and absf(w) < 0.05:
-		vx = 0.0
-		vy = 0.0
-		w = 0.0
-	state.linear_velocity = fwd * vx + right * vy
-	state.angular_velocity = w
-	_update_engine(row, vx, throttle if not braking else 0.0, running, dt)
+	if (push == 0.0 and Vector2(tyres.vx, tyres.vy).length() < VehicleConfig.stop_speed
+			and absf(tyres.w) < 0.05):
+		tyres.vx = 0.0
+		tyres.vy = 0.0
+		tyres.w = 0.0
+	state.linear_velocity = fwd * tyres.vx + right * tyres.vy
+	state.angular_velocity = tyres.w
+	_update_engine(row, tyres.vx, throttle if not braking else 0.0, running, dt)
+
+
+## Ease `steer_share` toward the `steer` input (-1..1) at a rate that reaches full lock in
+## `steer_angle / steer_rate` s, and turn the wheels by it times the lock at `speed`.
+func _steer(row: Dictionary, steer: float, speed: float, dt: float) -> void:
+	var rate: float = float(row["steer_rate"]) / float(row["steer_angle"])
+	steer_share = move_toward(steer_share, clampf(steer, -1.0, 1.0), rate * dt)
+	wheel_angle = steer_share * lock(row, speed)
+
+
+## The push along the front at `vx` (px/s²): the engine for a `throttle` ahead, reverse for one
+## back, none while `hold` holds the brakes or the throttle is against the motion (it brakes then,
+## `_resist`).
+func _push(row: Dictionary, mass: float, vx: float, throttle: float, hold: bool) -> float:
+	var engage := VehicleConfig.reverse_engage_speed
+	if hold:
+		return 0.0
+	if throttle > 0.0 and vx >= -engage:
+		return throttle * _engine(row, mass, vx)
+	if throttle < 0.0 and vx <= engage:
+		return (throttle * float(row["reverse_force"]) / mass
+				* maxf(0.0, 1.0 - pow(maxf(-vx, 0.0) / float(row["reverse_speed"]), 3.0)))
+	return 0.0
+
+
+## What holds the vehicle back toward a stop at `vx` (px/s²): rolling resistance and drag, the
+## brakes while the `intent` holds them or the `throttle` is against the motion, the handbrake. Sets
+## `braking` (the brake lights).
+func _resist(row: Dictionary, vx: float, throttle: float, intent: Dictionary) -> float:
+	var engage := VehicleConfig.reverse_engage_speed
+	var resist: float = float(row["rolling"]) + float(row["drag"]) * vx * vx
+	braking = false
+	if intent["brake"]:
+		braking = absf(vx) > VehicleConfig.stop_speed
+		resist += float(row["brake"])
+	elif throttle > 0.0 and vx < -engage:
+		braking = true
+		resist += float(row["brake"]) * throttle
+	elif throttle < 0.0 and vx > engage:
+		braking = true
+		resist += float(row["brake"]) * -throttle
+	if intent["handbrake"]:
+		resist += float(row["handbrake_brake"])
+	return resist
 
 
 ## Full lock (rad) at `speed`: `steer_angle`, or at speed the angle whose turn (pivoting about the
