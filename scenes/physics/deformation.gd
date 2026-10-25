@@ -463,7 +463,7 @@ static func _turns_right_at(
 
 ## How far (0..1, `Color.darkened`'s weight) `draw_shape` darkens a shape that has taken
 ## `damage_total` damage: up to `PhysicsDeformLookConfig.darken_max`, reached at
-## `deform_darken_full`.
+## `PhysicsDeformLookConfig.darken_full`.
 ## A textured shape is drawn in white darkened by it, so a caller drawing a textured shape's own
 ## way draws it in the same colour.
 static func darken(damage_total: float) -> float:

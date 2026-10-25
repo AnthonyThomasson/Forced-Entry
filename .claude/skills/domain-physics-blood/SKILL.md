@@ -1,6 +1,6 @@
 ---
 name: domain-physics-blood
-description: Deep implementation detail for the Physics blood sub-domain (scenes/physics/blood/) — a wound's spray and drips (BloodWound), splatters (BloodSplat), a dead body's bleed-out pool and its flood-fill flow (BloodPool, BloodFlow, BloodSurface), and blood that is carried (BloodField wetness, BloodDecals, BloodFootprints, BloodSmear), all tuned by BloodConfig. Use when editing scenes/physics/blood/ or working on blood splatter, drips, pools, footprints, smears, floor-steered flow, or BloodConfig tuning. Complements the `domain-physics` overview and the `architecture` skill (interface 4).
+description: Deep implementation detail for the Physics blood sub-domain (scenes/physics/blood/) — a wound's spray and drips (BloodWound), splatters (BloodSplat), a dead body's bleed-out pool and its flood-fill flow (BloodPool, BloodFlow, BloodSurface), and blood that is carried (BloodField wetness, BloodDecals, BloodFootprints, BloodSmear), all tuned by BloodConfig and its topic holders (the Blood*Config family). Use when editing scenes/physics/blood/ or working on blood splatter, drips, pools, footprints, smears, floor-steered flow, or the Blood*Config tuning. Complements the `domain-physics` overview and the `architecture` skill (interface 4).
 ---
 
 # Physics · Blood sub-domain (`scenes/physics/blood/`)

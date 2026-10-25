@@ -6,7 +6,7 @@ class_name CharacterHitConfig
 
 ## Material tag handed to the debris system; selects the blood chip style + tint.
 static var flesh_material: String = "flesh"
-## (The body's coverage is its posture's: see `postures`.)
+## (The body's coverage is its posture's: see `CharacterPostureConfig.postures`.)
 ## Resistance to being shot through, 0–100. Low: bullets tear through flesh.
 static var flesh_penetration: float = 15.0
 ## Base color handed to debris styling; the "flesh" material re-tints chips blood-red, so

@@ -20,7 +20,7 @@ static var spike_length_min: float = 0.4
 static var spike_length_max: float = 1.6
 static var satellite_reach_min: float = 1.4
 static var satellite_reach_max: float = 3.4
-## Seconds a splatter takes to dry from `color` to `dried_color`.
+## Seconds a splatter takes to dry from `BloodConfig.color` to `BloodConfig.dried_color`.
 static var dry_time: float = 90.0
 ## Wet highlight painted on the core (a lighter fleck); alpha 0 hides it.
 static var highlight: Color = Color(0.75, 0.12, 0.12, 0.45)

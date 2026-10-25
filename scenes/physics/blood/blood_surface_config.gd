@@ -17,8 +17,8 @@ static var porous_resist: float = 3.0
 ## mottles.
 static var soak_time: float = 20.0
 ## Fabric drinks the blood, so it does not travel as far: each cell a pool claims on porous surface
-## counts as this many cells of the bleed-out budget (`bleed_out_cells`), so the pool covers a
-## smaller area there.
+## counts as this many cells of the bleed-out budget (`BloodPoolConfig.bleed_out_cells`), so the
+## pool covers a smaller area there.
 static var porous_cell_weight: float = 3.0
 ## Blood spreading over porous surface creeps this many times slower (scaled by the share of the
 ## pool on it).
