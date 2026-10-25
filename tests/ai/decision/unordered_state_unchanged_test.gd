@@ -82,28 +82,33 @@ func run(t: TestContext) -> void:
 			var got: Dictionary = got_levels[i]
 			var was: Dictionary = want["levels"][i]
 			var where := "%s, level %d (%s)" % [id, i, was["node"]]
-			t.expect_eq(String(got.get("node", "")), was["node"], "%s: the same node" % where)
-			t.expect_eq(
-				bool(got.get("auto", false)),
-				was["auto"],
-				"%s: asked or auto-picked as before" % where,
-			)
-			t.expect_eq(
-				_ids(String(got.get("question", ""))),
-				was["question"],
-				"%s: the same question" % where,
-			)
-			t.expect_eq(
-				_ids(String(got.get("state", ""))),
-				was["state"],
-				"%s: the same state text, byte for byte" % where,
-			)
-			t.expect_eq(
-				_ids(JSON.stringify(got.get("offered", {}), "", true)),
-				_ids(JSON.stringify(was["offered"], "", true)),
-				"%s: the same options" % where,
-			)
-			t.expect_eq(_ids(String(got.get("pick", ""))), was["pick"], "%s: the same pick" % where)
+			_check_level(t, got, was, where)
+
+
+## The level `got` of the walk against the captured level `was`, each told as `where`.
+func _check_level(t: TestContext, got: Dictionary, was: Dictionary, where: String) -> void:
+	t.expect_eq(String(got.get("node", "")), was["node"], "%s: the same node" % where)
+	t.expect_eq(
+		bool(got.get("auto", false)),
+		was["auto"],
+		"%s: asked or auto-picked as before" % where,
+	)
+	t.expect_eq(
+		_ids(String(got.get("question", ""))),
+		was["question"],
+		"%s: the same question" % where,
+	)
+	t.expect_eq(
+		_ids(String(got.get("state", ""))),
+		was["state"],
+		"%s: the same state text, byte for byte" % where,
+	)
+	t.expect_eq(
+		_ids(JSON.stringify(got.get("offered", {}), "", true)),
+		_ids(JSON.stringify(was["offered"], "", true)),
+		"%s: the same options" % where,
+	)
+	t.expect_eq(_ids(String(got.get("pick", ""))), was["pick"], "%s: the same pick" % where)
 
 
 ## `text` with every target id (`t_` and digits, the hostile's instance id) written `t_ID`.

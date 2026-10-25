@@ -83,6 +83,17 @@ func run(t: TestContext) -> void:
 			"both invaders chose the living room's hall doorway (claims there; %s)" % acts,
 	):
 		return
+	var point := _point_went_in(t, d, acts)
+	if point == &"":
+		return
+	if not t.check(d_shot.call(), "the ambusher fires (%s)" % acts):
+		return
+	_check_first_shot(t, d, invaders, samples, point)
+
+
+## The point, the first invader to radio going in, with its going in and the defender's post
+## before it required; &"" when one fails.
+func _point_went_in(t: TestContext, d: Node, acts: String) -> StringName:
 	var going_at := INF
 	var point: StringName = &""
 	for id in IDS:
@@ -91,17 +102,26 @@ func run(t: TestContext) -> void:
 			going_at = at
 			point = id
 	if not t.require(going_at < INF, "the point radioed going in (%s)" % acts):
-		return
+		return &""
 	var posted := _progress_time(t, "in_position", d)
 	if not t.require(
 			posted < going_at,
 			("the defender was posted (in_position) before the point went in (posted %.2f s, going "
 					+ "in %.2f s)") % [posted, going_at],
 	):
-		return
+		return &""
+	return point
 
-	if not t.check(d_shot.call(), "the ambusher fires (%s)" % acts):
-		return
+
+## The defender's first shot: before the stack's, its facing on the point, the point in the
+## funnel.
+func _check_first_shot(
+		t: TestContext,
+		d: Node,
+		invaders: Array,
+		samples: Array,
+		point: StringName,
+) -> void:
 	var d_first := float(Probe.raw(t, &"shot", func(e): return e.get("attacker") == d)[0]["time"])
 	var theirs := Probe.raw(t, &"shot", func(e): return invaders.has(e.get("attacker")))
 	t.check(

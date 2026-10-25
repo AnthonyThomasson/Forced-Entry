@@ -84,6 +84,16 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
+	var brain := await _take_post(t, a)
+	if brain == null:
+		return
+	await _check_post(t, a)
+	await _spring(t, a, brain)
+
+
+## Orders the ambush and waits for the defender to take it and reach its post; the brain, or null
+## when a step fails.
+func _take_post(t: TestContext, a: Node) -> Node:
 	var squad := t.squad(&"household")
 	await t.seconds(0.5)
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [a], "pos": CLICK })
@@ -91,7 +101,7 @@ func run(t: TestContext) -> void:
 			not order.is_empty(),
 			"the squad posts the ambush order (issue of kind ambush returned %s)" % str(order),
 	):
-		return
+		return null
 	t.expect_eq(String(order.get("opening", "")), DOOR_ID, "on the hall doorway")
 	t.expect_eq(String(order.get("room", "")), "living_room", "from the living room")
 	var brain := Order.brain(t, &"a")
@@ -99,14 +109,19 @@ func run(t: TestContext) -> void:
 			await t.until(func(): return Order.primitive(brain) == "ambush", 5.0),
 			"the defender takes the ambush (primitive %s)" % Order.primitive(brain),
 	):
-		return
+		return null
 	if not t.require(
 			await t.until(func(): return not Order.progress(t, "in_position", a).is_empty(), 20.0),
 			"it reaches its post and radios in_position",
 	):
-		return
+		return null
 	await t.seconds(1.0)
+	return brain
 
+
+## The post: inside the room, off the axis, a line to the threshold, unseen from outside, crouched,
+## its gun on the threshold.
+func _check_post(t: TestContext, a: Node) -> void:
 	var p: Vector2 = a.global_position
 	t.check(
 		Maps.HOUSE_LIVING.grow(-BODY).has_point(p),
@@ -129,6 +144,9 @@ func run(t: TestContext) -> void:
 	var share := await _share_on(t, a, DOOR, 1.5)
 	t.check(share >= 0.7, "its gun on the threshold (%.0f%% of 1.5 s)" % (share * 100.0))
 
+
+## The intruder steps into the doorway: the ambusher fires, its order ends and it fights on.
+func _spring(t: TestContext, a: Node, brain: Node) -> void:
 	var puppet := t.puppet(&"intruder")
 	puppet.walk_to(HALL_BY_DOOR)
 	if not t.require(

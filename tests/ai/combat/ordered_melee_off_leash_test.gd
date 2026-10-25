@@ -67,17 +67,7 @@ func run(t: TestContext) -> void:
 	var gunman := t.actor(&"gunman")
 	var puppet := t.puppet(&"gunman")
 	var b := Order.brain(t, &"m")
-	if not t.require(
-			GUNMAN_AT.distance_to(LEAD_AT) > squad.leash,
-			"premise: the gunman stands off the leader's leash (%.0f px, leash %.0f)"
-				% [GUNMAN_AT.distance_to(LEAD_AT), squad.leash],
-	):
-		return
-	Order.issue(squad, { "kind": Order.DEFEND, "to": [m], "room": "arena" })
-	if not t.require(
-			await t.until(func(): return Order.on_order(b), 5.0),
-			"premise: the NPC takes the order to defend the hall (act %s)" % b.current_act(),
-	):
+	if not await _on_order(t, squad, m, b):
 		return
 	var struck := func(d):
 		return d["actor"] == &"m" and d["body"] == gunman and int(d["hand"]) >= 0
@@ -113,3 +103,19 @@ func run(t: TestContext) -> void:
 				m.global_position.distance_to(me.global_position),
 			] + "px from its leader; acts %s)" % Follow.acts_of(w, m),
 	)
+
+
+func _on_order(t: TestContext, squad: Node, m: Node, b: Node) -> bool:
+	if not t.require(
+			GUNMAN_AT.distance_to(LEAD_AT) > squad.leash,
+			"premise: the gunman stands off the leader's leash (%.0f px, leash %.0f)"
+				% [GUNMAN_AT.distance_to(LEAD_AT), squad.leash],
+	):
+		return false
+	Order.issue(squad, { "kind": Order.DEFEND, "to": [m], "room": "arena" })
+	if not t.require(
+			await t.until(func(): return Order.on_order(b), 5.0),
+			"premise: the NPC takes the order to defend the hall (act %s)" % b.current_act(),
+	):
+		return false
+	return true

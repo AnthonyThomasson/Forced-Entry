@@ -63,10 +63,7 @@ func run(t: TestContext) -> void:
 		var n: int = brain.debug_state()["decisions"]
 		if n != seen:
 			seen = n
-			for z in brain.debug_zones():
-				if (str(z.get("label", "")) == "toward the shots"
-						and (z["point"] as Vector2).distance_to(inv.global_position) < STRIDE):
-					wrong += 1
+			wrong += _wrong_zones(brain, inv)
 		await t.frames(1)
 	t.check(
 		wrong == 0,
@@ -79,6 +76,16 @@ func run(t: TestContext) -> void:
 		("the invader started %d decisions in %.0f s under fire (at most %d): it re-decided over "
 				+ "and over") % [made, WINDOW, MAX_DECISIONS],
 	)
+
+
+## How many of `brain`'s offered zones are LOCATE toward a point where `inv` stands.
+func _wrong_zones(brain: Node, inv: Node) -> int:
+	var wrong := 0
+	for z in brain.debug_zones():
+		if (str(z.get("label", "")) == "toward the shots"
+				and (z["point"] as Vector2).distance_to(inv.global_position) < STRIDE):
+			wrong += 1
+	return wrong
 
 
 ## One shot at the invader nobody known fired: it lands at `LANDED`, coming from `SHOOTER`.

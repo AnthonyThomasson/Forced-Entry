@@ -65,6 +65,11 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	await _check_held(t, d, home, defend)
+	await _check_done(t, a, raid, stack)
+
+
+func _check_held(t: TestContext, d: Node, home: Node, defend: Dictionary) -> void:
 	var held := await t.until(
 		func(): return not Order.progress(t, "in_position", d).is_empty(),
 		25.0,
@@ -88,6 +93,8 @@ func run(t: TestContext) -> void:
 			"the squad's view shows the defender's step",
 		)
 
+
+func _check_done(t: TestContext, a: Node, raid: Node, stack: Dictionary) -> void:
 	var done := await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 50.0)
 	t.check(done, "the invader radios done for its stack order")
 	if done:

@@ -49,7 +49,13 @@ func run(t: TestContext) -> void:
 		"kind": Order.DEFEND,
 		"room": "kitchen",
 	})
+	await _check_first_order(t, a, b, c, c_walks)
+	await _check_held(t, a)
+	await _check_replaced(t, a, b, boss)
+	await _check_cancelled(t, a, b, boss)
 
+
+func _check_first_order(t: TestContext, a: Node, b: Node, c: Node, c_walks: int) -> void:
 	t.check(
 		await t.until(func(): return Order.on_order(a) and Order.on_order(b), 3.0),
 		"both recipients take the order (acts %s, %s)" % [a.current_act(), b.current_act()],
@@ -65,6 +71,8 @@ func run(t: TestContext) -> void:
 			% [c.current_act(), str(Order.ordered(c))],
 	)
 
+
+func _check_held(t: TestContext, a: Node) -> void:
 	# Three times the callout ttl later the order is still held: a decision forced now (gunfire
 	# beside it) still has `ordered`.
 	await t.seconds(CALLOUT_TTL * 3.0 + 1.0)
@@ -79,6 +87,8 @@ func run(t: TestContext) -> void:
 			"after 3 x the callout ttl the recipient still holds its order (ordered)",
 		)
 
+
+func _check_replaced(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 	Order.post({
 		"id": "o2",
 		"leader": boss,
@@ -100,7 +110,9 @@ func run(t: TestContext) -> void:
 		"the other recipient keeps the first order (%s)" % str(Order.params(b)),
 	)
 
-	walks = Order.decisions(a)
+
+func _check_cancelled(t: TestContext, a: Node, b: Node, boss: Node) -> void:
+	var walks := Order.decisions(a)
 	Order.post({
 		"id": "o3",
 		"leader": boss,
