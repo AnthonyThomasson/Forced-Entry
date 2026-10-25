@@ -363,28 +363,54 @@ func _keep_reservation(delta: float, due: bool) -> void:
 		_withdraw("abort")
 		return
 	var stack := _stack()
-	var pos := _char.global_position
+	if _leaves(stack, due):
+		return
+	if _step != "in" and not _keeps_slot(stack):
+		return
+	if _gives_up(stack):
+		return
+	_take_step()
+	if _step == "in" and _done_inside(stack):
+		return
+	_heartbeat -= delta
+	if _heartbeat <= 0.0:
+		_post(_step)
+
+
+## Withdraw from `stack` when the human has walked off out of range (on a `due` tick, before it is
+## in) or nobody stacks there any more (the human's own claim stands with nobody else yet); true
+## when it did.
+func _leaves(stack: RefCounted, due: bool) -> bool:
 	if due and _step != "in" and _walk_distance(_geo["pos"]) > reserve_range * leave_factor:
 		_withdraw("abort")
-		return
+		return true
 	if (not (stack.stacking() or stack.team.any(func(m): return m["step"] == "in"))
 			and (not _own or _step == "in")):
-		# Nobody is stacking here any more (the human's own claim stands with nobody else yet).
 		_withdraw("abort" if _step != "in" else "done")
-		return
-	if _step != "in":
-		var was := _slot
-		var was_side := _on
-		# An AI that keeps the same slot (claimed on its frame nearer it, else the lower instance
-		# id) has it: the human takes the next free one (E2).
-		var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, false))
-		_slot = at["slot"]
-		if not at["held"]:
-			_withdraw("abort")   # Pushed past what a dead end holds (E20).
-			return
-		_on = at["side"]
-		if _slot != was or _on != was_side:
-			_post(_step)
+		return true
+	return false
+
+
+## Keep the human's slot in `stack`: an AI that keeps the same slot (claimed on its frame nearer it,
+## else the lower instance id) has it, and the human takes the next free one (E2), radioed when its
+## slot or side changes. False, withdrawn, when it is pushed past what a dead end holds (E20).
+func _keeps_slot(stack: RefCounted) -> bool:
+	var was := _slot
+	var was_side := _on
+	var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, false))
+	_slot = at["slot"]
+	if not at["held"]:
+		_withdraw("abort")
+		return false
+	_on = at["side"]
+	if _slot != was or _on != was_side:
+		_post(_step)
+	return true
+
+
+## Withdraw, barred from this stack, when everyone ahead of the human in `stack` has been through
+## for `go_timeout` s while it still waits: it had its chance. True when it did.
+func _gives_up(stack: RefCounted) -> bool:
 	var ahead: Array = stack.ahead(_me())
 	# (Its own claim with nobody ahead of it is the point's: nobody's going in to wait on.)
 	var ahead_through: bool = (
@@ -400,27 +426,36 @@ func _keep_reservation(delta: float, due: bool) -> void:
 			and GameClock.seconds() - _ahead_through_at >= go_timeout):
 		_barred[_opening] = true   # It had its chance at this stack.
 		_withdraw("abort")
+		return true
+	return false
+
+
+## The human's step from where it stands, radioed when it changes (the frame a crossing begins on
+## and the time it gets in kept).
+func _take_step() -> void:
+	var now := _step_at(_char.global_position)
+	if now == _step:
 		return
-	var now := _step_at(pos)
-	if now != _step:
-		if not StackClaim.crossing(_step) and StackClaim.crossing(now):
-			_crossed_frame = GameClock.frame()
-		_step = now
-		if _step == "in":
-			_in_at = GameClock.seconds()
-		_post(_step)
+	if not StackClaim.crossing(_step) and StackClaim.crossing(now):
+		_crossed_frame = GameClock.frame()
+	_step = now
 	if _step == "in":
-		var waiting: bool = stack.behind(_me()).any(
-			func(m): return _waiting(m["step"]),
-		)
-		var held := GameClock.seconds() - _in_at
-		if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
-			_barred[_opening] = true
-			_withdraw("done")
-			return
-	_heartbeat -= delta
-	if _heartbeat <= 0.0:
-		_post(_step)
+		_in_at = GameClock.seconds()
+	_post(_step)
+
+
+## Withdraw, done and barred from this stack, once the human has held the room `IN_HOLD_MAX` s, or
+## `IN_HOLD_MIN` s with nobody behind it in `stack` still waiting. True when it did.
+func _done_inside(stack: RefCounted) -> bool:
+	var waiting: bool = stack.behind(_me()).any(
+		func(m): return _waiting(m["step"]),
+	)
+	var held := GameClock.seconds() - _in_at
+	if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
+		_barred[_opening] = true
+		_withdraw("done")
+		return true
+	return false
 
 
 ## Whether entry step `step` is a member still waiting in the stack: holding its place
