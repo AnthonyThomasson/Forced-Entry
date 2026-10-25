@@ -144,18 +144,18 @@ static func _try_place(
 ## left bare. Every piece goes through the same placement checks as a zone. Each listed option is
 ## tried once, hit or miss (list one twice to allow two of it): a miss can't turn into a hit later
 ## because a fuller room never gains a spot and a taken tag stays taken, so a full room ends the
-## pass quickly. Bounded and scaled by WorldGenConfig.
+## pass quickly. Bounded and scaled by WorldGenFillConfig.
 static func _fill(fill: Dictionary, state: Dictionary, rng: RandomNumberGenerator) -> void:
-	if fill.is_empty() or not WorldGenConfig.fill_enabled:
+	if fill.is_empty() or not WorldGenFillConfig.enabled:
 		return
 	var pool: Array = (fill["options"] as Array).duplicate()
 	var interior: Rect2 = state["interior"]
-	var goal: float = fill["target"] * WorldGenConfig.fill_scale * interior.get_area()
+	var goal: float = fill["target"] * WorldGenFillConfig.scale * interior.get_area()
 	var covered := _covered(state["placements"])
 	var added := 0
 	var tries := 0
-	while not pool.is_empty() and covered < goal and added < WorldGenConfig.fill_max_pieces \
-			and tries < WorldGenConfig.fill_attempts:
+	while not pool.is_empty() and covered < goal and added < WorldGenFillConfig.max_pieces \
+			and tries < WorldGenFillConfig.attempts:
 		tries += 1
 		var pick := rng.randi_range(0, pool.size() - 1)
 		if _try_place(ArrangementDefinitions.get_arrangement(pool[pick]), state, rng):

@@ -397,9 +397,9 @@ const OBJECTS := {
 		"penetration": 0,
 	},
 	# The street lamps along the front of the house (HouseSpawner, `streetlight_*` in
-	# WorldGenConfig), every other one a neon sign (its `neon` picked per lamp): a thin steel post,
-	# anchored, as tall as anything on the street (never flown over), as hard to shoot through as a
-	# thin steel post; its arm and head (or sign) hang overhead out over the road (`overhang`,
+	# WorldGenStreetConfig), every other one a neon sign (its `neon` picked per lamp): a thin steel
+	# post, anchored, as tall as anything on the street (never flown over), as hard to shoot through
+	# as a thin steel post; its arm and head (or sign) hang overhead out over the road (`overhang`,
 	# across x out, its front the way the piece faces).
 	"streetlight": {
 		"name": "Street lamp",

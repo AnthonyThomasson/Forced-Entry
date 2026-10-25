@@ -1,7 +1,7 @@
 extends GameTest
 ## Generated rooms are not left bare: every room's solid furniture covers at least a floor share of
 ## its floor (lower for corridors), the fill pass puts more in than the recipe's zones alone, and
-## the WorldGenConfig knobs really switch it off.
+## the WorldGenFillConfig knobs really switch it off.
 
 const SEEDS := [11, 12, 13]
 const FAR_AWAY := Vector2(5000, 5000)
@@ -17,7 +17,7 @@ func describe() -> Dictionary:
 		"name": "Generated rooms are furnished, not bare",
 		"description": "Every room of every floorplan has a minimum share of its floor covered by "
 			+ "solid furniture; the fill pass adds pieces over a zones-only house and "
-			+ "WorldGenConfig.fill_scale = 0 turns it off.",
+			+ "WorldGenFillConfig.scale = 0 turns it off.",
 		"tags": ["worldgen", "house", "furniture", "fill"],
 		"timeout": 30.0,
 	}
@@ -26,8 +26,8 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 200, 200))
 	# run() flips these; registering them has the harness put them back whatever way the test ends.
-	s.set_static(WorldGenConfig, &"fill_scale", WorldGenConfig.fill_scale)
-	s.set_static(WorldGenConfig, &"fill_enabled", WorldGenConfig.fill_enabled)
+	s.set_static(WorldGenFillConfig, &"scale", WorldGenFillConfig.scale)
+	s.set_static(WorldGenFillConfig, &"enabled", WorldGenFillConfig.enabled)
 
 
 ## The solid pieces and their combined footprint area in each room of `house`: key -> { count, area
@@ -89,16 +89,16 @@ func _check_cover(t: TestContext, label: String, room: Dictionary, f: Dictionary
 func run(t: TestContext) -> void:
 	var filled := _survey(t, true)
 
-	WorldGenConfig.fill_scale = 0.0
+	WorldGenFillConfig.scale = 0.0
 	var zones_only := _survey(t, false)
-	WorldGenConfig.fill_scale = 1.0
+	WorldGenFillConfig.scale = 1.0
 	t.check(
 		filled > zones_only,
 		"the fill pass adds pieces (%d with, %d without)" % [filled, zones_only],
 	)
 
-	WorldGenConfig.fill_enabled = false
+	WorldGenFillConfig.enabled = false
 	var disabled := _survey(t, false)
-	WorldGenConfig.fill_enabled = true
-	t.expect_eq(disabled, zones_only, "fill_enabled = false matches fill_scale = 0")
+	WorldGenFillConfig.enabled = true
+	t.expect_eq(disabled, zones_only, "WorldGenFillConfig.enabled = false matches its scale = 0")
 	await t.frames(1)

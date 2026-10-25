@@ -12,7 +12,7 @@ class_name RoomDresser
 ##     WearFactory with the free stretch of wall it is by, which decides and draws its marks on the
 ##     floor and that wall.
 ## Every room draws from RNGs of its own, seeded by the run's seed and the room's key, so dressing
-## never shifts the shared RNG: a seed keeps its furniture layout. Tuning: WorldGenConfig.dress_* /
+## never shifts the shared RNG: a seed keeps its furniture layout. Tuning: WorldGenDressConfig /
 ## wear_* / clutter_* / neon_tube_*.
 
 ## How an anchor is drawn: a corner, ...
@@ -51,18 +51,18 @@ static func strew(site: RoomSite, clutter: Array) -> Array:
 static func _clutter_count(rng: RandomNumberGenerator) -> int:
 	var roll := rng.randf()
 	return (0
-			if roll < WorldGenConfig.clutter_none_chance
-			else (2 if roll >= 1.0 - WorldGenConfig.clutter_two_chance else 1))
+			if roll < WorldGenDressConfig.clutter_none_chance
+			else (2 if roll >= 1.0 - WorldGenDressConfig.clutter_two_chance else 1))
 
 
-## The catalogue piece `key` as clutter: its own size (`WorldGenConfig.clutter_scale`) and detail
-## variant `v`; {} for an unknown key.
+## The catalogue piece `key` as clutter: its own size (`WorldGenDressConfig.clutter_scale`) and
+## detail variant `v`; {} for an unknown key.
 static func _clutter_definition(key: String, rng: RandomNumberGenerator) -> Dictionary:
 	var definition := ObjectDefinitions.get_definition(key).duplicate(true)
 	if definition.is_empty():
 		push_error("RoomDresser: unknown clutter '%s'" % key)
 		return definition
-	var scale := WorldGenConfig.clutter_scale
+	var scale := WorldGenDressConfig.clutter_scale
 	definition["size"] = (((definition["size"] as Vector2) * rng.randf_range(scale.x, scale.y)
 			/ 2.0).round() * 2.0)
 	definition["art_opts"] = (definition.get("art_opts", {}) as Dictionary).merged(
@@ -87,7 +87,7 @@ static func _lay_clutter(
 	var here := _here(site)
 	var size: Vector2 = definition["size"]
 	var long := size.x >= size.y * 2.0
-	for _try in WorldGenConfig.dress_tries:
+	for _try in WorldGenDressConfig.tries:
 		var at := anchor(rng, inner, here)
 		var rotated: bool = (at["along"] == Vector2.DOWN) if long else rng.randf() < 0.5
 		var foot := Vector2(size.y, size.x) if rotated else size
@@ -116,10 +116,10 @@ static func _clutter_facing(rotated: bool, rng: RandomNumberGenerator) -> Vector
 
 
 ## Where `site`'s dressing may lie: its room's rect inset from the walls by
-## `WorldGenConfig.dress_inset`.
+## `WorldGenDressConfig.inset`.
 static func _inner(site: RoomSite) -> Rect2:
 	var rect: Rect2 = site.room["rect"]
-	return rect.grow(-(site.wall_thickness * 0.5 + WorldGenConfig.dress_inset))
+	return rect.grow(-(site.wall_thickness * 0.5 + WorldGenDressConfig.inset))
 
 
 ## The footprints of `site`'s solid furniture within its room.
@@ -156,11 +156,11 @@ static func wear(site: RoomSite, floor_definition: Dictionary, doors: Array, par
 
 
 ## How many wear clusters a room of `rect` gets: none or one, and one more per
-## `WorldGenConfig.wear_more_area` it is bigger than, each by `wear_more_chance`.
+## `WorldGenDressConfig.wear_more_area` it is bigger than, each by `wear_more_chance`.
 static func _wear_count(rect: Rect2, rng: RandomNumberGenerator) -> int:
-	var count := 0 if rng.randf() < WorldGenConfig.wear_bare_chance else 1
-	for area: float in WorldGenConfig.wear_more_area:
-		if rect.get_area() > area and rng.randf() < WorldGenConfig.wear_more_chance:
+	var count := 0 if rng.randf() < WorldGenDressConfig.wear_bare_chance else 1
+	for area: float in WorldGenDressConfig.wear_more_area:
+		if rect.get_area() > area and rng.randf() < WorldGenDressConfig.wear_more_chance:
 			count += 1
 	return count
 
@@ -178,7 +178,7 @@ static func _wear_clusters(
 	var here := _here(site)
 	var clusters: Array = []
 	for _c in count:
-		for _try in WorldGenConfig.dress_tries:
+		for _try in WorldGenDressConfig.tries:
 			var at := anchor(rng, inner, here)
 			var p: Vector2 = at["p"]
 			if not near_anchor(p, rect, here):
@@ -212,7 +212,7 @@ static func _corner_anchor(rng: RandomNumberGenerator, inner: Rect2) -> Dictiona
 		inner.position.y if rng.randf() < 0.5 else inner.end.y,
 	)
 	var inward := (inner.get_center() - corner).sign()
-	var reach := WorldGenConfig.dress_reach
+	var reach := WorldGenDressConfig.reach
 	var p := (corner
 			+ inward
 				* Vector2(rng.randf_range(reach.x, reach.y), rng.randf_range(reach.x, reach.y)))
@@ -224,7 +224,7 @@ static func _corner_anchor(rng: RandomNumberGenerator, inner: Rect2) -> Dictiona
 static func _wall_anchor(rng: RandomNumberGenerator, inner: Rect2) -> Dictionary:
 	var side := rng.randi_range(0, 3)
 	var t := rng.randf_range(0.08, 0.92)
-	var inset := rng.randf_range(WorldGenConfig.dress_reach.x, WorldGenConfig.dress_reach.y)
+	var inset := rng.randf_range(WorldGenDressConfig.reach.x, WorldGenDressConfig.reach.y)
 	var p := _wall_point(inner, side, t, inset)
 	return { "p": p, "along": Vector2.RIGHT if side < 2 else Vector2.DOWN, "by_wall": true }
 
@@ -234,8 +234,8 @@ static func _furniture_anchor(rng: RandomNumberGenerator, solids: Array) -> Dict
 	var s: Rect2 = solids[rng.randi_range(0, solids.size() - 1)]
 	var side := rng.randi_range(0, 3)
 	var gap := rng.randf_range(
-		WorldGenConfig.dress_furniture_gap.x,
-		WorldGenConfig.dress_furniture_gap.y,
+		WorldGenDressConfig.furniture_gap.x,
+		WorldGenDressConfig.furniture_gap.y,
 	)
 	var p: Vector2
 	match side:
@@ -264,10 +264,10 @@ static func _wall_point(rect: Rect2, side: int, t: float, inset: float) -> Vecto
 			return Vector2(rect.end.x - inset, rect.position.y + rect.size.y * t)
 
 
-## Whether `p` lies within WorldGenConfig.dress_near of a wall line of `rect` or of one of `solids`:
+## Whether `p` lies within WorldGenDressConfig.near of a wall line of `rect` or of one of `solids`:
 ## where dressing belongs.
 static func near_anchor(p: Vector2, rect: Rect2, solids: Array) -> bool:
-	var near := WorldGenConfig.dress_near
+	var near := WorldGenDressConfig.near
 	var to_x := minf(p.x - rect.position.x, rect.end.x - p.x)
 	var to_y := minf(p.y - rect.position.y, rect.end.y - p.y)
 	if minf(to_x, to_y) <= near:
@@ -324,7 +324,7 @@ static func _nearest_wall(p: Vector2, rect: Rect2) -> Dictionary:
 
 
 ## The stretch `[a, b]` along `wall` (`_nearest_wall` of `rect`) that `door` (`{ pos, width }`)
-## takes, its jambs (`WorldGenConfig.dress_jamb`) included; `[]` when the door is not on that wall.
+## takes, its jambs (`WorldGenDressConfig.jamb`) included; `[]` when the door is not on that wall.
 static func _door_span(door: Dictionary, wall: Dictionary, rect: Rect2) -> Array:
 	var horizontal: bool = wall["horizontal"]
 	var at: Vector2 = door["pos"]
@@ -334,31 +334,31 @@ static func _door_span(door: Dictionary, wall: Dictionary, rect: Rect2) -> Array
 	if offset <= 0.0 or offset >= wall["length"]:
 		return []
 	return [
-		offset - float(door["width"]) * 0.5 - WorldGenConfig.dress_jamb,
-		offset + float(door["width"]) * 0.5 + WorldGenConfig.dress_jamb,
+		offset - float(door["width"]) * 0.5 - WorldGenDressConfig.jamb,
+		offset + float(door["width"]) * 0.5 + WorldGenDressConfig.jamb,
 	]
 
 
-## A neon tube along the foot of one of `site`'s walls (WorldGenConfig.neon_tube_chance of rooms),
-## under its furniture node, clear of `taken` and its doorway boxes; its own RNG, so it never shifts
-## the clutter's draws.
+## A neon tube along the foot of one of `site`'s walls (WorldGenDressConfig.neon_tube_chance of
+## rooms), under its furniture node, clear of `taken` and its doorway boxes; its own RNG, so it
+## never shifts the clutter's draws.
 static func _neon_tube(site: RoomSite, taken: Array) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([site.run_seed, site.room["key"], "neon"])
-	if rng.randf() >= WorldGenConfig.neon_tube_chance:
+	if rng.randf() >= WorldGenDressConfig.neon_tube_chance:
 		return
 	var rect: Rect2 = site.room["rect"]
 	var definition := ObjectDefinitions.get_definition("neon_tube").duplicate(true)
 	var size: Vector2 = definition["size"]
 	var inset := site.wall_thickness * 0.5 + size.y * 0.5 + 1.0
-	for _try in WorldGenConfig.dress_tries:
+	for _try in WorldGenDressConfig.tries:
 		var side := rng.randi_range(0, 3)
 		var p := _wall_point(rect, side, rng.randf_range(0.2, 0.8), inset)
 		var rotated := side >= 2
 		var foot := Vector2(size.y, size.x) if rotated else size
 		var r := Rect2(p - foot * 0.5, foot)
 		if (site.blocked.any(
-					func(b: Rect2) -> bool: return b.grow(WorldGenConfig.dress_jamb).intersects(r)
+					func(b: Rect2) -> bool: return b.grow(WorldGenDressConfig.jamb).intersects(r)
 				)
 				or taken.any(func(s: Rect2) -> bool: return s.grow(2.0).intersects(r))):
 			continue

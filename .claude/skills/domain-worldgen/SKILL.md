@@ -18,7 +18,7 @@ plain definition dict into a node — World-Gen never touches an object's fields
 ```
 HouseDefinitions (floorplans) ─┐        LayoutRules (is the plan logical?) ◀─ HouseSpawner._validate
 categories/*  (catalogues)  ───┼─▶ HouseSpawner ─▶ WallFactory (walls, doorway openings cut in)
-ObjectDefinitions / ───────────┘                ├▶ RoomFurnisher ─▶ ObjectFactory   (WorldGenConfig: fill knobs)
+ObjectDefinitions / ───────────┘                ├▶ RoomFurnisher ─▶ ObjectFactory   (WorldGenFillConfig: fill knobs)
 ArrangementDefinitions                          ├▶ RoomDresser ─▶ ObjectFactory (clutter, neon) / WearFactory (wear clusters)
                                                 ├▶ FloorFactory (the floor the room's palette names)
                                                 ├▶ FloorFactory (the street ring: sidewalk + asphalt)
@@ -77,9 +77,9 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
   random `options` (through the same placement checks) until the room's solid footprints cover `target`
   of the interior, so big rooms aren't left bare. Each listed option is tried once, hit or miss (list it
   twice to allow two): a miss can't become a hit later (a fuller room never gains a spot), so a full room
-  ends the pass quickly. `WorldGenConfig` (`class_name` static holder)
-  holds the knobs: `fill_enabled`, `fill_scale` (× every target; 0 = off), `fill_attempts`,
-  `fill_max_pieces`. Fill consumes the shared RNG, so a seed is stable but changes if a recipe's fill does.
+  ends the pass quickly. `WorldGenFillConfig` (`class_name` static holder)
+  holds the knobs: `enabled`, `scale` (× every target; 0 = off), `attempts`,
+  `max_pieces`. Fill consumes the shared RNG, so a seed is stable but changes if a recipe's fill does.
 - **Ground pieces**: an arrangement with `"ground": true` (rugs `rug_center`/`rug_small`/`runner_hall`) is non-solid decor that lies *under* furniture: it avoids only other ground pieces,
   never touches the walk grid, and is tried dead-centre first. The `"rug"` tag keeps it to one rug a room
   (the `tv_wall_*` arrangements carry their own rug and the tag).
@@ -99,19 +99,19 @@ ArrangementDefinitions                          ├▶ RoomDresser ─▶ Object
   draw, so it costs no extra RNG and seeds keep their layouts.
 - **Run-down dressing** (`room_dresser.gd`, `RoomDresser`): World-Gen places, the Objects domain draws. Where things gather is
   `RoomDresser.anchor`: a corner, along a wall's foot, or just beside a solid piece (the footprints `RoomFurnisher.furnish`
-  appends to the room's `RoomSite.solids`, from the catalogue sizes), and whatever lands there stays within `WorldGenConfig.dress_near`
+  appends to the room's `RoomSite.solids`, from the catalogue sizes), and whatever lands there stays within `WorldGenDressConfig.near`
   of a wall line or a solid piece. Per room, after furnishing: **clutter** (`strew`): 0-2 walk-over pieces from the recipe's
   `clutter` (`[key, weight]` pairs; default `GeneralCatalog.CLUTTER`: `trash`, `cables`, `cable_nest`, `cardboard`, `puddle`, all
   non-solid `decor` catalogue pieces), no key twice, each its own size (`clutter_scale`) and `v` detail variant, off the solid
   furniture and the doorway clearance boxes, the long ones lying along the edge they hug; and in about every other room
   (`neon_tube_chance`) a **neon tube** (`neon_tube`, cyan or magenta) along the foot of a wall, clear of doorways. Once every room
   stands: its **wear** (`wear`): 0-3 clusters (`wear_bare_chance`, one more per `wear_more_area` with `wear_more_chance`), each
-  handed with the free stretch of wall it is by (cut short of doorways, `dress_jamb`) to the Objects domain's `WearFactory`,
+  handed with the free stretch of wall it is by (cut short of doorways, `WorldGenDressConfig.jamb`) to the Objects domain's `WearFactory`,
   which decides and draws the marks (after all walls, so a mark on a shared wall draws over both caps). Every room draws from
   RNGs of its own, `hash([run seed, room key, ...])` (`rng.seed`, never a draw from the shared RNG), so the dressing never
   shifts a seed's furniture layout.
-- **The street** (`HouseSpawner._street`): a sidewalk ring `street_sidewalk` px deep hugging the bounds of the rooms and asphalt
-  out to `street_reach` px, four strips of each (the top and bottom spanning the corners) through `FloorFactory` from
+- **The street** (`HouseSpawner._street`): a sidewalk ring `WorldGenStreetConfig.sidewalk` px deep hugging the bounds of the rooms and asphalt
+  out to `WorldGenStreetConfig.reach` px, four strips of each (the top and bottom spanning the corners) through `FloorFactory` from
   `GeneralCatalog.STREET` (`art` `street`, `sound_surface: false`: footsteps out there stay `outdoor`; `light_layer: "street"`: lit only by
   the street lamps, the flashes and the street's sky, `docs/lighting.md` L4), each with its `marks`
   (`{ seed, edges, lane }`: the curb sides of a sidewalk, the gutter side of a road, the lane on the road in front, south) and a

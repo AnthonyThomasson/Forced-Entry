@@ -76,7 +76,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	 none registers a `SoundSurface`, interface 16, so footsteps out there stay `outdoor`); `WorldGen.get_streetlights(house) -> Array`
 	 (its `streetlights` metadata) — `{ pos, node }` per street lamp along the front sidewalk (`pos` its world-space centre, `node` the
 	 placed piece under the house: a solid, anchored metal post, carved into the nav map, its arm and head an overhang; about
-	 `WorldGenConfig.streetlight_every` px apart, none within `streetlight_door_clear` px of a front or exit doorway's centre nor in the
+	 `WorldGenStreetConfig.streetlight_every` px apart, none within `streetlight_door_clear` px of a front or exit doorway's centre nor in the
 	 strip straight out of one: a lamp that would be is dropped).
    - Read-only catalogue lookups (used by the Testing domain to place single pieces):
 	 `WorldGen.object_definition(key) -> Dictionary` (for `ObjectFactory.spawn`),
@@ -1006,13 +1006,13 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into twenty `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into twenty-two `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (impact, debris and hit particles, deformation, the explosion's look, the ragdoll solver), `CharacterConfig` (walking
 push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood splatter, drips and bleed-out), `ArtCanvasConfig` (the art pixel, the light,
 turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
-floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenConfig` (World-Gen's
-furnishing fill pass, the run-down dressing's placement, the street ring and its street lamps), `MagazineConfig` (Items: magazine
+floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenFillConfig` (World-Gen's
+furnishing fill pass), `WorldGenDressConfig` (the run-down dressing's placement), `WorldGenStreetConfig` (the street ring and its street lamps), `MagazineConfig` (Items: magazine
 types, capacities and reload times), `GunConfig` (Items: one row per gun — damage, fire rate, penetration,
 muzzle speed, spread, recoil, magazine, whether it raises at a wall, its looks per weapon style), `GrenadeConfig` (Items: one row per grenade kind — fuse, windup, range, flight, the blast or flash and bang numbers, its looks per weapon style), `OutfitConfig` (Items: the garment and plate rows — slot, name, weight, looks per character style, the armour's zones, sides and protection numbers, a plate's durability), `SoundConfig` (Audio: the master switch, category volumes, voice caps and ranges, pitch/volume jitter, sample rate, round-weight bands, the vehicles' engine, skid and crash numbers), `VehicleConfig` (Vehicles: one row per kind — size, mass, engine, brakes, steering, grip, doors and seats — one `looks` row per kind, and the shared getting-in, driving, harm, crash, camera and look numbers), `LightingConfig` (Lighting: the master switch, the dusk, the flashes and the per-floor budget), `LightingFixtureConfig` (the room fixtures), `LightingTextureConfig` (the light textures) and `LoadoutConfig` (Items: the setup choices' bounds — spare magazines, grenades — and the default outfit). World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not

@@ -147,7 +147,7 @@ static func _rooms_world(rooms: Array, origin: Vector2) -> Array:
 
 ## The street lamps along the front sidewalk, spawned under `house` (a `Street Lamps` node) through
 ## ObjectFactory from the catalogue's `streetlight` and, every other one, `street_sign` (its neon
-## cyan or magenta): one about every `WorldGenConfig.streetlight_every` px, jittered, the row
+## cyan or magenta): one about every `WorldGenStreetConfig.streetlight_every` px, jittered, the row
 ## centred on the front, each post `streetlight_curb` px in from the curb with its arm out over the
 ## road (facing south). A lamp any part of which (post or overhang) would stand by a front or exit
 ## doorway (`_door_zones`) is dropped. Its own RNG, seeded from `run_seed`, so the furniture layout
@@ -163,9 +163,9 @@ static func _streetlights(rooms: Array, openings: Array, house: Node2D, run_seed
 	var out: Array = []
 	for i: int in row["count"]:
 		var at := Vector2(
-			row["first"] + i * WorldGenConfig.streetlight_every + rng.randf_range(
-				-WorldGenConfig.streetlight_jitter,
-				WorldGenConfig.streetlight_jitter,
+			row["first"] + i * WorldGenStreetConfig.streetlight_every + rng.randf_range(
+				-WorldGenStreetConfig.streetlight_jitter,
+				WorldGenStreetConfig.streetlight_jitter,
 			),
 			row["y"],
 		)
@@ -187,18 +187,18 @@ static func _streetlights(rooms: Array, openings: Array, house: Node2D, run_seed
 
 ## The row the street lamps stand in along the front sidewalk of `rooms`, before their jitter:
 ## `{ first, count, y }`, the first lamp's x, how many (one about every
-## `WorldGenConfig.streetlight_every` px, the row centred on the front) and the posts' y,
+## `WorldGenStreetConfig.streetlight_every` px, the row centred on the front) and the posts' y,
 ## `streetlight_curb` px in from the curb.
 static func _lamp_row(rooms: Array) -> Dictionary:
 	var bounds := _bounds(rooms)
-	var side := WorldGenConfig.street_sidewalk
-	var every := WorldGenConfig.streetlight_every
+	var side := WorldGenStreetConfig.sidewalk
+	var every := WorldGenStreetConfig.streetlight_every
 	var length := bounds.size.x + side * 2.0
 	var count := maxi(1, int(length / every))
 	return {
 		"first": bounds.position.x - side + (length - (count - 1) * every) * 0.5,
 		"count": count,
-		"y": bounds.end.y + side - WorldGenConfig.streetlight_curb,
+		"y": bounds.end.y + side - WorldGenStreetConfig.streetlight_curb,
 	}
 
 
@@ -237,10 +237,12 @@ static func _door_zones(rooms: Array, openings: Array) -> Array:
 			out = Vector2.DOWN
 		elif absf(p.y - rect.position.y) < 1.0:
 			out = Vector2.UP
-		var half: float = opening["width"] * 0.5 + WorldGenConfig.streetlight_door_strip_margin
+		var half: float = (
+			opening["width"] * 0.5 + WorldGenStreetConfig.streetlight_door_strip_margin
+		)
 		var across := Vector2(out.y, out.x).abs()
 		var strip := Rect2(p - across * half, Vector2.ZERO).expand(p + across * half
-				+ out * WorldGenConfig.streetlight_door_strip_reach)
+				+ out * WorldGenStreetConfig.streetlight_door_strip_reach)
 		zones.append({ "pos": p, "strip": strip })
 	return zones
 
@@ -252,7 +254,7 @@ static func _clear_of_doors(extent: Array, zones: Array) -> bool:
 		var p: Vector2 = zone["pos"]
 		for rect: Rect2 in extent:
 			if (p.distance_to(p.clamp(rect.position, rect.end))
-					< WorldGenConfig.streetlight_door_clear):
+					< WorldGenStreetConfig.streetlight_door_clear):
 				return false
 			if rect.intersects(zone["strip"]):
 				return false
@@ -274,8 +276,8 @@ static func _bounds(rooms: Array) -> Rect2:
 ## space).
 static func _street(rooms: Array, house: Node2D, run_seed: int) -> Array:
 	var bounds := _bounds(rooms)
-	var walk := bounds.grow(WorldGenConfig.street_sidewalk)
-	var outer := bounds.grow(WorldGenConfig.street_reach)
+	var walk := bounds.grow(WorldGenStreetConfig.sidewalk)
+	var outer := bounds.grow(WorldGenStreetConfig.reach)
 	var pieces := _street_pieces(bounds)
 	var out: Array = []
 	for i in pieces.size():
@@ -306,10 +308,10 @@ static func _street(rooms: Array, house: Node2D, run_seed: int) -> Array:
 ## The street ring's pieces round `bounds` (the rooms'), `[kind, rect, the edges its curb
 ## (sidewalk) or gutter (road) runs along, lane]`: the four sidewalks, then the four roads.
 static func _street_pieces(bounds: Rect2) -> Array:
-	var side := WorldGenConfig.street_sidewalk
+	var side := WorldGenStreetConfig.sidewalk
 	var walk := bounds.grow(side)
-	var outer := bounds.grow(WorldGenConfig.street_reach)
-	var road := WorldGenConfig.street_reach - side
+	var outer := bounds.grow(WorldGenStreetConfig.reach)
+	var road := WorldGenStreetConfig.reach - side
 	return [
 		[
 			"sidewalk",

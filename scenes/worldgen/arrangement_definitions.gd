@@ -26,7 +26,8 @@ class_name ArrangementDefinitions
 ## arrangements from `options`; `required` zones warn if nothing could be placed. A recipe may
 ## also carry `fill: { target, options }`: once the zones are placed it keeps adding random
 ## `options` until solid footprints cover `target` (a fraction of the interior), bounded and scaled
-## by WorldGenConfig. One palette is picked per room and applied to every "wood"/"fabric" object.
+## by WorldGenFillConfig. One palette is picked per room and applied to every "wood"/"fabric"
+## object.
 
 ## Every catalog's ARRANGEMENTS by key, filled on the first lookup.
 static var _arrangements: Dictionary = {}
