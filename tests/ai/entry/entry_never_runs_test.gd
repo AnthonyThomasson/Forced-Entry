@@ -1,8 +1,9 @@
 extends GameTest
 ## Desired (E1 to E5): an invader entering a room never runs, from the moment it heads for the door
-## until it is in its corner. A running character cannot shoot (`Character.shoot()` is ignored while
-## running), so a sprint to the stack or through the doorway is a lowered gun at the worst moment.
-## It starts far from the kitchen's back door, well past the distance from which a run would start.
+## until it is in its corner. A running character cannot shoot (`Character.weapon.shoot()` is
+## ignored while running), so a sprint to the stack or through the doorway is a lowered gun at the
+## worst moment. It starts far from the kitchen's back door, well past the distance from which a run
+## would start.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")

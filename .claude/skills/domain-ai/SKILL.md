@@ -185,7 +185,7 @@ as a reflex. `low_ammo_fraction` sets where "nearly empty" starts.
 
 Nothing in the AI is written per weapon: it fights with `Character.gun_slot()` (whatever gun it carries — the presets hold a pistol, but a match
 arms every NPC with a gun from its side's loadout, one random gun by default) and reacts only to generic conditions the character reports. Notably, when its gun cannot fire because the
-barrel is against a wall or object (`weapon_blocked()`, a long gun), it steps back until it can; a pistol is never blocked. See `domain-ai-behavior`.
+barrel is against a wall or object (`weapon.blocked()`, a long gun), it steps back until it can; a pistol is never blocked. See `domain-ai-behavior`.
 
 ## Key idea: Von picks, perceptions inform, behaviour executes
 
@@ -197,4 +197,4 @@ becomes an investigation lead), and (unless `familiar_with_house`) must see room
 use them. The detail lives in `domain-ai-perception`, `domain-ai-decision` and `domain-ai-behavior`.
 
 **Interfaces:** 3 (`Explosion.shields` / `first_stop`, the blast's cover rule perception asks of a grenade), 6 (`ItemRegistry`'s
-slot ids, `throw_stats()`, `aim_target()`), 7 (Character ↔ Controller, the observer reads and overlay exports), 9 (AI → Navigation), 10 (EventBus), 11 (`PhysicsLayers`, `GameClock`), 13 (`DecisionStub` / `DecisionServerLauncher` for tests), 15 (`GameLog`: the decision log line, entry phases, the Von launcher), 17 (the human's `PlayerStack`), 21 (the `Squad`: leader, succession, orders, following, the rally), 22 (`DecisionServerLauncher`: Main's Von-server wait) — signatures in `architecture`.
+slot ids, `throw_stats()`, `weapon.aim_target()`), 7 (Character ↔ Controller, the observer reads and overlay exports), 9 (AI → Navigation), 10 (EventBus), 11 (`PhysicsLayers`, `GameClock`), 13 (`DecisionStub` / `DecisionServerLauncher` for tests), 15 (`GameLog`: the decision log line, entry phases, the Von launcher), 17 (the human's `PlayerStack`), 21 (the `Squad`: leader, succession, orders, following, the rally), 22 (`DecisionServerLauncher`: Main's Von-server wait) — signatures in `architecture`.

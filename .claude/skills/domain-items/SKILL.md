@@ -32,10 +32,10 @@ Every firearm is a `GunItem` (`class_name GunItem extends Item`) whose numbers c
 | `name`, `slot` | display name (HUD, and how the AI words it); inventory slot / number key |
 | `damage` | added to the bullet's base damage (`Projectile.damage`, 10) at full speed head-on |
 | `fire_interval` | seconds between rounds (at most one round per physics frame) |
-| `automatic` | holding the trigger keeps firing (a controller re-presses `shoot()` every frame); false = one round per click |
+| `automatic` | holding the trigger keeps firing (a controller re-presses the character's `weapon.shoot()` every frame); false = one round per click |
 | `penetration` | power multiplier for punching through what it hits (1 = a pistol round); see `domain-projectile` |
-| `muzzle_speed`, `spread_deg`, `recoil` | speed a round leaves at; random cone half-angle; scale of the kick (`user.kick(hand, recoil)`) |
-| `one_hand_spread_deg` | added to `spread_deg` for a round fired one-handed (`user.one_handed()`: blind, the other hand over the eyes; `docs/grenades.md` G13): pistol 3°, SMG 6°, rifle 8° |
+| `muzzle_speed`, `spread_deg`, `recoil` | speed a round leaves at; random cone half-angle; scale of the kick (`user.weapon.kick(hand, recoil)`) |
+| `one_hand_spread_deg` | added to `spread_deg` for a round fired one-handed (`user.weapon.one_handed()`: blind, the other hand over the eyes; `docs/grenades.md` G13): pistol 3°, SMG 6°, rifle 8° |
 | `magazine`, `spare_magazines` | the `MagazineConfig.types` id it is built loaded with; how many spares a character carrying it carries |
 | `raises_at_contact` | the barrel is too long to use against a wall (below) |
 
@@ -44,7 +44,7 @@ rifle 22 dmg / 0.11 s / auto / ×2.2 / 4400 px/s / 24 rounds. They are one table
 
 `GunItem` holds everything a gun does: the magazine, `rounds_loaded` / `ammo_capacity` / `can_reload` / `finish_reload`, `reload_time()`
 (the loaded magazine type's, `MagazineConfig.reload_time_of`), `secondary(user) -> bool` (refuses while reloading, empty or still cycling;
-else spends a round, rotates the aim by the spread (wider by `one_hand_spread_deg` while `user.one_handed()`, interface 6; the player's as an NPC's), calls `ProjectileSpawner.spawn(muzzle_origin, dir, world, shot)` (a `Shot`: `shooter` the user, its
+else spends a round, rotates the aim by the spread (wider by `one_hand_spread_deg` while `user.weapon.one_handed()`, interface 6; the player's as an NPC's), calls `ProjectileSpawner.spawn(muzzle_origin, dir, world, shot)` (a `Shot`: `shooter` the user, its
 `item_damage`, `muzzle_speed` and `penetration`), ejects a casing, kicks the hand and posts a `&"shot"` event on `EventBus`
 (`{ position` (muzzle)`, gun, attacker, power }`, which the Audio domain voices)) and `primary` (a melee jab with the weapon hand; a long gun, the SMG or rifle, **strikes with its butt**, swung in **both hands**: `strike_direction(aim, amount)` turns the barrel about the weapon hand, outward from the body, by `strike_turn()` (`STRIKE_TURN`, 105 degrees) x `strike_swing(amount)`, so it ends nearly across the body with the butt centred on the aim and a little ahead of the muzzle (`draw_weapon` draws it so; `strike_end(aim, amount)` is the butt relative to the hand); the other hand grips `strike_support_gap()` (`SUPPORT_GAP`, negative: toward the butt) along the barrel; the blow is thrown `strike_tempo()` (2x) slower than a fist and lands `strike_short()` px short of one; the hands layer shortens the hand's extension by `strike_forward()` (the butt's forward reach at the end of the turn) and queries the hit at `strike_end` once it is ahead of the hand, so the blow lands about as far out as before; a pistol just jabs). **Fire rate** is a cooldown: `tick(delta)`
 counts it down (the character ticks every item it carries, before its controller runs, so it is deterministic and independent of the
@@ -53,13 +53,13 @@ capped at one frame so a gun never bursts to catch up.
 
 A subclass supplies only its sizes and its hold (its look is its `GunConfig` row's, "Weapon looks" below): the gun id (`GUN`, also the
 `Magazine.gun` key), `art_size()` / `flat_size()`, `grip_back()` (px the butt sits behind the weapon hand), and the stance names (`grip_stance()` /
-`fore_stance()`, and `raised_grip_stance()` / `raised_fore_stance()`). `muzzle_ahead()` = `art_size().y − grip_back()` (the pistol's is 11), which `Character.muzzle_origin` uses, so a long gun's muzzle is further out.
+`fore_stance()`, and `raised_grip_stance()` / `raised_fore_stance()`). `muzzle_ahead()` = `art_size().y − grip_back()` (the pistol's is 11), which `Character.weapon.muzzle_origin` uses, so a long gun's muzzle is further out.
 
 - **Pistol** (`pistol.gd`): 5×13 art, held at arm's length (`aim`) with the other fist beside it on the grip (`support`: same forward point, both hands together).
 - **SMG** (`smg.gd`): 6×28 art, `GRIP_BACK` 10; shouldered (butt on the right shoulder; `smg_grip` / `smg_fore`), the other hand out on the shroud.
 - **One-handed** (issue #56): the character, not the gun, holds it in one hand while blind: it puts the weapon hand in its own `one_hand` stance
   and the other over the eyes (`domain-character`), and a long gun (`raises_at_contact`) kicks `CharacterStanceConfig.one_hand_recoil` harder there; the
-  gun only reads `one_handed()` for the spread. Test: `tests/items/one_handed_fire_test.gd`.
+  gun only reads `weapon.one_handed()` for the spread. Test: `tests/items/one_handed_fire_test.gd`.
 - **Zeroing:** `GunItem.secondary` aims the round from the muzzle at the point `GunConfig.zero_range` (300 px) ahead on the aim line, not parallel to `facing`, so a
   shouldered gun (muzzle 9 px off the line) still hits where the character points; the spread is applied around that direction.
 - **Rifle** (`rifle.gd`): 7×36 art, `GRIP_BACK` 13; shouldered, butt on the right shoulder (`rifle_grip` at the grip, `rifle_fore` out along the
@@ -69,8 +69,8 @@ A subclass supplies only its sizes and its hold (its look is its `GunConfig` row
 
 A long gun (SMG, rifle) cannot be used against a wall or object: `Item.raises_at_contact()` makes the character test the barrel each frame
 (see `domain-character`). While it touches, `raised_stance(hand)` (`ready_grip` / `ready_fore`: hands drawn in to the chest) is held, and
-`draw_weapon` reads `user.weapon_raise()` (0..1) to foreshorten the barrel — "pointed up" seen from above — rendering the painter at
-`RAISE_STEPS` lengths down to `RAISED_LENGTH` (crisp and cached, not a stretched texture), scaled about the weapon hand. `shoot()` does
+`draw_weapon` reads `user.weapon.raise()` (0..1) to foreshorten the barrel — "pointed up" seen from above — rendering the painter at
+`RAISE_STEPS` lengths down to `RAISED_LENGTH` (crisp and cached, not a stretched texture), scaled about the weapon hand. `weapon.shoot()` does
 nothing while it is raised. The pistol does not raise.
 
 ## Ammo, magazines and reloading
@@ -184,10 +184,10 @@ paint).
 
 A gun's `draw_weapon` draws its look's painter through the Art domain:
 `PixelArt.render_turned(painter, size, look.body, PixelArt.snap_angle(angle), { gun, look, material: look.finish })`, drawn rotated to the exact angle of the character's
-`weapon_facing()` (which trails the aim a touch as it turns) with its butt `grip_back()` px behind the weapon hand. Painters draw in the
+`weapon.facing()` (which trails the aim a touch as it turns) with its butt `grip_back()` px behind the weapon hand. Painters draw in the
 canonical frame — muzzle toward +y, butt at y = 0 — and scale their parts from `c.w` / `c.h`, so the same painter renders the shortened raised
 barrel. The weapon hand's stance is steady (arm reaching out, steady while walking) and the other hand's holds the gun forward: a two-handed hold.
-The character visuals draw the weapon under the torso and before the fists, so its butt tucks behind the shoulder and the fists grip it. The weapon hand is hand 0 (the character's right as drawn). Firing calls `user.kick(weapon_hand(), recoil)`, so the weapon hand
+The character visuals draw the weapon under the torso and before the fists, so its butt tucks behind the shoulder and the fists grip it. The weapon hand is hand 0 (the character's right as drawn). Firing calls `user.weapon.kick(weapon_hand(), recoil)`, so the weapon hand
 (and the gun in it) recoils, and the supporting hand with it by its stance's `recoil_share`.
 
 ## Dropping on death
@@ -211,7 +211,7 @@ Two throwables, slots `ItemRegistry.STUN_SLOT` 7 and `FRAG_SLOT` 8, each a *coun
 `GrenadeConfig` (static holder, a row per kind: `fuse`, `windup`, `max_range` (550 px for both: issue #51 R14), `throw_speed`, `arc_height`, `restitution`, `friction` and the effect numbers
 `Explosion` reads, a stun's including `flash_cover_reach`: furniture shields from the flash only within that many px of the body); the stun's effect on the body (`speed`, `sway`, `recover_tail`, `drift`) is `CharacterStunConfig`'s. `GrenadeItem` (`StunGrenadeItem` / `FragGrenadeItem` supply kind and size; the look is the row's) tells what it is through `throw_stats()` (`Item` default {}): `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, made by `GrenadeConfig.stats_of(kind, row)` (`flash_cover_reach` INF for a frag), which `Character.throw_stats(slot)` forwards and a live `ThrownGrenade.throw_stats()` answers from the row it was thrown with: the one read the AI throws by (interface 6/7), tested by `items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`:
 `secondary` starts a throw (`throw` stance for `windup` s, counted in `tick`; a death or a switch of slot during it throws nothing), `_release` spends one, hands a `ThrownGrenade` the hand's
-position, `user.aim_target()` and its own weapon style (`ThrownGrenade.spawn(throw: GrenadeThrow, parent)`; `GrenadeThrow`, `items/grenade_throw.gd`: `kind`, `from`, `to`, `thrower`, `style`: the grenade's `item`, which draws it, is made in it), pops a `GrenadeSpoon` (a tracked `DroppedItem`) and posts `&"throw"`. `Character` empties a slot whose count reached 0 and takes up the gun (else the fists).
+position, `user.weapon.aim_target()` and its own weapon style (`ThrownGrenade.spawn(throw: GrenadeThrow, parent)`; `GrenadeThrow`, `items/grenade_throw.gd`: `kind`, `from`, `to`, `thrower`, `style`: the grenade's `item`, which draws it, is made in it), pops a `GrenadeSpoon` (a tracked `DroppedItem`) and posts `&"throw"`. `Character` empties a slot whose count reached 0 and takes up the gun (else the fists).
 `ThrownGrenade` (a world `Node2D`, group `live_grenades`) flies a lob **planned** at the throw (`plan`: flight time and gravity solved so it comes to *rest* at the aim, simulated with the
 very `Motion` integrator the node then runs; first touchdown capped at `max_range`, then the skid), then **fitted to the floor** (`_fit`): that lob is flown over the world as it is
 (`_rest_in`, through the node's own sweep `_sweep` / `_first_strike`, the same walls, furniture and bodies it strikes) and, when it comes to rest more than `FIT_NEAR` (24 px) from the

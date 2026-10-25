@@ -35,8 +35,8 @@ extends Node
 ## (shots, punches, bursts, the peek-and-cover cycle) and a `SearchCoverage` module, reads the world
 ## only through the PERCEPTION sub-domain (known contacts, combat geometry, engagement memory) and
 ## drives the character only through its public controller contract (`move_input` / `aim_point`,
-## `select_slot`, `shoot`, `melee`, `interact_with`, `end_interaction`). All tunables are set from
-## the controller's exports by `apply_config(cfg)`.
+## `select_slot`, `weapon.shoot`, `weapon.melee`, `interact_with`, `end_interaction`). All tunables
+## are set from the controller's exports by `apply_config(cfg)`.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")

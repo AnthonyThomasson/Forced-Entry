@@ -111,9 +111,9 @@ part steps by).
 - **Stances:** each hand eases (`stance_ease`) toward the stance its item names. `arms.rest_forward(hand)`,
   `rest_lateral(hand)`, `grip_height(hand)` and `elbow_pole(hand)` are the eased values the hands layer
   and the rig read.
-- `weapon_angle` is published as the character's `weapon_facing()`, which an item draws its weapon
+- `weapon_angle` is published as the character's `weapon.facing()`, which an item draws its weapon
   along.
-- `arms.kick(hand, strength := 1.0)` (the character's `kick`, called by a gun on firing with its `recoil`) throws the hand back on a
+- `arms.kick(hand, strength := 1.0)` (the character's `weapon.kick`, called by a gun on firing with its `recoil`) throws the hand back on a
   recoil spring and twists the shoulders back on its side, `strength` times a pistol's; the other hand feels its stance's
   `recoil_share` (a supporting hand recoils with the weapon hand).
 - **The stunned look** (`docs/grenades.md` G13). The drive's `stun` (the character's `stun.level()`, 0 in a ride) is eased into
@@ -141,13 +141,13 @@ pose frame, from the body center), grip `height` (body radii, for the arm's IK),
 for the next magazine, named by a gun's support hand while it reloads). Two are the character's own, never an item's: while blind, `eyes` (the free
 hand's palm over the face, 7.0 radii up, 9 px ahead) and `one_hand` (a gun's weapon hand alone: out 24 px, low at 5.2 radii, its optional `waver`
 key 3 px: a steady hand with a `waver` wanders that far across its frame and `WAVER_RISE` radii per px up and down, `WAVER_LAG` s out of step,
-two out-of-step sines in `PoseArms._waver`; `_eased` lerps it like the other numbers, 0 for a row without one); `domain-character`'s `_stances()` picks them. The long guns have their own pairs, sized by the gun: `smg_grip` / `smg_fore`
+two out-of-step sines in `PoseArms._waver`; `_eased` lerps it like the other numbers, 0 for a row without one); `domain-character`'s `weapon.stances()` picks them. The long guns have their own pairs, sized by the gun: `smg_grip` / `smg_fore`
 and `rifle_grip` / `rifle_fore` (the butt in the right shoulder; the SMG's barrel line is 9 px to the character's right of the aim line, the rifle's only 5 px so it is held up in front of the face as if looking down the sight; the grip hand
 just ahead of it, the other hand out along the handguard); both hands lie on one line along the barrel (hand 0 at +`lateral`, hand 1 at
 −`lateral`) and an arm's stretch stays within the rig's tolerance. `ready_grip` / `ready_fore` are the shared **raised** pair (below).
 A `run` stance (arms down, big swing) is applied to both hands by the character itself while running, whatever is held. To add a pose, add a table row
 and have an item name it. `Item.muzzle_ahead()` is how far past the weapon hand bullets
-leave (`muzzle_origin(hand)`); `Character._muzzle_ahead(item)` falls back to `CharacterStanceConfig.muzzle_ahead` for an item whose `muzzle_ahead()` is negative (the base `Item`), so Items never read Character's config.
+leave (`weapon.muzzle_origin(hand)`); `CharacterWeapon._muzzle_ahead(item)` falls back to `CharacterStanceConfig.muzzle_ahead` for an item whose `muzzle_ahead()` is negative (the base `Item`), so Items never read Character's config.
 
 ## The rig (the standing skeleton)
 
@@ -254,7 +254,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
   **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a
   crouch's forward lean carries them with the sleeves. `posture_hand_ahead()` (`body_crouch_hand_ahead` x `posture_folded()`) is added to every
   hand's stance `forward` (`CharacterHands._raw_hand_position`) and to the wall-raise ray's reach, so the arms keep their reach past the leaning
-  chest. **A long gun at a wall:** `_blocked` is judged in every posture and the gun is raised (`raised_stance`) whatever the posture. A pistol is
+  chest. **A long gun at a wall:** `weapon.blocked()` is judged in every posture and the gun is raised (`raised_stance`) whatever the posture. A pistol is
   never blocked: the wall pushes its hand back.
 - **Legs** (`character_legs.gd`, a `RefCounted` stepped after the pose; spec P5): each ankle is swept from the body centre to where the unobstructed rig
   (`CharacterRig.new(self, false)`) would put it (a `leg_radius` circle through `body_sweep.gd`, as the hands are) and rests at the first wall, solid piece
@@ -269,7 +269,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
 foot swing and lift from `body_stride` / `body_foot_lift` to `body_run_stride` / `body_run_foot_lift`, the stride
 length from `pose_stride_length` to `pose_run_stride_length`, and sinks the hips by `body_run_hip_drop` so the knees
 stay bent. A planted foot only stays put on the ground when the stride is 2π × the foot's swing (~130 px); shorter and
-the feet scurry and everything stride-locked wobbles at 3+ Hz. While `_running`, `_stances()` ignores the held item
+the feet scurry and everything stride-locked wobbles at 3+ Hz. While `_running`, `weapon.stances()` ignores the held item
 and puts both hands in the `run` stance: arms pumping at the sides, a pistol simply carried in its hand, and the
 `stance_ease` blend lifts it back to aim on stopping. `arms.grip_height` adds `pose_run_hand_rise` so the forward-swinging
 hand rises toward the chest and the back one drops to the hip (keep the lowest ≥ ~4.1 body radii or the arm

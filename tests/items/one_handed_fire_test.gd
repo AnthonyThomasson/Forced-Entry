@@ -1,12 +1,12 @@
 extends GameTest
 ## S4, S5 (ticket #56, `docs/grenades.md` G13): firing one-handed. While its free hand covers its
-## eyes (a blinded character, S1) the weapon hand holds any gun alone (`Character.one_handed()`
-## true), in the `one_hand` stance: the arm out, the gun lower than a two-handed grip and wavering;
-## a long gun kicks harder. A round fired one-handed leaves within the gun's `spread_deg` plus its
-## `GunConfig` row's `one_hand_spread_deg` (pistol 3, SMG 6, rifle 8 degrees to start), so wider
-## than two-handed and within that bound. A bang that only deafens leaves both hands on the gun. The
-## stun's aim sway is set to 0 here so the spread alone is measured (the sway is G13's,
-## `character/stunned_slow_and_sway`).
+## eyes (a blinded character, S1) the weapon hand holds any gun alone
+## (`Character.weapon.one_handed()` true), in the `one_hand` stance: the arm out, the gun lower than
+## a two-handed grip and wavering; a long gun kicks harder. A round fired one-handed leaves within
+## the gun's `spread_deg` plus its `GunConfig` row's `one_hand_spread_deg` (pistol 3, SMG 6, rifle 8
+## degrees to start), so wider than two-handed and within that bound. A bang that only deafens
+## leaves both hands on the gun. The stun's aim sway is set to 0 here so the spread alone is
+## measured (the sway is G13's, `character/stunned_slow_and_sway`).
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -54,10 +54,10 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"deaf", &"puppet", Vector2(150, y), { "start_slot": 3, "max_health": 100_000.0 })
 
 
-## `c.one_handed()`, or null when the character has no such read.
+## `c.weapon.one_handed()`, or null when the character has no such read.
 func _one_handed(c: Node) -> Variant:
-	if c.has_method("one_handed"):
-		return bool(c.call("one_handed"))
+	if "weapon" in c:
+		return c.weapon.one_handed()
 	return null
 
 

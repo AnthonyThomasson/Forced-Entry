@@ -17,7 +17,7 @@ class_name GunConfig
 ##   muzzle_speed      px/s a round leaves at; damage and impact scale with the speed it still has.
 ##   spread_deg        random cone half-angle each round leaves within (0 = dead straight).
 ##   one_hand_spread_deg  added to `spread_deg` for a round fired one-handed (its user's other hand
-##                     over its eyes, `Character.one_handed()`; docs/grenades.md G13).
+##                     over its eyes, `Character.weapon.one_handed()`; docs/grenades.md G13).
 ##   recoil            scale of the kick the hands take per round (1 = the pistol's).
 ##   magazine          the `MagazineConfig.types` id it is loaded with when built.
 ##   spare_magazines   how many of that type a character who carries it also carries spare.

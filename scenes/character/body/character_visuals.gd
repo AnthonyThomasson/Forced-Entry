@@ -241,7 +241,7 @@ func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 		key.append(roundi(angle / REDRAW_ANGLE_STEP))
 	key.append(_character.current_slot())
 	# A raised gun is drawn shorter.
-	key.append(roundi(_character.weapon_raise() / REDRAW_RAISE_STEP))
+	key.append(roundi(_character.weapon.raise() / REDRAW_RAISE_STEP))
 	for hand in 2:
 		# A punch swings a long gun round.
 		key.append(roundi(_character.punch_amount(hand) / REDRAW_RAISE_STEP))

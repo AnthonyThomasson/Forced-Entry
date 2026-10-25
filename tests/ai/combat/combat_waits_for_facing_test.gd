@@ -92,6 +92,7 @@ class FakeCharacter extends Node:
 	var reloading := false
 	var shots := 0
 	var ammo := FakeAmmo.new(self)
+	var weapon := FakeWeapon.new(self)
 
 	func gun_slot() -> int:
 		return 3
@@ -101,19 +102,6 @@ class FakeCharacter extends Node:
 
 	func is_running() -> bool:
 		return false
-
-	func weapon_blocked() -> bool:
-		return false
-
-	func is_automatic() -> bool:
-		return false
-
-	func shoot() -> bool:
-		if reloading or rounds == 0:
-			return false
-		rounds -= 1
-		shots += 1
-		return true
 
 
 ## The stand-in character's magazines: its `rounds` loaded and its `reloading` flag.
@@ -128,6 +116,28 @@ class FakeAmmo extends RefCounted:
 
 	func is_reloading() -> bool:
 		return _me.reloading
+
+
+## The stand-in character's gun: never blocked, semi-automatic, firing while loaded and not
+## reloading (each round counted in its `shots`).
+class FakeWeapon extends RefCounted:
+	var _me: FakeCharacter
+
+	func _init(me: FakeCharacter) -> void:
+		_me = me
+
+	func blocked() -> bool:
+		return false
+
+	func is_automatic() -> bool:
+		return false
+
+	func shoot() -> bool:
+		if _me.reloading or _me.rounds == 0:
+			return false
+		_me.rounds -= 1
+		_me.shots += 1
+		return true
 
 
 ## Perception with a clear line to everything.

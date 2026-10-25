@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var you := t.actor(&"you")
 	await t.seconds(0.3)
-	t.check(not you.weapon_blocked(), "the barrel is clear in the open arena")
+	t.check(not you.weapon.blocked(), "the barrel is clear in the open arena")
 
 	# The rifle: held, it fires for as long as the button is down, at its own rate.
 	var before: int = you.ammo.rounds()

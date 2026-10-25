@@ -9,7 +9,7 @@ The ACT half: it runs the LEAF the decision planner chose — one primitive with
 concrete movement + actions, and holds the System-Two state Von (a stateless ranker) lacks. It never
 chooses WHAT to do and applies no policy beyond its params. It reads the world only through the
 perception sub-domain and drives the character only through its public controller contract
-(`move_input`/`aim_point`/`run_input`, `set_posture`, `select_slot`, `shoot`, `melee`, `leg_kick`, `ammo.reload`, `interact_with`,
+(`move_input`/`aim_point`/`run_input`, `set_posture`, `select_slot`, `weapon.shoot`, `weapon.melee`, `leg_kick`, `ammo.reload`, `interact_with`,
 `end_interaction`: interface 7).
 
 Files:
@@ -104,7 +104,7 @@ catch-up, and the next step runs without asking `run_start_fraction` again; a ga
 the stamina run dry) ends it, as does another primitive. The Character spends the stamina and walks once dry. Exports on the
 controller: `run_enabled`, `run_min_distance`, `run_start_fraction`.
 `debug_status()` reads "running" / "running into position" while it sprints; `debug_state()` has `running`.
-A running NPC cannot shoot or reload (`Character.shoot()` is ignored while running), so `_should_run` is false while a shot is available
+A running NPC cannot shoot or reload (`Character.weapon.shoot()` is ignored while running), so `_should_run` is false while a shot is available
 (`Combat.can_fire_at(threat)`: loaded, in range, clear line) or the reload reflex is due (`Combat.reload_due`): it drops to a walk and
 takes the shot instead of sprinting on past its range. A leaf with `run_through_fire` (the RETREAT node) keeps sprinting. `Combat.shoot()`
 still skips a shot while `is_running()` without spending the fire cooldown.

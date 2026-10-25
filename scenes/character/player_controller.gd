@@ -24,7 +24,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 		character.toggle_crouch()
 
 	if Keybinds.is_punch_just_pressed():
-		character.melee()
+		character.weapon.melee()
 	if Keybinds.is_kick_just_pressed():
 		character.leg_kick()
 	_fire(character)
@@ -46,5 +46,6 @@ func _fire(character: CharacterBody2D) -> void:
 		_fire_press_on_ui = over_ui
 	if over_ui or _fire_press_on_ui:
 		return
-	if Keybinds.is_fire_just_pressed() or (Keybinds.is_fire_pressed() and character.is_automatic()):
-		character.shoot()
+	if (Keybinds.is_fire_just_pressed()
+			or (Keybinds.is_fire_pressed() and character.weapon.is_automatic())):
+		character.weapon.shoot()

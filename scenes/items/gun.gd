@@ -219,23 +219,23 @@ func primary(user: Node2D) -> void:
 ## LMB: fire a bullet from the muzzle and eject a casing (both live in world space); the gun kicks
 ## the hand back. Spends a round; an empty, mid-reload or still-cycling gun does nothing. The round
 ## leaves within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user
-## holds it in one hand (`one_handed()`). True when a round left the barrel.
+## holds it in one hand (`weapon.one_handed()`). True when a round left the barrel.
 func secondary(user: Node2D) -> bool:
 	if reloading or rounds_loaded() <= 0 or _cooldown > 0.0:
 		return false
 	magazine.rounds -= 1
 	_cooldown += fire_interval()
 	var hand := weapon_hand()
-	var muzzle: Vector2 = user.muzzle_origin(hand)
+	var muzzle: Vector2 = user.weapon.muzzle_origin(hand)
 	# Zeroed: the round crosses the aim line `zero_range` ahead of the body, so a gun held off the
 	# line (the butt on the right shoulder) still shoots where the character points.
 	var direction: Vector2 = (user.global_position + user.facing * GunConfig.zero_range
 			- muzzle).normalized()
 	# A stunned character's aim wanders off the line.
-	direction = direction.rotated(user.aim_sway())
+	direction = direction.rotated(user.weapon.aim_sway())
 	var spread_deg := float(stat("spread_deg", 0.0))
 	# Held in one hand (the other over its eyes): the gun wanders off the line.
-	if user.one_handed():
+	if user.weapon.one_handed():
 		spread_deg += float(stat("one_hand_spread_deg", 0.0))
 	var spread := deg_to_rad(spread_deg)
 	if spread > 0.0:
@@ -249,7 +249,7 @@ func secondary(user: Node2D) -> bool:
 	var proj := ProjectileSpawner.spawn(muzzle, direction, user.world_root(), shot)
 	proj.hit.connect(func(body: Node, dmg: float) -> void: user.report_shot(body, dmg))
 	CasingSpawner.spawn(user.hand_world(hand), user.facing, user.world_root())
-	user.kick(hand, float(stat("recoil", 1.0)))
+	user.weapon.kick(hand, float(stat("recoil", 1.0)))
 	# The report of the shot, for whoever listens (the Audio domain); the round itself is already on
 	# its way.
 	EventBus.post(&"shot", { "position": muzzle, "gun": gun, "attacker": user, "power": power })
@@ -257,14 +257,14 @@ func secondary(user: Node2D) -> bool:
 
 
 ## Draw the gun's pixel art at the weapon hand, its butt behind the hand and the muzzle along the
-## character's weapon_facing() (trailing the aim a touch as it turns): lit for the nearest lighting
+## character's weapon.facing() (trailing the aim a touch as it turns): lit for the nearest lighting
 ## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the
 ## hand.
 func draw_weapon(canvas: CanvasItem, user: Object) -> void:
-	var facing: Vector2 = user.weapon_facing()
+	var facing: Vector2 = user.weapon.facing()
 	# A punch turns a long gun about its grip until the butt leads.
 	facing = strike_direction(facing, user.punch_amount(weapon_hand()))
-	var step := clampi(roundi(float(user.weapon_raise()) * RAISE_STEPS), 0, RAISE_STEPS)
+	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
 	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
 	var size := Vector2(art_size().x, maxf(roundf(art_size().y * shrink), 4.0))
 	var centre: Vector2 = (user.hand_position(weapon_hand())
@@ -274,7 +274,7 @@ func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 
 ## The dead hand lets go: the gun leaves from where it was drawn and skids off at `velocity`.
 func drop(user: Node2D, velocity: Vector2) -> Node2D:
-	var facing: Vector2 = user.weapon_facing()
+	var facing: Vector2 = user.weapon.facing()
 	var hand: Vector2 = user.hand_world(weapon_hand())
 	var at := hand + facing * (art_size().y * 0.5 - grip_back())
 	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)

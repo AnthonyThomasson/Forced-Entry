@@ -121,16 +121,7 @@ func _same_as_fresh(item: Item) -> int:
 class FakeUser:
 	extends RefCounted
 
-	var facing := Vector2.DOWN
-	var raise := 0.0
-
-	## The way the held item is drawn pointing.
-	func weapon_facing() -> Vector2:
-		return facing
-
-	## How far a long gun is raised off a wall (0..1).
-	func weapon_raise() -> float:
-		return raise
+	var weapon := FakeWeapon.new()
 
 	## How far a hand is thrown in a punch: 0, no punch.
 	func punch_amount(_hand: int) -> float:
@@ -139,6 +130,23 @@ class FakeUser:
 	## Where a hand holds the item (local px): one fixed point.
 	func hand_position(_hand: int) -> Vector2:
 		return Vector2(10.0, 4.0)
+
+
+## Stands in for the character's use of the held item: the way it is drawn pointing (`aim`) and how
+## far a long gun is raised off a wall (`lift`).
+class FakeWeapon:
+	extends RefCounted
+
+	var aim := Vector2.DOWN
+	var lift := 0.0
+
+	## The way the held item is drawn pointing.
+	func facing() -> Vector2:
+		return aim
+
+	## How far a long gun is raised off a wall (0..1).
+	func raise() -> float:
+		return lift
 
 
 ## Draws the items every way, from a seeded RNG.
@@ -154,8 +162,8 @@ class Drawer:
 		var user := FakeUser.new()
 		for i in DRAWS:
 			for item: Item in items:
-				user.facing = Vector2.from_angle(rng.randf() * TAU)
-				user.raise = rng.randf() if i % 2 == 0 else float(rng.randi_range(0, 1))
+				user.weapon.aim = Vector2.from_angle(rng.randf() * TAU)
+				user.weapon.lift = rng.randf() if i % 2 == 0 else float(rng.randi_range(0, 1))
 				item.draw_weapon(self, user)
 				item.draw_dropped(
 					self,

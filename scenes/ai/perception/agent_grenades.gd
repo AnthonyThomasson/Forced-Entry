@@ -102,9 +102,10 @@ func _note_own(node: Node2D) -> void:
 	if rec.is_empty():
 		var from := node.global_position
 		throw.learn(node.call("throw_stats"))
+		var aim: Vector2 = _character.weapon.aim_target()
 		_note(
 			node,
-			from + (_character.aim_target() - from).limit_length(throw.range_of(node.get("kind"))),
+			from + (aim - from).limit_length(throw.range_of(node.get("kind"))),
 			&"own",
 			false,
 		)

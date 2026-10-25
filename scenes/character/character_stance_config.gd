@@ -4,8 +4,8 @@ class_name CharacterStanceConfig
 ## hand (the recoil spring, one-handed recoil). A `class_name` holder of `static var`s, read as
 ## `CharacterStanceConfig.<name>`; there is no instance and no autoload.
 
-## A long gun fired one-handed (its user's free hand over the eyes, `Character.one_handed()`) kicks
-## this many times harder.
+## A long gun fired one-handed (its user's free hand over the eyes, `Character.weapon.one_handed()`)
+## kicks this many times harder.
 static var one_hand_recoil: float = 1.75
 ## A hand rests `forward` px ahead of the body center and `lateral` px out to its own side, in the
 ## frame it chases the aim in; its grip is `height` body radii off the floor (the arm bends to reach

@@ -227,9 +227,9 @@ func end_throw() -> void:
 ## (`THROW_SPOT_REACH`) with the gun in hand: the caller's watch keeps its eyes on a threat
 ## meanwhile, and its commit timer and the locomotion's held walk bound the walk. Then, standing
 ## still: take the grenade in hand, aim at the spot and, once the facing has settled, click the
-## trigger (`Character.shoot()`: the wind-up starts, the grenade leaves the hand `windup` seconds
-## later). A thrower that stands farther than its reach from the spot (it moved on since the spot
-## was offered) walks the last few px toward the spot first, within the same `THROW_START_CAP`.
+## trigger (`Character.weapon.shoot()`: the wind-up starts, the grenade leaves the hand `windup`
+## seconds later). A thrower that stands farther than its reach from the spot (it moved on since the
+## spot was offered) walks the last few px toward the spot first, within the same `THROW_START_CAP`.
 ## Returns `&"failed"` when it never could (none left, the hand busy, the wind-up cut short), else
 ## `&""`.
 func throw_step(delta: float) -> StringName:
@@ -256,7 +256,7 @@ func throw_step(delta: float) -> StringName:
 				return &""
 			if _character.current_slot() == _throw_slot and _faces(_throw_spot):
 				_throw_before = _character.item_count(_throw_slot)
-				if _character.shoot():
+				if _character.weapon.shoot():
 					throw_stage = "windup"
 					_throw_clock = 0.0
 		"windup":
@@ -299,7 +299,7 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 ##     all, so not even a click;
 ##   - dry, a click is not a shot, so it neither commits the fight nor needs a hand free to reload —
 ##     it emits `dry` (the empty gun is in the snapshot now), at most once per cooldown;
-##   - with the barrel against a wall or object (`weapon_blocked()`) it cannot fire, so it steps
+##   - with the barrel against a wall or object (`weapon.blocked()`) it cannot fire, so it steps
 ##     back until it can, keeping the cooldown;
 ##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the
 ##     gun's own rate.
@@ -314,14 +314,14 @@ func shoot() -> bool:
 		dry.emit()
 		return false
 	_character.select_slot(gun)
-	if _character.weapon_blocked():
+	if _character.weapon.blocked():
 		_back_off_timer = back_off_time
 		return false
-	if not _character.shoot():
+	if not _character.weapon.shoot():
 		return false
 	_perception.note_engaged()
 	fire_timer = fire_cooldown
-	_burst_left = maxi(fire_burst - 1, 0) if _character.is_automatic() else 0
+	_burst_left = maxi(fire_burst - 1, 0) if _character.weapon.is_automatic() else 0
 	return true
 
 
@@ -346,7 +346,7 @@ func punch() -> void:
 	_perception.note_engaged()
 	fire_timer = fire_cooldown
 	_character.select_slot(ItemRegistry.FISTS_SLOT)
-	_character.melee()
+	_character.weapon.melee()
 
 
 ## Keep the trigger down for the rest of an automatic gun's burst: one more round each time the
@@ -355,11 +355,12 @@ func punch() -> void:
 func continue_burst() -> void:
 	if _burst_left <= 0:
 		return
-	if not _character.is_automatic() or _character.is_running() or _character.ammo.is_reloading() \
-			or _character.weapon_blocked() or _character.ammo.rounds() <= 0 or holds_fire():
+	if not _character.weapon.is_automatic() or _character.is_running() \
+			or _character.ammo.is_reloading() or _character.weapon.blocked() \
+			or _character.ammo.rounds() <= 0 or holds_fire():
 		_burst_left = 0
 		return
-	if _character.shoot():
+	if _character.weapon.shoot():
 		_burst_left -= 1
 
 

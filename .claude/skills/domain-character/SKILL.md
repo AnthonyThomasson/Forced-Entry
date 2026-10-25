@@ -25,7 +25,8 @@ its own child `Node2D`.
 
 - **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and
   forwards intent from its controller. Never draws. Its components (typed `RefCounted`s it holds as public properties and
-  steps itself): `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
+  steps itself): `character_weapon.gd` (`weapon`, using the held item: firing, melee, the raise against a wall, recoil, the
+  muzzle and aim, each hand's stance), `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
   grenade's flash and bang on the body).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
   punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
@@ -80,16 +81,16 @@ running, switching items, an interaction or death never posts `done`. Test: `tes
 
 ## A long gun against a wall (the raise)
 
-An item whose `raises_at_contact()` is true (SMG, rifle) is judged every physics frame by `_update_weapon_raise(delta)` (after `facing` is
+An item whose `raises_at_contact()` is true (SMG, rifle) is judged every physics frame by the `weapon` component's `update_raise(delta)` (`character_weapon.gd`, after `facing` is
 set, before `pose.update`; skipped in an interaction). The barrel is a ray from beside the body centre (the weapon hand's lateral) along the
 aim, as far as the gun reaches **held normally** — the item's *un-raised* stance forward plus `muzzle_ahead()`, never the raised one, or pulling
 it up would clear the ray and drop it again. `CharacterHands.solid_distance(from, dir, max)` does the cast (it owns the physics-space query and
 `HAND_MASK`) and **ignores other characters**: a gun against a person is not against a wall, and a dead body is on no layer. It blocks when something is within
 the reach, and stays blocked until `CharacterStanceConfig.weapon_contact_margin` of clearance, so it does not flicker at the edge. `_blocked` is
-set at once (`weapon_blocked()`: `shoot()` returns false, a gun cannot fire), while `weapon_raise()` (0..1) eases toward it at
-`CharacterStanceConfig.weapon_raise_speed` for the art. While blocked, `_stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
-`GunItem.draw_weapon` shortens the barrel by `weapon_raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
-`character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint. `select_slot`, `set_loadout` and **`shoot()` itself** re-judge it
+set at once (`weapon.blocked()`: `weapon.shoot()` returns false, a gun cannot fire), while `weapon.raise()` (0..1) eases toward it at
+`CharacterStanceConfig.weapon_raise_speed` for the art. While blocked, `weapon.stances()` asks the item for `raised_stance(hand)` (hands drawn in to the chest), and
+`GunItem.draw_weapon` shortens the barrel by `weapon.raise()`: "pointed up" seen from above. The raise joins `_redraw_key_of` in
+`character_visuals.gd` (rounded to `REDRAW_RAISE_STEP`), or an idle body would not repaint. `select_slot`, `set_loadout` (`weapon.reset_raise()`, lowered at once) and **`weapon.shoot()` itself** re-judge it
 at once: a controller acts before the frame's own check runs (and on a character's very first frame none has run), so trusting last frame's `_blocked`
 let a long gun fired point-blank into a wall leave through it. Test: `tests/character/long_gun_wall_raise_test.gd` (incl. a shot on the first frame);
 holds: `tests/character/long_gun_hold_test.gd`.
@@ -104,7 +105,7 @@ numbers: `docs/cover-and-stance.md`. (`CharacterStanceConfig.stances` is how a *
   `run_speed()` / `walk_speed()` (px/s standing, running / walking, as it is now, slower while stunned or weighed down by the outfit): the AI's grenade geometry judges a spot by them and keeps no copy of the numbers
   (`tests/character/posture_and_run_reads_test.gd`).
 - **Effects:** `_move_speed()` multiplies the posture's `speed` row (1.0 / 0.6); running (`_update_stamina`) needs `_posture == stand`, so a
-  refused run costs no stamina; shooting, reloading and `melee()` work in every posture (`leg_kick()` only standing); `get_surface().coverage` is the
+  refused run costs no stamina; shooting, reloading and `weapon.melee()` work in every posture (`leg_kick()` only standing); `get_surface().coverage` is the
   posture's row (60 / 35: a bullet strikes what stands above its one height, see the Projectile skill); starting an interaction stands the
   character up and locks the posture; `_die` stands it (and resets the drawn body) before the ragdoll is built, so a body falls from the standing skeleton.
   The collision circle (and `radius`) never change.
@@ -123,7 +124,7 @@ at `stamina_regen_per_sec`. Running dry latches `_exhausted` — the character w
 the bar refills to `run_resume_fraction`. Only a standing character runs (a crouched one's run request is ignored). Running multiplies the walk speed by `run_speed_mult`
 (`_move_speed()`, also used for the death momentum and the push carry cap); a heavy outfit spends the bar faster (below); the pose's drive still carries the
 walk `speed` as its `top_speed`, so the walk amount stays at 1 while the stride cadence rises with the speed. Being busy in
-an interaction counts as not running. `shoot()` does nothing while running (`melee()` still works).
+an interaction counts as not running. `weapon.shoot()` does nothing while running (`weapon.melee()` still works).
 Reads: `is_running()`, `stamina_fraction()`. Test: `tests/character/run_speed_stamina_test.gd`.
 
 The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway and lean) are drawn from `pose.gait.run_amount()`; see `domain-character-body`. Test: `tests/character/run_pose_test.gd`.
@@ -138,19 +139,19 @@ negative = full), which tests and sandboxes set through `actor(..., props)` (`"a
 primitive) starts a timer of the held item's `reload_time()` on it if its `can_reload(character)` says a carried
 magazine would add rounds, and sets the item's `reloading` flag (a gun's support hand eases to the `reload`
 stance while it is up). `ammo.update(delta)` runs right after the controller: it cancels the reload when the character
-is busy, running or no longer holds that item, else counts down and calls `item.finish_reload(character)`. `shoot()` is
+is busy, running or no longer holds that item, else counts down and calls `item.finish_reload(character)`. `weapon.shoot()` is
 ignored mid-reload; switching slot, a ride's first pose and dying cancel it (`ammo.cancel()`); magazines are lost with the body.
 An item reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
 Reads: `ammo.is_reloading()`, `ammo.rounds(slot)`, `ammo.capacity(slot)`, `ammo.can_reload(slot)`, `ammo.spare_magazines()`; on the
-root `item_name(slot)`, `is_automatic()`,
+root `item_name(slot)`, on the weapon `weapon.is_automatic()`,
 the held-item reads `current_item()` / `current_slot()` / `item_reach()` / `item_in(slot)` (the held item for a negative slot) and `has_item(id)` (is a slot carried), `is_attacking()` (a punch swing),
 `gun_slot()` (the gun it fights with: the held item if it takes ammo, else the lowest slot that does, else −1: how the AI finds
 its weapon without knowing which). Tests: `tests/items/reload_swaps_magazine_test.gd`, `tests/character/reload_blocked_test.gd`.
 
-**Firing.** `shoot() -> bool` runs the held item's `secondary`; it returns false when busy, running, reloading, `weapon_blocked()` or the gun
+**Firing.** `weapon.shoot() -> bool` runs the held item's `secondary`; it returns false when busy, running, reloading, `weapon.blocked()` or the gun
 is still cycling between rounds. `_physics_process` ticks every carried item (`Item.tick(delta)`) *before* the controller runs, so a gun's fire-rate
-cooldown is in step with the frame that pulls the trigger. A controller re-presses `shoot()` every frame while the trigger is held when
-`is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
+cooldown is in step with the frame that pulls the trigger. A controller re-presses `weapon.shoot()` every frame while the trigger is held when
+`weapon.is_automatic()` (`player_controller.gd` reads `Keybinds.is_fire_pressed()`; the test puppet has `hold_fire(on)`).
 
 **Loadout.** `set_loadout(kit: CharacterKit)` rebuilds the inventory from `ItemRegistry.inventory_for(slots, start_rounds, loaded_magazine, grenades, weapon_style)` (every item made in that weapon style, `Item.style`: looks only), the carried
 magazines and the held slot (dropping any reload, re-judging the raise). A match uses it (`MatchBuilder.arm`, through `LoadoutConfig.apply`) to arm the human and every NPC with its side's loadout — a chosen gun, or one random gun by default
@@ -194,21 +195,21 @@ Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows
 ## Grenades and the stun (`docs/grenades.md` G1, G13)
 
 `item_count(slot := -1)` reads a grenade slot's count; `throw_stats(slot := -1)` forwards the item's `throw_stats()` (a grenade's `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot), which the AI throws by; `throw_release_offset(slot := -1)` is where that grenade leaves the hand, standing: the `throw` stance's `forward` and `lateral` for the item's `weapon_hand()` (hand 0, the right, for anything else), as `Vector2(ahead, right)` in the character's frame, which the AI judges a lob from (test `tests/ai/grenade/grenade_lob_follows_throw_stance_test.gd`). `_empty_spent_slots` (after the items tick) erases a grenade slot whose last grenade is thrown and, if it was held,
-selects `gun_slot()` (else the fists). `aim_target()` is the aim point swayed by `aim_sway()`; `GunItem.secondary` turns each shot by `aim_sway()` (0 unless stunned).
+selects `gun_slot()` (else the fists). `weapon.aim_target()` is the aim point swayed by `weapon.aim_sway()`; `GunItem.secondary` turns each shot by `weapon.aim_sway()` (0 unless stunned).
 `take_stun(blind, deaf)` (an explosion's hook, on the body) hands the stun to its `stun` component (`character_stun.gd`, `CharacterStun`), whose `take(blind, deaf)` takes the longer of the old and new timers (blind and deaf each) and posts `&"stun"` (`{ character, position, blind, deaf }`); `stun.level()` (0..1) is the longer remaining timer over
 `CharacterStunConfig.recover_tail` (the four stun numbers, `CharacterStunConfig.speed`, `CharacterStunConfig.sway`, `recover_tail` and `CharacterStunConfig.drift`, are the body's tuning and live in `CharacterStunConfig`: the
-Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`aim_sway`, by `stun.wander`: two
+Character reads nothing of `GrenadeConfig`), and while it is above 0 `_move_speed()` scales to `CharacterStunConfig.speed`, running is refused, the walk drifts (`stun.drift()`) and the aim sways (`weapon.aim_sway`, by `stun.wander`: two
 out-of-step sines, up to `CharacterStunConfig.sway` degrees x the level). `stun.is_blind()` / `stun.is_deaf()` read it, `stun.update(delta)` counts it down each physics frame and `stun.view()` feeds the UI (`StunScreen`). `blast_push(from, impulse)` is an explosion's hook: a living body is knocked
 back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterStanceConfig.stances`) is the wind-up's drawn-back arm.
 `set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
 **The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
 (`stun.level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
-(`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
-held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while `_covers_eyes(item)`: blind, not
-riding, running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
-`hand_stance` is not `throw`). `one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
-`one_hand_spread_deg` to its spread, and `kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
+(`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `weapon.stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
+held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while its `_covers_eyes(item)`: blind, not
+riding (`is_riding()`), running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`weapon.hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
+`hand_stance` is not `throw`). `weapon.one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
+`one_hand_spread_deg` to its spread, and `weapon.kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
 `posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.gait.hunch()`) to the crouch's, so the hands (and the
 long-gun raise ray, which follows the drawn reach) keep their reach past the leaning chest. Tests: `tests/character/stunned_hand_over_eyes_test.gd`,
 `stunned_hunch_and_stagger_test.gd`, `tests/items/one_handed_fire_test.gd`.

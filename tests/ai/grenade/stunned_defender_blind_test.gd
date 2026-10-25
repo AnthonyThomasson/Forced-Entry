@@ -5,7 +5,7 @@ extends GameTest
 ## blindness lifts it re-decides from what it sees. A defender is fighting a hostile it can see; the
 ## flash hits it; the hostile then walks across its front. S6 (ticket #56): whether it fires blind
 ## is one roll against its `blind_fire_chance` as it goes blind; this defender's is 1, so it does,
-## and one-handed (S4: its other hand over its eyes, `Character.one_handed()`). The 0 case is
+## and one-handed (S4: its other hand over its eyes, `Character.weapon.one_handed()`). The 0 case is
 ## `stunned_defender_holds_fire`.
 ##
 ## Premises: the flash is `take_stun(6, 6)` called on the defender, as a grenade's flash would (the
@@ -114,7 +114,7 @@ func _capture(t: TestContext, d: Node, shots: Dictionary) -> void:
 			seen[n.get_instance_id()] = true
 			shots["dirs"].append(n.get("direction"))
 			if (Probe.blind(d)
-					and not (d.has_method("one_handed") and bool(d.call("one_handed")))):
+					and not ("weapon" in d and d.weapon.one_handed())):
 				shots["two_handed"] += 1
 
 

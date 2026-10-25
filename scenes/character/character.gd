@@ -118,12 +118,8 @@ var _posture_height := 1.0
 var _items := {}
 ## Held inventory slot.
 var _current_slot := 1
-## The held weapon's barrel is against a wall or object (only a weapon that `raises_at_contact`): it
-## is held pointing up and cannot shoot. Set at once; `_raise` eases toward it (0 = held to the aim
-## .. 1 = fully up).
-var _blocked := false
-## How far the held weapon is raised off the aim, 0..1, easing toward `_blocked`.
-var _raise := 0.0
+## The held item's use: firing, melee, the raise, recoil and aim (`character_weapon.gd`).
+var weapon := CharacterWeapon.new(self)
 ## The magazines carried and the reload (`character_ammo.gd`).
 var ammo := CharacterAmmo.new(self)
 ## The stun (a grenade's flash and bang; `take_stun`; `character_stun.gd`).
@@ -190,6 +186,7 @@ func _ready() -> void:
 	ammo.restock(ammo.spare_magazine_types)
 	_current_slot = start_slot
 	# Re-emit the hands' punch as a unified hit_landed (melee → hand 0/1, with its dealt damage).
+	weapon.hands = _hands
 	_hands.punched.connect(_on_punched)
 	_kick.kicked.connect(_on_kicked)
 
@@ -307,7 +304,7 @@ func _walk_frame(delta: float) -> void:
 	# A parent's _physics_process runs before its children's, so the hands see this fresh
 	# facing on the same frame.
 	_hands.facing = facing
-	_update_weapon_raise(delta)
+	weapon.update_raise(delta)
 
 	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
 			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
@@ -328,31 +325,6 @@ func _walk_frame(delta: float) -> void:
 # --- Controller-facing API -------------------------------------------------------------
 
 
-## Melee with the held item (F): runs its primary action. Ignored while locked in an interaction.
-func melee() -> void:
-	var item := current_item()
-	if is_busy() or item == null:
-		return
-	item.primary(self)
-
-
-## Shoot the held item (left-click): runs its secondary action; true when a round left the barrel.
-## Ignored while locked in an interaction, running (the arms are down at the sides), reloading, or
-## with the weapon's barrel against a wall or object (`weapon_blocked()`). A gun also holds back
-## between rounds, per its fire rate.
-func shoot() -> bool:
-	var item := current_item()
-	if is_busy() or item == null or _running or ammo.is_reloading():
-		return false
-	# Judge the barrel now rather than trusting the last frame's verdict: a controller acts before
-	# this frame's check runs, and on a character's very first frame none has run at all, so a long
-	# gun fired point-blank into a wall would leave through it.
-	_update_weapon_raise(0.0)
-	if _blocked:
-		return false
-	return item.secondary(self)
-
-
 ## Switch to inventory slot `slot`. Ignored while locked. Observers read the held item with
 ## current_item() (the debug HUD polls it).
 func select_slot(slot: int) -> void:
@@ -363,7 +335,7 @@ func select_slot(slot: int) -> void:
 		_current_slot = slot
 		_rig_cache = null  # The weapon hand may change: the rig is solved afresh on the next read.
 		# Judged for the new item now, so a shot in this same frame can't slip past a wall.
-		_update_weapon_raise(0.0)
+		weapon.update_raise(0.0)
 
 
 ## Toggle an object interaction: start the best one in reach, or end the active one. Starting one
@@ -415,6 +387,13 @@ func try_use_vehicle() -> void:
 ## The vehicle the character is boarding, riding in or getting out of; null on foot.
 func vehicle() -> Node:
 	return _vehicle_use.vehicle()
+
+
+## True while the Vehicles domain poses the body for a ride (`set_ride_pose`, until `end_ride`):
+## boarding, seated or getting out. The ride's pose wins over the body's own (no hand over the
+## eyes).
+func is_riding() -> bool:
+	return _riding
 
 
 ## True only while seated in a vehicle (not on the way in or out).
@@ -480,7 +459,7 @@ func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
 	_drive.facing = facing
 	_drive.velocity = moving
 	_drive.top_speed = speed
-	_drive.stances = _stances()
+	_drive.stances = weapon.stances()
 	_drive.punch = _hands.punch_amounts()
 	_drive.stun = stun_at
 	return _drive
@@ -610,26 +589,6 @@ func posture_hand_ahead() -> float:
 			+ spine * sin(pose.gait.hunch()) * 0.5)
 
 
-## True while the held item keeps firing as long as the trigger is held (an automatic gun): a
-## controller re-presses `shoot()` every frame instead of once per click.
-func is_automatic() -> bool:
-	var item := current_item()
-	return item != null and item.is_automatic()
-
-
-## True while the held weapon's barrel is against a wall or object: it is held pointing up and
-## `shoot()` does nothing until the character backs off. Only a weapon that `raises_at_contact()` is
-## ever blocked.
-func weapon_blocked() -> bool:
-	return _blocked
-
-
-## How far the held weapon is raised off the aim, 0 (held to the aim) .. 1 (fully up), easing toward
-## the blocked state. For the weapon's art.
-func weapon_raise() -> float:
-	return _raise
-
-
 ## The inventory slot of the gun this character fights with: the held item when it takes ammo, else
 ## the lowest slot holding something that does; -1 with none.
 func gun_slot() -> int:
@@ -660,8 +619,7 @@ func set_loadout(kit: CharacterKit) -> void:
 	_current_slot = (hold_slot
 			if hold_slot in _items
 			else (_items.keys()[0] if not _items.is_empty() else hold_slot))
-	_raise = 0.0
-	_update_weapon_raise(0.0)
+	weapon.reset_raise()
 
 
 ## Dress the character in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`,
@@ -695,34 +653,6 @@ func outfit_view() -> Dictionary:
 ## The item in inventory slot `slot`; the held item for a negative slot.
 func item_in(slot: int) -> Item:
 	return current_item() if slot < 0 else _items.get(slot)
-
-
-## Judge whether the held weapon's barrel touches a wall or object, and ease the raise toward it.
-## Only a weapon that `raises_at_contact()` is ever blocked. The barrel is a ray from beside the
-## body centre along the aim, as far as the weapon reaches held normally (never as raised, or
-## pulling it up would clear it and drop it again); it blocks when something solid is within that
-## reach, and stays blocked until there is `CharacterStanceConfig.weapon_contact_margin` of
-## clearance, so the weapon does not flicker at the edge.
-func _update_weapon_raise(delta: float) -> void:
-	var item := current_item()
-	if item == null or not item.raises_at_contact():
-		_blocked = false
-	else:
-		var hand := item.weapon_hand()
-		var stance: Dictionary = CharacterStanceConfig.stances.get(
-			item.hand_stance(hand),
-			CharacterStanceConfig.stances[&"relaxed"],
-		)
-		var reach: float = float(stance["forward"]) + posture_hand_ahead() + _muzzle_ahead(item)
-		var lateral: float = float(stance["lateral"]) * (-1.0 if hand == 0 else 1.0)
-		var from := global_position + facing.orthogonal() * lateral
-		var margin := 0.0 if not _blocked else CharacterStanceConfig.weapon_contact_margin
-		_blocked = _hands.solid_distance(from, facing, reach + margin + 1.0) < reach + margin
-	_raise = move_toward(
-		_raise,
-		1.0 if _blocked else 0.0,
-		CharacterStanceConfig.weapon_raise_speed * delta,
-	)
 
 
 ## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
@@ -937,82 +867,6 @@ func leg_kick_amount(i: int) -> float:
 	return _kick.amount() if i == CharacterKick.LEG else 0.0
 
 
-## Recoil: throw `hand` back and twist the shoulders, as a fired weapon does (the item calls it);
-## `strength` scales it (1 = a pistol's), so a light automatic's stream of rounds does not pile up.
-## A long gun (one too long for a wall, `raises_at_contact`) fired one-handed kicks
-## `CharacterStanceConfig.one_hand_recoil` times harder.
-func kick(hand: int, strength := 1.0) -> void:
-	var item: Item = current_item()
-	if item != null and item.raises_at_contact() and one_handed():
-		strength *= CharacterStanceConfig.one_hand_recoil
-	pose.arms.kick(hand, strength)
-
-
-## The drawn direction of a held weapon: it trails the aim a little as the character turns. Visual
-## only — shots still leave along `facing`.
-func weapon_facing() -> Vector2:
-	return Vector2.from_angle(pose.weapon_angle)
-
-
-## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim
-## point, swayed about the body by `aim_sway()`.
-func aim_target() -> Vector2:
-	return global_position + (aim_point - global_position).rotated(aim_sway())
-
-
-## How far (rad) the aim has swayed off where the character points: 0 unless stunned, then up to
-## `CharacterStunConfig.sway` at the full stun, wandering. A gun turns each shot by it; `facing`
-## itself, and so the drawn body and weapon, stays on the aim.
-func aim_sway() -> float:
-	var level := stun.level()
-	return (0.0
-			if level <= 0.0
-			else deg_to_rad(CharacterStunConfig.sway) * level * stun.wander(0.0))
-
-
-## How each hand is held (CharacterStanceConfig.stances names), as the held item asks: arms hang
-## with nothing held. Running puts both arms down at the sides whatever is held; a weapon whose
-## barrel is against a wall or object is held raised, as the item says. Blind, the free hand covers
-## the eyes (`eyes`) and a gun is held in the weapon hand alone (`one_hand`; raised off a wall, its
-## raised grip), unless the item needs that hand (`_covers_eyes`).
-func _stances() -> Array:
-	if _running:
-		return [&"run", &"run"]
-	var item: Item = current_item()
-	var out: Array
-	if item == null:
-		out = [&"relaxed", &"relaxed"]
-	elif _blocked:
-		out = [item.raised_stance(0), item.raised_stance(1)]
-	else:
-		out = [item.hand_stance(0), item.hand_stance(1)]
-	if _covers_eyes(item):
-		var weapon := item.weapon_hand() if item != null else 0
-		out[1 - weapon] = &"eyes"
-		if item != null and item.gun_id() != &"" and not _blocked:
-			out[weapon] = &"one_hand"
-	return out
-
-
-## Whether the free hand (the one the held item does not hold its weapon in) is over the eyes: while
-## blind, on its own feet (a ride's pose wins), and not while the item needs that hand: a reload, a
-## punch, a throw's wind-up.
-func _covers_eyes(item: Item) -> bool:
-	if not stun.is_blind() or _riding or _running or is_dead:
-		return false
-	if ammo.is_reloading() or _hands.is_attacking():
-		return false
-	return item == null or item.hand_stance(item.weapon_hand()) != &"throw"
-
-
-## Whether the held gun is held in one hand: the free hand is over the eyes (blind, `_covers_eyes`).
-## A gun fired so spreads wider (`GunConfig` `one_hand_spread_deg`) and a long gun kicks harder.
-## False for anything but a gun.
-func one_handed() -> bool:
-	var item: Item = current_item()
-	return item != null and item.gun_id() != &"" and _covers_eyes(item)
-
-
 ## Throw a punch with the given hand (the item decides which).
 func punch(hand: int) -> void:
 	_hands.punch(hand)
@@ -1031,19 +885,6 @@ func hand_position(hand: int) -> Vector2:
 ## World-space center of a hand (the character is never rotated, so world = origin + local).
 func hand_world(hand: int) -> Vector2:
 	return global_position + _hands.hand_position(hand)
-
-
-## World muzzle point for a weapon in `hand`: the held item's `muzzle_ahead()` past it (a long gun
-## reaches further than a pistol), along the aim.
-func muzzle_origin(hand: int) -> Vector2:
-	return hand_world(hand) + facing * _muzzle_ahead(current_item())
-
-
-## How far past the weapon hand `item`'s muzzle is: its own `muzzle_ahead()`, or
-## `CharacterStanceConfig.muzzle_ahead` for an item that gives none (or no item).
-func _muzzle_ahead(item: Item) -> float:
-	var ahead := item.muzzle_ahead() if item != null else -1.0
-	return ahead if ahead >= 0.0 else CharacterStanceConfig.muzzle_ahead
 
 
 ## The standing skeleton as it is held right now (see character_rig.gd), for the visuals and
@@ -1244,7 +1085,7 @@ func _empty_spent_slots() -> void:
 				if ItemRegistry.FISTS_SLOT in _items
 				else ItemRegistry.UNARMED_SLOT)
 	_rig_cache = null  # The weapon hand may change: the rig is solved afresh on the next read.
-	_update_weapon_raise(0.0)
+	weapon.update_raise(0.0)
 
 
 ## Let go of the held item: it flies off with the body's `momentum` plus a toss, and leaves the

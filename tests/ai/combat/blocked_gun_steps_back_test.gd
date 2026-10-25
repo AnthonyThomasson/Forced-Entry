@@ -53,11 +53,11 @@ func run(t: TestContext) -> void:
 
 	# The defender fights: it aims at the intruder and finds its barrel against the chair.
 	if not t.require(
-			await t.until(func(): return defender.weapon_blocked(), 10.0),
+			await t.until(func(): return defender.weapon.blocked(), 10.0),
 			"the rifle's barrel is against the chair",
 	):
 		return
-	t.check(defender.weapon_raise() > 0.0, "the rifle is raised off the chair")
+	t.check(defender.weapon.raise() > 0.0, "the rifle is raised off the chair")
 
 	# It cannot shoot, and its reaction is to drive away from where the barrel points.
 	var backed_off := false

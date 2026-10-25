@@ -72,7 +72,7 @@ slot, and `flash_cover_reach` is INF for a frag, whose blast furniture shields f
 keeps no copy of them.
 Tests: `items/grenade_last_one_empties_slot`, `items/loadout_grenade_counts` (the registry), `items/grenade_throw_stats`, `items/grenade_throw_stats_blind`.
 
-**G2. Throw.** With a grenade held, left-click (`shoot()`) starts a throw: a short wind-up (`windup` **0.3 s**, the hand drawn back in the
+**G2. Throw.** With a grenade held, left-click (`weapon.shoot()`) starts a throw: a short wind-up (`windup` **0.3 s**, the hand drawn back in the
 new `throw` stance: `hand_stance(0) == &"throw"` during it and not after) and then the grenade leaves the weapon hand, flying toward the
 character's `aim_point` and landing there, within about 40 px, but no further than `max_range` **550 px** (about 8.5 m, both kinds, the human's
 throws too; issue #51 R14: in real matches the defenders an invader could not grenade were mostly 450 to 700 px off across a doorway): aimed past that,
@@ -180,7 +180,7 @@ frame), and while it rides a vehicle the ride's pose wins (none of it shows unti
   wandering pace, `CharacterStunConfig.stagger_wander` **0.3**), its hips sway (`CharacterStunConfig.stagger_sway` **4 px**) over the planted foot and its head lolls
   (`CharacterStunConfig.stagger_bob` **3 px**), all by the level. The pace stays `CharacterStunConfig.speed` and the drift stays.
 - **One-handed.** While the free hand covers the eyes, a gun is held in the weapon hand alone, in the `one_hand` stance (the arm out, the
-  gun lower than a two-handed grip, wandering `waver` **3 px**), and `Character.one_handed()` is true (false for anything but a gun, and
+  gun lower than a two-handed grip, wandering `waver` **3 px**), and `Character.weapon.one_handed()` is true (false for anything but a gun, and
   while the free hand is away). A round fired so leaves within the gun's `spread_deg` plus its `GunConfig` row's `one_hand_spread_deg`
   (pistol **3**, SMG **6**, rifle **8 degrees**), the player's as an NPC's, and a long gun kicks `one_hand_recoil` **x1.75** harder.
 The look's numbers live in `CharacterStunConfig` with the other four, the spread in `GunConfig`.
@@ -536,9 +536,9 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
-- **Character**: `item_count`, `throw_stats`, `aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
+- **Character**: `item_count`, `throw_stats`, `weapon.aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
   (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
-  (the `eyes` and `one_hand` stances, the hunch and the stagger) and `one_handed()`, `blast_push` for ragdolls.
+  (the `eyes` and `one_hand` stances, the hunch and the stagger) and `weapon.one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).
 - **Projectile**: `Explosion.frag` / `Explosion.stun`, and the `max_range` of the `Shot` `ProjectileSpawner.spawn` takes. **Physics**: the explosion FX.
   **Audio**, **General** (camera, EventBus topics `throw`, `grenade`, `explosion`, `stun`), **UI** (`StunScreen`, the setup window,

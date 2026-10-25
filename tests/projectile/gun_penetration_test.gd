@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.5)
 	for gun: StringName in GUNS:
 		t.check(
-			not t.actor(GUNS[gun][0]).weapon_blocked(),
+			not t.actor(GUNS[gun][0]).weapon.blocked(),
 			"the %s's barrel is clear of the wall" % gun,
 		)
 	# Three rounds each, so a single unlucky ricochet or deflection can't decide it.

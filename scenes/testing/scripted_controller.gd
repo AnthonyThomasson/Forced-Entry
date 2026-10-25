@@ -2,8 +2,8 @@ extends Node
 ## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface
 ## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
 ## character's own frame, through only the published controller API (`move_input`, `aim_point`,
-## `run_input`, `set_posture`, `toggle_crouch`, `melee`, `leg_kick`, `shoot`, `reload`,
-## `select_slot`, `interact_with`, `end_interaction`, `try_use_vehicle`).
+## `run_input`, `set_posture`, `toggle_crouch`, `weapon.melee`, `leg_kick`, `weapon.shoot`,
+## `ammo.reload`, `select_slot`, `interact_with`, `end_interaction`, `try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -49,8 +49,8 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 	character.run_input = _run
 	if _posture != &"":
 		character.set_posture(_posture)
-	if _firing and character.is_automatic():
-		character.shoot()
+	if _firing and character.weapon.is_automatic():
+		character.weapon.shoot()
 	var actions := _pending.duplicate()
 	_pending.clear()
 	for action in actions:
@@ -107,7 +107,7 @@ func select_slot(slot: int) -> void:
 
 ## Use the held item's primary action (F: punch / jab).
 func punch() -> void:
-	_pending.append(func(c): c.melee())
+	_pending.append(func(c): c.weapon.melee())
 
 
 ## Kick with a leg (V), whatever is held.
@@ -117,7 +117,7 @@ func kick() -> void:
 
 ## Use the held item's secondary action once (a click of LMB: fire a round).
 func shoot() -> void:
-	_pending.append(func(c): c.shoot())
+	_pending.append(func(c): c.weapon.shoot())
 
 
 ## Hold (or release) the trigger: while held, an automatic gun fires every frame its fire rate

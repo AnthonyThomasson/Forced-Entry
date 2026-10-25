@@ -77,7 +77,7 @@ func _check_stances(t: TestContext) -> void:
 		aiming.distance_to(cupping) < 12.0,
 		"the other hand cups it (%.1f px apart)" % aiming.distance_to(cupping),
 	)
-	var muzzle: Vector2 = gunner.muzzle_origin(0) - gunner.hand_world(0)
+	var muzzle: Vector2 = gunner.weapon.muzzle_origin(0) - gunner.hand_world(0)
 	t.expect_near(
 		muzzle.length(),
 		CharacterStanceConfig.muzzle_ahead,

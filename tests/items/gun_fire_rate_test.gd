@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 		t.puppet(GUNS[gun][0]).aim_at(body.global_position + Vector2(600, 0))
 	await t.seconds(0.5)  # Facing settles; nothing is in reach of a wall.
 	for gun: StringName in GUNS:
-		t.check(not t.actor(GUNS[gun][0]).weapon_blocked(), "%s is clear of any wall" % gun)
+		t.check(not t.actor(GUNS[gun][0]).weapon.blocked(), "%s is clear of any wall" % gun)
 
 	# Phase 1: the trigger is held, with no clicks. Only an automatic gun keeps firing.
 	var before := _rounds(t)
@@ -55,8 +55,9 @@ func run(t: TestContext) -> void:
 			"held, the %s fires about %.1f rounds in %.1f s (fired %d)"
 				% [gun, want, WINDOW, held[gun]],
 		)
-		t.check(t.actor(GUNS[gun][0]).is_automatic(), "the %s reports itself automatic" % gun)
-	t.check(not t.actor(GUNS[&"pistol"][0]).is_automatic(), "the pistol does not")
+		t.check(t.actor(GUNS[gun][0]).weapon.is_automatic(),
+				"the %s reports itself automatic" % gun)
+	t.check(not t.actor(GUNS[&"pistol"][0]).weapon.is_automatic(), "the pistol does not")
 	t.check(
 		held[&"smg"] > held[&"rifle"],
 		"the SMG (%d) out-fires the rifle (%d)" % [held[&"smg"], held[&"rifle"]],

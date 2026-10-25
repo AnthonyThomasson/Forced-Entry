@@ -3,12 +3,12 @@ class_name GrenadeItem extends Item
 ## driven by its row in `GrenadeConfig` (docs/grenades.md G1 to G6). It is a *count* carried in its
 ## slot (`uses_left()`), spent one per throw: left-click (`secondary`) starts a throw, the arm is
 ## drawn back in the `throw` stance for `windup` seconds (counted in `tick`), and then the grenade
-## leaves the hand as a `ThrownGrenade` flying to the character's `aim_target()`. The fuse starts on
-## release; there is no cooking. A character that dies, or puts the grenade away, during the wind-up
-## throws nothing. When the last one is thrown the character empties the slot (`Character`). It is
-## drawn in its weapon style (`Item.style`) by the row's look (`GrenadeConfig.look`: the painter and
-## colours), and a thrown one keeps it. A subclass supplies only the kind id and the art's size
-## (`StunGrenadeItem`, `FragGrenadeItem`).
+## leaves the hand as a `ThrownGrenade` flying to the character's `weapon.aim_target()`. The fuse
+## starts on release; there is no cooking. A character that dies, or puts the grenade away, during
+## the wind-up throws nothing. When the last one is thrown the character empties the slot
+## (`Character`). It is drawn in its weapon style (`Item.style`) by the row's look
+## (`GrenadeConfig.look`: the painter and colours), and a thrown one keeps it. A subclass supplies
+## only the kind id and the art's size (`StunGrenadeItem`, `FragGrenadeItem`).
 
 ## The kinds and styles whose art `prepaint` has painted: [kind, style] -> true.
 static var _prepainted := {}
@@ -114,18 +114,18 @@ func _release() -> void:
 	var throw := GrenadeThrow.new()
 	throw.kind = kind
 	throw.from = from
-	throw.to = user.aim_target()
+	throw.to = user.weapon.aim_target()
 	throw.thrower = user
 	throw.style = style
 	ThrownGrenade.spawn(throw, world)
-	GrenadeSpoon.pop(from, (user.aim_target() - from).angle(), world)
+	GrenadeSpoon.pop(from, (user.weapon.aim_target() - from).angle(), world)
 	EventBus.post(&"throw", { "position": from, "kind": kind, "attacker": user })
 
 
 ## Draw the grenade in the hand, the lever still held down (in the look's lever colour): lit for the
-## nearest lighting step, drawn rotated to the exact angle of the character's `weapon_facing()`.
+## nearest lighting step, drawn rotated to the exact angle of the character's `weapon.facing()`.
 func draw_weapon(canvas: CanvasItem, user: Object) -> void:
-	var facing: Vector2 = user.weapon_facing()
+	var facing: Vector2 = user.weapon.facing()
 	var size := art_size()
 	var angle := facing.angle() - PI * 0.5
 	var tex := _texture(PixelArt.snap_angle(angle), true)

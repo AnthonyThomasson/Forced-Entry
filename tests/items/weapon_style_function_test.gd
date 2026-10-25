@@ -135,7 +135,7 @@ func _fire(t: TestContext, gun: StringName, style: StringName) -> Dictionary:
 		"the shooter holds the %s in %s (the premise)" % [gun, style],
 	)
 	var mark := t.events.size()
-	await _pull_trigger(t, shooter.is_automatic())
+	await _pull_trigger(t, shooter.weapon.is_automatic())
 	await t.seconds(LANDING)
 	var shots := _shots_since(t, mark, shooter)
 	var hits := _hits_since(t, mark, shooter)

@@ -67,18 +67,18 @@ func _check_first_frame(t: TestContext) -> void:
 func _check_against_wall(t: TestContext) -> void:
 	for id in [&"rifle_wall", &"smg_wall"]:
 		var c = t.actor(id)
-		t.check(c.weapon_blocked(), "%s: its barrel is against the wall" % id)
-		t.check(c.weapon_raise() > 0.95, "%s: the gun is raised (%.2f)" % [id, c.weapon_raise()])
+		t.check(c.weapon.blocked(), "%s: its barrel is against the wall" % id)
+		t.check(c.weapon.raise() > 0.95, "%s: the gun is raised (%.2f)" % [id, c.weapon.raise()])
 		_check_arms(t, c, "%s raised" % id)
 	var pistol = t.actor(&"pistol_wall")
 	t.check(
-		not pistol.weapon_blocked() and pistol.weapon_raise() == 0.0,
+		not pistol.weapon.blocked() and pistol.weapon.raise() == 0.0,
 		"the pistol is not raised against a wall",
 	)
 	for id in [&"rifle_free", &"rifle_person"]:
-		t.check(not t.actor(id).weapon_blocked(), "%s: nothing solid is against the barrel" % id)
+		t.check(not t.actor(id).weapon.blocked(), "%s: nothing solid is against the barrel" % id)
 	t.check(
-		t.actor(&"rifle_free").weapon_raise() == 0.0,
+		t.actor(&"rifle_free").weapon.raise() == 0.0,
 		"the rifle in the open is held to the aim",
 	)
 
@@ -99,7 +99,7 @@ func _check_firing(t: TestContext) -> void:
 	for id in [&"pistol_wall", &"rifle_free", &"rifle_person"]:
 		t.expect_eq(t.actor(id).ammo.rounds(), rounds[id] - 1, "%s: it fires" % id)
 	t.check(
-		not t.actor(&"rifle_wall").shoot(),
+		not t.actor(&"rifle_wall").weapon.shoot(),
 		"the character's own shoot() says no round left the barrel",
 	)
 
@@ -117,8 +117,8 @@ func _check_backing_off(t: TestContext) -> void:
 	for id in [&"rifle_wall", &"smg_wall"]:
 		var c = t.actor(id)
 		t.check(
-			not c.weapon_blocked() and c.weapon_raise() < 0.05,
-			"%s: clear of the wall, the gun comes back down (%.2f)" % [id, c.weapon_raise()],
+			not c.weapon.blocked() and c.weapon.raise() < 0.05,
+			"%s: clear of the wall, the gun comes back down (%.2f)" % [id, c.weapon.raise()],
 		)
 		var before: int = c.ammo.rounds()
 		t.puppet(id).shoot()

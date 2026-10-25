@@ -71,11 +71,12 @@ func run(t: TestContext) -> void:
 func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Dictionary) -> void:
 	var c = t.actor(GUNS[gun][0])
 	var item: GunItem = c.current_item()
-	t.check(not c.weapon_blocked(), "%s: nothing is against the barrel" % gun)
+	t.check(not c.weapon.blocked(), "%s: nothing is against the barrel" % gun)
 	_check_arms(t, c, "%s hold" % gun)
 
 	_check_other_hand(t, gun, c, item)
-	var muzzle: Vector2 = c.muzzle_origin(item.weapon_hand()) - c.hand_world(item.weapon_hand())
+	var muzzle: Vector2 = (c.weapon.muzzle_origin(item.weapon_hand())
+			- c.hand_world(item.weapon_hand()))
 	t.expect_near(
 		muzzle.length(),
 		item.muzzle_ahead(),
