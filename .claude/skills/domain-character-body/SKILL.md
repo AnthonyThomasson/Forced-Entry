@@ -68,7 +68,7 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   shadow uvs and a segment's uvs are each one transform of a unit outline (`_capsule`, `_texture_uvs`; float rounding only) and the
   trunk's slices the plain point sums with the shadow's shift in place of a callable;
   A limb capsule whose ends' radii differ by less than `CAP_CONVEX` of its length is convex and goes into a batch as a fan, uncut
-  (`_fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
+  (`_convex`, `_fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
   `tests/character/body_geometry_matches_plain_test.gd` pins them (the trunk's slices and outline exactly).
 
 ## Pose (the living motion)
@@ -306,8 +306,9 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   lit for the nearest of `ArtConfig.turn_steps` steps — and draws it rotated to the exact angle of
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
   `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
-  `Deformation.darken`, or `Deformation.draw_shape(..., look)` (a `ShapeLook` with the `texture`, its `texture_angle` and `marks` false) headless or with `BodyMeshes.enabled`
-  off: the same polygon either way, above) so shots dent the art and darken it, then `Deformation.draw_marks` once
+  `Deformation.darken`, or `Deformation.draw_shape(..., look)` headless or with `BodyMeshes.enabled`
+  off: the same polygon either way, above; both read the part's `ShapeLook` from `_round_look`: the `texture`, its
+  `texture_angle`, the damage, `marks` false) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
   shadow (living and fallen alike) is one `CanvasGroup` of opaque shapes carrying
