@@ -65,6 +65,18 @@ func run(t: TestContext) -> void:
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, AIM)
 	var brain := t.controller(&"d", &"debug_grenades")
 	var escape := func() -> Vector2: return brain.debug_grenades()["escape"]
+	var spot := await _settled_spot(t, escape)
+	if spot == Vector2.INF:
+		return
+	var rolled := _roll_into_spot_line(t, spot)
+	if rolled == Vector2.INF:
+		return
+	await _check_replanned(t, escape, spot, rolled)
+
+
+## The defender's evade spot once the frag has come to rest and the plan has settled on it;
+## `Vector2.INF` when the set-up fails.
+func _settled_spot(t: TestContext, escape: Callable) -> Vector2:
 	var rested := func():
 		return not Probe.raw(t, &"grenade", func(g): return g.get("stage") == &"rest").is_empty()
 	if not t.require(
@@ -72,7 +84,7 @@ func run(t: TestContext) -> void:
 			"the frag came to rest and the defender planned a spot (escape %s)"
 				% str(escape.call()),
 	):
-		return
+		return Vector2.INF
 	# The plan settles on the resting frag: a replan due from its last bounce comes within
 	# `REPLAN_EVERY` (0.15 s), then nothing moves it.
 	await t.seconds(0.3)
@@ -83,7 +95,14 @@ func run(t: TestContext) -> void:
 			"set-up: the defender's spot settled before the roll (%s, then %s)"
 				% [str(spot), str(escape.call())],
 	):
-		return
+		return Vector2.INF
+	return spot
+
+
+## Rolls the resting frag to a point near where the evade plan was made from which `spot` is in
+## its line, and posts the rest event it would post; the point, or `Vector2.INF` when the set-up
+## fails.
+func _roll_into_spot_line(t: TestContext, spot: Vector2) -> Vector2:
 	var grenade: Node2D = Probe.live(t)[0]
 	var planned: Array = t.controller(&"d", &"debug_state").debug_state().get("evade", {}).get(
 		"point",
@@ -94,7 +113,7 @@ func run(t: TestContext) -> void:
 			"set-up: the defender is carrying out its evade plan (%s)"
 				% str(t.controller(&"d", &"debug_state").debug_state().get("evade")),
 	):
-		return
+		return Vector2.INF
 	var at := Vector2(planned[0], planned[1])
 	var rolled := _roll_into_line(t, at, spot)
 	if not t.require(
@@ -103,9 +122,14 @@ func run(t: TestContext) -> void:
 					+ "rests (%s), puts the spot %s in the frag's line (%s)")
 				% [MAX_ROLL, str(at), str(grenade.global_position), str(spot), str(rolled)],
 	):
-		return
+		return Vector2.INF
 	grenade.global_position = rolled
 	EventBus.post(&"grenade", { "position": rolled, "kind": &"frag", "stage": &"rest" })
+	return rolled
+
+
+## The defender plans again after the roll, before the burst, to a spot out of the frag's line.
+func _check_replanned(t: TestContext, escape: Callable, spot: Vector2, rolled: Vector2) -> void:
 	var moved := func(): return escape.call() != spot
 	t.check(
 		await t.until(moved, 1.0),

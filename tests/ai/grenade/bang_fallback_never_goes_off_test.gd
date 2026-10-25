@@ -49,9 +49,22 @@ func run(t: TestContext) -> void:
 			"the AI stacked at the door",
 	):
 		return
-	var next := 0.0
 	# the mate radios ready now and calls the bang with its next heartbeat
 	var called := t.time + 1.0
+	var phases := await _radio_bang_until_in(t, brain, side, called, seen)
+	if not _held_and_went_in(t, seen, phases):
+		return
+	_check_quiet(t, phases, called)
+
+
+func _radio_bang_until_in(
+		t: TestContext,
+		brain: Node,
+		side: int,
+		called: float,
+		seen: Dictionary,
+) -> Array:
+	var next := 0.0
 	var phases: Array = []
 	var end := t.time + 40.0
 	while t.time < end and Entry.calls(t, "going_in").is_empty():
@@ -63,18 +76,24 @@ func run(t: TestContext) -> void:
 		if phases.is_empty() or phases.back() != phase:
 			phases.append(phase)
 		await t.frames(1)
+	return phases
+
+
+func _held_and_went_in(t: TestContext, seen: Dictionary, phases: Array) -> bool:
 	if not t.require(
 			Bang.took(seen, "stun_entry"),
 			"the AI took STUN ENTRY (acts: %s)" % str(seen),
 	):
-		return
+		return false
 	if not t.require(phases.has("bang"), "the AI held for the bang (phases: %s)" % str(phases)):
-		return
-	if not t.require(
-			not Entry.calls(t, "going_in").is_empty(),
-			"the AI went in (phases: %s)" % str(phases),
-	):
-		return
+		return false
+	return t.require(
+		not Entry.calls(t, "going_in").is_empty(),
+		"the AI went in (phases: %s)" % str(phases),
+	)
+
+
+func _check_quiet(t: TestContext, phases: Array, called: float) -> void:
 	var in_bang := phases.find("bang")
 	t.check(
 		phases.slice(in_bang).has("pie"),

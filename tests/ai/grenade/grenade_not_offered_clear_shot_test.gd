@@ -77,7 +77,10 @@ func run(t: TestContext) -> void:
 		hide_offer.has("grenade"),
 		"against the hostile hidden behind the desk GRENADE is offered (%s)" % str(hide_offer),
 	)
+	await _check_pulled_back(t, hide_brain)
 
+
+func _check_pulled_back(t: TestContext, hide_brain: Node) -> void:
 	t.actor(&"hide_h").global_position = HIDE_FAR
 	await Flank.settle(t, hide_brain)
 	# 740 px off, out of throw range from where it stands: GRENADE only through a throw spot (R13).

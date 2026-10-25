@@ -70,8 +70,18 @@ func run(t: TestContext) -> void:
 	var db := t.controller(&"d", &"current_act")
 	if not t.require(nb.has_method("debug_grenades"), "GoalController.debug_grenades() exists"):
 		return
+	if not await _check_planned_throw(t, n, nb):
+		return
+	if not await _check_live_grenade(t, nb):
+		return
+	if not await _check_escape(t, db):
+		return
+	t.screenshot("live_grenade")
+	await Probe.wait_boom(t, &"frag", 5.0)
 
-	# The plan: the throw it is about to make.
+
+# The plan: the throw it is about to make.
+func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 	var planned := await t.until(
 		func(): return not (Probe.grenades(nb).get("throw", {}) as Dictionary).is_empty(),
 		8.0,
@@ -81,7 +91,7 @@ func run(t: TestContext) -> void:
 			"the invader's order to throw shows a planned throw (acting: %s)"
 				% str(nb.current_act()),
 	):
-		return
+		return false
 	var plan: Dictionary = Probe.grenades(nb)["throw"]
 	t.check(
 		(plan["to"] as Vector2).distance_to(HOSTILE_AT) < 60.0,
@@ -96,10 +106,13 @@ func run(t: TestContext) -> void:
 		"with the frag's 250 px danger radius",
 	)
 	t.screenshot("planned_throw")
+	return true
 
-	# The grenade in the air and on the floor: known to the thrower and seen by the defender.
+
+# The grenade in the air and on the floor: known to the thrower and seen by the defender.
+func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	if not t.require(await t.until(func(): return t.happened(&"throw"), 6.0), "the invader throws"):
-		return
+		return false
 	await t.frames(10)
 	var own: Array = Probe.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):
@@ -119,7 +132,11 @@ func run(t: TestContext) -> void:
 		not later.is_empty() and float(later[0]["fuse_left"]) < before - 0.3,
 		"the fuse counts down",
 	)
+	return true
 
+
+# False when the grenade went off before the escape spot could be judged.
+func _check_escape(t: TestContext, db: Node) -> bool:
 	var fled := await t.until(
 		func(): return (Probe.grenades(db).get("escape", Vector2.INF) as Vector2) != Vector2.INF,
 		2.0,
@@ -131,7 +148,7 @@ func run(t: TestContext) -> void:
 			"having seen or heard the grenade itself",
 		)
 		if not Probe.booms(t).is_empty():
-			return
+			return false
 		var escape: Vector2 = Probe.grenades(db)["escape"]
 		var landed: Vector2 = (Probe.rest_point(t)
 				if t.happened(&"grenade", func(e): return e.get("stage") == &"rest")
@@ -141,5 +158,4 @@ func run(t: TestContext) -> void:
 				or escape.distance_to(landed) >= Probe.BLAST_RADIUS,
 			"the escape spot is out of the grenade's line or beyond its radius",
 		)
-	t.screenshot("live_grenade")
-	await Probe.wait_boom(t, &"frag", 5.0)
+	return true
