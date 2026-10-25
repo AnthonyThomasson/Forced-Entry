@@ -111,8 +111,8 @@ A controller sets `run_input` (the player: `Keybinds.RUN`, Shift; an NPC: its be
 exhausted) and spends or regains `stamina` (a 0..1 bar): a full bar lasts `run_stamina_seconds`, it refills
 at `stamina_regen_per_sec`. Running dry latches `_exhausted` — the character walks, run still held, until
 the bar refills to `run_resume_fraction`. Only a standing character runs (a crouched one's run request is ignored). Running multiplies the walk speed by `run_speed_mult`
-(`_move_speed()`, also used for the death momentum and the push carry cap); a heavy outfit spends the bar faster (below); `pose.update` still gets the
-walk `speed`, so the walk amount stays at 1 while the stride cadence rises with the speed. Being busy in
+(`_move_speed()`, also used for the death momentum and the push carry cap); a heavy outfit spends the bar faster (below); the pose's drive still carries the
+walk `speed` as its `top_speed`, so the walk amount stays at 1 while the stride cadence rises with the speed. Being busy in
 an interaction counts as not running. `shoot()` does nothing while running (`melee()` still works).
 Reads: `is_running()`, `stamina_fraction()`. Test: `tests/character/run_speed_stamina_test.gd`.
 
@@ -189,8 +189,8 @@ out-of-step sines, up to `stun_sway` degrees x the level). `stun_view()` feeds t
 back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagdoll.blast`). The `throw` stance (`CharacterConfig.stances`) is the wind-up's drawn-back arm.
 `set_loadout`'s `CharacterKit.grenades` is a slot -> count dict. Tests: `tests/items/grenade_*`, `tests/character/stunned_slow_and_sway_test.gd`.
 
-**The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update` takes the stun level as its last
-argument (`stun_level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
+**The stunned look and one-handed fire** (`docs/grenades.md` G13, issue #56; drawn only, every character). `pose.update`'s `PoseDrive` carries the stun level
+(`stun_level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
 (`stun_look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while `_covers_eyes(item)`: blind, not
 riding, running or dead, not reloading (`_reloading_item`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its

@@ -1,17 +1,4 @@
 extends RefCounted
-
-## The parts that turn toward the aim on a damped spring of their own: the head, a steady (aiming
-## or supporting) hand, each free hand, a held weapon, the shoulders and the hips.
-enum Spring {
-	HEAD,
-	AIM,
-	HAND_0,
-	HAND_1,
-	WEAPON,
-	TORSO,
-	HIPS,
-}
-
 ## Character POSE (Character domain, animate layer): the living motion layered over the aim. The
 ## head, each hand, a held weapon and the shoulders each chase `facing` on their own damped spring
 ## — the head first, a steady (aiming or supporting) hand next, the weapon a touch behind it, free
@@ -28,6 +15,18 @@ enum Spring {
 ## character.gd each physics frame; read by the hands (their rest pose), the rig (the joints) and
 ## the visuals (each part's angle and offset). Visual only: aim, shots and punches stay on `facing`.
 ## Tuning: CharacterConfig.pose_*, stun_look_ease, stun_hunch_pitch and stun_stagger_*.
+
+## The parts that turn toward the aim on a damped spring of their own: the head, a steady (aiming
+## or supporting) hand, each free hand, a held weapon, the shoulders and the hips.
+enum Spring {
+	HEAD,
+	AIM,
+	HAND_0,
+	HAND_1,
+	WEAPON,
+	TORSO,
+	HIPS,
+}
 
 ## A wavering hand (a stance's `waver`) also rises and falls, this many body radii per px of its
 ## wander across, this many seconds out of step with it.

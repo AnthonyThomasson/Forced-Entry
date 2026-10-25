@@ -58,17 +58,17 @@ func draw(
 	if cut.is_empty():
 		_canvas.draw_colored_polygon(poly, modulate, uvs, texture)
 		return
-	_canvas.draw_mesh(_put(poly, uvs, cut, bounds), texture, Transform2D.IDENTITY, modulate)
+	_canvas.draw_mesh(_next_mesh(poly, uvs, cut, bounds), texture, Transform2D.IDENTITY, modulate)
 
 
 ## A batch of plain shapes all in `color`, drawn on the canvas as one kept mesh (`Solid`).
 func solid(color: Color) -> Solid:
-	return Solid.new(_canvas, color, _put)
+	return Solid.new(_canvas, color, _next_mesh)
 
 
 ## The next kept mesh, holding `points` mapped by `uvs` (none: plain), cut into `cut`, within
 ## `bounds` (empty: measured), for the canvas to draw.
-func _put(
+func _next_mesh(
 	points: PackedVector2Array,
 	uvs: PackedVector2Array,
 	cut: PackedInt32Array,
@@ -168,15 +168,15 @@ class Solid:
 	## The colour every shape added must be, and the mesh's modulate.
 	var _color: Color
 	## (points, uvs, cut, bounds) -> ArrayMesh: the pool's next kept mesh, holding them.
-	var _put: Callable
+	var _next_mesh: Callable
 	## The corners and triangles gathered since the last `flush`.
 	var _points := PackedVector2Array()
 	var _indices := PackedInt32Array()
 
-	func _init(canvas: CanvasItem, color: Color, put: Callable) -> void:
+	func _init(canvas: CanvasItem, color: Color, next_mesh: Callable) -> void:
 		_canvas = canvas
 		_color = color
-		_put = put
+		_next_mesh = next_mesh
 
 	## Add `poly` (canvas px), moved by `xform` first, as the engine cuts it. One it cannot cut is
 	## drawn on its own, after what was added before it.
@@ -214,7 +214,7 @@ class Solid:
 	func flush(bounds := Rect2()) -> void:
 		if _indices.is_empty():
 			return
-		var mesh: ArrayMesh = _put.call(_points, PackedVector2Array(), _indices, bounds)
+		var mesh: ArrayMesh = _next_mesh.call(_points, PackedVector2Array(), _indices, bounds)
 		_canvas.draw_mesh(mesh, null, Transform2D.IDENTITY, _color)
 		_points = PackedVector2Array()
 		_indices = PackedInt32Array()

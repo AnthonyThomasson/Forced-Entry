@@ -341,7 +341,7 @@ static func _sweep(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryPar
 ## `exclude` (the ones passed), which it leaves holding what it skipped.
 static func _first_strike(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
 		at: Vector2, motion: Vector2, height: float) -> Dictionary:
-	var skipped: Array[RID] = query.exclude.duplicate()
+	var skipped: Array[RID] = query.exclude  # The getter hands back a copy.
 	for _attempt in 6:
 		query.exclude = skipped
 		query.transform = Transform2D(0.0, at)

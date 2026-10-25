@@ -89,9 +89,9 @@ ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; 
   a `StaticBody2D` (a wall) always does, a piece of furniture when its `get_surface().coverage` is above the **body's own height** (a character's is
   its posture's: crouched 35, standing 60, so a crouched character behind a couch (45) is shielded and a standing one is not; a table (30) shields
   nobody). Lower pieces are cleared and the ray goes on. A body with no collider (the fallen) is reached at its centre. The same rule serves the blast, the
-  flash; the bang asks it with `walls_only` (only a wall stops the line: furniture muffles nothing). `_reach` runs on `_walk(space, at, to, height,
-  exclude, cover_reach, walls_only, target)`, the one walk past what does not stop the line (`_stops`; `_against` for a finite `cover_reach`), which
-  counts a line that has cleared `MAX_CLEARED` pieces as stopped. Two read-only statics put the same walk to the AI's perception (interface 3):
+  flash; the bang asks it with `cover_reach` at `WALLS_ONLY` (-1: only a wall stops the line, furniture muffles nothing). `_reach` runs on
+  `_walk(space, query, height, cover_reach, target)` (`query`: the line's ray, its `exclude` the rids it passes through), the one walk past what
+  does not stop the line (`_stops`; `_against` for a finite `cover_reach`), which counts a line that has cleared `MAX_CLEARED` pieces as stopped. Two read-only statics put the same walk to the AI's perception (interface 3):
   `shields(space, burst, p, cover: CoverRule) -> bool` (`CoverRule`, `projectile/cover_rule.gd`: `height`, `exclude`, `cover_reach` := INF; whether a body `height` tall at `p` is shielded from a burst at
   `burst`, the AI's grenade dodging) and `first_stop(space, a, b, height, exclude) -> Dictionary` (the ray hit of the first wall or piece that
   stops the line, `{}` when none does: where it looks for the shadow behind cover).
@@ -109,7 +109,7 @@ ones included, in tree order; interface 7). Spec: `docs/grenades.md` G7 to G12; 
   direction to the burst: 1 -> x1, 0 -> x0.6, -1 -> x0.25, linear between); no clear line, none. A wall always stops the line; a piece of furniture taller than the
   character stops it only when the character is within the row's `flash_cover_reach` (30 px) of it on the burst's side (`_reach`'s `cover_reach`, `_against`: a reverse ray from the body to the burst), so a crouched body hunched against a couch is
   shielded and one 120 px behind it is flashed. The blast (`_reach` without a reach) keeps the plain rule. The **bang** works by range: deaf
-  `max_deaf * (1 - d / bang_radius)`, x`wall_factor` when a wall stands between (`_reach(..., walls_only)`; a character hunched against a couch is out of the flash, not out of the bang). Both go through `Character.take_stun(blind, deaf)`, which posts the
+  `max_deaf * (1 - d / bang_radius)`, x`wall_factor` when a wall stands between (`_reach(..., WALLS_ONLY)`; a character hunched against a couch is out of the flash, not out of the bang). Both go through `Character.take_stun(blind, deaf)`, which posts the
   `&"stun"` event; within `point_blank` the character also takes `point_blank_damage` through `take_damage`. A stun does no other damage.
 
 Tests: `tests/projectile/frag_blast_by_distance`, `frag_blast_blocked_by_wall`, `frag_blast_low_cover_by_posture`, `frag_fragments_hit`,

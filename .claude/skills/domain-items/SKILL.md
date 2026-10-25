@@ -218,7 +218,7 @@ very `Motion` integrator the node then runs; first touchdown capped at `max_rang
 aim (a sofa on the skid's way kicked it back), longer lobs (touchdown `FIT_STEP` 12 px further out at a time, up to `max_range`) are tried and the one resting nearest the aim is
 thrown, so a grenade aimed behind low cover is lobbed over it (test `items/grenade_lobbed_over_cover`; about one simulated flight per throw in the open, up to ~30 behind cover).
 In flight it skips furniture whose `coverage` is below its height and bounces off the rest (and the living) with `restitution`; its thrower's own body is passed for the
-first `THROWER_CLEAR` (40 px) of flight, in the node's sweep and in the plan alike (`_sweep(..., passed)`: it leaves the hand ~16 px from the body centre and its first px pass
+first `THROWER_CLEAR` (40 px) of flight, in the node's sweep and in the plan alike (the `passed` bodies of the throw's `GrenadeCourse`, `grenade_course.gd`, put in the sweep query's `exclude` by `_rest_in`: it leaves the hand ~16 px from the body centre and its first px pass
 within body + grenade radius of it, so a pixel decided whether a throw struck its own thrower; test `items/grenade_passes_its_thrower`); posts `&"grenade"` (`bounce` / `rest`) and on the fuse's end calls `Explosion.frag` / `Explosion.stun`. A grenade is never dropped on death.
 `LoadoutConfig` carries `stuns` / `frags` (0..3, `grenade_options()`, `grenade_counts()`); `ItemRegistry.create(slot, count)` (negative = one) and `inventory_for(..., grenades)` build them.
 Art: the look's grenade painter ("Weapon looks" above) in the hand, in flight and at rest, and `spoon_painter.gd`, through `PixelArt.render_turned`.

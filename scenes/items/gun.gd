@@ -277,9 +277,9 @@ func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var facing: Vector2 = user.weapon_facing()
 	var hand: Vector2 = user.hand_world(weapon_hand())
 	var at := hand + facing * (art_size().y * 0.5 - grip_back())
-	return DroppedItem.spawn(
-		self, Transform2D(facing.angle(), at), velocity, user.world_root(), hand
-	)
+	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)
+	dropped.place(user.world_root(), at, hand)
+	return dropped
 
 
 ## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter
