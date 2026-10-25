@@ -98,25 +98,10 @@ func run(t: TestContext) -> void:
 		w2d.direct_space_state,
 		t.world.house,
 	)
-	var kind := Slots.way_kind(w, f)
-	if not t.require(
-			kind == "dead_end",
-			("set-up: the closet is a dead end with no spot against the wall (the test's own way "
-					+ "kind: %s)") % kind,
-	):
+	var capacity := _closet_capacity(t, w, f)
+	if capacity.is_empty():
 		return
-	var capacity := Slots.dead_end_capacity(w, f, {})
-	var holds := int(capacity["count"])
-	var points: Array = (capacity["points"] as Array).map(
-		func(p): return str((p as Vector2).round()),
-	)
-	if not t.require(
-			holds < IDS.size(),
-			"set-up: the closet holds fewer than the %d ordered (the test's own packing: %d, at %s)"
-				% [IDS.size(), holds, ", ".join(points)],
-	):
-		return
-	var expect := mini(IDS.size(), holds)
+	var expect := _expect(capacity)
 	var squad := t.squad(&"invader")
 	await t.seconds(0.3)
 	var members: Array = IDS.map(func(id): return t.actor(id))
@@ -124,44 +109,103 @@ func run(t: TestContext) -> void:
 	for id in IDS:
 		start[id] = t.actor(id).global_position
 	var order := Order.stack_order(squad, members, CLICK, "quiet", true)
+	if not _order_posted(t, order, f):
+		return
+	# "claimed": id -> true once it has held a slot at this doorway (its entry or its radio);
+	# "drift": id -> the farthest (px) it has been from where it started.
+	var seen := { "start": start, "claimed": {}, "drift": {} }
+	await _watch(t, squad, f, seen, expect)
+	_check_count(t, f, seen, capacity)
+	_check_in_closet(t, w, f, seen)
+	_check_extras(t, squad, seen, capacity, order)
+
+
+## The set-up: the closet is a dead end with no spot against the wall, and holds fewer than the
+## four ordered. Returns the test's own packing of it, empty when either does not hold.
+func _closet_capacity(t: TestContext, w: Dictionary, f: Dictionary) -> Dictionary:
+	var kind := Slots.way_kind(w, f)
+	if not t.require(
+			kind == "dead_end",
+			("set-up: the closet is a dead end with no spot against the wall (the test's own way "
+					+ "kind: %s)") % kind,
+	):
+		return {}
+	var capacity := Slots.dead_end_capacity(w, f, {})
+	var holds := int(capacity["count"])
+	var points := _points(capacity)
+	if not t.require(
+			holds < IDS.size(),
+			"set-up: the closet holds fewer than the %d ordered (the test's own packing: %d, at %s)"
+				% [IDS.size(), holds, ", ".join(points)],
+	):
+		return {}
+	return capacity
+
+
+## How many of the four the closet's packing `capacity` takes.
+func _expect(capacity: Dictionary) -> int:
+	return mini(IDS.size(), int(capacity["count"]))
+
+
+## The points of the closet's packing `capacity`, for the messages.
+func _points(capacity: Dictionary) -> Array:
+	return (capacity["points"] as Array).map(
+		func(p): return str((p as Vector2).round()),
+	)
+
+
+## The squad posted the stack order on doorway `f` into the office. False when it did not.
+func _order_posted(t: TestContext, order: Dictionary, f: Dictionary) -> bool:
 	if not t.require(
 			not order.is_empty(),
 			"the squad posts the stack order on %s (issue)" % f["id"],
 	):
-		return
-	if not t.require(
-			String(order.get("opening", "")) == String(f["id"])
-				and String(order.get("into", "")) == "office",
-			"set-up: the order names %s into the office (it named %s into %s)"
-				% [f["id"], order.get("opening"), order.get("into")],
-	):
-		return
+		return false
+	return t.require(
+		String(order.get("opening", "")) == String(f["id"])
+			and String(order.get("into", "")) == "office",
+		"set-up: the order names %s into the office (it named %s into %s)"
+			% [f["id"], order.get("opening"), order.get("into")],
+	)
+
+
+## Watches (`WATCH_CAP` s at most) until the `expect` claimants have stood in their slots and the
+## others held refused for `HOLD_S` s, noting in `seen` who claimed and how far each drifted.
+func _watch(t: TestContext, squad: Node, f: Dictionary, seen: Dictionary, expect: int) -> void:
+	var claimed: Dictionary = seen["claimed"]
+	var drift: Dictionary = seen["drift"]
 	var t0 := t.time
-	# id -> true once it has held a slot at this doorway (its entry or its radio)
-	var claimed := {}
-	var drift := {}     # id -> the farthest (px) it has been from where it started
 	var settled := INF  # when the claimants were last all in their slots and the others refused
 	while t.time - t0 < WATCH_CAP:
 		await t.frames(1)
 		for id in IDS:
 			drift[id] = maxf(
 				float(drift.get(id, 0.0)),
-				t.actor(id).global_position.distance_to(start[id]),
+				t.actor(id).global_position.distance_to(seen["start"][id]),
 			)
 			if _claim_of(t, id, String(f["id"])) > 0:
 				claimed[id] = true
 		var done := claimed.size() == expect
 		for id in IDS:
-			done = (done
-					and (_in_slot(t, id)
-							if claimed.has(id)
-							else _step(squad, t.actor(id)) == "refused"))
+			done = done and _settled(t, squad, claimed, id)
 		if not done:
 			settled = INF
 		elif settled == INF:
 			settled = t.time
 		if t.time - settled >= HOLD_S:
 			break
+
+
+## Whether actor `id` is as the watch waits for it: in its slot when it has claimed one, else its
+## order refused.
+func _settled(t: TestContext, squad: Node, claimed: Dictionary, id: StringName) -> bool:
+	return _in_slot(t, id) if claimed.has(id) else _step(squad, t.actor(id)) == "refused"
+
+
+## Checks exactly as many as the closet holds claimed a slot.
+func _check_count(t: TestContext, f: Dictionary, seen: Dictionary, capacity: Dictionary) -> void:
+	var claimed: Dictionary = seen["claimed"]
+	var expect := _expect(capacity)
 	var claimants: Array = IDS.filter(func(id): return claimed.has(id))
 	t.check(
 		claimants.size() == expect,
@@ -174,9 +218,15 @@ func run(t: TestContext) -> void:
 				str(claimants.map(
 					func(id): return "%s slot %d" % [id, _claim_of(t, id, String(f["id"]))],
 				)),
-				", ".join(points),
+				", ".join(_points(capacity)),
 			],
 	)
+
+
+## Checks each claimant's slot is in the closet, and it ends in it.
+func _check_in_closet(t: TestContext, w: Dictionary, f: Dictionary, seen: Dictionary) -> void:
+	var claimed: Dictionary = seen["claimed"]
+	var claimants: Array = IDS.filter(func(id): return claimed.has(id))
 	for id in claimants:
 		var spot := Order.stack_point(t, id)
 		var a := t.actor(id)
@@ -197,6 +247,21 @@ func run(t: TestContext) -> void:
 				a.global_position.distance_to(spot) if spot != Vector2.INF else INF,
 			],
 		)
+
+
+## Checks the members past the closet's capacity got no slot, held where they were, and show the
+## order refused but still held in the squad's view.
+func _check_extras(
+		t: TestContext,
+		squad: Node,
+		seen: Dictionary,
+		capacity: Dictionary,
+		order: Dictionary,
+) -> void:
+	var claimed: Dictionary = seen["claimed"]
+	var drift: Dictionary = seen["drift"]
+	var start: Dictionary = seen["start"]
+	var expect := _expect(capacity)
 	var extras: Array = IDS.filter(func(id): return not claimed.has(id))
 	t.check(
 		extras.size() == IDS.size() - expect,

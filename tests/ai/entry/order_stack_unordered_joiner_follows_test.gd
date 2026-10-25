@@ -50,7 +50,6 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var squad := t.squad(&"invader")
-	var joiner := t.actor(&"joiner")
 	t.puppet(&"lead").walk_to(Order.BACK_NORTH)
 	if not t.require(
 			await t.until(func(): return not Entry.calls(t, "claim", &"joiner").is_empty(), 12.0),
@@ -77,6 +76,13 @@ func run(t: TestContext) -> void:
 	var ordered_at := await _first_ordered_claim(t)
 	if not t.require(ordered_at < INF, "the ordered member claims the back door under the order"):
 		return
+	await _joiner_follows_order(t, ordered_at)
+
+
+## Checks the joiner's claims after the order's (at `ordered_at`) take the order's mode and side,
+## and it stacks on that side.
+func _joiner_follows_order(t: TestContext, ordered_at: float) -> void:
+	var joiner := t.actor(&"joiner")
 	await t.seconds(3.0)
 	var later: Array = Order.raw_calls(t, joiner).filter(
 		func(e): return float(e["time"]) > ordered_at + 1.0,

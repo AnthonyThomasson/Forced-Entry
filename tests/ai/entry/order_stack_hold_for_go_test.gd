@@ -58,18 +58,30 @@ func run(t: TestContext) -> void:
 		order.get("wait_go") == true,
 		"the order is held for go (wait_go %s)" % str(order.get("wait_go")),
 	)
+	if not await _stack_forms(t, door):
+		return
+
+	if not await _holds(t):
+		return
+
+	await _go_then_cross(t, squad, door)
+
+
+## All three claim the back door under the order and radio ready, one in each slot. False when they
+## never claimed or never got ready.
+func _stack_forms(t: TestContext, door: String) -> bool:
 	var claimed := func():
 		return IDS.all(func(id): return not Order.ordered_claims(t, t.actor(id), door).is_empty())
 	if not t.require(
 			await t.until(claimed, 10.0),
 			"all three claim the back door under the order (claims carrying order_id)",
 	):
-		return
+		return false
 	if not t.require(
 			await t.until(func(): return Order.all_called(t, IDS, "ready", door), 30.0),
 			"the stack forms: all three radio ready",
 	):
-		return
+		return false
 	# Each member's slot now: its latest call at the doorway, whatever the step (a member that said
 	# ready, then moved up, says so in a claim).
 	var at_door := func(c): return String(c.get("opening", "")) == door
@@ -78,7 +90,12 @@ func run(t: TestContext) -> void:
 	)
 	slots.sort()
 	t.expect_eq(slots, [1, 2, 3], "every slot claimed, one each")
+	return true
 
+
+## Watches the held stack `HOLD` s: nobody crosses, slices the pie or calls a bang, and each radioed
+## in_position. False when someone crossed.
+func _holds(t: TestContext) -> bool:
 	var hold_end := t.time + HOLD
 	var crossed := await t.until(
 		func(): return (
@@ -107,9 +124,11 @@ func run(t: TestContext) -> void:
 			not Order.progress(t, "in_position", t.actor(id)).is_empty(),
 			"%s radioed in_position once ready and holding" % id,
 		)
-	if crossed:
-		return
+	return not crossed
 
+
+## The leader's go is posted; then all three go in, none before it, in slot order.
+func _go_then_cross(t: TestContext, squad: Node, door: String) -> void:
 	var go := Order.go(squad, Order.BACK_NORTH)
 	if not t.require(
 			not go.is_empty(),

@@ -74,6 +74,11 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	await _goes_quiet(t)
+
+
+## The stack goes in with no stun thrown, radios the bang given up, and still clears the kitchen.
+func _goes_quiet(t: TestContext) -> void:
 	t.check(
 		await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), 45.0),
 		"the stack goes in",

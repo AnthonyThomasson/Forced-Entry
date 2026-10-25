@@ -66,6 +66,18 @@ func run(t: TestContext) -> void:
 	var markers: Node2D = (load(Order.ORDER_MARKERS_SCRIPT) as GDScript).new()
 	t.world.add_child(markers)
 	markers.watch(squad.view)
+	if not await _human_ready(t, stack, door):
+		return
+
+	if not await _held_for_human(t, squad, markers):
+		return
+
+	await _human_goes_first(t, squad, markers, door)
+
+
+## The human is reserved a slot and keeps it, walks to it, and the whole stack is ready. False when
+## one of these never happens.
+func _human_ready(t: TestContext, stack: Node, door: Dictionary) -> bool:
 	var settled := [0, 0]  # The human's slot last frame, and the frames it has held it.
 	var reserved := func():
 		var now := Stack.mine(stack)
@@ -76,17 +88,20 @@ func run(t: TestContext) -> void:
 			await t.until(reserved, 20.0),
 			"the human is reserved a slot at the back door (and keeps it)",
 	):
-		return
+		return false
 	var mine := Stack.mine(stack)
 	if not t.require(
 			await Stack.walk(t, &"me", [Stack.slot_point(stack, mine)], 15.0),
 			"the human walks to its slot %d" % mine,
 	):
-		return
+		return false
 	var ready := func(): return Order.all_called(t, IDS + [&"me"], "ready", door["id"])
-	if not t.require(await t.until(ready, 30.0), "the whole stack is ready, the human included"):
-		return
+	return t.require(await t.until(ready, 30.0), "the whole stack is ready, the human included")
 
+
+## Nobody goes in for `HOLD` s while the human holds its slot, and the squad and the order markers
+## say both orders are held. False when someone went in or the squad does not say so.
+func _held_for_human(t: TestContext, squad: Node, markers: Node2D) -> bool:
 	var crossed := await t.until(func(): return not Entry.calls(t, "going_in").is_empty(), HOLD)
 	t.check(
 		not crossed,
@@ -94,18 +109,23 @@ func run(t: TestContext) -> void:
 			% str(Entry.calls(t, "going_in").map(func(c): return c.get("speaker").name)),
 	)
 	if crossed:
-		return
+		return false
 	if not t.require(
 			IDS.all(func(id): return _held(squad, t.actor(id))),
 			"set-up: the squad says both orders are held for the go (%s)" % str(_rows(squad, t)),
 	):
-		return
+		return false
 	t.check(
 		IDS.all(func(id): return _label(markers, t.actor(id)).contains("hold")),
 		"and the order markers say hold (%s)"
 			% str(IDS.map(func(id): return _label(markers, t.actor(id)))),
 	)
+	return true
 
+
+## The human walks into the doorway, its go: the orders are no longer held, and once it walks on
+## into the room both AIs follow it in.
+func _human_goes_first(t: TestContext, squad: Node, markers: Node2D, door: Dictionary) -> void:
 	var way := Stack.crossing(door)
 	# Out in front of the door, then into the doorway: its step is `going_in` there, the go (D14).
 	if not t.require(

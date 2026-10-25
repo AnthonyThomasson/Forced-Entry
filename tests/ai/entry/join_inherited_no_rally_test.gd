@@ -64,22 +64,48 @@ func run(t: TestContext) -> void:
 	var sergeant := t.actor(&"sergeant")
 	var trooper := t.actor(&"trooper")
 	var squad := t.squad(&"invader")
+	if not _human_leads(t, me, squad, trooper):
+		return
+	var nodes: Array = [me, sergeant, trooper]
+	var w := Follow.new_watch()
+	var join := await _rally_sergeant(t, w, nodes, squad)
+	if join.is_empty():
+		return
+
+	me.take_damage(1.0e9)
+	var died_at := t.time
+	await t.frames(1)
+	if not _sergeant_takes_over(t, squad, sergeant, trooper, died_at):
+		return
+	if not await _join_claims_rally_nobody(t, w, nodes, died_at):
+		return
+
+	await _own_claim_rallies(t, w, nodes, join)
+
+
+## The premises: the human has a stack radio, leads, and has ordered the trooper to defend the
+## living room. False when one does not hold.
+func _human_leads(t: TestContext, me: Node, squad: Node, trooper: Node) -> bool:
 	var stack := t.player_stack()
 	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return
+		return false
 	if not t.require(squad.leader() == me, "premise: the human leads (Lead the team)"):
-		return
+		return false
 	var defend := Order.issue(
 		squad,
 		{ "kind": Order.DEFEND, "to": [trooper], "room": "living_room" },
 	)
-	if not t.require(
-			String(defend.get("kind", "")) == Order.DEFEND,
-			"premise: the human ordered the trooper to defend the living room (%s)" % str(defend),
-	):
-		return
-	var nodes: Array = [me, sergeant, trooper]
-	var w := Follow.new_watch()
+	return t.require(
+		String(defend.get("kind", "")) == Order.DEFEND,
+		"premise: the human ordered the trooper to defend the living room (%s)" % str(defend),
+	)
+
+
+## The human walks up beside the back door; its claim rallies the sergeant (the second of
+## `nodes`) alone, which claims its slot there. Returns the join order's data, empty when a premise
+## does not hold.
+func _rally_sergeant(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> Dictionary:
+	var sergeant: Node = nodes[1]
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var door := String(Entry.BACK["id"])
@@ -92,30 +118,45 @@ func run(t: TestContext) -> void:
 				+ "its slot there (joins %s)"
 				% str(Follow.raw_joins(t).map(func(e): return e["data"])),
 	):
-		return
+		return {}
 	var join: Dictionary = Follow.raw_joins(t)[0]["data"]
 	if not t.require(
 			(join.get("to", []) as Array) == [sergeant],
 			"premise: the join went to the sergeant alone (the trooper holds its defend, D24)",
 	):
-		return
+		return {}
+	return join
 
-	me.take_damage(1.0e9)
-	var died_at := t.time
-	await t.frames(1)
+
+## The premises once the human is dead: the sergeant leads within the frame, and the squad
+## cancelled the trooper's defend. False when one does not hold.
+func _sergeant_takes_over(
+		t: TestContext,
+		squad: Node,
+		sergeant: Node,
+		trooper: Node,
+		died_at: float,
+) -> bool:
 	if not t.require(
 			squad.leader() == sergeant,
 			"premise: the sergeant leads within the frame (leader %s)"
 				% Follow.name_of(squad.leader()),
 	):
-		return
-	if not t.require(
-			Follow.raw_orders(t, Order.CANCEL).any(func(e): return (
-				float(e["time"]) >= died_at and (e["data"].get("to", []) as Array).has(trooper)
-			)),
-			"premise: the squad cancelled the trooper's defend (LD26): it holds no order",
-	):
-		return
+		return false
+	return t.require(
+		Follow.raw_orders(t, Order.CANCEL).any(func(e): return (
+			float(e["time"]) >= died_at and (e["data"].get("to", []) as Array).has(trooper)
+		)),
+		"premise: the squad cancelled the trooper's defend (LD26): it holds no order",
+	)
+
+
+## Watches the sergeant (the second of `nodes`), leading, radio its join's claim at the back door
+## again, and checks those claims rallied nobody. False when it radioed none.
+func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died_at: float) -> bool:
+	var squad := t.squad(&"invader")
+	var sergeant: Node = nodes[1]
+	var door := String(Entry.BACK["id"])
 	var watch_claims := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return false
@@ -131,15 +172,21 @@ func run(t: TestContext) -> void:
 					snappedf(float(e["time"]), 0.1), e["data"].get("entry_step"),
 				])),
 	):
-		return
-	var led_joins := func() -> Array:
-		return Follow.raw_joins(t).filter(func(e): return e["data"].get("leader") == sergeant)
+		return false
 	t.check(
-		led_joins.call().is_empty(),
+		_led_joins(t, sergeant).is_empty(),
 		"the sergeant's join claims at the back door rallied nobody (joins %s)"
-			% str(led_joins.call().map(func(e): return e["data"])),
+			% str(_led_joins(t, sergeant).map(func(e): return e["data"])),
 	)
+	return true
 
+
+## Once the join is over, checks the sergeant's next claim of its own rallied the trooper (the
+## second and third of `nodes`).
+func _own_claim_rallies(t: TestContext, w: Dictionary, nodes: Array, join: Dictionary) -> void:
+	var squad := t.squad(&"invader")
+	var sergeant: Node = nodes[1]
+	var trooper: Node = nodes[2]
 	var join_done := func() -> float:
 		for e: Dictionary in t.events:
 			if (e["topic"] == &"callout"
@@ -153,7 +200,7 @@ func run(t: TestContext) -> void:
 		return Follow.own_claims(t, sergeant).filter(func(e): return float(e["time"]) > since)
 	var rallied := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
-		return not own_after.call().is_empty() and not led_joins.call().is_empty()
+		return not own_after.call().is_empty() and not _led_joins(t, sergeant).is_empty()
 	await t.until(rallied, OWN_CLAIM_WITHIN)
 	if not t.require(
 			join_done.call() < INF and not own_after.call().is_empty(),
@@ -162,11 +209,16 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var opening := String(own_after.call()[0]["data"].get("opening", ""))
-	var joins: Array = led_joins.call().filter(
+	var joins: Array = _led_joins(t, sergeant).filter(
 		func(e): return String(e["data"].get("opening", "")) == opening,
 	)
 	t.check(
 		not joins.is_empty() and (joins[0]["data"].get("to", []) as Array).has(trooper),
 		"the sergeant's next claim of its own, at %s, rallied the trooper (joins %s)"
-			% [opening, str(led_joins.call().map(func(e): return e["data"]))],
+			% [opening, str(_led_joins(t, sergeant).map(func(e): return e["data"]))],
 	)
+
+
+## The join orders the sergeant has issued as leader.
+func _led_joins(t: TestContext, sergeant: Node) -> Array:
+	return Follow.raw_joins(t).filter(func(e): return e["data"].get("leader") == sergeant)

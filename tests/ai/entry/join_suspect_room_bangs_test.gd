@@ -56,10 +56,7 @@ func run(t: TestContext) -> void:
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
 	var door := String(Entry.BACK["id"])
 	var w := Follow.new_watch()
-	var in_all := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
-		return nodes.all(func(c): return Follow.first_call(t, c, "going_in", door) < INF)
-	await t.until(in_all, 70.0)
+	await _wait_all_in(t, w, nodes, squad, door)
 	if not t.require(
 			Follow.own_claims(t, lead).any(
 				func(e): return String(e["data"].get("opening", "")) == door,
@@ -71,6 +68,21 @@ func run(t: TestContext) -> void:
 	):
 		return
 
+	_check_joined(t, w, members, door)
+	_check_banged(t, nodes, door)
+
+
+## Watches (70 s at most) until all of `nodes` went in by `door`.
+func _wait_all_in(t: TestContext, w: Dictionary, nodes: Array, squad: Node, door: String) -> void:
+	var in_all := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return nodes.all(func(c): return Follow.first_call(t, c, "going_in", door) < INF)
+	await t.until(in_all, 70.0)
+
+
+## Checks the lead's claim gave both `members` a join order on the back door, and they asked Von
+## nothing.
+func _check_joined(t: TestContext, w: Dictionary, members: Array, door: String) -> void:
 	var joins := Follow.raw_joins(t)
 	var to: Array = joins[0]["data"].get("to", []) if not joins.is_empty() else []
 	t.check(
@@ -85,6 +97,11 @@ func run(t: TestContext) -> void:
 		"the members asked Von nothing: they joined by the order (asks %s)"
 			% str(members.map(func(m): return Follow.asked(w, m))),
 	)
+
+
+## Checks all of `nodes` went in, and before the first did the stack turned bang, radioed it and a
+## stun went off in the kitchen.
+func _check_banged(t: TestContext, nodes: Array, door: String) -> void:
 	var going: Array = nodes.map(func(c): return Follow.first_call(t, c, "going_in", door))
 	if not t.check(
 			going.all(func(g): return g < INF),

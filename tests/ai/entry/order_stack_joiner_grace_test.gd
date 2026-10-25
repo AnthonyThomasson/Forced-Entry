@@ -81,23 +81,39 @@ func run(t: TestContext) -> void:
 				% str(squad.leader()),
 	):
 		return
+	if not await _point_ready(t, door):
+		return
+	var point_ready := Entry.first_call_time(t, "ready", &"point", door["id"])
+
+	if not await _point_holds(t, door, point_ready):
+		return
+	if not await _joiner_claims(t, door):
+		return
+	await _joiner_waited_for(t, door, point_ready)
+
+
+## The point and the far member claim the back door, and the point is ready in its slot. False when
+## either never happens.
+func _point_ready(t: TestContext, door: Dictionary) -> bool:
 	var claimed := func():
 		return ORDERED.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF)
 	if not t.require(
 			await t.until(claimed, 8.0),
 			"the point and the far member claim the back door",
 	):
-		return
-	if not t.require(
-			await t.until(
-				func(): return Entry.first_call_time(t, "ready", &"point", door["id"]) < INF,
-				10.0,
-			),
-			"the point is ready in its slot",
-	):
-		return
-	var point_ready := Entry.first_call_time(t, "ready", &"point", door["id"])
+		return false
+	return t.require(
+		await t.until(
+			func(): return Entry.first_call_time(t, "ready", &"point", door["id"]) < INF,
+			10.0,
+		),
+		"the point is ready in its slot",
+	)
 
+
+## The set-up: the point holds `POINT_ALONE` s for the far member while it is held, and the joiner
+## claims nothing while Von is down. False when either does not hold.
+func _point_holds(t: TestContext, door: Dictionary, point_ready: float) -> bool:
 	var crossed := func(): return Entry.first_call_time(t, "going_in", &"point", door["id"]) < INF
 	if await t.until(crossed, POINT_ALONE):
 		t.require(
@@ -106,12 +122,16 @@ func run(t: TestContext) -> void:
 					+ "%.1f s, ready at %.1f s)")
 				% [Entry.first_call_time(t, "going_in", &"point", door["id"]), point_ready],
 		)
-		return
-	if not t.require(
-			Entry.first_call_time(t, "claim", &"joiner") == INF,
-			"set-up: the joiner claims nothing while Von is down (it holds steady)",
-	):
-		return
+		return false
+	return t.require(
+		Entry.first_call_time(t, "claim", &"joiner") == INF,
+		"set-up: the joiner claims nothing while Von is down (it holds steady)",
+	)
+
+
+## The far member is let go and Von answers: the joiner claims the back door, unordered, behind
+## the point and the far member. False when it does not.
+func _joiner_claims(t: TestContext, door: Dictionary) -> bool:
 	t.actor(&"far").set("speed", WALK_SPEED)
 	# Von answers now: the joiner takes the quiet ENTER on the back door.
 	DecisionStub.fail = false
@@ -121,18 +141,22 @@ func run(t: TestContext) -> void:
 			await t.until(joiner_claimed, JOINER_CLAIM),
 			"set-up: the joiner claims the back door once Von answers",
 	):
-		return
+		return false
 	if not t.require(
 			Order.ordered_claims(t, t.actor(&"joiner"), door["id"]).is_empty(),
 			"set-up: the joiner's claims carry no order (unordered)",
 	):
-		return
+		return false
 	var order_of := Order.by_slot(t, ORDERED + [&"joiner"], door["id"])
-	if not t.require(
-			order_of == [&"point", &"far", &"joiner"],
-			"set-up: the stack is point, far, joiner by slot (%s)" % str(order_of),
-	):
-		return
+	return t.require(
+		order_of == [&"point", &"far", &"joiner"],
+		"set-up: the stack is point, far, joiner by slot (%s)" % str(order_of),
+	)
+
+
+## The far member reaches its slot, then the joiner within the grace; the point, ready since
+## `point_ready`, goes in only after the joiner is ready.
+func _joiner_waited_for(t: TestContext, door: Dictionary, point_ready: float) -> void:
 	var far_ready := func():
 		return Entry.first_call_time(t, "ready", &"far", door["id"]) < INF
 	if not t.require(await t.until(far_ready, 15.0), "the far member, let go, reaches its slot"):
@@ -153,6 +177,7 @@ func run(t: TestContext) -> void:
 					+ "arrival (%.1f s after it)") % (joiner_at - last_ordered),
 	):
 		return
+	var crossed := func(): return Entry.first_call_time(t, "going_in", &"point", door["id"]) < INF
 	await t.until(crossed, 20.0)
 	var point_in := Entry.first_call_time(t, "going_in", &"point", door["id"])
 	t.check(

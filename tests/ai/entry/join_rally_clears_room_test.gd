@@ -56,6 +56,31 @@ func run(t: TestContext) -> void:
 	var opening := String(claims[0]["data"].get("opening", ""))
 	var into := String(claims[0]["data"].get("into", ""))
 	var claimed_at := float(claims[0]["time"])
+	await _wait_clear(t, w, nodes, opening, into)
+
+	_check_join(t, nodes, opening, claimed_at)
+	for m: Node in members:
+		t.check(
+			Follow.took(w, m, "order"),
+			"%s carried out the join order (ORDER; acts %s)" % [m.name, Follow.acts_of(w, m)],
+		)
+	_check_one_stack(t, nodes, opening)
+	t.check(
+		not Follow.clears(t, into).is_empty(),
+		"the %s was called clear (cleared_room) within %.0f s of the lead's claim"
+			% [into, CLEAR_WITHIN],
+	)
+
+
+## Watches (`CLEAR_WITHIN` s at most) until `into` is called clear and all of `nodes` went in.
+func _wait_clear(
+	t: TestContext,
+	w: Dictionary,
+	nodes: Array,
+	opening: String,
+	into: String,
+) -> void:
+	var squad := t.squad(&"invader")
 	var cleared := func(rec: Dictionary) -> bool:
 		Follow.tick(rec, t, nodes, squad)
 		return not Follow.clears(t, into).is_empty() and nodes.all(
@@ -63,6 +88,12 @@ func run(t: TestContext) -> void:
 		)
 	await t.until(cleared.bind(w), CLEAR_WITHIN)
 
+
+## Checks the squad issued one join order, to both others (all of `nodes` but the lead, the first),
+## on the lead's doorway after its claim.
+func _check_join(t: TestContext, nodes: Array, opening: String, claimed_at: float) -> void:
+	var lead: Node = nodes[0]
+	var members: Array = nodes.slice(1)
 	var joins := Follow.raw_joins(t)
 	t.check(
 		joins.size() == 1,
@@ -82,11 +113,10 @@ func run(t: TestContext) -> void:
 			"on the lead's doorway %s, after its claim at %.2f s (order on %s at %.2f s)"
 				% [opening, claimed_at, order.get("opening", ""), float(joins[0]["time"])],
 		)
-	for m: Node in members:
-		t.check(
-			Follow.took(w, m, "order"),
-			"%s carried out the join order (ORDER; acts %s)" % [m.name, Follow.acts_of(w, m)],
-		)
+
+
+## Checks all of `nodes` went in by `opening`, as one stack.
+func _check_one_stack(t: TestContext, nodes: Array, opening: String) -> void:
 	var going: Array = nodes.map(func(c): return Follow.first_call(t, c, "going_in", opening))
 	t.check(
 		going.all(func(g): return g < INF),
@@ -98,8 +128,3 @@ func run(t: TestContext) -> void:
 			"as one stack: the first and the last went in %.1f s apart (most %.0f)"
 				% [float(going.max()) - float(going.min()), ONE_STACK_S],
 		)
-	t.check(
-		not Follow.clears(t, into).is_empty(),
-		"the %s was called clear (cleared_room) within %.0f s of the lead's claim"
-			% [into, CLEAR_WITHIN],
-	)
