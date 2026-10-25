@@ -485,7 +485,8 @@ static func free_slot(claims: Array, self_id: int, current := 0, mine := {}) -> 
 	for m in claims:
 		taken[m["slot"]] = taken.get(m["slot"], []) + [m]
 	var holds := func(other):
-		return _wins(claims, current, int(mine.get("side", 0)), other, self_id, mine)
+		var verdict := _verdict(claims, current, int(mine.get("side", 0)), other, mine)
+		return _settles(verdict, self_id, other)
 	if current > 0 and (not taken.has(current) or taken[current].all(holds)):
 		return current
 	for other in taken.get(current, []):
@@ -494,9 +495,7 @@ static func free_slot(claims: Array, self_id: int, current := 0, mine := {}) -> 
 			return freed  # An ally moved up into this slot (E2): this NPC takes the one it freed.
 	var slot := 1
 	while taken.has(slot):
-		var gives_way := func(other):
-			return (int(other["claim_frame"]) == int(mine.get("frame", -2))
-					and _wins(claims, slot, int(other["side"]), other, self_id, mine))
+		var gives_way := func(other): return _gives_way(claims, slot, other, self_id, mine)
 		if taken[slot].all(gives_way):
 			# Claimed on the frame this NPC claimed on, by someone farther from it: this NPC takes
 			# it, and the other gives it up.
@@ -505,21 +504,35 @@ static func free_slot(claims: Array, self_id: int, current := 0, mine := {}) -> 
 	return slot
 
 
-## Whether this NPC (`self_id`, `mine`: see `free_slot`) holds slot `slot` on side `side` against
-## ally `other`'s claim on it: the one that moved up into it, of a move-up and a claim that is not
-## one (E2); else by distance to the slot's point (laid among the claims but these two) when both
-## claimed it on the same frame on the same side, else (and at an even distance) by instance id.
-static func _wins(
+## Whether ally `other` gives slot `slot` up to this NPC (`self_id`, `mine`: see `free_slot`): it
+## claimed it on the frame this NPC claims on, and this NPC holds it against it.
+static func _gives_way(
 	claims: Array,
 	slot: int,
-	side: int,
 	other: Dictionary,
 	self_id: int,
 	mine: Dictionary,
 ) -> bool:
+	if int(other["claim_frame"]) != int(mine.get("frame", -2)):
+		return false
+	var verdict := _verdict(claims, slot, int(other["side"]), other, mine)
+	return _settles(verdict, self_id, other)
+
+
+## Who holds slot `slot` on side `side`, this NPC (`mine`: see `free_slot`) or ally `other` by its
+## claim on it: 1 this NPC, -1 the ally, 0 when neither settles it. The one that moved up into it
+## holds it, of a move-up and a claim that is not one (E2); else the nearer to the slot's point
+## (laid among the claims but these two) when both claimed it on the same frame on the same side.
+static func _verdict(
+	claims: Array,
+	slot: int,
+	side: int,
+	other: Dictionary,
+	mine: Dictionary,
+) -> int:
 	if (int(other.get("move_up", 0)) > 0) != (int(mine.get("move_up", 0)) > 0):
 		# A move-up (E2) holds the slot it stepped into against the claim it moved up past.
-		return int(mine.get("move_up", 0)) > 0
+		return 1 if int(mine.get("move_up", 0)) > 0 else -1
 	if (not mine.is_empty()
 			and int(other["claim_frame"]) >= 0
 			and int(other["claim_frame"]) == int(mine["frame"])
@@ -530,7 +543,15 @@ static func _wins(
 			var own: float = (mine["pos"] as Vector2).distance_to(at)
 			var theirs: float = (other["claim_pos"] as Vector2).distance_to(at)
 			if absf(own - theirs) > 0.5:
-				return own < theirs
+				return 1 if own < theirs else -1
+	return 0
+
+
+## Whether this NPC (instance id `self_id`) holds a slot against ally `other` on `_verdict`'s
+## `verdict`: as it settles, else (and at an even distance) by the lower instance id.
+static func _settles(verdict: int, self_id: int, other: Dictionary) -> bool:
+	if verdict != 0:
+		return verdict > 0
 	return self_id < int(other["id"])
 
 

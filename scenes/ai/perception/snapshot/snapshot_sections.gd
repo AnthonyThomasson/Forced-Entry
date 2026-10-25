@@ -56,34 +56,56 @@ func situation_text(rooms: Array) -> String:
 func order_text(order: Dictionary, rooms: Array) -> String:
 	match String(order.get("kind", "")):
 		"defend_room":
-			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
-			if not room.is_empty():
-				return "Your leader ordered you to defend the %s." % _v.room_name(room["type"])
+			return _defend_order_text(order, rooms)
 		"stack":
-			var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
-			if not into.is_empty():
-				var mode := String(order["mode"])
-				if StackClaim.is_join(order):
-					# The leader's own stack (LD24): its team goes in with it.
-					return ("Your leader ordered you to go into the %s by its doorway with them."
-							% _v.room_name(into["type"]))
-				return "Your leader ordered you to go into the %s by its doorway %s%s." % [
-					_v.room_name(into["type"]),
-					"with a %s grenade first" % mode if mode != "quiet" else "quietly",
-					" when they give the go"
-						if bool(order.get("wait_go", false)) and not bool(order.get("go", false))
-						else "",
-				]
+			return _stack_order_text(order, rooms)
 		"ambush":
-			var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
-			if not room.is_empty():
-				var beyond := SnapshotVocab.room_by_key(rooms, String(order.get("beyond", "")))
-				if beyond.is_empty():
-					return (("Your leader ordered you to ambush the outside doorway of the %s from "
-								+ "inside.") % _v.room_name(room["type"]))
-				return ("Your leader ordered you to ambush the doorway into the %s from the %s."
-						% [_v.room_name(beyond["type"]), _v.room_name(room["type"])])
+			return _ambush_order_text(order, rooms)
 	return ""
+
+
+## `order_text` of a `defend_room` order: "Your leader ordered you to defend the kitchen."; "" for a
+## room it does not know.
+func _defend_order_text(order: Dictionary, rooms: Array) -> String:
+	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	if room.is_empty():
+		return ""
+	return "Your leader ordered you to defend the %s." % _v.room_name(room["type"])
+
+
+## `order_text` of a `stack` order: into the room by its doorway quietly, with a grenade first or,
+## for a join, with them; a held stack with no go yet adds " when they give the go". "" for a room
+## it does not know.
+func _stack_order_text(order: Dictionary, rooms: Array) -> String:
+	var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
+	if into.is_empty():
+		return ""
+	var mode := String(order["mode"])
+	if StackClaim.is_join(order):
+		# The leader's own stack (LD24): its team goes in with it.
+		return ("Your leader ordered you to go into the %s by its doorway with them."
+				% _v.room_name(into["type"]))
+	return "Your leader ordered you to go into the %s by its doorway %s%s." % [
+		_v.room_name(into["type"]),
+		"with a %s grenade first" % mode if mode != "quiet" else "quietly",
+		" when they give the go"
+			if bool(order.get("wait_go", false)) and not bool(order.get("go", false))
+			else "",
+	]
+
+
+## `order_text` of an `ambush` order: the doorway into the room beyond from the ordered room, or an
+## exterior door's from inside. "" for a room it does not know.
+func _ambush_order_text(order: Dictionary, rooms: Array) -> String:
+	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	if room.is_empty():
+		return ""
+	var beyond := SnapshotVocab.room_by_key(rooms, String(order.get("beyond", "")))
+	if beyond.is_empty():
+		return (("Your leader ordered you to ambush the outside doorway of the %s from "
+				+ "inside.") % _v.room_name(room["type"]))
+	return ("Your leader ordered you to ambush the doorway into the %s from the %s."
+			% [_v.room_name(beyond["type"]), _v.room_name(room["type"])])
 
 
 ## The gun's state in the bands Von reads (never a round count): loaded, nearly empty, empty or

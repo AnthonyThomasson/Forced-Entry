@@ -121,12 +121,12 @@ func bind(character: Node) -> void:
 
 
 ## How many grenades of `kind` `character` carries (`Character.item_count`).
-static func count(character, kind: StringName) -> int:
+static func count(character: Node, kind: StringName) -> int:
 	return int(character.item_count(SLOTS[kind]))
 
 
 ## The kinds `character` carries, a frag first: `[&"frag", &"stun"]` less those it has none of.
-static func carried(character) -> Array:
+static func carried(character: Node) -> Array:
 	return SLOTS.keys().filter(func(k): return count(character, k) > 0)
 
 
@@ -200,38 +200,32 @@ func zone_radius(kind: StringName, radius: float) -> float:
 	return radius + evade_margin if kind == &"frag" else radius
 
 
-## Whether a body `height` tall at `p` is inside the danger zone of a grenade of `kind` and danger
-## `radius` at `burst`: within the zone's reach and not shielded from the burst. `exclude` holds the
-## characters' rids (bodies stop nothing).
+## Whether a body `height` tall at `p` is inside the danger zone of grenade `threat` (its kind, its
+## danger radius and where it bursts; the fuse is not read): within the zone's reach and not
+## shielded from the burst. `exclude` holds the characters' rids (bodies stop nothing).
 func in_zone(
-	space,
-	kind: StringName,
-	radius: float,
-	burst: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	threat: GrenadeThreat,
 	p: Vector2,
 	height: float,
 	exclude: Array,
 ) -> bool:
-	return (p.distance_to(burst) <= zone_radius(kind, radius)
-			and not shielded(space, burst, p, height, exclude, cover_reach(kind)))
+	return (p.distance_to(threat.burst) <= zone_radius(threat.kind, threat.radius)
+			and not shielded(
+				space, threat.burst, p, _cover_rule(height, exclude, cover_reach(threat.kind))
+			))
 
 
-## Whether something between `burst` and `p` shields a body `height` tall at `p`: a wall, or
-## furniture taller than `height`, by the blast's own rule (`Explosion.shields`). With a finite
-## `reach` (a stun's flash, `cover_reach`) a piece of furniture only stops the line when `p` is
-## within `reach` px of it, on the burst's side.
+## Whether something between `burst` and `p` shields a body at `p` by `cover` (its height, the rids
+## the line passes through, the reach): a wall, or furniture taller than the body, by the blast's
+## own rule (`Explosion.shields`). With a finite reach (a stun's flash, `cover_reach`) a piece of
+## furniture only stops the line when `p` is within that many px of it, on the burst's side.
 func shielded(
-	space,
+	space: PhysicsDirectSpaceState2D,
 	burst: Vector2,
 	p: Vector2,
-	height: float,
-	exclude: Array,
-	reach := INF,
+	cover: CoverRule,
 ) -> bool:
-	var cover := CoverRule.new()
-	cover.height = height
-	cover.exclude = exclude
-	cover.cover_reach = reach
 	return Explosion.shields(space, burst, p, cover)
 
 
@@ -255,21 +249,19 @@ func cover_reach(kind: StringName) -> float:
 ## each candidate's spot on the navmesh, each spot's verdict) is shared with every NPC that asks
 ## about the same burst on the same physics frame (`_shared_burst`); the routes are the NPC's own.
 func escape(
-	space,
+	space: PhysicsDirectSpaceState2D,
 	map: RID,
 	threat: GrenadeThreat,
 	runner: GrenadeRunner,
 	exclude: Array,
 ) -> Dictionary:
-	var kind := threat.kind
-	var burst := threat.burst
 	var from := runner.from
-	var out_r := zone_radius(kind, threat.radius) + OUTSIDE_SLACK
-	var reach := cover_reach(kind)
+	var out_r := zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
 	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap
 	# onto the same spot, so each point is snapped, each spot judged and each route measured once:
 	# the same answers, in the same order.
-	var shared := _shared_burst(space, burst, out_r, exclude, kind)
+	var shared := _shared_burst(space, threat.burst, out_r, exclude, threat.kind)
 	var on_mesh: Dictionary = _shared_snaps(map)  # candidate -> its spot on the navmesh
 	# spot -> NOT_SAFE, or whether it is safe only crouched
 	var judged: Dictionary = shared["judged"]
@@ -283,17 +275,39 @@ func escape(
 			continue
 		var verdict: int = judged.get(q, UNJUDGED)
 		if verdict == UNJUDGED:
-			verdict = SAFE_STANDING
-			if (q.distance_to(burst) < out_r
-					and not _covered(space, burst, q, _stand, exclude, reach)):
-				verdict = (SAFE_CROUCHED
-						if _covered(space, burst, q, _crouch, exclude, reach)
-						else NOT_SAFE)
+			verdict = _judge(space, threat, q, standing)
 			judged[q] = verdict
 		if verdict != NOT_SAFE:
 			spots.append({ "spot": q, "crouch": verdict == SAFE_CROUCHED })
+	return _nearest_in_time(
+		map,
+		from,
+		spots,
+		maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed,
+	)
+
+
+## The verdict on spot `q` for the grenade `threat`, judged with the `standing` body's cover rule:
+## `SAFE_STANDING` outside the zone or shielded standing, `SAFE_CROUCHED` shielded only crouched,
+## else `NOT_SAFE`.
+func _judge(
+	space: PhysicsDirectSpaceState2D,
+	threat: GrenadeThreat,
+	q: Vector2,
+	standing: CoverRule,
+) -> int:
+	if (q.distance_to(threat.burst) >= zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+			or _covered(space, threat.burst, q, standing)):
+		return SAFE_STANDING
+	var crouched := _cover_rule(_crouch, standing.exclude, standing.cover_reach)
+	return SAFE_CROUCHED if _covered(space, threat.burst, q, crouched) else NOT_SAFE
+
+
+## Of `spots` (`{ spot, crouch }`, safe ones), the one with the shortest route from `from` on
+## navigation `map` that is at most `allowed` px long: `{ spot, crouch, route }`, or
+## `{ spot: Vector2.INF }` when none is. Each spot's route is measured once.
+static func _nearest_in_time(map: RID, from: Vector2, spots: Array, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	var allowed := maxf(threat.fuse_left - ARRIVE_MARGIN, 0.0) * runner.speed
 	var routes := {}  # spot -> its route's length
 	for s: Dictionary in spots:
 		var length: float = routes.get(s["spot"], -1.0)
@@ -305,11 +319,21 @@ func escape(
 	return best
 
 
+## The cover rule of a body `height` tall on lines through the rids `exclude` (bodies stop nothing),
+## furniture counting within `reach` px of the body (`cover_reach`).
+static func _cover_rule(height: float, exclude: Array, reach: float) -> CoverRule:
+	var cover := CoverRule.new()
+	cover.height = height
+	cover.exclude = exclude
+	cover.cover_reach = reach
+	return cover
+
+
 ## The work shared on this physics frame for a burst at `burst` judged with the zone `out_r` and
 ## this NPC's heights: `{ around, judged }` (`judged` filled as spots are judged), made now when no
 ## NPC has asked yet, and fresh outside a physics frame.
 func _shared_burst(
-	space,
+	space: PhysicsDirectSpaceState2D,
 	burst: Vector2,
 	out_r: float,
 	exclude: Array,
@@ -358,40 +382,45 @@ static func _ids(rids: Array) -> Array:
 	return ids
 
 
-## Whether a body `height` tall at `p` is shielded from `burst` with room to spare: also
-## `COVER_MARGIN` px to either side of the line, so a spot on the edge of a shadow (and a body that
-## stops a step short of it) is not taken for one.
+## Whether a body at `p` is shielded from `burst` by the `cover` rule (its height, the rids the line
+## passes through, the reach) with room to spare: also `COVER_MARGIN` px to either side of the line,
+## so a spot on the edge of a shadow (and a body that stops a step short of it) is not taken for
+## one.
 func _covered(
-	space,
+	space: PhysicsDirectSpaceState2D,
 	burst: Vector2,
 	p: Vector2,
-	height: float,
-	exclude: Array,
-	reach: float,
+	cover: CoverRule,
 ) -> bool:
 	var side := (p - burst).normalized().orthogonal() * COVER_MARGIN
-	return (shielded(space, burst, p, height, exclude, reach)
-			and shielded(space, burst, p + side, height, exclude, reach)
-			and shielded(space, burst, p - side, height, exclude, reach))
+	return (shielded(space, burst, p, cover)
+			and shielded(space, burst, p + side, cover)
+			and shielded(space, burst, p - side, cover))
 
 
 ## The candidate spots for an escape (unsnapped, unjudged): where the NPC stands (already behind
-## cover that shields a crouched body, it need not move), the circle `out_r` round the burst, the
-## shadows behind the obstacles a ray from the burst meets, and a ring round `from`.
+## cover that shields a crouched body, it need not move), the circle just outside the zone of the
+## grenade `threat`, the shadows behind the obstacles a ray from its burst meets, and a ring round
+## `from`. `exclude` holds the characters' rids.
 func _candidates(
-	space,
-	burst: Vector2,
+	space: PhysicsDirectSpaceState2D,
+	threat: GrenadeThreat,
 	from: Vector2,
-	out_r: float,
 	exclude: Array,
-	kind: StringName,
 ) -> Array:
-	return [from] + _around(space, burst, out_r, exclude, kind) + _ring(from)
+	var out_r := zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	return [from] + _around(space, threat.burst, out_r, exclude, threat.kind) + _ring(from)
 
 
 ## The candidates that depend on the burst alone: the circle `out_r` round it and the shadows behind
 ## the obstacles a ray from it meets.
-func _around(space, burst: Vector2, out_r: float, exclude: Array, kind: StringName) -> Array:
+func _around(
+	space: PhysicsDirectSpaceState2D,
+	burst: Vector2,
+	out_r: float,
+	exclude: Array,
+	kind: StringName,
+) -> Array:
 	var out: Array = []
 	for i in CIRCLE_DIRECTIONS:
 		out.append(burst + Vector2.from_angle(TAU * i / CIRCLE_DIRECTIONS) * out_r)
@@ -403,18 +432,24 @@ func _around(space, burst: Vector2, out_r: float, exclude: Array, kind: StringNa
 				continue
 			for step: float in SHADOW_STEPS:
 				out.append((hit["position"] as Vector2) + dir * step)
-			var far: Dictionary = (vision.raycast(
-				space,
-				(hit["position"] as Vector2) + dir * FAR_PROBE,
-				hit["position"],
-				exclude,
-			)
-					if kind == &"stun"
-					else {})
+			if kind != &"stun":
+				continue
+			var far := _far_face(space, hit["position"], dir, exclude)
 			if not far.is_empty():
 				# Right against the piece's far face: the cover a flash respects.
 				out.append((far["position"] as Vector2) + dir * FAR_STEP)
 	return out
+
+
+## The far face of what a ray from a burst along `dir` met at `at`: the ray back from `FAR_PROBE` px
+## past it, or {} when nothing is there.
+func _far_face(
+	space: PhysicsDirectSpaceState2D,
+	at: Vector2,
+	dir: Vector2,
+	exclude: Array,
+) -> Dictionary:
+	return vision.raycast(space, at + dir * FAR_PROBE, at, exclude)
 
 
 ## The candidates round the NPC at `from`: `RING_RADII` x `RING_DIRECTIONS`.
@@ -439,14 +474,25 @@ func run_speed() -> float:
 
 ## Whether a thrower standing at `at` can lob a grenade onto `to`: within `max_range` of it, and the
 ## lob from its hand is clear (`throw_clear`). `exclude` holds the characters' rids.
-func can_lob(space, at: Vector2, to: Vector2, max_range: float, exclude: Array) -> bool:
+func can_lob(
+	space: PhysicsDirectSpaceState2D,
+	at: Vector2,
+	to: Vector2,
+	max_range: float,
+	exclude: Array,
+) -> bool:
 	return at.distance_to(to) <= max_range and throw_clear(space, at, to, exclude)
 
 
 ## Whether the lob a thrower standing at `at` throws onto `to` flies clear, whatever the distance:
 ## the band `LOB_MARGIN` px either side of the line from where the grenade leaves its hand
 ## (`release_point`) to `to`, its middle and both edges.
-func throw_clear(space, at: Vector2, to: Vector2, exclude: Array) -> bool:
+func throw_clear(
+	space: PhysicsDirectSpaceState2D,
+	at: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> bool:
 	var hand := release_point(space, at, to, exclude)
 	var side := (to - hand).normalized().orthogonal() * LOB_MARGIN
 	for lateral: Vector2 in [Vector2.ZERO, side, -side]:
@@ -458,7 +504,12 @@ func throw_clear(space, at: Vector2, to: Vector2, exclude: Array) -> bool:
 ## Whether the lob onto `to` is clear for a thrower that walks to `at`: from `at` and from
 ## `ARRIVAL_SLACK` px off it in each of the four directions, where the walk may end (a spot clear
 ## only to the pixel is a jamb struck by a thrower that stops a stride's sliver short).
-func throw_clear_on_arrival(space, at: Vector2, to: Vector2, exclude: Array) -> bool:
+func throw_clear_on_arrival(
+	space: PhysicsDirectSpaceState2D,
+	at: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> bool:
 	if not throw_clear(space, at, to, exclude):
 		return false
 	for off: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
@@ -470,7 +521,12 @@ func throw_clear_on_arrival(space, at: Vector2, to: Vector2, exclude: Array) -> 
 ## Where a grenade thrown onto `to` leaves a thrower standing at `at`: its throwing hand (the
 ## learned release offset, as it faces `to`), or, with a wall or solid piece closer than that, the
 ## hand held against it, as the character's own hand is.
-func release_point(space, at: Vector2, to: Vector2, exclude: Array) -> Vector2:
+func release_point(
+	space: PhysicsDirectSpaceState2D,
+	at: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> Vector2:
 	var toward := (to - at).normalized()
 	if toward == Vector2.ZERO or _release == Vector2.ZERO:
 		return at
@@ -483,5 +539,10 @@ func release_point(space, at: Vector2, to: Vector2, exclude: Array) -> Vector2:
 
 ## Whether nothing stops a lob on the straight line from `from` to `to`, low furniture included (no
 ## wall or piece taller than `LOB_CLEARANCE`), whatever the distance.
-func lob_clear(space, from: Vector2, to: Vector2, exclude: Array) -> bool:
-	return not shielded(space, from, to, LOB_CLEARANCE, exclude)
+func lob_clear(
+	space: PhysicsDirectSpaceState2D,
+	from: Vector2,
+	to: Vector2,
+	exclude: Array,
+) -> bool:
+	return not shielded(space, from, to, _cover_rule(LOB_CLEARANCE, exclude, INF))

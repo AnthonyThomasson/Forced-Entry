@@ -31,16 +31,7 @@ func _paint() -> void:
 	var style: String = str(c.get("style", ""))
 	var col := COVER if phase == "cover" else PEEK
 	if c.get("engaged", false):
-		var tp: Vector2 = c["engage_pos"]
-		var clear: bool = c["fire_clear"]
-		_line(me, tp, Color(CLEAR if clear else BLOCKED, 0.7), 2.0 if clear else 1.0)
-		_ring(tp, 12.0, TARGET, 2.0)
-		draw_line(to_local(tp) + Vector2(-18, 0), to_local(tp) + Vector2(18, 0), TARGET, 1.5)
-		draw_line(to_local(tp) + Vector2(0, -18), to_local(tp) + Vector2(0, 18), TARGET, 1.5)
-		var why := "clear shot" if clear else ("line blocked" if c["in_range"] else "out of range")
-		_label(tp, "target · %s" % why, TARGET, Vector2(16, -4))
-		if str(c["primitive"]) == "melee" or c["punch_range"] > 0.0:
-			_ring(tp, c["punch_range"], Color(TARGET, 0.35), 1.0)
+		_paint_target(c, me)
 	_ring(me, c["shoot_range"], Color(PEEK, 0.18), 1.0)
 	var aim: Vector2 = c["aim_point"]
 	if aim != Vector2.ZERO and aim.distance_to(me) > 1.0:
@@ -50,6 +41,32 @@ func _paint() -> void:
 		_line(me, dest, Color(DEST, 0.5), 1.0)
 		draw_rect(Rect2(to_local(dest) - Vector2(5, 5), Vector2(10, 10)), col, false, 2.0)
 		_label(dest, "%s spot" % ("cover" if phase == "cover" else "firing"), col, Vector2(8, -6))
+	_paint_timers(c, me, phase)
+	if style == "ambush":
+		_label(me, "AMBUSH", COVER, Vector2(-22, 40))
+	elif phase != "":
+		_label(me, "peek" if phase == "peek" else "cover", col, Vector2(-14, 40))
+	if c.get("reloading", false):
+		_label(me, "RELOADING", COVER, Vector2(-30, 84))
+
+
+## The engaged target of combat state `c`: the line of fire from `me` (green when clear), the
+## crosshair, why it can or cannot be shot, and the punch range.
+func _paint_target(c: Dictionary, me: Vector2) -> void:
+	var tp: Vector2 = c["engage_pos"]
+	var clear: bool = c["fire_clear"]
+	_line(me, tp, Color(CLEAR if clear else BLOCKED, 0.7), 2.0 if clear else 1.0)
+	_ring(tp, 12.0, TARGET, 2.0)
+	draw_line(to_local(tp) + Vector2(-18, 0), to_local(tp) + Vector2(18, 0), TARGET, 1.5)
+	draw_line(to_local(tp) + Vector2(0, -18), to_local(tp) + Vector2(0, 18), TARGET, 1.5)
+	var why := "clear shot" if clear else ("line blocked" if c["in_range"] else "out of range")
+	_label(tp, "target · %s" % why, TARGET, Vector2(16, -4))
+	if str(c["primitive"]) == "melee" or c["punch_range"] > 0.0:
+		_ring(tp, c["punch_range"], Color(TARGET, 0.35), 1.0)
+
+
+## The arcs round `me`: the cover timer of the peek-and-cover `phase` and the fire cooldown.
+func _paint_timers(c: Dictionary, me: Vector2, phase: String) -> void:
 	if phase != "":
 		_timer_arc(
 			me,
@@ -60,9 +77,3 @@ func _paint() -> void:
 	var cooldown: float = c["fire_timer"]
 	if cooldown > 0.0:
 		_timer_arc(me, 27.0, cooldown / maxf(c["fire_cooldown"], 0.01), TARGET, 2.0)
-	if style == "ambush":
-		_label(me, "AMBUSH", COVER, Vector2(-22, 40))
-	elif phase != "":
-		_label(me, "peek" if phase == "peek" else "cover", col, Vector2(-14, 40))
-	if c.get("reloading", false):
-		_label(me, "RELOADING", COVER, Vector2(-30, 84))

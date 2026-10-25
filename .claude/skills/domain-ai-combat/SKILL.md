@@ -18,7 +18,7 @@ loaded gun, the known contact in range on a clear line: a shot is on), `fire_at_
 `peek_cover(delta, node, pos, hold_ground, room := "")`, `melee(pos, hold_ground)`, `shoot() -> bool`, `strike()` / `punch()` / `kick()`,
 `continue_burst()`, `apply_back_off(delta)`, `reload_if_dry()`; `signal dry`
 (an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables (set from the controller
-exports): `shoot_range`, `punch_range`, `ring_radius` / `ring_count` (the ring of candidate spots, from `combat_ring_radius` / `combat_ring_count`), `cover_time`,
+exports): `shoot_range`, `punch_range`, `ring_radius` (the radius of the ring of candidate spots, from `combat_ring_radius`; the perception's `combat_spots` lays `combat_ring_count` points on it), `cover_time`,
 `fire_cooldown`, `fire_burst`, `back_off_time`, `reposition_interval`, `auto_reload`; each keeps the export's default, for a `Combat` built
 without the controller (`tests/ai/combat/combat_waits_for_facing_test.gd`).
 

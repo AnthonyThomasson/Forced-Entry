@@ -74,6 +74,4 @@ func _draw_label(text: String) -> void:
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE)
 	var width: float = text_size.x
 	var pos := Vector2(-width / 2.0, label_offset)
-	DebugText.string(
-		self, font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, LABEL_FONT_SIZE, label_color,
-	)
+	DebugText.string(self, pos, text, LABEL_FONT_SIZE, label_color)

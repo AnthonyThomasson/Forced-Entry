@@ -203,7 +203,15 @@ func setup() -> void:
 	_suspicion.entry = _entry
 	_ledger = ClaimLedger.new()
 	_snapshot = AgentSnapshot.new()
-	_snapshot.setup(_memory, _tactics, _entry, _views, _throw, _suspicion, _ledger)
+	var sources := SnapshotSources.new()
+	sources.memory = _memory
+	sources.tactics = _tactics
+	sources.entry = _entry
+	sources.views = _views
+	sources.throw = _throw
+	sources.suspicion = _suspicion
+	sources.ledger = _ledger
+	_snapshot.setup(sources)
 
 
 ## Set the perception's own tunables and its modules' straight from `cfg`, the controller, whose
@@ -212,6 +220,21 @@ func setup() -> void:
 ## decision to keep the modules in step with exports retuned at runtime (e.g. by the dev command
 ## server).
 func apply_config(cfg: Node) -> void:
+	_apply_own(cfg)
+	_apply_senses(cfg)
+	_apply_tactics(cfg)
+	_apply_doorways(cfg)
+	_throw.evade_margin = cfg.evade_margin
+	_grenades.enabled = cfg.grenades_enabled
+	_grenades.hear_grenade = cfg.hear_grenade
+	_suspicion.still_speed = cfg.still_speed
+	_suspicion.extrapolate_cap = cfg.extrapolate_cap
+	_apply_vocab(cfg)
+
+
+## Set the tunables the perception reads itself from `cfg`, and the radio's reach and lapse on its
+## claim ledger.
+func _apply_own(cfg: Node) -> void:
 	contact_memory_ttl = cfg.contact_memory_ttl
 	familiar_with_house = cfg.familiar_with_house
 	lead_memory_ttl = cfg.lead_memory_ttl
@@ -230,6 +253,10 @@ func apply_config(cfg: Node) -> void:
 	entry_enabled = cfg.entry_enabled
 	entry_guard = cfg.entry_guard
 	entry_pass_clear_time = cfg.entry_pass_clear_time
+
+
+## Set the sight sense's, the hostility rules' and the memory's tunables from `cfg`.
+func _apply_senses(cfg: Node) -> void:
 	_vision.enabled = cfg.vision_enabled
 	_vision.view_distance = cfg.view_distance
 	_vision.fov_degrees = cfg.fov_degrees
@@ -240,6 +267,10 @@ func apply_config(cfg: Node) -> void:
 	_hostility.retaliate = cfg.hostile_on_attack
 	_hostility.ttl = cfg.hostility_ttl
 	_memory.capacity = cfg.memory_capacity
+
+
+## Set the combat geometry's tunables from `cfg`.
+func _apply_tactics(cfg: Node) -> void:
 	_tactics.cover_min = cfg.cover_min
 	_tactics.flank_distance = cfg.flank_distance
 	_tactics.flank_arc = cfg.flank_arc
@@ -252,6 +283,11 @@ func apply_config(cfg: Node) -> void:
 	_tactics.watch_arc = cfg.watch_arc
 	_tactics.fire_spot_distances = cfg.fire_spot_distances
 	_tactics.throw_spot_walk = cfg.throw_spot_walk
+
+
+## Set the doorway geometry's and the doorway views' tunables from `cfg`, then push the walk rules
+## into the views (`_sync_walks`).
+func _apply_doorways(cfg: Node) -> void:
 	_entry.stack_spacing = cfg.entry_stack_spacing
 	_entry.wall_standoff = cfg.entry_wall_standoff
 	_entry.pie_radius = cfg.entry_pie_radius
@@ -262,11 +298,10 @@ func apply_config(cfg: Node) -> void:
 	_views.door_avoid_ratio = cfg.door_avoid_ratio
 	_views.door_avoid_slack = cfg.door_avoid_slack
 	_sync_walks()
-	_throw.evade_margin = cfg.evade_margin
-	_grenades.enabled = cfg.grenades_enabled
-	_grenades.hear_grenade = cfg.hear_grenade
-	_suspicion.still_speed = cfg.still_speed
-	_suspicion.extrapolate_cap = cfg.extrapolate_cap
+
+
+## Set the snapshot's vocabulary tunables from `cfg`.
+func _apply_vocab(cfg: Node) -> void:
 	_snapshot.vocab.shoot_range = cfg.shoot_range
 	_snapshot.vocab.punch_range = cfg.punch_range
 	_snapshot.vocab.recency_bands = cfg.recency_bands
@@ -524,11 +559,7 @@ func process_explosion(data: Dictionary) -> void:
 	_grenades.burst(data.get("position", Vector2.INF), data.get("kind", &""))
 	var by = data.get("attacker")
 	var team: bool = (by == _character
-			or (by is Node
-					and is_instance_valid(by)
-					and _hostility.is_ally(by.get("faction")
-							if by.get("faction") != null
-							else &"")))
+			or (by is Node and is_instance_valid(by) and _is_ally_body(by)))
 	last_burst = {
 		"kind": data.get("kind", &""),
 		"position": data.get("position", Vector2.INF),
@@ -539,40 +570,39 @@ func process_explosion(data: Dictionary) -> void:
 		_note_flash(data)
 
 
+## Whether `by`, a live body, is of the NPC's side (its `faction`, none read as `&""`).
+func _is_ally_body(by: Object) -> bool:
+	return _hostility.is_ally(by.get("faction") if by.get("faction") != null else &"")
+
+
 ## A stun thrown by the NPC or an ally went off at `data.position`: every hostile it knew of within
 ## the flash radius with a clear line from the burst is blinded for a few seconds (`FLASH_SHARE` of
 ## the stun's longest blindness at the burst, less with distance), which it holds as `flashed` (the
 ## contact's `blind`). It cannot see their eyes, but it knows what it threw the flash at.
 func _note_flash(data: Dictionary) -> void:
 	var by = data.get("attacker")
-	if (by != _character
-			and not (is_instance_valid(by)
-						and _hostility.is_ally(by.get("faction")
-									if by.get("faction") != null
-									else &""))):
+	if by != _character and not (is_instance_valid(by) and _is_ally_body(by)):
 		return
 	var burst: Vector2 = data["position"]
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
 	var rids := _character_rids()
 	var flash := float(data.get("radius", 0.0))  # (The flash radius the burst reports.)
-	var reach: float = _throw.cover_reach(&"stun")
+	var cover := CoverRule.new()
+	cover.height = _throw.stand_height()
+	cover.exclude = rids
+	cover.cover_reach = _throw.cover_reach(&"stun")
 	for c in _sightings(null, lead_memory_ttl, -1.0, true):
 		var d: float = burst.distance_to(c["pos"])
-		if (d <= flash
-				and not _throw.shielded(
-						space,
-						burst,
-						c["pos"],
-						_throw.stand_height(),
-						rids,
-						reach,
-				)):
-			_memory.remember(
-				&"flashed",
-				{ "id": c["id"] },
-				maxf(_throw.max_blind_of(&"stun") * FLASH_SHARE * (1.0 - d / flash), 1.0),
-				str(c["id"]),
-			)
+		if d > flash:
+			continue
+		if _throw.shielded(space, burst, c["pos"], cover):
+			continue
+		_memory.remember(
+			&"flashed",
+			{ "id": c["id"] },
+			maxf(_throw.max_blind_of(&"stun") * FLASH_SHARE * (1.0 - d / flash), 1.0),
+			str(c["id"]),
+		)
 
 
 ## Refresh the combat engagement (called by the behaviour when it fires or adopts a fight), so an
@@ -642,13 +672,8 @@ func room_suspicion(key: String) -> Array:
 ## `label`, `name`, `age`), checked leads, the hostiles it has lost track of, and the
 ## hearing/awareness radii. A pure read of memory; never writes it.
 func debug_memory() -> Dictionary:
-	var now := GameClock.msec()
-	var gunfire: Array = []
-	for rec in _memory.recall_aged(&"heard_gunfire"):
-		gunfire.append({ "pos": rec["data"].get("pos", Vector2.ZERO), "age": rec["age"] })
-	var footsteps: Array = []
-	for rec in _memory.recall_aged(&"heard_footsteps"):
-		footsteps.append({ "pos": rec["data"].get("pos", Vector2.ZERO), "age": rec["age"] })
+	var gunfire := _heard_points(&"heard_gunfire")
+	var footsteps := _heard_points(&"heard_footsteps")
 	var shot_from: Array = []
 	for rec in _memory.recall_aged(&"shot_from"):
 		shot_from.append({
@@ -656,22 +681,7 @@ func debug_memory() -> Dictionary:
 			"at": rec["data"].get("at", Vector2.ZERO),
 			"age": rec["age"],
 		})
-	var under := {}
-	var checked: Array = []
-	for e in _memory.fresh():
-		var left: float = (maxf((e["ttl"] - (now - e["at"]) / 1000.0), 0.0)
-				if e["ttl"] > 0.0
-				else 0.0)
-		match e["topic"]:
-			&"under_fire":
-				if under.is_empty():
-					under = {
-						"from": e["data"].get("from", Vector2.ZERO),
-						"hit": e["data"].get("hit", false),
-						"left": left,
-					}
-			&"checked_lead":
-				checked.append(str(e["data"].get("id", "")))
+	var fresh := _debug_fresh()
 	var callouts: Array = []
 	for c in _callouts():
 		callouts.append({
@@ -690,9 +700,9 @@ func debug_memory() -> Dictionary:
 		"gunfire": gunfire,
 		"footsteps": footsteps,
 		"shot_from": shot_from,
-		"under_fire": under,
+		"under_fire": fresh["under_fire"],
 		"callouts": callouts,
-		"checked_leads": checked,
+		"checked_leads": fresh["checked_leads"],
 		"lost": lost,
 		"hearing_radius": hearing_radius,
 		"hit_awareness_radius": hit_awareness_radius,
@@ -701,6 +711,36 @@ func debug_memory() -> Dictionary:
 		"lead_memory_ttl": lead_memory_ttl,
 		"extrapolate_cap": _suspicion.extrapolate_cap,
 	}
+
+
+## Debug read: the points of memory topic `topic` (gunfire or footsteps heard), each `{ pos, age }`,
+## newest first.
+func _heard_points(topic: StringName) -> Array:
+	var out: Array = []
+	for rec in _memory.recall_aged(topic):
+		out.append({ "pos": rec["data"].get("pos", Vector2.ZERO), "age": rec["age"] })
+	return out
+
+
+## Debug read of the live events: the newest under-fire event (`under_fire`: `from` direction,
+## `hit`, seconds `left`; {} with none) and the ids of the checked leads (`checked_leads`).
+func _debug_fresh() -> Dictionary:
+	var now := GameClock.msec()
+	var under := {}
+	var checked: Array = []
+	for e in _memory.fresh():
+		if e["topic"] == &"under_fire" and under.is_empty():
+			var left: float = (maxf((e["ttl"] - (now - e["at"]) / 1000.0), 0.0)
+					if e["ttl"] > 0.0
+					else 0.0)
+			under = {
+				"from": e["data"].get("from", Vector2.ZERO),
+				"hit": e["data"].get("hit", false),
+				"left": left,
+			}
+		elif e["topic"] == &"checked_lead":
+			checked.append(str(e["data"].get("id", "")))
+	return { "under_fire": under, "checked_leads": checked }
 
 
 ## Debug read: every room tagged by how this NPC regards it right now — the one it stands in
@@ -738,81 +778,11 @@ func room_status(rooms: Array, self_pos: Vector2) -> Array:
 ## categorized by `hostility`. A familiar NPC's house knowledge is seeded on the first call. People
 ## are never seeded — they are known only once seen.
 func observe(rooms: Array) -> void:
-	if not _post_set:
-		_post = _character.global_position
-		_post_set = true
-	_ensure_interactables()
-	_throw.learn_carried()
-	_throw.learn_body()
-	_seed_house(rooms)
-	_entry.set_house(openings, rooms)
-	if entry_enabled:
-		var world: World2D = _character.get_world_2d()
-		# Lay the doorways before a decision needs them.
-		_entry.warm_geometry(world.navigation_map, world.direct_space_state)
-	_rooms = rooms
-
+	_take_in_house(rooms)
 	var self_pos: Vector2 = _character.global_position
-	var facing: Vector2 = _character.facing
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
 	var exclude := [_character.get_rid()]
-	var now := GameClock.msec()
-
-	# Every other character (the player included): one sighting per character, superseded while it
-	# stays visible. Dead characters are skipped — corpses add no tactical information. A
-	# flash-blinded NPC (G15) sees nothing: no new sighting, and nothing is visible, so what it
-	# holds stays where it was last seen.
-	var frame := Engine.get_physics_frames()
-	var swap := _visible_before
-	_visible_before = _visible_now
-	_visible_now = swap
-	_visible_now.clear()
-	_blind = _character.is_blind()
-	if _blind:
-		_looked.clear()
-	for other in (_other_characters() if not _blind else []):
-		var id: int = other.get_instance_id()
-		if other.get("is_dead") == true:
-			_looked.erase(id)
-			continue
-		if not _vision.in_view(self_pos, facing, other.global_position):
-			_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
-			continue
-		if _looked.has(id) and (frame + get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0:
-			if _visible_before.has(id):
-				_visible_now[id] = true  # Not due: still what the last look saw.
-			continue
-		_looked[id] = true
-		if not _vision.can_see_node(other, self_pos, facing, space, exclude):
-			continue
-		var pos: Vector2 = other.global_position
-		var room := SnapshotVocab.room_at(pos, rooms)
-		var item = other.current_item()
-		var f = other.get("faction")
-		var sighting := {
-			"id": id,
-			"node": other,
-			"name": str(other.name),
-			"faction": f if f != null else &"",
-			"ally": _hostility.is_ally(f if f != null else &""),
-			"pos": pos,
-			"vel": _track(id, pos, now),
-			"facing": other.get("facing") if other.get("facing") is Vector2 else Vector2.ZERO,
-			"wound_dmg": other.damage_taken(),
-			"inside": not room.is_empty(),
-			"room_type": room.get("type", "") if not room.is_empty() else "",
-			"item": item.display_name if item != null else "nothing",
-			"reloading": other.is_reloading(),
-			"posture": other.posture(),
-		}
-		_visible_now[id] = true
-		_memory.remember(
-			&"saw_character",
-			sighting,
-			maxf(contact_memory_ttl, lead_memory_ttl),
-			str(id),
-		)
-		_hostility.classify(sighting, _memory)
+	_see_characters(rooms)
 
 	# The room the NPC stands in counts as searched (superseded while it stays there).
 	var here := SnapshotVocab.room_at(self_pos, rooms)
@@ -828,6 +798,105 @@ func observe(rooms: Array) -> void:
 	if not familiar_with_house and not _blind and Engine.get_physics_frames() >= _learn_next:
 		_learn_by_sight(rooms)
 	_end_ambush_on_contact()
+
+
+## Before a look: capture the NPC's post on the first call, scan the interactables once, learn the
+## grenades carried and the body's heights, seed a familiar NPC's house knowledge, hand the house to
+## the doorway geometry (laying the doorways ahead while `entry_enabled`) and keep `rooms`.
+func _take_in_house(rooms: Array) -> void:
+	if not _post_set:
+		_post = _character.global_position
+		_post_set = true
+	_ensure_interactables()
+	_throw.learn_carried()
+	_throw.learn_body()
+	_seed_house(rooms)
+	_entry.set_house(openings, rooms)
+	if entry_enabled:
+		var world: World2D = _character.get_world_2d()
+		# Lay the doorways before a decision needs them.
+		_entry.warm_geometry(world.navigation_map, world.direct_space_state)
+	_rooms = rooms
+
+
+## Every other character (the player included): one sighting per character, superseded while it
+## stays visible. Dead characters are skipped — corpses add no tactical information. A
+## flash-blinded NPC (G15) sees nothing: no new sighting, and nothing is visible, so what it holds
+## stays where it was last seen.
+func _see_characters(rooms: Array) -> void:
+	var self_pos: Vector2 = _character.global_position
+	var facing: Vector2 = _character.facing
+	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
+	var exclude := [_character.get_rid()]
+	var now := GameClock.msec()
+	var frame := Engine.get_physics_frames()
+	var swap := _visible_before
+	_visible_before = _visible_now
+	_visible_now = swap
+	_visible_now.clear()
+	_blind = _character.is_blind()
+	if _blind:
+		_looked.clear()
+	for other in (_other_characters() if not _blind else []):
+		if not _due_for_sight(other, self_pos, facing, frame):
+			continue
+		if not _vision.can_see_node(other, self_pos, facing, space, exclude):
+			continue
+		var sighting := _sighting_of(other, rooms, now)
+		_visible_now[sighting["id"]] = true
+		_memory.remember(
+			&"saw_character",
+			sighting,
+			maxf(contact_memory_ttl, lead_memory_ttl),
+			str(sighting["id"]),
+		)
+		_hostility.classify(sighting, _memory)
+
+
+## Whether character `other` gets a sight test on physics frame `frame`, keeping the view-cone
+## bookkeeping: a dead one or one out of the cone is dropped (its next look is at once); one tested
+## since it entered the cone is tested again every `SIGHT_EVERY_FRAMES` frames, offset per NPC and
+## target, and until then stays what the last look saw.
+func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
+	var id: int = other.get_instance_id()
+	if other.get("is_dead") == true:
+		_looked.erase(id)
+		return false
+	if not _vision.in_view(self_pos, facing, other.global_position):
+		_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
+		return false
+	if _looked.has(id) and (frame + get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0:
+		if _visible_before.has(id):
+			_visible_now[id] = true  # Not due: still what the last look saw.
+		return false
+	_looked[id] = true
+	return true
+
+
+## The sighting of character `other`, seen now (game msec `now`): where it is and its movement
+## track, its facing, visible wounds, room, held item, reload and posture.
+func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
+	var id: int = other.get_instance_id()
+	var pos: Vector2 = other.global_position
+	var room := SnapshotVocab.room_at(pos, rooms)
+	var item = other.current_item()
+	var f = other.get("faction")
+	return {
+		"id": id,
+		"node": other,
+		"name": str(other.name),
+		"faction": f if f != null else &"",
+		"ally": _hostility.is_ally(f if f != null else &""),
+		"pos": pos,
+		"vel": _track(id, pos, now),
+		"facing": other.get("facing") if other.get("facing") is Vector2 else Vector2.ZERO,
+		"wound_dmg": other.damage_taken(),
+		"inside": not room.is_empty(),
+		"room_type": room.get("type", "") if not room.is_empty() else "",
+		"item": item.display_name if item != null else "nothing",
+		"reloading": other.is_reloading(),
+		"posture": other.posture(),
+	}
 
 
 ## An ambush ends on first contact (`docs/leadership.md` LD15, D18): a hostile in sight, wherever it
@@ -863,14 +932,8 @@ func _learn_by_sight(rooms: Array) -> void:
 		if known_rooms.has(room["key"]):
 			continue  # Already learned: looking again would change nothing.
 		var rect: Rect2 = room["rect"]
-		if (rect.has_point(self_pos)
-				or _vision.can_see(
-						self_pos,
-						facing,
-						rect.position + rect.size * 0.5,
-						space,
-						exclude,
-				)):
+		var centre := rect.position + rect.size * 0.5
+		if rect.has_point(self_pos) or _vision.can_see(self_pos, facing, centre, space, exclude):
 			known_rooms[room["key"]] = true
 			_learn_room(room)
 	var known_objects := _known_object_ids()
@@ -935,7 +998,7 @@ func _contact_ttl() -> float:
 ## `hostile_only` drops non-hostiles; dead or freed characters are always dropped. Given a
 ## `self_pos` (a Vector2) the result is sorted hostiles-first then nearest to it, else it keeps the
 ## memory's newest-first order.
-func _sightings(self_pos, max_age := INF, min_age := -1.0, hostile_only := false) -> Array:
+func _sightings(self_pos: Variant, max_age := INF, min_age := -1.0, hostile_only := false) -> Array:
 	var out: Array = []
 	for rec in _memory.recall_aged(&"saw_character"):
 		if rec["age"] > max_age or rec["age"] <= min_age:
@@ -1012,7 +1075,9 @@ func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 		"order": order(),
 		"follows": follows,
 	}
-	return _snapshot.build(rooms, goal, activity, contacts(self_pos), _callouts(), knowledge)
+	knowledge["contacts"] = contacts(self_pos)
+	knowledge["callouts"] = _callouts()
+	return _snapshot.build(rooms, goal, activity, knowledge)
 
 
 ## The goal text as Von reads it: `{gun}` filled with what the NPC calls its gun.
@@ -1206,10 +1271,8 @@ func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -
 ## `{ opening, into, dist }`, or {} (see agent_door_views.gd `passing_ahead`): a doorway to be
 ## secured before the NPC crosses its view (E15, E18).
 func passing_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
-	var world: World2D = _character.get_world_2d()
 	return _views.passing_ahead(
-		path, from_idx, _character.global_position, max_dist, world.navigation_map,
-		world.direct_space_state,
+		path, from_idx, _character.global_position, max_dist, _character.get_world_2d()
 	)
 
 
@@ -1362,13 +1425,14 @@ func entry_on_stack_side(geometry: Dictionary, p: Vector2) -> bool:
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the
 ## engaged contact's KNOWN position `tgt_pos`: `fire` points have a clear line to it; `cover` points
-## are shielded from it by a high-coverage solid. Both nearest-first (see agent_tactics.gd).
-func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float, count: int) -> Dictionary:
+## are shielded from it by a high-coverage solid. Both nearest-first (see agent_tactics.gd); the
+## ring has `combat_ring_count` points.
+func combat_spots(target: Node2D, tgt_pos: Vector2, radius: float) -> Dictionary:
 	var exclude := [_character.get_rid()]
 	if target != null and is_instance_valid(target):
 		exclude.append(target.get_rid())
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	return _tactics.combat_spots(space, _character.global_position, tgt_pos, exclude, radius, count)
+	return _tactics.combat_spots(space, _character.global_position, tgt_pos, exclude, radius)
 
 
 # --- Grenades --------------------------------------------------------------------------------
@@ -1441,9 +1505,13 @@ func grenade_fuse(kind: StringName) -> float:
 ## not shielded from the burst by a wall or taller furniture (agent_throw.gd `in_zone`; bodies
 ## shield nothing). False for a kind the NPC has never met.
 func in_grenade_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
+	var threat := GrenadeThreat.new()
+	threat.kind = kind
+	threat.radius = _throw.radius_of(kind)
+	threat.burst = burst
 	return _throw.in_zone(
-		_character.get_world_2d().direct_space_state, kind, _throw.radius_of(kind), burst, p,
-		_throw.stand_height(), _character_rids(),
+		_character.get_world_2d().direct_space_state, threat, p, _throw.stand_height(),
+		_character_rids(),
 	)
 
 

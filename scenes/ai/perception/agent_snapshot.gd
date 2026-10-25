@@ -39,24 +39,16 @@ var _tactics: RefCounted
 var _character: Node
 
 
-## Capture the collaborators the author reads: the event memory, the combat geometry, the doorway
-## geometry, the doorway views, the grenade geometry, why a room is suspect and the claims heard.
-## Called once by the perception in its setup(), after it has built them. The config fields are set
-## directly by the perception's apply_config() (like the other modules), so there is no separate
-## configure step.
-func setup(
-	memory: RefCounted,
-	tactics: RefCounted,
-	entry: RefCounted,
-	views: RefCounted,
-	throw: RefCounted,
-	suspicion: RefCounted,
-	ledger: RefCounted,
-) -> void:
-	_memory = memory
-	_tactics = tactics
-	_sections.setup(vocab, memory, tactics)
-	_options.setup(vocab, memory, tactics, entry, views, throw, suspicion, ledger)
+## Capture the collaborators the author reads (`sources`): the event memory, the combat geometry,
+## the doorway geometry, the doorway views, the grenade geometry, why a room is suspect and the
+## claims heard. Called once by the perception in its setup(), after it has built them. The config
+## fields are set directly by the perception's apply_config() (like the other modules), so there is
+## no separate configure step.
+func setup(sources: SnapshotSources) -> void:
+	_memory = sources.memory
+	_tactics = sources.tactics
+	_sections.setup(vocab, sources.memory, sources.tactics)
+	_options.setup(vocab, sources)
 
 
 ## Hand in the NPC's body, for the author and its three parts. Called once by
@@ -71,21 +63,29 @@ func bind(character: Node) -> void:
 ## BUILD pass — run at the start of each decision. Assemble the snapshot the decision planner walks,
 ## from what the agent currently sees and remembers (NOT from ground truth): `goal` is the behaviour
 ## string Von ranks against; `activity` is the behaviour's line for what the NPC is doing now. The
-## perception hands in the knowledge this reads over: `known` (its `contacts()`), `callouts`, and
-## `knowledge` (learned rooms/objects, interactables, the NPC's post and entry point, and lost
-## hostiles — see the perception's `sense()`). Returns { facts, sections, sections_per_target,
-## options }.
-func build(
-	rooms: Array,
-	goal: String,
-	activity: String,
-	known: Array,
-	callouts: Array,
-	knowledge: Dictionary,
-) -> Dictionary:
+## perception hands in the knowledge this reads over (`knowledge`, see the perception's `sense()`):
+## its `contacts`, the `callouts` heard, learned rooms/objects, interactables, the NPC's post and
+## entry point, and lost hostiles. Returns { facts, sections, sections_per_target, options }.
+func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
 	vocab.rooms = rooms
 	_options.know = knowledge
 	_options.begin()
+	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
+	var parts := _per_target(ctx, rooms)
+	parts.merge(_shared(ctx, rooms, knowledge))
+	var facts := _facts(ctx, parts, knowledge)
+	var sections := _state_sections(ctx, parts, goal, activity, knowledge)
+	var options := _option_groups(ctx, parts, knowledge)
+	SnapshotOptions.tag_rooms(options, rooms)
+	return {
+		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
+		"options": options, "gun": vocab.gun_noun(parts["gun"]),
+	}
+
+
+## The decision's context every group reads: where the NPC stands, its space, map and body, the
+## hostiles and allies among `known` (its contacts), the `callouts` heard, and each hostile's front.
+func _context(known: Array, callouts: Array) -> Dictionary:
 	var self_pos: Vector2 = _character.global_position
 	var hostiles: Array = known.filter(func(c): return c["hostile"])
 	var allies: Array = known.filter(func(c): return c["ally"] and not c["hostile"])
@@ -110,53 +110,89 @@ func build(
 			self_pos,
 			h["visible"] or h["age"] <= vocab.recency_bands.y,
 		)
-	var known_rooms: Array = knowledge["known_rooms"]
+	return ctx
 
-	# Per known hostile: the combat geometry, the option groups and the sections that follow from
-	# it.
+
+## Per known hostile: the combat geometry (`analyses`), the option groups (`per_target`) and the
+## sections that follow from it (`per_sections`), each by hostile id.
+func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 	var per_target := {}
 	var per_sections := {}
 	var analyses := {}
-	for t in hostiles.slice(0, vocab.max_options_per_level):
+	for t in (ctx["hostiles"] as Array).slice(0, vocab.max_options_per_level):
 		var a := _analyze(ctx, t)
 		analyses[t["id"]] = a
 		per_target[t["id"]] = {
 			"fire_positions": _options.fire_group(ctx, t, a),
 			"flank_sides": _options.flank_group(t, a, rooms),
 			"advance_positions": _options.advance_group(ctx, t, a),
-			"melee": _options.melee_group(self_pos, t),
+			"melee": _options.melee_group(ctx["self_pos"], t),
 			"grenade_throws": _options.grenade_group(ctx, t, a),
 		}
-		var throws := _usable(per_target[t["id"]]["grenade_throws"])
-		per_sections[t["id"]] = {
-			"exposure": _sections.exposure_text(
-				ctx,
-				t,
-				a,
-				throws,
-				per_target[t["id"]]["grenade_throws"].get("held_room", ""),
-			),
-			"flanks": _sections.flanks_text(t, a),
-			"allies": _sections.allies_text(ctx, t, a),
-		}
+		per_sections[t["id"]] = _target_sections(ctx, t, a, per_target[t["id"]]["grenade_throws"])
+	return { "per_target": per_target, "per_sections": per_sections, "analyses": analyses }
 
-	var primary: Dictionary = hostiles[0] if not hostiles.is_empty() else {}
-	var line: Dictionary = analyses[primary["id"]]["line"] if not primary.is_empty() else {}
+
+## The sections re-framed around hostile `t` (geometry `a`, grenade group `throws`): exposure,
+## flanks and allies.
+func _target_sections(
+	ctx: Dictionary,
+	t: Dictionary,
+	a: Dictionary,
+	throws: Dictionary,
+) -> Dictionary:
+	return {
+		"exposure": _sections.exposure_text(
+			ctx,
+			t,
+			a,
+			_usable(throws),
+			throws.get("held_room", ""),
+		),
+		"flanks": _sections.flanks_text(t, a),
+		"allies": _sections.allies_text(ctx, t, a),
+	}
+
+
+## What the whole decision shares beyond the hostiles: the doorways to enter by (`entries`) and the
+## rooms they lead into (`entered`), whether the stack has a stun (`stun_stack`), the leads, the
+## throws where the shots came from (`shots_throws`), the damage taken (`dmg`), the gun it fights
+## with (`gun`) and its rounds (`ammo`, -1 without one).
+func _shared(ctx: Dictionary, rooms: Array, knowledge: Dictionary) -> Dictionary:
 	var entries := _options.entry_group(ctx, rooms)
 	var entered := SnapshotOptions.entry_rooms(entries)
 	var carried: Array = knowledge["carried_grenades"]
 	var stun_stack: bool = (carried.has(&"stun")
-			or callouts.any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
+			or ctx["callouts"].any(func(c): return int(StackClaim.decode(c).get("stuns", 0)) > 0))
 	# With a stun to throw, gunfire or a hostile in a room a doorway of ENTER leads into is the
 	# entry's to weigh (quiet or with a bang).
-	var leads := _options.lead_group(ctx, hostiles, entered if stun_stack else {})
+	var leads := _options.lead_group(ctx, ctx["hostiles"], entered if stun_stack else {})
 	# Shot at by someone unseen from a room it is outside of: a grenade where the shots came from
 	# (the unbound COMBAT level).
-	var shots_throws := _options.shots_grenade_group(ctx, hostiles)
+	var shots_throws := _options.shots_grenade_group(ctx, ctx["hostiles"])
 	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.gun_slot()
 	var ammo: int = _character.ammo(gun) if gun >= 0 else -1
+	return {
+		"entries": entries, "entered": entered, "stun_stack": stun_stack, "leads": leads,
+		"shots_throws": shots_throws, "dmg": dmg, "gun": gun, "ammo": ammo,
+	}
+
+
+## The named facts a `requires` or an entry rule gates on, from the context and the `parts` worked
+## out for this decision.
+func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictionary:
+	var hostiles: Array = ctx["hostiles"]
+	var self_pos: Vector2 = ctx["self_pos"]
+	var primary: Dictionary = hostiles[0] if not hostiles.is_empty() else {}
+	var line: Dictionary = (parts["analyses"][primary["id"]]["line"]
+			if not primary.is_empty()
+			else {})
+	var gun: int = parts["gun"]
+	var ammo: int = parts["ammo"]
+	var leads: Dictionary = parts["leads"]
+	var shots_throws: Dictionary = parts["shots_throws"]
 	var can_throw := func(g): return not g["grenade_throws"]["options"].is_empty()
 	var facts := {
 		"hostile_known": not hostiles.is_empty(),
@@ -169,29 +205,50 @@ func build(
 		"under_fire": _memory.under_fire(),
 		"engaged": _memory.engaged(),
 		"leads": not leads["options"].is_empty(),
-		"lead_outside": not SnapshotVocab.room_at(self_pos, rooms).is_empty() \
+		"lead_outside": not SnapshotVocab.room_at(self_pos, vocab.rooms).is_empty() \
 			and leads["options"].any(func(o): return not o["tags"]["inside"]),
 		"grenade_ready": (not shots_throws["options"].is_empty()
-			or per_target.values().any(can_throw)),
-		"stack_has_stun": stun_stack,
-		"hurt": dmg >= vocab.hurt_threshold,
-		"inside": not SnapshotVocab.room_at(self_pos, rooms).is_empty(),
+			or parts["per_target"].values().any(can_throw)),
+		"stack_has_stun": parts["stun_stack"],
+		"hurt": parts["dmg"] >= vocab.hurt_threshold,
+		"inside": not SnapshotVocab.room_at(self_pos, vocab.rooms).is_empty(),
 		"exposed": line.get("clear", false) or (primary.is_empty() and _memory.under_fire()),
 		"ordered": not (knowledge["order"] as Dictionary).is_empty(),
 		"follows": knowledge["follows"],
 	}
-	var sections := {
+	return facts
+
+
+## The named state-text sections Von reads, framed around the hostile listed first.
+func _state_sections(
+	ctx: Dictionary,
+	parts: Dictionary,
+	goal: String,
+	activity: String,
+	knowledge: Dictionary,
+) -> Dictionary:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var hostiles: Array = ctx["hostiles"]
+	var rooms: Array = vocab.rooms
+	var primary: Dictionary = hostiles[0] if not hostiles.is_empty() else {}
+	var per_sections: Dictionary = parts["per_sections"]
+	var shots_throws: Dictionary = parts["shots_throws"]
+	return {
 		"goal": fill_goal(goal),
 		"situation": _sections.situation_text(rooms),
-		"loadout": _sections.loadout_text(gun, ammo, carried),
+		"loadout": _sections.loadout_text(
+			parts["gun"],
+			parts["ammo"],
+			knowledge["carried_grenades"],
+		),
 		"current": ("Current activity: %s." % activity) if activity != "" else "",
 		"odds": _sections.odds_text(
 			hostiles,
-			allies,
+			ctx["allies"],
 			ctx["callouts"],
-			not leads["options"].is_empty(),
+			not parts["leads"]["options"].is_empty(),
 		),
-		"contacts": _sections.contacts_text(self_pos, known),
+		"contacts": _sections.contacts_text(self_pos, knowledge["contacts"]),
 		"exposure": per_sections[primary["id"]]["exposure"]
 			if not primary.is_empty()
 			else _sections.unseen_fire_text(
@@ -205,26 +262,29 @@ func build(
 		"awareness": _sections.awareness_text(self_pos, not hostiles.is_empty()),
 		"order": _sections.order_text(knowledge["order"], rooms),
 	}
-	var options := {
-		"per_target": per_target,
+
+
+## The option groups the planner walks: per hostile (`per_target`) and for the whole decision.
+func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictionary:
+	var self_pos: Vector2 = ctx["self_pos"]
+	var hostiles: Array = ctx["hostiles"]
+	var rooms: Array = vocab.rooms
+	var known_rooms: Array = knowledge["known_rooms"]
+	return {
+		"per_target": parts["per_target"],
 		"threat": { "summary": _sections.threat_summary(self_pos, hostiles) },
-		"hostiles": _options.hostile_group(ctx, hostiles, analyses),
-		"reload": _options.reload_group(gun),
-		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, dmg),
-		"leads": leads,
+		"hostiles": _options.hostile_group(ctx, hostiles, parts["analyses"]),
+		"reload": _options.reload_group(parts["gun"]),
+		"retreat_positions": _options.retreat_group(ctx, hostiles, known_rooms, parts["dmg"]),
+		"leads": parts["leads"],
 		"shooter": _options.shooter_group(ctx, hostiles),
-		"grenade_throws": shots_throws,
-		"entries": entries,
-		"search_rooms": _options.search_group(ctx, known_rooms, rooms, entered),
-		"explore": _options.explore_group(ctx, rooms, entered),
+		"grenade_throws": parts["shots_throws"],
+		"entries": parts["entries"],
+		"search_rooms": _options.search_group(ctx, known_rooms, rooms, parts["entered"]),
+		"explore": _options.explore_group(ctx, rooms, parts["entered"]),
 		"interactions": _options.interaction_group(self_pos),
 		"rooms": _options.room_group(ctx, known_rooms, rooms),
 		"order": _options.order_group(ctx, knowledge["order"], rooms),
-	}
-	SnapshotOptions.tag_rooms(options, rooms)
-	return {
-		"facts": facts, "sections": sections, "sections_per_target": per_sections,
-		"options": options, "gun": vocab.gun_noun(gun),
 	}
 
 

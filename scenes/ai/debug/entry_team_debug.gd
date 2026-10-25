@@ -40,30 +40,11 @@ func _paint() -> void:
 ## (the slots are the order the stack claimed the doorway in), the doorway on it covers; the order
 ## the stack crosses in; and who the point is still waiting for.
 func _team(e: Dictionary) -> void:
-	var slots: Dictionary = e["slots"]
 	var doors := {}
 	for w in e["watch"]:
 		doors[w["id"]] = w["pos"]
 	for m in e["team"]:
-		var step := str(m["step"])
-		var col := THROUGH if m.get("through", false) else (WAITING if step == "claim" else ALLY)
-		var at: Vector2 = m["pos"]
-		var side: int = m["side"] if int(m["side"]) != 0 else int(e["side"])
-		var row: Array = slots.get(side, slots.get(int(e["side"]), []))
-		var place := int(m.get("place", m["slot"]))
-		if not row.is_empty() and place >= 1:
-			var slot_at: Vector2 = row[clampi(place - 1, 0, row.size() - 1)]
-			_line(at, slot_at, Color(col, 0.4), 1.0)
-		_ring(at, 12.0, col, 2.0)
-		_label(
-			at,
-			"%s · slot %d · %s" % [m["name"], m["slot"], step.replace("_", " ")],
-			col,
-			Vector2(14, -14),
-		)
-		var covers := str(m.get("covering", ""))
-		if covers != "" and doors.has(covers):
-			_arrow(at, doors[covers], Color(col, 0.7), 1.5)
+		_member(e, m, doors)
 	var me := _character.global_position
 	var order: Array = e.get("order", [])
 	if order.size() > 1:
@@ -74,6 +55,31 @@ func _team(e: Dictionary) -> void:
 		if float(e["ready_left"]) >= 0.0:
 			text += " · %.1fs" % e["ready_left"]
 		_label(me, text, WAITING, Vector2(-60, -46))
+
+
+## Ally `m`'s claim in entry view `e`: a line from where it radioed to its place in its side's file,
+## its ring and `slot N · step`, and an arrow to the doorway on it covers (`doors`, id -> point).
+func _member(e: Dictionary, m: Dictionary, doors: Dictionary) -> void:
+	var slots: Dictionary = e["slots"]
+	var step := str(m["step"])
+	var col := THROUGH if m.get("through", false) else (WAITING if step == "claim" else ALLY)
+	var at: Vector2 = m["pos"]
+	var side: int = m["side"] if int(m["side"]) != 0 else int(e["side"])
+	var row: Array = slots.get(side, slots.get(int(e["side"]), []))
+	var place := int(m.get("place", m["slot"]))
+	if not row.is_empty() and place >= 1:
+		var slot_at: Vector2 = row[clampi(place - 1, 0, row.size() - 1)]
+		_line(at, slot_at, Color(col, 0.4), 1.0)
+	_ring(at, 12.0, col, 2.0)
+	_label(
+		at,
+		"%s · slot %d · %s" % [m["name"], m["slot"], step.replace("_", " ")],
+		col,
+		Vector2(14, -14),
+	)
+	var covers := str(m.get("covering", ""))
+	if covers != "" and doors.has(covers):
+		_arrow(at, doors[covers], Color(col, 0.7), 1.5)
 
 
 ## The entry guard: the next doorway into an uncleared room on the walk (cyan within `range`, grey

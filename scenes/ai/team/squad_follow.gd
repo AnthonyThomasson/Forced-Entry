@@ -163,36 +163,65 @@ func _lay_spots() -> void:
 	var facing := _heading()
 	var still: bool = GameClock.seconds() - _moved_at >= _squad.follow_still_time
 	var file := followers()
-	if (here.distance_to(_spots_from) <= 1.0
-			and absf(facing.angle_to(_spots_facing)) <= 0.02
-			and still == _spots_still
-			and file == _spots_for):
+	if not _moved_on(here, facing, still, file):
 		return
-	_spots_from = here
-	_spots_facing = facing
-	_spots_still = still
-	_spots_for = file
 	_spots = {}
 	if not _squad.is_inside_tree():
 		return
 	var world: World2D = _squad.get_viewport().find_world_2d()
-	var gap: float = _squad.follow_gap
-	var step: float = _squad.follow_step
 	var ring: Array = _ring_slots(here, facing, file.size(), world) if still else []
 	var pushed := 0.0
 	for i in file.size():
 		var at: Vector2 = ring[i] if i < ring.size() else Vector2.INF
 		if at == Vector2.INF:
-			var back := _trail_point(gap + step * i + pushed)
-			while still and _in_doorway(back) and pushed < step * file.size():
-				pushed += TRAIL_STEP
-				back = _trail_point(gap + step * i + pushed)
-			var stands := (file[i] as Node2D).global_position
-			at = (stands
-					if (gap + step * i + pushed > _trail_length()
-						and here.distance_to(back) > here.distance_to(stands))
-					else NavBuilder.snap(world.navigation_map, back))
+			pushed = _pushed_clear(i, pushed, still, file.size())
+			at = _trail_spot(
+				world,
+				here,
+				file[i],
+				_squad.follow_gap + _squad.follow_step * i + pushed,
+			)
 		_spots[file[i].get_instance_id()] = at
+
+
+## Whether the spots are laid again for the leader at `here` facing `facing` (`still` or not) and
+## the followers `file`: the leader moved, turned or stopped, or the followers changed, since they
+## were last laid. When so, what they are laid for now is kept.
+func _moved_on(here: Vector2, facing: Vector2, still: bool, file: Array) -> bool:
+	if (here.distance_to(_spots_from) <= 1.0
+			and absf(facing.angle_to(_spots_facing)) <= 0.02
+			and still == _spots_still
+			and file == _spots_for):
+		return false
+	_spots_from = here
+	_spots_facing = facing
+	_spots_still = still
+	_spots_for = file
+	return true
+
+
+## How far (px, from `pushed`, how far the file ahead of it was stepped back) the file spot of
+## follower `i` of `count` steps back along the trail: while the leader stands `still`, until the
+## spot is out of every doorway, at most `follow_step` x `count`.
+func _pushed_clear(i: int, pushed: float, still: bool, count: int) -> float:
+	var gap: float = _squad.follow_gap
+	var step: float = _squad.follow_step
+	var back := _trail_point(gap + step * i + pushed)
+	while still and _in_doorway(back) and pushed < step * count:
+		pushed += TRAIL_STEP
+		back = _trail_point(gap + step * i + pushed)
+	return pushed
+
+
+## The file spot `dist` px back along the trail from the leader at `here` for `member`, on the
+## navigation map of `world`; where `member` stands when that lies past the trail's oldest point
+## and further from the leader than the member is.
+func _trail_spot(world: World2D, here: Vector2, member: Node2D, dist: float) -> Vector2:
+	var back := _trail_point(dist)
+	var stands := member.global_position
+	if dist > _trail_length() and here.distance_to(back) > here.distance_to(stands):
+		return stands
+	return NavBuilder.snap(world.navigation_map, back)
 
 
 ## `at`, or, when it or `member` is in the leader's way (`_in_way`), a spot beside that way, on the
@@ -212,30 +241,61 @@ func _clear_of_way(member: Node, at: Vector2) -> Vector2:
 		return at
 	var p: Vector2 = (member as Node2D).global_position
 	var here := (lead as Node2D).global_position
-	var id := member.get_instance_id()
 	var ahead := (facing as Vector2).normalized()
+	var kept := _kept_aside(member, p, here, ahead)
+	if kept != Vector2.INF:
+		return kept
+	_aside.erase(member.get_instance_id())
 	var across := ahead.orthogonal()
-	var ring: float = _squad.follow_ring
-	var step: float = _squad.follow_step
+	var spot_in := _in_way(at - here, ahead, across)
+	if not spot_in and not _in_way(p - here, ahead, across):
+		return at
+	var along := clampf(
+		((at if spot_in else p) - here).dot(ahead),
+		0.0,
+		_squad.follow_ring + _squad.follow_step,
+	)
+	var aside := _beside_way(member, here, ahead, along, _side_of_way(p, at, here, across))
+	if aside == Vector2.INF:
+		aside = _further_on(member, here, ahead)
+	return aside if aside != Vector2.INF else at
+
+
+## The side of the leader's way (at `here`, `across` it) the member standing at `p` is on, 1 / -1:
+## else the side its spot `at` is on, else 1.
+static func _side_of_way(p: Vector2, at: Vector2, here: Vector2, across: Vector2) -> float:
+	var side := signf((p - here).dot(across))
+	if side == 0.0:
+		side = signf((at - here).dot(across)) if (at - here).dot(across) != 0.0 else 1.0
+	return side
+
+
+## The spot `member` (standing at `p`) was sent aside to, while that still keeps it out of the way
+## of the leader at `here` heading `ahead`: the leader has not moved a ring on nor turned its way
+## back, and no other member stands there. Else `Vector2.INF`.
+func _kept_aside(member: Node, p: Vector2, here: Vector2, ahead: Vector2) -> Vector2:
+	var kept: Dictionary = _aside.get(member.get_instance_id(), {})
+	if kept.is_empty():
+		return Vector2.INF
+	var across := ahead.orthogonal()
 	var arrive: float = _squad.follow_arrive
-	var kept: Dictionary = _aside.get(id, {})
-	if (not kept.is_empty()
-			and here.distance_to(kept["from"]) < ring
+	if (here.distance_to(kept["from"]) < _squad.follow_ring
 			and ahead.dot(kept["way"]) > 0.0
 			and not _in_way(kept["spot"] - here, ahead, across, WAY_CLEARANCE + arrive)
 			and not _in_way(p - here, ahead, across)
 			and not _taken(kept["spot"], member)):
 		return kept["spot"]
-	_aside.erase(id)
-	var spot_in := _in_way(at - here, ahead, across)
-	if not spot_in and not _in_way(p - here, ahead, across):
-		return at
+	return Vector2.INF
+
+
+## A spot beside the way of the leader at `here` heading `ahead`, `along` px ahead of it, on `side`
+## of the way (1 / -1 across it) and else on the other, far enough off it that a follower arriving
+## short of it, or re-aimed late, stands clear; kept as `member`'s spot aside. `Vector2.INF` when
+## neither side has one (open, in a room the leader has been in, not taken).
+func _beside_way(member: Node, here: Vector2, ahead: Vector2, along: float, side: float) -> Vector2:
 	var world: World2D = _squad.get_viewport().find_world_2d()
-	var along := clampf(((at if spot_in else p) - here).dot(ahead), 0.0, ring + step)
-	var side := signf((p - here).dot(across))
-	if side == 0.0:
-		side = signf((at - here).dot(across)) if (at - here).dot(across) != 0.0 else 1.0
-	# Far enough off the way that a follower arriving short of it, or re-aimed late, stands clear.
+	var across := ahead.orthogonal()
+	var arrive: float = _squad.follow_arrive
 	var off: float = WAY_CLEARANCE + arrive + _squad.follow_retarget
 	for s in [side, -side]:
 		var beside := _open_at(world, here, here + ahead * along + across * s * off)
@@ -243,15 +303,23 @@ func _clear_of_way(member: Node, at: Vector2) -> Vector2:
 				and _visited.has(_room_at(beside))
 				and absf((beside - here).dot(across)) >= WAY_CLEARANCE + arrive
 				and not _taken(beside, member)):
-			_aside[id] = { "spot": beside, "from": here, "way": ahead }
+			_aside[member.get_instance_id()] = { "spot": beside, "from": here, "way": ahead }
 			return beside
-	# Past the way, a step further at a time (one in a doorway is no spot).
+	return Vector2.INF
+
+
+## A spot past the way of the leader at `here` heading `ahead`, a step further at a time (one in a
+## doorway is no spot), kept as `member`'s spot aside; `Vector2.INF` when there is none.
+func _further_on(member: Node, here: Vector2, ahead: Vector2) -> Vector2:
+	var world: World2D = _squad.get_viewport().find_world_2d()
+	var ring: float = _squad.follow_ring
+	var step: float = _squad.follow_step
 	for k in range(2, 5):
 		var further := _open_at(world, here, here + ahead * (ring + step * k))
 		if further != Vector2.INF and _visited.has(_room_at(further)):
-			_aside[id] = { "spot": further, "from": here, "way": ahead }
+			_aside[member.get_instance_id()] = { "spot": further, "from": here, "way": ahead }
 			return further
-	return at
+	return Vector2.INF
 
 
 ## `want` on the navigation map of `world` (within `SLOT_SNAP`), in sight of the leader at `here`
@@ -361,18 +429,25 @@ func _ring_slots(here: Vector2, facing: Vector2, count: int, world: World2D) -> 
 	var back := -facing.normalized() if facing != Vector2.ZERO else Vector2.LEFT
 	for r in RINGS:
 		var radius: float = _squad.follow_ring + _squad.follow_step * r
-		var step: float = _squad.follow_step / radius
-		var j := 0
-		while (j + 0.5) * step < PI / 2.0:
-			for side in [1.0, -1.0]:
-				var slot := _open_at(
-					world,
-					here,
-					here + back.rotated(side * (j + 0.5) * step) * radius,
-				)
-				if slot != Vector2.INF:
-					out.append(slot)
-					if out.size() >= count:
-						return out
-			j += 1
+		out.append_array(_ring_of(world, here, back, radius, count - out.size()))
+		if out.size() >= count:
+			return out
+	return out
+
+
+## Up to `need` slots (at least one when there is any) on the ring `radius` px behind a still leader
+## at `here` (`back` the way behind it): `follow_step` apart either side of straight behind it,
+## each less than a right angle off it, open (`_open_at`).
+func _ring_of(world: World2D, here: Vector2, back: Vector2, radius: float, need: int) -> Array:
+	var out: Array = []
+	var step: float = _squad.follow_step / radius
+	var j := 0
+	while (j + 0.5) * step < PI / 2.0:
+		for side in [1.0, -1.0]:
+			var slot := _open_at(world, here, here + back.rotated(side * (j + 0.5) * step) * radius)
+			if slot != Vector2.INF:
+				out.append(slot)
+				if out.size() >= need:
+					return out
+		j += 1
 	return out

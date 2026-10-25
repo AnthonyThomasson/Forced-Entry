@@ -30,35 +30,46 @@ func _paint() -> void:
 	for c in _controller.debug_state().get("contacts", []):
 		reasons[c["name"]] = c.get("reason", "")
 	for c in _controller.known_contacts_for_display():
-		var pos: Vector2 = c["pos"]
-		var age: float = c["age"]
-		var fade := clampf(1.0 - age / maxf(ttl, 0.1), 0.15, 1.0)
-		var base := HOSTILE if c["hostile"] else FRIENDLY
-		var col := Color(base, fade)
-		var stale: bool = age > live_ttl
-		if c["visible"]:
-			_line(_character.global_position, pos, Color(base, 0.35), 1.0)
-		_ring(pos, GHOST_RADIUS, col, 2.0 if not stale else 1.0)
-		draw_circle(to_local(pos), 3.0, col)
-		var facing: Vector2 = c.get("facing", Vector2.ZERO)
-		if facing != Vector2.ZERO:
-			_arrow(pos, pos + facing * 26.0, Color(1, 1, 1, fade * 0.7), 1.5)
-		var vel: Vector2 = c.get("vel", Vector2.ZERO)
-		if vel.length() > 5.0:
-			_arrow(pos, pos + vel.limit_length(120.0) * 0.4, Color(1.0, 0.85, 0.2, fade), 1.5)
-		if c.get("wound_dmg", 0.0) > 0.0:
-			draw_circle(
-				to_local(pos) + Vector2(GHOST_RADIUS, -GHOST_RADIUS),
-				3.5,
-				Color(0.9, 0.1, 0.1, fade),
-			)
-		var tag: String = str(c["name"])
-		if c["hostile"]:
-			tag += " [%s]" % str(reasons.get(c["name"], "hostile"))
-		tag += " %.1fs%s" % [age, "" if not stale else " (stale)"]
-		_label(pos, tag, col, Vector2(GHOST_RADIUS + 2, 4))
-	# Hostiles it has lost track of: where they were, and the heading it would extrapolate them
-	# along.
+		_paint_contact(c, ttl, live_ttl, reasons)
+	_paint_lost(mem)
+
+
+## Contact `c`'s ghost at its last-known spot, fading toward `ttl` (stale past `live_ttl`): the
+## sight line while it is seen, the ring, the facing and velocity arrows, the wound pip and its tag
+## (a hostile's with its reason from `reasons`, name -> reason).
+func _paint_contact(c: Dictionary, ttl: float, live_ttl: float, reasons: Dictionary) -> void:
+	var pos: Vector2 = c["pos"]
+	var age: float = c["age"]
+	var fade := clampf(1.0 - age / maxf(ttl, 0.1), 0.15, 1.0)
+	var base := HOSTILE if c["hostile"] else FRIENDLY
+	var col := Color(base, fade)
+	var stale: bool = age > live_ttl
+	if c["visible"]:
+		_line(_character.global_position, pos, Color(base, 0.35), 1.0)
+	_ring(pos, GHOST_RADIUS, col, 2.0 if not stale else 1.0)
+	draw_circle(to_local(pos), 3.0, col)
+	var facing: Vector2 = c.get("facing", Vector2.ZERO)
+	if facing != Vector2.ZERO:
+		_arrow(pos, pos + facing * 26.0, Color(1, 1, 1, fade * 0.7), 1.5)
+	var vel: Vector2 = c.get("vel", Vector2.ZERO)
+	if vel.length() > 5.0:
+		_arrow(pos, pos + vel.limit_length(120.0) * 0.4, Color(1.0, 0.85, 0.2, fade), 1.5)
+	if c.get("wound_dmg", 0.0) > 0.0:
+		draw_circle(
+			to_local(pos) + Vector2(GHOST_RADIUS, -GHOST_RADIUS),
+			3.5,
+			Color(0.9, 0.1, 0.1, fade),
+		)
+	var tag: String = str(c["name"])
+	if c["hostile"]:
+		tag += " [%s]" % str(reasons.get(c["name"], "hostile"))
+	tag += " %.1fs%s" % [age, "" if not stale else " (stale)"]
+	_label(pos, tag, col, Vector2(GHOST_RADIUS + 2, 4))
+
+
+## The hostiles it has lost track of (`mem.lost`): where they were, and the heading it would
+## extrapolate them along (for their age, at most `extrapolate_cap` s).
+func _paint_lost(mem: Dictionary) -> void:
 	var cap: float = mem.get("extrapolate_cap", 3.0)
 	for l in mem.get("lost", []):
 		var pos: Vector2 = l["pos"]

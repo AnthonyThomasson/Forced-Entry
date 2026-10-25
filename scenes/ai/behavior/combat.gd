@@ -32,8 +32,6 @@ var shoot_range: float = 500.0
 var punch_range: float = 48.0
 ## Radius of the ring of candidate firing / cover spots around the target.
 var ring_radius: float = 80.0
-## Candidate spots on that ring.
-var ring_count: int = 12
 ## GoalController.cover_time.
 var cover_time: float = 1.2
 ## GoalController.fire_cooldown.
@@ -155,7 +153,7 @@ func holds_fire() -> bool:
 
 
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.
-func ambush(node, pos: Vector2) -> void:
+func ambush(node: Node2D, pos: Vector2) -> void:
 	_character.move_input = Vector2.ZERO
 	if _character.global_position.distance_to(pos) <= shoot_range \
 			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and _faces(pos):
@@ -169,7 +167,7 @@ func ambush(node, pos: Vector2) -> void:
 ## vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside the house,
 ## or inside room `room` when given (a member ordered to defend it, `docs/leadership.md` LD8), and a
 ## leash (`leash_center`) within it.
-func peek_cover(delta: float, node, pos: Vector2, hold_ground: bool, room := "") -> void:
+func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, room := "") -> void:
 	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
 	if phase == "cover":
@@ -429,8 +427,14 @@ func _faces(pos: Vector2) -> bool:
 ## ground, spots are restricted to inside the house and the peek fallback holds position instead of
 ## advancing out; with a `room` (kept to by order) spots are restricted to inside that room in any
 ## case; on a leash, spots are restricted to within it and the peek fallback holds position too.
-func _choose_dest(kind: String, node, pos: Vector2, hold_ground: bool, room := "") -> Vector2:
-	var spots: Dictionary = _perception.combat_spots(node, pos, ring_radius, ring_count)
+func _choose_dest(
+	kind: String,
+	node: Node2D,
+	pos: Vector2,
+	hold_ground: bool,
+	room := "",
+) -> Vector2:
+	var spots: Dictionary = _perception.combat_spots(node, pos, ring_radius)
 	var fire: Array = spots["fire"]
 	var cover: Array = spots["cover"]
 	if hold_ground or room != "":

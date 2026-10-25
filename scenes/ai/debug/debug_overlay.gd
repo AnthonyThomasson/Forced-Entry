@@ -49,16 +49,7 @@ func _paint() -> void:
 
 ## A small text label at world point `world` (drawn in this node's local space).
 func _label(world: Vector2, text: String, color: Color, offset := Vector2(6, -6)) -> void:
-	DebugText.string(
-		self,
-		ThemeDB.fallback_font,
-		to_local(world) + offset,
-		text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		FONT_SIZE,
-		color,
-	)
+	DebugText.string(self, to_local(world) + offset, text, FONT_SIZE, color)
 
 
 ## A ring (circle outline) of world radius `radius` around world point `world`.

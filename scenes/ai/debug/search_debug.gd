@@ -51,7 +51,9 @@ func _paint() -> void:
 	# up.
 	var seen: int = points.size() - unseen.size()
 	DebugText.string(
-		self, ThemeDB.fallback_font, Vector2(TARGET_RADIUS, -TARGET_RADIUS),
+		self,
+		Vector2(TARGET_RADIUS, -TARGET_RADIUS),
 		"searched %d/%d  %.1fs left" % [seen, points.size(), cov.get("budget", 0.0)],
-		HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, UNSEEN_COLOR,
+		FONT_SIZE,
+		UNSEEN_COLOR,
 	)

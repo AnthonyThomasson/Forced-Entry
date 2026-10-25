@@ -43,6 +43,18 @@ func _paint() -> void:
 		_cache.clear()
 		_cache_ms = now
 		_cache_from = me
+	_paint_wedges()
+	var zones: Array = _controller.debug_zones()
+	for z in zones:
+		if not z["category"] in CATEGORIES:
+			continue
+		var tags: Dictionary = z.get("tags", {})
+		if tags.has("route_exposed"):
+			_paint_route(z["point"], tags, map, me)
+
+
+## The watch cone of every hostile contact whose facing it knows.
+func _paint_wedges() -> void:
 	var half_arc := (deg_to_rad(float(_controller.get("watch_arc")
 			if _controller.get("watch_arc") != null
 			else 90.0)) * 0.5)
@@ -51,36 +63,33 @@ func _paint() -> void:
 		var facing: Vector2 = c.get("facing", Vector2.ZERO)
 		if c["hostile"] and facing != Vector2.ZERO:
 			_wedge(c["pos"], facing.angle(), half_arc)
-	var zones: Array = _controller.debug_zones()
-	for z in zones:
-		if not z["category"] in CATEGORIES:
-			continue
-		var tags: Dictionary = z.get("tags", {})
-		if not tags.has("route_exposed"):
-			continue
-		var p: Vector2 = z["point"]
-		var exposed: bool = tags["route_exposed"]
-		var col := EXPOSED if exposed else HIDDEN
-		if not _cache.has(p):
-			_cache[p] = NavBuilder.route(map, me, p)
-		var path: PackedVector2Array = _cache[p]
-		for i in range(1, path.size()):
-			_line(path[i - 1], path[i], Color(col, 0.55), 1.5)
-		var notes: Array = ["%s route" % ("exposed" if exposed else "hidden")]
-		notes.append("clear shot" if tags.get("clear_shot", false) else "line blocked")
-		if tags.get("cover", "") != "":
-			notes.append("cover: %s" % tags["cover"])
-		var edge := col
-		if tags.get("held", false):
-			notes.append("held by %s" % tags.get("held_by", "ally"))
-			edge = TAKEN
-		if tags.get("crosses", false):
-			notes.append("route passes %s" % tags.get("crosses_name", "a hostile"))
-			edge = TAKEN
-		if tags.get("ally_lane", "") != "":
-			notes.append("in %s's line of fire" % tags["ally_lane"])
-		_ring(p, 10.0, edge, 2.0)
-		_label(p, " · ".join(notes), edge, Vector2(12, 14))
+
+
+## The route from `me` to zone point `p` on navigation `map` (cached), coloured by whether it is
+## exposed, and the zone's ring and notes from its `tags`.
+func _paint_route(p: Vector2, tags: Dictionary, map: RID, me: Vector2) -> void:
+	var exposed: bool = tags["route_exposed"]
+	var col := EXPOSED if exposed else HIDDEN
+	if not _cache.has(p):
+		_cache[p] = NavBuilder.route(map, me, p)
+	var path: PackedVector2Array = _cache[p]
+	for i in range(1, path.size()):
+		_line(path[i - 1], path[i], Color(col, 0.55), 1.5)
+	var notes: Array = ["%s route" % ("exposed" if exposed else "hidden")]
+	notes.append("clear shot" if tags.get("clear_shot", false) else "line blocked")
+	if tags.get("cover", "") != "":
+		notes.append("cover: %s" % tags["cover"])
+	var edge := col
+	if tags.get("held", false):
+		notes.append("held by %s" % tags.get("held_by", "ally"))
+		edge = TAKEN
+	if tags.get("crosses", false):
+		notes.append("route passes %s" % tags.get("crosses_name", "a hostile"))
+		edge = TAKEN
+	if tags.get("ally_lane", "") != "":
+		notes.append("in %s's line of fire" % tags["ally_lane"])
+	_ring(p, 10.0, edge, 2.0)
+	_label(p, " · ".join(notes), edge, Vector2(12, 14))
 
 
 ## A hostile's watch cone: two edge lines and an arc of `half` radians either side of `front`.

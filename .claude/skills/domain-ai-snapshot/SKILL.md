@@ -11,10 +11,14 @@ holds no state between calls, and never writes memory, decides or picks. `agent_
 and calls `build()` once per decision; its `apply_config(cfg)` sets the tunables on `snapshot.vocab` straight from the controller's exports.
 
 Files:
-- `agent_snapshot.gd` — `build(rooms, goal, activity, known, callouts, knowledge) -> { facts, sections, sections_per_target,
-  options, gun }`: the **facts** literal, the per-hostile loop (`_analyze`), and the assembly of the dict; `fill_goal(goal)`;
+- `agent_snapshot.gd` — `build(rooms, goal, activity, knowledge) -> { facts, sections, sections_per_target,
+  options, gun }`: the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
+  `_option_groups`); `fill_goal(goal)`; `setup(sources: SnapshotSources)` (once, from the perception's `setup()`), which builds the
+  vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`);
   `bind(character)` (from the perception's own `bind`) hands the NPC's body to it and to the vocabulary, the sections and the option
   groups, each holding it as `_character`, so none of their functions takes the character.
+- `snapshot/snapshot_sources.gd` — `SnapshotSources`, the perception's modules the snapshot reads (`memory`, `tactics`, `entry`, `views`,
+  `ledger`, `throw`, `suspicion`), filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, every tunable the perception sets from the controller's exports
   (`shoot_range`, `punch_range`, `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `flank_ally_radius`,
   `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
@@ -30,16 +34,16 @@ Files:
   melee_group, advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group,
   explore_group, interaction_group, room_group, order_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
 
-Add a **fact** in the `facts` literal of `build()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
-`build()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
-`snapshot_options.gd` plus a key in the `options` dict. A fact the tree does not gate on is available vocabulary for new rules
+Add a **fact** in the `facts` literal of `_facts()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
+`_state_sections()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
+`snapshot_options.gd` plus a key in `_option_groups()`'s `options` dict. A fact the tree does not gate on is available vocabulary for new rules
 (`tools/audit_scan.py facts` lists those).
 
 ## The snapshot (what the planner walks) — built by `agent_snapshot.gd`
 
 The face's `sense(rooms, goal, activity)` gathers the knowledge (contacts, callouts,
 learned rooms/objects, lost hostiles) and hands it to `agent_snapshot.gd`'s
-`build(rooms, goal, activity, known, callouts, knowledge)`, which assembles the snapshot
+`build(rooms, goal, activity, knowledge)` (the knowledge carrying the `contacts` and the `callouts` heard), which assembles the snapshot
 below from that knowledge + the tactics geometry. The author reads the memory and tactics modules
 only; it writes no memory and holds no policy. Everything in this section and the wording rules below
 lives in `agent_snapshot.gd`.
@@ -133,7 +137,7 @@ A seen character's `reloading` flag (read via `is_reloading()` only while visibl
 **Grenades** (`docs/grenades.md`): per target the group `grenade_throws` (`grenade_group`): one option `frag` / `stun` per kind carried, only against a hostile whose last-known spot is hidden from the NPC's line of fire
 (`line.clear` false: "frag X behind their cover", group `situation` "Your line to X is blocked") or lies in a room the NPC is outside of (`_held_room`, issue #51 R7: "frag X in the kitchen",
 `situation` "X holds a room you are outside of", `held_room` the room, and the exposure section adds "X holds the kitchen, a room you are outside of." before the throw sentence), within that kind's throw range (`AgentThrow.range_of`, off the grenade carried) with a clear lob from the thrower's hand (`AgentThrow.can_lob`), judged per kind, from where the NPC stands or else
-from a **throw spot** a short walk away (`_throw_option(ctx, kind, spot, target_id, keep_out, walk)` asks `AgentTactics.throw_spot` within `AgentThrow.reach_of`, never inside `keep_out`, the room the
+from a **throw spot** a short walk away (`_throw_option(ctx, kind, spot, keep_out, walk)` asks `AgentTactics.throw_spot`, with a `ThrowAim` (`ai/perception/throw_aim.gd`: the spot, the reach, `keep_out`, the lob and route tests), within `AgentThrow.reach_of`, never inside `keep_out`, the room the
 hostile holds, with `_throw_walk` as its route: the walked route (`AgentDoorViews.walk_route`, E18) and `detour`, whether the entry guard would stop it, a threshold into an uncleared room or a
 doorway view with no way round, so a spot whose walk needs none is preferred; issue #51 R13); `params` `point` (the spot), `kind`, `radius`, `slot`, `target_id`, `from` (where it throws from: the throw spot, or where it stands) and `walk` (`from` is a throw
 spot); the option keeps `route_len` (the walk), its desc adds " — from the hallway to the east, short route" (`_throw_from_text`) and the group's summary says "within throwing range from a spot

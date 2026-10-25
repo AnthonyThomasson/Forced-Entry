@@ -563,38 +563,64 @@ func _check() -> bool:
 		blocker = _first_on(from, path, _agent.get_current_navigation_path_index(), resting)
 	match _way:
 		Way.PLAIN, Way.ROUND, Way.DOORS:
-			if blocker != Vector2.INF:
-				if not on_goal and not _last_leg and _goes_round(from, resting):
-					_set_way(Way.ROUND)
-				else:
-					_set_way(Way.HELD)
-					_blocker = blocker
-			elif _way == Way.ROUND and _doors_map.is_valid():
-				_recheck_in -= delta
-				if _recheck_in <= 0.0:
-					_recheck_in = RECHECK
-					if _clear_on(_doors_map, from, resting):
-						_set_way(Way.DOORS)
+			_check_walking(from, resting, blocker, on_goal, delta)
 		Way.HELD:
-			_blocker = blocker
-			if blocker == Vector2.INF:
-				_set_way(_free_way())
-			else:
-				_held_for += delta
-				_recheck_in -= delta
-				if not on_goal and _recheck_in <= 0.0:
-					_recheck_in = RECHECK
-					if _goes_round(from, resting, _last_leg):
-						# A held last leg goes round by a way to the goal, or to a new last leg
-						# clear of every body at rest.
-						_last_leg = false
-						_set_way(Way.ROUND)
-				if (_way == Way.HELD
-						and _held_for >= _replan_at
-						and (_carved(blocker) or _held_for >= _replan_at + CARVE_WAIT)):
-					_replan_at = _held_for + REPLAN_EVERY
-					_replan(from, on_goal)
+			_check_held(from, resting, blocker, on_goal, delta)
 	return _agent.get_navigation_map() != was_map or _goal != was_goal
+
+
+## `_check` for a walk under way (plain, round or round the doorway views): a body on its path
+## (`blocker`) is gone round by the steering map when it can be, else holds the walk; a walk round a
+## body that keeps out of the doorway views goes back to the avoid map once its route there is
+## clear.
+func _check_walking(
+	from: Vector2,
+	resting: Array,
+	blocker: Vector2,
+	on_goal: bool,
+	delta: float,
+) -> void:
+	if blocker != Vector2.INF:
+		if not on_goal and not _last_leg and _goes_round(from, resting):
+			_set_way(Way.ROUND)
+		else:
+			_set_way(Way.HELD)
+			_blocker = blocker
+	elif _way == Way.ROUND and _doors_map.is_valid():
+		_recheck_in -= delta
+		if _recheck_in <= 0.0:
+			_recheck_in = RECHECK
+			if _clear_on(_doors_map, from, resting):
+				_set_way(Way.DOORS)
+
+
+## `_check` for a held walk: it goes its free way once nothing known is on it (`blocker` INF), round
+## once the steering map has a way (looked for every `RECHECK` s), and re-plans after `WAIT` s.
+func _check_held(
+	from: Vector2,
+	resting: Array,
+	blocker: Vector2,
+	on_goal: bool,
+	delta: float,
+) -> void:
+	_blocker = blocker
+	if blocker == Vector2.INF:
+		_set_way(_free_way())
+		return
+	_held_for += delta
+	_recheck_in -= delta
+	if not on_goal and _recheck_in <= 0.0:
+		_recheck_in = RECHECK
+		if _goes_round(from, resting, _last_leg):
+			# A held last leg goes round by a way to the goal, or to a new last leg clear of every
+			# body at rest.
+			_last_leg = false
+			_set_way(Way.ROUND)
+	if (_way == Way.HELD
+			and _held_for >= _replan_at
+			and (_carved(blocker) or _held_for >= _replan_at + CARVE_WAIT)):
+		_replan_at = _held_for + REPLAN_EVERY
+		_replan(from, on_goal)
 
 
 ## Whether the steering map has caught up with the body at rest at `pos`: it is re-baked on an
@@ -623,11 +649,7 @@ func _free_way() -> int:
 ## round it by the steering map or is held, and the guard secures what views that crosses.
 func _update_doors(delta: float) -> void:
 	if not avoid_doors or views == null:
-		_doors_decided = false
-		if _doors_map.is_valid():
-			_doors_map = RID()
-			if _way == Way.DOORS:
-				_set_way(Way.PLAIN)
+		_drop_doors()
 		return
 	if _doors_decided and not _doors_map.is_valid():
 		return  # Needs no way round.
@@ -636,7 +658,22 @@ func _update_doors(delta: float) -> void:
 		if _doors_in > 0.0:
 			return
 	_doors_in = DOORS_RECHECK
-	var route: Dictionary = views.walk_route(_goal, avoid_entering)
+	_take_route(views.walk_route(_goal, avoid_entering))
+
+
+## A walk that does not keep out of the doorway views: it forgets the avoid map, and one on it goes
+## the plain way.
+func _drop_doors() -> void:
+	_doors_decided = false
+	if _doors_map.is_valid():
+		_doors_map = RID()
+		if _way == Way.DOORS:
+			_set_way(Way.PLAIN)
+
+
+## Put the walk on the way the perception's `route` (`walk_route`) names: the avoid map round the
+## views, or the plain way; while that map is being baked, ask again next frame.
+func _take_route(route: Dictionary) -> void:
 	if bool(route["doors"]):
 		_doors_decided = true
 		_doors_map = route["map"]
@@ -738,24 +775,36 @@ func _first_on(
 	var best := Vector2.INF
 	var best_along := INF
 	for pos in resting:
-		var body: Vector2 = pos
-		var limit := minf(PASS_CLEARANCE, from.distance_to(body) - 1.0)
-		var walked := 0.0
-		var a := from
-		for i in range(index, path.size()):
-			var b: Vector2 = path[i]
-			var closest := Geometry2D.get_closest_point_to_segment(body, a, b)
-			if closest.distance_to(body) < limit:
-				var along := walked + a.distance_to(closest)
-				if along < best_along:
-					best_along = along
-					best = body
-				break
-			walked += a.distance_to(b)
-			if walked >= reach:
-				break
-			a = b
+		var along := _meets_at(from, path, index, pos, reach)
+		if along < best_along:
+			best_along = along
+			best = pos
 	return best
+
+
+## How far (px) along the walk from `from` along `path` (from waypoint `index` on, the first `reach`
+## px) it first passes `body` closer than `PASS_CLEARANCE` and closer than the NPC stands to it now,
+## or INF when it does not.
+func _meets_at(
+	from: Vector2,
+	path: PackedVector2Array,
+	index: int,
+	body: Vector2,
+	reach: float,
+) -> float:
+	var limit := minf(PASS_CLEARANCE, from.distance_to(body) - 1.0)
+	var walked := 0.0
+	var a := from
+	for i in range(index, path.size()):
+		var b: Vector2 = path[i]
+		var closest := Geometry2D.get_closest_point_to_segment(body, a, b)
+		if closest.distance_to(body) < limit:
+			return walked + a.distance_to(closest)
+		walked += a.distance_to(b)
+		if walked >= reach:
+			break
+		a = b
+	return INF
 
 
 ## The nearest free spot near the walk's destination, for a walk whose destination a body stands on:
@@ -765,23 +814,34 @@ func _first_on(
 func _free_spot(from: Vector2) -> Vector2:
 	var resting := _resting(_walk_dest, float(FREE_SPOT_RINGS[-1]) + FREE_SPOT_CLEAR)
 	for ring in FREE_SPOT_RINGS:
-		var r: float = ring
-		var best := Vector2.INF
-		for k in FREE_SPOT_ANGLES:
-			var p: Vector2 = _walk_dest + Vector2.from_angle(TAU * k / FREE_SPOT_ANGLES) * r
-			var q := NavBuilder.snap(_plan_map, p)
-			if (q.distance_to(p) > 3.0
-					or resting.any(
-							func(pos): return (pos as Vector2).distance_to(q) < FREE_SPOT_CLEAR,
-					)):
-				continue
-			if best != Vector2.INF and q.distance_to(from) >= best.distance_to(from):
-				continue
-			if NavBuilder.path_length(NavBuilder.route(_plan_map, _walk_dest, q)) <= r * 1.5:
-				best = q
+		var best := _free_on_ring(ring, from, resting)
 		if best != Vector2.INF:
 			return best
 	return Vector2.INF
+
+
+## The free spot on the ring `r` px round the walk's destination nearest the NPC at `from` (open
+## floor, clear of `resting` by `FREE_SPOT_CLEAR`, a short walk from the destination), or INF.
+func _free_on_ring(r: float, from: Vector2, resting: Array) -> Vector2:
+	var best := Vector2.INF
+	for k in FREE_SPOT_ANGLES:
+		var p: Vector2 = _walk_dest + Vector2.from_angle(TAU * k / FREE_SPOT_ANGLES) * r
+		var q := NavBuilder.snap(_plan_map, p)
+		if q.distance_to(p) > 3.0 or _crowded(resting, q):
+			continue
+		if best != Vector2.INF and q.distance_to(from) >= best.distance_to(from):
+			continue
+		if NavBuilder.path_length(NavBuilder.route(_plan_map, _walk_dest, q)) <= r * 1.5:
+			best = q
+	return best
+
+
+## Whether a body of `resting` stands closer than `FREE_SPOT_CLEAR` to `q`.
+func _crowded(resting: Array, q: Vector2) -> bool:
+	for pos in resting:
+		if (pos as Vector2).distance_to(q) < FREE_SPOT_CLEAR:
+			return true
+	return false
 
 
 ## Give way to a walker coming at the NPC (`move_input` already steers its walk): a known character
@@ -801,24 +861,7 @@ func _give_way() -> void:
 	var pace := maxf(_character.get_real_velocity().length(), PACE_FLOOR)
 	var mine: Vector2 = _character.move_input * pace
 	var horizon := minf(GIVE_HORIZON, _way_left() / pace)
-	var other := {}
-	var nearest := INF
-	var imminent_only := false
-	for b in bodies:
-		if not b.get("visible", false) or int(b.get("id", 0)) == ignore_id:
-			continue
-		var vel: Vector2 = b.get("vel", Vector2.ZERO)
-		var gap: Vector2 = (b["pos"] as Vector2) - me
-		if vel.length() < REST_SPEED or gap.length() > GIVE_RANGE or gap.length() >= nearest:
-			continue
-		if not _converging(gap, vel - mine, horizon):
-			continue
-		var has_way := _has_way(b)
-		if has_way and gap.length() >= GIVE_IMMINENT:
-			continue
-		other = b
-		nearest = gap.length()
-		imminent_only = has_way
+	var other := _walker_in_way(me, mine, horizon)
 	if other.is_empty():
 		_yield_id = 0
 		_yield_spot = Vector2.INF
@@ -830,21 +873,55 @@ func _give_way() -> void:
 	_yield_for += get_physics_process_delta_time()
 	if _yield_for > GIVE_MAX:
 		return
+	# With the right of way the NPC only stops for a walker on top of it.
+	if not _has_way(other) and _step_aside(me, other):
+		return
+	_character.move_input = Vector2.ZERO
+	_yielding = true
+
+
+## The nearest walker the NPC at `me` (stepping at `mine` px/s) gives way to: a known character in
+## view, not at rest, within `GIVE_RANGE`, whose course comes within `GIVE_CLEARANCE` in `horizon`
+## s, and that it has no right of way over (`_has_way`) or that is closer than `GIVE_IMMINENT`. {}
+## when none.
+func _walker_in_way(me: Vector2, mine: Vector2, horizon: float) -> Dictionary:
+	var other := {}
+	var nearest := INF
+	for b in bodies:
+		if not b.get("visible", false) or int(b.get("id", 0)) == ignore_id:
+			continue
+		var vel: Vector2 = b.get("vel", Vector2.ZERO)
+		var gap: Vector2 = (b["pos"] as Vector2) - me
+		if vel.length() < REST_SPEED or gap.length() > GIVE_RANGE or gap.length() >= nearest:
+			continue
+		if not _converging(gap, vel - mine, horizon):
+			continue
+		if _has_way(b) and gap.length() >= GIVE_IMMINENT:
+			continue
+		other = b
+		nearest = gap.length()
+	return other
+
+
+## Step the NPC at `me` aside off the line of walker `other` when it stands on it (ahead of the
+## walker, within `GIVE_CLEARANCE`): toward the spot `_side_step` finds, kept while it stays off the
+## walker's line. True when it steps; false when it has no spot to go to, or is there.
+func _step_aside(me: Vector2, other: Dictionary) -> bool:
 	var at: Vector2 = other["pos"]
 	var line: Vector2 = (other["vel"] as Vector2).normalized()
 	var rel: Vector2 = me - at
 	var off: Vector2 = rel - line * rel.dot(line)
-	if not imminent_only and rel.dot(line) > 0.0 and off.length() < GIVE_CLEARANCE:
-		if _yield_spot != Vector2.INF and not _off_line(_yield_spot, me, at, line):
-			_yield_spot = Vector2.INF  # The walker has turned: that spot is on its way now.
-		if _yield_spot == Vector2.INF:
-			_yield_spot = _side_step(me, at, line, off, int(other["id"]))
-		if _yield_spot != Vector2.INF and me.distance_to(_yield_spot) > 4.0:
-			_character.move_input = (_yield_spot - me).normalized()
-			_yielding = true
-			return
-	_character.move_input = Vector2.ZERO
+	if not (rel.dot(line) > 0.0 and off.length() < GIVE_CLEARANCE):
+		return false
+	if _yield_spot != Vector2.INF and not _off_line(_yield_spot, me, at, line):
+		_yield_spot = Vector2.INF  # The walker has turned: that spot is on its way now.
+	if _yield_spot == Vector2.INF:
+		_yield_spot = _side_step(me, at, line, off, int(other["id"]))
+	if _yield_spot == Vector2.INF or me.distance_to(_yield_spot) <= 4.0:
+		return false
+	_character.move_input = (_yield_spot - me).normalized()
 	_yielding = true
+	return true
 
 
 ## The last word on a step: drop the part of `move_input` that heads into a known body closer than

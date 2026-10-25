@@ -181,8 +181,10 @@ func _on_probe_completed(
 		return
 	if _waiting_ready:
 		if Time.get_ticks_msec() >= _ready_deadline_ms:
-			push_warning(("[von] Server has not answered within %.0fs; NPCs hold steady until it "
-						+ "does.") % ready_timeout)
+			push_warning(
+				"[von] Server has not answered within %.0fs; NPCs hold steady until it does."
+				% ready_timeout,
+			)
 			_resolve(false)
 			return
 		await _wait_then_probe()
