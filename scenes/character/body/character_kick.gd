@@ -77,7 +77,7 @@ func update(character: CharacterBody2D, delta: float) -> void:
 
 
 ## Where the foot is, in the world: out along the facing by the throw so far.
-func foot_world(character: CharacterBody2D) -> Vector2:
+func _foot_world(character: CharacterBody2D) -> Vector2:
 	return (
 		character.global_position + character.facing * (CharacterMeleeConfig.kick_reach * amount())
 	)
@@ -87,7 +87,7 @@ func foot_world(character: CharacterBody2D) -> Vector2:
 ## (`body_strike.gd`), at the foot, so a piece struck off-centre turns.
 func _strike(character: CharacterBody2D) -> void:
 	var blow := MeleeBlow.new(
-		foot_world(character),
+		_foot_world(character),
 		CharacterMeleeConfig.kick_radius,
 		character.facing * CharacterMeleeConfig.kick_impulse,
 		CharacterMeleeConfig.kick_damage,

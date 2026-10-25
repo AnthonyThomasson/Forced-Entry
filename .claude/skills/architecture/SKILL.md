@@ -326,7 +326,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
    drawn hunched and staggering, the free hand over the eyes while blind), `weapon.one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
-   another character's `facing`, `damage_taken()`, `ammo.is_reloading()`, `posture()`, `inventory.current_item()` and `faction` — but only while it can SEE that character
+   another character's `facing`, `damage_taken()`, `ammo.is_reloading()`, `movement.posture()`, `inventory.current_item()` and `faction` — but only while it can SEE that character
    (aim, visible wounds, a reload in progress and the posture are things it perceives); the exceptions are three reads of an unseen character's `faction`,
    which stand for knowing who its own team is: the faction of a character whose footstep it hears (the `footfall` event's `character`, interface 10), so its
    own side's steps are never taken for a stranger's (`docs/hearing.md` H1); of the attacker of a hit on or near it (the `hit` event's `attacker`), so an
@@ -1057,7 +1057,7 @@ ladder every domain's z knob starts from) and `LightMasks` (the occluder bits, s
 Three conventions hold across domains; the per-domain specifics live in each domain's skill.
 
 - **Layered control / animate / draw.** Within an entity the three verbs live in separate files,
-  wired via the scene tree (no `class_name` on scene scripts; cross-file calls resolve through
+  wired via the scene tree (no `class_name` on scene scripts but a typed component's, below; cross-file calls resolve through
   `$` / `get_parent()`). A "draw" file is attached to its own child `Node2D` (Godot only draws
   from `CanvasItem`s). Ordering: a parent's `_physics_process` runs before its children's.
 - **Runtime shapes.** Collision shapes are built **in code in `_ready()`**, not in the scene
@@ -1066,7 +1066,9 @@ Three conventions hold across domains; the per-domain specifics live in each dom
 - **Typed components.** A body too big for one file is split into **typed components** held as public properties
   (`character.movement`, `character.inventory`, …), each one topic, at most 15 vars and 20 public methods; callers name the
   component (no forwarders on the body), and the body keeps only what scenes author, what every domain reads as plain
-  state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`).
+  state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`). A
+  component is a `class_name` `RefCounted`, or a `class_name` Node child where a scene authors it (the character's
+  `Wardrobe`, `CharacterWardrobe`): the one scene script with a `class_name`, so the body can type it.
 
 ## Running & verifying
 

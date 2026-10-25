@@ -2,7 +2,7 @@ class_name CharacterUse extends RefCounted
 ## What occupies a character's body (`character.gd`'s `use`): an object interaction (sit, lie, …), a
 ## ride in a vehicle, and the collision exceptions both leave behind. It composes the Interaction
 ## domain's `CharacterInteraction` and the Vehicles domain's `CharacterVehicleUse` as children of
-## the character (`attach`, from its `_ready`) and only forwards to them. Each physics frame the
+## the character (`attach`, from its `_ready`), and holds the ride's pose. Each physics frame the
 ## character steps the ride right after its controller (`control`), lets it hold the body still
 ## while it lasts or an interaction holds it (`hold_frame`), and drops the exceptions of the bodies
 ## it has cleared after the move (`restore_cleared`); death ends both (`end_interaction`,
@@ -11,11 +11,11 @@ class_name CharacterUse extends RefCounted
 ## Extra gap (px) around the body before the collision with a body it left (`keep_clear_of`) is
 ## restored.
 const CLEAR_MARGIN := 3.0
-## Interaction component (Interaction domain): finds and runs object interactions; the character
-## forwards `try_interact()` and reads `is_busy()` / `interaction_label()` through it.
+## Interaction component (Interaction domain): finds and runs object interactions; `try_interact()`,
+## `is_busy()` and `interaction_label()` go through it.
 const CharacterInteraction = preload("res://scenes/interaction/character_interaction.gd")
-## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; the character forwards
-## `try_use_vehicle()`, `vehicle()`, `is_in_vehicle()` and lets it drive the ride each frame.
+## Vehicle component (Vehicles domain): boards, rides and leaves vehicles; `try_use_vehicle()`,
+## `vehicle()` and `is_in_vehicle()` go through it, and it drives the ride each frame (`control`).
 const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.gd")
 
 ## The character occupied.

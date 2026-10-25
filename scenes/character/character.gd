@@ -1,11 +1,13 @@
 extends CharacterBody2D
-## Character domain: a generic top-down character. It owns the body, movement, aim-based "facing",
-## the item inventory, and the knockback it takes from shoves. It reads its intent from a pluggable
-## controller child (any node with a `control(character, delta)` method): the controller
-## writes `movement.move_input` / `movement.aim_point` and calls `weapon.melee` / `weapon.shoot` /
-## `inventory.select_slot`. Drawing is in character_visuals.gd; the body's animate parts (the living
-## motion, the rig, the hands, the legs, the kick, the footsteps, the wounds, the shadow and the
-## fall on death) are its `anatomy` (character_anatomy.gd), stepped here each physics frame.
+## Character domain: a generic top-down character. It owns the body's health, its aim-based
+## "facing" and the hit and push contracts, and holds a typed component per topic (`movement`,
+## `inventory`, `weapon`, `ammo`, `stun`, `use`, `anatomy`, `wardrobe`). It reads its intent from
+## a pluggable controller child (any node with a `control(character, delta)` method): the
+## controller writes `movement.move_input` / `movement.aim_point` and calls `weapon.melee` /
+## `weapon.shoot` / `inventory.select_slot`. Drawing is in character_visuals.gd; the body's animate
+## parts (the living motion, the rig, the hands, the legs, the kick, the footsteps, the wounds, the
+## shadow and the fall on death) are its `anatomy` (character_anatomy.gd), stepped here each physics
+## frame.
 
 ## Emitted once when health drops to zero.
 signal died

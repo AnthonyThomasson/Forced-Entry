@@ -20,7 +20,7 @@ the muzzle, the raise, recoil) and `CharacterRagdollFallConfig` (the fall's laun
 ## Layering (control / animate / draw)
 
 The three verbs live in separate files, wired via the scene tree (no `class_name` on scene
-scripts; cross-file calls resolve through `$` / `get_parent()`). A "draw" file is attached to
+scripts but the wardrobe's, a typed component; cross-file calls resolve through `$` / `get_parent()`). A "draw" file is attached to
 its own child `Node2D`.
 
 - **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and

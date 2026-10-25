@@ -266,7 +266,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
   fists on top, with its shadow from `shadow.draw_fallen`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
   art (seam, backpack, the vest's back panel and plate wear) with the shoulders' over it.
   **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a
-  crouch's forward lean carries them with the sleeves. `movement.posture_hand_ahead()` (`body_crouch_hand_ahead` x `posture_folded()`) is added to every
+  crouch's forward lean carries them with the sleeves. `movement.posture_hand_ahead()` (`body_crouch_hand_ahead` x `movement.posture_folded()`) is added to every
   hand's stance `forward` (`CharacterHands._raw_hand_position`) and to the wall-raise ray's reach, so the arms keep their reach past the leaning
   chest. **A long gun at a wall:** `weapon.blocked()` is judged in every posture and the gun is raised (`raised_stance`) whatever the posture. A pistol is
   never blocked: the wall pushes its hand back.

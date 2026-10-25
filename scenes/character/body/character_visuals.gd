@@ -98,11 +98,12 @@ func _process(_delta: float) -> void:
 			_redraw_key = PackedInt32Array()
 		return
 	_offscreen = false
-	var ragdoll = _character.anatomy.ragdoll
+	var anatomy: CharacterAnatomy = _character.anatomy
+	var ragdoll = anatomy.ragdoll
 	if dress.refresh(_character.wardrobe):
 		_settled_drawn = false  # A body at rest repaints what it now wears.
 	if ragdoll == null:
-		_rig = _character.anatomy.rig()
+		_rig = anatomy.rig()
 		var key := _redraw_key_of(_rig)
 		if key != _redraw_key:
 			_redraw_key = key
@@ -119,12 +120,13 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	art.clear()
 	meshes.begin()
-	if _character.anatomy.ragdoll:
-		laid.draw(_character.anatomy.ragdoll)
+	var anatomy: CharacterAnatomy = _character.anatomy
+	if anatomy.ragdoll:
+		laid.draw(anatomy.ragdoll)
 		return
 	redraws += 1
 	draw_order.clear()
-	var rig: Rig = _rig if _rig != null else _character.anatomy.rig()
+	var rig: Rig = _rig if _rig != null else anatomy.rig()
 	if draws_laid_out():
 		_draw_lying(rig)
 		return
@@ -220,7 +222,8 @@ func _in_view() -> bool:
 ## (which carry the lunge, the head's offset and the hands' places), the angles the shoulders, head,
 ## fists and weapon are turned by, the held slot, and the wounds that dent and darken the parts.
 func _redraw_key_of(rig: Rig) -> PackedInt32Array:
-	var pose = _character.anatomy.pose
+	var anatomy: CharacterAnatomy = _character.anatomy
+	var pose = anatomy.pose
 	var key := PackedInt32Array()
 	for i in 17:
 		var p: Vector3 = rig.point(i)
@@ -244,8 +247,8 @@ func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 	key.append(roundi(_character.weapon.raise() / REDRAW_RAISE_STEP))
 	for hand in 2:
 		# A punch swings a long gun round.
-		key.append(roundi(_character.anatomy.hands.punch_amount(hand) / REDRAW_RAISE_STEP))
-	var deformable = _character.anatomy.deformable
+		key.append(roundi(_hands.punch_amount(hand) / REDRAW_RAISE_STEP))
+	var deformable = anatomy.deformable
 	if deformable:
 		key.append(deformable.impacts.size())
 		key.append(roundi(deformable.damage_total * 100.0))
