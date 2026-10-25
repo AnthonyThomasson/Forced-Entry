@@ -93,8 +93,15 @@ func run(t: TestContext) -> void:
 		return
 	t.puppet(&"model").aim_at(Vector2(250, 900))
 	t.puppet(&"plated").aim_at(Vector2(0, 120))
+	await _check_standing(t, model)
+	await _check_crouched(t, model)
+	await _check_crouched_carrier(t)
+	await _check_worn_plate(t)
+	await _check_fallen(t)
 
-	# Standing: each garment against plain clothes.
+
+## Standing: each garment against plain clothes, on `model`.
+func _check_standing(t: TestContext, model: Node) -> void:
 	OutfitProbe.wear(model, OutfitProbe.PLAIN_CLOTHES)
 	await t.seconds(0.5)
 	var plain := await _sample(t, model)
@@ -110,7 +117,9 @@ func run(t: TestContext) -> void:
 			"%s paints something plain clothes never do" % change[0],
 		)
 
-	# Crouched: the folded trunk and the limbs carry the outfit too.
+
+## Crouched: the folded trunk and the limbs of `model` carry the outfit too.
+func _check_crouched(t: TestContext, model: Node) -> void:
 	t.puppet(&"model").set_posture(&"crouch")
 	OutfitProbe.wear(model, OutfitProbe.PLAIN_CLOTHES)
 	await t.seconds(1.0)
@@ -124,6 +133,10 @@ func run(t: TestContext) -> void:
 			not _new_in(worn, crouched_plain).is_empty(),
 			"crouched, %s paints something plain clothes never do" % change[0],
 		)
+
+
+## Crouched in a plate carrier, the body shows it on the folded back as well as round the neck.
+func _check_crouched_carrier(t: TestContext) -> void:
 	var crouched := t.actor(&"crouched")
 	t.puppet(&"crouched").aim_at(Vector2(900, 380))
 	t.puppet(&"crouched").set_posture(&"crouch")
@@ -146,7 +159,9 @@ func run(t: TestContext) -> void:
 				+ "in its colour: %d)") % in_carrier,
 	)
 
-	# A worn plate repaints.
+
+## A worn plate repaints.
+func _check_worn_plate(t: TestContext) -> void:
 	var plated := t.actor(&"plated")
 	OutfitProbe.wear(
 		plated,
@@ -175,7 +190,9 @@ func run(t: TestContext) -> void:
 		"the worn plate repaints: its drawing has something the new plate's never had",
 	)
 
-	# Fallen: the vest is drawn on the body where it lies.
+
+## Fallen: the vest is drawn on the body where it lies.
+func _check_fallen(t: TestContext) -> void:
 	var fallen := t.actor(&"fallen")
 	var carrier := OutfitProbe.PLAIN_CLOTHES.merged(
 		{ "vest": &"plate_carrier", "front_plate": &"steel_iii", "back_plate": &"steel_iii" },
@@ -230,15 +247,20 @@ func _painted_in(c: Node, color: Color) -> int:
 		var img: Image = (tex as Texture2D).get_image()
 		if img == null:
 			continue
-		var hits := 0
-		for y in img.get_height():
-			for x in img.get_width():
-				var p := img.get_pixel(x, y)
-				if (p.a > 0.5
-						and absf(p.r - color.r) < 0.01
-						and absf(p.g - color.g) < 0.01
-						and absf(p.b - color.b) < 0.01):
-					hits += 1
-		if hits >= GARMENT_PIXELS:
+		if _pixels_in(img, color) >= GARMENT_PIXELS:
 			count += 1
 	return count
+
+
+## How many of `img`'s opaque pixels are `color`.
+func _pixels_in(img: Image, color: Color) -> int:
+	var hits := 0
+	for y in img.get_height():
+		for x in img.get_width():
+			var p := img.get_pixel(x, y)
+			if (p.a > 0.5
+					and absf(p.r - color.r) < 0.01
+					and absf(p.g - color.g) < 0.01
+					and absf(p.b - color.b) < 0.01):
+				hits += 1
+	return hits

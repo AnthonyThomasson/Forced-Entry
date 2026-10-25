@@ -36,6 +36,15 @@ func run(t: TestContext) -> void:
 				% Probe.count(gunman, Probe.FRAG),
 	):
 		return
+	await _check_uncarried_slot(t, gunman)
+	await _check_grenade_held(t, gunman)
+	if not await _check_last_throw(t, gunman):
+		return
+	await _check_gunless(t)
+
+
+## Selecting slot 7, which `gunman` does not carry, leaves it holding its pistol.
+func _check_uncarried_slot(t: TestContext, gunman: Node) -> void:
 	t.expect_eq(gunman.current_slot(), Probe.PISTOL, "it starts holding the pistol")
 	t.puppet(&"gunman").select_slot(Probe.STUN)
 	await t.frames(4)
@@ -46,6 +55,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(Probe.count(gunman, Probe.STUN), 0, "no stun grenades are carried")
 
+
+## `gunman` holds its frag: not a gun, so its gun is still the pistol, no ammo, no reload.
+func _check_grenade_held(t: TestContext, gunman: Node) -> void:
 	await Probe.ready(t, &"gunman", Probe.FRAG, AIM)
 	t.expect_eq(gunman.current_slot(), Probe.FRAG, "slot 8 is held")
 	t.expect_eq(
@@ -58,12 +70,17 @@ func run(t: TestContext) -> void:
 	t.puppet(&"gunman").reload()
 	await t.frames(4)
 	t.check(not gunman.is_reloading(), "reload does nothing with a grenade in the hand")
+
+
+## `gunman` throws its last frag: the slot is emptied and it holds its pistol again. Whether it
+## threw (false after a failed `require`).
+func _check_last_throw(t: TestContext, gunman: Node) -> bool:
 	t.puppet(&"gunman").shoot()
 	if not t.require(
 			await t.until(func(): return t.happened(&"throw"), 1.5),
 			"the click throws it",
 	):
-		return
+		return false
 	await t.frames(6)
 	t.expect_eq(Probe.count(gunman, Probe.FRAG), 0, "the slot is empty after the last throw")
 	t.check(not gunman.has_item(Probe.FRAG), "slot 8 is no longer carried")
@@ -72,8 +89,11 @@ func run(t: TestContext) -> void:
 	t.puppet(&"gunman").select_slot(Probe.FRAG)
 	await t.frames(4)
 	t.expect_eq(gunman.current_slot(), Probe.PISTOL, "an emptied slot cannot be selected again")
+	return true
 
-	# No gun at all: the fists.
+
+## No gun at all: the gunless one throws its single frag and goes back to its fists.
+func _check_gunless(t: TestContext) -> void:
 	var bare := t.actor(&"bare")
 	var kit := CharacterKit.new()
 	kit.slots = [ItemRegistry.UNARMED_SLOT, ItemRegistry.FISTS_SLOT, Probe.FRAG]

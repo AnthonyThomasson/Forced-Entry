@@ -80,10 +80,7 @@ func _check_two_handed_swing(t: TestContext) -> void:
 	t.check(gap > 0.0, "a rifle's other hand grips along the barrel (%.0f px)" % gap)
 	var worst := 0.0
 	var stretch := 0.0
-	var tilt := 2.0
-	var butt_ahead := -1000.0
-	var muzzle_ahead := 1000.0
-	var butt_off := 1000.0
+	var across := Across.new()
 	puppet.punch()
 	for i in 40:
 		await t.frames(1)
@@ -91,40 +88,66 @@ func _check_two_handed_swing(t: TestContext) -> void:
 		var apart: Vector2 = you.hand_position(1) - you.hand_position(0)
 		if amount > 0.15:
 			worst = maxf(worst, absf(apart.length() - gap))
-		var rig = you.rig()
-		for arm in 2:
-			for bone in [
-					[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
-					[Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
-			]:
-				var want: float = bone[2] * you.radius
-				stretch = maxf(
-					stretch,
-					rig.point(bone[0][arm]).distance_to(rig.point(bone[1][arm])) / want - 1.0,
-				)
+		stretch = maxf(stretch, _arm_stretch(you))
 		if item.strike_swing(amount) > 0.99:
-			var barrel := item.strike_direction(you.facing, amount)
-			var butt: Vector2 = item.strike_end(you.facing, amount)
-			var muzzle: Vector2 = barrel * (item.art_size().y - item.grip_back())
-			tilt = minf(tilt, absf(barrel.dot(you.facing)))
-			butt_ahead = maxf(butt_ahead, butt.dot(you.facing))
-			muzzle_ahead = minf(muzzle_ahead, muzzle.dot(you.facing))
-			var centre: Vector2 = you.hand_position(0) + butt
-			butt_off = minf(butt_off, absf(centre.dot(you.facing.orthogonal())))
+			across.take(item, you, amount)
 	t.check(
 		worst < 3.0,
 		"the other hand stays a fixed grip from the weapon hand (off by %.1f px)" % worst,
 	)
 	t.check(
-		tilt < 0.4,
-		"the gun ends nearly across the body, not turned round (%.2f along the aim)" % tilt,
+		across.tilt < 0.4,
+		"the gun ends nearly across the body, not turned round (%.2f along the aim)" % across.tilt,
 	)
 	t.check(
-		butt_ahead > muzzle_ahead,
-		"the butt is a little ahead of the muzzle (%.1f vs %.1f px)" % [butt_ahead, muzzle_ahead],
+		across.butt_ahead > across.muzzle_ahead,
+		"the butt is a little ahead of the muzzle (%.1f vs %.1f px)"
+			% [across.butt_ahead, across.muzzle_ahead],
 	)
-	t.check(butt_off < 9.0, "the butt is centred on the aim line (%.1f px off)" % butt_off)
+	t.check(
+		across.butt_off < 9.0,
+		"the butt is centred on the aim line (%.1f px off)" % across.butt_off,
+	)
 	t.check(
 		stretch <= ARM_STRETCH,
 		"neither arm overstretches through the swing (%.0f%%)" % (stretch * 100.0),
 	)
+
+
+## How far `you`'s most stretched arm bone (upper arm or forearm, either arm) is past its length
+## now, as a fraction of it (0 when none is).
+func _arm_stretch(you: Node) -> float:
+	var most := 0.0
+	var rig = you.rig()
+	for arm in 2:
+		for bone in [
+				[Rig.SHOULDER, Rig.ELBOW, CharacterConfig.body_upper_arm],
+				[Rig.ELBOW, Rig.HAND, CharacterConfig.body_forearm],
+		]:
+			var want: float = bone[2] * you.radius
+			most = maxf(
+				most,
+				rig.point(bone[0][arm]).distance_to(rig.point(bone[1][arm])) / want - 1.0,
+			)
+	return most
+
+
+## How the gun lies through the frames it is swung fully round: its least tilt along the aim, the
+## butt's furthest reach along the aim and the muzzle's nearest, and the butt's least offset from
+## the aim line.
+class Across:
+	var tilt := 2.0
+	var butt_ahead := -1000.0
+	var muzzle_ahead := 1000.0
+	var butt_off := 1000.0
+
+	## Take in how `item` lies in `you`'s hands at punch `amount`.
+	func take(item: GunItem, you: Node, amount: float) -> void:
+		var barrel := item.strike_direction(you.facing, amount)
+		var butt: Vector2 = item.strike_end(you.facing, amount)
+		var muzzle: Vector2 = barrel * (item.art_size().y - item.grip_back())
+		tilt = minf(tilt, absf(barrel.dot(you.facing)))
+		butt_ahead = maxf(butt_ahead, butt.dot(you.facing))
+		muzzle_ahead = minf(muzzle_ahead, muzzle.dot(you.facing))
+		var centre: Vector2 = you.hand_position(0) + butt
+		butt_off = minf(butt_off, absf(centre.dot(you.facing.orthogonal())))

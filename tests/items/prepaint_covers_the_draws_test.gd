@@ -26,6 +26,13 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	var items := _make_items(t)
+	await _check_no_new_paint(t, items)
+	_check_fresh_paints(t, items)
+
+
+## Every style's guns and grenades, made by `ItemRegistry.inventory_for` (which prepaints them).
+func _make_items(t: TestContext) -> Array:
 	var slots := ItemRegistry.gun_slots() + [ItemRegistry.STUN_SLOT, ItemRegistry.FRAG_SLOT]
 	var items: Array = []
 	for style in STYLES:
@@ -44,6 +51,11 @@ func run(t: TestContext) -> void:
 		guns >= 3 * STYLES.size() and grenades == 2 * STYLES.size(),
 		"every style's guns and grenades were made (%d guns, %d grenades)" % [guns, grenades],
 	)
+	return items
+
+
+## Drawing `items` every way a match does paints no new texture.
+func _check_no_new_paint(t: TestContext, items: Array) -> void:
 	var painted := PixelArt._cache.size()
 	var drawer := Drawer.new()
 	drawer.items = items
@@ -55,37 +67,17 @@ func run(t: TestContext) -> void:
 		"no draw painted a new texture (%d new)" % (PixelArt._cache.size() - painted),
 	)
 
-	# A prepainted texture is the one a fresh paint of its inputs gives.
+
+## A prepainted texture is the one a fresh paint of its inputs gives.
+func _check_fresh_paints(t: TestContext, items: Array) -> void:
 	var compared := 0
 	var differing := 0
 	for item: Item in items:
-		var drawn: Dictionary = item.look()
-		var size: Vector2 = item.flat_size() if item is GunItem else item.art_size()
-		var colour: Color = drawn["body"] if item is GunItem else drawn["shell"]
-		var opts := ({
-			"gun": item.gun,
-			"look": item._look_handle(drawn),
-			"flat": true,
-			"flip": true,
-		}
-				if item is GunItem
-				else { "kind": item.kind, "look": item._look_handle(drawn), "spoon": false })
-		opts["material"] = drawn["finish"]
-		var angle := PixelArt.snap_angle(TAU * 5.0 / ArtConfig.turn_steps)
-		var image := PixelArt.render_turned(drawn["painter"], size, colour, angle, opts).get_image()
-		if image == null:
+		var same := _same_as_fresh(item)
+		if same == -1:
 			continue
-		var base_key := PixelArt._key(drawn["painter"], size, colour, opts)
-		var fresh := PixelArt._paint(
-			drawn["painter"],
-			PixelArt._resolution(size),
-			colour,
-			-angle,
-			opts,
-			base_key,
-		).img
 		compared += 1
-		if image.get_data() != fresh.get_data():
+		if same == 0:
 			differing += 1
 	if DisplayServer.get_name() != "headless":
 		t.check(
@@ -97,6 +89,38 @@ func run(t: TestContext) -> void:
 			differing == 0,
 			"%d of %d prepainted textures differ from a fresh paint" % [differing, compared],
 		)
+
+
+## Whether `item`'s prepainted texture (lying flat, flipped, at one lighting step) is the image a
+## fresh paint of the same inputs gives: 1 the same, 0 different, -1 when the renderer hands no
+## image back.
+func _same_as_fresh(item: Item) -> int:
+	var drawn: Dictionary = item.look()
+	var size: Vector2 = item.flat_size() if item is GunItem else item.art_size()
+	var colour: Color = drawn["body"] if item is GunItem else drawn["shell"]
+	var opts := ({
+		"gun": item.gun,
+		"look": item._look_handle(drawn),
+		"flat": true,
+		"flip": true,
+	}
+			if item is GunItem
+			else { "kind": item.kind, "look": item._look_handle(drawn), "spoon": false })
+	opts["material"] = drawn["finish"]
+	var angle := PixelArt.snap_angle(TAU * 5.0 / ArtConfig.turn_steps)
+	var image := PixelArt.render_turned(drawn["painter"], size, colour, angle, opts).get_image()
+	if image == null:
+		return -1
+	var base_key := PixelArt._key(drawn["painter"], size, colour, opts)
+	var fresh := PixelArt._paint(
+		drawn["painter"],
+		PixelArt._resolution(size),
+		colour,
+		-angle,
+		opts,
+		base_key,
+	).img
+	return 1 if image.get_data() == fresh.get_data() else 0
 
 
 ## Stands in for the character a held item asks where and how to draw.

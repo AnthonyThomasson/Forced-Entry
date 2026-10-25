@@ -20,6 +20,7 @@ const VanPainter = preload("res://scenes/vehicle/art/van_painter.gd")
 const DoorPainter = preload("res://scenes/vehicle/art/door_painter.gd")
 const WheelPainter = preload("res://scenes/vehicle/art/wheel_painter.gd")
 const LampPainter = preload("res://scenes/vehicle/art/lamp_painter.gd")
+const VehicleDoor = preload("res://scenes/vehicle/vehicle_door.gd")
 const Art = preload("res://scenes/vehicle/art/vehicle_art.gd")
 ## The body painter of each kind.
 const PAINTERS := { &"car": CarPainter, &"van": VanPainter }
@@ -259,7 +260,7 @@ static func _light_step(angle: float) -> int:
 
 
 ## The door object `id`, or null.
-func _door(id: StringName):
+func _door(id: StringName) -> VehicleDoor:
 	for d in _vehicle.door_list():
 		if d.id == id:
 			return d

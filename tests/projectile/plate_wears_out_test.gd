@@ -51,27 +51,13 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	if not await OutfitProbe.dress(t, LANES):
 		return
-	for lane: Dictionary in LANES:
-		var target := t.actor(lane["id"])
-		t.expect_near(
-			OutfitProbe.condition(target, "front_plate"),
-			1.0,
-			0.001,
-			"the %s front plate starts in full condition" % lane["id"],
-		)
+	_check_fresh(t)
 
 	var first_through := {}  # lane id -> the round (1-based) that first got through
 	var conditions := {}  # lane id -> the front plate's condition after each round
 	for lane: Dictionary in LANES:
 		conditions[lane["id"]] = []
-	for n in range(1, ROUNDS + 1):
-		var got := await OutfitProbe.volley(t, LANES)
-		for lane: Dictionary in LANES:
-			var id: StringName = lane["id"]
-			if got[id]["through"] and not first_through.has(id):
-				first_through[id] = n
-			conditions[id].append(OutfitProbe.condition(t.actor(id), "front_plate"))
-		await t.seconds(0.2)
+	await _fire_rounds(t, first_through, conditions)
 
 	t.check(
 		first_through.get(&"ceramic", 1) > 1,
@@ -84,7 +70,37 @@ func run(t: TestContext) -> void:
 		"the steel plate stops all %d (first through: %s)"
 			% [ROUNDS, first_through.get(&"steel", "none")],
 	)
+	_check_wear(t, conditions)
 
+
+## Every front plate starts in full condition.
+func _check_fresh(t: TestContext) -> void:
+	for lane: Dictionary in LANES:
+		var target := t.actor(lane["id"])
+		t.expect_near(
+			OutfitProbe.condition(target, "front_plate"),
+			1.0,
+			0.001,
+			"the %s front plate starts in full condition" % lane["id"],
+		)
+
+
+## Fire `ROUNDS` rifle rounds down every lane, one volley at a time, noting into `first_through`
+## the round that first got through each plate and into `conditions` each plate's condition after
+## every round.
+func _fire_rounds(t: TestContext, first_through: Dictionary, conditions: Dictionary) -> void:
+	for n in range(1, ROUNDS + 1):
+		var got := await OutfitProbe.volley(t, LANES)
+		for lane: Dictionary in LANES:
+			var id: StringName = lane["id"]
+			if got[id]["through"] and not first_through.has(id):
+				first_through[id] = n
+			conditions[id].append(OutfitProbe.condition(t.actor(id), "front_plate"))
+		await t.seconds(0.2)
+
+
+## Each plate's condition only falls and its first hit wears it, the ceramic more than the steel.
+func _check_wear(t: TestContext, conditions: Dictionary) -> void:
 	for lane: Dictionary in LANES:
 		var id: StringName = lane["id"]
 		var series: Array = conditions[id]

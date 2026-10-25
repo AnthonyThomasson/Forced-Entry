@@ -37,22 +37,24 @@ const HELD_PARTS := {
 ## Paint a gun onto `c`, muzzle toward +y, for a weapon style's painter: held (its parts drawn, then
 ## `held_marks(c, look, parts)`, then the muzzle) or, with `opts.flat`, lying on its side
 ## (`opts.flip` the side up: its profile drawn, then `flat_marks(c, look, profile, mirror)`), then
-## the cast shadows; nothing without a look (`opts.look`). `crude`, `wood_stock` and `wood_grip` are
-## the style's silhouette (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`).
-static func paint_gun(c: PixelCanvas, opts: Dictionary, crude: bool, wood_stock: bool,
-		wood_grip: bool, flat_marks: Callable, held_marks: Callable) -> void:
+## the cast shadows; nothing without a look (`opts.look`). The style's silhouette rides in the
+## options too: `opts.crude`, `opts.wood_stock` and `opts.wood_grip` (`held_parts` / `draw_held`,
+## `flat_profile` / `draw_flat`; each false when absent).
+static func paint_gun(c: PixelCanvas, opts: Dictionary, flat_marks: Callable,
+		held_marks: Callable) -> void:
 	var look := PixelArt.look_of(opts)
 	if look.is_empty():
 		return
 	var gun: StringName = opts.get("gun", &"pistol")
+	var crude: bool = opts.get("crude", false)
 	if opts.get("flat", false):
 		var mx := mirror(c, bool(opts.get("flip", false)))
 		var p := flat_profile(c, gun, crude)
-		draw_flat(c, look, gun, p, mx, crude, wood_stock, wood_grip)
+		draw_flat(c, look, p, mx, opts)
 		flat_marks.call(c, look, p, mx)
 	else:
 		var parts := held_parts(c, gun, crude)
-		draw_held(c, look, parts, wood_stock)
+		draw_held(c, look, parts, opts.get("wood_stock", false))
 		held_marks.call(c, look, parts)
 		held_muzzle(c)
 	c.cast_shadows()
@@ -81,42 +83,64 @@ static func paint_grenade(c: PixelCanvas, opts: Dictionary, body: Callable) -> v
 ## slide); a long gun's `stock`, `body` (the receiver), `guard` and `barrel`. `crude`: a box action
 ## and a pipe for the barrel (a zip pistol, a pipe gun).
 static func held_parts(c: PixelCanvas, gun: StringName, crude: bool) -> Dictionary:
-	var w := c.w
-	var h := c.h
-	var cx := int(w / 2.0)
-	var parts := {}
 	match gun:
 		&"pistol":
-			var g := maxi(3, int(h / 4.0))
-			parts["grip"] = Rect2i(1, 0, w - 2, g + 1)
-			if crude:
-				var box_end := maxi(g + 3, int(h * 0.55))
-				parts["body"] = Rect2i(0, g - 1, w, box_end - g + 1)
-				parts["barrel"] = Rect2i(cx - 1, box_end - 1, 3, h - box_end + 1)
-			else:
-				parts["body"] = Rect2i(0, g - 1, w, h - g + 1)
+			return _held_pistol(c, crude)
 		&"smg":
-			var s := maxi(2, int(h * 24 / 100.0))
-			var b := maxi(s + 3, int(h * 62 / 100.0))
-			parts["stock"] = Rect2i(0, 0, w, s + 1) if crude else Rect2i(1, 0, w - 2, s + 1)
-			parts["body"] = Rect2i(0, s - 1, w, b - s + 2)
-			if crude:
-				parts["barrel"] = Rect2i(cx - 1, b - 1, 3, h - b + 1)
-			else:
-				var r := maxi(b, int(h * 86 / 100.0))
-				parts["guard"] = Rect2i(1, b - 1, w - 2, r - b + 2)
-				parts["barrel"] = Rect2i(cx - 1, r, 2, h - r)
-		_:
-			var s := maxi(3, int(h * 26 / 100.0))
-			var b := maxi(s + 3, int(h * 50 / 100.0))
-			parts["stock"] = Rect2i(0, 0, w, s + 1)
-			parts["body"] = Rect2i(0, s - 1, w, b - s + 2)
-			if crude:
-				parts["barrel"] = Rect2i(cx - 1, b - 1, 3, h - b + 1)
-			else:
-				var r := maxi(b + 3, int(h * 80 / 100.0))
-				parts["guard"] = Rect2i(1, b - 1, w - 2, r - b + 2)
-				parts["barrel"] = Rect2i(cx - 1, r, 2, h - r)
+			return _held_smg(c, crude)
+	return _held_rifle(c, crude)
+
+
+## A pistol's held parts: its `grip` and `body` (the slide; a `crude` one's a box action with a pipe
+## `barrel` out of it).
+static func _held_pistol(c: PixelCanvas, crude: bool) -> Dictionary:
+	var w := c.w
+	var h := c.h
+	var g := maxi(3, int(h / 4.0))
+	var parts := { "grip": Rect2i(1, 0, w - 2, g + 1) }
+	if crude:
+		var box_end := maxi(g + 3, int(h * 0.55))
+		parts["body"] = Rect2i(0, g - 1, w, box_end - g + 1)
+		parts["barrel"] = Rect2i(int(w / 2.0) - 1, box_end - 1, 3, h - box_end + 1)
+	else:
+		parts["body"] = Rect2i(0, g - 1, w, h - g + 1)
+	return parts
+
+
+## An SMG's held parts: `stock`, `body`, `guard` and `barrel` (a `crude` one's a full-width stock
+## and a pipe for the barrel, no guard).
+static func _held_smg(c: PixelCanvas, crude: bool) -> Dictionary:
+	var w := c.w
+	var h := c.h
+	var s := maxi(2, int(h * 24 / 100.0))
+	var b := maxi(s + 3, int(h * 62 / 100.0))
+	var parts := {
+		"stock": Rect2i(0, 0, w, s + 1) if crude else Rect2i(1, 0, w - 2, s + 1),
+		"body": Rect2i(0, s - 1, w, b - s + 2),
+	}
+	if crude:
+		parts["barrel"] = Rect2i(int(w / 2.0) - 1, b - 1, 3, h - b + 1)
+	else:
+		var r := maxi(b, int(h * 86 / 100.0))
+		parts["guard"] = Rect2i(1, b - 1, w - 2, r - b + 2)
+		parts["barrel"] = Rect2i(int(w / 2.0) - 1, r, 2, h - r)
+	return parts
+
+
+## A rifle's held parts: `stock`, `body`, `guard` and `barrel` (a `crude` one's a pipe for the
+## barrel, no guard).
+static func _held_rifle(c: PixelCanvas, crude: bool) -> Dictionary:
+	var w := c.w
+	var h := c.h
+	var s := maxi(3, int(h * 26 / 100.0))
+	var b := maxi(s + 3, int(h * 50 / 100.0))
+	var parts := { "stock": Rect2i(0, 0, w, s + 1), "body": Rect2i(0, s - 1, w, b - s + 2) }
+	if crude:
+		parts["barrel"] = Rect2i(int(w / 2.0) - 1, b - 1, 3, h - b + 1)
+	else:
+		var r := maxi(b + 3, int(h * 80 / 100.0))
+		parts["guard"] = Rect2i(1, b - 1, w - 2, r - b + 2)
+		parts["barrel"] = Rect2i(int(w / 2.0) - 1, r, 2, h - r)
 	return parts
 
 
@@ -205,76 +229,114 @@ static func flat_profile(c: PixelCanvas, gun: StringName, crude: bool) -> Dictio
 	return p
 
 
-## Draw `gun` lying on its side in the look's colours along profile `p` (`flat_profile`), mirrored
-## by `mx` (a local column to the canvas's): the magazine (`magazine`, curving forward on the
-## rifle), the grip raked back (and a pistol's trigger guard), the stock (a wire frame on an SMG
-## unless `crude`, in wood grain when `wood_stock`), the receiver and guard along the top edge, the
-## barrel (a thin post, or the pipe as thick as a `crude` action), the sights and the bore.
-## `wood_grip`: the grip in grain.
-static func draw_flat(c: PixelCanvas, look: Dictionary, gun: StringName, p: Dictionary,
-		mx: Callable, crude: bool, wood_stock: bool, wood_grip: bool) -> void:
-	var h := c.h
-	var bw: int = p["bw"]
-	var stock_end: int = p["stock_end"]
-	var body_end: int = p["body_end"]
-	var guard_end: int = p["guard_end"]
-	var below := bw + 1  # The first column under the receiver.
+## Draw the gun `opts.gun` lying on its side in the look's colours along profile `p`
+## (`flat_profile`), mirrored by `mx` (a local column to the canvas's): the magazine (`magazine`,
+## curving forward on the rifle), the grip raked back (and a pistol's trigger guard), the stock (a
+## wire frame on an SMG unless `opts.crude`, in wood grain with `opts.wood_stock`), the receiver and
+## guard along the top edge, the barrel (a thin post, or the pipe as thick as a `crude` action), the
+## sights and the bore. `opts.wood_grip`: the grip in grain.
+static func draw_flat(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable,
+		opts: Dictionary) -> void:
+	var gun: StringName = opts.get("gun", &"pistol")
+	var crude: bool = opts.get("crude", false)
 	var tones := PixelCanvas.tones((look["body"] as Color).lightened(0.1))
-	var everywhere := Rect2i(0, 0, c.w, h)
 	if p["mag_len"] > 0:
-		var mag_col: Color = look.get("magazine", look["grip"])
-		var mag_top: int = p["mag_top"]
-		var mag_end: int = mag_top + int(p["mag_len"])
-		var curve_k: float = p["mag_curve"]
-		var mag := PixelCanvas.Shape.new(everywhere, func(x: int, y: int) -> bool:
-			var drop: int = mx.call(x) - below
-			if drop < -1 or drop > 3:
-				return false
-			var curve := int(float(maxi(drop, 0)) * curve_k)
-			return y >= mag_top + curve and y <= mag_end + curve)
-		c.fill(mag, mag_col, FLAT_HEIGHT)
-		c.outline(mag, mag_col.darkened(0.6))
+		_flat_magazine(c, look, p, mx)
+	_flat_grip(c, look, p, mx, opts)
+	if gun == &"pistol":
+		_flat_trigger_guard(c, p, mx, tones)
+	if p["stock_end"] > 0:
+		_flat_stock(c, look, p, mx, opts)
+	_flat_receiver(c, look, p, mx)
+	_flat_barrel(c, look["barrel"], p, mx, crude)
+	_flat_sights(c, p, mx, tones, crude)
+
+
+## The magazine of a lying gun along profile `p` under its receiver, curving forward by the
+## profile's `mag_curve`.
+static func _flat_magazine(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable) -> void:
+	var below: int = p["bw"] + 1  # The first column under the receiver.
+	var mag_col: Color = look.get("magazine", look["grip"])
+	var mag_top: int = p["mag_top"]
+	var mag_end: int = mag_top + int(p["mag_len"])
+	var curve_k: float = p["mag_curve"]
+	var mag := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+		var drop: int = mx.call(x) - below
+		if drop < -1 or drop > 3:
+			return false
+		var curve := int(float(maxi(drop, 0)) * curve_k)
+		return y >= mag_top + curve and y <= mag_end + curve)
+	c.fill(mag, mag_col, FLAT_HEIGHT)
+	c.outline(mag, mag_col.darkened(0.6))
+
+
+## The grip of a lying gun along profile `p`, raked back from under the receiver (a pistol's out to
+## the far edge), in grain with `opts.wood_grip`.
+static func _flat_grip(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable,
+		opts: Dictionary) -> void:
+	var below: int = p["bw"] + 1
 	var grip_col: Color = look["grip"]
 	var grip_top: int = p["grip_top"]
 	var grip_len: int = p["grip_len"]
-	var grip_far := c.w - 1 if gun == &"pistol" else below + 1
-	var grip := PixelCanvas.Shape.new(everywhere, func(x: int, y: int) -> bool:
+	var grip_far := c.w - 1 if opts.get("gun", &"pistol") == &"pistol" else below + 1
+	var grip := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
 		if lx < below - 1 or lx > grip_far:
 			return false
 		var rake := float(lx - below) * 0.6
 		return y >= grip_top - rake and y <= grip_top + grip_len - rake)
 	c.fill(grip, grip_col, FLAT_HEIGHT - 1)
-	if wood_grip:
+	if opts.get("wood_grip", false):
 		c.surface(grip, "wood", grip_col, false)
 	c.outline(grip, grip_col.darkened(0.6))
-	if gun == &"pistol":  # The trigger guard just ahead of the grip.
-		var gy := grip_top + grip_len + 1
-		for lx in range(below, below + 3):
-			c.px(mx.call(lx), gy + 3, tones.outline, FLAT_HEIGHT - 1)
-		c.line(
-			Vector2i(mx.call(below + 2), gy),
-			Vector2i(mx.call(below + 2), gy + 3),
-			tones.outline,
-			FLAT_HEIGHT - 1,
-		)
-	if stock_end > 0:
-		var stock_col: Color = look["stock"]
-		var thick := bw + (2 if crude else 1)
-		var frame: bool = gun == &"smg" and not crude
-		var stock := PixelCanvas.Shape.new(everywhere, func(x: int, y: int) -> bool:
-			var lx: int = mx.call(x)
-			if y < 0 or y > stock_end or lx < 0 or lx >= thick:
-				return false
-			return not frame or lx <= 1 or lx >= thick - 2 or y <= 1)
-		c.fill(stock, stock_col, FLAT_HEIGHT)
-		if wood_stock:
-			c.surface(stock, "wood", stock_col, false)
-		c.outline(stock, stock_col.darkened(0.6))
-	# Its broad side faces up, catching more light.
+
+
+## A lying pistol's trigger guard, just ahead of its grip along profile `p`, in `tones`' outline.
+static func _flat_trigger_guard(c: PixelCanvas, p: Dictionary, mx: Callable,
+		tones: Dictionary) -> void:
+	var below: int = p["bw"] + 1
+	var gy: int = p["grip_top"] + p["grip_len"] + 1
+	for lx in range(below, below + 3):
+		c.px(mx.call(lx), gy + 3, tones.outline, FLAT_HEIGHT - 1)
+	c.line(
+		Vector2i(mx.call(below + 2), gy),
+		Vector2i(mx.call(below + 2), gy + 3),
+		tones.outline,
+		FLAT_HEIGHT - 1,
+	)
+
+
+## The stock of a lying gun along profile `p`, out to its `stock_end`: a wire frame on an SMG unless
+## `opts.crude`, in grain with `opts.wood_stock`.
+static func _flat_stock(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable,
+		opts: Dictionary) -> void:
+	var crude: bool = opts.get("crude", false)
+	var stock_end: int = p["stock_end"]
+	var stock_col: Color = look["stock"]
+	var thick: int = p["bw"] + (2 if crude else 1)
+	var frame: bool = opts.get("gun", &"pistol") == &"smg" and not crude
+	var stock := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+		var lx: int = mx.call(x)
+		if y < 0 or y > stock_end or lx < 0 or lx >= thick:
+			return false
+		return not frame or lx <= 1 or lx >= thick - 2 or y <= 1)
+	c.fill(stock, stock_col, FLAT_HEIGHT)
+	if opts.get("wood_stock", false):
+		c.surface(stock, "wood", stock_col, false)
+	c.outline(stock, stock_col.darkened(0.6))
+
+
+## The receiver and guard of a lying gun along the top edge of profile `p`, its broad side up
+## (catching more light), the guard in its own colour.
+static func _flat_receiver(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Callable) -> void:
+	var bw: int = p["bw"]
+	var stock_end: int = p["stock_end"]
+	var body_end: int = p["body_end"]
+	var guard_end: int = p["guard_end"]
 	var body_col: Color = (look["body"] as Color).lightened(0.1)
+	var tones := PixelCanvas.tones(body_col)
 	var from := stock_end - 1 if stock_end > 0 else 0
-	var body := PixelCanvas.Shape.new(everywhere, func(x: int, y: int) -> bool:
+	var body := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
 		if y >= from and y <= body_end:
 			return lx >= 1 and lx <= bw
@@ -285,26 +347,39 @@ static func draw_flat(c: PixelCanvas, look: Dictionary, gun: StringName, p: Dict
 	c.surface(body, look.get("finish", "metal"), body_col, false)
 	c.bevel(body, 1, 1, tones.light, tones.dark)
 	c.outline(body, tones.outline)
-	for y in range(body_end + 1, guard_end):  # The guard in its own colour.
+	for y in range(body_end + 1, guard_end):
 		for lx in range(2, bw):
 			c.px(mx.call(lx), y, look["guard"], FLAT_HEIGHT + 1)
-	var barrel_col: Color = look["barrel"]
-	for y in range(guard_end + 1, h):
-		if crude:
-			for lx in range(1, bw):
-				c.px(
-					mx.call(lx),
-					y,
-					barrel_col if lx > 1 else barrel_col.lightened(0.2),
-					FLAT_HEIGHT + 1,
-				)
-			c.px(mx.call(0), y, barrel_col.darkened(0.5), FLAT_HEIGHT + 1)
-			c.px(mx.call(bw), y, barrel_col.darkened(0.5), FLAT_HEIGHT + 1)
-		else:
+
+
+## The barrel of a lying gun in `barrel_col`, from the guard's end of profile `p` to the muzzle: a
+## thin post, or a `crude` gun's pipe as thick as its action.
+static func _flat_barrel(c: PixelCanvas, barrel_col: Color, p: Dictionary, mx: Callable,
+		crude: bool) -> void:
+	var bw: int = p["bw"]
+	for y in range(int(p["guard_end"]) + 1, c.h):
+		if not crude:
 			c.px(mx.call(2), y, barrel_col, FLAT_HEIGHT + 1)
+			continue
+		for lx in range(1, bw):
+			c.px(
+				mx.call(lx),
+				y,
+				barrel_col if lx > 1 else barrel_col.lightened(0.2),
+				FLAT_HEIGHT + 1,
+			)
+		c.px(mx.call(0), y, barrel_col.darkened(0.5), FLAT_HEIGHT + 1)
+		c.px(mx.call(bw), y, barrel_col.darkened(0.5), FLAT_HEIGHT + 1)
+
+
+## A lying gun's rear and front sights along profile `p`, in `tones`' outline, and the bore (as
+## wide as a `crude` gun's pipe).
+static func _flat_sights(c: PixelCanvas, p: Dictionary, mx: Callable, tones: Dictionary,
+		crude: bool) -> void:
+	var h := c.h
 	c.px(mx.call(0), 1, tones.outline, FLAT_HEIGHT + 1)  # Rear sight.
-	c.px(mx.call(0), maxi(guard_end - 1, 2), tones.outline, FLAT_HEIGHT + 1)  # Front sight.
-	for lx in range(1, bw if crude else 3):  # The bore.
+	c.px(mx.call(0), maxi(int(p["guard_end"]) - 1, 2), tones.outline, FLAT_HEIGHT + 1)  # Front.
+	for lx in range(1, int(p["bw"]) if crude else 3):  # The bore.
 		if c.covered(mx.call(lx), h - 1):
 			c.px(mx.call(lx), h - 1, MUZZLE)
 

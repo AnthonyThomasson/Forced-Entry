@@ -56,8 +56,12 @@ func run(t: TestContext) -> void:
 		"runs at run speed",
 	)
 	t.check(body.stamina_fraction() < 1.0, "running spends stamina")
+	await _check_runs_dry(t, body)
 
-	# Running dry: back to a walk even though run is still held.
+
+## Running dry: back to a walk even though run is still held; it runs again once stamina refills to
+## the resume fraction.
+func _check_runs_dry(t: TestContext, body: Node) -> void:
 	t.require(await t.until(func(): return not body.is_running(), 3.0), "runs dry")
 	await t.frames(3)
 	t.expect_near(body.stamina_fraction(), 0.0, 0.2, "the bar is spent")

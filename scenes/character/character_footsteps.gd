@@ -16,7 +16,7 @@ var _last_cos := [1.0, 1.0]
 
 
 ## Check both feet of `character` and report any footfall to `footprints`.
-func update(character, footprints: BloodFootprints) -> void:
+func update(character: CharacterBody2D, footprints: BloodFootprints) -> void:
 	var pose = character.pose
 	var phase: float = pose.stride_phase()
 	for i in 2:
@@ -28,7 +28,7 @@ func update(character, footprints: BloodFootprints) -> void:
 
 
 ## Solve the rig for a foot that has just landed and hand its sole's geometry to `footprints`.
-func _report(character, footprints: BloodFootprints, foot: int) -> void:
+func _report(character: CharacterBody2D, footprints: BloodFootprints, foot: int) -> void:
 	var rig: CharacterRig = character.rig()
 	var r: float = character.radius
 	var ankle := rig.point(CharacterRig.ANKLE[foot])

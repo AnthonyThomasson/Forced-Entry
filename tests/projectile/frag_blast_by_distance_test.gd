@@ -48,6 +48,14 @@ func run(t: TestContext) -> void:
 	var blast: Vector2 = Probe.booms(t, &"frag")[0]["data"]["position"]
 	await t.seconds(0.3)
 
+	_check_near(t, blast)
+	_check_mid(t, blast)
+	_check_far(t, blast)
+	_check_chair(t, blast)
+
+
+## The dummy 80 px away takes the full blast and dies of it.
+func _check_near(t: TestContext, blast: Vector2) -> void:
 	var near := t.actor(&"near")
 	var near_hits := Probe.blast_hits(t, near)
 	t.check(
@@ -63,6 +71,9 @@ func run(t: TestContext) -> void:
 		)
 	t.check(near.is_dead, "and a character of 50 HP does not survive it")
 
+
+## The dummy 200 px away takes the linear fall-off's share and lives.
+func _check_mid(t: TestContext, blast: Vector2) -> void:
 	var mid := t.actor(&"mid")
 	var d_mid: float = mid.global_position.distance_to(blast)
 	var mid_hits := Probe.blast_hits(t, mid)
@@ -85,6 +96,9 @@ func run(t: TestContext) -> void:
 		"so it is hurt, not dead (%.0f / %.0f)" % [mid.health, mid.max_health],
 	)
 
+
+## The dummy 400 px away, past the blast radius, takes no blast.
+func _check_far(t: TestContext, blast: Vector2) -> void:
 	var far := t.actor(&"far")
 	t.check(
 		Probe.blast_hits(t, far).is_empty(),
@@ -92,6 +106,9 @@ func run(t: TestContext) -> void:
 				+ "it)") % far.global_position.distance_to(blast),
 	)
 
+
+## The chair is struck through take_hit too, and a body the blast hit bleeds.
+func _check_chair(t: TestContext, blast: Vector2) -> void:
 	var chair := t.object(&"chair")
 	var chair_hits := Probe.blast_hits(t, chair)
 	t.check(

@@ -10,7 +10,7 @@ const WeaponArt = preload("res://scenes/items/art/weapon_art.gd")
 
 ## Paint the gun onto `c`, muzzle toward +y.
 static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Dictionary) -> void:
-	WeaponArt.paint_gun(c, opts, false, false, false, _flat_marks, _held_marks)
+	WeaponArt.paint_gun(c, opts, _flat_marks, _held_marks)
 
 
 ## The light bar across the receiver just behind the guard (red left, blue right, a dark divider)

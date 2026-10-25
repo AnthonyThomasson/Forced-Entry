@@ -46,7 +46,16 @@ func run(t: TestContext) -> void:
 		return
 	var held_name: String = me.item_name()
 
-	# Boarding: sampled every frame from the E press until seated, then a second seated.
+	if not await _check_boarding(t, car):
+		return
+	await _check_seated(t)
+	await _check_getting_out(t, held_name)
+
+
+## Boarding: sampled every frame from the E press until seated, nothing in hand while it folds in
+## (false: it never got in, the test has ended).
+func _check_boarding(t: TestContext, car: Node2D) -> bool:
+	var me := t.actor(&"me")
 	await Probe.place(t, &"me", Probe.stand_point(car, &"front_left"))
 	t.puppet(&"me").use_vehicle()
 	var folding_held := 0
@@ -59,15 +68,21 @@ func run(t: TestContext) -> void:
 			if me.current_item() != null:
 				folding_held += 1
 	if not t.require(me.is_in_vehicle(), "it gets in"):
-		return
+		return false
 	t.check(
 		folding > 0 and folding_held == 0,
 		"nothing in hand while it folds into the seat (held on %d of %d frames)"
 			% [folding_held, folding],
 	)
+	return true
+
+
+## A second seated, sampled every frame: nothing in hand.
+func _check_seated(t: TestContext) -> void:
+	var me := t.actor(&"me")
 	var seated := 0
 	var seated_held := 0
-	deadline = t.time + 1.0
+	var deadline := t.time + 1.0
 	while t.time < deadline:
 		await t.frames(1)
 		seated += 1
@@ -78,11 +93,14 @@ func run(t: TestContext) -> void:
 		"nothing in hand while seated (held on %d of %d frames)" % [seated_held, seated],
 	)
 
-	# Getting out: still nothing in hand until it is out, then the same slot back.
+
+## Getting out: still nothing in hand until it is out, then the same slot back (`held_name`).
+func _check_getting_out(t: TestContext, held_name: String) -> void:
+	var me := t.actor(&"me")
 	t.puppet(&"me").use_vehicle()
 	var out_held := 0
 	var getting_out := 0
-	deadline = t.time + 8.0
+	var deadline := t.time + 8.0
 	while t.time < deadline and me.vehicle() != null:
 		getting_out += 1
 		if me.current_item() != null and float(me.posture_folded()) > 0.05:

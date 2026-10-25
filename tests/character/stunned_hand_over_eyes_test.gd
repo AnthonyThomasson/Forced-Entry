@@ -106,14 +106,24 @@ func run(t: TestContext) -> void:
 		jumps[id] = { "hand": 0.0, "head": 0.0 }
 	var stop := [false]
 	_watch_jumps(t, ids, jumps, stop)
+	if not await _check_hand_to_face(t):
+		return
+	await _check_reload(t)
+	await _check_sight_returns(t)
+	stop[0] = true
+	await t.frames(1)
+	_check_smooth(t, ids, jumps)
 
-	# --- Blind (and deaf): the free hand goes to the face. A bang alone: it does not.
+
+## Blind (and deaf): the free hand goes to the face. A bang alone: it does not. Whether the stun
+## could be given (false after a failed `require`).
+func _check_hand_to_face(t: TestContext) -> bool:
 	for id: StringName in [&"pistol", &"rifle"]:
 		if not t.require(
 				Probe.stun(t.actor(id), BLIND, BLIND),
 				"Character.take_stun(blind, deaf) exists",
 		):
-			return
+			return false
 	Probe.stun(t.actor(&"deaf"), 0.0, BLIND)
 	await t.frames(1)
 	for id: StringName in [&"pistol", &"rifle"]:
@@ -135,9 +145,11 @@ func run(t: TestContext) -> void:
 		deaf["gap"] >= AWAY,
 		"deaf only: the free hand stays on the gun (%.1f radii)" % deaf["gap"],
 	)
+	return true
 
-	# --- A reload needs that hand: it leaves the face for the reload and goes back while still
-	# blind.
+
+## A reload needs that hand: it leaves the face for the reload and goes back while still blind.
+func _check_reload(t: TestContext) -> void:
 	var pistol := t.actor(&"pistol")
 	t.puppet(&"pistol").reload()
 	if t.require(
@@ -159,7 +171,10 @@ func run(t: TestContext) -> void:
 				% _to_face(pistol)["gap"],
 		)
 
-	# --- Sight returns: the hand goes back to the gun.
+
+## Sight returns: the hand goes back to the gun.
+func _check_sight_returns(t: TestContext) -> void:
+	var pistol := t.actor(&"pistol")
 	await t.until(
 		func() -> bool: return not Probe.blind(t.actor(&"rifle")) and not Probe.blind(pistol),
 		BLIND + 1.0,
@@ -171,10 +186,11 @@ func run(t: TestContext) -> void:
 			f["gap"] >= AWAY,
 			"%s: once it can see, the free hand is back on the gun (%.1f radii)" % [id, f["gap"]],
 		)
-	stop[0] = true
-	await t.frames(1)
 
-	# --- Smooth all the way.
+
+## Smooth all the way: no body's hands or head (`ids`, their worst one-frame moves in `jumps`)
+## jumped in a frame.
+func _check_smooth(t: TestContext, ids: Array, jumps: Dictionary) -> void:
 	for id: StringName in ids:
 		t.check(
 			jumps[id]["hand"] <= HAND_STEP,

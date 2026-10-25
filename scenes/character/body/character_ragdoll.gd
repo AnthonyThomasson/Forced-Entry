@@ -36,16 +36,28 @@ var _frame := 0
 
 ## Build the body standing as the rig holds `character`, moving at `momentum` (px/s) and knocked
 ## over along `blow` (the killing hit's direction; zero for none).
-func _init(character, momentum: Vector2, blow: Vector2) -> void:
+func _init(character: CharacterBody2D, momentum: Vector2, blow: Vector2) -> void:
 	var r: float = character.radius
-	var rig = Rig.new(character)
 	var f2 := Vector2.from_angle(character.pose.torso_angle)
 	var fwd := Vector3(f2.x, f2.y, 0.0)
-	var hip_z := CharacterConfig.body_hip_height * r
-	var shoulder_z := CharacterConfig.body_shoulder_height * r
+	_add_points(Rig.new(character), r)
+	_add_bones()
+	body.exclude.append(character.get_rid())
+	_frame = body.add_frame(PELVIS, CHEST, SHOULDER[1], fwd)
+	_add_limits()
+	_launch(
+		momentum,
+		blow,
+		fwd,
+		CharacterConfig.body_hip_height * r,
+		CharacterConfig.body_shoulder_height * r,
+	)
+
+
+## One point per joint of `rig`, by index, sized and weighed for a body of radius `r`.
+func _add_points(rig: Rig, r: float) -> void:
 	var torso_r := CharacterConfig.ragdoll_torso_radius * r
 	var limb_r := CharacterConfig.ragdoll_limb_radius * r
-
 	body.add_point(
 		rig.point(HEAD),
 		CharacterConfig.ragdoll_head_radius * r,
@@ -72,6 +84,9 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 		body.add_point(rig.point(ANKLE[i]), limb_r, CharacterConfig.ragdoll_ankle_mass)
 	body.add_point(rig.point(SPINE), skin, CharacterConfig.ragdoll_torso_mass)
 
+
+## The rigid trunk and the bones to the head, elbows, fists, knees and ankles.
+func _add_bones() -> void:
 	body.add_rigid([CHEST, PELVIS, BELLY, SPINE, SHOULDER[0], SHOULDER[1], HIP[0], HIP[1]])
 	body.add_bone(CHEST, HEAD)
 	for i in 2:
@@ -79,9 +94,11 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 		body.add_bone(ELBOW[i], HAND[i])
 		body.add_bone(HIP[i], KNEE[i])
 		body.add_bone(KNEE[i], ANKLE[i])
-	body.exclude.append(character.get_rid())
 
-	_frame = body.add_frame(PELVIS, CHEST, SHOULDER[1], fwd)
+
+## The limits in the trunk's frame: the neck's, shoulders' and hips' swing cones and the elbows' and
+## knees' hinges.
+func _add_limits() -> void:
 	body.add_swing(_frame, CHEST, HEAD, UP, _limits(CharacterConfig.ragdoll_neck_limits, 1))
 	var elbow_limits := _hinge(
 		FRONT, CharacterConfig.ragdoll_elbow_bend, CharacterConfig.ragdoll_elbow_slack,
@@ -106,8 +123,6 @@ func _init(character, momentum: Vector2, blow: Vector2) -> void:
 			_limits(CharacterConfig.ragdoll_hip_limits, i),
 		)
 		body.add_hinge(_frame, HIP[i], KNEE[i], ANKLE[i], knee_limits)
-
-	_launch(momentum, blow, fwd, hip_z, shoulder_z)
 
 
 ## Seed the fall: everything carries the body's momentum; the upper body is pushed over along the

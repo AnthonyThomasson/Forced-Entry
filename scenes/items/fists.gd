@@ -17,6 +17,6 @@ func hand_stance(_hand: int) -> StringName:
 
 
 ## Punch with the next hand, then swap which hand is next.
-func primary(user) -> void:
+func primary(user: Node2D) -> void:
 	user.punch(_next_hand)
 	_next_hand = 1 - _next_hand

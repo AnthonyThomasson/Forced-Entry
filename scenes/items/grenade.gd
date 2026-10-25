@@ -80,7 +80,7 @@ func is_winding_up() -> bool:
 
 ## LMB: start a throw. Nothing with none left or while one is already under way. True when a throw
 ## began.
-func secondary(user) -> bool:
+func secondary(user: Node2D) -> bool:
 	if count <= 0 or is_winding_up():
 		return false
 	_user = user
@@ -124,7 +124,7 @@ func _release() -> void:
 
 ## Draw the grenade in the hand, the lever still held down (in the look's lever colour): lit for the
 ## nearest lighting step, drawn rotated to the exact angle of the character's `weapon_facing()`.
-func draw_weapon(canvas: CanvasItem, user) -> void:
+func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var facing: Vector2 = user.weapon_facing()
 	var size := art_size()
 	var angle := facing.angle() - PI * 0.5

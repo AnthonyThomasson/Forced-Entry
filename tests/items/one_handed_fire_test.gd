@@ -102,12 +102,29 @@ func _volley(t: TestContext, id: StringName) -> Dictionary:
 			await t.frames(1)
 			if k == 0:
 				kick = maxf(kick, before - float(_hold(c)["ahead"]))
-			for n in t.world.get_children():
-				if (String(n.name).begins_with("Projectile")
-						and n.get("ignore") == c
-						and not seen.has(n.get_instance_id())):
-					seen[n.get_instance_id()] = true
-					angles.append(rad_to_deg(line.angle_to(n.get("direction"))))
+			for n in _new_rounds(t, c, seen):
+				angles.append(rad_to_deg(line.angle_to(n.get("direction"))))
+	var out := _spread(angles)
+	out["kick"] = kick
+	return out
+
+
+## The projectiles `c` fired that lie under the test's world and are not in `seen` (instance id ->
+## true) yet; each is added to `seen`.
+func _new_rounds(t: TestContext, c: Node, seen: Dictionary) -> Array:
+	var out: Array = []
+	for n in t.world.get_children():
+		if (String(n.name).begins_with("Projectile")
+				and n.get("ignore") == c
+				and not seen.has(n.get_instance_id())):
+			seen[n.get_instance_id()] = true
+			out.append(n)
+	return out
+
+
+## How the rounds' `angles` (degrees off the aim line) spread: `{ half, sd, rounds }`, as `_volley`
+## tells them.
+func _spread(angles: Array) -> Dictionary:
 	var lo := INF
 	var hi := -INF
 	var mean := 0.0
@@ -124,7 +141,6 @@ func _volley(t: TestContext, id: StringName) -> Dictionary:
 		"half": (hi - lo) * 0.5 if not angles.is_empty() else 0.0,
 		"sd": sd,
 		"rounds": angles.size(),
-		"kick": kick,
 	}
 
 
@@ -137,19 +153,7 @@ func run(t: TestContext) -> void:
 	var two := {}
 	var held := {}
 	for gun: StringName in GUNS:
-		var c := t.actor(gun)
-		t.check(
-			_one_handed(c) == false,
-			"%s: unstunned, one_handed() is false (%s)" % [gun, str(_one_handed(c))],
-		)
-		held[gun] = _hold(c)
-		held[gun]["wander"] = await _wander(t, c, 30)
-		two[gun] = await _volley(t, gun)
-		t.check(
-			two[gun]["rounds"] == SHOTS,
-			"%s: two-handed, every click fired (%d)" % [gun, two[gun]["rounds"]],
-		)
-		t.puppet(gun).reload()
+		await _two_handed(t, gun, held, two)
 	await t.seconds(3.0)
 
 	# --- Blind: one hand over the eyes, the gun in the other. Deaf only: both on the gun.
@@ -167,61 +171,110 @@ func run(t: TestContext) -> void:
 			% str(_one_handed(t.actor(&"deaf"))),
 	)
 	for gun: StringName in GUNS:
-		var c := t.actor(gun)
-		var row: Dictionary = GunConfig.guns[gun]
-		var extra := float(row.get("one_hand_spread_deg", -1.0))
-		var spread := float(row.get("spread_deg", 0.0))
+		await _check_one_handed(t, gun, held[gun], two[gun])
+
+
+## `gun`'s two-handed baseline, unstunned: its hold, with how far it wanders held still, into
+## `held[gun]`, and a volley into `two[gun]`; then it reloads.
+func _two_handed(t: TestContext, gun: StringName, held: Dictionary, two: Dictionary) -> void:
+	var c := t.actor(gun)
+	t.check(
+		_one_handed(c) == false,
+		"%s: unstunned, one_handed() is false (%s)" % [gun, str(_one_handed(c))],
+	)
+	held[gun] = _hold(c)
+	held[gun]["wander"] = await _wander(t, c, 30)
+	two[gun] = await _volley(t, gun)
+	t.check(
+		two[gun]["rounds"] == SHOTS,
+		"%s: two-handed, every click fired (%d)" % [gun, two[gun]["rounds"]],
+	)
+	t.puppet(gun).reload()
+
+
+## Blinded, `gun` is held one-handed: low and out, wavering, its volley wider than the two-handed
+## one (`two`, its hold `held`) within its bound.
+func _check_one_handed(
+	t: TestContext,
+	gun: StringName,
+	held: Dictionary,
+	two: Dictionary,
+) -> void:
+	var c := t.actor(gun)
+	var row: Dictionary = GunConfig.guns[gun]
+	_check_held_low(t, gun, held, row)
+	var wander := await _wander(t, c, 30)
+	t.check(
+		float(held["wander"]) <= STEADY,
+		"%s: (two-handed, the hand held steady: %.1f px)" % [gun, held["wander"]],
+	)
+	t.check(
+		wander >= WAVER,
+		"%s: one-handed, the gun wavers (%.1f px in half a second, %.1f two-handed)"
+			% [gun, wander, held["wander"]],
+	)
+	var one := await _volley(t, gun)
+	_check_volley(t, gun, one, two, row)
+
+
+## Blinded, `gun` (its `GunConfig` `row`) is held in one hand, lower than its two-handed hold
+## (`held`) and out ahead.
+func _check_held_low(t: TestContext, gun: StringName, held: Dictionary, row: Dictionary) -> void:
+	var c := t.actor(gun)
+	var extra := float(row.get("one_hand_spread_deg", -1.0))
+	t.check(
+		_one_handed(c) == true,
+		"%s: blinded, the gun is held in one hand (one_handed() %s)"
+			% [gun, str(_one_handed(c))],
+	)
+	t.check(
+		extra > 0.0,
+		"%s: GunConfig has its one_hand_spread_deg (%s)"
+			% [gun, str(row.get("one_hand_spread_deg"))],
+	)
+	var now := _hold(c)
+	t.check(
+		float(now["height"]) <= float(held["height"]) - LOWER,
+		"%s: the gun is held low (the weapon hand %.1f body radii up, two-handed %.1f)"
+			% [gun, now["height"], held["height"]],
+	)
+	t.check(
+		float(now["ahead"]) >= OUT,
+		"%s: the arm is out ahead (%.0f px)" % [gun, now["ahead"]],
+	)
+
+
+## `gun`'s one-handed volley `one` against its two-handed one `two`: every click fired, within
+## `spread_deg` + `one_hand_spread_deg` (its `GunConfig` `row`), wider, and a rifle kicks harder.
+func _check_volley(
+	t: TestContext,
+	gun: StringName,
+	one: Dictionary,
+	two: Dictionary,
+	row: Dictionary,
+) -> void:
+	var extra := float(row.get("one_hand_spread_deg", -1.0))
+	var spread := float(row.get("spread_deg", 0.0))
+	t.check(
+		one["rounds"] == SHOTS,
+		"%s: one-handed, every click fired (%d)" % [gun, one["rounds"]],
+	)
+	t.check(
+		one["half"] <= spread + maxf(extra, 0.0) + SLACK,
+		("%s: the rounds left within spread_deg + one_hand_spread_deg (a cone %.1f degrees "
+				+ "either way, bound %.1f)") % [gun, one["half"], spread + maxf(extra, 0.0)],
+	)
+	t.check(
+		extra > 0.0
+			and one["half"] >= two["half"] + extra * 0.25
+			and one["sd"] > two["sd"],
+		("%s: one-handed the rounds spread wider (a cone %.2f degrees either way, sd %.2f; "
+				+ "two-handed %.2f, %.2f)")
+			% [gun, one["half"], one["sd"], two["half"], two["sd"]],
+	)
+	if gun == &"rifle":
 		t.check(
-			_one_handed(c) == true,
-			"%s: blinded, the gun is held in one hand (one_handed() %s)"
-				% [gun, str(_one_handed(c))],
+			one["kick"] >= two["kick"] * 1.25 and one["kick"] > 0.5,
+			"the rifle kicks harder one-handed (the hand thrown back %.1f px, two-handed %.1f)"
+				% [one["kick"], two["kick"]],
 		)
-		t.check(
-			extra > 0.0,
-			"%s: GunConfig has its one_hand_spread_deg (%s)"
-				% [gun, str(row.get("one_hand_spread_deg"))],
-		)
-		var now := _hold(c)
-		t.check(
-			float(now["height"]) <= float(held[gun]["height"]) - LOWER,
-			"%s: the gun is held low (the weapon hand %.1f body radii up, two-handed %.1f)"
-				% [gun, now["height"], held[gun]["height"]],
-		)
-		t.check(
-			float(now["ahead"]) >= OUT,
-			"%s: the arm is out ahead (%.0f px)" % [gun, now["ahead"]],
-		)
-		var wander := await _wander(t, c, 30)
-		t.check(
-			float(held[gun]["wander"]) <= STEADY,
-			"%s: (two-handed, the hand held steady: %.1f px)" % [gun, held[gun]["wander"]],
-		)
-		t.check(
-			wander >= WAVER,
-			"%s: one-handed, the gun wavers (%.1f px in half a second, %.1f two-handed)"
-				% [gun, wander, held[gun]["wander"]],
-		)
-		var one := await _volley(t, gun)
-		t.check(
-			one["rounds"] == SHOTS,
-			"%s: one-handed, every click fired (%d)" % [gun, one["rounds"]],
-		)
-		t.check(
-			one["half"] <= spread + maxf(extra, 0.0) + SLACK,
-			("%s: the rounds left within spread_deg + one_hand_spread_deg (a cone %.1f degrees "
-					+ "either way, bound %.1f)") % [gun, one["half"], spread + maxf(extra, 0.0)],
-		)
-		t.check(
-			extra > 0.0
-				and one["half"] >= two[gun]["half"] + extra * 0.25
-				and one["sd"] > two[gun]["sd"],
-			("%s: one-handed the rounds spread wider (a cone %.2f degrees either way, sd %.2f; "
-					+ "two-handed %.2f, %.2f)")
-				% [gun, one["half"], one["sd"], two[gun]["half"], two[gun]["sd"]],
-		)
-		if gun == &"rifle":
-			t.check(
-				one["kick"] >= two[gun]["kick"] * 1.25 and one["kick"] > 0.5,
-				"the rifle kicks harder one-handed (the hand thrown back %.1f px, two-handed %.1f)"
-					% [one["kick"], two[gun]["kick"]],
-			)

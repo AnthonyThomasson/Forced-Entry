@@ -68,14 +68,15 @@ edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interfac
   shadow uvs and a segment's uvs are each one transform of a unit outline (`_capsule`, `_texture_uvs`; float rounding only) and the
   trunk's slices the plain point sums with the shadow's shift in place of a callable;
   A limb capsule whose ends' radii differ by less than `CAP_CONVEX` of its length is convex and goes into a batch as a fan, uncut
-  (`_fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
+  (`_convex`, `_fill_capsule`). The trunk's outline takes a union that comes out in one piece as it is, without weighing its area.
   `tests/character/body_geometry_matches_plain_test.gd` pins them (the trunk's slices and outline exactly).
 
 ## Pose (the living motion)
 
 `character_pose.gd` layers motion over the aim; it is visual only (aim, shots and punches stay on
-`facing`). `character.gd` steps it with `pose.update(delta, facing, get_real_velocity(), speed,
-stances, punch)` (`stances` = the held item's `hand_stance(0)` / `(1)`, `punch` = `Hands.punch_amounts()`)
+`facing`). `character.gd` steps it with `pose.update(delta, drive)`, a `PoseDrive` (`pose_drive.gd`) its `_pose_drive` fills
+each frame: `facing`, `velocity` (`get_real_velocity()`), `top_speed` (`speed`), `stances` (the held item's `hand_stance(0)` / `(1)`),
+`punch` (`Hands.punch_amounts()`) and `stun`,
 right after `move_and_slide()` (and with zero velocity while busy in an interaction; a dead
 character stops stepping it), before the Hands child's `_physics_process`, so hands build on this
 frame's pose.
@@ -107,7 +108,7 @@ frame's pose.
 - `kick(hand, strength := 1.0)` (the character's `kick`, called by a gun on firing with its `recoil`) throws the hand back on a
   recoil spring and twists the shoulders back on its side, `strength` times a pistol's; the other hand feels its stance's
   `recoil_share` (a supporting hand recoils with the weapon hand).
-- **The stunned look** (`docs/grenades.md` G13). `update`'s last argument, `stun` (the character's `stun_level()`, 0 in a ride), is eased into
+- **The stunned look** (`docs/grenades.md` G13). The drive's `stun` (the character's `stun_level()`, 0 in a ride) is eased into
   `_stun` at `stun_look_ease` (`stun_amount()`), so the look comes on and goes without a jump. `hunch()` is `stun_hunch_pitch` x it (rad, the rig's).
   The stagger: the stride length (and the rig's foot swing) shrinks to `stun_stagger_stride`, the stride phase advances unevenly (x `1 + stun x
   (stun_stagger_limp x cos(stride) + stun_stagger_wander x a slow sine)`: one step longer than the next, the pace wandering; foot 1 lands at
@@ -150,6 +151,8 @@ legs layer solves its own unclamped rig (`Rig.new(character, false)`). `Characte
 by index (`HEAD`, `CHEST`, `PELVIS`, `BELLY`, `SPINE` and per-side `SHOULDER`, `HIP`, `ELBOW`,
 `HAND`, `KNEE`, `ANKLE`; side 0/1 matching the hands) and each foot's direction through `toes(i)`.
 `character_ragdoll.gd` re-exports the same indices.
+- A solve reads its measures off the character once (`RigMeasures`, `rig_measures.gd`: the frames, the posture's heights and fold,
+  the bone lengths, the feet's spacing), then places the trunk, each arm, each leg and the rested feet.
 - Upper body: chest and shoulders sit in the pose's twisted torso frame, shifted by `torso_offset`;
   hips and feet in its `hip_angle` frame. Proportions are `CharacterConfig.body_*`, in body radii
   (shoulders at `body_shoulder_height`, hips at `body_hip_height`, arms `body_upper_arm` +
@@ -303,8 +306,9 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   lit for the nearest of `ArtConfig.turn_steps` steps — and draws it rotated to the exact angle of
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
   `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
-  `Deformation.darken`, or `Deformation.draw_shape(..., look)` (a `ShapeLook` with the `texture`, its `texture_angle` and `marks` false) headless or with `BodyMeshes.enabled`
-  off: the same polygon either way, above) so shots dent the art and darken it, then `Deformation.draw_marks` once
+  `Deformation.darken`, or `Deformation.draw_shape(..., look)` headless or with `BodyMeshes.enabled`
+  off: the same polygon either way, above; both read the part's `ShapeLook` from `_round_look`: the `texture`, its
+  `texture_angle`, the damage, `marks` false) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
   silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
   shadow (living and fallen alike) is one `CanvasGroup` of opaque shapes carrying
@@ -352,8 +356,8 @@ character's fresh `facing`, and the character pulls its controller's intent at t
 
 ## Punch hit detection
 
-During a swing `character_hands.gd` strikes through `body_strike.gd` (`strike(character, at, radius, impulse, damage, struck, first_only,
-on_hit, what, note)`, stateless, shared with the kick): a circle query (`intersect_shape`, `hand_radius`, on `PhysicsLayers.SOLID`) at the
+During a swing `character_hands.gd` strikes through `body_strike.gd` (`strike(character, blow, struck, first_only, on_hit)`, the `blow` a
+`MeleeBlow` (`melee_blow.gd`: `at`, `radius`, `impulse`, `damage`, the log's `what` and `note`), stateless, shared with the kick): a circle query (`intersect_shape`, `hand_radius`, on `PhysicsLayers.SOLID`) at the
 fist's *raw* punch position — which extends into what is hit, unlike the drawn hand that rests on the surface — deduped per swing
 (`struck`). Each new hit shoves the body via the "pushable" contract
 (`apply_impulse(impulse, at)`, `at` the fist's offset from the body, or the butt's for a long gun, so a piece struck near an end turns) and deals damage, both scaled by the swing's range of motion (how fast the fist

@@ -379,7 +379,22 @@ func exit_door(character: Node2D, seat: StringName, own: VehicleDoor) -> Vehicle
 ## pressed against one) goes through `_strike_pile`, and a dead body is rolled over.
 func _read_contacts(state: PhysicsDirectBodyState2D) -> void:
 	var touching := {}
-	# instance id -> the strongest contact with that body: { body, speed, position, normal, new }
+	var struck := _strongest_contacts(state, touching)
+	_clock += state.step
+	var done := {}  # bodies already met in a pile this step
+	for id in struck:
+		if not done.has(id):
+			_meet(state, struck[id], done)
+	_touching = touching
+	for id in _piled.keys():
+		if _clock - float(_piled[id]) > VehicleConfig.rehit_time:
+			_piled.erase(id)
+
+
+## This step's contacts on `state`, the strongest with each body: instance id -> `{ body, speed,
+## position, normal, new }` (`speed` the closing speed along `normal`, out of the vehicle into the
+## body; `new` when it was not touching last step). Marks each body met in `touching`.
+func _strongest_contacts(state: PhysicsDirectBodyState2D, touching: Dictionary) -> Dictionary:
 	var struck := {}
 	for i in state.get_contact_count():
 		var body := state.get_contact_collider_object(i) as Node
@@ -402,58 +417,64 @@ func _read_contacts(state: PhysicsDirectBodyState2D) -> void:
 				"normal": normal,
 				"new": not _touching.has(id),
 			}
-	_clock += state.step
-	var done := {}  # bodies already met in a pile this step
-	for id in struck:
-		var hit: Dictionary = struck[id]
-		var body: Node = hit["body"]
-		var character := _is_character(body)
-		var living: bool = character and not body.is_dead
-		# A living character is always seen to (the solver may stop the vehicle on it even as it
-		# moves off); anything else only while the vehicle closes on it.
-		if done.has(id) or (hit["speed"] <= 0.0 and not living):
-			continue
-		if character and not living:
-			# A dead body is rolled over: the vehicle keeps its speed along the contact and stops
-			# colliding with it.
-			var normal: Vector2 = hit["normal"]
-			state.linear_velocity += (normal
-					* (_last_velocity.dot(normal) - state.linear_velocity.dot(normal)))
-			_struck.append({
-				"body": body,
-				"push": Vector2.ZERO,
-				"harm": 0.0,
-				"position": hit["position"],
-			})
-			continue
-		var pile := _pile(body, hit["normal"]) if character or _is_piece(body) else {}
-		for member: Dictionary in pile.get("members", []):
-			done[(member["body"] as Node).get_instance_id()] = true
-		if pile.get("people", 0) > 0:
-			_strike_pile(state, hit, pile)
-		elif hit["new"] and hit["speed"] > VehicleConfig.crash_min_speed:
-			var surface: Dictionary = body.get_surface() if body.has_method("get_surface") else {}
-			_post(
-				&"crash",
-				hit["position"],
-				{ "speed": hit["speed"], "material": String(surface.get("material", "")) },
-			)
-	_touching = touching
-	for id in _piled.keys():
-		if _clock - float(_piled[id]) > VehicleConfig.rehit_time:
-			_piled.erase(id)
+	return struck
+
+
+## Meet the body of contact `hit` (one of `_strongest_contacts`): roll over a dead body, strike a
+## pile with a living character in it, else post a crash for a new impact. The pile's members go
+## into `done`, so none of them is met again this step.
+func _meet(state: PhysicsDirectBodyState2D, hit: Dictionary, done: Dictionary) -> void:
+	var body: Node = hit["body"]
+	var character := _is_character(body)
+	var living: bool = character and not body.is_dead
+	# A living character is always seen to (the solver may stop the vehicle on it even as it moves
+	# off); anything else only while the vehicle closes on it.
+	if hit["speed"] <= 0.0 and not living:
+		return
+	if character and not living:
+		_roll_over(state, hit)
+		return
+	var pile := _pile(body, hit["normal"]) if character or _is_piece(body) else {}
+	for member: Dictionary in pile.get("members", []):
+		done[(member["body"] as Node).get_instance_id()] = true
+	if pile.get("people", 0) > 0:
+		_strike_pile(state, hit, pile)
+	elif hit["new"] and hit["speed"] > VehicleConfig.crash_min_speed:
+		_post_crash(hit, body, hit["speed"])
+
+
+## A dead body is rolled over: the vehicle keeps its speed along the contact `hit` and stops
+## colliding with it.
+func _roll_over(state: PhysicsDirectBodyState2D, hit: Dictionary) -> void:
+	var normal: Vector2 = hit["normal"]
+	state.linear_velocity += (normal
+			* (_last_velocity.dot(normal) - state.linear_velocity.dot(normal)))
+	_struck.append({
+		"body": hit["body"],
+		"push": Vector2.ZERO,
+		"harm": 0.0,
+		"position": hit["position"],
+	})
+
+
+## Post a crash at contact `hit` against `against` (its surface's material, `""` for a wall or none)
+## at the closing speed `closing`.
+func _post_crash(hit: Dictionary, against: Node, closing: float) -> void:
+	var surface: Dictionary = against.get_surface() if against.has_method("get_surface") else {}
+	_post(
+		&"crash",
+		hit["position"],
+		{ "speed": closing, "material": String(surface.get("material", "")) },
+	)
 
 
 ## Strike the pile `hit` heads (one with a living character in it). The solver treats a character as
 ## immovable, so it has stopped the vehicle (and any piece pressing one) against it as against a
 ## wall. Where nothing solid stands behind the pile, that stop is undone: the vehicle and the pile
-## meet as two bodies (the pile's mass all its members', with the character's bounce `harm_bounce`
-## on a first touch by a character, the vehicle's own `bounce` by a piece, none while it keeps
-## pushing), so the vehicle loses only the momentum the pile takes, and each member is shoved up to
-## the pile's new speed. Pinned against a wall (or anything else not pushable), the vehicle stops as
-## on a wall and posts a crash. Each living character newly in the pile (not in one for
-## `rehit_time`) is hurt by the speed it is struck at: the vehicle's closing speed, less what the
-## pieces between them took of it (the vehicle and those pieces carrying the blow on as one).
+## meet as two bodies (`_shove_pile`), so the vehicle loses only the momentum the pile takes, and
+## each member is shoved up to the pile's new speed. Pinned against a wall (or anything else not
+## pushable), the vehicle stops as on a wall and posts a crash. Each living character newly in the
+## pile is hurt (`_harm_pile`).
 func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictionary) -> void:
 	var normal: Vector2 = hit["normal"]
 	var members: Array = pile["members"]
@@ -461,10 +482,8 @@ func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictio
 	# character's what it moves at by itself, its walk and knockback: pressed against the vehicle it
 	# may be held back a frame).
 	var pile_speed := INF
-	var pile_mass := 0.0
 	for member: Dictionary in members:
 		pile_speed = minf(pile_speed, _along(member, normal))
-		pile_mass += member["mass"]
 	var offset: Vector2 = hit["position"] - state.transform.origin
 	var ours := (_last_velocity + Vector2(-offset.y, offset.x) * _last_spin).dot(normal)
 	var closing := ours - pile_speed
@@ -474,37 +493,49 @@ func _strike_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, pile: Dictio
 			state.linear_velocity += (normal
 					* (_last_velocity.dot(normal) - state.linear_velocity.dot(normal)))
 		return
-	var first_is_character: bool = (members[0] as Dictionary)["character"]
 	if pile["blocked"] != null:
 		# Pinned: the vehicle stops as the solver stopped it, as on a wall.
 		if hit["new"] and closing > VehicleConfig.crash_min_speed:
-			var blocker: Node = pile["blocked"]
-			var surface: Dictionary = (blocker.get_surface()
-					if blocker.has_method("get_surface")
-					else {})
-			_post(
-				&"crash",
-				hit["position"],
-				{ "speed": closing, "material": String(surface.get("material", "")) },
-			)
+			_post_crash(hit, pile["blocked"], closing)
 	else:
-		var bounce := 0.0
-		if hit["new"]:
-			bounce = VehicleConfig.harm_bounce if first_is_character else float(_row["bounce"])
-		var impulse := (1.0 + bounce) * closing * mass * pile_mass / (mass + pile_mass)
-		var along := _last_velocity.dot(normal) - impulse / mass
-		state.linear_velocity += normal * (along - state.linear_velocity.dot(normal))
-		var pile_to := pile_speed + impulse / pile_mass
-		for member: Dictionary in members:
-			var body: Node = member["body"]
-			var moving := _along(member, normal)
-			if pile_to > moving:
-				_struck.append({
-					"body": body,
-					"push": normal * member["mass"] * (pile_to - moving),
-					"harm": 0.0,
-					"position": hit["position"],
-				})
+		_shove_pile(state, hit, members, closing, pile_speed)
+	_harm_pile(members, closing)
+
+
+## The vehicle and the free pile `members` at contact `hit` meet as two bodies, closing at `closing`
+## while the pile moves at `pile_speed` along the contact: the pile's mass all its members', with
+## the character's bounce `harm_bounce` on a first touch by a character, the vehicle's own `bounce`
+## by a piece, none while it keeps pushing. The vehicle keeps what the pile does not take, and each
+## member slower than the pile's new speed is queued a shove up to it.
+func _shove_pile(state: PhysicsDirectBodyState2D, hit: Dictionary, members: Array, closing: float,
+		pile_speed: float) -> void:
+	var normal: Vector2 = hit["normal"]
+	var pile_mass := 0.0
+	for member: Dictionary in members:
+		pile_mass += member["mass"]
+	var bounce := 0.0
+	if hit["new"]:
+		var first_is_character: bool = (members[0] as Dictionary)["character"]
+		bounce = VehicleConfig.harm_bounce if first_is_character else float(_row["bounce"])
+	var impulse := (1.0 + bounce) * closing * mass * pile_mass / (mass + pile_mass)
+	var along := _last_velocity.dot(normal) - impulse / mass
+	state.linear_velocity += normal * (along - state.linear_velocity.dot(normal))
+	var pile_to := pile_speed + impulse / pile_mass
+	for member: Dictionary in members:
+		var moving := _along(member, normal)
+		if pile_to > moving:
+			_struck.append({
+				"body": member["body"],
+				"push": normal * member["mass"] * (pile_to - moving),
+				"harm": 0.0,
+				"position": hit["position"],
+			})
+
+
+## Each living character among the pile `members` newly in a pile (not in one for `rehit_time`) is
+## queued a blow by the speed it is struck at: the vehicle's `closing` speed, less what the pieces
+## between them took of it (the vehicle and those pieces carrying the blow on as one).
+func _harm_pile(members: Array, closing: float) -> void:
 	for member: Dictionary in members:
 		if not member["character"]:
 			continue
@@ -574,41 +605,59 @@ func _pile(first: Node, normal: Vector2) -> Dictionary:
 
 
 ## What pile member `member` presses into along `normal`: `{ bodies, blocked }`. A character:
-## whatever its circle moved `pile_gap` on meets ahead of it (a living character, a pushable piece;
-## anything else blocks the pile). A piece: the living characters within `pile_reach` of it whose
-## circles, moved `pile_gap` back toward it, meet it.
+## whatever its circle moved `pile_gap` on meets ahead of it (`_pressed_by_character`). A piece: the
+## living characters within `pile_reach` of it pressed against it (`_pressing_piece`).
 func _pressed_by(member: Dictionary, normal: Vector2, exclude: Array[RID]) -> Dictionary:
 	var space := get_world_2d().direct_space_state
-	var body: Node2D = member["body"]
 	var circle := CircleShape2D.new()
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = circle
 	query.collision_mask = PhysicsLayers.SOLID
-	var bodies: Array = []
-	if member["character"]:
-		circle.radius = body.radius
-		query.transform = Transform2D(0.0, body.global_position + normal * VehicleConfig.pile_gap)
-		query.exclude = exclude
-		var met := space.intersect_shape(query, 8)
-		for result: Dictionary in met:
-			var other := result["collider"] as Node2D
-			if other == null:
-				continue
-			if _is_character(other):
-				if (not other.is_dead
-						and (other.global_position - body.global_position).normalized().dot(normal)
-							> 0.5):
-					bodies.append(other)
-				continue
-			if not _faces_push(space, query, met, result, normal):
-				continue
-			if not _is_piece(other):
-				return { "blocked": other }
-			bodies.append(other)
-		return { "bodies": bodies }
-	circle.radius = VehicleConfig.pile_reach
-	query.transform = Transform2D(0.0, body.global_position)
 	query.exclude = exclude
+	if member["character"]:
+		return _pressed_by_character(space, query, member["body"], normal)
+	return _pressing_piece(space, query, member["body"], normal)
+
+
+## What the character `body` presses into along `normal`, swept with `query` (a circle, its
+## `exclude` set): what its circle, `radius`, moved `pile_gap` on meets ahead of it: a living
+## character within 60° ahead, a pushable piece whose surface faces the push; anything else that
+## faces it blocks the pile (`{ blocked }`).
+func _pressed_by_character(space: PhysicsDirectSpaceState2D,
+		query: PhysicsShapeQueryParameters2D, body: Node2D, normal: Vector2) -> Dictionary:
+	var bodies: Array = []
+	(query.shape as CircleShape2D).radius = body.radius
+	query.transform = Transform2D(0.0, body.global_position + normal * VehicleConfig.pile_gap)
+	var met := space.intersect_shape(query, 8)
+	for result: Dictionary in met:
+		var other := result["collider"] as Node2D
+		if other == null:
+			continue
+		if _is_character(other):
+			if _alive_ahead(other, body, normal):
+				bodies.append(other)
+			continue
+		if not _faces_push(space, query, met, result, normal):
+			continue
+		if not _is_piece(other):
+			return { "blocked": other }
+		bodies.append(other)
+	return { "bodies": bodies }
+
+
+## Whether the character `other` is alive and within 60° ahead of `body` along `normal`.
+static func _alive_ahead(other: Node2D, body: Node2D, normal: Vector2) -> bool:
+	return (not other.is_dead
+			and (other.global_position - body.global_position).normalized().dot(normal) > 0.5)
+
+
+## The living characters within `pile_reach` of the piece `body` (`query`, a circle, its `exclude`
+## set), ahead of it along `normal`, whose circles, moved `pile_gap` back toward it, meet it.
+func _pressing_piece(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
+		body: Node2D, normal: Vector2) -> Dictionary:
+	var bodies: Array = []
+	(query.shape as CircleShape2D).radius = VehicleConfig.pile_reach
+	query.transform = Transform2D(0.0, body.global_position)
 	for result: Dictionary in space.intersect_shape(query, 16):
 		var other := result["collider"] as Node2D
 		if (other == null
@@ -616,18 +665,25 @@ func _pressed_by(member: Dictionary, normal: Vector2, exclude: Array[RID]) -> Di
 				or other.is_dead
 				or (other.global_position - body.global_position).dot(normal) <= 0.0):
 			continue
-		var back := PhysicsShapeQueryParameters2D.new()
-		var own := CircleShape2D.new()
-		own.radius = other.radius
-		back.shape = own
-		back.collision_mask = PhysicsLayers.SOLID
-		back.transform = Transform2D(0.0, other.global_position - normal * VehicleConfig.pile_gap)
-		back.exclude = [get_rid(), other.get_rid()]
-		for touched: Dictionary in space.intersect_shape(back, 8):
-			if touched["collider"] == body:
-				bodies.append(other)
-				break
+		if _presses(space, other, body, normal):
+			bodies.append(other)
 	return { "bodies": bodies }
+
+
+## Whether the character `other`'s circle, moved `pile_gap` back along `normal`, meets `piece`.
+func _presses(space: PhysicsDirectSpaceState2D, other: Node2D, piece: Node2D,
+		normal: Vector2) -> bool:
+	var back := PhysicsShapeQueryParameters2D.new()
+	var own := CircleShape2D.new()
+	own.radius = other.radius
+	back.shape = own
+	back.collision_mask = PhysicsLayers.SOLID
+	back.transform = Transform2D(0.0, other.global_position - normal * VehicleConfig.pile_gap)
+	back.exclude = [get_rid(), other.get_rid()]
+	for touched: Dictionary in space.intersect_shape(back, 8):
+		if touched["collider"] == piece:
+			return true
+	return false
 
 
 ## Whether the body of `result` (one of `met`, what `query` overlaps) faces the push: the nearest

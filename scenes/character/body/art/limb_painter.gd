@@ -45,9 +45,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	if part in ["upper", "fore"]:
 		_arm(c, look, opts, part, t)
 		return
-	var outer := c.w - 2 if int(opts.get("side", 0)) == 0 else 1
 	if part in ["thigh", "knee", "shin"]:
-		_leg(c, look, part, outer, t, base)
+		_leg(c, look, opts, t, base)
 	else:
 		_foot(c, look, part, t, base)
 
@@ -84,93 +83,126 @@ static func _arm(
 			StyleArt.inlays(c, Rect2i(0, 1, c.w, c.h - 2), 1)
 		return
 	if part == "fore" and opts.get("cuff", false):
-		match String(look.get("style", "")):
-			"trauma":
-				# A red armoured guard over the forearm.
-				var guard := PixelCanvas.rounded(
-					Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)),
-					1,
-				)
-				var red: Color = look.get("trim", Color.RED)
-				c.fill(guard, red, _DETAIL)
-				c.bevel(guard, 1, 1, red.lightened(0.25), red.darkened(0.3))
-			"zenitex":
-				# Segmented forearm plates with light edges, and the white stripe across them.
-				var edge: Color = look.get("edge", t.light)
-				for y in range(roundi(c.h * 0.35), c.h - 1, 3):
-					c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.outline, _DETAIL)
-					c.line(
-						Vector2i(1, y + 1),
-						Vector2i(c.w - 2, y + 1),
-						edge.darkened(0.2),
-						_DETAIL,
-					)
-				c.line(
-					Vector2i(0, roundi(c.h * 0.25)),
-					Vector2i(c.w - 1, roundi(c.h * 0.25)),
-					look.get("trim", Color.WHITE),
-					_DETAIL,
-				)
-			_:
-				var cuff := maxi(2, roundi(c.h * 0.2))
-				c.fill(PixelCanvas.rounded(Rect2i(0, c.h - cuff, c.w, cuff), 0), t.dark, _DETAIL)
+		_cuff(c, look, t)
 	elif String(look.get("style", "")) == "merc":
 		c.px(c.rng.randi_range(0, c.w - 1), c.rng.randi_range(0, c.h - 1), t.shadow)  # A stain.
 
 
-## A leg segment, by what the legs wear and the style.
+## A long sleeve's end at the wrist: the Trauma Team's red guard, the Zenitex's segmented plates, or
+## a plain cuff.
+static func _cuff(c: PixelCanvas, look: Dictionary, t: Dictionary) -> void:
+	match String(look.get("style", "")):
+		"trauma":
+			_trauma_guard(c, look)
+		"zenitex":
+			_zenitex_forearm(c, look, t)
+		_:
+			var cuff := maxi(2, roundi(c.h * 0.2))
+			c.fill(PixelCanvas.rounded(Rect2i(0, c.h - cuff, c.w, cuff), 0), t.dark, _DETAIL)
+
+
+## A red armoured guard over the forearm.
+static func _trauma_guard(c: PixelCanvas, look: Dictionary) -> void:
+	var guard := PixelCanvas.rounded(Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)), 1)
+	var red: Color = look.get("trim", Color.RED)
+	c.fill(guard, red, _DETAIL)
+	c.bevel(guard, 1, 1, red.lightened(0.25), red.darkened(0.3))
+
+
+## Segmented forearm plates with light edges, and the white stripe across them.
+static func _zenitex_forearm(c: PixelCanvas, look: Dictionary, t: Dictionary) -> void:
+	var edge: Color = look.get("edge", t.light)
+	for y in range(roundi(c.h * 0.35), c.h - 1, 3):
+		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.outline, _DETAIL)
+		c.line(Vector2i(1, y + 1), Vector2i(c.w - 2, y + 1), edge.darkened(0.2), _DETAIL)
+	c.line(
+		Vector2i(0, roundi(c.h * 0.25)),
+		Vector2i(c.w - 1, roundi(c.h * 0.25)),
+		look.get("trim", Color.WHITE),
+		_DETAIL,
+	)
+
+
+## A leg segment (`opts.part`), by what the legs wear and the style.
 static func _leg(
 	c: PixelCanvas,
 	look: Dictionary,
-	part: String,
-	outer: int,
+	opts: Dictionary,
 	t: Dictionary,
 	base: Color,
 ) -> void:
+	if look.get("police", false):
+		_police_leg(c, look, opts, t, base)
+	else:
+		_crew_leg(c, look, opts, t, base)
+
+
+## The column of a leg strip's outer seam: the right edge on side 0, the left on side 1.
+static func _outer(c: PixelCanvas, opts: Dictionary) -> int:
+	return c.w - 2 if int(opts.get("side", 0)) == 0 else 1
+
+
+## A police trouser leg: armoured (`tactical`) with knee pads (the Zenitex's with a white bar), the
+## Zenitex's segmented shins and a cargo pocket, or plain with a piping down the outer seam.
+static func _police_leg(
+	c: PixelCanvas,
+	look: Dictionary,
+	opts: Dictionary,
+	t: Dictionary,
+	base: Color,
+) -> void:
+	var part := String(opts.get("part", ""))
 	var style := String(look.get("style", ""))
 	var armoured := String(look.get("pants", "")) == "tactical"
-	if look.get("police", false):
-		if armoured and part == "knee":
-			var pad_col: Color = look.get("pad", base.darkened(0.5))
-			var pad := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
-			c.fill(pad, pad_col, _DETAIL)
-			c.bevel(pad, 1, 1, pad_col.lightened(0.25), pad_col.darkened(0.3))
-			if style == "zenitex":
-				c.line(
-					Vector2i(1, int(c.h / 2.0)),
-					Vector2i(c.w - 2, int(c.h / 2.0)),
-					look.get("trim", Color.WHITE),
-					_DETAIL,
-				)
-		elif armoured and part == "shin" and style == "zenitex":
-			for y in range(1, c.h - 1, 3):
-				c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.outline, _DETAIL)
-				c.line(
-					Vector2i(1, y + 1),
-					Vector2i(c.w - 2, y + 1),
-					(look.get("edge", t.light) as Color).darkened(0.2),
-					_DETAIL,
-				)
-		elif armoured and part == "thigh":
-			_pocket(c, outer, 0.4, base.darkened(0.1), t)
-		elif not armoured:
-			var piping: Color = look.get("trim", Color.WHITE)
-			for y in range(0, c.h, 2):
-				c.px(outer, y, piping.darkened(0.25))
-		return
-	match [style, armoured, part]:
-		["merc", _, "thigh"]:
-			_pocket(
-				c,
-				outer,
-				0.35,
-				(look.get("patch", base) as Color) if armoured else base.darkened(0.1),
-				t,
+	if armoured and part == "knee":
+		var pad_col: Color = look.get("pad", base.darkened(0.5))
+		var pad := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+		c.fill(pad, pad_col, _DETAIL)
+		c.bevel(pad, 1, 1, pad_col.lightened(0.25), pad_col.darkened(0.3))
+		if style == "zenitex":
+			c.line(
+				Vector2i(1, int(c.h / 2.0)),
+				Vector2i(c.w - 2, int(c.h / 2.0)),
+				look.get("trim", Color.WHITE),
+				_DETAIL,
 			)
+	elif armoured and part == "shin" and style == "zenitex":
+		for y in range(1, c.h - 1, 3):
+			c.line(Vector2i(1, y), Vector2i(c.w - 2, y), t.outline, _DETAIL)
+			c.line(
+				Vector2i(1, y + 1),
+				Vector2i(c.w - 2, y + 1),
+				(look.get("edge", t.light) as Color).darkened(0.2),
+				_DETAIL,
+			)
+	elif armoured and part == "thigh":
+		_pocket(c, _outer(c, opts), 0.4, base.darkened(0.1), t)
+	elif not armoured:
+		var piping: Color = look.get("trim", Color.WHITE)
+		var outer := _outer(c, opts)
+		for y in range(0, c.h, 2):
+			c.px(outer, y, piping.darkened(0.25))
+
+
+## A crew's leg: a merc's pockets and patched knees, a borg's chrome knee caps and patch, a seam
+## down the shin.
+static func _crew_leg(
+	c: PixelCanvas,
+	look: Dictionary,
+	opts: Dictionary,
+	t: Dictionary,
+	base: Color,
+) -> void:
+	var part := String(opts.get("part", ""))
+	var armoured := String(look.get("pants", "")) == "tactical"
+	var patch: Color = look.get("patch", base)
+	match [String(look.get("style", "")), armoured, part]:
+		["merc", _, "thigh"]:
+			_pocket(c, _outer(c, opts), 0.35, patch if armoured else base.darkened(0.1), t)
 		["merc", _, "knee"]:
 			c.fill(
 				PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 1),
-				(look.get("patch", base) as Color).darkened(0.1),
+				patch.darkened(0.1),
 				_DETAIL,
 			)
 		["borg", true, "knee"]:
@@ -185,6 +217,7 @@ static func _leg(
 				_DETAIL,
 			)
 		[_, _, "shin"]:
+			var outer := _outer(c, opts)
 			c.line(Vector2i(outer, 1), Vector2i(outer, c.h - 2), t.shadow)
 
 

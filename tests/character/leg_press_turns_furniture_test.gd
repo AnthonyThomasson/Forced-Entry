@@ -61,62 +61,70 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var cases := [[&"east_walker", &"east_bench", 1.0], [&"west_walker", &"west_bench", -1.0]]
-	var start := {}
-	var angle := {}
-	# Per bench: how far it had moved and turned (deg) on the last frame before the body touched it.
-	var moved := {}
-	var turn := {}
-	var touched := {}
-	for c in cases:
-		var bench: Node2D = t.object(c[1])
-		start[c[1]] = bench.global_position
-		angle[c[1]] = bench.global_rotation
-		moved[c[1]] = Vector2.ZERO
-		turn[c[1]] = 0.0
-		touched[c[1]] = false
-		t.puppet(c[0]).aim_at(t.actor(c[0]).global_position + Vector2(0, 1000))
-		t.puppet(c[0]).set_posture(&"crouch")
+	var cases := [
+		Press.new(&"east_walker", &"east_bench", 1.0),
+		Press.new(&"west_walker", &"west_bench", -1.0),
+	]
+	for c: Press in cases:
+		var bench: Node2D = t.object(c.bench)
+		c.start = bench.global_position
+		c.angle = bench.global_rotation
+		t.puppet(c.walker).aim_at(t.actor(c.walker).global_position + Vector2(0, 1000))
+		t.puppet(c.walker).set_posture(&"crouch")
 	await t.seconds(CROUCH_TIME)
-	for c in cases:
-		t.puppet(c[0]).walk(Vector2.DOWN * WALK_INPUT)
+	for c: Press in cases:
+		t.puppet(c.walker).walk(Vector2.DOWN * WALK_INPUT)
 	var elapsed := 0.0
 	while elapsed < WALK_TIME:
 		await t.frames(1)
 		elapsed += 1.0 / 60.0
-		for c in cases:
-			var bench: Node2D = t.object(c[1])
-			var gap := _body_gap(t.actor(c[0]), bench)
-			t.trace("%s_gap" % c[1], gap)
-			t.trace(
-				"%s_turn_deg" % c[1],
-				rad_to_deg(angle_difference(angle[c[1]], bench.global_rotation)),
-			)
-			if touched[c[1]]:
-				continue
-			if gap <= 0.5:
-				touched[c[1]] = true
-				continue
-			moved[c[1]] = bench.global_position - start[c[1]]
-			turn[c[1]] = rad_to_deg(angle_difference(angle[c[1]], bench.global_rotation))
-	for c in cases:
-		var shoved: Vector2 = moved[c[1]]
-		if not t.require(
-				shoved.y > 2.0,
-				"a foot pressed %s south before the body touched it (dy %.1f)" % [c[1], shoved.y],
-		):
+		for c: Press in cases:
+			_sample(t, c)
+	for c: Press in cases:
+		if not _check_press(t, c):
 			return
-		t.check(
-			turn[c[1]] * c[2] > MIN_TURN,
-			"the leg press turned %s %s before the body touched it (turned %.1f deg, want %s %.0f)"
-				% [
-					c[1],
-					"clockwise" if c[2] > 0.0 else "counter-clockwise",
-					turn[c[1]],
-					">" if c[2] > 0.0 else "<",
-					MIN_TURN * c[2],
-				],
-		)
+
+
+## Trace one frame of `c`'s walk into its bench, and until the body touches it, how far the bench
+## has moved and turned.
+func _sample(t: TestContext, c: Press) -> void:
+	var bench: Node2D = t.object(c.bench)
+	var gap := _body_gap(t.actor(c.walker), bench)
+	t.trace("%s_gap" % c.bench, gap)
+	t.trace(
+		"%s_turn_deg" % c.bench,
+		rad_to_deg(angle_difference(c.angle, bench.global_rotation)),
+	)
+	if c.touched:
+		return
+	if gap <= 0.5:
+		c.touched = true
+		return
+	c.moved = bench.global_position - c.start
+	c.turn = rad_to_deg(angle_difference(c.angle, bench.global_rotation))
+
+
+## Before the body touched it, `c`'s leg press shoved its bench south and turned it the way the
+## pressed end is driven. Whether it was shoved (false after a failed `require`).
+func _check_press(t: TestContext, c: Press) -> bool:
+	var shoved: Vector2 = c.moved
+	if not t.require(
+			shoved.y > 2.0,
+			"a foot pressed %s south before the body touched it (dy %.1f)" % [c.bench, shoved.y],
+	):
+		return false
+	t.check(
+		c.turn * c.sense > MIN_TURN,
+		"the leg press turned %s %s before the body touched it (turned %.1f deg, want %s %.0f)"
+			% [
+				c.bench,
+				"clockwise" if c.sense > 0.0 else "counter-clockwise",
+				c.turn,
+				">" if c.sense > 0.0 else "<",
+				MIN_TURN * c.sense,
+			],
+	)
+	return true
 
 
 ## Px between `walker`'s body circle and `bench`'s rectangle (0 or less: touching).
@@ -127,3 +135,22 @@ func _body_gap(walker: Node2D, bench: Node2D) -> float:
 		clampf(local.y, -HALF_DEPTH, HALF_DEPTH),
 	)
 	return local.distance_to(nearest) - BODY_RADIUS
+
+
+## One walker pressing its bench: the way the pressed end is driven (`sense`: 1 clockwise, -1
+## counter-clockwise), where the bench started and how it lay, and how far it had moved and turned
+## (deg) on the last frame before the body touched it.
+class Press:
+	var walker: StringName
+	var bench: StringName
+	var sense: float
+	var start := Vector2.ZERO
+	var angle := 0.0
+	var moved := Vector2.ZERO
+	var turn := 0.0
+	var touched := false
+
+	func _init(walker_id: StringName, bench_id: StringName, turn_sense: float) -> void:
+		walker = walker_id
+		bench = bench_id
+		sense = turn_sense

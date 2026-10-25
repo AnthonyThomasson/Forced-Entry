@@ -23,6 +23,7 @@ const CharacterStyle = preload("res://scenes/character/body/character_style.gd")
 const BodyMeshes = preload("res://scenes/character/body/body_meshes.gd")
 # The joint indices, shared with the ragdoll.
 const Rig = preload("res://scenes/character/body/character_rig.gd")
+const Pose = preload("res://scenes/character/body/character_pose.gd")
 ## A standing body is repainted only when what it draws has changed: its joints, the angles its
 ## parts are turned by, what is held and its wounds, each rounded to a step below a visible pixel at
 ## the body's size (positions in px, angles in rad). A character standing still drifts by less than
@@ -95,7 +96,7 @@ var _settled_drawn := false
 ## The fallen parts' keys, lowest first, as last drawn (see `_stack`).
 var _fallen_order: Array[String] = []
 ## The standing skeleton solved this frame, shared by the body's and the shadow's draw.
-var _rig
+var _rig: Rig
 ## The body was outside the camera's view last frame, so nothing was repainted.
 var _offscreen := false
 ## The rounded inputs the standing body was last repainted for.
@@ -147,7 +148,7 @@ var _chrome_shin: Array[bool] = [false, false]
 var _hand_parts: Array[Dictionary] = []
 ## The limb chains last built (`_limbs`), the joints they were built from and the physics frame.
 var _limb_chains: Array = []
-var _limbs_of = null
+var _limbs_of: RefCounted = null
 var _limbs_frame := -1
 
 ## Character — body radius, pose, rig, held item.
@@ -200,17 +201,20 @@ func _draw() -> void:
 		return
 	redraws += 1
 	draw_order.clear()
-	var pose = _character.pose
-	var rig = _rig if _rig != null else _character.rig()
+	var rig: Rig = _rig if _rig != null else _character.rig()
 	if draws_laid_out():
 		_draw_lying(rig)
 		return
+	_draw_standing(rig)
+
+
+## The standing body from `rig`: the legs and arms, the weapon under the shoulders, a hanging hand
+## under them too, the shoulders, the other fists, the head, a hand over the face, then the wounds.
+func _draw_standing(rig: Rig) -> void:
+	var pose: Pose = _character.pose
 	# The shoulders sit where the rig puts the chest: the torso's lunge, plus the forward shift of a
 	# folded spine, so the sleeves meet them in a crouch.
 	var lunge := _rig_xy(rig, Rig.CHEST)
-	var torso: float = pose.torso_angle - PI * 0.5  # Canonical art faces +y.
-	var size := _shoulder_size()
-	var body := _shoulder_art(torso)
 	var deformable = _character._deformable
 	# Impacts are recorded relative to the shoulders (character.take_hit), so they turn with them.
 	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
@@ -219,8 +223,7 @@ func _draw() -> void:
 	var damage_total: float = deformable.damage_total if deformable else 0.0
 	var item: Item = _character.current_item()
 
-	var limbs := _limbs(rig)
-	for chain in limbs:  # The legs, then the arms.
+	for chain in _limbs(rig):  # The legs, then the arms.
 		_draw_chain(chain)
 	# The weapon goes under the torso: its butt is tucked behind the shoulder, the barrel shows
 	# beyond.
@@ -234,12 +237,7 @@ func _draw() -> void:
 		if pose.grip_height(hand) < HAND_OVER_HEIGHT:
 			hung.append(hand)
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
-	# Shoulders: the art through the flesh silhouette deformed by any shots (dents + darkening).
-	draw_set_transform(lunge, 0.0, Vector2.ONE)
-	_art.append(body)
-	_draw_round(body, size, torso, impacts, damage_total, _shirt, CharacterConfig.flesh_crack_color)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	draw_order.append(&"torso")
+	_draw_shoulders(pose, lunge, impacts, damage_total)
 	for hand in 2:
 		if not hung.has(hand) and pose.grip_height(hand) < HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
@@ -251,6 +249,22 @@ func _draw() -> void:
 	# read as bloody gashes (config-driven).
 	Deformation.draw_marks(self, placed, CharacterConfig.flesh_crack_color,
 		CharacterConfig.flesh_hole_color, CharacterConfig.flesh_scorch_color)
+
+
+## The shoulders at the `lunge`: the art through the flesh silhouette deformed by the shots
+## (`impacts`, in the shoulders' frame: dents, and darkening by `damage_total`).
+func _draw_shoulders(pose: Pose, lunge: Vector2, impacts: Array, damage_total: float) -> void:
+	var torso: float = pose.torso_angle - PI * 0.5  # Canonical art faces +y.
+	var body := _shoulder_art(torso)
+	draw_set_transform(lunge, 0.0, Vector2.ONE)
+	_art.append(body)
+	_draw_round(
+		_shoulder_size(),
+		impacts,
+		_round_look(body, torso, damage_total, _shirt, CharacterConfig.flesh_crack_color),
+	)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	draw_order.append(&"torso")
 
 
 ## Whether the body is within `CULL_MARGIN` px of the camera's view: the viewport's visible rect
@@ -267,7 +281,7 @@ func _in_view() -> bool:
 ## The inputs of the standing draw for `rig`, each rounded to its redraw step: the joints and feet
 ## (which carry the lunge, the head's offset and the hands' places), the angles the shoulders, head,
 ## fists and weapon are turned by, the held slot, and the wounds that dent and darken the parts.
-func _redraw_key_of(rig) -> PackedInt32Array:
+func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 	var pose = _character.pose
 	var key := PackedInt32Array()
 	for i in 17:
@@ -330,6 +344,26 @@ func _dress() -> bool:
 	_skin = look["skin"]
 	_glove = look["glove"]
 	_chrome = look["chrome"]
+	_shoulder_opts = _dress_plates(worn, id)
+	_torso_opts = {}
+	for face in ["front", "back", "side"]:
+		_torso_opts[face] = { "face": face, "pants": _pants }.merged(_shoulder_opts)
+	_head_opts = { "look": id }
+	_dress_sides(look, id)
+	var key := hash([
+		_shirt, _pants, _shoes, _boots, _skin, _arm_parts, _shoulder_opts, _head_opts, _leg_opts,
+		_chrome_shin, _hand_parts,
+	])
+	if key == _look_key:
+		return false
+	_look_key = key
+	return true
+
+
+## The shoulders' painter options for the look's handle `id`: the plates `worn` and their wear,
+## rounded to `VestPainter.WEAR_STEPS`, painted in fabric (`PixelArt`'s `material` option). The
+## torso's options take them too.
+static func _dress_plates(worn: Dictionary, id: int) -> Dictionary:
 	var dress := { "look": id }
 	for side in ["front", "back"]:
 		var plate: Dictionary = worn.get(side + "_plate", {})
@@ -338,13 +372,13 @@ func _dress() -> bool:
 			dress[side + "_wear"] = ceili((1.0
 					- clampf(float(plate.get("condition", 1.0)), 0.0, 1.0))
 					* VestPainter.WEAR_STEPS)
-	# The shoulders and the torso are painted in fabric (`PixelArt`'s `material` option).
 	dress["material"] = "fabric"
-	_shoulder_opts = dress
-	_torso_opts = {}
-	for face in ["front", "back", "side"]:
-		_torso_opts[face] = { "face": face, "pants": _pants }.merged(dress)
-	_head_opts = { "look": id }
+	return dress
+
+
+## What each side is drawn in, from `look` (handle `id`): each arm segment, each leg part's options
+## and a chrome shin, and each fist's colour (gloves, skin or chrome) and options.
+func _dress_sides(look: Dictionary, id: int) -> void:
 	_arm_parts = []
 	_leg_opts = []
 	_chrome_shin = []
@@ -354,30 +388,27 @@ func _dress() -> bool:
 			"upper": _arm_part(look, id, i, "upper"),
 			"fore": _arm_part(look, id, i, "fore"),
 		})
-		var parts := {}
-		for part in ["thigh", "knee", "shin", "shaft", "foot"]:
-			parts[part] = { "look": id, "part": part, "side": i }
-		_chrome_shin.append(look["chrome_leg"][i])
-		if _chrome_shin[i]:
-			parts["shin"]["chrome"] = true
-		# Each part's `material` (`PixelArt`'s option): the trousers fabric, a chrome shin metal,
-		# the boot's shaft and the shoe none.
-		for part in ["thigh", "knee", "shin"]:
-			parts[part]["material"] = "metal" if part == "shin" and _chrome_shin[i] else "fabric"
-		_leg_opts.append(parts)
+		_leg_opts.append(_leg_parts(look, id, i))
 		var chrome: bool = look["chrome_arm"][i]
 		var hand := { "look": id, "side": -1 if i == 0 else 1 }
 		if chrome:
 			hand["chrome"] = true
 		_hand_parts.append({ "color": _chrome if chrome else _glove, "opts": hand })
-	var key := hash([
-		_shirt, _pants, _shoes, _boots, _skin, _arm_parts, _shoulder_opts, _head_opts, _leg_opts,
-		_chrome_shin, _hand_parts,
-	])
-	if key == _look_key:
-		return false
-	_look_key = key
-	return true
+
+
+## Side `i`'s LimbPainter options by leg part in `look` (handle `id`), noting whether its shin is
+## chrome (`_chrome_shin`). Each part's `material` (`PixelArt`'s option): the trousers fabric, a
+## chrome shin metal, the boot's shaft and the shoe none.
+func _leg_parts(look: Dictionary, id: int, i: int) -> Dictionary:
+	var parts := {}
+	for part in ["thigh", "knee", "shin", "shaft", "foot"]:
+		parts[part] = { "look": id, "part": part, "side": i }
+	_chrome_shin.append(look["chrome_leg"][i])
+	if _chrome_shin[i]:
+		parts["shin"]["chrome"] = true
+	for part in ["thigh", "knee", "shin"]:
+		parts[part]["material"] = "metal" if part == "shin" and _chrome_shin[i] else "fabric"
+	return parts
 
 
 ## Side `side`'s arm segment `part` ("upper" to the elbow, "fore" to the fist) in `look` (handle
@@ -415,7 +446,7 @@ func head_centre() -> Vector2:
 
 
 ## The floor-plane (x, y) of rig `joint`, dropping its height.
-static func _rig_xy(rig, joint: int) -> Vector2:
+static func _rig_xy(rig: Rig, joint: int) -> Vector2:
 	var p: Vector3 = rig.point(joint)
 	return Vector2(p.x, p.y)
 
@@ -429,7 +460,7 @@ func draws_laid_out() -> bool:
 ## A crouched body: its parts from the rig's 3D points seen from above, lowest first, exactly as a
 ## fallen body is drawn (a lofted trunk showing its back, the limbs laid out), then what it holds
 ## and its fists on top.
-func _draw_lying(rig) -> void:
+func _draw_lying(rig: Rig) -> void:
 	var pose = _character.pose
 	var item: Item = _character.current_item()
 	# The weapon goes under the trunk: its butt is tucked behind the shoulder, the barrel shows
@@ -450,7 +481,7 @@ func _draw_lying(rig) -> void:
 
 ## A hand held over the face (a blinded character's palm over its eyes) is drawn over the head;
 ## `face_hand` joins the draw order when one is.
-func _draw_face_hands(pose, placed: Array, damage_total: float) -> void:
+func _draw_face_hands(pose: Pose, placed: Array, damage_total: float) -> void:
 	for hand in 2:
 		if pose.grip_height(hand) >= HAND_ON_FACE_HEIGHT:
 			_draw_hand(hand, pose.hand_angles[hand] - PI * 0.5, placed, damage_total)
@@ -478,30 +509,14 @@ func _shoulder_art(angle: float) -> Texture2D:
 ## through the deformed outline, then each limb, fist and the head, every point shifted away from
 ## the light by its height.
 func _draw_standing_shadow() -> void:
-	var pose = _character.pose
-	var rig = _rig if _rig != null else _character.rig()
+	var rig: Rig = _rig if _rig != null else _character.rig()
 	var shift := _shadow_shift()
-	var deformable = _character._deformable
-	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
-	var size := _shoulder_size()
-	var angle: float = pose.torso_angle - PI * 0.5
-	var poly := Deformation.shape_polygon("circle", size, impacts)
-	# Undented, it is the intact ring already.
-	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
-		poly = Deformation.base_ring("circle", size)
-	var lift := _cast(rig.point(Rig.CHEST), shift)  # The shoulders' lunge, shifted from the light.
-	_shadow_meshes.draw(
-		Transform2D(0.0, lift) * poly,
-		_texture_uvs(poly, size, angle),
-		_shoulder_art(angle),
-		Color.BLACK,
-		Rect2(lift - size * 0.5, size),  # The round footprint: dents only cave in.
-	)
+	var lift := _draw_shoulders_shadow(rig, shift)
 	var limbs := _limbs(rig)
 	# All one black (the shadow group shows what any part covers, whatever the order): one kept
 	# mesh, or without meshes one batch.
 	var solid: BodyMeshes.Solid = null
-	var fills = null
+	var fills: RefCounted = null
 	if BodyMeshes.enabled:
 		solid = _shadow_meshes.solid(Color.BLACK)
 		fills = solid
@@ -521,6 +536,29 @@ func _draw_standing_shadow() -> void:
 		solid.flush(bounds.merge(Rect2(head, Vector2.ZERO).grow(head_radius)))
 	else:
 		fills.flush()
+
+
+## The shoulders' own deformed silhouette on the floor shadow, at the rig's chest (the lunge)
+## shifted from the light (`shift`, per px of height). Returns where it lies.
+func _draw_shoulders_shadow(rig: Rig, shift: Vector2) -> Vector2:
+	var pose: Pose = _character.pose
+	var deformable = _character._deformable
+	var impacts := _turned(deformable.impacts if deformable else [], pose.torso_angle)
+	var size := _shoulder_size()
+	var angle: float = pose.torso_angle - PI * 0.5
+	var poly := Deformation.shape_polygon("circle", size, impacts)
+	# Undented, it is the intact ring already.
+	if not impacts.is_empty() and not Deformation.is_valid_polygon(poly):
+		poly = Deformation.base_ring("circle", size)
+	var lift := _cast(rig.point(Rig.CHEST), shift)  # The shoulders' lunge, shifted from the light.
+	_shadow_meshes.draw(
+		Transform2D(0.0, lift) * poly,
+		_texture_uvs(poly, size, angle),
+		_shoulder_art(angle),
+		Color.BLACK,
+		Rect2(lift - size * 0.5, size),  # The round footprint: dents only cave in.
+	)
+	return lift
 
 
 ## Where each point of `poly` (local px) falls on art `size` px across drawn turned by `angle` about
@@ -553,13 +591,15 @@ static func _cast(p: Vector3, shift: Vector2) -> Vector2:
 
 ## One limb chain's floor shadow: each segment's capsule shifted from the light (`_cast`), added to
 ## `fills` (a `FillBatch` or a `BodyMeshes.Solid`). Returns the rect the capsules lie in.
-func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills) -> Rect2:
+func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills: RefCounted) -> Rect2:
 	var bounds := Rect2()
 	var reach := 0.0
 	for seg in chain["segs"]:
 		var a := _cast(seg["a"], shift)
 		var b := _cast(seg["b"], shift)
-		_fill_capsule(fills, a, b, seg["ra"], seg["rb"], Color.BLACK)
+		var ra: float = seg["ra"]
+		var rb: float = seg["rb"]
+		_fill_capsule(fills, _capsule(a, b, ra, rb), _convex(a, b, ra, rb), Color.BLACK)
 		bounds = Rect2(a, Vector2.ZERO) if reach == 0.0 else bounds.expand(a)
 		bounds = bounds.expand(b)
 		reach = maxf(reach, maxf(seg["ra"], seg["rb"]))
@@ -568,7 +608,7 @@ func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills) -> Rect2:
 
 ## The head at the pose's offset and angle, casting its shadow onto the shoulders first (the head
 ## sits above them, so its silhouette darkens them a few px away from the light).
-func _draw_head(pose, rig, impacts: Array, damage_total: float) -> void:
+func _draw_head(pose: Pose, rig: Rig, impacts: Array, damage_total: float) -> void:
 	var px := ArtConfig.pixel_size
 	var side := (float(HeadPainter.canvas_for(HeadPainter.radius_for(roundi(_character.radius * 2.0
 			/ px)))) * px)
@@ -591,7 +631,7 @@ func _draw_head(pose, rig, impacts: Array, damage_total: float) -> void:
 		false,
 		Color(0.0, 0.0, 0.0, ArtConfig.cast_shadow_darken),
 	)
-	_draw_part(tex, size, at, angle, impacts, damage_total, _skin)
+	_draw_part(at, size, impacts, _round_look(tex, angle, damage_total, _skin, _skin))
 
 
 ## A fist at the given hand (0 = right as drawn, 1 = left), turned to `angle`, dented by the shots
@@ -607,34 +647,51 @@ func _draw_hand(hand: int, angle: float, impacts: Array, damage_total: float) ->
 		PixelArt.snap_angle(angle),
 		part["opts"],
 	)
-	_draw_part(tex, size, _hands.hand_position(hand), angle, impacts, damage_total, part["color"])
+	var color: Color = part["color"]
+	_draw_part(
+		_hands.hand_position(hand),
+		size,
+		impacts,
+		_round_look(tex, angle, damage_total, color, color),
+	)
 
 
-## One round part's art (`tex` spanning `size`) at `at`, turned to `angle`: through its silhouette
-## dented by the shots that passed through it, darkened by the body's damage.
-func _draw_part(tex: Texture2D, size: Vector2, at: Vector2, angle: float, impacts: Array,
-		damage_total: float, color: Color) -> void:
-	_art.append(tex)
+## One round part's art (`look.texture` spanning `size`) at `at`: through its silhouette dented by
+## the shots that passed through it (`impacts`), darkened by the body's damage.
+func _draw_part(at: Vector2, size: Vector2, impacts: Array, look: ShapeLook) -> void:
+	_art.append(look.texture)
 	draw_set_transform(at, 0.0, Vector2.ONE)
-	_draw_round(tex, size, angle, _through(impacts, at, size.x * 0.5), damage_total, color, color)
+	_draw_round(size, _through(impacts, at, size.x * 0.5), look)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
-## A round part's art `tex` (`size` px across, turned by `angle`) through its silhouette dented by
-## `impacts`, at the draw transform, its hit marks left for later: what `Deformation.draw_shape`
-## draws, in a kept mesh (`_meshes`): the polygon and uvs `draw_shape` maps the art onto
-## (`_texture_uvs`), in white darkened as it darkens it (`Deformation.darken`). Without meshes
-## (`BodyMeshes.enabled`) `draw_shape` draws it (`fill`, `outline` its colours).
-func _draw_round(tex: Texture2D, size: Vector2, angle: float, impacts: Array, damage_total: float,
-		fill: Color, outline: Color) -> void:
+## How a round part is drawn: its art `tex` turned by `angle` within its silhouette, darkened by
+## `damage_total`, `fill` and `outline` its colours where it has no art, its hit marks left for
+## later.
+static func _round_look(
+	tex: Texture2D,
+	angle: float,
+	damage_total: float,
+	fill: Color,
+	outline: Color,
+) -> ShapeLook:
+	var look := ShapeLook.new()
+	look.fill = fill
+	look.outline = outline
+	look.damage_total = damage_total
+	look.texture = tex
+	look.texture_angle = angle
+	look.marks = false
+	return look
+
+
+## A round part (`size` px across) drawn as `look` says, through its silhouette dented by `impacts`,
+## at the draw transform, its hit marks left for later: what `Deformation.draw_shape` draws, in a
+## kept mesh (`_meshes`): the polygon and uvs `draw_shape` maps the art onto (`_texture_uvs`), in
+## white darkened as it darkens it (`Deformation.darken`). Without meshes (`BodyMeshes.enabled`)
+## `draw_shape` draws it.
+func _draw_round(size: Vector2, impacts: Array, look: ShapeLook) -> void:
 	if not BodyMeshes.enabled:
-		var look := ShapeLook.new()
-		look.fill = fill
-		look.outline = outline
-		look.damage_total = damage_total
-		look.texture = tex
-		look.texture_angle = angle
-		look.marks = false
 		Deformation.draw_shape(self, "circle", size, impacts, look)
 		return
 	var poly := Deformation.shape_polygon("circle", size, impacts)
@@ -642,9 +699,9 @@ func _draw_round(tex: Texture2D, size: Vector2, angle: float, impacts: Array, da
 		poly = Deformation.base_ring("circle", size)
 	_meshes.draw(
 		poly,
-		_texture_uvs(poly, size, angle),
-		tex,
-		Color.WHITE.darkened(Deformation.darken(damage_total)),
+		_texture_uvs(poly, size, look.texture_angle),
+		look.texture,
+		Color.WHITE.darkened(Deformation.darken(look.damage_total)),
 		Rect2(-size * 0.5, size),
 	)
 
@@ -732,7 +789,7 @@ func _draw_body_shadow() -> void:
 ## Every part of the fallen body, lowest first. A living body bent over draws its own head
 ## (`with_head` off) over the weapon and the hands; `before_trunk` draws the weapon just under the
 ## trunk.
-func _draw_fallen(rd, with_head := true, before_trunk := Callable()) -> void:
+func _draw_fallen(rd: RefCounted, with_head := true, before_trunk := Callable()) -> void:
 	for part in _stack(_fallen_parts(rd)):
 		match part["kind"]:
 			"chain":
@@ -775,7 +832,7 @@ func _stack(parts: Array) -> Array:
 
 ## The fallen body's floor shadow: each part's silhouette with every point shifted away from the
 ## light by its height, so the shadow closes in under the body as it lands.
-func _draw_fallen_shadow(rd) -> void:
+func _draw_fallen_shadow(rd: RefCounted) -> void:
 	var shift := _shadow_shift()
 	var fills := FillBatch.new(_shadow)
 	for part in _fallen_parts(rd):
@@ -799,7 +856,7 @@ func _draw_fallen_shadow(rd) -> void:
 
 ## The fallen body's parts as dicts with their `kind` and mean `height`: limb chains (arms, legs
 ## with their shoes, the neck), fists, the head and the trunk.
-func _fallen_parts(rd) -> Array:
+func _fallen_parts(rd: RefCounted) -> Array:
 	var r: float = _character.radius
 	var parts := []
 	var limbs := _limbs(rd)
@@ -819,16 +876,9 @@ func _fallen_parts(rd) -> Array:
 	var head: Vector3 = rd.point(Rig.HEAD)
 	var chest: Vector3 = rd.point(Rig.CHEST)
 	var neck := CharacterConfig.body_neck_width
-	parts.append(_keyed(
-		_chain([
-			_seg(
-				chest, head, neck, neck,
-				(CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r,
-				_skin,
-			),
-		]),
-		"neck",
-	))
+	var neck_length := (CharacterConfig.body_head_height - CharacterConfig.body_shoulder_height) * r
+	var neck_seg := _painted(_seg(chest, head, neck, neck, neck_length), _skin)
+	parts.append(_keyed(_chain([neck_seg]), "neck"))
 	parts.append(_head_part(rd))
 	parts.append({
 		"kind": "trunk",
@@ -839,7 +889,7 @@ func _fallen_parts(rd) -> Array:
 
 
 ## The head as a fallen-body part: where it is, the way it faces and the neck it sits on.
-func _head_part(rd) -> Dictionary:
+func _head_part(rd: RefCounted) -> Dictionary:
 	var head: Vector3 = rd.point(Rig.HEAD)
 	return { "kind": "head", "key": "head", "at": head, "height": head.z, "face": rd.face(),
 		"neck": rd.point(Rig.CHEST) - head }
@@ -856,7 +906,7 @@ func _keyed(part: Dictionary, key: String) -> Dictionary:
 ## are built once for both: kept for the same joints within one physics frame, and dropped at every
 ## `_process` (before the draws; the ragdoll may have stepped since an earlier ask in the same
 ## frame) and when the look changes (`_dress`).
-func _limbs(j) -> Array:
+func _limbs(j: RefCounted) -> Array:
 	var frame := Engine.get_physics_frames()
 	if not is_same(j, _limbs_of) or frame != _limbs_frame:
 		_limb_chains = [_leg_chain(j, 0), _leg_chain(j, 1), _arm_chain(j, 0), _arm_chain(j, 1)]
@@ -868,7 +918,7 @@ func _limbs(j) -> Array:
 ## Side `i`'s arm as a limb chain from the joints of `j` (the rig or the ragdoll): the upper arm to
 ## the elbow, the forearm to the center of the fist, each a sleeve, bare skin or chrome
 ## (`_arm_parts`).
-func _arm_chain(j, i: int) -> Dictionary:
+func _arm_chain(j: RefCounted, i: int) -> Dictionary:
 	var r: float = _character.radius
 	var arm: Array = CharacterConfig.body_arm_widths
 	var shoulder: Vector3 = j.point(Rig.SHOULDER[i])
@@ -877,21 +927,13 @@ func _arm_chain(j, i: int) -> Dictionary:
 	var upper: Dictionary = _arm_parts[i]["upper"]
 	var fore: Dictionary = _arm_parts[i]["fore"]
 	return _chain([
-		_seg(
-			shoulder,
-			elbow,
-			arm[0],
-			arm[1],
-			CharacterConfig.body_upper_arm * r,
+		_painted(
+			_seg(shoulder, elbow, arm[0], arm[1], CharacterConfig.body_upper_arm * r),
 			upper["color"],
 			upper["opts"],
 		),
-		_seg(
-			elbow,
-			hand,
-			arm[1],
-			arm[2],
-			CharacterConfig.body_forearm * r,
+		_painted(
+			_seg(elbow, hand, arm[1], arm[2], CharacterConfig.body_forearm * r),
 			fore["color"],
 			fore["opts"],
 		),
@@ -902,74 +944,88 @@ func _arm_chain(j, i: int) -> Dictionary:
 ## calf is wider than the ankle, and in chrome below the knee on a chrome leg) and the shoe along
 ## the way the foot points; in boots the shin's lower part is the boot's shaft and the boot is a
 ## little wider.
-func _leg_chain(j, i: int) -> Dictionary:
+func _leg_chain(j: RefCounted, i: int) -> Dictionary:
 	var r: float = _character.radius
 	var leg: Array = CharacterConfig.body_leg_widths
-	var shoe: Array = CharacterConfig.body_shoe_widths
-	var hip: Vector3 = j.point(Rig.HIP[i])
 	var knee: Vector3 = j.point(Rig.KNEE[i])
 	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var calf := knee.lerp(ankle, 0.35)
-	var toes: Vector3 = j.toes(i)
-	var foot := CharacterConfig.body_foot * r
 	var shin := CharacterConfig.body_shin * r
 	var opts: Dictionary = _leg_opts[i]
-	var shin_col := _chrome if _chrome_shin[i] else _pants
 	var segs := [
-		_seg(
-			hip,
-			knee,
-			leg[0],
-			leg[1],
-			CharacterConfig.body_thigh * r,
+		_painted(
+			_seg(j.point(Rig.HIP[i]), knee, leg[0], leg[1], CharacterConfig.body_thigh * r),
 			_pants,
 			opts["thigh"],
 		),
-		_seg(knee, calf, leg[1], leg[2], shin * 0.35, _pants, opts["knee"]),
+		_painted(_seg(knee, calf, leg[1], leg[2], shin * 0.35), _pants, opts["knee"]),
 	]
-	var heel := ankle - toes * foot * 0.25
-	var tip := ankle + toes * foot * 0.75
 	if _boots:
-		var top := knee.lerp(ankle, BOOT_TOP)
-		var top_width: float = lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
-		segs.append(_seg(
-			calf, top, leg[2], top_width - BOOT_GROW, shin * (BOOT_TOP - 0.35), shin_col,
-			opts["shin"],
-		))
-		segs.append(_seg(
-			top,
-			ankle,
-			top_width,
-			leg[3] + BOOT_GROW,
-			shin * (1.0 - BOOT_TOP),
-			_shoes,
-			opts["shaft"],
-		))
-		segs.append(_seg(
-			heel,
-			tip,
-			shoe[0] + BOOT_GROW,
-			shoe[1] + BOOT_GROW,
-			foot,
-			_shoes,
-			opts["foot"],
-		))
+		_add_boot(segs, j, i, calf)
 	else:
-		segs.append(_seg(
-			calf, ankle, leg[2], leg[3], shin * 0.65, shin_col, opts["shin"],
+		segs.append(_painted(
+			_seg(calf, ankle, leg[2], leg[3], shin * 0.65), _shin_colour(i), opts["shin"],
 		))
-		segs.append(_seg(heel, tip, shoe[0], shoe[1], foot, _shoes, opts["foot"]))
+		segs.append(_foot_seg(j, i, 0.0))
 	return _chain(segs)
 
 
-## One tapered limb segment from `a` to `b` (3D): its widths at each end in body radii, the true
-## `length` (px) its art is painted at, its color and its painter options (its `material` among
-## them).
-func _seg(a: Vector3, b: Vector3, width_a: float, width_b: float, length: float, color: Color,
-		opts: Dictionary = _PLAIN) -> Dictionary:
+## Side `i`'s boot added to its leg's `segs` from the joints of `j`: the shin from the `calf` to the
+## boot's top, the boot's shaft down to the ankle, a little wider, and the boot.
+func _add_boot(segs: Array, j: RefCounted, i: int, calf: Vector3) -> void:
+	var leg: Array = CharacterConfig.body_leg_widths
+	var knee: Vector3 = j.point(Rig.KNEE[i])
+	var ankle: Vector3 = j.point(Rig.ANKLE[i])
 	var r: float = _character.radius
-	return { "a": a, "b": b, "ra": width_a * r * 0.5, "rb": width_b * r * 0.5, "length": length,
-		"color": color, "opts": opts }
+	var shin := CharacterConfig.body_shin * r
+	var opts: Dictionary = _leg_opts[i]
+	var top := knee.lerp(ankle, BOOT_TOP)
+	var top_width: float = lerpf(leg[2], leg[3], (BOOT_TOP - 0.35) / 0.65) + BOOT_GROW
+	segs.append(_painted(
+		_seg(calf, top, leg[2], top_width - BOOT_GROW, shin * (BOOT_TOP - 0.35)),
+		_shin_colour(i),
+		opts["shin"],
+	))
+	segs.append(_painted(
+		_seg(top, ankle, top_width, leg[3] + BOOT_GROW, shin * (1.0 - BOOT_TOP)),
+		_shoes,
+		opts["shaft"],
+	))
+	segs.append(_foot_seg(j, i, BOOT_GROW))
+
+
+## Side `i`'s shoe (`grow` body radii wider: a boot) along the way the foot of `j` points, a
+## quarter of it behind the ankle.
+func _foot_seg(j: RefCounted, i: int, grow: float) -> Dictionary:
+	var shoe: Array = CharacterConfig.body_shoe_widths
+	var ankle: Vector3 = j.point(Rig.ANKLE[i])
+	var toes: Vector3 = j.toes(i)
+	var r: float = _character.radius
+	var foot := CharacterConfig.body_foot * r
+	var heel := ankle - toes * foot * 0.25
+	var tip := ankle + toes * foot * 0.75
+	return _painted(
+		_seg(heel, tip, shoe[0] + grow, shoe[1] + grow, foot), _shoes, _leg_opts[i]["foot"],
+	)
+
+
+## Side `i`'s shin colour: chrome on a chrome leg, else the trousers.
+func _shin_colour(i: int) -> Color:
+	return _chrome if _chrome_shin[i] else _pants
+
+
+## One tapered limb segment from `a` to `b` (3D): its widths at each end in body radii and the true
+## `length` (px) its art is painted at (`_painted` gives it its colour and options).
+func _seg(a: Vector3, b: Vector3, width_a: float, width_b: float, length: float) -> Dictionary:
+	var r: float = _character.radius
+	return { "a": a, "b": b, "ra": width_a * r * 0.5, "rb": width_b * r * 0.5, "length": length }
+
+
+## Segment `seg` painted in `color` with its painter options `opts` (its `material` among them).
+static func _painted(seg: Dictionary, color: Color, opts: Dictionary = _PLAIN) -> Dictionary:
+	seg["color"] = color
+	seg["opts"] = opts
+	return seg
 
 
 ## A limb chain: its segments, sorted as one part by their mean height.
@@ -988,13 +1044,8 @@ func _draw_chain(chain: Dictionary) -> void:
 	var order: Array = []
 	var heights: Array[float] = []
 	for seg in chain["segs"]:
-		var a: Vector3 = seg["a"]
-		var b: Vector3 = seg["b"]
-		# The colour's outline tone (PixelCanvas.tones).
-		var tone := (seg["color"] as Color).darkened(ArtConfig.tone_outline)
-		_fill_capsule(outlines, Vector2(a.x, a.y), Vector2(b.x, b.y), seg["ra"] + 1.0,
-			seg["rb"] + 1.0, tone)
-		var height := a.z + b.z
+		_outline_seg(outlines, seg)
+		var height := (seg["a"] as Vector3).z + (seg["b"] as Vector3).z
 		var at := order.size()
 		while at > 0 and height < heights[at - 1]:
 			at -= 1
@@ -1003,6 +1054,17 @@ func _draw_chain(chain: Dictionary) -> void:
 	outlines.flush()
 	for seg in order:
 		_draw_segment(seg)
+
+
+## Segment `seg`'s capsule a pixel wider all round added to `outlines`, in its colour's outline tone
+## (PixelCanvas.tones).
+static func _outline_seg(outlines: FillBatch, seg: Dictionary) -> void:
+	var a := _flat(seg["a"])
+	var b := _flat(seg["b"])
+	var ra: float = seg["ra"] + 1.0
+	var rb: float = seg["rb"] + 1.0
+	var tone := (seg["color"] as Color).darkened(ArtConfig.tone_outline)
+	_fill_capsule(outlines, _capsule(a, b, ra, rb), _convex(a, b, ra, rb), tone)
 
 
 ## One limb segment's art (a shaded strip from limb_painter.gd) mapped onto its tapered capsule:
@@ -1015,24 +1077,41 @@ func _draw_segment(seg: Dictionary) -> void:
 	var span := a.distance_to(b)
 	var dir := (b - a) / span if span > 0.01 else Vector2.DOWN
 	var widest := maxf(ra, rb)
-	var angle := dir.angle() - PI * 0.5
-	var size := Vector2(roundf(widest * 2.0), roundf(float(seg["length"]) + ra + rb))
-	var tex := PixelArt.render_turned(
+	var tex := _segment_art(seg, widest, dir.angle() - PI * 0.5)
+	_art.append(tex)
+	var poly := _capsule(a, b, ra, rb)
+	_meshes.draw(
+		poly, _strip_uvs(a, b, ra, rb) * poly, tex, Color.WHITE,
+		Rect2(a.min(b), (b - a).abs()).grow(widest),
+	)
+
+
+## Segment `seg`'s shaded strip (limb_painter.gd), `widest` px in radius across and its length plus
+## both ends' radii along, at whole pixels, lit for the step nearest `angle`.
+func _segment_art(seg: Dictionary, widest: float, angle: float) -> Texture2D:
+	var size := Vector2(
+		roundf(widest * 2.0),
+		roundf(float(seg["length"]) + float(seg["ra"]) + float(seg["rb"])),
+	)
+	return PixelArt.render_turned(
 		LimbPainter,
 		size,
 		seg["color"],
 		PixelArt.snap_angle(angle),
 		seg["opts"],
 	)
-	_art.append(tex)
-	var poly := _capsule(a, b, ra, rb)
-	# Across the strip: the offset from the axis over the strip's width; along it: from `ra` behind
-	# `a` over the whole length.
-	var across := dir.orthogonal() / (widest * 2.0)
+
+
+## The transform from canvas px to a strip's uvs on the capsule from `a` (radius `ra`) to `b`
+## (`rb`): across the strip, the offset from the axis over the strip's width; along it, from `ra`
+## behind `a` over the whole length.
+static func _strip_uvs(a: Vector2, b: Vector2, ra: float, rb: float) -> Transform2D:
+	var span := a.distance_to(b)
+	var dir := (b - a) / span if span > 0.01 else Vector2.DOWN
+	var across := dir.orthogonal() / (maxf(ra, rb) * 2.0)
 	var along := dir / (span + ra + rb)
-	var to_uv := Transform2D(Vector2(across.x, along.x), Vector2(across.y, along.y),
+	return Transform2D(Vector2(across.x, along.x), Vector2(across.y, along.y),
 		Vector2(0.5 - across.dot(a), (ra - dir.dot(a)) / (span + ra + rb)))
-	_meshes.draw(poly, to_uv * poly, tex, Color.WHITE, Rect2(a.min(b), (b - a).abs()).grow(widest))
 
 
 ## A tapered capsule outline from `a` (radius `ra`) to `b` (radius `rb`): a round cap behind each
@@ -1048,24 +1127,27 @@ static func _capsule(a: Vector2, b: Vector2, ra: float, rb: float) -> PackedVect
 	return out
 
 
-## Add the capsule `_capsule(a, b, ra, rb)` to `fills` (a `FillBatch` or a `BodyMeshes.Solid`) in
-## `color`. One whose ends' radii differ by less than `CAP_CONVEX` of its length is convex (each cap
-## ends half a step, 15°, short of its side, which leans by `atan(|ra - rb| / span)`), and goes in
-## as a fan without being cut; any other is cut as the engine cuts it.
-func _fill_capsule(
-	fills,
-	a: Vector2,
-	b: Vector2,
-	ra: float,
-	rb: float,
+## Add the capsule `poly` (`_capsule(a, b, ra, rb)`) to `fills` (a `FillBatch` or a
+## `BodyMeshes.Solid`) in `color`: as a fan without being cut when it is `convex` (`_convex`), else
+## cut as the engine cuts it.
+static func _fill_capsule(
+	fills: RefCounted,
+	poly: PackedVector2Array,
+	convex: bool,
 	color: Color,
 ) -> void:
-	var poly := _capsule(a, b, ra, rb)
-	var span := a.distance_to(b)
-	if span < 0.5 or absf(ra - rb) < span * CAP_CONVEX:
+	if convex:
 		fills.fill_convex(poly, color)
 	else:
 		fills.fill(poly, color)
+
+
+## Whether the capsule from `a` (radius `ra`) to `b` (`rb`) is convex: one whose ends' radii differ
+## by less than `CAP_CONVEX` of its length (each cap ends half a step, 15°, short of its side, which
+## leans by `atan(|ra - rb| / span)`), or a circle.
+static func _convex(a: Vector2, b: Vector2, ra: float, rb: float) -> bool:
+	var span := a.distance_to(b)
+	return span < 0.5 or absf(ra - rb) < span * CAP_CONVEX
 
 
 ## `count` unit vectors round the circle, `k` at angle `TAU * k / count`.
@@ -1135,7 +1217,7 @@ static func _trunk_steps() -> PackedFloat32Array:
 ## neighbouring cross-sections (ellipses across the spine, eased between
 ## CharacterConfig.ragdoll_trunk_sections and domed at both ends), so it is waisted and rounded from
 ## any side and shrinks to the shoulders seen from above.
-func _trunk_outline(rd, shift := Vector2.ZERO) -> PackedVector2Array:
+func _trunk_outline(rd: RefCounted, shift := Vector2.ZERO) -> PackedVector2Array:
 	var outline := PackedVector2Array()
 	var hulls := _trunk_hulls(rd, shift)
 	for hull in hulls:
@@ -1177,7 +1259,7 @@ func _trunk_outline(rd, shift := Vector2.ZERO) -> PackedVector2Array:
 ## the hull of each pair of neighbouring cross-sections (ellipses across the spine, eased between
 ## CharacterConfig.ragdoll_trunk_sections and domed at both ends), each grown by `HULL_OVERLAP`.
 ## Their union is the trunk's outline (`_trunk_outline`); the shadow draws them as they are.
-func _trunk_hulls(rd, shift := Vector2.ZERO) -> Array[PackedVector2Array]:
+func _trunk_hulls(rd: RefCounted, shift := Vector2.ZERO) -> Array[PackedVector2Array]:
 	var r: float = _character.radius
 	var basis: Basis = rd.torso()
 	var pelvis: Vector3 = rd.point(Rig.PELVIS)
@@ -1224,7 +1306,7 @@ static func _open(poly: PackedVector2Array) -> PackedVector2Array:
 ## The trunk: a shirt-colored underfill of its outline, the art of the sides turned to the camera
 ## mapped across it (`_trunk_faces`: the chest, the back or a flank, with the shoulders' top over it
 ## when that is the side most turned up), a 1 px outline, then the wounds on whatever skin faces up.
-func _draw_trunk(rd) -> void:
+func _draw_trunk(rd: RefCounted) -> void:
 	var outline := _trunk_outline(rd)
 	if outline.size() < 3:
 		return
@@ -1256,7 +1338,7 @@ func _draw_trunk(rd) -> void:
 ## outline), and over it the shoulders' top when that is turned up more still (a body bent over in a
 ## crouch, or upright as it starts to fall). The shoulders' art covers only the shoulders, so drawn
 ## alone it would leave the rest of a bent back (and whatever is worn on it) bare shirt.
-func _trunk_faces(rd) -> Array:
+func _trunk_faces(rd: RefCounted) -> Array:
 	var r: float = _character.radius
 	var basis: Basis = rd.torso()
 	var pelvis: Vector3 = rd.point(Rig.PELVIS)
@@ -1265,15 +1347,27 @@ func _trunk_faces(rd) -> Array:
 	var bottom: float = ((sections[0] as Vector3).x - DOME_BOTTOM) * spine
 	var top: float = ((sections[sections.size() - 1] as Vector3).x + DOME_TOP) * spine
 	var mid: Vector3 = pelvis + basis.y * (bottom + top) * 0.5
-	var length := top - bottom
-	var depth := CharacterConfig.art_shoulder_depth * r
-	var side := signf(basis.x.z) if basis.x.z != 0.0 else 1.0
-	var facing := signf(basis.z.z) if basis.z.z != 0.0 else 1.0
 	var faces := [
 		{
 			"kind": "top", "score": basis.y.z, "centre": pelvis + basis.y * top, "x": basis.x,
 			"y": basis.z, "size": Vector2(2.0 * r, 2.0 * r),
 		},
+	]
+	faces.append_array(_trunk_sides(basis, mid, top - bottom))
+	var side_on: Dictionary = faces[1] if faces[1]["score"] >= faces[2]["score"] else faces[2]
+	if faces[0]["score"] > side_on["score"]:
+		return [_face_art(side_on), _face_art(faces[0])]
+	return [_face_art(side_on)]
+
+
+## The trunk's chest or back (whichever faces up) and a flank, as `_trunk_faces` scores them: turned
+## by `basis`, about the trunk's `mid` point, `length` px along the spine.
+func _trunk_sides(basis: Basis, mid: Vector3, length: float) -> Array:
+	var r: float = _character.radius
+	var depth := CharacterConfig.art_shoulder_depth * r
+	var side := signf(basis.x.z) if basis.x.z != 0.0 else 1.0
+	var facing := signf(basis.z.z) if basis.z.z != 0.0 else 1.0
+	return [
 		{
 			"kind": "front" if facing > 0.0 else "back", "score": absf(basis.z.z),
 			"centre": mid + basis.z * depth * facing, "x": basis.x * facing, "y": -basis.y,
@@ -1284,10 +1378,6 @@ func _trunk_faces(rd) -> Array:
 			"x": basis.z * -side, "y": -basis.y, "size": Vector2(2.0 * depth, length),
 		},
 	]
-	var side_on: Dictionary = faces[1] if faces[1]["score"] >= faces[2]["score"] else faces[2]
-	if faces[0]["score"] > side_on["score"]:
-		return [_face_art(side_on), _face_art(faces[0])]
-	return [_face_art(side_on)]
 
 
 ## One trunk side (`face`, from `_trunk_faces`) as the art to map: its texture, centre and screen
@@ -1323,41 +1413,56 @@ func _face_art(face: Dictionary) -> Dictionary:
 ## where it struck (its angle in the shoulders' frame) at a height seeded per wound between waist
 ## and chest, and shows only while that patch of skin faces the camera — the chest's wounds on a
 ## body lying on its back, the back's on one lying face down.
-func _draw_wounds(rd) -> void:
+func _draw_wounds(rd: RefCounted) -> void:
 	var deformable = _character._deformable
 	if deformable == null:
 		return
-	var r: float = _character.radius
 	var basis: Basis = rd.torso()
 	var pelvis: Vector3 = rd.point(Rig.PELVIS)
 	var spine: float = (rd.point(Rig.CHEST) - pelvis).length()
 	var wounds := []
 	for impact in deformable.impacts:
-		var pos: Vector2 = impact["pos"]
-		if pos.length() < 0.001:
-			continue
-		# Recorded with the body facing +x: its right is −y, its front +x.
-		var around := Vector2(-pos.y, pos.x).normalized()
-		var rng := RandomNumberGenerator.new()
-		rng.seed = int(impact["seed"])
-		var t := rng.randf_range(0.35, 0.9)
-		var half := _section_at(t) * r
-		var reach := 1.0 / sqrt(pow(around.x / half.x, 2.0) + pow(around.y / half.y, 2.0))
-		var on := around * reach
-		var skin: Vector3 = pelvis + basis.y * t * spine + basis.x * on.x + basis.z * on.y
-		var normal: Vector3 = (basis.x * on.x / (half.x * half.x)
-				+ basis.z * on.y / (half.y * half.y)).normalized()
-		if normal.z < WOUND_MIN_FACING:
-			continue
-		var wound: Dictionary = impact.duplicate()
-		wound["pos"] = _flat(skin)
-		wound["inward"] = Vector2.ZERO
-		wound["depth"] = float(impact["depth"]) * normal.z
-		wounds.append(wound)
+		var wound := _wound(impact, basis, pelvis, spine)
+		if not wound.is_empty():
+			wounds.append(wound)
 	Deformation.draw_marks(
 		self, wounds, CharacterConfig.flesh_crack_color, CharacterConfig.flesh_hole_color,
 		CharacterConfig.flesh_scorch_color,
 	)
+
+
+## The wound `impact` left on the fallen trunk (turned by `basis`, up its `spine` px from the
+## `pelvis`): around the body where it struck, at its seeded height, its depth by how squarely that
+## patch faces the camera; {} while it faces away.
+func _wound(impact: Dictionary, basis: Basis, pelvis: Vector3, spine: float) -> Dictionary:
+	var pos: Vector2 = impact["pos"]
+	if pos.length() < 0.001:
+		return {}
+	# Recorded with the body facing +x: its right is −y, its front +x.
+	var around := Vector2(-pos.y, pos.x).normalized()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(impact["seed"])
+	var t := rng.randf_range(0.35, 0.9)
+	var r: float = _character.radius
+	var half := _section_at(t) * r
+	var on := _on_section(around, half)
+	var skin: Vector3 = pelvis + basis.y * t * spine + basis.x * on.x + basis.z * on.y
+	var normal: Vector3 = (basis.x * on.x / (half.x * half.x)
+			+ basis.z * on.y / (half.y * half.y)).normalized()
+	if normal.z < WOUND_MIN_FACING:
+		return {}
+	var wound: Dictionary = impact.duplicate()
+	wound["pos"] = _flat(skin)
+	wound["inward"] = Vector2.ZERO
+	wound["depth"] = float(impact["depth"]) * normal.z
+	return wound
+
+
+## Where the way `around` (unit, across the spine) meets the edge of a cross-section of half-width
+## and half-depth `half`.
+static func _on_section(around: Vector2, half: Vector2) -> Vector2:
+	var reach := 1.0 / sqrt(pow(around.x / half.x, 2.0) + pow(around.y / half.y, 2.0))
+	return around * reach
 
 
 ## A fallen fist, its knuckles along the forearm.

@@ -34,20 +34,9 @@ func run(t: TestContext) -> void:
 	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
 		return
 
-	# --- Reference: let go at CRUISE and coast down to exit_max_speed (or 15 s).
-	if not t.require(
-			await Probe.reach_speed(t, &"me", car, CRUISE, 6.0),
-			"the car reaches %.0f px/s" % CRUISE,
-	):
+	var coast_time := await _coast_reference(t, car)
+	if coast_time < 0.0:
 		return
-	var let_go := t.time
-	await t.until(func(): return car.speed() <= Probe.EXIT_MAX_SPEED, 15.0)
-	var coast_time := t.time - let_go
-	t.trace("coast_time", coast_time)
-	t.puppet(&"me").drive(-1.0, 0.0, false)
-	await t.until(func(): return Probe.along(car) <= 2.0, 5.0)
-	t.puppet(&"me").drive(0.0, 0.0, false)
-	await t.seconds(0.5)
 
 	# --- E at CRUISE.
 	if not t.require(
@@ -81,3 +70,22 @@ func run(t: TestContext) -> void:
 		"E brakes: down to %.0f px/s in %.2f s, against %.2f s coasting"
 			% [Probe.EXIT_MAX_SPEED, slow_at, coast_time],
 	)
+
+
+## Reference: let go at CRUISE and coast down to exit_max_speed (or 15 s), then brake to a stop.
+## Returns the coast's time, s, or -1 when the car never reached CRUISE (the test has ended).
+func _coast_reference(t: TestContext, car: Node2D) -> float:
+	if not t.require(
+			await Probe.reach_speed(t, &"me", car, CRUISE, 6.0),
+			"the car reaches %.0f px/s" % CRUISE,
+	):
+		return -1.0
+	var let_go := t.time
+	await t.until(func(): return car.speed() <= Probe.EXIT_MAX_SPEED, 15.0)
+	var coast_time := t.time - let_go
+	t.trace("coast_time", coast_time)
+	t.puppet(&"me").drive(-1.0, 0.0, false)
+	await t.until(func(): return Probe.along(car) <= 2.0, 5.0)
+	t.puppet(&"me").drive(0.0, 0.0, false)
+	await t.seconds(0.5)
+	return coast_time

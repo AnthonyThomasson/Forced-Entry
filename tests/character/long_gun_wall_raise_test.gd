@@ -39,8 +39,19 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	# Before anything has been judged: a controller that pulls the trigger on the character's first
-	# frame must not get a round out through the wall.
+	await _check_first_frame(t)
+	for id in [&"rifle_wall", &"smg_wall", &"pistol_wall", &"rifle_free", &"rifle_person"]:
+		# West, into the wall or the open.
+		t.puppet(id).aim_at(t.actor(id).global_position + Vector2(-1000, 0))
+	await t.seconds(1.0)
+	_check_against_wall(t)
+	await _check_firing(t)
+	await _check_backing_off(t)
+
+
+## Before anything has been judged: a controller that pulls the trigger on the character's first
+## frame must not get a round out through the wall.
+func _check_first_frame(t: TestContext) -> void:
 	var first_rounds: int = t.actor(&"rifle_first").ammo()
 	t.puppet(&"rifle_first").shoot()
 	await t.frames(3)
@@ -50,12 +61,10 @@ func run(t: TestContext) -> void:
 		"a long gun told to shoot on its first frame, against a wall, fires nothing",
 	)
 
-	for id in [&"rifle_wall", &"smg_wall", &"pistol_wall", &"rifle_free", &"rifle_person"]:
-		# West, into the wall or the open.
-		t.puppet(id).aim_at(t.actor(id).global_position + Vector2(-1000, 0))
-	await t.seconds(1.0)
 
-	# Against the wall: the long guns are blocked, raised and silent; the pistol is none of those.
+## Against the wall: the long guns are blocked and raised; the pistol is neither, nor is a gun in
+## the open or with a person in front of it.
+func _check_against_wall(t: TestContext) -> void:
 	for id in [&"rifle_wall", &"smg_wall"]:
 		var c = t.actor(id)
 		t.check(c.weapon_blocked(), "%s: its barrel is against the wall" % id)
@@ -73,7 +82,9 @@ func run(t: TestContext) -> void:
 		"the rifle in the open is held to the aim",
 	)
 
-	# Firing: only the unblocked guns spend a round.
+
+## Firing: only the unblocked guns spend a round.
+func _check_firing(t: TestContext) -> void:
 	var rounds := {}
 	for id in [&"rifle_wall", &"smg_wall", &"pistol_wall", &"rifle_free", &"rifle_person"]:
 		rounds[id] = t.actor(id).ammo()
@@ -88,7 +99,9 @@ func run(t: TestContext) -> void:
 		"the character's own shoot() says no round left the barrel",
 	)
 
-	# Backing off clears the barrel: the gun comes down and fires again.
+
+## Backing off clears the barrel: the gun comes down and fires again.
+func _check_backing_off(t: TestContext) -> void:
 	for id in [&"rifle_wall", &"smg_wall"]:
 		t.puppet(id).walk_to(Vector2(140, t.actor(id).global_position.y))
 	for id in [&"rifle_wall", &"smg_wall"]:
@@ -110,7 +123,7 @@ func run(t: TestContext) -> void:
 
 
 ## Both arms keep (about) their configured length.
-func _check_arms(t: TestContext, c, when: String) -> void:
+func _check_arms(t: TestContext, c: Node, when: String) -> void:
 	var rig = c.rig()
 	var r: float = c.radius
 	var bones := [

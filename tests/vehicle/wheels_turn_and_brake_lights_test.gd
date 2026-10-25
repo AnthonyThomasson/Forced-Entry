@@ -29,7 +29,6 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"], [&"wheel_angle", &"brake_lights"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	var p := t.puppet(&"me")
 	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
 		return
 	await t.seconds(0.5)
@@ -38,7 +37,15 @@ func run(t: TestContext) -> void:
 		"the wheels start straight (%.3f rad)" % car.wheel_angle(),
 	)
 
-	# --- At rest: D, A, centre.
+	var right_lock := await _check_steer_at_rest(t, car)
+	if not await _check_brake_lights(t, car):
+		return
+	await _check_steer_at_speed(t, car, right_lock)
+
+
+## At rest: D, A, centre. Returns the angle D turned the wheels to (rad).
+func _check_steer_at_rest(t: TestContext, car: Node2D) -> float:
+	var p := t.puppet(&"me")
 	p.drive(0.0, 1.0, false)
 	await t.frames(2)
 	var early: float = car.wheel_angle()
@@ -55,8 +62,13 @@ func run(t: TestContext) -> void:
 		absf(car.wheel_angle()) < 0.02,
 		"letting go centres them (%.3f rad)" % car.wheel_angle(),
 	)
+	return right_lock
 
-	# --- Brake lights: off on the throttle and coasting, on while S slows the car.
+
+## Brake lights: off on the throttle and coasting, on while S slows the car (false: the car never
+## reached 150 px/s, the test has ended).
+func _check_brake_lights(t: TestContext, car: Node2D) -> bool:
+	var p := t.puppet(&"me")
 	p.drive(1.0, 0.0, false)
 	await t.seconds(1.0)
 	t.check(not car.brake_lights(), "no brake lights on the throttle")
@@ -64,7 +76,7 @@ func run(t: TestContext) -> void:
 			await Probe.reach_speed(t, &"me", car, 150.0, 6.0),
 			"the car reaches 150 px/s",
 	):
-		return
+		return false
 	await t.frames(3)
 	t.check(not car.brake_lights(), "none while coasting")
 	p.drive(-1.0, 0.0, false)
@@ -76,8 +88,12 @@ func run(t: TestContext) -> void:
 	p.drive(1.0, 0.0, false)
 	await t.frames(3)
 	t.check(not car.brake_lights(), "and go off again on the throttle")
+	return true
 
-	# --- At speed full steer turns the wheels less far.
+
+## At speed full steer turns the wheels less far than `right_lock`, the lock at rest.
+func _check_steer_at_speed(t: TestContext, car: Node2D, right_lock: float) -> void:
+	var p := t.puppet(&"me")
 	await Probe.reach_speed(t, &"me", car, 150.0, 4.0)
 	p.drive(1.0, 1.0, false)
 	await t.seconds(0.6)

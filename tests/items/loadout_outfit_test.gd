@@ -46,29 +46,46 @@ func run(t: TestContext) -> void:
 	var slots: Array = options.map(func(row): return str(row.get("slot", "")))
 	t.expect_eq(slots, Array(OutfitProbe.SLOTS), "one row per slot, in order")
 	for row: Dictionary in options:
-		var slot := str(row.get("slot", ""))
-		t.check(str(row.get("label", "")) != "", "the %s row has a label" % slot)
-		var ids: Array = (row.get("choices", []) as Array).map(
-			func(c): return StringName(c.get("id", &"")),
-		)
-		for garment: StringName in OutfitProbe.GARMENTS.get(slot, []):
-			t.check(garment in ids, "%s offers %s (%s)" % [slot, garment, ids])
-			t.check(
-				OutfitProbe.label_of(slot, garment) != "",
-				"%s's %s has a label" % [slot, garment],
-			)
-		t.expect_eq(
-			&"" in ids,
-			slot in OutfitProbe.MAY_BE_EMPTY,
-			"%s offers nothing as a choice only if it may be left empty" % slot,
-		)
-		for id: StringName in ids:
-			t.check(
-				id == &"" or id in OutfitProbe.GARMENTS.get(slot, []),
-				"%s offers only its own garments (%s)" % [slot, id],
-			)
+		_check_option_row(t, row)
+	_check_normalize(t)
+	_check_plates_need_carrier(t, options)
+	var soldier := t.actor(&"soldier")
+	if not OutfitProbe.require_api(t, soldier):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	_check_apply(t, soldier, rng)
+	_check_random(t, rng)
 
-	# normalize: a valid outfit is kept, a blank one filled in, a bad one repaired.
+
+## One `outfit_options()` row: labelled, offering its slot's garments (each labelled) and only
+## them, and nothing as a choice only where the slot may be left empty.
+func _check_option_row(t: TestContext, row: Dictionary) -> void:
+	var slot := str(row.get("slot", ""))
+	t.check(str(row.get("label", "")) != "", "the %s row has a label" % slot)
+	var ids: Array = (row.get("choices", []) as Array).map(
+		func(c): return StringName(c.get("id", &"")),
+	)
+	for garment: StringName in OutfitProbe.GARMENTS.get(slot, []):
+		t.check(garment in ids, "%s offers %s (%s)" % [slot, garment, ids])
+		t.check(
+			OutfitProbe.label_of(slot, garment) != "",
+			"%s's %s has a label" % [slot, garment],
+		)
+	t.expect_eq(
+		&"" in ids,
+		slot in OutfitProbe.MAY_BE_EMPTY,
+		"%s offers nothing as a choice only if it may be left empty" % slot,
+	)
+	for id: StringName in ids:
+		t.check(
+			id == &"" or id in OutfitProbe.GARMENTS.get(slot, []),
+			"%s offers only its own garments (%s)" % [slot, id],
+		)
+
+
+## normalize: a valid outfit is kept, a blank one filled in, a bad one repaired.
+func _check_normalize(t: TestContext) -> void:
 	var kept := _normalized(OutfitProbe.PLATED_KIT)
 	for slot: String in OutfitProbe.SLOTS:
 		t.expect_eq(
@@ -103,9 +120,11 @@ func run(t: TestContext) -> void:
 		"plain String ids (the setup window's) are read too",
 	)
 
-	# 11b: plates need a carrier. The options mark the vest choice that holds plates; normalize
-	# drops plates from any other vest (a valid outfit with the carrier keeps them: PLATED_KIT and
-	# from_menu above).
+
+## 11b: plates need a carrier. The `options` mark the vest choice that holds plates; normalize
+## drops plates from any other vest (a valid outfit with the carrier keeps them: PLATED_KIT and
+## from_menu in `_check_normalize`).
+func _check_plates_need_carrier(t: TestContext, options: Array) -> void:
 	for row: Dictionary in options:
 		for choice: Dictionary in row.get("choices", []):
 			var holds := (str(row.get("slot", "")) == "vest"
@@ -142,12 +161,9 @@ func run(t: TestContext) -> void:
 			"normalize clears both plates with %s, from the setup window's String ids" % named,
 		)
 
-	# apply: the character wears it.
-	var soldier := t.actor(&"soldier")
-	if not OutfitProbe.require_api(t, soldier):
-		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
+
+## apply: the character wears it, and a new loadout takes off what the last one wore.
+func _check_apply(t: TestContext, soldier: Node, rng: RandomNumberGenerator) -> void:
 	LoadoutConfig.apply(soldier, { "weapon": &"pistol", "outfit": OutfitProbe.PLATED_KIT }, rng)
 	var view := OutfitProbe.view(soldier)
 	for slot: String in ["head", "body", "vest", "pants", "feet"]:
@@ -176,7 +192,9 @@ func run(t: TestContext) -> void:
 			else {})
 	t.expect_eq(StringName(bare_plate.get("type", &"?")), &"", "and no front plate")
 
-	# random: always valid, not always the same.
+
+## random: always valid, not always the same.
+func _check_random(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var seen := {}
 	for i in 30:
 		var pick := LoadoutConfig.random(rng)

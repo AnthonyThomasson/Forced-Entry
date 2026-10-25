@@ -226,7 +226,8 @@ func _report_hits() -> void:
 	var motion := clampf(absf(_punch_speed[_active_hand]) * PUNCH_EXTEND_TIME * _tempo, 0.0, 1.0)
 	var hand := _active_hand
 	# Struck at the fist (or the butt), so a piece struck off-centre turns.
-	Strike.strike(_character, fist, hand_radius, facing * CharacterConfig.punch_impulse * motion,
-			CharacterConfig.punch_damage * motion, _hit_bodies, false,
-			func(body: Node, damage: float) -> void: punched.emit(hand, body, damage),
-			"Punch (hand %d)" % hand, ", %.0f%% swing" % (motion * 100.0))
+	var blow := MeleeBlow.new(fist, hand_radius, facing * CharacterConfig.punch_impulse * motion,
+			CharacterConfig.punch_damage * motion, "Punch (hand %d)" % hand)
+	blow.note = ", %.0f%% swing" % (motion * 100.0)
+	Strike.strike(_character, blow, _hit_bodies, false,
+			func(body: Node, damage: float) -> void: punched.emit(hand, body, damage))

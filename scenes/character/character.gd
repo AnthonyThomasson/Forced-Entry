@@ -267,10 +267,7 @@ func _turn_shadow() -> void:
 ## interaction, and the walk.
 func _physics_step(delta: float) -> void:
 	if is_dead:
-		ragdoll.step(delta, get_world_2d().direct_space_state, global_position)
-		if ragdoll.is_settled() and not _bled_out:
-			_bled_out = true
-			Physics.bleed_out(get_parent(), self, [get_rid()])
+		_fall_frame(delta)
 		return
 
 	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
@@ -302,7 +299,20 @@ func _physics_step(delta: float) -> void:
 	if _interaction.is_busy():
 		_frozen_frame(delta, Vector2.ZERO, stun_level())
 		return
+	_walk_frame(delta)
 
+
+## One physics frame of a dead body: its ragdoll falls, and once it has settled it bleeds out.
+func _fall_frame(delta: float) -> void:
+	ragdoll.step(delta, get_world_2d().direct_space_state, global_position)
+	if ragdoll.is_settled() and not _bled_out:
+		_bled_out = true
+		Physics.bleed_out(get_parent(), self, [get_rid()])
+
+
+## One physics frame on foot: the aim turned, the walk moved and slid, the pushes, the kick, the
+## pose, the legs and the footsteps.
+func _walk_frame(delta: float) -> void:
 	# Aim toward the aim point. Guard the degenerate zero-length case.
 	var to_aim := aim_point - global_position
 	if to_aim.length() > 0.001:
@@ -323,15 +333,7 @@ func _physics_step(delta: float) -> void:
 	_push_slow = _ease_push_slow(_apply_pushes(), delta)
 	_kick.update(self, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
-	pose.update(
-		delta,
-		facing,
-		get_real_velocity(),
-		speed,
-		_stances(),
-		_hands.punch_amounts(),
-		stun_level(),
-	)
+	pose.update(delta, _pose_drive(get_real_velocity(), stun_level()))
 	_legs.update(self, delta)
 	_footsteps.update(self, _footprints)
 
@@ -501,7 +503,20 @@ func _frozen_frame(delta: float, step: Vector2, stun: float) -> void:
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
-	pose.update(delta, facing, step, speed, _stances(), _hands.punch_amounts(), stun)
+	pose.update(delta, _pose_drive(step, stun))
+
+
+## What drives the pose this frame: the aim, the walk at `moving` (px/s), each hand's stance and
+## punch, and the `stun_at` level.
+func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
+	var drive := PoseDrive.new()
+	drive.facing = facing
+	drive.velocity = moving
+	drive.top_speed = speed
+	drive.stances = _stances()
+	drive.punch = _hands.punch_amounts()
+	drive.stun = stun_at
+	return drive
 
 
 ## Keep the collision exception with `body` (one the character just left: an interaction's object, a

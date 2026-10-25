@@ -134,11 +134,14 @@ static func spawn(throw: GrenadeThrow, parent: Node) -> ThrownGrenade:
 	node._direction = (to - from).normalized() if from.distance_to(to) > 0.5 else Vector2.RIGHT
 	if throw.thrower is CollisionObject2D:
 		node._thrower_rid = [(throw.thrower as CollisionObject2D).get_rid()]
-	var lob := _fit(
-		row, plan(row, from.distance_to(to)), from, to, node._direction,
-		parent.get_viewport().find_world_2d().direct_space_state, _sweep_query(node.radius),
-		node._thrower_rid,
-	)
+	var course := GrenadeCourse.new()
+	course.from = from
+	course.to = to
+	course.direction = node._direction
+	course.space = parent.get_viewport().find_world_2d().direct_space_state
+	course.query = _sweep_query(node.radius)
+	course.passed = node._thrower_rid
+	var lob := _fit(row, plan(row, from.distance_to(to)), course)
 	node._motion = _motion_for(row, lob)
 	node._angle = node._direction.angle()
 	node._spin = randf_range(8.0, 14.0) * (1.0 if randf() < 0.5 else -1.0)
@@ -184,21 +187,20 @@ static func _flight(row: Dictionary, reach: float) -> Dictionary:
 	}
 
 
-## The lob to throw from `from` toward `to` (along `direction`), given `lob`, the one planned in
-## free air: kept when, flown over the floor in `space` (the walls, furniture and bodies the node
-## itself strikes, `_sweep`, the thrower's body in `passed` passed as the node passes it), it comes
-## to rest within `FIT_NEAR` of the aim; else the longer lob, up to `max_range`, that comes to rest
-## nearest it (a piece the skid would have run into is flown over).
-static func _fit(row: Dictionary, lob: Dictionary, from: Vector2, to: Vector2, direction: Vector2,
-		space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		passed: Array[RID] = []) -> Dictionary:
+## The lob to throw along `course` (from its `from` toward its `to`), given `lob`, the one planned
+## in free air: kept when, flown over the floor in the course's `space` (the walls, furniture and
+## bodies the node itself strikes, `_sweep`, the thrower's body in its `passed` passed as the node
+## passes it), it comes to rest within `FIT_NEAR` of the aim; else the longer lob, up to
+## `max_range`, that comes to rest nearest it (a piece the skid would have run into is flown over).
+static func _fit(row: Dictionary, lob: Dictionary, course: GrenadeCourse) -> Dictionary:
+	var to := course.to
 	var best := lob
-	var best_off := _rest_in(row, lob, from, direction, space, query, passed).distance_to(to)
+	var best_off := _rest_in(row, lob, course).distance_to(to)
 	var reach := float(lob["reach"]) + FIT_STEP
 	var cap := float(row.get("max_range", 550.0))
 	while best_off > FIT_NEAR and reach <= cap:
 		var longer := _flight(row, reach)
-		var off := _rest_in(row, longer, from, direction, space, query, passed).distance_to(to)
+		var off := _rest_in(row, longer, course).distance_to(to)
 		if off < best_off:
 			best = longer
 			best_off = off
@@ -206,32 +208,24 @@ static func _fit(row: Dictionary, lob: Dictionary, from: Vector2, to: Vector2, d
 	return best
 
 
-## Where a grenade of `row` thrown on `lob` from `from` along `direction` comes to rest over the
-## floor in `space`: the node's own motion (`Motion.step`, `_sweep`, the thrower's body in `passed`
+## Where a grenade of `row` thrown on `lob` along `course` comes to rest over the floor in its
+## `space`: the node's own motion (`Motion.step`, `_sweep`, the thrower's body in its `passed`
 ## passed for the first `THROWER_CLEAR` px), stepped at the game's physics rate.
-static func _rest_in(row: Dictionary, lob: Dictionary, from: Vector2, direction: Vector2,
-		space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		passed: Array[RID] = []) -> Vector2:
+static func _rest_in(row: Dictionary, lob: Dictionary, course: GrenadeCourse) -> Vector2:
 	var motion := _motion_for(row, lob)
-	var at := from
-	var dir := direction
+	var query := course.query
+	var at := course.from
+	var dir := course.direction
 	var flown := 0.0
 	for _frame in PLAN_FRAMES:
 		motion.step(PLAN_DELTA)
 		var step := motion.speed * PLAN_DELTA
-		var moved := _sweep(
-			space,
-			query,
-			at,
-			dir,
-			dir * step,
-			motion.height,
-			passed if flown < THROWER_CLEAR else NOBODY,
-		)
+		query.exclude = course.passed if flown < THROWER_CLEAR else NOBODY
+		var moved := _sweep(course.space, query, at, dir * step, motion.height)
 		flown += step
 		at = moved["at"]
-		dir = moved["direction"]
 		if moved["struck"]:
+			dir = dir.bounce(moved["normal"]).normalized()
 			motion.speed *= motion.restitution
 		if motion.rolling and motion.speed <= REST_SPEED:
 			break
@@ -306,48 +300,48 @@ func _update_layer() -> void:
 func _slide(motion: Vector2) -> void:
 	if motion.length_squared() < 0.000001:
 		return
+	_query.exclude = _thrower_rid if _flown < THROWER_CLEAR else NOBODY
 	var moved := _sweep(
-		get_world_2d().direct_space_state, _query, global_position, _direction, motion,
-		_motion.height, _thrower_rid if _flown < THROWER_CLEAR else NOBODY,
+		get_world_2d().direct_space_state, _query, global_position, motion, _motion.height
 	)
 	_flown += motion.length()
 	global_position = moved["at"]
 	if not moved["struck"]:
 		return
-	_direction = moved["direction"]
+	_direction = _direction.bounce(moved["normal"]).normalized()
 	if _motion.speed > MIN_CLATTER_SPEED:
 		_post(&"bounce")
 	_motion.speed *= _motion.restitution
 	_spin *= -0.5
 
 
-## One step of `motion` across the floor from `at` heading along `direction`, `height` px up, swept
-## with `query`: `{ at, direction, struck }`, where it ends, which way it then heads and whether it
-## struck something (it stops at the thing and bounces off it, the other way); the bodies in
-## `passed` (the thrower, just after the release) do not stop it. Shared by the node and the plan
-## (`_rest_in`), so the plan flies the node's own course.
+## One step of `motion` across the floor from `at`, `height` px up, swept with `query`:
+## `{ at, normal, struck }`, where it ends, the normal of what it struck and whether it struck
+## something (it stops at the thing and bounces off it, the other way: the caller turns its heading
+## by the normal); the bodies in the query's `exclude` (the thrower, just after the release) do not
+## stop it. Shared by the node and the plan (`_rest_in`), so the plan flies the node's own course.
 static func _sweep(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		at: Vector2, direction: Vector2, motion: Vector2, height: float,
-		passed: Array[RID] = []) -> Dictionary:
+		at: Vector2, motion: Vector2, height: float) -> Dictionary:
 	if motion.length_squared() < 0.000001:
-		return { "at": at, "direction": direction, "struck": false }
-	var struck := _first_strike(space, query, at, motion, height, passed)
+		return { "at": at, "normal": Vector2.ZERO, "struck": false }
+	var struck := _first_strike(space, query, at, motion, height)
 	if struck.is_empty():
-		return { "at": at + motion, "direction": direction, "struck": false }
+		return { "at": at + motion, "normal": Vector2.ZERO, "struck": false }
 	var normal: Vector2 = struck["normal"]
 	return {
 		"at": at + motion * float(struck["safe"]) + normal * 0.5,
-		"direction": direction.bounce(normal).normalized(),
+		"normal": normal,
 		"struck": true,
 	}
 
 
 ## What first stops a sweep of `motion` from `at`, `height` px up, as `{ safe, normal }` (how far
 ## along it is clear, and the surface's normal), or {} when nothing does. A piece whose `coverage`
-## is below the grenade's height is flown over: it is skipped; so are the bodies in `passed`.
+## is below the grenade's height is flown over: it is skipped; so are the bodies in the query's
+## `exclude` (the ones passed), which it leaves holding what it skipped.
 static func _first_strike(space: PhysicsDirectSpaceState2D, query: PhysicsShapeQueryParameters2D,
-		at: Vector2, motion: Vector2, height: float, passed: Array[RID] = []) -> Dictionary:
-	var skipped: Array[RID] = passed.duplicate()
+		at: Vector2, motion: Vector2, height: float) -> Dictionary:
+	var skipped: Array[RID] = query.exclude  # The getter hands back a copy.
 	for _attempt in 6:
 		query.exclude = skipped
 		query.transform = Transform2D(0.0, at)

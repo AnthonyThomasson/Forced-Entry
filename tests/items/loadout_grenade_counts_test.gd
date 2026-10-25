@@ -52,7 +52,17 @@ func _press(t: TestContext, mode_button: String, config: Dictionary) -> Dictiona
 
 
 func run(t: TestContext) -> void:
-	# The items: a count, spent a throw at a time.
+	if not _check_items(t):
+		return
+	_check_apply(t)
+	_check_normalize(t)
+	_check_setup_window(t)
+	_check_match_defaults(t)
+
+
+## The items: a count, spent a throw at a time. Whether the grenade items exist with their count
+## (false after a failed `require`).
+func _check_items(t: TestContext) -> bool:
 	# Untyped (Variant) on purpose: `Item` has no `uses_left` yet, and a typed call would not parse.
 	var stun: Variant = ItemRegistry.create(Probe.STUN, 2)
 	var frag: Variant = ItemRegistry.create(Probe.FRAG, 3)
@@ -62,12 +72,12 @@ func run(t: TestContext) -> void:
 			stun != null and frag != null,
 			"ItemRegistry.create(7, 2) and create(8, 3) make the grenade items",
 	):
-		return
+		return false
 	if not t.require(
 			stun.has_method("uses_left") and pistol.has_method("uses_left"),
 			"Item.uses_left() exists on every item",
 	):
-		return
+		return false
 	t.expect_eq(stun.uses_left(), 2, "the stun grenade item counts two")
 	t.expect_eq(frag.uses_left(), 3, "the frag grenade item counts three")
 	t.expect_eq(pistol.uses_left(), -1, "a gun is unlimited (-1)")
@@ -77,8 +87,11 @@ func run(t: TestContext) -> void:
 		"a grenade is throwable",
 	)
 	t.check(pistol.has_method("is_throwable") and not pistol.is_throwable(), "a gun is not")
+	return true
 
-	# apply: the counts reach the character.
+
+## apply: the counts reach the character.
+func _check_apply(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var armed := t.actor(&"armed")
@@ -99,7 +112,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(Probe.count(plain, Probe.FRAG), 0, "and no frag grenades")
 
-	# normalize keeps the counts in 0..3.
+
+## normalize keeps the counts in 0..3; the grenade rows and gun options the setup window lists.
+func _check_normalize(t: TestContext) -> void:
 	var big := LoadoutConfig.normalize({ "weapon": &"pistol", "stuns": 9, "frags": 9 })
 	t.expect_eq(big.get("stuns"), 3, "a stun count above three is three")
 	t.expect_eq(big.get("frags"), 3, "a frag count above three is three")
@@ -129,7 +144,9 @@ func run(t: TestContext) -> void:
 		"the gun options stay Random plus one per gun",
 	)
 
-	# The setup window carries a Stun and a Frag count per side.
+
+## The setup window carries a Stun and a Frag count per side.
+func _check_setup_window(t: TestContext) -> void:
 	var side := {
 		"side": "invader", "seed": 42, "weapons": WEAPONS,
 		"defenders": { "count": 2, "weapon": "fists", "stuns": 0, "frags": 1 },
@@ -158,7 +175,9 @@ func run(t: TestContext) -> void:
 		"current_config() keeps the counts for the next opening",
 	)
 
-	# A match's defaults: invaders 1 + 1, defenders 0 + 0.
+
+## A match's defaults: invaders 1 + 1, defenders 0 + 0.
+func _check_match_defaults(t: TestContext) -> void:
 	MatchBuilder.arm([t.actor(&"home"), t.actor(&"raider")], MatchBuilder.spec({ "seed": 99 }))
 	t.expect_eq(
 		[Probe.count(t.actor(&"raider"), Probe.STUN), Probe.count(t.actor(&"raider"), Probe.FRAG)],

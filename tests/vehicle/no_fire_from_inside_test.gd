@@ -35,8 +35,23 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", RIDERS.keys()):
 		return
 	var car := t.vehicle(&"car") as Node2D
+	if not await _fires_on_foot(t):
+		return
+	await t.seconds(0.6)
+	if not await _board_both(t, car):
+		return
+	await t.seconds(0.6)
+	t.check(
+		Probe.seat_of(car, t.actor(&"d")) == &"driver"
+			and Probe.seat_of(car, t.actor(&"p")) == &"passenger",
+		"one drives, one rides (%s, %s)"
+			% [Probe.seat_of(car, t.actor(&"d")), Probe.seat_of(car, t.actor(&"p"))],
+	)
+	await _check_seated_clicks(t, car)
 
-	# The control: on foot, the same click fires.
+
+## The control: on foot, the same click fires (false: one did not, the test has ended).
+func _fires_on_foot(t: TestContext) -> bool:
 	for id in RIDERS:
 		var who := t.actor(id) as Node2D
 		var before := t.events.size()
@@ -48,25 +63,24 @@ func run(t: TestContext) -> void:
 				await t.until(func(): return not _since(t, before, &"shot", id).is_empty(), 1.0),
 				"on foot, %s's click fires a shot" % id,
 		):
-			return
-	await t.seconds(0.6)
+			return false
+	return true
 
-	# Driver first (a passenger with an empty driver's seat slides across to it).
+
+## Driver first (a passenger with an empty driver's seat slides across to it). False: one did not
+## get in, the test has ended.
+func _board_both(t: TestContext, car: Node2D) -> bool:
 	for id in RIDERS:
 		if not t.require(
 				await Probe.board_by(t, id, car, RIDERS[id]),
 				"%s gets in by the %s door" % [id, RIDERS[id]],
 		):
-			return
-	await t.seconds(0.6)
-	t.check(
-		Probe.seat_of(car, t.actor(&"d")) == &"driver"
-			and Probe.seat_of(car, t.actor(&"p")) == &"passenger",
-		"one drives, one rides (%s, %s)"
-			% [Probe.seat_of(car, t.actor(&"d")), Probe.seat_of(car, t.actor(&"p"))],
-	)
+			return false
+	return true
 
-	# Seated: aim out of each side and click, ten times over two seconds.
+
+## Seated: aim out of each side and click, ten times over two seconds; no shot, ammo, hit or sound.
+func _check_seated_clicks(t: TestContext, car: Node2D) -> void:
 	var mark := t.events.size()
 	var ammo := {}
 	for id in RIDERS:

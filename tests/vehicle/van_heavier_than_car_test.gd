@@ -37,12 +37,12 @@ func configure(s: TestSetup) -> void:
 ## `steers[i]` for `duration` s, calling `sample` each frame.
 func _cruise(
 	t: TestContext,
-	vehicles: Array,
 	target: float,
 	steers: Array,
 	duration: float,
 	sample := Callable(),
 ) -> void:
+	var vehicles := _both(t)
 	var deadline := t.time + duration
 	while t.time < deadline:
 		for i in 2:
@@ -62,7 +62,8 @@ func _cruise(
 
 ## Brake both to a stop, together (one held on the throttle while the other stops would run on
 ## toward the far wall).
-func _stop(t: TestContext, vehicles: Array) -> void:
+func _stop(t: TestContext) -> void:
+	var vehicles := _both(t)
 	for id in IDS:
 		t.puppet(id).drive(-1.0, 0.0, false)
 	await t.until(func(): return vehicles.all(func(v): return Probe.along(v) <= 2.0), 6.0)
@@ -71,28 +72,18 @@ func _stop(t: TestContext, vehicles: Array) -> void:
 	await t.seconds(0.5)
 
 
+## The car and the van, in `IDS` order.
+func _both(t: TestContext) -> Array:
+	return [t.vehicle(&"car") as Node2D, t.vehicle(&"van") as Node2D]
+
+
 func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"c", &"v"]) or not Probe.ready(t, &"van"):
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var van := t.vehicle(&"van") as Node2D
-	var both := [car, van]
-	t.check(
-		float(van.get("mass")) > float(car.get("mass")),
-		"the van is heavier (%.0f against %.0f)" % [float(van.get("mass")), float(car.get("mass"))],
-	)
-	var car_top: Variant = Probe.kind_value(&"car", &"top_speed")
-	var van_top: Variant = Probe.kind_value(&"van", &"top_speed")
-	if not t.require(
-			car_top != null and van_top != null,
-			"VehicleConfig gives each kind a top_speed",
-	):
+	if not _check_specs(t, car, van):
 		return
-	t.check(
-		float(van_top) < float(car_top),
-		"the van's top speed is the lower (%.0f against %.0f px/s)"
-			% [float(van_top), float(car_top)],
-	)
 	if not t.require(
 			await Probe.board_by(t, &"c", car, &"front_left"),
 			"a driver gets into the car",
@@ -104,8 +95,37 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.seconds(0.5)
+	await _check_launch(t)
+	await _check_turn(t)
+	await _check_slide(t)
 
-	# --- Off the line: full throttle for 1.5 s.
+
+## The van is the heavier and has the lower top speed (false: no top speed to read, the test has
+## ended).
+func _check_specs(t: TestContext, car: Node2D, van: Node2D) -> bool:
+	t.check(
+		float(van.get("mass")) > float(car.get("mass")),
+		"the van is heavier (%.0f against %.0f)" % [float(van.get("mass")), float(car.get("mass"))],
+	)
+	var car_top: Variant = Probe.kind_value(&"car", &"top_speed")
+	var van_top: Variant = Probe.kind_value(&"van", &"top_speed")
+	if not t.require(
+			car_top != null and van_top != null,
+			"VehicleConfig gives each kind a top_speed",
+	):
+		return false
+	t.check(
+		float(van_top) < float(car_top),
+		"the van's top speed is the lower (%.0f against %.0f px/s)"
+			% [float(van_top), float(car_top)],
+	)
+	return true
+
+
+## Off the line: full throttle for 1.5 s, the van the slower; then both stop.
+func _check_launch(t: TestContext) -> void:
+	var car := t.vehicle(&"car") as Node2D
+	var van := t.vehicle(&"van") as Node2D
 	for id in IDS:
 		t.puppet(id).drive(1.0, 0.0, false)
 	await t.seconds(1.5)
@@ -114,14 +134,20 @@ func run(t: TestContext) -> void:
 		"the van accelerates slower (%.0f against the car's %.0f px/s)"
 			% [van.speed(), car.speed()],
 	)
-	await _stop(t, both)
+	await _stop(t)
 
-	# --- The turn at 60 px/s, full steer (car left, van right: they turn away from each other).
-	await _cruise(t, both, 60.0, [-1.0, 1.0], 1.5)
+
+## The turn at 60 px/s, full steer (car left, van right: they turn away from each other): the van's
+## circle is the wider. Then both stop and go back to their start lanes.
+func _check_turn(t: TestContext) -> void:
+	var car := t.vehicle(&"car") as Node2D
+	var van := t.vehicle(&"van") as Node2D
+	var both := _both(t)
+	await _cruise(t, 60.0, [-1.0, 1.0], 1.5)
 	var turned := [0.0, 0.0]
 	var travelled := [0.0, 0.0]
 	var last := [car.global_rotation, van.global_rotation]
-	await _cruise(t, both, 60.0, [-1.0, 1.0], 1.5, func():
+	await _cruise(t, 60.0, [-1.0, 1.0], 1.5, func():
 		for i in 2:
 			var v: Node2D = both[i]
 			turned[i] += absf(angle_difference(last[i], v.global_rotation))
@@ -134,21 +160,26 @@ func run(t: TestContext) -> void:
 			van_radius > car_radius * 1.1,
 			"the van turns on a wider circle (%.0f against %.0f px)" % [van_radius, car_radius],
 		)
-	await _stop(t, both)
+	await _stop(t)
 	# Back to the start lanes facing +x: the heading the circles leave them on depends on the
 	# tuning, and could aim them at a wall.
 	await Probe.move_vehicle(t, car, Vector2(400, 1000), 0.0)
 	await Probe.move_vehicle(t, van, Vector2(400, 1250), 0.0)
 
-	# --- The same high speed and full steer: the van slides more.
+
+## The same high speed and full steer: the van slides more.
+func _check_slide(t: TestContext) -> void:
+	var car := t.vehicle(&"car") as Node2D
+	var van := t.vehicle(&"van") as Node2D
+	var both := _both(t)
 	var fast := FAST
-	await _cruise(t, both, fast, [0.0, 0.0], 3.0)
+	await _cruise(t, fast, [0.0, 0.0], 3.0)
 	t.check(
 		car.speed() > fast - 15.0 and van.speed() > fast - 15.0,
 		"both reach %.0f px/s (%.0f, %.0f)" % [fast, car.speed(), van.speed()],
 	)
 	var slips := [0.0, 0.0]
-	await _cruise(t, both, fast, [-1.0, 1.0], 1.0, func():
+	await _cruise(t, fast, [-1.0, 1.0], 1.0, func():
 		for i in 2:
 			slips[i] = maxf(slips[i], float(both[i].slip())))
 	t.check(

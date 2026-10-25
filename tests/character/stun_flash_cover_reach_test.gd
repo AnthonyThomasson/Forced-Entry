@@ -44,28 +44,9 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var thrower := t.actor(&"thrower")
-	Probe.arm(thrower, 1, 0)
-	if not t.require(
-			Probe.count(thrower, Probe.STUN) == 1,
-			"the thrower carries a stun grenade (Character.item_count(7) = %d)"
-				% Probe.count(thrower, Probe.STUN),
-	):
+	var at := await _bang(t)
+	if at == Vector2.INF:
 		return
-	for who in [&"against", &"behind"]:
-		t.puppet(who).set_posture(&"crouch")
-	var clicked: float = await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
-	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
-		return
-	var burst := Probe.rest_point(t)
-	Probe.place(t, &"against", AGAINST, burst)
-	Probe.place(t, &"behind", BEHIND, burst)
-	if not t.require(
-			await Probe.wait_boom(t, &"stun", 1.2),
-			"the stun grenade goes off (clicked at %.2f s)" % clicked,
-	):
-		return
-	var at: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
 	await t.frames(2)
 	var against := t.actor(&"against")
 	var behind := t.actor(&"behind")
@@ -77,6 +58,39 @@ func run(t: TestContext) -> void:
 		Probe.shielded(t, at, against) and Probe.shielded(t, at, behind),
 		"set-up: a couch lies on the line from the burst to each, over a crouch's height",
 	)
+	_check_against(t, against)
+	_check_behind(t, behind, at)
+
+
+## The two victims crouch, the thrower's stun comes to rest, they are stood behind their couches,
+## and it goes off; returns where it burst (`Vector2.INF` after a failed `require`).
+func _bang(t: TestContext) -> Vector2:
+	var thrower := t.actor(&"thrower")
+	Probe.arm(thrower, 1, 0)
+	if not t.require(
+			Probe.count(thrower, Probe.STUN) == 1,
+			"the thrower carries a stun grenade (Character.item_count(7) = %d)"
+				% Probe.count(thrower, Probe.STUN),
+	):
+		return Vector2.INF
+	for who in [&"against", &"behind"]:
+		t.puppet(who).set_posture(&"crouch")
+	var clicked: float = await Probe.throw_at(t, &"thrower", Probe.STUN, AIM)
+	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
+		return Vector2.INF
+	var burst := Probe.rest_point(t)
+	Probe.place(t, &"against", AGAINST, burst)
+	Probe.place(t, &"behind", BEHIND, burst)
+	if not t.require(
+			await Probe.wait_boom(t, &"stun", 1.2),
+			"the stun grenade goes off (clicked at %.2f s)" % clicked,
+	):
+		return Vector2.INF
+	return Probe.booms(t, &"stun")[0]["data"]["position"]
+
+
+## The victim `against` the couch is stunned by the bang but not flashed.
+func _check_against(t: TestContext, against: Node) -> void:
 	var a_events := Probe.stuns(t, against)
 	if t.check(
 			not a_events.is_empty(),
@@ -88,6 +102,11 @@ func run(t: TestContext) -> void:
 				% float(a_events[0]["data"].get("blind", 0.0)),
 		)
 	t.check(not Probe.blind(against), "so it is not blind")
+
+
+## The victim 120 px `behind` the other couch is flashed by the burst at `at` for the formula's
+## time.
+func _check_behind(t: TestContext, behind: Node, at: Vector2) -> void:
 	var b_events := Probe.stuns(t, behind)
 	if t.check(not b_events.is_empty(), "the victim 120 px behind the other couch is stunned"):
 		var got := float(b_events[0]["data"].get("blind", -1.0))

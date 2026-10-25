@@ -30,7 +30,6 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	var pants: Color = opts.get("pants", base)
 	var t := PixelCanvas.tones(base)
 	var pt := PixelCanvas.tones(pants)
-	var skin: Color = look.get("skin", Color.WHITE)
 	var cx := int(c.w / 2.0)
 	var waist := roundi(c.h * _WAIST)
 	var hips := PixelCanvas.rounded(Rect2i(0, waist, c.w, c.h - waist), 0)
@@ -40,48 +39,10 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.fill(shirt, base, _SHIRT)
 	c.surface(shirt, material, base)
 	StyleArt.edge(c, shirt, look)
-	var police: bool = look.get("police", false)
-	var long := String(look.get("body", "")) == "long_sleeves"
-	if (not police
-			and not long
-			and (look.get("sleeves", []) as Array).has(null)
-			and String(look.get("style", "")) != "merc"):
-		# A tank top: bare skin either side of it (and up to the throat at the front), inked and
-		# inlaid.
-		var side_w := maxi(2, roundi(c.w * 0.18))
-		for x0 in [0, c.w - side_w]:
-			var bare := Rect2i(x0, 0, side_w, roundi(waist * 0.55))
-			c.fill(PixelCanvas.rounded(bare, 0), skin, _SHIRT)
-			if look.get("tattoo", false):
-				StyleArt.tattoo(c, bare, look, 2)
-			if look.get("inlays", false):
-				StyleArt.inlays(c, bare, 2)
-		if face == "front":
-			c.fill(PixelCanvas.disc(Vector2i(cx, 0), 3), skin, _SHIRT)
+	_tank_top(c, face, waist, look)
 	match face:
 		"front":
-			if long and not police:
-				c.line(Vector2i(cx, 0), Vector2i(cx, waist - 1), skin, _SHIRT)  # An open jacket.
-				c.line(Vector2i(cx - 1, 0), Vector2i(cx - 1, waist - 1), t.dark, _SHIRT)
-			elif police:
-				c.line(Vector2i(cx - 3, 1), Vector2i(cx, 4), t.shadow)
-				c.line(Vector2i(cx + 3, 1), Vector2i(cx, 4), t.shadow)
-				match String(look.get("style", "")):
-					"zenitex":
-						StyleArt.stencil(
-							c,
-							Vector2i(cx - 4, 6),
-							9,
-							look.get("trim", Color.WHITE),
-							_SHIRT,
-						)
-					"trauma":
-						StyleArt.cross(c, Vector2i(cx + 4, 6), look.get("trim", Color.RED), _SHIRT)
-			else:
-				c.line(Vector2i(cx - 3, 1), Vector2i(cx - 1, 3), t.dark)  # A tee's round neck.
-				c.line(Vector2i(cx + 3, 1), Vector2i(cx + 1, 3), t.dark)
-			c.line(Vector2i(0, waist), Vector2i(c.w - 1, waist), pt.outline, _PANTS)
-			c.px(cx, waist, _BUCKLE, _PANTS)
+			_chest(c, base, pants, waist, look)
 		"back":
 			c.line(Vector2i(cx, 3), Vector2i(cx, waist - 2), t.dark)
 			c.line(Vector2i(0, waist), Vector2i(c.w - 1, waist), pt.outline, _PANTS)
@@ -89,20 +50,82 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 			c.line(Vector2i(cx, 2), Vector2i(cx, waist - 2), t.dark)
 	VestPainter.paint_face(c, face, waist, opts)
 	if face == "back":
-		if look.get("spine", false):
-			# The spine rig: vertebrae down the back to the belt, a glowing node at the top.
-			for y in range(1, waist - 1, 2):
-				c.px(cx, y, Color(0.07, 0.07, 0.08), _RIG)
-				c.px(cx - 1, y, Color(0.18, 0.18, 0.2), _RIG)
-				c.px(cx + 1, y, Color(0.18, 0.18, 0.2), _RIG)
-				c.px(cx - 2 if y % 4 == 1 else cx + 2, y, Color(0.12, 0.12, 0.14), _RIG)
-			c.px(cx, 1, look.get("glow", Color.RED), _RIG)
-		if look.get("cables", false):
-			c.line(Vector2i(cx + 2, 0), Vector2i(cx + 5, waist - 3), _CABLE, _RIG)
-			c.line(Vector2i(cx + 3, 0), Vector2i(cx + 7, waist - 4), _CABLE.darkened(0.25), _RIG)
-		if look.get("pack", false):
-			_pack(c, cx, waist, look)
+		_back(c, waist, look)
 	c.cast_shadows()
+
+
+## A crew's tank top: bare skin either side of it (and up to the throat at the front), inked and
+## inlaid. Nothing for a police uniform, long sleeves, sleeves on both arms or a merc.
+static func _tank_top(c: PixelCanvas, face: String, waist: int, look: Dictionary) -> void:
+	var police: bool = look.get("police", false)
+	var long := String(look.get("body", "")) == "long_sleeves"
+	var tank := (not police
+			and not long
+			and (look.get("sleeves", []) as Array).has(null)
+			and String(look.get("style", "")) != "merc")
+	if not tank:
+		return
+	var skin: Color = look.get("skin", Color.WHITE)
+	var side_w := maxi(2, roundi(c.w * 0.18))
+	for x0 in [0, c.w - side_w]:
+		var bare := Rect2i(x0, 0, side_w, roundi(waist * 0.55))
+		c.fill(PixelCanvas.rounded(bare, 0), skin, _SHIRT)
+		if look.get("tattoo", false):
+			StyleArt.tattoo(c, bare, look, 2)
+		if look.get("inlays", false):
+			StyleArt.inlays(c, bare, 2)
+	if face == "front":
+		c.fill(PixelCanvas.disc(Vector2i(int(c.w / 2.0), 0), 3), skin, _SHIRT)
+
+
+## The chest of a `base` shirt over `pants`: a crew's open jacket, a police collar with its unit's
+## mark, or a tee's round neck; the belt and its buckle.
+static func _chest(c: PixelCanvas, base: Color, pants: Color, waist: int, look: Dictionary) -> void:
+	var t := PixelCanvas.tones(base)
+	var cx := int(c.w / 2.0)
+	var police: bool = look.get("police", false)
+	var long := String(look.get("body", "")) == "long_sleeves"
+	if long and not police:
+		var skin: Color = look.get("skin", Color.WHITE)
+		c.line(Vector2i(cx, 0), Vector2i(cx, waist - 1), skin, _SHIRT)  # An open jacket.
+		c.line(Vector2i(cx - 1, 0), Vector2i(cx - 1, waist - 1), t.dark, _SHIRT)
+	elif police:
+		c.line(Vector2i(cx - 3, 1), Vector2i(cx, 4), t.shadow)
+		c.line(Vector2i(cx + 3, 1), Vector2i(cx, 4), t.shadow)
+		_unit_mark(c, cx, look)
+	else:
+		c.line(Vector2i(cx - 3, 1), Vector2i(cx - 1, 3), t.dark)  # A tee's round neck.
+		c.line(Vector2i(cx + 3, 1), Vector2i(cx + 1, 3), t.dark)
+	c.line(Vector2i(0, waist), Vector2i(c.w - 1, waist), PixelCanvas.tones(pants).outline, _PANTS)
+	c.px(cx, waist, _BUCKLE, _PANTS)
+
+
+## The police unit's mark on the chest beside the collar: the Zenitex's stencil, the Trauma Team's
+## cross.
+static func _unit_mark(c: PixelCanvas, cx: int, look: Dictionary) -> void:
+	match String(look.get("style", "")):
+		"zenitex":
+			StyleArt.stencil(c, Vector2i(cx - 4, 6), 9, look.get("trim", Color.WHITE), _SHIRT)
+		"trauma":
+			StyleArt.cross(c, Vector2i(cx + 4, 6), look.get("trim", Color.RED), _SHIRT)
+
+
+## The back over the vest: the spine rig (vertebrae down the back to the belt, a glowing node at
+## the top), cables and the pack.
+static func _back(c: PixelCanvas, waist: int, look: Dictionary) -> void:
+	var cx := int(c.w / 2.0)
+	if look.get("spine", false):
+		for y in range(1, waist - 1, 2):
+			c.px(cx, y, Color(0.07, 0.07, 0.08), _RIG)
+			c.px(cx - 1, y, Color(0.18, 0.18, 0.2), _RIG)
+			c.px(cx + 1, y, Color(0.18, 0.18, 0.2), _RIG)
+			c.px(cx - 2 if y % 4 == 1 else cx + 2, y, Color(0.12, 0.12, 0.14), _RIG)
+		c.px(cx, 1, look.get("glow", Color.RED), _RIG)
+	if look.get("cables", false):
+		c.line(Vector2i(cx + 2, 0), Vector2i(cx + 5, waist - 3), _CABLE, _RIG)
+		c.line(Vector2i(cx + 3, 0), Vector2i(cx + 7, waist - 4), _CABLE.darkened(0.25), _RIG)
+	if look.get("pack", false):
+		_pack(c, cx, waist, look)
 
 
 ## A pack on the back in `pack_col`: a padded body (a medic's cross on it), straps running up over

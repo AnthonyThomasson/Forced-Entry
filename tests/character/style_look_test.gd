@@ -84,20 +84,8 @@ func run(t: TestContext) -> void:
 		return
 	for id in STYLES + [&"plain"]:
 		t.puppet(id).aim_at(t.actor(id).global_position + AIM_AHEAD)
-
-	# The premise: unstyled, in the same outfit, the bodies draw alike.
-	_dress_all(t, OutfitProbe.PLATED_KIT)
-	await t.seconds(1.0)
-	var unstyled := OutfitProbe.art(plain)
-	if not t.require(not unstyled.is_empty(), "the body is drawn"):
+	if not await _check_premise(t, plain):
 		return
-	for style in STYLES:
-		if not t.require(
-				OutfitProbe.art(t.actor(style)) == unstyled,
-				("unstyled, the body standing where %s will stand draws as the others (the "
-						+ "comparison's premise)") % style,
-		):
-			return
 
 	# A character never given a style is a zenitex.
 	t.expect_eq(
@@ -117,30 +105,55 @@ func run(t: TestContext) -> void:
 		t.expect_eq(c.style, style, "set_style(%s) sets Character.style" % style)
 
 	for outfit: Array in OUTFITS:
-		_dress_all(t, outfit[1])
-		await t.seconds(0.5)
-		var drawn := {}  # style -> its textures, as a set
-		for style in STYLES:
-			drawn[style] = _set_of(OutfitProbe.art(t.actor(style)))
-			t.check(not drawn[style].is_empty(), "%s in %s is drawn" % [style, outfit[0]])
-		for i in STYLES.size():
-			for j in range(i + 1, STYLES.size()):
-				t.check(
-					drawn[STYLES[i]] != drawn[STYLES[j]],
-					"in %s, %s and %s are drawn differently" % [outfit[0], STYLES[i], STYLES[j]],
-				)
-		t.check(
-			OutfitProbe.art(plain) == OutfitProbe.art(t.actor(&"zenitex")),
-			"in %s, the character with no style draws as the zenitex with its look seed"
-				% outfit[0],
-		)
+		await _check_outfit(t, outfit, plain)
+	await _check_ranks(t)
 
-		# What the outfit does is the unstyled body's.
-		for style in STYLES:
-			_check_same_function(t, t.actor(style), plain, "%s in %s" % [style, outfit[0]])
 
-	# The rank marks, in the plated kit (the lead's stripe is on the helmet): each body drawn at
-	# every rank.
+## The premise: unstyled, in the same outfit, the bodies draw alike (`plain` the one never styled).
+## Whether they do (false after a failed `require`).
+func _check_premise(t: TestContext, plain: Node) -> bool:
+	_dress_all(t, OutfitProbe.PLATED_KIT)
+	await t.seconds(1.0)
+	var unstyled := OutfitProbe.art(plain)
+	if not t.require(not unstyled.is_empty(), "the body is drawn"):
+		return false
+	for style in STYLES:
+		var premise := ("unstyled, the body standing where %s will stand draws as the others (the "
+				+ "comparison's premise)") % style
+		if not t.require(OutfitProbe.art(t.actor(style)) == unstyled, premise):
+			return false
+	return true
+
+
+## In `outfit` (`[name, outfit]`), each style draws differently from every other, `plain` (never
+## styled) as the zenitex, and what the outfit does is the unstyled body's.
+func _check_outfit(t: TestContext, outfit: Array, plain: Node) -> void:
+	_dress_all(t, outfit[1])
+	await t.seconds(0.5)
+	var drawn := {}  # style -> its textures, as a set
+	for style in STYLES:
+		drawn[style] = _set_of(OutfitProbe.art(t.actor(style)))
+		t.check(not drawn[style].is_empty(), "%s in %s is drawn" % [style, outfit[0]])
+	for i in STYLES.size():
+		for j in range(i + 1, STYLES.size()):
+			t.check(
+				drawn[STYLES[i]] != drawn[STYLES[j]],
+				"in %s, %s and %s are drawn differently" % [outfit[0], STYLES[i], STYLES[j]],
+			)
+	t.check(
+		OutfitProbe.art(plain) == OutfitProbe.art(t.actor(&"zenitex")),
+		"in %s, the character with no style draws as the zenitex with its look seed"
+			% outfit[0],
+	)
+
+	# What the outfit does is the unstyled body's.
+	for style in STYLES:
+		_check_same_function(t, t.actor(style), plain, "%s in %s" % [style, outfit[0]])
+
+
+## The rank marks, in the plated kit (the lead's stripe is on the helmet): each body drawn at
+## every rank.
+func _check_ranks(t: TestContext) -> void:
 	_dress_all(t, OutfitProbe.PLATED_KIT)
 	var by_rank := {}  # style -> [its textures as a set, per rank]
 	for style in STYLES:
@@ -157,19 +170,25 @@ func run(t: TestContext) -> void:
 			)
 			by_rank[style].append(_set_of(OutfitProbe.art(t.actor(style))))
 	for style in STYLES:
-		var trooper: Dictionary = by_rank[style][0]
-		for rank in [1, 2]:
-			if style in POLICE:
-				t.check(
-					by_rank[style][rank] != trooper,
-					"%s rank %d draws differently from rank 0" % [style, rank],
-				)
-			else:
-				t.check(
-					by_rank[style][rank] == trooper,
-					"%s rank %d draws the same as rank 0 (a crew has no rank marks)"
-						% [style, rank],
-				)
+		_check_rank_marks(t, style, by_rank[style])
+
+
+## `style`'s drawings at each rank (`drawn`, its textures as a set per rank): a police unit's
+## sergeant and lead draw differently from its trooper, a crew's the same.
+func _check_rank_marks(t: TestContext, style: StringName, drawn: Array) -> void:
+	var trooper: Dictionary = drawn[0]
+	for rank in [1, 2]:
+		if style in POLICE:
+			t.check(
+				drawn[rank] != trooper,
+				"%s rank %d draws differently from rank 0" % [style, rank],
+			)
+		else:
+			t.check(
+				drawn[rank] == trooper,
+				"%s rank %d draws the same as rank 0 (a crew has no rank marks)"
+					% [style, rank],
+			)
 
 
 ## Dress every body in `ids`.

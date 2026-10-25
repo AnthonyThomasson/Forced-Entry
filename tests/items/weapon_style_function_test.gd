@@ -135,8 +135,21 @@ func _fire(t: TestContext, gun: StringName, style: StringName) -> Dictionary:
 		"the shooter holds the %s in %s (the premise)" % [gun, style],
 	)
 	var mark := t.events.size()
+	await _pull_trigger(t, shooter.is_automatic())
+	await t.seconds(LANDING)
+	var shots := _shots_since(t, mark, shooter)
+	var hits := _hits_since(t, mark, shooter)
+	var sounds := _shot_sounds_since(t, mark)
+	t.check(not shots.is_empty(), "the %s in %s fires" % [gun, style])
+	t.check(not hits.is_empty(), "the %s in %s strikes the target" % [gun, style])
+	t.check(not sounds.is_empty(), "the %s in %s sounds" % [gun, style])
+	return { "shots": shots, "hits": hits, "sounds": sounds }
+
+
+## Fire the shooter's gun for `WINDOW`: the trigger held when `automatic`, else clicked every frame.
+func _pull_trigger(t: TestContext, automatic: bool) -> void:
 	var puppet := t.puppet(&"shooter")
-	if shooter.is_automatic():
+	if automatic:
 		puppet.hold_fire(true)
 		await t.seconds(WINDOW)
 		puppet.hold_fire(false)
@@ -144,38 +157,50 @@ func _fire(t: TestContext, gun: StringName, style: StringName) -> Dictionary:
 		for i in roundi(WINDOW * Engine.physics_ticks_per_second):
 			puppet.shoot()
 			await t.frames(1)
-	await t.seconds(LANDING)
-	var shots: Array = []
-	var hits: Array = []
-	var sounds: Array = []
-	var first := -1.0
-	for e: Dictionary in t.events.slice(mark):
-		var d: Dictionary = e["data"]
-		match e["topic"]:
-			&"shot":
-				if d.get("attacker") == shooter:
-					if first < 0.0:
-						first = e["time"]
-					shots.append({
-						"time": e["time"] - first,
-						"gun": d["gun"],
-						"power": d["power"],
-						"position": d["position"],
-					})
-			&"hit":
-				if d.get("attacker") == shooter and d.get("victim") == t.actor(&"target"):
-					hits.append({ "damage": d["damage"], "outcome": d.get("outcome") })
-			&"sound":
-				if d.get("kind") == &"shot":
-					sounds.append({
-						"profile": d["profile"],
-						"volume_db": d["volume_db"],
-						"pitch": d["pitch"],
-					})
-	t.check(not shots.is_empty(), "the %s in %s fires" % [gun, style])
-	t.check(not hits.is_empty(), "the %s in %s strikes the target" % [gun, style])
-	t.check(not sounds.is_empty(), "the %s in %s sounds" % [gun, style])
-	return { "shots": shots, "hits": hits, "sounds": sounds }
+
+
+## The `shooter`'s `shot` events since event `mark`: `[{ time, gun, power, position }]`, the time
+## from the first.
+func _shots_since(t: TestContext, mark: int, shooter: Node) -> Array:
+	var own := _since(t, mark, &"shot").filter(
+		func(e: Dictionary) -> bool: return e["data"].get("attacker") == shooter,
+	)
+	if own.is_empty():
+		return []
+	var first: float = own[0]["time"]
+	return own.map(
+		func(e: Dictionary) -> Dictionary: return {
+			"time": e["time"] - first,
+			"gun": e["data"]["gun"],
+			"power": e["data"]["power"],
+			"position": e["data"]["position"],
+		},
+	)
+
+
+## The `shooter`'s rounds that struck the target since event `mark`: `[{ damage, outcome }]`.
+func _hits_since(t: TestContext, mark: int, shooter: Node) -> Array:
+	var target := t.actor(&"target")
+	return _since(t, mark, &"hit").filter(
+		func(e: Dictionary) -> bool:
+			return e["data"].get("attacker") == shooter and e["data"].get("victim") == target,
+	).map(
+		func(e: Dictionary) -> Dictionary:
+			return { "damage": e["data"]["damage"], "outcome": e["data"].get("outcome") },
+	)
+
+
+## The `sound` events of kind `shot` since event `mark`: `[{ profile, volume_db, pitch }]`.
+func _shot_sounds_since(t: TestContext, mark: int) -> Array:
+	return _since(t, mark, &"sound").filter(
+		func(e: Dictionary) -> bool: return e["data"].get("kind") == &"shot",
+	).map(
+		func(e: Dictionary) -> Dictionary: return {
+			"profile": e["data"]["profile"],
+			"volume_db": e["data"]["volume_db"],
+			"pitch": e["data"]["pitch"],
+		},
+	)
 
 
 ## Check that the `gun` in `style` did what the police one did.
@@ -187,74 +212,95 @@ func _compare_gun(
 	police: Dictionary,
 ) -> void:
 	var what := "the %s in %s" % [gun, style]
-	if t.expect_eq(
-			got["shots"].size(),
-			police["shots"].size(),
+	_compare_shots(t, what, got["shots"], police["shots"])
+	_compare_hits(t, what, got["hits"], police["hits"])
+	_compare_sounds(t, what, got["sounds"], police["sounds"])
+
+
+## Check that `what`'s `shots` came as the police gun's did (`police`): as many, at its moments,
+## naming the same gun, as strong, from the same muzzle.
+func _compare_shots(t: TestContext, what: String, shots: Array, police: Array) -> void:
+	if not t.expect_eq(
+			shots.size(),
+			police.size(),
 			"%s fires as many rounds in %.1f s as in police" % [what, WINDOW],
 	):
-		for i in got["shots"].size():
-			var a: Dictionary = got["shots"][i]
-			var b: Dictionary = police["shots"][i]
-			t.expect_near(
-				a["time"],
-				b["time"],
-				0.001,
-				"%s fires round %d at the police gun's moment (its rate)" % [what, i],
-			)
-			t.expect_eq(a["gun"], b["gun"], "%s's shot %d names the same gun" % [what, i])
-			t.expect_near(
-				a["power"],
-				b["power"],
-				0.0001,
-				"%s's shot %d has the same power" % [what, i],
-			)
-			t.check(
-				a["position"].distance_to(b["position"]) <= NEAR_PX,
-				"%s's shot %d leaves the same muzzle (%s vs %s)"
-					% [what, i, a["position"], b["position"]],
-			)
-	if t.expect_eq(
-			got["hits"].size(),
-			police["hits"].size(),
+		return
+	for i in shots.size():
+		var a: Dictionary = shots[i]
+		var b: Dictionary = police[i]
+		t.expect_near(
+			a["time"],
+			b["time"],
+			0.001,
+			"%s fires round %d at the police gun's moment (its rate)" % [what, i],
+		)
+		t.expect_eq(a["gun"], b["gun"], "%s's shot %d names the same gun" % [what, i])
+		t.expect_near(
+			a["power"],
+			b["power"],
+			0.0001,
+			"%s's shot %d has the same power" % [what, i],
+		)
+		t.check(
+			a["position"].distance_to(b["position"]) <= NEAR_PX,
+			"%s's shot %d leaves the same muzzle (%s vs %s)"
+				% [what, i, a["position"], b["position"]],
+		)
+
+
+## Check that `what`'s `hits` struck the target as the police gun's did (`police`): as often, for
+## the same damage, meeting it the same way.
+func _compare_hits(t: TestContext, what: String, hits: Array, police: Array) -> void:
+	if not t.expect_eq(
+			hits.size(),
+			police.size(),
 			"%s strikes the target as often as in police" % what,
 	):
-		for i in got["hits"].size():
-			t.expect_near(
-				got["hits"][i]["damage"],
-				police["hits"][i]["damage"],
-				0.0001,
-				"%s's hit %d deals the same damage" % [what, i],
-			)
-			t.expect_eq(
-				got["hits"][i]["outcome"],
-				police["hits"][i]["outcome"],
-				"%s's hit %d meets the target the same way" % [what, i],
-			)
-	if t.expect_eq(
-			got["sounds"].size(),
-			police["sounds"].size(),
+		return
+	for i in hits.size():
+		t.expect_near(
+			hits[i]["damage"],
+			police[i]["damage"],
+			0.0001,
+			"%s's hit %d deals the same damage" % [what, i],
+		)
+		t.expect_eq(
+			hits[i]["outcome"],
+			police[i]["outcome"],
+			"%s's hit %d meets the target the same way" % [what, i],
+		)
+
+
+## Check that `what`'s shot `sounds` are the police gun's (`police`): as many, with the same
+## profile, volume and pitch.
+func _compare_sounds(t: TestContext, what: String, sounds: Array, police: Array) -> void:
+	if not t.expect_eq(
+			sounds.size(),
+			police.size(),
 			"%s sounds as many shots as in police" % what,
 	):
-		for i in got["sounds"].size():
-			var a: Dictionary = got["sounds"][i]
-			var b: Dictionary = police["sounds"][i]
-			t.expect_eq(
-				a["profile"],
-				b["profile"],
-				"%s's shot sound %d has the same profile" % [what, i],
-			)
-			t.expect_near(
-				a["volume_db"],
-				b["volume_db"],
-				0.0001,
-				"%s's shot sound %d has the same volume" % [what, i],
-			)
-			t.expect_near(
-				a["pitch"],
-				b["pitch"],
-				0.0001,
-				"%s's shot sound %d has the same pitch" % [what, i],
-			)
+		return
+	for i in sounds.size():
+		var a: Dictionary = sounds[i]
+		var b: Dictionary = police[i]
+		t.expect_eq(
+			a["profile"],
+			b["profile"],
+			"%s's shot sound %d has the same profile" % [what, i],
+		)
+		t.expect_near(
+			a["volume_db"],
+			b["volume_db"],
+			0.0001,
+			"%s's shot sound %d has the same volume" % [what, i],
+		)
+		t.expect_near(
+			a["pitch"],
+			b["pitch"],
+			0.0001,
+			"%s's shot sound %d has the same pitch" % [what, i],
+		)
 
 
 ## Arm the thrower with one `kind` grenade in `style`, stand its dummy beside the aim point, throw
@@ -276,11 +322,37 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 	var out := { "stats": item.throw_stats() }
 	var mark := t.events.size()
 	t.puppet(&"thrower").shoot()
+	if not await _record_flight(t, mark, kind, style, out):
+		return {}
+	await t.seconds(0.3)
+	_record_effects(t, mark, dummy, out)
+	var effect: Array = out["blast"] if kind == &"frag" else out["stun"]
+	t.check(
+		not effect.is_empty(),
+		"the %s in %s's burst reaches its dummy (the premise)" % [kind, style],
+	)
+	_place(t, dummy_id, park, park + Vector2.LEFT)
+	# A body moved this frame is still where it was in the physics space until the next step: the
+	# next dummy is stood here only after.
+	await t.frames(2)
+	return out
+
+
+## Follow the `kind` grenade in `style` thrown at event `mark` from the hand to its burst, the
+## thrower parked meanwhile, into `out`: `live_stats`, `rest`, `fuse` and `boom`. Whether it left
+## the hand and burst (false after a failed `require`).
+func _record_flight(
+	t: TestContext,
+	mark: int,
+	kind: StringName,
+	style: StringName,
+	out: Dictionary,
+) -> bool:
 	if not t.require(
 			await t.until(func() -> bool: return _since(t, mark, &"throw").size() > 0, 1.0),
 			"the %s in %s leaves the hand" % [kind, style],
 	):
-		return {}
+		return false
 	var throw_time: float = _since(t, mark, &"throw")[0]["time"]
 	_place(t, &"thrower", THROWER_PARK, THROW_TO)
 	var live := t.world.get_tree().get_nodes_in_group("live_grenades")
@@ -289,7 +361,7 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 			await t.until(func() -> bool: return _since(t, mark, &"explosion").size() > 0, 5.0),
 			"the %s in %s bursts" % [kind, style],
 	):
-		return {}
+		return false
 	var boom: Dictionary = _since(t, mark, &"explosion")[0]
 	var rests := _since(t, mark, &"grenade").filter(
 		func(e: Dictionary) -> bool: return e["data"].get("stage") == &"rest",
@@ -301,7 +373,12 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 		"radius": boom["data"]["radius"],
 		"position": boom["data"]["position"],
 	}
-	await t.seconds(0.3)
+	return true
+
+
+## What the burst since event `mark` did to `dummy`, into `out`: `blast` (each blast hit's damage)
+## and `stun` (each stun's `{ blind, deaf }`).
+func _record_effects(t: TestContext, mark: int, dummy: Node, out: Dictionary) -> void:
 	var blasted := func(e: Dictionary) -> bool:
 		return e["data"].get("victim") == dummy and e["data"].get("outcome") == &"blast"
 	var damage := func(e: Dictionary) -> float: return e["data"]["damage"]
@@ -310,16 +387,6 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 	var blind_deaf := func(e: Dictionary) -> Dictionary:
 		return { "blind": e["data"]["blind"], "deaf": e["data"]["deaf"] }
 	out["stun"] = _since(t, mark, &"stun").filter(stunned).map(blind_deaf)
-	var effect: Array = out["blast"] if kind == &"frag" else out["stun"]
-	t.check(
-		not effect.is_empty(),
-		"the %s in %s's burst reaches its dummy (the premise)" % [kind, style],
-	)
-	_place(t, dummy_id, park, park + Vector2.LEFT)
-	# A body moved this frame is still where it was in the physics space until the next step: the
-	# next dummy is stood here only after.
-	await t.frames(2)
-	return out
 
 
 ## Check that the `kind` grenade in `style` did what the police one did.
@@ -363,6 +430,12 @@ func _compare_grenade(
 		got["boom"]["position"].distance_to(police["boom"]["position"]) <= NEAR_PX,
 		"%s bursts at the same spot" % what,
 	)
+	_compare_effects(t, what, got, police)
+
+
+## Check that `what`'s burst did to its dummy what the police grenade's did (`police`): as many
+## blast hits for the same damage, as many stuns blinding and deafening as long.
+func _compare_effects(t: TestContext, what: String, got: Dictionary, police: Dictionary) -> void:
 	if t.expect_eq(
 			got["blast"].size(),
 			police["blast"].size(),

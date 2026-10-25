@@ -167,14 +167,14 @@ func reload_time() -> float:
 
 
 ## A carried magazine holds more rounds than the one loaded.
-func can_reload(user) -> bool:
+func can_reload(user: Node2D) -> bool:
 	var best: Magazine = user.best_magazine(gun)
 	return best != null and best.rounds > rounds_loaded()
 
 
 ## Seat the fullest carried magazine; the one it replaces goes back into the carried store unless it
 ## is empty (nothing refills a magazine, so an empty one is dropped).
-func finish_reload(user) -> void:
+func finish_reload(user: Node2D) -> void:
 	var fresh: Magazine = user.take_magazine(gun)
 	if fresh == null:
 		return
@@ -212,7 +212,7 @@ func strike_tempo() -> float:
 
 
 ## F: a melee jab with the weapon hand; a long gun swings round and leads with its butt.
-func primary(user) -> void:
+func primary(user: Node2D) -> void:
 	user.punch(weapon_hand())
 
 
@@ -220,7 +220,7 @@ func primary(user) -> void:
 ## the hand back. Spends a round; an empty, mid-reload or still-cycling gun does nothing. The round
 ## leaves within the gun's spread of the aim, wider by its `one_hand_spread_deg` while its user
 ## holds it in one hand (`one_handed()`). True when a round left the barrel.
-func secondary(user) -> bool:
+func secondary(user: Node2D) -> bool:
 	if reloading or rounds_loaded() <= 0 or _cooldown > 0.0:
 		return false
 	magazine.rounds -= 1
@@ -260,7 +260,7 @@ func secondary(user) -> bool:
 ## character's weapon_facing() (trailing the aim a touch as it turns): lit for the nearest lighting
 ## step, drawn rotated to the exact angle. Raised off a wall, the barrel foreshortens about the
 ## hand.
-func draw_weapon(canvas: CanvasItem, user) -> void:
+func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var facing: Vector2 = user.weapon_facing()
 	# A punch turns a long gun about its grip until the butt leads.
 	facing = strike_direction(facing, user.punch_amount(weapon_hand()))
@@ -273,11 +273,13 @@ func draw_weapon(canvas: CanvasItem, user) -> void:
 
 
 ## The dead hand lets go: the gun leaves from where it was drawn and skids off at `velocity`.
-func drop(user, velocity: Vector2) -> Node2D:
+func drop(user: Node2D, velocity: Vector2) -> Node2D:
 	var facing: Vector2 = user.weapon_facing()
 	var hand: Vector2 = user.hand_world(weapon_hand())
 	var at := hand + facing * (art_size().y * 0.5 - grip_back())
-	return DroppedItem.spawn(self, at, facing.angle(), velocity, user.world_root(), hand)
+	var dropped := DroppedItem.spawn(self, facing.angle(), velocity)
+	dropped.place(user.world_root(), at, hand)
+	return dropped
 
 
 ## The gun lying flat on its side, centered at `at`, its muzzle along `angle`, in its look's painter

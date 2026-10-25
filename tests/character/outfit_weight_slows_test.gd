@@ -43,7 +43,12 @@ func run(t: TestContext) -> void:
 	for id: StringName in LANES:
 		t.puppet(id).aim_at(Vector2(1600, LANES[id]))
 	await t.seconds(0.3)
+	await _check_walk(t)
+	await _check_run(t)
 
+
+## Walking: the plated kit walks slower than nothing worn, plain clothes in between.
+func _check_walk(t: TestContext) -> void:
 	var walked := await _move(t, false, WALK_TIME)
 	var bare_walk: float = walked[&"bare"]
 	t.check(
@@ -66,6 +71,9 @@ func run(t: TestContext) -> void:
 		"and plain clothes are no faster than nothing worn",
 	)
 
+
+## Running from a stop: the plated kit spends more stamina and runs slower.
+func _check_run(t: TestContext) -> void:
 	for id: StringName in LANES:
 		t.puppet(id).stop()
 	await t.seconds(0.5)  # come to a stop (walking spends no stamina, the bar is still full)

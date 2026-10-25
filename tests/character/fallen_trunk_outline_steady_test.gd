@@ -51,6 +51,14 @@ func _outline_area(target: Node) -> float:
 
 
 func run(t: TestContext) -> void:
+	if not await _kill_targets(t):
+		return
+	var series := await _sample_areas(t)
+	_check_series(t, series)
+
+
+## The shooter shoots each target dead. Whether they all died (false after a failed `require`).
+func _kill_targets(t: TestContext) -> bool:
 	var shooter := t.puppet(&"shooter")
 	for i in TARGETS:
 		var id := StringName("target%d" % i)
@@ -64,8 +72,13 @@ func run(t: TestContext) -> void:
 				),
 				"%s dies" % id,
 		):
-			return
+			return false
+	return true
 
+
+## Each target's trunk outline area, frame by frame (target index -> areas), until every body has
+## come to rest (after `MIN_FRAMES`) or `FRAMES` have passed.
+func _sample_areas(t: TestContext) -> Dictionary:
 	var series := {}
 	for i in TARGETS:
 		series[i] = []
@@ -81,18 +94,16 @@ func run(t: TestContext) -> void:
 		await t.frames(1)
 		if frame >= MIN_FRAMES and at_rest.call():
 			break
+	return series
 
+
+## No trunk's outline area in `series` (target index -> areas) dips below `COLLAPSE` of both its
+## neighbouring frames', over enough sampled frames.
+func _check_series(t: TestContext, series: Dictionary) -> void:
 	var collapses := []
 	var sampled := 0
 	for i in TARGETS:
-		var areas: Array = series[i]
-		for f in range(1, areas.size() - 1):
-			if areas[f - 1] <= 0.0 or areas[f] <= 0.0 or areas[f + 1] <= 0.0:
-				continue
-			sampled += 1
-			if areas[f] < COLLAPSE * minf(areas[f - 1], areas[f + 1]):
-				collapses.append("target%d frame %d: %.0f -> %.0f -> %.0f"
-						% [i, f, areas[f - 1], areas[f], areas[f + 1]])
+		sampled += _scan(i, series[i], collapses)
 	t.trace("trunk outline frames sampled", sampled)
 	t.trace("collapsed frames", collapses.size())
 	t.check(
@@ -104,3 +115,17 @@ func run(t: TestContext) -> void:
 		"%d trunk outlines collapsed for a frame: %s"
 			% [collapses.size(), "; ".join(collapses.slice(0, 4))],
 	)
+
+
+## Scan target `i`'s outline `areas` frame by frame, each frame between two with an outline: a
+## collapsed one is noted in `collapses`. Returns how many frames were scanned.
+func _scan(i: int, areas: Array, collapses: Array) -> int:
+	var sampled := 0
+	for f in range(1, areas.size() - 1):
+		if areas[f - 1] <= 0.0 or areas[f] <= 0.0 or areas[f + 1] <= 0.0:
+			continue
+		sampled += 1
+		if areas[f] < COLLAPSE * minf(areas[f - 1], areas[f + 1]):
+			collapses.append("target%d frame %d: %.0f -> %.0f -> %.0f"
+					% [i, f, areas[f - 1], areas[f], areas[f + 1]])
+	return sampled

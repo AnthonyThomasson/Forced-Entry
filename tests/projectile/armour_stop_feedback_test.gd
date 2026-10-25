@@ -72,51 +72,64 @@ func run(t: TestContext) -> void:
 	if not await OutfitProbe.dress(t, LANES):
 		return
 	for lane: Dictionary in LANES:
-		var id: StringName = lane["id"]
-		var splats_before := OutfitProbe.splats(t)
-		var got: Dictionary = (await OutfitProbe.volley(t, [lane]))[id]
-		await t.seconds(0.4)  # the wound's first splatter, if there is one
-		var bled := OutfitProbe.splats(t) > splats_before
-		var hit: Dictionary = got["hit"]
-		var material := str(hit.get("material", ""))
-		var target := t.actor(id)
-		var heard := SoundProbe.sounds(t, &"impact").filter(
-			func(d): return (d["position"] as Vector2).distance_to(target.global_position) < 30.0,
-		)
-		var profile := str(heard[-1]["profile"]) if not heard.is_empty() else ""
-		if id == &"bare":
-			t.check(
-				got["wounded"] and bled and got["through"],
-				("a bare body is dented, bleeds and the round goes through (wounded %s, bled %s, "
-						+ "through %s)") % [got["wounded"], bled, got["through"]],
-			)
-			t.expect_eq(material, "flesh", "a round into a bare body hits flesh")
-			t.check(profile.begins_with("impact/flesh/"), "and is heard as flesh (%s)" % profile)
-			continue
-		t.check(not got["wounded"], "%s: the stopped round leaves no dent or wound" % id)
-		t.check(not bled, "%s: the stopped round draws no blood" % id)
-		t.check(not got["through"], "%s: the stopped round has no exit" % id)
+		await _check_lane(t, lane)
+
+
+## One round down `lane`: a bare body is dented, bleeds and is heard as flesh; armour stops the
+## round, shows no wound and is heard as its own material.
+func _check_lane(t: TestContext, lane: Dictionary) -> void:
+	var id: StringName = lane["id"]
+	var splats_before := OutfitProbe.splats(t)
+	var got: Dictionary = (await OutfitProbe.volley(t, [lane]))[id]
+	await t.seconds(0.4)  # the wound's first splatter, if there is one
+	var bled := OutfitProbe.splats(t) > splats_before
+	var hit: Dictionary = got["hit"]
+	var material := str(hit.get("material", ""))
+	var target := t.actor(id)
+	var heard := SoundProbe.sounds(t, &"impact").filter(
+		func(d): return (d["position"] as Vector2).distance_to(target.global_position) < 30.0,
+	)
+	var profile := str(heard[-1]["profile"]) if not heard.is_empty() else ""
+	if id == &"bare":
 		t.check(
-			got["lost"] > 0.0,
-			"%s: the stopped round still hurts a little (%.1f)" % [id, got["lost"]],
+			got["wounded"] and bled and got["through"],
+			("a bare body is dented, bleeds and the round goes through (wounded %s, bled %s, "
+					+ "through %s)") % [got["wounded"], bled, got["through"]],
 		)
-		if lane["material"] != "":
-			t.expect_eq(
-				material,
-				lane["material"],
-				"%s: the stopped round's hit carries the armour's material" % id,
-			)
-			t.check(
-				profile.begins_with("impact/%s/" % lane["material"]),
-				"%s: and is heard as %s (%s)" % [id, lane["material"], profile],
-			)
-		else:
-			t.check(
-				material != "" and material != "flesh",
-				"%s: the stopped round's hit carries the armour's own material (%s)"
-					% [id, material],
-			)
-			t.check(
-				profile != "" and not profile.begins_with("impact/flesh/"),
-				"%s: and is not heard as flesh (%s)" % [id, profile],
-			)
+		t.expect_eq(material, "flesh", "a round into a bare body hits flesh")
+		t.check(profile.begins_with("impact/flesh/"), "and is heard as flesh (%s)" % profile)
+		return
+	t.check(not got["wounded"], "%s: the stopped round leaves no dent or wound" % id)
+	t.check(not bled, "%s: the stopped round draws no blood" % id)
+	t.check(not got["through"], "%s: the stopped round has no exit" % id)
+	t.check(
+		got["lost"] > 0.0,
+		"%s: the stopped round still hurts a little (%.1f)" % [id, got["lost"]],
+	)
+	_check_material(t, lane, material, profile)
+
+
+## What the stopped round in `lane` carries and is heard as: the lane's material, or with none named
+## any material but flesh.
+func _check_material(t: TestContext, lane: Dictionary, material: String, profile: String) -> void:
+	var id: StringName = lane["id"]
+	if lane["material"] != "":
+		t.expect_eq(
+			material,
+			lane["material"],
+			"%s: the stopped round's hit carries the armour's material" % id,
+		)
+		t.check(
+			profile.begins_with("impact/%s/" % lane["material"]),
+			"%s: and is heard as %s (%s)" % [id, lane["material"], profile],
+		)
+	else:
+		t.check(
+			material != "" and material != "flesh",
+			"%s: the stopped round's hit carries the armour's own material (%s)"
+				% [id, material],
+		)
+		t.check(
+			profile != "" and not profile.begins_with("impact/flesh/"),
+			"%s: and is not heard as flesh (%s)" % [id, profile],
+		)

@@ -51,46 +51,63 @@ func run(t: TestContext) -> void:
 			i += 1
 	await t.seconds(0.5)
 
-	i = 0
-	for posture: StringName in [&"stand", &"crouch"]:
-		var heights: Dictionary = OutfitProbe.STAND if posture == &"stand" else OutfitProbe.CROUCH
-		for zone: StringName in ZONES:
-			OutfitProbe.fire(t, Vector2(FROM_X, _lane(i)), Vector2.RIGHT, &"pistol", heights[zone])
-			i += 1
-	var all_hit := func() -> bool:
-		for posture: StringName in [&"stand", &"crouch"]:
-			for zone: StringName in ZONES:
-				if OutfitProbe.hits_on(t, t.actor(_id(posture, zone))).is_empty():
-					return false
-		return true
-	if not t.require(await t.until(all_hit, 2.0), "every round strikes its body"):
+	_fire_rounds(t)
+	if not t.require(
+			await t.until(func() -> bool: return _all_hit(t), 2.0),
+			"every round strikes its body",
+	):
 		return
 	await t.frames(2)
 
 	for posture: StringName in [&"stand", &"crouch"]:
-		var heights: Dictionary = OutfitProbe.STAND if posture == &"stand" else OutfitProbe.CROUCH
-		var torso := _lost(t, posture, &"torso")
-		t.expect_near(
-			torso,
-			TORSO_PISTOL,
-			2.0,
-			"a %s body hit in the torso loses a pistol round's full torso damage, %.0f (lost %.1f)"
-				% [posture, TORSO_PISTOL, torso],
-		)
-		if torso <= 0.0:
-			continue
-		for zone: StringName in ZONES:
-			var ratio := _lost(t, posture, zone) / torso
-			t.expect_near(
-				ratio, OutfitProbe.ZONE_DAMAGE[zone], 0.06,
-				"a %s body hit at height %.0f (the %s) takes %.1fx a torso hit (took %.2fx)"
-					% [posture, heights[zone], zone, OutfitProbe.ZONE_DAMAGE[zone], ratio],
-			)
+		_check_zones(t, posture)
 	t.check(
 		_lost(t, &"stand", &"legs") < _lost(t, &"crouch", &"torso") * 0.75,
 		"the same height of 25 is the legs standing (%.1f lost) but the torso crouched (%.1f lost)"
 			% [_lost(t, &"stand", &"legs"), _lost(t, &"crouch", &"torso")],
 	)
+
+
+## One pistol round down each body's lane, at the height of the zone it is to strike.
+func _fire_rounds(t: TestContext) -> void:
+	var i := 0
+	for posture: StringName in [&"stand", &"crouch"]:
+		var heights: Dictionary = OutfitProbe.STAND if posture == &"stand" else OutfitProbe.CROUCH
+		for zone: StringName in ZONES:
+			OutfitProbe.fire(t, Vector2(FROM_X, _lane(i)), Vector2.RIGHT, &"pistol", heights[zone])
+			i += 1
+
+
+## Whether every body has been struck.
+func _all_hit(t: TestContext) -> bool:
+	for posture: StringName in [&"stand", &"crouch"]:
+		for zone: StringName in ZONES:
+			if OutfitProbe.hits_on(t, t.actor(_id(posture, zone))).is_empty():
+				return false
+	return true
+
+
+## The bodies in `posture`: the torso hit takes a pistol round's full torso damage, each zone its
+## share of it.
+func _check_zones(t: TestContext, posture: StringName) -> void:
+	var heights: Dictionary = OutfitProbe.STAND if posture == &"stand" else OutfitProbe.CROUCH
+	var torso := _lost(t, posture, &"torso")
+	t.expect_near(
+		torso,
+		TORSO_PISTOL,
+		2.0,
+		"a %s body hit in the torso loses a pistol round's full torso damage, %.0f (lost %.1f)"
+			% [posture, TORSO_PISTOL, torso],
+	)
+	if torso <= 0.0:
+		return
+	for zone: StringName in ZONES:
+		var ratio := _lost(t, posture, zone) / torso
+		t.expect_near(
+			ratio, OutfitProbe.ZONE_DAMAGE[zone], 0.06,
+			"a %s body hit at height %.0f (the %s) takes %.1fx a torso hit (took %.2fx)"
+				% [posture, heights[zone], zone, OutfitProbe.ZONE_DAMAGE[zone], ratio],
+		)
 
 
 ## The id of the body that stands in `posture` and is shot in `zone`.

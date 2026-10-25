@@ -97,27 +97,28 @@ func _gait(t: TestContext, id: StringName, lane: float, seconds: float) -> Dicti
 	var c := t.actor(id)
 	var from: Vector2 = c.global_position
 	var since := t.events_of(&"footfall").size()
-	var phase := 0.0
-	var last_phase: float = c.pose.stride_phase()
-	var sway := [INF, -INF]
-	var head_lo := Vector3.INF
-	var head_hi := -Vector3.INF
-	var drift := 0.0
+	var walk := Walk.new(c.pose.stride_phase())
 	var frames := int(seconds * 60.0)
 	for i in frames:
 		await t.frames(1)
-		var rig = c.rig()
-		drift = maxf(drift, absf(c.global_position.y - lane))
-		var now: float = c.pose.stride_phase()
-		phase += fposmod(now - last_phase, TAU)
-		last_phase = now
-		var pelvis: Vector3 = rig.point(Rig.PELVIS)
-		var head: Vector3 = rig.point(Rig.HEAD)
-		sway = [minf(sway[0], pelvis.y), maxf(sway[1], pelvis.y)]
-		head_lo = head_lo.min(head)
-		head_hi = head_hi.max(head)
-	var head_range := head_hi - head_lo
+		walk.take(c, lane)
+	var head_range := walk.head_hi - walk.head_lo
 	var walked: float = c.global_position.x - from.x
+	var steps := _steps(t, since, lane)
+	return {
+		"speed": walked / seconds,
+		"drift": walk.drift,
+		"stride": walked / maxf(walk.phase / TAU, 0.01),
+		"steps": steps.size(),
+		"step_cv": _spread_over_mean(steps),
+		"sway": walk.sway[1] - walk.sway[0],
+		"bob": maxf(head_range.x, maxf(head_range.y, head_range.z)),
+	}
+
+
+## The lengths of the steps between the footfalls on `lane` (within 120 px of it) since footfall
+## event `since`.
+func _steps(t: TestContext, since: int, lane: float) -> Array:
 	var steps: Array = []
 	var prev: Variant = null
 	var falls := t.events_of(&"footfall")
@@ -128,6 +129,11 @@ func _gait(t: TestContext, id: StringName, lane: float, seconds: float) -> Dicti
 		if prev != null:
 			steps.append((prev as Vector2).distance_to(at))
 		prev = at
+	return steps
+
+
+## The spread of `steps` (their standard deviation) over their mean.
+func _spread_over_mean(steps: Array) -> float:
 	var mean := 0.0
 	for s: float in steps:
 		mean += s
@@ -136,11 +142,7 @@ func _gait(t: TestContext, id: StringName, lane: float, seconds: float) -> Dicti
 	for s: float in steps:
 		spread += (s - mean) * (s - mean)
 	spread = sqrt(spread / maxf(steps.size(), 1))
-	return {
-		"speed": walked / seconds, "drift": drift, "stride": walked / maxf(phase / TAU, 0.01),
-		"steps": steps.size(), "step_cv": spread / maxf(mean, 0.01), "sway": sway[1] - sway[0],
-		"bob": maxf(head_range.x, maxf(head_range.y, head_range.z)),
-	}
+	return spread / maxf(mean, 0.01)
 
 
 func run(t: TestContext) -> void:
@@ -158,6 +160,23 @@ func run(t: TestContext) -> void:
 	var jumps := {}
 	var stop := [false]
 	_watch_jumps(t, [&"stand", &"crouch", &"deaf"], jumps, stop)
+	var bent := await _check_hunch(t, hunch, upright, crouched)
+	await _check_tail(t, upright, bent)
+	stop[0] = true
+	await t.frames(1)
+	for id: StringName in [&"stand", &"crouch", &"deaf"]:
+		t.check(
+			float(jumps.get(id, 0.0)) <= STEP,
+			"%s: the head and the pelvis never moved more than %.0f px in a frame (worst %.1f px)"
+				% [id, STEP, float(jumps.get(id, 0.0))],
+		)
+	await _check_stagger(t)
+
+
+## Stun the three still bodies and check the hunch eases in: forward by `hunch` x level from
+## `upright` standing and on top of the `crouched` pitch, deaf-only too. Returns the standing
+## body's pitch at the full level.
+func _check_hunch(t: TestContext, hunch: float, upright: float, crouched: float) -> float:
 	Probe.stun(t.actor(&"stand"), STUN, STUN)
 	Probe.stun(t.actor(&"crouch"), STUN, STUN)
 	Probe.stun(t.actor(&"deaf"), 0.0, STUN)
@@ -191,8 +210,11 @@ func run(t: TestContext) -> void:
 		bent_deaf - upright >= maxf(hunch, 0.0) * 0.75 and bent_deaf - upright >= 5.0,
 		"a bang that only deafens hunches too (%.1f degrees)" % (bent_deaf - upright),
 	)
+	return bent
 
-	# The tail: the hunch falls with the level.
+
+## The tail: the hunch falls with the level, from `bent` at full to `upright` once recovered.
+func _check_tail(t: TestContext, upright: float, bent: float) -> void:
 	await t.until(func() -> bool: return Probe.level(t.actor(&"stand")) <= 0.5, STUN)
 	await t.seconds(0.2)
 	var tail_level := Probe.level(t.actor(&"stand"))
@@ -213,16 +235,10 @@ func run(t: TestContext) -> void:
 		absf(_pitch(t.actor(&"stand")) - upright) < 2.0,
 		"once recovered the spine is upright again (%.1f degrees)" % _pitch(t.actor(&"stand")),
 	)
-	stop[0] = true
-	await t.frames(1)
-	for id: StringName in [&"stand", &"crouch", &"deaf"]:
-		t.check(
-			float(jumps.get(id, 0.0)) <= STEP,
-			"%s: the head and the pelvis never moved more than %.0f px in a frame (worst %.1f px)"
-				% [id, STEP, float(jumps.get(id, 0.0))],
-		)
 
-	# --- S3: the stagger. Two walkers side by side, one stunned.
+
+## S3: the stagger. Two walkers side by side, one stunned.
+func _check_stagger(t: TestContext) -> void:
 	Probe.stun(t.actor(&"stunned"), STUN, STUN)
 	t.puppet(&"normal").walk(Vector2.RIGHT)
 	t.puppet(&"stunned").walk(Vector2.RIGHT)
@@ -239,6 +255,12 @@ func run(t: TestContext) -> void:
 		"(the walker was at its full stun throughout: %.2f)" % Probe.level(t.actor(&"stunned")),
 	)
 	GameLog.say("gait normal %s / stunned %s" % [str(normal), str(staggered)])
+	_check_staggered_gait(t, normal, staggered)
+
+
+## The `staggered` walk against the `normal` one: the same x0.45 pace and drift, shorter and uneven
+## strides, the hips swaying and the head bobbing.
+func _check_staggered_gait(t: TestContext, normal: Dictionary, staggered: Dictionary) -> void:
 	var ratio: float = staggered["speed"] / maxf(normal["speed"], 1.0)
 	t.check(
 		ratio >= 0.38 and ratio <= 0.5,
@@ -272,3 +294,31 @@ func run(t: TestContext) -> void:
 		"the head bobs about on the body (%.1f px against %.1f)"
 			% [staggered["bob"], normal["bob"]],
 	)
+
+
+## A walk as it is sampled frame by frame: the stride phase run through (and the last phase read),
+## the pelvis's side-to-side range, the head's range on the body, and the largest drift off the
+## lane.
+class Walk:
+	var phase := 0.0
+	var last_phase := 0.0
+	var sway := [INF, -INF]
+	var head_lo := Vector3.INF
+	var head_hi := -Vector3.INF
+	var drift := 0.0
+
+	func _init(start_phase: float) -> void:
+		last_phase = start_phase
+
+	## Take in `c`'s place and pose now, walking along `lane`.
+	func take(c: Node, lane: float) -> void:
+		var rig = c.rig()
+		drift = maxf(drift, absf(c.global_position.y - lane))
+		var now: float = c.pose.stride_phase()
+		phase += fposmod(now - last_phase, TAU)
+		last_phase = now
+		var pelvis: Vector3 = rig.point(Rig.PELVIS)
+		var head: Vector3 = rig.point(Rig.HEAD)
+		sway = [minf(sway[0], pelvis.y), maxf(sway[1], pelvis.y)]
+		head_lo = head_lo.min(head)
+		head_hi = head_hi.max(head)

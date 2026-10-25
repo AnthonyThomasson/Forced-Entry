@@ -162,8 +162,8 @@ Items-private:
 | `scrap` (taped scrap) | rusted steel, a wooden stock, grey tape round guard, grip and stock, a rust-coloured magazine | a rusty olive frag egg and a tin-can stun, each taped round the middle |
 | `pipe` (pipe guns) | a box action and a pipe barrel with clamp bands, copper wire, weld beads, a plank stock with a ragged end | a capped pipe bomb with a red fuse and a soda-can stun with a white band, each wrapped in copper wire |
 
-The painters share `art/weapon_art.gd`: the paint itself (`paint_gun(c, opts, crude, wood_stock, wood_grip, flat_marks, held_marks)`:
-held or lying, the silhouette, the style's marks through the two callables, the muzzle and the shadows; `paint_grenade(c, opts, body)`: the cap
+The painters share `art/weapon_art.gd`: the paint itself (`paint_gun(c, opts, flat_marks, held_marks)`:
+held or lying, the silhouette (the style's `crude`, `wood_stock` and `wood_grip` flags, in `opts`), the style's marks through the two callables, the muzzle and the shadows; `paint_grenade(c, opts, body)`: the cap
 length, the style's shell, marks and cap through `body`, the lever and the shadows), so a style painter keeps only its flags and marks; the guns' two silhouettes (`held_parts` / `draw_held`, `flat_profile` / `draw_flat`; a `crude` one is the
 pipe guns' short box action with the pipe for a barrel), the grenades' `shell` / `cap` / `lever`, the marks' helpers. The look travels as a handle: a
 painter's options carry the look as an int (`opts.look`, Art's `PixelArt.handle`, the row's hash; read back with `PixelArt.look_of`) and never the row, since PixelArt hashes the options
@@ -218,7 +218,7 @@ very `Motion` integrator the node then runs; first touchdown capped at `max_rang
 aim (a sofa on the skid's way kicked it back), longer lobs (touchdown `FIT_STEP` 12 px further out at a time, up to `max_range`) are tried and the one resting nearest the aim is
 thrown, so a grenade aimed behind low cover is lobbed over it (test `items/grenade_lobbed_over_cover`; about one simulated flight per throw in the open, up to ~30 behind cover).
 In flight it skips furniture whose `coverage` is below its height and bounces off the rest (and the living) with `restitution`; its thrower's own body is passed for the
-first `THROWER_CLEAR` (40 px) of flight, in the node's sweep and in the plan alike (`_sweep(..., passed)`: it leaves the hand ~16 px from the body centre and its first px pass
+first `THROWER_CLEAR` (40 px) of flight, in the node's sweep and in the plan alike (the `passed` bodies of the throw's `GrenadeCourse`, `grenade_course.gd`, put in the sweep query's `exclude` by `_rest_in`: it leaves the hand ~16 px from the body centre and its first px pass
 within body + grenade radius of it, so a pixel decided whether a throw struck its own thrower; test `items/grenade_passes_its_thrower`); posts `&"grenade"` (`bounce` / `rest`) and on the fuse's end calls `Explosion.frag` / `Explosion.stun`. A grenade is never dropped on death.
 `LoadoutConfig` carries `stuns` / `frags` (0..3, `grenade_options()`, `grenade_counts()`); `ItemRegistry.create(slot, count)` (negative = one) and `inventory_for(..., grenades)` build them.
 Art: the look's grenade painter ("Weapon looks" above) in the hand, in flight and at rest, and `spoon_painter.gd`, through `PixelArt.render_turned`.

@@ -41,12 +41,11 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	c.bevel(shoulders, 1, 2, t.light, t.dark)
 	StyleArt.edge(c, shoulders, look)
 	c.outline(shoulders, t.outline)
-	var long := String(look.get("body", "")) == "long_sleeves"
 	_sleeve_ends(c, o, span, shoulders, look)
 	if look.get("police", false):
-		_uniform(c, o, span, head_r, look, long, t, shoulders)
+		_uniform(c, o, shoulders, look, t)
 	else:
-		_street(c, o, span, head_r, look, long, t)
+		_street(c, o, span, look, t)
 	VestPainter.paint_top(c, o, span, opts)
 	if look.get("spine", false):
 		# The spine rig breaking out over the collar at the back: vertebrae down from the neck, a
@@ -98,15 +97,7 @@ static func _sleeve_ends(
 		var chrome: bool = chrome_arms[side]
 		if col != null and not chrome and col == look.get("shirt"):
 			continue
-		for y in range(area.position.y, area.end.y):
-			for x in range(area.position.x, area.end.x):
-				if shoulders.has(x, y):
-					c.px(
-						x,
-						y,
-						StyleArt.chrome(look, x + y) if chrome else skin if col == null else col,
-						_SHOULDER,
-					)
+		_end_fill(c, area, shoulders, look, side)
 		c.line(
 			Vector2i(inner, span.position.y + 2), Vector2i(inner, span.end.y - 3),
 			Color(0.15, 0.15, 0.17)
@@ -123,13 +114,38 @@ static func _sleeve_ends(
 				StyleArt.inlays(c, area, 2)
 
 
-## A police uniform's shoulders: the collar or neckband, the unit's marks and the sergeant's
-## chevrons.
-static func _uniform(c: PixelCanvas, o: Vector2i, span: Rect2i, head_r: int, look: Dictionary,
-		long: bool, t: Dictionary, shoulders: PixelCanvas.Shape) -> void:
+## Side `side`'s end of the shoulders, the pixels of `shoulders` in `area`, in its chrome, its bare
+## skin or its sleeve's colour.
+static func _end_fill(
+	c: PixelCanvas,
+	area: Rect2i,
+	shoulders: PixelCanvas.Shape,
+	look: Dictionary,
+	side: int,
+) -> void:
+	var col: Variant = (look.get("sleeves", [null, null]) as Array)[side]
+	var chrome: bool = (look.get("chrome_arm", [false, false]) as Array)[side]
+	var skin: Color = look.get("skin", Color.WHITE)
+	var plain: Variant = skin if col == null else col
+	for y in range(area.position.y, area.end.y):
+		for x in range(area.position.x, area.end.x):
+			if shoulders.has(x, y):
+				c.px(x, y, StyleArt.chrome(look, x + y) if chrome else plain, _SHOULDER)
+
+
+## A police uniform's shoulders (`shoulders`, in the shirt's tones `t`): the collar or neckband,
+## the unit's marks and the sergeant's chevrons.
+static func _uniform(
+	c: PixelCanvas,
+	o: Vector2i,
+	shoulders: PixelCanvas.Shape,
+	look: Dictionary,
+	t: Dictionary,
+) -> void:
+	var head_r := HeadPainter.radius_for(c.w)
 	var trim: Color = look.get("trim", Color.WHITE)
 	var front := o.y + head_r + 1
-	if long:
+	if String(look.get("body", "")) == "long_sleeves":
 		for side in [-1, 1]:  # A high collar either side of the neck.
 			c.line(
 				Vector2i(o.x + side * (head_r + 1), o.y - 1),
@@ -141,44 +157,7 @@ static func _uniform(c: PixelCanvas, o: Vector2i, span: Rect2i, head_r: int, loo
 		c.line(Vector2i(o.x - head_r + 2, front + 1), Vector2i(o.x + head_r - 2, front + 1), t.dark)
 	match String(look.get("style", "")):
 		"zenitex":
-			var edge: Color = look.get("edge", t.light)
-			if long:
-				# Segmented shoulder plates with light edges, and a lamp on the left one.
-				for side in [-1, 1]:
-					var x0: int = o.x + side * (head_r + 2) if side > 0 else 1
-					var plate := PixelCanvas.rounded(
-						Rect2i(
-							x0,
-							span.position.y + 1,
-							int(c.w / 2.0) - head_r - 2,
-							span.size.y - 2,
-						),
-						2,
-					)
-					c.fill(plate, t.base.lightened(0.06), _PAD)
-					c.bevel(plate, 1, 1, edge, edge.darkened(0.45))
-					c.outline(plate, t.outline)
-					c.line(
-						Vector2i(plate.bounds.position.x + 1, o.y),
-						Vector2i(plate.bounds.end.x - 2, o.y),
-						t.outline,
-						_PAD,
-					)
-				c.px(o.x + head_r + 4, span.end.y - 3, trim, _PAD + 1)
-			# Two white stripes across each shoulder cap (the stencil is on the vest: the head hides
-			# the chest from above).
-			for side in [-1, 1]:
-				for k in 2:
-					var x: int = o.x + side * (int(c.w / 2.0) - 3 - k * 2)
-					StyleArt.column(
-						c,
-						shoulders,
-						x,
-						span.position.y + 2,
-						span.end.y - 2,
-						trim if k == 0 else trim.darkened(0.2),
-						_PAD + 1,
-					)
+			_zenitex_shoulders(c, o, shoulders, look, t)
 		"trauma":
 			# A white arm patch with the red cross on the right shoulder.
 			var patch := PixelCanvas.rounded(Rect2i(3, o.y - 2, 5, 5), 1)
@@ -200,21 +179,67 @@ static func _uniform(c: PixelCanvas, o: Vector2i, span: Rect2i, head_r: int, loo
 		)
 
 
+## The Zenitex's shoulders: segmented shoulder plates with light edges and a lamp on the left one (a
+## shirt), and two white stripes across each shoulder cap (the stencil is on the vest: the head
+## hides the chest from above).
+static func _zenitex_shoulders(
+	c: PixelCanvas,
+	o: Vector2i,
+	shoulders: PixelCanvas.Shape,
+	look: Dictionary,
+	t: Dictionary,
+) -> void:
+	var span := shoulders.bounds
+	var head_r := HeadPainter.radius_for(c.w)
+	var trim: Color = look.get("trim", Color.WHITE)
+	if String(look.get("body", "")) == "long_sleeves":
+		var edge: Color = look.get("edge", t.light)
+		for side in [-1, 1]:
+			var x0: int = o.x + side * (head_r + 2) if side > 0 else 1
+			var r := Rect2i(x0, span.position.y + 1, int(c.w / 2.0) - head_r - 2, span.size.y - 2)
+			_shoulder_plate(c, r, o.y, t, edge)
+		c.px(o.x + head_r + 4, span.end.y - 3, trim, _PAD + 1)
+	for side in [-1, 1]:
+		for k in 2:
+			var x: int = o.x + side * (int(c.w / 2.0) - 3 - k * 2)
+			var stripe := Rect2i(x, span.position.y + 2, 1, span.end.y - 2 - (span.position.y + 2))
+			StyleArt.column(c, shoulders, stripe, trim if k == 0 else trim.darkened(0.2), _PAD + 1)
+
+
+## One segmented shoulder plate over `r` with light `edge`s, split across at row `row`.
+static func _shoulder_plate(
+	c: PixelCanvas,
+	r: Rect2i,
+	row: int,
+	t: Dictionary,
+	edge: Color,
+) -> void:
+	var plate := PixelCanvas.rounded(r, 2)
+	c.fill(plate, t.base.lightened(0.06), _PAD)
+	c.bevel(plate, 1, 1, edge, edge.darkened(0.45))
+	c.outline(plate, t.outline)
+	c.line(
+		Vector2i(plate.bounds.position.x + 1, row),
+		Vector2i(plate.bounds.end.x - 2, row),
+		t.outline,
+		_PAD,
+	)
+
+
 ## A crew's shoulders: a jacket's lapels open at the throat, a tank top's straps and scooped neck
 ## over bare skin, or a tee's neckband with a merc's stains.
 static func _street(
 	c: PixelCanvas,
 	o: Vector2i,
 	span: Rect2i,
-	head_r: int,
 	look: Dictionary,
-	long: bool,
 	t: Dictionary,
 ) -> void:
+	var head_r := HeadPainter.radius_for(c.w)
 	var front := o.y + head_r + 1
 	var bare := (look.get("sleeves", []) as Array).has(null)
 	var skin: Color = look.get("skin", Color.WHITE)
-	if long:
+	if String(look.get("body", "")) == "long_sleeves":
 		for side in [-1, 1]:
 			c.line(
 				Vector2i(o.x + side * (head_r + 1), o.y + 1),

@@ -98,99 +98,141 @@ static func _chair_half() -> float:
 
 
 func run(t: TestContext) -> void:
+	var c := Crash.new()
+	if not _premises(t, c):
+		return
+	if not await _place_lanes(t, c):
+		return
+	_set_off(t, c)
+	await _watch_touches(t, c)
+	for lane in LANES:
+		if not t.require(
+				c.touched.has(lane),
+				"the %s lane's car reaches what stands ahead of it" % lane,
+		):
+			return
+	_check_harm(t)
+	_check_kept(t, c)
+	_check_wall_crash(t)
+
+
+## Every lane's car and character are ready and both armchairs are placed, into `c.chairs` (false:
+## ends the test).
+func _premises(t: TestContext, c: Crash) -> bool:
 	for lane in LANES:
 		if not Probe.ready(t, lane, [LANES[lane][1]]):
-			return
-	var chairs := {
+			return false
+	c.chairs = {
 		&"chair": t.object(&"chair") as Node2D,
 		&"shield": t.object(&"shield") as Node2D,
 	}
-	for id in chairs:
-		if not t.require(chairs[id] != null, "the armchair %s is placed" % id):
-			return
+	for id in c.chairs:
+		if not t.require(c.chairs[id] != null, "the armchair %s is placed" % id):
+			return false
+	return true
 
-	# Each character GAP ahead of its car's nose, so every car strikes at the same closing speed (a
-	# longer roll would lose speed to rolling resistance and so harm). In (a) and (b) the car is
-	# first moved so that what stands ahead of it is just a character's width past that: the
-	# character then touches it. In (d) the character stands touching the far face of the armchair,
-	# which is GAP ahead of the nose.
-	var placed := {}
+
+## Each character GAP ahead of its car's nose, so every car strikes at the same closing speed (a
+## longer roll would lose speed to rolling resistance and so harm). In (a) and (b) the car is
+## first moved so that what stands ahead of it is just a character's width past that: the
+## character then touches it. In (d) the character stands touching the far face of the armchair,
+## which is GAP ahead of the nose. Where each was put goes into `c.placed` (false: a lane had
+## nothing solid ahead, the test has ended).
+func _place_lanes(t: TestContext, c: Crash) -> bool:
 	for lane in LANES:
-		var car := t.vehicle(lane) as Node2D
-		var who: StringName = LANES[lane][1]
-		var radius: float = t.actor(who).radius
-		var front := Probe.forward(car)
 		if lane == &"chair" or lane == &"wall":
-			var behind := Probe.gap_to_solid(car, front)
-			if not t.require(
-					behind < 300.0,
-					"in the %s lane something solid stands ahead of the nose (%.0f px)"
-						% [lane, behind],
-			):
-				return
-			await Probe.move_vehicle(
-				t,
-				car,
-				car.global_position + front * (behind - (GAP + 2.0 * radius + 1.0)),
-				car.global_rotation,
-			)
-			t.check(
-				absf(Probe.gap_to_solid(car, front) - (GAP + 2.0 * radius + 1.0)) < 1.5,
-				"the %s lane's car stands a character's width and GAP short of it (%.1f px)"
-					% [lane, Probe.gap_to_solid(car, front)],
-			)
-		if lane == &"shield":
-			t.check(
-				absf(Probe.gap_to_solid(car, front) - GAP) < 1.5,
-				"the shielding armchair stands GAP ahead of the nose (%.1f px)"
-					% Probe.gap_to_solid(car, front),
-			)
-			placed[lane] = (chairs[&"shield"].global_position
-					+ front * (_chair_half() + radius + 1.0))
-		else:
-			placed[lane] = Probe.edge(car, front) + front * (GAP + radius)
-		await Probe.place(t, who, placed[lane])
+			if not await _pull_up(t, lane):
+				return false
+		c.placed[lane] = _stand_point(t, c, lane)
+		await Probe.place(t, LANES[lane][1], c.placed[lane])
 	for lane in LANES:
 		var who: StringName = LANES[lane][1]
 		t.check(
-			t.actor(who).global_position.distance_to(placed[lane]) < 2.0,
+			t.actor(who).global_position.distance_to(c.placed[lane]) < 2.0,
 			"the %s character stands where it was put" % lane,
 		)
+	return true
 
-	var chair_start := {}
-	for id in chairs:
-		chair_start[id] = chairs[id].global_position
+
+## Move the car of pinned lane `lane` up to a character's width and GAP short of what stands
+## solid ahead of it (false: nothing does, the test has ended).
+func _pull_up(t: TestContext, lane: StringName) -> bool:
+	var car := t.vehicle(lane) as Node2D
+	var radius: float = t.actor(LANES[lane][1]).radius
+	var front := Probe.forward(car)
+	var behind := Probe.gap_to_solid(car, front)
+	if not t.require(
+			behind < 300.0,
+			"in the %s lane something solid stands ahead of the nose (%.0f px)" % [lane, behind],
+	):
+		return false
+	await Probe.move_vehicle(
+		t,
+		car,
+		car.global_position + front * (behind - (GAP + 2.0 * radius + 1.0)),
+		car.global_rotation,
+	)
+	t.check(
+		absf(Probe.gap_to_solid(car, front) - (GAP + 2.0 * radius + 1.0)) < 1.5,
+		"the %s lane's car stands a character's width and GAP short of it (%.1f px)"
+			% [lane, Probe.gap_to_solid(car, front)],
+	)
+	return true
+
+
+## Where lane `lane`'s character is put: in (d) touching the far face of the shielding armchair
+## (checked to stand GAP ahead of the nose), else GAP ahead of its car's nose.
+func _stand_point(t: TestContext, c: Crash, lane: StringName) -> Vector2:
+	var car := t.vehicle(lane) as Node2D
+	var radius: float = t.actor(LANES[lane][1]).radius
+	var front := Probe.forward(car)
+	if lane == &"shield":
+		t.check(
+			absf(Probe.gap_to_solid(car, front) - GAP) < 1.5,
+			"the shielding armchair stands GAP ahead of the nose (%.1f px)"
+				% Probe.gap_to_solid(car, front),
+		)
+		return c.chairs[&"shield"].global_position + front * (_chair_half() + radius + 1.0)
+	return Probe.edge(car, front) + front * (GAP + radius)
+
+
+## Note where the armchairs start, into `c.chair_start`, and set every car rolling at SPEED.
+func _set_off(t: TestContext, c: Crash) -> void:
+	for id in c.chairs:
+		c.chair_start[id] = c.chairs[id].global_position
 	for lane in LANES:
 		var car := t.vehicle(lane) as Node2D
 		car.set("linear_velocity", Probe.forward(car) * SPEED)
 
-	# Each lane's first touch: the first frame its car slows, its character is hurt or shoved, or
-	# (d) its chair moves; and the car's speed AFTER_TOUCH s later.
-	var touched := {}
-	var kept := {}
+
+## Each lane's first touch: the first frame its car slows, its character is hurt or shoved, or
+## (d) its chair moves; and the car's speed AFTER_TOUCH s later (into `c.touched`, `c.kept`).
+func _watch_touches(t: TestContext, c: Crash) -> void:
 	var deadline := t.time + 1.5
 	while t.time < deadline:
 		await t.frames(1)
 		for lane in LANES:
-			var car := t.vehicle(lane) as Node2D
-			var who := t.actor(LANES[lane][1])
-			t.trace("%s car speed" % lane, car.speed())
-			t.trace("%s health" % lane, who.health)
-			var moved: bool = who.global_position.distance_to(placed[lane]) > 1.0
-			if lane == &"shield":
-				moved = moved or chairs[lane].global_position.distance_to(chair_start[lane]) > 1.0
-			if (not touched.has(lane)
-					and (moved or who.health < who.max_health or car.speed() < 0.97 * SPEED)):
-				touched[lane] = t.time
-			if touched.has(lane) and not kept.has(lane) and t.time >= touched[lane] + AFTER_TOUCH:
-				kept[lane] = car.speed()
-	for lane in LANES:
-		if not t.require(
-				touched.has(lane),
-				"the %s lane's car reaches what stands ahead of it" % lane,
-		):
-			return
+			_note_touch(t, c, lane)
 
+
+## One frame of lane `lane`'s touch watch.
+func _note_touch(t: TestContext, c: Crash, lane: StringName) -> void:
+	var car := t.vehicle(lane) as Node2D
+	var who := t.actor(LANES[lane][1])
+	t.trace("%s car speed" % lane, car.speed())
+	t.trace("%s health" % lane, who.health)
+	var moved: bool = who.global_position.distance_to(c.placed[lane]) > 1.0
+	if lane == &"shield":
+		moved = moved or c.chairs[lane].global_position.distance_to(c.chair_start[lane]) > 1.0
+	if (not c.touched.has(lane)
+			and (moved or who.health < who.max_health or car.speed() < 0.97 * SPEED)):
+		c.touched[lane] = t.time
+	if c.touched.has(lane) and not c.kept.has(lane) and t.time >= c.touched[lane] + AFTER_TOUCH:
+		c.kept[lane] = car.speed()
+
+
+## The harm: the open hit hurts and leaves alive; pinned takes at least it, shielded half of it.
+func _check_harm(t: TestContext) -> void:
 	var harm := {}
 	for lane in LANES:
 		var who := t.actor(LANES[lane][1])
@@ -212,16 +254,19 @@ func run(t: TestContext) -> void:
 			% [harm[&"shield"], open],
 	)
 
+
+## The speed each car keeps after its first touch, and the armchairs shoved on.
+func _check_kept(t: TestContext, c: Crash) -> void:
 	for lane in KEEP:
 		var share: float = KEEP[lane]
 		t.check(
-			float(kept.get(lane, 0.0)) >= share * SPEED,
+			float(c.kept.get(lane, 0.0)) >= share * SPEED,
 			("in the %s lane the car keeps going: %.0f px/s %.1f s after the first touch (at least "
 					+ "%.0f of %.0f)")
-				% [lane, float(kept.get(lane, 0.0)), AFTER_TOUCH, share * SPEED, SPEED],
+				% [lane, float(c.kept.get(lane, 0.0)), AFTER_TOUCH, share * SPEED, SPEED],
 		)
-	for id in chairs:
-		var shoved: float = (chairs[id].global_position - chair_start[id]).dot(Probe.forward(
+	for id in c.chairs:
+		var shoved: float = (c.chairs[id].global_position - c.chair_start[id]).dot(Probe.forward(
 			t.vehicle(id) as Node2D,
 		))
 		t.check(
@@ -229,6 +274,9 @@ func run(t: TestContext) -> void:
 			"in the %s lane the car shoves the armchair on (%.0f px)" % [id, shoved],
 		)
 
+
+## Against the wall the car posts a crash, as into a wall.
+func _check_wall_crash(t: TestContext) -> void:
 	var wall_car := t.vehicle(&"wall") as Node2D
 	var crashed := t.events_of(
 		&"vehicle",
@@ -244,3 +292,18 @@ func run(t: TestContext) -> void:
 		"against the wall the car crashes as into a wall (a crash event; it is at %.0f px/s)"
 			% wall_car.speed(),
 	)
+
+
+## The lanes' armchairs and what the run notes of them: where each character was put, where the
+## armchairs started, and each lane's first touch and the speed its car kept after it.
+class Crash:
+	## Armchair id (`chair`, `shield`) -> the armchair.
+	var chairs: Dictionary = {}
+	## Lane -> where its character was put.
+	var placed: Dictionary = {}
+	## Armchair id -> where it stood as the cars set off.
+	var chair_start: Dictionary = {}
+	## Lane -> the sim time of its first touch.
+	var touched: Dictionary = {}
+	## Lane -> its car's speed AFTER_TOUCH s after the first touch.
+	var kept: Dictionary = {}

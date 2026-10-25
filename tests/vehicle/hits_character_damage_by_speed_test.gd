@@ -46,14 +46,7 @@ func run(t: TestContext) -> void:
 		return
 	var speeds := { &"slow": 60.0, &"mid": mid, &"fast": float(kill) + 40.0 }
 
-	# Each character stands just ahead of its car's nose.
-	var placed := {}
-	for lane in LANES:
-		var car := t.vehicle(lane) as Node2D
-		var who := StringName("hit_" + lane)
-		var radius: float = t.actor(who).radius
-		placed[lane] = Probe.edge(car, Probe.forward(car)) + Probe.forward(car) * (radius + GAP)
-		await Probe.place(t, who, placed[lane])
+	var placed := await _place_characters(t)
 	for lane in LANES:
 		var car := t.vehicle(lane) as Node2D
 		car.set("linear_velocity", Probe.forward(car) * float(speeds[lane]))
@@ -79,3 +72,15 @@ func run(t: TestContext) -> void:
 		killed.is_dead,
 		"at %.0f px/s it is killed (health %.1f)" % [float(speeds[&"fast"]), killed.health],
 	)
+
+
+## Each character stands just ahead of its car's nose. Returns lane -> where it was put.
+func _place_characters(t: TestContext) -> Dictionary:
+	var placed := {}
+	for lane in LANES:
+		var car := t.vehicle(lane) as Node2D
+		var who := StringName("hit_" + lane)
+		var radius: float = t.actor(who).radius
+		placed[lane] = Probe.edge(car, Probe.forward(car)) + Probe.forward(car) * (radius + GAP)
+		await Probe.place(t, who, placed[lane])
+	return placed

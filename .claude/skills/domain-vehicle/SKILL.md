@@ -25,11 +25,13 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 | `vehicle_config.gd` (`VehicleConfig`) | Static holder: the shared numbers (getting in and out, driving, collisions, camera, the look) and one `kinds` row per kind (`car`, `van`) plus one `looks` row per kind (the painters' proportions). |
 | `vehicle.gd` | Root `RigidBody2D` (control; no `class_name`, cross-file calls through the scene). Body set-up and collider, the drivable contract (interface 19), the hittable contract, seats, doors, rides, contacts, skids and every event the domain posts. Group `vehicles`. |
 | `vehicle_drive.gd` | `RefCounted` (preloaded): the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`; `lock(row, speed)` is the full lock at a speed. |
+| `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
 | `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out. |
 | `character_vehicle_use.gd` | `Node` composed by `character.gd` in code (like `CharacterInteraction`): finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `keep_clear_of`. |
 | `vehicle_visuals.gd` | Draw, on the `Chassis` (`DrawLayers.UNDER_VEHICLE`, −1) and `Roof` (`DrawLayers.ABOVE`, +1) children (`layer` export), which sandwich the occupants (`STANDING`, 0) and cover what lies on the floor (`LYING`, −2: a dead body, casings, a dropped item). |
 | `art/vehicle_art.gd` | The painters' shared helpers (the body's part dispatch `paint_parts`, vehicle frame → canvas, cached convex regions, door frames, side glass, the roof's `lamps` and the tail lamps, seats, dashboard, sills). |
+| `art/vehicle_paint.gd` (`VehiclePaint`) | `RefCounted` value object: the body being painted (canvas, its scale `k`, paint, kind and its `kinds` / `looks` rows), which the body painters make and every shared helper takes. |
 | `art/car_painter.gd`, `art/van_painter.gd` | A body, `opts.part` `chassis` or `roof`. |
 | `art/door_painter.gd`, `art/wheel_painter.gd`, `art/lamp_painter.gd` | A door (`panel` / `glass` / `mirror`), a wheel, a lit lamp. |
 | `vehicle.tscn`, `car.tscn`, `van.tscn` | The base scene (root + `Chassis` + `Roof`); car and van set only `kind` and `color`. The collider is built in `_ready` (runtime-shape convention). |

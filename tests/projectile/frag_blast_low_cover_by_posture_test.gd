@@ -77,6 +77,16 @@ func run(t: TestContext) -> void:
 			+ "against 35 and 60)",
 	)
 
+	_check_hits(t, blast)
+
+
+## The blast hits: the standing dummy takes the usual damage, the crouched one behind the same
+## couches none.
+func _check_hits(t: TestContext, blast: Vector2) -> void:
+	var crouched := t.actor(&"crouched")
+	var standing := t.actor(&"standing")
+	var d_standing: float = standing.global_position.distance_to(blast)
+	var d_crouched: float = crouched.global_position.distance_to(blast)
 	var hits := Probe.blast_hits(t, standing)
 	if t.check(
 			not hits.is_empty(),
