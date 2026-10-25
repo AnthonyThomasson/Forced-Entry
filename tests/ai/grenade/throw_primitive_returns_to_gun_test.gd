@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 	if not t.require(
 			Probe.count(far, Probe.FRAG) == 1
 				and Probe.count(near, Probe.FRAG) == 1
-				and far.current_slot() == Probe.PISTOL,
+				and far.inventory.current_slot() == Probe.PISTOL,
 			"both invaders carry a frag and hold their pistol (item_count(8) = %d, %d)"
 				% [Probe.count(far, Probe.FRAG), Probe.count(near, Probe.FRAG)],
 	):
@@ -97,7 +97,7 @@ func _both_threw(t: TestContext, far: Node, near: Node) -> bool:
 	var held := { &"far": false, &"near": false }
 	var thrown := await t.until(func():
 		for id in held:
-			held[id] = held[id] or t.actor(id).current_slot() == Probe.FRAG
+			held[id] = held[id] or t.actor(id).inventory.current_slot() == Probe.FRAG
 		return t.happened(
 			&"throw",
 			func(d): return d.get("attacker") == near,
@@ -164,8 +164,12 @@ func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void
 func _check_back_on_pistol(t: TestContext, far: Node, near: Node) -> void:
 	var asked := t.von_requests().size()
 	await t.seconds(2.0)
-	t.expect_eq(far.current_slot(), Probe.PISTOL, "the far invader is on its pistol after the bang")
-	t.expect_eq(near.current_slot(), Probe.PISTOL, "so is the near one")
+	t.expect_eq(
+		far.inventory.current_slot(),
+		Probe.PISTOL,
+		"the far invader is on its pistol after the bang",
+	)
+	t.expect_eq(near.inventory.current_slot(), Probe.PISTOL, "so is the near one")
 	t.expect_eq(
 		[Probe.count(far, Probe.FRAG), Probe.count(near, Probe.FRAG)],
 		[0, 0],

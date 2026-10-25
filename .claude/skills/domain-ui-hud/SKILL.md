@@ -9,7 +9,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
 
 - `debug_ui.gd` — the **player debug panel** (`DebugUI` node). Bottom-right stats block: current
   item slot, an ammo line (`Ammo: 7/12  (+2 mags)`, "reloading…" mid-swap, "—" for an item without ammo, read through
-  `ammo.rounds()` / `ammo.capacity()` / `ammo.spare_magazines()` / `ammo.is_reloading()`), a grenades line (`Grenades: 1 stun, 2 frag`, "—" with none, read through `item_count(slot)` for the slots of `LoadoutConfig.grenade_options()`), punch active flag, active interaction, reach, stamina (and whether running), posture (`Standing` / `Crouching`, read through `posture()`). Top-left hit banner: last body hit, method
+  `ammo.rounds()` / `ammo.capacity()` / `ammo.spare_magazines()` / `ammo.is_reloading()`), a grenades line (`Grenades: 1 stun, 2 frag`, "—" with none, read through `inventory.item_count(slot)` for the slots of `LoadoutConfig.grenade_options()`), punch active flag, active interaction, reach, stamina (and whether running), posture (`Standing` / `Crouching`, read through `posture()`). Top-left hit banner: last body hit, method
   (punch left/right, kick or gunshot) and damage; the bottom-right "Last Hit" block adds the time since. Attaches to its character by the
   exported `character_path`; listens to `hit_landed` on the character; freed in spectator mode. Font sizes: stats 34pt, hit banner 32pt.
   Bottom left (26pt, growing up from the bottom edge: free), an `=== OUTFIT ===` block of
@@ -91,7 +91,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`: a row's `held`, D13), then
   "Stack into the <room> (quiet)", "Stack into the <room> with stun" and "Stack into the <room> with frag", `<room>` the type of the room it
   resolves the stack into (`into`), so the label names the room of the order (`tests/ui/command_menu_label_matches_order`), the stun item
-  disabled while no recipient's `item_count(ItemRegistry.STUN_SLOT)` is above 0 (D1) and the frag item while none's `FRAG_SLOT` is (D15)
+  disabled while no recipient's `inventory.item_count(ItemRegistry.STUN_SLOT)` is above 0 (D1) and the frag item while none's `FRAG_SLOT` is (D15)
   (`_recipients_carry(slot)`; a disabled button's tooltip says why: "Nobody it would go to carries a stun grenade." / "... a frag grenade."),
   then "Ambush the doorway from the <room>", `<room>` the one the squad resolves the ambush to (`resolve({ kind: "ambush", pos })`'s `room`, the
   click's side of the wall, `_ambush_from`; LD15, D17); a room whose rect holds it — "Defend the <room>"; then "Cancel order" while a recipient

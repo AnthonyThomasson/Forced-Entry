@@ -49,7 +49,7 @@ only; it writes no memory and holds no policy. Everything in this section and th
 lives in `agent_snapshot.gd`.
 
 - **facts** — named booleans a `requires` or an entry rule can gate on: `threat_known`, `hostile_known`,
-  `gun_loaded` (the gun it fights with, `Character.gun_slot()`, has rounds and is not mid-reload),
+  `gun_loaded` (the gun it fights with, `Character.inventory.gun_slot()`, has rounds and is not mid-reload),
   `weapon_low` (at or below `low_ammo_fraction` of its magazine, empty included), `can_reload` (a carried magazine would add
   rounds), `under_fire`, `engaged`, `leads`, `lead_outside` (the NPC is inside the house and an offered lead lies outside it:
   gates the `stay` child of INVESTIGATE), `hurt` (its damage taken has reached `hurt_threshold`), `inside` (it stands in a room of the

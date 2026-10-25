@@ -8,7 +8,7 @@ extends RefCounted
 ## contact and the hold-ground flag) and passes the target in each call; this class never chooses a
 ## target and reads the world only through the perception (`has_line_to`, `combat_spots`,
 ## `note_engaged`) and the character's public contract. It knows no gun from another: the gun it
-## fights with is `Character.gun_slot()`.
+## fights with is `Character.inventory.gun_slot()`.
 
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
 signal dry
@@ -118,7 +118,7 @@ func tick(delta: float) -> void:
 ## `has_line_of_fire`. The cooldown, the facing and a run are not counted: they pass in a moment,
 ## this says the NPC is in a position to fire.
 func can_fire_at(target: Dictionary) -> bool:
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	if (gun < 0
 			or _character.ammo.rounds(gun) == 0
 			or _character.ammo.is_reloading()
@@ -194,7 +194,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 		# it.
 		if fire_timer <= 0.0 and _faces(pos):
 			var fired := shoot()
-			if fired or _character.ammo.rounds(_character.gun_slot()) == 0:
+			if fired or _character.ammo.rounds(_character.inventory.gun_slot()) == 0:
 				phase = "cover"
 				cover_timer = cover_time
 				dest_timer = 0.0  # Pick a cover spot immediately after shooting.
@@ -237,7 +237,7 @@ func throw_step(delta: float) -> StringName:
 	_character.move_input = Vector2.ZERO
 	match throw_stage:
 		"walk":
-			if _character.item_count(_throw_slot) <= 0:
+			if _character.inventory.item_count(_throw_slot) <= 0:
 				throw_stage = "away"
 				return &"failed"
 			if not _loco.reached(_throw_from, THROW_SPOT_REACH):
@@ -246,16 +246,16 @@ func throw_step(delta: float) -> StringName:
 			throw_stage = "aim"
 			_throw_clock = 0.0
 		"aim":
-			if _character.item_count(_throw_slot) <= 0 or _throw_clock > THROW_START_CAP:
+			if _character.inventory.item_count(_throw_slot) <= 0 or _throw_clock > THROW_START_CAP:
 				throw_stage = "away"
 				return &"failed"
-			_character.select_slot(_throw_slot)
+			_character.inventory.select_slot(_throw_slot)
 			_character.aim_point = _throw_spot
 			if _character.global_position.distance_to(_throw_spot) > _throw_reach:
 				_loco.move_to(_throw_spot)
 				return &""
-			if _character.current_slot() == _throw_slot and _faces(_throw_spot):
-				_throw_before = _character.item_count(_throw_slot)
+			if _character.inventory.current_slot() == _throw_slot and _faces(_throw_spot):
+				_throw_before = _character.inventory.item_count(_throw_slot)
 				if _character.weapon.shoot():
 					throw_stage = "windup"
 					_throw_clock = 0.0
@@ -270,10 +270,10 @@ func throw_step(delta: float) -> StringName:
 ## Whether the grenade being thrown has left the hand since the last call (true once): the end of
 ## the wind-up. The gun is taken back in hand then (a last grenade empties its slot by itself).
 func throw_released() -> bool:
-	if throw_stage != "windup" or _character.item_count(_throw_slot) >= _throw_before:
+	if throw_stage != "windup" or _character.inventory.item_count(_throw_slot) >= _throw_before:
 		return false
 	throw_stage = "away"
-	_character.select_slot(_character.gun_slot())
+	_character.inventory.select_slot(_character.inventory.gun_slot())
 	return true
 
 
@@ -306,14 +306,14 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 func shoot() -> bool:
 	if _character.is_running() or _character.ammo.is_reloading() or holds_fire():
 		return false
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	if gun < 0:
 		return false
 	if _character.ammo.rounds(gun) == 0:
 		fire_timer = fire_cooldown
 		dry.emit()
 		return false
-	_character.select_slot(gun)
+	_character.inventory.select_slot(gun)
 	if _character.weapon.blocked():
 		_back_off_timer = back_off_time
 		return false
@@ -345,7 +345,7 @@ func kick() -> void:
 func punch() -> void:
 	_perception.note_engaged()
 	fire_timer = fire_cooldown
-	_character.select_slot(ItemRegistry.FISTS_SLOT)
+	_character.inventory.select_slot(ItemRegistry.FISTS_SLOT)
 	_character.weapon.melee()
 
 
@@ -381,7 +381,7 @@ func apply_back_off(delta: float) -> void:
 func reload_if_dry() -> void:
 	if not reload_due():
 		return
-	_character.select_slot(_character.gun_slot())
+	_character.inventory.select_slot(_character.inventory.gun_slot())
 	_character.ammo.reload()
 
 
@@ -390,7 +390,7 @@ func reload_if_dry() -> void:
 ## short of full with a magazine to add; true while it is under way or wanted, so a caller that must
 ## not move on armed waits for false. The caller stands still (a run cancels it).
 func top_off() -> bool:
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	if gun < 0:
 		return false
 	if _character.ammo.is_reloading():
@@ -398,7 +398,7 @@ func top_off() -> bool:
 	if (_character.ammo.rounds(gun) >= _character.ammo.capacity(gun)
 			or not _character.ammo.can_reload(gun)):
 		return false
-	_character.select_slot(gun)
+	_character.inventory.select_slot(gun)
 	_character.ammo.reload()
 	return true
 
@@ -406,7 +406,7 @@ func top_off() -> bool:
 ## Whether the gun the NPC fights with is at or below `fraction` of its magazine (a follower at
 ## rest tops up such a one, LD22: not only a dry one).
 func magazine_low(fraction: float) -> bool:
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	return (gun >= 0
 			and _character.ammo.rounds(gun) <= ceili(_character.ammo.capacity(gun) * fraction))
 
@@ -414,7 +414,7 @@ func magazine_low(fraction: float) -> bool:
 ## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine
 ## to put in it. (A reload runs only while standing, so a run is dropped for it.)
 func reload_due() -> bool:
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	return (auto_reload
 			and gun >= 0
 			and not _character.ammo.is_reloading()

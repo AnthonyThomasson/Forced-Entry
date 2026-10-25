@@ -99,7 +99,7 @@ func _check_apply(t: TestContext) -> void:
 	t.expect_eq(Probe.count(armed, Probe.STUN), 2, "two stun grenades are carried (slot 7)")
 	t.expect_eq(Probe.count(armed, Probe.FRAG), 3, "three frag grenades are carried (slot 8)")
 	t.expect_eq(
-		armed.current_slot(),
+		armed.inventory.current_slot(),
 		int(GunConfig.row(&"smg")["slot"]),
 		"the gun is still what is held",
 	)

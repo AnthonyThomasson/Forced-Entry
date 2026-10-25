@@ -54,4 +54,8 @@ func run(t: TestContext) -> void:
 		"the kick shoves further than a punch (%.1f vs %.1f px)"
 			% [kick_moved.length(), punch_moved.length()],
 	)
-	t.expect_eq(t.actor(&"kicker").current_slot(), 3, "the kicker kept its pistol in hand")
+	t.expect_eq(
+		t.actor(&"kicker").inventory.current_slot(),
+		3,
+		"the kicker kept its pistol in hand",
+	)

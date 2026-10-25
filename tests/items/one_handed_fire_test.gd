@@ -64,7 +64,7 @@ func _one_handed(c: Node) -> Variant:
 ## The weapon hand's place in `c`'s skeleton: how far ahead of the body centre along the facing (px)
 ## and how high (body radii).
 func _hold(c: Node) -> Dictionary:
-	var item: Item = c.current_item()
+	var item: Item = c.inventory.current_item()
 	var hand: Vector3 = c.rig().point(Rig.HAND[item.weapon_hand()])
 	return {
 		"ahead": Vector2(hand.x, hand.y).dot(c.facing),

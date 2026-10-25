@@ -1,8 +1,8 @@
 extends GameTest
 ## A character spawns carrying one random gun: `ItemRegistry.random_gun_slot` draws from a seeded
 ## generator (so a house seed reproduces the loadouts and every gun comes up), and
-## `Character.set_loadout` leaves it with bare hands, fists, the key and just that gun, holding it,
-## with only that gun's spare magazines.
+## `Character.inventory.set_loadout` leaves it with bare hands, fists, the key and just that gun,
+## holding it, with only that gun's spare magazines.
 
 const GUN_SLOTS := [3, 5, 6]
 
@@ -58,18 +58,18 @@ func _check_loadout(t: TestContext, body: Node, slot: int) -> void:
 	kit.slots = ItemRegistry.loadout_for(slot)
 	kit.hold_slot = slot
 	kit.spare_types = ItemRegistry.spares_for(slot)
-	body.set_loadout(kit)
+	body.inventory.set_loadout(kit)
 	var gun: StringName = GunConfig.gun_in_slot(slot)
 	for plain in [1, 2, 4]:
-		t.check(body.has_item(plain), "slot %d: carries slot %d" % [slot, plain])
+		t.check(body.inventory.has_item(plain), "slot %d: carries slot %d" % [slot, plain])
 	for other in GUN_SLOTS:
 		t.expect_eq(
-			body.has_item(other),
+			body.inventory.has_item(other),
 			other == slot,
 			"slot %d: carries only its own gun (slot %d)" % [slot, other],
 		)
-	t.expect_eq(body.current_slot(), slot, "slot %d: holds it" % slot)
-	t.expect_eq(body.gun_slot(), slot, "slot %d: it is the gun it fights with" % slot)
+	t.expect_eq(body.inventory.current_slot(), slot, "slot %d: holds it" % slot)
+	t.expect_eq(body.inventory.gun_slot(), slot, "slot %d: it is the gun it fights with" % slot)
 	t.expect_eq(
 		body.ammo.rounds(),
 		MagazineConfig.capacity_of(StringName(GunConfig.row(gun)["magazine"])),

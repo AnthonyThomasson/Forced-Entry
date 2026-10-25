@@ -21,13 +21,13 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	s.actor(&"inv", &"invader", Vector2(960, 60), { "start_rounds": 7 })
+	s.actor(&"inv", &"invader", Vector2(960, 60), { "inventory:start_rounds": 7 })
 
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var inv := t.actor(&"inv")
-	var capacity: int = inv.ammo.capacity(inv.gun_slot())
+	var capacity: int = inv.ammo.capacity(inv.inventory.gun_slot())
 	var going := func(): return Entry.first_call_time(t, "going_in", &"inv", door["id"]) < INF
 	await Entry.watch(t, [&"inv"], door, 60.0, going)
 	var act: String = str(Entry.brain(t, &"inv").current_act())

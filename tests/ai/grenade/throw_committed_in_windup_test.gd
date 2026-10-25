@@ -52,8 +52,8 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var winding := func() -> bool:
-		var item: Object = inv.current_item()
-		return (inv.current_slot() == Probe.FRAG
+		var item: Object = inv.inventory.current_item()
+		return (inv.inventory.current_slot() == Probe.FRAG
 				and item.has_method("is_winding_up")
 				and item.is_winding_up())
 	if not t.require(await t.until(winding, 10.0), "the invader began its wind-up"):

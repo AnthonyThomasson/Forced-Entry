@@ -117,7 +117,7 @@ throw spot a short walk away (`agent_tactics.gd` `throw_spot`, issue #51 R13 / R
 from it itself (judged from where it throws); it runs the `throw` primitive (walk to the throw spot, select, aim, throw, radio `frag_out` / `bang_out`, gun back in hand, wait out the fuse, or the evade plan if it is in the
 burst's zone). **STUN ENTRY** (G18) is a SEARCH tactic beside ENTER, offered while the NPC or its stack carries a stun: the same doorways, with a stun thrown into the room from beside the door before the point crosses (the `bang` phase of
 `entry.gd`, `docs/tactical-entry.md` E17); Von takes it for a suspect room (gunfire or footsteps heard there, shots from it, an ally's fight in it, a hostile lost in it, by its doorway or heading in). `perception/snapshot` words both (`domain-ai-snapshot`), the tree has the nodes (`domain-ai-decision`), `combat.gd` throws (`domain-ai-combat`), `entry.gd` runs the bang (`domain-ai-entry`); the numbers it
-knows of a grenade not yet thrown (throw range, radii, fuses, the flash's cover reach) it reads off the grenades it carries (`Character.throw_stats(slot)`, interface 6/7; no copy in exports).
+knows of a grenade not yet thrown (throw range, radii, fuses, the flash's cover reach) it reads off the grenades it carries (`Character.inventory.throw_stats(slot)`, interface 6/7; no copy in exports).
 
 Two reflexes outside Von, in the orchestrator's loop (`_react_to_grenades`, `_process_events`), and the exports **Grenades** group (`grenades_enabled`, `hear_grenade` 300 px, `evade_margin` 120 px, `blind_fire_chance` 0.5):
 - **Evade (G16).** Perception knows the live grenades it sees, hears come down, is told of (callout `status` `grenade`, also `frag_out` / `bang_out`) or threw; when it is inside a
@@ -183,7 +183,7 @@ Both know their ammo: the snapshot's `loadout` section and the `gun_loaded` / `w
 tactic in the decision tree, the `reload` primitive runs it, and the `auto_reload` export (default on) reloads an empty gun
 as a reflex. `low_ammo_fraction` sets where "nearly empty" starts.
 
-Nothing in the AI is written per weapon: it fights with `Character.gun_slot()` (whatever gun it carries — the presets hold a pistol, but a match
+Nothing in the AI is written per weapon: it fights with `Character.inventory.gun_slot()` (whatever gun it carries — the presets hold a pistol, but a match
 arms every NPC with a gun from its side's loadout, one random gun by default) and reacts only to generic conditions the character reports. Notably, when its gun cannot fire because the
 barrel is against a wall or object (`weapon.blocked()`, a long gun), it steps back until it can; a pistol is never blocked. See `domain-ai-behavior`.
 

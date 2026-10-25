@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 	var squad := t.squad(&"invader")
 	if not t.require(
 			Probe.count(members[0], Probe.STUN) == 1 and Probe.count(lead, Probe.STUN) == 0,
-			"premise: only the sergeant carries a stun (Character.item_count(7))",
+			"premise: only the sergeant carries a stun (Character.inventory.item_count(7))",
 	):
 		return
 	var door := String(Entry.BACK["id"])

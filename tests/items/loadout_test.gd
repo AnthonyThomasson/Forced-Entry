@@ -1,7 +1,7 @@
 extends GameTest
-## LoadoutConfig arms a character through Character.set_loadout: only the chosen gun (plus hands,
-## fists and key), the chosen magazine and spare count; "random" draws a gun; the choices come from
-## GunConfig.
+## LoadoutConfig arms a character through Character.inventory.set_loadout: only the chosen gun (plus
+## hands, fists and key), the chosen magazine and spare count; "random" draws a gun; the choices
+## come from GunConfig.
 
 
 func describe() -> Dictionary:
@@ -40,8 +40,11 @@ func _check_named_gun(t: TestContext, rng: RandomNumberGenerator) -> void:
 		rng,
 	)
 	t.expect_eq(armed, &"smg", "the SMG was chosen")
-	t.expect_eq(gunman.current_slot(), int(GunConfig.row(&"smg")["slot"]), "and is held")
-	t.check(not gunman.has_item(int(GunConfig.row(&"pistol")["slot"])), "no other gun is carried")
+	t.expect_eq(gunman.inventory.current_slot(), int(GunConfig.row(&"smg")["slot"]), "and is held")
+	t.check(
+		not gunman.inventory.has_item(int(GunConfig.row(&"pistol")["slot"])),
+		"no other gun is carried",
+	)
 	t.expect_eq(
 		gunman.ammo.rounds(),
 		MagazineConfig.capacity_of(&"smg_extended"),

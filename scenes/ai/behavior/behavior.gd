@@ -2092,9 +2092,9 @@ func _apply_reload() -> void:
 		_reload_started = true
 		return
 	if not _reload_started:
-		var gun: int = _character.gun_slot()
+		var gun: int = _character.inventory.gun_slot()
 		if gun >= 0:
-			_character.select_slot(gun)
+			_character.inventory.select_slot(gun)
 		_character.ammo.reload()
 		if _character.ammo.is_reloading():
 			_reload_started = true

@@ -879,7 +879,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 	var id: int = other.get_instance_id()
 	var pos: Vector2 = other.global_position
 	var room := SnapshotVocab.room_at(pos, rooms)
-	var item = other.current_item()
+	var item = other.inventory.current_item()
 	var f = other.get("faction")
 	return {
 		"id": id,

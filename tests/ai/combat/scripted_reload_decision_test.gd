@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 		&"defender",
 		Vector2(200, 300),
 		{
-			"start_rounds": 2,
+			"inventory:start_rounds": 2,
 			"max_health": 400.0,
 			"ammo:spare_magazine_types": [&"standard", &"standard"],
 		},

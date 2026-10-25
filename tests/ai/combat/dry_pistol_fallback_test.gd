@@ -15,7 +15,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 600))
 	s.von_down()
-	s.actor(&"defender", &"defender", Vector2(650, 300), { "start_rounds": 0 })
+	s.actor(&"defender", &"defender", Vector2(650, 300), { "inventory:start_rounds": 0 })
 
 
 func run(t: TestContext) -> void:

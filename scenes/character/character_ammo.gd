@@ -32,7 +32,7 @@ func _init(host: CharacterBody2D) -> void:
 ## reloading, or when no carried magazine would add rounds. Switching items, running or an
 ## interaction cancels it.
 func reload() -> void:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	if (character.is_dead
 			or character.is_busy()
 			or character.is_running()
@@ -53,7 +53,7 @@ func is_reloading() -> bool:
 
 ## Whether a reload of the item in `slot` (the held one by default) would add rounds right now.
 func can_reload(slot := -1) -> bool:
-	var item: Item = character.item_in(slot)
+	var item: Item = character.inventory.item_in(slot)
 	return item != null and not is_reloading() and item.can_reload(character)
 
 
@@ -86,14 +86,14 @@ func stow_magazine(mag: Magazine) -> void:
 
 ## Rounds loaded in the item in `slot` (the held one by default), or -1 if it has no ammo.
 func rounds(slot := -1) -> int:
-	var item: Item = character.item_in(slot)
+	var item: Item = character.inventory.item_in(slot)
 	return item.rounds_loaded() if item else -1
 
 
 ## Rounds a full load of the item in `slot` (the held one by default) holds, or -1 if it has no
 ## ammo.
 func capacity(slot := -1) -> int:
-	var item: Item = character.item_in(slot)
+	var item: Item = character.inventory.item_in(slot)
 	return item.ammo_capacity() if item else -1
 
 
@@ -104,7 +104,7 @@ func update(delta: float) -> void:
 		return
 	if (character.is_busy()
 			or character.is_running()
-			or character.current_item() != _reloading_item):
+			or character.inventory.current_item() != _reloading_item):
 		cancel()
 		return
 	_reload_left -= delta

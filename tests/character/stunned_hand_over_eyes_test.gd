@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 		&"pistol",
 		&"puppet",
 		Vector2(150, 120),
-		{ "start_slot": 3, "start_rounds": 5, "max_health": 100_000.0 },
+		{ "start_slot": 3, "inventory:start_rounds": 5, "max_health": 100_000.0 },
 	)
 	s.actor(&"rifle", &"puppet", Vector2(150, 300), { "start_slot": 6, "max_health": 100_000.0 })
 	s.actor(&"deaf", &"puppet", Vector2(150, 480), { "start_slot": 3, "max_health": 100_000.0 })
@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 
 ## The free hand of `c` (the one its held item does not name as the weapon hand).
 func _free(c: Node) -> int:
-	var item: Item = c.current_item()
+	var item: Item = c.inventory.current_item()
 	return 1 - (item.weapon_hand() if item != null else 0)
 
 

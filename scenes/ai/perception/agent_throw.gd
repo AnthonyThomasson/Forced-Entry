@@ -50,11 +50,11 @@ const RING_DIRECTIONS := 12
 ## so this is the safe reading.
 const LOB_CLEARANCE := 50.0
 ## Where a grenade leaves a thrower that stands facing its aim: its throwing hand
-## (`Character.throw_release_offset`, learned with the grenades it carries), held off a wall the way
-## the character's own hand is, `HAND_RADIUS` px short of it. A lob is clear only when the band
-## `LOB_MARGIN` px either side of the line from there is clear the whole way (the grenade's own body
-## and the hand's sway): a line from the thrower's centre that grazes a jamb by a pixel, or a line
-## that clears it by less than the grenade's width, is a grenade that strikes it.
+## (`Character.inventory.throw_release_offset`, learned with the grenades it carries), held off a
+## wall the way the character's own hand is, `HAND_RADIUS` px short of it. A lob is clear only when
+## the band `LOB_MARGIN` px either side of the line from there is clear the whole way (the grenade's
+## own body and the hand's sway): a line from the thrower's centre that grazes a jamb by a pixel, or
+## a line that clears it by less than the grenade's width, is a grenade that strikes it.
 const HAND_RADIUS := 3.0
 const LOB_MARGIN := 8.0
 ## How far (px) from a spot it walks to a thrower may end up (the walk's own arrival:
@@ -97,7 +97,7 @@ static var _snaps := {}
 var vision: RefCounted
 ## How far past a frag's blast radius its danger zone reaches (px).
 var evade_margin: float = 120.0
-## Kind -> what the NPC knows of that grenade (`Character.throw_stats`,
+## Kind -> what the NPC knows of that grenade (`Character.inventory.throw_stats`,
 ## `ThrownGrenade.throw_stats`); see `learn`.
 var _stats := {}
 ## The height of a standing body on the coverage scale (`Character.posture_coverage`); tall until it
@@ -105,8 +105,8 @@ var _stats := {}
 var _stand := 100.0
 ## The same for a crouched one.
 var _crouch := 100.0
-## Where a grenade leaves the NPC's hand, in its frame (`Character.throw_release_offset`: x ahead, y
-## to its right); the centre until learned.
+## Where a grenade leaves the NPC's hand, in its frame (`Character.inventory.throw_release_offset`:
+## x ahead, y to its right); the centre until learned.
 var _release := Vector2.ZERO
 ## The NPC's body (`bind`): the grenades it carries, its heights and its pace.
 var _character: Node
@@ -120,9 +120,9 @@ func bind(character: Node) -> void:
 # --- The grenades it carries ----------------------------------------------------------------------
 
 
-## How many grenades of `kind` `character` carries (`Character.item_count`).
+## How many grenades of `kind` `character` carries (`Character.inventory.item_count`).
 static func count(character: Node, kind: StringName) -> int:
-	return int(character.item_count(SLOTS[kind]))
+	return int(character.inventory.item_count(SLOTS[kind]))
 
 
 ## The kinds `character` carries, a frag first: `[&"frag", &"stun"]` less those it has none of.
@@ -138,14 +138,14 @@ func learn(stats: Dictionary) -> void:
 		_stats[stats["kind"]] = stats
 
 
-## Learn the numbers of every grenade the NPC carries (`Character.throw_stats`), and where one
-## leaves its hand (`Character.throw_release_offset`).
+## Learn the numbers of every grenade the NPC carries (`Character.inventory.throw_stats`), and where
+## one leaves its hand (`Character.inventory.throw_release_offset`).
 func learn_carried() -> void:
 	for slot: int in SLOTS.values():
-		var stats: Dictionary = _character.throw_stats(slot)
+		var stats: Dictionary = _character.inventory.throw_stats(slot)
 		learn(stats)
 		if not stats.is_empty():
-			_release = _character.throw_release_offset(slot)
+			_release = _character.inventory.throw_release_offset(slot)
 
 
 ## Learn the heights of a standing and of a crouched body off the NPC's own

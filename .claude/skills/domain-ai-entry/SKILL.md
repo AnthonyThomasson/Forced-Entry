@@ -131,7 +131,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   doorway) says ready, holds for a held stack's go, then runs `_tick_security` as E13's left-over does: it never crosses. A slot no dead
   end holds is never claimed (`begin`, `_to_back`, `_keep_slot` above).
 - **Top off at the stack (E11).** A member short of a full magazine with a spare swaps it in while `stack`ed, the one lull:
-  `_topping_off` (entry.gd) calls `Combat.top_off` (a tactical reload: `select_slot(gun_slot())`, `ammo.reload()`) from `_tick_stack`
+  `_topping_off` (entry.gd) calls `Combat.top_off` (a tactical reload: `inventory.select_slot(inventory.gun_slot())`, `ammo.reload()`) from `_tick_stack`
   before the point starts the pie or a follower crosses, and from `_tick_pie` before the point (or a split stack's other front man) crosses (a pie that fired),
   standing still and waiting for the reload to end. Skipped while a hostile holds the entrant's eyes (`gaze_held`: it fires) and
   past `TOP_OFF_CAP` (8 s) per entry; never in `cross` (the watch stage's empty-gun reflex is off while committed too).

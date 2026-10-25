@@ -6,9 +6,9 @@ extends GameTest
 ##
 ## The throw range (G2 as amended by issue #51, R14: `max_range` 550 px for both kinds, so the human
 ## throws as far too): a frag and then a stun aimed 540 px away land there too, within the same
-## scatter, and each reports that range (`Character.throw_stats`, the number the AI throws by). The
-## landing alone does not tell the range: a grenade capped at 450 px skids on to a 540 px aim too
-## (the lob fit), so the reported range is what pins it.
+## scatter, and each reports that range (`Character.inventory.throw_stats`, the number the AI throws
+## by). The landing alone does not tell the range: a grenade capped at 450 px skids on to a 540 px
+## aim too (the lob fit), so the reported range is what pins it.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const AIM := Vector2(400, 300)
@@ -41,13 +41,13 @@ func run(t: TestContext) -> void:
 	Probe.arm(thrower, 0, 2)
 	if not t.require(
 			Probe.count(thrower, Probe.FRAG) == 2,
-			"the thrower carries two frag grenades in slot 8 (Character.item_count(8) = %d)"
+			"the thrower carries two frag grenades in slot 8 (inventory.item_count(8) = %d)"
 				% Probe.count(thrower, Probe.FRAG),
 	):
 		return
 	await Probe.ready(t, &"thrower", Probe.FRAG, AIM)
 	if not t.require(
-			thrower.current_slot() == Probe.FRAG,
+			thrower.inventory.current_slot() == Probe.FRAG,
 			"selecting slot 8 holds the frag grenade",
 	):
 		return
@@ -72,7 +72,7 @@ func _throw_first(t: TestContext, thrower: Node) -> Dictionary:
 	t.puppet(&"thrower").shoot()
 	await t.frames(6)
 	t.check(
-		thrower.current_item().hand_stance(0) == &"throw",
+		thrower.inventory.current_item().hand_stance(0) == &"throw",
 		"during the wind-up the hand is drawn back in the throw stance",
 	)
 	if not t.require(
@@ -97,7 +97,7 @@ func _throw_first(t: TestContext, thrower: Node) -> Dictionary:
 	t.expect_eq(Probe.live(t).size(), 1, "the grenade in the air is one live grenade")
 	await t.frames(20)
 	t.check(
-		thrower.current_item().hand_stance(0) != &"throw",
+		thrower.inventory.current_item().hand_stance(0) != &"throw",
 		"the wind-up is over once it has left the hand",
 	)
 	return thrown
@@ -127,7 +127,7 @@ func _check_burst(t: TestContext, thrown: Dictionary) -> bool:
 func _check_far_throw(t: TestContext, thrower: Node, kind: StringName) -> bool:
 	var slot := Probe.FRAG if kind == &"frag" else Probe.STUN
 	t.expect_near(
-		float(thrower.throw_stats(slot).get("max_range", -1.0)),
+		float(thrower.inventory.throw_stats(slot).get("max_range", -1.0)),
 		THROW_RANGE,
 		0.01,
 		"a %s reports the 550 px throw range" % kind,

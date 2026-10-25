@@ -72,7 +72,7 @@ static func lob_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
 static func hand_lob_clear(t: TestContext, thrower: Node, at: Vector2, to: Vector2) -> bool:
 	var toward := (to - at).normalized()
 	var right := toward.rotated(PI * 0.5)
-	var offset: Vector2 = thrower.throw_release_offset(Probe.STUN
+	var offset: Vector2 = thrower.inventory.throw_release_offset(Probe.STUN
 			if Probe.count(thrower, Probe.STUN) > 0
 			else Probe.FRAG)
 	var hand := at + toward * offset.x + right * offset.y

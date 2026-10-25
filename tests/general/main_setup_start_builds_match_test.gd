@@ -166,20 +166,20 @@ func _npcs(world: Node, faction: StringName) -> Array:
 
 ## Whether `c` holds the gun `gun` and carries `stuns` stun and `frags` frag grenades.
 func _carries(c: Node, gun: StringName, stuns: int, frags: int) -> bool:
-	var held: Object = c.current_item()
+	var held: Object = c.inventory.current_item()
 	return (held != null
 		and held.gun_id() == gun
-		and c.item_count(ItemRegistry.STUN_SLOT) == stuns
-		and c.item_count(ItemRegistry.FRAG_SLOT) == frags)
+		and c.inventory.item_count(ItemRegistry.STUN_SLOT) == stuns
+		and c.inventory.item_count(ItemRegistry.FRAG_SLOT) == frags)
 
 
 ## What `c` carries, for a message.
 func _kit(c: Node) -> String:
-	var held: Object = c.current_item()
+	var held: Object = c.inventory.current_item()
 	return "holds %s, stuns %d, frags %d" % [
 		held.gun_id() if held != null else &"nothing",
-		c.item_count(ItemRegistry.STUN_SLOT),
-		c.item_count(ItemRegistry.FRAG_SLOT),
+		c.inventory.item_count(ItemRegistry.STUN_SLOT),
+		c.inventory.item_count(ItemRegistry.FRAG_SLOT),
 	]
 
 

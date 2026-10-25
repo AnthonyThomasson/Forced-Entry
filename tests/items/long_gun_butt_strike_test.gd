@@ -48,10 +48,15 @@ func run(t: TestContext) -> void:
 		await t.frames(1)
 		for id in peak:
 			var you := t.actor(id)
-			peak[id] = maxf(peak[id], you.current_item().strike_swing(you.punch_amount(0)))
+			peak[id] = maxf(
+				peak[id], you.inventory.current_item().strike_swing(you.punch_amount(0)),
+			)
 	for id in [&"rifle", &"smg"]:
 		var you := t.actor(id)
-		t.check(you.current_item().strike_ahead() > 0.0, "%s: the butt sits behind the grip" % id)
+		t.check(
+			you.inventory.current_item().strike_ahead() > 0.0,
+			"%s: the butt sits behind the grip" % id,
+		)
 		t.check(
 			peak[id] > 0.95,
 			"%s: the gun swings round for the butt strike (%.2f)" % [id, peak[id]],
@@ -60,7 +65,7 @@ func run(t: TestContext) -> void:
 		var struck := func(d): return d["actor"] == id and d["body"] == chair and d["hand"] >= 0
 		t.check(t.happened(&"hit_landed", struck), "%s: the butt strike lands on the chair" % id)
 	t.expect_eq(
-		t.actor(&"pistol").current_item().strike_ahead(),
+		t.actor(&"pistol").inventory.current_item().strike_ahead(),
 		0.0,
 		"a pistol has no butt to lead with",
 	)
@@ -75,7 +80,7 @@ func _check_two_handed_swing(t: TestContext) -> void:
 	var you := t.actor(&"free")
 	puppet.aim_at(Vector2(500, 540))
 	await t.seconds(0.4)
-	var item: GunItem = you.current_item()
+	var item: GunItem = you.inventory.current_item()
 	var gap := absf(item.strike_support_gap())
 	t.check(gap > 0.0, "a rifle's other hand grips along the barrel (%.0f px)" % gap)
 	var worst := 0.0

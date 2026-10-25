@@ -94,7 +94,7 @@ func secondary(user: Node2D) -> bool:
 func tick(delta: float) -> void:
 	if not is_winding_up():
 		return
-	if not is_instance_valid(_user) or _user.is_dead or _user.current_item() != self:
+	if not is_instance_valid(_user) or _user.is_dead or _user.inventory.current_item() != self:
 		_windup_left = -1.0
 		return
 	_windup_left -= delta

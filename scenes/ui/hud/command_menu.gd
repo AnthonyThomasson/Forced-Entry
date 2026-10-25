@@ -11,7 +11,8 @@ extends CanvasLayer
 ##   with stun" and "Stack into the <room> with frag", `<room>` the room that stack goes into (the
 ##   squad's `into`, named from the plain room dicts it was set up with), so the label names the
 ##   room of the order; the stun item is greyed while no recipient carries a stun
-##   (`Character.item_count(ItemRegistry.STUN_SLOT)`, D1), the frag item while none carries a frag
+## (`Character.inventory.item_count(ItemRegistry.STUN_SLOT)`, D1), the frag item while none carries
+## a frag
 ##   (`FRAG_SLOT`, D15); the panel's "Hold for my go" checkbox (off at first, kept while the match
 ##   runs, D19) makes the stack chosen wait for the leader's go (LD13); "Go into the <room>" while a
 ##   member of the squad's view holds a held stack there that has had no go, whoever is selected
@@ -387,7 +388,7 @@ func _recipients_now() -> Array:
 ## is offered only then).
 func _recipients_carry(slot: int) -> bool:
 	return _recipients_now().any(
-		func(n): return n.has_method("item_count") and int(n.item_count(slot)) > 0,
+		func(n): return "inventory" in n and int(n.inventory.item_count(slot)) > 0,
 	)
 
 

@@ -38,7 +38,8 @@ func run(t: TestContext) -> void:
 	t.puppet(&"winder").aim_at(Vector2(600, 380))
 	await t.seconds(0.4)
 	if not t.require(
-			holder.current_slot() == Probe.FRAG and winder.current_slot() == Probe.FRAG,
+			holder.inventory.current_slot() == Probe.FRAG
+				and winder.inventory.current_slot() == Probe.FRAG,
 			"both hold a frag grenade",
 	):
 		return
@@ -47,7 +48,8 @@ func run(t: TestContext) -> void:
 	t.puppet(&"winder").shoot()
 	await t.frames(6)
 	if not t.require(
-			winder.current_item() != null and winder.current_item().hand_stance(0) == &"throw",
+			winder.inventory.current_item() != null
+				and winder.inventory.current_item().hand_stance(0) == &"throw",
 			"the winder is in its wind-up",
 	):
 		return

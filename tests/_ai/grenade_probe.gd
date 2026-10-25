@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Every grenade API is reached duck-typed (`has_method`, `call`, groups, EventBus topics), so a
 ## test loads and runs before the feature exists and goes red on an assertion that names what is
-## missing, never on a parse error. What they read: `Character.item_count(slot)`, the
+## missing, never on a parse error. What they read: `Character.inventory.item_count(slot)`, the
 ## `live_grenades` group, and the EventBus topics `throw`, `grenade`, `explosion`, `stun` and `hit`
 ## (outcome `blast`).
 
@@ -46,9 +46,9 @@ static func arm(c: Node, stun_count := 0, frag_count := 0, weapon := &"pistol") 
 	LoadoutConfig.apply(c, { "weapon": weapon, "stuns": stun_count, "frags": frag_count }, rng)
 
 
-## How many grenades `c` carries in `slot`; -1 when the Character has no `item_count` yet.
+## How many grenades `c` carries in `slot`; -1 when the Character has no `inventory` yet.
 static func count(c: Node, slot: int) -> int:
-	return int(c.call("item_count", slot)) if c.has_method("item_count") else -1
+	return c.inventory.item_count(slot) if "inventory" in c else -1
 
 
 ## `c.stun.is_blind()` / `is_deaf()` / `level()`; false / 0.0 while the Character lacks a stun.

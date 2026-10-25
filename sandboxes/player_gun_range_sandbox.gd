@@ -8,10 +8,10 @@ extends GameTest
 ##
 ## The player also carries 3 stun (7) and 3 frag (8) grenades, thrown on LMB: 2 s after the last one
 ## goes off (none of the player's still live, no reload or throw under way) both are topped back up
-## to 3, the range re-arming the player as Main arms a spawn (`Character.set_loadout`), which
-## restocks the guns and their spare magazines too. West of where the player starts a dummy crouches
-## against the far (west) face of a couch: lob a frag or a stun short of the couch to see it shield
-## the crouched body (`docs/grenades.md` G7, G11), and one over it to see it does not.
+## to 3, the range re-arming the player as Main arms a spawn (`Character.inventory.set_loadout`),
+## which restocks the guns and their spare magazines too. West of where the player starts a dummy
+## crouches against the far (west) face of a couch: lob a frag or a stun short of the couch to see
+## it shield the crouched body (`docs/grenades.md` G7, G11), and one over it to see it does not.
 ##
 ## South of that is the armour range (docs/outfits.md): a firing line of nine numbered lanes, each
 ## ending at a dummy dressed in one outfit — plain clothes, a helmet, the tactical vest, the plate
@@ -190,8 +190,8 @@ static func _lane_id(i: int) -> StringName:
 
 ## Keeps the player's grenades: arms it with `GRENADES` stuns and frags on top of everything it
 ## carries, and re-arms it the same way `RESTOCK_AFTER` s after the last of its grenades goes off,
-## once none of them is live and no reload or throw is under way (`Character.set_loadout`, which
-## restocks its guns and spare magazines with them: the range's whole restock).
+## once none of them is live and no reload or throw is under way (`Character.inventory.set_loadout`,
+## which restocks its guns and spare magazines with them: the range's whole restock).
 class Restock extends Node:
 	var _player: Node
 	## Every slot it carries at the start, and both grenade slots.
@@ -214,15 +214,15 @@ class Restock extends Node:
 		if _since < RESTOCK_AFTER or _busy():
 			return
 		_since = -1.0
-		if (_player.item_count(ItemRegistry.STUN_SLOT) < GRENADES
-				or _player.item_count(ItemRegistry.FRAG_SLOT) < GRENADES):
+		if (_player.inventory.item_count(ItemRegistry.STUN_SLOT) < GRENADES
+				or _player.inventory.item_count(ItemRegistry.FRAG_SLOT) < GRENADES):
 			_arm()
 
 	## Keep `player`'s grenades: note every slot it carries now, and both grenade slots.
 	func setup(player: Node) -> void:
 		_player = player
 		for slot in range(1, 10):
-			if player.has_item(slot):
+			if player.inventory.has_item(slot):
 				_slots.append(slot)
 		for slot in [ItemRegistry.STUN_SLOT, ItemRegistry.FRAG_SLOT]:
 			if slot not in _slots:
@@ -239,7 +239,7 @@ class Restock extends Node:
 		for g in get_tree().get_nodes_in_group(&"live_grenades"):
 			if g.get(&"thrower") == _player:
 				return true
-		var item: Item = _player.current_item()
+		var item: Item = _player.inventory.current_item()
 		return (_player.ammo.is_reloading()
 				or (item != null and item.hand_stance(item.weapon_hand()) == &"throw"))
 
@@ -248,10 +248,10 @@ class Restock extends Node:
 	func _arm() -> void:
 		var kit := CharacterKit.new()
 		kit.slots = _slots
-		kit.hold_slot = _player.current_slot()
+		kit.hold_slot = _player.inventory.current_slot()
 		kit.spare_types = _player.ammo.spare_magazine_types
 		kit.grenades = { ItemRegistry.STUN_SLOT: GRENADES, ItemRegistry.FRAG_SLOT: GRENADES }
-		_player.set_loadout(kit)
+		_player.inventory.set_loadout(kit)
 
 
 ## The cover spot's dummy: crouched against the couch, walked back to its spot once a blast has

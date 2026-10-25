@@ -1,5 +1,5 @@
 extends GameTest
-## G1: a grenade tells its holder what it is, `Character.throw_stats(slot)` =
+## G1: a grenade tells its holder what it is, `Character.inventory.throw_stats(slot)` =
 ## `{ kind, max_range, danger_radius, fuse, flash_cover_reach }`, from its `GrenadeConfig` row: the
 ## numbers the AI throws by. A live grenade answers the same (`ThrownGrenade.throw_stats()`), taken
 ## from the row it was thrown with. Any other item, and a slot that is empty, answer {}.
@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var c := t.actor(&"c")
 	Probe.arm(c, 1, 0)
-	var stun: Dictionary = c.throw_stats(Probe.STUN)
+	var stun: Dictionary = c.inventory.throw_stats(Probe.STUN)
 	t.expect_eq(stun.get("kind"), &"stun", "a stun reports its kind")
 	t.expect_near(
 		float(stun.get("max_range", -1.0)),
@@ -47,10 +47,10 @@ func run(t: TestContext) -> void:
 		0.01,
 		"and the reach furniture shields from its flash at",
 	)
-	t.expect_eq(c.throw_stats(Probe.FRAG), {}, "no frag carried: nothing")
-	t.expect_eq(c.throw_stats(Probe.PISTOL), {}, "a gun is not thrown: nothing")
+	t.expect_eq(c.inventory.throw_stats(Probe.FRAG), {}, "no frag carried: nothing")
+	t.expect_eq(c.inventory.throw_stats(Probe.PISTOL), {}, "a gun is not thrown: nothing")
 	Probe.arm(c, 0, 1)
-	var frag: Dictionary = c.throw_stats(Probe.FRAG)
+	var frag: Dictionary = c.inventory.throw_stats(Probe.FRAG)
 	t.expect_eq(frag.get("kind"), &"frag", "a frag reports its kind")
 	t.expect_near(
 		float(frag.get("danger_radius", -1.0)),
@@ -70,4 +70,5 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.expect_eq(Probe.live(t)[0].throw_stats(), frag, "the live grenade answers what its item did")
-	t.expect_eq(c.throw_stats(Probe.FRAG), {}, "the last one thrown, the slot answers nothing")
+	t.expect_eq(c.inventory.throw_stats(Probe.FRAG), {},
+			"the last one thrown, the slot answers nothing")

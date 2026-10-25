@@ -216,7 +216,7 @@ func contact_posture_text(posture: StringName) -> String:
 func gun_noun(gun: int) -> String:
 	if gun < 0:
 		return "gun"
-	var name: String = _character.item_name(gun)
+	var name: String = _character.inventory.item_name(gun)
 	return name if name == name.to_upper() else name.to_lower()
 
 

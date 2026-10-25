@@ -29,7 +29,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(thrower, 1, 0)
 	if not t.require(
 			Probe.count(thrower, Probe.STUN) == 1,
-			"the thrower carries a stun grenade in slot 7 (Character.item_count(7) = %d)"
+			"the thrower carries a stun grenade in slot 7 (Character.inventory.item_count(7) = %d)"
 				% Probe.count(thrower, Probe.STUN),
 	):
 		return

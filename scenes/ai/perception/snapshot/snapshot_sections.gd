@@ -39,7 +39,7 @@ func situation_text(rooms: Array) -> String:
 			if _character.is_busy()
 			else "")
 	return "You are %s, holding a %s.%s%s You are %s." % [
-		where, _character.current_item().display_name, busy,
+		where, _character.inventory.current_item().display_name, busy,
 		_v.own_posture_text(_character.posture()), _v.health_band(_character.damage_taken()),
 	]
 

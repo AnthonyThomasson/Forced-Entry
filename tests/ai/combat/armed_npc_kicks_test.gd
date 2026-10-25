@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
 	var stranger := t.actor(&"stranger")
-	var held: int = defender.current_slot()
+	var held: int = defender.inventory.current_slot()
 	t.check(defender.ammo.capacity() >= 0, "the defender holds a gun")
 	var kicked := func(d):
 		return d["actor"] == &"defender" and d["body"] == stranger and d["hand"] == 2
@@ -40,7 +40,7 @@ func run(t: TestContext) -> void:
 		await t.until(func(): return t.happened(&"hit_landed", kicked), 10.0),
 		"the defender kicks the stranger",
 	)
-	t.expect_eq(defender.current_slot(), held, "the defender kept its gun in hand")
+	t.expect_eq(defender.inventory.current_slot(), held, "the defender kept its gun in hand")
 	t.check(
 		not t.happened(
 			&"hit_landed",

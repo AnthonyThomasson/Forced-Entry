@@ -1,7 +1,8 @@
 extends GameTest
 ## R3 (ticket #61): a weapon style is a look only; what a gun or grenade does is the same in every
 ## style. One shooter and one thrower, re-armed in each weapon style in turn
-## (`Character.set_loadout(kit)`, the kit's `weapon_style`), do the very same thing from the very
+## (`Character.inventory.set_loadout(kit)`, the kit's `weapon_style`), do the very same thing from
+## the very
 ## same spot:
 ## - each gun (pistol clicked every frame, SMG and rifle on a held trigger) fires as many rounds at
 ##   the same moments, its `shot` events name the same gun, power and muzzle, its rounds strike the
@@ -125,12 +126,12 @@ func run(t: TestContext) -> void:
 func _fire(t: TestContext, gun: StringName, style: StringName) -> Dictionary:
 	var shooter := t.actor(&"shooter")
 	var slot: int = StyleProbe.GUNS[gun]
-	shooter.set_loadout(StyleProbe.kit(slot, style))
+	shooter.inventory.set_loadout(StyleProbe.kit(slot, style))
 	_place(t, &"shooter", SHOOTER_AT, TARGET_AT)
 	_place(t, &"target", TARGET_AT, SHOOTER_AT)
 	await t.seconds(SETTLE)
 	t.expect_eq(
-		shooter.current_item().style,
+		shooter.inventory.current_item().style,
 		style,
 		"the shooter holds the %s in %s (the premise)" % [gun, style],
 	)
@@ -313,11 +314,11 @@ func _throw(t: TestContext, kind: StringName, style: StringName) -> Dictionary:
 	var dummy_id := _dummy(kind, style)
 	var dummy := t.actor(dummy_id)
 	var park: Vector2 = dummy.global_position
-	thrower.set_loadout(StyleProbe.kit(slot, style, { slot: 1 }))
+	thrower.inventory.set_loadout(StyleProbe.kit(slot, style, { slot: 1 }))
 	_place(t, &"thrower", THROWER_AT, THROW_TO)
 	_place(t, dummy_id, THROW_TO + DUMMY_OFFSET[kind], THROW_TO)
 	await t.seconds(SETTLE)
-	var item: Item = thrower.current_item()
+	var item: Item = thrower.inventory.current_item()
 	t.expect_eq(item.style, style, "the thrower holds the %s in %s (the premise)" % [kind, style])
 	var out := { "stats": item.throw_stats() }
 	var mark := t.events.size()

@@ -63,7 +63,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var winding := func() -> bool:
-		var item = inv.current_item()
+		var item = inv.inventory.current_item()
 		return item != null and item.hand_stance(0) == &"throw"
 	if not t.require(
 			await t.until(winding, 8.0),

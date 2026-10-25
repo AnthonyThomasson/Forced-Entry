@@ -1,8 +1,8 @@
 extends GameTest
 ## V3 (ticket #54): the held item is put away while seated and taken out again on exit. A character
 ## holding its pistol boards the car: from the moment it starts folding into the seat until it has
-## stepped out again it holds nothing (`current_item()` null), and once out it has the same slot
-## back in hand.
+## stepped out again it holds nothing (`inventory.current_item()` null), and once out it has the
+## same slot back in hand.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
 ## The slot it holds before boarding (the pistol).
@@ -31,20 +31,18 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	if not Probe.has_reads(
-			t,
-			me,
-			[&"posture_folded", &"current_item", &"current_slot"],
-			"character me",
-	):
+	if not (Probe.has_reads(t, me, [&"posture_folded"], "character me")
+			and Probe.has_reads(
+				t, me.inventory, [&"current_item", &"current_slot"], "character me's inventory",
+			)):
 		return
 	await t.seconds(0.3)
 	if not t.require(
-			me.current_item() != null and me.current_slot() == SLOT,
-			"it starts with its pistol in hand (slot %d)" % me.current_slot(),
+			me.inventory.current_item() != null and me.inventory.current_slot() == SLOT,
+			"it starts with its pistol in hand (slot %d)" % me.inventory.current_slot(),
 	):
 		return
-	var held_name: String = me.item_name()
+	var held_name: String = me.inventory.item_name()
 
 	if not await _check_boarding(t, car):
 		return
@@ -65,7 +63,7 @@ func _check_boarding(t: TestContext, car: Node2D) -> bool:
 		await t.frames(1)
 		if me.vehicle() != null and float(me.posture_folded()) > 0.05:
 			folding += 1
-			if me.current_item() != null:
+			if me.inventory.current_item() != null:
 				folding_held += 1
 	if not t.require(me.is_in_vehicle(), "it gets in"):
 		return false
@@ -86,7 +84,7 @@ func _check_seated(t: TestContext) -> void:
 	while t.time < deadline:
 		await t.frames(1)
 		seated += 1
-		if me.current_item() != null:
+		if me.inventory.current_item() != null:
 			seated_held += 1
 	t.check(
 		seated_held == 0,
@@ -103,7 +101,7 @@ func _check_getting_out(t: TestContext, held_name: String) -> void:
 	var deadline := t.time + 8.0
 	while t.time < deadline and me.vehicle() != null:
 		getting_out += 1
-		if me.current_item() != null and float(me.posture_folded()) > 0.05:
+		if me.inventory.current_item() != null and float(me.posture_folded()) > 0.05:
 			out_held += 1
 		await t.frames(1)
 	if not t.require(me.vehicle() == null, "it gets out"):
@@ -114,9 +112,9 @@ func _check_getting_out(t: TestContext, held_name: String) -> void:
 			% [out_held, getting_out],
 	)
 	await t.frames(2)
-	t.check(me.current_item() != null, "once out it holds an item again")
+	t.check(me.inventory.current_item() != null, "once out it holds an item again")
 	t.check(
-		me.current_slot() == SLOT and me.item_name() == held_name,
+		me.inventory.current_slot() == SLOT and me.inventory.item_name() == held_name,
 		"the same one it put away (slot %d, %s; was slot %d, %s)"
-			% [me.current_slot(), me.item_name(), SLOT, held_name],
+			% [me.inventory.current_slot(), me.inventory.item_name(), SLOT, held_name],
 	)

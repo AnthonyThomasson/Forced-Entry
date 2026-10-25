@@ -1,8 +1,8 @@
 extends GameTest
 ## G1: a grenade slot is a count. Selecting a slot the character does not carry does nothing;
 ## throwing the last grenade empties the slot and the character is holding its gun again (else its
-## fists). Grenades are not guns: while one is held, `gun_slot()` is still the pistol, `ammo()`
-## reads no ammo and reload does nothing.
+## fists). Grenades are not guns: while one is held, `inventory.gun_slot()` is still the pistol,
+## `ammo.rounds()` reads no ammo and reload does nothing.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const AIM := Vector2(500, 200)
@@ -24,7 +24,12 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"gunman", &"puppet", Vector2(150, 200), { "max_health": 100_000.0 })
 	# One grenade and no gun: `start_rounds` is what `ItemRegistry.inventory_for` hands a new item
 	# (its count for a grenade).
-	s.actor(&"bare", &"puppet", Vector2(150, 450), { "max_health": 100_000.0, "start_rounds": 1 })
+	s.actor(
+		&"bare",
+		&"puppet",
+		Vector2(150, 450),
+		{ "max_health": 100_000.0, "inventory:start_rounds": 1 },
+	)
 
 
 func run(t: TestContext) -> void:
@@ -32,7 +37,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(gunman, 0, 1)
 	if not t.require(
 			Probe.count(gunman, Probe.FRAG) == 1,
-			"the gunman carries one frag grenade (Character.item_count(8) = %d)"
+			"the gunman carries one frag grenade (Character.inventory.item_count(8) = %d)"
 				% Probe.count(gunman, Probe.FRAG),
 	):
 		return
@@ -45,11 +50,11 @@ func run(t: TestContext) -> void:
 
 ## Selecting slot 7, which `gunman` does not carry, leaves it holding its pistol.
 func _check_uncarried_slot(t: TestContext, gunman: Node) -> void:
-	t.expect_eq(gunman.current_slot(), Probe.PISTOL, "it starts holding the pistol")
+	t.expect_eq(gunman.inventory.current_slot(), Probe.PISTOL, "it starts holding the pistol")
 	t.puppet(&"gunman").select_slot(Probe.STUN)
 	await t.frames(4)
 	t.expect_eq(
-		gunman.current_slot(),
+		gunman.inventory.current_slot(),
 		Probe.PISTOL,
 		"selecting slot 7, which it does not carry, does nothing",
 	)
@@ -59,9 +64,9 @@ func _check_uncarried_slot(t: TestContext, gunman: Node) -> void:
 ## `gunman` holds its frag: not a gun, so its gun is still the pistol, no ammo, no reload.
 func _check_grenade_held(t: TestContext, gunman: Node) -> void:
 	await Probe.ready(t, &"gunman", Probe.FRAG, AIM)
-	t.expect_eq(gunman.current_slot(), Probe.FRAG, "slot 8 is held")
+	t.expect_eq(gunman.inventory.current_slot(), Probe.FRAG, "slot 8 is held")
 	t.expect_eq(
-		gunman.gun_slot(),
+		gunman.inventory.gun_slot(),
 		Probe.PISTOL,
 		"a grenade is not a gun: the gun it fights with is still the pistol",
 	)
@@ -83,12 +88,24 @@ func _check_last_throw(t: TestContext, gunman: Node) -> bool:
 		return false
 	await t.frames(6)
 	t.expect_eq(Probe.count(gunman, Probe.FRAG), 0, "the slot is empty after the last throw")
-	t.check(not gunman.has_item(Probe.FRAG), "slot 8 is no longer carried")
-	t.expect_eq(gunman.current_slot(), Probe.PISTOL, "the gunman is holding its pistol again")
-	t.expect_eq(gunman.current_item().gun_id(), &"pistol", "and the pistol is the item in its hand")
+	t.check(not gunman.inventory.has_item(Probe.FRAG), "slot 8 is no longer carried")
+	t.expect_eq(
+		gunman.inventory.current_slot(),
+		Probe.PISTOL,
+		"the gunman is holding its pistol again",
+	)
+	t.expect_eq(
+		gunman.inventory.current_item().gun_id(),
+		&"pistol",
+		"and the pistol is the item in its hand",
+	)
 	t.puppet(&"gunman").select_slot(Probe.FRAG)
 	await t.frames(4)
-	t.expect_eq(gunman.current_slot(), Probe.PISTOL, "an emptied slot cannot be selected again")
+	t.expect_eq(
+		gunman.inventory.current_slot(),
+		Probe.PISTOL,
+		"an emptied slot cannot be selected again",
+	)
 	return true
 
 
@@ -98,11 +115,11 @@ func _check_gunless(t: TestContext) -> void:
 	var kit := CharacterKit.new()
 	kit.slots = [ItemRegistry.UNARMED_SLOT, ItemRegistry.FISTS_SLOT, Probe.FRAG]
 	kit.hold_slot = Probe.FRAG
-	bare.set_loadout(kit)
+	bare.inventory.set_loadout(kit)
 	t.puppet(&"bare").aim_at(Vector2(500, 450))
 	await t.seconds(0.4)
 	if not t.require(
-			Probe.count(bare, Probe.FRAG) == 1 and bare.current_slot() == Probe.FRAG,
+			Probe.count(bare, Probe.FRAG) == 1 and bare.inventory.current_slot() == Probe.FRAG,
 			"the gunless one holds its single frag grenade",
 	):
 		return
@@ -110,7 +127,7 @@ func _check_gunless(t: TestContext) -> void:
 	await t.seconds(0.8)
 	t.expect_eq(Probe.count(bare, Probe.FRAG), 0, "its grenade is spent")
 	t.expect_eq(
-		bare.current_slot(),
+		bare.inventory.current_slot(),
 		ItemRegistry.FISTS_SLOT,
 		"with no gun it goes back to its fists",
 	)

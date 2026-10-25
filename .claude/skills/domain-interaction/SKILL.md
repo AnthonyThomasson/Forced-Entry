@@ -12,7 +12,7 @@ learns what an interaction *means* — add/retune actions in the catalogue data 
 ## Behaviour (Space toggle)
 
 `CharacterInteraction` shape-queries for reachable objects, keeps the actions whose
-`requires_item` gate passes (`character.has_item`), targets the object nearest the mouse
+`requires_item` gate passes (`character.inventory.has_item`), targets the object nearest the mouse
 (`aim_point`), and runs a random one of its valid actions — freezing the character (`is_busy()`).
 For a `move_to` action it snaps the character onto the object and lets the two bodies overlap (a
 temporary `add_collision_exception_with`, so a seat/bed isn't shoved and the character isn't
@@ -21,7 +21,7 @@ object to the character's `keep_clear_of(body)`, which lifts the exception only 
 character's `CLEAR_MARGIN`, so restoring the collision never finds an overlap to eject from; re-entering the object just left calls
 `stop_clearing(body)` first and keeps the exception it still has.
 
-The component reads the character's existing `facing`, `global_position`, `aim_point`, `has_item(id)` and `get_rid()` (left out of
+The component reads the character's existing `facing`, `global_position`, `aim_point`, `inventory.has_item(id)` and `get_rid()` (left out of
 its reach query), moves it, and takes and gives back the collision exception with Godot's own `add_collision_exception_with` and the
 character's `keep_clear_of` / `stop_clearing`. The reach query is a circle of `reach` px `front_offset` ahead along `facing`, on
 `PhysicsLayers.SOLID` (`QUERY_MASK`). It discovers objects through the **interactable contract** — every

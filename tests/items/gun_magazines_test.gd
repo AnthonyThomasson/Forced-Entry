@@ -18,7 +18,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	# Half-spent guns, and only rifle magazines carried: the rifle can reload, the others have
 	# nothing that fits.
-	s.actor(&"gunman", &"puppet", Vector2(200, 250), { "start_slot": 6, "start_rounds": 2,
+	s.actor(&"gunman", &"puppet", Vector2(200, 250), { "start_slot": 6, "inventory:start_rounds": 2,
 		"ammo:spare_magazine_types": [&"rifle_standard"] })
 
 

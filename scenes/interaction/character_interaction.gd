@@ -121,7 +121,7 @@ func _valid_specs(specs: Array) -> Array:
 	var out: Array = []
 	for spec in specs:
 		var needed: int = spec.get("requires_item", 0)
-		if needed <= 0 or _character.has_item(needed):
+		if needed <= 0 or _character.inventory.has_item(needed):
 			out.append(spec)
 	return out
 

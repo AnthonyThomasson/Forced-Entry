@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 func _set_up(t: TestContext, inv: Node, hostile: Node) -> bool:
 	if not t.require(
 			Probe.count(inv, Probe.FRAG) == 1,
-			"the invader carries a frag grenade (Character.item_count(8) = %d)"
+			"the invader carries a frag grenade (Character.inventory.item_count(8) = %d)"
 				% Probe.count(inv, Probe.FRAG),
 	):
 		return false

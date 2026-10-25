@@ -102,7 +102,7 @@ func has_arrived() -> bool:
 
 ## Switch to inventory slot `slot` (1 unarmed, 2 fists, 3 pistol, 4 key, 5 SMG, 6 assault rifle).
 func select_slot(slot: int) -> void:
-	_pending.append(func(c): c.select_slot(slot))
+	_pending.append(func(c): c.inventory.select_slot(slot))
 
 
 ## Use the held item's primary action (F: punch / jab).

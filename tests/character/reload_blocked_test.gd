@@ -15,9 +15,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
-	s.actor(&"a", &"puppet", Vector2(200, 150), { "start_slot": 3, "start_rounds": 2 })
-	s.actor(&"b", &"puppet", Vector2(200, 300), { "start_slot": 3, "start_rounds": 2 })
-	s.actor(&"c", &"puppet", Vector2(200, 450), { "start_slot": 3, "start_rounds": 2 })
+	s.actor(&"a", &"puppet", Vector2(200, 150), { "start_slot": 3, "inventory:start_rounds": 2 })
+	s.actor(&"b", &"puppet", Vector2(200, 300), { "start_slot": 3, "inventory:start_rounds": 2 })
+	s.actor(&"c", &"puppet", Vector2(200, 450), { "start_slot": 3, "inventory:start_rounds": 2 })
 
 
 func run(t: TestContext) -> void:

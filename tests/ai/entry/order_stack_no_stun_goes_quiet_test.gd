@@ -41,7 +41,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	if not t.require(
 			Bang.arm(t, IDS),
-			"both invaders carry a stun grenade when the order is given (Character.item_count(7))",
+			"both invaders carry a stun grenade when the order is given (inventory.item_count(7))",
 	):
 		return
 	var squad := t.squad(&"invader")

@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(t.actor(&"ordered"), 1, 0)
 	if not t.require(
 			Probe.count(t.actor(&"ordered"), Probe.STUN) == 1,
-			"the ordered member carries a stun (Character.item_count(7))",
+			"the ordered member carries a stun (Character.inventory.item_count(7))",
 	):
 		return
 	var squad := t.squad(&"invader")

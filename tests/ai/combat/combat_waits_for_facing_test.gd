@@ -91,8 +91,23 @@ class FakeCharacter extends Node:
 	var rounds := 12
 	var reloading := false
 	var shots := 0
-	var ammo := FakeAmmo.new(self)
-	var weapon := FakeWeapon.new(self)
+	var inventory := FakeParts.new(self)
+	var ammo: FakeParts = inventory
+	var weapon: FakeParts = inventory
+
+	func is_running() -> bool:
+		return false
+
+
+## The stand-in character's components, one object in every role `Combat` reads: its inventory (a
+## gun in slot 3, always held), its magazines (the character's `rounds` loaded, its `reloading`
+## flag) and its gun (never blocked, semi-automatic, firing while loaded and not reloading, each
+## round counted in the character's `shots`).
+class FakeParts extends RefCounted:
+	var _me: FakeCharacter
+
+	func _init(me: FakeCharacter) -> void:
+		_me = me
 
 	func gun_slot() -> int:
 		return 3
@@ -100,31 +115,11 @@ class FakeCharacter extends Node:
 	func select_slot(_slot: int) -> void:
 		pass
 
-	func is_running() -> bool:
-		return false
-
-
-## The stand-in character's magazines: its `rounds` loaded and its `reloading` flag.
-class FakeAmmo extends RefCounted:
-	var _me: FakeCharacter
-
-	func _init(me: FakeCharacter) -> void:
-		_me = me
-
 	func rounds(_slot := -1) -> int:
 		return _me.rounds
 
 	func is_reloading() -> bool:
 		return _me.reloading
-
-
-## The stand-in character's gun: never blocked, semi-automatic, firing while loaded and not
-## reloading (each round counted in its `shots`).
-class FakeWeapon extends RefCounted:
-	var _me: FakeCharacter
-
-	func _init(me: FakeCharacter) -> void:
-		_me = me
 
 	func blocked() -> bool:
 		return false

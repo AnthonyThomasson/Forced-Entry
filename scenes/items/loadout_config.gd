@@ -144,10 +144,10 @@ static func grenade_counts(loadout: Dictionary) -> Dictionary:
 	return out
 
 
-## Arm `character` with the loadout (via `Character.set_loadout`): bare hands, fists, the key and
-## one gun — the chosen one, or for `random` one drawn from `rng` — loaded with the chosen magazine
-## and carrying the chosen number of spares of it, and the chosen number of stun and frag grenades
-## (the gun stays what is held); and dress it in the loadout's whole outfit (via
+## Arm `character` with the loadout (via `Character.inventory.set_loadout`): bare hands, fists, the
+## key and one gun — the chosen one, or for `random` one drawn from `rng` — loaded with the chosen
+## magazine and carrying the chosen number of spares of it, and the chosen number of stun and frag
+## grenades (the gun stays what is held); and dress it in the loadout's whole outfit (via
 ## `Character.set_outfit`), replacing whatever it wore. `style` is how it is all drawn (looks only):
 ## `look` (the character's style, with its `seed` and a police unit's `rank`, via
 ## `Character.set_style`; absent = the character's style is left as it is) and `weapon` (the weapon
@@ -197,7 +197,7 @@ static func apply(
 	kit.loaded_magazine = magazine
 	kit.grenades = counts
 	kit.weapon_style = StringName(style.get("weapon", &"police"))
-	character.set_loadout(kit)
+	character.inventory.set_loadout(kit)
 	return gun
 
 

@@ -2,7 +2,8 @@ extends CharacterBody2D
 ## Character domain: a generic top-down character. It owns the body, movement, aim-based "facing",
 ## the item inventory, and the knockback it takes from shoves. It reads its intent from a pluggable
 ## controller child (any node with a `control(character, delta)` method): the controller
-## writes `move_input` / `aim_point` and calls `melee/shoot/select_slot`. Drawing
+## writes `move_input` / `aim_point` and calls `weapon.melee/weapon.shoot/inventory.select_slot`.
+## Drawing
 ## is in character_visuals.gd, the hand/punch/fist geometry in character_hands.gd, the living
 ## motion of head, shoulders, hips and hands in character_pose.gd (stepped here each physics frame),
 ## the standing skeleton the limbs are drawn from in character_rig.gd, and the body's fall on death
@@ -43,8 +44,6 @@ const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.
 @export var speed: float = 150.0
 ## Slot the character starts holding.
 @export var start_slot: int = 1
-## Rounds the starting gun is loaded with (negative = a full magazine).
-@export var start_rounds: int = -1
 ## Allegiance tag, read by AI perception to tell allies from potential hostiles.
 @export var faction: StringName = &"player"
 ## Maximum health. Characters start at this value; configurable per character in the inspector.
@@ -114,10 +113,8 @@ var _posture_cooldown := 0.0
 ## What the body is drawn at, easing toward the posture: its height as a share of a standing one (1
 ## = standing, down to the crouch row's).
 var _posture_height := 1.0
-## Inventory (slot id -> Item) and the currently held slot.
-var _items := {}
-## Held inventory slot.
-var _current_slot := 1
+## The items carried and the held slot (`character_inventory.gd`).
+var inventory := CharacterInventory.new(self)
 ## The held item's use: firing, melee, the raise, recoil and aim (`character_weapon.gd`).
 var weapon := CharacterWeapon.new(self)
 ## The magazines carried and the reload (`character_ammo.gd`).
@@ -182,9 +179,8 @@ func _ready() -> void:
 
 	health = max_health
 
-	_items = ItemRegistry.default_inventory(start_rounds)
+	inventory.stock()
 	ammo.restock(ammo.spare_magazine_types)
-	_current_slot = start_slot
 	# Re-emit the hands' punch as a unified hit_landed (melee → hand 0/1, with its dealt damage).
 	weapon.hands = _hands
 	_hands.punched.connect(_on_punched)
@@ -261,9 +257,7 @@ func _physics_step(delta: float) -> void:
 	# Items keep their own clocks (a gun's time between rounds, a grenade's wind-up); tick them
 	# before the controller pulls the trigger, so a round that is due this frame can leave this
 	# frame.
-	for item: Item in _items.values():
-		item.tick(delta)
-	_empty_spent_slots()
+	inventory.tick(delta)
 	# Pull intent from the controller first, so facing/movement use this frame's input.
 	if _controller:
 		_controller.control(self, delta)
@@ -325,19 +319,6 @@ func _walk_frame(delta: float) -> void:
 # --- Controller-facing API -------------------------------------------------------------
 
 
-## Switch to inventory slot `slot`. Ignored while locked. Observers read the held item with
-## current_item() (the debug HUD polls it).
-func select_slot(slot: int) -> void:
-	if is_busy():
-		return
-	if slot in _items and slot != _current_slot:
-		ammo.cancel()
-		_current_slot = slot
-		_rig_cache = null  # The weapon hand may change: the rig is solved afresh on the next read.
-		# Judged for the new item now, so a shot in this same frame can't slip past a wall.
-		weapon.update_raise(0.0)
-
-
 ## Toggle an object interaction: start the best one in reach, or end the active one. Starting one
 ## stands the character up (sitting or lying is its own posture). Ignored while using a vehicle.
 func try_interact() -> void:
@@ -394,6 +375,12 @@ func vehicle() -> Node:
 ## eyes).
 func is_riding() -> bool:
 	return _riding
+
+
+## Drop the cached rig: what it is solved from changed mid-frame (the held slot, a posture, a ride,
+## death), so the next `rig()` solves it afresh.
+func invalidate_rig() -> void:
+	_rig_cache = null
 
 
 ## True only while seated in a vehicle (not on the way in or out).
@@ -589,39 +576,6 @@ func posture_hand_ahead() -> float:
 			+ spine * sin(pose.gait.hunch()) * 0.5)
 
 
-## The inventory slot of the gun this character fights with: the held item when it takes ammo, else
-## the lowest slot holding something that does; -1 with none.
-func gun_slot() -> int:
-	var held := current_item()
-	if held != null and held.ammo_capacity() >= 0:
-		return _current_slot
-	var best := -1
-	for slot: int in _items:
-		if _items[slot].ammo_capacity() >= 0 and (best < 0 or slot < best):
-			best = slot
-	return best
-
-
-## Carry only what `kit` says: the items in its `slots` (see `ItemRegistry`), holding its
-## `hold_slot`, with the spare magazines named by its `spare_types` (`MagazineConfig.types` ids):
-## how a spawner arms a character with its gun. Starts every gun loaded as `start_rounds` says (in
-## the kit's `loaded_magazine` when that type fits the gun, else the gun's own); a reload in
-## progress is dropped. Safe after `add_child`, so a spawner can re-arm a scene-placed character. A
-## grenade slot among `slots` holds `grenades[slot]` of them (else `start_rounds`, or one). Every
-## item carries the kit's `weapon_style` (`Item.style`: how it is drawn, never what it does).
-func set_loadout(kit: CharacterKit) -> void:
-	ammo.cancel()
-	_items = ItemRegistry.inventory_for(
-		kit.slots, start_rounds, kit.loaded_magazine, kit.grenades, kit.weapon_style,
-	)
-	ammo.restock(kit.spare_types)
-	var hold_slot := kit.hold_slot
-	_current_slot = (hold_slot
-			if hold_slot in _items
-			else (_items.keys()[0] if not _items.is_empty() else hold_slot))
-	weapon.reset_raise()
-
-
 ## Dress the character in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`,
 ## String keys, StringName ids; a missing or empty one = nothing there), replacing everything worn
 ## before: its armour, its weight and its look (`docs/outfits.md`). How Main dresses a spawn
@@ -648,11 +602,6 @@ func outfit() -> Outfit:
 ## slot -> `{ type, name, condition }`.
 func outfit_view() -> Dictionary:
 	return _outfit.view()
-
-
-## The item in inventory slot `slot`; the held item for a negative slot.
-func item_in(slot: int) -> Item:
-	return current_item() if slot < 0 else _items.get(slot)
 
 
 ## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
@@ -774,72 +723,6 @@ func _post_melee_hit(hand: int, body: Node, damage: float) -> void:
 
 
 # --- Item-facing API (what an Item may call on its user) --------------------------------
-
-
-## The held item (none while riding in a vehicle: it is put away).
-func current_item() -> Item:
-	if _riding:
-		return null
-	return _items.get(_current_slot)
-
-
-## The held slot id (1–9).
-func current_slot() -> int:
-	return _current_slot
-
-
-## The display name of the item in `slot` (the held item by default), or "Unknown" with none there.
-## For UI observers and the AI's wording, so they never need to read Item's fields directly.
-func item_name(slot := -1) -> String:
-	var item := item_in(slot)
-	return item.display_name if item else "Unknown"
-
-
-## The held item's reach, or 0.0 with none held. For UI observers.
-func item_reach() -> float:
-	var item := current_item()
-	return item.reach if item else 0.0
-
-
-## Whether inventory slot `id` is present (carried, not necessarily held). Gates interactions
-## that require an item.
-func has_item(id: int) -> bool:
-	return _items.has(id)
-
-
-## How many of the item in `slot` are carried (the held one by default): a grenade slot's count, 1
-## for any other item, 0 when the slot is empty.
-func item_count(slot := -1) -> int:
-	var item := item_in(slot)
-	if item == null:
-		return 0
-	return item.uses_left() if item.is_throwable() else 1
-
-
-## What the item in `slot` (the held one by default) tells its holder about itself when it is
-## thrown: a grenade's `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`
-## (`Item.throw_stats`), {} for any other item or an empty slot. The AI reads the grenades' numbers
-## here, from what it carries, not from a copy.
-func throw_stats(slot := -1) -> Dictionary:
-	var item := item_in(slot)
-	return item.throw_stats() if item else {}
-
-
-## Where a grenade leaves this character's hand when it throws one standing: the hand the item in
-## `slot` (the held one by default) is thrown with (its `weapon_hand()`; the right hand, 0, for an
-## item that is not thrown or an empty slot), in the `throw` stance
-## (`CharacterStanceConfig.stances`), as an offset from the body centre in the character's own
-## frame: `x` px ahead of it (negative: behind), `y` px to its right. The AI judges a lob from there
-## (docs/grenades.md G17) instead of keeping a copy of the stance.
-func throw_release_offset(slot := -1) -> Vector2:
-	var item := item_in(slot)
-	var hand := item.weapon_hand() if item != null and item.is_throwable() else 0
-	var stance: Dictionary = CharacterStanceConfig.stances[&"throw"]
-	# Hand 0 rests to the character's right, hand 1 to its left (character_hands.gd).
-	return Vector2(
-		float(stance["forward"]),
-		float(stance["lateral"]) * (1.0 if hand == 0 else -1.0),
-	)
 
 
 ## True while a punch swing is in progress.
@@ -1063,41 +946,10 @@ func _die(direction: Vector2) -> void:
 	_legs.clear()
 	_kick.clear()
 	ragdoll = CharacterRagdoll.new(self, momentum, direction)
-	_drop_item(momentum)
+	inventory.drop_held(momentum)
 	velocity = Vector2.ZERO
 	_knockback = Vector2.ZERO
 	died.emit()
-
-
-## Empty the grenade slots whose last grenade has been thrown, and if one was held, take up the gun
-## again (the lowest slot that takes ammo, as `gun_slot()` says), else the fists.
-func _empty_spent_slots() -> void:
-	var emptied := false
-	for slot: int in _items.keys():
-		if _items[slot].uses_left() == 0:
-			_items.erase(slot)
-			emptied = emptied or slot == _current_slot
-	if not emptied:
-		return
-	_current_slot = gun_slot()
-	if _current_slot < 0:
-		_current_slot = (ItemRegistry.FISTS_SLOT
-				if ItemRegistry.FISTS_SLOT in _items
-				else ItemRegistry.UNARMED_SLOT)
-	_rig_cache = null  # The weapon hand may change: the rig is solved afresh on the next read.
-	weapon.update_raise(0.0)
-
-
-## Let go of the held item: it flies off with the body's `momentum` plus a toss, and leaves the
-## inventory if it left something behind in the world.
-func _drop_item(momentum: Vector2) -> void:
-	var item := current_item()
-	if item == null:
-		return
-	var toss := (Vector2.from_angle(randf() * TAU) * CharacterRagdollFallConfig.drop_toss
-			* randf_range(0.5, 1.0))
-	if item.drop(self, momentum + toss):
-		_items.erase(_current_slot)
 
 
 ## Where this body's blood leaves it (world): its position while alive; once fallen, the middle of

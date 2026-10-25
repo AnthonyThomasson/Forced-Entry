@@ -1,7 +1,8 @@
 extends GameTest
 ## G1: a stun's throw stats include `max_blind`, the longest (s) it blinds anyone: the number the AI
-## reckons a hostile it flashed is blind for, read off the grenade (`Character.throw_stats(slot)`,
-## and a live one's `throw_stats()`) and not copied. A frag blinds nobody: 0.
+## reckons a hostile it flashed is blind for, read off the grenade
+## (`Character.inventory.throw_stats(slot)`, and a live one's `throw_stats()`) and not copied. A
+## frag blinds nobody: 0.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 
@@ -25,13 +26,13 @@ func run(t: TestContext) -> void:
 	var c := t.actor(&"c")
 	Probe.arm(c, 1, 1)
 	t.expect_near(
-		float(c.throw_stats(Probe.STUN).get("max_blind", -1.0)),
+		float(c.inventory.throw_stats(Probe.STUN).get("max_blind", -1.0)),
 		Probe.MAX_BLIND,
 		0.01,
 		"a stun reports its longest blindness",
 	)
 	t.expect_near(
-		float(c.throw_stats(Probe.FRAG).get("max_blind", -1.0)),
+		float(c.inventory.throw_stats(Probe.FRAG).get("max_blind", -1.0)),
 		0.0,
 		0.01,
 		"a frag blinds nobody",

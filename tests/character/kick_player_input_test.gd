@@ -26,7 +26,7 @@ func run(t: TestContext) -> void:
 
 	await _tap(t)
 	t.check(you.is_kicking(), "the kick key starts a kick")
-	t.expect_eq(you.current_slot(), 3, "the pistol stays in hand")
+	t.expect_eq(you.inventory.current_slot(), 3, "the pistol stays in hand")
 	await t.seconds(
 		CharacterMeleeConfig.kick_strike_time + CharacterMeleeConfig.kick_recover_time + 0.2
 	)

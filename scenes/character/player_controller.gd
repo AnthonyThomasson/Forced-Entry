@@ -18,7 +18,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 
 	var selected := Keybinds.get_selected_item()
 	if selected > 0:
-		character.select_slot(selected)
+		character.inventory.select_slot(selected)
 
 	if Keybinds.is_crouch_just_pressed():
 		character.toggle_crouch()

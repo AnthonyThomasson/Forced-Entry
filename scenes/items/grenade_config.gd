@@ -143,7 +143,7 @@ static func slots() -> Array:
 ## its blast at any distance); `max_blind` (s) is the longest a stun blinds anyone, 0 for a frag.
 ## The one place this dictionary is made: `GrenadeItem.throw_stats()` and
 ## `ThrownGrenade.throw_stats()` both return it, and the AI reads it (through
-## `Character.throw_stats`) instead of keeping a copy of the numbers.
+## `Character.inventory.throw_stats`) instead of keeping a copy of the numbers.
 static func stats_of(kind: StringName, source: Dictionary) -> Dictionary:
 	return {
 		"kind": kind,

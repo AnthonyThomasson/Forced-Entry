@@ -127,7 +127,8 @@ func _check_punch(t: TestContext) -> void:
 		twist = maxf(twist, absf(angle_difference(rest_angle, boxer.pose.torso_angle)))
 		var shoulder: Vector3 = boxer.rig().point(Rig.SHOULDER[0])
 		lean = maxf(lean, Vector2(shoulder.x, shoulder.y).dot(boxer.facing))
-	var landing: float = boxer.radius + hands.hand_radius + hands.punch_gap + boxer.item_reach()
+	var landing: float = (boxer.radius + hands.hand_radius + hands.punch_gap
+			+ boxer.inventory.item_reach())
 	t.check(
 		reach > landing - 2.0,
 		"the fist lands about %.0f px out (%.1f ahead)" % [landing, reach],

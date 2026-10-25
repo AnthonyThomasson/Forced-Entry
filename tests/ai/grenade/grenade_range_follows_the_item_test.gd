@@ -1,11 +1,12 @@
 extends GameTest
-## G17: what an NPC throws by is read off the grenades it carries (`Character.throw_stats`), not
-## kept in a copy of its own. A hostile 430 px away, hidden behind a desk, is within a stun's throw
-## range (550 px) and, with the frag's row retuned to 300 px (the premise), out of a frag's from
-## where the invader stands. Von is scripted to prefer the frag, which is offered through a throw
-## spot (issue #51 R13): the invader walks there and throws the frag from within the frag's 300 px
-## of the hostile, at least 130 px from where it stood. Only a range read off the item puts the
-## throw spot there. Scripted Von, one scene; the invader walks (a plain invader actor).
+## G17: what an NPC throws by is read off the grenades it carries
+## (`Character.inventory.throw_stats`), not kept in a copy of its own. A hostile 430 px away, hidden
+## behind a desk, is within a stun's throw range (550 px) and, with the frag's row retuned to 300 px
+## (the premise), out of a frag's from where the invader stands. Von is scripted to prefer the frag,
+## which is offered through a throw spot (issue #51 R13): the invader walks there and throws the
+## frag from within the frag's 300 px of the hostile, at least 130 px from where it stood. Only a
+## range read off the item puts the throw spot there. Scripted Von, one scene; the invader walks (a
+## plain invader actor).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
@@ -59,7 +60,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.expect_near(
-		float(npc.throw_stats(Probe.FRAG)["max_range"]),
+		float(npc.inventory.throw_stats(Probe.FRAG)["max_range"]),
 		FRAG_RANGE,
 		0.01,
 		"the frag it carries reports the retuned throw range",

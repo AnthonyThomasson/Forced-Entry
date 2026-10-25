@@ -70,7 +70,7 @@ func run(t: TestContext) -> void:
 ## `butts[gun]`.
 func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Dictionary) -> void:
 	var c = t.actor(GUNS[gun][0])
-	var item: GunItem = c.current_item()
+	var item: GunItem = c.inventory.current_item()
 	t.check(not c.weapon.blocked(), "%s: nothing is against the barrel" % gun)
 	_check_arms(t, c, "%s hold" % gun)
 

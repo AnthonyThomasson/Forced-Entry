@@ -79,7 +79,7 @@ func _set_up(t: TestContext, inv: Node) -> bool:
 			"the invader carries a stun (item_count(7) = %d)" % Probe.count(inv, Probe.STUN),
 	):
 		return false
-	var hand: Vector2 = inv.throw_release_offset(Probe.STUN)
+	var hand: Vector2 = inv.inventory.throw_release_offset(Probe.STUN)
 	if not t.require(
 			hand.y < 0.0,
 			"set-up: the retuned stance holds the throwing hand to the thrower's left (offset %s)"

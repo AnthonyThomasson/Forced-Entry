@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 		"invaders": { "loadout": { "weapon": &"rifle" } },
 	}))
 	t.expect_eq(
-		home.current_slot(),
+		home.inventory.current_slot(),
 		int(GunConfig.row(&"smg")["slot"]),
 		"the defender holds the SMG",
 	)
@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(home.ammo.spare_magazines(), 3, "and carries three spares")
 	t.expect_eq(
-		raider.current_slot(),
+		raider.inventory.current_slot(),
 		int(GunConfig.row(&"rifle")["slot"]),
 		"the invader holds the rifle",
 	)

@@ -1062,7 +1062,7 @@ func interaction_group(self_pos: Vector2) -> Dictionary:
 		var d: float = obj.global_position.distance_squared_to(self_pos)
 		for spec in obj.get_interactions():
 			var needed: int = spec.get("requires_item", 0)
-			if needed != 0 and not _character.has_item(needed):
+			if needed != 0 and not _character.inventory.has_item(needed):
 				continue
 			var label: String = spec.get("label", spec.get("id", ""))
 			if not nearest.has(label) or d < nearest[label]["d"]:

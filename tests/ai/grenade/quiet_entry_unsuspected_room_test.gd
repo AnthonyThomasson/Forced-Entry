@@ -35,7 +35,7 @@ func run(t: TestContext) -> void:
 		Probe.arm(t.actor(id), 1, 0)
 	if not t.require(
 			IDS.all(func(id): return Probe.count(t.actor(id), Probe.STUN) == 1),
-			"both invaders carry a stun grenade (Character.item_count(7))",
+			"both invaders carry a stun grenade (Character.inventory.item_count(7))",
 	):
 		return
 	var seen := { &"a": [], &"b": [] }

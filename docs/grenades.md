@@ -62,10 +62,10 @@ All distances are px (the game is about 64 px to the metre, so 550 px is about 8
 
 **G1. Slots.** The stun grenade is slot **7**, the frag grenade slot **8**. Each is a *count* carried (`Item.uses_left()`), spent one per
 throw. When the last one is thrown the slot is empty and the character is holding its gun again (the lowest slot that takes ammo, as
-`gun_slot()` says), else its fists. Selecting a slot it does not carry does nothing. A grenade is not a gun: while one is held
-`gun_slot()` is still the gun, `ammo.rounds()` reads no ammo (-1), and `ammo.reload()` does nothing. `ItemRegistry.create(7, n)` and `create(8, n)`
+`inventory.gun_slot()` says), else its fists. Selecting a slot it does not carry does nothing. A grenade is not a gun: while one is held
+`inventory.gun_slot()` is still the gun, `ammo.rounds()` reads no ammo (-1), and `ammo.reload()` does nothing. `ItemRegistry.create(7, n)` and `create(8, n)`
 make the items with `n` grenades; any other item answers `uses_left() == -1` (unlimited) and `is_throwable() == false`.
-`Character.item_count(slot)` reads the count carried in a slot (0 when none). `Character.throw_stats(slot)` reads what a grenade carried in
+`Character.inventory.item_count(slot)` reads the count carried in a slot (0 when none). `Character.inventory.throw_stats(slot)` reads what a grenade carried in
 a slot tells its holder about itself, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }` (`GrenadeItem.throw_stats()`, the one dictionary
 `GrenadeConfig.stats_of` makes from the kind's row; `ThrownGrenade.throw_stats()` answers the same for a live one; `{}` for any other item or an empty
 slot, and `flash_cover_reach` is INF for a frag, whose blast furniture shields from at any distance). These are the numbers the AI throws by (G17): it
@@ -259,7 +259,7 @@ between; low furniture is fine), from where it stands or from a **throw spot** a
   kitchen, a room you are outside of. You can throw a stun grenade where the shots came from.") (R10). Whatever the room, LOCATE and a RETREAT spot
   are not offered when their walk would end where the NPC already stands or on a character it knows of (E9, issue #51 R12; tests
   `ai/combat/locate_never_where_it_stands`, `retreat_never_where_it_stands`, `retreat_out_of_sight_goes_farther`).
-**The lob** is judged as the grenade flies: from where it leaves the thrower's hand (the `throw` stance's hand, `Character.throw_release_offset`: 6 px behind it and 15 px to its right as
+**The lob** is judged as the grenade flies: from where it leaves the thrower's hand (the `throw` stance's hand, `Character.inventory.throw_release_offset`: 6 px behind it and 15 px to its right as
 it faces the spot, held off a wall the way the character's own hand is), the whole band 8 px either side of the line from there (its middle and both
 edges, the grenade's own width and the hand's sway), clear of anything taller than a lob clears
 (`AgentThrow.can_lob`, `throw_clear`). A line from the thrower's centre that clears a jamb by a pixel is a grenade that strikes it, and the throw, the bang's
@@ -315,7 +315,7 @@ grenade goes onto that spot. A new hostile still re-decides, and so does the dea
 contact and no lost hostile, so it leaves the salient key, and a throw not yet in its wind-up whose hostile the NPC no longer knows of at all ends then
 and there, so no grenade goes onto a body while the next decision is on its way.
 Options are `frag` and `stun`. What the AI knows of a grenade it has not thrown yet (how far it throws, its blast or flash radius, its fuse, how
-near furniture must be to shield from a flash) it reads off the grenades it carries, `Character.throw_stats(slot)` (G1), and off a live one it sees
+near furniture must be to shield from a flash) it reads off the grenades it carries, `Character.inventory.throw_stats(slot)` (G1), and off a live one it sees
 (`ThrownGrenade.throw_stats()`); it keeps no mirror of the numbers, so retuning a `GrenadeConfig` row retunes the AI (the tests
 `items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`). What stays the AI's own tuning are the `GoalController` exports of the
 Grenades group: `hear_grenade`, `evade_margin`, `grenades_enabled`. `debug_grenades().throw` holds `{ from, to, kind, radius }` while the throw is planned (until the grenade leaves the hand).
@@ -536,7 +536,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
-- **Character**: `item_count`, `throw_stats`, `weapon.aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
+- **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
   (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `weapon.one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).

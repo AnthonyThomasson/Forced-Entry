@@ -76,15 +76,15 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var item_name: String = _character.item_name()
-	var reach: float = _character.item_reach()
+	var item_name: String = _character.inventory.item_name()
+	var reach: float = _character.inventory.item_reach()
 	var attack_active: bool = _character.is_attacking()
 	var interaction: String = _character.interaction_label()
 
 	# Build debug text (bottom-right).
 	var debug_lines := [
 		"=== DEBUG ===",
-		"Item: %d (%s)" % [_character.current_slot(), item_name],
+		"Item: %d (%s)" % [_character.inventory.current_slot(), item_name],
 		_ammo_line(),
 		_grenade_line(),
 		"Punch Active: %s" % ("YES" if attack_active else "NO"),
@@ -142,7 +142,7 @@ func _ammo_line() -> String:
 func _grenade_line() -> String:
 	var carried := []
 	for option: Dictionary in LoadoutConfig.grenade_options():
-		var count: int = _character.item_count(option["slot"])
+		var count: int = _character.inventory.item_count(option["slot"])
 		if count > 0:
 			carried.append("%d %s" % [count, option["id"]])
 	return "Grenades: %s" % (", ".join(carried) if not carried.is_empty() else "—")

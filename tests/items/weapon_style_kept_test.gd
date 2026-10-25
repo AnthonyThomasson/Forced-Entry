@@ -1,9 +1,9 @@
 extends GameTest
 ## R3 (ticket #61): a dropped gun and a thrown grenade keep the weapon style they were held in.
-## - Three gunmen armed in `scrap` (pistol, SMG, rifle; `Character.set_loadout(kit)`, the kit's
-##   `weapon_style`) die; the `DroppedItem` each one's gun leaves is drawn in scrap while it skids
-##   and once at rest: every texture it paints is one the scrap gun paints lying at some lighting
-##   step either side up, and none is one the police or pipe gun paints so.
+## - Three gunmen armed in `scrap` (pistol, SMG, rifle; `Character.inventory.set_loadout(kit)`, the
+##   kit's `weapon_style`) die; the `DroppedItem` each one's gun leaves is drawn in scrap while it
+##   skids and once at rest: every texture it paints is one the scrap gun paints lying at some
+##   lighting step either side up, and none is one the police or pipe gun paints so.
 ## - A thrower armed with a `pipe` frag throws it; the `ThrownGrenade` is drawn in pipe in flight
 ##   (`DrawLayers.ABOVE`) and at rest (`DrawLayers.LYING`): every texture is one the pipe frag
 ##   paints lying at some step, none one the police or scrap frag paints.
@@ -102,9 +102,11 @@ func _lay_references(t: TestContext) -> Dictionary:
 func _arm(t: TestContext) -> void:
 	for gun: StringName in GUNMEN:
 		var slot: int = StyleProbe.GUNS[gun]
-		t.actor(gun).set_loadout(StyleProbe.kit(slot, KEPT_GUN_STYLE))
+		t.actor(gun).inventory.set_loadout(StyleProbe.kit(slot, KEPT_GUN_STYLE))
 	var frag_slot: int = StyleProbe.GRENADES[&"frag"]
-	t.actor(&"thrower").set_loadout(StyleProbe.kit(frag_slot, KEPT_GRENADE_STYLE, { frag_slot: 1 }))
+	t.actor(&"thrower").inventory.set_loadout(
+		StyleProbe.kit(frag_slot, KEPT_GRENADE_STYLE, { frag_slot: 1 }),
+	)
 
 
 ## What `probes` drew, kind -> style -> the set of textures it paints lying at every step either
@@ -129,7 +131,7 @@ func _drop_guns(t: TestContext) -> Dictionary:
 	var held := {}  # gun -> the item its gunman holds
 	for gun: StringName in GUNMEN:
 		var c := t.actor(gun)
-		held[gun] = c.current_item()
+		held[gun] = c.inventory.current_item()
 		t.expect_eq(
 			held[gun].style,
 			KEPT_GUN_STYLE,
@@ -188,7 +190,7 @@ func _check_dropped(t: TestContext, dropped: Dictionary, refs: Dictionary) -> vo
 func _check_thrown(t: TestContext, refs: Dictionary) -> void:
 	var thrower := t.actor(&"thrower")
 	t.expect_eq(
-		thrower.current_item().style,
+		thrower.inventory.current_item().style,
 		KEPT_GRENADE_STYLE,
 		"the thrower holds its frag in pipe (the premise)",
 	)

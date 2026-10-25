@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(a, 1, 0)
 	if not t.require(
 			Probe.count(a, Probe.STUN) == 1,
-			"the invader carries a stun grenade (Character.item_count(7))",
+			"the invader carries a stun grenade (Character.inventory.item_count(7))",
 	):
 		return
 	var flashed := [false]

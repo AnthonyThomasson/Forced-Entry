@@ -24,7 +24,7 @@ func _init(host: CharacterBody2D) -> void:
 
 ## Melee with the held item (F): runs its primary action. Ignored while locked in an interaction.
 func melee() -> void:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	if character.is_busy() or item == null:
 		return
 	item.primary(character)
@@ -35,7 +35,7 @@ func melee() -> void:
 ## with the weapon's barrel against a wall or object (`blocked()`). A gun also holds back between
 ## rounds, per its fire rate.
 func shoot() -> bool:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	if (character.is_busy()
 			or item == null
 			or character.is_running()
@@ -53,7 +53,7 @@ func shoot() -> bool:
 ## True while the held item keeps firing as long as the trigger is held (an automatic gun): a
 ## controller re-presses `shoot()` every frame instead of once per click.
 func is_automatic() -> bool:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	return item != null and item.is_automatic()
 
 
@@ -81,7 +81,7 @@ func facing() -> Vector2:
 ## A long gun (one too long for a wall, `raises_at_contact`) fired one-handed kicks
 ## `CharacterStanceConfig.one_hand_recoil` times harder.
 func kick(hand: int, strength := 1.0) -> void:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	if item != null and item.raises_at_contact() and one_handed():
 		strength *= CharacterStanceConfig.one_hand_recoil
 	character.pose.arms.kick(hand, strength)
@@ -90,7 +90,8 @@ func kick(hand: int, strength := 1.0) -> void:
 ## World muzzle point for a weapon in `hand`: the held item's `muzzle_ahead()` past it (a long gun
 ## reaches further than a pistol), along the aim.
 func muzzle_origin(hand: int) -> Vector2:
-	return character.hand_world(hand) + character.facing * _muzzle_ahead(character.current_item())
+	var item: Item = character.inventory.current_item()
+	return character.hand_world(hand) + character.facing * _muzzle_ahead(item)
 
 
 ## The point the character is aiming at, as an item reads it (a grenade is thrown to it): the aim
@@ -115,7 +116,7 @@ func aim_sway() -> float:
 ## A gun fired so spreads wider (`GunConfig` `one_hand_spread_deg`) and a long gun kicks harder.
 ## False for anything but a gun.
 func one_handed() -> bool:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	return item != null and item.gun_id() != &"" and _covers_eyes(item)
 
 
@@ -126,7 +127,7 @@ func one_handed() -> bool:
 ## reach, and stays blocked until there is `CharacterStanceConfig.weapon_contact_margin` of
 ## clearance, so the weapon does not flicker at the edge.
 func update_raise(delta: float) -> void:
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	if item == null or not item.raises_at_contact():
 		_blocked = false
 	else:
@@ -163,7 +164,7 @@ func reset_raise() -> void:
 func stances() -> Array:
 	if character.is_running():
 		return [&"run", &"run"]
-	var item: Item = character.current_item()
+	var item: Item = character.inventory.current_item()
 	var out: Array
 	if item == null:
 		out = [&"relaxed", &"relaxed"]

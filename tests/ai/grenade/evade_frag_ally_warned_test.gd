@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(thrower, 0, 1)
 	if not t.require(
 			Probe.count(thrower, Probe.FRAG) == 1,
-			"the thrower carries a frag grenade (Character.item_count(8) = %d)"
+			"the thrower carries a frag grenade (Character.inventory.item_count(8) = %d)"
 				% Probe.count(thrower, Probe.FRAG),
 	):
 		return

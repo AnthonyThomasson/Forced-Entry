@@ -21,15 +21,35 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 600))
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
-	s.actor(&"pistol_man", &"puppet", Vector2(100, 80), { "start_slot": 3, "start_rounds": 2 })
-	s.actor(&"smg_man", &"puppet", Vector2(100, 190), { "start_slot": 5, "start_rounds": 2 })
-	s.actor(&"rifle_man", &"puppet", Vector2(100, 300), { "start_slot": 6, "start_rounds": 2 })
-	s.actor(&"fickle_man", &"puppet", Vector2(100, 410), { "start_slot": 3, "start_rounds": 2 })
+	s.actor(
+		&"pistol_man",
+		&"puppet",
+		Vector2(100, 80),
+		{ "start_slot": 3, "inventory:start_rounds": 2 },
+	)
+	s.actor(
+		&"smg_man",
+		&"puppet",
+		Vector2(100, 190),
+		{ "start_slot": 5, "inventory:start_rounds": 2 },
+	)
+	s.actor(
+		&"rifle_man",
+		&"puppet",
+		Vector2(100, 300),
+		{ "start_slot": 6, "inventory:start_rounds": 2 },
+	)
+	s.actor(
+		&"fickle_man",
+		&"puppet",
+		Vector2(100, 410),
+		{ "start_slot": 3, "inventory:start_rounds": 2 },
+	)
 	s.actor(
 		&"dry_man",
 		&"puppet",
 		Vector2(100, 520),
-		{ "start_slot": 3, "start_rounds": 0, "ammo:spare_magazine_types": [] },
+		{ "start_slot": 3, "inventory:start_rounds": 0, "ammo:spare_magazine_types": [] },
 	)
 
 

@@ -88,8 +88,16 @@ func _side(combatants: Array, faction: StringName) -> Array:
 ## defenders carry no grenades.
 func _check_kit(t: TestContext, defenders: Array, invaders: Array) -> void:
 	for c in invaders:
-		t.expect_eq(c.item_count(ItemRegistry.STUN_SLOT), 1, "%s carries one stun" % c.name)
-		t.expect_eq(c.item_count(ItemRegistry.FRAG_SLOT), 1, "%s carries one frag" % c.name)
+		t.expect_eq(
+			c.inventory.item_count(ItemRegistry.STUN_SLOT),
+			1,
+			"%s carries one stun" % c.name,
+		)
+		t.expect_eq(
+			c.inventory.item_count(ItemRegistry.FRAG_SLOT),
+			1,
+			"%s carries one frag" % c.name,
+		)
 		var kit: Dictionary = c.outfit_view()
 		t.check(
 			kit["front_plate"]["type"] == PLATE and kit["back_plate"]["type"] == PLATE,
@@ -98,7 +106,8 @@ func _check_kit(t: TestContext, defenders: Array, invaders: Array) -> void:
 		)
 	for c in defenders:
 		t.check(
-			c.item_count(ItemRegistry.STUN_SLOT) == 0 and c.item_count(ItemRegistry.FRAG_SLOT) == 0,
+			c.inventory.item_count(ItemRegistry.STUN_SLOT) == 0
+				and c.inventory.item_count(ItemRegistry.FRAG_SLOT) == 0,
 			"defender %s carries no grenades" % c.name,
 		)
 	var unit: StringName = invaders[0].style if not invaders.is_empty() else &""

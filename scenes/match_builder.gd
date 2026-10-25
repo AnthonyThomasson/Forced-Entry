@@ -339,7 +339,9 @@ static func arm(characters: Array, match_spec: Dictionary) -> void:
 		var side: Dictionary = match_spec["defenders" if defending else "invaders"]
 		var gun := LoadoutConfig.apply(character, side["loadout"], rng, styles[i])
 		if gun != &"":
-			GameLog.say("%s is armed with the %s" % [character.name, character.item_name()])
+			GameLog.say(
+				"%s is armed with the %s" % [character.name, character.inventory.item_name()],
+			)
 
 
 ## How each of `characters` is drawn (`docs/outfits.md`, styles), one `LoadoutConfig.apply` style

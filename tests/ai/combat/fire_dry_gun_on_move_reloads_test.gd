@@ -29,7 +29,7 @@ func configure(s: TestSetup) -> void:
 		&"npc",
 		&"defender",
 		START,
-		{ "start_rounds": 2, "facing": Vector2.RIGHT, "aim_point": HOSTILE_AT },
+		{ "inventory:start_rounds": 2, "facing": Vector2.RIGHT, "aim_point": HOSTILE_AT },
 	)
 	# walks, so the shots are not refused
 	s.set_props(&"npc", "GoalController", { "run_enabled": false, "shoot_range": 1000.0 })

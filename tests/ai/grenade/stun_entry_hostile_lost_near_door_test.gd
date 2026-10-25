@@ -61,7 +61,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	if not t.require(
 			Suspect.arm(t),
-			"the invader carries a stun grenade (Character.item_count(7))",
+			"the invader carries a stun grenade (Character.inventory.item_count(7))",
 	):
 		return
 	var door := Entry.BACK

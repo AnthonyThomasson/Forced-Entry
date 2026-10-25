@@ -440,8 +440,8 @@ func begin(params: Dictionary) -> bool:
 	_read_stack()
 	var team: Array = _stack.team
 	_self_id = _character.get_instance_id()
-	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
-	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
+	_stuns = _character.inventory.item_count(ItemRegistry.STUN_SLOT)
+	_frags = _character.inventory.item_count(ItemRegistry.FRAG_SLOT)
 	_begin_order(params)
 	_begin_mode(team, bool(params.get("bang", false)))
 	var at: Dictionary = _stack.claim(
@@ -837,8 +837,8 @@ func step(delta: float) -> bool:
 	_clock += delta
 	_read_stack()
 	var team: Array = _stack.team
-	_stuns = _character.item_count(ItemRegistry.STUN_SLOT)
-	_frags = _character.item_count(ItemRegistry.FRAG_SLOT)
+	_stuns = _character.inventory.item_count(ItemRegistry.STUN_SLOT)
+	_frags = _character.inventory.item_count(ItemRegistry.FRAG_SLOT)
 	_holding = false
 	_note_burst()
 	_note_team(team)

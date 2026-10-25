@@ -249,7 +249,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    is which side landed up), and `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in
    the frame it was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by
    them, like `CharacterVisuals.drawn_art()`). The character
-   calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun, or the frag of an entry its leader ordered in with one); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns and frags as `item_count(ItemRegistry.STUN_SLOT)` / `item_count(ItemRegistry.FRAG_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
+   calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun, or the frag of an entry its leader ordered in with one); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns and frags as `inventory.item_count(ItemRegistry.STUN_SLOT)` / `inventory.item_count(ItemRegistry.FRAG_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
    `default_inventory()` / `inventory_for(slots, rounds, magazine, grenades, style := &"police")` (an optional `magazine` type the gun starts loaded with; `grenades` = slot -> count; `style` the weapon style stamped on every item made) /
    `create_magazines(type_ids)` (full `Magazine`s for those `MagazineConfig` types: the character's spare-magazine store) /
    `random_gun_slot(rng)` / `loadout_for(gun_slot, stuns, frags)` / `spares_for(gun_slot)`. The grenades (`docs/grenades.md`) are `Item`s too: slots `ItemRegistry.STUN_SLOT` 7 / `FRAG_SLOT` 8, a *count*
@@ -261,10 +261,10 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `outfit_options()` (the outfit rows: `[{ slot, label, choices: [{ id, label }] }]`, one per slot, a "None" choice `id` `&""` first where the slot may be empty; the
    vest choice that holds plates marked `plates: true`, each plate row `plate: true`),
    `normalize(loadout)` (a `{ weapon, magazine, spares, stuns, frags, outfit }` dict made valid; `outfit_of(loadout)` fills every outfit slot, a missing or unfitting
-   id taking `default_outfit`'s: plain clothes, and clears both plates unless the vest holds plates), `apply(character, loadout, rng, style := {}) -> gun id` (arms it through `Character.set_loadout` and dresses it in the whole
+   id taking `default_outfit`'s: plain clothes, and clears both plates unless the vest holds plates), `apply(character, loadout, rng, style := {}) -> gun id` (arms it through `Character.inventory.set_loadout` and dresses it in the whole
    outfit through `Character.set_outfit`; `style` = how it is all drawn, looks only: `look` / `seed` /
    `rank` passed to `Character.set_style`, absent = the character's style left as it is, and `weapon`, the weapon style passed to
-   `Character.set_loadout`, absent = `police`) and `random(rng)` (with `random_outfit(rng)`, drawn after the gun). **Weapon style:** every `Item` has a `style`
+   `Character.inventory.set_loadout`, absent = `police`) and `random(rng)` (with `random_outfit(rng)`, drawn after the gun). **Weapon style:** every `Item` has a `style`
    (`&"police"` for the invaders, `&"scrap"` / `&"pipe"` for a defender; default `police`), the look it is drawn in, never what it does: a gun
    or grenade draws its `GunConfig` / `GrenadeConfig` row's `looks` row for it (the painter and its colours; `GunConfig.look(gun, style)` /
    `GrenadeConfig.look(kind, style)`, `default_style` `police` for a style it has no row for), held, dropped (either side up) and, for a
@@ -274,7 +274,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    front_plate back_plate`), `choices(slot)`, `fits(slot, id)`, `name_of(slot, id)`) and `Outfit` (`RefCounted`, one character's worn set: `set_ids(ids)`, `ids()`, `worn(slot)`, `condition(slot)`,
    `layer(zone, side)` (the armour a round meets there: `{}` or `{ stop_power, penetration, material, color, blunt, reduction, blast, plate }`), `wear(zone, side, damage)`,
    `weight()`, `look(style)` (what the art draws, in that character style), `view()` (what the UI shows) and `revision` (bumped by every change, which the art watches)). The
-   character API an item may call: `facing`, `is_dead` and `current_item()` (a grenade gives up its windup when its user dies or switches away), `punch(hand)`, `punch_amount(hand)` (0..1, how far that hand is thrown: a long gun swings round by it),
+   character API an item may call: `facing`, `is_dead` and `inventory.current_item()` (a grenade gives up its windup when its user dies or switches away), `punch(hand)`, `punch_amount(hand)` (0..1, how far that hand is thrown: a long gun swings round by it),
    `hand_position(hand)`, `hand_world(hand)`, `weapon.muzzle_origin(hand)` (the held item's `muzzle_ahead()` past the hand),
    `world_root()` (also read by the AI: the characters it perceives are the group `characters` under it), `report_shot(body, dmg)`, `weapon.kick(hand, strength := 1.0)` (recoil: throws that hand back; `strength` scales it),
    `weapon.facing()` (the drawn weapon direction, trailing the aim; shots still use `facing`), `weapon.aim_target()` (the aim point a grenade is thrown to) / `weapon.aim_sway()` (rad, the stun's wandering turn of every shot and throw; 0 unstunned), `weapon.one_handed()`
@@ -303,13 +303,13 @@ interfaces it takes part in (by number) and describes how they're implemented.
    or with a long gun's barrel against a wall or object, and a gun holds back between rounds per its fire rate; a controller re-presses it
    every frame while the trigger is held when `weapon.is_automatic()`), `ammo.reload()` (R: a timed swap to
    the fullest carried magazine, taking the item's `reload_time()`; refused while running or busy and cancelled by running, switching items or
-   dying), `select_slot(id)`, `try_interact()` /
+   dying), `inventory.select_slot(id)`, `try_interact()` /
    `interact_with(object, id)` / `end_interaction()`, `try_use_vehicle()` (E: get in or out, interface 19), and may read `damage_taken()` (accumulated hit
    damage, for injury sensing), `posture()`, `is_running()` / `stamina_fraction()`, `run_speed()` / `walk_speed()` (px/s standing, running / walking, slower while stunned or weighed down by the outfit: how an AI works out whether it gets somewhere in time) / `posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`, what furniture must stand above to shield it), the reads of its `ammo` component (`character_ammo.gd`, `CharacterAmmo`) `ammo.rounds(slot := -1)` / `ammo.capacity(slot)` / `ammo.can_reload(slot)` /
-   `ammo.spare_magazines()` / `ammo.is_reloading()` (the held item for slot -1; -1 rounds = no ammo), `item_name(slot := -1)`, `current_item()` / `current_slot()` / `item_reach()` / `has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `is_attacking()` (a punch swing is under way), `gun_slot()` (the
+   `ammo.spare_magazines()` / `ammo.is_reloading()` (the held item for slot -1; -1 rounds = no ammo), the reads of its `inventory` component (`character_inventory.gd`, `CharacterInventory`) `inventory.item_name(slot := -1)`, `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `is_attacking()` (a punch swing is under way), `inventory.gun_slot()` (the
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), the weapon reads (its `weapon` component, `character_weapon.gd`, `CharacterWeapon`) `weapon.blocked()` / `weapon.raise()` /
-   `weapon.is_automatic()`, `item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `weapon.aim_target()` (the swayed aim point a grenade
-   is thrown to, interface 6: where the AI expects its own grenade to come down), `set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
+   `weapon.is_automatic()`, `inventory.item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `inventory.throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `inventory.throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `weapon.aim_target()` (the swayed aim point a grenade
+   is thrown to, interface 6: where the AI expects its own grenade to come down), `inventory.set_loadout(kit: CharacterKit)` (`CharacterKit`, `character/character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"",
    `grenades` = {}, `weapon_style` = &"police"; carry only those slots, holding one, with those spare
    magazines, the gun loaded with that type when it fits, a grenade slot with `grenades[slot]` of them, every item in that weapon style (`Item.style`): how `MatchBuilder.arm` arms a spawn with its side's loadout, interface 23);
    how it is drawn (`docs/outfits.md` O15, looks only): `style` (exported; a `CharacterStyleConfig.styles` key: `zenitex` / `trauma` the police units, `merc` / `borg`
@@ -320,11 +320,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `{ type, name, condition }`: what the debug panel and the spectator inspector list), and where a round strikes it: `hit_zone(height)` (`feet` / `legs` / `torso` /
    `head` by height over the posture's coverage; `&""` below 0) and `hit_side(direction)` (`front` / `flank` / `back` against the shoulders' facing), with
    `get_surface_at` (interface 3); an outfit's weight slows `run_speed()` and every pace;
-   while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `current_item()` is null
+   while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `inventory.current_item()` is null
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
    drawn hunched and staggering, the free hand over the eyes while blind), `weapon.one_handed()` (blind, a held gun is in the weapon hand alone: its rounds spread wider), `stun.view()` (`{ blind, blind_total, deaf, level }`, for the UI) and `blast_push(from, impulse)` (an explosion's shove: knockback, or the fallen body's ragdoll thrown) and `faction` (allegiance tag, for AI hostility). The AI also reads
-   another character's `facing`, `damage_taken()`, `ammo.is_reloading()`, `posture()`, `current_item()` and `faction` — but only while it can SEE that character
+   another character's `facing`, `damage_taken()`, `ammo.is_reloading()`, `posture()`, `inventory.current_item()` and `faction` — but only while it can SEE that character
    (aim, visible wounds, a reload in progress and the posture are things it perceives); the exceptions are three reads of an unseen character's `faction`,
    which stand for knowing who its own team is: the faction of a character whose footstep it hears (the `footfall` event's `character`, interface 10), so its
    own side's steps are never taken for a stranger's (`docs/hearing.md` H1); of the attacker of a hit on or near it (the `hit` event's `attacker`), so an
@@ -375,7 +375,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `interactions` object field. The character never learns what an interaction *means*. The component touches only its host's
    `global_position` (a `move_to` action snaps the body onto the object and back), `facing` (the reach query sits ahead of the body, on
    `PhysicsLayers.SOLID`, interface 11, excluding the body's own `get_rid()`), `aim_point` (the player's Space picks the reachable object
-   nearest the cursor) and `has_item(id)` (an action's `requires_item`), and takes Godot's own collision exception
+   nearest the cursor) and `inventory.has_item(id)` (an action's `requires_item`), and takes Godot's own collision exception
    (`add_collision_exception_with`) with the object a `move_to` puts it on. When an interaction ends the component hands
    the object to the character's `keep_clear_of(body)`, which keeps their collision exception until the character's circle no longer
    overlaps it (then drops it; a freed body is forgotten), and calls `stop_clearing(body) -> bool` when the character goes straight back
@@ -718,7 +718,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `run_input` (interface 7), and from the driver's seat it reads `move_input` / `run_input` as the drive intent; then the ride API:
       `set_ride_pose(at, toward, fold, step := Vector2.ZERO)` (world point, facing, fold 0 standing .. 1 seated, and `step`, the legs' motion
       through the vehicle's frame in px/s, so a carried body does not walk at the vehicle's speed): the first pose cancels a reload, puts the
-      held item away (`current_item()` null) and disables the collision shape; the fold is the drawn crouch fold (`posture_folded()` reads it);
+      held item away (`inventory.current_item()` null) and disables the collision shape; the fold is the drawn crouch fold (`posture_folded()` reads it);
       and `end_ride()` (on its own feet again, shape on, item back). It also reads `facing`, `radius`, `speed`, `global_position`, and for a
       character it strikes (a body in the group `characters`, interface 7) `is_dead`, `health`, `velocity`, `get_mass()` and calls
       `apply_impulse` / `take_damage(amount)`; collision exceptions are Godot's own (`add_collision_exception_with` / `remove_...`); after a
@@ -844,7 +844,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`[{ kind, point, node, from?, label?, refused? }]`, `kind` `order` (`from` where the member stands, `label` the words at its target,
       "Stack (frag, hold) · in position", "Join stack · moving", "Ambush · moving") / `selected`). `Keybinds.COMMAND` (`"command"`, right mouse) is read by the
       menu alone, so with "Lead the team" off nothing reads the right button. Neither holds an AI reference: they read the members through the
-      Character API (`global_position`, `name`, `is_dead`, `item_count`) and the squad through `view()` (and the menu `resolve()`), and the menu
+      Character API (`global_position`, `name`, `is_dead`, `inventory.item_count`) and the squad through `view()` (and the menu `resolve()`), and the menu
       emits plain requests.
     - **The squad-leaders debug overlay** (UI, `ui/overlays/leader_overlay.gd`, LD12): the match builder builds a `LeaderOverlay` (a `Node2D`
       at `DrawLayers.ABOVE`, hidden) with the squads (`MatchBuilder.build_leader_overlay`, interface 23: under `World` in every match, under a
@@ -956,7 +956,7 @@ TestWorld (Testing) ──(stage / bind_npc / entry_point_for / populate / squad
 MatchBuilder ─▶ WorldGen ─▶ ObjectFactory / WallFactory / FloorFactory / WearFactory ─▶ Objects ─▶ Physics
 MatchBuilder ─▶ NavBuilder (build, ready, steering_map; match_spawner furniture_holes) ──(parses static colliders)──▶ NavigationServer2D;  MatchBuilder ─▶ NavDebug / NavUpdater (Navigation, overlay + re-bake)
 main ─▶ Character ◀─ PlayerController ─▶ Keybinds
-MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.set_loadout / set_outfit / set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
+MatchBuilder (arm) ─▶ LoadoutConfig ─▶ GunConfig / MagazineConfig / OutfitConfig / ItemRegistry (random_gun_slot / loadout_for / spares_for) ─▶ Character.inventory.set_loadout / set_outfit / set_style;  main ─▶ LoadoutConfig (the setup window's rows, normalize)
 MatchBuilder ──(the styles' side / weapons)──▶ CharacterStyleConfig.styles
 main ─▶ Settings ─▶ Keybinds   /   main ─▶ SettingsMenu (UI; signals only, no dependency on Settings)
 main ─▶ SetupMenu / MatchHUD / SpectatorInspector / OverlayToggles / PerformanceOverlay / OverlayRegistry (UI; plain dicts in, signals out);  MatchBuilder ─▶ LeaderOverlay / OverlayRegistry (UI: build_leader_overlay, set_overlay)
@@ -976,7 +976,7 @@ AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
 AI behaviour (entry.gd, behavior.gd) / orchestrator / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack, preloaded; AgentPerception.entry_stack)──▶ AI perception's stack/ (the stack seam)
 MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerStack.attach)──▶ Squad / PlayerStack (AI team);  Squad ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchBuilder.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
-CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via item_count)
+CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via inventory.item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
 Item (&"shot") / GrenadeItem (&"throw") / ThrownGrenade (&"grenade") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank ─▶ SoundSynth

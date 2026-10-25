@@ -159,7 +159,7 @@ func _draw_standing(rig: Rig) -> void:
 	# The same wounds in the character's frame, for the parts.
 	var placed := _shifted(impacts, lunge)
 	var damage_total: float = deformable.damage_total if deformable else 0.0
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 
 	for chain in limbs.chains(rig):  # The legs, then the arms.
 		limbs.draw_chain(chain)
@@ -239,7 +239,7 @@ func _redraw_key_of(rig: Rig) -> PackedInt32Array:
 			pose.weapon_angle,
 	]:
 		key.append(roundi(angle / REDRAW_ANGLE_STEP))
-	key.append(_character.current_slot())
+	key.append(_character.inventory.current_slot())
 	# A raised gun is drawn shorter.
 	key.append(roundi(_character.weapon.raise() / REDRAW_RAISE_STEP))
 	for hand in 2:
@@ -288,7 +288,7 @@ func draws_laid_out() -> bool:
 ## and its fists on top.
 func _draw_lying(rig: Rig) -> void:
 	var pose = _character.pose
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 	# The weapon goes under the trunk: its butt is tucked behind the shoulder, the barrel shows
 	# beyond.
 	var weapon := func() -> void:

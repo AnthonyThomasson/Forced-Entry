@@ -21,7 +21,7 @@ func configure(s: TestSetup) -> void:
 		Vector2(200, 250),
 		{
 			"start_slot": 3,
-			"start_rounds": 5,
+			"inventory:start_rounds": 5,
 			"ammo:spare_magazine_types": [&"standard", &"extended"],
 		},
 	)
@@ -29,7 +29,7 @@ func configure(s: TestSetup) -> void:
 		&"dry",
 		&"puppet",
 		Vector2(200, 400),
-		{ "start_slot": 3, "start_rounds": 5, "ammo:spare_magazine_types": [] },
+		{ "start_slot": 3, "inventory:start_rounds": 5, "ammo:spare_magazine_types": [] },
 	)
 
 

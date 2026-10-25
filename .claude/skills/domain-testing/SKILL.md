@@ -277,7 +277,7 @@ row per topic under the domain. The file name keeps its topic prefix (`entry_wai
 the specs quote.
 
 **Sandboxes** (worlds you play by hand) are separate: `sandboxes/<name>_sandbox.gd`, same `GameTest` base, no assertions or timeout. `TestCatalog.discover_sandboxes()` lists them for their own browser section; `discover()` and the gdUnit suites never see them (`--play <words>` can still open one). They are `player_gun_range_sandbox.gd` ("Gun range": the player with every gun, 3 stun (7) and 3 frag (8) grenades re-armed through
-`Character.set_loadout` 2 s after the last of its grenades goes off, which restocks the guns too (its `Restock` node), a dummy crouched behind a
+`Character.inventory.set_loadout` 2 s after the last of its grenades goes off, which restocks the guns too (its `Restock` node), a dummy crouched behind a
 couch to show cover (`CoverSpot`), and the armour range of nine dressed dummies to the south) and `vehicle_sandbox.gd` ("Vehicle yard": a walled concrete yard with the player, a car and a van, furniture to shove and three dummies; `nav.rebake` off, since rammed furniture would re-bake as overlapping holes). `sandboxes/showroom/` holds a ticket's temporary showroom (`ticket-assets`), deleted before its audit.
 
 ```gdscript
@@ -322,10 +322,10 @@ func run(t: TestContext) -> void:
   - Actors: `actor(id, kind, pos, props)`. Kind is `puppet` (scripted), `player` (human-driven),
     `defender`, `invader`, or a scene path. `props` are set on the character before `_ready` (a `component:prop` key on that component of it, through
     `set_indexed`: `"pose:gait:_stride"`, `tests/general/test_world_component_prop`; for example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, and the ammo props
-    `start_rounds` (what the starting gun is loaded with; -1 = full) and `ammo:spare_magazine_types` (e.g. `[]` for none,
+    `inventory:start_rounds` (what the starting gun is loaded with; -1 = full) and `ammo:spare_magazine_types` (e.g. `[]` for none,
     `[&"extended"]`; the default is two standard magazines for each gun, so a test counting spares sets it)). Actors built here
     keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
-    with its side's loadout (`MatchBuilder.arm`, `Character.set_loadout`). To retune a gun for one test, `set_static(GunConfig, "guns", modified_copy)` (e.g. spread 0 for a
+    with its side's loadout (`MatchBuilder.arm`, `Character.inventory.set_loadout`). To retune a gun for one test, `set_static(GunConfig, "guns", modified_copy)` (e.g. spread 0 for a
     straight shot). Use
     `set_props(id, "GoalController", {...})` for a child's exports. An NPC actor is bound by the match's own rule before it joins
     the tree (`MatchBuilder.bind_npc`): the house's `rooms` and `openings`, and for an invader the front entrance as its
@@ -802,7 +802,7 @@ and a stack of two in the back garden, `arm`, `watch`, `first_search`, `check_st
 and a `bang` radioed); each adds the one thing that makes the kitchen suspect at the start of `run`. The wording they rest on is measured by `tools/von_scenarios/stun_entry_*.json`.
 The throw-spot tests (`grenade_throw_spot_*`, `grenade_walks_to_throw_spot`, `grenade_shots_origin_throw_spot`, G17's throw spots) share
 `tests/_ai/throw_spot_probe.gd` (`const Spot := preload(...)`: `throws` (the `grenade` zones of `debug_zones()`), `from_of`, its own `lob_clear` (one ray, nothing above 50 on the
-line), `hand_lob_clear` (that lob from the thrower's hand, `Character.throw_release_offset`, along a band 8 px either side), `THROW_RANGE` (550), `walk` (a `NavBuilder.route` reach and length), `any_lob_along`, and `note` / `describe`, which follow each decision walk with where the NPC stood when it began). A throw's
+line), `hand_lob_clear` (that lob from the thrower's hand, `Character.inventory.throw_release_offset`, along a band 8 px either side), `THROW_RANGE` (550), `walk` (a `NavBuilder.route` reach and length), `any_lob_along`, and `note` / `describe`, which follow each decision walk with where the NPC stood when it began). A throw's
 `throw` event is at the hand, about 16 px from the thrower's centre. The mechanisms the scenarios cannot reach are scripted-Von tests: `grenade_range_drift`, `throw_dropped_when_lob_blocked` and `throw_committed_in_windup` use `von_script(rules, 30)`
 (slow answers) to change the world while a question is in flight; `evade_replans_when_spot_in_line` rolls a grenade on by moving it once it is at rest (a resting
 `ThrownGrenade` stays where it is put) and posting the `grenade` rest event it would post, which a turned-away NPC hears (a character moved with `global_position`, a piece of furniture shoved onto the lob: it must be `freeze`d first and

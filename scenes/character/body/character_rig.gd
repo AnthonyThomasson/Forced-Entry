@@ -164,7 +164,7 @@ class Measures:
 		shin = CharacterBodyConfig.shin * r
 		arm_reach = (upper + fore) * CharacterBodyConfig.arm_extension
 		foot_z = CharacterRagdollConfig.limb_radius * r
-		var item: Item = character.current_item()
+		var item: Item = character.inventory.current_item()
 		weapon_hand = item.weapon_hand() if item != null else 0
 		# A stunned walk's shorter steps.
 		staggered = lerpf(1.0, CharacterStunConfig.stagger_stride, pose.gait.stun_amount())

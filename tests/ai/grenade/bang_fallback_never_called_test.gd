@@ -34,7 +34,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	if not t.require(
 			Bang.arm(t, [&"a"]),
-			"the AI invader carries a stun grenade (Character.item_count(7))",
+			"the AI invader carries a stun grenade (Character.inventory.item_count(7))",
 	):
 		return
 	var brain := Entry.brain(t, &"a")

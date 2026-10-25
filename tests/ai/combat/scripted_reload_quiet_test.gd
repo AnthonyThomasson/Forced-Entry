@@ -20,7 +20,7 @@ func configure(s: TestSetup) -> void:
 		&"defender",
 		&"defender",
 		Vector2(450, 300),
-		{ "start_rounds": 2, "ammo:spare_magazine_types": [&"standard", &"standard"] },
+		{ "inventory:start_rounds": 2, "ammo:spare_magazine_types": [&"standard", &"standard"] },
 	)
 
 

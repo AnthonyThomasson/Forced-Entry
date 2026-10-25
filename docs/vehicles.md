@@ -72,7 +72,7 @@ eases from standing to seated (at most 0.05 a frame); the seated character ends 
 roof), `vehicle/van_doors_open_their_way` (the side door slides back along the body and never turns; a rear door swings out behind
 the van about its back corner and never slides), `vehicle/death_while_boarding` (killed with the door half open: it dies where it
 stands, takes no seat, `vehicle()` is null, the door stays open), `vehicle/item_stowed_while_riding` (a character holding its pistol
-has no item in hand from the fold into the seat until it is out again, then the pistol is back in hand; `current_item()` is null while it
+has no item in hand from the fold into the seat until it is out again, then the pistol is back in hand; `inventory.current_item()` is null while it
 is posed by the ride).
 
 ### Getting out
@@ -203,7 +203,7 @@ vehicle; nothing under
   amount, the pose, the stand point, the blocked check), `vehicle_boarding.gd` (the ride's phase machine), `character_vehicle_use.gd` (the
   character's component), `vehicle_visuals.gd` and `art/` (the chassis and roof layers and their painters).
 - **Character**: the forwards `try_use_vehicle()`, `vehicle()`, `is_in_vehicle()`, the ride API `set_ride_pose` / `end_ride`, `is_busy()`
-  over the ride, `current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE_VEHICLE` and the camera's zoom
+  over the ride, `inventory.current_item()` null while posed, `_die` abandoning the ride. **General**: `Keybinds.USE_VEHICLE` and the camera's zoom
   out. **Audio**: the `vehicle`, `engine` and `skid` topics, the profiles and the loops. **Testing**: `TestSetup.vehicle`, `t.vehicle`,
   the puppet's `use_vehicle()` and `drive(throttle, steer, handbrake)`.
 - **The tests reach all of it duck-typed** (`has_method`, `call`, groups, the Vehicles holders read by name), so a read that is missing fails a

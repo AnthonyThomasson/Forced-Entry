@@ -3,7 +3,7 @@ extends GameTest
 ## `PROCESS_MODE_ALWAYS`). Right-click (`Keybinds.COMMAND`, right mouse by default) pauses the tree
 ## and opens a menu on what is under the cursor, hit-tested from plain dicts:
 ## - a doorway: "Stack into the <room> (quiet)" and "Stack into the <room> with stun", the second
-##   greyed when no recipient carries a stun (D1, `Character.item_count(STUN_SLOT)`);
+##   greyed when no recipient carries a stun (D1, `Character.inventory.item_count(STUN_SLOT)`);
 ## - a room: "Defend the <room>";
 ## - a teammate: select or deselect it;
 ## - "Cancel order" when a selected member has one;

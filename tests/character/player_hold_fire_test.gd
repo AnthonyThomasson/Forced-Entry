@@ -47,7 +47,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(you.ammo.rounds(), after, "releasing the button stops the rifle")
 
 	# The pistol: one round per press, however long it is held.
-	you.select_slot(3)
+	you.inventory.select_slot(3)
 	await t.seconds(0.2)
 	before = you.ammo.rounds()
 	Input.action_press(Keybinds.FIRE)

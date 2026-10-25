@@ -189,18 +189,26 @@ func _check_ranks(t: TestContext, invaders: Array, defenders: Array, when: Strin
 ## of them; returns it (null when none could be read). Each is held in turn to be read
 ## (`select_slot`, `current_item`); the gun is held again afterwards.
 func _check_items(t: TestContext, c: Node, allowed: Array) -> Variant:
-	var gun: int = c.gun_slot()
+	var gun: int = c.inventory.gun_slot()
 	var slots := [gun, ItemRegistry.STUN_SLOT, ItemRegistry.FRAG_SLOT]
 	var found: Variant = null
 	for slot: int in slots:
-		if not t.check(c.has_item(slot), "%s carries an item in slot %d" % [c.name, slot]):
+		if not t.check(
+			c.inventory.has_item(slot),
+			"%s carries an item in slot %d" % [c.name, slot],
+		):
 			continue
-		c.select_slot(slot)
-		var item: Item = c.current_item()
+		c.inventory.select_slot(slot)
+		var item: Item = c.inventory.current_item()
 		var style: StringName = item.style
 		t.check(
 			style in allowed,
-			"%s's %s has a weapon style in %s (got %s)" % [c.name, c.item_name(), allowed, style],
+			"%s's %s has a weapon style in %s (got %s)" % [
+				c.name,
+				c.inventory.item_name(),
+				allowed,
+				style,
+			],
 		)
 		if found == null:
 			found = style
@@ -208,9 +216,9 @@ func _check_items(t: TestContext, c: Node, allowed: Array) -> Variant:
 			t.check(
 				style == found,
 				"%s's %s has the same weapon style as the rest it carries (%s, got %s)"
-					% [c.name, c.item_name(), found, style],
+					% [c.name, c.inventory.item_name(), found, style],
 			)
-	c.select_slot(gun)
+	c.inventory.select_slot(gun)
 	return found
 
 

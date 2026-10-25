@@ -36,7 +36,8 @@ static func make(slot: int, style: StringName) -> Item:
 
 
 ## What a character armed with the item in `slot` alone carries (bare hands, slot 1, beside it),
-## holding it, in weapon `style`, with `grenades` (slot -> count): for `Character.set_loadout`.
+## holding it, in weapon `style`, with `grenades` (slot -> count): for
+## `Character.inventory.set_loadout`.
 static func kit(slot: int, style: StringName, grenades := {}) -> CharacterKit:
 	var out := CharacterKit.new()
 	out.slots = [1, slot]

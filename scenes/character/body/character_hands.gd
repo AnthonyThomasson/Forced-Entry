@@ -67,7 +67,7 @@ func _physics_process(delta: float) -> void:
 	if _character.is_dead:
 		return  # The fallen body's fists are the ragdoll's.
 	# Track the current reach from the held item.
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 	if item:
 		# A butt makes up the rest.
 		_current_reach = maxf(item.reach - item.strike_forward() - item.strike_short(), 0.0)
@@ -133,7 +133,7 @@ func _raw_hand_position(hand: int) -> Vector2:
 	var raw := _stance_hand_position(hand)
 	# A long gun swung butt first is held in both hands: the other hand grips on along the barrel as
 	# it turns.
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 	if item and item.strike_support_gap() != 0.0 and hand != item.weapon_hand():
 		var thrown: float = _punch[item.weapon_hand()]
 		if thrown > 0.0:
@@ -191,7 +191,7 @@ func punch(hand: int) -> void:
 	# _report_hits() poll in _physics_process.
 	var tween := create_tween()
 	tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 	_tempo = item.strike_tempo() if item else 1.0
 	tween.tween_method(_set_punch.bind(hand), 0.0, 1.0, PUNCH_EXTEND_TIME * _tempo)   # Extend.
 	tween.tween_method(_set_punch.bind(hand), 1.0, 0.0, PUNCH_RETRACT_TIME * _tempo)  # Retract.
@@ -214,7 +214,7 @@ func _set_punch(value: float, hand: int) -> void:
 ## so they take damage without moving.
 func _report_hits() -> void:
 	var end := Vector2.ZERO
-	var item: Item = _character.current_item()
+	var item: Item = _character.inventory.current_item()
 	if item and _active_hand == item.weapon_hand():
 		# The butt, once it is ahead of the hand.
 		end = item.strike_end(facing, _punch[_active_hand])

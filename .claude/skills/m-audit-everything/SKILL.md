@@ -277,7 +277,7 @@ with the files that move. Don't manufacture findings or soften real ones.
 
 ### Dead code
 - [ ] `scenes/character/character.gd:56,156` — `signal item_changed` emitted on every slot switch, nothing connects
-      it (the HUD polls `current_item()`). Fix: delete signal + emit; remove it from `architecture`.
+      it (the HUD polls `inventory.current_item()`). Fix: delete signal + emit; remove it from `architecture`.
 - [x] No unreferenced functions or unread declarations (scan corrected per 1a; N funcs scanned).
 
 ### Module complexity

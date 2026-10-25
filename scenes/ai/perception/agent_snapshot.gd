@@ -172,7 +172,7 @@ func _shared(ctx: Dictionary, rooms: Array, knowledge: Dictionary) -> Dictionary
 	var shots_throws := _options.shots_grenade_group(ctx, ctx["hostiles"])
 	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
-	var gun: int = _character.gun_slot()
+	var gun: int = _character.inventory.gun_slot()
 	var ammo: int = _character.ammo.rounds(gun) if gun >= 0 else -1
 	return {
 		"entries": entries, "entered": entered, "stun_stack": stun_stack, "leads": leads,
@@ -320,4 +320,4 @@ static func _usable(group: Dictionary) -> Array:
 ## The goal text with `{gun}` replaced by what the NPC calls its gun ("shoot them with your {gun}"
 ## reads "...your pistol" or "...your assault rifle"), so one goal serves every weapon.
 func fill_goal(goal: String) -> String:
-	return goal.replace("{gun}", vocab.gun_noun(_character.gun_slot()))
+	return goal.replace("{gun}", vocab.gun_noun(_character.inventory.gun_slot()))
