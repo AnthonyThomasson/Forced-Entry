@@ -19,6 +19,16 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	_check_csv(t)
+	_check_filters(t)
+	_check_partition(t)
+	_check_balance(t)
+	_check_von_weight(t)
+	_check_costs_file(t)
+
+
+## Comma lists: trimmed, blanks dropped.
+func _check_csv(t: TestContext) -> void:
 	t.expect_eq(
 		Catalog.csv("ai, navigation,,x"),
 		["ai", "navigation", "x"],
@@ -26,6 +36,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(Catalog.csv(""), [], "csv of nothing is empty")
 
+
+## Exact domain, id and skipped-domain pre-filtering, and an ai test's category its topic folder.
+func _check_filters(t: TestContext) -> void:
 	var all := Catalog.discover()
 	var ai := Catalog.discover(Catalog.ROOT, ["ai"])
 	t.check(
@@ -53,6 +66,9 @@ func run(t: TestContext) -> void:
 		"a skip wins over a selection of the same domain",
 	)
 
+
+## Shards partition a run: disjoint, complete, the Von tests in shard 0.
+func _check_partition(t: TestContext) -> void:
 	var fake: Array = []
 	for i in 7:
 		fake.append({ "id": "d/t%d" % i, "requires_von": i == 3 })
@@ -70,6 +86,9 @@ func run(t: TestContext) -> void:
 	t.expect_eq(seen.size(), fake.size(), "the shards together cover every test")
 	t.expect_eq(Catalog.shard(fake, "0/1").size(), fake.size(), "one shard is the whole run")
 
+
+## With measured costs the shards balance by them; an unmeasured test costs the median.
+func _check_balance(t: TestContext) -> void:
 	# With measured costs the shards balance by them, not by the declared timeout: two heavy tests
 	# (declared 1 s, measured 1000 ms) and six light ones (declared 50 s, measured 100 ms) split
 	# evenly, one heavy each.
@@ -103,7 +122,9 @@ func run(t: TestContext) -> void:
 			or Catalog.shard(costed, "1/2", costs).any(is_new))
 	t.check(landed, "and lands in a shard")
 
-	# A Von test that will be skipped weighs nothing; one that will run keeps shard 0 to itself.
+
+## A Von test that will be skipped weighs nothing; one that will run keeps shard 0 to itself.
+func _check_von_weight(t: TestContext) -> void:
 	var light: Array = []
 	var light_costs := { "d/von": 100_000.0 }
 	for i in 4:
@@ -121,7 +142,9 @@ func run(t: TestContext) -> void:
 		"a skipped Von test does not",
 	)
 
-	# The costs file: missing or blank is empty, a written one reads back (numbers only).
+
+## The costs file: missing or blank is empty, a written one reads back (numbers only).
+func _check_costs_file(t: TestContext) -> void:
 	t.expect_eq(Catalog.load_costs(""), {}, "no costs path means no costs")
 	t.expect_eq(
 		Catalog.load_costs("user://catalog_costs_missing.json"),

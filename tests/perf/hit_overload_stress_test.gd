@@ -57,9 +57,7 @@ func run(t: TestContext) -> void:
 			chair.take_hit(_hit(chair.global_position, i, null))
 			victim.take_hit(_hit(victim.global_position, i, null))
 	var stats := await Perf.frame_stats(t, FRAMES, land)
-	Perf.within_frames(
-		t, "hit overload", stats, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS, Perf.SMOOTH_MAX_MS,
-	)
+	Perf.within_frames(t, "hit overload", stats)
 
 	t.check(
 		deformable.impacts.size() <= PhysicsConfig.deform_max_impacts,

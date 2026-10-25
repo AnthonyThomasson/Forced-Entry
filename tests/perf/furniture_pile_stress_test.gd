@@ -47,10 +47,7 @@ func run(t: TestContext) -> void:
 		piece.apply_impulse((Vector2(650, 550) - piece.global_position).normalized() * 1500.0)
 
 	var moving := await Perf.frame_stats(t, MOVING_FRAMES)
-	Perf.within_frames(
-		t, "furniture pile moving", moving, Perf.SMOOTH_AVG_MS, Perf.SMOOTH_P95_MS,
-		Perf.SMOOTH_MAX_MS,
-	)
+	Perf.within_frames(t, "furniture pile moving", moving)
 
 	var travelled := 0.0
 	for i in count:
