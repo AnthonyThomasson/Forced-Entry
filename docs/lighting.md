@@ -8,7 +8,7 @@ below, so a test checks this file and not the code. The code is the Lighting dom
 the masks are General's `LightMasks` (`architecture` interface 11), the lights and shadows of the world's things are their own
 domains' (interface 20).
 
-All distances are px and times seconds. The numbers are `LightingConfig`'s (`scenes/lighting/lighting_config.gd`) and, for what
+All distances are px and times seconds. The numbers are the Lighting holders' (`LightingConfig`, `LightingFixtureConfig`, `LightingTextureConfig`, in `scenes/lighting/`) and, for what
 each piece gives, `ObjectArtConfig.light_specs`.
 
 ## What is built
@@ -55,7 +55,7 @@ of its centre between 64 samples from its centre to its rim; a street lamp's and
 of the middle of its `Overhang`).
 
 **L3. Room fixtures.** A room that no kept `room_light` stands in gets a ceiling fixture at its centre: a bare bulb glyph drawn
-unshaded over everything (`DrawLayers.OVERHEAD`) and its light (`fixture_color` (1.0, 0.62, 0.22), energy 0.8, a pool the room's
+unshaded over everything (`DrawLayers.OVERHEAD`) and its light (`LightingFixtureConfig.color` (1.0, 0.62, 0.22), energy 0.8, a pool the room's
 longer side × 1.1 + 60 across, clamped 300..900): an overhead light, **shadowed by the walls only** and pooling downward (L2, L6).
 Tests: `lighting/house_lights_per_piece` (each fixture a PointLight2D inside its room; every room lit by a kept room light or a
 fixture), `lighting/overhead_lights_pool_downward` (a fixture's pool is flat).

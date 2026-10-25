@@ -16,8 +16,8 @@ extends Node2D
 ##     every room no kept `room_light` lights.
 ##   - Shadows by height (a 2D shadow has no length, it runs to the rim of the pool): an overhead
 ##     light (a fixture, a lamp, a street lamp) is shadowed by the walls only and pools downward
-##     (`LightingConfig.pool_offsets`), a low one (a screen, a tube) by the walls and the tall
-##     pieces, with a glow that fades from its middle (`glow_offsets`); both fade smoothly.
+##     (`LightingTextureConfig.pool_offsets`), a low one (a screen, a tube) by the walls and the
+##     tall pieces, with a glow that fades from its middle (`glow_offsets`); both fade smoothly.
 ##   - The budget (light_budget.gd): no floor reached by more than `LightingConfig.per_floor()`
 ##     lights; the fixtures first, then the declared lights strongest first, so a room over budget
 ##     drops its weakest (`budget().dropped`).
@@ -264,13 +264,13 @@ func _piece_light(piece: Node2D, index: int, spec: Dictionary, floors: Budget) -
 func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 	var rect: Rect2 = room["rect"]
 	var reach := clampf(
-		maxf(rect.size.x, rect.size.y) * LightingConfig.fixture_reach_scale
-			+ LightingConfig.fixture_reach_pad,
-		LightingConfig.fixture_reach_range.x, LightingConfig.fixture_reach_range.y,
+		maxf(rect.size.x, rect.size.y) * LightingFixtureConfig.reach_scale
+			+ LightingFixtureConfig.reach_pad,
+		LightingFixtureConfig.reach_range.x, LightingFixtureConfig.reach_range.y,
 	)
 	var look := {
-		"colour": LightingConfig.fixture_color,
-		"energy": LightingConfig.fixture_energy,
+		"colour": LightingFixtureConfig.color,
+		"energy": LightingFixtureConfig.energy,
 		"radius": reach * 0.5,
 		"shape": &"round",
 	}
@@ -281,14 +281,14 @@ func _fixture(room: Dictionary, floors: Budget, always: bool) -> bool:
 		return false
 	l.name = "FixtureLight"
 	add_child(l)
-	var glyph: Node2D = Fixture.new().setup(LightingConfig.fixture_color, _unshaded)
+	var glyph: Node2D = Fixture.new().setup(LightingFixtureConfig.color, _unshaded)
 	glyph.position = l.position
 	add_child(glyph)
 	_fixtures.append({ "room": room["key"], "light": l })
 	_keep(
 		l,
-		LightingConfig.fixture_energy,
-		LightingConfig.fixture_rhythms,
+		LightingFixtureConfig.energy,
+		LightingFixtureConfig.rhythms,
 		hash([_seed, "fixture", room["key"]]),
 		glyph,
 	)
@@ -320,11 +320,11 @@ static func _point(spec: Dictionary, overhead: bool, shadow_mask: int,
 	var colour: Color = spec.get("colour", Color.WHITE)
 	var radius := float(spec.get("radius", 100.0))
 	var shape: StringName = spec.get("shape", &"round")
-	if not LightingConfig.textures.has(shape):
+	if not LightingTextureConfig.textures.has(shape):
 		shape = &"round"
 	var l := PointLight2D.new()
 	l.texture = _texture(shape, overhead)
-	l.texture_scale = radius * 2.0 / float((LightingConfig.textures[shape] as Vector2i).x)
+	l.texture_scale = radius * 2.0 / float((LightingTextureConfig.textures[shape] as Vector2i).x)
 	l.color = colour
 	l.energy = float(spec.get("energy", 1.0))
 	l.shadow_enabled = true
@@ -342,13 +342,15 @@ static func _texture(shape: StringName, overhead: bool) -> Texture2D:
 		return _textures[key]
 	var gradient := Gradient.new()
 	gradient.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_LINEAR
-	gradient.offsets = LightingConfig.pool_offsets if overhead else LightingConfig.glow_offsets
+	gradient.offsets = (
+		LightingTextureConfig.pool_offsets if overhead else LightingTextureConfig.glow_offsets
+	)
 	var colors := PackedColorArray()
-	for v in (LightingConfig.pool_levels if overhead else LightingConfig.glow_levels):
+	for v in (LightingTextureConfig.pool_levels if overhead else LightingTextureConfig.glow_levels):
 		colors.append(Color(v, v, v))
 	gradient.colors = colors
 	var tex := GradientTexture2D.new()
-	var dims: Vector2i = LightingConfig.textures[shape]
+	var dims: Vector2i = LightingTextureConfig.textures[shape]
 	tex.width = dims.x
 	tex.height = dims.y
 	tex.fill = GradientTexture2D.FILL_RADIAL
@@ -395,7 +397,7 @@ func _flash(at: Vector2, look: Dictionary, radius: float) -> void:
 	l.global_position = at
 	l.color = look["color"]
 	l.energy = look["energy"]
-	l.texture_scale = reach / float((LightingConfig.textures[&"round"] as Vector2i).x)
+	l.texture_scale = reach / float((LightingTextureConfig.textures[&"round"] as Vector2i).x)
 	l.enabled = true
 	_flash_energy[k] = look["energy"]
 	_flash_hold[k] = float(look.get("hold", 0.0))
