@@ -46,7 +46,7 @@ static func porous(opts: Dictionary) -> bool:
 ## paints (grout, plank seam, slab joint, strip edge), else 0. Mirrors the geometry of the painters
 ## below; the random butt joints and hairline cracks are not modelled.
 static func groove(local: Vector2, opts: Dictionary, half_width: float) -> float:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	match String(opts.get("pattern", "planks")):
 		"planks":
 			var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / px)) * px
@@ -123,16 +123,17 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 ## fine grime of single darker and paler pixels; every mark is one pixel and wraps, so the repeats
 ## never show one twice.
 static func _grimy(c: PixelCanvas, pattern: String) -> void:
+	var px := ArtCanvasConfig.pixel_size
 	match pattern:
 		"planks":
-			var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / ArtConfig.pixel_size))
+			var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / px))
 			for y in range(0, c.h, row_h):
 				for x in c.w:
 					_dirty(c, x, y, ObjectArtConfig.floor_seam_dirt, 0.6)
 		"tiles", "checker", "mosaic":
-			var cell := (maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / ArtConfig.pixel_size))
+			var cell := (maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / px))
 					if pattern == "mosaic"
-					else maxi(4, roundi(ObjectArtConfig.floor_tile_px / ArtConfig.pixel_size)))
+					else maxi(4, roundi(ObjectArtConfig.floor_tile_px / px)))
 			_grout_dirt(c, cell)
 	for _i in int(c.w * c.h * ObjectArtConfig.floor_grime_density):
 		var dark := c.rng.randf() < 0.75
@@ -158,7 +159,7 @@ static func _dirty(c: PixelCanvas, x: int, y: int, col: Color, amount: float) ->
 
 ## Rows of planks with per-plank tones, wrapped grain, seams between rows and staggered butt joints.
 static func _planks(c: PixelCanvas, base: Color, t: Dictionary) -> void:
-	var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / ArtConfig.pixel_size))
+	var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / ArtCanvasConfig.pixel_size))
 	var rows := int(c.h / float(row_h))
 	for row in rows:
 		var y := row * row_h
@@ -174,13 +175,13 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 		var plank := PixelCanvas.rounded(Rect2i(0, y + 1, c.w, row_h - 1), 0)
 		c.grain(
 			plank,
-			ArtConfig.wood_grain_density,
+			ArtSurfaceConfig.wood_grain_density,
 			base.darkened(0.13),
 			base.lightened(0.06),
 			{ "wraps": true },
 		)
 		c.line(Vector2i(0, y), Vector2i(c.w - 1, y), t.shadow)
-		if c.rng.randf() < ArtConfig.wood_knot_chance:
+		if c.rng.randf() < ArtSurfaceConfig.wood_knot_chance:
 			c.knot(
 				c.rng.randi_range(2, c.w - 3),
 				y + int(row_h / 2.0),
@@ -216,7 +217,7 @@ static func _parquet_strip(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool
 	c.fill(strip, tone)
 	c.grain(
 		strip,
-		ArtConfig.wood_grain_density,
+		ArtSurfaceConfig.wood_grain_density,
 		tone.darkened(0.12),
 		tone.lightened(0.05),
 		{ "along_x": along_x },
@@ -229,7 +230,7 @@ static func _parquet_strip(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool
 ## `base`.
 static func _tiles(c: PixelCanvas, base: Color, material: String, checker: bool,
 		alt: Color) -> void:
-	var cell := maxi(4, roundi(ObjectArtConfig.floor_tile_px / ArtConfig.pixel_size))
+	var cell := maxi(4, roundi(ObjectArtConfig.floor_tile_px / ArtCanvasConfig.pixel_size))
 	var grout := base.darkened(0.25) if base.get_luminance() > 0.35 else base.lightened(0.3)
 	for gy in int(c.h / float(cell)):
 		for gx in int(c.w / float(cell)):
@@ -262,7 +263,7 @@ static func _glaze(c: PixelCanvas, tile: PixelCanvas.Shape, col: Color, material
 
 ## Small square tiles in four mixed tones of `base`, with light grout.
 static func _mosaic(c: PixelCanvas, base: Color) -> void:
-	var cell := maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / ArtConfig.pixel_size))
+	var cell := maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / ArtCanvasConfig.pixel_size))
 	var tones := [base, base.lightened(0.1), base.darkened(0.1), base.lightened(0.22)]
 	for gy in int(c.h / float(cell)):
 		for gx in int(c.w / float(cell)):

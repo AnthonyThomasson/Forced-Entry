@@ -66,7 +66,7 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary, opts: Dictionary
 		var b := roundi(float(i + 1) * span / n)
 		var r := Rect2i(0, a, length, b - a) if along_x else Rect2i(a, 0, b - a, length)
 		var tone := _plank_face(c, base, r, along_x)
-		if c.rng.randf() < ArtConfig.wood_knot_chance and b - a >= 4 and length >= 12:
+		if c.rng.randf() < ArtSurfaceConfig.wood_knot_chance and b - a >= 4 and length >= 12:
 			_knot(c, along_x, Rect2i(0, a, length, b - a), tone)
 		if i > 0:
 			_seam(c, along_x, a, length, t.shadow)
@@ -83,7 +83,7 @@ static func _plank_face(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -
 	var shift := c.rng.randf_range(-0.05, 0.05)
 	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
 	c.paint_over(r, tone)
-	c.grain(PixelCanvas.rounded(r, 0), ArtConfig.wood_grain_density, tone.darkened(0.12),
+	c.grain(PixelCanvas.rounded(r, 0), ArtSurfaceConfig.wood_grain_density, tone.darkened(0.12),
 			tone.lightened(0.06), { "along_x": along_x })
 	return tone
 
@@ -134,7 +134,7 @@ static func _inset(
 	c.fill(inner, inlay)
 	c.grain(
 		inner,
-		ArtConfig.wood_grain_density,
+		ArtSurfaceConfig.wood_grain_density,
 		inlay.darkened(0.12),
 		inlay.lightened(0.05),
 		{ "along_x": c.w >= c.h },
@@ -154,7 +154,7 @@ static func _runner(c: PixelCanvas) -> void:
 	var col := ObjectArtConfig.table_runner_color
 	var r := Rect2i(1, a, length - 2, width) if along_x else Rect2i(a, 1, width, length - 2)
 	c.fill(PixelCanvas.rounded(r, 0), col, _RUNNER_HEIGHT)
-	c.speckle(r, col, ArtConfig.fabric_speckle)
+	c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)
 	_runner_weave(c, along_x, Rect2i(0, a, length, width))
 
 

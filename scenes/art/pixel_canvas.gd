@@ -47,12 +47,12 @@ func _init(width: int, height: int, seed_value: int, light_from: Vector2) -> voi
 ## Shade ramp around a base color, from the outline (darkest) to the highlight.
 static func tones(base: Color) -> Dictionary:
 	return {
-		"outline": base.darkened(ArtConfig.tone_outline),
-		"shadow": base.darkened(ArtConfig.tone_shadow),
-		"dark": base.darkened(ArtConfig.tone_dark),
+		"outline": base.darkened(ArtSurfaceConfig.tone_outline),
+		"shadow": base.darkened(ArtSurfaceConfig.tone_shadow),
+		"dark": base.darkened(ArtSurfaceConfig.tone_dark),
 		"base": base,
-		"light": base.lightened(ArtConfig.tone_light),
-		"highlight": base.lightened(ArtConfig.tone_highlight),
+		"light": base.lightened(ArtSurfaceConfig.tone_light),
+		"highlight": base.lightened(ArtSurfaceConfig.tone_highlight),
 	}
 
 
@@ -354,12 +354,12 @@ func outline(s: Shape, c: Color) -> void:
 ## toward the light that stands at least `k` higher shades it (up to cast_shadow_px away).
 func cast_shadows() -> void:
 	var step := Vector2i(roundi(light.x), roundi(light.y))
-	var reach := maxi(0, ArtConfig.cast_shadow_px)
+	var reach := maxi(0, ArtCanvasConfig.cast_shadow_px)
 	if step == Vector2i.ZERO or reach == 0:
 		return
 	var hb := _hgt.get_data()
 	covered(0, 0)  # Refresh the coverage snapshot.
-	var shade := ArtConfig.cast_shadow_darken
+	var shade := ArtCanvasConfig.cast_shadow_darken
 	for y in h:
 		for x in w:
 			var i := y * w + x
@@ -414,7 +414,7 @@ func surface(
 		"wood":
 			grain(
 				s,
-				ArtConfig.wood_grain_density,
+				ArtSurfaceConfig.wood_grain_density,
 				base.darkened(0.12),
 				base.lightened(0.07),
 				{ "along_x": along_x, "wraps": wraps },
@@ -422,21 +422,21 @@ func surface(
 		"metal":
 			grain(
 				s,
-				ArtConfig.metal_brush_density,
+				ArtSurfaceConfig.metal_brush_density,
 				base.lightened(0.07),
 				base.darkened(0.05),
 				{ "along_x": along_x, "wraps": wraps },
 			)
 		"stone":
-			speckle(s.bounds, base, ArtConfig.stone_fleck_density, 0.16)
-			speckle(s.bounds, base, ArtConfig.stone_fleck_density * 0.5, 0.3)
+			speckle(s.bounds, base, ArtSurfaceConfig.stone_fleck_density, 0.16)
+			speckle(s.bounds, base, ArtSurfaceConfig.stone_fleck_density * 0.5, 0.3)
 		"ceramic":
 			speckle(s.bounds, base, 0.02, 0.03)
 			glare(s, base.lightened(0.45), 2)
 		"glass":
 			glare(s, base.lightened(0.55), 3)
 		"fabric":
-			speckle(s.bounds, base, ArtConfig.fabric_speckle)
+			speckle(s.bounds, base, ArtSurfaceConfig.fabric_speckle)
 		"plastic", "electronics":
 			speckle(s.bounds, base, 0.04, 0.04)
 

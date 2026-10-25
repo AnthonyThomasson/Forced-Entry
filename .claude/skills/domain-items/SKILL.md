@@ -173,7 +173,7 @@ or at rest it is gone). The popped spoon (`GrenadeSpoon`, `spoon_painter.gd`) is
 raised-barrel lengths are the item's, so every style sits where every other does. Every draw records its texture (`Item._note_drawn`) for
 `drawn_art()`: the textures the item's last draw painted (all its calls in the frame it was last drawn), compared by the weapon-style tests.
 **Prepainting.** `ItemRegistry.inventory_for` asks every item it makes to `prepaint()` (a no-op on `Item`): a gun paints its art held at
-every raise step and lying either side up, a grenade with its lever held and gone, each at every lighting step (`ArtConfig.turn_steps`),
+every raise step and lying either side up, a grenade with its lever held and gone, each at every lighting step (`ArtCanvasConfig.turn_steps`),
 once per gun or kind and style (`_prepainted`), with the very calls its draws make. It only fills PixelArt's cache, so what is drawn never
 changes; a first paint (0.3 to 0.5 ms, more lying) lands before a fight, not in its busiest frames (a dead hand's gun skidding through the
 steps). It costs about 230 ms per weapon style, once per process, when the first inventory in that style is made (a match's spawns).

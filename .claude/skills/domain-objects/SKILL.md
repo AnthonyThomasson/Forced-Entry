@@ -119,7 +119,7 @@ the floor (planks and parquet wood, ceramic tile, slate stone, concrete, carpet;
 ## Pixel art (`objects/art/`, private to Objects)
 
 Every catalogue piece, every wall and every floor is drawn as procedural top-down pixel art,
-rendered through the **Art** domain (`PixelArt` / `PixelCanvas` / `ArtConfig`, interface 12 —
+rendered through the **Art** domain (`PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig`, interface 12 —
 see `domain-art` for the engine). A piece whose definition sets `art` (a painter id) is drawn as
 art instead of a flat shape with its name label (the flat path stays for any definition without
 `art`).
@@ -189,7 +189,7 @@ damage is placed in the world (below), so no mark repeats on the tile's grid.
 - `object_art_config.gd` — `ObjectArtConfig`, the Objects painters' tuning: per-painter
   proportions and colors (the cyberpunk rooms' `tech_*`, `recliner_*`, `clinic_*`, `security_*`, `hotplate_*` and the `streetlight_*`), the
   prop palette, the floor/wall tile sizes, the floor, rug and overhang z-indices, the grade, grime and neon share, the wear marks and
-  the street (the shared light, shadows, tones and finishes are `ArtConfig`).
+  the street (the shared light and shadows are `ArtCanvasConfig`, the tones and finishes `ArtSurfaceConfig`).
 
 ## Wear and the street's marks (`objects/decals/`, interface 2)
 

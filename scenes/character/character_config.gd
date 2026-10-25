@@ -172,7 +172,7 @@ static var outfit_stamina_per_kg: float = 0.025
 static var shadow_depth: float = 0.72
 static var shadow_width: float = 1.05
 static var shadow_sides: int = 10
-# --- Pixel art (the body and hand painters; shared lighting/resolution is ArtConfig) ---
+# --- Pixel art (the body and hand painters; shared lighting/resolution is ArtCanvasConfig) ---
 ## Head radius as a fraction of the body's width.
 static var art_head_size: float = 0.19
 ## Shoulder span depth (front to back) as a fraction of the body's width.

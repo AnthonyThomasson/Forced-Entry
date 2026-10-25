@@ -12,8 +12,8 @@ extends RefCounted
 static var _regions: Dictionary = {}
 
 
-## The canvas px per vehicle px (1 unless ArtConfig.pixel_size is not), for a body `length` long
-## painted on `c`.
+## The canvas px per vehicle px (1 unless ArtCanvasConfig.pixel_size is not), for a body `length`
+## long painted on `c`.
 static func scale(c: PixelCanvas, length: float) -> float:
 	return c.h / maxf(length, 1.0)
 

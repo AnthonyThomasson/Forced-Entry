@@ -59,7 +59,7 @@ func _same_strip(n: int, size: Vector2i, seed_value: int, depth: int, col: Color
 ## Silhouette `n` on a canvas of `size`: a rounded rect, an ellipse, a bowed bar or a holed slab,
 ## some running off the canvas's edge.
 func _silhouette(n: int, size: Vector2i, seed_value: int) -> PixelCanvas:
-	var c := PixelCanvas.new(size.x, size.y, seed_value, ArtConfig.light_from)
+	var c := PixelCanvas.new(size.x, size.y, seed_value, ArtCanvasConfig.light_from)
 	var r := Rect2i(
 		c.rng.randi_range(-2, 3),
 		c.rng.randi_range(-2, 3),

@@ -1,9 +1,9 @@
 extends Node2D
 ## Floor DRAW layer (Objects domain): repeats the floor's pixel-art tile across its rect, scaled so
-## one art pixel covers ArtConfig.pixel_size world px (its grid from `tile_offset`), and lays the
-## floor's world-placed `marks` over it (a street's: a child StreetMarks layer, street_marks.gd).
-## What in the tile gives light (`_emissive`; none of the floors glows) is drawn again by a child
-## `Emissive` layer. Floors are static: one draw.
+## one art pixel covers ArtCanvasConfig.pixel_size world px (its grid from `tile_offset`), and lays
+## the floor's world-placed `marks` over it (a street's: a child StreetMarks layer,
+## street_marks.gd). What in the tile gives light (`_emissive`; none of the floors glows) is drawn
+## again by a child `Emissive` layer. Floors are static: one draw.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const EmissiveLayer = preload("res://scenes/objects/emissive_layer.gd")
@@ -56,7 +56,7 @@ func draw_emissive(layer: CanvasItem) -> void:
 func _draw_tiled(canvas: CanvasItem, tile: Texture2D) -> void:
 	if tile == null:
 		return
-	var scale_px := ArtConfig.pixel_size
+	var scale_px := ArtCanvasConfig.pixel_size
 	var size: Vector2 = _floor.size / scale_px
 	canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2(scale_px, scale_px))
 	canvas.draw_texture_rect_region(

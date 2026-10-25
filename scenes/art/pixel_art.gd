@@ -82,7 +82,7 @@ static func _turned(img: Image, turns: int) -> Image:
 ## PixelArt's own, above). Callers snap `angle` to a few steps so the cache stays small.
 static func render_turned(painter: Script, size: Vector2, color: Color, angle: float,
 		opts: Dictionary = {}) -> Texture2D:
-	var memo_key: Array = [painter, size, color, opts, ArtConfig.pixel_size, angle]
+	var memo_key: Array = [painter, size, color, opts, ArtCanvasConfig.pixel_size, angle]
 	var memo: Variant = _turned_memo.get(memo_key)
 	if memo != null:
 		return memo
@@ -118,16 +118,16 @@ static func look_of(opts: Dictionary) -> Dictionary:
 	return _looks.get(opts.get("look", 0), {})
 
 
-## `angle` snapped to the nearest of ArtConfig.turn_steps lighting steps (pass it to
+## `angle` snapped to the nearest of ArtCanvasConfig.turn_steps lighting steps (pass it to
 ## render_turned, then draw rotated by the exact angle).
 static func snap_angle(angle: float) -> float:
-	var step := TAU / maxi(1, ArtConfig.turn_steps)
+	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
 	return wrapf(roundf(angle / step) * step, 0.0, TAU)
 
 
 ## The art resolution (art px) of a `size` world-px footprint.
 static func _resolution(size: Vector2) -> Vector2i:
-	return Vector2i((size / maxf(ArtConfig.pixel_size, 0.01)).round())
+	return Vector2i((size / maxf(ArtCanvasConfig.pixel_size, 0.01)).round())
 
 
 ## The cache key of a painter's inputs, without orientation: the material (`opts.material`) and
@@ -140,13 +140,18 @@ static func _key(painter: Script, size: Vector2, color: Color, opts: Dictionary)
 				color.to_html(),
 				opts.get("material", ""),
 				_painter_opts(opts),
-				ArtConfig.pixel_size,
+				ArtCanvasConfig.pixel_size,
 			])
 
 
 ## A fresh canvas of `res` seeded by `seed_key`, with the world light turned by `light_turn`.
 static func _canvas(res: Vector2i, light_turn: float, seed_key: String) -> PixelCanvas:
-	return PixelCanvas.new(res.x, res.y, hash(seed_key), ArtConfig.light_from.rotated(light_turn))
+	return PixelCanvas.new(
+		res.x,
+		res.y,
+		hash(seed_key),
+		ArtCanvasConfig.light_from.rotated(light_turn),
+	)
 
 
 ## Paint `painter` onto `canvas` (`_canvas`), handing it `opts`' `material` as its own argument and

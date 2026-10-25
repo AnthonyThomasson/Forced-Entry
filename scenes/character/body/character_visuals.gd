@@ -581,7 +581,7 @@ static func _texture_uvs(
 ## How far a point on the body is shifted on the floor shadow per px of its height: away from the
 ## light (see `_cast`).
 func _shadow_shift() -> Vector2:
-	return global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized() \
+	return global_transform.basis_xform_inv(-ArtCanvasConfig.light_from.normalized()).normalized() \
 		* CharacterConfig.body_shadow_per_height
 
 
@@ -611,7 +611,7 @@ func _draw_limb_shadow(chain: Dictionary, shift: Vector2, fills: RefCounted) -> 
 ## The head at the pose's offset and angle, casting its shadow onto the shoulders first (the head
 ## sits above them, so its silhouette darkens them a few px away from the light).
 func _draw_head(pose: Pose, rig: Rig, impacts: Array, damage_total: float) -> void:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var side := (float(HeadPainter.canvas_for(HeadPainter.radius_for(roundi(_character.radius * 2.0
 			/ px)))) * px)
 	var size := Vector2(side, side)
@@ -624,14 +624,15 @@ func _draw_head(pose: Pose, rig: Rig, impacts: Array, damage_total: float) -> vo
 		_head_opts,
 	)
 	var at := _rig_xy(rig, Rig.HEAD)  # The pose's offset, plus the neck's pitch in a crouch.
-	var drop := global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized() \
-		* ArtConfig.cast_shadow_px * px
+	var toward := -ArtCanvasConfig.light_from.normalized()
+	var drop := global_transform.basis_xform_inv(toward).normalized() \
+		* ArtCanvasConfig.cast_shadow_px * px
 	draw_set_transform(at + drop, angle, Vector2.ONE)
 	draw_texture_rect(
 		tex,
 		Rect2(-size * 0.5, size),
 		false,
-		Color(0.0, 0.0, 0.0, ArtConfig.cast_shadow_darken),
+		Color(0.0, 0.0, 0.0, ArtCanvasConfig.cast_shadow_darken),
 	)
 	_draw_part(at, size, impacts, _round_look(tex, angle, damage_total, _skin, _skin))
 
@@ -767,7 +768,7 @@ func _through(impacts: Array, center: Vector2, radius: float) -> Array:
 func _build_shadow() -> void:
 	var group := CanvasGroup.new()
 	group.show_behind_parent = true
-	group.self_modulate = Color(1.0, 1.0, 1.0, ArtConfig.drop_shadow_alpha)
+	group.self_modulate = Color(1.0, 1.0, 1.0, ArtCanvasConfig.drop_shadow_alpha)
 	add_child(group)
 	_shadow = Node2D.new()
 	_shadow_meshes = BodyMeshes.new(_shadow)
@@ -1066,7 +1067,7 @@ static func _outline_seg(outlines: FillBatch, seg: Dictionary) -> void:
 	var b := Vector2(b3.x, b3.y)
 	var ra: float = seg["ra"] + 1.0
 	var rb: float = seg["rb"] + 1.0
-	var tone := (seg["color"] as Color).darkened(ArtConfig.tone_outline)
+	var tone := (seg["color"] as Color).darkened(ArtSurfaceConfig.tone_outline)
 	_fill_capsule(outlines, _capsule(a, b, ra, rb), _convex(a, b, ra, rb), tone)
 
 
@@ -1481,7 +1482,7 @@ func _draw_fallen_hand(hand: Dictionary) -> void:
 ## The fallen head, its art's front turned the way the face looks; a face turned up or down shows
 ## its front toward the neck, the crown away from the body.
 func _draw_fallen_head(head: Dictionary) -> void:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var side := (float(HeadPainter.canvas_for(HeadPainter.radius_for(roundi(_character.radius * 2.0
 			/ px)))) * px)
 	var size := Vector2(side, side)

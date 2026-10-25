@@ -107,7 +107,7 @@ func _same_as_fresh(item: Item) -> int:
 			if item is GunItem
 			else { "kind": item.kind, "look": item._look_handle(drawn), "spoon": false })
 	opts["material"] = drawn["finish"]
-	var angle := PixelArt.snap_angle(TAU * 5.0 / ArtConfig.turn_steps)
+	var angle := PixelArt.snap_angle(TAU * 5.0 / ArtCanvasConfig.turn_steps)
 	var image := PixelArt.render_turned(drawn["painter"], size, colour, angle, opts).get_image()
 	if image == null:
 		return -1

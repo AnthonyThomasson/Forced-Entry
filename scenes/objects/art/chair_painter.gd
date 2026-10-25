@@ -31,7 +31,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var seat := PixelCanvas.rounded(seat_rect, 4)
 	c.fill(seat, base, _SEAT_HEIGHT)
 	c.fill(PixelCanvas.rounded(seat_rect.grow(-4), 4), base.lightened(0.05))
-	c.grain(PixelCanvas.rounded(seat_rect.grow(-2), 3), ArtConfig.wood_grain_density * 1.5,
+	c.grain(PixelCanvas.rounded(seat_rect.grow(-2), 3), ArtSurfaceConfig.wood_grain_density * 1.5,
 			base.darkened(0.12), base.lightened(0.08))
 	c.bevel(seat, 2, 2, t.light, t.dark)
 	c.outline(seat, t.outline)
@@ -42,7 +42,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.fill(rail, base, _RAIL_HEIGHT)
 	c.grain(
 		rail,
-		ArtConfig.wood_grain_density * 2.0,
+		ArtSurfaceConfig.wood_grain_density * 2.0,
 		base.darkened(0.12),
 		base.lightened(0.08),
 	)

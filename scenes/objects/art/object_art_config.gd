@@ -3,7 +3,7 @@ class_name ObjectArtConfig
 ## colors, the prop palette, the floor and wall tiles, and the run-down look they all draw in (the
 ## palette grade, grime, the neon share, the world-placed wear, the clutter and the street). The art
 ## resolution, lighting, shadows, tone ramp and surface textures every painter shares live in the
-## Art domain's ArtConfig.
+## Art domain's ArtCanvasConfig and ArtSurfaceConfig.
 ##
 ## A `class_name` holder of `static var`s — read as `ObjectArtConfig.<name>`; there is no
 ## instance and no autoload. A piece's catalogue `art_opts` overrides a painter knob for that

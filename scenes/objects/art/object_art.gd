@@ -66,7 +66,8 @@ static func tile(
 
 ## The texture for an `art` piece with local footprint `size` whose front faces `facing`
 ## (a cardinal direction in the piece's local frame), or null for an unknown art id. `opts` are the
-## painter's options, with its surface finish as `material` (ArtConfig's, absent or `""` for none).
+## painter's options, with its surface finish as `material` (ArtSurfaceConfig's, absent or `""` for
+## none).
 static func texture(art: String, size: Vector2, color: Color, facing: Vector2,
 		opts: Dictionary = {}) -> Texture2D:
 	if not PAINTERS.has(art):

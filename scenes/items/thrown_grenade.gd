@@ -110,9 +110,10 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if item == null:
 		return
-	var away := global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized()
+	var toward := -ArtCanvasConfig.light_from.normalized()
+	var away := global_transform.basis_xform_inv(toward).normalized()
 	item.draw_dropped(self, away * (0.5 + _motion.height * shadow_per_height), _angle,
-		Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha))
+		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha))
 	item.draw_dropped(self, Vector2.ZERO, _angle, Color.WHITE)
 
 

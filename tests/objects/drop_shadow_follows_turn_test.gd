@@ -32,12 +32,12 @@ func run(t: TestContext) -> void:
 		return
 	t.check(shadow.show_behind_parent, "drawn behind the piece")
 	var length := minf(
-		float(sofa.get("coverage")) * ArtConfig.drop_shadow_per_coverage,
-		ArtConfig.drop_shadow_max,
+		float(sofa.get("coverage")) * ArtCanvasConfig.drop_shadow_per_coverage,
+		ArtCanvasConfig.drop_shadow_max,
 	)
 	if not t.require(length > 0.0, "the sofa casts a drop shadow (%.1f px)" % length):
 		return
-	var away := -ArtConfig.light_from.normalized() * length
+	var away := -ArtCanvasConfig.light_from.normalized() * length
 	sofa.freeze = true  # turned by hand: a free body is put back by the next physics step
 	for turn: float in TURNS:
 		sofa.rotation = turn

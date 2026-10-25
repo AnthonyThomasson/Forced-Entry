@@ -77,7 +77,7 @@ func _draw() -> void:
 	look.fill = color
 	look.damage_total = damage_total
 	if _art:  # (its drop shadow is the `_drop_shadow` child's, behind this)
-		look.outline = color.darkened(ArtConfig.tone_outline)
+		look.outline = color.darkened(ArtSurfaceConfig.tone_outline)
 		look.texture = _art
 		Deformation.draw_shape(self, shape, size, impacts, look)
 		return
@@ -122,7 +122,7 @@ func draw_emissive(layer: CanvasItem) -> void:
 ## child in the piece's frame; the child sits at the shadow's offset (`_shadow_shift`), fixed in
 ## world space, so the shadow stays put relative to the light as a shoved piece spins.
 func _draw_drop_shadow() -> void:
-	if not _obj.solid or _shadow_length() <= 0.0 or ArtConfig.drop_shadow_alpha <= 0.0:
+	if not _obj.solid or _shadow_length() <= 0.0 or ArtCanvasConfig.drop_shadow_alpha <= 0.0:
 		return
 	var shape: String = _obj.shape_type
 	var size: Vector2 = _obj.size
@@ -136,7 +136,7 @@ func _draw_drop_shadow() -> void:
 		uvs.append(p / size + Vector2(0.5, 0.5))
 	_drop_shadow.draw_colored_polygon(
 		poly,
-		Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha),
+		Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha),
 		uvs,
 		_art,
 	)
@@ -144,11 +144,14 @@ func _draw_drop_shadow() -> void:
 
 ## How far (px) the drop shadow falls from the piece: longer for taller pieces.
 func _shadow_length() -> float:
-	return minf(_obj.coverage * ArtConfig.drop_shadow_per_coverage, ArtConfig.drop_shadow_max)
+	return minf(
+		_obj.coverage * ArtCanvasConfig.drop_shadow_per_coverage,
+		ArtCanvasConfig.drop_shadow_max,
+	)
 
 
 ## Where the drop shadow lies off the piece in its own frame: `_shadow_length` px away from the
 ## light, whichever way it is turned.
 func _shadow_shift() -> Vector2:
-	var away := -ArtConfig.light_from.normalized()
+	var away := -ArtCanvasConfig.light_from.normalized()
 	return global_transform.basis_xform_inv(away).normalized() * _shadow_length()

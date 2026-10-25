@@ -575,7 +575,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 12. **Objects / Character / Items / Vehicles → Art** (leaf: the pixel-art engine; each domain owns its painters)
     - `PixelArt.render(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` — a painter's art
 	  at a cardinal facing (the image is turned); furniture, walls, floors. The surface finish rides in the options:
-	  `opts.material` (`ArtConfig`'s finish, `""` none), handed to the painter as its `material`, the rest as its `opts`.
+	  `opts.material` (`ArtSurfaceConfig`'s finish, `""` none), handed to the painter as its `material`, the rest as its `opts`.
     - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)`
 	  — canonical art lit for a snapped angle, drawn rotated by the caller to the exact one;
 	  characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
@@ -590,8 +590,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  glows), for a caller that draws light sources unshaded. A painter's options carry a big look (a character style's resolved look,
 	  a weapon style's colours) as an int handle, never the look itself: `PixelArt.handle(look) -> int` registers it (the look's hash) and
 	  `PixelArt.look_of(opts) -> Dictionary` reads `opts.look` back ({} for none); the Character's and Items' painters and their callers use them.
-    - `ArtConfig` (`class_name` static holder) — the shared resolution, light, drop/cast shadow,
-	  turn steps, tone ramp and surface-finish tuning.
+    - `ArtCanvasConfig` (`class_name` static holder) — the art pixel's size, where the light falls from, the turn steps and
+	  the drop and cast shadows; `ArtSurfaceConfig` (static holder) — the tone ramp and the surface finishes.
     Objects' painters + `ObjectArt` registry, Character's body, head, hand, limb, trunk and vest painters, Items' painters
     (`items/art/`: one gun and one grenade painter per weapon style, police, scrap and pipe, drawing the guns held and dropped and the frag and stun grenades, and the spoon) and Vehicles' painters (`scenes/vehicle/art/`: car, van, door, wheel, lamp) all render through
     these; Art imports nothing from other domains.
@@ -965,7 +965,7 @@ Character ─▶ Interaction ──(get_interactions)──▶ Objects
 Character ─▶ CharacterVehicleUse (Vehicles) ─▶ Vehicle   (the ride and a strike call back only the character API of interface 19, as an Item calls its user's)
 Character ─▶ Deformable / Deformation / BloodWound / BloodFootprints / Ragdoll / HitInfo / Physics.impact_impulse / spawn_debris / bleed_out (Physics)
 Vehicle ─▶ Deformable / Deformation (draw_marks) / Physics.impact_impulse / Physics.spawn_debris (Physics);  Vehicle ─▶ PhysicsLayers (General)
-Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / ArtConfig   (Art, a leaf)
+Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / ArtCanvasConfig / ArtSurfaceConfig   (Art, a leaf)
 AIController ─▶ NavigationAgent2D ─▶ NavigationServer2D   (writes Character.move_input; tactics query the nav map)
 AI (perception / behaviour / team / debug) ─▶ NavBuilder (ready / snap / route / path_length, avoid_map, planning_region, steering_map)
 AIController ─▶ ItemRegistry slot ids (Items: FISTS_SLOT, STUN_SLOT, FRAG_SLOT)
@@ -1005,11 +1005,11 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventeen `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into eighteen `class_name` static holders, one per topic (`docs/adr/0003-config-holders-split-by-topic.md`):
 `BallisticsFlightConfig` (projectile: speeds, a bullet's height and the fly-over, a surfaceless collider), `BallisticsPenetrationConfig`
 (going through, the blood a round carries out), `BallisticsRicochetConfig`, `PhysicsConfig` (impact, debris and hit particles, deformation, the explosion's look, the ragdoll solver), `CharacterConfig` (walking
-push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood splatter, drips and bleed-out), `ArtConfig` (the shared pixel-art light,
-shadows, tones and finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
+push + punch + being stunned + hit zones, sides and the outfit's weight + the character's art and its styles, pose, stances and fall), `BloodConfig` (blood splatter, drips and bleed-out), `ArtCanvasConfig` (the art pixel, the light,
+turn steps, shadows) and `ArtSurfaceConfig` (tones, finishes), `ObjectArtConfig` (Objects' painter proportions/colors, props,
 floor/wall tiles, the run-down look: palette grade, grime, neon share, wear marks, street), `WorldGenConfig` (World-Gen's
 furnishing fill pass, the run-down dressing's placement, the street ring and its street lamps), `MagazineConfig` (Items: magazine
 types, capacities and reload times), `GunConfig` (Items: one row per gun — damage, fire rate, penetration,

@@ -78,12 +78,13 @@ static func _placed(t: TestContext, p: DrawProbe, at: Vector2) -> DrawProbe:
 	return p
 
 
-## The angles a lying item is drawn along so its art is lit for every one of `ArtConfig.turn_steps`
-## lighting steps (`draw_dropped` lights it for its angle less a quarter turn, snapped to a step).
+## The angles a lying item is drawn along so its art is lit for every one of
+## `ArtCanvasConfig.turn_steps` lighting steps (`draw_dropped` lights it for its angle less a
+## quarter turn, snapped to a step).
 static func every_step() -> Array[float]:
 	var out: Array[float] = []
-	var step := TAU / maxi(1, ArtConfig.turn_steps)
-	for k in maxi(1, ArtConfig.turn_steps):
+	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
+	for k in maxi(1, ArtCanvasConfig.turn_steps):
 		out.append(k * step + PI * 0.5)
 	return out
 

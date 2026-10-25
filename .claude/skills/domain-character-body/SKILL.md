@@ -8,7 +8,7 @@ description: Deep implementation detail for the Character body sub-domain (scene
 Everything that gives the character a body: `character_rig, character_legs, character_pose, character_ragdoll, character_hands,
 character_kick` (animate; `body_sweep` is the collide-and-slide the hands and legs share, `body_strike` the melee strike the punch and the kick share) and `character_visuals` plus `character_style` (the look a style resolves to), `body_meshes` (the kept meshes a body draws its parts with) and the `body / head / hand / limb / torso / vest` painters in `body/art/` with their shared `style_art` (draw). `character.gd` (the root body, see
 `domain-character`) owns state and physics and steps these each frame; nothing here decides what the character *does*. Cross-domain
-edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtConfig` (Art, 12), the held `Item`
+edges: `Deformable` / `Deformation` and the generic `Ragdoll` (Physics, interface 4), `PixelArt` / `PixelCanvas` / `ArtCanvasConfig` / `ArtSurfaceConfig` (Art, 12), the held `Item`
 (its stances, `draw_weapon`, the `strike_*` hooks) and the character's `Outfit` (`look(style)`, `revision`) (Items, 6), General's `PhysicsLayers.SOLID`,
 `FillBatch` (11) and `GameLog` (15), and `CharacterConfig` (this domain's tuning holder, in `character/`). `character_base.tscn` attaches
 `character_hands.gd` and `character_visuals.gd` as the `Hands` / `Visuals` children (the NPC scenes and `main.tscn`'s `Player` inherit or instance it); the rest are `RefCounted` helpers the character owns.
@@ -304,16 +304,16 @@ The character is top-down pixel art rendered through the Art domain (interface 1
   rig joints (the same drawing the fallen body uses: `_arm_chain` / `_leg_chain` / `_draw_chain`). Standing, the sleeve and forearm of each arm and
   the leg and shoe on each side draw under or around the shoulders (legs lowest, then arms, then the shoulders at `torso_offset`).
 - `character_visuals.gd` renders each with `PixelArt.render_turned(..., snap_angle(angle), ...)` —
-  lit for the nearest of `ArtConfig.turn_steps` steps — and draws it rotated to the exact angle of
+  lit for the nearest of `ArtCanvasConfig.turn_steps` steps — and draws it rotated to the exact angle of
   its part from the pose: the shoulders at `torso_angle`, the head at `head_angle` shifted by
   `head_offset`, each hand at its `hand_angles[hand]`. Each goes through `_draw_round` (a kept mesh in white darkened by
   `Deformation.darken`, or `Deformation.draw_shape(..., look)` headless or with `BodyMeshes.enabled`
   off: the same polygon either way, above; both read the part's `ShapeLook` from `_round_look`, which refills the one the visuals keep (`_look`): the `texture`, its
   `texture_angle`, the damage, `marks` false) so shots dent the art and darken it, then `Deformation.draw_marks` once
   on top in the flesh crack/hole/scorch colors. The head casts its shadow onto the shoulders (its
-  silhouette `ArtConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
+  silhouette `ArtCanvasConfig.cast_shadow_px` away from the light at `cast_shadow_darken`). The floor
   shadow (living and fallen alike) is one `CanvasGroup` of opaque shapes carrying
-  `ArtConfig.drop_shadow_alpha` — the shoulders' own deformed silhouette, each limb's capsule, the
+  `ArtCanvasConfig.drop_shadow_alpha` — the shoulders' own deformed silhouette, each limb's capsule, the
   fists and the head — every point shifted away from the light by `body_shadow_per_height × height`,
   so overlaps don't darken twice. It is redrawn with the body (see the Draw layer above), so only when
   the standing body's drawing changes.

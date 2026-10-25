@@ -124,7 +124,7 @@ static func _floor_mark(
 
 ## A plank gap near `p`: one or two plank rows broken out along a row.
 static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var row_h := maxi(3, roundi(ObjectArtConfig.floor_plank_px / px))
 	var rows := 1 if rng.randf() < 0.7 else 2
 	var length := roundf(rng.randf_range(20, 56) / px)
@@ -146,7 +146,7 @@ static func _plank_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 ## A parquet gap near `p`: one strip of a basket-weave square (strips across in one square, along in
 ## the next), or two side by side.
 static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var cell := ObjectArtConfig.floor_parquet_px / px
 	var strip := maxi(2, int(cell / 4.0))
 	var g := Vector2i(floori(p.x / (cell * px)), floori(p.y / (cell * px)))
@@ -166,7 +166,7 @@ static func _strip_gap(p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
 
 ## Tiles knocked out of a block of the tile (or `mosaic`) grid near `p`.
 static func _missing_cells(p: Vector2, pattern: String, rng: RandomNumberGenerator) -> Dictionary:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var cell := (maxi(3, roundi(ObjectArtConfig.floor_mosaic_px / px))
 			if pattern == "mosaic"
 			else maxi(4, roundi(ObjectArtConfig.floor_tile_px / px)))
@@ -185,7 +185,7 @@ static func _missing_cells(p: Vector2, pattern: String, rng: RandomNumberGenerat
 ## A free mark of `kind` (one ObjectArtConfig.wear_sizes knows) centred near `p`, of a size within
 ## its bounds, turned a random quarter.
 static func _free_mark(kind: String, p: Vector2, rng: RandomNumberGenerator) -> Dictionary:
-	var px := ArtConfig.pixel_size
+	var px := ArtCanvasConfig.pixel_size
 	var lo: Vector2 = ObjectArtConfig.wear_sizes[kind][0]
 	var hi: Vector2 = ObjectArtConfig.wear_sizes[kind][1]
 	var size := ((Vector2(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y)) / 2.0).round()

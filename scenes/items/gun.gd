@@ -315,8 +315,8 @@ func prepaint() -> void:
 	_prepainted[key] = true
 	var drawn := look()
 	var handle := _look_handle(drawn)
-	var step := TAU / maxi(1, ArtConfig.turn_steps)
-	for k in ArtConfig.turn_steps:
+	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
+	for k in ArtCanvasConfig.turn_steps:
 		var angle := PixelArt.snap_angle(k * step)
 		for raise in RAISE_STEPS + 1:
 			var shrink := lerpf(1.0, RAISED_LENGTH, float(raise) / RAISE_STEPS)

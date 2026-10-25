@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 			rng.randi_range(4, 120),
 			rng.randi_range(4, 90),
 			rng.randi(),
-			ArtConfig.light_from,
+			ArtCanvasConfig.light_from,
 		)
 		c.fill(PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 3), Color(0.4, 0.35, 0.3))
 		if not _same(c, _glow_drawings(rng, c)):
@@ -59,14 +59,14 @@ func _note_differing(t: TestContext, differing: int, n: int, c: PixelCanvas) -> 
 
 ## A glowing drawing that changed nothing, and a canvas with none, leave nothing emissive.
 func _check_nothing_glowing(t: TestContext) -> void:
-	var blank := PixelCanvas.new(20, 10, 1, ArtConfig.light_from)
+	var blank := PixelCanvas.new(20, 10, 1, ArtCanvasConfig.light_from)
 	blank.glowing(func() -> void: blank.px(3, 3, blank.at(3, 3)))
 	t.check(
 		blank.emissive() == null,
 		"a glowing drawing that changed nothing leaves nothing emissive",
 	)
 	t.check(
-		PixelCanvas.new(20, 10, 1, ArtConfig.light_from).emissive() == null,
+		PixelCanvas.new(20, 10, 1, ArtCanvasConfig.light_from).emissive() == null,
 		"a canvas with no glowing drawing has nothing emissive",
 	)
 

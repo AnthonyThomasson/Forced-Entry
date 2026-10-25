@@ -1,6 +1,6 @@
 ---
 name: domain-art
-description: Deep implementation detail for the Art domain (scenes/art/) — the procedural top-down pixel-art engine every painter draws through: PixelCanvas (the drawing surface, shapes, shading, material finishes), PixelArt (the cached renderer, cardinal vs. freely turning art, lighting steps) and ArtConfig (shared resolution, light, shadows, tones, surface textures). Use when editing scenes/art/, writing or debugging any painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the Art domain (scenes/art/) — the procedural top-down pixel-art engine every painter draws through: PixelCanvas (the drawing surface, shapes, shading, material finishes), PixelArt (the cached renderer, cardinal vs. freely turning art, lighting steps) and the two holders ArtCanvasConfig (the art pixel, light, turn steps, shadows) and ArtSurfaceConfig (tones, surface textures). Use when editing scenes/art/, writing or debugging any painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Art domain
@@ -27,12 +27,12 @@ the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, 
 
 - `render(painter, size, color, facing := Vector2.DOWN, opts := {})` — the surface finish rides in `opts.material`
   (handed to the painter as its `material`, the rest as its `opts`; the cache key holds it in a field of its own). For a cardinal `facing`: paints at
-  `size / ArtConfig.pixel_size`, lit for that facing, then turns the image (`rotate_90/180`).
+  `size / ArtCanvasConfig.pixel_size`, lit for that facing, then turns the image (`rotate_90/180`).
   Furniture, walls, floor tiles.
 - `render_turned(painter, size, color, angle, opts := {})` — the image stays canonical but is
   lit as if turned by `angle`; the caller draws it rotated (`draw_set_transform`, or
   `Deformation.draw_shape` with its `ShapeLook.texture_angle`). Callers pass `snap_angle(angle)` (one of
-  `ArtConfig.turn_steps` lighting steps) and rotate to the exact angle when drawing — smooth
+  `ArtCanvasConfig.turn_steps` lighting steps) and rotate to the exact angle when drawing — smooth
   turning, few cached textures, world-consistent light. Characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
 - `emissive(painter, size, color, facing := Vector2.DOWN, opts := {})` — the emissive twin of `render`'s texture for the same inputs: what
   the painter drew `glowing` (PixelCanvas), in the art's colours, transparent elsewhere, same size and turn; null when nothing in
@@ -83,11 +83,12 @@ through snapshots).
   matches 8-bit pixels with a tolerance), `grain(s, density, dark, pale, opts := {})` (`opts.along_x`, default true,
   `opts.wraps` for seamless tiles) / `knot`.
 
-## ArtConfig (`art_config.gd`)
+## ArtCanvasConfig and ArtSurfaceConfig (`art_canvas_config.gd`, `art_surface_config.gd`)
 
-Shared tuning: `pixel_size`, `light_from`, `turn_steps`, drop shadow (`drop_shadow_per_coverage`,
-`drop_shadow_max` — read by the object and vehicle visuals; `drop_shadow_alpha` — also by the character, a dropped item and a grenade), cast shadow,
-the tone ramp, and the surface-finish densities. Domain-specific proportions and colors stay in
+Shared tuning in two holders. `ArtCanvasConfig`, what every painting shares: `pixel_size`, `light_from`, `turn_steps`, drop
+shadow (`drop_shadow_per_coverage`, `drop_shadow_max` — read by the object and vehicle visuals; `drop_shadow_alpha` — also by
+the character, a dropped item and a grenade) and cast shadow. `ArtSurfaceConfig`, how a surface is shaded: the tone ramp and the
+surface-finish densities. Domain-specific proportions and colors stay in
 each domain's config (`ObjectArtConfig`, `CharacterConfig.art_*`).
 
 **Interfaces:** 12 (Objects / Character / Items / Vehicles → Art) and 13 (a sandbox's own painter, e.g. a `ticket-assets`

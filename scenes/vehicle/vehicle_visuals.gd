@@ -10,10 +10,10 @@ extends Node2D
 ##    doors, the lamps (the tail lights lit while braking, `brake_lights()`) and the dents bullets
 ##    left. The glass is tinted and see-through, so the part of a seated occupant under it shows.
 ## All of it is pixel art through the Art domain (interface 12) by this domain's painters (art/):
-## each texture is painted once, lit for the nearest `ArtConfig.turn_steps` step of the angle it is
-## drawn at, cached by `PixelArt`, and drawn rotated to the exact angle. A layer repaints only when
-## what it shows changes (`_key`): a lighting step, the wheels' angle, a door's swing, the brake
-## lights, a dent, or (the shadow and the doors' light) the body's turn.
+## each texture is painted once, lit for the nearest `ArtCanvasConfig.turn_steps` step of the angle
+## it is drawn at, cached by `PixelArt`, and drawn rotated to the exact angle. A layer repaints only
+## when what it shows changes (`_key`): a lighting step, the wheels' angle, a door's swing, the
+## brake lights, a dent, or (the shadow and the doors' light) the body's turn.
 
 const CarPainter = preload("res://scenes/vehicle/art/car_painter.gd")
 const VanPainter = preload("res://scenes/vehicle/art/van_painter.gd")
@@ -83,7 +83,7 @@ func _draw() -> void:
 ## Once the engine runs (it may now turn through every lighting step), paint the body's other steps
 ## ahead of time, one a frame and the nearest first, so turning never waits on a paint.
 func _warm_ahead() -> void:
-	var steps := maxi(1, ArtConfig.turn_steps)
+	var steps := maxi(1, ArtCanvasConfig.turn_steps)
 	if _warm >= steps or not _vehicle.engine_state().get("running", false):
 		return
 	var offset := ceili(_warm / 2.0) * (1 if _warm % 2 == 1 else -1)
@@ -115,13 +115,13 @@ func _key() -> PackedInt32Array:
 ## `coverage`) in world space.
 func _draw_shadow() -> void:
 	var offset := minf(
-		float(_vehicle.row()["coverage"]) * ArtConfig.drop_shadow_per_coverage,
-		ArtConfig.drop_shadow_max,
+		float(_vehicle.row()["coverage"]) * ArtCanvasConfig.drop_shadow_per_coverage,
+		ArtCanvasConfig.drop_shadow_max,
 	)
-	var away := (global_transform.basis_xform_inv(-ArtConfig.light_from.normalized()).normalized()
-			* offset)
+	var toward := -ArtCanvasConfig.light_from.normalized()
+	var away := global_transform.basis_xform_inv(toward).normalized() * offset
 	draw_colored_polygon(Transform2D(0.0, away) * (_vehicle.outline() as PackedVector2Array),
-			Color(0.0, 0.0, 0.0, ArtConfig.drop_shadow_alpha))
+			Color(0.0, 0.0, 0.0, ArtCanvasConfig.drop_shadow_alpha))
 
 
 ## The four wheels at the axles, the front pair turned by the steering angle (only what the body
@@ -255,7 +255,7 @@ func _lit(angle: float) -> float:
 
 ## Which lighting step an on-screen angle falls in.
 static func _light_step(angle: float) -> int:
-	var steps := maxi(1, ArtConfig.turn_steps)
+	var steps := maxi(1, ArtCanvasConfig.turn_steps)
 	return roundi(PixelArt.snap_angle(angle) / (TAU / steps)) % steps
 
 

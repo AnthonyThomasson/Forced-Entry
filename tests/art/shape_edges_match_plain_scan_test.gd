@@ -246,7 +246,7 @@ func _same_drawings(shape: PixelCanvas.Shape, plain: Dictionary, seed_value: int
 
 
 func _noise_canvas(size: Vector2i, seed_value: int) -> PixelCanvas:
-	var c := PixelCanvas.new(size.x, size.y, seed_value, ArtConfig.light_from)
+	var c := PixelCanvas.new(size.x, size.y, seed_value, ArtCanvasConfig.light_from)
 	for y in c.h:
 		for x in c.w:
 			c.img.set_pixel(x, y, Color(c.rng.randf(), c.rng.randf(), c.rng.randf(), 1.0))

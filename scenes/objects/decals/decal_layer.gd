@@ -21,8 +21,8 @@ func setup(layer_name: String, z: int) -> Node2D:
 	return self
 
 
-## Draw `texture` stretched over `rect` (the layer's frame; at ArtConfig.pixel_size one texel per
-## art pixel).
+## Draw `texture` stretched over `rect` (the layer's frame; at ArtCanvasConfig.pixel_size one texel
+## per art pixel).
 func add(texture: Texture2D, rect: Rect2) -> void:
 	if texture:
 		_decals.append([texture, rect])

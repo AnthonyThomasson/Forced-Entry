@@ -22,7 +22,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 		var base := ObjectArtConfig.street_sidewalk_color
 		c.fill(PixelCanvas.rounded(all, 0), base)
 		c.speckle(all, base, 0.3, 0.04)
-		var slab := roundi(ObjectArtConfig.street_slab_px / ArtConfig.pixel_size)
+		var slab := roundi(ObjectArtConfig.street_slab_px / ArtCanvasConfig.pixel_size)
 		var joint := base.darkened(0.4)
 		for k in range(0, c.w, slab):
 			for i in c.h:

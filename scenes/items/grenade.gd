@@ -155,8 +155,8 @@ func prepaint() -> void:
 		return
 	_prepainted[key] = true
 	var drawn := look()
-	var step := TAU / maxi(1, ArtConfig.turn_steps)
-	for k in ArtConfig.turn_steps:
+	var step := TAU / maxi(1, ArtCanvasConfig.turn_steps)
+	for k in ArtCanvasConfig.turn_steps:
 		for spoon in [true, false]:
 			PixelArt.render_turned(
 				drawn["painter"], art_size(), drawn["shell"], PixelArt.snap_angle(k * step),

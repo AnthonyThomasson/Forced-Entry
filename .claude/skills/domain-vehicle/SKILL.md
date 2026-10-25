@@ -193,7 +193,7 @@ everything that lies on the floor (`LYING` −2: a body struck down and lying un
 rest) and the decals under it, and under the living and the occupants (`STANDING` 0); the `Roof` at `ABOVE` (+1) is over them. Test:
 `vehicle/fallen_body_under_vehicle`.
 
-- **Chassis** (under the occupants): the drop shadow (the outline pushed away from `ArtConfig.light_from` by `coverage ×
+- **Chassis** (under the occupants): the drop shadow (the outline pushed away from `ArtCanvasConfig.light_from` by `coverage ×
   drop_shadow_per_coverage`, in world space), the four wheels (`WheelPainter`, the front pair turned by `wheel_angle()`),
   the body's `chassis` art, then each door's `panel` at its pose (turned `frame.turn + angle()` about the hinge, or at
   `hinge + offset()`).
@@ -211,7 +211,7 @@ rest) and the decals under it, and under the living and the occupants (`STANDING
   inside pixel) from a vehicle-frame point test, once per geometry key and canvas size (`_regions`), and reuses it for
   every lighting step: a mask `Shape` would test every pixel on each paint, while a ConvexShape's fill, bevel and outline
   cost its edge. A test must be convex along both canvas axes.
-- **Caching:** every texture goes through `PixelArt.render_turned`, lit for the nearest of `ArtConfig.turn_steps` steps
+- **Caching:** every texture goes through `PixelArt.render_turned`, lit for the nearest of `ArtCanvasConfig.turn_steps` steps
   (`_lit`) and drawn rotated to the exact angle. A layer redraws only when its `_key()` changes: the lighting step, the
   body's turn in `redraw_turn_step` steps (the shadow), each door's amount and the wheel angle in `redraw_step` steps, and
   on the roof the brake lights, the dent count and the newest dent's seed. Once the engine runs, `_warm_ahead` paints the
