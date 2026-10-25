@@ -26,7 +26,13 @@ func configure(s: TestSetup) -> void:
 	Entry.npc(s, &"inv", START)
 	s.set_props(&"inv", "GoalController", { "familiar_with_house": true })
 	# An ally beside it that has cleared the kitchen; it plays no part otherwise.
-	Entry.npc(s, &"ally", START + Vector2(30, 0), { "entry_enabled": false }, { "speed": 0.0 })
+	Entry.npc(
+		s,
+		&"ally",
+		START + Vector2(30, 0),
+		{ "entry_enabled": false },
+		{ "movement:speed": 0.0 },
+	)
 
 
 func run(t: TestContext) -> void:

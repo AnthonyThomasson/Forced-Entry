@@ -47,21 +47,25 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	for lane: StringName in LANES:
 		var body: Node = t.actor(StringName("def_%s" % lane))
-		body.aim_point = t.actor(StringName("foe_%s" % lane)).global_position
-		t.check(body.posture() == &"stand", "the %s defender starts standing" % lane)
+		body.movement.aim_point = t.actor(StringName("foe_%s" % lane)).global_position
+		t.check(body.movement.posture() == &"stand", "the %s defender starts standing" % lane)
 
 	var table: Node = t.actor(&"def_table")
 	var open: Node = t.actor(&"def_open")
 	var off: Node = t.actor(&"def_off")
 	t.check(
-		await t.until(func(): return table.posture() == &"crouch", 6.0),
-		"behind a table (45) it crouches (%s)" % table.posture(),
+		await t.until(func(): return table.movement.posture() == &"crouch", 6.0),
+		"behind a table (45) it crouches (%s)" % table.movement.posture(),
 	)
 	t.check(
-		await t.until(func(): return open.posture() == &"crouch", 6.0),
-		"in the open, unshot, it crouches (%s)" % open.posture(),
+		await t.until(func(): return open.movement.posture() == &"crouch", 6.0),
+		"in the open, unshot, it crouches (%s)" % open.movement.posture(),
 	)
 	await t.seconds(2.0)
-	t.expect_eq(table.posture(), &"crouch", "the table defender stays crouched")
-	t.expect_eq(open.posture(), &"crouch", "the open defender stays crouched")
-	t.expect_eq(off.posture(), &"stand", "with the posture switch off the defender stays standing")
+	t.expect_eq(table.movement.posture(), &"crouch", "the table defender stays crouched")
+	t.expect_eq(open.movement.posture(), &"crouch", "the open defender stays crouched")
+	t.expect_eq(
+		off.movement.posture(),
+		&"stand",
+		"with the posture switch off the defender stays standing",
+	)

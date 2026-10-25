@@ -80,7 +80,7 @@ func run(t: TestContext) -> void:
 	# is at rest.
 	me.global_position = mine
 	await t.seconds(1.0)
-	ai.set("speed", 150.0)
+	ai.movement.speed = 150.0
 	var st := await _watch_ai(t, ai, me, brain, target)
 	_check_ready(t, ai, brain, target, st)
 	_check_way(t, ai, st)
@@ -96,7 +96,7 @@ func _reserved_behind(t: TestContext, me: Node2D) -> Node2D:
 	var ai: Node2D = npcs[0]
 	var stack: Node = m["player_stack"]
 	var brain: Node = TestContext.controller_of(ai)
-	ai.set("speed", 0.0)  # Held until the human stands in its slot (the premise).
+	ai.movement.speed = 0.0  # Held until the human stands in its slot (the premise).
 	if not t.require(
 			stack != null and stack.get_parent() == me,
 			"the human has a stack radio (MatchBuilder.bind_player)",

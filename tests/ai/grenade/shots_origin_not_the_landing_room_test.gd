@@ -11,10 +11,10 @@ extends GameTest
 ## Scripted Von (one mechanism: what the snapshot says and offers; the pick is RETREAT, which the
 ## test does not follow). Premises: the shot is one `hit` event nobody known fired (as
 ## tests/_ai/investigate_probe.gd posts gunfire), landing beside the invader; once it has been taken
-## in, the invader is moved into the hall (it "steps" there), and it is held still (`speed` 0) and
-## decides every 0.4 s, so the snapshots read are made where it was put (`speed` 0 and a 0.4 s
-## commit and tactic cadence, as `flank_probe.npc` holds an NPC); it carries a stun and a frag,
-## armed the way Main arms a spawn.
+## in, the invader is moved into the hall (it "steps" there), and it is held still (`movement:speed`
+## 0) and decides every 0.4 s, so the snapshots read are made where it was put (`movement:speed` 0
+## and a 0.4 s commit and tactic cadence, as `flank_probe.npc` holds an NPC); it carries a stun and
+## a frag, armed the way Main arms a spawn.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -51,7 +51,7 @@ func configure(s: TestSetup) -> void:
 		&"a",
 		IN_KITCHEN,
 		{ "max_commit_time": 0.4, "tactic_interval": 0.4 },
-		{ "facing": Vector2.LEFT, "speed": 0.0 },
+		{ "facing": Vector2.LEFT, "movement:speed": 0.0 },
 	)
 
 

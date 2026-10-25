@@ -7,8 +7,8 @@ extends GameTest
 ## sergeant go in and clear the room before the trooper has reached its slot. The trooper's join is
 ## over: it follows the lead at once, and never goes in.
 ##
-## Real Von, the whole pipeline; no switch. Premise: the trooper walks slowly (`speed` 60, as
-## `entry_waits_for_stack`'s straggler), so the room is cleared before it reaches the stack; the
+## Real Von, the whole pipeline; no switch. Premise: the trooper walks slowly (`movement:speed` 60,
+## as `entry_waits_for_stack`'s straggler), so the room is cleared before it reaches the stack; the
 ## test requires that it had not radioed ready (nor given its entry up) by the clear.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.actor(&"lead", &"invader", Vector2(960, 150), { "rank": 2 })
 	s.actor(&"sergeant", &"invader", Vector2(1000, 100), { "rank": 1 })
-	s.actor(&"trooper", &"invader", Vector2(-110, 300), { "rank": 0, "speed": 60.0 })
+	s.actor(&"trooper", &"invader", Vector2(-110, 300), { "rank": 0, "movement:speed": 60.0 })
 	s.squads()
 
 

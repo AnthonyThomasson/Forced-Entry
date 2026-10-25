@@ -9,7 +9,7 @@ The ACT half: it runs the LEAF the decision planner chose — one primitive with
 concrete movement + actions, and holds the System-Two state Von (a stateless ranker) lacks. It never
 chooses WHAT to do and applies no policy beyond its params. It reads the world only through the
 perception sub-domain and drives the character only through its public controller contract
-(`move_input`/`aim_point`/`run_input`, `set_posture`, `inventory.select_slot`, `weapon.shoot`, `weapon.melee`, `leg_kick`, `ammo.reload`, `interact_with`,
+(`movement.move_input`/`movement.aim_point`/`movement.run_input`, `movement.set_posture`, `inventory.select_slot`, `weapon.shoot`, `weapon.melee`, `leg_kick`, `ammo.reload`, `interact_with`,
 `end_interaction`: interface 7).
 
 Files:
@@ -31,7 +31,7 @@ behaviour keeps the NPC's body and hands it to each module's own `bind`, so none
 
 | Primitive | Params | What it does | Done / re-decides |
 |---|---|---|---|
-| `move` | `point`, `aim` (travel / target / threat / point), `target_id`, `arrive_room`, `look_around` | Path to the point (or until ENTERING `arrive_room`), aiming as asked (a threat in sight takes the eyes and the gun: the watch stage, below). Stops on arrival (`move_input` is zeroed every tick after it, so the NPC stands still while the next decision is on its way: a real Von answer takes a moment, and from a point near the front door the last heading is out of the house; tests `tests/ai/movement/move_stops_on_arrival_test.gd`, `gaze_arrival_stops`). A `look_around` move (search / explore) walks all the way INTO the room, then **covers it by sight** (`search_coverage.gd`, the `domain-ai-coverage` skill) until it has SEEN the room or its budget runs out. ADVANCE is a `move` with `aim: target`: it closes in, then re-decides how to fight. | On arrival (forces a decision) — a `look_around` move only once the room is covered or its budget runs out (`max_commit_time` still caps the walk INTO the room before coverage starts). |
+| `move` | `point`, `aim` (travel / target / threat / point), `target_id`, `arrive_room`, `look_around` | Path to the point (or until ENTERING `arrive_room`), aiming as asked (a threat in sight takes the eyes and the gun: the watch stage, below). Stops on arrival (`movement.move_input` is zeroed every tick after it, so the NPC stands still while the next decision is on its way: a real Von answer takes a moment, and from a point near the front door the last heading is out of the house; tests `tests/ai/movement/move_stops_on_arrival_test.gd`, `gaze_arrival_stops`). A `look_around` move (search / explore) walks all the way INTO the room, then **covers it by sight** (`search_coverage.gd`, the `domain-ai-coverage` skill) until it has SEEN the room or its budget runs out. ADVANCE is a `move` with `aim: target`: it closes in, then re-decides how to fight. | On arrival (forces a decision) — a `look_around` move only once the room is covered or its budget runs out (`max_commit_time` still caps the walk INTO the room before coverage starts). |
 | `engage` | `point` (anchor), `target_id`, `style` (peek_cover / ambush), `confine_inside` | Path to the anchor firing at will, then fight from it: **peek-and-cover** (peek to the nearest spot with a clear shot, fire on `fire_cooldown`, duck to cover for `cover_time`, positions committed for `reposition_interval`) or **ambush** (hold the covered spot, fire the moment a line opens). ENGAGE and FLANK use this, anchored at the chosen spot or side. | Moving: at `max_commit_time`. In position: every `tactic_interval` (timer starts on arrival) or when `engaged` lapses. |
 | `melee` | `target_id`, `confine_inside` | Close to `punch_range` and strike (a kick with a gun in hand, else a punch). | `tactic_interval` / `engaged` lapse. |
 | `interact` | `object`, `id` | Walk to the object, face it, run the interaction, hold it `interaction_dwell`. | Dwell over (forces a decision), or approach cap. |
@@ -48,7 +48,7 @@ after the primitive steers, a threat in sight (or one seen a moment ago with a c
 is (a move, a hold, a reload, an engage still walking, a throw once the grenade is away, any entry phase but `bang`; not a melee, an
 arrived engage, an interaction, a throw still taking the grenade in hand and throwing it, or an entry's `bang`); no primitive
 or entry phase has its own fire call. With no threat a walker looks down its path (`Watch.travel_point`) and a resting NPC (hold / reload /
-an arrived move) turns among its room's doorways. An arrived move zeroes `move_input`. Tests: `tests/ai/gaze/`,
+an arrived move) turns among its room's doorways. An arrived move zeroes `movement.move_input`. Tests: `tests/ai/gaze/`,
 `entry_guard_fires_from_outside`, `fire_dry_gun_on_move_reloads`, `engaged_retargets_to_visible`.
 
 **Territory** is a param, not a policy: with `confine_inside` (set by the planner for a territorial
@@ -65,7 +65,7 @@ radio (LD7). `debug_state()["order"]` is the order leaf being carried out (`{ pa
 it, `paused` and the order's own primitive and params, the running ones staying in `primitive` / `params`), {} with none. After an evade
 (D8) the forced decision takes the order up again and the member walks back to its spot. **An order stops a walk, not a fight (LD6).** From the
 frame an order is taken (`await_order(true)`, called by the controller with `_order_from`) until the decision made knowing it lands
-(`set_leaf`, or `fallback`, clears `_awaiting_order`), `apply` zeroes `move_input` after the primitive steers while `_walking()` and not
+(`set_leaf`, or `fallback`, clears `_awaiting_order`), `apply` zeroes `movement.move_input` after the primitive steers while `_walking()` and not
 `committed()`: a `move` not chosen under COMBAT (`in_combat()` false: a search's, an investigation's, an idle walk), an `entry` in
 `approach`, a `defend` / `ambush` not yet `_arrived`, a `throw` in its `walk` stage, an `interact` still walking to its object stand as an
 arrived move does. A fight goes on (an `engage` arrived or on its way, `melee`, `reload`, `hold`, and a `move` chosen under COMBAT: an
@@ -93,7 +93,7 @@ entry's thrower (LD14) radios `frag_out` through the same `take_throw_calls` as 
 while the primitive is `entry`.
 
 **Running** is a behaviour policy, not a primitive: after the primitive steers and the watch stage has picked its threat, `_should_run()` sets
-`character.run_input` only while TRAVELLING (a `move` or `engage` not yet arrived — never a `look_around`
+`character.movement.run_input` only while TRAVELLING (a `move` or `engage` not yet arrived — never a `look_around`
 search, ambush/peek, interaction, hold or tactical entry — or a `melee` closing in), when the leaf carries `run: true` or
 the NPC is under fire, the destination is farther than `run_min_distance` (straight line), and a run can
 start (`run_start_fraction` of the stamina bar, or already running). A `follow` not yet arrived runs once it is more than the squad's
@@ -107,11 +107,11 @@ controller: `run_enabled`, `run_min_distance`, `run_start_fraction`.
 A running NPC cannot shoot or reload (`Character.weapon.shoot()` is ignored while running), so `_should_run` is false while a shot is available
 (`Combat.can_fire_at(threat)`: loaded, in range, clear line) or the reload reflex is due (`Combat.reload_due`): it drops to a walk and
 takes the shot instead of sprinting on past its range. A leaf with `run_through_fire` (the RETREAT node) keeps sprinting. `Combat.shoot()`
-still skips a shot while `is_running()` without spending the fire cooldown.
+still skips a shot while `movement.is_running()` without spending the fire cooldown.
 Tests: `tests/ai/movement/ai_runs_to_destination_test.gd`, `retreat_keeps_running_test.gd`.
 
-**Posture** is a behaviour policy too (spec: `docs/cover-and-stance.md`, A1 to A3): after the primitive has steered and `run_input` is set,
-`_apply_posture` writes the posture `_wanted_posture` asks for through `Character.set_posture` (idempotent, so every tick). Everything outside a
+**Posture** is a behaviour policy too (spec: `docs/cover-and-stance.md`, A1 to A3): after the primitive has steered and `movement.run_input` is set,
+`_apply_posture` writes the posture `_wanted_posture` asks for through `Character.movement.set_posture` (idempotent, so every tick). Everything outside a
 fight and everything travelling to a destination (`move`, an `engage` not yet arrived, `melee`, `interact`) **stands** — only a standing body runs —
 and so does an NPC that is running. Fighting in place (`engage` arrived, or `hold` / `reload` with a hostile known or shots landing) it **crouches** (behind cover, in the open or
 pinned alike, and when moving about inside the fight). Two orders crouch outside a fight: an `ambush` at its post (LD15), and a member of a

@@ -39,13 +39,17 @@ func configure(s: TestSetup) -> void:
 		&"c",
 		&"invader",
 		Vector2(90, 300),
-		{ "facing": Vector2.RIGHT, "aim_point": Vector2(330, 240) },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": Vector2(330, 240) },
 	)
 	s.actor(
 		&"h",
 		&"puppet",
 		Vector2(330, 240),
-		{ "faction": &"household", "max_health": 1_000_000.0, "aim_point": Vector2(90, 300) },
+		{
+			"faction": &"household",
+			"max_health": 1_000_000.0,
+			"movement:aim_point": Vector2(90, 300),
+		},
 	)
 
 

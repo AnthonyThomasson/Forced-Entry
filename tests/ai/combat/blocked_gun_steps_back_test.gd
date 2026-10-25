@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 		&"defender",
 		&"defender",
 		Vector2(300, 250),
-		{ "start_slot": RIFLE_SLOT, "speed": 0.0, "max_health": 400.0 },
+		{ "start_slot": RIFLE_SLOT, "movement:speed": 0.0, "max_health": 400.0 },
 	)
 	# A chair whose north edge (y = 254) is just south of the defender's aim line (y = 250) and
 	# across its barrel's line (y = 259, the rifle is on the right): clear to shoot past, but the
@@ -66,14 +66,14 @@ func run(t: TestContext) -> void:
 	while elapsed < window:
 		await t.frames(1)
 		elapsed += 1.0 / float(Engine.physics_ticks_per_second)
-		if defender.move_input.dot(defender.facing) < -0.5:
+		if defender.movement.move_input.dot(defender.facing) < -0.5:
 			backed_off = true
 	t.check(backed_off, "while blocked, it steps back (drives away from its aim)")
 	t.expect_eq(defender.ammo.rounds(RIFLE_SLOT), rounds, "and it fires no round meanwhile")
 	t.check(intruder.health == intruder.max_health, "the intruder is untouched")
 
 	# Free to move: it backs off, the barrel clears, and it shoots the intruder.
-	defender.speed = 150.0
+	defender.movement.speed = 150.0
 	t.check(await t.until(func(): return intruder.health < intruder.max_health, 14.0),
 		"once it can move it clears the chair and wounds the intruder (%.0f / %.0f)" % [
 			intruder.health,

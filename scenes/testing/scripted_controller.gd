@@ -1,9 +1,10 @@
 extends Node
 ## Testing domain: a puppet controller — a character's `control(character, delta)` child (interface
 ## 7) driven by a test instead of a human or an AI. Commands are queued here and carried out on the
-## character's own frame, through only the published controller API (`move_input`, `aim_point`,
-## `run_input`, `set_posture`, `toggle_crouch`, `weapon.melee`, `leg_kick`, `weapon.shoot`,
-## `ammo.reload`, `select_slot`, `interact_with`, `end_interaction`, `try_use_vehicle`).
+## character's own frame, through only the published controller API (`movement.move_input`,
+## `movement.aim_point`, `movement.run_input`, `movement.set_posture`, `movement.toggle_crouch`,
+## `weapon.melee`, `leg_kick`, `weapon.shoot`, `ammo.reload`, `inventory.select_slot`,
+## `interact_with`, `end_interaction`, `try_use_vehicle`).
 ##
 ## Commands return at once; wait on their effect through the TestContext, e.g.
 ## `p.walk_to(spot)` then `await t.until(p.has_arrived, 3.0, "never arrived")`.
@@ -34,21 +35,21 @@ var failed_interactions: Array = []
 ## Called by the character at the top of its physics frame.
 func control(character: CharacterBody2D, _delta: float) -> void:
 	if _aim is Node2D and is_instance_valid(_aim):
-		character.aim_point = (_aim as Node2D).global_position
+		character.movement.aim_point = (_aim as Node2D).global_position
 	elif _aim is Vector2:
-		character.aim_point = _aim
+		character.movement.aim_point = _aim
 	if _walk_target is Vector2:
 		var to: Vector2 = _walk_target - character.global_position
 		if to.length() <= arrive_distance:
 			_walk_target = null
-			character.move_input = Vector2.ZERO
+			character.movement.move_input = Vector2.ZERO
 		else:
-			character.move_input = to.normalized()
+			character.movement.move_input = to.normalized()
 	else:
-		character.move_input = _move_dir
-	character.run_input = _run
+		character.movement.move_input = _move_dir
+	character.movement.run_input = _run
 	if _posture != &"":
-		character.set_posture(_posture)
+		character.movement.set_posture(_posture)
 	if _firing and character.weapon.is_automatic():
 		character.weapon.shoot()
 	var actions := _pending.duplicate()
@@ -86,7 +87,7 @@ func set_posture(posture: StringName) -> void:
 
 ## Press C / Z once (the player's toggles), on the character's next frame.
 func toggle_crouch() -> void:
-	_pending.append(func(c): c.toggle_crouch())
+	_pending.append(func(c): c.movement.toggle_crouch())
 
 
 ## Stop walking.

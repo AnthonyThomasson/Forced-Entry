@@ -62,13 +62,17 @@ func configure(s: TestSetup) -> void:
 			STYLES[i],
 			&"puppet",
 			at,
-			{ "facing": Vector2.DOWN, "aim_point": at + AIM_AHEAD, "look_seed": SEED },
+			{ "facing": Vector2.DOWN, "movement:aim_point": at + AIM_AHEAD, "look_seed": SEED },
 		)
 	s.actor(
 		&"plain",
 		&"puppet",
 		Vector2(520, Y),
-		{ "facing": Vector2.DOWN, "aim_point": Vector2(520, Y) + AIM_AHEAD, "look_seed": SEED },
+		{
+			"facing": Vector2.DOWN,
+			"movement:aim_point": Vector2(520, Y) + AIM_AHEAD,
+			"look_seed": SEED,
+		},
 	)
 	s.camera_follow(STYLES + [&"plain"])
 

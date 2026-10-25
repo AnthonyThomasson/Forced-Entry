@@ -34,7 +34,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(HALL)
-	Stack.human(s, &"me", LEAD_AT, { "aim_point": TARGET_AT })
+	Stack.human(s, &"me", LEAD_AT, { "movement:aim_point": TARGET_AT })
 	s.actor(&"m", &"invader", NPC_AT, { "max_health": 1_000_000.0 })
 	s.actor(
 		&"target",
@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 		{
 			"faction": &"household",
 			"max_health": 1_000_000.0,
-			"aim_point": NPC_AT,
+			"movement:aim_point": NPC_AT,
 			"facing": Vector2.LEFT,
 		},
 	)

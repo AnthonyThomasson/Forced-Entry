@@ -91,8 +91,8 @@ func _process(_delta: float) -> void:
 		"Interaction: %s" % (interaction if interaction != "" else "—"),
 		"Reach: %.1f" % reach,
 		"Stamina: %d%%%s" % [
-			roundi(_character.stamina_fraction() * 100.0),
-			" (running)" if _character.is_running() else "",
+			roundi(_character.movement.stamina_fraction() * 100.0),
+			" (running)" if _character.movement.is_running() else "",
 		],
 		"Posture: %s" % _posture_label(),
 		"Last Hit:",
@@ -150,7 +150,7 @@ func _grenade_line() -> String:
 
 ## "Standing" or "Crouching".
 func _posture_label() -> String:
-	match _character.posture():
+	match _character.movement.posture():
 		&"crouch":
 			return "Crouching"
 	return "Standing"

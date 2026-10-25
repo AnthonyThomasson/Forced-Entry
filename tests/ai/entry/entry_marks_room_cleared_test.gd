@@ -21,7 +21,7 @@ func configure(s: TestSetup) -> void:
 	Entry.rules(s, Entry.BACK)
 	Entry.npc(s, &"inv", Vector2(960, 60))
 	# Listens on the radio from the garden, never enters.
-	Entry.npc(s, &"ally", Vector2(980, 560), { "entry_enabled": false }, { "speed": 0.0 })
+	Entry.npc(s, &"ally", Vector2(980, 560), { "entry_enabled": false }, { "movement:speed": 0.0 })
 
 
 func run(t: TestContext) -> void:

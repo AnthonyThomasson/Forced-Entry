@@ -142,12 +142,12 @@ func configure(s: TestSetup) -> void:
 	s.object(&"armchair", "armchair", Vector2(460, 460))
 	s.object(&"couch", "sofa", COUCH, { "rotated": true })
 	s.actor(&"crouched", &"puppet", CROUCHED, { "max_health": DUMMY_HEALTH, "faction": &"dummy",
-		"facing": Vector2.RIGHT, "aim_point": CROUCHED + Vector2.RIGHT * 300.0 })
+		"facing": Vector2.RIGHT, "movement:aim_point": CROUCHED + Vector2.RIGHT * 300.0 })
 	for i in LANES.size():
 		var home := _home(i)
 		var facing: Vector2 = LANES[i]["facing"]
 		s.actor(_lane_id(i), &"puppet", home, { "max_health": DUMMY_HEALTH, "faction": &"dummy",
-			"facing": facing, "aim_point": home + facing * 300.0 })
+			"facing": facing, "movement:aim_point": home + facing * 300.0 })
 	s.camera_follow([&"you"])
 
 

@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	t.puppet(&"standing").set_posture(&"stand")
 	await t.seconds(0.6)
 	t.require(
-		crouched.posture() == &"crouch" and standing.posture() == &"stand",
+		crouched.movement.posture() == &"crouch" and standing.movement.posture() == &"stand",
 		"set-up: one dummy crouches and the other stands",
 	)
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, AIM)

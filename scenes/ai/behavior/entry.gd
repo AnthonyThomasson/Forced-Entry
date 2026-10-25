@@ -1133,7 +1133,7 @@ func _read_stack() -> void:
 ## snapshot's ORDER option).
 func _refuse() -> void:
 	_radio("abort")
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	phase = "done"
 
 
@@ -1396,7 +1396,7 @@ func _wall_point(out_px: float, lat_px: float) -> Vector2:
 ## slot, so a long way round (an ordered approach keeps out of the room being entered however long
 ## it is) is not cut short by the cap (E2).
 func _walk_time() -> float:
-	var speed: float = _character.walk_speed()
+	var speed: float = _character.movement.walk_speed()
 	if speed <= 0.0:
 		return 0.0
 	var entering := "%s>%s" % [opening, into]
@@ -1569,7 +1569,7 @@ func _got_to(p: Vector2) -> bool:
 ## In the slot: stand, stack (E2), note when it got there, and radio `ready` unless it slices its
 ## own half of the pie first (E19).
 func _arrive_at_slot(team: Array) -> void:
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_set_phase("stack")
 	if _ready_at < 0.0:
 		_ready_at = _time
@@ -1639,12 +1639,12 @@ func _move_up_now(delta: float) -> bool:
 ## through the step). Where it may be is a worst-case bound: its newest known place, seen
 ## (`Locomotion.bodies`) or radioed (its claim's `pos`), whichever is newer, brought nearer by the
 ## ground it may have walked since straight at that slot, its age x its walking pace (an entry never
-## runs; its own `walk_speed()` when the NPC knows its body, else this member's). A latecomer coming
-## up behind this member, on the same lane, does not cross: it follows in.
+## runs; its own `movement.walk_speed()` when the NPC knows its body, else this member's). A
+## latecomer coming up behind this member, on the same lane, does not cross: it follows in.
 func _latecomer_crosses(h: Dictionary, vacancy: Vector2) -> bool:
 	var pos: Vector2 = h["pos"]
 	var age := float(h.get("age", 0.0))
-	var pace: float = _character.walk_speed()
+	var pace: float = _character.movement.walk_speed()
 	for b in _loco.bodies:
 		if int(b.get("id", 0)) != int(h["id"]):
 			continue
@@ -1653,8 +1653,8 @@ func _latecomer_crosses(h: Dictionary, vacancy: Vector2) -> bool:
 			pos = b["pos"]
 			age = seen
 		var body = b.get("node")
-		if is_instance_valid(body) and body.has_method("walk_speed"):
-			pace = body.walk_speed()
+		if is_instance_valid(body) and "movement" in body:
+			pace = body.movement.walk_speed()
 	var gap := pos.distance_to(_spot)
 	if gap - age * pace > MOVE_UP_REACH + MOVE_UP_MARGIN:
 		return false
@@ -1697,7 +1697,7 @@ func _keep_to_slot(team: Array, delta: float) -> void:
 	if _character.global_position.distance_to(spot) > StackClaim.SLOT_REACH:
 		_loco.move_to(spot, StackClaim.SLOT_REACH)
 	else:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 	if _covers_rear(team):
 		_look_toward(spot + (_geo["along"] as Vector2) * side * 300.0, delta, 3.0)
 	else:
@@ -1786,7 +1786,7 @@ func _topping_off(delta: float) -> bool:
 		return false
 	if not _combat.top_off():
 		return false
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_top_off_spent += delta
 	return true
 
@@ -1809,7 +1809,7 @@ func _holds_outside() -> bool:
 ## `SECURITY_CAP` s with the room never called clear.
 func _tick_security(team: Array, delta: float) -> void:
 	_security_clock += delta
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	if _security_held_at < 0.0 and _cleared_by_team(team):
 		_security_held_at = _security_clock
 	if _security_held_at >= 0.0:
@@ -2246,7 +2246,7 @@ func _bang_go(delta: float) -> void:
 		)
 		_look_toward(_bang_target, delta, 3.0)
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_combat.begin_throw(
 		ItemRegistry.FRAG_SLOT if _kind == &"frag" else ItemRegistry.STUN_SLOT,
 		_bang_target,
@@ -2277,7 +2277,7 @@ func _bang_back(delta: float) -> void:
 	if _character.global_position.distance_to(spot) > WAYPOINT_REACH:
 		_loco.move_to(spot, StackClaim.SLOT_REACH)
 	else:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 	_look_toward(_stack_point() + (_geo["out"] as Vector2) * 300.0, delta, 3.0)
 
 
@@ -2373,7 +2373,7 @@ func _tick_pie(team: Array, delta: float) -> void:
 		solo = false  # An ally claimed a slot: no second side, it joins the stack.
 	if hostile_in_view and not _in_bang_window():
 		# E14: what is in view is fought from where it stands, not walked past or into.
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 		_clock = 0.0
 		return
 	if _bang_over:
@@ -2387,7 +2387,7 @@ func _tick_pie(team: Array, delta: float) -> void:
 		_look_toward(_through_door(_character.global_position), delta)
 		_clock = 0.0
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	var settled := _look_toward(_through_door(spot), delta)
 	if settled and _clock >= pie_dwell:
 		_pie_queue.pop_front()
@@ -2402,7 +2402,7 @@ func _tick_pie(team: Array, delta: float) -> void:
 ## member ahead of it (`_follow`), the point once the stack is ready and no hostile stands in view
 ## (E14).
 func _end_of_pie(team: Array, delta: float) -> void:
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_look_toward(_geo["pos"] - (_geo["out"] as Vector2) * 300.0, delta)
 	if secure:
 		secured = true
@@ -2532,9 +2532,9 @@ func _pick_corner(corners: Array, on: int, hard_first: bool) -> Vector2:
 ## and off the door's axis, then on to the corner.
 func _tick_cross(delta: float) -> void:
 	_loco.move_to(corner, CORNER_REACH)
-	if _character.move_input == Vector2.ZERO and not _loco.holding():
+	if _character.movement.move_input == Vector2.ZERO and not _loco.holding():
 		# Never stand in the funnel (unless a body is in the way).
-		_character.move_input = (corner - _character.global_position).normalized()
+		_character.movement.move_input = (corner - _character.global_position).normalized()
 	_look_toward(_across_from(corner), delta, 3.0)
 	var rel: Vector2 = _character.global_position - (_geo["pos"] as Vector2)
 	var through: bool = (rel.dot(_geo["out"]) < -StackClaim.THROUGH_DEPTH
@@ -2563,7 +2563,7 @@ func _tick_corner(team: Array, delta: float) -> void:
 		_loco.move_to(corner, CORNER_REACH)
 		_dwell = 0.0
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_dwell += delta
 	if _dwell >= corner_dwell and _cleared_by_team(team):
 		_finish(team)
@@ -2582,7 +2582,7 @@ func _tick_clear(team: Array, delta: float) -> void:
 	if not _covered:
 		_covered = _coverage.step(delta)
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_look_toward(_across_from(_character.global_position), delta)
 	var coming := team.filter(
 		func(m): return not StackClaim.through(m["step"]) and m["step"] != "claim",
@@ -2642,7 +2642,7 @@ func _hold_rear_or_done(spare := false) -> void:
 				* (float(_geo["width"]) * 0.5 + 24.0 + SPOT_SPACING * floorf(rank / 2.0)))
 	_set_phase("rear")
 	_radio("rear")
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 
 
 ## The doorways on out of the cleared room, each with where to stand to cover it and where to point
@@ -2716,14 +2716,14 @@ func _tick_cover(team: Array, delta: float) -> void:
 	if not _at(_cover_spot):
 		_loco.move_to(_cover_spot)
 	else:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 	_look_toward(_cover_aim, delta, 3.0)
 
 
 ## Alone in the cleared room: look through the next doorway on in turn, `watch_dwell` once the gaze
 ## has settled, then on to the next; done after the last.
 func _tick_sweep(delta: float) -> void:
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	var w: Dictionary = _sweep[0]
 	var at: Vector2 = w["pos"]
 	if _look_toward(at + (at - _character.global_position).normalized() * 300.0, delta, 2.0):
@@ -2743,7 +2743,7 @@ func _tick_rear(team: Array, delta: float) -> void:
 	if not _at(_rear_spot):
 		_loco.move_to(_rear_spot)
 	else:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 	_look_toward((_geo["pos"] as Vector2) + (_geo["out"] as Vector2) * 300.0, delta, 3.0)
 	if _clock >= rear_time or _team_moved(team):
 		_end_hold()
@@ -2839,13 +2839,13 @@ func _radio(what: String, extra := {}) -> void:
 ## Look where it walks: a few paces down its path (the door it is lining up), not the next waypoint
 ## beside it.
 func _aim_travel() -> void:
-	if _character.move_input == Vector2.ZERO:
+	if _character.movement.move_input == Vector2.ZERO:
 		return
 	var ahead: Vector2 = _eyes.travel_point()
 	var toward: Vector2 = ((ahead - _character.global_position)
 			if ahead != Vector2.INF
-			else _character.move_input)
-	_character.aim_point = _character.global_position + toward.normalized() * 100.0
+			else _character.movement.move_input)
+	_character.movement.aim_point = _character.global_position + toward.normalized() * 100.0
 	_look_angle = toward.angle()
 
 

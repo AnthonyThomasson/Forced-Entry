@@ -47,7 +47,7 @@ func configure(s: TestSetup) -> void:
 		{
 			"faction": &"household",
 			"max_health": 1_000_000.0,
-			"aim_point": START,
+			"movement:aim_point": START,
 			"facing": Vector2.LEFT,
 		},
 	)

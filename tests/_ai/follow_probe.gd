@@ -339,7 +339,7 @@ static func off_spot_tick(t: TestContext, s: Node, member: Node, clock: Dictiona
 ## `CHASE_FLEE_TO`; nobody is ever killed (`max_health`) and the target never shoots.
 static func chase_hall(s: TestSetup) -> void:
 	s.arena(CHASE_HALL)
-	Stack.human(s, &"me", CHASE_LEAD_AT, { "aim_point": CHASE_TARGET_AT })
+	Stack.human(s, &"me", CHASE_LEAD_AT, { "movement:aim_point": CHASE_TARGET_AT })
 	s.actor(&"m", &"invader", CHASE_NPC_AT, { "max_health": 1_000_000.0 })
 	s.actor(
 		&"target",
@@ -348,7 +348,7 @@ static func chase_hall(s: TestSetup) -> void:
 		{
 			"faction": &"household",
 			"max_health": 1_000_000.0,
-			"aim_point": CHASE_FLEE_TO,
+			"movement:aim_point": CHASE_FLEE_TO,
 			"facing": Vector2.RIGHT,
 		},
 	)

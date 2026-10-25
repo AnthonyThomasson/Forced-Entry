@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 		&"me",
 		&"puppet",
 		HUMAN_AT,
-		{ "faction": &"household", "max_health": 1_000_000.0, "aim_point": STEP_UP },
+		{ "faction": &"household", "max_health": 1_000_000.0, "movement:aim_point": STEP_UP },
 	)
 
 

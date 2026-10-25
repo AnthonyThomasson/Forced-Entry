@@ -296,16 +296,17 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 7. **Character ↔ Controller** (enables non-player characters)
    The character reads intent from a pluggable **controller child** — any node with
-   `control(character, delta)`. The controller writes `move_input` / `aim_point` / `run_input` (hold run: a
+   `control(character, delta)`. The controller writes its `movement` component's (`character_movement.gd`, `CharacterMovement`)
+   `movement.move_input` / `movement.aim_point` / `movement.run_input` (hold run: a
    faster pace that spends stamina while moving, dry = walk until it refills; only a standing character runs) and calls the
-   character's action API: `set_posture(p) -> bool` (`stand` / `crouch`; idempotent, so a controller may write it every frame; the player's C calls
-   `toggle_crouch()`), `weapon.melee()` (F), `leg_kick() -> bool` (a right-leg kick along the facing, whatever is held; false while dead, crouched, busy or a kick is under way; reads `is_kicking()`; **not** the recoil `weapon.kick(hand, strength)` above), `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading,
+   character's action API: `movement.set_posture(p) -> bool` (`stand` / `crouch`; idempotent, so a controller may write it every frame; the player's C calls
+   `movement.toggle_crouch()`), `weapon.melee()` (F), `leg_kick() -> bool` (a right-leg kick along the facing, whatever is held; false while dead, crouched, busy or a kick is under way; reads `is_kicking()`; **not** the recoil `weapon.kick(hand, strength)` above), `weapon.shoot() -> bool` (LMB; true = a round left the barrel; ignored while running, reloading,
    or with a long gun's barrel against a wall or object, and a gun holds back between rounds per its fire rate; a controller re-presses it
    every frame while the trigger is held when `weapon.is_automatic()`), `ammo.reload()` (R: a timed swap to
    the fullest carried magazine, taking the item's `reload_time()`; refused while running or busy and cancelled by running, switching items or
    dying), `inventory.select_slot(id)`, `try_interact()` /
    `interact_with(object, id)` / `end_interaction()`, `try_use_vehicle()` (E: get in or out, interface 19), and may read `damage_taken()` (accumulated hit
-   damage, for injury sensing), `posture()`, `is_running()` / `stamina_fraction()`, `run_speed()` / `walk_speed()` (px/s standing, running / walking, slower while stunned or weighed down by the outfit: how an AI works out whether it gets somewhere in time) / `posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`, what furniture must stand above to shield it), the reads of its `ammo` component (`character_ammo.gd`, `CharacterAmmo`) `ammo.rounds(slot := -1)` / `ammo.capacity(slot)` / `ammo.can_reload(slot)` /
+   damage, for injury sensing), `movement.posture()`, `movement.is_running()` / `movement.stamina_fraction()`, `movement.run_speed()` / `movement.walk_speed()` (px/s standing, running / walking, slower while stunned or weighed down by the outfit: how an AI works out whether it gets somewhere in time) / `movement.posture_coverage(posture)` (the body's height on the coverage scale in `stand` / `crouch`, what furniture must stand above to shield it), the reads of its `ammo` component (`character_ammo.gd`, `CharacterAmmo`) `ammo.rounds(slot := -1)` / `ammo.capacity(slot)` / `ammo.can_reload(slot)` /
    `ammo.spare_magazines()` / `ammo.is_reloading()` (the held item for slot -1; -1 rounds = no ammo), the reads of its `inventory` component (`character_inventory.gd`, `CharacterInventory`) `inventory.item_name(slot := -1)`, `inventory.current_item()` / `inventory.current_slot()` / `inventory.item_reach()` / `inventory.has_item(id)` (the held item, its slot and reach, and whether a slot is carried — what the AI's wording, the debug panel and `requires_item` interactions read), `is_attacking()` (a punch swing is under way), `inventory.gun_slot()` (the
    gun it fights with: the held item if it takes ammo, else the lowest such slot, else −1), the weapon reads (its `weapon` component, `character_weapon.gd`, `CharacterWeapon`) `weapon.blocked()` / `weapon.raise()` /
    `weapon.is_automatic()`, `inventory.item_count(slot := -1)` (a grenade slot's count, 1 for any other item, 0 for none), `inventory.throw_stats(slot := -1)` (what a grenade carried in the slot tells its holder, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, `{}` for any other item or an empty slot: how the AI reads a grenade's numbers, instead of keeping a copy), `inventory.throw_release_offset(slot := -1)` (where a grenade leaves its hand when it throws one standing: the hand of its `throw` stance, as `Vector2(px ahead of the body centre, px to its right)` in its own frame; the AI judges a lob from there, instead of keeping a copy of the stance), `weapon.aim_target()` (the swayed aim point a grenade
@@ -319,7 +320,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    calls it), `outfit() -> Outfit` (what its art reads `look(style)` and `revision` from) and `outfit_view()` (each garment slot -> its name, "" for none; each plate slot ->
    `{ type, name, condition }`: what the debug panel and the spectator inspector list), and where a round strikes it: `hit_zone(height)` (`feet` / `legs` / `torso` /
    `head` by height over the posture's coverage; `&""` below 0) and `hit_side(direction)` (`front` / `flank` / `back` against the shoulders' facing), with
-   `get_surface_at` (interface 3); an outfit's weight slows `run_speed()` and every pace;
+   `get_surface_at` (interface 3); an outfit's weight slows `movement.run_speed()` and every pace;
    while the character rides a vehicle (interface 19, from the E press to its last step out) `is_busy()` is true, and `inventory.current_item()` is null
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
@@ -374,7 +375,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    data dicts: `id`, `label`, optional `move_to` / `requires_item`), advertised via the optional
    `interactions` object field. The character never learns what an interaction *means*. The component touches only its host's
    `global_position` (a `move_to` action snaps the body onto the object and back), `facing` (the reach query sits ahead of the body, on
-   `PhysicsLayers.SOLID`, interface 11, excluding the body's own `get_rid()`), `aim_point` (the player's Space picks the reachable object
+   `PhysicsLayers.SOLID`, interface 11, excluding the body's own `get_rid()`), `movement.aim_point` (the player's Space picks the reachable object
    nearest the cursor) and `inventory.has_item(id)` (an action's `requires_item`), and takes Godot's own collision exception
    (`add_collision_exception_with`) with the object a `move_to` puts it on. When an interaction ends the component hands
    the object to the character's `keep_clear_of(body)`, which keeps their collision exception until the character's circle no longer
@@ -611,7 +612,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
     `res://scenes/vehicle/<kind>.tscn` under the world root after the nav bake (not carved) and waits one physics frame so the new bodies
     are in the space; `t.vehicle(id)` reads it back; the puppet presses E with `use_vehicle()` and drives with
-    `drive(throttle, steer, handbrake)`, writing `move_input` / `run_input` as the player's keys do) — and `EventBus` / character
+    `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the player's keys do) — and `EventBus` / character
     signals (7, 10) for its event log.
     Behaviour switches set existing exported props and config-holder `static var`s by name
     (duck-typed, like the overlay flags; a name the holder does not have is an error, which fails the test); a test can also script the Von answers through the AI
@@ -714,12 +715,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       controller (`control(delta)`), so a ride overrides that frame's intent, and calls `abandon()` from `_die` (the ride ends where the body is).
       It asks the component `is_active()` (true from the E press to the last step out): while a ride lasts `is_busy()` is true and
       `try_interact()` / `interact_with` are refused.
-    - **What the Vehicles domain calls on the character.** During the walk to the door its controller fields `move_input` / `aim_point` /
-      `run_input` (interface 7), and from the driver's seat it reads `move_input` / `run_input` as the drive intent; then the ride API:
+    - **What the Vehicles domain calls on the character.** During the walk to the door its controller fields `movement.move_input` / `movement.aim_point` /
+      `movement.run_input` (interface 7), and from the driver's seat it reads `movement.move_input` / `movement.run_input` as the drive intent; then the ride API:
       `set_ride_pose(at, toward, fold, step := Vector2.ZERO)` (world point, facing, fold 0 standing .. 1 seated, and `step`, the legs' motion
       through the vehicle's frame in px/s, so a carried body does not walk at the vehicle's speed): the first pose cancels a reload, puts the
-      held item away (`inventory.current_item()` null) and disables the collision shape; the fold is the drawn crouch fold (`posture_folded()` reads it);
-      and `end_ride()` (on its own feet again, shape on, item back). It also reads `facing`, `radius`, `speed`, `global_position`, and for a
+      held item away (`inventory.current_item()` null) and disables the collision shape; the fold is the drawn crouch fold (`movement.posture_folded()` reads it);
+      and `end_ride()` (on its own feet again, shape on, item back). It also reads `facing`, `radius`, `movement.speed`, `global_position`, and for a
       character it strikes (a body in the group `characters`, interface 7) `is_dead`, `health`, `velocity`, `get_mass()` and calls
       `apply_impulse` / `take_damage(amount)`; collision exceptions are Godot's own (`add_collision_exception_with` / `remove_...`); after a
       ride the vehicle goes to the character's `keep_clear_of(body)` (as in interface 8: the exception is dropped once the body is clear of it),
@@ -967,7 +968,7 @@ Character ─▶ CharacterVehicleUse (Vehicles) ─▶ Vehicle   (the ride and a
 Character ─▶ Deformable / Deformation / BloodWound / BloodFootprints / Ragdoll / HitInfo / Physics.impact_impulse / spawn_debris / bleed_out (Physics)
 Vehicle ─▶ Deformable / Deformation (draw_marks) / Physics.impact_impulse / Physics.spawn_debris (Physics);  Vehicle ─▶ PhysicsLayers (General)
 Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / ArtCanvasConfig / ArtSurfaceConfig   (Art, a leaf)
-AIController ─▶ NavigationAgent2D ─▶ NavigationServer2D   (writes Character.move_input; tactics query the nav map)
+AIController ─▶ NavigationAgent2D ─▶ NavigationServer2D   (writes Character.movement.move_input; tactics query the nav map)
 AI (perception / behaviour / team / debug) ─▶ NavBuilder (ready / snap / route / path_length, avoid_map, planning_region, steering_map)
 AIController ─▶ ItemRegistry slot ids (Items: FISTS_SLOT, STUN_SLOT, FRAG_SLOT)
 Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶ Despawner

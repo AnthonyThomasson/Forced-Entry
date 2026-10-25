@@ -38,14 +38,14 @@ func run(t: TestContext) -> void:
 	var took := {}
 	for id in [&"stand", &"crouch"]:
 		t.puppet(id).aim_at(AIM_WEST)
-	var aim_before: Vector2 = t.actor(&"crouch").aim_point
+	var aim_before: Vector2 = t.actor(&"crouch").movement.aim_point
 	await t.frames(2)
 	t.expect_eq(
-		t.actor(&"crouch").aim_point,
+		t.actor(&"crouch").movement.aim_point,
 		AIM_WEST,
 		"the aim point is the new one at once (the cursor is never held back)",
 	)
-	t.check(aim_before != t.actor(&"crouch").aim_point, "the aim point moved")
+	t.check(aim_before != t.actor(&"crouch").movement.aim_point, "the aim point moved")
 	for _i in 400:
 		for id in [&"stand", &"crouch"]:
 			if not took.has(id) and t.actor(id).facing.dot(Vector2.LEFT) > 0.99:

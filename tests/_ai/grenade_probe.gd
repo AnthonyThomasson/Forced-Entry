@@ -270,7 +270,7 @@ static func hostile(
 	var p := {
 		"faction": &"household",
 		"max_health": 1_000_000.0,
-		"aim_point": look_at,
+		"movement:aim_point": look_at,
 		"facing": (look_at - pos).normalized(),
 	}
 	p.merge(props, true)

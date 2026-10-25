@@ -23,12 +23,12 @@ extends RefCounted
 ## - each move-up seen must be a real one (`_check_move_up`, a check of its own): the mover stood in
 ##   its own slot (`SLOT_REACH`) when it moved, its new slot is lower and on its own file, and it
 ##   ends in it (or in the slot of a later move-up of its own);
-## - get there within its route's walking time (over its `walk_speed()`) plus `SLACK_S`, timed from
-##   where it stood when the order came; a member whose walk met the entry guard (D4: it clears an
-##   uncleared room it passes before it claims a slot) is timed from the end of its last such detour
-##   instead, from where it stood then. A detour is read off what the AI publishes: the member's
-##   running entry (`debug_entry()`) is through another doorway or into another room than the
-##   order's (its `opening` / `into`); while it lasts the member is not in the order's slot. The
+## - get there within its route's walking time (over its `movement.walk_speed()`) plus `SLACK_S`,
+##   timed from where it stood when the order came; a member whose walk met the entry guard (D4: it
+##   clears an uncleared room it passes before it claims a slot) is timed from the end of its last
+##   such detour instead, from where it stood then. A detour is read off what the AI publishes: the
+##   member's running entry (`debug_entry()`) is through another doorway or into another room than
+##   the order's (its `opening` / `into`); while it lasts the member is not in the order's slot. The
 ##   route is the one that keeps out of both the room being entered (the order's `into`) and the
 ##   doorway's view, however long (an ordered member never walks through either, so no
 ##   `View.AVOID_RATIO` cap): `keep_out_route`, an avoid map carved with the test's own view polygon
@@ -413,7 +413,7 @@ static func _check_walk_time(
 	else:
 		route_len = NavBuilder.path_length(NavBuilder.route(map, timing["from"], timing["to"]))
 		route_kind = "the plain route: %s" % kept["why"]
-	var budget := route_len / maxf(float(a.walk_speed()), 1.0) + SLACK_S
+	var budget := route_len / maxf(float(a.movement.walk_speed()), 1.0) + SLACK_S
 	var took := float(rec["ever"].get(id, INF)) - timed_at
 	t.check(
 		took <= budget,
@@ -426,7 +426,7 @@ static func _check_walk_time(
 				took,
 				route_len,
 				route_kind,
-				a.walk_speed(),
+				a.movement.walk_speed(),
 				budget,
 			],
 	)

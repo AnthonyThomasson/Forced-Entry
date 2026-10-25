@@ -23,35 +23,38 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var you := t.actor(&"you")
 	await t.seconds(0.3)
-	t.expect_eq(you.posture(), &"stand", "the player starts standing")
+	t.expect_eq(you.movement.posture(), &"stand", "the player starts standing")
 
 	await _tap(t, Keybinds.CROUCH)
-	t.expect_eq(you.posture(), &"crouch", "C crouches")
+	t.expect_eq(you.movement.posture(), &"crouch", "C crouches")
 	await _tap(t, Keybinds.CROUCH)
-	t.expect_eq(you.posture(), &"stand", "C again stands")
+	t.expect_eq(you.movement.posture(), &"stand", "C again stands")
 
 	# Changes are paced: a second press inside the change time is ignored.
 	Input.action_press(Keybinds.CROUCH)
 	await t.frames(2)
 	Input.action_release(Keybinds.CROUCH)
 	await t.frames(1)
-	t.expect_eq(you.posture(), &"crouch", "C crouches")
+	t.expect_eq(you.movement.posture(), &"crouch", "C crouches")
 	Input.action_press(Keybinds.CROUCH)
 	await t.frames(2)
 	Input.action_release(Keybinds.CROUCH)
-	t.expect_eq(you.posture(), &"crouch", "a press inside the change time is ignored")
+	t.expect_eq(you.movement.posture(), &"crouch", "a press inside the change time is ignored")
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
-	t.check(you.set_posture(&"stand"), "a controller's request is taken once the change time is up")
+	t.check(
+		you.movement.set_posture(&"stand"),
+		"a controller's request is taken once the change time is up",
+	)
 
 	# Crouched or standing, the character can punch.
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
-	t.check(you.set_posture(&"crouch"), "crouches again")
+	t.check(you.movement.set_posture(&"crouch"), "crouches again")
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.weapon.melee()
 	await t.frames(3)
 	t.check(you.is_attacking(), "a crouched character can punch")
 	await t.seconds(1.0)
-	t.check(you.set_posture(&"stand"), "stands up")
+	t.check(you.movement.set_posture(&"stand"), "stands up")
 	await t.seconds(CharacterPostureConfig.change_time + 0.1)
 	you.weapon.melee()
 	await t.frames(3)

@@ -2,12 +2,11 @@ extends CharacterBody2D
 ## Character domain: a generic top-down character. It owns the body, movement, aim-based "facing",
 ## the item inventory, and the knockback it takes from shoves. It reads its intent from a pluggable
 ## controller child (any node with a `control(character, delta)` method): the controller
-## writes `move_input` / `aim_point` and calls `weapon.melee/weapon.shoot/inventory.select_slot`.
-## Drawing
-## is in character_visuals.gd, the hand/punch/fist geometry in character_hands.gd, the living
-## motion of head, shoulders, hips and hands in character_pose.gd (stepped here each physics frame),
-## the standing skeleton the limbs are drawn from in character_rig.gd, and the body's fall on death
-## in character_ragdoll.gd (stepped here once dead).
+## writes `movement.move_input` / `movement.aim_point` and calls `weapon.melee` / `weapon.shoot` /
+## `inventory.select_slot`. Drawing is in character_visuals.gd, the hand/punch/fist geometry in
+## character_hands.gd, the living motion of head, shoulders, hips and hands in character_pose.gd
+## (stepped here each physics frame), the standing skeleton the limbs are drawn from in
+## character_rig.gd, and the body's fall on death in character_ragdoll.gd (stepped here once dead).
 
 ## Emitted once when health drops to zero.
 signal died
@@ -31,7 +30,6 @@ const CharacterRagdoll = preload("res://scenes/character/body/character_ragdoll.
 const CharacterFootsteps = preload("res://scenes/character/character_footsteps.gd")
 const CharacterLegs = preload("res://scenes/character/body/character_legs.gd")
 const CharacterKick = preload("res://scenes/character/body/character_kick.gd")
-const CharacterPush = preload("res://scenes/character/character_push.gd")
 ## Vehicle component (Vehicles domain): boards, rides and leaves vehicles. Composed in code like the
 ## interaction; the character forwards `try_use_vehicle()`, `vehicle()`, `is_in_vehicle()` and lets
 ## it drive the ride each frame.
@@ -40,8 +38,6 @@ const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.
 ## Radius of the placeholder circle. Matches chair size (28x28 → 14 radius).
 ## Body circle radius (px).
 @export var radius: float = 14.0
-## Move speed (px/s).
-@export var speed: float = 150.0
 ## Slot the character starts holding.
 @export var start_slot: int = 1
 ## Allegiance tag, read by AI perception to tell allies from potential hostiles.
@@ -91,28 +87,9 @@ var _rig_cache: CharacterRig = null
 var _rig_frame := -1
 ## True once the dead body has come to rest and started bleeding out.
 var _bled_out := false
-## Intent, written each frame by the controller.
-## Desired move direction (already 0–1 length).
-var move_input := Vector2.ZERO
-## World point to face.
-var aim_point := Vector2.ZERO
-## Wants to run; honoured only while moving with stamina left.
-var run_input := false
-## Stamina as a fraction of a full bar; spent while running, regained otherwise.
-var stamina := 1.0
-## Ran dry: walks until stamina refills to `CharacterPaceConfig.run_resume_fraction`.
-var _exhausted := false
-## Running this frame.
-var _running := false
-## The body's height: a `CharacterPostureConfig.postures` key (`stand` or `crouch`). A crouch is a
-## smaller target and slower; only a standing character can run. Set through `set_posture()`.
-var _posture: StringName = &"stand"
-## Seconds until the posture may change again (`CharacterPostureConfig.change_time` after each
-## change).
-var _posture_cooldown := 0.0
-## What the body is drawn at, easing toward the posture: its height as a share of a standing one (1
-## = standing, down to the crouch row's).
-var _posture_height := 1.0
+## The controller's intent, the posture, running and stamina, knockback and the push slow
+## (`character_movement.gd`).
+var movement := CharacterMovement.new(self)
 ## The items carried and the held slot (`character_inventory.gd`).
 var inventory := CharacterInventory.new(self)
 ## The held item's use: firing, melee, the raise, recoil and aim (`character_weapon.gd`).
@@ -126,11 +103,6 @@ var stun := CharacterStun.new(self)
 ## the step its legs take through the vehicle.
 var _riding := false
 var _ride_step := Vector2.ZERO
-## Knockback velocity from objects shoved into the character; decays each frame. Added on
-## top of controller-driven movement.
-var _knockback := Vector2.ZERO
-## Speed multiplier from pushing objects last frame (1.0 = unencumbered).
-var _push_slow := 1.0
 ## What the character wears (Items domain; `set_outfit`): its armour, its weight and, for the art,
 ## its look. A new one wears nothing (no armour, no weight).
 var _outfit := Outfit.new()
@@ -163,8 +135,6 @@ var _occluder: LightOccluder2D
 @onready var _shape: CollisionShape2D = $CollisionShape2D
 ## The Hands child (character_hands.gd): hand geometry, the punch.
 @onready var _hands := $Hands
-## The controller child it pulls intent from each frame; null for none.
-@onready var _controller := _find_controller()
 
 
 func _ready() -> void:
@@ -179,6 +149,7 @@ func _ready() -> void:
 
 	health = max_health
 
+	movement.controller = _find_controller()
 	inventory.stock()
 	ammo.restock(ammo.spare_magazine_types)
 	# Re-emit the hands' punch as a unified hit_landed (melee → hand 0/1, with its dealt damage).
@@ -250,17 +221,14 @@ func _physics_step(delta: float) -> void:
 		_fall_frame(delta)
 		return
 
-	_posture_cooldown = maxf(_posture_cooldown - delta, 0.0)
-	if not _riding:  # In a vehicle the ride poses the fold.
-		_ease_posture(delta)
+	movement.tick(delta)
 	stun.update(delta)
 	# Items keep their own clocks (a gun's time between rounds, a grenade's wind-up); tick them
 	# before the controller pulls the trigger, so a round that is due this frame can leave this
 	# frame.
 	inventory.tick(delta)
 	# Pull intent from the controller first, so facing/movement use this frame's input.
-	if _controller:
-		_controller.control(self, delta)
+	movement.pull(delta)
 	# A ride in a vehicle overrides the controller's intent: it walks the character to the door,
 	# poses it in and out, and hands its keys on to the vehicle from the driver's seat.
 	_vehicle_use.control(delta)
@@ -292,23 +260,14 @@ func _fall_frame(delta: float) -> void:
 ## pose, the legs and the footsteps.
 func _walk_frame(delta: float) -> void:
 	# Aim toward the aim point. Guard the degenerate zero-length case.
-	var to_aim := aim_point - global_position
+	var to_aim := movement.aim_point - global_position
 	if to_aim.length() > 0.001:
 		facing = _turned_toward(to_aim.normalized(), delta)
 	# A parent's _physics_process runs before its children's, so the hands see this fresh
 	# facing on the same frame.
 	_hands.facing = facing
 	weapon.update_raise(delta)
-
-	_update_stamina(run_input and _posture == &"stand" and stun.level() <= 0.0
-			and move_input.length() > CharacterPaceConfig.run_min_input, delta)
-	velocity = move_input * _move_speed() * _push_slow + _knockback + stun.drift()
-	move_and_slide()
-	_knockback = _knockback.move_toward(
-		Vector2.ZERO,
-		CharacterPushConfig.knockback_friction * delta,
-	)
-	_push_slow = _ease_push_slow(_apply_pushes(), delta)
+	movement.walk(delta)
 	_kick.update(self, delta)
 	# Before the children's _physics_process, so the hands build on this frame's pose.
 	pose.update(delta, _pose_drive(get_real_velocity(), stun.level()))
@@ -389,9 +348,10 @@ func is_in_vehicle() -> bool:
 
 
 ## The Vehicles domain poses the riding character for this frame: at `at` (world), facing `toward`
-## (unit), folded `fold` (0 standing .. 1 seated: the crouch fold, so `posture_folded()` reads it),
-## its legs stepping with `step` (px/s, its motion through the vehicle). The first pose of a ride
-## puts the held item away and takes the body off the physics layers (the vehicle carries it).
+## (unit), folded `fold` (0 standing .. 1 seated: the crouch fold, so `movement.posture_folded()`
+## reads it), its legs stepping with `step` (px/s, its motion through the vehicle). The first pose
+## of a ride puts the held item away and takes the body off the physics layers (the vehicle carries
+## it).
 func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZERO) -> void:
 	if not _riding:
 		_riding = true
@@ -399,10 +359,9 @@ func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZE
 		_shape.set_deferred("disabled", true)
 	global_position = at
 	facing = toward.normalized()
-	aim_point = at + facing * 64.0
-	_posture = &"stand"
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	_posture_height = lerpf(1.0, crouch_height, clampf(fold, 0.0, 1.0))
+	movement.aim_point = at + facing * 64.0
+	movement.stand_up()
+	movement.fold(fold)
 	_ride_step = step
 	_rig_cache = null
 
@@ -414,7 +373,7 @@ func end_ride() -> void:
 		_riding = false
 		_shape.set_deferred("disabled", false)
 	_ride_step = Vector2.ZERO
-	aim_point = global_position + facing * 64.0
+	movement.aim_point = global_position + facing * 64.0
 	_rig_cache = null
 
 
@@ -422,7 +381,7 @@ func end_ride() -> void:
 ## pose's step. The ride's pose wins over a stun's look (no hunch, no hand over the eyes), which
 ## eases back in once out.
 func _ride_frame(delta: float) -> void:
-	run_input = false
+	movement.run_input = false
 	_frozen_frame(delta, _ride_step, 0.0)
 
 
@@ -430,10 +389,7 @@ func _ride_frame(delta: float) -> void:
 ## shove dropped so moving again doesn't lurch, legs and kick cleared, and the pose updated with
 ## `step` as its motion and `stun_at` as its stun level.
 func _frozen_frame(delta: float, step: Vector2, stun_at: float) -> void:
-	move_input = Vector2.ZERO
-	velocity = Vector2.ZERO
-	_update_stamina(false, delta)
-	_knockback = Vector2.ZERO
+	movement.hold(delta)
 	_hands.facing = facing
 	_legs.clear()
 	_kick.clear()
@@ -445,7 +401,7 @@ func _frozen_frame(delta: float, step: Vector2, stun_at: float) -> void:
 func _pose_drive(moving: Vector2, stun_at: float) -> PoseDrive:
 	_drive.facing = facing
 	_drive.velocity = moving
-	_drive.top_speed = speed
+	_drive.top_speed = movement.speed
 	_drive.stances = weapon.stances()
 	_drive.punch = _hands.punch_amounts()
 	_drive.stun = stun_at
@@ -502,78 +458,10 @@ func interaction_label() -> String:
 	return _interaction.active_label()
 
 
-## True while moving at run speed (asked to run, moving, and not out of stamina).
-func is_running() -> bool:
-	return _running
-
-
-## The body's height on the coverage scale when in posture `which` (`stand` / `crouch`,
-## `CharacterPostureConfig.postures`): what a piece of furniture must stand above to shield it.
-## `get_surface()` answers for the posture it is in.
-func posture_coverage(which: StringName) -> float:
-	return float(CharacterPostureConfig.postures[which]["coverage"])
-
-
-## Stamina left, 0..1 of a full bar.
-func stamina_fraction() -> float:
-	return stamina
-
-
-## Take a posture: `stand` or `crouch` (`CharacterPostureConfig.postures`). True when the character
-## is in it afterwards, so asking for the posture it already holds is a harmless `true`: a
-## controller can write its wanted posture every frame. Refused (false) while dead, locked in an
-## interaction, or within `CharacterPostureConfig.change_time` of the last change. A crouch is
-## slower, a smaller target and cannot run.
-func set_posture(wanted: StringName) -> bool:
-	if wanted == _posture:
-		return true
-	if (is_dead
-			or is_busy()
-			or _posture_cooldown > 0.0
-			or not CharacterPostureConfig.postures.has(wanted)):
-		return false
-	_posture = wanted
-	_posture_cooldown = CharacterPostureConfig.change_time
-	_rig_cache = null
-	return true
-
-
-## C: crouch, or stand back up from a crouch.
-func toggle_crouch() -> void:
-	set_posture(&"stand" if _posture == &"crouch" else &"crouch")
-
-
-## The current posture: `stand` or `crouch`.
-func posture() -> StringName:
-	return _posture
-
-
 ## Where side `i`'s ankle rests (local x/y px) against a wall or piece of furniture its leg has met,
 ## or null when nothing is in its way. The rig draws the leg there (see character_legs.gd).
 func foot_clamp(i: int) -> Variant:
 	return _legs.ankle(i)
-
-
-## What the body is drawn at right now, easing toward the posture: a standing body's height as a
-## share (1 = standing .. the crouch row's). For the rig.
-func posture_height() -> float:
-	return _posture_height
-
-
-## How folded the drawn body is, 0 (standing) .. 1 (crouched): the share the rig pitches the spine
-## by.
-func posture_folded() -> float:
-	var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
-	return clampf((1.0 - _posture_height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
-
-
-## How far further ahead (px) the hands are held at this posture: a crouch holds them out past its
-## forward-leaning chest, and so does a stunned hunch (the chest's shift as the spine pitches
-## forward by the pose's `hunch()`).
-func posture_hand_ahead() -> float:
-	var spine := (CharacterBodyConfig.shoulder_height - CharacterBodyConfig.hip_height) * radius
-	return (CharacterPostureConfig.body_crouch_hand_ahead * posture_folded()
-			+ spine * sin(pose.gait.hunch()) * 0.5)
 
 
 ## Dress the character in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`,
@@ -604,95 +492,22 @@ func outfit_view() -> Dictionary:
 	return _outfit.view()
 
 
-## Walking speed (slower in a lower posture, slowed to `CharacterStunConfig.speed` while stunned
-## and by the outfit's weight), or run speed while running (only possible standing and not stunned).
-func _move_speed() -> float:
-	return _speed_in(_posture, _running)
-
-
-## The speed (px/s) the body covers ground at in posture `which`, running or walking, as it is now
-## (stunned or not, and weighed down by what it wears).
-func _speed_in(which: StringName, running: bool) -> float:
-	return (speed * float(CharacterPostureConfig.postures[which]["speed"])
-			* (CharacterPaceConfig.run_speed_mult if running else 1.0)
-			* lerpf(1.0, CharacterStunConfig.speed, stun.level()) * _weight_speed())
-
-
-## The kg worn above what the body carries at its tuned speed
-## (`CharacterPaceConfig.outfit_free_weight`).
-func _extra_weight() -> float:
-	return maxf(_outfit.weight() - CharacterPaceConfig.outfit_free_weight, 0.0)
-
-
-## The share of its speed the outfit's weight leaves the body (1 = unencumbered).
-func _weight_speed() -> float:
-	return maxf(
-		1.0 - _extra_weight() * CharacterPaceConfig.outfit_speed_per_kg,
-		CharacterPaceConfig.outfit_speed_min,
-	)
-
-
-## The speed (px/s) it would cover ground at running, standing, as it is now (slowed while stunned):
-## how a controller works out whether it reaches a place in time.
-func run_speed() -> float:
-	return _speed_in(&"stand", true)
-
-
-## The speed (px/s) it would cover ground at walking, standing, as it is now (slowed while stunned
-## or weighed down by the outfit): what a controller counts on when it does not run.
-func walk_speed() -> float:
-	return _speed_in(&"stand", false)
-
-
 ## `facing` turned toward the unit vector `want`: at once standing, but no faster than the posture's
 ## `turn` rate (rad/s) crouched, so a low body takes longer to come round. The aim point itself is
 ## never held back.
 func _turned_toward(want: Vector2, delta: float) -> Vector2:
-	var rate: float = CharacterPostureConfig.postures[_posture]["turn"]
+	var rate: float = CharacterPostureConfig.postures[movement.posture()]["turn"]
 	if rate <= 0.0:
 		return want
 	var step := rate * delta
 	return facing.rotated(clampf(facing.angle_to(want), -step, step)).normalized()
 
 
-## Ease the drawn body toward the posture (it snaps the last hair, so a settled body stops
-## changing).
-func _ease_posture(delta: float) -> void:
-	var k := 1.0 - exp(-CharacterPostureConfig.posture_ease * delta)
-	_posture_height = _eased_to(
-		_posture_height,
-		float(CharacterPostureConfig.postures[_posture]["height"]),
-		k,
-	)
-
-
-## `now` moved a fraction `k` of the way to `target`, snapped onto it once within a hair of it.
-static func _eased_to(now: float, target: float, k: float) -> float:
-	var next := lerpf(now, target, k)
-	return target if absf(next - target) < 0.002 else next
-
-
 ## An interaction began: stand up for it, whatever the posture was (no cooldown, it is not a
 ## controller's choice).
 func _stand_if_busy() -> void:
 	if is_busy():
-		_posture = &"stand"
-
-
-## Settle this frame's running and spend or regain stamina (a heavier outfit spends it faster).
-## Running dry latches `_exhausted`, which holds until stamina refills to `run_resume_fraction`.
-func _update_stamina(wants_run: bool, delta: float) -> void:
-	_running = wants_run and not _exhausted and stamina > 0.0
-	if _running:
-		var strain := 1.0 + _extra_weight() * CharacterPaceConfig.outfit_stamina_per_kg
-		stamina = maxf(stamina - delta * strain / CharacterPaceConfig.run_stamina_seconds, 0.0)
-		if stamina <= 0.0:
-			_exhausted = true
-			_running = false
-	else:
-		stamina = minf(stamina + delta * CharacterPaceConfig.stamina_regen_per_sec, 1.0)
-		if _exhausted and stamina >= CharacterPaceConfig.run_resume_fraction:
-			_exhausted = false
+		movement.stand_up()
 
 
 ## A punch landed: surface it as hit_landed and post a world `&"hit"` event (like a projectile's)
@@ -734,7 +549,7 @@ func is_attacking() -> bool:
 ## hurting what it reaches (character_kick.gd). False when dead, crouched, locked in an interaction
 ## or a kick is still under way.
 func leg_kick() -> bool:
-	if is_dead or is_busy() or _posture != &"stand":
+	if is_dead or is_busy() or movement.posture() != &"stand":
 		return false
 	return _kick.start()
 
@@ -809,7 +624,7 @@ func take_stun(blind: float, deaf: float) -> void:
 ## for debris styling. Read by the Projectile System.
 func get_surface() -> Dictionary:
 	return {
-		"coverage": CharacterPostureConfig.postures[_posture]["coverage"],
+		"coverage": CharacterPostureConfig.postures[movement.posture()]["coverage"],
 		"penetration": CharacterHitConfig.flesh_penetration,
 		"material": CharacterHitConfig.flesh_material,
 		"color": CharacterHitConfig.flesh_color,
@@ -845,7 +660,7 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 func hit_zone(height: float) -> StringName:
 	if height < 0.0:
 		return &""
-	var share := height / maxf(posture_coverage(_posture), 0.001)
+	var share := height / maxf(movement.posture_coverage(movement.posture()), 0.001)
 	for row: Array in CharacterHitConfig.zones:
 		if share <= float(row[1]):
 			return row[0]
@@ -938,17 +753,16 @@ func _die(direction: Vector2) -> void:
 		_occluder = null
 	end_interaction()
 	_vehicle_use.abandon()  # Killed boarding or getting out: the ride ends where the body is.
-	var momentum := move_input * _move_speed() * _push_slow + _knockback
+	var momentum := movement.momentum()
 	# The body falls from the standing skeleton, whatever it was doing.
-	_posture = &"stand"
-	_posture_height = 1.0
+	movement.stand_up()
+	movement.fold(0.0)
 	stun.clear()  # A dead body sees and hears nothing more to fade.
 	_legs.clear()
 	_kick.clear()
 	ragdoll = CharacterRagdoll.new(self, momentum, direction)
 	inventory.drop_held(momentum)
 	velocity = Vector2.ZERO
-	_knockback = Vector2.ZERO
 	died.emit()
 
 
@@ -975,7 +789,7 @@ func damage_taken() -> float:
 ## origin) is the pushable contract's; a character does not turn, so a shove anywhere on it is a
 ## central one.
 func apply_impulse(impulse: Vector2, _at := Vector2.ZERO) -> void:
-	_knockback += impulse / maxf(CharacterPushConfig.player_mass, 0.5)
+	movement.knock(impulse)
 
 
 ## An explosion's shove: away from the blast point `from`, `impulse` hard (the units of
@@ -994,57 +808,6 @@ func blast_push(from: Vector2, impulse: float) -> void:
 ## The character's mass, used by pushers to scale their shove.
 func get_mass() -> float:
 	return maxf(CharacterPushConfig.player_mass, 0.5)
-
-
-# --- Walking-push (shove furniture the body slid against; be slowed by it) --------------
-
-
-## Shove every pushable body the character slid into this frame; return the resulting speed
-## multiplier (heavier furniture slows the character more, floored so it never fully locks).
-func _apply_pushes() -> float:
-	var input_strength := move_input.length()
-	if input_strength <= 0.0:
-		return 1.0
-
-	var heaviest := 0.0
-	for i in get_slide_collision_count():
-		var collision := get_slide_collision(i)
-		var collider := collision.get_collider()
-		if collider == null or not collider.has_method("apply_impulse"):
-			continue
-		# The normal points back toward the character, so "into the object" is -normal.
-		var dir := -collision.get_normal()
-		var impulse := (CharacterPushConfig.impulse * input_strength
-				* get_physics_process_delta_time())
-		if not collider.has_method("get_mass"):
-			collider.apply_impulse(dir * impulse)
-			continue
-		# At the point of contact, so a piece pushed off-centre turns; carried, never driven faster
-		# than we walk.
-		CharacterPush.shove(
-			collider,
-			dir,
-			impulse,
-			collision.get_position(),
-			move_input.dot(dir) * _move_speed(),
-		)
-		heaviest = maxf(heaviest, collider.get_mass())
-
-	if heaviest <= 0.0:
-		return 1.0
-	return clampf(
-		1.0 - heaviest * CharacterPushConfig.slow_per_weight,
-		CharacterPushConfig.slow_min,
-		1.0,
-	)
-
-
-## Slow down at once on contact, but recover toward full speed gradually so losing contact for a
-## frame doesn't snap the speed back.
-func _ease_push_slow(target: float, delta: float) -> float:
-	if target <= _push_slow:
-		return target
-	return minf(target, _push_slow + CharacterPushConfig.slow_release * delta)
 
 
 ## First child that can drive this character (has a `control` method).

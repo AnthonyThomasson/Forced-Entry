@@ -44,7 +44,7 @@ gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 - An engine error/warning logged: real; fix the code (or `expect_log` / `allowed_logs` if intended).
 - A behaviour that misses a band or a distance (a follower too far behind, a walker off its line): trace the actor
   frame by frame through the miss window before calling it test slack or proposing a design. Series and p50s hide a
-  per-frame stall. Trace `move_input`, `run_input`, the destination and any body it gives way to, as one `[dbg]` line
+  per-frame stall. Trace `movement.move_input`, `movement.run_input`, the destination and any body it gives way to, as one `[dbg]` line
   (the temporary-trace rule below). A frame with no step that no rule names is a code bug. A question to the user
   about the miss quotes the trace.
 - Passes alone, fails after another test: a leaked `static var`. Use `set_static` or a switch so it is restored; never

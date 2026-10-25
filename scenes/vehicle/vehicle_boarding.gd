@@ -3,14 +3,16 @@ extends RefCounted
 ## (V3, V4), as a timed phase machine. The character's CharacterVehicleUse steps it every physics
 ## frame, after the controller has written its intent, so the machine is the character's controller
 ## for the ride:
-##  - WALK: the character walks with its own walk cycle (`move_input`) round the body to the stand
-##    point beside the door, turning smoothly (`aim_point`) to face the door as it arrives;
+##  - WALK: the character walks with its own walk cycle (`movement.move_input`) round the body to
+##    the stand point beside the door, turning smoothly (`movement.aim_point`) to face the door as
+##    it arrives;
 ##  - OPEN: the door eases open while it stands;
 ##  - STEP_IN, FOLD: it steps into the gap, turns to face forward and folds down into the seat,
 ##    every frame a pose the vehicle carries (`set_ride_pose(position, facing, fold)`, positions
 ##    kept in the vehicle's frame);
-##  - SEATED: the door shuts behind it; from the driver's seat its `move_input` / `run_input` drive
-##    the vehicle. A passenger first slides across to an empty driver's seat (SHIFT_SEAT);
+##  - SEATED: the door shuts behind it; from the driver's seat its `movement.move_input` /
+##    `movement.run_input` drive the vehicle. A passenger first slides across to an empty driver's
+##    seat (SHIFT_SEAT);
 ##  - BRAKE, SHIFT_OUT, OPEN_OUT, UNFOLD, STEP_OUT: getting out is the reverse, after braking to a
 ##    stop (a driver above `exit_max_speed`) or waiting for one (a passenger), by its own door if
 ##    clear, else the nearest clear one; it ends standing beside the door (`end_ride()`), which then
@@ -166,24 +168,24 @@ func _walk(delta: float) -> void:
 	var pos: Vector2 = character.global_position
 	while not _route.is_empty() and vehicle.to_global(_route[0]).distance_to(pos) < 1.0:
 		_route.pop_front()
-	character.run_input = false
+	character.movement.run_input = false
 	if _route.is_empty():
-		character.move_input = Vector2.ZERO
+		character.movement.move_input = Vector2.ZERO
 		phase = Phase.OPEN
 		vehicle.open_door(door)
 		_turn(_to_handle(), delta)
 		return
 	var to: Vector2 = vehicle.to_global(_route[0]) - pos
-	var reach: float = float(character.speed) * delta
-	character.move_input = to.normalized() * minf(1.0, to.length() / maxf(reach, 0.001))
+	var reach: float = float(character.movement.speed) * delta
+	character.movement.move_input = to.normalized() * minf(1.0, to.length() / maxf(reach, 0.001))
 	# Looking where it walks, and at the door over the last stretch.
 	_turn(to.normalized() if _left_to_walk(pos) > 18.0 else _to_handle(), delta)
 
 
 ## Stand facing the door while it opens; step in once it is open and the character faces it.
 func _wait_for_door(delta: float) -> void:
-	character.move_input = Vector2.ZERO
-	character.run_input = false
+	character.movement.move_input = Vector2.ZERO
+	character.movement.run_input = false
 	if vehicle.speed() >= VehicleBoardingConfig.board_max_speed:
 		_give_up()
 		return
@@ -223,7 +225,7 @@ func _start_if_driving() -> void:
 ## Give up boarding before the step in: the seat is free again and the door (if it began to open)
 ## shuts.
 func _give_up() -> void:
-	character.move_input = Vector2.ZERO
+	character.movement.move_input = Vector2.ZERO
 	vehicle.release(character)
 	vehicle.close_door(door)
 	phase = Phase.DONE
@@ -236,10 +238,10 @@ func _give_up() -> void:
 func _ride(_delta: float) -> void:
 	_hold_seat()
 	if seat == &"driver":
-		var keys: Vector2 = character.move_input
-		vehicle.drive_input(character, -keys.y, keys.x, character.run_input)
-	character.move_input = Vector2.ZERO
-	character.run_input = false
+		var keys: Vector2 = character.movement.move_input
+		vehicle.drive_input(character, -keys.y, keys.x, character.movement.run_input)
+	character.movement.move_input = Vector2.ZERO
+	character.movement.run_input = false
 
 
 ## Sit still in the seat, facing forward.
@@ -256,8 +258,8 @@ func _hold_seat() -> void:
 ## passenger); then pick the door. With none clear the character stays in.
 func _brake(_delta: float) -> void:
 	_hold_seat()
-	character.move_input = Vector2.ZERO
-	character.run_input = false
+	character.movement.move_input = Vector2.ZERO
+	character.movement.run_input = false
 	if _braking and vehicle.speed() >= VehicleDriveConfig.stop_speed:
 		vehicle.brake_input(character)
 		return
@@ -333,7 +335,7 @@ func _pose(delta: float) -> bool:
 ## How long a step from `a` to `b` (vehicle frame) takes at the stepping pace: its eased peak stays
 ## under the walk.
 func _step_time(a: Vector2, b: Vector2) -> float:
-	var pace := maxf(float(character.speed) * VehicleBoardingConfig.step_pace, 1.0)
+	var pace := maxf(float(character.movement.speed) * VehicleBoardingConfig.step_pace, 1.0)
 	return maxf(VehicleBoardingConfig.step_min_time, 1.5 * a.distance_to(b) / pace)
 
 
@@ -348,7 +350,7 @@ func _turn(want: Vector2, delta: float) -> void:
 	if want.length_squared() > 0.0001:
 		var most := VehicleBoardingConfig.turn_rate * delta
 		_facing = _facing.rotated(clampf(_facing.angle_to(want), -most, most)).normalized()
-	character.aim_point = character.global_position + _facing * 64.0
+	character.movement.aim_point = character.global_position + _facing * 64.0
 
 
 ## The way from the character to the door's handle (world, unit).

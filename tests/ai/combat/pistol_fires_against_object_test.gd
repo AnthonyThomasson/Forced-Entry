@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 		&"defender",
 		&"defender",
 		Vector2(300, 250),
-		{ "start_slot": PISTOL_SLOT, "speed": 0.0, "max_health": 400.0 },
+		{ "start_slot": PISTOL_SLOT, "movement:speed": 0.0, "max_health": 400.0 },
 	)
 	s.object(&"chair", "chair", Vector2(336, 232))
 	s.actor(
@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	var intruder := t.actor(&"intruder")
 	var backed_off := [false]  # an Array, because a lambda cannot reassign a captured local
 	var fired := await t.until(func():
-		if defender.weapon.blocked() or defender.move_input.dot(defender.facing) < -0.5:
+		if defender.weapon.blocked() or defender.movement.move_input.dot(defender.facing) < -0.5:
 			backed_off[0] = true
 		return intruder.health < intruder.max_health, 14.0)
 	t.check(

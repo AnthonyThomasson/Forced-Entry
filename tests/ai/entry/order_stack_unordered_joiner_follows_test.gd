@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 	Entry.rules(s, Entry.BACK)
 	s.actor(&"joiner", &"invader", Vector2(960, 60))
 	s.actor(&"ordered", &"invader", Vector2(990, 600))
-	Stack.human(s, &"lead", Vector2(930, 40), { "aim_point": Order.BACK_NORTH })
+	Stack.human(s, &"lead", Vector2(930, 40), { "movement:aim_point": Order.BACK_NORTH })
 	s.squads({ "human": &"lead" })
 
 

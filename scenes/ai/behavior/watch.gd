@@ -51,7 +51,7 @@ static func ease_gaze(character: Node, point: Vector2, rate: float, delta: float
 		(point - self_pos).angle(),
 		rate * delta,
 	)
-	character.aim_point = self_pos + Vector2.from_angle(angle) * 100.0
+	character.movement.aim_point = self_pos + Vector2.from_angle(angle) * 100.0
 	return angle
 
 
@@ -126,8 +126,8 @@ func travel_point() -> Vector2:
 ## origin.
 func idle_gaze(delta: float) -> void:
 	var here: Vector2 = _character.global_position
-	if _character.aim_point == Vector2.ZERO:
-		_character.aim_point = here + (_character.facing as Vector2) * 100.0
+	if _character.movement.aim_point == Vector2.ZERO:
+		_character.movement.aim_point = here + (_character.facing as Vector2) * 100.0
 	var room: String = _loco.room_key_at(here)
 	if room != _room or _dwell <= 0.0:
 		_pick_door(room)

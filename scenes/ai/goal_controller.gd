@@ -4,11 +4,12 @@ extends Node
 ## builds (the fourth, debug/, reads its `debug_*` getters) and runs the SENSE → THINK → ACT loop,
 ## but holds almost no behaviour itself. It satisfies the character's controller contract
 ## (`control(character, delta)`) and writes only the intent the player controller writes
-## (`move_input`/`aim_point`) plus the same public actions — all of that done by the behaviour
-## sub-domain. It is the single authoring surface: every tunable below is an export here (so a
-## defender or invader preset is all data on this one node), read straight from this node by the
-## sub-domains it builds (their `apply_config(cfg)`) — and read again each decision, so a tunable
-## retuned at runtime (a behaviour test, the dev command server) takes effect without a rebuild.
+## (`movement.move_input`/`movement.aim_point`) plus the same public actions — all of that done by
+## the behaviour sub-domain. It is the single authoring surface: every tunable below is an export
+## here (so a defender or invader preset is all data on this one node), read straight from this node
+## by the sub-domains it builds (their `apply_config(cfg)`) — and read again each decision, so a
+## tunable retuned at runtime (a behaviour test, the dev command server) takes effect without a
+## rebuild.
 ##
 ## The three sub-domains it builds (see their `domain-ai-<name>` skills; the fourth, DEBUG (debug/),
 ## is the draw-only overlays, children of the NPC that read this node's `debug_*` getters):

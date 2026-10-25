@@ -39,7 +39,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(930, 40), { "aim_point": STEP_UP })
+	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": STEP_UP })
 	s.actor(&"m1", &"invader", Vector2(980, 0))
 	s.actor(&"m2", &"invader", Vector2(990, 80))
 	# The defender stands outside the front door, so its way to the living room is its own (front

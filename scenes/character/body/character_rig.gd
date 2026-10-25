@@ -363,7 +363,7 @@ class Fold:
 	## body stays centred over its feet), the hips and feet come together, and the feet stand ahead
 	## of the pelvis so the knees lead over the toes.
 	func _heights(character: CharacterBody2D, pose: Pose, r: float) -> void:
-		height = character.posture_height()
+		height = character.movement.posture_height()
 		var crouch_height: float = CharacterPostureConfig.postures[&"crouch"]["height"]
 		folded = clampf((1.0 - height) / maxf(1.0 - crouch_height, 0.01), 0.0, 1.0)
 		# A stun hunches it on.

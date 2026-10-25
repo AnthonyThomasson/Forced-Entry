@@ -34,7 +34,7 @@ func run(t: TestContext) -> void:
 	var ran := [0.0]
 	var in_kitchen := func():
 		var claimed := Entry.first_call_time(t, "claim", &"inv", Entry.BACK["id"])
-		if claimed < INF and t.time > claimed + 0.3 and inv.is_running():
+		if claimed < INF and t.time > claimed + 0.3 and inv.movement.is_running():
 			ran[0] += 1.0 / 60.0
 		return Maps.HOUSE_KITCHEN.grow(-30).has_point(inv.global_position)
 	var samples: Array = await Entry.watch(t, [&"inv"], Entry.BACK, 55.0, in_kitchen)

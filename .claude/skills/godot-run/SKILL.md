@@ -90,7 +90,7 @@ else a GDScript expression evaluated on the command-server node (helpers `player
 | `ai` | every NPC's brain as JSON: state text Von saw, menus and pick, contacts (hostile + why, visible, distance), commitment timers, pathing. Use it before guessing from logs |
 | `restart [seed]` | reload straight into a new match, optional layout seed |
 | `menu` | back to the setup window |
-| `eval EXPR` | GDScript, e.g. `eval player().speed` |
+| `eval EXPR` | GDScript, e.g. `eval player().movement.speed` |
 
 ## 4. Read the log
 

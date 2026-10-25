@@ -34,7 +34,7 @@ func configure(s: TestSetup) -> void:
 		&"me",
 		&"puppet",
 		Vector2(OutfitProbe.TARGET_X, 200),
-		{ "max_health": 10_000.0, "facing": Vector2.LEFT, "aim_point": Vector2(0, 200) },
+		{ "max_health": 10_000.0, "facing": Vector2.LEFT, "movement:aim_point": Vector2(0, 200) },
 	)
 
 

@@ -39,7 +39,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(HALL)
-	Stack.human(s, &"me", LEAD_AT, { "aim_point": GUNMAN_AT })
+	Stack.human(s, &"me", LEAD_AT, { "movement:aim_point": GUNMAN_AT })
 	s.actor(
 		&"m",
 		&"invader",

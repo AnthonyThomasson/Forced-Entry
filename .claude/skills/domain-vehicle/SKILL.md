@@ -12,7 +12,7 @@ it, is `docs/vehicles.md` (V1 to V9).
 
 ```
 player_controller (E) ─▶ Character.try_use_vehicle ─▶ CharacterVehicleUse ─▶ vehicle.board(character, door) ─▶ VehicleBoarding (the ride)
-VehicleBoarding ──(move_input / aim_point, set_ride_pose, end_ride)──▶ Character;  seated driver: move_input / run_input ─▶ vehicle.drive_input
+VehicleBoarding ──(movement.move_input / movement.aim_point, set_ride_pose, end_ride)──▶ Character;  seated driver: movement.move_input / movement.run_input ─▶ vehicle.drive_input
 vehicle._integrate_forces ─▶ VehicleDrive.step (the bicycle)   /   contacts ─▶ crash events, characters struck (apply_impulse, take_damage)
 vehicle ─▶ Deformable / Physics.spawn_debris / impact_impulse (hittable)   ;   Chassis / Roof (vehicle_visuals.gd) ─▶ painters ─▶ PixelArt
 vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound (Audio);   Camera ──(target.vehicle().view_zoom_out())──▶ vehicle
@@ -122,11 +122,11 @@ overrides that frame's intent):
 
 | Phase | What happens |
 |---|---|
-| `WALK` | The character walks with its own walk (`move_input`, never `run_input`) along waypoints round the body (`_path`: straight, or round one or two corners of the box inflated by its radius + `walk_margin`), facing turned at `turn_rate` through `aim_point` (where it walks, the handle over the last 18 px). Given up (seat freed, door closed) if the vehicle moves at `board_max_speed` or the walk takes over `walk_timeout`. |
+| `WALK` | The character walks with its own walk (`movement.move_input`, never `movement.run_input`) along waypoints round the body (`_path`: straight, or round one or two corners of the box inflated by its radius + `walk_margin`), facing turned at `turn_rate` through `movement.aim_point` (where it walks, the handle over the last 18 px). Given up (seat freed, door closed) if the vehicle moves at `board_max_speed` or the walk takes over `walk_timeout`. |
 | `OPEN` | `open_door` (posts `door_open` / `slide_open` as a shut door starts to move); it turns to the handle and waits for the door to be fully open and itself within `face_tolerance`. |
 | `STEP_IN` | A pose phase to the entry point over `_step_time` (1.5 × distance / (`speed × step_pace`), at least `step_min_time`: the smoothstep's peak stays under the walk). |
 | `FOLD` | A pose phase to the seat over `fold_time`, fold 0 → 1, heading turned to forward. |
-| `SEATED` | The door closes behind it; the driver starts the engine (`start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `move_input` / `run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
+| `SEATED` | The door closes behind it; the driver starts the engine (`start_engine`: `ignition` + `engine` start). A passenger with a free driver's seat reserves it and takes `SHIFT_SEAT` (`shift_time`, then `change_seat` and the engine). Each frame `_hold_seat` poses it at the seat facing forward, and from the driver's seat `movement.move_input` / `movement.run_input` become `drive_input(-y, x, run)`; the keys are then cleared. |
 | `BRAKE` | E while `SEATED`. A driver above `exit_max_speed` holds `brake_input` until under `stop_speed`; a passenger waits for `exit_max_speed`. Then `exit_door`: its own door if its seat is still its own and it is clear, else the nearest clear door whose seat is its own or free; none → back to `SEATED`. The driver cuts the engine here. |
 | `SHIFT_OUT` | Only when the exit door belongs to another seat: a slide across to it (`shift_time`). |
 | `OPEN_OUT`, `UNFOLD`, `STEP_OUT` | The door opens; the rise to the entry point (`fold_time`, fold 1 → 0, facing outward); the step to the stand point. |

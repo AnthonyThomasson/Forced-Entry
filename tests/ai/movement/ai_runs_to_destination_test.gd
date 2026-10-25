@@ -67,8 +67,8 @@ func _check_runs(t: TestContext, runner: Node, walker: Node) -> void:
 		"with run_enabled off the walker never exceeds walk speed (%.0f)" % top_walker,
 	)
 	t.check(
-		runner.stamina_fraction() < 1.0,
-		"running spent stamina (%.2f)" % runner.stamina_fraction(),
+		runner.movement.stamina_fraction() < 1.0,
+		"running spent stamina (%.2f)" % runner.movement.stamina_fraction(),
 	)
 
 
@@ -82,7 +82,7 @@ func _check_shots(t: TestContext, runner: Node) -> void:
 	var fired_at := INF
 	for i in 900:
 		await t.frames(1)
-		var running: bool = runner.is_running()
+		var running: bool = runner.movement.is_running()
 		var dist: float = runner.global_position.distance_to(hostile.global_position)
 		if running and dist < SHOOT_RANGE:
 			running_in_range += 1

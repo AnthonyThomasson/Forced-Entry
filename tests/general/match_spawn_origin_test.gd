@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 	if not t.require(npcs.size() == 2, "a defender and an invader spawned"):
 		return
 	for npc: Node2D in npcs:
-		npc.set("speed", 0.0)   # the AI cannot walk them, so only physics can move one
+		npc.movement.speed = 0.0   # the AI cannot walk them, so only physics can move one
 	var npc_starts: Array = npcs.map(func(n): return (n as Node2D).global_position)
 
 	var worst := 0.0

@@ -50,13 +50,13 @@ func configure(s: TestSetup) -> void:
 			gun,
 			&"puppet",
 			GUNMEN[gun],
-			{ "facing": Vector2.DOWN, "aim_point": GUNMEN[gun] + Vector2(0, 300) },
+			{ "facing": Vector2.DOWN, "movement:aim_point": GUNMEN[gun] + Vector2(0, 300) },
 		)
 	s.actor(
 		&"thrower",
 		&"puppet",
 		THROWER_AT,
-		{ "facing": Vector2.RIGHT, "aim_point": THROW_TO, "max_health": 100_000.0 },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": THROW_TO, "max_health": 100_000.0 },
 	)
 
 

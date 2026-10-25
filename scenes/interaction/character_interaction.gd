@@ -81,9 +81,10 @@ func _begin_best() -> void:
 	var target: Node = null
 	var target_specs: Array = []
 	var best_dist := INF
+	var aim: Vector2 = _character.movement.aim_point
 	for entry in _query_reachable():
 		# Prefer whichever reachable object sits closest to the mouse cursor.
-		var dist: float = entry["object"].global_position.distance_squared_to(_character.aim_point)
+		var dist: float = entry["object"].global_position.distance_squared_to(aim)
 		if dist < best_dist:
 			best_dist = dist
 			target = entry["object"]

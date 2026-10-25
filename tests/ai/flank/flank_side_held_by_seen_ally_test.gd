@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 	Flank.rules(s)
 	Flank.npc(s, &"npc", NPC_POS, {}, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, NPC_POS)
-	Flank.ally(s, &"buddy", BUDDY_POS, { "aim_point": TARGET_POS })
+	Flank.ally(s, &"buddy", BUDDY_POS, { "movement:aim_point": TARGET_POS })
 
 
 func run(t: TestContext) -> void:

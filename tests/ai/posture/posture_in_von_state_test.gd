@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
-	defender.aim_point = t.actor(&"stranger").global_position
+	defender.movement.aim_point = t.actor(&"stranger").global_position
 	t.check(
 		await t.until(func(): return not t.von_requests().is_empty(), 8.0),
 		"the defender asked Von",

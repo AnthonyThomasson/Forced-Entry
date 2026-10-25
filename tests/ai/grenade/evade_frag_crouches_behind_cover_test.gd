@@ -41,7 +41,7 @@ func configure(s: TestSetup) -> void:
 		&"thrower",
 		&"puppet",
 		Vector2(760, 415),
-		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": Vector2(0, 415) },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": Vector2(0, 415) },
 	)
 
 
@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 	puppet.shoot()
 	var path: Array = []
 	while t.time < clicked + 6.0 and Probe.booms(t, &"frag").is_empty():
-		path.append({ "t": t.time, "p": d.global_position, "posture": d.posture() })
+		path.append({ "t": t.time, "p": d.global_position, "posture": d.movement.posture() })
 		await t.frames(1)
 	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
 		return

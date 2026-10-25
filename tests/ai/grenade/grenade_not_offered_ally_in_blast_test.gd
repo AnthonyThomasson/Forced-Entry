@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 	)
 	Flank.npc(s, &"n", NPC_AT, {}, { "look_at": HOSTILE_AT })
 	Probe.hostile(s, &"h", HOSTILE_AT, NPC_AT)
-	Flank.ally(s, &"ally", ALLY_PARKED, { "aim_point": HOSTILE_AT })
+	Flank.ally(s, &"ally", ALLY_PARKED, { "movement:aim_point": HOSTILE_AT })
 
 
 func run(t: TestContext) -> void:

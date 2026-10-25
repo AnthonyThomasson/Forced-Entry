@@ -280,7 +280,7 @@ static func _rig_xy(rig: Rig, joint: int) -> Vector2:
 ## Whether the living body is drawn laid out from the rig (like a fallen one: a lofted trunk showing
 ## its back, the limbs by height) rather than as upright shoulders: bent over in a crouch.
 func draws_laid_out() -> bool:
-	return _character.posture_folded() > FOLD_DRAW
+	return _character.movement.posture_folded() > FOLD_DRAW
 
 
 ## A crouched body: its parts from the rig's 3D points seen from above, lowest first, exactly as a

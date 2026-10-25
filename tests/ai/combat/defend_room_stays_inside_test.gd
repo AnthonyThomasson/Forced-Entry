@@ -51,7 +51,7 @@ func configure(s: TestSetup) -> void:
 			"faction": &"invader",
 			"start_slot": 3,
 			"max_health": 1_000_000.0,
-			"aim_point": Vector2(700, 0),
+			"movement:aim_point": Vector2(700, 0),
 		},
 	)
 	s.squads({ "human": &"lead" })

@@ -31,9 +31,9 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var ran := [0.0]
 	var done := func():
-		if inv.is_running():
+		if inv.movement.is_running():
 			ran[0] += 1.0 / 60.0
-		t.trace("running", 1.0 if inv.is_running() else 0.0)
+		t.trace("running", 1.0 if inv.movement.is_running() else 0.0)
 		var at := Entry.first_call_time(t, "in", &"inv")
 		return at < INF and t.time - at > 2.0
 	if not t.require(

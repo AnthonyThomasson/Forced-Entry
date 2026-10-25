@@ -36,7 +36,11 @@ func configure(s: TestSetup) -> void:
 	for posture: StringName in [&"stand", &"crouch"]:
 		for zone: StringName in ZONES:
 			s.actor(_id(posture, zone), &"puppet", Vector2(TARGET_X, _lane(i)),
-				{ "max_health": 1000.0, "facing": Vector2.LEFT, "aim_point": Vector2(0, _lane(i)) })
+				{
+					"max_health": 1000.0,
+					"facing": Vector2.LEFT,
+					"movement:aim_point": Vector2(0, _lane(i)),
+				})
 			i += 1
 
 
@@ -47,7 +51,7 @@ func run(t: TestContext) -> void:
 			var body := t.actor(_id(posture, zone))
 			t.puppet(_id(posture, zone)).aim_at(Vector2(0, _lane(i)))
 			if posture == &"crouch":
-				t.check(body.set_posture(&"crouch"), "%s takes a crouch" % body.name)
+				t.check(body.movement.set_posture(&"crouch"), "%s takes a crouch" % body.name)
 			i += 1
 	await t.seconds(0.5)
 

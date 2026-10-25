@@ -65,7 +65,7 @@ func configure(s: TestSetup) -> void:
 		&"foe",
 		&"puppet",
 		FOE_AT,
-		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": D_AT },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": D_AT },
 	)
 	s.object(
 		&"table",

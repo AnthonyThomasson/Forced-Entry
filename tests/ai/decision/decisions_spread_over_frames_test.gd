@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 			StringName("inv%d" % i),
 			&"invader",
 			at,
-			{ "speed": 0.0, "facing": (TARGET - at).normalized() },
+			{ "movement:speed": 0.0, "facing": (TARGET - at).normalized() },
 		)
 		# A short cadence, so each re-decides a few times within the window measured below.
 		s.set_props(

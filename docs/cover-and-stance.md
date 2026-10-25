@@ -26,7 +26,7 @@ usual penetration), 10 fly over the cover and strike only the body, and 40 miss 
 behind the same cover is struck by no shot that cleared it, and the cover stops what it meets.
 Tests: `cover_shared_bullet_height`.
 
-**P1. Postures.** A character is standing or crouching (`Character.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`:
+**P1. Postures.** A character is standing or crouching (`movement.set_posture`, the player's C toggle). Each is a row of `CharacterPostureConfig.postures`:
 
 | posture | coverage (height) | speed | other |
 |---|---|---|---|

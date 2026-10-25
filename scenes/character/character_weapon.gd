@@ -38,7 +38,7 @@ func shoot() -> bool:
 	var item: Item = character.inventory.current_item()
 	if (character.is_busy()
 			or item == null
-			or character.is_running()
+			or character.movement.is_running()
 			or character.ammo.is_reloading()):
 		return false
 	# Judge the barrel now rather than trusting the last frame's verdict: a controller acts before
@@ -98,7 +98,7 @@ func muzzle_origin(hand: int) -> Vector2:
 ## point, swayed about the body by `aim_sway()`.
 func aim_target() -> Vector2:
 	var at: Vector2 = character.global_position
-	return at + (character.aim_point - at).rotated(aim_sway())
+	return at + (character.movement.aim_point - at).rotated(aim_sway())
 
 
 ## How far (rad) the aim has swayed off where the character points: 0 unless stunned, then up to
@@ -136,7 +136,7 @@ func update_raise(delta: float) -> void:
 			item.hand_stance(hand),
 			CharacterStanceConfig.stances[&"relaxed"],
 		)
-		var reach: float = (float(stance["forward"]) + character.posture_hand_ahead()
+		var reach: float = (float(stance["forward"]) + character.movement.posture_hand_ahead()
 				+ _muzzle_ahead(item))
 		var lateral: float = float(stance["lateral"]) * (-1.0 if hand == 0 else 1.0)
 		var aim: Vector2 = character.facing
@@ -162,7 +162,7 @@ func reset_raise() -> void:
 ## the eyes (`eyes`) and a gun is held in the weapon hand alone (`one_hand`; raised off a wall, its
 ## raised grip), unless the item needs that hand (`_covers_eyes`).
 func stances() -> Array:
-	if character.is_running():
+	if character.movement.is_running():
 		return [&"run", &"run"]
 	var item: Item = character.inventory.current_item()
 	var out: Array
@@ -186,7 +186,7 @@ func stances() -> Array:
 func _covers_eyes(item: Item) -> bool:
 	if (not character.stun.is_blind()
 			or character.is_riding()
-			or character.is_running()
+			or character.movement.is_running()
 			or character.is_dead):
 		return false
 	if character.ammo.is_reloading() or hands.is_attacking():

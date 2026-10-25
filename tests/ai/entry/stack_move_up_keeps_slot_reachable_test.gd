@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 		&"far",
 		&"invader",
 		Vector2(660, -30),
-		{ "max_health": 1_000_000.0, "speed": FAR_SPEED },
+		{ "max_health": 1_000_000.0, "movement:speed": FAR_SPEED },
 	)
 	s.actor(&"beyond", &"invader", Vector2(380, -470), { "max_health": 1_000_000.0 })
 	s.actor(

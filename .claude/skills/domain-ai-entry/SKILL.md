@@ -120,7 +120,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   entry's: it takes the nearest vacancy not in `_moved_for` (one move per vacancy, `"<holder id>:<slot>"`), within `MOVE_UP_REACH` (66 px) and nearer than the holder's radioed `pos`; a plain walk
   (`walk_route(...)["plain_len"]`) at most 1.5 x the distance + `PASS_CLEARANCE`; and not while the holder's way to the slot it would
   take runs through the step (`_latecomer_crosses(h, vacancy)`: the holder's worst-case place, its newest known one, seen in
-  `Locomotion.bodies` or radioed, less its age x its `walk_speed()`, is within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` (one more step) of
+  `Locomotion.bodies` or radioed, less its age x its `movement.walk_speed()`, is within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` (one more step) of
   this member's slot, and the straight way from there to that slot passes the vacancy closer than `Locomotion.PASS_CLEARANCE`: the
   crossing, not the distance alone, so a holder following on the same lane is let in; tests `stack_move_up_waits_for_near_latecomer`,
   `stack_move_up_lets_follower_in`). It keeps its `claim_frame`, sets `_move_up` to the slot it

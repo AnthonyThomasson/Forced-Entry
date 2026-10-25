@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 		&"ally",
 		&"puppet",
 		ALLY_AT,
-		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": HOSTILE_AT },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": HOSTILE_AT },
 	)
 	s.actor(
 		&"hostile",

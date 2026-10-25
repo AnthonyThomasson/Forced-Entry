@@ -87,23 +87,22 @@ func _rig() -> Array:
 class FakeCharacter extends Node:
 	var global_position := Vector2.ZERO
 	var facing := Vector2.RIGHT
-	var move_input := Vector2.ZERO
 	var rounds := 12
 	var reloading := false
 	var shots := 0
 	var inventory := FakeParts.new(self)
 	var ammo: FakeParts = inventory
 	var weapon: FakeParts = inventory
-
-	func is_running() -> bool:
-		return false
+	var movement: FakeParts = inventory
 
 
 ## The stand-in character's components, one object in every role `Combat` reads: its inventory (a
 ## gun in slot 3, always held), its magazines (the character's `rounds` loaded, its `reloading`
-## flag) and its gun (never blocked, semi-automatic, firing while loaded and not reloading, each
-## round counted in the character's `shots`).
+## flag), its gun (never blocked, semi-automatic, firing while loaded and not reloading, each
+## round counted in the character's `shots`) and its movement (the intent `Combat` writes, never
+## running).
 class FakeParts extends RefCounted:
+	var move_input := Vector2.ZERO
 	var _me: FakeCharacter
 
 	func _init(me: FakeCharacter) -> void:
@@ -133,6 +132,9 @@ class FakeParts extends RefCounted:
 		_me.rounds -= 1
 		_me.shots += 1
 		return true
+
+	func is_running() -> bool:
+		return false
 
 
 ## Perception with a clear line to everything.

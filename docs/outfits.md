@@ -99,7 +99,7 @@ Tests: `projectile/frag_blast_cut_by_vest` (a bare and a helmeted body take the 
 **O10. Weight.** The outfit's total weight above `outfit_free_weight` **2 kg** (plain clothes, 1.7 kg, weigh nothing extra) slows every
 pace by **0.0067** a kg, floored at 0.6 of the speed, and multiplies the stamina a run spends by 1 + **0.025** a kg. The invaders' plated kit
 (helmet, shirt, plate carrier, two steel plates, tactical pants, boots) is 14.0 kg, 12 over: **8%** slower and **1.3x** the stamina spent
-running (so it runs dry sooner). `run_speed()` reads the slowed speed.
+running (so it runs dry sooner). `movement.run_speed()` reads the slowed speed.
 Test: `character/outfit_weight_slows` (the kit walks at 85 to 97% of a bare body's speed and spends over 1.05x its stamina running; plain clothes are
 faster than the kit and no faster than bare).
 
@@ -207,7 +207,7 @@ a soft panel).
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.style` (stamped by `ItemRegistry.inventory_for`).
 - **Character**: `set_outfit`, `outfit()`, `outfit_view()`, `get_surface_at`, `hit_zone`, `hit_side`, and `take_hit`'s zone, armour, wear and
-  blast steps; the weight in `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style: `style`,
+  blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style: `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
   resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `outfit().look(style)`.
 - **Projectile**: `_surface_for` asks `get_surface_at`, the armour step in `_resolve`, `HitInfo.height` filled; `Explosion`'s blast hits carry

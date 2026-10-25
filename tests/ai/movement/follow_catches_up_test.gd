@@ -69,9 +69,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(HALL)
-	Stack.human(s, &"me", FROM, { "aim_point": TO })
+	Stack.human(s, &"me", FROM, { "movement:aim_point": TO })
 	s.actor(&"m", &"invader", NPC_AT)
-	Stack.human(s, &"mate", PARKED, { "aim_point": PARKED + Vector2.UP * 300 })
+	Stack.human(s, &"mate", PARKED, { "movement:aim_point": PARKED + Vector2.UP * 300 })
 	s.squads({ "human": &"me" })
 
 
@@ -181,7 +181,7 @@ func _watch(t: TestContext, rec: Record, done: Callable, limit_s: float) -> void
 		Follow.tick(rec.w, t, [me, m], rec.squad)
 		var spot: Vector2 = rec.squad.follow_spot(m)
 		var d: float = m.global_position.distance_to(spot)
-		rec.samples.append([t.time, d, m.is_running(), m.stamina_fraction()])
+		rec.samples.append([t.time, d, m.movement.is_running(), m.movement.stamina_fraction()])
 		_step_in(t, rec.step_in, m, spot, d)
 		t.trace("off spot", d)
 		await t.frames(1)
@@ -195,12 +195,12 @@ func _step_in(t: TestContext, step_in: Dictionary, m: Node, spot: Vector2, d: fl
 	var mate := t.actor(&"mate")
 	match step_in["state"]:
 		"waiting":
-			if m.is_running() and d <= STEP_IN_WITHIN and d > Follow.FOLLOW_CAUGHT_UP:
+			if m.movement.is_running() and d <= STEP_IN_WITHIN and d > Follow.FOLLOW_CAUGHT_UP:
 				var here: Vector2 = m.global_position
 				mate.global_position = here + (spot - here).normalized() * STEP_IN
 				step_in.merge({ "state": "in", "at": t.time, "off": d, "stood": 0 }, true)
 		"in":
-			if m.move_input == Vector2.ZERO:
+			if m.movement.move_input == Vector2.ZERO:
 				if int(step_in["stood"]) == 0:
 					step_in["stood_off"] = d
 				step_in["stood"] = int(step_in["stood"]) + 1

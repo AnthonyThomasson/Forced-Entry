@@ -85,7 +85,7 @@ a typed helper. `player_controller.gd` (Character domain) is the one gameplay co
 Keybinds (movement, `RUN` — held, default Shift —, `CROUCH` (C) — a toggle, in the "Movement" group after Run — and the action keys, incl. `RELOAD`, default R, and `KICK`, default V, in the "Combat" group next to Punch and Fire, and `USE_VEHICLE`, default E, label
 "Get in / out of vehicle", in the "Interaction" group after Interact: `is_use_vehicle_just_pressed()` → `character.try_use_vehicle()`;
 while the player drives, its movement keys and `RUN` are the vehicle's throttle, steer and handbrake, read by the Vehicles domain off the
-character's `move_input` / `run_input`, so driving adds no action). Everything else reads its own actions: `main.gd` and the test runner `MENU`, the spectator
+character's `movement.move_input` / `movement.run_input`, so driving adds no action). Everything else reads its own actions: `main.gd` and the test runner `MENU`, the spectator
 inspector `PAUSE`, the UI's command menu `COMMAND` ("Command teammates", default right mouse, in the "Interaction" group after Get in / out of
 vehicle; read only by the menu, which Main builds only when the human leads, and which reads `MENU` too, only to close itself), the camera its pan and zoom actions; `settings.gd` persists the bindings, and
 `command_server.gd` (dev-only) reads the action *names* to inject real input when driving the game from

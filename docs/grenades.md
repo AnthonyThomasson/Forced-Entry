@@ -74,7 +74,7 @@ Tests: `items/grenade_last_one_empties_slot`, `items/loadout_grenade_counts` (th
 
 **G2. Throw.** With a grenade held, left-click (`weapon.shoot()`) starts a throw: a short wind-up (`windup` **0.3 s**, the hand drawn back in the
 new `throw` stance: `hand_stance(0) == &"throw"` during it and not after) and then the grenade leaves the weapon hand, flying toward the
-character's `aim_point` and landing there, within about 40 px, but no further than `max_range` **550 px** (about 8.5 m, both kinds, the human's
+character's `movement.aim_point` and landing there, within about 40 px, but no further than `max_range` **550 px** (about 8.5 m, both kinds, the human's
 throws too; issue #51 R14: in real matches the defenders an invader could not grenade were mostly 450 to 700 px off across a doorway): aimed past that,
 it first touches down at the cap and may roll on a little (up to 100 px). Aimed just behind low cover (a sofa between where a lob would
 touch down and the aim), it is lobbed over the cover instead of skidding into it, and comes to rest on the far side, rolling on a little
@@ -165,9 +165,9 @@ where its shots go. The effect tails off over the last `recover_tail` **1.5 s** 
 and then it is as before. `Character.take_stun(blind, deaf)` applies it (and posts `&"stun"`), its `stun`'s `is_blind()`, `is_deaf()` and
 `level()` (0..1) read it, `stun.view()` gives `{ blind, blind_total, deaf, level }` (seconds left blind and deaf, the blind
 seconds at the burst, the level) to the UI, and a new stun takes the longer of the old and new timers, blind and deaf each. The four numbers live in
-`CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `posture_coverage(posture)` (the
-height of the body standing and crouched, on the coverage scale), `run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
-`walk_speed()` (px/s walking, slowed the same way: what the AI counts on once its stamina is low), so the AI keeps no copy of any.
+`CharacterStunConfig` (they tune the body, not the item). A character also tells a controller what it needs to judge a place in time: `movement.posture_coverage(posture)` (the
+height of the body standing and crouched, on the coverage scale), `movement.run_speed()` (px/s standing and running, slower while stunned or weighed down by the outfit) and
+`movement.walk_speed()` (px/s walking, slowed the same way: what the AI counts on once its stamina is low), so the AI keeps no copy of any.
 *(Amended by issue #56: the stunned look, and firing one-handed.)* A stunned character also looks it, every character alike (the player,
 an NPC, a test puppet); all of it is drawn only, eases in and out with the level (`CharacterStunConfig.look_ease` **6/s**: no hand or head jumps in a
 frame), and while it rides a vehicle the ride's pose wins (none of it shows until it is out):
@@ -536,7 +536,7 @@ is made at a match's spawns; later inventories cost about 0.05 ms. It moves 0.3-
 
 - **Items** (`scenes/items/`): `GrenadeConfig` (the numbers above, one row per kind), `GrenadeItem` (count, wind-up, `throw` stance),
   `ThrownGrenade` (flight, bounce, fuse), the art, `ItemRegistry` (`STUN_SLOT`, `FRAG_SLOT`, `create(id, count)`), `LoadoutConfig`, and `GunConfig`'s `one_hand_spread_deg`.
-- **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `posture_coverage`, `run_speed` and `walk_speed` (what the AI judges a place in time by), the stun state
+- **Character**: `inventory.item_count`, `inventory.throw_stats`, `weapon.aim_target`, `movement.posture_coverage`, `movement.run_speed` and `movement.walk_speed` (what the AI judges a place in time by), the stun state
   (`take_stun`, and the `stun` component's `is_blind`, `is_deaf`, `level`, `view`; its numbers are `CharacterStunConfig`'s) and its effect on speed, running and aim, the stunned look
   (the `eyes` and `one_hand` stances, the hunch and the stagger) and `weapon.one_handed()`, `blast_push` for ragdolls.
 - **Lighting**: the stun's flash (`LightingConfig.flashes`, `WorldLighting`).

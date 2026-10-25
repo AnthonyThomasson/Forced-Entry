@@ -242,7 +242,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
 
 ## Look when crouched, and the legs
 
-- **Look:** the drawn body eases into the posture (`_posture_height`, `posture_ease`; read through `posture_height()` / `posture_folded()`). The rig
+- **Look:** the drawn body eases into the posture (`movement`'s `_posture_height`, `posture_ease`; read through `movement.posture_height()` / `movement.posture_folded()`). The rig
   (`character_rig.gd`) scales the standing hip height (and the hands' grip heights) by the height and, as the body
   folds, pitches the spine forward about the pelvis (`body_crouch_pitch`, 25°; the pelvis shifts back and the chest forward by half the lean so the body
   stays centred over its feet, and the neck pitches on, `body_crouch_neck_pitch`), narrows the hips and feet (`body_crouch_hip_width` /
@@ -252,7 +252,7 @@ over from the last frame (`_stack`, `_order`): a pair swaps only once their heig
   fists on top, with its shadow from `shadow.draw_fallen`. A crouched body's 25° pitch turns the top most to the camera, so its trunk is the back's
   art (seam, backpack, the vest's back panel and plate wear) with the shoulders' over it.
   **Arms:** the shoulders sprite and head are drawn at the rig's `CHEST` / `HEAD` xy (`shoulder_centre()` / `head_centre()` on the visuals), so a
-  crouch's forward lean carries them with the sleeves. `posture_hand_ahead()` (`body_crouch_hand_ahead` x `posture_folded()`) is added to every
+  crouch's forward lean carries them with the sleeves. `movement.posture_hand_ahead()` (`body_crouch_hand_ahead` x `posture_folded()`) is added to every
   hand's stance `forward` (`CharacterHands._raw_hand_position`) and to the wall-raise ray's reach, so the arms keep their reach past the leaning
   chest. **A long gun at a wall:** `weapon.blocked()` is judged in every posture and the gun is raised (`raised_stance`) whatever the posture. A pistol is
   never blocked: the wall pushes its hand back.

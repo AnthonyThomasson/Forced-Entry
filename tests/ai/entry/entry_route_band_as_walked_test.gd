@@ -5,8 +5,8 @@ extends GameTest
 ## is heard east of it. The plain way there, along the south wall through the front door's view, is
 ## a short route (under 400 px); the way the invader walks, round the house's north side out of the
 ## view (within the cap), is a medium one. The gunfire lead's option says "medium route". Scripted
-## Von (one mechanism: the wording), the invader held still (`speed` 0) so the snapshot is the one
-## taken from where it stands.
+## Von (one mechanism: the wording), the invader held still (`movement:speed` 0) so the snapshot is
+## the one taken from where it stands.
 
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
@@ -45,7 +45,7 @@ func configure(s: TestSetup) -> void:
 		[{ "pos": FRONT["pos"], "width": FRONT["width"] }],
 	)
 	s.von_script([{ "pick": "investigate" }])
-	s.actor(&"inv", &"invader", START, { "speed": 0.0, "facing": Vector2.RIGHT })
+	s.actor(&"inv", &"invader", START, { "movement:speed": 0.0, "facing": Vector2.RIGHT })
 
 
 func run(t: TestContext) -> void:

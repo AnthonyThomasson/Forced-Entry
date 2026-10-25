@@ -121,7 +121,7 @@ func _posture_until_booms(t: TestContext, near: Node) -> Array:
 	var posture := []
 	var end := t.time + 8.0
 	while Probe.booms(t, &"frag").size() < 2 and t.time < end:
-		posture.append({ "t": t.time, "posture": near.posture() })
+		posture.append({ "t": t.time, "posture": near.movement.posture() })
 		await t.frames(1)
 	return posture
 

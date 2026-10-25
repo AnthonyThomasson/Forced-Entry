@@ -61,13 +61,13 @@ func configure(s: TestSetup) -> void:
 		&"model",
 		&"puppet",
 		Vector2(250, 200),
-		{ "facing": Vector2.DOWN, "aim_point": Vector2(250, 900) },
+		{ "facing": Vector2.DOWN, "movement:aim_point": Vector2(250, 900) },
 	)
 	s.actor(
 		&"plated",
 		&"puppet",
 		Vector2(OutfitProbe.TARGET_X, 120),
-		{ "max_health": 10_000.0, "facing": Vector2.LEFT, "aim_point": Vector2(0, 120) },
+		{ "max_health": 10_000.0, "facing": Vector2.LEFT, "movement:aim_point": Vector2(0, 120) },
 	)
 	# The camera stops framing a body once it is dead, and a body out of its view is not drawn (its
 	# drawing could not change): the fallen one lies inside the view the two living actors keep
@@ -77,7 +77,7 @@ func configure(s: TestSetup) -> void:
 		&"crouched",
 		&"puppet",
 		Vector2(380, 380),
-		{ "facing": Vector2.RIGHT, "aim_point": Vector2(900, 380) },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": Vector2(900, 380) },
 	)
 	s.camera_follow([&"model", &"plated", &"fallen", &"crouched"])
 

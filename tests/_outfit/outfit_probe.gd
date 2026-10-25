@@ -180,11 +180,11 @@ static func lay_lanes(s: TestSetup, lanes: Array) -> void:
 			{
 				"max_health": 10_000.0,
 				"facing": facing,
-				"aim_point": Vector2(TARGET_X, y) + facing * 300.0,
+				"movement:aim_point": Vector2(TARGET_X, y) + facing * 300.0,
 			},
 		)
 		s.actor(witness_id(lane), &"puppet", Vector2(WITNESS_X, y),
-			{ "max_health": 10_000.0, "facing": Vector2.LEFT, "aim_point": Vector2(0, y) })
+			{ "max_health": 10_000.0, "facing": Vector2.LEFT, "movement:aim_point": Vector2(0, y) })
 
 
 ## The y of shooting lane `i`, top down.

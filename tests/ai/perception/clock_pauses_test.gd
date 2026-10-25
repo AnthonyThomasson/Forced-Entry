@@ -37,13 +37,21 @@ func configure(s: TestSetup) -> void:
 		&"a",
 		&"invader",
 		Vector2(600, 190),
-		{ "max_health": 1_000_000.0, "facing": Vector2.RIGHT, "aim_point": Vector2(900, 190) },
+		{
+			"max_health": 1_000_000.0,
+			"facing": Vector2.RIGHT,
+			"movement:aim_point": Vector2(900, 190),
+		},
 	)
 	s.actor(
 		&"target",
 		&"puppet",
 		Vector2(760, 200),
-		{ "faction": &"household", "max_health": 1_000_000.0, "aim_point": Vector2(600, 190) },
+		{
+			"faction": &"household",
+			"max_health": 1_000_000.0,
+			"movement:aim_point": Vector2(600, 190),
+		},
 	)
 	# The ally on the radio: an invader puppet in the back garden, out of the NPC's sight (it is
 	# only heard).

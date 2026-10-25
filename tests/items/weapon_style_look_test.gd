@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 		&"holder",
 		&"puppet",
 		HOLDER_AT,
-		{ "start_slot": 1, "facing": Vector2.DOWN, "aim_point": HOLDER_AT + AIM_AHEAD },
+		{ "start_slot": 1, "facing": Vector2.DOWN, "movement:aim_point": HOLDER_AT + AIM_AHEAD },
 	)
 	s.camera_follow([&"holder"])
 

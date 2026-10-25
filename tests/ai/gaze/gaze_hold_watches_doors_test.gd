@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 		&"npc",
 		&"defender",
 		START,
-		{ "facing": Vector2.UP, "aim_point": Vector2(START.x, 0.0) },
+		{ "facing": Vector2.UP, "movement:aim_point": Vector2(START.x, 0.0) },
 	)
 
 

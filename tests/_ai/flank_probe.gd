@@ -32,7 +32,7 @@ static func target(
 	var p := {
 		"faction": &"household",
 		"max_health": 1_000_000.0,
-		"aim_point": look_at,
+		"movement:aim_point": look_at,
 		"facing": (look_at - pos).normalized(),
 	}
 	p.merge(props, true)
@@ -48,10 +48,10 @@ static func rules(s: TestSetup, script: Array = SCRIPT_LEFT) -> void:
 	s.switch(&"projectile.flyover", false)
 
 
-## An NPC held in place so the geometry it judges stays fixed: no movement (`speed` 0) and a short
-## commit/tactic cadence so it re-decides every ~0.4 s and a test can read a full decision after a
-## moment. `gc` overrides GoalController exports; `opts` holds `kind` (the actor kind, default
-## `&"invader"`) and `look_at` (a point that sets its starting facing; default: unset).
+## An NPC held in place so the geometry it judges stays fixed: no movement (`movement:speed` 0) and
+## a short commit/tactic cadence so it re-decides every ~0.4 s and a test can read a full decision
+## after a moment. `gc` overrides GoalController exports; `opts` holds `kind` (the actor kind,
+## default `&"invader"`) and `look_at` (a point that sets its starting facing; default: unset).
 static func npc(
 	s: TestSetup,
 	id: StringName,
@@ -61,7 +61,7 @@ static func npc(
 ) -> void:
 	var kind: StringName = opts.get("kind", &"invader")
 	var look_at: Vector2 = opts.get("look_at", Vector2.INF)
-	var props := { "speed": 0.0 }
+	var props := { "movement:speed": 0.0 }
 	if look_at != Vector2.INF:
 		# starts looking at the fight, so the target is in its view cone
 		props["facing"] = (look_at - pos).normalized()

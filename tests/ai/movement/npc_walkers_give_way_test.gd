@@ -6,8 +6,8 @@ extends GameTest
 ## were sent across, and they were near the doorway together, coming at each other.
 ##
 ## Switches and props: none. Two defenders with scripted Von (search > the other room), so each walk
-## is a plain move; each starts facing the doorway (`aim_point`), so they see each other as they
-## come.
+## is a plain move; each starts facing the doorway (`movement.aim_point`), so they see each other as
+## they come.
 
 const Bump := preload("res://tests/_ai/bump_probe.gd")
 const WEST := Rect2(0, 0, 400, 500)
@@ -36,8 +36,8 @@ func configure(s: TestSetup) -> void:
 		{ "key": "east", "type": "kitchen", "rect": EAST },
 	], [{ "pos": DOOR, "width": 70.0 }])
 	s.von_script([{ "pick": "search" }, { "pick": "room_east" }, { "pick": "room_west" }])
-	s.actor(&"a", &"defender", A_START, { "aim_point": DOOR, "facing": Vector2.RIGHT })
-	s.actor(&"b", &"defender", B_START, { "aim_point": DOOR, "facing": Vector2.LEFT })
+	s.actor(&"a", &"defender", A_START, { "movement:aim_point": DOOR, "facing": Vector2.RIGHT })
+	s.actor(&"b", &"defender", B_START, { "movement:aim_point": DOOR, "facing": Vector2.LEFT })
 
 
 func run(t: TestContext) -> void:

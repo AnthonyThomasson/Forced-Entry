@@ -33,7 +33,7 @@ func configure(s: TestSetup) -> void:
 		&"thrower",
 		&"puppet",
 		Vector2(760, 415),
-		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": Vector2(0, 415) },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": Vector2(0, 415) },
 	)
 
 

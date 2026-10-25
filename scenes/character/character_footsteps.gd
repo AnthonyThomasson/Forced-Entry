@@ -50,7 +50,7 @@ func _report(character: CharacterBody2D, footprints: BloodFootprints, foot: int)
 		&"footfall",
 		{
 			"position": fall.at, "foot": foot, "speed": fall.speed,
-			"running": character.is_running(), "character": character,
-			"crouched": character.posture() == &"crouch",
+			"running": character.movement.is_running(), "character": character,
+			"crouched": character.movement.posture() == &"crouch",
 		},
 	)

@@ -153,7 +153,7 @@ func _check_main(t: TestContext) -> void:
 		return
 	# Held where they stand, so a crown drawn on one frame still sits on its leader the next.
 	for c: Node in built["combatants"]:
-		c.set("speed", 0.0)
+		c.movement.speed = 0.0
 	var lead: Node = squads[&"invader"].leader()
 	var boss: Node = squads[&"household"].leader()
 	var overlay: Node = (built["world"] as Node).get_node_or_null("LeaderOverlay")

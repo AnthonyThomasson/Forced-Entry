@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(HALL)
 	s.switch(&"projectile.flyover", false)
 	s.object(&"sofa", "sofa", SOFA_AT)
-	Stack.human(s, &"me", LEAD_AT, { "aim_point": GUNMAN_AT })
+	Stack.human(s, &"me", LEAD_AT, { "movement:aim_point": GUNMAN_AT })
 	s.actor(&"m", &"invader", NPC_AT, { "max_health": 1_000_000.0 })
 	s.actor(
 		&"gunman",

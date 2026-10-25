@@ -1,22 +1,23 @@
 extends RefCounted
 ## Shared helpers for the tests of NPCs walking into each other (issue #53; not a test itself). It
 ## watches a set of characters every physics frame and records each time one WALKS INTO another,
-## read only off the character's public state: its `global_position`, its `move_input` (what its
-## controller is steering it to do) and `is_dead`, plus the NPC brain's public `debug_entry()` /
-## `current_act()` to say what each was doing.
+## read only off the character's public state: its `global_position`, its `movement.move_input`
+## (what its controller is steering it to do) and `is_dead`, plus the NPC brain's public
+## `debug_entry()` / `current_act()` to say what each was doing.
 ##
-## "Walks into", measurably: the walker is steering (`move_input` set) toward the other body, within
-## `INTO_CONE` of the line between their centres, while the two bodies touch (centres closer than
-## two body radii plus `CONTACT_TOL`). Two 14 px circles touch at 28 px and the colliders never let
-## them overlap much further, so a few px of tolerance catches the frames they press together, while
-## a walk that passes alongside (heading off the line between them) does not count. The frames of
-## one ordered pair make one bump, and a contact that resumes within `MERGE_GAP` s (a walker that
-## presses, is pushed back a pixel, and presses again) is the same bump.
+## "Walks into", measurably: the walker is steering (`movement.move_input` set) toward the other
+## body, within `INTO_CONE` of the line between their centres, while the two bodies touch (centres
+## closer than two body radii plus `CONTACT_TOL`). Two 14 px circles touch at 28 px and the
+## colliders never let them overlap much further, so a few px of tolerance catches the frames they
+## press together, while a walk that passes alongside (heading off the line between them) does not
+## count. The frames of one ordered pair make one bump, and a contact that resumes within
+## `MERGE_GAP` s (a walker that presses, is pushed back a pixel, and presses again) is the same
+## bump.
 ##
-## Each bump says whether the body walked into was AT REST (not steering: `move_input` zero; the
-## kind of body the steering map carves out) or MOVING (steering a walk of its own) when the contact
-## began, and how far that body was SHOVED: its displacement over the bump's frames while it was not
-## steering, which only the walker's push can cause.
+## Each bump says whether the body walked into was AT REST (not steering: `movement.move_input`
+## zero; the kind of body the steering map carves out) or MOVING (steering a walk of its own) when
+## the contact began, and how far that body was SHOVED: its displacement over the bump's frames
+## while it was not steering, which only the walker's push can cause.
 
 ## Body radius (px) of every character (`Character.radius`).
 const RADIUS := 14.0
@@ -24,7 +25,7 @@ const RADIUS := 14.0
 const CONTACT_TOL := 3.0
 ## The walker's heading must be within this angle (cos) of the line to the other body's centre.
 const INTO_CONE := 0.5
-## A `move_input` shorter than this is not steering.
+## A `movement.move_input` shorter than this is not steering.
 const STEERING := 0.1
 ## A contact of the same pair that resumes within this many s continues the last bump.
 const MERGE_GAP := 0.5
@@ -87,11 +88,11 @@ static func _sample_pair(
 	var gap: Vector2 = other.global_position - walker.global_position
 	if gap.length() > RADIUS * 2.0 + CONTACT_TOL or gap.length() < 0.001:
 		return gap.length()
-	var steer: Vector2 = walker.move_input
+	var steer: Vector2 = walker.movement.move_input
 	if (steer.length() < STEERING
 			or steer.normalized().dot(gap.normalized()) < INTO_CONE):
 		return gap.length()
-	var other_still := (other.move_input as Vector2).length() < STEERING
+	var other_still := (other.movement.move_input as Vector2).length() < STEERING
 	var bump := _bump(t, w, o, live, seen)
 	bump["end"] = t.time
 	var last_pos: Dictionary = seen["last_pos"]
@@ -113,7 +114,7 @@ static func _bump(
 	if bump.is_empty() or t.time - float(bump["end"]) > MERGE_GAP:
 		bump = {
 			"walker": w, "other": o,
-			"at_rest": (other.move_input as Vector2).length() < STEERING, "start": t.time,
+			"at_rest": (other.movement.move_input as Vector2).length() < STEERING, "start": t.time,
 			"end": t.time, "shove": 0.0, "where": walker.global_position,
 			"walker_doing": doing(walker), "other_doing": doing(other),
 		}

@@ -140,7 +140,7 @@ func _check_post(t: TestContext, a: Node) -> void:
 		"unseen from every slot and pie step outside the doorway (seen from %s)"
 			% str(seen_from.map(func(o): return (o as Vector2).round())),
 	)
-	t.expect_eq(String(a.posture()), "crouch", "crouched at its post")
+	t.expect_eq(String(a.movement.posture()), "crouch", "crouched at its post")
 	var share := await _share_on(t, a, DOOR, 1.5)
 	t.check(share >= 0.7, "its gun on the threshold (%.0f%% of 1.5 s)" % (share * 100.0))
 

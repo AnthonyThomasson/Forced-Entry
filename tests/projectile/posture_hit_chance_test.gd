@@ -36,7 +36,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	for lane: StringName in LANES:
 		t.check(
-			t.actor(StringName("body_%s" % lane)).set_posture(lane),
+			t.actor(StringName("body_%s" % lane)).movement.set_posture(lane),
 			"the %s body takes its posture" % lane,
 		)
 	await t.frames(2)

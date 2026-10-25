@@ -418,9 +418,11 @@ func snapshot() -> Dictionary:
 ## brain's decision path and status.
 func _actor_state(a: Node) -> Dictionary:
 	var s := { "position": _vec(a.global_position) if a is Node2D else "" }
-	for prop in ["health", "max_health", "is_dead", "faction", "move_input"]:
+	for prop in ["health", "max_health", "is_dead", "faction"]:
 		if prop in a:
 			s[prop] = _plain(a.get(prop))
+	if "movement" in a:
+		s["move_input"] = _plain(a.movement.move_input)
 	for child in a.get_children():
 		if child.is_in_group(&"npc_controllers"):
 			var act: Variant = child.current_act()

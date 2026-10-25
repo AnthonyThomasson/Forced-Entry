@@ -100,7 +100,7 @@ func _check_before(t: TestContext, walker: Node) -> void:
 	t.puppet(&"walker").set_run(true)
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	await t.seconds(0.4)
-	var ran: bool = walker.is_running()
+	var ran: bool = walker.movement.is_running()
 	t.puppet(&"walker").stop()
 	t.puppet(&"walker").set_run(false)
 	t.check(ran, "unstunned it can run")
@@ -138,7 +138,10 @@ func _check_walker_stunned(t: TestContext, walker: Node) -> void:
 	t.puppet(&"walker").set_run(true)
 	t.puppet(&"walker").walk(Vector2.RIGHT)
 	await t.seconds(0.4)
-	t.check(not walker.is_running(), "stunned it cannot run, even holding run while moving")
+	t.check(
+		not walker.movement.is_running(),
+		"stunned it cannot run, even holding run while moving",
+	)
 	t.puppet(&"walker").stop()
 	t.puppet(&"walker").set_run(false)
 

@@ -65,9 +65,17 @@ func configure(s: TestSetup) -> void:
 			StringName("person%d" % i),
 			&"puppet",
 			at,
-			{ "start_slot": Probe.PISTOL, "aim_point": at + Vector2.from_angle(i * 0.8) * 100.0 },
+			{
+				"start_slot": Probe.PISTOL,
+				"movement:aim_point": at + Vector2.from_angle(i * 0.8) * 100.0,
+			},
 		)
-	s.actor(&"thrower", &"puppet", THROWER_AT, { "max_health": 1_000_000.0, "aim_point": CENTRE })
+	s.actor(
+		&"thrower",
+		&"puppet",
+		THROWER_AT,
+		{ "max_health": 1_000_000.0, "movement:aim_point": CENTRE },
+	)
 
 
 func run(t: TestContext) -> void:

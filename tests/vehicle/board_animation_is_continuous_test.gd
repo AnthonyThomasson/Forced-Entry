@@ -61,7 +61,12 @@ func _premises(t: TestContext) -> bool:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return false
 	var car := t.vehicle(&"car") as Node2D
-	if not Probe.has_reads(t, t.actor(&"me"), [&"posture_folded"], "character me"):
+	if not Probe.has_reads(
+		t,
+		t.actor(&"me").movement,
+		[&"posture_folded"],
+		"character me's movement",
+	):
 		return false
 	if not t.require(
 			Probe.door(car, &"front_left").has("handle"),
@@ -102,7 +107,7 @@ func _sample_boarding(t: TestContext, car: Node2D, me: Node2D) -> Samples:
 		await t.frames(1)
 		got.pos.append(me.global_position)
 		got.face.append(me.facing)
-		got.fold.append(float(me.posture_folded()))
+		got.fold.append(float(me.movement.posture_folded()))
 		got.door.append(Probe.open_of(car, &"front_left"))
 		if got.seated_at < 0 and me.is_in_vehicle():
 			got.seated_at = got.pos.size() - 1
@@ -113,7 +118,7 @@ func _sample_boarding(t: TestContext, car: Node2D, me: Node2D) -> Samples:
 
 ## Position: no frame steps further than the character's own walk does in a frame.
 func _check_steps(t: TestContext, me: Node2D, got: Samples) -> void:
-	var walk_step: float = me.speed / Engine.physics_ticks_per_second * 1.2
+	var walk_step: float = me.movement.speed / Engine.physics_ticks_per_second * 1.2
 	var worst_step := 0.0
 	for i in range(1, got.pos.size()):
 		worst_step = maxf(worst_step, got.pos[i].distance_to(got.pos[i - 1]))

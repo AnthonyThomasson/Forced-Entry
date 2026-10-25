@@ -6,7 +6,7 @@ a wall, or saw an enemy and did not shoot). The tests named under each behaviour
 (`_apply_watch`); see the `domain-ai-watch`, `domain-ai-behavior` and `domain-ai-combat` skills.
 
 The one rule: **an NPC is always either looking at (and, when it can, shooting) a threat, or watching its doors; never a
-wall, and never with its back to a known threat.** The character turns to wherever the controller sets `aim_point`
+wall, and never with its back to a known threat.** The character turns to wherever the controller sets `movement.aim_point`
 (instantly when standing), so the question is only who sets it. The primitives set it only as they steer (a walk looks down
 its path, a room search at the nearest unseen floor), and the watch stage, which runs after them every tick, overrides it with
 a threat or, for a resting NPC, the doors. It also does all the shooting of a threat, so no primitive or entry phase needs

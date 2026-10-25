@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 	if not await Flank.settle(t, brain):
 		return
 	brain.max_commit_time = 6.0   # from here on a leg lasts as long as the walk needs
-	npc.speed = WALK_SPEED
+	npc.movement.speed = WALK_SPEED
 	t.require(
 		await t.until(func(): return Flank.side_of_act(brain) == "left", 6.0),
 		"the NPC adopts the left flank (%s)" % brain.current_act(),

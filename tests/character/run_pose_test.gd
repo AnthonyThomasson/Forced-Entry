@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 
 	puppet.set_run(true)
 	await t.seconds(0.6)
-	t.require(body.is_running(), "running while holding run and moving")
+	t.require(body.movement.is_running(), "running while holding run and moving")
 	var running := await _gait(t, body)
 	_check_run_gait(t, running, walk)
 	await _check_holds_fire(t, puppet, body)
@@ -94,7 +94,7 @@ func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
 	puppet.set_run(false)
 	puppet.stop()
 	await t.seconds(0.8)
-	t.check(not body.is_running(), "stopped")
+	t.check(not body.movement.is_running(), "stopped")
 	t.check(body.hand_position(WEAPON_HAND).length() > 22.0, "the pistol hand comes back up to aim")
 	puppet.shoot()
 	await t.frames(3)

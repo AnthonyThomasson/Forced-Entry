@@ -10,8 +10,8 @@ extends GameTest
 ## The clear's age is the perception memory's, which counts game time (`GameClock`, frames run while
 ## unpaused); the test waits (`door_view_probe.wait_wall`, paced to real time) until 61 s have
 ## passed in sim time, and on the wall clock as well. While it waits the invader is held still
-## (`speed` 0) where its first walk ended, so the second walk starts from the far side (a held move
-## re-decides only at its commit cap, so the second order is waited for).
+## (`movement.speed` 0) where its first walk ended, so the second walk starts from the far side (a
+## held move re-decides only at its commit cap, so the second order is waited for).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 
 	# Hold it on the far side until the clear is more than a minute old, on the wall clock and in
 	# sim time.
-	inv.speed = 0.0
+	inv.movement.speed = 0.0
 	await View.wait_wall(
 		t,
 		cleared_ms,
@@ -137,7 +137,7 @@ func _second_walk_avoids_or_covers(t: TestContext, inv: Node) -> void:
 				% Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	inv.speed = 150.0
+	inv.movement.speed = 150.0
 	var west := func(): return inv.global_position.x < ROOM.position.x - 40.0
 	var second := await Entry.watch(t, [&"inv"], FRONT, 60.0, west)
 	if not t.require(

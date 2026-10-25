@@ -46,7 +46,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(900, -80), { "aim_point": Vector2(700, -80) })
+	Stack.human(s, &"me", Vector2(900, -80), { "movement:aim_point": Vector2(700, -80) })
 	s.actor(&"m1", &"invader", Vector2(960, -40))
 	s.actor(&"m2", &"invader", Vector2(975, -120))
 	s.squads({ "human": &"me" })

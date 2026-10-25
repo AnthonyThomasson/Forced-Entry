@@ -25,7 +25,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var puppet := t.puppet(&"walker")
 	var body := t.actor(&"walker")
-	t.expect_eq(body.posture(), &"stand", "a character starts standing")
+	t.expect_eq(body.movement.posture(), &"stand", "a character starts standing")
 
 	puppet.walk(Vector2.RIGHT)
 	await t.seconds(0.3)
@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 
 	puppet.set_posture(&"crouch")
 	await t.seconds(0.3)
-	t.check(body.posture() == &"crouch", "the puppet crouches")
+	t.check(body.movement.posture() == &"crouch", "the puppet crouches")
 	var crouch_speed: float = (
 		WALK_SPEED * float(CharacterPostureConfig.postures[&"crouch"]["speed"])
 	)
@@ -54,19 +54,19 @@ func run(t: TestContext) -> void:
 	# Holding run while crouched: no run, no stamina spent.
 	puppet.set_run(true)
 	await t.seconds(0.4)
-	t.check(not body.is_running(), "run is ignored while crouched")
+	t.check(not body.movement.is_running(), "run is ignored while crouched")
 	t.expect_near(
 		body.get_real_velocity().length(),
 		crouch_speed,
 		5.0,
 		"still creeping with run held",
 	)
-	t.expect_near(body.stamina_fraction(), 1.0, 0.001, "a refused run spends no stamina")
+	t.expect_near(body.movement.stamina_fraction(), 1.0, 0.001, "a refused run spends no stamina")
 
 	# Standing up gives the run back.
 	puppet.set_posture(&"stand")
 	await t.seconds(0.4)
-	t.check(body.is_running(), "standing with run held runs")
+	t.check(body.movement.is_running(), "standing with run held runs")
 	t.expect_near(
 		body.get_real_velocity().length(),
 		WALK_SPEED * CharacterPaceConfig.run_speed_mult,

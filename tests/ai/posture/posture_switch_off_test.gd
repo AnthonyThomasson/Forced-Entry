@@ -43,4 +43,4 @@ func run(t: TestContext) -> void:
 		"the defender was shot",
 	)
 	await t.seconds(4.0)
-	t.expect_eq(defender.posture(), &"stand", "with the switch off it stays standing")
+	t.expect_eq(defender.movement.posture(), &"stand", "with the switch off it stays standing")

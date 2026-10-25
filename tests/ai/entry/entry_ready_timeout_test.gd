@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 		&"b",
 		Vector2(990, 600),
 		{ "decide_interval": 0.55, "entry_ready_timeout": TIMEOUT },
-		{ "speed": 0.0 },
+		{ "movement:speed": 0.0 },
 	)
 
 

@@ -38,12 +38,16 @@ func run(t: TestContext) -> void:
 	var bystander := t.actor(&"bystander")
 	var gunman := t.puppet(&"gunman")
 	await t.seconds(0.5)
-	t.expect_eq(pinned.posture(), &"stand", "the defender starts standing")
+	t.expect_eq(pinned.movement.posture(), &"stand", "the defender starts standing")
 	gunman.aim_at(pinned)
 	await t.seconds(0.5)
 	gunman.shoot()
 	t.check(
-		await t.until(func(): return pinned.posture() == &"crouch", 5.0),
-		"shot at in the open, the defender crouches (%s)" % pinned.posture(),
+		await t.until(func(): return pinned.movement.posture() == &"crouch", 5.0),
+		"shot at in the open, the defender crouches (%s)" % pinned.movement.posture(),
 	)
-	t.expect_eq(bystander.posture(), &"stand", "the defender out of the fire stays on its feet")
+	t.expect_eq(
+		bystander.movement.posture(),
+		&"stand",
+		"the defender out of the fire stays on its feet",
+	)

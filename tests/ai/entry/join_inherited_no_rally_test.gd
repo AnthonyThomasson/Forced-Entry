@@ -46,7 +46,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(930, 40), { "rank": 2, "aim_point": STEP_UP })
+	Stack.human(s, &"me", Vector2(930, 40), { "rank": 2, "movement:aim_point": STEP_UP })
 	s.actor(&"sergeant", &"invader", Vector2(100, -120), { "rank": 1, "max_health": 1_000_000.0 })
 	# The trooper stands outside the front door, so its way to the living room is its own (front
 	# door, hall) and never the back door the human rallies at.

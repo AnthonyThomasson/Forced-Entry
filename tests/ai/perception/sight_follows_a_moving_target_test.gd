@@ -25,7 +25,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 900, 500))
 	s.von_down()
 	s.object(&"fridge", "fridge", Vector2(400, 250))
-	s.actor(&"inv", &"invader", NPC_AT, { "speed": 0.0, "facing": Vector2.RIGHT })
+	s.actor(&"inv", &"invader", NPC_AT, { "movement:speed": 0.0, "facing": Vector2.RIGHT })
 	s.actor(&"tgt", &"puppet", OPEN_AT, { "max_health": 100_000.0 })
 
 

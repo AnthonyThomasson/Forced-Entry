@@ -321,7 +321,7 @@ func run(t: TestContext) -> void:
     one physics frame before the actors, because a new body joins the physics space only at the next step.
   - Actors: `actor(id, kind, pos, props)`. Kind is `puppet` (scripted), `player` (human-driven),
     `defender`, `invader`, or a scene path. `props` are set on the character before `_ready` (a `component:prop` key on that component of it, through
-    `set_indexed`: `"pose:gait:_stride"`, `tests/general/test_world_component_prop`; for example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, and the ammo props
+    `set_indexed`: `"pose:gait:_stride"`, `tests/general/test_world_component_prop`; for example `max_health`, `start_slot`: 1 unarmed / 2 fists / 3 pistol / 4 key / 5 SMG / 6 assault rifle, `faction`, `movement:speed` and `movement:aim_point`, and the ammo props
     `inventory:start_rounds` (what the starting gun is loaded with; -1 = full) and `ammo:spare_magazine_types` (e.g. `[]` for none,
     `[&"extended"]`; the default is two standard magazines for each gun, so a test counting spares sets it)). Actors built here
     keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
@@ -377,7 +377,7 @@ func run(t: TestContext) -> void:
   (straight line, no pathing), `walk(dir)`, `set_run(on)` (holds run while moving), `set_posture(p)` (wants `stand` / `crouch`, written every frame like the AI does; `&""` stops asking), `toggle_crouch()` (one press of C), `stop()`, `select_slot(n)`, `punch()`, `kick()` (the leg kick), `shoot()` (one click), `hold_fire(on)` (hold the trigger: an automatic gun fires at its rate; a semi-auto one is unaffected), `reload()`,
   `interact(object, id)` (refusals land in `failed_interactions`), `end_interaction()`, `use_vehicle()` (one press of E: get in
   by the nearest usable door, or out; ignored by a character without `try_use_vehicle`) and `drive(throttle, steer, handbrake)` (holds the
-  driving keys as the player's do: `move_input` = `(steer, -throttle)` limited to length 1, `run_input` = handbrake; `drive(0, 0, false)`
+  driving keys as the player's do: `movement.move_input` = `(steer, -throttle)` limited to length 1, `movement.run_input` = handbrake; `drive(0, 0, false)`
   lets go). Actions run on
   the character's next frame, and the character derives `facing` from the aim one frame later, so
   aim, wait a moment, then fire.
@@ -612,7 +612,7 @@ Main does: declared with `s.squads({ "human": id })` and read with `t.player_sta
 `attach(character, rooms, t.world.openings)`; null before the feature exists). The stack is read through `view()` (`Stack.mine`,
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points
 (`Stack.crossing(door)` goes in through a door). A late AI joiner is held back like in `entry_ally_joins_stack` (`entry_enabled` false,
-speed 0) until the human has its slot. `stack_player_slot_von` runs the whole thing with the real Von server (`requires_von`).
+`movement:speed` 0) until the human has its slot. `stack_player_slot_von` runs the whole thing with the real Von server (`requires_von`).
 `stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.declared_match`, below) and its human is the player's own character and
 controller, given its stack through `MatchBuilder.bind_player`. The UI half is `tests/ui/stack_markers_draw_test.gd` (a fake stack with a
 `view()`), the wiring `tests/general/stack_player_wiring_test.gd`.
@@ -620,7 +620,7 @@ controller, given its stack through `MatchBuilder.bind_player`. The UI half is `
 ## Bodies in the way (issue #53)
 
 `tests/_ai/bump_probe.gd` (`const Bump := preload(...)`) measures "walks into" off public state only: `watch(t, who, duration, stop)` records
-every frame a character steers (`move_input`) within 60° of another it touches (centres under 31 px) as a bump, with whether the other was at
+every frame a character steers (`movement.move_input`) within 60° of another it touches (centres under 31 px) as a bump, with whether the other was at
 rest and how far it was shoved; `of_kind`, `collisions` (a head-on pair's two bumps as one collision), `describe`, `tally`, `totals`;
 `pressed_watch(walker, other)` is a clock of the walker standing pressed against the other (still, centres under `PRESSED_GAP` 45 px: what `keep_off`
 leaves of a walk into a body, short of a bump), called once a frame, against `PRESSED_MAX` (0.5 s). The
@@ -745,11 +745,11 @@ asserts a behaviour the AI does not show yet is written first, left red and tagg
   west-facing target's left is south). With several hostiles known, `debug_zones()` mixes their sides:
   give `Flank.zones(brain, target_pos)` the target and make the NPC fight it with `Flank.prefer_target`
   (the nearest hostile is otherwise the first option and gets picked).
-- **Hold the NPC and settle** (`Flank.npc` + `Flank.settle`): `speed` 0 and a 0.4 s commit and tactic
+- **Hold the NPC and settle** (`Flank.npc` + `Flank.settle`): `movement:speed` 0 and a 0.4 s commit and tactic
   cadence, so it re-decides from a fixed spot and `settle` waits for a finished walk. A walking test holds
-  the NPC until `settle`, then sets `brain.max_commit_time` back to 6 and `npc.speed` to 150.
-- **Set the target's frame before the first frame** (`Flank.target`): its `facing` and `aim_point` are
-  props, because a puppet's `aim_point` defaults to the origin and turns it that way until `aim_at` runs.
+  the NPC until `settle`, then sets `brain.max_commit_time` back to 6 and `npc.movement.speed` to 150.
+- **Set the target's frame before the first frame** (`Flank.target`): its `facing` and `movement:aim_point` are
+  props, because a puppet's `movement.aim_point` defaults to the origin and turns it that way until `aim_at` runs.
   Give targets and allies a huge `max_health`; the NPCs shoot while they wait.
 - **Radio claims** are real `callout` events posted with `Flank.radio` from an ally puppet the NPC cannot
   see (behind a wall, or far off). An ally it can see holds the side it stands on by name, without

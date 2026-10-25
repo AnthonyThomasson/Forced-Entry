@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 func _posture_until_bang(t: TestContext, inv: Node, thrown_at: float) -> Array:
 	var samples: Array = []
 	while Probe.booms(t, &"frag").is_empty() and t.time < thrown_at + 6.0:
-		samples.append({ "t": t.time, "posture": inv.posture(), "p": inv.global_position })
+		samples.append({ "t": t.time, "posture": inv.movement.posture(), "p": inv.global_position })
 		await t.frames(1)
 	return samples
 

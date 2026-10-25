@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 			id,
 			&"puppet",
 			Vector2(START_X, LANES[id]),
-			{ "facing": Vector2.RIGHT, "aim_point": Vector2(1600, LANES[id]) },
+			{ "facing": Vector2.RIGHT, "movement:aim_point": Vector2(1600, LANES[id]) },
 		)
 
 
@@ -79,11 +79,11 @@ func _check_run(t: TestContext) -> void:
 	await t.seconds(0.5)  # come to a stop (walking spends no stamina, the bar is still full)
 	var stamina_before := {}
 	for id: StringName in LANES:
-		stamina_before[id] = t.actor(id).stamina_fraction()
+		stamina_before[id] = t.actor(id).movement.stamina_fraction()
 	var ran := await _move(t, true, RUN_TIME)
 	var spent := {}
 	for id: StringName in LANES:
-		spent[id] = float(stamina_before[id]) - t.actor(id).stamina_fraction()
+		spent[id] = float(stamina_before[id]) - t.actor(id).movement.stamina_fraction()
 	t.check(spent[&"bare"] > 0.05, "running spends the bare body's stamina (%.2f)" % spent[&"bare"])
 	t.check(
 		spent[&"plated"] > spent[&"bare"] * 1.05,

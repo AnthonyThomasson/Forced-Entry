@@ -9,7 +9,7 @@ extends GameTest
 ## inside the walking range. What it heard is read off its memory, `debug_memory()["footsteps"]`
 ## (`[{ pos, age }]`, as `gunfire`), and the steps themselves off the `footfall` events, which now
 ## say whose they are (`character`) and whether the walker was `crouched`. Scripted Von (one
-## mechanism); the defender is held still (`speed` 0) so the distances hold.
+## mechanism); the defender is held still (`movement:speed` 0) so the distances hold.
 
 const LISTENER := Vector2(250, 400)
 const LISTEN_ROOM := Rect2(0, 0, 300, 800)
@@ -102,7 +102,7 @@ func configure(s: TestSetup) -> void:
 		{ "key": "hall", "type": "hallway", "rect": WALK_ROOM },
 	])
 	s.von_script([{ "pick": "stay" }])
-	s.actor(&"listener", &"defender", LISTENER, { "speed": 0.0, "facing": Vector2.LEFT })
+	s.actor(&"listener", &"defender", LISTENER, { "movement:speed": 0.0, "facing": Vector2.LEFT })
 	for p in PHASES:
 		s.actor(
 			p["id"],

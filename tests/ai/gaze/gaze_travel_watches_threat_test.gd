@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 		&"inv",
 		START,
 		{ "familiar_with_house": true, "pursue_hostiles": false },
-		{ "facing": Vector2.RIGHT, "aim_point": HOSTILE_AT },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": HOSTILE_AT },
 	)
 	Entry.target(s, &"defender", HOSTILE_AT, START)
 

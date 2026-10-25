@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	if not (Probe.has_reads(t, me, [&"posture_folded"], "character me")
+	if not (Probe.has_reads(t, me.movement, [&"posture_folded"], "character me's movement")
 			and Probe.has_reads(
 				t, me.inventory, [&"current_item", &"current_slot"], "character me's inventory",
 			)):
@@ -61,7 +61,7 @@ func _check_boarding(t: TestContext, car: Node2D) -> bool:
 	var deadline := t.time + 6.0
 	while t.time < deadline and not me.is_in_vehicle():
 		await t.frames(1)
-		if me.vehicle() != null and float(me.posture_folded()) > 0.05:
+		if me.vehicle() != null and float(me.movement.posture_folded()) > 0.05:
 			folding += 1
 			if me.inventory.current_item() != null:
 				folding_held += 1
@@ -101,7 +101,7 @@ func _check_getting_out(t: TestContext, held_name: String) -> void:
 	var deadline := t.time + 8.0
 	while t.time < deadline and me.vehicle() != null:
 		getting_out += 1
-		if me.inventory.current_item() != null and float(me.posture_folded()) > 0.05:
+		if me.inventory.current_item() != null and float(me.movement.posture_folded()) > 0.05:
 			out_held += 1
 		await t.frames(1)
 	if not t.require(me.vehicle() == null, "it gets out"):

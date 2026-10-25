@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 		{
 			"faction": &"invader",
 			"max_health": 1_000_000.0,
-			"aim_point": D_AT,
+			"movement:aim_point": D_AT,
 			"facing": Vector2.LEFT,
 		},
 	)

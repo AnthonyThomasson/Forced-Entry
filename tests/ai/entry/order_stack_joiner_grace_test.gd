@@ -7,17 +7,17 @@ extends GameTest
 ##
 ## The squad is built and bound as a match's (`s.squads`, a puppet standing in for the human
 ## leader). At the Terrace house's (bare) back door, north of it: the human orders `point` (beside
-## the door) and `far` (held still in the garden, `speed` 0) to stack, quiet, go-when-ready, and is
-## killed at once. `joiner`, the sergeant, leads from then on (LD4), deciding on its own, and the
-## stack order is carried to its end (LD26). The point stands in its slot about 15 s; then `far` is
-## let go, and only then does `joiner`, unordered, take the quiet ENTER on the same door on its own
-## (scripted Von, held back until then) and claim behind them, from the garden north of the living
-## room, so it reaches its slot about 2 s after `far`: well within 6 s of the last ordered member,
-## long after the point's own 6 s, and its own approach well under `entry_approach_time` (it never
-## claims and then stands still). Its claim is an AI leader's own, which rallies only members
-## holding no order (LD24: nobody here) and holds up no ordered stack (only the human leader is
-## waited for, D22). The point may slice the pie meanwhile, but must not cross (radio `going_in`)
-## before the joiner is ready.
+## the door) and `far` (held still in the garden, `movement:speed` 0) to stack, quiet,
+## go-when-ready, and is killed at once. `joiner`, the sergeant, leads from then on (LD4), deciding
+## on its own, and the stack order is carried to its end (LD26). The point stands in its slot about
+## 15 s; then `far` is let go, and only then does `joiner`, unordered, take the quiet ENTER on the
+## same door on its own (scripted Von, held back until then) and claim behind them, from the garden
+## north of the living room, so it reaches its slot about 2 s after `far`: well within 6 s of the
+## last ordered member, long after the point's own 6 s, and its own approach well under
+## `entry_approach_time` (it never claims and then stands still). Its claim is an AI leader's own,
+## which rallies only members holding no order (LD24: nobody here) and holds up no ordered stack
+## (only the human leader is waited for, D22). The point may slice the pie meanwhile, but must not
+## cross (radio `going_in`) before the joiner is ready.
 ##
 ## Scripted Von (SEARCH > ENTER > the back door: the joiner's own choice; the ordered members' order
 ## level asks nothing), every ask failing (Von down: the joiner holds steady) until `far` is let go.
@@ -55,7 +55,13 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	Entry.npc(s, &"point", Vector2(960, 60))
-	Entry.npc(s, &"far", Vector2(1150, -150), { "decide_interval": 0.45 }, { "speed": 0.0 })
+	Entry.npc(
+		s,
+		&"far",
+		Vector2(1150, -150),
+		{ "decide_interval": 0.45 },
+		{ "movement:speed": 0.0 },
+	)
 	Entry.npc(s, &"joiner", JOINER_START, { "decide_interval": 0.7 }, { "rank": 1 })
 	s.set_static(DecisionStub, &"fail", true)
 	s.actor(&"lead", &"puppet", Vector2(1300, 700), { "faction": &"invader" })
@@ -132,7 +138,7 @@ func _point_holds(t: TestContext, door: Dictionary, point_ready: float) -> bool:
 ## The far member is let go and Von answers: the joiner claims the back door, unordered, behind
 ## the point and the far member. False when it does not.
 func _joiner_claims(t: TestContext, door: Dictionary) -> bool:
-	t.actor(&"far").set("speed", WALK_SPEED)
+	t.actor(&"far").movement.speed = WALK_SPEED
 	# Von answers now: the joiner takes the quiet ENTER on the back door.
 	DecisionStub.fail = false
 	var joiner_claimed := func():

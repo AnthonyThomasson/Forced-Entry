@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 	# only the lane rule is under test, not the target-clearance rule
 	Flank.npc(s, &"npc", NPC_POS, { "route_clearance": 40.0 }, { "look_at": TARGET_POS })
 	Flank.target(s, &"target", TARGET_POS, BUDDY_POS)
-	Flank.ally(s, &"buddy", BUDDY_POS, { "aim_point": TARGET_POS })
+	Flank.ally(s, &"buddy", BUDDY_POS, { "movement:aim_point": TARGET_POS })
 
 
 func run(t: TestContext) -> void:

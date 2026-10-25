@@ -30,7 +30,11 @@ func configure(s: TestSetup) -> void:
 		&"def",
 		&"defender",
 		Vector2(560, 250),
-		{ "max_health": 1_000_000.0, "facing": Vector2.LEFT, "aim_point": Vector2(200, 250) },
+		{
+			"max_health": 1_000_000.0,
+			"facing": Vector2.LEFT,
+			"movement:aim_point": Vector2(200, 250),
+		},
 	)
 
 

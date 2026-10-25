@@ -126,4 +126,4 @@ func _phase(t: TestContext, squad: Node, m: Node, course_x: Callable) -> Diction
 
 ## A puppet on the invaders' side that cannot die, looking at `aim`.
 func _tough(aim: Vector2) -> Dictionary:
-	return { "faction": &"invader", "max_health": 1_000_000.0, "aim_point": aim }
+	return { "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": aim }

@@ -1,10 +1,10 @@
 extends GameTest
 ## G16: the speed an NPC counts on to reach a safe spot before the fuse runs out
 ## (`AgentThrow.run_speed`) is, once its stamina is low, its walk as the body is now
-## (`Character.walk_speed()`), not its tuned `speed`: a stunned body walks at
+## (`CharacterMovement.walk_speed()`), not its tuned `movement.speed`: a stunned body walks at
 ## `CharacterStunConfig.speed` of it and a full plated kit about 8% slower, so both count on less.
-## Three bodies with the same `speed` and an empty stamina bar: one bare, one stunned, one in the
-## plated kit.
+## Three bodies with the same `movement.speed` and an empty stamina bar: one bare, one stunned, one
+## in the plated kit.
 
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
@@ -38,21 +38,25 @@ func run(t: TestContext) -> void:
 	var counted := {}
 	for id: StringName in LANES:
 		var c := t.actor(id)
-		c.stamina = 0.0  # below RUN_STAMINA: it is taken to walk
+		c.movement.stamina = 0.0  # below RUN_STAMINA: it is taken to walk
 		var throw := AgentThrow.new()
 		throw.bind(c)
 		counted[id] = throw.run_speed()
 	var bare := t.actor(&"bare")
 	t.check(
-		is_equal_approx(counted[&"bare"], bare.speed),
+		is_equal_approx(counted[&"bare"], bare.movement.speed),
 		"the bare body counts on its tuned walk (%.0f px/s of %.0f)"
-			% [counted[&"bare"], bare.speed],
+			% [counted[&"bare"], bare.movement.speed],
 	)
 	t.check(
-		is_equal_approx(counted[&"stunned"], bare.speed * CharacterStunConfig.speed),
+		is_equal_approx(counted[&"stunned"], bare.movement.speed * CharacterStunConfig.speed),
 		("the stunned one on CharacterStunConfig.speed of it (%.0f px/s against %.0f), though its "
 				+ "tuned speed is the same (%.0f)")
-			% [counted[&"stunned"], bare.speed * CharacterStunConfig.speed, stunned.speed],
+			% [
+				counted[&"stunned"],
+				bare.movement.speed * CharacterStunConfig.speed,
+				stunned.movement.speed,
+			],
 	)
 	var share: float = counted[&"plated"] / counted[&"bare"]
 	t.check(
@@ -61,6 +65,6 @@ func run(t: TestContext) -> void:
 			% [counted[&"plated"], share * 100.0],
 	)
 	t.check(
-		is_equal_approx(counted[&"plated"], plated.walk_speed()),
+		is_equal_approx(counted[&"plated"], plated.movement.walk_speed()),
 		"each is the body's walk_speed()",
 	)

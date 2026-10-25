@@ -430,7 +430,7 @@ the NPC; always known, blind or not). A grenade keeps the source it was first kn
 source }` (`radius` = `AgentThrow.radius_of(kind)`, off the `throw_stats()` just learned from that grenade); it is forgotten at the burst (`&"explosion"`, or the node leaving the group). A bounce / rest event marks a known grenade `landed` (and `rested`) at that spot.
 
 **The danger zone and the safe spot (`agent_throw.gd`).** The cover rule is the blast's own (G7), asked of the Projectile System so the AI keeps no copy (`shielded` calls `Explosion.shields`, interface 3): from the burst a wall always stops the line, furniture
-stops it when its `coverage` is above the body's height (the standing and crouched heights the character reports, `Character.posture_coverage`, read each `observe` by `learn_body` into `stand_height()` / `crouch_height()`; 60 and 35, `docs/cover-and-stance.md`), characters stop
+stops it when its `coverage` is above the body's height (the standing and crouched heights the character reports, `movement.posture_coverage`, read each `observe` by `learn_body` into `stand_height()` / `crouch_height()`; 60 and 35, `docs/cover-and-stance.md`), characters stop
 nothing. `in_zone(space, threat: GrenadeThreat, p, height, exclude)` (the threat's `kind`, `radius` and `burst`): within `zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
 `escape(space, map, threat: GrenadeThreat, runner: GrenadeRunner, exclude)` (`GrenadeThreat`, `ai/perception/grenade_threat.gd`: the
 grenade's `kind`, `radius`, `burst` and `fuse_left`; `GrenadeRunner`, `ai/perception/grenade_runner.gd`: the NPC's `from` and `speed`) returns `{ spot, crouch, route }`: candidates are the circle just outside the zone (`zone + OUTSIDE_SLACK` 30 px), the shadows behind what the rays from the burst
@@ -439,7 +439,7 @@ if pulled more than 40 px), judged (outside the zone, or shielded standing = out
 (many candidates are the same point, the standing and crouching probes meeting the same wall: each point is snapped, each spot judged and each
 route measured once, `tests/ai/grenade/escape_spot_matches_plain_test.gd` pinning the answer to the plain loop)
 (`NavBuilder.route`; a straight line says nothing, a spot just behind a wall can be a house away) and the shortest route within `(fuse_left - 0.4 s) x run speed`
-(`RUN_RELIABILITY` 0.85 of `Character.run_speed()`, or `Character.walk_speed()` once stamina is below `RUN_STAMINA`: both slowed by a
+(`RUN_RELIABILITY` 0.85 of `movement.run_speed()`, or `movement.walk_speed()` once stamina is below `RUN_STAMINA`: both slowed by a
 stun or a heavy outfit; `tests/ai/grenade/throw_timing_counts_slowed_walk_test.gd`) wins; `spot` is `Vector2.INF` when none is in time. Cost: ~150 snaps, ~300 rays and ~100 routes, only when a plan is
 made; in the grenade match guard a plan made alone costs about 2.5 ms of burst work (the candidates round the burst, their snaps, the verdicts) and 1.2 ms of routes.
 `can_lob(space, at, to, max_range, exclude)` is the throw test of the GRENADE tactic, the shots' group, the throw's re-check and the bang (within range, and `throw_clear`: the lob from

@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 		&"b",
 		Vector2(980, -70),
 		{ "entry_enabled": false, "max_commit_time": 0.5, "entry_ready_timeout": 40.0 },
-		{ "speed": 0.0 },
+		{ "movement:speed": 0.0 },
 	)
 	Stack.human(s, &"me", Stack.NEAR)
 
@@ -50,7 +50,7 @@ func run(t: TestContext) -> void:
 			"the human walked to its slot",
 	):
 		return
-	t.actor(&"b").set("speed", 150.0)
+	t.actor(&"b").movement.speed = 150.0
 	Entry.brain(t, &"b").set("entry_enabled", true)
 	if not t.require(
 			await t.until(func(): return not Entry.calls(t, "in", &"a").is_empty(), 80.0),

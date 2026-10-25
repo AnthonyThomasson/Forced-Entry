@@ -29,14 +29,14 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 500))
 	s.von_script([{ "pick": "combat" }, { "pick": "engage" }, { "pick": "fire_here" }])
 	s.switch(&"ai.callouts", false)
-	s.actor(&"i", &"invader", Vector2(150, 250), { "speed": 0.0, "facing": Vector2.RIGHT })
+	s.actor(&"i", &"invader", Vector2(150, 250), { "movement:speed": 0.0, "facing": Vector2.RIGHT })
 	s.actor(
 		&"h",
 		&"puppet",
 		Vector2(450, 250),
 		{
 			"faction": &"household", "max_health": 1_000_000.0, "facing": Vector2.LEFT,
-			"aim_point": Vector2(150, 250),
+			"movement:aim_point": Vector2(150, 250),
 		},
 	)
 

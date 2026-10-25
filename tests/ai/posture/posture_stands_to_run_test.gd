@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var runner := t.actor(&"runner")
 	var brain := t.controller(&"runner", &"current_act")
-	runner.aim_point = t.actor(&"far").global_position
+	runner.movement.aim_point = t.actor(&"far").global_position
 	t.check(
 		await t.until(func(): return String(brain.current_act()).contains("advance"), 10.0),
 		"the runner advances (%s)" % brain.current_act(),
@@ -37,9 +37,9 @@ func run(t: TestContext) -> void:
 	var ran_low := 0
 	for i in 600:
 		await t.frames(1)
-		if runner.is_running():
+		if runner.movement.is_running():
 			ran = true
-			if runner.posture() != &"stand":
+			if runner.movement.posture() != &"stand":
 				ran_low += 1
 	t.check(ran, "the runner ran")
 	t.expect_eq(ran_low, 0, "never while crouched")

@@ -1,9 +1,9 @@
 extends Node
 ## AI BEHAVIOUR sub-domain — LOCOMOTION. Owns the NavigationAgent2D and turns a target point into
-## steering on the character: `move_to()` writes `character.move_input` to follow a navigated path
-## around walls and furniture and through doorways. The navmesh (baked by the Navigation domain)
-## carves out furniture and rings the house with a walkable outdoor strip, so paths route around a
-## piece and reroute through another doorway when one is blocked.
+## steering on the character: `move_to()` writes `character.movement.move_input` to follow a
+## navigated path around walls and furniture and through doorways. The navmesh (baked by the
+## Navigation domain) carves out furniture and rings the house with a walkable outdoor strip, so
+## paths route around a piece and reroute through another doorway when one is blocked.
 ##
 ## A walk accounts for the characters the NPC KNOWS of (`bodies`: the perception's contacts, what it
 ## sees or saw a moment ago; never a body it has not seen), and never walks into one. A body at rest
@@ -295,8 +295,9 @@ func path_ahead() -> Dictionary:
 
 
 ## Observation only: sample the character's progress each tick. While it is trying to move
-## (`move_input` set) it compares displacement over `STALL_WINDOW`; a speed under `STALL_SPEED`
-## grows `_stalled_for`. Nothing reacts to it — `debug_progress()` exposes it to the stuck overlay.
+## (`movement.move_input` set) it compares displacement over `STALL_WINDOW`; a speed under
+## `STALL_SPEED` grows `_stalled_for`. Nothing reacts to it — `debug_progress()` exposes it to the
+## stuck overlay.
 func sample(delta: float) -> void:
 	var pos: Vector2 = _character.global_position
 	_trail_clock += delta
@@ -305,7 +306,7 @@ func sample(delta: float) -> void:
 		_trail.append(pos)
 		if _trail.size() > TRAIL_MAX:
 			_trail.pop_front()
-	if (_character.move_input as Vector2).length() < 0.1:
+	if (_character.movement.move_input as Vector2).length() < 0.1:
 		_stall_clock = 0.0
 		_stall_pos = pos
 		_stalled_for = 0.0
@@ -383,9 +384,9 @@ func take_blocked() -> bool:
 	return b
 
 
-## Steer `character.move_input` toward `dest` along a navigated path (around walls and furniture,
-## through doorways) by heading for the next navmesh waypoint each frame, accounting for the
-## characters the NPC knows of (`bodies`):
+## Steer `character.movement.move_input` toward `dest` along a navigated path (around walls and
+## furniture, through doorways) by heading for the next navmesh waypoint each frame, accounting for
+## the characters the NPC knows of (`bodies`):
 ## - a body at rest on the walk is gone round by the steering map, whatever the detour, when that
 ##   map has a way round it (`Way.ROUND`); with none (it seals the way, or the map has not caught up
 ##   with it yet) or with the body standing on the destination, the walk is held short of it
@@ -399,7 +400,7 @@ func take_blocked() -> bool:
 func move_to(dest: Vector2, within := 0.0) -> void:
 	if _agent == null:
 		var straight: Vector2 = dest - _character.global_position
-		_character.move_input = (Vector2.ZERO
+		_character.movement.move_input = (Vector2.ZERO
 				if straight.length() < arrive_dist
 				else straight.normalized())
 		return
@@ -409,7 +410,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	_kept_off = false
 	_yielding = false
 	if _agent.is_navigation_finished() and _way != Way.HELD:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 		return
 	# Always steer toward the next navmesh waypoint — never the raw destination, which can lie
 	# across a wall. `next` is wall-safe, and for an unreachable target it steps toward the closest
@@ -424,7 +425,7 @@ func move_to(dest: Vector2, within := 0.0) -> void:
 	if (_way == Way.HELD
 			and (here.distance_to(_blocker) <= STOP_GAP or _agent.is_navigation_finished())):
 		desired = Vector2.ZERO  # Held: stand short of the body, waiting for it to move.
-	_character.move_input = desired
+	_character.movement.move_input = desired
 	_give_way()
 	keep_off()
 
@@ -844,12 +845,12 @@ func _crowded(resting: Array, q: Vector2) -> bool:
 	return false
 
 
-## Give way to a walker coming at the NPC (`move_input` already steers its walk): a known character
-## in view, not at rest, within `GIVE_RANGE`, whose course comes within `GIVE_CLEARANCE` of the
-## NPC's in the next `GIVE_HORIZON` s. Unless it has the right of way (`_has_way`) and the walker is
-## not yet on top of it (`GIVE_IMMINENT`), the NPC steps aside off the walker's line when it stands
-## on it (open floor, clear of the other bodies it knows of, never toward the walker), else waits,
-## until the walker has gone by; at most `GIVE_MAX` s for one walker.
+## Give way to a walker coming at the NPC (`movement.move_input` already steers its walk): a known
+## character in view, not at rest, within `GIVE_RANGE`, whose course comes within `GIVE_CLEARANCE`
+## of the NPC's in the next `GIVE_HORIZON` s. Unless it has the right of way (`_has_way`) and the
+## walker is not yet on top of it (`GIVE_IMMINENT`), the NPC steps aside off the walker's line when
+## it stands on it (open floor, clear of the other bodies it knows of, never toward the walker),
+## else waits, until the walker has gone by; at most `GIVE_MAX` s for one walker.
 ##
 ## The look-ahead is cut to the time the NPC's own walk still takes (`_way_left` at its pace) when
 ## that is shorter: its course is reckoned only to the end of its walk, so it never gives way to a
@@ -859,7 +860,7 @@ func _crowded(resting: Array, q: Vector2) -> bool:
 func _give_way() -> void:
 	var me: Vector2 = _character.global_position
 	var pace := maxf(_character.get_real_velocity().length(), PACE_FLOOR)
-	var mine: Vector2 = _character.move_input * pace
+	var mine: Vector2 = _character.movement.move_input * pace
 	var horizon := minf(GIVE_HORIZON, _way_left() / pace)
 	var other := _walker_in_way(me, mine, horizon)
 	if other.is_empty():
@@ -876,7 +877,7 @@ func _give_way() -> void:
 	# With the right of way the NPC only stops for a walker on top of it.
 	if not _has_way(other) and _step_aside(me, other):
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	_yielding = true
 
 
@@ -919,18 +920,18 @@ func _step_aside(me: Vector2, other: Dictionary) -> bool:
 		_yield_spot = _side_step(me, at, line, off, int(other["id"]))
 	if _yield_spot == Vector2.INF or me.distance_to(_yield_spot) <= 4.0:
 		return false
-	_character.move_input = (_yield_spot - me).normalized()
+	_character.movement.move_input = (_yield_spot - me).normalized()
 	_yielding = true
 	return true
 
 
-## The last word on a step: drop the part of `move_input` that heads into a known body closer than
-## `KEEP_OFF` (the one a melee closes on aside), so the NPC slides past it instead; stopped when
-## nothing of the step is left. Every walk ends with it, and so does any other step a behaviour
-## module takes (`Combat.apply_back_off`).
+## The last word on a step: drop the part of `movement.move_input` that heads into a known body
+## closer than `KEEP_OFF` (the one a melee closes on aside), so the NPC slides past it instead;
+## stopped when nothing of the step is left. Every walk ends with it, and so does any other step a
+## behaviour module takes (`Combat.apply_back_off`).
 func keep_off() -> void:
 	_kept_off = false
-	var step: Vector2 = _character.move_input
+	var step: Vector2 = _character.movement.move_input
 	if step == Vector2.ZERO:
 		return
 	var me: Vector2 = _character.global_position
@@ -944,10 +945,10 @@ func keep_off() -> void:
 		if step.dot(toward) > 0.0:
 			step -= toward * step.dot(toward)
 	if step.length() < 0.1:
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 		_kept_off = true
 		return
-	_character.move_input = step.normalized()
+	_character.movement.move_input = step.normalized()
 
 
 ## Whether two bodies `gap` apart (the other minus this one) closing at relative velocity `rel_vel`

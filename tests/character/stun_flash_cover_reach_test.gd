@@ -51,8 +51,11 @@ func run(t: TestContext) -> void:
 	var against := t.actor(&"against")
 	var behind := t.actor(&"behind")
 	t.check(
-		against.posture() == &"crouch" and behind.posture() == &"crouch",
-		"both victims were crouched (%s, %s)" % [against.posture(), behind.posture()],
+		against.movement.posture() == &"crouch" and behind.movement.posture() == &"crouch",
+		"both victims were crouched (%s, %s)" % [
+			against.movement.posture(),
+			behind.movement.posture(),
+		],
 	)
 	t.check(
 		Probe.shielded(t, at, against) and Probe.shielded(t, at, behind),

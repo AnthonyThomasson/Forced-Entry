@@ -39,7 +39,7 @@ func configure(s: TestSetup) -> void:
 		&"p",
 		&"puppet",
 		FIRST_SPOT,
-		{ "faction": &"invader", "max_health": 1_000_000.0, "aim_point": DEFENDER_AT },
+		{ "faction": &"invader", "max_health": 1_000_000.0, "movement:aim_point": DEFENDER_AT },
 	)
 
 

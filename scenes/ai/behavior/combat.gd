@@ -144,7 +144,7 @@ func fire_at_will(target: Dictionary) -> void:
 	if not can_fire_at(target):
 		return
 	var pos: Vector2 = target["pos"]
-	_character.aim_point = pos
+	_character.movement.aim_point = pos
 	if fire_timer <= 0.0 and _faces(pos):
 		shoot()
 
@@ -157,7 +157,7 @@ func holds_fire() -> bool:
 
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.
 func ambush(node: Node2D, pos: Vector2) -> void:
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	if _character.global_position.distance_to(pos) <= shoot_range \
 			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and _faces(pos):
 		shoot()
@@ -187,7 +187,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get
 	# one.
 	if dist <= shoot_range and _perception.has_line_to(node, pos):
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall
 		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than
 		# ducking without having fired; a click on an empty gun ducks, where the cover phase reloads
@@ -234,7 +234,7 @@ func end_throw() -> void:
 ## `&""`.
 func throw_step(delta: float) -> StringName:
 	_throw_clock += delta
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	match throw_stage:
 		"walk":
 			if _character.inventory.item_count(_throw_slot) <= 0:
@@ -250,7 +250,7 @@ func throw_step(delta: float) -> StringName:
 				throw_stage = "away"
 				return &"failed"
 			_character.inventory.select_slot(_throw_slot)
-			_character.aim_point = _throw_spot
+			_character.movement.aim_point = _throw_spot
 			if _character.global_position.distance_to(_throw_spot) > _throw_reach:
 				_loco.move_to(_throw_spot)
 				return &""
@@ -260,7 +260,7 @@ func throw_step(delta: float) -> StringName:
 					throw_stage = "windup"
 					_throw_clock = 0.0
 		"windup":
-			_character.aim_point = _throw_spot
+			_character.movement.aim_point = _throw_spot
 			if _throw_clock > THROW_RELEASE_CAP:
 				throw_stage = "away"
 				return &"failed"  # The wind-up was cut short (it died, or put the grenade away).
@@ -285,9 +285,9 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 		if not hold_ground and _on_leash(pos):
 			_loco.move_to(pos)
 		else:
-			_character.move_input = Vector2.ZERO
+			_character.movement.move_input = Vector2.ZERO
 		return
-	_character.move_input = Vector2.ZERO
+	_character.movement.move_input = Vector2.ZERO
 	if fire_timer <= 0.0:
 		strike()
 
@@ -304,7 +304,7 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 ##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the
 ##     gun's own rate.
 func shoot() -> bool:
-	if _character.is_running() or _character.ammo.is_reloading() or holds_fire():
+	if _character.movement.is_running() or _character.ammo.is_reloading() or holds_fire():
 		return false
 	var gun: int = _character.inventory.gun_slot()
 	if gun < 0:
@@ -328,7 +328,7 @@ func shoot() -> bool:
 ## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and
 ## kicks; otherwise (a crouched NPC cannot kick) it equips the fists and punches.
 func strike() -> void:
-	if _character.ammo.capacity() >= 0 and _character.posture() == &"stand":
+	if _character.ammo.capacity() >= 0 and _character.movement.posture() == &"stand":
 		kick()
 	else:
 		punch()
@@ -355,7 +355,7 @@ func punch() -> void:
 func continue_burst() -> void:
 	if _burst_left <= 0:
 		return
-	if not _character.weapon.is_automatic() or _character.is_running() \
+	if not _character.weapon.is_automatic() or _character.movement.is_running() \
 			or _character.ammo.is_reloading() or _character.weapon.blocked() \
 			or _character.ammo.rounds() <= 0 or holds_fire():
 		_burst_left = 0
@@ -371,9 +371,9 @@ func apply_back_off(delta: float) -> void:
 	if _back_off_timer <= 0.0:
 		return
 	_back_off_timer -= delta
-	_character.move_input = -_character.facing
+	_character.movement.move_input = -_character.facing
 	_loco.keep_off()  # Never back into a body it knows of.
-	_character.run_input = false
+	_character.movement.run_input = false
 
 
 ## Reflex: swap in a fresh magazine when the gun is empty and one is carried (`auto_reload`). It

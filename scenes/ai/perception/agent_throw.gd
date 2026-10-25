@@ -100,8 +100,8 @@ var evade_margin: float = 120.0
 ## Kind -> what the NPC knows of that grenade (`Character.inventory.throw_stats`,
 ## `ThrownGrenade.throw_stats`); see `learn`.
 var _stats := {}
-## The height of a standing body on the coverage scale (`Character.posture_coverage`); tall until it
-## is learned.
+## The height of a standing body on the coverage scale (`CharacterMovement.posture_coverage`); tall
+## until it is learned.
 var _stand := 100.0
 ## The same for a crouched one.
 var _crouch := 100.0
@@ -149,10 +149,10 @@ func learn_carried() -> void:
 
 
 ## Learn the heights of a standing and of a crouched body off the NPC's own
-## (`Character.posture_coverage`), the figures furniture is measured against.
+## (`CharacterMovement.posture_coverage`), the figures furniture is measured against.
 func learn_body() -> void:
-	_stand = _character.posture_coverage(&"stand")
-	_crouch = _character.posture_coverage(&"crouch")
+	_stand = _character.movement.posture_coverage(&"stand")
+	_crouch = _character.movement.posture_coverage(&"crouch")
 
 
 ## The height of a standing body on the coverage scale.
@@ -462,11 +462,12 @@ func _ring(from: Vector2) -> Array:
 
 
 ## The speed (px/s) the NPC counts on to cover ground when it runs for it (`RUN_RELIABILITY` of
-## `Character.run_speed`), or its walk (`Character.walk_speed`) once its stamina is low.
+## `CharacterMovement.run_speed`), or its walk (`CharacterMovement.walk_speed`) once its stamina is
+## low.
 func run_speed() -> float:
-	return (_character.run_speed() * RUN_RELIABILITY
-			if _character.stamina_fraction() > RUN_STAMINA
-			else _character.walk_speed())
+	return (_character.movement.run_speed() * RUN_RELIABILITY
+			if _character.movement.stamina_fraction() > RUN_STAMINA
+			else _character.movement.walk_speed())
 
 
 # --- The lob --------------------------------------------------------------------------------------

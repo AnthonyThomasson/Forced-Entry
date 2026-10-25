@@ -3,8 +3,8 @@ extends GameTest
 ## teammate's shot that lands within `hit_awareness_radius` of an NPC does not put it under fire, as
 ## it knows who fired; a round from a hostile, or from a shooter it does not know, landing as close
 ## does, and so does an ally's round that hits the NPC itself. Four invaders stand well apart, each
-## held still (`speed` 0, so the distances hold); one `hit` event lands 80 px from each (on the
-## fourth, on it), told apart by its attacker. Read off each NPC's memory
+## held still (`movement:speed` 0, so the distances hold); one `hit` event lands 80 px from each (on
+## the fourth, on it), told apart by its attacker. Read off each NPC's memory
 ## (`debug_memory()["under_fire"]`). Scripted Von (one mechanism).
 
 const AT := [Vector2(300, 250), Vector2(900, 250), Vector2(1500, 250), Vector2(2100, 250)]
@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 2400, 500))
 	s.von_script([{ "pick": "stay" }])
 	for i in IDS.size():
-		s.actor(IDS[i], &"invader", AT[i], { "speed": 0.0 })
+		s.actor(IDS[i], &"invader", AT[i], { "movement:speed": 0.0 })
 	s.actor(
 		&"mate",
 		&"puppet",

@@ -53,7 +53,7 @@ func configure(s: TestSetup) -> void:
 			"faction": &"household",
 			"max_health": 1_000_000.0,
 			"facing": Vector2.LEFT,
-			"aim_point": WALK[1],
+			"movement:aim_point": WALK[1],
 		},
 	)
 

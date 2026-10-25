@@ -98,7 +98,7 @@ func wander(offset: float) -> float:
 ## with the stun.
 func drift() -> Vector2:
 	var at := level()
-	var move: Vector2 = character.move_input
+	var move: Vector2 = character.movement.move_input
 	if at <= 0.0 or move.length_squared() < 0.0001:
 		return Vector2.ZERO
 	return move.orthogonal().normalized() * CharacterStunConfig.drift * at * wander(1.7)

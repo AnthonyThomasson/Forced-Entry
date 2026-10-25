@@ -34,7 +34,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", LEAD_AT, { "aim_point": Vector2(-200, -80) })
+	Stack.human(s, &"me", LEAD_AT, { "movement:aim_point": Vector2(-200, -80) })
 	# Premise: a part-spent magazine (2 rounds), the default spares to top up from.
 	s.actor(&"m", &"invader", START, { "start_slot": 3, "inventory:start_rounds": 2 })
 	s.squads({ "human": &"me" })

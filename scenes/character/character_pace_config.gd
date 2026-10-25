@@ -12,7 +12,8 @@ static var run_stamina_seconds: float = 4.0
 static var stamina_regen_per_sec: float = 0.2
 ## After running dry the character walks until stamina refills to this fraction.
 static var run_resume_fraction: float = 0.3
-## Smallest `move_input` length that counts as moving, so holding run while standing spends nothing.
+## Smallest `movement.move_input` length that counts as moving, so holding run while standing spends
+## nothing.
 static var run_min_input: float = 0.1
 ## What a body carries at its tuned speed (kg: ordinary clothes); only the outfit's weight above it
 ## slows and tires.

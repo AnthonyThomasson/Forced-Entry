@@ -148,7 +148,7 @@ func _press(
 	var piece := _pushable_at(character.get_world_2d().direct_space_state, character, at)
 	if piece == null:
 		return
-	var strength := (clampf(approach / maxf(float(character.speed), 1.0), 0.0, 1.0)
+	var strength := (clampf(approach / maxf(float(character.movement.speed), 1.0), 0.0, 1.0)
 			* clampf(depth / FULL_PRESS, 0.0, 1.0))
 	# At the point where the leg rests, so a piece pressed near an end turns; never driven faster
 	# than the character walks.
@@ -157,7 +157,7 @@ func _press(
 		dir,
 		CharacterPushConfig.leg_push_impulse * strength * delta,
 		at,
-		float(character.speed),
+		float(character.movement.speed),
 	)
 
 

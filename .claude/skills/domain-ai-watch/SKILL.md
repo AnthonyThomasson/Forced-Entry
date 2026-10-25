@@ -8,7 +8,7 @@ description: Deep implementation detail for the AI WATCH module and stage (scene
 Spec and tests: `docs/gaze-and-fire.md` (W1 to W6; `tools/run_tests.sh gaze`). The invariant: **an NPC is always either looking at
 (and, when it can, shooting) a threat, or watching its doors; never a wall, never with its back to a known threat.**
 
-`Character.aim_point` is the only thing that sets facing (standing = instant snap, crouched 5 rad/s), it is never reset, and it defaults
+`Character.movement.aim_point` is the only thing that sets facing (standing = instant snap, crouched 5 rad/s), it is never reset, and it defaults
 to the world's origin. The primitives set it only as they steer; the watch stage runs after them and has the last word, and it is the one
 place a threat is shot at, whichever primitive or entry phase is running.
 
@@ -20,7 +20,7 @@ place a threat is shot at, whichever primitive or entry phase is running.
 2. **Threat** (`Watch.threat(_hostiles, _engage_id)`): the engaged contact if `visible`, else the nearest visible, else the engaged one
    as last seen, else the nearest younger than `lost_gaze`. A contact that is not visible only counts when `has_line_to` its last-seen
    spot is clear (no staring at a wall because someone is behind it).
-3. With a threat: `aim_point` = its position **before any gate**, then `Combat.fire_at_will` (loaded gun, in `shoot_range`, clear
+3. With a threat: `movement.aim_point` = its position **before any gate**, then `Combat.fire_at_will` (loaded gun, in `shoot_range`, clear
    line, facing settled, cooldown) and, unless the entry is crossing (`_entry.committed()`, E4), `Combat.reload_if_dry`.
 4. With none and `_resting()` (a `hold`, a `reload`, a `move` that has arrived and is not covering a room, a `throw` whose grenade is
    away, a `defend` or `ambush` that has arrived): `Watch.idle_gaze`, but for a `defend` or `ambush` whose params carry `door_pos`, which
@@ -39,12 +39,12 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
   alone hugs the door jamb, so facing it looks at the jamb.)
 - `idle_gaze(delta)` — turns among `perception.room_doorways(room)` (outer doors included; each with a clear line and not
   under 60 px), nearest first on entering a room then round the NPC by angle, `door_dwell` (`watch_door_dwell`, 2.5 s) apiece, eased at
-  `look_rate` (= `search_look_rate`) from the actual facing. Nothing outdoors or with no door in line; an unset `aim_point` (ZERO) becomes
+  `look_rate` (= `search_look_rate`) from the actual facing. Nothing outdoors or with no door in line; an unset `movement.aim_point` (ZERO) becomes
   "where the body points". `reset()` on every new order.
 
 ## Around the stage
 
-- `Behavior._apply_move`: an arrived move zeroes `move_input`, so the NPC stands still while the next decision is in flight.
+- `Behavior._apply_move`: an arrived move zeroes `movement.move_input`, so the NPC stands still while the next decision is in flight.
 - `_apply_hold` / `_apply_reload` do not aim; the stage does. `update_known` retargets a fight from a contact it has lost sight of to
   another hostile in view.
 - `_should_run`: false while `Combat.can_fire_at(threat)` or `Combat.reload_due()`, unless the leaf has `run_through_fire` (the RETREAT
@@ -67,4 +67,4 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 `gaze_walk_looks_ahead`, `gaze_search_turns_to_threat`, `gaze_travel_watches_threat`, `entry_guard_fires_from_outside`,
 `fire_dry_gun_on_move_reloads`, `combat_waits_for_facing` (`Combat` driven with fakes), `engaged_retargets_to_visible` (`Behavior` driven
 with fakes), `ai_runs_to_destination` (W6), `retreat_keeps_running`; helper `tests/_ai/gaze_probe.gd`. A held NPC needs a look direction
-to see a target at start (a starting `facing`, e.g. `Flank.npc`'s `opts.look_at`): an unset `aim_point` looks where its body points.
+to see a target at start (a starting `facing`, e.g. `Flank.npc`'s `opts.look_at`): an unset `movement.aim_point` looks where its body points.

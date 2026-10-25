@@ -3,13 +3,14 @@ extends RefCounted
 ## `const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")`.
 ##
 ## Everything is read through the drivable contract: the character's `try_use_vehicle()`,
-## `vehicle()`, `is_in_vehicle()` (true only while seated) and `posture_folded()` (the ride fold
-## while in a vehicle); the vehicle's `doors()` (`{ id, kind, seat, handle, open, hinge, angle,
-## offset }` per door, world space), `seats()` (`{ id, occupant
-## }`), `driver()`, `speed()` (unsigned px/s), `engine_state()` (`{ running, rpm, load
-## }`), `slip()` (the slide amount, 0 while gripping), `wheel_angle()`, `brake_lights()`, its
-## `Chassis` / `Roof` draw layers, and the Vehicles holders' tuning. Nothing here knows how a
-## vehicle is built, and a read that does not exist yet fails a `require` instead of a script error.
+## `vehicle()`, `is_in_vehicle()` (true only while seated) and `movement.posture_folded()` (the ride
+## fold while in a vehicle); the vehicle's `doors()`
+## (`{ id, kind, seat, handle, open, hinge, angle, offset }` per door, world space), `seats()`
+## (`{ id, occupant }`), `driver()`, `speed()` (unsigned px/s), `engine_state()`
+## (`{ running, rpm, load }`), `slip()` (the slide amount, 0 while gripping), `wheel_angle()`,
+## `brake_lights()`, its `Chassis` / `Roof` draw layers, and the Vehicles holders' tuning. Nothing
+## here knows how a vehicle is built, and a read that does not exist yet fails a `require` instead
+## of a script error.
 
 ## The plan's numbers: the spec, not the code.
 ## E picks a door whose handle is within this of the character.

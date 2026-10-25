@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 		&"thrower",
 		&"puppet",
 		Vector2(120, 350),
-		{ "max_health": 1_000_000.0, "aim_point": CENTRE },
+		{ "max_health": 1_000_000.0, "movement:aim_point": CENTRE },
 	)
 
 

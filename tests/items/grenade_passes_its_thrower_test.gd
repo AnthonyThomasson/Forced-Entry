@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 		&"thrower",
 		&"puppet",
 		AT,
-		{ "max_health": 100_000.0, "facing": Vector2.RIGHT, "aim_point": AIM },
+		{ "max_health": 100_000.0, "facing": Vector2.RIGHT, "movement:aim_point": AIM },
 	)
 
 
@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 	var path := (AIM - RELEASE).normalized()
 	var closest: Vector2 = Geometry2D.get_closest_point_to_segment(AT, RELEASE, AIM)
 	if not t.require(
-			thrower.posture() == &"stand"
+			thrower.movement.posture() == &"stand"
 				and RELEASE.distance_to(AT) > reach
 				and closest.distance_to(AT) < reach - 2.0,
 			("set-up: a standing thrower, the release just outside its body (%.1f px, body + "

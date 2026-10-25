@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	inv.global_position = IN_HALL
-	inv.aim_point = TARGET
+	inv.movement.aim_point = TARGET
 	var stepped := t.time
 	var back_in := func(): return Maps.HOUSE_KITCHEN.grow(-30).has_point(inv.global_position)
 	# it was under fire on the walk back in (an Array: a lambda captures a bool by value)

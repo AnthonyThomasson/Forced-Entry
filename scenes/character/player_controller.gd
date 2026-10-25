@@ -12,16 +12,16 @@ var _fire_press_on_ui := false
 ## Called by the character at the top of its _physics_process, so the intent we write is
 ## used the same frame.
 func control(character: CharacterBody2D, _delta: float) -> void:
-	character.move_input = Keybinds.get_move_vector()
-	character.run_input = Keybinds.is_run_pressed()
-	character.aim_point = character.get_global_mouse_position()
+	character.movement.move_input = Keybinds.get_move_vector()
+	character.movement.run_input = Keybinds.is_run_pressed()
+	character.movement.aim_point = character.get_global_mouse_position()
 
 	var selected := Keybinds.get_selected_item()
 	if selected > 0:
 		character.inventory.select_slot(selected)
 
 	if Keybinds.is_crouch_just_pressed():
-		character.toggle_crouch()
+		character.movement.toggle_crouch()
 
 	if Keybinds.is_punch_just_pressed():
 		character.weapon.melee()

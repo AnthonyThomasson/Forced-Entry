@@ -75,19 +75,19 @@ func configure(s: TestSetup) -> void:
 		&"shooter",
 		&"puppet",
 		SHOOTER_AT,
-		{ "facing": Vector2.RIGHT, "aim_point": TARGET_AT, "max_health": 100_000.0 },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": TARGET_AT, "max_health": 100_000.0 },
 	)
 	s.actor(
 		&"target",
 		&"puppet",
 		TARGET_AT,
-		{ "facing": Vector2.LEFT, "aim_point": SHOOTER_AT, "max_health": 1.0e9 },
+		{ "facing": Vector2.LEFT, "movement:aim_point": SHOOTER_AT, "max_health": 1.0e9 },
 	)
 	s.actor(
 		&"thrower",
 		&"puppet",
 		THROWER_AT,
-		{ "facing": Vector2.RIGHT, "aim_point": THROW_TO, "max_health": 100_000.0 },
+		{ "facing": Vector2.RIGHT, "movement:aim_point": THROW_TO, "max_health": 100_000.0 },
 	)
 	var i := 0
 	for kind: StringName in StyleProbe.GRENADES:

@@ -71,7 +71,7 @@ func _set_up(t: TestContext, inv: Node, hostile: Node) -> bool:
 	):
 		return false
 	if not t.require(
-			await t.until(func(): return hostile.posture() == &"crouch", 2.0),
+			await t.until(func(): return hostile.movement.posture() == &"crouch", 2.0),
 			"set-up: the householder crouches behind the sofa",
 	):
 		return false

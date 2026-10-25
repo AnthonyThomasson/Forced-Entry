@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.vision", false)
 	s.von_down()
 	s.lock_interaction([&"camera", &"pause"])
-	s.actor(&"npc", &"defender", AT, { "speed": 0.0 })
+	s.actor(&"npc", &"defender", AT, { "movement:speed": 0.0 })
 
 
 func run(t: TestContext) -> void:

@@ -89,7 +89,7 @@ func step(delta: float) -> bool:
 		_loco.move_to(_loco.reachable(target))  # Relocate to see a far / occluded part of the room.
 	else:
 		# Close with a clear line: stand and turn, the cone will catch it.
-		_character.move_input = Vector2.ZERO
+		_character.movement.move_input = Vector2.ZERO
 	return false
 
 
