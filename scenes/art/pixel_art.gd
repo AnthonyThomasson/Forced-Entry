@@ -49,7 +49,7 @@ static func render(painter: Script, size: Vector2, color: Color, facing: Vector2
 		return _cache[key]
 	var res := _resolution(size)
 	var canon := Vector2i(res.y, res.x) if turns % 2 == 1 else res
-	var canvas := _paint(painter, canon, color, -turns * PI * 0.5, opts, base_key)
+	var canvas := _paint(painter, _canvas(canon, -turns * PI * 0.5, base_key), color, opts)
 	var glow := canvas.emissive()
 	_emissive[key] = null if glow == null else ImageTexture.create_from_image(_turned(glow, turns))
 	return _store(key, _turned(canvas.img, turns))
@@ -92,7 +92,8 @@ static func render_turned(painter: Script, size: Vector2, color: Color, angle: f
 	if _cache.has(key):
 		tex = _cache[key]
 	else:
-		tex = _store(key, _paint(painter, _resolution(size), color, -angle, opts, base_key).img)
+		var canvas := _canvas(_resolution(size), -angle, base_key)
+		tex = _store(key, _paint(painter, canvas, color, opts).img)
 	if _turned_memo.size() >= TURNED_MEMO_MAX:
 		_turned_memo.clear()
 	# The caller may change its dictionary later; the memo keeps the values it was asked with.
@@ -143,16 +144,15 @@ static func _key(painter: Script, size: Vector2, color: Color, opts: Dictionary)
 			])
 
 
-## Paint `painter` onto a fresh canvas of `res` with the world light turned by `light_turn`, handing
-## it `opts`' `material` as its own argument and the rest as its options; returns the canvas.
-static func _paint(painter: Script, res: Vector2i, color: Color, light_turn: float,
-		opts: Dictionary, seed_key: String) -> PixelCanvas:
-	var canvas := PixelCanvas.new(
-		res.x,
-		res.y,
-		hash(seed_key),
-		ArtConfig.light_from.rotated(light_turn),
-	)
+## A fresh canvas of `res` seeded by `seed_key`, with the world light turned by `light_turn`.
+static func _canvas(res: Vector2i, light_turn: float, seed_key: String) -> PixelCanvas:
+	return PixelCanvas.new(res.x, res.y, hash(seed_key), ArtConfig.light_from.rotated(light_turn))
+
+
+## Paint `painter` onto `canvas` (`_canvas`), handing it `opts`' `material` as its own argument and
+## the rest as its options; returns the canvas.
+static func _paint(painter: Script, canvas: PixelCanvas, color: Color,
+		opts: Dictionary) -> PixelCanvas:
 	painter.paint(canvas, color, String(opts.get("material", "")), _painter_opts(opts))
 	return canvas
 

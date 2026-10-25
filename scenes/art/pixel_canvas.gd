@@ -484,17 +484,29 @@ func grain(s: Shape, density: float, dark: Color, pale: Color, opts: Dictionary 
 		var start := (rng.randi_range(0, length - 1)
 				if wraps
 				else rng.randi_range(0, maxi(0, length - run)))
-		for i in run:
-			if rng.randf() < 0.05:
-				a = clampi(a + (1 if rng.randf() < 0.5 else -1), 0, across - 1)
-			var along := (start + i) % length if wraps else start + i
-			var p := _grain_point(r, along_x, along, a)
-			if s.has(p.x, p.y) and _drawn(p):
-				img.set_pixel(p.x, p.y, dark)
-			if a + 1 < across and rng.randf() < 0.08:
-				var q := _grain_point(r, along_x, along, a + 1)
-				if s.has(q.x, q.y) and _drawn(q):
-					img.set_pixel(q.x, q.y, pale)
+		_grain_streak(s, Vector3i(start, run, a), dark, pale, opts)
+
+
+## One streak of `grain` over shape `s`: `walk` = (its start along, its run, where it starts
+## across), wandering across as it goes; `opts` as `grain`'s.
+func _grain_streak(s: Shape, walk: Vector3i, dark: Color, pale: Color, opts: Dictionary) -> void:
+	var along_x: bool = opts.get("along_x", true)
+	var wraps: bool = opts.get("wraps", false)
+	var r := s.bounds
+	var length := r.size.x if along_x else r.size.y
+	var across := r.size.y if along_x else r.size.x
+	var a := walk.z
+	for i in walk.y:
+		if rng.randf() < 0.05:
+			a = clampi(a + (1 if rng.randf() < 0.5 else -1), 0, across - 1)
+		var along := (walk.x + i) % length if wraps else walk.x + i
+		var p := _grain_point(r, along_x, along, a)
+		if s.has(p.x, p.y) and _drawn(p):
+			img.set_pixel(p.x, p.y, dark)
+		if a + 1 < across and rng.randf() < 0.08:
+			var q := _grain_point(r, along_x, along, a + 1)
+			if s.has(q.x, q.y) and _drawn(q):
+				img.set_pixel(q.x, q.y, pale)
 
 
 ## Image point `along`/`across` a grain rect's axes.
@@ -617,69 +629,61 @@ class Shape:
 	## steps. Each sweep walks the rows and columns away from the pixel it reads, so a pixel's
 	## neighbour that way is done before it.
 	func _build_edges() -> void:
-		var bw := bounds.size.x
-		var bh := bounds.size.y
-		var n := bw * bh
 		var runs: Array[PackedInt32Array] = []
 		for d in STEPS:
-			var run := PackedInt32Array()
-			run.resize(n)
-			var y_from := bh - 1 if d.y > 0 else 0
-			var y_step := -1 if d.y > 0 else 1
-			var x_from := bw - 1 if d.x > 0 else 0
-			var x_step := -1 if d.x > 0 else 1
-			# The columns whose neighbour that way is inside the bounds.
-			var x_lo := 1 if d.x < 0 else 0
-			var x_hi := bw - 2 if d.x > 0 else bw - 1
-			var step := d.y * bw + d.x
-			var y := y_from
-			for _row in bh:
-				var qy := y + d.y
-				if qy >= 0 and qy < bh:
-					var i := y * bw + x_from
-					var x := x_from
-					for _col in bw:
-						if x >= x_lo and x <= x_hi and _mask[i] == 1 and _mask[i + step] == 1:
-							run[i] = run[i + step] + 1
-						x += x_step
-						i += x_step
-				y += y_step
-			runs.append(run)
-		var left := runs[0]
-		var right := runs[1]
-		var up := runs[2]
-		var down := runs[3]
-		var up_left := runs[4]
-		var up_right := runs[5]
-		var down_left := runs[6]
-		var down_right := runs[7]
+			runs.append(_run_along(d))
+		_fill_edges(runs)
+
+	## Per inside pixel, how many inside pixels run on from it in step direction `d`.
+	func _run_along(d: Vector2i) -> PackedInt32Array:
+		var bh := bounds.size.y
+		var run := PackedInt32Array()
+		run.resize(bounds.size.x * bh)
+		var y := bh - 1 if d.y > 0 else 0
+		var y_step := -1 if d.y > 0 else 1
+		for _row in bh:
+			var qy := y + d.y
+			if qy >= 0 and qy < bh:
+				_sweep_row(run, d, y)
+			y += y_step
+		return run
+
+	## `_run_along`'s sweep of row `y` into `run`, away from the neighbour each pixel reads.
+	func _sweep_row(run: PackedInt32Array, d: Vector2i, y: int) -> void:
+		var bw := bounds.size.x
+		var x_from := bw - 1 if d.x > 0 else 0
+		var x_step := -1 if d.x > 0 else 1
+		# The columns whose neighbour that way is inside the bounds.
+		var x_lo := 1 if d.x < 0 else 0
+		var x_hi := bw - 2 if d.x > 0 else bw - 1
+		var step := d.y * bw + d.x
+		var i := y * bw + x_from
+		var x := x_from
+		for _col in bw:
+			if x >= x_lo and x <= x_hi and _mask[i] == 1 and _mask[i + step] == 1:
+				run[i] = run[i + step] + 1
+			x += x_step
+			i += x_step
+
+	## Depth and normal of every inside pixel from the runs along each of `STEPS`, in its order.
+	func _fill_edges(runs: Array[PackedInt32Array]) -> void:
+		var n := _mask.size()
 		_depth.resize(n)
 		_normal.resize(n)
 		for i in n:
 			if _mask[i] == 0:
 				continue
-			var k := mini(mini(left[i], right[i]), mini(up[i], down[i])) + 1
-			var k_diag := mini(mini(up_left[i], up_right[i]), mini(down_left[i], down_right[i])) + 1
-			var sum := Vector2.ZERO
+			var k := mini(mini(runs[0][i], runs[1][i]), mini(runs[2][i], runs[3][i])) + 1
+			var k_diag := mini(mini(runs[4][i], runs[5][i]), mini(runs[6][i], runs[7][i])) + 1
+			# The straight steps decide, or the diagonals where strictly sooner.
+			var first := 0
 			if k_diag < k:
 				k = k_diag
-				if up_left[i] + 1 == k:
-					sum += Vector2(-1, -1)
-				if up_right[i] + 1 == k:
-					sum += Vector2(1, -1)
-				if down_left[i] + 1 == k:
-					sum += Vector2(-1, 1)
-				if down_right[i] + 1 == k:
-					sum += Vector2(1, 1)
-			else:
-				if left[i] + 1 == k:
-					sum += Vector2(-1, 0)
-				if right[i] + 1 == k:
-					sum += Vector2(1, 0)
-				if up[i] + 1 == k:
-					sum += Vector2(0, -1)
-				if down[i] + 1 == k:
-					sum += Vector2(0, 1)
+				first = 4
+			var sum := Vector2.ZERO
+			for j in range(first, first + 4):
+				if runs[j][i] + 1 == k:
+					sum += Vector2(STEPS[j])
 			_depth[i] = mini(k, 255)
 			_normal[i] = sum.normalized()
 

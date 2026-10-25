@@ -31,6 +31,34 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
+	_check_nothing_glowing(t)
+	var differing := 0
+	for n in 40:
+		var c := PixelCanvas.new(
+			rng.randi_range(4, 120),
+			rng.randi_range(4, 90),
+			rng.randi(),
+			ArtConfig.light_from,
+		)
+		c.fill(PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 3), Color(0.4, 0.35, 0.3))
+		if not _same(c, _glow_drawings(rng, c)):
+			differing += 1
+			_note_differing(t, differing, n, c)
+	t.check(differing == 0, "%d of 40 canvases mark exactly the changed pixels" % (40 - differing))
+
+
+## Names the first three differing canvases (`differing` counts them so far) as failed checks.
+func _note_differing(t: TestContext, differing: int, n: int, c: PixelCanvas) -> void:
+	if differing > 3:
+		return
+	t.check(
+		false,
+		"canvas %d (%dx%d): the emissive pixels differ from the plain comparison" % [n, c.w, c.h],
+	)
+
+
+## A glowing drawing that changed nothing, and a canvas with none, leave nothing emissive.
+func _check_nothing_glowing(t: TestContext) -> void:
 	var blank := PixelCanvas.new(20, 10, 1, ArtConfig.light_from)
 	blank.glowing(func() -> void: blank.px(3, 3, blank.at(3, 3)))
 	t.check(
@@ -42,43 +70,30 @@ func run(t: TestContext) -> void:
 		"a canvas with no glowing drawing has nothing emissive",
 	)
 
-	var differing := 0
-	for n in 40:
-		var c := PixelCanvas.new(
-			rng.randi_range(4, 120),
-			rng.randi_range(4, 90),
-			rng.randi(),
-			ArtConfig.light_from,
-		)
-		c.fill(PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 3), Color(0.4, 0.35, 0.3))
-		var marked := PackedByteArray()
-		marked.resize(c.w * c.h)
-		for _k in rng.randi_range(1, 3):
-			var area := (Rect2i()
-					if rng.randf() < 0.4
-					else Rect2i(
-						rng.randi_range(-4, c.w - 2), rng.randi_range(-4, c.h - 2),
-						rng.randi_range(1, c.w), rng.randi_range(1, c.h),
-					))
-			var marks := _drawing(rng, c)
-			var before := c.img.duplicate() as Image
-			c.glowing(func() -> void: _draw(c, marks), area)
-			var r := (Rect2i(0, 0, c.w, c.h)
-					if area.size == Vector2i.ZERO
-					else area.intersection(Rect2i(0, 0, c.w, c.h)))
-			for y in range(r.position.y, r.end.y):
-				for x in range(r.position.x, r.end.x):
-					if before.get_pixel(x, y) != c.img.get_pixel(x, y):
-						marked[y * c.w + x] = 1
-		if not _same(c, marked):
-			differing += 1
-			if differing <= 3:
-				t.check(
-					false,
-					"canvas %d (%dx%d): the emissive pixels differ from the plain comparison"
-						% [n, c.w, c.h],
-				)
-	t.check(differing == 0, "%d of 40 canvases mark exactly the changed pixels" % (40 - differing))
+
+## One to three random glowing drawings on `c`, each in a random area (or the whole canvas); returns
+## the pixels the plain comparison finds they changed within their areas (1 per changed pixel).
+func _glow_drawings(rng: RandomNumberGenerator, c: PixelCanvas) -> PackedByteArray:
+	var marked := PackedByteArray()
+	marked.resize(c.w * c.h)
+	for _k in rng.randi_range(1, 3):
+		var area := (Rect2i()
+				if rng.randf() < 0.4
+				else Rect2i(
+					rng.randi_range(-4, c.w - 2), rng.randi_range(-4, c.h - 2),
+					rng.randi_range(1, c.w), rng.randi_range(1, c.h),
+				))
+		var marks := _drawing(rng, c)
+		var before := c.img.duplicate() as Image
+		c.glowing(func() -> void: _draw(c, marks), area)
+		var r := (Rect2i(0, 0, c.w, c.h)
+				if area.size == Vector2i.ZERO
+				else area.intersection(Rect2i(0, 0, c.w, c.h)))
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				if before.get_pixel(x, y) != c.img.get_pixel(x, y):
+					marked[y * c.w + x] = 1
+	return marked
 
 
 ## A random drawing as `[x, y, colour]` marks: a few scattered pixels, a whole row, a line down a

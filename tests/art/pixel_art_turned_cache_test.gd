@@ -22,6 +22,12 @@ func describe() -> Dictionary:
 func run(t: TestContext) -> void:
 	var first := PixelArt.render_turned(Painter, SIZE, COLOR, 1.5, { "side": -1 })
 	t.check(first != null, "a texture is rendered")
+	_check_same_art(t, first)
+	_check_other_art(t, first)
+
+
+## Calls that mean `first`'s art share its texture.
+func _check_same_art(t: TestContext, first: Texture2D) -> void:
 	t.check(
 		PixelArt.render_turned(
 			Painter,
@@ -36,6 +42,10 @@ func run(t: TestContext) -> void:
 		PixelArt.render_turned(Painter, SIZE, COLOR, 1.5 + 0.00001, { "side": -1 }) == first,
 		"an angle that differs below the key's precision is the same texture",
 	)
+
+
+## Calls that differ from `first`'s in any input get another texture.
+func _check_other_art(t: TestContext, first: Texture2D) -> void:
 	t.check(
 		PixelArt.render_turned(Painter, SIZE, COLOR, 1.6, { "side": -1 }) != first,
 		"another angle is another texture",
@@ -63,7 +73,11 @@ func run(t: TestContext) -> void:
 		PixelArt.render_turned(Painter, Vector2(16, 16), COLOR, 1.5, { "side": -1 }) != first,
 		"another size is another texture",
 	)
+	_check_options_read_afresh(t)
 
+
+## An options dictionary changed after a call does not change what that call cached.
+func _check_options_read_afresh(t: TestContext) -> void:
 	var opts := { "side": -1 }
 	var left := PixelArt.render_turned(Painter, SIZE, COLOR, 2.0, opts)
 	opts["side"] = 1
