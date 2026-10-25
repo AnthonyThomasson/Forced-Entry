@@ -13,30 +13,34 @@ from tools/ down when it keeps none. The other test*.py files under tools/ are t
 (`python3 tools/test_log_gate.py`): the discovery never loads them, so nothing here picks them, and no tool is named
 through them. Fixtures and caches are no code. The rules:
   - a changed test module runs itself;
-  - a changed file runs every test module whose code names it. Code names a file by its repo-relative path
-    (`tools/lint.sh`), by its file name as a word of a path or a string of its own (`ROOT / ".githooks" /
-    "pre-commit"`, `$(dirname "$0")/lint.sh`), or, for a Python module, by importing it (`from tools.lint_rules
-    import walk`). A file name several files share (runner.py) counts only with its folder's name beside it. Code
-    also names every file of a folder below the top level that is no Python package (its files are read by listing
-    it, as the lint runner loads each rule, not imported one by one) when it names the folder whole: a path ending at
-    the folder, by its path or its parent's name and its own (`scenes/testing/*.gd`, `ROOT / "scenes" / "testing"`,
-    `LINT_RULES / "rules"` with `LINT_RULES = ROOT / "tools" / "lint_rules"`), or, in a Python module beside it, a
-    path ending in its name alone (tools/lint_rules/runner.py's `HERE / "rules"`). A path going on into the folder
-    names that file, not the folder, and a top-level folder (`ROOT / "scenes"`, copied whole) names no file: it would
-    tie a test to every file of the tree. Comments and docstrings are not code: a file named in prose is no
-    dependency. For a tool file, naming carries through the tools and the tests' shared helpers: a test of
-    tools/lint_staged.sh is picked for a change to tools/lint.sh, which lint_staged.sh runs, and a test importing a
-    helper's symbol for a change that symbol's code names. A file outside tools/ and .githooks/ counts only where a
-    test reads it, named by the test's own code or a helper symbol it imports, not through a tool that runs it
-    (tools/run_tests.sh names scenes/testing/test_batch.gd: the game tests the hook runs for that file cover it);
-  - a changed shared test helper (a .py in a package named tests that is not a test module: support.py,
-    __init__.py), or a changed tool file (under tools/ or .githooks/, not a test script) no test module or test
-    script names, runs the whole discovery;
-  - a changed file anywhere else (scenes/, docs/, gdstyle.toml ...), a test script, or a tool file only test scripts
-    name (tools/play_tests.sh, tested by tools/test_play_tests.py), that no test module names runs none.
+  - a changed tool file (under tools/ or .githooks/) runs every test module whose code names it. Code names a file by
+    its repo-relative path (`tools/lint.sh`), by its file name as a word of a path or a string of its own (`ROOT /
+    ".githooks" / "pre-commit"`, `$(dirname "$0")/lint.sh`), or, for a Python module, by importing it (`from
+    tools.lint_rules import walk`; an import of a module in a package names the package's __init__.py too). A file name
+    several files share (runner.py) counts only with its folder's name beside it. Code also names every file of a folder
+    below the top level that is no Python package (its files are read by listing it, as the lint runner loads each rule,
+    not imported one by one) when it names the folder whole: a path ending at the folder, by its path or its parent's
+    name and its own (`scenes/testing/*.gd`, `ROOT / "scenes" / "testing"`, `LINT_RULES / "rules"` with `LINT_RULES =
+    ROOT / "tools" / "lint_rules"`), or, in a Python module beside it, a path ending in its name alone
+    (tools/lint_rules/runner.py's `HERE / "rules"`). A path going on into the folder names that file, not the folder,
+    and a top-level folder (`ROOT / "scenes"`, copied whole) names no file: it would tie a test to every file of the
+    tree. Comments and docstrings are not code: a file named in prose is no dependency. Naming carries through the tools
+    and the tests' shared helpers: a test of tools/lint_staged.sh is picked for a change to tools/lint.sh, which
+    lint_staged.sh runs, and a test importing a helper's symbol for a change that symbol's code names;
+  - a changed file outside tools/ and .githooks/ runs every test module that reads it from the checkout: a Python path
+    the test's own code, or a helper symbol it imports, builds on the checkout (`ROOT / "gdstyle.toml"`, ROOT being
+    `Path(__file__).resolve().parents[2]`, or a name assigned such a path) that is the file or a listed folder holding
+    it. A path written into a repo or temp dir of the test's own (`repo / "scenes" / "main.gd"`) is no read, and neither
+    is a tool that runs the file (tools/run_tests.sh names scenes/testing/test_batch.gd): a test that runs a tool on the
+    checkout names the game file it depends on (test_load_check's `ROOT / "scenes" / "general" / "command_server.gd"`);
+  - a changed shared test helper (a .py in a package named tests that is not a test module: support.py, __init__.py), or
+    a changed tool file (not a test script) no test module or test script names, runs the whole discovery;
+  - a changed file outside the tools no test reads, a test script, or a tool file only test scripts name
+    (tools/play_tests.sh, tested by tools/test_play_tests.py), that no test module names runs none.
 """
 import ast
 import functools
+import posixpath
 import re
 import sys
 from collections import Counter
@@ -126,10 +130,13 @@ class Code:
         self.imports: list[tuple[str, list[str]]] = []  # (module, names): `from module import names`, [] for `import`
         # The (parent's name or None, name) of each Python path ending in a string: `X / "a" / "b"` is ("a", "b").
         self.path_ends: set[tuple[str | None, str]] = set()
+        # The repo-relative paths Python code builds on the checkout (`ROOT / "a" / "b"` is "a/b").
+        self.rooted: set[str] = set()
         self.text = text
         self.at = at
         if nodes is not None:
             self.path_ends = path_ends(nodes)
+            self.rooted = rooted_paths(nodes, at)
             docstrings = {id(n.value) for node in nodes for n in ast.walk(node) if isinstance(n, ast.Expr)
                           and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)}
             for node in nodes:
@@ -188,6 +195,10 @@ class Code:
             return True
         return self._imports(path) or any(self.names_folder(f) for f in listed)
 
+    def reads(self, path: str) -> bool:
+        """Whether this code builds `path`, or a listed folder holding it, on the checkout."""
+        return path in self.rooted or any(f in self.rooted for f in listed_folders(path))
+
     def names_folder(self, folder: str) -> bool:
         """Whether this code names `folder` whole: a path ending at it (its own, or its parent's name and its own), or,
         from a Python module in that parent, a path ending in its name alone."""
@@ -201,11 +212,14 @@ class Code:
         return self.at.rpartition("/")[0] == parent and (None, name) in self.path_ends
 
     def _imports(self, path: str) -> bool:
-        """Whether the code imports the Python module `path`."""
+        """Whether the code imports the Python module `path`, or (a package's __init__.py) any module of the package."""
         if not path.endswith(".py"):
             return False
+        if path.endswith("/__init__.py"):
+            package = dotted(path.rpartition("/")[0])
+            return any(m == package or m.startswith(package + ".") for m, _ in self.imports)
         # A package of the same name (tools/coverage/ beside tools/coverage.py) takes the import: the file is a script.
-        if (ROOT / path.removesuffix(".py")).is_dir():
+        if (ROOT / path.removesuffix(".py") / "__init__.py").is_file():
             return False
         module = dotted(path)
         package, _, stem = module.rpartition(".")
@@ -248,6 +262,75 @@ def path_ends(nodes: list) -> set[tuple[str | None, str]]:
         else:
             ends.add((None, name))
     return ends
+
+
+def rooted_paths(nodes: list, at: str) -> set[str]:
+    """The repo-relative paths Python code builds on the checkout: from `__file__` (the module at `at`), its `.parent`
+    / `.parents[n]`, `Path(...)` / `.resolve()` of one, a name (or `self.` attribute) assigned one, and `/` a string
+    on any of those. `ROOT = Path(__file__).resolve().parents[2]` in tools/tests/ is "", `ROOT / "gdstyle.toml"`
+    "gdstyle.toml"."""
+    def up(path: str | None, levels: int) -> str | None:
+        for _ in range(levels):
+            if not path:
+                return None
+            path = path.rpartition("/")[0]
+        return path
+
+    bound: dict[str, str] = {}
+
+    def resolve(e) -> str | None:
+        if isinstance(e, ast.Name):
+            return at if e.id == "__file__" else bound.get(e.id)
+        if isinstance(e, ast.Attribute):
+            if e.attr == "parent":
+                return up(resolve(e.value), 1)
+            if isinstance(e.value, ast.Name) and e.value.id in ("self", "cls"):
+                return bound.get(e.attr)
+            return None
+        if isinstance(e, ast.Subscript) and isinstance(e.value, ast.Attribute) and e.value.attr == "parents":
+            index = e.slice
+            if isinstance(index, ast.Constant) and isinstance(index.value, int):
+                return up(resolve(e.value.value), index.value + 1)
+            return None
+        if isinstance(e, ast.Call):
+            f = e.func
+            if isinstance(f, ast.Attribute) and f.attr in ("resolve", "absolute") and not e.args:
+                return resolve(f.value)
+            if isinstance(f, ast.Name) and f.id == "Path" and len(e.args) == 1:
+                return resolve(e.args[0])
+            return None
+        if isinstance(e, ast.BinOp) and isinstance(e.op, ast.Div):
+            base = resolve(e.left)
+            if base is None or not (isinstance(e.right, ast.Constant) and isinstance(e.right.value, str)):
+                return None
+            joined = posixpath.normpath(posixpath.join(base, e.right.value))
+            return None if joined.startswith("..") else joined.removeprefix(".")
+        return None
+
+    assigns = []
+    for node in nodes:
+        for n in ast.walk(node):
+            if isinstance(n, (ast.Assign, ast.AnnAssign)) and n.value is not None:
+                for target in n.targets if isinstance(n, ast.Assign) else [n.target]:
+                    key = target.id if isinstance(target, ast.Name) else getattr(target, "attr", None)
+                    if key:
+                        assigns.append((key, n.value))
+    changed = True
+    while changed:
+        changed = False
+        for key, value in assigns:
+            path = resolve(value)
+            if path is not None and bound.get(key) != path:
+                bound[key] = path
+                changed = True
+    # A path read is one used whole: not the left side of a longer one (`ROOT / "scenes"` in `ROOT / "scenes" / "x"`),
+    # and a name only where it is loaded for its own use (`BATCH.glob(...)`), not as such a base.
+    walked = [n for node in nodes for n in ast.walk(node)]
+    bases = {id(n.left) for n in walked if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div)}
+    used = [n for n in walked if id(n) not in bases and (
+        (isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div))
+        or (isinstance(n, (ast.Name, ast.Attribute)) and isinstance(n.ctx, ast.Load)))]
+    return {p for p in map(resolve, used) if p}
 
 
 def helper_symbols(path: str) -> dict[str, Code]:
@@ -299,6 +382,8 @@ def pick(changed: list[str]) -> tuple[list[str], list[str]]:
         if "::" in target:
             helper, symbol = target.split("::")
             return code[source].uses(dotted(helper), symbol)
+        if not target.startswith(TOOL_TREES):
+            return code[source].reads(target)
         return code[source].names(target, counts[target.rpartition("/")[2]] > 1)
 
     picked = set()

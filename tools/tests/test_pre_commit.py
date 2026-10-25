@@ -4,15 +4,16 @@ when one fails. It runs `tools/run_tests.sh --changed …` when scenes/, tests/ 
 And it runs the lint of what the commit holds (`tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts) when
 the commit stages a script the lint holds to its rules that the game tests do not lint for it: a .gd outside addons/ and
 the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own files (gdstyle.toml, tools/gdstyle.sh,
-tools/lint_gdstyle.py) or a project lint rule (tools/lint_rules/ but its tests). When the game tests run they lint first
-(run_tests.sh), so the hook does not lint again. Before any of that it refuses a commit that leaves a script Godot
-imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without its
-.gd, naming each and the import command (tools/load_check.sh --import), and runs nothing else.
+tools/lint_gdstyle.py) or of the lint itself (tools/lint.sh, its report and scripts, the code of tools/lint_rules/ but
+its tests). When the game tests run they lint first (run_tests.sh), so the hook does not lint again. Before any of that
+it refuses a commit that leaves a script Godot imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its
+.gd.uid in the index, or a .gd.uid without its .gd, naming each and the import command (tools/load_check.sh --import),
+and runs nothing else.
 
 It checks what the commit holds, not the working tree: the lint is given the staged scripts (added, copied, modified or
-renamed; not deleted ones), read as they are on disk, or the whole tree when a gdstyle file or a lint rule is staged;
-the game tests are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is
-labelled `not in this commit: <path>`.
+renamed; not deleted ones), read as they are on disk, or the whole tree when a gdstyle or lint file is staged; the game
+tests are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is labelled
+`not in this commit: <path>`.
 
 Each case is a temp git repo holding a copy of this checkout's hook, tools/lint_staged.sh (the lint of what the commit
 holds) and tools/lint_label.py, a fake tools/run_tests.sh that logs its arguments (and fails when FAKE_GAME_FAIL=1, or
@@ -102,11 +103,13 @@ class SentinelTests(unittest.TestCase):
                                                  for k in ("GIT_DIR", "GIT_INDEX_FILE")]) + "\\n")
         self.assertNotEqual(os.environ.get("SENTINEL_FAIL"), "1", "the sentinel tool test was told to fail")
 '''
-# A tool test whose code names tools/picked.sh (or the file add_picked gives), the one file only it names.
+# A tool test whose code names tools/picked.sh (or the file add_picked gives) in its checkout, the one file only it
+# names.
 PICKED = '''import os
 import unittest
+from pathlib import Path
 
-TOOL = "{names}"
+TOOL = Path(__file__).resolve().parents[2] / "{names}"
 
 
 class PickedTests(unittest.TestCase):

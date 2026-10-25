@@ -2,10 +2,11 @@
 tools/tool_tests_pick.py picks them.
 
 PickTests pin the mapping on this checkout's own tools: a hook-only commit picks the hook's test, a shared test helper
-or a file no test names picks everything, a staged test module runs itself, and naming carries through the tools (a
-change to tools/lint.sh picks the tests of what runs it) and through the helper symbols a test imports (not the rest
-of the helper). This module names those files too, so it is among the picks: what it asserts is read from them.
-ScriptTests run the script in a throwaway repo with two sentinel test modules, staged files and git.
+or a tool file no test names picks everything, a file outside the tools picks only the tests that read it from the
+checkout, a staged test module runs itself, and naming carries through the tools (a change to tools/lint.sh picks the
+tests of what runs it) and through the helper symbols a test imports (not the rest of the helper). This module's code
+names many of those files as sample paths, so it is among their picks. ScriptTests run the script in a throwaway repo
+with sentinel test modules, staged files and git, where each rule's picks are exact.
 """
 import os
 import subprocess
@@ -72,6 +73,28 @@ class PickTests(unittest.TestCase):
                       "it reads the flags of every script in scenes/testing/")
         self.assertIn("tools.tests.test_gdstyle_reflow", self.modules("gdstyle.toml"))
 
+    def test_a_path_a_test_writes_into_a_repo_of_its_own_is_no_read_of_the_checkouts_file(self):
+        coverage = {"tools.coverage.tests.test_runner_cli", "tools.coverage.tests.test_instrument",
+                    "tools.coverage.tests.test_user_dir", "tools.coverage.tests.test_workspace"}
+        for path in ("scenes/main.gd", "scenes/main.tscn", "scenes/general/event_bus.gd", "project.godot"):
+            with self.subTest(path=path):
+                self.assertEqual(coverage & set(self.modules(path)), set())
+        picked = self.modules("scenes/ai/brain.gd")
+        self.assertNotIn("tools.lint_rules.tests.test_coverage_isolation", picked, "it lints a temp tree's scenes/ai")
+        self.assertNotIn("tools.lint_rules.tests.test_comment_ticket_refs", picked)
+
+    def test_a_game_file_a_test_runs_a_tool_on_picks_it(self):
+        self.assertIn("tools.tests.test_load_check", self.modules("scenes/general/command_server.gd"),
+                      "CommandPortTests runs the load check on the checkout, the server kept off")
+        self.assertNotIn("tools.tests.test_load_check", self.modules("scenes/general/event_bus.gd"),
+                         "scenes/general/ is only the way to the server's path, not a folder it reads")
+
+    def test_a_package_init_is_named_by_every_import_of_the_package(self):
+        picked = self.modules("tools/__init__.py")
+        for module in ("tools.tests.test_pre_commit", "tools.lint_rules.tests.test_lint_sh",
+                       "tools.coverage.tests.test_runner_cli"):
+            self.assertIn(module, picked)
+
     def test_a_staged_test_module_runs_itself_and_its_importers(self):
         picked = self.modules("tools/tests/test_gdstyle.py")
         self.assertIn("tools.tests.test_gdstyle", picked)
@@ -108,8 +131,25 @@ class PickTests(unittest.TestCase):
         self.assertEqual(script(OUTSIDE), "")
 
 
+# The throwaway repo's tools/__init__.py: its discovery keeps to tools/tests/, as this checkout's keeps to its tests
+# packages, so tools/test_script.py there is a test script.
+INIT = '''from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+TEST_PACKAGES = ("tests",)
+
+
+def load_tests(loader, tests, pattern):
+    for package in TEST_PACKAGES:
+        tests.addTests(loader.discover(start_dir=str(HERE / package), pattern=pattern or "test*.py",
+                                       top_level_dir=str(HERE.parent)))
+    return tests
+'''
 SENTINEL = '''import os
 import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
 
 # {names}
 
@@ -123,9 +163,12 @@ class SentinelTests(unittest.TestCase):
 
 
 class ScriptTests(unittest.TestCase):
-    """A throwaway repo with tools/tool_tests.sh, the picker, tools/a.sh and docs/read.md (named by test_a's code),
-    tools/b.sh and docs/notes.md (named by no test), and two sentinel modules that log their name (test_other names
-    tools/c.sh, a.sh's name after a rename), committed."""
+    """A throwaway repo with tools/tool_tests.sh, the picker and sentinel test modules that log their name, committed.
+    Its tools/__init__.py keeps the discovery to tools/tests/, as this checkout's does. test_a names tools/a.sh and
+    reads docs/read.md from its checkout; test_other names tools/c.sh (a.sh's name after a rename) and writes
+    docs/fixture.md into a repo of its own; test_kit reads tools/kit/plugins/ (no package) through a variable and the
+    top-level docs/ whole; tools/test_script.py, a test script, names tools/script_only.sh. tools/b.sh and
+    docs/notes.md are named by no test."""
 
     def setUp(self):
         self.tmp = TempDir()
@@ -134,12 +177,16 @@ class ScriptTests(unittest.TestCase):
         self.root = d / "repo"
         self.log = d / "ran.log"
         files = {
-            "tools/__init__.py": "", "tools/tests/__init__.py": "", "tools/a.sh": "echo a\n", "tools/b.sh": "",
+            "tools/__init__.py": INIT, "tools/tests/__init__.py": "", "tools/a.sh": "echo a\n", "tools/b.sh": "",
             "tools/tests/test_a.py": SENTINEL.replace("{name}", "a").replace(
-                "# {names}", 'TOOL = "tools/a.sh"\nDOC = "docs/read.md"'),
+                "# {names}", 'TOOL = "tools/a.sh"\nDOC = ROOT / "docs" / "read.md"'),
             "tools/tests/test_other.py": SENTINEL.replace("{name}", "other").replace(
-                "# {names}", 'TOOL = "tools/c.sh"'),
-            "docs/notes.md": "", "docs/read.md": "",
+                "# {names}", 'TOOL = "tools/c.sh"\nFIXTURE = Path("/tmp/repo") / "docs" / "fixture.md"'),
+            "tools/tests/test_kit.py": SENTINEL.replace("{name}", "kit").replace(
+                "# {names}", 'KIT = ROOT / "tools" / "kit"\nPLUGINS = KIT / "plugins"\nDOCS = ROOT / "docs"'),
+            "tools/kit/__init__.py": "", "tools/kit/plugins/p.py": "",
+            "tools/test_script.py": 'TOOL = "tools/script_only.sh"\n', "tools/script_only.sh": "",
+            "docs/notes.md": "", "docs/read.md": "", "docs/fixture.md": "",
         }
         for rel, text in files.items():
             (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -175,13 +222,28 @@ class ScriptTests(unittest.TestCase):
         self.stage("tools/a.sh", "tools/b.sh")
         code, out, ran = self.run_script("--staged")
         self.assertEqual(code, 0, out)
-        self.assertEqual(sorted(ran), ["a", "other"])
+        self.assertEqual(sorted(ran), ["a", "kit", "other"])
         self.assertIn("tool tests: all (no tool test names tools/b.sh)", out)
 
     def test_staged_runs_the_modules_naming_a_file_outside_the_tools(self):
         self.stage("docs/read.md")
         code, out, ran = self.run_script("--staged")
         self.assertEqual((code, ran), (0, ["a"]), out)
+
+    def test_staged_a_path_a_test_writes_into_a_repo_of_its_own_runs_nothing(self):
+        self.stage("docs/fixture.md")
+        code, out, ran = self.run_script("--staged")
+        self.assertEqual((code, ran), (0, []), out)
+
+    def test_staged_a_file_in_a_folder_read_through_a_variable_runs_its_reader(self):
+        self.stage("tools/kit/plugins/p.py")
+        code, out, ran = self.run_script("--staged")
+        self.assertEqual((code, ran), (0, ["kit"]), out)
+
+    def test_staged_a_tool_file_only_a_test_script_names_runs_nothing(self):
+        self.stage("tools/script_only.sh")
+        code, out, ran = self.run_script("--staged")
+        self.assertEqual((code, ran), (0, []), out)
 
     def test_staged_with_only_files_no_test_names_outside_the_tools_runs_nothing(self):
         self.stage("docs/notes.md")
@@ -209,7 +271,7 @@ class ScriptTests(unittest.TestCase):
     def test_without_staged_it_runs_the_whole_discovery(self):
         code, out, ran = self.run_script()
         self.assertEqual(code, 0, out)
-        self.assertEqual(sorted(ran), ["a", "other"])
+        self.assertEqual(sorted(ran), ["a", "kit", "other"])
         self.assertIn("tool tests: all", out)
 
     def test_an_unknown_argument_is_refused(self):

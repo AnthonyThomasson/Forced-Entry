@@ -1,8 +1,9 @@
 """tools/lint_staged.sh: the lint of what a commit holds, which the pre-commit hook and `tools/run_tests.sh --changed
 --staged` both run. It gives tools/lint.sh the staged scripts the lint reads (added, copied, modified or renamed, not
 deleted: a .gd outside addons/ and the coverage tool's fixtures), or no path (the whole tree) when a file that governs
-every script is staged (project.godot, gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py, a file of the project
-lint rules: tools/lint_rules/ but its tests); with nothing to lint it
+every script is staged (project.godot, gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py, the lint's own
+tools/lint.sh, tools/lint_report.py and tools/lint_scripts.gd / .tscn, or a lint rule: the code of tools/lint_rules/
+but its tests); with nothing to lint it
 runs nothing and says so (silent with --quiet); a finding in a script the commit does not hold is labelled
 `not in this commit: <path>`.
 
@@ -30,7 +31,8 @@ exit 0
 """
 FILES = ("sandboxes/a_sandbox.gd", "sandboxes/b_sandbox.gd", "addons/plugin/p.gd",
          "tools/coverage/tests/fixtures/project/f.gd", "project.godot", "gdstyle.toml", "docs/notes.md",
-         "tools/lint_rules/rules/a_rule.py", "tools/lint_rules/walk.py", "tools/lint_rules/tests/test_a_rule.py")
+         "tools/lint_rules/rules/a_rule.py", "tools/lint_rules/walk.py", "tools/lint_rules/tests/test_a_rule.py",
+         "tools/lint_rules/README.md", "tools/lint_report.py", "tools/lint_scripts.gd", "tools/lint_scripts.tscn")
 
 
 class Repo:
@@ -76,7 +78,8 @@ class LintStagedTests(unittest.TestCase):
 
     def test_a_staged_file_that_governs_every_script_lints_the_whole_tree(self):
         for governing in ("project.godot", "gdstyle.toml", "tools/lint_rules/rules/a_rule.py",
-                          "tools/lint_rules/walk.py"):
+                          "tools/lint_rules/walk.py", "tools/lint.sh", "tools/lint_report.py", "tools/lint_scripts.gd",
+                          "tools/lint_scripts.tscn"):
             with self.subTest(governing=governing), TempDir("lint_staged_test.") as d:
                 repo = Repo(d / "repo")
                 repo.stage("sandboxes/a_sandbox.gd", governing)
@@ -84,10 +87,10 @@ class LintStagedTests(unittest.TestCase):
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
                 self.assertEqual(calls, ["lint "], "no path: every script")
 
-    def test_a_lint_rules_test_alone_lints_nothing(self):
+    def test_a_lint_rules_test_or_readme_alone_lints_nothing(self):
         with TempDir("lint_staged_test.") as d:
             repo = Repo(d / "repo")
-            repo.stage("tools/lint_rules/tests/test_a_rule.py")
+            repo.stage("tools/lint_rules/tests/test_a_rule.py", "tools/lint_rules/README.md")
             r, calls = repo.lint("--quiet")
             self.assertEqual((r.returncode, calls), (0, []), r.stdout + r.stderr)
 

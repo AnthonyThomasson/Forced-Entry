@@ -110,7 +110,8 @@ interface 23), the module Main builds its matches with, so a test world is stage
   `tools/test_log_gate.py` tests this mapping. **`--changed --staged`** (the pre-commit hook's) maps what is staged
   (`git diff --cached`) instead, and lints what the commit holds through `tools/lint_staged.sh` (the helper the hook's
   own lint runs too): the staged scripts (added, copied, modified or renamed, as they are on disk; the whole tree when
-  `project.godot` or a gdstyle file is staged; no lint when no script is), labelling a finding in a script not staged
+  `project.godot`, a gdstyle file or a file of the lint itself is staged: `tools/lint.sh`, `lint_report.py`,
+  `lint_scripts.gd` / `.tscn`, the code of `tools/lint_rules/` but its tests; no lint when no script is), labelling a finding in a script not staged
   `not in this commit: <path>` (`tools/lint_label.py`); that lint never records the clean-lint fingerprint.
   `test_log_gate.py`'s `StagedChangedTests` run it through git in a throwaway repo.
 - **Which command?**

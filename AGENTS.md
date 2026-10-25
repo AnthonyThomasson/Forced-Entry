@@ -28,10 +28,11 @@ touches `scenes/`, `tests/` or `project.godot`, and without the performance test
 (`tools/tool_tests.sh --staged`: the test modules whose code names it, all of them for a shared test helper or a tool
 file no test names; `tools/tool_tests.sh` alone runs them all, the `tools/test_*.py` scripts apart, which run on their
 own); when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, one of gdstyle's own
-files or a lint rule, it runs the commit's lint itself. It checks what the commit holds, not the working tree. The
-commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged scripts as they are on disk, the whole tree when
-`project.godot`, a gdstyle file or a lint rule (`tools/lint_rules/` but its tests) is staged; a finding in a file the
-commit does not hold says `not in this commit: <path>`.
+files or a file of the lint itself, it runs the commit's lint itself. It checks what the commit holds, not the working
+tree. The commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged scripts as they are on disk, the whole
+tree when `project.godot`, a gdstyle file or a file of the lint (`tools/lint.sh`, `lint_report.py`, `lint_scripts.gd` /
+`.tscn`, the code of `tools/lint_rules/` but its tests) is staged; a finding in a file the commit does not hold says
+`not in this commit: <path>`.
 A commit-msg hook (`.githooks/commit-msg`) refuses a message whose `Co-Authored-By: Claude <model>` line names another
 model than the branch's earlier commits. Enable both once per clone with `tools/install_hooks.sh`.
 

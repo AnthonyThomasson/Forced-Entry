@@ -117,11 +117,14 @@ class LoadCheckTests(unittest.TestCase):
 @needs_godot
 class CommandPortTests(unittest.TestCase):
     """The real engine: the load check never starts the dev command server, so a port another process holds (another
-    worktree's game or check on the project's 9080) cannot fail it, even when the caller names that very port."""
+    worktree's game or check on the project's 9080) cannot fail it, even when the caller names that very port. It
+    rests on the server staying off for GODOT_CMD_PORT=off, which the load check sets: the test of that switch."""
 
     PORT = 9080  # application/debug/command_port
+    SERVER = ROOT / "scenes" / "general" / "command_server.gd"
 
     def test_the_check_passes_while_the_command_port_is_held(self):
+        self.assertIn('env_port == "off"', self.SERVER.read_text(), "premise: the server reads the switch")
         holder = socket.socket()
         try:
             holder.bind(("127.0.0.1", self.PORT))

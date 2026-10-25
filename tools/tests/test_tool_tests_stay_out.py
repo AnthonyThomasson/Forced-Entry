@@ -7,7 +7,9 @@ with `ast`: a path is rooted when it is built from `ROOT` or `__file__`, or from
 ...`, then `self.PROBE`), and a write on a rooted path fails: `write_text` / `write_bytes` / `mkdir` / `touch` /
 `symlink_to`, `open` in a writing mode, the destination of `shutil.copy*` / `copytree` / `move`, `os.makedirs`, either
 side of a path's `rename` / `replace` or of `os.rename` / `os.replace` (a file moved out of the tree is gone from it),
-and a `dir=` (a temp file made in the tree). The message is `file:line` and what to do instead.
+and a `dir=` (a temp file made in the tree). The message is `file:line` and what to do instead. The check reads each
+call where it stands: a write inside a function of the test's own, made on a parameter the caller passes a rooted path
+(`def save(p): p.write_text(...)`, then `save(ROOT / "x")`), is out of its reach.
 """
 import ast
 import unittest

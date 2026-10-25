@@ -2,10 +2,10 @@
 # Lint what the commit holds (the pre-commit hook and tools/run_tests.sh --changed --staged run it): tools/lint.sh on
 # the staged scripts the lint reads (added, copied, modified or renamed, not deleted: a .gd outside addons/ and the
 # coverage tool's fixtures), as they are on disk, or on the whole tree when a file that governs every script is staged
-# (project.godot, a file of the gdstyle pass: gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py, or of the project
-# lint rules: tools/lint_rules/ but its tests). A finding in
-# a script the commit does not hold (the engine pass reports one a staged script loads) is labelled
-# `not in this commit: <path>` (tools/lint_label.py).
+# (project.godot; a file of the gdstyle pass: gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py; the lint's own
+# tools/lint.sh, tools/lint_report.py, tools/lint_scripts.gd / .tscn; or a lint rule: the code of tools/lint_rules/
+# but its tests). A finding in a script the commit does not hold (the engine pass reports one a staged script loads)
+# is labelled `not in this commit: <path>` (tools/lint_label.py).
 #   tools/lint_staged.sh [--quiet]
 #     --quiet  passed to tools/lint.sh (nothing printed when clean), and no "lint skipped" line
 # Exits as tools/lint.sh does, and 2 outside a git checkout. With no script to lint it runs nothing, says "lint skipped:
@@ -22,6 +22,7 @@ done
 git rev-parse --git-dir >/dev/null || exit 2
 
 governs='^(project\.godot|gdstyle\.toml|tools/gdstyle\.sh|tools/lint_gdstyle\.py'
+governs+='|tools/lint\.sh|tools/lint_report\.py|tools/lint_scripts\.(gd|tscn)'
 governs+='|tools/lint_rules/(rules/)?[^/]+\.py)$'
 # Paths as they are (core.quotePath off): git would quote a non-ASCII one, and no pattern would match it. Read to the
 # end (no grep -q): under pipefail an early exit would fail the first grep on a long list (SIGPIPE).
