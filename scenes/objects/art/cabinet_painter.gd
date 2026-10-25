@@ -39,12 +39,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 		"lid":
 			_lid(c, top_rect, base, t)
 
-	var handle: Color = opts.get("handle", ObjectArtConfig.cabinet_handle_color)
-	_front(
-		c, Rect2i(0, c.h - lip, c.w, lip), String(opts.get("front", ObjectArtConfig.cabinet_front)),
-		int(opts.get("count", ObjectArtConfig.cabinet_count)), bool(opts.get("labels", false)),
-		base, t, handle,
-	)
+	_front(c, Rect2i(0, c.h - lip, c.w, lip), base, opts)
 	c.outline(body, t.outline)
 	Props.draw_all(c, opts.get("props", []), top_rect.grow(-3), Decay.screen_color(opts))
 	c.cast_shadows()
@@ -64,19 +59,21 @@ static func casegoods(c: PixelCanvas, material: String) -> void:
 	Decay.stickers(c, 2)
 
 
-## The front lip: a face shaded by how it meets the light, split into `count` doors or drawers.
-static func _front(c: PixelCanvas, strip: Rect2i, kind: String, count: int, labels: bool,
-		base: Color, t: Dictionary, handle: Color) -> void:
+## The front lip: a face shaded by how it meets the light, split into doors or drawers (`opts`:
+## `front`, `count`, `labels`, `handle`).
+static func _front(c: PixelCanvas, strip: Rect2i, base: Color, opts: Dictionary) -> void:
+	var t := PixelCanvas.tones(base)
 	var facing_light := Vector2.DOWN.dot(c.light)
 	var face := (base.lightened(0.08)
 			if facing_light > 0.3
 			else (base.darkened(0.14) if facing_light < -0.3 else base.darkened(0.05)))
 	c.paint_over(strip, face)
 	c.line(Vector2i(1, strip.position.y), Vector2i(c.w - 2, strip.position.y), t.shadow)
+	var kind := String(opts.get("front", ObjectArtConfig.cabinet_front))
 	if kind == "none" or strip.size.y < 2:
 		return
-	var n := maxi(1, count)
-	var mid_y := strip.position.y + int(strip.size.y / 2.0)
+	var n := maxi(1, int(opts.get("count", ObjectArtConfig.cabinet_count)))
+	var handle: Color = opts.get("handle", ObjectArtConfig.cabinet_handle_color)
 	var seams: Array[int] = []
 	for i in range(1, n):
 		var x := roundi(float(i) * c.w / n)
@@ -90,21 +87,7 @@ static func _front(c: PixelCanvas, strip: Rect2i, kind: String, count: int, labe
 				_vbar(c, x - 2, strip, handle)
 				_vbar(c, x + 2, strip, handle)
 		"drawers":
-			for i in n:
-				var cx := roundi((i + 0.5) * c.w / n)
-				var half := clampi(int(int(c.w / float(n)) / 6.0), 1, 4)
-				c.line(
-					Vector2i(cx - half, mid_y),
-					Vector2i(cx + half, mid_y),
-					handle,
-					_BODY_HEIGHT + 1,
-				)
-				if labels and strip.size.y >= 4:
-					c.line(
-						Vector2i(cx - 1, mid_y - 2),
-						Vector2i(cx + 1, mid_y - 2),
-						Color(0.92, 0.9, 0.84),
-					)
+			_drawer_pulls(c, strip, n, handle, bool(opts.get("labels", false)))
 		"lid":
 			c.fill(
 				PixelCanvas.rounded(
@@ -113,6 +96,23 @@ static func _front(c: PixelCanvas, strip: Rect2i, kind: String, count: int, labe
 				),
 				handle,
 				_BODY_HEIGHT + 1,
+			)
+
+
+## A `handle` pull centred on each of the `n` drawers across the front strip, and a pale label above
+## each when `labels` (and the strip is deep enough).
+static func _drawer_pulls(c: PixelCanvas, strip: Rect2i, n: int, handle: Color,
+		labels: bool) -> void:
+	var mid_y := strip.position.y + int(strip.size.y / 2.0)
+	for i in n:
+		var cx := roundi((i + 0.5) * c.w / n)
+		var half := clampi(int(int(c.w / float(n)) / 6.0), 1, 4)
+		c.line(Vector2i(cx - half, mid_y), Vector2i(cx + half, mid_y), handle, _BODY_HEIGHT + 1)
+		if labels and strip.size.y >= 4:
+			c.line(
+				Vector2i(cx - 1, mid_y - 2),
+				Vector2i(cx + 1, mid_y - 2),
+				Color(0.92, 0.9, 0.84),
 			)
 
 

@@ -39,6 +39,12 @@ static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 	)
 	c.fill(basin, base.darkened(0.06), _TRAY_HEIGHT)
 	c.bevel(basin, 1, 2, t.shadow, t.light)
+	_water(c, basin_rect)
+	_tub_tap(c, basin_rect, lip)
+
+
+## The tub's water inside `basin_rect`, with ripples and glare.
+static func _water(c: PixelCanvas, basin_rect: Rect2i) -> void:
 	var water_col := ObjectArtConfig.bath_water_color
 	var water_rect := basin_rect.grow(-3)
 	var water := PixelCanvas.rounded(
@@ -53,6 +59,10 @@ static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 		)
 		c.line(p, p + Vector2i(c.rng.randi_range(3, 6), 0), water_col.lightened(0.18))
 	c.glare(water, water_col.lightened(0.45), 2)
+
+
+## The tub's drain at the left end of `basin_rect` and its mixer tap across the `lip`.
+static func _tub_tap(c: PixelCanvas, basin_rect: Rect2i, lip: int) -> void:
 	var cy := int(c.h / 2.0)
 	var metal := ObjectArtConfig.counter_tap_color
 	var drain := Vector2i(basin_rect.position.x + 7, cy)
@@ -78,8 +88,14 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 		c.line(Vector2i(3, y), Vector2i(c.w - 4, y), grout)
 	c.bevel(tray, 1, 2, t.light, t.dark)
 	c.outline(tray, t.shadow)
-
 	var metal := ObjectArtConfig.counter_tap_color
+	_shower_drain(c, metal)
+	_shower_screen(c)
+	_shower_head(c, metal)
+
+
+## The shower tray's central drain grate, in `metal`.
+static func _shower_drain(c: PixelCanvas, metal: Color) -> void:
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var drain := PixelCanvas.disc(o, 3)
 	c.fill(drain, metal)
@@ -87,6 +103,9 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 	for d in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
 		c.px(o.x + d.x, o.y + d.y, metal.darkened(0.5))
 
+
+## The glass screen along the shower's front and right side.
+static func _shower_screen(c: PixelCanvas) -> void:
 	var glass := ObjectArtConfig.shower_glass_color
 	var band := 2
 	c.fill(PixelCanvas.rounded(Rect2i(0, c.h - band, c.w, band), 0), glass, _FIXTURE_HEIGHT)
@@ -94,6 +113,9 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 	c.line(Vector2i(1, c.h - band), Vector2i(c.w - band - 1, c.h - band), glass.lightened(0.4))
 	c.line(Vector2i(c.w - band, 1), Vector2i(c.w - band, c.h - band - 1), glass.lightened(0.4))
 
+
+## The shower head on its arm from the back wall and the soap dish in the back corner, in `metal`.
+static func _shower_head(c: PixelCanvas, metal: Color) -> void:
 	var head := Vector2i(roundi(c.w * 0.22), roundi(c.h * 0.16))
 	c.fill(PixelCanvas.rounded(Rect2i(head.x - 1, 0, 2, head.y), 0), metal, _FIXTURE_HEIGHT)
 	var rose := PixelCanvas.disc(head, maxi(2, int(c.w / 18.0)))

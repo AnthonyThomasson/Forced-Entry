@@ -17,8 +17,28 @@ const _ROOF_HEIGHT := 10
 static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: Dictionary) -> void:
 	var base := paint_color.lerp(ObjectArtConfig.car_beater_color, ObjectArtConfig.car_beater)
 	var t := PixelCanvas.tones(base)
-	var tyre := ObjectArtConfig.car_tyre_color
 	var tyre_w := maxi(4, roundi(c.w * 0.1))
+	_tyres(c, tyre_w)
+
+	var inset := tyre_w - 2
+	var body_rect := Rect2i(inset, 1, c.w - inset * 2, c.h - 2)
+	var body := PixelCanvas.rounded(body_rect, roundi(body_rect.size.x * 0.2))
+	c.fill(body, base, _BODY_HEIGHT)
+	c.bevel(body, 2, 3, t.highlight, t.dark)
+	c.glare(body, base.lightened(0.3), 3)
+	_trim(c, body_rect, base, t)
+	_glazing(c, body_rect, base, t)
+	c.outline(body, t.outline)
+	c.cast_shadows()
+	Decay.grime(c)
+	Decay.rust(c, 30)
+	Decay.primer(c)
+	Decay.scratches(c, 10)
+
+
+## The four tyres, `tyre_w` wide, peeking out at the corners, treads striped.
+static func _tyres(c: PixelCanvas, tyre_w: int) -> void:
+	var tyre := ObjectArtConfig.car_tyre_color
 	var tyre_h := maxi(6, roundi(c.h * 0.14))
 	for fy in [0.14, 0.72]:
 		for x in [0, c.w - tyre_w]:
@@ -31,14 +51,10 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 					tyre.lightened(0.15),
 				)
 
-	var inset := tyre_w - 2
-	var body_rect := Rect2i(inset, 1, c.w - inset * 2, c.h - 2)
-	var body := PixelCanvas.rounded(body_rect, roundi(body_rect.size.x * 0.2))
-	c.fill(body, base, _BODY_HEIGHT)
-	c.bevel(body, 2, 3, t.highlight, t.dark)
-	c.glare(body, base.lightened(0.3), 3)
 
-	var glass := ObjectArtConfig.car_glass_color
+## What dresses each side of the `base` body in `body_rect` (hood crease, headlight, tail light,
+## wing mirror, door seams and handles) and the grille up front.
+static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary) -> void:
 	var cx := int(c.w / 2.0)
 	for side in [-1, 1]:
 		var crease_x: int = cx + side * roundi(body_rect.size.x * 0.22)
@@ -54,7 +70,12 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 		)
 		c.fill(tail, Color(0.8, 0.12, 0.1), _BODY_HEIGHT)
 		var mirror := PixelCanvas.rounded(
-			Rect2i(inset - 4 if side < 0 else body_rect.end.x - 1, roundi(c.h * 0.55), 5, 4),
+			Rect2i(
+				body_rect.position.x - 4 if side < 0 else body_rect.end.x - 1,
+				roundi(c.h * 0.55),
+				5,
+				4,
+			),
 			1,
 		)
 		c.fill(mirror, base, _BODY_HEIGHT)
@@ -70,6 +91,10 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 	)
 	c.fill(grille, t.outline, _BODY_HEIGHT)
 
+
+## The tinted windscreen and rear window, and the raised roof between them with its side windows.
+static func _glazing(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary) -> void:
+	var glass := ObjectArtConfig.car_glass_color
 	var screen := PixelCanvas.rounded(
 		Rect2i(
 			body_rect.position.x + 8,
@@ -109,9 +134,3 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 			glass,
 			_BODY_HEIGHT,
 		)
-	c.outline(body, t.outline)
-	c.cast_shadows()
-	Decay.grime(c)
-	Decay.rust(c, 30)
-	Decay.primer(c)
-	Decay.scratches(c, 10)

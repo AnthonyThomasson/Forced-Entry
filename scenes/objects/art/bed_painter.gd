@@ -33,7 +33,18 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	)
 	c.fill(pillow, ticking.lightened(0.08), _PILLOW_HEIGHT)
 	c.outline(pillow, mt.dark)
+	_blanket(c, base, rect)
+	for _i in 3:
+		Decay.stain(c, _STAIN, 6)
+	c.cast_shadows()
+	Decay.grime(c)
+	var neon := Decay.neon(opts)
+	if neon.a > 0.0:
+		Decay.neon_ring(c, 1, neon, 0.55)
 
+
+## The `base` blanket thrown over the lower half of the mattress `rect`, creased.
+static func _blanket(c: PixelCanvas, base: Color, rect: Rect2i) -> void:
 	var blanket_rect := Rect2i(
 		rect.position.x - 1,
 		int(rect.size.y * 0.5),
@@ -55,10 +66,3 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 		)
 	c.bevel(blanket, 1, 2, bt.light, bt.dark)
 	c.outline(blanket, bt.outline)
-	for _i in 3:
-		Decay.stain(c, _STAIN, 6)
-	c.cast_shadows()
-	Decay.grime(c)
-	var neon := Decay.neon(opts)
-	if neon.a > 0.0:
-		Decay.neon_ring(c, 1, neon, 0.55)

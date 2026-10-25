@@ -35,10 +35,14 @@ func _ready() -> void:
 		texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 		var tile_size := Vector2(ObjectArtConfig.wall_tile_px, _wall.wall_thickness)
 		_tile = ObjectArt.texture(
-			_wall.art, tile_size, _wall.art_color, Vector2.DOWN, "", _wall.art_opts,
+			_wall.art,
+			tile_size,
+			_wall.art_color,
+			Vector2.DOWN,
+			_wall.art_opts,
 		)
 		_emissive = ObjectArt.emissive(
-			_wall.art, tile_size, _wall.art_color, Vector2.DOWN, "", _wall.art_opts,
+			_wall.art, tile_size, _wall.art_color, Vector2.DOWN, _wall.art_opts,
 		)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)

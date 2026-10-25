@@ -64,24 +64,8 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 	var x := well.position.x + 2
 	while x < well.end.x - 6:
 		match c.rng.randi_range(0, 3):
-			0:  # An arm along the depth: upper, elbow, forearm.
-				c.line(
-					Vector2i(x, well.position.y + 1),
-					Vector2i(x, well.end.y - 3),
-					chrome,
-					_TOOL_HEIGHT,
-				)
-				c.line(
-					Vector2i(x + 1, well.position.y + 1),
-					Vector2i(x + 1, well.end.y - 3),
-					chrome.darkened(0.25),
-					_TOOL_HEIGHT,
-				)
-				c.fill(
-					PixelCanvas.disc(Vector2i(x, well.position.y + int(well.size.y / 2.0)), 1),
-					ObjectArtConfig.clinic_joint_color,
-					_TOOL_HEIGHT,
-				)
+			0:  # An arm.
+				_arm(c, x, well, chrome)
 				x += 5
 			1:  # An eye.
 				var o := Vector2i(
@@ -108,3 +92,19 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 				c.fill(PixelCanvas.disc(o, 3), ObjectArtConfig.clinic_jar_color, _TOOL_HEIGHT)
 				c.outline(PixelCanvas.disc(o, 3), chrome)
 				x += 8
+
+
+## An arm along the shelf's depth at column `x` of its `well`: upper, elbow, forearm, in `chrome`.
+static func _arm(c: PixelCanvas, x: int, well: Rect2i, chrome: Color) -> void:
+	c.line(Vector2i(x, well.position.y + 1), Vector2i(x, well.end.y - 3), chrome, _TOOL_HEIGHT)
+	c.line(
+		Vector2i(x + 1, well.position.y + 1),
+		Vector2i(x + 1, well.end.y - 3),
+		chrome.darkened(0.25),
+		_TOOL_HEIGHT,
+	)
+	c.fill(
+		PixelCanvas.disc(Vector2i(x, well.position.y + int(well.size.y / 2.0)), 1),
+		ObjectArtConfig.clinic_joint_color,
+		_TOOL_HEIGHT,
+	)

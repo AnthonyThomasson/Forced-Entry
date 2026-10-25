@@ -61,39 +61,28 @@ static func tile(
 	if painter == null:
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
-	return texture(art, painter.tile_size(opts), color, Vector2.DOWN, material, opts)
+	return texture(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
 
 
 ## The texture for an `art` piece with local footprint `size` whose front faces `facing`
-## (a cardinal direction in the piece's local frame), or null for an unknown art id.
+## (a cardinal direction in the piece's local frame), or null for an unknown art id. `opts` are the
+## painter's options, with its surface finish as `material` (ArtConfig's, absent or `""` for none).
 static func texture(art: String, size: Vector2, color: Color, facing: Vector2,
-		material: String = "", opts: Dictionary = {}) -> Texture2D:
+		opts: Dictionary = {}) -> Texture2D:
 	if not PAINTERS.has(art):
 		push_error("ObjectArt: unknown art '%s'" % art)
 		return null
-	return PixelArt.render(
-		PAINTERS[art],
-		size,
-		_color(art, color),
-		facing,
-		_graded(art, opts).merged({ "material": material }, true),
-	)
+	return PixelArt.render(PAINTERS[art], size, _color(art, color), facing, _art_opts(art, opts))
 
 
 ## The emissive twin of `texture` for the same inputs: only what its painter drew glowing (a
 ## screen's face, a tube, a bulb), in its own colours, transparent elsewhere; null when nothing in
 ## it gives light (or for an unknown art id).
 static func emissive(art: String, size: Vector2, color: Color, facing: Vector2,
-		material: String = "", opts: Dictionary = {}) -> Texture2D:
+		opts: Dictionary = {}) -> Texture2D:
 	if not PAINTERS.has(art):
 		return null
-	return PixelArt.emissive(
-		PAINTERS[art],
-		size,
-		_color(art, color),
-		facing,
-		_graded(art, opts).merged({ "material": material }, true),
-	)
+	return PixelArt.emissive(PAINTERS[art], size, _color(art, color), facing, _art_opts(art, opts))
 
 
 ## The emissive twin of `tile` (null when the tile has nothing that gives light).
@@ -106,7 +95,7 @@ static func tile_emissive(
 	var painter = PAINTERS.get(art)
 	if painter == null:
 		return null
-	return emissive(art, painter.tile_size(opts), color, Vector2.DOWN, material, opts)
+	return emissive(art, painter.tile_size(opts), color, Vector2.DOWN, _finished(opts, material))
 
 
 ## The colour the run-down look draws `color` in: what a piece's debris and a wall's chips take, so
@@ -156,6 +145,21 @@ static func neon_for(art: String, opts: Dictionary, piece_seed: int) -> String:
 ## The colour `art`'s painter is handed for `color`: graded, unless it takes its colours as given.
 static func _color(art: String, color: Color) -> Color:
 	return color if AS_GIVEN.has(art) else Decay.grade(color)
+
+
+## `opts` with its surface finish `material` among them, as `texture` and `emissive` take it.
+static func _finished(opts: Dictionary, material: String) -> Dictionary:
+	return opts.merged({ "material": material }, true)
+
+
+## What PixelArt is handed for `art` with `opts`: the painter's options graded (`_graded`), the
+## finish (`material`, `""` when absent) last.
+static func _art_opts(art: String, opts: Dictionary) -> Dictionary:
+	var rest := opts
+	if opts.has("material"):
+		rest = opts.duplicate()
+		rest.erase("material")
+	return _graded(art, rest).merged({ "material": opts.get("material", "") }, true)
 
 
 ## `opts` with its colour options (a checker's `alt`) graded like the base colour.

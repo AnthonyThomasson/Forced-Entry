@@ -64,12 +64,7 @@ func run(t: TestContext) -> void:
 		for child in piece.get_children():
 			if child is CollisionShape2D and not child.is_queued_for_deletion():
 				have.append(child.shape)
-		var same := want.size() == have.size()
-		for k in mini(want.size(), have.size()):
-			same = (same
-					and (want[k] as ConvexPolygonShape2D).points
-						== (have[k] as ConvexPolygonShape2D).points)
-		if not same:
+		if not _same_pieces(want, have):
 			differing.append("piece%d (%d pieces, want %d)" % [i, have.size(), want.size()])
 	t.check(
 		dented >= 4,
@@ -83,3 +78,13 @@ func run(t: TestContext) -> void:
 		differing.is_empty(),
 		"every dented piece's collider is its own cut: %s differ" % str(differing),
 	)
+
+
+## Whether the colliders `have` are the convex pieces `want`: as many, each with the same points.
+func _same_pieces(want: Array, have: Array) -> bool:
+	var same := want.size() == have.size()
+	for k in mini(want.size(), have.size()):
+		same = (same
+				and (want[k] as ConvexPolygonShape2D).points
+					== (have[k] as ConvexPolygonShape2D).points)
+	return same

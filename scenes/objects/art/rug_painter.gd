@@ -30,41 +30,39 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.fill(field, base)
 	c.surface(field, "fabric", base)
 	c.outline(PixelCanvas.rounded(field_rect.grow(1), 0), base.lightened(0.3))
-	var mid := int(border / 2.0)
-	var stitch := base.lightened(0.15)
-	for x in range(body_rect.position.x + mid, body_rect.end.x - mid, 3):
-		c.px(x, body_rect.position.y + mid, stitch)
-		c.px(x, body_rect.end.y - 1 - mid, stitch)
-	for y in range(body_rect.position.y + mid, body_rect.end.y - mid, 3):
-		c.px(body_rect.position.x + mid, y, stitch)
-		c.px(body_rect.end.x - 1 - mid, y, stitch)
+	_stitches(c, body_rect, border, base)
 	if pattern == "stripes":
-		var band := maxi(
-			3,
-			int(field_rect.size.y / 8.0) if along_x else int(field_rect.size.x / 8.0),
-		)
-		var i := 0
-		for a in range(0, field_rect.size.y if along_x else field_rect.size.x, band):
-			if i % 2 == 1:
-				var r := (Rect2i(
-					field_rect.position.x,
-					field_rect.position.y + a,
-					field_rect.size.x,
-					band,
-				)
-						if along_x
-						else Rect2i(
-							field_rect.position.x + a,
-							field_rect.position.y,
-							band,
-							field_rect.size.y,
-						))
-				c.paint_over(r, base.darkened(0.12))
-			i += 1
+		_stripes(c, field_rect, base, along_x)
 	else:
 		_medallion(c, field_rect, base, border_col)
 	_fringe(c, body_rect, fringe, along_x)
 	_worn(c)
+
+
+## The stitched band round the rug `body` (its border `border` px wide), in a light tone of `base`.
+static func _stitches(c: PixelCanvas, body: Rect2i, border: int, base: Color) -> void:
+	var mid := int(border / 2.0)
+	var stitch := base.lightened(0.15)
+	for x in range(body.position.x + mid, body.end.x - mid, 3):
+		c.px(x, body.position.y + mid, stitch)
+		c.px(x, body.end.y - 1 - mid, stitch)
+	for y in range(body.position.y + mid, body.end.y - mid, 3):
+		c.px(body.position.x + mid, y, stitch)
+		c.px(body.end.x - 1 - mid, y, stitch)
+
+
+## Darker stripes across the `field` (every other band of an eighth of it), across the rug's
+## length (`along_x`: it lies along x).
+static func _stripes(c: PixelCanvas, field: Rect2i, base: Color, along_x: bool) -> void:
+	var band := maxi(3, int(field.size.y / 8.0) if along_x else int(field.size.x / 8.0))
+	var i := 0
+	for a in range(0, field.size.y if along_x else field.size.x, band):
+		if i % 2 == 1:
+			var r := Rect2i(field.position.x, field.position.y + a, field.size.x, band)
+			if not along_x:
+				r = Rect2i(field.position.x + a, field.position.y, band, field.size.y)
+			c.paint_over(r, base.darkened(0.12))
+		i += 1
 
 
 ## The run-down finish of a rug: grime, stains, moth holes.

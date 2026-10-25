@@ -15,6 +15,28 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var radius := int(mini(c.w, c.h) / 2.0) - 1
 	var spin := c.rng.randf() * TAU
+	_coats(c, o, radius, spin)
+	var hat := _pick(c)
+	var brim := PixelCanvas.disc(o, maxi(2, roundi(radius * 0.42)))
+	c.fill(brim, hat.darkened(0.2), _HAT_HEIGHT)
+	c.outline(brim, hat.darkened(0.5))
+	c.fill(PixelCanvas.disc(o, maxi(1, roundi(radius * 0.27))), hat, _HAT_HEIGHT)
+	var t := PixelCanvas.tones(base)
+	for i in 4:
+		var a := spin + PI * 0.25 + TAU * i / 4.0
+		c.line(
+			o,
+			o + Vector2i((Vector2(cos(a), sin(a)) * radius * 0.35).round()),
+			t.dark,
+			_POST_HEIGHT,
+		)
+	c.fill(PixelCanvas.disc(o, 1), t.light, _POST_HEIGHT)
+	c.cast_shadows()
+	Decay.grime(c)
+
+
+## The three coats hanging round the post at `o` (the rack `radius` px), turned by `spin`.
+static func _coats(c: PixelCanvas, o: Vector2i, radius: int, spin: float) -> void:
 	for i in 3:
 		var a := spin + TAU * i / 3.0
 		var d := Vector2(cos(a), sin(a))
@@ -38,23 +60,6 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 			col.lightened(0.35),
 			_COAT_HEIGHT,
 		)
-	var hat := _pick(c)
-	var brim := PixelCanvas.disc(o, maxi(2, roundi(radius * 0.42)))
-	c.fill(brim, hat.darkened(0.2), _HAT_HEIGHT)
-	c.outline(brim, hat.darkened(0.5))
-	c.fill(PixelCanvas.disc(o, maxi(1, roundi(radius * 0.27))), hat, _HAT_HEIGHT)
-	var t := PixelCanvas.tones(base)
-	for i in 4:
-		var a := spin + PI * 0.25 + TAU * i / 4.0
-		c.line(
-			o,
-			o + Vector2i((Vector2(cos(a), sin(a)) * radius * 0.35).round()),
-			t.dark,
-			_POST_HEIGHT,
-		)
-	c.fill(PixelCanvas.disc(o, 1), t.light, _POST_HEIGHT)
-	c.cast_shadows()
-	Decay.grime(c)
 
 
 ## A random coat color.

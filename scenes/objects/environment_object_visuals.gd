@@ -29,12 +29,9 @@ var _drop_shadow: Node2D
 func _ready() -> void:
 	if _obj.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_art = ObjectArt.texture(
-			_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts,
-		)
-		_emissive = ObjectArt.emissive(
-			_obj.art, _obj.size, _obj.color, _obj.facing, _obj.object_material, _obj.art_opts,
-		)
+		var opts: Dictionary = _obj.art_opts.merged({ "material": _obj.object_material }, true)
+		_art = ObjectArt.texture(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
+		_emissive = ObjectArt.emissive(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 		_drop_shadow = Node2D.new()
@@ -87,8 +84,11 @@ func _draw() -> void:
 
 	look.outline = text_color
 	Deformation.draw_shape(self, shape, size, impacts, look)
+	_draw_name(text_color)
 
-	# Draw the object's name centered on it.
+
+## Draw the object's name centered on it, in `text_color` (a piece with no art).
+func _draw_name(text_color: Color) -> void:
 	var name_text: String = _obj.object_name
 	var font: Font = ThemeDB.fallback_font
 	var font_size := 14

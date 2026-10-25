@@ -184,14 +184,16 @@ static func stickers(c: PixelCanvas, count: int) -> void:
 			c.rng.randi_range(2, maxi(2, c.h - 5)),
 		)
 		var col: Color = STICKERS[c.rng.randi_range(0, STICKERS.size() - 1)].darkened(0.25)
-		for y in 3:
-			for x in 4:
-				if c.covered(p.x + x, p.y + y):
-					c.img.set_pixel(
-						p.x + x,
-						p.y + y,
-						col if (x + y) % 3 != 0 else col.darkened(0.3),
-					)
+		_sticker(c, p, col)
+
+
+## One 4×3 sticker in `col` with its top-left at `p`, a darker diagonal print on it, on what is
+## drawn.
+static func _sticker(c: PixelCanvas, p: Vector2i, col: Color) -> void:
+	for y in 3:
+		for x in 4:
+			if c.covered(p.x + x, p.y + y):
+				c.img.set_pixel(p.x + x, p.y + y, col if (x + y) % 3 != 0 else col.darkened(0.3))
 
 
 ## A jagged dark crack across a drawn part.
@@ -251,6 +253,7 @@ static func _ring(c: PixelCanvas, depth: int, col: Color, amount: float) -> void
 		var rows_in := y >= depth and y + depth < h
 		var rows_far := y >= far and y + far < h
 		for x in w:
+			# Drawn, its four neighbours `depth` px off drawn, not all four `depth` + 1 px off.
 			if (cov[i] != 0
 					and rows_in
 					and x >= depth
@@ -258,15 +261,11 @@ static func _ring(c: PixelCanvas, depth: int, col: Color, amount: float) -> void
 					and cov[i - depth] != 0
 					and cov[i + depth] != 0
 					and cov[i - dw] != 0
-					and cov[i + dw] != 0):
-				if not (rows_far
-							and x >= far
-							and x + far < w
-							and cov[i - far] != 0
-							and cov[i + far] != 0
-							and cov[i - fw] != 0
-							and cov[i + fw] != 0):
-					lit.append(Vector2i(x, y))
+					and cov[i + dw] != 0
+					and not (rows_far and x >= far and x + far < w
+					and cov[i - far] != 0 and cov[i + far] != 0
+					and cov[i - fw] != 0 and cov[i + fw] != 0)):
+				lit.append(Vector2i(x, y))
 			i += 1
 	for p in lit:
 		c.img.set_pixel(p.x, p.y, c.at(p.x, p.y).lerp(col, amount))
@@ -289,17 +288,21 @@ static func display(c: PixelCanvas, a: Vector2i, b: Vector2i, col: Color) -> voi
 
 ## A glowing screen over `r`: `col` with a brighter top line and dark scanlines every other row.
 static func screen(c: PixelCanvas, r: Rect2i, col: Color) -> void:
-	c.glowing(func() -> void:
-		for y in range(r.position.y, r.end.y):
-			for x in range(r.position.x, r.end.x):
-				if c.has(x, y):
-					var shade := col
-					if y == r.position.y:
-						shade = col.lightened(0.35)
-					elif (y - r.position.y) % 2 == 1:
-						shade = col.darkened(0.35)
-					c.px(x, y, shade)
-	, r)
+	c.glowing(func() -> void: _screen_rows(c, r, col), r)
+
+
+## The screen's pixels: each row of `r` in `col`, its top row brighter and every other row below it
+## darker, on the canvas.
+static func _screen_rows(c: PixelCanvas, r: Rect2i, col: Color) -> void:
+	for y in range(r.position.y, r.end.y):
+		var shade := col
+		if y == r.position.y:
+			shade = col.lightened(0.35)
+		elif (y - r.position.y) % 2 == 1:
+			shade = col.darkened(0.35)
+		for x in range(r.position.x, r.end.x):
+			if c.has(x, y):
+				c.px(x, y, shade)
 
 
 # --- Shared bits ----------------------------------------------------------------------------------

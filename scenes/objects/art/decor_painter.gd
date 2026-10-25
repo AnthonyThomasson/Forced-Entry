@@ -119,11 +119,12 @@ static func _puddle(c: PixelCanvas) -> void:
 			Vector2(c.rng.randf_range(-0.3, 0.3) * c.w, c.rng.randf_range(-0.25, 0.25) * c.h),
 			c.rng.randf_range(0.3, 0.5),
 		])
+	var size := Vector2(c.w, c.h)
 	for y in c.h:
 		for x in c.w:
+			var p := Vector2(x, y) - o
 			for lobe: Array in lobes:
-				if (((Vector2(x, y) - o - (lobe[0] as Vector2))
-						/ (Vector2(c.w, c.h) * float(lobe[1]))).length() <= 1.0):
+				if ((p - (lobe[0] as Vector2)) / (size * float(lobe[1]))).length() <= 1.0:
 					c.px(x, y, WATER, 0)
 					break
 

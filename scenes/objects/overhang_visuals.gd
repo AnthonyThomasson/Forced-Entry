@@ -39,11 +39,12 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 	var size := Vector2(canonical.y, canonical.x) if absf(facing.x) > absf(facing.y) else canonical
 	_rect = Rect2(facing * float(overhang.get("reach", 0.0)) - size * 0.5, size)
 	if piece.art != "" and size.x > 0.0 and size.y > 0.0:
-		var opts: Dictionary = piece.art_opts.merged({ "part": "overhang" }, true)
-		_art = ObjectArt.texture(piece.art, size, piece.color, facing, piece.object_material, opts)
-		_emissive = ObjectArt.emissive(
-			piece.art, size, piece.color, facing, piece.object_material, opts,
+		var opts: Dictionary = piece.art_opts.merged(
+			{ "part": "overhang", "material": piece.object_material },
+			true,
 		)
+		_art = ObjectArt.texture(piece.art, size, piece.color, facing, opts)
+		_emissive = ObjectArt.emissive(piece.art, size, piece.color, facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 	piece.add_child(self)

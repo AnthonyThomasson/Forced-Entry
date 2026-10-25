@@ -53,19 +53,8 @@ func run(t: TestContext) -> void:
 	for i in pieces.size():
 		draws.append([0])
 		(pieces[i] as Node2D).draw.connect(func() -> void: draws[i][0] += 1)
-	var struck := 0  # the top wall, along y = 0
-	for i in segs.size():
-		if (segs[i][0] as Vector2).y == 0.0 and (segs[i][1] as Vector2).y == 0.0:
-			struck = i
-			break
-	var hit := HitInfo.new()
-	var mid: Vector2 = (segs[struck][0] + segs[struck][1]) * 0.5
-	hit.position = wall.to_global(mid)
-	hit.normal = Vector2.DOWN
-	hit.direction = Vector2.UP
-	hit.damage = 30.0
-	hit.speed_factor = 1.0
-	wall.take_hit(hit)
+	var struck := _top_segment(segs)
+	_strike(wall, segs[struck])
 	await t.frames(2)
 	t.check(draws[struck][0] >= 1, "the struck segment repainted (%d draws)" % draws[struck][0])
 	var others := 0
@@ -73,3 +62,23 @@ func run(t: TestContext) -> void:
 		if i != struck:
 			others += draws[i][0]
 	t.check(others == 0, "no other segment repainted (%d draws)" % others)
+
+
+## The index of the first segment of the top wall, along y = 0 (0 when there is none).
+func _top_segment(segs: Array) -> int:
+	for i in segs.size():
+		if (segs[i][0] as Vector2).y == 0.0 and (segs[i][1] as Vector2).y == 0.0:
+			return i
+	return 0
+
+
+## One hit on `wall` at the middle of `seg`, from below.
+func _strike(wall: Node, seg: PackedVector2Array) -> void:
+	var hit := HitInfo.new()
+	var mid: Vector2 = (seg[0] + seg[1]) * 0.5
+	hit.position = wall.to_global(mid)
+	hit.normal = Vector2.DOWN
+	hit.direction = Vector2.UP
+	hit.damage = 30.0
+	hit.speed_factor = 1.0
+	wall.take_hit(hit)

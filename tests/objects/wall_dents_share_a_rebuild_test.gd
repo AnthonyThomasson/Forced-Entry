@@ -35,6 +35,22 @@ func run(t: TestContext) -> void:
 	if not t.require(wall != null, "the arena has a wall"):
 		return
 	await t.frames(1)
+	await _volleys(t, wall)
+	var segs: Array = wall.wall_segments()
+	var checked := 0
+	var differing: Array = []
+	for i in segs.size():
+		var impacts: Array = wall._seg_impacts.get(i, [])
+		if impacts.is_empty():
+			continue
+		checked += 1
+		differing.append_array(_segment_faults(wall, i, segs[i], impacts))
+	t.check(checked >= 1, "the hits dented the wall (%d segments)" % checked)
+	t.check(differing.is_empty(), "%s" % str(differing))
+
+
+## Three volleys of `SHOTS` hits, each landing in one frame, along `wall`'s top.
+func _volleys(t: TestContext, wall: Node) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 31
 	for volley in 3:
@@ -47,47 +63,48 @@ func run(t: TestContext) -> void:
 			hit.speed_factor = 1.0
 			wall.take_hit(hit)
 		await t.frames(2)
-	var segs: Array = wall.wall_segments()
-	var checked := 0
+
+
+## What is wrong with dented segment `i` (`seg`, dented by `impacts`) of `wall`: its kept polygon,
+## its collider, its answer to a further dent. Empty when nothing is.
+func _segment_faults(wall: Node, i: int, seg: PackedVector2Array, impacts: Array) -> Array:
 	var differing: Array = []
-	for i in segs.size():
-		var impacts: Array = wall._seg_impacts.get(i, [])
-		if impacts.is_empty():
-			continue
-		checked += 1
-		var seg: PackedVector2Array = segs[i]
-		var poly := Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts)
-		var fresh := Deformation._wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts)
-		if poly != fresh:
-			differing.append("segment %d: the kept polygon is not a fresh one's" % i)
-		# the caller's own copy: changing it must change nothing kept
-		poly.append(Vector2(9999.0, 9999.0))
-		if Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts) != fresh:
-			differing.append("segment %d: a caller's change reached the kept polygon" % i)
-		var want := Deformation.shapes_of(Deformation.convex_pieces(fresh))
-		var have: Array = []
-		for col in wall._seg_colliders.get(i, []):
-			if is_instance_valid(col) and not col.is_queued_for_deletion():
-				have.append(col.shape)
-		var same := want.size() == have.size()
-		for k in mini(want.size(), have.size()):
-			same = (same
-					and (want[k] as ConvexPolygonShape2D).points
-						== (have[k] as ConvexPolygonShape2D).points)
-		if not same:
-			differing.append("segment %d: collider %d pieces, its cut %d"
-					% [i, have.size(), want.size()])
-		var more: Array = impacts.duplicate(true)
-		more.append({
-			"pos": (seg[0] + seg[1]) * 0.5,
-			"inward": Vector2.DOWN,
-			"depth": 6.0,
-			"chunk": true,
-			"seed": 5,
-			"blood": 0.0,
-		})
-		if (Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, more)
-				!= Deformation._wall_polygon(seg[0], seg[1], wall.wall_thickness, more)):
-			differing.append("segment %d: a further dent was answered with an old polygon" % i)
-	t.check(checked >= 1, "the hits dented the wall (%d segments)" % checked)
-	t.check(differing.is_empty(), "%s" % str(differing))
+	var poly := Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts)
+	var fresh := Deformation._wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts)
+	if poly != fresh:
+		differing.append("segment %d: the kept polygon is not a fresh one's" % i)
+	# the caller's own copy: changing it must change nothing kept
+	poly.append(Vector2(9999.0, 9999.0))
+	if Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, impacts) != fresh:
+		differing.append("segment %d: a caller's change reached the kept polygon" % i)
+	var want := Deformation.shapes_of(Deformation.convex_pieces(fresh))
+	var have: Array = []
+	for col in wall._seg_colliders.get(i, []):
+		if is_instance_valid(col) and not col.is_queued_for_deletion():
+			have.append(col.shape)
+	if not _same_pieces(want, have):
+		differing.append("segment %d: collider %d pieces, its cut %d"
+				% [i, have.size(), want.size()])
+	var more: Array = impacts.duplicate(true)
+	more.append({
+		"pos": (seg[0] + seg[1]) * 0.5,
+		"inward": Vector2.DOWN,
+		"depth": 6.0,
+		"chunk": true,
+		"seed": 5,
+		"blood": 0.0,
+	})
+	if (Deformation.wall_polygon(seg[0], seg[1], wall.wall_thickness, more)
+			!= Deformation._wall_polygon(seg[0], seg[1], wall.wall_thickness, more)):
+		differing.append("segment %d: a further dent was answered with an old polygon" % i)
+	return differing
+
+
+## Whether the colliders `have` are the convex pieces `want`: as many, each with the same points.
+func _same_pieces(want: Array, have: Array) -> bool:
+	var same := want.size() == have.size()
+	for k in mini(want.size(), have.size()):
+		same = (same
+				and (want[k] as ConvexPolygonShape2D).points
+					== (have[k] as ConvexPolygonShape2D).points)
+	return same
