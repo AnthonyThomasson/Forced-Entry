@@ -44,6 +44,13 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.6)
 	t.require(body.is_running(), "running while holding run and moving")
 	var running := await _gait(t, body)
+	_check_run_gait(t, running, walk)
+	await _check_holds_fire(t, puppet, body)
+
+
+## The `running` gait (against the `walk`): a wider stride, the shoulders shifting and rocking, the
+## head steadier, an unhurried cadence, the arms pumping with the elbows in.
+func _check_run_gait(t: TestContext, running: Dictionary, walk: Dictionary) -> void:
 	t.check(
 		running.span > walk.span * 1.3,
 		"a run strides wider than a walk (%.1f vs %.1f px)" % [running.span, walk.span],
@@ -73,9 +80,13 @@ func run(t: TestContext) -> void:
 		"the shoulder on the forward-swinging arm's side comes forward (%.0f)" % running.rock,
 	)
 
+
+## Running, `body`'s pistol hangs by the side and does not fire; stopped, it comes back up and
+## fires again.
+func _check_holds_fire(t: TestContext, puppet: Node, body: Node) -> void:
 	var carried: float = body.hand_position(WEAPON_HAND).length()
 	t.check(carried < 19.0, "running, the pistol hand hangs by the side (%.1f px)" % carried)
-	shots = t.spawned("Projectile").size()
+	var shots := t.spawned("Projectile").size()
 	puppet.shoot()
 	await t.frames(3)
 	t.check(t.spawned("Projectile").size() == shots, "the pistol does not fire while running")
@@ -100,6 +111,17 @@ func run(t: TestContext) -> void:
 ## (px) between the two hands, and `rock` > 0 when the shoulder on the side of the forward-swinging
 ## hand is the forward one.
 func _gait(t: TestContext, body: Node) -> Dictionary:
+	var gait := Gait.new(body.pose.stride_phase())
+	for k in 60:
+		await t.frames(2)
+		gait.take(body)
+	return gait.summary()
+
+
+## A gait as it is sampled: the widest stride, the upper body's and the head's sideways range, the
+## shoulders' turn off the aim, the rock, the hands' rise, the elbows' flare, and the stride phase
+## run through since the first sample (and the last phase read).
+class Gait:
 	var span := 0.0
 	var lateral := [INF, -INF]
 	var turn := [INF, -INF]
@@ -108,9 +130,13 @@ func _gait(t: TestContext, body: Node) -> Dictionary:
 	var rise := 0.0
 	var flare := 0.0
 	var stride := 0.0
-	var last: float = body.pose.stride_phase()
-	for k in 60:
-		await t.frames(2)
+	var last := 0.0
+
+	func _init(phase: float) -> void:
+		last = phase
+
+	## Take in `body`'s pose now.
+	func take(body: Node) -> void:
 		var rig = body.rig()
 		var phase: float = body.pose.stride_phase()
 		stride += fposmod(phase - last, TAU)
@@ -134,8 +160,11 @@ func _gait(t: TestContext, body: Node) -> Dictionary:
 		turn = [minf(turn[0], off), maxf(turn[1], off)]
 		rock += (rig.point(Rig.SHOULDER[0]).x - rig.point(Rig.SHOULDER[1]).x) \
 			* (body.hand_position(0).x - body.hand_position(1).x)
-	return {
-		"span": span, "shift": lateral[1] - lateral[0], "twist": (turn[1] - turn[0]) * 0.5,
-		"rock": rock, "head": head[1] - head[0], "rise": rise, "flare": flare,
-		"cadence": stride / TAU / (120.0 / 60.0),
-	}
+
+	## The gait as `_gait` tells it.
+	func summary() -> Dictionary:
+		return {
+			"span": span, "shift": lateral[1] - lateral[0], "twist": (turn[1] - turn[0]) * 0.5,
+			"rock": rock, "head": head[1] - head[0], "rise": rise, "flare": flare,
+			"cadence": stride / TAU / (120.0 / 60.0),
+		}

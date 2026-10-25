@@ -63,8 +63,11 @@ func run(t: TestContext) -> void:
 		"a crouched body takes about PI / %.1f s (%.2f s)" % [crouch_turn, took[&"crouch"]],
 	)
 	t.check(took[&"stand"] < took[&"crouch"], "the lower the body, the longer it takes")
+	await _check_stand_up(t)
 
-	# Standing back up: the body catches up with the aim at once.
+
+## Standing back up: the body catches up with the aim at once.
+func _check_stand_up(t: TestContext) -> void:
 	t.puppet(&"crouch").aim_at(AIM_EAST)
 	await t.frames(3)
 	t.check(
