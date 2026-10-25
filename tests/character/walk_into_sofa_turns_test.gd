@@ -56,6 +56,17 @@ func run(t: TestContext) -> void:
 	var end_angle := end_sofa.global_rotation
 	var middle_start := middle_sofa.global_position
 	var middle_angle := middle_sofa.global_rotation
+	await _walk(t, end_angle, middle_angle)
+	if not _check_end_sofa(t, end_start, end_angle):
+		return
+	_check_middle_sofa(t, middle_start, middle_angle)
+
+
+## Both puppets walk south for `WALK_TIME`, each sofa's turn from where it started (`end_angle`,
+## `middle_angle`) traced every frame, then stop and settle.
+func _walk(t: TestContext, end_angle: float, middle_angle: float) -> void:
+	var end_sofa: Node2D = t.object(&"end_sofa")
+	var middle_sofa: Node2D = t.object(&"middle_sofa")
 	for id in [&"end_walker", &"middle_walker"]:
 		t.puppet(id).aim_at(t.actor(id).global_position + Vector2(0, 1000))
 		t.puppet(id).walk(Vector2.DOWN)
@@ -72,37 +83,45 @@ func run(t: TestContext) -> void:
 		t.puppet(id).stop()
 	await t.seconds(0.5)
 
-	var end_moved := end_sofa.global_position - end_start
-	var end_turn := angle_difference(end_angle, end_sofa.global_rotation)
+
+## The end sofa, from (`start`, `angle`): shoved south, turned clockwise about a point nearer its
+## far end. Whether it was shoved at all (false after a failed `require`).
+func _check_end_sofa(t: TestContext, start: Vector2, angle: float) -> bool:
+	var sofa: Node2D = t.object(&"end_sofa")
+	var moved := sofa.global_position - start
+	var turn := angle_difference(angle, sofa.global_rotation)
 	if not t.require(
-			end_moved.y > 10.0,
-			"the end walker shoved its sofa south (dy %.1f)" % end_moved.y,
+			moved.y > 10.0,
+			"the end walker shoved its sofa south (dy %.1f)" % moved.y,
 	):
-		return
+		return false
 	t.check(
-		rad_to_deg(end_turn) > MIN_END_TURN,
+		rad_to_deg(turn) > MIN_END_TURN,
 		("pushing the east end turns the sofa clockwise, the pushed end swinging south (turned "
-				+ "%.1f deg, want > %.0f)") % [rad_to_deg(end_turn), MIN_END_TURN],
+				+ "%.1f deg, want > %.0f)") % [rad_to_deg(turn), MIN_END_TURN],
 	)
-	if absf(end_turn) > deg_to_rad(1.0):
-		var pivot := _pivot(
-			end_start, end_angle, end_sofa.global_position, end_sofa.global_rotation,
-		)
+	if absf(turn) > deg_to_rad(1.0):
+		var pivot := _pivot(start, angle, sofa.global_position, sofa.global_rotation)
 		t.check(
 			pivot.x < 0.0 and pivot.x > -HALF_LENGTH * 1.5,
 			("the sofa turned about a point nearer its far (west) end, along its length (pivot at "
 					+ "%.1f px along it, its ends at -60 and +60)") % pivot.x,
 		)
+	return true
 
-	var middle_moved := middle_sofa.global_position - middle_start
-	var middle_turn := rad_to_deg(angle_difference(middle_angle, middle_sofa.global_rotation))
+
+## The middle sofa, from (`start`, `angle`): slid south, barely turned.
+func _check_middle_sofa(t: TestContext, start: Vector2, angle: float) -> void:
+	var sofa: Node2D = t.object(&"middle_sofa")
+	var moved := sofa.global_position - start
+	var turn := rad_to_deg(angle_difference(angle, sofa.global_rotation))
 	t.check(
-		middle_moved.y > 10.0,
-		"the middle walker slid its sofa south (dy %.1f)" % middle_moved.y,
+		moved.y > 10.0,
+		"the middle walker slid its sofa south (dy %.1f)" % moved.y,
 	)
 	t.check(
-		absf(middle_turn) < MAX_MIDDLE_TURN,
-		"pushing the middle of a side barely turns the sofa (turned %.1f deg)" % middle_turn,
+		absf(turn) < MAX_MIDDLE_TURN,
+		"pushing the middle of a side barely turns the sofa (turned %.1f deg)" % turn,
 	)
 
 
