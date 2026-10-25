@@ -56,23 +56,11 @@ func run(t: TestContext) -> void:
 			"set-up: the invader sees the householder through the doorway",
 	):
 		return
-	var brain := t.controller(&"i", &"debug_zones")
-	var target := "combat/t_%d" % t.actor(&"h").get_instance_id()
-	var state := {}
-	var walks: Array = []
-	var acts: Array = []
-	var from_kitchen := [false]
-	var watch := func() -> bool:
-		Spot.note(t, brain, inv, state, walks)
-		var act := Probe.acts(t, &"i")
-		if not acts.has(act):
-			acts.append(act)
-		if act.begins_with(target) and Maps.HOUSE_KITCHEN.has_point(inv.global_position):
-			from_kitchen[0] = true
-		return t.happened(&"throw", func(d): return d.get("attacker") == inv)
-	await t.until(watch, 60.0)
+	var watched := await _watch_until_thrown(t, inv)
+	var walks: Array = watched["walks"]
+	var acts: Array = watched["acts"]
 	if not t.require(
-			from_kitchen[0],
+			watched["from_kitchen"],
 			"the invader fought the householder from the kitchen (acts %s)" % str(acts),
 	):
 		return
@@ -89,6 +77,31 @@ func run(t: TestContext) -> void:
 		"GRENADE was offered from out of range, through a throw spot (offered %s; walks %s)"
 			% [str(fights[0]["combat"]), str(Spot.describe(walks))],
 	)
+	await _check_thrown_from_spot(t, inv, acts, fights[0])
+
+
+# Follows the invader's decision walks and acts, and whether it fought the householder from the
+# kitchen, until it throws (or 60 s pass).
+func _watch_until_thrown(t: TestContext, inv: Node) -> Dictionary:
+	var brain := t.controller(&"i", &"debug_zones")
+	var target := "combat/t_%d" % t.actor(&"h").get_instance_id()
+	var state := {}
+	var walks: Array = []
+	var acts: Array = []
+	var from_kitchen := [false]
+	var watch := func() -> bool:
+		Spot.note(t, brain, inv, state, walks)
+		var act := Probe.acts(t, &"i")
+		if not acts.has(act):
+			acts.append(act)
+		if act.begins_with(target) and Maps.HOUSE_KITCHEN.has_point(inv.global_position):
+			from_kitchen[0] = true
+		return t.happened(&"throw", func(d): return d.get("attacker") == inv)
+	await t.until(watch, 60.0)
+	return { "walks": walks, "acts": acts, "from_kitchen": from_kitchen[0] }
+
+
+func _check_thrown_from_spot(t: TestContext, inv: Node, acts: Array, fight: Dictionary) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if not t.check(
 			not throws.is_empty() and throws[0]["data"].get("kind") == &"frag",
@@ -101,9 +114,9 @@ func run(t: TestContext) -> void:
 		"from within throw range of the householder (%.0f px)" % at.distance_to(HOLDER_AT),
 	)
 	t.check(
-		at.distance_to(fights[0]["pos"]) >= 50.0,
+		at.distance_to(fight["pos"]) >= 50.0,
 		"after walking to a throw spot (thrown at %s, it decided at %s)"
-			% [str(at.round()), str((fights[0]["pos"] as Vector2).round())],
+			% [str(at.round()), str((fight["pos"] as Vector2).round())],
 	)
 	t.check(not Maps.HOUSE_LIVING.has_point(at), "from outside the living room")
 	if t.check(await Probe.wait_boom(t, &"frag", 6.0), "the frag went off"):

@@ -61,6 +61,30 @@ func run(t: TestContext) -> void:
 		return
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
 	var door := Entry.BACK
+	var w := await _watch_until_through(t)
+	var seen: Dictionary = w["seen"]
+	var took := IDS.any(func(id): return seen[id].any(func(a): return a.contains("stun_entry")))
+	if not t.require(took, "the AI took STUN ENTRY into the kitchen (acts: %s)" % str(seen)):
+		return
+	var thrower_id := _check_stack_of_two(t)
+	var point_id: StringName = &"b" if thrower_id == &"a" else &"a"
+
+	var boom := _check_stun_through_door(t, door, thrower_id)
+	if boom.is_empty():
+		return
+	_check_turned_away(t, door, w["samples"], boom)
+	_check_point_crossed_on_bang(t, door, point_id, w["phases"][point_id], boom)
+
+	var flash := Probe.stuns(t, t.actor(&"d"))
+	t.check(
+		not flash.is_empty() and float(flash[0]["data"].get("blind", 0.0)) > 0.0,
+		"the defender inside was blinded",
+	)
+
+
+# Notes each member's acts, its entry phase and where it stands and faces every frame until the
+# stack has gone in and the stun went off more than 2 s ago (or 100 s pass).
+func _watch_until_through(t: TestContext) -> Dictionary:
 	var seen := { &"a": [], &"b": [] }
 	var phases := { &"a": [], &"b": [] }
 	var samples: Array = []
@@ -82,9 +106,11 @@ func run(t: TestContext) -> void:
 			facing[id] = t.actor(id).facing
 		samples.append({ "t": t.time, "pos": pos, "facing": facing })
 		await t.frames(1)
-	var took := IDS.any(func(id): return seen[id].any(func(a): return a.contains("stun_entry")))
-	if not t.require(took, "the AI took STUN ENTRY into the kitchen (acts: %s)" % str(seen)):
-		return
+	return { "seen": seen, "phases": phases, "samples": samples }
+
+
+# The stack is two, the point in slot 1 and the second in slot 2: the second (the thrower).
+func _check_stack_of_two(t: TestContext) -> StringName:
 	var claims := Entry.calls(t, "claim")
 	var slot_of := func(id: StringName) -> int:
 		var mine := claims.filter(func(e): return e.get("speaker") == t.actor(id))
@@ -96,10 +122,19 @@ func run(t: TestContext) -> void:
 		[2, 1],
 		"the stack is two: the point in slot 1, the second in slot 2",
 	)
+	return thrower_id
 
+
+# The one stun the thrower threw after radioing bang went off at the room's far side: its burst,
+# or {} when not one stun was thrown.
+func _check_stun_through_door(
+	t: TestContext,
+	door: Dictionary,
+	thrower_id: StringName,
+) -> Dictionary:
 	var throws := Probe.raw(t, &"throw")
 	if not t.require(throws.size() == 1, "one stun was thrown (%d throws)" % throws.size()):
-		return
+		return {}
 	var throw: Dictionary = throws[0]
 	t.check(
 		throw["data"].get("attacker") == t.actor(thrower_id)
@@ -119,8 +154,11 @@ func run(t: TestContext) -> void:
 		("the stun went through the doorway to the room's far side (burst at %s, %.0f px from the "
 				+ "door)") % [str(at.round()), at.distance_to(door["pos"])],
 	)
+	return boom
 
-	# Everyone held their slot turned away from the door while the stun was in the room.
+
+# Everyone held their slot turned away from the door while the stun was in the room.
+func _check_turned_away(t: TestContext, door: Dictionary, samples: Array, boom: Dictionary) -> void:
 	var window: Array = samples.filter(func(s): return (
 		float(s["t"]) >= float(boom["time"]) - 0.5 and float(s["t"]) <= float(boom["time"])
 	))
@@ -134,18 +172,19 @@ func run(t: TestContext) -> void:
 					+ "through it)") % [id, looking.size(), window.size()],
 		)
 
-	# The point skipped the pie and crossed on the bang.
-	var point_phases: Array = phases[point_id]
+
+# The point skipped the pie and crossed on the bang.
+func _check_point_crossed_on_bang(
+		t: TestContext,
+		door: Dictionary,
+		point_id: StringName,
+		point_phases: Array,
+		boom: Dictionary,
+) -> void:
 	t.check(not point_phases.any(func(p): return p[1] == "pie"), "the point never sliced the pie")
 	var went_in: float = Entry.first_call_time(t, "going_in", point_id, door["id"])
 	t.check(
 		went_in >= float(boom["time"]) - 0.1 and went_in <= float(boom["time"]) + 1.2,
 		"and crossed on the bang (going_in at %.2f s, the stun went off at %.2f s)"
 			% [went_in, float(boom["time"])],
-	)
-
-	var flash := Probe.stuns(t, t.actor(&"d"))
-	t.check(
-		not flash.is_empty() and float(flash[0]["data"].get("blind", 0.0)) > 0.0,
-		"the defender inside was blinded",
 	)

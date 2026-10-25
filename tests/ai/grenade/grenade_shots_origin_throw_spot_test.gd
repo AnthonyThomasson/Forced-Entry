@@ -72,56 +72,17 @@ func run(t: TestContext) -> void:
 			"victim": null,
 		},
 	)
-	var brain := t.controller(&"i", &"debug_zones")
-	var state := {}
-	var walks: Array = []
-	var acts: Array = []
-	var shot := {}
-	var watch := func() -> bool:
-		Spot.note(t, brain, inv, state, walks)
-		var act := Probe.acts(t, &"i")
-		if not acts.has(act):
-			acts.append(act)
-		var lines: Array = brain.debug_memory().get("shot_from", [])
-		if shot.is_empty() and not lines.is_empty():
-			shot.merge(lines[0])
-		return t.happened(&"throw", func(d): return d.get("attacker") == inv)
-	await t.until(watch, 40.0)
+	var watched := await _watch_until_thrown(t, inv)
+	var walks: Array = watched["walks"]
+	var acts: Array = watched["acts"]
+	var shot: Dictionary = watched["shot"]
 	if not t.require(
 			not shot.is_empty(),
 			"the shot registered: the invader remembers where it was shot at from (acts %s)"
 				% str(acts),
 	):
 		return
-	var room := Maps.HOUSE_KITCHEN
-	var poly := PackedVector2Array([
-		room.position,
-		Vector2(room.end.x, room.position.y),
-		room.end,
-		Vector2(room.position.x, room.end.y),
-	])
-	var pieces := Geometry2D.intersect_polyline_with_polygon(
-		PackedVector2Array([shot["at"], shot["pos"]]),
-		poly,
-	)
-	if not t.require(
-			not pieces.is_empty(),
-			"set-up: its line back from the shot runs into the kitchen (%s)" % str(shot),
-	):
-		return
-	var stretch: PackedVector2Array = pieces[0]
-	var a: Vector2 = stretch[0]
-	var b: Vector2 = stretch[stretch.size() - 1]
-	if a.x < b.x:
-		var swap := a
-		a = b
-		b = swap
-	a = a.move_toward(b, INSIDE)  # From the doorway end, past the threshold.
-	if not t.require(
-			not Spot.any_lob_along(t, INVADER_AT, a, b, Spot.THROW_RANGE),
-			("set-up: from where it stood no point of that line in the kitchen (from %s to %s) has "
-					+ "a clear lob within range") % [str(a.round()), str(b.round())],
-	):
+	if not _no_lob_from_where_it_stood(t, shot):
 		return
 	var first: Array = walks.filter(func(w): return (
 		not w["combat"].is_empty() and (w["pos"] as Vector2).distance_to(INVADER_AT) <= 12.0
@@ -137,6 +98,66 @@ func run(t: TestContext) -> void:
 		("that decision offered GRENADE where the shots came from, through a throw spot (offered "
 				+ "%s; walks %s)") % [str(first[0]["combat"]), str(Spot.describe(walks))],
 	)
+	await _check_thrown_from_spot(t, inv, acts)
+
+
+# Follows the invader's decision walks and acts, and the first line back from a shot it remembers,
+# until it throws (or 40 s pass).
+func _watch_until_thrown(t: TestContext, inv: Node) -> Dictionary:
+	var brain := t.controller(&"i", &"debug_zones")
+	var state := {}
+	var walks: Array = []
+	var acts: Array = []
+	var shot := {}
+	var watch := func() -> bool:
+		Spot.note(t, brain, inv, state, walks)
+		var act := Probe.acts(t, &"i")
+		if not acts.has(act):
+			acts.append(act)
+		var lines: Array = brain.debug_memory().get("shot_from", [])
+		if shot.is_empty() and not lines.is_empty():
+			shot.merge(lines[0])
+		return t.happened(&"throw", func(d): return d.get("attacker") == inv)
+	await t.until(watch, 40.0)
+	return { "walks": walks, "acts": acts, "shot": shot }
+
+
+# Whether the line back from the shot runs into the kitchen and no point of it there has a clear
+# lob within range from where the invader stood.
+func _no_lob_from_where_it_stood(t: TestContext, shot: Dictionary) -> bool:
+	var room := Maps.HOUSE_KITCHEN
+	var poly := PackedVector2Array([
+		room.position,
+		Vector2(room.end.x, room.position.y),
+		room.end,
+		Vector2(room.position.x, room.end.y),
+	])
+	var pieces := Geometry2D.intersect_polyline_with_polygon(
+		PackedVector2Array([shot["at"], shot["pos"]]),
+		poly,
+	)
+	if not t.require(
+			not pieces.is_empty(),
+			"set-up: its line back from the shot runs into the kitchen (%s)" % str(shot),
+	):
+		return false
+	var stretch: PackedVector2Array = pieces[0]
+	var a: Vector2 = stretch[0]
+	var b: Vector2 = stretch[stretch.size() - 1]
+	if a.x < b.x:
+		var swap := a
+		a = b
+		b = swap
+	a = a.move_toward(b, INSIDE)  # From the doorway end, past the threshold.
+	return t.require(
+		not Spot.any_lob_along(t, INVADER_AT, a, b, Spot.THROW_RANGE),
+		("set-up: from where it stood no point of that line in the kitchen (from %s to %s) has "
+				+ "a clear lob within range") % [str(a.round()), str(b.round())],
+	)
+
+
+func _check_thrown_from_spot(t: TestContext, inv: Node, acts: Array) -> void:
+	var room := Maps.HOUSE_KITCHEN
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if not t.check(not throws.is_empty(), "the invader threw its frag (acts %s)" % str(acts)):
 		return

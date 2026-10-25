@@ -79,42 +79,10 @@ func run(t: TestContext) -> void:
 	# (`debug_memory()["lost"]`).
 	var lost := [false]
 	var follow := func(_now: float) -> void:
-		if leg[0] < WALK.size() and walker.has_arrived():
-			leg[0] += 1
-			if leg[0] < WALK.size():
-				walker.walk_to(WALK[leg[0]])
-			else:
-				walker.stop()
-		for id in last_seen:
-			var act := str(Entry.brain(t, id).current_act())
-			if (last_seen[id] != Vector2.INF
-					and (act.begins_with("search") or act.begins_with("investigate"))):
-				decided[id] = true
-			if decided[id]:
-				continue
-			for c in Entry.brain(t, id).known_contacts_for_display():
-				if c.get("node") == hostile and c.get("visible", false):
-					last_seen[id] = c["pos"]
-			if Entry.brain(t, id).debug_memory().get("lost", []).any(
-					func(l): return l.get("name", "") == hostile.name,
-			):
-				lost[0] = true
+		_walk_on(walker, leg)
+		_note_sightings(t, hostile, last_seen, decided, lost)
 	var result: Dictionary = await Suspect.watch(t, 80.0, follow)
-	var spots: Array = last_seen.values().filter(func(p): return p != Vector2.INF)
-	if not t.require(
-			spots.size() == 1,
-			"set-up: the invader saw the householder in the garden (last seen %s; acts %s)"
-				% [str(last_seen), str(result["seen"])],
-	):
-		return
-	var outside_near := spots.all(
-		func(p: Vector2): return Entry.outward(door, p) > 10.0 and p.distance_to(door["pos"]) < NEAR
-	)
-	if not t.require(
-			outside_near,
-			("set-up: when they decided with it lost, the householder was last seen outside the "
-					+ "kitchen, near its back door (last seen at %s)") % str(last_seen),
-	):
+	if not _seen_outside_near(t, door, last_seen, result):
 		return
 	if not t.require(
 			lost[0],
@@ -122,3 +90,60 @@ func run(t: TestContext) -> void:
 	):
 		return
 	Suspect.check_stun_entry(t, result, "a householder lost by the kitchen's back door, heading in")
+
+
+# Walks the householder on to the next point of `WALK` once it has arrived, and stops it after the
+# last.
+func _walk_on(walker: Node, leg: Array) -> void:
+	if leg[0] < WALK.size() and walker.has_arrived():
+		leg[0] += 1
+		if leg[0] < WALK.size():
+			walker.walk_to(WALK[leg[0]])
+		else:
+			walker.stop()
+
+
+func _note_sightings(
+		t: TestContext,
+		hostile: Node,
+		last_seen: Dictionary,
+		decided: Dictionary,
+		lost: Array,
+) -> void:
+	for id in last_seen:
+		var act := str(Entry.brain(t, id).current_act())
+		if (last_seen[id] != Vector2.INF
+				and (act.begins_with("search") or act.begins_with("investigate"))):
+			decided[id] = true
+		if decided[id]:
+			continue
+		for c in Entry.brain(t, id).known_contacts_for_display():
+			if c.get("node") == hostile and c.get("visible", false):
+				last_seen[id] = c["pos"]
+		if Entry.brain(t, id).debug_memory().get("lost", []).any(
+				func(l): return l.get("name", "") == hostile.name,
+		):
+			lost[0] = true
+
+
+func _seen_outside_near(
+		t: TestContext,
+		door: Dictionary,
+		last_seen: Dictionary,
+		result: Dictionary,
+) -> bool:
+	var spots: Array = last_seen.values().filter(func(p): return p != Vector2.INF)
+	if not t.require(
+			spots.size() == 1,
+			"set-up: the invader saw the householder in the garden (last seen %s; acts %s)"
+				% [str(last_seen), str(result["seen"])],
+	):
+		return false
+	var outside_near := spots.all(
+		func(p: Vector2): return Entry.outward(door, p) > 10.0 and p.distance_to(door["pos"]) < NEAR
+	)
+	return t.require(
+		outside_near,
+		("set-up: when they decided with it lost, the householder was last seen outside the "
+				+ "kitchen, near its back door (last seen at %s)") % str(last_seen),
+	)

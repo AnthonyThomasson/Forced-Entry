@@ -64,72 +64,82 @@ func run(t: TestContext) -> void:
 			"victim": null,
 		},
 	)
-	var ids := Suspect.IDS
-	var registered := [false]
-	# Each member's line back from the shot, once it has one: whether it runs into the kitchen (the
-	# room the shots came from).
-	var into_kitchen := {}
-	var acts := { &"a": [], &"b": [] }
-	var phases := { &"a": [], &"b": [] }
-	# Each member's first moment in the kitchen: `[time, phase]`.
-	var first_in := { &"a": [], &"b": [] }
-	var end := t.time + 80.0
-	while t.time < end and ids.any(func(id): return first_in[id].is_empty()):
-		for id in ids:
-			var brain := Entry.brain(t, id)
-			var state: Dictionary = brain.debug_state()
-			var shots: Array = brain.debug_memory().get("shot_from", [])
-			if state.get("under_fire", false) or not shots.is_empty():
-				registered[0] = true
-			if not into_kitchen.has(id) and not shots.is_empty():
-				into_kitchen[id] = _runs_into(shots[0], Maps.HOUSE_KITCHEN)
-			var act := str(brain.current_act())
-			if acts[id].is_empty() or acts[id].back()[1] != act:
-				acts[id].append([t.time, act])
-			var phase := str(Entry.entry(brain).get("phase", ""))
-			phases[id].append([t.time, phase])
-			if (first_in[id].is_empty()
-					and Maps.HOUSE_KITCHEN.grow(-Entry.INSIDE_DEPTH).has_point(t.actor(
-						id,
-					).global_position)):
-				first_in[id] = [t.time, phase]
-		await t.frames(1)
+	var w := await _watch_until_in(t)
+	var acts: Dictionary = w["acts"]
 	var seen := {
 		&"a": acts[&"a"].map(func(p): return p[1]),
 		&"b": acts[&"b"].map(func(p): return p[1]),
 	}
 	if not t.require(
-			registered[0],
+			w["registered"],
 			("the shot registered: the stack was under fire, or remembers where it was shot at "
 					+ "from (debug_memory shot_from) (acts %s)") % str(seen),
 	):
 		return
 	if not t.require(
-			ids.all(func(id): return into_kitchen.get(id, false)),
+			Suspect.IDS.all(func(id): return w["into_kitchen"].get(id, false)),
 			"set-up: each invader's line back from the shot runs into the kitchen (%s)"
-				% str(into_kitchen),
+				% str(w["into_kitchen"]),
 	):
 		return
+	var first_entry := _check_entered_by_crossing(t, w["first_in"], seen)
+	_check_answered_first(t, acts, seen, first_entry)
 
-	# (1) Nobody walked into the kitchen unguarded: each got in, if at all, by an entry's crossing
-	# it radioed.
+
+## Follows each member every frame until both are in the kitchen (or 80 s pass): whether the shot
+## registered, where each one's line back from it runs, its acts and phases, and its first moment
+## in the kitchen.
+func _watch_until_in(t: TestContext) -> Dictionary:
+	var w := {
+		"registered": false,
+		# Each member's line back from the shot, once it has one: whether it runs into the kitchen
+		# (the room the shots came from).
+		"into_kitchen": {},
+		"acts": { &"a": [], &"b": [] },
+		"phases": { &"a": [], &"b": [] },
+		# Each member's first moment in the kitchen: `[time, phase]`.
+		"first_in": { &"a": [], &"b": [] },
+	}
+	var first_in: Dictionary = w["first_in"]
+	var end := t.time + 80.0
+	while t.time < end and Suspect.IDS.any(func(id): return first_in[id].is_empty()):
+		for id in Suspect.IDS:
+			_note_member(t, id, w)
+		await t.frames(1)
+	return w
+
+
+func _note_member(t: TestContext, id: StringName, w: Dictionary) -> void:
+	var brain := Entry.brain(t, id)
+	var state: Dictionary = brain.debug_state()
+	var shots: Array = brain.debug_memory().get("shot_from", [])
+	if state.get("under_fire", false) or not shots.is_empty():
+		w["registered"] = true
+	if not w["into_kitchen"].has(id) and not shots.is_empty():
+		w["into_kitchen"][id] = _runs_into(shots[0], Maps.HOUSE_KITCHEN)
+	var act := str(brain.current_act())
+	var acts: Dictionary = w["acts"]
+	if acts[id].is_empty() or acts[id].back()[1] != act:
+		acts[id].append([t.time, act])
+	var phase := str(Entry.entry(brain).get("phase", ""))
+	w["phases"][id].append([t.time, phase])
+	var first_in: Dictionary = w["first_in"]
+	if (first_in[id].is_empty()
+			and Maps.HOUSE_KITCHEN.grow(-Entry.INSIDE_DEPTH).has_point(t.actor(
+				id,
+			).global_position)):
+		first_in[id] = [t.time, phase]
+
+
+## (1) Nobody walked into the kitchen unguarded: each got in, if at all, by an entry's crossing it
+## radioed. The first time anyone got in (INF when nobody did).
+func _check_entered_by_crossing(t: TestContext, first_in: Dictionary, seen: Dictionary) -> float:
 	var first_entry := INF
-	for id in ids:
+	for id in Suspect.IDS:
 		if first_in[id].is_empty():
 			continue
 		var at: float = first_in[id][0]
-		var going := INF
-		for c in Probe.raw(
-				t,
-				&"callout",
-				func(d): return (
-					d.get("speaker") == t.actor(id)
-						and String(d.get("entry_step", "")) == "going_in"
-						and String(d.get("into", "")) == "kitchen"
-				),
-		):
-			going = float(c["time"])
-			break
+		var going := _going_in_at(t, id)
 		t.check(
 			going <= at + 0.05 and INSIDE_PHASES.has(first_in[id][1]),
 			("%s got into the kitchen only by an entry's crossing (in at %.2f s in phase '%s', "
@@ -137,17 +147,42 @@ func run(t: TestContext) -> void:
 				% [id, at, first_in[id][1], going, str(seen[id])],
 		)
 		first_entry = minf(first_entry, at)
+	return first_entry
 
-	# (2) Before anyone went in, the stack took STUN ENTRY or threw a grenade into the kitchen.
+
+## When member `id` first radioed going into the kitchen; INF when it did not.
+func _going_in_at(t: TestContext, id: StringName) -> float:
+	var going := INF
+	for c in Probe.raw(
+			t,
+			&"callout",
+			func(d): return (
+				d.get("speaker") == t.actor(id)
+					and String(d.get("entry_step", "")) == "going_in"
+					and String(d.get("into", "")) == "kitchen"
+			),
+	):
+		going = float(c["time"])
+		break
+	return going
+
+
+## (2) Before anyone went in, the stack took STUN ENTRY or threw a grenade into the kitchen.
+func _check_answered_first(
+		t: TestContext,
+		acts: Dictionary,
+		seen: Dictionary,
+		first_entry: float,
+) -> void:
 	var stun_entry := INF
-	for id in ids:
+	for id in Suspect.IDS:
 		for pair in acts[id]:
 			if String(pair[1]).begins_with("search/stun_entry/"):
 				stun_entry = minf(stun_entry, float(pair[0]))
 				break
 	var grenade_in := INF
 	for b in Probe.booms(t):
-		if (ids.any(func(id): return b["data"].get("attacker") == t.actor(id))
+		if (Suspect.IDS.any(func(id): return b["data"].get("attacker") == t.actor(id))
 				and Maps.HOUSE_KITCHEN.has_point(b["data"]["position"])):
 			grenade_in = minf(grenade_in, float(b["time"]))
 	var answered := minf(stun_entry, grenade_in)
