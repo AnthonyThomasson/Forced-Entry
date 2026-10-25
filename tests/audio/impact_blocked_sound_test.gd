@@ -24,7 +24,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	# shot furniture is shoved into overlaps; re-baking them logs a nav sync error
 	s.switch(&"nav.rebake", false)
-	s.set_static(BallisticsConfig, &"penetration_min_speed", 1.0e9)
+	s.set_static(BallisticsPenetrationConfig, &"min_speed", 1.0e9)
 	s.set_static(SoundConfig, &"category_range", Probe.EVERYWHERE)
 	var straight: Dictionary = GunConfig.guns.duplicate(true)
 	for gun: StringName in straight:
@@ -59,7 +59,7 @@ func run(t: TestContext) -> void:
 		t.expect_eq(heard.size(), 1, "and it sounded once (it stopped there)")
 
 	# --- A fly-over: nothing is struck, so only the shot is heard.
-	BallisticsConfig.cover_flyover_scale = 1000.0
+	BallisticsFlightConfig.cover_flyover_scale = 1000.0
 	Sound.reset()
 	var shots_before := Probe.sounds(t, &"shot").size()
 	var impacts_before := Probe.sounds(t, &"impact").size()

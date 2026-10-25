@@ -28,8 +28,8 @@ class_name OutfitConfig
 ##   stop_power  a round whose power x speed factor is below it is stopped (round power: `GunConfig`
 ##               `penetration`, pistol 1.0, SMG 0.8, rifle 2.2; a frag's fragment 0.4).
 ##   penetration the surface's P (0..100) a round that gets through loses speed against; P >= the
-##               bounce minimum (`BallisticsConfig.penetration_bounce_min`) ricochets a glancing
-##               round.
+##               bounce minimum (`BallisticsRicochetConfig.penetration_bounce_min`) ricochets a
+##               glancing round.
 ##   material    what a stopped round strikes (debris, the hit event, the impact sound); `color` its
 ##   debris colour. blunt       share of a stopped round's damage still dealt.
 ##   reduction   share cut from a round that gets through.

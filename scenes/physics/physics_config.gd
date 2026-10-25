@@ -5,7 +5,8 @@ class_name PhysicsConfig
 ## A `class_name` holder of `static var`s — read as `PhysicsConfig.<name>`; there is no
 ## instance and no autoload. Owns the impact force and deformation knobs shared by every
 ## hittable object (furniture and walls). Ballistics (fly-over/ricochet/penetration)
-## live in BallisticsConfig; the character's walking-push knobs in CharacterConfig.
+## live in the Ballistics holders (`BallisticsFlightConfig` ...); the character's walking-push knobs
+## in CharacterConfig.
 
 ## Physics layer mask walls and furniture live on: the ragdoll's wall sweep and the blood pools' and
 ## flows' collision queries all test against it.

@@ -777,7 +777,7 @@ The rules are `docs/outfits.md` (O1 to O15, each with its tests named under it);
 `tests/general/match_styles`); `tests/projectile/helmet_*`, `soft_vest_*`, `plate_*`, `armour_stop_feedback`,
 `frag_blast_cut_by_vest`; `tests/items/loadout_outfit`; `tests/ui/setup_menu_config`, `debug_panel_outfit`, `inspector_outfit`), all through
 `tests/_outfit/outfit_probe.gd` (`const OutfitProbe := preload(...)`, not `Outfit`: that is the Items class): `wear` / `view` / `condition` (behind `has_api`),
-`pin_height` (pins `BallisticsConfig.bullet_height`; `STAND` / `CROUCH` are a height in each zone), the spec's numbers (`ZONE_DAMAGE`, `PLATED_KIT`, `PLAIN_CLOTHES`)
+`pin_height` (pins `BallisticsFlightConfig.bullet_height`; `STAND` / `CROUCH` are a height in each zone), the spec's numbers (`ZONE_DAMAGE`, `PLATED_KIT`, `PLAIN_CLOTHES`)
 so a test checks the doc and not the code, and shooting lanes (`lay_lanes`, `dress`, `volley`: real rounds with a gun's `GunConfig` numbers, or a frag's fragment, fired
 square on at a target with a witness standing behind it to show whether a round came out), plus `art(c)` (the body's `drawn_art()`). `--changed` maps
 `tests/_outfit` (an unknown helper folder) to the whole suite. **A test that counts gun damage pins the bullet height** (a random height picks a zone, and a head
@@ -927,7 +927,7 @@ Statics are restored after every test (`TestWorld.restore`). Current switches:
 | `physics.debris` | `PhysicsConfig.debris_enabled`. |
 | `physics.hit_particles` | `PhysicsConfig.hit_particles_enabled`. |
 | `lighting.enabled` | `LightingConfig.enabled` and General's `LightMasks.shadows`: the dusk lighting (ambient, sky, piece lights and fixtures, flashes) and every occluder (walls, pieces, characters). The test world is lit like a match by default; a sandbox that lights itself turns it off. |
-| `projectile.flyover` | `BallisticsConfig.cover_flyover_scale`, 0 when off. A test that needs a chosen outcome instead pins `BallisticsConfig.bullet_height` (0–100) with `set_static`. |
+| `projectile.flyover` | `BallisticsFlightConfig.cover_flyover_scale`, 0 when off. A test that needs a chosen outcome instead pins `BallisticsFlightConfig.bullet_height` (0–100) with `set_static`. |
 
 To add a switch, add a row. When the behaviour has no knob yet, add a master `static var` to that
 domain's config holder, guarded at its one spawn point (the way `BloodConfig.enabled` gates

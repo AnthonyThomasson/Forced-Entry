@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
 	s.set_static(BloodConfig, &"enabled", false)
-	s.set_static(BallisticsConfig, &"bullet_height", -1.0)
+	s.set_static(BallisticsFlightConfig, &"bullet_height", -1.0)
 	var cover := {
 		"name": "Cover", "shape": "rect", "size": Vector2(24, 120), "color": Color(0.5, 0.4, 0.3),
 		"material": "wood", "coverage": 50.0, "penetration": 100.0, "weight": 5000.0,
@@ -98,7 +98,7 @@ func _check_random(t: TestContext) -> void:
 	var covers_before := _hits(t, _cover(t, &"stand"))
 	var bodies_before := _hits(t, _body(t, &"stand"))
 	var shots := 300
-	BallisticsConfig.bullet_height = -1.0
+	BallisticsFlightConfig.bullet_height = -1.0
 	await _volley(t, -1.0, shots)
 	var on_cover := float(_hits(t, _cover(t, &"stand")) - covers_before) / shots
 	var on_body := float(_hits(t, _body(t, &"stand")) - bodies_before) / shots
@@ -118,7 +118,7 @@ func _check_random(t: TestContext) -> void:
 
 ## Fire `count` bullets down every lane at `height` (negative = random) and let them land.
 func _volley(t: TestContext, height: float, count: int) -> void:
-	BallisticsConfig.bullet_height = height
+	BallisticsFlightConfig.bullet_height = height
 	for lane: StringName in LANES:
 		for i in count:
 			ProjectileSpawner.spawn(Vector2(SHOOT_X, LANES[lane]), Vector2.RIGHT, t.world)

@@ -17,7 +17,7 @@ func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 700, 400))
 	s.switch(&"projectile.flyover", false)
 	# no exit is found: the round just lands in the chair
-	s.set_static(BallisticsConfig, "exit_probe_distance", 0.0)
+	s.set_static(BallisticsPenetrationConfig, "exit_probe_distance", 0.0)
 	s.actor(&"shooter", &"puppet", Vector2(120, 200), { "start_slot": 3 })
 	s.object(&"chair", "chair", Vector2(500, 200))
 

@@ -63,7 +63,7 @@ func configure(s: TestSetup) -> void:
 		&"category_range",
 		{ &"shot": 1.0e9, &"impact": 1.0e9, &"footstep": 1.0e9, &"reload": 1.0e9 },
 	)
-	s.set_static(BallisticsConfig, &"bullet_height", 50.0)
+	s.set_static(BallisticsFlightConfig, &"bullet_height", 50.0)
 	s.set_static(CharacterConfig, &"pose_breath", 0.0)
 	s.set_static(CharacterConfig, &"pose_glance", 0.0)
 	var guns: Dictionary = GunConfig.guns.duplicate(true)

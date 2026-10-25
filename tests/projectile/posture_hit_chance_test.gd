@@ -23,7 +23,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"nav.rebake", false)
 	s.switch(&"physics.debris", false)
 	s.set_static(BloodConfig, &"enabled", false)
-	s.set_static(BallisticsConfig, &"bullet_height", -1.0)
+	s.set_static(BallisticsFlightConfig, &"bullet_height", -1.0)
 	for lane: StringName in LANES:
 		s.actor(
 			StringName("body_%s" % lane),
@@ -75,7 +75,7 @@ func run(t: TestContext) -> void:
 
 ## Fire `count` bullets down every lane at `height` (negative = random) and let them land.
 func _volley(t: TestContext, height: float, count: int) -> void:
-	BallisticsConfig.bullet_height = height
+	BallisticsFlightConfig.bullet_height = height
 	for lane: StringName in LANES:
 		for i in count:
 			ProjectileSpawner.spawn(Vector2(SHOOT_X, LANES[lane]), Vector2.RIGHT, t.world)

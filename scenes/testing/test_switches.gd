@@ -92,7 +92,7 @@ static var ROWS := {
 	&"projectile.flyover": {
 		"description": "Bullets may fly over partial cover (off = every shot meets what it "
 			+ "reaches).",
-		"static": [[BallisticsConfig, &"cover_flyover_scale", 0.0]],
+		"static": [[BallisticsFlightConfig, &"cover_flyover_scale", 0.0]],
 	},
 }
 

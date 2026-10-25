@@ -1,12 +1,13 @@
 ---
 name: domain-projectile
-description: Deep implementation detail for the Projectile System domain (scenes/projectile/) — shooting: penetration, damage, cover, ricochet, armour. Use when editing scenes/projectile/ or working on the bullet impact model, fly-over/ricochet/armour/penetrate/blocked resolution, casings, or BallisticsConfig tuning. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the Projectile System domain (scenes/projectile/) — shooting: penetration, damage, cover, ricochet, armour. Use when editing scenes/projectile/ or working on the bullet impact model, fly-over/ricochet/armour/penetrate/blocked resolution, casings, or the Ballistics holders' tuning (`BallisticsFlightConfig`, `BallisticsPenetrationConfig`, `BallisticsRicochetConfig`). Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Projectile System domain
 
-Owns shooting: penetration, damage, cover, ricochet, and a grenade's burst (`Explosion`, below). The shooting knobs live in `BallisticsConfig`,
-the burst's in the grenade's `GrenadeConfig` row (Items), which it receives as a plain dict.
+Owns shooting: penetration, damage, cover, ricochet, and a grenade's burst (`Explosion`, below). The shooting knobs live in three holders, `BallisticsFlightConfig` (speeds, a bullet's height and the
+fly-over, a surfaceless collider), `BallisticsPenetrationConfig` (going through, the blood a round carries out) and
+`BallisticsRicochetConfig` (ricochet); the burst's in the grenade's `GrenadeConfig` row (Items), which it receives as a plain dict.
 
 ## Impact model
 
@@ -14,7 +15,7 @@ A fired bullet (`projectile.gd`) is a **multi-hit traveler**: each physics frame
 forward with a raycast and resolves every collider it crosses against that object's surface (`_surface_for(body, travel)`:
 `get_surface_at(height, travel)` when the body has it — a character, whose armour depends on where the round strikes — else
 `get_surface()`) `coverage`/`penetration` (0–100; a collider with no surface uses
-`BallisticsConfig.wall_*`). It flies until `speed < BallisticsConfig.projectile_min_speed` or it
+`BallisticsFlightConfig.wall_*`). It flies until `speed < BallisticsFlightConfig.projectile_min_speed` or it
 passes `max_distance`. Non-solid decor has no collider, so it's never raycast.
 
 Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_speed` (the round's own muzzle speed, so a weapon's
@@ -23,7 +24,7 @@ Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_s
 
 1. **Fly over** — the bullet's `height` is at or above `clamp(100 − (100 − C) × cover_flyover_scale, 0, 100)`; no damage, excluded, flies on.
    **Coverage is a height (0–100) and a bullet flies at one height for its whole flight**: `height` is drawn uniformly 0–100 when it is fired
-   (`BallisticsConfig.bullet_height` pins it for tests; negative = random) and kept through ricochets and penetrations. It strikes every collider
+   (`BallisticsFlightConfig.bullet_height` pins it for tests; negative = random) and kept through ricochets and penetrations. It strikes every collider
    whose coverage is above it and clears the rest, so a collider of coverage C is cleared with chance (100 − C)/100 but the same
    height serves everything along the path: behind cover of 50, a body of 60 is struck only by the shots between 50 and 60 (or those that punch
    through the cover), and a body of 35 (a crouch) by none that cleared it. A character's coverage is its posture's. Spec: `docs/cover-and-stance.md`.
@@ -35,7 +36,7 @@ Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_s
    `material` becomes its `inner_material` (flesh, so the event, the sound and the blood carry say flesh) and it always penetrates (step 4b, skipping
    the too-slow block), losing speed against the armour's P. So a body with armour reads `HitInfo.penetrated == false` as stopped. A glancing round
    off steel (P 95 ≥ `penetration_bounce_min`) has already ricocheted at step 2; ceramic (70) and the soft panels (30) never do.
-4. **Penetrate** (else, while `speed ≥ penetration_min_speed / p`) — deals `damage × s × v`, bleeds
+4. **Penetrate** (else, while `speed ≥ BallisticsPenetrationConfig.min_speed / p`) — deals `damage × s × v`, bleeds
    speed by `loss = (P/100) × penetrate_loss_scale × (2 − s) / p`, deflects by up to `penetrate_deflect_max_deg × P/100 / p`.
    **Blocked** if too slow: deals the impact and embeds.
    Every `HitInfo` carries the bullet's `height`, which the struck character turns into a hit zone (what the zone, the blunt share and the reduction
@@ -45,7 +46,7 @@ Per hit, with squareness `s = |dir·normal|`, speed factor `v = speed / muzzle_s
 per gun by the `Shot` handed to `ProjectileSpawner.spawn` (its `muzzle_speed`, `penetration`) from `GunConfig` (pistol 1.0, SMG 0.8, rifle 2.2). A higher `p` loses less speed to
 the same surface and needs less speed to get through, so a pistol round (3200 px/s) dies in a wall (it leaves at ~320 px/s) while a rifle round
 (4400 px/s, `p` 2.2) leaves it at ~59% speed and can wound someone behind it, with its damage scaled down by the speed it has left. `muzzle_speed` also sets
-`v`'s reference, so the pistol (3200 = `BallisticsConfig.projectile_speed`) is unchanged. Tests: `tests/projectile/gun_penetration_test.gd`,
+`v`'s reference, so the pistol (3200 = `BallisticsFlightConfig.projectile_speed`) is unchanged. Tests: `tests/projectile/gun_penetration_test.gd`,
 `gun_damage_test.gd`.
 
 On any *damaging* outcome the projectile packages a `HitInfo` and calls `body.take_hit(info)` (the
@@ -59,9 +60,9 @@ hostility) learn what was struck, where, and by whom. Console lines: `Shot flew 
 ricocheted off / penetrated / blocked by …`.
 
 **Exit point and blood carry.** A penetrating hit also fills `HitInfo.has_exit / exit_position / exit_normal`:
-`_find_exit` casts a probe ray back from `BallisticsConfig.exit_probe_distance` ahead toward the entry, skipping other
+`_find_exit` casts a probe ray back from `BallisticsPenetrationConfig.exit_probe_distance` ahead toward the entry, skipping other
 colliders, until it meets the penetrated collider's far face (none found = thicker than the probe, no exit). A bullet
-that penetrates a `BallisticsConfig.blood_material` (flesh) surface carries that body's blood from its exit; the next
+that penetrates a `BallisticsPenetrationConfig.blood_material` (flesh) surface carries that body's blood from its exit; the next
 non-flesh surface it strikes (any outcome but fly-over) within `blood_carry_distance` px gets `HitInfo.blood`
 = `1 − distance / blood_carry_distance`, and the bullet then carries no more. Tests: `tests/physics/hit_particles_*`,
 `blood_carries_past_character`, `blood_carry_distance_limit`.

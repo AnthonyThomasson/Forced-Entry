@@ -1,6 +1,7 @@
 extends GameTest
 ## The blood a round carries out of a character runs out: past
-## `BallisticsConfig.blood_carry_distance` the surface it hits is marked, but not with blood.
+## `BallisticsPenetrationConfig.blood_carry_distance` the surface it hits is marked, but not with
+## blood.
 
 
 func describe() -> Dictionary:
@@ -16,7 +17,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 800, 400))
 	s.switch(&"projectile.flyover", false)
-	s.set_static(BallisticsConfig, "blood_carry_distance", 40.0)
+	s.set_static(BallisticsPenetrationConfig, "blood_carry_distance", 40.0)
 	s.actor(&"shooter", &"puppet", Vector2(100, 200), { "start_slot": 3 })
 	s.actor(&"target", &"puppet", Vector2(300, 200), { "max_health": 400.0 })
 	s.object(&"chair", "chair", Vector2(460, 200))

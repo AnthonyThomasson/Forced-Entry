@@ -23,7 +23,7 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, shot: Sho
 		proj.max_distance = shot.max_range
 	proj.muzzle_speed = (shot.muzzle_speed
 			if shot.muzzle_speed > 0.0
-			else BallisticsConfig.projectile_speed)
+			else BallisticsFlightConfig.projectile_speed)
 	proj.speed = proj.muzzle_speed
 	proj.penetration_power = maxf(shot.penetration, 0.05)
 	proj.damage += shot.item_damage

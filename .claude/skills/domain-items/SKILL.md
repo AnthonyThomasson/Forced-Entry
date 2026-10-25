@@ -128,7 +128,7 @@ and `PLATE_SLOTS` `front_plate back_plate`, String keys like a loadout's; `PLATE
 - `plates` (soft IIIA insert, steel III, ceramic IV): the protection numbers plus `name`, `weight` and `durability`.
 
 The protection numbers: `stop_power` (round-power units: a round whose power × speed factor is below it is stopped), `penetration` (P, what a round that
-gets through loses speed against; P ≥ `BallisticsConfig.penetration_bounce_min` ricochets a glancing one: the steel plate), `material` / `color` (what a
+gets through loses speed against; P ≥ `BallisticsRicochetConfig.penetration_bounce_min` ricochets a glancing one: the steel plate), `material` / `color` (what a
 stopped round strikes: debris, the hit event, the impact sound), `blunt` (share of a stopped round still dealt), `reduction` (share cut from one that gets
 through) and `blast` (share cut from a frag's blast). Helpers: `garment(id)`, `plate(id)`, `slots()`, `may_be_empty(slot)`, `choices(slot)`, `fits(slot, id)`,
 `name_of(slot, id)`.

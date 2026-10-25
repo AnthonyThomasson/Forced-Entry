@@ -27,14 +27,14 @@ const SPENT_SLACK := 0.01
 
 ## The speed it left the muzzle at (px/s): the reference its damage and impact scale against, so a
 ## weapon's damage is what it deals at full speed, head-on. The spawner sets it with `speed`.
-var muzzle_speed: float = BallisticsConfig.projectile_speed
+var muzzle_speed: float = BallisticsFlightConfig.projectile_speed
 ## Power to punch through what it hits (1 = a pistol round): it divides the speed lost to a surface
 ## and the deflection, and lowers the speed it needs to get through at all.
 var penetration_power: float = 1.0
 ## How high the bullet flies, 0..100: the same scale as an object's `coverage` (its height). One
-## number for the whole flight, drawn once at spawn (see `BallisticsConfig.bullet_height`), so it
-## clears or meets everything it crosses consistently: cover that stands taller than it is struck,
-## anything lower is flown over.
+## number for the whole flight, drawn once at spawn (see `BallisticsFlightConfig.bullet_height`), so
+## it clears or meets everything it crosses consistently: cover that stands taller than it is
+## struck, anything lower is flown over.
 var height := 0.0
 ## Unit travel vector; reassigned on ricochet / penetration deflection.
 var direction := Vector2.RIGHT
@@ -48,16 +48,16 @@ var _traveled := 0.0
 ## Colliders excluded from further sweeps (flown over or penetrated), so the bullet does not
 ## re-hit them. Ricochets are not added — a bounced bullet may strike the same surface again.
 var _exclude: Array[RID] = []
-## `_traveled` at the moment the bullet left a body carrying `BallisticsConfig.blood_material` (a
-## character); -1 = carrying no blood. The next non-flesh surface within `blood_carry_distance` of
-## it gets marked.
+## `_traveled` at the moment the bullet left a body carrying
+## `BallisticsPenetrationConfig.blood_material` (a character); -1 = carrying no blood. The next
+## non-flesh surface within `blood_carry_distance` of it gets marked.
 var _blood_from := -1.0
 
 
 func _ready() -> void:
 	rotation = direction.angle()
-	height = (BallisticsConfig.bullet_height
-			if BallisticsConfig.bullet_height >= 0.0
+	height = (BallisticsFlightConfig.bullet_height
+			if BallisticsFlightConfig.bullet_height >= 0.0
 			else randf() * 100.0)
 	if ignore is CollisionObject2D and not strikes_shooter:
 		_exclude.append(ignore.get_rid())
@@ -91,7 +91,7 @@ func _physics_process(delta: float) -> void:
 			# Nudge just past the contact (along the possibly-new direction) so the
 			# next sweep starts clear of this surface.
 			position += direction * 0.5
-			if speed < BallisticsConfig.projectile_min_speed:
+			if speed < BallisticsFlightConfig.projectile_min_speed:
 				queue_free()
 				return
 
@@ -134,8 +134,8 @@ func _resolve(result: Dictionary) -> void:
 	var squareness := 1.0 if n.length() < 0.001 else absf(direction.dot(n))
 	# 2. Ricochet off hard material at a glancing angle: reflect at reduced speed/damage.
 	# Not excluded — a bounced bullet can strike the same surface again.
-	if (float(surface["penetration"]) >= BallisticsConfig.penetration_bounce_min
-			and squareness < BallisticsConfig.bounce_square_max):
+	if (float(surface["penetration"]) >= BallisticsRicochetConfig.penetration_bounce_min
+			and squareness < BallisticsRicochetConfig.bounce_square_max):
 		_ricochet(body, info, squareness, surface)
 		return
 
@@ -155,7 +155,7 @@ func _resolve(result: Dictionary) -> void:
 		)
 	# 4a. Too slow to punch through (a more penetrating round needs less speed): deal the impact and
 	# embed (zeroed speed frees the bullet). A round through armour always goes on.
-	elif speed < BallisticsConfig.penetration_min_speed / penetration_power:
+	elif speed < BallisticsPenetrationConfig.min_speed / penetration_power:
 		_embed(body, info, "Shot blocked by %s for %.0f damage (%.0f%% square)"
 				% [body.name, info.damage, squareness * 100.0], surface)
 		return
@@ -166,10 +166,10 @@ func _resolve(result: Dictionary) -> void:
 ## and dealing a share of its damage through `info`.
 func _ricochet(body: Node, info: HitInfo, squareness: float, surface: Dictionary) -> void:
 	info.damage = (damage * squareness * info.speed_factor
-			* BallisticsConfig.bounce_damage_retention)
+			* BallisticsRicochetConfig.bounce_damage_retention)
 	direction = direction.bounce(info.normal).normalized()
 	rotation = direction.angle()
-	speed *= BallisticsConfig.bounce_speed_retention
+	speed *= BallisticsRicochetConfig.bounce_speed_retention
 	GameLog.say("Shot ricocheted off %s for %.0f damage (%.0f%% square)"
 			% [body.name, info.damage, squareness * 100.0])
 	info.blood = _take_blood(surface)
@@ -192,13 +192,17 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 	var body: Node = result.collider
 	var penetration: float = surface["penetration"]
 	var loss := clampf(
-		(penetration / 100.0) * BallisticsConfig.penetrate_loss_scale * (2.0 - squareness)
-			/ penetration_power,
+		(
+			(penetration / 100.0)
+				* BallisticsPenetrationConfig.penetrate_loss_scale
+				* (2.0 - squareness)
+				/ penetration_power
+		),
 		0.0,
 		1.0,
 	)
 	speed *= (1.0 - loss)
-	var j := deg_to_rad(BallisticsConfig.penetrate_deflect_max_deg * penetration / 100.0
+	var j := deg_to_rad(BallisticsPenetrationConfig.penetrate_deflect_max_deg * penetration / 100.0
 			/ penetration_power)
 	direction = direction.rotated(randf_range(-j, j))
 	rotation = direction.angle()
@@ -209,7 +213,7 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 	info.blood = _take_blood(surface)
 	_find_exit(info, result.position, result.rid, info.direction)
 	_deal(body, info, &"penetrate", surface)
-	if StringName(surface.get("material", "")) == BallisticsConfig.blood_material:
+	if StringName(surface.get("material", "")) == BallisticsPenetrationConfig.blood_material:
 		_blood_from = (_traveled
 				+ (info.exit_position.distance_to(result.position) if info.has_exit else 0.0))
 
@@ -218,7 +222,11 @@ func _penetrate(result: Dictionary, info: HitInfo, squareness: float, surface: D
 ## pushed toward "never" by a `cover_flyover_scale` below 1 (0 = never fly over) and toward "always"
 ## above it. Coverage 100 stands taller than any bullet.
 func _flyover_height(coverage: float) -> float:
-	return clampf(100.0 - (100.0 - coverage) * BallisticsConfig.cover_flyover_scale, 0.0, 100.0)
+	return clampf(
+		100.0 - (100.0 - coverage) * BallisticsFlightConfig.cover_flyover_scale,
+		0.0,
+		100.0,
+	)
 
 
 ## The struck object's surface: where the round meets it (`get_surface_at(height, direction)`, a
@@ -230,8 +238,8 @@ func _surface_for(body: Node, travel: Vector2) -> Dictionary:
 	if body.has_method("get_surface"):
 		return body.get_surface()
 	return {
-		"coverage": BallisticsConfig.wall_coverage,
-		"penetration": BallisticsConfig.wall_penetration,
+		"coverage": BallisticsFlightConfig.wall_coverage,
+		"penetration": BallisticsFlightConfig.wall_penetration,
 	}
 
 
@@ -254,12 +262,12 @@ func _hit_info(result: Dictionary, incoming: Vector2) -> HitInfo:
 ## it left a body) and then has no more of: the first surface takes it all. 0 if it carries none or
 ## has gone `blood_carry_distance` px. Flesh never takes it (the wound has its own blood).
 func _take_blood(surface: Dictionary) -> float:
-	if (_blood_from < 0.0
-			or StringName(surface.get("material", "")) == BallisticsConfig.blood_material):
+	var struck := StringName(surface.get("material", ""))
+	if _blood_from < 0.0 or struck == BallisticsPenetrationConfig.blood_material:
 		return 0.0
 	var dist := _traveled - _blood_from
 	_blood_from = -1.0
-	var reach := BallisticsConfig.blood_carry_distance
+	var reach := BallisticsPenetrationConfig.blood_carry_distance
 	return clampf(1.0 - dist / reach, 0.0, 1.0) if reach > 0.0 and dist <= reach else 0.0
 
 
@@ -268,10 +276,10 @@ func _take_blood(surface: Dictionary) -> float:
 ## meets the penetrated collider's far face. Leaves `has_exit` false for a body thicker than the
 ## probe.
 func _find_exit(info: HitInfo, entry: Vector2, rid: RID, travel: Vector2) -> void:
-	if BallisticsConfig.exit_probe_distance <= 0.0:
+	if BallisticsPenetrationConfig.exit_probe_distance <= 0.0:
 		return
 	var space := get_world_2d().direct_space_state
-	var from := entry + travel * BallisticsConfig.exit_probe_distance
+	var from := entry + travel * BallisticsPenetrationConfig.exit_probe_distance
 	var skip := _exclude.duplicate()
 	skip.erase(rid)
 	for _i in 4:

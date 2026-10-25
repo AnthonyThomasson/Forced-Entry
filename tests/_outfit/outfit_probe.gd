@@ -10,8 +10,8 @@ extends RefCounted
 ##
 ## Rounds are fired straight down a lane with `ProjectileSpawner.spawn` and the gun's own
 ## `GunConfig` numbers (or the frag's fragment numbers from `GrenadeConfig`), at a pinned
-## `BallisticsConfig.bullet_height`, so a round meets a body square on at a known zone. A test that
-## fires calls `pin_height(s)` in `configure`, so the height it sets in `run` is restored.
+## `BallisticsFlightConfig.bullet_height`, so a round meets a body square on at a known zone. A test
+## that fires calls `pin_height(s)` in `configure`, so the height it sets in `run` is restored.
 
 ## The outfit slots, in the order the setup window lists them: the String keys of `set_outfit`'s
 ## ids, of `outfit_view()` and of a loadout's `outfit` (like a loadout's own keys); the garment ids
@@ -61,7 +61,7 @@ const LANE_GAP := 55.0
 ## Pin the bullet height through `set_static` so the heights `fire` sets in `run` are restored after
 ## the test.
 static func pin_height(s: TestSetup, height := 40.0) -> void:
-	s.set_static(BallisticsConfig, &"bullet_height", height)
+	s.set_static(BallisticsFlightConfig, &"bullet_height", height)
 
 
 ## Whether `c` has the outfit API (`set_outfit` and `outfit_view`).
@@ -146,7 +146,7 @@ static func fire(
 	gun: StringName,
 	height: float,
 ) -> Node:
-	BallisticsConfig.bullet_height = height
+	BallisticsFlightConfig.bullet_height = height
 	if gun == &"fragment":
 		var frag := GrenadeConfig.row(&"frag")
 		var shard := Shot.new()

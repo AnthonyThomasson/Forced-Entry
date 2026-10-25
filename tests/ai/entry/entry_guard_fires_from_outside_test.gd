@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 	# Every round at torso height (docs/outfits.md O2, O3): a head shot's double damage would kill
 	# the 30-health target with the first round, before the stack claim this test watches the
 	# shooting from.
-	s.set_static(BallisticsConfig, &"bullet_height", 40.0)
+	s.set_static(BallisticsFlightConfig, &"bullet_height", 40.0)
 	Entry.guard_rules(s, ["combat", "advance", "rush"])
 	Entry.npc(s, &"inv", START, {}, { "facing": Vector2.LEFT })
 	Entry.target(s, &"tgt", TARGET, Vector2(0, 190), { "max_health": 30.0 })

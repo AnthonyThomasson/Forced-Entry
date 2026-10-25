@@ -176,7 +176,7 @@ through `LoadoutConfig.apply`; tests through it or `set_outfit`); `outfit()` han
   `1 + extra × outfit_stamina_per_kg` (0.025) times as fast. The invaders' plated kit (14 kg) is about 8% slower and spends 1.3x.
 Tests: `tests/character/hit_zone_by_bullet_height_test.gd`, `outfit_weight_slows_test.gd`, `outfit_art_test.gd`, and the armour ones in `tests/projectile/`
 (`helmet_stops_pistol_not_rifle`, `soft_vest_stops_pistol_smg_not_rifle`, `plate_covers_front_back_not_flank`, `plate_wears_out`, `armour_stop_feedback`,
-`frag_blast_cut_by_vest`). A test that counts gun damage pins `BallisticsConfig.bullet_height` (a random height picks a zone).
+`frag_blast_cut_by_vest`). A test that counts gun damage pins `BallisticsFlightConfig.bullet_height` (a random height picks a zone).
 
 ## Grenades and the stun (`docs/grenades.md` G1, G13)
 
