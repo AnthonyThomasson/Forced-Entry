@@ -320,9 +320,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    2 lead) and `wardrobe.set_style(style, seed, rank := 0)` (`LoadoutConfig.apply` calls it);
    what it wears (`docs/outfits.md`): `wardrobe.outfit` (an `Outfit`): `wardrobe.outfit.set_ids(ids)` (`{ head, body, vest, pants, feet, front_plate, back_plate }`, replacing the whole outfit; `LoadoutConfig.apply`
    calls it), the `Outfit` its art reads `look(style)` and `revision` from, and `wardrobe.outfit.view()` (each garment slot -> its name, "" for none; each plate slot ->
-   `{ type, name, condition }`: what the debug panel and the spectator inspector list), and where a round strikes it: `hit_zone(height)` (`feet` / `legs` / `torso` /
-   `head` by height over the posture's coverage; `&""` below 0) and `hit_side(direction)` (`front` / `flank` / `back` against the shoulders' facing), with
-   `get_surface_at` (interface 3); an outfit's weight slows `movement.run_speed()` and every pace;
+   `{ type, name, condition }`: what the debug panel and the spectator inspector list), with
+   `get_surface_at` (interface 3) placing a round by its height and side (the zones and sides: `docs/outfits.md` O3, O4); an outfit's weight slows `movement.run_speed()` and every pace;
    while the character rides a vehicle (interface 19, from the E press to its last step out) `use.is_busy()` is true, and `inventory.current_item()` is null
    while it is posed by the ride (the item put away);
    the stun (a grenade's flash and bang): `take_stun(blind, deaf)` (on the body, interface 3) and its `stun` component (`character_stun.gd`, `CharacterStun`): `stun.is_blind()`, `stun.is_deaf()`, `stun.level()` (0..1 disorientation: slowed to `CharacterStunConfig.speed`, no running, aim sway;
@@ -1055,7 +1054,7 @@ ladder every domain's z knob starts from) and `LightMasks` (the occluder bits, s
 
 ## Cross-cutting conventions
 
-Two conventions hold across domains; the per-domain specifics live in each domain's skill.
+Three conventions hold across domains; the per-domain specifics live in each domain's skill.
 
 - **Layered control / animate / draw.** Within an entity the three verbs live in separate files,
   wired via the scene tree (no `class_name` on scene scripts; cross-file calls resolve through
@@ -1064,6 +1063,10 @@ Two conventions hold across domains; the per-domain specifics live in each domai
 - **Runtime shapes.** Collision shapes are built **in code in `_ready()`**, not in the scene
   (layout is data-driven). Because of this the editor shows a "no shape" warning on the character scenes'
   `CollisionShape2D` (`character_base.tscn`, so `Player` and the NPCs) — **that is expected** (walls are built in code); don't add scene shapes.
+- **Typed components.** A body too big for one file is split into **typed components** held as public properties
+  (`character.movement`, `character.inventory`, …), each one topic, at most 15 vars and 20 public methods; callers name the
+  component (no forwarders on the body), and the body keeps only what scenes author, what every domain reads as plain
+  state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`).
 
 ## Running & verifying
 

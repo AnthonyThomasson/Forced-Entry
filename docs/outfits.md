@@ -32,7 +32,7 @@ Tests: `items/loadout_outfit`, `character/hit_zone_by_bullet_height` (nobody dre
 **O2. Hit zones.** A bullet's height (0..100, `docs/cover-and-stance.md` H1) over the body's posture coverage picks the zone, feet up:
 **feet** up to 0.08, **legs** up to 0.45, **torso** up to 0.85, **head** above. The same fractions standing (coverage 60: feet up to 4.8, legs to
 27, torso to 51, head 51 to 60) and crouched (coverage 35: feet to 2.8, legs to 15.75, torso to 29.75, head above). So the same height can
-be a standing body's legs and a crouched one's torso. (`CharacterHitConfig.zones`, `Character.hit_zone(height)`.)
+be a standing body's legs and a crouched one's torso. (`CharacterHitConfig.zones`, `Character._hit_zone(height)`.)
 Test: `character/hit_zone_by_bullet_height`.
 
 **O3. Zone damage.** A round's damage is scaled by its zone: head **x2**, torso **x1**, legs and feet **x0.6**
@@ -42,7 +42,7 @@ Test: `character/hit_zone_by_bullet_height`.
 
 **O4. Sides.** The side a round strikes is the angle between the way back along its direction (toward the shooter) and the
 shoulders' facing (`anatomy.pose.torso_angle`): **front** up to **60 degrees**, **back** from **120 degrees**, the **flank** between
-(`CharacterHitConfig.side_front_deg` / `side_back_deg`, `Character.hit_side(direction)`).
+(`CharacterHitConfig.side_front_deg` / `side_back_deg`, `Character._hit_side(direction)`).
 Test: `projectile/plate_covers_front_back_not_flank` (rounds 0, 45, 90, 135 and 180 degrees off the front).
 
 ### Armour
@@ -206,7 +206,7 @@ a soft panel).
 - **Items** (`scenes/items/`): `OutfitConfig` (the rows above, the slots, zones and sides), `Outfit` (the worn set, `layer`, `wear`, `weight`,
   `look(style)`, `view`), `LoadoutConfig` (`outfit_options`, `outfit_of`, `random_outfit`, `default_outfit`, the outfit in `normalize` / `apply` /
   `random`, and the style `apply` passes on), `Item.style` (stamped by `ItemRegistry.inventory_for`).
-- **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `hit_zone`, `hit_side`, and `take_hit`'s zone, armour, wear and
+- **Character**: `wardrobe.outfit` (`set_ids`, `view()`), `get_surface_at`, `_hit_zone`, `_hit_side`, and `take_hit`'s zone, armour, wear and
   blast steps; the weight in `movement`'s `_speed_in` and the run's stamina; the zone numbers in `CharacterHitConfig` and the weight's in `CharacterPaceConfig`. The style (`character_wardrobe.gd`): `style`,
   `look_seed`, `rank`, `set_style`, `CharacterStyleConfig.styles`. The art (`character/body/`: `character_visuals.gd`, `character_style.gd` which
   resolves the style's look, and the painters, `vest_painter.gd` among them) draws from `wardrobe.outfit.look(style)`.

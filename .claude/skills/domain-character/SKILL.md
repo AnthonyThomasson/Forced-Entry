@@ -31,7 +31,9 @@ its own child `Node2D`.
   muzzle and aim, each hand's stance), `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
   grenade's flash and bang on the body), and `body/character_anatomy.gd` (`anatomy`, `CharacterAnatomy`: the body's animate parts it
   steps, the pose, the rig, the `Hands` child, the legs, the kick, the footsteps, the flesh's dents and bleeding, the shadow and the
-  ragdoll; `domain-character-body`).
+  ragdoll; `domain-character-body`). One more is a `Node` child, since a scene authors it: `character_wardrobe.gd` (`wardrobe`,
+  `CharacterWardrobe`, the `Wardrobe` child of `character_base.tscn`, found in `_enter_tree`: the style, the look seed, the rank and
+  the `Outfit` worn; it steps nothing).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
   punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
   `character_legs.gd` (feet against walls), `body_sweep.gd` (the collide-and-slide hands and legs share), `body_strike.gd` (the melee strike punch and kick share), `character_ragdoll.gd` (the fall) and `character_visuals.gd` + `character_style.gd` (the look a style resolves to) + the painters in `body/art/` (appearance).
@@ -181,9 +183,9 @@ implant chances) and `default_style` are this domain's tuning. Tests: `tests/cha
 The character's wardrobe owns an `Outfit` (Items, `wardrobe.outfit`; a new one wears nothing). `wardrobe.outfit.set_ids(ids)` replaces the whole worn set (Main dresses every spawn
 through `LoadoutConfig.apply`; tests through it or `set_ids`); the art reads the `Outfit`'s `look(style)` and `revision` (`domain-character-body`),
 the UI its `view()`. A character never dressed has no armour, no weight and its style's bare clothes.
-- **Where a round strikes.** `hit_zone(height)`: the bullet's `HitInfo.height` over `movement.posture_coverage(movement.posture())` against `CharacterHitConfig.zones`
+- **Where a round strikes** (private to the body). `_hit_zone(height)`: the bullet's `HitInfo.height` over `movement.posture_coverage(movement.posture())` against `CharacterHitConfig.zones`
   (`feet` up to 0.08, `legs` 0.45, `torso` 0.85, `head` above; the same fractions standing and crouched), `&""` for a height below 0 (a blast).
-  `hit_side(direction)`: the angle between `-direction` and `anatomy.pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
+  `_hit_side(direction)`: the angle between `-direction` and `anatomy.pose.torso_angle` (the shoulders), `front` up to `side_front_deg` 60, `back` from
   `side_back_deg` 120, `flank` between.
 - **`get_surface_at(height, direction)`** (interface 3, which the projectile asks first): `get_surface()` where `Outfit.layer(zone, side)` is empty or the
   height is below 0; over armour, that surface with the layer's `penetration`, `material`, `color`, `stop_power` and `inner_material` (the body's own

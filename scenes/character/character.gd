@@ -212,7 +212,7 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 	var surface := get_surface()
 	if height < 0.0:
 		return surface
-	var armour := wardrobe.outfit.layer(hit_zone(height), hit_side(direction))
+	var armour := wardrobe.outfit.layer(_hit_zone(height), _hit_side(direction))
 	if armour.is_empty():
 		return surface
 	surface["inner_material"] = surface["material"]
@@ -229,7 +229,7 @@ func get_surface_at(height: float, direction: Vector2) -> Dictionary:
 ## The hit zone (`&"feet"`, `&"legs"`, `&"torso"`, `&"head"`) a round at `height` (0..100) strikes:
 ## its height over the posture's coverage against `CharacterHitConfig.zones`. `&""` for no height
 ## (below 0: a blast, the whole body).
-func hit_zone(height: float) -> StringName:
+func _hit_zone(height: float) -> StringName:
 	if height < 0.0:
 		return &""
 	var share := height / maxf(movement.posture_coverage(movement.posture()), 0.001)
@@ -242,7 +242,7 @@ func hit_zone(height: float) -> StringName:
 ## The side (`&"front"`, `&"flank"`, `&"back"`) a blow travelling along `direction` strikes: the
 ## angle between the way back along it and the shoulders' facing (`pose.torso_angle`) against
 ## `CharacterHitConfig.side_front_deg` / `side_back_deg`.
-func hit_side(direction: Vector2) -> StringName:
+func _hit_side(direction: Vector2) -> StringName:
 	if direction.length() < 0.001:
 		return &"front"
 	var shoulders := Vector2.from_angle(anatomy.pose.torso_angle)
@@ -254,7 +254,7 @@ func hit_side(direction: Vector2) -> StringName:
 
 ## Take a hit: shove along the impact (folded into locomotion via the pushable path), then hurt by
 ## where it struck (the striker fills in a HitInfo; `docs/outfits.md` O2 to O9). A round's zone
-## (`hit_zone` of its `height`) scales its damage (`CharacterHitConfig.zone_damage`). Where armour
+## (`_hit_zone` of its `height`) scales its damage (`CharacterHitConfig.zone_damage`). Where armour
 ## covers that zone and side (`Outfit.layer`), the hit wears its plate, and a round that did not get
 ## through it (`penetrated` false: stopped or glanced off) deals only the armour's `blunt` share: no
 ## wound, no blood, its debris the armour's; one that got through deals all but the armour's
@@ -263,12 +263,12 @@ func hit_side(direction: Vector2) -> StringName:
 ## body and hands and turns with them), sprays blood debris and starts the bleeding (BloodWound).
 func take_hit(hit: HitInfo) -> void:
 	apply_impulse(Physics.impact_impulse(hit))
-	var side := hit_side(hit.direction)
+	var side := _hit_side(hit.direction)
 	var outfit := wardrobe.outfit
 	if hit.height < 0.0:
 		_wound_by(hit, hit.damage * (1.0 - float(outfit.layer(&"torso", side).get("blast", 0.0))))
 		return
-	var zone := hit_zone(hit.height)
+	var zone := _hit_zone(hit.height)
 	var damage := hit.damage * float(CharacterHitConfig.zone_damage.get(zone, 1.0))
 	var armour := outfit.layer(zone, side)
 	if armour.is_empty():
