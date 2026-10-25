@@ -49,25 +49,15 @@ var phase := Phase.WALK
 var _exit_door: VehicleDoor
 ## A driver braking to a stop before it gets out.
 var _braking := false
-## Seconds into the walk, or into the current pose phase.
+## Seconds into the walk.
 var _clock := 0.0
-## The pose phase's length.
-var _duration := 0.0
-## The pose phase's path and fold (vehicle frame).
-var _from := Vector2.ZERO
-var _to := Vector2.ZERO
-var _fold_from := 0.0
-var _fold_to := 0.0
-## The heading (vehicle frame, rad) the facing turns toward in a pose phase.
-var _turn_to := 0.0
-## The facing in a pose phase (vehicle frame, rad).
-var _heading := 0.0
-## Last frame's posed point (vehicle frame), for the step the legs take.
-var _posed := Vector2.ZERO
 ## The facing during the walk (world).
 var _facing := Vector2.RIGHT
 ## The walk's waypoints (vehicle frame).
 var _route: Array[Vector2] = []
+## The pose phase under way (a `Pose`, built once): where the character is posed in the vehicle's
+## frame, its fold and its heading.
+var _pose := Pose.new()
 
 
 func _init(on: Node2D, who: Node2D, by: VehicleDoor) -> void:
@@ -87,7 +77,7 @@ func step(delta: float) -> void:
 		Phase.OPEN:
 			_wait_for_door(delta)
 		Phase.STEP_IN:
-			if _pose(delta):
+			if _step_pose(delta):
 				_begin_pose(
 					Phase.FOLD,
 					vehicle.cabin.seat_point(seat),
@@ -96,10 +86,10 @@ func step(delta: float) -> void:
 					0.0,
 				)
 		Phase.FOLD:
-			if _pose(delta):
+			if _step_pose(delta):
 				_sit()
 		Phase.SHIFT_SEAT:
-			if _pose(delta):
+			if _step_pose(delta):
 				vehicle.cabin.change_seat(character, &"driver")
 				seat = &"driver"
 				phase = Phase.SEATED
@@ -109,23 +99,24 @@ func step(delta: float) -> void:
 		Phase.BRAKE:
 			_brake(delta)
 		Phase.SHIFT_OUT:
-			if _pose(delta):
+			if _step_pose(delta):
 				_open_out()
 		Phase.OPEN_OUT:
-			_pose(delta)
+			_step_pose(delta)
 			if _exit_door.is_open():
 				_begin_pose(
 					Phase.UNFOLD, _exit_door.entry_point(character.radius),
 					VehicleBoardingConfig.fold_time, 0.0, _exit_door.outward.angle(),
 				)
 		Phase.UNFOLD:
-			if _pose(delta):
+			if _step_pose(delta):
 				var stand: Vector2 = _exit_door.stand_point(character.radius)
+				var posed := _pose.posed
 				_begin_pose(
-					Phase.STEP_OUT, stand, _step_time(_posed, stand), 0.0, (stand - _posed).angle()
+					Phase.STEP_OUT, stand, _step_time(posed, stand), 0.0, (stand - posed).angle()
 				)
 		Phase.STEP_OUT:
-			if _pose(delta):
+			if _step_pose(delta):
 				_step_off()
 
 
@@ -192,10 +183,10 @@ func _wait_for_door(delta: float) -> void:
 	var want := _to_handle()
 	_turn(want, delta)
 	if door.is_open() and absf(_facing.angle_to(want)) <= VehicleBoardingConfig.face_tolerance:
-		_heading = _facing.rotated(-vehicle.global_rotation).angle()
-		_posed = vehicle.to_local(character.global_position)
+		_pose.heading = _facing.rotated(-vehicle.global_rotation).angle()
+		_pose.posed = vehicle.to_local(character.global_position)
 		var entry := door.entry_point(character.radius)
-		_begin_pose(Phase.STEP_IN, entry, _step_time(_posed, entry), 0.0, 0.0)
+		_begin_pose(Phase.STEP_IN, entry, _step_time(_pose.posed, entry), 0.0, 0.0)
 
 
 ## Folded into the seat: the door shuts behind it, and the engine starts for a driver. A passenger
@@ -246,9 +237,9 @@ func _ride(_delta: float) -> void:
 
 ## Sit still in the seat, facing forward.
 func _hold_seat() -> void:
-	_posed = vehicle.cabin.seat_point(seat)
-	_heading = 0.0
-	character.use.set_ride_pose(vehicle.to_global(_posed), _world_facing(0.0), 1.0)
+	_pose.posed = vehicle.cabin.seat_point(seat)
+	_pose.heading = 0.0
+	character.use.set_ride_pose(vehicle.to_global(_pose.posed), _world_facing(0.0), 1.0)
 
 
 # --- On the way out --------------------------------------------------------------------
@@ -287,7 +278,7 @@ func _brake(_delta: float) -> void:
 ## Open the way out and wait in the seat beside it.
 func _open_out() -> void:
 	vehicle.cabin.open_door(_exit_door)
-	_begin_pose(Phase.OPEN_OUT, _posed, 0.0, 1.0, _heading)
+	_begin_pose(Phase.OPEN_OUT, _pose.posed, 0.0, 1.0, _pose.heading)
 
 
 ## Out and standing beside the door: the seat is free, the door shuts behind it and the character is
@@ -307,29 +298,17 @@ func _step_off() -> void:
 ## the facing turning toward `turn_to`.
 func _begin_pose(next: Phase, to: Vector2, duration: float, fold_to: float, turn_to: float) -> void:
 	phase = next
-	_clock = 0.0
-	_duration = duration
-	_from = _posed
-	_to = to
-	_fold_from = _fold_to
-	_fold_to = fold_to
-	_turn_to = turn_to
+	_pose.begin(to, duration, fold_to, turn_to)
 
 
 ## Pose the character for this frame of the pose phase (eased in and out); true once the phase is
 ## over.
-func _pose(delta: float) -> bool:
-	_clock += delta
-	var k := smoothstep(0.0, 1.0, clampf(_clock / maxf(_duration, 0.001), 0.0, 1.0))
-	var at := _from.lerp(_to, k)
-	var fold := lerpf(_fold_from, _fold_to, k)
-	_heading = rotate_toward(_heading, _turn_to, VehicleBoardingConfig.turn_rate * delta)
-	# The legs step with the motion through the vehicle's frame, less the further they are folded.
-	var stepped := ((at - _posed).rotated(vehicle.global_rotation) / maxf(delta, 0.001)
-			* (1.0 - fold))
-	_posed = at
-	character.use.set_ride_pose(vehicle.to_global(at), _world_facing(_heading), fold, stepped)
-	return _clock >= _duration and absf(angle_difference(_heading, _turn_to)) < 0.01
+func _step_pose(delta: float) -> bool:
+	var over := _pose.advance(delta, vehicle.global_rotation)
+	character.use.set_ride_pose(
+		vehicle.to_global(_pose.posed), _world_facing(_pose.heading), _pose.fold, _pose.stepped
+	)
+	return over
 
 
 ## How long a step from `a` to `b` (vehicle frame) takes at the stepping pace: its eased peak stays
@@ -422,3 +401,55 @@ static func _crosses(a: Vector2, b: Vector2, half: Vector2) -> bool:
 		if t0 >= t1:
 			return false
 	return true
+
+
+## A pose phase: a timed move of the character in the vehicle's frame, eased in and out, from where
+## it is posed to a point, its fold easing and its facing turning toward a heading. The ride keeps
+## one (`_pose`) for every pose phase, begun anew by `begin`.
+class Pose:
+	## Seconds into the pose phase.
+	var clock := 0.0
+	## The pose phase's length.
+	var duration := 0.0
+	## The pose phase's path and fold (vehicle frame).
+	var from := Vector2.ZERO
+	var to := Vector2.ZERO
+	var fold_from := 0.0
+	var fold_to := 0.0
+	## The heading (vehicle frame, rad) the facing turns toward.
+	var turn_to := 0.0
+	## The facing (vehicle frame, rad).
+	var heading := 0.0
+	## Where the character is posed (vehicle frame): last frame's, for the step the legs take, until
+	## `advance` moves it on.
+	var posed := Vector2.ZERO
+	## This frame's fold, and the motion through the vehicle's frame per s the legs step with
+	## (world, less the further they are folded).
+	var fold := 0.0
+	var stepped := Vector2.ZERO
+
+	## Begin a pose phase: from where the character is posed to `target` (vehicle frame) in `length`
+	## s, the fold easing from where the last one left it to `fold_end` and the facing turning
+	## toward `heading_end`.
+	func begin(target: Vector2, length: float, fold_end: float, heading_end: float) -> void:
+		clock = 0.0
+		duration = length
+		from = posed
+		to = target
+		fold_from = fold_to
+		fold_to = fold_end
+		turn_to = heading_end
+
+	## Advance the pose phase by `delta` s in a vehicle turned `turn` (rad, world): the point, the
+	## fold, the heading and the legs' step for this frame. True once the phase is over.
+	func advance(delta: float, turn: float) -> bool:
+		clock += delta
+		var k := smoothstep(0.0, 1.0, clampf(clock / maxf(duration, 0.001), 0.0, 1.0))
+		var at := from.lerp(to, k)
+		fold = lerpf(fold_from, fold_to, k)
+		heading = rotate_toward(heading, turn_to, VehicleBoardingConfig.turn_rate * delta)
+		# The legs step with the motion through the vehicle's frame, less the further they are
+		# folded.
+		stepped = (at - posed).rotated(turn) / maxf(delta, 0.001) * (1.0 - fold)
+		posed = at
+		return clock >= duration and absf(angle_difference(heading, turn_to)) < 0.01

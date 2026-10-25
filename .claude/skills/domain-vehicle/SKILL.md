@@ -30,7 +30,7 @@ vehicle ──(&"vehicle", &"engine", &"skid")──▶ EventBus ──▶ Sound
 | `vehicle_drive.gd` | `RefCounted` (preloaded), the body's public `drive`, built once with it: the bicycle model, stepped inside `_integrate_forces`. Holds `steer_share`, `wheel_angle`, `braking`, `slip`, `rpm`, `engine_load`, the drive `intent` and whether the engine is `running`; `lock(row, speed)` is the full lock at a speed; `start_engine` / `stop_engine`, `brake_input(character)` and `update_skid()` (the skids). |
 | `tyre_solve.gd` (`TyreSolve`) | `RefCounted` value object: one step's sideways tyre solve (the velocity in the vehicle's frame, each axle's impulse up to its grip), made by `VehicleDrive.step`. |
 | `vehicle_door.gd` | `RefCounted`: one door in the vehicle's frame: eased open amount, its pose (`angle()` / `offset()`), `stand_point`, `entry_point`, `is_clear`, `info`. |
-| `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out. |
+| `vehicle_boarding.gd` | `RefCounted`: one character's ride, a timed phase machine from E beside the vehicle to its last step out; its inner class `Pose` (one per ride, `_pose`) is the pose phase under way. |
 | `character_vehicle_use.gd` | `Node` composed by `character.gd` in code (like `CharacterInteraction`): finds vehicles, picks the door, steps the ride after the controller, abandons it on death, hands the vehicle left to the character's `use.keep_clear_of`. |
 | `vehicle_visuals.gd` | Draw, on the `Chassis` (`DrawLayers.UNDER_VEHICLE`, −1) and `Roof` (`DrawLayers.ABOVE`, +1) children (`layer` export), which sandwich the occupants (`STANDING`, 0) and cover what lies on the floor (`LYING`, −2: a dead body, casings, a dropped item). |
 | `art/vehicle_art.gd` | The painters' shared helpers (the body's part dispatch `paint_parts`, vehicle frame → canvas, cached convex regions, door frames, side glass, the roof's `lamps` and the tail lamps, seats, dashboard, sills). |
@@ -134,7 +134,7 @@ overrides that frame's intent):
 | `OPEN_OUT`, `UNFOLD`, `STEP_OUT` | The door opens; the rise to the entry point (`fold_time`, fold 1 → 0, facing outward); the step to the stand point. |
 | `DONE` | `cabin.release`, the door closes, `character.use.end_ride()`. |
 
-`is_seated()` is `SEATED`, `SHIFT_SEAT` or `BRAKE`. A **pose phase** eases position and fold with `smoothstep`, turns the
+`is_seated()` is `SEATED`, `SHIFT_SEAT` or `BRAKE`. A **pose phase** (the ride's `_pose`, a `VehicleBoarding.Pose`: `begin`, then `advance` each frame) eases position and fold with `smoothstep`, turns the
 heading at `turn_rate`, keeps positions in the vehicle's frame (so a moving vehicle carries the pose) and hands the
 character `use.set_ride_pose(world point, facing, fold, step)`, `step` = the motion through the vehicle's frame per second ×
 (1 − fold), so the legs step with the pose and not with the vehicle. **Death** (`Character._die` → `abandon()`): the seat
