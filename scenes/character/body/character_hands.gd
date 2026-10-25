@@ -70,7 +70,7 @@ func _physics_process(delta: float) -> void:
 	var item: Item = _character.inventory.current_item()
 	if item:
 		# A butt makes up the rest.
-		_current_reach = maxf(item.reach - item.strike_forward() - item.strike_short(), 0.0)
+		_current_reach = maxf(item.reach - item.strike.forward() - item.strike.short, 0.0)
 
 	# Estimate each hand's extension speed (units/s) for the range-of-motion punch factor,
 	# then resolve each hand against walls/objects so it rests on the surface, not clipping.
@@ -139,17 +139,17 @@ func _raw_hand_position(hand: int) -> Vector2:
 	# A long gun swung butt first is held in both hands: the other hand grips on along the barrel as
 	# it turns.
 	var item: Item = _character.inventory.current_item()
-	if item and item.strike_support_gap() != 0.0 and hand != item.weapon_hand():
+	if item and item.strike.support_gap != 0.0 and hand != item.weapon_hand():
 		var thrown: float = _punch[item.weapon_hand()]
 		if thrown > 0.0:
-			var barrel := item.strike_direction(
+			var barrel := item.strike.direction(
 				Vector2.from_angle(_character.anatomy.pose.weapon_angle),
 				thrown,
 			)
 			# Gripping at once (not eased in with the swing), or the hand would cut across the
 			# weapon hand's path.
 			raw = raw.lerp(
-				_stance_hand_position(item.weapon_hand()) + barrel * item.strike_support_gap(),
+				_stance_hand_position(item.weapon_hand()) + barrel * item.strike.support_gap,
 				smoothstep(0.0, 0.1, thrown),
 			)
 	return raw
@@ -197,7 +197,7 @@ func punch(hand: int) -> void:
 	var tween := create_tween()
 	tween.set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	var item: Item = _character.inventory.current_item()
-	_tempo = item.strike_tempo() if item else 1.0
+	_tempo = item.strike.tempo if item else 1.0
 	tween.tween_method(_set_punch.bind(hand), 0.0, 1.0, PUNCH_EXTEND_TIME * _tempo)   # Extend.
 	tween.tween_method(_set_punch.bind(hand), 1.0, 0.0, PUNCH_RETRACT_TIME * _tempo)  # Retract.
 	# Stay active across the whole swing: the fist reaches full extension a physics frame
@@ -222,7 +222,7 @@ func _report_hits() -> void:
 	var item: Item = _character.inventory.current_item()
 	if item and _active_hand == item.weapon_hand():
 		# The butt, once it is ahead of the hand.
-		end = item.strike_end(facing, _punch[_active_hand])
+		end = item.strike.end(facing, _punch[_active_hand])
 		if end.dot(facing) <= 0.0:
 			end = Vector2.ZERO
 	var fist: Vector2 = _character.global_position + _raw_hand_position(_active_hand) + end

@@ -15,14 +15,6 @@ class_name GunItem extends Item
 ## and this, so it stays crisp and cached.
 const RAISED_LENGTH := 0.42
 const RAISE_STEPS := 5
-## How far (px) along a long gun's barrel from the weapon hand the support hand grips through a butt
-## strike: toward the butt, so the other arm does not reach across the weapon hand.
-const SUPPORT_GAP := -8.0
-## How far (rad) a long gun turns in a butt strike: nearly across the body (105 degrees), the butt a
-## little ahead of the muzzle.
-const STRIKE_TURN := 1.833
-## How far (px) short of a fist's reach a long gun's blow lands.
-const STRIKE_SHORT := 5.0
 
 ## The guns and styles whose art `prepaint` has painted: [gun, style] -> true.
 static var _prepainted := {}
@@ -40,6 +32,7 @@ var _cooldown := 0.0
 
 func _init(id: StringName) -> void:
 	gun = id
+	super(_long_gun_strike() if raises_at_contact() else null)
 	display_name = str(_stat("name", display_name))
 	reach = 32.0
 
@@ -76,6 +69,19 @@ func _flat_size() -> Vector2:
 ## How far the butt end sits behind the weapon hand's center (px; the row's `grip_back`).
 func _grip_back() -> float:
 	return float(_stat("grip_back", 0.0))
+
+
+## A long gun's strike (`ItemStrike`): it strikes with its butt, its length behind the grip, swung
+## nearly across the body in both hands, twice as slowly as a fist and a little short of a fist's
+## reach, the other hand gripping toward the butt.
+func _long_gun_strike() -> ItemStrike:
+	var long_gun := ItemStrike.new()
+	long_gun.ahead = _grip_back()
+	long_gun.turn = ItemStrike.STRIKE_TURN
+	long_gun.short = ItemStrike.STRIKE_SHORT
+	long_gun.support_gap = ItemStrike.SUPPORT_GAP
+	long_gun.tempo = ItemStrike.LONG_TEMPO
+	return long_gun
 
 
 ## How it is drawn: its row's look in its weapon style (`GunConfig.look`: `painter`, colours,
@@ -168,33 +174,6 @@ func finish_reload(user: Node2D) -> void:
 		user.ammo.stow_magazine(spent)
 
 
-## A long gun (the kind too long for a wall) strikes with its butt: its length behind the grip.
-func strike_ahead() -> float:
-	return _grip_back() if raises_at_contact() else 0.0
-
-
-## How far (px) the other hand grips ahead of the weapon hand along the barrel: it holds the gun
-## through a butt strike.
-func strike_support_gap() -> float:
-	return SUPPORT_GAP if raises_at_contact() else 0.0
-
-
-## A long gun swung in both hands lands a little short of a fist's reach, which keeps the support
-## arm from overstretching.
-func strike_short() -> float:
-	return STRIKE_SHORT if raises_at_contact() else 0.0
-
-
-## A long gun turns nearly across the body in a butt strike.
-func strike_turn() -> float:
-	return STRIKE_TURN if raises_at_contact() else 0.0
-
-
-## A long gun is swung twice as slowly as a fist is thrown.
-func strike_tempo() -> float:
-	return 2.0 if raises_at_contact() else 1.0
-
-
 ## F: a melee jab with the weapon hand; a long gun swings round and leads with its butt.
 func primary(user: Node2D) -> void:
 	user.anatomy.hands.punch(weapon_hand())
@@ -247,7 +226,7 @@ func secondary(user: Node2D) -> bool:
 func draw_weapon(canvas: CanvasItem, user: Object) -> void:
 	var facing: Vector2 = user.weapon.facing()
 	# A punch turns a long gun about its grip until the butt leads.
-	facing = strike_direction(facing, user.anatomy.hands.punch_amount(weapon_hand()))
+	facing = strike.direction(facing, user.anatomy.hands.punch_amount(weapon_hand()))
 	var step := clampi(roundi(float(user.weapon.raise()) * RAISE_STEPS), 0, RAISE_STEPS)
 	var shrink := lerpf(1.0, RAISED_LENGTH, float(step) / RAISE_STEPS)
 	var art_size := _art_size()

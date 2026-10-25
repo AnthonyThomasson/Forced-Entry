@@ -4,5 +4,6 @@ class_name KeyItem extends Item
 
 
 func _init() -> void:
+	super()
 	display_name = "Key"
 	reach = 28.0

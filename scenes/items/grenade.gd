@@ -25,6 +25,7 @@ var _user: Node
 
 func _init(id: StringName) -> void:
 	kind = id
+	super()
 	display_name = str(_stat("name", display_name))
 	reach = 28.0
 

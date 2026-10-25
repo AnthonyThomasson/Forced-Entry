@@ -22,6 +22,9 @@ var reloading := false
 ## row's look for it (`GunConfig.look` / `GrenadeConfig.look`); a dropped gun and a thrown grenade
 ## keep it. Looks only: nothing it does depends on it.
 var style: StringName = &"police"
+## Its melee geometry, which the character's hands read through a blow (`ItemStrike`): a fist's
+## unless its kind hands up its own. Built once with the item.
+var strike: ItemStrike
 ## The textures the last frame's draws of the item painted, in order (`drawn_art`).
 var _art: Array[Texture2D] = []
 ## The process frame `_art` was painted in.
@@ -30,6 +33,13 @@ var _art_frame := -1
 var _look_row := {}
 ## The painters' handle of `_look_row`.
 var _look_id := 0
+
+
+## Build the item with its kind's parts: each one a kind hands up through `super(...)`, else the
+## inert default (a fist's strike).
+func _init(melee: ItemStrike = null) -> void:
+	strike = melee if melee != null else ItemStrike.new()
+	strike.hand = weapon_hand()
 
 
 ## How `hand` (0 = right as drawn, 1 = left) is held while this item is out: the name of a stance in
@@ -72,60 +82,6 @@ func weapon_hand() -> int:
 ## further. Default: negative, meaning the character's own default reach.
 func muzzle_ahead() -> float:
 	return -1.0
-
-
-## How far (px) behind the weapon hand this item's striking end sits when held, which a melee blow
-## swings round to lead with (a long gun's butt). 0 = the fist leads.
-func strike_ahead() -> float:
-	return 0.0
-
-
-## How far (rad) the weapon turns about the weapon hand, outward from the body, by the end of a
-## blow: short of a half turn, so it ends nearly across the body with the striking end a little
-## ahead of the far end.
-func strike_turn() -> float:
-	return 0.0
-
-
-## How far round the weapon has swung, 0 (held as usual) .. 1 (at `strike_turn`), at a punch
-## `amount` (0 resting .. 1 fully thrown).
-func strike_swing(amount: float) -> float:
-	return smoothstep(0.0, 0.6, amount) if strike_ahead() > 0.0 else 0.0
-
-
-## The way the weapon points at a punch `amount` when held along `aim`.
-func strike_direction(aim: Vector2, amount: float) -> Vector2:
-	return aim.rotated(strike_turn() * strike_swing(amount) * (1.0 if weapon_hand() == 0 else -1.0))
-
-
-## Where the striking end is, relative to the weapon hand, when the weapon is held along `aim` at a
-## punch `amount`.
-func strike_end(aim: Vector2, amount: float) -> Vector2:
-	return -strike_direction(aim, amount) * strike_ahead()
-
-
-## How far (px) ahead of the weapon hand the striking end ends up at a full blow: the hands shorten
-## the punch's extension by it, so a blow lands as far out as ever.
-func strike_forward() -> float:
-	return strike_ahead() * maxf(-cos(strike_turn()), 0.0)
-
-
-## How much (px) shorter than a fist's the blow reaches: a weapon held in both hands cannot be
-## thrown as far.
-func strike_short() -> float:
-	return 0.0
-
-
-## How far (px) along the weapon from the weapon hand the other hand grips (negative: toward the
-## striking end). It holds on as the weapon turns. 0 = it does not follow.
-func strike_support_gap() -> float:
-	return 0.0
-
-
-## How many times slower than a fist the weapon's blow is thrown (a heavy weapon swings, it does not
-## jab).
-func strike_tempo() -> float:
-	return 1.0
 
 
 ## Whether the weapon is too long to use against a wall: while its barrel touches a wall or object

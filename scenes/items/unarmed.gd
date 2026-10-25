@@ -3,5 +3,6 @@ class_name UnarmedItem extends Item
 
 
 func _init() -> void:
+	super()
 	display_name = "Unarmed"
 	reach = 28.0

@@ -49,11 +49,11 @@ func run(t: TestContext) -> void:
 		for id in peak:
 			var you := t.actor(id)
 			var swing: float = you.anatomy.hands.punch_amount(0)
-			peak[id] = maxf(peak[id], you.inventory.current_item().strike_swing(swing))
+			peak[id] = maxf(peak[id], you.inventory.current_item().strike.swing(swing))
 	for id in [&"rifle", &"smg"]:
 		var you := t.actor(id)
 		t.check(
-			you.inventory.current_item().strike_ahead() > 0.0,
+			you.inventory.current_item().strike.ahead > 0.0,
 			"%s: the butt sits behind the grip" % id,
 		)
 		t.check(
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 		var struck := func(d): return d["actor"] == id and d["body"] == chair and d["hand"] >= 0
 		t.check(t.happened(&"hit_landed", struck), "%s: the butt strike lands on the chair" % id)
 	t.expect_eq(
-		t.actor(&"pistol").inventory.current_item().strike_ahead(),
+		t.actor(&"pistol").inventory.current_item().strike.ahead,
 		0.0,
 		"a pistol has no butt to lead with",
 	)
@@ -80,7 +80,7 @@ func _check_two_handed_swing(t: TestContext) -> void:
 	puppet.aim_at(Vector2(500, 540))
 	await t.seconds(0.4)
 	var item: GunItem = you.inventory.current_item()
-	var gap := absf(item.strike_support_gap())
+	var gap := absf(item.strike.support_gap)
 	t.check(gap > 0.0, "a rifle's other hand grips along the barrel (%.0f px)" % gap)
 	var worst := 0.0
 	var stretch := 0.0
@@ -93,7 +93,7 @@ func _check_two_handed_swing(t: TestContext) -> void:
 		if amount > 0.15:
 			worst = maxf(worst, absf(apart.length() - gap))
 		stretch = maxf(stretch, _arm_stretch(you))
-		if item.strike_swing(amount) > 0.99:
+		if item.strike.swing(amount) > 0.99:
 			across.take(item, you, amount)
 	t.check(
 		worst < 3.0,
@@ -147,8 +147,8 @@ class Across:
 
 	## Take in how `item` lies in `you`'s hands at punch `amount`.
 	func take(item: GunItem, you: Node, amount: float) -> void:
-		var barrel := item.strike_direction(you.facing, amount)
-		var butt: Vector2 = item.strike_end(you.facing, amount)
+		var barrel := item.strike.direction(you.facing, amount)
+		var butt: Vector2 = item.strike.end(you.facing, amount)
 		var row := GunConfig.row(item.gun)
 		var muzzle: Vector2 = barrel * (row["art_size"].y - row["grip_back"])
 		tilt = minf(tilt, absf(barrel.dot(you.facing)))

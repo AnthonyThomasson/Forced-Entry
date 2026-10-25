@@ -13,6 +13,7 @@ const METAL := { "material": "metal" }
 
 
 func _init() -> void:
+	super()
 	display_name = "Spoon"
 	reach = 0.0
 

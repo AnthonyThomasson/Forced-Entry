@@ -238,7 +238,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `Item` (`items/item.gd`): `display_name`, `reach`, `hand_stance(hand) -> StringName` (how that
    hand is held — the name of a `CharacterStanceConfig.stances` entry: `relaxed`, `guard`, `aim`, `support`;
    the character's pose eases each hand to it and the rig bends the arm to reach it; the character itself overrides it with `run` while running
-   and, while blind, puts the free hand in `eyes` and a gun's weapon hand in `one_hand`, `docs/grenades.md` G13), `primary(user)` (F), the melee hooks the character's hands read, `strike_direction(aim, amount)` / `strike_end(aim, amount)` / `strike_forward()` / `strike_short()` / `strike_support_gap()` / `strike_tempo()` (a long gun's punch swings it nearly across the body, butt leading; `GunItem` overrides `strike_ahead()` / `strike_turn()`, from which the direction, end and forward follow, and the short, support gap and tempo),
+   and, while blind, puts the free hand in `eyes` and a gun's weapon hand in `one_hand`, `docs/grenades.md` G13), `primary(user)` (F),
    `secondary(user) -> bool` (LMB; true = a round left the barrel), `tick(delta)` (the item's own clocks; the character ticks
    every item it carries each physics frame), `is_automatic()` (holding the trigger keeps firing), `weapon_hand()`,
    `muzzle_ahead()` (px past the weapon hand where bullets leave; negative = the character's `CharacterStanceConfig.muzzle_ahead`),
@@ -248,7 +248,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
    nothing; the dropped node's `DroppedItem.item` is that very item) and `draw_dropped(canvas, at, angle, modulate, opts)` (how it looks lying loose; `opts.flip`
    is which side landed up), and `drawn_art() -> Array` (the textures its last draw, `draw_weapon` or `draw_dropped`, painted: every call in
    the frame it was last drawn, e.g. a lying item's shadow and art; pixel art is cached by what it depicts, so a test compares drawings by
-   them, like `CharacterVisuals.drawn_art()`). The character
+   them, like `CharacterVisuals.drawn_art()`). It holds typed parts, each built once with it, a base the kind may subclass and hands up
+   through `super(...)`:
+   - **`strike`** (`ItemStrike`, `items/item_strike.gd`): the melee geometry the character's hands read. Its numbers are `ahead`, `turn`,
+     `short`, `support_gap`, `tempo` and `hand`; `swing(amount)` / `direction(aim, amount)` / `end(aim, amount)` / `forward()` follow
+     from them. A fist's are the defaults. A long gun's (a `GunConfig` row with `raises_at_contact`) make its punch swing it nearly across
+     the body, butt leading.
+
+   The character
    calls `drop` on death and removes the item from its inventory if a node came back. `ItemRegistry.create(id, rounds, magazine)` / the slot ids `UNARMED_SLOT`, `FISTS_SLOT` and `KEY_SLOT` (the AI selects its fists with `ItemRegistry.FISTS_SLOT`, and names its grenades by `STUN_SLOT` / `FRAG_SLOT` (`AgentThrow.SLOTS`, the bang entry's stun, or the frag of an entry its leader ordered in with one); the debug panel lists the grenade rows through `LoadoutConfig.grenade_options()`; the UI's command menu reads a teammate's stuns and frags as `inventory.item_count(ItemRegistry.STUN_SLOT)` / `inventory.item_count(ItemRegistry.FRAG_SLOT)`; an interaction's `requires_item` is a slot id, the key's) /
    `default_inventory()` / `inventory_for(slots, rounds, magazine, grenades, style := &"police")` (an optional `magazine` type the gun starts loaded with; `grenades` = slot -> count; `style` the weapon style stamped on every item made) /
    `create_magazines(type_ids)` (full `Magazine`s for those `MagazineConfig` types: the character's spare-magazine store) /

@@ -7,6 +7,7 @@ var _next_hand := 0
 
 
 func _init() -> void:
+	super()
 	display_name = "Fists"
 	reach = 28.0
 
