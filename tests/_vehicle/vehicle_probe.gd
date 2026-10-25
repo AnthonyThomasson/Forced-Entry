@@ -89,28 +89,31 @@ static func has_reads(t: TestContext, node: Object, methods: Array, what: String
 	)
 
 
-## The `VehicleConfig` static holder, looked up by class name (null before it exists, so a test
-## referencing it still parses).
-static func config() -> Script:
+## The Vehicles domain's static holder `holder` (`VehicleConfig` ...), looked up by class name, so a
+## test naming one still parses before it exists. A missing holder is an error, and null.
+static func config(holder: StringName) -> Script:
 	for c in ProjectSettings.get_global_class_list():
-		if c["class"] == &"VehicleConfig":
+		if c["class"] == holder:
 			return load(c["path"])
+	push_error("vehicle_probe: no class named %s" % holder)
 	return null
 
 
-## A shared `VehicleConfig` number (`harm_kill_speed`, `crash_min_speed`, `drive_zoom_out` ...), or
-## `fallback` without one.
-static func config_value(prop: StringName, fallback: Variant = null) -> Variant:
-	var c := config()
+## A number of a Vehicles holder by name (`VehicleConfig`'s `kinds` ...). A missing holder or a name
+## the holder has no static var by is an error, and null: never a stand-in value.
+static func config_value(holder: StringName, prop: StringName) -> Variant:
+	var c := config(holder)
 	if c == null:
-		return fallback
-	var v: Variant = c.get(prop)
-	return fallback if v == null else v
+		return null
+	if not prop in c:
+		push_error("vehicle_probe: %s has no static var '%s'" % [holder, prop])
+		return null
+	return c.get(prop)
 
 
 ## A per-kind `VehicleConfig.kinds[kind][key]` (`top_speed` ...), or `fallback` without one.
 static func kind_value(kind: StringName, key: StringName, fallback: Variant = null) -> Variant:
-	var kinds: Variant = config_value(&"kinds")
+	var kinds: Variant = config_value(&"VehicleConfig", &"kinds")
 	if not kinds is Dictionary:
 		return fallback
 	var row: Variant = kinds.get(kind, kinds.get(String(kind)))

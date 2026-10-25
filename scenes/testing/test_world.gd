@@ -203,8 +203,15 @@ func _apply_statics(setup: TestSetup) -> void:
 		_set_static(s[0], s[1], s[2])
 
 
-## Set a static var, remembering its value for `restore()`.
+## Set a static var, remembering its value for `restore()`. A name the script has no static var
+## by is an error (it fails the test), never a silent no-op: a renamed or moved tunable must not
+## leave a test passing on the default.
 func _set_static(script: Script, prop: StringName, value: Variant) -> void:
+	if not prop in script:
+		push_error(
+			"TestWorld: %s has no static var '%s'" % [script.resource_path.get_file(), prop]
+		)
+		return
 	_saved_statics.append([script, prop, script.get(prop)])
 	script.set(prop, value)
 

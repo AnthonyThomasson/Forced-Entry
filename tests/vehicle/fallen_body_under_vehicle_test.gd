@@ -87,7 +87,7 @@ func _set_up(t: TestContext) -> Scene:
 			"the car has its Chassis and Roof draw layers",
 	):
 		return null
-	var kill: Variant = Probe.config_value(&"harm_kill_speed")
+	var kill: Variant = Probe.config_value(&"VehicleConfig", &"harm_kill_speed")
 	if not t.require(kill != null, "VehicleConfig.harm_kill_speed exists"):
 		return null
 	scene.kill_speed = float(kill)

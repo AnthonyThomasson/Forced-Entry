@@ -344,7 +344,8 @@ func run(t: TestContext) -> void:
     `invader_margin`, ...), the world's seed its `seed` unless they name one, the setup's overlays its `overlays`. Its `human` may
     name an actor (`{ actor, side, lead, at }`, `actor` in place of `node`): that actor is joined to its side, armed and handed its
     stack radio. The match's NPCs are not test actors: read them off `t.match_handle()`. Declare `squads` or `declared_match`, not both (an error).
-  - Behaviour: `switch(name, on)` (table below) and `set_static(ConfigClass, prop, value)`.
+  - Behaviour: `switch(name, on)` (table below) and `set_static(ConfigClass, prop, value)`. A `prop` the holder has no
+    static var by (a switch row's too) is an error that fails the test (`TestWorld._set_static`), never a silent no-op.
   - Scripted Von: `von_script([{ pick: id, question: substring? }, …])` replaces the server with those
     picks (first rule whose id is offered; else the first offered option), so an AI test needs no server
     and is deterministic (`von_script(rules, latency_frames)` holds each answer back that many physics frames, `DecisionStub.latency_frames`, to test what an NPC does while a decision is in flight); `von_down()` makes every decision fail (the hold-steady fallback). Read what was
@@ -830,7 +831,7 @@ The rules are `docs/vehicles.md` (V1 to V9, each with its tests named under it).
 numbers as consts (`DOOR_REACH`, `BOARD_MAX_SPEED`, `EXIT_MAX_SPEED`, `HARM_MIN_SPEED`, `DOOR_OPEN_TIME`, `FOLD_TIME`: `board_animation_is_continuous`
 checks the door's and the fold's measured ease against the last two, within 0.4× to 2×) and each kind's door table
 (`CAR_DOORS`, `VAN_DOORS`), so a test checks the spec and not the code; `ready` / `has_reads` (a read that does not exist fails a `require`
-instead of a script error), `config_value` / `kind_value` (VehicleConfig read by name), the door and seat reads (`door`, `open_of`,
+instead of a script error), `config_value(holder, prop)` / `kind_value` (a Vehicles holder's static read by class name; a missing holder or var is an error, never a fallback), the door and seat reads (`door`, `open_of`,
 `seat_of`, `occupant`, `watch_doors` / `opened`), the vehicle frame (`forward`, `right`, `outward`, `stand_point`, `edge`, `gap_to_solid`,
 `local_velocity`, `pivot`, `outward_slip`, `along`), placing (`place`, `move_vehicle`), the ride (`board`, `exit`, `board_by`), driving
 (`reach_speed`, `hold_speed`) and the draw layers (`layer`, `absolute_z`, `draws_above`). Everything goes through the drivable contract

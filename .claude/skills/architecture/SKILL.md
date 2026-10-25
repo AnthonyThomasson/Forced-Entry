@@ -614,7 +614,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `drive(throttle, steer, handbrake)`, writing `move_input` / `run_input` as the player's keys do) — and `EventBus` / character
     signals (7, 10) for its event log.
     Behaviour switches set existing exported props and config-holder `static var`s by name
-    (duck-typed, like the overlay flags); a test can also script the Von answers through the AI
+    (duck-typed, like the overlay flags; a name the holder does not have is an error, which fails the test); a test can also script the Von answers through the AI
     decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the test session also drives the
     `DecisionServerLauncher` for the tests that need the real server; `DecisionBudget.per_frame`, the
     snapshots a frame may start, is set the same way) so AI

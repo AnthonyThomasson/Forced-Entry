@@ -1080,6 +1080,12 @@ class GdUnitEngineTests(unittest.TestCase):
         self.assertEqual(run.status(self.VERDICT), ["SKIPPED"], run.out)
         self.assert_junit(run, self.VERDICT, "skipped", "verdict probe: skipped on purpose")
 
+    def test_a_static_its_holder_lacks_fails_the_test(self):
+        run = self.probe(self.VERDICT, GAME_TEST_VERDICT="missing_static")
+        self.assertEqual(run.code, 1, run.out)
+        self.assertEqual(run.status(self.VERDICT), ["FAIL"], "a set_static naming a var BloodConfig lacks\n" + run.out)
+        self.assertIn("no_such_tunable", run.out, "the failure names the missing var")
+
     def test_a_gap_is_gdunit_skipped_as_expected_to_fail_with_its_failed_checks(self):
         run = self.probe(self.GAP)
         self.assertEqual(run.code, 0, "a GAP is not a failure of the run\n" + run.out)
