@@ -2,26 +2,30 @@
 never in the live tree: another agent's lint or `--changed` run in the same worktree would see a probe written there,
 and a killed run leaves it behind.
 
-Every tool test module (and the tests' shared helpers) is read with `ast`: a path is rooted when it is built from
-`ROOT` or `__file__`, or from a name assigned one (`PROBE = ROOT / ...`, then `self.PROBE`), and a write on a rooted
-path fails: `write_text` / `write_bytes` / `mkdir` / `touch`, `open` in a writing mode, the destination of
-`shutil.copy*` / `copytree` / `move`, `os.makedirs`. The message is `file:line` and what to do instead.
+Every tool test module, the tests' shared helpers and the test scripts (tools/tool_tests_pick.py's lists) are read
+with `ast`: a path is rooted when it is built from `ROOT` or `__file__`, or from a name assigned one (`PROBE = ROOT /
+...`, then `self.PROBE`), and a write on a rooted path fails: `write_text` / `write_bytes` / `mkdir` / `touch` /
+`symlink_to`, `open` in a writing mode, the destination of `shutil.copy*` / `copytree` / `move`, `os.makedirs`, either
+side of a path's `rename` / `replace` or of `os.rename` / `os.replace` (a file moved out of the tree is gone from it),
+and a `dir=` (a temp file made in the tree). The message is `file:line` and what to do instead.
 """
 import ast
 import unittest
 from pathlib import Path
 
+from tools import tool_tests_pick
+
 ROOT = Path(__file__).resolve().parents[2]
 SEEDS = {"ROOT", "__file__"}
-WRITE_METHODS = {"write_text", "write_bytes", "mkdir", "touch"}
+WRITE_METHODS = {"write_text", "write_bytes", "mkdir", "touch", "symlink_to"}
+MOVE_METHODS = {"rename", "replace"}
 COPIES = {"copy", "copy2", "copyfile", "copytree", "move"}
 FIX = "write in a temp dir or copy_checkout()"
 
 
 def tool_test_modules() -> list[Path]:
-    tools = ROOT / "tools"
-    found = set(tools.glob("test_*.py")) | set(tools.glob("*/test_*.py")) | set(tools.glob("*/tests/*.py"))
-    return sorted(p for p in found if "fixtures" not in p.parts and p.name != "__init__.py" and p != Path(__file__))
+    found = tool_tests_pick.test_modules() + tool_tests_pick.helpers() + tool_tests_pick.test_scripts()
+    return sorted(ROOT / p for p in found if ROOT / p != Path(__file__))
 
 
 def names_in(node: ast.AST) -> set[str]:
@@ -106,21 +110,28 @@ def writing_mode(call: ast.Call, position: int) -> bool:
     return isinstance(mode, ast.Constant) and isinstance(mode.value, str) and any(c in mode.value for c in "wax+")
 
 
-def written_path(call: ast.Call):
-    """The path expression a call writes to, or None for a call that writes nothing."""
+def written_paths(call: ast.Call) -> list:
+    """The path expressions a call writes to (or moves a file out of): none for a call that writes nothing."""
     f = call.func
+    found = [kw.value for kw in call.keywords if kw.arg == "dir"]
+    module = f.value.id if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) else None
     if isinstance(f, ast.Attribute):
         if f.attr in WRITE_METHODS:
-            return f.value
-        if f.attr == "open" and writing_mode(call, 0):
-            return f.value
-        if isinstance(f.value, ast.Name) and f.value.id == "shutil" and f.attr in COPIES and len(call.args) > 1:
-            return call.args[1]
-        if isinstance(f.value, ast.Name) and f.value.id == "os" and f.attr == "makedirs" and call.args:
-            return call.args[0]
+            found.append(f.value)
+        elif f.attr == "open" and writing_mode(call, 0):
+            found.append(f.value)
+        elif module == "shutil" and f.attr in COPIES and len(call.args) > 1:
+            found.append(call.args[1])
+        elif module == "os" and f.attr == "makedirs" and call.args:
+            found.append(call.args[0])
+        elif module == "os" and f.attr in MOVE_METHODS:
+            found += call.args[:2]
+        elif f.attr in MOVE_METHODS and len(call.args) == 1 and not call.keywords:
+            # A path's rename(target) / replace(target): one argument, where str.replace takes two.
+            found += [f.value, call.args[0]]
     if isinstance(f, ast.Name) and f.id == "open" and call.args and writing_mode(call, 1):
-        return call.args[0]
-    return None
+        found.append(call.args[0])
+    return found
 
 
 def rooted_writes(source: str) -> list[tuple[int, str]]:
@@ -131,9 +142,10 @@ def rooted_writes(source: str) -> list[tuple[int, str]]:
         rooted = rooted_names(scope, inherited)
         for n in scope_nodes(scope):
             if isinstance(n, ast.Call):
-                target = written_path(n)
-                if target is not None and names_in(target) & rooted:
-                    found.append((n.lineno, ast.unparse(target)))
+                for target in written_paths(n):
+                    if names_in(target) & rooted:
+                        found.append((n.lineno, ast.unparse(target)))
+                        break
             elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
                 visit(n, rooted)
 
@@ -156,12 +168,22 @@ class ToolTestsStayOutTests(unittest.TestCase):
                   '        open(ROOT / "e").read()\n'
                   '        shutil.copy2(ROOT / "f", tmp / "f")\n'
                   '        listed = run(["git", "ls-files"], cwd=ROOT)\n'
-                  '        (tmp / listed).write_text("fine")\n')
-        self.assertEqual([line for line, _ in rooted_writes(source)], [4, 6, 7])
+                  '        (tmp / listed).write_text("fine")\n'
+                  '        (tmp / "h").rename(ROOT / "h")\n'
+                  '        (ROOT / "i").replace(tmp / "i")\n'
+                  '        (ROOT / "j").symlink_to(tmp)\n'
+                  '        os.replace(tmp / "k", ROOT / "k")\n'
+                  '        os.rename(ROOT / "l", tmp / "l")\n'
+                  '        tempfile.mkdtemp(dir=ROOT)\n'
+                  '        tempfile.mkdtemp(dir=tmp)\n'
+                  '        (tmp / "m").rename(tmp / "n")\n'
+                  '        (ROOT / "o").read_text().replace("a", "b")\n')
+        self.assertEqual([line for line, _ in rooted_writes(source)], [4, 6, 7, 14, 15, 16, 17, 18, 19])
 
     def test_no_tool_test_writes_into_the_live_tree(self):
         modules = tool_test_modules()
-        self.assertIn(ROOT / "tools" / "test_log_gate.py", modules, "premise: the tool tests are found")
+        for module in ("tools/test_log_gate.py", "tools/tests/test_tool_tests.py", "tools/coverage/tests/support.py"):
+            self.assertIn(ROOT / module, modules, "premise: the test modules, scripts and helpers are found")
         found = [f"{m.relative_to(ROOT)}:{line}: {target}: {FIX}"
                  for m in modules for line, target in rooted_writes(m.read_text())]
         self.assertEqual(found, [], "\n" + "\n".join(found))

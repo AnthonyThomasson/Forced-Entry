@@ -232,8 +232,9 @@ Runs are joined by statement id. Runs instrumented with different maps (differen
 
 `tools/coverage.py` is the CLI only.
 
-Tests: `python3 -m unittest discover -s tools -t .` (every tool test; the pre-commit hook runs it when `tools/` is
-staged), or `python3 -m unittest tools.coverage.tests.test_runner_cli` for one file. The Godot ones are skipped when
+Tests: `tools/tool_tests.sh` (every tool test: `python3 -m unittest discover -s tools -t .`; the pre-commit hook runs
+the ones a commit can break, `tools/tool_tests.sh --staged`), or `python3 -m unittest
+tools.coverage.tests.test_runner_cli` for one file. The Godot ones are skipped when
 there is no Godot binary; `FE_SLOW_TESTS=1` adds the real-tree run (`test_isolation_run.py`, needs Von) and the
 windowed run.
 

@@ -1,18 +1,18 @@
-""".githooks/pre-commit: when the commit stages anything under tools/ or .githooks/, it runs the tool tests a staged
-file can break (tools/tool_tests.sh --staged: the test modules whose code names it, all of them for a file none names)
-and aborts the commit when one fails; otherwise it leaves them alone. It runs
-`tools/run_tests.sh --changed …` when scenes/, tests/ or project.godot is staged, and only then. And it runs the lint
-of what the commit holds (`tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts) when the commit stages a
-script the lint holds to its rules that the game tests do not lint for it: a .gd outside addons/ and the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own
-files (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py). When the game tests run they lint first
+""".githooks/pre-commit: it runs the tool tests a staged file can break (tools/tool_tests.sh --staged: the test modules
+whose code names it; all of them for a tool file none names, none for another file none names) and aborts the commit
+when one fails. It runs `tools/run_tests.sh --changed …` when scenes/, tests/ or project.godot is staged, and only then.
+And it runs the lint of what the commit holds (`tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts) when
+the commit stages a script the lint holds to its rules that the game tests do not lint for it: a .gd outside addons/ and
+the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own files (gdstyle.toml, tools/gdstyle.sh,
+tools/lint_gdstyle.py) or a project lint rule (tools/lint_rules/ but its tests). When the game tests run they lint first
 (run_tests.sh), so the hook does not lint again. Before any of that it refuses a commit that leaves a script Godot
-imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without
-its .gd, naming each and the import command (tools/load_check.sh --import), and runs nothing else.
+imports (a .gd under scenes/, tests/, addons/ or sandboxes/) without its .gd.uid in the index, or a .gd.uid without its
+.gd, naming each and the import command (tools/load_check.sh --import), and runs nothing else.
 
 It checks what the commit holds, not the working tree: the lint is given the staged scripts (added, copied, modified or
-renamed; not deleted ones), read as they are on disk, or the whole tree when a gdstyle file is staged; the game tests
-are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is labelled
-`not in this commit: <path>`.
+renamed; not deleted ones), read as they are on disk, or the whole tree when a gdstyle file or a lint rule is staged;
+the game tests are `--changed --staged`, picked from the index; a lint finding in a file the commit does not hold is
+labelled `not in this commit: <path>`.
 
 Each case is a temp git repo holding a copy of this checkout's hook, tools/lint_staged.sh (the lint of what the commit
 holds) and tools/lint_label.py, a fake tools/run_tests.sh that logs its arguments (and fails when FAKE_GAME_FAIL=1, or
@@ -102,11 +102,11 @@ class SentinelTests(unittest.TestCase):
                                                  for k in ("GIT_DIR", "GIT_INDEX_FILE")]) + "\\n")
         self.assertNotEqual(os.environ.get("SENTINEL_FAIL"), "1", "the sentinel tool test was told to fail")
 '''
-# A tool test whose code names tools/picked.sh, the one tool file only it names.
+# A tool test whose code names tools/picked.sh (or the file add_picked gives), the one file only it names.
 PICKED = '''import os
 import unittest
 
-TOOL = "tools/picked.sh"
+TOOL = "{names}"
 
 
 class PickedTests(unittest.TestCase):
@@ -180,13 +180,15 @@ class HookRepo:
         write(root, "gdstyle.toml", "max_line_length = 100\n")
         write(root, "tools/gdstyle.sh", "#!/usr/bin/env bash\n")
         write(root, "tools/lint_gdstyle.py", "VALUE = 1\n")
+        write(root, "tools/lint_rules/rules/a_rule.py", "NAME = 'a_rule'\n")
         git(root, "add", "-A")
         git(root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
         self.log.write_text("")
 
-    def add_picked(self) -> None:
-        """Commit tools/picked.sh and tools/tests/test_picked.py, the one tool test naming it (it logs "picked")."""
-        write(self.root, "tools/tests/test_picked.py", PICKED)
+    def add_picked(self, names: str = "tools/picked.sh") -> None:
+        """Commit tools/picked.sh and tools/tests/test_picked.py, the one tool test naming it, or naming `names`
+        instead (it logs "picked")."""
+        write(self.root, "tools/tests/test_picked.py", PICKED.replace("{names}", names))
         write(self.root, "tools/picked.sh", "#!/usr/bin/env bash\n", executable=True)
         git(self.root, "add", "-A")
         git(self.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "picked")
@@ -236,6 +238,15 @@ class PreCommitTests(unittest.TestCase):
             repo = self.repo(d)
             repo.add_picked()
             repo.stage("tools/picked.sh")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), ["picked"])
+
+    def test_a_file_outside_the_tools_runs_the_tool_tests_that_read_it(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.add_picked(names="docs/notes.md")
+            repo.stage("docs/notes.md")
             r = repo.hook()
             self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
             self.assertEqual(repo.ran(), ["picked"])
@@ -388,6 +399,9 @@ class PreCommitTests(unittest.TestCase):
     def test_the_gdstyle_config_only_runs_the_lint_on_the_whole_tree(self):
         # The pass's own files govern every script, so they lint them all.
         self.assert_runs(("gdstyle.toml",), ["lint"])
+
+    def test_a_lint_rule_runs_the_tool_tests_and_the_lint_on_the_whole_tree(self):
+        self.assert_runs(("tools/lint_rules/rules/a_rule.py",), ["tool_tests", "lint"])
 
     def test_the_gdstyle_wrapper_runs_the_tool_tests_and_the_lint(self):
         self.assert_runs(("tools/gdstyle.sh",), ["tool_tests", "lint"])

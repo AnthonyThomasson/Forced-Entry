@@ -24,12 +24,13 @@ The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it
 without its `.gd.uid` or the reverse (`tools/load_check.sh --import` writes them), then runs the game tests a commit can
 break (`tools/run_tests.sh --changed --staged`: picked from what is staged, after the commit's lint), only when it
 touches `scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate
-`tools/run_tests.sh --domain=perf`; when it touches `tools/` or `.githooks/`, it also runs the tool tests a staged file
-can break (`tools/tool_tests.sh --staged`: the test modules whose code names it, or all of them for a shared test helper
-or a file no test names; `tools/tool_tests.sh` alone runs them all); when it touches no game code but a `.gd` outside
-`addons/` and the coverage tool's fixtures, or one of gdstyle's own files, it runs the commit's lint itself. It checks
-what the commit holds, not the working tree. The commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged
-scripts as they are on disk, the whole tree when `project.godot` or a gdstyle file is staged; a finding in a file the
+`tools/run_tests.sh --domain=perf`; on every commit it also runs the tool tests a staged file can break
+(`tools/tool_tests.sh --staged`: the test modules whose code names it, all of them for a shared test helper or a tool
+file no test names; `tools/tool_tests.sh` alone runs them all, the `tools/test_*.py` scripts apart, which run on their
+own); when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, one of gdstyle's own
+files or a lint rule, it runs the commit's lint itself. It checks what the commit holds, not the working tree. The
+commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged scripts as they are on disk, the whole tree when
+`project.godot`, a gdstyle file or a lint rule (`tools/lint_rules/` but its tests) is staged; a finding in a file the
 commit does not hold says `not in this commit: <path>`.
 A commit-msg hook (`.githooks/commit-msg`) refuses a message whose `Co-Authored-By: Claude <model>` line names another
 model than the branch's earlier commits. Enable both once per clone with `tools/install_hooks.sh`.

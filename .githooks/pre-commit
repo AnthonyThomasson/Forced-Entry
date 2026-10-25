@@ -5,18 +5,18 @@
 #     leave the index holding it and its .gd.uid together, or neither: Godot writes a .uid only on import, which
 #     headless runs skip. A commit that does not is refused at once, naming each file and the import command
 #     (tools/load_check.sh --import); nothing else runs.
-#   - Staged tools/ or .githooks/: the tool tests a staged file can break (`tools/tool_tests.sh --staged`: a staged
-#     test module runs itself, a staged file every test module whose code names it; a shared test helper, or a file no
-#     test names, the whole discovery), silent when they pass.
+#   - The tool tests a staged file can break (`tools/tool_tests.sh --staged`: a staged test module runs itself, a
+#     staged file every test module whose code names it; a shared test helper, or a tool file no test names, the whole
+#     discovery; none for a file outside tools/ and .githooks/ no tool test reads), silent when they pass.
 #   - Staged game code (scenes/, tests/, project.godot): the game tests the staged files can break
 #     (`tools/run_tests.sh --changed --staged`, picked from the index). The performance tests (domain perf) are left
 #     out: their frame-time budgets fail on a loaded machine, so run them on their own (`tools/run_tests.sh
 #     --domain=perf`). tools/run_tests.sh runs the lint of what the commit holds before its first test.
 #   - Otherwise, a staged script the lint holds to its rules (a .gd outside addons/ and the coverage tool's fixtures:
-#     sandboxes/, tools/ ...) or a file of the gdstyle pass (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py):
-#     the lint of what the commit holds, silent when it passes: `tools/lint_staged.sh --quiet`, tools/lint.sh on the
-#     staged scripts (added, copied, modified or renamed, not deleted), or on the whole tree when a gdstyle file is
-#     staged (it governs every script).
+#     sandboxes/, tools/ ...), a file of the gdstyle pass (gdstyle.toml, tools/gdstyle.sh, tools/lint_gdstyle.py) or
+#     of the project lint rules (tools/lint_rules/ but its tests): the lint of what the commit holds, silent when it
+#     passes: `tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts (added, copied, modified or renamed,
+#     not deleted), or on the whole tree when a gdstyle file or a lint rule is staged (it governs every script).
 #   - The lint reads a staged script as it is on disk: a script staged in part is checked with its unstaged hunks too.
 #     A finding in a script the commit does not hold (the engine pass reports one a staged script loads) is labelled
 #     `not in this commit: <path>`.
@@ -51,16 +51,14 @@ if [[ -n "$unpaired" ]]; then
   exit 1
 fi
 
-if grep -qE '^(tools/|\.githooks/)' <<<"$staged"; then
-  # tools/tool_tests.sh reads the index with git's GIT_* variables and runs the tests without them.
-  out=$(tools/tool_tests.sh --staged 2>&1)
-  if [[ $? -ne 0 ]]; then
-    {
-      echo "Tool tests failed; commit aborted (tools/tool_tests.sh --staged):"
-      echo "$out" | grep -E '^tool tests:|^(FAIL|ERROR):|^Ran [0-9]+ test|^FAILED'
-    } >&2
-    status=1
-  fi
+# tools/tool_tests.sh reads the index with git's GIT_* variables and runs the tests without them.
+out=$(tools/tool_tests.sh --staged 2>&1)
+if [[ $? -ne 0 ]]; then
+  {
+    echo "Tool tests failed; commit aborted (tools/tool_tests.sh --staged):"
+    echo "$out" | grep -E '^tool tests:|^(FAIL|ERROR):|^Ran [0-9]+ test|^FAILED'
+  } >&2
+  status=1
 fi
 
 grep -qE '^(scenes/|tests/|project\.godot$)' <<<"$staged" && game=1 || game=0

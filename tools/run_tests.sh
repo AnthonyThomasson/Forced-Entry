@@ -116,9 +116,9 @@ STAGED=0
 LINT=1
 SKIP=""   # --skip-domain=a,b (every one given, joined), also forwarded to the runner
 # The flags forwarded to the batch as given (scenes/testing/test_batch.gd reads them; `=` ones take a value), and the
-# ones the wrapper gives it itself, never from the command line. Any other argument starting with `--`, or one holding
-# a space (two flags quoted into one argument), is refused: the batch would drop it and run everything.
-# tools/test_log_gate.py (FlagListTests) checks that every flag the batch reads is in one of the two lists.
+# ones the wrapper gives it itself, never from the command line. Any other `--` argument, or a `--` argument holding a
+# space (two flags quoted into one), is refused: the batch would drop it and run everything.
+# tools/tests/test_run_tests_flags.py checks that every flag the batch reads is in one of the two lists.
 BATCH_FLAGS=(--domain= --id= --skip-domain= --repeat= --seed= --shard= --list --self-test --include-von --require-von
   --summary --verbose --json --shots --fail-fast)
 WRAPPER_FLAGS=(--out= --costs= --failed=)
