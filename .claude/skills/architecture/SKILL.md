@@ -1044,7 +1044,7 @@ weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
 **Lighting:** `LightingConfig` (the master switch, the dusk, the flashes and the per-floor budget),
 `LightingFixtureConfig` and `LightingTextureConfig`.
 A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
-holder. World-Gen's `LayoutRules` (which rooms may
+holder unless it is a family-wide switch or a per-kind row (ADR 0003). World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not
 tuning. There is no `Config` autoload. Three more static holders are not tuning but shared ids (General, interface 11):
 `PhysicsLayers` (a physics-layer id, the same role `Wall.Side` plays for doorway sides), `DrawLayers` (the shared draw-order
