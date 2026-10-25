@@ -150,7 +150,7 @@ done
   `gdstyle.toml` that turns a rule off, lowers it or widens `exclude`/`max_line_length` (`git diff --staged "$BASE" --
   gdstyle.toml`).
 - **Tool tests:** every new or changed `tools/` module, CLI flag, lint rule and hook block has its own test; one
-  without is a finding. Run `python3 -m unittest discover -s tools -t .` (Bash sandbox disabled: some start Godot) and
+  without is a finding. Run all of them, `tools/tool_tests.sh` (Bash sandbox disabled: some start Godot), and
   report its `Ran N tests` line and every `FAIL:` / `ERROR:`.
 - **Tests:** `GAME_TEST_CHANGED_FILES="$(git diff --staged --name-only "$BASE")" tools/run_tests.sh --changed --summary`.
   The variable hands `--changed` the branch's files (without it, committed work runs nothing). Add `--jobs=auto` when

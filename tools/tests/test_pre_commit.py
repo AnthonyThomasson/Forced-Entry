@@ -1,5 +1,6 @@
-""".githooks/pre-commit: when the commit stages anything under tools/, it runs the tool tests (Python unittest
-discovery over tools/) and aborts the commit when one fails; otherwise it leaves them alone. It runs
+""".githooks/pre-commit: when the commit stages anything under tools/ or .githooks/, it runs the tool tests a staged
+file can break (tools/tool_tests.sh --staged: the test modules whose code names it, all of them for a file none names)
+and aborts the commit when one fails; otherwise it leaves them alone. It runs
 `tools/run_tests.sh --changed …` when scenes/, tests/ or project.godot is staged, and only then. And it runs the lint
 of what the commit holds (`tools/lint_staged.sh --quiet`, tools/lint.sh on the staged scripts) when the commit stages a
 script the lint holds to its rules that the game tests do not lint for it: a .gd outside addons/ and the coverage tool's fixtures (sandboxes/, tools/ ...), or the gdstyle pass's own
@@ -17,7 +18,8 @@ Each case is a temp git repo holding a copy of this checkout's hook, tools/lint_
 holds) and tools/lint_label.py, a fake tools/run_tests.sh that logs its arguments (and fails when FAKE_GAME_FAIL=1, or
 on a lint finding when FAKE_GAME_FAIL=lint), a fake tools/lint.sh that does the same and, like the real one, fails on a
 line over 100 columns in the paths it is given (every script of the tree when none; FAKE_LINT_FAIL=1 fails it on a staged file, FAKE_LINT_FOREIGN=<path> on that file), and
-one sentinel tool test, tools/tests/test_sentinel.py, that logs that it ran (and fails when SENTINEL_FAIL=1). Files are
+one sentinel tool test, tools/tests/test_sentinel.py, that logs that it ran (and fails when SENTINEL_FAIL=1), with
+tools/tool_tests.sh and its picker; two cases add tools/picked.sh and the one test naming it. Files are
 staged, then the hook runs as git runs it (from the repo, no arguments).
 Three cases commit through git itself: one shows a failure aborts the commit; one commits from a worktree of the
 repo a tool test that makes and commits in a throwaway repo of its own, and shows the commit made is the staged one
@@ -100,6 +102,18 @@ class SentinelTests(unittest.TestCase):
                                                  for k in ("GIT_DIR", "GIT_INDEX_FILE")]) + "\\n")
         self.assertNotEqual(os.environ.get("SENTINEL_FAIL"), "1", "the sentinel tool test was told to fail")
 '''
+# A tool test whose code names tools/picked.sh, the one tool file only it names.
+PICKED = '''import os
+import unittest
+
+TOOL = "tools/picked.sh"
+
+
+class PickedTests(unittest.TestCase):
+    def test_picked(self):
+        with open(os.environ["HOOK_TEST_LOG"], "a") as log:
+            log.write("picked\\n")
+'''
 # A tool test that makes a throwaway repo of its own and commits in it, running git with the environment it was given,
 # as a test that does not guard itself would. Only the hook stands between it and the repo being committed.
 INNER_GIT = '''import os
@@ -145,8 +159,9 @@ class HookRepo:
         (root / ".githooks").mkdir()
         shutil.copy2(HOOK, root / ".githooks" / "pre-commit")
         (root / "tools").mkdir()
-        for name in ("lint_staged.sh", "lint_label.py"):
+        for name in ("lint_staged.sh", "lint_label.py", "tool_tests.sh", "tool_tests_pick.py"):
             shutil.copy2(ROOT / "tools" / name, root / "tools" / name)
+        write(root, ".githooks/post-merge", "#!/usr/bin/env bash\n", executable=True)
         write(root, "tools/run_tests.sh", FAKE_RUN_TESTS, executable=True)
         write(root, "tools/lint.sh", FAKE_LINT, executable=True)
         for rel in ("tools/__init__.py", "tools/tests/__init__.py"):
@@ -169,6 +184,13 @@ class HookRepo:
         git(root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
         self.log.write_text("")
 
+    def add_picked(self) -> None:
+        """Commit tools/picked.sh and tools/tests/test_picked.py, the one tool test naming it (it logs "picked")."""
+        write(self.root, "tools/tests/test_picked.py", PICKED)
+        write(self.root, "tools/picked.sh", "#!/usr/bin/env bash\n", executable=True)
+        git(self.root, "add", "-A")
+        git(self.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "picked")
+
     def stage(self, *rels: str) -> None:
         for rel in rels:
             with open(self.root / rel, "a") as f:
@@ -183,7 +205,8 @@ class HookRepo:
                               env=self.env(**env), capture_output=True, text=True, timeout=300)
 
     def ran(self) -> list[str]:
-        """What ran, in order: "tool_tests" (the sentinel), "lint" and "run_tests" (the game tests)."""
+        """What ran, in order: "tool_tests" (the sentinel), "picked" (add_picked's test), "lint" and "run_tests" (the
+        game tests)."""
         return [line.split(" ")[0] for line in self.log.read_text().splitlines()]
 
     def env_seen(self) -> dict[str, dict[str, str]]:
@@ -207,6 +230,24 @@ class PreCommitTests(unittest.TestCase):
             r = repo.hook()
             self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
             self.assertEqual(repo.ran(), ["tool_tests"], "the tool tests ran, the game tests did not")
+
+    def test_only_the_tool_tests_naming_a_staged_file_run(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.add_picked()
+            repo.stage("tools/picked.sh")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(repo.ran(), ["picked"])
+
+    def test_a_staged_hook_runs_the_tool_tests(self):
+        with TempDir("pre_commit_test.") as d:
+            repo = self.repo(d)
+            repo.add_picked()
+            repo.stage(".githooks/post-merge")
+            r = repo.hook()
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+            self.assertEqual(sorted(repo.ran()), ["picked", "tool_tests"], "no tool test names it: all of them")
 
     def test_a_failing_tool_test_aborts_naming_it(self):
         with TempDir("pre_commit_test.") as d:

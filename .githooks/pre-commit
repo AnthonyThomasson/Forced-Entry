@@ -5,8 +5,9 @@
 #     leave the index holding it and its .gd.uid together, or neither: Godot writes a .uid only on import, which
 #     headless runs skip. A commit that does not is refused at once, naming each file and the import command
 #     (tools/load_check.sh --import); nothing else runs.
-#   - Staged tools/: the tool tests (`python3 -m unittest discover -s tools -t .`: the lint rules, the coverage tool,
-#     audit_scan, this hook), silent when they pass.
+#   - Staged tools/ or .githooks/: the tool tests a staged file can break (`tools/tool_tests.sh --staged`: a staged
+#     test module runs itself, a staged file every test module whose code names it; a shared test helper, or a file no
+#     test names, the whole discovery), silent when they pass.
 #   - Staged game code (scenes/, tests/, project.godot): the game tests the staged files can break
 #     (`tools/run_tests.sh --changed --staged`, picked from the index). The performance tests (domain perf) are left
 #     out: their frame-time budgets fail on a loaded machine, so run them on their own (`tools/run_tests.sh
@@ -50,17 +51,13 @@ if [[ -n "$unpaired" ]]; then
   exit 1
 fi
 
-if grep -qE '^tools/' <<<"$staged"; then
-  # Without git's GIT_* variables: git hands the hook GIT_INDEX_FILE (and in a worktree GIT_DIR), and every git a
-  # test runs in a throwaway repo of its own would obey them and act on this repo instead.
-  out=$(
-    while IFS= read -r var; do unset "$var"; done < <(compgen -e | grep '^GIT_')
-    python3 -m unittest discover -s tools -t . 2>&1
-  )
+if grep -qE '^(tools/|\.githooks/)' <<<"$staged"; then
+  # tools/tool_tests.sh reads the index with git's GIT_* variables and runs the tests without them.
+  out=$(tools/tool_tests.sh --staged 2>&1)
   if [[ $? -ne 0 ]]; then
     {
-      echo "Tool tests failed; commit aborted (python3 -m unittest discover -s tools -t .):"
-      echo "$out" | grep -E '^(FAIL|ERROR):|^Ran [0-9]+ test|^FAILED'
+      echo "Tool tests failed; commit aborted (tools/tool_tests.sh --staged):"
+      echo "$out" | grep -E '^tool tests:|^(FAIL|ERROR):|^Ran [0-9]+ test|^FAILED'
     } >&2
     status=1
   fi

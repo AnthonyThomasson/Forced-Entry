@@ -24,8 +24,9 @@ The tests run through gdUnit4 (`addons/gdUnit4/`; `tools/run_tests.sh` drives it
 without its `.gd.uid` or the reverse (`tools/load_check.sh --import` writes them), then runs the game tests a commit can
 break (`tools/run_tests.sh --changed --staged`: picked from what is staged, after the commit's lint), only when it
 touches `scenes/`, `tests/` or `project.godot`, and without the performance tests, which are a separate
-`tools/run_tests.sh --domain=perf`; when it touches `tools/`, it also runs the tool tests (`python3 -m unittest discover
--s tools -t .`); when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, or one of
+`tools/run_tests.sh --domain=perf`; when it touches `tools/` or `.githooks/`, it also runs the tool tests a staged file
+can break (`tools/tool_tests.sh --staged`: the test modules whose code names it, or all of them for a shared test helper
+or a file no test names; `tools/tool_tests.sh` alone runs them all); when it touches no game code but a `.gd` outside `addons/` and the coverage tool's fixtures, or one of
 gdstyle's own files, it runs the commit's lint itself. It checks what the commit holds, not the working tree. The
 commit's lint (`tools/lint_staged.sh`) is `tools/lint.sh` on the staged scripts as they are on disk, the whole tree when
 `project.godot` or a gdstyle file is staged; a finding in a file the commit does not hold says
