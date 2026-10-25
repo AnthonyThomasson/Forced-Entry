@@ -37,12 +37,7 @@ func run(t: TestContext) -> void:
 		"the engine starts once the driver sits",
 	)
 
-	if not t.require(await Probe.reach_speed(t, &"me", car, 40.0, 5.0), "the car reaches 40 px/s"):
-		return
-	if not t.require(
-			await t.until(func(): return car.speed() <= Probe.EXIT_MAX_SPEED - 2.0, 15.0),
-			"it coasts down under %.0f px/s" % Probe.EXIT_MAX_SPEED,
-	):
+	if not await _coast_under_exit_speed(t, car):
 		return
 	var rolling: float = car.speed()
 	t.puppet(&"me").use_vehicle()
@@ -73,3 +68,13 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	t.check(car.global_position.distance_to(rest) < 1.0, "and stays at rest")
 	t.check(not car.engine_state().get("running", true), "with the engine off")
+
+
+## Premise: the car reaches 40 px/s, then coasts down under the exit speed (false: ends the test).
+func _coast_under_exit_speed(t: TestContext, car: Node2D) -> bool:
+	if not t.require(await Probe.reach_speed(t, &"me", car, 40.0, 5.0), "the car reaches 40 px/s"):
+		return false
+	return t.require(
+		await t.until(func(): return car.speed() <= Probe.EXIT_MAX_SPEED - 2.0, 15.0),
+		"it coasts down under %.0f px/s" % Probe.EXIT_MAX_SPEED,
+	)

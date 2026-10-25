@@ -33,11 +33,22 @@ func run(t: TestContext) -> void:
 	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
 		return
 	await t.seconds(0.5)
+	await _check_forward(t, car)
 
-	# --- W: forward along the car's front.
+	# --- Let go for 0.5 s: the coasting deceleration.
+	p.drive(0.0, 0.0, false)
+	var v0 := Probe.along(car)
+	await t.seconds(0.5)
+	var v1 := Probe.along(car)
+	var coast_decel := (v0 - v1) / 0.5
+	await _check_brake_to_reverse(t, car, v1, coast_decel)
+
+
+## W: forward along the car's front, and straight.
+func _check_forward(t: TestContext, car: Node2D) -> void:
 	var start := car.global_position
 	var front := Probe.forward(car)
-	p.drive(1.0, 0.0, false)
+	t.puppet(&"me").drive(1.0, 0.0, false)
 	await t.seconds(2.0)
 	var moved := car.global_position - start
 	t.check(car.speed() > 50.0, "W drives the car (%.0f px/s after 2 s)" % car.speed())
@@ -48,14 +59,11 @@ func run(t: TestContext) -> void:
 		"and straight (%.1f px sideways)" % moved.dot(Probe.right(car)),
 	)
 
-	# --- Let go for 0.5 s: the coasting deceleration.
-	p.drive(0.0, 0.0, false)
-	var v0 := Probe.along(car)
-	await t.seconds(0.5)
-	var v1 := Probe.along(car)
-	var coast_decel := (v0 - v1) / 0.5
 
-	# --- S: brake through a stop, then reverse.
+## S from `v1` px/s: brakes at once and harder than coasting (`coast_decel`), through a stop, then
+## reverses.
+func _check_brake_to_reverse(t: TestContext, car: Node2D, v1: float, coast_decel: float) -> void:
+	var p := t.puppet(&"me")
 	p.drive(-1.0, 0.0, false)
 	var series: Array[float] = []
 	var stop_time := -1.0

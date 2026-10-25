@@ -35,31 +35,17 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	var chair := t.object(&"chair") as Node2D
 	if not t.require(
 			Probe.door(car, &"rear_left").has("handle")
 				and Probe.door(car, &"front_left").has("handle"),
 			"the car reports its left doors' handles",
 	):
 		return
-	var rear := Probe.door(car, &"rear_left")
-	var rear_handle := rear["handle"] as Vector2
-	var front_handle := Probe.door(car, &"front_left")["handle"] as Vector2
-
-	# The armchair is in the rear-left door's swing: its nearest point to the hinge is within the
-	# door's length of it, out from the car's left side.
-	var hinge := rear["hinge"] as Vector2
-	var half := (chair.get("size") as Vector2) / 2.0
-	var nearest := hinge.clamp(chair.global_position - half, chair.global_position + half)
-	var out := -Probe.right(car)
-	if not t.require(
-			nearest.distance_to(hinge) < hinge.distance_to(rear_handle)
-				and (nearest - hinge).dot(out) > 2.0,
-			("the armchair stands in the rear-left door's swing (%.0f px from its hinge, the door "
-					+ "%.0f px long)")
-				% [nearest.distance_to(hinge), hinge.distance_to(rear_handle)],
-	):
+	if not _chair_in_swing(t, car):
 		return
+	var rear_handle := Probe.door(car, &"rear_left")["handle"] as Vector2
+	var front_handle := Probe.door(car, &"front_left")["handle"] as Vector2
+	var out := -Probe.right(car)
 
 	# On the left side between the two handles, nearer the rear-left: both in reach.
 	var at := rear_handle.lerp(front_handle, 0.44) + out * 17.0
@@ -90,3 +76,22 @@ func run(t: TestContext) -> void:
 		"only the front-left door opened (the armchair blocks the rear-left one)",
 	)
 	t.expect_eq(Probe.seat_of(car, me), &"driver", "it sits in the driver's seat")
+
+
+## Premise: the armchair is in the rear-left door's swing, its nearest point to the hinge within
+## the door's length of it, out from the car's left side (false: ends the test).
+func _chair_in_swing(t: TestContext, car: Node2D) -> bool:
+	var chair := t.object(&"chair") as Node2D
+	var rear := Probe.door(car, &"rear_left")
+	var rear_handle := rear["handle"] as Vector2
+	var hinge := rear["hinge"] as Vector2
+	var half := (chair.get("size") as Vector2) / 2.0
+	var nearest := hinge.clamp(chair.global_position - half, chair.global_position + half)
+	var out := -Probe.right(car)
+	return t.require(
+		nearest.distance_to(hinge) < hinge.distance_to(rear_handle)
+			and (nearest - hinge).dot(out) > 2.0,
+		("the armchair stands in the rear-left door's swing (%.0f px from its hinge, the door "
+				+ "%.0f px long)")
+			% [nearest.distance_to(hinge), hinge.distance_to(rear_handle)],
+	)

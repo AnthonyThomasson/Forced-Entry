@@ -30,6 +30,16 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"front", &"rear"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
+	if not _check_layout(t, car):
+		return
+	if not await _board_front(t, car):
+		return
+	await _board_rear(t, car)
+
+
+## The car's doors and seats are the spec's, and its doors report their handles (false: ends the
+## test).
+func _check_layout(t: TestContext, car: Node2D) -> bool:
 	var doors := {}
 	for d: Dictionary in car.doors():
 		doors[d.get("id")] = [d.get("kind"), d.get("seat")]
@@ -39,14 +49,15 @@ func run(t: TestContext) -> void:
 		Probe.sorted(Probe.CAR_SEATS),
 		"the car's seats",
 	)
-	if not t.require(
-			Probe.door(car, &"front_left").has("handle")
-				and Probe.door(car, &"rear_right").has("handle"),
-			"the doors report their handles",
-	):
-		return
+	return t.require(
+		Probe.door(car, &"front_left").has("handle")
+			and Probe.door(car, &"rear_right").has("handle"),
+		"the doors report their handles",
+	)
 
-	# --- Front left: the rear-left handle is in reach too, but further.
+
+## Front left: the rear-left handle is in reach too, but further (false: it did not get in).
+func _board_front(t: TestContext, car: Node2D) -> bool:
 	var at := Probe.stand_point(car, &"front_left")
 	var near := Probe.door(car, &"front_left")["handle"] as Vector2
 	var other := Probe.door(car, &"rear_left")["handle"] as Vector2
@@ -64,7 +75,7 @@ func run(t: TestContext) -> void:
 		6.0,
 	)
 	if not t.require(watched["done"], "the character at the front left gets in"):
-		return
+		return false
 	t.expect_eq(Probe.opened(watched), [&"front_left"], "only the front-left door opened")
 	t.expect_eq(Probe.seat_of(car, front), &"driver", "it sits in the driver's seat")
 	t.check(front.vehicle() == car, "its vehicle() is the car")
@@ -74,12 +85,21 @@ func run(t: TestContext) -> void:
 		2.0,
 		"the front-left door shuts behind it",
 	)
+	return true
 
-	# --- Rear right.
+
+## Rear right, with the driver already in.
+func _board_rear(t: TestContext, car: Node2D) -> void:
+	var front := t.actor(&"front")
 	await Probe.place(t, &"rear", Probe.stand_point(car, &"rear_right"))
 	var rear := t.actor(&"rear")
 	t.puppet(&"rear").use_vehicle()
-	watched = await Probe.watch_doors(t, car, func(): return rear.is_in_vehicle(), 6.0)
+	var watched: Dictionary = await Probe.watch_doors(
+		t,
+		car,
+		func(): return rear.is_in_vehicle(),
+		6.0,
+	)
 	if not t.require(watched["done"], "the character at the rear right gets in"):
 		return
 	t.expect_eq(Probe.opened(watched), [&"rear_right"], "only the rear-right door opened")

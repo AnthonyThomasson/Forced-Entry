@@ -39,7 +39,6 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	var me := t.actor(&"me")
 	if not t.require(
 			await Probe.board_by(t, &"me", car, &"front_left"),
 			"the character gets in at the front left",
@@ -51,10 +50,17 @@ func run(t: TestContext) -> void:
 		"the door shuts behind it",
 	)
 
-	# --- Its own door is clear.
+	if not await _exit_own_door(t, car):
+		return
+	await _exit_blocked(t, car)
+
+
+## Its own door is clear: out by it, beside it on the left, holding no seat (false: ends the test).
+func _exit_own_door(t: TestContext, car: Node2D) -> bool:
+	var me := t.actor(&"me")
 	var out: Dictionary = await _get_out(t, car)
 	if not t.require(out["done"], "E gets the character out"):
-		return
+		return false
 	t.expect_eq(Probe.opened(out), [&"front_left"], "by its own door, the front left")
 	var handle := Probe.door(car, &"front_left")["handle"] as Vector2
 	t.check(
@@ -72,8 +78,12 @@ func run(t: TestContext) -> void:
 		2.0,
 		"the door shuts behind it",
 	)
+	return true
 
-	# --- Both left doors blocked by characters standing in their swing.
+
+## Both left doors blocked by characters standing in their swing: out by the front right.
+func _exit_blocked(t: TestContext, car: Node2D) -> void:
+	var me := t.actor(&"me")
 	if not t.require(
 			await Probe.board_by(t, &"me", car, &"front_left"),
 			"the character gets back in at the front left",
@@ -86,7 +96,7 @@ func run(t: TestContext) -> void:
 	)
 	await Probe.place(t, &"block_front", Probe.stand_point(car, &"front_left", 18.0))
 	await Probe.place(t, &"block_rear", Probe.stand_point(car, &"rear_left", 18.0))
-	out = await _get_out(t, car)
+	var out: Dictionary = await _get_out(t, car)
 	if not t.require(out["done"], "E still gets the character out"):
 		return
 	t.expect_eq(
@@ -94,7 +104,7 @@ func run(t: TestContext) -> void:
 		[&"front_right"],
 		"by the nearest clear door, the front right",
 	)
-	handle = Probe.door(car, &"front_right")["handle"] as Vector2
+	var handle := Probe.door(car, &"front_right")["handle"] as Vector2
 	t.check(
 		me.global_position.distance_to(handle) <= Probe.DOOR_REACH,
 		"it stands beside that door (%.0f px from the handle)"

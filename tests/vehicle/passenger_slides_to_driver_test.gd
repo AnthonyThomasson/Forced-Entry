@@ -32,17 +32,21 @@ func run(t: TestContext) -> void:
 	if (not Probe.ready(t, &"empty", [&"alone", &"driver", &"rider"])
 			or not Probe.ready(t, &"taken")):
 		return
-	var empty := t.vehicle(&"empty") as Node2D
-	var taken := t.vehicle(&"taken") as Node2D
-	var alone := t.actor(&"alone")
-	var rider := t.actor(&"rider")
+	if not await _check_empty_car(t):
+		return
+	await _check_taken_car(t)
 
-	# --- An empty car: in by the front right, across to the wheel.
+
+## An empty car: in by the front right, across to the wheel, and its throttle drives (false: it did
+## not get in, the test has ended).
+func _check_empty_car(t: TestContext) -> bool:
+	var empty := t.vehicle(&"empty") as Node2D
+	var alone := t.actor(&"alone")
 	if not t.require(
 			await Probe.board_by(t, &"alone", empty, &"front_right"),
 			"the character gets in at the front right",
 	):
-		return
+		return false
 	t.check(
 		await t.until(func(): return Probe.seat_of(empty, alone) == &"driver", 3.0),
 		"it slides across to the empty driver's seat (seat %s)" % Probe.seat_of(empty, alone),
@@ -55,8 +59,13 @@ func run(t: TestContext) -> void:
 	t.puppet(&"alone").drive(0.0, 0.0, false)
 	t.check(empty.speed() > 0.0, "its throttle drives the car (%.0f px/s)" % empty.speed())
 	t.check(empty.global_position.distance_to(start) > 15.0, "the car moved")
+	return true
 
-	# --- A car with a driver: in by the front right, it rides.
+
+## A car with a driver: in by the front right, it rides, and its keys do not move the car.
+func _check_taken_car(t: TestContext) -> void:
+	var taken := t.vehicle(&"taken") as Node2D
+	var rider := t.actor(&"rider")
 	if not t.require(
 			await Probe.board_by(t, &"driver", taken, &"front_left"),
 			"a driver gets into the second car",
