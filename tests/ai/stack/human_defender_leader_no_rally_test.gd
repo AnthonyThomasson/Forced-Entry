@@ -54,10 +54,26 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var viewport := MainProbe.viewport(t)
+	var me := t.actor(&"me")
+	var built: Dictionary = await _start(viewport, me)
+	var mate := _mate(t, built, me)
+	if mate == null:
+		await MainProbe.close(t, viewport)
+		return
+	var squad: Node = (built.get("squads", {}) as Dictionary).get(me.get("faction"))
+	var w := Follow.new_watch()
+	if not await _step_up(t, w, [me, mate], squad):
+		await MainProbe.close(t, viewport)
+		return
+	_check_no_rally(t, w, me, mate)
+	await MainProbe.close(t, viewport)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
+
+
+func _start(viewport: SubViewport, me: Node) -> Dictionary:
 	var main = MainProbe.open(viewport)
 	var layout := TestSetup.new()
 	Maps.house(layout, false)
-	var me := t.actor(&"me")
 	var base := MatchBuilder.spec({
 		"house": MainProbe.house(layout, viewport),
 		"defenders": { "at": [NPC_AT] },
@@ -68,7 +84,10 @@ func run(t: TestContext) -> void:
 			"defenders": { "count": 1 }, "invaders": { "count": 0 } },
 		base,
 	)
-	var built: Dictionary = await main.start_match(spec)
+	return await main.start_match(spec)
+
+
+func _mate(t: TestContext, built: Dictionary, me: Node) -> Node:
 	var squad: Node = (built.get("squads", {}) as Dictionary).get(me.get("faction"))
 	var mates: Array = (built.get("combatants", []) as Array).filter(func(c): return c != me)
 	if not t.require(
@@ -76,32 +95,34 @@ func run(t: TestContext) -> void:
 				and squad.follows(mates[0]),
 			"premise: Main built the defenders' squad, the human leads it and its teammate follows",
 	):
-		await MainProbe.close(t, viewport)
-		return
+		return null
 	var mate: Node = mates[0]
 	var stack: Node = built["player_stack"]
 	if not t.require(
 			stack != null and stack.get_parent() == me and stack.get("squad") == squad,
 			"premise: the human has its stack radio (bind_player), handed its squad (bind_squad)",
 	):
-		await MainProbe.close(t, viewport)
-		return
-	var nodes: Array = [me, mate]
-	var w := Follow.new_watch()
+		return null
+	return mate
+
+
+func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var arrived := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return puppet.has_arrived()
 	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the hall doorway"):
-		await MainProbe.close(t, viewport)
-		return
+		return false
 	puppet.stop()
 	var stood := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return false
 	await t.until(stood, HOLD)
+	return true
 
+
+func _check_no_rally(t: TestContext, w: Dictionary, me: Node, mate: Node) -> void:
 	var door := String(Entry.HALL_LIVING["id"])
 	t.check(
 		Follow.own_claims(t, me).is_empty(),
@@ -121,5 +142,3 @@ func run(t: TestContext) -> void:
 		not Follow.took(w, mate, "order") and Follow.following(mate),
 		"the teammate kept following the human (acts %s)" % Follow.acts_of(w, mate),
 	)
-	await MainProbe.close(t, viewport)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))

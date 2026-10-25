@@ -44,25 +44,53 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	var squad := t.squad(&"invader")
-	var stack := t.player_stack()
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return
-	if not t.require(
-			stack.get("squad") == squad and squad.leader() == me,
-			"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
-	):
+	if not _has_stack(t, squad, me):
 		return
 	var nodes: Array = [me] + members
 	var w := Follow.new_watch()
+	if not await _step_up(t, w, nodes, squad):
+		return
+	var door := String(Entry.BACK["id"])
+	await _check_own_claim(t, w, nodes, squad, door)
+	var ready := func() -> bool:
+		Follow.tick(w, t, nodes, squad)
+		return members.all(func(m): return Follow.first_call(t, m, "ready", door) < INF)
+	await t.until(ready, READY_WITHIN)
+
+	_check_joined(t, w, me, members, door)
+
+
+func _has_stack(t: TestContext, squad: Node, me: Node) -> bool:
+	var stack := t.player_stack()
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
+		return false
+	return t.require(
+		stack.get("squad") == squad and squad.leader() == me,
+		"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
+	)
+
+
+func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var arrived := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return puppet.has_arrived()
 	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
-		return
+		return false
 	puppet.stop()
-	var door := String(Entry.BACK["id"])
+	return true
+
+
+func _check_own_claim(
+		t: TestContext,
+		w: Dictionary,
+		nodes: Array,
+		squad: Node,
+		door: String,
+) -> void:
+	var me: Node = nodes[0]
+	var members: Array = nodes.slice(1)
 	var claimed := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return Follow.first_call(t, me, "claim", door) < INF
@@ -74,11 +102,9 @@ func run(t: TestContext) -> void:
 		"the human claimed a slot on the back door of its own, before any teammate (%.2f s; first "
 			% mine + "teammate's claim %.2f s)" % first_npc,
 	)
-	var ready := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
-		return members.all(func(m): return Follow.first_call(t, m, "ready", door) < INF)
-	await t.until(ready, READY_WITHIN)
 
+
+func _check_joined(t: TestContext, w: Dictionary, me: Node, members: Array, door: String) -> void:
 	var joins := Follow.raw_joins(t)
 	var to: Array = joins[0]["data"].get("to", []) if not joins.is_empty() else []
 	t.check(
