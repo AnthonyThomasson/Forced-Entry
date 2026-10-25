@@ -52,11 +52,11 @@ func run(t: TestContext) -> void:
 ## Before anything has been judged: a controller that pulls the trigger on the character's first
 ## frame must not get a round out through the wall.
 func _check_first_frame(t: TestContext) -> void:
-	var first_rounds: int = t.actor(&"rifle_first").ammo()
+	var first_rounds: int = t.actor(&"rifle_first").ammo.rounds()
 	t.puppet(&"rifle_first").shoot()
 	await t.frames(3)
 	t.expect_eq(
-		t.actor(&"rifle_first").ammo(),
+		t.actor(&"rifle_first").ammo.rounds(),
 		first_rounds,
 		"a long gun told to shoot on its first frame, against a wall, fires nothing",
 	)
@@ -87,13 +87,17 @@ func _check_against_wall(t: TestContext) -> void:
 func _check_firing(t: TestContext) -> void:
 	var rounds := {}
 	for id in [&"rifle_wall", &"smg_wall", &"pistol_wall", &"rifle_free", &"rifle_person"]:
-		rounds[id] = t.actor(id).ammo()
+		rounds[id] = t.actor(id).ammo.rounds()
 		t.puppet(id).shoot()
 	await t.seconds(0.4)
 	for id in [&"rifle_wall", &"smg_wall"]:
-		t.expect_eq(t.actor(id).ammo(), rounds[id], "%s: it cannot fire against the wall" % id)
+		t.expect_eq(
+			t.actor(id).ammo.rounds(),
+			rounds[id],
+			"%s: it cannot fire against the wall" % id,
+		)
 	for id in [&"pistol_wall", &"rifle_free", &"rifle_person"]:
-		t.expect_eq(t.actor(id).ammo(), rounds[id] - 1, "%s: it fires" % id)
+		t.expect_eq(t.actor(id).ammo.rounds(), rounds[id] - 1, "%s: it fires" % id)
 	t.check(
 		not t.actor(&"rifle_wall").shoot(),
 		"the character's own shoot() says no round left the barrel",
@@ -116,10 +120,10 @@ func _check_backing_off(t: TestContext) -> void:
 			not c.weapon_blocked() and c.weapon_raise() < 0.05,
 			"%s: clear of the wall, the gun comes back down (%.2f)" % [id, c.weapon_raise()],
 		)
-		var before: int = c.ammo()
+		var before: int = c.ammo.rounds()
 		t.puppet(id).shoot()
 		await t.seconds(0.3)
-		t.expect_eq(c.ammo(), before - 1, "%s: and it fires" % id)
+		t.expect_eq(c.ammo.rounds(), before - 1, "%s: and it fires" % id)
 
 
 ## Both arms keep (about) their configured length.

@@ -4,8 +4,8 @@ class_name MagazineConfig
 
 ## Every magazine type, by id: its display `name`, the `gun` it fits (`GunConfig.guns` id), how many
 ## rounds it holds (`capacity`) and, optionally, its own `reload_time` (s; absent = `reload_time`
-## below). Add a row to add a type; a character's `spare_magazine_types` names rows from here, and a
-## gun's `GunConfig` row names the type it is built loaded with.
+## below). Add a row to add a type; a character's `ammo.spare_magazine_types` names rows from here,
+## and a gun's `GunConfig` row names the type it is built loaded with.
 static var types: Dictionary = {
 	&"standard": { "name": "Standard magazine", "gun": &"pistol", "capacity": 12 },
 	&"extended": { "name": "Extended magazine", "gun": &"pistol", "capacity": 20 },

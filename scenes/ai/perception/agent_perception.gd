@@ -894,7 +894,7 @@ func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 		"inside": not room.is_empty(),
 		"room_type": room.get("type", "") if not room.is_empty() else "",
 		"item": item.display_name if item != null else "nothing",
-		"reloading": other.is_reloading(),
+		"reloading": other.ammo.is_reloading(),
 		"posture": other.posture(),
 	}
 

@@ -68,7 +68,7 @@ func run(t: TestContext) -> void:
 				% [gun, target.health, target.max_health],
 		)
 		t.check(
-			t.actor(GUNS[gun][0]).ammo(GUNS[gun][2])
-				< t.actor(GUNS[gun][0]).ammo_capacity(GUNS[gun][2]),
+			t.actor(GUNS[gun][0]).ammo.rounds(GUNS[gun][2])
+				< t.actor(GUNS[gun][0]).ammo.capacity(GUNS[gun][2]),
 			"the %s did fire" % gun,
 		)

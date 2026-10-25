@@ -84,7 +84,7 @@ func _check_seated_clicks(t: TestContext, car: Node2D) -> void:
 	var mark := t.events.size()
 	var ammo := {}
 	for id in RIDERS:
-		ammo[id] = t.actor(id).ammo(SLOT)
+		ammo[id] = t.actor(id).ammo.rounds(SLOT)
 		t.puppet(id).aim_at(car.global_position
 				+ Probe.right(car) * (-400.0 if id == &"d" else 400.0))
 	for i in 10:
@@ -102,8 +102,8 @@ func _check_seated_clicks(t: TestContext, car: Node2D) -> void:
 				% [id, _since(t, mark, &"shot", id).size()],
 		)
 		t.check(
-			who.ammo(SLOT) == ammo[id],
-			"%s spends no ammo (%d rounds, had %d)" % [id, who.ammo(SLOT), ammo[id]],
+			who.ammo.rounds(SLOT) == ammo[id],
+			"%s spends no ammo (%d rounds, had %d)" % [id, who.ammo.rounds(SLOT), ammo[id]],
 		)
 	var hits := t.events.slice(mark).filter(func(e): return e["topic"] == &"hit")
 	t.check(hits.is_empty(), "nothing is hit (%d hit events)" % hits.size())

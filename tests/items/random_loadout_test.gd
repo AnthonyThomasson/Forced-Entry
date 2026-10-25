@@ -71,19 +71,19 @@ func _check_loadout(t: TestContext, body: Node, slot: int) -> void:
 	t.expect_eq(body.current_slot(), slot, "slot %d: holds it" % slot)
 	t.expect_eq(body.gun_slot(), slot, "slot %d: it is the gun it fights with" % slot)
 	t.expect_eq(
-		body.ammo(),
+		body.ammo.rounds(),
 		MagazineConfig.capacity_of(StringName(GunConfig.row(gun)["magazine"])),
 		"slot %d: it is loaded full" % slot,
 	)
 	t.expect_eq(
-		body.spare_magazines(),
+		body.ammo.spare_magazines(),
 		int(GunConfig.row(gun)["spare_magazines"]),
 		"slot %d: carries its spares" % slot,
 	)
-	t.check(body.best_magazine(gun) != null, "slot %d: they are for its gun" % slot)
+	t.check(body.ammo.best_magazine(gun) != null, "slot %d: they are for its gun" % slot)
 	for other_gun: StringName in GunConfig.guns:
 		if other_gun != gun:
 			t.check(
-				body.best_magazine(other_gun) == null,
+				body.ammo.best_magazine(other_gun) == null,
 				"slot %d: no spares for the %s" % [slot, other_gun],
 			)

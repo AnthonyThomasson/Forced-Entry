@@ -240,7 +240,7 @@ class Restock extends Node:
 			if g.get(&"thrower") == _player:
 				return true
 		var item: Item = _player.current_item()
-		return (_player.is_reloading()
+		return (_player.ammo.is_reloading()
 				or (item != null and item.hand_stance(item.weapon_hand()) == &"throw"))
 
 	## Arm the player with every slot it started with and `GRENADES` of each grenade, holding what
@@ -249,7 +249,7 @@ class Restock extends Node:
 		var kit := CharacterKit.new()
 		kit.slots = _slots
 		kit.hold_slot = _player.current_slot()
-		kit.spare_types = _player.spare_magazine_types
+		kit.spare_types = _player.ammo.spare_magazine_types
 		kit.grenades = { ItemRegistry.STUN_SLOT: GRENADES, ItemRegistry.FRAG_SLOT: GRENADES }
 		_player.set_loadout(kit)
 

@@ -85,7 +85,7 @@ func run(t: TestContext) -> void:
 func _rounds(t: TestContext) -> Dictionary:
 	var out := {}
 	for gun: StringName in GUNS:
-		out[gun] = t.actor(GUNS[gun][0]).ammo(GUNS[gun][1])
+		out[gun] = t.actor(GUNS[gun][0]).ammo.rounds(GUNS[gun][1])
 	return out
 
 

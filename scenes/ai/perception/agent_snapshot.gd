@@ -173,7 +173,7 @@ func _shared(ctx: Dictionary, rooms: Array, knowledge: Dictionary) -> Dictionary
 	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.gun_slot()
-	var ammo: int = _character.ammo(gun) if gun >= 0 else -1
+	var ammo: int = _character.ammo.rounds(gun) if gun >= 0 else -1
 	return {
 		"entries": entries, "entered": entered, "stun_stack": stun_stack, "leads": leads,
 		"shots_throws": shots_throws, "dmg": dmg, "gun": gun, "ammo": ammo,
@@ -197,11 +197,11 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 	var facts := {
 		"hostile_known": not hostiles.is_empty(),
 		"threat_known": not hostiles.is_empty() or _memory.under_fire(),
-		"gun_loaded": ammo > 0 and not _character.is_reloading(),
+		"gun_loaded": ammo > 0 and not _character.ammo.is_reloading(),
 		"weapon_low": (
-			ammo >= 0 and ammo <= ceili(_character.ammo_capacity(gun) * vocab.low_ammo_fraction)
+			ammo >= 0 and ammo <= ceili(_character.ammo.capacity(gun) * vocab.low_ammo_fraction)
 		),
-		"can_reload": gun >= 0 and _character.can_reload(gun),
+		"can_reload": gun >= 0 and _character.ammo.can_reload(gun),
 		"under_fire": _memory.under_fire(),
 		"engaged": _memory.engaged(),
 		"leads": not leads["options"].is_empty(),

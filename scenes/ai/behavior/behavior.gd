@@ -11,7 +11,7 @@ extends Node
 ##              duck) or `ambush` (hold the covered spot, fire the moment a line opens).
 ##   melee    — close on `target_id` and punch.
 ##   interact — walk to `object`, run its interaction `id`, hold it for `interaction_dwell`.
-##   reload   — stand and swap in a fresh magazine (`Character.reload()`), then re-decide.
+##   reload   — stand and swap in a fresh magazine (`Character.ammo.reload()`), then re-decide.
 ##   entry    — go through doorway `opening` into room `into` as a team member or alone: stack,
 ##              slice the pie, cross without stopping, take a corner, clear the room (`entry.gd`).
 ##   throw    — walk to the throw spot `from` when it has one (`walk`), take a grenade in hand, aim
@@ -1125,7 +1125,7 @@ func apply(delta: float) -> void:
 	_apply_posture(delta)
 	_running = _character.is_running()
 	_posture = _character.posture()
-	_reloading = _character.is_reloading()
+	_reloading = _character.ammo.is_reloading()
 
 
 ## Tell the locomotion what this tick's walk accounts for: the bodies it knows of, the one a melee
@@ -2088,15 +2088,15 @@ func _apply_hold() -> void:
 ## reload refused while the previous leaf's run is still winding down is retried the next tick.
 func _apply_reload() -> void:
 	_character.move_input = Vector2.ZERO
-	if _character.is_reloading():
+	if _character.ammo.is_reloading():
 		_reload_started = true
 		return
 	if not _reload_started:
 		var gun: int = _character.gun_slot()
 		if gun >= 0:
 			_character.select_slot(gun)
-		_character.reload()
-		if _character.is_reloading():
+		_character.ammo.reload()
+		if _character.ammo.is_reloading():
 			_reload_started = true
 			return
 		if _character.is_running():
@@ -2201,7 +2201,7 @@ func _apply_evade(delta: float) -> void:
 	_apply_posture(delta)
 	_running = _character.is_running()
 	_posture = _character.posture()
-	_reloading = _character.is_reloading()
+	_reloading = _character.ammo.is_reloading()
 
 
 ## Whether the evade runs to its spot: running is on and a run can go on or start (stamina

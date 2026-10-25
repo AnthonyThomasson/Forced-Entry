@@ -43,11 +43,11 @@ func _check_named_gun(t: TestContext, rng: RandomNumberGenerator) -> void:
 	t.expect_eq(gunman.current_slot(), int(GunConfig.row(&"smg")["slot"]), "and is held")
 	t.check(not gunman.has_item(int(GunConfig.row(&"pistol")["slot"])), "no other gun is carried")
 	t.expect_eq(
-		gunman.ammo(),
+		gunman.ammo.rounds(),
 		MagazineConfig.capacity_of(&"smg_extended"),
 		"it is loaded with the extended magazine",
 	)
-	t.expect_eq(gunman.spare_magazines(), 3, "three spares are carried")
+	t.expect_eq(gunman.ammo.spare_magazines(), 3, "three spares are carried")
 
 
 ## A random weapon draws a real gun, with that gun's own spares.
@@ -56,7 +56,7 @@ func _check_random_gun(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var drawn := LoadoutConfig.apply(lottery, { "weapon": LoadoutConfig.RANDOM }, rng)
 	t.check(not GunConfig.row(drawn).is_empty(), "random draws a real gun (%s)" % drawn)
 	t.expect_eq(
-		lottery.spare_magazines(),
+		lottery.ammo.spare_magazines(),
 		int(GunConfig.row(drawn)["spare_magazines"]),
 		"with that gun's own spares",
 	)

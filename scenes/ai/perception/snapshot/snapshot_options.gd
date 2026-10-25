@@ -133,7 +133,7 @@ func _hostile_parts(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Array:
 ## planner takes it without asking (a lone option).
 func reload_group(gun: int) -> Dictionary:
 	var options: Array = []
-	if gun >= 0 and _character.can_reload(gun):
+	if gun >= 0 and _character.ammo.can_reload(gun):
 		var text := "reload your %s" % _v.gun_noun(gun)
 		options.append({ "id": "reload", "label": text, "desc": text })
 	return { "summary": "a spare magazine is carried", "options": options }

@@ -33,7 +33,7 @@ func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
 	var stranger := t.actor(&"stranger")
 	var held: int = defender.current_slot()
-	t.check(defender.ammo_capacity() >= 0, "the defender holds a gun")
+	t.check(defender.ammo.capacity() >= 0, "the defender holds a gun")
 	var kicked := func(d):
 		return d["actor"] == &"defender" and d["body"] == stranger and d["hand"] == 2
 	t.check(

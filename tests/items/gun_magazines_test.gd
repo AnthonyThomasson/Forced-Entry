@@ -19,7 +19,7 @@ func configure(s: TestSetup) -> void:
 	# Half-spent guns, and only rifle magazines carried: the rifle can reload, the others have
 	# nothing that fits.
 	s.actor(&"gunman", &"puppet", Vector2(200, 250), { "start_slot": 6, "start_rounds": 2,
-		"spare_magazine_types": [&"rifle_standard"] })
+		"ammo:spare_magazine_types": [&"rifle_standard"] })
 
 
 func run(t: TestContext) -> void:
@@ -53,18 +53,18 @@ func _check_built_loaded(t: TestContext) -> void:
 
 ## The gunman's half-spent rifle and the rifle magazine it carries, which fits nothing else.
 func _check_carried(t: TestContext, body: Node) -> void:
-	t.expect_eq(body.ammo(6), 2, "the rifle starts with the 2 rounds asked for")
+	t.expect_eq(body.ammo.rounds(6), 2, "the rifle starts with the 2 rounds asked for")
 	t.expect_eq(
-		body.ammo_capacity(6),
+		body.ammo.capacity(6),
 		MagazineConfig.capacity_of(&"rifle_standard"),
 		"its capacity is the rifle magazine's",
 	)
-	t.check(body.best_magazine(&"rifle") != null, "a rifle magazine is carried")
-	t.check(body.best_magazine(&"pistol") == null and body.best_magazine(&"smg") == null,
+	t.check(body.ammo.best_magazine(&"rifle") != null, "a rifle magazine is carried")
+	t.check(body.ammo.best_magazine(&"pistol") == null and body.ammo.best_magazine(&"smg") == null,
 		"no magazine for the pistol or the SMG is carried")
-	t.check(body.can_reload(6), "the rifle can reload from it")
+	t.check(body.ammo.can_reload(6), "the rifle can reload from it")
 	t.check(
-		not body.can_reload(3) and not body.can_reload(5),
+		not body.ammo.can_reload(3) and not body.ammo.can_reload(5),
 		"the pistol and the SMG have nothing to reload from",
 	)
 
@@ -79,16 +79,16 @@ func _check_rifle_reload(t: TestContext, body: Node) -> void:
 	)
 	t.puppet(&"gunman").reload()
 	await t.seconds(MagazineConfig.reload_time + 0.3)
-	t.check(body.is_reloading(), "past the pistol's reload time, the rifle is still reloading")
+	t.check(body.ammo.is_reloading(), "past the pistol's reload time, the rifle is still reloading")
 	await t.seconds(rifle_time - MagazineConfig.reload_time + 0.2)
-	t.check(not body.is_reloading(), "the rifle reload has finished")
+	t.check(not body.ammo.is_reloading(), "the rifle reload has finished")
 	t.expect_eq(
-		body.ammo(6),
+		body.ammo.rounds(6),
 		MagazineConfig.capacity_of(&"rifle_standard"),
 		"the rifle is full again",
 	)
-	t.expect_eq(body.spare_magazines(), 1, "the half-spent rifle magazine was kept as a spare")
+	t.expect_eq(body.ammo.spare_magazines(), 1, "the half-spent rifle magazine was kept as a spare")
 	t.check(
-		body.best_magazine(&"rifle") != null and body.best_magazine(&"rifle").rounds == 2,
+		body.ammo.best_magazine(&"rifle") != null and body.ammo.best_magazine(&"rifle").rounds == 2,
 		"it still holds its 2 rounds",
 	)

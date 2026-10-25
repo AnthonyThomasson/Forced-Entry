@@ -1192,7 +1192,7 @@ func _status(reloading: bool) -> Array:
 		status.append("badly wounded")
 	elif dmg >= hurt_threshold:
 		status.append("hurt")
-	if reloading or _character.is_reloading():
+	if reloading or _character.ammo.is_reloading():
 		status.append("reloading")
 	return status
 

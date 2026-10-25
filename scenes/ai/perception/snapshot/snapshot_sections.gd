@@ -125,14 +125,14 @@ func loadout_text(gun: int, ammo: int, grenades: Array = []) -> String:
 ## The gun's state, as `loadout_text` words it.
 func _gun_text(gun: int, ammo: int) -> String:
 	var noun := _v.gun_noun(gun)
-	if _character.is_reloading():
+	if _character.ammo.is_reloading():
 		return "You are reloading your %s." % noun
 	var spares := ("You carry spare magazines."
-			if _character.spare_magazines() > 0
+			if _character.ammo.spare_magazines() > 0
 			else "You are out of spare magazines.")
 	if ammo == 0:
 		return "Your %s is empty. %s" % [noun, spares]
-	if ammo <= ceili(_character.ammo_capacity(gun) * _v.low_ammo_fraction):
+	if ammo <= ceili(_character.ammo.capacity(gun) * _v.low_ammo_fraction):
 		return "Your %s is nearly empty. %s" % [noun, spares]
 	return "Your %s is loaded." % noun
 

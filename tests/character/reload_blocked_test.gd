@@ -28,7 +28,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	a.reload()
 	await t.seconds(0.1)
-	t.check(not t.actor(&"a").is_reloading(), "a running character does not start a reload")
+	t.check(not t.actor(&"a").ammo.is_reloading(), "a running character does not start a reload")
 	a.stop()
 
 	# Mid-reload: shooting is ignored, and starting to run cancels the reload.
@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	b.reload()
 	await t.seconds(0.2)
-	t.check(body.is_reloading(), "b is reloading")
+	t.check(body.ammo.is_reloading(), "b is reloading")
 	var shots := t.spawned("Projectile").size()
 	b.shoot()
 	await t.seconds(0.2)
@@ -46,15 +46,15 @@ func run(t: TestContext) -> void:
 	b.set_run(true)
 	b.walk_to(Vector2(700, 300))
 	await t.seconds(0.4)
-	t.check(not body.is_reloading(), "running cancels the reload")
-	t.expect_eq(body.ammo(), 2, "the cancelled reload left the pistol as it was")
+	t.check(not body.ammo.is_reloading(), "running cancels the reload")
+	t.expect_eq(body.ammo.rounds(), 2, "the cancelled reload left the pistol as it was")
 
 	# Death mid-reload.
 	var c := t.puppet(&"c")
 	var corpse := t.actor(&"c")
 	c.reload()
 	await t.seconds(0.2)
-	t.check(corpse.is_reloading(), "c is reloading")
+	t.check(corpse.ammo.is_reloading(), "c is reloading")
 	corpse.take_damage(1000.0)
 	await t.frames(2)
-	t.check(corpse.is_dead and not corpse.is_reloading(), "dying ends the reload")
+	t.check(corpse.is_dead and not corpse.ammo.is_reloading(), "dying ends the reload")

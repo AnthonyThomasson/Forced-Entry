@@ -20,14 +20,14 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var shooter := t.puppet(&"shooter")
 	var body := t.actor(&"shooter")
-	t.expect_eq(body.ammo(), 3, "the pistol starts with 3 rounds")
+	t.expect_eq(body.ammo.rounds(), 3, "the pistol starts with 3 rounds")
 	shooter.aim_at(Vector2(700, 250))
 	await t.seconds(0.4)
 	var left := []
 	for i in 5:
 		shooter.shoot()
 		await t.seconds(0.15)
-		left.append(body.ammo())
+		left.append(body.ammo.rounds())
 	t.expect_eq(
 		left,
 		[2, 1, 0, 0, 0],

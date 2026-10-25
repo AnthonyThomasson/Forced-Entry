@@ -63,7 +63,7 @@ All distances are px (the game is about 64 px to the metre, so 550 px is about 8
 **G1. Slots.** The stun grenade is slot **7**, the frag grenade slot **8**. Each is a *count* carried (`Item.uses_left()`), spent one per
 throw. When the last one is thrown the slot is empty and the character is holding its gun again (the lowest slot that takes ammo, as
 `gun_slot()` says), else its fists. Selecting a slot it does not carry does nothing. A grenade is not a gun: while one is held
-`gun_slot()` is still the gun, `ammo()` reads no ammo (-1), and `reload()` does nothing. `ItemRegistry.create(7, n)` and `create(8, n)`
+`gun_slot()` is still the gun, `ammo.rounds()` reads no ammo (-1), and `ammo.reload()` does nothing. `ItemRegistry.create(7, n)` and `create(8, n)`
 make the items with `n` grenades; any other item answers `uses_left() == -1` (unlimited) and `is_throwable() == false`.
 `Character.item_count(slot)` reads the count carried in a slot (0 when none). `Character.throw_stats(slot)` reads what a grenade carried in
 a slot tells its holder about itself, `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }` (`GrenadeItem.throw_stats()`, the one dictionary

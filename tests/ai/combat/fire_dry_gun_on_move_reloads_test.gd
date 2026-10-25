@@ -50,9 +50,9 @@ func run(t: TestContext) -> void:
 	var npc := t.actor(&"npc")
 	var brain := t.controller(&"npc", &"debug_state")
 	if not t.require(
-			await t.until(func(): return npc.ammo() == 0, 10.0),
+			await t.until(func(): return npc.ammo.rounds() == 0, 10.0),
 			"the NPC fired its last round (%d left, act %s)"
-				% [npc.ammo(), brain.debug_state().get("act")],
+				% [npc.ammo.rounds(), brain.debug_state().get("act")],
 	):
 		return
 	var dry := t.time
@@ -63,5 +63,5 @@ func run(t: TestContext) -> void:
 	t.check(
 		await t.until(reloaded, 2.0),
 		"it started reloading within 2 s of the gun going dry at %.1f s (act %s, %d rounds)"
-			% [dry, brain.debug_state().get("act"), npc.ammo()],
+			% [dry, brain.debug_state().get("act"), npc.ammo.rounds()],
 	)

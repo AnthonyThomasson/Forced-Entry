@@ -48,18 +48,18 @@ func run(t: TestContext) -> void:
 		"the defender holds the SMG",
 	)
 	t.expect_eq(
-		home.ammo(),
+		home.ammo.rounds(),
 		MagazineConfig.capacity_of(&"smg_extended"),
 		"loaded with the extended magazine",
 	)
-	t.expect_eq(home.spare_magazines(), 3, "and carries three spares")
+	t.expect_eq(home.ammo.spare_magazines(), 3, "and carries three spares")
 	t.expect_eq(
 		raider.current_slot(),
 		int(GunConfig.row(&"rifle")["slot"]),
 		"the invader holds the rifle",
 	)
 	t.expect_eq(
-		raider.spare_magazines(),
+		raider.ammo.spare_magazines(),
 		int(GunConfig.row(&"rifle")["spare_magazines"]),
 		"with the rifle's own spares",
 	)

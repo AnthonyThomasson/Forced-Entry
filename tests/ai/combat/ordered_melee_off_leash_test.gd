@@ -48,7 +48,7 @@ func configure(s: TestSetup) -> void:
 			"max_health": 1_000_000.0,
 			"start_slot": 2,
 			"start_rounds": 0,
-			"spare_magazine_types": [],
+			"ammo:spare_magazine_types": [],
 		},
 	)
 	s.actor(

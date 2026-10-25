@@ -51,7 +51,7 @@ func _walk_speed(t: TestContext, span: float) -> float:
 
 ## A full magazine in the shooter's pistol (it fires a dozen rounds a phase).
 func _top_up(t: TestContext) -> void:
-	if t.actor(&"shooter").ammo() < 12:
+	if t.actor(&"shooter").ammo.rounds() < 12:
 		t.puppet(&"shooter").reload()
 		await t.seconds(2.0)
 

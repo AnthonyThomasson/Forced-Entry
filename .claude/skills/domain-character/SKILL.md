@@ -25,7 +25,8 @@ its own child `Node2D`.
 
 - **Control** (`character.gd`, root body) owns state + physics: computes `facing`, moves, and
   forwards intent from its controller. Never draws. Its components (typed `RefCounted`s it holds as public properties and
-  steps itself): `character_stun.gd` (`stun`, a grenade's flash and bang on the body).
+  steps itself): `character_ammo.gd` (`ammo`, the magazines carried and the reload), `character_stun.gd` (`stun`, a
+  grenade's flash and bang on the body).
 - **Animate and draw** live in `scenes/character/body/` — **`domain-character-body`**: `character_hands.gd` (hand geometry, punch,
   punch hit detection), `character_kick.gd` (the leg kick and its hit detection), `character_pose.gd` (the living motion, each hand's stance), `character_rig.gd` (the standing skeleton),
   `character_legs.gd` (feet against walls), `body_sweep.gd` (the collide-and-slide hands and legs share), `body_strike.gd` (the melee strike punch and kick share), `character_ragdoll.gd` (the fall) and `character_visuals.gd` + `character_style.gd` (the look a style resolves to) + the painters in `body/art/` (appearance).
@@ -41,7 +42,7 @@ character's fresh `facing`, and the character pulls its controller's intent at t
 `take_damage`, the punch path) calls `_die(direction)` at zero health. `_die` leaves layer 1, frees its light occluder (below) and
 moves to `CharacterArtConfig.ragdoll_z_index` (`DrawLayers.LYING`, −2: beneath the living and a vehicle's chassis and roof, above blood
 pools; `vehicle/fallen_body_under_vehicle`), ends any
-interaction, clears the stun (`stun.clear()`), abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (walk + knockback,
+interaction, cancels a reload (`ammo.cancel()`), clears the stun (`stun.clear()`), abandons any vehicle ride (`CharacterVehicleUse.abandon()`: the body falls where it is, the door left as it is), builds `ragdoll` from the rig's joints with the body's momentum (walk + knockback,
 including the killing blow's shove), lets go of the held item (`Item.drop(self, momentum + toss)`;
 a returned node removes the slot, so `current_item()` may be null on a corpse), then emits `died`.
 While dead `_physics_process` only steps the ragdoll (`step(delta, space, global_position)`); the
@@ -73,8 +74,8 @@ solves the rig once, reports the sole (middle, toes, `CharacterBodyConfig.foot` 
 the Audio domain turns into a step on the floor under it and the AI hears by (whose step, and how far it carries by gait, `docs/hearing.md` H1).
 Tests: `tests/physics/footprints_trail_test.gd`, `tests/audio/footstep_surface_sound_test.gd`, `tests/ai/perception/footsteps_heard_by_gait_test.gd`.
 
-A reload posts `&"reload"` on `EventBus` twice: `stage = &"start"` from `reload()` and `&"done"` once the timer ends and the
-magazine is swapped (`_post_reload`; `{ position` (weapon hand)`, gun, stage, power, character }`). A reload cancelled by
+A reload posts `&"reload"` on `EventBus` twice: `stage = &"start"` from `ammo.reload()` and `&"done"` once the timer ends and the
+magazine is swapped (`CharacterAmmo._post`; `{ position` (weapon hand)`, gun, stage, power, character }`). A reload cancelled by
 running, switching items, an interaction or death never posts `done`. Test: `tests/audio/reload_sound_test.gd`.
 
 ## A long gun against a wall (the raise)
@@ -129,17 +130,20 @@ The run's legs, arms and shoulders (stride blend, `run` stance, shoulder sway an
 
 ## Ammo and reloading
 
-The character carries spare magazines (`_magazines`, `Magazine` items) beside its inventory: they are never in
-`_items`, so no number key or interaction can select them. They come from the exports `spare_magazine_types`
-(`MagazineConfig.types` ids, default two standard magazines for each gun) and `start_rounds` (what the starting gun is loaded with;
-negative = full), which tests and sandboxes set through `actor(..., props)`. `set_loadout(kit: CharacterKit)` (`character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with). `reload()` (R, or the AI's reload
-primitive) starts a timer of the held item's `reload_time()` on it if its `can_reload(self)` says a carried
+The character's `ammo` component (`character_ammo.gd`, `CharacterAmmo`) carries the spare magazines (`_magazines`, `Magazine`
+items) beside its inventory: they are never in `_items`, so no number key or interaction can select them. They come from
+`ammo.spare_magazine_types` (`MagazineConfig.types` ids, default two standard magazines for each gun; carried from the
+character's `_ready` through `ammo.restock`) and the root's export `start_rounds` (what the starting gun is loaded with;
+negative = full), which tests and sandboxes set through `actor(..., props)` (`"ammo:spare_magazine_types"`). `set_loadout(kit: CharacterKit)` (`character_kit.gd`: `slots`, `hold_slot`, `spare_types`, `loaded_magazine` = &"", `grenades` = {}, `weapon_style` = &"police") re-arms a character after the fact (a match gives an NPC or the scene-placed player its gun this way; the kit's `loaded_magazine` picks the type the gun starts loaded with; its `spare_types` go to `ammo.restock`). `ammo.reload()` (R, or the AI's reload
+primitive) starts a timer of the held item's `reload_time()` on it if its `can_reload(character)` says a carried
 magazine would add rounds, and sets the item's `reloading` flag (a gun's support hand eases to the `reload`
-stance while it is up). `_update_reload` runs right after the controller: it cancels the reload when the character
-is busy, running or no longer holds that item, else counts down and calls `item.finish_reload(self)`. `shoot()` is
-ignored mid-reload; switching slot or dying cancels it; magazines are lost with the body. Reads: `is_reloading()`,
-`ammo(slot)`, `ammo_capacity(slot)`, `can_reload(slot)`, `spare_magazines()`, `item_name(slot)`, `is_automatic()`,
-the held-item reads `current_item()` / `current_slot()` / `item_reach()` and `has_item(id)` (is a slot carried), `is_attacking()` (a punch swing),
+stance while it is up). `ammo.update(delta)` runs right after the controller: it cancels the reload when the character
+is busy, running or no longer holds that item, else counts down and calls `item.finish_reload(character)`. `shoot()` is
+ignored mid-reload; switching slot, a ride's first pose and dying cancel it (`ammo.cancel()`); magazines are lost with the body.
+An item reloading reaches the store through `ammo.best_magazine(gun)` / `ammo.take_magazine(gun)` / `ammo.stow_magazine(m)`.
+Reads: `ammo.is_reloading()`, `ammo.rounds(slot)`, `ammo.capacity(slot)`, `ammo.can_reload(slot)`, `ammo.spare_magazines()`; on the
+root `item_name(slot)`, `is_automatic()`,
+the held-item reads `current_item()` / `current_slot()` / `item_reach()` / `item_in(slot)` (the held item for a negative slot) and `has_item(id)` (is a slot carried), `is_attacking()` (a punch swing),
 `gun_slot()` (the gun it fights with: the held item if it takes ammo, else the lowest slot that does, else −1: how the AI finds
 its weapon without knowing which). Tests: `tests/items/reload_swaps_magazine_test.gd`, `tests/character/reload_blocked_test.gd`.
 
@@ -202,7 +206,7 @@ back (`apply_impulse`), a dead one's ragdoll is woken and thrown (`CharacterRagd
 (`stun.level()`, on foot and in an interaction; 0 in `_ride_frame`, so a ride's pose wins and the look eases back in once out); the pose eases it
 (`CharacterStunConfig.look_ease`) into the hunch and the stagger (`domain-character-body`). `_stances()` puts the free hand (`1 - weapon_hand()`, hand 1 with nothing
 held) in the `eyes` stance and a held gun's weapon hand in `one_hand` (its raised grip instead while `_blocked`) while `_covers_eyes(item)`: blind, not
-riding, running or dead, not reloading (`_reloading_item`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
+riding, running or dead, not reloading (`ammo.is_reloading()`), no punch swing (`_hands.is_attacking()`) and the weapon hand not in a throw's wind-up (its
 `hand_stance` is not `throw`). `one_handed()` (interfaces 6 and 7) is that, for a held gun (`gun_id() != &""`): `GunItem.secondary` adds the row's
 `one_hand_spread_deg` to its spread, and `kick` multiplies a long gun's (`raises_at_contact()`) recoil by `CharacterStanceConfig.one_hand_recoil`.
 `posture_hand_ahead()` adds the hunched chest's forward shift (half the spine's lean at `pose.gait.hunch()`) to the crouch's, so the hands (and the

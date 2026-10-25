@@ -119,7 +119,10 @@ func tick(delta: float) -> void:
 ## this says the NPC is in a position to fire.
 func can_fire_at(target: Dictionary) -> bool:
 	var gun: int = _character.gun_slot()
-	if gun < 0 or _character.ammo(gun) == 0 or _character.is_reloading() or target.is_empty():
+	if (gun < 0
+			or _character.ammo.rounds(gun) == 0
+			or _character.ammo.is_reloading()
+			or target.is_empty()):
 		return false
 	return has_line_of_fire(target)
 
@@ -191,7 +194,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 		# it.
 		if fire_timer <= 0.0 and _faces(pos):
 			var fired := shoot()
-			if fired or _character.ammo(_character.gun_slot()) == 0:
+			if fired or _character.ammo.rounds(_character.gun_slot()) == 0:
 				phase = "cover"
 				cover_timer = cover_time
 				dest_timer = 0.0  # Pick a cover spot immediately after shooting.
@@ -301,12 +304,12 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 ##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the
 ##     gun's own rate.
 func shoot() -> bool:
-	if _character.is_running() or _character.is_reloading() or holds_fire():
+	if _character.is_running() or _character.ammo.is_reloading() or holds_fire():
 		return false
 	var gun: int = _character.gun_slot()
 	if gun < 0:
 		return false
-	if _character.ammo(gun) == 0:
+	if _character.ammo.rounds(gun) == 0:
 		fire_timer = fire_cooldown
 		dry.emit()
 		return false
@@ -325,7 +328,7 @@ func shoot() -> bool:
 ## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and
 ## kicks; otherwise (a crouched NPC cannot kick) it equips the fists and punches.
 func strike() -> void:
-	if _character.ammo_capacity() >= 0 and _character.posture() == &"stand":
+	if _character.ammo.capacity() >= 0 and _character.posture() == &"stand":
 		kick()
 	else:
 		punch()
@@ -352,8 +355,8 @@ func punch() -> void:
 func continue_burst() -> void:
 	if _burst_left <= 0:
 		return
-	if not _character.is_automatic() or _character.is_running() or _character.is_reloading() \
-			or _character.weapon_blocked() or _character.ammo() <= 0 or holds_fire():
+	if not _character.is_automatic() or _character.is_running() or _character.ammo.is_reloading() \
+			or _character.weapon_blocked() or _character.ammo.rounds() <= 0 or holds_fire():
 		_burst_left = 0
 		return
 	if _character.shoot():
@@ -378,7 +381,7 @@ func reload_if_dry() -> void:
 	if not reload_due():
 		return
 	_character.select_slot(_character.gun_slot())
-	_character.reload()
+	_character.ammo.reload()
 
 
 ## A tactical reload (docs/tactical-entry.md E11): swap a part-spent magazine for a full one in a
@@ -389,12 +392,13 @@ func top_off() -> bool:
 	var gun: int = _character.gun_slot()
 	if gun < 0:
 		return false
-	if _character.is_reloading():
+	if _character.ammo.is_reloading():
 		return true
-	if _character.ammo(gun) >= _character.ammo_capacity(gun) or not _character.can_reload(gun):
+	if (_character.ammo.rounds(gun) >= _character.ammo.capacity(gun)
+			or not _character.ammo.can_reload(gun)):
 		return false
 	_character.select_slot(gun)
-	_character.reload()
+	_character.ammo.reload()
 	return true
 
 
@@ -402,7 +406,8 @@ func top_off() -> bool:
 ## rest tops up such a one, LD22: not only a dry one).
 func magazine_low(fraction: float) -> bool:
 	var gun: int = _character.gun_slot()
-	return gun >= 0 and _character.ammo(gun) <= ceili(_character.ammo_capacity(gun) * fraction)
+	return (gun >= 0
+			and _character.ammo.rounds(gun) <= ceili(_character.ammo.capacity(gun) * fraction))
 
 
 ## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine
@@ -411,9 +416,9 @@ func reload_due() -> bool:
 	var gun: int = _character.gun_slot()
 	return (auto_reload
 			and gun >= 0
-			and not _character.is_reloading()
-			and _character.ammo(gun) == 0
-			and _character.can_reload(gun))
+			and not _character.ammo.is_reloading()
+			and _character.ammo.rounds(gun) == 0
+			and _character.ammo.can_reload(gun))
 
 
 ## Whether the facing has settled on world point `pos` (within `AIM_TOLERANCE`).

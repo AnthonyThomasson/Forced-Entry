@@ -128,7 +128,7 @@ func hold_fire(on: bool) -> void:
 
 ## Reload the held item (R): swap in the fullest carried magazine.
 func reload() -> void:
-	_pending.append(func(c): c.reload())
+	_pending.append(func(c): c.ammo.reload())
 
 
 ## Start interaction `id` on `object`; a refusal is recorded in `failed_interactions`.

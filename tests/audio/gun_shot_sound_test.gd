@@ -26,7 +26,7 @@ func configure(s: TestSetup) -> void:
 		&"empty_man",
 		&"puppet",
 		Vector2(100, 440),
-		{ "start_slot": 3, "start_rounds": 0, "spare_magazine_types": [] },
+		{ "start_slot": 3, "start_rounds": 0, "ammo:spare_magazine_types": [] },
 	)
 
 

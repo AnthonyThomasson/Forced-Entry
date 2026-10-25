@@ -146,11 +146,11 @@ func _check_rates(t: TestContext) -> void:
 		wanted += 4.0 * seconds / float(GunConfig.row(gun_id)["fire_interval"])
 	var fired := 0
 	for i in SMGS.size():
-		fired += (t.actor(StringName("smg%d" % i)).ammo_capacity(5)
-				- t.actor(StringName("smg%d" % i)).ammo(5))
+		fired += (t.actor(StringName("smg%d" % i)).ammo.capacity(5)
+				- t.actor(StringName("smg%d" % i)).ammo.rounds(5))
 	for i in RIFLES.size():
-		fired += (t.actor(StringName("rifle%d" % i)).ammo_capacity(6)
-				- t.actor(StringName("rifle%d" % i)).ammo(6))
+		fired += (t.actor(StringName("rifle%d" % i)).ammo.capacity(6)
+				- t.actor(StringName("rifle%d" % i)).ammo.rounds(6))
 	t.check(
 		float(fired) >= wanted * 0.8,
 		"the guns really fired at their rates (%d rounds, wanted about %.0f)" % [fired, wanted],
@@ -162,7 +162,7 @@ func _check_rates(t: TestContext) -> void:
 func _check_pistol_hits(t: TestContext, pistol_bodies: Array) -> void:
 	var pistol_rounds := 0
 	for body in pistol_bodies:
-		pistol_rounds += body.ammo_capacity(3) - body.ammo(3)
+		pistol_rounds += body.ammo.capacity(3) - body.ammo.rounds(3)
 	var pistol_hits := t.events_of(
 		&"hit",
 		func(data: Dictionary) -> bool: return data.get("attacker") in pistol_bodies,

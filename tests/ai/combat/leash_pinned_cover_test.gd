@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 	gunman.hold_fire(true)
 	var farthest := [0.0, ""]  # the farthest the NPC stood from its leader, and its act then
 	var each := func(_rec: Dictionary) -> void:
-		if gun.ammo() == 0 and not gun.is_reloading():
+		if gun.ammo.rounds() == 0 and not gun.ammo.is_reloading():
 			gunman.reload()
 		var d: float = m.global_position.distance_to(me.global_position)
 		t.trace("from leader", d)

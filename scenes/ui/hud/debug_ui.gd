@@ -129,12 +129,12 @@ func _process(_delta: float) -> void:
 ## "Ammo: 7/12  (+2 mags)" for a held gun ("reloading…" mid-swap), "Ammo: —" for an item without
 ## ammo.
 func _ammo_line() -> String:
-	var rounds: int = _character.ammo()
+	var rounds: int = _character.ammo.rounds()
 	if rounds < 0:
 		return "Ammo: —"
 	var line := ("Ammo: %d/%d  (+%d mags)"
-			% [rounds, _character.ammo_capacity(), _character.spare_magazines()])
-	return line + "  reloading…" if _character.is_reloading() else line
+			% [rounds, _character.ammo.capacity(), _character.ammo.spare_magazines()])
+	return line + "  reloading…" if _character.ammo.is_reloading() else line
 
 
 ## "Grenades: 1 stun, 2 frag" for what is carried (the kinds and slots

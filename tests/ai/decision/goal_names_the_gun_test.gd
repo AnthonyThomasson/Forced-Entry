@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 			&"defender",
 			Vector2(150, lane[3]),
 			{
-				"start_slot": lane[1], "start_rounds": 2, "spare_magazine_types": [lane[2]],
+				"start_slot": lane[1], "start_rounds": 2, "ammo:spare_magazine_types": [lane[2]],
 				"max_health": 400.0,
 			},
 		)

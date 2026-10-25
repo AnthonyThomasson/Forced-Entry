@@ -49,7 +49,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
 	var intruder := t.actor(&"intruder")
-	var rounds: int = defender.ammo(RIFLE_SLOT)
+	var rounds: int = defender.ammo.rounds(RIFLE_SLOT)
 
 	# The defender fights: it aims at the intruder and finds its barrel against the chair.
 	if not t.require(
@@ -69,7 +69,7 @@ func run(t: TestContext) -> void:
 		if defender.move_input.dot(defender.facing) < -0.5:
 			backed_off = true
 	t.check(backed_off, "while blocked, it steps back (drives away from its aim)")
-	t.expect_eq(defender.ammo(RIFLE_SLOT), rounds, "and it fires no round meanwhile")
+	t.expect_eq(defender.ammo.rounds(RIFLE_SLOT), rounds, "and it fires no round meanwhile")
 	t.check(intruder.health == intruder.max_health, "the intruder is untouched")
 
 	# Free to move: it backs off, the barrel clears, and it shoots the intruder.
@@ -79,7 +79,7 @@ func run(t: TestContext) -> void:
 			intruder.health,
 			intruder.max_health,
 		])
-	t.check(defender.ammo(RIFLE_SLOT) < rounds, "the rifle fired")
+	t.check(defender.ammo.rounds(RIFLE_SLOT) < rounds, "the rifle fired")
 
 
 ## Every gun dead straight, so a shot's path is the aim's alone.

@@ -28,7 +28,7 @@ func configure(s: TestSetup) -> void:
 		{
 			"start_rounds": 2,
 			"max_health": 400.0,
-			"spare_magazine_types": [&"standard", &"standard"],
+			"ammo:spare_magazine_types": [&"standard", &"standard"],
 		},
 	)
 	s.actor(
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 		"the defender radioed that it is reloading",
 	)
 	t.check(
-		await t.until(func(): return defender.ammo(3) == 12, 6.0),
-		"the pistol is full again (%d)" % defender.ammo(3),
+		await t.until(func(): return defender.ammo.rounds(3) == 12, 6.0),
+		"the pistol is full again (%d)" % defender.ammo.rounds(3),
 	)
-	t.expect_eq(defender.spare_magazines(), 2, "the old magazine was kept as a spare")
+	t.expect_eq(defender.ammo.spare_magazines(), 2, "the old magazine was kept as a spare")

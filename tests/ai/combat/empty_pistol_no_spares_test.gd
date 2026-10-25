@@ -23,7 +23,7 @@ func configure(s: TestSetup) -> void:
 		&"defender",
 		&"defender",
 		Vector2(650, 300),
-		{ "start_rounds": 0, "spare_magazine_types": [], "max_health": 400.0 },
+		{ "start_rounds": 0, "ammo:spare_magazine_types": [], "max_health": 400.0 },
 	)
 	s.actor(
 		&"attacker",

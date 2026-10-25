@@ -20,8 +20,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
-	t.expect_eq(defender.ammo(3), 0, "the pistol starts empty")
+	t.expect_eq(defender.ammo.rounds(3), 0, "the pistol starts empty")
 	t.check(
-		await t.until(func(): return defender.ammo(3) == 12, 6.0),
-		"the NPC reloads it itself (%d rounds)" % defender.ammo(3),
+		await t.until(func(): return defender.ammo.rounds(3) == 12, 6.0),
+		"the NPC reloads it itself (%d rounds)" % defender.ammo.rounds(3),
 	)

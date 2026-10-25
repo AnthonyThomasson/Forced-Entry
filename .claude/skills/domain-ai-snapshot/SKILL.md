@@ -133,7 +133,7 @@ compare numbers, and an encoder reads "no cover" as "cover". So:
 4. **Only distinguishing facts in options** — common facts (every hostile is hostile and has a pistol)
    and the contacts section on a bind level blur the match.
 5. **Only perceived facts** — facing, aim and wounds only while visible; unknown rooms by direction.
-A seen character's `reloading` flag (read via `is_reloading()` only while visible) joins its contact line ("…, reloading").
+A seen character's `reloading` flag (read via `ammo.is_reloading()` only while visible) joins its contact line ("…, reloading").
 **Grenades** (`docs/grenades.md`): per target the group `grenade_throws` (`grenade_group`): one option `frag` / `stun` per kind carried, only against a hostile whose last-known spot is hidden from the NPC's line of fire
 (`line.clear` false: "frag X behind their cover", group `situation` "Your line to X is blocked") or lies in a room the NPC is outside of (`_held_room`, issue #51 R7: "frag X in the kitchen",
 `situation` "X holds a room you are outside of", `held_room` the room, and the exposure section adds "X holds the kitchen, a room you are outside of." before the throw sentence), within that kind's throw range (`AgentThrow.range_of`, off the grenade carried) with a clear lob from the thrower's hand (`AgentThrow.can_lob`), judged per kind, from where the NPC stands or else

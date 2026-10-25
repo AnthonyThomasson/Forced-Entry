@@ -65,11 +65,11 @@ func _check_grenade_held(t: TestContext, gunman: Node) -> void:
 		Probe.PISTOL,
 		"a grenade is not a gun: the gun it fights with is still the pistol",
 	)
-	t.expect_eq(gunman.ammo(), -1, "the held grenade has no ammo")
-	t.expect_eq(gunman.ammo(Probe.PISTOL), 12, "the pistol keeps its magazine")
+	t.expect_eq(gunman.ammo.rounds(), -1, "the held grenade has no ammo")
+	t.expect_eq(gunman.ammo.rounds(Probe.PISTOL), 12, "the pistol keeps its magazine")
 	t.puppet(&"gunman").reload()
 	await t.frames(4)
-	t.check(not gunman.is_reloading(), "reload does nothing with a grenade in the hand")
+	t.check(not gunman.ammo.is_reloading(), "reload does nothing with a grenade in the hand")
 
 
 ## `gunman` throws its last frag: the slot is emptied and it holds its pistol again. Whether it

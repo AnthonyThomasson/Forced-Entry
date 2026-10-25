@@ -78,12 +78,12 @@ nothing while it is raised. The pistol does not raise.
 `Magazine` (`magazine.gd`, an `Item` subclass; `Magazine.create(type, loaded := -1)`) holds `rounds` of a `capacity`
 for a `gun`. Types, capacities, optional per-type `reload_time` and the shared fallback `reload_time` live in `MagazineConfig` (a static-var
 holder; add a row to `types` for a new magazine): standard / extended for each gun — pistol 12 / 20, SMG 32 / 50, rifle 24 / 40, rifle and SMG
-reloads slower. A magazine only fits its own `gun` (`Character.best_magazine(gun)` filters on it). Magazines are **carried by the character, never
+reloads slower. A magazine only fits its own `gun` (`Character.ammo.best_magazine(gun)` filters on it). Magazines are **carried by the character, never
 held**: they are not in any slot, so nothing can switch to them, and several can be carried (`ItemRegistry.create_magazines(type_ids)`).
 A gun (`magazine: Magazine`) spends one round per shot (`secondary` does nothing when empty or reloading, with no
 casing and no recoil) and reports `rounds_loaded()` / `ammo_capacity()`. `can_reload(user)` is true when a carried magazine
-holds more rounds than the loaded one; `finish_reload(user)` seats the fullest compatible spare (`user.take_magazine`) and
-stows the old one with its remaining rounds (`user.stow_magazine`), dropping it only if empty. `ItemRegistry.create(slot, rounds)`
+holds more rounds than the loaded one; `finish_reload(user)` seats the fullest compatible spare (`user.ammo.take_magazine`) and
+stows the old one with its remaining rounds (`user.ammo.stow_magazine`), dropping it only if empty. `ItemRegistry.create(slot, rounds)`
 builds a gun loaded with its `GunConfig.magazine` type (`rounds` < 0 = full). The base `Item` keeps all of this inert
 (`rounds_loaded()` = -1). The reload timer and R binding are the Character's, see `domain-character`.
 

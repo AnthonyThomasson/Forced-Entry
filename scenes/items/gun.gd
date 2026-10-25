@@ -168,20 +168,20 @@ func reload_time() -> float:
 
 ## A carried magazine holds more rounds than the one loaded.
 func can_reload(user: Node2D) -> bool:
-	var best: Magazine = user.best_magazine(gun)
+	var best: Magazine = user.ammo.best_magazine(gun)
 	return best != null and best.rounds > rounds_loaded()
 
 
 ## Seat the fullest carried magazine; the one it replaces goes back into the carried store unless it
 ## is empty (nothing refills a magazine, so an empty one is dropped).
 func finish_reload(user: Node2D) -> void:
-	var fresh: Magazine = user.take_magazine(gun)
+	var fresh: Magazine = user.ammo.take_magazine(gun)
 	if fresh == null:
 		return
 	var spent := magazine
 	magazine = fresh
 	if spent != null and spent.rounds > 0:
-		user.stow_magazine(spent)
+		user.ammo.stow_magazine(spent)
 
 
 ## A long gun (the kind too long for a wall) strikes with its butt: its length behind the grip.

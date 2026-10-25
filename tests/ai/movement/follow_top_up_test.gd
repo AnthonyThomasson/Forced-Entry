@@ -47,9 +47,10 @@ func run(t: TestContext) -> void:
 	if not t.require(squad.follows(m), "premise: the NPC follows the human (Squad.follows)"):
 		return
 	if not t.require(
-			m.ammo() > 0 and m.ammo() < m.ammo_capacity(3) and m.spare_magazines() > 0,
+			m.ammo.rounds() > 0 and m.ammo.rounds() < m.ammo.capacity(3)
+				and m.ammo.spare_magazines() > 0,
 			"premise: a part-spent pistol with spares (%d of %d, %d spares)"
-				% [m.ammo(), m.ammo_capacity(3), m.spare_magazines()],
+				% [m.ammo.rounds(), m.ammo.capacity(3), m.ammo.spare_magazines()],
 	):
 		return
 	var trail: Array = []  # [time, position] of the follower, for its rest before the reload

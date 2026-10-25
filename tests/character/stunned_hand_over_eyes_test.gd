@@ -153,16 +153,16 @@ func _check_reload(t: TestContext) -> void:
 	var pistol := t.actor(&"pistol")
 	t.puppet(&"pistol").reload()
 	if t.require(
-			await t.until(func() -> bool: return pistol.is_reloading(), 0.5),
+			await t.until(func() -> bool: return pistol.ammo.is_reloading(), 0.5),
 			"the blinded pistol starts a reload",
 	):
 		await t.seconds(0.35)
 		t.check(
-			not _at_face(pistol) and pistol.is_reloading(),
+			not _at_face(pistol) and pistol.ammo.is_reloading(),
 			"mid-reload the free hand has left the face for the magazine (%.1f radii)"
 				% _to_face(pistol)["gap"],
 		)
-		await t.until(func() -> bool: return not pistol.is_reloading(), 3.0)
+		await t.until(func() -> bool: return not pistol.ammo.is_reloading(), 3.0)
 		t.check(Probe.blind(pistol), "(the reload ended while still blind)")
 		await t.seconds(0.5)
 		t.check(

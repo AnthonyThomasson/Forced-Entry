@@ -29,11 +29,11 @@ func run(t: TestContext) -> void:
 	t.check(not you.weapon_blocked(), "the barrel is clear in the open arena")
 
 	# The rifle: held, it fires for as long as the button is down, at its own rate.
-	var before: int = you.ammo()
+	var before: int = you.ammo.rounds()
 	Input.action_press(Keybinds.FIRE)
 	await t.seconds(HOLD)
 	Input.action_release(Keybinds.FIRE)
-	var fired: int = before - you.ammo()
+	var fired: int = before - you.ammo.rounds()
 	var want := HOLD / float(GunConfig.row(&"rifle")["fire_interval"])
 	t.check(
 		absf(fired - want) <= 2.0,
@@ -42,15 +42,19 @@ func run(t: TestContext) -> void:
 	)
 
 	# Released: nothing more.
-	var after: int = you.ammo()
+	var after: int = you.ammo.rounds()
 	await t.seconds(0.4)
-	t.expect_eq(you.ammo(), after, "releasing the button stops the rifle")
+	t.expect_eq(you.ammo.rounds(), after, "releasing the button stops the rifle")
 
 	# The pistol: one round per press, however long it is held.
 	you.select_slot(3)
 	await t.seconds(0.2)
-	before = you.ammo()
+	before = you.ammo.rounds()
 	Input.action_press(Keybinds.FIRE)
 	await t.seconds(HOLD)
 	Input.action_release(Keybinds.FIRE)
-	t.expect_eq(before - you.ammo(), 1, "holding the button fires a semi-automatic pistol once")
+	t.expect_eq(
+		before - you.ammo.rounds(),
+		1,
+		"holding the button fires a semi-automatic pistol once",
+	)

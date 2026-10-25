@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var inv := t.actor(&"inv")
-	var capacity: int = inv.ammo_capacity(inv.gun_slot())
+	var capacity: int = inv.ammo.capacity(inv.gun_slot())
 	var going := func(): return Entry.first_call_time(t, "going_in", &"inv", door["id"]) < INF
 	await Entry.watch(t, [&"inv"], door, 60.0, going)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 		return
 	if not t.require(going.call(), "it went in (act %s)" % act):
 		return
-	var ammo_at_cross: int = inv.ammo()
+	var ammo_at_cross: int = inv.ammo.rounds()
 	var through := func(): return Entry.first_call_time(t, "in", &"inv", door["id"]) < INF
 	await Entry.watch(t, [&"inv"], door, 8.0, through)
 	_check_topped_off(t, inv, door, ammo_at_cross, capacity)

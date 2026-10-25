@@ -45,12 +45,6 @@ const CharacterVehicleUse = preload("res://scenes/vehicle/character_vehicle_use.
 @export var start_slot: int = 1
 ## Rounds the starting gun is loaded with (negative = a full magazine).
 @export var start_rounds: int = -1
-## The spare magazines carried, as `MagazineConfig.types` ids (several of a kind are fine): two for
-## each gun.
-@export var spare_magazine_types: Array = [
-	&"standard", &"standard", &"smg_standard", &"smg_standard", &"rifle_standard",
-	&"rifle_standard",
-]
 ## Allegiance tag, read by AI perception to tell allies from potential hostiles.
 @export var faction: StringName = &"player"
 ## Maximum health. Characters start at this value; configurable per character in the inspector.
@@ -124,17 +118,14 @@ var _posture_height := 1.0
 var _items := {}
 ## Held inventory slot.
 var _current_slot := 1
-## Spare magazines carried (Magazine). They are not inventory slots: none can be held or selected.
-var _magazines: Array = []
-## The item being reloaded (null = not reloading) and the seconds left until it is done.
-var _reloading_item: Item
-var _reload_left := 0.0
 ## The held weapon's barrel is against a wall or object (only a weapon that `raises_at_contact`): it
 ## is held pointing up and cannot shoot. Set at once; `_raise` eases toward it (0 = held to the aim
 ## .. 1 = fully up).
 var _blocked := false
 ## How far the held weapon is raised off the aim, 0..1, easing toward `_blocked`.
 var _raise := 0.0
+## The magazines carried and the reload (`character_ammo.gd`).
+var ammo := CharacterAmmo.new(self)
 ## The stun (a grenade's flash and bang; `take_stun`; `character_stun.gd`).
 var stun := CharacterStun.new(self)
 ## A ride in a vehicle (the Vehicles domain moves the character through `set_ride_pose` /
@@ -196,7 +187,7 @@ func _ready() -> void:
 	health = max_health
 
 	_items = ItemRegistry.default_inventory(start_rounds)
-	_magazines = ItemRegistry.create_magazines(spare_magazine_types)
+	ammo.restock(ammo.spare_magazine_types)
 	_current_slot = start_slot
 	# Re-emit the hands' punch as a unified hit_landed (melee → hand 0/1, with its dealt damage).
 	_hands.punched.connect(_on_punched)
@@ -282,7 +273,7 @@ func _physics_step(delta: float) -> void:
 	# A ride in a vehicle overrides the controller's intent: it walks the character to the door,
 	# poses it in and out, and hands its keys on to the vehicle from the driver's seat.
 	_vehicle_use.control(delta)
-	_update_reload(delta)
+	ammo.update(delta)
 
 	if _riding:
 		_ride_frame(delta)
@@ -351,7 +342,7 @@ func melee() -> void:
 ## between rounds, per its fire rate.
 func shoot() -> bool:
 	var item := current_item()
-	if is_busy() or item == null or _running or is_reloading():
+	if is_busy() or item == null or _running or ammo.is_reloading():
 		return false
 	# Judge the barrel now rather than trusting the last frame's verdict: a controller acts before
 	# this frame's check runs, and on a character's very first frame none has run at all, so a long
@@ -362,32 +353,13 @@ func shoot() -> bool:
 	return item.secondary(self)
 
 
-## Reload the held item (R): start swapping in the fullest carried magazine, which takes
-## the item's `reload_time()`. Ignored when dead, locked in an interaction, running, already
-## reloading, or when no carried magazine would add rounds. Switching items, running or an
-## interaction cancels it.
-func reload() -> void:
-	var item := current_item()
-	if (is_dead
-			or is_busy()
-			or _running
-			or is_reloading()
-			or item == null
-			or not item.can_reload(self)):
-		return
-	_reloading_item = item
-	_reload_left = item.reload_time()
-	item.reloading = true
-	_post_reload(item, &"start")
-
-
 ## Switch to inventory slot `slot`. Ignored while locked. Observers read the held item with
 ## current_item() (the debug HUD polls it).
 func select_slot(slot: int) -> void:
 	if is_busy():
 		return
 	if slot in _items and slot != _current_slot:
-		_cancel_reload()
+		ammo.cancel()
 		_current_slot = slot
 		_rig_cache = null  # The weapon hand may change: the rig is solved afresh on the next read.
 		# Judged for the new item now, so a shot in this same frame can't slip past a wall.
@@ -457,7 +429,7 @@ func is_in_vehicle() -> bool:
 func set_ride_pose(at: Vector2, toward: Vector2, fold: float, step := Vector2.ZERO) -> void:
 	if not _riding:
 		_riding = true
-		_cancel_reload()
+		ammo.cancel()
 		_shape.set_deferred("disabled", true)
 	global_position = at
 	facing = toward.normalized()
@@ -638,11 +610,6 @@ func posture_hand_ahead() -> float:
 			+ spine * sin(pose.gait.hunch()) * 0.5)
 
 
-## True while a reload is in progress.
-func is_reloading() -> bool:
-	return _reloading_item != null
-
-
 ## True while the held item keeps firing as long as the trigger is held (an automatic gun): a
 ## controller re-presses `shoot()` every frame instead of once per click.
 func is_automatic() -> bool:
@@ -684,11 +651,11 @@ func gun_slot() -> int:
 ## grenade slot among `slots` holds `grenades[slot]` of them (else `start_rounds`, or one). Every
 ## item carries the kit's `weapon_style` (`Item.style`: how it is drawn, never what it does).
 func set_loadout(kit: CharacterKit) -> void:
-	_cancel_reload()
+	ammo.cancel()
 	_items = ItemRegistry.inventory_for(
 		kit.slots, start_rounds, kit.loaded_magazine, kit.grenades, kit.weapon_style,
 	)
-	_magazines = ItemRegistry.create_magazines(kit.spare_types)
+	ammo.restock(kit.spare_types)
 	var hold_slot := kit.hold_slot
 	_current_slot = (hold_slot
 			if hold_slot in _items
@@ -725,92 +692,9 @@ func outfit_view() -> Dictionary:
 	return _outfit.view()
 
 
-## Rounds loaded in the item in `slot` (the held one by default), or -1 if it has no ammo.
-func ammo(slot := -1) -> int:
-	var item := _item_in(slot)
-	return item.rounds_loaded() if item else -1
-
-
-## Rounds a full load of the item in `slot` (the held one by default) holds, or -1 if it has no
-## ammo.
-func ammo_capacity(slot := -1) -> int:
-	var item := _item_in(slot)
-	return item.ammo_capacity() if item else -1
-
-
-## Whether a reload of the item in `slot` (the held one by default) would add rounds right now.
-func can_reload(slot := -1) -> bool:
-	var item := _item_in(slot)
-	return item != null and not is_reloading() and item.can_reload(self)
-
-
-## How many spare magazines are carried.
-func spare_magazines() -> int:
-	return _magazines.size()
-
-
-## The carried magazine for `gun` holding the most rounds (null with none); it stays carried.
-func best_magazine(gun: StringName) -> Magazine:
-	var best: Magazine = null
-	for mag: Magazine in _magazines:
-		if mag.gun == gun and (best == null or mag.rounds > best.rounds):
-			best = mag
-	return best
-
-
-## Take `best_magazine(gun)` out of the carried store (null with none): an item loading it.
-func take_magazine(gun: StringName) -> Magazine:
-	var mag := best_magazine(gun)
-	if mag != null:
-		_magazines.erase(mag)
-	return mag
-
-
-## Carry `mag` (a magazine an item has taken out of a gun).
-func stow_magazine(mag: Magazine) -> void:
-	_magazines.append(mag)
-
-
 ## The item in inventory slot `slot`; the held item for a negative slot.
-func _item_in(slot: int) -> Item:
+func item_in(slot: int) -> Item:
 	return current_item() if slot < 0 else _items.get(slot)
-
-
-## Count a reload down; it is dropped if its item is no longer held, the character is locked in an
-## interaction or runs. Done: the item swaps its magazine.
-func _update_reload(delta: float) -> void:
-	if _reloading_item == null:
-		return
-	if is_busy() or _running or current_item() != _reloading_item:
-		_cancel_reload()
-		return
-	_reload_left -= delta
-	if _reload_left > 0.0:
-		return
-	var item := _reloading_item
-	_cancel_reload()
-	item.finish_reload(self)
-	_post_reload(item, &"done")
-
-
-## Tell the world a reload began (`stage` &"start": the magazine comes out) or finished (&"done":
-## the new one is seated) by `item`, from the weapon hand (the Audio domain voices it; a cancelled
-## reload never posts "done").
-func _post_reload(item: Item, stage: StringName) -> void:
-	EventBus.post(
-		&"reload",
-		{
-			"position": hand_world(item.weapon_hand()), "gun": item.gun_id(), "stage": stage,
-			"power": item.round_power(), "character": self,
-		},
-	)
-
-
-## Stop any reload in progress and clear the item's `reloading` flag.
-func _cancel_reload() -> void:
-	if _reloading_item != null:
-		_reloading_item.reloading = false
-	_reloading_item = null
 
 
 ## Judge whether the held weapon's barrel touches a wall or object, and ease the raise toward it.
@@ -977,7 +861,7 @@ func current_slot() -> int:
 ## The display name of the item in `slot` (the held item by default), or "Unknown" with none there.
 ## For UI observers and the AI's wording, so they never need to read Item's fields directly.
 func item_name(slot := -1) -> String:
-	var item := _item_in(slot)
+	var item := item_in(slot)
 	return item.display_name if item else "Unknown"
 
 
@@ -996,7 +880,7 @@ func has_item(id: int) -> bool:
 ## How many of the item in `slot` are carried (the held one by default): a grenade slot's count, 1
 ## for any other item, 0 when the slot is empty.
 func item_count(slot := -1) -> int:
-	var item := _item_in(slot)
+	var item := item_in(slot)
 	if item == null:
 		return 0
 	return item.uses_left() if item.is_throwable() else 1
@@ -1007,7 +891,7 @@ func item_count(slot := -1) -> int:
 ## (`Item.throw_stats`), {} for any other item or an empty slot. The AI reads the grenades' numbers
 ## here, from what it carries, not from a copy.
 func throw_stats(slot := -1) -> Dictionary:
-	var item := _item_in(slot)
+	var item := item_in(slot)
 	return item.throw_stats() if item else {}
 
 
@@ -1018,7 +902,7 @@ func throw_stats(slot := -1) -> Dictionary:
 ## frame: `x` px ahead of it (negative: behind), `y` px to its right. The AI judges a lob from there
 ## (docs/grenades.md G17) instead of keeping a copy of the stance.
 func throw_release_offset(slot := -1) -> Vector2:
-	var item := _item_in(slot)
+	var item := item_in(slot)
 	var hand := item.weapon_hand() if item != null and item.is_throwable() else 0
 	var stance: Dictionary = CharacterStanceConfig.stances[&"throw"]
 	# Hand 0 rests to the character's right, hand 1 to its left (character_hands.gd).
@@ -1116,7 +1000,7 @@ func _stances() -> Array:
 func _covers_eyes(item: Item) -> bool:
 	if not stun.is_blind() or _riding or _running or is_dead:
 		return false
-	if _reloading_item != null or _hands.is_attacking():
+	if ammo.is_reloading() or _hands.is_attacking():
 		return false
 	return item == null or item.hand_stance(item.weapon_hand()) != &"throw"
 
@@ -1318,7 +1202,7 @@ func _apply_damage(amount: float, direction := Vector2.ZERO) -> void:
 func _die(direction: Vector2) -> void:
 	is_dead = true
 	_rig_cache = null
-	_cancel_reload()
+	ammo.cancel()
 	_wound.stop()
 	# A corpse is just a body on the floor: clear its collision layer so the living (and bullets,
 	# punches, sight lines and the dropped item, all on layer 1) pass right over it instead of being

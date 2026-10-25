@@ -29,7 +29,7 @@ func control(character: CharacterBody2D, _delta: float) -> void:
 		character.leg_kick()
 	_fire(character)
 	if Keybinds.is_reload_just_pressed():
-		character.reload()
+		character.ammo.reload()
 	if Keybinds.is_interact_just_pressed():
 		character.try_interact()
 	if Keybinds.is_use_vehicle_just_pressed():
