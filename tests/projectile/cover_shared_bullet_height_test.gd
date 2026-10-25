@@ -43,6 +43,15 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	_check_postures(t)
+	await t.frames(2)
+	await _check_pinned(t)
+	await _check_random(t)
+
+
+## Premises: each body takes its lane's posture, a standing one at 60 and a crouched one lower
+## than the cover.
+func _check_postures(t: TestContext) -> void:
 	for lane: StringName in LANES:
 		t.check(
 			t.actor(StringName("body_%s" % lane)).set_posture(lane),
@@ -53,9 +62,10 @@ func run(t: TestContext) -> void:
 		coverage[lane] = t.actor(StringName("body_%s" % lane)).get_surface()["coverage"]
 	t.expect_near(coverage[&"stand"], 60.0, 0.01, "a standing body is 60")
 	t.check(coverage[&"crouch"] < 50.0, "the crouched body stands lower than the cover")
-	await t.frames(2)
 
-	# Pinned heights: each outcome is decided by the numbers alone.
+
+## Pinned heights: each outcome is decided by the numbers alone.
+func _check_pinned(t: TestContext) -> void:
 	await _volley(t, 30.0, 1)
 	for lane: StringName in LANES:
 		t.expect_eq(_hits(t, _cover(t, lane)), 1, "a shot at 30 meets the %s lane's cover" % lane)
@@ -82,7 +92,9 @@ func run(t: TestContext) -> void:
 	)
 	t.expect_eq(_hits(t, _cover(t, &"stand")), 1, "...and the cover (no new hit)")
 
-	# Random heights: the 50 / 60 split.
+
+## Random heights: the 50 / 60 split.
+func _check_random(t: TestContext) -> void:
 	var covers_before := _hits(t, _cover(t, &"stand"))
 	var bodies_before := _hits(t, _body(t, &"stand"))
 	var shots := 300
