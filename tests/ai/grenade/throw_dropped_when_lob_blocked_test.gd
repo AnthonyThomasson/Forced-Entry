@@ -69,12 +69,7 @@ func run(t: TestContext) -> void:
 			"the NPC asked Von (the snapshot is made)",
 	):
 		return
-	var wardrobe := t.object(&"wardrobe")
-	# a frozen body takes a teleport (a free one is put back by the physics step)
-	wardrobe.freeze = true
-	await t.frames(1)
-	wardrobe.global_position = ON_THE_LINE
-	await t.frames(1)
+	await _block_the_lob(t)
 	var seen: Array = []
 	if not t.require(
 			await Probe.wait_act(t, &"i", "grenade", 10.0, seen),
@@ -85,6 +80,19 @@ func run(t: TestContext) -> void:
 		not Probe.line_clear(t, inv.global_position, HOSTILE),
 		"set-up: a wardrobe stands across the lob now",
 	)
+	await _check_given_up(t, inv, brain)
+
+
+func _block_the_lob(t: TestContext) -> void:
+	var wardrobe := t.object(&"wardrobe")
+	# a frozen body takes a teleport (a free one is put back by the physics step)
+	wardrobe.freeze = true
+	await t.frames(1)
+	wardrobe.global_position = ON_THE_LINE
+	await t.frames(1)
+
+
+func _check_given_up(t: TestContext, inv: Node, brain: Node) -> void:
 	var asked := t.von_requests().size()
 	# Walks started up to the GRENADE order.
 	var decisions := int(brain.debug_state().get("decisions", 0))
