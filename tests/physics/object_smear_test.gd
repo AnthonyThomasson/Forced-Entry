@@ -27,7 +27,9 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	BloodSpawner.splat(t.world, SPLAT_AT, SPLAT_SIZE, Vector2.RIGHT, 0.0, [])
+	var throw := BloodThrow.new()
+	throw.size = SPLAT_SIZE
+	BloodSpawner.splat(t.world, SPLAT_AT, throw)
 	await t.seconds(0.5)
 	var layer := BloodDecals.find(t.object(&"chair").get_parent())
 	t.expect_eq(
@@ -62,8 +64,17 @@ func run(t: TestContext) -> void:
 		not beyond.is_empty(),
 		"streaks reach past the puddle (%d of %d)" % [beyond.size(), ribbons.size()],
 	)
-	# No hard edge: a ribbon eases in from nothing, steps smoothly, and stays faint over the puddle
-	# itself.
+	_check_longest(t, ribbons)
+	_check_soft_edges(t, ribbons)
+	# And it is not a ruler line: some ribbon strays from its end-to-end line.
+	var stray := 0.0
+	for m in ribbons:
+		stray = maxf(stray, _stray(m["points"]))
+	t.check(stray > 0.6, "streaks wander off a straight line (%.2f px)" % stray)
+
+
+## The longest of the `ribbons` runs a good way, starts from nothing and thins and fades.
+func _check_longest(t: TestContext, ribbons: Array) -> void:
 	var longest: Dictionary = ribbons[0]
 	for m in ribbons:
 		if ((m["points"] as PackedVector2Array).size()
@@ -73,6 +84,19 @@ func run(t: TestContext) -> void:
 	var alphas: PackedFloat32Array = longest["alphas"]
 	t.check(widths.size() >= 6, "a streak runs a good way (%d samples)" % widths.size())
 	t.check(alphas[0] < 0.02, "a streak starts from nothing (%.2f)" % alphas[0])
+	var peak := 0.0
+	var widest := 0.0
+	for i in alphas.size():
+		peak = maxf(peak, alphas[i])
+		widest = maxf(widest, widths[i])
+	t.check(
+		alphas[alphas.size() - 1] < peak and widths[widths.size() - 1] < widest,
+		"the streak thins and fades",
+	)
+
+
+## No hard edge: each of the `ribbons` swells out gradually and stays faint over the puddle itself.
+func _check_soft_edges(t: TestContext, ribbons: Array) -> void:
 	var jump := 0.0
 	var over_puddle := 0.0
 	for m in ribbons:
@@ -88,20 +112,6 @@ func run(t: TestContext) -> void:
 		over_puddle < 0.15,
 		"streaks are see-through over the puddle itself (%.2f)" % over_puddle,
 	)
-	var peak := 0.0
-	var widest := 0.0
-	for i in alphas.size():
-		peak = maxf(peak, alphas[i])
-		widest = maxf(widest, widths[i])
-	t.check(
-		alphas[alphas.size() - 1] < peak and widths[widths.size() - 1] < widest,
-		"the streak thins and fades",
-	)
-	# And it is not a ruler line: some ribbon strays from its end-to-end line.
-	var stray := 0.0
-	for m in ribbons:
-		stray = maxf(stray, _stray(m["points"]))
-	t.check(stray > 0.6, "streaks wander off a straight line (%.2f px)" % stray)
 
 
 ## The farthest a ribbon's samples lie from the straight line between its ends (px).

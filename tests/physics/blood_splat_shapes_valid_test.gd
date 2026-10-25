@@ -71,14 +71,11 @@ func run(t: TestContext) -> void:
 	for i in SPLATS:
 		var at := Vector2(randf_range(20.0, 380.0), randf_range(20.0, 280.0))
 		var direction := Vector2.from_angle(randf() * TAU) if randf() < 0.8 else Vector2.ZERO
-		var splat: Node = BloodSpawner.splat(
-			t.world,
-			at,
-			randf_range(1.0, 7.0),
-			direction,
-			randf(),
-			[],
-		)
+		var throw := BloodThrow.new()
+		throw.size = randf_range(1.0, 7.0)
+		throw.direction = direction
+		throw.energy = randf()
+		var splat: Node = BloodSpawner.splat(t.world, at, throw)
 		for poly in splat.shapes:
 			outlines += 1
 			if not Deformation.is_valid_polygon(poly):

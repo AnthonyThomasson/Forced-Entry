@@ -22,6 +22,28 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
+	_lay_floors(t)
+	var on_carpet := _pool(t, Vector2(230, 250))
+	var on_tile := _pool(t, Vector2(670, 250))
+	if not await _spread(t, on_carpet, on_tile):
+		return
+	var covered_before := _covered(on_carpet)
+	if not t.require(
+			await t.until(
+				func(): return not on_carpet.flow.soaking(),
+				6.0,
+				"the carpet blood finishes soaking in",
+			),
+			"soaking ends",
+	):
+		return
+	_check_soaked(t, on_carpet, covered_before)
+	_check_tile(t, on_tile)
+	t.screenshot("carpet_soaked")
+
+
+## A carpet floor on the left of the room and glazed tile on the right.
+func _lay_floors(t: TestContext) -> void:
 	FloorFactory.spawn(
 		Rect2(40, 40, 380, 420),
 		{
@@ -44,15 +66,18 @@ func run(t: TestContext) -> void:
 		"TestTiles",
 		t.world,
 	)
-	var on_carpet := _pool(t, Vector2(230, 250))
-	var on_tile := _pool(t, Vector2(670, 250))
+
+
+## Waits for both pools to finish spreading, checking that blood creeps slower over carpet and does
+## not travel as far; false when one never settles.
+func _spread(t: TestContext, on_carpet: Node, on_tile: Node) -> bool:
 	# Blood creeps slower over carpet: the tile pool has finished spreading while the carpet one
 	# still goes.
 	if not t.require(
 			await t.until(func(): return on_tile.flow.settled(), 20.0, "the pool on tile fills"),
 			"tile pool settles",
 	):
-		return
+		return false
 	t.check(
 		not on_carpet.flow.settled(),
 		"the pool on carpet is still spreading when the tile one has finished",
@@ -66,23 +91,17 @@ func run(t: TestContext) -> void:
 			),
 			"carpet pool settles",
 	):
-		return
+		return false
 	t.check(
 		on_carpet.flow.cells.size() < on_tile.flow.cells.size() * 0.6,
 		"carpet blood does not travel as far (%d cells vs %d on tile)"
 			% [on_carpet.flow.cells.size(), on_tile.flow.cells.size()],
 	)
-	var covered_before := _covered(on_carpet)
-	if not t.require(
-			await t.until(
-				func(): return not on_carpet.flow.soaking(),
-				6.0,
-				"the carpet blood finishes soaking in",
-			),
-			"soaking ends",
-	):
-		return
+	return true
 
+
+## The carpet's blood has sunk in, still covering the `covered_before` cells, and is dry to touch.
+func _check_soaked(t: TestContext, on_carpet: Node, covered_before: int) -> void:
 	t.expect_near(on_carpet.flow.soak_level(Vector2i.ZERO), 1.0, 0.01, "carpet blood has sunk in")
 	t.expect_near(
 		on_carpet.flow.fill(Vector2i.ZERO),
@@ -97,13 +116,15 @@ func run(t: TestContext) -> void:
 			% BloodField.wetness_at(on_carpet.global_position),
 	)
 
+
+## The tile's blood stays filled and wet, never soaking.
+func _check_tile(t: TestContext, on_tile: Node) -> void:
 	t.expect_near(on_tile.flow.fill(Vector2i.ZERO), 1.0, 0.01, "blood on tile stays fully filled")
 	t.check(not on_tile.flow.soaking(), "blood on tile never soaks")
 	t.check(
 		BloodField.wetness_at(on_tile.global_position) > 0.8,
 		"blood on tile stays wet (%.2f)" % BloodField.wetness_at(on_tile.global_position),
 	)
-	t.screenshot("carpet_soaked")
 
 
 ## How many cells of `pool` are filled more than half (the outline the shader draws).

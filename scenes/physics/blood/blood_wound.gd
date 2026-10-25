@@ -139,15 +139,12 @@ func _add_splat(
 ) -> void:
 	var host := get_parent() as Node2D
 	var begun := thrown != null and spray_side_by_side
-	var splat := BloodSpawner.splat(
-		host.get_parent(),
-		at,
-		size,
-		direction,
-		energy,
-		[(host as CollisionObject2D).get_rid()] if host is CollisionObject2D else [],
-		not begun,
-	)
+	var throw := BloodThrow.new()
+	throw.size = size
+	throw.direction = direction
+	throw.energy = energy
+	throw.exclude = [(host as CollisionObject2D).get_rid()] if host is CollisionObject2D else []
+	var splat := BloodSpawner.splat(host.get_parent(), at, throw, not begun)
 	if begun:
 		(thrown as Array).append(splat)
 	_splats.append(splat)

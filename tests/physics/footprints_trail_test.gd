@@ -24,7 +24,9 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	BloodSpawner.splat(t.world, SPLAT_AT, SPLAT_SIZE, Vector2.RIGHT, 0.0, [])
+	var throw := BloodThrow.new()
+	throw.size = SPLAT_SIZE
+	BloodSpawner.splat(t.world, SPLAT_AT, throw)
 	await t.frames(2)
 	var walker := t.puppet(&"walker")
 	walker.walk(Vector2.RIGHT)
@@ -44,6 +46,12 @@ func run(t: TestContext) -> void:
 	t.check(trail.size() >= 5, "a trail of prints (%d)" % trail.size())
 	t.check(trail.size() <= 30, "the trail ends instead of running forever (%d)" % trail.size())
 
+	_check_fading(t, trail)
+	_check_alternating(t, trail)
+
+
+## The `trail` starts at the splatter and each foot's prints only fade past it.
+func _check_fading(t: TestContext, trail: Array) -> void:
 	var first_x: float = trail[0]["poly"][0].x
 	# A satellite droplet lands up to `splat_satellite_reach_max` (3.4) core radii out, so a foot
 	# may print that far short.
@@ -66,6 +74,9 @@ func run(t: TestContext) -> void:
 		"the last print is fainter than the first",
 	)
 
+
+## Left and right feet alternate along the `trail`.
+func _check_alternating(t: TestContext, trail: Array) -> void:
 	var centres: Array = trail.map(func(m): return _centre(m["poly"]))
 	var mean_y := 0.0
 	for c in centres:

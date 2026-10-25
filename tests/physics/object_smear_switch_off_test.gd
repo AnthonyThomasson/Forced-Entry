@@ -21,7 +21,9 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	BloodSpawner.splat(t.world, Vector2(300, 200), 30.0, Vector2.RIGHT, 0.0, [])
+	var throw := BloodThrow.new()
+	throw.size = 30.0
+	BloodSpawner.splat(t.world, Vector2(300, 200), throw)
 	await t.frames(2)
 	t.puppet(&"pusher").walk(Vector2.RIGHT)
 	await t.until(

@@ -24,9 +24,12 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	BloodSpawner.splat(t.world, Vector2(300, 300), 30.0, Vector2.RIGHT, 0.0, [])
+	var throw := BloodThrow.new()
+	throw.size = 30.0
+	BloodSpawner.splat(t.world, Vector2(300, 300), throw)
 	await t.seconds(3.5)  # the first splatter dries; the walkers have not moved yet
-	BloodSpawner.splat(t.world, Vector2(300, 500), 30.0, Vector2.RIGHT, 0.0, [])
+	throw.size = 30.0
+	BloodSpawner.splat(t.world, Vector2(300, 500), throw)
 	await t.frames(2)
 	for id in [&"clean", &"dried", &"fresh"]:
 		t.puppet(id).walk(Vector2.RIGHT)

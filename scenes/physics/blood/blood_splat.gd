@@ -200,39 +200,42 @@ func _spikes(e: float) -> Array[PackedVector2Array]:
 	var count := randi_range(BloodConfig.splat_spikes_min, BloodConfig.splat_spikes_max)
 	var offset := randf() * TAU
 	for i in count:
-		var a := offset + TAU * (i + randf_range(-0.35, 0.35)) / count
-		var fwd := cos(a)
-		var length := lerpf(
-			BloodConfig.splat_spike_length_min,
-			BloodConfig.splat_spike_length_max,
-			pow(randf(), 1.5),
-		)
-		length *= 1.0 + e * 0.9 * maxf(fwd, 0.0)
-		length *= 1.0 - 0.35 * e * maxf(-fwd, 0.0)
-		var dir := Vector2.from_angle(a)
-		var base_r := _radius * 0.7 * (1.0 + BloodConfig.splat_stretch * e * absf(fwd))
-		var tip_r := base_r + length * _radius
-		var free := _free_fraction(dir * tip_r)
-		if free < 1.0:
-			tip_r *= free * 0.9
-		if tip_r <= base_r * 1.15:
-			continue
-		var half := _radius * randf_range(0.16, 0.36)
-		var side := Vector2(-dir.y, dir.x)
-		var mid_r := lerpf(base_r, tip_r, 0.5)
-		out.append(PackedVector2Array([
-			_at(dir * base_r + side * half),
-			_at(dir * mid_r + side * half * 0.5),
-			_at(dir * tip_r),
-			_at(dir * mid_r - side * half * 0.5),
-			_at(dir * base_r - side * half),
-		]))
-		if free >= 1.0 and length > 1.0 and randf() < 0.55:
-			var gap := _radius * randf_range(0.2, 0.45)
-			out.append(
-				_droplet(dir * (tip_r + gap), dir, half * randf_range(0.5, 0.8), 1.0 + e * 0.6),
-			)
+		_spike(offset + TAU * (i + randf_range(-0.35, 0.35)) / count, e, out)
 	return out
+
+
+## One crown spike at angle `a` (energy `e`), and its tail droplet, appended to `out`; none when a
+## wall leaves it too short.
+func _spike(a: float, e: float, out: Array[PackedVector2Array]) -> void:
+	var fwd := cos(a)
+	var length := lerpf(
+		BloodConfig.splat_spike_length_min,
+		BloodConfig.splat_spike_length_max,
+		pow(randf(), 1.5),
+	)
+	length *= 1.0 + e * 0.9 * maxf(fwd, 0.0)
+	length *= 1.0 - 0.35 * e * maxf(-fwd, 0.0)
+	var dir := Vector2.from_angle(a)
+	var base_r := _radius * 0.7 * (1.0 + BloodConfig.splat_stretch * e * absf(fwd))
+	var tip_r := base_r + length * _radius
+	var free := _free_fraction(dir * tip_r)
+	if free < 1.0:
+		tip_r *= free * 0.9
+	if tip_r <= base_r * 1.15:
+		return
+	var half := _radius * randf_range(0.16, 0.36)
+	var side := Vector2(-dir.y, dir.x)
+	var mid_r := lerpf(base_r, tip_r, 0.5)
+	out.append(PackedVector2Array([
+		_at(dir * base_r + side * half),
+		_at(dir * mid_r + side * half * 0.5),
+		_at(dir * tip_r),
+		_at(dir * mid_r - side * half * 0.5),
+		_at(dir * base_r - side * half),
+	]))
+	if free >= 1.0 and length > 1.0 and randf() < 0.55:
+		var gap := _radius * randf_range(0.2, 0.45)
+		out.append(_droplet(dir * (tip_r + gap), dir, half * randf_range(0.5, 0.8), 1.0 + e * 0.6))
 
 
 ## Satellite droplets scattered around the core, farther and more forward with energy, smaller the

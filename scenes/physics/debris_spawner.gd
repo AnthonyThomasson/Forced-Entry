@@ -136,25 +136,26 @@ static func spawn(
 ## Derive a chip color from the object's base color per the style's tint mode.
 static func _tint(base: Color, mode: String) -> Color:
 	var jitter := randf_range(0.04, 0.12)
+	var tint: Color
 	match mode:
 		"metal":
-			if randf() < 0.3:
-				return Color(1.0, 0.92, 0.65)  # occasional bright spark
-			return base.lerp(Color(0.55, 0.57, 0.6), 0.6).lightened(randf_range(0.0, 0.15))
+			tint = (Color(1.0, 0.92, 0.65)  # occasional bright spark
+					if randf() < 0.3
+					else base.lerp(Color(0.55, 0.57, 0.6), 0.6).lightened(randf_range(0.0, 0.15)))
 		"glass":
-			var g := base.lerp(Color(0.85, 0.92, 1.0), 0.55)
-			g.a = 0.7
-			return g
+			tint = base.lerp(Color(0.85, 0.92, 1.0), 0.55)
+			tint.a = 0.7
 		"light":
-			return base.lightened(randf_range(0.1, 0.3))
+			tint = base.lightened(randf_range(0.1, 0.3))
 		"leaf":
-			return base.lerp(Color(0.3, 0.5, 0.2), 0.4).lightened(randf_range(-0.05, 0.1))
+			tint = base.lerp(Color(0.3, 0.5, 0.2), 0.4).lightened(randf_range(-0.05, 0.1))
 		"soft":
-			return base.darkened(randf_range(0.0, 0.12))
+			tint = base.darkened(randf_range(0.0, 0.12))
 		"blood":
 			# Fixed dark red (independent of the flesh base color) with lightness jitter.
-			return Color(0.55, 0.05, 0.06).lightened(randf_range(-0.1, 0.15))
+			tint = Color(0.55, 0.05, 0.06).lightened(randf_range(-0.1, 0.15))
 		"dust":
-			return Color(0.6, 0.6, 0.6).lightened(randf_range(-0.15, 0.15))
+			tint = Color(0.6, 0.6, 0.6).lightened(randf_range(-0.15, 0.15))
 		_:  # "wood" and anything else: keep the object color with lightness jitter
-			return base.lightened(jitter) if randf() > 0.5 else base.darkened(jitter)
+			tint = base.lightened(jitter) if randf() > 0.5 else base.darkened(jitter)
+	return tint

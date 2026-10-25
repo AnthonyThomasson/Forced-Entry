@@ -176,18 +176,32 @@ func step(delta: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 ## One sub-step: predict, project the constraints and floor, sweep walls, then derive velocities
 ## and apply floor bounce/friction and joint friction.
 func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> void:
-	var gravity := Vector3(0.0, 0.0, -PhysicsConfig.ragdoll_gravity)
-	var drag := exp(-PhysicsConfig.ragdoll_air_drag * h)
 	var fall := PackedFloat32Array()  # Vertical speed before the floor stops it, for the bounce.
 	fall.resize(_pos.size())
 	var free := PackedFloat32Array()  # Speed before the constraints act on it.
 	free.resize(_pos.size())
+	_predict(h, fall, free)
+	_solve_constraints()
+	_sweep_walls(space, origin)
+	_derive_velocities(h, fall, free)
+	_joint_friction(h)
+
+
+## Move every point on under gravity and air drag over `h` s, noting its vertical speed in `fall`
+## and its speed in `free`.
+func _predict(h: float, fall: PackedFloat32Array, free: PackedFloat32Array) -> void:
+	var gravity := Vector3(0.0, 0.0, -PhysicsConfig.ragdoll_gravity)
+	var drag := exp(-PhysicsConfig.ragdoll_air_drag * h)
 	for i in _pos.size():
 		_vel[i] = (_vel[i] + gravity * h) * drag
 		_prev[i] = _pos[i]
 		_pos[i] += _vel[i] * h
 		fall[i] = _vel[i].z
 		free[i] = _vel[i].length()
+
+
+## `ragdoll_iterations` passes of the bones, the limits and the floor.
+func _solve_constraints() -> void:
 	for _k in maxi(1, PhysicsConfig.ragdoll_iterations):
 		for bone in _bones:
 			_solve_bone(bone)
@@ -197,8 +211,11 @@ func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 			else:
 				_solve_hinge(limit)
 		_solve_floor()
-	_sweep_walls(space, origin)
 
+
+## Each point's velocity from its move over `h` s, held to what it came in with (`free`), with the
+## floor's bounce (from its vertical speed before, `fall`) and friction.
+func _derive_velocities(h: float, fall: PackedFloat32Array, free: PackedFloat32Array) -> void:
 	var friction := PhysicsConfig.ragdoll_floor_friction * h
 	var gain := PhysicsConfig.ragdoll_max_push * h
 	for i in _pos.size():
@@ -214,6 +231,10 @@ func _substep(h: float, space: PhysicsDirectSpaceState2D, origin: Vector2) -> vo
 			v.x = flat.x
 			v.y = flat.y
 		_vel[i] = v
+
+
+## Pull each limited child's velocity toward its joint's over `h` s, so limbs swing heavy.
+func _joint_friction(h: float) -> void:
 	var hold := 1.0 - exp(-PhysicsConfig.ragdoll_joint_friction * h)
 	for limit in _limits:
 		var j: int = limit["joint"]
@@ -245,22 +266,35 @@ func _solve_swing(l: Dictionary) -> void:
 		return
 	var b := frame_basis(l["frame"])
 	var w := d / length
-	var local := Vector3(w.dot(b.x), w.dot(b.y), w.dot(b.z))
+	var fixed := _swing_limit(l, Vector3(w.dot(b.x), w.dot(b.y), w.dot(b.z)))
+	if fixed == Vector3.ZERO:
+		return
+	_turn_child(j, c, w, b * fixed, length)
+
+
+## Where a swing limit `l` holds a child lying along `local` (unit, in the frame's space): the
+## nearest direction on its cone's rim, or ZERO when it lies inside the cone.
+func _swing_limit(l: Dictionary, local: Vector3) -> Vector3:
 	var rest: Vector3 = l["rest"]
 	var cos_t := clampf(local.dot(rest), -1.0, 1.0)
 	var swing := local - rest * cos_t
 	if swing.length_squared() < 0.00000001:
 		if cos_t > 0.0:
-			return  # On the rest axis: inside any cone.
+			return Vector3.ZERO  # On the rest axis: inside any cone.
 		swing = Vector3(0.0, 0.0, 1.0)  # Straight opposite: bring it round the front.
 	swing = swing.normalized()
+	var max_t := _cone_reach(l, swing)
+	if acos(cos_t) <= max_t:
+		return Vector3.ZERO
+	return rest * cos(max_t) + swing * sin(max_t)
+
+
+## A swing limit `l`'s reach (radians) toward unit `swing`, blended between its reach toward the
+## frame axes either side.
+func _cone_reach(l: Dictionary, swing: Vector3) -> float:
 	var lx: float = l["right"] if swing.x > 0.0 else l["left"]
 	var lz: float = l["front"] if swing.z > 0.0 else l["back"]
-	var max_t := lerpf(lz, lx, atan2(absf(swing.x), absf(swing.z)) / (PI * 0.5))
-	if acos(cos_t) <= max_t:
-		return
-	var fixed := rest * cos(max_t) + swing * sin(max_t)
-	_turn_child(j, c, w, b * fixed, length)
+	return lerpf(lz, lx, atan2(absf(swing.x), absf(swing.z)) / (PI * 0.5))
 
 
 ## Hold a hinge's child bone to its bend range and plane.
@@ -274,17 +308,34 @@ func _solve_hinge(l: Dictionary) -> void:
 	if upper.length_squared() < 0.00000001 or length < 0.0001:
 		return
 	var u := upper.normalized()
+	var n := _hinge_bend(l, u)
+	if n == Vector3.ZERO:
+		return
+	var w := d / length
+	var fixed := _hinge_fix(l, u, n, w)
+	if fixed == Vector3.ZERO:
+		return
+	_turn_child(j, c, w, fixed, length)
+
+
+## Hinge `l`'s bend side carried along with the parent bone `u` (unit; a half turn flips it
+## outright), square to it and unit, or ZERO where it lies along the bone.
+func _hinge_bend(l: Dictionary, u: Vector3) -> Vector3:
 	var b := frame_basis(l["frame"])
 	var rest: Vector3 = b * (l["rest"] as Vector3)
 	var bend: Vector3 = b * (l["bend"] as Vector3)
-	# The bend side carried along with the parent bone (a half turn flips it outright).
 	var n: Vector3 = -bend if rest.dot(u) < -0.999 else Quaternion(rest, u) * bend
 	n = n - u * n.dot(u)
 	if n.length_squared() < 0.00000001:
-		return
-	n = n.normalized()
+		return Vector3.ZERO
+	return n.normalized()
+
+
+## Where hinge `l` holds a child lying along `w` off parent bone `u`, bending toward `n` (all unit):
+## its bend clamped to [min, max] and its twist out of the plane to ±slack, or ZERO when both are
+## within them.
+func _hinge_fix(l: Dictionary, u: Vector3, n: Vector3, w: Vector3) -> Vector3:
 	var side := u.cross(n)
-	var w := d / length
 	var cos_t := clampf(w.dot(u), -1.0, 1.0)
 	var theta := acos(cos_t)
 	var perp := w - u * cos_t
@@ -292,9 +343,8 @@ func _solve_hinge(l: Dictionary) -> void:
 	var theta_ok := clampf(theta, l["min"], l["max"])
 	var phi_ok := clampf(phi, -float(l["slack"]), float(l["slack"]))
 	if is_equal_approx(theta_ok, theta) and is_equal_approx(phi_ok, phi):
-		return
-	var fixed := u * cos(theta_ok) + (n * cos(phi_ok) + side * sin(phi_ok)) * sin(theta_ok)
-	_turn_child(j, c, w, fixed, length)
+		return Vector3.ZERO
+	return u * cos(theta_ok) + (n * cos(phi_ok) + side * sin(phi_ok)) * sin(theta_ok)
 
 
 ## Move `child` (and `joint`, by inverse mass) part way from lying along `from` toward lying along

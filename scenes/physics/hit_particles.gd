@@ -115,41 +115,62 @@ const ENTRY_AMOUNT := 0.35
 const ENTRY_SPEED := 0.6
 
 
-## Burst `kind` particles at world `position`, thrown along `direction`, under `parent`. `surface`
-## is the struck object's get_surface() (its `material` picks the style, its `color` tints it);
-## `strength` (~0.5..1.5) scales how many particles and how fast, from how hard the hit was. Returns
-## the emitter (null when switched off or the count rounds to nothing).
-static func spawn(position: Vector2, direction: Vector2, parent: Node, surface: Dictionary,
-		kind: Kind, strength: float = 1.0) -> CPUParticles2D:
+## Burst `kind` particles for `hit`, under `parent`: an ENTRY or IMPACT burst at `hit.position`,
+## thrown out along the surface normal (back along the shot when the normal is degenerate), an EXIT
+## burst at `hit.exit_position`, thrown on along the shot. `surface` is the struck object's
+## get_surface() (its `material` picks the style, its `color` tints it); `strength` (~0.5..1.5)
+## scales how many particles and how fast, from how hard the hit was. Returns the emitter (null when
+## switched off or the count rounds to nothing).
+static func spawn(parent: Node, hit: HitInfo, surface: Dictionary, kind: Kind,
+		strength: float = 1.0) -> CPUParticles2D:
 	if not PhysicsConfig.hit_particles_enabled:
 		return null
 	var material: String = surface.get("material", "")
 	var style: Dictionary = STYLES.get(material, STYLES["default"])
-	var exit := kind == Kind.EXIT
-	var strong := kind != Kind.ENTRY
-	var amount := int(round(float(style["amount"]) * (EXIT_AMOUNT if strong else ENTRY_AMOUNT)
+	var amount := int(round(float(style["amount"])
+			* (EXIT_AMOUNT if kind != Kind.ENTRY else ENTRY_AMOUNT)
 			* strength * PhysicsConfig.hit_particles_scale))
 	amount = mini(amount, PhysicsConfig.hit_particles_max)
 	if amount <= 0:
 		return null
+	var direction := _direction(hit, kind)
+	var p := _emitter(style, kind, strength)
+	p.amount = amount
+	p.direction = direction.normalized() if direction.length() > 0.001 else Vector2.UP
+	p.color_ramp = _ramp(_color(surface.get("color", Color(0.6, 0.6, 0.6)), style["tint"]))
+	p.finished.connect(p.queue_free)
+	parent.add_child(p, true)  # readable names (HitParticles, HitParticles2, …)
+	p.global_position = hit.exit_position if kind == Kind.EXIT else hit.position
+	p.emitting = true
+	Despawner.track(p)
+	return p
 
-	var base: Color = surface.get("color", Color(0.6, 0.6, 0.6))
+
+## Which way a `kind` burst for `hit` is thrown: out along the surface normal (back along the shot
+## when the normal is degenerate), or for an exit on along the shot past the exit normal.
+static func _direction(hit: HitInfo, kind: Kind) -> Vector2:
+	if kind != Kind.EXIT:
+		return hit.normal if hit.normal.length() > 0.001 else -hit.direction
+	var out := hit.exit_normal if hit.exit_normal.length() > 0.001 else hit.direction
+	return (out + hit.direction).normalized()
+
+
+## A one-shot emitter styled by `style` for a `kind` burst of `strength` (its count, direction and
+## colours still to set).
+static func _emitter(style: Dictionary, kind: Kind, strength: float) -> CPUParticles2D:
 	var speed: Vector2 = style["speed"]
 	var size: Vector2 = style["size"]
-	var life: float = style["life"]
-	var aim := direction.normalized() if direction.length() > 0.001 else Vector2.UP
-
 	var p := CPUParticles2D.new()
 	p.name = "HitParticles"
 	p.one_shot = true
 	p.explosiveness = 1.0
-	p.amount = amount
-	p.lifetime = life
+	p.lifetime = style["life"]
 	p.lifetime_randomness = 0.4
-	p.direction = aim
-	p.spread = rad_to_deg(deg_to_rad(float(style["spread"])) * (EXIT_SPREAD if exit else 1.0))
+	p.spread = rad_to_deg(
+		deg_to_rad(float(style["spread"])) * (EXIT_SPREAD if kind == Kind.EXIT else 1.0),
+	)
 	p.gravity = Vector2.ZERO  # Top-down: nothing falls.
-	var boost := (EXIT_SPEED if strong else ENTRY_SPEED) * strength
+	var boost := (EXIT_SPEED if kind != Kind.ENTRY else ENTRY_SPEED) * strength
 	p.initial_velocity_min = speed.x * boost
 	p.initial_velocity_max = speed.y * boost
 	p.damping_min = float(style["damping"]) * 0.8
@@ -157,40 +178,38 @@ static func spawn(position: Vector2, direction: Vector2, parent: Node, surface: 
 	p.scale_amount_min = size.x
 	p.scale_amount_max = size.y
 	p.angle_max = 360.0
-	var start := _color(base, style["tint"])
+	return p
+
+
+## A colour ramp holding `start`, then fading it out.
+static func _ramp(start: Color) -> Gradient:
 	var fade := start
 	fade.a = 0.0
 	var ramp := Gradient.new()
 	ramp.colors = PackedColorArray([start, start, fade])
 	ramp.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	p.color_ramp = ramp
-
-	p.finished.connect(p.queue_free)
-	parent.add_child(p, true)  # readable names (HitParticles, HitParticles2, …)
-	p.global_position = position
-	p.emitting = true
-	Despawner.track(p)
-	return p
+	return ramp
 
 
 ## A burst colour from the object's base colour per the style's tint mode.
 static func _color(base: Color, mode: String) -> Color:
+	var color: Color
 	match mode:
 		"spark":
-			return Color(1.0, 0.92, 0.65) if randf() < 0.6 else Color(0.75, 0.77, 0.8)
+			color = Color(1.0, 0.92, 0.65) if randf() < 0.6 else Color(0.75, 0.77, 0.8)
 		"glass":
-			var g := base.lerp(Color(0.85, 0.92, 1.0), 0.55)
-			g.a = 0.8
-			return g
+			color = base.lerp(Color(0.85, 0.92, 1.0), 0.55)
+			color.a = 0.8
 		"light":
-			return base.lightened(0.25)
+			color = base.lightened(0.25)
 		"leaf":
-			return base.lerp(Color(0.3, 0.5, 0.2), 0.4)
+			color = base.lerp(Color(0.3, 0.5, 0.2), 0.4)
 		"soft":
-			return base.lightened(0.08)
+			color = base.lightened(0.08)
 		"blood":
-			return Color(0.6, 0.05, 0.06)
+			color = Color(0.6, 0.05, 0.06)
 		"dust":
-			return base.lerp(Color(0.75, 0.75, 0.72), 0.55)
+			color = base.lerp(Color(0.75, 0.75, 0.72), 0.55)
 		_:  # "wood": the splinters and pale core of the object's own wood
-			return base.lightened(0.15)
+			color = base.lightened(0.15)
+	return color

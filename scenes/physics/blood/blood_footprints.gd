@@ -32,7 +32,7 @@ func step(foot: int, fall: Footfall) -> void:
 		wet = maxf(wet, BloodField.wetness_at(at + direction * length * k))
 	var soak: float = maxf(_load.get(foot, 0.0), wet * BloodConfig.pickup_gain)
 	if soak >= BloodConfig.print_min_load and wet < BloodConfig.thick_blood:
-		var poly := _sole(at, direction, length, fall.width, fall.inner, soak, fall.speed)
+		var poly := _sole(fall, soak)
 		var alpha := lerpf(
 			BloodConfig.print_alpha_min,
 			BloodConfig.print_alpha_max,
@@ -43,44 +43,47 @@ func step(foot: int, fall: Footfall) -> void:
 	_load[foot] = maxf(soak, 0.0)
 
 
-## The sole outline in world space: heel at the back, arch on the `inner` side, ball, rounded toe.
-## `soak` (the foot's load) thins the arch and roughens the edge; `speed` and `soak` slip it
-## forward.
-func _sole(
-	at: Vector2,
-	direction: Vector2,
-	length: float,
-	width: float,
-	inner: float,
-	soak: float,
-	speed: float,
-) -> PackedVector2Array:
+## The sole outline in world space for `fall`: heel at the back, arch on the `inner` side, ball,
+## rounded toe. `soak` (the foot's load) thins the arch and roughens the edge; `speed` and `soak`
+## slip it forward.
+func _sole(fall: Footfall, soak: float) -> PackedVector2Array:
 	var fraction := clampf(soak, 0.0, 1.0)
-	length += BloodConfig.print_slip * fraction * clampf(speed / 120.0, 0.0, 1.0)
+	var length := (fall.length
+			+ BloodConfig.print_slip * fraction * clampf(fall.speed / 120.0, 0.0, 1.0))
 	var turn := randf_range(-1.0, 1.0) * BloodConfig.print_turn_jitter
-	var forward := direction.rotated(turn)
-	var side := forward.orthogonal()
-	var centre := at + Vector2.from_angle(randf() * TAU) * randf() * BloodConfig.print_jitter
+	var forward := fall.direction.rotated(turn)
+	var centre := fall.at + Vector2.from_angle(randf() * TAU) * randf() * BloodConfig.print_jitter
+	var frame := PackedVector2Array([centre, forward, forward.orthogonal()])
+	return _dedupe(_sole_outline(frame, length, fall.width, fall.inner, fraction))
+
+
+## The sole's outline round `frame` (its centre, forward and side), `length` x `width` px: the
+## outer edge heel to toe, then the inner edge (the arch, on the `inner` side) back; `fraction` (the
+## load) thins the arch and roughens the edge.
+func _sole_outline(frame: PackedVector2Array, length: float, width: float, inner: float,
+		fraction: float) -> PackedVector2Array:
 	var rough := (1.0 - fraction) * 0.25
 	var arch := lerpf(0.05, 0.55, smoothstep(0.1, 0.6, fraction))  # how much of the arch prints
-	var outer_pts: Array[Vector2] = []
-	var inner_pts: Array[Vector2] = []
+	var outer_pts := PackedVector2Array()
+	var inner_pts := PackedVector2Array()
 	for i in SOLE_STEPS + 1:
 		var t := float(i) / SOLE_STEPS
 		var along := (t - 0.5) * length
-		var cap := sqrt(clampf(t / 0.1, 0.0, 1.0)) * sqrt(clampf((1.0 - t) / 0.16, 0.0, 1.0))
-		var body := _profile(t)
+		var half := _half_width(t, width)
 		var arch_dip := 1.0 - (1.0 - arch) * _arch_weight(t)
-		var half_out := width * 0.5 * body * cap * (1.0 + randf_range(-rough, rough))
-		var half_in := width * 0.5 * body * cap * arch_dip * (1.0 + randf_range(-rough, rough))
-		outer_pts.append(centre + forward * along - side * inner * half_out)
-		inner_pts.append(centre + forward * along + side * inner * half_in)
-	var poly := PackedVector2Array()
-	for p in outer_pts:
-		poly.append(p)
-	for i in range(inner_pts.size() - 1, -1, -1):
-		poly.append(inner_pts[i])
-	return _dedupe(poly)
+		var half_out := half * (1.0 + randf_range(-rough, rough))
+		var half_in := half * arch_dip * (1.0 + randf_range(-rough, rough))
+		outer_pts.append(frame[0] + frame[1] * along - frame[2] * inner * half_out)
+		inner_pts.append(frame[0] + frame[1] * along + frame[2] * inner * half_in)
+	inner_pts.reverse()
+	outer_pts.append_array(inner_pts)
+	return outer_pts
+
+
+## Half the sole's `width` at `t` along it (0 heel .. 1 toe), the caps rounded off.
+func _half_width(t: float, width: float) -> float:
+	var cap := sqrt(clampf(t / 0.1, 0.0, 1.0)) * sqrt(clampf((1.0 - t) / 0.16, 0.0, 1.0))
+	return width * 0.5 * _profile(t) * cap
 
 
 ## Width of the sole along its length (0 heel .. 1 toe): a narrow heel, a wide ball.

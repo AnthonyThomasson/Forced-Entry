@@ -58,17 +58,22 @@ func run(t: TestContext) -> void:
 			["living character", living_before, living.global_position],
 			["dead body", dead_before, dead.blood_origin()],
 	]:
-		var before: Vector2 = pair[1]
-		var after: Vector2 = pair[2]
-		var out := (before - blast).normalized()
-		t.check(
-			(after - before).dot(out) >= SHOVE,
-			("the %s was shoved away from the burst (%.0f px along the way out, %.0f px from the "
-					+ "burst before, %.0f after)")
-				% [
-					pair[0],
-					(after - before).dot(out),
-					before.distance_to(blast),
-					after.distance_to(blast),
-				],
-		)
+		_check_shoved(t, pair, blast)
+
+
+## `pair` (`[name, before, after]`) moved away from the `blast` by at least SHOVE.
+func _check_shoved(t: TestContext, pair: Array, blast: Vector2) -> void:
+	var before: Vector2 = pair[1]
+	var after: Vector2 = pair[2]
+	var out := (before - blast).normalized()
+	t.check(
+		(after - before).dot(out) >= SHOVE,
+		("the %s was shoved away from the burst (%.0f px along the way out, %.0f px from the "
+				+ "burst before, %.0f after)")
+			% [
+				pair[0],
+				(after - before).dot(out),
+				before.distance_to(blast),
+				after.distance_to(blast),
+			],
+	)

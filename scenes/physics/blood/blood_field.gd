@@ -52,6 +52,12 @@ static func add_pool(node: Node2D) -> void:
 ## Wetness 0..1 of the blood at world `pos` (0 = bare floor or dried).
 static func wetness_at(pos: Vector2) -> float:
 	BloodSplat.finish_pending()
+	var best := _splat_wetness(pos)
+	return maxf(best, _pool_wetness(pos))
+
+
+## The wettest splatter's wetness at world `pos` (0 for none).
+static func _splat_wetness(pos: Vector2) -> float:
 	var best := 0.0
 	var ids: Array = _grid.get(_cell_of(pos), [])
 	for id in ids:
@@ -70,6 +76,13 @@ static func wetness_at(pos: Vector2) -> float:
 			if Geometry2D.is_point_in_polygon(local, poly):
 				best = wet
 				break
+	return best
+
+
+## The wettest pool's wetness at world `pos` (its flow's wetness there, fading as the pool ages);
+## forgets pools that are gone.
+static func _pool_wetness(pos: Vector2) -> float:
+	var best := 0.0
 	for id in _pools.keys():
 		var p: Dictionary = _pools[id]
 		var obj = p["node"]

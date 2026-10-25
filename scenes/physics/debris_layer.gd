@@ -51,26 +51,27 @@ static func _draw_chips(item: CanvasItem, chips: Array) -> void:
 			"circle":
 				batch.circle(Vector2.ZERO, s.x * 0.5, color, xform)
 			"tri":
-				batch.fill_convex(
-					PackedVector2Array([
-						Vector2(0.0, -s.y * 0.5),
-						Vector2(s.x * 0.5, s.y * 0.5),
-						Vector2(-s.x * 0.5, s.y * 0.5),
-					]),
-					color,
-					xform,
-				)
+				batch.fill_convex(_tri(s), color, xform)
 			_:  # "rect"
-				var h := s * 0.5
-				batch.fill_convex(
-					PackedVector2Array([
-						Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y),
-						Vector2(-h.x, h.y),
-					]),
-					color,
-					xform,
-				)
+				batch.fill_convex(_rect(s), color, xform)
 	batch.flush()
+
+
+## A "tri" chip `s` px across, point up, round its centre.
+static func _tri(s: Vector2) -> PackedVector2Array:
+	return PackedVector2Array([
+		Vector2(0.0, -s.y * 0.5),
+		Vector2(s.x * 0.5, s.y * 0.5),
+		Vector2(-s.x * 0.5, s.y * 0.5),
+	])
+
+
+## A "rect" chip `s` px across, round its centre.
+static func _rect(s: Vector2) -> PackedVector2Array:
+	var h := s * 0.5
+	return PackedVector2Array([
+		Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y), Vector2(-h.x, h.y),
+	])
 
 
 ## Each chip by its own command, as the batch's would be under the headless display (nothing is
@@ -84,14 +85,7 @@ static func _draw_each(item: CanvasItem, chips: Array, to_world: Transform2D) ->
 			"circle":
 				item.draw_circle(Vector2.ZERO, s.x * 0.5, color)
 			"tri":
-				item.draw_colored_polygon(
-					PackedVector2Array([
-						Vector2(0.0, -s.y * 0.5),
-						Vector2(s.x * 0.5, s.y * 0.5),
-						Vector2(-s.x * 0.5, s.y * 0.5),
-					]),
-					color,
-				)
+				item.draw_colored_polygon(_tri(s), color)
 			_:  # "rect"
 				item.draw_rect(Rect2(-s * 0.5, s), color)
 

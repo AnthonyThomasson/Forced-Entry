@@ -47,7 +47,11 @@ func run(t: TestContext) -> void:
 			if Deformation.shape_polygon(shape, size, impacts.duplicate(true)) != fresh:
 				wrong += 1
 	t.check(wrong == 0, "%d of %d answers differ from a fresh computation" % [wrong, checked])
+	_check_changed_inputs(t, rng)
 
+
+## A changed dent list, size or tuning is computed afresh, not answered from the cache.
+func _check_changed_inputs(t: TestContext, rng: RandomNumberGenerator) -> void:
 	var dented_size := Vector2(40.0, 40.0)
 	var dents := _impacts(rng, dented_size, 6)
 	var before := Deformation.shape_polygon("circle", dented_size, dents)
