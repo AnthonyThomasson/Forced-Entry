@@ -21,6 +21,8 @@ Files:
   characters known, with the hostility rules), `grenades` (the grenade geometry `throw` and the live grenades `live`, what it
   carries, the latest burst), `entry` (the doorway geometry `doorways` and the claims heard `ledger`, the rooms cleared) and `views`
   (the doorway views `views` and the walk rules, `ordered`): preload consts with no `class_name`, built once in `setup()`, each holding the perception (a node).
+  `views` is the one part another sub-domain holds: behaviour's locomotion (`behavior/locomotion/loco_doors.gd` preloads `perception_views.gd` to type its
+  `doors.views`, handed `perception.views` by `Behavior.setup`) asks it `walk_route`, the seam the architecture's AI row names beside `entry.stack`.
 - `agent_vision.gd` — the sight sense and the single owner of the ray query (`blocked` / `raycast`).
 - `agent_hostility.gd` — the hostility rules (categorization).
 - `agent_memory.gd` — a generic, behaviour-agnostic event log.
