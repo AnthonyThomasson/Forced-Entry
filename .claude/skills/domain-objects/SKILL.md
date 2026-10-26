@@ -217,7 +217,7 @@ A piece's art fields are on its `look` (`object_look.gd`, a data leaf built with
 direction in the local frame — the `rotated` size swap still owns the footprint) and `text_color` (the flat label's); its
 visuals, its overhang and `object_lights.gd` read them as `piece.look.<field>`. The visuals draw a drop shadow — the art's own alpha through the deformed
 outline, offset away from the light in world space by `coverage × drop_shadow_per_coverage`
-(capped; non-solid decor casts none) — then `Deformation.draw_shape(..., look)` (its `ShapeLook` carrying the `texture`) so dents and
+(capped; non-solid decor casts none) — then `Deformation.draw_shape(..., shape_look)` (its `ShapeLook` carrying the `texture`) so dents and
 chunks cut into the art. The drop shadow is the visuals' `DropShadow` child (`show_behind_parent`), drawn in the piece's own frame
 and placed at the shadow's offset (`_shadow_shift`): a turn moves that child, it repaints nothing. A piece repaints (art and shadow)
 only when its `Deformable` recorded an impact, not every frame (a house has ~90 pieces); a hit also queues one deferred

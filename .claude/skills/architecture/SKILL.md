@@ -49,8 +49,8 @@ bakes the nav map and lights it (`WorldLighting.light`, interface 20) right afte
 new house, places the NPCs, arms and styles every character for its side (its loadout; the match's police unit or a defender's crew style
 and weapon style, read off `CharacterStyleConfig.styles`), ranks the unit and builds the squads. The Testing domain's world stages its own
 worlds and binds its NPCs through the same module, and builds a declared match or declared squads with it, so a test measures the match Main
-plays. Match lifecycle (Start / Watch / Endless, teardown, the Von-server wait), the placement rules and the exports are the
-**`domain-main`** skill. `project.godot` autoloads only five: `Keybinds`, `Despawner`, `EventBus` and `GameClock` (all
+plays. Match lifecycle (Start / Watch / Endless, teardown, the Von-server wait), the placement rules, Main's `run` (`MainRun`, an
+exported `Resource`) and its endless exports are the **`domain-main`** skill. `project.godot` autoloads only five: `Keybinds`, `Despawner`, `EventBus` and `GameClock` (all
 General) and `Sound` (Audio).
 
 ## The vital interfaces (this is the whole cross-domain surface)
@@ -595,11 +595,14 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - `PixelArt.render_turned(painter, size, color, angle, opts := {}) -> Texture2D` + `PixelArt.snap_angle(angle)`
 	  — canonical art lit for a snapped angle, drawn rotated by the caller to the exact one;
 	  characters, hands, the guns, a vehicle's body, doors, wheels and lamps.
-    - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`):
-	  shapes (`rounded`/`ellipse`/`disc`/`bowed`), `fill`, `bevel`, `outline`, `surface`, `grain`,
-	  `speckle`, `glare`, `cast_shadows`, `tones(base)` …; `PixelCanvas.ConvexShape.new(rect, x0, x1, y0, y1)` (a shape from its per-row
-	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`; `PixelCanvas.line_points(a, b) -> Array[Vector2i]` (the
-	  points of a 1 px line, the one Bresenham `line` draws along) is walked by Objects' `art/decay.gd` for its lines and scratches. **What gives light** (a screen's
+    - `PixelCanvas` — the surface a painter draws on (`static paint(canvas, base, material, opts)`): `fill`, `bevel`,
+	  `outline`, `surface`, `grain`, `speckle`, `glare`, `cast_shadows` … over the shapes it is handed (a cleared shape is
+	  `fill(shape, PixelCanvas.CLEAR, 0)`). `PixelShape` (`art/pixel_shape.gd`) — the shapes: the static factories
+	  `PixelShape.rounded` / `ellipse` / `disc` / `bowed` (`bowed` a mask `PixelShape`, the other three `PixelConvexShape`s,
+	  `art/pixel_convex_shape.gd`, `extends PixelShape`); `PixelConvexShape.new(rect, x0, x1, y0, y1)` (a shape from its per-row
+	  and per-column spans) is built from outside by the Vehicles domain's `art/vehicle_art.gd`; `PixelShape.line_points(a, b) -> Array[Vector2i]` (the
+	  points of a 1 px line, the one Bresenham `PixelCanvas.line` draws along) is walked by Objects' `art/decay.gd` for its lines and scratches.
+	  The tone ramp is `ArtSurfaceConfig.tones(base)`. **What gives light** (a screen's
 	  face, a tube, a bulb, an LED) a painter draws inside `canvas.glowing(draw: Callable, area := Rect2i())`, which marks every pixel
 	  the drawing changes as emissive; `PixelArt.emissive(painter, size, color, facing := Vector2.DOWN, opts := {}) -> Texture2D` returns those
 	  pixels of `render`'s texture for the same inputs (same paint, cached beside it; transparent elsewhere, null when nothing in it
@@ -607,7 +610,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
 	  a weapon style's colours) as an int handle, never the look itself: `PixelArt.handle(look) -> int` registers it (the look's hash) and
 	  `PixelArt.look_of(opts) -> Dictionary` reads `opts.look` back ({} for none); the Character's and Items' painters and their callers use them.
     - `ArtCanvasConfig` (`class_name` static holder) — the art pixel's size, where the light falls from, the turn steps and
-	  the drop and cast shadows; `ArtSurfaceConfig` (static holder) — the tone ramp and the surface finishes.
+	  the drop and cast shadows; `ArtSurfaceConfig` (static holder) — the tone ramp (`tones(base)`) and the surface finishes.
     Objects' painters + `ObjectArt` registry, Character's body, head, hand, limb, trunk and vest painters, Items' painters
     (`items/art/`: one gun and one grenade painter per weapon style, police, scrap and pipe, drawing the guns held and dropped and the frag and stun grenades, and the spoon) and Vehicles' painters (`scenes/vehicle/art/`: car, van, door, wheel, lamp) all render through
     these; Art imports nothing from other domains.
@@ -621,8 +624,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     actor enters), the character scenes plus the controller contract (7: each NPC actor bound by the match's one rule, `MatchBuilder.bind_npc`,
     before it joins the tree: the house's `rooms` / `openings` and, for an invader, the front entrance as its `entry_point`,
     `MatchBuilder.entry_point_for`), a declared match (`TestSetup.declared_match`: `MatchBuilder.populate` over the staged world, read with
-    `TestContext.match_handle()`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.squads_over`, the human leader handed its
-    stack radio through `MatchBuilder.bind_player`, read with `TestContext.squad(faction)` / `player_stack()`) — a puppet
+    `t.world.match_handle`) or declared squads over the actors (`TestSetup.squads`: `MatchBuilder.squads_over`, the human leader handed its
+    stack radio through `MatchBuilder.bind_player`, read with `t.world.squad(faction)` / `t.world.player_stack`) — a puppet
     `ScriptedController` or `player_controller.gd` on `character/character_base.tscn` (the
     controller-less character), the vehicle scenes (19: `TestSetup.vehicle(id, kind, pos, rotation := 0.0, props := {})` instances
     `res://scenes/vehicle/<kind>.tscn` under the world root after the nav bake (not carved) and waits one physics frame so the new bodies
@@ -631,7 +634,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     signals (7, 10) for its event log.
     Behaviour switches set existing exported props and config-holder `static var`s by name, an NPC's tunables by indexed path on
     its controller (`tuning:<topic>:<name>`, interface 7) (duck-typed, like the overlay flags; a name the holder does not have is an error, which fails the test); a test can also script the Von answers through the AI
-    decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the test session also drives the
+    decision sub-domain's `DecisionStub` statics, and read what was asked off `DecisionStub.requests` (`decision_stub.gd`, read by
+    `decision_client.gd`; the test session's `von` part also drives the
     `DecisionServerLauncher` for the tests that need the real server; `DecisionBudget.per_frame`, the
     snapshots a frame may start, is set the same way) so AI
     wiring runs without a server. In the in-game runner a test can switch off user interactions that
@@ -650,7 +654,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     `AudioStreamPlayer2D`; the `Sound` service hears nothing of it (16). Main
     reaches it only by changing scene to `testing/test_browser.tscn`, and the browser's Back changes scene back to
     `main.tscn`; beyond that scene change Testing knows only the root's match builder (23); the UI widgets it shows
-    (`test_browser_window.gd`, `test_result_hud.gd`) take plain dicts (the window's `TestBrowserState` too, a UI value object) and emit signals. Nothing
+    (`test_browser_window.gd` with its list, `test_browser_list.gd`, and `test_result_hud.gd`) take plain dicts (the window's `TestBrowserState` too, a UI value object) and emit signals. Nothing
     depends on Testing. Its one outward dependency beyond the game is the gdUnit4 addon (`addons/gdUnit4/`, v5.1.1): its
     base suites `GameTestSuite` and `UnitSuite` extend `GdUnitTestSuite`, and its session hook (`test_report_hook.gd`, named in
     `project.godot`'s `[gdunit4]` section) writes a run's report, steps the editor's GdUnit panel's run as `--fixed-fps` steps
@@ -658,11 +662,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 14. **Main → General settings, UI settings page** (the composition root wires them; they never meet)
     - `Settings` (`general/settings.gd`, a `class_name` static holder): `load_file()` (Main calls it once in
-      `_ready`, after seeding `Settings.debug` from its own export — not `Keybinds._ready`, so tests never
+      `_ready`, after seeding `Settings.debug` from its `run.debug_overlays` — not `Keybinds._ready`, so tests never
       read a developer's file), the saving mutators `set_debug(on)`, `set_setup(config)`, `set_overlay(flag, on)`, `rebind(action, event) -> bool`,
       `reset(action)`, `reset_all()`, and `binding_rows() -> Array` (plain dicts for the page). It persists
       the Debug switch, the setup window's last choices (`setup`), the overlay toggles (`overlays`) and the `Keybinds`
-      bindings that differ from the defaults to `user://settings.json`.
+      bindings that differ from the defaults (`Keybinds.bindings.overrides()` / `apply_overrides`, the rebinding store the
+      autoload holds as its `bindings` part) to `user://settings.json`.
     - Main ↔ the dev command server (General, `general/command_server.gd`): it finds the match's nodes through the
       `match_world` group, restarts through `Main.return_to_setup()`, hands a seed over through the Engine metas
       `skip_setup` / `match_seed`, and drives the node named `Player`; those names are the whole contract.
@@ -857,7 +862,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`[{ label, disabled }]`, what it offers: on a teammate holding a held stack, "Go into the <room>"; on a doorway, "Go into the <room>"
       while a member holds a held stack there, the stack items quiet / with stun / with frag (the stun or frag one greyed, with a tooltip,
       while no recipient carries one, D1 / D15) and "Ambush the doorway from the <room>"; on a room, "Defend the <room>"; "Cancel order"),
-      a "Hold for my go" checkbox (D19), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
+      a "Hold for my go" checkbox (D19; the menu's widgets are its `Panel` child, `ui/hud/command_panel.gd`), and the signals `order_requested(request)` (`{ kind: "stack", to, pos, bang, mode, wait_go }`,
       `pos` the raw click, `wait_go` the checkbox; `{ kind: "go", pos }`; `{ kind: "ambush", to, pos }`; `{ kind: "defend_room", to, room }`;
       `{ kind: "cancel", to }`), which Main connects to `Squad.issue`, and
       `selection_changed(nodes)`; and the `OrderMarkers` (`ui/hud/order_markers.gd`, a `Node2D` at `DrawLayers.ABOVE`): `watch(view)` (the
@@ -878,8 +883,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
 
 22. **Main → UI: setup window, match HUD, spectator inspector, overlay bar** (the composition root wires them, in the shape of
     interface 14: plain dicts in, signals out; the flow is `domain-main`'s)
-    - `SetupMenu` (`ui/menus/setup_menu.gd`, the `SetupMenu` node of `main.tscn`): `open(defaults)` (the exports with the saved
-      `Settings.setup` over them, plus the choice rows as plain data: `weapons` (`LoadoutConfig.options()`), `grenades`
+    - `SetupMenu` (`ui/menus/setup_menu.gd`, the `SetupMenu` node of `main.tscn`): `open(defaults)` (Main's `run` with the saved
+      `Settings.setup` over it, plus the choice rows as plain data: `weapons` (`LoadoutConfig.options()`), `grenades`
       (`grenade_options()`), `outfits` (`outfit_options()`) and the run's `ticket`), `current_config() -> Dictionary` (`{ side, seed, lead,
       defenders, invaders }` as they stand, {} before `open`: Main saves it with `Settings.set_setup` when the window is left without
       starting) and `set_status(text)` (a status line while Main holds the start; "" hides it); signals `start_requested(config)` (`{ mode`
@@ -965,7 +970,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - **Main's one way in:** `Main.start_match(spec) -> Dictionary` builds `spec` under a fresh `World` node (`MatchBuilder.build`, the spec's
       `overlays` replaced by Main's flags) and wires the HUDs on the handle (17, 18, 21, 22); `{}` when the match was torn down while built.
     - The Testing domain (13): `TestWorld` stages through `stage` (`wait_nav` on), binds each NPC actor through `bind_npc` with
-      `entry_point_for`, populates a declared match through `populate` (`TestSetup.declared_match`, `TestContext.match_handle()`), builds declared squads
+      `entry_point_for`, populates a declared match through `populate` (`TestSetup.declared_match`, read as `t.world.match_handle`), builds declared squads
       through `squads_over` (`TestSetup.squads`) and routes its overlay toggles through
       `set_overlay`; it has no bake, light, nav-wait or bind code of its own.
 
@@ -987,7 +992,7 @@ Character ─▶ Interaction ──(get_interactions)──▶ Objects
 Character ─▶ CharacterVehicleUse (Vehicles) ─▶ Vehicle   (the ride and a strike call back only the character API of interface 19, as an Item calls its user's)
 Character ─▶ Deformable / Deformation / BloodWound / BloodFootprints / Ragdoll / HitInfo / Physics.impact_impulse / spawn_debris / bleed_out (Physics)
 Vehicle ─▶ Deformable / Deformation (draw_marks) / Physics.impact_impulse / Physics.spawn_debris (Physics);  Vehicle ─▶ PhysicsLayers (General)
-Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / ArtCanvasConfig / ArtSurfaceConfig   (Art, a leaf)
+Objects / Character / Item / Vehicle ──(painters)──▶ PixelArt / PixelCanvas / PixelShape / ArtCanvasConfig / ArtSurfaceConfig   (Art, a leaf)
 AIController ─▶ NavigationAgent2D ─▶ NavigationServer2D   (writes Character.movement.move_input; tactics query the nav map)
 AI (perception / behaviour / team / debug) ─▶ NavBuilder (ready / snap / route / path_length, avoid_map, planning_region, steering_map)
 AIController ─▶ ItemRegistry slot ids (Items: FISTS_SLOT, STUN_SLOT, FRAG_SLOT)
@@ -1000,7 +1005,7 @@ MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerSt
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via inventory.item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
 ThrownGrenade (Items) ──(Explosion.frag / .stun)──▶ Explosion (Projectile) ──(take_hit / blast_push / take_stun, ProjectileSpawner fragments, Physics.spawn_explosion)──▶ Objects / Character / Physics
-Item (&"shot") / GrenadeItem (&"throw") / ThrownGrenade (&"grenade") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank ─▶ SoundSynth
+Item (&"shot") / GrenadeItem (&"throw") / ThrownGrenade (&"grenade") / Projectile (&"hit") / Character (&"hit", &"footfall", &"reload") ──(events)──▶ EventBus ──(posted)──▶ Sound (Audio) ─▶ SoundBank (and its families) ─▶ SoundSynth
 Character (&"footfall") ──▶ EventBus ──(posted)──▶ AIController (footsteps heard)
 Objects Floor ──(SoundSurface.register)──▶ SoundSurface ◀── Sound   (Audio, a leaf: imports nothing but EventBus)
 main ──(Sound.focus = the human)──▶ Sound   /   Character (&"stun") ──▶ EventBus ──▶ Sound (tinnitus + muffle for the focus), StunScreen (UI)
@@ -1121,7 +1126,21 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   many) and a private chain reads it from the per-call context dict it already takes (`c["entry"]` / `f["entry"]`), never
   stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and
   confines, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
-  does the human's stack's `reservation` leaf.
+  does the human's stack's `reservation` leaf. The shell splits the same way
+  (`docs/adr/0008-the-shell-split-into-parts.md`), each file by its kind: tuning that no scene authors becomes an ADR 0003
+  holder (the camera's `CameraConfig` and `CameraShakeConfig`); a scene script's authoring surface that one instance owns
+  becomes an exported `Resource` (`main.run`, `MainRun`, local to its scene, so Main's runtime writes to it never outlive a
+  `reload_current_scene`); a static library splits per family into `class_name` static libraries (the sound bank's
+  `SoundGuns`, `SoundImpacts`, `SoundFootsteps`, `SoundGrenades` and `SoundVehicles`), and a drawing API hands its shape
+  type out as `class_name`s other domains name (`PixelShape`, `PixelConvexShape`); a widget's sub-tree becomes a Node child
+  (the command menu's `Panel`, `command_panel.gd`, and the test browser window's list, `test_browser_list.gd`, a `Tree`),
+  reached by preload const. The other parts are reached by preload const with no `class_name` too: Main's `_endless` (a
+  data leaf) and `_overlays` (holding Main), `Keybinds.bindings` (the rebinding store and the saved format, handed the
+  action tables and holding no owner), a world piece's `look` (a data leaf) and
+  `physics` (holding the piece), `WorldLighting`'s `_pool` (holding the node), `TestContext`'s `verdict` and `bundle`
+  (holding no owner: the context is an `Object` freed by hand, so a part method that needs it takes it at the call) and
+  `TestSession`'s `von` (holding the session). The coverage tool's probe, the one template file the tool copies into a
+  project, holds its parts as inner classes (`Run`, `Matches`, `MatchCost`, `Tests`).
 
 ## Running & verifying
 

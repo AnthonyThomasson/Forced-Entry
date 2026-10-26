@@ -57,7 +57,7 @@ var _overlays := MainOverlays.new(self)
 
 ## The human player (freed in a spectator match).
 @onready var _player: Node2D = $Player
-## Pre-game setup window (General). On a fresh launch Main opens it and waits for Start before
+## Pre-game setup window (UI). On a fresh launch Main opens it and waits for Start before
 ## building the world; a scripted restart skips it (see `_ready`).
 @onready var _setup_menu: CanvasLayer = $SetupMenu
 ## Dev-only Von server launcher (AI). The match start waits on it so no NPC decides against a cold

@@ -110,12 +110,12 @@ static func spec(overrides: Dictionary = {}) -> Dictionary:
 
 ## The match spec of the setup window's `config` (`SetupMenu`'s `{ mode, side, seed, lead,
 ## defenders, invaders }`, each side `{ count, weapon, magazine, spares, stuns, frags, outfit }`)
-## laid over `base` (a spec, e.g. Main's exports'): the config's `seed`; each side's `count` and
-## the loadout keys it names (`SETUP_LOADOUT_KEYS`) over the base side's loadout, a side the config
-## leaves out keeping the base's; and the human: in a played match (`mode` "play") the base's human
-## on the config's `side`, leading it with `lead`; in any other mode none; a config with no `mode`
-## keeps the base's human. An endless run (`mode` "endless") of no NPC at all is one a side, since
-## there would be nothing to watch.
+## laid over `base` (a spec, e.g. the one Main builds from its `run`): the config's `seed`; each
+## side's `count` and the loadout keys it names (`SETUP_LOADOUT_KEYS`) over the base side's loadout,
+## a side the config leaves out keeping the base's; and the human: in a played match (`mode` "play")
+## the base's human on the config's `side`, leading it with `lead`; in any other mode none; a config
+## with no `mode` keeps the base's human. An endless run (`mode` "endless") of no NPC at all is one
+## a side, since there would be nothing to watch.
 static func spec_from_setup(config: Dictionary, base: Dictionary = {}) -> Dictionary:
 	var out := spec(base)
 	out["seed"] = int(config.get("seed", out["seed"]))

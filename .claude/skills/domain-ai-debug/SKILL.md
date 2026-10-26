@@ -54,7 +54,7 @@ Draws, next to the NPC:
 
 `label_color` / `path_color` are set per side in the preset scenes to match the body colour.
 
-## `tactics_debug.gd` (toggles `show_tactics`, `show_room_zones` — `main.gd` drives both, off by default)
+## `tactics_debug.gd` (toggles `show_tactics`, `show_room_zones` — the overlay bar drives both, off by default)
 
 The tactical-geometry overlay, in two independent aspects (both draw on the NPC's own child Node2D,
 reading the controller's public API; both default off — they are dense).
@@ -90,7 +90,8 @@ invader's rooms turn from `unknown` to known as it sees them. Drawn behind the p
 
 Visualizes how a `look_around` search move is covering the room by sight (see `domain-ai-coverage`).
 Defaults off like the tactics overlay: in spectator mode the inspector turns it on only for the
-clicked NPC (it is one of the `_flags`), and in player mode `main.gd`'s `show_search` drives it.
+clicked NPC (it is one of the `_flags`), and in player mode the overlay bar's `show_search` toggle drives it on every NPC (Main's overlay part routes it
+through `MatchBuilder.set_overlay`).
 From the controller's `debug_search_coverage()` (`{ active, points, unseen, target, budget }`) it
 draws, **only while the NPC is actively covering a room** (`active`): every room sample point dim,
 the still-UNSEEN ones bright gold on top (so coverage visibly fills in as they wink out), a red line +

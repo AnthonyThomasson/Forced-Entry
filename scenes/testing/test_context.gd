@@ -27,7 +27,7 @@ const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 ## The built world (a TestWorld node) and its rooms (`{ key, type, rect }`, world-space).
 var world: Node2D
 var rooms: Array = []
-## Sim seconds since the test started (advanced by the runner each physics frame).
+## Sim seconds since the test started (advanced by the session each physics frame).
 var time := 0.0
 ## Everything observed, in order: `{ topic, data, time }`. Topics: every EventBus topic (`&"hit"`,
 ## `&"callout"`, …), plus `&"died"` / `&"hit_landed"` per actor (`data.actor` = its id) and
