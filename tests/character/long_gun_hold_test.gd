@@ -6,9 +6,7 @@ extends GameTest
 ## says. Drawing the art runs every frame, so any engine error fails the test too.
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
-## How far a bone may differ from its configured length (fraction), as in the standing-body rig
-## test.
-const BONE_TOLERANCE := 0.06
+const Arms := preload("res://tests/_character/arm_probe.gd")
 ## How far (px) a hand may sit off the line through the weapon hand along the aim.
 const LINE_TOLERANCE := 4.0
 ## How far (px) a long gun's butt may sit from the right shoulder joint, and how far apart (px) the
@@ -73,7 +71,7 @@ func _check_hold(t: TestContext, gun: StringName, lengths: Dictionary, butts: Di
 	var c = t.actor(GUNS[gun][0])
 	var item: GunItem = c.inventory.current_item()
 	t.check(not c.weapon.blocked(), "%s: nothing is against the barrel" % gun)
-	_check_arms(t, c, "%s hold" % gun)
+	Arms.check(t, c, "%s hold" % gun)
 
 	_check_other_hand(t, gun, c, item)
 	var muzzle: Vector2 = (c.weapon.muzzle_origin(item.weapon_hand())
@@ -132,19 +130,3 @@ func _check_grip_side(t: TestContext, gun: StringName, c: Node, item: GunItem) -
 			absf((fore - grip).dot(f)) <= 1.0,
 			"pistol: neither fist is ahead of the other (%.1f px)" % (fore - grip).dot(f),
 		)
-
-
-## Both arms keep (about) their configured length.
-func _check_arms(t: TestContext, c: Node, when: String) -> void:
-	var rig = c.anatomy.rig()
-	var r: float = c.radius
-	var bones := [
-		["upper arm", Rig.SHOULDER, Rig.ELBOW, CharacterBodyConfig.upper_arm],
-		["forearm", Rig.ELBOW, Rig.HAND, CharacterBodyConfig.forearm],
-	]
-	for i in 2:
-		for bone in bones:
-			var want: float = bone[3] * r
-			var got: float = rig.point(bone[1][i]).distance_to(rig.point(bone[2][i]))
-			t.check(absf(got / want - 1.0) <= BONE_TOLERANCE,
-				"%s: the %s (side %d) is %.1f px, want %.1f" % [when, bone[0], i, got, want])
