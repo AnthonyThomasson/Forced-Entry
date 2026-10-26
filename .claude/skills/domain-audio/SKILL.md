@@ -216,7 +216,7 @@ the real-emitter tests `gun_shot_sound`, `impact_material_sound`, `impact_outcom
 `explosion/frag` against `explosion/stun`, the tinnitus and the muffle for the focus only; its range table adds the new categories, `GrenadeSpec.everywhere`
 in `tests/_ai/grenade_spec_probe.gd`) and `vehicle_sounds` (ignition, the engine loop rising in pitch with speed and cut on exit, door open and
 close, the van's slide door, the skid loop, a slow and a fast crash, a character struck, the van's engine deeper; through
-`tests/_vehicle/vehicle_probe.gd`) and `vehicle_door_tone` (every door take no brighter than the brightest reload, over 0.75 of its
+`tests/_vehicle/vehicle_probe.gd`, `vehicle_frame_probe.gd` and `vehicle_ride_probe.gd`) and `vehicle_door_tone` (every door take no brighter than the brightest reload, over 0.75 of its
 energy under 300 Hz). Switch `audio.sound` (`SoundConfig.enabled`) turns it all off.
 
 **Interfaces:** 10 (EventBus: the topics above, and `&"sound"`), 13 (`audio.sound`, a sandbox's own voice), 16 (`SoundSurface`), 18 (`Sound.focus`), 19 (the vehicle a loop follows) — signatures in `architecture`.

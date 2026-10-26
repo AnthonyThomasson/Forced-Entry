@@ -6,7 +6,8 @@ all of it. Behaviours V1 to V9 are the spec; each has its tests named under it, 
 The tests are in `tests/vehicle/` (`tools/run_tests.sh --domain=vehicle`, 30 tests) plus `tests/audio/vehicle_sounds_test.gd`,
 `tests/audio/vehicle_door_tone_test.gd`, `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/use_vehicle_key_test.gd`. They drive puppets (no AI) and read
 the game only through the drivable contract (`architecture` interface 19), via `tests/_vehicle/vehicle_probe.gd`, which keeps the
-plan's numbers as its own consts so a test checks this file and not the code. The code is the Vehicles domain (`scenes/vehicle/`,
+plan's numbers as its own consts so a test checks this file and not the code, and its siblings `vehicle_frame_probe.gd` (the
+vehicle's frame) and `vehicle_ride_probe.gd` (placing, boarding, getting out and driving). The code is the Vehicles domain (`scenes/vehicle/`,
 skill `domain-vehicle`).
 
 **Verification (14 October 2026, on the finished branch).** `tools/lint.sh` and the headless load check: clean. The 34 tests the

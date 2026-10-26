@@ -259,7 +259,8 @@ Audio voices them and follows the loops by reading `engine_state()`, `slip()` an
 The `vehicle` tests domain (`tests/vehicle/`, 30 tests) plus `tests/audio/vehicle_sounds_test.gd`, `tests/audio/vehicle_door_tone_test.gd`,
 `tests/general/camera_zooms_out_driving_test.gd` and `tests/general/use_vehicle_key_test.gd`; `docs/vehicles.md` maps each
 rule to them. They read the vehicle only through the drivable contract via `tests/_vehicle/vehicle_probe.gd`
-(`const Probe := preload(...)`), and place vehicles with `TestSetup.vehicle` (`domain-testing`). `--changed` on
+(`const Probe := preload(...)`) and its siblings `vehicle_frame_probe.gd` (`VehicleFrame`, the vehicle's frame) and
+`vehicle_ride_probe.gd` (`VehicleRide`, placing, the ride and driving), and place vehicles with `TestSetup.vehicle` (`domain-testing`). `--changed` on
 `scenes/vehicle/` runs vehicle, character, items, interaction, projectile, physics, objects, ai, perf, audio and general.
 
 ## Gotchas
