@@ -1027,7 +1027,7 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-seven `class_name` static holders, one per topic, each with 15 vars or fewer
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-nine `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
 `grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
 **Projectile:** `BallisticsFlightConfig` (speeds, a bullet's height and the fly-over, a surfaceless collider),
@@ -1067,6 +1067,7 @@ weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
 **Lighting:** `LightingConfig` (the master switch, the dusk, the flashes and the per-floor budget),
 `LightingFixtureConfig` and `LightingTextureConfig`.
 **AI:** `SquadFollowConfig` (the squads' follow spacing and leash, `docs/leadership.md` LD21 to LD23).
+**General:** `CameraConfig` (the camera's follow, framing, zoom and hand pan) and `CameraShakeConfig` (its explosion shake).
 A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
 holder unless it is a family-wide switch or a per-kind row (ADR 0003). World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not
@@ -1096,26 +1097,31 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   base splits the same way, per concern: each part a small base its kinds subclass where they behave differently
   (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row; and no part holds a
   `RefCounted` owner (a cycle never frees: an item's parts are handed the user on each call), while a node's may hold
-  it (the vehicle's). The AI splits the same way (`docs/adr/0006-the-ai-orchestrator-and-behaviour-split.md`), with two
-  differences. Its tunables are per NPC, in typed topic nodes under the controller's `Tuning` child (`tuning: NpcTuning`,
-  fifteen `class_name` `Npc<Topic>Tuning` nodes holding only exports, since an export must name a global class), which
-  behaviour's modules, perception and the snapshot's vocabulary read live (`tuning.<topic>.<name>`), and
-  perception's geometry modules and the planner copy each decision (PlayerStack and the squads build those modules
-  with no NPC). And its parts are
-  reached by preload const with **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and
-  `_reflexes`; behaviour's `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and
-  `world` and its ten parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`);
-  combat's `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; perception's `sight`, `house`,
-  `contacts`, `hearing`, `orders`, `grenades`, `entry` and `views`; the launcher's
-  `_probe`; the doorway geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`. A part member read from outside its part is public on it, its underscore and any prefix the part's name says
-  dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage` `grenade.stage`); one used only inside its
-  part keeps its name. Behaviour's, locomotion's, the controller's and perception's working parts hold their Node owner (`behavior`, `loco`,
-  `controller`, `perception`). Entry is a `RefCounted`, so its parts hold only its `state` and `world` leaves: a part method that needs the
-  entry or a sibling takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. The doorway geometry
-  (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry` at the call and hold nothing of it (a helper over the five
-  parameters reads it from the per-call context it already takes, `c["entry"]` / `f["entry"]`). Combat's
-  `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and confines, the probe) hold
-  no owner (`tests/ai/ai_parts_free_suite.gd`).
+  it (the vehicle's). The AI splits the same way (`docs/adr/0006-the-ai-orchestrator-and-behaviour-split.md`,
+  `docs/adr/0007-ai-perception-and-team-split-into-typed-parts.md`), with two differences. Its tunables are per NPC, in
+  typed topic nodes under the controller's `Tuning` child (`tuning: NpcTuning`, fifteen `class_name` `Npc<Topic>Tuning`
+  nodes holding only exports, since an export must name a global class), which behaviour's modules, perception and the
+  snapshot's vocabulary read live (`tuning.<topic>.<name>`), and perception's geometry modules and the planner copy each
+  decision (PlayerStack and the squads build those modules with no NPC). And its parts are reached by preload const with
+  **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and `_reflexes`; behaviour's
+  `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and `world` and its ten
+  parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); combat's
+  `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; perception's
+  `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry` and `views`; the launcher's `_probe`; the doorway
+  geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and the
+  human's stack's `reservation` and `step_up`. A part member read from outside its part is public on it, its underscore and
+  any prefix the part's name says dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage`
+  `grenade.stage`); one used only inside its part keeps its name. Behaviour's, locomotion's, the controller's, perception's
+  and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
+  its `squad`, the human's stack's `step_up` its `stack`). Entry is a `RefCounted`, so its parts hold only its `state` and
+  `world` leaves: a part method that needs the entry or a sibling takes the `Entry` facade as its first parameter, `entry`,
+  at the call, and never stores it. The doorway geometry (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry`
+  at the call and hold nothing of it. Where gdstyle's `max-parameters` (5) leaves no room for it, a public method folds two
+  arguments into one (`EntryPosts.defend_spot` / `ambush_spot` take the member's `place: Vector2i`, x which post, y of how
+  many) and a private chain reads it from the per-call context dict it already takes (`c["entry"]` / `f["entry"]`), never
+  stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and
+  confines, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
+  does the human's stack's `reservation` leaf.
 
 ## Running & verifying
 

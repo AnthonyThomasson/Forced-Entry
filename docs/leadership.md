@@ -734,7 +734,7 @@ The cases the behaviours above cite as D1 to D30.
 
 | What | Value | Where |
 |---|---|---|
-| A defend spot: back from its doorway's wall | 60 to 150 px, best 100 | `AgentEntry.DEFEND_DEPTHS`, `DEFEND_DEPTH` |
+| A defend spot: back from its doorway's wall | 60 to 150 px, best 100 | `EntryPosts.DEFEND_DEPTHS`, `DEFEND_DEPTH` |
 | ... along the wall past the jamb | 30 to 100 px, best 50 | `DEFEND_LATERALS`, `DEFEND_LATERAL` |
 | ... inside the room's walls by | 22 px | `DEFEND_INSET` |
 | The fatal funnel: within a body of a doorway's width, nearer its wall than | 14 px, 200 px | `DEFEND_BODY`, `DEFEND_FUNNEL_DEPTH` |
@@ -742,7 +742,7 @@ The cases the behaviours above cite as D1 to D30.
 | An ordered stack waits for its recipients at most (from the first ordered `ready`) | 60 s | `tuning.entry.order_ready_cap` |
 | A room seen empty counts as clear for a defender's ordered walk for | 60 s | `tuning.entry_guard.pass_clear_time` |
 | The command menu picks a teammate's body within | 28 px | `CommandMenu.PICK_RADIUS` |
-| An ambush post: back from its doorway's wall | 40 to 160 px, best 110 | `AgentEntry.AMBUSH_DEPTHS`, `AMBUSH_DEPTH` |
+| An ambush post: back from its doorway's wall | 40 to 160 px, best 110 | `EntryPosts.AMBUSH_DEPTHS`, `AMBUSH_DEPTH` |
 | ... along the wall past the jamb | 30 to 260 px | `AMBUSH_LATERALS` |
 | ... inside the room's walls by | 22 px | `AMBUSH_INSET` |
 | ... hidden too from the points this far round it | 12 px | `AMBUSH_SLACK` |

@@ -287,7 +287,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   the entry `reset`s and `begin`s again from the claims heard meanwhile and its claim goes out. On the walk `entries._guard_approach` catches what
   comes up (a threshold, team or none; a view only with no team coming). `Behavior.orders.ordered_stack()` (the
   ordered entry running, or paused behind a detour) sets `AgentPerception.views.ordered` each tick (`errand.set_up_walk`), which keeps its walks out of the views
-  (`entries.keeps_out_of_views`), counts the room its stack holds as clear (`_stack_room`, D20) and, for an NPC with `tuning.entry.enabled` off, a room
+  (`entries.keeps_out_of_views`), counts the room its stack holds as clear (the `views` part's `_stack_room`, D20) and, for an NPC with `tuning.entry.enabled` off, a room
   seen empty (`_seen_empty`, D11).
   `Behavior.set_leaf` leaves the running ordered entry (or the detour in front of it) alone when the same order is decided again
   (`orders.same`). Tests: `tests/ai/entry/order_stack_*` (LD17: `order_stack_waits_for_leader`, `order_stack_joiner_grace`),
