@@ -82,7 +82,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   built by `main.gd` under `World` only when the human leads ("Lead the team"). `setup({ rooms, teammates, view, resolve, leader, right_clear })` (the house's
   rooms as plain dicts, the characters it may order, the squad's `view()` and `resolve(request)` callables, the human: it opens only while the
   view names it the leader; `right_clear` the screen width from the right edge a panel docked on the right keeps clear, default 0: Main hands it
-  the overlay toggle bar's `RESERVED_WIDTH` with Debug on, as the inspector's; the panel and the teammates' boxes are built here, hidden). `Keybinds.COMMAND` (right mouse, read in `_unhandled_input`, so a
+  the overlay toggle bar's `RESERVED_WIDTH` with Debug on, as the inspector's, kept as the panel's `right_clear`; the panel and the teammates' boxes are built here, hidden: the panel is `command_panel.gd`, a `PanelContainer` child named `Panel`, reached by the preload const `CommandPanel`, which holds the widgets, the hold box's value and the dock, and holds no reference back to the menu). `Keybinds.COMMAND` (right mouse, read in `_unhandled_input`, so a
   click the toggle bar or the panel takes never opens it) or `open_at(world)` pauses the whole tree (unpaused on close only if it paused it, and
   in `_exit_tree` if freed open) and fills the panel for what is under the point, hit-tested in this order: a living teammate within `PICK_RADIUS`
   (28 px) — "Select <name>" / "Deselect <name>", the menu staying open, then "Go into the <room>" while that teammate holds a held stack in the
@@ -96,7 +96,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   then "Ambush the doorway from the <room>", `<room>` the one the squad resolves the ambush to (`resolve({ kind: "ambush", pos })`'s `room`, the
   click's side of the wall, `_ambush_from`; LD15, D17); a room whose rect holds it — "Defend the <room>"; then "Cancel order" while a recipient
   holds an order in the view. Below the items a "Hold for my go" `CheckBox` (off at first, kept across closes while the match runs, D19:
-  `_hold_go`) makes a stack chosen wait for the leader's go. Recipients: the selection, else every living teammate (never the human); the
+  `CommandPanel.hold_go`) makes a stack chosen wait for the leader's go. Recipients: the selection, else every living teammate (never the human); the
   selection is the ticked boxes (`CheckBox` per teammate, text its name, `toggled`) plus a left-click on a body while open, lasts across
   closes, and drops a dead teammate (its box disabled) on the next open. Choosing an item (a `Button`, `pressed`, `FOCUS_NONE` so Space stays
   INTERACT; each item is `_item(label, disabled, act, why)`) emits `order_requested` — `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos`
@@ -104,7 +104,7 @@ The in-game observers: each reads only the Character public API / signals (incl.
   `{ kind: "go", pos }` (no `to`: the squad sends it to whoever holds the held stack there, LD13), `{ kind: "ambush", to, pos }`,
   `{ kind: "defend_room", to, room }`, `{ kind: "cancel", to }` (the recipients holding an order) — and closes it. Escape (`Keybinds.MENU`)
   closes it in `_input` and is set handled, so Main's "back to setup" never sees it. `selection_changed(nodes)` carries the selection while open
-  and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (`_dock`, at the end of every `_refresh`, so on each `open_at` and each selection
+  and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (the panel's `dock`, handed the click's and the selected bodies' screen points at the end of every `_refresh`, so on each `open_at` and each selection
   change while open: the left, or the right when the click's screen point lies in the left half; anchored `PANEL_EDGE` 24 in from that edge
   (the right one `right_clear` further in, clear of the overlay bar's fixed column) and growing away from it, `PANEL_TOP` 120, at least
   `PANEL_WIDTH` 440). Docked on the right it weighs three vertical docks, rects worked out from the panel's combined minimum size: hanging from

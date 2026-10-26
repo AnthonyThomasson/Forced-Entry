@@ -21,11 +21,15 @@ The two widgets the Testing domain's browser and runner show. Both take plain di
   Testing classes. **Checkboxes:** every test row (not sandboxes, nor a test whose script fails to load) has
   one; a domain or topic row's box is tri-state over *its shown tests* and toggles exactly those, and the header's
   **Check shown / Uncheck shown** button does the same for every shown test — so bulk checks respect the search,
-  and ticks of hidden tests survive it. Toggles redraw the boxes in place (`_sync_checks`, no list rebuild) and
+  and ticks of hidden tests survive it. Toggles redraw the boxes in place (the list's checks, `test_browser_list.gd`, no list rebuild) and
   emit `checked_changed(ids)` (the host persists them; `open(…, checked)` restores them). **Run N checked**
   (bottom row, disabled at 0 or during a headless run) emits `run_queue_requested(paths)` — every ticked test's
   script path in list order — for the headed, one-by-one run. Double-clicking a test's label (not its box) opens it: Godot raises `item_activated` for rows without a checkbox
-  and for Enter, but not for a double-click on an editable check cell, so `_on_tree_input` handles that one. Tested
+  and for Enter, but not for a double-click on an editable check cell, so the list's `_on_tree_input` handles that one. **The list** is `test_browser_list.gd`, a `Tree` subclass the window builds and
+  lays out and holds as `_tree` (preload const `TestBrowserList`): it owns the rows, the ticks (`checked`, `tick(ids, on)`, `apply_edit(item)`)
+  and their partial state, the ▶ buttons and their run lock (`set_running`) and the results the rows are marked with (`results`); it
+  reports up by its own signals, which the window relays (`play_requested`, `run_domain` → `run_requested`, `synced` → the window's buttons,
+  `ticks_changed` → `checked_changed`). Tested
   with real mouse events by `tests/ui/test_browser_window_test.gd`; the topic rows by `tests/ui/test_browser_category_rows_test.gd`.
 
 - `test_result_hud.gd` — the **test result banner** (`TestResultHUD` CanvasLayer, layer 10, top-left, built by

@@ -34,7 +34,7 @@ func run(t: TestContext) -> void:
 	t.check(_item("a/one").get_text(0).contains("Alpha one"), "a test row shows its name")
 	t.expect_eq(_group("a").get_text(0), "A", "a domain row shows its name")
 
-	t.expect_eq(_window._checked.keys(), ["a/one"], "the host's ticks are restored")
+	t.expect_eq(_window._tree.checked.keys(), ["a/one"], "the host's ticks are restored")
 	t.check(_item("a/one").is_checked(0), "a restored tick shows")
 	t.expect_eq(_window._run_checked.text, "Run 1 checked", "the run button counts the ticks")
 	_check_rows_tick(t)
@@ -44,19 +44,19 @@ func run(t: TestContext) -> void:
 	# A headless run in progress blocks the queue button; a script error cannot be ticked.
 	_window.set_run_status("Running…", true)
 	t.check(_window._run_checked.disabled, "Run checked waits for a headless run")
-	t.check(not _window._checked.has("b/broken"), "a test whose script fails is never ticked")
+	t.check(not _window._tree.checked.has("b/broken"), "a test whose script fails is never ticked")
 
 
 ## A test row ticks itself; a domain row clears its tests.
 func _check_rows_tick(t: TestContext) -> void:
 	_item("a/two").set_checked(0, true)
-	_window._apply_edit(_item("a/two"))
+	_window._tree.apply_edit(_item("a/two"))
 	t.expect_eq(_checked, ["a/one", "a/two"], "ticking a test reports the set")
 	t.check(_group("a").is_checked(0), "a domain with every test ticked shows ticked")
 
 	# A domain row clears its tests.
 	_group("a").set_checked(0, false)
-	_window._apply_edit(_group("a"))
+	_window._tree.apply_edit(_group("a"))
 	t.check(_checked.is_empty(), "clearing a domain row clears its tests")
 	t.check(_window._run_checked.disabled, "nothing ticked leaves Run disabled")
 
@@ -66,7 +66,7 @@ func _check_rows_tick(t: TestContext) -> void:
 func _check_search(t: TestContext) -> void:
 	_window._search.text = "alpha"
 	_window._search.text_changed.emit("alpha")
-	t.expect_eq(_window._test_items.keys(), ["a/one"], "the search shows one test")
+	t.expect_eq(_window._tree.test_items.keys(), ["a/one"], "the search shows one test")
 	t.expect_eq(_window._check_shown.text, "Check shown", "the header offers to tick")
 	_window._check_shown.pressed.emit()
 	t.expect_eq(_checked, ["a/one"], "the header ticks only the shown test")
@@ -81,9 +81,9 @@ func _check_search(t: TestContext) -> void:
 	_window._search.text = "beta"
 	_window._search.text_changed.emit("beta")
 	_group("b").set_checked(0, true)
-	_window._apply_edit(_group("b"))
+	_window._tree.apply_edit(_group("b"))
 	t.expect_eq(_checked.size(), 2, "the domain row ticked its one shown test")
-	t.check(not _window._checked.has("b/two"), "the domain row left its hidden test alone")
+	t.check(not _window._tree.checked.has("b/two"), "the domain row left its hidden test alone")
 
 	# Run hands back every tick, hidden or not, in list order.
 	_window._search.text = ""
@@ -105,9 +105,9 @@ func _check_clicks(t: TestContext) -> void:
 	root_window.size = Vector2i(1280, 720)  # the headless viewport is too small to lay the list out
 	_window.play_requested.connect(func(path): played.append(path))
 	await t.frames(4)
-	var before: bool = _window._checked.has("b/two")
+	var before: bool = _window._tree.checked.has("b/two")
 	await _click(t, "b/two", true, false)
-	t.check(_window._checked.has("b/two") != before, "clicking the box toggles the test")
+	t.check(_window._tree.checked.has("b/two") != before, "clicking the box toggles the test")
 	await _click(t, "b/two", true, true)
 	t.check(played.is_empty(), "a double-click on the box does not open the test")
 	# a double-click starts with a click that selects the row
@@ -121,7 +121,7 @@ func _check_clicks(t: TestContext) -> void:
 
 ## A real click on a domain row's box ticks every test it holds.
 func _check_domain_box_click(t: TestContext) -> void:
-	_window._set_checked(["a/one", "a/two"], false)
+	_window._tree.tick(["a/one", "a/two"], false)
 	await t.frames(1)
 	# the fold arrow sits left of the box
 	var arrow_width: float = (_window._tree.get_theme_icon(&"arrow").get_width()
@@ -138,7 +138,7 @@ func _check_domain_box_click(t: TestContext) -> void:
 		TestContext.inject(event)
 		await t.frames(1)
 	t.check(
-		_window._checked.has("a/one") and _window._checked.has("a/two"),
+		_window._tree.checked.has("a/one") and _window._tree.checked.has("a/two"),
 		"clicking a domain row's box ticks its tests",
 	)
 
@@ -165,11 +165,11 @@ func _matcher(entry: Dictionary, text: String) -> bool:
 
 
 func _item(id: String) -> TreeItem:
-	return _window._test_items[id]
+	return _window._tree.test_items[id]
 
 
 func _group(domain: String) -> TreeItem:
-	return _window._groups[domain]
+	return _window._tree.groups[domain]
 
 
 ## Left-click the row of test `id` on its checkbox (`box`) or its label, as a double-click when

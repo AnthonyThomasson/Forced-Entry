@@ -27,16 +27,17 @@ extends CanvasLayer
 ## it too (consumed in `_input`, so Main's MENU never sees it); closing unpauses the tree. Space
 ## stays the player's INTERACT.
 ##
-## The panel docks on the side of the screen away from the click it is open on: on the left, or on
-## the right when the click lies in the left half, so it never covers the teammate or doorway it is
-## about; a ring marks the clicked point. Docked on the right it keeps clear of `right_clear` (the
-## overlay toggle bar's column when Debug is on), and where it would cover the click or a selected
-## teammate there it docks at the top or the bottom of the screen instead, away from them; it is
-## docked again whenever the selection changes while it is open. A decoupled observer: it reads its
-## teammates through the Character API only (`global_position`, `name`, `is_dead`, `item_count`) and
-## the squad through its `view()` and `resolve()` callables, emits plain requests and works out no
-## AI id: the squad (interface 21) resolves the click into its doorway, side and room.
-## `PROCESS_MODE_ALWAYS`, so it works while the tree is paused.
+## The panel (`command_panel.gd`, a child named `Panel`) docks on the side of the screen away from
+## the click it is open on: on the left, or on the right when the click lies in the left half, so it
+## never covers the teammate or doorway it is about; a ring marks the clicked point. Docked on the
+## right it keeps clear of `right_clear` (the overlay toggle bar's column when Debug is on), and
+## where it would cover the click or a selected teammate there it docks at the top or the bottom of
+## the screen instead, away from them; it is docked again whenever the selection changes while it is
+## open. A decoupled observer: it reads its teammates through the Character API only
+## (`global_position`, `name`, `is_dead`, `item_count`) and the squad through its `view()` and
+## `resolve()` callables, emits plain requests and works out no AI id: the squad (interface 21)
+## resolves the click into its doorway, side and room. `PROCESS_MODE_ALWAYS`, so it works while the
+## tree is paused.
 
 ## Emitted when an order is chosen: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos` the
 ## click itself, `mode` quiet / stun / frag, `bang` mode != quiet as part 1 had it, `wait_go` the
@@ -49,19 +50,9 @@ signal order_requested(request: Dictionary)
 ## once it closes (the order markers' `set_selection`).
 signal selection_changed(nodes: Array)
 
+const CommandPanel := preload("res://scenes/ui/hud/command_panel.gd")
 ## World-space radius (px) around the cursor within which a click picks a teammate's body.
 const PICK_RADIUS := 28.0
-## The panel's place on screen: its gap to the screen's edge it docks against (and to the top or
-## bottom edge in a vertical dock), its top (below the match HUD's timer) and its least width.
-const PANEL_EDGE := 24.0
-const PANEL_TOP := 120.0
-const PANEL_WIDTH := 440.0
-## How near (screen px) the docked panel may come to the click and to a selected teammate's body.
-const POINT_CLEAR := 24.0
-const TITLE_FONT := 28
-const ITEM_FONT := 26
-const LIST_FONT := 22
-const HINT_FONT := 18
 ## The ring on the clicked point: its radius (screen px) and colour.
 const MARK_RADIUS := 14.0
 const MARK_COLOR := Color(1.0, 0.85, 0.3, 0.95)
@@ -77,9 +68,6 @@ var _view: Callable
 var _resolve: Callable
 ## The human: the menu opens only while the view names it the leader (null: no such check).
 var _leader: Node = null
-## Screen width (px) from the right edge the panel keeps clear when docked on the right: the overlay
-## toggle bar's column while Debug is on, else 0.
-var _right_clear := 0.0
 ## The selected teammates.
 var _selection: Array = []
 ## Whether the menu is open.
@@ -90,23 +78,9 @@ var _paused_tree := false
 var _click := Vector2.ZERO
 ## What is offered now: `{ label, disabled, act: Callable, why }`.
 var _items: Array = []
-## "Hold for my go" is ticked: a stack chosen waits for the leader's go (LD13; kept across opens,
-## D19).
-var _hold_go := false
-## The panel, docked away from the click (`_dock`), holding everything below.
-var _panel: PanelContainer
-## Names what the menu is open on.
-var _title: Label
-## "Orders go to: ...".
-var _recipients: Label
-## The offered items' buttons.
-var _item_box: VBoxContainer
-## The teammates' CheckBoxes.
-var _list_box: VBoxContainer
-## Teammate instance id -> its CheckBox in the list.
-var _checks := {}
-## "Hold for my go".
-var _hold_box: CheckBox
+## The panel, docked away from the click (its `dock`), with the items, "Hold for my go" and the
+## teammates' boxes.
+var _panel: CommandPanel
 ## Full-screen, mouse-ignoring: draws the ring on the clicked point.
 var _mark: Control
 
@@ -171,8 +145,8 @@ func setup(config: Dictionary) -> void:
 	var resolve = config.get("resolve")
 	_resolve = resolve if resolve is Callable else Callable()
 	_leader = config.get("leader") as Node
-	_right_clear = maxf(float(config.get("right_clear", 0.0)), 0.0)
 	_build()
+	_panel.right_clear = maxf(float(config.get("right_clear", 0.0)), 0.0)
 
 
 ## Pause the tree and open the menu on world point `at`: the items for what lies there.
@@ -222,28 +196,28 @@ func items() -> Array:
 func _refresh() -> void:
 	var mate := _teammate_at(_click)
 	var door := {} if mate != null else _stack_at(_click)
-	var offered: Array
+	var shown: Dictionary
 	if mate != null:
-		offered = _teammate_items(mate)
+		shown = _teammate_items(mate)
 	elif not door.is_empty():
-		offered = _doorway_items(door)
+		shown = _doorway_items(door)
 	else:
-		offered = _room_items()
+		shown = _room_items()
+	var offered: Array = shown["items"]
 	if not _ordered_recipients().is_empty():
 		offered.append(_item("Cancel order", false, _cancel))
-	_recipients.text = ("Orders go to: %s"
+	_panel.set_heading(shown["title"], ("Orders go to: %s"
 			% (", ".join(_selection.map(func(n): return String(n.name)))
 					if not _selection.is_empty()
-					else "the whole squad"))
+					else "the whole squad")))
 	_set_items(offered)
-	_dock()
+	_panel.dock(_dock_points())
 	_mark.queue_redraw()
 
 
-## The title and items for a click on teammate `mate`: select or deselect it, and go into the room
-## of the held stack it holds.
-func _teammate_items(mate: Node) -> Array:
-	_title.text = String(mate.name)
+## The title and items (`{ title, items }`) for a click on teammate `mate`: select or deselect it,
+## and go into the room of the held stack it holds.
+func _teammate_items(mate: Node) -> Dictionary:
 	var picked := _selection.has(mate)
 	var offered: Array = [
 		_item(
@@ -259,14 +233,14 @@ func _teammate_items(mate: Node) -> Array:
 			false,
 			_go.bind(held["pos"]),
 		))
-	return offered
+	return { "title": String(mate.name), "items": offered }
 
 
-## The title and items for a click on the doorway `door` (`_stack_at`): go while a held stack waits
-## there, the three stacks (stun and frag greyed while no recipient carries one) and the ambush.
-func _doorway_items(door: Dictionary) -> Array:
+## The title and items (`{ title, items }`) for a click on the doorway `door` (`_stack_at`): go
+## while a held stack waits there, the three stacks (stun and frag greyed while no recipient carries
+## one) and the ambush.
+func _doorway_items(door: Dictionary) -> Dictionary:
 	var into := _room_name(_room_by_key(String(door.get("into", ""))))
-	_title.text = "Doorway into the %s" % into
 	var offered: Array = []
 	if _held_at(String(door.get("opening", ""))):
 		offered.append(_item("Go into the %s" % into, false, _go.bind(_click)))
@@ -285,22 +259,26 @@ func _doorway_items(door: Dictionary) -> Array:
 			"Ambush the doorway from the %s" % _room_name(_room_by_key(from)), false,
 			_order.bind({ "kind": "ambush", "pos": _click }),
 		))
-	return offered
+	return { "title": "Doorway into the %s" % into, "items": offered }
 
 
-## The title and items for a click on a room (defend it) or outside every room (none).
-func _room_items() -> Array:
+## The title and items (`{ title, items }`) for a click on a room (defend it) or outside every
+## room (none).
+func _room_items() -> Dictionary:
 	var room := _room_at(_click)
-	_title.text = "The %s" % _room_name(room) if not room.is_empty() else "Outside"
+	var title := "The %s" % _room_name(room) if not room.is_empty() else "Outside"
 	if room.is_empty():
-		return []
-	return [
-		_item(
-			"Defend the %s" % _room_name(room),
-			false,
-			_order.bind({ "kind": "defend_room", "room": String(room["key"]) }),
-		),
-	]
+		return { "title": title, "items": [] }
+	return {
+		"title": title,
+		"items": [
+			_item(
+				"Defend the %s" % _room_name(room),
+				false,
+				_order.bind({ "kind": "defend_room", "room": String(room["key"]) }),
+			),
+		],
+	}
 
 
 ## The living teammate nearest world point `at` within `PICK_RADIUS`, or null.
@@ -418,7 +396,7 @@ func _stack(mode: String) -> void:
 		"pos": _click,
 		"bang": mode != "quiet",
 		"mode": mode,
-		"wait_go": _hold_go,
+		"wait_go": _panel.hold_go,
 	})
 
 
@@ -444,9 +422,7 @@ func _toggle(mate: Node, on: bool) -> void:
 		_selection.append(mate)
 	elif not on:
 		_selection.erase(mate)
-	var box: CheckBox = _checks.get(mate.get_instance_id())
-	if box != null and box.button_pressed != _selection.has(mate):
-		box.set_pressed_no_signal(_selection.has(mate))
+	_panel.tick(mate, _selection.has(mate))
 	if _open:
 		_refresh()
 		selection_changed.emit(_selection.duplicate())
@@ -455,12 +431,10 @@ func _toggle(mate: Node, on: bool) -> void:
 ## A dead teammate leaves the selection and its box is disabled.
 func _drop_dead() -> void:
 	for mate in _teammates:
-		var box: CheckBox = _checks.get(mate.get_instance_id()) if is_instance_valid(mate) else null
 		if not _alive(mate):
 			_selection.erase(mate)
-			if box != null:
-				box.set_pressed_no_signal(false)
-				box.disabled = true
+			if is_instance_valid(mate):
+				_panel.disable(mate)
 
 
 ## Whether `n` is a living character (any value: a teammate may have been freed).
@@ -479,34 +453,6 @@ func _may_open() -> bool:
 	return is_instance_valid(_leader) and view.get("leader") == _leader
 
 
-## Dock the panel on the side of the screen away from the click it is open on (LD11): on the left,
-## or on the right when the click lies in the left half, anchored to that edge (the right one
-## `_right_clear` in) and growing away from it as wide as its items need, its top at `PANEL_TOP`.
-## Docked on the right where it would cover the click or a selected teammate's body (within
-## `POINT_CLEAR`), it hangs from the top of the screen or stands on its bottom instead, `PANEL_EDGE`
-## from it, the side away from the centre of the click and those bodies first: the first of these
-## docks that covers none of them, else the first that leaves the click clear, else that side away.
-func _dock() -> void:
-	var screen := get_viewport().get_visible_rect()
-	var points := _dock_points()
-	var right: bool = points[0].x < screen.get_center().x
-	# Each vertical dock as [anchor, offset, grows up]: below the timer, the top, the bottom.
-	var dock: Array = _right_dock(screen, points) if right else [0.0, PANEL_TOP, false]
-	var edge := 1.0 if right else 0.0
-	var gap := -(PANEL_EDGE + _right_clear) if right else PANEL_EDGE
-	# Pushing the opposite anchor along: a left anchor moved past the right one would be held back.
-	for side in [SIDE_LEFT, SIDE_RIGHT]:
-		_panel.set_anchor_and_offset(side, edge, gap, true)
-	for side in [SIDE_TOP, SIDE_BOTTOM]:
-		_panel.set_anchor_and_offset(side, dock[0], dock[1], true)
-	_panel.grow_horizontal = (
-		Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END
-	)
-	_panel.grow_vertical = (
-		Control.GROW_DIRECTION_BEGIN if dock[2] else Control.GROW_DIRECTION_END
-	)
-
-
 ## The screen points the panel keeps clear of: the click it is open on first, then each selected
 ## living teammate's body.
 func _dock_points() -> Array:
@@ -515,50 +461,6 @@ func _dock_points() -> Array:
 		func(n: Node) -> Vector2: return _screen_of(n.global_position),
 	))
 	return points
-
-
-## The vertical dock (`[anchor, offset, grows up]`) of a panel docked on the right of `screen`:
-## below the timer, then the top or the bottom, the side away from the centre of `points` first;
-## the first that keeps clear of all `points`, else the first clear of the click (`points[0]`),
-## else that side away.
-func _right_dock(screen: Rect2, points: Array) -> Array:
-	var size := _panel.get_combined_minimum_size()
-	size.x = maxf(size.x, PANEL_WIDTH)
-	var top := [0.0, PANEL_EDGE, false]
-	var bottom := [1.0, -PANEL_EDGE, true]
-	var centre: Vector2 = points.reduce(
-		func(sum, p): return sum + p,
-		Vector2.ZERO,
-	) / points.size()
-	var away := [top, bottom] if centre.y >= screen.get_center().y else [bottom, top]
-	var docks: Array = [[0.0, PANEL_TOP, false]] + away
-	var clear_all := docks.filter(
-		func(d: Array) -> bool: return points.all(_clear_of.bind(_dock_rect(screen, size, d))),
-	)
-	var clear_click := docks.filter(
-		func(d: Array) -> bool: return _clear_of(points[0], _dock_rect(screen, size, d)),
-	)
-	return (clear_all[0] if not clear_all.is_empty()
-			else clear_click[0] if not clear_click.is_empty()
-			else away[0])
-
-
-## The screen rect of a panel of `size` docked on the right of `screen` at the vertical dock `d`
-## (`[anchor, offset, grows up]`).
-func _dock_rect(screen: Rect2, size: Vector2, d: Array) -> Rect2:
-	var y: float = screen.position.y + d[0] * screen.size.y + d[1]
-	return Rect2(
-		Vector2(
-			screen.end.x - _right_clear - PANEL_EDGE - size.x,
-			y - (size.y if d[2] else 0.0),
-		),
-		size,
-	)
-
-
-## Whether screen point `p` lies `POINT_CLEAR` or more outside screen rect `rect`.
-func _clear_of(p: Vector2, rect: Rect2) -> bool:
-	return not rect.grow(POINT_CLEAR).has_point(p)
 
 
 ## Screen point of world point `world` (the world's canvas transform).
@@ -583,24 +485,11 @@ func _item(label: String, disabled: bool, act: Callable, why := "") -> Dictionar
 ## Show `offered` as the panel's buttons, replacing the ones shown.
 func _set_items(offered: Array) -> void:
 	_items = offered
-	for old in _item_box.get_children():
-		_item_box.remove_child(old)
-		old.queue_free()
-	for i: Dictionary in offered:
-		var button := Button.new()
-		button.text = i["label"]
-		button.disabled = i["disabled"]
-		button.focus_mode = Control.FOCUS_NONE  # Space must never press it (it stays INTERACT)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", ITEM_FONT)
-		if i["disabled"]:
-			button.tooltip_text = i["why"]
-		button.pressed.connect(i["act"])
-		_item_box.add_child(button)
+	_panel.set_items(offered)
 
 
-## Build the hidden panel (title, recipients, items, "Hold for my go", the teammate list, the hint)
-## and the ring layer.
+## Build the ring layer and the hidden panel (title, recipients, items, "Hold for my go", the
+## teammate list, the hint).
 func _build() -> void:
 	if _panel != null:
 		return
@@ -610,61 +499,10 @@ func _build() -> void:
 	_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_mark.draw.connect(_draw_mark)
 	add_child(_mark)
-	_panel = PanelContainer.new()
+	_panel = CommandPanel.new()
 	_panel.name = "Panel"
-	_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0)
-	_panel.mouse_filter = Control.MOUSE_FILTER_STOP  # a click on the panel never reaches the world
-	_panel.visible = false
+	_panel.build(_teammates, _toggle)
 	add_child(_panel)
-	var margin := MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 14)
-	_panel.add_child(margin)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	margin.add_child(box)
-
-	_title = _label(box, TITLE_FONT)
-	_recipients = _label(box, LIST_FONT)
-	_recipients.modulate = Color(1, 1, 1, 0.75)
-	_item_box = VBoxContainer.new()
-	_item_box.add_theme_constant_override("separation", 4)
-	box.add_child(_item_box)
-	_hold_box = CheckBox.new()
-	_hold_box.text = "Hold for my go"
-	_hold_box.focus_mode = Control.FOCUS_NONE
-	_hold_box.add_theme_font_size_override("font_size", LIST_FONT)
-	_hold_box.toggled.connect(func(on: bool): _hold_go = on)
-	box.add_child(_hold_box)
-	box.add_child(HSeparator.new())
-	_build_teammates(box)
-	var hint := _label(box, HINT_FONT)
-	hint.text = "Click a teammate to select it · Esc closes"
-	hint.modulate = Color(1, 1, 1, 0.6)
-
-
-## The "Teammates" heading and a box per teammate under `box`, each ticking it into the selection.
-func _build_teammates(box: VBoxContainer) -> void:
-	var heading := _label(box, LIST_FONT)
-	heading.text = "Teammates"
-	_list_box = VBoxContainer.new()
-	box.add_child(_list_box)
-	for mate: Node in _teammates:
-		var check := CheckBox.new()
-		check.text = String(mate.name)
-		check.focus_mode = Control.FOCUS_NONE
-		check.add_theme_font_size_override("font_size", LIST_FONT)
-		check.toggled.connect(func(on: bool): _toggle(mate, on))
-		_list_box.add_child(check)
-		_checks[mate.get_instance_id()] = check
-
-
-## A new Label at font size `size`, added under `parent`.
-func _label(parent: Control, size: int) -> Label:
-	var label := Label.new()
-	label.add_theme_font_size_override("font_size", size)
-	parent.add_child(label)
-	return label
 
 
 ## The ring on the clicked point, while the menu is open.

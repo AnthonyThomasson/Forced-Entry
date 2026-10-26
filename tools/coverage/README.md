@@ -224,7 +224,7 @@ Runs are joined by statement id. Runs instrumented with different maps (differen
 | `workspace.py` | the copy and the hit folder in `artifacts/tmp/`, tree hashes, cleanup and the sweep of leftovers |
 | `scanner.py` | GDScript text to statements and uninstrumented spans |
 | `instrument.py` | writes the markers, the autoload and the map |
-| `probe.gd` | the template copied in as `CoverageProbe` |
+| `probe.gd` | the template copied in as `CoverageProbe`: the counters, the units and the hit file; the run config it reads (`Run`) and its two sources' parts, built for the run's source only (`Matches` with its cost meters `MatchCost`, and `Tests`), are inner classes of it, since only this one file is copied |
 | `runner.py` | the match and test drivers, sharding, Von, the run folder |
 | `hits.py` | the hit file format, merge, atomic writes |
 | `report.py` | rollup, tags, curve, Markdown and JSON |

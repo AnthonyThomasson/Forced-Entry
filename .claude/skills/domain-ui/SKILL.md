@@ -17,9 +17,9 @@ the domains.
 | Folder | Skill | Owns |
 |---|---|---|
 | `menus/` | `domain-ui-menus` | `setup_menu.gd` (pre-game window), `settings_menu.gd` (Debug + key rebinding) |
-| `hud/` | `domain-ui-hud` | `debug_ui.gd`, `match_hud.gd`, `spectator_inspector.gd`, `contact_markers.gd`, `stack_markers.gd`, `stun_screen.gd`, `outfit_lines.gd`, `hud_probe.gd`, `command_menu.gd`, `order_markers.gd` |
+| `hud/` | `domain-ui-hud` | `debug_ui.gd`, `match_hud.gd`, `spectator_inspector.gd`, `contact_markers.gd`, `stack_markers.gd`, `stun_screen.gd`, `outfit_lines.gd`, `hud_probe.gd`, `command_menu.gd`, `command_panel.gd`, `order_markers.gd` |
 | `overlays/` | `domain-ui-overlays` | `overlay_registry.gd`, `overlay_toggles.gd`, `performance_overlay.gd`, `leader_overlay.gd`, `drag_handle.gd` |
-| `testing/` | `domain-ui-testing` | `test_browser_window.gd`, `test_result_hud.gd` |
+| `testing/` | `domain-ui-testing` | `test_browser_window.gd`, `test_browser_list.gd`, `test_result_hud.gd` |
 
 Load the matching sub-skill before editing a folder. What they share: every widget is built in code (no scene-side layout), takes plain
 data or reads published contracts only, never reaches into another domain's internals, and runs `PROCESS_MODE_ALWAYS` when it must keep
