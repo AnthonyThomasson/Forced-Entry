@@ -15,9 +15,9 @@ var squad: Node
 ## every `StackClaim.HEARTBEAT` s).
 var ledger: RefCounted = ClaimLedger.new()
 ## `_stacks()` as last laid (`now`).
-var _cache: Array = []
-## The physics frame `_cache` was laid on (-1: lay it again on the next read).
-var _at := -1
+var _stacks_cache: Array = []
+## The physics frame `_stacks_cache` was laid on (-1: lay it again on the next read).
+var _stacks_at := -1
 ## The doorway geometry the stacks are laid out by, the same the NPCs build.
 var entry: RefCounted = AgentEntry.new()
 
@@ -31,15 +31,15 @@ func _init(team: Node) -> void:
 ## frame (about 0.14 ms a lay with a six-member stack).
 func now() -> Array:
 	var frame := Engine.get_physics_frames()
-	if frame != _at:
-		_cache = _stacks()
-		_at = frame
-	return _cache
+	if frame != _stacks_at:
+		_stacks_cache = _stacks()
+		_stacks_at = frame
+	return _stacks_cache
 
 
 ## Lay the stacks again on the next read (`now`): a claim heard or a member's death.
 func invalidate() -> void:
-	_at = -1
+	_stacks_at = -1
 
 
 ## Every stack the side is forming (LD18), from the entry claims heard:
