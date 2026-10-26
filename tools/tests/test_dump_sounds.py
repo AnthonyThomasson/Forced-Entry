@@ -12,8 +12,9 @@ from tools.coverage.tests.support import env_with_godot, godot_binary, needs_god
 
 ROOT = Path(__file__).resolve().parents[2]
 DUMP = ROOT / "tools" / "dump_sounds.gd"
-# The profile it renders is the grenade family's (SoundGrenades), listed by the bank.
-SOURCES = (ROOT / "scenes" / "audio" / "sound_bank.gd", ROOT / "scenes" / "audio" / "sound_grenades.gd")
+# The profile it renders is the grenade family's (SoundGrenades), listed by the bank and rendered by the synth.
+SOURCES = (ROOT / "scenes" / "audio" / "sound_bank.gd", ROOT / "scenes" / "audio" / "sound_grenades.gd",
+           ROOT / "scenes" / "audio" / "sound_synth.gd")
 PROFILE = "tinnitus/whine"
 WAV = "tinnitus_whine_v0.wav"
 

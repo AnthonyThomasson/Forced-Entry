@@ -4,9 +4,8 @@ extends RefCounted
 ## record (`new_watch`) filled every physics frame (`tick`, or `watch` for a whole run), its reads
 ## (`asked`, `gaps`, `took`, `acts_of`, `went_through`) and `percentile`, the statistic the band
 ## checks take over `gaps`; `off_spot_tick`, a member's clock off its follow spot; and `step_up`,
-## the
-## human walked up to `STEP_UP` beside the back door while the watch ticks. The NPC's
-## reads and the spec's numbers are `follow_probe.gd`'s, read there.
+## the human walked up to `STEP_UP` beside the back door while the watch ticks. The NPC's reads and
+## the spec's numbers are `follow_probe.gd`'s, read there.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 ## The order probe, whose back-door click point the human steps up to.

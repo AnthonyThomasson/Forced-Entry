@@ -69,10 +69,6 @@ func run(t: TestContext) -> void:
 	await _check_frag_caught_householder(t, inv)
 
 
-# Notes the invader's acts, whether it fought the householder from outside the kitchen and whether
-# GRENADE was offered, until something is thrown (or 60 s pass).
-
-
 func _check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if not t.check(

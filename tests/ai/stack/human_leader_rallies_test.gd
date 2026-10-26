@@ -12,7 +12,6 @@ extends GameTest
 const Follow := preload("res://tests/_ai/follow_probe.gd")
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 ## How long (s) the NPCs have, once the human has claimed, to stand ready in the stack.

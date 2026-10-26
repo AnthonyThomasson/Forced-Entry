@@ -82,10 +82,6 @@ func _set_up(t: TestContext, inv: Node, hostile: Node) -> bool:
 	)
 
 
-# Notes the invader's acts, whether it fought the householder from outside the kitchen and whether
-# GRENADE was offered, until something is thrown (or 60 s pass).
-
-
 func _check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
 	if not t.check(
