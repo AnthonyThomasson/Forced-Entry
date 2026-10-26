@@ -170,7 +170,7 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		&"shot":
 			_play(
 				SHOT,
-				SoundBank.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))),
+				SoundGuns.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))),
 				data,
 			)
 		&"hit":
@@ -258,7 +258,7 @@ func _on_reload(data: Dictionary) -> void:
 			else (&"in" if data.get("stage", &"") == &"done" else &""))
 	_play_named(
 		RELOAD,
-		SoundBank.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0))),
+		SoundGuns.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0))),
 		data,
 	)
 

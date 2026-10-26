@@ -37,25 +37,25 @@ func _check_shots(t: TestContext) -> void:
 	for gun: StringName in GunConfig.guns:
 		t.check(
 			SoundBank.recipe_for(
-				SoundBank.shot_profile(gun, GunConfig.guns[gun]["penetration"]),
+				SoundGuns.shot_profile(gun, GunConfig.guns[gun]["penetration"]),
 			).size() > 0,
 			"the %s has a shot recipe" % gun,
 		)
 
-	t.expect_eq(SoundBank.shot_profile(&"pistol"), &"shot/pistol", "a pistol shot")
-	t.expect_eq(SoundBank.shot_profile(&"rifle", 0.1), &"shot/rifle", "a known gun ignores power")
+	t.expect_eq(SoundGuns.shot_profile(&"pistol"), &"shot/pistol", "a pistol shot")
+	t.expect_eq(SoundGuns.shot_profile(&"rifle", 0.1), &"shot/rifle", "a known gun ignores power")
 	t.expect_eq(
-		SoundBank.shot_profile(&"railgun", 3.0),
+		SoundGuns.shot_profile(&"railgun", 3.0),
 		&"shot/rifle",
 		"an unknown heavy gun sounds like the rifle",
 	)
 	t.expect_eq(
-		SoundBank.shot_profile(&"railgun", 1.0),
+		SoundGuns.shot_profile(&"railgun", 1.0),
 		&"shot/pistol",
 		"an unknown medium gun like the pistol",
 	)
 	t.expect_eq(
-		SoundBank.shot_profile(&"", 0.5),
+		SoundGuns.shot_profile(&"", 0.5),
 		&"shot/smg",
 		"no gun at all, a light round: the SMG",
 	)
@@ -130,27 +130,27 @@ func _check_footsteps(t: TestContext) -> void:
 ## Reloads by gun and stage; every gun has both.
 func _check_reloads(t: TestContext) -> void:
 	t.expect_eq(
-		SoundBank.reload_profile(&"rifle", &"out"),
+		SoundGuns.reload_profile(&"rifle", &"out"),
 		&"reload/rifle/out",
 		"a rifle's magazine coming out",
 	)
 	t.expect_eq(
-		SoundBank.reload_profile(&"pistol", &"in"),
+		SoundGuns.reload_profile(&"pistol", &"in"),
 		&"reload/pistol/in",
 		"a pistol's going in",
 	)
 	t.expect_eq(
-		SoundBank.reload_profile(&"railgun", &"in", 3.0),
+		SoundGuns.reload_profile(&"railgun", &"in", 3.0),
 		&"reload/rifle/in",
 		"an unknown heavy gun reloads like the rifle",
 	)
 	t.expect_eq(
-		SoundBank.reload_profile(&"", &"out", 0.5),
+		SoundGuns.reload_profile(&"", &"out", 0.5),
 		&"reload/smg/out",
 		"no gun, a light round: the SMG",
 	)
 	t.expect_eq(
-		SoundBank.reload_profile(&"pistol", &"start"),
+		SoundGuns.reload_profile(&"pistol", &"start"),
 		&"",
 		"only `out` and `in` are stages",
 	)
@@ -158,7 +158,7 @@ func _check_reloads(t: TestContext) -> void:
 		for stage in [&"out", &"in"]:
 			t.check(
 				not SoundBank.recipe_for(
-					SoundBank.reload_profile(gun, stage, GunConfig.guns[gun]["penetration"]),
+					SoundGuns.reload_profile(gun, stage, GunConfig.guns[gun]["penetration"]),
 				).is_empty(),
 				"the %s has a reload %s sound" % [gun, stage],
 			)

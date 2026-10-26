@@ -2,10 +2,10 @@ class_name SoundBank
 ## Audio domain: the sound library. A *profile* is a StringName that fully describes one sound —
 ## `shot/rifle`, `impact/metal/ricochet/heavy`, `impact/flesh/punch`, `footstep/wood/run`,
 ## `reload/rifle/in` — and `sound(profile, variant)` builds its recipe from the tables below
-## and its families' (SoundFootsteps), renders it through SoundSynth once and caches the stream (a
-## static cache, like PixelArt's, so it survives scene reloads). Which profile an event gets is
-## decided by the `*_profile` functions here and the families' `profile` functions, which render
-## nothing.
+## and its families' (SoundFootsteps, SoundGuns), renders it through SoundSynth once and caches the
+## stream (a static cache, like PixelArt's, so it survives scene reloads). Which profile an event
+## gets is decided by the `*_profile` functions here and the families' profile functions, which
+## render nothing.
 ##
 ## Pieces of a profile:
 ##   gun       a GunConfig id (`pistol`, `smg`, `rifle`); an unknown gun is voiced as the gun of its
@@ -32,17 +32,6 @@ class_name SoundBank
 ## Penetration outcomes a bullet impact is voiced for (a punch is its own thing).
 const OUTCOMES: Array[StringName] = [&"blocked", &"penetrate", &"ricochet"]
 const BAND_NAMES: Array[String] = ["light", "medium", "heavy"]
-## The shot recipe an unlisted gun borrows, by band.
-const BAND_SHOT := { "light": "smg", "medium": "pistol", "heavy": "rifle" }
-## Reloads, by gun: pitch scales every click (heavier = lower), db trims the level, seat = the pitch
-## (Hz) of the faint tick under the magazine seating click, rack = seconds from the magazine seating
-## to the action being racked.
-const RELOADS := {
-	"pistol": { "pitch": 1.0, "db": 0.0, "seat": 190.0, "rack": 0.30 },
-	"smg": { "pitch": 1.1, "db": -1.0, "seat": 210.0, "rack": 0.30 },
-	"rifle": { "pitch": 0.85, "db": 2.0, "seat": 150.0, "rack": 0.42 },
-}
-const RELOAD_STAGES: Array[String] = ["out", "in"]
 ## How a projectile's weight colours an impact: crack loudness, pitch scale (heavier = lower), a
 ## level trim in dB, how much low body it carries (`body`: the thump every hit has) and `sub`: an
 ## extra deep boom under it that only the heavier rounds have.
@@ -50,26 +39,6 @@ const BANDS := {
 	"light": { "crack": 0.55, "pitch": 1.15, "db": -4.0, "body": 0.8, "sub": 0.0 },
 	"medium": { "crack": 1.0, "pitch": 1.0, "db": 0.0, "body": 1.0, "sub": 0.35 },
 	"heavy": { "crack": 1.4, "pitch": 0.78, "db": 4.0, "body": 1.7, "sub": 0.8 },
-}
-## Gunshots. crack / bark = [decay s, low-pass Hz, gain] of the sharp snap and the mid-range bark;
-## body = [start Hz, end Hz, decay s, gain] of the low thump that drops in pitch; tail = [decay s,
-## low-pass Hz, gain] of the room's tail.
-const SHOTS := {
-	"pistol": {
-		"length": 0.42, "level_db": 0.0, "crack": [0.011, 7500.0, 1.0],
-		"bark": [0.030, 3200.0, 0.55], "body": [175.0, 58.0, 0.10, 0.85],
-		"tail": [0.13, 1700.0, 0.35],
-	},
-	"smg": {
-		"length": 0.28, "level_db": -3.0, "crack": [0.008, 9000.0, 1.0],
-		"bark": [0.020, 3800.0, 0.50], "body": [210.0, 85.0, 0.055, 0.70],
-		"tail": [0.07, 2100.0, 0.28],
-	},
-	"rifle": {
-		"length": 0.80, "level_db": 2.0, "crack": [0.016, 9500.0, 1.2],
-		"bark": [0.045, 2800.0, 0.70], "body": [125.0, 42.0, 0.15, 1.00],
-		"tail": [0.26, 1300.0, 0.50],
-	},
 }
 ## What a struck material sounds like. hard = rings and throws a bullet back with a ping (soft
 ## materials whip instead); thump = how much low body a hit has (0 = none, 1 = all); modes / amps /
@@ -285,14 +254,6 @@ static func band(power: float) -> String:
 	return "medium"
 
 
-## The shot profile of `gun`; a gun without its own recipe borrows its band's from `power`.
-static func shot_profile(gun: StringName, power: float = 1.0) -> StringName:
-	var id := String(gun)
-	if not SHOTS.has(id):
-		id = BAND_SHOT[band(power)]
-	return StringName("shot/" + id)
-
-
 ## The impact profile for a hit on `material` with `outcome` (`blocked` / `penetrate` / `ricochet` /
 ## `punch`) by a projectile of `power`; &"" when `outcome` is none of those.
 static func impact_profile(material: String, outcome: StringName, power: float = 1.0) -> StringName:
@@ -302,17 +263,6 @@ static func impact_profile(material: String, outcome: StringName, power: float =
 	if not OUTCOMES.has(outcome):
 		return &""
 	return StringName("impact/%s/%s/%s" % [mat, outcome, band(power)])
-
-
-## The reload profile for `gun` at `stage` (&"out" or &"in"); a gun without its own recipe borrows
-## its band's from `power`. &"" when `stage` is neither.
-static func reload_profile(gun: StringName, stage: StringName, power: float = 1.0) -> StringName:
-	if not RELOAD_STAGES.has(String(stage)):
-		return &""
-	var id := String(gun)
-	if not RELOADS.has(id):
-		id = BAND_SHOT[band(power)]
-	return StringName("reload/%s/%s" % [id, stage])
 
 
 ## The throw profile of a grenade of `kind`; &"" for an unknown kind.
@@ -388,11 +338,7 @@ static func crash_profile(material: String, speed: float) -> StringName:
 ## Every profile the bank can voice (what the pre-warm and the sound dump walk through).
 static func profiles() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for gun: String in SHOTS:
-		out.append(StringName("shot/" + gun))
-	for gun: String in RELOADS:
-		for stage in RELOAD_STAGES:
-			out.append(StringName("reload/%s/%s" % [gun, stage]))
+	out.append_array(SoundGuns.profiles())
 	for mat: String in MATERIALS:
 		out.append(StringName("impact/%s/punch" % mat))
 		for outcome in OUTCOMES:
@@ -468,21 +414,26 @@ static func _key(profile: StringName, variant: int) -> String:
 	return "%s#%d" % [profile, variant]
 
 
-## The synthesis recipe of `profile` ({} if unknown).
+## The synthesis recipe of `profile` ({} if unknown): its family's (the profile's first part).
 static func recipe_for(profile: StringName) -> Dictionary:
-	var p := String(profile).split("/")
-	if p.size() == 2:
-		return _named_recipe(p[0], p[1])
-	return _parted_recipe(p, profile)
+	var parts := String(profile).split("/")
+	var out := {}
+	match parts[0]:
+		"shot", "reload":
+			out = SoundGuns.recipe(parts)
+		"footstep":
+			out = SoundFootsteps.recipe(parts)
+		_:
+			out = (_named_recipe(parts[0], parts[1])
+					if parts.size() == 2
+					else _parted_recipe(parts, profile))
+	return out
 
 
 ## The recipe of a two-part profile, `family/id` ({} if unknown).
 static func _named_recipe(family: String, id: String) -> Dictionary:
 	var recipe := {}
 	match family:
-		"shot":
-			if SHOTS.has(id):
-				recipe = _shot(id)
 		"throw":
 			if THROWS.has(id):
 				recipe = _throw(id)
@@ -510,11 +461,6 @@ static func _parted_recipe(p: PackedStringArray, profile: StringName) -> Diction
 	match p[0]:
 		"impact":
 			recipe = _impact_recipe(p)
-		"footstep":
-			recipe = SoundFootsteps.recipe(p)
-		"reload":
-			if p.size() == 3 and RELOADS.has(p[1]) and RELOAD_STAGES.has(p[2]):
-				recipe = _reload(p[1], p[2])
 		"grenade":
 			if p.size() == 3 and GRENADE_BODIES.has(p[1]) and GRENADE_SURFACES.has(p[2]):
 				recipe = _grenade(p[1], p[2])
@@ -549,54 +495,6 @@ static func clear_cache() -> void:
 ## How many sounds are rendered and cached.
 static func cached_count() -> int:
 	return _cache.size()
-
-
-## The recipe of `gun`'s report: the sharp crack, the mid-range bark, the low body thump and the
-## room's tail.
-static func _shot(gun: String) -> Dictionary:
-	var g: Dictionary = SHOTS[gun]
-	var crack: Array = g["crack"]
-	var bark: Array = g["bark"]
-	var body: Array = g["body"]
-	var tail: Array = g["tail"]
-	return {
-		"length": g["length"], "level_db": g["level_db"], "drive": 2.0,
-		"layers": [
-			{
-				"type": "noise",
-				"gain": crack[2],
-				"decay": crack[0],
-				"lp": crack[1],
-				"hp": 500.0,
-				"attack": 0.0003,
-			},
-			{
-				"type": "noise",
-				"gain": bark[2],
-				"decay": bark[0],
-				"lp": bark[1],
-				"hp": 150.0,
-				"attack": 0.0006,
-			},
-			{
-				"type": "tone",
-				"gain": body[3],
-				"freq": body[0],
-				"freq_end": body[1],
-				"sweep": 0.025,
-				"decay": body[2],
-			},
-			{
-				"type": "noise",
-				"gain": tail[2],
-				"decay": tail[0],
-				"lp": tail[1],
-				"hp": 120.0,
-				"delay": 0.012,
-				"attack": 0.006,
-			},
-		],
-	}
 
 
 ## The recipe of a hit on `material` with `outcome` by a round of weight `band_id`: the material's
@@ -765,78 +663,6 @@ static func _impact_ricochet(layers: Array, hard: bool, s: Dictionary) -> float:
 		"attack": 0.003,
 	})
 	return 0.2
-
-
-## A reload in two beats, each kept to dry, quiet clicks. `out`: the release click and a faint tick
-## of the magazine dropping free. `in`: a seat click, then a rack click.
-static func _reload(gun: String, stage: String) -> Dictionary:
-	var g: Dictionary = RELOADS[gun]
-	var p: float = g["pitch"]
-	var out := stage == "out"
-	return {
-		"length": 0.22 if out else 0.09 + float(g["rack"]) + 0.1,
-		"level_db": float(g["db"]) + (-6.0 if out else -4.0),
-		"vary": 0.06,
-		"layers": _reload_out(p) if out else _reload_in(g, p),
-	}
-
-
-## A magazine going out at pitch `p`: one dry click as the catch lets go, and a faint tick of the
-## magazine dropping free.
-static func _reload_out(p: float) -> Array:
-	return [
-		{
-			"type": "noise",
-			"gain": 0.8,
-			"decay": 0.004,
-			"lp": 5000.0 * p,
-			"hp": 1800.0,
-			"attack": 0.0002,
-		},
-		{
-			"type": "tone",
-			"gain": 0.15,
-			"freq": 140.0 * p,
-			"freq_end": 90.0 * p,
-			"sweep": 0.012,
-			"decay": 0.025,
-			"delay": 0.14,
-		},
-		{
-			"type": "noise", "gain": 0.2, "decay": 0.008, "lp": 2500.0, "hp": 400.0,
-			"delay": 0.14,
-		},
-	]
-
-
-## A magazine of reload row `g` coming in at pitch `p`: two small clicks, the magazine seating, then
-## the action racked. No rasp, ring or slam.
-static func _reload_in(g: Dictionary, p: float) -> Array:
-	var rack: float = g["rack"]
-	return [
-		{
-			"type": "noise",
-			"gain": 0.5,
-			"decay": 0.007,
-			"lp": 3800.0 * p,
-			"hp": 1200.0,
-			"delay": 0.09,
-			"attack": 0.0003,
-		},
-		{
-			"type": "tone", "gain": 0.12, "freq": float(g["seat"]),
-			"freq_end": float(g["seat"]) * 0.6, "sweep": 0.01, "decay": 0.02, "delay": 0.09,
-		},
-		{
-			"type": "noise",
-			"gain": 0.6,
-			"decay": 0.009,
-			"lp": 4000.0 * p,
-			"hp": 900.0,
-			"delay": 0.09 + rack,
-			"attack": 0.0003,
-		},
-	]
 
 
 ## A grenade leaving the hand: the lever springs off with a ping and the arm whips it away in a
