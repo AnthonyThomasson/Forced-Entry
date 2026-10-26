@@ -186,7 +186,7 @@ func setup() -> void:
 ## runtime (e.g. by the dev command server).
 func apply_config(npc_tuning: NpcTuning) -> void:
 	tuning = npc_tuning
-	_ledger.setup({ "range": tuning.radio.callout_range, "ttl": tuning.radio.callout_ttl })
+	_ledger.setup({ "range": npc_tuning.radio.callout_range, "ttl": npc_tuning.radio.callout_ttl })
 	_apply_senses(npc_tuning)
 	_apply_tactics(npc_tuning)
 	_apply_doorways(npc_tuning)

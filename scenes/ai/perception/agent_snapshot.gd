@@ -100,7 +100,8 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		"allies": allies,
 		"callouts": callouts,
 		"fronts": {},
-		# hostile id -> whether this NPC is hidden from it where it stands (see watched_in_open)
+		# hostile id -> whether this NPC is hidden from it where it stands (see agent_tactics.gd
+		# `_watched_in_open`)
 		"covered_from": {},
 	}
 	# Each hostile's front (its last-seen facing while recent, else toward this NPC): the frame its

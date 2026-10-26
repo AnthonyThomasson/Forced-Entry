@@ -1403,9 +1403,9 @@ func _retreat_summary(options: Array, dmg: float) -> String:
 
 
 ## The world point to investigate when under fire from an unseen shooter:
-## `tuning.context.investigate_distance` px
-## from the NPC toward where the shots came from, snapped onto the navmesh unless `snap_to_navmesh`
-## is false (the retreat group wants the raw direction as a threat position, not a reachable spot).
+## `tuning.context.investigate_distance` px from the NPC toward where the shots came from, snapped
+## onto the navmesh unless `snap_to_navmesh` is false (the retreat group wants the raw direction as
+## a threat position, not a reachable spot).
 func _shot_origin(ctx: Dictionary, snap_to_navmesh := true) -> Vector2:
 	var from: Vector2 = _memory.under_fire_from()
 	var reach: float = _v.tuning.context.investigate_distance

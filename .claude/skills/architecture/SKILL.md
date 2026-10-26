@@ -1097,16 +1097,19 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   it (the vehicle's). The AI splits the same way (`docs/adr/0006-the-ai-orchestrator-and-behaviour-split.md`), with two
   differences. Its tunables are per NPC, in typed topic nodes under the controller's `Tuning` child (`tuning: NpcTuning`,
   fifteen `class_name` `Npc<Topic>Tuning` nodes holding only exports, since an export must name a global class), which
-  behaviour's modules read live (`tuning.<topic>.<name>`) and perception and the planner copy each decision. And its parts are
+  behaviour's modules, perception and the snapshot's vocabulary read live (`tuning.<topic>.<name>`), and
+  perception's geometry modules and the planner copy each decision (PlayerStack and the squads build those modules
+  with no NPC). And its parts are
   reached by preload const with **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and
   `_reflexes`; behaviour's `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and
   `world` and its ten parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`);
   combat's `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; the launcher's
-  `_probe`. A part member read from outside its part is public on it, its underscore and any prefix the part's name says
+  `_probe`; the doorway geometry's `slots`. A part member read from outside its part is public on it, its underscore and any prefix the part's name says
   dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage` `grenade.stage`); one used only inside its
   part keeps its name. Behaviour's, locomotion's and the controller's working parts hold their Node owner (`behavior`, `loco`,
   `controller`). Entry is a `RefCounted`, so its parts hold only its `state` and `world` leaves: a part method that needs the
-  entry or a sibling takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. Combat's
+  entry or a sibling takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. The doorway geometry
+  (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry` at the call and hold nothing of it. Combat's
   `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and confines, the probe) hold
   no owner (`tests/ai/ai_parts_free_suite.gd`).
 

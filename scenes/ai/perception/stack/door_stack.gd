@@ -46,10 +46,9 @@ func slot_for(me: Dictionary) -> int:
 
 ## Where member `me` (its `slot`, the side it asks for `want`) stands among the claims (E19 to E22):
 ## `{ slot, side, place, point }`, its side the one `StackLayout.side_for` gives that slot (`want`
-## while its
-## wall has room, E21), its place in that side's file and its point (`Vector2.INF` for a slot a
-## dead end does not hold). A claim still on the slot a member moved up into counts at the slot that
-## member freed (E2, the move-up rewrite), whoever asks.
+## while its wall has room, E21), its place in that side's file and its point (`Vector2.INF` for a
+## slot a dead end does not hold). A claim still on the slot a member moved up into counts at the
+## slot that member freed (E2, the move-up rewrite), whoever asks.
 func settle(me: Dictionary) -> Dictionary:
 	var n := int(me.get("slot", 0))
 	var claims := _moved_up(me)

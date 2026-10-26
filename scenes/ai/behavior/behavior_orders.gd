@@ -85,7 +85,7 @@ func same(leaf: Dictionary) -> bool:
 
 ## Whether the NPC is on an ordered stack's way to its door (`docs/leadership.md` LD9): running the
 ## entry an order gave it, or a detour of the entry guard paused in front of one. Its walk is
-## guarded whatever `entry_enabled` says (D4).
+## guarded whatever `tuning.entry.enabled` says (D4).
 func ordered_stack() -> bool:
 	var task: RunningLeaf = behavior.task
 	if task.primitive == &"entry" and ordered_entry(task.params):
