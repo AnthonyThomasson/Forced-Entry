@@ -124,7 +124,7 @@ func _start_session(out: String) -> void:
 	_session = TestSessionScript.new()
 	_session.name = "TestSession"
 	_session.watch = _watch
-	_session.launcher_parent = self
+	_session.von.launcher_parent = self
 	_session.bundle_dir = out.path_join("failures") if out != "" else BUNDLE_DIR
 	add_child(_session)
 	_session.status.connect(func(text: String):
