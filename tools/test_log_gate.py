@@ -647,10 +647,9 @@ class GdStyleLintTests(unittest.TestCase):
     """tools/lint.sh runs gdstyle (v0.4.0, fetched by tools/gdstyle.sh): a script `gdstyle fmt --check` would change
     fails it, and so does a line over 100 columns the formatter leaves alone; a formatted script passes.
 
-    gdstyle's quality/* rules (issue #76) are each in exactly one of three tables, read against gdstyle.toml: a rule
-    on has a probe that breaks it alone, which tools/lint.sh fails naming the rule; a rule off by decision (its reason
-    beside it in gdstyle.toml) has a probe that breaks it, which tools/lint.sh passes; a rule not yet on turns on in a
-    later stage of #76, which moves it into QUALITY_ON with its probe."""
+    gdstyle's quality/* rules (issue #76) are each in exactly one of two tables, read against gdstyle.toml: a rule on
+    has a probe that breaks it alone, which tools/lint.sh fails naming the rule; a rule off by decision (its reason
+    beside it in gdstyle.toml) has a probe that breaks it, which tools/lint.sh passes."""
 
     CLEAN = "extends RefCounted\n\n\nfunc total() -> int:\n\tvar a := 1 + 2\n\treturn a\n"
     UNFORMATTED = "extends RefCounted\n\n\nfunc total()->int:\n\tvar a:=1+2\n\treturn a\n"  # no spaces round '+'
@@ -686,10 +685,11 @@ class GdStyleLintTests(unittest.TestCase):
         "quality/max-local-variables": "extends RefCounted\n\n\nfunc f() -> int:\n\tvar v0 := 1\n"
                                        + "".join(f"\tvar v{i} := v{i - 1} + 1\n" for i in range(1, 11)) + "\treturn v10\n",
         # The structural rules, each one past gdstyle's default: 20 public methods, 1000 lines (gdstyle counts the
-        # final newline's empty line too, so 1002 lines read as 1003).
+        # final newline's empty line too, so 1002 lines read as 1003), 15 class variables.
         "quality/max-public-methods": "extends RefCounted\n"
                                       + "".join(f"\n\nfunc f{i}() -> int:\n\treturn {i}\n" for i in range(21)),
         "quality/max-file-length": "extends RefCounted\n\n" + "".join(f"const C{i} := {i}\n" for i in range(1000)),
+        "quality/max-class-variables": "extends RefCounted\n\n" + "".join(f"var v{i} := {i}\n" for i in range(16)),
     }
     QUALITY_OFF_BY_DECISION = {
         "quality/no-debug-print": "extends RefCounted\n\n\nfunc f() -> void:\n\tprint(\"x\")\n",
@@ -699,7 +699,6 @@ class GdStyleLintTests(unittest.TestCase):
         # No node in it: gdstyle reads a % format with a call after it as a %UniqueNode lookup.
         "quality/process-get-node": "extends Node\n\n\nfunc _process(delta: float) -> void:\n\tset_meta(\"t\", \"%d\" % ceili(delta))\n",
     }
-    QUALITY_NOT_YET = ("quality/max-class-variables",)
     FINDING = re.compile(r"^\s+(\S+\.gd):\d+:\d+: .* \[([\w/-]+)\]$", re.M)  # a `gdstyle check` line of lint.sh
 
     @classmethod
@@ -763,7 +762,7 @@ class GdStyleLintTests(unittest.TestCase):
 
     def test_every_quality_rule_is_in_exactly_one_table(self):
         rules = self.quality_rules()
-        tables = [set(self.QUALITY_ON), set(self.QUALITY_OFF_BY_DECISION), set(self.QUALITY_NOT_YET)]
+        tables = [set(self.QUALITY_ON), set(self.QUALITY_OFF_BY_DECISION)]
         self.assertEqual(sum(len(t) for t in tables), len(set().union(*tables)), "a rule in two tables")
         self.assertEqual(set().union(*tables), set(rules), "a quality/* rule of gdstyle.toml without a row, or a row for none")
         self.assertEqual(tables[0], {r for r, level in rules.items() if level == "error"}, "QUALITY_ON is the rules on")

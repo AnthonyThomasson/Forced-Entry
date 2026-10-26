@@ -24,9 +24,9 @@ interface 23), the module Main builds its matches with, so a test world is stage
   integer division (it recompiles the script once per `/`). Then the project lint rules (`tools/lint_rules/`) and
   gdstyle (`tools/gdstyle.sh`, pinned v0.4.0; config `gdstyle.toml`): `gdstyle fmt --check` names every script the
   formatter would change, `gdstyle check` every finding of its rules (a line over 100 columns, tabs, member order,
-  naming, ...: all errors but some `quality/*` ones, 15 on, five off by decision and the three structural ones,
-  `max-file-length`, `max-class-variables` and `max-public-methods`, until stage 3 of issue #76 turns them on, 18 on
-  then, as `gdstyle.toml` says); one finding fails the run like a warning. Run `tools/lint.sh scenes/x.gd`
+  naming, ...: all errors but some `quality/*` ones, 18 on, among them the three structural ones,
+  `max-file-length`, `max-class-variables` and `max-public-methods`, and five off by decision, as `gdstyle.toml`
+  says); one finding fails the run like a warning. Run `tools/lint.sh scenes/x.gd`
   for one script and `tools/gdstyle.sh fmt scenes/x.gd` to format it. Fix the code: never silence a warning or a
   finding (see `audit`).
 - **CLI:** `tools/run_tests.sh [filter words] [--include-von]` runs every test through gdUnit4's command-line tool:
@@ -904,8 +904,8 @@ or the runner starts, and parses
   `test_report_hook.gd`, `run_tests.sh` or `scan_godot_log.py`. The same file tests the lint: `lint_report.py` on
   crafted logs, `run_tests.sh` stopping on a lint failure, the real engine through `tools/lint.sh` (the project is
   clean; a probe script's warnings are found) and the gdstyle pass on probe scripts (an unformatted one and a line over
-  100 columns fail; `GdStyleLintTests`' quality table puts every `quality/*` rule of `gdstyle.toml` in one of three
-  rows, on, off by decision or not yet on, and lints a probe per rule on, which fails naming it, and per rule off by
+  100 columns fail; `GdStyleLintTests`' quality table puts every `quality/*` rule of `gdstyle.toml` in one of two
+  rows, on or off by decision, and lints a probe per rule on, which fails naming it, and per rule off by
   decision, which passes, each probe clean with every quality rule off and breaking its own alone with every one on),
   each probe written into a copy of the checkout (`copy_checkout()`). Run it after editing
   `tools/lint*` or `gdstyle.toml` too. `tools/test_gdunit_wrap.py` runs

@@ -1,6 +1,6 @@
 # gdstyle (https://github.com/atelico/gdstyle, v0.4.0, run through tools/gdstyle.sh): the formatter and style lint
-# tools/lint.sh runs over every project script. Every rule is an error but some quality/* rules (below): 15 on, five
-# off by decision, the reason beside each, and the three structural ones stage 3 of issue #76 turns on (18 on then).
+# tools/lint.sh runs over every project script. Every rule is an error but some quality/* rules (below): 18 on and five
+# off by decision, the reason beside each.
 
 max_line_length = 100
 use_tabs = true
@@ -62,11 +62,10 @@ exclude = ["addons", ".godot", "artifacts", "tools/coverage/tests/fixtures"]
 "quality/max-local-variables" = "error"
 "quality/max-public-methods" = "error"
 "quality/max-file-length" = "error"
+"quality/max-class-variables" = "error"
 # Off by decision, each for the reason beside it:
 "quality/no-debug-print" = "off" # GameLog.say must print() (interface 15); runner and tools print by design
 "quality/await-in-loop" = "off" # `for ...: await t.seconds(...)` is how a GameTest steps time
 "quality/empty-function" = "off" # virtual hooks (Item.primary, GameTest.configure ...) stay empty to override
 "quality/allocation-in-loop" = "off" # setup loops that must make N nodes: spawning, wear, debris
 "quality/process-get-node" = "off" # gdstyle v0.4.0 reads a % format in _process() as a %Node lookup
-# Off until stage 3 of #76 (the structural splits) brings the tree to zero findings under each and turns it on:
-"quality/max-class-variables" = "off"
