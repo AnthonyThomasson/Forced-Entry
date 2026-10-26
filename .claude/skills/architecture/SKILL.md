@@ -1160,12 +1160,12 @@ Three conventions hold across domains; the per-domain specifics live in each dom
      Debugger > Errors tab (unused variable, integer division, shadowed names ...) per file, then every project lint rule
      (`tools/lint_rules/`, one section each), then gdstyle's two (`gdstyle fmt --check`: a script the formatter would change;
      `gdstyle check`: the rules `gdstyle.toml` turns on, among them lines over 100 columns and member order, and of its
-     `quality/*` rules 15, at gdstyle's default thresholds: `unnecessary-pass`, `self-comparison`, `duplicate-dict-key`,
-     `duplicated-load`, `max-inner-classes`, `no-self-assign`, `unreachable-code`, `no-else-return` and the function-level
+     `quality/*` rules 18, at gdstyle's default thresholds: `unnecessary-pass`, `self-comparison`, `duplicate-dict-key`,
+     `duplicated-load`, `max-inner-classes`, `no-self-assign`, `unreachable-code`, `no-else-return`, the function-level
      `max-function-length`, `max-parameters`, `type-hint`, `max-nesting-depth`, `max-returns`, `max-branches` and
-     `max-local-variables`; five are off by decision (`no-debug-print`, `await-in-loop`, `empty-function`,
-     `allocation-in-loop`, `process-get-node`; the reasons beside them in `gdstyle.toml`), and the three structural ones
-     (`max-file-length`, `max-class-variables`, `max-public-methods`) at their defaults too, 18 on);
+     `max-local-variables`, and the structural `max-file-length`, `max-class-variables` and `max-public-methods`; five
+     are off by decision (`no-debug-print`, `await-in-loop`, `empty-function`, `allocation-in-loop`, `process-get-node`;
+     the reasons beside them in `gdstyle.toml`));
      any finding fails it, and it runs first in every
      `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH` formats a script. Fix the code;
      never silence a warning (`audit`).
