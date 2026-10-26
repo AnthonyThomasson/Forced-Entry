@@ -5,6 +5,8 @@ extends GameTest
 
 const CameraController = preload("res://scenes/general/camera_controller.gd")
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## The two cruising speeds (px/s), fixed numbers in reach of the car whatever its top speed and well
 ## apart (the zoom follows speed over top speed).
 const MID_SPEED := 160.0
@@ -32,8 +34,8 @@ func configure(s: TestSetup) -> void:
 
 ## Hold puppet "me" near `target` px/s for `duration` s and return the camera's zoom at the end.
 func _cruise(t: TestContext, car: Node2D, cam: Camera2D, target: float, duration: float) -> float:
-	await Probe.reach_speed(t, &"me", car, target, 8.0)
-	await Probe.hold_speed(t, &"me", car, Probe.hold(target, 0.0, duration))
+	await VehicleRide.reach_speed(t, &"me", car, target, 8.0)
+	await VehicleRide.hold_speed(t, &"me", car, VehicleRide.hold(target, 0.0, duration))
 	return cam.zoom.x
 
 
@@ -54,7 +56,10 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.5)
 	var on_foot := cam.zoom.x
 
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	await t.seconds(1.5)
 	t.expect_near(cam.zoom.x, on_foot, 0.03, "seated in the parked car the zoom is the on-foot one")
@@ -73,7 +78,7 @@ func run(t: TestContext) -> void:
 	)
 
 	t.puppet(&"me").drive(-1.0, 0.0, false)
-	await t.until(func(): return Probe.along(car) <= 2.0, 8.0)
+	await t.until(func(): return VehicleFrame.along(car) <= 2.0, 8.0)
 	t.puppet(&"me").drive(0.0, 0.0, false)
 	await t.seconds(3.0)
 	t.expect_near(cam.zoom.x, on_foot, 0.03, "stopped, the zoom eases back in")

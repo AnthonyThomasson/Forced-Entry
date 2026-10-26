@@ -4,6 +4,8 @@ extends GameTest
 ## that door.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const BLOCKERS := {
 	&"block_fl": &"front_left", &"block_fr": &"front_right", &"block_rl": &"rear_left",
 	&"block_rr": &"rear_right",
@@ -38,7 +40,7 @@ func run(t: TestContext) -> void:
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
 	if not t.require(
-			await Probe.board_by(t, &"me", car, &"front_left"),
+			await VehicleRide.board_by(t, &"me", car, &"front_left"),
 			"the character gets in at the front left",
 	):
 		return
@@ -48,7 +50,7 @@ func run(t: TestContext) -> void:
 		"the door shuts behind it",
 	)
 	for id in BLOCKERS:
-		await Probe.place(t, id, Probe.stand_point(car, BLOCKERS[id], 18.0))
+		await VehicleRide.place(t, id, VehicleFrame.stand_point(car, BLOCKERS[id], 18.0))
 
 	t.puppet(&"me").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(t, car, func(): return false, 2.0)
@@ -56,7 +58,7 @@ func run(t: TestContext) -> void:
 	t.check(me.use.is_in_vehicle() and me.use.vehicle() == car, "the character stays in")
 	t.expect_eq(Probe.seat_of(car, me), &"driver", "in its seat")
 
-	await Probe.place(t, &"block_fr", Vector2(820, 560))
+	await VehicleRide.place(t, &"block_fr", Vector2(820, 560))
 	t.puppet(&"me").use_vehicle()
 	watched = await Probe.watch_doors(t, car, func(): return me.use.vehicle() == null, 8.0)
 	if not t.require(watched["done"], "with the front right cleared, E gets the character out"):

@@ -4,6 +4,8 @@ extends GameTest
 ## with no sideways velocity) stays in the rear half of the body, and slip() stays under 0.05.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -27,17 +29,20 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	var tail := Probe.tail_offset(car).x
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	var tail := VehicleFrame.tail_offset(car).x
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
-	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 0.0, 1.0))
+	await VehicleRide.hold_speed(t, &"me", car, VehicleRide.hold(40.0, 0.0, 1.0))
 	var heading := car.global_rotation
 	# [the most forward pivot, the most rearward, the peak slip(), frames turning] (an Array: a
 	# lambda captures plain locals by value).
 	var seen := [-INF, INF, 0.0, 0]
-	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 1.0, 0.5))
-	await Probe.hold_speed(t, &"me", car, Probe.hold(40.0, 1.0, 2.0), func():
-		var x := Probe.pivot(car)
+	await VehicleRide.hold_speed(t, &"me", car, VehicleRide.hold(40.0, 1.0, 0.5))
+	await VehicleRide.hold_speed(t, &"me", car, VehicleRide.hold(40.0, 1.0, 2.0), func():
+		var x := VehicleFrame.pivot(car)
 		if x != INF:
 			seen[0] = maxf(seen[0], x)
 			seen[1] = minf(seen[1], x)

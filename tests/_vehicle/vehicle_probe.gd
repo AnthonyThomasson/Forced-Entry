@@ -1,6 +1,8 @@
 extends RefCounted
 ## Shared bits for the vehicle tests (ticket #54, rules V1 to V9; not a test).
 ## `const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")`.
+## The vehicle's frame is in `vehicle_frame_probe.gd` (`const VehicleFrame`); placing, the ride
+## and driving in `vehicle_ride_probe.gd` (`const VehicleRide`).
 ##
 ## Everything is read through the drivable contract: the character's `use.try_use_vehicle()`,
 ## `use.vehicle()`, `use.is_in_vehicle()` (true only while seated) and `movement.posture_folded()`
@@ -92,7 +94,7 @@ static func has_reads(t: TestContext, node: Object, methods: Array, what: String
 ## The Vehicles domain's static holder `holder` (`VehicleConfig`, `VehicleCollisionConfig` ...),
 ## looked up by class name, so a test naming one still parses before it exists. A missing holder is
 ## an error, and null.
-static func config(holder: StringName) -> Script:
+static func _config(holder: StringName) -> Script:
 	for c in ProjectSettings.get_global_class_list():
 		if c["class"] == holder:
 			return load(c["path"])
@@ -103,7 +105,7 @@ static func config(holder: StringName) -> Script:
 ## A number of a Vehicles holder by name (`VehicleConfig`'s `kinds` ...). A missing holder or a name
 ## the holder has no static var by is an error, and null: never a stand-in value.
 static func config_value(holder: StringName, prop: StringName) -> Variant:
-	var c := config(holder)
+	var c := _config(holder)
 	if c == null:
 		return null
 	if not prop in c:
@@ -135,7 +137,7 @@ static func door(v: Node, id: StringName) -> Dictionary:
 
 
 ## The ids of `v`'s doors.
-static func door_ids(v: Node) -> Array:
+static func _door_ids(v: Node) -> Array:
 	return v.doors().map(func(d): return d.get("id"))
 
 
@@ -172,7 +174,7 @@ static func sorted(ids: Array) -> Array:
 ## `timeout` s). Returns `{ done: bool (condition came true), max: { door id: open } }`.
 static func watch_doors(t: TestContext, v: Node, condition: Callable, timeout: float) -> Dictionary:
 	var most := {}
-	for id in door_ids(v):
+	for id in _door_ids(v):
 		most[id] = 0.0
 	var deadline := t.time + timeout
 	var done := false
@@ -192,199 +194,6 @@ static func opened(watched: Dictionary, threshold := 0.5) -> Array:
 	for id in watched["max"]:
 		if watched["max"][id] > threshold:
 			out.append(id)
-	return out
-
-
-# --- Geometry -------------------------------------------------------------------------------
-
-
-## The vehicle's front (unit, world).
-static func forward(v: Node2D) -> Vector2:
-	return v.global_transform.x.normalized()
-
-
-## Its right side (unit, world): +y at rotation 0, so its left side is toward -y.
-static func right(v: Node2D) -> Vector2:
-	return v.global_transform.y.normalized()
-
-
-## Out of door `d` (a `doors()` entry): behind the vehicle for a rear door, else away from its side.
-static func outward(v: Node2D, d: Dictionary) -> Vector2:
-	if d.get("kind") == &"rear":
-		return -forward(v)
-	var side := signf((d["handle"] as Vector2 - v.global_position).dot(right(v)))
-	return right(v) * (side if side != 0.0 else 1.0)
-
-
-## Where a character stands to use door `id`: `out` px out from its handle.
-static func stand_point(v: Node2D, id: StringName, out := 22.0) -> Vector2:
-	var d := door(v, id)
-	return (d["handle"] as Vector2) + outward(v, d) * out
-
-
-## Where the vehicle's body meets the line from its centre toward `direction` (world), by a ray from
-## far out along it that hits only the vehicle (whatever else is on the line is skipped). The centre
-## when nothing is hit.
-static func edge(v: Node2D, direction: Vector2) -> Vector2:
-	var space := v.get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(
-		v.global_position + direction.normalized() * 800.0,
-		v.global_position,
-	)
-	var skipped: Array[RID] = []
-	for i in 12:
-		query.exclude = skipped
-		var hit := space.intersect_ray(query)
-		if hit.is_empty():
-			break
-		if hit["collider"] == v:
-			return hit["position"]
-		skipped.append(hit["rid"])
-	return v.global_position
-
-
-## How far (px) from the vehicle's body along `direction` the next solid thing is (another body or a
-## wall), by a ray out from its edge; INF when nothing is within 2000 px.
-static func gap_to_solid(v: Node2D, direction: Vector2) -> float:
-	var space := v.get_world_2d().direct_space_state
-	var from := edge(v, direction)
-	var query := PhysicsRayQueryParameters2D.create(from, from + direction.normalized() * 2000.0)
-	query.exclude = [v.get_rid()]
-	var hit := space.intersect_ray(query)
-	return INF if hit.is_empty() else from.distance_to(hit["position"])
-
-
-## Its tail (the back of the body on its centre line) in its own frame, measured at rest.
-static func tail_offset(v: Node2D) -> Vector2:
-	return v.to_local(edge(v, -forward(v)))
-
-
-## The body's velocity in its own frame: x along its front, y toward its right.
-static func local_velocity(v: Node2D) -> Vector2:
-	var lv: Vector2 = v.get("linear_velocity")
-	return Vector2(lv.dot(forward(v)), lv.dot(right(v)))
-
-
-## The pivot: the point on the centre line (its own frame, + = forward of the centre) with no
-## sideways velocity, -lateral / yaw rate. In a gripping turn it is the rear axle; when the tail
-## slides out it moves forward. INF while the body turns slower than 0.1 rad/s.
-static func pivot(v: Node2D) -> float:
-	var w: float = v.get("angular_velocity")
-	if absf(w) <= 0.1:
-		return INF
-	return -local_velocity(v).y / w
-
-
-## The body slip angle toward the outside of the turn (rad): + when the velocity points outside the
-## heading (the tail is out, a slide), - when inside it (a gripping turn). 0 below 5 px/s or 0.05
-## rad/s of turn.
-static func outward_slip(v: Node2D) -> float:
-	var lv := local_velocity(v)
-	var w: float = v.get("angular_velocity")
-	if lv.length() < 5.0 or absf(w) < 0.05:
-		return 0.0
-	return -atan2(lv.y, absf(lv.x)) * signf(w)
-
-
-## Its velocity along its own front (px/s; negative = reversing).
-static func along(v: Node2D) -> float:
-	return (v.get("linear_velocity") as Vector2).dot(forward(v))
-
-
-# --- Moving things --------------------------------------------------------------------------
-
-
-## Put a character at `point` (standing still) and let a couple of frames pass.
-static func place(t: TestContext, id: StringName, point: Vector2) -> void:
-	var p := t.puppet(id)
-	if p != null:
-		p.stop()
-	t.actor(id).global_position = point
-	await t.frames(2)
-
-
-## Move a parked vehicle to `pos`, turned to `rot`: frozen a frame, moved, then let go (a free rigid
-## body moved directly is put back by the physics step).
-static func move_vehicle(t: TestContext, v: Node2D, pos: Vector2, rot: float) -> void:
-	v.set("freeze", true)
-	await t.frames(1)
-	v.global_position = pos
-	v.global_rotation = rot
-	await t.frames(1)
-	v.set("freeze", false)
-	await t.frames(2)
-
-
-## Press E for puppet `id` and wait until it is seated (true) or `timeout` passes.
-static func board(t: TestContext, id: StringName, timeout := 6.0) -> bool:
-	var c := t.actor(id)
-	t.puppet(id).use_vehicle()
-	return await t.until(func(): return c.use.is_in_vehicle(), timeout)
-
-
-## Press E for seated puppet `id` and wait until it is out (its `use.vehicle()` null) or `timeout`
-## passes.
-static func exit(t: TestContext, id: StringName, timeout := 8.0) -> bool:
-	var c := t.actor(id)
-	t.puppet(id).use_vehicle()
-	return await t.until(func(): return c.use.vehicle() == null, timeout)
-
-
-## Walk puppet `id` to door `door_id`'s stand point, press E and wait until seated. False when it
-## never sits.
-static func board_by(
-	t: TestContext,
-	id: StringName,
-	v: Node2D,
-	door_id: StringName,
-	timeout := 6.0,
-) -> bool:
-	await place(t, id, stand_point(v, door_id))
-	return await board(t, id, timeout)
-
-
-## Hold full throttle (puppet `id`) until `v` reaches `target` px/s; then let go. Whether it got
-## there.
-static func reach_speed(
-	t: TestContext,
-	id: StringName,
-	v: Node,
-	target: float,
-	timeout := 6.0,
-) -> bool:
-	var p := t.puppet(id)
-	p.drive(1.0, 0.0, false)
-	var ok := await t.until(func(): return v.speed() >= target, timeout)
-	p.drive(0.0, 0.0, false)
-	return ok
-
-
-## Puppet `id` drives `v` as `plan` says: for its `duration` s holding its `steer` (and
-## `handbrake`), the throttle on below its `target` px/s and off above it, calling `sample` each
-## frame.
-static func hold_speed(
-	t: TestContext,
-	id: StringName,
-	v: Node,
-	plan: Hold,
-	sample := Callable(),
-) -> void:
-	var p := t.puppet(id)
-	var deadline := t.time + plan.duration
-	while t.time < deadline:
-		p.drive(1.0 if v.speed() < plan.target else 0.0, plan.steer, plan.handbrake)
-		await t.frames(1)
-		if sample.is_valid():
-			sample.call()
-	p.drive(0.0, 0.0, false)
-
-
-## A `Hold` near `target` px/s for `duration` s, holding `steer`, the handbrake off.
-static func hold(target: float, steer: float, duration: float) -> Hold:
-	var out := Hold.new()
-	out.target = target
-	out.steer = steer
-	out.duration = duration
 	return out
 
 
@@ -428,15 +237,3 @@ static func everywhere() -> Dictionary:
 	for k in SOUND_CATEGORIES:
 		out[k] = 1.0e9
 	return out
-
-
-## How `hold_speed` drives: the speed it keeps near, its steer and handbrake, and for how long.
-class Hold:
-	## The speed it keeps near, px/s: the throttle on below it, off above it.
-	var target: float = 0.0
-	## The steer held, -1..1.
-	var steer: float = 0.0
-	## Whether the handbrake is held.
-	var handbrake: bool = false
-	## How long it drives, s.
-	var duration: float = 0.0

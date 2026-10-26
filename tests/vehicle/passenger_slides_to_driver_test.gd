@@ -5,6 +5,7 @@ extends GameTest
 ## car.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -43,7 +44,7 @@ func _check_empty_car(t: TestContext) -> bool:
 	var empty := t.vehicle(&"empty") as Node2D
 	var alone := t.actor(&"alone")
 	if not t.require(
-			await Probe.board_by(t, &"alone", empty, &"front_right"),
+			await VehicleRide.board_by(t, &"alone", empty, &"front_right"),
 			"the character gets in at the front right",
 	):
 		return false
@@ -67,12 +68,12 @@ func _check_taken_car(t: TestContext) -> void:
 	var taken := t.vehicle(&"taken") as Node2D
 	var rider := t.actor(&"rider")
 	if not t.require(
-			await Probe.board_by(t, &"driver", taken, &"front_left"),
+			await VehicleRide.board_by(t, &"driver", taken, &"front_left"),
 			"a driver gets into the second car",
 	):
 		return
 	if not t.require(
-			await Probe.board_by(t, &"rider", taken, &"front_right"),
+			await VehicleRide.board_by(t, &"rider", taken, &"front_right"),
 			"the rider gets in at the front right",
 	):
 		return

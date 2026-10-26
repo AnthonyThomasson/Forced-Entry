@@ -4,6 +4,7 @@ extends GameTest
 ## to drive; pressing it again gets it out.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -60,7 +61,7 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var you := t.actor(&"you")
-	you.global_position = Probe.stand_point(car, &"front_left")
+	you.global_position = VehicleFrame.stand_point(car, &"front_left")
 	await t.seconds(0.3)
 	await _tap(t, action)
 	if not t.require(

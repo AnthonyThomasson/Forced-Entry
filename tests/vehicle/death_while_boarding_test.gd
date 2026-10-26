@@ -4,6 +4,8 @@ extends GameTest
 ## seat), and the door it was using stays open.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -33,7 +35,7 @@ func run(t: TestContext) -> void:
 			"the car reports its front-left handle",
 	):
 		return
-	await Probe.place(t, &"me", Probe.stand_point(car, &"front_left"))
+	await VehicleRide.place(t, &"me", VehicleFrame.stand_point(car, &"front_left"))
 	t.puppet(&"me").use_vehicle()
 	if not t.require(
 			await t.until(func(): return Probe.open_of(car, &"front_left") >= 0.5, 3.0),

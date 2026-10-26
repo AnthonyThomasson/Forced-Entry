@@ -14,6 +14,8 @@ extends GameTest
 ## not the launch (`vehicle/top_speed`); the driver then holds the speed with the throttle.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## Lanes: id -> [driver, kind, speed held (px/s), largest radius allowed (px), start (px), set the
 ## speed at once].
 const LANES := {
@@ -107,7 +109,7 @@ static func _moments(points: Array, mean: Vector2) -> Moments:
 ## The body slip angle (rad, unsigned): between where the vehicle heads and where it moves. 0 below
 ## 5 px/s.
 static func slip_angle(v: Node2D) -> float:
-	var lv := Probe.local_velocity(v)
+	var lv := VehicleFrame.local_velocity(v)
 	if lv.length() < 5.0:
 		return 0.0
 	return absf(atan2(lv.y, lv.x))
@@ -124,10 +126,10 @@ func _turn(t: TestContext, id: StringName, settle: float, fit: float) -> Diction
 	# [the largest slip angle, the speed summed over the stretch] (an Array: a lambda captures plain
 	# locals by value).
 	var seen := [0.0, 0.0]
-	await Probe.hold_speed(t, driver, v, Probe.hold(target, 1.0, settle), func():
+	await VehicleRide.hold_speed(t, driver, v, VehicleRide.hold(target, 1.0, settle), func():
 		seen[0] = maxf(seen[0], slip_angle(v))
 		t.trace("%s slip angle" % id, slip_angle(v)))
-	await Probe.hold_speed(t, driver, v, Probe.hold(target, 1.0, fit), func():
+	await VehicleRide.hold_speed(t, driver, v, VehicleRide.hold(target, 1.0, fit), func():
 		points.append(v.global_position)
 		seen[0] = maxf(seen[0], slip_angle(v))
 		seen[1] += v.speed()
@@ -176,7 +178,7 @@ func run(t: TestContext) -> void:
 			return
 	for id in LANES:
 		if not t.require(
-				await Probe.board_by(t, LANES[id][0], t.vehicle(id) as Node2D, &"front_left"),
+				await VehicleRide.board_by(t, LANES[id][0], t.vehicle(id) as Node2D, &"front_left"),
 				"a driver gets into %s" % id,
 		):
 			return
@@ -186,10 +188,10 @@ func run(t: TestContext) -> void:
 		var v := t.vehicle(id) as Node2D
 		var fast: bool = LANES[id][5]
 		if fast:
-			v.set("linear_velocity", Probe.forward(v) * float(LANES[id][2]))
+			v.set("linear_velocity", VehicleFrame.forward(v) * float(LANES[id][2]))
 		else:
-			await Probe.hold_speed(
-				t, LANES[id][0], v, Probe.hold(float(LANES[id][2]), 0.0, SLOW_RUN_UP),
+			await VehicleRide.hold_speed(
+				t, LANES[id][0], v, VehicleRide.hold(float(LANES[id][2]), 0.0, SLOW_RUN_UP),
 			)
 		var turned: Dictionary = await _turn(
 			t,

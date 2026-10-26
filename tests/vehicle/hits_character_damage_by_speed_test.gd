@@ -5,6 +5,8 @@ extends GameTest
 ## speeds it is hurt and lives, above harm_kill_speed it dies.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const LANES := { &"slow": 150.0, &"mid": 400.0, &"fast": 650.0 }
 ## The gap (px) between a car's nose and the character it rolls into.
 const GAP := 8.0
@@ -49,11 +51,11 @@ func run(t: TestContext) -> void:
 	var placed := await _place_characters(t)
 	for lane in LANES:
 		var car := t.vehicle(lane) as Node2D
-		car.set("linear_velocity", Probe.forward(car) * float(speeds[lane]))
+		car.set("linear_velocity", VehicleFrame.forward(car) * float(speeds[lane]))
 	await t.seconds(1.5)
 
 	var slow := t.actor(&"hit_slow")
-	var front := Probe.forward(t.vehicle(&"slow") as Node2D)
+	var front := VehicleFrame.forward(t.vehicle(&"slow") as Node2D)
 	t.check(
 		not slow.is_dead and is_equal_approx(slow.health, slow.max_health),
 		"at 60 px/s the character is unhurt (health %.1f)" % slow.health,
@@ -81,6 +83,7 @@ func _place_characters(t: TestContext) -> Dictionary:
 		var car := t.vehicle(lane) as Node2D
 		var who := StringName("hit_" + lane)
 		var radius: float = t.actor(who).radius
-		placed[lane] = Probe.edge(car, Probe.forward(car)) + Probe.forward(car) * (radius + GAP)
-		await Probe.place(t, who, placed[lane])
+		placed[lane] = (VehicleFrame.edge(car, VehicleFrame.forward(car))
+				+ VehicleFrame.forward(car) * (radius + GAP))
+		await VehicleRide.place(t, who, placed[lane])
 	return placed

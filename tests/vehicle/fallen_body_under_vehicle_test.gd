@@ -8,6 +8,8 @@ extends GameTest
 ## effective one: absolute z first, then tree order (`Probe.draws_above`).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## How far ahead of the car's nose (px) the victim stands: room to get past harm_kill_speed.
 const RUN_UP := 900.0
 ## A body this close to the car's outline (px) counts as beside it.
@@ -92,8 +94,12 @@ func _set_up(t: TestContext) -> Scene:
 		return null
 	scene.kill_speed = float(kill)
 	var car := scene.car
-	scene.half_length = car.global_position.distance_to(Probe.edge(car, Probe.forward(car)))
-	scene.half_width = car.global_position.distance_to(Probe.edge(car, Probe.right(car)))
+	scene.half_length = car.global_position.distance_to(
+		VehicleFrame.edge(car, VehicleFrame.forward(car)),
+	)
+	scene.half_width = car.global_position.distance_to(
+		VehicleFrame.edge(car, VehicleFrame.right(car)),
+	)
 	scene.floors = _floors(t.world)
 	if not t.require(not scene.floors.is_empty(), "the arena has a floor to compare against"):
 		return null
@@ -104,11 +110,14 @@ func _set_up(t: TestContext) -> Scene:
 ## ended).
 func _run_down(t: TestContext, scene: Scene) -> bool:
 	var car := scene.car
-	if not t.require(await Probe.board_by(t, &"driver", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"driver", car, &"front_left"),
+		"the driver gets in",
+	):
 		return false
 	await t.seconds(0.5)
-	var nose := Probe.edge(car, Probe.forward(car))
-	await Probe.place(t, &"victim", nose + Probe.forward(car) * RUN_UP)
+	var nose := VehicleFrame.edge(car, VehicleFrame.forward(car))
+	await VehicleRide.place(t, &"victim", nose + VehicleFrame.forward(car) * RUN_UP)
 
 	# Full throttle at the victim until it is struck down.
 	t.puppet(&"driver").drive(1.0, 0.0, false)
@@ -135,7 +144,8 @@ func _sample_after_death(t: TestContext, scene: Scene) -> Dictionary:
 	}
 	p.drive(-1.0, 0.0, false)
 	var deadline := t.time + 3.0
-	while t.time < deadline and (Probe.along(car) > 2.0 or not victim.anatomy.ragdoll.is_settled()):
+	while (t.time < deadline
+			and (VehicleFrame.along(car) > 2.0 or not victim.anatomy.ragdoll.is_settled())):
 		await t.frames(1)
 		_sample(t, scene, samples)
 	p.drive(0.0, 0.0, false)

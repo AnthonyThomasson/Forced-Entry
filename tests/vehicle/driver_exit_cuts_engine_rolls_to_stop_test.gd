@@ -4,6 +4,7 @@ extends GameTest
 ## within a few seconds, and staying there.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -30,7 +31,10 @@ func run(t: TestContext) -> void:
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
 	t.check(not car.engine_state().get("running", false), "a parked car's engine is off")
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	t.check(
 		await t.until(func(): return car.engine_state().get("running", false), 2.0),
@@ -72,7 +76,10 @@ func run(t: TestContext) -> void:
 
 ## Premise: the car reaches 40 px/s, then coasts down under the exit speed (false: ends the test).
 func _coast_under_exit_speed(t: TestContext, car: Node2D) -> bool:
-	if not t.require(await Probe.reach_speed(t, &"me", car, 40.0, 5.0), "the car reaches 40 px/s"):
+	if not t.require(
+		await VehicleRide.reach_speed(t, &"me", car, 40.0, 5.0),
+		"the car reaches 40 px/s",
+	):
 		return false
 	return t.require(
 		await t.until(func(): return car.speed() <= Probe.EXIT_MAX_SPEED - 2.0, 15.0),

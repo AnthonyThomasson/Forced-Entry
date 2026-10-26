@@ -11,6 +11,8 @@ extends GameTest
 ## `vehicle/top_speed`).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## Launch lanes: id -> [driver, kind, target speed (px/s), within (s)].
 const LAUNCH := {
 	&"car_go": [&"cg", &"car", 640.0, 1.1],
@@ -66,8 +68,9 @@ func run(t: TestContext) -> void:
 			return
 	for lanes in [LAUNCH, BRAKE]:
 		for id in lanes:
+			var v := t.vehicle(id) as Node2D
 			if not t.require(
-					await Probe.board_by(t, lanes[id][0], t.vehicle(id) as Node2D, &"front_left"),
+					await VehicleRide.board_by(t, lanes[id][0], v, &"front_left"),
 					"a driver gets into %s" % id,
 			):
 				return
@@ -139,7 +142,7 @@ func _launch_missed(id: StringName, at_deadline: Dictionary) -> String:
 func _check_brakes(t: TestContext) -> void:
 	for id in BRAKE:
 		var v := t.vehicle(id) as Node2D
-		v.set("linear_velocity", Probe.forward(v) * float(BRAKE[id][2]))
+		v.set("linear_velocity", VehicleFrame.forward(v) * float(BRAKE[id][2]))
 		t.puppet(BRAKE[id][0]).drive(-1.0, 0.0, false)
 	var start := t.time
 	var stopped := {}
@@ -153,7 +156,7 @@ func _check_brakes(t: TestContext) -> void:
 				# what it rolled at once the brakes were on (a premise: it really started at the
 				# top)
 				first[id] = v.speed()
-			if not stopped.has(id) and Probe.along(v) <= STOPPED:
+			if not stopped.has(id) and VehicleFrame.along(v) <= STOPPED:
 				stopped[id] = t.time - start
 				t.puppet(BRAKE[id][0]).drive(0.0, 0.0, false)
 	_judge_brakes(t, stopped, first)

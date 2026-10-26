@@ -4,6 +4,8 @@ extends GameTest
 ## `vehicle` crash event with its speed and the struck material.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -31,7 +33,10 @@ func run(t: TestContext) -> void:
 	var crash_min: Variant = Probe.config_value(&"VehicleCollisionConfig", &"crash_min_speed")
 	if not t.require(crash_min != null, "VehicleCollisionConfig.crash_min_speed exists"):
 		return
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	var crashed := func(): return t.happened(&"vehicle", func(d): return d.get("stage") == &"crash")
 	var before := 0.0
@@ -68,4 +73,7 @@ func run(t: TestContext) -> void:
 
 	await t.seconds(1.0)
 	t.check(car.speed() < 20.0, "the wall has stopped it (%.1f px/s)" % car.speed())
-	t.check(Probe.edge(car, Probe.forward(car)).x < 1400.0, "and it stays this side of the wall")
+	t.check(
+		VehicleFrame.edge(car, VehicleFrame.forward(car)).x < 1400.0,
+		"and it stays this side of the wall",
+	)

@@ -836,10 +836,11 @@ numbers as consts (`DOOR_REACH`, `BOARD_MAX_SPEED`, `EXIT_MAX_SPEED`, `HARM_MIN_
 checks the door's and the fold's measured ease against the last two, within 0.4× to 2×) and each kind's door table
 (`CAR_DOORS`, `VAN_DOORS`), so a test checks the spec and not the code; `ready` / `has_reads` (a read that does not exist fails a `require`
 instead of a script error), `config_value(holder, prop)` / `kind_value` (a Vehicles holder's static read by class name; a missing holder or var is an error, never a fallback), the door and seat reads (`door`, `open_of`,
-`seat_of`, `occupant`, `watch_doors` / `opened`), the vehicle frame (`forward`, `right`, `outward`, `stand_point`, `edge`, `gap_to_solid`,
-`local_velocity`, `pivot`, `outward_slip`, `along`), placing (`place`, `move_vehicle`), the ride (`board`, `exit`, `board_by`), driving
-(`reach_speed`, `hold_speed`) and the draw layers (`layer`, `absolute_z`, `draws_above`). Everything goes through the drivable contract
-(interface 19) duck-typed. `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character,
+`seat_of`, `occupant`, `watch_doors` / `opened`) and the draw layers (`layer`, `absolute_z`, `draws_above`). Beside it, the vehicle frame
+in `tests/_vehicle/vehicle_frame_probe.gd` (`const VehicleFrame := preload(...)`: `forward`, `right`, `outward`, `stand_point`, `edge`,
+`gap_to_solid`, `tail_offset`, `local_velocity`, `pivot`, `outward_slip`, `along`), and placing (`place`, `move_vehicle`), the ride (`exit`,
+`board_by`) and driving (`reach_speed`, `hold_speed`, `hold`) in `tests/_vehicle/vehicle_ride_probe.gd` (`const VehicleRide :=
+preload(...)`). Everything goes through the drivable contract (interface 19) duck-typed. `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character,
 items, interaction, projectile, physics, objects, ai, perf, audio and general.
 
 ## Errors and warnings fail the test (`log_watch.gd`)

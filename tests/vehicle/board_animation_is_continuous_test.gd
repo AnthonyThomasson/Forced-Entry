@@ -6,6 +6,8 @@ extends GameTest
 ## from standing to seated, and the seated character ends drawn over the chassis and under the roof.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## The most the facing may turn in one frame (rad): 15 rad/s, a half turn in no less than 0.2 s.
 const MAX_TURN_PER_FRAME := 0.25
 ## The most the fold may change in one frame: a 0.5 s eased fold peaks near 0.05.
@@ -84,13 +86,13 @@ func _premises(t: TestContext) -> bool:
 func _start_in_reach(t: TestContext, car: Node2D) -> bool:
 	var d := Probe.door(car, &"front_left")
 	var handle: Vector2 = d["handle"]
-	var start := handle + Probe.outward(car, d) * 35.0 + Probe.forward(car) * 25.0
+	var start := handle + VehicleFrame.outward(car, d) * 35.0 + VehicleFrame.forward(car) * 25.0
 	if not t.require(
 			start.distance_to(handle) < Probe.DOOR_REACH,
 			"the start is in reach of the front-left handle",
 	):
 		return false
-	await Probe.place(t, &"me", start)
+	await VehicleRide.place(t, &"me", start)
 	var puppet := t.puppet(&"me")
 	puppet.aim_at(start + (start - car.global_position))
 	await t.seconds(0.4)
@@ -149,8 +151,8 @@ func _check_facing(t: TestContext, car: Node2D, handle: Vector2, got: Samples) -
 			faced_door = true
 	t.check(faced_door, "it turns to face the door before folding in")
 	t.check(
-		face[-1].dot(Probe.forward(car)) > 0.9,
-		"it ends facing forward (dot %.2f)" % face[-1].dot(Probe.forward(car)),
+		face[-1].dot(VehicleFrame.forward(car)) > 0.9,
+		"it ends facing forward (dot %.2f)" % face[-1].dot(VehicleFrame.forward(car)),
 	)
 
 
@@ -215,7 +217,9 @@ func _check_fold(t: TestContext, got: Samples) -> void:
 
 ## Seated: inside the body, over the chassis and under the roof.
 func _check_seated(t: TestContext, car: Node2D, me: Node2D) -> void:
-	var reach_in := car.global_position.distance_to(Probe.edge(car, -Probe.forward(car)))
+	var reach_in := car.global_position.distance_to(
+		VehicleFrame.edge(car, -VehicleFrame.forward(car)),
+	)
 	t.check(
 		me.global_position.distance_to(car.global_position) < reach_in,
 		"the character ends inside the car's body",

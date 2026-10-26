@@ -5,6 +5,8 @@ extends GameTest
 ## speed with no E).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## The speed (px/s) the car is driven up to before it is let go, coasting or with E.
 const CRUISE := 70.0
 
@@ -31,7 +33,10 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var me := t.actor(&"me")
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 
 	var coast_time := await _coast_reference(t, car)
@@ -40,7 +45,7 @@ func run(t: TestContext) -> void:
 
 	# --- E at CRUISE.
 	if not t.require(
-			await Probe.reach_speed(t, &"me", car, CRUISE, 6.0),
+			await VehicleRide.reach_speed(t, &"me", car, CRUISE, 6.0),
 			"the car reaches %.0f px/s again" % CRUISE,
 	):
 		return
@@ -76,7 +81,7 @@ func run(t: TestContext) -> void:
 ## Returns the coast's time, s, or -1 when the car never reached CRUISE (the test has ended).
 func _coast_reference(t: TestContext, car: Node2D) -> float:
 	if not t.require(
-			await Probe.reach_speed(t, &"me", car, CRUISE, 6.0),
+			await VehicleRide.reach_speed(t, &"me", car, CRUISE, 6.0),
 			"the car reaches %.0f px/s" % CRUISE,
 	):
 		return -1.0
@@ -85,7 +90,7 @@ func _coast_reference(t: TestContext, car: Node2D) -> float:
 	var coast_time := t.time - let_go
 	t.trace("coast_time", coast_time)
 	t.puppet(&"me").drive(-1.0, 0.0, false)
-	await t.until(func(): return Probe.along(car) <= 2.0, 5.0)
+	await t.until(func(): return VehicleFrame.along(car) <= 2.0, 5.0)
 	t.puppet(&"me").drive(0.0, 0.0, false)
 	await t.seconds(0.5)
 	return coast_time

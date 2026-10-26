@@ -4,6 +4,7 @@ extends GameTest
 ## afterwards drives it (so the stillness is the seat, not a car that cannot move).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -30,7 +31,7 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	if not t.require(
-			await Probe.board_by(t, &"back", car, &"rear_left"),
+			await VehicleRide.board_by(t, &"back", car, &"rear_left"),
 			"the character gets in at the rear left",
 	):
 		return
@@ -56,11 +57,11 @@ func run(t: TestContext) -> void:
 	t.puppet(&"back").drive(0.0, 0.0, false)
 
 	if not t.require(
-			await Probe.board_by(t, &"front", car, &"front_left"),
+			await VehicleRide.board_by(t, &"front", car, &"front_left"),
 			"a driver gets in at the front left",
 	):
 		return
 	t.check(
-		await Probe.reach_speed(t, &"front", car, 40.0, 4.0),
+		await VehicleRide.reach_speed(t, &"front", car, 40.0, 4.0),
 		"the driver's throttle moves the car (%.0f px/s)" % car.speed(),
 	)

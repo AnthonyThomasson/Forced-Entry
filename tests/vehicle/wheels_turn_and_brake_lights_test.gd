@@ -6,6 +6,8 @@ extends GameTest
 ## on the throttle.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -29,7 +31,10 @@ func run(t: TestContext) -> void:
 	if not Probe.ready(t, &"car", [&"me"], [&"wheel_angle", &"brake_lights"]):
 		return
 	var car := t.vehicle(&"car") as Node2D
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	await t.seconds(0.5)
 	t.check(
@@ -73,7 +78,7 @@ func _check_brake_lights(t: TestContext, car: Node2D) -> bool:
 	await t.seconds(1.0)
 	t.check(not car.brake_lights(), "no brake lights on the throttle")
 	if not t.require(
-			await Probe.reach_speed(t, &"me", car, 150.0, 6.0),
+			await VehicleRide.reach_speed(t, &"me", car, 150.0, 6.0),
 			"the car reaches 150 px/s",
 	):
 		return false
@@ -82,7 +87,7 @@ func _check_brake_lights(t: TestContext, car: Node2D) -> bool:
 	p.drive(-1.0, 0.0, false)
 	await t.frames(3)
 	t.check(
-		car.brake_lights() and Probe.along(car) > 0.0,
+		car.brake_lights() and VehicleFrame.along(car) > 0.0,
 		"the brake lights show while S slows the car",
 	)
 	p.drive(1.0, 0.0, false)
@@ -94,7 +99,7 @@ func _check_brake_lights(t: TestContext, car: Node2D) -> bool:
 ## At speed full steer turns the wheels less far than `right_lock`, the lock at rest.
 func _check_steer_at_speed(t: TestContext, car: Node2D, right_lock: float) -> void:
 	var p := t.puppet(&"me")
-	await Probe.reach_speed(t, &"me", car, 150.0, 4.0)
+	await VehicleRide.reach_speed(t, &"me", car, 150.0, 4.0)
 	p.drive(1.0, 1.0, false)
 	await t.seconds(0.6)
 	var at_speed: float = car.wheel_angle()

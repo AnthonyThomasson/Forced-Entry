@@ -4,6 +4,8 @@ extends GameTest
 ## wall), and a crash it posts names the chair's material.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const CHAIR_AT := Vector2(800, 300)
 
 
@@ -32,10 +34,13 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var chair := t.object(&"chair") as Node2D
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	var start := chair.global_position
-	var front := Probe.forward(car)
+	var front := VehicleFrame.forward(car)
 	var touched := -1.0
 	var speed_at_touch := 0.0
 	t.puppet(&"me").drive(1.0, 0.0, false)
