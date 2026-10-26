@@ -31,7 +31,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"seen_sofa", "sofa", SEEN_SOFA)
 	s.object(&"hidden_sofa", "sofa", HIDDEN_SOFA)
 	s.actor(&"inv", &"invader", NPC_AT, { "movement:speed": 0.0, "facing": Vector2.RIGHT })
-	s.set_props(&"inv", "GoalController", { "decide_interval": 0.3 })
+	s.set_props(&"inv", "GoalController", { "tuning:decision:decide_interval": 0.3 })
 
 
 func run(t: TestContext) -> void:

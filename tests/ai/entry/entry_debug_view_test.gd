@@ -24,7 +24,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	Entry.npc(s, &"a", Vector2(960, 60))
-	Entry.npc(s, &"b", Vector2(985, 110), { "decide_interval": 0.55 })
+	Entry.npc(s, &"b", Vector2(985, 110), { "tuning:decision:decide_interval": 0.55 })
 	s.show_overlays(["show_entry", "show_entry_team"])
 
 

@@ -209,8 +209,8 @@ spot it last saw it) and starts no new decision; it stumbles, slowed and driftin
 of a hostile it knew (with the sway: no shot strays more than 25 degrees off that spot, plus the one-handed spread below). *(Amended by
 issue #56.)* It looks stunned as any character does (G13: a hand over its eyes, hunched, staggering), so the gun it fires blindly is held
 one-handed: each round spreads wider by the gun's `one_hand_spread_deg` (a pistol's 3 degrees: 28 in all), on top of the sway.
-Whether it fires blind is **one roll** as it goes blind (from not blind) against its `blind_fire_chance` (a `GoalController` export,
-Grenades group, **0.5**): a hit fires blindly as above; a miss **holds its fire** (no round, no click, an automatic's burst cut short)
+Whether it fires blind is **one roll** as it goes blind (from not blind) against its `tuning.grenades.blind_fire_chance` (a tunable of
+the NPC's, **0.5**): a hit fires blindly as above; a miss **holds its fire** (no round, no click, an automatic's burst cut short)
 until it can see, still turned to that spot. A further stun while it is still blind does not roll again. The roll is drawn from the
 NPC's own random number generator, seeded once from its character's name and spawn spot, each blinding taking the next draw, so a
 seeded match or a test that places the NPC the same way rolls the same. While deaf it hears no gunfire, no hits
@@ -308,7 +308,7 @@ with the gun in hand and shoots what it can. The NPC decided on a snapshot of a 
 of the spot: it then closes in until it is 15 px inside it (`AgentThrow.REACH_SLACK`) and throws (it does not give the throw up and flap in and out of the offer at
 the edge of the range). The throw is dropped, and the NPC re-decides, if the lob has become impossible (blocked by something taller than a lob clears) by the
 time the wind-up starts; once the wind-up has begun the throw is committed and radioed whatever happens to the line meanwhile. The throw order keeps
-the spot it was offered on (the hostile's last-known spot) when that contact ages out on the way (out of sight past `contact_memory_ttl` while it walks
+the spot it was offered on (the hostile's last-known spot) when that contact ages out on the way (out of sight past `tuning.memory.contact_ttl` while it walks
 to a throw spot, or while the entry guard's detour on that walk secures a doorway): losing the contact is not a change of belief that re-decides (the
 order keeps its hostile in the salient key while it runs, and while a detour has paused it), so the walk goes on, the detour hands the throw back and the
 grenade goes onto that spot. A new hostile still re-decides, and so does the death of the hostile the throw was offered on: a dead character is no
@@ -317,8 +317,8 @@ and there, so no grenade goes onto a body while the next decision is on its way.
 Options are `frag` and `stun`. What the AI knows of a grenade it has not thrown yet (how far it throws, its blast or flash radius, its fuse, how
 near furniture must be to shield from a flash) it reads off the grenades it carries, `Character.inventory.throw_stats(slot)` (G1), and off a live one it sees
 (`ThrownGrenade.throw_stats()`); it keeps no mirror of the numbers, so retuning a `GrenadeConfig` row retunes the AI (the tests
-`items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`). What stays the AI's own tuning are the `GoalController` exports of the
-Grenades group: `hear_grenade`, `evade_margin`, `grenades_enabled`. `debug_grenades().throw` holds `{ from, to, kind, radius }` while the throw is planned (until the grenade leaves the hand).
+`items/grenade_throw_stats` and `ai/grenade/grenade_range_follows_the_item`). What stays the AI's own tuning is the NPC's
+`tuning.grenades`: `hear_grenade`, `evade_margin`, `enabled`. `debug_grenades().throw` holds `{ from, to, kind, radius }` while the throw is planned (until the grenade leaves the hand).
 Tests: `ai/grenade/grenade_not_offered_ally_in_blast` (an ally in the zone), `ai/grenade/grenade_not_offered_no_safe_spot` (the thrower in the zone
 with a coffee table that shields nobody and nothing to hide behind: dropped; the same with a couch at hand: offered),
 `ai/grenade/grenade_not_offered_clear_shot` (and the same hostile pulled back to 740 px: offered only through a throw spot), `ai/grenade/throw_primitive_returns_to_gun` (the mechanism, scripted Von: the far thrower throws and
@@ -382,7 +382,7 @@ slot is out of its zone (the slot is its cover, `Entry.expects_burst`); a member
 - gunfire it heard came from inside it: "gunfire heard there";
 - it heard a stranger's footsteps there (`docs/hearing.md` H1): "footsteps heard there";
 - the NPC was shot at from it: the line back from where a shot at it landed, to the first wall behind, runs through the room (memory `shot_from`, `{ at, pos }`, kept
-  `lead_memory_ttl` 20 s, long after being under fire is over; `debug_memory()["shot_from"]`): "shots at you came from there". The line counts from where it leaves
+  `tuning.memory.lead_ttl` 20 s, long after being under fire is over; `debug_memory()["shot_from"]`): "shots at you came from there". The line counts from where it leaves
   the room the shot landed in (`AgentSuspicion.shot_line`): that room is only where the NPC stood, and once it has stepped out it is neither suspect nor where a
   grenade at the shots is aimed; when the line never leaves it, the shooter stood in it too, and it counts;
 - an ally radioed a hostile or a fight in it: every combat `callout` carries `target_pos`, the hostile's last-known spot as the speaker knows it (with no hostile known,
@@ -393,7 +393,7 @@ slot is out of its zone (the slot is its cover, `Entry.expects_burst`); a member
 A reason that comes up once a quiet entry is under way, before anyone crosses, turns it into a bang, and so does a member that joins a quiet stack knowing one
 (E17 of `docs/tactical-entry.md`, issue #51 R11: the claims say bang, the stack follows, the thrower throws first; the claims of a member that gave the bang up
 say `bang_off` and keep it quiet). **A quiet stack listens first** *(issue #51, R17)*: a quiet entry whose stack carries a stun holds at the stack
-`entry_listen_time` (3 s, a `GoalController` export) from the point getting to its slot before the point slices the pie, so a late reason has time to come
+`tuning.entry.listen_time` (3 s, a tunable of the NPC's) from the point getting to its slot before the point slices the pie, so a late reason has time to come
 up; a hostile in view or coming under fire ends the hold early, and a stack without a stun (or one that gave the bang up) does not hold.
 **The thrower is committed to the bang** *(issue #51, R16)*: from its call until the stun leaves its hand (the walk out to its spot, the stun taken in hand,
 the wind-up) no new decision is started or adopted, so a hostile seen on the walk out or in the wind-up does not make it leave; it throws, then decides

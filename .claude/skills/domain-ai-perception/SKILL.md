@@ -30,22 +30,23 @@ Files:
 - `agent_snapshot.gd` + `snapshot/` — the BUILD half (`domain-ai-snapshot`): turns the gathered knowledge + the tactics geometry
   into the decision SNAPSHOT (facts / sections / option groups) and owns the measured wording Von reads. Pure transform.
 
-The controller (`ai/goal_controller.gd`) calls `setup()` once to BUILD the internal modules, then `apply_config(self)`, which sets the
-perception's own tunables and its modules' straight from the controller's exports (the one authoring surface: a module field is
+The controller (`ai/goal_controller.gd`) calls `setup()` once to BUILD the internal modules, then `apply_config(tuning)`, which sets the
+perception's own tunables and its modules' straight from the NPC's tuning topics (`NpcTuning`, `ai/tuning/`: the one authoring surface; a module field is
 declared where it is read, and only the modules built without the controller keep a default: `AgentVision`, `AgentMemory`,
 `AgentThrow`, `AgentEntry` and `AgentDoorViews`, built by the tests and the `ai/team/` files), and `bind(character)` once it knows the
 body it drives (its first `control()`) — and
-re-calls `apply_config(self)` each decision, so a tunable retuned at runtime reaches the modules without a
+re-calls `apply_config(tuning)` each decision, so a tunable retuned at runtime reaches the modules without a
 rebuild that would wipe the event memory. Nothing outside this folder holds a reference to them.
 
 ## Public interface (what the orchestrator / behaviour call)
 
-(Config: the controller's exports, read by `apply_config(cfg)`; the perception keeps as fields only those it reads itself: `contact_memory_ttl`,
-`familiar_with_house`, `lead_memory_ttl`, `search_memory_ttl`, `hit_awareness_radius`, `hearing_radius`, the hearing ranges `hear_walk` / `hear_run` /
-`hear_crouch`, `under_fire_time`, `engage_dwell`, `track_smoothing`, `callout_range`, `callout_ttl`, `entry_enabled`, `entry_guard` and
-`entry_pass_clear_time`; the rest, `grenades_enabled`, `hear_grenade` and `evade_margin` among them, go straight to the module that reads them.)
+(Config: the NPC's tuning topics, copied each decision by `apply_config(tuning)`; the perception keeps as fields only those it reads itself: `contact_memory_ttl`
+(`tuning.memory.contact_ttl`), `familiar_with_house`, `lead_memory_ttl` (`memory.lead_ttl`), `search_memory_ttl` (`memory.search_ttl`), `hit_awareness_radius`
+(`combat`), `hearing_radius` and the hearing ranges `hear_walk` / `hear_run` / `hear_crouch` (`senses`), `under_fire_time`, `engage_dwell` (`combat`),
+`track_smoothing` (`context`), `callout_range`, `callout_ttl` (`radio`), `entry_enabled` (`entry.enabled`), `entry_guard` (`entry_guard.enabled`) and
+`entry_pass_clear_time` (`entry_guard.pass_clear_time`); the rest, `tuning.grenades.enabled`, `hear_grenade` and `evade_margin` among them, go straight to the module that reads them.)
 
-- `setup()` (build the modules), `apply_config(cfg)` (set its own tunables and its modules' from the controller `cfg`; re-callable each
+- `setup()` (build the modules), `apply_config(tuning)` (set its own tunables and its modules' from the NPC's `NpcTuning` topics; re-callable each
   decision), `bind(character)` (the NPC's body, which every sense and query reads from then on; it tells the hostility rules the
   body's faction and hands the body on to `AgentThrow`, `AgentGrenades` and the snapshot, each with its own `bind`). No function
   below takes the character.
@@ -141,8 +142,8 @@ fact / section / option reference and the Von wording rules — is the **`domain
 
 The NPC perceives characters, not "the player". The hostility rules categorize each sighting: allies
 (the same faction) are never hostile; `on_sight` / `trespass` (seen inside the house)
-/ `retaliate` (attacked it, via `process_hit`). A verdict is remembered as `&"hostile"` with ttl
-`hostility_ttl` (≤ 0 = permanent grudge).
+/ `retaliate` (attacked it, via `process_hit`), set from `tuning.hostility` (`on_sight`, `on_trespass`, `on_attack`). A verdict is remembered as
+`&"hostile"` with ttl `tuning.hostility.ttl` (≤ 0 = permanent grudge).
 
 ## Vision & knowledge
 
@@ -229,7 +230,7 @@ navmesh within `SNAP_TOLERANCE`, within `reach` of the spot, more than a `STRIDE
 the `lob` callable: `AgentThrow.throw_clear` from there), then sorted as the fire spots are: hidden from the spot (`blocked`: low furniture between), then with
 cover close by against it (`cover_near`: a jamb, a piece), then the straight distance; routes only for the first `THROW_ROUTES` (10), through the optional `route`
 callable (`{ path, len, detour }`: the snapshot's `_throw_walk`, the walked route of `AgentDoorViews.walk_route` and whether the entry guard would stop it), kept when
-the route reaches it, is at most `throw_spot_walk` (250 px, the controller export in the Grenades group) and passes no known hostile (`route_crosses`); the pick is
+the route reaches it, is at most `throw_spot_walk` (250 px, `tuning.grenades.throw_spot_walk`) and passes no known hostile (`route_crosses`); the pick is
 the first with no `detour`, then hidden, then covered, then the shortest walk. `{ point, route_len, hidden, cover, detour }` or {}. Cost: ~150 snaps and lob tests and up to 10 routes, only for a throw the NPC cannot make where it stands.
 
 ## Entry geometry (`agent_entry.gd`)
@@ -244,13 +245,13 @@ and `along` (the wall's axis), `wall` (wall length either side), `side` (the sid
 `stack_spacing` (44 px: clear of the neighbour's footprint, outside the 34 px hole a body at rest on the next slot cuts in the
 steering map, so a slot is never a destination inside a teammate), snapped), `pie` (`pie_steps` points `pie_radius` from the threshold, from 55° to 25° off the axis), `lookouts` (the slots and pie points as laid out, before they are snapped
 onto the navmesh: where an entry's stack and point stand, or near it; what an ambush post is hidden from), and the
-`capacity` (how many go in: 2 when a side of the room is under `short_room`, the controller's `entry_short_room`, else `MAX_SLOTS`: E13), the
+`capacity` (how many go in: 2 when a side of the room is under `short_room`, the NPC's `tuning.entry_geometry.short_room`, else `MAX_SLOTS`: E13), the
 room's four corners inset `corner_inset`, each `near` (on the door's wall), `side` and `hard` (no sight line from 24 px
 outside the threshold). The claims and every slot rule that reads them (which slot is free, the team's side, a member's side and place,
 its point, the crossing order) are not `AgentEntry`'s but the stack module's (`stack/door_stack.gd`, "The stack" below); `AgentEntry` keeps
 the doorway's geometry. **A split stack (E19):** `stack_side_from(stack, from, map, space)` is the team's side (`DoorStack.team_side`)
 unless `cuts_view(g, from, to, map, space)` (the plain route from `from`, starting outside the doorway's view, `views.door_view`, crosses the door's axis inside the view: a walk
-that starts in the view or goes round it does not) says the way there crosses the view; then the member's own side (`side_of`). An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` and `AgentDoorViews` for the view rays. Tunables: the controller's `entry_*` exports.
+that starts in the view or goes round it does not) says the way there crosses the view; then the member's own side (`side_of`). An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` and `AgentDoorViews` for the view rays. Tunables: the NPC's `tuning.entry_geometry`.
 
 **Where a stack stands (E20 to E22, `_lay_slots`).** On a baked map with a physics space `_build` also lays the slots: `from` / `from_room` (the
 room the stack stands in, "" / a zero rect outside), `kind` and its layout, `wall_n` (how many slots the wall, or the fewest-seen spots,
@@ -312,8 +313,8 @@ point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuil
 `SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
 Locomotion's last leg, the way into a slot between two taken ones, which lies inside their carved margins); 0 when not, -1 while that map
 bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
-Config (the controller's exports, through `apply_config(cfg)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `entry_pass_clear_time` (on the perception); views are
-avoided only where `entry_enabled` and `entry_guard` are.
+Config (the NPC's `tuning.entry_guard`, through `apply_config(tuning)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `pass_clear_time` (the perception's `entry_pass_clear_time`); views are
+avoided only where `tuning.entry.enabled` and `tuning.entry_guard.enabled` are.
 **Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
 defend a room holds it: the room's doorways sorted by id, member `nth` taking doorway `nth` mod their number (the extras doubling up on its
 other side), the spot `DEFEND_DEPTHS` back from its wall and `DEFEND_LATERALS` past its jamb (best 100 / 50 px), inside the room by

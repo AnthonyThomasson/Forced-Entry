@@ -92,7 +92,8 @@ func _own_throws(npcs: Array) -> Dictionary:
 		var g = AgentThrow.new()
 		g.vision = AgentVision.new()
 		g.bind(npc)
-		g.evade_margin = float(TestContext.controller_of(npc).get("evade_margin"))
+		var brain := TestContext.controller_of(npc)
+		g.evade_margin = float(brain.get_indexed("tuning:grenades:evade_margin"))
 		own[npc] = g
 	return own
 

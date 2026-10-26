@@ -21,7 +21,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "tuning:entry:ready_timeout": 30.0 })
 	# Premise: the human defends (the household faction), so the invaders are not its team.
 	Stack.human(s, &"me", Stack.NEAR, { "faction": &"household" })
 

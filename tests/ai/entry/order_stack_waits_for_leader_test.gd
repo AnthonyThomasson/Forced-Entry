@@ -3,8 +3,8 @@ extends GameTest
 ## leader in it. While the human leader holds a slot (its `PlayerStack`) in a stack it ordered, the
 ## stack waits for it as for an ordered member: until it stands in its slot, at most
 ## `order_ready_cap`; its slot withdrawn (it walked away) frees them. It is not waited for as an
-## unordered teammate is (E16: `entry_ready_timeout`, 6 s, from the point's own arrival, then the
-## stack goes without it).
+## unordered teammate is (E16: `tuning.entry.ready_timeout`, 6 s, from the point's own arrival, then
+## the stack goes without it).
 ##
 ## Two stacks on the Terrace house (bare), both ordered by the human leader, quiet and go-when-ready
 ## (no hold for go: what holds them is the leader alone):

@@ -21,8 +21,8 @@ Files:
 - `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)` / `inside_house(p)`.
 
 The controller calls `setup(perception, nav_agent)`
-once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules, then `apply_config(self)`, which sets the behaviour's
-own tunables and its modules' straight from the controller's exports — re-calling it each decision so a runtime retune takes effect. (A
+once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules, then `apply_config(tuning)`, which sets the behaviour's
+own tunables and its modules' straight from the NPC's tuning topics (`NpcTuning`) — re-calling it each decision so a runtime retune takes effect. (A
 field is declared where it is read: the behaviour keeps only those it reads itself, and only `Combat`, built alone by a unit test, keeps
 defaults.) On its first `control()` the controller calls `bind(character)`: the
 behaviour keeps the NPC's body and hands it to each module's own `bind`, so none of their functions takes the character.
@@ -79,8 +79,8 @@ while that map is `pending`) for a threshold into a room not cleared and, unless
 view it passes: either is a detour first (`_entry.reset()`, `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
 `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `_ordered_stack()` sets
-the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(cfg)`, with
-`order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
+the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(tuning, squad)`, with
+`tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
 `join: true`, the squad's rally, LD24) (`StackClaim.is_join(params)`) keeps its `order_id` in the params, so `_same_order`, `_order_live` and the `moving` radio treat it as
 the member's order, but it is no ordered stack: `_ordered_entry(params)` (an `order_id` and no `join`) is what gates `_ordered_stack()`
@@ -101,8 +101,8 @@ start (`run_start_fraction` of the stamina bar, or already running). A `follow` 
 (`_catching_up`, set when that run starts): it runs on each tick it steps until it is back within the squad's `follow_caught_up` of
 its live spot, or its walk is over short of it. A tick with no step (a give-way, a `keep_off` stop, a held walk) keeps the
 catch-up, and the next step runs without asking `run_start_fraction` again; a gate that drops the run (a shot to take, a reload due,
-the stamina run dry) ends it, as does another primitive. The Character spends the stamina and walks once dry. Exports on the
-controller: `run_enabled`, `run_min_distance`, `run_start_fraction`.
+the stamina run dry) ends it, as does another primitive. The Character spends the stamina and walks once dry. Tunables (the
+NPC's `tuning.pace`): `run_enabled`, `run_min_distance`, `run_start_fraction`.
 `debug_status()` reads "running" / "running into position" while it sprints; `debug_state()` has `running`.
 A running NPC cannot shoot or reload (`Character.weapon.shoot()` is ignored while running), so `_should_run` is false while a shot is available
 (`Combat.can_fire_at(threat)`: loaded, in range, clear line) or the reload reflex is due (`Combat.reload_due`): it drops to a walk and
@@ -116,7 +116,7 @@ fight and everything travelling to a destination (`move`, an `engage` not yet ar
 and so does an NPC that is running. Fighting in place (`engage` arrived, or `hold` / `reload` with a hostile known or shots landing) it **crouches** (behind cover, in the open or
 pinned alike, and when moving about inside the fight). Two orders crouch outside a fight: an `ambush` at its post (LD15), and a member of a
 frag entry holding its slot for the burst (`Entry.holds_crouched()`, LD14). A crouch is held `posture_dwell` (0.7 s) before it is dropped; standing back up is never delayed.
-Exports on the controller: `posture_enabled` (the `ai.posture` switch), `posture_dwell`. `debug_status()` appends "crouching";
+Tunables (the NPC's `tuning.pace`): `posture_enabled` (the `ai.posture` switch), `posture_dwell`. `debug_status()` appends "crouching";
 `debug_state()` has `posture`. Not a decision-tree level: Von is never asked, so it works with the server down. Tests:
 `tests/ai/posture/posture_crouches_in_fight_test.gd`, `posture_pinned_crouch_test.gd`, `posture_stands_to_run_test.gd`.
 
@@ -138,7 +138,7 @@ a new decision. Read-outs: `evading()`, `evade_spot()` (the controller's `debug_
 **A blinded NPC** (`Character.stun.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on
 (it stumbles: the character is slowed and drifts); the perception keeps its contacts (so the watch stage's engaged-contact pick, or the arrived peek-and-cover, fires at the hostile's last-known
 spot with the character's aim sway, G13) and sees no new one. Whether it fires blind is the orchestrator's one roll as it goes blind (from not blind),
-`_rng.randf() < blind_fire_chance` (1 always fires; export, Grenades group, 0.5; `_rng` the controller's own `RandomNumberGenerator`, seeded once at bind from
+`_rng.randf() < tuning.grenades.blind_fire_chance` (1 always fires; 0.5; `_rng` the controller's own `RandomNumberGenerator`, seeded once at bind from
 `hash("<character name> <spawn position rounded>")`, each blinding taking the next draw; a re-stun while blind draws nothing), handed in by
 `set_blind_fire(on)` to `Combat.blind_fire`; on a miss `Combat.holds_fire()` (blind and no blind fire) refuses `Combat.shoot()` (no round, no dry click)
 and cuts `continue_burst`, so every fire path (the watch stage's `fire_at_will`, the peek, the ambush) holds until it can see; the aim still turns to the
@@ -150,8 +150,8 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 
 ## Public interface (what the orchestrator calls)
 
-- `setup(perception, nav_agent)` (build the Locomotion, coverage, combat, watch and entry modules), `apply_config(cfg)` (set its own tunables
-  and its modules' from the controller `cfg`; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
+- `setup(perception, nav_agent)` (build the Locomotion, coverage, combat, watch and entry modules), `apply_config(tuning, npc_squad := null)` (set its own tunables
+  and its modules' from the NPC's `NpcTuning` topics, and the squad; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
 - `set_leaf(leaf)` — adopt: snap the point onto the navmesh, capture the target (a fight whose target
   is no longer known drops to hold and forces a re-decision), commit.
 - `update_known(known, delta) -> bool` — adopt the perception's hostiles; retarget a lost engaged

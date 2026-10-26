@@ -33,8 +33,8 @@ const REACH_SLACK := 6.0
 const START_OUT := 60.0
 ## A body on a slot keeps at least this far (px) from every carved furniture footprint (E22).
 const FURNITURE_CLEAR := 10.0
-## `entry_stack_spacing` (44 px) less a few px for snapping: no two slots of a stack are closer than
-## this (E2, E22).
+## `tuning.entry_geometry.stack_spacing` (44 px) less a few px for snapping: no two slots of a stack
+## are closer than this (E2, E22).
 const MIN_SPACING := 38.0
 ## The first file stands against the wall: its slots lie between these distances (px) out from the
 ## wall plane (E2). The second file stands a step out from it, behind the first (E21): up to
@@ -56,7 +56,8 @@ const ROOM_FOR_ONE_STEP := 11.0
 const ROOM_FOR_ONE_REACH := 300.0
 ## The largest stack (`AgentEntry.MAX_SLOTS`, the spec's six).
 const MAX_STACK := 6
-## `entry_stack_spacing`: how far apart (px) the fewest-views fallback's own picks of spots stand.
+## `tuning.entry_geometry.stack_spacing`: how far apart (px) the fewest-views fallback's own picks
+## of spots stand.
 const STACK_SPACING := 44.0
 ## How far (px) from the doorway into the small room a tail member may hold (rule 6's tail: at that
 ## doorway, in the room it came by).

@@ -147,13 +147,18 @@ class Body extends Node2D:
 ## A stand-in for the NPC's controller: the overlay's reads, its sight answering the cone's rays
 ## with the captured ends in order and the bubble's with no wall.
 class Eyes extends Node:
-	var awareness_radius := AWARENESS
-	var view_distance := VIEW
-	var fov_degrees := 110.0
-	var vision_enabled := true
+	## The senses the overlay reads, as the controller's `tuning.senses` (its child, freed with it).
+	var tuning := NpcTuning.defaults()
 	## The cone's ray ends, in the order the overlay casts them.
 	var ends := PackedVector2Array()
 	var _next := 0
+
+	func _init() -> void:
+		add_child(tuning)
+		tuning.senses.awareness_radius = AWARENESS
+		tuning.senses.view_distance = VIEW
+		tuning.senses.fov_degrees = 110.0
+		tuning.senses.vision_enabled = true
 
 	func debug_sight_end(to: Vector2) -> Vector2:
 		var body := get_parent() as Node2D

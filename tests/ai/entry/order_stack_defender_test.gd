@@ -1,8 +1,9 @@
 extends GameTest
 ## LD9 / D4, D11 (`docs/leadership.md`): a defender ordered to stack. An ordered stack runs whatever
-## `entry_enabled` says, and its approach is guarded like any walk; but for a defender's ordered
-## walk across its own house, a room it has seen empty within `entry_pass_clear_time` (60 s) is
-## clear for passing (no entry at a doorway into it), while a room it has not seen still gets one.
+## `tuning.entry.enabled` says, and its approach is guarded like any walk; but for a defender's
+## ordered walk across its own house, a room it has seen empty within
+## `tuning.entry_guard.pass_clear_time` (60 s) is clear for passing (no entry at a doorway into it),
+## while a room it has not seen still gets one.
 ##
 ## A corridor with three rooms off its north side (A, B, C) and a den behind room A. A defender
 ## starts in the corridor (it stands in it: seen, with nobody in it) and is first ordered to defend

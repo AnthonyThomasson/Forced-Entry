@@ -13,8 +13,8 @@ const DOOR_MIN_DISTANCE := 60.0
 ## to look.
 const PATH_STEP := 30.0
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`watch_*`,
-# `search_look_rate`).
+# --- Config fields `Behavior.apply_config()` sets from the NPC's tuning (`tuning.watch`, the look
+# rate off `tuning.coverage`).
 ## How far (px) down its path a walking NPC looks.
 var look_ahead: float
 ## Seconds a resting NPC looks at one doorway before turning to the next.

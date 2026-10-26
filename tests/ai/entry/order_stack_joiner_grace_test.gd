@@ -1,9 +1,9 @@
 extends GameTest
 ## LD17 (`docs/leadership.md`, ticket #65 round 2, rule 10): an unordered joiner's grace counts from
 ## the last ordered member. An unordered member joining an ordered stack (D10) is waited for
-## `entry_ready_timeout` (6 s), counted from the moment every ordered member is in its slot, not
-## from the point's own arrival: a point that has stood in its slot far longer than that still waits
-## for a joiner that reaches its slot within the grace of the last ordered member.
+## `tuning.entry.ready_timeout` (6 s), counted from the moment every ordered member is in its slot,
+## not from the point's own arrival: a point that has stood in its slot far longer than that still
+## waits for a joiner that reaches its slot within the grace of the last ordered member.
 ##
 ## The squad is built and bound as a match's (`s.squads`, a puppet standing in for the human
 ## leader). At the Terrace house's (bare) back door, north of it: the human orders `point` (beside
@@ -14,10 +14,10 @@ extends GameTest
 ## same door on its own (scripted Von, held back until then) and claim behind them, from the garden
 ## north of the living room, so it reaches its slot about 2 s after `far`: well within 6 s of the
 ## last ordered member, long after the point's own 6 s, and its own approach well under
-## `entry_approach_time` (it never claims and then stands still). Its claim is an AI leader's own,
-## which rallies only members holding no order (LD24: nobody here) and holds up no ordered stack
-## (only the human leader is waited for, D22). The point may slice the pie meanwhile, but must not
-## cross (radio `going_in`) before the joiner is ready.
+## `tuning.entry.approach_time` (it never claims and then stands still). Its claim is an AI leader's
+## own, which rallies only members holding no order (LD24: nobody here) and holds up no ordered
+## stack (only the human leader is waited for, D22). The point may slice the pie meanwhile, but must
+## not cross (radio `going_in`) before the joiner is ready.
 ##
 ## Scripted Von (SEARCH > ENTER > the back door: the joiner's own choice; the ordered members' order
 ## level asks nothing), every ask failing (Von down: the joiner holds steady) until `far` is let go.
@@ -27,9 +27,10 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const ORDERED := [&"point", &"far"]
 ## How long (s) the point stands in its slot before the far member is let go: well past
-## `entry_ready_timeout`.
+## `tuning.entry.ready_timeout`.
 const POINT_ALONE := 15.0
-## The joiner's grace (`entry_ready_timeout`), counted from the last ordered member's arrival.
+## The joiner's grace (`tuning.entry.ready_timeout`), counted from the last ordered member's
+## arrival.
 const GRACE := 6.0
 const WALK_SPEED := 150.0
 ## Where the joiner starts: outside, north of the living room, about 2 s of walking farther from its
@@ -44,7 +45,7 @@ func describe() -> Dictionary:
 	return {
 		"name": "An ordered stack waits for a joiner from its last ordered member's arrival",
 		"description": "An unordered joiner reaching its slot 2 s after the last ordered member is "
-			+ "waited for, though the point has stood in its slot 15 s: entry_ready_timeout "
+			+ "waited for, though the point has stood in its slot 15 s: tuning.entry.ready_timeout "
 			+ "counts from the moment every ordered member is in its slot (LD17).",
 		"tags": ["ai", "entry", "leadership", "order", "stack", "scripted"],
 		"timeout": 90.0,
@@ -59,10 +60,10 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"far",
 		Vector2(1150, -150),
-		{ "decide_interval": 0.45 },
+		{ "tuning:decision:decide_interval": 0.45 },
 		{ "movement:speed": 0.0 },
 	)
-	Entry.npc(s, &"joiner", JOINER_START, { "decide_interval": 0.7 })
+	Entry.npc(s, &"joiner", JOINER_START, { "tuning:decision:decide_interval": 0.7 })
 	s.set_props(&"joiner", "Wardrobe", { "rank": 1 })
 	s.set_static(DecisionStub, &"fail", true)
 	s.actor(&"lead", &"puppet", Vector2(1300, 700), { "faction": &"invader" })

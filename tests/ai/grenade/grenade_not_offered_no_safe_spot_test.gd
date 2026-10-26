@@ -49,7 +49,11 @@ func configure(s: TestSetup) -> void:
 		s.set_props(
 			pair[0],
 			"GoalController",
-			{ "max_commit_time": 0.4, "tactic_interval": 0.4, "decide_interval": 0.4 },
+			{
+				"tuning:decision:max_commit_time": 0.4,
+				"tuning:decision:tactic_interval": 0.4,
+				"tuning:decision:decide_interval": 0.4,
+			},
 		)
 		Probe.hostile(s, pair[3], pair[2], pair[1])
 

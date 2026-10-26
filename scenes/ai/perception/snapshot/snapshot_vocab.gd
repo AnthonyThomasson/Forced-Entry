@@ -1,10 +1,10 @@
 extends RefCounted
 ## AI PERCEPTION sub-domain — SNAPSHOT VOCABULARY. The shared words and tuning of the decision
 ## snapshot: the compass and flank-side names, every tunable the perception sets from the
-## controller's exports before a decision (ranges, bands, thresholds, caps), the house rooms of the
-## decision being built, and the helpers that turn a distance, an age, a route, a bearing or a wound
-## into the band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option modules
-## read it, so no tunable is set twice. Everything is worded for a classifier (see
+## NPC's tuning (`NpcTuning`) before a decision (ranges, bands, thresholds, caps), the house rooms
+## of the decision being built, and the helpers that turn a distance, an age, a route, a bearing or
+## a wound into the band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option
+## modules read it, so no tunable is set twice. Everything is worded for a classifier (see
 ## `agent_snapshot.gd`): bands not numbers, no negations.
 
 ## Compass names for an 8-wind direction, indexed clockwise from east (screen +y is south).
@@ -17,37 +17,37 @@ const SIDE_WORDS := {
 	"front": "their front",
 }
 
-# --- Config fields the perception's apply_config() sets from the controller's exports of the same
-# name before each decision.
-## GoalController.shoot_range
+# --- Config fields the perception's apply_config() sets from the NPC's tuning (`NpcTuning`) before
+# each decision, each from the topic value its comment names.
+## `tuning.combat.shoot_range`
 var shoot_range: float
-## GoalController.punch_range
+## `tuning.combat.punch_range`
 var punch_range: float
-## GoalController.recency_bands
+## `tuning.context.recency_bands`
 var recency_bands: Vector2
-## GoalController.route_buckets
+## `tuning.context.route_buckets`
 var route_buckets: Vector2
-## GoalController.aim_cone
+## `tuning.context.aim_cone`
 var aim_cone: float
-## GoalController.still_speed
+## `tuning.context.still_speed`
 var still_speed: float
-## GoalController.flank_ally_radius
+## `tuning.tactics.flank_ally_radius`
 var flank_ally_radius: float
-## GoalController.investigate_distance
+## `tuning.context.investigate_distance`
 var investigate_distance: float
-## GoalController.extrapolate_cap
+## `tuning.context.extrapolate_cap`
 var extrapolate_cap: float
-## GoalController.max_options_per_level
+## `tuning.decision.max_options_per_level`
 var max_options_per_level: int
-## GoalController.hurt_threshold
+## `tuning.context.hurt_threshold`
 var hurt_threshold: float
-## GoalController.critical_threshold
+## `tuning.context.critical_threshold`
 var critical_threshold: float
-## GoalController.low_ammo_fraction
+## `tuning.context.low_ammo_fraction`
 var low_ammo_fraction: float
-## GoalController.max_contacts_in_state
+## `tuning.context.max_contacts_in_state`
 var max_contacts_in_state: int
-## GoalController.search_memory_ttl
+## `tuning.memory.search_ttl`
 var search_memory_ttl: float
 ## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
 var rooms: Array = []

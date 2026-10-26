@@ -10,9 +10,13 @@ style = &"merc"
 
 [node name="GoalController" parent="."]
 goal = "You are the armed guard of this house. Shoot hostile intruders with your {gun} to stop them. If you are fired upon, return fire, but hold your ground inside the house; do not chase anyone outside."
+
+[node name="Decision" parent="GoalController/Tuning"]
 defend_territory = true
-hostile_on_trespass = true
-hostile_on_attack = true
+
+[node name="Hostility" parent="GoalController/Tuning"]
+on_trespass = true
+on_attack = true
 
 [node name="AgentDebug" parent="."]
 label_color = Color(0.7, 1, 0.6, 1)

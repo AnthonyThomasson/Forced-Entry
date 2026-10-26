@@ -85,9 +85,9 @@ func _driven_out(t: TestContext, d: Node) -> bool:
 	await Probe.throw_at(t, &"thrower", Probe.FRAG, LANDING)
 	# Premise: once the frag is away the thrower walks off east along the corridor, out of the
 	# defender's line from inside the box room. The fragments striking round the defender are an
-	# attack by the thrower (`hostile_on_attack`), and a hostile left standing in its line from its
-	# post would be fought from inside the room (LD8): the hold watched here is the order's, not
-	# that fight.
+	# attack by the thrower (`tuning.hostility.on_attack`), and a hostile left standing in its line
+	# from its post would be fought from inside the room (LD8): the hold watched here is the
+	# order's, not that fight.
 	await t.until(func(): return not Probe.live(t).is_empty(), 2.0)
 	t.puppet(&"thrower").walk_to(AWAY)
 	var left := false

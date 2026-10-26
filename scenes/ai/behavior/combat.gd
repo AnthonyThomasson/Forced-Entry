@@ -24,24 +24,24 @@ const THROW_RELEASE_CAP := 1.5
 ## (`AgentThrow.ARRIVAL_SLACK`; a stride short, a jamb can be in the way of it).
 const THROW_SPOT_REACH := 6.0
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports; each default is
-# the export's, for a `Combat` built alone (a unit test).
-## GoalController.shoot_range.
+# --- Config fields `Behavior.apply_config()` sets from the NPC's `tuning.combat`; each default is
+# the topic's, for a `Combat` built alone (a unit test).
+## `tuning.combat.shoot_range`.
 var shoot_range: float = 500.0
-## GoalController.punch_range.
+## `tuning.combat.punch_range`.
 var punch_range: float = 48.0
 ## Radius of the ring of candidate firing / cover spots around the target.
 var ring_radius: float = 80.0
-## GoalController.cover_time.
+## `tuning.combat.cover_time`.
 var cover_time: float = 1.2
-## GoalController.fire_cooldown.
+## `tuning.combat.fire_cooldown`.
 var fire_cooldown: float = 0.5
 ## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot
 ## gun fires one.
 var fire_burst: int = 3
 ## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
 var back_off_time: float = 0.45
-## GoalController.reposition_interval.
+## `tuning.combat.reposition_interval`.
 var reposition_interval: float = 0.5
 ## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
 var auto_reload: bool = true

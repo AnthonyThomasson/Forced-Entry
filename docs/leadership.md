@@ -165,7 +165,7 @@ squad bound, `s.squads`, its leader left in the hall about 510 px off, beyond th
 `ai/combat/defend_room_evade_returns` (a frag drives a defender out of the box room; after the burst it walks back in and holds).
 
 **LD9. Stack on a door.** Ordered to stack on a doorway, the members go in by it as one stack (`docs/tactical-entry.md` E1 to E22), from
-wherever in the house they are, invaders and defenders alike, whatever `entry_enabled` says (D4). The ORDER node's option is an `entry`
+wherever in the house they are, invaders and defenders alike, whatever `tuning.entry.enabled` says (D4). The ORDER node's option is an `entry`
 whose params carry the order: `opening`, `into`, `bang`, `mode`, `wait_go`, `go`, `stack_at` or `split`, `order_id`. Its claims carry it on
 the radio (`order_id`, `order_bang` (a grenade first), `order_mode` (`quiet` / `stun` / `frag`), `order_hold` (held for the leader's go,
 LD13), `order_go` (that go has come), `order_side`, the side it names, 0 for a split stack, and `order_frame`, the order's `frame`; every
@@ -181,9 +181,9 @@ to keeps its own (D10).
   stun when, the stack in place, nobody in it carries one, it goes in quietly and radios `bang_off` (the order's members follow it), and
   the order is still done at `cleared_room`; the throw's own failures give the bang up as they always do.
 - **Go when ready (D7).** Unless the order holds for the leader's go (LD13), the point crosses (or the thrower calls the bang) once every living recipient of the order (the order's `to`,
-  `Squad.alive` through the controller's `squad`) has radioed past `claim` at the doorway, or `order_ready_cap` (60 s, Entry export) after
+  `Squad.alive` through the controller's `squad`) has radioed past `claim` at the doorway, or `tuning.entry.order_ready_cap` (60 s) after
   the first ordered `ready` it heard or said, and for the human leader that gave the order when it holds a slot (LD17); a member the order
-  does not name is waited for `entry_ready_timeout` from the moment every recipient is in its slot (LD17). A member does
+  does not name is waited for `tuning.entry.ready_timeout` from the moment every recipient is in its slot (LD17). A member does
   not go in alone (no second side of the pie) while another recipient is coming, and an ordered bang holds the point in its slot until
   the stack is in.
 - **The way there is guarded (D4).** Before its claim goes out the ordered entry works out its slot, its side and its approach and holds
@@ -196,7 +196,7 @@ to keeps its own (D10).
   room (D20):** once a member under the same order holds its slot (its claim radioed `ready` or `bang`), the room that stack stands in
   counts as cleared for passing (`AgentPerception.stack_room`): the members still coming walk through it to their slots and are not sent
   into it by entry. **D11:** on that walk an NPC that does not
-  clear rooms by entry (`entry_enabled` off: a defender) counts a room it has stood in within `entry_pass_clear_time` (60 s) and seen no
+  clear rooms by entry (`tuning.entry.enabled` off: a defender) counts a room it has stood in within `tuning.entry_guard.pass_clear_time` (60 s) and seen no
   hostile in (`AgentPerception.seen_empty`) as clear for passing, for thresholds and views alike; any other room still gets an entry. A
   room only glimpsed through a doorway was not stood in. An invader's way is unchanged: it clears rooms by entry.
 - **No room (D21).** A doorway whose stack room is a dead end holds only as many slots as its wall and open floor hold at the normal spacing (E20). A member whose place
@@ -458,7 +458,7 @@ bang while that claim is still at `claim`, whatever the wait, until `order_ready
 (`ready`) lets the stack go. Its claim withdrawn (`abort`: its walk back to the doorway grew past `reserve_range * leave_factor`, 450 px, or it died) frees the
 stack at once. An AI leader holds no `PlayerStack`, and the joins its own claims bring (LD24) are no ordered stack (a join runs as the
 member's own entry), so only the human is waited for this way (D22).
-- **The joiners' clock (D23).** A member the order does not name is waited for `entry_ready_timeout` (6 s) from the moment every living
+- **The joiners' clock (D23).** A member the order does not name is waited for `tuning.entry.ready_timeout` (6 s) from the moment every living
   recipient of the order, the member itself among them, stands in its slot (`Entry._all_in_at`, `_note_all_in`), or from when the stack last
   grew if that is later: not from the point's own `ready`. A point that has stood in its slot a long while for a far recipient still gives
   an unordered joiner arriving after that recipient its full 6 s. The point's debug countdown (`ready_left`) counts from the same moment.
@@ -495,7 +495,7 @@ defenders' crew's first spawned, from the start of the match. When the leader di
 leader within the frame, so every follower's spot comes round it, and the new leader, a follower no more, decides on its own again.
 
 Tests: `ai/movement/follow_leader_search` (real Von, three invaders on the furnished Terrace house: while the leader, its own entries off
-(`entry_enabled`), searches the house, the two followers stay within a band of it (the median under its place in the file plus 45 px of walking lag,
+(`tuning.entry.enabled`), searches the house, the two followers stay within a band of it (the median under its place in the file plus 45 px of walking lag,
 `Follow.band_p50`: 100 px for the first follower, 145 for the second, the lag measured 5 to 38 px; nine samples in ten under `BAND_P90`,
 260 px), go through two doorways after it and put no question to Von while no hostile is known), `ai/movement/follow_defenders` (three
 defenders on a pinned house, placed and bound as Main does, their leader investigating gunfire across the house: within the band, through
@@ -597,7 +597,7 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
 - **The join.** The ORDER node's option is the entry `stack_<opening>` with `{ opening, into, bang: false, join: true, order_id }`: no side,
   mode, `wait_go` or `split` of the order's. `Entry.begin` leaves the order's id out of the entry, so the member runs its own unordered entry,
   joining the leader's stack: the team's side and the first claimer's mode (D10), the suspect-room bang and its late upgrade
-  (`docs/tactical-entry.md` E17), the listen at the stack, the joiner's ready wait (`entry_ready_timeout`), and no bang of its own. Its walk
+  (`docs/tactical-entry.md` E17), the listen at the stack, the joiner's ready wait (`tuning.entry.ready_timeout`), and no bang of its own. Its walk
   there is any entry's, not an ordered stack's guarded way (D4). The order still names it, so its progress is radioed (`moving`, `done`) and
   the squad's view and the order markers show it ("Join stack · moving"). The human's quiet / stun / frag orders keep LD9's "the mode wins";
   the command menu never offers a join.
@@ -701,14 +701,14 @@ The cases the behaviours above cite as D1 to D30.
 | D1 | Ordered with a stun, no stun in the stack | The menu greys "with stun" while no recipient carries one; a stack whose stun is gone by the time it is in goes in quietly and radios `bang_off`, and the order is still done at `cleared_room`. | LD9, LD11 |
 | D2 | Where the defenders of a room stand | They share out its doorways, each on a spot back in the room, off its doorway's axis, cover preferred, gun on that doorway; extras double up in turn; a lone member takes the spot that sees the most doorways and turns among them. | LD8 |
 | D3 | What a click on a doorway decides | The side of the wall plane clicked is where the stack forms (it goes into the other room); left or right of the opening along the wall is the stack's side of the door; a click on the opening is a split stack; an exterior door always goes into the house. | LD5, LD9 |
-| D4 | Defenders and stack orders | An ordered stack runs whatever `entry_enabled` says. Its whole way to the slot is read before the claim goes out: a room not cleared on it is entered first, and a doorway view on it secured first when no other recipient is coming; the approach then goes round the views, uncapped. | LD9 |
+| D4 | Defenders and stack orders | An ordered stack runs whatever `tuning.entry.enabled` says. Its whole way to the slot is read before the claim goes out: a room not cleared on it is entered first, and a doorway view on it secured first when no other recipient is coming; the approach then goes round the views, uncapped. | LD9 |
 | D5 | Markers | Only when the human leads, for its own squad: each member's target, the selection while paused; the leader's crown is a debug overlay ("Squad leaders") for every squad in any match. | LD12 |
 | D6 | A split stack's members | Each takes the side it reaches without crossing the view, balanced so the sides differ by one at most. | LD9 |
-| D7 | Go when ready | The point waits for every living recipient's `ready` (and the human leader's in the stack, D22), at most `order_ready_cap`; an unordered joiner is waited for `entry_ready_timeout` (D23). | LD9, LD17 |
+| D7 | Go when ready | The point waits for every living recipient's `ready` (and the human leader's in the stack, D22), at most `order_ready_cap`; an unordered joiner is waited for `tuning.entry.ready_timeout` (D23). | LD9, LD17 |
 | D8 | A defender and a live grenade | The evade reflex may leave the room; after the burst the member walks back in and holds. | LD8 |
 | D9 | The clock and the tests | Moving to the game clock may change a test's timing; `memory_matches_reference` takes its reference "now" from the new clock (the clock source only), and any other test turned red is reported with its cause before it is changed. | LD1 |
 | D10 | Unordered entries | Unchanged: Von's ENTER and STUN ENTRY, the first claimer's mode, the suspect-room bang, the `bang_off` veto, the late upgrade, the listen and the ready timeout; the order's rules apply only to a stack with a claim carrying an `order_id`, and an unordered joiner follows the order's mode and side. | LD9 |
-| D11 | A defender's ordered walk across its own house | A room it has stood in and seen empty within `entry_pass_clear_time` counts as clear for passing, for thresholds and views; any other room gets an entry. | LD9 |
+| D11 | A defender's ordered walk across its own house | A room it has stood in and seen empty within `tuning.entry_guard.pass_clear_time` counts as clear for passing, for thresholds and views; any other room gets an entry. | LD9 |
 | D12 | A held stack whose leader can no longer say go | When the leader who gave it is dead, the squad releases it (a `go` with `auto: true`) and the entry latches its go on its own: it goes on the ready barrier, or at once if ready. | LD13 |
 | D13 | Who a go goes to | Every living member holding a held stack order at that doorway, whatever the selection; it releases the order, never replaces it, and is latched until the stack is ready. | LD13, LD16 |
 | D14 | The human in a held stack | The stack waits for the human's go: the menu's Go, or the human stepping into the doorway (its `going_in` / `in`) on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`; the human's latest crossing); the AIs follow it in. | LD13 |
@@ -738,8 +738,8 @@ The cases the behaviours above cite as D1 to D30.
 | ... inside the room's walls by | 22 px | `DEFEND_INSET` |
 | The fatal funnel: within a body of a doorway's width, nearer its wall than | 14 px, 200 px | `DEFEND_BODY`, `DEFEND_FUNNEL_DEPTH` |
 | A defender walks into its spot to within, and back to it when pushed off by more than | 8 px, 24 px | `Behavior.DEFEND_REACH`, `DEFEND_DRIFT` |
-| An ordered stack waits for its recipients at most (from the first ordered `ready`) | 60 s | `GoalController.order_ready_cap` |
-| A room seen empty counts as clear for a defender's ordered walk for | 60 s | `GoalController.entry_pass_clear_time` |
+| An ordered stack waits for its recipients at most (from the first ordered `ready`) | 60 s | `tuning.entry.order_ready_cap` |
+| A room seen empty counts as clear for a defender's ordered walk for | 60 s | `tuning.entry_guard.pass_clear_time` |
 | The command menu picks a teammate's body within | 28 px | `CommandMenu.PICK_RADIUS` |
 | An ambush post: back from its doorway's wall | 40 to 160 px, best 110 | `AgentEntry.AMBUSH_DEPTHS`, `AMBUSH_DEPTH` |
 | ... along the wall past the jamb | 30 to 260 px | `AMBUSH_LATERALS` |
@@ -747,18 +747,18 @@ The cases the behaviours above cite as D1 to D30.
 | ... hidden too from the points this far round it | 12 px | `AMBUSH_SLACK` |
 | Two ambushers' posts on one side, at least | 44 px apart | `AMBUSH_SPACING` |
 | A frag entry waits for its frag to go off at most (from the call) | 7 s | `Entry.FRAG_BURST_CAP` |
-| A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `GoalController.evade_margin` |
+| A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `tuning.grenades.evade_margin` |
 | An ordered member waits for the map round the views before reading its way at most | 2 s | `Behavior.ROUTE_WAIT` |
-| A stack's approach is given up after its own walk at walking pace plus | 20 s | `GoalController.entry_approach_time` (`Entry._approach_cap`) |
+| A stack's approach is given up after its own walk at walking pace plus | 20 s | `tuning.entry.approach_time` (`Entry._approach_cap`) |
 | A member stands in its slot within, and steps back in when further off than | 6 px | `StackClaim.SLOT_REACH` |
 | A member in its slot looks for a lower slot to move up into every | 0.25 s | `Entry.MOVE_UP_EVERY` |
 | ... within (1.5 x the stack's spacing) | 66 px | `Entry.MOVE_UP_REACH` (`SPOT_SPACING` 44) |
 | ... by a plain walk no longer than 1.5 x the straight line plus | 32 px | `Locomotion.PASS_CLEARANCE` |
 | A walk round resting bodies may end this far short, the rest walked on the plain map | 64 px | `Locomotion.LAST_LEG` |
 | A walk held short of a body re-plans once the steering map shows the body this far off it, or after | 16 px, 2 s | `Locomotion.CARVED_GAP`, `CARVE_WAIT` |
-| An unordered joiner is waited for, from when every recipient stands in its slot | 6 s | `GoalController.entry_ready_timeout` |
+| An unordered joiner is waited for, from when every recipient stands in its slot | 6 s | `tuning.entry.ready_timeout` |
 | The human's slot is withdrawn once its walk back to the doorway is longer than | 450 px (300 x 1.5) | `PlayerStack.reserve_range` x `leave_factor` |
-| The squad's view keeps a member's entry claim for | 6 s | `GoalController.callout_ttl` (handed to `Squad.setup` by the match builder) |
+| The squad's view keeps a member's entry claim for | 6 s | `tuning.radio.callout_ttl` (handed to `Squad.setup` by the match builder) |
 | A ring whose holder stands in its slot is filled at | 0.3 alpha | `StackMarkers.ALPHA_THERE_FILL` |
 | The first follower keeps back along the leader's trail, and each next one further | 55 px, 45 px | `Squad.follow_gap`, `follow_step` |
 | The leader takes a trail point each | 15 px | `SquadFollow.TRAIL_STEP` |
@@ -770,7 +770,7 @@ The cases the behaviours above cite as D1 to D30.
 | A follower is at its spot within | 10 px | `Squad.follow_arrive` |
 | A follower runs once it is further from its spot than | 45 px | `Squad.follow_step` |
 | ... and keeps running until it is back within | 20 px | `Squad.follow_caught_up` |
-| A follower at rest tops up a magazine at or below | 0.34 of its capacity | `GoalController.low_ammo_fraction` |
+| A follower at rest tops up a magazine at or below | 0.34 of its capacity | `tuning.context.low_ammo_fraction` |
 | A follower fights within, of its leader's live position | 320 px | `Squad.leash` |
 | ... and re-decides in a fight further than | 1.3 leashes (416 px) | `Squad.leash_break` |
 | The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |

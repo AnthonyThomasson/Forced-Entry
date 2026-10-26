@@ -21,7 +21,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_sight", true)
 	s.switch(&"nav.rebake", false)
 	s.actor(&"runner", &"defender", Vector2(200, 300))
-	s.set_props(&"runner", "GoalController", { "shoot_range": 1600.0 })
+	s.set_props(&"runner", "GoalController", { "tuning:combat:shoot_range": 1600.0 })
 	s.actor(&"far", &"puppet", Vector2(1500, 300), { "faction": &"invader", "max_health": 400.0 })
 
 

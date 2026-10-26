@@ -4,7 +4,7 @@ What an NPC hears and what it makes of it. The tests named under each behaviour 
 
 Gunfire heard, a grenade coming down and the team radio are older senses with their own homes (`docs/grenades.md` G15, G16 and the
 `domain-ai-perception` skill); this document holds footsteps. The pieces: `character_footsteps.gd` (the `footfall` event),
-`goal_controller.gd` (the intake and the **Hearing** exports), `agent_perception.gd` (`process_footfall`, the `heard_footsteps` memory) and
+`goal_controller.gd` (the intake), the NPC's `tuning.senses` (the hearing ranges), `agent_perception.gd` (`process_footfall`, the `heard_footsteps` memory) and
 `snapshot_options.gd` / `snapshot_sections.gd` (how it is worded for Von). See the `domain-character`, `domain-ai-perception` and
 `domain-ai-snapshot` skills.
 
@@ -14,7 +14,7 @@ Gunfire heard, a grenade coming down and the team radio are older senses with th
 its gait (`running`, `crouched`). An NPC hears the steps of a character not of its own faction, through walls, out to a range set by
 the gait:
 
-| gait | heard within | export |
+| gait | heard within | tunable (`tuning.senses`) |
 |---|---|---|
 | walking | 250 px | `hear_walk` |
 | running | 450 px | `hear_run` |
@@ -24,7 +24,7 @@ the gait:
 it knows its own team, as a person knows the sound of the squad around them. A character it can see right now is no news. A deafened
 NPC (`docs/grenades.md` G15) hears none.
 
-A heard step is remembered as `heard_footsteps` (`{ pos }`, one per walker, the latest step standing for it, kept `lead_memory_ttl`, 20 s;
+A heard step is remembered as `heard_footsteps` (`{ pos }`, one per walker, the latest step standing for it, kept `tuning.memory.lead_ttl`, 20 s;
 `debug_memory()["footsteps"]`, `[{ pos, age }]` like `gunfire`). It is used three ways:
 - an **INVESTIGATE lead**, like gunfire: "footsteps heard to the west, in the kitchen — just now — short route";
 - a line of the awareness section while no hostile is known: "Footsteps heard to the west, in the kitchen, just now.";

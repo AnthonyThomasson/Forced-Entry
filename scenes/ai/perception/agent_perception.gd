@@ -20,8 +20,9 @@ extends Node
 ## (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as internal modules, and surfaces
 ## knowledge only through its own methods. It holds NO policy: it never decides, gates by goal or
 ## picks — and the measured wording Von reads lives in the snapshot author, not here. The controller
-## calls `setup()` once, then hands itself to `apply_config(cfg)`, which sets the perception's own
-## tunables and its modules' straight from the controller's exports (the single authoring surface).
+## calls `setup()` once, then hands it the NPC's tuning (`apply_config(tuning)`), which sets the
+## perception's own tunables and its modules' straight from the topic nodes (the single authoring
+## surface).
 
 ## The internal modules this sub-domain owns (built in setup() from the config fields).
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -63,8 +64,9 @@ const WARM_CAP_MS := 3000
 var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`WorldGen.get_openings`, injected by its composer), for tactical entry.
 var openings: Array = []
-# --- The tunables the perception reads itself, set by apply_config() from the controller's exports
-# of the same name.
+# --- The tunables the perception reads itself, set by apply_config() from the NPC's tuning
+# (`NpcTuning`), each from its topic's value (`contact_memory_ttl` from
+# `tuning.memory.contact_ttl`).
 ## Lifetime (s) of a live contact: the window the NPC keeps acting on a last-seen position.
 var contact_memory_ttl: float
 ## Whether this NPC starts knowing the house (rooms + objects), else learns them by sight.
@@ -180,8 +182,8 @@ var _ended_order := {}
 
 
 ## Build the owned sensing modules. The controller calls this once in its _ready(); it then hands
-## itself to apply_config(), which sets the modules' tunables (here, and again each decision so a
-## runtime retune takes effect). Building and configuring are separate so apply_config() never
+## its tuning to apply_config(), which sets the modules' tunables (here, and again each decision so
+## a runtime retune takes effect). Building and configuring are separate so apply_config() never
 ## rebuilds a module — that would wipe the event memory and the sight state.
 func setup() -> void:
 	_vision = AgentVision.new()
@@ -214,109 +216,108 @@ func setup() -> void:
 	_snapshot.setup(sources)
 
 
-## Set the perception's own tunables and its modules' straight from `cfg`, the controller, whose
-## exports of these names are the one authoring surface. Idempotent and state-free (it only sets
-## tunables, never the memory log or hostility faction), so the controller may call it every
-## decision to keep the modules in step with exports retuned at runtime (e.g. by the dev command
-## server).
-func apply_config(cfg: Node) -> void:
-	_apply_own(cfg)
-	_apply_senses(cfg)
-	_apply_tactics(cfg)
-	_apply_doorways(cfg)
-	_throw.evade_margin = cfg.evade_margin
-	_grenades.enabled = cfg.grenades_enabled
-	_grenades.hear_grenade = cfg.hear_grenade
-	_suspicion.still_speed = cfg.still_speed
-	_suspicion.extrapolate_cap = cfg.extrapolate_cap
-	_apply_vocab(cfg)
+## Set the perception's own tunables and its modules' straight from `tuning`, the NPC's topic nodes
+## (the one authoring surface). Idempotent and state-free (it only sets tunables, never the memory
+## log or hostility faction), so the controller may call it every decision to keep the modules in
+## step with a tunable retuned at runtime (e.g. by the dev command server).
+func apply_config(tuning: NpcTuning) -> void:
+	_apply_own(tuning)
+	_apply_senses(tuning)
+	_apply_tactics(tuning)
+	_apply_doorways(tuning)
+	_throw.evade_margin = tuning.grenades.evade_margin
+	_grenades.enabled = tuning.grenades.enabled
+	_grenades.hear_grenade = tuning.grenades.hear_grenade
+	_suspicion.still_speed = tuning.context.still_speed
+	_suspicion.extrapolate_cap = tuning.context.extrapolate_cap
+	_apply_vocab(tuning)
 
 
-## Set the tunables the perception reads itself from `cfg`, and the radio's reach and lapse on its
-## claim ledger.
-func _apply_own(cfg: Node) -> void:
-	contact_memory_ttl = cfg.contact_memory_ttl
-	familiar_with_house = cfg.familiar_with_house
-	lead_memory_ttl = cfg.lead_memory_ttl
-	search_memory_ttl = cfg.search_memory_ttl
-	hit_awareness_radius = cfg.hit_awareness_radius
-	hearing_radius = cfg.hearing_radius
-	hear_walk = cfg.hear_walk
-	hear_run = cfg.hear_run
-	hear_crouch = cfg.hear_crouch
-	under_fire_time = cfg.under_fire_time
-	engage_dwell = cfg.engage_dwell
-	track_smoothing = cfg.track_smoothing
-	callout_range = cfg.callout_range
-	callout_ttl = cfg.callout_ttl
+## Set the tunables the perception reads itself from `tuning`, and the radio's reach and lapse on
+## its claim ledger.
+func _apply_own(tuning: NpcTuning) -> void:
+	contact_memory_ttl = tuning.memory.contact_ttl
+	familiar_with_house = tuning.memory.familiar_with_house
+	lead_memory_ttl = tuning.memory.lead_ttl
+	search_memory_ttl = tuning.memory.search_ttl
+	hit_awareness_radius = tuning.combat.hit_awareness_radius
+	hearing_radius = tuning.senses.hearing_radius
+	hear_walk = tuning.senses.hear_walk
+	hear_run = tuning.senses.hear_run
+	hear_crouch = tuning.senses.hear_crouch
+	under_fire_time = tuning.combat.under_fire_time
+	engage_dwell = tuning.combat.engage_dwell
+	track_smoothing = tuning.context.track_smoothing
+	callout_range = tuning.radio.callout_range
+	callout_ttl = tuning.radio.callout_ttl
 	_ledger.setup({ "range": callout_range, "ttl": callout_ttl })
-	entry_enabled = cfg.entry_enabled
-	entry_guard = cfg.entry_guard
-	entry_pass_clear_time = cfg.entry_pass_clear_time
+	entry_enabled = tuning.entry.enabled
+	entry_guard = tuning.entry_guard.enabled
+	entry_pass_clear_time = tuning.entry_guard.pass_clear_time
 
 
-## Set the sight sense's, the hostility rules' and the memory's tunables from `cfg`.
-func _apply_senses(cfg: Node) -> void:
-	_vision.enabled = cfg.vision_enabled
-	_vision.view_distance = cfg.view_distance
-	_vision.fov_degrees = cfg.fov_degrees
-	_vision.awareness_radius = cfg.awareness_radius
-	_vision.see_over_coverage = cfg.see_over_coverage
-	_hostility.on_sight = cfg.hostile_on_sight
-	_hostility.trespass = cfg.hostile_on_trespass
-	_hostility.retaliate = cfg.hostile_on_attack
-	_hostility.ttl = cfg.hostility_ttl
-	_memory.capacity = cfg.memory_capacity
+## Set the sight sense's, the hostility rules' and the memory's tunables from `tuning`.
+func _apply_senses(tuning: NpcTuning) -> void:
+	_vision.enabled = tuning.senses.vision_enabled
+	_vision.view_distance = tuning.senses.view_distance
+	_vision.fov_degrees = tuning.senses.fov_degrees
+	_vision.awareness_radius = tuning.senses.awareness_radius
+	_vision.see_over_coverage = tuning.senses.see_over_coverage
+	_hostility.on_sight = tuning.hostility.on_sight
+	_hostility.trespass = tuning.hostility.on_trespass
+	_hostility.retaliate = tuning.hostility.on_attack
+	_hostility.ttl = tuning.hostility.ttl
+	_memory.capacity = tuning.memory.capacity
 
 
-## Set the combat geometry's tunables from `cfg`.
-func _apply_tactics(cfg: Node) -> void:
-	_tactics.cover_min = cfg.cover_min
-	_tactics.flank_distance = cfg.flank_distance
-	_tactics.flank_arc = cfg.flank_arc
-	_tactics.flank_ally_radius = cfg.flank_ally_radius
-	_tactics.shoot_range = cfg.shoot_range
-	_tactics.combat_ring_radius = cfg.combat_ring_radius
-	_tactics.combat_ring_count = cfg.combat_ring_count
-	_tactics.still_speed = cfg.still_speed
-	_tactics.route_clearance = cfg.route_clearance
-	_tactics.watch_arc = cfg.watch_arc
-	_tactics.fire_spot_distances = cfg.fire_spot_distances
-	_tactics.throw_spot_walk = cfg.throw_spot_walk
+## Set the combat geometry's tunables from `tuning`.
+func _apply_tactics(tuning: NpcTuning) -> void:
+	_tactics.cover_min = tuning.tactics.cover_min
+	_tactics.flank_distance = tuning.tactics.flank_distance
+	_tactics.flank_arc = tuning.tactics.flank_arc
+	_tactics.flank_ally_radius = tuning.tactics.flank_ally_radius
+	_tactics.shoot_range = tuning.combat.shoot_range
+	_tactics.combat_ring_radius = tuning.combat.ring_radius
+	_tactics.combat_ring_count = tuning.combat.ring_count
+	_tactics.still_speed = tuning.context.still_speed
+	_tactics.route_clearance = tuning.tactics.route_clearance
+	_tactics.watch_arc = tuning.tactics.watch_arc
+	_tactics.fire_spot_distances = tuning.tactics.fire_spot_distances
+	_tactics.throw_spot_walk = tuning.grenades.throw_spot_walk
 
 
-## Set the doorway geometry's and the doorway views' tunables from `cfg`, then push the walk rules
-## into the views (`_sync_walks`).
-func _apply_doorways(cfg: Node) -> void:
-	_entry.stack_spacing = cfg.entry_stack_spacing
-	_entry.wall_standoff = cfg.entry_wall_standoff
-	_entry.pie_radius = cfg.entry_pie_radius
-	_entry.pie_steps = cfg.entry_pie_steps
-	_entry.corner_inset = cfg.entry_corner_inset
-	_entry.short_room = cfg.entry_short_room
-	_views.door_view_depth = cfg.door_view_depth
-	_views.door_avoid_ratio = cfg.door_avoid_ratio
-	_views.door_avoid_slack = cfg.door_avoid_slack
+## Set the doorway geometry's and the doorway views' tunables from `tuning`, then push the walk
+## rules into the views (`_sync_walks`).
+func _apply_doorways(tuning: NpcTuning) -> void:
+	_entry.stack_spacing = tuning.entry_geometry.stack_spacing
+	_entry.wall_standoff = tuning.entry_geometry.wall_standoff
+	_entry.pie_radius = tuning.entry_geometry.pie_radius
+	_entry.pie_steps = tuning.entry_geometry.pie_steps
+	_entry.corner_inset = tuning.entry_geometry.corner_inset
+	_entry.short_room = tuning.entry_geometry.short_room
+	_views.door_view_depth = tuning.entry_guard.door_view_depth
+	_views.door_avoid_ratio = tuning.entry_guard.door_avoid_ratio
+	_views.door_avoid_slack = tuning.entry_guard.door_avoid_slack
 	_sync_walks()
 
 
-## Set the snapshot's vocabulary tunables from `cfg`.
-func _apply_vocab(cfg: Node) -> void:
-	_snapshot.vocab.shoot_range = cfg.shoot_range
-	_snapshot.vocab.punch_range = cfg.punch_range
-	_snapshot.vocab.recency_bands = cfg.recency_bands
-	_snapshot.vocab.route_buckets = cfg.route_buckets
-	_snapshot.vocab.aim_cone = cfg.aim_cone
-	_snapshot.vocab.still_speed = cfg.still_speed
-	_snapshot.vocab.flank_ally_radius = cfg.flank_ally_radius
-	_snapshot.vocab.investigate_distance = cfg.investigate_distance
-	_snapshot.vocab.extrapolate_cap = cfg.extrapolate_cap
-	_snapshot.vocab.max_options_per_level = cfg.max_options_per_level
-	_snapshot.vocab.hurt_threshold = cfg.hurt_threshold
-	_snapshot.vocab.critical_threshold = cfg.critical_threshold
-	_snapshot.vocab.low_ammo_fraction = cfg.low_ammo_fraction
-	_snapshot.vocab.max_contacts_in_state = cfg.max_contacts_in_state
-	_snapshot.vocab.search_memory_ttl = cfg.search_memory_ttl
+## Set the snapshot's vocabulary tunables from `tuning`.
+func _apply_vocab(tuning: NpcTuning) -> void:
+	_snapshot.vocab.shoot_range = tuning.combat.shoot_range
+	_snapshot.vocab.punch_range = tuning.combat.punch_range
+	_snapshot.vocab.recency_bands = tuning.context.recency_bands
+	_snapshot.vocab.route_buckets = tuning.context.route_buckets
+	_snapshot.vocab.aim_cone = tuning.context.aim_cone
+	_snapshot.vocab.still_speed = tuning.context.still_speed
+	_snapshot.vocab.flank_ally_radius = tuning.tactics.flank_ally_radius
+	_snapshot.vocab.investigate_distance = tuning.context.investigate_distance
+	_snapshot.vocab.extrapolate_cap = tuning.context.extrapolate_cap
+	_snapshot.vocab.max_options_per_level = tuning.decision.max_options_per_level
+	_snapshot.vocab.hurt_threshold = tuning.context.hurt_threshold
+	_snapshot.vocab.critical_threshold = tuning.context.critical_threshold
+	_snapshot.vocab.low_ammo_fraction = tuning.context.low_ammo_fraction
+	_snapshot.vocab.max_contacts_in_state = tuning.context.max_contacts_in_state
+	_snapshot.vocab.search_memory_ttl = tuning.memory.search_ttl
 
 
 ## Push the walk rules into the doorway views: walks keep out of the doorway views where the entry

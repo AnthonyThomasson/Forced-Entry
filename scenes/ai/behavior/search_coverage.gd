@@ -9,8 +9,7 @@ extends RefCounted
 
 const Watch := preload("res://scenes/ai/behavior/watch.gd")
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports
-# (`search_coverage_*`, `search_look_rate`).
+# --- Config fields `Behavior.apply_config()` sets from the NPC's `tuning.coverage`.
 ## Room sample-grid spacing (px): smaller = finer coverage, more sight rays.
 var spacing: float
 ## Fraction of sampled points that must be SEEN to call a room covered (1 = all).

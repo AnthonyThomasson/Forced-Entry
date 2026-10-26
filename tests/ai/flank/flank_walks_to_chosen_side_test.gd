@@ -65,7 +65,8 @@ func run(t: TestContext) -> void:
 	var left_point := Flank.side_point(TARGET_POS, facing, "left")
 	if not await Flank.settle(t, brain):
 		return
-	brain.max_commit_time = 6.0   # from here on a leg lasts as long as the walk needs
+	# From here on a leg lasts as long as the walk needs.
+	brain.tuning.decision.max_commit_time = 6.0
 	npc.movement.speed = WALK_SPEED
 	t.require(
 		await t.until(func(): return Flank.side_of_act(brain) == "left", 6.0),

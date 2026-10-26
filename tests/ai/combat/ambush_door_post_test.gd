@@ -32,7 +32,7 @@ const DOOR := Maps.DOOR_HALL_LIVING
 const DOOR_WIDTH := 80.0
 ## The unit normal out of the ambush room (the living room) through the doorway: into the hall.
 const OUT := Vector2.DOWN
-## The test's copy of the entry geometry (the `GoalController` entry exports' defaults).
+## The test's copy of the entry geometry (the defaults of the NPC's `tuning.entry_geometry`).
 const SLOT_STANDOFF := 28.0
 const SLOT_FIRST := 18.0
 const SLOT_SPACING := 44.0

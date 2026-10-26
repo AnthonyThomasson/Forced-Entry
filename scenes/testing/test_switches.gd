@@ -4,7 +4,8 @@ extends RefCounted
 ##   actor:  { child, props } — set each of `props` to `on` on that child of every actor that has it
 ##           (child "" = the character itself), before the actor enters the tree; `controller: true`
 ##           in place of `child` targets the actor's controller child (the one with `control`,
-##           interface 7);
+##           interface 7); a prop may be an indexed path (`tuning:senses:vision_enabled`, set with
+##           `set_indexed`);
 ##   world:  { node, props }  — set each of `props` to `on` on that node of the built world;
 ##   static: [[Script, prop], …] — set each static var to `on`, restored after the test; a row
 ##           `[Script, prop, off_value]` is for a non-bool knob: on keeps its tuning, off sets
@@ -16,45 +17,48 @@ static var ROWS := {
 	&"ai.vision": {
 		"description": "NPCs see (off = they only learn of others by hearing, being hit or "
 			+ "callouts).",
-		"actor": { "controller": true, "props": ["vision_enabled"] },
+		"actor": { "controller": true, "props": ["tuning:senses:vision_enabled"] },
 	},
 	&"ai.callouts": {
 		"description": "NPCs send and hear team radio callouts.",
-		"actor": { "controller": true, "props": ["send_callouts", "hear_callouts"] },
+		"actor": {
+			"controller": true,
+			"props": ["tuning:radio:send_callouts", "tuning:radio:hear_callouts"],
+		},
 	},
 	&"ai.entry": {
 		"description": "Invaders enter rooms tactically: stack, slice the pie, cross, take the "
 			+ "corners.",
-		"actor": { "controller": true, "props": ["entry_enabled"] },
+		"actor": { "controller": true, "props": ["tuning:entry:enabled"] },
 	},
 	&"ai.entry_guard": {
 		"description": "Any walk into a room that is not cleared goes in by tactical entry (needs "
 			+ "ai.entry).",
-		"actor": { "controller": true, "props": ["entry_guard"] },
+		"actor": { "controller": true, "props": ["tuning:entry_guard:enabled"] },
 	},
 	&"ai.pursuit": {
 		"description": "NPCs chase hostiles they have seen.",
-		"actor": { "controller": true, "props": ["pursue_hostiles"] },
+		"actor": { "controller": true, "props": ["tuning:decision:pursue_hostiles"] },
 	},
 	&"ai.territory": {
 		"description": "NPCs stay inside the house (the defender preset's confinement).",
-		"actor": { "controller": true, "props": ["defend_territory"] },
+		"actor": { "controller": true, "props": ["tuning:decision:defend_territory"] },
 	},
 	&"ai.hostile_on_sight": {
 		"description": "NPCs treat any non-ally they see as hostile.",
-		"actor": { "controller": true, "props": ["hostile_on_sight"] },
+		"actor": { "controller": true, "props": ["tuning:hostility:on_sight"] },
 	},
 	&"ai.hostile_on_trespass": {
 		"description": "NPCs treat anyone inside their territory (the house) as hostile.",
-		"actor": { "controller": true, "props": ["hostile_on_trespass"] },
+		"actor": { "controller": true, "props": ["tuning:hostility:on_trespass"] },
 	},
 	&"ai.hostile_on_attack": {
 		"description": "NPCs turn hostile toward whoever attacks them.",
-		"actor": { "controller": true, "props": ["hostile_on_attack"] },
+		"actor": { "controller": true, "props": ["tuning:hostility:on_attack"] },
 	},
 	&"ai.posture": {
 		"description": "NPCs crouch while fighting in place (off = they always stand).",
-		"actor": { "controller": true, "props": ["posture_enabled"] },
+		"actor": { "controller": true, "props": ["tuning:pace:posture_enabled"] },
 	},
 	&"nav.rebake": {
 		"description": "The navmesh is re-carved as furniture is shoved around.",

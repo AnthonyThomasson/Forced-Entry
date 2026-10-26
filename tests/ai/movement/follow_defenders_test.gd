@@ -137,7 +137,7 @@ func _done(t: TestContext, lead: Node) -> Callable:
 
 ## Whether the gunfire landed `clear` px from the crew, beyond its hit awareness (a premise).
 func _beyond_awareness(t: TestContext, lead: Node, clear: float) -> bool:
-	var radius: float = Follow.brain_of(lead).hit_awareness_radius
+	var radius: float = Follow.brain_of(lead).tuning.combat.hit_awareness_radius
 	return t.require(
 		clear > radius,
 		"premise: the gunfire landed beyond the crew's hit awareness (%.0f px off, radius %.0f)"

@@ -50,8 +50,9 @@ static func rules(s: TestSetup, script: Array = SCRIPT_LEFT) -> void:
 
 ## An NPC held in place so the geometry it judges stays fixed: no movement (`movement:speed` 0) and
 ## a short commit/tactic cadence so it re-decides every ~0.4 s and a test can read a full decision
-## after a moment. `gc` overrides GoalController exports; `opts` holds `kind` (the actor kind,
-## default `&"invader"`) and `look_at` (a point that sets its starting facing; default: unset).
+## after a moment. `gc` overrides the NPC's tunables, by indexed path; `opts` holds `kind` (the
+## actor kind, default `&"invader"`) and `look_at` (a point that sets its starting facing; default:
+## unset).
 static func npc(
 	s: TestSetup,
 	id: StringName,
@@ -66,7 +67,11 @@ static func npc(
 		# starts looking at the fight, so the target is in its view cone
 		props["facing"] = (look_at - pos).normalized()
 	s.actor(id, kind, pos, props)
-	var cadence := { "max_commit_time": 0.4, "tactic_interval": 0.4, "decide_interval": 0.4 }
+	var cadence := {
+		"tuning:decision:max_commit_time": 0.4,
+		"tuning:decision:tactic_interval": 0.4,
+		"tuning:decision:decide_interval": 0.4,
+	}
 	cadence.merge(gc, true)
 	s.set_props(id, "GoalController", cadence)
 

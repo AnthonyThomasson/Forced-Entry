@@ -22,7 +22,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.HALL_LIVING)
 	Entry.npc(s, &"a", Vector2(600, 415))
-	Entry.npc(s, &"b", Vector2(700, 415), { "decide_interval": 0.55 })
+	Entry.npc(s, &"b", Vector2(700, 415), { "tuning:decision:decide_interval": 0.55 })
 
 
 func run(t: TestContext) -> void:

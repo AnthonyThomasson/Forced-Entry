@@ -5,7 +5,7 @@ description: Deep implementation detail for the AI COMBAT module (scenes/ai/beha
 
 # AI · Combat module (`scenes/ai/behavior/combat.gd`)
 
-A `RefCounted` that `Behavior` owns (built in `setup()`, its tunables set from the controller's exports by `Behavior.apply_config(cfg)`). It owns the fire cooldown and the
+A `RefCounted` that `Behavior` owns (built in `setup()`, its tunables set from the NPC's `tuning.combat` by `Behavior.apply_config(tuning)`). It owns the fire cooldown and the
 peek-and-cover cycle (`phase` `"peek"`/`"cover"`, `cover_timer`, `fire_timer`, the committed `dest` and `dest_timer`, the burst and
 back-off counters) and executes every combat action on the character. `Behavior` decides WHICH fight is on — it holds the engaged
 contact (node, last-known position) and the `hold_ground` flag — and passes them in each call, so combat never picks a target. It reads
@@ -17,9 +17,9 @@ loaded gun, the known contact in range on a clear line: a shot is on), `fire_at_
 (shoot it when `can_fire_at`, once facing settles; aims at it; the watch stage calls it for the threat in every primitive, `domain-ai-watch`), `reload_due()`, `has_line_of_fire(target) -> bool` (in range on a clear line, whatever the gun's state; what `can_fire_at` adds a loaded gun to, and the entry reads for E14), `top_off() -> bool` (a tactical reload of a part-spent gun, called by the entry at the stack: starts it, true while it runs or is wanted; `docs/tactical-entry.md` E11), `ambush(node, pos)`,
 `peek_cover(delta, node, pos, hold_ground, room := "")`, `melee(pos, hold_ground)`, `shoot() -> bool`, `strike()` / `punch()` / `kick()`,
 `continue_burst()`, `apply_back_off(delta)`, `reload_if_dry()`; `signal dry`
-(an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables (set from the controller
-exports): `shoot_range`, `punch_range`, `ring_radius` (the radius of the ring of candidate spots, from `combat_ring_radius`; the perception's `combat_spots` lays `combat_ring_count` points on it), `cover_time`,
-`fire_cooldown`, `fire_burst`, `back_off_time`, `reposition_interval`, `auto_reload`; each keeps the export's default, for a `Combat` built
+(an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables (set from the NPC's
+`tuning.combat`): `shoot_range`, `punch_range`, `ring_radius` (the radius of the ring of candidate spots, from `tuning.combat.ring_radius`; the perception's `combat_spots` lays `tuning.combat.ring_count` points on it), `cover_time`,
+`fire_cooldown`, `fire_burst`, `back_off_time`, `reposition_interval`, `auto_reload`; each keeps the tunable's default, for a `Combat` built
 without the controller (`tests/ai/combat/combat_waits_for_facing_test.gd`).
 
 **Peek-and-cover** (the `engage` primitive, style `peek_cover`): in the PEEK phase move to the nearest spot with a clear shot and
@@ -55,7 +55,7 @@ points, less any part that heads into a body it knows of: `Locomotion.keep_off`)
 barrel is clear, then shoots. Callers that advance state on a shot (peek-and-cover
 switching to its cover phase) wait for the back-off to finish. A pistol never reports blocked, so a chair against it changes nothing. An
 `weapon.is_automatic()` gun's trigger pull is a **burst**: `_burst_left = fire_burst − 1` more rounds, fired from `Behavior.apply()` (`Combat.continue_burst`) as the gun's own
-fire rate allows, ending early on a run, reload, wall or empty gun. Controller exports: `fire_burst` (3), `back_off_time` (0.45 s).
+fire rate allows, ending early on a run, reload, wall or empty gun. Tunables (`tuning.combat`): `fire_burst` (3), `back_off_time` (0.45 s).
 Tests: `tests/ai/combat/blocked_gun_steps_back_test.gd` (a rifle with a chair against its barrel), `pistol_fires_against_object_test.gd`.
 Not modelled: a rifleman cornered with a wall behind it can still stall (bounded by the back-off timer and re-decisions); cover logic treats walls as
 bulletproof though a rifle shoots through them.
@@ -69,7 +69,7 @@ before the evade reflex gets its plan, since the grenade just thrown is a live o
 **Ammo.** An empty gun cannot fire, so the behaviour never "fights" with one: `Combat.fire_at_will` returns early when the gun
 is empty or reloading, and `Combat.shoot()` on an empty gun is a dry click that does not note engagement or call `weapon.shoot()`; it spends
 `fire_cooldown` and emits `dry` (the behaviour flags the task resolved), so the NPC re-decides (the snapshot now says the gun is empty) at most once per
-cooldown. `auto_reload` (controller export, default on) is `Combat.reload_if_dry`, a reflex in `hold` (the server-down fallback, and after a
+cooldown. `auto_reload` (`tuning.combat.auto_reload`, default on) is `Combat.reload_if_dry`, a reflex in `hold` (the server-down fallback, and after a
 reload), in the cover phase of peek-and-cover and from the watch stage whenever a threat is in view outside a crossing (W3): an EMPTY gun with a spare magazine is reloaded without a decision. A reload
 runs only while standing (running cancels it, so the `reload` primitive never sets `movement.run_input`). `debug_state()` / `debug_combat()`
 carry `reloading`; the combat overlay shows a RELOADING badge. Tests: `tests/ai/combat/scripted_reload_decision_test.gd`,

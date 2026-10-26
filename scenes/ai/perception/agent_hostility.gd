@@ -5,8 +5,8 @@ extends RefCounted
 ## agent's memory as `&"hostile"` events (`{ id, reason }`), so hostility persists and decays like
 ## any other knowledge. The same rules serve every NPC: a defender is "hostile on trespass + on
 ## attack", an invader "hostile on sight". Allies (same faction, or a listed one) are never hostile.
-## The perception sets the four rules from the controller's exports (`hostile_on_sight`,
-## `hostile_on_trespass`, `hostile_on_attack`, `hostility_ttl`).
+## The perception sets the four rules from the NPC's tuning (`tuning.hostility`: `on_sight`,
+## `on_trespass`, `on_attack`, `ttl`).
 
 ## Every non-allied character seen is hostile.
 var on_sight: bool

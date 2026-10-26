@@ -114,8 +114,8 @@ const PACE_FLOOR := 100.0
 ## cleared and expire, and the avoid map is only kept for a walk that keeps asking for it).
 const DOORS_RECHECK := 2.0
 
-## How close (px) counts as "arrived" when steering straight-line (no nav agent): the controller's
-## `arrive_dist`, set by `Behavior.apply_config()`.
+## How close (px) counts as "arrived" when steering straight-line (no nav agent): the NPC's
+## `tuning.pace.arrive_dist`, set by `Behavior.apply_config()`.
 var arrive_dist: float
 ## World-space room rects (`{ key, type, rect }`) of the house, set each tick by `Behavior` from the
 ## controller's inject.

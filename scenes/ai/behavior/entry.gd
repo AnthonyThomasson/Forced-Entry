@@ -125,8 +125,8 @@ const BANG_WINDOW := 3.0
 ## (E17).
 const SUSPECT_EVERY := 0.25
 
-# --- Config fields `Behavior.apply_config()` sets from the controller's exports (`entry_*`,
-# `rear_security_time`, `order_ready_cap`, `squad`).
+# --- Config fields `Behavior.apply_config()` sets from the NPC's tuning (`tuning.entry`, the look
+# rate off `tuning.coverage`) and its side's `squad`.
 ## Seconds the point waits for the stack, once ready, before going in without it.
 var ready_timeout: float
 ## Seconds a quiet stack with a stun holds, the point in its slot, before the pie (E17: a late

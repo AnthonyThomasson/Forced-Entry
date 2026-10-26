@@ -32,7 +32,7 @@ of sight back to the NPC. A ray fan asks the controller each frame where the NPC
 (`debug_sight_end(to)`, the perception's `sight_end` → `AgentVision.sight_hit`: walls and TALL furniture block,
 furniture at or below `see_over_coverage` is seen over) and builds visibility polygons from the answers, so the
 shadows are exactly the sense's — only the area that would actually trigger a detection. The overlay casts no
-ray of its own. It reads the controller's live vision params
+ray of its own. It reads the controller's live vision params, its `tuning.senses`
 (`vision_enabled`, `view_distance`, `fov_degrees`, `awareness_radius`). When vision is disabled
 (omniscient), the bubble is drawn as a plain circle and the cone is skipped.
 Each area is drawn as the fan it is by construction (`_fill_fan`: one `RenderingServer.canvas_item_add_triangle_array`, the

@@ -20,12 +20,12 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "tuning:entry:ready_timeout": 30.0 })
 	Entry.npc(
 		s,
 		&"b",
 		Vector2(990, 600),
-		{ "decide_interval": 0.55, "entry_ready_timeout": 30.0 },
+		{ "tuning:decision:decide_interval": 0.55, "tuning:entry:ready_timeout": 30.0 },
 		{ "movement:speed": 60.0 },
 	)
 

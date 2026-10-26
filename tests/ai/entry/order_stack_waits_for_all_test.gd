@@ -1,18 +1,19 @@
 extends GameTest
 ## LD9 / D7 (`docs/leadership.md`): go when ready. An ordered stack's point crosses once every
 ## living recipient of the order has radioed `ready` (up to the safety cap `order_ready_cap`, 60 s
-## from the first ordered `ready`); the `entry_ready_timeout` (6 s) still applies to unordered
-## joiners only. Two invaders are ordered to stack on the Terrace house's back door: one starts
-## beside it, the other far off beyond the house's north-west corner, a long walk round its north
-## side (about 1300 px, some 8 s). The near one is ready long before the far one; the point does not
-## go in until the far one has radioed `ready`, well past the 6 s an unordered stack would wait.
+## from the first ordered `ready`); the `tuning.entry.ready_timeout` (6 s) still applies to
+## unordered joiners only. Two invaders are ordered to stack on the Terrace house's back door: one
+## starts beside it, the other far off beyond the house's north-west corner, a long walk round its
+## north side (about 1300 px, some 8 s). The near one is ready long before the far one; the point
+## does not go in until the far one has radioed `ready`, well past the 6 s an unordered stack would
+## wait.
 ##
 ## Scripted Von, down: the members' own decisions hold steady, so what they do is the order's alone.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
-## The ready timeout an unordered stack goes on after (`entry_ready_timeout`).
+## The ready timeout an unordered stack goes on after (`tuning.entry.ready_timeout`).
 const READY_TIMEOUT := 6.0
 
 

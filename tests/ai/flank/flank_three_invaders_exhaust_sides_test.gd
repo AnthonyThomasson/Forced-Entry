@@ -28,11 +28,11 @@ func configure(s: TestSetup) -> void:
 	for i in cadence.size():
 		var c: float = cadence[i]
 		var tuning := {
-			"route_clearance": 0.0, "max_commit_time": c,
-			"tactic_interval": c, "decide_interval": c,
+			"tuning:tactics:route_clearance": 0.0, "tuning:decision:max_commit_time": c,
+			"tuning:decision:tactic_interval": c, "tuning:decision:decide_interval": c,
 			# Held in place with the target in plain view they shoot all they can: a slow
 			# trigger keeps the magazines from running dry, which would take flank off the menu.
-			"fire_cooldown": 2.0,
+			"tuning:combat:fire_cooldown": 2.0,
 		}
 		Flank.npc(
 			s,

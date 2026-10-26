@@ -1,7 +1,7 @@
 extends GameTest
 ## Desired (E16, with E6): a nearby human holds the AI point at the ready barrier like any teammate.
-## One that never reaches its slot is waited for `entry_ready_timeout`, then the point goes in
-## without it.
+## One that never reaches its slot is waited for `tuning.entry.ready_timeout`, then the point goes
+## in without it.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -22,7 +22,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": TIMEOUT })
+	Entry.npc(s, &"a", Vector2(930, 90), { "tuning:entry:ready_timeout": TIMEOUT })
 	Stack.human(s, &"me", Stack.NEAR)   # reserved a slot, never walks to it
 
 

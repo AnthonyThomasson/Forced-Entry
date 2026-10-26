@@ -41,7 +41,11 @@ func configure(s: TestSetup) -> void:
 		s.set_props(
 			StringName("inv%d" % i),
 			"GoalController",
-			{ "tactic_interval": 0.4, "decide_interval": 0.4, "max_commit_time": 0.4 },
+			{
+				"tuning:decision:tactic_interval": 0.4,
+				"tuning:decision:decide_interval": 0.4,
+				"tuning:decision:max_commit_time": 0.4,
+			},
 		)
 	s.actor(&"tgt", &"puppet", TARGET, { "faction": &"household", "max_health": 100_000.0 })
 

@@ -41,7 +41,7 @@ func configure(s: TestSetup) -> void:
 		},
 		Vector2(350, LANES[&"table"]),
 	)
-	s.set_props(&"def_off", "GoalController", { "posture_enabled": false })
+	s.set_props(&"def_off", "GoalController", { "tuning:pace:posture_enabled": false })
 
 
 func run(t: TestContext) -> void:

@@ -628,16 +628,16 @@ static func bind_squad(npc: Node, squad: Node, stack: Node = null, own_claims :=
 		brain.squad = squad
 
 
-## How long the NPCs among `members` keep a callout they heard: the `callout_ttl` of the first one's
-## controller (0 with no NPC among them). Handed to the side's squad (`Squad.setup`), which keeps
-## its members' entry claims as long.
+## How long the NPCs among `members` keep a callout they heard: the `tuning.radio.callout_ttl` of
+## the first one's controller (0 with no NPC among them). Handed to the side's squad
+## (`Squad.setup`), which keeps its members' entry claims as long.
 static func callout_ttl_of(members: Array) -> float:
 	for m in members:
 		if not (m is Node and is_instance_valid(m)):
 			continue
 		var brain := _controller_of(m)
-		if brain != null and "callout_ttl" in brain:
-			return float(brain.callout_ttl)
+		if brain != null and "tuning" in brain:
+			return float(brain.tuning.radio.callout_ttl)
 	return 0.0
 
 

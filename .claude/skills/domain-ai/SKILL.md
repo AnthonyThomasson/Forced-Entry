@@ -19,9 +19,10 @@ skill for detail.
 ## The orchestrator + four sub-domains
 
 `ai/goal_controller.gd` is the **orchestrator** — the AI's own composition root (the `main.gd` of the
-AI domain). It is the single **authoring surface** (every tunable is an export here, so a defender or
-invader preset is all data on this one node), it wires the sub-domains and hands itself to each facade's
-`apply_config(cfg)`, which sets that sub-domain's fields and its modules' straight from the controller's exports — building
+AI domain). It holds the NPC's tunables, the AI's single **authoring surface**, as `tuning` (`NpcTuning`,
+`ai/tuning/`: its `Tuning` child, one topic node per concern, `tuning.<topic>.<name>`, so a defender or
+invader preset is all data on those nodes), it wires the sub-domains and hands that hub to each facade's
+`apply_config(tuning)`, which sets that sub-domain's fields and its modules' straight from the topics — building
 them once, then applying the config again each decision so a tunable retuned at runtime
 (a behaviour test, the dev command server) takes effect without a rebuild, and on its first `control(character, delta)` hands the NPC's
 body to perception and behaviour once (`bind(character)`, which each passes on to its modules), so no sub-domain function takes the
@@ -117,20 +118,20 @@ throw spot a short walk away (`agent_tactics.gd` `throw_spot`, issue #51 R13 / R
 from it itself (judged from where it throws); it runs the `throw` primitive (walk to the throw spot, select, aim, throw, radio `frag_out` / `bang_out`, gun back in hand, wait out the fuse, or the evade plan if it is in the
 burst's zone). **STUN ENTRY** (G18) is a SEARCH tactic beside ENTER, offered while the NPC or its stack carries a stun: the same doorways, with a stun thrown into the room from beside the door before the point crosses (the `bang` phase of
 `entry.gd`, `docs/tactical-entry.md` E17); Von takes it for a suspect room (gunfire or footsteps heard there, shots from it, an ally's fight in it, a hostile lost in it, by its doorway or heading in). `perception/snapshot` words both (`domain-ai-snapshot`), the tree has the nodes (`domain-ai-decision`), `combat.gd` throws (`domain-ai-combat`), `entry.gd` runs the bang (`domain-ai-entry`); the numbers it
-knows of a grenade not yet thrown (throw range, radii, fuses, the flash's cover reach) it reads off the grenades it carries (`Character.inventory.throw_stats(slot)`, interface 6/7; no copy in exports).
+knows of a grenade not yet thrown (throw range, radii, fuses, the flash's cover reach) it reads off the grenades it carries (`Character.inventory.throw_stats(slot)`, interface 6/7; no copy in its tuning).
 
-Two reflexes outside Von, in the orchestrator's loop (`_react_to_grenades`, `_process_events`), and the exports **Grenades** group (`grenades_enabled`, `hear_grenade` 300 px, `evade_margin` 120 px, `blind_fire_chance` 0.5):
+Two reflexes outside Von, in the orchestrator's loop (`_react_to_grenades`, `_process_events`), and the tunables in `tuning.grenades` (`enabled`, `hear_grenade` 300 px, `evade_margin` 120 px, `blind_fire_chance` 0.5):
 - **Evade (G16).** Perception knows the live grenades it sees, hears come down, is told of (callout `status` `grenade`, also `frag_out` / `bang_out`) or threw; when it is inside a
   grenade's danger zone it radios an `&"grenade"` callout (`point` = where it landed, `kind`) and the behaviour runs to the nearest safe spot (out of the burst's line, behind furniture that
   shields a crouched body, or outside the zone), holds it facing away and re-decides at the burst. No decision starts or is adopted meanwhile. `perception/agent_grenades.gd`,
   `agent_throw.gd`, `behavior.gd` ("The evade reflex"). `debug_grenades()` reads it; the `show_grenades` overlay draws it.
 - **Stunned (G15).** Blind: no new sighting, no new decision (it re-decides the tick sight returns), its contacts kept so it fires blind at the last-known spot of the one it fought (the character's aim
-  sway applies, one-handed) when its one roll as it goes blind hits `blind_fire_chance` (Grenades export, 0.5; drawn from the controller's own RNG, seeded at bind from the
+  sway applies, one-handed) when its one roll as it goes blind hits `tuning.grenades.blind_fire_chance` (0.5; drawn from the controller's own RNG, seeded at bind from the
   character's name and spawn spot, so a seeded run rolls the same; a re-stun while blind does not reroll), else it holds its fire until it can see (`Combat.holds_fire`); deaf: the orchestrator drops gunfire, hits elsewhere, footfalls, callouts and grenade landings it would have heard.
 
 ## Hearing (`docs/hearing.md`)
 
-The NPC hears the footsteps of characters not of its faction through walls (H1), out to a range by gait: the exports **Hearing** group, `hear_walk` 250 px,
+The NPC hears the footsteps of characters not of its faction through walls (H1), out to a range by gait: `tuning.senses`'s `hear_walk` 250 px,
 `hear_run` 450 px, `hear_crouch` 100 px. A heard step is an INVESTIGATE lead and a reason to suspect the room it came from; `debug_memory()["footsteps"]` reads it.
 
 ## The decision tree
@@ -163,25 +164,25 @@ SEARCH and IDLE disabled (below).
 
 Spawned by the match builder (`MatchBuilder.populate`: Main's `defender_count` / `invader_count`, default 1 each), each bound before it
 joins the tree (`MatchBuilder.bind_npc`: the house's rooms and openings, an invader's front entrance), as a test world binds its NPC actors:
-- **Defender** — `ai/npc_defender.tscn` (faction `household`): `hostile_on_trespass` +
-  `hostile_on_attack`, `defend_territory` (combat options stay inside the house), familiar with the
+- **Defender** — `ai/npc_defender.tscn` (faction `household`): `tuning.hostility.on_trespass` +
+  `tuning.hostility.on_attack`, `tuning.decision.defend_territory` (combat options stay inside the house), familiar with the
   house. Dropped at a clear spot in a random room (never inside solid furniture or on another defender).
 - **Invader** — `ai/npc_invader.tscn`, an inherited scene overriding only data (faction
-  `invader`): `hostile_on_sight`, not territorial, unfamiliar with the house (it learns rooms by
+  `invader`): `tuning.hostility.on_sight`, not territorial, unfamiliar with the house (it learns rooms by
   sight and is offered unexplored areas by direction), a red body. Dropped just outside the house: the
   match's invader team in one group against the outside wall beside the front door, on a side drawn from the house seed (`match_spawner.gd`
   `spawn_invader_team`, LD27; round the human invader when there is one, round a seeded point of the ring round the house when it has no front
   door); they coordinate flanks over the callout radio and, as a squad, follow their leader. It enters rooms
-  tactically (`entry_enabled`, `docs/tactical-entry.md`): stack beside the door, slice the pie, cross
+  tactically (`tuning.entry.enabled`, `docs/tactical-entry.md`): stack beside the door, slice the pie, cross
   without stopping, take the corners, clear, leave rear security — as a team over the radio, or alone. A quiet stack that carries a stun
-  listens at the stack before the pie (`entry_listen_time` 3 s, an **Entry** group export: E17, issue #51 R17), so a late reason can turn it into a bang.
+  listens at the stack before the pie (`tuning.entry.listen_time` 3 s: E17, issue #51 R17), so a late reason can turn it into a bang.
 
-Both pursue hostiles (`pursue_hostiles`, default on): IDLE is never offered and a known hostile sends
+Both pursue hostiles (`tuning.decision.pursue_hostiles`, default on): IDLE is never offered and a known hostile sends
 every decision straight to COMBAT.
 
 Both know their ammo: the snapshot's `loadout` section and the `gun_loaded` / `weapon_low` / `can_reload` facts feed a RELOAD
-tactic in the decision tree, the `reload` primitive runs it, and the `auto_reload` export (default on) reloads an empty gun
-as a reflex. `low_ammo_fraction` sets where "nearly empty" starts.
+tactic in the decision tree, the `reload` primitive runs it, and `tuning.combat.auto_reload` (default on) reloads an empty gun
+as a reflex. `tuning.context.low_ammo_fraction` sets where "nearly empty" starts.
 
 Nothing in the AI is written per weapon: it fights with `Character.inventory.gun_slot()` (whatever gun it carries — the presets hold a pistol, but a match
 arms every NPC with a gun from its side's loadout, one random gun by default) and reacts only to generic conditions the character reports. Notably, when its gun cannot fire because the
@@ -193,7 +194,7 @@ Von ranks distinct, verb-like options well but cannot do arithmetic or compare n
 points, so every level offers a few DISTINCT options whose text carries the deciding facts as bands
 ("short hidden route", "in pistol range", "held by Invader2"). The NPC acts only on what it has
 PERCEIVED: it fights a hostile's last-KNOWN position, loses a contact once its sighting decays (it
-becomes an investigation lead), and (unless `familiar_with_house`) must see rooms/objects before it can
+becomes an investigation lead), and (unless `tuning.memory.familiar_with_house`) must see rooms/objects before it can
 use them. The detail lives in `domain-ai-perception`, `domain-ai-decision` and `domain-ai-behavior`.
 
 **Interfaces:** 3 (`Explosion.shields` / `first_stop`, the blast's cover rule perception asks of a grenade), 6 (`ItemRegistry`'s

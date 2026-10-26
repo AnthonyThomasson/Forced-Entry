@@ -24,7 +24,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.guard_rules(s, ["combat", "retreat", "fall_kitchen"])
 	Entry.npc(s, &"inv", START, {}, { "facing": Vector2.UP })
-	s.set_props(&"inv", "GoalController", { "familiar_with_house": true })
+	s.set_props(&"inv", "GoalController", { "tuning:memory:familiar_with_house": true })
 	Entry.target(s, &"tgt", TARGET, Vector2(150, 0))
 
 

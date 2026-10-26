@@ -64,7 +64,7 @@ outside the house: hold your ground, do not chase anyone outside"). Measured wit
 after any rewording). A wording that does not name the situation ("Hold your ground inside the house; do not chase anyone outside")
 loses to the lead under fire (0.35) and makes invaders hold too, and without a decline option Von takes the outside lead (0.66) whatever the state says. Nothing in the tree or the code knows who the NPC is; reword the desc and re-run
 the probe and the Von tests (`defender_stays_in_house_von`, `defender_investigates_gunfire_inside_von`,
-`invader_investigates_gunfire_outside_von`) together. `defend_territory` still confines COMBAT only.
+`invader_investigates_gunfire_outside_von`) together. `tuning.decision.defend_territory` still confines COMBAT only.
 A node may mix `children` and `options`. `engage` and `flank` require `gun_loaded` (an empty gun is never offered "a clear shot"); `advance`, `melee` and
 `retreat` stay available so an empty NPC can still close in, punch or fall back. The `reload` nodes require `weapon_low` +
 `can_reload` (the quiet one also `!threat_known`) and have a lone option, so the planner takes them without a Von request when
@@ -114,7 +114,7 @@ phrasings were chosen by measurement with `tools/von_probe.py` — re-run it aft
 
 ## `decision_planner.gd` — the walk
 
-Config (pushed in from the controller): `disabled_nodes`, `node_overrides` (per-node field merge),
+Config (pushed in from the controller; the tunables among it from the NPC's `tuning.decision`): `disabled_nodes`, `node_overrides` (per-node field merge),
 `entry_rules` (ordered fact → start node), `skip_single_option`, `inside_only` (territory), `confine_room` (the room a member ordered to
 defend it keeps to, `docs/leadership.md` LD8: inside a `confine` subtree an option whose `tags.room` is another room or outside is dropped,
 as `inside_only` drops one outside the house; an option naming no place stays; the leaf's params then carry `confine_room`), and
@@ -129,7 +129,7 @@ the option names its own `primitive` (`_finish` takes an option's `primitive` ov
 `follow`, LD20): for a squad member following its leader the controller adds the entry rule `follows → follow` after `hostile_known` and
 disables `investigate`, `search` and `idle`, so with no fight, order or hostile known the walk starts at the leaf and takes it without
 asking Von. The
-controller maps `pursue_hostiles` → `idle` disabled + `hostile_known → combat`; `defend_territory` →
+controller maps `tuning.decision.pursue_hostiles` → `idle` disabled + `hostile_known → combat`; `tuning.decision.defend_territory` →
 `inside_only`. All but `node_overrides` are re-pushed each decision, so retuning them at runtime takes
 effect; `node_overrides` is baked into the tree at `setup()` and is construction-time only.
 

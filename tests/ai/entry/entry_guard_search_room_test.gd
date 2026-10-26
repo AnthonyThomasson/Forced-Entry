@@ -21,7 +21,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.guard_rules(s, ["room_living_room"])
 	Entry.npc(s, &"inv", Maps.GARDEN)
-	s.set_props(&"inv", "GoalController", { "familiar_with_house": true })
+	s.set_props(&"inv", "GoalController", { "tuning:memory:familiar_with_house": true })
 
 
 func run(t: TestContext) -> void:

@@ -22,14 +22,18 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": 40.0 })
+	Entry.npc(s, &"a", Vector2(930, 90), { "tuning:entry:ready_timeout": 40.0 })
 	# It starts north of the door, on the human's side: a one-sided stack (a late AI from the other
 	# side splits the stack, E19).
 	Entry.npc(
 		s,
 		&"b",
 		Vector2(980, -70),
-		{ "entry_enabled": false, "max_commit_time": 0.5, "entry_ready_timeout": 40.0 },
+		{
+			"tuning:entry:enabled": false,
+			"tuning:decision:max_commit_time": 0.5,
+			"tuning:entry:ready_timeout": 40.0,
+		},
 		{ "movement:speed": 0.0 },
 	)
 	Stack.human(s, &"me", Stack.NEAR)
@@ -51,7 +55,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.actor(&"b").movement.speed = 150.0
-	Entry.brain(t, &"b").set("entry_enabled", true)
+	Entry.brain(t, &"b").set_indexed("tuning:entry:enabled", true)
 	if not t.require(
 			await t.until(func(): return not Entry.calls(t, "in", &"a").is_empty(), 80.0),
 			"the point went in (act %s)" % Entry.brain(t, &"a").current_act(),

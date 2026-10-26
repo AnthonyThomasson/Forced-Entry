@@ -29,7 +29,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	# a plain walk in: the stack at the door is not what is tested here
 	s.switch(&"ai.entry", false)
-	Entry.npc(s, &"inv", Maps.HALL_MIDDLE, { "familiar_with_house": true })
+	Entry.npc(s, &"inv", Maps.HALL_MIDDLE, { "tuning:memory:familiar_with_house": true })
 	Entry.target(s, &"defender", DEFENDER_AT, Maps.LIVING_CENTRE)
 
 

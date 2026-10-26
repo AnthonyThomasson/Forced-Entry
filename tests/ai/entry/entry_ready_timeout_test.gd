@@ -1,7 +1,7 @@
 extends GameTest
 ## Desired (E6): a teammate that claimed a slot but never reaches it does not hold the stack
-## forever: the invader at the door waits `entry_ready_timeout` after it was ready, then goes in
-## without it.
+## forever: the invader at the door waits `tuning.entry.ready_timeout` after it was ready, then goes
+## in without it.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
@@ -21,13 +21,13 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
-	Entry.npc(s, &"a", Vector2(930, 90), { "entry_ready_timeout": TIMEOUT })
+	Entry.npc(s, &"a", Vector2(930, 90), { "tuning:entry:ready_timeout": TIMEOUT })
 	# Claims a slot but cannot move: it never reaches it.
 	Entry.npc(
 		s,
 		&"b",
 		Vector2(990, 600),
-		{ "decide_interval": 0.55, "entry_ready_timeout": TIMEOUT },
+		{ "tuning:decision:decide_interval": 0.55, "tuning:entry:ready_timeout": TIMEOUT },
 		{ "movement:speed": 0.0 },
 	)
 

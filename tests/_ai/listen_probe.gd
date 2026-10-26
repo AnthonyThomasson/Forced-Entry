@@ -2,9 +2,9 @@ extends RefCounted
 ## Shared helpers for the listen-at-the-stack tests (tests/ai/grenade/quiet_entry_listen_*; not a
 ## test itself): `const Listen := preload("res://tests/_ai/listen_probe.gd")`. The behaviour they
 ## assert is `docs/tactical-entry.md` E17 as amended by issue #51 R17: a quiet entry whose stack
-## carries a stun holds `entry_listen_time` (3 s) at the stack before the point starts the pie, so a
-## late reason (R11) can arrive; a hostile in view or coming under fire ends the hold; a stack
-## without a stun does not hold.
+## carries a stun holds `tuning.entry.listen_time` (3 s) at the stack before the point starts the
+## pie, so a late reason (R11) can arrive; a hostile in view or coming under fire ends the hold; a
+## stack without a stun does not hold.
 ##
 ## The world is the bang-fallback tests' (tests/_ai/bang_probe.gd): the bare Terrace house, a stack
 ## of two invaders north-east of the back door, each armed with one stun at the start of `run` (the
@@ -17,7 +17,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const IDS := [&"a", &"b"]
-## The listen hold (R17, `entry_listen_time`), and the tolerance a test reads it with.
+## The listen hold (R17, `tuning.entry.listen_time`), and the tolerance a test reads it with.
 const LISTEN := 3.0
 const LISTEN_MIN := 2.7
 

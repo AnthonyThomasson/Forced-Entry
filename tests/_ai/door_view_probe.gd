@@ -19,7 +19,7 @@ const DEPTH := 450.0
 ## than this many times the plain route plus this many px.
 const AVOID_RATIO := 2.0
 const AVOID_SLACK := 300.0
-## `entry_pass_clear_time`: how long (s) a cleared room counts as safe to walk past.
+## `tuning.entry_guard.pass_clear_time`: how long (s) a cleared room counts as safe to walk past.
 const PASS_CLEAR_TIME := 60.0
 ## How far (px) inside the view's edge a body's centre must be before it counts as in the view: the
 ## agent cuts a path's corners by up to 16 px, so a walk that keeps to the edge is not taken for one

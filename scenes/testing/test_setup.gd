@@ -128,7 +128,8 @@ func actor(
 
 
 ## Set `props` on child `child_path` of actor `id` before it enters the tree (e.g. an NPC's
-## "GoalController" exports). Merges with earlier calls.
+## "GoalController" tunables, each an indexed path into its tuning: `"tuning:entry:ready_timeout"`).
+## Merges with earlier calls.
 func set_props(id: StringName, child_path: String, props: Dictionary) -> TestSetup:
 	for a in actors:
 		if a["id"] == id:

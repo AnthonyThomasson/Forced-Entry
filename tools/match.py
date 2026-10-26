@@ -23,7 +23,7 @@ Examples:
     python3 tools/match.py --rounds 3 --seed 42 --timeout 60
     python3 tools/match.py --rounds 4 \\
         --defender 'scene().get_node("Defender/GoalController").goal = "hide and ambush"' \\
-        --invader  'scene().get_node("Invader/GoalController").pursue_hostiles = true'
+        --invader  'scene().get_node("Invader/GoalController/Tuning/Decision").pursue_hostiles = true'
 
 This talks to the same socket as tools/gcmd.py; keep that file as the single-command entry point.
 """

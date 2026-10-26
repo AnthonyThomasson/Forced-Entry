@@ -7,11 +7,19 @@ faction = &"invader"
 
 [node name="GoalController" parent="."]
 goal = "You are breaking into this house. Search it and shoot everyone you find with your {gun}."
+
+[node name="Decision" parent="GoalController/Tuning"]
 defend_territory = false
+
+[node name="Memory" parent="GoalController/Tuning"]
 familiar_with_house = false
-hostile_on_sight = true
-hostile_on_trespass = false
-entry_enabled = true
+
+[node name="Entry" parent="GoalController/Tuning"]
+enabled = true
+
+[node name="Hostility" parent="GoalController/Tuning"]
+on_sight = true
+on_trespass = false
 
 [node name="AgentDebug" parent="."]
 label_color = Color(1, 0.6, 0.55, 1)

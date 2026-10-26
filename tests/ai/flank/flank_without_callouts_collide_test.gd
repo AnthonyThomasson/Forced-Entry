@@ -29,7 +29,11 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"b",
 		B_POS,
-		{ "max_commit_time": 0.55, "tactic_interval": 0.55, "decide_interval": 0.55 },
+		{
+			"tuning:decision:max_commit_time": 0.55,
+			"tuning:decision:tactic_interval": 0.55,
+			"tuning:decision:decide_interval": 0.55,
+		},
 		{ "look_at": TARGET_POS },
 	)
 	Flank.target(s, &"target", TARGET_POS, A_POS)

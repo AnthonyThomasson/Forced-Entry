@@ -6,9 +6,6 @@ extends GameTest
 ## stand-in contacts and perception (no world).
 
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
-## The controller whose exports the behaviour takes its tunables from (an unbuilt one: its export
-## defaults).
-const GoalController := preload("res://scenes/ai/goal_controller.gd")
 
 
 func describe() -> Dictionary:
@@ -26,9 +23,9 @@ func run(t: TestContext) -> void:
 	var b := Node2D.new()
 	var perception := FakePerception.new()
 	var behavior := Behavior.new()
-	var cfg := GoalController.new()
+	var tuning := NpcTuning.defaults()
 	behavior.setup(perception, null)
-	behavior.apply_config(cfg)
+	behavior.apply_config(tuning)
 
 	var both_seen := [_contact(a, Vector2(300, 0), true), _contact(b, Vector2(300, 200), true)]
 	behavior.update_known(both_seen, 0.016)
@@ -44,7 +41,7 @@ func run(t: TestContext) -> void:
 		"it starts out fighting A",
 	)
 	_check_retargets(t, behavior, a, b, both_seen)
-	for n in [a, b, perception, behavior, cfg]:
+	for n in [a, b, perception, behavior, tuning]:
 		n.free()
 
 

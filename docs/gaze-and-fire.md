@@ -13,7 +13,7 @@ a threat or, for a resting NPC, the doors. It also does all the shooting of a th
 its own fire call.
 
 A *threat* is a hostile contact (`Watch.threat`): the one it is fighting if it can see it, else the nearest it can see,
-else the one it is fighting as last seen, else the nearest it saw within `watch_lost_gaze` s. A contact it cannot see only
+else the one it is fighting as last seen, else the nearest it saw within `tuning.watch.lost_gaze` s. A contact it cannot see only
 counts while it has a clear line to where it was last seen (it does not stare at a wall because someone is behind it).
 
 ## Behaviours
@@ -38,9 +38,9 @@ on a walk (`auto_reload`; not mid-crossing, E4). A gun with no spare is not relo
 Tests: `fire_dry_gun_on_move_reloads`, `empty_pistol_no_spares`.
 
 **W4. With no threat: look where you are going, or watch the doors.** A walking NPC looks along its path as far as it has a
-clear line, up to `watch_look_ahead` px, so it looks through the doorway it is lining up and never at the jamb or the wall
+clear line, up to `tuning.watch.look_ahead` px, so it looks through the doorway it is lining up and never at the jamb or the wall
 beside it. A resting NPC (a hold, a reload, a move that has arrived, the Von-down fallback) turns among the doorways of its
-room, `watch_door_dwell` s at each, outer doors included, skipping any under its feet or without a clear line. Outdoors, or in
+room, `tuning.watch.door_dwell` s at each, outer doors included, skipping any under its feet or without a clear line. Outdoors, or in
 a room with no doorway in line, it keeps the gaze it has; an NPC that was never given one looks where its body points.
 Tests: `gaze_hold_watches_doors`, `gaze_walk_looks_ahead`, `gaze_fresh_npc_keeps_its_facing`.
 
@@ -53,10 +53,10 @@ Tests: `gaze_arrival_stops`.
 (`run_through_fire` on the RETREAT node): it is about leaving the line, not trading shots.
 Tests: `ai_runs_to_destination`, `retreat_keeps_running`.
 
-## Tuning (`GoalController`, group *Watch*)
+## Tuning (the NPC's `tuning.watch`)
 
-`watch_look_ahead` (150 px), `watch_door_dwell` (2.5 s), `watch_lost_gaze` (2 s). The turn between doorways uses
-`search_look_rate`.
+`tuning.watch.look_ahead` (150 px), `tuning.watch.door_dwell` (2.5 s), `tuning.watch.lost_gaze` (2 s). The turn between doorways uses
+`tuning.coverage.look_rate`.
 
 ## Not modelled
 

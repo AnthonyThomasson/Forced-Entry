@@ -15,7 +15,8 @@ extends GameTest
 ## ordered path (their claims at the back door carry the order's id), so a different Von choice
 ## reads as a set-up finding. Premise: the earlier entry's member is a puppet radioing its claim on
 ## the bus (in the wire format's field names, interface 10), not an AI that cleared the kitchen: an
-## AI's cover ends on its own clock (`entry_cover_time`) and its clear marks the room cleared, which
+## AI's cover ends on its own clock (`tuning.entry.cover_time`) and its clear marks the room
+## cleared, which
 ## changes what the ordered members do; the stack reads only the bus, so a puppet's claim is
 ## exactly what it hears from an AI. The squad is built in the run over the leader and the three
 ## (`Order.squad`, through `MatchBuilder.build_squads`), not declared with `s.squads`: the earlier

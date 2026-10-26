@@ -1,11 +1,11 @@
 extends GameTest
-## E18 (issue #51, R3): a cleared room counts as safe to walk past for `entry_pass_clear_time` (60
-## s) only. A one-room house with its front door in the south wall; an ally radios the room clear.
-## Sent east past the house at once, the invader walks the plain way along the south wall through
-## the front door's view, neither going round it nor covering the door. Once the clear is more than
-## 60 s old, sent back west past the same door it goes round the house or covers the door from the
-## jamb first (E15 / E18). Scripted Von (one mechanism): each walk is an investigation of gunfire
-## heard on the far side.
+## E18 (issue #51, R3): a cleared room counts as safe to walk past for
+## `tuning.entry_guard.pass_clear_time` (60 s) only. A one-room house with its front door in the
+## south wall; an ally radios the room clear. Sent east past the house at once, the invader walks
+## the plain way along the south wall through the front door's view, neither going round it nor
+## covering the door. Once the clear is more than 60 s old, sent back west past the same door it
+## goes round the house or covers the door from the jamb first (E15 / E18). Scripted Von (one
+## mechanism): each walk is an investigation of gunfire heard on the far side.
 ##
 ## The clear's age is the perception memory's, which counts game time (`GameClock`, frames run while
 ## unpaused); the test waits (`door_view_probe.wait_wall`, paced to real time) until 61 s have

@@ -32,7 +32,7 @@ extends Node
 ## engagement memory) and drives the character only through its public controller contract
 ## (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`,
 ## `weapon.melee`, `use.interact_with`, `use.end_interaction`). All tunables are set from the
-## controller's exports by `apply_config(cfg)`.
+## NPC's tuning (`NpcTuning`) by `apply_config(tuning, npc_squad)`.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -67,8 +67,8 @@ const GUARD_PREVIEW_RANGE := 2000.0
 ## be baked.
 const ROUTE_WAIT := 2.0
 
-# --- The tunables the behaviour reads itself, set by apply_config() from the controller's exports
-# of the same name.
+# --- The tunables the behaviour reads itself, set by apply_config() from the NPC's tuning, each
+# from its topic's value (`entry_guard_range` from `tuning.entry_guard.reach`).
 ## Seconds an object interaction is held before it ends.
 var interaction_dwell: float
 ## Safety cap (s) on a move or approach before it re-decides.
@@ -276,64 +276,64 @@ func bind(character: Node) -> void:
 
 
 ## Set the behaviour's own tunables and its modules' (Locomotion, the watch, coverage, combat and
-## entry modules) straight from `cfg`, the controller, whose exports of these names are the one
-## authoring surface. Idempotent, so the controller may call it each decision to pick up an export
-## retuned at runtime.
-func apply_config(cfg: Node) -> void:
-	interaction_dwell = cfg.interaction_dwell
-	max_commit_time = cfg.max_commit_time
-	search_look_rate = cfg.search_look_rate
-	tactic_interval = cfg.tactic_interval
-	run_enabled = cfg.run_enabled
-	run_min_distance = cfg.run_min_distance
-	run_start_fraction = cfg.run_start_fraction
-	posture_enabled = cfg.posture_enabled
-	posture_dwell = cfg.posture_dwell
-	entry_guard = cfg.entry_guard
-	entry_guard_range = cfg.entry_guard_range
-	entry_guard_rearm = cfg.entry_guard_rearm
-	entry_secure_time = cfg.entry_secure_time
-	watch_lost_gaze = cfg.watch_lost_gaze
-	low_ammo_fraction = cfg.low_ammo_fraction
-	squad = cfg.squad
-	_loco.arrive_dist = cfg.arrive_dist
-	_watch.look_ahead = cfg.watch_look_ahead
-	_watch.door_dwell = cfg.watch_door_dwell
-	_watch.lost_gaze = cfg.watch_lost_gaze
-	_watch.look_rate = cfg.search_look_rate
-	_coverage.spacing = cfg.search_coverage_spacing
-	_coverage.target_fraction = cfg.search_coverage_target
-	_coverage.budget_max = cfg.search_coverage_budget
-	_coverage.approach = cfg.search_coverage_approach
-	_coverage.margin = cfg.search_coverage_margin
-	_coverage.look_rate = cfg.search_look_rate
-	_combat.shoot_range = cfg.shoot_range
-	_combat.punch_range = cfg.punch_range
-	_combat.ring_radius = cfg.combat_ring_radius
-	_combat.cover_time = cfg.cover_time
-	_combat.fire_cooldown = cfg.fire_cooldown
-	_combat.fire_burst = cfg.fire_burst
-	_combat.back_off_time = cfg.back_off_time
-	_combat.reposition_interval = cfg.reposition_interval
-	_combat.auto_reload = cfg.auto_reload
-	_apply_entry_config(cfg)
+## entry modules) straight from `tuning`, the NPC's topic nodes (the one authoring surface), and
+## hand in its side's `squad`. Idempotent, so the controller may call it each decision to pick up a
+## tunable retuned at runtime.
+func apply_config(tuning: NpcTuning, npc_squad: Node = null) -> void:
+	interaction_dwell = tuning.decision.interaction_dwell
+	max_commit_time = tuning.decision.max_commit_time
+	search_look_rate = tuning.coverage.look_rate
+	tactic_interval = tuning.decision.tactic_interval
+	run_enabled = tuning.pace.run_enabled
+	run_min_distance = tuning.pace.run_min_distance
+	run_start_fraction = tuning.pace.run_start_fraction
+	posture_enabled = tuning.pace.posture_enabled
+	posture_dwell = tuning.pace.posture_dwell
+	entry_guard = tuning.entry_guard.enabled
+	entry_guard_range = tuning.entry_guard.reach
+	entry_guard_rearm = tuning.entry_guard.rearm
+	entry_secure_time = tuning.entry_guard.secure_time
+	watch_lost_gaze = tuning.watch.lost_gaze
+	low_ammo_fraction = tuning.context.low_ammo_fraction
+	squad = npc_squad
+	_loco.arrive_dist = tuning.pace.arrive_dist
+	_watch.look_ahead = tuning.watch.look_ahead
+	_watch.door_dwell = tuning.watch.door_dwell
+	_watch.lost_gaze = tuning.watch.lost_gaze
+	_watch.look_rate = tuning.coverage.look_rate
+	_coverage.spacing = tuning.coverage.spacing
+	_coverage.target_fraction = tuning.coverage.target
+	_coverage.budget_max = tuning.coverage.budget
+	_coverage.approach = tuning.coverage.approach
+	_coverage.margin = tuning.coverage.margin
+	_coverage.look_rate = tuning.coverage.look_rate
+	_combat.shoot_range = tuning.combat.shoot_range
+	_combat.punch_range = tuning.combat.punch_range
+	_combat.ring_radius = tuning.combat.ring_radius
+	_combat.cover_time = tuning.combat.cover_time
+	_combat.fire_cooldown = tuning.combat.fire_cooldown
+	_combat.fire_burst = tuning.combat.fire_burst
+	_combat.back_off_time = tuning.combat.back_off_time
+	_combat.reposition_interval = tuning.combat.reposition_interval
+	_combat.auto_reload = tuning.combat.auto_reload
+	_apply_entry_config(tuning, npc_squad)
 
 
-## Set the entry module's tunables from `cfg` (`apply_config`): the controller's Entry exports, its
-## `squad` and the look rate.
-func _apply_entry_config(cfg: Node) -> void:
-	_entry.ready_timeout = cfg.entry_ready_timeout
-	_entry.listen_time = cfg.entry_listen_time
-	_entry.follow_gap = cfg.entry_follow_gap
-	_entry.pie_dwell = cfg.entry_pie_dwell
-	_entry.corner_dwell = cfg.entry_corner_dwell
-	_entry.rear_time = cfg.rear_security_time
-	_entry.cover_time = cfg.entry_cover_time
-	_entry.watch_dwell = cfg.entry_watch_dwell
-	_entry.approach_time = cfg.entry_approach_time
-	_entry.order_ready_cap = cfg.order_ready_cap
-	_entry.squad = cfg.squad
-	_entry.look_rate = cfg.search_look_rate
+## Set the entry module's tunables from `tuning` (`apply_config`): its `entry` topic, the side's
+## `npc_squad` and the look rate.
+func _apply_entry_config(tuning: NpcTuning, npc_squad: Node) -> void:
+	_entry.ready_timeout = tuning.entry.ready_timeout
+	_entry.listen_time = tuning.entry.listen_time
+	_entry.follow_gap = tuning.entry.follow_gap
+	_entry.pie_dwell = tuning.entry.pie_dwell
+	_entry.corner_dwell = tuning.entry.corner_dwell
+	_entry.rear_time = tuning.entry.rear_security_time
+	_entry.cover_time = tuning.entry.cover_time
+	_entry.watch_dwell = tuning.entry.watch_dwell
+	_entry.approach_time = tuning.entry.approach_time
+	_entry.order_ready_cap = tuning.entry.order_ready_cap
+	_entry.squad = npc_squad
+	_entry.look_rate = tuning.coverage.look_rate
 
 
 # --- Read-only views -------------------------------------------------------------------------

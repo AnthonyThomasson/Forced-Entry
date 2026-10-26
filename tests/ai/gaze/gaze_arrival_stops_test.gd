@@ -25,7 +25,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"npc", &"defender", Vector2(700, 250))
 	# IDLE > GO is only offered to an NPC at rest
-	s.set_props(&"npc", "GoalController", { "pursue_hostiles": false })
+	s.set_props(&"npc", "GoalController", { "tuning:decision:pursue_hostiles": false })
 
 
 func run(t: TestContext) -> void:

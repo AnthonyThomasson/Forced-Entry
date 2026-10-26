@@ -30,7 +30,7 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"disabled",
 		DISABLED_POS,
-		{ "disabled_nodes": disabled },
+		{ "tuning:decision:disabled_nodes": disabled },
 		{ "look_at": TARGET_POS },
 	)
 	Flank.npc(s, &"control", CONTROL_POS, {}, { "look_at": TARGET_POS })

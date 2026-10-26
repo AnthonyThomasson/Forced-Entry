@@ -101,10 +101,10 @@ func _rebuild_visibility() -> void:
 		return
 
 	var facing: Vector2 = _character.facing
-	var awareness: float = _controller.awareness_radius
+	var awareness: float = _controller.tuning.senses.awareness_radius
 
 	# Omniscient fallback: no raycasts, just plain geometry to mark the awareness bubble.
-	if not _controller.vision_enabled:
+	if not _controller.tuning.senses.vision_enabled:
 		for i in range(BUBBLE_RAYS):
 			_bubble_poly.append(Vector2.from_angle((float(i) / float(BUBBLE_RAYS)) * TAU)
 					* awareness)
@@ -120,11 +120,11 @@ func _rebuild_visibility() -> void:
 	# FOV cone: ray fan from left edge to right edge, each ray clipped at the first wall it hits.
 	if facing == Vector2.ZERO:
 		return
-	var dist: float = _controller.view_distance
-	var half_fov := deg_to_rad(_controller.fov_degrees) * 0.5
+	var dist: float = _controller.tuning.senses.view_distance
+	var half_fov := deg_to_rad(_controller.tuning.senses.fov_degrees) * 0.5
 	var base := facing.angle()
 	_cone_poly.append(Vector2.ZERO)
 	for i in range(CONE_RAYS + 1):
 		var t := float(i) / float(CONE_RAYS)
-		var ray_angle := base - half_fov + t * deg_to_rad(_controller.fov_degrees)
+		var ray_angle := base - half_fov + t * deg_to_rad(_controller.tuning.senses.fov_degrees)
 		_cone_poly.append(to_local(_cast(from_pos, Vector2.from_angle(ray_angle), dist)))

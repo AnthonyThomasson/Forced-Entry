@@ -317,10 +317,11 @@ func _apply_actor_switches(character: Node, switches: Dictionary) -> void:
 			target = character if row["child"] == "" else character.get_node_or_null(row["child"])
 		if target != null:
 			for prop in row["props"]:
-				target.set(prop, switches[switch_name])
+				target.set_indexed(NodePath(String(prop)), switches[switch_name])
 
 
-## Set the props actor `a` names on children of `character` (`TestSetup.set_props`).
+## Set the props actor `a` names on children of `character` (`TestSetup.set_props`), each a plain
+## name or an indexed path (`tuning:entry:ready_timeout`, set with `set_indexed`).
 func _apply_child_props(character: Node, a: Dictionary) -> void:
 	var children: Dictionary = a["children"]
 	for child_path in children:
@@ -329,7 +330,7 @@ func _apply_child_props(character: Node, a: Dictionary) -> void:
 			push_error("TestWorld: actor '%s' has no child '%s'" % [a["id"], child_path])
 			continue
 		for prop in children[child_path]:
-			child.set(prop, children[child_path][prop])
+			child.set_indexed(NodePath(String(prop)), children[child_path][prop])
 
 
 ## Apply the switch rows that target a node of the built world.

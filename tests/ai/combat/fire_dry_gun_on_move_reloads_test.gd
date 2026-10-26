@@ -32,7 +32,11 @@ func configure(s: TestSetup) -> void:
 		{ "inventory:start_rounds": 2, "facing": Vector2.RIGHT, "movement:aim_point": HOSTILE_AT },
 	)
 	# walks, so the shots are not refused
-	s.set_props(&"npc", "GoalController", { "run_enabled": false, "shoot_range": 1000.0 })
+	s.set_props(
+		&"npc",
+		"GoalController",
+		{ "tuning:pace:run_enabled": false, "tuning:combat:shoot_range": 1000.0 },
+	)
 	s.actor(
 		&"hostile",
 		&"puppet",

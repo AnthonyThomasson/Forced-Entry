@@ -39,8 +39,9 @@ const THROW_ROUTES := 10
 
 ## The perception's sight sense; owner of the ray queries.
 var vision: RefCounted
-# --- Config fields the perception's apply_config() sets from the controller's exports of the same
-# name.
+# --- Config fields the perception's apply_config() sets from the NPC's tuning (`NpcTuning`: the
+# `tactics` topic's of the same name, `shoot_range` and the ring off `combat`, `still_speed` off
+# `context`, `throw_spot_walk` off `grenades`).
 ## Surface coverage at or above which a blocking object is cover.
 var cover_min: float
 ## Distance (px) from the target a flanking spot is sought at.

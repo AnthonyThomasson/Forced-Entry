@@ -366,8 +366,11 @@ interfaces it takes part in (by number) and describes how they're implemented.
    driven by `ai/goal_controller.gd`; the defender (`ai/npc_defender.tscn`) and the invader
    (`ai/npc_invader.tscn`), both inherited from `ai/npc.tscn` (itself an inherited scene of the controller-less
    `character/character_base.tscn`), differ only in data authored on the scene —
-   a plain-language `goal` plus generic primitives (hostility rules, pursuit, territory) and
-   decision-tree config. Its composer injects only `rooms` and `openings` (and `entry_point`), by the one bind rule `MatchBuilder.bind_npc`, before the
+   a plain-language `goal` on the controller plus generic primitives (hostility rules, pursuit, territory) and
+   decision-tree config, each a tunable on the controller's `tuning` (`NpcTuning`, `ai/tuning/`: its `Tuning` child, one node per
+   topic, `tuning.<topic>.<name>`; a preset overrides a topic node's values, e.g. `GoalController/Tuning/Hostility`). The scene hands
+   the hub its topics as node references, resolved at `instantiate`, so a composer or a test sets one by indexed path on the
+   controller (`set_indexed("tuning:entry:enabled", …)`) before the NPC joins the tree. Its composer injects only `rooms` and `openings` (and `entry_point`), by the one bind rule `MatchBuilder.bind_npc`, before the
    NPC joins the tree (interface 23; the controller found by its contract, the child with `control` and `rooms`), and its side's `squad`
    (`MatchBuilder.bind_squad`, interface 21); the AI finds and categorizes
    the characters it perceives by sight. Von walks a data-driven DECISION TREE ranked against the
@@ -496,7 +499,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       30 px or more away), `"frag_out"` / `"bang_out"` (the thrower of a frag or a stun, `point` the landing; the GRENADE tactic's call, G17, and `frag_out` from the
       thrower of a frag entry its leader ordered, LD14), all
       from `docs/grenades.md` G16. Allied AI
-      controllers within `callout_range` consume it (which flank an ally holds, whom it fights, where to
+      controllers within their `tuning.radio.callout_range` consume it (which flank an ally holds, whom it fights, where to
       support it, which stack slot is taken, when the point is through, which room is clear, which doorway on is
       covered, when the team moves on, which grenade to get clear of). A member carrying out an order (`docs/leadership.md` LD7) radios its
       progress as a callout with `order_id` (the order's `id`) and `order_step` (`moving` / `in_position` / `done` / `refused`); allies leave
@@ -626,8 +629,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
     are in the space; `t.vehicle(id)` reads it back; the puppet presses E with `use_vehicle()` and drives with
     `drive(throttle, steer, handbrake)`, writing `movement.move_input` / `movement.run_input` as the player's keys do) — and `EventBus` / character
     signals (7, 10) for its event log.
-    Behaviour switches set existing exported props and config-holder `static var`s by name
-    (duck-typed, like the overlay flags; a name the holder does not have is an error, which fails the test); a test can also script the Von answers through the AI
+    Behaviour switches set existing exported props and config-holder `static var`s by name, an NPC's tunables by indexed path on
+    its controller (`tuning:<topic>:<name>`, interface 7) (duck-typed, like the overlay flags; a name the holder does not have is an error, which fails the test); a test can also script the Von answers through the AI
     decision sub-domain's `DecisionStub` statics (`decision_stub.gd`, read by `decision_client.gd`; the test session also drives the
     `DecisionServerLauncher` for the tests that need the real server; `DecisionBudget.per_frame`, the
     snapshots a frame may start, is set the same way) so AI
@@ -789,7 +792,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
     - The match builder builds one `Squad` (a `Node`) per side after arming the characters (`MatchBuilder.build_squads`, interface 23: under
       Main's `World` in every match, under a test world for a declared match or declared squads):
       `Squad.setup(roster: SquadRoster, openings, rooms)` (`SquadRoster`, `ai/team/squad_roster.gd`: `faction`; `members` the side's characters in
-      spawn order; `human` when the human leads, else null; `claim_ttl` how long the side's NPCs keep a callout they heard, their controllers' `callout_ttl`, read by `MatchBuilder.callout_ttl_of(members)`
+      spawn order; `human` when the human leads, else null; `claim_ttl` how long the side's NPCs keep a callout they heard, their `tuning.radio.callout_ttl`, read by `MatchBuilder.callout_ttl_of(members)`
       off each one's controller (interface 7): the squad keeps a member's entry claim as long), and hands each member its own through
       `MatchBuilder.bind_squad(member, squad, stack := null, own_claims := false)` (beside `bind_npc`: the controller's `squad`, found by the
       same contract, and the human's `PlayerStack.squad` through `stack`, the node `bind_player` returned, interface 17, with its `own_claims`,

@@ -27,7 +27,7 @@ func configure(s: TestSetup) -> void:
 		s,
 		&"b",
 		Vector2(990, 330),
-		{ "entry_enabled": false, "max_commit_time": 0.5 },
+		{ "tuning:entry:enabled": false, "tuning:decision:max_commit_time": 0.5 },
 		{ "movement:speed": 0.0 },
 	)
 
@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 		return
 	t.check(bool(Entry.entry(Entry.brain(t, &"a")).get("solo", false)), "it began alone")
 	t.actor(&"b").movement.speed = 150.0
-	Entry.brain(t, &"b").set("entry_enabled", true)
+	Entry.brain(t, &"b").set_indexed("tuning:entry:enabled", true)
 	var both_in := func():
 		return (not Entry.calls(t, "in", &"a").is_empty()
 				and not Entry.calls(t, "in", &"b").is_empty())

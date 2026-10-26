@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_sight", true)
 	s.actor(&"runner", &"defender", Vector2(200, 300))
 	s.actor(&"walker", &"defender", Vector2(200, 100))
-	s.set_props(&"walker", "GoalController", { "run_enabled": false })
+	s.set_props(&"walker", "GoalController", { "tuning:pace:run_enabled": false })
 	s.actor(&"far_a", &"puppet", Vector2(1500, 300), { "faction": &"invader", "max_health": 400.0 })
 	s.actor(&"far_b", &"puppet", Vector2(1500, 100), { "faction": &"invader", "max_health": 400.0 })
 

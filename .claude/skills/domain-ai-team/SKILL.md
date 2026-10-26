@@ -72,7 +72,7 @@ nothing), each kept in
 `_released` once heard, as each member latches its own go; an order radioed `done` is no longer
 held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
 or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per
-speaker, current for `claim_ttl`: the NPCs' `callout_ttl` (6 s), handed in by `setup`, which the match builder reads off
+speaker, current for `claim_ttl`: the NPCs' `tuning.radio.callout_ttl` (6 s), handed in by `setup`, which the match builder reads off
 the side's NPCs with `MatchBuilder.callout_ttl_of`; a dead speaker's dropped;
 the human's `PlayerStack` among them), at each doorway `ClaimLedger.openings_stacking()` names (a claim at a `StackClaim.STACKING` step):
 `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, the slots that doorway's `DoorStack.layout()` gives

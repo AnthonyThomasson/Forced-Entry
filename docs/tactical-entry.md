@@ -77,7 +77,7 @@ Tests: `entry_stages_beside_opening`, `entry_approach_off_door_axis`.
 **E2. Stack beside the opening.** Several invaders heading for the same opening queue in single file on
 the wall beside it, one slot each, ordered by arrival (the order of the claims on the radio: a member takes the lowest slot the claims it
 has heard leave free; two claims made on the same frame settle by distance, the member nearer the slot taking it, so their walks do not
-cross; the human's claim among them, settled the same way, since it radios the frame and spot it claimed on as any member does, E16), each clear of the one in front (`entry_stack_spacing`, 44 px: outside
+cross; the human's claim among them, settled the same way, since it radios the frame and spot it claimed on as any member does, E16), each clear of the one in front (`tuning.entry_geometry.stack_spacing`, 44 px: outside
 the footprint a body on the next slot keeps clear around it, so no slot is a spot inside a teammate), none in the doorway's line of
 sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
@@ -105,7 +105,7 @@ moving for a frame is the same hold going on, not a new one (`Locomotion` `HOLD_
 time (test `ai/entry/entry_held_cap_despite_reaim`);
 a pie step is skipped; a corner, cover or rear spot is held from where it stands. Slots are claimed over the radio (the same claim pattern as a flank side), so two
 invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
-given up (`abort`) only once it has taken its own walking time at walking pace plus `entry_approach_time` (20 s): the walk is measured, leg
+given up (`abort`) only once it has taken its own walking time at walking pace plus `tuning.entry.approach_time` (20 s): the walk is measured, leg
 by leg as it will be walked, when the approach is planned and again at each re-plan (`entry.gd` `_walk_time`). In its slot a member stands
 within `StackClaim.SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
 **The stack moves up.** A member standing in its slot looks every `MOVE_UP_EVERY` (0.25 s) for a lower slot of its own side (either row)
@@ -138,7 +138,7 @@ rising only as the latecomer's half of a move-up (and each move-up a real one: t
 ending in it), within its route's walking time plus 8 s from its last detour (`docs/leadership.md` D4), never in the doorway's view nor
 across the door's front close in when a way round exists, and never bumping a teammate).
 
-**E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`entry_pie_steps` points, 100 px from
+**E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`tuning.entry_geometry.pie_steps` points, 100 px from
 the threshold, from 55° to 25° off the door's axis), turning its gaze through the doorway at each, before it crosses. What it sees from outside it engages from
 outside, and it notes the share of the room seen and which corners are still hidden. Why: it is the cheapest way
 to learn the room, and the farthest the entrant ever is from a threat. Built on `visible_points` and the
@@ -166,7 +166,7 @@ Tests: `entry_pair_take_opposite_corners`, `entry_pair_hard_corner_first`.
 slot (or a ready timeout runs out), on either side of the door (the other side's front man of a split stack is ready once it has
 sliced its half of the pie, E19), and it radios that it is going in. Followers cross after it, one at a
 time, not together, each after the member ahead of it in the crossing order (on a split stack the sides take turns, E19). A member killed is dropped from the barrier at once; one that never arrives is dropped by the ready timeout (or gives
-its own approach up after its walk there plus `entry_approach_time`, E2). Why: a team that
+its own approach up after its walk there plus `tuning.entry.approach_time`, E2). Why: a team that
 trickles through the funnel is a series of solo entries; the radio is the team's only signal. The barrier is a
 hold-until-ready, not a fixed delay. A stack its leader ordered to hold for the go holds past the barrier, no pie and no bang, until that
 go (`docs/leadership.md` LD13).
@@ -188,7 +188,7 @@ has not: each member covers a different one of the room's doorways on into a roo
 and the one they came in by do not count), standing back inside the cleared room off that doorway's axis with its gun
 through it. A member left over, when there are more of them than such doorways, holds the doorway they came in by as rear
 security, facing back the way it came, each at a spot of its own just inside it (taking turns either side of the doorway); a room with no doorway on leaves only the last one in on the rear. The team holds
-until one of them moves on (its next entry, or `entry_cover_time` without one), and then the rest go too. Alone, the
+until one of them moves on (its next entry, or `tuning.entry.cover_time` without one), and then the rest go too. Alone, the
 invader looks through each doorway on in turn before it moves on. Then they take the next opening or unsearched room. A
 room whose door is past is never passed without being searched or secured first. Why: a cleared room that is not marked
 is searched again; the doorways on are where the next threat comes from, and a doorway left unwatched is a hole in the
@@ -199,7 +199,7 @@ Tests: `entry_marks_room_cleared`, `entry_pair_covers_remaining_doors`, `entry_s
 **E9. No unguarded thresholds.** A walk that would cross into a room that is not cleared goes in by tactical
 entry, whatever order sent the NPC there: a search or explore, an investigation lead, closing in on or flanking a
 hostile, the way to an object or to a throw spot (`docs/grenades.md` G17), the front entrance. And at every such doorway on the way, not only the last: sent two
-doors deep, it enters by each. Within `entry_guard_range` (300 px of walking) of the doorway the walk is paused, the
+doors deep, it enters by each. Within `tuning.entry_guard.reach` (300 px of walking) of the doorway the walk is paused, the
 entry runs (E1 to E8) and the walk then carries on from where the entry left the NPC. A room is cleared when an entry
 into it ran to the end, when an ally radioed it clear, or when a search covered it by sight; walking through a room does
 not clear it. Exempt: a retreat; an NPC under fire (one that began an entry gives it up and radios `abort`); and a
@@ -264,8 +264,8 @@ Test: `entry_stack_last_covers_rear` (three invaders in the garden; real Von, `r
 corners; the later slots hold the stack side as security and never step into the doorway. The game's rule for "too
 small": a room under 150 px on either side (three bodies), whose door wall cannot hold a third corner. Why: a third
 body in a box room has no point of domination to take and blocks the two who do. In the code, the doorway's geometry
-carries a `capacity` (`AgentEntry.geometry`: 2 for a room with a side under `short_room`, the controller's
-`entry_short_room`; else every slot). A member with that many ahead of it in the crossing order (both sides of a split stack, E19) stays in `stack` (`Entry._holds_outside`,
+carries a `capacity` (`AgentEntry.geometry`: 2 for a room with a side under `short_room`, the NPC's
+`tuning.entry_geometry.short_room`; else every slot). A member with that many ahead of it in the crossing order (both sides of a split stack, E19) stays in `stack` (`Entry._holds_outside`,
 `_tick_security`), facing back along the line (E12), while the two ahead are still on the radio and after the room is
 called clear, and radios `done` once a teammate that held the room has moved on (or `rear_security_time` after the call).
 It does not stand in for the two: with nobody ahead and the room not called clear (they died or gave up) it takes the lead,
@@ -277,7 +277,7 @@ Test: `entry_short_room_two_go_in` (the box room of `flank_maps.gd`; three invad
 and nobody crosses while it stands in view, whatever tactic is chosen for the fight. Why: what is visible is engaged
 from outside, a room that can be cleared without entering is not entered, and a known gun on the door is the funnel at
 its worst (E3, E7's "if nothing is hostile in view"). In the code, `Behavior` tells the entry when a hostile is in view (the
-threat holding the NPC's eyes is seen now, or was within `watch_lost_gaze`, 2 s, and there is a line of fire to it, within
+threat holding the NPC's eyes is seen now, or was within `tuning.watch.lost_gaze`, 2 s, and there is a line of fire to it, within
 range and with a clear line, so it can be engaged from outside: `Entry.hostile_in_view`; a hostile seen over low cover with no
 line of fire gives nothing to engage from outside, and does not hold the entry). The pie then stops where it is (the point neither walks on to the next step nor crosses), a follower
 does not cross after the member ahead, and the watch stage fires; the entry goes on, and crosses, once the hostile is out
@@ -293,11 +293,11 @@ room not clear for passing, the NPC covers the doorway with its gun from beside 
 the view in one go without stopping, and never goes in. Why: a door left open behind or beside the team is a threat on its
 side (E8's last sentence), and a view crossed at a run is crossed once. In the code the entry guard looks for the doorway views a
 walk goes **into** without entering the room behind them (`AgentDoorViews.passing_ahead`, `Behavior._passing_gate`): the walk comes
-from outside the view of a doorway (E18) into it within `entry_guard_range`, however far out from the wall, inside the house or
+from outside the view of a doorway (E18) into it within `tuning.entry_guard.reach`, however far out from the wall, inside the house or
 out, at an exterior door too. The view of a doorway of a room the walk goes into (by any of the room's doors) is left to E9, whose entry clears that room and
 covers its doorways (E8), and so is the room the NPC stands in. The NPC then secures it: an `entry` run in `secure` mode stacks beside the jamb on the side it comes from,
 slices one side of the pie with its gun on the doorway (so it fires at what it sees, E3, and holds on a hostile in view, E14),
-and walks on across the view, the doorway left alone for `entry_secure_time` (30 s). It never crosses the doorway and says
+and walks on across the view, the doorway left alone for `tuning.entry_guard.secure_time` (30 s). It never crosses the doorway and says
 nothing on the radio (no claim, no going in), and it is not started for a doorway a teammate is working. A walk to a doorway's own
 stack (an ENTER order, `_guard_approach`) secures the doors it passes the same way; a member heading for a stack that others have
 claimed does not (the team goes to its door as one, so the point is not left to go in alone). Exempt, as in E9: a retreat, an NPC
@@ -321,7 +321,7 @@ for as long as the human stays near (`PlayerStack.reserve_range`, 300 px of walk
 that) and the stack is still on: someone else holds a place in it (a claim at `claim`, `ready`, `bang` or `going_in`, so a stack whose
 only other member is on its bang still holds the human's slot) or has just gone in (`in`); an AI that claims the doorway later takes a slot behind it. The human is never ordered: its radio step is read from
 where it stands (`claim` away from the slot, `ready` in it, `going_in` in the doorway, `in` once through). The AI's own
-rules then do the rest: the point waits for the human at the ready barrier (E6, up to `entry_ready_timeout`), a lone AI
+rules then do the rest: the point waits for the human at the ready barrier (E6, up to `tuning.entry.ready_timeout`), a lone AI
 with a human near is a team of two and slices only its own side (E7), and an AI behind the human crosses after the human's
 `in` (the follow gap). A human who does not follow is not waited for for ever: once the AI ahead is through and the human
 has not crossed within `PlayerStack.go_timeout` (6 s), its claim is withdrawn (`abort`), the marker goes and the AI behind goes
@@ -357,8 +357,8 @@ claims say bang, and a teammate whose claims said quiet follows as soon as it he
 point slicing the pie goes back to its slot to hold for the bang. Then the thrower throws as below, with the same fallbacks. Not once anyone
 is crossing (`going_in` or through): a member that turned waits for the rest to follow (it holds for the bang, no pie, until their claims say
 so too) and gives the bang up if one goes in quietly first.
-**A quiet stack listens first** *(issue #51, R17)*. A quiet entry whose stack carries a stun holds at the stack `entry_listen_time` (3 s, a
-`GoalController` export) from the point getting to its slot before the point slices the pie, so a late reason (above) has time to arrive; a hostile
+**A quiet stack listens first** *(issue #51, R17)*. A quiet entry whose stack carries a stun holds at the stack `tuning.entry.listen_time` (3 s, a
+tunable of the NPC's) from the point getting to its slot before the point slices the pie, so a late reason (above) has time to arrive; a hostile
 in view (E14) or coming under fire ends the hold early, and it is not taken up again in that entry. A stack without a stun, one that gave the bang
 up or one already over a burst does not hold. Why: a team about to open a door listens at it first, and a reason heard then is a stun put in
 rather than a room walked into.
@@ -416,7 +416,7 @@ someone inside the room sees through it: bounded by the rays from the room's two
 the next doorway into another room). When the plain route goes into such a view and a route that keeps out of all of them reaches the
 destination no longer than `door_avoid_ratio` (2.0) x the plain route + `door_avoid_slack` (300 px), the NPC walks that one: round the
 far side of the house, or round the end of a view in a hall. Otherwise it walks the plain route, and E15 secures each view it crosses.
-A room is **clear for passing** for `entry_pass_clear_time` (60 s) after it was cleared (E8, an ally's `cleared_room`, or a search
+A room is **clear for passing** for `tuning.entry_guard.pass_clear_time` (60 s) after it was cleared (E8, an ally's `cleared_room`, or a search
 that covered it): a doorway into it is then walked past freely; after that its views are avoided or secured again. E9 and ENTER keep
 a cleared room cleared (nobody clears it twice) for the memory's own span. The route bands Von reads in the options ("short / medium /
 long route") are the length of the route the NPC will walk, the door-avoiding one when it would take it (the planner is not offered
@@ -431,7 +431,7 @@ characters) and the route (`walk_route`); the Navigation domain bakes the house'
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
 route crosses; once the route on the avoid map passes no body it knows of, the walk goes back to it). A decision waits the few frames the avoid map takes to bake (`routes_ready`; a forced one does not) so its route bands are the
 walked ones.
-Exports on `GoalController`: `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `entry_pass_clear_time`. The entry plan overlay
+Tunables (the NPC's `tuning.entry_guard`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `pass_clear_time`. The entry plan overlay
 (`show_entry`) draws the views the NPC keeps out of.
 Tests: `entry_route_round_door_view_outside` (a one-room house, gunfire on its far side: the invader goes round the north side, never in
 the front door's view; real Von), `entry_route_round_door_view_inside` (a hall with a store room's view across it: it goes round the
@@ -467,7 +467,7 @@ corner or in another room. It is on the navmesh, reached from the stack side by 
 every other doorway's fatal funnel (its width, `StackClaim.FUNNEL_DEPTH` 40 px either side of its wall) and view (E18). The file is sought in a band
 beside the door: from a body (`SLOT_BODY`, 14 px) past the jamb to the stack room's corner (outdoors `OUTDOOR_REACH`, 320 px), and 14 to
 110 px out from the wall plane (`SLOT_OUT_MIN` / `SLOT_OUT_MAX`; within `ROW1_DEPTH`, 50 px, a slot is against the wall, past it a step
-out); it is the most bodies that band holds `entry_stack_spacing` apart, against the wall first, nearest the door first. Where the rule
+out); it is the most bodies that band holds `tuning.entry_geometry.stack_spacing` apart, against the wall first, nearest the door first. Where the rule
 cannot be met, a chain of fallbacks, in this order:
 - *The fewest-seen spots.* When every spot against the wall beside the door is in some other doorway's view, the stack takes the band's
   spots seen from the fewest other doorways that still hold it (never one in a funnel).
@@ -579,7 +579,7 @@ the stack toward the door's axis, clear of the slots.
   lately, nearest first ("the doorway into the kitchen — unsearched — short route"). A room a doorway leads
   into is not also offered as a plain walk in. The wording was checked with `tools/von_probe.py`
   (`tools/von_scenarios/search_enter_*.json`, `enter_*.json`). Only invaders enter this way
-  (`GoalController.entry_enabled`, on in `npc_invader.tscn`; test switch `ai.entry`).
+  (`tuning.entry.enabled`, on in `npc_invader.tscn`; test switch `ai.entry`).
 - **The choreography.** The ENTER leaf runs the `entry` primitive, a phase machine in the behaviour
   sub-domain (`behavior/entry.gd`): approach (E1), stack (E2), bang (E17, a bang entry only), pie (E3), cross (E4, E5), corner, clear
   (E8), cover (E8), rear (E8). It does not ask Von again on the cadence until the entry is over, so it runs with the server down (a forced decision
@@ -598,11 +598,11 @@ the stack toward the door's axis, clear of the slots.
   primitive for that doorway (the same one ENTER runs) and puts the order back when it ends. Exempt are the nodes that
   carry `entry_guard: false` (RETREAT) and an NPC under fire, but for a doorway into the room the shots came from
   (`Behavior._into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
-  the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). `GoalController` exports `entry_guard`, `entry_guard_range`
-  and `entry_guard_rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`entry_enabled`).
+  the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
+  and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
   the set of views of the doorways into rooms not clear for passing (`AgentPerception.is_pass_clear`, from the `cleared_room`
-  memory's age against `entry_pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
+  memory's age against `tuning.entry_guard.pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
   entry's approach (`entering`, `Locomotion.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
@@ -631,7 +631,7 @@ Interpretations and the game's own rules, where the sources leave a choice:
   claims it has heard leave free; two that claim on the same frame settle it by distance (on different frames before either hears the
   other, by instance id); and a member in its slot moves up into a lower slot whose holder is still on the way.
 - The point is the lowest slot still waiting; a member that claimed a slot and never reached it is dropped
-  once the member behind it has waited `entry_ready_timeout`. The wait restarts when someone new claims a
+  once the member behind it has waited `tuning.entry.ready_timeout`. The wait restarts when someone new claims a
   slot (E6, E7).
 - The point buttonhooks to the door-wall corner on its own side; the second crosses to the hard corner on
   the other side; a lone entrant goes to the door-wall corner on the side away from where it stands, so it
@@ -640,15 +640,15 @@ Interpretations and the game's own rules, where the sources leave a choice:
 - The room is radioed clear once the member that covered it sees the rest of the stack through; a member
   still taking its corner holds it before it accepts the call. The doorways on come before the rear: a pair in a
   room with two of them covers both and leaves the way it came unwatched (E8). A hold lasts until a teammate who was
-  holding moves on, or at most `entry_cover_time` (8 s) on a doorway and `rear_security_time` (10 s) on the rear; a
-  lone entrant looks through each doorway on for `entry_watch_dwell` (0.8 s) and has nobody to leave behind.
+  holding moves on, or at most `tuning.entry.cover_time` (8 s) on a doorway and `rear_security_time` (10 s) on the rear; a
+  lone entrant looks through each doorway on for `tuning.entry.watch_dwell` (0.8 s) and has nobody to leave behind.
 - E14 applies whatever tactic the fight takes: a rush, an advance or a flank into a room whose hostile is in view with a line of
   fire first clears the gun on the door from outside (kills it, or loses sight of it), and goes in after. The rush tests (`entry_guard_advance`,
   `entry_guard_fires_from_outside`) give the target normal health and assert it was shot dead from outside before the invader
   went in, and `flank_walks_to_chosen_side` has a low coffee table across the lines from the hall (sight looks over it, a bullet
   does not), so the flank is the only way to a shot.
 - A room crossed in a retreat or under fire (not the shots' own room) is visited, not cleared: ENTER offers it again once the NPC is outside, and an
-  entry the guard began there and gave up is not started again for `entry_guard_rearm` s. Search ranking still goes by
+  entry the guard began there and gave up is not started again for `tuning.entry_guard.rearm` s. Search ranking still goes by
   `visited_room` (stood in it lately); the guard and ENTER go by `cleared_room`.
 
 - **The human (E16).** `PlayerStack` (`scenes/ai/team/player_stack.gd`) is a child of the human's character, attached by the match builder

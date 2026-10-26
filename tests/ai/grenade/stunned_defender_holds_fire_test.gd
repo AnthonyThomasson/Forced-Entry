@@ -34,7 +34,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 500))
 	s.actor(&"d", &"defender", DEFENDER_AT, { "facing": Vector2.RIGHT })
-	s.set_props(&"d", "GoalController", { "blind_fire_chance": 0.0 })
+	s.set_props(&"d", "GoalController", { "tuning:grenades:blind_fire_chance": 0.0 })
 	s.actor(
 		&"p",
 		&"puppet",
@@ -57,9 +57,10 @@ func run(t: TestContext) -> void:
 	var p := t.actor(&"p")
 	var brain := t.controller(&"d", &"current_act")
 	t.check(
-		"blind_fire_chance" in brain and is_zero_approx(float(brain.get("blind_fire_chance"))),
-		"the defender's GoalController has blind_fire_chance, set to 0 (%s)"
-			% str(brain.get("blind_fire_chance")),
+		brain.get_indexed("tuning:grenades:blind_fire_chance") != null
+			and is_zero_approx(float(brain.get_indexed("tuning:grenades:blind_fire_chance"))),
+		"the defender's GoalController has tuning.grenades.blind_fire_chance, set to 0 (%s)"
+			% str(brain.get_indexed("tuning:grenades:blind_fire_chance")),
 	)
 	var fighting := func(): return (
 		not _known(brain, p).is_empty() and str(brain.current_act()).begins_with("combat")

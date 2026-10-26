@@ -21,8 +21,8 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	Entry.rules(s, Entry.BACK)
 	# The same cadence on purpose: they decide on the same frame, so both first reach for slot 1.
-	Entry.npc(s, &"a", Vector2(960, 100), { "entry_ready_timeout": 30.0 })
-	Entry.npc(s, &"b", Vector2(960, 280), { "entry_ready_timeout": 30.0 })
+	Entry.npc(s, &"a", Vector2(960, 100), { "tuning:entry:ready_timeout": 30.0 })
+	Entry.npc(s, &"b", Vector2(960, 280), { "tuning:entry:ready_timeout": 30.0 })
 
 
 func run(t: TestContext) -> void:

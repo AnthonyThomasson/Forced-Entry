@@ -1,7 +1,7 @@
 extends GameTest
 ## E17 as amended by issue #51 R17: a quiet entry whose stack carries a stun holds
-## `entry_listen_time` (3 s) at the stack before the point starts the pie, so a late reason to
-## suspect the room (R11) has time to arrive; a stack without a stun does not hold. The matches
+## `tuning.entry.listen_time` (3 s) at the stack before the point starts the pie, so a late reason
+## to suspect the room (R11) has time to arrive; a stack without a stun does not hold. The matches
 ## showed first stacks claimed 0.2 to 2.5 s in with nothing known, and the steps that would have
 ## turned them bang heard 1.5 to 3 s after the claim.
 ##

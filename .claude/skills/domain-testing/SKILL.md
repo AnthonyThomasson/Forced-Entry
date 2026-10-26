@@ -327,7 +327,8 @@ func run(t: TestContext) -> void:
     keep `default_inventory()` (every item) and the weapon they ask for: only a match (Main's, or a setup's `declared_match`) arms a spawn
     with its side's loadout (`MatchBuilder.arm`, `Character.inventory.set_loadout`). To retune a gun for one test, `set_static(GunConfig, "guns", modified_copy)` (e.g. spread 0 for a
     straight shot). Use
-    `set_props(id, "GoalController", {...})` for a child's exports (the look is the `Wardrobe` child's: `set_props(id, "Wardrobe", { "rank": 2 })`,
+    `set_props(id, "GoalController", {...})` for a child's exports, a key an indexed path for an NPC's tunables
+    (`{ "tuning:entry:enabled": true }`, interface 7) (the look is the `Wardrobe` child's: `set_props(id, "Wardrobe", { "rank": 2 })`,
     `look_seed`, `style`). An NPC actor is bound by the match's own rule before it joins
     the tree (`MatchBuilder.bind_npc`): the house's `rooms` and `openings`, and for an invader the front entrance as its
     `entry_point` (`MatchBuilder.entry_point_for`; none in a world with no front entrance, none for a defender).
@@ -336,7 +337,7 @@ func run(t: TestContext) -> void:
     declaration order, each member handed its squad), and the squad-leaders overlay over them, shown as the setup's overlays say. `opts.human` names an actor that
     leads its faction's squad as the human does: it is handed its stack radio (`MatchBuilder.bind_player`) and its squad through it,
     `own_claims` on the invaders' side only. `opts.claim_ttl` is how long (s) each squad keeps its members' entry claims (the `SquadsSpec`'s
-    `claim_ttl` it hands `squads_over`): by default its NPCs' `callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets alone, so a squad of
+    `claim_ttl` it hands `squads_over`): by default its NPCs' `tuning.radio.callout_ttl` (`MatchBuilder.callout_ttl_of`), which is 0 over puppets alone, so a squad of
     puppets keeps no claim unless `claim_ttl` names one: the two that radio claims name the NPCs' 6 s
     (`general/squad_go_latched_off_claims`, `ai/stack/stack_player_go_after_funnel_brush`). A world
     that declares no squads has none: its NPCs pick their own goals.
@@ -567,7 +568,7 @@ real-time wait's clock, is left alone), so no budget runs in the pre-commit hook
 the approach, the stack's slots, the pie, the crossing, the corners, the ready barrier and the radio, the solo entry
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
-(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `decide_interval` in its `gc` offsets its decide timer),
+(SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `tuning:decision:decide_interval` in its `gc` offsets its decide timer),
 `target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(t, prefix)` to check the
 order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
@@ -612,7 +613,7 @@ Main does: declared with `s.squads({ "human": id })` and read with `t.player_sta
 `Stack.attach(t, id)` (`tests/_ai/stack_probe.gd`, `const Stack := preload(...)`, which loads `PlayerStack` by path and calls
 `attach(character, rooms, t.world.openings)`; null before the feature exists). The stack is read through `view()` (`Stack.mine`,
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points
-(`Stack.crossing(door)` goes in through a door). A late AI joiner is held back like in `entry_ally_joins_stack` (`entry_enabled` false,
+(`Stack.crossing(door)` goes in through a door). A late AI joiner is held back like in `entry_ally_joins_stack` (`tuning:entry:enabled` false,
 `movement:speed` 0) until the human has its slot. `stack_player_slot_von` runs the whole thing with the real Von server (`requires_von`).
 `stack_ai_goes_round_player_in_slot` declares Main's match instead (`s.declared_match`, below) and its human is the player's own character and
 controller, given its stack through `MatchBuilder.bind_player`. The UI half is `tests/ui/stack_markers_draw_test.gd` (a fake stack with a
@@ -754,9 +755,9 @@ asserts a behaviour the AI does not show yet is written first, left red and tagg
   Give targets and allies a huge `max_health`; the NPCs shoot while they wait.
 - **Radio claims** are real `callout` events posted with `Flank.radio` from an ally puppet the NPC cannot
   see (behind a wall, or far off). An ally it can see holds the side it stands on by name, without
-  "(radio)". Two or more live invaders get different `max_commit_time` / `tactic_interval` /
+  "(radio)". Two or more live invaders get different `tuning.decision` `max_commit_time` / `tactic_interval` /
   `decide_interval`, otherwise they decide on the same frame and claim the same side.
-- **Route-safety rules decide which sides exist.** A route within `route_clearance` of a hostile is dropped,
+- **Route-safety rules decide which sides exist.** A route within `tuning.tactics.route_clearance` of a hostile is dropped,
   and in open ground the straight route to a rear point passes the target. Tests about other rules set
   `route_clearance` low (0 for the group tests, 40 for the ally lane) so only the rule under test acts, and
   say so in a comment.
@@ -901,7 +902,8 @@ One data table. A row maps a name to existing knobs:
 
 - `actor: { child, props }` sets those props to `on` on that child of every actor (`child` `""` = the character itself), before it
   enters the tree; `controller: true` in place of `child` targets the actor's controller child (the one with `control`,
-  interface 7, found by `TestContext.controller_of`), which is how every `ai.*` row reaches the AI controller's exports;
+  interface 7, found by `TestContext.controller_of`), which is how every `ai.*` row reaches the NPC's tunables, a prop an indexed path
+  (`tuning:<topic>:<name>`, set with `set_indexed`);
 - `world: { node, props }` sets props on a world node;
 - `static: [[Script, prop]]` sets that `static var` to `on`;
 - `[Script, prop, off_value]` is for a non-bool knob: on keeps its tuning, off sets `off_value`.
@@ -917,9 +919,9 @@ Statics are restored after every test (`TestWorld.restore`). Current switches:
 | `ai.hostile_on_sight` | Hostility toward anyone seen. |
 | `ai.hostile_on_trespass` | Hostility toward anyone inside the house. |
 | `ai.hostile_on_attack` | Hostility toward an attacker. |
-| `ai.posture` | NPCs crouch while fighting in place (`GoalController.posture_enabled`). |
-| `ai.entry` | Tactical entry (`GoalController.entry_enabled`; on in the invader preset). |
-| `ai.entry_guard` | The entry guard (`GoalController.entry_guard`, on by default; needs `ai.entry`): any walk into an uncleared room goes in by entry. |
+| `ai.posture` | NPCs crouch while fighting in place (`tuning.pace.posture_enabled`). |
+| `ai.entry` | Tactical entry (`tuning.entry.enabled`; on in the invader preset). |
+| `ai.entry_guard` | The entry guard (`tuning.entry_guard.enabled`, on by default; needs `ai.entry`): any walk into an uncleared room goes in by entry. |
 | `nav.rebake` | `NavUpdater.enabled`. |
 | `audio.sound` | `SoundConfig.enabled`: shots, impacts, footsteps, reloads and the grenades' throw, bounce and burst make `sound` events and voices. |
 | `physics.blood` | `BloodConfig.enabled`. |
@@ -987,5 +989,5 @@ physics frame so they are in the space. `build` is a coroutine. Also `restore()`
   that has taken in this world's regions). A map's iteration is built on a worker thread: under load (parallel shards) its id and
   region list update before queries do, and an NPC that snapped a point onto the empty map walked to the origin. That wait is
   in real time, so the test clock is stopped while the world builds (`_building` in the test session).
-- The defender preset is `hostile_on_trespass`, and an arena counts as its house. Turn
+- The defender preset is `tuning.hostility.on_trespass`, and an arena counts as its house. Turn
   `ai.hostile_on_trespass` off to test a reaction to something else.

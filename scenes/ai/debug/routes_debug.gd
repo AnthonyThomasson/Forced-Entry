@@ -3,10 +3,10 @@ extends "res://scenes/ai/debug/debug_overlay.gd"
 ## fire / flank / advance / retreat point it draws the navigated route there (green = hidden from
 ## known hostiles, red = exposed) tagged with the route length band, whether the spot has a clear
 ## shot / cover, and a flank's status ("held by X", "route passes X", "in X's line of fire"). Known
-## hostiles that have a last-seen facing get a wedge of the `watch_arc` they are looking along — the
-## cone a spot "watched in the open" is rejected for. Reads the controller's `debug_zones()` and
-## `known_contacts_for_display()`; the route is fetched from the navigation map (a pure read) and
-## cached, since it only changes per decision.
+## hostiles that have a last-seen facing get a wedge of the `tuning.tactics.watch_arc` they are
+## looking along — the cone a spot "watched in the open" is rejected for. Reads the controller's
+## `debug_zones()` and `known_contacts_for_display()`; the route is fetched from the navigation map
+## (a pure read) and cached, since it only changes per decision.
 
 const HIDDEN := Color(0.4, 0.9, 0.5)
 const EXPOSED := Color(1.0, 0.35, 0.3)
@@ -55,9 +55,8 @@ func _paint() -> void:
 
 ## The watch cone of every hostile contact whose facing it knows.
 func _paint_wedges() -> void:
-	var half_arc := (deg_to_rad(float(_controller.get("watch_arc")
-			if _controller.get("watch_arc") != null
-			else 90.0)) * 0.5)
+	var arc: Variant = _controller.get_indexed("tuning:tactics:watch_arc")
+	var half_arc := deg_to_rad(float(arc) if arc != null else 90.0) * 0.5
 	var contacts: Array = _controller.known_contacts_for_display()
 	for c in contacts:
 		var facing: Vector2 = c.get("facing", Vector2.ZERO)
