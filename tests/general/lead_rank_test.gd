@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 	t.expect_eq(Settings.setup.get("lead"), true, "and saves it to the settings file")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Settings.path))
 	# load_file re-applied the (empty) bindings; leave every action on its default.
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 
 
 ## Arm the three test characters as a match does after the window's config with `lead`:

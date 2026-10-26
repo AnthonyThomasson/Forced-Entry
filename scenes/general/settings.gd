@@ -8,7 +8,8 @@ class_name Settings
 ## `main.tscn`, never reads a developer's real file. The settings page's changes come back through
 ## the mutators here (`set_debug`, `set_setup`, `set_overlay`, `rebind`, `reset`, `reset_all`), each
 ## of which saves at once.
-## Bindings live in `Keybinds`; this file only persists them and reshapes them for the page.
+## Bindings live in `Keybinds.bindings`; this file only persists them and reshapes them for the
+## page.
 
 ## Where the settings are stored. A test points it at a scratch file.
 static var path: String = "user://settings.json"
@@ -27,7 +28,7 @@ static var overlays: Dictionary = {}
 ## saved `debug` and `setup`. A missing file leaves the defaults; an unreadable one warns and does
 ## the same; entries that aren't understood are skipped one by one.
 static func load_file() -> void:
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	if not FileAccess.file_exists(path):
 		return
 	var json := JSON.new()
@@ -45,7 +46,7 @@ static func load_file() -> void:
 			if data["overlays"][flag] is bool:
 				overlays[str(flag)] = data["overlays"][flag]
 	if data.get("keybinds") is Dictionary:
-		Keybinds.apply_overrides(data["keybinds"])
+		Keybinds.bindings.apply_overrides(data["keybinds"])
 
 
 ## Write the current debug switch and the key bindings that differ from the defaults.
@@ -59,7 +60,7 @@ static func save() -> void:
 		"debug": debug,
 		"setup": setup,
 		"overlays": overlays,
-		"keybinds": Keybinds.overrides(),
+		"keybinds": Keybinds.bindings.overrides(),
 	}, "  "))
 
 
@@ -88,7 +89,7 @@ static func set_overlay(flag: String, on: bool) -> void:
 ## Bind `action` to the key or mouse button in `event` and save. Returns false (and changes nothing)
 ## when the event isn't something that can be bound.
 static func rebind(action: String, event: InputEvent) -> bool:
-	if not Keybinds.bind(action, event):
+	if not Keybinds.bindings.bind(action, event):
 		return false
 	save()
 	return true
@@ -96,30 +97,30 @@ static func rebind(action: String, event: InputEvent) -> bool:
 
 ## Put `action` back on its default binding and save.
 static func reset(action: String) -> void:
-	Keybinds.reset(action)
+	Keybinds.bindings.reset(action)
 	save()
 
 
 ## Put every binding back on its default and save. `debug` is left alone.
 static func reset_all() -> void:
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	save()
 
 
 ## One plain dict per rebindable action, in display order, for the settings page:
 ## `{ action, label, group, text, conflicts: [labels of actions sharing the binding], changed }`.
 static func binding_rows() -> Array:
-	var changed := Keybinds.overrides()
+	var changed := Keybinds.bindings.overrides()
 	var rows := []
 	for action in Keybinds.LABELS:
 		var conflicts := []
-		for other in Keybinds.conflicts_of(action):
+		for other in Keybinds.bindings.conflicts_of(action):
 			conflicts.append(Keybinds.LABELS[other])
 		rows.append({
 			"action": action,
 			"label": Keybinds.LABELS[action],
 			"group": Keybinds.GROUPS[action],
-			"text": Keybinds.text_of(action),
+			"text": Keybinds.bindings.text_of(action),
 			"conflicts": conflicts,
 			"changed": changed.has(action),
 		})

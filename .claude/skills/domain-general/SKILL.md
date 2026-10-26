@@ -102,13 +102,15 @@ defaults live in `DEFAULTS`, pointer defaults in `MOUSE_DEFAULTS` (`FIRE` left-c
 `CAMERA_LEFT/RIGHT/UP/DOWN` (default WASD, read through `get_camera_vector()`) and `ZOOM_IN/OUT` are read
 by the camera and the test runner; the camera keys share WASD with `MOVE_*`, harmless because the spectator match has no
 player to move. `LABELS` (settings-page order + names) and `GROUPS` must cover every action (a test
-enforces it). Runtime API: `bind(action, event)` (key or mouse button incl. wheel up/down; refuses the
-horizontal wheel and anything else), `reset(action)` / `reset_all()`, `default_event`, `event_of`, `text_of` ("W", "Space",
-"Mouse Left"; skips the layout lookup on the headless display server, which logs an error for it),
-`conflicts_of(action)` (other actions on the same input, minus the deliberately shared `SHARED` pairs —
+enforces it). The autoload keeps the action table and the typed readers; the rebinding store is its part `Keybinds.bindings`
+(`input_bindings.gd`, a `RefCounted` reached by preload const, no `class_name`, built once at member init with `DEFAULTS`,
+`MOUSE_DEFAULTS` and `SHARED`, so it reads no global and holds no owner; `MOUSE_NAMES` is its const). Its API: `bind(action, event)`
+(key or mouse button incl. wheel up/down; refuses the horizontal wheel and anything else), `reset(action)` / `reset_all()`,
+`actions()`, `default_event`, `text_of` ("W", "Space", "Mouse Left"; skips the layout lookup on the headless display server, which
+logs an error for it), `conflicts_of(action)` (other actions on the same input, minus the deliberately shared `SHARED` pairs —
 Interact/Pause and each camera pan key with its move key), and `overrides()` / `apply_overrides(d)` (only the bindings that differ from the
-defaults, as `{ "key": int }` / `{ "mouse": int }`; malformed entries are skipped one by one).
-`Keybinds._ready` registers the defaults only.
+defaults, as `{ "key": int }` / `{ "mouse": int }`; malformed entries are skipped one by one); a binding's current event is its
+private `_event_of`. `Keybinds._ready` registers the defaults only (`bindings.reset_all()`).
 
 ## Saved settings
 
@@ -129,7 +131,7 @@ the defaults are stored, so a changed default still reaches an action the player
   `reset_all()` (leaves `debug`). `binding_rows()` reshapes the bindings into the plain dicts the settings
   page draws: `{ action, label, group, text, conflicts: [labels], changed }`.
 - Tests point `Settings.path` at a scratch file with `set_static` (`tests/general/settings_file_test.gd`);
-  `Keybinds` state is not restored by the harness, so a test that rebinds ends with `Keybinds.reset_all()`.
+  `Keybinds` state is not restored by the harness, so a test that rebinds ends with `Keybinds.bindings.reset_all()`.
 
 ## Dev command server
 

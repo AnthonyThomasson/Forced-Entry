@@ -24,7 +24,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	_remove_scratch()
 	_check_no_file(t)
 	if not _check_saves(t):
@@ -35,14 +35,14 @@ func run(t: TestContext) -> void:
 	_check_reset(t)
 	_check_partial(t)
 	await _check_unreadable(t)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	_remove_scratch()
 
 
 ## No file: the defaults stand.
 func _check_no_file(t: TestContext) -> void:
 	Settings.load_file()
-	t.check(Keybinds.overrides().is_empty(), "no file leaves the default bindings")
+	t.check(Keybinds.bindings.overrides().is_empty(), "no file leaves the default bindings")
 	t.expect_eq(Settings.debug, true, "no file leaves Debug as it was")
 
 
@@ -67,7 +67,7 @@ func _check_saves(t: TestContext) -> bool:
 ## A reload (a new launch) restores both.
 func _check_reload(t: TestContext) -> void:
 	Settings.debug = true
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	Settings.load_file()
 	t.expect_eq(Settings.debug, false, "a reload restores Debug")
 	t.check(_key(KEY_G).is_action(Keybinds.PUNCH), "a reload restores the rebinding")
@@ -110,13 +110,13 @@ func _check_rows(t: TestContext) -> void:
 func _check_reset(t: TestContext) -> void:
 	Settings.reset(Keybinds.PUNCH)
 	Settings.reset(Keybinds.MOVE_UP)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	Settings.load_file()
-	t.check(Keybinds.overrides().is_empty(), "a reset binding stays reset after a reload")
+	t.check(Keybinds.bindings.overrides().is_empty(), "a reset binding stays reset after a reload")
 	Settings.rebind(Keybinds.PUNCH, _key(KEY_G))
 	Settings.reset_all()
 	Settings.load_file()
-	t.check(Keybinds.overrides().is_empty(), "reset_all is saved")
+	t.check(Keybinds.bindings.overrides().is_empty(), "reset_all is saved")
 	t.expect_eq(Settings.debug, false, "reset_all leaves Debug alone")
 
 
@@ -134,7 +134,10 @@ func _check_unreadable(t: TestContext) -> void:
 	t.expect_log("not a readable settings file")
 	_write("{ this is not json")
 	Settings.load_file()
-	t.check(Keybinds.overrides().is_empty(), "a corrupt file falls back to the default bindings")
+	t.check(
+		Keybinds.bindings.overrides().is_empty(),
+		"a corrupt file falls back to the default bindings",
+	)
 	await t.seconds(0.2)  # let the log watcher see the warning
 
 

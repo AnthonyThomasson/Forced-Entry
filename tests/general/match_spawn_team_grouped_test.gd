@@ -155,7 +155,7 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	Sound.focus = null
 	viewport.queue_free()
 	await t.frames(2)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	return out
 
 

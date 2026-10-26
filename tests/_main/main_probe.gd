@@ -74,4 +74,4 @@ static func close(t: TestContext, node: Node) -> void:
 	if is_instance_valid(node):
 		node.queue_free()
 	await t.frames(2)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
