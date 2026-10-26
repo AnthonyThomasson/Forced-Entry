@@ -64,47 +64,47 @@ func _check_shots(t: TestContext) -> void:
 ## Impacts by material, outcome and band.
 func _check_impacts(t: TestContext) -> void:
 	t.expect_eq(
-		SoundBank.impact_profile("metal", &"ricochet", 2.2),
+		SoundImpacts.profile("metal", &"ricochet", 2.2),
 		&"impact/metal/ricochet/heavy",
 		"a rifle ricochet off metal",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("wood", &"penetrate", 1.0),
+		SoundImpacts.profile("wood", &"penetrate", 1.0),
 		&"impact/wood/penetrate/medium",
 		"a pistol round through wood",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("fabric", &"blocked", 0.8),
+		SoundImpacts.profile("fabric", &"blocked", 0.8),
 		&"impact/fabric/blocked/light",
 		"an SMG round stopped by fabric",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("", &"blocked", 1.0),
+		SoundImpacts.profile("", &"blocked", 1.0),
 		&"impact/wall/blocked/medium",
 		"the empty material is a wall",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("flesh", &"penetrate", 2.2),
+		SoundImpacts.profile("flesh", &"penetrate", 2.2),
 		&"impact/flesh/penetrate/heavy",
 		"a body is flesh",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("unobtainium", &"blocked", 1.0),
+		SoundImpacts.profile("unobtainium", &"blocked", 1.0),
 		&"impact/default/blocked/medium",
 		"an unknown material is the default",
 	)
 	t.expect_eq(
-		SoundBank.impact_profile("flesh", &"punch", 9.0),
+		SoundImpacts.profile("flesh", &"punch", 9.0),
 		&"impact/flesh/punch",
 		"a punch has no band",
 	)
-	t.expect_eq(SoundBank.impact_profile("", &"punch"), &"impact/wall/punch", "a punch on a wall")
+	t.expect_eq(SoundImpacts.profile("", &"punch"), &"impact/wall/punch", "a punch on a wall")
 	t.expect_eq(
-		SoundBank.impact_profile("metal", &"flyover", 1.0),
+		SoundImpacts.profile("metal", &"flyover", 1.0),
 		&"",
 		"an outcome nobody voices makes no sound",
 	)
-	t.expect_eq(SoundBank.impact_profile("metal", &"", 1.0), &"", "nor does no outcome")
+	t.expect_eq(SoundImpacts.profile("metal", &"", 1.0), &"", "nor does no outcome")
 
 
 ## Footsteps by surface and gait.
@@ -173,7 +173,7 @@ func _check_voiced(t: TestContext) -> void:
 	]:
 		for outcome in [&"blocked", &"penetrate", &"ricochet", &"punch"]:
 			for power in [0.8, 1.0, 2.2]:
-				named.append(SoundBank.impact_profile(material, outcome, power))
+				named.append(SoundImpacts.profile(material, outcome, power))
 	for surface in [&"wood", &"tile", &"stone", &"concrete", &"carpet", &"outdoor", &"x"]:
 		for running in [false, true]:
 			named.append(SoundFootsteps.profile(surface, running))

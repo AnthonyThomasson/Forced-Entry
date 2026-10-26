@@ -208,7 +208,7 @@ func _on_hit(data: Dictionary) -> void:
 	var outcome := StringName(data.get("outcome", &""))
 	if outcome == &"":
 		return
-	var profile := SoundBank.impact_profile(
+	var profile := SoundImpacts.profile(
 		String(data.get("material", "")),
 		outcome,
 		float(data.get("power", 1.0)),
