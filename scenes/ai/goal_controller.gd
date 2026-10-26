@@ -278,18 +278,18 @@ func debug_room_zones() -> Array:
 ## (typed values; `debug_state()["entry"]` is the JSON-safe copy). Empty when the NPC isn't entering
 ## a room.
 func debug_entry() -> Dictionary:
-	return _behavior.debug_entry() if _behavior != null else {}
+	return _behavior.entries.debug() if _behavior != null else {}
 
 
 ## Read-only: the tactical entry and the entry guard as world-space data, for the entry debug
 ## overlays: `entry` (the doorway's slots, pie arc and corners, this NPC's role, timers, the team
 ## off the radio, the doorways it covers; {} when not entering) and `guard` (a running detour and
 ## the order it paused, the next uncleared doorway on the walk, the rooms regarded as cleared). See
-## behavior.gd `debug_entry_view`.
+## behavior_entries.gd `debug_view`.
 func debug_entry_view() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
-	return _behavior.debug_entry_view()
+	return _behavior.entries.debug_view()
 
 
 ## Read-only: the behaviour's running search-coverage state (which room sample points it has seen
@@ -478,9 +478,9 @@ func _think(due: bool) -> void:
 ## calls and the order's progress go out.
 func _act(delta: float) -> void:
 	_behavior.apply(delta)
-	if _behavior.take_entry_turned():
+	if _behavior.entries.take_turned():
 		_comms.on_entry_turned()
-	for claim in _behavior.take_entry_calls():
+	for claim in _behavior.entries.take_calls():
 		if tuning.radio.send_callouts:
 			_comms.post_entry_call(claim)
 	for throw in _behavior.grenades.take_throw_calls():

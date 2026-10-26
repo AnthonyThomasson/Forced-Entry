@@ -48,8 +48,8 @@ func throw_target() -> int:
 	var id := 0
 	if task.primitive == &"throw":
 		id = int(task.params.get("target_id", 0))
-	elif task.primitive == &"entry" and behavior._resume.get("primitive") == &"throw":
-		id = int((behavior._resume["params"] as Dictionary).get("target_id", 0))
+	elif task.primitive == &"entry" and behavior.entries.resume.get("primitive") == &"throw":
+		id = int((behavior.entries.resume["params"] as Dictionary).get("target_id", 0))
 	if (id == 0
 			or perception == null
 			or not perception.lost_hostiles().any(func(c): return c["id"] == id)):
@@ -220,8 +220,8 @@ func set_evade(plan: Dictionary) -> void:
 		# holds turned away from the door for it already.
 		return
 	if evade.is_empty():
-		behavior._drop_detour()
-		behavior._entry_pending = false
+		behavior.entries.drop_detour()
+		behavior.entries.pending = false
 		behavior._entry.abandon()
 		_evade_arrived = false
 		task.primitive = &"hold"
@@ -271,7 +271,7 @@ func apply_evade(delta: float) -> void:
 	# Its back to the burst all the way, running or holding: a flash blinds the face.
 	character.movement.aim_point = here + away * 100.0
 	character.movement.run_input = running
-	behavior._guard_clock += delta
+	behavior.entries.guard_clock += delta
 	behavior.gait.apply_posture(delta)
 	behavior.gait.running = character.movement.is_running()
 	behavior.gait.posture = character.movement.posture()

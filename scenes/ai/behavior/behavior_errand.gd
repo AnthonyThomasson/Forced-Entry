@@ -115,7 +115,7 @@ func set_up_walk(delta: float) -> void:
 	# A melee closes on its target: no walk round it.
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
 	behavior._perception.ordered_walk = behavior.orders.ordered_stack()
-	loco.doors.avoid_doors = behavior._keeps_out_of_views()
+	loco.doors.avoid_doors = behavior.entries.keeps_out_of_views()
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]
 			if task.primitive == &"entry" and entry_state.opening != ""

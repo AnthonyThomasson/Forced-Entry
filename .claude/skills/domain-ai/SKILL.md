@@ -130,7 +130,7 @@ Two reflexes outside Von, in the orchestrator's loop (the reflexes' `react_to_gr
 - **Evade (G16).** Perception knows the live grenades it sees, hears come down, is told of (callout `status` `grenade`, also `frag_out` / `bang_out`) or threw; when it is inside a
   grenade's danger zone it radios an `&"grenade"` callout (`point` = where it landed, `kind`) and the behaviour runs to the nearest safe spot (out of the burst's line, behind furniture that
   shields a crouched body, or outside the zone), holds it facing away and re-decides at the burst. No decision starts or is adopted meanwhile. `perception/agent_grenades.gd`,
-  `agent_throw.gd`, `behavior.gd` ("The evade reflex"). `debug_grenades()` reads it; the `show_grenades` overlay draws it.
+  `agent_throw.gd`, `behavior_grenades.gd` (the evade reflex). `debug_grenades()` reads it; the `show_grenades` overlay draws it.
 - **Stunned (G15).** Blind: no new sighting, no new decision (it re-decides the tick sight returns), its contacts kept so it fires blind at the last-known spot of the one it fought (the character's aim
   sway applies, one-handed) when its one roll as it goes blind hits `tuning.grenades.blind_fire_chance` (0.5; drawn from the reflexes' own RNG, seeded at bind from the
   character's name and spawn spot, so a seeded run rolls the same; a re-stun while blind does not reroll), else it holds its fire until it can see (`Combat.holds_fire`); deaf: the orchestrator drops gunfire, hits elsewhere, footfalls, callouts and grenade landings it would have heard.

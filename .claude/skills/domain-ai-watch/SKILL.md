@@ -55,12 +55,12 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 - `Entry`: `state.gaze_held` (set from the watch's `threat` each tick) makes `_look_toward` report "settled", so a pie step the gaze cannot settle on
   because of a threat does not hold the entry. Every gaze turn goes through one static, `Watch.ease_gaze(character, point, rate, delta)`
   (the doors here, `Entry._look_toward`, `SearchCoverage.step`): it eases from the actual facing, not a private angle, so the gaze
-  does not snap back when a threat lets go. `hostile_in_view` (set from the same `threat` plus a line of fire, `Behavior._hostile_in_view`)
+  does not snap back when a threat lets go. `hostile_in_view` (set from the same `threat` plus a line of fire, the behaviour's `entries._hostile_in_view`)
   stops the pie and a follower's crossing while the watch stage fires; the entry crosses once it is false (`domain-ai-entry`, E14).
 
 ## Tunables (the NPC's `tuning.watch`)
 
-`look_ahead`, `door_dwell`, `lost_gaze`, read live by `Watch` (no copy kept; its gaze's turn rate is `tuning.coverage.look_rate`). `Behavior` reads `tuning.watch.lost_gaze` too, for its own read of a threat out of sight (`_hostile_in_view`).
+`look_ahead`, `door_dwell`, `lost_gaze`, read live by `Watch` (no copy kept; its gaze's turn rate is `tuning.coverage.look_rate`). `Behavior` reads `tuning.watch.lost_gaze` too, for its own read of a threat out of sight (`entries._hostile_in_view`).
 
 ## Tests
 

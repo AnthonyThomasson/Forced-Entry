@@ -56,11 +56,11 @@ func order_leaf() -> Dictionary:
 	var task: RunningLeaf = behavior.task
 	if task.path.is_empty() or str(task.path[0]) != "order":
 		return {}
-	var paused: bool = task.primitive == &"entry" and not behavior._resume.is_empty()
+	var paused: bool = task.primitive == &"entry" and not behavior.entries.resume.is_empty()
 	return {
 		"path": behavior.current_act(),
-		"primitive": String(behavior._resume["primitive"] if paused else task.primitive),
-		"params": behavior._json_safe(behavior._resume["params"] if paused else task.params),
+		"primitive": String(behavior.entries.resume["primitive"] if paused else task.primitive),
+		"params": behavior._json_safe(behavior.entries.resume["params"] if paused else task.params),
 		"paused": paused,
 	}
 
@@ -72,14 +72,14 @@ func same(leaf: Dictionary) -> bool:
 	var id = (leaf.get("params", {}) as Dictionary).get("order_id")
 	if id == null or leaf.get("primitive") != &"entry":
 		return false
-	var running: Dictionary = (behavior._resume
-			if not behavior._resume.is_empty()
+	var running: Dictionary = (behavior.entries.resume
+			if not behavior.entries.resume.is_empty()
 			else { "primitive": task.primitive, "params": task.params })
 	if (running["primitive"] != &"entry"
 			or str((running["params"] as Dictionary).get("order_id", "")) != str(id)):
 		return false
-	return (not behavior._resume.is_empty()
-			or behavior._entry_pending
+	return (not behavior.entries.resume.is_empty()
+			or behavior.entries.pending
 			or not behavior._entry.state.phase in ["", "done"])
 
 
@@ -90,9 +90,9 @@ func ordered_stack() -> bool:
 	var task: RunningLeaf = behavior.task
 	if task.primitive == &"entry" and ordered_entry(task.params):
 		return true
-	return (not behavior._resume.is_empty()
-			and behavior._resume["primitive"] == &"entry"
-			and ordered_entry(behavior._resume["params"]))
+	return (not behavior.entries.resume.is_empty()
+			and behavior.entries.resume["primitive"] == &"entry"
+			and ordered_entry(behavior.entries.resume["params"]))
 
 
 ## Whether the running entry is a join (LD24) whose order has ended (done: the room cleared by the
@@ -100,7 +100,7 @@ func ordered_stack() -> bool:
 ## would never end on its own (LD25, D26): once per leaf.
 func join_over() -> bool:
 	return (StackClaim.is_join(behavior.task.params)
-			and not behavior._join_done
+			and not behavior.entries.join_done
 			and not _live()
 			and behavior._entry.state.phase in ["approach", "stack"])
 
