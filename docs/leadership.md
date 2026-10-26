@@ -176,7 +176,7 @@ to keeps its own (D10).
   reaches it without crossing the doorway's view, E19), but when that side would hold two more of the stack than the other, the last to
   claim it takes the other side: the sides differ by one at most, and once they do nobody moves again.
 - **The mode wins.** The stack goes in quietly, with a stun or with a frag (LD14) as ordered: no suspect-room bang (E17, `entry.gd` `begin`), no first claimer's
-  mode, no late upgrade (`_maybe_upgrade`) nor the listen at the stack that waits for one, and no veto from anyone outside the order (a
+  mode, no late upgrade (`listen.maybe_upgrade`) nor the listen at the stack that waits for one, and no veto from anyone outside the order (a
   teammate's `bang_off`). An unordered member that joins an ordered stack follows the order's mode and side (D10). **D1:** ordered with a
   stun when, the stack in place, nobody in it carries one, it goes in quietly and radios `bang_off` (the order's members follow it), and
   the order is still done at `cleared_room`; the throw's own failures give the bang up as they always do.
@@ -374,9 +374,9 @@ funnel before the order and steps in after it; the squad's `view()` then no long
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
 before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag:
-- **The thrower** is picked as a stun's (`_thrower`, from the claims' `frags`): the second of the stack if it carries one, else the lowest
+- **The thrower** is picked as a stun's (`grenade._thrower`, from the claims' `frags`): the second of the stack if it carries one, else the lowest
   slot that does.
-- **The stack's safety (D16).** `_plan_bang` aims as for a stun, at the frag's reach, and leaves out every target whose burst would have a
+- **The stack's safety (D16).** `grenade._plan_bang` aims as for a stun, at the frag's reach, and leaves out every target whose burst would have a
   claimed slot of the stack, the thrower's own included, inside the frag's danger zone (`AgentPerception.in_grenade_zone`: a clear line
   within `danger_radius` + `evade_margin`, 370 px, the G16 zone of `docs/grenades.md`): the wall beside the door shields the stack. With no
   such target the frag is given up and the stack goes in quietly, radioing `bang_off`.
@@ -389,7 +389,7 @@ before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag
   `BANG_WINDOW` (3 s).
 - **No frag (D15).** The menu greys the frag items while no recipient carries a frag; a frag stack whose frag is gone by the time it is in
   goes in quietly and radios `bang_off` (its claims still say `order_mode` `frag`), and the order is still done at the cleared room (as D1).
-- Only an order throws a frag at entry: the bang's grenade is a frag only for a stack under an order whose mode is frag (`_bang_kind`);
+- Only an order throws a frag at entry: the bang's grenade is a frag only for a stack under an order whose mode is frag (`grenade._bang_kind`);
   an unordered stack and Von's STUN ENTRY throw a stun, as before.
 - **The wording.** "Your leader ordered you to go into the kitchen by its doorway with a frag grenade first.": the combat top pick
   unchanged in 18 of 18 levels, the expected pick moving 0.024 on average (0.088 at most) (the coding worker, 2026-10-16, as LD6).
@@ -746,13 +746,13 @@ The cases the behaviours above cite as D1 to D30.
 | ... inside the room's walls by | 22 px | `AMBUSH_INSET` |
 | ... hidden too from the points this far round it | 12 px | `AMBUSH_SLACK` |
 | Two ambushers' posts on one side, at least | 44 px apart | `AMBUSH_SPACING` |
-| A frag entry waits for its frag to go off at most (from the call) | 7 s | `Entry.FRAG_BURST_CAP` |
+| A frag entry waits for its frag to go off at most (from the call) | 7 s | `EntryGrenade.FRAG_BURST_CAP` |
 | A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `tuning.grenades.evade_margin` |
 | An ordered member waits for the map round the views before reading its way at most | 2 s | `Behavior.ROUTE_WAIT` |
 | A stack's approach is given up after its own walk at walking pace plus | 20 s | `tuning.entry.approach_time` (`Entry.approach.cap`) |
 | A member stands in its slot within, and steps back in when further off than | 6 px | `StackClaim.SLOT_REACH` |
-| A member in its slot looks for a lower slot to move up into every | 0.25 s | `Entry.MOVE_UP_EVERY` |
-| ... within (1.5 x the stack's spacing) | 66 px | `Entry.MOVE_UP_REACH` (`SPOT_SPACING` 44) |
+| A member in its slot looks for a lower slot to move up into every | 0.25 s | `EntryClaim.MOVE_UP_EVERY` |
+| ... within (1.5 x the stack's spacing) | 66 px | `EntryClaim.MOVE_UP_REACH` (`Entry.SPOT_SPACING` 44) |
 | ... by a plain walk no longer than 1.5 x the straight line plus | 32 px | `Locomotion.PASS_CLEARANCE` |
 | A walk round resting bodies may end this far short, the rest walked on the plain map | 64 px | `Locomotion`'s `crowd.LAST_LEG` |
 | A walk held short of a body re-plans once the steering map shows the body this far off it, or after | 16 px, 2 s | `Locomotion`'s `crowd.CARVED_GAP`, `CARVE_WAIT` |

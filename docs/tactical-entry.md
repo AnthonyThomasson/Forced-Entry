@@ -98,7 +98,7 @@ one that ends at the slot, or another last stretch clear of every body at rest i
 from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a
 walk held by a teammate of the same stack that is still on its way to its own slot (its claim at `claim`: walking there, or moving up) is
 the stack forming, not the stack keeping the member out, and the member keeps its slot and waits for it, at most 3 s from when the hold
-began (`entry.gd` `HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
+began (`entry.gd` `EntryApproach.HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
 it takes (tests `ai/entry/entry_held_by_forming_stack_keeps_slot`, `entry_held_by_forming_stack_cap`). A hold is timed by how long the
 member has stood held: its walk aimed again while it stands (its slot's point moved by the claims), a free spot tried or a body read as
 moving for a frame is the same hold going on, not a new one (`Locomotion`'s `crowd.HOLD_GAP`, `Locomotion.HOLD_MOVED`), so the cap and the re-plans come on
@@ -458,7 +458,7 @@ team's side (`DoorStack.stack_side`, `scenes/ai/perception/stack/door_stack.gd`:
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
 split the stack); `DoorStack.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
 `DoorStack.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
-`readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `_corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
+`readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
 **E20. Every slot in the stack's room.** Every slot of a stack, both sides and every row, lies in the room on the stack side of the

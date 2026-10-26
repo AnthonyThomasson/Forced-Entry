@@ -158,7 +158,7 @@ func held_by_forming(entry: Entry) -> bool:
 func to_back_or_abort(entry: Entry) -> bool:
 	if entry.claim.to_back(entry):
 		return false
-	entry._radio("abort")
+	entry.radio.say(entry, "abort")
 	state.phase = "done"
 	return true
 
@@ -349,7 +349,7 @@ func _way_round(target: Vector2) -> int:
 ## Walk the approach waypoints, then into the slot; give up the claim when it takes too long.
 func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 	if state.clock > cap:
-		entry._radio("abort")
+		entry.radio.say(entry, "abort")
 		state.phase = "done"
 		return
 	if _end_forming_wait(entry):
@@ -358,14 +358,14 @@ func tick_approach(entry: Entry, team: Array, delta: float) -> void:
 		# Held: the map the verdict on the slot is read from is asked for now, so it is baked by the
 		# re-plan.
 		_slot_sealed(entry, entry.claim.spot)
-	if not team.is_empty() and entry._bang_due(team, delta):
+	if not team.is_empty() and entry.grenade.due(entry, team, delta):
 		# The rest of the stack is in place: the thrower goes straight to throw, rather than into
 		# its slot first.
 		return
 	_replan_approach(entry)
 	if _redrop_sealed(entry):
 		return
-	entry._aim_travel()
+	entry.sweep.aim_travel()
 	if _walk_waypoints():
 		return
 	var spot := entry.claim.spot

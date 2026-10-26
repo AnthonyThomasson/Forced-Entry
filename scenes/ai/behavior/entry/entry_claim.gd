@@ -105,7 +105,7 @@ func to_back(entry: Entry) -> bool:
 	entry.approach.dropped_at = Vector2.INF
 	_settle(entry, stack)
 	entry.approach.enter_approach(entry, stack)
-	entry._radio("claim")
+	entry.radio.say(entry, "claim")
 	return true
 
 
@@ -136,7 +136,7 @@ func keep_slot(entry: Entry) -> void:
 		entry.approach.enter_approach(entry, stack)  # Walk to the new slot.
 		if state.slot != was or state.side != was_side:
 			# (Still the claim made then: one settled by distance settles on.)
-			entry._radio("claim", { "claim_frame": frame })
+			entry.radio.say(entry, "claim", { "claim_frame": frame })
 
 
 ## Where this NPC's slot stands now in `door_stack` (E20 to E22, `DoorStack.settle`): the side it
@@ -180,8 +180,8 @@ func ask_side(entry: Entry, n: int, first: bool) -> int:
 func me(entry: Entry) -> Dictionary:
 	return {
 		"id": world.self_id, "slot": state.slot, "side": state.side, "want": want,
-		"frame": frame, "pos": pos, "move_up": move_up, "stuns": entry._stuns,
-		"frags": entry._frags,
+		"frame": frame, "pos": pos, "move_up": move_up, "stuns": entry.grenade.stuns,
+		"frags": entry.grenade.frags,
 		"order_id": entry.orders.id, "order_bang": entry.orders.bang,
 		"order_mode": entry.orders.mode, "order_hold": entry.orders.hold,
 		"order_go": entry.readiness.released, "order_side": entry.orders.side,
@@ -201,7 +201,7 @@ func read_stack() -> void:
 ## it stops where it is; an ordered member's next decision holds it there, its order refused (the
 ## snapshot's ORDER option).
 func _refuse(entry: Entry) -> void:
-	entry._radio("abort")
+	entry.radio.say(entry, "abort")
 	world.character.movement.move_input = Vector2.ZERO
 	state.phase = "done"
 
@@ -255,7 +255,7 @@ func move_up_now(entry: Entry, delta: float) -> bool:
 		return false
 	_move_up_clock = MOVE_UP_EVERY
 	var here: Vector2 = world.character.global_position
-	if move_up > 0 or entry._pie_begun or here.distance_to(spot) > StackClaim.SLOT_REACH:
+	if move_up > 0 or entry.pie.begun or here.distance_to(spot) > StackClaim.SLOT_REACH:
 		return false
 	var best := {}
 	var best_stack: RefCounted = null
@@ -289,7 +289,7 @@ func move_up_now(entry: Entry, delta: float) -> bool:
 	# past it.
 	entry.approach.waypoints = []
 	entry.approach.cap = world.tuning.entry.approach_time + entry.approach.walk_time(entry)
-	entry._radio("claim", { "claim_frame": frame })
+	entry.radio.say(entry, "claim", { "claim_frame": frame })
 	return true
 
 

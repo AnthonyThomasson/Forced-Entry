@@ -84,7 +84,7 @@ func note_team(entry: Entry, team: Array) -> void:
 		if StackClaim.through(m["step"]):
 			through[m["id"]] = m["slot"]
 		if not m["bang"]:
-			entry._quiet_seen[m["id"]] = true
+			entry.listen.quiet_seen[m["id"]] = true
 	var ready_heard := func(m): return m["order_id"] == entry.orders.id and m["step"] != "claim"
 	if (entry.orders.id != ""
 			and entry.orders.ready_at < 0.0
@@ -100,7 +100,7 @@ func say_ready(entry: Entry) -> void:
 		return
 	ready_said = true
 	entry.claim.move_up = 0  # In the slot it moved up into: an ordinary claim from now on.
-	entry._radio("ready")
+	entry.radio.say(entry, "ready")
 
 
 ## In the slot, facing the door: the point slices the pie; a follower waits its turn, then crosses.
@@ -109,11 +109,11 @@ func tick_stack(entry: Entry, team: Array, delta: float) -> void:
 	if entry.claim.move_up_now(entry, delta):
 		return
 	_keep_to_slot(entry, team, delta)
-	if not entry._bang_over and entry.approach.topping_off(delta):
+	if not entry.grenade.over and entry.approach.topping_off(delta):
 		return
 	if _holds_in_slot(entry, team, delta):
 		return
-	if entry._bang_due(team, delta):
+	if entry.grenade.due(entry, team, delta):
 		return
 	_take_turn(entry, team)
 
@@ -127,9 +127,13 @@ func _keep_to_slot(entry: Entry, team: Array, delta: float) -> void:
 	else:
 		world.character.movement.move_input = Vector2.ZERO
 	if _covers_rear(entry, team):
-		entry._look_toward(spot + (state.geo["along"] as Vector2) * state.side * 300.0, delta, 3.0)
+		entry.sweep.look_toward(
+			spot + (state.geo["along"] as Vector2) * state.side * 300.0,
+			delta,
+			3.0,
+		)
 	else:
-		entry._look_toward(state.geo["pos"], delta)
+		entry.sweep.look_toward(state.geo["pos"], delta)
 
 
 ## Hold in the slot, ready, instead of taking a turn at the door: a member that holds outside a
@@ -159,14 +163,15 @@ func _take_turn(entry: Entry, team: Array) -> void:
 	var ahead := members_ahead(entry)
 	if ahead.is_empty():
 		say_ready(entry)
-		if entry._bang_over:
-			if stack_ready(entry, team) and (not state.hostile_in_view or entry._in_bang_window()):
-				entry._start_cross(team)
-		elif not (entry._waits_for_bang(team) or entry._listening(team)):
-			entry._start_pie(team)
+		if entry.grenade.over:
+			if (stack_ready(entry, team)
+					and (not state.hostile_in_view or entry.grenade.in_bang_window())):
+				entry.sweep.start_cross(entry, team)
+		elif not (entry.grenade.waits_for_bang(entry, team) or entry.listen.listening(entry, team)):
+			entry.pie.start_pie(entry, team)
 		return
 	if slices_own_half(entry, team):
-		entry._start_pie(team)
+		entry.pie.start_pie(entry, team)
 		return
 	say_ready(entry)
 	follow(entry, team, ahead)
@@ -180,8 +185,8 @@ func follow(entry: Entry, team: Array, ahead: Array) -> void:
 		if turn_at < 0.0:
 			turn_at = state.time
 		if (state.time - turn_at >= world.tuning.entry.follow_gap
-				and (not state.hostile_in_view or entry._in_bang_window())):
-			entry._start_cross(team)
+				and (not state.hostile_in_view or entry.grenade.in_bang_window())):
+			entry.sweep.start_cross(entry, team)
 
 
 ## Whether this member slices its own half of the pie before it follows the point (E19): the stack
@@ -189,7 +194,7 @@ func follow(entry: Entry, team: Array, ahead: Array) -> void:
 ## order is on the other side) and has not sliced yet. Not in a bang entry: the stun takes the place
 ## of the pie.
 func slices_own_half(entry: Entry, team: Array) -> bool:
-	if entry.pie_sides > 0 or entry._bang_over or entry._banging(team):
+	if entry.pie.sides > 0 or entry.grenade.over or entry.grenade.banging(entry, team):
 		return false
 	var before := members_before(entry)
 	return not before.is_empty() and before.all(func(m): return int(m["side"]) != state.side)
@@ -224,15 +229,15 @@ func _holds_outside(entry: Entry) -> bool:
 func _tick_security(entry: Entry, team: Array, delta: float) -> void:
 	_security_clock += delta
 	world.character.movement.move_input = Vector2.ZERO
-	if _security_held_at < 0.0 and entry._cleared_by_team(team):
+	if _security_held_at < 0.0 and entry.sweep.cleared_by_team(team):
 		_security_held_at = _security_clock
 	if _security_held_at >= 0.0:
-		if (entry._team_moved(team)
+		if (entry.hold.team_moved(team)
 				or _security_clock - _security_held_at >= world.tuning.entry.rear_security_time):
-			entry._radio("done")
+			entry.radio.say(entry, "done")
 			state.phase = "done"
 	elif _security_clock >= SECURITY_CAP:
-		entry._radio("abort")
+		entry.radio.say(entry, "abort")
 		state.phase = "done"
 
 

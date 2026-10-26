@@ -140,21 +140,26 @@ func ordered_side(entry: Entry, ordered: Dictionary, n: int) -> int:
 ## with its next claim. A point slicing the pie that turns goes back to its slot to hold for the
 ## bang.
 func follow_order(entry: Entry, team: Array) -> void:
-	if id != "" or entry._bang_over:
+	if id != "" or entry.grenade.over:
 		return
 	var ordered := claim(entry)
 	if ordered.is_empty():
 		return
-	var wanted := bool(ordered["order_bang"]) and not entry._bang_off and not entry._vetoed(team)
+	var wanted := (bool(ordered["order_bang"]) and not entry.grenade.off
+			and not entry.grenade.vetoed(entry, team))
 	if wanted == state.bang:
 		return
 	state.bang = wanted
-	entry._upgraded = false
+	entry.listen.upgraded = false
 	entry.readiness.turned = entry.readiness.turned or wanted
 	if wanted and state.phase == "pie":
-		entry._pie_queue = []
+		entry.pie.queue = []
 		entry.approach.set_phase("stack")
-	entry._radio(str(entry._last_call.get("entry_step", "claim")), entry._last_call)
+	entry.radio.say(
+		entry,
+		str(entry.radio.last_call.get("entry_step", "claim")),
+		entry.radio.last_call,
+	)
 
 
 ## Whether the stack holds for the leader's go (LD13): it goes in under an order (`claim`, an
@@ -188,8 +193,8 @@ func note_go(entry: Entry) -> void:
 	if not go:
 		return
 	entry.readiness.released = true
-	if not entry._last_call.is_empty():
-		entry._radio(str(entry._last_call["entry_step"]), entry._last_call)
+	if not entry.radio.last_call.is_empty():
+		entry.radio.say(entry, str(entry.radio.last_call["entry_step"]), entry.radio.last_call)
 
 
 ## The other living recipients of the order this NPC stacks under (D7): the order's `to` less itself
