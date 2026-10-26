@@ -6,6 +6,8 @@ extends GameTest
 ## `shot`) and no ammo is spent.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## The slot both hold (the pistol).
 const SLOT := 3
 const RIDERS := { &"d": &"front_left", &"p": &"front_right" }
@@ -72,7 +74,7 @@ func _fires_on_foot(t: TestContext) -> bool:
 func _board_both(t: TestContext, car: Node2D) -> bool:
 	for id in RIDERS:
 		if not t.require(
-				await Probe.board_by(t, id, car, RIDERS[id]),
+				await VehicleRide.board_by(t, id, car, RIDERS[id]),
 				"%s gets in by the %s door" % [id, RIDERS[id]],
 		):
 			return false
@@ -86,7 +88,7 @@ func _check_seated_clicks(t: TestContext, car: Node2D) -> void:
 	for id in RIDERS:
 		ammo[id] = t.actor(id).ammo.rounds(SLOT)
 		t.puppet(id).aim_at(car.global_position
-				+ Probe.right(car) * (-400.0 if id == &"d" else 400.0))
+				+ VehicleFrame.right(car) * (-400.0 if id == &"d" else 400.0))
 	for i in 10:
 		await t.seconds(0.2)
 		for id in RIDERS:

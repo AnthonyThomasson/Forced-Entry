@@ -5,6 +5,8 @@ extends GameTest
 ## same slot back in hand.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## The slot it holds before boarding (the pistol).
 const SLOT := 3
 
@@ -54,7 +56,7 @@ func run(t: TestContext) -> void:
 ## (false: it never got in, the test has ended).
 func _check_boarding(t: TestContext, car: Node2D) -> bool:
 	var me := t.actor(&"me")
-	await Probe.place(t, &"me", Probe.stand_point(car, &"front_left"))
+	await VehicleRide.place(t, &"me", VehicleFrame.stand_point(car, &"front_left"))
 	t.puppet(&"me").use_vehicle()
 	var folding_held := 0
 	var folding := 0

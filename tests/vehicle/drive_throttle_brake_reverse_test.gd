@@ -4,6 +4,8 @@ extends GameTest
 ## it through a stop (never flipping straight from forward to backward), then backs it up.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -30,16 +32,19 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	var p := t.puppet(&"me")
-	if not t.require(await Probe.board_by(t, &"me", car, &"front_left"), "the driver gets in"):
+	if not t.require(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"the driver gets in",
+	):
 		return
 	await t.seconds(0.5)
 	await _check_forward(t, car)
 
 	# --- Let go for 0.5 s: the coasting deceleration.
 	p.drive(0.0, 0.0, false)
-	var v0 := Probe.along(car)
+	var v0 := VehicleFrame.along(car)
 	await t.seconds(0.5)
-	var v1 := Probe.along(car)
+	var v1 := VehicleFrame.along(car)
 	var coast_decel := (v0 - v1) / 0.5
 	await _check_brake_to_reverse(t, car, v1, coast_decel)
 
@@ -47,16 +52,16 @@ func run(t: TestContext) -> void:
 ## W: forward along the car's front, and straight.
 func _check_forward(t: TestContext, car: Node2D) -> void:
 	var start := car.global_position
-	var front := Probe.forward(car)
+	var front := VehicleFrame.forward(car)
 	t.puppet(&"me").drive(1.0, 0.0, false)
 	await t.seconds(2.0)
 	var moved := car.global_position - start
 	t.check(car.speed() > 50.0, "W drives the car (%.0f px/s after 2 s)" % car.speed())
-	t.check(Probe.along(car) > 0.0, "forward")
+	t.check(VehicleFrame.along(car) > 0.0, "forward")
 	t.check(moved.dot(front) > 40.0, "along its front (%.0f px)" % moved.dot(front))
 	t.check(
-		absf(moved.dot(Probe.right(car))) < 0.1 * maxf(moved.dot(front), 1.0),
-		"and straight (%.1f px sideways)" % moved.dot(Probe.right(car)),
+		absf(moved.dot(VehicleFrame.right(car))) < 0.1 * maxf(moved.dot(front), 1.0),
+		"and straight (%.1f px sideways)" % moved.dot(VehicleFrame.right(car)),
 	)
 
 
@@ -71,7 +76,7 @@ func _check_brake_to_reverse(t: TestContext, car: Node2D, v1: float, coast_decel
 	var deadline := t.time + 6.0
 	while t.time < deadline:
 		await t.frames(1)
-		series.append(Probe.along(car))
+		series.append(VehicleFrame.along(car))
 		if stop_time < 0.0 and series[-1] <= 1.0:
 			stop_time = t.time - pressed
 		if series[-1] < -30.0:

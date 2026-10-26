@@ -1,245 +1,19 @@
 extends UnitSuite
-## Native unit suite (pure logic) for the stack module (`scenes/ai/perception/stack/`): the entry
-## claim's wire format (`StackClaim`, interface 10), the claims a listener keeps (`ClaimLedger`)
-## and the slot rules a doorway's stack settles them by (`DoorStack`), fed plain callout dicts and
-## a plain doorway. Beneath the simulation tests of `tests/ai/stack/` and
-## `tests/ai/entry/` (ADR-0002): it supplements them, never replaces them. The expected values are
-## read off the rules (`docs/tactical-entry.md` E2, E16, E17; `docs/leadership.md` LD7, LD24), never
-## worked out the way the code does: a field a claim does not say means what the rule says it means
-## (a member that says nothing of its bang never holds a stack back, E17), not what a table holds.
+## Native unit suite (pure logic) for the slot rules a doorway's stack settles its claims by
+## (`DoorStack`, `scenes/ai/perception/stack/`), fed plain claims (callouts from the speakers of
+## `tests/_ai/stack_radio_probe.gd`, decoded by `StackClaim`) and a plain doorway; the claim's wire
+## format and the ledger are `tests/ai/stack_claim_suite.gd`'s. Beneath the simulation tests of
+## `tests/ai/stack/` and `tests/ai/entry/` (ADR-0002): it supplements them, never replaces them. The
+## expected values are read off the rules (`docs/tactical-entry.md` E2, E16, E19 to E21;
+## `docs/leadership.md` LD9, LD13), never worked out the way the code does.
 
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
-const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+const StackRadio := preload("res://tests/_ai/stack_radio_probe.gd")
 ## The frame the same-frame claims below are made on.
 const FRAME := 100
 ## The frame the held stack order "7" below was issued on.
 const ORDER_FRAME := 500
-
-
-## A speaker on the radio: a character as a listener reads it (`is_dead`).
-func _speaker(dead := false) -> Speaker:
-	var s: Speaker = auto_free(Speaker.new())
-	s.is_dead = dead
-	return s
-
-
-## A callout from `speaker` of side `faction` at `pos` with `fields` (its claim or other fields)
-## over the header every callout carries.
-func _callout(
-	speaker: Node,
-	fields: Dictionary,
-	pos := Vector2(100, 50),
-	faction := &"invader",
-) -> Dictionary:
-	var out := {
-		"speaker": speaker, "faction": faction, "position": pos, "status": "", "path": "",
-		"label": "", "target_id": 0, "point": pos,
-	}
-	out.merge(fields, true)
-	return out
-
-
-## A ledger hearing side `faction` from anywhere, its claims current for 6 s.
-func _ledger(faction := &"invader") -> RefCounted:
-	var ledger := ClaimLedger.new()
-	ledger.setup({ "faction": faction, "range": 0.0, "ttl": 6.0 })
-	return ledger
-
-
-func test_a_claim_round_trips_through_the_codec() -> void:
-	var fields := {
-		"opening": "o_3", "into": "kitchen", "slot": 2, "side": -1, "entry_step": "ready",
-		"bang": false, "bang_off": true, "stuns": 1, "frags": 2, "cleared_room": "",
-		"covering": "o_5", "claim_frame": 812, "claim_pos": Vector2(40, 60), "move_up": 3,
-		"pie": true, "order_id": "7", "order_bang": true, "order_mode": "frag",
-		"order_hold": true, "order_go": true, "order_side": 1, "order_frame": 790,
-		"crossed_frame": 805, "join": false, "human": false, "leader": true, "own": false,
-	}
-	var claim := StackClaim.decode(_callout(null, StackClaim.encode(fields)))
-	for key in fields:
-		assert_that(claim[key]).override_failure_message(
-			"%s: %s decoded as %s" % [key, str(fields[key]), str(claim[key])],
-		).is_equal(fields[key])
-	assert_str(claim["step"]).is_equal("ready")
-	assert_that(claim["pos"]).is_equal(Vector2(100, 50))
-
-
-func test_the_encoding_carries_every_entry_field_and_no_header() -> void:
-	var wire := StackClaim.encode({ "opening": "o_1", "slot": 1, "entry_step": "claim" })
-	for key in [
-		"opening", "into", "slot", "side", "entry_step", "bang", "bang_off", "stuns", "frags",
-		"cleared_room", "covering", "claim_frame", "claim_pos", "move_up", "pie", "order_id",
-		"order_bang", "order_mode", "order_hold", "order_go", "order_side", "order_frame",
-		"crossed_frame", "join", "human", "leader", "own",
-	]:
-		assert_bool(wire.has(key)).override_failure_message("%s is on the wire" % key).is_true()
-	for key in ["speaker", "faction", "position", "status", "path", "label", "point"]:
-		assert_bool(wire.has(key)).override_failure_message("%s is the header's" % key).is_false()
-
-
-func test_a_claim_that_says_little_decodes_to_the_rules_defaults() -> void:
-	# A puppet's or an old claim: only the doorway, slot, side and step.
-	var claim := StackClaim.decode(_callout(null, {
-		"opening": "o_1", "slot": 2, "side": 1, "entry_step": "claim",
-	}, Vector2(30, 70)))
-	assert_bool(claim["bang"]).override_failure_message(
-		"a member that says nothing of its bang never holds a stack back (E17)",
-	).is_true()
-	assert_bool(claim["bang_off"]).is_false()
-	assert_int(claim["stuns"]).is_equal(0)
-	assert_int(claim["frags"]).is_equal(0)
-	assert_int(claim["claim_frame"]).override_failure_message("no frame: -1").is_equal(-1)
-	assert_that(claim["claim_pos"]).override_failure_message(
-		"no spot: where it stands",
-	).is_equal(Vector2(30, 70))
-	assert_int(claim["move_up"]).is_equal(0)
-	assert_bool(claim["pie"]).is_false()
-	assert_str(claim["order_id"]).is_equal("")
-	assert_str(claim["order_mode"]).override_failure_message("no order: quiet").is_equal("quiet")
-	assert_bool(claim["order_go"]).is_false()
-	assert_int(claim["order_side"]).is_equal(0)
-	assert_int(claim["order_frame"]).override_failure_message("no order's frame: -1").is_equal(-1)
-	assert_int(claim["crossed_frame"]).override_failure_message("not crossed: -1").is_equal(-1)
-	for key in ["join", "human", "leader", "own"]:
-		assert_bool(claim[key]).override_failure_message("%s unsaid is false" % key).is_false()
-
-
-func test_a_callout_with_no_entry_step_decodes_to_no_claim() -> void:
-	assert_dict(StackClaim.decode(_callout(null, { "path": "combat/engage" }))).is_empty()
-
-
-func test_grenade_calls_and_order_progress_leave_a_claim_standing() -> void:
-	# G16: "grenade!" and the throws' calls; LD7: an order's progress with no entry step.
-	for fields in [
-		{ "status": "grenade", "kind": &"frag" },
-		{ "status": "frag_out", "kind": &"frag" },
-		{ "status": "bang_out", "kind": &"stun" },
-		{ "order_id": "4", "order_step": "in_position" },
-	]:
-		var c := _callout(null, fields)
-		assert_bool(StackClaim.keeps_claim(c)).override_failure_message(
-			"%s keeps the claim" % str(fields),
-		).is_true()
-		assert_bool(StackClaim.is_claim(c)).is_false()
-	# Any other callout is something else the speaker is doing: it is no claim, and keeps none.
-	var combat := _callout(null, { "path": "combat/engage", "label": "engage" })
-	assert_bool(StackClaim.keeps_claim(combat)).is_false()
-	assert_bool(StackClaim.is_claim(combat)).is_false()
-	# Every entry step is a claim on the wire, its end too.
-	for step in ["claim", "ready", "bang", "going_in", "in", "abort", "done"]:
-		assert_bool(StackClaim.is_claim(_callout(null, { "entry_step": step }))).is_true()
-
-
-func test_the_ledger_keeps_a_claim_through_a_grenade_call_and_drops_it_on_anything_else() -> void:
-	var mate := _speaker()
-	var ledger := _ledger()
-	ledger.hear(_callout(mate, { "opening": "o_1", "slot": 1, "side": 1, "entry_step": "bang" }))
-	ledger.hear(_callout(mate, { "status": "bang_out", "kind": &"stun" }))
-	ledger.hear(_callout(mate, { "order_id": "2", "order_step": "in_position" }))
-	assert_int(ledger.claims("o_1").size()).override_failure_message(
-		"the claim stands through a grenade call and an order's progress",
-	).is_equal(1)
-	ledger.hear(_callout(mate, { "path": "combat/engage", "label": "engage" }))
-	assert_array(ledger.claims("o_1")).override_failure_message(
-		"a callout about something else drops it",
-	).is_empty()
-
-
-func test_the_ledger_holds_no_ended_claim_nor_a_dead_speakers() -> void:
-	var gone := _speaker()
-	var dead := _speaker()
-	var mate := _speaker()
-	var ledger := _ledger()
-	ledger.hear(_callout(gone, { "opening": "o_1", "slot": 1, "entry_step": "claim" }))
-	ledger.hear(_callout(gone, { "opening": "o_1", "slot": 1, "entry_step": "abort" }))
-	ledger.hear(_callout(dead, { "opening": "o_1", "slot": 2, "entry_step": "claim" }))
-	ledger.hear(_callout(mate, { "opening": "o_1", "slot": 3, "entry_step": "claim" }))
-	dead.is_dead = true
-	ledger.hear(_callout(mate, { "opening": "o_1", "slot": 3, "entry_step": "ready" }))
-	var slots: Array = ledger.claims("o_1").map(func(c): return c["slot"])
-	assert_array(slots).override_failure_message(
-		"only the live member's claim (an abort ends one; a dead speaker holds none): %s"
-			% str(slots),
-	).is_equal([3])
-
-
-func test_the_ledger_hears_its_own_side_within_range_and_never_its_listener() -> void:
-	var me := _speaker()
-	var near := _speaker()
-	var far := _speaker()
-	var foe := _speaker()
-	var ledger := ClaimLedger.new()
-	ledger.setup({ "faction": &"invader", "range": 500.0, "ttl": 6.0, "listener": me })
-	var at := Vector2.ZERO
-	var claim := { "opening": "o_1", "entry_step": "claim" }
-	ledger.hear(_callout(me, claim.merged({ "slot": 1 }), Vector2(10, 0)), at)
-	ledger.hear(_callout(near, claim.merged({ "slot": 2 }), Vector2(400, 0)), at)
-	ledger.hear(_callout(far, claim.merged({ "slot": 3 }), Vector2(600, 0)), at)
-	ledger.hear(_callout(foe, claim.merged({ "slot": 4 }), Vector2(20, 0), &"household"), at)
-	var slots: Array = ledger.claims("o_1").map(func(c): return c["slot"])
-	assert_array(slots).override_failure_message(
-		"the ally within range only: %s" % str(slots),
-	).is_equal([2])
-
-
-func test_a_member_is_crossing_from_its_going_in_on() -> void:
-	# E6, D14: crossing is `going_in` or a through step; waiting in the stack or done is not.
-	for step in ["going_in", "in", "clear", "cover", "rear"]:
-		assert_bool(StackClaim.crossing(step)).override_failure_message(step).is_true()
-	for step in ["", "claim", "ready", "bang", "abort", "done"]:
-		assert_bool(StackClaim.crossing(step)).override_failure_message(step).is_false()
-
-
-func test_a_doorway_is_stacking_while_a_member_is_on_its_bang() -> void:
-	# E17: the member throwing the stun is still on its way in; so is one in its slot for it.
-	assert_bool(StackClaim.stacking("bang")).is_true()
-	assert_bool(StackClaim.in_slot("bang")).is_true()
-	for step in ["claim", "ready", "going_in"]:
-		assert_bool(StackClaim.stacking(step)).override_failure_message(step).is_true()
-	for step in ["in", "clear", "cover", "rear", "abort", "done"]:
-		assert_bool(StackClaim.stacking(step)).override_failure_message(step).is_false()
-	var mate := _speaker()
-	var ledger := _ledger()
-	ledger.hear(_callout(mate, {
-		"opening": "o_2", "into": "hall", "slot": 1, "side": 1, "entry_step": "bang",
-	}))
-	assert_array(ledger.openings_stacking()).is_equal([{ "opening": "o_2", "into": "hall" }])
-
-
-func test_a_stack_forming_goes_into_the_room_its_stacking_claims_name() -> void:
-	# E16, LD18: the room a doorway's stack goes into is the one the stack forming there names, not
-	# one a member left from an earlier entry through it still holds (a `cover` on a lower slot).
-	var earlier := _speaker()
-	var mate := _speaker()
-	var ledger := _ledger()
-	ledger.hear(_callout(earlier, {
-		"opening": "o_2", "into": "kitchen", "slot": 1, "side": 1, "entry_step": "cover",
-	}))
-	assert_array(ledger.openings_stacking()).override_failure_message(
-		"premise: a doorway with nobody stacking at it is not one a stack forms at",
-	).is_empty()
-	ledger.hear(_callout(mate, {
-		"opening": "o_2", "into": "hall", "slot": 2, "side": 1, "entry_step": "claim",
-	}))
-	assert_array(ledger.openings_stacking()).override_failure_message(
-		"the stack forming goes into the hall: %s" % str(ledger.openings_stacking()),
-	).is_equal([{ "opening": "o_2", "into": "hall" }])
-
-
-func test_one_join_rule_reads_orders_leaf_params_and_claims() -> void:
-	# LD24: a rally's join is a `stack` order of mode `join`; its leaf params and its claims say
-	# `join`.
-	assert_bool(StackClaim.is_join({ "kind": "stack", "mode": "join", "opening": "o_1" })).is_true()
-	assert_bool(StackClaim.is_join({ "kind": "stack", "mode": "stun" })).is_false()
-	assert_bool(StackClaim.is_join({ "kind": "defend_room", "mode": "join" })).is_false()
-	assert_bool(StackClaim.is_join({ "opening": "o_1", "join": true, "order_id": "3" })).is_true()
-	var ordered := { "opening": "o_1", "order_id": "3", "mode": "quiet" }
-	assert_bool(StackClaim.is_join(ordered)).is_false()
-	var join := StackClaim.decode(_callout(null, StackClaim.encode({
-		"opening": "o_1", "entry_step": "claim", "join": true,
-	})))
-	assert_bool(StackClaim.is_join(join)).is_true()
 
 
 func test_a_same_frame_tie_goes_to_the_nearer_claim() -> void:
@@ -308,8 +82,8 @@ func test_a_move_up_holds_against_a_plain_claim_and_its_holder_takes_the_freed_s
 
 func test_nobody_moves_up_into_the_humans_slot() -> void:
 	# E2, E16: a member stacked behind a free claim may move up into it; never into the human's.
-	var mate := _speaker()
-	var me := _speaker()
+	var mate := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
 	var mine := _me(me, 2).merged({ "want": 1 }, true)
 	var ai := _claim(mate, { "slot": 1, "side": 1 })
 	var vacancies: Array = DoorStack.new(_door(), [ai]).move_up_vacancies(mine)
@@ -325,7 +99,7 @@ func test_nobody_moves_up_into_the_humans_slot() -> void:
 func test_a_split_stack_crosses_point_then_the_sides_in_turn() -> void:
 	# E6, E19: the point, then the front man of the other side, then the sides take turns, each in
 	# slot order; a side that runs out leaves the rest to the other.
-	var who: Array = range(6).map(func(_i): return _speaker())
+	var who: Array = range(6).map(func(_i): return StackRadio.speaker(self))
 	var sides := [1, 1, -1, 1, -1, 1]  # Slots 1 to 6.
 	var claims: Array = []
 	for i in who.size():
@@ -340,8 +114,8 @@ func test_a_held_stack_is_released_by_its_go_or_its_own_crossing() -> void:
 	# LD13, D14: a held stack's go is a claim under its order saying the go came, or a member of
 	# that stack going in or through the doorway into its room: one under the order, or the human
 	# (the human leader stepping in is its go).
-	var a := _speaker()
-	var b := _speaker()
+	var a := StackRadio.speaker(self)
+	var b := StackRadio.speaker(self)
 	var held := { "order_id": "7", "order_hold": true }
 	var point_man := _claim(a, held.merged({ "slot": 1, "side": 1, "entry_step": "ready" }))
 	var waiting := _claim(b, held.merged({ "slot": 2, "side": 1, "entry_step": "ready" }))
@@ -374,8 +148,8 @@ func test_a_held_stack_is_not_released_by_another_stacks_claims() -> void:
 	# LD13, D14: a claim left from an earlier entry through the same doorway (a member still holding
 	# the room under no order, or another order's member through), another order's go, or a crossing
 	# into the other room releases nothing.
-	var a := _speaker()
-	var b := _speaker()
+	var a := StackRadio.speaker(self)
+	var b := StackRadio.speaker(self)
 	var point_man := _claim(
 		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
 	)
@@ -406,8 +180,8 @@ func test_a_human_crossing_releases_a_held_stack_only_once_the_order_was_issued(
 	# left on the radio from before releases nothing. The human leader that claimed its slot first
 	# (its own claim, LD24) and ordered the stack second still releases it by stepping in. A claim
 	# under the order releases it whenever it crossed.
-	var a := _speaker()
-	var b := _speaker()
+	var a := StackRadio.speaker(self)
+	var b := StackRadio.speaker(self)
 	var point_man := _claim(
 		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
 	)
@@ -448,8 +222,8 @@ func test_a_human_crossing_releases_a_held_stack_only_once_the_order_was_issued(
 func test_a_human_crossing_of_unknown_frame_releases_nothing() -> void:
 	# D14: a crossing not known to come after the order (the human's claim says no frame, or the
 	# held order's frame is unknown) cannot be told from one left on the radio from before.
-	var a := _speaker()
-	var b := _speaker()
+	var a := StackRadio.speaker(self)
+	var b := StackRadio.speaker(self)
 	var point_man := _claim(
 		a, { "order_id": "7", "order_hold": true, "slot": 1, "side": 1, "entry_step": "ready" },
 	)
@@ -466,8 +240,8 @@ func test_a_human_crossing_of_unknown_frame_releases_nothing() -> void:
 func test_the_order_a_stack_goes_in_under_names_its_room() -> void:
 	# LD13, D10: a held stack's go is read off the claims into the order's room, so the order a
 	# stack goes in under names that room, its own or the teammate's it follows alike.
-	var a := _speaker()
-	var me := _speaker()
+	var a := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
 	var own: Dictionary = DoorStack.new(_door(), []).order_claim({
 		"id": me.get_instance_id(), "slot": 1, "order_id": "7", "order_hold": true,
 		"into": "hall", "order_frame": ORDER_FRAME,
@@ -491,7 +265,7 @@ func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
 	# E19, E21: each side's file runs from the door, a member's place in it its slot less the claims
 	# across the door ahead of it. The squad's layout (every claim) and each member's own settling
 	# (the others' claims: it never hears its own) agree on every point.
-	var who: Array = range(4).map(func(_i): return _speaker())
+	var who: Array = range(4).map(func(_i): return StackRadio.speaker(self))
 	var sides := [1, 1, -1, 1]  # Slots 1 to 4: slot 4 is third on its side.
 	var claims: Array = []
 	for i in who.size():
@@ -515,10 +289,10 @@ func test_the_layout_lays_each_slot_where_its_holder_settles() -> void:
 func test_a_split_stack_evens_its_sides_by_moving_its_last_claimer() -> void:
 	# D6, E19: a member stacks on the side it stands on, but when that side would hold two more of
 	# the stack than the other, the last of that side to have claimed takes the other side.
-	var a := _speaker()
-	var b := _speaker()
-	var c := _speaker()
-	var me := _speaker()
+	var a := StackRadio.speaker(self)
+	var b := StackRadio.speaker(self)
+	var c := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
 	var one_sided := [_claim(a, { "slot": 1, "side": 1 }), _claim(b, { "slot": 2, "side": 1 })]
 	assert_int(
 		DoorStack.new(
@@ -550,7 +324,7 @@ func test_a_split_stack_evens_its_sides_by_moving_its_last_claimer() -> void:
 func test_the_back_of_the_stack_is_the_slot_behind_the_last_claim() -> void:
 	# E2, E20: a member that takes the back of the stack takes the slot behind the last one claimed,
 	# unless it is the last already or the doorway has no slot there (a dead end holds so many).
-	var who: Array = range(3).map(func(_i): return _speaker())
+	var who: Array = range(3).map(func(_i): return StackRadio.speaker(self))
 	var ahead_and_behind := [
 		_claim(who[0], { "slot": 1, "side": 1 }),
 		_claim(who[1], { "slot": 3, "side": 1 }),
@@ -574,10 +348,10 @@ func test_an_ordered_members_place_follows_the_recipients_before_it_and_every_ot
 	# E20, LD9: an ordered member's slot is after the recipients the order names before it and
 	# after every claim on the doorway from anyone else, so it knows a dead end has no slot for it
 	# before anyone claims.
-	var first := _speaker()
-	var me := _speaker()
-	var last_named := _speaker()
-	var stranger := _speaker()
+	var first := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
+	var last_named := StackRadio.speaker(self)
+	var stranger := StackRadio.speaker(self)
 	var to_ids := [first, me, last_named].map(func(m): return m.get_instance_id())
 	var claims := [
 		_claim(last_named, { "slot": 1, "side": 1 }),
@@ -600,8 +374,8 @@ func test_an_ordered_members_place_follows_the_recipients_before_it_and_every_ot
 func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -> void:
 	# E2, E20, E21: a member claims the lowest free slot, asks for its side in that slot and stands
 	# where that side's file puts it; a dead end holding all it can has no slot for it.
-	var a := _speaker()
-	var me := _speaker()
+	var a := StackRadio.speaker(self)
+	var me := StackRadio.speaker(self)
 	var point_man := [_claim(a, { "slot": 1, "side": 1 })]
 	var asked := [0]
 	var claiming := {
@@ -633,7 +407,7 @@ func test_the_claim_chain_takes_a_free_slot_the_side_asked_for_and_its_point() -
 	).is_equal([2, 1, 2])
 	assert_that(keeping["point"]).is_equal(_slot_at(1, 2))
 	var full: Array = range(3).map(
-		func(i): return _claim(_speaker(), { "slot": i + 1, "side": 1 }),
+		func(i): return _claim(StackRadio.speaker(self), { "slot": i + 1, "side": 1 }),
 	)
 	var none: Dictionary = DoorStack.new(_dead_end(), full).claim(claiming, func(_n): return 1)
 	assert_array([none["slot"], none["held"]]).override_failure_message(
@@ -647,7 +421,7 @@ func test_a_member_whose_slot_changes_is_settled_moving_up_no_more() -> void:
 	# where a plain claim made on its frame gives way to its move-up. Its move-up is over: the claim
 	# on slot 4 is not counted at the slot 3 it freed, so on its side it stands third in the file,
 	# behind the point and slot 2, with slots 3 and 4 across the door ahead of it in the claims.
-	var who: Array = range(5).map(func(_i): return _speaker())
+	var who: Array = range(5).map(func(_i): return StackRadio.speaker(self))
 	who.sort_custom(func(a, b): return a.get_instance_id() < b.get_instance_id())
 	var into_two: Node = who[0]  # The lowest instance id: it keeps slot 2.
 	var me: Node = who[4]
@@ -711,7 +485,7 @@ func _claim(speaker: Node, fields: Dictionary) -> Dictionary:
 	var wire := StackClaim.encode(
 		{ "opening": "o_1", "into": "hall", "entry_step": "claim" }.merged(fields, true),
 	)
-	return StackClaim.decode(_callout(speaker, wire, Vector2(0, 200)))
+	return StackClaim.decode(StackRadio.callout(speaker, wire, Vector2(0, 200)))
 
 
 ## `speaker` asking about itself (`DoorStack`'s `me`): holding slot `slot` on side 1, claimed on
@@ -742,13 +516,6 @@ func _tie_reads(pair: Array, human_first: bool, near: Vector2, far: Vector2) -> 
 
 ## Two speakers, the lower instance id first.
 func _pair() -> Array:
-	var two := [_speaker(), _speaker()]
+	var two := [StackRadio.speaker(self), StackRadio.speaker(self)]
 	two.sort_custom(func(a, b): return a.get_instance_id() < b.get_instance_id())
 	return two
-
-
-## A character on the radio as a listener reads it.
-class Speaker:
-	extends Node
-
-	var is_dead := false

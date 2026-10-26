@@ -5,6 +5,8 @@ extends GameTest
 ## are the rule, not a car that never takes anyone).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -53,20 +55,20 @@ func run(t: TestContext) -> void:
 		return
 
 	# --- Out of reach: 75 px straight out from the front-left handle.
-	var far := Probe.stand_point(car, &"front_left", 75.0)
+	var far := VehicleFrame.stand_point(car, &"front_left", 75.0)
 	t.check(
 		_nearest_handle(car, far) > Probe.DOOR_REACH,
 		"the spot is out of reach of every handle (%.0f px)" % _nearest_handle(car, far),
 	)
-	await Probe.place(t, &"me", far)
+	await VehicleRide.place(t, &"me", far)
 	t.check(
 		await _refused(t, car, me),
 		"out of reach, E opens nothing and the character stays on foot",
 	)
 
 	# --- Rolling: beside the front-left handle while the car rolls forward at 80 px/s.
-	await Probe.place(t, &"me", Probe.stand_point(car, &"front_left"))
-	car.set("linear_velocity", Probe.forward(car) * 80.0)
+	await VehicleRide.place(t, &"me", VehicleFrame.stand_point(car, &"front_left"))
+	car.set("linear_velocity", VehicleFrame.forward(car) * 80.0)
 	await t.frames(1)
 	t.check(
 		car.speed() > Probe.BOARD_MAX_SPEED,
@@ -84,4 +86,7 @@ func run(t: TestContext) -> void:
 			"the car rolls to a stop",
 	):
 		return
-	t.check(await Probe.board_by(t, &"me", car, &"front_left"), "beside the stopped car, E boards")
+	t.check(
+		await VehicleRide.board_by(t, &"me", car, &"front_left"),
+		"beside the stopped car, E boards",
+	)

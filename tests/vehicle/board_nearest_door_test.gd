@@ -5,6 +5,8 @@ extends GameTest
 ## in there and takes the rear-right seat. Only the chosen door opens.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -58,14 +60,14 @@ func _check_layout(t: TestContext, car: Node2D) -> bool:
 
 ## Front left: the rear-left handle is in reach too, but further (false: it did not get in).
 func _board_front(t: TestContext, car: Node2D) -> bool:
-	var at := Probe.stand_point(car, &"front_left")
+	var at := VehicleFrame.stand_point(car, &"front_left")
 	var near := Probe.door(car, &"front_left")["handle"] as Vector2
 	var other := Probe.door(car, &"rear_left")["handle"] as Vector2
 	t.check(
 		at.distance_to(near) < at.distance_to(other),
 		"the front-left handle is the nearest from the stand point",
 	)
-	await Probe.place(t, &"front", at)
+	await VehicleRide.place(t, &"front", at)
 	var front := t.actor(&"front")
 	t.puppet(&"front").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(
@@ -91,7 +93,7 @@ func _board_front(t: TestContext, car: Node2D) -> bool:
 ## Rear right, with the driver already in.
 func _board_rear(t: TestContext, car: Node2D) -> void:
 	var front := t.actor(&"front")
-	await Probe.place(t, &"rear", Probe.stand_point(car, &"rear_right"))
+	await VehicleRide.place(t, &"rear", VehicleFrame.stand_point(car, &"rear_right"))
 	var rear := t.actor(&"rear")
 	t.puppet(&"rear").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(

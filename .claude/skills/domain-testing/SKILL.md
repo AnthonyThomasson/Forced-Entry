@@ -693,9 +693,11 @@ the other doorways' views and funnels): `frames` / `frame` (a way in's door fram
 by path), `layout(g, count, side)` (the slots, read only through the published rule `StackLayout.slots`, perception's
 `stack/stack_layout.gd` loaded by path), and one check per rule
 (`in_stack_room`, `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`,
-`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them the native suite
-`tests/ai/door_stack_suite.gd` feeds plain claim dicts to the stack module (`StackClaim`'s codec and its not-a-claim rule, a `ClaimLedger`,
-`DoorStack`'s slot rules: same-frame ties, move-up, the human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
+`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them two native suites
+feed plain claim dicts to the stack module, over the shared speakers and callouts of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
+preload(...)`: `speaker(suite, dead)`, freed with the suite's case, and `callout`): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
+not-a-claim, step and join rules, a `ClaimLedger`) and `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
+human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
 (`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, lead, side,
 starts)`, the members the keys of `starts`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
 walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of
@@ -778,7 +780,7 @@ The rules are `docs/outfits.md` (O1 to O15, each with its tests named under it);
 (`tests/character/hit_zone_by_bullet_height`, `outfit_weight_slows`, `outfit_art`, and the styles' `style_look` (tag `style`, with
 `tests/general/match_styles`); `tests/projectile/helmet_*`, `soft_vest_*`, `plate_*`, `armour_stop_feedback`,
 `frag_blast_cut_by_vest`; `tests/items/loadout_outfit`; `tests/ui/setup_menu_config`, `debug_panel_outfit`, `inspector_outfit`), all through
-`tests/_outfit/outfit_probe.gd` (`const OutfitProbe := preload(...)`, not `Outfit`: that is the Items class): `wear` / `view` / `condition` (behind `has_api`),
+`tests/_outfit/outfit_probe.gd` (`const OutfitProbe := preload(...)`, not `Outfit`: that is the Items class): `wear` / `view` / `condition` (each false / `{}` / -1 without the outfit API; `require_api` is the named check),
 `pin_height` (pins `BallisticsFlightConfig.bullet_height`; `STAND` / `CROUCH` are a height in each zone), the spec's numbers (`ZONE_DAMAGE`, `PLATED_KIT`, `PLAIN_CLOTHES`)
 so a test checks the doc and not the code, and shooting lanes (`lay_lanes`, `dress`, `volley`: real rounds with a gun's `GunConfig` numbers, or a frag's fragment, fired
 square on at a target with a witness standing behind it to show whether a round came out), plus `art(c)` (the body's `drawn_art()`). `--changed` maps
@@ -834,10 +836,11 @@ numbers as consts (`DOOR_REACH`, `BOARD_MAX_SPEED`, `EXIT_MAX_SPEED`, `HARM_MIN_
 checks the door's and the fold's measured ease against the last two, within 0.4× to 2×) and each kind's door table
 (`CAR_DOORS`, `VAN_DOORS`), so a test checks the spec and not the code; `ready` / `has_reads` (a read that does not exist fails a `require`
 instead of a script error), `config_value(holder, prop)` / `kind_value` (a Vehicles holder's static read by class name; a missing holder or var is an error, never a fallback), the door and seat reads (`door`, `open_of`,
-`seat_of`, `occupant`, `watch_doors` / `opened`), the vehicle frame (`forward`, `right`, `outward`, `stand_point`, `edge`, `gap_to_solid`,
-`local_velocity`, `pivot`, `outward_slip`, `along`), placing (`place`, `move_vehicle`), the ride (`board`, `exit`, `board_by`), driving
-(`reach_speed`, `hold_speed`) and the draw layers (`layer`, `absolute_z`, `draws_above`). Everything goes through the drivable contract
-(interface 19) duck-typed. `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character,
+`seat_of`, `occupant`, `watch_doors` / `opened`) and the draw layers (`layer`, `absolute_z`, `draws_above`). Beside it, the vehicle frame
+in `tests/_vehicle/vehicle_frame_probe.gd` (`const VehicleFrame := preload(...)`: `forward`, `right`, `outward`, `stand_point`, `edge`,
+`gap_to_solid`, `tail_offset`, `local_velocity`, `pivot`, `outward_slip`, `along`), and placing (`place`, `move_vehicle`), the ride (`exit`,
+`board_by`) and driving (`reach_speed`, `hold_speed`, `hold`) in `tests/_vehicle/vehicle_ride_probe.gd` (`const VehicleRide :=
+preload(...)`). Everything goes through the drivable contract (interface 19) duck-typed. `tools/run_tests.sh --domain=vehicle` runs the domain; `--changed` on `scenes/vehicle/` runs vehicle, character,
 items, interaction, projectile, physics, objects, ai, perf, audio and general.
 
 ## Errors and warnings fail the test (`log_watch.gd`)

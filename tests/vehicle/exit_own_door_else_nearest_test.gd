@@ -5,6 +5,8 @@ extends GameTest
 ## the car.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -40,7 +42,7 @@ func run(t: TestContext) -> void:
 		return
 	var car := t.vehicle(&"car") as Node2D
 	if not t.require(
-			await Probe.board_by(t, &"me", car, &"front_left"),
+			await VehicleRide.board_by(t, &"me", car, &"front_left"),
 			"the character gets in at the front left",
 	):
 		return
@@ -69,7 +71,7 @@ func _exit_own_door(t: TestContext, car: Node2D) -> bool:
 			% me.global_position.distance_to(handle),
 	)
 	t.check(
-		(me.global_position - car.global_position).dot(Probe.right(car)) < 0.0,
+		(me.global_position - car.global_position).dot(VehicleFrame.right(car)) < 0.0,
 		"on the car's left side",
 	)
 	t.check(not me.use.is_in_vehicle() and Probe.seat_of(car, me) == &"", "it holds no seat")
@@ -85,7 +87,7 @@ func _exit_own_door(t: TestContext, car: Node2D) -> bool:
 func _exit_blocked(t: TestContext, car: Node2D) -> void:
 	var me := t.actor(&"me")
 	if not t.require(
-			await Probe.board_by(t, &"me", car, &"front_left"),
+			await VehicleRide.board_by(t, &"me", car, &"front_left"),
 			"the character gets back in at the front left",
 	):
 		return
@@ -94,8 +96,8 @@ func _exit_blocked(t: TestContext, car: Node2D) -> void:
 		2.0,
 		"the door shuts behind it",
 	)
-	await Probe.place(t, &"block_front", Probe.stand_point(car, &"front_left", 18.0))
-	await Probe.place(t, &"block_rear", Probe.stand_point(car, &"rear_left", 18.0))
+	await VehicleRide.place(t, &"block_front", VehicleFrame.stand_point(car, &"front_left", 18.0))
+	await VehicleRide.place(t, &"block_rear", VehicleFrame.stand_point(car, &"rear_left", 18.0))
 	var out: Dictionary = await _get_out(t, car)
 	if not t.require(out["done"], "E still gets the character out"):
 		return
@@ -111,6 +113,6 @@ func _exit_blocked(t: TestContext, car: Node2D) -> void:
 			% me.global_position.distance_to(handle),
 	)
 	t.check(
-		(me.global_position - car.global_position).dot(Probe.right(car)) > 0.0,
+		(me.global_position - car.global_position).dot(VehicleFrame.right(car)) > 0.0,
 		"on the car's right side",
 	)

@@ -341,8 +341,8 @@ Tests: `stack_ai_goes_round_player_in_slot`, `stack_player_reserved_slot`, `stac
 Von server; `tools/run_tests.sh stack --include-von`), `stack_player_kept_through_bang` (the human's slot kept through its one
 AI teammate's bang, real Von), `stack_player_nobody_stacking_withdrawn` (withdrawn once its only teammate aborts),
 `stack_player_dead_end_withdrawn` (E20, micro_flat's kitchenette), `stack_player_follows_team_side` (E19), `ui/stack_markers_draw`,
-`general/stack_player_wiring`; beneath them the unit suite `ai/door_stack_suite` (the claim's codec, same-frame ties with the human, the
-human's slot never moved into).
+`general/stack_player_wiring`; beneath them the unit suites `ai/stack_claim_suite` (the claim's codec) and `ai/door_stack_suite` (same-frame
+ties with the human, the human's slot never moved into).
 
 **E17. A stun before the crossing (the bang entry, `docs/grenades.md` G18).** A stack that carries a stun grenade and has a reason to
 think a hostile is in the room (gunfire or footsteps heard there, shot at from it, an ally's fight in it, a hostile seen going in, lost

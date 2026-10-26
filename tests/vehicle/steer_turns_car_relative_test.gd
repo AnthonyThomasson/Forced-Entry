@@ -5,6 +5,8 @@ extends GameTest
 ## east one heads south, the west one north).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## W is let up above this speed (px/s) and pressed again below it, so the turns stay in the arena
 ## and clear of each other however hard the car launches (F4: about 1000 px/s after 1.5 s of W).
 const CRUISE := 150.0
@@ -51,7 +53,7 @@ func _stop(t: TestContext, cars: Array) -> void:
 	for i in 2:
 		var id: StringName = [&"e", &"w"][i]
 		var car: Node2D = cars[i]
-		t.puppet(id).drive(-1.0 if Probe.along(car) > 0.0 else 1.0, 0.0, false)
+		t.puppet(id).drive(-1.0 if VehicleFrame.along(car) > 0.0 else 1.0, 0.0, false)
 		await t.until(func(): return car.speed() < 3.0, 4.0)
 		t.puppet(id).drive(0.0, 0.0, false)
 
@@ -61,12 +63,12 @@ func run(t: TestContext) -> void:
 		return
 	var cars := [t.vehicle(&"east"), t.vehicle(&"west")]
 	if not t.require(
-			await Probe.board_by(t, &"e", cars[0], &"front_left"),
+			await VehicleRide.board_by(t, &"e", cars[0], &"front_left"),
 			"a driver gets into the east-facing car",
 	):
 		return
 	if not t.require(
-			await Probe.board_by(t, &"w", cars[1], &"front_left"),
+			await VehicleRide.board_by(t, &"w", cars[1], &"front_left"),
 			"a driver gets into the west-facing car",
 	):
 		return

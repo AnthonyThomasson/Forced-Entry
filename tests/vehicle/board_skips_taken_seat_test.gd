@@ -4,6 +4,8 @@ extends GameTest
 ## rear-left door and seat instead, and the front-left door stays shut while it boards.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -33,9 +35,9 @@ func run(t: TestContext) -> void:
 			"the car reports its front-left handle",
 	):
 		return
-	var at := Probe.stand_point(car, &"front_left")
+	var at := VehicleFrame.stand_point(car, &"front_left")
 	if not t.require(
-			await Probe.board_by(t, &"driver", car, &"front_left"),
+			await VehicleRide.board_by(t, &"driver", car, &"front_left"),
 			"the first character gets in at the front left",
 	):
 		return
@@ -53,7 +55,7 @@ func run(t: TestContext) -> void:
 				% at.distance_to(rear_handle),
 	):
 		return
-	await Probe.place(t, &"second", at)
+	await VehicleRide.place(t, &"second", at)
 	var second := t.actor(&"second")
 	t.puppet(&"second").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(

@@ -6,6 +6,8 @@ extends GameTest
 ## never slides) and the character takes the other cargo seat.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -36,7 +38,7 @@ func _board_watching(
 	id: StringName,
 	door_id: StringName,
 ) -> Dictionary:
-	await Probe.place(t, id, Probe.stand_point(van, door_id))
+	await VehicleRide.place(t, id, VehicleFrame.stand_point(van, door_id))
 	var who := t.actor(id)
 	t.puppet(id).use_vehicle()
 	var out := {
@@ -70,7 +72,7 @@ func run(t: TestContext) -> void:
 	var van := t.vehicle(&"van") as Node2D
 	if not _check_layout(t, van):
 		return
-	var tail := Probe.edge(van, -Probe.forward(van))
+	var tail := VehicleFrame.edge(van, -VehicleFrame.forward(van))
 	if not await _check_side(t, van):
 		return
 	await _check_rear(t, van, tail)
@@ -109,7 +111,7 @@ func _check_side(t: TestContext, van: Node2D) -> bool:
 		"the side door rolls open along the body (%.0f px)" % slid.length(),
 	)
 	t.check(
-		slid.length() > 0.0 and slid.normalized().dot(-Probe.forward(van)) > 0.9,
+		slid.length() > 0.0 and slid.normalized().dot(-VehicleFrame.forward(van)) > 0.9,
 		"backward, along the body (direction %s)" % slid.normalized(),
 	)
 	t.check(side["angle"] <= 0.05, "it never turns (most %.3f rad)" % side["angle"])
@@ -131,7 +133,7 @@ func _check_rear(t: TestContext, van: Node2D, tail: Vector2) -> void:
 		(back["offset"] as Vector2).length() <= 2.0,
 		"it never slides (%.1f px)" % (back["offset"] as Vector2).length(),
 	)
-	var behind := ((back["handle"] as Vector2) - tail).dot(-Probe.forward(van))
+	var behind := ((back["handle"] as Vector2) - tail).dot(-VehicleFrame.forward(van))
 	t.check(
 		behind > 5.0,
 		"it swings out behind the van (its handle %.0f px past the tail at the most open)" % behind,

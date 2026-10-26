@@ -6,6 +6,8 @@ extends GameTest
 ## the handbrake slides less.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const SPEED := 120.0
 
 
@@ -34,7 +36,7 @@ func configure(s: TestSetup) -> void:
 ## of the turn, and the peak slip().
 func _turn(t: TestContext, id: StringName, car: Node2D, handbrake: bool) -> Dictionary:
 	var out := {
-		"reached": await Probe.reach_speed(t, id, car, SPEED, 6.0),
+		"reached": await VehicleRide.reach_speed(t, id, car, SPEED, 6.0),
 		"out": -INF,
 		"slip": 0.0,
 	}
@@ -42,7 +44,7 @@ func _turn(t: TestContext, id: StringName, car: Node2D, handbrake: bool) -> Dict
 	var deadline := t.time + 1.0
 	while t.time < deadline:
 		await t.frames(1)
-		out["out"] = maxf(out["out"], Probe.outward_slip(car))
+		out["out"] = maxf(out["out"], VehicleFrame.outward_slip(car))
 		out["slip"] = maxf(out["slip"], float(car.slip()))
 	t.puppet(id).drive(0.0, 0.0, false)
 	return out
@@ -54,12 +56,12 @@ func run(t: TestContext) -> void:
 	var slide := t.vehicle(&"slide") as Node2D
 	var grip := t.vehicle(&"grip") as Node2D
 	if not t.require(
-			await Probe.board_by(t, &"a", slide, &"front_left"),
+			await VehicleRide.board_by(t, &"a", slide, &"front_left"),
 			"a driver gets into the first car",
 	):
 		return
 	if not t.require(
-			await Probe.board_by(t, &"b", grip, &"front_left"),
+			await VehicleRide.board_by(t, &"b", grip, &"front_left"),
 			"a driver gets into the second car",
 	):
 		return

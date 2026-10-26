@@ -8,6 +8,8 @@ extends GameTest
 ## `sound` events.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const SoundProbe := preload("res://tests/_audio/sound_probe.gd")
 ## The profiles the vehicles add (V7): every one must be in the sound bank (and so is rendered by
 ## audio/bank).
@@ -76,10 +78,15 @@ func _stage(t: TestContext, mark: int, stage: StringName) -> Array:
 ## Returns the crash sound's `volume_db` (or -INF when none was heard).
 func _crash(t: TestContext, id: StringName, speed: float) -> float:
 	var car := t.vehicle(id) as Node2D
-	var gap := Probe.gap_to_solid(car, Probe.forward(car))
-	await Probe.move_vehicle(t, car, car.global_position + Probe.forward(car) * (gap - 10.0), 0.0)
+	var gap := VehicleFrame.gap_to_solid(car, VehicleFrame.forward(car))
+	await VehicleRide.move_vehicle(
+		t,
+		car,
+		car.global_position + VehicleFrame.forward(car) * (gap - 10.0),
+		0.0,
+	)
 	var mark := t.events.size()
-	car.set("linear_velocity", Probe.forward(car) * speed)
+	car.set("linear_velocity", VehicleFrame.forward(car) * speed)
 	await t.seconds(1.0)
 	t.check(
 		not _stage(t, mark, &"crash").is_empty(),
@@ -147,7 +154,7 @@ func _check_boarding(t: TestContext, car: Node2D) -> bool:
 	var service: Node = Sound
 	var mark := t.events.size()
 	if not t.require(
-			await Probe.board_by(t, &"me", car, &"front_left"),
+			await VehicleRide.board_by(t, &"me", car, &"front_left"),
 			"the driver gets into the car",
 	):
 		return false
@@ -192,7 +199,7 @@ func _check_revs(t: TestContext, car: Node2D) -> bool:
 	var idle_pitch := float(service.loop_of(car, &"engine").get("pitch", 0.0))
 	var idle_rpm := float(car.engine_state().get("rpm", 0.0))
 	if not t.require(
-			await Probe.reach_speed(t, &"me", car, 150.0, 6.0),
+			await VehicleRide.reach_speed(t, &"me", car, 150.0, 6.0),
 			"the car reaches 150 px/s",
 	):
 		return false
@@ -251,7 +258,7 @@ func _check_skid(t: TestContext, car: Node2D) -> void:
 func _check_exit(t: TestContext, car: Node2D) -> bool:
 	var service: Node = Sound
 	var mark := t.events.size()
-	if not t.require(await Probe.exit(t, &"me"), "the driver gets out"):
+	if not t.require(await VehicleRide.exit(t, &"me"), "the driver gets out"):
 		return false
 	await t.until(
 		func(): return Probe.open_of(car, &"front_left") < 0.02,
@@ -275,7 +282,7 @@ func _check_exit(t: TestContext, car: Node2D) -> bool:
 func _check_slide(t: TestContext, van: Node2D) -> bool:
 	var mark := t.events.size()
 	if not t.require(
-			await Probe.board_by(t, &"side", van, &"side"),
+			await VehicleRide.board_by(t, &"side", van, &"side"),
 			"a character gets into the van by the side door",
 	):
 		return false
@@ -312,13 +319,16 @@ func _check_crashes(t: TestContext, crash_min: float) -> void:
 func _check_bump(t: TestContext, crash_min: float) -> void:
 	var bump := t.vehicle(&"bump") as Node2D
 	var radius: float = t.actor(&"dummy").radius
-	await Probe.place(
+	await VehicleRide.place(
 		t,
 		&"dummy",
-		Probe.edge(bump, Probe.forward(bump)) + Probe.forward(bump) * (radius + 8.0),
+		VehicleFrame.edge(
+			bump,
+			VehicleFrame.forward(bump),
+		) + VehicleFrame.forward(bump) * (radius + 8.0),
 	)
 	var mark := t.events.size()
-	bump.set("linear_velocity", Probe.forward(bump) * maxf(crash_min * 2.0, 150.0))
+	bump.set("linear_velocity", VehicleFrame.forward(bump) * maxf(crash_min * 2.0, 150.0))
 	await t.seconds(1.0)
 	var bumps := _stage(t, mark, &"bump_character")
 	if t.check(not bumps.is_empty(), "striking a character posts bump_character"):

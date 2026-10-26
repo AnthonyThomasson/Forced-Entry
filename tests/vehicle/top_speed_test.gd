@@ -7,6 +7,8 @@ extends GameTest
 ## `vehicle/launch_and_brake`.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## id -> [driver, new top speed (px/s)].
 const KINDS := {
 	&"car": [&"c", 1280.0],
@@ -51,7 +53,7 @@ func run(t: TestContext) -> void:
 		return
 	for id in KINDS:
 		if not t.require(
-				await Probe.board_by(t, KINDS[id][0], t.vehicle(id) as Node2D, &"front_left"),
+				await VehicleRide.board_by(t, KINDS[id][0], t.vehicle(id) as Node2D, &"front_left"),
 				"a driver gets into the %s" % id,
 		):
 			return
@@ -70,7 +72,7 @@ func run(t: TestContext) -> void:
 				reached_at[id] = t.time
 			if reached_at[id] >= 0.0 and t.time > reached_at[id] + HOLD_AFTER:
 				lifted[id] = true
-			if Probe.edge(v, Probe.forward(v)).x > ARENA.end.x - BRAKE_BEFORE_WALL:
+			if VehicleFrame.edge(v, VehicleFrame.forward(v)).x > ARENA.end.x - BRAKE_BEFORE_WALL:
 				lifted[id] = true
 			t.puppet(KINDS[id][0]).drive(-1.0 if lifted[id] else 1.0, 0.0, false)
 		await t.frames(1)

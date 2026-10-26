@@ -6,6 +6,8 @@ extends GameTest
 ## full steer it slides more (its peak slip()).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const IDS := [&"c", &"v"]
 ## The high speed both are held at for the slide comparison (px/s): a fixed 240 px/s, well under
 ## both tops, so a retune of the top speed leaves it in reach.
@@ -50,7 +52,7 @@ func _cruise(
 			var throttle := 0.0
 			if v.speed() < target - 3.0:
 				throttle = 1.0
-			elif v.speed() > target + 15.0 and Probe.along(v) > 0.0:
+			elif v.speed() > target + 15.0 and VehicleFrame.along(v) > 0.0:
 				throttle = -1.0
 			t.puppet(IDS[i]).drive(throttle, steers[i], false)
 		await t.frames(1)
@@ -66,7 +68,7 @@ func _stop(t: TestContext) -> void:
 	var vehicles := _both(t)
 	for id in IDS:
 		t.puppet(id).drive(-1.0, 0.0, false)
-	await t.until(func(): return vehicles.all(func(v): return Probe.along(v) <= 2.0), 6.0)
+	await t.until(func(): return vehicles.all(func(v): return VehicleFrame.along(v) <= 2.0), 6.0)
 	for id in IDS:
 		t.puppet(id).drive(0.0, 0.0, false)
 	await t.seconds(0.5)
@@ -85,12 +87,12 @@ func run(t: TestContext) -> void:
 	if not _check_specs(t, car, van):
 		return
 	if not t.require(
-			await Probe.board_by(t, &"c", car, &"front_left"),
+			await VehicleRide.board_by(t, &"c", car, &"front_left"),
 			"a driver gets into the car",
 	):
 		return
 	if not t.require(
-			await Probe.board_by(t, &"v", van, &"front_left"),
+			await VehicleRide.board_by(t, &"v", van, &"front_left"),
 			"a driver gets into the van",
 	):
 		return
@@ -163,8 +165,8 @@ func _check_turn(t: TestContext) -> void:
 	await _stop(t)
 	# Back to the start lanes facing +x: the heading the circles leave them on depends on the
 	# tuning, and could aim them at a wall.
-	await Probe.move_vehicle(t, car, Vector2(400, 1000), 0.0)
-	await Probe.move_vehicle(t, van, Vector2(400, 1250), 0.0)
+	await VehicleRide.move_vehicle(t, car, Vector2(400, 1000), 0.0)
+	await VehicleRide.move_vehicle(t, van, Vector2(400, 1250), 0.0)
 
 
 ## The same high speed and full steer: the van slides more.

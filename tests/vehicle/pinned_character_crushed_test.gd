@@ -29,6 +29,8 @@ extends GameTest
 ##    chair turns), (d) for 50% (the chair alone takes the first blow).
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 ## Lane -> [the car's start, the character].
 const LANES := {
 	&"chair": [Vector2(400, 110), &"pinned_chair"],
@@ -144,7 +146,7 @@ func _place_lanes(t: TestContext, c: Crash) -> bool:
 			if not await _pull_up(t, lane):
 				return false
 		c.placed[lane] = _stand_point(t, c, lane)
-		await Probe.place(t, LANES[lane][1], c.placed[lane])
+		await VehicleRide.place(t, LANES[lane][1], c.placed[lane])
 	for lane in LANES:
 		var who: StringName = LANES[lane][1]
 		t.check(
@@ -159,23 +161,23 @@ func _place_lanes(t: TestContext, c: Crash) -> bool:
 func _pull_up(t: TestContext, lane: StringName) -> bool:
 	var car := t.vehicle(lane) as Node2D
 	var radius: float = t.actor(LANES[lane][1]).radius
-	var front := Probe.forward(car)
-	var behind := Probe.gap_to_solid(car, front)
+	var front := VehicleFrame.forward(car)
+	var behind := VehicleFrame.gap_to_solid(car, front)
 	if not t.require(
 			behind < 300.0,
 			"in the %s lane something solid stands ahead of the nose (%.0f px)" % [lane, behind],
 	):
 		return false
-	await Probe.move_vehicle(
+	await VehicleRide.move_vehicle(
 		t,
 		car,
 		car.global_position + front * (behind - (GAP + 2.0 * radius + 1.0)),
 		car.global_rotation,
 	)
 	t.check(
-		absf(Probe.gap_to_solid(car, front) - (GAP + 2.0 * radius + 1.0)) < 1.5,
+		absf(VehicleFrame.gap_to_solid(car, front) - (GAP + 2.0 * radius + 1.0)) < 1.5,
 		"the %s lane's car stands a character's width and GAP short of it (%.1f px)"
-			% [lane, Probe.gap_to_solid(car, front)],
+			% [lane, VehicleFrame.gap_to_solid(car, front)],
 	)
 	return true
 
@@ -185,15 +187,15 @@ func _pull_up(t: TestContext, lane: StringName) -> bool:
 func _stand_point(t: TestContext, c: Crash, lane: StringName) -> Vector2:
 	var car := t.vehicle(lane) as Node2D
 	var radius: float = t.actor(LANES[lane][1]).radius
-	var front := Probe.forward(car)
+	var front := VehicleFrame.forward(car)
 	if lane == &"shield":
 		t.check(
-			absf(Probe.gap_to_solid(car, front) - GAP) < 1.5,
+			absf(VehicleFrame.gap_to_solid(car, front) - GAP) < 1.5,
 			"the shielding armchair stands GAP ahead of the nose (%.1f px)"
-				% Probe.gap_to_solid(car, front),
+				% VehicleFrame.gap_to_solid(car, front),
 		)
 		return c.chairs[&"shield"].global_position + front * (_chair_half() + radius + 1.0)
-	return Probe.edge(car, front) + front * (GAP + radius)
+	return VehicleFrame.edge(car, front) + front * (GAP + radius)
 
 
 ## Note where the armchairs start, into `c.chair_start`, and set every car rolling at SPEED.
@@ -202,7 +204,7 @@ func _set_off(t: TestContext, c: Crash) -> void:
 		c.chair_start[id] = c.chairs[id].global_position
 	for lane in LANES:
 		var car := t.vehicle(lane) as Node2D
-		car.set("linear_velocity", Probe.forward(car) * SPEED)
+		car.set("linear_velocity", VehicleFrame.forward(car) * SPEED)
 
 
 ## Each lane's first touch: the first frame its car slows, its character is hurt or shoved, or
@@ -266,9 +268,9 @@ func _check_kept(t: TestContext, c: Crash) -> void:
 				% [lane, float(c.kept.get(lane, 0.0)), AFTER_TOUCH, share * SPEED, SPEED],
 		)
 	for id in c.chairs:
-		var shoved: float = (c.chairs[id].global_position - c.chair_start[id]).dot(Probe.forward(
-			t.vehicle(id) as Node2D,
-		))
+		var shoved: float = (c.chairs[id].global_position - c.chair_start[id]).dot(
+			VehicleFrame.forward(t.vehicle(id) as Node2D),
+		)
 		t.check(
 			shoved > 20.0,
 			"in the %s lane the car shoves the armchair on (%.0f px)" % [id, shoved],

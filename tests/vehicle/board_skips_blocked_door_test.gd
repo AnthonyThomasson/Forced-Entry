@@ -6,6 +6,8 @@ extends GameTest
 ## into the driver's seat, and the rear-left door never opens.
 
 const Probe := preload("res://tests/_vehicle/vehicle_probe.gd")
+const VehicleFrame := preload("res://tests/_vehicle/vehicle_frame_probe.gd")
+const VehicleRide := preload("res://tests/_vehicle/vehicle_ride_probe.gd")
 const CAR_AT := Vector2(450, 300)
 ## Where the armchair stands, off the car's rear-left corner: its near corner reaches into the
 ## rear-left door's swing.
@@ -45,7 +47,7 @@ func run(t: TestContext) -> void:
 		return
 	var rear_handle := Probe.door(car, &"rear_left")["handle"] as Vector2
 	var front_handle := Probe.door(car, &"front_left")["handle"] as Vector2
-	var out := -Probe.right(car)
+	var out := -VehicleFrame.right(car)
 
 	# On the left side between the two handles, nearer the rear-left: both in reach.
 	var at := rear_handle.lerp(front_handle, 0.44) + out * 17.0
@@ -59,7 +61,7 @@ func run(t: TestContext) -> void:
 			"and the front-left handle is in reach too (%.0f px)" % at.distance_to(front_handle),
 	):
 		return
-	await Probe.place(t, &"me", at)
+	await VehicleRide.place(t, &"me", at)
 	var me := t.actor(&"me")
 	t.puppet(&"me").use_vehicle()
 	var watched: Dictionary = await Probe.watch_doors(
@@ -87,7 +89,7 @@ func _chair_in_swing(t: TestContext, car: Node2D) -> bool:
 	var hinge := rear["hinge"] as Vector2
 	var half := (chair.get("size") as Vector2) / 2.0
 	var nearest := hinge.clamp(chair.global_position - half, chair.global_position + half)
-	var out := -Probe.right(car)
+	var out := -VehicleFrame.right(car)
 	return t.require(
 		nearest.distance_to(hinge) < hinge.distance_to(rear_handle)
 			and (nearest - hinge).dot(out) > 2.0,
