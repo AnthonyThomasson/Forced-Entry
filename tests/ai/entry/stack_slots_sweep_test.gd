@@ -19,37 +19,41 @@ extends GameTest
 ## the door, against the wall or (E21) a step out from it. Each stack keeps its spacing and its
 ## files nearest the door first; its point stands on the asked side when that side has room; a
 ## second file only once neither side has room (E21). A way in with no such spot answers to the
-## ticket's rule 6 instead, judged the same way (`Slots.way_kind`): when every spot beside the door
-## against its wall is in some other doorway's view, the slots take the spots seen from the fewest
-## other doorways (counted with the test's own view check), never in a funnel, in the same room;
-## when there is no spot against the wall at all, they stand on the stack-side room's open floor
-## (inside its rect, off the door's axis by a body, out of its funnel), and the members it cannot
-## hold are the stack's tail, numbered last, holding in the room they came by at its doorway into
-## the small room, off that doorway's axis and out of its funnel; and when that small room is a dead
-## end (its only doorway the one entered: no room for a tail), the stack takes only as many slots as
-## its open floor holds at the normal spacing, never squeezed, never a tail slot: exactly min(N,
-## what the room holds) slots, the room's capacity counted by the test's own geometry
-## (`Slots.dead_end_capacity`: the most points of a 4 px grid, 44 px apart, that keep the open-floor
-## rules, searched exhaustively), and the members past it get no slot. A way in against a wall whose
-## wall band (both sides and the second file, judged as above) holds fewer than the stack takes the
-## chain the user decided in round 2 (`Slots.short_wall_faults`): the wall takes exactly min(N, what
-## it holds) slots, numbered first, its capacity the test's own exhaustive packing of the band's
-## valid points at the slot spacing (`Slots.wall_capacity`); the members past it stand on the same
-## room's open floor (in the room, off the door's axis by a body, out of its funnel and every other
-## doorway's view and funnel, on the navmesh, reached, off furniture, spacing kept), numbered after
-## every wall slot, as many as it then holds (`Slots.open_floor_capacity`, the same packing); then
-## the tail at the room's other doorway (the tail rule above), or, from a room with no other
-## doorway, no more slots. Only on a dead end and that last link may a stack have fewer slots than
-## members. The same chain holds where every wall spot is in another doorway's view and the wall's
-## fewest-seen spots hold fewer than the stack (`Slots.views_capacity`): the band takes exactly
-## min(N, what they hold) slots by the `views` rule above (never in a funnel, seen from no more
-## other doorways than the test's own bar), its capacity the same exhaustive packing of the band's
-## points that keep that rule; then the same room's open floor (out of every other doorway's view
-## and funnel), numbered after them; then the tail, or the dead-end cap. On failure every offending
-## house, doorway, side and slot is listed by rule: the sweep is the evidence of the bug.
+## ticket's rule 6 instead, judged the same way (`SlotCapacity.way_kind`): when every spot beside
+## the door against its wall is in some other doorway's view, the slots take the spots seen from the
+## fewest other doorways (counted with the test's own view check), never in a funnel, in the same
+## room; when there is no spot against the wall at all, they stand on the stack-side room's open
+## floor (inside its rect, off the door's axis by a body, out of its funnel), and the members it
+## cannot hold are the stack's tail, numbered last, holding in the room they came by at its doorway
+## into the small room, off that doorway's axis and out of its funnel; and when that small room is a
+## dead end (its only doorway the one entered: no room for a tail), the stack takes only as many
+## slots as its open floor holds at the normal spacing, never squeezed, never a tail slot: exactly
+## min(N, what the room holds) slots, the room's capacity counted by the test's own geometry
+## (`SlotCapacity.dead_end_capacity`: the most points of a 4 px grid, 44 px apart, that keep the
+## open-floor rules, searched exhaustively), and the members past it get no slot. A way in against a
+## wall whose wall band (both sides and the second file, judged as above) holds fewer than the stack
+## takes the chain the user decided in round 2 (`SlotFaults.short_wall_faults`): the wall takes
+## exactly min(N, what it holds) slots, numbered first, its capacity the test's own exhaustive
+## packing of the band's valid points at the slot spacing (`SlotCapacity.wall_capacity`); the
+## members past it stand on the same room's open floor (in the room, off the door's axis by a body,
+## out of its funnel and every other doorway's view and funnel, on the navmesh, reached, off
+## furniture, spacing kept), numbered after every wall slot, as many as it then holds
+## (`SlotCapacity.open_floor_capacity`, the same packing); then the tail at the room's other doorway
+## (the tail rule above), or, from a room with no other doorway, no more slots. Only on a dead end
+## and that last link may a stack have fewer slots than members. The same chain holds where every
+## wall spot is in another doorway's view and the wall's fewest-seen spots hold fewer than the stack
+## (`SlotCapacity.views_capacity`): the band takes exactly min(N, what they hold) slots by the
+## `views` rule above (never in a funnel, seen from no more other doorways than the test's own bar),
+## its capacity the same exhaustive packing of the band's points that keep that rule; then the same
+## room's open floor (out of every other doorway's view and funnel), numbered after them; then the
+## tail, or the dead-end cap. On failure every offending house, doorway, side and slot is listed by
+## rule: the sweep is the evidence of the bug.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
+const SlotCapacity := preload("res://tests/_ai/slot_capacity_probe.gd")
+const SlotFaults := preload("res://tests/_ai/slot_faults_probe.gd")
+const SlotRules := preload("res://tests/_ai/slot_rules_probe.gd")
 ## The fixed seeds each generated floorplan is built with (furniture and the plan's mirroring follow
 ## the seed).
 const SEEDS := [1, 2, 3]
@@ -240,8 +244,8 @@ func _sweep(t: TestContext, where: Dictionary, found: Dictionary) -> int:
 func _way(sweep: Dictionary, f: Dictionary, g: Dictionary) -> Dictionary:
 	var w: Dictionary = sweep["w"]
 	var door := "%s>%s" % [f["id"], f["room_key"]]
-	var kind := Slots.way_kind(w, f)
-	var capacity: Dictionary = (Slots.dead_end_capacity(w, f, sweep["cache"])
+	var kind := SlotCapacity.way_kind(w, f)
+	var capacity: Dictionary = (SlotCapacity.dead_end_capacity(w, f, sweep["cache"])
 			if kind == "dead_end"
 			else {})
 	_note(sweep, kind, "%s %s%s" % [
@@ -257,7 +261,7 @@ func _way(sweep: Dictionary, f: Dictionary, g: Dictionary) -> Dictionary:
 		door += " (no wall spot, a dead end holding %d)" % int(capacity["count"])
 	var way := {
 		"f": f, "kind": kind, "door": door, "capacity": capacity,
-		"spots": Slots.wall_spots(w, f) if kind == "views" else [], "lays": {},
+		"spots": SlotCapacity.wall_spots(w, f) if kind == "views" else [], "lays": {},
 	}
 	for side in [1, -1]:
 		for count in range(1, Slots.MAX_STACK + 1):
@@ -291,15 +295,15 @@ func _short_wall(sweep: Dictionary, way: Dictionary) -> void:
 	)
 
 
-## On a `views` way in, what its band's fewest-seen spots hold (`Slots.views_capacity`, with the
-## way in's own slots): a short wall's capacity and words, noted in `sweep.kinds`, when they hold
-## fewer than `MAX_STACK`.
+## On a `views` way in, what its band's fewest-seen spots hold (`SlotCapacity.views_capacity`, with
+## the way in's own slots): a short wall's capacity and words, noted in `sweep.kinds`, when they
+## hold fewer than `MAX_STACK`.
 func _short_views(sweep: Dictionary, way: Dictionary) -> void:
 	var f: Dictionary = way["f"]
 	var extra: Array = []
 	for key in way["lays"]:
 		extra.append_array((way["lays"][key]["slots"] as Array).map(func(s): return s["point"]))
-	var views := Slots.views_capacity(sweep["w"], f, sweep["cache"], way["spots"], extra)
+	var views := SlotCapacity.views_capacity(sweep["w"], f, sweep["cache"], way["spots"], extra)
 	if views.is_empty() or int(views["count"]) >= Slots.MAX_STACK:
 		return
 	way["capacity"] = { "wall": views }
@@ -314,24 +318,25 @@ func _short_views(sweep: Dictionary, way: Dictionary) -> void:
 
 
 ## Judge the stack of `count` on side `side` of the way in `way`: each slot's rules
-## (`Slots.point_faults`), then the stack's (`Slots.stack_faults`), adding what breaks to `sweep`.
+## (`SlotFaults.point_faults`), then the stack's (`SlotFaults.stack_faults`), adding what breaks to
+## `sweep`.
 func _judge_stack(sweep: Dictionary, way: Dictionary, side: int, count: int) -> void:
 	var kind: String = way["kind"]
 	var stack := {
 		"side": side, "count": count,
 		"slots": way["lays"]["%d %d" % [side, count]]["slots"],
-		"bar": Slots.fewest_views_bar(way["spots"], count) if kind == "views" else 0,
-		"short": Slots.is_short_wall(kind, way["capacity"], count), "judged": way["capacity"],
+		"bar": SlotCapacity.fewest_views_bar(way["spots"], count) if kind == "views" else 0,
+		"short": SlotFaults.is_short_wall(kind, way["capacity"], count), "judged": way["capacity"],
 		"caps": "",
 	}
 	if stack["short"]:
 		stack["judged"] = _judged_short(sweep, way, stack)
-		stack["caps"] = Slots.capacity_text(sweep["w"], way["f"], stack["judged"])
+		stack["caps"] = SlotFaults.capacity_text(sweep["w"], way["f"], stack["judged"])
 	for s in stack["slots"]:
 		_judge_slot(sweep, way, stack, s)
 	var w: Dictionary = sweep["w"]
 	var f: Dictionary = way["f"]
-	var faults := Slots.stack_faults(
+	var faults := SlotFaults.stack_faults(
 		w, f, { "slots": stack["slots"], "count": count, "side": side }, kind, stack["judged"],
 	)
 	for fault in faults:
@@ -353,23 +358,23 @@ func _judged_short(sweep: Dictionary, way: Dictionary, stack: Dictionary) -> Dic
 	var f: Dictionary = way["f"]
 	var capacity: Dictionary = way["capacity"]
 	var need := int(stack["count"]) - int(capacity["wall"]["count"])
-	var in_band := func(s): return Slots.in_wall_band(w, f, s["point"])
+	var in_band := func(s): return SlotRules.in_wall_band(w, f, s["point"])
 	var taken: Array = (stack["slots"] as Array).filter(in_band).map(func(s): return s["point"])
-	var open := Slots.open_floor_capacity(w, f, sweep["cache"], taken, need)
+	var open := SlotCapacity.open_floor_capacity(w, f, sweep["cache"], taken, need)
 	open["need"] = need
 	return { "wall": capacity["wall"], "open": open }
 
 
-## Judge slot `s` of `stack` by its own rules (`Slots.point_faults`: the way in's kind, or
+## Judge slot `s` of `stack` by its own rules (`SlotFaults.point_faults`: the way in's kind, or
 ## `overflow` for a short wall's slot off its band), adding what breaks to `sweep`.
 func _judge_slot(sweep: Dictionary, way: Dictionary, stack: Dictionary, s: Dictionary) -> void:
 	var w: Dictionary = sweep["w"]
 	var f: Dictionary = way["f"]
 	var slot_kind: String = way["kind"]
-	if stack["short"] and not Slots.in_wall_band(w, f, s["point"]):
+	if stack["short"] and not SlotRules.in_wall_band(w, f, s["point"]):
 		slot_kind = "overflow"
 	var rules := { "kind": slot_kind, "bar": stack["bar"] }
-	for fault in Slots.point_faults(w, f, s["point"], sweep["cache"], rules):
+	for fault in SlotFaults.point_faults(w, f, s["point"], sweep["cache"], rules):
 		_add(sweep, {
 			"house": sweep["label"], "door": way["door"], "side": stack["side"],
 			"n": int(s["n"]), "count": stack["count"], "point": s["point"], "rule": fault[0],
@@ -377,10 +382,10 @@ func _judge_slot(sweep: Dictionary, way: Dictionary, stack: Dictionary, s: Dicti
 		})
 
 
-## What frame `f`'s wall band holds (`Slots.wall_capacity`), `{ count, points }`: when a stack of
-## six of the way in's own layouts (`lays`) stands in the band on valid points at the slot spacing,
-## that stack is the packing (the wall holds six); else the test's own exhaustive packing of the
-## band's grid and the layouts' valid band points.
+## What frame `f`'s wall band holds (`SlotCapacity.wall_capacity`), `{ count, points }`: when a
+## stack of six of the way in's own layouts (`lays`) stands in the band on valid points at the slot
+## spacing, that stack is the packing (the wall holds six); else the test's own exhaustive packing
+## of the band's grid and the layouts' valid band points.
 func _wall_capacity(
 	w: Dictionary,
 	f: Dictionary,
@@ -393,15 +398,15 @@ func _wall_capacity(
 		extra.append_array(points)
 		if _packs_six(w, f, cache, points):
 			return { "count": points.size(), "points": points }
-	return Slots.wall_capacity(w, f, cache, extra)
+	return SlotCapacity.wall_capacity(w, f, cache, extra)
 
 
 ## Whether `points` (a layout's) are `MAX_STACK` valid wall-band points of frame `f`, pairwise at
 ## least the slot spacing apart.
 func _packs_six(w: Dictionary, f: Dictionary, cache: Dictionary, points: Array) -> bool:
 	var valid := func(p): return (
-		Slots.in_wall_band(w, f, p)
-			and Slots.point_faults(w, f, p, cache, { "kind": "wall" }).is_empty()
+		SlotRules.in_wall_band(w, f, p)
+			and SlotFaults.point_faults(w, f, p, cache, { "kind": "wall" }).is_empty()
 	)
 	if points.size() < Slots.MAX_STACK or not points.all(valid):
 		return false
