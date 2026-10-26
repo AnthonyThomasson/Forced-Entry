@@ -27,16 +27,16 @@ func run(t: TestContext) -> void:
 	_window.checked_changed.connect(func(ids): _checked = ids)
 	_window.open(_tests(), [], {}, func(_entry, _text): return true)
 
-	var topic: TreeItem = _window._groups["a/x"]
-	var domain: TreeItem = _window._groups["a"]
+	var topic: TreeItem = _window._tree.groups["a/x"]
+	var domain: TreeItem = _window._tree.groups["a"]
 	t.expect_eq(topic.get_text(0), "x", "a topic row shows the folder name")
 	t.check(topic.get_parent() == domain, "the topic row sits under its domain row")
 	t.check(
-		_window._groups["a/y"].get_parent() == domain,
+		_window._tree.groups["a/y"].get_parent() == domain,
 		"a second topic gets its own row under the same domain",
 	)
 	t.check(
-		not _window._groups.has("b/") and _window._groups["b"].get_child_count() == 1,
+		not _window._tree.groups.has("b/") and _window._tree.groups["b"].get_child_count() == 1,
 		"a test with no topic hangs straight under its domain",
 	)
 	t.check(
@@ -51,15 +51,15 @@ func run(t: TestContext) -> void:
 ## once every topic is.
 func _check_ticking(t: TestContext, topic: TreeItem, domain: TreeItem) -> void:
 	topic.set_checked(0, true)
-	_window._apply_edit(topic)
+	_window._tree.apply_edit(topic)
 	t.expect_eq(_checked, ["a/one", "a/two"], "ticking a topic row ticks only that topic's tests")
 	t.check(
 		domain.is_indeterminate(0),
 		"the domain row is indeterminate with some of its tests ticked",
 	)
-	t.check(not _window._groups["a/y"].is_checked(0), "the other topic stays clear")
-	_window._groups["a/y"].set_checked(0, true)
-	_window._apply_edit(_window._groups["a/y"])
+	t.check(not _window._tree.groups["a/y"].is_checked(0), "the other topic stays clear")
+	_window._tree.groups["a/y"].set_checked(0, true)
+	_window._tree.apply_edit(_window._tree.groups["a/y"])
 	t.check(
 		domain.is_checked(0) and not domain.is_indeterminate(0),
 		"every test of the domain ticked shows the domain ticked",
@@ -76,11 +76,11 @@ func _check_run_and_marks(t: TestContext, domain: TreeItem) -> void:
 	# A GAP result has its mark.
 	_window.set_results({ "a/one": "GAP", "a/two": "PASS" })
 	t.check(
-		_window._test_items["a/one"].get_text(0).begins_with("○"),
+		_window._tree.test_items["a/one"].get_text(0).begins_with("○"),
 		"a GAP test shows the ○ mark",
 	)
 	t.check(
-		_window._test_items["a/two"].get_text(0).begins_with("✓"),
+		_window._tree.test_items["a/two"].get_text(0).begins_with("✓"),
 		"a passing test shows the ✓ mark",
 	)
 
