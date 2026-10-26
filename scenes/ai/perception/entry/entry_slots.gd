@@ -10,6 +10,8 @@ extends RefCounted
 ## The entry geometry this part is one of, handed in at the call (never held: it holds the part).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+## How far (px) past the jamb the first slot of a file stands.
+const SLOT_JAMB := 18.0
 ## Where a stack may stand (`lay`, E20 to E22): a slot stays this far (px) inside its room's
 ## rect (half a wall and most of a body), within this far of where the navmesh snaps it, reached
 ## from this far out from the wall plane (ending within `SLOT_ROUTE_REACH`).
@@ -299,7 +301,7 @@ func _has_wall_spot_on(entry: AgentEntry, c: Dictionary, s: int, with_views: boo
 			pos + out * entry.wall_standoff,
 			along,
 		) - SLOT_ROOM_INSET
-	var lateral: float = c["half"] + AgentEntry.SLOT_JAMB
+	var lateral: float = c["half"] + SLOT_JAMB
 	while lateral <= reach:
 		if _in_other_funnel(entry, c, pos + out * entry.wall_standoff + along * lateral):
 			break  # The wall's end: another doorway's funnel.
@@ -860,8 +862,7 @@ func _tail_wall_spots(entry: AgentEntry, tc: Dictionary, open_slots: Array) -> A
 	var out: Array = []
 	for k in AgentEntry.MAX_SLOTS:
 		var s := 1 if k % 2 == 0 else -1
-		var lateral := (float(tc["half"]) + AgentEntry.SLOT_JAMB
-				+ entry.stack_spacing * floorf(k / 2.0))
+		var lateral := float(tc["half"]) + SLOT_JAMB + entry.stack_spacing * floorf(k / 2.0)
 		var p := _tail_wall_spot(entry, tc, s, lateral, open_slots + out)
 		if p != Vector2.INF:
 			out.append(p)

@@ -14,12 +14,14 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## doorway's slots is costly (`EntrySlots.lay`), so it is laid once per map, not once per NPC.
 ## Forgotten with the map's planning region.
 static var _shared := {}
-## The physics frame `warm_geometry` last laid a doorway in (one a frame, among every NPC).
+## The physics frame `AgentEntry.warm_geometry` last laid a doorway in (one a frame, among every
+## NPC).
 static var warmed_frame := -1
 
 ## "<opening id>><room key>" -> the geometry of that entry.
 var cache := {}
-## The shared geometry (`shared_on`) in which `warm_geometry` last found every way in laid...
+## The shared geometry (`shared_on`) in which `AgentEntry.warm_geometry` last found every way in
+## laid...
 var warm_done_in := {}
 ## ... for these `tuning_inputs` (the house and the tunables): nothing to look for until either
 ## changes.
@@ -43,8 +45,8 @@ func shared_on(map: RID) -> Dictionary:
 ## What a doorway's geometry is laid from besides the map: the house and the tunables
 ## `AgentEntry._build` reads (the stack's spacing and standoff, the pie, the corners, the short
 ## room, the view's depth, and the sight that tells a hard corner). Cheap to make and compare, so
-## `warm_geometry` checks it every pass; `key` is the same as the key the shared geometry is filed
-## under.
+## `AgentEntry.warm_geometry` checks it every pass; `key` is the same as the key the shared geometry
+## is filed under.
 func tuning_inputs(entry: AgentEntry) -> Array:
 	var out: Array = [
 		entry._house, entry.stack_spacing, entry.wall_standoff, entry.pie_radius, entry.pie_steps,

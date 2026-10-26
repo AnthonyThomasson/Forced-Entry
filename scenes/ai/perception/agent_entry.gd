@@ -47,9 +47,7 @@ const BODY_SEGMENTS := 10
 ## passing no body closer than `SLOT_PASS` (px).
 const SLOT_LAST_LEG := 64.0
 const SLOT_PASS := 32.0
-## How far (px) past the jamb the first slot of a file stands, and the step (px) a side's wall is
-## walked along in.
-const SLOT_JAMB := 18.0
+## The step (px) a side's wall is walked along in.
 const SLOT_STEP := 4.0
 
 ## The sight sense (sight rays over low cover): the perception hands in its own.
@@ -396,9 +394,9 @@ func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceSta
 	return corners
 
 
-## The `count` slots of a `views` layout (`EntrySlots.lay`, `_views_lays`), its first side `side`:
-## of the spots beside the door, those seen from the fewest other doorways that hold `count` at
-## `stack_spacing`, side `side`'s file nearest the door first, then the other's, then the second
+## The `count` slots of a `views` layout (`EntrySlots.lay`, its `_views_lays`), its first side
+## `side`: of the spots beside the door, those seen from the fewest other doorways that hold `count`
+## at `stack_spacing`, side `side`'s file nearest the door first, then the other's, then the second
 ## files. Each `{ point, row, side }`.
 static func views_layout(g: Dictionary, count: int, side: int) -> Array:
 	var per: Array = (g.get("views_lays", {}) as Dictionary).get(side if side != 0 else 1, [])

@@ -1016,7 +1016,7 @@ the 5v5 6.02 / 9.37 / 14.30. An earlier run at 03:06 also passed 11 of 11 and is
 - **The stack geometry is laid before the window opens.** Each way in costs 7 to 52 ms to lay (its bands 2 to 15, the overflow 10 to 28),
   one a physics frame among every NPC (`AgentEntry.warm_geometry`). All of Garage Home's are laid by 0.22 s, well before the guards' 6 s
   warm-up ends. Once a pass finds every way in laid, `warm_geometry` stops looking until the house, a tunable or the map's shared geometry
-  changes (`EntryLayouts.warm_done_in` / `warm_done_for`). That brought its per-tick cost from 0.10 to 0.21 ms a frame down to the profiler's floor,
+  changes (`AgentEntry`'s `layouts.warm_done_in` / `warm_done_for`). That brought its per-tick cost from 0.10 to 0.21 ms a frame down to the profiler's floor,
   0.04 ms.
 - **The room an approach enters is carved only when the way round would go into it (D4).**
   - `AgentDoorViews.walk_route` routes an approach on the uncarved views map, the one every walk shares, and asks for a map with the
