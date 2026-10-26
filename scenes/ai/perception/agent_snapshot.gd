@@ -20,6 +20,7 @@ extends RefCounted
 ## them.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
@@ -208,13 +209,13 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 		"under_fire": _memory.under_fire(),
 		"engaged": _memory.engaged(),
 		"leads": not leads["options"].is_empty(),
-		"lead_outside": not SnapshotVocab.room_at(self_pos, vocab.rooms).is_empty() \
+		"lead_outside": not HouseRooms.at(self_pos, vocab.rooms).is_empty() \
 			and leads["options"].any(func(o): return not o["tags"]["inside"]),
 		"grenade_ready": (not shots_throws["options"].is_empty()
 			or parts["per_target"].values().any(can_throw)),
 		"stack_has_stun": parts["stun_stack"],
 		"hurt": parts["dmg"] >= vocab.tuning.context.hurt_threshold,
-		"inside": not SnapshotVocab.room_at(self_pos, vocab.rooms).is_empty(),
+		"inside": not HouseRooms.at(self_pos, vocab.rooms).is_empty(),
 		"exposed": line.get("clear", false) or (primary.is_empty() and _memory.under_fire()),
 		"ordered": not (knowledge["order"] as Dictionary).is_empty(),
 		"follows": knowledge["follows"],

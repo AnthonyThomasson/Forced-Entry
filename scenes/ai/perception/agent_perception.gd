@@ -40,7 +40,7 @@ const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## The BUILD half: turns what the NPC knows + the combat geometry into the decision snapshot Von
 ## walks.
 const AgentSnapshot := preload("res://scenes/ai/perception/agent_snapshot.gd")
-const SnapshotVocab := preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## Physics frames between an unfamiliar NPC's looks for rooms and furniture it does not know yet.
 ## Learning is permanent and a decision looks again first, so a glimpse shorter than this still
 ## counts when it is the moment of a decision.
@@ -693,7 +693,7 @@ func _debug_fresh() -> Dictionary:
 ## zones. A pure read of knowledge + the visited-room memory; never perturbs it.
 func room_status(rooms: Array, self_pos: Vector2) -> Array:
 	var known := _known_room_keys()
-	var here := SnapshotVocab.room_at(self_pos, rooms)
+	var here := HouseRooms.at(self_pos, rooms)
 	var out: Array = []
 	for room in rooms:
 		var status: StringName
@@ -728,7 +728,7 @@ func observe(rooms: Array) -> void:
 	_see_characters(rooms)
 
 	# The room the NPC stands in counts as searched (superseded while it stays there).
-	var here := SnapshotVocab.room_at(self_pos, rooms)
+	var here := HouseRooms.at(self_pos, rooms)
 	if not here.is_empty():
 		_memory.remember(
 			&"visited_room",
@@ -823,7 +823,7 @@ func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int)
 func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
 	var id: int = other.get_instance_id()
 	var pos: Vector2 = other.global_position
-	var room := SnapshotVocab.room_at(pos, rooms)
+	var room := HouseRooms.at(pos, rooms)
 	var item = other.inventory.current_item()
 	var f = other.get("faction")
 	return {
@@ -1245,7 +1245,7 @@ func _seen_empty(key: String) -> bool:
 	if _memory.age_of(&"visited_room", "key", key) > tuning.entry_guard.pass_clear_time:
 		return false
 	for c in _sightings(null, tuning.entry_guard.pass_clear_time, -1.0, true):
-		if SnapshotVocab.room_key_at(c["pos"], _rooms) == key:
+		if HouseRooms.key_at(c["pos"], _rooms) == key:
 			return false
 	return true
 
@@ -1371,10 +1371,10 @@ func entry_stack_side(stack: RefCounted) -> int:
 
 
 ## Whether point `p` is ground a stack going in by `geometry` may walk on to its slot
-## (`AgentEntry.on_stack_side`: on the stack side, in its room, out of every other doorway's
+## (`AgentEntry.slots.on_stack_side`: on the stack side, in its room, out of every other doorway's
 ## funnel).
 func entry_on_stack_side(geometry: Dictionary, p: Vector2) -> bool:
-	return _entry.on_stack_side(geometry, p)
+	return _entry.slots.on_stack_side(_entry, geometry, p)
 
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the

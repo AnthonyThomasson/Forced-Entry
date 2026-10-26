@@ -7,6 +7,7 @@ extends RefCounted
 ## tunable is read through one place. Everything is worded for a classifier (see
 ## `agent_snapshot.gd`): bands not numbers, no negations.
 
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## Compass names for an 8-wind direction, indexed clockwise from east (screen +y is south).
 const COMPASS := [
 	"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east",
@@ -132,13 +133,13 @@ func where(c: Dictionary) -> String:
 ## Where a point is, in the words of `where`: "in the kitchen" inside a room, "outside the house"
 ## otherwise.
 func place(p: Vector2) -> String:
-	var room := room_at(p, rooms)
+	var room := HouseRooms.at(p, rooms)
 	return ("in the %s" % room_name(room["type"])) if not room.is_empty() else "outside the house"
 
 
 ## " (in the kitchen)" for a point inside a room, " (outside)" otherwise.
 func room_suffix(p: Vector2) -> String:
-	var room := room_at(p, rooms)
+	var room := HouseRooms.at(p, rooms)
 	return (" (in the %s)" % room_name(room["type"])) if not room.is_empty() else " (outside)"
 
 
@@ -202,26 +203,4 @@ func side_status(s: Dictionary) -> String:
 
 ## Whether a world point lies inside the house (within any room of the decision being built).
 func is_inside(p: Vector2) -> bool:
-	return not room_at(p, rooms).is_empty()
-
-
-## The room dict whose rect contains `p`, or empty when `p` is outside every room. Static: the
-## perception reads rooms the same way.
-static func room_at(p: Vector2, list: Array) -> Dictionary:
-	for room in list:
-		if (room["rect"] as Rect2).has_point(p):
-			return room
-	return {}
-
-
-## The key of the room world point `p` lies in (`room_at`), or "" when it is outside every room.
-static func room_key_at(p: Vector2, list: Array) -> String:
-	return str(room_at(p, list).get("key", ""))
-
-
-## The room of `list` (`{ key, type, rect }` dicts) with key `key`, or {}.
-static func room_by_key(list: Array, key: String) -> Dictionary:
-	for room in list:
-		if str(room["key"]) == key:
-			return room
-	return {}
+	return not HouseRooms.at(p, rooms).is_empty()

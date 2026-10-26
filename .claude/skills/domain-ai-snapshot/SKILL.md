@@ -25,8 +25,8 @@ Files:
   `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `investigate_distance`, `extrapolate_cap`, `hurt_threshold`,
   `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
-  wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`, static `room_at`, `room_key_at`,
-  `room_by_key`).
+  wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`; the room lookups are `HouseRooms`'s,
+  `perception/house_rooms.gd`: `at`, `key_at`, `by_key`).
   The snapshot reads its tuning here only; adding a tunable is one declaration (the export on its topic node, `ai/tuning/`, the authoring
   surface) and its reads (`_v.tuning.<topic>.x` in the sections and option groups, `vocab.tuning.<topic>.x` in `agent_snapshot.gd`).
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
@@ -109,7 +109,7 @@ lives in `agent_snapshot.gd`.
 false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
 controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
   `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
-  dead end with no slot for this member (`DoorStack.has_slot` false at `DoorStack.order_place`, `_has_place`: its index among the living recipients in `to`,
+  dead end with no slot for this member (`StackLayout.holds_slot` false at `DoorStack.order_place`, `_has_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
   or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).

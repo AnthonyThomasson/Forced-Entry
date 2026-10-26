@@ -3,7 +3,7 @@ extends GameTest
 ## every doorway of every floorplan. Geometry only, no simulation: the house is built and baked,
 ## then each way into each room (both sides of every doorway's wall, an exterior door from outside)
 ## is read for stacks of 1 to 6 starting on either side of the door (1 / -1 along its wall), through
-## the published rule for where a stack of N stands (`DoorStack.stack_slots(g, count, side)`, read
+## the published rule for where a stack of N stands (`StackLayout.slots(g, count, side)`, read
 ## through `tests/_ai/slots_probe.gd`).
 ##
 ## The houses: the 11 generated floorplans (`HouseDefinitions.get_all()`), each with 3 fixed seeds

@@ -38,6 +38,7 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 ## Seconds the human's `in` stays on the radio for an AI waiting behind it to hear, and the most it
 ## is held.
 const IN_HOLD_MIN := 1.0
@@ -243,7 +244,11 @@ func _look_for_team() -> void:
 	if best.is_empty() and own_claims and _leads_team():
 		_claim_own(stacking_now)
 		return
-	if best.is_empty() or not best["stack"].has_slot(best["stack"].slot_for(claiming)):
+	if (best.is_empty()
+			or not StackLayout.holds_slot(
+				best["stack"].geometry,
+				best["stack"].slot_for(claiming),
+			)):
 		return   # (A dead end with no room left in it holds no slot for the human either, E20.)
 	_reserve(best["id"], best["into"], best["geo"], best["stack"])
 
@@ -324,7 +329,7 @@ func _stepped_up(stacking_now: Dictionary) -> Dictionary:
 			var geo: Dictionary = _entry.geometry(
 				id, str(key), world.navigation_map, world.direct_space_state,
 			)
-			if geo.is_empty() or not _entry.on_stack_side(geo, pos):
+			if geo.is_empty() or not _entry.slots.on_stack_side(_entry, geo, pos):
 				continue
 			var out := (pos - door).dot(geo["out"])
 			var lateral := absf((pos - door).dot(geo["along"]))

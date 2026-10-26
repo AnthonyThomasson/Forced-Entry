@@ -49,14 +49,14 @@ client (`DecisionPlanner.setup(tuning.decision)`, the NPC's name through its `bi
 
 **The AI team (`ai/team/`: `player_stack.gd`, `squad.gd`).** Not a fifth sub-domain: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21); its detail is the `domain-ai-team` skill.
 
-**The stack (`ai/perception/stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`).** A doorway's stack as the radio describes it,
+**The stack (`ai/perception/stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`).** A doorway's stack as the radio describes it,
 held once: `StackClaim` the entry claim's wire format (`encode` / `decode`, every field's default), the "not a claim" rule, `is_join` and the
 step lists and slot distances; `ClaimLedger` the claims one listener has heard (the NPC's perception, the human's `PlayerStack`, the side's
-`Squad`: one each, the latest per speaker, on `GameClock`); `DoorStack` every slot rule (E2's same-frame ties and move-up, E16's human slot,
-E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, LD13's release) and the slots' points, the same answer for
-whoever asks. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
-`AgentPerception.entry_stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` (the orchestrator `StackClaim`, for
-the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger` and `DoorStack` as it does `AgentEntry`. `domain-ai-perception`,
+`Squad`: one each, the latest per speaker, on `GameClock`); `DoorStack` every slot rule over one doorway's claims (E2's same-frame ties and move-up, E16's human slot,
+E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, LD13's release), `StackLayout` the statics it settles them by
+(the slots' points and sides), the same answer for whoever asks. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
+`AgentPerception.entry_stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` / `StackLayout` (the orchestrator `StackClaim`, for
+the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger`, `DoorStack` and `StackLayout` as it does `AgentEntry`. `domain-ai-perception`,
 "The stack", has the detail.
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order

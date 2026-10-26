@@ -7,9 +7,11 @@ extends RefCounted
 ## decision (`know`, set by `AgentSnapshot.build()`). `agent_snapshot.gd` calls it from `build()`.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 ## Where along the stretch of the line back from a shot that lies in the room the shots came from a
 ## grenade is aimed, in order of preference (shares of the stretch, from where the line comes into
 ## the room): its middle first, then either side of it.
@@ -206,7 +208,7 @@ func flank_group(t: Dictionary, a: Dictionary, rooms: Array) -> Dictionary:
 	var options: Array = []
 	var open: Array = []
 	for s in a["flanks"]:
-		var room := SnapshotVocab.room_at(s["point"], rooms)
+		var room := HouseRooms.at(s["point"], rooms)
 		options.append({
 			"id": "side_" + s["side"],
 			"label": "%s (%s)" % [
@@ -231,7 +233,7 @@ func flank_group(t: Dictionary, a: Dictionary, rooms: Array) -> Dictionary:
 				and s["ally_lane"] == ""):
 			open.append(s)
 	var inside_open: Array = open.filter(
-		func(s): return not SnapshotVocab.room_at(s["point"], rooms).is_empty(),
+		func(s): return not HouseRooms.at(s["point"], rooms).is_empty(),
 	)
 	return {
 		"summary": _flank_summary(a["flanks"], open, rooms),
@@ -361,10 +363,10 @@ func shots_grenade_group(ctx: Dictionary, hostiles: Array) -> Dictionary:
 ## The room hostile-held spot `spot` lies in when the NPC is outside that room (outdoors, or in
 ## another room), or {}.
 func _held_room(ctx: Dictionary, spot: Vector2) -> Dictionary:
-	var theirs := SnapshotVocab.room_at(spot, _v.rooms)
+	var theirs := HouseRooms.at(spot, _v.rooms)
 	if theirs.is_empty():
 		return {}
-	var here := SnapshotVocab.room_at(ctx["self_pos"], _v.rooms)
+	var here := HouseRooms.at(ctx["self_pos"], _v.rooms)
 	return {} if not here.is_empty() and here["key"] == theirs["key"] else theirs
 
 
@@ -375,7 +377,7 @@ func _held_room(ctx: Dictionary, spot: Vector2) -> Dictionary:
 ## stands, else from a throw spot; {} when there is none.
 func _shots_aim(ctx: Dictionary, kind: StringName) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var here := SnapshotVocab.room_at(self_pos, _v.rooms)
+	var here := HouseRooms.at(self_pos, _v.rooms)
 	for shot: Dictionary in _memory.recall_all(&"shot_from"):
 		var best := _shot_stretch(AgentSuspicion.shot_line(_v.rooms, shot), shot["at"], here)
 		if best.is_empty():
@@ -820,7 +822,7 @@ func _ally_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 
 ## Whether world point `p` lies in a room of `entered` (the rooms a doorway of ENTER leads into).
 func _entered_at(entered: Dictionary, p: Vector2) -> bool:
-	return not entered.is_empty() and entered.has(SnapshotVocab.room_key_at(p, _v.rooms))
+	return not entered.is_empty() and entered.has(HouseRooms.key_at(p, _v.rooms))
 
 
 ## Whether any of room keys `keys` is in `entered`.
@@ -863,7 +865,7 @@ func _shots_from_a_room(ctx: Dictionary) -> bool:
 	var shot: Dictionary = _memory.recall(&"shot_from")
 	if shot.is_empty():
 		return false
-	var here := SnapshotVocab.room_key_at(ctx["self_pos"], _v.rooms)
+	var here := HouseRooms.key_at(ctx["self_pos"], _v.rooms)
 	return AgentSuspicion.shot_rooms(_v.rooms, shot).any(func(key): return key != here)
 
 
@@ -872,7 +874,7 @@ func _shots_from_a_room(ctx: Dictionary) -> bool:
 ## rooms they lead into), those rooms and the front entrance are left to ENTER.
 func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := {}) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
-	var here := SnapshotVocab.room_at(self_pos, rooms)
+	var here := HouseRooms.at(self_pos, rooms)
 	var candidates: Array = []
 	var unsearched := 0
 	for room in known_rooms:
@@ -938,7 +940,7 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 	if not know.get("entry_enabled", false):
 		return { "summary": "", "options": [] }
 	var self_pos: Vector2 = ctx["self_pos"]
-	var here := SnapshotVocab.room_at(self_pos, rooms)
+	var here := HouseRooms.at(self_pos, rooms)
 	var known: Dictionary = know["known_room_keys"]
 	var why: Dictionary = _suspicion.rooms_suspected(rooms, know["lost"], ctx["callouts"])
 	var picks: Array = []
@@ -995,7 +997,7 @@ func _entry_pick(ctx: Dictionary, e: Dictionary, known: Dictionary, why: Diction
 ## `here` is the room the NPC stands in ({} outside).
 func _entry_option(p: Dictionary, rooms: Array, self_pos: Vector2, here: Dictionary) -> Dictionary:
 	var e: Dictionary = p["e"]
-	var room := SnapshotVocab.room_by_key(rooms, e["into"])
+	var room := HouseRooms.by_key(rooms, e["into"])
 	var place := ("the doorway into the %s" % _v.room_name(room["type"])
 			if p["status"] == "unsearched"
 			else "the doorway to the %s" % _v.compass((e["pos"] as Vector2) - self_pos))
@@ -1085,7 +1087,7 @@ func interaction_group(self_pos: Vector2) -> Dictionary:
 
 ## Named places to go: each known room (except this one) and the NPC's starting position.
 func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary:
-	var here := SnapshotVocab.room_at(ctx["self_pos"], rooms)
+	var here := HouseRooms.at(ctx["self_pos"], rooms)
 	var options: Array = []
 	for room in known_rooms:
 		if not here.is_empty() and room["key"] == here["key"]:
@@ -1137,7 +1139,7 @@ func order_group(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary
 ## The ORDER option of a `defend_room` order: a `defend` of the room at this member's defend spot
 ## (`AgentEntry.defend_spot`), its gun on its doorway; {} for a room it does not know or no spot.
 func _defend_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
-	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	var room := HouseRooms.by_key(rooms, String(order.get("room", "")))
 	if room.is_empty():
 		return {}
 	var to: Array = (order.get("to", []) as Array).filter(
@@ -1172,7 +1174,7 @@ func _defend_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> D
 ## (`_entry_order_option`), or a hold where it stands at a dead end with no slot for it
 ## (`_hold_order_option`); {} for a room or doorway it does not know, or a join with no slot.
 func _stack_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
-	var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
+	var into := HouseRooms.by_key(rooms, String(order.get("into", "")))
 	if into.is_empty():
 		return {}
 	var g: Dictionary = _entry.geometry(
@@ -1247,7 +1249,7 @@ func _entry_order_option(ctx: Dictionary, order: Dictionary, into: Dictionary) -
 ## member's post (`AgentEntry.ambush_spot`), its gun on the threshold; {} for a room it does not
 ## know or no post.
 func _ambush_order_option(ctx: Dictionary, order: Dictionary, rooms: Array) -> Dictionary:
-	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	var room := HouseRooms.by_key(rooms, String(order.get("room", "")))
 	if room.is_empty():
 		return {}
 	var to: Array = (order.get("to", []) as Array).filter(
@@ -1281,7 +1283,8 @@ func _has_place(order: Dictionary, g: Dictionary, ctx: Dictionary) -> bool:
 		func(m): return is_instance_valid(m) and m.get("is_dead") != true,
 	)
 	var stack: RefCounted = _ledger.stack(String(order.get("opening", "")), g)
-	return stack.has_slot(
+	return StackLayout.holds_slot(
+		stack.geometry,
 		stack.order_place(to.map(func(m): return m.get_instance_id()), ctx["self_id"]),
 	)
 
@@ -1303,7 +1306,7 @@ static func tag_rooms(groups: Dictionary, rooms: Array) -> void:
 			var params: Dictionary = o.get("params", {})
 			var at = params.get("from", params.get("point"))
 			if at is Vector2 and at != Vector2.INF and o.get("tags") is Dictionary:
-				o["tags"]["room"] = SnapshotVocab.room_key_at(at, rooms)
+				o["tags"]["room"] = HouseRooms.key_at(at, rooms)
 
 
 ## `tags` plus the spot's geometry, kept for the routes debug overlay (`clear_shot`,
@@ -1345,7 +1348,7 @@ func _spot_option(
 ## A firing spot named by its place, `dir` being its bearing from the target: "behind the sofa in
 ## the kitchen" with cover close by, else "the kitchen, north of them" / "outside, north of them".
 func _spot_place(s: Dictionary, dir: String) -> String:
-	var room := SnapshotVocab.room_at(s["point"], _v.rooms)
+	var room := HouseRooms.at(s["point"], _v.rooms)
 	if s["cover"] != "":
 		return "behind the %s %s" % [
 			s["cover"],
@@ -1366,7 +1369,7 @@ func _flank_summary(flanks: Array, open: Array, rooms: Array) -> String:
 	else:
 		open.sort_custom(func(x, y): return _flank_rank(x) > _flank_rank(y))
 		var best: Dictionary = open[0]
-		var best_room := SnapshotVocab.room_at(best["point"], rooms)
+		var best_room := HouseRooms.at(best["point"], rooms)
 		text = "%d free side%s; best: %s%s, %s route, %s" % [
 			open.size(), "" if open.size() == 1 else "s", SnapshotVocab.SIDE_WORDS[best["side"]],
 			(" via the %s" % _v.room_name(best_room["type"]))

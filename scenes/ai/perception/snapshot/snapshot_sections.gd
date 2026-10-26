@@ -5,6 +5,7 @@ extends RefCounted
 ## `agent_snapshot.gd` calls it from `build()`.
 
 const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The shared vocabulary and tuning; see snapshot_vocab.gd.
@@ -31,7 +32,7 @@ func bind(character: Node) -> void:
 
 ## Where the NPC is, whether it is free, what it holds and how hurt it is.
 func situation_text(rooms: Array) -> String:
-	var room := SnapshotVocab.room_at(_character.global_position, rooms)
+	var room := HouseRooms.at(_character.global_position, rooms)
 	var where := (("in the %s, inside the house" % _v.room_name(room["type"]))
 			if not room.is_empty()
 			else "outside the house")
@@ -68,7 +69,7 @@ func order_text(order: Dictionary, rooms: Array) -> String:
 ## `order_text` of a `defend_room` order: "Your leader ordered you to defend the kitchen."; "" for a
 ## room it does not know.
 func _defend_order_text(order: Dictionary, rooms: Array) -> String:
-	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	var room := HouseRooms.by_key(rooms, String(order.get("room", "")))
 	if room.is_empty():
 		return ""
 	return "Your leader ordered you to defend the %s." % _v.room_name(room["type"])
@@ -78,7 +79,7 @@ func _defend_order_text(order: Dictionary, rooms: Array) -> String:
 ## for a join, with them; a held stack with no go yet adds " when they give the go". "" for a room
 ## it does not know.
 func _stack_order_text(order: Dictionary, rooms: Array) -> String:
-	var into := SnapshotVocab.room_by_key(rooms, String(order.get("into", "")))
+	var into := HouseRooms.by_key(rooms, String(order.get("into", "")))
 	if into.is_empty():
 		return ""
 	var mode := String(order["mode"])
@@ -98,10 +99,10 @@ func _stack_order_text(order: Dictionary, rooms: Array) -> String:
 ## `order_text` of an `ambush` order: the doorway into the room beyond from the ordered room, or an
 ## exterior door's from inside. "" for a room it does not know.
 func _ambush_order_text(order: Dictionary, rooms: Array) -> String:
-	var room := SnapshotVocab.room_by_key(rooms, String(order.get("room", "")))
+	var room := HouseRooms.by_key(rooms, String(order.get("room", "")))
 	if room.is_empty():
 		return ""
-	var beyond := SnapshotVocab.room_by_key(rooms, String(order.get("beyond", "")))
+	var beyond := HouseRooms.by_key(rooms, String(order.get("beyond", "")))
 	if beyond.is_empty():
 		return (("Your leader ordered you to ambush the outside doorway of the %s from "
 				+ "inside.") % _v.room_name(room["type"]))

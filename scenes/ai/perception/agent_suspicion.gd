@@ -6,7 +6,7 @@ extends RefCounted
 ## one has come up since it began, `docs/tactical-entry.md` E17). Owned by `agent_perception.gd`,
 ## shared with the snapshot author.
 
-const SnapshotVocab := preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## The reasons, in the order the snapshot words them.
 ## Gunfire it heard came from inside the room (`heard_gunfire`).
 const GUNFIRE := &"gunfire"
@@ -53,15 +53,15 @@ func rooms_suspected(rooms: Array, lost: Array, callouts: Array) -> Dictionary:
 			list.append(why)
 		out[key] = list
 	for data in memory.recall_all(&"heard_gunfire"):
-		add.call(SnapshotVocab.room_key_at(data["pos"], rooms), GUNFIRE)
+		add.call(HouseRooms.key_at(data["pos"], rooms), GUNFIRE)
 	for data in memory.recall_all(&"heard_footsteps"):
-		add.call(SnapshotVocab.room_key_at(data["pos"], rooms), FOOTSTEPS)
+		add.call(HouseRooms.key_at(data["pos"], rooms), FOOTSTEPS)
 	for data in memory.recall_all(&"shot_from"):
 		for key in shot_rooms(rooms, data):
 			add.call(key, SHOT_FROM)
 	for c in callouts:
 		if str(c.get("path", "")).begins_with("combat"):
-			add.call(SnapshotVocab.room_key_at(c.get("target_pos", Vector2.INF), rooms), ALLY_FIGHT)
+			add.call(HouseRooms.key_at(c.get("target_pos", Vector2.INF), rooms), ALLY_FIGHT)
 	for c in lost:
 		var by := lost_rooms(rooms, c)
 		for key in by:
@@ -78,7 +78,7 @@ func rooms_suspected(rooms: Array, lost: Array, callouts: Array) -> Dictionary:
 func lost_rooms(rooms: Array, c: Dictionary) -> Dictionary:
 	var out := {}
 	var pos: Vector2 = c["pos"]
-	var key := SnapshotVocab.room_key_at(pos, rooms)
+	var key := HouseRooms.key_at(pos, rooms)
 	if key != "":
 		out[key] = SEEN_IN
 	for room in rooms:
@@ -91,7 +91,7 @@ func lost_rooms(rooms: Array, c: Dictionary) -> Dictionary:
 			out[k] = LOST_BY_DOOR
 	var vel: Vector2 = c.get("vel", Vector2.ZERO)
 	if vel.length() >= still_speed:
-		var ahead := SnapshotVocab.room_key_at(pos + vel * minf(c["age"], extrapolate_cap), rooms)
+		var ahead := HouseRooms.key_at(pos + vel * minf(c["age"], extrapolate_cap), rooms)
 		if ahead != "" and ahead != key and not out.has(ahead):
 			out[ahead] = HEADING_IN
 	return out
@@ -123,7 +123,7 @@ static func shot_rooms(rooms: Array, shot: Dictionary) -> Array:
 static func shot_line(rooms: Array, shot: Dictionary) -> PackedVector2Array:
 	var at: Vector2 = shot["at"]
 	var end: Vector2 = shot["pos"]
-	var landed: Rect2 = SnapshotVocab.room_at(at, rooms).get("rect", Rect2())
+	var landed: Rect2 = HouseRooms.at(at, rooms).get("rect", Rect2())
 	var dir := (end - at).normalized()
 	if not landed.has_area() or landed.has_point(end) or dir == Vector2.ZERO:
 		return PackedVector2Array([at, end])

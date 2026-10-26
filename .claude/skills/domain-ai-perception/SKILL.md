@@ -21,8 +21,10 @@ Files:
   `ORDER` (`gunfire`, `footsteps`, `shot_from`, `ally_fight`, `seen_in`, `lost_by_door`, `heading_in`), `lost_rooms`, `shot_rooms` (the rooms `shot_line` runs through: the line back from a shot, counted from where it leaves the room the shot
   landed in, which is only where the NPC stood; the whole line when it never leaves that room). A pure read of the memory, the lost
   hostiles and the radio, shared by the snapshot (which words it) and, through `room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
-- `agent_entry.gd` — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
-- `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
+- `agent_entry.gd` (+ its part `entry/entry_slots.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
+- `house_rooms.gd` — `HouseRooms`, the static room lookups over the house's rooms (`at(p, rooms)`, `key_at(p, rooms)`, `by_key(rooms, key)`) the
+  perception, its snapshot, the doorway views and the entry geometry share.
+- `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
   format and step lists, the claims one listener has heard, and every slot rule and slot point (see "The stack" below). The one folder of
   perception's that behaviour and the team (`ai/team/`) preload themselves: the stack seam.
 - `agent_door_views.gd` — each doorway's view and the walk that keeps out of the views (E18), and the first doorway or view a walk comes
@@ -113,7 +115,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
 - Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_stack(opening_id, into := "") -> DoorStack` (the doorway's
   stack as the radio describes it, built by the NPC's own `ClaimLedger` over that geometry, one per doorway a frame: every slot rule the entry
   reads, `claim`, `slot_for`, `settle`, `split_side`, `back_slot`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`,
-  `move_up_vacancies`, `has_slot`, `tail`, `team_side`; with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
+  `move_up_vacancies`, `team_side`, with `StackLayout`'s statics over its `geometry` beside it (`holds_slot`, `is_tail`, ...); with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
   `released`, `crossing`, `order_claim`; "The stack" below),
   `entry_side_of(geometry, p)` (the side of the door, 1 / -1 along its wall, a point is on: the radio claims' `side`),
   `entry_stack_side(stack)` (the side the NPC stacks on from where it stands in that `DoorStack`: the team's, or its own when its way
@@ -121,8 +123,8 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   `AgentEntry.slot_reach`, below) (wrappers on `AgentEntry`, which the snapshot's `entries` and `order` groups also use; the behaviour never
   reaches into `agent_entry.gd` itself, but preloads the stack module, `StackClaim` and `DoorStack`, the seam it shares with the team; the
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
-  its published seam, `set_house`, `geometry`, `stack_side_from`, `on_stack_side`, `opening_id` and `normal_into`, and the stack module
-  (`StackClaim`, a `ClaimLedger` of their own and the `DoorStack`s it builds) for every claim and slot) (below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
+  its published seam, `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id` and `normal_into`, and the stack module
+  (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
 - `all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
 - `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
@@ -268,8 +270,9 @@ without going through the doorway, out of other doorways' funnels (`StackClaim.F
 navmesh carved round solid furniture skips it (E22). `_overflow`: `_open_floor` (`OPEN_GRID` 8 / `OPEN_GRID_FINE` 4 px; outdoors within
 `OUTDOOR_FLOOR` 300 px; past a short wall or a `views` way in, `strict`: off the wall band and out of other doorways' views; exact when
 capped), then `_tail_spots` (in the room beyond the stack room's nearest other doorway, within `TAIL_REACH` 140 px of it); `capped` (a dead
-end, or outdoors past a short wall) takes no tail. The layout statics every stack reads from this geometry (`stack_slots`, `side_for`, `stack_point`, `holds_slot`, `is_tail`) are
-`DoorStack`'s ("The stack" below); and the method `on_stack_side(g, p)`.
+end, or outdoors past a short wall) takes no tail. The layout statics every stack reads from this geometry (`slots`, `side_for`, `point`, `holds_slot`, `is_tail`) are
+`StackLayout`'s ("The stack" below); and its part `slots` (`entry/entry_slots.gd`, `EntrySlots`, built once with it, holding nothing of it:
+`slots.on_stack_side(entry, g, p)`, the entry handed in at the call).
 **Shared, and laid ahead.** `geometry` keeps each doorway's layout in the instance's `_cache` and in the static `_shared` (navigation map RID
 -> `"<_tuning()>|<id>><into>"` -> geometry, `_tuning()` being `_tuning_inputs()` (the house and the tunables `_build` reads) as a string), dropped
 when the map's planning region leaves the tree; only a layout snapped on a baked map is kept. `warm_geometry(map, space)` lays at most one
@@ -350,7 +353,7 @@ for others), which `entry.gd` reads, and every member's `crossed_frame` (the fra
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
 
-## The stack (`stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`)
+## The stack (`stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`)
 
 A doorway's stack as the radio describes it (`docs/tactical-entry.md` E2, E6, E16 to E22; `docs/leadership.md` LD13, LD18), held once for
 every reader: the NPC's entry and its snapshot, the human's `PlayerStack` and the side's `Squad` (`domain-ai-team`). Behaviour, the
@@ -385,8 +388,8 @@ orchestrator and the team preload these files themselves; this folder is that se
 - **`DoorStack`** (`door_stack.gd`, `RefCounted`, `new(geometry, team)`): the doorway's `geometry` (`AgentEntry.geometry`; {} for the
   claims alone) and its claims (`team`), every slot rule settled the one way for whoever asks. A member asking about itself passes `me`,
   its own claim as it stands (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_*, step }`, each optional): it never hears
-  its own on the radio. `slot_for(me)` (E2: the lowest free slot, `free_slot`; two claims on one slot made on the same frame and side settle
-  by distance to the slot's point, laid among the rest, `_verdict` / `_settles`, within 0.5 px or otherwise the lower instance id, and a slot claimed on
+  its own on the radio. `slot_for(me)` (E2: the lowest free slot, `StackLayout.free_slot`; two claims on one slot made on the same frame and side settle
+  by distance to the slot's point, laid among the rest, `StackLayout`'s `_verdict` / `_settles`, within 0.5 px or otherwise the lower instance id, and a slot claimed on
   that frame by someone farther is taken from them, so the settling runs down the stack; a move-up holds against a plain claim and its
   holder takes the freed slot); `settle(me) -> { slot, side, place, point }` (E19 to E22, with the move-up rewrite, `_moved_up`: a claim
   still on a slot a member moved up into counts at the slot that member freed, for every reader); `points(me)`; `layout(me := {})` (the
@@ -398,9 +401,9 @@ orchestrator and the team preload these files themselves; this folder is that se
   crossing or through into room `into`, D14, the human's only on a crossing begun on or after `since`, the order's frame: its
   `crossed_frame` at or after it, since the human's claim carries no order to scope it by, and a -1 on either releases nothing; a claim
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
-  `has_slot(slot)`, `tail(slot)`, `team_side(from)`, `first_point(side)`; `claim(me, want) -> { slot, held, side, place,
+  `team_side(from)`; `claim(me, want) -> { slot, held, side, place,
   point }` (the chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot's `entries` group offers it) and the human's `PlayerStack` alike: `slot_for`,
-  `held` = `has_slot`, E20, the side asked for in that slot, `want` called with it, the member's own weighing, then
+  `held` = `StackLayout.holds_slot` over its geometry, E20, the side asked for in that slot, `want` called with it, the member's own weighing, then
   `settle`; a member whose slot changes is no longer moving up); `split_side(me, own)` (D6, E19: `own` unless that side would hold two
   more than the other with `me` there, when its last claimer, the highest slot then the highest instance id, takes the other);
   `back_slot(slot)` (E2: the slot behind the last claimed, 0 when `slot` is the last already or the doorway has no slot there, E20);
@@ -408,14 +411,18 @@ orchestrator and the team preload these files themselves; this folder is that se
   from anyone else, so a dead end's extras are known before anyone claims; ids only, it holds no nodes); and
   `move_up_vacancies(me)` (E2, the rule part: each lower slot on `me`'s side whose holder is at `claim`, not the human's nor moving up
   itself, its slot staying on `me`'s side with the two swapped, as `{ holder, slot, point, stack }`; none once a claim says `pie`, `bang`,
-  `going_in` or through; the walk and the latecomer are the entry's). The layout statics, the one place a slot becomes a point:
-  `stack_slots(g, count, side) -> [{ n, point, side, row }]` (only as many as `holds_slot`), `side_for(g, claims, slot, preferred)` (E21:
+  `going_in` or through; the walk and the latecomer are the entry's).
+  Read-only: it never changes the claims it was built from.
+- **`StackLayout`** (`stack_layout.gd`, static, preloaded, no `class_name`): the layout and claim rules, the one place a slot becomes a point,
+  which `DoorStack` settles its doorway by and the entry, the snapshot and `PlayerStack` read beside it:
+  `slots(g, count, side) -> [{ n, point, side, row }]` (only as many as `holds_slot`), `side_for(g, claims, slot, preferred)` (E21:
   its side while that side's row 1 has room, else the other's, then a second file on its side, then the other's; past `wall_n` or with no
-  files, the side the slot lies on), `stack_point(g, members, slot, side)` (INF for a slot a dead end does not hold), `place(claims, side,
+  files, the side the slot lies on), `point(g, members, slot, side)` (INF for a slot a dead end does not hold), `place(claims, side,
   slot)` (a member's place in its side's file: its slot less the claims ahead on the other side), `crossing_order(members)` (by slot, or
   on a split stack the point, the other side's front man, then the sides in turn), `stack_side(g, claims, self_pos)` (the point's side,
-  else `g["side"]`, else the member's own), `holds_slot(g, slot)`, `is_tail(g, slot)` and `free_slot(claims, self_id, current, mine)`.
-  Read-only: it never changes the claims it was built from. `NO_FILE_OUT` (28 px): how far out in front of the door a slot stands when the
+  else `g["side"]`, else the member's own), `holds_slot(g, slot)`, `is_tail(g, slot)`, `free_slot(claims, self_id, current, mine)`,
+  and `laid(g, members, slot, side)` / `on_wall(g, slot)` (a slot's `{ point, row }` and whether it stands in a file against the wall,
+  which `DoorStack.layout` reads). `NO_FILE_OUT` (28 px): how far out in front of the door a slot stands when the
   doorway has no file to lay it in.
 
 The unit suite `tests/ai/door_stack_suite.gd` (`UnitSuite`, plain claim dicts, beneath the simulation tests per ADR-0002) pins the codec,

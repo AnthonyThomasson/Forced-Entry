@@ -10,14 +10,14 @@ extends RefCounted
 ## own copies, `door_view_probe.gd` / `entry_probe.gd`). Only WHERE the slots are is read from the
 ## AI, through the published entry geometry (`agent_entry.gd`, loaded by path as `PlayerStack` uses
 ## it): `new()`, `set_house(openings, rooms)`, `opening_id(o)`, `geometry(id, into, map, space)` and
-## the one rule for where a stack of N stands, `stack_slots(g, count, side)` ->
+## the one rule for where a stack of N stands, `StackLayout.slots(g, count, side)` ->
 ## `[{ n, point, side, row }]`.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const ENTRY_SCRIPT := "res://scenes/ai/perception/agent_entry.gd"
-## The doorway's stack, whose `stack_slots` lays a stack out.
-const DOOR_STACK_SCRIPT := "res://scenes/ai/perception/stack/door_stack.gd"
+## The stack's layout rules, whose `slots` lays a stack out.
+const STACK_LAYOUT_SCRIPT := "res://scenes/ai/perception/stack/stack_layout.gd"
 ## Body radius (px) of a character.
 const BODY := 14.0
 ## A slot inside its room keeps at least this far (px) from the room rect's edges (the walls'
@@ -85,10 +85,10 @@ static func opening_id(o: Dictionary) -> String:
 
 
 ## Where a stack of `count` going in by geometry `g` stands, its point on side `side` (1 / -1 along
-## the wall), read through the published rule `DoorStack.stack_slots(g, count, side)`:
+## the wall), read through the published rule `StackLayout.slots(g, count, side)`:
 ## `{ slots: [{ n, point, side, row }] }`.
 static func layout(g: Dictionary, count: int, side: int) -> Dictionary:
-	var raw = (load(DOOR_STACK_SCRIPT) as GDScript).call("stack_slots", g, count, side)
+	var raw = (load(STACK_LAYOUT_SCRIPT) as GDScript).call("slots", g, count, side)
 	var published: Array = []
 	for s in (raw if raw is Array else []):
 		published.append({

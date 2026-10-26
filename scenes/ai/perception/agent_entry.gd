@@ -17,11 +17,13 @@ extends RefCounted
 
 ## How far (px) outside the threshold the "entry point" is that a corner is judged hard or soft
 ## from.
-const SnapshotVocab := preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd")
 ## The doorway's fatal funnel and the claims' fields (stack/stack_claim.gd).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
+const EntrySlots := preload("res://scenes/ai/perception/entry/entry_slots.gd")
 const ENTRY_POINT_DEPTH := 24.0
 ## Slots worked out per side: a fuller team queues in the last one.
 const MAX_SLOTS := 6
@@ -127,6 +129,9 @@ static var _warmed_frame := -1
 var vision: RefCounted = AgentVision.new()
 ## The doorway views and the walk round them: the perception hands in its own.
 var views: RefCounted = AgentDoorViews.new()
+## Where a stack may stand and walk at a doorway (`slots.on_stack_side(self, …)`); see
+## entry/entry_slots.gd.
+var slots: RefCounted = EntrySlots.new()
 ## Distance (px) between neighbouring stack slots: clear of a neighbour's footprint.
 var stack_spacing: float = 44.0
 ## Distance (px) of a stack slot off the wall's centreline.
@@ -598,7 +603,7 @@ func _last_leg_clear(map: RID, end: Vector2, goal: Vector2, bodies: Array) -> bo
 
 ## The rect of room `key`, or an empty Rect2.
 func _room_rect(key: String) -> Rect2:
-	return SnapshotVocab.room_by_key(_rooms, key).get("rect", Rect2())
+	return HouseRooms.by_key(_rooms, key).get("rect", Rect2())
 
 
 ## The geometry of going through opening `id` into room `into`, or {} when either is unknown. Built
@@ -620,7 +625,7 @@ func geometry(id: String, into: String, map: RID, space: PhysicsDirectSpaceState
 		_cache[key] = shared[shared_key]
 		return _cache[key]
 	var opening := _opening(id)
-	var room := SnapshotVocab.room_by_key(_rooms, into)
+	var room := HouseRooms.by_key(_rooms, into)
 	if opening.is_empty() or room.is_empty():
 		return {}
 	var g := _build(opening, room, map, space)
@@ -743,7 +748,7 @@ func _lay_rows(g: Dictionary, map: RID) -> void:
 	var out: Vector2 = g["out"]
 	var along: Vector2 = g["along"]
 	var width: float = g["width"]
-	var slots := {}
+	var by_slot := {}
 	var pie := {}
 	var lookouts: Array = []
 	for s in [1, -1]:
@@ -752,9 +757,9 @@ func _lay_rows(g: Dictionary, map: RID) -> void:
 			var lateral := width * 0.5 + 18.0 + k * stack_spacing
 			lookouts.append(pos + out * wall_standoff + along * s * lateral)
 			row.append(NavBuilder.snap(map, lookouts[-1]))
-		slots[s] = row
+		by_slot[s] = row
 		pie[s] = _pie_arc(g, s, lookouts, map)
-	g["slots"] = slots
+	g["slots"] = by_slot
 	g["pie"] = pie
 	g["lookouts"] = lookouts
 
@@ -812,7 +817,7 @@ func _corners(g: Dictionary, rect: Rect2, map: RID, space: PhysicsDirectSpaceSta
 
 
 ## Lay out where a stack going in by `g` (built for `opening`) stands, the one rule every stack
-## reads (`stack_slots`, `side_for`, `stack_point`): E20, every slot in the room (or the outdoor
+## reads (`StackLayout.slots`, `side_for`, `point`): E20, every slot in the room (or the outdoor
 ## area) on the stack side of the doorway's wall, on the navmesh, reached from the stack side
 ## without going through the doorway, out of every other doorway's view and funnel; E21, a side's
 ## file runs along the wall to the room's corner, the other side next, then a second file a step
@@ -1218,26 +1223,6 @@ func _slot_ok(c: Dictionary, p: Vector2, with_views: bool, open: bool, routed :=
 			or (not with_views and _views_on(c, p) > 0)):
 		return false
 	return not routed or _reached(c, p)
-
-
-## Whether point `p` is ground a stack going in by `g` may walk on its way to a slot (E20): on the
-## stack side of the doorway's wall, in the room the stack stands in (or out in the open), and with
-## a body there clear of every other doorway's funnel (by `SLOT_BODY` past its jambs).
-func on_stack_side(g: Dictionary, p: Vector2) -> bool:
-	var c := {
-		"id": g["id"], "pos": g["pos"], "out": g["out"], "along": g["along"],
-		"half": float(g["width"]) * 0.5, "from": str(g.get("from", "")),
-		"from_rect": g.get("from_room", Rect2()),
-	}
-	if not _in_stack_side(c, p):
-		return false
-	for f: Dictionary in _door_frames():
-		var rel: Vector2 = p - (f["pos"] as Vector2)
-		if (f["id"] != c["id"]
-				and absf(rel.dot(f["along"])) < float(f["half"]) + SLOT_BODY
-				and absf(rel.dot(f["out"])) < StackClaim.FUNNEL_DEPTH):
-			return false
-	return true
 
 
 ## Whether `p` lies on the stack side of `c`: inside its room's walls (`SLOT_ROOM_INSET`), or for an
@@ -1692,7 +1677,7 @@ func stack_side_from(
 	var g: Dictionary = stack.geometry
 	var team_side: int = stack.team_side(from)
 	var own := side_of(g, from)
-	var first: Vector2 = stack.first_point(team_side)
+	var first := StackLayout.point(g, [], 1, StackLayout.side_for(g, [], 1, team_side))
 	if own == team_side or first == Vector2.INF or not cuts_view(g, from, first, map, space):
 		return team_side
 	return own

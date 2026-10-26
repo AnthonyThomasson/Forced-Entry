@@ -14,7 +14,7 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
 pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `_stack_room`, the `follows` fact),
-`agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
+`agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
@@ -473,7 +473,7 @@ human's `PlayerStack` among them; unlimited range, the side's whole view; each c
 dropped) and gives every stack its side is forming, ordered or its own, in
 `view()["stacks"]`: `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, from the stack's first claim
 while any member is still on its way in (`claim`, `ready`, `bang` or `going_in`). Its slots run from 1 to the last claimed, each laid where
-the AI stands it with the squad's own copy of the doorway geometry (`DoorStack.layout`, over `stack_slots`, `side_for`, `stack_point`: the holder's side
+the AI stands it with the squad's own copy of the doorway geometry (`DoorStack.layout`, over `StackLayout.slots`, `side_for`, `point`: the holder's side
 and place in that side's file; a free slot on the stack's side; a slot a dead end does not hold left out); `there` is its holder standing
 in it (`ready` or `bang`), `mine` the human's, `row` its file (1 against the wall, 2 a step out). In every played match, whoever leads,
 Main points the stack markers (`ui/hud/stack_markers.gd`, `watch_squad(squad.view)`) at the human's side's squad, and they draw each slot

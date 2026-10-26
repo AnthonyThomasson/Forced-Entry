@@ -13,6 +13,7 @@ const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntryState := preload("res://scenes/ai/behavior/entry/entry_state.gd")
 const EntryWorld := preload("res://scenes/ai/behavior/entry/entry_world.gd")
 ## How far (px) beyond its slot, along the wall, an entrant arrives from (`approach_lead`).
@@ -62,7 +63,7 @@ var _moved_for := {}
 ## The `GameClock` frame its slot was last claimed on, radioed with every call (`claim_frame`).
 var frame := -1
 ## Where it stood then (`claim_pos`): claims made on the same frame settle by distance
-## (`free_slot`).
+## (`StackLayout.free_slot`).
 var pos := Vector2.ZERO
 ## How far past its slot the approach in hand arrives from (`approach_lead`).
 var lead := APPROACH_LEAD
@@ -111,12 +112,12 @@ func to_back(entry: Entry) -> bool:
 
 ## Keep this NPC's slot, side and place in step with the radio: a slot an ally also claimed is given
 ## up for the next free one when the ally keeps it (one that moved up into it, E2; nearer it, of two
-## claims made on one frame; else the lower instance id: `free_slot`), or for the one the ally freed
-## when it moved up; and when the side the team stacks on changes (the point's, once it is known) a
-## member that is not the point weighs it again: it follows it, unless its way there crosses the
-## doorway's view (E19). The side is otherwise never re-read from where this NPC stands: a lone
-## entrant crosses in front of the door to slice its other side. In an ordered stack (LD9) the
-## order's side holds instead, for every member (`orders.ordered_side`). The place in its side's
+## claims made on one frame; else the lower instance id: `StackLayout.free_slot`), or for the one
+## the ally freed when it moved up; and when the side the team stacks on changes (the point's, once
+## it is known) a member that is not the point weighs it again: it follows it, unless its way there
+## crosses the doorway's view (E19). The side is otherwise never re-read from where this NPC stands:
+## a lone entrant crosses in front of the door to slice its other side. In an ordered stack (LD9)
+## the order's side holds instead, for every member (`orders.ordered_side`). The place in its side's
 ## file follows the claims ahead on the other side. A change of slot or side is radioed as a new
 ## claim. The chain is the stack's (`DoorStack.claim`); the side asked for is this NPC's
 ## (`ask_side`).
@@ -215,7 +216,7 @@ func on_wall() -> bool:
 ## Whether this NPC is one of the stack's tail (E20's fallback): it holds the room it came by as
 ## rear security and never crosses.
 func tail() -> bool:
-	return stack.tail(state.slot)
+	return StackLayout.is_tail(stack.geometry, state.slot)
 
 
 ## How far past its slot, along the wall, this NPC arrives from: `APPROACH_LEAD`, or short of the

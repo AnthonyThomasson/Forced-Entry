@@ -45,7 +45,7 @@ extends RefCounted
 
 ## The entry claim's wire format, step lists and slot distances (perception's stack module).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
-const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntryState := preload("res://scenes/ai/behavior/entry/entry_state.gd")
 const EntryWorld := preload("res://scenes/ai/behavior/entry/entry_world.gd")
 const EntryClaim := preload("res://scenes/ai/behavior/entry/entry_claim.gd")
@@ -348,7 +348,7 @@ func debug_view() -> Dictionary:
 		"team": team.map(func(m):
 			var d: Dictionary = m.duplicate()
 			d["through"] = StackClaim.through(m["step"])
-			d["place"] = DoorStack.place(members, int(m["side"]), int(m["slot"]))
+			d["place"] = StackLayout.place(members, int(m["side"]), int(m["slot"]))
 			return d),
 		"watch": sweep.watch.map(
 			func(w): return { "id": w["id"], "pos": w["pos"], "spot": w["spot"], "aim": w["aim"] }

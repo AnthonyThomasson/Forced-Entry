@@ -11,7 +11,7 @@ extends RefCounted
 ## The entry this part is one of, handed in at the call (never held: it holds the part).
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
-const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
+const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
 const EntryState := preload("res://scenes/ai/behavior/entry/entry_state.gd")
 const EntryWorld := preload("res://scenes/ai/behavior/entry/entry_world.gd")
 
@@ -119,7 +119,7 @@ func _side_named(params: Dictionary) -> int:
 	var at = params.get("stack_at")
 	if at is Vector2:
 		return world.perception.entry_side_of(state.geo, at)
-	return DoorStack.stack_side(state.geo, [], world.character.global_position)
+	return StackLayout.stack_side(state.geo, [], world.character.global_position)
 
 
 ## The side an ordered stack (`ordered`, `claim`) has this NPC stack on in its slot `n`: the

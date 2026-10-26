@@ -13,7 +13,7 @@ extends RefCounted
 ## (`agent_entry.gd`) reads a doorway's view for a split stack (`cuts_view`); this module never
 ## reads it.
 
-const SnapshotVocab := preload("res://scenes/ai/perception/snapshot/snapshot_vocab.gd")
+const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 ## How far (px) `threshold_ahead` extends the end of a walk, so a destination in the doorway itself
 ## crosses it.
@@ -107,7 +107,7 @@ func _opening(id: String) -> Dictionary:
 
 ## The rect of room `key`, or an empty Rect2.
 func _room_rect(key: String) -> Rect2:
-	return SnapshotVocab.room_by_key(_rooms, key).get("rect", Rect2())
+	return HouseRooms.by_key(_rooms, key).get("rect", Rect2())
 
 
 ## The first doorway on a walk that leads into a room the NPC has not cleared: the polyline from
@@ -131,7 +131,7 @@ func threshold_ahead(
 	var tail: Vector2 = (pts[-1] as Vector2) - (pts[-2] as Vector2)
 	if tail.length() > 0.001:
 		pts.append((pts[-1] as Vector2) + tail.normalized() * THRESHOLD_EXTEND)
-	var here := SnapshotVocab.room_key_at(from_pos, _rooms)
+	var here := HouseRooms.key_at(from_pos, _rooms)
 	var walked := 0.0
 	for i in range(1, pts.size()):
 		var a: Vector2 = pts[i - 1]
@@ -218,7 +218,7 @@ func passing_ahead(
 	for v in _crossed_views(
 			pts,
 			avoided(
-				SnapshotVocab.room_key_at(from_pos, _rooms),
+				HouseRooms.key_at(from_pos, _rooms),
 				world.navigation_map,
 				world.direct_space_state,
 			)["views"],
@@ -281,7 +281,7 @@ func walk_route(
 	}
 	if not avoid_views or not NavBuilder.ready(map):
 		return out
-	var here := SnapshotVocab.room_key_at(from, _rooms)
+	var here := HouseRooms.key_at(from, _rooms)
 	var avoid_set := _left_from(avoided(here, map, space, entering), from)
 	var crossed := _crossed_views([from] + Array(plain), avoid_set["views"], INF, entering)
 	out["views"] = crossed
@@ -417,7 +417,7 @@ func _entering_set(views_set: Dictionary, entering: String) -> Dictionary:
 func warm(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> bool:
 	if not avoid_views or not NavBuilder.ready(map):
 		return true
-	var avoid_set := avoided(SnapshotVocab.room_key_at(from, _rooms), map, space)
+	var avoid_set := avoided(HouseRooms.key_at(from, _rooms), map, space)
 	var region := NavBuilder.planning_region(map)
 	if avoid_set["views"].is_empty() or region == null:
 		return true
@@ -426,7 +426,7 @@ func warm(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> bool:
 
 ## The views a walk from point `from` keeps out of, each `{ id, into, poly }` (see `avoided`).
 func views_from(from: Vector2, map: RID, space: PhysicsDirectSpaceState2D) -> Array:
-	return avoided(SnapshotVocab.room_key_at(from, _rooms), map, space)["views"]
+	return avoided(HouseRooms.key_at(from, _rooms), map, space)["views"]
 
 
 ## The doorway views a walk from room `here_key` ("" = outside) keeps out of: the view out of every
@@ -496,7 +496,7 @@ func door_view(
 	if _views.has(key):
 		return _views[key]
 	var opening := _opening(id)
-	var room := SnapshotVocab.room_by_key(_rooms, into)
+	var room := HouseRooms.by_key(_rooms, into)
 	if opening.is_empty() or room.is_empty() or space == null or not NavBuilder.ready(map):
 		return PackedVector2Array()
 	# A view lies in the room (or the open) in front of the doorway: it does not run on through the

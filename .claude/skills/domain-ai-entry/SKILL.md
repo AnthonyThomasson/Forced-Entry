@@ -55,7 +55,7 @@ the part's name says dropped (`_order_id` is `orders.id`, `_bang_stage` `grenade
 the doorway's geometry and its stack off the perception, `entry_geometry` / `entry_stack`, and runs the stack's claim chain,
 `DoorStack.claim(me, want)`, as `claim.keep_slot` does: it claims the lowest slot the claims heard leave free
 (`slot_for(me)`, `me` = `{ id, slot: 0, frame, pos }`: two claims on one slot made on the same `GameClock` frame and side settle by
-distance, the nearer keeping it; the option's `slot` is only the snapshot's guess; a slot past what a dead end holds, `has_slot` false, ends
+distance, the nearer keeping it; the option's `slot` is only the snapshot's guess; a slot past what a dead end holds, `StackLayout.holds_slot` false, ends
 it `done` with no claim) and its side (`claim.ask_side`, the entry's own weighing, the `want` it hands the chain: `claim.want`, `entry_stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
 crosses the doorway's view, E19), then stands where `settle` puts it (`claim.stand`; `DoorStack.settle(claim.me())`, `claim._settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
 E21; its place in that side's file; the slot's point, E20; a claim still on a slot a member moved up into counted at the slot it freed) and
@@ -64,7 +64,7 @@ itself (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_* }`: 
 re-picks with that claim through `DoorStack.claim` (its side weighed again, unless it is the point, only when the team's side changed), so a settled claim keeps settling, and a slot
 pushed past what a dead end holds `claim._refuse()`s (radios `abort`, stops, `done`; an ordered member's next decision is the ORDER node's
 `hold_<opening>`, refused, `docs/leadership.md` LD9). Phases:
-`approach` (to its stack slot, its place in its side's file (`claim.place`, `DoorStack.place`); an open-floor or tail slot (`claim.on_wall()` false: past
+`approach` (to its stack slot, its place in its side's file (`claim.place`, `StackLayout.place`); an open-floor or tail slot (`claim.on_wall()` false: past
 `wall_n`) by the plain way, no waypoints; a wall slot: if on the wrong side of the door, out from the wall and across far out first (`approach._cross_depth`:
 `CROSS_DEPTH` but a body, `CROSS_INSET`, off the stack room's far wall), or round the view when the way round exists (`approach._way_round`); then to a
 point past the slot and along the wall into it, so it never walks the door's axis close in; `approach.enter_approach(stack)`: that point is `APPROACH_LEAD` (60 px) past the slot, or
@@ -143,7 +143,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   left (radioed as `move_up` until `readiness.say_ready` clears it), drops its waypoints and radios a claim; `DoorStack.slot_for` gives the latecomer
   the freed slot (a move-up holds against a plain claim). Every reader's `DoorStack` (this member's `settle`, the human's markers, the
   squad's `stacks`) counts the latecomer's claim at the old slot meanwhile.
-- **Tail and dead end (E20).** A tail member (`claim.tail()`: `DoorStack.tail`, past the open floor, in the room beyond the stack room's other
+- **Tail and dead end (E20).** A tail member (`claim.tail()`: `StackLayout.is_tail`, past the open floor, in the room beyond the stack room's other
   doorway) says ready, holds for a held stack's go, then runs `readiness._tick_security` as E13's left-over does: it never crosses. A slot no dead
   end holds is never claimed (`begin`, `claim.to_back`, `claim.keep_slot` above).
 - **Top off at the stack (E11).** A member short of a full magazine with a spare swaps it in while `stack`ed, the one lull:
@@ -174,7 +174,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   The crossing order is the stack's (`DoorStack.crossing` / `ahead`, read by `readiness.members_before` / `readiness.members_ahead`): by slot, or on a split stack the point, the other side's front man, then the sides in turn.
 - **A split stack (E19).** A member whose way to the team's side crosses the doorway's view stacks on its own side (the claim carries
   it); `claim.keep_slot` weighs the side again only when the team's side changes (`DoorStack.team_side`, the point's once known). Its place in its
-  side's file is its slot less the claims ahead on the other side (`DoorStack.place`). The other side's front man (`readiness.slices_own_half`: all
+  side's file is its slot less the claims ahead on the other side (`StackLayout.place`). The other side's front man (`readiness.slices_own_half`: all
   ahead of it on the other side, no pie yet, not a bang entry) slices its own half of the pie from `stack`, radios `ready` only then
   (`readiness.say_ready`; everyone else radios it on reaching its slot), and crosses after the point's `in`. Rear spots are counted from the
   point's side (`claim.lead_side`), the same for every member.

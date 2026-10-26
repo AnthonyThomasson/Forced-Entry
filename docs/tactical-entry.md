@@ -454,10 +454,10 @@ the human is given a slot on the side it stands on when the way to the team's si
 arrive from one side is one-sided and behaves as E1 to E17 say. Why: walking across the door to reach the stack is the funnel crossed
 outside it (E15, E18); the criss-cross is how real teams enter from both sides of a door, each man covering the half of the room the other
 cannot see, and the crossing paths keep each entrant's sector clear of the other's. In the code, `AgentEntry.stack_side_from` takes the
-team's side (`DoorStack.stack_side`, `scenes/ai/perception/stack/door_stack.gd`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
+team's side (`StackLayout.stack_side`, `scenes/ai/perception/stack/stack_layout.gd`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
-split the stack); `DoorStack.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
-`DoorStack.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
+split the stack); `StackLayout.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
+`StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
 `readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
@@ -487,12 +487,12 @@ shared by every NPC on it. Why: a slot across a wall or in another room is not a
 nor follow it through, and one in another doorway's view or funnel stands in the open before a room nobody has cleared (E15, E18). A room
 too small for the team leaves the rest waiting where they came from, covering the way behind, as a short room's members do outside (E13).
 In the code `AgentEntry._lay_slots` lays a way in (`kind` `wall`, `views`, `open_floor` or `dead_end`; `wall_n` the slots its wall holds, `seq`
-the open floor and the tail past them, `tail_from`, `capped`), and the static `DoorStack.stack_slots(g, count, side)` (`[{ n, point, side, row
-}]`, `scenes/ai/perception/stack/door_stack.gd`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`,
-`stack_point`, `holds_slot` and `is_tail`;
+the open floor and the tail past them, `tail_from`, `capped`), and the static `StackLayout.slots(g, count, side)` (`[{ n, point, side, row
+}]`, `scenes/ai/perception/stack/stack_layout.gd`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`,
+`point`, `holds_slot` and `is_tail`;
 `warm_geometry` lays one way in a physics frame, among every NPC, in the frames after the nav bake.
 Tests: `stack_slots_sweep` (geometry, no simulation: every doorway of the 11 generated floorplans, 3 fixed seeds each, furnished, and the
-Terrace house, both sides, stacks of 1 to 6; every slot read through `DoorStack.stack_slots` and judged by the test's own geometry: in the
+Terrace house, both sides, stacks of 1 to 6; every slot read through `StackLayout.slots` and judged by the test's own geometry: in the
 stack-side room, on the navmesh, reached, out of every other doorway's view and funnel, off furniture, spacing kept, and each fallback by its
 rule, with the test's own fewest-seen bar and its own exhaustive packing of the wall, the open floor and a dead end), `stack_dead_end_refused`
 (four ordered into a hand-laid 100 x 100 closet with no wall beside its door, which holds fewer by the test's own packing: exactly as many as
@@ -504,8 +504,8 @@ that runs to the wall's end (E22). The members past it stack on the other side o
 while that side's wall has room; when neither side has, a second file a step out from the wall behind the first, in the same room (its own
 side first, then the other's). An ordered stack starts on the side its order names (`docs/leadership.md` D3), then the same rule. Why: real
 teams split across a door whose wall is short, and enter by the criss-cross; a second row against the first is the last resort, since it stands
-nearer the door's front. In the code `DoorStack.side_for(g, team, slot, preferred)` (a member's side, wanting `preferred`, among the claims)
-and `stack_point`.
+nearer the door's front. In the code `StackLayout.side_for(g, team, slot, preferred)` (a member's side, wanting `preferred`, among the claims)
+and `StackLayout.point`.
 Tests: `stack_slots_sweep` (the other side before a second file, against the wall or a step out, the point on the order's side), and the
 six-member reach tests `stack_reach_terrace_kitchen_six`, `stack_reach_garage_home_garage_six` and `stack_reach_bungalow_laundry_six`.
 
@@ -620,7 +620,7 @@ the stack toward the door's axis, clear of the slots.
   claim one, the lower instance id keeps it. `done` ends a hold; a teammate still holding takes it as the team moving on. A slot is the lowest the radio
   leaves free; every claim carries `claim_frame` and `claim_pos` (the frame its slot was claimed on and where the member stood), and two
   members who claim the same slot on the same frame and side settle it by distance to it, the nearer keeping it (within 0.5 px, or on
-  different frames, by instance id, the flank side claim pattern; `DoorStack.free_slot`), the other taking the next. A claim that moved up
+  different frames, by instance id, the flank side claim pattern; `StackLayout.free_slot`), the other taking the next. A claim that moved up
   (E2) carries `move_up` and holds its slot against the latecomer's, which takes the one it freed; `pie` says the speaker has begun the pie.
   A single invader is a team of one: nobody else claims the doorway, so there is no
   barrier and the pie is sliced from both sides (E7).

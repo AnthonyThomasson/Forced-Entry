@@ -16,7 +16,7 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 `callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1; either export, set, reaches the ledger at once through its setter) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
 E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()` through the stack's claim chain, `DoorStack.claim`, as an NPC's entry is: `slot_for`,
-`has_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
+`StackLayout.holds_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
 by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `_crossed_frame`, restamped
 to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`StackClaim.crossing`), cleared on a new reservation and on
@@ -30,13 +30,13 @@ from where it stands (`claim` / `ready` / `going_in` / `in`, `_step_at`: in its 
 `StackClaim.THROUGH_DEPTH`, in the funnel within `StackClaim.FUNNEL_DEPTH`) and withdraws on leaving, dying, nobody left stacking (no claim
 at a `StackClaim.STACKING` step, so an AI on its `bang` still keeps the human's slot reserved), or `go_timeout` after the AI
 ahead in the crossing order is through, or (`abort`) when the stack grows past what a dead end holds for its slot. It reuses perception's stack module (`StackClaim`, a `ClaimLedger`, the `DoorStack`s it builds: the slot, side, point, crossing order
-(`crossing` / `ahead`), whether anyone is stacking, `has_slot`, and the markers' `layout`; `StackClaim.keeps_claim`: a grenade call is not a
+(`crossing` / `ahead`), whether anyone is stacking, and the markers' `layout`; `StackLayout.holds_slot` over its geometry; `StackClaim.keeps_claim`: a grenade call is not a
 stack claim, nor is a callout that is only an order's progress, `order_step` with no `entry_step`, LD7; a rule that reads
 a claim keeps to the **stale claim** rule in "The stack", `domain-ai-perception`) and `AgentEntry`'s geometry
-(`set_house`, `geometry`, `stack_side_from`, `on_stack_side`, `opening_id`), and never moves the character. **Its own claim (LD24).** With `own_claims` set (`MatchBuilder.build_squads` sets it through `bind_squad` on the invaders' side only, D29:
+(`set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id`), and never moves the character. **Its own claim (LD24).** With `own_claims` set (`MatchBuilder.build_squads` sets it through `bind_squad` on the invaders' side only, D29:
 false unless set, so a human defender leader claims nothing of its own and rallies nobody), no allied stack forming in reach and the human
 leading a squad with another living member (`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;
-`_stepped_up`: on the doorway's stack side (`AgentEntry.on_stack_side`), out from the wall plane and past the jamb along it each within
+`_stepped_up`: on the doorway's stack side (`AgentEntry`'s `slots.on_stack_side`), out from the wall plane and past the jamb along it each within
 `STEP_UP_REACH`, 60 px, at a doorway nobody stacks at and not `_barred`) it claims slot 1 there (an empty `DoorStack`'s `slot_for`) on the side it stands on
 (`stack_side_from`), flagged `_own` and radioed `own: true`. The squad hears that claim as the leader's own and rallies the team; a
 reservation in an allied stack (E16), the leader's or not, carries `own: false` and never rallies. An own claim is kept while nobody

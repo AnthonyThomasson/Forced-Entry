@@ -273,7 +273,7 @@ func note_all_in(entry: Entry, team: Array) -> void:
 		all_in_at = state.time
 
 
-## The members of the stack that cross before this one (agent_entry.gd `crossing_order`: by slot,
+## The members of the stack that cross before this one (stack_layout.gd `crossing_order`: by slot,
 ## and on a split stack the two sides taking turns), the first to cross first.
 func members_before(entry: Entry) -> Array:
 	return entry.claim.stack.ahead({ "id": world.self_id, "slot": state.slot, "side": state.side })
