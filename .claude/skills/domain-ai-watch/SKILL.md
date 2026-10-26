@@ -36,7 +36,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 - `apply(behavior, delta)` — the stage above; `threat` and `gaze` are what it set this tick. `_pick_threat` is its pick (`tuning.watch.lost_gaze`, 2 s).
 - `travel_point()` — where a walker looks: the farthest point, up to `tuning.watch.look_ahead` (150 px) down the walk
   the nav agent was just given (`Locomotion.path_ahead()`), sampled every 30 px, that it has a clear line to (`has_line_to`); INF with
-  none. `Behavior.errand.aim_move`'s default branch and `Entry._aim_travel` use it and fall back to the steering vector. (The next waypoint
+  none. `Behavior.errand.aim_move`'s default branch and `Entry.sweep.aim_travel` use it and fall back to the steering vector. (The next waypoint
   alone hugs the door jamb, so facing it looks at the jamb.)
 - `idle_gaze(delta)` — turns among `perception.room_doorways(room)` (outer doors included; each with a clear line and not
   under 60 px), nearest first on entering a room then round the NPC by angle, `tuning.watch.door_dwell` (2.5 s) apiece, eased at
@@ -52,9 +52,9 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
   node). A running character can neither shoot nor reload.
 - `Combat`: `can_fire_at`, `reload_due`, `faces`; `peek_cover` shoots only once facing, ducks only after a shot or an empty click
   (not after a refused shot); `ambush` waits for the facing.
-- `Entry`: `state.gaze_held` (set from the watch's `threat` each tick) makes `_look_toward` report "settled", so a pie step the gaze cannot settle on
+- `Entry`: `state.gaze_held` (set from the watch's `threat` each tick) makes `sweep.look_toward` report "settled", so a pie step the gaze cannot settle on
   because of a threat does not hold the entry. Every gaze turn goes through one static, `Watch.ease_gaze(character, point, rate, delta)`
-  (the doors here, `Entry._look_toward`, `SearchCoverage.step`): it eases from the actual facing, not a private angle, so the gaze
+  (the doors here, `Entry.sweep.look_toward`, `SearchCoverage.step`): it eases from the actual facing, not a private angle, so the gaze
   does not snap back when a threat lets go. `hostile_in_view` (set from the same `threat` plus a line of fire, the behaviour's `entries._hostile_in_view`)
   stops the pie and a follower's crossing while the watch stage fires; the entry crosses once it is false (`domain-ai-entry`, E14).
 

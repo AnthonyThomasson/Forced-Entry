@@ -82,23 +82,23 @@ the footprint a body on the next slot keeps clear around it, so no slot is a spo
 sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
 32 px) short of the next slot along its side a teammate claims, re-planned as claims come in, so the walk into a slot never aims at a
-teammate's body (`entry.gd` `_approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
+teammate's body (`Entry.claim.approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
 free spot beside it, and gives way to one walking across the way its walk still goes (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
 walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point the hold does not seal (the
 point it was walking to is dropped, and with it each next one at the slot or whose plain way passes the body holding it, `entry.gd`
-`_drop_sealed`; test `ai/entry/entry_held_walks_unsealed_waypoint`). With none left, and on a walk straight into the slot, it walks on into the slot unless the slot is sealed, by a body between the member
+`approach.drop_sealed`; test `ai/entry/entry_held_walks_unsealed_waypoint`). With none left, and on a walk straight into the slot, it walks on into the slot unless the slot is sealed, by a body between the member
 and its slot, not on it (one standing within `Locomotion.PASS_CLEARANCE` of the slot is Locomotion's body on the goal: the walk goes on and ends
 at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its plain way passes that body and no way reaches it with the holder and every other body at rest the member sees, or saw within half a second,
 standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
 the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
-(`_slot_sealed`, `AgentPerception.entry_slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
+(`approach._slot_sealed`, `AgentPerception.entry_slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
 its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
 one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
 `ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
 from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a
 walk held by a teammate of the same stack that is still on its way to its own slot (its claim at `claim`: walking there, or moving up) is
 the stack forming, not the stack keeping the member out, and the member keeps its slot and waits for it, at most 3 s from when the hold
-began (`entry.gd` `HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
+began (`EntryApproach.HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
 it takes (tests `ai/entry/entry_held_by_forming_stack_keeps_slot`, `entry_held_by_forming_stack_cap`). A hold is timed by how long the
 member has stood held: its walk aimed again while it stands (its slot's point moved by the claims), a free spot tried or a body read as
 moving for a frame is the same hold going on, not a new one (`Locomotion`'s `crowd.HOLD_GAP`, `Locomotion.HOLD_MOVED`), so the cap and the re-plans come on
@@ -106,7 +106,7 @@ time (test `ai/entry/entry_held_cap_despite_reaim`);
 a pie step is skipped; a corner, cover or rear spot is held from where it stands. Slots are claimed over the radio (the same claim pattern as a flank side), so two
 invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
 given up (`abort`) only once it has taken its own walking time at walking pace plus `tuning.entry.approach_time` (20 s): the walk is measured, leg
-by leg as it will be walked, when the approach is planned and again at each re-plan (`entry.gd` `_walk_time`). In its slot a member stands
+by leg as it will be walked, when the approach is planned and again at each re-plan (`Entry.approach.walk_time`). In its slot a member stands
 within `StackClaim.SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
 **The stack moves up.** A member standing in its slot looks every `MOVE_UP_EVERY` (0.25 s) for a lower slot of its own side (either row)
 within `MOVE_UP_REACH` (66 px) whose holder is not there yet: its claim still at `claim`, the holder farther from that slot than this member
@@ -115,7 +115,7 @@ the two swap and be reached by a short plain walk (at most 1.5 x the straight li
 slot it would take runs through the step: the latecomer may be within `MOVE_UP_REACH` + a step (`MOVE_UP_MARGIN`, 132 px in all) of that
 slot, and its straight way from there passes the vacancy closer than a body's clearance (`Locomotion.PASS_CLEARANCE`), or the two meet
 mid-swap, each a stride off the other's slot, and the stack jams. Where the latecomer may be is a worst-case bound: its newest known place,
-seen or radioed, brought nearer by its age x its walking pace (`entry.gd` `_latecomer_crosses`). It is the crossing that makes it wait, not
+seen or radioed, brought nearer by its age x its walking pace (`Entry.claim._latecomer_crosses`). It is the crossing that makes it wait, not
 the distance alone: a latecomer coming up behind the mover on the same lane follows it in (tests `stack_move_up_waits_for_near_latecomer`,
 `stack_move_up_lets_follower_in`). It steps straight into it and takes that
 number; the latecomer takes the slot it freed. Both are radioed as claims (the one that moved up carries `move_up`, the slot it left, until
@@ -253,7 +253,7 @@ reload; real Von, `requires_von`).
 **E12. The last man covers the rear of the stack.** While the stack waits at the door, the last slot faces back the way
 the team came and holds the approach; the point and the second face the door. Why: the stack's rear is its blind side
 (the "The stack" paragraph above: the last man faces back and holds the hallway behind). In the code, the last slot of a
-stack of three or more (`Entry._covers_rear`: the last of its side's file, with two or more crossing ahead of it) turns its gaze
+stack of three or more (`Entry.readiness._covers_rear`: the last of its side's file, with two or more crossing ahead of it) turns its gaze
 along the wall away from the door, the line the team came by, from `stack` until the member ahead of it is through; then
 it turns to cross in its turn (a threat in sight still takes its eyes first, `docs/gaze-and-fire.md`). A stack of two has no
 rear guard, and the last man in the room still takes the rear watch there (E8). A stack split across the door (E19) has a rear guard
@@ -265,8 +265,8 @@ corners; the later slots hold the stack side as security and never step into the
 small": a room under 150 px on either side (three bodies), whose door wall cannot hold a third corner. Why: a third
 body in a box room has no point of domination to take and blocks the two who do. In the code, the doorway's geometry
 carries a `capacity` (`AgentEntry.geometry`: 2 for a room with a side under `short_room`, the NPC's
-`tuning.entry_geometry.short_room`; else every slot). A member with that many ahead of it in the crossing order (both sides of a split stack, E19) stays in `stack` (`Entry._holds_outside`,
-`_tick_security`), facing back along the line (E12), while the two ahead are still on the radio and after the room is
+`tuning.entry_geometry.short_room`; else every slot). A member with that many ahead of it in the crossing order (both sides of a split stack, E19) stays in `stack` (`Entry.readiness._holds_outside`,
+`readiness._tick_security`), facing back along the line (E12), while the two ahead are still on the radio and after the room is
 called clear, and radios `done` once a teammate that held the room has moved on (or `rear_security_time` after the call).
 It does not stand in for the two: with nobody ahead and the room not called clear (they died or gave up) it takes the lead,
 and it gives up after 30 s with the room never called clear.
@@ -458,7 +458,7 @@ team's side (`DoorStack.stack_side`, `scenes/ai/perception/stack/door_stack.gd`:
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
 split the stack); `DoorStack.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
 `DoorStack.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
-`_before`, `_slices_own_half`, `_follow`, `_corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
+`readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
 **E20. Every slot in the stack's room.** Every slot of a stack, both sides and every row, lies in the room on the stack side of the

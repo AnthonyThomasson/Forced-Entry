@@ -1,7 +1,8 @@
 extends UnitSuite
 ## Native unit suite (pure logic): an NPC's AI frees itself once the NPC is freed. Its modules and
 ## their parts hold no reference back to a `RefCounted` that holds them, so no `RefCounted` cycle
-## keeps any of it alive: the entry's leaves (`state`, `world`) and the combat's throw part hold no
+## keeps any of it alive: the entry's leaves (`state`, `world`) and its ten parts (`claim`, ...,
+## `radio`, each handed the entry at the call) and the combat's throw part hold no
 ## owner, and the parts of a node (the behaviour's, Locomotion's, the planner's, the controller's)
 ## hold it only as a node. Every preset, instanced, put in the tree (its controller builds the AI in
 ## `_ready`) and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
@@ -41,6 +42,10 @@ func _held(controller: Node) -> Dictionary:
 		"behavior.grenades": behavior.get("grenades"), "behavior.orders": behavior.get("orders"),
 		"behavior.entries": behavior.get("entries"),
 		"entry": entry, "entry.state": entry.state, "entry.world": entry.world,
+		"entry.claim": entry.claim, "entry.approach": entry.approach,
+		"entry.readiness": entry.readiness, "entry.orders": entry.orders,
+		"entry.grenade": entry.grenade, "entry.listen": entry.listen, "entry.pie": entry.pie,
+		"entry.sweep": entry.sweep, "entry.hold": entry.hold, "entry.radio": entry.radio,
 		"combat": combat, "combat.throw": combat.get("throw"),
 		"loco": loco, "loco.crowd": loco.get("crowd"), "loco.give_way": loco.get("give_way"),
 		"loco.stall": loco.get("stall"), "loco.doors": loco.get("doors"),
@@ -73,7 +78,7 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(26)
+		assert_int(held.size()).is_equal(36)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()
