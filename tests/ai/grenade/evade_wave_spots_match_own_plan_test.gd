@@ -158,7 +158,7 @@ func _plain_for(
 	var at: Dictionary = start[npc]
 	var search := { "space": space, "map": map, "exclude": GrenadeAi.character_rids(t) }
 	var threat := _threat(kind, g.radius_of(kind), known[0]["point"], float(start["fuse"]))
-	var plain := _plain_escape(g, search, threat, _runner(at["from"], float(at["speed"])))
+	var plain := GrenadeAi.plain_escape(g, search, threat, _runner(at["from"], float(at["speed"])))
 	return plain
 
 
@@ -235,77 +235,6 @@ func _check_plans(t: TestContext, checked: Array) -> void:
 		"%d of %d plans differ from the NPC's own plain search: %s"
 			% [differing.size(), checked.size(), differing.slice(0, 3)],
 	)
-
-
-## `AgentThrow.escape` with nothing shared: every candidate snapped, judged and routed, as
-## `ai/grenade/escape_spot_matches_plain` pins it. `search` is the search's world (`space`, `map`,
-## `exclude`).
-func _plain_escape(
-		g: AgentThrow,
-		search: Dictionary,
-		threat: GrenadeThreat,
-		runner: GrenadeRunner,
-) -> Dictionary:
-	var spots := _plain_spots(g, search, threat, runner.from)
-	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
-	return GrenadeAi.plain_best(search["map"], spots, runner.from, allowed)
-
-
-## Every candidate of the plain search snapped and judged: `{ spot, crouch }` for each that lands
-## out of the burst's zone or shielded from it, `crouch` when only a crouched body is shielded.
-func _plain_spots(
-		g: AgentThrow,
-		search: Dictionary,
-		threat: GrenadeThreat,
-		from: Vector2,
-) -> Array:
-	var map: RID = search["map"]
-	var zone := {
-		"burst": threat.burst,
-		"out_r": g._zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
-		"reach": g.cover_reach(threat.kind),
-	}
-	var spots: Array = []
-	# The candidates' grenade as the plain search builds it: its kind, radius and burst.
-	var around := GrenadeThreat.new()
-	around.kind = threat.kind
-	around.radius = threat.radius
-	around.burst = threat.burst
-	for p in g._candidates(search["space"], around, from, search["exclude"]):
-		var q := NavBuilder.snap(map, p)
-		if q.distance_to(p) > AgentThrow.SNAP_TOLERANCE:
-			continue
-		var spot := _plain_spot(g, search, q, zone)
-		if not spot.is_empty():
-			spots.append(spot)
-	return spots
-
-
-## The plain search's verdict on the snapped candidate `q` for the burst `zone` (`burst`, `out_r`,
-## `reach`): `{ spot, crouch }`, `crouch` when only a crouched body is shielded there; `{}` when it
-## is inside the zone and shielded neither way.
-func _plain_spot(g: AgentThrow, search: Dictionary, q: Vector2, zone: Dictionary) -> Dictionary:
-	var space: PhysicsDirectSpaceState2D = search["space"]
-	var exclude: Array = search["exclude"]
-	var burst: Vector2 = zone["burst"]
-	var reach: float = zone["reach"]
-	var crouch := false
-	if (q.distance_to(burst) < zone["out_r"]
-			and not g._covered(
-				space,
-				burst,
-				q,
-				AgentThrow._cover_rule(g.stand_height(), exclude, reach),
-			)):
-		if not g._covered(
-			space,
-			burst,
-			q,
-			AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
-		):
-			return {}
-		crouch = true
-	return { "spot": q, "crouch": crouch }
 
 
 ## Runs after every other node on each physics frame, before the physics step.

@@ -64,24 +64,9 @@ func run(t: TestContext) -> void:
 		w["offered"],
 		"GRENADE was offered against the householder holding the doorway (acts %s)" % str(seen),
 	)
-	if not _check_thrown_from_outside(t, inv, seen):
+	if not GrenadeAi.check_thrown_from_outside(t, inv, seen):
 		return
 	await _check_frag_caught_householder(t, inv)
-
-
-func _check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:
-	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
-	if not t.check(
-			not throws.is_empty() and throws[0]["data"].get("kind") == &"frag",
-			"the invader threw its frag (acts %s)" % str(seen),
-	):
-		return false
-	t.check(
-		not Maps.HOUSE_KITCHEN.has_point(throws[0]["data"]["position"]),
-		"from outside the kitchen (thrown at %s)"
-			% str((throws[0]["data"]["position"] as Vector2).round()),
-	)
-	return true
 
 
 func _check_frag_caught_householder(t: TestContext, inv: Node) -> void:

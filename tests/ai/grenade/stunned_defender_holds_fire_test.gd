@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 		shots["blind_rounds"] == 0,
 		"it held its fire while blind (%d rounds fired blind)" % shots["blind_rounds"],
 	)
-	await _check_sees_again(t, brain, p)
+	await GrenadeAi.check_sees_again(t, brain, p)
 
 
 ## The defender's rounds already in flight, which left the barrel before the flash: not blind
@@ -110,18 +110,3 @@ func _capture(t: TestContext, d: Node, shots: Dictionary) -> void:
 			seen[n.get_instance_id()] = true
 			if Probe.blind(d):
 				shots["blind_rounds"] += 1
-
-
-## The blindness is over: it sees the invader again, where it is now.
-func _check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
-	var sees_where_it_is := func() -> bool:
-		var known := GrenadeAi.known_contact(brain, p)
-		return (
-			bool(known.get("visible", false))
-				and (known["pos"] as Vector2).distance_to(p.global_position) < 40.0
-		)
-	t.check(
-		await t.until(sees_where_it_is, 4.0),
-		"once it can see it re-reads the invader where it stands (acting: %s)"
-			% str(brain.current_act()),
-	)

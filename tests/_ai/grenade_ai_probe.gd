@@ -1,15 +1,17 @@
 extends RefCounted
 ## Shared helpers for the grenade tests (not a test itself):
 ## `const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")`. Reading an NPC (`offered`,
-## `callouts`, `grenades`, `wait_act`, `acts`, `known_contact`, `watch_until_thrown`,
-## `check_held_at_old_spot`) and setting a scene round a grenade (`hostile`, `place`), with the
-## lines a blast is judged on (`character_rids`, `line_clear`, `safe_from_frag`, `shielded`, G7) and
-## the plain escape-spot pick the evade plan is held to (`plain_best`). The bus and the spec's
-## constants are `grenade_probe.gd`'s, read there.
+## `callouts`, `grenades`, `wait_act`, `acts`, `known_contact`, `watch_until_thrown`) and checking
+## it (`check_held_at_old_spot`, `check_sees_again`, `check_thrown_from_outside`), setting a scene
+## round a grenade (`hostile`, `place`), the lines a blast is judged on (`character_rids`,
+## `line_clear`, `safe_from_frag`, `shielded`, G7) and the plain escape search the evade plan is
+## held to (`plain_escape`). The bus and the spec's constants are `grenade_probe.gd`'s, read there.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 ## The flank maps, whose kitchen `watch_until_thrown` tells fighting outside by.
 const Maps := preload("res://tests/_ai/flank_maps.gd")
+## The NPC's grenade geometry, whose escape `plain_escape` works out the plain way.
+const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 
 
 ## The tactic level's offered option ids of the NPC `brain` (the controller) from its last decision
@@ -178,9 +180,118 @@ static func watch_until_thrown(t: TestContext, inv: Node, target: String) -> Dic
 	return { "seen": seen, "offered": was_offered[0], "fighting_outside": fighting_outside[0] }
 
 
+## Check that the invader (`inv`) threw its frag (`seen`, the acts it took, for the message),
+## from outside `Maps.HOUSE_KITCHEN`; false when it threw none.
+static func check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:
+	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
+	if not t.check(
+			not throws.is_empty() and throws[0]["data"].get("kind") == &"frag",
+			"the invader threw its frag (acts %s)" % str(seen),
+	):
+		return false
+	t.check(
+		not Maps.HOUSE_KITCHEN.has_point(throws[0]["data"]["position"]),
+		"from outside the kitchen (thrown at %s)"
+			% str((throws[0]["data"]["position"] as Vector2).round()),
+	)
+	return true
+
+
+## Check that the blindness is over (defender `brain`, invader `p`): it sees the invader again,
+## where it is now.
+static func check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
+	var sees_where_it_is := func() -> bool:
+		var known := known_contact(brain, p)
+		return (
+			bool(known.get("visible", false))
+				and (known["pos"] as Vector2).distance_to(p.global_position) < 40.0
+		)
+	t.check(
+		await t.until(sees_where_it_is, 4.0),
+		"once it can see it re-reads the invader where it stands (acting: %s)"
+			% str(brain.current_act()),
+	)
+
+
+## `AgentThrow.escape` with nothing shared: every candidate snapped, judged and routed, as
+## `ai/grenade/escape_spot_matches_plain` pins it. `search` is the search's world (`space`, `map`,
+## `exclude`).
+static func plain_escape(
+		g: AgentThrow,
+		search: Dictionary,
+		threat: GrenadeThreat,
+		runner: GrenadeRunner,
+) -> Dictionary:
+	var spots := _plain_spots(g, search, threat, runner.from)
+	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
+	return _plain_best(search["map"], spots, runner.from, allowed)
+
+
+## Every candidate of the plain search snapped and judged: `{ spot, crouch }` for each that lands
+## out of the burst's zone or shielded from it, `crouch` when only a crouched body is shielded.
+static func _plain_spots(
+		g: AgentThrow,
+		search: Dictionary,
+		threat: GrenadeThreat,
+		from: Vector2,
+) -> Array:
+	var map: RID = search["map"]
+	var zone := {
+		"burst": threat.burst,
+		"out_r": g._zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
+		"reach": g.cover_reach(threat.kind),
+	}
+	var spots: Array = []
+	# The candidates' grenade as the plain search builds it: its kind, radius and burst.
+	var around := GrenadeThreat.new()
+	around.kind = threat.kind
+	around.radius = threat.radius
+	around.burst = threat.burst
+	for p in g._candidates(search["space"], around, from, search["exclude"]):
+		var q := NavBuilder.snap(map, p)
+		if q.distance_to(p) > AgentThrow.SNAP_TOLERANCE:
+			continue
+		var spot := _plain_spot(g, search, q, zone)
+		if not spot.is_empty():
+			spots.append(spot)
+	return spots
+
+
+## The plain search's verdict on the snapped candidate `q` for the burst `zone` (`burst`, `out_r`,
+## `reach`): `{ spot, crouch }`, `crouch` when only a crouched body is shielded there; `{}` when it
+## is inside the zone and shielded neither way.
+static func _plain_spot(
+	g: AgentThrow,
+	search: Dictionary,
+	q: Vector2,
+	zone: Dictionary,
+) -> Dictionary:
+	var space: PhysicsDirectSpaceState2D = search["space"]
+	var exclude: Array = search["exclude"]
+	var burst: Vector2 = zone["burst"]
+	var reach: float = zone["reach"]
+	var crouch := false
+	if (q.distance_to(burst) < zone["out_r"]
+			and not g._covered(
+				space,
+				burst,
+				q,
+				AgentThrow._cover_rule(g.stand_height(), exclude, reach),
+			)):
+		if not g._covered(
+			space,
+			burst,
+			q,
+			AgentThrow._cover_rule(g.crouch_height(), exclude, reach),
+		):
+			return {}
+		crouch = true
+	return { "spot": q, "crouch": crouch }
+
+
 ## Of `spots`, the one with the shortest route from `from` within `allowed` px:
 ## `{ spot, crouch, route }`, `spot` INF when none is in time.
-static func plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
+static func _plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
 	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
 	for s: Dictionary in spots:
 		var length := NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))

@@ -92,7 +92,7 @@ func run(t: TestContext) -> void:
 		_capture(t, d, shots)
 		await t.frames(1)
 	_check_blind_shots(t, d, shots, seen_at, flashed)
-	await _check_sees_again(t, brain, p)
+	await GrenadeAi.check_sees_again(t, brain, p)
 
 
 ## Notes each round the defender fired that has appeared since the last frame: its direction, and
@@ -140,18 +140,3 @@ func _check_blind_shots(
 			% [worst, absf(rad_to_deg(to_old.angle_to(to_new)))],
 	)
 	t.check(t.time - flashed >= BLIND - 0.5, "(the blindness ran its course)")
-
-
-## The blindness is over: it sees the invader again, where it is now, and decides afresh.
-func _check_sees_again(t: TestContext, brain: Node, p: Node) -> void:
-	var sees_where_it_is := func() -> bool:
-		var known := GrenadeAi.known_contact(brain, p)
-		return (
-			bool(known.get("visible", false))
-				and (known["pos"] as Vector2).distance_to(p.global_position) < 40.0
-		)
-	t.check(
-		await t.until(sees_where_it_is, 4.0),
-		"once it can see it re-reads the invader where it stands (acting: %s)"
-			% str(brain.current_act()),
-	)
