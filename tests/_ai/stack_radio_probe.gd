@@ -1,8 +1,8 @@
 extends RefCounted
 ## Shared fixtures of the stack module's native suites (not a test itself): `const StackRadio :=
-## preload("res://tests/_ai/stack_radio_probe.gd")`. The speakers on the radio and the callouts they
-## make, which `tests/ai/stack_claim_suite.gd` and `tests/ai/door_stack_suite.gd` feed the stack
-## module (`scenes/ai/perception/stack/`) as plain dicts.
+## preload("res://tests/_ai/stack_radio_probe.gd")`. The speakers on the radio (`Speaker` nodes)
+## and the plain callout dicts they make, which `tests/ai/stack_claim_suite.gd` and
+## `tests/ai/door_stack_suite.gd` feed the stack module (`scenes/ai/perception/stack/`).
 
 
 ## A speaker on the radio: a character as a listener reads it (`is_dead`), freed with `suite`'s
