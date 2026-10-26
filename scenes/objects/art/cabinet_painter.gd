@@ -16,7 +16,7 @@ const _BODY_HEIGHT := 4
 
 ## Paint a cabinet onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var lip := clampi(
 		roundi(c.h * float(opts.get("front_depth", ObjectArtStorageConfig.cabinet_front_depth))),
 		2,
@@ -62,7 +62,7 @@ static func casegoods(c: PixelCanvas, material: String) -> void:
 ## The front lip: a face shaded by how it meets the light, split into doors or drawers (`opts`:
 ## `front`, `count`, `labels`, `handle`).
 static func _front(c: PixelCanvas, strip: Rect2i, base: Color, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var facing_light := Vector2.DOWN.dot(c.light)
 	var face := (base.lightened(0.08)
 			if facing_light > 0.3

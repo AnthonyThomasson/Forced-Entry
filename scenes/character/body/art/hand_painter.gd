@@ -16,7 +16,7 @@ const _THUMB := 5
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
 	var chrome: bool = opts.get("chrome", false)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var r := maxi(2, int(mini(c.w, c.h) / 2.0) - 1)
 	var fist := PixelShape.disc(o, r)

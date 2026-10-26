@@ -13,7 +13,7 @@ const _BACK_HEIGHT := 6
 
 ## Paint an office chair onto `c` in `base` with a `material` seat, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, _opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0) + 1)
 	var metal := ObjectArtTableConfig.office_chair_base_color
 	var reach := mini(c.w, c.h) * 0.47

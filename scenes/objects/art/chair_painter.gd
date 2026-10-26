@@ -14,7 +14,7 @@ const _RAIL_HEIGHT := 5
 
 ## Paint a chair onto `c` in `base` wood, front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var back_d := clampi(
 		roundi(c.h * float(opts.get("back_depth", ObjectArtTableConfig.chair_back_depth))),
 		3,

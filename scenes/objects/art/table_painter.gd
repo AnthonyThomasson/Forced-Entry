@@ -19,7 +19,7 @@ const _RUNNER_HEIGHT := 3
 
 ## Paint a table onto `c` in `base` wood.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var radius: int = opts.get("corner_radius", ObjectArtTableConfig.table_corner_radius)
 	var rim: int = opts.get("rim_px", ObjectArtTableConfig.table_rim_px)
 	var top := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), radius)
@@ -33,10 +33,10 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.outline(top, t.outline)
 	if opts.get("gaps", false):
 		for a in seams:
-			c.clear(PixelShape.rounded(
+			c.fill(PixelShape.rounded(
 				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
 				0,
-			))
+			), PixelCanvas.CLEAR, 0)
 	if opts.get("runner", ObjectArtTableConfig.table_runner):
 		_runner(c)
 	Props.draw_all(
@@ -166,7 +166,7 @@ static func _runner_weave(c: PixelCanvas, along_x: bool, lane: Rect2i) -> void:
 	var width := lane.size.y
 	var mid := a + int(width / 2.0)
 	var col := ObjectArtTableConfig.table_runner_color
-	var rt := PixelCanvas.tones(col)
+	var rt := ArtSurfaceConfig.tones(col)
 	var motif := maxi(2, int(width / 2.0) - 3)
 	var period := motif * 2 + 2
 	for i in range(1, length - 1):

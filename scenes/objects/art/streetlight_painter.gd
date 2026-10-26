@@ -49,7 +49,7 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 	var mid := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var half := int(mini(c.w, c.h) / 2.0) - 1
 	var plate_col := ObjectArtOutdoorConfig.streetlight_plate_color
-	var pt := PixelCanvas.tones(plate_col)
+	var pt := ArtSurfaceConfig.tones(plate_col)
 	var plate := PixelShape.disc(mid, half)
 	c.fill(plate, plate_col, _PLATE_HEIGHT)
 	c.bevel(plate, 1, 1, pt.light, pt.dark)
@@ -59,7 +59,7 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 		c.px(bolt.x, bolt.y, pt.highlight, _PLATE_HEIGHT + 1)
 	var r := maxi(2, int(half * 0.55))
 	var post := PixelShape.disc(mid, r)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	c.fill(post, base, _POST_HEIGHT)
 	c.bevel(post, 1, 1, t.highlight, t.shadow)
 	c.outline(post, t.outline)
@@ -71,7 +71,7 @@ static func _pole(c: PixelCanvas, base: Color) -> void:
 ## The arm from the post's top (the canvas' top centre) out to just short of the head at `head_at`.
 static func _arm(c: PixelCanvas, head_at: int) -> void:
 	var x := int(c.w / 2.0)
-	var t := PixelCanvas.tones(ObjectArtOutdoorConfig.streetlight_head_color)
+	var t := ArtSurfaceConfig.tones(ObjectArtOutdoorConfig.streetlight_head_color)
 	# The cap the arm leaves the post by.
 	c.fill(PixelShape.disc(Vector2i(x, 1), 2), t.dark, _ARM_HEIGHT)
 	for y in range(1, head_at - 4):
@@ -83,7 +83,7 @@ static func _arm(c: PixelCanvas, head_at: int) -> void:
 static func _cobra(c: PixelCanvas, head_at: int) -> void:
 	var x := int(c.w / 2.0)
 	var col := ObjectArtOutdoorConfig.streetlight_head_color
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var rx := maxi(3, int(c.w / 2.0) - 2)
 	var head := PixelShape.ellipse(Rect2i(x - rx, head_at - 7, rx * 2, 15))
 	c.fill(head, col, _HEAD_HEIGHT)
@@ -102,7 +102,7 @@ static func _sign(c: PixelCanvas, head_at: int, neon: Color) -> void:
 	var board_col := ObjectArtOutdoorConfig.streetlight_sign_color
 	var board := PixelShape.rounded(Rect2i(1, head_at - 6, c.w - 2, 12), 1)
 	c.fill(board, board_col, _HEAD_HEIGHT)
-	c.outline(board, PixelCanvas.tones(board_col).outline)
+	c.outline(board, ArtSurfaceConfig.tones(board_col).outline)
 	var tube := neon.lightened(0.15)
 	var letters := neon.lightened(0.45)
 	c.glowing(func() -> void:

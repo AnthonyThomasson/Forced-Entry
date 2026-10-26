@@ -44,18 +44,6 @@ func _init(width: int, height: int, seed_value: int, light_from: Vector2) -> voi
 	light = light_from.normalized()
 
 
-## Shade ramp around a base color, from the outline (darkest) to the highlight.
-static func tones(base: Color) -> Dictionary:
-	return {
-		"outline": base.darkened(ArtSurfaceConfig.tone_outline),
-		"shadow": base.darkened(ArtSurfaceConfig.tone_shadow),
-		"dark": base.darkened(ArtSurfaceConfig.tone_dark),
-		"base": base,
-		"light": base.lightened(ArtSurfaceConfig.tone_light),
-		"highlight": base.lightened(ArtSurfaceConfig.tone_highlight),
-	}
-
-
 # --- Pixels ----------------------------------------------------------------------------
 
 
@@ -157,11 +145,6 @@ func fill(s: PixelShape, c: Color, height: int = -1) -> void:
 		if height >= 0:
 			_hgt.fill_rect(r, hc)
 	_cov_stale = true
-
-
-## Erase a shape back to transparent floor (gaps between slats, cut-outs).
-func clear(s: PixelShape) -> void:
-	fill(s, CLEAR, 0)
 
 
 ## Recolor the already-drawn pixels of `r`.

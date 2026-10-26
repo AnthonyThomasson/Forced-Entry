@@ -43,7 +43,7 @@ static func door_def(kind: StringName, id: StringName) -> Dictionary:
 
 ## The door from above: skin, moulding, frame, trim, handle and shut lines.
 static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var trim := VehicleArtConfig.trim_color
 	var inside := VehicleArtConfig.interior_color.lightened(0.08)
 	# Column `i` px in from the outside face.
@@ -149,7 +149,7 @@ static func glass_rect(kind: StringName, id: StringName) -> Rect2:
 
 ## A wing mirror: a painted housing with the dark glass facing back.
 static func _mirror(c: PixelCanvas, base: Color) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var housing := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(housing, base, _GLASS)
 	c.bevel(housing, 1, 1, t["highlight"], t["shadow"])

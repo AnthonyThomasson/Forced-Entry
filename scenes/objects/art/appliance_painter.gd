@@ -19,7 +19,7 @@ const _KNOB_HEIGHT := 6
 
 ## Paint an appliance onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var panel := String(opts.get("panel", ObjectArtKitchenBathConfig.appliance_panel))
 	var glow := Decay.screen_color(opts)
 	if panel == "tv":
@@ -187,7 +187,7 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 ## front glowing in `glow` and cracked across.
 static func _crt(c: PixelCanvas, glow: Color) -> void:
 	var case_col := ObjectArtKitchenBathConfig.appliance_crt_color
-	var t := PixelCanvas.tones(case_col)
+	var t := ArtSurfaceConfig.tones(case_col)
 	var box := PixelShape.rounded(Rect2i(int(c.w * 0.18), 1, int(c.w * 0.64), c.h - 3), 3)
 	c.fill(box, case_col, _BODY_HEIGHT + 2)
 	c.bevel(box, 1, 2, t.light, t.dark)

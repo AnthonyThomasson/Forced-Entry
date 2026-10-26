@@ -31,7 +31,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 ## The body, the nose and bumpers, the cab and the cargo bay.
 static func _chassis(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var body := PixelShape.rounded(
 		Art.box(v, -half.x, half.x, -half.y, half.y),
@@ -83,7 +83,7 @@ static func _bumpers(v: VehiclePaint) -> void:
 ## The snub nose: a wide grille of slats between the headlights, the bonnet's shut line, a sheen.
 static func _nose(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
@@ -173,7 +173,7 @@ static func _cargo_bay(v: VehiclePaint) -> void:
 
 ## The slide door's rail along the right flank, behind its opening.
 static func _slide_rail(v: VehiclePaint) -> void:
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	for def: Dictionary in v.row["doors"]:
 		if def["kind"] == &"slide":
@@ -189,7 +189,7 @@ static func _slide_rail(v: VehiclePaint) -> void:
 ## The upright windscreen, the one tall roof with its ribs and vent, and the lamps.
 static func _roof(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var look := v.look
 	var roof: Vector2 = look["roof"]
 	var belt: float = look["belt"]
@@ -215,7 +215,7 @@ static func _roof(v: VehiclePaint) -> void:
 ## The roof, square-edged and flat, a little paler than the body, ribbed across, with its vent.
 static func _roof_panel(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var roof: Vector2 = v.look["roof"]
 	var roof_half: float = v.look["roof_half"]
 	var boot: float = v.look["boot"]

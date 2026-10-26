@@ -30,7 +30,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var pan := PixelShape.disc(right, r + 1)
 	var pan_col := ObjectArtKitchenBathConfig.hotplate_pan_color
 	c.fill(pan, pan_col, _PAN_HEIGHT)
-	c.outline(pan, PixelCanvas.tones(pan_col).outline)
+	c.outline(pan, ArtSurfaceConfig.tones(pan_col).outline)
 	c.line(
 		right + Vector2i(r + 1, 0),
 		right + Vector2i(r + 6, 1),

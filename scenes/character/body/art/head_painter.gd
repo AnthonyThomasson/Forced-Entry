@@ -45,7 +45,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var r := int(c.w / 2.0) - MARGIN
 	var skin: Color = look.get("skin", _SKIN)
-	var st := PixelCanvas.tones(skin)
+	var st := ArtSurfaceConfig.tones(skin)
 	var style := String(look.get("hair_style", "short"))
 	var worn := String(look.get("head", ""))
 	if worn == "" and style == "long":
@@ -90,7 +90,7 @@ static func _covered(o: Vector2i, r: int, head: PixelShape) -> Callable:
 
 ## Long hair falling behind the head, under it.
 static func _long_hair(c: PixelCanvas, o: Vector2i, r: int, hair: Color) -> void:
-	var ht := PixelCanvas.tones(hair)
+	var ht := ArtSurfaceConfig.tones(hair)
 	var fall := PixelShape.ellipse(Rect2i(o.x - r - 1, o.y - r - 4, r * 2 + 3, r + 6))
 	c.fill(fall, hair, _HAIR)
 	c.outline(fall, ht.outline)
@@ -107,7 +107,7 @@ static func _hair(
 	look: Dictionary,
 	head: PixelShape,
 ) -> void:
-	var ht := PixelCanvas.tones(look.get("hair", Color.BLACK) as Color)
+	var ht := ArtSurfaceConfig.tones(look.get("hair", Color.BLACK) as Color)
 	var style := String(look.get("hair_style", "short"))
 	match style:
 		"bald":
@@ -173,7 +173,7 @@ static func _mohawk(
 	head: PixelShape,
 ) -> void:
 	var hair: Color = look.get("hair", Color.BLACK)
-	var ht := PixelCanvas.tones(hair)
+	var ht := ArtSurfaceConfig.tones(hair)
 	var skin: Color = look.get("skin", _SKIN)
 	var covered := _covered(o, r, head)
 	for y in range(o.y - r, o.y + r + 1):
@@ -200,7 +200,7 @@ static func _cap(
 	head: PixelShape,
 ) -> void:
 	var col: Color = look.get("helm", Color.BLACK)
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var covered := _covered(o, r, head)
 	var style := String(look.get("style", ""))
 	for y in range(o.y - r, o.y + r + 1):
@@ -222,7 +222,7 @@ static func _cap(
 ## The police units' duty cap over the cap's crown: a crown seam, a brim to the front, the Zenitex's
 ## white band or the Trauma Team's cross.
 static func _duty_cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.BLACK) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.BLACK) as Color)
 	var trim: Color = look.get("trim", Color.WHITE)
 	c.line(Vector2i(o.x, o.y - r + 1), Vector2i(o.x, o.y + int(r / 2.0)), t.dark)
 	var brim := PixelShape.ellipse(Rect2i(o.x - r + 1, o.y + int(r / 2.0), r * 2 - 1, r))
@@ -243,7 +243,7 @@ static func _duty_cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> 
 ## brow.
 static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
 	var col: Color = look.get("helm", Color.GRAY)
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var style := String(look.get("style", ""))
 	var at := o + Vector2i(0, -1)
 	var shell := PixelShape.disc(at, r + _grow(style))
@@ -290,7 +290,7 @@ static func _zenitex_helmet(
 	shell: PixelShape,
 	look: Dictionary,
 ) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	var visor: Color = look.get("visor", Color.BLACK)
 	var front := _front(at, r, look)
 	_visor(c, shell, front - 3, visor, visor.lightened(0.45))
@@ -331,7 +331,7 @@ static func _trauma_helmet(
 
 ## A merc's old army helmet, scuffed, with goggles pushed up on the brow.
 static func _army_helmet(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	var front := _front(at, r, look)
 	for k in 4:
 		c.px(
@@ -355,7 +355,7 @@ static func _army_helmet(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary)
 
 ## A borg's welded skull cap: a seam over the crown and a ring of rivets.
 static func _skull_cap(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	c.line(Vector2i(at.x, at.y - r - 1), Vector2i(at.x, _front(at, r, look) - 1), t.shadow, _SHELL)
 	for k in 8:
 		var p := Vector2(at) + Vector2.from_angle(TAU * k / 8.0) * (r - 0.5)

@@ -9,7 +9,7 @@ const _HEIGHT := 2
 
 ## Paint a wheel onto `c` with its tyre in `base`, rolling along +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var tyre := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), maxi(2, roundi(c.w * 0.3)))
 	c.fill(tyre, base, _HEIGHT)
 	c.bevel(tyre, 1, 1, t["highlight"], t["outline"])

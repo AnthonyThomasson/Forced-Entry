@@ -39,7 +39,7 @@ static func _body(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var k := v.k
 	var base := v.base
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
@@ -82,7 +82,7 @@ static func _grille(v: VehiclePaint) -> void:
 ## The bonnet: two creases running back to the windscreen, the shut line before it, a sheen.
 static func _bonnet(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var bumper: float = v.look["bumper"]
 	var bonnet: float = v.look["bonnet"]
@@ -113,7 +113,7 @@ static func _bonnet(v: VehiclePaint) -> void:
 ## The boot lid's shut line and its badge.
 static func _boot(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var boot: float = v.look["boot"]
 	var belt: float = v.look["belt"]
@@ -177,7 +177,7 @@ static func _console(v: VehiclePaint, driver: Vector2) -> void:
 ## The glasshouse over the cabin: windscreen, roof on its pillars, rear window; and the lamps.
 static func _roof(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var belt: float = v.look["belt"]
 	# The pillars and the frame round the glass: everything from the belt line in, between the
 	# windscreen's base and the rear window's, except the door glass (each door's own).
@@ -226,7 +226,7 @@ static func _rear_window(v: VehiclePaint) -> void:
 ## The roof: a lighter, raised panel with a sheen.
 static func _roof_panel(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var roof: Vector2 = v.look["roof"]
 	var roof_half: float = v.look["roof_half"]
 	var panel := PixelShape.rounded(

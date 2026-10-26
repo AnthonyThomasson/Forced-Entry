@@ -170,7 +170,7 @@ static func clear_door_glass(v: VehiclePaint) -> void:
 		var hole_key := "glass_hole/%s/%s/%s" % [v.kind, gap["side"], gap["from"]]
 		var in_gap := func(p: Vector2) -> bool: return in_door_glass(one, look, p)
 		var bounds := box(v, gap["from"], gap["to"], y0, y0 + belt - roof_half)
-		v.canvas.clear(region(v, bounds, hole_key, in_gap))
+		v.canvas.fill(region(v, bounds, hole_key, in_gap), PixelCanvas.CLEAR, 0)
 
 
 ## Paint a body painter's `part` of the vehicle `v` (its canvas, paint, kind and rows): its `roof`
@@ -239,7 +239,7 @@ static func _seat(v: VehiclePaint, p: Vector2, bench: bool) -> void:
 	var c := v.canvas
 	var k := v.k
 	var cloth := VehicleArtConfig.seat_color
-	var t := PixelCanvas.tones(cloth)
+	var t := ArtSurfaceConfig.tones(cloth)
 	var half := 13.0 if bench else 11.0
 	var cushion := PixelShape.rounded(
 		box(v, p.x - 9.0, p.x + 9.0, p.y - half, p.y + half),
@@ -274,7 +274,7 @@ static func dashboard(v: VehiclePaint, half: float) -> void:
 	var wheel_x: float = v.look["wheel"]
 	var driver: Vector2 = v.row["seats"][&"driver"]
 	var trim := VehicleArtConfig.trim_color
-	var t := PixelCanvas.tones(trim.lightened(0.12))
+	var t := ArtSurfaceConfig.tones(trim.lightened(0.12))
 	var board := PixelShape.rounded(box(v, dash.x, dash.y, -half, half), roundi(3 * v.k))
 	c.fill(board, t["base"], 5)
 	c.bevel(board, 1, 2, t["highlight"], t["shadow"])

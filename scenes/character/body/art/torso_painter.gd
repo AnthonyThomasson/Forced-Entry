@@ -28,8 +28,8 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 	var look := PixelArt.look_of(opts)
 	var face := String(opts.get("face", "front"))
 	var pants: Color = opts.get("pants", base)
-	var t := PixelCanvas.tones(base)
-	var pt := PixelCanvas.tones(pants)
+	var t := ArtSurfaceConfig.tones(base)
+	var pt := ArtSurfaceConfig.tones(pants)
 	var cx := int(c.w / 2.0)
 	var waist := roundi(c.h * _WAIST)
 	var hips := PixelShape.rounded(Rect2i(0, waist, c.w, c.h - waist), 0)
@@ -81,7 +81,7 @@ static func _tank_top(c: PixelCanvas, face: String, waist: int, look: Dictionary
 ## The chest of a `base` shirt over `pants`: a crew's open jacket, a police collar with its unit's
 ## mark, or a tee's round neck; the belt and its buckle.
 static func _chest(c: PixelCanvas, base: Color, pants: Color, waist: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var cx := int(c.w / 2.0)
 	var police: bool = look.get("police", false)
 	var long := String(look.get("body", "")) == "long_sleeves"
@@ -96,7 +96,12 @@ static func _chest(c: PixelCanvas, base: Color, pants: Color, waist: int, look: 
 	else:
 		c.line(Vector2i(cx - 3, 1), Vector2i(cx - 1, 3), t.dark)  # A tee's round neck.
 		c.line(Vector2i(cx + 3, 1), Vector2i(cx + 1, 3), t.dark)
-	c.line(Vector2i(0, waist), Vector2i(c.w - 1, waist), PixelCanvas.tones(pants).outline, _PANTS)
+	c.line(
+		Vector2i(0, waist),
+		Vector2i(c.w - 1, waist),
+		ArtSurfaceConfig.tones(pants).outline,
+		_PANTS,
+	)
 	c.px(cx, waist, _BUCKLE, _PANTS)
 
 
@@ -132,7 +137,7 @@ static func _back(c: PixelCanvas, waist: int, look: Dictionary) -> void:
 ## the shoulders.
 static func _pack(c: PixelCanvas, cx: int, waist: int, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
-	var pt := PixelCanvas.tones(col)
+	var pt := ArtSurfaceConfig.tones(col)
 	var r := Rect2i(cx - int(c.w / 4.0), 3, int(c.w / 2.0), mini(roundi(c.h * 0.45), waist - 4))
 	var pack := PixelShape.rounded(r, 2)
 	c.fill(pack, col, _PACK)

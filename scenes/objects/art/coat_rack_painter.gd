@@ -21,7 +21,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	c.fill(brim, hat.darkened(0.2), _HAT_HEIGHT)
 	c.outline(brim, hat.darkened(0.5))
 	c.fill(PixelShape.disc(o, maxi(1, roundi(radius * 0.27))), hat, _HAT_HEIGHT)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	for i in 4:
 		var a := spin + PI * 0.25 + TAU * i / 4.0
 		c.line(

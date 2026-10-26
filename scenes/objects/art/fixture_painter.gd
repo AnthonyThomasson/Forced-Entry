@@ -29,7 +29,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 ## A frame around glass with two glare streaks.
 static func _mirror(c: PixelCanvas, glass: Color) -> void:
 	var frame_col := ObjectArtDecorConfig.fixture_frame_color
-	var ft := PixelCanvas.tones(frame_col)
+	var ft := ArtSurfaceConfig.tones(frame_col)
 	var frame := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(frame, frame_col, _BAR_HEIGHT)
 	c.bevel(frame, 1, 1, ft.highlight, ft.dark)

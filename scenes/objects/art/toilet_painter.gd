@@ -13,7 +13,7 @@ const _TANK_HEIGHT := 7
 
 ## Paint a toilet onto `c` in `base` glaze, bowl toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var bowl_rect := Rect2i(
 		roundi(c.w * 0.21), roundi(c.h * 0.26), roundi(c.w * 0.58), roundi(c.h * 0.68),
 	)

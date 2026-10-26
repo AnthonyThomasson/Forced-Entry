@@ -27,7 +27,7 @@ const _LACE := Color(0.72, 0.68, 0.58)
 
 ## Paint the strip spanning `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var strip := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(strip, base, _LIMB)
 	if material != "":

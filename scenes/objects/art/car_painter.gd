@@ -19,7 +19,7 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 		ObjectArtOutdoorConfig.car_beater_color,
 		ObjectArtOutdoorConfig.car_beater,
 	)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var tyre_w := maxi(4, roundi(c.w * 0.1))
 	_tyres(c, tyre_w)
 

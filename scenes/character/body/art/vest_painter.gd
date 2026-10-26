@@ -84,7 +84,7 @@ static func _top_chest_rig(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dict
 static func _top_carrier(c: PixelCanvas, o: Vector2i, span: Rect2i, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
 	var half := roundi(c.w * 0.3)
-	var t := PixelCanvas.tones(_col(look, "vest_col"))
+	var t := ArtSurfaceConfig.tones(_col(look, "vest_col"))
 	for side in [-1, 1]:
 		c.line(
 			Vector2i(o.x + side * (half - 2), span.position.y),
@@ -141,7 +141,7 @@ static func paint_face(c: PixelCanvas, face: String, waist: int, opts: Dictionar
 ## The flank: the cummerbund or the vest's side panel, under the arm.
 static func _face_flank(c: PixelCanvas, waist: int, look: Dictionary) -> void:
 	var col := _col(look, "vest_col")
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var bottom := waist - 1
 	var band := PixelShape.rounded(
 		Rect2i(0, roundi(waist * 0.35), c.w, bottom - roundi(waist * 0.35)),
@@ -155,7 +155,7 @@ static func _face_flank(c: PixelCanvas, waist: int, look: Dictionary) -> void:
 ## A merc's chest rig on the trunk: pouches across the front, its straps crossed over the back.
 static func _face_chest_rig(c: PixelCanvas, face: String, waist: int, look: Dictionary) -> void:
 	var col := _col(look, "vest_col")
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var bottom := waist - 1
 	if face == "front":
 		_pouches(c, Rect2i(1, roundi(waist * 0.45), c.w - 2, 5), 4, col)
@@ -179,7 +179,7 @@ static func _face_panel(c: PixelCanvas, face: String, waist: int, opts: Dictiona
 	var r := Rect2i(inset, top, c.w - inset * 2, bottom - top)
 	_fill(c, PixelShape.rounded(r, 2), cover, plated, look)
 	for x in [inset + 2, c.w - inset - 3]:  # Straps up over the shoulders.
-		c.line(Vector2i(x, 0), Vector2i(x, top), PixelCanvas.tones(cover).dark, _VEST)
+		c.line(Vector2i(x, 0), Vector2i(x, top), ArtSurfaceConfig.tones(cover).dark, _VEST)
 	if plated:
 		_wear(
 			c,
@@ -213,7 +213,7 @@ static func _face_fittings(
 		c.line(
 			Vector2i(cx, r.position.y + 1),
 			Vector2i(cx, r.end.y - 1),
-			PixelCanvas.tones(cover).shadow,
+			ArtSurfaceConfig.tones(cover).shadow,
 			_VEST,
 		)
 
@@ -228,7 +228,7 @@ static func _fill(
 	plated: bool,
 	look: Dictionary,
 ) -> void:
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var finish := "metal" if String(look.get("style", "")) == "borg" else "fabric"
 	c.fill(s, col, _PLATE if plated else _VEST)
 	c.surface(s, finish, col)
@@ -240,7 +240,7 @@ static func _fill(
 ## `count` pouches side by side across `r`, a shade darker than `col`, each with its flap.
 static func _pouches(c: PixelCanvas, r: Rect2i, count: int, col: Color) -> void:
 	var pc := col.darkened(0.18)
-	var t := PixelCanvas.tones(pc)
+	var t := ArtSurfaceConfig.tones(pc)
 	var w := maxi(2, int(r.size.x / float(count)) - 1)
 	for k in count:
 		var pouch := PixelShape.rounded(

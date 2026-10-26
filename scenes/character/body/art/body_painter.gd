@@ -30,7 +30,7 @@ const _CABLE := Color(0.80, 0.32, 0.12)
 ## Paint the shoulders onto `c` in a `base` shirt, facing +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var head_r := HeadPainter.radius_for(c.w)
 	var depth := roundi(c.h * CharacterArtConfig.shoulder_depth)
@@ -102,7 +102,7 @@ static func _sleeve_ends(
 			Vector2i(inner, span.position.y + 2), Vector2i(inner, span.end.y - 3),
 			Color(0.15, 0.15, 0.17)
 				if chrome
-				else PixelCanvas.tones(skin if col == null else col).dark,
+				else ArtSurfaceConfig.tones(skin if col == null else col).dark,
 			_SHOULDER,
 		)
 		if chrome:
@@ -274,7 +274,7 @@ static func _street(
 ## it, or a crew's tape.
 static func _pack(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
-	var pt := PixelCanvas.tones(col)
+	var pt := ArtSurfaceConfig.tones(col)
 	var r := Rect2i(o.x - int(c.w / 4.0), span.position.y - 1, int(c.w / 2.0), roundi(c.h * 0.3))
 	var pack := PixelShape.rounded(r, 2)
 	c.fill(pack, col, _PACK)

@@ -17,7 +17,7 @@ const _TAP_HEIGHT := 8
 
 ## Paint a counter onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var body := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(body, base, _TOP_HEIGHT)
 	c.surface(body, material, base)

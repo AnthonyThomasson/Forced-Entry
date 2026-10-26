@@ -217,7 +217,7 @@ static func holes(c: PixelCanvas, count: int) -> void:
 			c.rng.randi_range(4, maxi(4, c.w - 5)),
 			c.rng.randi_range(4, maxi(4, c.h - 5)),
 		)
-		c.clear(PixelShape.disc(o, c.rng.randi_range(1, 2)))
+		c.fill(PixelShape.disc(o, c.rng.randi_range(1, 2)), PixelCanvas.CLEAR, 0)
 
 
 ## A primer-grey panel (a replaced door) over part of a body.

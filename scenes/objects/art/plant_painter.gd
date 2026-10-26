@@ -16,7 +16,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var radius := int(mini(c.w, c.h) / 2.0) - 1
 	var pot_col := ObjectArtDecorConfig.plant_pot_color
-	var pt := PixelCanvas.tones(pot_col)
+	var pt := ArtSurfaceConfig.tones(pot_col)
 	var pot := PixelShape.disc(o, roundi(radius * 0.72))
 	c.fill(pot, pot_col, _POT_HEIGHT)
 	c.bevel(pot, 1, 2, pt.light, pt.dark)

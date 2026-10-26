@@ -17,7 +17,7 @@ const _BLANKET_HEIGHT := 4
 ## Paint a bed onto `c` with a `base` blanket, foot toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var ticking := ObjectArtFabricConfig.bed_mattress_color
-	var mt := PixelCanvas.tones(ticking)
+	var mt := ArtSurfaceConfig.tones(ticking)
 	var rect := Rect2i(3, 6, c.w - 6, c.h - 9)
 	var mattress := PixelShape.rounded(rect, 4)
 	c.fill(mattress, ticking, _MATTRESS_HEIGHT)
@@ -52,7 +52,7 @@ static func _blanket(c: PixelCanvas, base: Color, rect: Rect2i) -> void:
 		int(rect.size.y * 0.42),
 	)
 	var blanket := PixelShape.bowed(blanket_rect, 4, 3)
-	var bt := PixelCanvas.tones(base)
+	var bt := ArtSurfaceConfig.tones(base)
 	c.fill(blanket, base, _BLANKET_HEIGHT)
 	for _i in 6:  # Creases.
 		var y := c.rng.randi_range(blanket_rect.position.y + 2, blanket_rect.end.y - 3)

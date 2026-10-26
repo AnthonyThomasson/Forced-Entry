@@ -24,7 +24,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 
 ## Rim, sunken basin (inverted bevel), water with ripples and glare, drain and tap at the left end.
 static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var full := Rect2i(0, 0, c.w, c.h)
 	var rim := PixelShape.rounded(full, mini(10, int(mini(c.w, c.h) / 4.0)))
 	c.fill(rim, base, _RIM_HEIGHT)
@@ -76,7 +76,7 @@ static func _tub_tap(c: PixelCanvas, basin_rect: Rect2i, lip: int) -> void:
 ## Tiled tray, drain grate, a glass screen along the front and right side, the shower head on its
 ## arm from the back wall, and a soap dish in the back corner.
 static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var tray := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(tray, base, _TRAY_HEIGHT)
 	c.surface(tray, material if material != "glass" else "ceramic", base)

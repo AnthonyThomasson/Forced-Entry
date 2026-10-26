@@ -160,7 +160,7 @@ static func draw_held(
 		var rect: Rect2i = parts[part]
 		var col: Color = look[part]
 		var shape := PixelShape.rounded(rect, 0 if part == "barrel" and rect.size.x < 3 else 1)
-		var t := PixelCanvas.tones(col)
+		var t := ArtSurfaceConfig.tones(col)
 		c.fill(shape, col, HELD_PARTS[part])
 		if part == "body":
 			c.surface(shape, look.get("finish", "metal"), col, false)
@@ -239,7 +239,7 @@ static func draw_flat(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Calla
 		opts: Dictionary) -> void:
 	var gun: StringName = opts.get("gun", &"pistol")
 	var crude: bool = opts.get("crude", false)
-	var tones := PixelCanvas.tones((look["body"] as Color).lightened(0.1))
+	var tones := ArtSurfaceConfig.tones((look["body"] as Color).lightened(0.1))
 	if p["mag_len"] > 0:
 		_flat_magazine(c, look, p, mx)
 	_flat_grip(c, look, p, mx, opts)
@@ -334,7 +334,7 @@ static func _flat_receiver(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: 
 	var body_end: int = p["body_end"]
 	var guard_end: int = p["guard_end"]
 	var body_col: Color = (look["body"] as Color).lightened(0.1)
-	var tones := PixelCanvas.tones(body_col)
+	var tones := ArtSurfaceConfig.tones(body_col)
 	var from := stock_end - 1 if stock_end > 0 else 0
 	var body := PixelShape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
@@ -404,7 +404,7 @@ static func shell(
 	inset := 0,
 ) -> Dictionary:
 	var col: Color = look["shell"]
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var body := PixelShape.ellipse(Rect2i(0, 0, c.w, c.h - cap_len + 2)) if egg \
 		else PixelShape.rounded(Rect2i(inset, 0, c.w - inset * 2, c.h - cap_len + 1), 1)
 	c.fill(body, col, BODY_HEIGHT)

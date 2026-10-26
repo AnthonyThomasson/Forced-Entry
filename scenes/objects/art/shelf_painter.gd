@@ -16,7 +16,7 @@ const _CONTENT_HEIGHT := 3
 
 ## Paint a shelf onto `c` in `base` with a `material` frame, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var frame := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(frame, base, _FRAME_HEIGHT)
 	c.surface(frame, material, base)

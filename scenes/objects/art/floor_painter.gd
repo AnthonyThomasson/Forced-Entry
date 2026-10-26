@@ -99,7 +99,7 @@ static func _on_grid(local: Vector2, period: float, px: float, half_width: float
 
 ## Paint one tile of the floor `pattern` onto `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	c.fill(PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0), base)
 	match String(opts.get("pattern", "planks")):
 		"planks":

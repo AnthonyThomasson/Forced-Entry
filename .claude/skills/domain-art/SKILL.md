@@ -1,6 +1,6 @@
 ---
 name: domain-art
-description: Deep implementation detail for the Art domain (scenes/art/) — the procedural top-down pixel-art engine every painter draws through: PixelCanvas (the drawing surface, shapes, shading, material finishes), PixelArt (the cached renderer, cardinal vs. freely turning art, lighting steps) and the two holders ArtCanvasConfig (the art pixel, light, turn steps, shadows) and ArtSurfaceConfig (tones, surface textures). Use when editing scenes/art/, writing or debugging any painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look. Complements the `architecture` skill, which holds the cross-domain interfaces.
+description: Deep implementation detail for the Art domain (scenes/art/) — the procedural top-down pixel-art engine every painter draws through: PixelCanvas (the drawing surface, shading, material finishes), PixelShape / PixelConvexShape (the shapes it fills), PixelArt (the cached renderer, cardinal vs. freely turning art, lighting steps) and the two holders ArtCanvasConfig (the art pixel, light, turn steps, shadows) and ArtSurfaceConfig (the tone ramp, surface textures). Use when editing scenes/art/, writing or debugging any painter (furniture, walls, floors, characters, held items, vehicles), or tuning the shared pixel-art look. Complements the `architecture` skill, which holds the cross-domain interfaces.
 ---
 
 # Art domain
@@ -66,7 +66,8 @@ through snapshots).
   (per row: first inside x and one past the last; per column the same in y): the Vehicles domain's `vehicle_art.convex` does, once
   per geometry, for its windscreens and side windows. `cast_shadows()` walks the whole canvas, so a large canvas painted for every
   lighting step (a vehicle body) skips it and shades with bevels.
-- **Drawing:** `fill(shape, color, height)`, `clear`, `paint_over(rect, color)`, `line`, `px`; the static
+- **Drawing:** `fill(shape, color, height)` (`fill(shape, PixelCanvas.CLEAR, 0)` erases a shape back to transparent floor),
+  `paint_over(rect, color)`, `line`, `px`; the static
   `PixelShape.line_points(a, b)` (a 1 px line's Bresenham points, `a` first) is the one line walk, also for a painter that blends or clips
   each point itself (Objects' `decay.gd` `line` / `scratches`).
 - **What gives light:** `glowing(draw: Callable, area := Rect2i())` runs a drawing (a screen's face, a tube, a bulb, an LED)
@@ -79,7 +80,8 @@ through snapshots).
 - **Shading:** `bevel(shape, from_k, to_k, lit, unlit)` (light-facing edges lit, far edges
   shaded; swap for a recess), `bevel_relative` / `outline_relative` (shade what's drawn — shapes
   in several colors), `outline`, `glare`, `cast_shadows()` (a taller part shades lower pixels on
-  its far side from the light, via the height layer), `tones(base)` (outline … highlight ramp).
+  its far side from the light, via the height layer); the tone ramp (outline … highlight) is
+  `ArtSurfaceConfig.tones(base)`.
 - **Surface finishes:** `surface(shape, material, base, along_x, wraps)` — wood grain, brushed
   metal, stone flecks, ceramic/glass glare, fabric weave, plastic grain — plus `speckle` (sampled;
   matches 8-bit pixels with a tolerance), `grain(s, density, dark, pale, opts := {})` (`opts.along_x`, default true,
@@ -89,7 +91,7 @@ through snapshots).
 
 Shared tuning in two holders. `ArtCanvasConfig`, what every painting shares: `pixel_size`, `light_from`, `turn_steps`, drop
 shadow (`drop_shadow_per_coverage`, `drop_shadow_max` — read by the object and vehicle visuals; `drop_shadow_alpha` — also by
-the character, a dropped item and a grenade) and cast shadow. `ArtSurfaceConfig`, how a surface is shaded: the tone ramp and the
+the character, a dropped item and a grenade) and cast shadow. `ArtSurfaceConfig`, how a surface is shaded: the tone ramp (`tones(base)`) and the
 surface-finish densities. Domain-specific proportions and colors stay in
 each domain's config (the `ObjectArt*Config` holders, `CharacterArtConfig`).
 

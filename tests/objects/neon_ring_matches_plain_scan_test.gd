@@ -80,10 +80,10 @@ func _silhouette(n: int, size: Vector2i, seed_value: int) -> PixelCanvas:
 		3:
 			c.fill(PixelShape.rounded(r, 2), Color(0.5, 0.4, 0.3), 2)
 			for _k in c.rng.randi_range(1, 4):
-				c.clear(PixelShape.disc(
+				c.fill(PixelShape.disc(
 					Vector2i(c.rng.randi_range(0, size.x - 1), c.rng.randi_range(0, size.y - 1)),
 					c.rng.randi_range(1, 4),
-				))
+				), PixelCanvas.CLEAR, 0)
 	return c
 
 
