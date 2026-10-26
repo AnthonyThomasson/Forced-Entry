@@ -1,10 +1,11 @@
 class_name SoundBank
 ## Audio domain: the sound library. A *profile* is a StringName that fully describes one sound —
 ## `shot/rifle`, `impact/metal/ricochet/heavy`, `impact/flesh/punch`, `footstep/wood/run`,
-## `reload/rifle/in` — and `sound(profile, variant)` builds its recipe from the tables below,
-## renders it through SoundSynth once and caches the stream (a static cache, like PixelArt's, so it
-## survives scene reloads). Which profile an event gets is decided by the `*_profile` functions,
-## which render nothing.
+## `reload/rifle/in` — and `sound(profile, variant)` builds its recipe from the tables below
+## and its families' (SoundFootsteps), renders it through SoundSynth once and caches the stream (a
+## static cache, like PixelArt's, so it survives scene reloads). Which profile an event gets is
+## decided by the `*_profile` functions here and the families' `profile` functions, which render
+## nothing.
 ##
 ## Pieces of a profile:
 ##   gun       a GunConfig id (`pistol`, `smg`, `rifle`); an unknown gun is voiced as the gun of its
@@ -135,44 +136,6 @@ const MATERIALS := {
 	"default": {
 		"hard": false, "db": 0.0, "thump": 0.4, "modes": [260.0, 540.0], "amps": [1.0, 0.5],
 		"decays": [0.04, 0.03], "lp": 3000.0, "grit": 0.015,
-	},
-}
-## Footsteps by surface, all deliberately low and dull (high-passed noise and ring tones sound
-## tinny): the heel thump leads, the scuff is a soft low-passed noise. db = level trim, thump =
-## [start Hz, end Hz, decay s, gain] (the heel), scuff = [low-pass Hz, high-pass Hz, decay s, gain]
-## (the sole on the surface), ring = { freqs, amps, decays, gain } (a hard floor's click), again = a
-## second, softer scuff that follows (gravel, grass).
-const FOOTSTEPS := {
-	"wood": {
-		"db": -3.0,
-		"thump": [102.0, 56.0, 0.052, 1.0],
-		"scuff": [1300.0, 140.0, 0.020, 0.34],
-	},
-	"tile": {
-		"db": -3.0,
-		"thump": [112.0, 66.0, 0.042, 1.0],
-		"scuff": [1300.0, 180.0, 0.015, 0.30],
-	},
-	"stone": {
-		"db": -3.0,
-		"thump": [115.0, 72.0, 0.034, 1.0],
-		"scuff": [1300.0, 200.0, 0.016, 0.32],
-	},
-	"concrete": {
-		"db": 0.0,
-		"thump": [105.0, 64.0, 0.030, 1.0],
-		"scuff": [2000.0, 220.0, 0.020, 0.45],
-	},
-	"carpet": {
-		"db": -6.0,
-		"thump": [95.0, 62.0, 0.030, 0.65],
-		"scuff": [750.0, 0.0, 0.030, 0.45],
-	},
-	"outdoor": {
-		"db": -2.0,
-		"thump": [90.0, 58.0, 0.040, 0.9],
-		"scuff": [1600.0, 180.0, 0.040, 0.5],
-		"again": 0.028,
 	},
 }
 ## The grenades (`docs/grenades.md`, G14). The kinds a profile may name:
@@ -341,12 +304,6 @@ static func impact_profile(material: String, outcome: StringName, power: float =
 	return StringName("impact/%s/%s/%s" % [mat, outcome, band(power)])
 
 
-## The footstep profile on `surface` (a SoundSurface name); an unknown surface is the open ground.
-static func footstep_profile(surface: StringName, running: bool) -> StringName:
-	var s := String(surface) if FOOTSTEPS.has(String(surface)) else "outdoor"
-	return StringName("footstep/%s/%s" % [s, "run" if running else "walk"])
-
-
 ## The reload profile for `gun` at `stage` (&"out" or &"in"); a gun without its own recipe borrows
 ## its band's from `power`. &"" when `stage` is neither.
 static func reload_profile(gun: StringName, stage: StringName, power: float = 1.0) -> StringName:
@@ -441,9 +398,7 @@ static func profiles() -> Array[StringName]:
 		for outcome in OUTCOMES:
 			for b in BAND_NAMES:
 				out.append(StringName("impact/%s/%s/%s" % [mat, outcome, b]))
-	for surface: String in FOOTSTEPS:
-		out.append(StringName("footstep/%s/walk" % surface))
-		out.append(StringName("footstep/%s/run" % surface))
+	out.append_array(SoundFootsteps.profiles())
 	for kind: String in GRENADE_KINDS:
 		out.append(StringName("throw/" + kind))
 		out.append(StringName("explosion/" + kind))
@@ -556,8 +511,7 @@ static func _parted_recipe(p: PackedStringArray, profile: StringName) -> Diction
 		"impact":
 			recipe = _impact_recipe(p)
 		"footstep":
-			if p.size() == 3 and FOOTSTEPS.has(p[1]) and (p[2] == "walk" or p[2] == "run"):
-				recipe = _footstep(p[1], p[2] == "run")
+			recipe = SoundFootsteps.recipe(p)
 		"reload":
 			if p.size() == 3 and RELOADS.has(p[1]) and RELOAD_STAGES.has(p[2]):
 				recipe = _reload(p[1], p[2])
@@ -811,55 +765,6 @@ static func _impact_ricochet(layers: Array, hard: bool, s: Dictionary) -> float:
 		"attack": 0.003,
 	})
 	return 0.2
-
-
-## The recipe of a step on `surface`: the heel thump, a softer toe tap after it, the scuff and a
-## faint cloth rustle.
-static func _footstep(surface: String, running: bool) -> Dictionary:
-	var s: Dictionary = FOOTSTEPS[surface]
-	var thump: Array = s["thump"]
-	var scuff: Array = s["scuff"]
-	var punch := 1.2 if running else 1.0
-	var quick := 0.85 if running else 1.0
-	var pitch := 1.08 if running else 1.0
-	# A step is two beats, not one: the heel lands, then the ball of the foot and toes tap down a
-	# few ms later (sooner and flatter at a run). The toe is a little higher, shorter and softer
-	# than the heel, in the same dull tone.
-	var toe_at := 0.045 if running else 0.062
-	var layers := [
-		{ "type": "tone", "gain": thump[3] * punch, "freq": thump[0] * pitch,
-			"freq_end": thump[1] * pitch, "sweep": 0.015, "decay": thump[2] * quick },
-		{ "type": "noise", "gain": scuff[3] * punch, "lp": scuff[0], "hp": scuff[1],
-			"decay": scuff[2] * quick, "attack": 0.0006 },
-		{ "type": "tone", "gain": thump[3] * 0.4 * punch, "freq": thump[0] * 1.2 * pitch,
-			"freq_end": thump[1] * 1.15 * pitch, "sweep": 0.01, "decay": thump[2] * 0.7 * quick,
-			"delay": toe_at },
-		{ "type": "noise", "gain": scuff[3] * 0.5 * punch, "lp": scuff[0], "hp": scuff[1],
-			"decay": scuff[2] * 0.7 * quick, "delay": toe_at, "attack": 0.001 },
-		# Cloth and the weight shifting: a faint low rustle under the whole step.
-		{ "type": "noise", "gain": 0.1 * float(s.get("rustle", 1.0)), "lp": 1400.0, "hp": 250.0,
-			"decay": 0.09, "delay": 0.012, "attack": 0.02 },
-	]
-	var length: float = maxf(thump[2], scuff[2]) * 6.0
-	length = maxf(length, toe_at + scuff[2] * 5.0)
-	if s.has("ring"):
-		var ring: Dictionary = s["ring"]
-		layers.append({
-			"type": "modes", "gain": ring["gain"] * punch, "freqs": ring["freqs"],
-			"amps": ring["amps"], "decays": ring["decays"], "detune": 0.03,
-		})
-		for d: float in ring["decays"]:
-			length = maxf(length, d * 5.0)
-	if s.has("again"):
-		layers.append({
-			"type": "noise", "gain": scuff[3] * 0.6 * punch, "lp": scuff[0] * 0.8, "hp": scuff[1],
-			"decay": scuff[2] * quick, "delay": s["again"], "attack": 0.001,
-		})
-		length += float(s["again"])
-	return {
-		"length": clampf(length, 0.1, 0.4),
-		"level_db": (-1.0 if running else -5.0) + float(s["db"]), "vary": 0.22, "layers": layers,
-	}
 
 
 ## A reload in two beats, each kept to dry, quiet clicks. `out`: the release click and a faint tick

@@ -220,7 +220,7 @@ func _on_hit(data: Dictionary) -> void:
 ## A foot landing: the step of the floor under it and the gait, louder the faster.
 func _on_footfall(data: Dictionary) -> void:
 	var at: Vector2 = data.get("position", Vector2.ZERO)
-	var profile := SoundBank.footstep_profile(
+	var profile := SoundFootsteps.profile(
 		SoundSurface.at(at),
 		bool(data.get("running", false)),
 	)

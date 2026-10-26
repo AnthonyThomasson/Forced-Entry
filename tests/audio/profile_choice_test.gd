@@ -9,8 +9,9 @@ extends GameTest
 func describe() -> Dictionary:
 	return {
 		"name": "Events map to the right sound profile",
-		"description": "SoundBank's *_profile functions name the shot, impact, footstep and reload "
-			+ "profile for each case, with the documented fallbacks.",
+		"description": "The sound bank's profile functions (SoundBank and its families) name the "
+			+ "shot, impact, footstep and reload profile for each case, with the documented "
+			+ "fallbacks.",
 		"tags": ["sound", "profile", "bank"],
 		"timeout": 5.0,
 	}
@@ -109,18 +110,18 @@ func _check_impacts(t: TestContext) -> void:
 ## Footsteps by surface and gait.
 func _check_footsteps(t: TestContext) -> void:
 	t.expect_eq(
-		SoundBank.footstep_profile(&"carpet", false),
+		SoundFootsteps.profile(&"carpet", false),
 		&"footstep/carpet/walk",
 		"walking on carpet",
 	)
-	t.expect_eq(SoundBank.footstep_profile(&"tile", true), &"footstep/tile/run", "running on tile")
+	t.expect_eq(SoundFootsteps.profile(&"tile", true), &"footstep/tile/run", "running on tile")
 	t.expect_eq(
-		SoundBank.footstep_profile(&"outdoor", false),
+		SoundFootsteps.profile(&"outdoor", false),
 		&"footstep/outdoor/walk",
 		"walking outside",
 	)
 	t.expect_eq(
-		SoundBank.footstep_profile(&"lava", true),
+		SoundFootsteps.profile(&"lava", true),
 		&"footstep/outdoor/run",
 		"an unknown surface is the open ground",
 	)
@@ -175,7 +176,7 @@ func _check_voiced(t: TestContext) -> void:
 				named.append(SoundBank.impact_profile(material, outcome, power))
 	for surface in [&"wood", &"tile", &"stone", &"concrete", &"carpet", &"outdoor", &"x"]:
 		for running in [false, true]:
-			named.append(SoundBank.footstep_profile(surface, running))
+			named.append(SoundFootsteps.profile(surface, running))
 	var unvoiced := named.filter(func(p): return SoundBank.recipe_for(p).is_empty())
 	t.check(
 		unvoiced.is_empty(),
