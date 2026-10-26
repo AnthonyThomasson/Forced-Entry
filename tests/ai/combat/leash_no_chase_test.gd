@@ -12,6 +12,7 @@ extends GameTest
 ## target and the leader are never killed (`max_health`) and the target, a puppet, never shoots.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 ## How long (s) the chase is watched.
 const WATCH_S := 15.0
 
@@ -57,7 +58,7 @@ func run(t: TestContext) -> void:
 		if d > float(farthest[0]):
 			farthest[0] = d
 			farthest[1] = Follow.act(m)
-	var w: Dictionary = await Follow.watch(t, [me, m], squad, WATCH_S, { "each": each })
+	var w: Dictionary = await FollowWatch.watch(t, [me, m], squad, WATCH_S, { "each": each })
 
 	if not t.require(
 			t.actor(&"target").global_position.distance_to(me.global_position) > Follow.LEASH * 2.0,
@@ -69,5 +70,5 @@ func run(t: TestContext) -> void:
 		float(farthest[0]) <= Follow.LEASH + Follow.CHASE_GIVE,
 		"the NPC never chased past the leash: farthest %.0f px from the leader (leash %.0f + %.0f)"
 			% [farthest[0], Follow.LEASH, Follow.CHASE_GIVE] + " act then %s; acts %s"
-			% [farthest[1], Follow.acts_of(w, m)],
+			% [farthest[1], FollowWatch.acts_of(w, m)],
 	)

@@ -5,6 +5,7 @@ extends GameTest
 ## own side.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -27,7 +28,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.HALL_LIVING
-	var samples := await Entry.watch(t, [&"a", &"b"], door, 45.0, func():
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], door, 45.0, func():
 		if Entry.calls(t, "in", &"a").is_empty() or Entry.calls(t, "in", &"b").is_empty():
 			return false
 		var last_in := maxf(
@@ -38,7 +39,7 @@ func run(t: TestContext) -> void:
 	var corners := Entry.corners(door)
 	var used := {}
 	for id in [&"a", &"b"]:
-		var stop := Entry.first_stop_in_room(samples, id, door)
+		var stop := EntryWatch.first_stop_in_room(samples, id, door)
 		if not t.check(
 				stop != Vector2.INF,
 				"%s went in and stopped (act %s)" % [id, Entry.brain(t, id).current_act()],

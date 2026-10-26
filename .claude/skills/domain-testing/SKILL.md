@@ -570,12 +570,14 @@ and a joining ally, clearing, covering the doorways on and rear security. Script
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
 (SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `tuning:decision:decide_interval` in its `gc` offsets its decide timer),
 `target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(prefix)` to check the
-order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
+order was really the one scripted), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
 kitchen or living room, `KITCHEN_HALL`, `LIVING_KITCHEN`, with `out`, `outward`, `lateral`, `in_funnel`, `in_room`,
-`beside_door`, `corners`, `faces_through`), a per-frame sampler (`watch`, then `path_of`, `pos_at`, `first_stop_in_room`,
-`funnel_entries`, `first_in_funnel`, `longest_pause_in_funnel`, `time_facing_through`, `share_facing`) and the radio (`calls(t, step, id)`, `first_call_time`;
-callouts carry `entry_step`). The brain is read through `debug_entry()` and `debug_room_zones()`.
+`beside_door`, `corners`, `faces_through`) and the radio (`calls(t, step, id)`, `first_call_time`;
+callouts carry `entry_step`). The per-frame sampler and "it went in by entry" are `tests/_ai/entry_watch_probe.gd`
+(`const EntryWatch := preload(...)`): `watch`, then `path_of`, `pos_at`, `first_stop_in_room`, `funnel_entries`,
+`first_in_funnel`, `last_in_funnel`, `longest_pause_in_funnel`, `time_facing_through`, `share_facing`, and
+`check_entered(t, samples, id, door)` for the E9 tests. The brain is read through `debug_entry()` and `debug_room_zones()`.
 
 E10 to E15 are covered by `entry_clear_within_benchmark` (E10), `entry_reloads_before_crossing` (E11), `entry_stack_last_covers_rear`
 (E12), `entry_short_room_two_go_in` (E13), `entry_hostile_in_view_holds_outside` (E14) and `entry_corridor_doors_not_passed` (E15), which
@@ -681,19 +683,25 @@ preload(...)`; not a test): the spec's numbers as its own consts (`FOLLOW_GAP`, 
 `FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `FOLLOW_ARRIVE`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
 (`band_p50(i)`: the `i`-th follower's place in the file plus `BAND_LAG`, 45 px of walking lag, at the median; `BAND_P90`); the squad
 is the test's declared one (`s.squads` or `s.declared_match`, read with `t.world.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
-(`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
-`watch`, `asked`: the Von questions of a member's walks, `gaps`, `took`, `acts_of`, `went_through`, `off_spot_tick`); and the leash
+(`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); and the leash
 chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contrast `leash_free_chase`, which binds no squad). The tests
 call the squad itself (`follows`, `follow_spot`, `leader()`, `view()`) and its tunables on `SquadFollowConfig` (`leash`); a squad read
 that only answers the code's own value (`follows`, `SquadFollowConfig.leash`) is a `require` premise, and the behaviour the spec describes is the check.
+A watch of the team is `tests/_ai/follow_watch_probe.gd` (`const FollowWatch := preload(...)`): `new_watch`, `tick`, `watch`, `asked` (the Von
+questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile` and `off_spot_tick`.
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
 the other doorways' views and funnels): `frames` / `frame` (a way in's door frame), `world_of`, `entry_geometry` (the AI's `AgentEntry`, loaded
 by path), `layout(g, count, side)` (the slots, read only through the published rule `StackLayout.slots`, perception's
-`stack/stack_layout.gd` loaded by path), and one check per rule
-(`in_stack_room`, `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`,
-`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them two native suites
+`stack/stack_layout.gd` loaded by path) and the spec's numbers (`MAX_STACK`, `ROOM_INSET`, `STACK_SPACING`, ...). The checks are three
+probes beside it: one per rule for a point in `tests/_ai/slot_rules_probe.gd` (`const SlotRules := preload(...)`: `in_stack_room`,
+`on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`, `room_for_one`,
+`in_wall_band`, `view_count`, `tail_fault`, and `ray_to_edge`, how far from a point along an axis to a rect's edge); the faults a slot, a stack or a short wall's chain breaks in `tests/_ai/slot_faults_probe.gd`
+(`const SlotFaults`: `point_faults`, `stack_faults`, `short_wall_faults`, `is_short_wall`, `capacity_text`); and rule 6's ways in, the rule
+a way in's slots answer to and what each holds, in `tests/_ai/slot_capacity_probe.gd` (`const SlotCapacity`: `way_kind`, `dead_end_capacity`,
+`wall_capacity`, `views_capacity`, `open_floor_capacity`, `wall_spots`, `fewest_views_bar`). `tests/ai/entry/stack_slots_sweep` runs them over
+every generated floorplan. Beneath them two native suites
 feed plain claim dicts to the stack module, over the shared speakers and callouts of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
 preload(...)`: `speaker(suite, dead)`, freed with the suite's case, and `callout`): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
 not-a-claim, step and join rules, a `ClaimLedger`) and `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
@@ -795,9 +803,12 @@ with `--include-von --require-von`. They are spread by domain (`tests/items/gren
 `grenade_friendly_fire`; `tests/physics/frag_blast_pushes`, `explosion_fx`; `tests/character/stun_*`; `tests/audio/grenade_sounds`;
 `tests/general/camera_shakes_on_explosion`; `tests/ui/stun_screen_whiteout`) with the AI ones in `tests/ai/grenade/`, all through
 `tests/_ai/grenade_probe.gd` (`const Probe := preload(...)`): `arm(character, stuns, frags)` (a test world keeps the default inventory, so each test
-arms the thrower the way Main does, at the start of `run`), `throw_at`, `live`, `raw` / `booms` / `stuns` (bus events with their sim time), the numbers of the spec
-(`MAX_RANGE`, `FLASH_RADIUS`, `expected_blind`, ...) so a test checks the doc and not the code, the AI reads (`offered`, `acts`, `callouts`), and `character_rids` (the rids of the `characters` group: what its rays and `throw_spot_probe.gd`'s look
-past). The scenario tests
+arms the thrower the way Main does, at the start of `run`), `throw_at`, `live`, `raw` / `booms` / `stuns` (bus events with their sim time) and the numbers of the spec
+(`MAX_RANGE`, `FLASH_RADIUS`, ...) so a test checks the doc and not the code. What a blast or a stun does at a distance by the spec is
+`tests/_ai/grenade_spec_probe.gd` (`const GrenadeSpec := preload(...)`: `blast_damage`, `flash_scale`, `expected_blind`, `expected_deaf`, and
+`everywhere`, the audio tests' range table); the AI reads and a scene round a grenade are `tests/_ai/grenade_ai_probe.gd` (`const GrenadeAi :=
+preload(...)`: `offered`, `acts`, `wait_act`, `callouts`, `grenades`, `hostile`, `place`, `line_clear`, `safe_from_frag`, `shielded`, and
+`character_rids`, the rids of the `characters` group: what its rays and `throw_spot_probe.gd`'s look past). The scenario tests
 in `tests/ai/grenade/` run the whole AI pipeline with the real Von server and `require` the premise first (that the AI took the GRENADE / STUN ENTRY path), so a
 different Von choice reads as a set-up finding. A hall of 100 px or less with a sofa in it is **sealed in the navmesh** (the lane left is under an agent body wide) and
 a route to the far side then runs outside the house: give a scenario hall at least 140 px when the NPC has to walk past a piece of furniture.

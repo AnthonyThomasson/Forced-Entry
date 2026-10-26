@@ -17,6 +17,7 @@ extends GameTest
 ## the test world keeps the default inventory, the way Main arms a spawn.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(380, 50)
 const HOSTILE_AT := Vector2(800, 50)
 
@@ -41,7 +42,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"sofa", "sofa", Vector2(700, 31))
 	s.object(&"table", "coffee_table", Vector2(700, 75))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
 func run(t: TestContext) -> void:
@@ -55,7 +56,7 @@ func run(t: TestContext) -> void:
 		return
 	var seen: Array = []
 	if not t.require(
-			await Probe.wait_act(t, &"i", "grenade", 60.0, seen),
+			await GrenadeAi.wait_act(t, &"i", "grenade", 60.0, seen),
 			"the AI took the GRENADE tactic (its acts: %s)" % str(seen),
 	):
 		return
@@ -69,7 +70,7 @@ func run(t: TestContext) -> void:
 		throw["data"].get("attacker") == inv and throw["data"].get("kind") == &"frag",
 		"the invader threw its frag",
 	)
-	t.check(not Probe.callouts(t, &"frag_out", &"i").is_empty(), "and radioed frag out")
+	t.check(not GrenadeAi.callouts(t, &"frag_out", &"i").is_empty(), "and radioed frag out")
 	if t.require(await Probe.wait_boom(t, &"frag", 6.0), "the frag went off"):
 		var at: Vector2 = Probe.booms(t, &"frag")[0]["data"]["position"]
 		t.check(

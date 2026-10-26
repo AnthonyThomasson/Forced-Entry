@@ -18,6 +18,7 @@ extends GameTest
 ## the fight rules come before FOLLOW).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const House := preload("res://tests/_ai/house_probe.gd")
 const Investigate := preload("res://tests/_ai/investigate_probe.gd")
 const SEED := 4
@@ -64,7 +65,13 @@ func run(t: TestContext) -> void:
 		track["spots"][m] = []
 	var each := _each(t, squad, crew, track)
 	var done := _done(t, lead)
-	var w: Dictionary = await Follow.watch(t, crew, squad, WATCH_S, { "stop": done, "each": each })
+	var w: Dictionary = await FollowWatch.watch(
+		t,
+		crew,
+		squad,
+		WATCH_S,
+		{ "stop": done, "each": each },
+	)
 	if not _beyond_awareness(t, lead, float(track["clear"])):
 		return
 
@@ -72,7 +79,7 @@ func run(t: TestContext) -> void:
 	if not t.require(
 			lead_moves.size() >= 2,
 			"the leader went through two doorways (moves %s; acts %s)"
-				% [str(lead_moves), Follow.acts_of(w, lead)],
+				% [str(lead_moves), FollowWatch.acts_of(w, lead)],
 	):
 		return
 	for i in members.size():
@@ -80,12 +87,12 @@ func run(t: TestContext) -> void:
 		_check_follows(t, w, m, i, lead_moves)
 		_check_spot(t, m, i, track)
 		t.expect_eq(
-			Follow.asked(w, m),
+			FollowWatch.asked(w, m),
 			0,
 			"%s asked Von nothing while no hostile was known (acts %s)"
-				% [m.name, Follow.acts_of(w, m)],
+				% [m.name, FollowWatch.acts_of(w, m)],
 		)
-	t.check(Follow.asked(w, lead) > 0, "the leader decided through Von as ever")
+	t.check(FollowWatch.asked(w, lead) > 0, "the leader decided through Von as ever")
 
 
 ## The match's squad of `crew`, once its premises hold (three placed, the first spawned leading,
@@ -122,7 +129,7 @@ func _each(t: TestContext, squad: Node, crew: Array, track: Dictionary) -> Calla
 			track["clear"] = _nearest(at, crew)
 			Investigate.gunfire(at)
 		for m: Node in members:
-			Follow.off_spot_tick(t, squad, m, clocks[m])
+			FollowWatch.off_spot_tick(t, squad, m, clocks[m])
 			var spot: Vector2 = squad.follow_spot(m)
 			if spot != Vector2.INF and t.time >= SETTLE_S:
 				spots[m].append(spot.distance_to(lead.global_position))
@@ -149,12 +156,12 @@ func _beyond_awareness(t: TestContext, lead: Node, clear: float) -> bool:
 ## first two doorways `lead_moves`.
 func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: Array) -> void:
 	t.check(
-		Follow.took(w, m, "follow"),
-		"%s follows its leader (FOLLOW; acts %s)" % [m.name, Follow.acts_of(w, m)],
+		FollowWatch.took(w, m, "follow"),
+		"%s follows its leader (FOLLOW; acts %s)" % [m.name, FollowWatch.acts_of(w, m)],
 	)
-	var gaps := Follow.gaps(w, m, SETTLE_S)
-	var p50 := Follow.percentile(gaps, 0.5)
-	var p90 := Follow.percentile(gaps, 0.9)
+	var gaps := FollowWatch.gaps(w, m, SETTLE_S)
+	var p50 := FollowWatch.percentile(gaps, 0.5)
+	var p90 := FollowWatch.percentile(gaps, 0.9)
 	t.check(
 		p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
 		"%s stays within a band of the leader (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
@@ -162,7 +169,7 @@ func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: 
 	)
 	for k in 2:
 		t.check(
-			Follow.went_through(w, m, lead_moves[k]),
+			FollowWatch.went_through(w, m, lead_moves[k]),
 			"%s went through the leader's doorway %d (%s -> %s at %.1f s) (moves %s)"
 				% [
 					m.name,
@@ -185,7 +192,7 @@ func _check_spot(t: TestContext, m: Node, i: int, track: Dictionary) -> void:
 	# indoors), the median between the two (D28's step aside is rare).
 	var place := Follow.FOLLOW_GAP + Follow.FOLLOW_STEP * i
 	var outer := Follow.FOLLOW_RING + Follow.FOLLOW_STEP * (Follow.FOLLOW_RINGS - 1)
-	var spot_p50 := Follow.percentile(spots, 0.5)
+	var spot_p50 := FollowWatch.percentile(spots, 0.5)
 	t.check(
 		spot_p50 >= minf(place, Follow.FOLLOW_RING) - SPOT_SLACK
 			and spot_p50 <= maxf(place, outer) + SPOT_SLACK,

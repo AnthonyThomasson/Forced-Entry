@@ -19,6 +19,7 @@ extends GameTest
 ## and puts no question to Von. The teammate is a puppet the test puts down and takes away.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const HALL := Rect2(0, 0, 2600, 600)
 ## The human's walk: one straight line down the hall, eastward, with a pause at `PAUSE_AT`.
@@ -85,7 +86,7 @@ func run(t: TestContext) -> void:
 		return
 	var rec := Record.new()
 	rec.squad = squad
-	rec.w = Follow.new_watch()
+	rec.w = FollowWatch.new_watch()
 	var walked_on := await _walk(t, rec)
 	if not _walked(t, rec, m):
 		return
@@ -108,7 +109,7 @@ func run(t: TestContext) -> void:
 		"SquadFollowConfig.caught_up is LD21's (%s, not %s)"
 			% [tuned, Follow.FOLLOW_CAUGHT_UP],
 	)
-	t.expect_eq(Follow.asked(rec.w, m), 0, "the follower asked Von nothing")
+	t.expect_eq(FollowWatch.asked(rec.w, m), 0, "the follower asked Von nothing")
 
 
 ## The human's walk: to `PAUSE_AT`, a pause looking back at `FROM`, then on to `TO`, watched all the
@@ -131,8 +132,8 @@ func _walk(t: TestContext, rec: Record) -> float:
 ## teammate stepped into the NPC's catch-up; false when one fails.
 func _walked(t: TestContext, rec: Record, m: Node) -> bool:
 	if not t.require(
-			Follow.took(rec.w, m, "follow"),
-			"the NPC follows the human (FOLLOW; acts %s)" % Follow.acts_of(rec.w, m),
+			FollowWatch.took(rec.w, m, "follow"),
+			"the NPC follows the human (FOLLOW; acts %s)" % FollowWatch.acts_of(rec.w, m),
 	):
 		return false
 	if not t.require(
@@ -178,7 +179,7 @@ func _watch(t: TestContext, rec: Record, done: Callable, limit_s: float) -> void
 	var m := t.actor(&"m")
 	var end := t.time + limit_s
 	while not done.call() and t.time < end:
-		Follow.tick(rec.w, t, [me, m], rec.squad)
+		FollowWatch.tick(rec.w, t, [me, m], rec.squad)
 		var spot: Vector2 = rec.squad.follow_spot(m)
 		var d: float = m.global_position.distance_to(spot)
 		rec.samples.append([t.time, d, m.movement.is_running(), m.movement.stamina_fraction()])
@@ -246,9 +247,9 @@ func _run_end(samples: Array, i: int) -> Dictionary:
 	}
 
 
-## What the walk is watched into: the team's record (`Follow.tick`) with the squad that names the
-## leader, one sample a frame (`[sim s, px off its spot, running, stamina]`) and the teammate's step
-## into the NPC's way (`_step_in`).
+## What the walk is watched into: the team's record (`FollowWatch.tick`) with the squad that names
+## the leader, one sample a frame (`[sim s, px off its spot, running, stamina]`) and the teammate's
+## step into the NPC's way (`_step_in`).
 class Record:
 	var w: Dictionary = {}
 	var squad: Node

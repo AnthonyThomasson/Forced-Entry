@@ -6,6 +6,7 @@ extends GameTest
 ## a tactical vest clearly less.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const OutfitProbe := preload("res://tests/_outfit/outfit_probe.gd")
 const AT := Vector2(500, 400)
 const DISTANCE := 160.0
@@ -52,7 +53,7 @@ func run(t: TestContext) -> void:
 		return
 	await t.frames(2)
 
-	var want := Probe.blast_damage(DISTANCE)
+	var want := GrenadeSpec.blast_damage(DISTANCE)
 	var lost := {}
 	for id: StringName in [&"bare", &"helmet", &"vest"]:
 		var body := t.actor(id)

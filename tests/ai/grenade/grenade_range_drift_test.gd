@@ -9,6 +9,7 @@ extends GameTest
 ## the grenade leaves the hand within range.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const START := Vector2(80, 150)
 const DRIFTED := Vector2(60, 150)
 const HOSTILE := Vector2(620, 150)
@@ -44,7 +45,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE, START)
+	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
 
 func run(t: TestContext) -> void:
@@ -73,7 +74,7 @@ func run(t: TestContext) -> void:
 	inv.velocity = Vector2.ZERO
 	var seen: Array = []
 	if not t.require(
-			await Probe.wait_act(t, &"i", "grenade", 10.0, seen),
+			await GrenadeAi.wait_act(t, &"i", "grenade", 10.0, seen),
 			"the AI took the GRENADE tactic (its acts: %s)" % str(seen),
 	):
 		return
@@ -84,7 +85,7 @@ func run(t: TestContext) -> void:
 	if not t.require(
 			thrown,
 			"the invader threw the frag after closing in (acting: %s, at %s)"
-				% [Probe.acts(t, &"i"), str(inv.global_position)],
+				% [GrenadeAi.acts(t, &"i"), str(inv.global_position)],
 	):
 		return
 	var from: Vector2 = Probe.raw(t, &"throw")[0]["data"]["position"]

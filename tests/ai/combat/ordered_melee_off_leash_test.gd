@@ -12,7 +12,7 @@ extends GameTest
 ## Real Von, the whole pipeline; no switch. Premises: nobody is killed (`max_health`), and the
 ## gunman, a puppet, never moves.
 
-const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const HALL := Rect2(0, 0, 1700, 900)
@@ -78,7 +78,7 @@ func run(t: TestContext) -> void:
 			if t.time >= float(next_shot[0]) + 0.4:
 				puppet.shoot()
 				next_shot[0] = t.time + 1.0
-	var w: Dictionary = await Follow.watch(
+	var w: Dictionary = await FollowWatch.watch(
 		t,
 		[me, m],
 		squad,
@@ -91,8 +91,8 @@ func run(t: TestContext) -> void:
 	):
 		return
 	if not t.require(
-			Follow.took(w, m, "combat"),
-			"the ordered NPC fights the gunman (acts %s)" % Follow.acts_of(w, m),
+			FollowWatch.took(w, m, "combat"),
+			"the ordered NPC fights the gunman (acts %s)" % FollowWatch.acts_of(w, m),
 	):
 		return
 	t.check(
@@ -101,7 +101,7 @@ func run(t: TestContext) -> void:
 			% [
 				m.global_position.distance_to(gunman.global_position),
 				m.global_position.distance_to(me.global_position),
-			] + "px from its leader; acts %s)" % Follow.acts_of(w, m),
+			] + "px from its leader; acts %s)" % FollowWatch.acts_of(w, m),
 	)
 
 

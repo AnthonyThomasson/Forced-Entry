@@ -12,7 +12,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Suspect := preload("res://tests/_ai/suspect_probe.gd")
 const AT := Vector2(980, -140)
 ## Where the shot came from (inside the kitchen) and where it landed (beside the invader): the line
@@ -54,7 +54,7 @@ func run(t: TestContext) -> void:
 	)
 	var brain := Entry.brain(t, &"a")
 	if not t.require(
-			await t.until(func(): return not Probe.offered(brain).is_empty(), 10.0),
+			await t.until(func(): return not GrenadeAi.offered(brain).is_empty(), 10.0),
 			"the invader walked its COMBAT level after the shot (act %s)" % brain.current_act(),
 	):
 		return
@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 			"set-up: the line back from the shot runs into the kitchen (%s)" % str(shots),
 	):
 		return
-	var offered := Probe.offered(brain)
+	var offered := GrenadeAi.offered(brain)
 	t.check(
 		not offered.has("locate"),
 		"LOCATE is not offered toward the kitchen the shots came from (offered %s)" % str(offered),

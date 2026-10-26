@@ -20,6 +20,7 @@ extends GameTest
 ## `run`, the way Main arms a spawn.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const CORRIDOR := Rect2(0, 300, 1000, 140)
@@ -67,7 +68,7 @@ func configure(s: TestSetup) -> void:
 		{ "pick": "retreat" },
 	])
 	s.actor(&"i", &"invader", I_AT, { "facing": Vector2.LEFT })
-	Probe.hostile(s, &"h", H_AT, I_AT)
+	GrenadeAi.hostile(s, &"h", H_AT, I_AT)
 
 
 func run(t: TestContext) -> void:
@@ -190,7 +191,7 @@ func _check_secured(t: TestContext, inv: Node, secured: Dictionary, entered_view
 
 func _check_thrown_from(t: TestContext, inv: Node, from: Vector2) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
-	if t.check(not throws.is_empty(), "then it threw (acts %s)" % Probe.acts(t, &"i")):
+	if t.check(not throws.is_empty(), "then it threw (acts %s)" % GrenadeAi.acts(t, &"i")):
 		var at: Vector2 = throws[0]["data"]["position"]
 		t.check(
 			at.distance_to(from) <= 30.0,

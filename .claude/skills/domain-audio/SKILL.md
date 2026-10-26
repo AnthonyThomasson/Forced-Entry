@@ -213,8 +213,8 @@ renders, cache, distinctness, library time budget), `profile_choice`, `surface`,
 events → profiles), `sound_service` (caps, freeing, variety, reset, RNG isolation, range), `sound_switch_off`, and
 the real-emitter tests `gun_shot_sound`, `impact_material_sound`, `impact_outcome_sound`, `impact_blocked_sound`,
 `footstep_surface_sound`, `footstep_variety`, `footstep_tone`, `impact_weight`, `reload_sound`, `grenade_sounds` (throw, floor-voiced bounce,
-`explosion/frag` against `explosion/stun`, the tinnitus and the muffle for the focus only; its range table adds the new categories, `Probe.everywhere`
-in `tests/_ai/grenade_probe.gd`) and `vehicle_sounds` (ignition, the engine loop rising in pitch with speed and cut on exit, door open and
+`explosion/frag` against `explosion/stun`, the tinnitus and the muffle for the focus only; its range table adds the new categories, `GrenadeSpec.everywhere`
+in `tests/_ai/grenade_spec_probe.gd`) and `vehicle_sounds` (ignition, the engine loop rising in pitch with speed and cut on exit, door open and
 close, the van's slide door, the skid loop, a slow and a fast crash, a character struck, the van's engine deeper; through
 `tests/_vehicle/vehicle_probe.gd`) and `vehicle_door_tone` (every door take no brighter than the brightest reload, over 0.75 of its
 energy under 300 Hz). Switch `audio.sound` (`SoundConfig.enabled`) turns it all off.

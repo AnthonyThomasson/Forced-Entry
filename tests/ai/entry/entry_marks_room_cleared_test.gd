@@ -3,6 +3,7 @@ extends GameTest
 ## searched, both for itself and for an ally that stayed outside and only heard the call.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -32,7 +33,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var cleared := func(): return not Entry.calls(t, "clear", &"inv").is_empty()
-	await Entry.watch(t, [&"inv"], Entry.BACK, 65.0, cleared)
+	await EntryWatch.watch(t, [&"inv"], Entry.BACK, 65.0, cleared)
 	if not t.require(
 			cleared.call(),
 			"the invader radioed the room clear (act %s)" % Entry.brain(t, &"inv").current_act(),

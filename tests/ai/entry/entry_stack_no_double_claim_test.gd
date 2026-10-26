@@ -4,6 +4,7 @@ extends GameTest
 ## slots.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -30,7 +31,7 @@ func run(t: TestContext) -> void:
 	var both_ready := func():
 		return (not Entry.calls(t, "ready", &"a").is_empty()
 				and not Entry.calls(t, "ready", &"b").is_empty())
-	await Entry.watch(t, [&"a", &"b"], door, 25.0, both_ready)
+	await EntryWatch.watch(t, [&"a", &"b"], door, 25.0, both_ready)
 	if not t.require(
 			both_ready.call(),
 			"both reached a slot (%s / %s)"

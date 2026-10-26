@@ -38,6 +38,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Investigate := preload("res://tests/_ai/investigate_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const IDS := [&"a", &"b", &"c"]
 const HIDDEN := Vector2(780, 30)
 ## Where a thrower stands to throw a stun in through the back door: in front of it, out from the
@@ -79,7 +80,7 @@ func configure(s: TestSetup) -> void:
 	s.actor(&"a", &"invader", Vector2(960, 60))
 	s.actor(&"b", &"invader", Vector2(985, 110))
 	s.actor(&"c", &"invader", Vector2(990, -30))
-	Probe.hostile(s, &"h", HIDDEN, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", HIDDEN, Maps.DOOR_BACK)
 	var rows: Dictionary = GrenadeConfig.grenades.duplicate(true)
 	rows[&"stun"]["windup"] = WINDUP
 	s.set_static(GrenadeConfig, "grenades", rows)
@@ -185,7 +186,7 @@ func _note_call(t: TestContext, door: String, w: Dictionary) -> bool:
 					+ "member's",
 		):
 			return false
-		Probe.place(t, &"h", shown, Maps.DOOR_BACK + Vector2(200, 0))
+		GrenadeAi.place(t, &"h", shown, Maps.DOOR_BACK + Vector2(200, 0))
 	return true
 
 
@@ -354,9 +355,9 @@ func _show_spot(t: TestContext, p: StringName, thrower: StringName) -> Vector2:
 			if (not Maps.HOUSE_KITCHEN.grow(-16.0).has_point(q)
 					or q.distance_to(Maps.DOOR_BACK) >= best.distance_to(Maps.DOOR_BACK)):
 				continue
-			if (seers.all(func(f): return Probe.line_clear(t, f, q))
-					and others.all(func(o): return not Probe.line_clear(t, o, q))
-					and FRONT.all(func(f): return Probe.line_clear(t, f, q))):
+			if (seers.all(func(f): return GrenadeAi.line_clear(t, f, q))
+					and others.all(func(o): return not GrenadeAi.line_clear(t, o, q))
+					and FRONT.all(func(f): return GrenadeAi.line_clear(t, f, q))):
 				best = q
 	return best
 
@@ -365,7 +366,7 @@ func _show_spot(t: TestContext, p: StringName, thrower: StringName) -> Vector2:
 func _sees(t: TestContext, who: Node2D, at: Vector2) -> bool:
 	var facing: Vector2 = who.get("facing")
 	return (absf(facing.angle_to(at - who.global_position)) <= HALF_FOV
-			and Probe.line_clear(t, who.global_position, at))
+			and GrenadeAi.line_clear(t, who.global_position, at))
 
 
 ## The entry phase of `samples` (`[time, phase]`, in time order) at time `at`.

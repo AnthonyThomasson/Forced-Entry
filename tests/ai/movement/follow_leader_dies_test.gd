@@ -12,6 +12,7 @@ extends GameTest
 ## an invader nothing else to go to.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Investigate := preload("res://tests/_ai/investigate_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## Where the gunfire is heard: the hall's far north-east, well out of the team's awareness radius.
@@ -52,7 +53,7 @@ func run(t: TestContext) -> void:
 	var nodes: Array = [lead, sergeant, trooper]
 	await t.seconds(1.0)
 	Investigate.gunfire(GUNFIRE)
-	var before: Dictionary = await Follow.watch(t, nodes, squad, BEFORE_S)
+	var before: Dictionary = await FollowWatch.watch(t, nodes, squad, BEFORE_S)
 	if not _followed(t, squad, before, nodes):
 		return
 
@@ -72,8 +73,8 @@ func _followed(t: TestContext, squad: Node, before: Dictionary, nodes: Array) ->
 	var sergeant: Node = nodes[1]
 	var trooper: Node = nodes[2]
 	if not t.require(
-			Follow.took(before, lead, "investigate"),
-			"the lead investigates the gunfire (acts %s)" % Follow.acts_of(before, lead),
+			FollowWatch.took(before, lead, "investigate"),
+			"the lead investigates the gunfire (acts %s)" % FollowWatch.acts_of(before, lead),
 	):
 		return false
 	if not t.require(
@@ -82,10 +83,14 @@ func _followed(t: TestContext, squad: Node, before: Dictionary, nodes: Array) ->
 	):
 		return false
 	t.check(
-		Follow.took(before, sergeant, "follow") and Follow.took(before, trooper, "follow"),
+		FollowWatch.took(
+			before,
+			sergeant,
+			"follow",
+		) and FollowWatch.took(before, trooper, "follow"),
 		"the sergeant and the trooper follow the lead before it dies (FOLLOW; acts %s / %s)" % [
-					Follow.acts_of(before, sergeant),
-					Follow.acts_of(before, trooper),
+					FollowWatch.acts_of(before, sergeant),
+					FollowWatch.acts_of(before, trooper),
 				],
 	)
 	return true
@@ -115,11 +120,11 @@ func _settle(
 		trooper: Node,
 		decided_before: int,
 ) -> float:
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	var died_at := t.time
 	# The trooper is the sergeant's only follower now: the first in its file (`band_p50(0)`).
 	var settled := func() -> bool:
-		Follow.tick(w, t, [sergeant, trooper], squad)
+		FollowWatch.tick(w, t, [sergeant, trooper], squad)
 		var at: Vector2 = squad.follow_spot(trooper)
 		return (
 			not Follow.following(sergeant)

@@ -7,6 +7,7 @@ extends GameTest
 ## where it stands. Two walled rooms, scripted Von.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const OPEN_N := Vector2(100, 150)
@@ -42,9 +43,9 @@ func configure(s: TestSetup) -> void:
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
 	)
 	Flank.npc(s, &"open_n", OPEN_N, {}, { "look_at": OPEN_H })
-	Probe.hostile(s, &"open_h", OPEN_H, OPEN_N)
+	GrenadeAi.hostile(s, &"open_h", OPEN_H, OPEN_N)
 	Flank.npc(s, &"hide_n", HIDE_N, {}, { "look_at": HIDE_H })
-	Probe.hostile(s, &"hide_h", HIDE_H, HIDE_N)
+	GrenadeAi.hostile(s, &"hide_h", HIDE_H, HIDE_N)
 
 
 func run(t: TestContext) -> void:
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 			"both decide",
 	):
 		return
-	var open_offer := Probe.offered(open_brain)
+	var open_offer := GrenadeAi.offered(open_brain)
 	t.check(
 		open_offer.has("engage"),
 		"with a clear shot the invader is offered ENGAGE (%s)" % str(open_offer),
@@ -72,7 +73,7 @@ func run(t: TestContext) -> void:
 		not open_offer.has("grenade"),
 		"but no GRENADE: the hostile is in its line of fire (%s)" % str(open_offer),
 	)
-	var hide_offer := Probe.offered(hide_brain)
+	var hide_offer := GrenadeAi.offered(hide_brain)
 	t.check(
 		hide_offer.has("grenade"),
 		"against the hostile hidden behind the desk GRENADE is offered (%s)" % str(hide_offer),
@@ -88,9 +89,9 @@ func _check_pulled_back(t: TestContext, hide_brain: Node) -> void:
 		func(z): return (z["point"] as Vector2).distance_to(HIDE_FAR) < 60.0,
 	)
 	t.check(
-		Probe.offered(hide_brain).has("grenade"),
+		GrenadeAi.offered(hide_brain).has("grenade"),
 		"the same hostile 740 px away, out of throw range, is still offered GRENADE (%s)"
-			% str(Probe.offered(hide_brain)),
+			% str(GrenadeAi.offered(hide_brain)),
 	)
 	if t.check(
 			not far.is_empty(),

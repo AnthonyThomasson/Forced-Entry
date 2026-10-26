@@ -15,6 +15,7 @@ extends GameTest
 ## tested), and nobody but the human is ever killed.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
@@ -60,7 +61,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.3)
 	if not _give_orders(t, squad):
 		return
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	if not await _wait_in_place(t, squad, w):
 		return
 
@@ -114,7 +115,7 @@ func _wait_in_place(t: TestContext, squad: Node, w: Dictionary) -> bool:
 	var nodes: Array = [t.actor(&"sergeant")] + _members(t)
 	var door := String(Order.Entry.BACK["id"])
 	var in_place := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return (
 			not Order.progress(t, "in_position", defender).is_empty()
 				and not Order.progress(t, "in_position", ambusher).is_empty()
@@ -132,7 +133,7 @@ func _wait_takeover(t: TestContext, squad: Node, w: Dictionary, died_at: float) 
 	var members := _members(t)
 	var nodes: Array = [t.actor(&"sergeant")] + members
 	var done := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return (
 			members.all(func(m): return Follow.following(m))
 				and not _rallied(t, died_at).is_empty()
@@ -203,11 +204,14 @@ func _check_following(t: TestContext, squad: Node, w: Dictionary) -> bool:
 		t.check(
 			Follow.following(m),
 			"%s follows the new leader once its order is over (acts %s)"
-				% [m.name, Follow.acts_of(w, m)],
+				% [m.name, FollowWatch.acts_of(w, m)],
 		)
 	t.check(
 		not Follow.following(sergeant),
-		"the sergeant, now the leader, no longer follows (acts %s)" % Follow.acts_of(w, sergeant),
+		"the sergeant, now the leader, no longer follows (acts %s)" % FollowWatch.acts_of(
+			w,
+			sergeant,
+		),
 	)
 	return true
 

@@ -7,6 +7,8 @@ extends GameTest
 ## known exactly.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(60, 350)
 const AIM := Vector2(450, 350)
 const WALL_X := 600.0
@@ -89,10 +91,10 @@ func _flash(t: TestContext) -> Vector2:
 	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
 		return Vector2.INF
 	var burst := Probe.rest_point(t)
-	Probe.place(t, &"facing", burst + Vector2(0, -200), burst)
-	Probe.place(t, &"side", burst + Vector2(0, 200), burst + Vector2(0, 200) + Vector2(100, 0))
-	Probe.place(t, &"back", burst + Vector2(-200, 0), burst + Vector2(-300, 0))
-	Probe.place(t, &"near", burst + Vector2(60, 60), burst)
+	GrenadeAi.place(t, &"facing", burst + Vector2(0, -200), burst)
+	GrenadeAi.place(t, &"side", burst + Vector2(0, 200), burst + Vector2(0, 200) + Vector2(100, 0))
+	GrenadeAi.place(t, &"back", burst + Vector2(-200, 0), burst + Vector2(-300, 0))
+	GrenadeAi.place(t, &"near", burst + Vector2(60, 60), burst)
 	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
 		return Vector2.INF
 	var boom: Dictionary = Probe.booms(t, &"stun")[0]
@@ -112,7 +114,7 @@ func _check_victim(t: TestContext, who: StringName, at: Vector2, lines: Array) -
 	if not t.check(not events.is_empty(), "the %s victim is stunned (a stun event)" % who):
 		return
 	var got := float(events[0]["data"].get("blind", -1.0))
-	var want := Probe.expected_blind(c.global_position, c.facing, at)
+	var want := GrenadeSpec.expected_blind(c.global_position, c.facing, at)
 	lines.append("%s %.2f" % [who, got])
 	t.check(
 		absf(got - want) <= SLACK,

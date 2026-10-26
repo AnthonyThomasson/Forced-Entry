@@ -14,6 +14,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 ## The join's order sentence (`docs/leadership.md` LD24), the back door's room filled in.
@@ -56,13 +57,13 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var door := String(Entry.BACK["id"])
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	var read := await _wait_all_in(t, w, nodes, squad, door)
 	if not t.require(
 			Follow.own_claims(t, lead).any(
 				func(e): return String(e["data"].get("opening", "")) == door,
 			),
-			"premise: the lead claimed the back door of its own (acts %s)" % Follow.acts_of(
+			"premise: the lead claimed the back door of its own (acts %s)" % FollowWatch.acts_of(
 				w,
 				lead,
 			),
@@ -85,7 +86,7 @@ func _wait_all_in(
 	var members: Array = nodes.slice(1)
 	var read := {}  # Member -> every `order` section its decision snapshots held.
 	var in_all := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		for m in members:
 			var b := Follow.brain_of(m)
 			var said := String(b.debug_state().get("sections", {}).get("order", "")) if b else ""
@@ -120,9 +121,9 @@ func _check_joined(
 			% str(members.map(func(m): return read.get(m, []))),
 	)
 	t.check(
-		members.all(func(m): return Follow.asked(w, m) == 0),
+		members.all(func(m): return FollowWatch.asked(w, m) == 0),
 		"the members asked Von nothing: they joined by the order (asks %s)"
-			% str(members.map(func(m): return Follow.asked(w, m))),
+			% str(members.map(func(m): return FollowWatch.asked(w, m))),
 	)
 
 

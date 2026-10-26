@@ -13,6 +13,7 @@ extends GameTest
 ## no hostile is ever known.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const IDS := [&"lead", &"m1", &"m2"]
 ## How long (s) the search is watched at most: the leader is through two doorways well within it.
@@ -66,40 +67,40 @@ func run(t: TestContext) -> void:
 	var done := func(rec: Dictionary) -> bool:
 		var moves: Array = rec["moves"].get(lead, [])
 		return moves.size() >= 2 and t.time > float(moves[1][0]) + 15.0
-	var w: Dictionary = await Follow.watch(t, nodes, squad, WATCH_S, { "stop": done })
+	var w: Dictionary = await FollowWatch.watch(t, nodes, squad, WATCH_S, { "stop": done })
 
 	if not t.require(
-			Follow.took(w, lead, "search"),
-			"the leader searched the house through Von (acts %s)" % Follow.acts_of(w, lead),
+			FollowWatch.took(w, lead, "search"),
+			"the leader searched the house through Von (acts %s)" % FollowWatch.acts_of(w, lead),
 	):
 		return
 	var lead_moves: Array = w["moves"].get(lead, [])
 	if not t.require(
 			lead_moves.size() >= 2,
 			"the leader went through two doorways (moves %s; acts %s)"
-				% [str(lead_moves), Follow.acts_of(w, lead)],
+				% [str(lead_moves), FollowWatch.acts_of(w, lead)],
 	):
 		return
 	for i in members.size():
 		var m: Node = members[i]
 		_check_follows(t, w, m, i, lead_moves)
 		t.expect_eq(
-			Follow.asked(w, m),
+			FollowWatch.asked(w, m),
 			0,
 			"%s asked Von nothing while no hostile was known (acts %s)"
-				% [m.name, Follow.acts_of(w, m)],
+				% [m.name, FollowWatch.acts_of(w, m)],
 		)
-	t.check(Follow.asked(w, lead) > 0, "the leader decided through Von as ever")
+	t.check(FollowWatch.asked(w, lead) > 0, "the leader decided through Von as ever")
 
 
 func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: Array) -> void:
 	t.check(
-		Follow.took(w, m, "follow"),
-		"%s carried out FOLLOW (acts %s)" % [m.name, Follow.acts_of(w, m)],
+		FollowWatch.took(w, m, "follow"),
+		"%s carried out FOLLOW (acts %s)" % [m.name, FollowWatch.acts_of(w, m)],
 	)
-	var gaps := Follow.gaps(w, m, SETTLE_S)
-	var p50 := Follow.percentile(gaps, 0.5)
-	var p90 := Follow.percentile(gaps, 0.9)
+	var gaps := FollowWatch.gaps(w, m, SETTLE_S)
+	var p50 := FollowWatch.percentile(gaps, 0.5)
+	var p90 := FollowWatch.percentile(gaps, 0.9)
 	t.trace("%s gap p50" % m.name, p50)
 	t.check(
 		p50 <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
@@ -108,7 +109,7 @@ func _check_follows(t: TestContext, w: Dictionary, m: Node, i: int, lead_moves: 
 	)
 	for k in 2:
 		t.check(
-			Follow.went_through(w, m, lead_moves[k]),
+			FollowWatch.went_through(w, m, lead_moves[k]),
 			"%s went through the leader's doorway %d (%s -> %s at %.1f s) with it (moves %s)"
 				% [
 					m.name,

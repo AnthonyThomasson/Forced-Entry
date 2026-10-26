@@ -10,6 +10,7 @@ extends GameTest
 ##   then be on its pistol.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const FAR_N := Vector2(100, 150)
 const FAR_H := Vector2(520, 150)
@@ -47,9 +48,9 @@ func configure(s: TestSetup) -> void:
 		],
 	)
 	Flank.npc(s, &"far", FAR_N, {}, { "look_at": FAR_H })
-	Probe.hostile(s, &"far_h", FAR_H, FAR_N)
+	GrenadeAi.hostile(s, &"far_h", FAR_H, FAR_N)
 	Flank.npc(s, &"near", NEAR_N, {}, { "look_at": NEAR_H })
-	Probe.hostile(s, &"near_h", NEAR_H, NEAR_N)
+	GrenadeAi.hostile(s, &"near_h", NEAR_H, NEAR_N)
 
 
 func run(t: TestContext) -> void:
@@ -112,7 +113,7 @@ func _both_threw(t: TestContext, far: Node, near: Node) -> bool:
 				== &"frag",
 			"%s threw its frag" % id,
 		)
-		t.check(not Probe.callouts(t, &"frag_out", id).is_empty(), "and radioed frag out")
+		t.check(not GrenadeAi.callouts(t, &"frag_out", id).is_empty(), "and radioed frag out")
 	return true
 
 
@@ -150,7 +151,7 @@ func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void
 		"the invader 200 px from its hostile was crouched for the last second before the bang",
 	)
 	t.check(
-		Probe.shielded(t, near_boom["data"]["position"], near),
+		GrenadeAi.shielded(t, near_boom["data"]["position"], near),
 		"behind the couch, which shields a crouched body from the blast",
 	)
 	t.check(

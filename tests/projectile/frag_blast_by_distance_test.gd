@@ -5,6 +5,7 @@ extends GameTest
 ## `&"hit"` with outcome `blast`, which is how this test tells them from the fragments.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(100, 450)
 const AIM := Vector2(500, 450)
 ## Slack on the damage formula: the body has a radius and the blast point is the grenade's rest
@@ -81,7 +82,7 @@ func _check_mid(t: TestContext, blast: Vector2) -> void:
 			not mid_hits.is_empty(),
 			"the dummy %.0f px from the blast takes a blast hit" % d_mid,
 	):
-		var want := Probe.blast_damage(d_mid)
+		var want := GrenadeSpec.blast_damage(d_mid)
 		t.check(
 			absf(float(mid_hits[0]["data"]["damage"]) - want) <= SLACK,
 			"its damage falls off linearly: %.1f, expected about %.1f"

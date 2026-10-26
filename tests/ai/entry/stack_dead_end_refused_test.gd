@@ -13,9 +13,10 @@ extends GameTest
 ## holds six (rooms 200 to 380 px across, where furniture only blocks every spot against the wall),
 ## while a stack is at most six. So: an office (500 x 300) and, east of it, a closet (100 x 100)
 ## whose only doorway is an 80 px opening in the middle of their shared wall: ten px of wall either
-## side of it, so no spot against the wall. The test's own packing (`Slots.dead_end_capacity`: the
-## most points of a 4 px grid, 44 px apart, that keep the open-floor rules) counts what the closet
-## holds; the set-up requires it to be fewer than the four ordered.
+## side of it, so no spot against the wall. The test's own packing
+## (`SlotCapacity.dead_end_capacity`: the most points of a 4 px grid, 44 px apart, that keep the
+## open-floor rules) counts what the closet holds; the set-up requires it to be fewer than the four
+## ordered.
 ##
 ## The four members start in the office, just outside the closet's doorway, off its axis: inside the
 ## closet's floor (about 60 x 60 px past its walls) four bodies fit only touching, and the ones
@@ -35,6 +36,8 @@ const Order := preload("res://tests/_ai/order_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Reach := preload("res://tests/_ai/reach_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
+const SlotCapacity := preload("res://tests/_ai/slot_capacity_probe.gd")
+const SlotRules := preload("res://tests/_ai/slot_rules_probe.gd")
 const OFFICE := Rect2(0, 0, 500, 300)
 const CLOSET := Rect2(500, 100, 100, 100)
 const DOOR := Vector2(500, 150)
@@ -123,14 +126,14 @@ func run(t: TestContext) -> void:
 ## The set-up: the closet is a dead end with no spot against the wall, and holds fewer than the
 ## four ordered. Returns the test's own packing of it, empty when either does not hold.
 func _closet_capacity(t: TestContext, w: Dictionary, f: Dictionary) -> Dictionary:
-	var kind := Slots.way_kind(w, f)
+	var kind := SlotCapacity.way_kind(w, f)
 	if not t.require(
 			kind == "dead_end",
 			("set-up: the closet is a dead end with no spot against the wall (the test's own way "
 					+ "kind: %s)") % kind,
 	):
 		return {}
-	var capacity := Slots.dead_end_capacity(w, f, {})
+	var capacity := SlotCapacity.dead_end_capacity(w, f, {})
 	var holds := int(capacity["count"])
 	var points := _points(capacity)
 	if not t.require(
@@ -231,11 +234,11 @@ func _check_in_closet(t: TestContext, w: Dictionary, f: Dictionary, seen: Dictio
 		var spot := Order.stack_point(t, id)
 		var a := t.actor(id)
 		t.check(
-			spot != Vector2.INF and Slots.in_stack_room(w, f, spot) == "",
+			spot != Vector2.INF and SlotRules.in_stack_room(w, f, spot) == "",
 			"%s's slot is in the closet (at %s: %s)" % [
 				id,
 				str(spot.round()) if spot != Vector2.INF else "-",
-				Slots.in_stack_room(w, f, spot) if spot != Vector2.INF else "no slot",
+				SlotRules.in_stack_room(w, f, spot) if spot != Vector2.INF else "no slot",
 			],
 		)
 		t.check(

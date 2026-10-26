@@ -17,6 +17,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
@@ -70,7 +71,7 @@ func run(t: TestContext) -> void:
 	if not _human_leads(t, me, squad, trooper):
 		return
 	var nodes: Array = [me, sergeant, trooper]
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	var join := await _rally_sergeant(t, w, nodes, squad)
 	if join.is_empty():
 		return
@@ -113,7 +114,7 @@ func _rally_sergeant(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -
 	puppet.walk_to(STEP_UP)
 	var door := String(Entry.BACK["id"])
 	var joined := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.first_call(t, sergeant, "claim", door) < INF
 	if not t.require(
 			await t.until(joined, 8.0 + CLAIM_WITHIN),
@@ -161,7 +162,7 @@ func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died
 	var sergeant: Node = nodes[1]
 	var door := String(Entry.BACK["id"])
 	var watch_claims := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return false
 	await t.until(watch_claims, WATCH_CLAIMS)
 	var claims_led: Array = Follow.calls_of(t, sergeant, "claim").filter(func(e): return (
@@ -202,13 +203,13 @@ func _own_claim_rallies(t: TestContext, w: Dictionary, nodes: Array, join: Dicti
 		var since: float = join_done.call()
 		return Follow.own_claims(t, sergeant).filter(func(e): return float(e["time"]) > since)
 	var rallied := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return not own_after.call().is_empty() and not _led_joins(t, sergeant).is_empty()
 	await t.until(rallied, OWN_CLAIM_WITHIN)
 	if not t.require(
 			join_done.call() < INF and not own_after.call().is_empty(),
 			"premise: the sergeant's join ended done and it then made a claim of its own (acts %s)"
-				% Follow.acts_of(w, sergeant),
+				% FollowWatch.acts_of(w, sergeant),
 	):
 		return
 	var opening := String(own_after.call()[0]["data"].get("opening", ""))

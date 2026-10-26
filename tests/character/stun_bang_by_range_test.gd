@@ -5,6 +5,8 @@ extends GameTest
 ## `point_blank_damage` (5). Nobody else is hurt by a stun.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(60, 350)
 const AIM := Vector2(450, 350)
 const WALL_X := 600.0
@@ -80,7 +82,7 @@ func _bang(t: TestContext) -> Vector2:
 		return Vector2.INF
 	var burst := Probe.rest_point(t)
 	for id in VICTIMS:
-		Probe.place(t, id, burst + VICTIMS[id], burst)
+		GrenadeAi.place(t, id, burst + VICTIMS[id], burst)
 	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
 		return Vector2.INF
 	return Probe.booms(t, &"stun")[0]["data"]["position"]
@@ -93,7 +95,7 @@ func _check_victim(t: TestContext, id: StringName, at: Vector2) -> void:
 	var d: float = c.global_position.distance_to(at)
 	var events := Probe.stuns(t, c)
 	var got := float(events[0]["data"].get("deaf", 0.0)) if not events.is_empty() else 0.0
-	var want := Probe.expected_deaf(d)
+	var want := GrenadeSpec.expected_deaf(d)
 	t.check(
 		absf(got - want) <= SLACK,
 		"%s (%.0f px): deaf for %.2f s, the fall-off gives %.2f" % [id, d, got, want],
@@ -116,7 +118,7 @@ func _check_walled(t: TestContext, at: Vector2) -> void:
 		"the bang reaches through the wall (%.0f px away, deaf %.2f s)" % [dw, through],
 	)
 	t.check(
-		absf(through - Probe.expected_deaf(dw, Probe.WALL_FACTOR)) <= SLACK,
+		absf(through - GrenadeSpec.expected_deaf(dw, Probe.WALL_FACTOR)) <= SLACK,
 		"at 0.4 of the open-air time (%.2f s, expected %.2f)"
-			% [through, Probe.expected_deaf(dw, Probe.WALL_FACTOR)],
+			% [through, GrenadeSpec.expected_deaf(dw, Probe.WALL_FACTOR)],
 	)

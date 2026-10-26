@@ -22,6 +22,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Bang := preload("res://tests/_ai/bang_probe.gd")
 const IDS := [&"a", &"b"]
 ## How soon (s) after the burst the point crosses: at once, a step's time.
@@ -145,7 +146,7 @@ func _check_burst(t: TestContext, samples: Array) -> float:
 	t.check(Maps.HOUSE_KITCHEN.has_point(burst), "in the kitchen (%s)" % str(burst.round()))
 	for id in IDS:
 		var p := _pos_at(samples, id, burst_at)
-		var safe := p.distance_to(burst) >= Probe.FRAG_ZONE or not Probe.line_clear(t, burst, p)
+		var safe := p.distance_to(burst) >= Probe.FRAG_ZONE or not GrenadeAi.line_clear(t, burst, p)
 		t.check(
 			safe,
 			"%s had no clear line to the burst within its danger zone (%.0f px away at %s, line %s)"
@@ -153,7 +154,7 @@ func _check_burst(t: TestContext, samples: Array) -> float:
 					id,
 					p.distance_to(burst),
 					str(p.round()),
-					"clear" if Probe.line_clear(t, burst, p) else "blocked",
+					"clear" if GrenadeAi.line_clear(t, burst, p) else "blocked",
 				],
 		)
 	return burst_at

@@ -15,6 +15,7 @@ extends GameTest
 ## in, so it is in its first decision.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 const HALL := Rect2(0, 300, 1000, 600)
@@ -61,9 +62,11 @@ func run(t: TestContext) -> void:
 		return
 	var inv := t.actor(&"inv")
 	var there := func(): return inv.global_position.x > 750.0
-	var samples := await Entry.watch(t, [&"inv"], STORE_DOOR, 75.0, there)
+	var samples := await EntryWatch.watch(t, [&"inv"], STORE_DOOR, 75.0, there)
 	var act := str(Entry.brain(t, &"inv").current_act())
-	var went_in := Entry.path_of(samples, &"inv").any(func(p: Vector2): return STORE.has_point(p))
+	var went_in := EntryWatch.path_of(samples, &"inv").any(
+		func(p: Vector2): return STORE.has_point(p)
+	)
 	if not t.require(
 			there.call() and not went_in,
 			("the invader got to the gunfire at the hall's east end without going into the store "
@@ -76,7 +79,7 @@ func run(t: TestContext) -> void:
 		"it never stood in the store room doorway's view (first at %.2f s, %.1f s in it)"
 			% [seen_at, View.time_in_view(t, samples, &"inv", STORE_DOOR)],
 	)
-	var below := Entry.path_of(samples, &"inv").any(func(p: Vector2): return (
+	var below := EntryWatch.path_of(samples, &"inv").any(func(p: Vector2): return (
 		p.y > View.polygon(STORE_DOOR)[1].y and absf(p.x - STORE_DOOR["pos"].x) < 60.0
 	))
 	t.check(below, "it went round the far end of the view")

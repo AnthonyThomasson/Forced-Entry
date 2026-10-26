@@ -4,6 +4,7 @@ extends GameTest
 ## entry (it slices the pie from both sides).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 
@@ -32,7 +33,7 @@ func run(t: TestContext) -> void:
 		return
 	# a lambda cannot reassign outer locals
 	var seen := { "reserved": false, "solo_always": true, "most_sides": 0 }
-	await Entry.watch(t, [&"a"], door, 60.0, func():
+	await EntryWatch.watch(t, [&"a"], door, 60.0, func():
 		seen["reserved"] = seen["reserved"] or Stack.mine(stack) > 0
 		var e := Entry.entry(Entry.brain(t, &"a"))
 		if String(e.get("phase", "")) in ["pie", "cross", "corner"]:

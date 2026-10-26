@@ -8,6 +8,7 @@ extends GameTest
 ## from outside until it is down and goes in after).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const START := Vector2(990, 190)    # in the back garden, in line with the door
 const TARGET := Vector2(620, 190)   # in the kitchen, in line with the door
@@ -38,7 +39,7 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var through := func():
 		return Entry.first_call_time(t, "going_in", &"inv", Entry.BACK["id"]) < INF
-	await Entry.watch(t, [&"inv"], Entry.BACK, 55.0, through)
+	await EntryWatch.watch(t, [&"inv"], Entry.BACK, 55.0, through)
 	if not t.require(
 			through.call(),
 			"the invader went in by the back door (act %s)" % Entry.brain(t, &"inv").current_act(),

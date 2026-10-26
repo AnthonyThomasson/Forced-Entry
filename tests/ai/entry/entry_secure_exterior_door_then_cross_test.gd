@@ -13,6 +13,7 @@ extends GameTest
 ## spawns in, so it is in its first decision.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
@@ -49,9 +50,9 @@ func run(t: TestContext) -> void:
 		return
 	var inv := t.actor(&"inv")
 	var there := func(): return inv.global_position.y > Maps.HOUSE_BOUNDS.end.y + 30.0
-	var samples := await Entry.watch(t, [&"inv"], door, 75.0, there)
+	var samples := await EntryWatch.watch(t, [&"inv"], door, 75.0, there)
 	var act := str(Entry.brain(t, &"inv").current_act())
-	var went_in := Entry.path_of(samples, &"inv").any(
+	var went_in := EntryWatch.path_of(samples, &"inv").any(
 		func(p: Vector2): return Entry.in_room(door, p),
 	)
 	if not t.require(

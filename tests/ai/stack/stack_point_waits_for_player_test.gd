@@ -4,6 +4,7 @@ extends GameTest
 ## in without it.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const TIMEOUT := 8.0
@@ -31,7 +32,7 @@ func run(t: TestContext) -> void:
 	var stack := Stack.attach(t, &"me")
 	if not t.require(stack != null, "the human has a stack radio (PlayerStack.attach)"):
 		return
-	await Entry.watch(
+	await EntryWatch.watch(
 		t,
 		[&"a"],
 		door,

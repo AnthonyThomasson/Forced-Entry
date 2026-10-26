@@ -7,9 +7,10 @@ extends GameTest
 ## kitchenette has one doorway, into the studio. A stack going in there from the kitchenette forms
 ## in a dead end (no spot against the wall, no other doorway for a tail), one of the generated dead
 ## ends `ai/entry/stack_slots_sweep` and `ai/entry/stack_dead_end_refused` list, and holds as many
-## as the kitchenette's open floor does: six by the test's own packing (`Slots.dead_end_capacity`),
-## which the set-up requires, with the dead end itself (`Slots.way_kind`). The human (a puppet with
-## the human's stack radio, as Main gives it) stands in the kitchenette, on one of those points.
+## as the kitchenette's open floor does: six by the test's own packing
+## (`SlotCapacity.dead_end_capacity`), which the set-up requires, with the dead end itself
+## (`SlotCapacity.way_kind`). The human (a puppet with the human's stack radio, as Main gives it)
+## stands in the kitchenette, on one of those points.
 ##
 ## Premise: the teammates are puppets radioing their claims on the bus (`Stack.radio`), not AI
 ## invaders, standing out on the street in front of the house. The human's slot is pushed up only
@@ -22,6 +23,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
+const SlotCapacity := preload("res://tests/_ai/slot_capacity_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const PLAN := "micro_flat"
 const HOUSE_SEED := 1
@@ -95,22 +97,22 @@ func _frame(t: TestContext) -> Dictionary:
 	return found[0]
 
 
-## The test's own packing of the dead end behind way `f` (`Slots.dead_end_capacity`), once it is a
-## dead end holding one member per teammate; {} when a set-up premise fails.
+## The test's own packing of the dead end behind way `f` (`SlotCapacity.dead_end_capacity`), once it
+## is a dead end holding one member per teammate; {} when a set-up premise fails.
 func _dead_end_capacity(t: TestContext, f: Dictionary) -> Dictionary:
 	var w2d := t.world.get_world_2d()
 	var w := Slots.world_of(
 		t.rooms, t.world.openings, w2d.navigation_map, w2d.direct_space_state, t.world.house,
 	)
 	if not t.require(
-			Slots.way_kind(w, f) == "dead_end",
+			SlotCapacity.way_kind(w, f) == "dead_end",
 			"set-up: the %s is a dead end (the test's own way kind: %s)" % [
 				FROM,
-				Slots.way_kind(w, f),
+				SlotCapacity.way_kind(w, f),
 			],
 	):
 		return {}
-	var capacity := Slots.dead_end_capacity(w, f, {})
+	var capacity := SlotCapacity.dead_end_capacity(w, f, {})
 	var holds := int(capacity["count"])
 	if not t.require(
 			holds == MATES.size(),

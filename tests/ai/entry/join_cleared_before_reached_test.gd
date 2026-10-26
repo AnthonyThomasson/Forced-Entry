@@ -12,6 +12,7 @@ extends GameTest
 ## test requires that it had not radioed ready (nor given its entry up) by the clear.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## How long (s) the trooper has, from the clear, to follow.
 const FOLLOW_WITHIN := 1.0
@@ -45,11 +46,11 @@ func run(t: TestContext) -> void:
 	var trooper := t.actor(&"trooper")
 	var nodes: Array = [lead, t.actor(&"sergeant"), trooper]
 	var own := func(_rec: Dictionary) -> bool: return not Follow.own_claims(t, lead).is_empty()
-	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, { "stop": own })
+	var w: Dictionary = await FollowWatch.watch(t, nodes, squad, 40.0, { "stop": own })
 	var claims := Follow.own_claims(t, lead)
 	if not t.require(
 			not claims.is_empty(),
-			"premise: the lead made its own entry claim (acts %s)" % Follow.acts_of(w, lead),
+			"premise: the lead made its own entry claim (acts %s)" % FollowWatch.acts_of(w, lead),
 	):
 		return
 	var opening := String(claims[0]["data"].get("opening", ""))
@@ -83,12 +84,12 @@ func _room_cleared(
 		into: String,
 ) -> bool:
 	var cleared := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return not Follow.clears(t, into).is_empty()
 	return t.require(
 		await t.until(cleared, 60.0),
 		"premise: the %s is cleared (acts %s / %s)"
-			% [into, Follow.acts_of(w, nodes[0]), Follow.acts_of(w, nodes[1])],
+			% [into, FollowWatch.acts_of(w, nodes[0]), FollowWatch.acts_of(w, nodes[1])],
 	)
 
 
@@ -112,8 +113,8 @@ func _check_join(t: TestContext, w: Dictionary, trooper: Node, opening: String) 
 			% [opening, str(joins.map(func(e): return e["data"]))],
 	)
 	t.check(
-		Follow.took(w, trooper, "order"),
-		"the trooper was on its way to the stack by the order (acts %s)" % Follow.acts_of(
+		FollowWatch.took(w, trooper, "order"),
+		"the trooper was on its way to the stack by the order (acts %s)" % FollowWatch.acts_of(
 			w,
 			trooper,
 		),
@@ -130,7 +131,7 @@ func _follows_at_once(
 ) -> void:
 	var trooper: Node = nodes[2]
 	var follows := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.following(trooper) and Follow.entry(trooper).is_empty()
 	var followed := await t.until(follows, FOLLOW_WITHIN)
 	t.check(
@@ -140,6 +141,6 @@ func _follows_at_once(
 				FOLLOW_WITHIN,
 				t.time - clear_at,
 				str(Follow.entry(trooper).get("phase", "none")),
-				Follow.acts_of(w, trooper),
+				FollowWatch.acts_of(w, trooper),
 			],
 	)

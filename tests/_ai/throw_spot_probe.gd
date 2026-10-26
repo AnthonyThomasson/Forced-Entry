@@ -15,6 +15,7 @@ extends RefCounted
 ## stands) and `tags` (`ally_in_blast`, `no_safe_spot`, judged with the thrower at `from`).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 ## The throw range of both kinds (`max_range` 550): a spot farther than this from the NPC is out of
 ## range, and a throw spot must be within it.
 const THROW_RANGE := 550.0
@@ -46,7 +47,7 @@ static func from_of(z: Dictionary) -> Vector2:
 ## The test's own lob test: nothing taller than `LOB_CLEARANCE` (a wall, a tall piece) lies on the
 ## straight line from `a` to `b`; characters are looked past.
 static func lob_clear(t: TestContext, a: Vector2, b: Vector2) -> bool:
-	var exclude := Probe.character_rids(t)
+	var exclude := GrenadeAi.character_rids(t)
 	var space := t.world.get_world_2d().direct_space_state
 	for i in 12:
 		var query := PhysicsRayQueryParameters2D.create(a, b, PhysicsLayers.SOLID)

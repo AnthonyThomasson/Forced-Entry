@@ -5,6 +5,7 @@ extends GameTest
 ## Real Von: the three decide for themselves to enter the one room their corridor leads to.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const IDS := [&"a", &"b", &"c"]
 
@@ -30,7 +31,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BOX
 	var cleared := func(): return _clear_time(t) < INF
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		IDS,
 		door,
@@ -54,7 +55,7 @@ func run(t: TestContext) -> void:
 		if inside.has(id):
 			continue
 		t.expect_eq(
-			Entry.funnel_entries(samples, id, door),
+			EntryWatch.funnel_entries(samples, id, door),
 			0,
 			"%s, holding outside, never stepped into the doorway" % id,
 		)

@@ -3,6 +3,7 @@ extends GameTest
 ## door and then the other before it goes in.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -24,7 +25,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
@@ -40,7 +41,7 @@ func run(t: TestContext) -> void:
 	t.check(bool(e.get("solo", false)), "it entered alone")
 	t.expect_eq(int(e.get("pie_sides", 0)), 2, "it sliced the pie from both sides")
 	var half := float(door["width"]) * 0.5
-	var near := Entry.path_of(samples, &"inv").filter(func(p): return (
+	var near := EntryWatch.path_of(samples, &"inv").filter(func(p): return (
 		Entry.outward(door, p) > 0.0
 			and Entry.outward(door, p) < 160.0
 			and absf(Entry.lateral(door, p)) < 160.0

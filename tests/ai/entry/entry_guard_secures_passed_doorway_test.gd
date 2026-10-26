@@ -6,6 +6,7 @@ extends GameTest
 ## the far room, heard before the invader's first decision, so the order is not an ENTER.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## Seconds of gun through a doorway, from beside it, that count as having secured it.
@@ -35,7 +36,7 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	Probe.gunfire(Vector2(750, 100))
 	var past_b := func(): return inv.global_position.x > 560.0
-	var samples := await Entry.watch(t, [&"inv"], Entry.SPINE_C, 50.0, past_b)
+	var samples := await EntryWatch.watch(t, [&"inv"], Entry.SPINE_C, 50.0, past_b)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	if not t.require(
 			Entry.asked("investigate"),
@@ -54,7 +55,7 @@ func run(t: TestContext) -> void:
 		if not t.require(passed_at < INF, "%s was passed on the way" % door["id"]):
 			return
 		var before := samples.filter(func(s): return s["t"] <= passed_at)
-		var covered := Entry.time_facing_through(
+		var covered := EntryWatch.time_facing_through(
 			before,
 			&"inv",
 			door,

@@ -10,6 +10,7 @@ extends GameTest
 ## clear lob.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const START := Vector2(100, 150)
 const HOSTILE := Vector2(520, 150)
@@ -49,7 +50,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE, START)
+	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
 
 func run(t: TestContext) -> void:
@@ -72,12 +73,12 @@ func run(t: TestContext) -> void:
 	await _block_the_lob(t)
 	var seen: Array = []
 	if not t.require(
-			await Probe.wait_act(t, &"i", "grenade", 10.0, seen),
+			await GrenadeAi.wait_act(t, &"i", "grenade", 10.0, seen),
 			"the AI took the GRENADE tactic (its acts: %s)" % str(seen),
 	):
 		return
 	t.check(
-		not Probe.line_clear(t, inv.global_position, HOSTILE),
+		not GrenadeAi.line_clear(t, inv.global_position, HOSTILE),
 		"set-up: a wardrobe stands across the lob now",
 	)
 	await _check_given_up(t, inv, brain)
@@ -103,7 +104,7 @@ func _check_given_up(t: TestContext, inv: Node, brain: Node) -> void:
 				func(): return str(brain.debug_state().get("primitive", "")) != "throw",
 				4.0,
 			),
-			"the throw was given up (acting: %s)" % Probe.acts(t, &"i"),
+			"the throw was given up (acting: %s)" % GrenadeAi.acts(t, &"i"),
 	):
 		return
 	var dropped_at: Vector2 = inv.global_position
@@ -112,7 +113,7 @@ func _check_given_up(t: TestContext, inv: Node, brain: Node) -> void:
 		var st: Dictionary = brain.debug_state()
 		return (int(st.get("decisions", 0)) > decisions
 				and not st.get("decision", {}).get("pending", false)), 4.0)
-	t.check(redecided, "the invader re-decided (acting: %s)" % Probe.acts(t, &"i"))
+	t.check(redecided, "the invader re-decided (acting: %s)" % GrenadeAi.acts(t, &"i"))
 	t.check(not t.happened(&"throw"), "no grenade was thrown before the re-decision was adopted")
 	t.check(DecisionStub.requests.size() > asked, "and Von was asked again")
 	await t.seconds(3.0)

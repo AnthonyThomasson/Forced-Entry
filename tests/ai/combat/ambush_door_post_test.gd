@@ -27,6 +27,7 @@ extends GameTest
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const DOOR_ID := "door_150_360"
 const DOOR := Maps.DOOR_HALL_LIVING
 const DOOR_WIDTH := 80.0
@@ -133,8 +134,8 @@ func _check_post(t: TestContext, a: Node) -> void:
 		"off the doorway's axis, out of its funnel (%.0f px along the wall from its centre)"
 			% lateral,
 	)
-	t.check(Probe.line_clear(t, p, DOOR - OUT * 4.0), "with a clear line to the threshold")
-	var seen_from := _observers().filter(func(o): return Probe.line_clear(t, o, p))
+	t.check(GrenadeAi.line_clear(t, p, DOOR - OUT * 4.0), "with a clear line to the threshold")
+	var seen_from := _observers().filter(func(o): return GrenadeAi.line_clear(t, o, p))
 	t.check(
 		seen_from.is_empty(),
 		"unseen from every slot and pie step outside the doorway (seen from %s)"

@@ -8,6 +8,8 @@ extends GameTest
 ## so the blind time is the formula's; one is 175 px from the burst and one 275 px.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(60, 350)
 const AIM := Vector2(450, 350)
 ## spans y 195 to 245, x 390 to 510
@@ -58,7 +60,7 @@ func run(t: TestContext) -> void:
 		],
 	)
 	t.check(
-		Probe.shielded(t, at, against) and Probe.shielded(t, at, behind),
+		GrenadeAi.shielded(t, at, against) and GrenadeAi.shielded(t, at, behind),
 		"set-up: a couch lies on the line from the burst to each, over a crouch's height",
 	)
 	_check_against(t, against)
@@ -82,8 +84,8 @@ func _bang(t: TestContext) -> Vector2:
 	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
 		return Vector2.INF
 	var burst := Probe.rest_point(t)
-	Probe.place(t, &"against", AGAINST, burst)
-	Probe.place(t, &"behind", BEHIND, burst)
+	GrenadeAi.place(t, &"against", AGAINST, burst)
+	GrenadeAi.place(t, &"behind", BEHIND, burst)
 	if not t.require(
 			await Probe.wait_boom(t, &"stun", 1.2),
 			"the stun grenade goes off (clicked at %.2f s)" % clicked,
@@ -113,7 +115,7 @@ func _check_behind(t: TestContext, behind: Node, at: Vector2) -> void:
 	var b_events := Probe.stuns(t, behind)
 	if t.check(not b_events.is_empty(), "the victim 120 px behind the other couch is stunned"):
 		var got := float(b_events[0]["data"].get("blind", -1.0))
-		var want := Probe.expected_blind(behind.global_position, behind.facing, at)
+		var want := GrenadeSpec.expected_blind(behind.global_position, behind.facing, at)
 		t.check(
 			want > 0.5 and absf(got - want) <= SLACK,
 			("and flashed, the couch not being at its face: %.2f s, the formula gives %.2f (%.0f "

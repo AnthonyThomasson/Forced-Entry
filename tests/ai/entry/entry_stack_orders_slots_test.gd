@@ -5,6 +5,7 @@ extends GameTest
 ## line of sight.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -41,7 +42,7 @@ func run(t: TestContext) -> void:
 	var ids := [&"a", &"b", &"c"]
 	var all_ready := func():
 		return ids.all(func(id): return not Entry.calls(t, "ready", id).is_empty())
-	await Entry.watch(t, ids, door, 30.0, all_ready)
+	await EntryWatch.watch(t, ids, door, 30.0, all_ready)
 	if not t.require(
 			all_ready.call(),
 			"all three reached their slots (%s)"

@@ -23,6 +23,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const INVADER_AT := Vector2(875, 100)
 ## Where the shot came from (inside the kitchen) and where it landed (in the garden in front of the
@@ -111,7 +112,7 @@ func _watch_until_thrown(t: TestContext, inv: Node) -> Dictionary:
 	var shot := {}
 	var watch := func() -> bool:
 		Spot.note(t, brain, inv, state, walks)
-		var act := Probe.acts(t, &"i")
+		var act := GrenadeAi.acts(t, &"i")
 		if not acts.has(act):
 			acts.append(act)
 		var lines: Array = brain.debug_memory().get("shot_from", [])

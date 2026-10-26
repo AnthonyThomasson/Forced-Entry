@@ -14,6 +14,7 @@ extends GameTest
 ## held move re-decides only at its commit cap, so the second order is waited for).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 const ROOM := Rect2(0, 0, 600, 300)
@@ -100,7 +101,7 @@ func _radio_clear(t: TestContext) -> void:
 func _first_walk_plain(t: TestContext, inv: Node, cleared_ms: int) -> bool:
 	Probe.gunfire(EAST)
 	var east := func(): return inv.global_position.distance_to(EAST) < 40.0
-	var first := await Entry.watch(t, [&"inv"], FRONT, 40.0, east)
+	var first := await EntryWatch.watch(t, [&"inv"], FRONT, 40.0, east)
 	if not t.require(
 			east.call() and Entry.asked("investigate"),
 			"the invader investigated the gunfire east of the house (act %s, at %s)"
@@ -139,7 +140,7 @@ func _second_walk_avoids_or_covers(t: TestContext, inv: Node) -> void:
 		return
 	inv.movement.speed = 150.0
 	var west := func(): return inv.global_position.x < ROOM.position.x - 40.0
-	var second := await Entry.watch(t, [&"inv"], FRONT, 60.0, west)
+	var second := await EntryWatch.watch(t, [&"inv"], FRONT, 60.0, west)
 	if not t.require(
 			west.call(),
 			"the invader walked back west past the house (act %s, at %s)"

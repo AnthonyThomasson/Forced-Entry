@@ -15,6 +15,7 @@ extends GameTest
 ## follow its leader.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 ## The hall–living doorway framed from the living room (the side the invader comes from), into the
@@ -74,7 +75,7 @@ func run(t: TestContext) -> void:
 		return
 	var a := t.actor(&"a")
 	var in_ordered := func(): return Entry.first_call_time(t, "going_in", &"a", ORDERED) < INF
-	var samples := await Entry.watch(t, [&"a"], INTO_HALL, 100.0, in_ordered)
+	var samples := await EntryWatch.watch(t, [&"a"], INTO_HALL, 100.0, in_ordered)
 	var first_hall := INF
 	for s in samples:
 		if (Maps.HOUSE_HALL.has_point(s["pos"][&"a"])
@@ -87,7 +88,7 @@ func run(t: TestContext) -> void:
 				+ "hall–living doorway)",
 	):
 		return
-	Entry.check_entered(t, samples, &"a", INTO_HALL)
+	EntryWatch.check_entered(t, samples, &"a", INTO_HALL)
 	t.check(
 		not Order.ordered_claims(t, a, ORDERED).is_empty(),
 		"after the detour it claims its slot at the ordered doorway under the order",

@@ -6,6 +6,7 @@ extends GameTest
 ## behind a desk, and a wardrobe (coverage 95) is put across the line the moment the wind-up begins.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const START := Vector2(100, 150)
 const HOSTILE := Vector2(520, 150)
 const ASIDE := Vector2(250, 40)
@@ -40,7 +41,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", START, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE, START)
+	GrenadeAi.hostile(s, &"h", HOSTILE, START)
 
 
 func run(t: TestContext) -> void:
@@ -65,7 +66,7 @@ func run(t: TestContext) -> void:
 	wardrobe.global_position = ON_THE_LINE
 	await t.frames(1)
 	t.check(
-		not Probe.line_clear(t, inv.global_position, HOSTILE),
+		not GrenadeAi.line_clear(t, inv.global_position, HOSTILE),
 		"set-up: a wardrobe stands across the lob",
 	)
 	if not t.require(
@@ -77,5 +78,5 @@ func run(t: TestContext) -> void:
 	):
 		return
 	await t.frames(3)
-	t.check(not Probe.callouts(t, &"frag_out", &"i").is_empty(), "and was radioed (frag out)")
+	t.check(not GrenadeAi.callouts(t, &"frag_out", &"i").is_empty(), "and was radioed (frag out)")
 	t.check(await Probe.wait_boom(t, &"frag", Probe.FUSE_FRAG + 2.0), "and it went off")

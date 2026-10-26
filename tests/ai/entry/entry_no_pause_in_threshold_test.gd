@@ -3,6 +3,7 @@ extends GameTest
 ## door and off its axis: it never stands still in the funnel.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -24,15 +25,15 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var inside_for := [0.0]
-	var samples := await Entry.watch(t, [&"inv"], door, 40.0, func():
+	var samples := await EntryWatch.watch(t, [&"inv"], door, 40.0, func():
 		inside_for[0] = (inside_for[0] + 1.0 / 60.0
 				if Entry.in_room(door, t.actor(&"inv").global_position)
 				else 0.0)
 		return inside_for[0] >= 1.5)
 	if not t.require(
-			Entry.path_of(samples, &"inv").any(func(p): return Entry.in_room(door, p)),
+			EntryWatch.path_of(samples, &"inv").any(func(p): return Entry.in_room(door, p)),
 			"the invader went into the kitchen (act %s)" % Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	var pause := Entry.longest_pause_in_funnel(samples, &"inv", door)
+	var pause := EntryWatch.longest_pause_in_funnel(samples, &"inv", door)
 	t.check(pause < 0.1, "it never stood still in the doorway (longest pause %.2f s)" % pause)

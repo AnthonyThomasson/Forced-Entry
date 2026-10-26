@@ -14,6 +14,7 @@ extends GameTest
 ## to search: left to themselves the NPCs go in and search it.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 ## The human's route: along the garden north of the house (its north wall is y 0), westward.
@@ -60,7 +61,7 @@ func run(t: TestContext) -> void:
 		return
 	await t.seconds(1.5)
 	var nodes: Array = [me] + members
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	# Per follower: how far its spot lies behind the human on the straight legs (`spacing`), and how
 	# far each re-aim of its walk moved where it was going (`reaims`, from `aimed`); `viewed` is
 	# `squad.view()` mid-walk, with where the human stood then.
@@ -74,9 +75,9 @@ func run(t: TestContext) -> void:
 	_check_tunables(t)
 	_check_view(t, members, rec["viewed"])
 	t.check(
-		members.all(func(m): return Follow.asked(w, m) == 0),
+		members.all(func(m): return FollowWatch.asked(w, m) == 0),
 		"the followers asked Von nothing (%s)"
-			% str(members.map(func(m): return Follow.asked(w, m))),
+			% str(members.map(func(m): return FollowWatch.asked(w, m))),
 	)
 
 
@@ -106,7 +107,7 @@ func _walk_route(t: TestContext, squad: Node, nodes: Array, w: Dictionary, rec: 
 		puppet.aim_at(point)
 		puppet.walk_to(point)
 		while not puppet.has_arrived() and t.time < 60.0:
-			Follow.tick(w, t, nodes, squad)
+			FollowWatch.tick(w, t, nodes, squad)
 			if leg == 1 and rec["viewed"].is_empty() and me.global_position.x <= VIEW_AT_X:
 				rec["viewed"] = { "view": squad.view(), "lead": me.global_position }
 			for m: Node in members:
@@ -136,15 +137,15 @@ func _stand(t: TestContext, squad: Node, nodes: Array, w: Dictionary, rec: Dicti
 	puppet.stop()
 	puppet.aim_at(LOOK)
 	var stopped_at := t.time
-	var walked := Follow.new_watch()
+	var walked := FollowWatch.new_watch()
 	walked["samples"] = w["samples"].duplicate()
 	var ringed := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return members.all(func(m): return _on_ring(me, m))
 	# The ring is laid once the human has stood `FOLLOW_STILL_TIME` (LD21): a file that halts within
 	# the ring's band is not on it yet.
 	var still := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return t.time - stopped_at >= Follow.FOLLOW_STILL_TIME
 	await t.until(still, Follow.FOLLOW_STILL_TIME + 1.0)
 	var rang := await t.until(ringed, RING_WITHIN)
@@ -162,8 +163,8 @@ func _check_ring(
 ) -> void:
 	for m: Node in members:
 		t.check(
-			Follow.took(w, m, "follow"),
-			"%s follows the human (FOLLOW; acts %s)" % [m.name, Follow.acts_of(w, m)],
+			FollowWatch.took(w, m, "follow"),
+			"%s follows the human (FOLLOW; acts %s)" % [m.name, FollowWatch.acts_of(w, m)],
 		)
 		var off: Vector2 = m.global_position - me.global_position
 		var facing: Vector2 = (LOOK - me.global_position).normalized()
@@ -192,16 +193,16 @@ func _check_file(t: TestContext, members: Array, rec: Dictionary) -> void:
 	var reaims: Dictionary = rec["reaims"]
 	for i in members.size():
 		var m: Node = members[i]
-		var gaps := Follow.gaps(walked, m, 2.5)
-		var band := Follow.percentile(gaps, 0.5)
-		var p90 := Follow.percentile(gaps, 0.9)
+		var gaps := FollowWatch.gaps(walked, m, 2.5)
+		var band := FollowWatch.percentile(gaps, 0.5)
+		var p90 := FollowWatch.percentile(gaps, 0.9)
 		t.check(
 			band <= Follow.band_p50(i) and p90 <= Follow.BAND_P90,
 			"%s walks within a band of the human (p50 %.0f px, most %.0f; p90 %.0f, most %.0f)"
 				% [m.name, band, Follow.band_p50(i), p90, Follow.BAND_P90],
 		)
 		var behind := Follow.FOLLOW_GAP + Follow.FOLLOW_STEP * i
-		var p50 := Follow.percentile(spacing[m], 0.5)
+		var p50 := FollowWatch.percentile(spacing[m], 0.5)
 		t.check(
 			absf(p50 - behind) <= FILE_SLACK,
 			"%s's spot keeps %.0f px behind the walking human, follower %d of the file (median "

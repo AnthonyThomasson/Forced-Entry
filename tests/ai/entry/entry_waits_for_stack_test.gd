@@ -4,6 +4,7 @@ extends GameTest
 ## teammate radioed ready.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -33,7 +34,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var gone := func(): return not Entry.calls(t, "going_in").is_empty()
-	await Entry.watch(t, [&"a", &"b"], door, 55.0, gone)
+	await EntryWatch.watch(t, [&"a", &"b"], door, 55.0, gone)
 	if not t.require(
 			gone.call(),
 			"someone went in (%s / %s)"

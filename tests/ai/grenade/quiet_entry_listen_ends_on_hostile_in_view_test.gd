@@ -14,6 +14,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Listen := preload("res://tests/_ai/listen_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AFTER := 1.0
 const ENDS := 0.6
 ## How far inside the doorway the householder stands, on the point's line through it.
@@ -33,7 +34,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Listen.world(s)
-	Probe.hostile(s, &"h", Vector2(700, 40), Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", Vector2(700, 40), Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
@@ -52,17 +53,17 @@ func run(t: TestContext) -> void:
 		Listen.holding(t, p),
 		("a second after the point got to its slot it is still holding there to listen (act %s, "
 				+ "phase %s)")
-			% [Probe.acts(t, p), str(Entry.entry(Entry.brain(t, p)).get("phase", ""))],
+			% [GrenadeAi.acts(t, p), str(Entry.entry(Entry.brain(t, p)).get("phase", ""))],
 	)
 	var from: Vector2 = t.actor(p).global_position
 	var shown := Maps.DOOR_BACK + (Maps.DOOR_BACK - from).normalized() * INSIDE
 	if not t.require(
-			Probe.line_clear(t, from, shown),
+			GrenadeAi.line_clear(t, from, shown),
 			("set-up: the householder's spot is in the point's line of sight through the doorway "
 					+ "(%s from %s)") % [str(shown.round()), str(from.round())],
 	):
 		return
-	Probe.place(t, &"h", shown, from)
+	GrenadeAi.place(t, &"h", shown, from)
 	var at := t.time
 	var ended := await t.until(func(): return not Listen.holding(t, p), ENDS)
 	t.check(
@@ -71,7 +72,7 @@ func run(t: TestContext) -> void:
 				+ "%.2f s after it showed)")
 			% [
 				ENDS,
-				Probe.acts(t, p),
+				GrenadeAi.acts(t, p),
 				str(Entry.entry(Entry.brain(t, p)).get("phase", "")),
 				t.time - at,
 			],

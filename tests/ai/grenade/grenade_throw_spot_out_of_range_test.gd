@@ -22,6 +22,7 @@ extends GameTest
 ## is armed at the start of `run`, the way Main arms a spawn; the frag row is retuned (above).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const N_AT := Vector2(100, 150)
@@ -69,8 +70,8 @@ func configure(s: TestSetup) -> void:
 	)
 	s.actor(&"n", &"invader", N_AT, { "facing": Vector2.RIGHT })
 	s.actor(&"s", &"invader", S_AT, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"nh", N_H, N_AT)
-	Probe.hostile(s, &"sh", S_H, S_AT)
+	GrenadeAi.hostile(s, &"nh", N_H, N_AT)
+	GrenadeAi.hostile(s, &"sh", S_H, S_AT)
 
 
 func run(t: TestContext) -> void:

@@ -16,6 +16,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Investigate := preload("res://tests/_ai/investigate_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
@@ -58,13 +59,13 @@ func run(t: TestContext) -> void:
 		return
 	Investigate.gunfire(Maps.KITCHEN_CENTRE)
 	var door := String(Entry.BACK["id"])
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	await _wait_all_in(t, w, nodes, squad, door)
 	if not t.require(
 			Follow.own_claims(t, lead).any(
 				func(e): return String(e["data"].get("opening", "")) == door,
 			),
-			"premise: the lead claimed the back door of its own (acts %s)" % Follow.acts_of(
+			"premise: the lead claimed the back door of its own (acts %s)" % FollowWatch.acts_of(
 				w,
 				lead,
 			),
@@ -78,7 +79,7 @@ func run(t: TestContext) -> void:
 ## Watches (70 s at most) until all of `nodes` went in by `door`.
 func _wait_all_in(t: TestContext, w: Dictionary, nodes: Array, squad: Node, door: String) -> void:
 	var in_all := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return nodes.all(func(c): return Follow.first_call(t, c, "going_in", door) < INF)
 	await t.until(in_all, 70.0)
 
@@ -96,9 +97,9 @@ func _check_joined(t: TestContext, w: Dictionary, members: Array, door: String) 
 			% str(joins.map(func(e): return e["data"])),
 	)
 	t.check(
-		members.all(func(m): return Follow.asked(w, m) == 0),
+		members.all(func(m): return FollowWatch.asked(w, m) == 0),
 		"the members asked Von nothing: they joined by the order (asks %s)"
-			% str(members.map(func(m): return Follow.asked(w, m))),
+			% str(members.map(func(m): return FollowWatch.asked(w, m))),
 	)
 
 

@@ -10,6 +10,7 @@ extends GameTest
 ## NPCs walk (they are not held) because "in time" depends on being able to move.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const BARE_N := Vector2(100, 150)
 const BARE_H := Vector2(360, 150)
@@ -55,7 +56,7 @@ func configure(s: TestSetup) -> void:
 				"tuning:decision:decide_interval": 0.4,
 			},
 		)
-		Probe.hostile(s, pair[3], pair[2], pair[1])
+		GrenadeAi.hostile(s, pair[3], pair[2], pair[1])
 
 
 func run(t: TestContext) -> void:
@@ -75,7 +76,7 @@ func run(t: TestContext) -> void:
 		for key in pairs:
 			var n := t.actor(pairs[key][0])
 			var h := t.actor(pairs[key][1])
-			var offered := Probe.offered(t.controller(pairs[key][0], &"current_act"))
+			var offered := GrenadeAi.offered(t.controller(pairs[key][0], &"current_act"))
 			if (not offered.is_empty()
 					and n.global_position.distance_to(h.global_position) <= Probe.FRAG_ZONE - 20.0):
 				seen[key].append(offered)
