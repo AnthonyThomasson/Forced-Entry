@@ -68,19 +68,19 @@ func _silhouette(n: int, size: Vector2i, seed_value: int) -> PixelCanvas:
 	)
 	match n % 4:
 		0:
-			c.fill(PixelCanvas.rounded(r, c.rng.randi_range(0, 6)), Color(0.4, 0.3, 0.3), 2)
+			c.fill(PixelShape.rounded(r, c.rng.randi_range(0, 6)), Color(0.4, 0.3, 0.3), 2)
 		1:
-			c.fill(PixelCanvas.ellipse(r), Color(0.3, 0.4, 0.3), 2)
+			c.fill(PixelShape.ellipse(r), Color(0.3, 0.4, 0.3), 2)
 		2:
 			c.fill(
-				PixelCanvas.bowed(r, c.rng.randi_range(0, 5), c.rng.randi_range(0, 4)),
+				PixelShape.bowed(r, c.rng.randi_range(0, 5), c.rng.randi_range(0, 4)),
 				Color(0.3, 0.3, 0.4),
 				2,
 			)
 		3:
-			c.fill(PixelCanvas.rounded(r, 2), Color(0.5, 0.4, 0.3), 2)
+			c.fill(PixelShape.rounded(r, 2), Color(0.5, 0.4, 0.3), 2)
 			for _k in c.rng.randi_range(1, 4):
-				c.clear(PixelCanvas.disc(
+				c.clear(PixelShape.disc(
 					Vector2i(c.rng.randi_range(0, size.x - 1), c.rng.randi_range(0, size.y - 1)),
 					c.rng.randi_range(1, 4),
 				))

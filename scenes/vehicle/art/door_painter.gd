@@ -52,13 +52,13 @@ static func _panel(c: PixelCanvas, base: Color, def: Dictionary, outer: float) -
 		var a: int = col.call(from)
 		var b: int = col.call(to - 1)
 		return Rect2i(mini(a, b), 0, absi(b - a) + 1, c.h)
-	var slab := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 1)
+	var slab := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(slab, t["dark"], _HEIGHT)
-	var skin := PixelCanvas.rounded(band.call(0, 2), 0)
+	var skin := PixelShape.rounded(band.call(0, 2), 0)
 	c.fill(skin, base, _HEIGHT + 1)
 	c.bevel(skin, 1, 1, t["highlight"], t["shadow"])
-	c.fill(PixelCanvas.rounded(band.call(2, 3), 0), trim, _HEIGHT + 1)
-	var lining := PixelCanvas.rounded(band.call(c.w - 2, c.w), 0)
+	c.fill(PixelShape.rounded(band.call(2, 3), 0), trim, _HEIGHT + 1)
+	var lining := PixelShape.rounded(band.call(c.w - 2, c.w), 0)
 	c.fill(lining, inside, _HEIGHT)
 	_armrest(c, col, inside)
 	_handle(c, def, col, t)
@@ -76,7 +76,7 @@ static func _armrest(c: PixelCanvas, col: Callable, inside: Color) -> void:
 		2,
 		maxi(roundi(c.h * 0.3), 2),
 	)
-	c.fill(PixelCanvas.rounded(rest, 0), inside.lightened(0.15), _HEIGHT + 1)
+	c.fill(PixelShape.rounded(rest, 0), inside.lightened(0.15), _HEIGHT + 1)
 
 
 ## The handle on the skin of door `def` where it is pulled (a sliding door's near its front edge, a
@@ -125,7 +125,7 @@ static func _glass(c: PixelCanvas, kind: StringName, def: Dictionary) -> void:
 	var k := c.h / maxf(rect.size.x, 1.0)
 	var centre := rect.get_center()
 	var key := "door_glass/%s/%s|%d|%d" % [kind, def["id"], c.w, c.h]
-	var pane := Art.cached(key, func() -> PixelCanvas.Shape:
+	var pane := Art.cached(key, func() -> PixelShape:
 		return Art.convex(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 			var p := Vector2(rect.position.x + (y + 0.5) / k, centre.y - (x + 0.5 - c.w * 0.5) / k)
 			return Art.in_door_glass(gaps, look, p)))
@@ -150,11 +150,11 @@ static func glass_rect(kind: StringName, id: StringName) -> Rect2:
 ## A wing mirror: a painted housing with the dark glass facing back.
 static func _mirror(c: PixelCanvas, base: Color) -> void:
 	var t := PixelCanvas.tones(base)
-	var housing := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+	var housing := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(housing, base, _GLASS)
 	c.bevel(housing, 1, 1, t["highlight"], t["shadow"])
 	c.fill(
-		PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, 2), 0),
+		PixelShape.rounded(Rect2i(1, 0, c.w - 2, 2), 0),
 		VehicleArtConfig.glass_color.darkened(0.3),
 		_GLASS,
 	)

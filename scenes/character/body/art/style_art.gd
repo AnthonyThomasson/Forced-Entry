@@ -48,7 +48,7 @@ static func inlays(c: PixelCanvas, r: Rect2i, count := 2) -> void:
 ## The livery's edge sheen on `shape` (the Zenitex's light grey plate edges): its rim lit all round,
 ## brighter toward the light, so a near-black garment still reads as a shape on the floor. Nothing
 ## for a style without an `edge`.
-static func edge(c: PixelCanvas, shape: PixelCanvas.Shape, look: Dictionary) -> void:
+static func edge(c: PixelCanvas, shape: PixelShape, look: Dictionary) -> void:
 	var col: Color = look.get("edge", Color(0, 0, 0, 0))
 	if col.a > 0.0:
 		c.bevel(shape, 1, 1, col, col.darkened(0.4))
@@ -58,7 +58,7 @@ static func edge(c: PixelCanvas, shape: PixelCanvas.Shape, look: Dictionary) -> 
 ## only where `shape` is: a stripe kept on the garment.
 static func column(
 	c: PixelCanvas,
-	shape: PixelCanvas.Shape,
+	shape: PixelShape,
 	line: Rect2i,
 	col: Color,
 	height: int,

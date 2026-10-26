@@ -27,7 +27,7 @@ const _SECTIONS := [[0.0, 0.18], [0.2, 0.52], [0.54, 0.74], [0.76, 1.0]]
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var surgical := String(opts.get("kind", "rig")) == "surgical"
 	var pad: Color = ObjectArtClinicConfig.recliner_vinyl_color if surgical else base
-	var frame := PixelCanvas.rounded(Rect2i(4, 2, c.w - 8, c.h - 4), 6)
+	var frame := PixelShape.rounded(Rect2i(4, 2, c.w - 8, c.h - 4), 6)
 	c.fill(frame, ObjectArtTechConfig.tech_dark_color, _FRAME_HEIGHT)
 	var inner := Rect2i(7, 4, c.w - 14, c.h - 8)
 	for k in _SECTIONS.size():
@@ -74,11 +74,11 @@ static func _straps_and_lamp(c: PixelCanvas, inner: Rect2i) -> void:
 		)
 	var lamp := Vector2i(int(c.w / 2.0), roundi(c.h * 0.42))
 	c.line(Vector2i(c.w - 2, 4), lamp, ObjectArtClinicConfig.recliner_frame_color, _LAMP_HEIGHT - 1)
-	var head := PixelCanvas.disc(lamp, 6)
+	var head := PixelShape.disc(lamp, 6)
 	c.fill(head, ObjectArtClinicConfig.recliner_frame_color, _LAMP_HEIGHT)
 	c.outline(head, dark)
 	c.glowing(func() -> void:
-		c.fill(PixelCanvas.disc(lamp, 3), ObjectArtClinicConfig.recliner_lamp_color, _LAMP_HEIGHT))
+		c.fill(PixelShape.disc(lamp, 3), ObjectArtClinicConfig.recliner_lamp_color, _LAMP_HEIGHT))
 
 
 ## The rig's neural halo of LEDs round the headrest (glowing, every other one in `screen`) and its

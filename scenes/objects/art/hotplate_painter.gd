@@ -25,9 +25,9 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var right := Vector2i(plate.end.x - r - 3, left.y)
 	var hot := ObjectArtKitchenBathConfig.hotplate_ring_color
 	c.glowing(func() -> void:
-		c.outline(PixelCanvas.disc(left, r), hot)
-		c.outline(PixelCanvas.disc(left, maxi(1, r - 2)), hot.darkened(0.3)))
-	var pan := PixelCanvas.disc(right, r + 1)
+		c.outline(PixelShape.disc(left, r), hot)
+		c.outline(PixelShape.disc(left, maxi(1, r - 2)), hot.darkened(0.3)))
+	var pan := PixelShape.disc(right, r + 1)
 	var pan_col := ObjectArtKitchenBathConfig.hotplate_pan_color
 	c.fill(pan, pan_col, _PAN_HEIGHT)
 	c.outline(pan, PixelCanvas.tones(pan_col).outline)

@@ -41,9 +41,9 @@ static func box(
 	col: Color,
 	height: int,
 	radius := 2,
-) -> PixelCanvas.Shape:
+) -> PixelShape:
 	var t := PixelCanvas.tones(col)
-	var s := PixelCanvas.rounded(r, radius)
+	var s := PixelShape.rounded(r, radius)
 	c.fill(s, col, height)
 	c.bevel(s, 1, 1, t.light, t.dark)
 	c.outline(s, t.outline)

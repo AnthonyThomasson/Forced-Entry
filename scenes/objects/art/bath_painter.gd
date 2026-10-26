@@ -26,14 +26,14 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 	var t := PixelCanvas.tones(base)
 	var full := Rect2i(0, 0, c.w, c.h)
-	var rim := PixelCanvas.rounded(full, mini(10, int(mini(c.w, c.h) / 4.0)))
+	var rim := PixelShape.rounded(full, mini(10, int(mini(c.w, c.h) / 4.0)))
 	c.fill(rim, base, _RIM_HEIGHT)
 	c.surface(rim, material, base)
 	c.bevel(rim, 2, 3, t.highlight, t.dark)
 	c.outline(rim, t.shadow)
 	var lip := maxi(4, int(mini(c.w, c.h) / 12.0))
 	var basin_rect := full.grow(-lip)
-	var basin := PixelCanvas.rounded(
+	var basin := PixelShape.rounded(
 		basin_rect,
 		mini(14, int(mini(basin_rect.size.x, basin_rect.size.y) / 3.0)),
 	)
@@ -47,7 +47,7 @@ static func _tub(c: PixelCanvas, base: Color, material: String) -> void:
 static func _water(c: PixelCanvas, basin_rect: Rect2i) -> void:
 	var water_col := ObjectArtKitchenBathConfig.bath_water_color
 	var water_rect := basin_rect.grow(-3)
-	var water := PixelCanvas.rounded(
+	var water := PixelShape.rounded(
 		water_rect,
 		mini(12, int(mini(water_rect.size.x, water_rect.size.y) / 3.0)),
 	)
@@ -66,18 +66,18 @@ static func _tub_tap(c: PixelCanvas, basin_rect: Rect2i, lip: int) -> void:
 	var cy := int(c.h / 2.0)
 	var metal := ObjectArtKitchenBathConfig.counter_tap_color
 	var drain := Vector2i(basin_rect.position.x + 7, cy)
-	c.fill(PixelCanvas.disc(drain, 2), metal.darkened(0.25))
+	c.fill(PixelShape.disc(drain, 2), metal.darkened(0.25))
 	c.px(drain.x, drain.y, metal.darkened(0.6))
-	c.fill(PixelCanvas.rounded(Rect2i(1, cy - 1, lip + 4, 2), 0), metal, _FIXTURE_HEIGHT)
+	c.fill(PixelShape.rounded(Rect2i(1, cy - 1, lip + 4, 2), 0), metal, _FIXTURE_HEIGHT)
 	for dy in [-5, 5]:
-		c.fill(PixelCanvas.disc(Vector2i(int(lip / 2.0) + 1, cy + dy), 1), metal, _FIXTURE_HEIGHT)
+		c.fill(PixelShape.disc(Vector2i(int(lip / 2.0) + 1, cy + dy), 1), metal, _FIXTURE_HEIGHT)
 
 
 ## Tiled tray, drain grate, a glass screen along the front and right side, the shower head on its
 ## arm from the back wall, and a soap dish in the back corner.
 static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 	var t := PixelCanvas.tones(base)
-	var tray := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+	var tray := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(tray, base, _TRAY_HEIGHT)
 	c.surface(tray, material if material != "glass" else "ceramic", base)
 	var cell := maxi(4, ObjectArtKitchenBathConfig.bath_tile_px)
@@ -97,7 +97,7 @@ static func _shower(c: PixelCanvas, base: Color, material: String) -> void:
 ## The shower tray's central drain grate, in `metal`.
 static func _shower_drain(c: PixelCanvas, metal: Color) -> void:
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
-	var drain := PixelCanvas.disc(o, 3)
+	var drain := PixelShape.disc(o, 3)
 	c.fill(drain, metal)
 	c.outline(drain, metal.darkened(0.4))
 	for d in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
@@ -108,8 +108,8 @@ static func _shower_drain(c: PixelCanvas, metal: Color) -> void:
 static func _shower_screen(c: PixelCanvas) -> void:
 	var glass := ObjectArtKitchenBathConfig.shower_glass_color
 	var band := 2
-	c.fill(PixelCanvas.rounded(Rect2i(0, c.h - band, c.w, band), 0), glass, _FIXTURE_HEIGHT)
-	c.fill(PixelCanvas.rounded(Rect2i(c.w - band, 0, band, c.h), 0), glass, _FIXTURE_HEIGHT)
+	c.fill(PixelShape.rounded(Rect2i(0, c.h - band, c.w, band), 0), glass, _FIXTURE_HEIGHT)
+	c.fill(PixelShape.rounded(Rect2i(c.w - band, 0, band, c.h), 0), glass, _FIXTURE_HEIGHT)
 	c.line(Vector2i(1, c.h - band), Vector2i(c.w - band - 1, c.h - band), glass.lightened(0.4))
 	c.line(Vector2i(c.w - band, 1), Vector2i(c.w - band, c.h - band - 1), glass.lightened(0.4))
 
@@ -117,11 +117,11 @@ static func _shower_screen(c: PixelCanvas) -> void:
 ## The shower head on its arm from the back wall and the soap dish in the back corner, in `metal`.
 static func _shower_head(c: PixelCanvas, metal: Color) -> void:
 	var head := Vector2i(roundi(c.w * 0.22), roundi(c.h * 0.16))
-	c.fill(PixelCanvas.rounded(Rect2i(head.x - 1, 0, 2, head.y), 0), metal, _FIXTURE_HEIGHT)
-	var rose := PixelCanvas.disc(head, maxi(2, int(c.w / 18.0)))
+	c.fill(PixelShape.rounded(Rect2i(head.x - 1, 0, 2, head.y), 0), metal, _FIXTURE_HEIGHT)
+	var rose := PixelShape.disc(head, maxi(2, int(c.w / 18.0)))
 	c.fill(rose, metal, _FIXTURE_HEIGHT + 1)
 	c.outline(rose, metal.darkened(0.35))
 	c.px(head.x, head.y, metal.darkened(0.45))
 	var dish := Rect2i(c.w - roundi(c.w * 0.26), 2, roundi(c.w * 0.14), 4)
-	c.fill(PixelCanvas.rounded(dish, 1), metal, _FIXTURE_HEIGHT - 2)
-	c.fill(PixelCanvas.ellipse(dish.grow(-1)), Color(0.95, 0.88, 0.85), _FIXTURE_HEIGHT - 1)
+	c.fill(PixelShape.rounded(dish, 1), metal, _FIXTURE_HEIGHT - 2)
+	c.fill(PixelShape.ellipse(dish.grow(-1)), Color(0.95, 0.88, 0.85), _FIXTURE_HEIGHT - 1)

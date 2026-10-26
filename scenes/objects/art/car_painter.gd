@@ -25,7 +25,7 @@ static func paint(c: PixelCanvas, paint_color: Color, _material: String, _opts: 
 
 	var inset := tyre_w - 2
 	var body_rect := Rect2i(inset, 1, c.w - inset * 2, c.h - 2)
-	var body := PixelCanvas.rounded(body_rect, roundi(body_rect.size.x * 0.2))
+	var body := PixelShape.rounded(body_rect, roundi(body_rect.size.x * 0.2))
 	c.fill(body, base, _BODY_HEIGHT)
 	c.bevel(body, 2, 3, t.highlight, t.dark)
 	c.glare(body, base.lightened(0.3), 3)
@@ -46,7 +46,7 @@ static func _tyres(c: PixelCanvas, tyre_w: int) -> void:
 	for fy in [0.14, 0.72]:
 		for x in [0, c.w - tyre_w]:
 			var r := Rect2i(x, roundi(c.h * fy), tyre_w, tyre_h)
-			c.fill(PixelCanvas.rounded(r, 2), tyre, _TYRE_HEIGHT)
+			c.fill(PixelShape.rounded(r, 2), tyre, _TYRE_HEIGHT)
 			for y in range(r.position.y + 2, r.end.y - 1, 3):
 				c.line(
 					Vector2i(r.position.x + 1, y),
@@ -62,17 +62,17 @@ static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary)
 	for side in [-1, 1]:
 		var crease_x: int = cx + side * roundi(body_rect.size.x * 0.22)
 		c.line(Vector2i(crease_x, roundi(c.h * 0.7)), Vector2i(crease_x, c.h - 8), t.dark)
-		var lamp := PixelCanvas.ellipse(
+		var lamp := PixelShape.ellipse(
 			Rect2i(cx + side * roundi(body_rect.size.x * 0.32) - 5, c.h - 9, 10, 6),
 		)
 		c.fill(lamp, ObjectArtOutdoorConfig.car_light_color, _BODY_HEIGHT)
 		c.outline(lamp, t.outline)
-		var tail := PixelCanvas.rounded(
+		var tail := PixelShape.rounded(
 			Rect2i(cx + side * roundi(body_rect.size.x * 0.32) - 5, 2, 10, 3),
 			1,
 		)
 		c.fill(tail, Color(0.8, 0.12, 0.1), _BODY_HEIGHT)
-		var mirror := PixelCanvas.rounded(
+		var mirror := PixelShape.rounded(
 			Rect2i(
 				body_rect.position.x - 4 if side < 0 else body_rect.end.x - 1,
 				roundi(c.h * 0.55),
@@ -88,7 +88,7 @@ static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary)
 			var edge: int = body_rect.position.x + 2 if side < 0 else body_rect.end.x - 3
 			c.line(Vector2i(edge, y), Vector2i(edge + side * -4, y), t.shadow)
 			c.px(edge + side * -2, y + 4, t.highlight)
-	var grille := PixelCanvas.rounded(
+	var grille := PixelShape.rounded(
 		Rect2i(cx - roundi(body_rect.size.x * 0.18), c.h - 6, roundi(body_rect.size.x * 0.36), 3),
 		1,
 	)
@@ -98,7 +98,7 @@ static func _trim(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary)
 ## The tinted windscreen and rear window, and the raised roof between them with its side windows.
 static func _glazing(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictionary) -> void:
 	var glass := ObjectArtOutdoorConfig.car_glass_color
-	var screen := PixelCanvas.rounded(
+	var screen := PixelShape.rounded(
 		Rect2i(
 			body_rect.position.x + 8,
 			roundi(c.h * 0.56),
@@ -109,7 +109,7 @@ static func _glazing(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictiona
 	)
 	c.fill(screen, glass, _BODY_HEIGHT)
 	c.glare(screen, glass.lightened(0.4), 2)
-	var rear := PixelCanvas.rounded(
+	var rear := PixelShape.rounded(
 		Rect2i(
 			body_rect.position.x + 10,
 			roundi(c.h * 0.16),
@@ -126,7 +126,7 @@ static func _glazing(c: PixelCanvas, body_rect: Rect2i, base: Color, t: Dictiona
 		body_rect.size.x - 18,
 		roundi(c.h * 0.31),
 	)
-	var roof := PixelCanvas.rounded(roof_rect, 6)
+	var roof := PixelShape.rounded(roof_rect, 6)
 	c.fill(roof, base.lightened(0.04), _ROOF_HEIGHT)
 	c.bevel(roof, 1, 2, t.highlight, t.dark)
 	c.outline(roof, t.shadow)

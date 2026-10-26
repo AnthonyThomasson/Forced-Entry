@@ -49,12 +49,12 @@ static func _top_vest(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionar
 	var half := roundi(c.w * 0.3)
 	# The panel hugs the shoulders: a rounded block across the trunk, cut to the shoulders' own
 	# outline.
-	var block := PixelCanvas.rounded(
+	var block := PixelShape.rounded(
 		Rect2i(o.x - half, span.position.y, half * 2 + 1, span.size.y),
 		4,
 	)
-	var shoulders := PixelCanvas.ellipse(span)
-	var body := PixelCanvas.Shape.new(
+	var shoulders := PixelShape.ellipse(span)
+	var body := PixelShape.new(
 		block.bounds,
 		func(x: int, y: int) -> bool: return block.has(x, y) and shoulders.has(x, y),
 	)
@@ -71,7 +71,7 @@ static func _top_chest_rig(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dict
 		for dx in [0, 1]:
 			var x: int = o.x + side * (half - 3 + dx)
 			c.line(Vector2i(x, span.position.y + 1), Vector2i(x, span.end.y - 2), _STRAP, _VEST)
-		var flank := PixelCanvas.rounded(
+		var flank := PixelShape.rounded(
 			Rect2i(o.x + side * (half - 1) - (2 if side > 0 else 0), o.y - 2, 3, 5),
 			0,
 		)
@@ -110,7 +110,7 @@ static func _top_panel(
 	var half := roundi(c.w * 0.3)
 	var front := face == "front"
 	var y := span.end.y - 4 if front else span.position.y - 2
-	var panel := PixelCanvas.rounded(Rect2i(o.x - half, y, half * 2 + 1, 6), 2)
+	var panel := PixelShape.rounded(Rect2i(o.x - half, y, half * 2 + 1, 6), 2)
 	var plated: bool = opts.has(face + "_plate")
 	var cover := _col(look, face + "_cover")
 	_fill(c, panel, cover, plated, look)
@@ -143,7 +143,7 @@ static func _face_flank(c: PixelCanvas, waist: int, look: Dictionary) -> void:
 	var col := _col(look, "vest_col")
 	var t := PixelCanvas.tones(col)
 	var bottom := waist - 1
-	var band := PixelCanvas.rounded(
+	var band := PixelShape.rounded(
 		Rect2i(0, roundi(waist * 0.35), c.w, bottom - roundi(waist * 0.35)),
 		0,
 	)
@@ -177,7 +177,7 @@ static func _face_panel(c: PixelCanvas, face: String, waist: int, opts: Dictiona
 	var plated: bool = kind == "carrier" and opts.has(face + "_plate")
 	var cover := _col(look, "vest_col") if kind == "vest" else _col(look, face + "_cover")
 	var r := Rect2i(inset, top, c.w - inset * 2, bottom - top)
-	_fill(c, PixelCanvas.rounded(r, 2), cover, plated, look)
+	_fill(c, PixelShape.rounded(r, 2), cover, plated, look)
 	for x in [inset + 2, c.w - inset - 3]:  # Straps up over the shoulders.
 		c.line(Vector2i(x, 0), Vector2i(x, top), PixelCanvas.tones(cover).dark, _VEST)
 	if plated:
@@ -207,7 +207,7 @@ static func _face_fittings(
 			_pouches(c, Rect2i(r.position.x + 1, r.end.y - 5, r.size.x - 2, 4), 3, cover)
 		else:
 			# The drag handle.
-			c.fill(PixelCanvas.rounded(Rect2i(cx - 2, r.position.y, 5, 2), 0), _STRAP, _POUCH)
+			c.fill(PixelShape.rounded(Rect2i(cx - 2, r.position.y, 5, 2), 0), _STRAP, _POUCH)
 	elif face == "front":
 		# The zip.
 		c.line(
@@ -223,7 +223,7 @@ static func _face_fittings(
 ## higher.
 static func _fill(
 	c: PixelCanvas,
-	s: PixelCanvas.Shape,
+	s: PixelShape,
 	col: Color,
 	plated: bool,
 	look: Dictionary,
@@ -243,7 +243,7 @@ static func _pouches(c: PixelCanvas, r: Rect2i, count: int, col: Color) -> void:
 	var t := PixelCanvas.tones(pc)
 	var w := maxi(2, int(r.size.x / float(count)) - 1)
 	for k in count:
-		var pouch := PixelCanvas.rounded(
+		var pouch := PixelShape.rounded(
 			Rect2i(r.position.x + k * (w + 1), r.position.y, w, r.size.y),
 			0,
 		)
@@ -314,7 +314,7 @@ static func _marks_face(
 			StyleArt.cross(c, Vector2i(cx, chest + 2), trim, _MARK, 2)
 		"merc":
 			if kind == "carrier":
-				var patch := PixelCanvas.rounded(Rect2i(cx - 5, chest, 4, 3), 0)
+				var patch := PixelShape.rounded(Rect2i(cx - 5, chest, 4, 3), 0)
 				c.fill(patch, _col(look, "back_cover"), _MARK)
 		"borg":
 			for y in [top + 1, bottom - 2]:

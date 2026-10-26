@@ -33,7 +33,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 static func _cart(c: PixelCanvas, base: Color, screen: Color) -> void:
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _BODY_HEIGHT, 2)
 	var tray := Rect2i(3, 3, c.w - 6, c.h - 6)
-	c.fill(PixelCanvas.rounded(tray, 1), ObjectArtClinicConfig.clinic_tray_color, _BODY_HEIGHT)
+	c.fill(PixelShape.rounded(tray, 1), ObjectArtClinicConfig.clinic_tray_color, _BODY_HEIGHT)
 	var steel := ObjectArtClinicConfig.clinic_chrome_color
 	for i in 4:
 		var x := tray.position.x + 3 + i * 4
@@ -59,7 +59,7 @@ static func _cart(c: PixelCanvas, base: Color, screen: Color) -> void:
 static func _shelf(c: PixelCanvas, base: Color) -> void:
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _SHELF_HEIGHT, 1)
 	var well := Rect2i(3, 3, c.w - 6, c.h - 6)
-	c.fill(PixelCanvas.rounded(well, 0), ObjectArtTechConfig.tech_dark_color, 1)
+	c.fill(PixelShape.rounded(well, 0), ObjectArtTechConfig.tech_dark_color, 1)
 	var chrome := ObjectArtClinicConfig.clinic_chrome_color
 	var x := well.position.x + 2
 	while x < well.end.x - 6:
@@ -72,9 +72,9 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 					x + 3,
 					well.position.y + c.rng.randi_range(4, maxi(4, well.size.y - 5)),
 				)
-				c.fill(PixelCanvas.disc(o, 3), ObjectArtClinicConfig.clinic_eye_color, _TOOL_HEIGHT)
+				c.fill(PixelShape.disc(o, 3), ObjectArtClinicConfig.clinic_eye_color, _TOOL_HEIGHT)
 				c.fill(
-					PixelCanvas.disc(o, 1),
+					PixelShape.disc(o, 1),
 					ObjectArtClinicConfig.clinic_joint_color,
 					_TOOL_HEIGHT,
 				)
@@ -87,7 +87,7 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 					5,
 				)
 				c.fill(
-					PixelCanvas.rounded(r, 0),
+					PixelShape.rounded(r, 0),
 					ObjectArtClinicConfig.clinic_chip_color,
 					_TOOL_HEIGHT,
 				)
@@ -97,8 +97,8 @@ static func _shelf(c: PixelCanvas, base: Color) -> void:
 				x += 8
 			_:  # A jar.
 				var o := Vector2i(x + 3, well.position.y + 5)
-				c.fill(PixelCanvas.disc(o, 3), ObjectArtClinicConfig.clinic_jar_color, _TOOL_HEIGHT)
-				c.outline(PixelCanvas.disc(o, 3), chrome)
+				c.fill(PixelShape.disc(o, 3), ObjectArtClinicConfig.clinic_jar_color, _TOOL_HEIGHT)
+				c.outline(PixelShape.disc(o, 3), chrome)
 				x += 8
 
 
@@ -112,7 +112,7 @@ static func _arm(c: PixelCanvas, x: int, well: Rect2i, chrome: Color) -> void:
 		_TOOL_HEIGHT,
 	)
 	c.fill(
-		PixelCanvas.disc(Vector2i(x, well.position.y + int(well.size.y / 2.0)), 1),
+		PixelShape.disc(Vector2i(x, well.position.y + int(well.size.y / 2.0)), 1),
 		ObjectArtClinicConfig.clinic_joint_color,
 		_TOOL_HEIGHT,
 	)

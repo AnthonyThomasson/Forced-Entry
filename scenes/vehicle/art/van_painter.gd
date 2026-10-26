@@ -33,7 +33,7 @@ static func _chassis(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var t := PixelCanvas.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
-	var body := PixelCanvas.rounded(
+	var body := PixelShape.rounded(
 		Art.box(v, -half.x, half.x, -half.y, half.y),
 		roundi(float(v.row["corner"]) * v.k),
 	)
@@ -55,18 +55,18 @@ static func _bumpers(v: VehiclePaint) -> void:
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
-	var nose := PixelCanvas.rounded(
+	var nose := PixelShape.rounded(
 		Art.box(v, half.x - bumper, half.x, -half.y + 3.0, half.y - 3.0),
 		roundi(3 * k),
 	)
 	c.fill(nose, trim, _BODY - 1)
 	c.bevel(nose, 1, 1, trim.lightened(0.18), trim.darkened(0.3))
-	var tail := PixelCanvas.rounded(
+	var tail := PixelShape.rounded(
 		Art.box(v, -half.x, -half.x + bumper - 2.0, -half.y + 3.0, half.y - 3.0),
 		roundi(2 * k),
 	)
 	c.fill(tail, trim, _BODY - 1)
-	var step := PixelCanvas.rounded(
+	var step := PixelShape.rounded(
 		Art.box(v, -half.x - 0.5, -half.x + bumper, -20.0, 20.0),
 		roundi(1 * k),
 	)
@@ -90,7 +90,7 @@ static func _nose(v: VehiclePaint) -> void:
 	var bonnet: float = v.look["bonnet"]
 	var belt: float = v.look["belt"]
 	var head: Vector2 = v.look["head"]
-	var grille := PixelCanvas.rounded(
+	var grille := PixelShape.rounded(
 		Art.box(v, half.x - bumper - 9.0, half.x - bumper, -head.x + 4.0, head.x - 4.0),
 		roundi(1 * v.k),
 	)
@@ -108,7 +108,7 @@ static func _nose(v: VehiclePaint) -> void:
 		t["shadow"],
 	)
 	c.glare(
-		PixelCanvas.rounded(
+		PixelShape.rounded(
 			Art.box(v, bonnet + 2.0, half.x - bumper - 10.0, -half.y + 6.0, half.y - 6.0),
 			roundi(3 * v.k),
 		),
@@ -125,19 +125,19 @@ static func _cab(v: VehiclePaint) -> void:
 	var belt: float = v.look["belt"]
 	var driver: Vector2 = v.row["seats"][&"driver"]
 	var bulkhead: float = (v.look["pillars"][0] as Vector2).y
-	var cab := PixelCanvas.rounded(
+	var cab := PixelShape.rounded(
 		Art.box(v, bulkhead, v.look["bonnet"], -belt, belt), roundi(3 * k)
 	)
 	c.fill(cab, VehicleArtConfig.interior_color, _FLOOR)
 	c.surface(cab, "fabric", VehicleArtConfig.interior_color)
 	Art.dashboard(v, belt - 1.0)
-	var cover := PixelCanvas.rounded(
+	var cover := PixelShape.rounded(
 		Art.box(v, driver.x - 14.0, (v.look["dash"] as Vector2).x, -9.0, 9.0),
 		roundi(3 * k),
 	)
 	c.fill(cover, trim.lightened(0.1), 3)
 	c.bevel(cover, 1, 1, trim.lightened(0.28), trim.darkened(0.3))
-	var wall := PixelCanvas.rounded(Art.box(v, bulkhead - 4.0, bulkhead, -belt, belt), 0)
+	var wall := PixelShape.rounded(Art.box(v, bulkhead - 4.0, bulkhead, -belt, belt), 0)
 	c.fill(wall, v.base.darkened(0.25), 6)
 
 
@@ -149,7 +149,7 @@ static func _cargo_bay(v: VehiclePaint) -> void:
 	var belt: float = v.look["belt"]
 	var bulkhead: float = (v.look["pillars"][0] as Vector2).y
 	var wood := VehicleArtConfig.cargo_floor_color
-	var bay := PixelCanvas.rounded(
+	var bay := PixelShape.rounded(
 		Art.box(v, -half.x + bumper - 2.0, bulkhead - 4.0, -belt, belt),
 		roundi(2 * v.k),
 	)
@@ -195,7 +195,7 @@ static func _roof(v: VehiclePaint) -> void:
 	var belt: float = look["belt"]
 	var bonnet: float = look["bonnet"]
 	var screen_half: float = look["screen_half"]
-	var frame := PixelCanvas.rounded(
+	var frame := PixelShape.rounded(
 		Art.box(v, float(look["boot"]) - 3.0, bonnet, -belt, belt), roundi(3 * v.k)
 	)
 	c.fill(frame, v.base, _PILLAR)
@@ -219,7 +219,7 @@ static func _roof_panel(v: VehiclePaint) -> void:
 	var roof: Vector2 = v.look["roof"]
 	var roof_half: float = v.look["roof_half"]
 	var boot: float = v.look["boot"]
-	var panel := PixelCanvas.rounded(
+	var panel := PixelShape.rounded(
 		Art.box(v, boot - 2.0, roof.x, -roof_half, roof_half),
 		roundi(4 * v.k),
 	)
@@ -245,7 +245,7 @@ static func _roof_panel(v: VehiclePaint) -> void:
 ## The vent on the roof, its slats in `t`'s shadow.
 static func _vent(v: VehiclePaint, t: Dictionary) -> void:
 	var c := v.canvas
-	var vent := PixelCanvas.rounded(Art.box(v, -78.0, -60.0, -9.0, 9.0), roundi(2 * v.k))
+	var vent := PixelShape.rounded(Art.box(v, -78.0, -60.0, -9.0, 9.0), roundi(2 * v.k))
 	c.fill(vent, t["base"].darkened(0.08), _ROOF + 2)
 	c.bevel(vent, 1, 1, t["highlight"], t["shadow"])
 	c.outline(vent, t["outline"])

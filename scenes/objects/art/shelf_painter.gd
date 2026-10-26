@@ -17,12 +17,12 @@ const _CONTENT_HEIGHT := 3
 ## Paint a shelf onto `c` in `base` with a `material` frame, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
 	var t := PixelCanvas.tones(base)
-	var frame := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 1)
+	var frame := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(frame, base, _FRAME_HEIGHT)
 	c.surface(frame, material, base)
 	var border := maxi(2, roundi(mini(c.w, c.h) * 0.08))
 	var well := Rect2i(0, 0, c.w, c.h).grow(-border)
-	c.fill(PixelCanvas.rounded(well, 0), t.shadow.darkened(0.3), 1)
+	c.fill(PixelShape.rounded(well, 0), t.shadow.darkened(0.3), 1)
 	match String(opts.get("contents", ObjectArtStorageConfig.shelf_contents)):
 		"books":
 			_books(c, well)
@@ -39,7 +39,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 				Vector2i(0, c.h - 3),
 				Vector2i(c.w - 3, c.h - 3),
 		]:
-			var post := PixelCanvas.rounded(Rect2i(p, Vector2i(3, 3)), 0)
+			var post := PixelShape.rounded(Rect2i(p, Vector2i(3, 3)), 0)
 			c.fill(post, t.dark, _FRAME_HEIGHT + 1)
 			c.outline(post, t.outline)
 	c.cast_shadows()
@@ -62,7 +62,7 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 		if roll < 0.12 and well.end.x - x > 8:
 			var o := Vector2i(x + 3, well.position.y + mini(4, int(well.size.y / 3.0)))
 			c.fill(
-				PixelCanvas.disc(o, 2),
+				PixelShape.disc(o, 2),
 				ObjectArtDecorConfig.prop_colors["glaze"],
 				_CONTENT_HEIGHT + 1,
 			)
@@ -72,9 +72,9 @@ static func _books(c: PixelCanvas, well: Rect2i) -> void:
 		var bh := maxi(2, roundi(well.size.y * c.rng.randf_range(0.6, 0.95)))
 		var cover := Props.pick(c, "books")
 		var r := Rect2i(x, well.position.y, bw, bh)
-		c.fill(PixelCanvas.rounded(r, 0), cover, _CONTENT_HEIGHT)
+		c.fill(PixelShape.rounded(r, 0), cover, _CONTENT_HEIGHT)
 		if bw >= 3:
-			c.fill(PixelCanvas.rounded(Rect2i(x + 1, r.position.y + 1, bw - 2, bh - 2), 0), paper)
+			c.fill(PixelShape.rounded(Rect2i(x + 1, r.position.y + 1, bw - 2, bh - 2), 0), paper)
 		else:
 			c.line(
 				Vector2i(x + bw - 1, r.position.y),
@@ -100,11 +100,11 @@ static func _boxes(c: PixelCanvas, well: Rect2i) -> void:
 static func _tin(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
 	var rad := mini(int(depth / 2.0), 5)
 	var o := Vector2i(x + rad, well.position.y + rad + 1)
-	var tin := PixelCanvas.disc(o, rad)
+	var tin := PixelShape.disc(o, rad)
 	var label := Props.pick(c, "books")
 	c.fill(tin, ObjectArtDecorConfig.prop_colors["metal"], _CONTENT_HEIGHT)
 	c.outline(tin, ObjectArtDecorConfig.prop_colors["metal"].darkened(0.4))
-	c.outline(PixelCanvas.disc(o, maxi(1, rad - 2)), label)
+	c.outline(PixelShape.disc(o, maxi(1, rad - 2)), label)
 	return rad * 2 + 2
 
 
@@ -114,7 +114,7 @@ static func _box(c: PixelCanvas, x: int, well: Rect2i, depth: int) -> int:
 	var bw := mini(c.rng.randi_range(10, 22), well.end.x - x - 1)
 	var r := Rect2i(x, well.position.y + 1, bw, depth)
 	var tone := ObjectArtStorageConfig.shelf_box_color.darkened(c.rng.randf_range(0.0, 0.15))
-	var box := PixelCanvas.rounded(r, 0)
+	var box := PixelShape.rounded(r, 0)
 	c.fill(box, tone, _CONTENT_HEIGHT)
 	c.bevel(box, 1, 1, tone.lightened(0.12), tone.darkened(0.25))
 	c.line(
@@ -136,11 +136,11 @@ static func _shoes(c: PixelCanvas, well: Rect2i) -> void:
 		var length := maxi(sw + 2, roundi(well.size.y * c.rng.randf_range(0.75, 0.95)))
 		for i in 2:
 			var r := Rect2i(x + i * (sw + 1), well.end.y - length, sw, length)
-			var shoe := PixelCanvas.ellipse(r)
+			var shoe := PixelShape.ellipse(r)
 			c.fill(shoe, col, _CONTENT_HEIGHT)
 			c.outline(shoe, col.darkened(0.45))
 			c.fill(
-				PixelCanvas.ellipse(Rect2i(
+				PixelShape.ellipse(Rect2i(
 					r.position.x + 1,
 					r.position.y + 1,
 					maxi(1, sw - 2),

@@ -17,11 +17,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var bowl_rect := Rect2i(
 		roundi(c.w * 0.21), roundi(c.h * 0.26), roundi(c.w * 0.58), roundi(c.h * 0.68),
 	)
-	var bowl := PixelCanvas.ellipse(bowl_rect)
+	var bowl := PixelShape.ellipse(bowl_rect)
 	c.fill(bowl, base, _BOWL_HEIGHT)
 	c.bevel(bowl, 1, 2, t.highlight, t.dark)
 	c.outline(bowl, t.shadow)
-	var water := PixelCanvas.ellipse(bowl_rect.grow(-maxi(2, int(c.w / 10.0))))
+	var water := PixelShape.ellipse(bowl_rect.grow(-maxi(2, int(c.w / 10.0))))
 	c.fill(water, ObjectArtKitchenBathConfig.bath_water_color, 1)
 	c.bevel(
 		water,
@@ -31,7 +31,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 		ObjectArtKitchenBathConfig.bath_water_color.lightened(0.2),
 	)
 	c.fill(
-		PixelCanvas.ellipse(bowl_rect.grow(-maxi(4, int(c.w / 5.0)))),
+		PixelShape.ellipse(bowl_rect.grow(-maxi(4, int(c.w / 5.0)))),
 		ObjectArtKitchenBathConfig.bath_water_color.darkened(0.12),
 	)
 	c.glare(water, Color(0.95, 0.98, 1.0), 1)
@@ -39,11 +39,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var tank_rect := Rect2i(
 		roundi(c.w * 0.2), roundi(c.h * 0.06), roundi(c.w * 0.6), roundi(c.h * 0.24),
 	)
-	var tank := PixelCanvas.rounded(tank_rect, 3)
+	var tank := PixelShape.rounded(tank_rect, 3)
 	c.fill(tank, base, _TANK_HEIGHT)
 	c.bevel(tank, 1, 2, t.highlight, t.dark)
 	c.outline(tank, t.shadow)
-	var button := PixelCanvas.disc(tank_rect.position + tank_rect.size / 2, 1)
+	var button := PixelShape.disc(tank_rect.position + tank_rect.size / 2, 1)
 	c.fill(button, ObjectArtKitchenBathConfig.counter_tap_color, _TANK_HEIGHT + 1)
 	c.cast_shadows()
 	porcelain(c)

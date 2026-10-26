@@ -53,19 +53,21 @@ the shared `vehicle_art.gd`; see `domain-vehicle`). Knobs follow `opts.get(key, 
 
 An RGBA8 Image at art resolution plus coverage and height layers (R8 images filled natively, read
 through snapshots).
-- **Shapes:** `rounded(r, radius)`, `ellipse(r)`, `disc(c, radius)` are `ConvexShape`s (one span
-  per row/column: native row fills, O(1) depth-from-edge + normal, edge band enumerated
-  directly); `bowed(r, radius, bow)` is a mask `Shape` (run-length sweeps).
-- **Cost:** a mask `Shape` tests every pixel of its bounds when built and keeps a per-pixel mask, depth and normal (eight
+- **Shapes** are their own classes, `PixelShape` (`pixel_shape.gd`) and `PixelConvexShape extends PixelShape`
+  (`pixel_convex_shape.gd`), and the canvas draws whatever shape it is handed. `PixelShape.rounded(r, radius)`,
+  `PixelShape.ellipse(r)` and `PixelShape.disc(c, radius)` build `PixelConvexShape`s (one span per row/column: native row
+  fills, O(1) depth-from-edge + normal, edge band enumerated directly); `PixelShape.bowed(r, radius, bow)` builds a mask
+  `PixelShape` (run-length sweeps).
+- **Cost:** a mask `PixelShape` tests every pixel of its bounds when built and keeps a per-pixel mask, depth and normal (eight
   sweeps of its inside pixels, on first use), and hands `bevel` / `outline` only its edge band (`edge_pixels(k)`: depth 1..k),
   pinned to the plain per-pixel scan by `tests/art/shape_edges_match_plain_scan_test.gd`; a
-  `ConvexShape` keeps one span per row and per column, so its fill, bevel and outline cost its edge. A shape that is convex along
-  both axes but not a rounded rect or ellipse can be built from outside with `PixelCanvas.ConvexShape.new(rect, x0, x1, y0, y1)`
+  `PixelConvexShape` keeps one span per row and per column, so its fill, bevel and outline cost its edge. A shape that is convex
+  along both axes but not a rounded rect or ellipse can be built from outside with `PixelConvexShape.new(rect, x0, x1, y0, y1)`
   (per row: first inside x and one past the last; per column the same in y): the Vehicles domain's `vehicle_art.convex` does, once
   per geometry, for its windscreens and side windows. `cast_shadows()` walks the whole canvas, so a large canvas painted for every
   lighting step (a vehicle body) skips it and shades with bevels.
 - **Drawing:** `fill(shape, color, height)`, `clear`, `paint_over(rect, color)`, `line`, `px`; the static
-  `line_points(a, b)` (a 1 px line's Bresenham points, `a` first) is the one line walk, also for a painter that blends or clips
+  `PixelShape.line_points(a, b)` (a 1 px line's Bresenham points, `a` first) is the one line walk, also for a painter that blends or clips
   each point itself (Objects' `decay.gd` `line` / `scratches`).
 - **What gives light:** `glowing(draw: Callable, area := Rect2i())` runs a drawing (a screen's face, a tube, a bulb, an LED)
   and marks every pixel it changed within `area` (the whole canvas when empty) as emissive; `emissive()` returns those pixels as

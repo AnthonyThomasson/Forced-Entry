@@ -72,8 +72,8 @@ static func _box(o: Vector2i, sw: float, sh: float, dx: float = 0.0, dy: float =
 
 
 ## Fill + outline a rounded box in `col`, raised to the prop height.
-static func _block(c: PixelCanvas, r: Rect2i, radius: int, col: Color) -> PixelCanvas.Shape:
-	var s := PixelCanvas.rounded(r, radius)
+static func _block(c: PixelCanvas, r: Rect2i, radius: int, col: Color) -> PixelShape:
+	var s := PixelShape.rounded(r, radius)
 	c.fill(s, col, _HEIGHT)
 	c.bevel(s, 1, 1, col.lightened(0.18), col.darkened(0.2))
 	return s
@@ -81,8 +81,8 @@ static func _block(c: PixelCanvas, r: Rect2i, radius: int, col: Color) -> PixelC
 
 ## A monitor: a slim screen bar with a lit front edge (glowing, in `glow`) on a neck and oval foot.
 static func _monitor(c: PixelCanvas, o: Vector2i, glow: Color) -> void:
-	c.fill(PixelCanvas.ellipse(_box(o, 10, 6, 0, 1)), _col("metal").darkened(0.25), _HEIGHT - 2)
-	c.fill(PixelCanvas.rounded(_box(o, 3, 3, 0, -1), 0), _col("metal").darkened(0.4), _HEIGHT)
+	c.fill(PixelShape.ellipse(_box(o, 10, 6, 0, 1)), _col("metal").darkened(0.25), _HEIGHT - 2)
+	c.fill(PixelShape.rounded(_box(o, 3, 3, 0, -1), 0), _col("metal").darkened(0.4), _HEIGHT)
 	var bar := _box(o, 24, 3, 0, -3)
 	var screen := _block(c, bar, 1, _col("plastic_dark"))
 	c.outline(screen, _col("plastic_dark").darkened(0.4))
@@ -104,8 +104,8 @@ static func _keyboard(c: PixelCanvas, o: Vector2i) -> void:
 
 ## A mug of coffee with its handle.
 static func _mug(c: PixelCanvas, o: Vector2i) -> void:
-	c.fill(PixelCanvas.disc(o, _u(3)), _col("ceramic"), _HEIGHT)
-	c.fill(PixelCanvas.disc(o, _u(2)), _col("coffee"))
+	c.fill(PixelShape.disc(o, _u(3)), _col("ceramic"), _HEIGHT)
+	c.fill(PixelShape.disc(o, _u(2)), _col("coffee"))
 	c.px(o.x + _u(4), o.y, _col("ceramic").darkened(0.15), _HEIGHT)
 	c.px(o.x + _u(4), o.y + 1, _col("ceramic").darkened(0.15), _HEIGHT)
 
@@ -114,7 +114,7 @@ static func _mug(c: PixelCanvas, o: Vector2i) -> void:
 static func _papers(c: PixelCanvas, o: Vector2i) -> void:
 	for i in 2:
 		var r := _box(o, 11, 14, i * 2 - 1, i - 1)
-		var s := PixelCanvas.rounded(r, 0)
+		var s := PixelShape.rounded(r, 0)
 		c.fill(s, _col("paper").darkened(0.06 * (1 - i)), 2)
 		c.outline(s, _col("paper").darkened(0.25))
 		if i == 1:
@@ -143,8 +143,8 @@ static func _book(c: PixelCanvas, o: Vector2i) -> void:
 
 ## A small round clock face with two hands.
 static func _clock(c: PixelCanvas, o: Vector2i) -> void:
-	c.fill(PixelCanvas.disc(o, _u(4)), _col("plastic_dark"), _HEIGHT)
-	c.fill(PixelCanvas.disc(o, _u(3)), _col("paper"), _HEIGHT)
+	c.fill(PixelShape.disc(o, _u(4)), _col("plastic_dark"), _HEIGHT)
+	c.fill(PixelShape.disc(o, _u(3)), _col("paper"), _HEIGHT)
 	c.line(o, o + Vector2i(0, -_u(2)), _col("ink").darkened(0.5))
 	c.line(o, o + Vector2i(_u(2), 0), _col("ink").darkened(0.5))
 	c.px(o.x, o.y, _col("accent"))
@@ -152,30 +152,30 @@ static func _clock(c: PixelCanvas, o: Vector2i) -> void:
 
 ## A bowl holding keys, or (`fruit`) a few pieces of fruit.
 static func _bowl(c: PixelCanvas, o: Vector2i, fruit: bool) -> void:
-	var rim := PixelCanvas.disc(o, _u(6))
+	var rim := PixelShape.disc(o, _u(6))
 	c.fill(rim, _col("ceramic"), _HEIGHT - 2)
 	c.outline(rim, _col("ceramic").darkened(0.35))
-	c.fill(PixelCanvas.disc(o, _u(4)), _col("ceramic").darkened(0.12), _HEIGHT - 3)
+	c.fill(PixelShape.disc(o, _u(4)), _col("ceramic").darkened(0.12), _HEIGHT - 3)
 	if not fruit:
-		c.fill(PixelCanvas.disc(o + Vector2i(-1, 0), _u(1)), _col("metal"), _HEIGHT)
+		c.fill(PixelShape.disc(o + Vector2i(-1, 0), _u(1)), _col("metal"), _HEIGHT)
 		c.line(o + Vector2i(0, 0), o + Vector2i(_u(3), _u(1)), _col("metal").darkened(0.2), _HEIGHT)
 		return
 	for off in [Vector2i(-2, -1), Vector2i(2, -2), Vector2i(1, 2), Vector2i(-2, 2)]:
 		var p: Vector2i = o + Vector2i(_o(off.x), _o(off.y))
 		var col := pick(c, "fruit")
-		c.fill(PixelCanvas.disc(p, _u(2)), col, _HEIGHT)
+		c.fill(PixelShape.disc(p, _u(2)), col, _HEIGHT)
 		c.px(p.x - 1, p.y - 1, col.lightened(0.35))
 
 
 ## A vase of flowers with leaves.
 static func _vase(c: PixelCanvas, o: Vector2i) -> void:
-	c.fill(PixelCanvas.disc(o, _u(3)), _col("glaze"), _HEIGHT)
+	c.fill(PixelShape.disc(o, _u(3)), _col("glaze"), _HEIGHT)
 	for i in 6:
 		var a := TAU * i / 6.0 + c.rng.randf_range(-0.3, 0.3)
 		var p := o + Vector2i((Vector2(cos(a), sin(a)) * _u(3.5)).round())
 		c.px(p.x, p.y, _col("leaf"), _HEIGHT + 1)
 		var f := o + Vector2i((Vector2(cos(a + 0.5), sin(a + 0.5)) * _u(2)).round())
-		c.fill(PixelCanvas.disc(f, maxi(1, _u(1))), pick(c, "flowers"), _HEIGHT + 2)
+		c.fill(PixelShape.disc(f, maxi(1, _u(1))), pick(c, "flowers"), _HEIGHT + 2)
 
 
 ## A grained cutting board with a knife.
@@ -195,18 +195,18 @@ static func _tools(c: PixelCanvas, o: Vector2i) -> void:
 	var h := o + Vector2i(-_u(6), -_u(2))
 	c.line(h, h + Vector2i(_u(9), 0), _col("wood_light"), _HEIGHT)
 	c.fill(
-		PixelCanvas.rounded(Rect2i(h + Vector2i(_u(8), -_u(2)), Vector2i(_u(2), _u(5))), 0),
+		PixelShape.rounded(Rect2i(h + Vector2i(_u(8), -_u(2)), Vector2i(_u(2), _u(5))), 0),
 		_col("metal").darkened(0.3),
 		_HEIGHT,
 	)
 	# Wrench.
 	var wr := o + Vector2i(-_u(5), _u(3))
 	c.line(wr, wr + Vector2i(_u(8), 0), _col("metal"), _HEIGHT)
-	c.fill(PixelCanvas.disc(wr + Vector2i(_u(9), 0), _u(2)), _col("metal"), _HEIGHT)
+	c.fill(PixelShape.disc(wr + Vector2i(_u(9), 0), _u(2)), _col("metal"), _HEIGHT)
 	c.px(wr.x + _u(10), wr.y, _col("metal").darkened(0.5))
 	# Screwdriver.
 	var sd := o + Vector2i(_u(5), -_u(5))
-	c.fill(PixelCanvas.rounded(Rect2i(sd, Vector2i(_u(2), _u(4))), 0), _col("accent"), _HEIGHT)
+	c.fill(PixelShape.rounded(Rect2i(sd, Vector2i(_u(2), _u(4))), 0), _col("accent"), _HEIGHT)
 	c.line(sd + Vector2i(0, _u(4)), sd + Vector2i(0, _u(9)), _col("metal").lightened(0.1), _HEIGHT)
 
 
@@ -232,8 +232,8 @@ static func _vise(c: PixelCanvas, o: Vector2i) -> void:
 ## A drawing on a sheet of paper beside a row of crayons.
 static func _crayons(c: PixelCanvas, o: Vector2i) -> void:
 	var sheet := _box(o, 13, 10, -3, 0)
-	c.fill(PixelCanvas.rounded(sheet, 0), _col("paper"), 2)
-	c.outline(PixelCanvas.rounded(sheet, 0), _col("paper").darkened(0.25))
+	c.fill(PixelShape.rounded(sheet, 0), _col("paper"), 2)
+	c.outline(PixelShape.rounded(sheet, 0), _col("paper").darkened(0.25))
 	c.line(
 		sheet.position + Vector2i(2, 3),
 		sheet.position + Vector2i(sheet.size.x - 3, 6),
@@ -246,7 +246,7 @@ static func _crayons(c: PixelCanvas, o: Vector2i) -> void:
 
 ## A plate with an inner rim.
 static func _plate(c: PixelCanvas, o: Vector2i) -> void:
-	var rim := PixelCanvas.disc(o, _u(5))
+	var rim := PixelShape.disc(o, _u(5))
 	c.fill(rim, _col("ceramic"), 3)
 	c.outline(rim, _col("ceramic").darkened(0.3))
-	c.outline(PixelCanvas.disc(o, _u(3)), _col("ceramic").darkened(0.12))
+	c.outline(PixelShape.disc(o, _u(3)), _col("ceramic").darkened(0.12))

@@ -17,11 +17,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	var radius := int(mini(c.w, c.h) / 2.0) - 1
 	var pot_col := ObjectArtDecorConfig.plant_pot_color
 	var pt := PixelCanvas.tones(pot_col)
-	var pot := PixelCanvas.disc(o, roundi(radius * 0.72))
+	var pot := PixelShape.disc(o, roundi(radius * 0.72))
 	c.fill(pot, pot_col, _POT_HEIGHT)
 	c.bevel(pot, 1, 2, pt.light, pt.dark)
 	c.outline(pot, pt.outline)
-	c.fill(PixelCanvas.disc(o, roundi(radius * 0.55)), ObjectArtDecorConfig.plant_soil_color, 1)
+	c.fill(PixelShape.disc(o, roundi(radius * 0.55)), ObjectArtDecorConfig.plant_soil_color, 1)
 
 	var leaf := base.lerp(ObjectArtDecorConfig.plant_dead_color, ObjectArtDecorConfig.plant_wilt)
 	var n := int(opts.get("leaves", ObjectArtDecorConfig.plant_leaves))

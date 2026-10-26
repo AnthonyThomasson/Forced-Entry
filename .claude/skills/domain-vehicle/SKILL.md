@@ -210,9 +210,9 @@ rest) and the decals under it, and under the living and the occupants (`STANDING
   side glass goes (`clear_door_glass`), since that glass is drawn by the door. The body painters call no `cast_shadows`
   (a body is repainted for every lighting step it turns through, and the pass walks the whole canvas; bevels shade it instead);
   the small door panel does.
-- **Regions:** `vehicle_art.region` builds a `PixelCanvas.ConvexShape` (`convex`: each row's and column's first and last
+- **Regions:** `vehicle_art.region` builds a `PixelConvexShape` (`convex`: each row's and column's first and last
   inside pixel) from a vehicle-frame point test, once per geometry key and canvas size (`_regions`), and reuses it for
-  every lighting step: a mask `Shape` would test every pixel on each paint, while a ConvexShape's fill, bevel and outline
+  every lighting step: a mask `PixelShape` would test every pixel on each paint, while a `PixelConvexShape`'s fill, bevel and outline
   cost its edge. A test must be convex along both canvas axes.
 - **Caching:** every texture goes through `PixelArt.render_turned`, lit for the nearest of `ArtCanvasConfig.turn_steps` steps
   (`_lit`) and drawn rotated to the exact angle. A layer redraws only when its `_key()` changes: the lighting step, the
