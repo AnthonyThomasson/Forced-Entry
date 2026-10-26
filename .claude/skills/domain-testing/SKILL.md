@@ -106,8 +106,9 @@ interface 23), the module Main builds its matches with, so a test world is stage
   (`tests/<domain>/[<topic>/]<name>_test.gd`) runs only that test** (`--id=<domain>/[<topic>/]<name>`; it can only change its own
   result), unless its domain is already running; `tests/_ai`, `tests/_audio` and `tests/_lighting` helpers run that domain,
   `tests/_vehicle` runs `vehicle`, `audio` and `general` (its users), `tests/_perf` runs the `perf` domain, `tests/_harness` the self-tests, and an unknown helper folder everything
-  (`tests/_main`, the Main-driving tests' helper, `tests/_outfit`, `tests/_objects` (`collider_probe.gd`, `Colliders.same_pieces`) and `tests/_character`
-  (`kill_probe.gd`, `Kill.kill_targets(t, count)`; `arm_probe.gd`, `Arms.check(t, c, when)`: both arms keep their length) are unknown to the mapping, so a change to any of them runs the whole suite).
+  (`tests/_main`, the Main-driving tests' helper, `tests/_outfit`, `tests/_objects` (`collider_probe.gd`, `Colliders.same_pieces`), `tests/_character`
+  (`kill_probe.gd`, `Kill.kill_targets(t, count)`; `arm_probe.gd`, `Arms.check(t, c, when)`: both arms keep their length) and `tests/_navigation` (`bake_probe.gd`,
+  `Bake.problem(region)`: what the NavigationServer would refuse in a baked polygon) are unknown to the mapping, so a change to any of them runs the whole suite).
   An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
   `tools/test_log_gate.py` tests this mapping. **`--changed --staged`** (the pre-commit hook's) maps what is staged
