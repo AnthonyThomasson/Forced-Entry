@@ -132,10 +132,6 @@ var _combat: RefCounted
 var _entry: RefCounted
 ## The threat that takes the eyes and the doors a resting NPC watches; see watch.gd.
 var _watch: RefCounted
-## The contact holding the NPC's eyes and gun this tick ({} = none); see `_apply_watch`.
-var _threat: Dictionary = {}
-## What set the gaze this tick, for the read-outs: threat / doors / primitive.
-var _gaze := "primitive"
 ## An ENTER leaf was adopted and its entry starts on the next tick (`_apply_entry`).
 var _entry_pending := false
 ## How long (s) an ordered entry has waited, its claim held back, for the map round the views
@@ -264,7 +260,7 @@ func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning
 	_combat.setup(_loco, perception, tuning)
 	_combat.dry.connect(_on_dry)
 	_watch = Watch.new()
-	_watch.setup(_loco, perception)
+	_watch.setup(_loco, perception, tuning)
 	_entry = Entry.new()
 	_entry.setup(_loco, perception, _coverage, _watch, _combat)
 
@@ -301,10 +297,6 @@ func apply_config(npc_squad: Node = null) -> void:
 	watch_lost_gaze = tuning.watch.lost_gaze
 	low_ammo_fraction = tuning.context.low_ammo_fraction
 	squad = npc_squad
-	_watch.look_ahead = tuning.watch.look_ahead
-	_watch.door_dwell = tuning.watch.door_dwell
-	_watch.lost_gaze = tuning.watch.lost_gaze
-	_watch.look_rate = tuning.coverage.look_rate
 	_coverage.spacing = tuning.coverage.spacing
 	_coverage.target_fraction = tuning.coverage.target
 	_coverage.budget_max = tuning.coverage.budget
@@ -522,9 +514,9 @@ func debug_state() -> Dictionary:
 		"hold_ground": _hold_ground,
 		"hostiles_known": _hostiles.size(),
 		"gaze": {
-			"mode": _gaze,
-			"threat": str(_threat["node"].name)
-				if not _threat.is_empty() and is_instance_valid(_threat["node"])
+			"mode": _watch.gaze,
+			"threat": str(_watch.threat["node"].name)
+				if not _watch.threat.is_empty() and is_instance_valid(_watch.threat["node"])
 				else "",
 		},
 		"in_interaction": _in_interaction,
@@ -1107,7 +1099,7 @@ func apply(delta: float) -> void:
 		_character.movement.move_input = Vector2.ZERO
 	if _loco.crowd.take_blocked():
 		_way_blocked()
-	_apply_watch(delta)
+	_watch.apply(self, delta)
 	_guard_clock += delta
 	_entry_guard()
 	_combat.continue_burst()
@@ -1209,72 +1201,6 @@ func _way_blocked() -> void:
 		_arrived = true  # It stands where it is held until its spot moves on.
 
 
-## The watch stage (docs/gaze-and-fire.md), run after the primitive has steered: an NPC is always
-## either looking at (and, when it can, shooting) a threat, or watching its doors, never a wall and
-## never with its back to a known threat. A threat (`Watch.threat`: the hostile it is fighting or
-## the nearest it sees, else one it saw a moment ago with a clear line to where it was) takes the
-## eyes and the gun whatever the primitive is doing: `Combat` shoots it as soon as a shot is on, and
-## an empty gun is reloaded. A melee and an engaged NPC in position fight their own target and aim
-## at it themselves; an interaction has its own gaze. With nothing to look at, a resting NPC (a
-## hold, a reload, a move that has arrived) turns among its room's doorways.
-func _apply_watch(delta: float) -> void:
-	_threat = {}
-	_gaze = "primitive"
-	if _character.use.is_busy() or _own_gaze():
-		return
-	var t: Dictionary = _watch.threat(_hostiles, _engage_id)
-	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
-		t = {}  # Remembered behind a wall: not worth staring at the wall for.
-	if not t.is_empty():
-		_threat = t
-		_gaze = "threat"
-		_character.movement.aim_point = t["pos"]
-		_combat.fire_at_will(t)
-		if not _entry.committed():
-			_combat.reload_if_dry()
-		return
-	if _resting():
-		_gaze = "doors"
-		var door = _params.get("door_pos") if _primitive in [&"defend", &"ambush"] else null
-		if door is Vector2:
-			# A defender's gun on its own doorway (D2), an ambusher's on the threshold (LD15).
-			Watch.ease_gaze(_character, door, search_look_rate, delta)
-		else:
-			_watch.idle_gaze(delta)
-
-
-## Whether the running primitive keeps its own gaze this tick, so the watch stage leaves it be: a
-## melee, an interaction, an engage in position, a throw taking the grenade in hand and throwing it,
-## an entry's bang.
-func _own_gaze() -> bool:
-	match _primitive:
-		&"melee", &"interact":
-			return true
-		&"engage":
-			return _arrived
-		&"throw":
-			# Taking the grenade in hand and throwing it: aimed at the spot, not shot at the threat.
-			return _combat.throw.stage not in ["walk", "away"]
-		&"entry":
-			return _entry.phase == "bang"  # Turned away from the door for the stun.
-	return false
-
-
-## Whether the running primitive leaves the NPC standing with nowhere in particular to look: a hold,
-## a reload, a move that has arrived (and is not covering the room by sight).
-func _resting() -> bool:
-	match _primitive:
-		&"hold", &"reload":
-			return true
-		&"move":
-			return _arrived and not _look_around
-		&"throw":
-			return _combat.throw.stage == "away"
-		&"defend", &"ambush":
-			return _arrived
-	return false
-
-
 ## The gun ran dry mid-fight: the task is resolved, so the controller re-decides (the empty gun is
 ## in the snapshot now).
 func _on_dry() -> void:
@@ -1370,8 +1296,8 @@ func _run_now() -> bool:
 		return false
 	if _character.global_position.distance_to(dest) <= near:
 		return false
-	if not _threat.is_empty() and not bool(_params.get("run_through_fire", false)) \
-			and (_combat.can_fire_at(_threat) or _combat.reload_due()):
+	if not _watch.threat.is_empty() and not bool(_params.get("run_through_fire", false)) \
+			and (_combat.can_fire_at(_watch.threat) or _combat.reload_due()):
 		# A shot (or the reload an empty gun needs) is on: a running character can do neither, so
 		# walk and take it.
 		return false
@@ -1429,7 +1355,7 @@ func _note_move_arrival() -> void:
 			_resolved = true
 
 
-## Where a moving NPC looks when no threat has its eyes (`_apply_watch` puts one there): its target,
+## Where a moving NPC looks when no threat has its eyes (`Watch.apply` puts one there): its target,
 ## the nearest known threat, the destination, or (default) a few paces down its path, so its view
 ## cone sweeps the way it is going.
 func _aim_move() -> void:
@@ -1508,7 +1434,7 @@ func _keeps_in(pos: Vector2) -> bool:
 ## a threat in sight in every one of them). Done (the room clear, or the entry given up) →
 ## re-decide.
 func _apply_entry(delta: float) -> void:
-	_entry.gaze_held = not _threat.is_empty()
+	_entry.gaze_held = not _watch.threat.is_empty()
 	_entry.hostile_in_view = _hostile_in_view()
 	if _entry_pending and _begin_pending_entry(delta):
 		return
@@ -1644,9 +1570,9 @@ func _entry_recipients_coming() -> bool:
 ## but behind a wall or out of range (nothing to engage it with from outside), does not hold an
 ## entry outside.
 func _hostile_in_view() -> bool:
-	return (not _threat.is_empty()
-			and (bool(_threat["visible"]) or float(_threat["age"]) <= watch_lost_gaze)
-			and _combat.has_line_of_fire(_threat))
+	return (not _watch.threat.is_empty()
+			and (bool(_watch.threat["visible"]) or float(_watch.threat["age"]) <= watch_lost_gaze)
+			and _combat.has_line_of_fire(_watch.threat))
 
 
 ## The entry is over, or could not start. As the NPC's own order (ENTER) it resolves and the NPC
@@ -2045,7 +1971,7 @@ func _apply_follow() -> void:
 		_character.movement.aim_point = here + (here - lead).normalized() * 100.0
 	# At rest once it has stood as long as a still leader does (a file walk stops between re-aims).
 	if (GameClock.seconds() - _follow_stood >= squad.follow_still_time
-			and _threat.is_empty()
+			and _watch.threat.is_empty()
 			and not _perception.under_fire()
 			and _combat.magazine_low(low_ammo_fraction)):
 		_combat.top_off()
@@ -2069,7 +1995,7 @@ func walk_pending() -> bool:
 	return false
 
 
-## Hold: stand still. Where it looks is the watch stage's (`_apply_watch`): a threat if one has its
+## Hold: stand still. Where it looks is the watch stage's (`Watch.apply`): a threat if one has its
 ## eyes, else the doors. An empty gun is reloaded meanwhile, so a steady NPC (no decision to be had)
 ## isn't left unarmed.
 func _apply_hold() -> void:
@@ -2173,8 +2099,8 @@ func _apply_evade(delta: float) -> void:
 		# Up off the chair: a grenade outranks what it was doing, whoever started it.
 		_character.use.end_interaction()
 		_in_interaction = false
-	_threat = {}
-	_gaze = "evade"
+	_watch.threat = {}
+	_watch.gaze = "evade"
 	var spot: Vector2 = evade_spot()
 	var here: Vector2 = _character.global_position
 	var away: Vector2 = here - (_evade["point"] as Vector2)

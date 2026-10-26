@@ -2,8 +2,8 @@
 
 Where an NPC looks and when it takes the shot (the faults ruled out: an NPC turned its back on a known threat, looked at
 a wall, or saw an enemy and did not shoot). The tests named under each behaviour assert this document
-(`tools/run_tests.sh gaze`). The code is `scenes/ai/behavior/watch.gd` and the *watch stage* of `behavior.gd`
-(`_apply_watch`); see the `domain-ai-watch`, `domain-ai-behavior` and `domain-ai-combat` skills.
+(`tools/run_tests.sh gaze`). The code is `scenes/ai/behavior/watch.gd` and its *watch stage*
+(`Watch.apply`, which `behavior.gd` runs each tick); see the `domain-ai-watch`, `domain-ai-behavior` and `domain-ai-combat` skills.
 
 The one rule: **an NPC is always either looking at (and, when it can, shooting) a threat, or watching its doors; never a
 wall, and never with its back to a known threat.** The character turns to wherever the controller sets `movement.aim_point`
@@ -12,7 +12,7 @@ its path, a room search at the nearest unseen floor), and the watch stage, which
 a threat or, for a resting NPC, the doors. It also does all the shooting of a threat, so no primitive or entry phase needs
 its own fire call.
 
-A *threat* is a hostile contact (`Watch.threat`): the one it is fighting if it can see it, else the nearest it can see,
+A *threat* is a hostile contact (`Watch._pick_threat`): the one it is fighting if it can see it, else the nearest it can see,
 else the one it is fighting as last seen, else the nearest it saw within `tuning.watch.lost_gaze` s. A contact it cannot see only
 counts while it has a clear line to where it was last seen (it does not stare at a wall because someone is behind it).
 
