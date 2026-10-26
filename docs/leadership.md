@@ -609,7 +609,7 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
 - **The human's own claim** (`PlayerStack`, interface 17). The invaders' alone (D29): the match builder sets the human's `PlayerStack.own_claims` through
   `MatchBuilder.bind_squad` on the invaders' side only, so a human defender leader makes no claim of its own and its step-ups rally nobody
   (its teammates still follow it). While the human leads a squad with
-  another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
+  another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `step_up.stepped`): standing on the
   doorway's stack side, out from its wall plane by at most `STEP_UP_REACH` (60 px) and past its jamb along the wall by at most as much, for
   `STEP_UP_TIME` (0.5 s), at a doorway nobody stacks at and the human has not declined. It claims on the side it stands on, marked `own`,
   and the squad hears it as the leader's own claim: of the human's claims only one marked `own` rallies the team, so the slot the human is
