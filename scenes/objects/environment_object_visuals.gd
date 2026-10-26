@@ -27,11 +27,11 @@ var _drop_shadow: Node2D
 
 
 func _ready() -> void:
-	if _obj.art != "":
+	if _obj.look.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var opts: Dictionary = _obj.art_opts.merged({ "material": _obj.object_material }, true)
-		_art = ObjectArt.texture(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
-		_emissive = ObjectArt.emissive(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
+		var opts: Dictionary = _obj.look.art_opts.merged({ "material": _obj.object_material }, true)
+		_art = ObjectArt.texture(_obj.look.art, _obj.size, _obj.color, _obj.look.facing, opts)
+		_emissive = ObjectArt.emissive(_obj.look.art, _obj.size, _obj.color, _obj.look.facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 		_drop_shadow = Node2D.new()
@@ -65,7 +65,7 @@ func _draw() -> void:
 	var shape: String = _obj.shape_type
 	var size: Vector2 = _obj.size
 	var color: Color = _obj.color
-	var text_color: Color = _obj.text_color
+	var text_color: Color = _obj.look.text_color
 
 	# Damage-deformed silhouette (dents, missing pieces) + crack/hole marks. Impact
 	# state lives on the Deformable physics component the object composes.
@@ -73,17 +73,17 @@ func _draw() -> void:
 	var impacts: Array = deformable.impacts if deformable else []
 	var damage_total: float = deformable.damage_total if deformable else 0.0
 
-	var look := ShapeLook.new()
-	look.fill = color
-	look.damage_total = damage_total
+	var shape_look := ShapeLook.new()
+	shape_look.fill = color
+	shape_look.damage_total = damage_total
 	if _art:  # (its drop shadow is the `_drop_shadow` child's, behind this)
-		look.outline = color.darkened(ArtSurfaceConfig.tone_outline)
-		look.texture = _art
-		Deformation.draw_shape(self, shape, size, impacts, look)
+		shape_look.outline = color.darkened(ArtSurfaceConfig.tone_outline)
+		shape_look.texture = _art
+		Deformation.draw_shape(self, shape, size, impacts, shape_look)
 		return
 
-	look.outline = text_color
-	Deformation.draw_shape(self, shape, size, impacts, look)
+	shape_look.outline = text_color
+	Deformation.draw_shape(self, shape, size, impacts, shape_look)
 	_draw_name(text_color)
 
 

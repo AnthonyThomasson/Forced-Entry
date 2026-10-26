@@ -210,9 +210,10 @@ Damage is decals placed in the world, never in a tile. `decal_layer.gd` is a dra
   cracks, stains, gum, weeds and the curb along `edges`; on a road the worn lane dashes (`lane`), cracks, patches and oil, and
   litter and puddles in the gutter along `edges`.
 
-Object fields for art: `art`, `art_opts` (from the definition) and `facing` (`opts.facing` from
-World-Gen; visual only, a cardinal direction in the local frame — the `rotated` size swap still
-owns the footprint). The visuals draw a drop shadow — the art's own alpha through the deformed
+A piece's art fields are on its `look` (`object_look.gd`, a data leaf built with the piece and filled by
+`ObjectFactory`): `art`, `art_opts` (from the definition), `facing` (`opts.facing` from World-Gen; visual only, a cardinal
+direction in the local frame — the `rotated` size swap still owns the footprint) and `text_color` (the flat label's); its
+visuals, its overhang and `object_lights.gd` read them as `piece.look.<field>`. The visuals draw a drop shadow — the art's own alpha through the deformed
 outline, offset away from the light in world space by `coverage × drop_shadow_per_coverage`
 (capped; non-solid decor casts none) — then `Deformation.draw_shape(..., look)` (its `ShapeLook` carrying the `texture`) so dents and
 chunks cut into the art. The drop shadow is the visuals' `DropShadow` child (`show_behind_parent`), drawn in the piece's own frame

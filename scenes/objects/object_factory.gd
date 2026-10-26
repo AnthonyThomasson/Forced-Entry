@@ -54,7 +54,7 @@ static func spawn(
 	obj.object_name = definition["name"]
 	obj.size = size
 	obj.color = color
-	obj.text_color = Color.BLACK if color.get_luminance() > 0.6 else Color.WHITE
+	obj.look.text_color = Color.BLACK if color.get_luminance() > 0.6 else Color.WHITE
 	obj.solid = definition.get("solid", true)
 	obj.anchored = definition.get("anchored", false)
 	obj.object_material = definition.get("material", "")
@@ -62,15 +62,15 @@ static func spawn(
 	obj.penetration = definition.get("penetration", 0.0)
 	obj.weight = definition.get("weight", 10.0)
 	obj.interactions = definition.get("interactions", [])
-	obj.art = definition.get("art", "")
-	obj.art_opts = definition.get("art_opts", {})
+	obj.look.art = definition.get("art", "")
+	obj.look.art_opts = definition.get("art_opts", {})
 	var neon: String = opts.get(
 		"neon",
-		ObjectArt.neon_for(obj.art, obj.art_opts, hash(Vector2i(position.round()))),
+		ObjectArt.neon_for(obj.look.art, obj.look.art_opts, hash(Vector2i(position.round()))),
 	)
 	if neon != "":
-		obj.art_opts = obj.art_opts.merged({ "neon": neon })
-	obj.facing = opts.get("facing", Vector2.DOWN)
+		obj.look.art_opts = obj.look.art_opts.merged({ "neon": neon })
+	obj.look.facing = opts.get("facing", Vector2.DOWN)
 
 	var visuals := Node2D.new()
 	visuals.name = "EnvironmentObjectVisuals"

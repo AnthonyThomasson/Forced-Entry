@@ -85,18 +85,17 @@ static func under(root: Node, type: String) -> Array:
 # --- Pieces and their lights ----------------------------------------------------------------------
 
 
-## The pieces (RigidBody2D objects with an `art`) under `root`.
+## The pieces (RigidBody2D objects with a `look`: their `art` and `art_opts`) under `root`.
 static func pieces(root: Node) -> Array:
-	return under(root, "RigidBody2D").filter(
-		func(n: Node) -> bool: return "art" in n and "art_opts" in n,
-	)
+	return under(root, "RigidBody2D").filter(func(n: Node) -> bool: return "look" in n)
 
 
 ## What light-giving kind `piece` is ("lamp", "screen", "neon tube", "streetlight"), or "" for none
 ## of them.
 static func light_kind(piece: Node) -> String:
-	var opts: Dictionary = piece.get("art_opts") if piece.get("art_opts") is Dictionary else {}
-	var art := String(piece.get("art"))
+	var look: Object = piece.get("look")
+	var opts: Dictionary = look.art_opts if look.art_opts is Dictionary else {}
+	var art := String(look.art)
 	if art == "lamp" or art == "streetlight":
 		return art
 	return _kind_by_opts(art, opts)

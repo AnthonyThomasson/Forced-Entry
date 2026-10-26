@@ -16,6 +16,7 @@ extends RigidBody2D
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const ObjectLights = preload("res://scenes/objects/object_lights.gd")
+const ObjectLook = preload("res://scenes/objects/object_look.gd")
 ## The sides of a round piece's shadow footprint.
 const OCCLUDER_SIDES := 12
 
@@ -27,8 +28,6 @@ const OCCLUDER_SIDES := 12
 @export var size: Vector2 = Vector2(60, 60)
 ## Fill color.
 @export var color: Color = Color.GRAY
-## Label color.
-@export var text_color: Color = Color.WHITE
 ## Non-solid objects (rugs, mats) get no collider and draw beneath everything else.
 @export var solid: bool = true
 ## A solid piece that never moves (a streetlight's post): frozen static, so no shove, kick, round or
@@ -48,14 +47,10 @@ const OCCLUDER_SIDES := 12
 ## Interactions this object offers, as plain data dicts (id, label, optional move_to /
 ## requires_item). Read by the Interaction domain via get_interactions(); empty means none.
 @export var interactions: Array = []
-## Pixel-art painter id ("sofa", "table", "chair"); "" draws the flat shape and its label.
-@export var art: String = ""
-## Per-piece painter overrides (see the ObjectArt*Config holders), e.g. { "runner": true }.
-@export var art_opts: Dictionary = {}
-## Which way the piece's front faces, in its local frame (a cardinal direction). Visual only:
-## it orients the art (a sofa's seat, a chair's seat away from its back rail).
-@export var facing: Vector2 = Vector2.DOWN
 
+## What its visuals draw (`object_look.gd`): `art`, `art_opts`, `facing`, `text_color`. Built here,
+## so it exists before `ObjectFactory` fills it.
+var look := ObjectLook.new()
 ## Physics components, created in _ready() (runtime-shape convention).
 ## RigidBody2D adapter; take_hit shoves the body through it.
 var _knockback: Knockback
@@ -132,7 +127,7 @@ func _no_groove(_at: Vector2, _half_width: float) -> float:
 ## Projectile System.
 func get_surface() -> Dictionary:
 	return { "coverage": coverage, "penetration": penetration, "material": object_material,
-		"color": ObjectArt.drawn_color(color) if art != "" else color }
+		"color": ObjectArt.drawn_color(color) if look.art != "" else color }
 
 
 ## The hit marks on this object (dicts with `pos`, `depth`, `blood`, …), oldest first.
