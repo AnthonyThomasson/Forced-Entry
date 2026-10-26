@@ -38,7 +38,7 @@ var door_view_depth: float = 450.0
 var door_avoid_ratio: float = 2.0
 ## ... plus this many px.
 var door_avoid_slack: float = 300.0
-## Whether a walk keeps out of doorway views at all (the controller's `entry_guard`, with
+## Whether a walk keeps out of doorway views at all (the NPC's `tuning.entry_guard.enabled`, with
 ## `entry_enabled` or on an ordered stack's walk).
 var avoid_views := true
 ## Room key -> whether that room counts as safe to walk past (cleared lately enough, or on an

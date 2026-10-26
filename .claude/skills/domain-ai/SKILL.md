@@ -67,9 +67,9 @@ and before `hostile_known`, so an ordered member shot at fights, then goes back 
 `order` group) is auto-picked: `defend` for a room (the behaviour's `defend` primitive, at its D2 spot), an `entry` for a stack, an `ambush`
 for an ambush (the behaviour's `ambush` primitive, at its post from `AgentEntry.ambush_spot`, LD15). A `go` is no new order: perception
 latches it on the held stack it releases (`go: true`) and no decision is forced. Each
-decision the controller pushes `confine_room` (a defend order's room) into the planner's `confines`, which keeps the fight to options inside it, and
+decision the controller pushes a defend order's room into the planner's `confines` (`confines.room`), which keeps the fight to options inside it, and
 radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
-An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, and `confine_room` is cleared for that walk;
+An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, and `confines.room` is cleared for that walk;
 a stack at a dead end with no slot for the member is kept instead, its option a `hold` whose params carry `refused` (LD9, D21). An ordered stack (LD9) is an entry that goes in the order's way (its
 side, its mode, a wait for every living recipient, and for the human leader holding a slot, up to `order_ready_cap`, LD17), from anywhere and for a defender too, its way read before
 it claims and its walk guarded, its claims (the radio's `post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`

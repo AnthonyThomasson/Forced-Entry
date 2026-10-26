@@ -14,7 +14,8 @@ extends RefCounted
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
 signal dry
 
-## Facing error (radians) within which a shot is taken — aim settles a frame after it is set.
+## Facing error (radians) within which a shot is taken, or a grenade let go (`faces`) — aim settles
+## a frame after it is set.
 const AIM_TOLERANCE := 0.15
 ## The throw (`throw`).
 const Throw := preload("res://scenes/ai/behavior/combat_throw.gd")
@@ -113,7 +114,7 @@ func fire_at_will(target: Dictionary) -> void:
 		return
 	var pos: Vector2 = target["pos"]
 	_character.movement.aim_point = pos
-	if fire_timer <= 0.0 and _faces(pos):
+	if fire_timer <= 0.0 and faces(_character, pos):
 		shoot()
 
 
@@ -127,7 +128,7 @@ func holds_fire() -> bool:
 func ambush(node: Node2D, pos: Vector2) -> void:
 	_character.movement.move_input = Vector2.ZERO
 	if _character.global_position.distance_to(pos) <= tuning.combat.shoot_range \
-			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and _faces(pos):
+			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and faces(_character, pos):
 		shoot()
 
 
@@ -160,7 +161,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than
 		# ducking without having fired; a click on an empty gun ducks, where the cover phase reloads
 		# it.
-		if fire_timer <= 0.0 and _faces(pos):
+		if fire_timer <= 0.0 and faces(_character, pos):
 			var fired := shoot()
 			if fired or _character.ammo.rounds(_character.inventory.gun_slot()) == 0:
 				phase = "cover"
@@ -320,9 +321,10 @@ func _punch() -> void:
 	_character.weapon.melee()
 
 
-## Whether the facing has settled on world point `pos` (within `AIM_TOLERANCE`).
-func _faces(pos: Vector2) -> bool:
-	return absf(_character.facing.angle_to(pos - _character.global_position)) <= AIM_TOLERANCE
+## Whether `character`'s facing has settled on world point `pos` (within `AIM_TOLERANCE`): for a
+## shot, and for a grenade let go (the throw part's).
+static func faces(character: Node, pos: Vector2) -> bool:
+	return absf(character.facing.angle_to(pos - character.global_position)) <= AIM_TOLERANCE
 
 
 ## The committed destination for the current phase `kind`: the nearest spot with a clear shot

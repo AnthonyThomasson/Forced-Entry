@@ -9,10 +9,10 @@ var inside_only: bool = false
 ## The room a member ordered to defend it keeps to (`docs/leadership.md` LD8; "" = none): inside a
 ## `confine` subtree, drop options whose `tags.room` is another room or outside, as `inside_only`
 ## drops those outside the house. Pushed each decision from the live order.
-var confine_room: String = ""
+var room: String = ""
 ## The point a squad member following its leader keeps to (the leader's position, `Vector2.INF` =
 ## none) and how far from it (px): inside a `confine` subtree, drop options placed farther than
-## `leash` from it, as `confine_room` drops those outside its room. Pushed each decision from the
+## `leash` from it, as `room` drops those outside its room. Pushed each decision from the
 ## squad.
 var leash_center: Vector2 = Vector2.INF
 ## The leash (px) round `leash_center` (0 with no leash).

@@ -50,7 +50,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
   another hostile in view.
 - `_should_run`: false while `Combat.can_fire_at(threat)` or `Combat.reload_due()`, unless the leaf has `run_through_fire` (the RETREAT
   node). A running character can neither shoot nor reload.
-- `Combat`: `can_fire_at`, `reload_due`, `_faces`; `peek_cover` shoots only once facing, ducks only after a shot or an empty click
+- `Combat`: `can_fire_at`, `reload_due`, `faces`; `peek_cover` shoots only once facing, ducks only after a shot or an empty click
   (not after a refused shot); `ambush` waits for the facing.
 - `Entry`: `state.gaze_held` (set from the watch's `threat` each tick) makes `_look_toward` report "settled", so a pie step the gaze cannot settle on
   because of a threat does not hold the entry. Every gaze turn goes through one static, `Watch.ease_gaze(character, point, rate, delta)`

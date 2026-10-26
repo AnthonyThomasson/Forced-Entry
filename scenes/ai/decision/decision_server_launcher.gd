@@ -31,7 +31,7 @@ const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
 ## path is configured per machine (Project Settings) rather than hard-coded here; set it on the
 ## node to override.
 @export_global_file var von_path: String = ""
-## Port the server listens on (must match the AI controller's `server_url`).
+## Port the server listens on (must match the NPCs' `tuning.decision.server_url`).
 @export var port: int = 8000
 ## Compute device passed to `von serve --device`. `cpu` is the default because PyTorch's Apple
 ## GPU backend (`mps`, which `auto` picks on a Mac) crashes the server on its first request.
@@ -55,7 +55,7 @@ const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
 ## the only check that means "the brain works" — and it doubles as a warm-up, so the first in-match
 ## decision isn't the one paying for model load.
 @export var health_path: String = "/v1/systemone"
-## Model name sent with the readiness check; keep it in step with the AI controllers' `model`.
+## Model name sent with the readiness check; keep it in step with the NPCs' `tuning.decision.model`.
 @export var health_model: String = "von-1.2.0"
 
 ## Process id of the server we launched; -1 if none (including a reused server).

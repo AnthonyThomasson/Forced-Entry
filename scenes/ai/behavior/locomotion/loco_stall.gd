@@ -16,11 +16,11 @@ const TRAIL_MAX := 24
 ## The Locomotion it belongs to.
 var loco: Node
 ## Position at the start of the current stall-sensing window.
-var pos := Vector2.ZERO
+var _pos := Vector2.ZERO
 ## Seconds into the current window.
-var clock := 0.0
+var _clock := 0.0
 ## Speed (px/s) measured over the last full window.
-var speed := 0.0
+var _speed := 0.0
 ## Seconds the NPC has been trying to move without progressing.
 var _stalled_for := 0.0
 ## Seconds since the last trail point.
@@ -46,17 +46,17 @@ func sample(delta: float) -> void:
 		if _trail.size() > TRAIL_MAX:
 			_trail.pop_front()
 	if (character.movement.move_input as Vector2).length() < 0.1:
-		clock = 0.0
-		pos = here
+		_clock = 0.0
+		_pos = here
 		_stalled_for = 0.0
-		speed = 0.0
+		_speed = 0.0
 		return
-	clock += delta
-	if clock >= WINDOW:
-		speed = here.distance_to(pos) / clock
-		_stalled_for = _stalled_for + clock if speed < SPEED else 0.0
-		pos = here
-		clock = 0.0
+	_clock += delta
+	if _clock >= WINDOW:
+		_speed = here.distance_to(_pos) / _clock
+		_stalled_for = _stalled_for + _clock if _speed < SPEED else 0.0
+		_pos = here
+		_clock = 0.0
 
 
 ## Read-only: the movement-progress state sampled by `sample()`, for the stuck debug overlay.

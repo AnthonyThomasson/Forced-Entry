@@ -164,7 +164,7 @@ func _apply_config() -> void:
 	_planner.skip_single_option = tuning.decision.skip_single_option
 	_planner.confines.inside_only = tuning.decision.defend_territory
 	var held: Dictionary = _perception.order()
-	_planner.confines.confine_room = (String(held.get("room", ""))
+	_planner.confines.room = (String(held.get("room", ""))
 			if String(held.get("kind", "")) == "defend_room"
 			else "")
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
@@ -542,7 +542,7 @@ func _start_decision() -> void:
 		_perception.end_order(held["id"], "refused")
 		_cadence.last_facts["ordered"] = false
 		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
-		_planner.confines.confine_room = ""
+		_planner.confines.room = ""
 	_planner.begin(snapshot, _behavior.ongoing())
 
 

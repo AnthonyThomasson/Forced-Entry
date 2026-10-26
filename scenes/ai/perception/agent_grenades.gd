@@ -37,7 +37,7 @@ const RECALL_DIST := 30.0
 ## it).
 const CALL_KINDS := { &"grenade": &"", &"frag_out": &"frag", &"bang_out": &"stun" }
 
-## Whether the NPC reacts to grenades at all (the controller's `grenades_enabled`, set by the
+## Whether the NPC reacts to grenades at all (the NPC's `tuning.grenades.enabled`, set by the
 ## perception).
 var enabled: bool
 ## How far (px) a grenade coming down is heard (`hear_grenade`, the same way).

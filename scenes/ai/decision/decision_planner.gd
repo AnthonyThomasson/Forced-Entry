@@ -37,7 +37,7 @@ var entry_rules: Dictionary = {}
 ## Take a level's only option without asking Von.
 var skip_single_option: bool = true
 ## What keeps a `confine` subtree in bounds: the territory (`inside_only`), the room a member keeps
-## to (`confine_room`) and a follower's leash (`leash_center`, `leash`), pushed each decision.
+## to (`confines.room`) and a follower's leash (`leash_center`, `leash`), pushed each decision.
 var confines := DecisionConfines.new()
 ## The Von transport (decision_client.gd), its own child.
 var _client: Node
@@ -276,8 +276,8 @@ func _finish(node_id: StringName, option: Dictionary) -> void:
 	if _walk.binding.has("target_id") and not params.has("target_id"):
 		params["target_id"] = _walk.binding["target_id"]
 	params["confine_inside"] = _walk.confine and confines.inside_only
-	if _walk.confine and confines.confine_room != "":
-		params["confine_room"] = confines.confine_room
+	if _walk.confine and confines.room != "":
+		params["confine_room"] = confines.room
 	if option["id"] != String(node_id):
 		_walk.steps.append({ "id": option["id"], "label": option.get("label", option["id"]) })
 	var leaf := {
@@ -409,12 +409,12 @@ func _is_leaf_node(node: Dictionary) -> bool:
 ## ordered to defend, or keeps within its leash.
 func _confines() -> bool:
 	return (confines.inside_only
-			or confines.confine_room != ""
+			or confines.room != ""
 			or confines.leash_center != Vector2.INF)
 
 
 ## `options` minus those carrying any `drop` tag, and, when `confine` applies, minus those outside
-## the house (a territorial NPC), those placed outside the room it keeps to (`confine_room`) and
+## the house (a territorial NPC), those placed outside the room it keeps to (`confines.room`) and
 ## those placed beyond its leash (where it acts from, `params.from`, else `params.point`; an option
 ## that names no place, a reload or a punch, stays).
 func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
@@ -423,9 +423,9 @@ func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
 		if confine and confines.inside_only and not tags.get("inside", true):
 			return false
 		if (confine
-				and confines.confine_room != ""
+				and confines.room != ""
 				and tags.has("room")
-				and String(tags["room"]) != confines.confine_room):
+				and String(tags["room"]) != confines.room):
 			return false
 		if confine and confines.leash_center != Vector2.INF:
 			var params: Dictionary = o.get("params", {})

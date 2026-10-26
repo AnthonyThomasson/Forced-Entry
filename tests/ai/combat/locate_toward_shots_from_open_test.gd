@@ -16,8 +16,8 @@ const AT := Vector2(980, -140)
 ## (beside the invader).
 const SHOOTER := Vector2(968, 400)
 const LANDED := Vector2(968, -118)
-## How far LOCATE looks toward the shots (the controller's `investigate_distance`), and a stride: a
-## walk shorter than it ends where it began.
+## How far LOCATE looks toward the shots (the NPC's `tuning.context.investigate_distance`), and a
+## stride: a walk shorter than it ends where it began.
 const REACH := 300.0
 const STRIDE := 32.0
 

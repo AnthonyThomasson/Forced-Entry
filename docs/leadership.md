@@ -16,7 +16,7 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
-the planner's `confines` (`confine_room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
+the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
@@ -153,7 +153,7 @@ on that line where there is some (`AgentEntry.defend_spot`): a guarded walk for 
 defender. There it holds, still, its gun on its doorway; a lone member of a room with several doorways takes the spot from which it sees
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
-only among the options inside that room (every option naming a place is tagged with its room, `tags.room`; the planner's `confine_room`
+only among the options inside that room (every option naming a place is tagged with its room, `tags.room`; the planner's `confines.room`
 drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `_hold_ground` and `Combat.peek_cover` keep
 it inside against a contact outside the room. A live grenade (D8) sets off the evade reflex as it would anywhere, which may take the member
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
@@ -568,7 +568,7 @@ distance to its leader, and is leashed again once its order ends. It still follo
 leash is dropped (the controller's reflexes' `leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
 otherwise). For a leashed follower:
 - **Its options.** Inside a `confine` subtree (COMBAT) the planner drops every option placed beyond the leash (`leash_center`, pushed each
-  decision as the leader's position, and `leash`, beside `inside_only` and `confine_room`): where the option acts from (`params.from`, else
+  decision as the leader's position, and `leash`, beside `inside_only` and `room`): where the option acts from (`params.from`, else
   `params.point`), so the fire spots, flank sides, advances, retreats and throw spots out there are not offered; an option that names no
   place (a reload, a punch) stays.
 - **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of

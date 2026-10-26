@@ -19,8 +19,8 @@ const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const NPC_AT := Vector2(430, 180)
 const THROWER_AT := Vector2(720, 150)
 const AIM := Vector2(530, 160)
-## A frag's danger zone for an NPC (G16): the blast radius plus the controller's `evade_margin` (120
-## px).
+## A frag's danger zone for an NPC (G16): the blast radius plus the NPC's
+## `tuning.grenades.evade_margin` (120 px).
 const ZONE := Probe.BLAST_RADIUS + 120.0
 ## The farthest the frag ends up from the point the plan was made for (px): under
 ## `AgentGrenades.REPLAN_DIST` (48), with a px to spare for the plan's point as `debug_state()`

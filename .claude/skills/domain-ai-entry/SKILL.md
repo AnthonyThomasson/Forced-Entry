@@ -189,7 +189,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   (`_dropped_at`, cleared by `_to_back`), a waypoint a re-aim refills that the hold still seals is weighed at once (`way_blocked` again,
   `_tick_approach`), so a re-aim never undoes the drop. With the slot sealed, a member the stack keeps from its slot takes the back of the stack (`_to_back`, `DoorStack.back_slot`: the slot
   behind the last claimed, if the doorway has it, radioed as a new claim; E2 goes by arrival), and with no slot to take gives the claim up (`abort`; `Behavior`
-  re-decides with `resolve_reason()` "way blocked", or a detour hands the walk back to its order); a member held by a teammate of the same stack still on its way to its own slot (`_held_by_forming`: `Locomotion.held_by()` is a
+  re-decides with `task.resolve_reason` "way blocked", or a detour hands the walk back to its order); a member held by a teammate of the same stack still on its way to its own slot (`_held_by_forming`: `Locomotion`'s `crowd.held_by()` is a
   claim at `claim`, not `human`, held under `HELD_BY_FORMING_CAP` 3 s of standing held, `Locomotion`'s `crowd.held_time()`, which a walk aimed
   again while it stands does not restart: test `entry_held_cap_despite_reaim`) keeps its slot and waits (`_forming_wait`;
   `_tick_approach` ends the wait when that hold ends, and weighs the whole rule again, `way_blocked`, when the walk is still held: past
@@ -205,7 +205,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   so a hit or a hostile seen in the doorway is fought once the NPC is through. Posture stands throughout, and it never
   runs, not even under fire: a running character cannot shoot, so a sprint to the stack or through the doorway would
   be a lowered gun at the worst moment (test `entry_never_runs`).
-- **The radio.** Steps are queued, each a claim in `StackClaim`'s fields (`take_calls()`, via `Behavior.take_entry_calls()`, which adds `opening`, `into`, `slot` and `side`), and the controller posts them (`_post_entry_call`: its callout header, `_callout_header`, the same eight header fields every callout of its starts with: speaker, faction, position, status, path, label, target_id and point, plus `StackClaim.encode(claim)`, every entry field typed, a field the claim leaves out as `StackClaim.DEFAULTS` says it);
+- **The radio.** Steps are queued, each a claim in `StackClaim`'s fields (`take_calls()`, via `Behavior.take_entry_calls()`, which adds `opening`, `into`, `slot` and `side`), and the controller's radio part posts them (`npc_comms.gd`'s `post_entry_call`: its callout header, `_callout_header`, the same eight header fields every callout of its starts with: speaker, faction, position, status, path, label, target_id and point, plus `StackClaim.encode(claim)`, every entry field typed, a field the claim leaves out as `StackClaim.DEFAULTS` says it);
   a human invader's `PlayerStack` (`ai/team/`, `domain-ai-team`) posts the same steps for the human, so the team counts it like an ally;
   the latest is repeated every `StackClaim.HEARTBEAT` (2 s) so the claim stays live. Every call (`_radio`) carries `claim_frame` and `claim_pos` (stamped only on a
   new `claim`, so a heartbeat or a re-claim keeps the pair same-frame settling reads), `bang`, `bang_off`, `stuns`, `frags`, `move_up` and
