@@ -12,7 +12,7 @@ signal answered(pick: String, probabilities: Dictionary)
 ## A request could not start, the server was unreachable or refused, or the response was malformed.
 signal failed()
 
-## The `/v1/systemone` endpoint to ask (set by the controller from its export).
+## The `/v1/systemone` endpoint to ask (set by the planner from the NPC's `tuning.decision`).
 var server_url: String = "http://127.0.0.1:8000/v1/systemone"
 ## Model name sent with each request.
 var model: String = "von-1.2.0"
@@ -30,8 +30,7 @@ var _last_error := ""
 var _stub_serial := 0
 
 
-## Configure the endpoint + request timeout and build the HTTP client. Called once by the
-## controller.
+## Configure the endpoint + request timeout and build the HTTP client. Called once by the planner.
 func configure(url: String, model_name: String, timeout: float, npc_name: String = "NPC") -> void:
 	server_url = url
 	model = model_name

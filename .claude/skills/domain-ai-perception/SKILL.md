@@ -358,7 +358,7 @@ orchestrator and the team preload these files themselves; this folder is that se
 - **`StackClaim`** (`stack_claim.gd`, static, preloaded, no `class_name`): the entry claim's wire format on the `&"callout"` radio (interface
   10). `DEFAULTS` holds every entry field with the value a claim that does not say it has (`bang` true, `stuns` / `frags` 0, `claim_frame`
   -1, `claim_pos` `Vector2.INF`, `order_mode` `quiet`, `order_frame` / `crossed_frame` -1, ...). `encode(fields)` gives a callout's entry fields (every one, typed; the producer
-  adds its own header): the controller's `_post_entry_call` and `PlayerStack._post` call it. `decode(data)` gives a callout's claim, `{}`
+  adds its own header): the controller's radio (`npc_comms.gd` `post_entry_call`) and `PlayerStack._post` call it. `decode(data)` gives a callout's claim, `{}`
   for none (no `entry_step`), with `step`, the speaker's `id` / `name`, `pos` and `age`, and `claim_pos` where the speaker stands when it says
   none. `is_claim(data)` (any entry step, `abort` / `done` too: it replaces what the speaker last claimed); `keeps_claim(data)` (a live-grenade
   call, `AgentGrenades.is_call`, G16, or an order step with no entry step, LD7: the speaker's last claim stands; any other callout drops it);

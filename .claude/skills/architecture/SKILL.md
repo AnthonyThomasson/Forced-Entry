@@ -360,7 +360,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    `debug_status()` (the same path as labels, every level: `COMBAT - Intruder - FLANK - their left
    side (kitchen)`), `debug_state() -> Dictionary` (the deep snapshot the dev command server's `ai` verb dumps), `debug_zones() -> Array`
    (the tactical points the spectator inspector picks from; it rings the one it describes on the NPC's tactics overlay through the
-   controller's `debug_focus(point)` / `debug_clear_focus()`), the draw-only overlays' `debug_*` getters (e.g. `debug_entry_view()` for the tactical-entry ones), `known_contacts_for_display()` (the spectator inspector's contact list) for those observers to show. Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry` (`show_grenades` reads `debug_grenades()`: `{ known: [{ point, kind, fuse_left, fuse, radius, source }], escape: Vector2 (INF: none), throw: {} }`);
+   controller's `debug_focus`, the point, `Vector2.INF` clearing it), the draw-only overlays' `debug_*` getters (e.g. `debug_entry_view()` for the tactical-entry ones), `known_contacts_for_display()` (the spectator inspector's contact list) for those observers to show. Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry` (`show_grenades` reads `debug_grenades()`: `{ known: [{ point, kind, fuse_left, fuse, radius, source }], escape: Vector2 (INF: none), throw: {} }`);
    `MatchBuilder.set_overlay` (interface 23: Main's match and the Testing world's alike), the spectator inspector and the Testing world's
    actor spawn set those flags by that name, so an overlay's export is part of this surface. Every NPC is the same generic goal-driven agent
    driven by `ai/goal_controller.gd`; the defender (`ai/npc_defender.tscn`) and the invader
@@ -492,7 +492,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (true while the human leads its squad: a stack it ordered waits for it, LD17) and `own` (true for the human's own claim at a doorway
       nobody stacks at, which the squad rallies the team to, LD24; false for a slot it is reserved in an allied stack, E16). These entry
       fields are encoded by one function and decoded by one, `StackClaim.encode` / `StackClaim.decode`
-      (`ai/perception/stack/stack_claim.gd`, each field's default in its `DEFAULTS`): the NPC controller's `_post_entry_call`, the
+      (`ai/perception/stack/stack_claim.gd`, each field's default in its `DEFAULTS`): the NPC controller's radio (`npc_comms.gd` `post_entry_call`), the
       `PlayerStack` and every reader of a stack go through them, and no reader takes a claim key off a raw callout. A live grenade has its own statuses, which an ally in range reads as "a
       grenade is down there" and not as what the speaker is doing: `status = "grenade"` (an NPC that saw or heard a grenade come down and
       is in its danger zone: `point` the spot it landed, `kind` `&"frag"` / `&"stun"`; the NPC repeats it once if the grenade then comes to rest
@@ -1007,7 +1007,7 @@ Explosion (&"explosion") ──▶ EventBus ──▶ Sound (the burst) / Camera
 ThrownGrenade (&"grenade") ──▶ EventBus ──▶ AIController (a grenade heard coming down)
 Vehicle (&"vehicle", &"engine", &"skid") ──▶ EventBus ──▶ Sound ──(engine_state / slip / speed, duck-typed)──▶ the vehicle's loops
 Camera ──(target.use.vehicle().view_zoom_out(), duck-typed)──▶ Vehicle
-UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus / debug_clear_focus on the AI controller; DebugUI and the inspector wardrobe.outfit.view())
+UI (DebugUI / MatchHUD / SpectatorInspector) / Camera ──(exported path + signals)──▶ Character  (the inspector debug_zones / known_contacts_for_display / debug_focus on the AI controller; DebugUI and the inspector wardrobe.outfit.view())
 DebugUI ─▶ LoadoutConfig.grenade_options (Items)
 main ──(Tests button: scene change)──▶ TestBrowser ─▶ TestRunner ─▶ WorldGen / factories / MatchBuilder (the world stage, binding) / Character scenes / EventBus
 Sandbox (Testing) ──(own painter)──▶ PixelArt / PixelCanvas (Art);  Sandbox ──(recipe_for / render)──▶ SoundBank / SoundSynth (Audio) ─▶ its own AudioStreamPlayer2D

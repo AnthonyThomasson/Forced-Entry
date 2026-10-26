@@ -242,7 +242,7 @@ func _flags_off() -> Dictionary:
 ## label and the reasoning text Von read.
 func _show_zone(zone: Dictionary) -> void:
 	if _selected_ctrl != null and is_instance_valid(_selected_ctrl):
-		_selected_ctrl.debug_focus(zone["point"])
+		_selected_ctrl.debug_focus = zone["point"]
 	var label: String = zone.get("label", "")
 	var desc: String = zone.get("desc", "")
 	_detail.text = "%s%s%s" % [String(zone["category"]).to_upper(),
@@ -253,6 +253,6 @@ func _show_zone(zone: Dictionary) -> void:
 ## Drop any tactical-point detail: clear the highlight on the selected NPC and hide the panel.
 func _clear_zone() -> void:
 	if _selected_ctrl != null and is_instance_valid(_selected_ctrl):
-		_selected_ctrl.debug_clear_focus()
+		_selected_ctrl.debug_focus = Vector2.INF
 	if _detail != null:
 		_detail.visible = false

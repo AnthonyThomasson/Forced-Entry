@@ -89,7 +89,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **The thrower is committed (E17, issue #51 R16).** `Entry.throwing()` (phase `bang`, `_bang_stage` `go` or `throw`: from its call until the stun leaves its hand) makes
   `committed()` true: the controller starts no decision and `set_leaf` adopts none, so a hostile seen on the walk out or in the wind-up does not make it leave. A leaf dropped
   meanwhile sets `Behavior._held`; once `throwing()` ends (the release, or the bang given up) `_apply_entry` raises `_resolved` with `resolve_reason()` "after the bang" and it decides
-  again from where it stands (a forced decision held meanwhile, `_force`, starts then too). The caps end it too (`BANG_BURST_CAP`, the stun lost, `way_blocked` in `go`). Test:
+  again from where it stands (a forced decision held meanwhile, the cadence's `forced`, starts then too). The caps end it too (`BANG_BURST_CAP`, the stun lost, `way_blocked` in `go`). Test:
   `ai/grenade/bang_kept_through_fight` (real Von).
 - **Go in on the burst (E17, issue #51 R8).** `_note_burst`: besides the bang phase's own stun, a stun or frag its own team threw (`last_burst.team`) going off in the room while
   this member is in `approach` / `stack` / `pie` sets `_bang_over`; `_note_burst_before` (at `begin`) does the same for one within `BANG_WINDOW` before the entry began (a GRENADE,
@@ -98,7 +98,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **A suspect room means a bang, for every entry (E17, issue #51 R10).** `begin` makes the entry a bang one when its leaf asks for it (STUN ENTRY) or when the stack carries a stun
   (`_stack_has_stun`: this NPC, or a claim's `stuns`) and the room is suspect now (`AgentPerception.room_suspicion(into)` not empty), whatever brought the NPC to the doorway: an ENTER or a
   walk the entry guard turned into an entry; a pass-by (`secure`) never is. A team already claiming the doorway still sets the mode (the first claimer's). A bang its leaf did not ask for sets
-  `_turned` (`take_turned()`), so an ENTER is re-adopted as `search/stun_entry/<door>` (`GoalController._on_entry_turned`); a guard's entry keeps its walk's name. Tests: `ai/entry/entry_guard_bang_suspect_room`,
+  `_turned` (`take_turned()`), so an ENTER is re-adopted as `search/stun_entry/<door>` (the controller's radio, `npc_comms.gd` `on_entry_turned`); a guard's entry keeps its walk's name. Tests: `ai/entry/entry_guard_bang_suspect_room`,
   `entry_guard_quiet_unsuspected_room` (scripted).
 - **A late reason turns a quiet entry (E17, issue #51 R11).** `_maybe_upgrade`, every tick in `approach` / `stack` / `pie` while nobody is crossing (`_crossing`: a claim at `going_in` or through), the stack carries a stun and
   no member gave the bang up: when the room's suspicion (`AgentPerception.room_suspicion(into)`, `AgentSuspicion` reason ids, read every `SUSPECT_EVERY` 0.25 s) holds any reason (one that came up after `begin`, or one

@@ -35,7 +35,7 @@ the house, the peek fallback holds instead of advancing, and melee won't chase o
 it, `docs/leadership.md` LD8) the peek and cover spots are restricted to inside that room whatever the contact, and `hold_ground` is set
 against a contact outside the room. **The leash** (a squad member following its leader and holding no order, `docs/leadership.md` LD23): `leash_center` (the
 leader's live position, `Vector2.INF` for none: no squad, the leader itself, or a member carrying an order, which fights where the order
-takes it) and `leash` (px), set every tick through `Behavior.set_leash` (the controller's `_leash_lead`); with one, `_choose_dest` keeps
+takes it) and `leash` (px), set every tick through `Behavior.set_leash` (the controller's reflexes, `npc_reflexes.gd` `leash_lead`); with one, `_choose_dest` keeps
 the peek and cover spots within it (`_on_leash`) and, with no fire spot left, the peek fallback holds where it stands instead of closing on
 the contact, and `melee` holds its ground rather than walk to a target off the leash. Which COMBAT options are offered at all is the
 planner's leash filter (`domain-ai-decision`). Tests: `tests/ai/combat/leash_*` (a follower held to its leash) and

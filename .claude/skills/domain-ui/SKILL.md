@@ -7,7 +7,7 @@ description: Overview of the UI domain (scenes/ui/) — all HUDs and menus, spli
 
 `CanvasLayer` / `Node` widgets, all built entirely in code (no scene-side layout), all decoupled observers
 that read only these contracts — Character public API/signals (the debug panel's hits come from `hit_landed`, interface 7), the AI controller's
-`debug_zones()`, `known_contacts_for_display()` and `debug_focus(point)` / `debug_clear_focus()` (the spectator
+`debug_zones()`, `known_contacts_for_display()` and `debug_focus` (a var: the point, `Vector2.INF` for none; the spectator
 inspector, which rings the clicked point on the NPC's tactics overlay), `PlayerStack.view()` (the stack markers, interface 17), a squad's `view()` callable (the command menu, the order markers and the squad-leaders overlay) and `resolve()` callable (the command menu,
 interface 21), and the EventBus `&"stun"` topic (the stun screen). They know nothing else of
 the domains.

@@ -101,7 +101,7 @@ the kitchen by its doorway with them." (LD24). A member with no order reads no s
 squad.
 
 An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.await_order`,
-set by the controller with `_order_from`), a decision walk already in flight is restarted and its answer, when it comes, dropped, and a
+set by the controller as its cadence's `order_from` is), a decision walk already in flight is restarted and its answer, when it comes, dropped, and a
 walk the order replaces stops where it is, as an arrived move stands (`Behavior._walking`): a move not chosen under COMBAT (a search's
 walk, an investigation's, an idle walk), an entry's approach to its slot, a defend or ambush walk to its post, a throw's walk to its throw
 spot, an interaction's walk to its object. The member never walks on with what it chose before the order. A fight goes on until the new
@@ -488,7 +488,7 @@ only one; with the human's reserved doorway alone, its slots and its own highlig
 
 **LD19. Who follows.** A member follows its leader (`Squad.follows(member)`) while it is alive, its squad has a leader, it is not the
 leader and an NPC controller drives it (a child in the group `npc_controllers` when the squad is set up): a human member who does not lead
-is never given a spot, and a squad of one has no followers. Each tick the controller reads it (`_follow_squad`) into the perception's
+is never given a spot, and a squad of one has no followers. Each tick the controller's reflexes read it (`follow_squad`) into the perception's
 `follows` (a snapshot fact and a `quick_facts()` entry) and forces a decision when it changes ("follows its leader" / "leads its squad").
 The rule is the same whoever leads: an AI leader, the human (its AI teammates follow the human and ring it when it stops, LD21), or a
 defenders' crew's first spawned, from the start of the match. When the leader dies (LD4) the squad starts its trail afresh at the new
@@ -565,7 +565,7 @@ and reloads there, at rest, while its decision walks put no question to Von).
 **LD23. The leash.** A follower holding no order fights within `leash` (320 px) of its leader's live position. A member carrying an order
 (defending a room, an ambush, a stack, a held one or a join included) is not leashed: it fights where its order takes it, whatever the
 distance to its leader, and is leashed again once its order ends. It still follows (LD19: its follow spot, its place in the file); only the
-leash is dropped (the controller's `_leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
+leash is dropped (the controller's reflexes' `leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
 otherwise). For a leashed follower:
 - **Its options.** Inside a `confine` subtree (COMBAT) the planner drops every option placed beyond the leash (`leash_center`, pushed each
   decision as the leader's position, and `leash`, beside `inside_only` and `confine_room`): where the option acts from (`params.from`, else

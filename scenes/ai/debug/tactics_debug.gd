@@ -45,15 +45,14 @@ const ROOM_LABEL_INSET := 6.0
 ## Whether to draw the room zones (each room tinted by how the NPC regards it). Off by default.
 @export var show_room_zones: bool = false
 
-## The highlighted tactical point last drawn (the controller's `debug_focus_point()`), or INF for
-## none.
+## The highlighted tactical point last drawn (the controller's `debug_focus`), or INF for none.
 var _focus := Vector2.INF
 
 
 ## Follow the controller's highlighted point, redrawing when it changes (so a cleared ring goes with
 ## both toggles off).
 func _process(delta: float) -> void:
-	var focus: Vector2 = _controller.debug_focus_point() if _controller != null else Vector2.INF
+	var focus: Vector2 = _controller.debug_focus if _controller != null else Vector2.INF
 	if focus != _focus:
 		_focus = focus
 		queue_redraw()
@@ -98,8 +97,8 @@ func _draw_room_zones() -> void:
 
 
 ## Highlight the inspector's clicked tactical point with a bright double ring, so which point the
-## detail panel describes is unmistakable. Set via the controller's `debug_focus` / cleared via
-## `debug_clear_focus`.
+## detail panel describes is unmistakable. Set via the controller's `debug_focus` (cleared with
+## `Vector2.INF`).
 func _draw_focus() -> void:
 	var p := to_local(_focus)
 	draw_arc(p, ZONE_RADIUS + 5.0, 0.0, TAU, 24, Color.WHITE, 2.0)

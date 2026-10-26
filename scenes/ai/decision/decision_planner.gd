@@ -19,8 +19,10 @@ signal decided(leaf: Dictionary)
 signal failed()
 
 const DecisionTree := preload("res://scenes/ai/decision/decision_tree.gd")
+## The Von transport it builds and owns (`setup`).
+const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 
-# --- Config fields the controller copies from its exports before setup(). ---
+# --- Config fields the controller copies from the NPC's tuning before setup(). ---
 ## Node ids never offered for this NPC (e.g. &"idle" for one that hunts instead of doing chores).
 var disabled_nodes: Array[StringName] = []
 ## Per-node field overrides merged over the tree's defaults: { node_id: { field: value } }.
@@ -43,7 +45,7 @@ var confine_room: String = ""
 var leash_center: Vector2 = Vector2.INF
 ## The leash (px) round `leash_center` (0 with no leash).
 var leash: float = 0.0
-## The Von transport (decision_client.gd).
+## The Von transport (decision_client.gd), its own child.
 var _client: Node
 ## The tree with overrides merged, keyed by node id.
 var _nodes := {}
@@ -77,10 +79,13 @@ var _pending := false
 var _last_failed := false
 
 
-## Wire the Von transport and build the tree with this NPC's overrides. The controller calls this
-## once after setting the config fields.
-func setup(client: Node) -> void:
-	_client = client
+## Build the Von transport (its own child, asking `decision`'s `server_url` with its `model`) and
+## the tree with this NPC's overrides. The controller calls this once, in the tree, after setting
+## the config fields.
+func setup(decision: NpcDecisionTuning) -> void:
+	_client = DecisionClient.new()
+	_client.configure(decision.server_url, decision.model, 3.0)
+	add_child(_client)
 	_client.answered.connect(_on_answered)
 	_client.failed.connect(_on_failed)
 	_nodes = {}
@@ -90,6 +95,12 @@ func setup(client: Node) -> void:
 		if over is Dictionary:
 			node.merge(over, true)
 		_nodes[id] = node
+
+
+## The driven NPC's name, for the transport's log lines (known once the controller has its
+## character).
+func bind(npc_name: String) -> void:
+	_client.set_npc_name(npc_name)
 
 
 ## Whether a walk is in flight.
@@ -382,10 +393,10 @@ func _needs_bind(node: Dictionary) -> bool:
 		and not _group(node["bind_options"]).get("options", []).is_empty()
 
 
-## Whether node `id` holds a leaf once `bind` is added to the bindings (restored afterwards).
-func _leaf_under_binding(id: StringName, bind: Dictionary, confine: bool) -> bool:
+## Whether node `id` holds a leaf once `extra` is added to the bindings (restored afterwards).
+func _leaf_under_binding(id: StringName, extra: Dictionary, confine: bool) -> bool:
 	var saved := _binding.duplicate()
-	_binding.merge(bind, true)
+	_binding.merge(extra, true)
 	var ok := _has_leaf(id, confine)
 	_binding = saved
 	return ok

@@ -64,7 +64,7 @@ the controller's leash break reads, beside `in_combat()` and `committed()`.
 radio (LD7). `debug_state()["order"]` is the order leaf being carried out (`{ path, primitive, params, paused }`; while an entry detour pauses
 it, `paused` and the order's own primitive and params, the running ones staying in `primitive` / `params`), {} with none. After an evade
 (D8) the forced decision takes the order up again and the member walks back to its spot. **An order stops a walk, not a fight (LD6).** From the
-frame an order is taken (`await_order(true)`, called by the controller with `_order_from`) until the decision made knowing it lands
+frame an order is taken (`await_order(true)`, called by the controller's radio as its cadence's `order_from` is set) until the decision made knowing it lands
 (`set_leaf`, or `fallback`, clears `_awaiting_order`), `apply` zeroes `movement.move_input` after the primitive steers while `_walking()` and not
 `committed()`: a `move` not chosen under COMBAT (`in_combat()` false: a search's, an investigation's, an idle walk), an `entry` in
 `approach`, a `defend` / `ambush` not yet `_arrived`, a `throw` in its `walk` stage, an `interact` still walking to its object stand as an
@@ -138,7 +138,7 @@ a new decision. Read-outs: `evading()`, `evade_spot()` (the controller's `debug_
 **A blinded NPC** (`Character.stun.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on
 (it stumbles: the character is slowed and drifts); the perception keeps its contacts (so the watch stage's engaged-contact pick, or the arrived peek-and-cover, fires at the hostile's last-known
 spot with the character's aim sway, G13) and sees no new one. Whether it fires blind is the orchestrator's one roll as it goes blind (from not blind),
-`_rng.randf() < tuning.grenades.blind_fire_chance` (1 always fires; 0.5; `_rng` the controller's own `RandomNumberGenerator`, seeded once at bind from
+`_rng.randf() < tuning.grenades.blind_fire_chance` (1 always fires; 0.5; `_rng` the controller's reflexes' own `RandomNumberGenerator` (`npc_reflexes.gd`), seeded once at bind from
 `hash("<character name> <spawn position rounded>")`, each blinding taking the next draw; a re-stun while blind draws nothing), handed in by
 `set_blind_fire(on)` to `Combat.blind_fire`; on a miss `Combat.holds_fire()` (blind and no blind fire) refuses `Combat.shoot()` (no round, no dry click)
 and cuts `continue_burst`, so every fire path (the watch stage's `fire_at_will`, the peek, the ambush) holds until it can see; the aim still turns to the

@@ -32,6 +32,12 @@ adopted is not one: `_on_decided` re-takes the key after `set_leaf`, since the o
 `ai/decision/adopt_target_no_redecide`), interrupting a decision
 walk the situation has overtaken, and the EventBus intake (`&"hit"`, `&"footfall"`s within earshot, allies' `&"callout"`s, `&"grenade"` landings,
 `&"explosion"`s and its leader's `&"order"`s (Orders, below), queued and handed to perception on the next tick) and its own callouts (a combat one carries `target_pos`, where its hostile is).
+It does that through three parts it builds once in `_ready`, each preloaded (no `class_name`): `_cadence` (`ai/npc_cadence.gd`, a data
+leaf: the decide timer, `forced` and why (`force(reason)`), the walks started, an order awaiting its decision (`order_from`), the salient
+key and the last snapshot's facts, sections and options; `due(delta)` counts the timer down), `_comms` (`ai/npc_comms.gd`, holding the
+controller: the queued events (`event_queue`, `process_events`) and every callout it radios) and `_reflexes` (`ai/npc_reflexes.gd`, holding
+the controller: following the squad, the grenade evade and the blind roll, its RNG seeded in `bind`). The planner builds and owns the Von
+client (`DecisionPlanner.setup(tuning.decision)`, the NPC's name through its `bind(npc_name)`).
 
 | Sub-domain | Folder | Skill | Owns (role) |
 |---|---|---|---|
@@ -49,12 +55,12 @@ step lists and slot distances; `ClaimLedger` the claims one listener has heard (
 E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, LD13's release) and the slots' points, the same answer for
 whoever asks. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
 `AgentPerception.entry_stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` (the orchestrator `StackClaim`, for
-`_post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger` and `DoorStack` as it does `AgentEntry`. `domain-ai-perception`,
+the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger` and `DoorStack` as it does `AgentEntry`. `domain-ai-perception`,
 "The stack", has the detail.
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order
-(`AgentPerception.process_order`) and forces a decision (`_force_now("ordered")`); from that frame until a decision made knowing the order
-lands a walk the order replaces stops, while a fight goes on (`_order_from` = `_decisions`, `Behavior.await_order(true)`, `domain-ai-behavior`):
+(`AgentPerception.process_order`) and forces a decision (`_cadence.force("ordered")`, in `_comms.process_events`); from that frame until a decision made knowing the order
+lands a walk the order replaces stops, while a fight goes on (the cadence's `order_from` = `decisions`, `Behavior.await_order(true)`, `domain-ai-behavior`):
 `_maybe_interrupt` restarts a decision walk in flight, and `_on_decided` drops a leaf from a walk begun before the order (LD6). The entry rule `ordered → order` sits after the fight rules
 and before `hostile_known`, so an ordered member shot at fights, then goes back to its order. The ORDER node's one option (the snapshot's
 `order` group) is auto-picked: `defend` for a room (the behaviour's `defend` primitive, at its D2 spot), an `entry` for a stack, an `ambush`
@@ -65,7 +71,7 @@ radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` 
 An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, and `confine_room` is cleared for that walk;
 a stack at a dead end with no slot for the member is kept instead, its option a `hold` whose params carry `refused` (LD9, D21). An ordered stack (LD9) is an entry that goes in the order's way (its
 side, its mode, a wait for every living recipient, and for the human leader holding a slot, up to `order_ready_cap`, LD17), from anywhere and for a defender too, its way read before
-it claims and its walk guarded, its claims (`_post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`
+it claims and its walk guarded, its claims (the radio's `post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`
 beside every claim's `stuns`, `frags`, `claim_frame`, `claim_pos`, `move_up`, `pie` and `crossed_frame`; it ends done at the room cleared
 (`domain-ai-entry`). A held stack (LD13) waits at its slots, ready, until its go; a frag stack (LD14) has a frag carrier throw a frag in
 first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception._end_ambush_on_contact`, D18).
@@ -75,14 +81,14 @@ unordered entry joining the leader's stack (`domain-ai-entry`); the order's id s
 A join with no slot at a dead end has no option and ends `refused`. A join that ends (done, cancelled on the leader's `abort`, refused)
 leaves the member to follow again, at once while its entry is still in `approach` or `stack` (`Behavior._join_over`, LD25).
 
-**Following (`docs/leadership.md` LD19 to LD23).** Each tick `_follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
+**Following (`docs/leadership.md` LD19 to LD23).** Each tick the reflexes' `follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
 `follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
 ("follows its leader" / "leads its squad"), and the leash (`Behavior.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
-not follow or holds an order: `_leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
+not follow or holds an order: `leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
 order takes it); a leashed follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
-`walk_pending()`, forces one decision ("off the leash", `_leash_broke` re-armed once it is back within that). `_apply_config` disables
+`walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
 INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
-`leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`_leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
+`leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
 (`domain-ai-behavior`) and asks for no decision on the cadence.
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it
@@ -108,8 +114,7 @@ weighed would burst, with `from`, the throw spot or the NPC's own spot), plus `w
 entry guard holds it, its primitive and params then the order's, not the detour's; {} with none), beside the running `primitive` / `params`.
 `debug_room_zones() -> Array` gives each room `{ rect, type, status }`
 by how the NPC regards it (current / searched / unsearched / unknown). Both feed the tactics overlay (`domain-ai-debug`), which also rings
-the point an observer asked to highlight: `debug_focus(point)` / `debug_clear_focus()` (the spectator inspector's clicked zone; debug only), read
-back as `debug_focus_point()`.
+the point an observer asked to highlight: the var `debug_focus` (the spectator inspector's clicked zone, `Vector2.INF` for none; debug only).
 
 ## Grenades (`docs/grenades.md`)
 
@@ -120,13 +125,13 @@ burst's zone). **STUN ENTRY** (G18) is a SEARCH tactic beside ENTER, offered whi
 `entry.gd`, `docs/tactical-entry.md` E17); Von takes it for a suspect room (gunfire or footsteps heard there, shots from it, an ally's fight in it, a hostile lost in it, by its doorway or heading in). `perception/snapshot` words both (`domain-ai-snapshot`), the tree has the nodes (`domain-ai-decision`), `combat.gd` throws (`domain-ai-combat`), `entry.gd` runs the bang (`domain-ai-entry`); the numbers it
 knows of a grenade not yet thrown (throw range, radii, fuses, the flash's cover reach) it reads off the grenades it carries (`Character.inventory.throw_stats(slot)`, interface 6/7; no copy in its tuning).
 
-Two reflexes outside Von, in the orchestrator's loop (`_react_to_grenades`, `_process_events`), and the tunables in `tuning.grenades` (`enabled`, `hear_grenade` 300 px, `evade_margin` 120 px, `blind_fire_chance` 0.5):
+Two reflexes outside Von, in the orchestrator's loop (the reflexes' `react_to_grenades`, the radio's `process_events`), and the tunables in `tuning.grenades` (`enabled`, `hear_grenade` 300 px, `evade_margin` 120 px, `blind_fire_chance` 0.5):
 - **Evade (G16).** Perception knows the live grenades it sees, hears come down, is told of (callout `status` `grenade`, also `frag_out` / `bang_out`) or threw; when it is inside a
   grenade's danger zone it radios an `&"grenade"` callout (`point` = where it landed, `kind`) and the behaviour runs to the nearest safe spot (out of the burst's line, behind furniture that
   shields a crouched body, or outside the zone), holds it facing away and re-decides at the burst. No decision starts or is adopted meanwhile. `perception/agent_grenades.gd`,
   `agent_throw.gd`, `behavior.gd` ("The evade reflex"). `debug_grenades()` reads it; the `show_grenades` overlay draws it.
 - **Stunned (G15).** Blind: no new sighting, no new decision (it re-decides the tick sight returns), its contacts kept so it fires blind at the last-known spot of the one it fought (the character's aim
-  sway applies, one-handed) when its one roll as it goes blind hits `tuning.grenades.blind_fire_chance` (0.5; drawn from the controller's own RNG, seeded at bind from the
+  sway applies, one-handed) when its one roll as it goes blind hits `tuning.grenades.blind_fire_chance` (0.5; drawn from the reflexes' own RNG, seeded at bind from the
   character's name and spawn spot, so a seeded run rolls the same; a re-stun while blind does not reroll), else it holds its fire until it can see (`Combat.holds_fire`); deaf: the orchestrator drops gunfire, hits elsewhere, footfalls, callouts and grenade landings it would have heard.
 
 ## Hearing (`docs/hearing.md`)

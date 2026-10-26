@@ -34,13 +34,16 @@ extends Node
 ## `tuning`; a house defender and a house invader are the same code with different data.
 
 const AgentPerception := preload("res://scenes/ai/perception/agent_perception.gd")
-const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 const DecisionPlanner := preload("res://scenes/ai/decision/decision_planner.gd")
 ## The frame's snapshot count (DecisionBudget).
 const Budget := preload("res://scenes/ai/decision/decision_budget.gd")
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
-## The entry claim's wire format (an entry step's callout fields).
-const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+## The decide cadence (`_cadence`).
+const Cadence := preload("res://scenes/ai/npc_cadence.gd")
+## The radio: the event intake and the NPC's own callouts (`_comms`).
+const Comms := preload("res://scenes/ai/npc_comms.gd")
+## The reflexes outside the decision walk: following, the grenade and the blind roll (`_reflexes`).
+const Reflexes := preload("res://scenes/ai/npc_reflexes.gd")
 const ZoneList := preload("res://scenes/ai/debug/zone_list.gd")
 
 ## The behaviour to pursue, in plain language — what Von ranks every level of the decision against.
@@ -70,61 +73,28 @@ var openings: Array = []
 ## composer (`MatchBuilder.bind_squad`): who leads it and who is in it. The orders themselves come
 ## off the bus (`&"order"`), so an NPC with none still takes the ones that name it.
 var squad: Node = null
+## The tactical point an observer asked to highlight on the tactics overlay (the spectator
+## inspector's clicked zone), or `Vector2.INF` for none. Debug only: it changes nothing the NPC
+## does.
+var debug_focus := Vector2.INF
 ## SENSE sub-domain: knowledge, the decision snapshot, combat geometry.
 var _perception: Node
-## THINK transport: the Von round-trip (decision/decision_client.gd).
-var _client: Node
-## THINK policy: the decision-tree walk (decision/decision_planner.gd).
+## THINK policy: the decision-tree walk (decision/decision_planner.gd), which owns the Von
+## transport.
 var _planner: Node
 ## ACT sub-domain: runs the chosen primitive + holds commitment state.
 var _behavior: Node
-## The facts of the last decision snapshot, retained for `debug_state()`.
-var _last_facts := {}
-## The state sections of the last decision snapshot (the global ones: `goal`, `order`, ...), the
-## text Von reads in any question of the walk, retained for `debug_state()`.
-var _last_sections := {}
-## The option groups of the last snapshot, retained for `debug_zones()`.
-var _last_options := {}
-## The tactical point an observer asked to highlight (`debug_focus`), or INF for none.
-var _debug_focus := Vector2.INF
-## Seconds until the next decision is allowed.
-var _decide_timer := 0.0
-## Force a decision now (task resolved or salient event).
-var _force := false
-## Why `_force` was last raised, kept (with `_force_ms`) for the brain overlay.
-var _force_reason := ""
-## Decision walks started so far (`debug_state()["decisions"]`).
-var _decisions := 0
-## `_decisions` when an order was last taken, while its decision has not landed (-1: none awaited);
-## see `Behavior.await_order`.
-var _order_from := -1
-## Why the latest walk was started: the force reason, or "cadence"
-## (`debug_state()["decision_reason"]`).
-var _decision_reason := ""
-## When `_force_reason` was raised (game msec, `GameClock.msec()`).
-var _force_ms := 0
-## The last callout this NPC radioed (`position`, `point`, `label`, `at` in game msec), for the
-## hearing overlay.
-var _last_callout := {}
-## Known-hostile set + engaged contact's inside state, for edge detection.
-var _salient_key := ""
-## Whether _salient_key has been seeded.
-var _salient_init := false
-# EventBus events are queued here, then handed to perception on the next control() tick.
 ## The character this controller drives, captured on first control.
 var _character: Node
-## [topic, data] pairs awaiting processing once _character is known.
-var _event_queue: Array = []
-## The character was flash-blinded last tick, to re-decide the moment its sight returns.
-var _was_blind := false
-## Whether the NPC followed its squad's leader last tick (`Squad.follows`, LD19).
-var _follows := false
-## A fight off the leash forced a decision, and the NPC has not been back within the break since.
-var _leash_broke := false
-## The AI's one source of chance (the blind-fire roll, G15), seeded once at bind from the
-## character's name and spawn spot, so a seeded match or a test that places the NPC the same way
-## draws the same rolls.
-var _rng := RandomNumberGenerator.new()
+## The decide cadence: when the next decision is allowed, why one is forced, the walks started, the
+## salient key and what the last snapshot held (npc_cadence.gd).
+var _cadence: RefCounted
+## The radio: the EventBus events queued for the perception, and the NPC's own callouts
+## (npc_comms.gd).
+var _comms: RefCounted
+## The reflexes outside the decision walk: following the squad's leader, the grenade evade and the
+## blind roll (npc_reflexes.gd).
+var _reflexes: RefCounted
 
 
 ## Build the AI sub-domains and wire them together, then configure them from the tuning with
@@ -135,19 +105,19 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	# The group the observers find an NPC's controller by (interface 7).
 	add_to_group(&"npc_controllers")
+	_cadence = Cadence.new()
+	_comms = Comms.new(self)
+	_reflexes = Reflexes.new(self)
 	# SENSE: the perception sub-domain owns sight, hostility, memory and the combat geometry
 	# internally.
 	_perception = AgentPerception.new()
 	add_child(_perception)
 	_perception.setup()
-	# THINK: the Von transport, and the planner that walks the decision tree through it.
+	# THINK: the planner that walks the decision tree, through the Von transport it builds.
 	# node_overrides is baked into the tree at setup() (construction-time only); the rest of the
 	# planner's config is applied by _apply_config(), which turns the policy primitives into tree
 	# config (pursuit starts at COMBAT once a hostile is known and never idles; territory keeps
 	# combat options inside the house).
-	_client = DecisionClient.new()
-	_client.configure(tuning.decision.server_url, tuning.decision.model, 3.0)
-	add_child(_client)
 	_planner = DecisionPlanner.new()
 	_planner.node_overrides = tuning.decision.node_overrides
 	add_child(_planner)
@@ -160,7 +130,7 @@ func _ready() -> void:
 	add_child(_behavior)
 	_behavior.setup(_perception, nav_agent)
 	_apply_config()
-	_planner.setup(_client)
+	_planner.setup(tuning.decision)
 	_planner.decided.connect(_on_decided)
 	_planner.failed.connect(_behavior.fallback)
 	EventBus.posted.connect(_on_event)
@@ -199,7 +169,7 @@ func _apply_config() -> void:
 			else "")
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
 	# rules, and, holding no order, fights only within its leash of the leader (LD23).
-	var lead := _leader_followed()
+	var lead: Node2D = _reflexes.leader_followed()
 	if lead != null:
 		for id in [&"investigate", &"search", &"idle"]:
 			if not disabled.has(id):
@@ -208,7 +178,7 @@ func _apply_config() -> void:
 			rules[&"follows"] = &"follow"
 	_planner.disabled_nodes = disabled
 	_planner.entry_rules = rules
-	var leash_lead := _leash_lead()
+	var leash_lead: Node2D = _reflexes.leash_lead()
 	_planner.leash_center = leash_lead.global_position if leash_lead != null else Vector2.INF
 	_planner.leash = float(squad.leash) if leash_lead != null else 0.0
 	_behavior.apply_config(tuning, squad)
@@ -224,12 +194,12 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 			or topic == &"grenade"
 			or topic == &"explosion"
 			or topic == &"order"):
-		_event_queue.append([topic, data])
+		_comms.event_queue.append([topic, data])
 	elif (topic == &"footfall"
 			and _character != null
 			and _character.global_position.distance_to(data.get("position", Vector2.INF))
 				<= _perception.footfall_reach()):
-		_event_queue.append([topic, data])
+		_comms.event_queue.append([topic, data])
 
 
 ## Read-only: the goal as Von reads it, with `{gun}` filled in with the NPC's gun (the raw `goal`
@@ -264,12 +234,12 @@ func debug_state() -> Dictionary:
 	var out := {
 		"npc": _npc_name(),
 		"goal": goal_text(),
-		"decide_in": _decide_timer,
-		"forced": _force,
-		"decisions": _decisions,
-		"decision_reason": _decision_reason,
-		"facts": _last_facts,
-		"sections": _last_sections,
+		"decide_in": _cadence.decide_timer,
+		"forced": _cadence.forced,
+		"decisions": _cadence.decisions,
+		"decision_reason": _cadence.decision_reason,
+		"facts": _cadence.last_facts,
+		"sections": _cadence.last_sections,
 	}
 	if _planner != null:
 		out["decision"] = _planner.debug_state()
@@ -287,24 +257,7 @@ func debug_state() -> Dictionary:
 ## flattened to world points tagged by kind (see `debug/zone_list.gd`), for the tactics debug
 ## overlay to draw. Empty until the first decision.
 func debug_zones() -> Array:
-	return ZoneList.from_options(_last_options)
-
-
-## Highlight the tactical point at world `point` on the tactics overlay (the spectator inspector's
-## clicked zone). Debug only: it changes nothing the NPC does.
-func debug_focus(point: Vector2) -> void:
-	_debug_focus = point
-
-
-## Clear the highlighted tactical point (`debug_focus`).
-func debug_clear_focus() -> void:
-	_debug_focus = Vector2.INF
-
-
-## Read-only: the tactical point highlighted (`debug_focus`), or INF for none, for the tactics
-## overlay to ring.
-func debug_focus_point() -> Vector2:
-	return _debug_focus
+	return ZoneList.from_options(_cadence.last_options)
 
 
 ## Read-only: the tactical ROOM zones — every room of the house tagged by how this NPC regards it
@@ -391,7 +344,7 @@ func debug_grenades() -> Dictionary:
 
 ## Read-only: the last callout this NPC radioed (`position`, `point`, `label`, `at` msec), or empty.
 func debug_sent_callout() -> Dictionary:
-	return _last_callout
+	return _comms.last_callout
 
 
 ## Read-only: the decision machinery's live state for the brain overlay — whether Von is being asked
@@ -410,13 +363,15 @@ func debug_brain() -> Dictionary:
 		"failed": d.get("last_failed", false),
 		"entry": d.get("entry", ""),
 		"levels": d.get("levels", []),
-		"decide_in": maxf(_decide_timer, 0.0),
+		"decide_in": maxf(_cadence.decide_timer, 0.0),
 		"decide_interval": tuning.decision.decide_interval,
-		"forced": _force,
-		"force_reason": _force_reason,
-		"force_age": (GameClock.msec() - _force_ms) / 1000.0 if _force_reason != "" else INF,
+		"forced": _cadence.forced,
+		"force_reason": _cadence.force_reason,
+		"force_age": ((GameClock.msec() - _cadence.force_ms) / 1000.0
+				if _cadence.force_reason != ""
+				else INF),
 		"timers": timers,
-		"facts": _last_facts,
+		"facts": _cadence.last_facts,
 	}
 
 
@@ -458,41 +413,42 @@ func control(character: Node, delta: float) -> void:
 		return
 	if _character == null:
 		_bind_body(character)
-	_decide_timer -= delta
+	var due: bool = _cadence.due(delta)
 	_sense(character, delta)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
-	if _behavior.service_interaction(delta, _force):
+	if _behavior.service_interaction(delta, _cadence.forced):
 		return
 	_take_resolved()
-	_think()
+	_think(due)
 	_act(delta)
 
 
-## Takes `character` as the NPC's body on its first tick: seeds the controller's RNG from its name
-## and spawn spot, and hands it to the perception and the behaviour.
+## Takes `character` as the NPC's body on its first tick: seeds the reflexes' RNG from its name and
+## spawn spot, hands it to the perception and the behaviour, and its name to the planner.
 func _bind_body(character: Node) -> void:
 	_character = character
-	_rng.seed = hash("%s %s" % [character.name, character.global_position.round()])
+	_reflexes.bind(character)
 	_perception.bind(character)
 	_behavior.bind(character)
-	_client.set_npc_name(_npc_name())
+	_planner.bind(_npc_name())
 
 
 ## SENSE: folds the queued events in, perceives, and lets the behaviour adopt the hostiles it knows
 ## (reconsidering at once when the engaged contact is lost) before the salient-event check.
 func _sense(character: Node, delta: float) -> void:
-	_process_events()
-	_follow_squad()
+	_comms.process_events()
+	_reflexes.follow_squad()
 	_perception.openings = openings
 	_perception.observe(rooms)
-	_react_to_grenades()
+	_reflexes.react_to_grenades()
 	_behavior.rooms = rooms
 	if entry_point != Vector2.ZERO:
 		_perception.entry_point = entry_point # Hand the injected entrance to the perception once.
 		entry_point = Vector2.ZERO
 	var known: Array = _perception.contacts(character.global_position)
 	if _behavior.update_known(known, delta):
-		_force_now("lost the engaged contact") # Lost the engaged contact mid-fight → reconsider.
+		# Lost the engaged contact mid-fight → reconsider.
+		_cadence.force("lost the engaged contact")
 	_check_salient()
 
 
@@ -501,18 +457,19 @@ func _sense(character: Node, delta: float) -> void:
 func _take_resolved() -> void:
 	var why: String = _behavior.resolve_reason()
 	if _behavior.take_resolved():
-		_force_now(why if why != "" else "task resolved")
+		_cadence.force(why if why != "" else "task resolved")
 		var lead: String = _behavior.reached_lead()
 		if lead != "":
 			_perception.check_lead(lead) # Reached it and found nothing: don't send it back there.
 
 
-## THINK: restarts a decision walk a forced decision has overtaken, or starts one when free to.
-func _think() -> void:
+## THINK: restarts a decision walk a forced decision has overtaken, or starts one when free to
+## (`due`: the decide cadence has elapsed).
+func _think(due: bool) -> void:
 	if _planner.is_pending():
-		if _force:
+		if _cadence.forced:
 			_maybe_interrupt()
-	elif _should_decide():
+	elif _should_decide(due):
 		_start_decision()
 
 
@@ -521,84 +478,29 @@ func _think() -> void:
 func _act(delta: float) -> void:
 	_behavior.apply(delta)
 	if _behavior.take_entry_turned():
-		_on_entry_turned()
+		_comms.on_entry_turned()
 	for claim in _behavior.take_entry_calls():
 		if tuning.radio.send_callouts:
-			_post_entry_call(claim)
+			_comms.post_entry_call(claim)
 	for throw in _behavior.take_throw_calls():
 		if tuning.radio.send_callouts:
-			_post_throw_call(throw)
-	_report_order()
-
-
-## The progress of the order the NPC holds, on the radio (`docs/leadership.md` LD7): the steps the
-## behaviour reports as it carries it out (`moving`, `in_position`), and `done` / `refused` once it
-## has ended so; on the team radio, so only with `tuning.radio.send_callouts`.
-func _report_order() -> void:
-	var steps: Array = _behavior.take_order_steps()
-	var ended: Dictionary = _perception.take_ended_order()
-	if not ended.is_empty():
-		steps.append({ "order_id": ended["id"], "step": ended["why"] })
-	if tuning.radio.send_callouts:
-		for step in steps:
-			_post_order_step(step["order_id"], step["step"])
-
-
-## Radio step `step` of order `order_id` as an `&"callout"` with `order_id` and `order_step`: the
-## speaker, where it stands and what it is doing. Allies leave it out of what they weigh; its squad
-## keeps it as the member's latest step.
-func _post_order_step(order_id: Variant, step: String) -> void:
-	_last_callout = {
-		"position": _character.global_position, "point": _character.global_position,
-		"label": "%s (%s)" % [_behavior.path_label(), step.replace("_", " ")],
-		"at": GameClock.msec(),
-	}
-	var msg := _callout_header(
-		", ".join(_status(false)), _behavior.current_act(), _behavior.path_label(),
-		_character.global_position,
-	)
-	msg["order_id"] = order_id
-	msg["order_step"] = step
-	EventBus.post(&"callout", msg)
-
-
-## The running ENTER became a bang one, its room suspect (`docs/tactical-entry.md` E17: at its
-## start, or on a late reason): the order is re-adopted as the STUN ENTRY it now is
-## (`search/stun_entry/<door>`, its label from the tree), so what the NPC is doing reads as it is.
-## An entry the guard runs under another order (a walk's detour) keeps that order's name.
-func _on_entry_turned() -> void:
-	var order: Dictionary = _behavior.order()
-	var path: Array = order["path"]
-	if path.size() < 2 or str(path[0]) != "search" or str(path[1]) != "enter":
-		return
-	var labels: Array = order["labels"]
-	path[1] = &"stun_entry"
-	if labels.size() >= 2:
-		labels[1] = _planner.label_of(&"stun_entry")
-	_behavior.adopt_bang(path, labels)
-	GameLog.say("%s (suspect room) %s" % [_npc_name(), " - ".join(labels)])
-
-
-## Raise the force-decide flag and remember why, for the brain debug overlay.
-func _force_now(reason: String) -> void:
-	_force = true
-	_force_reason = reason
-	_force_ms = GameClock.msec()
+			_comms.post_throw_call(throw)
+	_comms.report_order()
 
 
 ## Whether a new decision may start now: never while crossing a doorway (a forced one waits until
 ## the NPC is through); always when forced; otherwise the behaviour decides whether its current
 ## commitment still holds (a fight, a move, an approach) or the decide cadence has elapsed. One that
 ## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
-## (`_force`, the elapsed timer) and asks again next frame.
-func _should_decide() -> bool:
+## (`forced`, the elapsed timer) and asks again next frame. `due`: the decide cadence has elapsed.
+func _should_decide(due: bool) -> bool:
 	if _behavior.committed() or _behavior.evading() or _character.stun.is_blind():
 		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
 		# burst (G16).
 		return false
-	if not _force and not _behavior.wants_decision(_decide_timer <= 0.0):
+	if not _cadence.forced and not _behavior.wants_decision(due):
 		return false
-	if not _force and not _perception.routes_ready():
+	if not _cadence.forced and not _perception.routes_ready():
 		# The routes it would weigh are still being measured (the avoid map is baking): a few
 		# frames. A forced decision does not wait.
 		return false
@@ -613,140 +515,34 @@ func _maybe_interrupt() -> void:
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
 	# the order, and a walk the order replaces stands until one made with it lands.
-	if (_order_from >= 0
+	if (_cadence.order_from >= 0
 			or _planner.entry_for(_perception.quick_facts()) != _planner.current_entry()):
-		if Budget.claim():  # Else `_force` stays and the restart is tried again next frame.
+		if Budget.claim():  # Else `forced` stays and the restart is tried again next frame.
 			_start_decision()
 	else:
-		_force = false
+		_cadence.forced = false
 
 
 ## Sense the situation and start a decision walk over it. The planner answers asynchronously via
 ## `decided` / `failed` (the latter wired to the behaviour's steady-stance fallback).
 func _start_decision() -> void:
-	_decisions += 1
-	_decision_reason = _force_reason if _force else "cadence"
-	_force = false
-	_decide_timer = tuning.decision.decide_interval
+	_cadence.decisions += 1
+	_cadence.decision_reason = _cadence.force_reason if _cadence.forced else "cadence"
+	_cadence.forced = false
+	_cadence.decide_timer = tuning.decision.decide_interval
 	_apply_config()  # Pick up any tunable retuned at runtime before sensing + deciding.
 	var snapshot: Dictionary = _perception.sense(rooms, goal, _behavior.activity_text())
-	_last_facts = snapshot["facts"]
-	_last_sections = snapshot["sections"]
-	_last_options = snapshot["options"]
+	_cadence.last_facts = snapshot["facts"]
+	_cadence.last_sections = snapshot["sections"]
+	_cadence.last_options = snapshot["options"]
 	var held: Dictionary = _perception.order()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
 		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
 		_perception.end_order(held["id"], "refused")
-		_last_facts["ordered"] = false
+		_cadence.last_facts["ordered"] = false
 		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
 		_planner.confine_room = ""
 	_planner.begin(snapshot, _behavior.ongoing())
-
-
-## Hand buffered EventBus events to the perception. A hit that is a relevant attack forces an
-## immediate re-decision only when the NPC is NOT already fighting (to kick off a fight); while
-## fighting it just refreshes the engagement, so a firefight doesn't re-ask Von every frame. Allies'
-## callouts are folded in when this NPC listens to them.
-func _process_events() -> void:
-	if _event_queue.is_empty():
-		return
-	# A deafened NPC hears no gunfire, no footsteps, no hit elsewhere and no radio call (G15).
-	var deaf: bool = _character.stun.is_deaf()
-	for ev in _event_queue:
-		match ev[0]:
-			&"hit":
-				if deaf and ev[1].get("victim") != _character:
-					continue
-				if _perception.process_hit(ev[1]) and not _behavior.in_combat():
-					_force_now("attacked")
-			&"callout":
-				if tuning.radio.hear_callouts and not deaf:
-					_perception.process_callout(ev[1])
-			&"footfall":
-				if not deaf:
-					_perception.process_footfall(ev[1])
-			&"grenade":
-				_perception.process_grenade(ev[1], deaf)
-			&"explosion":
-				_perception.process_explosion(ev[1])
-			&"order":
-				# An order (LD5) reaches its recipients whatever their state, deaf included, and is
-				# decided on at once, as a hit is (after a crossing or an evade, which hold every
-				# decision).
-				if _perception.process_order(ev[1]):
-					_force_now("ordered")
-					# A walk it replaces stands until a decision started from here on lands
-					# (`_on_decided`).
-					_order_from = _decisions
-					_behavior.await_order(true)
-	_event_queue.clear()
-
-
-## The grenade reflex (G16) and the blind NPC (G15), every tick after the SEE pass: hand the
-## behaviour the plan to get clear of the live grenade that threatens the NPC (or {}), radio the
-## grenades it has seen or heard come down, roll once whether it fires blind the tick it goes blind,
-## and re-decide the moment its sight returns.
-func _react_to_grenades() -> void:
-	_behavior.poll_throw()
-	_behavior.set_evade(_perception.evade_plan())
-	for grenade in _perception.grenade_announcements():
-		if tuning.radio.send_callouts:
-			_post_grenade_call(grenade)
-	var blind: bool = _character.stun.is_blind()
-	if blind and not _was_blind:
-		# One draw per blinding, whatever the chance, so the sequence does not depend on it.
-		var draw := _rng.randf()
-		var chance := tuning.grenades.blind_fire_chance
-		_behavior.set_blind_fire(draw < chance or chance >= 1.0)
-	if _was_blind and not blind:
-		_force_now("sight returned")
-	_was_blind = blind
-
-
-## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the
-## perception's `follows`), deciding at once when that changes (it joined a squad's file, or the
-## leader it followed died and it leads now), and the leash it fights within while it holds no
-## order (`_leash_lead`). A leashed follower fighting farther than `leash_break` leashes from its
-## leader, neither committed nor on its way somewhere, decides again, once until it has been back
-## within that.
-func _follow_squad() -> void:
-	var follows: bool = (squad != null
-			and is_instance_valid(squad)
-			and squad.has_method("follows")
-			and squad.follows(_character))
-	_perception.follows = follows
-	if follows != _follows:
-		_follows = follows
-		_force_now("follows its leader" if follows else "leads its squad")
-	var lead := _leash_lead()
-	if lead == null:
-		_behavior.set_leash(Vector2.INF, 0.0)
-		_leash_broke = false
-		return
-	_behavior.set_leash(lead.global_position, squad.leash)
-	if (_character.global_position.distance_to(lead.global_position)
-			<= squad.leash * squad.leash_break):
-		_leash_broke = false
-	elif (not _leash_broke
-			and _behavior.in_combat()
-			and not _behavior.committed()
-			and not _behavior.walk_pending()):
-		_leash_broke = true
-		_force_now("off the leash")
-
-
-## The leader the NPC follows (`Squad.leader`), or null when it follows none.
-func _leader_followed() -> Node2D:
-	if not _perception.follows:
-		return null
-	return squad.leader() as Node2D
-
-
-## The leader whose leash the NPC fights within (LD23): the one it follows while it holds no order,
-## else null (a member carrying an order, a held stack or a join included, goes where the order
-## takes it).
-func _leash_lead() -> Node2D:
-	return _leader_followed() if _perception.order().is_empty() else null
 
 
 ## Force a re-decision when the NPC's BELIEF about hostiles changes: one is spotted, lost or newly
@@ -755,13 +551,13 @@ func _leash_lead() -> Node2D:
 ## belief into a salient key; seeded on the first call so the initial state isn't a "change".
 func _check_salient() -> void:
 	var key: String = _behavior.salient_key()
-	if not _salient_init:
-		_salient_key = key
-		_salient_init = true
+	if not _cadence.salient_init:
+		_cadence.salient_key = key
+		_cadence.salient_init = true
 		return
-	if key != _salient_key:
-		_salient_key = key
-		_force_now("hostile belief changed")
+	if key != _cadence.salient_key:
+		_cadence.salient_key = key
+		_cadence.force("hostile belief changed")
 
 
 ## Adopt the planner's leaf: hand it to the behaviour, log the full decision path, and tell allies
@@ -769,137 +565,22 @@ func _check_salient() -> void:
 func _on_decided(leaf: Dictionary) -> void:
 	if _behavior.evading():
 		return  # Overtaken by a grenade while Von was answering; the burst ends in a new decision.
-	if _order_from >= 0 and _decisions <= _order_from:
+	if _cadence.order_from >= 0 and _cadence.decisions <= _cadence.order_from:
 		# A walk begun before the order came, which its restart superseded: the one made with the
 		# order is on its way.
 		return
-	_order_from = -1
+	_cadence.order_from = -1
 	_behavior.set_leaf(leaf)
 	# The order just adopted sets (or clears) the engaged contact, which the salient key carries:
 	# that is not a change of belief about hostiles, and the decision just made already weighed what
 	# the NPC knows. Re-take the key so it does not start another.
-	if _salient_init:
-		_salient_key = _behavior.salient_key()
+	if _cadence.salient_init:
+		_cadence.salient_key = _behavior.salient_key()
 	GameLog.say("%s (Von) %s  [%s]"
 			% [_npc_name(), " - ".join(leaf["labels"]), _planner.walk_digest()])
 	if tuning.radio.send_callouts and _character != null and not leaf["path"].is_empty() \
 			and str(leaf["path"][0]) in ["combat", "investigate"]:
-		_post_callout(leaf)
-
-
-## Broadcast this NPC's decision as an `&"callout"` EventBus event (interface 10): who is speaking
-## and where, its state, the decision path, its target and destination, and with a combat decision
-## `target_pos` (where the hostile is as it knows it). Allies within range hear it.
-func _post_callout(leaf: Dictionary) -> void:
-	var params: Dictionary = leaf["params"]
-	var status := _status(leaf["primitive"] == &"reload")
-	_last_callout = {
-		"position": _character.global_position,
-		"point": params.get("point", _character.global_position),
-		"label": " - ".join(leaf["labels"]), "at": GameClock.msec(),
-	}
-	var radio := _callout_header(
-		", ".join(status), "/".join(leaf["path"]), " - ".join(leaf["labels"]),
-		params.get("point", _character.global_position), params.get("target_id", 0),
-	)
-	if str(leaf["path"][0]) == "combat":
-		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it
-		# (docs/grenades.md G18).
-		radio["target_pos"] = _perception.target_pos(params.get("target_id", 0))
-	EventBus.post(&"callout", radio)
-
-
-## Radio a live grenade the NPC has seen or heard come down (`{ point, kind }`) as an `&"grenade"`
-## callout: the spot it landed at and its kind, for the allies in its danger zone who neither saw
-## nor heard it (G16). `point` is the landing.
-func _post_grenade_call(grenade: Dictionary) -> void:
-	var label := "a %s grenade" % grenade["kind"]
-	_last_callout = {
-		"position": _character.global_position,
-		"point": grenade["point"],
-		"label": label,
-		"at": GameClock.msec(),
-	}
-	var msg := _callout_header("grenade", "", label, grenade["point"])
-	msg["kind"] = grenade["kind"]
-	EventBus.post(&"callout", msg)
-
-
-## Radio a grenade this NPC has just thrown (`{ kind, point }` from the behaviour) as a `frag_out` /
-## `bang_out` `&"callout"`: where it is going to land and its kind, for the allies near it to get
-## clear of (G16, G17). `point` is the landing.
-func _post_throw_call(throw: Dictionary) -> void:
-	var status := "frag_out" if throw["kind"] == &"frag" else "bang_out"
-	var label := "%s!" % status.replace("_", " ")
-	_last_callout = {
-		"position": _character.global_position,
-		"point": throw["point"],
-		"label": label,
-		"at": GameClock.msec(),
-	}
-	var msg := _callout_header(status, _behavior.current_act(), label, throw["point"])
-	msg["kind"] = throw["kind"]
-	EventBus.post(&"callout", msg)
-
-
-## Radio one step of a tactical entry (`claim`, in `StackClaim`'s fields, from the behaviour) as an
-## `&"callout"`: the callout's header (`_callout_header`) and the claim's entry fields, every one
-## encoded by `StackClaim.encode` (the doorway, slot, side and `entry_step`, the bang's mode and
-## grenades, the frame and spot it was claimed on, a move-up, the pie, the order it stacks under, a
-## join's mark: stack/stack_claim.gd `DEFAULTS`). It is how the stack claims slots, waits for the
-## team and crosses in order; "going in" is also said in `status`. `point` is where the speaker
-## stands.
-func _post_entry_call(claim: Dictionary) -> void:
-	var status := _status(false)
-	if claim["entry_step"] == "going_in":
-		status.push_front("going in")
-	var labels: String = _behavior.path_label()
-	_last_callout = {
-		"position": _character.global_position, "point": _character.global_position,
-		"label": "%s (%s)" % [labels, String(claim["entry_step"]).replace("_", " ")],
-		"at": GameClock.msec(),
-	}
-	var msg := _callout_header(
-		", ".join(status), _behavior.current_act(), labels, _character.global_position,
-	)
-	msg.merge(StackClaim.encode(claim))
-	EventBus.post(&"callout", msg)
-
-
-## The fields every callout of this NPC's starts with (interface 10): the speaker, its faction and
-## where it stands, its `status`, the decision `path`, the `label`, the `target_id` and the `point`.
-func _callout_header(
-	status: String,
-	path: String,
-	label: String,
-	point: Vector2,
-	target_id: Variant = 0,
-) -> Dictionary:
-	return {
-		"speaker": _character,
-		"faction": _character.faction,
-		"position": _character.global_position,
-		"status": status,
-		"path": path,
-		"label": label,
-		"target_id": target_id,
-		"point": point,
-	}
-
-
-## The speaker's state for a callout: under fire, wounded, reloading.
-func _status(reloading: bool) -> Array:
-	var status: Array = []
-	if _perception.under_fire():
-		status.append("under fire")
-	var dmg: float = _character.damage_taken()
-	if dmg >= tuning.context.critical_threshold:
-		status.append("badly wounded")
-	elif dmg >= tuning.context.hurt_threshold:
-		status.append("hurt")
-	if reloading or _character.ammo.is_reloading():
-		status.append("reloading")
-	return status
+		_comms.post_callout(leaf)
 
 
 ## The driven character's name, for log lines.

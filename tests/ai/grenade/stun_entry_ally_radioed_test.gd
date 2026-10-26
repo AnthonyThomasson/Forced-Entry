@@ -9,11 +9,11 @@ extends GameTest
 ## Premises: the ally is a puppet whose radio call is posted first thing in `run` (a call that lands
 ## before the stack decides, as in a match where the fight started first: an NPC's own call would
 ## come only once Von has answered it, after the stack's first decision, and a call forces no
-## re-decision). It is shaped as `GoalController._post_callout` sends an ENGAGE from where it
-## stands, plus the `target_pos` every combat call is to carry (the hostile's last-known spot, issue
-## #51). The householder is a puppet in the kitchen's north-east corner, hidden from every spot
-## outside the back door; unkillable, it never shoots. Both invaders are armed with a stun at the
-## start of `run`, the way Main arms a spawn.
+## re-decision). It is shaped as the controller's radio (`npc_comms.gd` `post_callout`) sends an
+## ENGAGE from where it stands, plus the `target_pos` every combat call is to carry (the hostile's
+## last-known spot, issue #51). The householder is a puppet in the kitchen's north-east corner,
+## hidden from every spot outside the back door; unkillable, it never shoots. Both invaders are
+## armed with a stun at the start of `run`, the way Main arms a spawn.
 
 const Suspect := preload("res://tests/_ai/suspect_probe.gd")
 const ALLY_AT := Vector2(690, 420)
