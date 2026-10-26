@@ -10,6 +10,7 @@ extends GameTest
 ## Real Von, the whole pipeline; no switch. The human (a puppet) is never killed.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
@@ -47,13 +48,13 @@ func run(t: TestContext) -> void:
 	if not _has_stack(t, squad, me):
 		return
 	var nodes: Array = [me] + members
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	if not await _step_up(t, w, nodes, squad):
 		return
 	var door := String(Entry.BACK["id"])
 	await _check_own_claim(t, w, nodes, squad, door)
 	var ready := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return members.all(func(m): return Follow.first_call(t, m, "ready", door) < INF)
 	await t.until(ready, READY_WITHIN)
 
@@ -74,7 +75,7 @@ func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var arrived := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return puppet.has_arrived()
 	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
 		return false
@@ -92,7 +93,7 @@ func _check_own_claim(
 	var me: Node = nodes[0]
 	var members: Array = nodes.slice(1)
 	var claimed := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.first_call(t, me, "claim", door) < INF
 	await t.until(claimed, 4.0)
 	var mine := Follow.first_call(t, me, "claim", door)
@@ -117,8 +118,8 @@ func _check_joined(t: TestContext, w: Dictionary, me: Node, members: Array, door
 	)
 	for m: Node in members:
 		t.check(
-			Follow.took(w, m, "order"),
-			"%s carried out the join order (ORDER; acts %s)" % [m.name, Follow.acts_of(w, m)],
+			FollowWatch.took(w, m, "order"),
+			"%s carried out the join order (ORDER; acts %s)" % [m.name, FollowWatch.acts_of(w, m)],
 		)
 		t.check(
 			Follow.first_call(t, m, "claim", door) < INF

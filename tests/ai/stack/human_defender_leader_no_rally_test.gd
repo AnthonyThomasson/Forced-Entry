@@ -13,6 +13,7 @@ extends GameTest
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 ## Where the human stands: in the hall against the wall east of the hall doorway into the living
@@ -61,7 +62,7 @@ func run(t: TestContext) -> void:
 		await MainProbe.close(t, viewport)
 		return
 	var squad: Node = (built.get("squads", {}) as Dictionary).get(me.get("faction"))
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	if not await _step_up(t, w, [me, mate], squad):
 		await MainProbe.close(t, viewport)
 		return
@@ -110,13 +111,13 @@ func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var arrived := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return puppet.has_arrived()
 	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the hall doorway"):
 		return false
 	puppet.stop()
 	var stood := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return false
 	await t.until(stood, HOLD)
 	return true
@@ -139,6 +140,6 @@ func _check_no_rally(t: TestContext, w: Dictionary, me: Node, mate: Node) -> voi
 		"the teammate claimed no slot at the hall doorway",
 	)
 	t.check(
-		not Follow.took(w, mate, "order") and Follow.following(mate),
-		"the teammate kept following the human (acts %s)" % Follow.acts_of(w, mate),
+		not FollowWatch.took(w, mate, "order") and Follow.following(mate),
+		"the teammate kept following the human (acts %s)" % FollowWatch.acts_of(w, mate),
 	)

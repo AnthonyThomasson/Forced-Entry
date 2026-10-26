@@ -11,6 +11,7 @@ extends GameTest
 ## off: a shot that arrives lands, as in `posture_pinned_crouch`).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const HALL := Rect2(0, 0, 1700, 900)
 const LEAD_AT := Vector2(900, 450)
@@ -67,7 +68,7 @@ func run(t: TestContext) -> void:
 		if d > float(farthest[0]):
 			farthest[0] = d
 			farthest[1] = Follow.act(m)
-	var w: Dictionary = await Follow.watch(t, [me, m], squad, WATCH_S, { "each": each })
+	var w: Dictionary = await FollowWatch.watch(t, [me, m], squad, WATCH_S, { "each": each })
 	gunman.hold_fire(false)
 
 	if not t.require(
@@ -76,8 +77,8 @@ func run(t: TestContext) -> void:
 	):
 		return
 	if not t.require(
-			Follow.took(w, m, "combat"),
-			"the NPC fought under fire (acts %s)" % Follow.acts_of(w, m),
+			FollowWatch.took(w, m, "combat"),
+			"the NPC fought under fire (acts %s)" % FollowWatch.acts_of(w, m),
 	):
 		return
 	if not t.require(
@@ -92,7 +93,7 @@ func run(t: TestContext) -> void:
 		float(farthest[0]) <= Follow.LEASH + GIVE,
 		"pinned, the NPC kept to the leash: farthest %.0f px from the leader (leash %.0f + %.0f)"
 			% [farthest[0], Follow.LEASH, GIVE] + " act then %s; acts %s"
-			% [farthest[1], Follow.acts_of(w, m)],
+			% [farthest[1], FollowWatch.acts_of(w, m)],
 	)
 	t.check(
 		m.global_position.distance_to(me.global_position) <= Follow.LEASH,

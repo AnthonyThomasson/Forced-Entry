@@ -8,6 +8,7 @@ extends GameTest
 ## Real Von, the whole pipeline; no switch.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const WATCH_S := 40.0
 
@@ -35,13 +36,13 @@ func run(t: TestContext) -> void:
 		return
 	var went_in := func(_rec: Dictionary) -> bool:
 		return not Follow.calls_of(t, inv, "going_in").is_empty()
-	var w: Dictionary = await Follow.watch(t, [inv], null, WATCH_S, { "stop": went_in })
+	var w: Dictionary = await FollowWatch.watch(t, [inv], null, WATCH_S, { "stop": went_in })
 
 	if not t.require(
-			Follow.asked(w, inv) > 0,
+			FollowWatch.asked(w, inv) > 0,
 			"it decided through Von (asked %d; acts %s)" % [
-				Follow.asked(w, inv),
-				Follow.acts_of(w, inv),
+				FollowWatch.asked(w, inv),
+				FollowWatch.acts_of(w, inv),
 			],
 	):
 		return
@@ -52,12 +53,12 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.check(
-		not Follow.took(w, inv, "follow"),
-		"it never followed (acts %s)" % Follow.acts_of(w, inv),
+		not FollowWatch.took(w, inv, "follow"),
+		"it never followed (acts %s)" % FollowWatch.acts_of(w, inv),
 	)
 	t.check(
-		Follow.took(w, inv, "search"),
-		"it searched the house on its own (acts %s)" % Follow.acts_of(w, inv),
+		FollowWatch.took(w, inv, "search"),
+		"it searched the house on its own (acts %s)" % FollowWatch.acts_of(w, inv),
 	)
 	var claims := Follow.calls_of(t, inv, "claim")
 	t.check(
@@ -66,5 +67,5 @@ func run(t: TestContext) -> void:
 	)
 	t.check(
 		not Follow.calls_of(t, inv, "going_in").is_empty(),
-		"and went in (acts %s)" % Follow.acts_of(w, inv),
+		"and went in (acts %s)" % FollowWatch.acts_of(w, inv),
 	)

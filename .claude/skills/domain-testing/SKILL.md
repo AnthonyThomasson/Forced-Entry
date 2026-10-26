@@ -683,11 +683,12 @@ preload(...)`; not a test): the spec's numbers as its own consts (`FOLLOW_GAP`, 
 `FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `FOLLOW_ARRIVE`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
 (`band_p50(i)`: the `i`-th follower's place in the file plus `BAND_LAG`, 45 px of walking lag, at the median; `BAND_P90`); the squad
 is the test's declared one (`s.squads` or `s.declared_match`, read with `t.world.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
-(`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
-`watch`, `asked`: the Von questions of a member's walks, `gaps`, `took`, `acts_of`, `went_through`, `off_spot_tick`); and the leash
+(`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); and the leash
 chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contrast `leash_free_chase`, which binds no squad). The tests
 call the squad itself (`follows`, `follow_spot`, `leader()`, `view()`) and its tunables on `SquadFollowConfig` (`leash`); a squad read
 that only answers the code's own value (`follows`, `SquadFollowConfig.leash`) is a `require` premise, and the behaviour the spec describes is the check.
+A watch of the team is `tests/_ai/follow_watch_probe.gd` (`const FollowWatch := preload(...)`): `new_watch`, `tick`, `watch`, `asked` (the Von
+questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile` and `off_spot_tick`.
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of

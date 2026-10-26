@@ -10,6 +10,7 @@ extends GameTest
 ## picks is Von's, and the test reads it off the radio.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## How long (s) the team has, from the lead's first claim, to be in and the room called clear.
 const CLEAR_WITHIN := 60.0
@@ -48,12 +49,12 @@ func run(t: TestContext) -> void:
 		return
 	var own_claim := func(_rec: Dictionary) -> bool:
 		return not Follow.own_claims(t, lead).is_empty()
-	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, { "stop": own_claim })
+	var w: Dictionary = await FollowWatch.watch(t, nodes, squad, 40.0, { "stop": own_claim })
 	var claims := Follow.own_claims(t, lead)
 	if not t.require(
 			not claims.is_empty(),
 			"premise: the lead made its own entry claim at a doorway (acts %s)"
-				% Follow.acts_of(w, lead),
+				% FollowWatch.acts_of(w, lead),
 	):
 		return
 	var opening := String(claims[0]["data"].get("opening", ""))
@@ -64,8 +65,8 @@ func run(t: TestContext) -> void:
 	_check_join(t, nodes, opening, claimed_at)
 	for m: Node in members:
 		t.check(
-			Follow.took(w, m, "order"),
-			"%s carried out the join order (ORDER; acts %s)" % [m.name, Follow.acts_of(w, m)],
+			FollowWatch.took(w, m, "order"),
+			"%s carried out the join order (ORDER; acts %s)" % [m.name, FollowWatch.acts_of(w, m)],
 		)
 	_check_one_stack(t, nodes, opening)
 	t.check(
@@ -85,7 +86,7 @@ func _wait_clear(
 ) -> void:
 	var squad: Node = t.world.squad(&"invader")
 	var cleared := func(rec: Dictionary) -> bool:
-		Follow.tick(rec, t, nodes, squad)
+		FollowWatch.tick(rec, t, nodes, squad)
 		return not Follow.clears(t, into).is_empty() and nodes.all(
 			func(c): return Follow.first_call(t, c, "going_in", opening) < INF,
 		)

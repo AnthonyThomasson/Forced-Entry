@@ -12,6 +12,7 @@ extends GameTest
 ## Real Von, the whole pipeline; no switch. The human (a puppet) is never killed.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
@@ -59,14 +60,14 @@ func run(t: TestContext) -> void:
 	if defend.is_empty():
 		return
 	var nodes: Array = [me, defender] + free
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	if not await _step_up(t, w, nodes, squad):
 		return
 	var door := String(Entry.BACK["id"])
 	if not await _own_claim(t, w, nodes, squad, door):
 		return
 	var ready := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return free.all(func(m): return Follow.first_call(t, m, "ready", door) < INF)
 	await t.until(ready, READY_WITHIN)
 
@@ -110,7 +111,7 @@ func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var puppet := t.puppet(&"me")
 	puppet.walk_to(STEP_UP)
 	var arrived := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return puppet.has_arrived()
 	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
 		return false
@@ -121,7 +122,7 @@ func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 func _own_claim(t: TestContext, w: Dictionary, nodes: Array, squad: Node, door: String) -> bool:
 	var me: Node = nodes[0]
 	var claimed := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.first_call(t, me, "claim", door) < INF
 	return t.require(
 		await t.until(claimed, 4.0),
@@ -131,9 +132,9 @@ func _own_claim(t: TestContext, w: Dictionary, nodes: Array, squad: Node, door: 
 
 func _check_joins(t: TestContext, w: Dictionary, defender: Node, free: Array, door: String) -> void:
 	t.check(
-		Follow.took(w, defender, "order"),
+		FollowWatch.took(w, defender, "order"),
 		"premise: the defender carried out its defend order (ORDER; acts %s)"
-			% Follow.acts_of(w, defender),
+			% FollowWatch.acts_of(w, defender),
 	)
 	var joins := Follow.raw_joins(t).filter(
 		func(e): return String(e["data"].get("opening", "")) == door,

@@ -10,6 +10,7 @@ extends GameTest
 ## 2 of the pistol's, with its default spares), on the bare Terrace house.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const LEAD_AT := Vector2(300, -80)
@@ -57,23 +58,22 @@ func run(t: TestContext) -> void:
 	var reloaded := func() -> bool:
 		trail.append([t.time, m.global_position])
 		return not _reloads(t, m).is_empty()
-	var w: Dictionary = await Follow.watch(
+	var w: Dictionary = await FollowWatch.watch(
 		t,
 		[me, m],
 		squad,
 		WITHIN,
 		{ "stop": func(_rec: Dictionary) -> bool: return reloaded.call() },
 	)
-
 	t.check(
-		Follow.took(w, m, "follow"),
-		"the NPC follows its leader (FOLLOW; acts %s)" % Follow.acts_of(w, m),
+		FollowWatch.took(w, m, "follow"),
+		"the NPC follows its leader (FOLLOW; acts %s)" % FollowWatch.acts_of(w, m),
 	)
 	var starts := _reloads(t, m)
 	if not t.check(
 			not starts.is_empty(),
 			"the follower topped up its magazine within %.0f s (acts %s)"
-				% [WITHIN, Follow.acts_of(w, m)],
+				% [WITHIN, FollowWatch.acts_of(w, m)],
 	):
 		return
 	var at: float = starts[0]["time"]
@@ -88,7 +88,8 @@ func run(t: TestContext) -> void:
 		"at rest: it had stood still for the half second before (moved %.0f px)"
 			% _at(trail, at - 0.5).distance_to(where),
 	)
-	t.expect_eq(Follow.asked(w, m), 0, "it asked Von nothing (acts %s)" % Follow.acts_of(w, m))
+	var acts := FollowWatch.acts_of(w, m)
+	t.expect_eq(FollowWatch.asked(w, m), 0, "it asked Von nothing (acts %s)" % acts)
 
 
 ## The raw `reload` start events (`{ topic, data, time }`) of character `c`.

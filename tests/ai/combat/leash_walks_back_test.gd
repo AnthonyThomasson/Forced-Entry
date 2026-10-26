@@ -10,6 +10,7 @@ extends GameTest
 ## (`max_health`), and the target, a puppet, never shoots.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const HALL := Rect2(0, 0, 1700, 900)
 const LEAD_AT := Vector2(900, 450)
@@ -59,12 +60,12 @@ func run(t: TestContext) -> void:
 			"the NPC fights the target in sight (act %s)" % Follow.act(m),
 	):
 		return
-	var w := Follow.new_watch()
+	var w := FollowWatch.new_watch()
 	var broke_at := await _left_behind(t, w, squad, me, m)
 	if broke_at < 0.0:
 		return
 	var back := func() -> bool:
-		Follow.tick(w, t, [me, m], squad)
+		FollowWatch.tick(w, t, [me, m], squad)
 		t.trace("from leader", m.global_position.distance_to(me.global_position))
 		return m.global_position.distance_to(me.global_position) <= Follow.LEASH
 	t.check(
@@ -73,7 +74,7 @@ func run(t: TestContext) -> void:
 			% [
 				BACK_WITHIN,
 				m.global_position.distance_to(me.global_position),
-				Follow.acts_of(w, m),
+				FollowWatch.acts_of(w, m),
 			],
 	)
 	_check_refollowed(t, w, m, broke_at)
@@ -94,7 +95,7 @@ func _left_behind(t: TestContext, w: Dictionary, squad: Node, me: Node, m: Node)
 	var left := [0.0]
 	var broke_at := [INF]
 	var walked := func() -> bool:
-		Follow.tick(w, t, [me, m], squad)
+		FollowWatch.tick(w, t, [me, m], squad)
 		var d: float = m.global_position.distance_to(me.global_position)
 		left[0] = maxf(left[0], d)
 		if d > brk and broke_at[0] == INF:
@@ -118,5 +119,5 @@ func _check_refollowed(t: TestContext, w: Dictionary, m: Node, broke_at: float) 
 	t.check(
 		refollowed,
 		"past the break (at %.1f s) the NPC re-decided and took FOLLOW (acts %s)"
-			% [broke_at, Follow.acts_of(w, m)],
+			% [broke_at, FollowWatch.acts_of(w, m)],
 	)

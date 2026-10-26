@@ -13,6 +13,7 @@ extends GameTest
 ## fire; the lead is never killed (`max_health`).
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## How long (s) after the lead's claim the hit lands: the join order is out and taken.
 const HIT_AFTER := 1.0
@@ -48,11 +49,11 @@ func run(t: TestContext) -> void:
 	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
 	var nodes: Array = [lead] + members
 	var own := func(_rec: Dictionary) -> bool: return not Follow.own_claims(t, lead).is_empty()
-	var w: Dictionary = await Follow.watch(t, nodes, squad, 40.0, { "stop": own })
+	var w: Dictionary = await FollowWatch.watch(t, nodes, squad, 40.0, { "stop": own })
 	var claims := Follow.own_claims(t, lead)
 	if not t.require(
 			not claims.is_empty(),
-			"premise: the lead made its own entry claim (acts %s)" % Follow.acts_of(w, lead),
+			"premise: the lead made its own entry claim (acts %s)" % FollowWatch.acts_of(w, lead),
 	):
 		return
 	var opening := String(claims[0]["data"].get("opening", ""))
@@ -74,7 +75,7 @@ func run(t: TestContext) -> void:
 func _others_still_far(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
 	var lead: Node = nodes[0]
 	var keep := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return false
 	await t.until(keep, HIT_AFTER)
 	var far: Array = nodes.slice(1).map(
@@ -107,12 +108,12 @@ func _lead_aborts(t: TestContext, w: Dictionary, nodes: Array, opening: String) 
 	var lead: Node = nodes[0]
 	var squad: Node = t.world.squad(&"invader")
 	var aborted := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return Follow.first_call(t, lead, "abort", opening) < INF
 	return t.require(
 		await t.until(aborted, 5.0),
 		"premise: under fire, the lead gives its stack on %s up (abort; acts %s)"
-			% [opening, Follow.acts_of(w, lead)],
+			% [opening, FollowWatch.acts_of(w, lead)],
 	)
 
 
@@ -132,7 +133,7 @@ func _settle(t: TestContext, w: Dictionary, nodes: Array, abort_at: float) -> vo
 	var squad: Node = t.world.squad(&"invader")
 	var members: Array = nodes.slice(1)
 	var settled := func() -> bool:
-		Follow.tick(w, t, nodes, squad)
+		FollowWatch.tick(w, t, nodes, squad)
 		return members.all(func(m): return (
 			_cancel_at(t, m, abort_at) < INF and Follow.entry(m).is_empty() and Follow.following(m)
 		))
@@ -155,7 +156,7 @@ func _check_member(
 	t.check(
 		Follow.entry(m).is_empty() and Follow.following(m),
 		"%s dropped its entry and follows the lead again (entry %s; acts %s)"
-			% [m.name, str(Follow.entry(m).get("phase", "none")), Follow.acts_of(w, m)],
+			% [m.name, str(Follow.entry(m).get("phase", "none")), FollowWatch.acts_of(w, m)],
 	)
 	t.check(
 		Follow.first_call(t, m, "going_in", opening) == INF,
