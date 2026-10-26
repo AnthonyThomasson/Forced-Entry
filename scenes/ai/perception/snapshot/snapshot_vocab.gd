@@ -23,13 +23,8 @@ const SIDE_WORDS := {
 var tuning: NpcTuning
 ## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
 var rooms: Array = []
-## The NPC's body, handed in once by `bind`.
-var _character: Node
-
-
-## Hand in the NPC's body. Called once by `AgentSnapshot.bind()`.
-func bind(character: Node) -> void:
-	_character = character
+## The NPC's body, set once by `AgentSnapshot.bind()`.
+var character: Node
 
 
 ## A room type as Von reads it ("kitchen_living" → "kitchen living").
@@ -189,7 +184,7 @@ func contact_posture_text(posture: StringName) -> String:
 func gun_noun(gun: int) -> String:
 	if gun < 0:
 		return "gun"
-	var name: String = _character.inventory.item_name(gun)
+	var name: String = character.inventory.item_name(gun)
 	return name if name == name.to_upper() else name.to_lower()
 
 

@@ -15,15 +15,15 @@ Files:
   options, gun }`: the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
   `_option_groups`); `fill_goal(goal)`; `setup(sources: SnapshotSources)` (once, from the perception's `setup()`), which builds the
   vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`);
-  `bind(character)` (from the perception's own `bind`) hands the NPC's body to it and to the vocabulary, the sections and the option
-  groups, each holding it as `_character`, so none of their functions takes the character.
+  `bind(character)` (from the perception's own `bind`) hands the NPC's body to it, the sections and the option groups, each holding it
+  as `_character`, and sets the vocabulary's `character`, so none of their functions takes the character.
 - `snapshot/snapshot_sources.gd` — `SnapshotSources`, the perception's modules the snapshot reads (`memory`, `tactics`, `entry`, `views`,
   `ledger`, `throw`, `suspicion`), filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, `tuning` (the NPC's `NpcTuning` topics, handed in
   by the perception's `apply_config`; every tunable the snapshot reads, read live: `tuning.combat.shoot_range` / `punch_range`,
   `tuning.tactics.flank_ally_radius`, `tuning.decision.max_options_per_level`, `tuning.memory.search_ttl`, and the `tuning.context` ones,
   `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `investigate_distance`, `extrapolate_cap`, `hurt_threshold`,
-  `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, and the band / wording helpers
+  `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, the NPC's body (`character`, set by `AgentSnapshot.bind`), and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
   wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`; the room lookups are `HouseRooms`'s,
   `perception/house_rooms.gd`: `at`, `key_at`, `by_key`).

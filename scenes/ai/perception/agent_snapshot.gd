@@ -56,7 +56,7 @@ func setup(sources: SnapshotSources) -> void:
 ## `AgentPerception.bind()`.
 func bind(character: Node) -> void:
 	_character = character
-	vocab.bind(character)
+	vocab.character = character
 	_sections.bind(character)
 	_options.bind(character)
 
