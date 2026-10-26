@@ -47,7 +47,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not _watching:
 		# created by the object's _ready, which runs after this node's
-		var deformable = _obj._deformable
+		var deformable = _obj.physics.deformable
 		if deformable:
 			deformable.changed.connect(queue_redraw)
 			if _emissive_layer:
@@ -69,7 +69,7 @@ func _draw() -> void:
 
 	# Damage-deformed silhouette (dents, missing pieces) + crack/hole marks. Impact
 	# state lives on the Deformable physics component the object composes.
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var damage_total: float = deformable.damage_total if deformable else 0.0
 
@@ -106,7 +106,7 @@ func emissive_layer() -> Node2D:
 ## Draw the light-giving pixels onto `layer` (the `Emissive` child) through the piece's deformed
 ## silhouette.
 func draw_emissive(layer: CanvasItem) -> void:
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var look := ShapeLook.new()
 	look.fill = _obj.color
@@ -126,7 +126,7 @@ func _draw_drop_shadow() -> void:
 		return
 	var shape: String = _obj.shape_type
 	var size: Vector2 = _obj.size
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var poly := Deformation.shape_polygon(shape, size, impacts)
 	if not Deformation.is_valid_polygon(poly):

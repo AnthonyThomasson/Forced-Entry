@@ -17,7 +17,7 @@ outside, like the invader NPC, can path around it to the front entrance) minus t
 walls — stay open. It also **bakes each solid furniture footprint in as a hole**
 (`_add_furniture_holes`): every `CollisionShape2D` on the piece — the intact primitives
 (`RectangleShape2D` / `CircleShape2D`) and the `ConvexPolygonShape2D` pieces a **damaged** piece's
-collider is rebuilt into (`environment_object._rebuild_collider`), inflated by `OBSTACLE_MARGIN` (via
+collider is rebuilt into (`object_physics.gd`'s `_rebuild_collider`, a piece's `physics` part), inflated by `OBSTACLE_MARGIN` (via
 `Geometry2D.offset_polygon` for the polygon case) — is added to the source geometry as an obstruction
 outline, so paths route **around** furniture and reroute through another doorway when the near one is
 blocked (and a piece that seals the only route leaves the far side unreachable — the AI's cue to shove

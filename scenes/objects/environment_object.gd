@@ -1,22 +1,24 @@
 extends RigidBody2D
 ## An Objects-domain world object (furniture, decor). Owns its surface data (shape, size,
-## color, cover/penetration ratings, material, mass) and composes three Physics components —
-## a Knockback child (RigidBody2D adapter, how take_hit shoves it), a Deformable child (damage
-## dents/chunks) and, on a solid piece, a BloodSmear child (drags blood out of a puddle). The engine
-## integrates its motion, collisions and pivoting. It exposes the two contracts the rest of the game
-## talks to it through, and nothing else:
+## color, cover/penetration ratings, material, mass) and, through its `physics` part
+## (object_physics.gd), composes three Physics components — a Knockback child (RigidBody2D adapter,
+## how take_hit shoves it), a Deformable child (damage dents/chunks) and, on a solid piece, a
+## BloodSmear child (drags blood out of a puddle). The engine integrates its motion, collisions and
+## pivoting. It exposes the two contracts the rest of the game talks to it through, and nothing
+## else:
 ##   • get_surface() / take_hit(HitInfo)  — the "hittable" contract (Projectile, melee)
 ##   • apply_impulse(Vector2, at) / get_mass() — the "pushable" contract (blasts, a character's
 ##     push, legs, punch, kick)
 ##   • get_lights() — the lights it gives (object_lights.gd), which the Lighting domain reads
 ##     duck-typed
 ## A solid piece also casts a shadow: a LightOccluder2D over its footprint (on General's
-## `LightMasks`), a child so it follows a shove, built here like its collider.
+## `LightMasks`), a child so it follows a shove, built here as its physics part builds its collider.
 ## The force and deformation MATH lives in the Physics domain; this file only wires it up.
 
 const ObjectArt = preload("res://scenes/objects/art/object_art.gd")
 const ObjectLights = preload("res://scenes/objects/object_lights.gd")
 const ObjectLook = preload("res://scenes/objects/object_look.gd")
+const ObjectPhysics = preload("res://scenes/objects/object_physics.gd")
 ## The sides of a round piece's shadow footprint.
 const OCCLUDER_SIDES := 12
 
@@ -51,41 +53,23 @@ const OCCLUDER_SIDES := 12
 ## What its visuals draw (`object_look.gd`): `art`, `art_opts`, `facing`, `text_color`. Built here,
 ## so it exists before `ObjectFactory` fills it.
 var look := ObjectLook.new()
-## Physics components, created in _ready() (runtime-shape convention).
-## RigidBody2D adapter; take_hit shoves the body through it.
-var _knockback: Knockback
-## Damage dents/chunks; read by the visuals.
-var _deformable: Deformable
-## Drags blood out of a puddle as the piece slides through it (solid pieces only).
-var _smear: BloodSmear
-## A deferred `_rebuild_collider` is already waiting.
-var _collider_rebuild_queued := false
-## BloodSurface registration of a non-solid piece (a rug soaks blood up).
-var _surface_id := -1
+## Its Physics components (`object_physics.gd`: Knockback, Deformable, BloodSmear), its collider and
+## a cloth piece's BloodSurface. Built here, holding the piece; composed in _ready().
+var physics := ObjectPhysics.new(self)
 ## What `get_lights()` declares (worked out once its visuals are ready).
 var _lights: Array = []
-## The cut queued with the rebuild, null when none waits.
-var _cut: ColliderCuts = null
 
 
 func _ready() -> void:
-	_knockback = Knockback.new()
-	_knockback.mass = weight
-	add_child(_knockback)
-
-	_deformable = Deformable.new()
-	add_child(_deformable)
-	_deformable.changed.connect(_on_deformable_changed)
+	physics.compose()
 
 	# The visuals (a child, ready first) have built their light-source overlay, which a light dims
 	# with.
 	_lights = ObjectLights.of(self)
 	if solid:
-		_build_collider()
+		physics.build_collider()
 		_build_occluder()
-		_smear = BloodSmear.new()
-		add_child(_smear)
-		_smear.set_footprint(Deformation.shape_polygon(shape_type, size, _deformable.impacts))
+		physics.add_smear()
 		if anchored:
 			# Frozen static: the physics server gives it no inverse mass, so every impulse (a push,
 			# a kick, a blast) is ignored and a body striking it stops as at a wall; queries and the
@@ -97,26 +81,11 @@ func _ready() -> void:
 		# be invalid) and draw it beneath everything else.
 		freeze = true
 		z_index = ObjectArtLayerConfig.rug_z_index
-		# Never moves, so its footprint is fixed: blood that reaches cloth (a rug, a mat) sinks in
-		# (Physics blood); it runs past the rest of the walk-over decor (litter, cables, a puddle, a
-		# neon tube).
-		if object_material == "fabric":
-			_surface_id = BloodSurface.register(
-				Rect2(global_position - size / 2.0, size),
-				_no_groove,
-				true,
-			)
+		physics.soak()
 
 
 func _exit_tree() -> void:
-	BloodSurface.unregister(_surface_id)
-	if _cut != null:
-		_cut.cancel()
-
-
-## A rug has no grooves (BloodSurface callback; a porous surface never asks).
-func _no_groove(_at: Vector2, _half_width: float) -> float:
-	return 0.0
+	physics.release()
 
 
 # --- Hittable contract (read/hit by projectiles, melee, …) -----------------------------
@@ -132,7 +101,7 @@ func get_surface() -> Dictionary:
 
 ## The hit marks on this object (dicts with `pos`, `depth`, `blood`, …), oldest first.
 func hit_marks() -> Array:
-	return _deformable.impacts
+	return physics.deformable.impacts
 
 
 ## Take a hit: shove along the impact at the contact point (so an off-center hit spins the
@@ -140,8 +109,8 @@ func hit_marks() -> Array:
 ## fills in a HitInfo.
 func take_hit(hit: HitInfo) -> void:
 	if not anchored:
-		_knockback.apply_impulse(Physics.impact_impulse(hit), hit.position)
-	_deformable.record(hit)
+		physics.knockback.apply_impulse(Physics.impact_impulse(hit), hit.position)
+	physics.deformable.record(hit)
 	Physics.spawn_debris(get_parent(), hit, get_surface())
 
 
@@ -170,59 +139,7 @@ func get_interactions() -> Array:
 # get_mass() (returns `mass`, which Knockback sets from `weight`). Nothing to add: an anchored piece
 # is frozen static, which the engine never moves.
 
-# --- Collider (built in code; rebuilt to follow the deformed silhouette) ---------------
-
-
-## Rebuild the collider when the silhouette deforms. Deferred: record() runs mid-physics
-## (from the projectile), when swapping shapes is disallowed.
-## Hits that land before the deferred call runs share it: it rebuilds from the impacts as they stand
-## then. Cutting the dented silhouette into convex pieces is the costly part of a rebuild, and a
-## blast dents a room's worth of furniture at once: the cut is queued with the rebuild
-## (`ColliderCuts`), and the first rebuild of the batch cuts the others on worker threads beside its
-## own. The collider changes in its deferred rebuild, into the pieces a cut there would make.
-func _on_deformable_changed() -> void:
-	if solid and PhysicsDeformConfig.update_collider and not _collider_rebuild_queued:
-		_collider_rebuild_queued = true
-		_cut = ColliderCuts.queue(_prepare_cut)
-		call_deferred("_rebuild_collider")
-
-
-## The cut of this piece's silhouette as its dents stand now (on the main thread): a pure job on a
-## copy of them.
-func _prepare_cut() -> Callable:
-	var shape := shape_type
-	var footprint := size
-	var dents: Array = _deformable.impacts.duplicate(true)
-	return func() -> Array: return Deformation.cut_shape(shape, footprint, dents)
-
-
-## The convex pieces of `poly`, this piece's silhouette now: the queued cut's, or cut here should it
-## be of another silhouette.
-func _pieces_of(poly: PackedVector2Array) -> Array:
-	var cut := _cut
-	_cut = null
-	if cut != null:
-		var made := cut.take()
-		if not made.is_empty() and made[0] == poly:
-			return made[1]
-	return Deformation.convex_pieces(poly)
-
-
-## Replace the collider(s) with convex pieces of the current deformed polygon.
-func _rebuild_collider() -> void:
-	_collider_rebuild_queued = false
-	var poly := Deformation.shape_polygon(shape_type, size, _deformable.impacts)
-	var shapes := Deformation.shapes_of(_pieces_of(poly))
-	if shapes.is_empty():
-		return
-	_smear.set_footprint(poly)
-	for child in get_children():
-		if child is CollisionShape2D:
-			child.queue_free()
-	for shape in shapes:
-		var col := CollisionShape2D.new()
-		col.shape = shape
-		add_child(col)
+# --- Shadow (built in code, like the collider) ---------------------------------------
 
 
 ## The piece's shadow: an occluder over its undented footprint (its rect, or a circle as a
@@ -247,18 +164,3 @@ func _build_occluder() -> void:
 	var occ := LightMasks.occluder(poly, bit)
 	if occ != null:
 		add_child(occ)
-
-
-## Build the initial collider from the object's primitive shape.
-func _build_collider() -> void:
-	var col := CollisionShape2D.new()
-	match shape_type:
-		"circle":
-			var circle := CircleShape2D.new()
-			circle.radius = size.x / 2.0
-			col.shape = circle
-		"square", "rect":
-			var rect := RectangleShape2D.new()
-			rect.size = size
-			col.shape = rect
-	add_child(col)

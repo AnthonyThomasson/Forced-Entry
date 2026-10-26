@@ -53,7 +53,7 @@ func run(t: TestContext) -> void:
 	var differing: Array = []
 	for i in PIECES.size():
 		var piece := t.object(StringName("piece%d" % i))
-		var impacts: Array = piece._deformable.impacts
+		var impacts: Array = piece.hit_marks()
 		if impacts.is_empty():
 			continue
 		dented += 1

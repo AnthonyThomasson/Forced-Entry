@@ -197,7 +197,7 @@ scene `ext_resource` matrices. Check:
    grep -rnE "[a-zA-Z)\]]\._[a-z][a-zA-Z0-9_]*" scenes --include='*.gd' | grep -vE "^\S+:[0-9]+:\s*#|\bself\._"
    ```
 
-   Within a domain, a draw helper reading its owner's private (`environment_object_visuals` → `_obj._deformable`) is the
+   Within a domain, a draw helper reading its owner's private (`wall_visuals` → `_wall._seg_impacts`) is the
    control/animate/draw convention; across domains it is a violation.
 
 The same test applies between the AI sub-domains (perception, decision, behaviour, debug): the `deps` footer reports

@@ -47,11 +47,13 @@ holds no interaction logic.
 - `wall.gd._build_walls()` — a `RectangleShape2D` per wall segment (layout is data-driven from
   `size`/`openings`; `openings` are `{ side, offset, width }`). `wall.gd` owns the wall-segment
   math (`wall_segments()`) and colliders.
-- `environment_object.gd` (a `RigidBody2D`) builds its collider only when `solid` (and freezes it static when `anchored`); non-solid
+- `environment_object.gd` (a `RigidBody2D`) builds its collider (through its `physics` part, `object_physics.gd`) only when `solid` (and freezes it static when `anchored`); non-solid
   decor is `freeze`d (no shape) and gets `z_index = ObjectArtLayerConfig.rug_z_index` (`DrawLayers.RUG`, −4); a non-solid piece of
   cloth (`material` `fabric`: a rug, a mat, cardboard) registers a porous `BloodSurface` rect, the rest of the walk-over decor
   (litter, cables, a puddle, a neon tube) none. Physics components (`Knockback`,
-  `Deformable`, `BloodSmear`) are added as child Nodes in `environment_object._ready()`.
+  `Deformable`, `BloodSmear`) are added as child Nodes in `environment_object._ready()`, by its `physics` part
+  (`object_physics.gd`: `compose()`, `add_smear()`), which holds them (`physics.knockback`, `physics.deformable`), the collider
+  and its rebuild, and the cloth piece's `BloodSurface` (`soak()`, `release()`).
 
 The editor shows "no shape" warnings on each `Wall` — expected; the shapes exist at runtime.
 
@@ -223,7 +225,7 @@ collider rebuild however many hits land before it runs (a wall: one per struck s
 by its own child of `WallVisuals`, `Segment<i>`, so a hit repaints that segment alone, `redraw_segment`;
 `tests/objects/wall_segment_repaints_alone_test.gd`). A blast dents a room's worth of pieces in one frame, and cutting a dented
 silhouette into convex pieces is the costly part of a rebuild: the hit that queues a rebuild also queues its cut (`collider_cuts.gd`,
-`ColliderCuts.queue(make)`: a piece's `_cut` from `_prepare_cut`, a wall segment's `_seg_cuts[i]`). When the first rebuild of the
+`ColliderCuts.queue(make)`: a piece's `_cut` from `_prepare_cut`, both in its `physics` part (`object_physics.gd`), a wall segment's `_seg_cuts[i]`). When the first rebuild of the
 flush runs, the dents are final: its `take()` starts every other waiting cut on a worker thread (`make` runs on the main thread,
 copies the dents and returns a pure job, `Deformation.cut_shape` / `cut_wall`) and leaves its own to the caller, who cuts it
 (`Deformation.convex_pieces`); each later rebuild's `take()` waits for its finished cut and uses it when its polygon is the silhouette
