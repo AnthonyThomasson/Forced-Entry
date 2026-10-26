@@ -3,7 +3,8 @@ extends RefCounted
 ## tables and holds as `Keybinds.bindings`. It points each action at its one key or mouse button,
 ## puts them back on their defaults, describes them for the settings page and owns the saved
 ## format: `Settings` (also General) persists the differences from the defaults via `overrides()` /
-## `apply_overrides()`. It reads no global and holds no owner.
+## `apply_overrides()`. It is handed the action tables rather than reading them off the autoload,
+## and holds no owner.
 
 ## The mouse buttons an action may be bound to, with their display names (the horizontal wheel is
 ## not bindable).

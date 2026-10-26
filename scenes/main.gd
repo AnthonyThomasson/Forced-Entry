@@ -474,11 +474,8 @@ func _on_match_ended(_verdict: String) -> void:
 
 
 ## Turn the debug overlay `flag` (a row of `overlay_registry.gd`) on or off, as the toggle bar's
-## buttons do: record and save it, and apply it live. The performance flag goes to Main's own
-## performance overlay; in spectator mode an NPC's own overlay goes to the inspector (it shows
-## overlays on the selected NPC only); the rest goes to the match by the one rule
-## (`MatchBuilder.set_overlay`): the navigation holes and the squad leaders to the match's single
-## overlays, and in player mode an NPC's own overlay to every NPC.
+## buttons do: record and save it, and apply it live (`_overlays.route`: the performance overlay,
+## the spectator inspector, or the match by the one rule).
 func set_overlay(flag: String, on: bool) -> void:
 	_overlays.flags[flag] = on
 	Settings.set_overlay(flag, on)

@@ -9,6 +9,7 @@ extends Node
 ## through `bindings.bind()` / `bindings.reset()`; `Settings` (also General) persists the
 ## differences from the defaults via `bindings.overrides()` / `bindings.apply_overrides()`.
 
+## The rebinding store's part (`bindings`).
 const InputBindings := preload("res://scenes/general/input_bindings.gd")
 ## Action names. Use these constants instead of raw strings elsewhere.
 const MOVE_LEFT := "move_left"

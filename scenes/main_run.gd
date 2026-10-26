@@ -4,7 +4,8 @@ extends Resource
 ## defaults, an exported `Resource` Main builds per instance and holds as `main.run` (editable
 ## inline in Main's inspector). Main rewrites `spectator_mode` and `debug_overlays` as the setup
 ## window chooses, so they live on the one Main, not in a static holder, and go with its scene
-## reload.
+## reload. It is local to its scene: a scene that authors a `run` hands each Main it instantiates a
+## copy of its own, so those runtime writes never reach the next Main the reload builds.
 
 ## Seed for the house layout; 0 = a new random seed each run, resolved to a concrete value at
 ## spawn so the whole run (house + NPC placement) reproduces from it. The seed is logged and can be
@@ -41,3 +42,7 @@ extends Resource
 ## is not built. This export is the default; on a fresh launch the saved `Settings.debug` (the
 ## settings page's Debug checkbox) takes over, while a scripted restart keeps this value.
 @export var debug_overlays: bool = true
+
+
+func _init() -> void:
+	resource_local_to_scene = true

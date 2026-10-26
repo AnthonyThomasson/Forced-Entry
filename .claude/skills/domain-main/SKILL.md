@@ -9,7 +9,7 @@ description: Deep implementation detail for the composition root (scenes/main.gd
 gameplay and builds no match itself: it keeps the UI flow (the setup window, the settings page, the endless run, the HUDs and the overlay
 bar) and hands every match to the root's match-assembly module, `MatchBuilder` (`match_builder.gd`, interface 23), which the Testing
 domain's world builds through too. Main's `run` (`MainRun`, `scenes/main_run.gd`, an exported `Resource` built per Main, editable inline
-in its inspector) is the authoring surface for a run (`house_seed`, `force_plan`, `entrance_distance`, `defender_count`, `invader_count`,
+in its inspector, local to its scene, so a scene that authors one gives each Main its own copy and Main's writes to it never outlive a reload) is the authoring surface for a run (`house_seed`, `force_plan`, `entrance_distance`, `defender_count`, `invader_count`,
 `invader_margin`, `spawn_clearance`, `spectator_mode`, `player_side`, `debug_overlays`), and its endless exports `endless_delay` and
 `endless_time_limit` stay on the node (the coverage tool reads `endless_time_limit` by name); every overlay starts at the registry's default.
 `main.tscn` authors none of them. Main holds two parts more, each built once with it and reached by preload const (no `class_name`): the
