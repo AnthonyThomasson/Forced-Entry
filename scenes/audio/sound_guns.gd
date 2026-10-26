@@ -74,7 +74,10 @@ static func profiles() -> Array[StringName]:
 static func recipe(parts: PackedStringArray) -> Dictionary:
 	if parts[0] == "shot":
 		return _shot(parts[1]) if parts.size() == 2 and SHOTS.has(parts[1]) else {}
-	if parts.size() == 3 and RELOADS.has(parts[1]) and RELOAD_STAGES.has(parts[2]):
+	if (parts[0] == "reload"
+			and parts.size() == 3
+			and RELOADS.has(parts[1])
+			and RELOAD_STAGES.has(parts[2])):
 		return _reload(parts[1], parts[2])
 	return {}
 

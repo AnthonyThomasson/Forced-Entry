@@ -4,7 +4,7 @@ class_name SoundBank
 ## `reload/rifle/in` — and `sound(profile, variant)` asks the profile's family for its recipe
 ## (`recipe_for`, by the profile's first part), renders it through SoundSynth once and caches the
 ## stream (a static cache, like PixelArt's, so it survives scene reloads). Each family holds its
-## tables, its name rule (the `*_profile` functions, which render nothing) and its recipes:
+## tables, its name rule (its profile functions, which render nothing) and its recipes:
 ## SoundGuns (`shot`, `reload`), SoundImpacts (`impact`), SoundFootsteps (`footstep`),
 ## SoundGrenades (`throw`, `grenade`, `explosion`, `tinnitus`) and SoundVehicles (`engine`,
 ## `ignition`, `door`, `skid`, `crash`). The bank keeps the round-weight `band` the guns and the

@@ -108,15 +108,15 @@ static func profiles() -> Array[StringName]:
 	return out
 
 
-## The recipe of an `impact/...` profile (`p`, split), {} if unknown.
-static func recipe(p: PackedStringArray) -> Dictionary:
-	if p.size() == 3 and p[2] == "punch" and MATERIALS.has(p[1]):
-		return _impact(p[1], "punch", "medium")
-	if (p.size() == 4
-			and MATERIALS.has(p[1])
-			and OUTCOMES.has(StringName(p[2]))
-			and BANDS.has(p[3])):
-		return _impact(p[1], p[2], p[3])
+## The recipe of an `impact/...` profile split into its `parts`; {} if it names no hit.
+static func recipe(parts: PackedStringArray) -> Dictionary:
+	if parts.size() == 3 and parts[2] == "punch" and MATERIALS.has(parts[1]):
+		return _impact(parts[1], "punch", "medium")
+	if (parts.size() == 4
+			and MATERIALS.has(parts[1])
+			and OUTCOMES.has(StringName(parts[2]))
+			and BANDS.has(parts[3])):
+		return _impact(parts[1], parts[2], parts[3])
 	return {}
 
 

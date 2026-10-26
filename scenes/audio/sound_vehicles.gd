@@ -136,7 +136,7 @@ static func recipe(parts: PackedStringArray, profile: StringName) -> Dictionary:
 	return out
 
 
-## A vehicle kind the bank voices: `kind` itself, or a car for an unknown one.
+## A vehicle kind the family voices: `kind` itself, or a car for an unknown one.
 static func _kind(kind: StringName) -> String:
 	return String(kind) if KINDS.has(String(kind)) else "car"
 
