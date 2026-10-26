@@ -161,7 +161,7 @@ func process_callout(data: Dictionary) -> void:
 			and perception._character.global_position.distance_to(at)
 					> perception.tuning.radio.callout_range):
 		return
-	perception._ledger.hear(data, perception._character.global_position)
+	perception.entry.ledger.hear(data, perception._character.global_position)
 	if AgentGrenades.is_call(data.get("status")):
 		# "Grenade!": a live grenade, not what the ally is doing, so not a callout to weigh.
 		perception.grenades.live.called(data)
@@ -185,7 +185,7 @@ func process_callout(data: Dictionary) -> void:
 			perception.tuning.memory.search_ttl,
 			cleared,
 		)
-		perception.mark_cleared(cleared)
+		perception.entry.mark_cleared(cleared)
 
 
 ## Whether room `key` is one the shots at the NPC came from: the line back from a shot at it

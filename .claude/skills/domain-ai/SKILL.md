@@ -55,7 +55,7 @@ step lists and slot distances; `ClaimLedger` the claims one listener has heard (
 `Squad`: one each, the latest per speaker, on `GameClock`); `DoorStack` every slot rule over one doorway's claims (E2's same-frame ties and move-up, E16's human slot,
 E19 to E22's sides, files, tail and dead ends, the crossing order, the thrower, LD13's release), `StackLayout` the statics it settles them by
 (the slots' points and sides), the same answer for whoever asks. It is perception's, and the one seam behaviour and the team cross into it by: behaviour reads a doorway's stack as
-`AgentPerception.entry_stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` / `StackLayout` (the orchestrator `StackClaim`, for
+`AgentPerception.entry.stack(opening, into := "") -> DoorStack` and preloads `StackClaim` / `DoorStack` / `StackLayout` (the orchestrator `StackClaim`, for
 the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger`, `DoorStack` and `StackLayout` as it does `AgentEntry`. `domain-ai-perception`,
 "The stack", has the detail.
 
@@ -94,7 +94,7 @@ INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → fo
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it
 `observe()` and return `contacts()`; hands those to **Behaviour** to resolve + honour commitments;
-when free (or forced), its routes can be measured as it will walk them (`AgentPerception.routes_ready`: the avoid map of the doorway views from the room it
+when free (or forced), its routes can be measured as it will walk them (`AgentPerception.views.routes_ready`: the avoid map of the doorway views from the room it
 stands in is baked, a few frames at most, `docs/tactical-entry.md` E18) and the frame has a snapshot to spare (`DecisionBudget`: `per_frame` snapshots a physics frame, one by
 default, so NPCs deciding together spread over frames), asks **Perception** for a snapshot and starts a **Decision** walk
 over it;

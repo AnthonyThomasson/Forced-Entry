@@ -38,7 +38,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
   the nav agent was just given (`Locomotion.path_ahead()`), sampled every 30 px, that it has a clear line to (`has_line_to`); INF with
   none. `Behavior.errand.aim_move`'s default branch and `Entry.sweep.aim_travel` use it and fall back to the steering vector. (The next waypoint
   alone hugs the door jamb, so facing it looks at the jamb.)
-- `idle_gaze(delta)` — turns among `perception.room_doorways(room)` (outer doors included; each with a clear line and not
+- `idle_gaze(delta)` — turns among `perception.entry.room_doorways(room)` (outer doors included; each with a clear line and not
   under 60 px), nearest first on entering a room then round the NPC by angle, `tuning.watch.door_dwell` (2.5 s) apiece, eased at
   `tuning.coverage.look_rate` from the actual facing. Nothing outdoors or with no door in line; an unset `movement.aim_point` (ZERO) becomes
   "where the body points". `reset()` on every new order.

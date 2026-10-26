@@ -76,7 +76,7 @@ func begin_order(entry: Entry, params: Dictionary) -> void:
 	entry.readiness.released = bool(params.get("go", false))
 	frame = _held_order_frame()
 	side = _side_named(params)
-	_pref_side = world.perception.entry_side_of(state.geo, world.character.global_position)
+	_pref_side = world.perception.entry.side_of(state.geo, world.character.global_position)
 
 
 ## The instance id of the leader that gave the order this entry carries out (the live order's
@@ -118,7 +118,7 @@ func _side_named(params: Dictionary) -> int:
 		return 0
 	var at = params.get("stack_at")
 	if at is Vector2:
-		return world.perception.entry_side_of(state.geo, at)
+		return world.perception.entry.side_of(state.geo, at)
 	return StackLayout.stack_side(state.geo, [], world.character.global_position)
 
 

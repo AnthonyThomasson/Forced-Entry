@@ -86,17 +86,17 @@ and so does the rest of an entry (pie, crossing, corner, clear, cover, rear: sto
 or a committed step is never touched. The watch stage still looks and shoots. Tests `ai/decision/order_stops_walk`,
 `order_fight_goes_on`, `order_retreat_goes_on`. An ordered stack (LD9) is an `entry` leaf with the
 order's params: before its claim goes out `entries.apply` sets `Entry.state.held_back` and the entries' `_detour_first(delta)` reads the whole way to the slot
-(`Entry.approach_points()`, each leg on `AgentPerception.walk_route(p, "<opening>><into>", from)`; standing up to the entries' `ROUTE_WAIT` 2 s, `_route_wait`,
+(`Entry.approach_points()`, each leg on `AgentPerception.views.walk_route(p, "<opening>><into>", from)`; standing up to the entries' `ROUTE_WAIT` 2 s, `_route_wait`,
 while that map is `pending`) for a threshold into a room not cleared and, unless another recipient is coming (`_recipients_coming`), a doorway
 view it passes: either is a detour first (`_entry.reset()`, the entries' `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
 the entries' `_guard_approach` (thresholds as well as views, whatever `tuning.entry.enabled` says; `orders.ordered_stack()` sets
-the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.world.squad` through `Behavior.apply_config(squad)`, with
+the perception's `views.ordered` each tick, D4 / D11), the controller's `squad` reaches `Entry.world.squad` through `Behavior.apply_config(squad)`, with
 `tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`orders.same`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
 `join: true`, the squad's rally, LD24) (`StackClaim.is_join(params)`) keeps its `order_id` in the params, so `orders.same`, `orders`' `_live` and the `moving` radio treat it as
 the member's order, but it is no ordered stack: `Orders.ordered_entry(params)` (an `order_id` and no `join`) is what gates `orders.ordered_stack()`
-(D4's guarded walk, `ordered_walk`), the held-back way reading (`held_back` / `_detour_first`) and `_guard_approach`'s ordered branch. A
+(D4's guarded walk, `views.ordered`), the held-back way reading (`held_back` / `_detour_first`) and `_guard_approach`'s ordered branch. A
 join whose entry cannot `begin` (no slot at a dead end) is ended `refused` (`AgentPerception.orders.end`), so the member follows. LD25
 and D26: `orders.join_over()` is true once for a running join whose order is no longer live while the entry is in `approach` or `stack`, and
 `entries.apply` then sets `task.resolved` ("join over", `entries.join_done` reset in `_adopt`), so the member decides at once (FOLLOW); later phases run
@@ -213,7 +213,7 @@ one of four ways, checked once a physics frame (`_check`):
   closer than the NPC stands to it now) within `LOOKAHEAD` (400 px), or one standing on the goal, ends it:
 - **doors**: the Navigation domain's avoid map (`NavBuilder.avoid_map`: the planning bake with the doorway views carved out, E18), for a walk
   `Behavior` marks `doors.avoid_doors` (above; `doors.avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
-  room it goes into and its own doorway's view, cleared or not). `doors.update` asks the perception (`doors.views`) for the route (`walk_route(goal, avoid_entering)`) each frame until
+  room it goes into and its own doorway's view, cleared or not). `doors.update` asks the perception's views part (`doors.views`) for the route (`walk_route(goal, avoid_entering)`) each frame until
   it is decided (plain while the avoid map bakes: `pending`), then every `doors`' `RECHECK` (2 s) while round the views (which keeps the map alive and follows
   the rooms as their clear lapses): the avoid map when the plain route comes into a view and the route round them is within `door_avoid_ratio` x plain +
   `door_avoid_slack`, else plain (and `passing_ahead` secures what it crosses). A walk that is not guarded (`avoid_doors` false) drops it. A body at rest on

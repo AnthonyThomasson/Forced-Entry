@@ -211,8 +211,8 @@ func cleared_by_team(team: Array) -> bool:
 func watch_doors() -> Array:
 	var out: Array = []
 	var room: Rect2 = (state.geo["room"] as Rect2).grow(-COVER_INSET)
-	for d in world.perception.entry_watch_doors(state.into, state.opening):
-		var g: Dictionary = world.perception.entry_geometry(d["id"], d["into"])
+	for d in world.perception.entry.watch_doors(state.into, state.opening):
+		var g: Dictionary = world.perception.entry.geometry(d["id"], d["into"])
 		if g.is_empty():
 			continue
 		var pos: Vector2 = g["pos"]

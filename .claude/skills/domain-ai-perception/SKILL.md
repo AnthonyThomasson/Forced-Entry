@@ -12,10 +12,12 @@ owns nine internal modules and presents one public face, `agent_perception.gd` (
 Files:
 - `agent_perception.gd` — the public face: SEE (observe), the contacts view, event intake, and the
   BUILD entry (`sense`) that gathers knowledge and delegates to the snapshot author.
-- `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`, `perception_grenades.gd` — the face's parts, held as
+- `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`, `perception_grenades.gd`, `perception_entry.gd`,
+  `perception_views.gd` — the face's parts, held as
   `hearing` (hits, gunfire, footsteps and callouts heard, with the suspicion module), `orders` (the live order), `contacts` (the
-  characters known, with the hostility rules) and `grenades` (the grenade geometry `throw` and the live grenades `live`, what it
-  carries, the latest burst): preload consts with no `class_name`, built once in `setup()`, each holding the perception (a node).
+  characters known, with the hostility rules), `grenades` (the grenade geometry `throw` and the live grenades `live`, what it
+  carries, the latest burst), `entry` (the doorway geometry `doorways` and the claims heard `ledger`, the rooms cleared) and `views`
+  (the doorway views `views` and the walk rules, `ordered`): preload consts with no `class_name`, built once in `setup()`, each holding the perception (a node).
 - `agent_vision.gd` — the sight sense and the single owner of the ray query (`blocked` / `raycast`).
 - `agent_hostility.gd` — the hostility rules (categorization).
 - `agent_memory.gd` — a generic, behaviour-agnostic event log.
@@ -99,7 +101,7 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   side becomes its live order (memory topic `order`, permanent, keyed `live`, replacing the one it held); a `cancel` ends the one it holds;
   true when its order changed (the controller decides at once). `orders.current()` is the live order or {}; `orders.end(id, why)` ends it (`done`,
   `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `orders.take_ended()` is one that ended done or refused since the last
-  call, for the controller to radio (LD7). `mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
+  call, for the controller to radio (LD7). `entry.mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
   ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
   whenever the go came), and `orders.process` returns false (no decision is forced). An `ambush` (LD15) ends `done` on first contact:
   `orders.end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
@@ -116,19 +118,19 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
 - Combat geometry for the behaviour: `has_line_to(target, point)`, `combat_spots(target, tgt_pos, radius)` (a ring of `combat_ring_count` points),
   `note_engaged` / `engaged_fresh` / `under_fire`; `memory_size()` and
   `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
-- Entry geometry for the behaviour: `entry_geometry(opening_id, into)`, `entry_stack(opening_id, into := "") -> DoorStack` (the doorway's
+- Entry geometry for the behaviour, on the `entry` part: `entry.geometry(opening_id, into)`, `entry.stack(opening_id, into := "") -> DoorStack` (the doorway's
   stack as the radio describes it, built by the NPC's own `ClaimLedger` over that geometry, one per doorway a frame: every slot rule the entry
   reads, `claim`, `slot_for`, `settle`, `split_side`, `back_slot`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`,
   `move_up_vacancies`, `team_side`, with `StackLayout`'s statics over its `geometry` beside it (`holds_slot`, `is_tail`, ...); with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
   `released`, `crossing`, `order_claim`; "The stack" below),
-  `entry_side_of(geometry, p)` (the side of the door, 1 / -1 along its wall, a point is on: the radio claims' `side`),
-  `entry_stack_side(stack)` (the side the NPC stacks on from where it stands in that `DoorStack`: the team's, or its own when its way
-  there crosses the doorway's view, E19), `entry_on_stack_side(geometry, p)` and `entry_slot_reach(to, bodies)` (from where the NPC stands,
+  `entry.side_of(g, p)` (the side of the door `g` (its geometry), 1 / -1 along its wall, a point is on: the radio claims' `side`),
+  `entry.stack_side(door_stack)` (the side the NPC stacks on from where it stands in that `DoorStack`: the team's, or its own when its way
+  there crosses the doorway's view, E19), `entry.on_stack_side(g, p)` and `entry.slot_reach(to, bodies)` (from where the NPC stands,
   `AgentEntry.slot_reach`, below) (wrappers on `AgentEntry`, which the snapshot's `entries` and `order` groups also use; the behaviour never
   reaches into `agent_entry.gd` itself, but preloads the stack module, `StackClaim` and `DoorStack`, the seam it shares with the team; the
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
   its published seam, `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id` and `normal_into`, and the stack module
-  (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
+  (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `views.avoided()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
 - `contacts.all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
 - `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
@@ -182,7 +184,7 @@ furniture piece). `seq` keeps the promised order: newest first for readers and `
 once. **The clock is `GameClock`** (General, interface 11; `docs/leadership.md` LD1): an event's `at` is `GameClock.msec()`, game time that
 stands still while the tree is paused, so a pause of any length expires nothing, and a headless `--fixed-fps` run ages events at the
 sim's pace (a contact's 4 s are 4 s of sim). The rest of the perception's ages read it too: the sightings' velocity track, `grenades.last_burst`'s
-`frame`, the grenade replan, `routes_ready`'s `WARM_CAP_MS` and `debug_memory`'s `left`. `tests/ai/perception/memory_matches_reference_test.gd` runs random writes through the memory and a plain ordered log and compares every reader. Topics: `saw_character` / `saw_room` / `saw_object` / `visited_room` /
+`frame`, the grenade replan, `views.routes_ready`'s `WARM_CAP_MS` and `debug_memory`'s `left`. `tests/ai/perception/memory_matches_reference_test.gd` runs random writes through the memory and a plain ordered log and compares every reader. Topics: `saw_character` / `saw_room` / `saw_object` / `visited_room` /
 `cleared_room` / `hostile` / `under_fire` / `shot_from` / `engaged` / `heard_gunfire` / `heard_footsteps` / `heard_callout` / `checked_lead` / `flashed` / `order`.
 
 ## Tactics (`agent_tactics.gd`)
@@ -245,7 +247,7 @@ the first with no `detour`, then hidden, then covered, then the shortest walk. `
 The behaviour asked of it is `docs/tactical-entry.md`. Given the house's openings (Main's `WorldGen.get_openings`, handed
 in by `set_house` on each observe) and rooms, `entries_from(room_key)` lists the doorways out of the NPC's area (outer
 doors from outside, a room's doors into the next room), `watch_doors(room_key, exclude_id, is_cleared)` those of a cleared
-room on into rooms not cleared (what the team covers after clearing it, E8; the perception's `entry_watch_doors(into, opening_id)`) and `geometry(id, into, map, space)` lays one out, built once on a
+room on into rooms not cleared (what the team covers after clearing it, E8; the perception's `entry.watch_doors(into, opening_id)`) and `geometry(id, into, map, space)` lays one out, built once on a
 baked nav map and cached (walls do not move): `out` (unit normal away from the room, from the room edge the door lies on)
 and `along` (the wall's axis), `wall` (wall length either side), `side` (the side with more wall, 0 when even; once the slots are laid, the side whose file holds more against the wall when they differ), `slots`
 (single file against the wall on each side: `wall_standoff` off it, the first a body clear of the jamb, then every
@@ -288,14 +290,14 @@ scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the
 (`docs/leadership.md`, Performance).
 
 **Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_ttl`) is not `visited_room`:
-standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)`: the behaviour calls it when an entry
+standing in a room visits it, but a room is *cleared* only by `entry.mark_cleared(key)`: the behaviour calls it when an entry
 finishes (`Entry.hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `hearing.process_callout`
-when an ally radios `cleared_room`. `is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
-(search ranking still uses `visited_room`). `threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
+when an ally radios `cleared_room`. `entry.is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
+(search ranking still uses `visited_room`). `views.threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
 doorway's width and heading into a room that is not the one the NPC is in and is not cleared: `{ opening, into, dist }`, or
 {}. The last step is extended by `THRESHOLD_EXTEND` (30 px) so a destination that is the doorway counts. The behaviour's
-entry guard calls it every tick. `passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
+entry guard calls it every tick. `views.passing_ahead(path, from_idx, max_dist)` (over `AgentDoorViews.passing_ahead`) is its sibling for E15 / E18:
 the first doorway **view** the walk comes into from outside it (any doorway into a room not clear for passing: inside the house or out, exterior doors too, however far out from the wall; not the NPC's own room, nor a doorway of a room the walk goes into by any of its doors, which the entry into that room covers): `{ opening, into, dist }` (`dist` = px of walking until it is in the view), or {}.
 **Doorway views and the walked route (E18, `agent_door_views.gd`).** The perception builds one `AgentDoorViews` and hands it to its
 `AgentEntry` (`views`, which `set_house` forwards the house to, and which `cuts_view` reads) and to the snapshot's options; `AgentEntry`
@@ -304,18 +306,18 @@ seen from inside room `into` through it): a polygon from the rays from the room'
 each ray a fan cast from three points in the gap (the middle and each jamb, `VIEW_APEX_OUT` 8 px off the wall plane) and stopped at the first wall
 (`AgentVision.wall_hit`: static bodies only, furniture and characters are looked through), the three fans fused, and for a doorway between two rooms cut at
 the edge of the room in front of it (so a view does not run on through the next doorway into another room). Laid out once per doorway on a baked map and kept. `avoided(here_key, map, space, exempt)` is the set of views a walk from room `here_key` keeps out of: those of every doorway into a room that is not
-clear for passing (`AgentPerception._is_pass_clear(key)`: the `cleared_room` memory's age is within `tuning.entry_guard.pass_clear_time`, 60 s; `is_cleared` stays the
+clear for passing (`AgentPerception.views._is_pass_clear(key)`: the `cleared_room` memory's age is within `tuning.entry_guard.pass_clear_time`, 60 s; `entry.is_cleared` stays the
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
-`walk_route(from, to, map, space, entering)` (over `AgentPerception.walk_route(to, entering, from)`) is the route the NPC walks: the plain one, unless it comes
+`walk_route(from, to, map, space, entering)` (over `AgentPerception.views.walk_route(to, entering, from)`) is the route the NPC walks: the plain one, unless it comes
 into one of those views (or, with `entering`, goes into the room being entered) and the route on `NavBuilder.avoid_map` for the set (less
 the views `from` stands in, `_left_from`; when that route goes into the room being entered, the route on the map with the room's floor carved too, `_with_room`, so the room-carved map is asked for, baked and kept only while an approach needs it) reaches `to` (within `AVOID_REACH` 24 px) no longer than `door_avoid_ratio`
 (2.0) x the plain length + `door_avoid_slack` (300 px); failing that, with `entering`, the route round that doorway's own view and the room
-at least (`_entering_set`), capped the same unless `ordered_approach` (set by `_sync_walks` from `ordered_walk`: uncapped, D4):
+at least (`_entering_set`), capped the same unless `ordered_approach` (set by `views.sync_walks` from `views.ordered`: uncapped, D4):
 `{ map, path, len, plain_len, doors, pending, views }` (`len` the whole walk, the steps onto the route and from its end to `to` included;
-`pending`: the plain route crosses a view and the avoid map is still baking). `warm(from, map, space)` (over `AgentPerception.routes_ready()`) asks for the avoid map of the room the NPC is in and
+`pending`: the plain route crosses a view and the avoid map is still baking). `warm(from, map, space)` (over `AgentPerception.views.routes_ready()`) asks for the avoid map of the room the NPC is in and
 says whether it answers; the controller starts no decision before it does (at most `WARM_CAP_MS` 3 s of game time), so the route bands a snapshot reads are the walked ones.
-`AgentEntry.slot_reach(from, to, map, bodies)` (over `AgentPerception.entry_slot_reach(to, bodies)`) is whether any way at all reaches `to` with a body standing at each
+`AgentEntry.slot_reach(from, to, map, bodies)` (over `AgentPerception.entry.slot_reach(to, bodies)`) is whether any way at all reaches `to` with a body standing at each
 point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuilder.OBSTACLE_MARGIN` each, the steering map's carve of a body at rest, on an
 `NavBuilder.avoid_map` of their own keyed by the bodies on a 4 px grid): 1 when its route ends within `AgentDoorViews.AVOID_REACH` of `to`, or within
 `SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
@@ -342,18 +344,18 @@ width + `DEFEND_BODY`) is dropped. Each is scored `seen` x 1000 + funnel x 500 +
 low cover, at any range and facing); a post seen by none is hidden only if it is hidden from the 8 points `AMBUSH_SLACK` (12 px) round it too.
 Members alternate sides of the axis, the side with more wall first, and two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order`
 group calls it.
-**An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `ordered_walk` (set each tick by the behaviour while it walks an ordered stack's
-way to its door) makes `_sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `tuning.entry_guard.enabled` and (`tuning.entry.enabled` or `ordered_walk`))
+**An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `views.ordered` (on the perception's `views` part, `perception_views.gd`; set each tick by the behaviour while it walks an ordered stack's
+way to its door) makes `sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `tuning.entry_guard.enabled` and (`tuning.entry.enabled` or `ordered`))
 and, for an NPC with `tuning.entry.enabled` off (a defender), swap `AgentDoorViews.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
 `_seen_empty(key)` says it stood in within `pass_clear_time` with no hostile sighting in them (the latest of each hostile it knows, within that
 time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an ordered walk the room its stack holds is clear too: `_stack_room()`
-(once a physics frame: the live order is a stack, `ordered_walk`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
+(once a physics frame: the live order is a stack, `ordered`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
 → the geometry's `from`, the steps `StackClaim.IN_SLOT`; else "") counts as cleared for `threshold_ahead` and as pass-clear (`_pass_clear_ordered`, handed as `pass_clear` to
 an ordered walk with entry on; `_passable` adds `_seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
 carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
 `order_go` (LD13), `order_side` and `order_frame` (the frame the order was issued on, D14) ("" / false / quiet / false / false / 0 / -1
 for others), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
-`room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
+`entry.room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
 

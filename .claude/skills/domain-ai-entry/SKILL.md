@@ -11,7 +11,7 @@ The spec and the tests are `docs/tactical-entry.md` (E1 to E22; the bang is also
 pie arc, corners, capacity) is the perception's (`agent_entry.gd`, "Entry geometry" in `domain-ai-perception`), read through the
 `AgentPerception` wrappers; the team's claims off the radio and every slot rule are the perception's stack module
 (`ai/perception/stack/`: `StackClaim`, `ClaimLedger`, `DoorStack`, "The stack" in `domain-ai-perception`), read as one `DoorStack` a
-tick (`AgentPerception.entry_stack(opening, into)`, `claim.read_stack`: `claim.stack`; a rule that reads a claim keeps to the **stale
+tick (`AgentPerception.entry.stack(opening, into)`, `claim.read_stack`: `claim.stack`; a rule that reads a claim keeps to the **stale
 claim** rule there); the room is cleared by sight with `search_coverage.gd`
 (`domain-ai-coverage`). The human's side of the same radio is `PlayerStack` (`domain-ai-team`).
 
@@ -52,11 +52,11 @@ the part's name says dropped (`_order_id` is `orders.id`, `_bang_stage` `grenade
 ## The phases and the team
 
 `Behavior` adopts an ENTER or STUN ENTRY leaf, starts the entry on the next tick (`entries.pending`, then `begin(params)`: it reads
-the doorway's geometry and its stack off the perception, `entry_geometry` / `entry_stack`, and runs the stack's claim chain,
+the doorway's geometry and its stack off the perception, `entry.geometry` / `entry.stack`, and runs the stack's claim chain,
 `DoorStack.claim(me, want)`, as `claim.keep_slot` does: it claims the lowest slot the claims heard leave free
 (`slot_for(me)`, `me` = `{ id, slot: 0, frame, pos }`: two claims on one slot made on the same `GameClock` frame and side settle by
 distance, the nearer keeping it; the option's `slot` is only the snapshot's guess; a slot past what a dead end holds, `StackLayout.holds_slot` false, ends
-it `done` with no claim) and its side (`claim.ask_side`, the entry's own weighing, the `want` it hands the chain: `claim.want`, `entry_stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
+it `done` with no claim) and its side (`claim.ask_side`, the entry's own weighing, the `want` it hands the chain: `claim.want`, `entry.stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
 crosses the doorway's view, E19), then stands where `settle` puts it (`claim.stand`; `DoorStack.settle(claim.me())`, `claim._settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
 E21; its place in that side's file; the slot's point, E20; a claim still on a slot a member moved up into counted at the slot it freed) and
 then calls `step(delta)` each tick until it reports done. `claim.me()` is this NPC's own claim as a `DoorStack` reads a member asking about
@@ -82,7 +82,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 (a member left over holds just inside the door it came by, facing out).
 
 - **Holding the cleared room (E8).** `hold.finish` marks the room cleared, then reads the doorways on out of it into rooms not
-  cleared (`entry_watch_doors(into, opening)`, outside doors and the door it came by left out) with a cover spot each:
+  cleared (`entry.watch_doors(into, opening)`, outside doors and the door it came by left out) with a cover spot each:
   `COVER_DEPTH` back inside the cleared room, off the doorway's axis on the NPC's side, the gun aimed through it. With a
   team, each member claims the nearest doorway no teammate's `cover` call names (kept once its own; a tie goes to the lower
   instance id) and radios `cover` with `covering`; one left over (or, with no doorway on, the last one in) goes to `rear`,
@@ -191,7 +191,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   still tried; test `entry_held_walks_unsealed_waypoint`). With none left, and on a held walk straight into the slot (no waypoints), it walks on
   into the slot unless the slot is sealed, by a body between it and the slot, not on it (`approach._slot_sealed`: a holder, `held_at()`, within
   `Locomotion.PASS_CLEARANCE` of the slot is Locomotion's body on the goal, no seal: the walk goes on to a free spot beside it, test
-  `ai/movement/npc_dest_taken_stops_nearby`; else `Locomotion.seals(slot)` and `AgentPerception.entry_slot_reach(slot, bodies)`
+  `ai/movement/npc_dest_taken_stops_nearby`; else `Locomotion.seals(slot)` and `AgentPerception.entry.slot_reach(slot, bodies)`
   is 0, no route on the plan map reaches the slot, or ends within a last leg of it walked plain clear of them, with `approach._standing_bodies()`
   standing in it at body width: `Locomotion`'s `crowd.held_at()`, the holder, and every body at rest in `crowd.bodies`, under `Locomotion.REST_SPEED`, seen
   now or within `SEEN_FRESH` 0.5 s (a stale last-seen point must not give the slot up), but a teammate of this stack still at `claim`, on its way; a
@@ -225,7 +225,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `abort`). Each phase change is a `GameLog` line (`--verbose` in tests).
 - **The entry guard (E9).** Entry is not only for an ENTER order: `Behavior.entries.guard()` runs every tick after the
   running primitive steered (a `move` not yet arrived, an `engage` and its repositions, an `interact` walk) and reads the walk the
-  nav agent was just given (`Locomotion.path_ahead()`), not the order's destination. When the perception's `threshold_ahead()`
+  nav agent was just given (`Locomotion.path_ahead()`), not the order's destination. When the perception's `views.threshold_ahead()`
   finds a doorway on that walk into a room that is not cleared, within `tuning.entry_guard.reach` (300 px of walking), it starts a
   **detour**: the order is stashed whole in `entries.resume`, `task.primitive` becomes `entry` for that doorway (`task.params` = opening +
   room; slot and side come from the radio as usual), and when the entry ends `entries.finish()` puts the order back and refills
@@ -243,14 +243,14 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   be had) abandons any entry. Tests: `tests/ai/entry/entry_guard_*_test.gd`, `entry_fallback_aborts`,
   `entry_decision_in_flight_during_cross`.
 - **Doorway views a walk crosses (E15 / E18).** The same guard also looks for a doorway view the walk goes **into** without entering the room
-  behind it (`Perception.passing_ahead`: the view of any doorway into a room not clear for passing, inside the house or out, exterior doors
+  behind it (`Perception.views.passing_ahead`: the view of any doorway into a room not clear for passing, inside the house or out, exterior doors
   included, however far out from its wall; the walk comes into it from outside) nearer than any doorway it crosses, via `entries._passing_gate`,
   skipping one a teammate is working or that was just secured or given up. It meets only what `Locomotion` could not walk round (below).
   The detour is an `entry` with `secure: true`: `entry.gd` takes no team and radios nothing, stacks beside the jamb, slices one side of
   the pie (the watch stage fires at what it sees, E14 holds it on a hostile in view) and ends `secured` without crossing; `entries.finish`
   then leaves the doorway alone for `tuning.entry_guard.secure_time` (30 s). An ENTER order's own approach walk is guarded the same way
   (`entries._guard_approach`: the entry is abandoned, the doorway secured, the order restarts from `approach`), but not for a member heading for a
-  stack others have claimed (`entry_stack(opening).claimed()`): the team goes to its door as one. `entries.stash_order` keeps `entry_pending`
+  stack others have claimed (`entry.stack(opening).claimed()`): the team goes to its door as one. `entries.stash_order` keeps `entry_pending`
   so a paused ENTER starts afresh. Tests: `entry_guard_secures_passed_doorway` (scripted), `entry_corridor_doors_not_passed`, `entry_secure_exterior_door_then_cross`, `entry_pass_far_out_secured` (real Von).
 - **An ordered stack (`docs/leadership.md` LD9).** An `entry` leaf from the ORDER node carries `order_id`, `bang` and `stack_at` or
   `split`; `begin` keeps them (`orders.id`, `orders.bang`, `orders.side`: the side along the wall `stack_at` lies on, `orders._side_named`, 0 for a
@@ -275,15 +275,15 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   adds `order_mode`, `order_hold`, `order_go` and `order_frame` too (`orders.frame`, the `frame` of the live order at `begin`,
   `orders._held_order_frame`, -1 when unknown). Every call carries `crossed_frame` (`readiness.crossed_frame`, stamped by `radio.say` the first time its step
   is `going_in` or a through step, -1 before it, cleared by `reset`: its `going_in` is committed, so its first crossing is its only one). The order ends when the room is
-  cleared (`AgentPerception.mark_cleared` ends it `done`). **The approach (D4, D11):** before the claim goes out `Behavior.entries` (`_begin_pending`)
+  cleared (`AgentPerception.entry.mark_cleared` ends it `done`). **The approach (D4, D11):** before the claim goes out `Behavior.entries` (`_begin_pending`)
   sets `state.held_back` (an ordered entry, not resumed from a detour, in `approach`) and `entries._detour_first` reads the whole way (`approach_points()`,
-  leg by leg on `AgentPerception.walk_route(p, "<opening>><into>", from)`; up to `ROUTE_WAIT` s, standing, while that map is `pending`): a
+  leg by leg on `AgentPerception.views.walk_route(p, "<opening>><into>", from)`; up to `ROUTE_WAIT` s, standing, while that map is `pending`): a
   threshold into a room not cleared (`threshold_ahead`, not the doorway it stacks at nor a doorway into the room it enters, nor one in
   `entries._guard_off`), and, unless another recipient is coming (`entries._recipients_coming`), a nearer doorway view it passes (`passing_ahead`, not
   the room being entered, nor a doorway someone stacks at) secured. Either: `_entry.reset()` and `entries._begin_detour(gate)`, no claim made; none:
   the entry `reset`s and `begin`s again from the claims heard meanwhile and its claim goes out. On the walk `entries._guard_approach` catches what
   comes up (a threshold, team or none; a view only with no team coming). `Behavior.orders.ordered_stack()` (the
-  ordered entry running, or paused behind a detour) sets `AgentPerception.ordered_walk` each tick (`errand.set_up_walk`), which keeps its walks out of the views
+  ordered entry running, or paused behind a detour) sets `AgentPerception.views.ordered` each tick (`errand.set_up_walk`), which keeps its walks out of the views
   (`entries.keeps_out_of_views`), counts the room its stack holds as clear (`_stack_room`, D20) and, for an NPC with `tuning.entry.enabled` off, a room
   seen empty (`_seen_empty`, D11).
   `Behavior.set_leaf` leaves the running ordered entry (or the detour in front of it) alone when the same order is decided again
@@ -297,7 +297,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   and `orders.bang` false. `orders.join` marks every call `join: true` (`radio.say`, encoded by `StackClaim.encode`), so its squad never takes a join's
   claim for its holder's own: one that takes over the lead holding it rallies nobody on it (D30). `Behavior` keeps the `order_id` in the leaf (the `moving` radio, `orders._live`) and leaves a join out of the ordered
   stack's guarded way (`Orders.ordered_entry`); a join whose `begin` fails (no slot at a dead end) is ended `refused`. Its order ends `done` at the
-  room cleared (`AgentPerception.mark_cleared`, as any stack order), `cancel`led when the leader radios `abort` there, or `refused`; in
+  room cleared (`AgentPerception.entry.mark_cleared`, as any stack order), `cancel`led when the leader radios `abort` there, or `refused`; in
   `approach` / `stack` its end forces a decision at once (`Behavior.orders.join_over`, "join over"), from the pie on the entry runs to its end. Tests:
   `ai/entry/join_rally_clears_room`, `join_suspect_room_bangs`, `join_unsuspected_quiet`, `join_leader_aborts`,
   `join_cleared_before_reached`, `join_inherited_no_rally`, `ai/stack/human_leader_rallies`, `human_rally_spares_ordered`.

@@ -62,6 +62,7 @@ func _held(controller: Node) -> Dictionary:
 		"perception.orders": perception.get("orders"),
 		"perception.contacts": perception.get("contacts"),
 		"perception.grenades": perception.get("grenades"),
+		"perception.entry": perception.get("entry"), "perception.views": perception.get("views"),
 	}
 	var held := {}
 	for key: String in pieces:
@@ -86,7 +87,7 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(40)
+		assert_int(held.size()).is_equal(42)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()

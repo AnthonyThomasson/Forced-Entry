@@ -90,17 +90,17 @@ func debug_view() -> Dictionary:
 		if left > 0.0:
 			guard_view["rearm"].append({ "opening": id, "left": left })
 	if perception != null:
-		guard_view["views"] = perception.avoided_views()
+		guard_view["views"] = perception.views.avoided()
 		for r in behavior.rooms:
-			if perception.is_cleared(str(r["key"])):
+			if perception.entry.is_cleared(str(r["key"])):
 				guard_view["cleared_rooms"].append(r["rect"])
 		var walk: Dictionary = loco.path_ahead() if task.primitive != &"entry" else {}
 		if not walk.is_empty():
-			var gate: Dictionary = perception.threshold_ahead(
+			var gate: Dictionary = perception.views.threshold_ahead(
 				walk["path"], walk["index"], GUARD_PREVIEW_RANGE,
 			)
 			if not gate.is_empty():
-				var geo: Dictionary = perception.entry_geometry(gate["opening"], gate["into"])
+				var geo: Dictionary = perception.entry.geometry(gate["opening"], gate["into"])
 				if not geo.is_empty():
 					gate["pos"] = geo["pos"]
 					guard_view["ahead"] = gate
@@ -225,15 +225,15 @@ func _begin_pending(delta: float) -> bool:
 ## An ordered stack's way to its doorway (D4, LD9), read before the member's claim goes out: its
 ## entry has begun (its slot, its side and the approach's waypoints are worked out) and holds its
 ## claim back (`Entry.state.held_back`) while the whole walk to the slot, leg by leg as the approach
-## walks it (`AgentPerception.walk_route`: out of the room being entered and its doorway's view), is
-## read for a threshold into a room not cleared (`threshold_ahead`; the room being entered and the
-## doorway it stacks at left out), and, with no other recipient coming to the doorway, a doorway
-## view it would cross (E15, `passing_ahead`; not one of the room being entered, which the stack
-## clears). The first is gone through by entry first, as a detour (`_begin_detour`): the entry is
-## dropped unheard, so no claim was made and none is given up; the order's entry starts afresh once
-## the detour is over, and reads the way again. True while it is detouring or waits (at most
-## `ROUTE_WAIT` s) for a map round the views to be baked; false when the way is clear and the claim
-## is due.
+## walks it (`AgentPerception.views.walk_route`: out of the room being entered and its doorway's
+## view), is read for a threshold into a room not cleared (`views.threshold_ahead`; the room being
+## entered and the doorway it stacks at left out), and, with no other recipient coming to the
+## doorway, a doorway view it would cross (E15, `views.passing_ahead`; not one of the room being
+## entered, which the stack clears). The first is gone through by entry first, as a detour
+## (`_begin_detour`): the entry is dropped unheard, so no claim was made and none is given up; the
+## order's entry starts afresh once the detour is over, and reads the way again. True while it is
+## detouring or waits (at most `ROUTE_WAIT` s) for a map round the views to be baked; false when the
+## way is clear and the claim is due.
 func _detour_first(delta: float) -> bool:
 	var perception: Node = behavior._perception
 	if not behavior.tuning.entry_guard.enabled or perception.under_fire():
@@ -245,7 +245,7 @@ func _detour_first(delta: float) -> bool:
 	var from := Vector2.INF
 	var baking := false
 	for p: Vector2 in behavior._entry.approach_points():
-		var leg: Dictionary = perception.walk_route(p, entering, from)
+		var leg: Dictionary = perception.views.walk_route(p, entering, from)
 		baking = baking or bool(leg["pending"])
 		path.append_array(leg["path"])
 		from = p
@@ -255,13 +255,13 @@ func _detour_first(delta: float) -> bool:
 		return true
 	var gate := _other_threshold(path, 0, INF)
 	if not _recipients_coming():
-		var passing: Dictionary = perception.passing_ahead(path, 0, INF)
+		var passing: Dictionary = perception.views.passing_ahead(path, 0, INF)
 		if (not passing.is_empty()
 				and passing["opening"] != opening
 				and str(passing["into"]) != into
 				and (gate.is_empty() or float(passing["dist"]) < float(gate["dist"]))
 				and float(_guard_off.get(passing["opening"], -1.0)) <= guard_clock
-				and not perception.entry_stack(passing["opening"]).claimed()):
+				and not perception.entry.stack(passing["opening"]).claimed()):
 			passing["secure"] = true
 			gate = passing
 	if gate.is_empty():
@@ -275,7 +275,7 @@ func _detour_first(delta: float) -> bool:
 ## `threshold_ahead`), or {}: not the doorway the entry stacks at, a doorway into the room it
 ## enters, or one the guard leaves alone for now (`_guard_off`).
 func _other_threshold(path: PackedVector2Array, index: int, reach: float) -> Dictionary:
-	var gate: Dictionary = behavior._perception.threshold_ahead(path, index, reach)
+	var gate: Dictionary = behavior._perception.views.threshold_ahead(path, index, reach)
 	if gate.is_empty():
 		return gate
 	if (gate["opening"] == behavior._entry.state.opening
@@ -325,7 +325,7 @@ func finish() -> void:
 	if entry.state.secured:
 		# Secured in passing: not again for a while.
 		_guard_off[entry.state.opening] = guard_clock + behavior.tuning.entry_guard.secure_time
-	elif not behavior._perception.is_cleared(entry.state.into):
+	elif not behavior._perception.entry.is_cleared(entry.state.into):
 		_guard_off[entry.state.opening] = guard_clock + behavior.tuning.entry_guard.rearm
 	_resume_order()
 
@@ -370,7 +370,7 @@ func guard() -> void:
 	var walk: Dictionary = behavior._loco.path_ahead()
 	if walk.is_empty():
 		return
-	var gate: Dictionary = perception.threshold_ahead(
+	var gate: Dictionary = perception.views.threshold_ahead(
 		walk["path"], walk["index"], behavior.tuning.entry_guard.reach,
 	)
 	if not perception.under_fire():
@@ -448,7 +448,7 @@ func _guard_approach() -> void:
 	var gate := {}
 	if ordered:
 		gate = _other_threshold(walk["path"], walk["index"], behavior.tuning.entry_guard.reach)
-	var team_coming: bool = (perception.entry_stack(behavior._entry.state.opening).claimed()
+	var team_coming: bool = (perception.entry.stack(behavior._entry.state.opening).claimed()
 			or (ordered and _recipients_coming()))
 	var passing := {} if team_coming else _passing_gate(walk, gate)
 	if (not passing.is_empty()
@@ -467,14 +467,14 @@ func _guard_approach() -> void:
 ## secured or given up.
 func _passing_gate(walk: Dictionary, gate: Dictionary) -> Dictionary:
 	var perception: Node = behavior._perception
-	var passing: Dictionary = perception.passing_ahead(
+	var passing: Dictionary = perception.views.passing_ahead(
 		walk["path"], walk["index"], behavior.tuning.entry_guard.reach,
 	)
 	if (passing.is_empty()
 			or (not gate.is_empty() and float(passing["dist"]) >= float(gate["dist"]))):
 		return {}
 	if (float(_guard_off.get(passing["opening"], -1.0)) > guard_clock
-			or perception.entry_stack(passing["opening"]).claimed()):
+			or perception.entry.stack(passing["opening"]).claimed()):
 		return {}
 	passing["secure"] = true
 	return passing

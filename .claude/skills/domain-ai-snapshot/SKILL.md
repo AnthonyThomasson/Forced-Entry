@@ -165,7 +165,7 @@ and the awareness section says "Footsteps heard to the west, in the kitchen, jus
 **Route bands are the route walked (E18).** Every "short / medium / long route" in an option (`SnapshotOptions._route_len`) is the length of the route the NPC
 will walk from where it stands, `AgentDoorViews.walk_route(...)["len"]`: the one that keeps out of the doorway views when it would take it (within
 `door_avoid_ratio` x the plain route + `door_avoid_slack`), else the plain one. The controller starts no decision before the avoid map of the room the NPC
-stands in is baked (`AgentPerception.routes_ready`). Test: `tests/ai/entry/entry_route_band_as_walked_test.gd`. The combat spots' `route_len` (`agent_tactics.gd`)
+stands in is baked (`AgentPerception.views.routes_ready`). Test: `tests/ai/entry/entry_route_band_as_walked_test.gd`. The combat spots' `route_len` (`agent_tactics.gd`)
 stay on the plain route.
 
 **Posture** words appear only when someone is not standing, so a standing body's text is byte-identical (the `tools/von_scenarios` fixtures pin it): the

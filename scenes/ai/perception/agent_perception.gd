@@ -35,14 +35,15 @@ const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd"
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
 const AgentSuspicion := preload("res://scenes/ai/perception/agent_suspicion.gd")
-## The parts (`hearing`, `orders`, `contacts`, `grenades`).
+## The parts (`hearing`, `orders`, `contacts`, `grenades`, `entry`, `views`).
 const PerceptionHearing := preload("res://scenes/ai/perception/perception_hearing.gd")
 const PerceptionOrders := preload("res://scenes/ai/perception/perception_orders.gd")
 const PerceptionContacts := preload("res://scenes/ai/perception/perception_contacts.gd")
 const PerceptionGrenades := preload("res://scenes/ai/perception/perception_grenades.gd")
-## The entry claims heard on the radio, and their wire format (scenes/ai/perception/stack/).
+const PerceptionEntry := preload("res://scenes/ai/perception/perception_entry.gd")
+const PerceptionViews := preload("res://scenes/ai/perception/perception_views.gd")
+## The entry claims heard on the radio (scenes/ai/perception/stack/).
 const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
-const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 ## The BUILD half: turns what the NPC knows + the combat geometry into the decision snapshot Von
 ## walks.
 const AgentSnapshot := preload("res://scenes/ai/perception/agent_snapshot.gd")
@@ -57,9 +58,6 @@ const LEARN_EVERY_FRAMES := 6
 ## this often, offset per NPC and target so a squad does not test on the same frame. What the NPC
 ## holds of a character it sees is at most this many frames old.
 const SIGHT_EVERY_FRAMES := 3
-## The longest (game ms, `GameClock`) a decision waits for the avoid map its routes are measured on
-## (`routes_ready`).
-const WARM_CAP_MS := 3000
 
 ## The house entrance in world space (injected by its composer for an invader), offered while
 ## outside.
@@ -69,23 +67,9 @@ var openings: Array = []
 ## The NPC's tuning topics (`NpcTuning`), handed in by apply_config(): the tunables the perception
 ## reads itself, read live (`tuning.memory.contact_ttl`).
 var tuning: NpcTuning
-## Whether the NPC is walking an ordered stack's way to its door (`docs/leadership.md` LD9), set
-## each tick by the behaviour: that walk keeps out of the doorway views whatever
-## `tuning.entry.enabled` says (D4), and for an NPC that does not clear rooms by entry
-## (`tuning.entry.enabled` off) a room it has stood in lately and seen no hostile in counts as clear
-## for passing (`_seen_empty`, D11); the room its stack holds always does (`_stack_room`).
-var ordered_walk := false:
-	set(value):
-		if value != ordered_walk:
-			ordered_walk = value
-			_sync_walks()
 ## Whether the NPC follows its squad's leader (`Squad.follows`), set each tick by the controller:
 ## the snapshot's and `quick_facts()`'s `follows`.
 var follows := false
-## `_stack_room()` this frame...
-var _held_room := ""
-## ... worked out on this physics frame.
-var _held_room_frame := -1
 ## The NPC's body, handed in once by bind().
 var _character: Node
 ## The sight sense (FOV/range/LoS); see agent_vision.gd.
@@ -94,14 +78,6 @@ var _vision: RefCounted
 var _memory: RefCounted
 ## The combat geometry; see agent_tactics.gd.
 var _tactics: RefCounted
-## The doorway geometry; see agent_entry.gd.
-var _entry: RefCounted
-## The allies' entry claims heard on the radio; see stack/claim_ledger.gd.
-var _ledger: RefCounted
-## The doorway views and the walk that keeps out of them; see agent_door_views.gd.
-var _views: RefCounted
-## When (`GameClock.msec()`) the decision began waiting for the avoid map; -1: not waiting.
-var _warming_since := -1
 ## The BUILD half: writes the decision snapshot; see agent_snapshot.gd.
 var _snapshot: RefCounted
 ## The house's rooms, as handed to the latest observe().
@@ -138,6 +114,10 @@ var orders: PerceptionOrders
 var contacts: PerceptionContacts
 ## The grenades: what it carries and knows, and the plan to get clear; see perception_grenades.gd.
 var grenades: PerceptionGrenades
+## The doorway geometry and the entry claims heard; see perception_entry.gd.
+var entry: PerceptionEntry
+## The doorway views and the walk that keeps out of them; see perception_views.gd.
+var views: PerceptionViews
 
 
 ## Build the owned sensing modules. The controller calls this once in its _ready(); it then hands
@@ -150,32 +130,34 @@ func setup() -> void:
 	orders = PerceptionOrders.new(self)
 	contacts = PerceptionContacts.new(self)
 	grenades = PerceptionGrenades.new(self)
+	entry = PerceptionEntry.new(self)
+	views = PerceptionViews.new(self)
 	contacts.hostility = AgentHostility.new()
 	_memory = AgentMemory.new()
 	_tactics = AgentTactics.new()
 	_tactics.vision = _vision
-	_views = AgentDoorViews.new()
-	_views.vision = _vision
-	_entry = AgentEntry.new()
-	_entry.vision = _vision
-	_entry.views = _views
+	views.views = AgentDoorViews.new()
+	views.views.vision = _vision
+	entry.doorways = AgentEntry.new()
+	entry.doorways.vision = _vision
+	entry.doorways.views = views.views
 	grenades.throw = AgentThrow.new()
 	grenades.throw.vision = _vision
 	grenades.live = AgentGrenades.new()
 	grenades.live.setup(grenades.throw)
 	hearing.suspicion = AgentSuspicion.new()
 	hearing.suspicion.memory = _memory
-	hearing.suspicion.entry = _entry
-	_ledger = ClaimLedger.new()
+	hearing.suspicion.entry = entry.doorways
+	entry.ledger = ClaimLedger.new()
 	_snapshot = AgentSnapshot.new()
 	var sources := SnapshotSources.new()
 	sources.memory = _memory
 	sources.tactics = _tactics
-	sources.entry = _entry
-	sources.views = _views
+	sources.entry = entry.doorways
+	sources.views = views.views
 	sources.throw = grenades.throw
 	sources.suspicion = hearing.suspicion
-	sources.ledger = _ledger
+	sources.ledger = entry.ledger
 	_snapshot.setup(sources)
 
 
@@ -186,7 +168,10 @@ func setup() -> void:
 ## runtime (e.g. by the dev command server).
 func apply_config(npc_tuning: NpcTuning) -> void:
 	tuning = npc_tuning
-	_ledger.setup({ "range": npc_tuning.radio.callout_range, "ttl": npc_tuning.radio.callout_ttl })
+	entry.ledger.setup({
+		"range": npc_tuning.radio.callout_range,
+		"ttl": npc_tuning.radio.callout_ttl,
+	})
 	_apply_senses(npc_tuning)
 	_apply_tactics(npc_tuning)
 	_apply_doorways(npc_tuning)
@@ -229,34 +214,18 @@ func _apply_tactics(npc_tuning: NpcTuning) -> void:
 
 
 ## Set the doorway geometry's and the doorway views' tunables from `npc_tuning`, then push the walk
-## rules into the views (`_sync_walks`).
+## rules into the views (`views.sync_walks`).
 func _apply_doorways(npc_tuning: NpcTuning) -> void:
-	_entry.stack_spacing = npc_tuning.entry_geometry.stack_spacing
-	_entry.wall_standoff = npc_tuning.entry_geometry.wall_standoff
-	_entry.pie_radius = npc_tuning.entry_geometry.pie_radius
-	_entry.pie_steps = npc_tuning.entry_geometry.pie_steps
-	_entry.corner_inset = npc_tuning.entry_geometry.corner_inset
-	_entry.short_room = npc_tuning.entry_geometry.short_room
-	_views.door_view_depth = npc_tuning.entry_guard.door_view_depth
-	_views.door_avoid_ratio = npc_tuning.entry_guard.door_avoid_ratio
-	_views.door_avoid_slack = npc_tuning.entry_guard.door_avoid_slack
-	_sync_walks()
-
-
-## Push the walk rules into the doorway views: walks keep out of the doorway views where the entry
-## guard runs (`tuning.entry_guard.enabled`, with `tuning.entry.enabled` or on an ordered stack's
-## walk, D4), and a room counts as clear for passing when it was cleared lately (`_is_pass_clear`)
-## or, on an ordered walk, when its stack holds it (`_stack_room`) or, for an NPC that does not
-## clear rooms by entry, it has seen it empty (`_seen_empty`, D11).
-func _sync_walks() -> void:
-	if _views == null:
-		return
-	_views.avoid_views = tuning.entry_guard.enabled and (tuning.entry.enabled or ordered_walk)
-	# Its way round the room it stacks on is taken however long (D4).
-	_views.ordered_approach = ordered_walk
-	_views.pass_clear = ((_passable if not tuning.entry.enabled else _pass_clear_ordered)
-			if ordered_walk
-			else _is_pass_clear)
+	entry.doorways.stack_spacing = npc_tuning.entry_geometry.stack_spacing
+	entry.doorways.wall_standoff = npc_tuning.entry_geometry.wall_standoff
+	entry.doorways.pie_radius = npc_tuning.entry_geometry.pie_radius
+	entry.doorways.pie_steps = npc_tuning.entry_geometry.pie_steps
+	entry.doorways.corner_inset = npc_tuning.entry_geometry.corner_inset
+	entry.doorways.short_room = npc_tuning.entry_geometry.short_room
+	views.views.door_view_depth = npc_tuning.entry_guard.door_view_depth
+	views.views.door_avoid_ratio = npc_tuning.entry_guard.door_avoid_ratio
+	views.views.door_avoid_slack = npc_tuning.entry_guard.door_avoid_slack
+	views.sync_walks()
 
 
 ## Hand the perception the NPC's body, which every sense and query reads from then on, and tell the
@@ -265,7 +234,7 @@ func _sync_walks() -> void:
 func bind(character: Node) -> void:
 	_character = character
 	contacts.hostility.faction = character.faction
-	_ledger.setup({ "faction": character.faction, "listener": character })
+	entry.ledger.setup({ "faction": character.faction, "listener": character })
 	grenades.throw.bind(character)
 	grenades.live.bind(character)
 	_snapshot.bind(character)
@@ -453,11 +422,11 @@ func _take_in_house(rooms: Array) -> void:
 	grenades.throw.learn_carried()
 	grenades.throw.learn_body()
 	_seed_house(rooms)
-	_entry.set_house(openings, rooms)
+	entry.doorways.set_house(openings, rooms)
 	if tuning.entry.enabled:
 		var world: World2D = _character.get_world_2d()
 		# Lay the doorways before a decision needs them.
-		_entry.warm_geometry(world.navigation_map, world.direct_space_state)
+		entry.doorways.warm_geometry(world.navigation_map, world.direct_space_state)
 	_rooms = rooms
 
 
@@ -774,209 +743,6 @@ func sight_end(to: Vector2) -> Vector2:
 		[_character.get_rid()],
 	)
 	return hit["position"] if not hit.is_empty() else to
-
-
-## The geometry of going through doorway `opening_id` into room `into` (see agent_entry.gd
-## `geometry`): the door's frame, the stack slots and pie arc on either side, and the room's corners
-## tagged hard or soft. {} when unknown.
-func entry_geometry(opening_id: String, into: String) -> Dictionary:
-	return _entry.geometry(
-		opening_id,
-		into,
-		_character.get_world_2d().navigation_map,
-		_character.get_world_2d().direct_space_state,
-	)
-
-
-## Mark room `key` cleared: its entry was carried through to the end (or searched by sight to the
-## end), by this NPC or by an ally who radioed it. Not the same as having stood in it
-## (`visited_room`): a room walked through unprepared is visited, not cleared. It lapses after
-## `tuning.memory.search_ttl`, like a searched room. A stack order into it is done.
-func mark_cleared(key: String) -> void:
-	_memory.remember(&"cleared_room", { "key": key }, tuning.memory.search_ttl, key)
-	var held := orders.current()
-	if String(held.get("kind", "")) == "stack" and String(held.get("into", "")) == key:
-		# A stack order ends at its room cleared (LD9), by this NPC or by an ally who radioed it.
-		orders.end(held["id"], "done")
-
-
-## Whether room `key` is cleared (see `mark_cleared`).
-func is_cleared(key: String) -> bool:
-	return _memory.age_of(&"cleared_room", "key", key) <= tuning.memory.search_ttl
-
-
-## The first doorway on the walk `path` (from waypoint `from_idx`, `max_dist` px of it at most) that
-## leads into a room that is not cleared (nor, on an ordered walk, the room its stack holds, or for
-## an NPC that does not clear rooms by entry seen empty: D11), as `{ opening, into, dist }`,
-## or {} (see agent_door_views.gd `threshold_ahead`).
-func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
-	var clear := is_cleared
-	if ordered_walk:
-		# The room its stack holds is passed through (D20), and, for an NPC that does not clear
-		# rooms by entry, a room seen empty (D11).
-		clear = func(key: String) -> bool:
-			return (
-				is_cleared(key)
-				or key == _stack_room()
-				or (not tuning.entry.enabled and _seen_empty(key))
-			)
-	return _views.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
-
-
-## The first doorway view the walk `path` goes into without entering the room behind it, as
-## `{ opening, into, dist }`, or {} (see agent_door_views.gd `passing_ahead`): a doorway to be
-## secured before the NPC crosses its view (E15, E18).
-func passing_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> Dictionary:
-	return _views.passing_ahead(
-		path, from_idx, _character.global_position, max_dist, _character.get_world_2d()
-	)
-
-
-## Whether room `key` counts as safe to walk past: cleared within
-## `tuning.entry_guard.pass_clear_time` (a room cleared longer ago is cleared for the entry,
-## `is_cleared`, but a doorway into it is not safe to walk past again).
-func _is_pass_clear(key: String) -> bool:
-	return _memory.age_of(&"cleared_room", "key", key) <= tuning.entry_guard.pass_clear_time
-
-
-## Whether the NPC has stood in room `key` within `tuning.entry_guard.pass_clear_time` and has seen
-## no hostile in it since (the latest sighting of each hostile it knows of, within that time, lies
-## elsewhere): a room seen empty (`docs/leadership.md` D11). A room only glimpsed through its
-## doorway was not stood in, so it is not.
-func _seen_empty(key: String) -> bool:
-	if _memory.age_of(&"visited_room", "key", key) > tuning.entry_guard.pass_clear_time:
-		return false
-	for c in contacts.sightings(null, tuning.entry_guard.pass_clear_time, -1.0, true):
-		if HouseRooms.key_at(c["pos"], _rooms) == key:
-			return false
-	return true
-
-
-## Whether room `key` counts as clear for passing on an ordered walk of an NPC that does not clear
-## rooms by entry (D11): cleared lately, seen empty, or held by its stack (`_stack_room`).
-func _passable(key: String) -> bool:
-	return _pass_clear_ordered(key) or _seen_empty(key)
-
-
-## Whether room `key` counts as clear for passing on an ordered stack's walk: cleared lately, or the
-## room its stack holds (`_stack_room`).
-func _pass_clear_ordered(key: String) -> bool:
-	return _is_pass_clear(key) or key == _stack_room()
-
-
-## The room an ordered stack holds (`docs/leadership.md` D20): on the walk of a member to the stack
-## its live order names (`ordered_walk`), the room that stack stands in once a member under the same
-## order holds its slot there (its claim radioed `ready`, or `bang`): that room counts as cleared
-## for passing, so the walk is not sent into it by entry. "" for none (outside the house, no slot
-## held yet, or no ordered walk). Worked out once a physics frame.
-func _stack_room() -> String:
-	var frame := Engine.get_physics_frames()
-	if frame == _held_room_frame:
-		return _held_room
-	_held_room_frame = frame
-	_held_room = ""
-	var held := orders.current()
-	if not ordered_walk or str(held.get("kind", "")) != "stack":
-		return _held_room
-	var opening := str(held.get("opening", ""))
-	for m in entry_stack(opening).team:
-		if m["order_id"] == str(held.get("id", "")) and StackClaim.in_slot(m["step"]):
-			_held_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
-			break
-	return _held_room
-
-
-## Whether the routes a snapshot measures can be the ones the NPC will walk (see agent_door_views.gd
-## `warm`): the avoid map for the doorway views from the room it stands in is baked. Asking starts
-## the bake. After `WARM_CAP_MS` of waiting it is true anyway, so a decision never waits for good.
-func routes_ready() -> bool:
-	var world: World2D = _character.get_world_2d()
-	if _views.warm(_character.global_position, world.navigation_map, world.direct_space_state):
-		_warming_since = -1
-		return true
-	var now := GameClock.msec()
-	if _warming_since < 0:
-		_warming_since = now
-	return now - _warming_since > WARM_CAP_MS
-
-
-## The doorway views the NPC's walks keep out of from where it stands, each `{ id, into, poly }`
-## (see agent_door_views.gd `avoided`): what the entry plan overlay draws.
-func avoided_views() -> Array:
-	var world: World2D = _character.get_world_2d()
-	return (_views.views_from(
-		_character.global_position, world.navigation_map, world.direct_space_state,
-	)
-			if _views.avoid_views
-			else [])
-
-
-## The route the NPC walks from where it stands to `to` (see agent_door_views.gd `walk_route`): the
-## plain one, or the one that keeps out of the views of the doorways into rooms not clear for
-## passing when there is one within the cap. `entering` (`"<opening id>><room key>"`): the entry the
-## walk is the approach of, which keeps out of that room and its doorway's view. `from` (INF: where
-## the NPC stands) is where the walk sets out from, for a leg of a walk read ahead.
-func walk_route(to: Vector2, entering := "", from := Vector2.INF) -> Dictionary:
-	var world: World2D = _character.get_world_2d()
-	var at: Vector2 = _character.global_position if from == Vector2.INF else from
-	return _views.walk_route(at, to, world.navigation_map, world.direct_space_state, entering)
-
-
-## Whether the NPC can walk from where it stands to `to` with a body standing at each of `bodies` in
-## its way (see agent_entry.gd `slot_reach`): 1 yes, 0 no, -1 not known yet (its map is being
-## baked).
-func entry_slot_reach(to: Vector2, bodies: Array) -> int:
-	return _entry.slot_reach(
-		_character.global_position,
-		to,
-		_character.get_world_2d().navigation_map,
-		bodies,
-	)
-
-
-## The doorways out of the cleared room `into` that lead on into a room that is not cleared, other
-## than `opening_id` (the one the NPC came in by): what the team covers once the room is clear, as
-## `{ id, into, pos, width }` (see agent_entry.gd `watch_doors`).
-func entry_watch_doors(into: String, opening_id: String) -> Array:
-	return _entry.watch_doors(into, opening_id, is_cleared)
-
-
-## Every doorway of room `room_key`, outer doors included, as `{ id, pos, width }` (see
-## agent_entry.gd `room_doorways`): the places a resting NPC watches.
-func room_doorways(room_key: String) -> Array:
-	return _entry.room_doorways(room_key)
-
-
-## The stack at doorway `opening_id` into room `into` as the radio describes it
-## (stack/door_stack.gd): the allies' live claims on it (stack/claim_ledger.gd `claims`) over its
-## geometry (`entry_geometry`), every slot rule settled the one way. One per doorway a frame. With
-## `into` "" it has no geometry: only what the claims alone answer (`team`, `claimed`, `stacking`,
-## `going_in`, `released`, `crossing`, `order_claim`) may be asked of it.
-func entry_stack(opening_id: String, into := "") -> RefCounted:
-	return _ledger.stack(opening_id, entry_geometry(opening_id, into) if into != "" else {})
-
-
-## The side of a doorway (`geometry` from `entry_geometry`) point `p` is on, 1 / -1 along its wall:
-## the radio claims' `side` (see agent_entry.gd `side_of`).
-func entry_side_of(geometry: Dictionary, p: Vector2) -> int:
-	return AgentEntry.side_of(geometry, p)
-
-
-## The side of a doorway the NPC stacks on from where it stands in `stack` (`entry_stack`): the
-## team's, unless its way there crosses the doorway's view, then its own (a split stack, see
-## agent_entry.gd `stack_side_from`).
-func entry_stack_side(stack: RefCounted) -> int:
-	var world: World2D = _character.get_world_2d()
-	return _entry.stack_side_from(
-		stack, _character.global_position, world.navigation_map, world.direct_space_state,
-	)
-
-
-## Whether point `p` is ground a stack going in by `geometry` may walk on to its slot
-## (`AgentEntry.slots.on_stack_side`: on the stack side, in its room, out of every other doorway's
-## funnel).
-func entry_on_stack_side(geometry: Dictionary, p: Vector2) -> bool:
-	return _entry.slots.on_stack_side(_entry, geometry, p)
 
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the

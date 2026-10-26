@@ -501,7 +501,7 @@ func _should_decide(due: bool) -> bool:
 		return false
 	if not _cadence.forced and not _behavior.wants_decision(due):
 		return false
-	if not _cadence.forced and not _perception.routes_ready():
+	if not _cadence.forced and not _perception.views.routes_ready():
 		# The routes it would weigh are still being measured (the avoid map is baking): a few
 		# frames. A forced decision does not wait.
 		return false

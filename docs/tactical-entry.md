@@ -91,7 +91,7 @@ and its slot, not on it (one standing within `Locomotion.PASS_CLEARANCE` of the 
 at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its plain way passes that body and no way reaches it with the holder and every other body at rest the member sees, or saw within half a second,
 standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
 the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
-(`approach._slot_sealed`, `AgentPerception.entry_slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
+(`approach._slot_sealed`, `AgentPerception.entry.slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
 its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
 one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
 `ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
@@ -457,7 +457,7 @@ cannot see, and the crossing paths keep each entrant's sector clear of the other
 team's side (`StackLayout.stack_side`, `scenes/ai/perception/stack/stack_layout.gd`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
 split the stack); `StackLayout.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
-`StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
+`StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry.stack`;
 `readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
@@ -601,7 +601,7 @@ the stack toward the door's axis, clear of the slots.
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
   and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
-  the set of views of the doorways into rooms not clear for passing (`AgentPerception._is_pass_clear`, from the `cleared_room`
+  the set of views of the doorways into rooms not clear for passing (`AgentPerception.views._is_pass_clear`, from the `cleared_room`
   memory's age against `tuning.entry_guard.pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
