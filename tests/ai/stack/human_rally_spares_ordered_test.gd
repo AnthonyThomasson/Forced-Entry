@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	var free: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	var defender := t.actor(&"d")
 	var squad: Node = t.world.squad(&"invader")
-	if not _has_stack(t, squad, me):
+	if not Stack.require_human_leads(t, squad, me):
 		return
 	var defend := _order_defend(t, squad, defender)
 	if defend.is_empty():
@@ -79,16 +79,6 @@ func run(t: TestContext) -> void:
 				% [m.name, Follow.first_call(t, m, "claim", door)]
 				+ "ready %.2f s)" % Follow.first_call(t, m, "ready", door),
 		)
-
-
-func _has_stack(t: TestContext, squad: Node, me: Node) -> bool:
-	var stack: Node = t.world.player_stack
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return false
-	return t.require(
-		stack.get("squad") == squad and squad.leader() == me,
-		"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
-	)
 
 
 func _order_defend(t: TestContext, squad: Node, defender: Node) -> Dictionary:

@@ -106,3 +106,15 @@ static func calls_at(t: TestContext, id: StringName, opening: String) -> Array:
 ## Whether actor `id` ever radioed an entry step (any) as the speaker.
 static func radioed(t: TestContext, id: StringName) -> bool:
 	return not Entry.calls(t, "", id).is_empty()
+
+
+## Requires the premise of a human-led squad's test: the human (`me`) has its stack radio
+## (`MatchBuilder.bind_player`), handed `squad`, and leads it ("Lead the team").
+static func require_human_leads(t: TestContext, squad: Node, me: Node) -> bool:
+	var stack: Node = t.world.player_stack
+	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
+		return false
+	return t.require(
+		stack.get("squad") == squad and squad.leader() == me,
+		"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
+	)

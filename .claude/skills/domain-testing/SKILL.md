@@ -612,7 +612,8 @@ wants a one-sided stack starts its late joiner on the stack's side (the E16 test
 
 `tests/ai/stack/stack_*_test.gd` pin down the human's place in an AI stack (E16 in `docs/tactical-entry.md`), on the Terrace house and the
 back door like the entry tests. A **puppet with the invader faction** stands in for the human, and the test gives it the stack radio the way
-Main does: declared with `s.squads({ "human": id })` and read with `t.world.player_stack` when the test needs a squad too, else in `run`:
+Main does: declared with `s.squads({ "human": id })` and read with `t.world.player_stack` when the test needs a squad too (`Stack.require_human_leads(t, squad, me)`
+requires that premise: the stack handed its squad, which the human leads), else in `run`:
 `Stack.attach(t, id)` (`tests/_ai/stack_probe.gd`, `const Stack := preload(...)`, which loads `PlayerStack` by path and calls
 `attach(character, rooms, t.world.openings)`; null before the feature exists). The stack is read through `view()` (`Stack.mine`,
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points

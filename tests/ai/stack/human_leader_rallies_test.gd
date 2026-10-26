@@ -42,7 +42,7 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	var squad: Node = t.world.squad(&"invader")
-	if not _has_stack(t, squad, me):
+	if not Stack.require_human_leads(t, squad, me):
 		return
 	var nodes: Array = [me] + members
 	var w := FollowWatch.new_watch()
@@ -56,16 +56,6 @@ func run(t: TestContext) -> void:
 	await t.until(ready, READY_WITHIN)
 
 	_check_joined(t, w, me, members, door)
-
-
-func _has_stack(t: TestContext, squad: Node, me: Node) -> bool:
-	var stack: Node = t.world.player_stack
-	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
-		return false
-	return t.require(
-		stack.get("squad") == squad and squad.leader() == me,
-		"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
-	)
 
 
 func _check_own_claim(
