@@ -575,7 +575,7 @@ order was really the one scripted), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
 kitchen or living room, `KITCHEN_HALL`, `LIVING_KITCHEN`, with `out`, `outward`, `lateral`, `in_funnel`, `in_room`,
 `beside_door`, `corners`, `faces_through`) and the radio (`calls(t, step, id)`, `first_call_time`;
-callouts carry `entry_step`). The per-frame sampler and "it went in by entry" are `tests/_ai/entry_watch_probe.gd`
+callouts carry `entry_step`; `radio_claim(c, opening, into, place, frame)`, a puppet teammate's claim, `place` its slot and side). The per-frame sampler and "it went in by entry" are `tests/_ai/entry_watch_probe.gd`
 (`const EntryWatch := preload(...)`): `watch`, then `path_of`, `pos_at`, `first_stop_in_room`, `funnel_entries`,
 `first_in_funnel`, `last_in_funnel`, `longest_pause_in_funnel`, `time_facing_through`, `share_facing`, and
 `check_entered(t, samples, id, door)` for the E9 tests. The brain is read through `debug_entry()` and `debug_room_zones()`.

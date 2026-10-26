@@ -124,15 +124,7 @@ func _judge(t: TestContext, st: Dictionary) -> void:
 	)
 
 
-## A puppet radios its claim on the doorway the way an AI member does: slot `slot` on the stack's
-## side (-1), still on its way (`claim`).
+## A puppet radios its claim on the doorway: slot `slot` on the stack's side (-1), still on its
+## way, made on `frame`.
 static func _radio(c: Node2D, slot: int, frame: int) -> void:
-	EventBus.post(
-		&"callout",
-		{
-			"speaker": c, "faction": c.faction, "position": c.global_position, "status": "",
-			"path": "", "label": "", "target_id": 0, "point": Vector2.ZERO, "opening": DOOR["id"],
-			"into": "garage", "slot": slot, "side": -1, "entry_step": "claim", "claim_frame": frame,
-			"claim_pos": c.global_position,
-		},
-	)
+	Entry.radio_claim(c, DOOR["id"], "garage", Vector2i(slot, -1), frame)

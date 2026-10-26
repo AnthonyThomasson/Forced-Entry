@@ -3,8 +3,9 @@ extends RefCounted
 ## they assert is `docs/tactical-entry.md` (E1 to E15). The doorway geometry here is the test's own
 ## copy (a door's axis, its outward side, the funnel), so the spec isn't read back from the code
 ## under test; the NPC is read only through its public observer API: `current_act()`,
-## `debug_entry()`, `debug_room_zones()` and its radio callouts. The per-frame sampler of a run and
-## its reads are `entry_watch_probe.gd` (`EntryWatch`).
+## `debug_entry()`, `debug_room_zones()` and its radio callouts; a puppet teammate radios a claim
+## with `radio_claim`. The per-frame sampler of a run and its reads are `entry_watch_probe.gd`
+## (`EntryWatch`).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## The Terrace house doorways the tests go through, each with the side the team stacks on (`out`, a
@@ -241,6 +242,27 @@ static func calls(t: TestContext, step := "", id: StringName = &"") -> Array:
 		if step != "" and String(d.get("entry_step", "")) != step:
 			return false
 		return who == null or d.get("speaker") == who)
+
+
+## Radio puppet `c`'s claim on doorway `opening` into room `into` the way an AI member does:
+## `place` its slot (x) on the side of the door (y, 1 / -1 along its wall), still on its way
+## (`claim`), made on `frame` where it stands.
+static func radio_claim(
+	c: Node2D,
+	opening: String,
+	into: String,
+	place: Vector2i,
+	frame: int,
+) -> void:
+	EventBus.post(
+		&"callout",
+		{
+			"speaker": c, "faction": c.faction, "position": c.global_position, "status": "",
+			"path": "", "label": "", "target_id": 0, "point": Vector2.ZERO, "opening": opening,
+			"into": into, "slot": place.x, "side": place.y, "entry_step": "claim",
+			"claim_frame": frame, "claim_pos": c.global_position,
+		},
+	)
 
 
 ## The sim time of the first entry callout of step `step` from actor `id` (about doorway `opening`
