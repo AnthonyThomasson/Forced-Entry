@@ -188,21 +188,23 @@ which no game code listens to: its readers are the test runner's event log and t
 ## Camera and despawner
 
 - `camera_controller.gd` — by default follows the character; attaches by exported node path and
-  reads only the public API/signals. It also has a **framing mode** (`frame(targets)`): instead of
+  reads only the public API/signals. Its two exports are `target_path` (scene-authored) and `pan_enabled` (set per instance); every
+  other tunable is in two ADR 0003 holders beside it, `CameraConfig` (`camera_config.gd`: the follow, framing, zoom and hand pan) and
+  `CameraShakeConfig` (`camera_shake_config.gd`: the explosion shake), read live, so a test may `set_static` them. It also has a **framing mode** (`frame(targets)`): instead of
   following one target it eases to the midpoint of the live targets and zooms to fit them plus
-  `frame_margin` (clamped by `min_zoom`/`max_zoom`), dropping any whose `is_dead` is true — used by
+  `CameraConfig.frame_margin` (clamped by `min_zoom`/`max_zoom`), dropping any whose `is_dead` is true — used by
   the spectator match view.
-  - **Zoom** (both modes): the `ZOOM_IN`/`ZOOM_OUT` actions (mouse wheel) scale the zoom by `zoom_step`
+  - **Zoom** (both modes): the `ZOOM_IN`/`ZOOM_OUT` actions (mouse wheel) scale the zoom by `CameraConfig.zoom_step`
     per notch. A trackpad's two-finger scroll arrives as `InputEventPanGesture` (no wheel events on macOS) and
     counts `trackpad_zoom_sensitivity` notches per unit of its `delta.y` (up zooms in); it isn't rebindable. The scale (`_zoom_bias`) is lasting and multiplies the
     automatic zoom (`_base_zoom`: 1 when following, the clamped fit when framing), so it works the same
     in both modes, can go beyond the fit's `min_zoom`/`max_zoom`, and is limited only by
-    `wheel_min_zoom`/`wheel_max_zoom`. The zoom eases at `follow_speed`. Read in `_unhandled_input`, so
+    `wheel_min_zoom`/`wheel_max_zoom`. The zoom eases at `follow_speed` (all `CameraConfig`'s). Read in `_unhandled_input`, so
     scrolling UI gets the wheel first.
-  - **Hand control** (framing mode only): the camera keys or the mouse within `edge_pan_margin` px of
-    a screen edge pan the camera at `pan_speed` (screen px/s, so zoom-independent). Panning
+  - **Hand control** (framing mode only): the camera keys or the mouse within `CameraConfig.edge_pan_margin` px of
+    a screen edge pan the camera at `CameraConfig.pan_speed` (screen px/s, so zoom-independent). Panning
     sets `_manual`, which suspends the automatic framing position (the zoom keeps auto-fitting, scaled
-    by the wheel); after `manual_hold` (5) seconds without panning `_manual` clears and the framing
+    by the wheel); after `CameraConfig.manual_hold` (5) seconds without panning `_manual` clears and the framing
     eases back in. Edge
     panning only runs while the pointer has been seen moving over the window (`_mouse_in_window`,
     cleared on `NOTIFICATION_WM_MOUSE_EXIT` / focus-out), so a cursor that left at an edge or has
@@ -213,10 +215,10 @@ which no game code listens to: its readers are the test runner's event log and t
   automatic zoom down, so the view widens with the vehicle's speed (`VehicleDriveConfig.zoom_out`, 0.35, at its top speed) and eases back
   in as it slows, at the follow easing; framing, the largest among the live framed targets is used. The wheel's `_zoom_bias` multiplies on
   top. Test: `tests/general/camera_zooms_out_driving_test.gd`.
-- **Explosion shake** (`&"explosion"` on the EventBus, both modes): a burst adds trauma (0..1) = `shake_frag` (1.0) / `shake_stun` (0.5) times
-  `near²`, `near` = 1 − distance / the kind's range (`shake_frag_range` 1500, `shake_stun_range` 900; beyond it nothing), capped at 1, and the view
-  is thrown about through `Camera2D.offset` by `shake_max_offset` (28 px) × trauma² / zoom (two out-of-step wobbles per axis at `shake_speed`),
-  the trauma draining at `shake_decay` (1.2 /s) so it settles back to a zero offset. The offset never touches `global_position`, so following and
+- **Explosion shake** (`&"explosion"` on the EventBus, both modes): a burst adds trauma (0..1) = `CameraShakeConfig.frag` (1.0) / `stun` (0.5)
+  times `near²`, `near` = 1 − distance / the kind's range (`frag_range` 1500, `stun_range` 900; beyond it nothing), capped at 1, and the view
+  is thrown about through `Camera2D.offset` by `max_offset` (28 px) × trauma² / zoom (two out-of-step wobbles per axis at `speed`),
+  the trauma draining at `decay` (1.2 /s) so it settles back to a zero offset. The offset never touches `global_position`, so following and
   framing are unchanged. Test: `tests/general/camera_shakes_on_explosion_test.gd`.
 - `game_log.gd` (`GameLog`, a `class_name` static holder) — the one way any domain logs what is happening:
   `GameLog.say(message)` prints while `GameLog.enabled` (default true). A `tools/run_tests.sh` run (gdUnit) turns it off

@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 	)
 
 	# Held by hand: no snap back while the hold time is running.
-	await t.seconds(cam.manual_hold - 1.0)
+	await t.seconds(CameraConfig.manual_hold - 1.0)
 	t.check(cam.global_position.distance_to(panned) < 5.0, "the camera stays where it was left")
 
 	# Idle past the hold: automatic framing resumes.

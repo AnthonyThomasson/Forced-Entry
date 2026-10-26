@@ -34,7 +34,7 @@ func run(t: TestContext) -> void:
 	for i in 3:
 		_wheel(MOUSE_BUTTON_WHEEL_UP)
 	await t.seconds(1.5)
-	var zoomed := fit * pow(cam.zoom_step, 3.0)
+	var zoomed := fit * pow(CameraConfig.zoom_step, 3.0)
 	t.expect_near(cam.zoom.x, zoomed, 0.03, "wheel-up scales the fitted zoom")
 	t.expect_near(
 		cam.global_position.x,
@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 		"the wheel leaves the centre on the combatants",
 	)
 
-	await t.seconds(cam.manual_hold + 2.0)
+	await t.seconds(CameraConfig.manual_hold + 2.0)
 	t.expect_near(cam.zoom.x, zoomed, 0.03, "the zoom stays after the pan hold")
 
 	for i in 6:

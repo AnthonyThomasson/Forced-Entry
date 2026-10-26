@@ -1,6 +1,6 @@
 extends GameTest
 ## The mouse wheel zooms a following camera (as does a trackpad's two-finger scroll): in on
-## wheel-up, out on wheel-down, never past its wheel_min_zoom / wheel_max_zoom.
+## wheel-up, out on wheel-down, never past `CameraConfig.wheel_min_zoom` / `wheel_max_zoom`.
 
 const CameraController = preload("res://scenes/general/camera_controller.gd")
 
@@ -52,12 +52,12 @@ func run(t: TestContext) -> void:
 	for i in 60:
 		_wheel(MOUSE_BUTTON_WHEEL_DOWN)
 	await t.seconds(2.0)
-	t.expect_near(cam.zoom.x, cam.wheel_min_zoom, 0.02, "zoom stops at wheel_min_zoom")
+	t.expect_near(cam.zoom.x, CameraConfig.wheel_min_zoom, 0.02, "zoom stops at wheel_min_zoom")
 
 	for i in 120:
 		_wheel(MOUSE_BUTTON_WHEEL_UP)
 	await t.seconds(2.0)
-	t.expect_near(cam.zoom.x, cam.wheel_max_zoom, 0.02, "zoom stops at wheel_max_zoom")
+	t.expect_near(cam.zoom.x, CameraConfig.wheel_max_zoom, 0.02, "zoom stops at wheel_max_zoom")
 
 
 ## A two-finger trackpad scroll of `amount` (negative = up), as the OS delivers it.
