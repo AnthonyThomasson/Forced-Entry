@@ -49,7 +49,7 @@ static func levels(b: Node) -> Array:
 	return b.debug_state().get("decision", {}).get("levels", []) if b != null else []
 
 
-# --- Stack orders at the Terrace house's back door (LD9) ------------------------------------------
+# --- The NPC in an ordered stack (LD9) ------------------------------------------------------------
 
 
 ## Where actor `id`'s running entry has it stand in the stack (`debug_entry()["stack_point"]`), or

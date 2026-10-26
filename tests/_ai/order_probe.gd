@@ -6,12 +6,9 @@ extends RefCounted
 ## read under an order (the ORDER decision node) is `order_brain_probe.gd` (`OrderBrain`); the
 ## command menu and the order markers are `order_menu_probe.gd` (`OrderMenu`).
 ##
-## Everything new is reached by path and duck-typed (`ResourceLoader.exists`, `has_method`, `get`),
-## so a test loads and runs before the feature exists and goes red on an assertion that names what
-## is missing, never on a parse error. The NPC is read only through its controller's public reads:
-## `current_act()`, `debug_state()` (the `facts` of its last decision, the running leaf's
-## `primitive` and `params`, the levels of its last walk), `debug_entry()`, `debug_memory()`,
-## `known_contacts_for_display()` and its radio.
+## The squad is read duck-typed (`has_method`, `get`), so a test loads and runs before a read exists
+## and goes red on an assertion that names what is missing, never on a parse error. The NPC is read
+## only through its radio and the bus.
 
 const SQUAD_SCRIPT := "res://scenes/ai/team/squad.gd"
 const Entry := preload("res://tests/_ai/entry_probe.gd")

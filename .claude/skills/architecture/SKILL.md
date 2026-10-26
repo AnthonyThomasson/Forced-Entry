@@ -1165,7 +1165,7 @@ Three conventions hold across domains; the per-domain specifics live in each dom
      `max-function-length`, `max-parameters`, `type-hint`, `max-nesting-depth`, `max-returns`, `max-branches` and
      `max-local-variables`; five are off by decision (`no-debug-print`, `await-in-loop`, `empty-function`,
      `allocation-in-loop`, `process-get-node`; the reasons beside them in `gdstyle.toml`), and the three structural ones
-     (`max-file-length`, `max-class-variables`, `max-public-methods`) on at their defaults too since issue #76, 18 on);
+     (`max-file-length`, `max-class-variables`, `max-public-methods`) at their defaults too, 18 on);
      any finding fails it, and it runs first in every
      `run_tests.sh` and fails the run before a test starts. `tools/gdstyle.sh fmt PATH` formats a script. Fix the code;
      never silence a warning (`audit`).
