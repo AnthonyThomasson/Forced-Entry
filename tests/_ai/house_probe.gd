@@ -21,7 +21,7 @@ static func house(s: TestSetup, seed_value: int, defenders: int, invaders: int) 
 ## The match's NPCs of `faction` (`&"household"` the defenders, `&"invader"` the invaders), in
 ## spawn order.
 static func side(t: TestContext, faction: StringName) -> Array:
-	return (t.match_handle().get("combatants", []) as Array).filter(
+	return (t.world.match_handle.get("combatants", []) as Array).filter(
 		func(c): return is_instance_valid(c) and c.get("faction") == faction,
 	)
 

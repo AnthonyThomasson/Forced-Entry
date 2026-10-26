@@ -49,8 +49,8 @@ func run(t: TestContext) -> void:
 	}
 	# Every NPC asks Von once it has decided; what each was told lives in the request's state text.
 	t.check(
-		await t.until(func(): return t.von_requests().size() >= 3, 8.0),
-		"the NPCs ask Von (%d requests)" % t.von_requests().size(),
+		await t.until(func(): return DecisionStub.requests.size() >= 3, 8.0),
+		"the NPCs ask Von (%d requests)" % DecisionStub.requests.size(),
 	)
 	await t.seconds(0.5)
 	for id: StringName in expect:
@@ -61,11 +61,11 @@ func run(t: TestContext) -> void:
 		)
 		t.check(not goal.contains("{gun}"), "%s: no placeholder left in goal_text()" % id)
 		t.check(
-			t.von_requests().any(func(r): return String(r["state"]).contains(expect[id]
+			DecisionStub.requests.any(func(r): return String(r["state"]).contains(expect[id]
 					+ " to stop")),
 			"%s: Von was told '%s'" % [id, expect[id]],
 		)
 	t.check(
-		not t.von_requests().any(func(r): return String(r["state"]).contains("{gun}")),
+		not DecisionStub.requests.any(func(r): return String(r["state"]).contains("{gun}")),
 		"no request carries the raw placeholder",
 	)

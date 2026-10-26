@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	_collect_bodies(t.world, pieces)
 	var piece_starts: Array = pieces.map(func(p): return (p as Node2D).global_position)
 
-	var npcs: Array = (t.match_handle().get("combatants", []) as Array).duplicate()
+	var npcs: Array = (t.world.match_handle.get("combatants", []) as Array).duplicate()
 	if not t.require(npcs.size() == 2, "a defender and an invader spawned"):
 		return
 	for npc: Node2D in npcs:

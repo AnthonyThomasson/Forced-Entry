@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 		return _tick(t, st, brain, map))
 	if not t.require(
 			String(brain.current_act()).contains("room_east")
-				or t.von_requests().any(func(r): return String(r["pick"]) == "room_east"),
+				or DecisionStub.requests.any(func(r): return String(r["pick"]) == "room_east"),
 			"the walker was sent to the east room (%s)" % brain.current_act(),
 	):
 		return

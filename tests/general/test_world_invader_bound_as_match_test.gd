@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(squad != null, "premise: the invaders' squad is built"):
 		return
 	t.require(
@@ -55,10 +55,10 @@ func run(t: TestContext) -> void:
 			if Follow.following(partner):
 				followed[0] = true
 				walked[0] = maxf(walked[0], partner.global_position.distance_to(PARTNER_AT))
-			return _offered(t, "entrance") and followed[0] and walked[0] >= WALKED,
+			return _offered("entrance") and followed[0] and walked[0] >= WALKED,
 		6.0,
 	)
-	t.check(_offered(t, "entrance"), "the invader is offered the front entrance (entrance)")
+	t.check(_offered("entrance"), "the invader is offered the front entrance (entrance)")
 	t.check(followed[0], "the partner follows its leader (a FOLLOW leaf)")
 	t.check(
 		walked[0] >= WALKED,
@@ -67,5 +67,5 @@ func run(t: TestContext) -> void:
 
 
 ## Whether Von was ever offered the option `id`.
-func _offered(t: TestContext, id: String) -> bool:
-	return t.von_requests().any(func(r): return (r.get("options", []) as Array).has(id))
+func _offered(id: String) -> bool:
+	return DecisionStub.requests.any(func(r): return (r.get("options", []) as Array).has(id))

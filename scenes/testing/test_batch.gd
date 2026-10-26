@@ -46,18 +46,18 @@ static var _begun := false
 
 
 ## The options after `--` (empty: no selection, every test listed).
-static func args() -> PackedStringArray:
+static func _args() -> PackedStringArray:
 	return OS.get_cmdline_user_args()
 
 
 ## Whether this process runs a selection given by tools/run_tests.sh (false in the editor panel).
 static func selecting() -> bool:
-	return not args().is_empty()
+	return not _args().is_empty()
 
 
 ## The value of a `--name=value` option, or `fallback`.
 static func option(option_name: String, fallback := "") -> String:
-	for a in args():
+	for a in _args():
 		if a.begins_with(option_name + "="):
 			return a.substr(option_name.length() + 1)
 	return fallback
@@ -67,7 +67,7 @@ static func option(option_name: String, fallback := "") -> String:
 ## `--id=a --id=b` is `--id=a,b`.
 static func list_option(option_name: String) -> Array:
 	var out: Array = []
-	for a in args():
+	for a in _args():
 		if a.begins_with(option_name + "="):
 			out.append_array(TestCatalog.csv(a.substr(option_name.length() + 1)))
 	return out
@@ -75,7 +75,7 @@ static func list_option(option_name: String) -> Array:
 
 ## Whether the bare option `flag_name` (`--summary`, `--self-test` ...) was given.
 static func flag(flag_name: String) -> bool:
-	return args().has(flag_name)
+	return _args().has(flag_name)
 
 
 ## Whether the run writes its report and prints its summary (`--out` given).
@@ -84,12 +84,12 @@ static func reporting() -> bool:
 
 
 ## Whether only the non-passing tests and the totals are printed (`--summary`).
-static func compact() -> bool:
+static func _compact() -> bool:
 	return flag("--summary")
 
 
 ## How many times each selected test is listed as a case (`--repeat`, at least 1).
-static func repeat() -> int:
+static func _repeat() -> int:
 	return maxi(1, int(option("--repeat", "1")))
 
 
@@ -99,9 +99,9 @@ static func bundle_dir() -> String:
 
 
 ## The filter words joined (the arguments that are not options).
-static func filter() -> String:
+static func _filter() -> String:
 	var words := PackedStringArray()
-	for a in args():
+	for a in _args():
 		if not a.begins_with("--"):
 			words.append(a)
 	return " ".join(words)
@@ -109,17 +109,17 @@ static func filter() -> String:
 
 ## The log a run given `--out` writes: `--log-file <dir>/godot.log`, which the engine consumes, so
 ## `debug/file_logging/log_path` still names the project's own log.
-static func run_log() -> String:
+static func _run_log() -> String:
 	return option("--out").path_join("godot.log")
 
 
 ## The engine log tail every suite routes to its tests, made on first use: a run given `--out`
-## follows the log it was started with (`run_log`) from its start, so start-up errors count.
+## follows the log it was started with (`_run_log`) from its start, so start-up errors count.
 static func watch() -> LogWatch:
 	if _watch == null:
 		_watch = LogWatch.new()
 		if reporting():
-			_watch.path_override = run_log()
+			_watch.path_override = _run_log()
 		_watch.begin(reporting())
 	return _watch
 
@@ -135,7 +135,7 @@ static func cases(folder: String) -> Array:
 		return out
 	for e in selection():
 		if String(e["path"]).get_base_dir() == dir:
-			for i in repeat():
+			for i in _repeat():
 				out.append([e["id"]])
 	return out
 
@@ -146,12 +146,12 @@ static func selection() -> Array:
 	if _picked != null:
 		return _picked
 	var self_test := flag("--self-test")
-	var text := filter()
+	var text := _filter()
 	TestCatalog.show_internal = self_test
 	var domains := list_option("--domain")
 	var skipped := list_option("--skip-domain")
 	var keep := func(e): return (e["internal"] or not self_test) and TestCatalog.matches(e, text)
-	var picked := TestCatalog.discover(TestCatalog.ROOT, domains, ids(), skipped).filter(keep)
+	var picked := TestCatalog.discover(TestCatalog.ROOT, domains, _ids(), skipped).filter(keep)
 	TestCatalog.show_internal = false
 	var spec := option("--shard")
 	if spec != "":
@@ -163,7 +163,7 @@ static func selection() -> Array:
 
 ## The exact ids asked for: `--id`, plus those that FAILED or TIMED OUT in the `--failed` report (a
 ## placeholder when it names none, so that `--failed` selects nothing rather than everything).
-static func ids() -> Array:
+static func _ids() -> Array:
 	var out := list_option("--id")
 	var failed_from := option("--failed")
 	if failed_from != "":
@@ -203,12 +203,12 @@ static func _native_wanted(entry: Dictionary) -> bool:
 		return false
 	if list_option("--skip-domain").has(entry["domain"]):
 		return false
-	var wanted := ids()
+	var wanted := _ids()
 	var names_it := func(i: String):
 		return i == entry["id"] or i.begins_with(entry["id"] + NATIVE_SEP)
 	if not wanted.is_empty() and not wanted.any(names_it):
 		return false
-	return TestCatalog.matches(entry, filter())
+	return TestCatalog.matches(entry, _filter())
 
 
 ## A native suite as a catalog-like entry: its id (path under tests/, no .gd), name and domain (the
@@ -230,25 +230,25 @@ static func begin() -> void:
 	# gdUnit's log monitor (made per suite, after this) reads `debug/file_logging/log_path`: without
 	# this it reads the project's own log, missing in a fresh user:// and another process's
 	# otherwise. Set in memory only, never saved, so project.godot keeps its value.
-	ProjectSettings.set_setting("debug/file_logging/log_path", run_log())
+	ProjectSettings.set_setting("debug/file_logging/log_path", _run_log())
 	GameLog.enabled = flag("--verbose")  # a batch run shows verdicts only unless asked
 	TestSetup.seed_override = int(option("--seed", "0"))
 	if flag("--shots") and DisplayServer.get_name() == "headless":
 		print("NOTE  --shots needs a rendering run; tools/run_tests.sh --shots drops --headless")
 	if not watch().available():
 		print("NOTE  log file not found — errors/warnings cannot fail tests this run")
-	if compact():
+	if _compact():
 		return
 	var include_von := flag("--include-von")
 	var require_von := flag("--require-von")
 	print("Godot %s  fixed-fps %d  Von tests: %s%s%s" % [
 		Engine.get_version_info()["string"], Engine.physics_ticks_per_second,
 		"required" if require_von else ("included" if include_von else "skipped"),
-		"" if repeat() == 1 else "  repeat x%d" % repeat(),
+		"" if _repeat() == 1 else "  repeat x%d" % _repeat(),
 		"" if TestSetup.seed_override == 0 else "  seed %d" % TestSetup.seed_override,
 	])
 	var domain := ",".join(list_option("--domain"))
-	var text := filter()
+	var text := _filter()
 	var spec := option("--shard")
 	var natives := native_suites_under(TestCatalog.ROOT).filter(native_selected).size()
 	print("Running %d test(s)%s%s%s%s" % [
@@ -261,7 +261,7 @@ static func begin() -> void:
 ## Keep a test's verdict record and print it; a FAIL or TIMEOUT under `--fail-fast` stops the run.
 static func add(r: Dictionary) -> void:
 	records.append(r)
-	TestSessionScript.print_result(r, bundle_dir(), compact())
+	TestSessionScript.print_result(r, bundle_dir(), _compact())
 	if flag("--fail-fast") and (r["status"] == "FAIL" or r["status"] == "TIMEOUT"):
 		stopped = true
 
@@ -291,7 +291,7 @@ static func finish() -> void:
 		print("Logged outside any test (%d):" % stray_logs.size())
 		for e in stray_logs:
 			print("        ✗ %s: %s %s" % [e["severity"], e["message"], e["location"]])
-	if repeat() > 1:
+	if _repeat() > 1:
 		var tally := {}
 		for r in records:
 			if r["status"] == "SKIPPED":
@@ -308,7 +308,7 @@ static func finish() -> void:
 					tally[id][1],
 					"  " + id,
 				])
-	if not compact():
+	if not _compact():
 		var timed := records.filter(func(r): return r["status"] != "SKIPPED" and r.has("wall_ms"))
 		timed.sort_custom(func(a, b): return a["wall_ms"] > b["wall_ms"])
 		if timed.size() > 1:

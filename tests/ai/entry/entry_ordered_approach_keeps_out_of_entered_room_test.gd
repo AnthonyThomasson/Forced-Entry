@@ -53,7 +53,7 @@ func run(t: TestContext) -> void:
 	var f := Reach.frame(t, Maps.DOOR_HALL_KITCHEN, "kitchen")
 	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
 		return
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var member: Node2D = t.actor(&"outside")
 	var start: Vector2 = member.global_position

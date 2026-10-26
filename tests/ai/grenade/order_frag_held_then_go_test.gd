@@ -51,7 +51,7 @@ func run(t: TestContext) -> void:
 			"both invaders carry a frag (premise: Character.inventory.item_count(8))",
 	):
 		return
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

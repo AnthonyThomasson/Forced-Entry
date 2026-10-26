@@ -76,7 +76,7 @@ func run(t: TestContext) -> void:
 		return
 	if not await _check_escape(t, db):
 		return
-	t.screenshot("live_grenade")
+	t.bundle.screenshot("live_grenade")
 	await Probe.wait_boom(t, &"frag", 5.0)
 
 
@@ -105,7 +105,7 @@ func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 		absf(float(plan["radius"]) - Probe.BLAST_RADIUS) < 1.0 and plan["kind"] == &"frag",
 		"with the frag's 250 px danger radius",
 	)
-	t.screenshot("planned_throw")
+	t.bundle.screenshot("planned_throw")
 	return true
 
 

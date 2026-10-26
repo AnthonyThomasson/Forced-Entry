@@ -425,8 +425,8 @@ static func first_call_time(t: TestContext, step: String, id: StringName, openin
 ## Whether any Von question so far was answered with an option id starting with `prefix` (a script
 ## that picks by id falls back to the first option offered, so a test of a plain order checks the
 ## order was really the one chosen).
-static func asked(t: TestContext, prefix: String) -> bool:
-	for r in t.von_requests():
+static func asked(prefix: String) -> bool:
+	for r in DecisionStub.requests:
 		if String(r["pick"]).begins_with(prefix):
 			return true
 	return false

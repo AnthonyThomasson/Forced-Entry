@@ -43,7 +43,7 @@ func run(t: TestContext) -> void:
 			"the invader reached the kitchen (act %s)" % Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	t.check(Entry.asked(t, "rush"), "the order was a plain rush on the target, not ENTER")
+	t.check(Entry.asked("rush"), "the order was a plain rush on the target, not ENTER")
 	var died := t.events.filter(
 		func(e): return e["topic"] == &"died" and e["data"].get("actor") == &"tgt",
 	)

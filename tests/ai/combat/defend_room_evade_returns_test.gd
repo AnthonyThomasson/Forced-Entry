@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 
 
 func _holds_on_order(t: TestContext, d: Node, b: Node) -> bool:
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "box_room" })
 	if not t.require(
 			await t.until(func(): return Order.on_order(b) and Order.primitive(b) == "defend", 5.0),

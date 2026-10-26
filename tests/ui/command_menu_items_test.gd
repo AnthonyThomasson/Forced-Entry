@@ -73,7 +73,7 @@ func run(t: TestContext) -> void:
 			{ "node": t.actor(&"me"), "order": {}, "step": "" },
 		],
 	}
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(
 			squad != null and squad.has_method("resolve"),
 			"the squad resolves a click (%s resolve)" % Order.SQUAD_SCRIPT,

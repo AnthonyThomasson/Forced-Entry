@@ -44,7 +44,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	for side in ["south", "north"]:
 		await _stack_on_side(t, squad, side)

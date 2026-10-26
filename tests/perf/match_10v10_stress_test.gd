@@ -47,7 +47,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters: Array = t.match_handle().get("combatants", [])
+	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"twenty combatants spawned (%d)" % characters.size(),
@@ -69,13 +69,13 @@ func run(t: TestContext) -> void:
 	)
 	Perf.within_frames(t, "10v10 match", stats)
 	t.check(
-		not t.von_requests().is_empty(),
-		"the NPCs asked for decisions (%d asks)" % t.von_requests().size(),
+		not DecisionStub.requests.is_empty(),
+		"the NPCs asked for decisions (%d asks)" % DecisionStub.requests.size(),
 	)
 	var grown := Perf.nodes() - nodes_before
 	GameLog.say(
 		"PERF 10v10 match node growth %d, %d decisions asked, %d following at the end"
-			% [grown, t.von_requests().size(), following],
+			% [grown, DecisionStub.requests.size(), following],
 	)
 	t.trace("node growth", grown)
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])
@@ -86,7 +86,7 @@ func run(t: TestContext) -> void:
 ## equals), and every member but the leader following it (`Squad.follows`). False (the test ended)
 ## when one does not hold.
 func _check_squads(t: TestContext, characters: Array) -> bool:
-	var squads: Dictionary = t.match_handle().get("squads", {})
+	var squads: Dictionary = t.world.match_handle.get("squads", {})
 	if not t.require(
 		squads.size() == 2,
 		"premise: one squad per side is built (%d)" % squads.size(),

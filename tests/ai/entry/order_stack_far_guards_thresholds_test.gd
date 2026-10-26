@@ -58,7 +58,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var order := Order.issue(
 		squad,
 		{ "kind": Order.STACK, "to": [t.actor(&"a")], "pos": CLICK, "bang": false },

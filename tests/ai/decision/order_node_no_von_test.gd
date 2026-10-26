@@ -2,9 +2,9 @@ extends GameTest
 ## LD6 (`docs/leadership.md`): the ORDER node. An arriving order forces a new decision, the entry
 ## rule `ordered → order` takes the walk to the ORDER node, and its one option (the order) is
 ## auto-picked: the walk that adopts an order asks Von nothing. Scripted Von logs every question it
-## is asked (`t.von_requests()`); an invader in the Terrace house's back garden is ordered to defend
-## the kitchen, then given a newer order to defend the living room: each order is adopted by a walk
-## of its own, with no question asked from the moment the order is posted.
+## is asked (`DecisionStub.requests`); an invader in the Terrace house's back garden is ordered to
+## defend the kitchen, then given a newer order to defend the living room: each order is adopted by
+## a walk of its own, with no question asked from the moment the order is posted.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
@@ -31,7 +31,7 @@ func run(t: TestContext) -> void:
 	var a := Order.brain(t, &"a")
 	var boss := t.actor(&"boss")
 	var decided := func(): return (
-		not t.von_requests().is_empty()
+		not DecisionStub.requests.is_empty()
 			and not bool(a.debug_brain().get("pending", true))
 	)
 	if not t.require(
@@ -46,7 +46,7 @@ func run(t: TestContext) -> void:
 ## An order to defend `room` posted by `boss` to `a` is adopted by a walk that asks Von nothing,
 ## starting at the ORDER node, every level auto-picked.
 func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
-	var asked := t.von_requests().size()
+	var asked := DecisionStub.requests.size()
 	var walks := Order.decisions(a)
 	Order.post({
 		"id": "order_%s" % room,
@@ -68,7 +68,7 @@ func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
 		return
 	t.check(Order.decisions(a) > walks, "by a decision walk the order forced")
 	t.expect_eq(
-		t.von_requests().size(),
+		DecisionStub.requests.size(),
 		asked,
 		"no question was asked of Von from the order to its adoption (%s)" % room,
 	)

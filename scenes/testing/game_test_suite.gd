@@ -61,12 +61,12 @@ func before() -> void:
 	_session.name = "TestSession"
 	_session.watch = TestBatch.watch()
 	_session.stray_logs = TestBatch.stray_logs
-	_session.include_von = TestBatch.flag("--include-von") or not TestBatch.selecting()
-	_session.require_von = TestBatch.flag("--require-von")
+	_session.von.include = TestBatch.flag("--include-von") or not TestBatch.selecting()
+	_session.von.require = TestBatch.flag("--require-von")
 	_session.shots = TestBatch.flag("--shots")
 	_session.bundle_dir = TestBatch.bundle_dir()
 	# one launcher, and the server it started, for the whole process
-	_session.launcher_parent = get_tree().root
+	_session.von.launcher_parent = get_tree().root
 	add_child(_session)
 	_session.world_built.connect(_on_world_built)
 	_camera = CameraScript.new()

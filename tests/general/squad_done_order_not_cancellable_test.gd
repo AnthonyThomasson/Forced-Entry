@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var me := t.actor(&"me")
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
 		return
 	var room := String(t.rooms[0]["key"])

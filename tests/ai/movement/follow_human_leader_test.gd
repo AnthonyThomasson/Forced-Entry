@@ -53,7 +53,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var me := t.actor(&"me")
 	var members := _members(t, squad, me)
 	if members.is_empty():

@@ -41,7 +41,7 @@ gdUnit's reports in `user://gdunit_reports/report_<n>/`.
 ## 3. Test bug or code bug?
 
 - Waited a fixed time instead of `t.until(...)`, or fired before the facing caught up (aim, wait ~0.5 s, fire): test bug.
-- An engine error/warning logged: real; fix the code (or `expect_log` / `allowed_logs` if intended).
+- An engine error/warning logged: real; fix the code (or `t.verdict.expect_log` / `allowed_logs` if intended).
 - A behaviour that misses a band or a distance (a follower too far behind, a walker off its line): trace the actor
   frame by frame through the miss window before calling it test slack or proposing a design. Series and p50s hide a
   per-frame stall. Trace `movement.move_input`, `movement.run_input`, the destination and any body it gives way to, as one `[dbg]` line

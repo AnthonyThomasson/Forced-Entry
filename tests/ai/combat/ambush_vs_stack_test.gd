@@ -62,7 +62,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var invaders: Array = IDS.map(func(id): return t.actor(id))
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [d], "pos": CLICK })
 	if not t.require(
 			not order.is_empty(),

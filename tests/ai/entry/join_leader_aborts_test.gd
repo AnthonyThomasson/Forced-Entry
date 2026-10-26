@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
 	var nodes: Array = [lead] + members
@@ -105,7 +105,7 @@ func _hit(lead: Node) -> void:
 ## False when it never did.
 func _lead_aborts(t: TestContext, w: Dictionary, nodes: Array, opening: String) -> bool:
 	var lead: Node = nodes[0]
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var aborted := func() -> bool:
 		Follow.tick(w, t, nodes, squad)
 		return Follow.first_call(t, lead, "abort", opening) < INF
@@ -129,7 +129,7 @@ func _check_rallied(t: TestContext, opening: String) -> void:
 ## Watches until every member (all of `nodes` but the lead) has its join cancelled, has dropped its
 ## entry and follows (`FOLLOW_WITHIN` s and 1 more at most).
 func _settle(t: TestContext, w: Dictionary, nodes: Array, abort_at: float) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var members: Array = nodes.slice(1)
 	var settled := func() -> bool:
 		Follow.tick(w, t, nodes, squad)

@@ -34,11 +34,13 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var team: Array = t.match_handle().get("combatants", [])
+	var team: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(team.size() == INVADERS, "premise: four invaders placed (%d)" % team.size()):
 		return
 	if not t.require(
-			not (t.match_handle()["openings"] as Array).any(func(o): return o.get("front", false)),
+			not (t.world.match_handle["openings"] as Array).any(
+				func(o): return o.get("front", false),
+			),
 			"premise: the house has no front door",
 	):
 		return

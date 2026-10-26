@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 			"both invaders carry a stun grenade when the order is given (inventory.item_count(7))",
 	):
 		return
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var order := Order.issue(
 		squad,
 		{

@@ -38,7 +38,7 @@ func run(t: TestContext) -> void:
 	var samples := await Entry.watch(t, [&"inv"], Entry.SPINE_C, 50.0, past_b)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	if not t.require(
-			Entry.asked(t, "investigate"),
+			Entry.asked("investigate"),
 			"the order was a plain investigation, not ENTER (act %s)" % act,
 	):
 		return

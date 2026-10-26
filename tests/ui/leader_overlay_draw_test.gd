@@ -110,8 +110,8 @@ func run(t: TestContext) -> void:
 ## `set_overlay`, as the test runner's bar hands it: one crown over each side's leader while on,
 ## none once off.
 func _check_test_world(t: TestContext) -> void:
-	var invaders := t.squad(&"invader")
-	var household := t.squad(&"household")
+	var invaders: Node = t.world.squad(&"invader")
+	var household: Node = t.world.squad(&"household")
 	if not t.require(
 			invaders != null and household != null,
 			"premise: the test world built a squad a side",

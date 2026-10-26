@@ -37,10 +37,10 @@ func run(t: TestContext) -> void:
 	var defender := t.actor(&"defender")
 	defender.movement.aim_point = t.actor(&"stranger").global_position
 	t.check(
-		await t.until(func(): return not t.von_requests().is_empty(), 8.0),
+		await t.until(func(): return not DecisionStub.requests.is_empty(), 8.0),
 		"the defender asked Von",
 	)
-	var first: String = String(t.von_requests()[0]["state"])
+	var first: String = String(DecisionStub.requests[0]["state"])
 	t.check(first.contains("holding a"), "the state has the usual situation line")
 	for word in ["crouch"]:
 		t.check(
@@ -49,11 +49,11 @@ func run(t: TestContext) -> void:
 		)
 
 	# The hostile crouches; later asks mention it.
-	var asked := t.von_requests().size()
+	var asked := DecisionStub.requests.size()
 	t.puppet(&"stranger").set_posture(&"crouch")
 	t.check(
 		await t.until(
-			func(): return t.von_requests().slice(asked).any(
+			func(): return DecisionStub.requests.slice(asked).any(
 				func(r): return String(r["state"]).contains("crouched low")
 			),
 			15.0,
@@ -63,7 +63,7 @@ func run(t: TestContext) -> void:
 	# The defender fights in place, crouched, and says so.
 	t.check(
 		await t.until(
-			func(): return t.von_requests().slice(asked).any(
+			func(): return DecisionStub.requests.slice(asked).any(
 				func(r): return String(r["state"]).contains("You are crouching.")
 			),
 			15.0,

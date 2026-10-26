@@ -58,7 +58,7 @@ const PANEL_WIDTH := 440.0
 ## Build and bind the squad of `faction` over `members` (spawn order, all of that faction) the way
 ## Main builds a side's (`MatchBuilder.build_squads` under the world, over the test world's house),
 ## `leader` its human leader or null (no `PlayerStack`). For the squads no setup declares: a test
-## with one squad per side declares them (`s.squads`, read with `t.squad`).
+## with one squad per side declares them (`s.squads`, read with `t.world.squad`).
 static func squad(t: TestContext, faction: StringName, members: Array, leader: Node = null) -> Node:
 	var spec := SquadsSpec.new()
 	spec.members = members

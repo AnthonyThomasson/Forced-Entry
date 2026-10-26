@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
 	var b := Order.brain(t, &"a")
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.issue(
 		squad,
@@ -74,7 +74,7 @@ func run(t: TestContext) -> void:
 		await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 15.0),
 		"and radios its order done",
 	)
-	var asked := t.von_requests().size()
+	var asked := DecisionStub.requests.size()
 	var walks := Order.decisions(b)
 	var own := func():
 		return (Order.decisions(b) > walks
@@ -84,5 +84,5 @@ func run(t: TestContext) -> void:
 		await t.until(own, 20.0),
 		"it then decides for itself, off the ORDER node (act %s)" % b.current_act(),
 	)
-	t.check(t.von_requests().size() > asked, "asking Von again")
+	t.check(DecisionStub.requests.size() > asked, "asking Von again")
 	t.check(not Order.ordered(b), "without the `ordered` fact")

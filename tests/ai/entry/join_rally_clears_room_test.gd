@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var members: Array = [t.actor(&"sergeant"), t.actor(&"trooper")]
 	var nodes: Array = [lead] + members
@@ -83,7 +83,7 @@ func _wait_clear(
 	opening: String,
 	into: String,
 ) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var cleared := func(rec: Dictionary) -> bool:
 		Follow.tick(rec, t, nodes, squad)
 		return not Follow.clears(t, into).is_empty() and nodes.all(

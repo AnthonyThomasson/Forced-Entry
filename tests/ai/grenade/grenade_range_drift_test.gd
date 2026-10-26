@@ -92,7 +92,7 @@ func run(t: TestContext) -> void:
 		from.distance_to(HOSTILE) <= Probe.MAX_RANGE,
 		"it let go within throw range (%.0f px)" % from.distance_to(HOSTILE),
 	)
-	var grenade_picks := t.von_requests().filter(func(r): return r["pick"] == "grenade").size()
+	var grenade_picks := DecisionStub.requests.filter(func(r): return r["pick"] == "grenade").size()
 	t.expect_eq(
 		grenade_picks,
 		1,

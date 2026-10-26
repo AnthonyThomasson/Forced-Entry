@@ -37,55 +37,62 @@ func run(t: TestContext) -> void:
 func _check_logs(t: TestContext) -> void:
 	var c := _ctx(t)
 	c.check(true, "fine")
-	c.on_log(_entry("warning", "stray warning"))
-	t.expect_eq(c.conclude(false), "FAIL", "an unexpected warning fails the test")
+	c.verdict.on_log(c, _entry("warning", "stray warning"))
+	t.expect_eq(c.verdict.conclude(c, false), "FAIL", "an unexpected warning fails the test")
 	t.check(c.is_finished, "and ends it")
 	c.free()
 
 	c = _ctx(t)
-	c.expect_log("boom")
+	c.verdict.expect_log("boom")
 	c.check(true, "fine")
-	c.on_log(_entry("error", "boom happened"))
-	t.expect_eq(c.conclude(false), "PASS", "an expected log line is consumed")
-	t.check(c.logs.is_empty(), "and not recorded as unexpected")
+	c.verdict.on_log(c, _entry("error", "boom happened"))
+	t.expect_eq(c.verdict.conclude(c, false), "PASS", "an expected log line is consumed")
+	t.check(c.verdict.logs.is_empty(), "and not recorded as unexpected")
 	c.free()
 
 	c = _ctx(t)
-	c.expect_log("never logged")
+	c.verdict.expect_log("never logged")
 	c.check(true, "fine")
-	t.expect_eq(c.conclude(false), "FAIL", "an expected log line that never appears fails")
+	t.expect_eq(
+		c.verdict.conclude(c, false),
+		"FAIL",
+		"an expected log line that never appears fails",
+	)
 	c.free()
 
 	c = _ctx(t, { "allowed_logs": ["noisy"] })
 	c.check(true, "fine")
-	c.on_log(_entry("error", "noisy thing"))
-	t.expect_eq(c.conclude(false), "PASS", "allowed_logs pass")
+	c.verdict.on_log(c, _entry("error", "noisy thing"))
+	t.expect_eq(c.verdict.conclude(c, false), "PASS", "allowed_logs pass")
 	c.free()
 
 	c = _ctx(t, { "fail_on_warnings": false })
 	c.check(true, "fine")
-	c.on_log(_entry("warning", "ignored"))
-	t.expect_eq(c.conclude(false), "PASS", "fail_on_warnings off ignores warnings")
+	c.verdict.on_log(c, _entry("warning", "ignored"))
+	t.expect_eq(c.verdict.conclude(c, false), "PASS", "fail_on_warnings off ignores warnings")
 	c.free()
 
 
 ## Assertions: none fails a non-manual test, skip stays SKIPPED, a failed require ends it as FAIL.
 func _check_assertions(t: TestContext) -> void:
 	var c := _ctx(t)
-	t.expect_eq(c.conclude(false), "FAIL", "a non-manual test with no assertions fails")
+	t.expect_eq(c.verdict.conclude(c, false), "FAIL", "a non-manual test with no assertions fails")
 	c.free()
 	c = _ctx(t)
-	t.expect_eq(c.conclude(true), "PASS", "a manual test needs none")
+	t.expect_eq(c.verdict.conclude(c, true), "PASS", "a manual test needs none")
 	c.free()
 
 	c = _ctx(t)
 	c.skip("because")
-	t.expect_eq(c.conclude(false), "SKIPPED", "skip stays SKIPPED")
+	t.expect_eq(c.verdict.conclude(c, false), "SKIPPED", "skip stays SKIPPED")
 	c.free()
 
 	c = _ctx(t)
 	c.require(false, "stop here")
-	t.check(c.is_finished and c.conclude(false) == "FAIL", "a failed require ends the test as FAIL")
+	t.check(
+		c.is_finished and c.verdict.conclude(c, false) == "FAIL",
+		"a failed require ends the test as FAIL",
+	)
 	c.free()
 
 
@@ -94,31 +101,35 @@ func _check_assertions(t: TestContext) -> void:
 func _check_gaps(t: TestContext) -> void:
 	var c := _ctx(t, { "tags": ["ai", "gap"] })
 	c.check(false, "not yet")
-	t.expect_eq(c.conclude(false), "GAP", "a gap test that fails is GAP")
-	t.expect_eq(c.conclude(false), "GAP", "and stays GAP when re-decided")
+	t.expect_eq(c.verdict.conclude(c, false), "GAP", "a gap test that fails is GAP")
+	t.expect_eq(c.verdict.conclude(c, false), "GAP", "and stays GAP when re-decided")
 	c.free()
 
 	c = _ctx(t, { "tags": ["gap"] })
 	c.check(true, "fine")
-	t.expect_eq(c.conclude(false), "FAIL", "a gap test that passes is FAIL")
+	t.expect_eq(c.verdict.conclude(c, false), "FAIL", "a gap test that passes is FAIL")
 	t.check(
-		c.checks.any(
+		c.verdict.checks.any(
 			func(k): return not k["ok"] and String(k["message"]).contains("drop the gap tag"),
 		),
 		"and says to drop the tag",
 	)
-	t.expect_eq(c.conclude(false), "FAIL", "and stays FAIL when re-decided")
+	t.expect_eq(c.verdict.conclude(c, false), "FAIL", "and stays FAIL when re-decided")
 	c.free()
 
 	c = _ctx(t, { "tags": ["gap"] })
 	c.check(true, "fine so far")
 	c.finish("TIMEOUT")
-	t.expect_eq(c.conclude(false), "GAP", "a gap test that times out is GAP")
+	t.expect_eq(c.verdict.conclude(c, false), "GAP", "a gap test that times out is GAP")
 	c.free()
 
 	c = _ctx(t)
 	c.check(true, "fine so far")
 	c.finish("TIMEOUT")
-	t.expect_eq(c.conclude(false), "TIMEOUT", "a timed-out test stays TIMEOUT when re-decided")
-	t.expect_eq(c.conclude(false), "TIMEOUT", "again")
+	t.expect_eq(
+		c.verdict.conclude(c, false),
+		"TIMEOUT",
+		"a timed-out test stays TIMEOUT when re-decided",
+	)
+	t.expect_eq(c.verdict.conclude(c, false), "TIMEOUT", "again")
 	c.free()

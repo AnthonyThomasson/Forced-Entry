@@ -49,8 +49,8 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var follower := t.actor(&"f")
-	var squad := t.squad(&"invader")
-	var stack := t.player_stack()
+	var squad: Node = t.world.squad(&"invader")
+	var stack: Node = t.world.player_stack
 	if not _leads_with_radio(t, stack, squad, me, follower):
 		return
 	await t.seconds(0.3)

@@ -93,7 +93,7 @@ func _block_the_lob(t: TestContext) -> void:
 
 
 func _check_given_up(t: TestContext, inv: Node, brain: Node) -> void:
-	var asked := t.von_requests().size()
+	var asked := DecisionStub.requests.size()
 	# Walks started up to the GRENADE order.
 	var decisions := int(brain.debug_state().get("decisions", 0))
 	# Given up: the throw primitive ends (the order's path stays until the next adoption, which may
@@ -114,7 +114,7 @@ func _check_given_up(t: TestContext, inv: Node, brain: Node) -> void:
 				and not st.get("decision", {}).get("pending", false)), 4.0)
 	t.check(redecided, "the invader re-decided (acting: %s)" % Probe.acts(t, &"i"))
 	t.check(not t.happened(&"throw"), "no grenade was thrown before the re-decision was adopted")
-	t.check(t.von_requests().size() > asked, "and Von was asked again")
+	t.check(DecisionStub.requests.size() > asked, "and Von was asked again")
 	await t.seconds(3.0)
 	for e in t.events_of(&"throw", func(d): return d.get("attacker") == inv):
 		var at: Vector2 = e["position"]

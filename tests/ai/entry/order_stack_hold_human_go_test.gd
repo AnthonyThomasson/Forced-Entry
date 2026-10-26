@@ -49,8 +49,8 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door: Dictionary = Entry.BACK
-	var squad := t.squad(&"invader")
-	var stack := t.player_stack()
+	var squad: Node = t.world.squad(&"invader")
+	var stack: Node = t.world.player_stack
 	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return
 	await t.seconds(0.3)

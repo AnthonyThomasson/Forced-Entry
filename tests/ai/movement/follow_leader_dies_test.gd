@@ -45,7 +45,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var sergeant := t.actor(&"sergeant")
 	var trooper := t.actor(&"trooper")

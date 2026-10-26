@@ -9,7 +9,8 @@ extends Node
 ## test and fails it at once (log_watch.gd), and one read while no test is open is kept in
 ## `stray_logs`. `close()` frees the world (restoring statics), lets the teardown's logs land on the
 ## test and returns its verdict record. A requires_von test waits for the Von decision server (one
-## launcher kept under `launcher_parent` while it lives) and runs paced in real time.
+## launcher kept under `von.launcher_parent` while it lives) and runs paced in real time, through
+## the `von` part (test_von_gate.gd).
 
 ## A status line for the host's banner ("Waiting for the decision server…").
 signal status(text: String)
@@ -24,37 +25,20 @@ signal verdict_changed(result: Dictionary)
 const TestCatalog = preload("res://scenes/testing/test_catalog.gd")
 const TestWorldScript = preload("res://scenes/testing/test_world.gd")
 const LogWatch = preload("res://scenes/testing/log_watch.gd")
-const LAUNCHER = preload("res://scenes/ai/decision/decision_server_launcher.gd")
+const VonGate = preload("res://scenes/testing/test_von_gate.gd")
 ## The verdicts that carry a bundle (event log, final state, traces) and a `--shots` screenshot.
 const BUNDLED := ["FAIL", "TIMEOUT", "GAP"]
-## Frame rate a Von-dependent test is paced to in real time (matches the batch run's --fixed-fps
-## 60).
-const REALTIME_FPS := 60
-## Environment variable naming the port the Von launcher probes instead of its own; with it the
-## launcher never starts a server (no server there = no server), which is how tools/test_log_gate.py
-## makes "no server" on purpose.
-const VON_PORT_ENV := "GAME_TEST_VON_PORT"
-## The skip reason of a Von test when no server is live (a failure under `--require-von`).
-const VON_NOT_LIVE := "the Von decision server is not live"
-
-## The Von launcher, made by the first requires_von test.
-static var _launcher: Node = null
-## The launcher's settled answer: whether a server is live.
-static var _von_live := false
 
 ## The engine log tail whose errors and warnings fail the open test (the host's; set before the
 ## first `start`).
 var watch: LogWatch = null
-## Whether requires_von tests run (false: they are SKIPPED, a batch run without --include-von).
-var include_von := true
-## Whether a requires_von test FAILs instead of skipping when no server is live (--require-von).
-var require_von := false
+## The Von gate: whether requires_von tests run (`include`, `require`), where its launcher lives
+## (`launcher_parent`), the wait for the server and the real-time pacing of a Von test.
+var von: VonGate = VonGate.new(self)
 ## `--shots`: the open test saves screenshots (a failed one automatically) under `bundle_dir`.
 var shots := false
 ## Where the open test's bundle and screenshots go.
 var bundle_dir := ""
-## Where the Von launcher lives: it is kept, with the server it started, as long as this node does.
-var launcher_parent: Node = null
 ## The open test's descriptor ({} between tests; the setup, context and world below are null then).
 var entry: Dictionary = {}
 ## The open test's setup, as its `configure` declared it.
@@ -70,21 +54,10 @@ var stray_logs: Array = []
 var _building := false
 ## Whether the open test's verdict has been taken (a later logged error then changes it).
 var _concluded := false
-## While true, each frame sleeps out the rest of 1/REALTIME_FPS of wall time (Engine.max_fps is not
-## honoured under --fixed-fps headless).
-var _realtime := false
-## Wall time (usec) the last frame ended at, after any pacing sleep; 0 before the first.
-var _last_frame_usec := 0
 
 
 func _process(_delta: float) -> void:
-	var now := Time.get_ticks_usec()
-	if _realtime and _last_frame_usec > 0:
-		var wait := int(1_000_000 / float(REALTIME_FPS)) - (now - _last_frame_usec)
-		if wait > 0:
-			OS.delay_usec(wait)
-			now = Time.get_ticks_usec()
-	_last_frame_usec = now
+	von.pace()
 
 
 func _physics_process(delta: float) -> void:
@@ -95,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		ctx.time += delta
 		if (not entry.get("manual", false)
 				and ctx.time >= float(entry.get("timeout", TestCatalog.DEFAULT_TIMEOUT))):
-			ctx.reason = "timed out after %.1fs" % float(entry["timeout"])
+			ctx.verdict.reason = "timed out after %.1fs" % float(entry["timeout"])
 			ctx.finish("TIMEOUT")
 
 
@@ -121,14 +94,14 @@ func start(test_entry: Dictionary) -> void:
 	_concluded = false
 	var skip_reason := ""
 	if entry["requires_von"]:
-		skip_reason = await _von_skip_reason()
+		skip_reason = await von.skip_reason(status.emit)
 	ctx = TestContext.new(get_tree(), entry)
-	if skip_reason == VON_NOT_LIVE and require_von:
+	if skip_reason == VonGate.NOT_LIVE and von.require:
 		ctx.check(false, "The Von decision server is not live (--require-von)")
 		ctx.finish("FAIL")
 		return
 	if shots:
-		ctx.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
+		ctx.bundle.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
 	if entry["error"] != "":
 		ctx.check(false, "Test script " + String(entry["error"]))
 		ctx.finish("FAIL")
@@ -146,26 +119,14 @@ func start(test_entry: Dictionary) -> void:
 	_building = false
 	if not is_instance_valid(world):
 		return
-	ctx.bind(world, world.actors, world.objects, world.rooms, world.vehicles)
+	ctx.world = world
+	ctx.rooms = world.rooms
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
 	_drive(test, ctx)
 	if not ctx.is_finished:
 		await ctx.finished
-
-
-## Why the open Von test does not run, "" when it does: skipped unless Von tests are included, else
-## `VON_NOT_LIVE` when the launcher finds no server. A Von test that runs is paced in real time.
-func _von_skip_reason() -> String:
-	if not include_von and not require_von:
-		return "needs the Von decision server (pass --include-von)"
-	# Von answers in real time: a batch run's `--fixed-fps` sim outpaces it (game-time timers like
-	# the HTTP timeout expire early), so pace this test in real time.
-	_realtime = true
-	if not await _await_von():
-		return VON_NOT_LIVE
-	return ""
 
 
 ## Add the open test's world (pausable), its direct children's arrivals and departures and every
@@ -187,10 +148,12 @@ func _open_world() -> void:
 ## Free the open world (restoring statics), let any logs from the teardown land on the test, then
 ## close it. Returns its verdict record ({} when nothing was open).
 func close() -> Dictionary:
-	var snapshot := ctx.snapshot() if ctx != null and is_instance_valid(world) else {}
+	var snapshot := (ctx.bundle.snapshot(ctx.world)
+			if ctx != null and is_instance_valid(world)
+			else {})
 	if shots and ctx != null and is_instance_valid(world):
-		if BUNDLED.has(ctx.conclude(entry.get("manual", false))):
-			ctx.screenshot("fail")
+		if BUNDLED.has(ctx.verdict.conclude(ctx, entry.get("manual", false))):
+			ctx.bundle.screenshot("fail")
 	if EventBus.posted.is_connected(_on_event):
 		EventBus.posted.disconnect(_on_event)
 	if is_instance_valid(world):
@@ -200,7 +163,7 @@ func close() -> Dictionary:
 		await get_tree().physics_frame
 		await get_tree().physics_frame
 	poll_logs(true)
-	_realtime = false
+	von.end()
 	var record := result(snapshot) if ctx != null else {}
 	if ctx != null:
 		ctx.free()  # discards any test coroutine still parked on it
@@ -212,19 +175,21 @@ func close() -> Dictionary:
 ## `snapshot` (the final actor / object state, taken before teardown when `snapshot` is passed) and
 ## `traces`, so the cause can be read without a rerun.
 func result(snapshot := {}) -> Dictionary:
-	ctx.conclude(entry.get("manual", false))
+	ctx.verdict.conclude(ctx, entry.get("manual", false))
 	_concluded = true
 	var record := {
 		"id": entry["id"], "name": entry["name"], "domain": entry["domain"],
-		"status": ctx.status, "reason": ctx.reason, "time": snappedf(ctx.time, 0.01),
-		"checks": ctx.checks.duplicate(), "logs": ctx.logs.duplicate(),
+		"status": ctx.verdict.status, "reason": ctx.verdict.reason,
+		"time": snappedf(ctx.time, 0.01),
+		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
 		"manual": entry.get("manual", false),
 	}
-	if BUNDLED.has(ctx.status):
-		record["events"] = ctx.plain_events()
-		record["snapshot"] = snapshot if not snapshot.is_empty() else ctx.snapshot()
-		record["traces"] = ctx.traces.duplicate(true)
-		record["shots"] = ctx.shots.duplicate()
+	if BUNDLED.has(ctx.verdict.status):
+		record["events"] = ctx.bundle.plain_events(ctx.events)
+		record["snapshot"] = (snapshot if not snapshot.is_empty()
+				else ctx.bundle.snapshot(ctx.world))
+		record["traces"] = ctx.bundle.traces.duplicate(true)
+		record["shots"] = ctx.bundle.shots.duplicate()
 	return record
 
 
@@ -253,7 +218,7 @@ func restore() -> void:
 		world.restore()
 
 
-## Run the test coroutine; returning normally ends the test (verdict decided in `conclude`).
+## Run the test coroutine; returning normally ends the test (verdict decided in `verdict.conclude`).
 func _drive(test: GameTest, test_ctx: TestContext) -> void:
 	# GameTest.run is not a coroutine itself; the tests that override it are.
 	await Callable(test, &"run").call(test_ctx)
@@ -263,9 +228,9 @@ func _drive(test: GameTest, test_ctx: TestContext) -> void:
 ## Send a logged line to the open test, or keep it as a stray line.
 func _route_log(e: Dictionary) -> void:
 	if ctx != null:
-		var before := ctx.checks.size()
-		ctx.on_log(e)
-		if _concluded and ctx.checks.size() != before:
+		var before := ctx.verdict.checks.size()
+		ctx.verdict.on_log(ctx, e)
+		if _concluded and ctx.verdict.checks.size() != before:
 			verdict_changed.emit(result())  # a late error flips a verdict already taken
 	elif not LogWatch.matches_any(e, []):
 		stray_logs.append(e)
@@ -274,7 +239,7 @@ func _route_log(e: Dictionary) -> void:
 ## Log an observed event on the open test (dropped between tests).
 func _on_event(topic: StringName, data: Dictionary) -> void:
 	if ctx != null:
-		ctx.record(topic, data)
+		ctx.events.append({ "topic": topic, "data": data, "time": ctx.time })
 
 
 ## Log an actor's `died` / `hit_landed` signals under its test id.
@@ -286,28 +251,6 @@ func _observe_actor(id: StringName, actor: Node) -> void:
 	if actor.has_signal("hit_landed"):
 		actor.hit_landed.connect(func(body: Node, damage: float, hand: int):
 			_on_event(&"hit_landed", { "actor": id, "body": body, "damage": damage, "hand": hand }))
-
-
-## Ensure the Von launcher exists and has settled; returns whether a server is live. With
-## GAME_TEST_VON_PORT set the launcher probes that port and never starts a server: `von_path` is
-## cleared after its `_ready` (which fills a blank one from the project setting) and before the
-## first probe answers, the only time it reads the path.
-func _await_von() -> bool:
-	if not is_instance_valid(_launcher):
-		_launcher = LAUNCHER.new()
-		_launcher.name = "DecisionServerLauncher"
-		var port := OS.get_environment(VON_PORT_ENV)
-		if port != "":
-			_launcher.port = int(port)
-		_launcher.resolved.connect(func(live: bool): _von_live = live)
-		_von_live = false
-		(launcher_parent if launcher_parent != null else self).add_child(_launcher)
-		if port != "":
-			_launcher.von_path = ""
-	if not _launcher.is_resolved():
-		status.emit("Waiting for the decision server…")
-		await _launcher.resolved
-	return _von_live
 
 
 ## Print one verdict record as a batch run does: `<STATUS>  <id>  (<sim>s sim, <ms> ms)  —
@@ -336,13 +279,13 @@ static func print_result(r: Dictionary, dir: String, compact := false) -> void:
 			var values := series.map(func(p): return p[1])
 			print("        ~ %s: min %s  max %s  last %s  (%d samples)"
 					% [trace_name, values.min(), values.max(), values.back(), series.size()])
-		print("        bundle: %s" % write_bundle(r, dir))
+		print("        bundle: %s" % _write_bundle(r, dir))
 		for shot in r.get("shots", []):
 			print("        shot:   %s" % shot)
 
 
 ## Write a bundled result (events, snapshot, traces included) to `dir`; returns the file's path.
-static func write_bundle(r: Dictionary, dir: String) -> String:
+static func _write_bundle(r: Dictionary, dir: String) -> String:
 	DirAccess.make_dir_recursive_absolute(dir)
 	var path := "%s/%s.json" % [dir, String(r["id"]).replace("/", "__")]
 	var f := FileAccess.open(path, FileAccess.WRITE)

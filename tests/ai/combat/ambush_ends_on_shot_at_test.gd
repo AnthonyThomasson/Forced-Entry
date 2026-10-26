@@ -62,7 +62,7 @@ func run(t: TestContext) -> void:
 
 
 func _take_post(t: TestContext, a: Node) -> Node:
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	await t.seconds(0.5)
 	var order := Order.issue(squad, { "kind": Order.AMBUSH, "to": [a], "pos": CLICK })
 	if not t.require(

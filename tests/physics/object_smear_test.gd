@@ -44,7 +44,7 @@ func run(t: TestContext) -> void:
 		10.0,
 		"the chair is pushed out of the puddle",
 	)
-	t.screenshot("chair_smear_mid")
+	t.bundle.screenshot("chair_smear_mid")
 	await t.until(
 		func(): return t.object(&"chair").global_position.x > 700.0,
 		10.0,
@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	)
 	t.puppet(&"pusher").stop()
 	await t.frames(2)
-	t.screenshot("chair_smear")
+	t.bundle.screenshot("chair_smear")
 	layer = BloodDecals.find(t.object(&"chair").get_parent())
 	if not t.require(layer != null and layer.ribbon_count() > 0, "the chair left streaks"):
 		return

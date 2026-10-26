@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 	await t.until(went_in, 50.0)
 	if not t.require(
 			Entry.first_call_time(t, "claim", &"a", Entry.FRONT["id"]) < INF
-				and Entry.asked(t, "stun_entry"),
+				and Entry.asked("stun_entry"),
 			"the invader took STUN ENTRY at the front door (act %s)"
 				% Entry.brain(t, &"a").current_act(),
 	):

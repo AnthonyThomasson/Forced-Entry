@@ -46,13 +46,13 @@ func run(t: TestContext) -> void:
 		"the defender enters combat",
 	)
 	await t.seconds(4.0)
-	t.check(not t.von_requests().is_empty(), "the NPC asked for decisions")
+	t.check(not DecisionStub.requests.is_empty(), "the NPC asked for decisions")
 	t.check(
-		t.von_requests().all(func(r): return not str(r["options"]).contains("reload")),
+		DecisionStub.requests.all(func(r): return not str(r["options"]).contains("reload")),
 		"no level offered reload",
 	)
 	t.check(
-		t.von_requests().all(func(r): return not str(r["options"]).contains("engage")),
+		DecisionStub.requests.all(func(r): return not str(r["options"]).contains("engage")),
 		"an empty pistol is never offered a clear shot",
 	)
 	t.expect_eq(t.spawned("Projectile").size(), shots, "the empty pistol fired nothing")

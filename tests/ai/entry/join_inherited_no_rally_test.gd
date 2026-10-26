@@ -66,7 +66,7 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var sergeant := t.actor(&"sergeant")
 	var trooper := t.actor(&"trooper")
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not _human_leads(t, me, squad, trooper):
 		return
 	var nodes: Array = [me, sergeant, trooper]
@@ -89,7 +89,7 @@ func run(t: TestContext) -> void:
 ## The premises: the human has a stack radio, leads, and has ordered the trooper to defend the
 ## living room. False when one does not hold.
 func _human_leads(t: TestContext, me: Node, squad: Node, trooper: Node) -> bool:
-	var stack := t.player_stack()
+	var stack: Node = t.world.player_stack
 	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return false
 	if not t.require(squad.leader() == me, "premise: the human leads (Lead the team)"):
@@ -157,7 +157,7 @@ func _sergeant_takes_over(
 ## Watches the sergeant (the second of `nodes`), leading, radio its join's claim at the back door
 ## again, and checks those claims rallied nobody. False when it radioed none.
 func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died_at: float) -> bool:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var sergeant: Node = nodes[1]
 	var door := String(Entry.BACK["id"])
 	var watch_claims := func() -> bool:
@@ -187,7 +187,7 @@ func _join_claims_rally_nobody(t: TestContext, w: Dictionary, nodes: Array, died
 ## Once the join is over, checks the sergeant's next claim of its own rallied the trooper (the
 ## second and third of `nodes`).
 func _own_claim_rallies(t: TestContext, w: Dictionary, nodes: Array, join: Dictionary) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var sergeant: Node = nodes[1]
 	var trooper: Node = nodes[2]
 	var join_done := func() -> float:

@@ -32,7 +32,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var built := t.match_handle()
+	var built: Dictionary = t.world.match_handle
 	var npcs: Array = built.get("combatants", [])
 	if not t.require(npcs.size() == 3, "the match has its three invaders"):
 		return
@@ -41,7 +41,7 @@ func run(t: TestContext) -> void:
 		[2, 1, 0],
 		"premise: ranked as a match ranks its unit (lead, sergeant, trooper)",
 	)
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(
 			squad != null
 				and npcs.all(func(n): return TestContext.controller_of(n).get("squad") == squad),

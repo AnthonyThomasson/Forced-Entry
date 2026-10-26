@@ -76,9 +76,9 @@ func run(t: TestContext) -> void:
 
 	# Every NPC may decide on one frame (the test harness restores the static afterwards).
 	DecisionBudget.per_frame = COUNT
-	var asked_before: int = t.von_requests().size()
+	var asked_before: int = DecisionStub.requests.size()
 	await t.seconds(1.5)
-	var asked: int = t.von_requests().size() - asked_before
+	var asked: int = DecisionStub.requests.size() - asked_before
 	t.check(
 		asked >= COUNT,
 		"with the limit raised every NPC decided again within 1.5 s (%d asks)" % asked,

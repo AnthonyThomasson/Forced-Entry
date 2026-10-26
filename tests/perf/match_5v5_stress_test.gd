@@ -35,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters: Array = t.match_handle().get("combatants", [])
+	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not t.require(
 			characters.size() == PER_SIDE * 2,
 			"ten combatants spawned (%d)" % characters.size(),
@@ -47,11 +47,11 @@ func run(t: TestContext) -> void:
 	var stats := await Perf.frame_stats(t, MEASURE_FRAMES)
 	Perf.within_frames(t, "5v5 match", stats)
 	t.check(
-		not t.von_requests().is_empty(),
-		"the NPCs asked for decisions (%d asks)" % t.von_requests().size(),
+		not DecisionStub.requests.is_empty(),
+		"the NPCs asked for decisions (%d asks)" % DecisionStub.requests.size(),
 	)
 	var grown := Perf.nodes() - nodes_before
 	GameLog.say("PERF 5v5 match node growth %d, %d decisions asked"
-			% [grown, t.von_requests().size()])
+			% [grown, DecisionStub.requests.size()])
 	t.trace("node growth", grown)
 	t.check(grown <= NODE_GROWTH, "node growth over the run: %d, budget %d" % [grown, NODE_GROWTH])

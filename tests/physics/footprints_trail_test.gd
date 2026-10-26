@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 	)
 	walker.stop()
 	await t.frames(2)
-	t.screenshot("footprint_trail")
+	t.bundle.screenshot("footprint_trail")
 
 	var layer := BloodDecals.find(t.world)
 	if not t.require(layer != null, "the walker left prints"):

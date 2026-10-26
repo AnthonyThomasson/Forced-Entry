@@ -131,7 +131,7 @@ func _check_partial(t: TestContext) -> void:
 
 ## An unreadable file is a warning and the defaults.
 func _check_unreadable(t: TestContext) -> void:
-	t.expect_log("not a readable settings file")
+	t.verdict.expect_log("not a readable settings file")
 	_write("{ this is not json")
 	Settings.load_file()
 	t.check(

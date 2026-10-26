@@ -190,6 +190,13 @@ func set_overlay(flag: String, on: bool) -> void:
 	)
 
 
+## The squad of `faction` the setup declared (`TestSetup.squads`, or the declared match's own), or
+## null when it has none.
+func squad(faction: StringName) -> Node:
+	var s: Variant = squads.get(faction)
+	return s if is_instance_valid(s) else null
+
+
 ## Apply the switch rows' static knobs, then the explicit `set_static` overrides.
 func _apply_statics(setup: TestSetup) -> void:
 	for switch_name in setup.switches:

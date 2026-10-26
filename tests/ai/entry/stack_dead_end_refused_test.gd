@@ -102,7 +102,7 @@ func run(t: TestContext) -> void:
 	if capacity.is_empty():
 		return
 	var expect := _expect(capacity)
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var members: Array = IDS.map(func(id): return t.actor(id))
 	var start := {}

@@ -78,7 +78,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	await t.seconds(0.5)
 	if not await _on_retreat(t, d, b):
 		return

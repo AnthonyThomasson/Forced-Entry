@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 				% Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	t.check(Entry.asked(t, "fall_kitchen"), "the order was a plain retreat to the kitchen")
+	t.check(Entry.asked("fall_kitchen"), "the order was a plain retreat to the kitchen")
 	t.check(
 		Entry.first_call_time(t, "claim", &"inv") == INF,
 		"it claimed no stack at any doorway on the way",
