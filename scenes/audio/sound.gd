@@ -180,11 +180,11 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		&"reload":
 			_on_reload(data)
 		&"throw":
-			_play_named(THROW, SoundBank.throw_profile(data.get("kind", &"")), data)
+			_play_named(THROW, SoundGrenades.throw_profile(data.get("kind", &"")), data)
 		&"grenade":
 			_on_grenade(data)
 		&"explosion":
-			_play_named(EXPLOSION, SoundBank.explosion_profile(data.get("kind", &"")), data)
+			_play_named(EXPLOSION, SoundGrenades.explosion_profile(data.get("kind", &"")), data)
 		&"stun":
 			if (data.get("character") == focus
 					and focus != null
@@ -242,7 +242,7 @@ func _on_grenade(data: Dictionary) -> void:
 		return
 	_play_named(
 		GRENADE,
-		SoundBank.grenade_profile(
+		SoundGrenades.bounce_profile(
 			data.get("kind", &""),
 			SoundSurface.at(data.get("position", Vector2.ZERO)),
 		),
@@ -371,7 +371,7 @@ func _start_tinnitus(data: Dictionary) -> void:
 	var at: Vector2 = ((focus as Node2D).global_position
 			if focus is Node2D
 			else data.get("position", Vector2.ZERO))
-	var voice := _play(TINNITUS, SoundBank.tinnitus_profile(), { "position": at }, loudness)
+	var voice := _play(TINNITUS, SoundGrenades.tinnitus_profile(), { "position": at }, loudness)
 	if voice.is_empty():
 		return
 	voice["until"] = _now + deaf
