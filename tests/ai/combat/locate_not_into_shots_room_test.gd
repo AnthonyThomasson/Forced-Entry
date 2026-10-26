@@ -60,7 +60,7 @@ func run(t: TestContext) -> void:
 		return
 	var shots: Array = brain.debug_memory().get("shot_from", [])
 	if not t.require(
-			not shots.is_empty() and _runs_into(shots[0], Maps.HOUSE_KITCHEN),
+			not shots.is_empty() and GrenadeAi.shot_runs_into(shots[0], Maps.HOUSE_KITCHEN),
 			"set-up: the line back from the shot runs into the kitchen (%s)" % str(shots),
 	):
 		return
@@ -73,18 +73,3 @@ func run(t: TestContext) -> void:
 		offered.has("grenade"),
 		"GRENADE at the shots' origin is offered (offered %s)" % str(offered),
 	)
-
-
-## Whether the line back from a shot (`shot_from` memory: `at` where it landed, `pos` the wall
-## behind) runs into `room`.
-func _runs_into(shot: Dictionary, room: Rect2) -> bool:
-	var poly := PackedVector2Array([
-		room.position,
-		Vector2(room.end.x, room.position.y),
-		room.end,
-		Vector2(room.position.x, room.end.y),
-	])
-	return not Geometry2D.intersect_polyline_with_polygon(
-		PackedVector2Array([shot["at"], shot["pos"]]),
-		poly,
-	).is_empty()

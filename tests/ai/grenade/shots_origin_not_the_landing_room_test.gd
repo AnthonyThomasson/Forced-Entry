@@ -19,6 +19,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 ## Where the invader stands in the kitchen, and where the shot lands beside it: the line back runs
 ## west through the middle of the living room doorway (y 150) to the living room's west wall.
 const IN_KITCHEN := Vector2(565, 150)
@@ -87,7 +88,8 @@ func _shot_taken(t: TestContext, brain: Node) -> bool:
 		return false
 	var shot: Dictionary = brain.debug_memory()["shot_from"][0]
 	return t.require(
-		_runs_into(shot, Maps.HOUSE_KITCHEN) and _runs_into(shot, Maps.HOUSE_LIVING),
+		(GrenadeAi.shot_runs_into(shot, Maps.HOUSE_KITCHEN)
+				and GrenadeAi.shot_runs_into(shot, Maps.HOUSE_LIVING)),
 		"set-up: the line back from the shot runs from the kitchen into the living room (%s)"
 			% str(shot),
 	)
@@ -143,18 +145,3 @@ func _entry_by(brain: Node, door: Vector2) -> Dictionary:
 		if z["category"] == &"entry" and (z["point"] as Vector2).distance_to(door) < SLOT_NEAR:
 			return z
 	return {}
-
-
-## Whether the line back from a shot (`shot_from` memory: `at` where it landed, `pos` the wall
-## behind) runs into `room`.
-func _runs_into(shot: Dictionary, room: Rect2) -> bool:
-	var poly := PackedVector2Array([
-		room.position,
-		Vector2(room.end.x, room.position.y),
-		room.end,
-		Vector2(room.position.x, room.end.y),
-	])
-	return not Geometry2D.intersect_polyline_with_polygon(
-		PackedVector2Array([shot["at"], shot["pos"]]),
-		poly,
-	).is_empty()

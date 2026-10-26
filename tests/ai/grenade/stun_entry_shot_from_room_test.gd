@@ -20,6 +20,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Suspect := preload("res://tests/_ai/suspect_probe.gd")
 const A_AT := Vector2(980, -140)
 const B_AT := Vector2(950, -100)
@@ -118,7 +119,7 @@ func _note_member(t: TestContext, id: StringName, w: Dictionary) -> void:
 	if state.get("under_fire", false) or not shots.is_empty():
 		w["registered"] = true
 	if not w["into_kitchen"].has(id) and not shots.is_empty():
-		w["into_kitchen"][id] = _runs_into(shots[0], Maps.HOUSE_KITCHEN)
+		w["into_kitchen"][id] = GrenadeAi.shot_runs_into(shots[0], Maps.HOUSE_KITCHEN)
 	var act := str(brain.current_act())
 	var acts: Dictionary = w["acts"]
 	if acts[id].is_empty() or acts[id].back()[1] != act:
@@ -194,18 +195,3 @@ func _check_answered_first(
 				+ "before anyone went in (first in at %.2f s; acts %s)")
 			% [stun_entry, grenade_in, first_entry, str(seen)],
 	)
-
-
-## Whether the line back from a shot (`shot_from` memory: `at` where it landed, `pos` the wall
-## behind) runs into `room`.
-func _runs_into(shot: Dictionary, room: Rect2) -> bool:
-	var poly := PackedVector2Array([
-		room.position,
-		Vector2(room.end.x, room.position.y),
-		room.end,
-		Vector2(room.position.x, room.end.y),
-	])
-	return not Geometry2D.intersect_polyline_with_polygon(
-		PackedVector2Array([shot["at"], shot["pos"]]),
-		poly,
-	).is_empty()
