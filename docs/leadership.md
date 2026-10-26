@@ -13,7 +13,7 @@ document.
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
-pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `_stack_room`, the `follows` fact),
+pushes for a follower holding no order and the leash break), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; `_stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
@@ -312,7 +312,7 @@ ready and held radios `order_step` `in_position` (`Entry.holding_for_go`), which
 sentence for Von ends " when they give the go".
 - **Go (D13).** `go` is an order kind of its own, `{ opening, pos }`: the squad posts it to every living member holding a held stack order
   at the doorway nearest the request's `pos`, whatever its `to` and the menu's selection, and posts nothing where no held stack waits. It
-  replaces nothing: the member's perception marks its live stack order `go: true` (`process_order`) and asks for no new decision, and the
+  replaces nothing: the member's perception marks its live stack order `go: true` (`orders.process`) and asks for no new decision, and the
   squad's `view()` marks the released orders `go`. The squad reads the go off the claims as well (`scenes/ai/perception/stack/door_stack.gd`
   `released`): once a claim under the held order says `order_go`, or a member of that stack is crossing or through into the order's room
   (a claim under the order, or the human's on a crossing begun since the order was issued, D14), its `view()` says those orders are no longer `held`, latched as each member latches its
@@ -377,7 +377,7 @@ before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag
 - **The thrower** is picked as a stun's (`grenade._thrower`, from the claims' `frags`): the second of the stack if it carries one, else the lowest
   slot that does.
 - **The stack's safety (D16).** `grenade._plan_bang` aims as for a stun, at the frag's reach, and leaves out every target whose burst would have a
-  claimed slot of the stack, the thrower's own included, inside the frag's danger zone (`AgentPerception.in_grenade_zone`: a clear line
+  claimed slot of the stack, the thrower's own included, inside the frag's danger zone (`AgentPerception.grenades.in_zone`: a clear line
   within `danger_radius` + `evade_margin`, 370 px, the G16 zone of `docs/grenades.md`): the wall beside the door shields the stack. With no
   such target the frag is given up and the stack goes in quietly, radioing `bang_off`.
 - **Frag out.** The thrower radios `bang`, steps out, throws (`Combat`'s `throw.begin` on `FRAG_SLOT`), radios `frag_out` as the frag leaves
@@ -417,7 +417,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   to its post (guarded as any walk, `DEFEND_REACH`, `DEFEND_DRIFT`), then it holds there crouched (with `posture_enabled`), gun on the
   threshold (`Watch.ease_gaze` on `door_pos`); the watch stage fires the moment a line opens. It radios `moving`, then `in_position`, and
   asks for no decision while its order stands (on the way, the walk's commit cap).
-- **The end (D18).** On first contact the perception ends the order `done` (`_end_ambush_on_contact`, every observe): a hostile in sight,
+- **The end (D18).** On first contact the perception ends the order `done` (`orders.end_ambush_on_contact`, every observe): a hostile in sight,
   wherever it stands, or the member under fire (hit, or a round landing by it), wherever the shots come from. Footsteps heard and callouts
   are no contact. It radios `done` and decides on its own (Von; a fight is COMBAT). It is no defend: no `confine_room` follows.
 - **The wording.** "Your leader ordered you to ambush the doorway into the hall from the living room." (into `beyond` from `room`); an

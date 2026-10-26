@@ -82,7 +82,7 @@ func begin_order(entry: Entry, params: Dictionary) -> void:
 ## The instance id of the leader that gave the order this entry carries out (the live order's
 ## `leader`, when it is this one and still there); 0 for none.
 func leader_id() -> int:
-	var held: Dictionary = world.perception.order() if id != "" else {}
+	var held: Dictionary = world.perception.orders.current() if id != "" else {}
 	var leader = held.get("leader") if str(held.get("id", "")) == id else null
 	return leader.get_instance_id() if leader is Node and is_instance_valid(leader) else 0
 
@@ -107,7 +107,7 @@ func stack_ordered(entry: Entry) -> bool:
 func _held_order_frame() -> int:
 	if id == "":
 		return -1
-	var held: Dictionary = world.perception.order()
+	var held: Dictionary = world.perception.orders.current()
 	return int(held.get("frame", -1)) if str(held.get("id", "")) == id else -1
 
 
@@ -184,7 +184,7 @@ func note_go(entry: Entry) -> void:
 		str(ordered["order_id"]), str(ordered["into"]), int(ordered["order_frame"]),
 	)
 	if not go and id != "":
-		var held: Dictionary = world.perception.order()
+		var held: Dictionary = world.perception.orders.current()
 		if str(held.get("id", "")) == id:
 			var leader = held.get("leader")
 			go = (bool(held.get("go", false))
@@ -203,7 +203,7 @@ func note_go(entry: Entry) -> void:
 func recipients() -> Array:
 	if id == "":
 		return []
-	var held: Dictionary = world.perception.order()
+	var held: Dictionary = world.perception.orders.current()
 	if str(held.get("id", "")) != id:
 		return []
 	return (held.get("to", []) as Array).filter(

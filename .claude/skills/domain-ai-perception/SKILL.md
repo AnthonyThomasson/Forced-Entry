@@ -12,6 +12,10 @@ owns nine internal modules and presents one public face, `agent_perception.gd` (
 Files:
 - `agent_perception.gd` — the public face: SEE (observe), the contacts view, event intake, and the
   BUILD entry (`sense`) that gathers knowledge and delegates to the snapshot author.
+- `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`, `perception_grenades.gd` — the face's parts, held as
+  `hearing` (hits, gunfire, footsteps and callouts heard, with the suspicion module), `orders` (the live order), `contacts` (the
+  characters known, with the hostility rules) and `grenades` (the grenade geometry `throw` and the live grenades `live`, what it
+  carries, the latest burst): preload consts with no `class_name`, built once in `setup()`, each holding the perception (a node).
 - `agent_vision.gd` — the sight sense and the single owner of the ray query (`blocked` / `raycast`).
 - `agent_hostility.gd` — the hostility rules (categorization).
 - `agent_memory.gd` — a generic, behaviour-agnostic event log.
@@ -20,7 +24,7 @@ Files:
 - `agent_suspicion.gd` — why a room is suspect (`docs/grenades.md` G18): `rooms_suspected(rooms, lost, callouts)` -> room key -> reason ids in
   `ORDER` (`gunfire`, `footsteps`, `shot_from`, `ally_fight`, `seen_in`, `lost_by_door`, `heading_in`), `lost_rooms`, `shot_rooms` (the rooms `shot_line` runs through: the line back from a shot, counted from where it leaves the room the shot
   landed in, which is only where the NPC stood; the whole line when it never leaves that room). A pure read of the memory, the lost
-  hostiles and the radio, shared by the snapshot (which words it) and, through `room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
+  hostiles and the radio, shared by the snapshot (which words it) and, through `hearing.room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
 - `agent_entry.gd` (+ its part `entry/entry_slots.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
 - `house_rooms.gd` — `HouseRooms`, the static room lookups over the house's rooms (`at(p, rooms)`, `key_at(p, rooms)`, `by_key(rooms, key)`) the
   perception, its snapshot, the doorway views and the entry geometry share.
@@ -64,12 +68,12 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   offset per NPC by instance id so a squad does not look on the same frame, and again at the start of every `sense()`, so what
   it knows at a decision is what it sees at that moment. The characters it tests are the group `characters` (interface 7)
   under the world root, itself left out, in tree order (`_other_characters`).
-- **A blinded NPC** (`Character.stun.is_blind()`, docs/grenades.md G15) sees nothing: `observe()` skips the sighting pass (no new sighting, nothing `visible`, the `_looked` state is dropped) and the learning look, so what it holds of a hostile stays where it was last seen. Contacts "age as usual" but a blind NPC cannot tell that one has gone, so `contacts()` / `lost_hostiles()` keep every sighting the memory still holds (`lead_ttl`) while it is blind (`_contact_ttl`); the behaviour fires blind at the last-known spot of the engaged one. It is back to `contact_ttl` the tick it sees again.
-- `contacts(self_pos)` — characters seen within `contact_ttl` (hostiles first, then nearest),
+- **A blinded NPC** (`Character.stun.is_blind()`, docs/grenades.md G15) sees nothing: `observe()` skips the sighting pass (no new sighting, nothing `visible`, the `_looked` state is dropped) and the learning look, so what it holds of a hostile stays where it was last seen. Contacts "age as usual" but a blind NPC cannot tell that one has gone, so `contacts.known()` / `contacts.lost_hostiles()` keep every sighting the memory still holds (`lead_ttl`) while it is blind (`_contact_ttl`); the behaviour fires blind at the last-known spot of the engaged one. It is back to `contact_ttl` the tick it sees again.
+- `contacts.known(self_pos)` — characters seen within `contact_ttl` (hostiles first, then nearest),
   with `hostile`/`reason`/`visible`/`age`. The behaviour hands the whole list to its locomotion every tick: the bodies a walk goes
   round, stops short of or gives way to are these, never one the NPC has not seen (`domain-ai-behavior`, Locomotion).
-  `lost_hostiles()` — hostiles last seen longer ago, within `lead_ttl` (investigation leads).
-- `process_hit(data) -> bool` — a hit on/near the NPC → `under_fire` (direction + whether it
+  `contacts.lost_hostiles()` — hostiles last seen longer ago, within `lead_ttl` (investigation leads).
+- `hearing.process_hit(data) -> bool` — a hit on/near the NPC → `under_fire` (direction + whether it
   hit), `engaged`, hostility; an ally's round (same faction) striking near it is not (it knows who fired), while one that hits it, or a
   round from a hostile or an unknown shooter (`attacker` null), is (`tests/ai/perception/ally_round_nearby_not_under_fire_test.gd`); a hit farther off within `hearing_radius` → `heard_gunfire` (a lead), but
   ONLY from a shooter not already known hostile — gunfire from a character it is fighting (or any other
@@ -78,31 +82,31 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   from where the shot landed along the incoming direction to the first wall, `AgentVision.wall_hit`, at most `hearing_radius`; kept
   `lead_ttl`, keyed by where the line ends), which outlives `under_fire` (`under_fire_time`) and makes the rooms the line runs
   through suspect (`docs/grenades.md` G18).
-- `process_footfall(data)` — a `&"footfall"` (interface 10) heard through walls (`docs/hearing.md` H1): the step of a character
+- `hearing.process_footfall(data)` — a `&"footfall"` (interface 10) heard through walls (`docs/hearing.md` H1): the step of a character
   not of the NPC's faction (the walker's `faction`, the one non-sight read of interface 7), not visible right now, within `hear_run`
   (running), `hear_crouch` (crouched) or `hear_walk` → `heard_footsteps` (`{ pos }`, keyed per walker, ttl `lead_ttl`): a lead
-  and a reason to suspect the room. `footfall_reach()` is the farthest any step is heard, which the controller drops the rest by before
+  and a reason to suspect the room. `hearing.footfall_reach()` is the farthest any step is heard, which the controller drops the rest by before
   queuing them; a deaf NPC's footfalls are dropped by the controller (G15).
-- `shots_from_room(key) -> bool` — the line back from a shot at the NPC (`shot_from`, from where it leaves the room it landed in: `AgentSuspicion.shot_line`) runs
+- `hearing.shots_from_room(key) -> bool` — the line back from a shot at the NPC (`shot_from`, from where it leaves the room it landed in: `AgentSuspicion.shot_line`) runs
   through room `key`: the entry guard reads it (E9: under fire, but for a walk into the room the shots came from, a walk goes through a doorway without an entry).
-- `room_suspicion(key) -> Array` — the `AgentSuspicion` reasons room `key` is suspect for now (empty: none): what `entry.gd` reads to make an entry a bang one, at its start and on a late reason.
-- `target_pos(target_id) -> Vector2` — hostile `target_id`'s last sighting, else (none bound) where the shots at the NPC came from
+- `hearing.room_suspicion(key) -> Array` — the `AgentSuspicion` reasons room `key` is suspect for now (empty: none): what `entry.gd` reads to make an entry a bang one, at its start and on a late reason.
+- `contacts.target_pos(target_id) -> Vector2` — hostile `target_id`'s last sighting, else (none bound) where the shots at the NPC came from
   (`shot_from`), else `Vector2.INF`: what a combat `callout` radios as `target_pos` (interface 10).
-- `process_callout(data)` — an ally's radio `&"callout"` within `callout_range` → the NPC's `ClaimLedger` (`hear`, every
+- `hearing.process_callout(data)` — an ally's radio `&"callout"` within `callout_range` → the NPC's `ClaimLedger` (`hear`, every
   callout: it keeps the speaker's latest entry claim, "The stack" below) and `heard_callout` (keyed per speaker, ttl `callout_ttl`). One carrying `cleared_room` (an ally cleared a room in a
   tactical entry) also teaches the room, marks it `visited_room` and `cleared_room`, so the team does not clear it twice.
-- `process_order(data) -> bool` — an `&"order"` (interface 10, `docs/leadership.md` LD5) that names the NPC in `to` and comes from its own
+- `orders.process(data) -> bool` — an `&"order"` (interface 10, `docs/leadership.md` LD5) that names the NPC in `to` and comes from its own
   side becomes its live order (memory topic `order`, permanent, keyed `live`, replacing the one it held); a `cancel` ends the one it holds;
-  true when its order changed (the controller decides at once). `order()` is the live order or {}; `end_order(id, why)` ends it (`done`,
-  `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `take_ended_order()` is one that ended done or refused since the last
+  true when its order changed (the controller decides at once). `orders.current()` is the live order or {}; `orders.end(id, why)` ends it (`done`,
+  `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `orders.take_ended()` is one that ended done or refused since the last
   call, for the controller to radio (LD7). `mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
   ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
-  whenever the go came), and `process_order` returns false (no decision is forced). An `ambush` (LD15) ends `done` on first contact:
-  `_end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
+  whenever the go came), and `orders.process` returns false (no decision is forced). An `ambush` (LD15) ends `done` on first contact:
+  `orders.end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
   (D18); footsteps heard and callouts are no contact. `quick_facts()` carries `ordered`, and `follows` (the var the controller sets every tick from `Squad.follows`, `docs/leadership.md` LD19; also handed to the snapshot as the knowledge's `follows`). A callout that is only an order's progress (`order_step` with no `entry_step`) is the squad's to
-  hear: `process_callout` returns before the memory, so it never replaces what that ally last said it is doing (its entry claim).
-- `process_grenade(data, deaf)` — a `&"grenade"` bounce / rest: marks the grenades the NPC knows as down at that spot (seen coming down, deaf or not), and one within `hear_grenade` of a NPC that is not `deaf` is heard, so known. `process_explosion(data)` forgets the grenade that went off, keeps it as `last_burst` (`{ kind, position, frame, team }`, `frame` the `GameClock.frame()` it was noted in, `team`: the NPC or an ally threw it; a bang entry waits for its stun, and an entry goes in on its own team's burst in the room, E17) and, for a stun the NPC or an ally threw, marks the hostiles it knew
-within the flash radius with a clear line from the burst as `flashed` for a few seconds (`FLASH_SHARE` 0.8 of the stun's `max_blind`, 4 s, at the burst, less with distance, at least 1 s: memory topic `flashed`), which the contact view reads as `blind` (the snapshot says "blinded by a flash"). A callout whose `status` is `grenade` / `frag_out` / `bang_out` is not an ally's plan: `process_callout` hands it to the grenade tracker (`called`) and returns before the memory (so it never counts as a held flank side or an entry claim).
+  hear: `hearing.process_callout` returns before the memory, so it never replaces what that ally last said it is doing (its entry claim).
+- `grenades.process(data, deaf)` — a `&"grenade"` bounce / rest: marks the grenades the NPC knows as down at that spot (seen coming down, deaf or not), and one within `hear_grenade` of a NPC that is not `deaf` is heard, so known. `grenades.process_explosion(data)` forgets the grenade that went off, keeps it as `grenades.last_burst` (`{ kind, position, frame, team }`, `frame` the `GameClock.frame()` it was noted in, `team`: the NPC or an ally threw it; a bang entry waits for its stun, and an entry goes in on its own team's burst in the room, E17) and, for a stun the NPC or an ally threw, marks the hostiles it knew
+within the flash radius with a clear line from the burst as `flashed` for a few seconds (`FLASH_SHARE` 0.8 of the stun's `max_blind`, 4 s, at the burst, less with distance, at least 1 s: memory topic `flashed`), which the contact view reads as `blind` (the snapshot says "blinded by a flash"). A callout whose `status` is `grenade` / `frag_out` / `bang_out` is not an ally's plan: `hearing.process_callout` hands it to the grenade tracker (`called`) and returns before the memory (so it never counts as a held flank side or an entry claim).
 - The orchestrator drops what a deaf NPC would hear (G15): its callouts, hits not on it, footfalls, grenade landings.
 - `check_lead(lead_id)` — the NPC reached an investigation lead: remember it as checked
   (`checked_lead`), so it is not offered again until something newer happens there.
@@ -125,7 +129,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
   its published seam, `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id` and `normal_into`, and the stack module
   (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
-- `all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
+- `contacts.all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
 - `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
   cone + clear line of sight, via `can_see`); the searcher's room-coverage test (behaviour samples a
@@ -145,7 +149,7 @@ fact / section / option reference and the Von wording rules — is the **`domain
 
 The NPC perceives characters, not "the player". The hostility rules categorize each sighting: allies
 (the same faction) are never hostile; `on_sight` / `trespass` (seen inside the house)
-/ `retaliate` (attacked it, via `process_hit`), set from `tuning.hostility` (`on_sight`, `on_trespass`, `on_attack`). A verdict is remembered as
+/ `retaliate` (attacked it, via `hearing.process_hit`), set from `tuning.hostility` (`on_sight`, `on_trespass`, `on_attack`). A verdict is remembered as
 `&"hostile"` with ttl `tuning.hostility.ttl` (≤ 0 = permanent grudge).
 
 ## Vision & knowledge
@@ -177,7 +181,7 @@ furniture piece). `seq` keeps the promised order: newest first for readers and `
 `_prune` skips its scan until the earliest deadline among the stored events (`_earliest_expiry`), and every reader takes the clock
 once. **The clock is `GameClock`** (General, interface 11; `docs/leadership.md` LD1): an event's `at` is `GameClock.msec()`, game time that
 stands still while the tree is paused, so a pause of any length expires nothing, and a headless `--fixed-fps` run ages events at the
-sim's pace (a contact's 4 s are 4 s of sim). The rest of the perception's ages read it too: the sightings' velocity track, `last_burst`'s
+sim's pace (a contact's 4 s are 4 s of sim). The rest of the perception's ages read it too: the sightings' velocity track, `grenades.last_burst`'s
 `frame`, the grenade replan, `routes_ready`'s `WARM_CAP_MS` and `debug_memory`'s `left`. `tests/ai/perception/memory_matches_reference_test.gd` runs random writes through the memory and a plain ordered log and compares every reader. Topics: `saw_character` / `saw_room` / `saw_object` / `visited_room` /
 `cleared_room` / `hostile` / `under_fire` / `shot_from` / `engaged` / `heard_gunfire` / `heard_footsteps` / `heard_callout` / `checked_lead` / `flashed` / `order`.
 
@@ -285,7 +289,7 @@ scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the
 
 **Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_ttl`) is not `visited_room`:
 standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)`: the behaviour calls it when an entry
-finishes (`Entry.hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `process_callout`
+finishes (`Entry.hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `hearing.process_callout`
 when an ally radios `cleared_room`. `is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
 (search ranking still uses `visited_room`). `threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the
@@ -431,7 +435,7 @@ the ledger and the slot rules.
 
 ## Grenades (`agent_grenades.gd`, `agent_throw.gd`; spec `docs/grenades.md` G15, G16)
 
-**What it knows (`agent_grenades.gd`, `known_grenades()`).** A live grenade is a node of the group `live_grenades` (Items: `kind`, `fuse_left()`,
+**What it knows (`agent_grenades.gd`, `grenades.known()`).** A live grenade is a node of the group `live_grenades` (Items: `kind`, `fuse_left()`,
 `throw_stats()`, `thrower`). The NPC knows one by **sight** (`observe`, every tick, only while the group is non-empty: in the view cone with a clear sight line;
 its `point` follows the grenade), by **hearing** it come down (`hear`: a `&"grenade"` bounce / rest within `hear_grenade` 300 px, not deaf; the point is where it
 landed), by an ally's **callout** (`called`: the `point` the call names, within 150 px of a live grenade of that kind) or because it threw it (**own**: `thrower` is
@@ -456,7 +460,7 @@ where the grenade leaves the thrower's hand, `_release_point` (the thrower's han
 off a wall like the character's own hand), and the band `LOB_MARGIN` 8 px either side of that line the whole way (parallel edges, not converging on the spot: a jamb far along is met with the grenade's full width), each with nothing taller than `LOB_CLEARANCE` 50 px, the release height, on the line: a centre line
 that grazes a jamb is a grenade that strikes it). `reach_of(kind)` is the range less `REACH_SLACK` 15 px: how far from its spot a thrower lets go, and the reach a throw spot is chosen in.
 `throw_clear_on_arrival(space, at, to, exclude)` is `throw_clear` from `at` and from `ARRIVAL_SLACK` (6 px, the walk's own arrival) off it in the four axis directions: the test for a
-spot the thrower walks to (a throw spot's `lob` callable; the bang's spot, through `AgentPerception.can_lob(..., walked = true)`).
+spot the thrower walks to (a throw spot's `lob` callable; the bang's spot, through `AgentPerception.grenades.can_lob(..., walked = true)`).
 
 **Shared on a physics frame (`_shared_burst`, `_shared_snaps`).** What depends on the burst alone is the same for every NPC fleeing it, and an evade
 wave is 4 to 8 NPCs planning on one frame: `escape` keeps the candidates round the burst (`_around`: the circle and the shadows, ~50 rays), each spot's
@@ -478,8 +482,8 @@ that frame).
 it just left, so the zone it is in is the one the burst will have. **Replanning** is counted in `GameClock` frames (`REPLAN_EVERY` s of game time), not wall-clock ms: a fast headless run outruns the wall clock, and it runs on through a pause.
 `AgentThrow.escape` takes the NPC's own position as the first candidate (already behind cover that shields a crouched body, it need not move).
 
-**What it knows of a grenade it carries (`AgentThrow`).** No copy of the tuning: `learn(stats)` takes in what a grenade tells (`{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, interface 6/7) from `Character.inventory.throw_stats(slot)` of every grenade the NPC carries (`learn_carried()`, every `observe`) and from each live grenade it notes (`ThrownGrenade.throw_stats()`, in `agent_grenades.gd`), and keeps it by kind, so it outlives the last grenade thrown. `range_of(kind)`, `radius_of(kind)`, `fuse_of(kind)`, `max_blind_of(kind)` and `cover_reach(kind)` answer from it (0 / 0 / 0 / 0 / INF for a kind never met; the flash a hostile is taken to be blind for is `FLASH_SHARE` 0.8 of `max_blind_of(&"stun")`); `AgentPerception.can_lob(at, to, kind)` (range and `throw_clear`), `throw_clear(at, to)` (the lob alone, from the hand), `grenade_reach(kind)` and `grenade_fuse(kind)` wrap them for the behaviour sub-domain; the static `carried(character)` (the kinds with a count, a frag
-first, via `Character.inventory.item_count(ItemRegistry.FRAG_SLOT / STUN_SLOT)`) and the geometry the snapshot's `grenade_group` uses (`can_lob`, `in_zone`, `escape`, `run_speed`).
+**What it knows of a grenade it carries (`AgentThrow`).** No copy of the tuning: `learn(stats)` takes in what a grenade tells (`{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, interface 6/7) from `Character.inventory.throw_stats(slot)` of every grenade the NPC carries (`learn_carried()`, every `observe`) and from each live grenade it notes (`ThrownGrenade.throw_stats()`, in `agent_grenades.gd`), and keeps it by kind, so it outlives the last grenade thrown. `range_of(kind)`, `radius_of(kind)`, `fuse_of(kind)`, `max_blind_of(kind)` and `cover_reach(kind)` answer from it (0 / 0 / 0 / 0 / INF for a kind never met; the flash a hostile is taken to be blind for is `FLASH_SHARE` 0.8 of `max_blind_of(&"stun")`); the perception's `grenades` part's `can_lob(at, to, kind)` (range and `throw_clear`), `throw_clear(at, to)` (the lob alone, from the hand), `reach(kind)` and `fuse(kind)` wrap them for the behaviour sub-domain; beside them its static `carried(character)` (`PerceptionGrenades.carried`: the kinds with a count, a frag
+first, via `Character.inventory.item_count` of `AgentThrow.SLOTS`, `ItemRegistry.FRAG_SLOT / STUN_SLOT`). `AgentThrow` is also the geometry the snapshot's `grenade_group` uses (`can_lob`, `in_zone`, `escape`, `run_speed`).
 
 **The plan (`evade_plan()`).** For the known grenade that goes off first among those the NPC is in the zone of (or is already running from): `{ id, point, kind, radius, spot,
 crouch, fuse_left, landed, lies }` (`landed` whether it has come down, `lies` where it is known to be now; `point` is where it was when the plan was made: a frag entry's stack
@@ -489,7 +493,7 @@ grenade lives, so the NPC holds the spot until the burst. A grenade in flight is
 spot it LANDED, which the allies' plans need) and is repeated once if it rests 30 px or more from there; an ally's call or the NPC's own throw is not radioed again.
 The behaviour carries the plan out (`domain-ai-behavior`, "The evade reflex").
 
-**Wrappers for the behaviour sub-domain on `AgentPerception`:** `can_lob(at, to, kind, walked := false)`, `throw_clear(at, to)`,
-`grenade_reach(kind)` and `grenade_fuse(kind)` (above), `in_grenade_zone(kind, burst, p)` (a standing body at `p` inside the zone of a `kind` bursting at `burst`,
-`AgentThrow.in_zone`, every character's body excluded: the frag entry's slot check, `docs/leadership.md` D16), and `evade_plan()`, `known_grenades()`,
-`grenade_announcements()`. Tests: `tests/ai/grenade/`.
+**Wrappers for the behaviour sub-domain on the perception's `grenades` part (`perception_grenades.gd`):** `can_lob(at, to, kind, walked := false)`, `throw_clear(at, to)`,
+`reach(kind)` and `fuse(kind)` (above), `in_zone(kind, burst, p)` (a standing body at `p` inside the zone of a `kind` bursting at `burst`,
+`AgentThrow.in_zone`, every character's body excluded: the frag entry's slot check, `docs/leadership.md` D16), and `evade_plan()`, `known()`,
+`announcements()`. Tests: `tests/ai/grenade/`.

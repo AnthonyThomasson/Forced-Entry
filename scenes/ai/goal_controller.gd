@@ -163,7 +163,7 @@ func _apply_config() -> void:
 			rules[&"hostile_known"] = &"combat"
 	_planner.skip_single_option = tuning.decision.skip_single_option
 	_planner.confines.inside_only = tuning.decision.defend_territory
-	var held: Dictionary = _perception.order()
+	var held: Dictionary = _perception.orders.current()
 	_planner.confines.room = (String(held.get("room", ""))
 			if String(held.get("kind", "")) == "defend_room"
 			else "")
@@ -199,7 +199,7 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	elif (topic == &"footfall"
 			and _character != null
 			and _character.global_position.distance_to(data.get("position", Vector2.INF))
-				<= _perception.footfall_reach()):
+				<= _perception.hearing.footfall_reach()):
 		_comms.event_queue.append([topic, data])
 
 
@@ -339,7 +339,7 @@ func debug_progress() -> Dictionary:
 func debug_grenades() -> Dictionary:
 	if _perception == null or _behavior == null:
 		return { "known": [], "escape": Vector2.INF, "throw": {} }
-	return { "known": _perception.known_grenades(), "escape": _behavior.grenades.evade_spot(),
+	return { "known": _perception.grenades.known(), "escape": _behavior.grenades.evade_spot(),
 		"throw": _behavior.grenades.throw_plan() if _character != null else {} }
 
 
@@ -382,7 +382,7 @@ func debug_brain() -> Dictionary:
 func known_contacts_for_display() -> Array:
 	if _character == null or _perception == null:
 		return []
-	return _perception.all_seen_characters(_character.global_position)
+	return _perception.contacts.all_seen_characters(_character.global_position)
 
 
 ## The known-contacts list flattened to the fields worth reading in a snapshot (who, whether hostile
@@ -393,7 +393,7 @@ func _contact_digest() -> Array:
 		return []
 	var self_pos: Vector2 = _character.global_position
 	var out: Array = []
-	for c in _perception.contacts(self_pos):
+	for c in _perception.contacts.known(self_pos):
 		out.append({
 			"name": c["name"],
 			"hostile": c["hostile"],
@@ -446,7 +446,7 @@ func _sense(character: Node, delta: float) -> void:
 	if entry_point != Vector2.ZERO:
 		_perception.entry_point = entry_point # Hand the injected entrance to the perception once.
 		entry_point = Vector2.ZERO
-	var known: Array = _perception.contacts(character.global_position)
+	var known: Array = _perception.contacts.known(character.global_position)
 	if _behavior.update_known(known, delta):
 		# Lost the engaged contact mid-fight → reconsider.
 		_cadence.force("lost the engaged contact")
@@ -536,10 +536,10 @@ func _start_decision() -> void:
 	_cadence.last_facts = snapshot["facts"]
 	_cadence.last_sections = snapshot["sections"]
 	_cadence.last_options = snapshot["options"]
-	var held: Dictionary = _perception.order()
+	var held: Dictionary = _perception.orders.current()
 	if not held.is_empty() and (snapshot["options"]["order"]["options"] as Array).is_empty():
 		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
-		_perception.end_order(held["id"], "refused")
+		_perception.orders.end(held["id"], "refused")
 		_cadence.last_facts["ordered"] = false
 		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
 		_planner.confines.room = ""

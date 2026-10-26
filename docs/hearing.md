@@ -4,7 +4,7 @@ What an NPC hears and what it makes of it. The tests named under each behaviour 
 
 Gunfire heard, a grenade coming down and the team radio are older senses with their own homes (`docs/grenades.md` G15, G16 and the
 `domain-ai-perception` skill); this document holds footsteps. The pieces: `character_footsteps.gd` (the `footfall` event),
-`goal_controller.gd` (the intake), the NPC's `tuning.senses` (the hearing ranges), `agent_perception.gd` (`process_footfall`, the `heard_footsteps` memory) and
+`goal_controller.gd` (the intake), the NPC's `tuning.senses` (the hearing ranges), `agent_perception.gd` and its `hearing` part (`perception_hearing.gd`: `process_footfall`, the `heard_footsteps` memory) and
 `snapshot_options.gd` / `snapshot_sections.gd` (how it is worded for Von). See the `domain-character`, `domain-ai-perception` and
 `domain-ai-snapshot` skills.
 

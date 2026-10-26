@@ -513,18 +513,18 @@ func way_blocked() -> bool:
 	return false
 
 
-## Whether the live grenade of the evade reflex's `plan` (`AgentPerception.evade_plan`) is the one
-## this entry is waiting for (the evade reflex then leaves the stack to its own turned-away hold,
-## beside the wall and out of the burst's line): any stun, while a stun's bang phase runs (in flight
-## it is at the doorway, where its landing is not known to those who did not throw it); a frag,
-## while a frag's bang phase runs, in flight (the stack's own, aimed where no slot is in its zone,
-## D16) or come down where this member's slot is out of its danger zone (LD14: the slot is its
+## Whether the live grenade of the evade reflex's `plan` (`AgentPerception.grenades.evade_plan`) is
+## the one this entry is waiting for (the evade reflex then leaves the stack to its own turned-away
+## hold, beside the wall and out of the burst's line): any stun, while a stun's bang phase runs (in
+## flight it is at the doorway, where its landing is not known to those who did not throw it); a
+## frag, while a frag's bang phase runs, in flight (the stack's own, aimed where no slot is in its
+## zone, D16) or come down where this member's slot is out of its danger zone (LD14: the slot is its
 ## cover; one the frag reaches, a frag that came back to the door, is evaded as anywhere).
 func expects_burst(plan: Dictionary) -> bool:
 	if state.phase != "bang" or plan.get("kind") != grenade.kind:
 		return false
 	return grenade.kind == &"stun" or not bool(plan.get("landed", false)) \
-		or not world.perception.in_grenade_zone(
+		or not world.perception.grenades.in_zone(
 			grenade.kind,
 			plan.get("lies", plan["point"]),
 			claim.spot,

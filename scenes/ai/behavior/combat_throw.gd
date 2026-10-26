@@ -52,7 +52,7 @@ func bind(character: Node) -> void:
 
 
 ## Start a throw of the grenade in `grenade_slot` at world point `to`, let go no farther than
-## `let_go` px from it (`AgentPerception.grenade_reach`). With a throw spot `throw_from`
+## `let_go` px from it (`AgentPerception.grenades.reach`). With a throw spot `throw_from`
 ## (`Vector2.INF`: none) the thrower walks there first (`stage` "walk"), then throws from it.
 func begin(grenade_slot: int, to: Vector2, let_go: float, throw_from := Vector2.INF) -> void:
 	stage = "aim" if throw_from == Vector2.INF else "walk"

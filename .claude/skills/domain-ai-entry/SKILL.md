@@ -95,10 +95,10 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **The bang (E17, `docs/grenades.md` G18).** An ENTER or STUN ENTRY leaf with `bang: true` (and a stack that follows the first claimer's mode: every claim carries `bang`, `bang_off` and the `stuns` the member carries; one
   `bang: false` makes the whole stack quiet) adds the `bang` phase between `stack` and `cross`. `grenade._thrower()` (`DoorStack.thrower(kind, claim.me())`) picks the second of the stack (by slot, on either side of a split stack) if it carries a stun, else the lowest slot that does, from the claims, the same on every member, never the human (it throws nothing for the stack);
   `grenade.due` (in `stack`, or in `approach` once the rest are ready) has the thrower plan the throw (`grenade._plan_bang`: a target `BANG_DEPTHS` of the way into the room, on the doorway's axis first, pulled back to the farthest point on its line the stun reaches from the spot
-(`grenade._bang_aim`, `AgentPerception.grenade_reach`: a room deeper than a stun reaches, test `ai/grenade/bang_into_long_room`), at least `BANG_MIN_DEPTH` in, and a spot, its own slot or
-  `BANG_STEP_ALONG` in front of the door, `BANG_STEP_OUT` out from the wall, from which the lob is clear of the jamb (`AgentPerception.can_lob`: from the thrower's hand, with room to spare either side, the same test as GRENADE's): none = the bang is given up and the stack
+(`grenade._bang_aim`, `AgentPerception.grenades.reach`: a room deeper than a stun reaches, test `ai/grenade/bang_into_long_room`), at least `BANG_MIN_DEPTH` in, and a spot, its own slot or
+  `BANG_STEP_ALONG` in front of the door, `BANG_STEP_OUT` out from the wall, from which the lob is clear of the jamb (`AgentPerception.grenades.can_lob`: from the thrower's hand, with room to spare either side, the same test as GRENADE's): none = the bang is given up and the stack
   goes in quietly), radio `bang`, and every member that sees the call enters `bang`. In `bang`, the thrower walks out from its slot (clear of the member ahead of it) all the way into the spot (`StackClaim.SLOT_REACH` 6 px: the lob was judged from there, and a stride short of it the jamb can be in the way), throws through `Combat`'s `throw` (`throw.begin` / `throw.step` /
-  `throw.released`), and walks back; everyone holds its slot turned away from the door (`sweep.look_toward` away along the door's normal; the watch stage does not turn it to a threat in `bang`). On a stun its own team threw bursting in the room (`AgentPerception.last_burst` with `team`: the stack's own, or one thrown by GRENADE)
+  `throw.released`), and walks back; everyone holds its slot turned away from the door (`sweep.look_toward` away along the door's normal; the watch stage does not turn it to a threat in `bang`). On a stun its own team threw bursting in the room (`AgentPerception.grenades.last_burst` with `team`: the stack's own, or one thrown by GRENADE)
   the stack is over the bang (`grenade.over`): the point crosses at once, no pie, and E14's hold on a hostile in view does not apply for `BANG_WINDOW` s; no top-off is waited for. A call not answered by a burst within `BANG_BURST_CAP`
   or never made within `BANG_CALL_CAP` gives the bang up (`grenade.give_up_bang`: `bang` false and `bang_off` true on its claims, a veto), and so does a teammate's veto (its thrower had no lob or lost its stun): a member in `stack` or in `bang`
   follows it at once, its own claims saying quiet too. A member that began in bang mode and hears a claim made before its own say quiet goes quiet without a veto (`grenade._go_quiet`: the first claimer's mode). Tests: `tests/ai/grenade/bang_fallback_*`.
@@ -107,17 +107,17 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   meanwhile sets the behaviour's `task.held`; once `throwing()` ends (the release, or the bang given up) `entries.apply` raises `task.resolved` with `task.resolve_reason` "after the bang" and it decides
   again from where it stands (a forced decision held meanwhile, the cadence's `forced`, starts then too). The caps end it too (`BANG_BURST_CAP`, the stun lost, `way_blocked` in `go`). Test:
   `ai/grenade/bang_kept_through_fight` (real Von).
-- **Go in on the burst (E17, issue #51 R8).** `grenade.note_burst`: besides the bang phase's own stun, a stun or frag its own team threw (`last_burst.team`) going off in the room while
+- **Go in on the burst (E17, issue #51 R8).** `grenade.note_burst`: besides the bang phase's own stun, a stun or frag its own team threw (`grenades.last_burst.team`) going off in the room while
   this member is in `approach` / `stack` / `pie` sets `grenade.over`; `grenade.note_burst_before` (at `begin`) does the same for one within `BANG_WINDOW` before the entry began (a GRENADE,
   then the walk in). With `grenade.over` the point slices no pie (a pie under way is dropped, no second side) and crosses as soon as `readiness.stack_ready`, no top-off; E14's hold is lifted while
   `grenade.in_bang_window()` (3 s from the burst, `grenade._burst_at` negative for one before `begin`), in `stack`, `readiness.follow` and the pie alike; no upgrade to a bang follows. Test: `ai/grenade/burst_then_cross`.
 - **A suspect room means a bang, for every entry (E17, issue #51 R10).** `begin` makes the entry a bang one when its leaf asks for it (STUN ENTRY) or when the stack carries a stun
-  (`grenade.stack_has_stun`: this NPC, or a claim's `stuns`) and the room is suspect now (`AgentPerception.room_suspicion(into)` not empty), whatever brought the NPC to the doorway: an ENTER or a
+  (`grenade.stack_has_stun`: this NPC, or a claim's `stuns`) and the room is suspect now (`AgentPerception.hearing.room_suspicion(into)` not empty), whatever brought the NPC to the doorway: an ENTER or a
   walk the entry guard turned into an entry; a pass-by (`secure`) never is. A team already claiming the doorway still sets the mode (the first claimer's). A bang its leaf did not ask for sets
   `readiness.turned` (`take_turned()`), so an ENTER is re-adopted as `search/stun_entry/<door>` (the controller's radio, `npc_comms.gd` `on_entry_turned`); a guard's entry keeps its walk's name. Tests: `ai/entry/entry_guard_bang_suspect_room`,
   `entry_guard_quiet_unsuspected_room` (scripted).
 - **A late reason turns a quiet entry (E17, issue #51 R11).** `listen.maybe_upgrade`, every tick in `approach` / `stack` / `pie` while nobody is crossing (`grenade.crossing`: a claim at `going_in` or through), the stack carries a stun and
-  no member gave the bang up: when the room's suspicion (`AgentPerception.room_suspicion(into)`, `AgentSuspicion` reason ids, read every `SUSPECT_EVERY` 0.25 s) holds any reason (one that came up after `begin`, or one
+  no member gave the bang up: when the room's suspicion (`AgentPerception.hearing.room_suspicion(into)`, `AgentSuspicion` reason ids, read every `SUSPECT_EVERY` 0.25 s) holds any reason (one that came up after `begin`, or one
   this member knew when it joined a quiet stack, or a stun that joined the stack), or a teammate seen quiet in this entry (`listen.quiet_seen`) now says bang, it sets `bang` and `listen.upgraded` and radios its
   claim; a point in `pie` goes back to `stack`. An `listen.upgraded` member waits for the rest to follow (a quiet teammate is not a veto for it; `grenade.banging` counts its own turn, so a point that turned in its slot holds for the bang rather than starting the pie) and gives the bang up if someone crosses first. A claim without `bang` (the human's
   `PlayerStack`) reads as bang, so it never holds a stack back nor turns one. Tests: `tests/ai/grenade/quiet_entry_turns_bang`, `quiet_entry_crossing_stays_quiet`, and `stun_entry_footsteps_heard` (real Von).
@@ -127,7 +127,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `ai/grenade/quiet_entry_listens_at_stack`, `quiet_entry_listen_turns_bang`, `quiet_entry_listen_ends_on_hit`, `quiet_entry_listen_ends_on_hostile_in_view` (scripted).
 - `Entry.expects_burst(plan)` (the evade reflex's plan, `AgentPerception.evade_plan`) makes `Behavior.grenades.set_evade` leave the stack to the bang's
   hold: a stun of a stun bang while the phase runs; a frag of a frag bang (LD14) in flight, or come down (`landed`, at `lies`) where this
-  member's slot is out of its zone (`AgentPerception.in_grenade_zone`; a frag that reaches the slot is evaded as anywhere).
+  member's slot is out of its zone (`AgentPerception.grenades.in_zone`; a frag that reaches the slot is evaded as anywhere).
 - **The stack moves up (E2).** `claim.move_up_now(delta)`, first in `readiness.tick_stack`, every `MOVE_UP_EVERY` (0.25 s) while this member
   stands within `StackClaim.SLOT_REACH` of its slot, has not begun the pie (`pie.begun`) and is not mid move-up. The rule part is the
   stack's (`DoorStack.move_up_vacancies(claim.me())`: none once anybody's claim says `pie`, `bang`, `going_in` or through; each a lower slot on
@@ -232,7 +232,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   its commit timer; the walk carries on from where the entry left the NPC, and meets the next uncleared doorway the same way.
   The labels and path of the order stay, so the status line still says what the NPC is after, with the entry's phase as progress.
   Exempt: `tuning.entry_guard.enabled` off, no `tuning.entry.enabled`, an NPC under fire (not for a doorway into the room the shots came from, seen shooter or not, `fight.into_the_shots` over
-  `AgentPerception.shots_from_room`, E9: the walk stops there as an entry, a bang one when the stack carries a stun (the room is suspect,
+  `AgentPerception.hearing.shots_from_room`, E9: the walk stops there as an entry, a bang one when the stack carries a stun (the room is suspect,
   "shots at you came from there": `Entry.begin`), the shots do not cancel it and a decision made under fire leaves it running; under fire it secures no view it passes), a leaf whose params say `entry_guard: false` (RETREAT), a
   `move` that has arrived, and a doorway whose entry was given up less than `tuning.entry_guard.rearm` s ago (`entries._guard_off`, on the
   guard's own clock). A new decision while a detour runs (`set_leaf`) replaces the paused order and leaves the entry
@@ -305,7 +305,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   follows) is `orders.held_for_go()` until its go is latched (`readiness.released`): in `readiness.tick_stack` each member then radios `ready` (`readiness.say_ready`) and holds
   in its slot (`readiness.holding`, read through `holding_for_go()` while in `stack`): no pie, no listen, no bang (`grenade.due` calls none) and no
   crossing. `orders.note_go()`, each `step`, latches the go the first time any of these holds: the live order (`AgentPerception.order()`) has
-  `go: true` (the leader's `go`, D13, taken by `process_order` whenever it came, before the stack was ready too), the stack's claims say it
+  `go: true` (the leader's `go`, D13, taken by `orders.process` whenever it came, before the stack was ready too), the stack's claims say it
   came (`DoorStack.released(order_id, into, since)`, `into` and `since` the order claim's room and `order_frame`: a claim under the same
   order says `order_go`, or a member of this stack, a claim under the order or the human's, is crossing or through into that room, D14: the
   human leader stepping in is its go, on a crossing begun since the order was issued (its `crossed_frame` at or after `since`; a -1 on
@@ -319,9 +319,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **A frag at entry (`docs/leadership.md` LD14).** A stack under an order whose mode is `frag` (`grenade._bang_kind()`, from `orders.claim`'s
   `order_mode`; any other bang throws a stun) runs the bang with a frag: `grenade.kind` is set in `grenade._enter_bang`; `grenade._thrower` picks among the frag
   carriers (the claims' `frags`, `grenade._carried(grenade_kind)`), by the same rule; `grenade._stack_has(team, grenade_kind)` stands for the stun check (D1 / D15: the stack in
-  and no frag in it, the bang is given up and it goes in quietly); `grenade._plan_bang()` reaches with the frag's `grenade_reach` and lobs with
+  and no frag in it, the bang is given up and it goes in quietly); `grenade._plan_bang()` reaches with the frag's `grenades.reach` and lobs with
   `grenade._clear_lob(..., kind)`, and skips every target whose burst would put a claimed slot (`grenade._slot_points`: the claims' and its own) in the frag's
-  danger zone (`AgentPerception.in_grenade_zone`, D16); `grenade.tick_bang` waits `FRAG_BURST_CAP` (7 s) for it, throws `ItemRegistry.FRAG_SLOT`, and on
+  danger zone (`AgentPerception.grenades.in_zone`, D16); `grenade.tick_bang` waits `FRAG_BURST_CAP` (7 s) for it, throws `ItemRegistry.FRAG_SLOT`, and on
   the release keeps `{ kind, point }` for `take_thrown()`, which `Behavior.grenades.poll_throw` hands the controller to radio `frag_out`; `grenade.note_burst`
   ends the phase on a burst of `grenade.kind`. Every member holds its slot crouched meanwhile (`holds_crouched()`: phase `bang`, a frag, not throwing,
   in its slot; `Behavior.gait`'s `_wanted_posture`). Tests: `ai/grenade/order_frag_entry`, `order_frag_held_then_go`, `order_frag_no_frag_goes_quiet`.

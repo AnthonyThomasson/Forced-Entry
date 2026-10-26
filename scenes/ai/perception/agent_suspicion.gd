@@ -42,7 +42,7 @@ var extrapolate_cap: float
 
 
 ## Every suspect room: room key -> its reasons (`ORDER`), from the memory, the lost hostiles `lost`
-## (`AgentPerception.lost_hostiles()`) and the live ally `callouts` heard.
+## (`AgentPerception.contacts.lost_hostiles()`) and the live ally `callouts` heard.
 func rooms_suspected(rooms: Array, lost: Array, callouts: Array) -> Dictionary:
 	var out := {}
 	var add := func(key: String, why: StringName) -> void:

@@ -71,7 +71,7 @@ func _suspect_bang(entry: Entry, team: Array, asked: bool) -> bool:
 	if asked:
 		return true
 	return (entry.grenade.stack_has_stun(team)
-			and not world.perception.room_suspicion(state.into).is_empty())
+			and not world.perception.hearing.room_suspicion(state.into).is_empty())
 
 
 ## A quiet entry turns into a bang one (E17, `docs/grenades.md` G18) while nobody has crossed and
@@ -90,7 +90,7 @@ func maybe_upgrade(entry: Entry, team: Array, delta: float) -> void:
 		if _suspect_clock > 0.0:
 			return
 		_suspect_clock = SUSPECT_EVERY
-		if world.perception.room_suspicion(state.into).is_empty():
+		if world.perception.hearing.room_suspicion(state.into).is_empty():
 			return
 	state.bang = true
 	upgraded = true

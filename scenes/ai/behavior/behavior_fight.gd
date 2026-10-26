@@ -111,7 +111,7 @@ func _object_pos() -> Variant:
 ## room, whether it sees the shooter or not. Under fire it still goes in by entry, not straight
 ## through the doorway.
 func into_the_shots(into: String) -> bool:
-	return into != "" and behavior._perception.shots_from_room(into)
+	return into != "" and behavior._perception.hearing.shots_from_room(into)
 
 
 ## Fight known contact `id`: capture its body and last-known position (no-op when it isn't known).

@@ -75,7 +75,7 @@ func leader_followed() -> Node2D:
 ## else null (a member carrying an order, a held stack or a join included, goes where the order
 ## takes it).
 func leash_lead() -> Node2D:
-	return leader_followed() if controller._perception.order().is_empty() else null
+	return leader_followed() if controller._perception.orders.current().is_empty() else null
 
 
 ## The grenade reflex (G16) and the blind NPC (G15), every tick after the SEE pass: hand the
@@ -86,8 +86,8 @@ func react_to_grenades() -> void:
 	var perception: Node = controller._perception
 	var behavior: Node = controller._behavior
 	behavior.grenades.poll_throw()
-	behavior.grenades.set_evade(perception.evade_plan())
-	for grenade in perception.grenade_announcements():
+	behavior.grenades.set_evade(perception.grenades.evade_plan())
+	for grenade in perception.grenades.announcements():
 		if controller.tuning.radio.send_callouts:
 			controller._comms.post_grenade_call(grenade)
 	var blind: bool = controller._character.stun.is_blind()

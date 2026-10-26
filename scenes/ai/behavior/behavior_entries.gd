@@ -213,7 +213,7 @@ func _begin_pending(delta: float) -> bool:
 		if StackClaim.is_join(task.params):
 			# No slot in its leader's stack (a dead end, E20): the join is refused and it follows
 			# again (LD24, LD25).
-			behavior._perception.end_order(task.params.get("order_id"), "refused")
+			behavior._perception.orders.end(task.params.get("order_id"), "refused")
 		finish()
 		return true
 	behavior._entry.state.held_back = (resume.is_empty()
@@ -289,7 +289,7 @@ func _other_threshold(path: PackedVector2Array, index: int, reach: float) -> Dic
 ## the doorway, so nobody leaves the way to it to cover a doorway on the way (E15, as for a stack
 ## others claim).
 func _recipients_coming() -> bool:
-	var held: Dictionary = behavior._perception.order()
+	var held: Dictionary = behavior._perception.orders.current()
 	if str(held.get("id", "")) != str(behavior.task.params.get("order_id", "")):
 		return false
 	var character: Node = behavior._character

@@ -151,9 +151,9 @@ outside of, of a `shot_from` line (`AgentSuspicion.shot_line`: from where it lea
 are outside of"; the unseen-fire exposure then adds "The shots came from the kitchen, a room you are outside of. You can throw a stun grenade where the shots came from." The fact
 `grenade_ready` holds for either. A group's `situation` fills the tree's `{situation}` (`domain-ai-decision`).
 The exposure section says "You can throw a frag grenade onto their spot." for the options not dropped, and "X is blinded by a flash and cannot see you." for a hostile it caught in a stun's flash (`blind` on the contact, from
-`AgentPerception.process_explosion`); the contact line, the `hostiles` option and the ADVANCE summary say "blinded by a flash", a blinded hostile has no `aim_text`, and the `hostiles` bind carries `blinded` (the clause
+`AgentPerception.grenades.process_explosion`); the contact line, the `hostiles` option and the ADVANCE summary say "blinded by a flash", a blinded hostile has no `aim_text`, and the `hostiles` bind carries `blinded` (the clause
 the ADVANCE desc's `{blinded}` is filled with). The `entries` options say what makes a room suspect instead of "unexplored"/"unsearched" (the perception's `AgentSuspicion.rooms_suspected`, room key ->
-reason ids, worded by `SnapshotOptions.SUSPECT_PHRASES`, each fact its own phrase, in this order, docs/grenades.md G18; the entry reads the same reasons through `AgentPerception.room_suspicion`
+reason ids, worded by `SnapshotOptions.SUSPECT_PHRASES`, each fact its own phrase, in this order, docs/grenades.md G18; the entry reads the same reasons through `AgentPerception.hearing.room_suspicion`
 to make any entry into a suspect room a bang one, E17): "gunfire heard there" (a `heard_gunfire` position inside the room), "footsteps heard there" (`heard_footsteps`, docs/hearing.md H1),
 "shots at you came from there" (the `shot_from` line runs through the room), "an ally radioed a fight there" (a combat callout's `target_pos` in it), "a hostile seen going in" (a lost hostile last seen in it),
 "a hostile lost by its doorway" (lost outside it within `AgentSuspicion.LOST_NEAR_DOOR` 150 px of one of its doorways) and "a hostile seen heading in" (lost moving, where it was heading inside it); such a doorway is listed first.

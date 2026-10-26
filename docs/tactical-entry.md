@@ -597,7 +597,7 @@ the stack toward the door's axis, clear of the slots.
   ally radios `cleared_room`, and when a search covers its room). The guard then stashes the order, runs an `entry`
   primitive for that doorway (the same one ENTER runs) and puts the order back when it ends. Exempt are the nodes that
   carry `entry_guard: false` (RETREAT) and an NPC under fire, but for a doorway into the room the shots came from
-  (`Behavior.fight.into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
+  (`Behavior.fight.into_the_shots`, over `AgentPerception.hearing.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.hearing.room_suspicion`,
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
   and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is

@@ -4,7 +4,8 @@ extends UnitSuite
 ## keeps any of it alive: the entry's leaves (`state`, `world`) and its ten parts (`claim`, ...,
 ## `radio`, each handed the entry at the call) and the combat's throw part hold no
 ## owner, the planner's parts and the controller's cadence are data that hold none, and the other
-## parts of a node (the behaviour's, Locomotion's, the controller's) hold it only as a node. Every
+## parts of a node (the behaviour's, Locomotion's, the controller's, the perception's) hold it only
+## as a node. Every
 ## preset, instanced, put in the tree (its controller builds the AI in `_ready`) and freed, leaves a
 ## `WeakRef` to each piece that reads null. Each NPC is made inside `_built_then_freed`, so no
 ## temporary of the calling test still holds a piece.
@@ -28,13 +29,15 @@ func _built_then_freed(path: String) -> Dictionary:
 
 
 ## Each piece of the AI under `controller` (the behaviour with its parts, its modules and theirs,
-## the planner's parts and the controller's own), by name, held by a `WeakRef`.
+## the perception's parts, the planner's parts and the controller's own), by name, held by a
+## `WeakRef`.
 func _held(controller: Node) -> Dictionary:
 	var behavior: Node = controller.get("_behavior")
 	var entry: Entry = behavior.get("_entry")
 	var combat: RefCounted = behavior.get("_combat")
 	var loco: Node = behavior.get("_loco")
 	var planner: Node = controller.get("_planner")
+	var perception: Node = controller.get("_perception")
 	var pieces := {
 		"behavior": behavior, "behavior.task": behavior.get("task"),
 		"behavior.watch": behavior.get("_watch"),
@@ -55,6 +58,10 @@ func _held(controller: Node) -> Dictionary:
 		"controller.cadence": controller.get("_cadence"),
 		"controller.comms": controller.get("_comms"),
 		"controller.reflexes": controller.get("_reflexes"),
+		"perception.hearing": perception.get("hearing"),
+		"perception.orders": perception.get("orders"),
+		"perception.contacts": perception.get("contacts"),
+		"perception.grenades": perception.get("grenades"),
 	}
 	var held := {}
 	for key: String in pieces:
@@ -79,7 +86,7 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(36)
+		assert_int(held.size()).is_equal(40)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()

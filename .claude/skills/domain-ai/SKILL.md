@@ -60,7 +60,7 @@ the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger
 "The stack", has the detail.
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order
-(`AgentPerception.process_order`) and forces a decision (`_cadence.force("ordered")`, in `_comms.process_events`); from that frame until a decision made knowing the order
+(`AgentPerception.orders.process`) and forces a decision (`_cadence.force("ordered")`, in `_comms.process_events`); from that frame until a decision made knowing the order
 lands a walk the order replaces stops, while a fight goes on (the cadence's `order_from` = `decisions`, `Behavior.orders.await_next(true)`, `domain-ai-behavior`):
 `_maybe_interrupt` restarts a decision walk in flight, and `_on_decided` drops a leaf from a walk begun before the order (LD6). The entry rule `ordered → order` sits after the fight rules
 and before `hostile_known`, so an ordered member shot at fights, then goes back to its order. The ORDER node's one option (the snapshot's
@@ -75,7 +75,7 @@ side, its mode, a wait for every living recipient, and for the human leader hold
 it claims and its walk guarded, its claims (the radio's `post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`
 beside every claim's `stuns`, `frags`, `claim_frame`, `claim_pos`, `move_up`, `pie` and `crossed_frame`; it ends done at the room cleared
 (`domain-ai-entry`). A held stack (LD13) waits at its slots, ready, until its go; a frag stack (LD14) has a frag carrier throw a frag in
-first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception._end_ambush_on_contact`, D18).
+first. An ambush (LD15) ends done on first contact, a hostile in sight or shots at the member (`AgentPerception.orders.end_ambush_on_contact`, D18).
 A **join** (a `stack` order with `mode` `join`, LD24) is the squad's own: its leader's own claim at a doorway rallies every follower holding
 no order. Its ORDER option is an `entry` with `join: true` and no side or mode of the order's, and `Entry.begin` runs it as the member's own
 unordered entry joining the leader's stack (`domain-ai-entry`); the order's id stays in the leaf's params, so its progress is still radioed.
