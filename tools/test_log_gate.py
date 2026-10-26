@@ -685,9 +685,11 @@ class GdStyleLintTests(unittest.TestCase):
                                 + "".join(f"\tif a > {i}:\n\t\ttotal += {i}\n" for i in range(9)) + "\treturn total\n",
         "quality/max-local-variables": "extends RefCounted\n\n\nfunc f() -> int:\n\tvar v0 := 1\n"
                                        + "".join(f"\tvar v{i} := v{i - 1} + 1\n" for i in range(1, 11)) + "\treturn v10\n",
-        # The structural rules, each one past gdstyle's default: 20 public methods.
+        # The structural rules, each one past gdstyle's default: 20 public methods, 1000 lines (gdstyle counts the
+        # final newline's empty line too, so 1002 lines read as 1003).
         "quality/max-public-methods": "extends RefCounted\n"
                                       + "".join(f"\n\nfunc f{i}() -> int:\n\treturn {i}\n" for i in range(21)),
+        "quality/max-file-length": "extends RefCounted\n\n" + "".join(f"const C{i} := {i}\n" for i in range(1000)),
     }
     QUALITY_OFF_BY_DECISION = {
         "quality/no-debug-print": "extends RefCounted\n\n\nfunc f() -> void:\n\tprint(\"x\")\n",
@@ -697,7 +699,7 @@ class GdStyleLintTests(unittest.TestCase):
         # No node in it: gdstyle reads a % format with a call after it as a %UniqueNode lookup.
         "quality/process-get-node": "extends Node\n\n\nfunc _process(delta: float) -> void:\n\tset_meta(\"t\", \"%d\" % ceili(delta))\n",
     }
-    QUALITY_NOT_YET = ("quality/max-file-length", "quality/max-class-variables")
+    QUALITY_NOT_YET = ("quality/max-class-variables",)
     FINDING = re.compile(r"^\s+(\S+\.gd):\d+:\d+: .* \[([\w/-]+)\]$", re.M)  # a `gdstyle check` line of lint.sh
 
     @classmethod

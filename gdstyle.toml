@@ -61,6 +61,7 @@ exclude = ["addons", ".godot", "artifacts", "tools/coverage/tests/fixtures"]
 "quality/max-branches" = "error"
 "quality/max-local-variables" = "error"
 "quality/max-public-methods" = "error"
+"quality/max-file-length" = "error"
 # Off by decision, each for the reason beside it:
 "quality/no-debug-print" = "off" # GameLog.say must print() (interface 15); runner and tools print by design
 "quality/await-in-loop" = "off" # `for ...: await t.seconds(...)` is how a GameTest steps time
@@ -68,5 +69,4 @@ exclude = ["addons", ".godot", "artifacts", "tools/coverage/tests/fixtures"]
 "quality/allocation-in-loop" = "off" # setup loops that must make N nodes: spawning, wear, debris
 "quality/process-get-node" = "off" # gdstyle v0.4.0 reads a % format in _process() as a %Node lookup
 # Off until stage 3 of #76 (the structural splits) brings the tree to zero findings under each and turns it on:
-"quality/max-file-length" = "off"
 "quality/max-class-variables" = "off"
