@@ -211,7 +211,7 @@ func draw_chain(chain: Dictionary) -> void:
 
 
 ## Segment `seg`'s capsule a pixel wider all round added to `outlines`, in its colour's outline tone
-## (PixelCanvas.tones).
+## (ArtSurfaceConfig.tones).
 static func _outline_seg(outlines: FillBatch, seg: Dictionary) -> void:
 	var a3: Vector3 = seg["a"]
 	var b3: Vector3 = seg["b"]

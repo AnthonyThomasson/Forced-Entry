@@ -19,14 +19,14 @@ const _KNOB_HEIGHT := 6
 
 ## Paint an appliance onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var panel := String(opts.get("panel", ObjectArtKitchenBathConfig.appliance_panel))
 	var glow := Decay.screen_color(opts)
 	if panel == "tv":
 		_crt(c, glow)
 		Decay.grime(c)
 		return
-	var body := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 3)
+	var body := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 3)
 	c.fill(body, base, _BODY_HEIGHT)
 	c.surface(body, material, base)
 	c.bevel(body, 2, 2, t.highlight, t.dark)
@@ -60,7 +60,7 @@ static func _burners(c: PixelCanvas, t: Dictionary) -> void:
 	for i in 4:
 		var kx := roundi((i + 0.5) * c.w / 4.0)
 		c.fill(
-			PixelCanvas.disc(Vector2i(kx, c.h - int(strip / 2.0) - 1), maxi(1, int(strip / 3.0))),
+			PixelShape.disc(Vector2i(kx, c.h - int(strip / 2.0) - 1), maxi(1, int(strip / 3.0))),
 			metal,
 			_KNOB_HEIGHT,
 		)
@@ -72,9 +72,9 @@ static func _burners(c: PixelCanvas, t: Dictionary) -> void:
 				roundi((gx + 0.5) * area.size.x / 2.0),
 				roundi((gy + 0.5) * area.size.y / 2.0),
 			)
-			var ring := PixelCanvas.disc(o, rad)
+			var ring := PixelShape.disc(o, rad)
 			c.outline(ring, metal.darkened(0.2))
-			c.fill(PixelCanvas.disc(o, maxi(1, int(rad / 3.0))), metal.darkened(0.45))
+			c.fill(PixelShape.disc(o, maxi(1, int(rad / 3.0))), metal.darkened(0.45))
 			c.line(
 				o - Vector2i(rad, 0),
 				o + Vector2i(rad, 0),
@@ -102,7 +102,7 @@ static func _fridge(c: PixelCanvas, t: Dictionary) -> void:
 	c.line(Vector2i(int(c.w / 2.0), c.h - lip - 1), Vector2i(int(c.w / 2.0), c.h - 2), t.outline)
 	var metal := ObjectArtKitchenBathConfig.appliance_metal_color
 	for x in [int(c.w / 2.0) - 3, int(c.w / 2.0) + 2]:
-		c.fill(PixelCanvas.rounded(Rect2i(x, c.h - lip - 3, 1, lip + 3), 0), metal, _KNOB_HEIGHT)
+		c.fill(PixelShape.rounded(Rect2i(x, c.h - lip - 3, 1, lip + 3), 0), metal, _KNOB_HEIGHT)
 
 
 ## A microwave top: vent slots at the back corner; the front lip holds the dark door window and a
@@ -115,7 +115,7 @@ static func _microwave(c: PixelCanvas, t: Dictionary, glow: Color) -> void:
 	var lip := maxi(5, roundi(c.h * 0.22))
 	var strip := Rect2i(2, c.h - lip - 1, c.w - 4, lip)
 	c.paint_over(strip, t.dark)
-	var window := PixelCanvas.rounded(
+	var window := PixelShape.rounded(
 		Rect2i(
 			strip.position.x + 1,
 			strip.position.y + 1,
@@ -145,7 +145,7 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 	c.paint_over(Rect2i(2, 2, c.w - 4, panel_h), t.dark)
 	var metal := ObjectArtKitchenBathConfig.appliance_metal_color
 	var dial := Vector2i(c.w - 4 - int(panel_h / 2.0), 2 + int(panel_h / 2.0))
-	c.fill(PixelCanvas.disc(dial, maxi(1, int(panel_h / 2.0) - 1)), metal, _KNOB_HEIGHT)
+	c.fill(PixelShape.disc(dial, maxi(1, int(panel_h / 2.0) - 1)), metal, _KNOB_HEIGHT)
 	c.px(dial.x, dial.y - 1, t.outline)
 	Decay.display(
 		c,
@@ -157,11 +157,11 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 		c.px(5 + i * 3, 2 + int(panel_h / 2.0), t.light)
 	var o := Vector2i(int(c.w / 2.0), panel_h + 2 + int((c.h - panel_h - 2) / 2.0))
 	var rad := maxi(3, int(mini(c.w, c.h - panel_h) * 3 / 10.0))
-	var ring := PixelCanvas.disc(o, rad)
+	var ring := PixelShape.disc(o, rad)
 	c.fill(ring, t.light)
 	c.outline(ring, t.shadow)
 	if washer:
-		var glass := PixelCanvas.disc(o, rad - 2)
+		var glass := PixelShape.disc(o, rad - 2)
 		c.fill(
 			glass,
 			ObjectArtKitchenBathConfig.appliance_glass_color.lerp(Color(0.4, 0.6, 0.8), 0.4),
@@ -171,13 +171,13 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 			var p := (o
 					+ Vector2i((Vector2(cos(a), sin(a)) * c.rng.randf_range(0.0, rad - 4)).round()))
 			c.fill(
-				PixelCanvas.disc(p, maxi(1, int(rad / 4.0))),
+				PixelShape.disc(p, maxi(1, int(rad / 4.0))),
 				Props.pick(c, "books").lightened(0.15),
 			)
 		c.glare(glass, Color(0.85, 0.92, 1.0), 2)
 	else:
-		c.fill(PixelCanvas.disc(o, rad - 2), base.darkened(0.04))
-		c.bevel(PixelCanvas.disc(o, rad - 2), 1, 1, t.dark, t.highlight)
+		c.fill(PixelShape.disc(o, rad - 2), base.darkened(0.04))
+		c.bevel(PixelShape.disc(o, rad - 2), 1, 1, t.dark, t.highlight)
 		for i in 3:
 			var y := c.h - 5 - i * 2
 			c.line(Vector2i(4, y), Vector2i(maxi(5, rad), y), t.shadow)
@@ -187,11 +187,11 @@ static func _drum(c: PixelCanvas, base: Color, t: Dictionary, washer: bool, glow
 ## front glowing in `glow` and cracked across.
 static func _crt(c: PixelCanvas, glow: Color) -> void:
 	var case_col := ObjectArtKitchenBathConfig.appliance_crt_color
-	var t := PixelCanvas.tones(case_col)
-	var box := PixelCanvas.rounded(Rect2i(int(c.w * 0.18), 1, int(c.w * 0.64), c.h - 3), 3)
+	var t := ArtSurfaceConfig.tones(case_col)
+	var box := PixelShape.rounded(Rect2i(int(c.w * 0.18), 1, int(c.w * 0.64), c.h - 3), 3)
 	c.fill(box, case_col, _BODY_HEIGHT + 2)
 	c.bevel(box, 1, 2, t.light, t.dark)
-	var back := PixelCanvas.rounded(Rect2i(int(c.w * 0.3), 2, int(c.w * 0.4), int(c.h * 0.4)), 4)
+	var back := PixelShape.rounded(Rect2i(int(c.w * 0.3), 2, int(c.w * 0.4), int(c.h * 0.4)), 4)
 	c.fill(back, case_col.darkened(0.12), _BODY_HEIGHT + 3)
 	c.bevel(back, 1, 1, t.light, t.shadow)
 	for y in range(4, int(c.h * 0.38), 2):

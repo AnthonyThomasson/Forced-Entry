@@ -26,10 +26,10 @@ static func of(piece: Node2D) -> Array:
 	var spec: Dictionary = ObjectArtLightConfig.light_specs.get(kind, {})
 	if spec.is_empty():
 		return []
-	var ahead: Vector2 = (piece.facing as Vector2).normalized()
+	var ahead: Vector2 = (piece.look.facing as Vector2).normalized()
 	if ahead == Vector2.ZERO:
 		ahead = Vector2.DOWN
-	var neon := Decay.neon(piece.art_opts)
+	var neon := Decay.neon(piece.look.art_opts)
 	var light := {
 		"offset": _front_offset(piece.size, ahead, spec),
 		"turn": 0.0,
@@ -64,7 +64,7 @@ static func _by_kind(
 	ahead: Vector2,
 	spec: Dictionary,
 ) -> void:
-	var opts: Dictionary = piece.art_opts
+	var opts: Dictionary = piece.look.art_opts
 	var size: Vector2 = piece.size
 	var neon := Decay.neon(opts)
 	var spill := ahead.angle() + PI * 0.5  # A screen's pool lies across its front.
@@ -111,8 +111,8 @@ static func _street_head(light: Dictionary, kind: String, piece: Node2D, neon: C
 ## Which row of ObjectArtLightConfig.light_specs `piece` gives light by ("" for none): by its
 ## painter and options, or, for a piece with a neon option and no light of its own, its trim.
 static func _kind(piece: Node2D) -> String:
-	var art: String = piece.art
-	var opts: Dictionary = piece.art_opts
+	var art: String = piece.look.art
+	var opts: Dictionary = piece.look.art_opts
 	match art:
 		"lamp", "hotplate":
 			return art

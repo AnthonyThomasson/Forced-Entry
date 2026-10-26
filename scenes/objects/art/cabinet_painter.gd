@@ -16,21 +16,21 @@ const _BODY_HEIGHT := 4
 
 ## Paint a cabinet onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var lip := clampi(
 		roundi(c.h * float(opts.get("front_depth", ObjectArtStorageConfig.cabinet_front_depth))),
 		2,
 		int(c.h / 3.0),
 	)
-	var body := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+	var body := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	var top_rect := Rect2i(0, 0, c.w, c.h - lip)
-	var top := PixelCanvas.rounded(top_rect, 2)
+	var top := PixelShape.rounded(top_rect, 2)
 
 	c.fill(body, base, _BODY_HEIGHT)
 	c.surface(top, material, base)
 	if opts.get("crown", ObjectArtStorageConfig.cabinet_crown):
 		c.bevel(top, 2, 3, t.highlight, t.dark)
-		c.outline(PixelCanvas.rounded(top_rect.grow(-4), 1), t.dark)
+		c.outline(PixelShape.rounded(top_rect.grow(-4), 1), t.dark)
 	else:
 		c.bevel(top, 2, 2, t.light, t.dark)
 	match String(opts.get("top", "solid")):
@@ -62,7 +62,7 @@ static func casegoods(c: PixelCanvas, material: String) -> void:
 ## The front lip: a face shaded by how it meets the light, split into doors or drawers (`opts`:
 ## `front`, `count`, `labels`, `handle`).
 static func _front(c: PixelCanvas, strip: Rect2i, base: Color, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var facing_light := Vector2.DOWN.dot(c.light)
 	var face := (base.lightened(0.08)
 			if facing_light > 0.3
@@ -90,7 +90,7 @@ static func _front(c: PixelCanvas, strip: Rect2i, base: Color, opts: Dictionary)
 			_drawer_pulls(c, strip, n, handle, bool(opts.get("labels", false)))
 		"lid":
 			c.fill(
-				PixelCanvas.rounded(
+				PixelShape.rounded(
 					Rect2i(int(c.w / 2.0) - 2, strip.position.y, 4, mini(3, strip.size.y)),
 					0,
 				),
@@ -131,7 +131,7 @@ static func _glass_top(c: PixelCanvas, top_rect: Rect2i, t: Dictionary) -> void:
 	var pane := top_rect.grow(-3)
 	if pane.size.x < 6 or pane.size.y < 6:
 		return
-	var glass := PixelCanvas.rounded(pane, 1)
+	var glass := PixelShape.rounded(pane, 1)
 	c.fill(glass, ObjectArtStorageConfig.cabinet_glass_color)
 	var r := mini(int(pane.size.y / 2.0) - 1, 6)
 	var x := pane.position.x + r + 1
@@ -144,17 +144,17 @@ static func _glass_top(c: PixelCanvas, top_rect: Rect2i, t: Dictionary) -> void:
 
 ## A chest lid: a raised panel crossed by two darker straps, with metal corner brackets.
 static func _lid(c: PixelCanvas, top_rect: Rect2i, base: Color, t: Dictionary) -> void:
-	var panel := PixelCanvas.rounded(top_rect.grow(-2), 2)
+	var panel := PixelShape.rounded(top_rect.grow(-2), 2)
 	c.fill(panel, base.lightened(0.04))
 	c.bevel(panel, 1, 1, t.light, t.dark)
 	for f in [0.25, 0.75]:
 		var x := roundi(top_rect.size.x * f)
 		c.fill(
-			PixelCanvas.rounded(Rect2i(x - 2, top_rect.position.y, 4, top_rect.size.y), 0),
+			PixelShape.rounded(Rect2i(x - 2, top_rect.position.y, 4, top_rect.size.y), 0),
 			t.dark,
 			_BODY_HEIGHT,
 		)
 		c.line(Vector2i(x - 2, top_rect.position.y), Vector2i(x - 2, top_rect.end.y - 1), t.shadow)
 	var metal := ObjectArtStorageConfig.cabinet_handle_color
 	for p in [Vector2i(1, 1), Vector2i(top_rect.size.x - 3, 1)]:
-		c.fill(PixelCanvas.rounded(Rect2i(p, Vector2i(2, 2)), 0), metal)
+		c.fill(PixelShape.rounded(Rect2i(p, Vector2i(2, 2)), 0), metal)

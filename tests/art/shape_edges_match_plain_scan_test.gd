@@ -1,5 +1,5 @@
 extends GameTest
-## A shape rasterized from a point test (`PixelCanvas.Shape`: `bowed`, and any other shape that is
+## A shape rasterized from a point test (`PixelShape`: `bowed`, and any other shape that is
 ## not convex along both axes) learns per pixel how far in from its edge it sits and the outward
 ## normal there by sweeping its mask along the eight steps, and hands `bevel` / `outline` only the
 ## pixels within reach of the edge. This pins its depths, normals and edge bands to the plain scan
@@ -40,7 +40,7 @@ func run(t: TestContext) -> void:
 
 
 ## Names the first three differing shapes (`differing` counts them so far) as failed checks.
-func _note_differing(t: TestContext, differing: int, n: int, shape: PixelCanvas.Shape) -> void:
+func _note_differing(t: TestContext, differing: int, n: int, shape: PixelShape) -> void:
 	if differing > 3:
 		return
 	t.check(
@@ -52,7 +52,7 @@ func _note_differing(t: TestContext, differing: int, n: int, shape: PixelCanvas.
 
 ## Shape `n`: a bowed bar, a blob of discs, a ring with a hole or scattered noise, at a random place
 ## and size.
-func _shape(n: int, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
+func _shape(n: int, rng: RandomNumberGenerator) -> PixelShape:
 	var r := Rect2i(
 		rng.randi_range(-3, 10),
 		rng.randi_range(-3, 10),
@@ -61,7 +61,7 @@ func _shape(n: int, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
 	)
 	match n % 4:
 		0:
-			return PixelCanvas.bowed(r, rng.randi_range(0, 6), rng.randi_range(0, 5))
+			return PixelShape.bowed(r, rng.randi_range(0, 6), rng.randi_range(0, 5))
 		1:
 			return _blob(r, rng)
 		2:
@@ -70,7 +70,7 @@ func _shape(n: int, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
 
 
 ## One to five random discs within `r`, as one shape.
-func _blob(r: Rect2i, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
+func _blob(r: Rect2i, rng: RandomNumberGenerator) -> PixelShape:
 	var discs: Array[Vector3i] = []
 	for _k in rng.randi_range(1, 5):
 		discs.append(Vector3i(
@@ -78,7 +78,7 @@ func _blob(r: Rect2i, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
 			rng.randi_range(r.position.y, r.end.y),
 			rng.randi_range(2, 20),
 		))
-	return PixelCanvas.Shape.new(r, func(x: int, y: int) -> bool: return _in_discs(discs, x, y))
+	return PixelShape.new(r, func(x: int, y: int) -> bool: return _in_discs(discs, x, y))
 
 
 ## Whether (x, y) lies in one of `discs` (centre x, y and radius z).
@@ -90,19 +90,19 @@ func _in_discs(discs: Array[Vector3i], x: int, y: int) -> bool:
 
 
 ## A ring in `r` with a hole of a random share of its radius.
-func _ring(r: Rect2i, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
+func _ring(r: Rect2i, rng: RandomNumberGenerator) -> PixelShape:
 	var c := Vector2(r.get_center())
 	var outer := minf(r.size.x, r.size.y) * 0.5
 	var inner := outer * rng.randf_range(0.2, 0.7)
-	return PixelCanvas.Shape.new(r, func(x: int, y: int) -> bool:
+	return PixelShape.new(r, func(x: int, y: int) -> bool:
 		var d := Vector2(x, y).distance_to(c)
 		return d <= outer and d >= inner)
 
 
 ## Scattered noise over `r`: two pixels in three inside.
-func _noise(r: Rect2i, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
+func _noise(r: Rect2i, rng: RandomNumberGenerator) -> PixelShape:
 	var seed_value := rng.randi()
-	return PixelCanvas.Shape.new(
+	return PixelShape.new(
 		r,
 		func(x: int, y: int) -> bool: return hash([seed_value, x, y]) % 3 != 0,
 	)
@@ -111,16 +111,16 @@ func _noise(r: Rect2i, rng: RandomNumberGenerator) -> PixelCanvas.Shape:
 ## The plain scan: per step, how many inside pixels run on from each pixel that way (every pixel of
 ## the bounds); per inside pixel the nearest exit over the straight steps (diagonals where strictly
 ## sooner) and the sum of the steps exiting there. `{ depth, normal }` by mask index.
-func _plain_edges(shape: PixelCanvas.Shape) -> Dictionary:
+func _plain_edges(shape: PixelShape) -> Dictionary:
 	var inside := _plain_inside(shape)
 	var runs: Array[PackedInt32Array] = []
-	for d in PixelCanvas.Shape.STEPS:
+	for d in PixelShape.STEPS:
 		runs.append(_plain_run(inside, shape.bounds.size, d))
 	return _plain_depths(inside, runs)
 
 
 ## 1 per inside pixel of the shape's bounds, by mask index.
-func _plain_inside(shape: PixelCanvas.Shape) -> PackedByteArray:
+func _plain_inside(shape: PixelShape) -> PackedByteArray:
 	var bw := shape.bounds.size.x
 	var bh := shape.bounds.size.y
 	var inside := PackedByteArray()
@@ -172,7 +172,7 @@ func _plain_depths(inside: PackedByteArray, runs: Array[PackedInt32Array]) -> Di
 		var sum := Vector2.ZERO
 		for s in range(first, first + 4):
 			if runs[s][i] + 1 == k:
-				sum += Vector2(PixelCanvas.Shape.STEPS[s])
+				sum += Vector2(PixelShape.STEPS[s])
 		depth[i] = mini(k, 255)
 		normal[i] = sum.normalized()
 	return { "depth": depth, "normal": normal }
@@ -181,7 +181,7 @@ func _plain_depths(inside: PackedByteArray, runs: Array[PackedInt32Array]) -> Di
 ## Whether every pixel of the bounds (and a ring round them) has the plain depth and normal, and
 ## each edge band (1 to 4 px) lists exactly the inside pixels the plain depth puts within it, each
 ## once.
-func _same_edges(shape: PixelCanvas.Shape, plain: Dictionary) -> bool:
+func _same_edges(shape: PixelShape, plain: Dictionary) -> bool:
 	if not _same_depths(shape, plain):
 		return false
 	for k in range(1, 5):
@@ -191,7 +191,7 @@ func _same_edges(shape: PixelCanvas.Shape, plain: Dictionary) -> bool:
 
 
 ## Whether every pixel of the bounds and a ring round them has the plain depth and normal.
-func _same_depths(shape: PixelCanvas.Shape, plain: Dictionary) -> bool:
+func _same_depths(shape: PixelShape, plain: Dictionary) -> bool:
 	var b := shape.bounds
 	for y in range(b.position.y - 1, b.end.y + 1):
 		for x in range(b.position.x - 1, b.end.x + 1):
@@ -207,7 +207,7 @@ func _same_depths(shape: PixelCanvas.Shape, plain: Dictionary) -> bool:
 
 ## Whether the edge band `k` px deep lists exactly the inside pixels the plain depth puts within
 ## it, each once.
-func _same_band(shape: PixelCanvas.Shape, plain: Dictionary, k: int) -> bool:
+func _same_band(shape: PixelShape, plain: Dictionary, k: int) -> bool:
 	var b := shape.bounds
 	var listed := {}
 	var pts := shape.edge_pixels(k)
@@ -233,7 +233,7 @@ func _same_band(shape: PixelCanvas.Shape, plain: Dictionary, k: int) -> bool:
 ## Whether `bevel`, `bevel_relative`, `outline` and `outline_relative` through the shape paint what
 ## the plain scan's depths and normals paint, every inside pixel visited, on a canvas filled with
 ## noise.
-func _same_drawings(shape: PixelCanvas.Shape, plain: Dictionary, seed_value: int) -> bool:
+func _same_drawings(shape: PixelShape, plain: Dictionary, seed_value: int) -> bool:
 	var size := shape.bounds.end + Vector2i(4, 4)
 	var a := _noise_canvas(size, seed_value)
 	var b := _noise_canvas(size, seed_value)
@@ -254,7 +254,7 @@ func _noise_canvas(size: Vector2i, seed_value: int) -> PixelCanvas:
 
 
 ## The four drawings, each over every inside pixel with the plain depth and normal.
-func _plain_draw(c: PixelCanvas, shape: PixelCanvas.Shape, plain: Dictionary) -> void:
+func _plain_draw(c: PixelCanvas, shape: PixelShape, plain: Dictionary) -> void:
 	var b := shape.bounds
 	var steps: Array[Callable] = [
 		_plain_bevel.bind(c),

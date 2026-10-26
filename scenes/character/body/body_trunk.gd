@@ -211,7 +211,7 @@ func draw(rd: RefCounted) -> void:
 		_visuals.art.append(face["texture"])
 	var closed := outline.duplicate()
 	closed.append(outline[0])
-	_visuals.draw_polyline(closed, PixelCanvas.tones(_dress.shirt).outline, 1.0)
+	_visuals.draw_polyline(closed, ArtSurfaceConfig.tones(_dress.shirt).outline, 1.0)
 	_draw_wounds(rd)
 
 

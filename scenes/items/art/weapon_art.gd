@@ -159,8 +159,8 @@ static func draw_held(
 			continue
 		var rect: Rect2i = parts[part]
 		var col: Color = look[part]
-		var shape := PixelCanvas.rounded(rect, 0 if part == "barrel" and rect.size.x < 3 else 1)
-		var t := PixelCanvas.tones(col)
+		var shape := PixelShape.rounded(rect, 0 if part == "barrel" and rect.size.x < 3 else 1)
+		var t := ArtSurfaceConfig.tones(col)
 		c.fill(shape, col, HELD_PARTS[part])
 		if part == "body":
 			c.surface(shape, look.get("finish", "metal"), col, false)
@@ -239,7 +239,7 @@ static func draw_flat(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Calla
 		opts: Dictionary) -> void:
 	var gun: StringName = opts.get("gun", &"pistol")
 	var crude: bool = opts.get("crude", false)
-	var tones := PixelCanvas.tones((look["body"] as Color).lightened(0.1))
+	var tones := ArtSurfaceConfig.tones((look["body"] as Color).lightened(0.1))
 	if p["mag_len"] > 0:
 		_flat_magazine(c, look, p, mx)
 	_flat_grip(c, look, p, mx, opts)
@@ -260,7 +260,7 @@ static func _flat_magazine(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: 
 	var mag_top: int = p["mag_top"]
 	var mag_end: int = mag_top + int(p["mag_len"])
 	var curve_k: float = p["mag_curve"]
-	var mag := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+	var mag := PixelShape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var drop: int = mx.call(x) - below
 		if drop < -1 or drop > 3:
 			return false
@@ -279,7 +279,7 @@ static func _flat_grip(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Call
 	var grip_top: int = p["grip_top"]
 	var grip_len: int = p["grip_len"]
 	var grip_far := c.w - 1 if opts.get("gun", &"pistol") == &"pistol" else below + 1
-	var grip := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+	var grip := PixelShape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
 		if lx < below - 1 or lx > grip_far:
 			return false
@@ -315,7 +315,7 @@ static func _flat_stock(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: Cal
 	var stock_col: Color = look["stock"]
 	var thick: int = p["bw"] + (2 if crude else 1)
 	var frame: bool = opts.get("gun", &"pistol") == &"smg" and not crude
-	var stock := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+	var stock := PixelShape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
 		if y < 0 or y > stock_end or lx < 0 or lx >= thick:
 			return false
@@ -334,9 +334,9 @@ static func _flat_receiver(c: PixelCanvas, look: Dictionary, p: Dictionary, mx: 
 	var body_end: int = p["body_end"]
 	var guard_end: int = p["guard_end"]
 	var body_col: Color = (look["body"] as Color).lightened(0.1)
-	var tones := PixelCanvas.tones(body_col)
+	var tones := ArtSurfaceConfig.tones(body_col)
 	var from := stock_end - 1 if stock_end > 0 else 0
-	var body := PixelCanvas.Shape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
+	var body := PixelShape.new(Rect2i(0, 0, c.w, c.h), func(x: int, y: int) -> bool:
 		var lx: int = mx.call(x)
 		if y >= from and y <= body_end:
 			return lx >= 1 and lx <= bw
@@ -404,9 +404,9 @@ static func shell(
 	inset := 0,
 ) -> Dictionary:
 	var col: Color = look["shell"]
-	var t := PixelCanvas.tones(col)
-	var body := PixelCanvas.ellipse(Rect2i(0, 0, c.w, c.h - cap_len + 2)) if egg \
-		else PixelCanvas.rounded(Rect2i(inset, 0, c.w - inset * 2, c.h - cap_len + 1), 1)
+	var t := ArtSurfaceConfig.tones(col)
+	var body := PixelShape.ellipse(Rect2i(0, 0, c.w, c.h - cap_len + 2)) if egg \
+		else PixelShape.rounded(Rect2i(inset, 0, c.w - inset * 2, c.h - cap_len + 1), 1)
 	c.fill(body, col, BODY_HEIGHT)
 	c.surface(body, look.get("finish", "metal"), col, false)
 	c.bevel(body, 1, 1, t.light, t.dark)
@@ -417,7 +417,7 @@ static func shell(
 ## The fuze or cap in the look's `cap` colour over `rect`.
 static func cap(c: PixelCanvas, look: Dictionary, rect: Rect2i) -> void:
 	var col: Color = look["cap"]
-	var shape := PixelCanvas.rounded(rect, 1)
+	var shape := PixelShape.rounded(rect, 1)
 	c.fill(shape, col, FUZE_HEIGHT)
 	c.bevel(shape, 1, 1, col.lightened(0.2), col.darkened(0.3))
 	c.outline(shape, col.darkened(0.6))

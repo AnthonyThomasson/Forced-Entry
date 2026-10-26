@@ -23,9 +23,9 @@ extends Node2D
 ##     drops its weakest (`budget().dropped`).
 ##   - Rhythms (light_rhythm.gd) seeded per light from `seed_value` and the piece, dimming the light
 ##     and its `glow` (the piece's unshaded light-source overlay) together.
-##   - Flashes: a pool of `LightingConfig.flash_pool` lights lit at a `shot`'s muzzle and an
-##     `explosion`'s burst, each held at full energy for its row's `hold` (the stun's) and then
-##     falling off to dark over its `life`.
+##   - Flashes (flash_pool.gd): a pool of `LightingConfig.flash_pool` lights lit at a `shot`'s
+##     muzzle and an `explosion`'s burst, each held at full energy for its row's `hold` (the stun's)
+##     and then falling off to dark over its `life`.
 ##   - Each frame a flash whose centre a living character stands within `LightingConfig.body_clear`
 ##     of its radius leaves the characters out of its shadows (a body would black out the light it
 ##     stands in; only the flashes are shadowed by them).
@@ -35,6 +35,7 @@ extends Node2D
 const Rhythm := preload("res://scenes/lighting/light_rhythm.gd")
 const Budget := preload("res://scenes/lighting/light_budget.gd")
 const Fixture := preload("res://scenes/lighting/ceiling_fixture.gd")
+const FlashPool := preload("res://scenes/lighting/flash_pool.gd")
 const GROUP := &"world_lighting"
 
 ## The light textures made so far, by `[shape, overhead]`.
@@ -52,26 +53,8 @@ var _lights: Array = []
 var _fixtures: Array = []
 ## `{ piece, index }` per declared light the budget left out.
 var _dropped: Array = []
-## The pooled flash lights.
-var _flashes: Array = []
-## Each flash's energy as it was lit.
-var _flash_energy := PackedFloat32Array()
-## Each flash's hold at full energy (s).
-var _flash_hold := PackedFloat32Array()
-## Each flash's fall-off to dark after its hold (s).
-var _flash_life := PackedFloat32Array()
-## Each flash's time since it was lit (s).
-var _flash_t := PackedFloat32Array()
-## The pooled flash lit next.
-var _next_flash := 0
-## The world's characters (refreshed when the group's size changes).
-var _bodies: Array[Node] = []
-## The size of the group `characters` when `_bodies` was read.
-var _body_count := -1
-## This frame: each living character's position (INF for the dead and the gone).
-var _body_at := PackedVector2Array()
-## Its `body_clear` reach squared.
-var _body_reach := PackedFloat32Array()
+## The flash pool and who stands in a flash (flash_pool.gd).
+var _pool: FlashPool
 
 
 func _exit_tree() -> void:
@@ -88,15 +71,8 @@ func _process(delta: float) -> void:
 		if lit.glow != null:
 			var g := clampf(0.3 + 0.7 * f, 0.0, 1.1)
 			lit.glow.modulate = Color(g, g, g)
-	for k in _flashes.size():
-		if _flash_t[k] >= _flash_hold[k] + _flash_life[k]:
-			continue
-		_flash_t[k] += delta
-		var left := 1.0 - clampf((_flash_t[k] - _flash_hold[k]) / _flash_life[k], 0.0, 1.0)
-		var l: PointLight2D = _flashes[k]
-		l.energy = _flash_energy[k] * left * left
-		l.enabled = left > 0.0
-	_clear_bodies()
+	_pool.step(delta)
+	_pool.clear_bodies()
 
 
 ## Light the world under `root` (built, in the tree): `seed_value` seeds the rhythms, `rooms` are
@@ -127,7 +103,7 @@ func fixtures() -> Array:
 
 ## The pooled flash PointLight2Ds.
 func flashes() -> Array:
-	return _flashes
+	return _pool.lights
 
 
 ## `{ per_floor, dropped }`: the most lights one floor may be reached by, and `{ piece, index }` per
@@ -202,6 +178,7 @@ func _place(candidates: Array, rooms: Array, floors: Budget, lit_rooms: Dictiona
 
 ## The flash pool: `LightingConfig.flash_pool` disabled flashes under this node, none lit yet.
 func _flash_pool() -> void:
+	var pooled: Array = []
 	for k in LightingConfig.flash_pool:
 		var flash := _point(
 			{ "colour": Color.WHITE, "energy": 0.0, "radius": 1.0, "shape": &"round" },
@@ -212,14 +189,8 @@ func _flash_pool() -> void:
 		flash.name = "Flash%d" % (k + 1)
 		flash.enabled = false
 		add_child(flash)
-		_flashes.append(flash)
-	_flash_energy.resize(_flashes.size())
-	_flash_hold.resize(_flashes.size())
-	_flash_life.resize(_flashes.size())
-	_flash_t.resize(_flashes.size())
-	_flash_hold.fill(0.0)
-	_flash_life.fill(0.0)
-	_flash_t.fill(0.0)
+		pooled.append(flash)
+	_pool = FlashPool.new(self, pooled)
 
 
 ## The dusk sky on the street, unshadowed (a directional shadow would run to the edge of the view).
@@ -378,74 +349,14 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		return
 	match topic:
 		&"shot":
-			_flash(data["position"], LightingConfig.flashes[&"shot"], 0.0)
+			_pool.flash(data["position"], LightingConfig.flashes[&"shot"], 0.0)
 		&"explosion":
 			var kind: StringName = &"stun" if data.get("kind", &"frag") == &"stun" else &"frag"
-			_flash(data["position"], LightingConfig.flashes[kind], float(data.get("radius", 0.0)))
-
-
-## Light the pooled flash next in turn at world point `at` in `look` (a `LightingConfig.flashes`
-## row), its pool at least `radius` × the row's `reach_per_radius` across, held at full energy for
-## its `hold`, then falling off to dark over its `life`.
-func _flash(at: Vector2, look: Dictionary, radius: float) -> void:
-	if _flashes.is_empty():
-		return
-	var k := _next_flash
-	_next_flash = (_next_flash + 1) % _flashes.size()
-	var l: PointLight2D = _flashes[k]
-	var reach := maxf(float(look["reach"]), radius * float(look.get("reach_per_radius", 0.0)))
-	l.global_position = at
-	l.color = look["color"]
-	l.energy = look["energy"]
-	l.texture_scale = reach / float((LightingTextureConfig.textures[&"round"] as Vector2i).x)
-	l.enabled = true
-	_flash_energy[k] = look["energy"]
-	_flash_hold[k] = float(look.get("hold", 0.0))
-	_flash_life[k] = look["life"]
-	_flash_t[k] = 0.0
-	# This frame already: a blast at someone's feet must not black out the room it lights.
-	_clear_bodies()
-
-
-# --- Characters -----------------------------------------------------------------------------------
-
-
-## Leave the characters out of the shadows of every lit flash one of them stands in this frame (and
-## put them back once none does): the flashes are the only lights the characters shadow. The
-## character list is re-read only when the group's size changes, so a frame allocates nothing.
-func _clear_bodies() -> void:
-	var tree := get_tree()
-	var count := tree.get_node_count_in_group(&"characters")
-	if count != _body_count:
-		_body_count = count
-		_bodies.assign(tree.get_nodes_in_group(&"characters"))
-		_body_at.resize(_bodies.size())
-		_body_reach.resize(_bodies.size())
-	for i in _bodies.size():
-		var body := _bodies[i]
-		if not is_instance_valid(body) or body.get(&"is_dead"):
-			_body_at[i] = Vector2.INF
-			continue
-		_body_at[i] = (body as Node2D).global_position
-		var reach := float(body.get(&"radius")) * LightingConfig.body_clear
-		_body_reach[i] = reach * reach
-	for l: PointLight2D in _flashes:
-		_clear_flash(l)
-
-
-## Flash `l`'s shadow mask: everything, without the characters while one stands within reach of its
-## centre.
-func _clear_flash(l: PointLight2D) -> void:
-	if not l.enabled:
-		return
-	var mask := LightMasks.ALL_SHADOWS
-	var at := l.global_position
-	for i in _body_at.size():
-		if at.distance_squared_to(_body_at[i]) < _body_reach[i]:
-			mask &= ~LightMasks.CHARACTER
-			break
-	if l.shadow_item_cull_mask != mask:
-		l.shadow_item_cull_mask = mask
+			_pool.flash(
+				data["position"],
+				LightingConfig.flashes[kind],
+				float(data.get("radius", 0.0)),
+			)
 
 
 ## One kept light: its node, its full energy, its rhythm (null: steady) and what glows with it.

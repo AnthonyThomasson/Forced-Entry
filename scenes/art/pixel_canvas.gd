@@ -44,104 +44,6 @@ func _init(width: int, height: int, seed_value: int, light_from: Vector2) -> voi
 	light = light_from.normalized()
 
 
-## Shade ramp around a base color, from the outline (darkest) to the highlight.
-static func tones(base: Color) -> Dictionary:
-	return {
-		"outline": base.darkened(ArtSurfaceConfig.tone_outline),
-		"shadow": base.darkened(ArtSurfaceConfig.tone_shadow),
-		"dark": base.darkened(ArtSurfaceConfig.tone_dark),
-		"base": base,
-		"light": base.lightened(ArtSurfaceConfig.tone_light),
-		"highlight": base.lightened(ArtSurfaceConfig.tone_highlight),
-	}
-
-
-# --- Shapes ----------------------------------------------------------------------------
-
-
-## `r` with its corners rounded to `radius` (0 = a plain rect).
-static func rounded(r: Rect2i, radius: int) -> Shape:
-	var rad := clampi(radius, 0, int(mini(r.size.x, r.size.y) / 2.0))
-	var x0 := PackedInt32Array()
-	var x1 := PackedInt32Array()
-	var y0 := PackedInt32Array()
-	var y1 := PackedInt32Array()
-	for ly in r.size.y:
-		var cut := _corner_cut(ly, r.size.y, rad)
-		x0.append(r.position.x + cut if cut >= 0 else 0)
-		x1.append(r.end.x - cut if cut >= 0 else 0)
-	for lx in r.size.x:
-		var cut := _corner_cut(lx, r.size.x, rad)
-		y0.append(r.position.y + cut if cut >= 0 else 0)
-		y1.append(r.end.y - cut if cut >= 0 else 0)
-	return ConvexShape.new(r, x0, x1, y0, y1)
-
-
-## How many px a rounded corner trims from each end of line `i` of `n` (rows or columns), or -1
-## if the line is wholly outside. Inside means dx² + dy² ≤ rad² + rad from the corner centre.
-static func _corner_cut(i: int, n: int, rad: int) -> int:
-	if rad <= 0:
-		return 0
-	var d := i - clampi(i, rad, n - 1 - rad)
-	if d == 0:
-		return 0
-	var allowance := rad * rad + rad - d * d
-	if allowance < 0:
-		return -1
-	return maxi(0, rad - floori(sqrt(float(allowance))))
-
-
-## The ellipse inscribed in `r`.
-static func ellipse(r: Rect2i) -> Shape:
-	var x0 := PackedInt32Array()
-	var x1 := PackedInt32Array()
-	var y0 := PackedInt32Array()
-	var y1 := PackedInt32Array()
-	for ly in r.size.y:
-		var half := _ellipse_half(ly, r.size.y, r.size.x)
-		x0.append(r.position.x + roundi(r.size.x * 0.5 - half))
-		x1.append(r.position.x + roundi(r.size.x * 0.5 + half))
-	for lx in r.size.x:
-		var half := _ellipse_half(lx, r.size.x, r.size.y)
-		y0.append(r.position.y + roundi(r.size.y * 0.5 - half))
-		y1.append(r.position.y + roundi(r.size.y * 0.5 + half))
-	return ConvexShape.new(r, x0, x1, y0, y1)
-
-
-## Half the chord of an ellipse (`span` across, `n` lines along) through line `i`'s centre.
-static func _ellipse_half(i: int, n: int, span: int) -> float:
-	var v := (i + 0.5 - n * 0.5) / (n * 0.5)
-	return 0.0 if absf(v) >= 1.0 else span * 0.5 * sqrt(1.0 - v * v)
-
-
-## A circle of `radius` centred on `c`.
-static func disc(c: Vector2i, radius: int) -> Shape:
-	return ellipse(Rect2i(c - Vector2i(radius, radius), Vector2i(radius * 2 + 1, radius * 2 + 1)))
-
-
-## A rounded bar across `r` whose ends sag `bow` px toward +y (a curved chair rail); its
-## thickness is r.size.y - bow.
-static func bowed(r: Rect2i, radius: int, bow: int) -> Shape:
-	var bar := Rect2i(r.position, Vector2i(r.size.x, maxi(1, r.size.y - bow)))
-	var half := maxf(1.0, (r.size.x - 1) * 0.5)
-	var test := func(x: int, y: int) -> bool:
-		var t := (x - r.position.x - half) / half
-		return _in_rounded(bar, radius, x, y - roundi(bow * t * t))
-	return Shape.new(r, test)
-
-
-## True if (x, y) lies inside `r` with its corners rounded to `radius`.
-static func _in_rounded(r: Rect2i, radius: int, x: int, y: int) -> bool:
-	if x < r.position.x or y < r.position.y or x >= r.end.x or y >= r.end.y:
-		return false
-	var rad := mini(radius, int(mini(r.size.x, r.size.y) / 2.0))
-	if rad <= 0:
-		return true
-	var dx := x - clampi(x, r.position.x + rad, r.end.x - 1 - rad)
-	var dy := y - clampi(y, r.position.y + rad, r.end.y - 1 - rad)
-	return dx * dx + dy * dy <= rad * rad + rad
-
-
 # --- Pixels ----------------------------------------------------------------------------
 
 
@@ -230,7 +132,7 @@ func emissive() -> Image:
 
 
 ## Fill a shape; a non-negative `height` also raises those pixels.
-func fill(s: Shape, c: Color, height: int = -1) -> void:
+func fill(s: PixelShape, c: Color, height: int = -1) -> void:
 	var sp := s.spans()
 	var image := Rect2i(0, 0, w, h)
 	var hc := _height_color(height)
@@ -245,11 +147,6 @@ func fill(s: Shape, c: Color, height: int = -1) -> void:
 	_cov_stale = true
 
 
-## Erase a shape back to transparent floor (gaps between slats, cut-outs).
-func clear(s: Shape) -> void:
-	fill(s, CLEAR, 0)
-
-
 ## Recolor the already-drawn pixels of `r`.
 func paint_over(r: Rect2i, c: Color) -> void:
 	var rr := r.intersection(Rect2i(0, 0, w, h))
@@ -262,30 +159,8 @@ func paint_over(r: Rect2i, c: Color) -> void:
 
 ## A 1px line from `a` to `b` (Bresenham).
 func line(a: Vector2i, b: Vector2i, c: Color, height: int = -1) -> void:
-	for p in line_points(a, b):
+	for p in PixelShape.line_points(a, b):
 		px(p.x, p.y, c, height)
-
-
-## The points of a 1 px line from `a` to `b` (Bresenham), `a` first and `b` last.
-static func line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	var d := (b - a).abs()
-	var sx := 1 if a.x < b.x else -1
-	var sy := 1 if a.y < b.y else -1
-	var err := d.x - d.y
-	var p := a
-	while true:
-		out.append(p)
-		if p == b:
-			break
-		var e2 := err * 2
-		if e2 > -d.y:
-			err -= d.y
-			p.x += sx
-		if e2 < d.x:
-			err += d.x
-			p.y += sy
-	return out
 
 
 # --- Shading ---------------------------------------------------------------------------
@@ -293,7 +168,7 @@ static func line_points(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 
 ## Shade the rings `from_k`..`to_k` in from a shape's edge: edges facing the light take `lit`,
 ## edges facing away take `unlit` (swap them for a recess). Side-on edges are left alone.
-func bevel(s: Shape, from_k: int, to_k: int, lit: Color, unlit: Color) -> void:
+func bevel(s: PixelShape, from_k: int, to_k: int, lit: Color, unlit: Color) -> void:
 	var pts := s.edge_pixels(to_k)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]
@@ -313,7 +188,7 @@ func bevel(s: Shape, from_k: int, to_k: int, lit: Color, unlit: Color) -> void:
 ## Like bevel(), but relative to what is already drawn: edges facing the light are lightened by
 ## `lift`, edges facing away darkened by `drop` — for shapes in several colors (a head of hair and
 ## skin) that should share one shading.
-func bevel_relative(s: Shape, from_k: int, to_k: int, lift: float, drop: float) -> void:
+func bevel_relative(s: PixelShape, from_k: int, to_k: int, lift: float, drop: float) -> void:
 	var pts := s.edge_pixels(to_k)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]
@@ -331,7 +206,7 @@ func bevel_relative(s: Shape, from_k: int, to_k: int, lift: float, drop: float) 
 
 
 ## A 1px ring just inside a shape's edge, each pixel darkened by `amount` from what is drawn.
-func outline_relative(s: Shape, amount: float) -> void:
+func outline_relative(s: PixelShape, amount: float) -> void:
 	var pts := s.edge_pixels(1)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]
@@ -341,7 +216,7 @@ func outline_relative(s: Shape, amount: float) -> void:
 
 
 ## A 1px ring just inside a shape's edge.
-func outline(s: Shape, c: Color) -> void:
+func outline(s: PixelShape, c: Color) -> void:
 	var pts := s.edge_pixels(1)
 	for i in range(0, pts.size(), 2):
 		var x := pts[i]
@@ -378,7 +253,7 @@ func cast_shadows() -> void:
 
 
 ## A soft glare: short diagonal streaks of `glint` near the lit corner of `s` (glaze, glass).
-func glare(s: Shape, glint: Color, streaks: int = 2) -> void:
+func glare(s: PixelShape, glint: Color, streaks: int = 2) -> void:
 	var r := s.bounds
 	var corner := Vector2(r.position) + Vector2(r.size) * (Vector2(0.5, 0.5) + light * 0.32)
 	var along := Vector2(light.y, -light.x)  # Across the light: streaks run perpendicular to it.
@@ -391,8 +266,8 @@ func glare(s: Shape, glint: Color, streaks: int = 2) -> void:
 
 
 ## A line clipped to shape `s`.
-func _line_inside(s: Shape, a: Vector2i, b: Vector2i, c: Color) -> void:
-	for p in line_points(a, b):
+func _line_inside(s: PixelShape, a: Vector2i, b: Vector2i, c: Color) -> void:
+	for p in PixelShape.line_points(a, b):
 		if s.has(p.x, p.y) and has(p.x, p.y):
 			img.set_pixel(p.x, p.y, c)
 
@@ -404,7 +279,7 @@ func _line_inside(s: Shape, a: Vector2i, b: Vector2i, c: Color) -> void:
 ## stone flecks, glaze or glass glare, fabric weave or a faint plastic grain. `along_x` runs grain
 ## and brushing along x; `wraps` makes them wrap at the image edges (seamless tiles).
 func surface(
-	s: Shape,
+	s: PixelShape,
 	material: String,
 	base: Color,
 	along_x: bool = true,
@@ -468,7 +343,7 @@ static func _same(stored: Color, col: Color) -> bool:
 ## gently wandering streaks, each a `dark` line with the odd `pale` fleck beside it. `opts`:
 ## `along_x` (bool, default true: the streaks run along x, else along y) and `wraps` (bool, default
 ## false: a streak continues past the far end back at the near end, so a tile repeats seamlessly).
-func grain(s: Shape, density: float, dark: Color, pale: Color, opts: Dictionary = {}) -> void:
+func grain(s: PixelShape, density: float, dark: Color, pale: Color, opts: Dictionary = {}) -> void:
 	var along_x: bool = opts.get("along_x", true)
 	var wraps: bool = opts.get("wraps", false)
 	var r := s.bounds
@@ -489,7 +364,13 @@ func grain(s: Shape, density: float, dark: Color, pale: Color, opts: Dictionary 
 
 ## One streak of `grain` over shape `s`: `walk` = (its start along, its run, where it starts
 ## across), wandering across as it goes; `opts` as `grain`'s.
-func _grain_streak(s: Shape, walk: Vector3i, dark: Color, pale: Color, opts: Dictionary) -> void:
+func _grain_streak(
+	s: PixelShape,
+	walk: Vector3i,
+	dark: Color,
+	pale: Color,
+	opts: Dictionary,
+) -> void:
 	var along_x: bool = opts.get("along_x", true)
 	var wraps: bool = opts.get("wraps", false)
 	var r := s.bounds
@@ -533,246 +414,3 @@ func knot(x: int, y: int, heart: Color, ring: Color) -> void:
 ## The height layer's encoding of `height` (rounded up so the byte reads back exactly).
 static func _height_color(height: int) -> Color:
 	return Color((clampi(height, 0, 255) + 0.5) / 255.0, 0.0, 0.0)
-
-
-## A pixel region rasterized from a point test into a mask (any shape, e.g. bowed()). Answers
-## membership, its row spans (for filling), and per pixel how far in from the edge it sits and the
-## outward normal there — from run lengths along the axes and diagonals, built on first use.
-class Shape:
-	## Straight steps first, then diagonals: a diagonal only decides the edge where no straight
-	## step reaches it as soon (rounded corners).
-	const STEPS: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN,
-			Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
-
-	## Bounding rect (absolute art px).
-	var bounds: Rect2i
-	## 1 per inside pixel of `bounds`.
-	var _mask := PackedByteArray()
-	## Steps to the first outside pixel (1 = edge ring); 0 outside.
-	var _depth := PackedByteArray()
-	## Outward edge normal at that depth.
-	var _normal := PackedVector2Array()
-
-	func _init(rect: Rect2i, test: Callable = Callable()) -> void:
-		bounds = rect
-		if not test.is_valid():
-			return
-		_mask.resize(maxi(rect.get_area(), 0))
-		for y in rect.size.y:
-			for x in rect.size.x:
-				_mask[y * rect.size.x + x] = (1
-						if test.call(rect.position.x + x, rect.position.y + y)
-						else 0)
-
-	## True if (x, y) is inside the shape.
-	func has(x: int, y: int) -> bool:
-		var lx := x - bounds.position.x
-		var ly := y - bounds.position.y
-		if lx < 0 or ly < 0 or lx >= bounds.size.x or ly >= bounds.size.y:
-			return false
-		return _mask[ly * bounds.size.x + lx] == 1
-
-	## How many steps in from the edge (x, y) sits (1 = the edge ring), or 0 if outside.
-	func depth(x: int, y: int) -> int:
-		if _depth.is_empty():
-			_build_edges()
-		return _depth[_index(x, y)] if has(x, y) else 0
-
-	## The outward edge normal nearest (x, y) (unit; ZERO outside).
-	func normal(x: int, y: int) -> Vector2:
-		if _depth.is_empty():
-			_build_edges()
-		return _normal[_index(x, y)] if has(x, y) else Vector2.ZERO
-
-	## The inside runs of each row, as flat [y, x0, x1) triples.
-	func spans() -> PackedInt32Array:
-		var out := PackedInt32Array()
-		var bw := bounds.size.x
-		for ly in bounds.size.y:
-			var x := 0
-			while x < bw:
-				if _mask[ly * bw + x] == 0:
-					x += 1
-					continue
-				var x0 := x
-				while x < bw and _mask[ly * bw + x] == 1:
-					x += 1
-				out.append_array([
-					bounds.position.y + ly,
-					bounds.position.x + x0,
-					bounds.position.x + x,
-				])
-		return out
-
-	## The inside pixels within `k` of the edge (depth 1..k), each once, as flat [x, y] pairs.
-	func edge_pixels(k: int) -> PackedInt32Array:
-		if _depth.is_empty():
-			_build_edges()
-		var out := PackedInt32Array()
-		var i := 0
-		for ly in bounds.size.y:
-			for lx in bounds.size.x:
-				var d := _depth[i]
-				if d != 0 and d <= k:
-					out.append(bounds.position.x + lx)
-					out.append(bounds.position.y + ly)
-				i += 1
-		return out
-
-	## Mask index of (x, y), which must lie inside the bounds.
-	func _index(x: int, y: int) -> int:
-		return (y - bounds.position.y) * bounds.size.x + (x - bounds.position.x)
-
-	## Per step direction, sweep the mask so each inside pixel learns how many inside pixels run on
-	## from it that way; the first outside pixel is one past that run. Depth is the nearest exit
-	## over the straight steps (diagonals only where strictly sooner); the normal sums the exiting
-	## steps. Each sweep walks the rows and columns away from the pixel it reads, so a pixel's
-	## neighbour that way is done before it.
-	func _build_edges() -> void:
-		var runs: Array[PackedInt32Array] = []
-		for d in STEPS:
-			runs.append(_run_along(d))
-		_fill_edges(runs)
-
-	## Per inside pixel, how many inside pixels run on from it in step direction `d`.
-	func _run_along(d: Vector2i) -> PackedInt32Array:
-		var bh := bounds.size.y
-		var run := PackedInt32Array()
-		run.resize(bounds.size.x * bh)
-		var y := bh - 1 if d.y > 0 else 0
-		var y_step := -1 if d.y > 0 else 1
-		for _row in bh:
-			var qy := y + d.y
-			if qy >= 0 and qy < bh:
-				_sweep_row(run, d, y)
-			y += y_step
-		return run
-
-	## `_run_along`'s sweep of row `y` into `run`, away from the neighbour each pixel reads.
-	func _sweep_row(run: PackedInt32Array, d: Vector2i, y: int) -> void:
-		var bw := bounds.size.x
-		var x_from := bw - 1 if d.x > 0 else 0
-		var x_step := -1 if d.x > 0 else 1
-		# The columns whose neighbour that way is inside the bounds.
-		var x_lo := 1 if d.x < 0 else 0
-		var x_hi := bw - 2 if d.x > 0 else bw - 1
-		var step := d.y * bw + d.x
-		var i := y * bw + x_from
-		var x := x_from
-		for _col in bw:
-			if x >= x_lo and x <= x_hi and _mask[i] == 1 and _mask[i + step] == 1:
-				run[i] = run[i + step] + 1
-			x += x_step
-			i += x_step
-
-	## Depth and normal of every inside pixel from the runs along each of `STEPS`, in its order.
-	func _fill_edges(runs: Array[PackedInt32Array]) -> void:
-		var n := _mask.size()
-		_depth.resize(n)
-		_normal.resize(n)
-		for i in n:
-			if _mask[i] == 0:
-				continue
-			var k := mini(mini(runs[0][i], runs[1][i]), mini(runs[2][i], runs[3][i])) + 1
-			var k_diag := mini(mini(runs[4][i], runs[5][i]), mini(runs[6][i], runs[7][i])) + 1
-			# The straight steps decide, or the diagonals where strictly sooner.
-			var first := 0
-			if k_diag < k:
-				k = k_diag
-				first = 4
-			var sum := Vector2.ZERO
-			for j in range(first, first + 4):
-				if runs[j][i] + 1 == k:
-					sum += Vector2(STEPS[j])
-			_depth[i] = mini(k, 255)
-			_normal[i] = sum.normalized()
-
-
-## A shape convex along both axes (rounded rects, ellipses), kept as one span per row and per
-## column. Membership, depth (the nearest of the four axis exits) and normal are O(1), and the
-## edge band is enumerated directly from the span ends.
-class ConvexShape extends Shape:
-	## Per row: first inside x (absolute); an empty row has x1 <= x0.
-	var _x0 := PackedInt32Array()
-	## Per row: one past the last inside x.
-	var _x1 := PackedInt32Array()
-	## Per column: first inside y (absolute).
-	var _y0 := PackedInt32Array()
-	## Per column: one past the last inside y.
-	var _y1 := PackedInt32Array()
-
-	func _init(rect: Rect2i, x0: PackedInt32Array, x1: PackedInt32Array, y0: PackedInt32Array,
-			y1: PackedInt32Array) -> void:
-		super(rect)
-		_x0 = x0
-		_x1 = x1
-		_y0 = y0
-		_y1 = y1
-
-	## True if (x, y) is inside the shape.
-	func has(x: int, y: int) -> bool:
-		var ly := y - bounds.position.y
-		if ly < 0 or ly >= bounds.size.y:
-			return false
-		return x >= _x0[ly] and x < _x1[ly]
-
-	## How many steps in from the edge (x, y) sits (1 = the edge ring), or 0 if outside.
-	func depth(x: int, y: int) -> int:
-		if not has(x, y):
-			return 0
-		var ly := y - bounds.position.y
-		var lx := x - bounds.position.x
-		var m := mini(mini(x - _x0[ly], _x1[ly] - 1 - x), mini(y - _y0[lx], _y1[lx] - 1 - y))
-		return maxi(1, m + 1)
-
-	## The outward edge normal nearest (x, y): the sum of the axis directions exiting soonest.
-	func normal(x: int, y: int) -> Vector2:
-		if not has(x, y):
-			return Vector2.ZERO
-		var ly := y - bounds.position.y
-		var lx := x - bounds.position.x
-		var d := [x - _x0[ly], _x1[ly] - 1 - x, y - _y0[lx], _y1[lx] - 1 - y]
-		var m: int = mini(mini(d[0], d[1]), mini(d[2], d[3]))
-		var sum := Vector2.ZERO
-		for i in 4:
-			if d[i] == m:
-				sum += Vector2(STEPS[i])
-		return sum.normalized()
-
-	## The inside run of each row, as flat [y, x0, x1) triples.
-	func spans() -> PackedInt32Array:
-		var out := PackedInt32Array()
-		for ly in bounds.size.y:
-			if _x1[ly] > _x0[ly]:
-				out.append_array([bounds.position.y + ly, _x0[ly], _x1[ly]])
-		return out
-
-	## Pixels within `k` of a row end or a column end (each listed once), as flat [x, y] pairs.
-	func edge_pixels(k: int) -> PackedInt32Array:
-		var out := PackedInt32Array()
-		for ly in bounds.size.y:
-			var a := _x0[ly]
-			var b := _x1[ly]
-			if b <= a:
-				continue
-			var y := bounds.position.y + ly
-			var left_end := mini(a + k, b)
-			for x in range(a, left_end):
-				out.append_array([x, y])
-			for x in range(maxi(b - k, left_end), b):
-				out.append_array([x, y])
-		for lx in bounds.size.x:
-			var a := _y0[lx]
-			var b := _y1[lx]
-			if b <= a:
-				continue
-			var x := bounds.position.x + lx
-			var top_end := mini(a + k, b)
-			for y in range(a, top_end) + range(maxi(b - k, top_end), b):
-				if not has(x, y):
-					continue
-				var ly: int = y - bounds.position.y
-				if x - _x0[ly] < k or _x1[ly] - 1 - x < k:
-					continue  # The row pass already listed it.
-				out.append_array([x, y])
-		return out

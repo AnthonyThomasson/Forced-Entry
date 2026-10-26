@@ -11,8 +11,8 @@ extends RefCounted
 
 ## Paint one wall tile onto `c` in `base` (x along the wall, y across it).
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
-	var cap := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
+	var t := ArtSurfaceConfig.tones(base)
+	var cap := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(cap, base)
 	if String(opts.get("pattern", ObjectArtWallConfig.pattern)) == "brick":
 		_brick(c, base, t)

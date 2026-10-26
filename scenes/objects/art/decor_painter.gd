@@ -52,7 +52,7 @@ static func _trash(c: PixelCanvas) -> void:
 			c.rng.randi_range(r, maxi(r, c.w - r - 1)),
 			c.rng.randi_range(r, maxi(r, c.h - r - 1)),
 		)
-		var bag := PixelCanvas.disc(o, r)
+		var bag := PixelShape.disc(o, r)
 		c.fill(bag, BAG, 3)
 		c.bevel(bag, 1, 1, BAG.lightened(0.25), BAG.darkened(0.4))
 		c.px(o.x, o.y - r + 1, BAG.lightened(0.35))  # The knot.
@@ -64,10 +64,10 @@ static func _trash(c: PixelCanvas) -> void:
 		match c.rng.randi_range(0, 2):
 			0:
 				var can: Color = CANS[c.rng.randi_range(0, CANS.size() - 1)]
-				c.fill(PixelCanvas.rounded(Rect2i(p, Vector2i(3, 2)), 0), can, 2)
+				c.fill(PixelShape.rounded(Rect2i(p, Vector2i(3, 2)), 0), can, 2)
 				c.px(p.x, p.y, can.lightened(0.4), 2)
 			1:
-				c.fill(PixelCanvas.rounded(Rect2i(p, Vector2i(3, 3)), 0), PAPER, 1)
+				c.fill(PixelShape.rounded(Rect2i(p, Vector2i(3, 3)), 0), PAPER, 1)
 				c.px(p.x + 1, p.y + 1, Color(0.5, 0.5, 0.5), 1)
 			_:
 				c.line(p, p + Vector2i(3, 1), BOTTLE, 2)
@@ -98,13 +98,13 @@ static func _cables(c: PixelCanvas, count: int, nest: bool) -> void:
 ## A flattened cardboard box, creased and taped, stained where it got wet, a blanket over half of
 ## it.
 static func _cardboard(c: PixelCanvas) -> void:
-	var box := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
+	var box := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(box, CARD, 1)
 	c.speckle(Rect2i(0, 0, c.w, c.h), CARD, 0.2, 0.05)
 	c.line(Vector2i(0, int(c.h / 2.0)), Vector2i(c.w - 1, int(c.h / 2.0)), CARD.darkened(0.3))
 	c.line(Vector2i(int(c.w / 3.0), 0), Vector2i(int(c.w / 3.0), c.h - 1), CARD.lightened(0.18))
 	Decay.stain(c, CARD.darkened(0.35), 5)
-	var blanket := PixelCanvas.bowed(Rect2i(int(c.w * 0.4), 2, int(c.w * 0.55), c.h - 4), 3, 2)
+	var blanket := PixelShape.bowed(Rect2i(int(c.w * 0.4), 2, int(c.w * 0.55), c.h - 4), 3, 2)
 	c.fill(blanket, BLANKET, 2)
 	c.outline(blanket, BLANKET.darkened(0.45))
 	c.outline(box, CARD.darkened(0.45))

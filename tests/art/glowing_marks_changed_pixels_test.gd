@@ -40,7 +40,7 @@ func run(t: TestContext) -> void:
 			rng.randi(),
 			ArtCanvasConfig.light_from,
 		)
-		c.fill(PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 3), Color(0.4, 0.35, 0.3))
+		c.fill(PixelShape.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 3), Color(0.4, 0.35, 0.3))
 		if not _same(c, _glow_drawings(rng, c)):
 			differing += 1
 			_note_differing(t, differing, n, c)

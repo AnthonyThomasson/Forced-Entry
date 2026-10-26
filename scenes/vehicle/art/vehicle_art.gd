@@ -38,12 +38,12 @@ static func box(v: VehiclePaint, x0: float, x1: float, y0: float, y1: float) -> 
 
 ## The shape of every pixel in `bounds` (a `box` on the canvas of `v`) whose centre, in the
 ## vehicle's frame, passes `test`, which must be convex along both canvas axes (each row and column
-## one run: a windscreen, a side window). It is kept as a `PixelCanvas.ConvexShape`, so filling,
+## one run: a windscreen, a side window). It is kept as a `PixelConvexShape`, so filling,
 ## bevelling and outlining it cost its edge, not its area; and it depends only on the geometry,
 ## never on the light, so it is built once per `key` (and canvas size) and reused for every lighting
 ## step (testing every pixel is most of a paint's cost).
 static func region(v: VehiclePaint, bounds: Rect2i, key: String,
-		test: Callable) -> PixelCanvas.Shape:
+		test: Callable) -> PixelShape:
 	var c := v.canvas
 	var k := v.k
 	var cache_key := "%s|%d|%d|%.4f" % [key, c.w, c.h, k]
@@ -54,9 +54,9 @@ static func region(v: VehiclePaint, bounds: Rect2i, key: String,
 	return _regions[cache_key]
 
 
-## The pixels of `bounds` passing `test` (on canvas pixels), as a ConvexShape: each row's and
+## The pixels of `bounds` passing `test` (on canvas pixels), as a `PixelConvexShape`: each row's and
 ## column's first and last inside pixel. A row or column with none is empty.
-static func convex(bounds: Rect2i, test: Callable) -> PixelCanvas.Shape:
+static func convex(bounds: Rect2i, test: Callable) -> PixelShape:
 	var w := bounds.size.x
 	var h := bounds.size.y
 	var x0 := PackedInt32Array()
@@ -85,12 +85,12 @@ static func convex(bounds: Rect2i, test: Callable) -> PixelCanvas.Shape:
 		if y1[lx] < y0[lx]:
 			y0[lx] = bounds.position.y
 			y1[lx] = bounds.position.y
-	return PixelCanvas.ConvexShape.new(bounds, x0, x1, y0, y1)
+	return PixelConvexShape.new(bounds, x0, x1, y0, y1)
 
 
 ## The shape `build` makes, built once per `key` (for shapes tested pixel by pixel that never depend
 ## on the light).
-static func cached(key: String, build: Callable) -> PixelCanvas.Shape:
+static func cached(key: String, build: Callable) -> PixelShape:
 	if not _regions.has(key):
 		_regions[key] = build.call()
 	return _regions[key]
@@ -170,7 +170,7 @@ static func clear_door_glass(v: VehiclePaint) -> void:
 		var hole_key := "glass_hole/%s/%s/%s" % [v.kind, gap["side"], gap["from"]]
 		var in_gap := func(p: Vector2) -> bool: return in_door_glass(one, look, p)
 		var bounds := box(v, gap["from"], gap["to"], y0, y0 + belt - roof_half)
-		v.canvas.clear(region(v, bounds, hole_key, in_gap))
+		v.canvas.fill(region(v, bounds, hole_key, in_gap), PixelCanvas.CLEAR, 0)
 
 
 ## Paint a body painter's `part` of the vehicle `v` (its canvas, paint, kind and rows): its `roof`
@@ -198,12 +198,12 @@ static func lamps(v: VehiclePaint, head_extra: float, head_round: int, head_heig
 	var length: float = look["lamp"]
 	var head: Vector2 = look["head"]
 	for r in both(v, half.x - length - head_extra, half.x - 1.0, head.x, head.y):
-		var lamp := PixelCanvas.rounded(r, roundi(head_round * k))
+		var lamp := PixelShape.rounded(r, roundi(head_round * k))
 		c.fill(lamp, VehicleArtConfig.headlight_color, head_height)
 		c.bevel(lamp, 1, 1, Color.WHITE, VehicleArtConfig.headlight_color.darkened(0.3))
 		c.outline(lamp, VehicleArtConfig.trim_color)
 	for rect: Rect2 in tail_lamps(row, look):
-		var lamp := PixelCanvas.rounded(
+		var lamp := PixelShape.rounded(
 			box(v, rect.position.x, rect.end.x, rect.position.y, rect.end.y),
 			roundi(1 * k),
 		)
@@ -239,22 +239,22 @@ static func _seat(v: VehiclePaint, p: Vector2, bench: bool) -> void:
 	var c := v.canvas
 	var k := v.k
 	var cloth := VehicleArtConfig.seat_color
-	var t := PixelCanvas.tones(cloth)
+	var t := ArtSurfaceConfig.tones(cloth)
 	var half := 13.0 if bench else 11.0
-	var cushion := PixelCanvas.rounded(
+	var cushion := PixelShape.rounded(
 		box(v, p.x - 9.0, p.x + 9.0, p.y - half, p.y + half),
 		roundi(3 * k),
 	)
 	c.fill(cushion, cloth, 2)
 	c.surface(cushion, "fabric", cloth)
 	c.bevel(cushion, 1, 1, t["light"], t["dark"])
-	var back := PixelCanvas.rounded(
+	var back := PixelShape.rounded(
 		box(v, p.x - 16.0, p.x - 9.0, p.y - half, p.y + half),
 		roundi(2 * k),
 	)
 	c.fill(back, t["light"], 4)
 	c.bevel(back, 1, 1, t["highlight"], t["dark"])
-	var rest := PixelCanvas.rounded(
+	var rest := PixelShape.rounded(
 		box(v, p.x - 15.0, p.x - 11.0, p.y - 5.0, p.y + 5.0),
 		roundi(1 * k),
 	)
@@ -274,20 +274,20 @@ static func dashboard(v: VehiclePaint, half: float) -> void:
 	var wheel_x: float = v.look["wheel"]
 	var driver: Vector2 = v.row["seats"][&"driver"]
 	var trim := VehicleArtConfig.trim_color
-	var t := PixelCanvas.tones(trim.lightened(0.12))
-	var board := PixelCanvas.rounded(box(v, dash.x, dash.y, -half, half), roundi(3 * v.k))
+	var t := ArtSurfaceConfig.tones(trim.lightened(0.12))
+	var board := PixelShape.rounded(box(v, dash.x, dash.y, -half, half), roundi(3 * v.k))
 	c.fill(board, t["base"], 5)
 	c.bevel(board, 1, 2, t["highlight"], t["shadow"])
-	var hood := PixelCanvas.rounded(
+	var hood := PixelShape.rounded(
 		box(v, dash.x - 2.0, dash.x + 6.0, driver.y - 9.0, driver.y + 9.0),
 		roundi(2 * v.k),
 	)
 	c.fill(hood, trim, 6)
-	var rim := PixelCanvas.ellipse(
+	var rim := PixelShape.ellipse(
 		box(v, wheel_x - 3.0, wheel_x + 3.0, driver.y - 9.0, driver.y + 9.0),
 	)
 	c.fill(rim, trim, 7)
-	var hub := PixelCanvas.ellipse(
+	var hub := PixelShape.ellipse(
 		box(v, wheel_x - 1.5, wheel_x + 1.5, driver.y - 6.0, driver.y + 6.0),
 	)
 	c.fill(hub, t["base"], 6)
@@ -318,4 +318,4 @@ static func sills(v: VehiclePaint) -> void:
 					if def["kind"] == &"slide"
 					else (def["handle"] as Vector2).x)
 			r = box(v, back, hinge.x, signf(hinge.y) * belt, hinge.y)
-		c.fill(PixelCanvas.rounded(r, 0), sill, 1)
+		c.fill(PixelShape.rounded(r, 0), sill, 1)

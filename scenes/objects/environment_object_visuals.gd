@@ -27,11 +27,11 @@ var _drop_shadow: Node2D
 
 
 func _ready() -> void:
-	if _obj.art != "":
+	if _obj.look.art != "":
 		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var opts: Dictionary = _obj.art_opts.merged({ "material": _obj.object_material }, true)
-		_art = ObjectArt.texture(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
-		_emissive = ObjectArt.emissive(_obj.art, _obj.size, _obj.color, _obj.facing, opts)
+		var opts: Dictionary = _obj.look.art_opts.merged({ "material": _obj.object_material }, true)
+		_art = ObjectArt.texture(_obj.look.art, _obj.size, _obj.color, _obj.look.facing, opts)
+		_emissive = ObjectArt.emissive(_obj.look.art, _obj.size, _obj.color, _obj.look.facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 		_drop_shadow = Node2D.new()
@@ -47,7 +47,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not _watching:
 		# created by the object's _ready, which runs after this node's
-		var deformable = _obj._deformable
+		var deformable = _obj.physics.deformable
 		if deformable:
 			deformable.changed.connect(queue_redraw)
 			if _emissive_layer:
@@ -65,25 +65,25 @@ func _draw() -> void:
 	var shape: String = _obj.shape_type
 	var size: Vector2 = _obj.size
 	var color: Color = _obj.color
-	var text_color: Color = _obj.text_color
+	var text_color: Color = _obj.look.text_color
 
 	# Damage-deformed silhouette (dents, missing pieces) + crack/hole marks. Impact
 	# state lives on the Deformable physics component the object composes.
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var damage_total: float = deformable.damage_total if deformable else 0.0
 
-	var look := ShapeLook.new()
-	look.fill = color
-	look.damage_total = damage_total
+	var shape_look := ShapeLook.new()
+	shape_look.fill = color
+	shape_look.damage_total = damage_total
 	if _art:  # (its drop shadow is the `_drop_shadow` child's, behind this)
-		look.outline = color.darkened(ArtSurfaceConfig.tone_outline)
-		look.texture = _art
-		Deformation.draw_shape(self, shape, size, impacts, look)
+		shape_look.outline = color.darkened(ArtSurfaceConfig.tone_outline)
+		shape_look.texture = _art
+		Deformation.draw_shape(self, shape, size, impacts, shape_look)
 		return
 
-	look.outline = text_color
-	Deformation.draw_shape(self, shape, size, impacts, look)
+	shape_look.outline = text_color
+	Deformation.draw_shape(self, shape, size, impacts, shape_look)
 	_draw_name(text_color)
 
 
@@ -106,7 +106,7 @@ func emissive_layer() -> Node2D:
 ## Draw the light-giving pixels onto `layer` (the `Emissive` child) through the piece's deformed
 ## silhouette.
 func draw_emissive(layer: CanvasItem) -> void:
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var look := ShapeLook.new()
 	look.fill = _obj.color
@@ -126,7 +126,7 @@ func _draw_drop_shadow() -> void:
 		return
 	var shape: String = _obj.shape_type
 	var size: Vector2 = _obj.size
-	var deformable = _obj._deformable
+	var deformable = _obj.physics.deformable
 	var impacts: Array = deformable.impacts if deformable else []
 	var poly := Deformation.shape_polygon(shape, size, impacts)
 	if not Deformation.is_valid_polygon(poly):

@@ -39,18 +39,18 @@ static func _body(v: VehiclePaint) -> void:
 	var c := v.canvas
 	var k := v.k
 	var base := v.base
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
-	var body := PixelCanvas.rounded(
+	var body := PixelShape.rounded(
 		Art.box(v, -half.x, half.x, -half.y, half.y),
 		roundi(float(v.row["corner"]) * 1.1 * k),
 	)
 	c.fill(body, base, _BODY)
 	c.bevel(body, 1, 2, t["highlight"], t["dark"])
 	for ends: Array in [[half.x - bumper, half.x], [-half.x, -half.x + bumper]]:
-		var b := PixelCanvas.rounded(
+		var b := PixelShape.rounded(
 			Art.box(v, ends[0], ends[1], -half.y + 4.0, half.y - 4.0),
 			roundi(4 * k),
 		)
@@ -65,7 +65,7 @@ static func _grille(v: VehiclePaint) -> void:
 	var trim := VehicleArtConfig.trim_color
 	var bumper: float = v.look["bumper"]
 	var head: Vector2 = v.look["head"]
-	var grille := PixelCanvas.rounded(
+	var grille := PixelShape.rounded(
 		Art.box(v, half.x - bumper - 5.0, half.x - bumper, -head.x + 6.0, head.x - 6.0),
 		roundi(1 * v.k),
 	)
@@ -82,7 +82,7 @@ static func _grille(v: VehiclePaint) -> void:
 ## The bonnet: two creases running back to the windscreen, the shut line before it, a sheen.
 static func _bonnet(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var bumper: float = v.look["bumper"]
 	var bonnet: float = v.look["bonnet"]
@@ -103,7 +103,7 @@ static func _bonnet(v: VehiclePaint) -> void:
 		Art.at(v, Vector2(bonnet + 1.0, belt - 2.0)),
 		t["shadow"],
 	)
-	var sheen := PixelCanvas.rounded(
+	var sheen := PixelShape.rounded(
 		Art.box(v, bonnet + 4.0, half.x - bumper - 6.0, -half.y + 8.0, half.y - 8.0),
 		roundi(6 * v.k),
 	)
@@ -113,7 +113,7 @@ static func _bonnet(v: VehiclePaint) -> void:
 ## The boot lid's shut line and its badge.
 static func _boot(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var half: Vector2 = (v.row["size"] as Vector2) * 0.5
 	var boot: float = v.look["boot"]
 	var belt: float = v.look["belt"]
@@ -134,7 +134,7 @@ static func _cabin(v: VehiclePaint) -> void:
 	var k := v.k
 	var boot: float = v.look["boot"]
 	var belt: float = v.look["belt"]
-	var floor_shape := PixelCanvas.rounded(
+	var floor_shape := PixelShape.rounded(
 		Art.box(v, boot, v.look["bonnet"], -belt, belt), roundi(4 * k)
 	)
 	c.fill(floor_shape, VehicleArtConfig.interior_color, _FLOOR)
@@ -144,7 +144,7 @@ static func _cabin(v: VehiclePaint) -> void:
 	Art.dashboard(v, belt - 1.0)
 	_console(v, driver)
 	Art.seats(v, driver.x - 20.0)
-	var shelf := PixelCanvas.rounded(
+	var shelf := PixelShape.rounded(
 		Art.box(v, boot, boot + 14.0, -belt + 2.0, belt - 2.0),
 		roundi(2 * k),
 	)
@@ -154,7 +154,7 @@ static func _cabin(v: VehiclePaint) -> void:
 ## The console between the front seats, beside the `driver`'s seat, and its gear knob.
 static func _console(v: VehiclePaint, driver: Vector2) -> void:
 	var c := v.canvas
-	var console := PixelCanvas.rounded(
+	var console := PixelShape.rounded(
 		Art.box(v, driver.x - 12.0, (v.look["dash"] as Vector2).x, -5.0, 5.0),
 		roundi(2 * v.k),
 	)
@@ -168,7 +168,7 @@ static func _console(v: VehiclePaint, driver: Vector2) -> void:
 	)
 	var knob := Art.at(v, Vector2(driver.x + 14.0, 0.0))
 	c.fill(
-		PixelCanvas.disc(knob, maxi(1, roundi(1.5 * v.k))),
+		PixelShape.disc(knob, maxi(1, roundi(1.5 * v.k))),
 		VehicleArtConfig.trim_color.lightened(0.3),
 		4,
 	)
@@ -177,11 +177,11 @@ static func _console(v: VehiclePaint, driver: Vector2) -> void:
 ## The glasshouse over the cabin: windscreen, roof on its pillars, rear window; and the lamps.
 static func _roof(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var belt: float = v.look["belt"]
 	# The pillars and the frame round the glass: everything from the belt line in, between the
 	# windscreen's base and the rear window's, except the door glass (each door's own).
-	var frame := PixelCanvas.rounded(
+	var frame := PixelShape.rounded(
 		Art.box(v, v.look["boot"], v.look["bonnet"], -belt, belt), roundi(3 * v.k)
 	)
 	c.fill(frame, v.base, _PILLAR)
@@ -226,10 +226,10 @@ static func _rear_window(v: VehiclePaint) -> void:
 ## The roof: a lighter, raised panel with a sheen.
 static func _roof_panel(v: VehiclePaint) -> void:
 	var c := v.canvas
-	var t := PixelCanvas.tones(v.base)
+	var t := ArtSurfaceConfig.tones(v.base)
 	var roof: Vector2 = v.look["roof"]
 	var roof_half: float = v.look["roof_half"]
-	var panel := PixelCanvas.rounded(
+	var panel := PixelShape.rounded(
 		Art.box(v, roof.y, roof.x, -roof_half, roof_half),
 		roundi(7 * v.k),
 	)
@@ -240,7 +240,7 @@ static func _roof_panel(v: VehiclePaint) -> void:
 
 
 ## Glass in `shape`: the tint, a glint, a rubber seal round it.
-static func _glass(c: PixelCanvas, shape: PixelCanvas.Shape, glass: Color, rubber: Color) -> void:
+static func _glass(c: PixelCanvas, shape: PixelShape, glass: Color, rubber: Color) -> void:
 	c.fill(shape, glass, _PILLAR - 1)
 	c.glare(shape, Color(glass.lightened(0.55), 0.6), 2)
 	c.outline(shape, rubber)

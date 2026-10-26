@@ -17,11 +17,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 	var spin := c.rng.randf() * TAU
 	_coats(c, o, radius, spin)
 	var hat := _pick(c)
-	var brim := PixelCanvas.disc(o, maxi(2, roundi(radius * 0.42)))
+	var brim := PixelShape.disc(o, maxi(2, roundi(radius * 0.42)))
 	c.fill(brim, hat.darkened(0.2), _HAT_HEIGHT)
 	c.outline(brim, hat.darkened(0.5))
-	c.fill(PixelCanvas.disc(o, maxi(1, roundi(radius * 0.27))), hat, _HAT_HEIGHT)
-	var t := PixelCanvas.tones(base)
+	c.fill(PixelShape.disc(o, maxi(1, roundi(radius * 0.27))), hat, _HAT_HEIGHT)
+	var t := ArtSurfaceConfig.tones(base)
 	for i in 4:
 		var a := spin + PI * 0.25 + TAU * i / 4.0
 		c.line(
@@ -30,7 +30,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Diction
 			t.dark,
 			_POST_HEIGHT,
 		)
-	c.fill(PixelCanvas.disc(o, 1), t.light, _POST_HEIGHT)
+	c.fill(PixelShape.disc(o, 1), t.light, _POST_HEIGHT)
 	c.cast_shadows()
 	Decay.grime(c)
 
@@ -41,7 +41,7 @@ static func _coats(c: PixelCanvas, o: Vector2i, radius: int, spin: float) -> voi
 		var a := spin + TAU * i / 3.0
 		var d := Vector2(cos(a), sin(a))
 		var col := _pick(c)
-		var body := PixelCanvas.disc(
+		var body := PixelShape.disc(
 			o + Vector2i((d * radius * 0.5).round()),
 			maxi(2, roundi(radius * 0.4)),
 		)

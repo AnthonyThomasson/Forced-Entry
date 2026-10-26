@@ -16,10 +16,10 @@ const _THUMB := 5
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
 	var chrome: bool = opts.get("chrome", false)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var r := maxi(2, int(mini(c.w, c.h) / 2.0) - 1)
-	var fist := PixelCanvas.disc(o, r)
+	var fist := PixelShape.disc(o, r)
 	c.fill(fist, base, _FIST)
 	if chrome:
 		c.surface(fist, "metal", base)
@@ -47,7 +47,7 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 			c.px(x, ky + 1, skin)
 	c.outline(fist, t.outline)
 	var side := int(opts.get("side", 1))
-	var thumb := PixelCanvas.disc(o + Vector2i(-side * (r - 2), 0), maxi(1, int(r / 2.0) - 1))
+	var thumb := PixelShape.disc(o + Vector2i(-side * (r - 2), 0), maxi(1, int(r / 2.0) - 1))
 	c.fill(thumb, base.lightened(0.04), _THUMB)
 	c.outline(thumb, t.dark)
 	c.cast_shadows()

@@ -27,8 +27,8 @@ const _LACE := Color(0.72, 0.68, 0.58)
 
 ## Paint the strip spanning `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
-	var strip := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
+	var t := ArtSurfaceConfig.tones(base)
+	var strip := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	c.fill(strip, base, _LIMB)
 	if material != "":
 		c.surface(strip, material, base)
@@ -98,12 +98,12 @@ static func _cuff(c: PixelCanvas, look: Dictionary, t: Dictionary) -> void:
 			_zenitex_forearm(c, look, t)
 		_:
 			var cuff := maxi(2, roundi(c.h * 0.2))
-			c.fill(PixelCanvas.rounded(Rect2i(0, c.h - cuff, c.w, cuff), 0), t.dark, _DETAIL)
+			c.fill(PixelShape.rounded(Rect2i(0, c.h - cuff, c.w, cuff), 0), t.dark, _DETAIL)
 
 
 ## A red armoured guard over the forearm.
 static func _trauma_guard(c: PixelCanvas, look: Dictionary) -> void:
-	var guard := PixelCanvas.rounded(Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)), 1)
+	var guard := PixelShape.rounded(Rect2i(0, roundi(c.h * 0.3), c.w, c.h - roundi(c.h * 0.3)), 1)
 	var red: Color = look.get("trim", Color.RED)
 	c.fill(guard, red, _DETAIL)
 	c.bevel(guard, 1, 1, red.lightened(0.25), red.darkened(0.3))
@@ -156,7 +156,7 @@ static func _police_leg(
 	var armoured := String(look.get("pants", "")) == "tactical"
 	if armoured and part == "knee":
 		var pad_col: Color = look.get("pad", base.darkened(0.5))
-		var pad := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+		var pad := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 		c.fill(pad, pad_col, _DETAIL)
 		c.bevel(pad, 1, 1, pad_col.lightened(0.25), pad_col.darkened(0.3))
 		if style == "zenitex":
@@ -201,18 +201,18 @@ static func _crew_leg(
 			_pocket(c, _outer(c, opts), 0.35, patch if armoured else base.darkened(0.1), t)
 		["merc", _, "knee"]:
 			c.fill(
-				PixelCanvas.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 1),
+				PixelShape.rounded(Rect2i(1, 1, c.w - 2, c.h - 2), 1),
 				patch.darkened(0.1),
 				_DETAIL,
 			)
 		["borg", true, "knee"]:
-			var cap := PixelCanvas.rounded(Rect2i(1, 0, c.w - 2, c.h), 2)
+			var cap := PixelShape.rounded(Rect2i(1, 0, c.w - 2, c.h), 2)
 			c.fill(cap, look.get("chrome", Color.GRAY), _DETAIL)
 			c.bevel(cap, 1, 1, Color.WHITE, Color(0.3, 0.3, 0.32))
 		["borg", false, "thigh"]:
 			# A patch.
 			c.fill(
-				PixelCanvas.rounded(Rect2i(1, int(c.h * 0.5), c.w - 2, 3), 0),
+				PixelShape.rounded(Rect2i(1, int(c.h * 0.5), c.w - 2, 3), 0),
 				base.lightened(0.15),
 				_DETAIL,
 			)
@@ -225,7 +225,7 @@ static func _crew_leg(
 static func _pocket(c: PixelCanvas, outer: int, from: float, col: Color, t: Dictionary) -> void:
 	var w := maxi(3, int(c.w / 2.0))
 	var x := c.w - w - 1 if outer > int(c.w / 2.0) else 1
-	var pocket := PixelCanvas.rounded(Rect2i(x, int(c.h * from), w, maxi(3, int(c.h * 0.45))), 1)
+	var pocket := PixelShape.rounded(Rect2i(x, int(c.h * from), w, maxi(3, int(c.h * 0.45))), 1)
 	c.fill(pocket, col, _DETAIL)
 	c.outline(pocket, t.shadow)
 
@@ -241,7 +241,7 @@ static func _foot(
 ) -> void:
 	var style := String(look.get("style", ""))
 	var boots := String(look.get("feet", "")) == "boots"
-	var strip := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0)
+	var strip := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0)
 	if part == "shaft":
 		c.line(Vector2i(0, 0), Vector2i(c.w - 1, 0), t.highlight, _DETAIL)
 		c.line(Vector2i(0, 1), Vector2i(c.w - 1, 1), t.dark, _DETAIL)
@@ -272,7 +272,7 @@ static func _foot(
 			)
 		_laces(c, 2, int(c.h * 0.55))
 		return
-	var cap := PixelCanvas.rounded(Rect2i(0, int(c.h * 0.65), c.w, c.h - int(c.h * 0.65)), 1)
+	var cap := PixelShape.rounded(Rect2i(0, int(c.h * 0.65), c.w, c.h - int(c.h * 0.65)), 1)
 	c.fill(cap, look.get("chrome", Color.GRAY), _DETAIL)  # A steel toe cap.
 	c.outline(cap, t.outline)
 

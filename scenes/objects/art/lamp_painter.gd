@@ -15,15 +15,15 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var radius := int(mini(c.w, c.h) / 2.0) - 2
 	var tin := ObjectArtDecorConfig.lamp_tin_color
-	var shade := PixelCanvas.disc(o, radius)
+	var shade := PixelShape.disc(o, radius)
 	c.fill(shade, tin, _SHADE_HEIGHT)
 	c.bevel(shade, 1, 1, tin.lightened(0.2), tin.darkened(0.3))
 	c.outline(shade, tin.darkened(0.6))
 	Decay.rust(c, 3)
-	c.fill(PixelCanvas.disc(o, maxi(1, radius - 3)), tin.darkened(0.55))
+	c.fill(PixelShape.disc(o, maxi(1, radius - 3)), tin.darkened(0.55))
 	c.glowing(func() -> void:
 		c.fill(
-			PixelCanvas.disc(o, maxi(1, int(radius / 3.0))),
+			PixelShape.disc(o, maxi(1, int(radius / 3.0))),
 			ObjectArtDecorConfig.lamp_glow_color,
 		)
 		c.px(o.x, o.y, ObjectArtDecorConfig.lamp_glow_color.lightened(0.8)))
@@ -31,4 +31,4 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	var neon := Decay.neon(opts)
 	if neon.a > 0.0:
 		c.glowing(func() -> void:
-			c.outline(PixelCanvas.disc(o, maxi(2, int(mini(c.w, c.h) / 2.0) - 4)), neon))
+			c.outline(PixelShape.disc(o, maxi(2, int(mini(c.w, c.h) / 2.0) - 4)), neon))

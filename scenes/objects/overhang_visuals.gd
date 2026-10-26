@@ -35,17 +35,17 @@ func setup(piece: Node2D, overhang: Dictionary) -> Node2D:
 	z_as_relative = false
 	z_index = ObjectArtLayerConfig.overhang_z_index
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	var facing: Vector2 = piece.facing
+	var facing: Vector2 = piece.look.facing
 	var canonical: Vector2 = overhang.get("size", Vector2.ZERO)
 	var size := Vector2(canonical.y, canonical.x) if absf(facing.x) > absf(facing.y) else canonical
 	_rect = Rect2(facing * float(overhang.get("reach", 0.0)) - size * 0.5, size)
-	if piece.art != "" and size.x > 0.0 and size.y > 0.0:
-		var opts: Dictionary = piece.art_opts.merged(
+	if piece.look.art != "" and size.x > 0.0 and size.y > 0.0:
+		var opts: Dictionary = piece.look.art_opts.merged(
 			{ "part": "overhang", "material": piece.object_material },
 			true,
 		)
-		_art = ObjectArt.texture(piece.art, size, piece.color, facing, opts)
-		_emissive = ObjectArt.emissive(piece.art, size, piece.color, facing, opts)
+		_art = ObjectArt.texture(piece.look.art, size, piece.color, facing, opts)
+		_emissive = ObjectArt.emissive(piece.look.art, size, piece.color, facing, opts)
 		if _emissive:
 			_emissive_layer = EmissiveLayer.new().setup(self)
 	piece.add_child(self)

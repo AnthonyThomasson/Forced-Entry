@@ -19,10 +19,10 @@ const _RUNNER_HEIGHT := 3
 
 ## Paint a table onto `c` in `base` wood.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var radius: int = opts.get("corner_radius", ObjectArtTableConfig.table_corner_radius)
 	var rim: int = opts.get("rim_px", ObjectArtTableConfig.table_rim_px)
-	var top := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), radius)
+	var top := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), radius)
 
 	c.fill(top, base, _TOP_HEIGHT)
 	var seams := _planks(c, base, t, opts)
@@ -33,10 +33,10 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 	c.outline(top, t.outline)
 	if opts.get("gaps", false):
 		for a in seams:
-			c.clear(PixelCanvas.rounded(
+			c.fill(PixelShape.rounded(
 				Rect2i(0, a, c.w, 1) if c.w >= c.h else Rect2i(a, 0, 1, c.h),
 				0,
-			))
+			), PixelCanvas.CLEAR, 0)
 	if opts.get("runner", ObjectArtTableConfig.table_runner):
 		_runner(c)
 	Props.draw_all(
@@ -83,7 +83,7 @@ static func _plank_face(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -
 	var shift := c.rng.randf_range(-0.05, 0.05)
 	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
 	c.paint_over(r, tone)
-	c.grain(PixelCanvas.rounded(r, 0), ArtSurfaceConfig.wood_grain_density, tone.darkened(0.12),
+	c.grain(PixelShape.rounded(r, 0), ArtSurfaceConfig.wood_grain_density, tone.darkened(0.12),
 			tone.lightened(0.06), { "along_x": along_x })
 	return tone
 
@@ -129,7 +129,7 @@ static func _inset(
 	var inner_rect := Rect2i(0, 0, c.w, c.h).grow(-margin)
 	if inner_rect.size.x < 4 or inner_rect.size.y < 4:
 		return
-	var inner := PixelCanvas.rounded(inner_rect, maxi(radius - 1, 1))
+	var inner := PixelShape.rounded(inner_rect, maxi(radius - 1, 1))
 	var inlay := base.darkened(0.1)
 	c.fill(inner, inlay)
 	c.grain(
@@ -153,7 +153,7 @@ static func _runner(c: PixelCanvas) -> void:
 	var a := int((span - width) / 2.0)
 	var col := ObjectArtTableConfig.table_runner_color
 	var r := Rect2i(1, a, length - 2, width) if along_x else Rect2i(a, 1, width, length - 2)
-	c.fill(PixelCanvas.rounded(r, 0), col, _RUNNER_HEIGHT)
+	c.fill(PixelShape.rounded(r, 0), col, _RUNNER_HEIGHT)
 	c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)
 	_runner_weave(c, along_x, Rect2i(0, a, length, width))
 
@@ -166,7 +166,7 @@ static func _runner_weave(c: PixelCanvas, along_x: bool, lane: Rect2i) -> void:
 	var width := lane.size.y
 	var mid := a + int(width / 2.0)
 	var col := ObjectArtTableConfig.table_runner_color
-	var rt := PixelCanvas.tones(col)
+	var rt := ArtSurfaceConfig.tones(col)
 	var motif := maxi(2, int(width / 2.0) - 3)
 	var period := motif * 2 + 2
 	for i in range(1, length - 1):

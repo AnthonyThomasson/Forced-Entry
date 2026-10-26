@@ -99,8 +99,8 @@ static func _on_grid(local: Vector2, period: float, px: float, half_width: float
 
 ## Paint one tile of the floor `pattern` onto `c` in `base`.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
-	c.fill(PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 0), base)
+	var t := ArtSurfaceConfig.tones(base)
+	c.fill(PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 0), base)
 	match String(opts.get("pattern", "planks")):
 		"planks":
 			_planks(c, base, t)
@@ -172,7 +172,7 @@ static func _planks(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 			for x in int(c.w / 2.0):
 				c.line(Vector2i((x0 + x) % c.w, y), Vector2i((x0 + x) % c.w, y + row_h - 1), tone)
 			c.line(Vector2i(x0, y), Vector2i(x0, y + row_h - 1), t.shadow)
-		var plank := PixelCanvas.rounded(Rect2i(0, y + 1, c.w, row_h - 1), 0)
+		var plank := PixelShape.rounded(Rect2i(0, y + 1, c.w, row_h - 1), 0)
 		c.grain(
 			plank,
 			ArtSurfaceConfig.wood_grain_density,
@@ -205,7 +205,7 @@ static func _parquet(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 				if not along_x:
 					r = Rect2i(gx * cell + a, gy * cell, b - a, cell)
 				_parquet_strip(c, base, r, along_x)
-			c.outline(PixelCanvas.rounded(Rect2i(gx * cell, gy * cell, cell, cell), 0), t.shadow)
+			c.outline(PixelShape.rounded(Rect2i(gx * cell, gy * cell, cell, cell), 0), t.shadow)
 
 
 ## One parquet strip over `r` in a tone of `base` drawn per strip, its grain along x when
@@ -213,7 +213,7 @@ static func _parquet(c: PixelCanvas, base: Color, t: Dictionary) -> void:
 static func _parquet_strip(c: PixelCanvas, base: Color, r: Rect2i, along_x: bool) -> void:
 	var shift := c.rng.randf_range(-0.07, 0.07)
 	var tone := base.lightened(shift) if shift > 0.0 else base.darkened(-shift)
-	var strip := PixelCanvas.rounded(r, 0)
+	var strip := PixelShape.rounded(r, 0)
 	c.fill(strip, tone)
 	c.grain(
 		strip,
@@ -237,7 +237,7 @@ static func _tiles(c: PixelCanvas, base: Color, material: String, checker: bool,
 			var col := alt if checker and (gx + gy) % 2 == 1 else base
 			var shift := c.rng.randf_range(-0.03, 0.03)
 			col = col.lightened(shift) if shift > 0.0 else col.darkened(-shift)
-			var tile := PixelCanvas.rounded(
+			var tile := PixelShape.rounded(
 				Rect2i(gx * cell + 1, gy * cell + 1, cell - 1, cell - 1),
 				1,
 			)
@@ -252,7 +252,7 @@ static func _tiles(c: PixelCanvas, base: Color, material: String, checker: bool,
 
 ## A tile's face in `col`: a glazed one (`material` ceramic or glass) speckled with now and then a
 ## glare, any other the `material` finish.
-static func _glaze(c: PixelCanvas, tile: PixelCanvas.Shape, col: Color, material: String) -> void:
+static func _glaze(c: PixelCanvas, tile: PixelShape, col: Color, material: String) -> void:
 	if material == "ceramic" or material == "glass":
 		c.speckle(tile.bounds, col, 0.03, 0.03)
 		if c.rng.randf() < ObjectArtFloorConfig.glare_chance:
@@ -269,7 +269,7 @@ static func _mosaic(c: PixelCanvas, base: Color) -> void:
 		for gx in int(c.w / float(cell)):
 			var col: Color = tones[c.rng.randi_range(0, tones.size() - 1)]
 			c.fill(
-				PixelCanvas.rounded(Rect2i(gx * cell + 1, gy * cell + 1, cell - 1, cell - 1), 0),
+				PixelShape.rounded(Rect2i(gx * cell + 1, gy * cell + 1, cell - 1, cell - 1), 0),
 				col,
 			)
 	var grout := base.lightened(0.45)

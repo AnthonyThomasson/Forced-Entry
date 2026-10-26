@@ -20,7 +20,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	var all := Rect2i(0, 0, c.w, c.h)
 	if String(opts.get("kind", "asphalt")) == "sidewalk":
 		var base := ObjectArtStreetConfig.sidewalk_color
-		c.fill(PixelCanvas.rounded(all, 0), base)
+		c.fill(PixelShape.rounded(all, 0), base)
 		c.speckle(all, base, 0.3, 0.04)
 		var slab := roundi(ObjectArtStreetConfig.slab_px / ArtCanvasConfig.pixel_size)
 		var joint := base.darkened(0.4)
@@ -32,7 +32,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 				c.img.set_pixel(i, k, c.at(i, k).lerp(joint, 0.9))
 		return
 	var asphalt := ObjectArtStreetConfig.asphalt_color
-	c.fill(PixelCanvas.rounded(all, 0), asphalt)
+	c.fill(PixelShape.rounded(all, 0), asphalt)
 	# Even fine grain only: low contrast, no clumps, nothing to recognise.
 	c.speckle(all, asphalt, 0.45, 0.05)
 	c.speckle(all, asphalt, 0.1, 0.09)

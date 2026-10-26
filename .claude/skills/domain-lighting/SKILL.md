@@ -26,6 +26,7 @@ WorldLighting ──(group `characters`: is_dead, radius, global_position)──
 energy, none when absent: the stun's 0.08) and `life` (the fall-off after it); the stun's is energy 8, life 0.7, its burst's whole look,
 since Physics draws no disc for it), the budget (`item_lights` 15, `per_floor()` = 15 − the pool, `floor_reach`), `body_clear` 1.3. `LightingFixtureConfig`, the room fixtures: `color`, `energy`, `reach_scale` / `reach_pad` / `reach_range`, `rhythms`. `LightingTextureConfig`, the pool textures (`textures` per shape, two smooth profiles, linear points: a low light's glow `glow_offsets` / `glow_levels`, an overhead light's downward pool `pool_offsets` / `pool_levels`). |
 | `world_lighting.gd` (`WorldLighting`) | The node: `static light(root, seed_value, rooms := []) -> WorldLighting` (null while `enabled` is off), the reads `lights()`, `fixtures()`, `flashes()`, `budget()`, and the per-frame work (`_process`). |
+| `flash_pool.gd` (private) | The flash pool (`_pool`): `lights` (the flashes), `flash(at, look, radius)`, `step(delta)` (their fall-off), `clear_bodies()`. |
 | `light_budget.gd` (private) | The per-floor count: `add_floor(ground)`, `take(box, item_mask, always) -> bool`, `box_of(light, xf)`. |
 | `light_rhythm.gd` (private) | One light's rhythm: `pick(kinds, rng)` (General's `WeightedPick`, `steady` for none), `new(mode, seed)`, `step(delta) -> factor`. |
 | `ceiling_fixture.gd` (private) | A fixture's bulb glyph, drawn unshaded at `DrawLayers.OVERHEAD`. |
@@ -50,7 +51,7 @@ that keeps the shape itself lit and darkens only what lies behind it.
    texture: `overhead` `OVERHEAD_SHADOWS` and the downward pool, `low` `LOW_SHADOWS` and the glow) when `take` says every floor its
    box reaches has room, else listed in `budget().dropped` as `{ piece, index }` and freed. A fixture is overhead (walls, pool).
 5. A room whose room lights were all dropped gets its fixture if its floors have room.
-6. The flash pool (`Flash1..3` under the node, disabled), and the `EventBus` connection (dropped in `_exit_tree`).
+6. The flash pool (`Flash1..3` under the node, disabled, kept by `flash_pool.gd`), and the `EventBus` connection (dropped in `_exit_tree`).
 
 Each kept light is a `Lit` (node, full energy, rhythm or null, `glow`): the rhythm is drawn by
 `LightRhythm.pick` from the declaration's `rhythm` weights with an RNG seeded `hash([seed, piece position (rounded), index])`
@@ -62,7 +63,7 @@ Each kept light is a `Lit` (node, full energy, rhythm or null, `glow`): the rhyt
   `modulate`d to `0.3 + 0.7 × factor`.
 - Every live flash: its full energy through its `hold`, then `energy × left²` with `left` = 1 − (t − hold) / life, disabled at the
   end of its hold + life (the shot and the frag hold none, so theirs is the plain fall-off).
-- `_clear_bodies`: the character list is re-read from the group `characters` only when `get_node_count_in_group` changes; each
+- `flash_pool.gd`'s `clear_bodies`: the character list is re-read from the group `characters` only when `get_node_count_in_group` changes; each
   frame fills each living character's position and its `radius × body_clear` reach (squared) into packed arrays, then every lit
   flash (the only lights the characters shadow, `ALL_SHADOWS`) drops `CHARACTER` from its shadow mask while a character's centre
   is within reach of the flash's, and gets it back once none is; `shadow_item_cull_mask` is written only when it changes. A flash

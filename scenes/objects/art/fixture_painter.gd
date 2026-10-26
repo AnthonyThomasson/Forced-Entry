@@ -29,11 +29,11 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 ## A frame around glass with two glare streaks.
 static func _mirror(c: PixelCanvas, glass: Color) -> void:
 	var frame_col := ObjectArtDecorConfig.fixture_frame_color
-	var ft := PixelCanvas.tones(frame_col)
-	var frame := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 1)
+	var ft := ArtSurfaceConfig.tones(frame_col)
+	var frame := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 1)
 	c.fill(frame, frame_col, _BAR_HEIGHT)
 	c.bevel(frame, 1, 1, ft.highlight, ft.dark)
-	var pane := PixelCanvas.rounded(Rect2i(2, 2, c.w - 4, c.h - 4), 0)
+	var pane := PixelShape.rounded(Rect2i(2, 2, c.w - 4, c.h - 4), 0)
 	c.fill(pane, glass, _BAR_HEIGHT)
 	c.glare(pane, glass.lightened(0.5), 2)
 	c.outline(frame, ft.outline)
@@ -42,17 +42,17 @@ static func _mirror(c: PixelCanvas, glass: Color) -> void:
 ## A chrome bar on two brackets with towels folded over it.
 static func _towels(c: PixelCanvas, metal: Color) -> void:
 	var cy := int(c.h / 2.0)
-	c.fill(PixelCanvas.rounded(Rect2i(1, cy - 1, c.w - 2, 2), 0), metal, _BAR_HEIGHT)
+	c.fill(PixelShape.rounded(Rect2i(1, cy - 1, c.w - 2, 2), 0), metal, _BAR_HEIGHT)
 	c.line(Vector2i(1, cy - 1), Vector2i(c.w - 2, cy - 1), metal.lightened(0.3))
 	for x in [2, c.w - 3]:
-		c.fill(PixelCanvas.disc(Vector2i(x, cy), 2), metal.darkened(0.2), _BAR_HEIGHT)
+		c.fill(PixelShape.disc(Vector2i(x, cy), 2), metal.darkened(0.2), _BAR_HEIGHT)
 	var list: Array = ObjectArtDecorConfig.prop_colors["towels"]
 	var n := clampi(int(c.w / 18.0), 1, 3)
 	var tw := int((c.w - 10) / float(n)) - 2
 	for i in n:
 		var col: Color = list[c.rng.randi_range(0, list.size() - 1)]
 		var r := Rect2i(5 + i * (tw + 2), 1, tw, c.h - 2)
-		var towel := PixelCanvas.rounded(r, 1)
+		var towel := PixelShape.rounded(r, 1)
 		c.fill(towel, col, _TOWEL_HEIGHT)
 		c.surface(towel, "fabric", col)
 		c.line(Vector2i(r.position.x, cy), Vector2i(r.end.x - 1, cy), col.lightened(0.2))

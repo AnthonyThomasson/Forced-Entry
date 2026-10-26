@@ -9,7 +9,7 @@ const _HEIGHT := 1
 
 ## Paint a spoon onto `c` in `base` steel, the loop toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, _opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var cx := int(c.w / 2.0)
 	for y in range(0, c.h - 1):
 		c.px(cx, y, base, _HEIGHT)

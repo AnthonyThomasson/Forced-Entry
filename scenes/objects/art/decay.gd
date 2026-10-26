@@ -127,7 +127,7 @@ static func scratches(c: PixelCanvas, count: int) -> void:
 	for _i in count:
 		var a := Vector2i(c.rng.randi_range(0, c.w - 1), c.rng.randi_range(0, c.h - 1))
 		var b := a + Vector2i(c.rng.randi_range(-6, 6), c.rng.randi_range(-3, 3))
-		for p in PixelCanvas.line_points(a, b):
+		for p in PixelShape.line_points(a, b):
 			if c.covered(p.x, p.y):
 				c.img.set_pixel(p.x, p.y, c.at(p.x, p.y).lerp(SCRATCH, 0.35))
 
@@ -217,7 +217,7 @@ static func holes(c: PixelCanvas, count: int) -> void:
 			c.rng.randi_range(4, maxi(4, c.w - 5)),
 			c.rng.randi_range(4, maxi(4, c.h - 5)),
 		)
-		c.clear(PixelCanvas.disc(o, c.rng.randi_range(1, 2)))
+		c.fill(PixelShape.disc(o, c.rng.randi_range(1, 2)), PixelCanvas.CLEAR, 0)
 
 
 ## A primer-grey panel (a replaced door) over part of a body.
@@ -313,7 +313,7 @@ static func _screen_rows(c: PixelCanvas, r: Rect2i, col: Color) -> void:
 ## A line from `a` to `b`, each pixel blended `amount` toward `col` over what is drawn (set outright
 ## where nothing is).
 static func line(c: PixelCanvas, a: Vector2i, b: Vector2i, col: Color, amount: float) -> void:
-	for p in PixelCanvas.line_points(a, b):
+	for p in PixelShape.line_points(a, b):
 		if c.has(p.x, p.y):
 			var here := c.at(p.x, p.y)
 			c.px(p.x, p.y, here.lerp(col, amount) if here.a > 0.0 else col)

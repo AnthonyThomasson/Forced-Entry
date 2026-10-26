@@ -60,7 +60,7 @@ static func _scanner(c: PixelCanvas, base: Color) -> void:
 	Tech.box(c, Rect2i(0, 0, c.w, c.h), base, _POST_HEIGHT, 3)
 	Decay.screen(c, Rect2i(3, c.h - 4, c.w - 6, 2), ObjectArtTechConfig.security_beam_color)
 	c.fill(
-		PixelCanvas.disc(Vector2i(int(c.w / 2.0), int(c.h / 2.0) - 2), 2),
+		PixelShape.disc(Vector2i(int(c.w / 2.0), int(c.h / 2.0) - 2), 2),
 		ObjectArtTechConfig.tech_dark_color,
 		_POST_HEIGHT,
 	)

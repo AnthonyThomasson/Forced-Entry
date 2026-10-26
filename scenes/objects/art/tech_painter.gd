@@ -41,9 +41,9 @@ static func box(
 	col: Color,
 	height: int,
 	radius := 2,
-) -> PixelCanvas.Shape:
-	var t := PixelCanvas.tones(col)
-	var s := PixelCanvas.rounded(r, radius)
+) -> PixelShape:
+	var t := ArtSurfaceConfig.tones(col)
+	var s := PixelShape.rounded(r, radius)
 	c.fill(s, col, height)
 	c.bevel(s, 1, 1, t.light, t.dark)
 	c.outline(s, t.outline)
@@ -83,7 +83,7 @@ static func _monitor_wall(c: PixelCanvas, base: Color, screen: Color) -> void:
 ## off the back.
 static func _server_rack(c: PixelCanvas, base: Color, screen: Color) -> void:
 	box(c, Rect2i(0, 0, c.w, c.h), base, _RACK_HEIGHT, 1)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	for y in range(4, c.h - 8, 3):
 		for x in range(4, c.w - 4, 3):
 			c.px(x, y, t.shadow)

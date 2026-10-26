@@ -45,7 +45,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var r := int(c.w / 2.0) - MARGIN
 	var skin: Color = look.get("skin", _SKIN)
-	var st := PixelCanvas.tones(skin)
+	var st := ArtSurfaceConfig.tones(skin)
 	var style := String(look.get("hair_style", "short"))
 	var worn := String(look.get("head", ""))
 	if worn == "" and style == "long":
@@ -53,7 +53,7 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 	for side in [-1, 1]:
 		c.px(o.x + side * (r + 1), o.y + 1, st.dark, _HEAD)
 	c.px(o.x, o.y + r + 1, skin, _HEAD)
-	var head := PixelCanvas.disc(o, r)
+	var head := PixelShape.disc(o, r)
 	c.fill(head, skin, _HEAD)
 	match worn:
 		"helmet":
@@ -69,14 +69,14 @@ static func paint(c: PixelCanvas, _base: Color, _material: String, opts: Diction
 
 
 ## One shared bevel and outline over the skin and what covers it.
-static func _shade(c: PixelCanvas, head: PixelCanvas.Shape) -> void:
+static func _shade(c: PixelCanvas, head: PixelShape) -> void:
 	c.bevel_relative(head, 1, 2, 0.16, 0.22)
 	c.outline_relative(head, 0.45)
 
 
 ## Whether a pixel of the head lies behind the face (the face is the head's front cap): what hair
 ## and a cap cover.
-static func _covered(o: Vector2i, r: int, head: PixelCanvas.Shape) -> Callable:
+static func _covered(o: Vector2i, r: int, head: PixelShape) -> Callable:
 	var face_o := Vector2(o.x, o.y + r * 0.9)
 	var face_r := r * 0.85
 	return func(
@@ -90,8 +90,8 @@ static func _covered(o: Vector2i, r: int, head: PixelCanvas.Shape) -> Callable:
 
 ## Long hair falling behind the head, under it.
 static func _long_hair(c: PixelCanvas, o: Vector2i, r: int, hair: Color) -> void:
-	var ht := PixelCanvas.tones(hair)
-	var fall := PixelCanvas.ellipse(Rect2i(o.x - r - 1, o.y - r - 4, r * 2 + 3, r + 6))
+	var ht := ArtSurfaceConfig.tones(hair)
+	var fall := PixelShape.ellipse(Rect2i(o.x - r - 1, o.y - r - 4, r * 2 + 3, r + 6))
 	c.fill(fall, hair, _HAIR)
 	c.outline(fall, ht.outline)
 	for dx in [-2, 0, 2]:
@@ -105,9 +105,9 @@ static func _hair(
 	o: Vector2i,
 	r: int,
 	look: Dictionary,
-	head: PixelCanvas.Shape,
+	head: PixelShape,
 ) -> void:
-	var ht := PixelCanvas.tones(look.get("hair", Color.BLACK) as Color)
+	var ht := ArtSurfaceConfig.tones(look.get("hair", Color.BLACK) as Color)
 	var style := String(look.get("hair_style", "short"))
 	match style:
 		"bald":
@@ -137,7 +137,7 @@ static func _crop(
 	o: Vector2i,
 	r: int,
 	look: Dictionary,
-	head: PixelCanvas.Shape,
+	head: PixelShape,
 ) -> void:
 	var hair: Color = look.get("hair", Color.BLACK)
 	var covered := _covered(o, r, head)
@@ -153,7 +153,7 @@ static func _buzz(
 	o: Vector2i,
 	r: int,
 	look: Dictionary,
-	head: PixelCanvas.Shape,
+	head: PixelShape,
 ) -> void:
 	var hair: Color = look.get("hair", Color.BLACK)
 	var skin: Color = look.get("skin", _SKIN)
@@ -170,10 +170,10 @@ static func _mohawk(
 	o: Vector2i,
 	r: int,
 	look: Dictionary,
-	head: PixelCanvas.Shape,
+	head: PixelShape,
 ) -> void:
 	var hair: Color = look.get("hair", Color.BLACK)
-	var ht := PixelCanvas.tones(hair)
+	var ht := ArtSurfaceConfig.tones(hair)
 	var skin: Color = look.get("skin", _SKIN)
 	var covered := _covered(o, r, head)
 	for y in range(o.y - r, o.y + r + 1):
@@ -197,10 +197,10 @@ static func _cap(
 	o: Vector2i,
 	r: int,
 	look: Dictionary,
-	head: PixelCanvas.Shape,
+	head: PixelShape,
 ) -> void:
 	var col: Color = look.get("helm", Color.BLACK)
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var covered := _covered(o, r, head)
 	var style := String(look.get("style", ""))
 	for y in range(o.y - r, o.y + r + 1):
@@ -212,7 +212,7 @@ static func _cap(
 		"zenitex", "trauma":
 			_duty_cap(c, o, r, look)
 		"merc":
-			c.fill(PixelCanvas.disc(Vector2i(o.x, o.y - int(r / 3.0)), 1), t.light, _HEAD + 1)
+			c.fill(PixelShape.disc(Vector2i(o.x, o.y - int(r / 3.0)), 1), t.light, _HEAD + 1)
 		_:
 			c.px(o.x, o.y - r, t.dark, _BRIM)
 			c.px(o.x - 1, o.y - r - 1, col, _BRIM)
@@ -222,10 +222,10 @@ static func _cap(
 ## The police units' duty cap over the cap's crown: a crown seam, a brim to the front, the Zenitex's
 ## white band or the Trauma Team's cross.
 static func _duty_cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.BLACK) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.BLACK) as Color)
 	var trim: Color = look.get("trim", Color.WHITE)
 	c.line(Vector2i(o.x, o.y - r + 1), Vector2i(o.x, o.y + int(r / 2.0)), t.dark)
-	var brim := PixelCanvas.ellipse(Rect2i(o.x - r + 1, o.y + int(r / 2.0), r * 2 - 1, r))
+	var brim := PixelShape.ellipse(Rect2i(o.x - r + 1, o.y + int(r / 2.0), r * 2 - 1, r))
 	c.fill(brim, t.shadow, _BRIM)
 	c.outline(brim, t.outline)
 	if String(look.get("style", "")) == "zenitex":
@@ -243,10 +243,10 @@ static func _duty_cap(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> 
 ## brow.
 static func _helmet(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void:
 	var col: Color = look.get("helm", Color.GRAY)
-	var t := PixelCanvas.tones(col)
+	var t := ArtSurfaceConfig.tones(col)
 	var style := String(look.get("style", ""))
 	var at := o + Vector2i(0, -1)
-	var shell := PixelCanvas.disc(at, r + _grow(style))
+	var shell := PixelShape.disc(at, r + _grow(style))
 	c.fill(shell, col, _SHELL)
 	c.surface(shell, "metal" if style == "borg" else "plastic", col)
 	c.bevel(shell, 2, 3, t.light, t.dark)
@@ -287,10 +287,10 @@ static func _zenitex_helmet(
 	c: PixelCanvas,
 	at: Vector2i,
 	r: int,
-	shell: PixelCanvas.Shape,
+	shell: PixelShape,
 	look: Dictionary,
 ) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	var visor: Color = look.get("visor", Color.BLACK)
 	var front := _front(at, r, look)
 	_visor(c, shell, front - 3, visor, visor.lightened(0.45))
@@ -313,7 +313,7 @@ static func _trauma_helmet(
 	c: PixelCanvas,
 	at: Vector2i,
 	r: int,
-	shell: PixelCanvas.Shape,
+	shell: PixelShape,
 	look: Dictionary,
 ) -> void:
 	var trim: Color = look.get("trim", Color.WHITE)
@@ -331,7 +331,7 @@ static func _trauma_helmet(
 
 ## A merc's old army helmet, scuffed, with goggles pushed up on the brow.
 static func _army_helmet(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	var front := _front(at, r, look)
 	for k in 4:
 		c.px(
@@ -347,7 +347,7 @@ static func _army_helmet(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary)
 			_VISOR,
 		)
 		c.fill(
-			PixelCanvas.disc(Vector2i(at.x + side * 2, front - 2), 1),
+			PixelShape.disc(Vector2i(at.x + side * 2, front - 2), 1),
 			Color(0.55, 0.45, 0.2),
 			_VISOR,
 		)
@@ -355,7 +355,7 @@ static func _army_helmet(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary)
 
 ## A borg's welded skull cap: a seam over the crown and a ring of rivets.
 static func _skull_cap(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary) -> void:
-	var t := PixelCanvas.tones(look.get("helm", Color.GRAY) as Color)
+	var t := ArtSurfaceConfig.tones(look.get("helm", Color.GRAY) as Color)
 	c.line(Vector2i(at.x, at.y - r - 1), Vector2i(at.x, _front(at, r, look) - 1), t.shadow, _SHELL)
 	for k in 8:
 		var p := Vector2(at) + Vector2.from_angle(TAU * k / 8.0) * (r - 0.5)
@@ -365,7 +365,7 @@ static func _skull_cap(c: PixelCanvas, at: Vector2i, r: int, look: Dictionary) -
 ## A visor over the shell's front rows from `row` on, rimmed along its top edge.
 static func _visor(
 	c: PixelCanvas,
-	shell: PixelCanvas.Shape,
+	shell: PixelShape,
 	row: int,
 	col: Color,
 	rim: Color,
@@ -406,7 +406,7 @@ static func _face(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) -> void
 		c.line(Vector2i(o.x - r, o.y), Vector2i(o.x + r, o.y), band, _VISOR)
 		for side in [-1, 1]:
 			c.fill(
-				PixelCanvas.disc(Vector2i(o.x + side * (r + 1), o.y + 1), 1),
+				PixelShape.disc(Vector2i(o.x + side * (r + 1), o.y + 1), 1),
 				Color(0.18, 0.18, 0.17),
 				_VISOR,
 			)
@@ -418,7 +418,7 @@ static func _face_wear(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) ->
 	var eye_y := o.y + r - 1
 	match String(look.get("face", "")):
 		"respirator":
-			var mask := PixelCanvas.rounded(Rect2i(o.x - 2, o.y + r - 1, 5, 3), 1)
+			var mask := PixelShape.rounded(Rect2i(o.x - 2, o.y + r - 1, 5, 3), 1)
 			c.fill(mask, Color(0.09, 0.09, 0.10), _VISOR)
 			c.outline(mask, Color(0.03, 0.03, 0.04))
 			c.px(o.x - 1, o.y + r, Color(0.3, 0.3, 0.32), _VISOR)
@@ -435,7 +435,7 @@ static func _face_wear(c: PixelCanvas, o: Vector2i, r: int, look: Dictionary) ->
 					_VISOR,
 				)
 				c.fill(
-					PixelCanvas.disc(Vector2i(o.x + side * 2, eye_y), 1),
+					PixelShape.disc(Vector2i(o.x + side * 2, eye_y), 1),
 					Color(0.75, 0.55, 0.12),
 					_VISOR,
 				)

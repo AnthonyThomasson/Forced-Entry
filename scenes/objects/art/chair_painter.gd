@@ -14,7 +14,7 @@ const _RAIL_HEIGHT := 5
 
 ## Paint a chair onto `c` in `base` wood, front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var back_d := clampi(
 		roundi(c.h * float(opts.get("back_depth", ObjectArtTableConfig.chair_back_depth))),
 		3,
@@ -28,17 +28,17 @@ static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictiona
 
 	# Seat: worn centre, grain across, bevelled edge.
 	var seat_rect := Rect2i(inset, back_d - 1, c.w - 2 * inset, c.h - back_d + 1)
-	var seat := PixelCanvas.rounded(seat_rect, 4)
+	var seat := PixelShape.rounded(seat_rect, 4)
 	c.fill(seat, base, _SEAT_HEIGHT)
-	c.fill(PixelCanvas.rounded(seat_rect.grow(-4), 4), base.lightened(0.05))
-	c.grain(PixelCanvas.rounded(seat_rect.grow(-2), 3), ArtSurfaceConfig.wood_grain_density * 1.5,
+	c.fill(PixelShape.rounded(seat_rect.grow(-4), 4), base.lightened(0.05))
+	c.grain(PixelShape.rounded(seat_rect.grow(-2), 3), ArtSurfaceConfig.wood_grain_density * 1.5,
 			base.darkened(0.12), base.lightened(0.08))
 	c.bevel(seat, 2, 2, t.light, t.dark)
 	c.outline(seat, t.outline)
 
 	# Curved crest rail across the back.
 	var rail_rect := Rect2i(inset - 1, 0, c.w - 2 * inset + 2, rail_th + bow)
-	var rail := PixelCanvas.bowed(rail_rect, 2, bow)
+	var rail := PixelShape.bowed(rail_rect, 2, bow)
 	c.fill(rail, base, _RAIL_HEIGHT)
 	c.grain(
 		rail,
@@ -60,7 +60,7 @@ static func _spindles(c: PixelCanvas, opts: Dictionary, back_d: int, rail_th: in
 	var slats: int = opts.get("slats", ObjectArtTableConfig.chair_slats)
 	for i in slats:
 		var x := roundi(float(i + 1) * c.w / (slats + 1)) - 1
-		var spindle := PixelCanvas.rounded(Rect2i(x, rail_th - 1, 2, back_d - rail_th + 2), 0)
+		var spindle := PixelShape.rounded(Rect2i(x, rail_th - 1, 2, back_d - rail_th + 2), 0)
 		c.fill(spindle, t.dark, _SLAT_HEIGHT)
 
 

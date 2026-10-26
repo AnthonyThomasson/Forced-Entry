@@ -30,12 +30,12 @@ const _CABLE := Color(0.80, 0.32, 0.12)
 ## Paint the shoulders onto `c` in a `base` shirt, facing +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
 	var look := PixelArt.look_of(opts)
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var o := Vector2i(int(c.w / 2.0), int(c.h / 2.0))
 	var head_r := HeadPainter.radius_for(c.w)
 	var depth := roundi(c.h * CharacterArtConfig.shoulder_depth)
 	var span := Rect2i(1, o.y - int(depth / 2.0) - 1, c.w - 2, depth)
-	var shoulders := PixelCanvas.ellipse(span)
+	var shoulders := PixelShape.ellipse(span)
 	c.fill(shoulders, base, _SHOULDER)
 	c.surface(shoulders, material, base)
 	c.bevel(shoulders, 1, 2, t.light, t.dark)
@@ -66,7 +66,7 @@ static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionar
 			)
 	if look.get("pack", false):
 		_pack(c, o, span, look)
-	c.outline(PixelCanvas.disc(o, head_r + 1), t.shadow)
+	c.outline(PixelShape.disc(o, head_r + 1), t.shadow)
 	c.cast_shadows()
 
 
@@ -77,7 +77,7 @@ static func _sleeve_ends(
 	c: PixelCanvas,
 	o: Vector2i,
 	span: Rect2i,
-	shoulders: PixelCanvas.Shape,
+	shoulders: PixelShape,
 	look: Dictionary,
 ) -> void:
 	var sleeves: Array = look.get("sleeves", [null, null])
@@ -102,7 +102,7 @@ static func _sleeve_ends(
 			Vector2i(inner, span.position.y + 2), Vector2i(inner, span.end.y - 3),
 			Color(0.15, 0.15, 0.17)
 				if chrome
-				else PixelCanvas.tones(skin if col == null else col).dark,
+				else ArtSurfaceConfig.tones(skin if col == null else col).dark,
 			_SHOULDER,
 		)
 		if chrome:
@@ -119,7 +119,7 @@ static func _sleeve_ends(
 static func _end_fill(
 	c: PixelCanvas,
 	area: Rect2i,
-	shoulders: PixelCanvas.Shape,
+	shoulders: PixelShape,
 	look: Dictionary,
 	side: int,
 ) -> void:
@@ -138,7 +138,7 @@ static func _end_fill(
 static func _uniform(
 	c: PixelCanvas,
 	o: Vector2i,
-	shoulders: PixelCanvas.Shape,
+	shoulders: PixelShape,
 	look: Dictionary,
 	t: Dictionary,
 ) -> void:
@@ -160,7 +160,7 @@ static func _uniform(
 			_zenitex_shoulders(c, o, shoulders, look, t)
 		"trauma":
 			# A white arm patch with the red cross on the right shoulder.
-			var patch := PixelCanvas.rounded(Rect2i(3, o.y - 2, 5, 5), 1)
+			var patch := PixelShape.rounded(Rect2i(3, o.y - 2, 5, 5), 1)
 			c.fill(patch, Color(0.92, 0.92, 0.9), _PAD)
 			c.outline(patch, Color(0.5, 0.5, 0.5))
 			StyleArt.cross(c, Vector2i(5, o.y), trim, _PAD + 1)
@@ -185,7 +185,7 @@ static func _uniform(
 static func _zenitex_shoulders(
 	c: PixelCanvas,
 	o: Vector2i,
-	shoulders: PixelCanvas.Shape,
+	shoulders: PixelShape,
 	look: Dictionary,
 	t: Dictionary,
 ) -> void:
@@ -214,7 +214,7 @@ static func _shoulder_plate(
 	t: Dictionary,
 	edge: Color,
 ) -> void:
-	var plate := PixelCanvas.rounded(r, 2)
+	var plate := PixelShape.rounded(r, 2)
 	c.fill(plate, t.base.lightened(0.06), _PAD)
 	c.bevel(plate, 1, 1, edge, edge.darkened(0.45))
 	c.outline(plate, t.outline)
@@ -249,7 +249,7 @@ static func _street(
 			)
 		c.line(Vector2i(o.x, front + 1), Vector2i(o.x, span.end.y - 2), skin, _SHOULDER)
 	elif bare and String(look.get("style", "")) != "merc":
-		c.fill(PixelCanvas.disc(Vector2i(o.x, front), 2), skin, _SHOULDER)
+		c.fill(PixelShape.disc(Vector2i(o.x, front), 2), skin, _SHOULDER)
 		for side in [-1, 1]:
 			c.line(
 				Vector2i(o.x + side * (head_r + 2), span.position.y + 1),
@@ -274,9 +274,9 @@ static func _street(
 ## it, or a crew's tape.
 static func _pack(c: PixelCanvas, o: Vector2i, span: Rect2i, look: Dictionary) -> void:
 	var col: Color = look.get("pack_col", Color(0.2, 0.2, 0.2))
-	var pt := PixelCanvas.tones(col)
+	var pt := ArtSurfaceConfig.tones(col)
 	var r := Rect2i(o.x - int(c.w / 4.0), span.position.y - 1, int(c.w / 2.0), roundi(c.h * 0.3))
-	var pack := PixelCanvas.rounded(r, 2)
+	var pack := PixelShape.rounded(r, 2)
 	c.fill(pack, col, _PACK)
 	c.surface(pack, "fabric", col)
 	c.bevel(pack, 1, 1, pt.light, pt.dark)

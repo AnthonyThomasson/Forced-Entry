@@ -19,8 +19,8 @@ const _ARM_HEIGHT := 6
 
 ## Paint a sofa onto `c` in `base` upholstery, seat front toward +y.
 static func paint(c: PixelCanvas, base: Color, _material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
-	var full := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 4)
+	var t := ArtSurfaceConfig.tones(base)
+	var full := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 4)
 	var back_d := clampi(
 		roundi(c.h * float(opts.get("back_depth", ObjectArtFabricConfig.sofa_back_depth))),
 		4,
@@ -71,9 +71,9 @@ static func _seat_cushions(c: PixelCanvas, base: Color, back_d: int, arm_w: int,
 ## The backrest (`back_d` deep): a rolled top across the full width over a row of `n` back cushions,
 ## which lean away from the light overhead, so they sit a shade darker than the seat.
 static func _backrest(c: PixelCanvas, base: Color, back_d: int, arm_w: int, n: int) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	var seat_w := c.w - 2 * arm_w
-	var back := PixelCanvas.rounded(Rect2i(0, 0, c.w, back_d), 4)
+	var back := PixelShape.rounded(Rect2i(0, 0, c.w, back_d), 4)
 	c.fill(back, base, _BACK_HEIGHT)
 	c.bevel(back, 2, 2, t.highlight, t.dark)
 	c.bevel(back, 3, 3, t.light, t.dark)
@@ -91,9 +91,9 @@ static func _backrest(c: PixelCanvas, base: Color, back_d: int, arm_w: int, n: i
 
 ## The rolled armrests (`arm_w` wide) at both ends, a ridge of light along each roll.
 static func _arms(c: PixelCanvas, base: Color, arm_w: int) -> void:
-	var t := PixelCanvas.tones(base)
+	var t := ArtSurfaceConfig.tones(base)
 	for x: int in [0, c.w - arm_w]:
-		var arm := PixelCanvas.rounded(Rect2i(x, 0, arm_w, c.h), 4)
+		var arm := PixelShape.rounded(Rect2i(x, 0, arm_w, c.h), 4)
 		c.fill(arm, base, _ARM_HEIGHT)
 		c.bevel(arm, 2, 2, t.highlight, t.shadow)
 		c.bevel(arm, 3, 3, t.light, t.dark)
@@ -115,10 +115,10 @@ static func upholstery(c: PixelCanvas) -> void:
 
 ## One puffy cushion in `tone`: a paler centre, light-aware bevel and a seam ring.
 static func _cushion(c: PixelCanvas, r: Rect2i, tone: Color, height: int) -> void:
-	var ct := PixelCanvas.tones(tone)
-	var cushion := PixelCanvas.rounded(r, 3)
+	var ct := ArtSurfaceConfig.tones(tone)
+	var cushion := PixelShape.rounded(r, 3)
 	c.fill(cushion, tone, height)
-	c.fill(PixelCanvas.rounded(r.grow(-4), 4), tone.lightened(0.05))
+	c.fill(PixelShape.rounded(r.grow(-4), 4), tone.lightened(0.05))
 	c.bevel(cushion, 2, 3, ct.light, ct.dark)
 	c.outline(cushion, ct.shadow)
 
@@ -131,14 +131,14 @@ static func _pillows(c: PixelCanvas, base: Color, back_d: int, arm_w: int, seat_
 		return
 	var col := Color.from_hsv(fposmod(base.h + ObjectArtFabricConfig.sofa_pillow_hue_shift, 1.0),
 			clampf(base.s * 1.15, 0.0, 1.0), clampf(base.v * 1.05, 0.0, 1.0))
-	var pt := PixelCanvas.tones(col)
+	var pt := ArtSurfaceConfig.tones(col)
 	var y := back_d - 3
 	for left: bool in [true, false]:
 		var x := arm_w + 1 if left else c.w - arm_w - 1 - size
 		var r := Rect2i(x, y, size, size - 1)
-		var pillow := PixelCanvas.rounded(r, 3)
+		var pillow := PixelShape.rounded(r, 3)
 		c.fill(pillow, col, _PILLOW_HEIGHT)
-		c.fill(PixelCanvas.rounded(r.grow(-3), 3), col.lightened(0.06))
+		c.fill(PixelShape.rounded(r.grow(-3), 3), col.lightened(0.06))
 		c.bevel(pillow, 2, 2, pt.light, pt.dark)
 		c.outline(pillow, pt.shadow)
 		c.speckle(r, col, ArtSurfaceConfig.fabric_speckle)

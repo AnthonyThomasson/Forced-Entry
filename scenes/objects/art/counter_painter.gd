@@ -17,15 +17,15 @@ const _TAP_HEIGHT := 8
 
 ## Paint a counter onto `c` in `base` with a `material` finish, front toward +y.
 static func paint(c: PixelCanvas, base: Color, material: String, opts: Dictionary) -> void:
-	var t := PixelCanvas.tones(base)
-	var body := PixelCanvas.rounded(Rect2i(0, 0, c.w, c.h), 2)
+	var t := ArtSurfaceConfig.tones(base)
+	var body := PixelShape.rounded(Rect2i(0, 0, c.w, c.h), 2)
 	c.fill(body, base, _TOP_HEIGHT)
 	c.surface(body, material, base)
 
 	var splash := 0
 	if opts.get("backsplash", ObjectArtKitchenBathConfig.counter_backsplash):
 		splash = maxi(2, roundi(c.h * 0.07))
-		var band := PixelCanvas.rounded(Rect2i(0, 0, c.w, splash), 1)
+		var band := PixelShape.rounded(Rect2i(0, 0, c.w, splash), 1)
 		c.fill(band, t.dark, _SPLASH_HEIGHT)
 		c.line(Vector2i(1, splash - 1), Vector2i(c.w - 2, splash - 1), t.light)
 	if opts.get("overhang", false):
@@ -67,7 +67,7 @@ static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep
 		maxi(4, c.h - top - maxi(3, roundi(c.h * 0.1))),
 	)
 	var radius := mini(6, int(mini(r.size.x, r.size.y) / 3.0))
-	var bowl := PixelCanvas.rounded(r, radius)
+	var bowl := PixelShape.rounded(r, radius)
 	var floor_col := base.darkened(0.16 if deep else 0.08)
 	c.fill(bowl, floor_col, 1)
 	c.bevel(bowl, 1, 1, t.shadow, t.light)
@@ -80,16 +80,16 @@ static func _basin(c: PixelCanvas, base: Color, t: Dictionary, splash: int, deep
 static func _drain_and_tap(c: PixelCanvas, r: Rect2i, splash: int, top: int) -> void:
 	var centre := r.position + r.size / 2
 	var metal := ObjectArtKitchenBathConfig.counter_tap_color
-	var drain := PixelCanvas.disc(centre, 2)
+	var drain := PixelShape.disc(centre, 2)
 	c.fill(drain, metal.darkened(0.3))
 	c.px(centre.x, centre.y, metal.darkened(0.7))
 	var tap_x := r.position.x + int(r.size.x / 2.0)
 	c.fill(
-		PixelCanvas.rounded(Rect2i(tap_x - 1, maxi(0, splash - 1), 2, top - splash + 4), 0),
+		PixelShape.rounded(Rect2i(tap_x - 1, maxi(0, splash - 1), 2, top - splash + 4), 0),
 		metal,
 		_TAP_HEIGHT,
 	)
 	c.px(tap_x - 1, maxi(0, splash - 1), metal.lightened(0.4))
 	for dx in [-5, 5]:
-		var knob := PixelCanvas.disc(Vector2i(tap_x + dx, maxi(1, splash)), 1)
+		var knob := PixelShape.disc(Vector2i(tap_x + dx, maxi(1, splash)), 1)
 		c.fill(knob, metal, _TAP_HEIGHT)
