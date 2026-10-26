@@ -456,8 +456,8 @@ func _sense(character: Node, delta: float) -> void:
 ## A task the behaviour resolved forces a decision at once, with the reason it gives; a lead it
 ## reached is checked off.
 func _take_resolved() -> void:
-	var why: String = _behavior.resolve_reason()
-	if _behavior.take_resolved():
+	var why: String = _behavior.task.resolve_reason
+	if _behavior.task.take_resolved():
 		_cadence.force(why if why != "" else "task resolved")
 		var lead: String = _behavior.reached_lead()
 		if lead != "":

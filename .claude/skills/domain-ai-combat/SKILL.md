@@ -41,7 +41,7 @@ the contact, and `melee` holds its ground rather than walk to a target off the l
 planner's leash filter (`domain-ai-decision`). Tests: `tests/ai/combat/leash_*` (a follower held to its leash) and
 `ordered_melee_off_leash` (real Von: a member ordered to defend a hall closes on and strikes a gunman beyond its leader's leash, which a
 leash on it would hold short; with `defend_room_stays_inside`, the planner's half). `magazine_low(fraction) -> bool`: whether the gun it fights with is at or below that share
-of its magazine, which a follower at rest tops up (`Behavior._apply_follow` with `low_ammo_fraction`, `top_off`; LD22).
+of its magazine, which a follower at rest tops up (`Behavior._apply_follow` with `tuning.context.low_ammo_fraction`, `top_off`; LD22).
 
 **No per-weapon code.** The behaviour never knows which gun it has. It fights with `Character.inventory.gun_slot()` (the held item if it takes ammo, else the
 lowest slot that does) and reacts only to generic conditions the character reports: out of rounds, mid-reload, running, **blocked**, automatic.

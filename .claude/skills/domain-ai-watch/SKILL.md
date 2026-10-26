@@ -60,7 +60,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
 
 ## Tunables (the NPC's `tuning.watch`)
 
-`look_ahead`, `door_dwell`, `lost_gaze`, read live by `Watch` (no copy kept; its gaze's turn rate is `tuning.coverage.look_rate`). `Behavior` keeps `watch_lost_gaze` too, for its own read of a threat out of sight.
+`look_ahead`, `door_dwell`, `lost_gaze`, read live by `Watch` (no copy kept; its gaze's turn rate is `tuning.coverage.look_rate`). `Behavior` reads `tuning.watch.lost_gaze` too, for its own read of a threat out of sight (`_hostile_in_view`).
 
 ## Tests
 

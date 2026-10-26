@@ -95,8 +95,8 @@ func apply(behavior: Node, delta: float) -> void:
 		return
 	if _resting(behavior):
 		gaze = "doors"
-		var door = (behavior._params.get("door_pos")
-				if behavior._primitive in [&"defend", &"ambush"]
+		var door = (behavior.task.params.get("door_pos")
+				if behavior.task.primitive in [&"defend", &"ambush"]
 				else null)
 		if door is Vector2:
 			# A defender's gun on its own doorway (D2), an ambusher's on the threshold (LD15).
@@ -164,11 +164,11 @@ func reset() -> void:
 ## be: a melee, an interaction, an engage in position, a throw taking the grenade in hand and
 ## throwing it, an entry's bang.
 func _own_gaze(behavior: Node) -> bool:
-	match behavior._primitive:
+	match behavior.task.primitive:
 		&"melee", &"interact":
 			return true
 		&"engage":
-			return behavior._arrived
+			return behavior.task.arrived
 		&"throw":
 			# Taking the grenade in hand and throwing it: aimed at the spot, not shot at the threat.
 			return behavior._combat.throw.stage not in ["walk", "away"]
@@ -180,15 +180,15 @@ func _own_gaze(behavior: Node) -> bool:
 ## Whether `behavior`'s running primitive leaves the NPC standing with nowhere in particular to
 ## look: a hold, a reload, a move that has arrived (and is not covering the room by sight).
 func _resting(behavior: Node) -> bool:
-	match behavior._primitive:
+	match behavior.task.primitive:
 		&"hold", &"reload":
 			return true
 		&"move":
-			return behavior._arrived and not behavior._look_around
+			return behavior.task.arrived and not behavior.task.look_around
 		&"throw":
 			return behavior._combat.throw.stage == "away"
 		&"defend", &"ambush":
-			return behavior._arrived
+			return behavior.task.arrived
 	return false
 
 

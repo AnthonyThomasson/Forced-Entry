@@ -88,7 +88,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   follows it at once, its own claims saying quiet too. A member that began in bang mode and hears a claim made before its own say quiet goes quiet without a veto (`_go_quiet`: the first claimer's mode). Tests: `tests/ai/grenade/bang_fallback_*`.
 - **The thrower is committed (E17, issue #51 R16).** `Entry.throwing()` (phase `bang`, `_bang_stage` `go` or `throw`: from its call until the stun leaves its hand) makes
   `committed()` true: the controller starts no decision and `set_leaf` adopts none, so a hostile seen on the walk out or in the wind-up does not make it leave. A leaf dropped
-  meanwhile sets `Behavior._held`; once `throwing()` ends (the release, or the bang given up) `_apply_entry` raises `_resolved` with `resolve_reason()` "after the bang" and it decides
+  meanwhile sets the behaviour's `task.held`; once `throwing()` ends (the release, or the bang given up) `_apply_entry` raises `task.resolved` with `task.resolve_reason` "after the bang" and it decides
   again from where it stands (a forced decision held meanwhile, the cadence's `forced`, starts then too). The caps end it too (`BANG_BURST_CAP`, the stun lost, `way_blocked` in `go`). Test:
   `ai/grenade/bang_kept_through_fight` (real Von).
 - **Go in on the burst (E17, issue #51 R8).** `_note_burst`: besides the bang phase's own stun, a stun or frag its own team threw (`last_burst.team`) going off in the room while
@@ -211,7 +211,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   running primitive steered (a `move` not yet arrived, an `engage` and its repositions, an `interact` walk) and reads the walk the
   nav agent was just given (`Locomotion.path_ahead()`), not the order's destination. When the perception's `threshold_ahead()`
   finds a doorway on that walk into a room that is not cleared, within `tuning.entry_guard.reach` (300 px of walking), it starts a
-  **detour**: the order is stashed whole in `_resume`, `_primitive` becomes `entry` for that doorway (`_params` = opening +
+  **detour**: the order is stashed whole in `_resume`, `task.primitive` becomes `entry` for that doorway (`task.params` = opening +
   room; slot and side come from the radio as usual), and when the entry ends `_finish_entry()` puts the order back and refills
   its commit timer; the walk carries on from where the entry left the NPC, and meets the next uncleared doorway the same way.
   The labels and path of the order stay, so the status line still says what the NPC is after, with the entry's phase as progress.
@@ -339,4 +339,4 @@ above).
 `corner_dwell`, `rear_time`, `cover_time`, `watch_dwell`, `approach_time`, `order_ready_cap`; `look_rate` is `tuning.coverage.look_rate`; `squad`, the controller's, goes the same way). `tuning.entry.enabled` (ENTER
 offered, and the guard on) and `tuning.entry_geometry`'s `stack_spacing`, `wall_standoff`, `pie_radius`, `pie_steps`,
 `corner_inset` and `short_room` go through `AgentPerception.apply_config(tuning)` to `AgentEntry`. The guard's `tuning.entry_guard`
-`enabled`, `reach`, `rearm` and `secure_time` are fields of `Behavior` (`entry_guard`, `entry_guard_range`, `entry_guard_rearm`, `entry_secure_time`), set the same way.
+`enabled`, `reach`, `rearm` and `secure_time` are read live by `Behavior` (`tuning.entry_guard.enabled`, `.reach`, `.rearm`, `.secure_time`).
