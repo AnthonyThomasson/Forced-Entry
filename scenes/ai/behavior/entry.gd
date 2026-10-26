@@ -2234,7 +2234,7 @@ func _tick_bang(team: Array, delta: float) -> void:
 
 ## The thrower's walk out to its throw spot, all the way into it (`StackClaim.SLOT_REACH`: the lob
 ## was judged from there, and a stride short of it a jamb can be in its way), looking where it will
-## throw; there, it stands and takes the grenade in hand to throw (`Combat.begin_throw`).
+## throw; there, it stands and takes the grenade in hand to throw (`Combat`'s `throw.begin`).
 func _bang_go(delta: float) -> void:
 	while (_bang_route.size() > 1
 			and _character.global_position.distance_to(_bang_route[0]) <= WAYPOINT_REACH):
@@ -2247,7 +2247,7 @@ func _bang_go(delta: float) -> void:
 		_look_toward(_bang_target, delta, 3.0)
 		return
 	_character.movement.move_input = Vector2.ZERO
-	_combat.begin_throw(
+	_combat.throw.begin(
 		ItemRegistry.FRAG_SLOT if _kind == &"frag" else ItemRegistry.STUN_SLOT,
 		_bang_target,
 		_perception.grenade_reach(_kind),
@@ -2255,16 +2255,17 @@ func _bang_go(delta: float) -> void:
 	_bang_stage = "throw"
 
 
-## The thrower's throw (`Combat.throw_step`): a throw that fails gives the bang up; once the grenade
-## leaves its hand it walks back, and a frag is kept to radio as "frag out" (LD14, `take_thrown`).
+## The thrower's throw (`Combat`'s `throw.step`): a throw that fails gives the bang up; once the
+## grenade leaves its hand it walks back, and a frag is kept to radio as "frag out" (LD14,
+## `take_thrown`).
 func _bang_throw(delta: float) -> void:
-	if _combat.throw_stage != "away" and _combat.throw_step(delta) == &"failed":
-		_combat.end_throw()
+	if _combat.throw.stage != "away" and _combat.throw.step(delta) == &"failed":
+		_combat.throw.end()
 		_give_up_bang()
 		_set_phase("stack")
 		return
-	if _combat.throw_released():
-		_combat.end_throw()
+	if _combat.throw.released():
+		_combat.throw.end()
 		_bang_stage = "back"
 		if _kind == &"frag":
 			_thrown = { "kind": _kind, "point": _bang_target }

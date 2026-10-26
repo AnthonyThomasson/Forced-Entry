@@ -3,8 +3,9 @@ extends RefCounted
 ## shot, throwing a punch, keeping an automatic gun's trigger down for a burst, stepping back when a
 ## barrel is against a wall, the reload reflex, and the peek-and-cover cycle (step out, shoot, duck)
 ## with its committed firing / cover spot, and throwing a grenade (`docs/grenades.md` G17: take it
-## in hand, aim at the spot, throw, put the gun back). Owns the fire cooldown, that cycle's phase
-## and timers and the throw's stage. `Behavior` decides WHICH fight is on (it holds the engaged
+## in hand, aim at the spot, throw, put the gun back: its part `throw`, `combat_throw.gd`). Owns the
+## fire cooldown and that cycle's phase and timers, and reads its tunables live from the NPC's
+## `tuning.combat`. `Behavior` decides WHICH fight is on (it holds the engaged
 ## contact and the hold-ground flag) and passes the target in each call; this class never chooses a
 ## target and reads the world only through the perception (`has_line_to`, `combat_spots`,
 ## `note_engaged`) and the character's public contract. It knows no gun from another: the gun it
@@ -15,36 +16,16 @@ signal dry
 
 ## Facing error (radians) within which a shot is taken — aim settles a frame after it is set.
 const AIM_TOLERANCE := 0.15
-## Seconds a throw may take to start (the grenade in hand, the facing settled, the hand free) before
-## it is given up, and to leave the hand once started.
-const THROW_START_CAP := 2.0
-const THROW_RELEASE_CAP := 1.5
-## How close (px) a thrower walks to its throw spot before it takes the grenade in hand: all the way
-## in, since the lob was judged from there and from no farther off than this
-## (`AgentThrow.ARRIVAL_SLACK`; a stride short, a jamb can be in the way of it).
-const THROW_SPOT_REACH := 6.0
+## The throw (`throw`).
+const Throw := preload("res://scenes/ai/behavior/combat_throw.gd")
 
-# --- Config fields `Behavior.apply_config()` sets from the NPC's `tuning.combat`; each default is
-# the topic's, for a `Combat` built alone (a unit test).
-## `tuning.combat.shoot_range`.
-var shoot_range: float = 500.0
-## `tuning.combat.punch_range`.
-var punch_range: float = 48.0
-## Radius of the ring of candidate firing / cover spots around the target.
-var ring_radius: float = 80.0
-## `tuning.combat.cover_time`.
-var cover_time: float = 1.2
-## `tuning.combat.fire_cooldown`.
-var fire_cooldown: float = 0.5
-## Rounds an automatic gun fires per trigger pull (paced by the gun's own fire rate); a single-shot
-## gun fires one.
-var fire_burst: int = 3
-## Seconds spent stepping back when the gun's barrel is against a wall or object and cannot fire.
-var back_off_time: float = 0.45
-## `tuning.combat.reposition_interval`.
-var reposition_interval: float = 0.5
-## An empty gun with a spare magazine is reloaded on its own while holding or ducked in cover.
-var auto_reload: bool = true
+## The NPC's tunables, handed in by `setup`: the fight reads `tuning.combat` live (its ranges, the
+## ring of spots, the cover time, the cooldown, the burst, the back-off, the reposition interval,
+## the reload reflex).
+var tuning: NpcTuning
+## The throw in hand (`docs/grenades.md` G17): its stage, the grenade, the spot, from where, and its
+## clock (combat_throw.gd).
+var throw := Throw.new()
 ## Whether the NPC fires blind while flash-blinded (`docs/grenades.md` G15): the controller's roll
 ## as it went blind (`Behavior.set_blind_fire`). Read only while blind (`holds_fire`).
 var blind_fire := true
@@ -63,23 +44,6 @@ var leash_center := Vector2.INF
 var leash := 0.0
 ## Seconds left before a new combat position may be chosen.
 var dest_timer := 0.0
-## The throw in hand (`begin_throw`): "" none, "walk" on the way to the throw spot (the gun still in
-## hand), "aim" taking the grenade and turning to the spot, "windup" the hand drawn back, "away" it
-## has left the hand (or never will).
-var throw_stage := ""
-## The inventory slot of the grenade being thrown.
-var _throw_slot := -1
-## Where it is thrown to.
-var _throw_spot := Vector2.ZERO
-## Where it is thrown from (the throw spot; where the thrower stood when it was offered, for a throw
-## in place).
-var _throw_from := Vector2.ZERO
-## How far (px) from the spot the thrower stands to let it go.
-var _throw_reach := 0.0
-## How many of that grenade were carried when the throw started.
-var _throw_before := 0
-## Seconds in the current stage of the throw.
-var _throw_clock := 0.0
 ## Rounds still to fire in the automatic gun's current burst.
 var _burst_left := 0
 ## Seconds left stepping back from whatever the gun's barrel is against.
@@ -92,15 +56,19 @@ var _perception: Node
 var _character: Node
 
 
-## Capture the locomotion and the perception. Called once by `Behavior.setup()`.
-func setup(loco: Node, perception: Node) -> void:
+## Capture the locomotion, the perception and the NPC's `npc_tuning`, and hand the throw its
+## locomotion. Called once by `Behavior.setup()`.
+func setup(loco: Node, perception: Node, npc_tuning: NpcTuning) -> void:
 	_loco = loco
 	_perception = perception
+	tuning = npc_tuning
+	throw.setup(loco)
 
 
-## Hand in the NPC's body. Called once by `Behavior.bind()`.
+## Hand in the NPC's body, the throw's too. Called once by `Behavior.bind()`.
 func bind(character: Node) -> void:
 	_character = character
+	throw.bind(character)
 
 
 ## A fight begins: the cycle starts in its peek phase and a firing spot is picked at once.
@@ -134,7 +102,7 @@ func has_line_of_fire(target: Dictionary) -> bool:
 	if target.is_empty():
 		return false
 	var pos: Vector2 = target["pos"]
-	return (_character.global_position.distance_to(pos) <= shoot_range
+	return (_character.global_position.distance_to(pos) <= tuning.combat.shoot_range
 			and _perception.has_line_to(target["node"], pos))
 
 
@@ -158,18 +126,18 @@ func holds_fire() -> bool:
 ## Ambush: hold the covered spot and fire the moment a line to the known position opens.
 func ambush(node: Node2D, pos: Vector2) -> void:
 	_character.movement.move_input = Vector2.ZERO
-	if _character.global_position.distance_to(pos) <= shoot_range \
+	if _character.global_position.distance_to(pos) <= tuning.combat.shoot_range \
 			and _perception.has_line_to(node, pos) and fire_timer <= 0.0 and _faces(pos):
 		shoot()
 
 
 ## Peek-and-cover shooting at the known contact (`node` at `pos`): in the PEEK phase, move to a spot
 ## with a clear shot and fire, then duck; in the COVER phase, hold behind a shielding object for
-## `cover_time` before peeking again. The fire/cover destination is committed for
-## `reposition_interval` rather than re-picked every frame, so the NPC steers smoothly instead of
-## vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside the house,
-## or inside room `room` when given (a member ordered to defend it, `docs/leadership.md` LD8), and a
-## leash (`leash_center`) within it.
+## `tuning.combat.cover_time` before peeking again. The fire/cover destination is committed for
+## `tuning.combat.reposition_interval` rather than re-picked every frame, so the NPC steers smoothly
+## instead of vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside
+## the house, or inside room `room` when given (a member ordered to defend it, `docs/leadership.md`
+## LD8), and a leash (`leash_center`) within it.
 func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, room := "") -> void:
 	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
@@ -177,7 +145,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 		cover_timer -= delta
 		if dest_timer <= 0.0:
 			dest = _choose_dest("cover", node, pos, hold_ground, room)
-			dest_timer = reposition_interval
+			dest_timer = tuning.combat.reposition_interval
 		_loco.move_to(dest)
 		reload_if_dry()
 		if cover_timer <= 0.0:
@@ -186,7 +154,7 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 		return
 	# PEEK: take the shot if a clear line to the known position is in range, else reposition to get
 	# one.
-	if dist <= shoot_range and _perception.has_line_to(node, pos):
+	if dist <= tuning.combat.shoot_range and _perception.has_line_to(node, pos):
 		_character.movement.move_input = Vector2.ZERO
 		# Shoot only once the facing has settled on it. A refused shot (a barrel against a wall
 		# stepping back, a reload under way) keeps the NPC peeking until it fires, rather than
@@ -196,92 +164,20 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 			var fired := shoot()
 			if fired or _character.ammo.rounds(_character.inventory.gun_slot()) == 0:
 				phase = "cover"
-				cover_timer = cover_time
+				cover_timer = tuning.combat.cover_time
 				dest_timer = 0.0  # Pick a cover spot immediately after shooting.
 		return
 	if dest_timer <= 0.0:
 		dest = _choose_dest("peek", node, pos, hold_ground, room)
-		dest_timer = reposition_interval
+		dest_timer = tuning.combat.reposition_interval
 	_loco.move_to(dest)
-
-
-## Start a throw of the grenade in `slot` at world point `spot`, let go no farther than `reach` px
-## from it (`AgentPerception.grenade_reach`): the GRENADE tactic's `throw` primitive and the bang
-## entry's thrower. With a throw spot `from` (`Vector2.INF`: none) the thrower walks there first
-## (`throw_stage` "walk"), then throws from it.
-func begin_throw(slot: int, spot: Vector2, reach: float, from := Vector2.INF) -> void:
-	throw_stage = "aim" if from == Vector2.INF else "walk"
-	_throw_slot = slot
-	_throw_spot = spot
-	_throw_from = from
-	_throw_reach = reach
-	_throw_clock = 0.0
-
-
-## Forget a throw (a new order replaced it).
-func end_throw() -> void:
-	throw_stage = ""
-
-
-## Carry the throw out one tick. With a throw spot, first walk all the way to it
-## (`THROW_SPOT_REACH`) with the gun in hand: the caller's watch keeps its eyes on a threat
-## meanwhile, and its commit timer and the locomotion's held walk bound the walk. Then, standing
-## still: take the grenade in hand, aim at the spot and, once the facing has settled, click the
-## trigger (`Character.weapon.shoot()`: the wind-up starts, the grenade leaves the hand `windup`
-## seconds later). A thrower that stands farther than its reach from the spot (it moved on since the
-## spot was offered) walks the last few px toward the spot first, within the same `THROW_START_CAP`.
-## Returns `&"failed"` when it never could (none left, the hand busy, the wind-up cut short), else
-## `&""`.
-func throw_step(delta: float) -> StringName:
-	_throw_clock += delta
-	_character.movement.move_input = Vector2.ZERO
-	match throw_stage:
-		"walk":
-			if _character.inventory.item_count(_throw_slot) <= 0:
-				throw_stage = "away"
-				return &"failed"
-			if not _loco.reached(_throw_from, THROW_SPOT_REACH):
-				_loco.move_to(_throw_from, THROW_SPOT_REACH)
-				return &""
-			throw_stage = "aim"
-			_throw_clock = 0.0
-		"aim":
-			if _character.inventory.item_count(_throw_slot) <= 0 or _throw_clock > THROW_START_CAP:
-				throw_stage = "away"
-				return &"failed"
-			_character.inventory.select_slot(_throw_slot)
-			_character.movement.aim_point = _throw_spot
-			if _character.global_position.distance_to(_throw_spot) > _throw_reach:
-				_loco.move_to(_throw_spot)
-				return &""
-			if _character.inventory.current_slot() == _throw_slot and _faces(_throw_spot):
-				_throw_before = _character.inventory.item_count(_throw_slot)
-				if _character.weapon.shoot():
-					throw_stage = "windup"
-					_throw_clock = 0.0
-		"windup":
-			_character.movement.aim_point = _throw_spot
-			if _throw_clock > THROW_RELEASE_CAP:
-				throw_stage = "away"
-				return &"failed"  # The wind-up was cut short (it died, or put the grenade away).
-	return &""
-
-
-## Whether the grenade being thrown has left the hand since the last call (true once): the end of
-## the wind-up. The gun is taken back in hand then (a last grenade empties its slot by itself).
-func throw_released() -> bool:
-	if throw_stage != "windup" or _character.inventory.item_count(_throw_slot) >= _throw_before:
-		return false
-	throw_stage = "away"
-	_character.inventory.select_slot(_character.inventory.gun_slot())
-	return true
 
 
 ## Melee at the known position `pos`: close to punch range and strike on the fire cooldown (no cover
 ## cycle for fists). While holding ground it won't chase a contact out of the house, nor off its
 ## leash — it only swings if one is already in reach.
 func melee(pos: Vector2, hold_ground: bool) -> void:
-	if _character.global_position.distance_to(pos) > punch_range:
+	if _character.global_position.distance_to(pos) > tuning.combat.punch_range:
 		if not hold_ground and _on_leash(pos):
 			_loco.move_to(pos)
 		else:
@@ -289,7 +185,7 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 		return
 	_character.movement.move_input = Vector2.ZERO
 	if fire_timer <= 0.0:
-		strike()
+		_strike()
 
 
 ## Equip the character's gun and fire it, refreshing the combat engagement so an active fight stays
@@ -301,7 +197,8 @@ func melee(pos: Vector2, hold_ground: bool) -> void:
 ##     it emits `dry` (the empty gun is in the snapshot now), at most once per cooldown;
 ##   - with the barrel against a wall or object (`weapon.blocked()`) it cannot fire, so it steps
 ##     back until it can, keeping the cooldown;
-##   - an automatic gun's pull is a burst (`fire_burst` rounds, `continue_burst`), the rest at the
+## - an automatic gun's pull is a burst (`tuning.combat.fire_burst` rounds, `continue_burst`), the
+## rest at the
 ##     gun's own rate.
 func shoot() -> bool:
 	if _character.movement.is_running() or _character.ammo.is_reloading() or holds_fire():
@@ -310,43 +207,19 @@ func shoot() -> bool:
 	if gun < 0:
 		return false
 	if _character.ammo.rounds(gun) == 0:
-		fire_timer = fire_cooldown
+		fire_timer = tuning.combat.fire_cooldown
 		dry.emit()
 		return false
 	_character.inventory.select_slot(gun)
 	if _character.weapon.blocked():
-		_back_off_timer = back_off_time
+		_back_off_timer = tuning.combat.back_off_time
 		return false
 	if not _character.weapon.shoot():
 		return false
 	_perception.note_engaged()
-	fire_timer = fire_cooldown
-	_burst_left = maxi(fire_burst - 1, 0) if _character.weapon.is_automatic() else 0
+	fire_timer = tuning.combat.fire_cooldown
+	_burst_left = maxi(tuning.combat.fire_burst - 1, 0) if _character.weapon.is_automatic() else 0
 	return true
-
-
-## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and
-## kicks; otherwise (a crouched NPC cannot kick) it equips the fists and punches.
-func strike() -> void:
-	if _character.ammo.capacity() >= 0 and _character.movement.posture() == &"stand":
-		kick()
-	else:
-		punch()
-
-
-## Kick with a leg, keeping whatever is held.
-func kick() -> void:
-	_perception.note_engaged()
-	fire_timer = fire_cooldown
-	_character.anatomy.leg_kick()
-
-
-## Equip the fists and throw a punch, refreshing the combat engagement.
-func punch() -> void:
-	_perception.note_engaged()
-	fire_timer = fire_cooldown
-	_character.inventory.select_slot(ItemRegistry.FISTS_SLOT)
-	_character.weapon.melee()
 
 
 ## Keep the trigger down for the rest of an automatic gun's burst: one more round each time the
@@ -376,8 +249,8 @@ func apply_back_off(delta: float) -> void:
 	_character.movement.run_input = false
 
 
-## Reflex: swap in a fresh magazine when the gun is empty and one is carried (`auto_reload`). It
-## equips the gun first, since a reload works on the held item.
+## Reflex: swap in a fresh magazine when the gun is empty and one is carried
+## (`tuning.combat.auto_reload`). It equips the gun first, since a reload works on the held item.
 func reload_if_dry() -> void:
 	if not reload_due():
 		return
@@ -411,15 +284,40 @@ func magazine_low(fraction: float) -> bool:
 			and _character.ammo.rounds(gun) <= ceili(_character.ammo.capacity(gun) * fraction))
 
 
-## Whether the reload reflex is due: `auto_reload` is on and the gun is empty with a spare magazine
+## Whether the reload reflex is due: `tuning.combat.auto_reload` is on and the gun is empty with a
+## spare magazine
 ## to put in it. (A reload runs only while standing, so a run is dropped for it.)
 func reload_due() -> bool:
 	var gun: int = _character.inventory.gun_slot()
-	return (auto_reload
+	return (tuning.combat.auto_reload
 			and gun >= 0
 			and not _character.ammo.is_reloading()
 			and _character.ammo.rounds(gun) == 0
 			and _character.ammo.can_reload(gun))
+
+
+## Land a blow, refreshing the combat engagement: a standing NPC with a gun in hand keeps it and
+## kicks; otherwise (a crouched NPC cannot kick) it equips the fists and punches.
+func _strike() -> void:
+	if _character.ammo.capacity() >= 0 and _character.movement.posture() == &"stand":
+		_kick()
+	else:
+		_punch()
+
+
+## Kick with a leg, keeping whatever is held.
+func _kick() -> void:
+	_perception.note_engaged()
+	fire_timer = tuning.combat.fire_cooldown
+	_character.anatomy.leg_kick()
+
+
+## Equip the fists and throw a punch, refreshing the combat engagement.
+func _punch() -> void:
+	_perception.note_engaged()
+	fire_timer = tuning.combat.fire_cooldown
+	_character.inventory.select_slot(ItemRegistry.FISTS_SLOT)
+	_character.weapon.melee()
 
 
 ## Whether the facing has settled on world point `pos` (within `AIM_TOLERANCE`).
@@ -440,7 +338,7 @@ func _choose_dest(
 	hold_ground: bool,
 	room := "",
 ) -> Vector2:
-	var spots: Dictionary = _perception.combat_spots(node, pos, ring_radius)
+	var spots: Dictionary = _perception.combat_spots(node, pos, tuning.combat.ring_radius)
 	var fire: Array = spots["fire"]
 	var cover: Array = spots["cover"]
 	if hold_ground or room != "":

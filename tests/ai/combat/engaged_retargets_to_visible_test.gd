@@ -24,8 +24,8 @@ func run(t: TestContext) -> void:
 	var perception := FakePerception.new()
 	var behavior := Behavior.new()
 	var tuning := NpcTuning.defaults()
-	behavior.setup(perception, null)
-	behavior.apply_config(tuning)
+	behavior.setup(perception, null, tuning)
+	behavior.apply_config()
 
 	var both_seen := [_contact(a, Vector2(300, 0), true), _contact(b, Vector2(300, 200), true)]
 	behavior.update_known(both_seen, 0.016)

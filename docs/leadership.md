@@ -380,7 +380,7 @@ before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag
   claimed slot of the stack, the thrower's own included, inside the frag's danger zone (`AgentPerception.in_grenade_zone`: a clear line
   within `danger_radius` + `evade_margin`, 370 px, the G16 zone of `docs/grenades.md`): the wall beside the door shields the stack. With no
   such target the frag is given up and the stack goes in quietly, radioing `bang_off`.
-- **Frag out.** The thrower radios `bang`, steps out, throws (`Combat.begin_throw` on `FRAG_SLOT`), radios `frag_out` as the frag leaves
+- **Frag out.** The thrower radios `bang`, steps out, throws (`Combat`'s `throw.begin` on `FRAG_SLOT`), radios `frag_out` as the frag leaves
   its hand (as GRENADE's thrower does, G17) and walks back to its slot; every member holds its slot crouched (`Entry.holds_crouched`) and
   turned away from the door until the burst, at most `FRAG_BURST_CAP` (7 s) from the call (a stun's is 5 s). A member whose slot is out of
   the frag's zone keeps the entry when the evade reflex would fire (`Entry.expects_burst`: the frag in flight, or come down where the slot

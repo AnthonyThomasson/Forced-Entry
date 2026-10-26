@@ -32,7 +32,8 @@ extends Node
 ## engagement memory) and drives the character only through its public controller contract
 ## (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`,
 ## `weapon.melee`, `use.interact_with`, `use.end_interaction`). All tunables are set from the
-## NPC's tuning (`NpcTuning`) by `apply_config(tuning, npc_squad)`.
+## NPC's tuning (`NpcTuning`, handed in by `setup`) by `apply_config(npc_squad)`; its `Combat` reads
+## its own live from that tuning.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -67,6 +68,9 @@ const GUARD_PREVIEW_RANGE := 2000.0
 ## be baked.
 const ROUTE_WAIT := 2.0
 
+## The NPC's tunables (its topic nodes, `NpcTuning`), handed in by `setup`: `apply_config` sets the
+## behaviour's and its modules' copies from them, and its `Combat` reads its own live.
+var tuning: NpcTuning
 # --- The tunables the behaviour reads itself, set by apply_config() from the NPC's tuning, each
 # from its topic's value (`entry_guard_range` from `tuning.entry_guard.reach`).
 ## Seconds an object interaction is held before it ends.
@@ -243,11 +247,12 @@ var _order_said := {}
 var _awaiting_order := false
 
 
-## Build the Locomotion child and capture the perception sub-domain. The controller calls this once
-## in its _ready(); it then hands itself to apply_config(), which sets the tunables (here and again
-## each decision).
-func setup(perception: Node, nav_agent: NavigationAgent2D) -> void:
+## Build the Locomotion child and capture the perception sub-domain and the NPC's `npc_tuning`. The
+## controller calls this once in its _ready(); it then calls apply_config(), which sets the tunables
+## from that tuning (here and again each decision).
+func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
 	_perception = perception
+	tuning = npc_tuning
 	_loco = Locomotion.new()
 	_loco.setup(nav_agent)
 	_loco.rooms = rooms
@@ -256,7 +261,7 @@ func setup(perception: Node, nav_agent: NavigationAgent2D) -> void:
 	_coverage = SearchCoverage.new()
 	_coverage.setup(_loco, perception)
 	_combat = Combat.new()
-	_combat.setup(_loco, perception)
+	_combat.setup(_loco, perception, tuning)
 	_combat.dry.connect(_on_dry)
 	_watch = Watch.new()
 	_watch.setup(_loco, perception)
@@ -275,11 +280,11 @@ func bind(character: Node) -> void:
 	_entry.bind(character)
 
 
-## Set the behaviour's own tunables and its modules' (Locomotion, the watch, coverage, combat and
-## entry modules) straight from `tuning`, the NPC's topic nodes (the one authoring surface), and
-## hand in its side's `squad`. Idempotent, so the controller may call it each decision to pick up a
-## tunable retuned at runtime.
-func apply_config(tuning: NpcTuning, npc_squad: Node = null) -> void:
+## Set the behaviour's own tunables and its modules' (Locomotion, the watch, coverage and entry
+## modules) straight from `tuning`, the NPC's topic nodes (the one authoring surface), and hand in
+## its side's `squad`. Idempotent, so the controller may call it each decision to pick up a tunable
+## retuned at runtime.
+func apply_config(npc_squad: Node = null) -> void:
 	interaction_dwell = tuning.decision.interaction_dwell
 	max_commit_time = tuning.decision.max_commit_time
 	search_look_rate = tuning.coverage.look_rate
@@ -307,21 +312,12 @@ func apply_config(tuning: NpcTuning, npc_squad: Node = null) -> void:
 	_coverage.approach = tuning.coverage.approach
 	_coverage.margin = tuning.coverage.margin
 	_coverage.look_rate = tuning.coverage.look_rate
-	_combat.shoot_range = tuning.combat.shoot_range
-	_combat.punch_range = tuning.combat.punch_range
-	_combat.ring_radius = tuning.combat.ring_radius
-	_combat.cover_time = tuning.combat.cover_time
-	_combat.fire_cooldown = tuning.combat.fire_cooldown
-	_combat.fire_burst = tuning.combat.fire_burst
-	_combat.back_off_time = tuning.combat.back_off_time
-	_combat.reposition_interval = tuning.combat.reposition_interval
-	_combat.auto_reload = tuning.combat.auto_reload
-	_apply_entry_config(tuning, npc_squad)
+	_apply_entry_config(npc_squad)
 
 
 ## Set the entry module's tunables from `tuning` (`apply_config`): its `entry` topic, the side's
 ## `npc_squad` and the look rate.
-func _apply_entry_config(tuning: NpcTuning, npc_squad: Node) -> void:
+func _apply_entry_config(npc_squad: Node) -> void:
 	_entry.ready_timeout = tuning.entry.ready_timeout
 	_entry.listen_time = tuning.entry.listen_time
 	_entry.follow_gap = tuning.entry.follow_gap
@@ -492,7 +488,7 @@ func _engage_progress() -> String:
 
 ## Where a throw stands: walking to its throw spot, throwing, or waiting for the grenade to go off.
 func _throw_progress() -> String:
-	if _combat.throw_stage == "walk":
+	if _combat.throw.stage == "walk":
 		return "walking to the throw spot"
 	return "throwing it" if _throw_wait < 0.0 else "waiting for it to go off"
 
@@ -617,7 +613,7 @@ func debug_entry_view() -> Dictionary:
 ## cannot be called back). The controller holds every re-decision until it is through.
 func committed() -> bool:
 	return ((_primitive == &"entry" and _entry.committed())
-			or (_primitive == &"throw" and _combat.throw_stage == "windup"))
+			or (_primitive == &"throw" and _combat.throw.stage == "windup"))
 
 
 ## The entry steps to radio since the last call (claims in `StackClaim`'s fields), with the
@@ -655,7 +651,7 @@ func debug_combat() -> Dictionary:
 	var in_range := false
 	var fire_clear := false
 	if engaged and _character != null:
-		in_range = _character.global_position.distance_to(_engage_pos) <= _combat.shoot_range
+		in_range = _character.global_position.distance_to(_engage_pos) <= tuning.combat.shoot_range
 		fire_clear = in_range and _perception.has_line_to(_engage_node, _engage_pos)
 	var fighting := _primitive in [&"engage", &"melee"]
 	var obj_pos = null
@@ -670,13 +666,13 @@ func debug_combat() -> Dictionary:
 		"hold_ground": _hold_ground,
 		"in_range": in_range,
 		"fire_clear": fire_clear,
-		"shoot_range": _combat.shoot_range,
-		"punch_range": _combat.punch_range,
+		"shoot_range": tuning.combat.shoot_range,
+		"punch_range": tuning.combat.punch_range,
 		"combat_phase": _combat.phase if fighting else "",
 		"cover_timer": _combat.cover_timer,
-		"cover_time": _combat.cover_time,
+		"cover_time": tuning.combat.cover_time,
 		"fire_timer": _combat.fire_timer,
-		"fire_cooldown": _combat.fire_cooldown,
+		"fire_cooldown": tuning.combat.fire_cooldown,
 		"combat_dest": _combat.dest
 			if _primitive == &"engage" and _arrived and _combat.dest != Vector2.ZERO
 			else null,
@@ -842,7 +838,7 @@ func _adopt(leaf: Dictionary) -> void:
 	_watch.reset()
 	_point = _loco.reachable(_params["point"]) if _params.has("point") else Vector2.ZERO
 	_target_obj = null
-	_combat.end_throw()
+	_combat.throw.end()
 	_throw_wait = -1.0
 	_engage_id = 0
 	var target_id: int = _params.get("target_id", 0)
@@ -885,7 +881,7 @@ func _begin_throw_order() -> void:
 	var from: Vector2 = (_params.get("from", Vector2.INF)
 			if _params.get("walk", false)
 			else Vector2.INF)
-	_combat.begin_throw(
+	_combat.throw.begin(
 		int(_params.get("slot", -1)), _throw_spot, _perception.grenade_reach(_throw_kind),
 		Vector2.INF if from == Vector2.INF else _loco.reachable(from),
 	)
@@ -980,7 +976,7 @@ func update_known(known: Array, delta: float) -> bool:
 ## contact nor as lost (it died, or was forgotten): there is nobody left on its spot, so the throw
 ## ends and the NPC re-decides (G17).
 func _throw_target_gone() -> bool:
-	if _primitive != &"throw" or _combat.throw_stage in ["windup", "away"]:
+	if _primitive != &"throw" or _combat.throw.stage in ["windup", "away"]:
 		return false
 	var id := int(_params.get("target_id", 0))
 	return id != 0 and not _hostiles.any(func(c): return c["id"] == id) and _throw_target() == 0
@@ -1164,7 +1160,7 @@ func _walking() -> bool:
 		&"defend", &"ambush", &"follow":
 			return not _arrived
 		&"throw":
-			return _combat.throw_stage == "walk"
+			return _combat.throw.stage == "walk"
 		&"interact":
 			return (not _in_interaction
 					and _target_obj != null
@@ -1187,7 +1183,7 @@ func _keeps_out_of_views() -> bool:
 	if _primitive == &"entry":
 		return _entry.phase == "approach"
 	if _primitive == &"throw":
-		return _combat.throw_stage == "walk"
+		return _combat.throw.stage == "walk"
 	return (_primitive in [&"move", &"engage", &"interact", &"defend", &"ambush"]
 			and bool(_params.get("entry_guard", true)))
 
@@ -1203,7 +1199,7 @@ func _way_blocked() -> void:
 	if _primitive in [&"move", &"engage", &"melee", &"interact", &"defend", &"ambush"]:
 		_resolved = true
 		_resolve_reason = "way blocked"
-	elif _primitive == &"throw" and _combat.throw_stage in ["walk", "aim"]:
+	elif _primitive == &"throw" and _combat.throw.stage in ["walk", "aim"]:
 		_end_throw()
 		_resolve_reason = "way blocked"
 	elif _primitive == &"entry" and _entry.way_blocked():
@@ -1259,7 +1255,7 @@ func _own_gaze() -> bool:
 			return _arrived
 		&"throw":
 			# Taking the grenade in hand and throwing it: aimed at the spot, not shot at the threat.
-			return _combat.throw_stage not in ["walk", "away"]
+			return _combat.throw.stage not in ["walk", "away"]
 		&"entry":
 			return _entry.phase == "bang"  # Turned away from the door for the stun.
 	return false
@@ -1274,7 +1270,7 @@ func _resting() -> bool:
 		&"move":
 			return _arrived and not _look_around
 		&"throw":
-			return _combat.throw_stage == "away"
+			return _combat.throw.stage == "away"
 		&"defend", &"ambush":
 			return _arrived
 	return false
@@ -1751,7 +1747,7 @@ func _walk_guarded() -> bool:
 		&"engage", &"interact":
 			pass
 		&"throw":
-			if _combat.throw_stage != "walk":
+			if _combat.throw.stage != "walk":
 				return false  # Throwing where it stands: no walk to guard.
 		_:
 			return false
@@ -1890,18 +1886,18 @@ func _apply_interact() -> void:
 
 ## Throw (docs/grenades.md G17): with a throw spot (`params.walk`), walk there first, the gun in
 ## hand and the watch stage on a threat; then take the grenade in hand, aim at the spot and throw it
-## (`Combat.throw_step`), radio it as it leaves the hand, then stand with the gun back in hand until
-## the grenade has gone off. The evade reflex carries the thrower off if the burst reaches it (it
-## replaces this order); one the burst does not reach has nothing more to do. Then the NPC
+## (`Combat`'s `throw.step`), radio it as it leaves the hand, then stand with the gun back in hand
+## until the grenade has gone off. The evade reflex carries the thrower off if the burst reaches it
+## (it replaces this order); one the burst does not reach has nothing more to do. Then the NPC
 ## re-decides. A throw that cannot be made (the lob is blocked now, none left, the hand never free)
 ## is given up at once and the NPC re-decides. A thrower that has drifted a few px out of range
-## since the spot was offered closes in on it (`Combat.throw_step`) instead; once the wind-up has
-## begun the throw is committed, standing where it is.
+## since the spot was offered closes in on it (`Combat`'s `throw.step`) instead; once the wind-up
+## has begun the throw is committed, standing where it is.
 func _apply_throw(delta: float) -> void:
-	if _combat.throw_stage != "away":
-		var blocked: bool = (_combat.throw_stage == "aim"
+	if _combat.throw.stage != "away":
+		var blocked: bool = (_combat.throw.stage == "aim"
 				and not _perception.throw_clear(_character.global_position, _throw_spot))
-		if blocked or _combat.throw_step(delta) == &"failed":
+		if blocked or _combat.throw.step(delta) == &"failed":
 			_end_throw()
 		return
 	_character.movement.move_input = Vector2.ZERO
@@ -1921,7 +1917,7 @@ func _apply_throw(delta: float) -> void:
 ## zone of, and the evade replaces the throw order the same tick. A frag entry's thrower (LD14)
 ## radios its frag the same way, the tick after it left the hand (`Entry.take_thrown`).
 func poll_throw() -> void:
-	if _primitive == &"throw" and _combat.throw_released():
+	if _primitive == &"throw" and _combat.throw.released():
 		_throw_calls.append({ "kind": _throw_kind, "point": _throw_spot })
 		_throw_wait = _perception.grenade_fuse(_throw_kind) + THROW_WAIT_MARGIN
 	elif _primitive == &"entry":
@@ -1932,7 +1928,7 @@ func poll_throw() -> void:
 
 ## The throw is over (the burst, or it could not be made): the NPC re-decides.
 func _end_throw() -> void:
-	_combat.end_throw()
+	_combat.throw.end()
 	_primitive = &"hold"
 	_throw_wait = -1.0
 	_resolved = true
@@ -1949,10 +1945,10 @@ func take_throw_calls() -> Array:
 ## Read-only: the throw the NPC is about to make, `{ from, to, kind, radius }` (empty once it has
 ## left the hand, or when the NPC is not throwing), for the grenade overlay.
 func throw_plan() -> Dictionary:
-	if _primitive != &"throw" or _combat.throw_stage == "away":
+	if _primitive != &"throw" or _combat.throw.stage == "away":
 		return {}
 	var from: Vector2 = (_params.get("from", _character.global_position)
-			if _combat.throw_stage == "walk"
+			if _combat.throw.stage == "walk"
 			else _character.global_position)
 	return {
 		"from": from,
@@ -2070,7 +2066,7 @@ func walk_pending() -> bool:
 		&"move", &"engage":
 			return not _arrived
 		&"throw":
-			return _combat.throw_stage == "walk"
+			return _combat.throw.stage == "walk"
 	return false
 
 
@@ -2139,7 +2135,7 @@ func set_evade(plan: Dictionary) -> void:
 			_evade = {}
 			_resolved = true
 		return
-	if _evade.is_empty() and _primitive == &"throw" and _combat.throw_stage == "windup":
+	if _evade.is_empty() and _primitive == &"throw" and _combat.throw.stage == "windup":
 		# Its own grenade is about to leave the hand, toward the spot: thrown first, then the run.
 		return
 	if _evade.is_empty() and _primitive == &"entry" and _entry.expects_burst(plan):

@@ -21,8 +21,9 @@ skill for detail.
 `ai/goal_controller.gd` is the **orchestrator** — the AI's own composition root (the `main.gd` of the
 AI domain). It holds the NPC's tunables, the AI's single **authoring surface**, as `tuning` (`NpcTuning`,
 `ai/tuning/`: its `Tuning` child, one topic node per concern, `tuning.<topic>.<name>`, so a defender or
-invader preset is all data on those nodes), it wires the sub-domains and hands that hub to each facade's
-`apply_config(tuning)`, which sets that sub-domain's fields and its modules' straight from the topics — building
+invader preset is all data on those nodes), it wires the sub-domains and hands that hub to each facade (the
+perception's `apply_config(tuning)`; the behaviour's `setup`, whose `apply_config` reads it), which sets that sub-domain's fields and its
+modules' straight from the topics (the behaviour's `Combat` keeps none: it reads `tuning.combat` live) — building
 them once, then applying the config again each decision so a tunable retuned at runtime
 (a behaviour test, the dev command server) takes effect without a rebuild, and on its first `control(character, delta)` hands the NPC's
 body to perception and behaviour once (`bind(character)`, which each passes on to its modules), so no sub-domain function takes the
@@ -43,7 +44,7 @@ client (`DecisionPlanner.setup(tuning.decision)`, the NPC's name through its `bi
 |---|---|---|---|
 | **Perception** | `ai/perception/` | `domain-ai-perception` (+ `domain-ai-snapshot` for the snapshot: `agent_snapshot.gd`, `perception/snapshot/`) | SENSE — what the NPC knows (sight, hostility, event memory, movement tracks, gunfire heard, allies' callouts) and the combat geometry (`agent_tactics.gd`: flanks, fire/advance/retreat spots); builds the decision SNAPSHOT — state sections, facts, option groups — worded for Von (`agent_snapshot.gd`). |
 | **Decision** | `ai/decision/` | `domain-ai-decision` | THINK — the decision TREE (data), the planner that walks it with Von one `choice` request per level, and the Von transport + dev-only server launcher. |
-| **Behaviour** | `ai/behavior/` | `domain-ai-behavior` (+ `domain-ai-combat` for `combat.gd`, `domain-ai-coverage` for `search_coverage.gd`, `domain-ai-watch` for `watch.gd`, `domain-ai-entry` for `entry.gd`) | ACT — runs the chosen leaf's primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush / follow) and the commitment state Von lacks; owns a locomotion layer for pathing, and the tactical entry phase machine (`entry.gd`). |
+| **Behaviour** | `ai/behavior/` | `domain-ai-behavior` (+ `domain-ai-combat` for `combat.gd` and its throw `combat_throw.gd`, `domain-ai-coverage` for `search_coverage.gd`, `domain-ai-watch` for `watch.gd`, `domain-ai-entry` for `entry.gd`) | ACT — runs the chosen leaf's primitive (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush / follow) and the commitment state Von lacks; owns a locomotion layer for pathing, and the tactical entry phase machine (`entry.gd`). |
 | **Debug** | `ai/debug/` | `domain-ai-debug` | Draw-only overlays: the vision cone/bubble, the decision-path label + movement path, the tactical zones it weighed, search coverage, and behaviour overlays (contacts, hearing/radio, combat, territory, move/use targets, Von/brain, routes, stuck, the entry plan, the entry team and guard). |
 
 **The AI team (`ai/team/`: `player_stack.gd`, `squad.gd`).** Not a fifth sub-domain: the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21); its detail is the `domain-ai-team` skill.

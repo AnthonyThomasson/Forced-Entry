@@ -20,11 +20,11 @@ Files:
 - `entry.gd` — a tactical entry through a doorway, as a team member or alone (`RefCounted`; `domain-ai-entry`, spec `docs/tactical-entry.md`).
 - `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)` / `inside_house(p)`.
 
-The controller calls `setup(perception, nav_agent)`
-once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules, then `apply_config(tuning)`, which sets the behaviour's
-own tunables and its modules' straight from the NPC's tuning topics (`NpcTuning`) — re-calling it each decision so a runtime retune takes effect. (A
-field is declared where it is read: the behaviour keeps only those it reads itself, and only `Combat`, built alone by a unit test, keeps
-defaults.) On its first `control()` the controller calls `bind(character)`: the
+The controller calls `setup(perception, nav_agent, tuning)`
+once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules and keep the NPC's tuning topics (`NpcTuning`, its `tuning`),
+then `apply_config(npc_squad)`, which sets the behaviour's own tunables and its modules' straight from those topics — re-calling it each decision
+so a runtime retune takes effect. (A field is declared where it is read: the behaviour keeps only those it reads itself; `Combat`, handed the
+same `tuning`, keeps none and reads `tuning.combat` live.) On its first `control()` the controller calls `bind(character)`: the
 behaviour keeps the NPC's body and hands it to each module's own `bind`, so none of their functions takes the character.
 
 ## The primitives (a leaf = `{ path, labels, primitive, params }`)
@@ -79,7 +79,7 @@ while that map is `pending`) for a threshold into a room not cleared and, unless
 view it passes: either is a detour first (`_entry.reset()`, `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
 `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `_ordered_stack()` sets
-the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(tuning, squad)`, with
+the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(squad)`, with
 `tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
 `join: true`, the squad's rally, LD24) (`StackClaim.is_join(params)`) keeps its `order_id` in the params, so `_same_order`, `_order_live` and the `moving` radio treat it as
@@ -126,7 +126,7 @@ no-per-weapon-code rule — is `combat.gd`: the **`domain-ai-combat`** skill. `B
 ## The evade reflex (G16) and the blind NPC (G15)
 
 **Evade (`Behavior.set_evade(plan)`, called every tick by the orchestrator with the perception's `evade_plan`; `docs/grenades.md` G16).** Outside Von and over every primitive, like the
-auto-reload, but for the NPC's own throw in its wind-up (`throw_stage` `windup`: the grenade leaves the hand within 0.3 s toward its spot; the evade starts the tick it has, `poll_throw` running first; test `ai/grenade/evade_waits_for_own_windup`): while a live grenade threatens the NPC it is carried out instead of the running order, an entry (committed or not) and an interaction included. The first
+auto-reload, but for the NPC's own throw in its wind-up (`Combat`'s `throw.stage` `windup`: the grenade leaves the hand within 0.3 s toward its spot; the evade starts the tick it has, `poll_throw` running first; test `ai/grenade/evade_waits_for_own_windup`): while a live grenade threatens the NPC it is carried out instead of the running order, an entry (committed or not) and an interaction included. The first
 tick of a plan drops the detour, abandons the entry (the stack is told), and replaces the order with `evade` (path `["evade"]`, labels `EVADE - a live frag grenade`);
 no decision is started or adopted while it runs (the controller's `_should_decide` / `_on_decided`, `set_leaf`). An entry in its `bang` phase is left
 to its own hold when `Entry.expects_burst(plan)` says the grenade is the bang's (a stun, or a frag whose burst leaves its slot out of the zone, LD14; `domain-ai-entry`). `_apply_evade` runs all the way into `plan.spot` (`Locomotion.move_to`
@@ -150,8 +150,8 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 
 ## Public interface (what the orchestrator calls)
 
-- `setup(perception, nav_agent)` (build the Locomotion, coverage, combat, watch and entry modules), `apply_config(tuning, npc_squad := null)` (set its own tunables
-  and its modules' from the NPC's `NpcTuning` topics, and the squad; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
+- `setup(perception, nav_agent, tuning)` (build the Locomotion, coverage, combat, watch and entry modules; keep the NPC's `NpcTuning` topics as `tuning`), `apply_config(npc_squad := null)` (set its own tunables
+  and its modules' from `tuning`, and the squad; re-callable each decision), `bind(character)` (the body, once); config fields; `rooms` (set each tick; forwarded to Locomotion).
 - `set_leaf(leaf)` — adopt: snap the point onto the navmesh, capture the target (a fight whose target
   is no longer known drops to hold and forces a re-decision), commit.
 - `update_known(known, delta) -> bool` — adopt the perception's hostiles; retarget a lost engaged

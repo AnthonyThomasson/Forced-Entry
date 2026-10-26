@@ -19,7 +19,7 @@ claim** rule there); the room is cleared by sight with `search_coverage.gd`
 
 `entry.gd` is a `RefCounted` built in `Behavior.setup`: `setup(loco, perception, coverage, eyes, combat)` captures the locomotion, the
 perception, the room coverage, the watch module (where a walker looks) and the combat module (the tactical reload and the bang's throw);
-`bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config(tuning, squad)` sets the tunables from the NPC's tuning topics (below).
+`bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config(squad)` sets the tunables from the NPC's tuning topics (below).
 - `begin(params) -> bool` — start from an ENTER leaf's `opening`, `into`, `slot` and `bang`, the guard's pass-by `secure`, or an ordered
   stack's `order_id`, `bang`, `mode`, `wait_go`, `go` and `stack_at` / `split` (below), a join's `join: true` (its order's id left out,
   below); false when the doorway is unknown (the leaf is dropped and the NPC re-decides).
@@ -81,8 +81,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `_bang_due` (in `stack`, or in `approach` once the rest are ready) has the thrower plan the throw (`_plan_bang`: a target `BANG_DEPTHS` of the way into the room, on the doorway's axis first, pulled back to the farthest point on its line the stun reaches from the spot
 (`_bang_aim`, `AgentPerception.grenade_reach`: a room deeper than a stun reaches, test `ai/grenade/bang_into_long_room`), at least `BANG_MIN_DEPTH` in, and a spot, its own slot or
   `BANG_STEP_ALONG` in front of the door, `BANG_STEP_OUT` out from the wall, from which the lob is clear of the jamb (`AgentPerception.can_lob`: from the thrower's hand, with room to spare either side, the same test as GRENADE's): none = the bang is given up and the stack
-  goes in quietly), radio `bang`, and every member that sees the call enters `bang`. In `bang`, the thrower walks out from its slot (clear of the member ahead of it) all the way into the spot (`StackClaim.SLOT_REACH` 6 px: the lob was judged from there, and a stride short of it the jamb can be in the way), throws through `Combat.begin_throw` / `throw_step` /
-  `throw_released`, and walks back; everyone holds its slot turned away from the door (`_look_toward` away along the door's normal; the watch stage does not turn it to a threat in `bang`). On a stun its own team threw bursting in the room (`AgentPerception.last_burst` with `team`: the stack's own, or one thrown by GRENADE)
+  goes in quietly), radio `bang`, and every member that sees the call enters `bang`. In `bang`, the thrower walks out from its slot (clear of the member ahead of it) all the way into the spot (`StackClaim.SLOT_REACH` 6 px: the lob was judged from there, and a stride short of it the jamb can be in the way), throws through `Combat`'s `throw` (`throw.begin` / `throw.step` /
+  `throw.released`), and walks back; everyone holds its slot turned away from the door (`_look_toward` away along the door's normal; the watch stage does not turn it to a threat in `bang`). On a stun its own team threw bursting in the room (`AgentPerception.last_burst` with `team`: the stack's own, or one thrown by GRENADE)
   the stack is over the bang (`_bang_over`): the point crosses at once, no pie, and E14's hold on a hostile in view does not apply for `BANG_WINDOW` s; no top-off is waited for. A call not answered by a burst within `BANG_BURST_CAP`
   or never made within `BANG_CALL_CAP` gives the bang up (`_give_up_bang`: `bang` false and `bang_off` true on its claims, a veto), and so does a teammate's veto (its thrower had no lob or lost its stun): a member in `stack` or in `bang`
   follows it at once, its own claims saying quiet too. A member that began in bang mode and hears a claim made before its own say quiet goes quiet without a veto (`_go_quiet`: the first claimer's mode). Tests: `tests/ai/grenade/bang_fallback_*`.
@@ -335,7 +335,7 @@ above).
 ## Tunables (the NPC's `tuning.entry`, `tuning.entry_geometry` and `tuning.entry_guard`)
 
 `tuning.entry`'s `ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`, `corner_dwell`, `rear_security_time`, `cover_time`,
-`watch_dwell`, `approach_time`, `order_ready_cap` → `Behavior.apply_config(tuning, squad)` → `Entry` (`ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`,
+`watch_dwell`, `approach_time`, `order_ready_cap` → `Behavior.apply_config(squad)` → `Entry` (`ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`,
 `corner_dwell`, `rear_time`, `cover_time`, `watch_dwell`, `approach_time`, `order_ready_cap`; `look_rate` is `tuning.coverage.look_rate`; `squad`, the controller's, goes the same way). `tuning.entry.enabled` (ENTER
 offered, and the guard on) and `tuning.entry_geometry`'s `stack_spacing`, `wall_standoff`, `pie_radius`, `pie_steps`,
 `corner_inset` and `short_room` go through `AgentPerception.apply_config(tuning)` to `AgentEntry`. The guard's `tuning.entry_guard`

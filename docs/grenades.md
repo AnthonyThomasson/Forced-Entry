@@ -363,7 +363,7 @@ falls back to a quiet entry; so it does when the call never comes (`BANG_CALL_CA
 **The ordered frag entry** (`docs/leadership.md` LD14, `docs/tactical-entry.md` E17). A frag is thrown at entry only by a stack its leader
 ordered in with a frag (the order's `mode` `frag`); an unordered stack, STUN ENTRY and the suspect-room bang throw a stun. The roles are the
 stun's: the thrower is the slot-2 member if it carries a frag, else the lowest slot that does (every entry callout carries `frags` beside
-`stuns`), and it throws from the same spots (`Combat.begin_throw` on `FRAG_SLOT`, at the frag's reach). It aims only where the burst leaves
+`stuns`), and it throws from the same spots (`Combat`'s `throw.begin` on `FRAG_SLOT`, at the frag's reach). It aims only where the burst leaves
 every claimed slot of the stack, its own included, out of the frag's danger zone (G16: a clear line within 370 px; the wall beside the door
 shields the stack), and with no such target it gives the frag up and the stack goes in quietly (`bang_off`). It radios `frag_out` as the frag
 leaves its hand, as GRENADE's thrower does (G17); the stack holds its slots crouched and turned away until the burst (`FRAG_BURST_CAP` 7 s

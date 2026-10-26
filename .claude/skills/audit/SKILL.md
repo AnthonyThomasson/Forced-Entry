@@ -37,7 +37,7 @@ skill of every domain the diff touches, once. `scenes/<folder>/` → `domain-<fo
 | `ai/perception/snapshot/`, `ai/perception/agent_snapshot.gd` | `domain-ai-snapshot` |
 | `ai/decision/` | `domain-ai-decision` |
 | `ai/behavior/` | `domain-ai-behavior` |
-| `ai/behavior/combat.gd` | `domain-ai-combat` |
+| `ai/behavior/combat.gd`, `ai/behavior/combat_throw.gd` | `domain-ai-combat` |
 | `ai/behavior/search_coverage.gd` | `domain-ai-coverage` |
 | `ai/behavior/watch.gd` | `domain-ai-watch` |
 | `ai/behavior/entry.gd` | `domain-ai-entry` |

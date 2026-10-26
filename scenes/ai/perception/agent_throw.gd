@@ -58,8 +58,8 @@ const LOB_CLEARANCE := 50.0
 const HAND_RADIUS := 3.0
 const LOB_MARGIN := 8.0
 ## How far (px) from a spot it walks to a thrower may end up (the walk's own arrival:
-## `Combat.THROW_SPOT_REACH`, the entry's `SLOT_REACH`): a throw from a spot it walks to is judged
-## from there and from this far off it either way (`throw_clear_on_arrival`).
+## the throw's `SPOT_REACH`, combat_throw.gd, and the entry's `SLOT_REACH`): a throw from a spot it
+## walks to is judged from there and from this far off it either way (`throw_clear_on_arrival`).
 const ARRIVAL_SLACK := 6.0
 ## How far (px) inside a grenade's range a thrower stands to let it go (`reach_of`): one that
 ## drifted a step past it closes in on its spot before it throws, and a throw spot is chosen within

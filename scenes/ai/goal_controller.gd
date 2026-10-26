@@ -128,7 +128,7 @@ func _ready() -> void:
 	if nav_agent_path != NodePath():
 		nav_agent = get_node_or_null(nav_agent_path) as NavigationAgent2D
 	add_child(_behavior)
-	_behavior.setup(_perception, nav_agent)
+	_behavior.setup(_perception, nav_agent, tuning)
 	_apply_config()
 	_planner.setup(tuning.decision)
 	_planner.decided.connect(_on_decided)
@@ -182,7 +182,7 @@ func _apply_config() -> void:
 	var lead_at: Vector2 = leash_lead.global_position if leash_lead != null else Vector2.INF
 	_planner.confines.leash_center = lead_at
 	_planner.confines.leash = float(squad.leash) if leash_lead != null else 0.0
-	_behavior.apply_config(tuning, squad)
+	_behavior.apply_config(squad)
 
 
 ## Buffer a world event for processing on the next control() tick (the signal can fire before the

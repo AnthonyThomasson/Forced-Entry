@@ -70,14 +70,16 @@ func run(t: TestContext) -> void:
 		n.free()
 
 
-## A fresh `Combat` wired to the stand-ins, with a stand-in character at the origin.
+## A fresh `Combat` wired to the stand-ins and the default tuning, with a stand-in character at the
+## origin.
 func _rig() -> Array:
 	var loco := FakeLoco.new()
 	var perception := FakePerception.new()
 	var me := FakeCharacter.new()
-	_nodes.append_array([loco, perception, me])
+	var tuning := NpcTuning.defaults()
+	_nodes.append_array([loco, perception, me, tuning])
 	var combat := Combat.new()
-	combat.setup(loco, perception)
+	combat.setup(loco, perception, tuning)
 	combat.bind(me)
 	return [combat, me]
 
