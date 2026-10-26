@@ -205,6 +205,8 @@ A loop ends on its `stop` event, its vehicle freed, its engine stopped, or its v
   `SoundBank.recipe_for` and a line in `SoundBank.profiles`), a case in `Sound._on_posted`, entries in `SoundConfig`'s category tables (and `SoundLibraryConfig.category_variants`), and a test.
 - Audition without playing the game: `godot --headless --path . -s tools/dump_sounds.gd -- --out=DIR
   [--variants=2] [--filter=impact/metal]` writes every profile as a `.wav` and prints length, peak and render time.
+  Its smoke test, a tool test (`tools/tests/test_dump_sounds.py`, skipped with no Godot), dumps `--filter=tinnitus/whine` and
+  checks that the run exits 0 and writes that profile's one WAV and nothing else.
 
 ## Verifying
 
