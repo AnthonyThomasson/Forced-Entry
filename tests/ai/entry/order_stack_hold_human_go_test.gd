@@ -20,6 +20,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const IDS := [&"a", &"b"]
 ## How long (s) the held stack is watched not crossing once everyone, the human included, is ready.
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 	)
 	if not t.require(not order.is_empty(), "the squad posts the held stack order (issue)"):
 		return
-	var markers: Node2D = (load(Order.ORDER_MARKERS_SCRIPT) as GDScript).new()
+	var markers: Node2D = (load(OrderMenu.ORDER_MARKERS_SCRIPT) as GDScript).new()
 	t.world.add_child(markers)
 	markers.watch(squad.view)
 	if not await _human_ready(t, stack, door):

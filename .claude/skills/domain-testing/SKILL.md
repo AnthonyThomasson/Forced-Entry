@@ -664,15 +664,18 @@ A test with one squad per side declares it (`s.squads`, the human leader a puppe
 members, leader)`, a squad built and bound by the match's own rule (`MatchBuilder.build_squads`) in `run`, for the squads no setup declares
 (two squads of one side, in `general/squad_leader_rule` and `ai/decision/order_progress_radio`, each saying why in its header), `issue` / `post` / `view` /
 `stack_order` (a stack the way the menu asks for it, `mode` and `wait_go`) / `go` (the leader's go, LD13) /
-`member_view` / `orders`, the brain's reads (`brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`, `levels`), the radio
+`member_view` / `orders`, the radio
 (`progress`, `ordered_claims`, `raw_calls`, `first_time`, `all_called`, `by_slot`), `gunfire_near` (forces a decision without touching the brain),
-`pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it), the command menu (`command_menu`,
-`items`, `item`, `labels`, `choose`, `tick`, `click`, `screen_of`, `view_still`, `panel_rect`; `player_screen` sizes a headless root
+`pause_for(t, wall_s)` (holds the tree paused for that much wall time: the test clock stops with it) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
+`BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`), with the spec's numbers as consts (`ORDER_READY_CAP`). The brain's reads are
+`tests/_ai/order_brain_probe.gd` (`const OrderBrain := preload(...)`: `brain`, `ordered`, `decisions`, `primitive`, `params`, `on_order`,
+`levels`, and where its entry has it stand at the back door, `stack_point` and `stacked`). The command menu and the order markers are
+`tests/_ai/order_menu_probe.gd` (`const OrderMenu := preload(...)`: `command_menu`, `items`, `item`, `labels`, `choose`, `tick`, `click`,
+`view_still`; `player_screen` sizes a headless root
 viewport to the project's window, as a real screen is (a real window keeps its own size unless `exact`, for a premise built on the
 project's size: that size is then stretched over the window, and `click` maps through the stretch), and `check_dock` is the dock-side tests' run: the panel's rect covers neither
 the click nor a selected teammate; `check_clear_of_bar` the overlay-bar ones, Debug on: with a real `OverlayToggles`, the panel
-clears the bar too, `open_selected` opens the menu with the teammates selected and `check_uncovered` checks a panel rect) and the back door's click points (`BACK_NORTH`, `BACK_SOUTH`,
-`BACK_ON`, `BACK_INSIDE_NORTH`, `back_side`, `stack_point`, `stacked`), with the spec's numbers as consts (`ORDER_READY_CAP`). The squad,
+clears the bar too). The squad,
 menu and markers are loaded by path and read duck-typed, so a missing piece fails an assertion that names it.
 LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet's `PlayerStack` claim says `leader`) and
 `order_stack_joiner_grace`; LD18's is `tests/ui/stack_markers_draw` (a fake squad view's `stacks`); a dead end's refusal (D21) is
@@ -985,7 +988,7 @@ physics frame so they are in the space. `build` is a coroutine. Also `restore()`
   misses it: it joins the broadphase at the next physics step (`TestWorld` waits one after placing vehicles).
 - **A click at a world point needs a still view.** The test camera (the runner's, or the gdUnit suite's) eases in from where the previous test left it
   (and keeps easing while the tree is paused), and an injected mouse event is handled a frame after it was aimed, so a click aimed while
-  the view moves lands elsewhere: such a test first waits for the canvas transform to hold still (`Order.view_still`, `tests/_ai/order_probe.gd`,
+  the view moves lands elsewhere: such a test first waits for the canvas transform to hold still (`OrderMenu.view_still`, `tests/_ai/order_menu_probe.gd`,
   used by `ui/command_menu_items` and the dock and overlay-bar tests). It counts drawn frames (`Engine.get_process_frames()`), not
   physics frames: the camera moves once a drawn frame, and a window's first frames run several physics frames each, so five still
   physics frames can pass before the camera has moved at all.

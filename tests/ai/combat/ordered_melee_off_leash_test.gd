@@ -14,6 +14,7 @@ extends GameTest
 
 const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const HALL := Rect2(0, 0, 1700, 900)
 ## The leader: at the hall's west end, some 750 px from the NPC.
@@ -66,7 +67,7 @@ func run(t: TestContext) -> void:
 	var m := t.actor(&"m")
 	var gunman := t.actor(&"gunman")
 	var puppet := t.puppet(&"gunman")
-	var b := Order.brain(t, &"m")
+	var b := OrderBrain.brain(t, &"m")
 	if not await _on_order(t, squad, m, b):
 		return
 	var struck := func(d):
@@ -114,7 +115,7 @@ func _on_order(t: TestContext, squad: Node, m: Node, b: Node) -> bool:
 		return false
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [m], "room": "arena" })
 	if not t.require(
-			await t.until(func(): return Order.on_order(b), 5.0),
+			await t.until(func(): return OrderBrain.on_order(b), 5.0),
 			"premise: the NPC takes the order to defend the hall (act %s)" % b.current_act(),
 	):
 		return false

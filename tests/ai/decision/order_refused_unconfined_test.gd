@@ -13,6 +13,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const D_AT := Vector2(150, 180)
 const H_AT := Vector2(360, 180)
 
@@ -48,7 +49,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var brain := Order.brain(t, &"d")
+	var brain := OrderBrain.brain(t, &"d")
 	var engaging := func() -> bool:
 		return ("engage" in brain.current_act()
 				and not brain.debug_state().get("decision", {}).get("pending", false))
@@ -58,7 +59,7 @@ func run(t: TestContext) -> void:
 				% brain.current_act(),
 	):
 		return
-	var walks := Order.decisions(brain)
+	var walks := OrderBrain.decisions(brain)
 	Order.post({
 		"id": "o1",
 		"leader": t.actor(&"h"),
@@ -73,20 +74,20 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var decided := func() -> bool:
-		return (Order.decisions(brain) > walks
+		return (OrderBrain.decisions(brain) > walks
 				and not brain.debug_state().get("decision", {}).get("pending", false))
 	if not t.require(
 			await t.until(decided, 3.0),
-			"the order forced a decision (decisions %d)" % Order.decisions(brain),
+			"the order forced a decision (decisions %d)" % OrderBrain.decisions(brain),
 	):
 		return
-	t.check(not Order.ordered(brain), "the walk was made without `ordered`")
+	t.check(not OrderBrain.ordered(brain), "the walk was made without `ordered`")
 	t.check(
 		"combat" in brain.current_act() and "engage" in brain.current_act(),
 		"the defender still fights from its living room: COMBAT - ENGAGE (act %s)"
 			% brain.current_act(),
 	)
 	t.check(
-		not Order.params(brain).has("confine_room"),
-		"the leaf carries no confine_room (params %s)" % str(Order.params(brain)),
+		not OrderBrain.params(brain).has("confine_room"),
+		"the leaf carries no confine_room (params %s)" % str(OrderBrain.params(brain)),
 	)

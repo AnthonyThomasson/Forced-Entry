@@ -21,6 +21,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const MainProbe := preload("res://tests/_main/main_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const NPC_AT := [Vector2(960, 60), Vector2(985, 110)]
 ## How long (s) the held stack is watched holding once both are ready.
@@ -125,7 +126,7 @@ func _premise_menu(t: TestContext, built: Dictionary, me: Node) -> Node:
 func _order_stack(t: TestContext, menu: Node, npcs: Array) -> bool:
 	for npc in npcs:
 		t.check(
-			Order.tick(menu, String(npc.name), true),
+			OrderMenu.tick(menu, String(npc.name), true),
 			"the menu lists teammate %s to tick" % npc.name,
 		)
 	menu.open_at(Order.BACK_NORTH)
@@ -133,8 +134,9 @@ func _order_stack(t: TestContext, menu: Node, npcs: Array) -> bool:
 	t.check(t.world.get_tree().paused, "the menu pauses the match")
 	t.check(_set_hold(menu, true), "the menu has a \"Hold for my go\" checkbox to tick (LD16)")
 	if not t.require(
-			Order.choose(menu, "Stack into the kitchen with stun"),
-			"it offers \"Stack into the kitchen with stun\" (items %s)" % str(Order.labels(menu)),
+			OrderMenu.choose(menu, "Stack into the kitchen with stun"),
+			"it offers \"Stack into the kitchen with stun\" (items %s)"
+				% str(OrderMenu.labels(menu)),
 	):
 		t.world.get_tree().paused = false
 		return false
@@ -194,9 +196,9 @@ func _hold_then_go(t: TestContext, menu: Node, npcs: Array) -> void:
 	menu.open_at(Order.BACK_NORTH)
 	await t.frames(1)
 	if not t.require(
-			Order.choose(menu, "Go into the kitchen"),
+			OrderMenu.choose(menu, "Go into the kitchen"),
 			"the menu offers \"Go into the kitchen\" on the held stack's door (items %s)"
-				% str(Order.labels(menu)),
+				% str(OrderMenu.labels(menu)),
 	):
 		t.world.get_tree().paused = false
 		return

@@ -13,6 +13,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 ## Clicks by the living-room / kitchen doorway, 60 px north of its centre along the wall (off the
 ## opening: a one-sided stack).
 const ON_PLANE := Vector2(480, 90)
@@ -45,11 +46,11 @@ func run(t: TestContext) -> void:
 	var t2 := t.actor(&"t2")
 	var me := t.actor(&"me")
 	var squad: Node = t.world.squad(&"invader")
-	var menu := Order.command_menu(t)
+	var menu := OrderMenu.command_menu(t)
 	if not t.require(
 			squad != null and menu != null,
 			"the squad and the menu are built (%s, %s)"
-				% [Order.SQUAD_SCRIPT, Order.COMMAND_MENU_SCRIPT],
+				% [Order.SQUAD_SCRIPT, OrderMenu.COMMAND_MENU_SCRIPT],
 	):
 		return
 	menu.setup({ "rooms": t.rooms, "teammates": [t1, t2], "leader": me, "view": squad.view,
@@ -65,17 +66,17 @@ func run(t: TestContext) -> void:
 func _check_click(t: TestContext, menu: Node, squad: Node, got: Array, click: Vector2) -> void:
 	menu.open_at(click)
 	await t.frames(1)
-	var quiet := Order.item(menu, "(quiet)")
+	var quiet := OrderMenu.item(menu, "(quiet)")
 	if not t.check(
 			not quiet.is_empty(),
 			"a click at %s offers a quiet stack (items %s)"
-				% [str(click), str(Order.labels(menu))],
+				% [str(click), str(OrderMenu.labels(menu))],
 	):
 		menu.close()
 		return
 	var label := String(quiet["label"])
 	var asked := got.size()
-	Order.choose(menu, label)
+	OrderMenu.choose(menu, label)
 	await t.frames(1)
 	if not t.check(
 			got.size() == asked + 1,

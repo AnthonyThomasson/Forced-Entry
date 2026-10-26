@@ -10,6 +10,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const INVADERS := [Vector2(1000, 60), Vector2(1000, 330), Vector2(1100, 190)]
 
 
@@ -66,7 +67,7 @@ func _give_order(t: TestContext, squad: Node, trooper: Node) -> bool:
 		return false
 	var brain := TestContext.controller_of(trooper, &"current_act")
 	return t.require(
-			await t.until(func(): return Order.on_order(brain), 3.0),
+			await t.until(func(): return OrderBrain.on_order(brain), 3.0),
 			"the trooper takes the order (act %s)" % brain.current_act(),
 	)
 
@@ -110,7 +111,7 @@ func _check_orders_stand(t: TestContext, squad: Node, npcs: Array) -> void:
 		"the trooper's order stands in the squad's view (%s)" % str(kept),
 	)
 	t.check(
-		Order.on_order(brain),
+		OrderBrain.on_order(brain),
 		"and the trooper is still carrying it out (act %s)" % brain.current_act(),
 	)
 

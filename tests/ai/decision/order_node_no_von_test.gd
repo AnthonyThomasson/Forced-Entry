@@ -8,6 +8,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -28,7 +29,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var a := Order.brain(t, &"a")
+	var a := OrderBrain.brain(t, &"a")
 	var boss := t.actor(&"boss")
 	var decided := func(): return (
 		not DecisionStub.requests.is_empty()
@@ -47,7 +48,7 @@ func run(t: TestContext) -> void:
 ## starting at the ORDER node, every level auto-picked.
 func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
 	var asked := DecisionStub.requests.size()
-	var walks := Order.decisions(a)
+	var walks := OrderBrain.decisions(a)
 	Order.post({
 		"id": "order_%s" % room,
 		"leader": boss,
@@ -57,7 +58,7 @@ func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
 		"room": room,
 	})
 	var took := await t.until(
-		func(): return Order.on_order(a) and String(_order_params(a).get("room", "")) == room,
+		func(): return OrderBrain.on_order(a) and String(_order_params(a).get("room", "")) == room,
 		3.0,
 	)
 	if not t.check(
@@ -66,13 +67,13 @@ func _check_order(t: TestContext, a: Node, boss: Node, room: String) -> void:
 				% [room, a.current_act(), str(_order_params(a))],
 	):
 		return
-	t.check(Order.decisions(a) > walks, "by a decision walk the order forced")
+	t.check(OrderBrain.decisions(a) > walks, "by a decision walk the order forced")
 	t.expect_eq(
 		DecisionStub.requests.size(),
 		asked,
 		"no question was asked of Von from the order to its adoption (%s)" % room,
 	)
-	var levels := Order.levels(a)
+	var levels := OrderBrain.levels(a)
 	t.check(
 		not levels.is_empty() and String(levels[0].get("node", "")) == "order",
 		"the walk started at the ORDER node (%s)"

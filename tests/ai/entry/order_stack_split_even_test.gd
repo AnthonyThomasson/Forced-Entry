@@ -11,6 +11,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const IDS := [&"n1", &"n2", &"n3", &"s1"]
 
 
@@ -54,16 +55,18 @@ func run(t: TestContext) -> void:
 			"the click on the opening is a split stack (premise; %s)" % str(order),
 	):
 		return
-	var all_stacked := func(): return IDS.all(func(id): return Order.stacked(t, id))
+	var all_stacked := func(): return IDS.all(func(id): return OrderBrain.stacked(t, id))
 	if not t.require(
 			await t.until(all_stacked, 25.0),
 			"all four reach their slots (phases %s)"
-				% str(IDS.map(func(id): return Order.brain(t, id).debug_entry().get("phase", ""))),
+				% str(IDS.map(
+					func(id): return OrderBrain.brain(t, id).debug_entry().get("phase", ""),
+				)),
 	):
 		return
 	var sides := {}
 	for id in IDS:
-		sides[id] = Order.back_side(Order.stack_point(t, id))
+		sides[id] = Order.back_side(OrderBrain.stack_point(t, id))
 	var north := IDS.filter(func(id): return sides[id] == "north").size()
 	var south := IDS.filter(func(id): return sides[id] == "south").size()
 	t.check(

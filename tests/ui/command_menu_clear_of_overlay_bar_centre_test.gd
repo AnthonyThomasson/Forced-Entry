@@ -6,10 +6,12 @@ extends GameTest
 ## camera frames the leader alone, so the back doorway and the two teammates by it sit in the band
 ## near the screen's bottom that a panel hanging from the top leaves free; a right-click on the
 ## doorway, then a left-click on each teammate's body to select it. On a player's screen (the
-## project's window size), headless too: the checks are `order_probe.gd`'s `check_clear_of_bar`.
+## project's window size), headless too: the checks are `order_menu_probe.gd`'s
+## `check_clear_of_bar`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -35,6 +37,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Order.check_clear_of_bar(
+	await OrderMenu.check_clear_of_bar(
 		t, Order.BACK_SOUTH, t.actor(&"me"), [t.actor(&"t1"), t.actor(&"t2")], "vertical",
 	)

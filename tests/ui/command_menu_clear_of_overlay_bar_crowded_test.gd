@@ -6,11 +6,12 @@ extends GameTest
 ## alone: the back doorway and one teammate sit near the screen's bottom, left of its centre, the
 ## other teammate by the middle of the screen, where any dock on the right covers it; a right-click
 ## on the doorway, then both teammates ticked in the panel (the panel covers one of them). On a
-## player's screen (the project's window size), headless too: the checks are `order_probe.gd`'s
+## player's screen (the project's window size), headless too: the checks are `order_menu_probe.gd`'s
 ## `check_clear_of_bar`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -35,6 +36,6 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Order.check_clear_of_bar(
+	await OrderMenu.check_clear_of_bar(
 		t, Order.BACK_SOUTH, t.actor(&"me"), [t.actor(&"t1"), t.actor(&"t2")], "crowded",
 	)

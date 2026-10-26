@@ -22,7 +22,7 @@ extends GameTest
 ## in it).
 
 const Reach := preload("res://tests/_ai/reach_probe.gd")
-const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
 const LOBBY := Rect2(0, 0, 500, 300)
 const VESTIBULE := Rect2(500, 100, 100, 100)
@@ -83,7 +83,7 @@ func run(t: TestContext) -> void:
 	var inside: Array = []
 	var tail: Array = []
 	for id in IDS:
-		var at := Order.stack_point(t, id)
+		var at := OrderBrain.stack_point(t, id)
 		if VESTIBULE.grow(-Slots.ROOM_INSET).has_point(at):
 			inside.append(id)
 		elif (LOBBY.grow(-Slots.ROOM_INSET).has_point(at)
@@ -96,6 +96,6 @@ func run(t: TestContext) -> void:
 			% [
 				str(inside),
 				str(tail),
-				str(IDS.map(func(id): return Order.stack_point(t, id).round())),
+				str(IDS.map(func(id): return OrderBrain.stack_point(t, id).round())),
 			],
 	)

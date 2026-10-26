@@ -18,6 +18,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 
@@ -103,7 +104,10 @@ func _joiner_follows_order(t: TestContext, ordered_at: float) -> void:
 	t.check(
 		await t.until(
 			func(): return (
-				Order.stacked(t, &"joiner") and Order.back_side(joiner.global_position) == "south"
+				OrderBrain.stacked(
+					t,
+					&"joiner",
+				) and Order.back_side(joiner.global_position) == "south"
 			),
 			20.0,
 		),

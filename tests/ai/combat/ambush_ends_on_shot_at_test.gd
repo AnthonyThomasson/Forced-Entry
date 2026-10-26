@@ -20,6 +20,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 ## The click that orders the ambush: in the living room, on the doorway's axis.
@@ -71,10 +72,10 @@ func _take_post(t: TestContext, a: Node) -> Node:
 			"the squad posts the ambush order (issue of kind ambush returned %s)" % str(order),
 	):
 		return null
-	var brain := Order.brain(t, &"a")
+	var brain := OrderBrain.brain(t, &"a")
 	if not t.require(
-			await t.until(func(): return Order.primitive(brain) == "ambush", 5.0),
-			"the defender takes the ambush (primitive %s)" % Order.primitive(brain),
+			await t.until(func(): return OrderBrain.primitive(brain) == "ambush", 5.0),
+			"the defender takes the ambush (primitive %s)" % OrderBrain.primitive(brain),
 	):
 		return null
 	if not t.require(
@@ -101,9 +102,9 @@ func _holds_through_footsteps(t: TestContext, a: Node, brain: Node) -> bool:
 	):
 		return false
 	t.check(
-		Order.progress(t, "done", a).is_empty() and Order.primitive(brain) == "ambush",
+		Order.progress(t, "done", a).is_empty() and OrderBrain.primitive(brain) == "ambush",
 		"footsteps out of sight do not end the ambush (primitive %s, done %d)"
-			% [Order.primitive(brain), Order.progress(t, "done", a).size()],
+			% [OrderBrain.primitive(brain), Order.progress(t, "done", a).size()],
 	)
 	return true
 
@@ -112,7 +113,7 @@ func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
 	var shot_at := t.time
 	# Counted before the shots: a follower's next decision (FOLLOW, LD19) can land on the frame it
 	# radios done.
-	var before := Order.decisions(brain)
+	var before := OrderBrain.decisions(brain)
 	Order.gunfire_near(a)
 	t.check(
 		await t.until(func(): return not Order.progress(t, "done", a).is_empty(), 3.0),
@@ -130,11 +131,11 @@ func _ends_on_shots(t: TestContext, a: Node, brain: Node) -> void:
 				% [shot_at, float(dones[0]["time"])],
 		)
 	var ends := func():
-		return (Order.decisions(brain) > before
-				and not Order.ordered(brain)
-				and not Order.on_order(brain))
+		return (OrderBrain.decisions(brain) > before
+				and not OrderBrain.ordered(brain)
+				and not OrderBrain.on_order(brain))
 	t.check(
 		await t.until(ends, 4.0),
 		"its next decision holds no order (ordered %s, act %s)"
-			% [str(Order.ordered(brain)), brain.current_act()],
+			% [str(OrderBrain.ordered(brain)), brain.current_act()],
 	)

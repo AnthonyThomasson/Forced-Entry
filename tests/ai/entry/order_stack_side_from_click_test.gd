@@ -17,6 +17,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## Clicks at the kitchen–living doorway (x 480, 90 px wide at y 150), 60 px south of its centre
 ## along the wall: on the kitchen side (east) and on the living room side (west).
 const KITCHEN_SIDE := Vector2(510, 210)
@@ -76,7 +77,7 @@ func _stack_on_side(t: TestContext, squad: Node, side: String) -> void:
 	)
 	var stood := await t.until(
 		func(): return (
-			Order.stacked(t, &"a") and Order.back_side(t.actor(&"a").global_position) == side
+			OrderBrain.stacked(t, &"a") and Order.back_side(t.actor(&"a").global_position) == side
 		),
 		20.0,
 	)
@@ -84,13 +85,13 @@ func _stack_on_side(t: TestContext, squad: Node, side: String) -> void:
 		stood,
 		"clicked %s of the opening, the member stacks %s of the door (stack point %s, at %s)"
 			% [
-				side, side, str(Order.stack_point(t, &"a").round()),
+				side, side, str(OrderBrain.stack_point(t, &"a").round()),
 				str(t.actor(&"a").global_position.round()),
 			],
 	)
 	t.check(
-		Order.back_side(Order.stack_point(t, &"a")) == side,
-		"its slot is %s of the door (%s)" % [side, str(Order.stack_point(t, &"a").round())],
+		Order.back_side(OrderBrain.stack_point(t, &"a")) == side,
+		"its slot is %s of the door (%s)" % [side, str(OrderBrain.stack_point(t, &"a").round())],
 	)
 
 

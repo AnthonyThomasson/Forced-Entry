@@ -14,6 +14,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const D_AT := Vector2(260, 110)
 const THROWER_AT := Vector2(290, 275)
@@ -55,7 +56,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var b := Order.brain(t, &"d")
+	var b := OrderBrain.brain(t, &"d")
 	if not await _holds_on_order(t, d, b):
 		return
 	if not await _driven_out(t, d):
@@ -67,7 +68,10 @@ func _holds_on_order(t: TestContext, d: Node, b: Node) -> bool:
 	var squad: Node = t.world.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "box_room" })
 	if not t.require(
-			await t.until(func(): return Order.on_order(b) and Order.primitive(b) == "defend", 5.0),
+			await t.until(
+				func(): return OrderBrain.on_order(b) and OrderBrain.primitive(b) == "defend",
+				5.0,
+			),
 			"the defender takes the order (act %s)" % b.current_act(),
 	):
 		return false
@@ -108,7 +112,7 @@ func _driven_out(t: TestContext, d: Node) -> bool:
 
 func _walks_back(t: TestContext, d: Node, b: Node) -> void:
 	var back := await t.until(
-		func(): return Maps.BOX_ROOM.has_point(d.global_position) and Order.on_order(b),
+		func(): return Maps.BOX_ROOM.has_point(d.global_position) and OrderBrain.on_order(b),
 		15.0,
 	)
 	t.check(
@@ -119,6 +123,9 @@ func _walks_back(t: TestContext, d: Node, b: Node) -> void:
 	if back:
 		await t.seconds(2.0)
 		t.check(
-			Maps.BOX_ROOM.has_point(d.global_position) and Order.primitive(b) == "defend",
-			"and holds there (at %s, %s)" % [str(d.global_position.round()), Order.primitive(b)],
+			Maps.BOX_ROOM.has_point(d.global_position) and OrderBrain.primitive(b) == "defend",
+			"and holds there (at %s, %s)" % [
+				str(d.global_position.round()),
+				OrderBrain.primitive(b),
+			],
 		)

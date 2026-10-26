@@ -11,6 +11,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## The defenders' `callout_ttl` (s): the radio's memory, which an order must outlive.
 const CALLOUT_TTL := 6.0
 
@@ -35,12 +36,12 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var a := Order.brain(t, &"a")
-	var b := Order.brain(t, &"b")
-	var c := Order.brain(t, &"c")
+	var a := OrderBrain.brain(t, &"a")
+	var b := OrderBrain.brain(t, &"b")
+	var c := OrderBrain.brain(t, &"c")
 	var boss := t.actor(&"c")
 	await t.seconds(0.5)
-	var c_walks := Order.decisions(c)
+	var c_walks := OrderBrain.decisions(c)
 	Order.post({
 		"id": "o1",
 		"leader": boss,
@@ -57,18 +58,18 @@ func run(t: TestContext) -> void:
 
 func _check_first_order(t: TestContext, a: Node, b: Node, c: Node, c_walks: int) -> void:
 	t.check(
-		await t.until(func(): return Order.on_order(a) and Order.on_order(b), 3.0),
+		await t.until(func(): return OrderBrain.on_order(a) and OrderBrain.on_order(b), 3.0),
 		"both recipients take the order (acts %s, %s)" % [a.current_act(), b.current_act()],
 	)
-	t.check(Order.ordered(a) and Order.ordered(b), "and decide with the fact `ordered`")
+	t.check(OrderBrain.ordered(a) and OrderBrain.ordered(b), "and decide with the fact `ordered`")
 	t.check(
-		await t.until(func(): return Order.decisions(c) > c_walks, 5.0),
+		await t.until(func(): return OrderBrain.decisions(c) > c_walks, 5.0),
 		"the NPC not named decides meanwhile (premise)",
 	)
 	t.check(
-		not Order.ordered(c) and not Order.on_order(c),
+		not OrderBrain.ordered(c) and not OrderBrain.on_order(c),
 		"the NPC not named takes no order (act %s, ordered %s)"
-			% [c.current_act(), str(Order.ordered(c))],
+			% [c.current_act(), str(OrderBrain.ordered(c))],
 	)
 
 
@@ -76,14 +77,14 @@ func _check_held(t: TestContext, a: Node) -> void:
 	# Three times the callout ttl later the order is still held: a decision forced now (gunfire
 	# beside it) still has `ordered`.
 	await t.seconds(CALLOUT_TTL * 3.0 + 1.0)
-	var walks := Order.decisions(a)
+	var walks := OrderBrain.decisions(a)
 	Order.gunfire_near(t.actor(&"a"))
 	if t.check(
-			await t.until(func(): return Order.decisions(a) > walks, 3.0),
+			await t.until(func(): return OrderBrain.decisions(a) > walks, 3.0),
 			"gunfire beside the recipient forces a decision (premise)",
 	):
 		t.check(
-			Order.ordered(a),
+			OrderBrain.ordered(a),
 			"after 3 x the callout ttl the recipient still holds its order (ordered)",
 		)
 
@@ -99,20 +100,20 @@ func _check_replaced(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 	})
 	t.check(
 		await t.until(
-			func(): return String(Order.params(a).get("room", "")) == "living_room",
+			func(): return String(OrderBrain.params(a).get("room", "")) == "living_room",
 			15.0,
 		),
 		"a newer order replaces the old one (a's running order: %s %s)"
-			% [Order.primitive(a), str(Order.params(a))],
+			% [OrderBrain.primitive(a), str(OrderBrain.params(a))],
 	)
 	t.check(
-		Order.on_order(b) and String(Order.params(b).get("room", "")) == "kitchen",
-		"the other recipient keeps the first order (%s)" % str(Order.params(b)),
+		OrderBrain.on_order(b) and String(OrderBrain.params(b).get("room", "")) == "kitchen",
+		"the other recipient keeps the first order (%s)" % str(OrderBrain.params(b)),
 	)
 
 
 func _check_cancelled(t: TestContext, a: Node, b: Node, boss: Node) -> void:
-	var walks := Order.decisions(a)
+	var walks := OrderBrain.decisions(a)
 	Order.post({
 		"id": "o3",
 		"leader": boss,
@@ -121,11 +122,14 @@ func _check_cancelled(t: TestContext, a: Node, b: Node, boss: Node) -> void:
 		"kind": Order.CANCEL,
 	})
 	t.check(
-		await t.until(func(): return Order.decisions(a) > walks and not Order.on_order(a), 5.0),
+		await t.until(
+			func(): return OrderBrain.decisions(a) > walks and not OrderBrain.on_order(a),
+			5.0,
+		),
 		"a cancel ends the order (act %s)" % a.current_act(),
 	)
-	t.check(not Order.ordered(a), "and the recipient decides without `ordered`")
+	t.check(not OrderBrain.ordered(a), "and the recipient decides without `ordered`")
 	t.check(
-		Order.on_order(b),
+		OrderBrain.on_order(b),
 		"the cancel named only one recipient: the other is still on its order",
 	)

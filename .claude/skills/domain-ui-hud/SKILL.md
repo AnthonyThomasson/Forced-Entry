@@ -116,11 +116,11 @@ The in-game observers: each reads only the Character public API / signals (incl.
   never covers the bodies and doorway it is about, and a ring on the clicked point (a full-rect, mouse-ignoring `Control`). `items()` is
   `[{ label, disabled }]` (empty while closed), `is_open()`, `close()`. It holds no AI reference and computes no AI id. Tested by
   `tests/ui/command_menu_items_test.gd` (plain dicts, a fake view and a real squad's `resolve`: the items, the frag item greyed, Go on a held
-  doorway and teammate, the ambush item, the checkbox; on the project's window size, `Order.player_screen`),
+  doorway and teammate, the ambush item, the checkbox; on the project's window size, `OrderMenu.player_screen`),
   `tests/ui/command_menu_docks_right_test.gd` / `_left_test.gd` (a click in the left half docks it right, one in the right half
-  left: its rect covers neither the click nor a selected teammate, `Order.check_dock`), `tests/ui/command_menu_clear_of_overlay_bar_test.gd`
+  left: its rect covers neither the click nor a selected teammate, `OrderMenu.check_dock`), `tests/ui/command_menu_clear_of_overlay_bar_test.gd`
   / `_centre_test.gd` / `_crowded_test.gd` (Debug on, a real `OverlayToggles`: docked right `right_clear` + 24 in, beside the click and bodies,
-  above or below them, or away from them when crowded; never over the bar or the click, `Order.check_clear_of_bar`), `tests/ui/command_menu_label_matches_order_test.gd`
+  above or below them, or away from them when crowded; never over the bar or the click, `OrderMenu.check_clear_of_bar`), `tests/ui/command_menu_label_matches_order_test.gd`
   (a real squad: the stack item names the room of the order posted) and, wired by Main, `tests/general/command_menu_wiring_test.gd`.
 
 - `order_markers.gd` — the **order markers** (`OrderMarkers` Node2D, world space, z at `DrawLayers.ABOVE`, `PROCESS_MODE_ALWAYS` so the

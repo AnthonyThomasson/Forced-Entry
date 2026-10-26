@@ -4,10 +4,10 @@ extends GameTest
 ## half: a right-click on a teammate's body in the Terrace house's back garden, then a left-click on
 ## it and on the teammate beside it to select both. The panel docks on the left and covers neither
 ## the click nor a selected body. On a player's screen (the project's window size), headless too:
-## the checks are `order_probe.gd`'s `check_dock`.
+## the checks are `order_menu_probe.gd`'s `check_dock`.
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
-const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -32,4 +32,4 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
-	await Order.check_dock(t, t1.global_position, t.actor(&"me"), [t1, t.actor(&"t2")], "right")
+	await OrderMenu.check_dock(t, t1.global_position, t.actor(&"me"), [t1, t.actor(&"t2")], "right")

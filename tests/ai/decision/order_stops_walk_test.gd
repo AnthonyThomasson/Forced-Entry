@@ -14,6 +14,7 @@ extends GameTest
 ## order is given through it, as Main wires the leader's command menu to it.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const HALL := Rect2(0, 0, 900, 450)
 const DEN := Rect2(0, 450, 300, 200)
 const DEN_DOOR := Vector2(150, 450)
@@ -64,12 +65,12 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var b := Order.brain(t, &"d")
+	var b := OrderBrain.brain(t, &"d")
 	var squad: Node = t.world.squad(&"household")
 	t.puppet(&"lead").walk_to(LEAD_TO)
 	if not t.require(
-			await t.until(func(): return Order.primitive(b) == "follow", 5.0),
-			"the defender sets off after its leader (premise; %s)" % Order.primitive(b),
+			await t.until(func(): return OrderBrain.primitive(b) == "follow", 5.0),
+			"the defender sets off after its leader (premise; %s)" % OrderBrain.primitive(b),
 	):
 		return
 	await t.seconds(0.5)
@@ -77,18 +78,18 @@ func run(t: TestContext) -> void:
 	await t.seconds(0.25)
 	var pace: float = d.global_position.distance_to(was) / 0.25
 	if not t.require(
-			pace >= 40.0 and Order.primitive(b) == "follow",
+			pace >= 40.0 and OrderBrain.primitive(b) == "follow",
 			"premise: it is walking when the order comes (%.0f px/s, %s)" % [pace, b.current_act()],
 	):
 		return
 	# restored after the test (von_script registered it)
 	DecisionStub.latency_frames = LATENCY_FRAMES
 
-	var before := Order.decisions(b)
+	var before := OrderBrain.decisions(b)
 	Order.gunfire_near(d)
 	Order.stack_order(squad, [d], DEN_DOOR + Vector2(0, 30), "quiet", false)
 	if not t.require(
-			await t.until(func(): return Order.decisions(b) > before, 1.0),
+			await t.until(func(): return OrderBrain.decisions(b) > before, 1.0),
 			"the order starts a decision at once (LD6)",
 	):
 		return

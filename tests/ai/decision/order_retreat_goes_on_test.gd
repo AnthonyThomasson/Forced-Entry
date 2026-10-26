@@ -16,6 +16,7 @@ extends GameTest
 ## LD23), and the order is given through it, as Main wires the leader's command menu to it.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const HALL := Rect2(0, 0, 900, 450)
 const DEN := Rect2(0, 450, 300, 200)
 const DEN_DOOR := Vector2(150, 450)
@@ -77,7 +78,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var b := Order.brain(t, &"d")
+	var b := OrderBrain.brain(t, &"d")
 	var squad: Node = t.world.squad(&"household")
 	await t.seconds(0.5)
 	if not await _on_retreat(t, d, b):
@@ -85,11 +86,11 @@ func run(t: TestContext) -> void:
 	# restored after the test (von_script registered it)
 	DecisionStub.latency_frames = LATENCY_FRAMES
 
-	var before := Order.decisions(b)
+	var before := OrderBrain.decisions(b)
 	Order.gunfire_near(d)
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "hall" })
 	if not t.require(
-			await t.until(func(): return Order.decisions(b) > before, 1.0),
+			await t.until(func(): return OrderBrain.decisions(b) > before, 1.0),
 			"the order starts a decision at once (LD6)",
 	):
 		return
@@ -99,7 +100,7 @@ func run(t: TestContext) -> void:
 func _on_retreat(t: TestContext, d: Node, b: Node) -> bool:
 	Order.gunfire_near(d)
 	var retreating := func():
-		return (Order.primitive(b) == "move"
+		return (OrderBrain.primitive(b) == "move"
 				and String(b.current_act()).begins_with("combat")
 				and String(b.current_act()).contains("retreat"))
 	if not t.require(
@@ -131,7 +132,7 @@ func _check_keeps_moving(t: TestContext, d: Node, b: Node) -> void:
 		moved += d.global_position.distance_to(last)
 		last = d.global_position
 	var wait := t.time - from
-	var levels := Order.levels(b).map(
+	var levels := OrderBrain.levels(b).map(
 		func(l): return [l.get("node"), l.get("offered"), l.get("auto")],
 	)
 	if not t.require(

@@ -12,6 +12,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## How long the tree is held paused, in wall seconds: past the contact's ttl (4 s) and the callout's
 ## (6 s).
 const PAUSE_WALL := 10.0
@@ -64,7 +65,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var b := Order.brain(t, &"a")
+	var b := OrderBrain.brain(t, &"a")
 	var target := t.actor(&"target")
 	var mate := t.actor(&"mate")
 	if not await _hidden_after_callout(t, b, target, mate):

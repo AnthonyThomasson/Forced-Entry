@@ -9,7 +9,7 @@ extends GameTest
 ##
 ## A fake squad view (plain data) over three puppets.
 
-const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 
 ## The fake squad's view, as the markers' `view` callable returns it.
 var _view := {}
@@ -35,11 +35,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	if not t.require(
-			ResourceLoader.exists(Order.ORDER_MARKERS_SCRIPT),
-			"the order markers script exists (%s)" % Order.ORDER_MARKERS_SCRIPT,
+			ResourceLoader.exists(OrderMenu.ORDER_MARKERS_SCRIPT),
+			"the order markers script exists (%s)" % OrderMenu.ORDER_MARKERS_SCRIPT,
 	):
 		return
-	var markers: Node2D = (load(Order.ORDER_MARKERS_SCRIPT) as GDScript).new()
+	var markers: Node2D = (load(OrderMenu.ORDER_MARKERS_SCRIPT) as GDScript).new()
 	t.world.add_child(markers)
 	if not t.require(
 			markers.has_method("watch")

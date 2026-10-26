@@ -28,6 +28,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const IDS := [&"a", &"b"]
 const DOOR := Entry.HALL_LIVING
@@ -77,7 +78,7 @@ func run(t: TestContext) -> void:
 				or not invaders.all(func(n): return is_instance_valid(n) and n.health > 0.0))
 	var samples := await EntryWatch.watch(t, IDS + [&"d"], DOOR, 85.0, stop)
 	var acts := ", ".join((IDS + [&"d"]).map(
-		func(id): return "%s %s" % [id, Order.brain(t, id).current_act()],
+		func(id): return "%s %s" % [id, OrderBrain.brain(t, id).current_act()],
 	))
 	if not t.require(
 			IDS.all(func(id): return Entry.first_call_time(t, "claim", id, DOOR["id"]) < INF),

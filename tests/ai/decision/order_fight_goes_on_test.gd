@@ -16,6 +16,7 @@ extends GameTest
 ## menu to it.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const HALL := Rect2(0, 0, 900, 450)
 const DEN := Rect2(0, 450, 300, 200)
 const DEN_DOOR := Vector2(150, 450)
@@ -81,23 +82,23 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var b := Order.brain(t, &"d")
+	var b := OrderBrain.brain(t, &"d")
 	var squad: Node = t.world.squad(&"household")
-	var fighting := func(): return Order.primitive(b) == "engage" and _shots(t, d, 0.0) >= 2
+	var fighting := func(): return OrderBrain.primitive(b) == "engage" and _shots(t, d, 0.0) >= 2
 	if not t.require(
 			await t.until(fighting, 12.0),
 			"the defender fights the intruder from its spots (premise; %s, %d shots)"
-				% [Order.primitive(b), _shots(t, d, 0.0)],
+				% [OrderBrain.primitive(b), _shots(t, d, 0.0)],
 	):
 		return
 	await t.seconds(1.0)
 	# restored after the test (von_script registered it)
 	DecisionStub.latency_frames = LATENCY_FRAMES
 
-	var before := Order.decisions(b)
+	var before := OrderBrain.decisions(b)
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "hall" })
 	if not t.require(
-			await t.until(func(): return Order.decisions(b) > before, 1.0),
+			await t.until(func(): return OrderBrain.decisions(b) > before, 1.0),
 			"the order starts a decision at once (LD6)",
 	):
 		return

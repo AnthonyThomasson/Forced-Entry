@@ -13,6 +13,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -37,7 +38,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var a := t.actor(&"a")
-	var b := Order.brain(t, &"a")
+	var b := OrderBrain.brain(t, &"a")
 	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.issue(
@@ -75,14 +76,14 @@ func run(t: TestContext) -> void:
 		"and radios its order done",
 	)
 	var asked := DecisionStub.requests.size()
-	var walks := Order.decisions(b)
+	var walks := OrderBrain.decisions(b)
 	var own := func():
-		return (Order.decisions(b) > walks
+		return (OrderBrain.decisions(b) > walks
 				and not bool(b.debug_brain().get("pending", true))
-				and not Order.on_order(b))
+				and not OrderBrain.on_order(b))
 	t.check(
 		await t.until(own, 20.0),
 		"it then decides for itself, off the ORDER node (act %s)" % b.current_act(),
 	)
 	t.check(DecisionStub.requests.size() > asked, "asking Von again")
-	t.check(not Order.ordered(b), "without the `ordered` fact")
+	t.check(not OrderBrain.ordered(b), "without the `ordered` fact")

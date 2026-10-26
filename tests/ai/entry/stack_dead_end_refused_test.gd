@@ -33,6 +33,7 @@ extends GameTest
 ## order in `Squad.view()` is still held with the step `refused`.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Reach := preload("res://tests/_ai/reach_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")
@@ -231,7 +232,7 @@ func _check_in_closet(t: TestContext, w: Dictionary, f: Dictionary, seen: Dictio
 	var claimed: Dictionary = seen["claimed"]
 	var claimants: Array = IDS.filter(func(id): return claimed.has(id))
 	for id in claimants:
-		var spot := Order.stack_point(t, id)
+		var spot := OrderBrain.stack_point(t, id)
 		var a := t.actor(id)
 		t.check(
 			spot != Vector2.INF and SlotRules.in_stack_room(w, f, spot) == "",

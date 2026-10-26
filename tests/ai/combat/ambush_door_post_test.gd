@@ -26,6 +26,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const DOOR_ID := "door_150_360"
@@ -105,10 +106,10 @@ func _take_post(t: TestContext, a: Node) -> Node:
 		return null
 	t.expect_eq(String(order.get("opening", "")), DOOR_ID, "on the hall doorway")
 	t.expect_eq(String(order.get("room", "")), "living_room", "from the living room")
-	var brain := Order.brain(t, &"a")
+	var brain := OrderBrain.brain(t, &"a")
 	if not t.require(
-			await t.until(func(): return Order.primitive(brain) == "ambush", 5.0),
-			"the defender takes the ambush (primitive %s)" % Order.primitive(brain),
+			await t.until(func(): return OrderBrain.primitive(brain) == "ambush", 5.0),
+			"the defender takes the ambush (primitive %s)" % OrderBrain.primitive(brain),
 	):
 		return null
 	if not t.require(
@@ -178,11 +179,13 @@ func _spring(t: TestContext, a: Node, brain: Node) -> void:
 		"first contact ends the order: it radios done",
 	)
 	var ends := func():
-		return Order.decisions(brain) > 0 and not Order.ordered(brain) and not Order.on_order(brain)
+		return (OrderBrain.decisions(brain) > 0
+				and not OrderBrain.ordered(brain)
+				and not OrderBrain.on_order(brain))
 	t.check(
 		await t.until(ends, 4.0),
 		"its next decision holds no order (ordered %s, act %s)"
-			% [str(Order.ordered(brain)), brain.current_act()],
+			% [str(OrderBrain.ordered(brain)), brain.current_act()],
 	)
 	t.check(
 		String(brain.current_act()).begins_with("combat"),

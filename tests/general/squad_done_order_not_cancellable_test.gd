@@ -8,6 +8,7 @@ extends GameTest
 ## the squad's own `view` callable, as Main sets it up.
 
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 ## In the arena's room, clear of the teammates.
 const CLICK := Vector2(600, 150)
 
@@ -46,10 +47,10 @@ func run(t: TestContext) -> void:
 			"set-up: the squad posted a defend order to both teammates",
 	):
 		return
-	var menu := Order.command_menu(t)
+	var menu := OrderMenu.command_menu(t)
 	if not t.require(
 			menu != null,
-			"the command menu script exists (%s)" % Order.COMMAND_MENU_SCRIPT,
+			"the command menu script exists (%s)" % OrderMenu.COMMAND_MENU_SCRIPT,
 	):
 		return
 	menu.setup({
@@ -62,9 +63,9 @@ func run(t: TestContext) -> void:
 	menu.open_at(CLICK)
 	await t.frames(1)
 	t.check(
-		not Order.item(menu, "Cancel order").is_empty(),
+		not OrderMenu.item(menu, "Cancel order").is_empty(),
 		"set-up: with both holding the order, the menu offers Cancel order (items %s)"
-			% str(Order.labels(menu)),
+			% str(OrderMenu.labels(menu)),
 	)
 	menu.close()
 	await _check_progress(t, squad, order)
@@ -101,9 +102,9 @@ func _check_refused_dies(t: TestContext, menu: Node) -> void:
 	menu.open_at(CLICK)
 	await t.frames(1)
 	t.check(
-		Order.item(menu, "Cancel order").is_empty(),
+		OrderMenu.item(menu, "Cancel order").is_empty(),
 		"with the only living recipient's order done, the menu offers no Cancel order (items %s)"
-			% str(Order.labels(menu)),
+			% str(OrderMenu.labels(menu)),
 	)
 	menu.close()
 

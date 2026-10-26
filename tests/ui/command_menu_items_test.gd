@@ -22,6 +22,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 ## In the kitchen, clear of every doorway and teammate.
 const IN_KITCHEN := Vector2(640, 90)
@@ -58,7 +59,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	# The clicks below are aimed on a player's screen, headless too, so the menu's panel stands
 	# where a person would see it.
-	Order.player_screen(t)
+	OrderMenu.player_screen(t)
 	_keybind(t)
 	var menu := _premise_menu(t)
 	if menu == null:
@@ -99,10 +100,10 @@ func run(t: TestContext) -> void:
 ## The command menu, built, with setup, open_at, items and order_requested, running while the tree
 ## is paused; null when a premise failed (the test ended).
 func _premise_menu(t: TestContext) -> Node:
-	var menu := Order.command_menu(t)
+	var menu := OrderMenu.command_menu(t)
 	if not t.require(
 			menu != null,
-			"the command menu script exists (%s)" % Order.COMMAND_MENU_SCRIPT,
+			"the command menu script exists (%s)" % OrderMenu.COMMAND_MENU_SCRIPT,
 	):
 		return null
 	if not t.require(
@@ -129,19 +130,20 @@ func _check_doorway(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) 
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(tree.paused, "opening the menu pauses the tree")
-	var quiet := Order.item(menu, "Stack into the kitchen (quiet)")
-	var stun := Order.item(menu, "Stack into the kitchen with stun")
+	var quiet := OrderMenu.item(menu, "Stack into the kitchen (quiet)")
+	var stun := OrderMenu.item(menu, "Stack into the kitchen with stun")
 	t.check(
 		not quiet.is_empty() and not bool(quiet.get("disabled", false)),
-		"a doorway offers \"Stack into the kitchen (quiet)\" (items %s)" % str(Order.labels(menu)),
+		"a doorway offers \"Stack into the kitchen (quiet)\" (items %s)"
+			% str(OrderMenu.labels(menu)),
 	)
 	t.check(
 		not stun.is_empty() and bool(stun.get("disabled", false)),
 		"and \"Stack into the kitchen with stun\", greyed: no recipient carries a stun",
 	)
-	t.check(Order.item(menu, "Defend").is_empty(), "a doorway offers no defend item")
+	t.check(OrderMenu.item(menu, "Defend").is_empty(), "a doorway offers no defend item")
 	t.check(
-		Order.choose(menu, "Stack into the kitchen (quiet)"),
+		OrderMenu.choose(menu, "Stack into the kitchen (quiet)"),
 		"the quiet stack item can be chosen while paused",
 	)
 	await t.frames(1)
@@ -153,7 +155,7 @@ func _check_doorway(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) 
 		)
 		t.expect_eq(got[0].get("bang"), false, "quiet")
 	t.check(not tree.paused, "choosing an order closes the menu and unpauses")
-	t.check(Order.items(menu).is_empty(), "and the menu offers nothing once closed")
+	t.check(OrderMenu.items(menu).is_empty(), "and the menu offers nothing once closed")
 
 
 ## A stun carried by one teammate (`t2`): the stun item is offered for the squad.
@@ -162,10 +164,10 @@ func _check_stun_carried(t: TestContext, menu: Node, got: Array, t1: Node, t2: N
 	menu.open_at(Order.BACK_ON)
 	await t.frames(1)
 	t.check(
-		not bool(Order.item(menu, "with stun").get("disabled", true)),
+		not bool(OrderMenu.item(menu, "with stun").get("disabled", true)),
 		"with a stun in the squad, \"with stun\" is offered",
 	)
-	Order.choose(menu, "Stack into the kitchen with stun")
+	OrderMenu.choose(menu, "Stack into the kitchen with stun")
 	await t.frames(1)
 	if t.check(got.size() == 2, "choosing it emits order_requested"):
 		_expect_order(t, got[1], "stack", [t1, t2], "the stun stack to the whole squad")
@@ -181,11 +183,11 @@ func _check_room(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> 
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
 	t.check(
-		not Order.item(menu, "Defend the kitchen").is_empty(),
-		"a room offers \"Defend the kitchen\" (items %s)" % str(Order.labels(menu)),
+		not OrderMenu.item(menu, "Defend the kitchen").is_empty(),
+		"a room offers \"Defend the kitchen\" (items %s)" % str(OrderMenu.labels(menu)),
 	)
-	t.check(Order.item(menu, "Stack into").is_empty(), "and no stack item")
-	Order.choose(menu, "Defend the kitchen")
+	t.check(OrderMenu.item(menu, "Stack into").is_empty(), "and no stack item")
+	OrderMenu.choose(menu, "Defend the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == 3, "choosing it emits order_requested"):
 		_expect_order(t, got[2], "defend_room", [t1, t2], "the defend order to the whole squad")
@@ -201,21 +203,21 @@ func _check_select(t: TestContext, menu: Node, got: Array, t1: Node) -> void:
 	t.check(
 		not select.is_empty()
 			and not String(select.get("label", "")).to_lower().begins_with("deselect"),
-		"a teammate offers to select it (items %s)" % str(Order.labels(menu)),
+		"a teammate offers to select it (items %s)" % str(OrderMenu.labels(menu)),
 	)
-	Order.choose(menu, String(select.get("label", "Select")))
+	OrderMenu.choose(menu, String(select.get("label", "Select")))
 	await t.frames(1)
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(
-		bool(Order.item(menu, "with stun").get("disabled", false)),
+		bool(OrderMenu.item(menu, "with stun").get("disabled", false)),
 		"with only t1 (no stun) selected, \"with stun\" is greyed",
 	)
 	t.check(
-		Order.item(menu, "Cancel order").is_empty(),
+		OrderMenu.item(menu, "Cancel order").is_empty(),
 		"no \"Cancel order\" while no selected member has an order",
 	)
-	Order.choose(menu, "Stack into the kitchen (quiet)")
+	OrderMenu.choose(menu, "Stack into the kitchen (quiet)")
 	await t.frames(1)
 	if t.check(got.size() == 4, "choosing it emits order_requested"):
 		_expect_order(t, got[3], "stack", [t1], "the order to the selected teammate only")
@@ -227,10 +229,10 @@ func _check_cancel(t: TestContext, menu: Node, got: Array, t1: Node) -> void:
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(
-		not Order.item(menu, "Cancel order").is_empty(),
-		"\"Cancel order\" when a selected member has one (items %s)" % str(Order.labels(menu)),
+		not OrderMenu.item(menu, "Cancel order").is_empty(),
+		"\"Cancel order\" when a selected member has one (items %s)" % str(OrderMenu.labels(menu)),
 	)
-	Order.choose(menu, "Cancel order")
+	OrderMenu.choose(menu, "Cancel order")
 	await t.frames(1)
 	if t.check(got.size() == 5, "choosing it emits order_requested"):
 		_expect_order(t, got[4], "cancel", [t1], "the cancel for the selected member")
@@ -243,13 +245,13 @@ func _check_deselect(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node)
 	var deselect := _named(menu, "deselect", t1)
 	t.check(
 		not deselect.is_empty(),
-		"a selected teammate offers to deselect it (items %s)" % str(Order.labels(menu)),
+		"a selected teammate offers to deselect it (items %s)" % str(OrderMenu.labels(menu)),
 	)
-	Order.choose(menu, String(deselect.get("label", "Deselect")))
+	OrderMenu.choose(menu, String(deselect.get("label", "Deselect")))
 	await t.frames(1)
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
-	Order.choose(menu, "Defend the kitchen")
+	OrderMenu.choose(menu, "Defend the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == 6, "choosing it emits order_requested"):
 		_expect_order(
@@ -268,10 +270,10 @@ func _check_tick_and_escape(t: TestContext, menu: Node, got: Array, t2: Node) ->
 	menu.open_at(IN_KITCHEN)
 	await t.frames(1)
 	t.check(
-		Order.tick(menu, String(t2.name), true),
+		OrderMenu.tick(menu, String(t2.name), true),
 		"the menu lists the teammates to tick (a checkbox named %s)" % t2.name,
 	)
-	Order.choose(menu, "Defend the kitchen")
+	OrderMenu.choose(menu, "Defend the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == 7, "choosing it emits order_requested"):
 		_expect_order(t, got[6], "defend_room", [t2], "the order to the ticked teammate")
@@ -281,7 +283,10 @@ func _check_tick_and_escape(t: TestContext, menu: Node, got: Array, t2: Node) ->
 	await t.frames(1)
 	_key(KEY_ESCAPE)
 	await t.frames(2)
-	t.check(not tree.paused and Order.items(menu).is_empty(), "Escape closes the menu and unpauses")
+	t.check(
+		not tree.paused and OrderMenu.items(menu).is_empty(),
+		"Escape closes the menu and unpauses",
+	)
 	t.expect_eq(got.size(), 7, "with no order")
 
 
@@ -292,19 +297,19 @@ func _check_tick_and_escape(t: TestContext, menu: Node, got: Array, t2: Node) ->
 ## held still (the tree unpaused, the test ended).
 func _check_clicks(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> bool:
 	var tree := t.world.get_tree()
-	if not t.require(await Order.view_still(t), "the view holds still before the clicks"):
+	if not t.require(await OrderMenu.view_still(t), "the view holds still before the clicks"):
 		tree.paused = false
 		return false
-	Order.click(t, Order.BACK_SOUTH, MOUSE_BUTTON_RIGHT)
+	OrderMenu.click(t, Order.BACK_SOUTH, MOUSE_BUTTON_RIGHT)
 	await t.frames(2)
 	t.check(
-		tree.paused and not Order.item(menu, "Stack into the kitchen").is_empty(),
+		tree.paused and not OrderMenu.item(menu, "Stack into the kitchen").is_empty(),
 		"a right-click on the doorway opens the menu on it (paused %s, items %s)"
-			% [str(tree.paused), str(Order.labels(menu))],
+			% [str(tree.paused), str(OrderMenu.labels(menu))],
 	)
-	Order.click(t, t1.global_position, MOUSE_BUTTON_LEFT)
+	OrderMenu.click(t, t1.global_position, MOUSE_BUTTON_LEFT)
 	await t.frames(2)
-	Order.choose(menu, "Stack into the kitchen (quiet)")
+	OrderMenu.choose(menu, "Stack into the kitchen (quiet)")
 	await t.frames(1)
 	if t.check(got.size() == 8, "choosing it emits order_requested"):
 		_expect_order(
@@ -326,8 +331,8 @@ func _check_clicks(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -
 ## The requests: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`bang` = mode != quiet, kept for
 ## part 1), `{ kind: "go", pos }`, `{ kind: "ambush", to, pos }`.
 func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> void:
-	Order.tick(menu, String(t1.name), false)
-	Order.tick(menu, String(t2.name), false)
+	OrderMenu.tick(menu, String(t1.name), false)
+	OrderMenu.tick(menu, String(t2.name), false)
 	Probe.arm(t1, 0, 0)  # t2 carries the stun it was armed with above, and no frag.
 	if not await _check_frag_greyed(t, menu):
 		return
@@ -343,19 +348,19 @@ func _part_two(t: TestContext, menu: Node, got: Array, t1: Node, t2: Node) -> vo
 func _check_frag_greyed(t: TestContext, menu: Node) -> bool:
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
-	var frag := Order.item(menu, "Stack into the kitchen with frag")
+	var frag := OrderMenu.item(menu, "Stack into the kitchen with frag")
 	t.check(
 		not frag.is_empty() and bool(frag.get("disabled", false)),
 		("a doorway offers \"Stack into the kitchen with frag\", greyed: no recipient carries a "
-				+ "frag (items %s)") % str(Order.labels(menu)),
+				+ "frag (items %s)") % str(OrderMenu.labels(menu)),
 	)
-	var ambush := Order.item(menu, "Ambush the doorway from the kitchen")
+	var ambush := OrderMenu.item(menu, "Ambush the doorway from the kitchen")
 	t.check(
 		not ambush.is_empty() and not bool(ambush.get("disabled", false)),
 		"and \"Ambush the doorway from the kitchen\" (an exterior door: the house's room)",
 	)
 	t.check(
-		Order.item(menu, "Go into").is_empty(),
+		OrderMenu.item(menu, "Go into").is_empty(),
 		"no \"Go into\" while nobody holds a held stack there",
 	)
 	var hold := _hold_box(menu)
@@ -382,11 +387,11 @@ func _check_held_stacks(
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(
-		not bool(Order.item(menu, "with frag").get("disabled", true)),
+		not bool(OrderMenu.item(menu, "with frag").get("disabled", true)),
 		"with a frag in the squad, \"with frag\" is offered",
 	)
 	_set_hold(menu, true)
-	Order.choose(menu, "Stack into the kitchen with frag")
+	OrderMenu.choose(menu, "Stack into the kitchen with frag")
 	await t.frames(1)
 	if t.check(got.size() == before + 1, "choosing it emits order_requested"):
 		_expect_stack(t, got[before], StackWant.new("frag", true, everyone), "the held frag stack")
@@ -397,7 +402,7 @@ func _check_held_stacks(
 		_hold_box(menu) != null and _hold_box(menu).button_pressed,
 		"\"Hold for my go\" is still ticked when the menu opens again",
 	)
-	Order.choose(menu, "Stack into the kitchen (quiet)")
+	OrderMenu.choose(menu, "Stack into the kitchen (quiet)")
 	await t.frames(1)
 	if t.check(got.size() == before + 2, "choosing it emits order_requested"):
 		_expect_stack(
@@ -409,7 +414,7 @@ func _check_held_stacks(
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	_set_hold(menu, false)
-	Order.choose(menu, "Stack into the kitchen with stun")
+	OrderMenu.choose(menu, "Stack into the kitchen with stun")
 	await t.frames(1)
 	if t.check(got.size() == before + 3, "choosing it emits order_requested"):
 		_expect_stack(
@@ -436,16 +441,16 @@ func _check_go(t: TestContext, menu: Node, got: Array, t1: Node, before: int) ->
 		"pos": Vector2(840, 190),
 	}
 	_view["members"][1]["held"] = true
-	Order.tick(menu, String(t1.name), true)  # Only t1 selected; t2 holds the held stack.
+	OrderMenu.tick(menu, String(t1.name), true)  # Only t1 selected; t2 holds the held stack.
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
-	var go := Order.item(menu, "Go into the kitchen")
+	var go := OrderMenu.item(menu, "Go into the kitchen")
 	t.check(
 		not go.is_empty() and not bool(go.get("disabled", false)),
 		("\"Go into the kitchen\" on the held stack's doorway, though its holder is not selected "
-				+ "(items %s)") % str(Order.labels(menu)),
+				+ "(items %s)") % str(OrderMenu.labels(menu)),
 	)
-	Order.choose(menu, "Go into the kitchen")
+	OrderMenu.choose(menu, "Go into the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == before + 4, "choosing it emits order_requested"):
 		t.expect_eq(String(got[before + 3].get("kind", "")), "go", "the go request: kind go")
@@ -453,7 +458,7 @@ func _check_go(t: TestContext, menu: Node, got: Array, t1: Node, before: int) ->
 			(got[before + 3].get("pos", Vector2.INF) as Vector2).is_equal_approx(Order.BACK_SOUTH),
 			"carrying the click (%s)" % str(got[before + 3].get("pos")),
 		)
-	Order.tick(menu, String(t1.name), false)
+	OrderMenu.tick(menu, String(t1.name), false)
 
 
 ## No Go for a stack that goes when ready, nor for a held stack at another doorway.
@@ -463,8 +468,8 @@ func _check_no_go(t: TestContext, menu: Node) -> void:
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(
-		Order.item(menu, "Go into").is_empty(),
-		"no \"Go into\" for a stack that goes when ready (items %s)" % str(Order.labels(menu)),
+		OrderMenu.item(menu, "Go into").is_empty(),
+		"no \"Go into\" for a stack that goes when ready (items %s)" % str(OrderMenu.labels(menu)),
 	)
 	menu.close()
 	_view["members"][1]["order"]["wait_go"] = true
@@ -473,8 +478,8 @@ func _check_no_go(t: TestContext, menu: Node) -> void:
 	menu.open_at(Order.BACK_SOUTH)
 	await t.frames(1)
 	t.check(
-		Order.item(menu, "Go into").is_empty(),
-		"nor for a held stack at another doorway (items %s)" % str(Order.labels(menu)),
+		OrderMenu.item(menu, "Go into").is_empty(),
+		"nor for a held stack at another doorway (items %s)" % str(OrderMenu.labels(menu)),
 	)
 	_view["members"][1]["order"] = {}
 	_view["members"][1]["held"] = false
@@ -483,7 +488,7 @@ func _check_no_go(t: TestContext, menu: Node) -> void:
 ## Ambush, for the whole squad (`everyone`); by an interior doorway, from the side clicked. The
 ## part's requests are `got` from `before` on.
 func _check_ambush(t: TestContext, menu: Node, got: Array, before: int, everyone: Array) -> void:
-	Order.choose(menu, "Ambush the doorway from the kitchen")
+	OrderMenu.choose(menu, "Ambush the doorway from the kitchen")
 	await t.frames(1)
 	if t.check(got.size() == before + 5, "choosing the ambush emits order_requested"):
 		_expect_order(t, got[before + 4], "ambush", everyone, "the ambush to the whole squad")
@@ -496,12 +501,12 @@ func _check_ambush(t: TestContext, menu: Node, got: Array, before: int, everyone
 	menu.open_at(LIVING_SIDE)
 	await t.frames(1)
 	t.check(
-		not Order.item(menu, "Ambush the doorway from the living room").is_empty(),
+		not OrderMenu.item(menu, "Ambush the doorway from the living room").is_empty(),
 		("by the living room / kitchen doorway, from the living room's side: \"Ambush the doorway "
-				+ "from the living room\" (items %s)") % str(Order.labels(menu)),
+				+ "from the living room\" (items %s)") % str(OrderMenu.labels(menu)),
 	)
 	t.check(
-		not Order.item(menu, "Stack into the kitchen").is_empty(),
+		not OrderMenu.item(menu, "Stack into the kitchen").is_empty(),
 		"beside \"Stack into the kitchen\"",
 	)
 	menu.close()
@@ -561,7 +566,7 @@ func _keybind(t: TestContext) -> void:
 
 ## The offered item whose label contains `verb` and the name of `who` (case-insensitive), or {}.
 func _named(menu: Node, verb: String, who: Node) -> Dictionary:
-	for i in Order.items(menu):
+	for i in OrderMenu.items(menu):
 		var label := String(i.get("label", "")).to_lower()
 		if label.contains(verb) and label.contains(String(who.name).to_lower()):
 			return i

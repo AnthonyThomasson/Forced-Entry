@@ -11,6 +11,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## Just outside the back door, with a line into the kitchen; and well south of it in the garden, out
 ## of every line from the kitchen.
 const AT_DOOR := Vector2(900, 190)
@@ -49,11 +50,11 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var b := Order.brain(t, &"d")
+	var b := OrderBrain.brain(t, &"d")
 	var squad: Node = t.world.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "kitchen" })
 	if not t.require(
-			await t.until(func(): return Order.on_order(b), 5.0),
+			await t.until(func(): return OrderBrain.on_order(b), 5.0),
 			"the defender takes the order (act %s)" % b.current_act(),
 	):
 		return
@@ -75,10 +76,10 @@ func run(t: TestContext) -> void:
 	shooter.walk_to(AWAY)
 	shooter.aim_at(AWAY + Vector2(0, 200))
 	t.check(
-		await t.until(func(): return Order.on_order(b), 40.0),
+		await t.until(func(): return OrderBrain.on_order(b), 40.0),
 		"once the fight lapses it goes back to its order (act %s)" % b.current_act(),
 	)
 	t.check(
-		String(Order.params(b).get("room", "")) == "kitchen",
-		"the same order: defend the kitchen (%s)" % str(Order.params(b)),
+		String(OrderBrain.params(b).get("room", "")) == "kitchen",
+		"the same order: defend the kitchen (%s)" % str(OrderBrain.params(b)),
 	)

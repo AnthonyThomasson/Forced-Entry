@@ -8,6 +8,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 const PAUSE_WALL := 10.0
 
 
@@ -28,13 +29,13 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var b := Order.brain(t, &"a")
+	var b := OrderBrain.brain(t, &"a")
 	if not t.require(
 			await t.until(func(): return bool(b.debug_brain().get("pending", false)), 20.0),
 			"the NPC asks Von a question (premise)",
 	):
 		return
-	var walks := Order.decisions(b)
+	var walks := OrderBrain.decisions(b)
 
 	await Order.pause_for(t, PAUSE_WALL)
 
@@ -46,7 +47,7 @@ func run(t: TestContext) -> void:
 	var brain: Dictionary = b.debug_brain()
 	t.check(not bool(brain.get("failed", true)), "the walk did not fail (no hold-steady fallback)")
 	t.expect_eq(
-		Order.decisions(b),
+		OrderBrain.decisions(b),
 		walks,
 		"the walk in flight is the one finished, not a fresh one started on resume",
 	)

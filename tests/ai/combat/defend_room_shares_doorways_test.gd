@@ -11,6 +11,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
+const OrderBrain := preload("res://tests/_ai/order_brain_probe.gd")
 ## The living room's doorways: the id, the centre, the width, and the unit normal pointing into the
 ## living room.
 const DOORS := {
@@ -55,11 +56,11 @@ func run(t: TestContext) -> void:
 	)
 	var ids := [&"a", &"b"]
 	var defending := func():
-		return ids.all(func(id): return Order.primitive(Order.brain(t, id)) == "defend")
+		return ids.all(func(id): return OrderBrain.primitive(OrderBrain.brain(t, id)) == "defend")
 	if not t.require(
 			await t.until(defending, 5.0),
 			"both take the order to defend (primitives %s)"
-				% str(ids.map(func(id): return Order.primitive(Order.brain(t, id)))),
+				% str(ids.map(func(id): return OrderBrain.primitive(OrderBrain.brain(t, id)))),
 	):
 		return
 	var arrived := func(): return ids.all(func(id): return _at_spot(t, id))
@@ -67,7 +68,7 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.5)
 
 	var doors: Array = ids.map(
-		func(id): return _door_id(Order.params(Order.brain(t, id)).get("door", "")),
+		func(id): return _door_id(OrderBrain.params(OrderBrain.brain(t, id)).get("door", "")),
 	)
 	t.check(doors[0] != doors[1], "each takes a different doorway (%s)" % str(doors))
 	for i in ids.size():
@@ -124,7 +125,7 @@ func _door_id(door: Variant) -> String:
 ## Whether actor `id` stands at (within 16 px of) the spot its running defend order names
 ## (`params.spot`), and is still.
 func _at_spot(t: TestContext, id: StringName) -> bool:
-	var spot = Order.params(Order.brain(t, id)).get("spot")
+	var spot = OrderBrain.params(OrderBrain.brain(t, id)).get("spot")
 	if not spot is Array or (spot as Array).size() < 2:
 		return false
 	var c := t.actor(id)
