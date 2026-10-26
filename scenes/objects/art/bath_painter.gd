@@ -106,7 +106,7 @@ static func _shower_drain(c: PixelCanvas, metal: Color) -> void:
 
 ## The glass screen along the shower's front and right side.
 static func _shower_screen(c: PixelCanvas) -> void:
-	var glass := ObjectArtKitchenBathConfig.shower_glass_color
+	var glass := ObjectArtKitchenBathConfig.bath_shower_glass_color
 	var band := 2
 	c.fill(PixelShape.rounded(Rect2i(0, c.h - band, c.w, band), 0), glass, _FIXTURE_HEIGHT)
 	c.fill(PixelShape.rounded(Rect2i(c.w - band, 0, band, c.h), 0), glass, _FIXTURE_HEIGHT)

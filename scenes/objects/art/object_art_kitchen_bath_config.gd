@@ -20,7 +20,7 @@ static var bath_water_color: Color = Color(0.42, 0.44, 0.3)
 ## Shower tray tile size (art px).
 static var bath_tile_px: int = 8
 ## The shower screen's glass.
-static var shower_glass_color: Color = Color(0.5, 0.52, 0.44)
+static var bath_shower_glass_color: Color = Color(0.5, 0.52, 0.44)
 ## The kitchenette's hotplate (hotplate_painter.gd): its crate, the hot ring (glowing) and the pan.
 static var hotplate_crate_color: Color = Color(0.36, 0.26, 0.16)
 static var hotplate_ring_color: Color = Color(1.0, 0.42, 0.12)
