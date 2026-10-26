@@ -14,7 +14,7 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
 pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `_stack_room`, the `follows` fact),
-`agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
+`entry/entry_posts.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
 (`snapshot_orders.gd` `group`, `snapshot_options.gd` `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
@@ -149,7 +149,7 @@ radioed done is held no more and the menu offers no cancel for it; a refused one
 **LD8. Defend a room.** Ordered to defend a room, the members share out its doorways (D2): member `n` of the order's recipients (in the
 order `to` names them) takes doorway `n` (by id) of the room, the extras doubling up on the other side of the doorways in turn. Each walks
 to a spot back in the room, off its doorway's axis and out of every doorway's fatal funnel, with a sight line to its doorway and low cover
-on that line where there is some (`AgentEntry.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
+on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for an invader, as any of its walks, and a plain one for a
 defender. There it holds, still, its gun on its doorway; a lone member of a room with several doorways takes the spot from which it sees
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
@@ -403,7 +403,8 @@ before the stack is in: quiet, `bang_off`, claims saying `order_mode` frag, noth
 **LD15. Ambush a door.** An `ambush` order `{ opening, room, beyond, pos }` names a doorway and the room it is ambushed from: the room on
 the side of the doorway's wall plane the leader's click lies on (D17; an exterior door: the house's room), `beyond` the room on the other
 side ("" for an exterior door). The member waits in that room for whoever comes through the doorway.
-- **The post (D17).** `AgentEntry.ambush_spot(geometry, nth, count, map, space)` (`geometry` the entry geometry of `opening` into `room`), beside `defend_spot`: candidates `AMBUSH_DEPTHS`
+- **The post (D17).** `EntryPosts.ambush_spot(entry, geometry, place, map, space)` (`geometry` the entry geometry of `opening` into `room`, `place` x the member's
+  post, y of how many), beside `defend_spot`: candidates `AMBUSH_DEPTHS`
   (40 to 160 px) back from the doorway's wall and `AMBUSH_LATERALS` (30 to 260 px) along it past the jamb, inside the room's walls by
   `AMBUSH_INSET` (22 px), snapped onto the navmesh, with a sight line to the threshold and off the doorway's axis (past its jamb by
   `DEFEND_BODY`, 14 px). Ranked by how many of the doorway's lookouts see the post (the slots and pie steps of an entry into the room by
@@ -1015,7 +1016,7 @@ the 5v5 6.02 / 9.37 / 14.30. An earlier run at 03:06 also passed 11 of 11 and is
 - **The stack geometry is laid before the window opens.** Each way in costs 7 to 52 ms to lay (its bands 2 to 15, the overflow 10 to 28),
   one a physics frame among every NPC (`AgentEntry.warm_geometry`). All of Garage Home's are laid by 0.22 s, well before the guards' 6 s
   warm-up ends. Once a pass finds every way in laid, `warm_geometry` stops looking until the house, a tunable or the map's shared geometry
-  changes (`_warm_done_in` / `_warm_done_for`). That brought its per-tick cost from 0.10 to 0.21 ms a frame down to the profiler's floor,
+  changes (`EntryLayouts.warm_done_in` / `warm_done_for`). That brought its per-tick cost from 0.10 to 0.21 ms a frame down to the profiler's floor,
   0.04 ms.
 - **The room an approach enters is carved only when the way round would go into it (D4).**
   - `AgentDoorViews.walk_route` routes an approach on the uncarved views map, the one every walk shares, and asks for a map with the

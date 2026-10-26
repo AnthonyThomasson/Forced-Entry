@@ -486,7 +486,7 @@ It is the same for every stack, ordered or not, the human's included (E16): one 
 shared by every NPC on it. Why: a slot across a wall or in another room is not a place in this stack: the member there cannot see the point
 nor follow it through, and one in another doorway's view or funnel stands in the open before a room nobody has cleared (E15, E18). A room
 too small for the team leaves the rest waiting where they came from, covering the way behind, as a short room's members do outside (E13).
-In the code `AgentEntry._lay_slots` lays a way in (`kind` `wall`, `views`, `open_floor` or `dead_end`; `wall_n` the slots its wall holds, `seq`
+In the code `EntrySlots.lay` lays a way in (`kind` `wall`, `views`, `open_floor` or `dead_end`; `wall_n` the slots its wall holds, `seq`
 the open floor and the tail past them, `tail_from`, `capped`), and the static `StackLayout.slots(g, count, side)` (`[{ n, point, side, row
 }]`, `scenes/ai/perception/stack/stack_layout.gd`) is the one rule the entry, `PlayerStack`, `Squad.view()` and the tests read, with `side_for`,
 `point`, `holds_slot` and `is_tail`;

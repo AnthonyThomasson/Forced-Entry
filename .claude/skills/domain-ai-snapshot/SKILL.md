@@ -107,12 +107,12 @@ lives in `agent_snapshot.gd`.
   `interactions` (deduped by label, uncapped), `rooms` (uncapped). The other groups are capped at `max_options_per_level`
   (`explore` at two).
   `order` (`SnapshotOrders.group`, LD6): the ORDER node's one option, the live order, carrying its own `primitive` and params with `order_id`:
-  `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `AgentEntry.defend_spot`, the member's place being its index in
+  `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `EntryPosts.defend_spot`, the member's place being its index in
   the order's `to`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), `split`,
   `stack_at`; its label "the doorway into the kitchen" adds " with a stun" / " with a frag"; a join's params are `opening`, `into`, `bang`
 false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
 controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
-  `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
+  `room`, `spot`, `door_pos` from `EntryPosts.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
   dead end with no slot for this member (`StackLayout.holds_slot` false at `DoorStack.order_place`, `_has_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order

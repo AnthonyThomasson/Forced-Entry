@@ -8,7 +8,10 @@ description: Deep implementation detail for the AI TACTICAL ENTRY module (scenes
 The spec and the tests are `docs/tactical-entry.md` (E1 to E22; the bang is also `docs/grenades.md` G18; an ordered stack `docs/leadership.md` LD9, LD13, LD14 and LD17) and `tests/ai/entry/`
 (the bang's fallbacks in `tests/ai/grenade/bang_fallback_*`). Von only chooses the doorway (the ENTER or STUN ENTRY tactic,
 `domain-ai-decision`); the choreography is this phase machine, so it runs with the server down. The doorway geometry (stack slots,
-pie arc, corners, capacity) is the perception's (`agent_entry.gd`, "Entry geometry" in `domain-ai-perception`), read through the
+pie arc, corners, capacity) is the perception's (`agent_entry.gd`, "Entry geometry" in `domain-ai-perception`; its parts `posts`,
+`slots` and `layouts` under `perception/entry/`, each handed the geometry at the call: where a helper would pass the style's five
+parameters the geometry rides in the context it already takes, `c["entry"]` / `f["entry"]`, and `posts.defend_spot` /
+`posts.ambush_spot` take the member's place in its order as one `Vector2i`, x which post, y of how many), read through the
 `AgentPerception` wrappers; the team's claims off the radio and every slot rule are the perception's stack module
 (`ai/perception/stack/`: `StackClaim`, `ClaimLedger`, `DoorStack`, "The stack" in `domain-ai-perception`), read as one `DoorStack` a
 tick (`AgentPerception.entry_stack(opening, into)`, `claim.read_stack`: `claim.stack`; a rule that reads a claim keeps to the **stale

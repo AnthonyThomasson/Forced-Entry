@@ -15,7 +15,7 @@ const NO_FILE_OUT := 28.0
 
 ## Where a stack of `count` going in by geometry `g` stands, its point on side `side` (1 / -1 along
 ## the wall) where that side has room: `[{ n, point, side, row }]`, slot 1 (the point) first. The
-## one rule every stack is laid out by (E20 to E22, `_lay_slots`): one slot per member, but on a
+## one rule every stack is laid out by (E20 to E22, `EntrySlots.lay`): one slot per member, but on a
 ## dead end only as many as its room holds.
 static func slots(g: Dictionary, count: int, side: int) -> Array:
 	var members: Array = []
