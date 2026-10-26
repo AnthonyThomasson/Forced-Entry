@@ -106,7 +106,8 @@ interface 23), the module Main builds its matches with, so a test world is stage
   (`tests/<domain>/[<topic>/]<name>_test.gd`) runs only that test** (`--id=<domain>/[<topic>/]<name>`; it can only change its own
   result), unless its domain is already running; `tests/_ai`, `tests/_audio` and `tests/_lighting` helpers run that domain,
   `tests/_vehicle` runs `vehicle`, `audio` and `general` (its users), `tests/_perf` runs the `perf` domain, `tests/_harness` the self-tests, and an unknown helper folder everything
-  (`tests/_main`, the Main-driving tests' helper, and `tests/_outfit` are unknown to the mapping, so a change to either runs the whole suite).
+  (`tests/_main`, the Main-driving tests' helper, `tests/_outfit`, `tests/_objects` (`collider_probe.gd`, `Colliders.same_pieces`) and `tests/_character`
+  (`kill_probe.gd`, `Kill.kill_targets(t, count)`) are unknown to the mapping, so a change to any of them runs the whole suite).
   An edited `tests/<domain>/…_suite.gd` (a wrapper or a native suite) runs that domain.
   `GAME_TEST_CHANGED_FILES` (newline-separated paths) stands in for git's view of the changes, which is how
   `tools/test_log_gate.py` tests this mapping. **`--changed --staged`** (the pre-commit hook's) maps what is staged
@@ -691,7 +692,8 @@ chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contra
 call the squad itself (`follows`, `follow_spot`, `leader()`, `view()`) and its tunables on `SquadFollowConfig` (`leash`); a squad read
 that only answers the code's own value (`follows`, `SquadFollowConfig.leash`) is a `require` premise, and the behaviour the spec describes is the check.
 A watch of the team is `tests/_ai/follow_watch_probe.gd` (`const FollowWatch := preload(...)`): `new_watch`, `tick`, `watch`, `asked` (the Von
-questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile` and `off_spot_tick`.
+questions of a member's walks), `gaps`, `took`, `acts_of`, `went_through`, `percentile`, `off_spot_tick` and `step_up` (the
+human walked up to `STEP_UP` beside the back door, the rally tests' claim).
 
 **Where a stack stands (E20 to E22) and every member reaching its slot.** `tests/_ai/slots_probe.gd` (`const Slots := preload(...)`; not a
 test) judges slots from the house's own data and the test's own geometry (rooms, wall plane, navmesh, carved furniture, its own copies of
@@ -810,7 +812,7 @@ arms the thrower the way Main does, at the start of `run`), `throw_at`, `live`, 
 (`MAX_RANGE`, `FLASH_RADIUS`, ...) so a test checks the doc and not the code. What a blast or a stun does at a distance by the spec is
 `tests/_ai/grenade_spec_probe.gd` (`const GrenadeSpec := preload(...)`: `blast_damage`, `flash_scale`, `expected_blind`, `expected_deaf`, and
 `everywhere`, the audio tests' range table); the AI reads and a scene round a grenade are `tests/_ai/grenade_ai_probe.gd` (`const GrenadeAi :=
-preload(...)`: `offered`, `acts`, `wait_act`, `callouts`, `grenades`, `hostile`, `place`, `line_clear`, `safe_from_frag`, `shielded`, and
+preload(...)`: `offered`, `acts`, `wait_act`, `callouts`, `grenades`, `hostile`, `place`, `line_clear`, `safe_from_frag`, `shielded`, `known_contact`, `check_held_at_old_spot`, `watch_until_thrown`, `plain_best`, and
 `character_rids`, the rids of the `characters` group: what its rays and `throw_spot_probe.gd`'s look past). The scenario tests
 in `tests/ai/grenade/` run the whole AI pipeline with the real Von server and `require` the premise first (that the AI took the GRENADE / STUN ENTRY path), so a
 different Von choice reads as a set-up finding. A hall of 100 px or less with a sofa in it is **sealed in the navmesh** (the lane left is under an agent body wide) and

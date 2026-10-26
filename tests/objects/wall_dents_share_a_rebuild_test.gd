@@ -7,6 +7,7 @@ extends GameTest
 ## convex cut of its dented polygon, that the kept polygon is the one a fresh computation gives (and
 ## a fresh array each ask), and that a further dent gives a new one.
 
+const Colliders := preload("res://tests/_objects/collider_probe.gd")
 const SHOTS := 5
 
 
@@ -82,7 +83,7 @@ func _segment_faults(wall: Node, i: int, seg: PackedVector2Array, impacts: Array
 	for col in wall._seg_colliders.get(i, []):
 		if is_instance_valid(col) and not col.is_queued_for_deletion():
 			have.append(col.shape)
-	if not _same_pieces(want, have):
+	if not Colliders.same_pieces(want, have):
 		differing.append("segment %d: collider %d pieces, its cut %d"
 				% [i, have.size(), want.size()])
 	var more: Array = impacts.duplicate(true)
@@ -98,13 +99,3 @@ func _segment_faults(wall: Node, i: int, seg: PackedVector2Array, impacts: Array
 			!= Deformation._wall_polygon(seg[0], seg[1], wall.wall_thickness, more)):
 		differing.append("segment %d: a further dent was answered with an old polygon" % i)
 	return differing
-
-
-## Whether the colliders `have` are the convex pieces `want`: as many, each with the same points.
-func _same_pieces(want: Array, have: Array) -> bool:
-	var same := want.size() == have.size()
-	for k in mini(want.size(), have.size()):
-		same = (same
-				and (want[k] as ConvexPolygonShape2D).points
-					== (have[k] as ConvexPolygonShape2D).points)
-	return same

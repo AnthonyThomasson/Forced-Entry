@@ -15,8 +15,6 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
-## Where the human stands: against the wall north of the back door, a stack spot beside it.
-const STEP_UP := Order.BACK_NORTH
 ## How long (s) the NPCs have, once the human has claimed, to stand ready in the stack.
 const READY_WITHIN := 20.0
 
@@ -35,7 +33,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": STEP_UP })
+	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": FollowWatch.STEP_UP })
 	s.actor(&"m1", &"invader", Vector2(980, 0))
 	s.actor(&"m2", &"invader", Vector2(990, 80))
 	s.squads({ "human": &"me" })
@@ -49,7 +47,7 @@ func run(t: TestContext) -> void:
 		return
 	var nodes: Array = [me] + members
 	var w := FollowWatch.new_watch()
-	if not await _step_up(t, w, nodes, squad):
+	if not await FollowWatch.step_up(t, w, nodes, squad):
 		return
 	var door := String(Entry.BACK["id"])
 	await _check_own_claim(t, w, nodes, squad, door)
@@ -69,18 +67,6 @@ func _has_stack(t: TestContext, squad: Node, me: Node) -> bool:
 		stack.get("squad") == squad and squad.leader() == me,
 		"premise: the human's stack is handed its squad, and the human leads (Lead the team)",
 	)
-
-
-func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
-	var puppet := t.puppet(&"me")
-	puppet.walk_to(STEP_UP)
-	var arrived := func() -> bool:
-		FollowWatch.tick(w, t, nodes, squad)
-		return puppet.has_arrived()
-	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
-		return false
-	puppet.stop()
-	return true
 
 
 func _check_own_claim(

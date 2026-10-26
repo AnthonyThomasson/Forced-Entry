@@ -1,11 +1,15 @@
 extends RefCounted
 ## Shared helpers for the grenade tests (not a test itself):
 ## `const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")`. Reading an NPC (`offered`,
-## `callouts`, `grenades`, `wait_act`, `acts`) and setting a scene round a grenade (`hostile`,
-## `place`), with the lines a blast is judged on (`character_rids`, `line_clear`, `safe_from_frag`,
-## `shielded`, G7). The bus and the spec's constants are `grenade_probe.gd`'s, read there.
+## `callouts`, `grenades`, `wait_act`, `acts`, `known_contact`, `watch_until_thrown`,
+## `check_held_at_old_spot`) and setting a scene round a grenade (`hostile`, `place`), with the
+## lines a blast is judged on (`character_rids`, `line_clear`, `safe_from_frag`, `shielded`, G7) and
+## the plain escape-spot pick the evade plan is held to (`plain_best`). The bus and the spec's
+## constants are `grenade_probe.gd`'s, read there.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+## The flank maps, whose kitchen `watch_until_thrown` tells fighting outside by.
+const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
 ## The tactic level's offered option ids of the NPC `brain` (the controller) from its last decision
@@ -128,3 +132,58 @@ static func shielded(t: TestContext, burst: Vector2, c: Node2D) -> bool:
 			return true
 		exclude.append(hit["rid"])
 	return false
+
+
+## NPC `brain`'s contact for character `p` (the defender's remembered position of the invader),
+## from its contacts: `{ pos, visible }`, or {} when it knows none.
+static func known_contact(brain: Node, p: Node) -> Dictionary:
+	for c in brain.known_contacts_for_display():
+		if c.get("node") == p:
+			return c
+	return {}
+
+
+## Check that the invader (actor `p`) walked across the defender's front, and the defender still
+## holds it at the spot it last saw it, unseen.
+static func check_held_at_old_spot(t: TestContext, brain: Node, p: Node, seen_at: Vector2) -> void:
+	t.check(t.puppet(&"p").has_arrived(), "the invader walked across the defender's front")
+	var known := known_contact(brain, p)
+	t.check(
+		not known.is_empty() and (known["pos"] as Vector2).distance_to(seen_at) < 60.0,
+		"the defender still holds the invader at the spot it last saw it (%s, now at %s)"
+			% [str(known.get("pos")), str(p.global_position.round())],
+	)
+	t.check(not known.is_empty() and not bool(known.get("visible", true)), "and does not see it")
+
+
+## Watch actor `i` (`inv`, the invader) until a grenade is thrown (at most 60 s): `seen` (each act
+## it took), `offered` (its tactic level offered `grenade`) and `fighting_outside` (it fought
+## `target` from outside `Maps.HOUSE_KITCHEN`).
+static func watch_until_thrown(t: TestContext, inv: Node, target: String) -> Dictionary:
+	var brain := t.controller(&"i", &"current_act")
+	var seen: Array = []
+	var was_offered := [false]
+	var fighting_outside := [false]
+	var watch := func() -> bool:
+		var act := acts(t, &"i")
+		if not seen.has(act):
+			seen.append(act)
+		if (act.begins_with("combat/%s" % target)
+				and not Maps.HOUSE_KITCHEN.has_point(inv.global_position)):
+			fighting_outside[0] = true
+		if offered(brain).has("grenade"):
+			was_offered[0] = true
+		return t.happened(&"throw")
+	await t.until(watch, 60.0)
+	return { "seen": seen, "offered": was_offered[0], "fighting_outside": fighting_outside[0] }
+
+
+## Of `spots`, the one with the shortest route from `from` within `allowed` px:
+## `{ spot, crouch, route }`, `spot` INF when none is in time.
+static func plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
+	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
+	for s: Dictionary in spots:
+		var length := NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))
+		if length <= allowed and length < best["route"]:
+			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
+	return best

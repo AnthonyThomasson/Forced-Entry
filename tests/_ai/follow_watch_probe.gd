@@ -3,10 +3,17 @@ extends RefCounted
 ## `const FollowWatch := preload("res://tests/_ai/follow_watch_probe.gd")`. A watch of the team: one
 ## record (`new_watch`) filled every physics frame (`tick`, or `watch` for a whole run), its reads
 ## (`asked`, `gaps`, `took`, `acts_of`, `went_through`) and `percentile`, the statistic the band
-## checks take over `gaps`; and `off_spot_tick`, a member's clock off its follow spot. The NPC's
+## checks take over `gaps`; `off_spot_tick`, a member's clock off its follow spot; and `step_up`,
+## the
+## human walked up to `STEP_UP` beside the back door while the watch ticks. The NPC's
 ## reads and the spec's numbers are `follow_probe.gd`'s, read there.
 
 const Follow := preload("res://tests/_ai/follow_probe.gd")
+## The order probe, whose back-door click point the human steps up to.
+const Order := preload("res://tests/_ai/order_probe.gd")
+## Where the human stands to step up: against the wall north of the back door, a stack spot beside
+## it (LD24).
+const STEP_UP := Order.BACK_NORTH
 
 
 ## A new per-frame record of a team (`tick` fills it): `samples` (`[{ t, pos: { node: Vector2 },
@@ -161,6 +168,20 @@ static func off_spot_tick(t: TestContext, s: Node, member: Node, clock: Dictiona
 		clock["longest"] = maxf(float(clock.get("longest", 0.0)), t.time - float(clock["since"]))
 	else:
 		clock["since"] = -1.0
+
+
+## Walk the human puppet `me` up to `STEP_UP` beside the back door, ticking the watch `w` over
+## `nodes` (squad `squad`) every frame; false after a failed `require` (it did not get there).
+static func step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
+	var puppet := t.puppet(&"me")
+	puppet.walk_to(STEP_UP)
+	var arrived := func() -> bool:
+		tick(w, t, nodes, squad)
+		return puppet.has_arrived()
+	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
+		return false
+	puppet.stop()
+	return true
 
 
 ## The house room `p` is in (its key), "outside" when out of every room, or "" on a sill (between

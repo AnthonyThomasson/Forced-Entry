@@ -6,6 +6,7 @@ extends GameTest
 ## outline area dips below half of both its neighbouring frames' areas. Reads the outline; draws
 ## nothing.
 
+const Kill := preload("res://tests/_character/kill_probe.gd")
 const TARGETS := 4
 ## Frames sampled at most after the last target is down: the landing and settling. Sampling stops
 ## early once every body has come to rest (its outline cannot change any more), but not before
@@ -51,29 +52,10 @@ func _outline_area(target: Node) -> float:
 
 
 func run(t: TestContext) -> void:
-	if not await _kill_targets(t):
+	if not await Kill.kill_targets(t, TARGETS):
 		return
 	var series := await _sample_areas(t)
 	_check_series(t, series)
-
-
-## The shooter shoots each target dead. Whether they all died (false after a failed `require`).
-func _kill_targets(t: TestContext) -> bool:
-	var shooter := t.puppet(&"shooter")
-	for i in TARGETS:
-		var id := StringName("target%d" % i)
-		shooter.aim_at(t.actor(id))
-		await t.seconds(0.4)
-		shooter.shoot()
-		if not t.require(
-				await t.until(
-					func(): return t.happened(&"died", func(d): return d["actor"] == id),
-					2.0,
-				),
-				"%s dies" % id,
-		):
-			return false
-	return true
 
 
 ## Each target's trunk outline area, frame by frame (target index -> areas), until every body has

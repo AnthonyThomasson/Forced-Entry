@@ -7,6 +7,7 @@ extends GameTest
 ## point-by-point sums (the trunk's exactly), on random limbs and on real falling bodies, so the
 ## body is drawn where it always was.
 
+const Kill := preload("res://tests/_character/kill_probe.gd")
 const SEED := 5151
 const TARGETS := 2
 ## How far (px) a point may be from the plain sum's: float rounding only, far below a pixel.
@@ -46,7 +47,7 @@ func run(t: TestContext) -> void:
 	_check_fans_convex(t, rng)
 	_check_texture_uvs(t, visuals, rng)
 	_check_rings(t)
-	if not await _kill_targets(t):
+	if not await Kill.kill_targets(t, TARGETS):
 		return
 	await _check_fallen(t)
 
@@ -135,25 +136,6 @@ func _check_rings(t: TestContext) -> void:
 		worst <= TOLERANCE,
 		"circle rings: the farthest point is %.6f px from the plain sum's" % worst,
 	)
-
-
-## The shooter shoots each target dead. Whether they all died (false after a failed `require`).
-func _kill_targets(t: TestContext) -> bool:
-	var shooter := t.puppet(&"shooter")
-	for i in TARGETS:
-		var id := StringName("target%d" % i)
-		shooter.aim_at(t.actor(id))
-		await t.seconds(0.4)
-		shooter.shoot()
-		if not t.require(
-				await t.until(
-					func(): return t.happened(&"died", func(d): return d["actor"] == id),
-					2.0,
-				),
-				"%s dies" % id,
-		):
-			return false
-	return true
 
 
 ## The falling targets' trunk slices (as drawn and on the floor shadow) and outline, every frame

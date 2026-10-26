@@ -53,7 +53,7 @@ func run(t: TestContext) -> void:
 			"set-up: the invader has a clear line to the householder through the doorway",
 	):
 		return
-	var w := await _watch_until_thrown(t, inv, target)
+	var w := await GrenadeAi.watch_until_thrown(t, inv, target)
 	var seen: Array = w["seen"]
 	if not t.require(
 			w["fighting_outside"],
@@ -71,23 +71,6 @@ func run(t: TestContext) -> void:
 
 # Notes the invader's acts, whether it fought the householder from outside the kitchen and whether
 # GRENADE was offered, until something is thrown (or 60 s pass).
-func _watch_until_thrown(t: TestContext, inv: Node, target: String) -> Dictionary:
-	var brain := t.controller(&"i", &"current_act")
-	var seen: Array = []
-	var offered := [false]
-	var fighting_outside := [false]
-	var watch := func() -> bool:
-		var act := GrenadeAi.acts(t, &"i")
-		if not seen.has(act):
-			seen.append(act)
-		if (act.begins_with("combat/%s" % target)
-				and not Maps.HOUSE_KITCHEN.has_point(inv.global_position)):
-			fighting_outside[0] = true
-		if GrenadeAi.offered(brain).has("grenade"):
-			offered[0] = true
-		return t.happened(&"throw")
-	await t.until(watch, 60.0)
-	return { "seen": seen, "offered": offered[0], "fighting_outside": fighting_outside[0] }
 
 
 func _check_thrown_from_outside(t: TestContext, inv: Node, seen: Array) -> bool:

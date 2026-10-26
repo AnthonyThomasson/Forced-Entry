@@ -17,8 +17,6 @@ const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Stack := preload("res://tests/_ai/stack_probe.gd")
 const Entry := preload("res://tests/_ai/entry_probe.gd")
-## Where the human stands: against the wall north of the back door, a stack spot beside it.
-const STEP_UP := Order.BACK_NORTH
 ## The room the defender is ordered to hold: across the house from the back door, reached from
 ## where it stands by the front door and the hall.
 const DEFEND_ROOM := "living_room"
@@ -40,7 +38,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": STEP_UP })
+	Stack.human(s, &"me", Vector2(930, 40), { "movement:aim_point": FollowWatch.STEP_UP })
 	s.actor(&"m1", &"invader", Vector2(980, 0))
 	s.actor(&"m2", &"invader", Vector2(990, 80))
 	# The defender stands outside the front door, so its way to the living room is its own (front
@@ -61,7 +59,7 @@ func run(t: TestContext) -> void:
 		return
 	var nodes: Array = [me, defender] + free
 	var w := FollowWatch.new_watch()
-	if not await _step_up(t, w, nodes, squad):
+	if not await FollowWatch.step_up(t, w, nodes, squad):
 		return
 	var door := String(Entry.BACK["id"])
 	if not await _own_claim(t, w, nodes, squad, door):
@@ -105,18 +103,6 @@ func _order_defend(t: TestContext, squad: Node, defender: Node) -> Dictionary:
 	):
 		return {}
 	return defend
-
-
-func _step_up(t: TestContext, w: Dictionary, nodes: Array, squad: Node) -> bool:
-	var puppet := t.puppet(&"me")
-	puppet.walk_to(STEP_UP)
-	var arrived := func() -> bool:
-		FollowWatch.tick(w, t, nodes, squad)
-		return puppet.has_arrived()
-	if not t.require(await t.until(arrived, 8.0), "the human walked up beside the back door"):
-		return false
-	puppet.stop()
-	return true
 
 
 func _own_claim(t: TestContext, w: Dictionary, nodes: Array, squad: Node, door: String) -> bool:

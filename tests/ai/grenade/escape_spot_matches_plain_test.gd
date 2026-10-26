@@ -147,7 +147,7 @@ func _plain_escape(
 ) -> Dictionary:
 	var spots := _plain_spots(g, search, threat, runner.from)
 	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
-	return _plain_best(search["map"], spots, runner.from, allowed)
+	return GrenadeAi.plain_best(search["map"], spots, runner.from, allowed)
 
 
 ## Every candidate of the plain search snapped and judged: `{ spot, crouch }` for each that lands
@@ -205,14 +205,3 @@ func _plain_spot(g: AgentThrow, search: Dictionary, q: Vector2, zone: Dictionary
 			return {}
 		crouch = true
 	return { "spot": q, "crouch": crouch }
-
-
-## Of `spots`, the one with the shortest route from `from` within `allowed` px:
-## `{ spot, crouch, route }`, `spot` INF when none is in time.
-func _plain_best(map: RID, spots: Array, from: Vector2, allowed: float) -> Dictionary:
-	var best := { "spot": Vector2.INF, "crouch": false, "route": INF }
-	for s: Dictionary in spots:
-		var length := NavBuilder.path_length(NavBuilder.route(map, from, s["spot"]))
-		if length <= allowed and length < best["route"]:
-			best = { "spot": s["spot"], "crouch": s["crouch"], "route": length }
-	return best
