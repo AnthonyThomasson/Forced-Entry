@@ -383,24 +383,24 @@ static func tinnitus_profile() -> StringName:
 
 
 ## A vehicle kind the bank voices: `kind` itself, or a car for an unknown one.
-static func vehicle_kind(kind: StringName) -> String:
+static func _vehicle_kind(kind: StringName) -> String:
 	return String(kind) if VEHICLES.has(String(kind)) else "car"
 
 
 ## The engine loop of a vehicle of `kind`.
 static func engine_profile(kind: StringName) -> StringName:
-	return StringName("engine/" + vehicle_kind(kind))
+	return StringName("engine/" + _vehicle_kind(kind))
 
 
 ## The starter cranking and the engine catching, for a vehicle of `kind`.
 static func ignition_profile(kind: StringName) -> StringName:
-	return StringName("ignition/" + vehicle_kind(kind))
+	return StringName("ignition/" + _vehicle_kind(kind))
 
 
 ## A door of a vehicle of `kind` at `stage` (`open`, `close`, `slide_open`, `slide_close`; a slide
 ## is voiced only for a kind with a sliding door). &"" for any other stage.
 static func door_profile(kind: StringName, stage: StringName) -> StringName:
-	var k := vehicle_kind(kind)
+	var k := _vehicle_kind(kind)
 	if (not DOOR_STAGES.has(String(stage))
 			or (String(stage).begins_with("slide") and not VEHICLES[k]["slide"])):
 		return &""
@@ -413,7 +413,7 @@ static func skid_profile() -> StringName:
 
 
 ## The crash band (`light` / `medium` / `heavy`) of an impact at closing speed `speed` (px/s).
-static func crash_band(speed: float) -> String:
+static func _crash_band(speed: float) -> String:
 	if speed >= SoundVehicleConfig.crash_heavy_speed:
 		return "heavy"
 	if speed >= SoundVehicleConfig.crash_medium_speed:
@@ -425,7 +425,7 @@ static func crash_band(speed: float) -> String:
 ## speed `speed`.
 static func crash_profile(material: String, speed: float) -> StringName:
 	var mat := "wall" if material == "" else (material if MATERIALS.has(material) else "default")
-	return StringName("crash/%s/%s" % [mat, crash_band(speed)])
+	return StringName("crash/%s/%s" % [mat, _crash_band(speed)])
 
 
 ## Every profile the bank can voice (what the pre-warm and the sound dump walk through).
