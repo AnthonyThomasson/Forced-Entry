@@ -519,16 +519,16 @@ holding). A follower in a fight decides through Von as any member, within its le
 status reads "keeping up with its leader" on the way and "by its leader" at its spot.
 
 **LD21. Where a follower stands.** The squad keeps the leader's trail and lays the follow spots through its `SquadFollow`
-(`scenes/ai/team/squad_follow.gd`, the squad's tunables read off it): the trail every physics frame (`track`: a point each `TRAIL_STEP`,
+(`scenes/ai/team/squad_follow.gd`, its tunables read off the holder `SquadFollowConfig`): the trail every physics frame (`track`: a point each `TRAIL_STEP`,
 15 px, the leader moves, kept as long as the file needs), and every follower's spot (`Squad.follow_spot`, laid at most once a physics frame, and only when the leader moved, turned or stopped or the followers changed), the followers taken in roster order:
-- **The leader moving.** The spot is on the trail, `follow_gap` (55 px) back for the first follower and `follow_step` (45 px) further for
+- **The leader moving.** The spot is on the trail, `SquadFollowConfig.gap` (55 px) back for the first follower and `SquadFollowConfig.step` (45 px) further for
   each next one, snapped onto the navigation map: a file behind the leader, through its doorways after it, with no tactical entry of its
   own. A follower whose place lies past the trail's oldest point (the leader has not walked that far since it led) keeps where it stands
   while that place lies further from the leader than it does, so a file setting off never walks away from its leader and across itself.
-- **The leader still** (`follow_still_time`, 0.8 s, since it last moved a trail step). The spot is a slot on a ring behind the way the
-  leader came (`follow_ring`, 80 px; the way is the last stretch of its trail, so a leader looking round its doors does not swing the ring
-  round it): slots `follow_step` apart either side of straight behind it and less than a right angle off it, then on two wider rings
-  (`RINGS` 3, each `follow_step` further out), each on the navigation map within `SLOT_SNAP` (20 px), in the leader's sight and out of
+- **The leader still** (`SquadFollowConfig.still_time`, 0.8 s, since it last moved a trail step). The spot is a slot on a ring behind the way the
+  leader came (`SquadFollowConfig.ring`, 80 px; the way is the last stretch of its trail, so a leader looking round its doors does not swing the ring
+  round it): slots `SquadFollowConfig.step` apart either side of straight behind it and less than a right angle off it, then on two wider rings
+  (`RINGS` 3, each `SquadFollowConfig.step` further out), each on the navigation map within `SLOT_SNAP` (20 px), in the leader's sight and out of
   every doorway. A follower the rings hold no slot for keeps to the trail, stepped back along it out of a doorway.
 - **Out of the leader's way** (`_clear_of_way`). A follower, or its spot, in the lane ahead of the leader's facing (`WAY_CLEARANCE`, 32 px
   either side of its line, a ring and a step deep) is sent beside that lane, on its own side (the other when a member stands there), else
@@ -536,34 +536,34 @@ status reads "keeping up with its leader" on the way and "by its leader" at its 
   room the leader has stood in since it led: a follower never goes first into a room its leader has not entered, and a leader turning back
   walks through its file. A spot beside the way is kept while it still clears the way, until the leader has moved a ring on or turned
   back, so a leader's swinging gaze (slicing a pie) does not send the follower to and fro.
-- **The walk** (`follow`). It is re-aimed only once the spot has moved `follow_retarget` (20 px) from where it is going (or, catching
+- **The walk** (`follow`). It is re-aimed only once the spot has moved `SquadFollowConfig.retarget` (20 px) from where it is going (or, catching
   up, on reaching where it was going: below), and is over within
-  `follow_arrive` (10 px) of it, where its path ends short of a spot it cannot reach (the navigation agent done at the nearest reachable
+  `SquadFollowConfig.arrive` (10 px) of it, where its path ends short of a spot it cannot reach (the navigation agent done at the nearest reachable
   point), or when a body seals its only way. The member walks with its gun up (the watch stage shoots what it sees on the way).
-- **Catching up.** A follower runs, when a run can start, once it is more than `follow_step` (45 px) from its live spot, and from then
-  on is catching up until it is back within `follow_caught_up` (20 px) of it: it runs whenever it steps, and on reaching where its walk
+- **Catching up.** A follower runs, when a run can start, once it is more than `SquadFollowConfig.step` (45 px) from its live spot, and from then
+  on is catching up until it is back within `SquadFollowConfig.caught_up` (20 px) of it: it runs whenever it steps, and on reaching where its walk
   was going, short of its live spot, re-aims at that spot, until it is that near. A walk over short of the spot (its path ends there, or
   a body seals its only way) ends the catch-up too. A moment with no step (giving way to a walker, held short of a body, a step
   `keep_off` stops) does not end the catch-up: the follower runs on when it steps again, on whatever stamina it has left (the stamina a
   run needs to start is not asked again). The run rule's other gates stay and end it (no run with a shot to take or a reload due, the
   stamina run dry, never in a tactical entry, `domain-ai-behavior`), and so does any other primitive than `follow`. A run that stopped
-  at `follow_step` would leave a follower on a long walk without stops walking at its leader's pace that far behind its spot. Nor does a
+  at `SquadFollowConfig.step` would leave a follower on a long walk without stops walking at its leader's pace that far behind its spot. Nor does a
   follower give way to its leader walking on ahead of it: the give-way check looks ahead only for the time a walker's own walk still
   takes (at most its 1.2 s; Locomotion's give-way, `domain-ai-behavior`), and a follower's walk ends at its spot, short of its leader.
 
 Tests: LD19's, `follow_human_leader` for the file's spacing, the re-aim and the ring, `follow_catches_up` for the catch-up (a follower far
-behind a leader walking a long straight line comes back within `follow_caught_up` of its spot after each catch-up, through a teammate
+behind a leader walking a long straight line comes back within `SquadFollowConfig.caught_up` of its spot after each catch-up, through a teammate
 stepping into its way for a moment, and again after the leader has paused to look back), `npc_give_way_walk_ends_short` for the
 give-way (a walk ending short of a walker's course does not give way to it; one passing through it still does).
 
-**LD22. At rest.** At its spot a follower stands facing away from its leader. Once it has stood there `follow_still_time` (0.8 s) with no
+**LD22. At rest.** At its spot a follower stands facing away from its leader. Once it has stood there `SquadFollowConfig.still_time` (0.8 s) with no
 threat and not under fire, it tops up a low magazine (at or below `low_ammo_fraction`, 0.34, of the gun's capacity: not only a dry one)
 with a tactical reload (`Combat.top_off`), without a decision.
 
 Tests: `ai/movement/follow_top_up` (a follower starting with 2 rounds in its pistol takes its spot on the ring round a still puppet leader
 and reloads there, at rest, while its decision walks put no question to Von).
 
-**LD23. The leash.** A follower holding no order fights within `leash` (320 px) of its leader's live position. A member carrying an order
+**LD23. The leash.** A follower holding no order fights within `SquadFollowConfig.leash` (320 px) of its leader's live position. A member carrying an order
 (defending a room, an ambush, a stack, a held one or a join included) is not leashed: it fights where its order takes it, whatever the
 distance to its leader, and is leashed again once its order ends. It still follows (LD19: its follow spot, its place in the file); only the
 leash is dropped (the controller's reflexes' `leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
@@ -574,7 +574,7 @@ otherwise). For a leashed follower:
   place (a reload, a punch) stays.
 - **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of
   closing in, and melee holds its ground while its target is off the leash.
-- **The break.** A fighting follower (`in_combat`) further than `leash_break` (1.3) leashes from its leader, neither committed nor on its
+- **The break.** A fighting follower (`in_combat`) further than `SquadFollowConfig.leash_break` (1.3) leashes from its leader, neither committed nor on its
   way somewhere it chose (`Behavior.orders.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
   once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
   on the way.
@@ -610,7 +610,7 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
 - **The human's own claim** (`PlayerStack`, interface 17). The invaders' alone (D29): the match builder sets the human's `PlayerStack.own_claims` through
   `MatchBuilder.bind_squad` on the invaders' side only, so a human defender leader makes no claim of its own and its step-ups rally nobody
   (its teammates still follow it). While the human leads a squad with
-  another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `_stepped_up`): standing on the
+  another living member and no allied stack is forming within its reach, the human stepping up to a doorway claims slot 1 there of its own (`_claim_own`, `step_up.stepped`): standing on the
   doorway's stack side, out from its wall plane by at most `STEP_UP_REACH` (60 px) and past its jamb along the wall by at most as much, for
   `STEP_UP_TIME` (0.5 s), at a doorway nobody stacks at and the human has not declined. It claims on the side it stands on, marked `own`,
   and the squad hears it as the leader's own claim: of the human's claims only one marked `own` rallies the team, so the slot the human is
@@ -761,19 +761,19 @@ The cases the behaviours above cite as D1 to D30.
 | The human's slot is withdrawn once its walk back to the doorway is longer than | 450 px (300 x 1.5) | `PlayerStack.reserve_range` x `leave_factor` |
 | The squad's view keeps a member's entry claim for | 6 s | `tuning.radio.callout_ttl` (handed to `Squad.setup` by the match builder) |
 | A ring whose holder stands in its slot is filled at | 0.3 alpha | `StackMarkers.ALPHA_THERE_FILL` |
-| The first follower keeps back along the leader's trail, and each next one further | 55 px, 45 px | `Squad.follow_gap`, `follow_step` |
+| The first follower keeps back along the leader's trail, and each next one further | 55 px, 45 px | `SquadFollowConfig.gap`, `step` |
 | The leader takes a trail point each | 15 px | `SquadFollow.TRAIL_STEP` |
-| The leader counts as still after standing | 0.8 s | `Squad.follow_still_time` |
-| The ring round a still leader, and the rings after it | 80 px, then 125 and 170 px (3 rings) | `Squad.follow_ring`, `follow_step`, `SquadFollow.RINGS` |
+| The leader counts as still after standing | 0.8 s | `SquadFollowConfig.still_time` |
+| The ring round a still leader, and the rings after it | 80 px, then 125 and 170 px (3 rings) | `SquadFollowConfig.ring`, `step`, `SquadFollow.RINGS` |
 | A ring slot or a spot beside the way lies on the navigation map within | 20 px | `SquadFollow.SLOT_SNAP` |
 | The leader's way: either side of its line | 32 px | `SquadFollow.WAY_CLEARANCE` |
-| A follower re-aims its walk once its spot has moved | 20 px | `Squad.follow_retarget` |
-| A follower is at its spot within | 10 px | `Squad.follow_arrive` |
-| A follower runs once it is further from its spot than | 45 px | `Squad.follow_step` |
-| ... and keeps running until it is back within | 20 px | `Squad.follow_caught_up` |
+| A follower re-aims its walk once its spot has moved | 20 px | `SquadFollowConfig.retarget` |
+| A follower is at its spot within | 10 px | `SquadFollowConfig.arrive` |
+| A follower runs once it is further from its spot than | 45 px | `SquadFollowConfig.step` |
+| ... and keeps running until it is back within | 20 px | `SquadFollowConfig.caught_up` |
 | A follower at rest tops up a magazine at or below | 0.34 of its capacity | `tuning.context.low_ammo_fraction` |
-| A follower fights within, of its leader's live position | 320 px | `Squad.leash` |
-| ... and re-decides in a fight further than | 1.3 leashes (416 px) | `Squad.leash_break` |
+| A follower fights within, of its leader's live position | 320 px | `SquadFollowConfig.leash` |
+| ... and re-decides in a fight further than | 1.3 leashes (416 px) | `SquadFollowConfig.leash_break` |
 | The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |
 | The invader team's point lies along the wall from the front door's centre by | 120 px | `match_spawner.gd` `DOOR_SIDE_OFFSET` |
 | ... and out from the wall by | 20 px (`spawn_clearance`) | the match spec's `spawn_clearance` (Main's `run`) |

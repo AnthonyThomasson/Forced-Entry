@@ -181,7 +181,7 @@ func _apply_config() -> void:
 	var leash_lead: Node2D = _reflexes.leash_lead()
 	var lead_at: Vector2 = leash_lead.global_position if leash_lead != null else Vector2.INF
 	_planner.confines.leash_center = lead_at
-	_planner.confines.leash = float(squad.leash) if leash_lead != null else 0.0
+	_planner.confines.leash = float(SquadFollowConfig.leash) if leash_lead != null else 0.0
 	_behavior.apply_config(squad)
 
 

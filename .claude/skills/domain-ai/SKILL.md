@@ -84,9 +84,9 @@ leaves the member to follow again, at once while its entry is still in `approach
 
 **Following (`docs/leadership.md` LD19 to LD23).** Each tick the reflexes' `follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
 `follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
-("follows its leader" / "leads its squad"), and the leash (`Behavior.orders.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
+("follows its leader" / "leads its squad"), and the leash (`Behavior.orders.set_leash(leader position, SquadFollowConfig.leash)`, `Vector2.INF` when it does
 not follow or holds an order: `leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
-order takes it); a leashed follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
+order takes it); a leashed follower in a fight (`in_combat`) further than `SquadFollowConfig.leash_break` leashes from its leader, neither `committed()` nor
 `orders.walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
 INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
 `leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`

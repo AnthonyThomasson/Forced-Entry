@@ -189,10 +189,10 @@ func take_steps() -> Array:
 
 
 ## Follow (LD20 to LD22): keep to the spot the squad gives the NPC (`Squad.follow_spot`). The walk
-## is re-aimed only once that spot has moved `follow_retarget` from where it is going, and is over
-## within `follow_arrive` of it or where its path ends short of one it cannot reach; a follower
-## catching up (`gait.catching_up`) whose walk target lagged its live spot re-aims at that spot
-## there, until it is within `follow_caught_up` of it. Its walk over, its catch-up is over too.
+## is re-aimed only once that spot has moved `SquadFollowConfig.retarget` from where it is going,
+## and is over within `arrive` of it or where its path ends short of one it cannot reach; a
+## follower catching up (`gait.catching_up`) whose walk target lagged its live spot re-aims at that
+## spot there, until it is within `caught_up` of it. Its walk over, its catch-up is over too.
 ## There it stands facing away from its leader (the leash's centre, its live position) and, at rest
 ## with nothing to fight, tops up a low magazine. The watch stage shoots what it sees on the way.
 ## Its spot gone (it leads now, or left the squad): re-decide.
@@ -209,20 +209,20 @@ func apply_follow() -> void:
 		task.primitive = &"hold"
 		task.resolved = true
 		return
-	if follow_to == Vector2.INF or spot.distance_to(follow_to) > squad.follow_retarget:
+	if follow_to == Vector2.INF or spot.distance_to(follow_to) > SquadFollowConfig.retarget:
 		follow_to = spot
 		task.arrived = false
 	if not task.arrived:
-		task.arrived = loco.reached(follow_to, squad.follow_arrive)
+		task.arrived = loco.reached(follow_to, SquadFollowConfig.arrive)
 		if (task.arrived and behavior.gait.catching_up
-				and follow_to.distance_to(spot) > squad.follow_arrive
-				and character.global_position.distance_to(spot) > squad.follow_caught_up):
+				and follow_to.distance_to(spot) > SquadFollowConfig.arrive
+				and character.global_position.distance_to(spot) > SquadFollowConfig.caught_up):
 			# Catching up, it is not there until it has caught up: on to its live spot.
 			follow_to = spot
 			task.arrived = false
 		_follow_stood = GameClock.seconds()
 	if not task.arrived:
-		loco.move_to(follow_to, squad.follow_arrive)
+		loco.move_to(follow_to, SquadFollowConfig.arrive)
 		behavior.errand.aim_move()
 		return
 	behavior.gait.catching_up = false
@@ -232,7 +232,7 @@ func apply_follow() -> void:
 	if lead != Vector2.INF and here.distance_to(lead) > 1.0:
 		character.movement.aim_point = here + (here - lead).normalized() * 100.0
 	# At rest once it has stood as long as a still leader does (a file walk stops between re-aims).
-	if (GameClock.seconds() - _follow_stood >= squad.follow_still_time
+	if (GameClock.seconds() - _follow_stood >= SquadFollowConfig.still_time
 			and behavior._watch.threat.is_empty()
 			and not behavior._perception.under_fire()
 			and combat.magazine_low(behavior.tuning.context.low_ammo_fraction)):

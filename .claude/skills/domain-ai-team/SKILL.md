@@ -16,9 +16,9 @@ is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 `callout_range`, lapsing after its `callout_ttl` on `GameClock`, LD1; either export, set, reaches the ledger at once through its setter) and, when an allied team is stacking at a doorway the human is near (`reserve_range` 300 px of walking), radios the
 human's own claim for the first free slot (none in a dead end with no room left, E20), on the team's side or, when its way there would cross the doorway's view, on its own (a split stack,
 E19), standing where the doorway's `DoorStack` settles that slot (`_stack()`, asked with the human's own claim `_me()` through the stack's claim chain, `DoorStack.claim`, as an NPC's entry is: `slot_for`,
-`StackLayout.holds_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `_on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
+`StackLayout.holds_slot`, the side it asks for, `_ask_side`, its own weighing from where it stands, then `settle`, its side `reservation.on`, the other side while its own wall is full, E21, and its point, the move-up rewrite applied as for any member): a
 full claim encoded by `StackClaim.encode`, every entry field an NPC's carries (`claim_frame` / `claim_pos` stamped on each new claim and kept
-by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `_crossed_frame`, restamped
+by its repeats, so a same-frame tie with the human settles by distance as for any member, E2; `crossed_frame`, `reservation.crossed_frame`, restamped
 to `GameClock.frame()` each time its step goes from `claim` / `ready` to `going_in` / `in` (`StackClaim.crossing`), cleared on a new reservation and on
 withdrawal: the start of its latest crossing, since a human that brushed the funnel steps back out of it, unlike an NPC, D14; `bang: true`, `bang_off: false`: it never holds
 a stack back nor turns it; `stuns: 0` / `frags: 0`: it throws nothing for the stack; `move_up: 0`, `pie: false`) plus `human: true` (no AI moves up into its slot, E2), `leader` (true while its `squad`'s `leader()` is the human; `squad` is handed in by
@@ -36,12 +36,12 @@ a claim keeps to the **stale claim** rule in "The stack", `domain-ai-perception`
 (`set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id`), and never moves the character. **Its own claim (LD24).** With `own_claims` set (`MatchBuilder.build_squads` sets it through `bind_squad` on the invaders' side only, D29:
 false unless set, so a human defender leader claims nothing of its own and rallies nobody), no allied stack forming in reach and the human
 leading a squad with another living member (`_leads_team`), `_look_for_team` calls `_claim_own`: once the human has stood stepped up to a doorway for `STEP_UP_TIME` (0.5 s;
-`_stepped_up`: on the doorway's stack side (`AgentEntry`'s `slots.on_stack_side`), out from the wall plane and past the jamb along it each within
+`step_up.stepped`, its `step_up` part, `ai/team/player_stack_step_up.gd`, holding the stack: on the doorway's stack side (`AgentEntry`'s `slots.on_stack_side`), out from the wall plane and past the jamb along it each within
 `STEP_UP_REACH`, 60 px, at a doorway nobody stacks at and not `_barred`) it claims slot 1 there (an empty `DoorStack`'s `slot_for`) on the side it stands on
-(`stack_side_from`), flagged `_own` and radioed `own: true`. The squad hears that claim as the leader's own and rallies the team; a
+(`stack_side_from`), flagged `reservation.own` and radioed `own: true`. The squad hears that claim as the leader's own and rallies the team; a
 reservation in an allied stack (E16), the leader's or not, carries `own: false` and never rallies. An own claim is kept while nobody
 else stacks there (the "nobody stacking" withdrawal waits until the human is `in`), and with nobody ahead of it the `go_timeout`
-withdrawal does not fire; `_withdraw` clears `_own`. `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI): its slots are the `DoorStack`'s `layout(_me())`,
+withdrawal does not fire; `_withdraw` clears the reservation (`reservation.clear()`: its `reservation` leaf, `ai/team/player_stack_reservation.gd`, the doorway, slot, sides, claim frame and spot, step, clocks and `own`, all but its `heartbeat`). `attach` keeps the house's `openings` for it (`_openings`). `view()` feeds `StackMarkers` (UI): its slots are the `DoorStack`'s `layout(_me())`,
 the points the AI stands. `entry.gd` has no case for a human: the barrier, the lone entrant's pie and the follow rule just
 see one more teammate, and a held stack (LD13) takes the `going_in` of a teammate under its order, or the human's, into its room as its go (D14),
 the human's only on a crossing begun since the order was issued (`crossed_frame` at or after the order's `frame`). Test:
@@ -70,13 +70,13 @@ squad's own `go` nor by one read off the claims (`_latch_go`, on each claim hear
 through into that room, D14, the human leader stepping in among them on a crossing begun since; a claim left from an earlier entry releases
 nothing), each kept in
 `_released` once heard, as each member latches its own go; an order radioed `done` is no longer
-held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
-or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per
+held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, its `stacks` part's `_stacks` (`ai/team/squad_stacks.gd`, built with the squad, holding it), kept as last laid by `stacks.now()` and laid again after `stacks.invalidate()`, on a claim heard or a member's death) is every stack the side is forming, ordered
+or its own, from the side's entry claims it hears (its own `ClaimLedger`, `stacks.ledger`: unlimited range, the side's whole view; the latest per
 speaker, current for `claim_ttl`: the NPCs' `tuning.radio.callout_ttl` (6 s), handed in by `setup`, which the match builder reads off
 the side's NPCs with `MatchBuilder.callout_ttl_of`; a dead speaker's dropped;
 the human's `PlayerStack` among them), at each doorway `ClaimLedger.openings_stacking()` names (a claim at a `StackClaim.STACKING` step):
 `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, the slots that doorway's `DoorStack.layout()` gives
-(slots 1 to the last claimed over the geometry its own `AgentEntry` lays, each where its holder stands it, a slot a dead end does not hold
+(slots 1 to the last claimed over the geometry its own `AgentEntry`, `stacks.entry`, lays, each where its holder stands it, a slot a dead end does not hold
 left out), `there` its holder at `ready` / `bang` (`StackClaim.IN_SLOT`), `mine` the human's; the UI's stack
 markers draw it, laid on the navigation map and physics space of the world the squad itself is in (its viewport's `World2D`). It reads its
 members only through the Character API (`wardrobe.rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
@@ -85,23 +85,24 @@ that follows, when a child of it is in the group `npc_controllers` at `setup`, `
 `_orders`, the `&"order"` post) serves `issue` and them alike.
 
 **Following (`docs/leadership.md` LD19 to LD23).** `follows(member)`: alive, the squad has a leader, not the leader, an NPC (`_npcs`). The
-tunables are vars: `follow_gap` 55, `follow_step` 45, `follow_caught_up` 20, `follow_ring` 80, `follow_still_time` 0.8 s, `follow_retarget` 20, `follow_arrive` 10,
-`leash` 320, `leash_break` 1.3. The trail and the spots are `SquadFollow`'s (`ai/team/squad_follow.gd`, a `RefCounted` the squad builds in
-`setup` with its openings and rooms, `_follow`; it reads the tunables, `leader()`, `members()`, `alive` and `follows` off the squad), with
+tunables are the static holder `SquadFollowConfig`'s (`ai/team/squad_follow_config.gd`, the same for every squad): `gap` 55, `step` 45,
+`caught_up` 20, `ring` 80, `still_time` 0.8 s, `retarget` 20, `arrive` 10, `leash` 320, `leash_break` 1.3. The trail and the spots are
+`SquadFollow`'s (`ai/team/squad_follow.gd`, a `RefCounted` the squad builds in `setup` with its openings and rooms, `_follow`; it reads the
+holder, and `leader()`, `members()`, `alive` and `follows` off the squad), with
 the constants `SquadFollow.TRAIL_STEP` 15, `SLOT_SNAP` 20, `RINGS` 3, `WAY_CLEARANCE` 32. The squad's `_physics_process` runs `track`: a
 trail point each `TRAIL_STEP` the leader moves (`_moved_at` on `GameClock`), trimmed to what the file needs, the rooms it stood in kept
 (`_visited`); a new leader starts it afresh (`reset`, also from `_on_died`, which `invalidate`s the spots when a member dies). `trail()` is
 what `view()` gives. `follow_spot(member)` (`Vector2.INF` for a non-follower) is `SquadFollow.spot`, which lays every spot at most once a
 physics frame and only when the leader moved, turned or stopped or the followers changed (`_lay_spots`, the followers in roster order
-from `followers()`): moving, on the trail at `follow_gap + follow_step * i` (`_trail_point`, snapped with `NavBuilder.snap`; a place past the
+from `followers()`): moving, on the trail at `gap + step * i` (`_trail_point`, snapped with `NavBuilder.snap`; a place past the
 trail's oldest point and further from the leader than the follower stands keeps it where it stands, `_trail_length`); still
-(`follow_still_time`), a slot from `_ring_slots` behind `_heading()` (the trail's last stretch), each on the map within `SLOT_SNAP`, in the
+(`still_time`), a slot from `_ring_slots` behind `_heading()` (the trail's last stretch), each on the map within `SLOT_SNAP`, in the
 leader's sight (`AgentVision.wall_hit`) and out of doorways (`_open_at`, `_in_doorway`), the rest on the trail, stepped back out of a
 doorway. `_clear_of_way` then moves a follower or spot out of the lane ahead of the leader's `facing` (`_in_way`): beside it, own side first
 (`_taken`), else further ahead (170 / 215 / 260 px), only into `_visited` rooms; kept in `_aside` (member -> `{ spot, from, way }`: the spot,
 where the leader stood and the way it faced) while it clears the way, until the leader has moved a ring or turned back. The controller
-reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot`, `follow_retarget`,
-`follow_arrive`, `follow_still_time`, `follow_step` and `follow_caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
+reads `follows`, `leader()` and the holder's `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot` and the
+holder's `retarget`, `arrive`, `still_time`, `step` and `caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
 follower holding no order (LD23, the controller's reflexes' `leash_lead`): `follows` stays true for a member carrying an order (its follow spot, its
 place in the file and the rally's choice of followers still count it), but its controller pushes no leash while it holds one, so a member
 defending a room, ambushing or in a stack (held or a join) fights where the order takes it, however far its leader is.

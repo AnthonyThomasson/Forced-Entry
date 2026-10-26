@@ -39,6 +39,8 @@ const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
 const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const DoorStack := preload("res://scenes/ai/perception/stack/door_stack.gd")
 const StackLayout := preload("res://scenes/ai/perception/stack/stack_layout.gd")
+const PlayerStackReservation := preload("res://scenes/ai/team/player_stack_reservation.gd")
+const PlayerStackStepUp := preload("res://scenes/ai/team/player_stack_step_up.gd")
 ## Seconds the human's `in` stays on the radio for an AI waiting behind it to hear, and the most it
 ## is held.
 const IN_HOLD_MIN := 1.0
@@ -84,50 +86,17 @@ var _entry: RefCounted = AgentEntry.new()
 ## The allies' entry claims heard on the radio, the latest per speaker (its side, `callout_range`,
 ## `callout_ttl` on `GameClock`).
 var _ledger: RefCounted = ClaimLedger.new()
-## The doorway reserved ("" = no reservation).
-var _opening := ""
-## The key of the room the reserved doorway leads into.
-var _into := ""
-## The reserved doorway's geometry (`AgentEntry.geometry`).
-var _geo := {}
-## The human's slot number (1 = the point; 0 = none): the order it claimed in.
-var _slot := 0
-## The side of the door the human stacks on (1 / -1 along its wall).
-var _side := 0
-## The side its slot stands on: `_side`, or the other while `_side`'s wall is full (E21).
-var _on := 0
-## The physics frame the claim was made on and where the human stood then (E2: same-frame claims
-## settle by distance), kept by every repeat of it.
-var _claim_frame := -1
-var _claim_pos := Vector2.INF
-## The side the team stacks on, as last weighed (a change is weighed again).
-var _team_side := 0
-## The human's latest radio step (claim / ready / going_in / in).
-var _step := ""
-## The physics frame the human's latest crossing began on (-1 for none): restamped each time its
-## step goes from a waiting one (claim / ready) to `going_in` or `in`, since a human that brushed
-## the funnel steps back out of it, unlike an NPC. A held stack takes it as its go only when it
-## began since the order was issued (D14): a crossing already under way then is not restamped.
-var _crossed_frame := -1
-## Seconds until the latest step is radioed again.
-var _heartbeat := 0.0
+## The reservation held: the doorway, the human's slot and side, its claim and step (none while its
+## `opening` is "").
+var reservation: PlayerStackReservation = PlayerStackReservation.new()
 ## Seconds until the next walking-distance check.
 var _check := 0.0
-## `GameClock.seconds()` the AI ahead of the human was first all through (-1 = not yet).
-var _ahead_through_at := -1.0
-## `GameClock.seconds()` the human was through.
-var _in_at := -1.0
 ## doorway id -> true: declined, until nobody stacks there any more.
 var _barred := {}
 ## The house's doorways and rooms (`attach`): the doorways the human may step up to.
 var _openings: Array = []
-## Whether the reservation is the human's own claim (it stepped up with no stack forming), not a
-## slot in an allied stack.
-var _own := false
-## The doorway the human stands stepped up to ("" none).
-var _stepping := ""
-## Since when (`GameClock.seconds()`) the human has stood stepped up to `_stepping`.
-var _stepping_since := 0.0
+## The human stepping up to a doorway nobody stacks at, for its own claim (LD24).
+var step_up: PlayerStackStepUp = PlayerStackStepUp.new(self)
 
 
 func _ready() -> void:
@@ -152,7 +121,7 @@ func _physics_process(delta: float) -> void:
 	var due := _check <= 0.0
 	if due:
 		_check = CHECK_INTERVAL
-	if _opening == "":
+	if reservation.opening == "":
 		if due and _char.get("is_dead") != true:
 			_look_for_team()
 		return
@@ -179,32 +148,33 @@ static func attach(character: Node, rooms: Array, openings: Array) -> Node:
 ## its holder's side of the door: both sides on a split stack, E19; a free one on the human's side),
 ## `mine` (the human's slot) and `step` (its own radio step).
 func view() -> Dictionary:
-	if _opening == "" or _geo.is_empty():
+	if reservation.opening == "" or reservation.geo.is_empty():
 		return {}
 	var slots: Array = _stack().layout(_me()).map(
 		func(sl):
 			return { "n": sl["n"], "point": sl["point"], "mine": sl["mine"], "held": sl["held"] },
 	)
 	return {
-		"opening": _opening,
-		"door": _geo["pos"],
+		"opening": reservation.opening,
+		"door": reservation.geo["pos"],
 		"slots": slots,
-		"mine": _slot,
-		"step": _step,
+		"mine": reservation.slot,
+		"step": reservation.step,
 	}
 
 
 ## The reserved doorway's stack (`DoorStack`): the claims heard on it over its geometry.
 func _stack() -> RefCounted:
-	return _ledger.stack(_opening, _geo)
+	return _ledger.stack(reservation.opening, reservation.geo)
 
 
 ## The human's own claim as a `DoorStack` reads a member asking about itself: its slot and the side
 ## it stands on, the side it asks for (`want`), the frame and spot it claimed on and its step.
 func _me() -> Dictionary:
 	return {
-		"id": _char.get_instance_id(), "slot": _slot, "side": _on, "want": _side,
-		"frame": _claim_frame, "pos": _claim_pos, "step": _step,
+		"id": _char.get_instance_id(), "slot": reservation.slot, "side": reservation.on,
+		"want": reservation.side, "frame": reservation.claim_frame, "pos": reservation.claim_pos,
+		"step": reservation.step,
 	}
 
 
@@ -264,13 +234,13 @@ func _leads_team() -> bool:
 	return squad.members().any(func(m): return m != _char and squad.alive(m))
 
 
-## Claim the first slot of the doorway the human has stepped up to (`_stepped_up`), none forming
+## Claim the first slot of the doorway the human has stepped up to (`step_up.stepped`), none forming
 ## there (`stacking_now`: the doorways a stack forms at): its own claim, on the side it stands on.
 func _claim_own(stacking_now: Dictionary) -> void:
-	var at := _stepped_up(stacking_now)
+	var at := step_up.stepped(stacking_now)
 	if at.is_empty():
 		return
-	_own = true
+	reservation.own = true
 	_reserve(at["id"], at["into"], at["geo"], DoorStack.new(at["geo"], []))
 
 
@@ -278,76 +248,39 @@ func _claim_own(stacking_now: Dictionary) -> void:
 ## `geo`) leaves free, claiming now from where it stands, on the side it stands on unless its way
 ## there crosses the doorway's view (E19), and radio the claim.
 func _reserve(id: String, into: String, geo: Dictionary, stack: RefCounted) -> void:
-	_opening = id
-	_into = into
-	_geo = geo
-	_claim_frame = GameClock.frame()
-	_claim_pos = _char.global_position
-	_slot = 0
+	reservation.opening = id
+	reservation.into = into
+	reservation.geo = geo
+	reservation.claim_frame = GameClock.frame()
+	reservation.claim_pos = _char.global_position
+	reservation.slot = 0
 	var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, true))
-	_slot = at["slot"]
-	_on = at["side"]
-	_step = "claim"
-	_crossed_frame = -1
-	_ahead_through_at = -1.0
-	_in_at = -1.0
-	_post(_step)
+	reservation.slot = at["slot"]
+	reservation.on = at["side"]
+	reservation.step = "claim"
+	reservation.crossed_frame = -1
+	reservation.ahead_through_at = -1.0
+	reservation.in_at = -1.0
+	_post(reservation.step)
 
 
-## The side the human asks for at `stack` (`_side`, kept with `_team_side`): from where it stands,
-## the team's unless its way there crosses the doorway's view (E19), weighed on its claim (`first`)
-## and again whenever the side the team stacks on changes (its point is known now).
+## The side the human asks for at `stack` (`reservation.side`, kept with `reservation.team_side`):
+## from where it stands, the team's unless its way there crosses the doorway's view (E19), weighed
+## on its claim (`first`) and again whenever the side the team stacks on changes (its point is known
+## now).
 func _ask_side(stack: RefCounted, first: bool) -> int:
 	var pos := _char.global_position
 	var team_side: int = stack.team_side(pos)
-	if first or team_side != _team_side:
-		_team_side = team_side
+	if first or team_side != reservation.team_side:
+		reservation.team_side = team_side
 		var world := _char.get_world_2d()
-		_side = _entry.stack_side_from(stack, pos, world.navigation_map, world.direct_space_state)
-	return _side
-
-
-## The doorway the human has stepped up to (`{ id, into, geo }`, {} for none): one no stack forms
-## at (`stacking_now`) nor declined, on whose stack side it has stood `STEP_UP_TIME` against the
-## wall beside the opening (out from the wall plane and past the jamb along it, each within
-## `STEP_UP_REACH`): where the first of a stack stands. Not a pure query: each call advances the
-## step-up timer (`_stepping`, restarted at `GameClock.seconds()` whenever the doorway stood at
-## changes), so it is called once per check.
-func _stepped_up(stacking_now: Dictionary) -> Dictionary:
-	var pos := _char.global_position
-	var world := _char.get_world_2d()
-	var found := {}
-	for o: Dictionary in _openings:
-		var door: Vector2 = o["pos"]
-		var half := float(o.get("width", 80.0)) * 0.5
-		var id := AgentEntry.opening_id(o)
-		if (pos.distance_to(door) > half + STEP_UP_REACH * 2.0
-				or stacking_now.has(id)
-				or _barred.has(id)):
-			continue
-		for key in o.get("rooms", []):
-			var geo: Dictionary = _entry.geometry(
-				id, str(key), world.navigation_map, world.direct_space_state,
-			)
-			if geo.is_empty() or not _entry.slots.on_stack_side(_entry, geo, pos):
-				continue
-			var out := (pos - door).dot(geo["out"])
-			var lateral := absf((pos - door).dot(geo["along"]))
-			if (out > 0.0
-					and out <= STEP_UP_REACH
-					and lateral >= half
-					and lateral <= half + STEP_UP_REACH):
-				found = { "id": id, "into": str(key), "geo": geo }
-				break
-		if not found.is_empty():
-			break
-	var here := str(found.get("id", ""))
-	if here != _stepping:
-		_stepping = here
-		_stepping_since = GameClock.seconds()
-	if here == "" or GameClock.seconds() - _stepping_since < STEP_UP_TIME:
-		return {}
-	return found
+		reservation.side = _entry.stack_side_from(
+			stack,
+			pos,
+			world.navigation_map,
+			world.direct_space_state,
+		)
+	return reservation.side
 
 
 ## Walking distance (px) from the human to `to` over the baked map; the straight line before it is
@@ -370,28 +303,30 @@ func _keep_reservation(delta: float, due: bool) -> void:
 	var stack := _stack()
 	if _leaves(stack, due):
 		return
-	if _step != "in" and not _keeps_slot(stack):
+	if reservation.step != "in" and not _keeps_slot(stack):
 		return
 	if _gives_up(stack):
 		return
 	_take_step()
-	if _step == "in" and _done_inside(stack):
+	if reservation.step == "in" and _done_inside(stack):
 		return
-	_heartbeat -= delta
-	if _heartbeat <= 0.0:
-		_post(_step)
+	reservation.heartbeat -= delta
+	if reservation.heartbeat <= 0.0:
+		_post(reservation.step)
 
 
 ## Withdraw from `stack` when the human has walked off out of range (on a `due` tick, before it is
 ## in) or nobody stacks there any more (the human's own claim stands with nobody else yet); true
 ## when it did.
 func _leaves(stack: RefCounted, due: bool) -> bool:
-	if due and _step != "in" and _walk_distance(_geo["pos"]) > reserve_range * leave_factor:
+	if (due
+			and reservation.step != "in"
+			and _walk_distance(reservation.geo["pos"]) > reserve_range * leave_factor):
 		_withdraw("abort")
 		return true
 	if (not (stack.stacking() or stack.team.any(func(m): return m["step"] == "in"))
-			and (not _own or _step == "in")):
-		_withdraw("abort" if _step != "in" else "done")
+			and (not reservation.own or reservation.step == "in")):
+		_withdraw("abort" if reservation.step != "in" else "done")
 		return true
 	return false
 
@@ -400,16 +335,16 @@ func _leaves(stack: RefCounted, due: bool) -> bool:
 ## else the lower instance id) has it, and the human takes the next free one (E2), radioed when its
 ## slot or side changes. False, withdrawn, when it is pushed past what a dead end holds (E20).
 func _keeps_slot(stack: RefCounted) -> bool:
-	var was := _slot
-	var was_side := _on
+	var was := reservation.slot
+	var was_side := reservation.on
 	var at: Dictionary = stack.claim(_me(), func(_n): return _ask_side(stack, false))
-	_slot = at["slot"]
+	reservation.slot = at["slot"]
 	if not at["held"]:
 		_withdraw("abort")
 		return false
-	_on = at["side"]
-	if _slot != was or _on != was_side:
-		_post(_step)
+	reservation.on = at["side"]
+	if reservation.slot != was or reservation.on != was_side:
+		_post(reservation.step)
 	return true
 
 
@@ -419,17 +354,17 @@ func _gives_up(stack: RefCounted) -> bool:
 	var ahead: Array = stack.ahead(_me())
 	# (Its own claim with nobody ahead of it is the point's: nobody's going in to wait on.)
 	var ahead_through: bool = (
-		(not _own or not ahead.is_empty())
+		(not reservation.own or not ahead.is_empty())
 			and ahead.all(func(m): return StackClaim.through(m["step"]))
 	)
-	if ahead_through and _ahead_through_at < 0.0:
-		_ahead_through_at = GameClock.seconds()
+	if ahead_through and reservation.ahead_through_at < 0.0:
+		reservation.ahead_through_at = GameClock.seconds()
 	elif not ahead_through:
-		_ahead_through_at = -1.0
-	if (_waiting(_step)
-			and _ahead_through_at >= 0.0
-			and GameClock.seconds() - _ahead_through_at >= go_timeout):
-		_barred[_opening] = true   # It had its chance at this stack.
+		reservation.ahead_through_at = -1.0
+	if (_waiting(reservation.step)
+			and reservation.ahead_through_at >= 0.0
+			and GameClock.seconds() - reservation.ahead_through_at >= go_timeout):
+		_barred[reservation.opening] = true   # It had its chance at this stack.
 		_withdraw("abort")
 		return true
 	return false
@@ -439,14 +374,14 @@ func _gives_up(stack: RefCounted) -> bool:
 ## and the time it gets in kept).
 func _take_step() -> void:
 	var now := _step_at(_char.global_position)
-	if now == _step:
+	if now == reservation.step:
 		return
-	if not StackClaim.crossing(_step) and StackClaim.crossing(now):
-		_crossed_frame = GameClock.frame()
-	_step = now
-	if _step == "in":
-		_in_at = GameClock.seconds()
-	_post(_step)
+	if not StackClaim.crossing(reservation.step) and StackClaim.crossing(now):
+		reservation.crossed_frame = GameClock.frame()
+	reservation.step = now
+	if reservation.step == "in":
+		reservation.in_at = GameClock.seconds()
+	_post(reservation.step)
 
 
 ## Withdraw, done and barred from this stack, once the human has held the room `IN_HOLD_MAX` s, or
@@ -455,9 +390,9 @@ func _done_inside(stack: RefCounted) -> bool:
 	var waiting: bool = stack.behind(_me()).any(
 		func(m): return _waiting(m["step"]),
 	)
-	var held := GameClock.seconds() - _in_at
+	var held := GameClock.seconds() - reservation.in_at
 	if held >= IN_HOLD_MAX or (held >= IN_HOLD_MIN and not waiting):
-		_barred[_opening] = true
+		_barred[reservation.opening] = true
 		_withdraw("done")
 		return true
 	return false
@@ -472,21 +407,21 @@ static func _waiting(step: String) -> bool:
 ## The radio step for the human standing at `pos`: through the doorway (and it stays so), in the
 ## doorway's funnel, in its slot, or still on its way.
 func _step_at(pos: Vector2) -> String:
-	if _step == "in":
+	if reservation.step == "in":
 		return "in"
-	var door: Vector2 = _geo["pos"]
-	var out: Vector2 = _geo["out"]
+	var door: Vector2 = reservation.geo["pos"]
+	var out: Vector2 = reservation.geo["out"]
 	var outward := (pos - door).dot(out)
 	var lateral := absf((pos - door).dot(out.orthogonal()))
 	if (outward < -StackClaim.THROUGH_DEPTH
-			and lateral < float(_geo["width"]) * 0.5 + StackClaim.THROUGH_DEPTH):
+			and lateral < float(reservation.geo["width"]) * 0.5 + StackClaim.THROUGH_DEPTH):
 		return "in"
-	if absf(outward) < StackClaim.FUNNEL_DEPTH and lateral < float(_geo["width"]) * 0.5:
+	if absf(outward) < StackClaim.FUNNEL_DEPTH and lateral < float(reservation.geo["width"]) * 0.5:
 		return "going_in"
 	var spot: Vector2 = _stack().settle(_me())["point"]
 	var d := pos.distance_to(spot)
 	var reach := StackClaim.HUMAN_SLOT_REACH
-	if d <= reach or (_step == "ready" and d <= reach * 2.0):
+	if d <= reach or (reservation.step == "ready" and d <= reach * 2.0):
 		return "ready"
 	return "claim"
 
@@ -494,26 +429,13 @@ func _step_at(pos: Vector2) -> String:
 ## Give the reservation up, telling the radio (`abort`: dropped; `done`: went through and moved on).
 func _withdraw(how: String) -> void:
 	_post(how)
-	_own = false
-	_opening = ""
-	_into = ""
-	_geo = {}
-	_slot = 0
-	_side = 0
-	_on = 0
-	_claim_frame = -1
-	_claim_pos = Vector2.INF
-	_team_side = 0
-	_step = ""
-	_crossed_frame = -1
-	_ahead_through_at = -1.0
-	_in_at = -1.0
+	reservation.clear()
 
 
 ## Radio the human's step as a `callout` (the header every callout starts with, and the claim's
 ## entry fields encoded by `StackClaim.encode`, the NPCs' own) and restart the heartbeat.
 func _post(step: String) -> void:
-	_heartbeat = StackClaim.HEARTBEAT
+	reservation.heartbeat = StackClaim.HEARTBEAT
 	var pos := _char.global_position
 	var msg := {
 		"speaker": _char,
@@ -526,16 +448,16 @@ func _post(step: String) -> void:
 		"point": pos,
 	}
 	msg.merge(StackClaim.encode({
-		"opening": _opening,
-		"into": _into,
-		"slot": _slot,
-		"side": _on,
+		"opening": reservation.opening,
+		"into": reservation.into,
+		"slot": reservation.slot,
+		"side": reservation.on,
 		"entry_step": step,
 		# A full claim, as an NPC's (E2, E16): the frame and spot it was made on, and that it never
 		# holds a stack back nor turns it, throws nothing for it and never moves up.
-		"claim_frame": _claim_frame,
-		"claim_pos": _claim_pos,
-		"crossed_frame": _crossed_frame,  # Its latest crossing's (D14).
+		"claim_frame": reservation.claim_frame,
+		"claim_pos": reservation.claim_pos,
+		"crossed_frame": reservation.crossed_frame,  # Its latest crossing's (D14).
 		"bang": true,
 		"bang_off": false,
 		"stuns": 0,
@@ -545,6 +467,7 @@ func _post(step: String) -> void:
 		"leader": (squad != null and is_instance_valid(squad) and squad.has_method("leader")
 				and squad.leader() == _char),
 		"human": true,  # The human's claim: no AI member moves up into its slot (E2).
-		"own": _own,  # Its own claim, which its squad rallies the team to (LD24); else E16's.
+		# Its own claim, which its squad rallies the team to (LD24); else E16's.
+		"own": reservation.own,
 	}))
 	EventBus.post(&"callout", msg)

@@ -818,11 +818,12 @@ interfaces it takes part in (by number) and describes how they're implemented.
       (`Array` of points, oldest first) and `leash` (px), LD28), what observers draw.
     - Following reads (LD19 to LD23): `follows(member) -> bool` (alive, the squad has a leader, not the leader, an NPC), `follow_spot(member)
       -> Vector2` (the spot it keeps to now, `Vector2.INF` when it does not follow: on the leader's trail while it moves, a ring slot behind
-      it once it has stood `follow_still_time`, out of the leader's way), and the tunables the AI reads, vars on the squad: `follow_gap` (55),
-      `follow_step` (45), `follow_caught_up` (20), `follow_ring` (80), `follow_still_time` (0.8 s), `follow_retarget` (20), `follow_arrive`
-      (10), `leash` (320) and `leash_break` (1.3). The squad keeps the leader's trail every physics frame and lays the spots through its `SquadFollow`
-      (`ai/team/squad_follow.gd`, the team module's own, which reads the tunables, `leader()`, `members()`, `alive` and `follows` off the
-      squad). The controller (its reflexes part, `npc_reflexes.gd`) reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
+      it once it has stood `SquadFollowConfig.still_time`, out of the leader's way), and the tunables the AI reads, the static holder
+      `SquadFollowConfig` (`ai/team/squad_follow_config.gd`, the same for every squad): `gap` (55), `step` (45), `caught_up` (20), `ring` (80),
+      `still_time` (0.8 s), `retarget` (20), `arrive` (10), `leash` (320) and `leash_break` (1.3). The squad keeps the leader's trail every
+      physics frame and lays the spots through its `SquadFollow` (`ai/team/squad_follow.gd`, the team module's own, which reads the holder,
+      `leader()`, `members()`, `alive` and `follows` off the squad). The controller (its reflexes part, `npc_reflexes.gd`) reads `follows`,
+      `leader()` and the holder's `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
       follow tunables, and faces away from the leash centre the controller pushes (its leader's live position), reading no `leader()`.
     - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang?, mode?, wait_go? }`:
       no `to` = every living member but the leader; a stack's `mode` one of `Squad.MODES`, `quiet` / `stun` / `frag`; `Squad.JOIN`, `join`, is
@@ -1026,7 +1027,7 @@ TestBrowser ──(Back: scene change)──▶ main
 Physics, Navigation, Art, Audio, Lighting and World-Gen are leaves — apart from General's infrastructure (`GameLog`, `EventBus`,
 `Despawner`, `GameClock`, `PhysicsLayers`, `DrawLayers`, `LightMasks`, `FillBatch`, `WeightedPick`), which every domain may use (World-Gen's only outward code dep is
 the four factories; Navigation depends only on Godot's `NavigationServer2D`; Art
-only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-six `class_name` static holders, one per topic, each with 15 vars or fewer
+only on Godot's `Image`; Lighting reads the world only duck-typed). Tuning is split into seventy-seven `class_name` static holders, one per topic, each with 15 vars or fewer
 (`docs/adr/0003-config-holders-split-by-topic.md`); a domain's holders share its stem, so
 `grep -r "class_name Character.*Config" scenes` lists the Character ones, and each domain skill says what each holds.
 **Projectile:** `BallisticsFlightConfig` (speeds, a bullet's height and the fly-over, a surfaceless collider),
@@ -1065,6 +1066,7 @@ weight bands, seed, prewarm), `SoundDeafnessConfig` and `SoundVehicleConfig`.
 `VehicleDoorConfig`, `VehicleDriveConfig` (with the camera's zoom-out), `VehicleCollisionConfig` and `VehicleArtConfig`.
 **Lighting:** `LightingConfig` (the master switch, the dusk, the flashes and the per-floor budget),
 `LightingFixtureConfig` and `LightingTextureConfig`.
+**AI:** `SquadFollowConfig` (the squads' follow spacing and leash, `docs/leadership.md` LD21 to LD23).
 A new tunable goes in the holder of its topic; one that fits no topic starts a holder of its own, never a kept family
 holder unless it is a family-wide switch or a per-kind row (ADR 0003). World-Gen's `LayoutRules` (which rooms may
 hold the front door or an exit, which room types may share a door) is a rules table in the same style, not
