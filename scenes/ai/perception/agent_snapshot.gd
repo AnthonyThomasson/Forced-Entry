@@ -6,7 +6,8 @@ extends RefCounted
 ## turns on). It is a pure transform: it reads the event memory and the tactics module, holds no
 ## state between calls, and never writes memory, decides or picks. The work is split three ways
 ## under `snapshot/`: the shared vocabulary and tuning (`vocab`), the state text (`_sections`) and
-## the option groups (`_options`); this file assembles them. `agent_perception.gd` (the SEE half)
+## the option groups (`_options`, with the grenade throws in `_throws` and the leader's order in
+## `_orders`); this file assembles them. `agent_perception.gd` (the SEE half)
 ## owns it, like it owns vision / hostility / memory / tactics, and calls `build()` once per
 ## decision.
 ##
@@ -23,6 +24,8 @@ const SnapshotVocab = preload("res://scenes/ai/perception/snapshot/snapshot_voca
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 const SnapshotSections = preload("res://scenes/ai/perception/snapshot/snapshot_sections.gd")
 const SnapshotOptions = preload("res://scenes/ai/perception/snapshot/snapshot_options.gd")
+const SnapshotThrows = preload("res://scenes/ai/perception/snapshot/snapshot_throws.gd")
+const SnapshotOrders = preload("res://scenes/ai/perception/snapshot/snapshot_orders.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
 ## The shared vocabulary and tuning. The perception's apply_config() sets the tunables here (like it
@@ -32,6 +35,10 @@ var vocab := SnapshotVocab.new()
 var _sections := SnapshotSections.new()
 ## The option groups; see snapshot_options.gd.
 var _options := SnapshotOptions.new()
+## The grenade option groups; see snapshot_throws.gd.
+var _throws := SnapshotThrows.new()
+## The ORDER option group; see snapshot_orders.gd.
+var _orders := SnapshotOrders.new()
 ## The agent's event memory (read-only here); see agent_memory.gd.
 var _memory: RefCounted
 ## The combat geometry; see agent_tactics.gd.
@@ -50,15 +57,18 @@ func setup(sources: SnapshotSources) -> void:
 	_tactics = sources.tactics
 	_sections.setup(vocab, sources.memory, sources.tactics)
 	_options.setup(vocab, sources)
+	_throws.setup(vocab, sources)
+	_orders.setup(vocab, sources)
 
 
-## Hand in the NPC's body, for the author and its three parts. Called once by
+## Hand in the NPC's body, for the author and the four parts that read it. Called once by
 ## `AgentPerception.bind()`.
 func bind(character: Node) -> void:
 	_character = character
 	vocab.character = character
 	_sections.bind(character)
 	_options.bind(character)
+	_orders.bind(character)
 
 
 ## BUILD pass — run at the start of each decision. Assemble the snapshot the decision planner walks,
@@ -70,7 +80,8 @@ func bind(character: Node) -> void:
 func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) -> Dictionary:
 	vocab.rooms = rooms
 	_options.know = knowledge
-	_options.begin()
+	_throws.know = knowledge
+	_throws.begin()
 	var ctx := _context(knowledge["contacts"], knowledge["callouts"])
 	var parts := _per_target(ctx, rooms)
 	parts.merge(_shared(ctx, rooms, knowledge))
@@ -129,7 +140,7 @@ func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 			"flank_sides": _options.flank_group(t, a, rooms),
 			"advance_positions": _options.advance_group(ctx, t, a),
 			"melee": _options.melee_group(ctx["self_pos"], t),
-			"grenade_throws": _options.grenade_group(ctx, t, a),
+			"grenade_throws": _throws.grenade_group(ctx, t, a),
 		}
 		per_sections[t["id"]] = _target_sections(ctx, t, a, per_target[t["id"]]["grenade_throws"])
 	return { "per_target": per_target, "per_sections": per_sections, "analyses": analyses }
@@ -171,7 +182,7 @@ func _shared(ctx: Dictionary, rooms: Array, knowledge: Dictionary) -> Dictionary
 	var leads := _options.lead_group(ctx, ctx["hostiles"], entered if stun_stack else {})
 	# Shot at by someone unseen from a room it is outside of: a grenade where the shots came from
 	# (the unbound COMBAT level).
-	var shots_throws := _options.shots_grenade_group(ctx, ctx["hostiles"])
+	var shots_throws := _throws.shots_grenade_group(ctx, ctx["hostiles"])
 	var dmg: float = _character.damage_taken()
 	# Rounds in the gun it fights with (-1 without one): the AI shoots, reloads and plans around it.
 	var gun: int = _character.inventory.gun_slot()
@@ -289,7 +300,7 @@ func _option_groups(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -
 		"explore": _options.explore_group(ctx, rooms, parts["entered"]),
 		"interactions": _options.interaction_group(self_pos),
 		"rooms": _options.room_group(ctx, known_rooms, rooms),
-		"order": _options.order_group(ctx, knowledge["order"], rooms),
+		"order": _orders.group(ctx, knowledge["order"], rooms),
 	}
 
 

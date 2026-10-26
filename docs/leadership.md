@@ -15,7 +15,7 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
 pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `_stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
-(`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
+(`snapshot_orders.gd` `group`, `snapshot_options.gd` `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior_entries.gd`, and the perception's `ordered_walk` and `_seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
