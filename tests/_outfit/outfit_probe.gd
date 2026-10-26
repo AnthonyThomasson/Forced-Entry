@@ -4,7 +4,7 @@ extends RefCounted
 ## behaviour they assert is `docs/outfits.md` (O1 to O14 = the rules of the plan on issue #38).
 ##
 ## The outfit API is called directly: the character's `wardrobe.outfit.set_ids(ids)` /
-## `wardrobe.outfit.view()` (behind `has_api`, so a body without them fails a named check rather
+## `wardrobe.outfit.view()` (behind `_has_api`, so a body without them fails a named check rather
 ## than an engine error) and
 ## `LoadoutConfig.outfit_options()`. `Visuals.drawn_art()` (the textures the last draw of the body
 ## painted, in order) is reached by `has_method` / `call`: the Visuals script has no class_name.
@@ -66,7 +66,7 @@ static func pin_height(s: TestSetup, height := 40.0) -> void:
 
 
 ## Whether `c` has the outfit API (its `wardrobe`, with the `outfit` it wears).
-static func has_api(c: Node) -> bool:
+static func _has_api(c: Node) -> bool:
 	return "wardrobe" in c
 
 
@@ -74,7 +74,7 @@ static func has_api(c: Node) -> bool:
 ## `if not OutfitProbe.require_api(t, c): return`.
 static func require_api(t: TestContext, c: Node) -> bool:
 	return t.require(
-		has_api(c),
+		_has_api(c),
 		"the character's wardrobe.outfit.set_ids(ids) and wardrobe.outfit.view() exist "
 			+ "(docs/outfits.md O1)",
 	)
@@ -83,7 +83,7 @@ static func require_api(t: TestContext, c: Node) -> bool:
 ## Dress `c` in `ids` (`{ head, body, vest, pants, feet, front_plate, back_plate }`, missing =
 ## none). False when the API is missing.
 static func wear(c: Node, ids: Dictionary) -> bool:
-	if not has_api(c):
+	if not _has_api(c):
 		return false
 	c.wardrobe.outfit.set_ids(ids)
 	return true
@@ -92,7 +92,7 @@ static func wear(c: Node, ids: Dictionary) -> bool:
 ## `c.wardrobe.outfit.view()`: `{ head, body, vest, pants, feet }` garment names and
 ## `front_plate` / `back_plate` as `{ type, condition }`.
 static func view(c: Node) -> Dictionary:
-	return c.wardrobe.outfit.view() if has_api(c) else {}
+	return c.wardrobe.outfit.view() if _has_api(c) else {}
 
 
 ## The condition (1 new .. 0 spent) of the plate on `side` (`"front_plate"` / `"back_plate"`); -1
@@ -120,7 +120,7 @@ static func options() -> Array:
 
 
 ## The row of `options()` for `slot`, {} when there is none.
-static func option_row(slot: String) -> Dictionary:
+static func _option_row(slot: String) -> Dictionary:
 	for row: Dictionary in options():
 		if str(row.get("slot", "")) == slot:
 			return row
@@ -129,7 +129,7 @@ static func option_row(slot: String) -> Dictionary:
 
 ## The label `outfit_options()` gives garment `id` in `slot` ("" when it is not offered).
 static func label_of(slot: String, id: StringName) -> String:
-	for choice: Dictionary in option_row(slot).get("choices", []):
+	for choice: Dictionary in _option_row(slot).get("choices", []):
 		if StringName(choice.get("id", &"")) == id:
 			return str(choice.get("label", ""))
 	return ""
@@ -175,7 +175,7 @@ static func fire(
 static func lay_lanes(s: TestSetup, lanes: Array) -> void:
 	for i in lanes.size():
 		var lane: Dictionary = lanes[i]
-		var y := lane_y(i)
+		var y := _lane_y(i)
 		var facing: Vector2 = lane.get("facing", Vector2.LEFT)
 		s.actor(
 			lane["id"], &"puppet", Vector2(TARGET_X, y),
@@ -185,17 +185,17 @@ static func lay_lanes(s: TestSetup, lanes: Array) -> void:
 				"movement:aim_point": Vector2(TARGET_X, y) + facing * 300.0,
 			},
 		)
-		s.actor(witness_id(lane), &"puppet", Vector2(WITNESS_X, y),
+		s.actor(_witness_id(lane), &"puppet", Vector2(WITNESS_X, y),
 			{ "max_health": 10_000.0, "facing": Vector2.LEFT, "movement:aim_point": Vector2(0, y) })
 
 
 ## The y of shooting lane `i`, top down.
-static func lane_y(i: int) -> float:
+static func _lane_y(i: int) -> float:
 	return LANE_TOP + LANE_GAP * i
 
 
 ## The id of the witness standing behind `lane`'s target.
-static func witness_id(lane: Dictionary) -> StringName:
+static func _witness_id(lane: Dictionary) -> StringName:
 	return StringName("%s_witness" % lane["id"])
 
 
@@ -206,7 +206,7 @@ static func dress(t: TestContext, lanes: Array) -> bool:
 		var target := t.actor(lane["id"])
 		var facing: Vector2 = lane.get("facing", Vector2.LEFT)
 		t.puppet(lane["id"]).aim_at(target.global_position + facing * 300.0)
-		t.puppet(witness_id(lane)).aim_at(Vector2(0, target.global_position.y))
+		t.puppet(_witness_id(lane)).aim_at(Vector2(0, target.global_position.y))
 		if not (lane.get("outfit", {}) as Dictionary).is_empty():
 			if not require_api(t, target):
 				return false
@@ -227,7 +227,7 @@ static func volley(t: TestContext, lanes: Array) -> Dictionary:
 			target.health,
 			target.damage_taken(),
 			hits_on(t, target).size(),
-			hits_on(t, t.actor(witness_id(lane))).size(),
+			hits_on(t, t.actor(_witness_id(lane))).size(),
 		]
 	for lane: Dictionary in lanes:
 		fire(
@@ -252,7 +252,7 @@ static func volley(t: TestContext, lanes: Array) -> Dictionary:
 		out[lane["id"]] = {
 			"lost": float(was[0]) - target.health,
 			"wounded": target.damage_taken() > float(was[1]) + 0.001,
-			"through": hits_on(t, t.actor(witness_id(lane))).size() > int(was[3]),
+			"through": hits_on(t, t.actor(_witness_id(lane))).size() > int(was[3]),
 			"hit": hits[int(was[2])] if hits.size() > int(was[2]) else {},
 		}
 	return out
