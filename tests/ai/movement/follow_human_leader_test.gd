@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 	_check_ring(t, me, members, w, float(rec["stopped_at"]))
 	_check_file(t, members, rec)
 	t.check(rec["rang"], "both rang the human within %.1f s of its standing still" % RING_WITHIN)
-	_check_tunables(t, squad)
+	_check_tunables(t)
 	_check_view(t, members, rec["viewed"])
 	t.check(
 		members.all(func(m): return Follow.asked(w, m) == 0),
@@ -216,21 +216,22 @@ func _check_file(t: TestContext, members: Array, rec: Dictionary) -> void:
 		)
 
 
-## The squad's follow tunables are the spec's.
-func _check_tunables(t: TestContext, squad: Node) -> void:
+## The squads' follow tunables (`SquadFollowConfig`) are the spec's.
+func _check_tunables(t: TestContext) -> void:
 	var tuned := {
-		"follow_gap": Follow.FOLLOW_GAP, "follow_step": Follow.FOLLOW_STEP,
-		"follow_ring": Follow.FOLLOW_RING, "follow_still_time": Follow.FOLLOW_STILL_TIME,
-		"follow_retarget": Follow.FOLLOW_RETARGET, "follow_arrive": Follow.FOLLOW_ARRIVE,
+		"gap": Follow.FOLLOW_GAP, "step": Follow.FOLLOW_STEP,
+		"ring": Follow.FOLLOW_RING, "still_time": Follow.FOLLOW_STILL_TIME,
+		"retarget": Follow.FOLLOW_RETARGET, "arrive": Follow.FOLLOW_ARRIVE,
 		"leash": Follow.LEASH, "leash_break": Follow.LEASH_BREAK,
 	}
+	var holder: Script = SquadFollowConfig
 	var off_spec: Array = tuned.keys().filter(
-		func(k): return not is_equal_approx(float(squad.get(k)), float(tuned[k])),
+		func(k): return not is_equal_approx(float(holder.get(k)), float(tuned[k])),
 	)
 	t.check(
 		off_spec.is_empty(),
 		"the squad's follow tunables are LD21 to LD23's (off: %s)"
-			% str(off_spec.map(func(k): return "%s %s, not %s" % [k, squad.get(k), tuned[k]])),
+			% str(off_spec.map(func(k): return "%s %s, not %s" % [k, holder.get(k), tuned[k]])),
 	)
 
 

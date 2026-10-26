@@ -37,10 +37,10 @@ func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var m := t.actor(&"m")
 	if not t.require(
-			is_equal_approx(squad.leash, Follow.LEASH),
-			"premise: the squad's leash is %.0f px (Squad.leash: %.0f)" % [
+			is_equal_approx(SquadFollowConfig.leash, Follow.LEASH),
+			"premise: the squad's leash is %.0f px (SquadFollowConfig.leash: %.0f)" % [
 				Follow.LEASH,
-				squad.leash,
+				SquadFollowConfig.leash,
 			],
 	):
 		return

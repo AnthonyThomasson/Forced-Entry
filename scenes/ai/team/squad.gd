@@ -41,12 +41,12 @@ extends Node
 ##
 ## **Following (LD19 to LD23).** Every living NPC member but the leader follows it (`follows`): it
 ## picks no goal of its own and keeps to the spot the squad gives it (`follow_spot`). While the
-## leader moves that spot is on the leader's trail, a file behind it (`follow_gap` back, then
-## `follow_step` further for each next follower); once the leader has stood `follow_still_time` it
-## is a slot on a ring (`follow_ring`) behind the way the leader came, within the leader's sight,
-## and never in the leader's way (D28). The trail and the spots are `SquadFollow`'s
-## (`squad_follow.gd`); the tunables are here. A follower fights only within the `leash` of the
-## leader's live position. A human member who does not lead is never given a spot.
+## leader moves that spot is on the leader's trail, a file behind it (`SquadFollowConfig.gap` back,
+## then `step` further for each next follower); once the leader has stood `still_time` it is a slot
+## on a ring (`ring`) behind the way the leader came, within the leader's sight, and never in the
+## leader's way (D28). The trail and the spots are `SquadFollow`'s (`squad_follow.gd`); the
+## tunables are the holder's (`squad_follow_config.gd`). A follower fights only within the holder's
+## `leash` of the leader's live position. A human member who does not lead is never given a spot.
 ##
 ## **The rally (LD24 to LD26).** The leader's own entry claim at a doorway gives every follower
 ## holding no order a `stack` order of mode `JOIN` there (D24), once per doorway per leader; its
@@ -64,8 +64,8 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 ## The entry claim's wire format and step lists, and the claims heard on the radio
 ## (scenes/ai/perception/stack/).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
-const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 const SquadFollow := preload("res://scenes/ai/team/squad_follow.gd")
+const SquadStacks := preload("res://scenes/ai/team/squad_stacks.gd")
 ## The order kinds.
 const DEFEND := "defend_room"
 const STACK := "stack"
@@ -80,26 +80,6 @@ const MODES := ["quiet", "stun", "frag"]
 ## names it, only the rally posts it.
 const JOIN := StackClaim.JOIN
 
-## The follow file (px): the first follower keeps this far back along the leader's trail...
-var follow_gap := 55.0
-## ... and each next one this much further (also the spacing of the slots on a ring, and of the
-## rings).
-var follow_step := 45.0
-## A follower that has fallen `follow_step` behind its spot runs to catch up, and keeps running
-## until it is this near (px) its spot.
-var follow_caught_up := 20.0
-## The ring (px) round a still leader its followers stand on, behind its facing.
-var follow_ring := 80.0
-## Seconds the leader stands (within `SquadFollow.TRAIL_STEP`) before it counts as still.
-var follow_still_time := 0.8
-## A follower re-aims its walk only once its spot has moved this far (px) from where it is going.
-var follow_retarget := 20.0
-## A follower is at its spot within this distance (px).
-var follow_arrive := 10.0
-## A follower fights within this distance (px) of the leader's live position...
-var leash := 320.0
-## ... and one fighting further than this many leashes from it re-decides.
-var leash_break := 1.3
 ## The side this squad is (its members' `faction`).
 var _faction: StringName = &""
 ## The roster, in spawn order (the human leader among them when it leads).
@@ -120,16 +100,9 @@ var _steps := {}
 var _issued := 0
 ## The ids of the held stack orders a go released (LD13, D12): order id -> true.
 var _released := {}
-## The entry claims of this side heard on the radio, the latest per member (LD18): from anywhere
-## (the side's whole view), each current for the NPCs' `callout_ttl` (`setup`; a claim is repeated
-## every `StackClaim.HEARTBEAT` s).
-var _ledger: RefCounted = ClaimLedger.new()
-## `_stacks()` as last laid (`_stacks_now`).
-var _stacks_cache: Array = []
-## The physics frame `_stacks_cache` was laid on (-1: lay it again on the next read).
-var _stacks_at := -1
-## The doorway geometry the stacks are laid out by, the same the NPCs build.
-var _entry: RefCounted = AgentEntry.new()
+## Every stack the side is forming (LD18): the side's entry claims heard and the doorway geometry
+## they are laid by (squad_stacks.gd).
+var stacks: SquadStacks = SquadStacks.new(self)
 ## Member instance id -> true for each member an NPC controller drives (the ones that follow).
 var _npcs := {}
 ## The leader's trail and the followers' spots (`setup`; null before it).
@@ -152,11 +125,11 @@ func _physics_process(_delta: float) -> void:
 ## member's `died` and to the radio from here on.
 func setup(roster: SquadRoster, openings: Array, rooms: Array) -> void:
 	_faction = roster.faction
-	_ledger.setup({ "faction": roster.faction, "range": 0.0, "ttl": roster.claim_ttl })
+	stacks.ledger.setup({ "faction": roster.faction, "range": 0.0, "ttl": roster.claim_ttl })
 	_members = roster.members.filter(func(m): return m is Node and is_instance_valid(m))
 	_openings = openings
 	_rooms = rooms
-	_entry.set_house(openings, rooms)
+	stacks.entry.set_house(openings, rooms)
 	var human := roster.human
 	_human = human if human != null and _members.has(human) else null
 	for m: Node in _members:
@@ -218,8 +191,8 @@ static func is_join(order: Dictionary) -> bool:
 ## carries `go: true`), `step` its latest progress on it ("" for none; `done` with no order held
 ## once it is done) and `held` whether that order is a stack waiting for the leader's go
 ## (`_waits_for_go`, LD13), `follow_spot` its spot when it follows (`Vector2.INF` when not);
-## `stacks` every stack the side is forming (`_stacks`); `trail` the leader's trail (oldest point
-## first) and `leash` (px).
+## `stacks` every stack the side is forming (`stacks.now()`); `trail` the leader's trail (oldest
+## point first) and `leash` (px).
 func view() -> Dictionary:
 	var rows: Array = []
 	for m: Node in _members:
@@ -241,52 +214,10 @@ func view() -> Dictionary:
 	return {
 		"leader": _leader,
 		"members": rows,
-		"stacks": _stacks_now(),
+		"stacks": stacks.now(),
 		"trail": Array(_follow.trail()) if _follow != null else [],
-		"leash": leash,
+		"leash": SquadFollowConfig.leash,
 	}
-
-
-## `_stacks()`, laid at most once a physics frame, and again after a claim heard or a member's
-## death: the stack markers, the order markers and the leaders overlay each read `view()` every
-## frame (about 0.14 ms a lay with a six-member stack).
-func _stacks_now() -> Array:
-	var frame := Engine.get_physics_frames()
-	if frame != _stacks_at:
-		_stacks_cache = _stacks()
-		_stacks_at = frame
-	return _stacks_cache
-
-
-## Every stack the side is forming (LD18), from the entry claims heard:
-## `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, a stack
-## while one of its members is still on its way in. Its slots run from 1 to the last claimed, each
-## where the AI stands it (`DoorStack.layout`: its holder's side, its place in that side's file),
-## a free one on the stack's side; `holder` the instance id holding it (0: none), `there` its
-## holder standing in it, `mine` the human's, `row` its file (1 against the wall, 2 a step out).
-func _stacks() -> Array:
-	var out: Array = []
-	for at: Dictionary in _ledger.openings_stacking():
-		var g := _geometry(at["opening"], at["into"])
-		if g.is_empty():
-			continue
-		out.append({
-			"opening": at["opening"],
-			"into": at["into"],
-			"door": g["pos"],
-			"slots": _ledger.stack(at["opening"], g).layout(),
-		})
-	return out
-
-
-## The entry geometry of doorway `opening` into room `into`, on the world the squad is in: its
-## viewport's `World2D`, the one its members stand in ({} when none is known, or the squad is not in
-## the tree).
-func _geometry(opening: String, into: String) -> Dictionary:
-	if not is_inside_tree():
-		return {}
-	var world := get_viewport().find_world_2d()
-	return _entry.geometry(opening, into, world.navigation_map, world.direct_space_state)
 
 
 ## Turn a leader's request (`{ kind, to, pos?, room?, bang?, mode?, wait_go? }`) into an order and
@@ -391,7 +322,7 @@ func _waits_for_go(order: Dictionary) -> bool:
 ## crossing begun since the order's `frame`, D14), as each member keeps its own: a go once heard
 ## stands, whatever the claims say after.
 func _latch_go(opening: String) -> void:
-	var stack: RefCounted = _ledger.stack(opening)
+	var stack: RefCounted = stacks.ledger.stack(opening)
 	var held := _held_at(opening)
 	for id in held:
 		if stack.released(str(id), str(held[id]["into"]), int(held[id]["frame"])):
@@ -519,7 +450,7 @@ func _next_leader() -> Node:
 ## follow the new leader; its stack orders are finished.
 func _on_died(member: Node) -> void:
 	_orders.erase(member.get_instance_id())
-	_stacks_at = -1
+	stacks.invalidate()
 	if _follow != null:
 		_follow.invalidate()
 	if member == _leader:
@@ -569,9 +500,9 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 	if topic != &"callout":
 		return
 	var speaker = data.get("speaker")
-	_ledger.hear(data)
+	stacks.ledger.hear(data)
 	if StringName(data.get("faction", &"")) == _faction and not StackClaim.keeps_claim(data):
-		_stacks_at = -1  # A member's place in a stack (LD18), or its claim gone.
+		stacks.invalidate()  # A member's place in a stack (LD18), or its claim gone.
 		if StackClaim.is_claim(data):
 			_latch_go(StackClaim.decode(data)["opening"])
 	if (StackClaim.is_claim(data)

@@ -107,9 +107,9 @@ func run(t: TestContext) -> void:
 
 func _on_order(t: TestContext, squad: Node, m: Node, b: Node) -> bool:
 	if not t.require(
-			GUNMAN_AT.distance_to(LEAD_AT) > squad.leash,
+			GUNMAN_AT.distance_to(LEAD_AT) > SquadFollowConfig.leash,
 			"premise: the gunman stands off the leader's leash (%.0f px, leash %.0f)"
-				% [GUNMAN_AT.distance_to(LEAD_AT), squad.leash],
+				% [GUNMAN_AT.distance_to(LEAD_AT), SquadFollowConfig.leash],
 	):
 		return false
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [m], "room": "arena" })

@@ -33,9 +33,9 @@ func bind(character: Node) -> void:
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the
 ## perception's `follows`), deciding at once when that changes (it joined a squad's file, or the
 ## leader it followed died and it leads now), and the leash it fights within while it holds no
-## order (`leash_lead`). A leashed follower fighting farther than `leash_break` leashes from its
-## leader, neither committed nor on its way somewhere, decides again, once until it has been back
-## within that.
+## order (`leash_lead`). A leashed follower fighting farther than `SquadFollowConfig.leash_break`
+## leashes from its leader, neither committed nor on its way somewhere, decides again, once until it
+## has been back within that.
 func follow_squad() -> void:
 	var squad: Node = controller.squad
 	var behavior: Node = controller._behavior
@@ -52,9 +52,9 @@ func follow_squad() -> void:
 		behavior.orders.set_leash(Vector2.INF, 0.0)
 		_leash_broke = false
 		return
-	behavior.orders.set_leash(lead.global_position, squad.leash)
+	behavior.orders.set_leash(lead.global_position, SquadFollowConfig.leash)
 	if (controller._character.global_position.distance_to(lead.global_position)
-			<= squad.leash * squad.leash_break):
+			<= SquadFollowConfig.leash * SquadFollowConfig.leash_break):
 		_leash_broke = false
 	elif (not _leash_broke
 			and behavior.in_combat()

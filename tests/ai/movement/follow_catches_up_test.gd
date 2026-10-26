@@ -59,8 +59,8 @@ func describe() -> Dictionary:
 		"name": "A follower runs until it has caught up",
 		"description": "A puppet human leader walks a long straight line, pausing halfway to look "
 			+ "back: its NPC follower, starting far behind, runs to catch up and keeps running "
-			+ "until it is back within follow_caught_up of its spot, through a teammate stepping "
-			+ "into its way, and again after the pause.",
+			+ "until it is back within SquadFollowConfig.caught_up of its spot, through a "
+			+ "teammate stepping into its way, and again after the pause.",
 		"tags": ["ai", "movement", "squad", "follow", "leadership", "run", "von"],
 		"requires_von": true,
 		"timeout": 70.0,
@@ -102,10 +102,10 @@ func run(t: TestContext) -> void:
 			% [Follow.FOLLOW_CAUGHT_UP, short.size(), catch_ups.size()]
 			+ "the first such: %s)" % [short[0] if not short.is_empty() else "-"],
 	)
-	var tuned: Variant = squad.get("follow_caught_up")
+	var tuned: Variant = (SquadFollowConfig as Script).get("caught_up")
 	t.check(
 		tuned != null and is_equal_approx(float(tuned), Follow.FOLLOW_CAUGHT_UP),
-		"the squad's follow_caught_up is LD21's (%s, not %s)"
+		"SquadFollowConfig.caught_up is LD21's (%s, not %s)"
 			% [tuned, Follow.FOLLOW_CAUGHT_UP],
 	)
 	t.expect_eq(Follow.asked(rec.w, m), 0, "the follower asked Von nothing")

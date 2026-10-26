@@ -2,20 +2,20 @@ extends RefCounted
 ## AI domain · TEAM — where a squad's followers stand (`docs/leadership.md` LD21, D28): the leader's
 ## trail and every follower's spot on it, on a ring round a still leader, and out of the leader's
 ## way. Owned by its `Squad` (`squad.gd`), which hands `follow_spot` here and keeps the published
-## reads and the follow tunables (`follow_gap`, `follow_step`, `follow_ring`, `follow_still_time`,
-## `follow_retarget`, `follow_arrive`), read off it. It reads the squad only through its public
-## reads (`leader()`, `members()`, `alive`, `follows`), the leader's `global_position` and `facing`
-## and its members' `global_position` (the Character API, interface 7), and lays the spots on the
-## navigation map and physics space of the squad's own viewport's `World2D` (`NavBuilder.snap`,
-## interface 9; a wall ray for the leader's sight).
+## reads, read off it; the follow tunables (`gap`, `step`, `ring`, `still_time`, `retarget`,
+## `arrive`) are `SquadFollowConfig`'s (`squad_follow_config.gd`). It reads the squad only through
+## its public reads (`leader()`, `members()`, `alive`, `follows`), the leader's `global_position`
+## and `facing` and its members' `global_position` (the Character API, interface 7), and lays the
+## spots on the navigation map and physics space of the squad's own viewport's `World2D`
+## (`NavBuilder.snap`, interface 9; a wall ray for the leader's sight).
 ##
 ## **The trail.** A point each `TRAIL_STEP` the leader moves (`track`, every physics frame), kept as
 ## long as the file needs, and the rooms the leader stood in since it led (`_visited`); `reset`
 ## starts it afresh at a new leader. **The spots** (`spot`) are laid at most once a physics frame
 ## and only when the leader moved, turned or stopped or the followers changed: on the trail while
-## the leader moves (`follow_gap` back, then `follow_step` further for each next follower), a slot
-## on a ring behind the way it came once it has stood `follow_still_time` (`_ring_slots`), then
-## moved out of the lane ahead of the leader's facing (`_clear_of_way`).
+## the leader moves (`SquadFollowConfig.gap` back, then `step` further for each next follower), a
+## slot on a ring behind the way it came once it has stood `still_time` (`_ring_slots`), then moved
+## out of the lane ahead of the leader's facing (`_clear_of_way`).
 
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const Squad := preload("res://scenes/ai/team/squad.gd")
@@ -30,7 +30,7 @@ const RINGS := 3
 ## body standing in blocks (two bodies touch at 28 px).
 const WAY_CLEARANCE := 32.0
 
-## The squad whose followers these are: its reads and its follow tunables.
+## The squad whose followers these are: its reads.
 var _squad: Squad = null
 ## The house's doorways (`WorldGen.get_openings`): no spot lies in one.
 var _openings: Array = []
@@ -117,8 +117,8 @@ func track() -> void:
 	_visited[_room_at(here)] = true
 	_moved_at = GameClock.seconds()
 	var keep: float = (
-		_squad.follow_gap
-			+ _squad.follow_step * maxf(_squad.members().size(), 1.0)
+		SquadFollowConfig.gap
+			+ SquadFollowConfig.step * maxf(_squad.members().size(), 1.0)
 			+ TRAIL_STEP * 2.0
 	)
 	var length := 0.0
@@ -161,7 +161,7 @@ func _lay_spots() -> void:
 		return
 	var here := lead.global_position
 	var facing := _heading()
-	var still: bool = GameClock.seconds() - _moved_at >= _squad.follow_still_time
+	var still: bool = GameClock.seconds() - _moved_at >= SquadFollowConfig.still_time
 	var file := followers()
 	if not _moved_on(here, facing, still, file):
 		return
@@ -179,7 +179,7 @@ func _lay_spots() -> void:
 				world,
 				here,
 				file[i],
-				_squad.follow_gap + _squad.follow_step * i + pushed,
+				SquadFollowConfig.gap + SquadFollowConfig.step * i + pushed,
 			)
 		_spots[file[i].get_instance_id()] = at
 
@@ -202,10 +202,10 @@ func _moved_on(here: Vector2, facing: Vector2, still: bool, file: Array) -> bool
 
 ## How far (px, from `pushed`, how far the file ahead of it was stepped back) the file spot of
 ## follower `i` of `count` steps back along the trail: while the leader stands `still`, until the
-## spot is out of every doorway, at most `follow_step` x `count`.
+## spot is out of every doorway, at most `SquadFollowConfig.step` x `count`.
 func _pushed_clear(i: int, pushed: float, still: bool, count: int) -> float:
-	var gap: float = _squad.follow_gap
-	var step: float = _squad.follow_step
+	var gap: float = SquadFollowConfig.gap
+	var step: float = SquadFollowConfig.step
 	var back := _trail_point(gap + step * i + pushed)
 	while still and _in_doorway(back) and pushed < step * count:
 		pushed += TRAIL_STEP
@@ -253,7 +253,7 @@ func _clear_of_way(member: Node, at: Vector2) -> Vector2:
 	var along := clampf(
 		((at if spot_in else p) - here).dot(ahead),
 		0.0,
-		_squad.follow_ring + _squad.follow_step,
+		SquadFollowConfig.ring + SquadFollowConfig.step,
 	)
 	var aside := _beside_way(member, here, ahead, along, _side_of_way(p, at, here, across))
 	if aside == Vector2.INF:
@@ -278,8 +278,8 @@ func _kept_aside(member: Node, p: Vector2, here: Vector2, ahead: Vector2) -> Vec
 	if kept.is_empty():
 		return Vector2.INF
 	var across := ahead.orthogonal()
-	var arrive: float = _squad.follow_arrive
-	if (here.distance_to(kept["from"]) < _squad.follow_ring
+	var arrive: float = SquadFollowConfig.arrive
+	if (here.distance_to(kept["from"]) < SquadFollowConfig.ring
 			and ahead.dot(kept["way"]) > 0.0
 			and not _in_way(kept["spot"] - here, ahead, across, WAY_CLEARANCE + arrive)
 			and not _in_way(p - here, ahead, across)
@@ -295,8 +295,8 @@ func _kept_aside(member: Node, p: Vector2, here: Vector2, ahead: Vector2) -> Vec
 func _beside_way(member: Node, here: Vector2, ahead: Vector2, along: float, side: float) -> Vector2:
 	var world: World2D = _squad.get_viewport().find_world_2d()
 	var across := ahead.orthogonal()
-	var arrive: float = _squad.follow_arrive
-	var off: float = WAY_CLEARANCE + arrive + _squad.follow_retarget
+	var arrive: float = SquadFollowConfig.arrive
+	var off: float = WAY_CLEARANCE + arrive + SquadFollowConfig.retarget
 	for s in [side, -side]:
 		var beside := _open_at(world, here, here + ahead * along + across * s * off)
 		if (beside != Vector2.INF
@@ -312,8 +312,8 @@ func _beside_way(member: Node, here: Vector2, ahead: Vector2, along: float, side
 ## doorway is no spot), kept as `member`'s spot aside; `Vector2.INF` when there is none.
 func _further_on(member: Node, here: Vector2, ahead: Vector2) -> Vector2:
 	var world: World2D = _squad.get_viewport().find_world_2d()
-	var ring: float = _squad.follow_ring
-	var step: float = _squad.follow_step
+	var ring: float = SquadFollowConfig.ring
+	var step: float = SquadFollowConfig.step
 	for k in range(2, 5):
 		var further := _open_at(world, here, here + ahead * (ring + step * k))
 		if further != Vector2.INF and _visited.has(_room_at(further)):
@@ -373,7 +373,7 @@ func _in_way(
 	var d := rel.dot(ahead)
 	return (
 		d > 0.0
-			and d <= _squad.follow_ring + _squad.follow_step
+			and d <= SquadFollowConfig.ring + SquadFollowConfig.step
 			and absf(rel.dot(across)) < clearance
 	)
 
@@ -421,14 +421,14 @@ func _trail_length() -> float:
 
 
 ## Up to `count` slots round a still leader at `here` facing `facing`: on the ring behind it, the
-## slots `follow_step` apart either side of straight behind it and all less than a right angle off
-## it, then on wider rings; each on the navigation map (within `SLOT_SNAP`) and in the leader's
-## sight.
+## slots `SquadFollowConfig.step` apart either side of straight behind it and all less than a right
+## angle off it, then on wider rings; each on the navigation map (within `SLOT_SNAP`) and in the
+## leader's sight.
 func _ring_slots(here: Vector2, facing: Vector2, count: int, world: World2D) -> Array:
 	var out: Array = []
 	var back := -facing.normalized() if facing != Vector2.ZERO else Vector2.LEFT
 	for r in RINGS:
-		var radius: float = _squad.follow_ring + _squad.follow_step * r
+		var radius: float = SquadFollowConfig.ring + SquadFollowConfig.step * r
 		out.append_array(_ring_of(world, here, back, radius, count - out.size()))
 		if out.size() >= count:
 			return out
@@ -436,11 +436,11 @@ func _ring_slots(here: Vector2, facing: Vector2, count: int, world: World2D) -> 
 
 
 ## Up to `need` slots (at least one when there is any) on the ring `radius` px behind a still leader
-## at `here` (`back` the way behind it): `follow_step` apart either side of straight behind it,
-## each less than a right angle off it, open (`_open_at`).
+## at `here` (`back` the way behind it): `SquadFollowConfig.step` apart either side of straight
+## behind it, each less than a right angle off it, open (`_open_at`).
 func _ring_of(world: World2D, here: Vector2, back: Vector2, radius: float, need: int) -> Array:
 	var out: Array = []
-	var step: float = _squad.follow_step / radius
+	var step: float = SquadFollowConfig.step / radius
 	var j := 0
 	while (j + 0.5) * step < PI / 2.0:
 		for side in [1.0, -1.0]:

@@ -12,8 +12,8 @@ const RunningLeaf := preload("res://scenes/ai/behavior/running_leaf.gd")
 var behavior: Node
 ## A follower running to catch up (LD21): set when its follow run starts, it holds through a tick
 ## with no step (a give-way, a `keep_off` stop, a held walk) and is cleared once the follower is
-## within `follow_caught_up` of its live spot or its walk is over short of it, when a gate drops
-## the run (a shot to take, a reload due, its stamina dry) or when the primitive changes.
+## within `SquadFollowConfig.caught_up` of its live spot or its walk is over short of it, when a
+## gate drops the run (a shot to take, a reload due, its stamina dry) or when the primitive changes.
 var catching_up := false
 ## The character was running last tick (for the status line).
 var running := false
@@ -74,8 +74,8 @@ func _wanted_posture() -> StringName:
 ## empty gun to reload (a running character can do neither), except a retreat
 ## (`params.run_through_fire`), which is about leaving the line, not trading shots. The Character
 ## spends the stamina and runs
-## dry on its own. A follower runs to catch up once it has fallen `follow_step` behind its spot,
-## whatever the leaf, and keeps on (`catching_up`) until it is back within `follow_caught_up` of
+## dry on its own. A follower runs to catch up once it has fallen `SquadFollowConfig.step` behind
+## its spot, whatever the leaf, and keeps on (`catching_up`) until it is back within `caught_up` of
 ## it, through a tick with no step; the gates still drop that run.
 func should_run() -> bool:
 	var movement: CharacterMovement = behavior._character.movement
@@ -106,7 +106,7 @@ func _run_now() -> bool:
 		# until it has caught up: a stop on the way keeps the catch-up, and its next step runs on
 		# whatever stamina is left.
 		dest = squad.follow_spot(character)
-		near = squad.follow_caught_up if catching_up else squad.follow_step
+		near = SquadFollowConfig.caught_up if catching_up else SquadFollowConfig.step
 		sprinting = catching_up
 		run = true
 	var perception: Node = behavior._perception

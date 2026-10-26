@@ -70,13 +70,13 @@ squad's own `go` nor by one read off the claims (`_latch_go`, on each claim hear
 through into that room, D14, the human leader stepping in among them on a crossing begun since; a claim left from an earlier entry releases
 nothing), each kept in
 `_released` once heard, as each member latches its own go; an order radioed `done` is no longer
-held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, `_stacks`, kept as last laid in `_stacks_now`) is every stack the side is forming, ordered
-or its own, from the side's entry claims it hears (its own `ClaimLedger`, `_ledger`: unlimited range, the side's whole view; the latest per
+held (`order` {}, `step` `done`), a `refused` one still is. `stacks` (LD18, its `stacks` part's `_stacks` (`ai/team/squad_stacks.gd`, built with the squad, holding it), kept as last laid by `stacks.now()` and laid again after `stacks.invalidate()`, on a claim heard or a member's death) is every stack the side is forming, ordered
+or its own, from the side's entry claims it hears (its own `ClaimLedger`, `stacks.ledger`: unlimited range, the side's whole view; the latest per
 speaker, current for `claim_ttl`: the NPCs' `tuning.radio.callout_ttl` (6 s), handed in by `setup`, which the match builder reads off
 the side's NPCs with `MatchBuilder.callout_ttl_of`; a dead speaker's dropped;
 the human's `PlayerStack` among them), at each doorway `ClaimLedger.openings_stacking()` names (a claim at a `StackClaim.STACKING` step):
 `[{ opening, into, door, slots: [{ n, point, holder, held, there, mine, side, row }] }]`, the slots that doorway's `DoorStack.layout()` gives
-(slots 1 to the last claimed over the geometry its own `AgentEntry` lays, each where its holder stands it, a slot a dead end does not hold
+(slots 1 to the last claimed over the geometry its own `AgentEntry`, `stacks.entry`, lays, each where its holder stands it, a slot a dead end does not hold
 left out), `there` its holder at `ready` / `bang` (`StackClaim.IN_SLOT`), `mine` the human's; the UI's stack
 markers draw it, laid on the navigation map and physics space of the world the squad itself is in (its viewport's `World2D`). It reads its
 members only through the Character API (`wardrobe.rank`, `is_dead`, `died`, and the leader's `global_position` and `facing`; a member is an NPC, one
@@ -85,23 +85,24 @@ that follows, when a child of it is in the group `npc_controllers` at `setup`, `
 `_orders`, the `&"order"` post) serves `issue` and them alike.
 
 **Following (`docs/leadership.md` LD19 to LD23).** `follows(member)`: alive, the squad has a leader, not the leader, an NPC (`_npcs`). The
-tunables are vars: `follow_gap` 55, `follow_step` 45, `follow_caught_up` 20, `follow_ring` 80, `follow_still_time` 0.8 s, `follow_retarget` 20, `follow_arrive` 10,
-`leash` 320, `leash_break` 1.3. The trail and the spots are `SquadFollow`'s (`ai/team/squad_follow.gd`, a `RefCounted` the squad builds in
-`setup` with its openings and rooms, `_follow`; it reads the tunables, `leader()`, `members()`, `alive` and `follows` off the squad), with
+tunables are the static holder `SquadFollowConfig`'s (`ai/team/squad_follow_config.gd`, the same for every squad): `gap` 55, `step` 45,
+`caught_up` 20, `ring` 80, `still_time` 0.8 s, `retarget` 20, `arrive` 10, `leash` 320, `leash_break` 1.3. The trail and the spots are
+`SquadFollow`'s (`ai/team/squad_follow.gd`, a `RefCounted` the squad builds in `setup` with its openings and rooms, `_follow`; it reads the
+holder, and `leader()`, `members()`, `alive` and `follows` off the squad), with
 the constants `SquadFollow.TRAIL_STEP` 15, `SLOT_SNAP` 20, `RINGS` 3, `WAY_CLEARANCE` 32. The squad's `_physics_process` runs `track`: a
 trail point each `TRAIL_STEP` the leader moves (`_moved_at` on `GameClock`), trimmed to what the file needs, the rooms it stood in kept
 (`_visited`); a new leader starts it afresh (`reset`, also from `_on_died`, which `invalidate`s the spots when a member dies). `trail()` is
 what `view()` gives. `follow_spot(member)` (`Vector2.INF` for a non-follower) is `SquadFollow.spot`, which lays every spot at most once a
 physics frame and only when the leader moved, turned or stopped or the followers changed (`_lay_spots`, the followers in roster order
-from `followers()`): moving, on the trail at `follow_gap + follow_step * i` (`_trail_point`, snapped with `NavBuilder.snap`; a place past the
+from `followers()`): moving, on the trail at `gap + step * i` (`_trail_point`, snapped with `NavBuilder.snap`; a place past the
 trail's oldest point and further from the leader than the follower stands keeps it where it stands, `_trail_length`); still
-(`follow_still_time`), a slot from `_ring_slots` behind `_heading()` (the trail's last stretch), each on the map within `SLOT_SNAP`, in the
+(`still_time`), a slot from `_ring_slots` behind `_heading()` (the trail's last stretch), each on the map within `SLOT_SNAP`, in the
 leader's sight (`AgentVision.wall_hit`) and out of doorways (`_open_at`, `_in_doorway`), the rest on the trail, stepped back out of a
 doorway. `_clear_of_way` then moves a follower or spot out of the lane ahead of the leader's `facing` (`_in_way`): beside it, own side first
 (`_taken`), else further ahead (170 / 215 / 260 px), only into `_visited` rooms; kept in `_aside` (member -> `{ spot, from, way }`: the spot,
 where the leader stood and the way it faced) while it clears the way, until the leader has moved a ring or turned back. The controller
-reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot`, `follow_retarget`,
-`follow_arrive`, `follow_still_time`, `follow_step` and `follow_caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
+reads `follows`, `leader()` and the holder's `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot` and the
+holder's `retarget`, `arrive`, `still_time`, `step` and `caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
 follower holding no order (LD23, the controller's reflexes' `leash_lead`): `follows` stays true for a member carrying an order (its follow spot, its
 place in the file and the rally's choice of followers still count it), but its controller pushes no leash while it holds one, so a member
 defending a room, ambushing or in a stack (held or a join) fights where the order takes it, however far its leader is.
