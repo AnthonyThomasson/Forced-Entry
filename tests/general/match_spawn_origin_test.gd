@@ -9,7 +9,7 @@ extends GameTest
 ## placed from the house seed.
 
 const SEED := 18
-## Where `main.gd` puts the front entrance (its scene anchor, `entrance_distance` above it).
+## Where `main.gd` puts the front entrance (its scene anchor, `run.entrance_distance` above it).
 const FRONT_ENTRANCE := Vector2(440, 350)
 ## The character's body radius: a piece closer to the origin than this overlaps a character added
 ## there.

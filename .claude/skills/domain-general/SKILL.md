@@ -232,8 +232,8 @@ HUDs and menus (`debug_ui.gd`, `match_hud.gd`, `setup_menu.gd`) belong to
 
 ## Spectator match mode
 
-`main.gd`'s `spectator_mode` (on by default) turns the scene into an AI-only contest between the NPC sides
-(`defender_count` / `invader_count` NPCs, 1 each by default and up to the setup window's 8 a side): it frees the
+Main's `run.spectator_mode` (on by default) turns the scene into an AI-only contest between the NPC sides
+(`run.defender_count` / `run.invader_count` NPCs, 1 each by default and up to the setup window's 8 a side): it frees the
 human `Player` and `DebugUI`, points the camera at every combatant in framing mode (`frame(combatants)`), and activates
 `MatchHUD`. The `match` / `restart` command verbs plus `tools/match.py` make the matchup scriptable
 for watching and regression-testing both AI agent-types (defender and invader). Composition-root

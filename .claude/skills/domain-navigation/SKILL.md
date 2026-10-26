@@ -144,7 +144,7 @@ The AI's `Locomotion` (`reachable`, `on_navmesh`, the steering-map choice), `age
 global — not per-NPC) that draws the furniture HOLES carved out of the navmesh as filled polygons +
 outlines. `MatchBuilder.stage` builds it once right after the bake: `nav_debug.setup(house)` snapshots the holes
 via `NavBuilder.furniture_holes(house)`, and `show_holes` toggles it (`MatchBuilder.set_overlay`, from the toggle bar's
-"Navigation holes" button; in Main's match it starts from `main.gd`'s `show_nav_holes` export — off — unless a saved toggle in `Settings.overlays` overrides it).
+"Navigation holes" button; in Main's match it starts at the registry's default — off — unless a saved toggle in `Settings.overlays` overrides it).
 `furniture_holes(house) -> Array` returns each solid piece's grown footprint as a closed WORLD-space
 polygon, using the exact same selection and footprint helpers the bake feeds the obstruction baker
 (`_add_furniture_holes` calls it), so the overlay cannot drift from what was carved. `nav_updater.gd`

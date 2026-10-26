@@ -775,8 +775,8 @@ The cases the behaviours above cite as D1 to D30.
 | ... and re-decides in a fight further than | 1.3 leashes (416 px) | `Squad.leash_break` |
 | The human has stepped up to a doorway within, and after | 60 px, 0.5 s | `PlayerStack.STEP_UP_REACH`, `STEP_UP_TIME` |
 | The invader team's point lies along the wall from the front door's centre by | 120 px | `match_spawner.gd` `DOOR_SIDE_OFFSET` |
-| ... and out from the wall by | 20 px (`spawn_clearance`) | the match spec's `spawn_clearance` (Main's export) |
-| With no front door, it lies out of the rooms' bounds by | 80 px | the match spec's `invader_margin` (Main's export) |
+| ... and out from the wall by | 20 px (`spawn_clearance`) | the match spec's `spawn_clearance` (Main's `run`) |
+| With no front door, it lies out of the rooms' bounds by | 80 px | the match spec's `invader_margin` (Main's `run`) |
 | ... its members packed on rings round it, apart | 40 px (twice `spawn_clearance`), 6 rings | the match spec's `spawn_clearance`, `match_spawner.gd` `GROUP_RINGS` |
 
 ## Baseline
@@ -785,7 +785,7 @@ AI against AI, with squads following their leaders and before them (main, e6cdbf
 follows), scored by `tools/match.py` (`--seed 101 --rounds 10 --timeout 180`: seeds 101 to 110, one round each) on
 2026-10-19 from 11:55 to 12:19, the two trees alternated (squads 3v3, main 3v3, squads 5v5, main 5v5). Each tree was a scratch
 `git worktree` of its commit; for each run a headless game ran on its own command port from an uncommitted scene inheriting
-`main.tscn` with `defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server (one shared
+`main.tscn` with its `run`'s `defender_count` and `invader_count` set, spectator mode, the default loadouts, and the real Von server (one shared
 server). A round ends when one side is wiped out (the `match` verdict, `scenes/general/command_server.gd` `verdict_of`, deciding by
 General's `MatchVerdict`, the rule the MatchHUD decides by too). Main's own `match` verdict calls a match larger than 1v1 a draw at
 its first death, so main's tree was run with the squads tree's `scenes/general/match_verdict.gd` and the calls to it in

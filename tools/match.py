@@ -11,8 +11,8 @@ driver reuses that server's line protocol:
 The verdict is decided by the rule the MatchHUD decides by (General's MatchVerdict): "none" while
 each side has someone alive; once a side is wiped out, the side left standing by its faction
 ("household", "invader"), or in a 1v1 the survivor's name ("Defender", "Invader"); "draw" when
-nobody, or more than one side, is left. The match's size is the scene's (Main's invader_count /
-defender_count).
+nobody, or more than one side, is left. The match's size is the scene's (Main's run.invader_count /
+run.defender_count).
 
 For each round it restarts, optionally applies per-side overrides (arbitrary GDScript evaluated
 against the scene, e.g. to retune a controller's goal/flags), polls `match` until a side wins, it

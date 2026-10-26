@@ -19,72 +19,21 @@ const OVERLAY_REGISTRY := preload("res://scenes/ui/overlays/overlay_registry.gd"
 const OVERLAY_TOGGLES := preload("res://scenes/ui/overlays/overlay_toggles.gd")
 ## The test browser scene (Testing domain), opened from the setup window's Tests button.
 const TEST_BROWSER := "res://scenes/testing/test_browser.tscn"
-## The performance overlay (docks left of the toggle bar).
-const PERFORMANCE_OVERLAY := preload("res://scenes/ui/overlays/performance_overlay.gd")
 ## The settings page (UI), opened over the setup window by its Settings button.
 const SETTINGS_MENU := preload("res://scenes/ui/menus/settings_menu.gd")
+## The endless run's state (`_endless`) and the debug overlays' state, nodes and routing
+## (`_overlays`), parts built once with Main.
+const MainEndless := preload("res://scenes/main_endless.gd")
+const MainOverlays := preload("res://scenes/main_overlays.gd")
 
-## Seed for the house layout; 0 = a new random seed each run, resolved to a concrete value at
-## spawn so the whole run (house + NPC placement) reproduces from it. The seed is logged and can be
-## re-entered in the setup window to pin a layout you like.
-@export var house_seed: int = 0
-## Force a specific floorplan (a key in HouseDefinitions); "" = pick one at random.
-@export var force_plan: String = ""
-## Distance from the player to the front entrance's center, straight up the screen.
-@export var entrance_distance: float = 70.0
-## How many defender NPCs to drop into the house (0 = none). Raise it to exercise coordinated
-## flanking from the defending side.
-@export var defender_count: int = 1
-## How many invader NPCs to spawn outside the house (0 = none). They start together, in one group
-## beside the front door (round a perimeter point only in a house with none; round the human
-## invader when there is one).
-@export var invader_count: int = 1
-## Distance (px) beyond the house's outer edge the invaders' group point is drawn at in a house
-## with no front door (inside the navmesh's outer band); every invader's spot stays within twice it
-## of the rooms' bounds.
-@export var invader_margin: float = 80.0
-## Room (px) a character is dropped with: its centre stays this far from every solid furniture
-## footprint and twice this from anyone already placed (the invaders' group is packed at it). A
-## body spawned inside a piece is ejected along with it, and the piece's momentum flings the
-## character across the map.
-@export var spawn_clearance: float = 20.0
-## Spectator match mode: run as an AI-only contest (the defenders vs the invaders) with no human
-## player — frees the Player and its HUD, frames every NPC, and shows the match HUD. Off = the
-## normal player-driven scene.
-@export var spectator_mode: bool = true
-## Which side a human player takes when there is one ("defender" / "invader"). The player joins that
-## side on top of its NPC count, carrying the side's loadout.
-@export var player_side: StringName = &"defender"
+## The run's authoring knobs: the base match spec's (seed, floorplan, entrance, counts, placement
+## clearances) and the mode's defaults (spectator, the human's side, Debug), a `MainRun` per Main.
+@export var run: MainRun = MainRun.new()
 ## Endless run: seconds between a match ending and the next one starting.
 @export var endless_delay: float = 5.0
 ## Endless run: seconds before an undecided match is called a draw, so a stalemate can't stall the
 ## run (0 = no limit).
 @export var endless_time_limit: float = 180.0
-## Master switch for the AI debug overlays: off = every overlay is hidden and the in-game toggle bar
-## is not built. This export is the default; on a fresh launch the saved `Settings.debug` (the
-## settings page's Debug checkbox) takes over, while a scripted restart keeps this value.
-@export var debug_overlays: bool = true
-## Initial state of the debug overlays. The authoritative set is `_overlay_flags` (one entry per row
-## of `overlay_registry.gd`), seeded from these exports for the overlays they name, from the setup
-## window on a fresh launch, and flipped live by the in-game toggle bar. Overlays without an export
-## here start at their registry default.
-## When false, the floating action-status label drawn above each NPC is hidden.
-@export var show_agent_labels: bool = false
-## When false, the navigation-path polyline drawn under each NPC is hidden.
-@export var show_agent_paths: bool = false
-## When false, the line-of-sight / awareness overlay drawn around each NPC is hidden.
-@export var show_vision: bool = false
-## When false, the tactical navigation-zone overlay drawn around each NPC is hidden.
-@export var show_tactics: bool = false
-## When false, the tactical room-zone overlay (each room tinted by how the NPC regards it) is
-## hidden.
-@export var show_room_zones: bool = false
-## When false, the search-coverage overlay (room sample points a searcher is seeing / still to see)
-## is hidden.
-@export var show_search: bool = false
-## When false, the navigation-hole overlay (the footprints of furniture and characters at rest
-## carved out of the navmesh) is hidden.
-@export var show_nav_holes: bool = false
 
 ## Where the player stood in the scene: the house is placed relative to this point (its front
 ## entrance just above), and an invading human starts here.
@@ -92,34 +41,19 @@ var _anchor: Vector2 = Vector2.ZERO
 ## Everything one match builds (house, nav map, NPCs, inspector, and the blood / debris they leave)
 ## lives under this node, so an endless run clears a match by freeing it.
 var _world: Node2D = null
-## Endless run: on while the setup window's Endless button chose it.
-var _endless: bool = false
-## The spec of the match the setup window or the endless run last started (`_play`:
-## `MatchBuilder.spec`, its seed resolved), which the endless run draws the next one from.
-var _spec: Dictionary = {}
 ## This match's human (the spec's `human` node), null in a spectator match.
 var _human: Node2D = null
-## Endless run: the highest defender / invader counts a random match may draw (the counts chosen in
-## setup).
-var _endless_max := { "defenders": 1, "invaders": 1 }
-## Endless run: seconds left until the next match (-1 while a match is being played).
-var _next_match_in: float = -1.0
 ## This match's handle (`MatchBuilder.build`'s): its world, house, rooms, doorways, combatants,
 ## squads (by faction), the human's stack radio and the navigation-holes and squad-leaders
 ## overlays; {} between matches.
 var _match: Dictionary = {}
-## Every debug overlay's on/off state, `{ show_<x>: bool }` keyed like `overlay_registry.gd`.
-var _overlay_flags: Dictionary = {}
-## The spectator inspector (spectator mode only), told of live toggles so the selected NPC follows
-## them.
-var _inspector: Node = null
-## The performance overlay (the one global overlay that isn't the match's); null when Debug is off.
-var _perf_overlay: CanvasLayer = null
-## The overlay toggle bar (built once, kept across an endless run's matches); null when Debug is
-## off.
-var _overlay_toggles: Node = null
 ## The settings page while it is open over the setup window, else null.
 var _settings_menu: CanvasLayer = null
+## The endless run: on or not, the spec it draws from, its highest counts and its countdown.
+var _endless := MainEndless.new()
+## The debug overlays: their flags, the performance overlay, the toggle bar and the inspector a
+## toggle reaches.
+var _overlays := MainOverlays.new(self)
 
 ## The human player (freed in a spectator match).
 @onready var _player: Node2D = $Player
@@ -136,11 +70,11 @@ var _settings_menu: CanvasLayer = null
 
 func _ready() -> void:
 	# The saved settings (key bindings, Debug) are layered over the defaults here, in the
-	# composition root, so the headless test runner never reads a developer's file. The Debug export
-	# seeds the setting first, so a file that doesn't name it leaves the export standing.
-	Settings.debug = debug_overlays
+	# composition root, so the headless test runner never reads a developer's file. The run's Debug
+	# export seeds the setting first, so a file that doesn't name it leaves the export standing.
+	Settings.debug = run.debug_overlays
 	Settings.load_file()
-	_overlay_flags = _initial_overlays()
+	_overlays.initial(run.debug_overlays)
 	_anchor = _player.global_position
 	if _match_hud and _match_hud.has_signal("match_ended"):
 		_match_hud.match_ended.connect(_on_match_ended)
@@ -157,12 +91,12 @@ func _ready() -> void:
 		_setup_menu.start_requested.connect(_on_setup_chosen)
 		_setup_menu.tests_requested.connect(_open_tests)
 		_setup_menu.settings_requested.connect(_open_settings)
-		# The exports and the match spec's loadouts are the defaults; what the player chose last
-		# time (kept in the settings file) wins.
+		# The run's exports and the match spec's loadouts are the defaults; what the player chose
+		# last time (kept in the settings file) wins.
 		var base := _base_spec()
 		var defaults := {
-			"side": str(player_side),
-			"seed": house_seed,
+			"side": str(run.player_side),
+			"seed": run.house_seed,
 			"defenders": _side_defaults(base["defenders"]),
 			"invaders": _side_defaults(base["invaders"]),
 		}
@@ -185,20 +119,18 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Endless run: tick the countdown (Main is pausable, so pausing the match pauses it), then replace
 ## the finished match with a fresh randomised one.
 func _process(delta: float) -> void:
-	if _next_match_in < 0.0:
+	if not _endless.tick(delta):
+		if _endless.next_match_in > 0.0 and _match_hud:
+			_match_hud.set_countdown(
+				"Next match in %d...  (Esc to stop)" % ceili(_endless.next_match_in),
+			)
 		return
-	_next_match_in -= delta
-	if _next_match_in > 0.0:
-		if _match_hud:
-			_match_hud.set_countdown("Next match in %d...  (Esc to stop)" % ceili(_next_match_in))
-		return
-	_next_match_in = -1.0
 	if _match_hud:
 		_match_hud.set_countdown("")
 	_teardown_world()
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	_play(MatchBuilder.random_spec(rng, _spec, _endless_max))
+	_play(MatchBuilder.random_spec(rng, _endless.spec, _endless.most))
 
 
 ## The name this run is tagged with: the `GAME_TICKET` env var (`tools/editor.sh` sets it to the
@@ -237,20 +169,20 @@ func _side_defaults(side: Dictionary) -> Dictionary:
 ## Apply the parameters chosen in the setup window, then start the match. The window's `mode` is
 ## "play" (a human takes `side`), "watch" (the AIs alone: the spectator contest) or "endless"
 ## (watch, then a fresh randomised match after each one ends); anything but "play" has no human
-## player. The config is read into a match spec over the exports' (`MatchBuilder.spec_from_setup`).
+## player. The config is read into a match spec over the run's (`MatchBuilder.spec_from_setup`).
 func _on_setup_chosen(config: Dictionary) -> void:
 	Settings.set_setup(config)
-	var mode := str(config.get("mode", "play" if not spectator_mode else "watch"))
-	spectator_mode = mode != "play"
-	_endless = mode == "endless"
+	var mode := str(config.get("mode", "play" if not run.spectator_mode else "watch"))
+	run.spectator_mode = mode != "play"
+	_endless.on = mode == "endless"
 	var spec := MatchBuilder.spec_from_setup(config.merged({ "mode": mode }, true), _base_spec())
-	if _endless:
-		_endless_max = {
+	if _endless.on:
+		_endless.most = {
 			"defenders": int(spec["defenders"]["count"]),
 			"invaders": int(spec["invaders"]["count"]),
 		}
-	debug_overlays = Settings.debug
-	_overlay_flags = _initial_overlays()  # Recomputed now that the master switch is chosen.
+	run.debug_overlays = Settings.debug
+	_overlays.initial(run.debug_overlays)  # Recomputed now that the master switch is chosen.
 	# Hold the start until the decision server is live, so the NPCs' first decisions don't fail
 	# against a booting server and leave them holding steady. The window stays up (showing why)
 	# until then; this returns immediately when a server is already up or none is coming.
@@ -362,7 +294,7 @@ func return_to_setup() -> void:
 ## when the match was torn down while it was built.
 func start_match(spec: Dictionary) -> Dictionary:
 	spec = MatchBuilder.spec(spec)
-	spec["overlays"] = _overlay_flags.duplicate()
+	spec["overlays"] = _overlays.flags.duplicate()
 	var world := Node2D.new()
 	world.name = "World"
 	world.add_to_group(&"match_world")  # how the dev command server finds the match's nodes
@@ -386,7 +318,7 @@ func start_match(spec: Dictionary) -> Dictionary:
 	_begin_match_hud(combatants)
 	if _human == null:
 		_setup_spectator(combatants)
-	_build_overlays()
+	_overlays.build(run.debug_overlays)
 	return built
 
 
@@ -400,27 +332,27 @@ func _play(spec: Dictionary) -> void:
 		spec["seed"] = int(Engine.get_meta("match_seed"))
 	if int(spec["seed"]) == 0:
 		spec["seed"] = randi()
-	_spec = spec
+	_endless.spec = spec
 	await start_match(spec)
 
 
-## The match spec Main's exports name (`MatchBuilder.spec`, whose defaults hold each side's
-## loadout): the house seed and floorplan, the front entrance `entrance_distance` above the player's
-## anchor, each side's count, the human (in a played match: the player, on `player_side`) and the
-## placement clearances.
+## The match spec Main's `run` names (`MatchBuilder.spec`, whose defaults hold each side's
+## loadout): the house seed and floorplan, the front entrance `run.entrance_distance` above the
+## player's anchor, each side's count, the human (in a played match: the player, on
+## `run.player_side`) and the placement clearances.
 func _base_spec() -> Dictionary:
 	var human := {}
-	if not spectator_mode and is_instance_valid(_player):
-		human = { "node": _player, "side": player_side, "lead": false }
+	if not run.spectator_mode and is_instance_valid(_player):
+		human = { "node": _player, "side": run.player_side, "lead": false }
 	return MatchBuilder.spec({
-		"seed": house_seed,
-		"plan": force_plan,
-		"entrance": _anchor + Vector2(0, -entrance_distance),
-		"defenders": { "count": defender_count },
-		"invaders": { "count": invader_count },
+		"seed": run.house_seed,
+		"plan": run.force_plan,
+		"entrance": _anchor + Vector2(0, -run.entrance_distance),
+		"defenders": { "count": run.defender_count },
+		"invaders": { "count": run.invader_count },
 		"human": human,
-		"spawn_clearance": spawn_clearance,
-		"invader_margin": invader_margin,
+		"spawn_clearance": run.spawn_clearance,
+		"invader_margin": run.invader_margin,
 	})
 
 
@@ -456,7 +388,7 @@ func _build_command_menu(rooms: Array) -> void:
 		"view": squad.view,
 		"resolve": squad.resolve,
 		"leader": _human,
-		"right_clear": OVERLAY_TOGGLES.RESERVED_WIDTH if debug_overlays else 0.0,
+		"right_clear": OVERLAY_TOGGLES.RESERVED_WIDTH if run.debug_overlays else 0.0,
 	})
 	menu.order_requested.connect(squad.issue)
 	menu.selection_changed.connect(markers.set_selection)
@@ -479,14 +411,14 @@ func _teardown_world() -> void:
 	Sound.focus = null  # nobody's ears until the next match names the human
 	_match = {}
 	_human = null
-	_inspector = null
+	_overlays.inspector = null
 
 
 ## Start the match HUD on `combatants` (every character in the match, a human included, so a result
 ## is shown whichever way the match is played). An endless run gives it a time limit.
 func _begin_match_hud(combatants: Array) -> void:
 	if _match_hud and _match_hud.has_method("begin"):
-		_match_hud.begin(combatants, endless_time_limit if _endless else 0.0)
+		_match_hud.begin(combatants, endless_time_limit if _endless.on else 0.0)
 
 
 ## Turn the scene into a pure AI spectator match: drop the human player and its player-HUD, point
@@ -503,8 +435,8 @@ func _setup_spectator(combatants: Array) -> void:
 	var inspector := SPECTATOR_INSPECTOR.new()
 	inspector.name = "SpectatorInspector"
 	_world.add_child(inspector)
-	_inspector = inspector
-	var npc_flags := _overlay_flags.duplicate()
+	_overlays.inspector = inspector
+	var npc_flags := _overlays.flags.duplicate()
 	for flag in OVERLAY_REGISTRY.GLOBAL:  # global overlays, not per NPC
 		npc_flags.erase(flag)
 	# its outfit panel keeps clear of the bar's column
@@ -536,47 +468,9 @@ func _build_stun_screen() -> void:
 	screen.watch(_human)
 
 
-## The performance overlay and the toggle bar, built the first time a match starts with Debug on and
-## kept for the rest of an endless run.
-func _build_overlays() -> void:
-	if not debug_overlays or is_instance_valid(_overlay_toggles):
-		return
-	_perf_overlay = PERFORMANCE_OVERLAY.new()
-	_perf_overlay.name = "PerformanceOverlay"
-	add_child(_perf_overlay)
-	_perf_overlay.set_shown(_overlay_flags.get(OVERLAY_REGISTRY.PERF, false))
-	var toggles := OVERLAY_TOGGLES.new()
-	toggles.name = "OverlayToggles"
-	add_child(toggles)
-	toggles.setup(_overlay_flags)
-	toggles.overlay_toggled.connect(set_overlay)
-	_overlay_toggles = toggles
-
-
 ## The match HUD decided the match. In an endless run, start the countdown to the next one.
 func _on_match_ended(_verdict: String) -> void:
-	if _endless:
-		_next_match_in = endless_delay
-
-
-## The overlays' starting state: each registry default, overridden by the Main exports that name an
-## overlay (labels / paths / vision / tactics / room zones / search / navigation holes).
-func _initial_overlays() -> Dictionary:
-	var flags: Dictionary = OVERLAY_REGISTRY.defaults()
-	flags["show_actions"] = show_agent_labels
-	flags["show_path"] = show_agent_paths
-	flags["show_vision"] = show_vision
-	flags["show_tactics"] = show_tactics
-	flags["show_room_zones"] = show_room_zones
-	flags["show_search"] = show_search
-	flags[OVERLAY_REGISTRY.NAV_HOLES] = show_nav_holes
-	for flag in Settings.overlays:  # the player's last toggles win over the exports
-		if flags.has(flag):
-			flags[flag] = Settings.overlays[flag]
-	if not debug_overlays:
-		for flag in flags:
-			flags[flag] = false
-	return flags
+	_endless.ended(endless_delay)
 
 
 ## Turn the debug overlay `flag` (a row of `overlay_registry.gd`) on or off, as the toggle bar's
@@ -586,13 +480,6 @@ func _initial_overlays() -> Dictionary:
 ## (`MatchBuilder.set_overlay`): the navigation holes and the squad leaders to the match's single
 ## overlays, and in player mode an NPC's own overlay to every NPC.
 func set_overlay(flag: String, on: bool) -> void:
-	_overlay_flags[flag] = on
+	_overlays.flags[flag] = on
 	Settings.set_overlay(flag, on)
-	if flag == OVERLAY_REGISTRY.PERF:
-		if is_instance_valid(_perf_overlay):
-			_perf_overlay.set_shown(on)
-	elif (_inspector != null and is_instance_valid(_inspector)
-			and not OVERLAY_REGISTRY.is_global(flag)):
-		_inspector.set_flag(flag, on)
-	else:
-		MatchBuilder.set_overlay(_match, flag, on)
+	_overlays.route(flag, on, _match)

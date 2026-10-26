@@ -1,6 +1,6 @@
 ---
 name: domain-main
-description: Deep implementation detail for the composition root (scenes/main.gd, scenes/main.tscn, scenes/match_builder.gd, scenes/match_spawner.gd) — the one place that wires every domain: the pre-game setup flow (Start / Watch / Endless / Tests / Settings) read into a match spec, awaiting the Von decision server, Main.start_match(spec) and the match-assembly module MatchBuilder (the world stage: house, nav map and re-baker, the dusk lighting, the wait for the nav maps; the population: NPC placement, the one bind rule, loadout arming and styling, the squads and the leader overlay; overlay routing), the HUDs Main wires on the match handle (stack markers, stun screen, the human leader's command menu, match HUD, spectator inspector, overlay bar), endless-run teardown and randomisation, the settings page wiring, and the Main exports. Use when editing main.gd, match_builder.gd or match_spawner.gd, or working on match start-up, spawn placement rules, loadout arming, the endless run or how the overlays are toggled. Complements the `architecture` skill (interfaces 1, 6, 7, 9, 13, 14, 17, 18, 20, 21, 22, 23).
+description: Deep implementation detail for the composition root (scenes/main.gd, scenes/main.tscn, scenes/match_builder.gd, scenes/match_spawner.gd) — the one place that wires every domain: the pre-game setup flow (Start / Watch / Endless / Tests / Settings) read into a match spec, awaiting the Von decision server, Main.start_match(spec) and the match-assembly module MatchBuilder (the world stage: house, nav map and re-baker, the dusk lighting, the wait for the nav maps; the population: NPC placement, the one bind rule, loadout arming and styling, the squads and the leader overlay; overlay routing), the HUDs Main wires on the match handle (stack markers, stun screen, the human leader's command menu, match HUD, spectator inspector, overlay bar), endless-run teardown and randomisation, the settings page wiring, and Main's `run` (`MainRun`, an exported Resource) and its endless exports. Use when editing main.gd, match_builder.gd or match_spawner.gd, or working on match start-up, spawn placement rules, loadout arming, the endless run or how the overlays are toggled. Complements the `architecture` skill (interfaces 1, 6, 7, 9, 13, 14, 17, 18, 20, 21, 22, 23).
 ---
 
 # Main — the composition root (`scenes/main.gd`, `main.tscn`, `match_builder.gd`, `match_spawner.gd`)
@@ -8,11 +8,14 @@ description: Deep implementation detail for the composition root (scenes/main.gd
 `main.gd` (with the Testing domain's runner, interface 13) is the only code that knows every domain; nothing depends on it. It owns no
 gameplay and builds no match itself: it keeps the UI flow (the setup window, the settings page, the endless run, the HUDs and the overlay
 bar) and hands every match to the root's match-assembly module, `MatchBuilder` (`match_builder.gd`, interface 23), which the Testing
-domain's world builds through too. The exports on the `Main` node are the authoring surface for a run (`house_seed`, `force_plan`,
-`entrance_distance`, `defender_count`, `invader_count`, `invader_margin`, `spawn_clearance`, `spectator_mode`, `player_side`,
-`endless_delay`, `endless_time_limit`, `debug_overlays`, and `show_agent_labels` / `show_agent_paths` / `show_vision` / `show_tactics` /
-`show_room_zones` / `show_search` / `show_nav_holes`: seven of the overlays, the rest start at the registry's default). The side loadouts
-are not exports: they are the match spec's defaults (`MatchBuilder.INVADER_LOADOUT` / `DEFENDER_LOADOUT`), so a test's match carries what
+domain's world builds through too. Main's `run` (`MainRun`, `scenes/main_run.gd`, an exported `Resource` built per Main, editable inline
+in its inspector) is the authoring surface for a run (`house_seed`, `force_plan`, `entrance_distance`, `defender_count`, `invader_count`,
+`invader_margin`, `spawn_clearance`, `spectator_mode`, `player_side`, `debug_overlays`), and its endless exports `endless_delay` and
+`endless_time_limit` stay on the node (the coverage tool reads `endless_time_limit` by name); every overlay starts at the registry's default.
+`main.tscn` authors none of them. Main holds two parts more, each built once with it and reached by preload const (no `class_name`): the
+endless run's data leaf `_endless` (`main_endless.gd`: `on`, `spec`, `most`, `next_match_in`, `tick(delta)`, `ended(delay)`) and the debug
+overlays' `_overlays` (`main_overlays.gd`, holding Main: `flags`, `perf`, `toggles`, `inspector`, `initial(debug)`, `build(debug)`,
+`route(flag, on, handle)`). The side loadouts are not exports: they are the match spec's defaults (`MatchBuilder.INVADER_LOADOUT` / `DEFENDER_LOADOUT`), so a test's match carries what
 Main's does.
 
 ## Setup flow
@@ -26,7 +29,7 @@ The window offers:
   window's `lead`, a played match only) the human leads its side's squad (`docs/leadership.md` LD10);
 - **Watch** — AIs alone (spectator mode);
 - **Endless** — AIs alone; 5 s after each match ends (the MatchHUD's `match_ended`) Main frees its `World` node (`_teardown_world`) and plays
-  `MatchBuilder.random_spec(rng, _spec, _endless_max)`: a new seed, each side's count drawn from 1 to the one chosen in setup, a random gun
+  `MatchBuilder.random_spec(rng, _endless.spec, _endless.most)` (once `_endless.tick` says the countdown is up): a new seed, each side's count drawn from 1 to the one chosen in setup, a random gun
   and outfit per side (`LoadoutConfig.random`) with the grenade counts it was set up with; an undecided match is called a draw after
   `endless_time_limit`; an endless run chosen with no NPC at all is one a side;
 - **Tests** — changes scene to `testing/test_browser.tscn`; **Settings** — opens the settings page over the window.
@@ -36,20 +39,20 @@ defaults from `_side_defaults` (`LoadoutConfig.normalize` of the side's loadout 
 Main saves the window's choices (`Settings.set_setup`, the outfit and `lead` with them) on Start, Tests and Escape and feeds them back into the
 window's defaults (`_with_saved_setup`: a choice an older save does not name, such as the outfit, keeps its default).
 
-Start, Watch and Endless reach `_on_setup_chosen(config)`, which reads the config into a match spec over the exports' with
+Start, Watch and Endless reach `_on_setup_chosen(config)`, which reads the config into a match spec over the run's with
 `MatchBuilder.spec_from_setup(config, _base_spec())`: the config's `seed`, each side's `count` and its loadout keys (`weapon`, `magazine`,
 `spares`, `stuns`, `frags`, `outfit`) over the side's default loadout, and the human (`_base_spec()` names the scene's `Player` on
-`player_side` in a played match) on the config's `side`, leading with `lead`; in Watch and Endless no human. Before it plays the spec it
+`run.player_side` in a played match) on the config's `side`, leading with `lead`; in Watch and Endless no human. Before it plays the spec it
 **awaits the AI domain's `DecisionServerLauncher.resolved(live)`**, so no NPC makes its first decision against a still-booting Von server;
 the launcher is a root node of `main.tscn`, probes at scene load and always resolves (a run with no server still starts, with NPCs that hold
 steady). `_play(spec)` resolves the seed (the Engine `match_seed` meta a harness pins wins; 0 becomes `randi()`, so the run reproduces from
-it and can be re-entered), keeps the spec in `_spec` for the endless run and calls `start_match`. The settings page is wired here (interface
+it and can be re-entered), keeps the spec in `_endless.spec` for the endless run and calls `start_match`. The settings page is wired here (interface
 14): Main applies each `SettingsMenu` signal to `Settings` and answers with `set_rows`.
 
 ## A match: `Main.start_match(spec)`
 
 Main's one way into a match (public, so the tests drive Main through it). It lays `spec` over `MatchBuilder.spec`'s defaults, replaces its
-`overlays` with Main's own flags (`_overlay_flags`), adds a fresh `World` node (group `match_world`, how the dev command server finds the
+`overlays` with Main's own flags (`_overlays.flags`), adds a fresh `World` node (group `match_world`, how the dev command server finds the
 match) and awaits `MatchBuilder.build(spec, world)`; a match torn down while it was built (Escape, or a new match) returns `{}` and wires
 nothing. Then the UI over the handle (kept in `_match`):
 
@@ -61,16 +64,16 @@ nothing. Then the UI over the handle (kept in `_match`):
   that side forms shows its rings (LD18);
 - when the human leads, `_build_command_menu(rooms)`: if the squad's `leader()` is the human, the `OrderMarkers` (UI hud, `watch(squad.view)`)
   and the `CommandMenu` (UI hud, `setup({ rooms, teammates, view, resolve, leader, right_clear })`, the squad's `view` and `resolve`,
-  `right_clear` the overlay bar's `OverlayToggles.RESERVED_WIDTH` with Debug on (`debug_overlays`), else 0, as the inspector's) under `World`,
+  `right_clear` the overlay bar's `OverlayToggles.RESERVED_WIDTH` with Debug on (`run.debug_overlays`), else 0, as the inspector's) under `World`,
   the menu's `order_requested` connected to the squad's `issue` and its `selection_changed` to the markers' `set_selection` (interface 21,
   LD11, LD12); nothing is built otherwise, so nothing reads the right button;
 - `MatchHUD.begin(combatants, time_limit)` (the endless run's `endless_time_limit`);
 - with no human, `_setup_spectator`: the camera frames the combatants, the `SpectatorInspector` under `World` (`setup(combatants, flags,
   OverlayToggles.RESERVED_WIDTH)`, the flags without the global ones), and the player and its debug panel are freed;
-- `_build_overlays`: the performance overlay and the overlay toggle bar when Debug is on (built once, kept across an endless run).
+- `_overlays.build`: the performance overlay and the overlay toggle bar when Debug is on (built once, kept across an endless run).
 
 `_teardown_world` removes and frees `World` (house, nav map, NPCs, inspector, and the blood / debris / casings they left), clears
-`Sound.focus`, `_match`, `_human` and `_inspector`.
+`Sound.focus`, `_match`, `_human` and `_overlays.inspector`.
 
 ## The match module (`match_builder.gd`, `MatchBuilder`)
 
@@ -91,7 +94,7 @@ player_stack, leader_overlay }`). `build` is its two stages:
    `match_spawner.gd` instance (below), or puts a side's NPCs at its `at` points (`_place_side`, one branch for both sides); each NPC is bound
    before it joins the tree, through the spawner's `bind` (a `Callable` `populate` sets: `bind_npc` with `entry_point_for` its faction). The human, when the spec names one, joins
    its side (`_join`: the side's faction, so its NPCs treat it as an ally; its start the spec's `human.at`, else for a defender a clear spot
-   in a random room, while an invader starts where it stands, which for Main's `Player` is its anchor, `entrance_distance` below the front
+   in a random room, while an invader starts where it stands, which for Main's `Player` is its anchor, `run.entrance_distance` below the front
    entrance), is reparented under the world just above the house (draw order house < human < NPCs). Then `arm` (every combatant, the human
    last), `squads_over` (below: the human's stack radio, the squads, the leaders overlay shown by the spec's `LEADERS`), and every other
    overlay but the holes started through `set_overlay` by the spec's `overlays`.
@@ -135,10 +138,9 @@ player_stack, leader_overlay }`). `build` is its two stages:
 
 ## Main's own overlays
 
-Overlay flags live in `_overlay_flags` (one entry per row of `OverlayRegistry`), seeded by `_initial_overlays`: the registry's defaults, then
-the `show_*` exports, then the player's saved toggles (`Settings.overlays`), which win over the exports; with Debug off every flag starts
-off. `start_match` hands them to the match as its spec's `overlays`. The bar's `overlay_toggled` reaches Main's public
-`set_overlay(flag, on)`, which saves each flip with `Settings.set_overlay` and applies it live: `PERF` to Main's own performance overlay; in
+Overlay flags live in `_overlays.flags` (one entry per row of `OverlayRegistry`), seeded by `_overlays.initial(debug)`: the registry's
+defaults, then the player's saved toggles (`Settings.overlays`), which win over them; with Debug off every flag starts off. `start_match` hands them to the match as its spec's `overlays`. The bar's `overlay_toggled` reaches Main's public
+`set_overlay(flag, on)`, which saves each flip with `Settings.set_overlay` and applies it live (`_overlays.route(flag, on, _match)`): `PERF` to Main's own performance overlay; in
 a spectator match an NPC's own flag to `SpectatorInspector.set_flag` (it shows overlays on the selected NPC only); everything else to the
 match by the module's one rule, `MatchBuilder.set_overlay(_match, flag, on)` (the navigation holes, the squad leaders, and in a played match
 every NPC's own overlay).
@@ -196,7 +198,7 @@ builder hands it the bind rule as `bind`, so the dependency runs one way.
   `tests/ai/stack/human_defender_leader_no_rally_test.gd` (D29: Main's match, a human defender leading: its step-up rallies nobody, its
   teammate keeps following), `tests/ui/leader_overlay_draw_test.gd` (the `LEADERS` toggle through `MatchBuilder.set_overlay`, in a test world
   and in Main's match).
-- The tests drive Main only through its public members (`start_match`, `set_overlay`, its exports, the `match_world` group, `Player`,
+- The tests drive Main only through its public members (`start_match`, `set_overlay`, its `run`'s exports, the `match_world` group, `Player`,
   `SetupMenu.current_config()`), run whole in a world of its own by `tests/_main/main_probe.gd` (`domain-testing`).
 
 **Interfaces:** 1 (World Generation), 6 (`LoadoutConfig`: arming a side), 7 (the characters and the AI controller, the overlays'

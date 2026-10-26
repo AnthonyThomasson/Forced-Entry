@@ -70,7 +70,7 @@ func _process(_delta: float) -> void:
 
 
 ## Keep running while paused and build the hint + detail UI. `flags` is the overlay toggle bar's
-## per-NPC toggles (Main's `_overlay_flags` without the global ones; property name -> bool); a
+## per-NPC toggles (Main's `_overlays.flags` without the global ones; property name -> bool); a
 ## selected NPC shows exactly those. `right_clear` is the screen width (px) from the right edge the
 ## outfit panel keeps clear: Main hands it the overlay toggle bar's column, kept clear. Called by
 ## Main.
