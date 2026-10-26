@@ -36,7 +36,7 @@ static func unregister(id: int) -> void:
 ## Whether any porous surface (carpet, a rug) lies at world `pos`: blood there sinks in. Any porous
 ## surface counts, so a rug over a tiled floor soaks whichever was registered first.
 static func is_porous(pos: Vector2) -> bool:
-	if _porous_count == 0 or not BloodSurfaceConfig.surface_flow:
+	if _porous_count == 0 or not BloodSurfaceConfig.flow:
 		return false
 	for s: Dictionary in _surfaces.values():
 		if s["porous"] and (s["rect"] as Rect2).has_point(pos):
@@ -46,7 +46,7 @@ static func is_porous(pos: Vector2) -> bool:
 
 ## Flow-cost multiplier at world `pos` (lower = blood flows more easily).
 static func resistance(pos: Vector2) -> float:
-	if not BloodSurfaceConfig.surface_flow:
+	if not BloodSurfaceConfig.flow:
 		return 1.0
 	if is_porous(pos):
 		return BloodSurfaceConfig.porous_resist

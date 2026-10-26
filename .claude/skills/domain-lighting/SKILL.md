@@ -1,6 +1,6 @@
 ---
 name: domain-lighting
-description: Deep implementation detail for the Lighting domain (scenes/lighting/) — the world's dusk lighting, a leaf like Audio. WorldLighting (built by the match builder, for Main's match and the Testing world, under the world root, group `world_lighting`) adds the ambient CanvasModulate and the street's sky DirectionalLight2D, a PointLight2D per light a piece declares (`get_lights()`, parented to the piece) and per room fixture, the per-floor budget (12 of Godot 4.4's 15 point lights per canvas item, the weakest dropped), the seeded rhythms (steady / buzz / failing / blink / shimmer / pulse) dimming each light and its piece's unshaded overlay, the flash pool lit on `shot` / `explosion`, and the per-frame character-mask clearing; LightingConfig, LightingFixtureConfig and LightingTextureConfig are its tuning. The occluders and light layers are General's `LightMasks`, built by Objects (walls, solid pieces, the street) and Character (the living body). Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the budget, adding a light-giving piece (its row in ObjectArtLightConfig.light_specs), changing who shadows whom, or asserting on lights in a test. Complements the `architecture` skill (interfaces 11 and 20); the spec and its tests are docs/lighting.md.
+description: Deep implementation detail for the Lighting domain (scenes/lighting/) — the world's dusk lighting, a leaf like Audio. WorldLighting (built by the match builder, for Main's match and the Testing world, under the world root, group `world_lighting`) adds the ambient CanvasModulate and the street's sky DirectionalLight2D, a PointLight2D per light a piece declares (`get_lights()`, parented to the piece) and per room fixture, the per-floor budget (12 of Godot 4.4's 15 point lights per canvas item, the weakest dropped), the seeded rhythms (steady / buzz / failing / blink / shimmer / pulse) dimming each light and its piece's unshaded overlay, the flash pool lit on `shot` / `explosion`, and the per-frame character-mask clearing; LightingConfig, LightingFixtureConfig and LightingTextureConfig are its tuning. The occluders and light layers are General's `LightMasks`, built by Objects (walls, solid pieces, the street) and Character (the living body). Use when editing scenes/lighting/, retuning the dusk, a fixture, a flash or the budget, adding a light-giving piece (its row in ObjectArtLightConfig.specs), changing who shadows whom, or asserting on lights in a test. Complements the `architecture` skill (interfaces 11 and 20); the spec and its tests are docs/lighting.md.
 ---
 
 # Lighting domain (`scenes/lighting/`)
@@ -73,7 +73,7 @@ Lights follow their piece by being its children; the occluders follow theirs the
 ## The world's side (built by the owning domains)
 
 - **Objects** (`domain-objects`): `object_lights.gd` works out a piece's `get_lights()` once in `_ready` from its painter,
-  options, size and facing and the per-kind rows in `ObjectArtLightConfig.light_specs`; a solid piece builds its occluder (rect, or a
+  options, size and facing and the per-kind rows in `ObjectArtLightConfig.specs`; a solid piece builds its occluder (rect, or a
   12-gon for a round piece; `EMITTER` when it gives light, else `TALL` from `LightMasks.TALL_COVERAGE`, else `FURNITURE`); a wall
   builds one per segment, the collider's rect (`WALL`); the street's floors (catalogue `light_layer: "street"`) put themselves and
   their canvas items on `STREET`; every `Emissive` overlay draws through an unshaded CanvasItemMaterial.
@@ -82,7 +82,7 @@ Lights follow their piece by being its children; the occluders follow theirs the
 
 ## Adding to it
 
-- **A light-giving piece:** a row in `ObjectArtLightConfig.light_specs` and its case in `object_lights.gd` (`_kind`, and its colour /
+- **A light-giving piece:** a row in `ObjectArtLightConfig.specs` and its case in `object_lights.gd` (`_kind`, and its colour /
   offset in `of`); its painter draws the source inside `canvas.glowing` so its overlay shows it.
 - **Who shadows whom:** the masks in `LightMasks` (General) and the shadow mask each light is given here.
 - **A flash:** a `LightingConfig.flashes` row and its topic in `_on_posted`. A flash that is the whole look of something (the stun's)

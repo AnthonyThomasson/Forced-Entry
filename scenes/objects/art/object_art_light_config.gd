@@ -14,7 +14,7 @@ class_name ObjectArtLightConfig
 ## `low` when absent: shadowed by the walls and the tall pieces). Its colour is what the piece draws
 ## glowing (its neon, its screen, its bulb). `trim` is a piece's neon trim or under-glow; a tube's
 ## `radius` is its length × `tube_reach`.
-static var light_specs: Dictionary = {
+static var specs: Dictionary = {
 	"lamp": {
 		"energy": 0.95, "radius": 160.0, "shape": &"round", "height": &"overhead",
 		"rhythm": [[&"steady", 6.0], [&"buzz", 1.5], [&"pulse", 1.0], [&"failing", 1.5]],

@@ -13,7 +13,7 @@ blood_pool_visuals, blood_flow, blood_smear, blood_footprints, footfall, blood_w
 resolved by `class_name`. It imports nothing outside Physics except `Despawner`, `DrawLayers` and `FillBatch` (General).
 
 **Master switches** (`BloodConfig.enabled`, and under it `BloodPrintConfig.footprints_enabled` / `BloodSmearConfig.enabled`,
-`BloodSurfaceConfig.surface_flow`): off, `BloodWound.record` /
+`BloodSurfaceConfig.flow`): off, `BloodWound.record` /
 `Physics.bleed_out` spawn nothing (`bleed_out` returns null); used by the Testing domain's `physics.blood` switch. `BloodSpawner` adds each
 splatter and pool with a readable name (`BloodSplat`, `BloodSplat2`, … / `BloodPool`, …) so observers can tell them apart.
 `BloodConfig` is a `class_name` static holder (the master switch, the colours, the draw layers, the decal layer's cap and
@@ -70,7 +70,7 @@ surfaces (Objects' floors) register a world rect + a `groove` Callable, so blood
 (`groove_resist`), slowly across smooth surface (`smooth_resist`) and slowest over a porous surface
 (`porous_resist`: carpet floors and rugs); outdoors = 1. Newest-registered surface wins on overlap, except
 that any porous surface at a point counts (`BloodSurface.is_porous`), so a rug over tile is porous whichever
-registered first. Master switch `BloodSurfaceConfig.surface_flow`.
+registered first. Master switch `BloodSurfaceConfig.flow`.
 
 **Soaking.** Blood on a porous surface sinks in: once the flood has mostly reached a porous cell (>= 0.5),
 `BloodFlow.tick(delta)` (called from `BloodPool`, which keeps processing after the front settles while

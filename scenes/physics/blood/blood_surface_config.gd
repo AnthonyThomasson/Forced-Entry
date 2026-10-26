@@ -8,7 +8,7 @@ class_name BloodSurfaceConfig
 ## Floor texture steering a bleed-out flow (BloodSurface): off = the floor is ignored. Flow-cost
 ## multipliers per cell: on a groove (grout, plank seam, slab joint), on smooth surface between
 ## grooves, and on a porous surface (carpet). Low = blood runs there easily.
-static var surface_flow: bool = true
+static var flow: bool = true
 static var groove_resist: float = 0.3
 static var smooth_resist: float = 2.2
 static var porous_resist: float = 3.0

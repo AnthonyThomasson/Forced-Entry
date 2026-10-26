@@ -199,7 +199,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
    - `BloodSurface` (static registry): `register(rect, groove: Callable(world, half_width) -> 0..1, porous) -> id` /
 	 `unregister(id)` — Objects' `Floor` registers its room so a bleed-out flow runs along grout/seams, and rugs register as porous
 	 (blood sinks into carpet and rugs, `is_porous(pos)`)
-	 (`resistance(pos)` is read only by Physics' `BloodFlow`; `BloodSurfaceConfig.surface_flow` off ignores floors).
+	 (`resistance(pos)` is read only by Physics' `BloodFlow`; `BloodSurfaceConfig.flow` off ignores floors).
    - `Ragdoll` (`RefCounted`, character on death): a generic 3D point-mass body over the floor plane
 	 (x/y + height z). Built with `add_point(at, radius, mass)`, `add_bone(a, b)` / `add_rigid(indices)`,
 	 `add_frame(origin, up, right, forward_hint)`, `add_swing(frame, joint, child, rest, limits)`

@@ -82,7 +82,7 @@ The Lighting domain lights the world; Objects declares and builds what its piece
   `monitor_wall`, `server_rack` and `rig`, the ripperdoc's `surgical` chair and `tool_cart`, the vestibule's `scanner`, the
   `hotplate`, the `neon_tube` decor, a streetlight's `cobra` or `sign` head (at the `Overhang`'s centre, its overlay the glow,
   `street` on), and any other piece with a `neon` option, its `trim`), and the numbers are that kind's row of
-  `ObjectArtLightConfig.light_specs` (energy, radius, shape, how far ahead of the front edge, the rhythms by weight, `room_light`: the
+  `ObjectArtLightConfig.specs` (energy, radius, shape, how far ahead of the front edge, the rhythms by weight, `room_light`: the
   lamp and the surgeon's lamp, `height` `overhead`: the lamp, the surgeon's lamp and the streetlight's heads, `low` the rest). Its
   colour is the painter's glowing colour: the neon (cyan / magenta), else the screen's green, the bulb's `lamp_glow_color`, the
   tube's tone, the lens's `streetlight_lens_color`, the beam's, the ring's. A screen's pool lies across its front (`turn` =

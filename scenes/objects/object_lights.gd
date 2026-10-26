@@ -12,7 +12,7 @@ extends RefCounted
 ##   above the heads, a lamp's bulb, a street lamp's head; `low`: a screen, a tube, LEDs; which
 ##   shadows it, and whether it pools downward, is the Lighting domain's) and `glow` (the piece's
 ##   `Emissive` overlay that shows the source, dimming with the light; null when it has none).
-## Tuning: ObjectArtLightConfig.light_specs (the per-kind numbers) and the painters' colours.
+## Tuning: ObjectArtLightConfig.specs (the per-kind numbers) and the painters' colours.
 
 const Decay = preload("res://scenes/objects/art/decay.gd")
 
@@ -23,7 +23,7 @@ static func of(piece: Node2D) -> Array:
 	var kind := _kind(piece)
 	if kind == "":
 		return []
-	var spec: Dictionary = ObjectArtLightConfig.light_specs.get(kind, {})
+	var spec: Dictionary = ObjectArtLightConfig.specs.get(kind, {})
 	if spec.is_empty():
 		return []
 	var ahead: Vector2 = (piece.look.facing as Vector2).normalized()
@@ -108,7 +108,7 @@ static func _street_head(light: Dictionary, kind: String, piece: Node2D, neon: C
 	light["street"] = true
 
 
-## Which row of ObjectArtLightConfig.light_specs `piece` gives light by ("" for none): by its
+## Which row of ObjectArtLightConfig.specs `piece` gives light by ("" for none): by its
 ## painter and options, or, for a piece with a neon option and no light of its own, its trim.
 static func _kind(piece: Node2D) -> String:
 	var art: String = piece.look.art
