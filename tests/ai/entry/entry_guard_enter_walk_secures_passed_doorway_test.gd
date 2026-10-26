@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 	var starts := {}
 	await _record_walk(t, brain, samples, starts)
 	if not t.require(
-			Entry.asked(t, Entry.SPINE_C["id"]),
+			Entry.asked(Entry.SPINE_C["id"]),
 			"the order was ENTER for room C's doorway (act %s)" % brain.current_act(),
 	):
 		return

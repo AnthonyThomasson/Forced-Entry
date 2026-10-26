@@ -71,7 +71,7 @@ func run(t: TestContext) -> void:
 
 ## The leader orders the frag stack on the back door; both members claim it under the order.
 func _stack_claimed(t: TestContext, door: String) -> bool:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

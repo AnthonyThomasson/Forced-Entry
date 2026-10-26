@@ -32,7 +32,7 @@ func run(t: TestContext) -> void:
 			"the decision path is investigate, then stay (%s)" % brain.current_act(),
 	):
 		return
-	var asked: Array = t.von_requests().filter(
+	var asked: Array = DecisionStub.requests.filter(
 		func(r): return String(r["question"]).begins_with("What should you check first"),
 	)
 	if not t.require(not asked.is_empty(), "Von was asked what to check first"):

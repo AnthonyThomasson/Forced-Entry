@@ -50,7 +50,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "kitchen" })
 	if not t.require(
 			await t.until(func(): return Order.on_order(b), 5.0),

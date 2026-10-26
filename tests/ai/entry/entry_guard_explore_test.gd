@@ -41,6 +41,6 @@ func run(t: TestContext) -> void:
 			"the invader reached the living room (act %s)" % Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	t.check(Entry.asked(t, "explore_"), "the order was a plain explore, not ENTER")
+	t.check(Entry.asked("explore_"), "the order was a plain explore, not ENTER")
 	Entry.check_entered(t, samples, &"inv", Entry.FRONT)
 	Entry.check_entered(t, samples, &"inv", Entry.HALL_LIVING)

@@ -80,7 +80,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	await t.seconds(0.5)
 	Order.issue(squad, { "kind": Order.DEFEND, "to": [d], "room": "room_c" })
 	if not t.require(

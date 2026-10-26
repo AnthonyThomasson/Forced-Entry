@@ -43,7 +43,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var me := t.actor(&"me")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not _has_stack(t, squad, me):
 		return
 	var nodes: Array = [me] + members
@@ -61,7 +61,7 @@ func run(t: TestContext) -> void:
 
 
 func _has_stack(t: TestContext, squad: Node, me: Node) -> bool:
-	var stack := t.player_stack()
+	var stack: Node = t.world.player_stack
 	if not t.require(stack != null, "the human has a stack radio (MatchBuilder.bind_player)"):
 		return false
 	return t.require(

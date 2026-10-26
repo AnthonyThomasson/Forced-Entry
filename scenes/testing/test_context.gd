@@ -89,29 +89,6 @@ func actor(id: StringName) -> Node:
 	return n if is_instance_valid(n) else null
 
 
-## The handle of the match the setup declared (`TestSetup.declared_match`):
-## `MatchBuilder.populate`'s `{ world, house, rooms, openings, nav_region, nav_debug, combatants,
-## squads, player_stack, leader_overlay }`; {} when none was declared.
-func match_handle() -> Dictionary:
-	var handle: Variant = world.get("match_handle") if is_instance_valid(world) else null
-	return handle if handle is Dictionary else {}
-
-
-## The squad of `faction` the setup declared (`TestSetup.squads`, or the declared match's own), or
-## null when it has none.
-func squad(faction: StringName) -> Node:
-	var built: Variant = world.get("squads") if is_instance_valid(world) else null
-	var s: Variant = (built as Dictionary).get(faction) if built is Dictionary else null
-	return s if is_instance_valid(s) else null
-
-
-## The human leader's stack radio (`TestSetup.squads`' `human`, or the declared match's human's),
-## or null when there is none.
-func player_stack() -> Node:
-	var stack: Variant = world.get("player_stack") if is_instance_valid(world) else null
-	return stack if is_instance_valid(stack) else null
-
-
 ## The puppet controller of actor `id` (null when it isn't a puppet).
 func puppet(id: StringName) -> Node:
 	var a := actor(id)
@@ -231,12 +208,6 @@ func trace(trace_name: String, value: float) -> void:
 	var series: Array = traces.get(trace_name, [])
 	series.append([snappedf(time, 0.01), snappedf(value, 0.001)])
 	traces[trace_name] = series
-
-
-## What the scripted Von (`TestSetup.von_script`) was asked: `{ state, question, options: Array,
-## pick }` per ask, in order.
-func von_requests() -> Array:
-	return DecisionStub.requests
 
 
 ## Save the current frame as a PNG named after `label` and return its absolute path, or "" when

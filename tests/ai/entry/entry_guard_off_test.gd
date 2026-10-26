@@ -36,7 +36,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.check(
-		Entry.asked(t, "room_living_room"),
+		Entry.asked("room_living_room"),
 		"the order was a plain search of the living room, not ENTER",
 	)
 	t.check(

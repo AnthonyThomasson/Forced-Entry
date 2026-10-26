@@ -56,8 +56,8 @@ func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var opening := String(door["id"])
 	var a := t.actor(&"a")
-	var squad := t.squad(&"invader")
-	var stack := t.player_stack()
+	var squad: Node = t.world.squad(&"invader")
+	var stack: Node = t.world.player_stack
 	if not _declared(t, squad, stack):
 		return
 	var said := { "order": {}, "step": "claim" }  # What the puppet radios, every `REPEAT` s.

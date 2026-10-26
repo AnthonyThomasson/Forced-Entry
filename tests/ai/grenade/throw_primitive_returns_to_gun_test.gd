@@ -162,7 +162,7 @@ func _check_booms(t: TestContext, far: Node, near: Node, posture: Array) -> void
 
 # Both end up on their pistol, and Von is asked again.
 func _check_back_on_pistol(t: TestContext, far: Node, near: Node) -> void:
-	var asked := t.von_requests().size()
+	var asked := DecisionStub.requests.size()
 	await t.seconds(2.0)
 	t.expect_eq(
 		far.inventory.current_slot(),
@@ -176,6 +176,6 @@ func _check_back_on_pistol(t: TestContext, far: Node, near: Node) -> void:
 		"their grenades are spent",
 	)
 	t.check(
-		t.von_requests().size() > asked,
+		DecisionStub.requests.size() > asked,
 		"and they re-decided: Von was asked again after the bang",
 	)

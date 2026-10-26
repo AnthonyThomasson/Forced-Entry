@@ -54,7 +54,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(squad != null, "premise: the invaders' squad is built (s.squads)"):
 		return
 	await t.seconds(0.3)

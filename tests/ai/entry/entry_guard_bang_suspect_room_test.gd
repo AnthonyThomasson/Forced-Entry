@@ -56,11 +56,11 @@ func run(t: TestContext) -> void:
 	):
 		return
 	t.check(
-		Entry.asked(t, "room_living_room")
-			and not Entry.asked(t, "enter")
-			and not Entry.asked(t, "stun_entry"),
+		Entry.asked("room_living_room")
+			and not Entry.asked("enter")
+			and not Entry.asked("stun_entry"),
 		"the order was a plain search of the living room, not ENTER or STUN ENTRY (picks %s)"
-			% str(t.von_requests().map(func(r): return r["pick"])),
+			% str(DecisionStub.requests.map(func(r): return r["pick"])),
 	)
 	var going := Entry.first_call_time(t, "going_in", &"inv", Entry.BACK["id"])
 	var claims := Entry.calls(t, "claim", &"inv").filter(

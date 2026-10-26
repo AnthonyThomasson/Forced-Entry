@@ -82,7 +82,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var d := t.actor(&"d")
 	var b := Order.brain(t, &"d")
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	var fighting := func(): return Order.primitive(b) == "engage" and _shots(t, d, 0.0) >= 2
 	if not t.require(
 			await t.until(fighting, 12.0),

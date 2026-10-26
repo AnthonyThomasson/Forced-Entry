@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 			"the ordered member carries a stun (Character.inventory.item_count(7))",
 	):
 		return
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	t.puppet(&"lead").walk_to(Order.BACK_NORTH)
 	if not t.require(
 			await t.until(func(): return not Entry.calls(t, "claim", &"joiner").is_empty(), 12.0),

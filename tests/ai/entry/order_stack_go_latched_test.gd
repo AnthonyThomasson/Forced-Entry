@@ -40,7 +40,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door: String = Entry.BACK["id"]
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.stack_order(
 		squad,

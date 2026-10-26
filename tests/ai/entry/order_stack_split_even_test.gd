@@ -38,7 +38,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	await t.seconds(0.3)
 	var order := Order.issue(
 		squad,

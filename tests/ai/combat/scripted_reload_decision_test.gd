@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 		),
 		"the defender's decision path goes through combat then reload (%s)" % brain.current_act(),
 	)
-	var asked := t.von_requests().filter(func(r): return str(r["options"]).contains("reload"))
+	var asked := DecisionStub.requests.filter(func(r): return str(r["options"]).contains("reload"))
 	t.check(not asked.is_empty(), "a tactic level offered reload")
 	t.check(
 		asked.any(func(r): return String(r["state"]).contains("Your pistol is nearly empty. You "

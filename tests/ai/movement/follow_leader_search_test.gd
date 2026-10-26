@@ -52,7 +52,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var lead := t.actor(&"lead")
 	var members: Array = [t.actor(&"m1"), t.actor(&"m2")]
 	if not t.require(squad.leader() == lead, "the lead leads (premise: the rank rule)"):

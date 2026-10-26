@@ -139,7 +139,7 @@ static func _order_stack(
 ) -> bool:
 	if not t.require(not f.is_empty(), "the doorway is in the house (test set-up)"):
 		return false
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(
 			squad != null and squad.leader() == t.actor(lead),
 			"set-up: the squad is declared (s.squads) and led by %s" % lead,

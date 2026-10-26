@@ -1,12 +1,13 @@
 extends GameTest
 ## The match-assembly module (`MatchBuilder.populate`, declared with `s.declared_match`, read with
-## `t.match_handle()`): a match populated on a generated house is the match Main plays. The handle's
-## world, rooms and openings are those of the house; each side has its count; the invaders carry
-## Main's default kit (1 stun, 1 frag, a steel III plate front and back: `docs/outfits.md` O11) and
-## are one police unit (`zenitex` or `trauma`, O15) ranked lead (2), sergeant (1), the rest troopers
-## (0) in spawn order; one squad per faction, led by the rank rule (`docs/leadership.md` LD3: the
-## highest rank, the first spawned among equals); and every NPC's controller has the house's rooms
-## and openings and its side's squad, an invader the front entrance as its `entry_point`.
+## `t.world.match_handle`): a match populated on a generated house is the match Main plays. The
+## handle's world, rooms and openings are those of the house; each side has its count; the invaders
+## carry Main's default kit (1 stun, 1 frag, a steel III plate front and back: `docs/outfits.md`
+## O11) and are one police unit (`zenitex` or `trauma`, O15) ranked lead (2), sergeant (1), the rest
+## troopers (0) in spawn order; one squad per faction, led by the rank rule (`docs/leadership.md`
+## LD3: the highest rank, the first spawned among equals); and every NPC's controller has the
+## house's rooms and openings and its side's squad, an invader the front entrance as its
+## `entry_point`.
 ##
 ## The controllers are read at the start of `run`, before their first tick (a controller hands its
 ## `entry_point` to its perception on it). Von is down: the NPCs hold steady.
@@ -41,8 +42,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	var handle: Dictionary = t.match_handle()
-	if not t.require(not handle.is_empty(), "t.match_handle() returns the match's handle"):
+	var handle: Dictionary = t.world.match_handle
+	if not t.require(not handle.is_empty(), "t.world.match_handle returns the match's handle"):
 		return
 	var brains := {}
 	for c in handle.get("combatants", []):

@@ -55,7 +55,7 @@ func run(t: TestContext) -> void:
 	var t1 := t.actor(&"t1")
 	var t2 := t.actor(&"t2")
 	var t3 := t.actor(&"t3")
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(squad != null, "the invaders' squad is declared (s.squads)"):
 		return
 	var back := Order.stack_order(squad, [t1, t2], Order.BACK_NORTH, "quiet", true)

@@ -72,7 +72,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door: Dictionary = Entry.BACK
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var order := Order.stack_order(
 		squad,
 		ORDERED.map(func(id): return t.actor(id)),

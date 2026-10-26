@@ -37,6 +37,6 @@ func run(t: TestContext) -> void:
 	gunman.shoot()
 	await t.seconds(5.0)
 	var brain := t.controller(&"defender", &"current_act")
-	t.check(not t.von_requests().is_empty(), "the NPC did ask for a decision")
-	t.check(t.von_requests().all(func(r): return r["pick"] == ""), "every ask failed")
+	t.check(not DecisionStub.requests.is_empty(), "the NPC did ask for a decision")
+	t.check(DecisionStub.requests.all(func(r): return r["pick"] == ""), "every ask failed")
 	t.expect_eq(String(brain.current_act()), "hold", "the NPC is still holding")

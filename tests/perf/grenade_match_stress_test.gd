@@ -65,7 +65,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	var characters: Array = t.match_handle().get("combatants", [])
+	var characters: Array = t.world.match_handle.get("combatants", [])
 	if not _set_up(t, characters):
 		return
 	var thrower := t.actor(&"thrower")

@@ -126,9 +126,11 @@ func _move_behind(t: TestContext, inv: Node, brain: Node) -> Dictionary:
 	)
 	DecisionStub.fail = false
 	if not t.require(
-			failed and t.von_requests().size() == 1 and str(t.von_requests()[0]["pick"]) == "",
+			(failed and DecisionStub.requests.size() == 1
+					and str(DecisionStub.requests[0]["pick"]) == ""),
 			("set-up: the question asked in sight failed, so no order made in sight was carried "
-					+ "out (requests %s)") % str(t.von_requests().map(func(r): return r["pick"])),
+					+ "out (requests %s)")
+				% str(DecisionStub.requests.map(func(r): return r["pick"])),
 	):
 		return {}
 	return state

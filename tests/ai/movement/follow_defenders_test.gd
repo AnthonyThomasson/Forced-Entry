@@ -93,7 +93,7 @@ func run(t: TestContext) -> void:
 func _squad_of(t: TestContext, crew: Array) -> Node:
 	if not t.require(crew.size() == CREW, "three defenders placed as Main places them"):
 		return null
-	var squad := t.squad(&"household")
+	var squad: Node = t.world.squad(&"household")
 	if not t.require(squad != null, "premise: the match built the defenders' squad"):
 		return null
 	var lead: Node = crew[0]

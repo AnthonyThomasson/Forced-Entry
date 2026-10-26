@@ -147,8 +147,8 @@ func set_props(id: StringName, child_path: String, props: Dictionary) -> TestSet
 ## `loadout` and `at`, `human`, `spawn_clearance`, `invader_margin`, ...), the house's seed the
 ## spec's `seed` unless they name one. Its `human` may name a test actor by id (`{ actor, side,
 ## lead, at }`, `actor` in place of `node`): that actor is the match's human, joined to its side,
-## armed and given its stack radio. Its NPCs are not test actors: read the match's handle with
-## `t.match_handle()`.
+## armed and given its stack radio. Its NPCs are not test actors: read the match's handle off the
+## world, `t.world.match_handle`.
 func declared_match(overrides: Dictionary = {}) -> TestSetup:
 	match_spec = overrides
 	return self
@@ -162,8 +162,8 @@ func declared_match(overrides: Dictionary = {}) -> TestSetup:
 ## match's human leader is handed its own) and `claim_ttl` (s each squad keeps its members' entry
 ## claims; by default its NPCs' `callout_ttl`, `MatchBuilder.callout_ttl_of`, which is 0 over
 ## puppets alone, so a squad of puppets keeps no claim unless `claim_ttl` names one). Read them with
-## `t.squad(faction)`. A setup that also declares `declared_match` gets the match's squads alone:
-## declaring both is an error.
+## `t.world.squad(faction)`. A setup that also declares `declared_match` gets the match's squads
+## alone: declaring both is an error.
 func squads(opts: Dictionary = {}) -> TestSetup:
 	squads_spec = opts
 	return self

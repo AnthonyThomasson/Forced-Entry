@@ -6,9 +6,9 @@ extends RefCounted
 ## mode `join`).
 ##
 ## The squad is built and bound the way a match's is, declared by the test (`s.squads` or
-## `s.declared_match`, read with `t.squad`), and its reads (`leader()`, `follows`, `follow_spot`,
-## `view()`) are called on it directly, its tunables (`leash`) on `SquadFollowConfig` (interface
-## 21). The NPCs are read only through their controllers' public reads (`current_act()`,
+## `s.declared_match`, read with `t.world.squad`), and its reads (`leader()`, `follows`,
+## `follow_spot`, `view()`) are called on it directly, its tunables (`leash`) on `SquadFollowConfig`
+## (interface 21). The NPCs are read only through their controllers' public reads (`current_act()`,
 ## `debug_state()`, `debug_entry()`) and the radio. The spec's numbers are consts here, so a test
 ## checks the spec and not the code.
 

@@ -49,7 +49,7 @@ func run(t: TestContext) -> void:
 	Probe.arm(lead, 0, 0)
 	Probe.arm(members[0], 1, 0)
 	Probe.arm(members[1], 0, 0)
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	if not t.require(
 			Probe.count(members[0], Probe.STUN) == 1 and Probe.count(lead, Probe.STUN) == 0,
 			"premise: only the sergeant carries a stun (Character.inventory.item_count(7))",

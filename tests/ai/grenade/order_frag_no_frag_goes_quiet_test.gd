@@ -52,7 +52,7 @@ func run(t: TestContext) -> void:
 			"both invaders carry a frag when the order is given (inventory.item_count(8))",
 	):
 		return
-	var squad := t.squad(&"invader")
+	var squad: Node = t.world.squad(&"invader")
 	var order := Order.stack_order(
 		squad,
 		IDS.map(func(id): return t.actor(id)),

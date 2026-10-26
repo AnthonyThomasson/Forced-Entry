@@ -64,7 +64,7 @@ func run(t: TestContext) -> void:
 	var ai := await _reserved_behind(t, me)
 	if ai == null:
 		return
-	var stack: Node = t.match_handle()["player_stack"]
+	var stack: Node = t.world.match_handle["player_stack"]
 	var brain: Node = TestContext.controller_of(ai)
 	t.expect_eq(int(brain.debug_entry().get("slot", 0)), 1, "the AI holds slot 1")
 	var mine := Stack.slot_point(stack, 2)
@@ -89,7 +89,7 @@ func run(t: TestContext) -> void:
 ## The match's one invader NPC, held still until the human was reserved slot 2 behind it; null when
 ## a premise fails.
 func _reserved_behind(t: TestContext, me: Node2D) -> Node2D:
-	var m := t.match_handle()
+	var m: Dictionary = t.world.match_handle
 	var npcs: Array = (m.get("combatants", []) as Array).filter(func(c): return c != me)
 	if not t.require(npcs.size() == 1, "premise: the match has its one invader NPC"):
 		return null

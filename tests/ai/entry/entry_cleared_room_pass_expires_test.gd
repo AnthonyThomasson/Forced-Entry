@@ -102,7 +102,7 @@ func _first_walk_plain(t: TestContext, inv: Node, cleared_ms: int) -> bool:
 	var east := func(): return inv.global_position.distance_to(EAST) < 40.0
 	var first := await Entry.watch(t, [&"inv"], FRONT, 40.0, east)
 	if not t.require(
-			east.call() and Entry.asked(t, "investigate"),
+			east.call() and Entry.asked("investigate"),
 			"the invader investigated the gunfire east of the house (act %s, at %s)"
 				% [Entry.brain(t, &"inv").current_act(), inv.global_position.round()],
 	):

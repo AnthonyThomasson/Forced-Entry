@@ -345,13 +345,13 @@ func run(t: TestContext) -> void:
     actors): `overrides` are `MatchBuilder.spec`'s (each side's `count`, `loadout` and `at`, `human`, `spawn_clearance`,
     `invader_margin`, ...), the world's seed its `seed` unless they name one, the setup's overlays its `overlays`. Its `human` may
     name an actor (`{ actor, side, lead, at }`, `actor` in place of `node`): that actor is joined to its side, armed and handed its
-    stack radio. The match's NPCs are not test actors: read them off `t.match_handle()`. Declare `squads` or `declared_match`, not both (an error).
+    stack radio. The match's NPCs are not test actors: read them off `t.world.match_handle`. Declare `squads` or `declared_match`, not both (an error).
   - Behaviour: `switch(name, on)` (table below) and `set_static(ConfigClass, prop, value)`. A `prop` the holder has no
     static var by (a switch row's too) is an error that fails the test (`TestWorld._set_static`), never a silent no-op.
   - Scripted Von: `von_script([{ pick: id, question: substring? }, …])` replaces the server with those
     picks (first rule whose id is offered; else the first offered option), so an AI test needs no server
     and is deterministic (`von_script(rules, latency_frames)` holds each answer back that many physics frames, `DecisionStub.latency_frames`, to test what an NPC does while a decision is in flight); `von_down()` makes every decision fail (the hold-steady fallback). Read what was
-    asked with `t.von_requests()` (`{ state, question, options, pick }`). Ids are the decision tree's node
+    asked off `DecisionStub.requests` (`{ state, question, options, pick }`, the AI decision sub-domain's stub). Ids are the decision tree's node
     ids (`combat`, `flank`, `engage`, …) and option ids. Keep `requires_von` tests for judging Von itself.
   - Presentation: `show_overlays(["show_vision", …])` and `camera_follow([ids])` (default frames all
     actors; the camera's hand-pan is off when a `player` actor is present, since WASD walks it).
@@ -362,10 +362,10 @@ func run(t: TestContext) -> void:
     `await t.until(cond, timeout, msg := "") -> bool` (with `msg`, a timeout records a failed check).
   - Lookup: `t.actor(id)`, `t.puppet(id)` (the ScriptedController), `t.object(id)`, `t.vehicle(id)`,
     `t.controller(id, method)` (e.g. `&"current_act"` for an NPC brain; `TestContext.controller_of(character, method := &"control")`
-    is the same for a character that is not a test actor, e.g. a match's NPC), `t.world`, `t.rooms`, `t.time`; `t.match_handle()` (the
-    declared match's handle, `{ world, house, rooms, openings, nav_region, nav_debug, combatants, squads, player_stack,
-    leader_overlay }`, {} with none), `t.squad(faction)` (the declared squad of that faction, `squads`' or the match's, null with none)
-    and `t.player_stack()` (the human leader's stack radio, null with none).
+    is the same for a character that is not a test actor, e.g. a match's NPC), `t.world`, `t.rooms`, `t.time`; off the world (a `TestWorld`, typed `Node2D` on the
+    context, so a `var` takes an explicit type): `t.world.match_handle` (the declared match's handle, `{ world, house, rooms, openings,
+    nav_region, nav_debug, combatants, squads, player_stack, leader_overlay }`, {} with none), `t.world.squad(faction)` (the declared squad
+    of that faction, `squads`' or the match's, null with none) and `t.world.player_stack` (the human leader's stack radio, null with none).
   - Event log: `t.events_of(topic, filter)`, `t.happened(topic, filter)`, `t.spawned(name_part)`.
     Topics are every EventBus topic (`&"hit"`: position, victim, attacker, direction, damage;
     `&"callout"`), `&"died"` / `&"hit_landed"` per actor (`actor` = its id; hit_landed adds body,
@@ -569,7 +569,7 @@ the approach, the stack's slots, the pie, the crossing, the corners, the ready b
 and a joining ally, clearing, covering the doorways on and rear security. Scripted-Von tests on the Terrace house (`Maps.house(s, false)`, bare
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
 (SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `tuning:decision:decide_interval` in its `gc` offsets its decide timer),
-`target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(t, prefix)` to check the
+`target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(prefix)` to check the
 order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
 kitchen or living room, `KITCHEN_HALL`, `LIVING_KITCHEN`, with `out`, `outward`, `lateral`, `in_funnel`, `in_room`,
@@ -609,7 +609,7 @@ wants a one-sided stack starts its late joiner on the stack's side (the E16 test
 
 `tests/ai/stack/stack_*_test.gd` pin down the human's place in an AI stack (E16 in `docs/tactical-entry.md`), on the Terrace house and the
 back door like the entry tests. A **puppet with the invader faction** stands in for the human, and the test gives it the stack radio the way
-Main does: declared with `s.squads({ "human": id })` and read with `t.player_stack()` when the test needs a squad too, else in `run`:
+Main does: declared with `s.squads({ "human": id })` and read with `t.world.player_stack` when the test needs a squad too, else in `run`:
 `Stack.attach(t, id)` (`tests/_ai/stack_probe.gd`, `const Stack := preload(...)`, which loads `PlayerStack` by path and calls
 `attach(character, rooms, t.world.openings)`; null before the feature exists). The stack is read through `view()` (`Stack.mine`,
 `Stack.slot_point`) and the human's radio through the usual `Entry.calls(t, step, &"me")`; `Stack.walk` takes the puppet through points
@@ -632,7 +632,7 @@ mechanism tests are `tests/ai/movement/npc_*` (scripted Von, a puppet teammate s
 
 **A match built as Main builds one.** Every test world is staged as Main's match is (`MatchBuilder.stage`, `wait_nav` on: it waits until
 the navigation maps answer with the world before an actor spawns, and Main's match waits the same way, `general/match_nav_ready_before_spawn`).
-A test that wants Main's whole match declares it (`s.declared_match`, read with `t.match_handle()`); its human may be a test actor: in
+A test that wants Main's whole match declares it (`s.declared_match`, read with `t.world.match_handle`); its human may be a test actor: in
 `tests/ai/stack/stack_ai_goes_round_player_in_slot` it is the player's own character and controller (no input), joined to the invaders
 and handed its stack radio as a match's human is (`MatchBuilder.bind_player`). A test of Main itself runs Main whole through its public
 members with `tests/_main/main_probe.gd` (`const MainProbe := preload(...)`; not a test): `open(parent, exports, player_at := ZERO)` (Main with
@@ -657,8 +657,8 @@ house's back door; the held stack of LD13 in `order_stack_hold_for_go`, `order_s
 `order_frag_no_frag_goes_quiet`), the squad and Main's wiring in `tests/general/` (`squad_leader_rule`, `squad_succession`,
 `squad_done_order_not_cancellable`, `squad_go_and_ambush`, `lead_rank`, `command_menu_wiring`: also the held stack and the menu's Go) and the UI in `tests/ui/` (`command_menu_items`, `command_menu_docks_right`, `command_menu_docks_left`, `command_menu_clear_of_overlay_bar` / `_centre` / `_crowded`, `command_menu_label_matches_order`, `order_markers_draw`, `leader_overlay_draw`,
 and `setup_menu_config`'s "Lead the team").
-A test with one squad per side declares it (`s.squads`, the human leader a puppet named by `human`; read with `t.squad(faction)` and
-`t.player_stack()`). The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; not a test): `squad(t, faction,
+A test with one squad per side declares it (`s.squads`, the human leader a puppet named by `human`; read with `t.world.squad(faction)` and
+`t.world.player_stack`). The shared helper is `tests/_ai/order_probe.gd` (`const Order := preload(...)`; not a test): `squad(t, faction,
 members, leader)`, a squad built and bound by the match's own rule (`MatchBuilder.build_squads`) in `run`, for the squads no setup declares
 (two squads of one side, in `general/squad_leader_rule` and `ai/decision/order_progress_radio`, each saying why in its header), `issue` / `post` / `view` /
 `stack_order` (a stack the way the menu asks for it, `mode` and `wait_go`) / `go` (the leader's go, LD13) /
@@ -680,7 +680,7 @@ LD17's tests are `tests/ai/entry/order_stack_waits_for_leader` (the human puppet
 preload(...)`; not a test): the spec's numbers as its own consts (`FOLLOW_GAP`, `FOLLOW_STEP`, `FOLLOW_CAUGHT_UP`, `FOLLOW_RING`, `FOLLOW_RINGS`,
 `FOLLOW_STILL_TIME`, `FOLLOW_RETARGET`, `FOLLOW_ARRIVE`, `LEASH`, `LEASH_BREAK`), so a test checks the spec and not the code, and the band a follower keeps
 (`band_p50(i)`: the `i`-th follower's place in the file plus `BAND_LAG`, 45 px of walking lag, at the median; `BAND_P90`); the squad
-is the test's declared one (`s.squads` or `s.declared_match`, read with `t.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
+is the test's declared one (`s.squads` or `s.declared_match`, read with `t.world.squad`), built and bound as a match's; a member's reads (`brain_of`, `act`, `following`, `walk_target`, `entry`); the radio
 (`raw_joins`, `raw_orders`, `calls_of`, `own_claims`, `first_call`, `clears`); a watch of the team (`new_watch`, `tick`,
 `watch`, `asked`: the Von questions of a member's walks, `gaps`, `took`, `acts_of`, `went_through`, `off_spot_tick`); and the leash
 chase's world (`chase_hall`, shared by `ai/combat/leash_no_chase` and its contrast `leash_free_chase`, which binds no squad). The tests
@@ -717,7 +717,7 @@ wall from a held defender, read off `debug_memory()["footsteps"]` and the `footf
 
 `defenders_stay_in_house_quiet` (scripted) and `defenders_stay_in_house_quiet_von` (real Von, invaders outside as at the start of a match)
 watch every defender of a generated house (`tests/_ai/house_probe.gd`: `house(s, seed, defenders, invaders)` declares the house and a
-match over it, `s.declared_match`, placed and armed as Main's; `side(t, faction)` reads one side's NPCs off `t.match_handle()`; `watch`, whose failure message carries each
+match over it, `s.declared_match`, placed and armed as Main's; `side(t, faction)` reads one side's NPCs off `t.world.match_handle`; `watch`, whose failure message carries each
 defender's trail and what Von was last asked) and sweep with `--seed=N`. `move_stops_on_arrival` gives
 the scripted Von a real server's reply time by raising `DecisionStub.latency_frames` in `run` (`von_script` registered it, so it is restored after the test).
 
@@ -944,7 +944,7 @@ domain's config holder, guarded at its one spawn point (the way `BloodConfig.ena
 | `test_setup.gd` (`TestSetup`) | The declarative builder. |
 | `test_context.gd` (`TestContext`, an **Object**) | Waits, lookup, event log, assertions, verdict (`conclude`: PASS / FAIL / TIMEOUT / SKIPPED, and GAP for a `gap`-tagged test that failed as expected). The test session frees it at close, which discards any test coroutine still parked on it. |
 | `test_world.gd` | Builds a TestSetup into a sub-tree: statics and switches first, then the house, layout or arena with its objects, then the world stage as Main's match has it (`MatchBuilder.stage` with `wait_nav`: nav plus updater and the `NavDebug`, the dusk lighting, interface 20, none with `lighting.enabled` off, two physics frames (walls solid, navmesh live), then a wait, real time, at most `MatchBuilder.NAV_SYNC_MS`, until the planning map and the steering map are `NavBuilder.ready`), actors (each NPC bound by `MatchBuilder.bind_npc` before `_ready` — `rooms`, the house's `openings`, an invader's front entrance — positioned before they join the tree so one never overlaps origin furniture for a frame), a declared match (`MatchBuilder.populate`, `match_handle`) or declared squads (`squads`, `player_stack`, the `LeaderOverlay`), then world switches. Vehicles (`TestSetup.vehicle`) are placed after the nav wait and before the actors, followed by one more
-physics frame so they are in the space. `build` is a coroutine. Also `restore()` and `set_overlay()` (through `MatchBuilder.set_overlay`). It has no bake, light, nav-wait or bind code of its own. |
+physics frame so they are in the space. `build` is a coroutine. Also `restore()`, `set_overlay()` (through `MatchBuilder.set_overlay`) and `squad(faction)` (the declared squad of that faction, or null), which tests read as `t.world.squad(faction)` beside `t.world.match_handle` and `t.world.player_stack`. It has no bake, light, nav-wait or bind code of its own. |
 | `arena_builder.gd` | The walled arena via `FloorFactory` / `WallFactory` + `WorldGen.wall_style()`, annotated with `WorldGen.annotate_layout`. |
 | `layout_builder.gd` | A hand-laid layout: per-room floors and walls, doorways cut with `WallFactory.openings_for`, annotated with `WorldGen.annotate_layout` like a house. |
 | `scripted_controller.gd` | The puppet controller. |
