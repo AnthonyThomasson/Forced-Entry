@@ -29,7 +29,7 @@ Files:
 
 Draws the portions of the forward FOV cone and the 360° near-awareness bubble that have a clear line
 of sight back to the NPC. A ray fan asks the controller each frame where the NPC's sight ends
-(`debug_sight_end(to)`, the perception's `sight_end` → `AgentVision.sight_hit`: walls and TALL furniture block,
+(`debug_sight_end(to)`, the perception's `sight.sight_end` → `AgentVision.sight_hit`: walls and TALL furniture block,
 furniture at or below `see_over_coverage` is seen over) and builds visibility polygons from the answers, so the
 shadows are exactly the sense's — only the area that would actually trigger a detection. The overlay casts no
 ray of its own. It reads the controller's live vision params, its `tuning.senses`
@@ -104,7 +104,7 @@ API, and runs `PROCESS_MODE_ALWAYS`.
 All the overlays depend on the controller keeping its observer getters and the Vision exports public.
 The controller is the single authoring/observer surface: it forwards `debug_status()` (and
 `current_act()`) from the behaviour sub-domain, builds `debug_zones()` from the last perception snapshot
-it holds (the flattening is `zone_list.gd` in this folder: a static `ZoneList.from_options(options)`, which also owns the `waypoint` tagging), forwards `debug_room_zones()` from the perception's `room_status()` and
+it holds (the flattening is `zone_list.gd` in this folder: a static `ZoneList.from_options(options)`, which also owns the `waypoint` tagging), forwards `debug_room_zones()` from the perception's `house.room_status()` and
 `debug_search_coverage()` from the behaviour's `errand.debug_coverage()`, and holds the Vision group exports —
 so these overlays need no reference into the perception/behaviour internals. Every overlay calls those getters directly, with no
 `has_method` guard: the overlays live only under `ai/npc.tscn`, whose controller defines every one, so a renamed getter is an error

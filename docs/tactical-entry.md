@@ -15,7 +15,7 @@ follow yet is written the same way before it is built: the behaviour here, and a
 An *opening* is a doorway in a wall (`WorldGen.get_openings`: `pos`, `width`, `front`/`exit`, the rooms it
 joins). Doorways are open archways; there are no door objects yet (issue #21), so forced breaching is not
 modelled (see *Not modelled*). The AI's side lives in `scenes/ai/`: `perception/` (what it knows of the
-opening, `visible_points`), `decision/` (the ENTER tactic) and `behavior/` (the entry phases and their aim in `entry.gd`,
+opening, `sight.visible_points`), `decision/` (the ENTER tactic) and `behavior/` (the entry phases and their aim in `entry.gd`,
 `search_coverage.gd` for clearing). See `domain-ai-perception`, `domain-ai-decision`, `domain-ai-entry` (the entry phases),
 `domain-ai-behavior` and `domain-ai-coverage`.
 
@@ -141,7 +141,7 @@ across the door's front close in when a way round exists, and never bumping a te
 **E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`tuning.entry_geometry.pie_steps` points, 100 px from
 the threshold, from 55° to 25° off the door's axis), turning its gaze through the doorway at each, before it crosses. What it sees from outside it engages from
 outside, and it notes the share of the room seen and which corners are still hidden. Why: it is the cheapest way
-to learn the room, and the farthest the entrant ever is from a threat. Built on `visible_points` and the
+to learn the room, and the farthest the entrant ever is from a threat. Built on the perception's `sight.visible_points` and the
 search-coverage sweep.
 It fires in every phase, the approach and the stack as much as the pie (`docs/gaze-and-fire.md` W2); a threat in sight holds the
 entrant's eyes there, and a pie step the gaze cannot settle on because of it counts as settled; with a line of fire to the hostile the pie then holds and nobody crosses (E14), and without one the entry goes on.

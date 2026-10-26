@@ -89,7 +89,7 @@ func _note_shot_from(at: Vector2, from: Vector2) -> void:
 	if dir == Vector2.ZERO:
 		return
 	var far: Vector2 = at + dir * perception.tuning.senses.hearing_radius
-	var hit: Dictionary = perception._vision.wall_hit(
+	var hit: Dictionary = perception.sight.vision.wall_hit(
 		perception._character.get_world_2d().direct_space_state, at, far
 	)
 	var end: Vector2 = (hit["position"] as Vector2) - dir * 4.0 if not hit.is_empty() else far
@@ -124,7 +124,7 @@ func process_footfall(data: Dictionary) -> void:
 		return
 	var f = walker.get("faction")
 	if (perception.contacts.hostility.is_ally(f if f != null else &"")
-			or perception._visible_now.has(walker.get_instance_id())):
+			or perception.sight.visible_now.has(walker.get_instance_id())):
 		return
 	perception._memory.remember(
 		&"heard_footsteps",
@@ -178,7 +178,7 @@ func process_callout(data: Dictionary) -> void:
 	)
 	var cleared := str(StackClaim.decode(data).get("cleared_room", ""))
 	if cleared != "":
-		perception._learn_room({ "key": cleared })
+		perception.house.learn_room({ "key": cleared })
 		perception._memory.remember(
 			&"visited_room",
 			{ "key": cleared },
@@ -194,7 +194,7 @@ func process_callout(data: Dictionary) -> void:
 ## by entry).
 func shots_from_room(key: String) -> bool:
 	for shot in perception._memory.recall_all(&"shot_from"):
-		if AgentSuspicion.shot_rooms(perception._rooms, shot).has(key):
+		if AgentSuspicion.shot_rooms(perception.house.rooms, shot).has(key):
 			return true
 	return false
 
@@ -205,7 +205,7 @@ func shots_from_room(key: String) -> bool:
 ## reads to turn into a bang when a new one comes up (`docs/tactical-entry.md` E17).
 func room_suspicion(key: String) -> Array:
 	return suspicion.rooms_suspected(
-		perception._rooms, perception.contacts.lost_hostiles(), callouts()
+		perception.house.rooms, perception.contacts.lost_hostiles(), callouts()
 	).get(key, [])
 
 

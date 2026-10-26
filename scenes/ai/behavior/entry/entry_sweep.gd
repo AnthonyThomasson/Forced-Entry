@@ -67,7 +67,7 @@ func reset() -> void:
 
 ## Drop every room point and corner now in sight from the unseen sets, and update the share seen.
 func note_seen(entry: Entry) -> void:
-	for p in world.perception.visible_points(unseen):
+	for p in world.perception.sight.visible_points(unseen):
 		unseen.erase(p)
 	if not points.is_empty():
 		entry.pie.seen_fraction = 1.0 - float(unseen.size()) / float(points.size())
@@ -76,7 +76,7 @@ func note_seen(entry: Entry) -> void:
 	for i in corners.size():
 		if not corners_seen.get(i, false):
 			unseen_corners.append(corners[i]["pos"])
-	for p in world.perception.visible_points(unseen_corners):
+	for p in world.perception.sight.visible_points(unseen_corners):
 		for i in corners.size():
 			if corners[i]["pos"] == p:
 				corners_seen[i] = true

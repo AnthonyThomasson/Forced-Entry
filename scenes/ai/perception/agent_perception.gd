@@ -18,12 +18,13 @@ extends Node
 ## (agent_tactics.gd), the doorway geometry (agent_entry.gd), the doorway views and the walk round
 ## them (agent_door_views.gd), the grenade geometry (agent_throw.gd), the live grenades known
 ## (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as internal modules, and surfaces
-## knowledge only through its own methods and its parts (`hearing`, `orders`, `contacts`,
-## `grenades`), each built once in `setup()` and holding it. It holds NO policy: it never decides,
-## gates by goal or picks — and the measured wording Von reads lives in the snapshot author, not
-## here. The controller calls `setup()` once, then hands it the NPC's tuning
-## (`apply_config(tuning)`): the perception and the snapshot's vocabulary read their tunables live
-## off the topic nodes (the single authoring surface), and it sets its modules' straight from them.
+## knowledge only through its own methods and its parts (`sight`, `house`, `hearing`, `orders`,
+## `contacts`, `grenades`, `entry`, `views`), each built once in `setup()` and holding it. It holds
+## NO policy: it never decides, gates by goal or picks — and the measured wording Von reads lives in
+## the snapshot author, not here. The controller calls `setup()` once, then hands it the NPC's
+## tuning (`apply_config(tuning)`): the perception and the snapshot's vocabulary read their tunables
+## live off the topic nodes (the single authoring surface), and it sets its modules' straight from
+## them.
 
 ## The internal modules this sub-domain owns (built in setup() from the config fields).
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -35,7 +36,9 @@ const AgentDoorViews := preload("res://scenes/ai/perception/agent_door_views.gd"
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentGrenades := preload("res://scenes/ai/perception/agent_grenades.gd")
 const AgentSuspicion := preload("res://scenes/ai/perception/agent_suspicion.gd")
-## The parts (`hearing`, `orders`, `contacts`, `grenades`, `entry`, `views`).
+## The parts (`sight`, `house`, `hearing`, `orders`, `contacts`, `grenades`, `entry`, `views`).
+const PerceptionSight := preload("res://scenes/ai/perception/perception_sight.gd")
+const PerceptionHouse := preload("res://scenes/ai/perception/perception_house.gd")
 const PerceptionHearing := preload("res://scenes/ai/perception/perception_hearing.gd")
 const PerceptionOrders := preload("res://scenes/ai/perception/perception_orders.gd")
 const PerceptionContacts := preload("res://scenes/ai/perception/perception_contacts.gd")
@@ -48,22 +51,7 @@ const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 ## walks.
 const AgentSnapshot := preload("res://scenes/ai/perception/agent_snapshot.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
-## Physics frames between an unfamiliar NPC's looks for rooms and furniture it does not know yet.
-## Learning is permanent and a decision looks again first, so a glimpse shorter than this still
-## counts when it is the moment of a decision.
-const LEARN_EVERY_FRAMES := 6
-## Physics frames between two sight tests of a character that stays inside an NPC's view cone. The
-## range and cone test runs every frame, so one that enters the cone is tested at once and one that
-## leaves it is dropped at once; only the line of sight and the sighting written from it are renewed
-## this often, offset per NPC and target so a squad does not test on the same frame. What the NPC
-## holds of a character it sees is at most this many frames old.
-const SIGHT_EVERY_FRAMES := 3
 
-## The house entrance in world space (injected by its composer for an invader), offered while
-## outside.
-var entry_point: Vector2 = Vector2.ZERO
-## The house's doorways (`WorldGen.get_openings`, injected by its composer), for tactical entry.
-var openings: Array = []
 ## The NPC's tuning topics (`NpcTuning`), handed in by apply_config(): the tunables the perception
 ## reads itself, read live (`tuning.memory.contact_ttl`).
 var tuning: NpcTuning
@@ -72,40 +60,16 @@ var tuning: NpcTuning
 var follows := false
 ## The NPC's body, handed in once by bind().
 var _character: Node
-## The sight sense (FOV/range/LoS); see agent_vision.gd.
-var _vision: RefCounted
 ## The event memory; see agent_memory.gd.
 var _memory: RefCounted
 ## The combat geometry; see agent_tactics.gd.
 var _tactics: RefCounted
 ## The BUILD half: writes the decision snapshot; see agent_snapshot.gd.
 var _snapshot: RefCounted
-## The house's rooms, as handed to the latest observe().
-var _rooms: Array = []
-## The NPC's spawn position, captured on the first observe() call.
-var _post := Vector2.ZERO
-## Whether _post has been captured yet.
-var _post_set := false
-## Cached world objects that advertise interactions (static furniture).
-var _interactables: Array = []
-## Whether the one-time interactable scan has run.
-var _scanned := false
-## Whether the familiar-NPC house-knowledge seed has run.
-var _seeded := false
-## First physics frame the next look for unknown rooms and furniture may run.
-var _learn_next := 0
-## Physics frame of the latest such look (-1 = none yet).
-var _learned_frame := -1
-## Instance ids of characters visible on the latest observe() tick.
-var _visible_now := {}
-## The same one tick earlier (what a character not due for a sight test keeps).
-var _visible_before := {}
-## Instance ids of characters in the view cone that have had a sight test since they entered it.
-var _looked := {}
-## Per-character movement track: id → { pos, vel, t, f } (last seen, game msec and game frame).
-var _tracks := {}
-## The NPC was flash-blinded on the latest observe() tick: it sees nothing new.
-var _blind := false
+## What is in view, the tracks, the blind state and the sight cadence; see perception_sight.gd.
+var sight: PerceptionSight
+## What it knows of the house, its post, and learning by sight; see perception_house.gd.
+var house: PerceptionHouse
 ## What it hears and is told; see perception_hearing.gd.
 var hearing: PerceptionHearing
 ## The leader's order it holds; see perception_orders.gd.
@@ -125,7 +89,9 @@ var views: PerceptionViews
 ## a runtime retune takes effect). Building and configuring are separate so apply_config() never
 ## rebuilds a module — that would wipe the event memory and the sight state.
 func setup() -> void:
-	_vision = AgentVision.new()
+	sight = PerceptionSight.new(self)
+	house = PerceptionHouse.new(self)
+	sight.vision = AgentVision.new()
 	hearing = PerceptionHearing.new(self)
 	orders = PerceptionOrders.new(self)
 	contacts = PerceptionContacts.new(self)
@@ -135,14 +101,14 @@ func setup() -> void:
 	contacts.hostility = AgentHostility.new()
 	_memory = AgentMemory.new()
 	_tactics = AgentTactics.new()
-	_tactics.vision = _vision
+	_tactics.vision = sight.vision
 	views.views = AgentDoorViews.new()
-	views.views.vision = _vision
+	views.views.vision = sight.vision
 	entry.doorways = AgentEntry.new()
-	entry.doorways.vision = _vision
+	entry.doorways.vision = sight.vision
 	entry.doorways.views = views.views
 	grenades.throw = AgentThrow.new()
-	grenades.throw.vision = _vision
+	grenades.throw.vision = sight.vision
 	grenades.live = AgentGrenades.new()
 	grenades.live.setup(grenades.throw)
 	hearing.suspicion = AgentSuspicion.new()
@@ -185,11 +151,11 @@ func apply_config(npc_tuning: NpcTuning) -> void:
 
 ## Set the sight sense's, the hostility rules' and the memory's tunables from `npc_tuning`.
 func _apply_senses(npc_tuning: NpcTuning) -> void:
-	_vision.enabled = npc_tuning.senses.vision_enabled
-	_vision.view_distance = npc_tuning.senses.view_distance
-	_vision.fov_degrees = npc_tuning.senses.fov_degrees
-	_vision.awareness_radius = npc_tuning.senses.awareness_radius
-	_vision.see_over_coverage = npc_tuning.senses.see_over_coverage
+	sight.vision.enabled = npc_tuning.senses.vision_enabled
+	sight.vision.view_distance = npc_tuning.senses.view_distance
+	sight.vision.fov_degrees = npc_tuning.senses.fov_degrees
+	sight.vision.awareness_radius = npc_tuning.senses.awareness_radius
+	sight.vision.see_over_coverage = npc_tuning.senses.see_over_coverage
 	contacts.hostility.on_sight = npc_tuning.hostility.on_sight
 	contacts.hostility.trespass = npc_tuning.hostility.on_trespass
 	contacts.hostility.retaliate = npc_tuning.hostility.on_attack
@@ -352,33 +318,6 @@ func _debug_fresh() -> Dictionary:
 	return { "under_fire": under, "checked_leads": checked }
 
 
-## Debug read: every room tagged by how this NPC regards it right now — the one it stands in
-## (`current`), a room it has seen and searched recently (`searched`) or seen but not searched
-## (`unsearched`), or one it has not yet seen at all (`unknown`). This is the room reasoning the
-## search/room/flank options are placed against, exposed for the tactics debug overlay to draw as
-## zones. A pure read of knowledge + the visited-room memory; never perturbs it.
-func room_status(rooms: Array, self_pos: Vector2) -> Array:
-	var known := _known_room_keys()
-	var here := HouseRooms.at(self_pos, rooms)
-	var out: Array = []
-	for room in rooms:
-		var status: StringName
-		if not here.is_empty() and room["key"] == here["key"]:
-			status = &"current"
-		elif not known.has(room["key"]):
-			status = &"unknown"
-		elif _memory.age_of(&"visited_room", "key", room["key"]) > tuning.memory.search_ttl:
-			status = &"unsearched"
-		else:
-			status = &"searched"
-		out.append({
-			"rect": room["rect"],
-			"type": str(room["type"]).replace("_", " "),
-			"status": status,
-		})
-	return out
-
-
 # --- SEE -------------------------------------------------------------------------------------
 
 
@@ -387,11 +326,11 @@ func room_status(rooms: Array, self_pos: Vector2) -> Array:
 ## categorized by `hostility`. A familiar NPC's house knowledge is seeded on the first call. People
 ## are never seeded — they are known only once seen.
 func observe(rooms: Array) -> void:
-	_take_in_house(rooms)
+	house.take_in(rooms)
 	var self_pos: Vector2 = _character.global_position
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
 	var exclude := [_character.get_rid()]
-	_see_characters(rooms)
+	sight.see(rooms)
 
 	# The room the NPC stands in counts as searched (superseded while it stays there).
 	var here := HouseRooms.at(self_pos, rooms)
@@ -403,168 +342,12 @@ func observe(rooms: Array) -> void:
 			str(here["key"]),
 		)
 
-	grenades.live.observe(_vision, space, exclude, _blind)
+	grenades.live.observe(sight.vision, space, exclude, sight.blind)
 	if (not tuning.memory.familiar_with_house
-			and not _blind
-			and Engine.get_physics_frames() >= _learn_next):
-		_learn_by_sight(rooms)
+			and not sight.blind
+			and Engine.get_physics_frames() >= house.learn_next):
+		house.learn_by_sight(rooms)
 	orders.end_ambush_on_contact()
-
-
-## Before a look: capture the NPC's post on the first call, scan the interactables once, learn the
-## grenades carried and the body's heights, seed a familiar NPC's house knowledge, hand the house to
-## the doorway geometry (laying the doorways ahead while `tuning.entry.enabled`) and keep `rooms`.
-func _take_in_house(rooms: Array) -> void:
-	if not _post_set:
-		_post = _character.global_position
-		_post_set = true
-	_ensure_interactables()
-	grenades.throw.learn_carried()
-	grenades.throw.learn_body()
-	_seed_house(rooms)
-	entry.doorways.set_house(openings, rooms)
-	if tuning.entry.enabled:
-		var world: World2D = _character.get_world_2d()
-		# Lay the doorways before a decision needs them.
-		entry.doorways.warm_geometry(world.navigation_map, world.direct_space_state)
-	_rooms = rooms
-
-
-## Every other character (the player included): one sighting per character, superseded while it
-## stays visible. Dead characters are skipped — corpses add no tactical information. A
-## flash-blinded NPC (G15) sees nothing: no new sighting, and nothing is visible, so what it holds
-## stays where it was last seen.
-func _see_characters(rooms: Array) -> void:
-	var self_pos: Vector2 = _character.global_position
-	var facing: Vector2 = _character.facing
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var exclude := [_character.get_rid()]
-	var now := GameClock.msec()
-	var frame := Engine.get_physics_frames()
-	var swap := _visible_before
-	_visible_before = _visible_now
-	_visible_now = swap
-	_visible_now.clear()
-	_blind = _character.stun.is_blind()
-	if _blind:
-		_looked.clear()
-	for other in (_other_characters() if not _blind else []):
-		if not _due_for_sight(other, self_pos, facing, frame):
-			continue
-		if not _vision.can_see_node(other, self_pos, facing, space, exclude):
-			continue
-		var sighting := _sighting_of(other, rooms, now)
-		_visible_now[sighting["id"]] = true
-		_memory.remember(
-			&"saw_character",
-			sighting,
-			maxf(tuning.memory.contact_ttl, tuning.memory.lead_ttl),
-			str(sighting["id"]),
-		)
-		contacts.hostility.classify(sighting, _memory)
-
-
-## Whether character `other` gets a sight test on physics frame `frame`, keeping the view-cone
-## bookkeeping: a dead one or one out of the cone is dropped (its next look is at once); one tested
-## since it entered the cone is tested again every `SIGHT_EVERY_FRAMES` frames, offset per NPC and
-## target, and until then stays what the last look saw.
-func _due_for_sight(other: Node, self_pos: Vector2, facing: Vector2, frame: int) -> bool:
-	var id: int = other.get_instance_id()
-	if other.get("is_dead") == true:
-		_looked.erase(id)
-		return false
-	if not _vision.in_view(self_pos, facing, other.global_position):
-		_looked.erase(id)  # Out of the cone: not seen, and its next look is at once.
-		return false
-	if _looked.has(id) and (frame + get_instance_id() + id) % SIGHT_EVERY_FRAMES != 0:
-		if _visible_before.has(id):
-			_visible_now[id] = true  # Not due: still what the last look saw.
-		return false
-	_looked[id] = true
-	return true
-
-
-## The sighting of character `other`, seen now (game msec `now`): where it is and its movement
-## track, its facing, visible wounds, room, held item, reload and posture.
-func _sighting_of(other: Node, rooms: Array, now: int) -> Dictionary:
-	var id: int = other.get_instance_id()
-	var pos: Vector2 = other.global_position
-	var room := HouseRooms.at(pos, rooms)
-	var item = other.inventory.current_item()
-	var f = other.get("faction")
-	return {
-		"id": id,
-		"node": other,
-		"name": str(other.name),
-		"faction": f if f != null else &"",
-		"ally": contacts.hostility.is_ally(f if f != null else &""),
-		"pos": pos,
-		"vel": _track(id, pos, now),
-		"facing": other.get("facing") if other.get("facing") is Vector2 else Vector2.ZERO,
-		"wound_dmg": other.damage_taken(),
-		"inside": not room.is_empty(),
-		"room_type": room.get("type", "") if not room.is_empty() else "",
-		"item": item.display_name if item != null else "nothing",
-		"reloading": other.ammo.is_reloading(),
-		"posture": other.movement.posture(),
-	}
-
-
-## An unfamiliar NPC learns the rooms and objects it can see (permanent once learned). Runs every
-## `LEARN_EVERY_FRAMES` frames from `observe()`, offset per NPC so a squad does not look on the same
-## frame, and at the start of every decision, so what it knows when it decides is what it sees at
-## that moment.
-func _learn_by_sight(rooms: Array) -> void:
-	var frame := Engine.get_physics_frames()
-	if frame == _learned_frame:
-		return
-	_learn_next = frame + (LEARN_EVERY_FRAMES
-			if _learned_frame >= 0
-			else 1 + get_instance_id() % LEARN_EVERY_FRAMES)
-	_learned_frame = frame
-	var self_pos: Vector2 = _character.global_position
-	var facing: Vector2 = _character.facing
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var exclude := [_character.get_rid()]
-	# Read once: what is learned here is permanent and only grows.
-	var known_rooms := _known_room_keys()
-	for room in rooms:
-		if known_rooms.has(room["key"]):
-			continue  # Already learned: looking again would change nothing.
-		var rect: Rect2 = room["rect"]
-		var centre := rect.position + rect.size * 0.5
-		if rect.has_point(self_pos) or _vision.can_see(self_pos, facing, centre, space, exclude):
-			known_rooms[room["key"]] = true
-			_learn_room(room)
-	var known_objects := _known_object_ids()
-	for obj in _interactables:
-		if not is_instance_valid(obj) or known_objects.has(obj.get_instance_id()):
-			continue
-		if _vision.can_see_node(obj, self_pos, facing, space, exclude):
-			known_objects[obj.get_instance_id()] = true
-			_learn_object(obj)
-
-
-## Update character `id`'s movement track with a sighting at `pos` (game msec `now`) and return its
-## smoothed velocity, both measured on the game clock (`GameClock`). A sighting after a long gap
-## restarts the track (no velocity across the gap). `tuning.context.track_smoothing` is the share of
-## a new velocity taken per game frame, so a sighting that comes several frames after the last takes
-## the share they add up to.
-func _track(id: int, pos: Vector2, now: int) -> Vector2:
-	var frame := GameClock.frame()
-	var vel := Vector2.ZERO
-	var track = _tracks.get(id)
-	if track != null:
-		var dt: float = (now - track["t"]) / 1000.0
-		if dt > 0.0 and dt < 0.5:
-			var steps: int = maxi(frame - int(track["f"]), 1)
-			var smoothing: float = tuning.context.track_smoothing
-			var share := smoothing if steps == 1 else 1.0 - pow(1.0 - smoothing, steps)
-			vel = (track["vel"] as Vector2).lerp((pos - track["pos"]) / dt, share)
-		elif dt == 0.0:
-			vel = track["vel"]
-	_tracks[id] = { "pos": pos, "vel": vel, "t": now, "f": frame }
-	return vel
 
 
 # --- BUILD (delegated to the snapshot author) ------------------------------------------------
@@ -578,16 +361,16 @@ func _track(id: int, pos: Vector2, now: int) -> Vector2:
 ## policy.
 func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
-		_learn_by_sight(rooms)
+		house.learn_by_sight(rooms)
 	var self_pos: Vector2 = _character.global_position
 	var carried := PerceptionGrenades.carried(_character)
 	var knowledge := {
-		"known_rooms": _known_rooms(rooms),
-		"known_room_keys": _known_room_keys(),
-		"known_object_ids": _known_object_ids(),
-		"interactables": _interactables,
-		"post": _post,
-		"entry_point": entry_point,
+		"known_rooms": house.known_rooms(rooms),
+		"known_room_keys": house.known_room_keys(),
+		"known_object_ids": house.known_object_ids(),
+		"interactables": house.interactables,
+		"post": house.post,
+		"entry_point": house.entry_point,
 		"entry_enabled": tuning.entry.enabled,
 		"lost": contacts.lost_hostiles(),
 		# The kinds of grenade it holds, and the bodies a throw's line goes through.
@@ -606,96 +389,6 @@ func fill_goal(goal: String) -> String:
 	return _snapshot.fill_goal(goal)
 
 
-# --- House knowledge -------------------------------------------------------------------------
-
-
-## Seed a familiar NPC's house knowledge once: remember every room and interactable as already-known
-## (permanent ttl). An unfamiliar NPC skips this and learns by sight in observe(). Needs the rooms
-## list, so it runs on the first observe() (not _ready).
-func _seed_house(rooms: Array) -> void:
-	if _seeded or not tuning.memory.familiar_with_house:
-		return
-	_seeded = true
-	for room in rooms:
-		_learn_room(room)
-	for obj in _interactables:
-		if is_instance_valid(obj):
-			_learn_object(obj)
-
-
-## Remember a room as known (permanent).
-func _learn_room(room: Dictionary) -> void:
-	if not _known_room_keys().has(room["key"]):
-		_memory.remember(&"saw_room", { "key": room["key"] }, 0.0, str(room["key"]))
-
-
-## Remember an interactable object as known (permanent), keyed by instance id.
-func _learn_object(obj: Object) -> void:
-	if not _known_object_ids().has(obj.get_instance_id()):
-		_memory.remember(
-			&"saw_object",
-			{ "id": obj.get_instance_id() },
-			0.0,
-			str(obj.get_instance_id()),
-		)
-
-
-## The rooms the NPC knows (all of `rooms` whose key it has learned), in `rooms` order.
-func _known_rooms(rooms: Array) -> Array:
-	var known := _known_room_keys()
-	return rooms.filter(func(r): return known.has(r["key"]))
-
-
-## The set of room keys the NPC currently knows (from `saw_room` memory), as a lookup dict.
-func _known_room_keys() -> Dictionary:
-	var out := {}
-	for data in _memory.recall_all(&"saw_room"):
-		out[data.get("key")] = true
-	return out
-
-
-## The set of interactable instance ids the NPC currently knows (from `saw_object` memory).
-func _known_object_ids() -> Dictionary:
-	var out := {}
-	for data in _memory.recall_all(&"saw_object"):
-		out[data.get("id")] = true
-	return out
-
-
-## Scan the world once for objects that advertise interactions (static furniture), caching the refs.
-## Positions are read live each tick; the set itself doesn't change during a run.
-func _ensure_interactables() -> void:
-	if _scanned:
-		return
-	_scanned = true
-	_interactables.clear()
-	var root: Node = _character.world_root()
-	if root != null:
-		_collect(root)
-
-
-## Recursively gather descendants whose get_interactions() is non-empty into `_interactables`.
-func _collect(node: Node) -> void:
-	for child in node.get_children():
-		if (child.has_method("get_interactions")
-				and not (child.get_interactions() as Array).is_empty()):
-			_interactables.append(child)
-		_collect(child)
-
-
-## Every other character in the world (the group `characters`, interface 7) under the shared world
-## root, excluding the NPC itself, in tree order. Used by observe() to test each for visibility.
-func _other_characters() -> Array:
-	var root: Node = _character.world_root()
-	if root == null:
-		return []
-	var out: Array = []
-	for c: Node in _character.get_tree().get_nodes_in_group(&"characters"):
-		if c != _character and root.is_ancestor_of(c):
-			out.append(c)
-	return out
-
-
 # --- Combat geometry for the behaviour -------------------------------------------------------
 
 
@@ -710,39 +403,6 @@ func has_line_to(target: Node2D, point: Vector2) -> bool:
 	if target != null and is_instance_valid(target):
 		exclude.append(target.get_rid())
 	return not _tactics.blocked(space, _character.global_position, point, exclude)
-
-
-## Of world `points`, the subset the NPC can SEE right now from where it stands — view cone + clear
-## line of sight over low cover, the same sight rule used to spot characters (agent_vision.gd). The
-## behaviour uses it to track which parts of a room a searcher has covered. Builds the sight query
-## from the NPC's body; the NPC excludes itself.
-func visible_points(points: Array) -> Array:
-	if points.is_empty():
-		return []
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var exclude := [_character.get_rid()]
-	var self_pos: Vector2 = _character.global_position
-	var facing: Vector2 = _character.facing
-	var seen: Array = []
-	for p in points:
-		if _vision.can_see(self_pos, facing, p, space, exclude):
-			seen.append(p)
-	return seen
-
-
-## Where the NPC's sight from where it stands toward world point `to` is first blocked — over low
-## cover, the same rule that spots characters (agent_vision.gd) — or `to` itself when the line
-## reaches it. The NPC excludes itself. What the vision overlay draws its visible area from; a pure
-## read.
-func sight_end(to: Vector2) -> Vector2:
-	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
-	var hit: Dictionary = _vision.sight_hit(
-		space,
-		_character.global_position,
-		to,
-		[_character.get_rid()],
-	)
-	return hit["position"] if not hit.is_empty() else to
 
 
 ## Candidate standing points on a ring around the NPC, classified for peek-and-cover against the

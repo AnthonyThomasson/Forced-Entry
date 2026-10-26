@@ -205,7 +205,7 @@ Falls back to straight-line steering with no agent (arriving within `tuning.pace
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it
 the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply` by `errand.set_up_walk`: what it sees, or saw within `tuning.memory.contact_ttl`, with `pos`, `vel`, `facing`, `visible`);
 a body it has not seen does not exist for the walk, and one out of sight whose last spot (within `WALK_BODY_RANGE`, 450 px) it can see
-now with nobody on it has moved on (`Behavior.errand`'s `_walk_bodies`, via `AgentPerception.visible_points`). `crowd.ignore_id` leaves out the one a
+now with nobody on it has moved on (`Behavior.errand`'s `_walk_bodies`, via `AgentPerception.sight.visible_points`). `crowd.ignore_id` leaves out the one a
 `melee` closes on. A body whose track is slower than
 `REST_SPEED` (40 px/s) is at rest, any faster one a walker. Each walk (a new one when the destination moves more than `NEW_WALK` px) is in
 one of four ways, checked once a physics frame (`_check`):

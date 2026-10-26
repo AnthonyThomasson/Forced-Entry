@@ -80,6 +80,6 @@ func end_ambush_on_contact() -> void:
 	if String(held.get("kind", "")) != "ambush":
 		return
 	if (perception.under_fire()
-			or perception._visible_now.keys().any(func(id):
+			or perception.sight.visible_now.keys().any(func(id):
 				return perception.contacts.hostility.is_hostile(id, perception._memory))):
 		end(held["id"], "done")

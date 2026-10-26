@@ -269,7 +269,7 @@ func debug_zones() -> Array:
 func debug_room_zones() -> Array:
 	if _character == null or _perception == null:
 		return []
-	return _perception.room_status(rooms, _character.global_position)
+	return _perception.house.room_status(rooms, _character.global_position)
 
 
 ## Read-only: the running tactical entry — the doorway (`opening`, `into`), the NPC's stack `slot`
@@ -305,7 +305,7 @@ func debug_search_coverage() -> Dictionary:
 func debug_sight_end(to: Vector2) -> Vector2:
 	if _perception == null or _character == null:
 		return to
-	return _perception.sight_end(to)
+	return _perception.sight.sight_end(to)
 
 
 ## Read-only: what the NPC has heard and been told (gunfire heard, under-fire direction, ally
@@ -439,12 +439,13 @@ func _bind_body(character: Node) -> void:
 func _sense(character: Node, delta: float) -> void:
 	_comms.process_events()
 	_reflexes.follow_squad()
-	_perception.openings = openings
+	_perception.house.openings = openings
 	_perception.observe(rooms)
 	_reflexes.react_to_grenades()
 	_behavior.rooms = rooms
 	if entry_point != Vector2.ZERO:
-		_perception.entry_point = entry_point # Hand the injected entrance to the perception once.
+		# Hand the injected entrance to the perception's house once.
+		_perception.house.entry_point = entry_point
 		entry_point = Vector2.ZERO
 	var known: Array = _perception.contacts.known(character.global_position)
 	if _behavior.update_known(known, delta):

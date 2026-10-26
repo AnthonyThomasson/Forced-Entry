@@ -109,7 +109,7 @@ func _seen_empty(key: String) -> bool:
 	for c in perception.contacts.sightings(
 			null, perception.tuning.entry_guard.pass_clear_time, -1.0, true
 	):
-		if HouseRooms.key_at(c["pos"], perception._rooms) == key:
+		if HouseRooms.key_at(c["pos"], perception.house.rooms) == key:
 			return false
 	return true
 

@@ -12,8 +12,10 @@ owns nine internal modules and presents one public face, `agent_perception.gd` (
 Files:
 - `agent_perception.gd` — the public face: SEE (observe), the contacts view, event intake, and the
   BUILD entry (`sense`) that gathers knowledge and delegates to the snapshot author.
-- `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`, `perception_grenades.gd`, `perception_entry.gd`,
-  `perception_views.gd` — the face's parts, held as
+- `perception_sight.gd`, `perception_house.gd`, `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`,
+  `perception_grenades.gd`, `perception_entry.gd`, `perception_views.gd` — the face's parts, held as `sight` (the sight sense
+  `vision`, what is in view `visible_now`, the tracks, `blind` and the sight cadence), `house` (the rooms, `openings` and
+  `entry_point`, what it has learned of the house and learning by sight, the interactables, its `post`),
   `hearing` (hits, gunfire, footsteps and callouts heard, with the suspicion module), `orders` (the live order), `contacts` (the
   characters known, with the hostility rules), `grenades` (the grenade geometry `throw` and the live grenades `live`, what it
   carries, the latest burst), `entry` (the doorway geometry `doorways` and the claims heard `ledger`, the rooms cleared) and `views`
@@ -59,17 +61,17 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   decision), `bind(character)` (the NPC's body, which every sense and query reads from then on; it tells the hostility rules the
   body's faction and hands the body on to `AgentThrow`, `AgentGrenades` and the snapshot, each with its own `bind`). No function
   below takes the character.
-- `observe(rooms)` — the SEE pass, every tick: one `saw_character` sighting per visible
-  character (keyed, superseded while visible; renewed every `SIGHT_EVERY_FRAMES` (3) physics frames, offset per NPC and target,
+- `observe(rooms)` — the SEE pass, every tick (`sight.see(rooms)`, then `house.learn_by_sight(rooms)`): one `saw_character` sighting per visible
+  character (keyed, superseded while visible; renewed every `SIGHT_EVERY_FRAMES` (3, `perception_sight.gd`) physics frames, offset per NPC and target,
   for a character that stays in the view cone: the range/cone test runs every frame, so one that enters the cone is tested at once
   and one that leaves it is dropped at once, and what the NPC holds of a character it sees is at most 3 frames old;
   `tests/ai/perception/sight_follows_a_moving_target_test.gd`) carrying `pos`, a smoothed velocity track (`vel`, measured on `GameClock`; `track_smoothing` is the share taken per game frame, so a sighting several frames after the last takes the share they add up to),
   `facing`, the visible wound damage (`wound_dmg`, banded by the snapshot), `reloading`, `posture`, `ally`, inside/room, held item; the room the NPC stands in is
   remembered as searched (`visited_room`); an unfamiliar NPC learns rooms/objects by sight (it skips what it already knows
-  before testing sight, and reads each known set once per pass). That look runs every `LEARN_EVERY_FRAMES` (6) physics frames,
-  offset per NPC by instance id so a squad does not look on the same frame, and again at the start of every `sense()`, so what
+  before testing sight, and reads each known set once per pass). That look runs every `LEARN_EVERY_FRAMES` (6, `perception_house.gd`) physics frames,
+  offset per NPC by the perception node's instance id so a squad does not look on the same frame, and again at the start of every `sense()`, so what
   it knows at a decision is what it sees at that moment. The characters it tests are the group `characters` (interface 7)
-  under the world root, itself left out, in tree order (`_other_characters`).
+  under the world root, itself left out, in tree order (`sight.others()`).
 - **A blinded NPC** (`Character.stun.is_blind()`, docs/grenades.md G15) sees nothing: `observe()` skips the sighting pass (no new sighting, nothing `visible`, the `_looked` state is dropped) and the learning look, so what it holds of a hostile stays where it was last seen. Contacts "age as usual" but a blind NPC cannot tell that one has gone, so `contacts.known()` / `contacts.lost_hostiles()` keep every sighting the memory still holds (`lead_ttl`) while it is blind (`_contact_ttl`); the behaviour fires blind at the last-known spot of the engaged one. It is back to `contact_ttl` the tick it sees again.
 - `contacts.known(self_pos)` — characters seen within `contact_ttl` (hostiles first, then nearest),
   with `hostile`/`reason`/`visible`/`age`. The behaviour hands the whole list to its locomotion every tick: the bodies a walk goes
@@ -117,7 +119,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   BUILD pass (below). `activity` is the behaviour's current-activity line.
 - Combat geometry for the behaviour: `has_line_to(target, point)`, `combat_spots(target, tgt_pos, radius)` (a ring of `combat_ring_count` points),
   `note_engaged` / `engaged_fresh` / `under_fire`; `memory_size()` and
-  `room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
+  `house.room_status(rooms, self_pos)` (each room tagged current / searched / unsearched / unknown) for debug.
 - Entry geometry for the behaviour, on the `entry` part: `entry.geometry(opening_id, into)`, `entry.stack(opening_id, into := "") -> DoorStack` (the doorway's
   stack as the radio describes it, built by the NPC's own `ClaimLedger` over that geometry, one per doorway a frame: every slot rule the entry
   reads, `claim`, `slot_for`, `settle`, `split_side`, `back_slot`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`,
@@ -130,13 +132,13 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   reaches into `agent_entry.gd` itself, but preloads the stack module, `StackClaim` and `DoorStack`, the seam it shares with the team; the
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
   its published seam, `set_house`, `geometry`, `stack_side_from`, `slots.on_stack_side`, `opening_id` and `normal_into`, and the stack module
-  (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `views.avoided()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
+  (`StackClaim`, a `ClaimLedger` of their own, the `DoorStack`s it builds and `StackLayout`) for every claim and slot) (below). `views.avoided()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `house.openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
 - `contacts.all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
-- `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
+- `sight.visible_points(points) -> Array` — of `points`, the subset in sight right now (view
   cone + clear line of sight, via `can_see`); the searcher's room-coverage test (behaviour samples a
   room and asks each tick which sampled points it has now seen).
-- `sight_end(to) -> Vector2` — where its sight toward `to` is first blocked (`AgentVision.sight_hit`, over
+- `sight.sight_end(to) -> Vector2` — where its sight toward `to` is first blocked (`AgentVision.sight_hit`, over
   low cover), or `to`; the controller's `debug_sight_end` forwards it to the vision overlay.
 
 ## The snapshot and the wording rules — `domain-ai-snapshot`

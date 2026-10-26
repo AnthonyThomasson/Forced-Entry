@@ -71,7 +71,7 @@ func _walk_bodies() -> Array:
 			spots.append(c["pos"])
 	if spots.is_empty():
 		return behavior.fight.known
-	var empty: Array = behavior._perception.visible_points(spots)
+	var empty: Array = behavior._perception.sight.visible_points(spots)
 	if empty.is_empty():
 		return behavior.fight.known
 	return behavior.fight.known.filter(func(c): return c["visible"] or not empty.has(c["pos"]))

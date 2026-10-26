@@ -182,7 +182,7 @@ func in_zone(kind: StringName, burst: Vector2, p: Vector2) -> bool:
 ## through.
 func character_rids() -> Array:
 	var rids := [perception._character.get_rid()]
-	for other in perception._other_characters():
+	for other in perception.sight.others():
 		if other is CollisionObject2D:
 			rids.append(other.get_rid())
 	return rids

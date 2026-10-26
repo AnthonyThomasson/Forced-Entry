@@ -1103,11 +1103,12 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   reached by preload const with **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and
   `_reflexes`; behaviour's `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and
   `world` and its ten parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`);
-  combat's `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; the launcher's
+  combat's `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; perception's `sight`, `house`,
+  `contacts`, `hearing`, `orders`, `grenades`, `entry` and `views`; the launcher's
   `_probe`; the doorway geometry's `slots`. A part member read from outside its part is public on it, its underscore and any prefix the part's name says
   dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage` `grenade.stage`); one used only inside its
-  part keeps its name. Behaviour's, locomotion's and the controller's working parts hold their Node owner (`behavior`, `loco`,
-  `controller`). Entry is a `RefCounted`, so its parts hold only its `state` and `world` leaves: a part method that needs the
+  part keeps its name. Behaviour's, locomotion's, the controller's and perception's working parts hold their Node owner (`behavior`, `loco`,
+  `controller`, `perception`). Entry is a `RefCounted`, so its parts hold only its `state` and `world` leaves: a part method that needs the
   entry or a sibling takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. The doorway geometry
   (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry` at the call and hold nothing of it. Combat's
   `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and confines, the probe) hold

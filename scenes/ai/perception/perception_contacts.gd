@@ -55,7 +55,7 @@ func _contact_ttl() -> float:
 	return maxf(
 		perception.tuning.memory.contact_ttl,
 		perception.tuning.memory.lead_ttl,
-	) if perception._blind else perception.tuning.memory.contact_ttl
+	) if perception.sight.blind else perception.tuning.memory.contact_ttl
 
 
 ## The live character sightings in memory as contact dicts — the one source behind known(),
@@ -91,6 +91,6 @@ func _live_sighting(rec: Dictionary) -> Dictionary:
 	c["age"] = rec["age"]
 	c["reason"] = hostility.reason(c["id"], perception._memory)
 	c["hostile"] = c["reason"] != ""
-	c["visible"] = perception._visible_now.has(c["id"])
+	c["visible"] = perception.sight.visible_now.has(c["id"])
 	c["blind"] = perception._memory.age_of(&"flashed", "id", c["id"]) < INF
 	return c
