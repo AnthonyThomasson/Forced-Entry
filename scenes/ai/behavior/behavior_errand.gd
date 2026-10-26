@@ -88,7 +88,7 @@ func service_interaction(delta: float, force: bool) -> bool:
 	if (force
 			or not character.use.is_busy()
 			or interaction_timer <= 0.0
-			or not behavior._evade.is_empty()):
+			or not behavior.grenades.evade.is_empty()):
 		character.use.end_interaction()
 		in_interaction = false
 		# Pick the next step right away rather than wait out the cadence.
@@ -114,7 +114,7 @@ func set_up_walk(delta: float) -> void:
 	loco.crowd.bodies = _walk_bodies()
 	# A melee closes on its target: no walk round it.
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
-	behavior._perception.ordered_walk = behavior._ordered_stack()
+	behavior._perception.ordered_walk = behavior.orders.ordered_stack()
 	loco.doors.avoid_doors = behavior._keeps_out_of_views()
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]

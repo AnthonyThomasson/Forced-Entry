@@ -61,7 +61,7 @@ the radio's `post_entry_call`), and the team preloads `StackClaim`, `ClaimLedger
 
 **Orders (`docs/leadership.md`).** The controller queues `&"order"` events; one that names the NPC (and its side) becomes its live order
 (`AgentPerception.process_order`) and forces a decision (`_cadence.force("ordered")`, in `_comms.process_events`); from that frame until a decision made knowing the order
-lands a walk the order replaces stops, while a fight goes on (the cadence's `order_from` = `decisions`, `Behavior.await_order(true)`, `domain-ai-behavior`):
+lands a walk the order replaces stops, while a fight goes on (the cadence's `order_from` = `decisions`, `Behavior.orders.await_next(true)`, `domain-ai-behavior`):
 `_maybe_interrupt` restarts a decision walk in flight, and `_on_decided` drops a leaf from a walk begun before the order (LD6). The entry rule `ordered → order` sits after the fight rules
 and before `hostile_known`, so an ordered member shot at fights, then goes back to its order. The ORDER node's one option (the snapshot's
 `order` group) is auto-picked: `defend` for a room (the behaviour's `defend` primitive, at its D2 spot), an `entry` for a stack, an `ambush`
@@ -80,14 +80,14 @@ A **join** (a `stack` order with `mode` `join`, LD24) is the squad's own: its le
 no order. Its ORDER option is an `entry` with `join: true` and no side or mode of the order's, and `Entry.begin` runs it as the member's own
 unordered entry joining the leader's stack (`domain-ai-entry`); the order's id stays in the leaf's params, so its progress is still radioed.
 A join with no slot at a dead end has no option and ends `refused`. A join that ends (done, cancelled on the leader's `abort`, refused)
-leaves the member to follow again, at once while its entry is still in `approach` or `stack` (`Behavior._join_over`, LD25).
+leaves the member to follow again, at once while its entry is still in `approach` or `stack` (`Behavior.orders.join_over`, LD25).
 
 **Following (`docs/leadership.md` LD19 to LD23).** Each tick the reflexes' `follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
 `follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
-("follows its leader" / "leads its squad"), and the leash (`Behavior.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
+("follows its leader" / "leads its squad"), and the leash (`Behavior.orders.set_leash(leader position, squad.leash)`, `Vector2.INF` when it does
 not follow or holds an order: `leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
 order takes it); a leashed follower in a fight (`in_combat`) further than `leash_break` leashes from its leader, neither `committed()` nor
-`walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
+`orders.walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
 INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
 `leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
 (`domain-ai-behavior`) and asks for no decision on the cadence.

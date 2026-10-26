@@ -49,8 +49,8 @@ func apply_posture(delta: float) -> void:
 ## its slot for the burst crouches too (`Entry.holds_crouched`, LD14).
 func _wanted_posture() -> StringName:
 	var task: RunningLeaf = behavior.task
-	if not behavior._evade.is_empty():
-		return &"crouch" if behavior._evade_crouches() else &"stand"
+	if not behavior.grenades.evade.is_empty():
+		return &"crouch" if behavior.grenades.evade_crouches() else &"stand"
 	if not behavior.tuning.pace.posture_enabled or behavior._character.movement.run_input:
 		return &"stand"
 	if task.primitive == &"entry" and behavior._entry.holds_crouched():
@@ -96,7 +96,7 @@ func _run_now() -> bool:
 		return false
 	var task: RunningLeaf = behavior.task
 	var character: Node = behavior._character
-	var squad: Node = behavior.squad
+	var squad: Node = behavior.orders.squad
 	var dest: Vector2 = behavior.fight.engage_pos if task.primitive == &"melee" else task.point
 	var near: float = behavior.tuning.pace.run_min_distance
 	var run: bool = task.params.get("run", false)

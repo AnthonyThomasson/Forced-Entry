@@ -339,8 +339,8 @@ func debug_progress() -> Dictionary:
 func debug_grenades() -> Dictionary:
 	if _perception == null or _behavior == null:
 		return { "known": [], "escape": Vector2.INF, "throw": {} }
-	return { "known": _perception.known_grenades(), "escape": _behavior.evade_spot(),
-		"throw": _behavior.throw_plan() if _character != null else {} }
+	return { "known": _perception.known_grenades(), "escape": _behavior.grenades.evade_spot(),
+		"throw": _behavior.grenades.throw_plan() if _character != null else {} }
 
 
 ## Read-only: the last callout this NPC radioed (`position`, `point`, `label`, `at` msec), or empty.
@@ -483,7 +483,7 @@ func _act(delta: float) -> void:
 	for claim in _behavior.take_entry_calls():
 		if tuning.radio.send_callouts:
 			_comms.post_entry_call(claim)
-	for throw in _behavior.take_throw_calls():
+	for throw in _behavior.grenades.take_throw_calls():
 		if tuning.radio.send_callouts:
 			_comms.post_throw_call(throw)
 	_comms.report_order()
@@ -495,7 +495,7 @@ func _act(delta: float) -> void:
 ## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
 ## (`forced`, the elapsed timer) and asks again next frame. `due`: the decide cadence has elapsed.
 func _should_decide(due: bool) -> bool:
-	if _behavior.committed() or _behavior.evading() or _character.stun.is_blind():
+	if _behavior.committed() or _behavior.grenades.evading() or _character.stun.is_blind():
 		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
 		# burst (G16).
 		return false
@@ -512,7 +512,7 @@ func _should_decide(due: bool) -> bool:
 ## calls for a different starting node (e.g. it came under fire mid-way through choosing a room to
 ## search → straight to COMBAT). Otherwise the walk in flight already fits; let it finish.
 func _maybe_interrupt() -> void:
-	if _behavior.evading() or _character.stun.is_blind():
+	if _behavior.grenades.evading() or _character.stun.is_blind():
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
 	# the order, and a walk the order replaces stands until one made with it lands.
@@ -564,7 +564,7 @@ func _check_salient() -> void:
 ## Adopt the planner's leaf: hand it to the behaviour, log the full decision path, and tell allies
 ## (a combat or investigation decision) over the radio.
 func _on_decided(leaf: Dictionary) -> void:
-	if _behavior.evading():
+	if _behavior.grenades.evading():
 		return  # Overtaken by a grenade while Von was answering; the burst ends in a new decision.
 	if _cadence.order_from >= 0 and _cadence.decisions <= _cadence.order_from:
 		# A walk begun before the order came, which its restart superseded: the one made with the

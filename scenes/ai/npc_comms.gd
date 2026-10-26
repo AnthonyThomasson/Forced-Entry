@@ -60,7 +60,7 @@ func process_events() -> void:
 					# A walk it replaces stands until a decision started from here on lands
 					# (`_on_decided`).
 					cadence.order_from = cadence.decisions
-					behavior.await_order(true)
+					behavior.orders.await_next(true)
 	event_queue.clear()
 
 
@@ -68,7 +68,7 @@ func process_events() -> void:
 ## behaviour reports as it carries it out (`moving`, `in_position`), and `done` / `refused` once it
 ## has ended so; on the team radio, so only with `tuning.radio.send_callouts`.
 func report_order() -> void:
-	var steps: Array = controller._behavior.take_order_steps()
+	var steps: Array = controller._behavior.orders.take_steps()
 	var ended: Dictionary = controller._perception.take_ended_order()
 	if not ended.is_empty():
 		steps.append({ "order_id": ended["id"], "step": ended["why"] })

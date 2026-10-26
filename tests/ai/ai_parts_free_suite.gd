@@ -38,6 +38,7 @@ func _held(controller: Node) -> Dictionary:
 		"behavior.watch": behavior.get("_watch"),
 		"behavior.fight": behavior.get("fight"), "behavior.errand": behavior.get("errand"),
 		"behavior.coverage": behavior.get("errand").coverage, "behavior.gait": behavior.get("gait"),
+		"behavior.grenades": behavior.get("grenades"), "behavior.orders": behavior.get("orders"),
 		"entry": entry, "entry.state": entry.state, "entry.world": entry.world,
 		"combat": combat, "combat.throw": combat.get("throw"),
 		"loco": loco, "loco.crowd": loco.get("crowd"), "loco.give_way": loco.get("give_way"),
@@ -71,7 +72,7 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(23)
+		assert_int(held.size()).is_equal(25)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()

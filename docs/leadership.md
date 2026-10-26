@@ -100,7 +100,7 @@ first", LD14; a held stack adds " when they give the go", LD13), the ambush's (L
 the kitchen by its doorway with them." (LD24). A member with no order reads no such sentence: the same state text as an NPC outside any
 squad.
 
-An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.await_order`,
+An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.orders.await_next`,
 set by the controller as its cadence's `order_from` is), a decision walk already in flight is restarted and its answer, when it comes, dropped, and a
 walk the order replaces stops where it is, as an arrived move stands (`Behavior._walking`): a move not chosen under COMBAT (a search's
 walk, an investigation's, an idle walk), an entry's approach to its slot, a defend or ambush walk to its post, a throw's walk to its throw
@@ -574,7 +574,7 @@ otherwise). For a leashed follower:
 - **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of
   closing in, and melee holds its ground while its target is off the leash.
 - **The break.** A fighting follower (`in_combat`) further than `leash_break` (1.3) leashes from its leader, neither committed nor on its
-  way somewhere it chose (`Behavior.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
+  way somewhere it chose (`Behavior.orders.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
   once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
   on the way.
 
@@ -637,7 +637,7 @@ LD14's tests, their squads bound.
 or it withdrew), the squad posts one `cancel` to the living members holding a join it gave at that doorway and forgets that rally, so a
 later claim of its there rallies again (D25). A member whose join ends follows again: done (the room cleared, by it or radioed by a
 teammate), cancelled, or refused (the squad drops a refused join from what the member holds, so the next rally counts it free). While its
-entry is still in its `approach` or `stack` phase, a join whose order has ended forces a decision at once (`Behavior._join_over`, "join
+entry is still in its `approach` or `stack` phase, a join whose order has ended forces a decision at once (`Behavior.orders.join_over`, "join
 over": the entry would not end on its own there); in the later phases (the pie, the crossing, the corner, the clear, the cover, the rear) the
 entry runs to its end first, then the member follows (D26). A cancel forces a decision as any order does.
 

@@ -28,7 +28,7 @@ var tuning: NpcTuning
 ## clock (combat_throw.gd).
 var throw := Throw.new()
 ## Whether the NPC fires blind while flash-blinded (`docs/grenades.md` G15): the controller's roll
-## as it went blind (`Behavior.set_blind_fire`). Read only while blind (`holds_fire`).
+## as it went blind (`Behavior.grenades.set_blind_fire`). Read only while blind (`holds_fire`).
 var blind_fire := true
 ## Peek-and-cover phase: "peek" (seek a shot) or "cover" (duck).
 var phase := "peek"
@@ -39,7 +39,7 @@ var fire_timer := 0.0
 ## Committed fire/cover position the NPC is steering toward.
 var dest := Vector2.ZERO
 ## A squad member following its leader fights within `leash` px of this, the leader's live
-## position (`Vector2.INF`: no leash), set every tick by `Behavior.set_leash` (LD23).
+## position (`Vector2.INF`: no leash), set every tick by `Behavior.orders.set_leash` (LD23).
 var leash_center := Vector2.INF
 ## The leash (px) round `leash_center` a follower fights within (0 with no leash).
 var leash := 0.0

@@ -19,7 +19,7 @@ var decisions := 0
 ## (`debug_state()["decision_reason"]`).
 var decision_reason := ""
 ## `decisions` when an order was last taken, while its decision has not landed (-1: none awaited);
-## see `Behavior.await_order`.
+## see `Behavior.orders.await_next`.
 var order_from := -1
 ## Known-hostile set + engaged contact's inside state, for edge detection.
 var salient_key := ""
