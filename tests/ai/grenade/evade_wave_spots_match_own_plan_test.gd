@@ -157,27 +157,11 @@ func _plain_for(
 	var kind: StringName = known[0]["kind"]
 	var at: Dictionary = start[npc]
 	var search := { "space": space, "map": map, "exclude": GrenadeAi.character_rids(t) }
-	var threat := _threat(kind, g.radius_of(kind), known[0]["point"], float(start["fuse"]))
-	var plain := GrenadeAi.plain_escape(g, search, threat, _runner(at["from"], float(at["speed"])))
-	return plain
-
-
-## The grenade as the escape takes it.
-func _threat(kind: StringName, radius: float, burst: Vector2, fuse: float) -> GrenadeThreat:
-	var threat := GrenadeThreat.new()
-	threat.kind = kind
-	threat.radius = radius
-	threat.burst = burst
-	threat.fuse_left = fuse
-	return threat
-
-
-## The runner as the escape takes it.
-func _runner(from: Vector2, speed: float) -> GrenadeRunner:
-	var runner := GrenadeRunner.new()
-	runner.from = from
-	runner.speed = speed
-	return runner
+	var threat := GrenadeAi.escape_threat(
+		kind, g.radius_of(kind), known[0]["point"], float(start["fuse"]),
+	)
+	var runner := GrenadeAi.escape_runner(at["from"], float(at["speed"]))
+	return GrenadeAi.plain_escape(g, search, threat, runner)
 
 
 ## The thrower lobs its frag at the landing; until it goes off, each frame's start is noted.

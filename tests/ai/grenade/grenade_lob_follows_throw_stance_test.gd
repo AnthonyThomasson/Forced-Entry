@@ -57,7 +57,7 @@ func run(t: TestContext) -> void:
 	if not _set_up(t, inv):
 		return
 	var brain := t.controller(&"i", &"debug_zones")
-	var seen := await _watch_first_combat(t, brain, inv)
+	var seen := await Spot.watch_first_combat(t, brain, inv)
 	var first: Dictionary = seen["first"]
 	if not t.require(
 			not first.is_empty() and (first["pos"] as Vector2).distance_to(I_AT) <= 12.0,
@@ -93,27 +93,6 @@ func _set_up(t: TestContext, inv: Node) -> bool:
 			and I_AT.distance_to(H_AT) <= Probe.MAX_RANGE,
 		"set-up: in sight and in range, and the lob from the left hand clears the jamb",
 	)
-
-
-# Follows the invader's decision walks until it has made a COMBAT decision and thrown (or 15 s
-# pass): its first COMBAT walk, the throw zones it weighed then, and every walk.
-func _watch_first_combat(t: TestContext, brain: Node, inv: Node) -> Dictionary:
-	var state := {}
-	var walks: Array = []
-	var first := {}
-	var zones: Array = []
-	var watch := func() -> bool:
-		Spot.note(t, brain, inv, state, walks)
-		if first.is_empty():
-			for w in walks:
-				if not w["combat"].is_empty():
-					first.merge(w)
-					zones.assign(Spot.throws(brain))
-					break
-		return (not first.is_empty()
-				and t.happened(&"throw", func(d): return d.get("attacker") == inv))
-	await t.until(watch, 15.0)
-	return { "first": first, "zones": zones, "walks": walks }
 
 
 func _check_throw_from_here(t: TestContext, zones: Array) -> bool:

@@ -155,3 +155,25 @@ static func describe(walks: Array) -> Array:
 	return walks.filter(func(w): return not w["combat"].is_empty()).map(func(w): return (
 		"%.1fs at %s: %s" % [w["time"], str((w["pos"] as Vector2).round()), str(w["combat"])]
 	))
+
+
+## Follows the decision walks of `npc` (`brain` its controller) until it has made a COMBAT decision
+## and thrown (or 15 s pass): its first COMBAT walk, the throw zones it weighed then, and every
+## walk.
+static func watch_first_combat(t: TestContext, brain: Node, npc: Node2D) -> Dictionary:
+	var state := {}
+	var walks: Array = []
+	var first := {}
+	var zones: Array = []
+	var watch := func() -> bool:
+		note(t, brain, npc, state, walks)
+		if first.is_empty():
+			for w in walks:
+				if not w["combat"].is_empty():
+					first.merge(w)
+					zones.assign(throws(brain))
+					break
+		return (not first.is_empty()
+				and t.happened(&"throw", func(d): return d.get("attacker") == npc))
+	await t.until(watch, 15.0)
+	return { "first": first, "zones": zones, "walks": walks }

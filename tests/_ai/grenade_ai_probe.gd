@@ -5,7 +5,8 @@ extends RefCounted
 ## it (`check_held_at_old_spot`, `check_sees_again`, `check_thrown_from_outside`), setting a scene
 ## round a grenade (`hostile`, `place`), the lines a blast is judged on (`character_rids`,
 ## `line_clear`, `safe_from_frag`, `shielded`, G7) and the plain escape search the evade plan is
-## held to (`plain_escape`). The bus and the spec's constants are `grenade_probe.gd`'s, read there.
+## held to (`plain_escape`, with the `escape_threat` and `escape_runner` it takes). The bus and the
+## spec's constants are `grenade_probe.gd`'s, read there.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
 ## The flank maps, whose kitchen `watch_until_thrown` tells fighting outside by.
@@ -225,6 +226,29 @@ static func plain_escape(
 	var spots := _plain_spots(g, search, threat, runner.from)
 	var allowed := maxf(threat.fuse_left - AgentThrow.ARRIVE_MARGIN, 0.0) * runner.speed
 	return _plain_best(search["map"], spots, runner.from, allowed)
+
+
+## The grenade as the escape takes it.
+static func escape_threat(
+	kind: StringName,
+	radius: float,
+	burst: Vector2,
+	fuse: float,
+) -> GrenadeThreat:
+	var grenade := GrenadeThreat.new()
+	grenade.kind = kind
+	grenade.radius = radius
+	grenade.burst = burst
+	grenade.fuse_left = fuse
+	return grenade
+
+
+## The runner as the escape takes it.
+static func escape_runner(from: Vector2, speed: float) -> GrenadeRunner:
+	var body := GrenadeRunner.new()
+	body.from = from
+	body.speed = speed
+	return body
 
 
 ## Every candidate of the plain search snapped and judged: `{ spot, crouch }` for each that lands

@@ -104,34 +104,20 @@ func _compare_kind(
 	var fuse := rng.randf_range(0.6, 3.0)
 	var speed := rng.randf_range(90.0, 260.0)
 	var fast: Dictionary = geometry.escape(
-		space, map, _threat(kind, radius, burst, fuse), _runner(from, speed), exclude,
+		space,
+		map,
+		GrenadeAi.escape_threat(kind, radius, burst, fuse),
+		GrenadeAi.escape_runner(from, speed),
+		exclude,
 	)
 	var plain := GrenadeAi.plain_escape(
 		geometry,
 		{ "space": space, "map": map, "exclude": exclude },
-		_threat(kind, radius, burst, fuse),
-		_runner(from, speed),
+		GrenadeAi.escape_threat(kind, radius, burst, fuse),
+		GrenadeAi.escape_runner(from, speed),
 	)
 	tally["compared"] += 1
 	tally["found"] += 1 if fast["spot"] != Vector2.INF else 0
 	if fast != plain:
 		tally["differing"].append("%s at %s from %s: %s, plain %s"
 				% [kind, burst.round(), from.round(), fast, plain])
-
-
-## The grenade as the escape takes it.
-func _threat(kind: StringName, radius: float, burst: Vector2, fuse: float) -> GrenadeThreat:
-	var threat := GrenadeThreat.new()
-	threat.kind = kind
-	threat.radius = radius
-	threat.burst = burst
-	threat.fuse_left = fuse
-	return threat
-
-
-## The runner as the escape takes it.
-func _runner(from: Vector2, speed: float) -> GrenadeRunner:
-	var runner := GrenadeRunner.new()
-	runner.from = from
-	runner.speed = speed
-	return runner
