@@ -1,12 +1,12 @@
 extends GameTest
 ## LD9 / D4 (`docs/leadership.md`): a stack ordered from across the house guards each threshold it
-## passes. An unordered entry's approach meets the guard only for doorway views (`_guard_approach`),
-## not for thresholds. An invader standing in the Terrace house's living room is ordered to stack in
-## the hall at the kitchen–hall doorway, into the kitchen; its way there goes through the
-## hall–living doorway into the hall, a room nobody has cleared. It goes into the hall by tactical
-## entry first (a detour: `going_in` for that doorway before it is ever in its funnel, no pause in
-## it), then the ordered entry restarts afresh and it claims its slot at the kitchen doorway under
-## the order and goes in.
+## passes. An unordered entry's approach meets the guard only for doorway views
+## (`entries._guard_approach`), not for thresholds. An invader standing in the Terrace house's
+## living room is ordered to stack in the hall at the kitchen–hall doorway, into the kitchen; its
+## way there goes through the hall–living doorway into the hall, a room nobody has cleared. It goes
+## into the hall by tactical entry first (a detour: `going_in` for that doorway before it is ever in
+## its funnel, no pause in it), then the ordered entry restarts afresh and it claims its slot at the
+## kitchen doorway under the order and goes in.
 ##
 ## Scripted Von, down: the member's own decisions hold steady, so what it does is the order's alone
 ## (the guard's detour asks Von nothing). The squad is built and bound as a match's (`s.squads`, a

@@ -16,9 +16,9 @@ The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `
 pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
-the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior.gd`, `combat.gd`: the leash)
+the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
-`behavior.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
+`behavior_entries.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
 for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`squads_over`: `build_squads`,
 `bind_squad`, `build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
@@ -100,7 +100,7 @@ first", LD14; a held stack adds " when they give the go", LD13), the ambush's (L
 the kitchen by its doorway with them." (LD24). A member with no order reads no such sentence: the same state text as an NPC outside any
 squad.
 
-An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.await_order`,
+An order stops a walk, not a fight. From the frame it takes an order until the decision made knowing it lands (`Behavior.orders.await_next`,
 set by the controller as its cadence's `order_from` is), a decision walk already in flight is restarted and its answer, when it comes, dropped, and a
 walk the order replaces stops where it is, as an arrived move stands (`Behavior._walking`): a move not chosen under COMBAT (a search's
 walk, an investigation's, an idle walk), an entry's approach to its slot, a defend or ambush walk to its post, a throw's walk to its throw
@@ -154,7 +154,7 @@ defender. There it holds, still, its gun on its doorway; a lone member of a room
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
 only among the options inside that room (every option naming a place is tagged with its room, `tags.room`; the planner's `confines.room`
-drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `_hold_ground` and `Combat.peek_cover` keep
+drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `fight.hold_ground` and `Combat.peek_cover` keep
 it inside against a contact outside the room. A live grenade (D8) sets off the evade reflex as it would anywhere, which may take the member
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
 a rule on its fight options, not on the reflex. The order lasts until it is cancelled or replaced.
@@ -188,7 +188,7 @@ to keeps its own (D10).
   the stack is in.
 - **The way there is guarded (D4).** Before its claim goes out the ordered entry works out its slot, its side and its approach and holds
   the claim back (`Entry.state.held_back`), and the whole walk to the slot, leg by leg as the approach walks it (out of the room being entered and
-  its doorway's view, E18), is read (`Behavior._detour_first`; at most `ROUTE_WAIT`, 2 s, waiting for the map round the views): a threshold
+  its doorway's view, E18), is read (`Behavior.entries._detour_first`; at most `ROUTE_WAIT`, 2 s, waiting for the map round the views): a threshold
   into a room that is not cleared, other than the room being entered, is entered first, as a detour (E9), and with no other recipient of
   the order coming, a doorway view the walk would cross is secured first (E15; not one of the room being entered, nor one a stack already
   claims). The entry is dropped unheard, so no claim was made, and starts afresh after the detour, reading the way again. The ordered
@@ -413,7 +413,7 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   Members alternate sides of the axis by their place in `to` (the side with more wall first), two on one side at least `AMBUSH_SPACING`
   (44 px) apart. A hidden post lies tucked against the door's wall well along from it; in the Terrace house only the hall / living room
   doorway (`door_150_360`, from the living room) has one, every other doorway the least-seen fallback.
-- **The primitive.** `ambush` (`behavior.gd`), the ORDER node's option with `{ opening, room, spot, door_pos, order_id }`: `defend`'s walk
+- **The primitive.** `ambush` (`behavior_orders.gd`), the ORDER node's option with `{ opening, room, spot, door_pos, order_id }`: `defend`'s walk
   to its post (guarded as any walk, `DEFEND_REACH`, `DEFEND_DRIFT`), then it holds there crouched (with `posture_enabled`), gun on the
   threshold (`Watch.ease_gaze` on `door_pos`); the watch stage fires the moment a line opens. It radios `moving`, then `in_position`, and
   asks for no decision while its order stands (on the way, the walk's commit cap).
@@ -574,7 +574,7 @@ otherwise). For a leashed follower:
 - **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of
   closing in, and melee holds its ground while its target is off the leash.
 - **The break.** A fighting follower (`in_combat`) further than `leash_break` (1.3) leashes from its leader, neither committed nor on its
-  way somewhere it chose (`Behavior.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
+  way somewhere it chose (`Behavior.orders.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
   once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
   on the way.
 
@@ -637,7 +637,7 @@ LD14's tests, their squads bound.
 or it withdrew), the squad posts one `cancel` to the living members holding a join it gave at that doorway and forgets that rally, so a
 later claim of its there rallies again (D25). A member whose join ends follows again: done (the room cleared, by it or radioed by a
 teammate), cancelled, or refused (the squad drops a refused join from what the member holds, so the next rally counts it free). While its
-entry is still in its `approach` or `stack` phase, a join whose order has ended forces a decision at once (`Behavior._join_over`, "join
+entry is still in its `approach` or `stack` phase, a join whose order has ended forces a decision at once (`Behavior.orders.join_over`, "join
 over": the entry would not end on its own there); in the later phases (the pie, the crossing, the corner, the clear, the cover, the rear) the
 entry runs to its end first, then the member follows (D26). A cancel forces a decision as any order does.
 
@@ -737,7 +737,7 @@ The cases the behaviours above cite as D1 to D30.
 | ... along the wall past the jamb | 30 to 100 px, best 50 | `DEFEND_LATERALS`, `DEFEND_LATERAL` |
 | ... inside the room's walls by | 22 px | `DEFEND_INSET` |
 | The fatal funnel: within a body of a doorway's width, nearer its wall than | 14 px, 200 px | `DEFEND_BODY`, `DEFEND_FUNNEL_DEPTH` |
-| A defender walks into its spot to within, and back to it when pushed off by more than | 8 px, 24 px | `Behavior.DEFEND_REACH`, `DEFEND_DRIFT` |
+| A defender walks into its spot to within, and back to it when pushed off by more than | 8 px, 24 px | `DEFEND_REACH`, `DEFEND_DRIFT` (`behavior_orders.gd`) |
 | An ordered stack waits for its recipients at most (from the first ordered `ready`) | 60 s | `tuning.entry.order_ready_cap` |
 | A room seen empty counts as clear for a defender's ordered walk for | 60 s | `tuning.entry_guard.pass_clear_time` |
 | The command menu picks a teammate's body within | 28 px | `CommandMenu.PICK_RADIUS` |
@@ -748,7 +748,7 @@ The cases the behaviours above cite as D1 to D30.
 | Two ambushers' posts on one side, at least | 44 px apart | `AMBUSH_SPACING` |
 | A frag entry waits for its frag to go off at most (from the call) | 7 s | `Entry.FRAG_BURST_CAP` |
 | A frag entry keeps every slot out of the frag's danger zone | 370 px (250 + 120) | `throw_stats().danger_radius` + `tuning.grenades.evade_margin` |
-| An ordered member waits for the map round the views before reading its way at most | 2 s | `Behavior.ROUTE_WAIT` |
+| An ordered member waits for the map round the views before reading its way at most | 2 s | `ROUTE_WAIT` (`behavior_entries.gd`) |
 | A stack's approach is given up after its own walk at walking pace plus | 20 s | `tuning.entry.approach_time` (`Entry._approach_cap`) |
 | A member stands in its slot within, and steps back in when further off than | 6 px | `StackClaim.SLOT_REACH` |
 | A member in its slot looks for a lower slot to move up into every | 0.25 s | `Entry.MOVE_UP_EVERY` |

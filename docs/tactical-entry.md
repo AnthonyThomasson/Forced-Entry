@@ -292,14 +292,14 @@ Tests: `entry_hostile_in_view_holds_outside` (a defender that cannot be killed, 
 room not clear for passing, the NPC covers the doorway with its gun from beside the jamb before it is in the view, then crosses
 the view in one go without stopping, and never goes in. Why: a door left open behind or beside the team is a threat on its
 side (E8's last sentence), and a view crossed at a run is crossed once. In the code the entry guard looks for the doorway views a
-walk goes **into** without entering the room behind them (`AgentDoorViews.passing_ahead`, `Behavior._passing_gate`): the walk comes
+walk goes **into** without entering the room behind them (`AgentDoorViews.passing_ahead`, `Behavior.entries._passing_gate`): the walk comes
 from outside the view of a doorway (E18) into it within `tuning.entry_guard.reach`, however far out from the wall, inside the house or
 out, at an exterior door too. The view of a doorway of a room the walk goes into (by any of the room's doors) is left to E9, whose entry clears that room and
 covers its doorways (E8), and so is the room the NPC stands in. The NPC then secures it: an `entry` run in `secure` mode stacks beside the jamb on the side it comes from,
 slices one side of the pie with its gun on the doorway (so it fires at what it sees, E3, and holds on a hostile in view, E14),
 and walks on across the view, the doorway left alone for `tuning.entry_guard.secure_time` (30 s). It never crosses the doorway and says
 nothing on the radio (no claim, no going in), and it is not started for a doorway a teammate is working. A walk to a doorway's own
-stack (an ENTER order, `_guard_approach`) secures the doors it passes the same way; a member heading for a stack that others have
+stack (an ENTER order, `entries._guard_approach`) secures the doors it passes the same way; a member heading for a stack that others have
 claimed does not (the team goes to its door as one, so the point is not left to go in alone). Exempt, as in E9: a retreat, an NPC
 under fire, and the doorway it is entering itself. Left open: a team passing a door on the way to its own is not made to secure it.
 Tests: `entry_secure_exterior_door_then_cross` (no way round the front door's view: it covers the door from the jamb, crosses
@@ -586,18 +586,18 @@ the stack toward the door's axis, clear of the slots.
   still replaces it, or aborts it when Von is down).
   While crossing, the controller holds every decision (`Behavior.committed()`); a hit or a hostile seen
   in the doorway is acted on once the NPC is through. So it does while the bang's thrower is between its call and the stun leaving its
-  hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior._held`). The room is cleared by sight with
+  hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior.task.held`). The room is cleared by sight with
   `search_coverage.gd`. Posture and running stay code-owned: it stands throughout and never runs, not even
   under fire, because a running character cannot shoot (test `entry_never_runs`).
-- **The guard (E9).** `Behavior._entry_guard` (`behavior.gd`) runs after the running primitive has steered and reads the
+- **The guard (E9).** `Behavior.entries.guard` (`behavior_entries.gd`) runs after the running primitive has steered and reads the
   walk the nav agent was just given (`Locomotion.path_ahead()`), not the order's destination, so it sees every walk: a
   move, an engage or its repositions, the way to an object, a throw's walk to its throw spot (which starts afresh from the walk when the
-  entry hands it back, `_resume_order`). Perception's `AgentDoorViews.threshold_ahead` finds the first
+  entry hands it back, `entries._resume_order`). Perception's `AgentDoorViews.threshold_ahead` finds the first
   doorway on it that leads into a room that is not cleared (`cleared_room` memory, written when an entry finishes, when an
   ally radios `cleared_room`, and when a search covers its room). The guard then stashes the order, runs an `entry`
   primitive for that doorway (the same one ENTER runs) and puts the order back when it ends. Exempt are the nodes that
   carry `entry_guard: false` (RETREAT) and an NPC under fire, but for a doorway into the room the shots came from
-  (`Behavior._into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
+  (`Behavior.fight.into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
   and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
@@ -607,9 +607,9 @@ the stack toward the door's axis, clear of the slots.
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
   entry's approach (`entering`, `Locomotion`'s `doors.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
   entered that room is carved too (`_with_room`; test `ai/entry/entry_ordered_approach_keeps_out_of_entered_room`); with no way round all of it, round those two (`_entering_set`), uncapped on an ordered approach
-  (`AgentDoorViews.ordered_approach`). `Locomotion`'s `doors.update` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
+  (`AgentDoorViews.ordered_approach`). `Locomotion`'s `doors.update` puts a guarded walk on that map (`Behavior.entries.keeps_out_of_views`:
   a move, engage or interact that is not a retreat, and an entry's approach), and walks the stretch past the avoid route's end (a slot at a
-  view's edge) on the plain map (`_last_stretch`); `Behavior._passing_gate` (E15) secures what the plain
+  view's edge) on the plain map (`_last_stretch`); `Behavior.entries._passing_gate` (E15) secures what the plain
   walk still goes into. `SnapshotOptions._route_len` measures the same route for the bands Von reads.
 - **The team.** Roles, readiness and progress travel on the callout radio: each step is a `callout` with
   `opening`, `into` (the room it leads into), `slot`, `side` (the side of the door the member stacks on: on a split stack, E19,

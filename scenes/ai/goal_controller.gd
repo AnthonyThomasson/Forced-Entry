@@ -278,25 +278,25 @@ func debug_room_zones() -> Array:
 ## (typed values; `debug_state()["entry"]` is the JSON-safe copy). Empty when the NPC isn't entering
 ## a room.
 func debug_entry() -> Dictionary:
-	return _behavior.debug_entry() if _behavior != null else {}
+	return _behavior.entries.debug() if _behavior != null else {}
 
 
 ## Read-only: the tactical entry and the entry guard as world-space data, for the entry debug
 ## overlays: `entry` (the doorway's slots, pie arc and corners, this NPC's role, timers, the team
 ## off the radio, the doorways it covers; {} when not entering) and `guard` (a running detour and
 ## the order it paused, the next uncleared doorway on the walk, the rooms regarded as cleared). See
-## behavior.gd `debug_entry_view`.
+## behavior_entries.gd `debug_view`.
 func debug_entry_view() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
-	return _behavior.debug_entry_view()
+	return _behavior.entries.debug_view()
 
 
 ## Read-only: the behaviour's running search-coverage state (which room sample points it has seen
 ## vs. still needs to, and the one it is looking at now), for the search debug overlay.
 ## Empty/inactive when the NPC isn't currently covering a room.
 func debug_search_coverage() -> Dictionary:
-	return _behavior.debug_coverage() if _behavior != null else {}
+	return _behavior.errand.debug_coverage() if _behavior != null else {}
 
 
 ## Read-only: where the NPC's sight toward world point `to` is first blocked (over low cover, the
@@ -322,7 +322,7 @@ func debug_memory() -> Dictionary:
 func debug_combat() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
-	return _behavior.debug_combat()
+	return _behavior.fight.debug_combat()
 
 
 ## Read-only: the movement-progress sample (seconds stalled, recent trail) for the stuck overlay.
@@ -339,8 +339,8 @@ func debug_progress() -> Dictionary:
 func debug_grenades() -> Dictionary:
 	if _perception == null or _behavior == null:
 		return { "known": [], "escape": Vector2.INF, "throw": {} }
-	return { "known": _perception.known_grenades(), "escape": _behavior.evade_spot(),
-		"throw": _behavior.throw_plan() if _character != null else {} }
+	return { "known": _perception.known_grenades(), "escape": _behavior.grenades.evade_spot(),
+		"throw": _behavior.grenades.throw_plan() if _character != null else {} }
 
 
 ## Read-only: the last callout this NPC radioed (`position`, `point`, `label`, `at` msec), or empty.
@@ -356,7 +356,7 @@ func debug_brain() -> Dictionary:
 	if _planner == null:
 		return {}
 	var d: Dictionary = _planner.debug_state()
-	var timers: Dictionary = (_behavior.debug_combat().get("timers", {})
+	var timers: Dictionary = (_behavior.fight.debug_combat().get("timers", {})
 			if _character != null
 			else {})
 	return {
@@ -417,7 +417,7 @@ func control(character: Node, delta: float) -> void:
 	var due: bool = _cadence.due(delta)
 	_sense(character, delta)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
-	if _behavior.service_interaction(delta, _cadence.forced):
+	if _behavior.errand.service_interaction(delta, _cadence.forced):
 		return
 	_take_resolved()
 	_think(due)
@@ -459,7 +459,7 @@ func _take_resolved() -> void:
 	var why: String = _behavior.task.resolve_reason
 	if _behavior.task.take_resolved():
 		_cadence.force(why if why != "" else "task resolved")
-		var lead: String = _behavior.reached_lead()
+		var lead: String = _behavior.errand.reached_lead()
 		if lead != "":
 			_perception.check_lead(lead) # Reached it and found nothing: don't send it back there.
 
@@ -478,12 +478,12 @@ func _think(due: bool) -> void:
 ## calls and the order's progress go out.
 func _act(delta: float) -> void:
 	_behavior.apply(delta)
-	if _behavior.take_entry_turned():
+	if _behavior.entries.take_turned():
 		_comms.on_entry_turned()
-	for claim in _behavior.take_entry_calls():
+	for claim in _behavior.entries.take_calls():
 		if tuning.radio.send_callouts:
 			_comms.post_entry_call(claim)
-	for throw in _behavior.take_throw_calls():
+	for throw in _behavior.grenades.take_throw_calls():
 		if tuning.radio.send_callouts:
 			_comms.post_throw_call(throw)
 	_comms.report_order()
@@ -495,7 +495,7 @@ func _act(delta: float) -> void:
 ## may must also get one of the frame's snapshots (`DecisionBudget`); refused, it keeps its wish
 ## (`forced`, the elapsed timer) and asks again next frame. `due`: the decide cadence has elapsed.
 func _should_decide(due: bool) -> bool:
-	if _behavior.committed() or _behavior.evading() or _character.stun.is_blind():
+	if _behavior.committed() or _behavior.grenades.evading() or _character.stun.is_blind():
 		# A blinded NPC starts no new decision (G15), one running from a grenade none until the
 		# burst (G16).
 		return false
@@ -512,7 +512,7 @@ func _should_decide(due: bool) -> bool:
 ## calls for a different starting node (e.g. it came under fire mid-way through choosing a room to
 ## search → straight to COMBAT). Otherwise the walk in flight already fits; let it finish.
 func _maybe_interrupt() -> void:
-	if _behavior.evading() or _character.stun.is_blind():
+	if _behavior.grenades.evading() or _character.stun.is_blind():
 		return
 	# An order taken since the walk in flight began always restarts it: that walk was made without
 	# the order, and a walk the order replaces stands until one made with it lands.
@@ -564,7 +564,7 @@ func _check_salient() -> void:
 ## Adopt the planner's leaf: hand it to the behaviour, log the full decision path, and tell allies
 ## (a combat or investigation decision) over the radio.
 func _on_decided(leaf: Dictionary) -> void:
-	if _behavior.evading():
+	if _behavior.grenades.evading():
 		return  # Overtaken by a grenade while Von was answering; the burst ends in a new decision.
 	if _cadence.order_from >= 0 and _cadence.decisions <= _cadence.order_from:
 		# A walk begun before the order came, which its restart superseded: the one made with the

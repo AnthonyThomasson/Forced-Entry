@@ -82,7 +82,7 @@ func apply(behavior: Node, delta: float) -> void:
 	gaze = "primitive"
 	if _character.use.is_busy() or _own_gaze(behavior):
 		return
-	var t: Dictionary = _pick_threat(behavior._hostiles, behavior._engage_id)
+	var t: Dictionary = _pick_threat(behavior.fight.hostiles, behavior.fight.engage_id)
 	if not t.is_empty() and not t["visible"] and not _perception.has_line_to(t["node"], t["pos"]):
 		t = {}  # Remembered behind a wall: not worth staring at the wall for.
 	if not t.is_empty():

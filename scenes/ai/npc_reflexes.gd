@@ -49,17 +49,17 @@ func follow_squad() -> void:
 		controller._cadence.force("follows its leader" if follows else "leads its squad")
 	var lead := leash_lead()
 	if lead == null:
-		behavior.set_leash(Vector2.INF, 0.0)
+		behavior.orders.set_leash(Vector2.INF, 0.0)
 		_leash_broke = false
 		return
-	behavior.set_leash(lead.global_position, squad.leash)
+	behavior.orders.set_leash(lead.global_position, squad.leash)
 	if (controller._character.global_position.distance_to(lead.global_position)
 			<= squad.leash * squad.leash_break):
 		_leash_broke = false
 	elif (not _leash_broke
 			and behavior.in_combat()
 			and not behavior.committed()
-			and not behavior.walk_pending()):
+			and not behavior.orders.walk_pending()):
 		_leash_broke = true
 		controller._cadence.force("off the leash")
 
@@ -85,8 +85,8 @@ func leash_lead() -> Node2D:
 func react_to_grenades() -> void:
 	var perception: Node = controller._perception
 	var behavior: Node = controller._behavior
-	behavior.poll_throw()
-	behavior.set_evade(perception.evade_plan())
+	behavior.grenades.poll_throw()
+	behavior.grenades.set_evade(perception.evade_plan())
 	for grenade in perception.grenade_announcements():
 		if controller.tuning.radio.send_callouts:
 			controller._comms.post_grenade_call(grenade)
@@ -95,7 +95,7 @@ func react_to_grenades() -> void:
 		# One draw per blinding, whatever the chance, so the sequence does not depend on it.
 		var draw := _rng.randf()
 		var chance: float = controller.tuning.grenades.blind_fire_chance
-		behavior.set_blind_fire(draw < chance or chance >= 1.0)
+		behavior.grenades.set_blind_fire(draw < chance or chance >= 1.0)
 	if _was_blind and not blind:
 		controller._cadence.force("sight returned")
 	_was_blind = blind

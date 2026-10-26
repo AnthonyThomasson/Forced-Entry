@@ -5,7 +5,7 @@ does with its posture. The tests named under each behaviour assert this document
 
 Coverage is a **height**, 0 to 100, on one scale for everything a bullet can meet: furniture, walls and
 bodies. The pieces: `projectile.gd` (the bullet), `character.gd` and `character_posture_config.gd` (the postures),
-`agent_tactics.gd` / `behavior.gd` (how an NPC uses them). See the `domain-projectile`,
+`agent_tactics.gd` / `behavior_gait.gd` (how an NPC uses them). See the `domain-projectile`,
 `domain-character` and `domain-ai-behavior` skills.
 
 ## Behaviours
