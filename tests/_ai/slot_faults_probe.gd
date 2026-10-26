@@ -430,11 +430,8 @@ static func _short_wall_chain(
 		"caps": capacity_text(w, f, capacity), "ordered": ordered,
 		"walls": ordered.filter(func(s): return SlotRules.in_wall_band(w, f, s["point"])),
 		"on_floor": ordered.filter(func(s): return (
-			not SlotRules.in_wall_band(
-				w,
-				f,
-				s["point"],
-			) and SlotRules.in_stack_room(w, f, s["point"]) == ""
+			not SlotRules.in_wall_band(w, f, s["point"])
+				and SlotRules.in_stack_room(w, f, s["point"]) == ""
 		)),
 		"tail": ordered.filter(func(s): return SlotRules.in_stack_room(w, f, s["point"]) != ""),
 		"overflow": ordered.filter(func(s): return not SlotRules.in_wall_band(w, f, s["point"])),

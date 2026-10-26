@@ -4,8 +4,8 @@ extends RefCounted
 ## Rule 6's ways in with no clear spot against the wall: which rule a way in's slots answer to
 ## (`way_kind`), what each holds (`dead_end_capacity`, `wall_capacity`, `views_capacity`,
 ## `open_floor_capacity`), the spots against the wall (`wall_spots`) and the fewest-views bar
-## (`fewest_views_bar`), on the rules of `slot_rules_probe.gd` and the faults of
-## `slot_faults_probe.gd`.
+## (`fewest_views_bar`), on the rules of `slot_rules_probe.gd`, the faults of
+## `slot_faults_probe.gd` and the frame, world and spec numbers of `slots_probe.gd`.
 
 const SlotFaults := preload("res://tests/_ai/slot_faults_probe.gd")
 const SlotRules := preload("res://tests/_ai/slot_rules_probe.gd")
@@ -28,12 +28,8 @@ const CAPACITY_GRID := 4.0
 static func way_kind(w: Dictionary, f: Dictionary) -> String:
 	if SlotRules.side_has_room(w, f, 1) or SlotRules.side_has_room(w, f, -1):
 		return "wall"
-	if SlotRules.room_for_one(
-		w,
-		f,
-		1,
-		true,
-	) != Vector2.INF or SlotRules.room_for_one(w, f, -1, true) != Vector2.INF:
+	if (SlotRules.room_for_one(w, f, 1, true) != Vector2.INF
+			or SlotRules.room_for_one(w, f, -1, true) != Vector2.INF):
 		return "views"
 	if String(f["from"]) != "" and Slots.ways_into_stack_room(w, f).is_empty():
 		return "dead_end"

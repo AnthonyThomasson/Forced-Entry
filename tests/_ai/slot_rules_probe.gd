@@ -4,8 +4,9 @@ extends RefCounted
 ## rules for one point, each `""` when it holds or a line naming the rule it breaks: in the stack's
 ## room, on the navmesh, reached from the stack side, clear of the other doorways, out of their
 ## funnels and views, clear of the carved furniture; whether a side has room for one; and rule 6's
-## wall band, view count and tail spot. Judged from the house's own data and the test's own
-## geometry, in a frame and a world of `slots_probe.gd`'s (`Slots.frame`, `Slots.world_of`).
+## wall band, view count and tail spot; and `ray_to_edge`, how far from a point along an axis to a
+## rect's edge. Judged from the house's own data and the test's own geometry, in a frame and a world
+## of `slots_probe.gd`'s (`Slots.frame`, `Slots.world_of`), whose spec numbers they read.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Slots := preload("res://tests/_ai/slots_probe.gd")

@@ -697,7 +697,7 @@ by path), `layout(g, count, side)` (the slots, read only through the published r
 `stack/stack_layout.gd` loaded by path) and the spec's numbers (`MAX_STACK`, `ROOM_INSET`, `STACK_SPACING`, ...). The checks are three
 probes beside it: one per rule for a point in `tests/_ai/slot_rules_probe.gd` (`const SlotRules := preload(...)`: `in_stack_room`,
 `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`, `room_for_one`,
-`in_wall_band`, `view_count`, `tail_fault`); the faults a slot, a stack or a short wall's chain breaks in `tests/_ai/slot_faults_probe.gd`
+`in_wall_band`, `view_count`, `tail_fault`, and `ray_to_edge`, how far from a point along an axis to a rect's edge); the faults a slot, a stack or a short wall's chain breaks in `tests/_ai/slot_faults_probe.gd`
 (`const SlotFaults`: `point_faults`, `stack_faults`, `short_wall_faults`, `is_short_wall`, `capacity_text`); and rule 6's ways in, the rule
 a way in's slots answer to and what each holds, in `tests/_ai/slot_capacity_probe.gd` (`const SlotCapacity`: `way_kind`, `dead_end_capacity`,
 `wall_capacity`, `views_capacity`, `open_floor_capacity`, `wall_spots`, `fewest_views_bar`). `tests/ai/entry/stack_slots_sweep` runs them over

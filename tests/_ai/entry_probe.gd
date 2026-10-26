@@ -3,7 +3,8 @@ extends RefCounted
 ## they assert is `docs/tactical-entry.md` (E1 to E15). The doorway geometry here is the test's own
 ## copy (a door's axis, its outward side, the funnel), so the spec isn't read back from the code
 ## under test; the NPC is read only through its public observer API: `current_act()`,
-## `debug_entry()`, `debug_room_zones()` and its radio callouts.
+## `debug_entry()`, `debug_room_zones()` and its radio callouts. The per-frame sampler of a run and
+## its reads are `entry_watch_probe.gd` (`EntryWatch`).
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## The Terrace house doorways the tests go through, each with the side the team stacks on (`out`, a
