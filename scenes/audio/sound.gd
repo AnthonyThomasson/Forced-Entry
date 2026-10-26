@@ -267,9 +267,9 @@ func _on_reload(data: Dictionary) -> void:
 func _loop_event(category: StringName, data: Dictionary) -> void:
 	var vehicle: Variant = data.get("vehicle")
 	if data.get("stage") == &"start":
-		var profile := (SoundBank.engine_profile(data.get("kind", &""))
+		var profile := (SoundVehicles.engine_profile(data.get("kind", &""))
 				if category == ENGINE
-				else SoundBank.skid_profile())
+				else SoundVehicles.skid_profile())
 		_start_loop(category, vehicle, profile)
 	elif data.get("stage") == &"stop":
 		_stop_loop(vehicle, category)
@@ -285,14 +285,17 @@ func _vehicle_sound(data: Dictionary) -> void:
 	var extra_db := 0.0
 	match stage:
 		&"ignition":
-			profile = SoundBank.ignition_profile(kind)
+			profile = SoundVehicles.ignition_profile(kind)
 		&"door_open", &"door_close", &"slide_open", &"slide_close":
-			profile = SoundBank.door_profile(kind, StringName(String(stage).trim_prefix("door_")))
+			profile = SoundVehicles.door_profile(
+				kind,
+				StringName(String(stage).trim_prefix("door_")),
+			)
 		&"crash", &"bump_character":
 			var material := ("flesh"
 					if stage == &"bump_character"
 					else String(data.get("material", "")))
-			profile = SoundBank.crash_profile(material, speed)
+			profile = SoundVehicles.crash_profile(material, speed)
 			extra_db = linear_to_db(clampf(speed / SoundVehicleConfig.crash_speed_ref, 0.5, 1.6))
 	if profile != &"":
 		_play(VEHICLE, profile, data, extra_db)

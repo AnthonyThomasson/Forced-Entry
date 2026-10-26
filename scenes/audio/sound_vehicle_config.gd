@@ -1,8 +1,8 @@
 class_name SoundVehicleConfig
-## The vehicles' sounds, for the `Sound` service and SoundBank: the engine loop's pitch and levels,
-## the skid loop's level and pitch, how fast the loops ease, and the crash bands. A `class_name`
-## holder of `static var`s, read as `SoundVehicleConfig.<name>`; there is no instance and no
-## autoload.
+## The vehicles' sounds, for the `Sound` service and SoundVehicles: the engine loop's pitch and
+## levels, the skid loop's level and pitch, how fast the loops ease, and the crash bands. A
+## `class_name` holder of `static var`s, read as `SoundVehicleConfig.<name>`; there is no instance
+## and no autoload.
 
 ## The engine loop's pitch with the engine idling at no revs (x) and at the redline (y); the revs
 ## (`engine_state().rpm`, 0..1) move it between the two, so it climbs through each gear and drops at

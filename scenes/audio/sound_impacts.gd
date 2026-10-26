@@ -4,7 +4,7 @@ class_name SoundImpacts
 ## `penetrate` or `ricochet`, the band the round's weight, `SoundBank.band`) or
 ## `impact/<material>/punch`. `profile` names one without rendering it; the bank renders and caches
 ## it, asking `recipe` for its recipe. Its `MATERIALS` are also what a vehicle's crash strikes
-## (SoundBank's crashes).
+## (SoundVehicles' crashes).
 
 ## Penetration outcomes a bullet impact is voiced for (a punch is its own thing).
 const OUTCOMES: Array[StringName] = [&"blocked", &"penetrate", &"ricochet"]
