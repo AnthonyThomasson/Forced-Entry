@@ -70,8 +70,8 @@ func _init(locomotion: Node) -> void:
 
 ## Whether the walk stands, or steps aside, for a body this frame: held short of one in its way (or
 ## on its destination), giving way to a walker, stopped against one it would otherwise walk into
-## (`keep_off`), or done at the free spot beside a taken destination. A caller must not push on
-## toward the destination itself then.
+## (`give_way.keep_off`), or done at the free spot beside a taken destination. A caller must not
+## push on toward the destination itself then.
 func holding() -> bool:
 	return (loco._way == loco.Way.HELD
 			or loco.give_way.kept_off

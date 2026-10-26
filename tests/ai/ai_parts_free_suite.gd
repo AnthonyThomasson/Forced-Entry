@@ -3,10 +3,11 @@ extends UnitSuite
 ## their parts hold no reference back to a `RefCounted` that holds them, so no `RefCounted` cycle
 ## keeps any of it alive: the entry's leaves (`state`, `world`) and its ten parts (`claim`, ...,
 ## `radio`, each handed the entry at the call) and the combat's throw part hold no
-## owner, and the parts of a node (the behaviour's, Locomotion's, the planner's, the controller's)
-## hold it only as a node. Every preset, instanced, put in the tree (its controller builds the AI in
-## `_ready`) and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
-## `_built_then_freed`, so no temporary of the calling test still holds a piece.
+## owner, the planner's parts and the controller's cadence are data that hold none, and the other
+## parts of a node (the behaviour's, Locomotion's, the controller's) hold it only as a node. Every
+## preset, instanced, put in the tree (its controller builds the AI in `_ready`) and freed, leaves a
+## `WeakRef` to each piece that reads null. Each NPC is made inside `_built_then_freed`, so no
+## temporary of the calling test still holds a piece.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const NPCS := [

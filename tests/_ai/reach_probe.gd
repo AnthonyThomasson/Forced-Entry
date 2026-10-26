@@ -18,8 +18,8 @@ extends RefCounted
 ##   the latecomer takes the slot it freed, both radioed as claims. So a rise is allowed only as the
 ##   other half of a move-up (`move_ups`, read off the claims): a teammate claimed the member's old
 ##   number, on the same side, coming down from exactly the number the member rises to, within
-##   `MOVE_UP_S`. Any other rise (the slot behind the last, `_to_back`) still fails; the check's
-##   line lists each move-up allowed;
+##   `MOVE_UP_S`. Any other rise (the slot behind the last, `claim.to_back`) still fails; the
+##   check's line lists each move-up allowed;
 ## - each move-up seen must be a real one (`_check_move_up`, a check of its own): the mover stood in
 ##   its own slot (`SLOT_REACH`) when it moved, its new slot is lower and on its own file, and it
 ##   ends in it (or in the slot of a later move-up of its own);

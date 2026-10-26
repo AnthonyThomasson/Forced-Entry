@@ -58,7 +58,7 @@ func process_events() -> void:
 				if perception.process_order(ev[1]):
 					cadence.force("ordered")
 					# A walk it replaces stands until a decision started from here on lands
-					# (`_on_decided`).
+					# (the controller's `_on_decided`).
 					cadence.order_from = cadence.decisions
 					behavior.orders.await_next(true)
 	event_queue.clear()

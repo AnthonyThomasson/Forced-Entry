@@ -30,11 +30,11 @@ Two rules were settled while the parts were built:
   part's name already says is dropped (`entry_ready_timeout` → `tuning.entry.ready_timeout`, `throw_stage` →
   `combat.throw.stage`, `_bang_stage` → `entry.grenade.stage`, `_apply_entry` → `behavior.entries.apply`). A member
   used only inside its part keeps its name, underscore included (`entries._detour_first`, `throw._slot`).
-- **Who holds its owner.** Behaviour's, locomotion's and the controller's parts hold their Node owner (`behavior`,
-  `loco`, `controller`), which ADR 0005 allows. `Entry` and `Combat` are `RefCounted`, so their parts never hold them:
-  entry's parts hold only the `state` and `world` leaves, and a part method that needs the entry or a sibling part
-  takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. Combat's `throw` holds
-  only the locomotion and the body, and entry's leaves and the data leaves (the cadence, the running leaf, the
+- **Who holds its owner.** Behaviour's, locomotion's and the controller's working parts hold their Node owner
+  (`behavior`, `loco`, `controller`), which ADR 0005 allows. `Entry` and `Combat` are `RefCounted`, so their parts never
+  hold them: entry's parts hold only the `state` and `world` leaves, and a part method that needs the entry or a sibling
+  part takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. Combat's `throw`
+  holds only the locomotion and the body, and entry's leaves and the data leaves (the cadence, the running leaf, the
   planner's walk and confines, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`: an NPC's behaviour, entry,
   combat, locomotion and planner, with their parts and leaves, 36 pieces, all free with it).
 
@@ -49,8 +49,8 @@ NPCs share no value. The spectator inspector rings a point by setting the contro
 same requests: the snapshot, the planner's walk and `debug_state()` keep their shapes.
 
 A tunable changed at runtime now reaches behaviour's modules on their next read, where it used to wait for the next
-decision's copy; perception and the planner still take it at the next decision. Only tests retune at runtime, and
-none depends on the wait.
+decision's copy; perception and the planner still take it at the next decision. Only tests and the dev command
+server retune at runtime, and nothing depends on the wait.
 
 The controller ends at 15 vars, 18 public methods and 589 lines, behaviour at 15, 19 and 585, entry at 12, 19 and
 531, combat at 15 and 19 (its static facing test, `Combat.faces`, is public), locomotion at 13 and 11, the planner at
@@ -68,7 +68,8 @@ parts, the two rules above and the tuning nodes.
   instance shares, unless it is `local_to_scene`, so one test's retune would retune every defender.
 - **A static / per-NPC split of the tunables:** rejected. It puts one topic in two homes.
 - **Copy each decision, as before:** rejected for behaviour's modules. The copies were their var budget (40 vars: 15
-  in `behavior.gd`, 11 in `entry.gd`, 9 in `combat.gd`), and the one change, a retune taking effect at once, is one nothing waits on.
+  in `behavior.gd`, 11 in `entry.gd`, 9 in `combat.gd`, 4 in `watch.gd`, 1 in `locomotion.gd`), and the one change, a
+  retune taking effect at once, is one nothing waits on.
 - **`class_name` parts:** rejected. The AI's modules are preload consts, and a global name per part would add about 30
   names for no caller outside the AI.
 - **Entry's parts handed a sibling part at each call:** replaced by handing the `Entry` facade. A part often needs two
