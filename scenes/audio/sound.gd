@@ -170,7 +170,7 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		&"shot":
 			_play(
 				SHOT,
-				SoundBank.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))),
+				SoundGuns.shot_profile(data.get("gun", &""), float(data.get("power", 1.0))),
 				data,
 			)
 		&"hit":
@@ -180,11 +180,11 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 		&"reload":
 			_on_reload(data)
 		&"throw":
-			_play_named(THROW, SoundBank.throw_profile(data.get("kind", &"")), data)
+			_play_named(THROW, SoundGrenades.throw_profile(data.get("kind", &"")), data)
 		&"grenade":
 			_on_grenade(data)
 		&"explosion":
-			_play_named(EXPLOSION, SoundBank.explosion_profile(data.get("kind", &"")), data)
+			_play_named(EXPLOSION, SoundGrenades.explosion_profile(data.get("kind", &"")), data)
 		&"stun":
 			if (data.get("character") == focus
 					and focus != null
@@ -208,7 +208,7 @@ func _on_hit(data: Dictionary) -> void:
 	var outcome := StringName(data.get("outcome", &""))
 	if outcome == &"":
 		return
-	var profile := SoundBank.impact_profile(
+	var profile := SoundImpacts.profile(
 		String(data.get("material", "")),
 		outcome,
 		float(data.get("power", 1.0)),
@@ -220,7 +220,7 @@ func _on_hit(data: Dictionary) -> void:
 ## A foot landing: the step of the floor under it and the gait, louder the faster.
 func _on_footfall(data: Dictionary) -> void:
 	var at: Vector2 = data.get("position", Vector2.ZERO)
-	var profile := SoundBank.footstep_profile(
+	var profile := SoundFootsteps.profile(
 		SoundSurface.at(at),
 		bool(data.get("running", false)),
 	)
@@ -242,7 +242,7 @@ func _on_grenade(data: Dictionary) -> void:
 		return
 	_play_named(
 		GRENADE,
-		SoundBank.grenade_profile(
+		SoundGrenades.bounce_profile(
 			data.get("kind", &""),
 			SoundSurface.at(data.get("position", Vector2.ZERO)),
 		),
@@ -258,7 +258,7 @@ func _on_reload(data: Dictionary) -> void:
 			else (&"in" if data.get("stage", &"") == &"done" else &""))
 	_play_named(
 		RELOAD,
-		SoundBank.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0))),
+		SoundGuns.reload_profile(data.get("gun", &""), stage, float(data.get("power", 1.0))),
 		data,
 	)
 
@@ -267,9 +267,9 @@ func _on_reload(data: Dictionary) -> void:
 func _loop_event(category: StringName, data: Dictionary) -> void:
 	var vehicle: Variant = data.get("vehicle")
 	if data.get("stage") == &"start":
-		var profile := (SoundBank.engine_profile(data.get("kind", &""))
+		var profile := (SoundVehicles.engine_profile(data.get("kind", &""))
 				if category == ENGINE
-				else SoundBank.skid_profile())
+				else SoundVehicles.skid_profile())
 		_start_loop(category, vehicle, profile)
 	elif data.get("stage") == &"stop":
 		_stop_loop(vehicle, category)
@@ -285,14 +285,17 @@ func _vehicle_sound(data: Dictionary) -> void:
 	var extra_db := 0.0
 	match stage:
 		&"ignition":
-			profile = SoundBank.ignition_profile(kind)
+			profile = SoundVehicles.ignition_profile(kind)
 		&"door_open", &"door_close", &"slide_open", &"slide_close":
-			profile = SoundBank.door_profile(kind, StringName(String(stage).trim_prefix("door_")))
+			profile = SoundVehicles.door_profile(
+				kind,
+				StringName(String(stage).trim_prefix("door_")),
+			)
 		&"crash", &"bump_character":
 			var material := ("flesh"
 					if stage == &"bump_character"
 					else String(data.get("material", "")))
-			profile = SoundBank.crash_profile(material, speed)
+			profile = SoundVehicles.crash_profile(material, speed)
 			extra_db = linear_to_db(clampf(speed / SoundVehicleConfig.crash_speed_ref, 0.5, 1.6))
 	if profile != &"":
 		_play(VEHICLE, profile, data, extra_db)
@@ -371,7 +374,7 @@ func _start_tinnitus(data: Dictionary) -> void:
 	var at: Vector2 = ((focus as Node2D).global_position
 			if focus is Node2D
 			else data.get("position", Vector2.ZERO))
-	var voice := _play(TINNITUS, SoundBank.tinnitus_profile(), { "position": at }, loudness)
+	var voice := _play(TINNITUS, SoundGrenades.tinnitus_profile(), { "position": at }, loudness)
 	if voice.is_empty():
 		return
 	voice["until"] = _now + deaf

@@ -114,5 +114,5 @@ func _check_catalogue(t: TestContext) -> void:
 			def["material"],
 			String(def["art_opts"].get("pattern", "")),
 		)
-		t.check(SoundBank.FOOTSTEPS.has(String(surface)),
+		t.check(SoundFootsteps.SURFACES.has(String(surface)),
 			"%s (%s) is voiced as %s" % [key, def["material"], surface])

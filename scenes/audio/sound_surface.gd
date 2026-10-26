@@ -4,8 +4,8 @@ class_name SoundSurface
 ## world point is on, which is how a footstep picks its sound. Like BloodSurface, Audio imports
 ## nothing: the floor's owner hands over plain strings. A point on no floor is outdoors.
 
-## Surfaces a sound set exists for (see SoundBank): wood, tile, stone, concrete, carpet and the open
-## ground.
+## Surfaces a sound set exists for (see SoundFootsteps): wood, tile, stone, concrete, carpet and the
+## open ground.
 const OUTDOOR := &"outdoor"
 
 ## Registered floors, oldest first: [{ id: int, rect: Rect2, surface: StringName }].
