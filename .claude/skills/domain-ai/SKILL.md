@@ -168,7 +168,7 @@ SEARCH and IDLE disabled (below).
 
 ## The two presets
 
-Spawned by the match builder (`MatchBuilder.populate`: Main's `defender_count` / `invader_count`, default 1 each), each bound before it
+Spawned by the match builder (`MatchBuilder.populate`: Main's `run.defender_count` / `run.invader_count`, default 1 each), each bound before it
 joins the tree (`MatchBuilder.bind_npc`: the house's rooms and openings, an invader's front entrance), as a test world binds its NPC actors:
 - **Defender** — `ai/npc_defender.tscn` (faction `household`): `tuning.hostility.on_trespass` +
   `tuning.hostility.on_attack`, `tuning.decision.defend_territory` (combat options stay inside the house), familiar with the

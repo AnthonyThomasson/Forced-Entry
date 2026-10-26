@@ -8,11 +8,12 @@ extends GameTest
 ## meta, set while it enters the tree and dropped after), in a world of its own (a `SubViewport`
 ## with its own `World2D`, so fresh navigation maps, as each match's are): a Main
 ## node with the two children its scene gives it that `_ready` reads (`Player`, the human's body
-## and controller, and `SetupMenu`, never opened). Its exports name the match: a pinned house seed,
-## four invaders and two defenders; Watch (spectator) for the team alone, Start as an invader for
-## the human's case. Von is down (the NPCs hold steady: where they stand is the spawn's alone), the
-## settings file is a scratch one, and the listener Main names (`Sound.focus`) is put back after.
-## Its NPCs are read off the node Main builds the match under (the `match_world` group).
+## and controller, and `SetupMenu`, never opened). Its run's exports (`main.run`) name the match: a
+## pinned house seed, four invaders and two defenders; Watch (spectator) for the team alone, Start
+## as an invader for the human's case. Von is down (the NPCs hold steady: where they stand is the
+## spawn's alone), the settings file is a scratch one, and the listener Main names (`Sound.focus`)
+## is put back after. Its NPCs are read off the node Main builds the match under (the `match_world`
+## group).
 
 const MainScript := preload("res://scenes/main.gd")
 const PlayerController := preload("res://scenes/character/player_controller.gd")
@@ -118,12 +119,12 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	var viewport := _viewport(t)
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
-	main.set("house_seed", SEED)
-	main.set("invader_count", INVADERS)
-	main.set("defender_count", DEFENDERS)
-	main.set("spectator_mode", spectator)
-	main.set("player_side", &"invader")
-	main.set("debug_overlays", false)
+	main.run.set("house_seed", SEED)
+	main.run.set("invader_count", INVADERS)
+	main.run.set("defender_count", DEFENDERS)
+	main.run.set("spectator_mode", spectator)
+	main.run.set("player_side", &"invader")
+	main.run.set("debug_overlays", false)
 	var player := _player()
 	main.add_child(player)
 	var menu := CanvasLayer.new()
@@ -155,7 +156,7 @@ func _match(t: TestContext, spectator: bool) -> Dictionary:
 	Sound.focus = null
 	viewport.queue_free()
 	await t.frames(2)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
 	return out
 
 

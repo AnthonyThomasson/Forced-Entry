@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 	if not t.require(action != "", "Keybinds.USE_VEHICLE exists"):
 		return
 	t.check(InputMap.has_action(action), "the action is registered")
-	var event := Keybinds.default_event(action) as InputEventKey
+	var event := Keybinds.bindings.default_event(action) as InputEventKey
 	t.check(event != null and event.physical_keycode == KEY_E, "it defaults to E")
 	t.check(
 		Keybinds.LABELS.has(action) and Keybinds.GROUPS.has(action),
@@ -48,8 +48,8 @@ func run(t: TestContext) -> void:
 		"the settings page lists it",
 	)
 	t.check(
-		Keybinds.conflicts_of(action).is_empty(),
-		"it clashes with no other action (%s)" % [Keybinds.conflicts_of(action)],
+		Keybinds.bindings.conflicts_of(action).is_empty(),
+		"it clashes with no other action (%s)" % [Keybinds.bindings.conflicts_of(action)],
 	)
 	t.check(
 		Keybinds.has_method("is_use_vehicle_just_pressed"),

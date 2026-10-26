@@ -30,18 +30,18 @@ static func viewport(t: TestContext) -> SubViewport:
 	return out
 
 
-## Main whole under `parent`, its exports set from `exports` first (Debug off unless they name
-## `debug_overlays`), its `Player` standing at `player_at` (Main's anchor: the front entrance is
-## built `entrance_distance` above it): it loads the settings (`Settings.path`, which the test
-## points at a scratch file) and opens the setup window, or, with the Engine `skip_setup` meta set
-## while it enters the tree (a scripted restart), builds its match at once. Returned once its
-## `_ready` has run.
+## Main whole under `parent`, its run's exports (`main.run`) set from `exports` first (Debug off
+## unless they name `debug_overlays`), its `Player` standing at `player_at` (Main's anchor: the
+## front entrance is built `run.entrance_distance` above it): it loads the settings
+## (`Settings.path`, which the test points at a scratch file) and opens the setup window, or, with
+## the Engine `skip_setup` meta set while it enters the tree (a scripted restart), builds its match
+## at once. Returned once its `_ready` has run.
 static func open(parent: Node, exports: Dictionary = {}, player_at := Vector2.ZERO) -> Node2D:
 	var main: Node2D = MainScript.new()
 	main.name = "Main"
-	main.set("debug_overlays", false)
+	main.run.set("debug_overlays", false)
 	for key in exports:
-		main.set(key, exports[key])
+		main.run.set(key, exports[key])
 	var player: Node2D = (load(PLAYER_SCENE) as PackedScene).instantiate()
 	player.name = "Player"
 	player.position = player_at
@@ -74,4 +74,4 @@ static func close(t: TestContext, node: Node) -> void:
 	if is_instance_valid(node):
 		node.queue_free()
 	await t.frames(2)
-	Keybinds.reset_all()
+	Keybinds.bindings.reset_all()
