@@ -5,7 +5,7 @@ description: Deep implementation detail for the AI SEARCH COVERAGE module (scene
 
 # AI · Search coverage module (`scenes/ai/behavior/search_coverage.gd`)
 
-A `RefCounted` that `Behavior` owns. A `look_around` move (search / explore) ignores the `arrive_room` early-out and walks all the way INTO the
+A `RefCounted` that `Behavior`'s `errand` part owns (`errand.coverage`). A `look_around` move (search / explore) ignores the `arrive_room` early-out and walks all the way INTO the
 room (its interior `point`); on arrival `Behavior` calls `begin()` and from then on `step(delta)` every tick until it
 returns true, then flags the task resolved so the controller re-decides. It holds the NPC's body from one `bind(character)` (from
 `Behavior.bind`). `max_commit_time` still caps the walk INTO the room before
@@ -21,7 +21,7 @@ coverage starts.
   its line is blocked by furniture — walks toward it (`Locomotion.move_to`) so a new vantage reveals it; otherwise it stands and turns.
   It is done when `unseen` has shrunk to `1 − tuning.coverage.target` of the points or the budget (`tuning.coverage.budget`) is spent. So a searcher actively looks
   throughout the room until it has SEEN all of it, rather than looking from one spot.
-- **Debug:** `debug()` → `{ points, unseen, target, budget }`; `Behavior.debug_coverage()` adds `active` (a look-around move that has arrived and is not
+- **Debug:** `debug()` → `{ points, unseen, target, budget }`; `Behavior.errand.debug_coverage()` adds `active` (a look-around move that has arrived and is not
   resolved, or an entry in its `clear` phase), which the search overlay (`domain-ai-debug`) draws.
 - **Tunables** (the NPC's `tuning.coverage`, handed in by `setup(loco, perception, tuning)` and read live): `spacing`, `margin`, `target`, `budget`, `approach`,
   `look_rate`.

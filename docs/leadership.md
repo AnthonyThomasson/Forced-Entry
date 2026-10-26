@@ -154,7 +154,7 @@ defender. There it holds, still, its gun on its doorway; a lone member of a room
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
 only among the options inside that room (every option naming a place is tagged with its room, `tags.room`; the planner's `confines.room`
-drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `_hold_ground` and `Combat.peek_cover` keep
+drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `fight.hold_ground` and `Combat.peek_cover` keep
 it inside against a contact outside the room. A live grenade (D8) sets off the evade reflex as it would anywhere, which may take the member
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
 a rule on its fight options, not on the reflex. The order lasts until it is cancelled or replaced.

@@ -296,7 +296,7 @@ func debug_entry_view() -> Dictionary:
 ## vs. still needs to, and the one it is looking at now), for the search debug overlay.
 ## Empty/inactive when the NPC isn't currently covering a room.
 func debug_search_coverage() -> Dictionary:
-	return _behavior.debug_coverage() if _behavior != null else {}
+	return _behavior.errand.debug_coverage() if _behavior != null else {}
 
 
 ## Read-only: where the NPC's sight toward world point `to` is first blocked (over low cover, the
@@ -322,7 +322,7 @@ func debug_memory() -> Dictionary:
 func debug_combat() -> Dictionary:
 	if _behavior == null or _character == null:
 		return {}
-	return _behavior.debug_combat()
+	return _behavior.fight.debug_combat()
 
 
 ## Read-only: the movement-progress sample (seconds stalled, recent trail) for the stuck overlay.
@@ -356,7 +356,7 @@ func debug_brain() -> Dictionary:
 	if _planner == null:
 		return {}
 	var d: Dictionary = _planner.debug_state()
-	var timers: Dictionary = (_behavior.debug_combat().get("timers", {})
+	var timers: Dictionary = (_behavior.fight.debug_combat().get("timers", {})
 			if _character != null
 			else {})
 	return {
@@ -417,7 +417,7 @@ func control(character: Node, delta: float) -> void:
 	var due: bool = _cadence.due(delta)
 	_sense(character, delta)
 	# An active interaction holds the tick; when it or a move resolves, re-decide at once.
-	if _behavior.service_interaction(delta, _cadence.forced):
+	if _behavior.errand.service_interaction(delta, _cadence.forced):
 		return
 	_take_resolved()
 	_think(due)
@@ -459,7 +459,7 @@ func _take_resolved() -> void:
 	var why: String = _behavior.task.resolve_reason
 	if _behavior.task.take_resolved():
 		_cadence.force(why if why != "" else "task resolved")
-		var lead: String = _behavior.reached_lead()
+		var lead: String = _behavior.errand.reached_lead()
 		if lead != "":
 			_perception.check_lead(lead) # Reached it and found nothing: don't send it back there.
 

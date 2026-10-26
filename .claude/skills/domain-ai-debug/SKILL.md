@@ -105,7 +105,7 @@ All the overlays depend on the controller keeping its observer getters and the V
 The controller is the single authoring/observer surface: it forwards `debug_status()` (and
 `current_act()`) from the behaviour sub-domain, builds `debug_zones()` from the last perception snapshot
 it holds (the flattening is `zone_list.gd` in this folder: a static `ZoneList.from_options(options)`, which also owns the `waypoint` tagging), forwards `debug_room_zones()` from the perception's `room_status()` and
-`debug_search_coverage()` from the behaviour's `debug_coverage()`, and holds the Vision group exports —
+`debug_search_coverage()` from the behaviour's `errand.debug_coverage()`, and holds the Vision group exports —
 so these overlays need no reference into the perception/behaviour internals. Every overlay calls those getters directly, with no
 `has_method` guard: the overlays live only under `ai/npc.tscn`, whose controller defines every one, so a renamed getter is an error
 rather than an overlay that silently draws nothing.
@@ -131,7 +131,7 @@ Each is a child of the NPC in `ai/npc.tscn`, found by its `show_<x>` property (r
 
 The getters are read-only and added to the controller: `debug_memory()` (perception memory: gunfire,
 under-fire, callouts, checked leads, lost hostiles, radii), `debug_combat()` (behaviour
-state as world-space data), `debug_brain()` (planner pending / last-failed / levels, decide + force timers
+state as world-space data, its `fight.debug_combat()`), `debug_brain()` (planner pending / last-failed / levels, decide + force timers
 and the last force reason, facts), `debug_progress()` (locomotion's `stall` part's `{ stalled_for, trail }`, kept by `stall.sample()` — observation only, nothing
 reacts to a stall), `debug_sent_callout()`, `debug_grenades()` (perception's known grenades, the behaviour's evade spot and, from the throw primitive, the throw planned until the grenade leaves the hand (`Behavior.throw_plan`): `{ known: [{ point, kind, fuse_left, fuse, radius, source }], escape: Vector2 (INF: not running to one), throw: {} }`) and `debug_entry_view()` (behaviour `debug_entry_view`: the running entry as
 world-space data from entry.gd `debug_view` under `entry`, and the entry guard's picture under `guard`, which carries the doorway `views` its walks keep out of (`{ id, into, poly }`; `round_views` while the walk is on the avoid map); the guard's

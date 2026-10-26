@@ -2,9 +2,9 @@ extends UnitSuite
 ## Native unit suite (pure logic): an NPC's AI frees itself once the NPC is freed. Its modules and
 ## their parts hold no reference back to a `RefCounted` that holds them, so no `RefCounted` cycle
 ## keeps any of it alive: the entry's leaves (`state`, `world`) and the combat's throw part hold no
-## owner, and the parts of a node (Locomotion's, the planner's, the controller's) hold it only as a
-## node. Every preset, instanced, put in the tree (its controller builds the AI in `_ready`) and
-## freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
+## owner, and the parts of a node (the behaviour's, Locomotion's, the planner's, the controller's)
+## hold it only as a node. Every preset, instanced, put in the tree (its controller builds the AI in
+## `_ready`) and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
 ## `_built_then_freed`, so no temporary of the calling test still holds a piece.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
@@ -25,8 +25,8 @@ func _built_then_freed(path: String) -> Dictionary:
 	return held
 
 
-## Each piece of the AI under `controller` (the behaviour with its modules and their parts, the
-## planner's parts and the controller's own), by name, held by a `WeakRef`.
+## Each piece of the AI under `controller` (the behaviour with its parts, its modules and theirs,
+## the planner's parts and the controller's own), by name, held by a `WeakRef`.
 func _held(controller: Node) -> Dictionary:
 	var behavior: Node = controller.get("_behavior")
 	var entry: Entry = behavior.get("_entry")
@@ -35,7 +35,9 @@ func _held(controller: Node) -> Dictionary:
 	var planner: Node = controller.get("_planner")
 	var pieces := {
 		"behavior": behavior, "behavior.task": behavior.get("task"),
-		"behavior.watch": behavior.get("_watch"), "behavior.coverage": behavior.get("_coverage"),
+		"behavior.watch": behavior.get("_watch"),
+		"behavior.fight": behavior.get("fight"), "behavior.errand": behavior.get("errand"),
+		"behavior.coverage": behavior.get("errand").coverage, "behavior.gait": behavior.get("gait"),
 		"entry": entry, "entry.state": entry.state, "entry.world": entry.world,
 		"combat": combat, "combat.throw": combat.get("throw"),
 		"loco": loco, "loco.crowd": loco.get("crowd"), "loco.give_way": loco.get("give_way"),
@@ -69,7 +71,7 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:
 	for path: String in NPCS:
 		var held := _built_then_freed(path)
-		assert_int(held.size()).is_equal(20)
+		assert_int(held.size()).is_equal(23)
 		for key: String in held:
 			var ref: WeakRef = held[key]
 			assert_object(ref).override_failure_message("%s: no %s" % [path, key]).is_not_null()

@@ -13,7 +13,11 @@ perception sub-domain and drives the character only through its public controlle
 `use.end_interaction`: interface 7).
 
 Files:
-- `behavior.gd` — the primitive executor (a `Node`); owns engagement + commitment state, posture / run policy and the read-outs.
+- `behavior.gd` — the primitive executor (a `Node`); owns the commitment state and the read-outs. Its parts, each built once in `setup`
+  and holding it (a node), reached by preload const: `fight` (`behavior_fight.gd`: the hostiles known, the contact fought, the `engage`,
+  `melee` and `reload` primitives, `debug_combat`), `errand` (`behavior_errand.gd`: the `move`, `interact` and `hold` primitives, a
+  search move's room coverage `coverage`, what a walk accounts for, `debug_coverage`, `service_interaction`, `reached_lead`) and `gait`
+  (`behavior_gait.gd`: the run and posture policy).
 - `combat.gd` — shots, kicks, punches, bursts, back-off, the peek-and-cover cycle (`RefCounted`; `domain-ai-combat`).
 - `search_coverage.gd` — covering a room by sight (`RefCounted`; `domain-ai-coverage`).
 - `watch.gd` + the watch stage of `behavior.gd` — where it looks and when it takes the shot, in every primitive (`RefCounted`; `domain-ai-watch`, spec `docs/gaze-and-fire.md`).
@@ -43,8 +47,8 @@ behaviour keeps the NPC's body and hands it to each module's own `bind`, so none
 | `entry` | `opening`, `into`, `slot`, `side` (from the ENTER option) | A tactical entry through the doorway (`entry.gd`, `domain-ai-entry`): approach and stack, slice the pie, cross, take a corner, clear the room, maybe hold the door. Shoots a threat in sight in every phase (the watch stage). | When the entry is over (room clear, rear watch done, or given up); never on the cadence. The entry guard (below) also runs it, as a detour in the middle of another order. |
 | `throw` | `point` (the spot), `kind` (`frag` / `stun`), `radius`, `slot`, `target_id`, `from` (where it throws from), `walk` (`from` is a throw spot) | The GRENADE tactic (`docs/grenades.md` G17; `combat.gd` does the throwing, `domain-ai-combat`): with a throw spot (issue #51 R13) walk all the way to it first (gun in hand, the watch stage on any threat; status "walking to the throw spot"; a held walk re-decides like a move; the walk is guarded like an engage's: `_entry_guard`, `_guards` and `_keeps_out_of_views` take the throw's `walk` stage, and `_resume_order` re-begins the throw (`_begin_throw_order`) when a detour's entry hands it back), then take the grenade in hand, turn to the spot (closing the last px if it drifted out of range since the offer), throw (the line is re-checked until the wind-up begins and the throw dropped if it is blocked; from the wind-up on it is committed), radio `frag_out` / `bang_out` as it leaves the hand (`take_throw_calls`), gun back in hand, then stand out the fuse (the watch stage shoots from there). An evade plan (the thrower in its own burst's zone) replaces the order at the release tick; `poll_throw` runs before it so the call is radioed first. Committed (no re-decision) during the wind-up. The order keeps its spot when the contact it was offered on ages out on the way, its pause behind a detour included: `salient_key()` keeps that hostile (`_throw_target`) while the perception still holds it as lost (`lost_hostiles()`, which drops the dead), so the lapse forces no decision; a target that died leaves the key and re-decides, and `update_known` ends a throw not yet in its wind-up whose target is neither a contact nor lost (`_throw_target_gone`), so nothing is thrown onto a body while that decision is on its way (`ai/grenade/grenade_throw_target_killed_redecides`). | When the grenade has gone off (or the throw could not be made, or the fuse plus a second ran out). |
 | `defend` | `room`, `spot`, `door`, `door_pos`, `order_id` (the ORDER node's option, `docs/leadership.md` LD8) | Walk to the defend `spot` (`DEFEND_REACH` 8 px; a guarded walk where the entry guard applies: the guard, `_keeps_out_of_views` and `_guards` take it while it walks), then stand there, the watch stage keeping the gun on `door_pos` (`Watch.ease_gaze`) or, with none (a lone member of a room with several doorways), turning among the room's doorways, and on a threat in sight; pushed more than `DEFEND_DRIFT` 24 px off the spot it walks back. Crouches at its post in a fight like a hold. Says `in_position` (`take_order_steps`) on arrival. | Walking: at `max_commit_time`. At its post: only when `engaged` is fresh (its own shots at a hostile in its sector: the fight is the decision's, in the room) or a forced decision. |
-| `ambush` | `opening`, `room`, `spot`, `door_pos`, `order_id` (the ORDER node's option, `docs/leadership.md` LD15; the post from `AgentEntry.ambush_spot`) | The `defend` walk and hold (`_apply_defend`: a guarded walk, `_guards` / `_keeps_out_of_views` / `_way_blocked` / `_entry_guard` take it as they take `defend`; back to the post past `DEFEND_DRIFT`; it never runs once arrived) at its post, **crouched** once arrived (`_wanted_posture`), the watch stage keeping the gun on the threshold, `door_pos` (the watch's `_resting` is `task.arrived`). Status "on the way to its post" / "waiting in ambush". Says `in_position` on arrival. | Only when its order is no longer the live one (`_order_live()`: first contact ends it done, D18, `AgentPerception._end_ambush_on_contact`; a cancel or a new order), or, walking, at `max_commit_time`; never on the cadence. |
-| `follow` | — (the FOLLOW leaf, `docs/leadership.md` LD20 to LD22) | Keep to the spot the squad gives it (`squad.follow_spot(character)`, read each tick; `squad` from the controller's config): the walk is re-aimed (`_follow_to`) only once the spot has moved `follow_retarget` from where it is going, and is `task.arrived` within `follow_arrive` (`Locomotion.reached`: the agent done, so also where the path ends short of a spot it cannot reach; a follower catching up (`_catching_up`) whose walk target lagged its live spot re-aims at that spot there instead, until it is within `follow_caught_up` of it; its walk over, its catch-up is over) or when a body seals its only way (`_way_blocked`); on the way it aims along its path (`_aim_move`, the watch stage shoots what it sees). At its spot it stands facing away from its leader (the leash centre the controller pushes, `Combat.leash_center`: no `squad.leader()` read), and once it has stood `follow_still_time` (`_follow_stood`) with no threat and not under fire tops up a magazine at or below `low_ammo_fraction` (`Combat.magazine_low`, `Combat.top_off`). Status "keeping up with its leader" / "by its leader". | Never on the cadence (`wants_decision` false; `ongoing`): only a forced decision, or its spot gone (`Vector2.INF`: it leads now or follows no more) resolves it as a hold. |
+| `ambush` | `opening`, `room`, `spot`, `door_pos`, `order_id` (the ORDER node's option, `docs/leadership.md` LD15; the post from `AgentEntry.ambush_spot`) | The `defend` walk and hold (`_apply_defend`: a guarded walk, `_guards` / `_keeps_out_of_views` / `_way_blocked` / `_entry_guard` take it as they take `defend`; back to the post past `DEFEND_DRIFT`; it never runs once arrived) at its post, **crouched** once arrived (`gait`'s `_wanted_posture`), the watch stage keeping the gun on the threshold, `door_pos` (the watch's `_resting` is `task.arrived`). Status "on the way to its post" / "waiting in ambush". Says `in_position` on arrival. | Only when its order is no longer the live one (`_order_live()`: first contact ends it done, D18, `AgentPerception._end_ambush_on_contact`; a cancel or a new order), or, walking, at `max_commit_time`; never on the cadence. |
+| `follow` | — (the FOLLOW leaf, `docs/leadership.md` LD20 to LD22) | Keep to the spot the squad gives it (`squad.follow_spot(character)`, read each tick; `squad` from the controller's config): the walk is re-aimed (`_follow_to`) only once the spot has moved `follow_retarget` from where it is going, and is `task.arrived` within `follow_arrive` (`Locomotion.reached`: the agent done, so also where the path ends short of a spot it cannot reach; a follower catching up (`gait.catching_up`) whose walk target lagged its live spot re-aims at that spot there instead, until it is within `follow_caught_up` of it; its walk over, its catch-up is over) or when a body seals its only way (`_way_blocked`); on the way it aims along its path (`errand.aim_move`, the watch stage shoots what it sees). At its spot it stands facing away from its leader (the leash centre the controller pushes, `Combat.leash_center`: no `squad.leader()` read), and once it has stood `follow_still_time` (`_follow_stood`) with no threat and not under fire tops up a magazine at or below `low_ammo_fraction` (`Combat.magazine_low`, `Combat.top_off`). Status "keeping up with its leader" / "by its leader". | Never on the cadence (`wants_decision` false; `ongoing`): only a forced decision, or its spot gone (`Vector2.INF`: it leads now or follows no more) resolves it as a hold. |
 | `hold` | — | Stand; the watch stage looks at the threat (and shoots it) or turns among the room's doorways. | Decide cadence. |
 
 **Gaze and fire** are a policy too, the **watch stage** (`Watch.apply`, `watch.gd`, run by `Behavior.apply` with itself handed in; the `domain-ai-watch` skill, spec `docs/gaze-and-fire.md`):
@@ -56,8 +60,8 @@ an arrived move) turns among its room's doorways. An arrived move zeroes `moveme
 `entry_guard_fires_from_outside`, `fire_dry_gun_on_move_reloads`, `engaged_retargets_to_visible`.
 
 **Territory** is a param, not a policy: with `confine_inside` (set by the planner for a territorial
-NPC's combat leaves) and a contact last seen outside, `Behavior` sets `hold_ground`, which `Combat` honours (see `domain-ai-combat`). With
-`confine_room` (a member ordered to defend that room, LD8) `_keeps_in` sets it against a contact outside that room, and `Combat.peek_cover`
+NPC's combat leaves) and a contact last seen outside, `Behavior`'s `fight` sets `fight.hold_ground`, which `Combat` honours (see `domain-ai-combat`). With
+`confine_room` (a member ordered to defend that room, LD8) `fight`'s `_keeps_in` sets it against a contact outside that room, and `Combat.peek_cover`
 keeps its spots inside the room. **The leash** (a squad follower, `docs/leadership.md` LD23): the controller calls `set_leash(center, radius)`
 every tick (its leader's live position and `Squad.leash`; `Vector2.INF` when it does not follow or holds an order, LD23), which `Behavior` hands to `Combat`
 (`leash_center`, `leash`, `domain-ai-combat`); `walk_pending()` (a `move` or `engage` not yet arrived, a `throw` in its `walk` stage) is what
@@ -96,26 +100,26 @@ the entry to its end. A frag
 entry's thrower (LD14) radios `frag_out` through the same `take_throw_calls` as a GRENADE throw: `poll_throw` takes `Entry.take_thrown()`
 while the primitive is `entry`.
 
-**Running** is a behaviour policy, not a primitive: after the primitive steers and the watch stage has picked its threat, `_should_run()` sets
+**Running** is a behaviour policy, not a primitive: after the primitive steers and the watch stage has picked its threat, `gait.should_run()` sets
 `character.movement.run_input` only while TRAVELLING (a `move` or `engage` not yet arrived — never a `look_around`
 search, ambush/peek, interaction, hold or tactical entry — or a `melee` closing in), when the leaf carries `run: true` or
 the NPC is under fire, the destination is farther than `run_min_distance` (straight line), and a run can
 start (`run_start_fraction` of the stamina bar, or already running). A `follow` not yet arrived runs once it is more than the squad's
 `follow_step` from its live spot (whatever the leaf: a follower catches up with its file, LD21), and from then is catching up
-(`_catching_up`, set when that run starts): it runs on each tick it steps until it is back within the squad's `follow_caught_up` of
+(`gait.catching_up`, set when that run starts): it runs on each tick it steps until it is back within the squad's `follow_caught_up` of
 its live spot, or its walk is over short of it. A tick with no step (a give-way, a `keep_off` stop, a held walk) keeps the
 catch-up, and the next step runs without asking `run_start_fraction` again; a gate that drops the run (a shot to take, a reload due,
 the stamina run dry) ends it, as does another primitive. The Character spends the stamina and walks once dry. Tunables (read live
 from the NPC's `tuning.pace`): `run_enabled`, `run_min_distance`, `run_start_fraction`.
 `debug_status()` reads "running" / "running into position" while it sprints; `debug_state()` has `running`.
-A running NPC cannot shoot or reload (`Character.weapon.shoot()` is ignored while running), so `_should_run` is false while a shot is available
+A running NPC cannot shoot or reload (`Character.weapon.shoot()` is ignored while running), so `gait.should_run` is false while a shot is available
 (`Combat.can_fire_at(threat)`: loaded, in range, clear line) or the reload reflex is due (`Combat.reload_due`): it drops to a walk and
 takes the shot instead of sprinting on past its range. A leaf with `run_through_fire` (the RETREAT node) keeps sprinting. `Combat.shoot()`
 still skips a shot while `movement.is_running()` without spending the fire cooldown.
 Tests: `tests/ai/movement/ai_runs_to_destination_test.gd`, `retreat_keeps_running_test.gd`.
 
 **Posture** is a behaviour policy too (spec: `docs/cover-and-stance.md`, A1 to A3): after the primitive has steered and `movement.run_input` is set,
-`_apply_posture` writes the posture `_wanted_posture` asks for through `Character.movement.set_posture` (idempotent, so every tick). Everything outside a
+`gait.apply_posture` writes the posture its `_wanted_posture` asks for through `Character.movement.set_posture` (idempotent, so every tick). Everything outside a
 fight and everything travelling to a destination (`move`, an `engage` not yet arrived, `melee`, `interact`) **stands** — only a standing body runs —
 and so does an NPC that is running. Fighting in place (`engage` arrived, or `hold` / `reload` with a hostile known or shots landing) it **crouches** (behind cover, in the open or
 pinned alike, and when moving about inside the fight). Two orders crouch outside a fight: an `ambush` at its post (LD15), and a member of a
@@ -125,7 +129,7 @@ Tunables (read live from the NPC's `tuning.pace`): `posture_enabled` (the `ai.po
 `tests/ai/posture/posture_crouches_in_fight_test.gd`, `posture_pinned_crouch_test.gd`, `posture_stands_to_run_test.gd`.
 
 **Combat** — the gunnery, the peek-and-cover cycle, bursts, backing off a blocked barrel, the reload reflex, melee and the
-no-per-weapon-code rule — is `combat.gd`: the **`domain-ai-combat`** skill. `Behavior` passes it the engaged contact and `hold_ground`.
+no-per-weapon-code rule — is `combat.gd`: the **`domain-ai-combat`** skill. `Behavior`'s `fight` passes it the engaged contact and `hold_ground`.
 
 ## The evade reflex (G16) and the blind NPC (G15)
 
@@ -161,16 +165,16 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 - `update_known(known, delta) -> bool` — adopt the perception's hostiles; retarget a lost engaged
   contact to the nearest other; with none left, a leaf that needs a target ends → true (re-decide); a throw not yet in its wind-up
   whose target is dead or forgotten ends too.
-- `salient_key()` (the known-hostile ids and the engaged contact's inside state; a running throw order keeps its hostile in it after the contact ages out, not once it is dead, G17), `service_interaction(delta, force)`, `task.take_resolved()` (with `task.resolve_reason`, read just before it:
+- `salient_key()` (the known-hostile ids and the engaged contact's inside state; a running throw order keeps its hostile in it after the contact ages out, not once it is dead, G17), `errand.service_interaction(delta, force)`, `task.take_resolved()` (with `task.resolve_reason`, read just before it:
   "way blocked" when a body seals the only way of the walk and stays, "" for a finished task; the controller forces its decision with it),
   `wants_decision(decide_timer_elapsed)` (the table's last column), `apply(delta)`,
   `fallback()` (steady hold when no decision can be had), `committed()` (crossing a doorway, throwing the bang, a throw's wind-up: no decision may
   start), `take_entry_calls()` (entry steps for the controller to radio), `debug_entry()`, `debug_entry_view()`,
-  `debug_combat()`, `debug_coverage()`, `debug_progress()`, `path_label()`, `throw_plan()` (the throw about to be made,
+  `fight.debug_combat()`, `errand.debug_coverage()`, `debug_progress()`, `path_label()`, `throw_plan()` (the throw about to be made,
   `{ from, to, kind, radius }`, `{}` once the grenade is away: the grenades overlay's `throw`), `order()` (the running order's `{ path, labels }`),
   `take_entry_turned()` and `adopt_bang(path, labels)` (an ENTER that turned into a bang one is re-adopted as STUN ENTRY, E17: `domain-ai-entry`),
   `take_order_steps()` (the order progress to radio, above), `await_order(on)` (a walk the order replaces stands until its decision lands, above).
-- `reached_lead()` — the investigation lead (`params.lead`) the running move has reached, which the
+- `errand.reached_lead()` — the investigation lead (`params.lead`) the running move has reached, which the
   controller hands to perception's `check_lead()` so it isn't offered again.
 - `ongoing()` — the running choice is still in progress (en route, fighting, using an object): only
   then does the planner mark the option continuing it "(your current plan)" — a finished move must
@@ -195,9 +199,9 @@ Falls back to straight-line steering with no agent (arriving within `tuning.pace
 `inside_house(p)` for the move's `arrive_room` test and the coverage and combat modules. `reachable` / `on_navmesh` always use the plain map.
 
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it
-the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply`: what it sees, or saw within `contact_memory_ttl`, with `pos`, `vel`, `facing`, `visible`);
+the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply` by `errand.set_up_walk`: what it sees, or saw within `contact_memory_ttl`, with `pos`, `vel`, `facing`, `visible`);
 a body it has not seen does not exist for the walk, and one out of sight whose last spot (within `WALK_BODY_RANGE`, 450 px) it can see
-now with nobody on it has moved on (`Behavior._walk_bodies`, via `AgentPerception.visible_points`). `crowd.ignore_id` leaves out the one a
+now with nobody on it has moved on (`Behavior.errand`'s `_walk_bodies`, via `AgentPerception.visible_points`). `crowd.ignore_id` leaves out the one a
 `melee` closes on. A body whose track is slower than
 `REST_SPEED` (40 px/s) is at rest, any faster one a walker. Each walk (a new one when the destination moves more than `NEW_WALK` px) is in
 one of four ways, checked once a physics frame (`_check`):
