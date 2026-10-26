@@ -19,7 +19,7 @@ var world: EntryWorld
 ## Steps to radio, oldest first, each a claim in `StackClaim`'s fields (`entry_step`, ...; the
 ## behaviour adds the doorway, room, slot and side).
 var calls: Array = []
-## A step of this entry has gone out on the radio (`take_calls`).
+## A step of this entry has gone out on the radio (`Entry.take_calls`).
 var on_air := false
 ## The latest step radioed, whole (repeated on the heartbeat).
 var last_call := {}

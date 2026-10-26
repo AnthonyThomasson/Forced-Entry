@@ -1,6 +1,6 @@
 extends RefCounted
 ## AI BEHAVIOUR sub-domain — TACTICAL ENTRY's listen, a part the entry holds as `listen`:
-## how the entry's mode turns (E17): a bang from `begin` for a suspect room, a quiet entry
+## how the entry's mode turns (E17): a bang from `Entry.begin` for a suspect room, a quiet entry
 ## turned into a bang one by a late reason or by a teammate turning, and the point of a quiet
 ## stack listening in its slot before the pie.
 ## Built once by the entry (`entry.gd`) on its shared `state` and `world`, it holds nothing
@@ -46,10 +46,11 @@ func reset() -> void:
 	_listen_over = false
 
 
-## Set the entry's mode at `begin` (`bang`), its leaf having `asked` for a bang or not: an ordered
-## stack goes in the order's way, whoever claimed first (LD9, D10); else a room already suspect
-## means a bang with a stun in the stack (`_suspect_bang`, E17), and a stack already claimed goes in
-## the way its first claimer chose. A bang the leaf did not ask for is noted (`take_turned`).
+## Set the entry's mode at `Entry.begin` (`bang`), its leaf having `asked` for a bang or not: an
+## ordered stack goes in the order's way, whoever claimed first (LD9, D10); else a room already
+## suspect means a bang with a stun in the stack (`_suspect_bang`, E17), and a stack already claimed
+## goes in the way its first claimer chose. A bang the leaf did not ask for is noted
+## (`Entry.take_turned`).
 func begin_mode(entry: Entry, team: Array, asked: bool) -> void:
 	var ordered := entry.orders.claim(entry)
 	if not ordered.is_empty():

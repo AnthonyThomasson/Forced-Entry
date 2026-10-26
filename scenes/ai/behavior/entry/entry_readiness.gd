@@ -35,7 +35,7 @@ var team_grew_at := 0.0
 var turn_at := -1.0
 ## Allies seen through this doorway this entry: instance id -> slot (kept when they move on).
 var through := {}
-## The entry became a bang one its order did not ask for since the last `take_turned()`.
+## The entry became a bang one its order did not ask for since the last `Entry.take_turned()`.
 var turned := false
 ## Seconds spent holding the stack outside a short room (E13).
 var _security_clock := 0.0
@@ -47,7 +47,7 @@ var crossed_frame := -1
 ## The held stack has had its go (LD13: the leader's, latched; D14 a member going in; D12 no
 ## leader).
 var released := false
-## This tick, the member holds in its slot for the go (`holding_for_go`).
+## This tick, the member holds in its slot for the go (`Entry.holding_for_go`).
 var holding := false
 
 

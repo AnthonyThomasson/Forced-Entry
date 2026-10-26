@@ -139,11 +139,10 @@ func keep_slot(entry: Entry) -> void:
 			entry.radio.say(entry, "claim", { "claim_frame": frame })
 
 
-## Where this NPC's slot stands now in `door_stack` (E20 to E22, `DoorStack.settle`): the side it
-## lies
-## on (`side`: the one it asks for, `want`, while that side's wall has room, else the other's,
-## E21), its place in that side's file and the point (`spot`); a latecomer's claim still on the
-## slot it moved up into counts at the one it freed (E2).
+## Where this NPC's slot stands now in `door_stack` (E20 to E22, `DoorStack.settle`): the side
+## it lies on (`side`: the one it asks for, `want`, while that side's wall has room, else the
+## other's, E21), its place in that side's file and the point (`spot`); a latecomer's claim still on
+## the slot it moved up into counts at the one it freed (E2).
 func _settle(entry: Entry, door_stack: RefCounted) -> void:
 	stand(door_stack.settle(me(entry)))
 

@@ -57,7 +57,7 @@ the doorway's geometry and its stack off the perception, `entry_geometry` / `ent
 (`slot_for(me)`, `me` = `{ id, slot: 0, frame, pos }`: two claims on one slot made on the same `GameClock` frame and side settle by
 distance, the nearer keeping it; the option's `slot` is only the snapshot's guess; a slot past what a dead end holds, `has_slot` false, ends
 it `done` with no claim) and its side (`claim.ask_side`, the entry's own weighing, the `want` it hands the chain: `claim.want`, `entry_stack_side(stack)`, the team's, `DoorStack.team_side`, or its own when the way there
-crosses the doorway's view, E19), then stands where `settle` puts it (`claim.stand`; `DoorStack.settle(_me())`, `claim._settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
+crosses the doorway's view, E19), then stands where `settle` puts it (`claim.stand`; `DoorStack.settle(claim.me())`, `claim._settle`, for a slot taken otherwise: the side asked for while its wall has room, else the other,
 E21; its place in that side's file; the slot's point, E20; a claim still on a slot a member moved up into counted at the slot it freed) and
 then calls `step(delta)` each tick until it reports done. `claim.me()` is this NPC's own claim as a `DoorStack` reads a member asking about
 itself (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_* }`: it never hears its own on the radio). `claim.keep_slot`
@@ -93,7 +93,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   done. The heartbeat repeats the latest call whole, so `covering` and `cleared_room` stay on the radio.
 
 - **The bang (E17, `docs/grenades.md` G18).** An ENTER or STUN ENTRY leaf with `bang: true` (and a stack that follows the first claimer's mode: every claim carries `bang`, `bang_off` and the `stuns` the member carries; one
-  `bang: false` makes the whole stack quiet) adds the `bang` phase between `stack` and `cross`. `grenade._thrower()` (`DoorStack.thrower(kind, _me())`) picks the second of the stack (by slot, on either side of a split stack) if it carries a stun, else the lowest slot that does, from the claims, the same on every member, never the human (it throws nothing for the stack);
+  `bang: false` makes the whole stack quiet) adds the `bang` phase between `stack` and `cross`. `grenade._thrower()` (`DoorStack.thrower(kind, claim.me())`) picks the second of the stack (by slot, on either side of a split stack) if it carries a stun, else the lowest slot that does, from the claims, the same on every member, never the human (it throws nothing for the stack);
   `grenade.due` (in `stack`, or in `approach` once the rest are ready) has the thrower plan the throw (`grenade._plan_bang`: a target `BANG_DEPTHS` of the way into the room, on the doorway's axis first, pulled back to the farthest point on its line the stun reaches from the spot
 (`grenade._bang_aim`, `AgentPerception.grenade_reach`: a room deeper than a stun reaches, test `ai/grenade/bang_into_long_room`), at least `BANG_MIN_DEPTH` in, and a spot, its own slot or
   `BANG_STEP_ALONG` in front of the door, `BANG_STEP_OUT` out from the wall, from which the lob is clear of the jamb (`AgentPerception.can_lob`: from the thrower's hand, with room to spare either side, the same test as GRENADE's): none = the bang is given up and the stack
@@ -130,7 +130,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   member's slot is out of its zone (`AgentPerception.in_grenade_zone`; a frag that reaches the slot is evaded as anywhere).
 - **The stack moves up (E2).** `claim.move_up_now(delta)`, first in `readiness.tick_stack`, every `MOVE_UP_EVERY` (0.25 s) while this member
   stands within `StackClaim.SLOT_REACH` of its slot, has not begun the pie (`pie.begun`) and is not mid move-up. The rule part is the
-  stack's (`DoorStack.move_up_vacancies(_me())`: none once anybody's claim says `pie`, `bang`, `going_in` or through; each a lower slot on
+  stack's (`DoorStack.move_up_vacancies(claim.me())`: none once anybody's claim says `pie`, `bang`, `going_in` or through; each a lower slot on
   its own side (either row) whose holder is at `claim`, not `human`, not itself `move_up`, the only claimant, whose slot stays on this
   member's side with the two swapped, with that swapped stack and the point it would stand on); the walk and the latecomer are the
   entry's: it takes the nearest vacancy not in `claim._moved_for` (one move per vacancy, `"<holder id>:<slot>"`), within `MOVE_UP_REACH` (66 px) and nearer than the holder's radioed `pos`; a plain walk
@@ -271,7 +271,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `claim`; or the stack last grew), all of it at most `tuning.entry.order_ready_cap` s from the first ordered `ready`
   (`orders.ready_at`, `orders.capped`); `readiness.members_ahead` drops a recipient still at `claim` only then; `solo` (`orders.alone`) is false while another
   recipient is coming; `grenade.waits_for_bang` holds an ordered bang's point in its slot until the stack is in. The claim `orders.claim` reads is
-  `{ order_id, order_bang, order_mode, order_hold, order_go, order_side, order_frame, into }` (`DoorStack.order_claim(_me())`), and `radio.say`
+  `{ order_id, order_bang, order_mode, order_hold, order_go, order_side, order_frame, into }` (`DoorStack.order_claim(claim.me())`), and `radio.say`
   adds `order_mode`, `order_hold`, `order_go` and `order_frame` too (`orders.frame`, the `frame` of the live order at `begin`,
   `orders._held_order_frame`, -1 when unknown). Every call carries `crossed_frame` (`readiness.crossed_frame`, stamped by `radio.say` the first time its step
   is `going_in` or a through step, -1 before it, cleared by `reset`: its `going_in` is committed, so its first crossing is its only one). The order ends when the room is

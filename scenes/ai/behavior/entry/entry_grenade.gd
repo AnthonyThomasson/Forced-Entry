@@ -66,7 +66,8 @@ var _burst_at := -INF
 var frags := 0
 ## The grenade the bang throws: a stun, or a frag for a stack ordered so (LD14).
 var kind: StringName = &"stun"
-## The frag this NPC threw for the bang, to radio (`take_thrown`): { kind, point }; {} for none.
+## The frag this NPC threw for the bang, to radio (`Entry.take_thrown`): { kind, point }; {} for
+## none.
 var thrown := {}
 
 
@@ -96,7 +97,8 @@ func reset() -> void:
 ## that gave it up vetoes it), or this member's quiet entry has just turned and the rest have yet to
 ## follow (`listen.upgraded`: their claims say bang within a call or two), or the stack goes in
 ## under an order that says bang (LD9: a member still quiet follows it), and a member carries one.
-## The mode is the order's, else the first claimer's (`begin`), so a stack goes in all one way.
+## The mode is the order's, else the first claimer's (`Entry.begin`), so a stack goes in all one
+## way.
 func banging(entry: Entry, team: Array) -> bool:
 	return (state.bang
 			and not over
@@ -380,11 +382,11 @@ func _clear_lob(spot: Vector2, target: Vector2, reach: float, grenade_kind: Stri
 
 
 ## The bang phase. Everyone holds its slot turned away from the door while the stun is thrown and
-## goes off (a frag: crouched, `holds_crouched`, LD14); the thrower first steps to its throw spot,
-## throws (taking the grenade in hand, `Combat`) and comes back. When the stun has gone off the
-## stack is over the bang: the point crosses at once (`readiness.tick_stack`), the rest follow as
-## usual. The bang is given up if the throw fails, a teammate gave it up (its claims say quiet) or
-## the stun does not go off.
+## goes off (a frag: crouched, `Entry.holds_crouched`, LD14); the thrower first steps to its throw
+## spot, throws (taking the grenade in hand, `Combat`) and comes back. When the stun has gone off
+## the stack is over the bang: the point crosses at once (`readiness.tick_stack`), the rest follow
+## as usual. The bang is given up if the throw fails, a teammate gave it up (its claims say quiet)
+## or the stun does not go off.
 func tick_bang(entry: Entry, team: Array, delta: float) -> void:
 	if _burst_at > -INF:
 		over = true
@@ -431,7 +433,7 @@ func _bang_go(entry: Entry, delta: float) -> void:
 
 ## The thrower's throw (`Combat`'s `throw.step`): a throw that fails gives the bang up; once the
 ## grenade leaves its hand it walks back, and a frag is kept to radio as "frag out" (LD14,
-## `take_thrown`).
+## `Entry.take_thrown`).
 func _bang_throw(entry: Entry, delta: float) -> void:
 	if world.combat.throw.stage != "away" and world.combat.throw.step(delta) == &"failed":
 		world.combat.throw.end()
@@ -481,9 +483,9 @@ func note_burst() -> void:
 		over = true
 
 
-## At `begin`: a burst from before the entry is taken note of here, not as one during it, and its
-## own team's in the room a moment before (within `BANG_WINDOW`) counts, so an entry begun on the
-## heels of a stun or frag thrown into the room goes in on it (a GRENADE, then the walk in).
+## At `Entry.begin`: a burst from before the entry is taken note of here, not as one during it, and
+## its own team's in the room a moment before (within `BANG_WINDOW`) counts, so an entry begun on
+## the heels of a stun or frag thrown into the room goes in on it (a GRENADE, then the walk in).
 func note_burst_before() -> void:
 	var burst: Dictionary = world.perception.last_burst
 	if burst.is_empty():

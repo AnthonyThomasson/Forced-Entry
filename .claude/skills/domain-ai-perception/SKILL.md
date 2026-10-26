@@ -281,7 +281,7 @@ scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the
 
 **Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_memory_ttl`) is not `visited_room`:
 standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)`: the behaviour calls it when an entry
-finishes (`entry.gd` `hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `process_callout`
+finishes (`Entry.hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `process_callout`
 when an ally radios `cleared_room`. `is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
 (search ranking still uses `visited_room`). `threshold_ahead(path, from_idx, max_dist)` (a thin wrapper on
 `AgentDoorViews.threshold_ahead`) walks a nav path and returns the first doorway whose wall plane a step crosses, within the

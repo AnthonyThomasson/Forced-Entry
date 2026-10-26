@@ -1,7 +1,7 @@
 extends RefCounted
 ## AI BEHAVIOUR sub-domain — TACTICAL ENTRY's orders, a part the entry holds as `orders`:
 ## the order a stack goes in under (`docs/leadership.md` LD9, LD13, LD17, LD24): the order
-## this entry carries out as `begin` took it (its id, mode, side, hold and frame, or a join),
+## this entry carries out as `Entry.begin` took it (its id, mode, side, hold and frame, or a join),
 ## the order a stack follows when a teammate's claim carries one, its living recipients and
 ## the leader it waits for, and the go that releases a held stack.
 ## Built once by the entry (`entry.gd`) on its shared `state` and `world`, it holds nothing

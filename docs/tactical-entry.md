@@ -82,7 +82,7 @@ the footprint a body on the next slot keeps clear around it, so no slot is a spo
 sight. The file forms on one side of the door, unless a member would have to cross the doorway's view to get there (E19). A member
 walks into its slot along the wall from a point past it (`APPROACH_LEAD`, 60 px), which stops a body's clearance (`Locomotion.PASS_CLEARANCE`,
 32 px) short of the next slot along its side a teammate claims, re-planned as claims come in, so the walk into a slot never aims at a
-teammate's body (`entry.gd` `claim.approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
+teammate's body (`Entry.claim.approach_lead`). A member walks round the teammates already in the stack (the human among them), stops short of one on its own slot and takes a
 free spot beside it, and gives way to one walking across the way its walk still goes (`domain-ai-behavior`, Locomotion). When a body seals the only way to where a phase
 walks and stays, the member re-plans within a few seconds rather than waiting on it: on to its next point the hold does not seal (the
 point it was walking to is dropped, and with it each next one at the slot or whose plain way passes the body holding it, `entry.gd`
@@ -98,7 +98,7 @@ one that ends at the slot, or another last stretch clear of every body at rest i
 from its slot takes the back of the stack (the slots go by arrival), and with no slot left gives the claim up (`abort`) and re-decides; a
 walk held by a teammate of the same stack that is still on its way to its own slot (its claim at `claim`: walking there, or moving up) is
 the stack forming, not the stack keeping the member out, and the member keeps its slot and waits for it, at most 3 s from when the hold
-began (`entry.gd` `EntryApproach.HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
+began (`EntryApproach.HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
 it takes (tests `ai/entry/entry_held_by_forming_stack_keeps_slot`, `entry_held_by_forming_stack_cap`). A hold is timed by how long the
 member has stood held: its walk aimed again while it stands (its slot's point moved by the claims), a free spot tried or a body read as
 moving for a frame is the same hold going on, not a new one (`Locomotion`'s `crowd.HOLD_GAP`, `Locomotion.HOLD_MOVED`), so the cap and the re-plans come on
@@ -106,7 +106,7 @@ time (test `ai/entry/entry_held_cap_despite_reaim`);
 a pie step is skipped; a corner, cover or rear spot is held from where it stands. Slots are claimed over the radio (the same claim pattern as a flank side), so two
 invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
 given up (`abort`) only once it has taken its own walking time at walking pace plus `tuning.entry.approach_time` (20 s): the walk is measured, leg
-by leg as it will be walked, when the approach is planned and again at each re-plan (`entry.gd` `approach.walk_time`). In its slot a member stands
+by leg as it will be walked, when the approach is planned and again at each re-plan (`Entry.approach.walk_time`). In its slot a member stands
 within `StackClaim.SLOT_REACH` (6 px) of it, and steps back in when it is pushed, or kept by a body, further off.
 **The stack moves up.** A member standing in its slot looks every `MOVE_UP_EVERY` (0.25 s) for a lower slot of its own side (either row)
 within `MOVE_UP_REACH` (66 px) whose holder is not there yet: its claim still at `claim`, the holder farther from that slot than this member
@@ -115,7 +115,7 @@ the two swap and be reached by a short plain walk (at most 1.5 x the straight li
 slot it would take runs through the step: the latecomer may be within `MOVE_UP_REACH` + a step (`MOVE_UP_MARGIN`, 132 px in all) of that
 slot, and its straight way from there passes the vacancy closer than a body's clearance (`Locomotion.PASS_CLEARANCE`), or the two meet
 mid-swap, each a stride off the other's slot, and the stack jams. Where the latecomer may be is a worst-case bound: its newest known place,
-seen or radioed, brought nearer by its age x its walking pace (`entry.gd` `claim._latecomer_crosses`). It is the crossing that makes it wait, not
+seen or radioed, brought nearer by its age x its walking pace (`Entry.claim._latecomer_crosses`). It is the crossing that makes it wait, not
 the distance alone: a latecomer coming up behind the mover on the same lane follows it in (tests `stack_move_up_waits_for_near_latecomer`,
 `stack_move_up_lets_follower_in`). It steps straight into it and takes that
 number; the latecomer takes the slot it freed. Both are radioed as claims (the one that moved up carries `move_up`, the slot it left, until

@@ -306,7 +306,7 @@ squad's leader, moved to a new leader and gone with none; the toggle through `Ma
 
 **LD13. Hold for go.** A stack order carries `wait_go` (false unless asked: it goes when ready, LD9, as before). A held stack forms, claims
 its slots and radios `ready` as any stack, then holds: the point holds its slot, gun on the door, and nobody slices the pie, calls the bang,
-slices a split stack's own half or crosses until its go (`entry.gd` `orders.held_for_go`, ahead of the bang and the pie in `readiness.tick_stack`). Each member
+slices a split stack's own half or crosses until its go (`Entry.orders.held_for_go`, ahead of the bang and the pie in `readiness.tick_stack`). Each member
 ready and held radios `order_step` `in_position` (`Entry.holding_for_go`), which the markers show. Its claims carry `order_hold`, and
 `order_go` once the go has come; an unordered member that joins a held ordered stack holds with it (D10). While held the order's
 sentence for Von ends " when they give the go".
