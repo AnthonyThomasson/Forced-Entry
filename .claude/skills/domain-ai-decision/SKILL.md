@@ -77,7 +77,7 @@ dropped; MELEE while the target isn't point-blank) has no leaf, so it isn't offe
 mode or tactic = adding a node (+ a perception option group if it needs new places).
 
 **ENTER** (`enter`, a child of `search`): the doorways into rooms the NPC has not seen or not searched lately
-(`entries`, an invader's only, `entry_enabled`); the desc names the nearest ("A doorway leads into a room left to
+(`entries`, an invader's only, `tuning.entry.enabled`); the desc names the nearest ("A doorway leads into a room left to
 search (the doorway to the west — unexplored — short route)") and the question asks for "the shortest route"
 (measured: "the nearest one into an unsearched or unexplored room" lets "unexplored" outweigh a short route). Von chooses only whether and which doorway; the stack, pie, crossing and corners are the
 behaviour's `entry` primitive (`domain-ai-entry`), which asks Von nothing on the cadence until the entry is over

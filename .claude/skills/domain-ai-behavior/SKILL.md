@@ -90,7 +90,7 @@ order's params: before its claim goes out `entries.apply` sets `Entry.state.held
 while that map is `pending`) for a threshold into a room not cleared and, unless another recipient is coming (`_recipients_coming`), a doorway
 view it passes: either is a detour first (`_entry.reset()`, the entries' `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
-the entries' `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `orders.ordered_stack()` sets
+the entries' `_guard_approach` (thresholds as well as views, whatever `tuning.entry.enabled` says; `orders.ordered_stack()` sets
 the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.world.squad` through `Behavior.apply_config(squad)`, with
 `tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`orders.same`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
@@ -203,7 +203,7 @@ Falls back to straight-line steering with no agent (arriving within `tuning.pace
 `inside_house(p)` for the move's `arrive_room` test and the coverage and combat modules. `reachable` / `on_navmesh` always use the plain map.
 
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it
-the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply` by `errand.set_up_walk`: what it sees, or saw within `contact_memory_ttl`, with `pos`, `vel`, `facing`, `visible`);
+the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply` by `errand.set_up_walk`: what it sees, or saw within `tuning.memory.contact_ttl`, with `pos`, `vel`, `facing`, `visible`);
 a body it has not seen does not exist for the walk, and one out of sight whose last spot (within `WALK_BODY_RANGE`, 450 px) it can see
 now with nobody on it has moved on (`Behavior.errand`'s `_walk_bodies`, via `AgentPerception.visible_points`). `crowd.ignore_id` leaves out the one a
 `melee` closes on. A body whose track is slower than

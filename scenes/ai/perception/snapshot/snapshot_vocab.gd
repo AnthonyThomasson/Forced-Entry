@@ -1,10 +1,10 @@
 extends RefCounted
 ## AI PERCEPTION sub-domain — SNAPSHOT VOCABULARY. The shared words and tuning of the decision
-## snapshot: the compass and flank-side names, every tunable the perception sets from the
-## NPC's tuning (`NpcTuning`) before a decision (ranges, bands, thresholds, caps), the house rooms
-## of the decision being built, and the helpers that turn a distance, an age, a route, a bearing or
-## a wound into the band Von reads. `agent_snapshot.gd` owns one (`vocab`); the sections and option
-## modules read it, so no tunable is set twice. Everything is worded for a classifier (see
+## snapshot: the compass and flank-side names, the NPC's tuning (`NpcTuning`) its tunables are read
+## from (ranges, bands, thresholds, caps), the house rooms of the decision being built, and the
+## helpers that turn a distance, an age, a route, a bearing or a wound into the band Von reads.
+## `agent_snapshot.gd` owns one (`vocab`); the sections and option modules read it, so every
+## tunable is read through one place. Everything is worded for a classifier (see
 ## `agent_snapshot.gd`): bands not numbers, no negations.
 
 ## Compass names for an 8-wind direction, indexed clockwise from east (screen +y is south).
@@ -17,38 +17,9 @@ const SIDE_WORDS := {
 	"front": "their front",
 }
 
-# --- Config fields the perception's apply_config() sets from the NPC's tuning (`NpcTuning`) before
-# each decision, each from the topic value its comment names.
-## `tuning.combat.shoot_range`
-var shoot_range: float
-## `tuning.combat.punch_range`
-var punch_range: float
-## `tuning.context.recency_bands`
-var recency_bands: Vector2
-## `tuning.context.route_buckets`
-var route_buckets: Vector2
-## `tuning.context.aim_cone`
-var aim_cone: float
-## `tuning.context.still_speed`
-var still_speed: float
-## `tuning.tactics.flank_ally_radius`
-var flank_ally_radius: float
-## `tuning.context.investigate_distance`
-var investigate_distance: float
-## `tuning.context.extrapolate_cap`
-var extrapolate_cap: float
-## `tuning.decision.max_options_per_level`
-var max_options_per_level: int
-## `tuning.context.hurt_threshold`
-var hurt_threshold: float
-## `tuning.context.critical_threshold`
-var critical_threshold: float
-## `tuning.context.low_ammo_fraction`
-var low_ammo_fraction: float
-## `tuning.context.max_contacts_in_state`
-var max_contacts_in_state: int
-## `tuning.memory.search_ttl`
-var search_memory_ttl: float
+## The NPC's tuning topics (`NpcTuning`), handed in by the perception's apply_config(): the
+## snapshot's tunables, read live (`tuning.combat.shoot_range`).
+var tuning: NpcTuning
 ## The house rooms for the decision being built (set at the top of `AgentSnapshot.build()`).
 var rooms: Array = []
 ## The NPC's body, handed in once by `bind`.
@@ -67,29 +38,29 @@ func room_name(kind: String) -> String:
 
 ## A distance as a combat band, from the NPC's own reach.
 func dist_band(d: float) -> String:
-	if d <= punch_range * 1.5:
+	if d <= tuning.combat.punch_range * 1.5:
 		return "point-blank"
-	if d <= shoot_range * 0.5:
+	if d <= tuning.combat.shoot_range * 0.5:
 		return "close, in pistol range"
-	if d <= shoot_range:
+	if d <= tuning.combat.shoot_range:
 		return "in pistol range"
 	return "too far to shoot"
 
 
 ## How long ago, as a band.
 func recency(age: float) -> String:
-	if age <= recency_bands.x:
+	if age <= tuning.context.recency_bands.x:
 		return "just now"
-	if age <= recency_bands.y:
+	if age <= tuning.context.recency_bands.y:
 		return "recently"
 	return "a while ago"
 
 
 ## A route length as a band.
 func route_band(length: float) -> String:
-	if length <= route_buckets.x:
+	if length <= tuning.context.route_buckets.x:
 		return "short"
-	if length <= route_buckets.y:
+	if length <= tuning.context.route_buckets.y:
 		return "medium"
 	return "long"
 
@@ -103,7 +74,7 @@ func route_text(length: float, exposed: bool) -> String:
 func move_text(c: Dictionary, self_pos: Vector2) -> String:
 	var vel: Vector2 = c.get("vel", Vector2.ZERO)
 	var prefix := "" if c.get("visible", false) else "was "
-	if vel.length() < still_speed:
+	if vel.length() < tuning.context.still_speed:
 		return prefix + "standing still"
 	var rel := ""
 	var a := absf(vel.angle_to(self_pos - (c["pos"] as Vector2)))
@@ -117,20 +88,21 @@ func move_text(c: Dictionary, self_pos: Vector2) -> String:
 ## Whether contact `c` (seen this tick) is coming toward the NPC, for an ambush.
 func coming_text(c: Dictionary, self_pos: Vector2) -> String:
 	var vel: Vector2 = c.get("vel", Vector2.ZERO)
-	if vel.length() < still_speed:
+	if vel.length() < tuning.context.still_speed:
 		return "they are standing still"
 	if absf(vel.angle_to(self_pos - (c["pos"] as Vector2))) < PI * 0.25:
 		return "they are coming this way"
 	return "they are moving elsewhere"
 
 
-## Who a VISIBLE contact is aiming at — the NPC, or another known character within `aim_cone` of its
-## facing — or that it faces away from the NPC. Empty when unknown or unremarkable.
+## Who a VISIBLE contact is aiming at — the NPC, or another known character within
+## `tuning.context.aim_cone` of its facing — or that it faces away from the NPC. Empty when unknown
+## or unremarkable.
 func aim_text(c: Dictionary, self_pos: Vector2, others: Array) -> String:
 	var facing: Vector2 = c.get("facing", Vector2.ZERO)
 	if not c.get("visible", false) or facing == Vector2.ZERO or c.get("blind", false):
 		return ""  # (A blinded one aims at no one.)
-	var cone := deg_to_rad(aim_cone)
+	var cone := deg_to_rad(tuning.context.aim_cone)
 	var to_me: Vector2 = self_pos - (c["pos"] as Vector2)
 	if absf(facing.angle_to(to_me)) <= cone:
 		return "aiming at you"
@@ -172,18 +144,18 @@ func room_suffix(p: Vector2) -> String:
 
 ## Accumulated damage as a band of how hurt a character is.
 func health_band(dmg: float) -> String:
-	if dmg >= critical_threshold:
+	if dmg >= tuning.context.critical_threshold:
 		return "badly wounded"
-	if dmg >= hurt_threshold:
+	if dmg >= tuning.context.hurt_threshold:
 		return "hurt"
 	return "unhurt"
 
 
 ## A seen character's visible wound band ("looks hurt"), or "" when unharmed.
 func wound_band(dmg: float) -> String:
-	if dmg >= critical_threshold:
+	if dmg >= tuning.context.critical_threshold:
 		return "looks badly wounded"
-	if dmg >= hurt_threshold:
+	if dmg >= tuning.context.hurt_threshold:
 		return "looks hurt"
 	return ""
 

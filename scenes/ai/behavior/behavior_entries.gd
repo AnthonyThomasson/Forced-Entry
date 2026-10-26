@@ -142,12 +142,12 @@ func guards(leaf: Dictionary, into: String) -> bool:
 ## entry guard covers, so a move, an engage or an interact that is not a retreat, a throw's walk to
 ## its throw spot, and an entry's approach to its stack (its other walks, the pie and the crossing,
 ## are the entry's own), while the NPC is not under fire. Not an evade. An ordered stack's walk does
-## whatever `entry_enabled` says (D4).
+## whatever `tuning.entry.enabled` says (D4).
 func keeps_out_of_views() -> bool:
 	var task: RunningLeaf = behavior.task
 	var perception: Node = behavior._perception
 	if (not behavior.tuning.entry_guard.enabled
-			or not (perception.entry_enabled or behavior.orders.ordered_stack())
+			or not (behavior.tuning.entry.enabled or behavior.orders.ordered_stack())
 			or not behavior.grenades.evade.is_empty()
 			or perception.under_fire()):
 		return false
@@ -408,7 +408,7 @@ func _walk_guarded() -> bool:
 	var perception: Node = behavior._perception
 	if (not behavior.tuning.entry_guard.enabled
 			or perception == null
-			or not perception.entry_enabled):
+			or not behavior.tuning.entry.enabled):
 		return false
 	match task.primitive:
 		&"move", &"defend", &"ambush":
@@ -432,13 +432,13 @@ func _walk_guarded() -> bool:
 ## and a member that left it to cover a door on the way would leave the point to go in alone. (An
 ## ordered stack reads its whole way for both before it claims, `_detour_first`; this catches what
 ## comes up on the walk.) An ordered stack's walk (`docs/leadership.md` LD9, D4), whatever
-## `entry_enabled` says, also goes into a room that is not cleared on its way by entry first, as any
-## walk does (E9), team or none, and its entry starts afresh after it.
+## `tuning.entry.enabled` says, also goes into a room that is not cleared on its way by entry first,
+## as any walk does (E9), team or none, and its entry starts afresh after it.
 func _guard_approach() -> void:
 	var perception: Node = behavior._perception
 	var ordered := Orders.ordered_entry(behavior.task.params)
 	if (not behavior.tuning.entry_guard.enabled
-			or not (perception.entry_enabled or ordered)
+			or not (behavior.tuning.entry.enabled or ordered)
 			or (behavior._character.movement.move_input as Vector2).length() < 0.1
 			or perception.under_fire()):
 		return

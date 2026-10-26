@@ -20,9 +20,9 @@ extends Node
 ## (agent_grenades.gd) and the snapshot author (agent_snapshot.gd) as internal modules, and surfaces
 ## knowledge only through its own methods. It holds NO policy: it never decides, gates by goal or
 ## picks — and the measured wording Von reads lives in the snapshot author, not here. The controller
-## calls `setup()` once, then hands it the NPC's tuning (`apply_config(tuning)`), which sets the
-## perception's own tunables and its modules' straight from the topic nodes (the single authoring
-## surface).
+## calls `setup()` once, then hands it the NPC's tuning (`apply_config(tuning)`): the perception and
+## the snapshot's vocabulary read their tunables live off the topic nodes (the single authoring
+## surface), and it sets its modules' straight from them.
 
 ## The internal modules this sub-domain owns (built in setup() from the config fields).
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
@@ -64,51 +64,14 @@ const WARM_CAP_MS := 3000
 var entry_point: Vector2 = Vector2.ZERO
 ## The house's doorways (`WorldGen.get_openings`, injected by its composer), for tactical entry.
 var openings: Array = []
-# --- The tunables the perception reads itself, set by apply_config() from the NPC's tuning
-# (`NpcTuning`), each from its topic's value (`contact_memory_ttl` from
-# `tuning.memory.contact_ttl`).
-## Lifetime (s) of a live contact: the window the NPC keeps acting on a last-seen position.
-var contact_memory_ttl: float
-## Whether this NPC starts knowing the house (rooms + objects), else learns them by sight.
-var familiar_with_house: bool
-## Seconds a lead stays one: a lost hostile's last sighting, gunfire or footsteps heard, where shots
-## came from.
-var lead_memory_ttl: float
-## Seconds a visited room counts as recently searched (and a cleared one as cleared).
-var search_memory_ttl: float
-## A hit this near (px) counts as being attacked (see process_hit()).
-var hit_awareness_radius: float
-## A hit farther off but this near (px) is gunfire heard.
-var hearing_radius: float
-## How far (px) a walking step is heard, through walls (docs/hearing.md H1).
-var hear_walk: float
-## How far (px) a running step is heard.
-var hear_run: float
-## How far (px) a crouched step is heard.
-var hear_crouch: float
-## Seconds a hit on or near the NPC keeps it under fire (`under_fire`).
-var under_fire_time: float
-## Seconds the NPC stays committed to a fight after the last shot it fired or took (`engaged`).
-var engage_dwell: float
-## Smoothing (0–1) of a seen character's tracked velocity: the share of a new one taken per game
-## frame.
-var track_smoothing: float
-## How far (px) an ally's callout carries; <= 0 = unlimited.
-var callout_range: float
-## Seconds a heard callout stays current.
-var callout_ttl: float
-## Whether doorways into rooms left to clear are offered (ENTER).
-var entry_enabled: bool
-## Whether walks keep out of doorway views and secure the ones they cross (the controller's
-## `entry_guard`).
-var entry_guard: bool
-## Seconds a cleared room counts as safe to walk past.
-var entry_pass_clear_time: float
+## The NPC's tuning topics (`NpcTuning`), handed in by apply_config(): the tunables the perception
+## reads itself, read live (`tuning.memory.contact_ttl`).
+var tuning: NpcTuning
 ## Whether the NPC is walking an ordered stack's way to its door (`docs/leadership.md` LD9), set
-## each tick by the behaviour: that walk keeps out of the doorway views whatever `entry_enabled`
-## says (D4), and for an NPC that does not clear rooms by entry (`entry_enabled` off) a room it has
-## stood in lately and seen no hostile in counts as clear for passing (`seen_empty`, D11); the room
-## its stack holds always does (`stack_room`).
+## each tick by the behaviour: that walk keeps out of the doorway views whatever
+## `tuning.entry.enabled` says (D4), and for an NPC that does not clear rooms by entry
+## (`tuning.entry.enabled` off) a room it has stood in lately and seen no hostile in counts as clear
+## for passing (`_seen_empty`, D11); the room its stack holds always does (`_stack_room`).
 var ordered_walk := false:
 	set(value):
 		if value != ordered_walk:
@@ -117,10 +80,10 @@ var ordered_walk := false:
 ## Whether the NPC follows its squad's leader (`Squad.follows`), set each tick by the controller:
 ## the snapshot's and `quick_facts()`'s `follows`.
 var follows := false
-## `stack_room()` this frame...
-var _stack_room := ""
+## `_stack_room()` this frame...
+var _held_room := ""
 ## ... worked out on this physics frame.
-var _stack_room_frame := -1
+var _held_room_frame := -1
 ## The NPC's body, handed in once by bind().
 var _character: Node
 ## The sight sense (FOV/range/LoS); see agent_vision.gd.
@@ -216,124 +179,84 @@ func setup() -> void:
 	_snapshot.setup(sources)
 
 
-## Set the perception's own tunables and its modules' straight from `tuning`, the NPC's topic nodes
-## (the one authoring surface). Idempotent and state-free (it only sets tunables, never the memory
-## log or hostility faction), so the controller may call it every decision to keep the modules in
-## step with a tunable retuned at runtime (e.g. by the dev command server).
-func apply_config(tuning: NpcTuning) -> void:
-	_apply_own(tuning)
-	_apply_senses(tuning)
-	_apply_tactics(tuning)
-	_apply_doorways(tuning)
-	_throw.evade_margin = tuning.grenades.evade_margin
-	_grenades.enabled = tuning.grenades.enabled
-	_grenades.hear_grenade = tuning.grenades.hear_grenade
-	_suspicion.still_speed = tuning.context.still_speed
-	_suspicion.extrapolate_cap = tuning.context.extrapolate_cap
-	_apply_vocab(tuning)
+## Hand the perception the NPC's tuning topics (`npc_tuning`, the one authoring surface), which it
+## and the snapshot's vocabulary read live, and set its modules' tunables straight from them.
+## Idempotent and state-free (it only sets tunables, never the memory log or hostility faction), so
+## the controller may call it every decision to keep the modules in step with a tunable retuned at
+## runtime (e.g. by the dev command server).
+func apply_config(npc_tuning: NpcTuning) -> void:
+	tuning = npc_tuning
+	_ledger.setup({ "range": tuning.radio.callout_range, "ttl": tuning.radio.callout_ttl })
+	_apply_senses(npc_tuning)
+	_apply_tactics(npc_tuning)
+	_apply_doorways(npc_tuning)
+	_throw.evade_margin = npc_tuning.grenades.evade_margin
+	_grenades.enabled = npc_tuning.grenades.enabled
+	_grenades.hear_grenade = npc_tuning.grenades.hear_grenade
+	_suspicion.still_speed = npc_tuning.context.still_speed
+	_suspicion.extrapolate_cap = npc_tuning.context.extrapolate_cap
+	_snapshot.vocab.tuning = npc_tuning
 
 
-## Set the tunables the perception reads itself from `tuning`, and the radio's reach and lapse on
-## its claim ledger.
-func _apply_own(tuning: NpcTuning) -> void:
-	contact_memory_ttl = tuning.memory.contact_ttl
-	familiar_with_house = tuning.memory.familiar_with_house
-	lead_memory_ttl = tuning.memory.lead_ttl
-	search_memory_ttl = tuning.memory.search_ttl
-	hit_awareness_radius = tuning.combat.hit_awareness_radius
-	hearing_radius = tuning.senses.hearing_radius
-	hear_walk = tuning.senses.hear_walk
-	hear_run = tuning.senses.hear_run
-	hear_crouch = tuning.senses.hear_crouch
-	under_fire_time = tuning.combat.under_fire_time
-	engage_dwell = tuning.combat.engage_dwell
-	track_smoothing = tuning.context.track_smoothing
-	callout_range = tuning.radio.callout_range
-	callout_ttl = tuning.radio.callout_ttl
-	_ledger.setup({ "range": callout_range, "ttl": callout_ttl })
-	entry_enabled = tuning.entry.enabled
-	entry_guard = tuning.entry_guard.enabled
-	entry_pass_clear_time = tuning.entry_guard.pass_clear_time
+## Set the sight sense's, the hostility rules' and the memory's tunables from `npc_tuning`.
+func _apply_senses(npc_tuning: NpcTuning) -> void:
+	_vision.enabled = npc_tuning.senses.vision_enabled
+	_vision.view_distance = npc_tuning.senses.view_distance
+	_vision.fov_degrees = npc_tuning.senses.fov_degrees
+	_vision.awareness_radius = npc_tuning.senses.awareness_radius
+	_vision.see_over_coverage = npc_tuning.senses.see_over_coverage
+	_hostility.on_sight = npc_tuning.hostility.on_sight
+	_hostility.trespass = npc_tuning.hostility.on_trespass
+	_hostility.retaliate = npc_tuning.hostility.on_attack
+	_hostility.ttl = npc_tuning.hostility.ttl
+	_memory.capacity = npc_tuning.memory.capacity
 
 
-## Set the sight sense's, the hostility rules' and the memory's tunables from `tuning`.
-func _apply_senses(tuning: NpcTuning) -> void:
-	_vision.enabled = tuning.senses.vision_enabled
-	_vision.view_distance = tuning.senses.view_distance
-	_vision.fov_degrees = tuning.senses.fov_degrees
-	_vision.awareness_radius = tuning.senses.awareness_radius
-	_vision.see_over_coverage = tuning.senses.see_over_coverage
-	_hostility.on_sight = tuning.hostility.on_sight
-	_hostility.trespass = tuning.hostility.on_trespass
-	_hostility.retaliate = tuning.hostility.on_attack
-	_hostility.ttl = tuning.hostility.ttl
-	_memory.capacity = tuning.memory.capacity
+## Set the combat geometry's tunables from `npc_tuning`.
+func _apply_tactics(npc_tuning: NpcTuning) -> void:
+	_tactics.cover_min = npc_tuning.tactics.cover_min
+	_tactics.flank_distance = npc_tuning.tactics.flank_distance
+	_tactics.flank_arc = npc_tuning.tactics.flank_arc
+	_tactics.flank_ally_radius = npc_tuning.tactics.flank_ally_radius
+	_tactics.shoot_range = npc_tuning.combat.shoot_range
+	_tactics.combat_ring_radius = npc_tuning.combat.ring_radius
+	_tactics.combat_ring_count = npc_tuning.combat.ring_count
+	_tactics.still_speed = npc_tuning.context.still_speed
+	_tactics.route_clearance = npc_tuning.tactics.route_clearance
+	_tactics.watch_arc = npc_tuning.tactics.watch_arc
+	_tactics.fire_spot_distances = npc_tuning.tactics.fire_spot_distances
+	_tactics.throw_spot_walk = npc_tuning.grenades.throw_spot_walk
 
 
-## Set the combat geometry's tunables from `tuning`.
-func _apply_tactics(tuning: NpcTuning) -> void:
-	_tactics.cover_min = tuning.tactics.cover_min
-	_tactics.flank_distance = tuning.tactics.flank_distance
-	_tactics.flank_arc = tuning.tactics.flank_arc
-	_tactics.flank_ally_radius = tuning.tactics.flank_ally_radius
-	_tactics.shoot_range = tuning.combat.shoot_range
-	_tactics.combat_ring_radius = tuning.combat.ring_radius
-	_tactics.combat_ring_count = tuning.combat.ring_count
-	_tactics.still_speed = tuning.context.still_speed
-	_tactics.route_clearance = tuning.tactics.route_clearance
-	_tactics.watch_arc = tuning.tactics.watch_arc
-	_tactics.fire_spot_distances = tuning.tactics.fire_spot_distances
-	_tactics.throw_spot_walk = tuning.grenades.throw_spot_walk
-
-
-## Set the doorway geometry's and the doorway views' tunables from `tuning`, then push the walk
+## Set the doorway geometry's and the doorway views' tunables from `npc_tuning`, then push the walk
 ## rules into the views (`_sync_walks`).
-func _apply_doorways(tuning: NpcTuning) -> void:
-	_entry.stack_spacing = tuning.entry_geometry.stack_spacing
-	_entry.wall_standoff = tuning.entry_geometry.wall_standoff
-	_entry.pie_radius = tuning.entry_geometry.pie_radius
-	_entry.pie_steps = tuning.entry_geometry.pie_steps
-	_entry.corner_inset = tuning.entry_geometry.corner_inset
-	_entry.short_room = tuning.entry_geometry.short_room
-	_views.door_view_depth = tuning.entry_guard.door_view_depth
-	_views.door_avoid_ratio = tuning.entry_guard.door_avoid_ratio
-	_views.door_avoid_slack = tuning.entry_guard.door_avoid_slack
+func _apply_doorways(npc_tuning: NpcTuning) -> void:
+	_entry.stack_spacing = npc_tuning.entry_geometry.stack_spacing
+	_entry.wall_standoff = npc_tuning.entry_geometry.wall_standoff
+	_entry.pie_radius = npc_tuning.entry_geometry.pie_radius
+	_entry.pie_steps = npc_tuning.entry_geometry.pie_steps
+	_entry.corner_inset = npc_tuning.entry_geometry.corner_inset
+	_entry.short_room = npc_tuning.entry_geometry.short_room
+	_views.door_view_depth = npc_tuning.entry_guard.door_view_depth
+	_views.door_avoid_ratio = npc_tuning.entry_guard.door_avoid_ratio
+	_views.door_avoid_slack = npc_tuning.entry_guard.door_avoid_slack
 	_sync_walks()
 
 
-## Set the snapshot's vocabulary tunables from `tuning`.
-func _apply_vocab(tuning: NpcTuning) -> void:
-	_snapshot.vocab.shoot_range = tuning.combat.shoot_range
-	_snapshot.vocab.punch_range = tuning.combat.punch_range
-	_snapshot.vocab.recency_bands = tuning.context.recency_bands
-	_snapshot.vocab.route_buckets = tuning.context.route_buckets
-	_snapshot.vocab.aim_cone = tuning.context.aim_cone
-	_snapshot.vocab.still_speed = tuning.context.still_speed
-	_snapshot.vocab.flank_ally_radius = tuning.tactics.flank_ally_radius
-	_snapshot.vocab.investigate_distance = tuning.context.investigate_distance
-	_snapshot.vocab.extrapolate_cap = tuning.context.extrapolate_cap
-	_snapshot.vocab.max_options_per_level = tuning.decision.max_options_per_level
-	_snapshot.vocab.hurt_threshold = tuning.context.hurt_threshold
-	_snapshot.vocab.critical_threshold = tuning.context.critical_threshold
-	_snapshot.vocab.low_ammo_fraction = tuning.context.low_ammo_fraction
-	_snapshot.vocab.max_contacts_in_state = tuning.context.max_contacts_in_state
-	_snapshot.vocab.search_memory_ttl = tuning.memory.search_ttl
-
-
 ## Push the walk rules into the doorway views: walks keep out of the doorway views where the entry
-## guard runs (`entry_guard`, with `entry_enabled` or on an ordered stack's walk, D4), and a room
-## counts as clear for passing when it was cleared lately (`is_pass_clear`) or, on an ordered walk,
-## when its stack holds it (`stack_room`) or, for an NPC that does not clear rooms by entry, it has
-## seen it empty (`seen_empty`, D11).
+## guard runs (`tuning.entry_guard.enabled`, with `tuning.entry.enabled` or on an ordered stack's
+## walk, D4), and a room counts as clear for passing when it was cleared lately (`_is_pass_clear`)
+## or, on an ordered walk, when its stack holds it (`_stack_room`) or, for an NPC that does not
+## clear rooms by entry, it has seen it empty (`_seen_empty`, D11).
 func _sync_walks() -> void:
 	if _views == null:
 		return
-	_views.avoid_views = entry_guard and (entry_enabled or ordered_walk)
+	_views.avoid_views = tuning.entry_guard.enabled and (tuning.entry.enabled or ordered_walk)
 	# Its way round the room it stacks on is taken however long (D4).
 	_views.ordered_approach = ordered_walk
-	_views.pass_clear = ((_passable if not entry_enabled else _pass_clear_ordered)
+	_views.pass_clear = ((_passable if not tuning.entry.enabled else _pass_clear_ordered)
 			if ordered_walk
-			else is_pass_clear)
+			else _is_pass_clear)
 
 
 ## Hand the perception the NPC's body, which every sense and query reads from then on, and tell the
@@ -352,15 +275,16 @@ func bind(character: Node) -> void:
 
 
 ## Classify one world `&"hit"` event (interface 10) against this NPC and fold it into memory. A hit
-## ON the NPC, or any hit within `hit_awareness_radius` of it, counts as being attacked: the
-## incoming direction (and whether it actually hit) is remembered (`under_fire`), the engagement is
-## refreshed (`engaged`), and the attacker is handed to the hostility rules. A hit farther off but
-## within `hearing_radius` is gunfire heard (`heard_gunfire`) — an investigation lead — but ONLY
-## from a shooter the NPC doesn't already know is hostile: gunfire from a character it is fighting
-## (or any other known hostile) is no mystery, already covered by COMBAT or that contact's last-seen
-## lead, so it is not a lead to chase. The NPC's own hits are ignored, and so is an ally's round
-## striking near it (a teammate's fire is not fire at it; one that hits it still is). Returns true
-## when it was a relevant attack, so the controller can kick off a fight.
+## ON the NPC, or any hit within `tuning.combat.hit_awareness_radius` of it, counts as being
+## attacked: the incoming direction (and whether it actually hit) is remembered (`under_fire`), the
+## engagement is refreshed (`engaged`), and the attacker is handed to the hostility rules. A hit
+## farther off but within `tuning.senses.hearing_radius` is gunfire heard (`heard_gunfire`) — an
+## investigation lead — but ONLY from a shooter the NPC doesn't already know is hostile: gunfire
+## from a character it is fighting (or any other known hostile) is no mystery, already covered by
+## COMBAT or that contact's last-seen lead, so it is not a lead to chase. The NPC's own hits are
+## ignored, and so is an ally's round striking near it (a teammate's fire is not fire at it; one
+## that hits it still is). Returns true when it was a relevant attack, so the controller can kick
+## off a fight.
 func process_hit(data: Dictionary) -> bool:
 	var attacker = data.get("attacker")
 	if attacker == _character:
@@ -374,17 +298,22 @@ func process_hit(data: Dictionary) -> bool:
 			and _hostility.is_ally(attacker.get("faction")
 					if attacker.get("faction") != null
 					else &""))
-	if not hit_me and by_ally and self_pos.distance_to(pos) <= hit_awareness_radius:
+	if not hit_me and by_ally and self_pos.distance_to(pos) <= tuning.combat.hit_awareness_radius:
 		return false  # A teammate's round striking close by: it knows who fired.
-	if not hit_me and self_pos.distance_to(pos) > hit_awareness_radius:
+	if not hit_me and self_pos.distance_to(pos) > tuning.combat.hit_awareness_radius:
 		var known_shooter: bool = attacker is Node and is_instance_valid(attacker) \
 			and _hostility.is_hostile(attacker.get_instance_id(), _memory)
-		if self_pos.distance_to(pos) <= hearing_radius and not known_shooter:
+		if self_pos.distance_to(pos) <= tuning.senses.hearing_radius and not known_shooter:
 			var cell := "%d,%d" % [floori(pos.x / 200.0), floori(pos.y / 200.0)]
-			_memory.remember(&"heard_gunfire", { "pos": pos }, lead_memory_ttl, cell)
+			_memory.remember(&"heard_gunfire", { "pos": pos }, tuning.memory.lead_ttl, cell)
 		return false
-	_memory.remember(&"under_fire", { "from": from, "hit": hit_me }, under_fire_time, "latest")
-	_memory.remember(&"engaged", {}, engage_dwell, "latest")
+	_memory.remember(
+		&"under_fire",
+		{ "from": from, "hit": hit_me },
+		tuning.combat.under_fire_time,
+		"latest",
+	)
+	_memory.remember(&"engaged", {}, tuning.combat.engage_dwell, "latest")
 	if not by_ally:
 		_note_shot_from(pos, from)
 	if attacker is Node and is_instance_valid(attacker):
@@ -393,38 +322,45 @@ func process_hit(data: Dictionary) -> bool:
 
 
 ## Remember where a shot at the NPC came from (`shot_from`, docs/grenades.md G18): the line back
-## from where it landed (`at`), along `from`, to the first wall it meets (`hearing_radius` at most).
-## A shot that came in through a doorway runs back into the room behind it, so that room is where
-## the shooter is. Kept `lead_memory_ttl`, long after being under fire is over (`under_fire_time`),
-## keyed by where the line ends so shots from two places are two memories.
+## from where it landed (`at`), along `from`, to the first wall it meets
+## (`tuning.senses.hearing_radius` at most). A shot that came in through a doorway runs back into
+## the room behind it, so that room is where the shooter is. Kept `tuning.memory.lead_ttl`, long
+## after being under fire is over (`tuning.combat.under_fire_time`), keyed by where the line ends so
+## shots from two places are two memories.
 func _note_shot_from(at: Vector2, from: Vector2) -> void:
 	var dir := from.normalized()
 	if dir == Vector2.ZERO:
 		return
-	var far := at + dir * hearing_radius
+	var far := at + dir * tuning.senses.hearing_radius
 	var hit: Dictionary = _vision.wall_hit(_character.get_world_2d().direct_space_state, at, far)
 	var end: Vector2 = (hit["position"] as Vector2) - dir * 4.0 if not hit.is_empty() else far
 	var cell := "%d,%d" % [floori(end.x / 200.0), floori(end.y / 200.0)]
-	_memory.remember(&"shot_from", { "at": at, "pos": end, "from": from }, lead_memory_ttl, cell)
+	_memory.remember(
+		&"shot_from",
+		{ "at": at, "pos": end, "from": from },
+		tuning.memory.lead_ttl,
+		cell,
+	)
 
 
 ## Hear one `&"footfall"` (interface 10, `{ position, character, running, crouched }`) through
 ## walls: the step of a character not of the NPC's own faction (its faction is how it knows its own
-## team's steps) within earshot for its gait, `hear_run` running, `hear_crouch` crouched, else
-## `hear_walk`, is remembered as `heard_footsteps` (`{ pos }`, keyed per walker, so the latest step
-## stands for it; `lead_memory_ttl`): an investigation lead and a reason to suspect the room it came
-## from (docs/hearing.md H1). A character it sees right now is no news. The controller drops every
+## team's steps) within earshot for its gait, `tuning.senses.hear_run` running,
+## `tuning.senses.hear_crouch` crouched, else `tuning.senses.hear_walk`, is remembered as
+## `heard_footsteps` (`{ pos }`, keyed per walker, so the latest step stands for it;
+## `tuning.memory.lead_ttl`): an investigation lead and a reason to suspect the room it came from
+## (docs/hearing.md H1). A character it sees right now is no news. The controller drops every
 ## footfall while the NPC is deaf (G15).
 func process_footfall(data: Dictionary) -> void:
 	var walker = data.get("character")
 	if walker == _character or not walker is Node or not is_instance_valid(walker):
 		return
 	var pos: Vector2 = data.get("position", Vector2.INF)
-	var reach := hear_walk
+	var reach := tuning.senses.hear_walk
 	if data.get("crouched", false):
-		reach = hear_crouch
+		reach = tuning.senses.hear_crouch
 	elif data.get("running", false):
-		reach = hear_run
+		reach = tuning.senses.hear_run
 	if _character.global_position.distance_to(pos) > reach:
 		return
 	var f = walker.get("faction")
@@ -433,14 +369,14 @@ func process_footfall(data: Dictionary) -> void:
 	_memory.remember(
 		&"heard_footsteps",
 		{ "pos": pos },
-		lead_memory_ttl,
+		tuning.memory.lead_ttl,
 		str(walker.get_instance_id()),
 	)
 
 
 ## The farthest any footfall is heard (px), so the controller can drop the rest before queuing them.
 func footfall_reach() -> float:
-	return maxf(hear_walk, maxf(hear_run, hear_crouch))
+	return maxf(tuning.senses.hear_walk, maxf(tuning.senses.hear_run, tuning.senses.hear_crouch))
 
 
 ## Where the NPC last knew hostile `target_id` to be (its last sighting), else, with nobody known,
@@ -457,9 +393,9 @@ func target_pos(target_id: int) -> Vector2:
 
 ## Fold one ally radio `&"callout"` (interface 10) into memory: what an ally says it is doing — its
 ## tactic, target and destination, or its step through a doorway. Ignores its own, non-allies, dead
-## speakers, and anything beyond `callout_range` (<= 0 = unlimited). Each speaker's latest callout
-## supersedes its earlier one. An ally that radios a room clear (`cleared_room`) teaches this NPC
-## the room and marks it searched, so the team does not clear it twice.
+## speakers, and anything beyond `tuning.radio.callout_range` (<= 0 = unlimited). Each speaker's
+## latest callout supersedes its earlier one. An ally that radios a room clear (`cleared_room`)
+## teaches this NPC the room and marks it searched, so the team does not clear it twice.
 func process_callout(data: Dictionary) -> void:
 	var speaker = data.get("speaker")
 	if (speaker == _character
@@ -470,7 +406,8 @@ func process_callout(data: Dictionary) -> void:
 	if not _hostility.is_ally(data.get("faction", &"")):
 		return
 	var at: Vector2 = data.get("position", _character.global_position)
-	if callout_range > 0.0 and _character.global_position.distance_to(at) > callout_range:
+	if (tuning.radio.callout_range > 0.0
+			and _character.global_position.distance_to(at) > tuning.radio.callout_range):
 		return
 	_ledger.hear(data, _character.global_position)
 	if AgentGrenades.is_call(data.get("status")):
@@ -481,11 +418,16 @@ func process_callout(data: Dictionary) -> void:
 		# Nor is how an ally's order goes (LD7), its squad's to hear: it leaves what the ally last
 		# said it is doing standing.
 		return
-	_memory.remember(&"heard_callout", data, callout_ttl, str(speaker.get_instance_id()))
+	_memory.remember(
+		&"heard_callout",
+		data,
+		tuning.radio.callout_ttl,
+		str(speaker.get_instance_id()),
+	)
 	var cleared := str(StackClaim.decode(data).get("cleared_room", ""))
 	if cleared != "":
 		_learn_room({ "key": cleared })
-		_memory.remember(&"visited_room", { "key": cleared }, search_memory_ttl, cleared)
+		_memory.remember(&"visited_room", { "key": cleared }, tuning.memory.search_ttl, cleared)
 		mark_cleared(cleared)
 
 
@@ -592,7 +534,7 @@ func _note_flash(data: Dictionary) -> void:
 	cover.height = _throw.stand_height()
 	cover.exclude = rids
 	cover.cover_reach = _throw.cover_reach(&"stun")
-	for c in _sightings(null, lead_memory_ttl, -1.0, true):
+	for c in _sightings(null, tuning.memory.lead_ttl, -1.0, true):
 		var d: float = burst.distance_to(c["pos"])
 		if d > flash:
 			continue
@@ -609,7 +551,7 @@ func _note_flash(data: Dictionary) -> void:
 ## Refresh the combat engagement (called by the behaviour when it fires or adopts a fight), so an
 ## active firefight stays committed between decisions.
 func note_engaged() -> void:
-	_memory.remember(&"engaged", {}, engage_dwell, "latest")
+	_memory.remember(&"engaged", {}, tuning.combat.engage_dwell, "latest")
 
 
 ## Whether the NPC is still committed to a fight (an `engaged` event is fresh).
@@ -639,7 +581,7 @@ func quick_facts() -> Dictionary:
 ## The NPC reached investigation lead `lead_id` (its option carried the id in `params.lead`):
 ## remember it as checked, so it isn't offered again until something newer happens there.
 func check_lead(lead_id: String) -> void:
-	_memory.remember(&"checked_lead", { "id": lead_id }, lead_memory_ttl, lead_id)
+	_memory.remember(&"checked_lead", { "id": lead_id }, tuning.memory.lead_ttl, lead_id)
 
 
 ## Number of events in memory, for the debug snapshot.
@@ -648,9 +590,9 @@ func memory_size() -> int:
 
 
 ## Whether room `key` is one the shots at the NPC came from: the line back from a shot at it
-## (`shot_from`, kept `lead_memory_ttl`) runs through it. The behaviour's entry guard reads it
-## (`docs/tactical-entry.md` E9: under fire, a walk into the room the shots came from still goes by
-## entry).
+## (`shot_from`, kept `tuning.memory.lead_ttl`) runs through it. The behaviour's entry guard reads
+## it (`docs/tactical-entry.md` E9: under fire, a walk into the room the shots came from still goes
+## by entry).
 func shots_from_room(key: String) -> bool:
 	for shot in _memory.recall_all(&"shot_from"):
 		if AgentSuspicion.shot_rooms(_rooms, shot).has(key):
@@ -705,11 +647,11 @@ func debug_memory() -> Dictionary:
 		"callouts": callouts,
 		"checked_leads": fresh["checked_leads"],
 		"lost": lost,
-		"hearing_radius": hearing_radius,
-		"hit_awareness_radius": hit_awareness_radius,
-		"callout_range": callout_range,
-		"contact_memory_ttl": contact_memory_ttl,
-		"lead_memory_ttl": lead_memory_ttl,
+		"hearing_radius": tuning.senses.hearing_radius,
+		"hit_awareness_radius": tuning.combat.hit_awareness_radius,
+		"callout_range": tuning.radio.callout_range,
+		"contact_memory_ttl": tuning.memory.contact_ttl,
+		"lead_memory_ttl": tuning.memory.lead_ttl,
 		"extrapolate_cap": _suspicion.extrapolate_cap,
 	}
 
@@ -759,7 +701,7 @@ func room_status(rooms: Array, self_pos: Vector2) -> Array:
 			status = &"current"
 		elif not known.has(room["key"]):
 			status = &"unknown"
-		elif _memory.age_of(&"visited_room", "key", room["key"]) > search_memory_ttl:
+		elif _memory.age_of(&"visited_room", "key", room["key"]) > tuning.memory.search_ttl:
 			status = &"unsearched"
 		else:
 			status = &"searched"
@@ -791,19 +733,21 @@ func observe(rooms: Array) -> void:
 		_memory.remember(
 			&"visited_room",
 			{ "key": here["key"] },
-			search_memory_ttl,
+			tuning.memory.search_ttl,
 			str(here["key"]),
 		)
 
 	_grenades.observe(_vision, space, exclude, _blind)
-	if not familiar_with_house and not _blind and Engine.get_physics_frames() >= _learn_next:
+	if (not tuning.memory.familiar_with_house
+			and not _blind
+			and Engine.get_physics_frames() >= _learn_next):
 		_learn_by_sight(rooms)
 	_end_ambush_on_contact()
 
 
 ## Before a look: capture the NPC's post on the first call, scan the interactables once, learn the
 ## grenades carried and the body's heights, seed a familiar NPC's house knowledge, hand the house to
-## the doorway geometry (laying the doorways ahead while `entry_enabled`) and keep `rooms`.
+## the doorway geometry (laying the doorways ahead while `tuning.entry.enabled`) and keep `rooms`.
 func _take_in_house(rooms: Array) -> void:
 	if not _post_set:
 		_post = _character.global_position
@@ -813,7 +757,7 @@ func _take_in_house(rooms: Array) -> void:
 	_throw.learn_body()
 	_seed_house(rooms)
 	_entry.set_house(openings, rooms)
-	if entry_enabled:
+	if tuning.entry.enabled:
 		var world: World2D = _character.get_world_2d()
 		# Lay the doorways before a decision needs them.
 		_entry.warm_geometry(world.navigation_map, world.direct_space_state)
@@ -848,7 +792,7 @@ func _see_characters(rooms: Array) -> void:
 		_memory.remember(
 			&"saw_character",
 			sighting,
-			maxf(contact_memory_ttl, lead_memory_ttl),
+			maxf(tuning.memory.contact_ttl, tuning.memory.lead_ttl),
 			str(sighting["id"]),
 		)
 		_hostility.classify(sighting, _memory)
@@ -948,9 +892,9 @@ func _learn_by_sight(rooms: Array) -> void:
 
 ## Update character `id`'s movement track with a sighting at `pos` (game msec `now`) and return its
 ## smoothed velocity, both measured on the game clock (`GameClock`). A sighting after a long gap
-## restarts the track (no velocity across the gap). `track_smoothing` is the share of a new velocity
-## taken per game frame, so a sighting that comes several frames after the last takes the share they
-## add up to.
+## restarts the track (no velocity across the gap). `tuning.context.track_smoothing` is the share of
+## a new velocity taken per game frame, so a sighting that comes several frames after the last takes
+## the share they add up to.
 func _track(id: int, pos: Vector2, now: int) -> Vector2:
 	var frame := GameClock.frame()
 	var vel := Vector2.ZERO
@@ -959,7 +903,8 @@ func _track(id: int, pos: Vector2, now: int) -> Vector2:
 		var dt: float = (now - track["t"]) / 1000.0
 		if dt > 0.0 and dt < 0.5:
 			var steps: int = maxi(frame - int(track["f"]), 1)
-			var share := track_smoothing if steps == 1 else 1.0 - pow(1.0 - track_smoothing, steps)
+			var smoothing: float = tuning.context.track_smoothing
+			var share := smoothing if steps == 1 else 1.0 - pow(1.0 - smoothing, steps)
 			vel = (track["vel"] as Vector2).lerp((pos - track["pos"]) / dt, share)
 		elif dt == 0.0:
 			vel = track["vel"]
@@ -967,31 +912,35 @@ func _track(id: int, pos: Vector2, now: int) -> Vector2:
 	return vel
 
 
-## Every character the agent currently knows of (seen within `contact_memory_ttl`) — the latest
-## sighting per character, with `hostile` / `reason`, `visible` (seen on the latest tick) and `age`.
-## Hostiles first, then nearest to `self_pos`. Dead or freed characters are dropped.
+## Every character the agent currently knows of (seen within `tuning.memory.contact_ttl`) — the
+## latest sighting per character, with `hostile` / `reason`, `visible` (seen on the latest tick) and
+## `age`. Hostiles first, then nearest to `self_pos`. Dead or freed characters are dropped.
 func contacts(self_pos: Vector2) -> Array:
 	return _sightings(self_pos, _contact_ttl())
 
 
-## Every character in memory regardless of contact_memory_ttl — all non-expired sightings (up to
-## lead_memory_ttl, typically 20 s). Same dict shape as contacts() but covers stale sightings too,
-## so external observers (e.g. the spectator inspector) can see the NPC's full knowledge window.
+## Every character in memory regardless of tuning.memory.contact_ttl — all non-expired sightings (up
+## to tuning.memory.lead_ttl, typically 20 s). Same dict shape as contacts() but covers stale
+## sightings too, so external observers (e.g. the spectator inspector) can see the NPC's full
+## knowledge window.
 func all_seen_characters(self_pos: Vector2) -> Array:
 	return _sightings(self_pos)
 
 
-## Hostiles the NPC has lost track of — last seen longer ago than `contact_memory_ttl` but within
-## `lead_memory_ttl` — newest first: where to investigate.
+## Hostiles the NPC has lost track of — last seen longer ago than `tuning.memory.contact_ttl` but
+## within `tuning.memory.lead_ttl` — newest first: where to investigate.
 func lost_hostiles() -> Array:
 	return _sightings(null, INF, _contact_ttl(), true)
 
 
 ## How long (s) a sighting counts as a live contact. A blinded NPC cannot tell that a contact has
 ## gone, so it keeps acting on every sighting its memory holds (G15); it is back to
-## `contact_memory_ttl` the moment it can see.
+## `tuning.memory.contact_ttl` the moment it can see.
 func _contact_ttl() -> float:
-	return maxf(contact_memory_ttl, lead_memory_ttl) if _blind else contact_memory_ttl
+	return maxf(
+		tuning.memory.contact_ttl,
+		tuning.memory.lead_ttl,
+	) if _blind else tuning.memory.contact_ttl
 
 
 ## The live character sightings in memory as contact dicts — the one source behind contacts(),
@@ -1057,7 +1006,7 @@ func _callouts() -> Array:
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
 ## policy.
 func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
-	if not familiar_with_house and not _character.stun.is_blind():
+	if not tuning.memory.familiar_with_house and not _character.stun.is_blind():
 		_learn_by_sight(rooms)
 	var self_pos: Vector2 = _character.global_position
 	var carried := AgentThrow.carried(_character)
@@ -1068,7 +1017,7 @@ func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 		"interactables": _interactables,
 		"post": _post,
 		"entry_point": entry_point,
-		"entry_enabled": entry_enabled,
+		"entry_enabled": tuning.entry.enabled,
 		"lost": lost_hostiles(),
 		# The kinds of grenade it holds, and the bodies a throw's line goes through.
 		"carried_grenades": carried,
@@ -1093,7 +1042,7 @@ func fill_goal(goal: String) -> String:
 ## (permanent ttl). An unfamiliar NPC skips this and learns by sight in observe(). Needs the rooms
 ## list, so it runs on the first observe() (not _ready).
 func _seed_house(rooms: Array) -> void:
-	if _seeded or not familiar_with_house:
+	if _seeded or not tuning.memory.familiar_with_house:
 		return
 	_seeded = true
 	for room in rooms:
@@ -1240,9 +1189,9 @@ func entry_geometry(opening_id: String, into: String) -> Dictionary:
 ## Mark room `key` cleared: its entry was carried through to the end (or searched by sight to the
 ## end), by this NPC or by an ally who radioed it. Not the same as having stood in it
 ## (`visited_room`): a room walked through unprepared is visited, not cleared. It lapses after
-## `search_memory_ttl`, like a searched room. A stack order into it is done.
+## `tuning.memory.search_ttl`, like a searched room. A stack order into it is done.
 func mark_cleared(key: String) -> void:
-	_memory.remember(&"cleared_room", { "key": key }, search_memory_ttl, key)
+	_memory.remember(&"cleared_room", { "key": key }, tuning.memory.search_ttl, key)
 	var held := order()
 	if String(held.get("kind", "")) == "stack" and String(held.get("into", "")) == key:
 		# A stack order ends at its room cleared (LD9), by this NPC or by an ally who radioed it.
@@ -1251,7 +1200,7 @@ func mark_cleared(key: String) -> void:
 
 ## Whether room `key` is cleared (see `mark_cleared`).
 func is_cleared(key: String) -> bool:
-	return _memory.age_of(&"cleared_room", "key", key) <= search_memory_ttl
+	return _memory.age_of(&"cleared_room", "key", key) <= tuning.memory.search_ttl
 
 
 ## The first doorway on the walk `path` (from waypoint `from_idx`, `max_dist` px of it at most) that
@@ -1264,7 +1213,11 @@ func threshold_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -
 		# The room its stack holds is passed through (D20), and, for an NPC that does not clear
 		# rooms by entry, a room seen empty (D11).
 		clear = func(key: String) -> bool:
-			return is_cleared(key) or key == stack_room() or (not entry_enabled and seen_empty(key))
+			return (
+				is_cleared(key)
+				or key == _stack_room()
+				or (not tuning.entry.enabled and _seen_empty(key))
+			)
 	return _views.threshold_ahead(path, from_idx, _character.global_position, clear, max_dist)
 
 
@@ -1277,36 +1230,36 @@ func passing_ahead(path: PackedVector2Array, from_idx: int, max_dist: float) -> 
 	)
 
 
-## Whether room `key` counts as safe to walk past: cleared within `entry_pass_clear_time` (a room
-## cleared longer ago is cleared for the entry, `is_cleared`, but a doorway into it is not safe to
-## walk past again).
-func is_pass_clear(key: String) -> bool:
-	return _memory.age_of(&"cleared_room", "key", key) <= entry_pass_clear_time
+## Whether room `key` counts as safe to walk past: cleared within
+## `tuning.entry_guard.pass_clear_time` (a room cleared longer ago is cleared for the entry,
+## `is_cleared`, but a doorway into it is not safe to walk past again).
+func _is_pass_clear(key: String) -> bool:
+	return _memory.age_of(&"cleared_room", "key", key) <= tuning.entry_guard.pass_clear_time
 
 
-## Whether the NPC has stood in room `key` within `entry_pass_clear_time` and has seen no hostile in
-## it since (the latest sighting of each hostile it knows of, within that time, lies elsewhere): a
-## room seen empty (`docs/leadership.md` D11). A room only glimpsed through its doorway was not
-## stood in, so it is not.
-func seen_empty(key: String) -> bool:
-	if _memory.age_of(&"visited_room", "key", key) > entry_pass_clear_time:
+## Whether the NPC has stood in room `key` within `tuning.entry_guard.pass_clear_time` and has seen
+## no hostile in it since (the latest sighting of each hostile it knows of, within that time, lies
+## elsewhere): a room seen empty (`docs/leadership.md` D11). A room only glimpsed through its
+## doorway was not stood in, so it is not.
+func _seen_empty(key: String) -> bool:
+	if _memory.age_of(&"visited_room", "key", key) > tuning.entry_guard.pass_clear_time:
 		return false
-	for c in _sightings(null, entry_pass_clear_time, -1.0, true):
+	for c in _sightings(null, tuning.entry_guard.pass_clear_time, -1.0, true):
 		if SnapshotVocab.room_key_at(c["pos"], _rooms) == key:
 			return false
 	return true
 
 
 ## Whether room `key` counts as clear for passing on an ordered walk of an NPC that does not clear
-## rooms by entry (D11): cleared lately, seen empty, or held by its stack (`stack_room`).
+## rooms by entry (D11): cleared lately, seen empty, or held by its stack (`_stack_room`).
 func _passable(key: String) -> bool:
-	return _pass_clear_ordered(key) or seen_empty(key)
+	return _pass_clear_ordered(key) or _seen_empty(key)
 
 
 ## Whether room `key` counts as clear for passing on an ordered stack's walk: cleared lately, or the
-## room its stack holds (`stack_room`).
+## room its stack holds (`_stack_room`).
 func _pass_clear_ordered(key: String) -> bool:
-	return is_pass_clear(key) or key == stack_room()
+	return _is_pass_clear(key) or key == _stack_room()
 
 
 ## The room an ordered stack holds (`docs/leadership.md` D20): on the walk of a member to the stack
@@ -1314,21 +1267,21 @@ func _pass_clear_ordered(key: String) -> bool:
 ## order holds its slot there (its claim radioed `ready`, or `bang`): that room counts as cleared
 ## for passing, so the walk is not sent into it by entry. "" for none (outside the house, no slot
 ## held yet, or no ordered walk). Worked out once a physics frame.
-func stack_room() -> String:
+func _stack_room() -> String:
 	var frame := Engine.get_physics_frames()
-	if frame == _stack_room_frame:
-		return _stack_room
-	_stack_room_frame = frame
-	_stack_room = ""
+	if frame == _held_room_frame:
+		return _held_room
+	_held_room_frame = frame
+	_held_room = ""
 	var held := order()
 	if not ordered_walk or str(held.get("kind", "")) != "stack":
-		return _stack_room
+		return _held_room
 	var opening := str(held.get("opening", ""))
 	for m in entry_stack(opening).team:
 		if m["order_id"] == str(held.get("id", "")) and StackClaim.in_slot(m["step"]):
-			_stack_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
+			_held_room = str(entry_geometry(opening, str(held.get("into", ""))).get("from", ""))
 			break
-	return _stack_room
+	return _held_room
 
 
 ## Whether the routes a snapshot measures can be the ones the NPC will walk (see agent_door_views.gd

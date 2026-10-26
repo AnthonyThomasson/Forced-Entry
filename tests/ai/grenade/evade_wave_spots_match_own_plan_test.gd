@@ -261,7 +261,7 @@ func _plain_spots(
 	var map: RID = search["map"]
 	var zone := {
 		"burst": threat.burst,
-		"out_r": g.zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
+		"out_r": g._zone_radius(threat.kind, threat.radius) + AgentThrow.OUTSIDE_SLACK,
 		"reach": g.cover_reach(threat.kind),
 	}
 	var spots: Array = []

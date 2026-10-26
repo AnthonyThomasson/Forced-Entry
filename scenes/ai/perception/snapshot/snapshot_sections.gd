@@ -133,7 +133,7 @@ func _gun_text(gun: int, ammo: int) -> String:
 			else "You are out of spare magazines.")
 	if ammo == 0:
 		return "Your %s is empty. %s" % [noun, spares]
-	if ammo <= ceili(_character.ammo.capacity(gun) * _v.low_ammo_fraction):
+	if ammo <= ceili(_character.ammo.capacity(gun) * _v.tuning.context.low_ammo_fraction):
 		return "Your %s is nearly empty. %s" % [noun, spares]
 	return "Your %s is loaded." % noun
 
@@ -159,13 +159,14 @@ func odds_text(hostiles: Array, allies: Array, callouts: Array, trouble: bool) -
 			% [hostiles.size(), in_sight, ally_text])
 
 
-## One line per known non-ally contact (hostiles first, up to `max_contacts_in_state`).
+## One line per known non-ally contact (hostiles first, up to
+## `tuning.context.max_contacts_in_state`).
 func contacts_text(self_pos: Vector2, known: Array) -> String:
 	var others: Array = known.filter(func(c): return not c["ally"] or c["hostile"])
 	if others.is_empty():
 		return "Nobody else is in sight or known."
 	var lines: Array = []
-	for c in others.slice(0, _v.max_contacts_in_state):
+	for c in others.slice(0, _v.tuning.context.max_contacts_in_state):
 		lines.append(_contact_line(c, self_pos, known))
 	return "\n".join(lines)
 
@@ -241,7 +242,7 @@ func allies_text(ctx: Dictionary, t: Dictionary, a: Dictionary) -> String:
 		]
 		if not t.is_empty():
 			var tpos: Vector2 = t["pos"]
-			if (ally["pos"] as Vector2).distance_to(tpos) <= _v.flank_ally_radius:
+			if (ally["pos"] as Vector2).distance_to(tpos) <= _v.tuning.tactics.flank_ally_radius:
 				var side: String = _tactics.side_of(tpos, a["front"], ally["pos"])
 				var where: String = SnapshotVocab.SIDE_WORDS[side].trim_prefix("their ")
 				parts.append("on %s's %s" % [t["name"], where])
@@ -291,7 +292,7 @@ func awareness_text(self_pos: Vector2, fighting: bool) -> String:
 				if uf.get("hit", false)
 				else "You are under fire: shots are landing near you, from the %s!") % dir)
 	for rec in _memory.recall_aged(&"heard_gunfire"):
-		if not fighting and rec["age"] <= _v.recency_bands.y:
+		if not fighting and rec["age"] <= _v.tuning.context.recency_bands.y:
 			out.append("Gunfire heard to the %s, %s, %s." % [
 				_v.compass(rec["data"]["pos"] - self_pos),
 				_v.place(rec["data"]["pos"]),
@@ -299,7 +300,7 @@ func awareness_text(self_pos: Vector2, fighting: bool) -> String:
 			])
 			break
 	for rec in _memory.recall_aged(&"heard_footsteps"):
-		if not fighting and rec["age"] <= _v.recency_bands.y:
+		if not fighting and rec["age"] <= _v.tuning.context.recency_bands.y:
 			out.append("Footsteps heard to the %s, %s, %s." % [
 				_v.compass(rec["data"]["pos"] - self_pos),
 				_v.place(rec["data"]["pos"]),

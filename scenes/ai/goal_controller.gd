@@ -138,12 +138,12 @@ func _ready() -> void:
 
 ## Configure the sub-domains from the tuning. The controller is the single authoring surface —
 ## every tunable lives in a topic node of its `tuning` — and this is where they reach the
-## sub-modules: the perception takes the hub (`apply_config(tuning)`) and sets its own fields and
-## its modules' from it, the behaviour and its modules read it live (handed in at `setup`) and take
-## the squad (`apply_config(squad)`), and the planner's config is worked out here. It only SETS
-## config on already-built sub-domains (never rebuilds), so it is safe to call each decision: a
-## tunable retuned at runtime (e.g. by the dev command server for a behaviour test) takes effect on
-## the next one.
+## sub-modules: the perception takes the hub (`apply_config(tuning)`), reads its own tunables and
+## the snapshot's live and sets its modules' from it, the behaviour and its modules read it live
+## (handed in at `setup`) and take the squad (`apply_config(squad)`), and the planner's config is
+## worked out here. It only SETS config on already-built sub-domains (never rebuilds), so it is safe
+## to call each decision: a tunable retuned at runtime (e.g. by the dev command server for a
+## behaviour test) takes effect on the next one.
 func _apply_config() -> void:
 	_perception.apply_config(tuning)
 	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a

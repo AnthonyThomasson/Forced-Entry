@@ -23,7 +23,7 @@ const START := Vector2(-60, 220)
 const GUNFIRE := Vector2(300, 220)
 ## The way round the north side of the house.
 const ROUND := [Vector2(-25, -25), Vector2(265, -25)]
-## SnapshotVocab.route_buckets: short up to 400 px, medium up to 900 px.
+## `tuning.context.route_buckets`: short up to 400 px, medium up to 900 px.
 const SHORT := 400.0
 const MEDIUM := 900.0
 

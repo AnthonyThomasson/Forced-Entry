@@ -601,7 +601,7 @@ the stack toward the door's axis, clear of the slots.
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
   and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
-  the set of views of the doorways into rooms not clear for passing (`AgentPerception.is_pass_clear`, from the `cleared_room`
+  the set of views of the doorways into rooms not clear for passing (`AgentPerception._is_pass_clear`, from the `cleared_room`
   memory's age against `tuning.entry_guard.pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an

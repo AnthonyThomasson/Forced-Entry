@@ -13,12 +13,12 @@ document.
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
 (the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
-pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `stack_room`, the `follows` fact),
+pushes for a follower holding no order and the leash break), `agent_perception.gd` (`process_order`, the live order, its end, the ambush's end on contact, `_stack_room`, the `follows` fact),
 `agent_entry.gd` (`defend_spot`, `ambush_spot`), `stack/` (`door_stack.gd`'s `stack_slots`, `layout` and `released`), the snapshot
 (`snapshot_options.gd` `order_group` and `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
 the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
-`behavior_entries.gd`, and the perception's `ordered_walk` and `seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
+`behavior_entries.gd`, and the perception's `ordered_walk` and `_seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
 for Main's match and the Testing world alike) builds the squads and the squad-leaders overlay (`squads_over`: `build_squads`,
 `bind_squad`, `build_leader_overlay`) and places the invader team in one group (`match_spawner.gd` `spawn_invader_team`, LD27); Main builds, when the
@@ -194,10 +194,10 @@ to keeps its own (D10).
   claims). The entry is dropped unheard, so no claim was made, and starts afresh after the detour, reading the way again. The ordered
   member's approach goes round every doorway view it can, uncapped (E18), and its walk to the slot is guarded as any walk. **The stack's
   room (D20):** once a member under the same order holds its slot (its claim radioed `ready` or `bang`), the room that stack stands in
-  counts as cleared for passing (`AgentPerception.stack_room`): the members still coming walk through it to their slots and are not sent
+  counts as cleared for passing (`AgentPerception._stack_room`): the members still coming walk through it to their slots and are not sent
   into it by entry. **D11:** on that walk an NPC that does not
   clear rooms by entry (`tuning.entry.enabled` off: a defender) counts a room it has stood in within `tuning.entry_guard.pass_clear_time` (60 s) and seen no
-  hostile in (`AgentPerception.seen_empty`) as clear for passing, for thresholds and views alike; any other room still gets an entry. A
+  hostile in (`AgentPerception._seen_empty`) as clear for passing, for thresholds and views alike; any other room still gets an entry. A
   room only glimpsed through a doorway was not stood in. An invader's way is unchanged: it clears rooms by entry.
 - **No room (D21).** A doorway whose stack room is a dead end holds only as many slots as its wall and open floor hold at the normal spacing (E20). A member whose place
   in the stack is past that claims no slot: the ORDER node offers it, instead of the entry, `hold_<opening>` ("hold where you are: no room

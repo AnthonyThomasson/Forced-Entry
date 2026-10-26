@@ -108,7 +108,7 @@ func _context(known: Array, callouts: Array) -> Dictionary:
 		ctx["fronts"][h["id"]] = _tactics.front_angle(
 			h,
 			self_pos,
-			h["visible"] or h["age"] <= vocab.recency_bands.y,
+			h["visible"] or h["age"] <= vocab.tuning.context.recency_bands.y,
 		)
 	return ctx
 
@@ -119,7 +119,7 @@ func _per_target(ctx: Dictionary, rooms: Array) -> Dictionary:
 	var per_target := {}
 	var per_sections := {}
 	var analyses := {}
-	for t in (ctx["hostiles"] as Array).slice(0, vocab.max_options_per_level):
+	for t in (ctx["hostiles"] as Array).slice(0, vocab.tuning.decision.max_options_per_level):
 		var a := _analyze(ctx, t)
 		analyses[t["id"]] = a
 		per_target[t["id"]] = {
@@ -199,7 +199,10 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 		"threat_known": not hostiles.is_empty() or _memory.under_fire(),
 		"gun_loaded": ammo > 0 and not _character.ammo.is_reloading(),
 		"weapon_low": (
-			ammo >= 0 and ammo <= ceili(_character.ammo.capacity(gun) * vocab.low_ammo_fraction)
+			ammo >= 0
+			and ammo <= ceili(
+				_character.ammo.capacity(gun) * vocab.tuning.context.low_ammo_fraction
+			)
 		),
 		"can_reload": gun >= 0 and _character.ammo.can_reload(gun),
 		"under_fire": _memory.under_fire(),
@@ -210,7 +213,7 @@ func _facts(ctx: Dictionary, parts: Dictionary, knowledge: Dictionary) -> Dictio
 		"grenade_ready": (not shots_throws["options"].is_empty()
 			or parts["per_target"].values().any(can_throw)),
 		"stack_has_stun": parts["stun_stack"],
-		"hurt": parts["dmg"] >= vocab.hurt_threshold,
+		"hurt": parts["dmg"] >= vocab.tuning.context.hurt_threshold,
 		"inside": not SnapshotVocab.room_at(self_pos, vocab.rooms).is_empty(),
 		"exposed": line.get("clear", false) or (primary.is_empty() and _memory.under_fire()),
 		"ordered": not (knowledge["order"] as Dictionary).is_empty(),
@@ -300,7 +303,7 @@ func _analyze(ctx: Dictionary, t: Dictionary) -> Dictionary:
 		"own_side": _tactics.side_of(t["pos"], front, self_pos),
 		"line": {
 			"clear": obj == null,
-			"in_range": self_pos.distance_to(t["pos"]) <= vocab.shoot_range,
+			"in_range": self_pos.distance_to(t["pos"]) <= vocab.tuning.combat.shoot_range,
 			"cover": _tactics.object_label(obj) if _tactics.is_cover(obj) else "",
 			"blocker": _tactics.object_label(obj),
 		},

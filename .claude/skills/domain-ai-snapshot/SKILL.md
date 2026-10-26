@@ -8,7 +8,7 @@ description: Deep implementation detail for the AI SNAPSHOT sub-domain (scenes/a
 The BUILD half of perception: given what the NPC currently knows (contacts, memory, learned house knowledge) and the combat
 geometry, it writes the decision SNAPSHOT the planner walks. A pure transform: it reads the event memory and the tactics module,
 holds no state between calls, and never writes memory, decides or picks. `agent_perception.gd` (see `domain-ai-perception`) owns it
-and calls `build()` once per decision; its `apply_config(tuning)` sets the tunables on `snapshot.vocab` straight from the NPC's tuning topics.
+and calls `build()` once per decision; its `apply_config(tuning)` hands `snapshot.vocab` the NPC's tuning topics, which the snapshot reads its tunables off live.
 
 Files:
 - `agent_snapshot.gd` — `build(rooms, goal, activity, knowledge) -> { facts, sections, sections_per_target,
@@ -19,15 +19,16 @@ Files:
   groups, each holding it as `_character`, so none of their functions takes the character.
 - `snapshot/snapshot_sources.gd` — `SnapshotSources`, the perception's modules the snapshot reads (`memory`, `tactics`, `entry`, `views`,
   `ledger`, `throw`, `suspicion`), filled once by the perception's `setup()`.
-- `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, every tunable the perception sets from the NPC's tuning topics
-  (`shoot_range`, `punch_range`, `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `flank_ally_radius`,
-  `investigate_distance`, `extrapolate_cap`, `max_options_per_level`, `hurt_threshold`, `critical_threshold`, `low_ammo_fraction`,
-  `max_contacts_in_state`, `search_memory_ttl`), the house `rooms` of the decision being built, and the band / wording helpers
+- `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, `tuning` (the NPC's `NpcTuning` topics, handed in
+  by the perception's `apply_config`; every tunable the snapshot reads, read live: `tuning.combat.shoot_range` / `punch_range`,
+  `tuning.tactics.flank_ally_radius`, `tuning.decision.max_options_per_level`, `tuning.memory.search_ttl`, and the `tuning.context` ones,
+  `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `investigate_distance`, `extrapolate_cap`, `hurt_threshold`,
+  `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
   wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`, static `room_at`, `room_key_at`,
   `room_by_key`).
-  The snapshot reads its tuning here only; adding a tunable is two declarations (the export on its topic node, `ai/tuning/`, the authoring surface, and
-  the vocabulary's field, with no default) and one line in `AgentPerception.apply_config(tuning)` (`_snapshot.vocab.x = tuning.<topic>.x`).
+  The snapshot reads its tuning here only; adding a tunable is one declaration (the export on its topic node, `ai/tuning/`, the authoring
+  surface) and its reads (`_v.tuning.<topic>.x` in the sections and option groups, `vocab.tuning.<topic>.x` in `agent_snapshot.gd`).
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
   unseen_fire_text, allies_text, flanks_text, awareness_text, order_text, threat_summary`.
 - `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group, grenade_group, shots_grenade_group,
@@ -94,7 +95,7 @@ lives in `agent_snapshot.gd`.
   the `lead_shooter` lead left out, when the point toward the shots is where the NPC stands (`AgentTactics.where_it_stands`: the walk to its
   navmesh point is under a `STRIDE`, 32 px; shots from beyond the walkable ground), and the retreat spots are screened in `agent_tactics.gd`
   (`domain-ai-perception`, Tactics). Other leads lie at fixed points and reaching one spends it (`check_lead`). `entries` (the doorways
-  ENTER offers, `entry_enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
+  ENTER offers, `tuning.entry.enabled` only: out of the NPC's area into a room unseen — named by direction — or unsearched,
   nearest first; the place is the NPC's free stack slot on the side it would stack on (the team's, or its own when the way there crosses the doorway's view, E19), the answer its entry's `begin` will give: the doorway's `DoorStack` off the perception's `ClaimLedger` (`_ledger.stack(id, g)`, its claim chain `DoorStack.claim` with its own claim, `{ id, slot: 0, frame: GameClock.frame(), pos }`, and the side `AgentEntry.stack_side_from` gives from where it stands, as every member claims; a slot a dead end does not hold, `held` false, offers no option, E20, nor does a slot laid nowhere, its point `INF`), `params` carry `opening`, `into`, `slot`,
   `side`; the summary is the nearest one's desc), `search_rooms` (+ the front entrance while outside, when the NPC has one, `entry_point`;
   with entries, the rooms they lead into and the entrance are left to ENTER), `explore` (unknown rooms by direction
@@ -169,4 +170,4 @@ stay on the plain route.
 
 **Posture** words appear only when someone is not standing, so a standing body's text is byte-identical (the `tools/von_scenarios` fixtures pin it): the
 NPC's own in its situation line (" You are crouching.") and a *visible* contact's in its contact line ("crouched low"; a last-seen posture may be stale, so it is never shown for a remembered one). Test: `tests/ai/posture/posture_in_von_state_test.gd`.
-`low_ammo_fraction` is a tunable (`tuning.context.low_ammo_fraction`) set on the vocabulary by `AgentPerception.apply_config(tuning)`. Room types are humanized ("kitchen_living" → "kitchen living").
+`low_ammo_fraction` is a tunable (`tuning.context.low_ammo_fraction`) read live off the vocabulary's `tuning`. Room types are humanized ("kitchen_living" → "kitchen living").

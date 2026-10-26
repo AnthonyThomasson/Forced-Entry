@@ -196,7 +196,7 @@ func fuse_of(kind: StringName) -> float:
 
 ## How far (px) from a burst of `kind` whose danger `radius` is given the danger zone reaches: a
 ## frag's blast radius and the margin, a stun's flash radius.
-func zone_radius(kind: StringName, radius: float) -> float:
+func _zone_radius(kind: StringName, radius: float) -> float:
 	return radius + evade_margin if kind == &"frag" else radius
 
 
@@ -210,7 +210,7 @@ func in_zone(
 	height: float,
 	exclude: Array,
 ) -> bool:
-	return (p.distance_to(threat.burst) <= zone_radius(threat.kind, threat.radius)
+	return (p.distance_to(threat.burst) <= _zone_radius(threat.kind, threat.radius)
 			and not shielded(
 				space, threat.burst, p, _cover_rule(height, exclude, cover_reach(threat.kind))
 			))
@@ -256,7 +256,7 @@ func escape(
 	exclude: Array,
 ) -> Dictionary:
 	var from := runner.from
-	var out_r := zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	var out_r := _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
 	var standing := _cover_rule(_stand, exclude, cover_reach(threat.kind))
 	# Candidates often repeat (the standing and the crouching probe meet the same wall) and snap
 	# onto the same spot, so each point is snapped, each spot judged and each route measured once:
@@ -296,7 +296,7 @@ func _judge(
 	q: Vector2,
 	standing: CoverRule,
 ) -> int:
-	if (q.distance_to(threat.burst) >= zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	if (q.distance_to(threat.burst) >= _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
 			or _covered(space, threat.burst, q, standing)):
 		return SAFE_STANDING
 	var crouched := _cover_rule(_crouch, standing.exclude, standing.cover_reach)
@@ -408,7 +408,7 @@ func _candidates(
 	from: Vector2,
 	exclude: Array,
 ) -> Array:
-	var out_r := zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
+	var out_r := _zone_radius(threat.kind, threat.radius) + OUTSIDE_SLACK
 	return [from] + _around(space, threat.burst, out_r, exclude, threat.kind) + _ring(from)
 
 
@@ -487,14 +487,14 @@ func can_lob(
 
 ## Whether the lob a thrower standing at `at` throws onto `to` flies clear, whatever the distance:
 ## the band `LOB_MARGIN` px either side of the line from where the grenade leaves its hand
-## (`release_point`) to `to`, its middle and both edges.
+## (`_release_point`) to `to`, its middle and both edges.
 func throw_clear(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	to: Vector2,
 	exclude: Array,
 ) -> bool:
-	var hand := release_point(space, at, to, exclude)
+	var hand := _release_point(space, at, to, exclude)
 	var side := (to - hand).normalized().orthogonal() * LOB_MARGIN
 	for lateral: Vector2 in [Vector2.ZERO, side, -side]:
 		if not lob_clear(space, hand + lateral, to + lateral, exclude):
@@ -522,7 +522,7 @@ func throw_clear_on_arrival(
 ## Where a grenade thrown onto `to` leaves a thrower standing at `at`: its throwing hand (the
 ## learned release offset, as it faces `to`), or, with a wall or solid piece closer than that, the
 ## hand held against it, as the character's own hand is.
-func release_point(
+func _release_point(
 	space: PhysicsDirectSpaceState2D,
 	at: Vector2,
 	to: Vector2,

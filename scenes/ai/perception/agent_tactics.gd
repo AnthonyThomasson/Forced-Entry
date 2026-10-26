@@ -109,7 +109,7 @@ func object_label(obj: Object) -> String:
 ## With a `front` (the threat's facing, radians) a sample also has to lie inside its view cone
 ## (`watch_arc`): a route behind the threat's back is not in its view, however clear the line.
 ## Without one, only the line counts.
-func route_exposed(
+func _route_exposed(
 	space: PhysicsDirectSpaceState2D,
 	path: PackedVector2Array,
 	threat: Vector2,
@@ -197,7 +197,7 @@ func combat_spots(
 
 
 ## The cover-grade object that shields a spot within one step of `p` from `threat`, or "" when none.
-func cover_near(
+func _cover_near(
 	space: PhysicsDirectSpaceState2D,
 	p: Vector2,
 	threat: Vector2,
@@ -229,7 +229,7 @@ func exposed_to(
 
 
 ## The ally (perceived, or via a radio callout) holding side `side` of a target, or "".
-func side_holder(
+func _side_holder(
 	target: Dictionary,
 	front: float,
 	side: String,
@@ -252,7 +252,7 @@ func side_holder(
 
 ## The ally whose line of fire on the target passes close to `p`, or that the route `path` to `p`
 ## crosses, or "". Walking across a friend's line of fire is as bad as standing in it.
-func ally_lane(
+func _ally_lane(
 	p: Vector2,
 	target_pos: Vector2,
 	allies: Array,
@@ -277,7 +277,7 @@ func ally_lane(
 ## The first known hostile a route passes, or "": its last-known position lies within
 ## `route_clearance` of the route AND nearer than the route's start already is, so walking away from
 ## someone close by is not passing them.
-func route_crosses(path: PackedVector2Array, hostiles: Array) -> String:
+func _route_crosses(path: PackedVector2Array, hostiles: Array) -> String:
 	if path.size() < 2:
 		return ""
 	for h in hostiles:
@@ -300,7 +300,7 @@ func route_crosses(path: PackedVector2Array, hostiles: Array) -> String:
 ## a step of `p` against it. With a `path`, also one looking along the route there while the NPC is
 ## now hidden or covered from it, when most of that route is open to it — stepping out of cover
 ## under its eye.
-func watched_in_open(
+func _watched_in_open(
 	ctx: Dictionary,
 	p: Vector2,
 	path: PackedVector2Array = PackedVector2Array(),
@@ -316,7 +316,7 @@ func watched_in_open(
 		if (_looking_at(hpos, front, p, half)
 				and hpos.distance_to(p) <= shoot_range * 1.5
 				and not blocked(ctx["space"], hpos, p, ex)
-				and cover_near(ctx["space"], p, hpos, ex) == ""):
+				and _cover_near(ctx["space"], p, hpos, ex) == ""):
 			return h["name"]
 		if path.size() >= 2 and _eyes_route(ctx, h, front, path, ex):
 			return h["name"]
@@ -336,7 +336,7 @@ func _eyes_route(
 	var mid := _along(path, NavBuilder.path_length(path) * 0.5)
 	return (_looking_at(hpos, front, mid, deg_to_rad(watch_arc) * 0.5)
 			and _covered_from(ctx, h, ex)
-			and route_exposed(ctx["space"], path, hpos, ex))
+			and _route_exposed(ctx["space"], path, hpos, ex))
 
 
 ## Whether this NPC is hidden or covered from hostile `h` where it stands. That does not depend on
@@ -349,7 +349,7 @@ func _covered_from(ctx: Dictionary, h: Dictionary, ex: Array) -> bool:
 	var hpos: Vector2 = h["pos"]
 	var self_pos: Vector2 = ctx["self_pos"]
 	var covered: bool = (blocked(ctx["space"], hpos, self_pos, ex)
-			or cover_near(ctx["space"], self_pos, hpos, ex) != "")
+			or _cover_near(ctx["space"], self_pos, hpos, ex) != "")
 	covered_from[h["id"]] = covered
 	return covered
 
@@ -382,17 +382,17 @@ func flank_sides(ctx: Dictionary, target: Dictionary, front: float) -> Array:
 			"side": side,
 			"point": p,
 			"clear_shot": not blocked(ctx["space"], p, tpos, ex),
-			"cover": cover_near(ctx["space"], p, tpos, ex),
+			"cover": _cover_near(ctx["space"], p, tpos, ex),
 			"route_len": NavBuilder.path_length(path),
-			"route_exposed": route_exposed(ctx["space"], path, tpos, ex, front),
-			"crosses": route_crosses(path, ctx["hostiles"]),
-			"held_by": side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
+			"route_exposed": _route_exposed(ctx["space"], path, tpos, ex, front),
+			"crosses": _route_crosses(path, ctx["hostiles"]),
+			"held_by": _side_holder(target, front, side, ctx["allies"], ctx["callouts"]),
 			"exposed_to": exposed_to(
 				ctx["space"], p, ctx["hostiles"], target["id"], ctx["exclude"],
 			),
 			"heading_toward": vel.length() >= still_speed
 				and absf(vel.angle_to(p - tpos)) < PI / 3.0,
-			"ally_lane": ally_lane(p, tpos, ctx["allies"], path),
+			"ally_lane": _ally_lane(p, tpos, ctx["allies"], path),
 		})
 	return out
 
@@ -495,7 +495,7 @@ func _by_sector(ctx: Dictionary, tpos: Vector2, candidates: Array, ex: Array) ->
 		var sector := posmod(int(round((p - tpos).angle() / (TAU / 8.0))), 8)
 		if not sectors.has(sector):
 			sectors[sector] = []
-		sectors[sector].append({ "point": p, "cover": cover_near(ctx["space"], p, tpos, ex) })
+		sectors[sector].append({ "point": p, "cover": _cover_near(ctx["space"], p, tpos, ex) })
 	return sectors
 
 
@@ -553,7 +553,7 @@ func _throw_found(ctx: Dictionary, aim: ThrowAim, ex: Array) -> Array:
 		found.append({
 			"point": p,
 			"hidden": hidden,
-			"cover": "" if hidden else cover_near(ctx["space"], p, aim.spot, ex),
+			"cover": "" if hidden else _cover_near(ctx["space"], p, aim.spot, ex),
 		})
 	found.sort_custom(func(a, b):
 		var ra := _throw_rank(a)
@@ -617,7 +617,7 @@ func _throw_walkable(ctx: Dictionary, found: Array, route: Callable) -> Array:
 				or path.is_empty()
 				or path[path.size() - 1].distance_to(c["point"]) > 12.0):
 			continue
-		if route_crosses(path, ctx["hostiles"]) != "":
+		if _route_crosses(path, ctx["hostiles"]) != "":
 			continue
 		walkable.append(c.merged({ "route_len": length, "detour": bool(way.get("detour", false)) }))
 	return walkable
@@ -634,10 +634,10 @@ static func _throw_rank(c: Dictionary) -> int:
 ## the way or once there.
 func _safe_spot(ctx: Dictionary, target: Dictionary, p: Vector2, ex: Array) -> Variant:
 	var path := NavBuilder.route(ctx["map"], ctx["self_pos"], p)
-	if route_crosses(path, ctx["hostiles"]) != "" or watched_in_open(ctx, p, path) != "":
+	if _route_crosses(path, ctx["hostiles"]) != "" or _watched_in_open(ctx, p, path) != "":
 		return null
 	var a := _annotate(ctx, target, p, ex, path)
-	a["route_exposed"] = route_exposed(ctx["space"], path, target["pos"], ex)
+	a["route_exposed"] = _route_exposed(ctx["space"], path, target["pos"], ex)
 	return a
 
 
@@ -657,7 +657,7 @@ func advance_positions(ctx: Dictionary, target: Dictionary) -> Array:
 			out.append(a)
 	var rush := _annotate(ctx, target, NavBuilder.snap(ctx["map"], tpos), ex)
 	rush["rush"] = true
-	rush["route_exposed"] = route_exposed(ctx["space"], path, tpos, ex)
+	rush["route_exposed"] = _route_exposed(ctx["space"], path, tpos, ex)
 	out.append(rush)
 	return out
 
@@ -744,12 +744,12 @@ func _annotate_retreat(
 		return false
 	var cover := ""
 	if not threats.is_empty():
-		cover = cover_near(ctx["space"], c["point"], threats[0], ex)
+		cover = _cover_near(ctx["space"], c["point"], threats[0], ex)
 	c["hidden"] = hidden
 	c["cover"] = cover
 	c["route_len"] = route_len
 	c["route_exposed"] = (not threats.is_empty()
-			and route_exposed(ctx["space"], path, threats[0], ex))
+			and _route_exposed(ctx["space"], path, threats[0], ex))
 	return true
 
 
@@ -792,7 +792,7 @@ func _annotate(
 	return {
 		"point": p,
 		"clear_shot": not blocked(ctx["space"], p, tpos, ex),
-		"cover": cover_near(ctx["space"], p, tpos, ex),
+		"cover": _cover_near(ctx["space"], p, tpos, ex),
 		"route_len": NavBuilder.path_length(path),
 		"route_exposed": false,
 		"exposed_to": exposed_to(ctx["space"], p, ctx["hostiles"], target["id"], ctx["exclude"]),

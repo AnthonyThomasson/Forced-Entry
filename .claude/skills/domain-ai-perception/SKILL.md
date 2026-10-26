@@ -30,8 +30,8 @@ Files:
 - `agent_snapshot.gd` + `snapshot/` — the BUILD half (`domain-ai-snapshot`): turns the gathered knowledge + the tactics geometry
   into the decision SNAPSHOT (facts / sections / option groups) and owns the measured wording Von reads. Pure transform.
 
-The controller (`ai/goal_controller.gd`) calls `setup()` once to BUILD the internal modules, then `apply_config(tuning)`, which sets the
-perception's own tunables and its modules' straight from the NPC's tuning topics (`NpcTuning`, `ai/tuning/`: the one authoring surface; a module field is
+The controller (`ai/goal_controller.gd`) calls `setup()` once to BUILD the internal modules, then `apply_config(tuning)`, which hands the
+perception and the snapshot's vocabulary the NPC's tuning topics, read live (`NpcTuning`, `ai/tuning/`: the one authoring surface), and sets its modules' tunables straight from them (a module field is
 declared where it is read, and only the modules built without the controller keep a default: `AgentVision`, `AgentMemory`,
 `AgentThrow`, `AgentEntry` and `AgentDoorViews`, built by the tests and the `ai/team/` files), and `bind(character)` once it knows the
 body it drives (its first `control()`) — and
@@ -40,13 +40,14 @@ rebuild that would wipe the event memory. Nothing outside this folder holds a re
 
 ## Public interface (what the orchestrator / behaviour call)
 
-(Config: the NPC's tuning topics, copied each decision by `apply_config(tuning)`; the perception keeps as fields only those it reads itself: `contact_memory_ttl`
-(`tuning.memory.contact_ttl`), `familiar_with_house`, `lead_memory_ttl` (`memory.lead_ttl`), `search_memory_ttl` (`memory.search_ttl`), `hit_awareness_radius`
-(`combat`), `hearing_radius` and the hearing ranges `hear_walk` / `hear_run` / `hear_crouch` (`senses`), `under_fire_time`, `engage_dwell` (`combat`),
-`track_smoothing` (`context`), `callout_range`, `callout_ttl` (`radio`), `entry_enabled` (`entry.enabled`), `entry_guard` (`entry_guard.enabled`) and
-`entry_pass_clear_time` (`entry_guard.pass_clear_time`); the rest, `tuning.grenades.enabled`, `hear_grenade` and `evade_margin` among them, go straight to the module that reads them.)
+(Config: the NPC's tuning topics, handed in by `apply_config(tuning)` as `tuning` (`NpcTuning`); the perception keeps no copy of the ones it reads
+itself and reads them live: `tuning.memory`'s `contact_ttl`, `familiar_with_house`, `lead_ttl` and `search_ttl`, `tuning.combat`'s
+`hit_awareness_radius`, `under_fire_time` and `engage_dwell`, `tuning.senses`'s `hearing_radius` and the hearing ranges `hear_walk` / `hear_run` /
+`hear_crouch`, `tuning.context.track_smoothing`, `tuning.radio`'s `callout_range` and `callout_ttl`, `tuning.entry.enabled`, and
+`tuning.entry_guard`'s `enabled` and `pass_clear_time` (below each is named by its topic's name); the rest, `tuning.grenades.enabled`, `hear_grenade`
+and `evade_margin` among them, `apply_config` sets on the module that reads them, each call.)
 
-- `setup()` (build the modules), `apply_config(tuning)` (set its own tunables and its modules' from the NPC's `NpcTuning` topics; re-callable each
+- `setup()` (build the modules), `apply_config(tuning)` (hand in the NPC's `NpcTuning` topics and set its modules' tunables from them; re-callable each
   decision), `bind(character)` (the NPC's body, which every sense and query reads from then on; it tells the hostility rules the
   body's faction and hands the body on to `AgentThrow`, `AgentGrenades` and the snapshot, each with its own `bind`). No function
   below takes the character.
@@ -61,11 +62,11 @@ rebuild that would wipe the event memory. Nothing outside this folder holds a re
   offset per NPC by instance id so a squad does not look on the same frame, and again at the start of every `sense()`, so what
   it knows at a decision is what it sees at that moment. The characters it tests are the group `characters` (interface 7)
   under the world root, itself left out, in tree order (`_other_characters`).
-- **A blinded NPC** (`Character.stun.is_blind()`, docs/grenades.md G15) sees nothing: `observe()` skips the sighting pass (no new sighting, nothing `visible`, the `_looked` state is dropped) and the learning look, so what it holds of a hostile stays where it was last seen. Contacts "age as usual" but a blind NPC cannot tell that one has gone, so `contacts()` / `lost_hostiles()` keep every sighting the memory still holds (`lead_memory_ttl`) while it is blind (`_contact_ttl`); the behaviour fires blind at the last-known spot of the engaged one. It is back to `contact_memory_ttl` the tick it sees again.
-- `contacts(self_pos)` — characters seen within `contact_memory_ttl` (hostiles first, then nearest),
+- **A blinded NPC** (`Character.stun.is_blind()`, docs/grenades.md G15) sees nothing: `observe()` skips the sighting pass (no new sighting, nothing `visible`, the `_looked` state is dropped) and the learning look, so what it holds of a hostile stays where it was last seen. Contacts "age as usual" but a blind NPC cannot tell that one has gone, so `contacts()` / `lost_hostiles()` keep every sighting the memory still holds (`lead_ttl`) while it is blind (`_contact_ttl`); the behaviour fires blind at the last-known spot of the engaged one. It is back to `contact_ttl` the tick it sees again.
+- `contacts(self_pos)` — characters seen within `contact_ttl` (hostiles first, then nearest),
   with `hostile`/`reason`/`visible`/`age`. The behaviour hands the whole list to its locomotion every tick: the bodies a walk goes
   round, stops short of or gives way to are these, never one the NPC has not seen (`domain-ai-behavior`, Locomotion).
-  `lost_hostiles()` — hostiles last seen longer ago, within `lead_memory_ttl` (investigation leads).
+  `lost_hostiles()` — hostiles last seen longer ago, within `lead_ttl` (investigation leads).
 - `process_hit(data) -> bool` — a hit on/near the NPC → `under_fire` (direction + whether it
   hit), `engaged`, hostility; an ally's round (same faction) striking near it is not (it knows who fired), while one that hits it, or a
   round from a hostile or an unknown shooter (`attacker` null), is (`tests/ai/perception/ally_round_nearby_not_under_fire_test.gd`); a hit farther off within `hearing_radius` → `heard_gunfire` (a lead), but
@@ -73,11 +74,11 @@ rebuild that would wipe the event memory. Nothing outside this folder holds a re
   known hostile) is no mystery (COMBAT / that contact's last-seen lead already covers it), so it is not a
   lead; only an UNKNOWN shooter is. A hit on or near it from anyone but an ally also leaves `shot_from` (`{ at, pos }`: the line back
   from where the shot landed along the incoming direction to the first wall, `AgentVision.wall_hit`, at most `hearing_radius`; kept
-  `lead_memory_ttl`, keyed by where the line ends), which outlives `under_fire` (`under_fire_time`) and makes the rooms the line runs
+  `lead_ttl`, keyed by where the line ends), which outlives `under_fire` (`under_fire_time`) and makes the rooms the line runs
   through suspect (`docs/grenades.md` G18).
 - `process_footfall(data)` — a `&"footfall"` (interface 10) heard through walls (`docs/hearing.md` H1): the step of a character
   not of the NPC's faction (the walker's `faction`, the one non-sight read of interface 7), not visible right now, within `hear_run`
-  (running), `hear_crouch` (crouched) or `hear_walk` → `heard_footsteps` (`{ pos }`, keyed per walker, ttl `lead_memory_ttl`): a lead
+  (running), `hear_crouch` (crouched) or `hear_walk` → `heard_footsteps` (`{ pos }`, keyed per walker, ttl `lead_ttl`): a lead
   and a reason to suspect the room. `footfall_reach()` is the farthest any step is heard, which the controller drops the rest by before
   queuing them; a deaf NPC's footfalls are dropped by the controller (G15).
 - `shots_from_room(key) -> bool` — the line back from a shot at the NPC (`shot_from`, from where it leaves the room it landed in: `AgentSuspicion.shot_line`) runs
@@ -121,7 +122,7 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   reaches into `agent_entry.gd` itself, but preloads the stack module, `StackClaim` and `DoorStack`, the seam it shares with the team; the
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
   its published seam, `set_house`, `geometry`, `stack_side_from`, `on_stack_side`, `opening_id` and `normal_into`, and the stack module
-  (`StackClaim`, a `ClaimLedger` of their own and the `DoorStack`s it builds) for every claim and slot) (below). `stack_room()` (the room an ordered stack holds, below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject) and `entry_enabled`; `observe` calls `AgentEntry.warm_geometry` each SEE pass while `entry_enabled`.
+  (`StackClaim`, a `ClaimLedger` of their own and the `DoorStack`s it builds) for every claim and slot) (below). `avoided_views()` (the doorway views the NPC's walks keep out of from where it stands, E18, each `{ id, into, poly }`, `[]` while `avoid_views` is off: the entry guard's read-out). `openings` (the house's doorways, set by the controller each tick from Main's inject); `observe` calls `AgentEntry.warm_geometry` each SEE pass while `tuning.entry.enabled`.
 - `all_seen_characters()` (every character seen, allies included), `debug_memory()` (the event log for the brain overlay and
   gcmd: `gunfire`, `footsteps` and `shot_from` among it, each `[{ pos, age }]`, `shot_from` with `at`) and `fill_goal(goal)` (the goal with `{gun}` filled in).
 - `visible_points(points) -> Array` — of `points`, the subset in sight right now (view
@@ -190,7 +191,7 @@ last-seen facing, else the side facing this NPC): left / right / rear candidates
 sampled across `flank_arc`, snapped to the navmesh, preferring a clear shot. Each spot is annotated
 with clear shot, cover within a step (`cover_min`), route length + exposure (share of route samples
 the target can see; for a flank, only samples inside the target's view cone, `watch_arc` around its
-front, so a route behind its back is hidden — `route_exposed`'s optional `front`), `crosses` (a known
+front, so a route behind its back is hidden — `_route_exposed`'s optional `front`), `crosses` (a known
 hostile the route passes), `held_by` (ally within `flank_ally_radius` on that side, or a callout point
 there), `exposed_to` (other hostiles), `heading_toward` and `ally_lane` (a seen ally whose line of fire
 on the target passes within 40 px of the spot, or that the route there crosses). Hostile fronts
@@ -200,9 +201,9 @@ clear shot), `heading`, `lane` — which the `flank` node's `drop_tags` drop; th
 `debug_zones()` with its words ("line blocked from there", "they are moving toward that side", "in X's
 line of fire").
 
-Route safety: `route_crosses(path, hostiles)` names a hostile whose last-known position lies within
+Route safety: `_route_crosses(path, hostiles)` names a hostile whose last-known position lies within
 `route_clearance` of the route AND nearer than the route's start (walking away from someone close by
-is not passing them). `watched_in_open(ctx, p, path)` names a hostile that would catch the NPC in the
+is not passing them). `_watched_in_open(ctx, p, path)` names a hostile that would catch the NPC in the
 open: looking toward `p` (within `watch_arc` of its front; an unknown facing counts as facing the NPC)
 with a clear line and no cover within a step of `p`, or — while the NPC is now hidden or covered from it
 — looking along a mostly exposed route there.
@@ -228,9 +229,9 @@ from where the NPC stands fails (out of range or not clear). Candidates on rings
 `throw_spot_walk`) and round the spot (`THROW_REACH_SHARES` 0.95 / 0.8 of `reach`), cheap tests first (straight distance under `throw_spot_walk`, snapped onto the
 navmesh within `SNAP_TOLERANCE`, within `reach` of the spot, more than a `STRIDE` away, not inside `keep_out` (the room the hostile holds, or the shots' room),
 the `lob` callable: `AgentThrow.throw_clear` from there), then sorted as the fire spots are: hidden from the spot (`blocked`: low furniture between), then with
-cover close by against it (`cover_near`: a jamb, a piece), then the straight distance; routes only for the first `THROW_ROUTES` (10), through the optional `route`
+cover close by against it (`_cover_near`: a jamb, a piece), then the straight distance; routes only for the first `THROW_ROUTES` (10), through the optional `route`
 callable (`{ path, len, detour }`: the snapshot's `_throw_walk`, the walked route of `AgentDoorViews.walk_route` and whether the entry guard would stop it), kept when
-the route reaches it, is at most `throw_spot_walk` (250 px, `tuning.grenades.throw_spot_walk`) and passes no known hostile (`route_crosses`); the pick is
+the route reaches it, is at most `throw_spot_walk` (250 px, `tuning.grenades.throw_spot_walk`) and passes no known hostile (`_route_crosses`); the pick is
 the first with no `detour`, then hidden, then covered, then the shortest walk. `{ point, route_len, hidden, cover, detour }` or {}. Cost: ~150 snaps and lob tests and up to 10 routes, only for a throw the NPC cannot make where it stands.
 
 ## Entry geometry (`agent_entry.gd`)
@@ -279,7 +280,7 @@ scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the
 (garage_home's ten: `_band` 2 to 15 ms, `_overflow` 10 to 28 ms); all ten are laid by 0.22 s into a match, before the perf guards measure
 (`docs/leadership.md`, Performance).
 
-**Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_memory_ttl`) is not `visited_room`:
+**Cleared rooms and the entry guard (E9).** `cleared_room` (keyed per room, ttl `search_ttl`) is not `visited_room`:
 standing in a room visits it, but a room is *cleared* only by `mark_cleared(key)`: the behaviour calls it when an entry
 finishes (`Entry.hold.finish`, own clear or an ally's; `domain-ai-entry`) and when a search covers its room by sight, and `process_callout`
 when an ally radios `cleared_room`. `is_cleared(key)` reads it; the snapshot's `entries` group skips only cleared rooms
@@ -296,7 +297,7 @@ seen from inside room `into` through it): a polygon from the rays from the room'
 each ray a fan cast from three points in the gap (the middle and each jamb, `VIEW_APEX_OUT` 8 px off the wall plane) and stopped at the first wall
 (`AgentVision.wall_hit`: static bodies only, furniture and characters are looked through), the three fans fused, and for a doorway between two rooms cut at
 the edge of the room in front of it (so a view does not run on through the next doorway into another room). Laid out once per doorway on a baked map and kept. `avoided(here_key, map, space, exempt)` is the set of views a walk from room `here_key` keeps out of: those of every doorway into a room that is not
-clear for passing (`AgentPerception.is_pass_clear(key)`: the `cleared_room` memory's age is within `entry_pass_clear_time`, 60 s; `is_cleared` stays the
+clear for passing (`AgentPerception._is_pass_clear(key)`: the `cleared_room` memory's age is within `tuning.entry_guard.pass_clear_time`, 60 s; `is_cleared` stays the
 entry's), other than the NPC's own room; with `entering` (`"<opening>><into>"`, the entry a walk is the approach of) that doorway's own view
 always counts, from inside the room too and cleared or not; `{ key, holes, views }` (each view `{ id, into, poly, joins }`, `joins` the rooms the doorway joins), worked out once a physics frame.
 `walk_route(from, to, map, space, entering)` (over `AgentPerception.walk_route(to, entering, from)`) is the route the NPC walks: the plain one, unless it comes
@@ -313,7 +314,7 @@ point of `bodies` at body width (a `BODY_SEGMENTS`-gon of `SLOT_BODY` + `NavBuil
 `SLOT_LAST_LEG` (64 px) of it with the plain way on from there that long at most and passing none of `bodies` closer than `SLOT_PASS` (32 px:
 Locomotion's last leg, the way into a slot between two taken ones, which lies inside their carved margins); 0 when not, -1 while that map
 bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
-Config (the NPC's `tuning.entry_guard`, through `apply_config(tuning)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `pass_clear_time` (the perception's `entry_pass_clear_time`); views are
+Config (the NPC's `tuning.entry_guard`, through `apply_config(tuning)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `pass_clear_time` (read live by the perception); views are
 avoided only where `tuning.entry.enabled` and `tuning.entry_guard.enabled` are.
 **Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
 defend a room holds it: the room's doorways sorted by id, member `nth` taking doorway `nth` mod their number (the extras doubling up on its
@@ -335,13 +336,13 @@ low cover, at any range and facing); a post seen by none is hidden only if it is
 Members alternate sides of the axis, the side with more wall first, and two posts stand `AMBUSH_SPACING` (44 px) apart. The snapshot's `order`
 group calls it.
 **An ordered stack's walk (`docs/leadership.md` LD9, D4, D11).** `ordered_walk` (set each tick by the behaviour while it walks an ordered stack's
-way to its door) makes `_sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `entry_guard` and (`entry_enabled` or `ordered_walk`))
-and, for an NPC with `entry_enabled` off (a defender), swap `AgentDoorViews.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
-`seen_empty(key)` says it stood in within `entry_pass_clear_time` with no hostile sighting in them (the latest of each hostile it knows, within that
-time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an ordered walk the room its stack holds is clear too: `stack_room()`
+way to its door) makes `_sync_walks` turn the view avoidance on (`AgentDoorViews.avoid_views` = `tuning.entry_guard.enabled` and (`tuning.entry.enabled` or `ordered_walk`))
+and, for an NPC with `tuning.entry.enabled` off (a defender), swap `AgentDoorViews.pass_clear` for `_passable` and have `threshold_ahead` pass rooms
+`_seen_empty(key)` says it stood in within `pass_clear_time` with no hostile sighting in them (the latest of each hostile it knows, within that
+time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an ordered walk the room its stack holds is clear too: `_stack_room()`
 (once a physics frame: the live order is a stack, `ordered_walk`, and a claim on its doorway under the same `order_id` is at `ready` / `bang`
 → the geometry's `from`, the steps `StackClaim.IN_SLOT`; else "") counts as cleared for `threshold_ahead` and as pass-clear (`_pass_clear_ordered`, handed as `pass_clear` to
-an ordered walk with entry on; `_passable` adds `seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
+an ordered walk with entry on; `_passable` adds `_seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
 carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
 `order_go` (LD13), `order_side` and `order_frame` (the frame the order was issued on, D14) ("" / false / quiet / false / false / 0 / -1
 for others), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
@@ -432,7 +433,7 @@ source }` (`radius` = `AgentThrow.radius_of(kind)`, off the `throw_stats()` just
 
 **The danger zone and the safe spot (`agent_throw.gd`).** The cover rule is the blast's own (G7), asked of the Projectile System so the AI keeps no copy (`shielded` calls `Explosion.shields`, interface 3): from the burst a wall always stops the line, furniture
 stops it when its `coverage` is above the body's height (the standing and crouched heights the character reports, `movement.posture_coverage`, read each `observe` by `learn_body` into `stand_height()` / `crouch_height()`; 60 and 35, `docs/cover-and-stance.md`), characters stop
-nothing. `in_zone(space, threat: GrenadeThreat, p, height, exclude)` (the threat's `kind`, `radius` and `burst`): within `zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
+nothing. `in_zone(space, threat: GrenadeThreat, p, height, exclude)` (the threat's `kind`, `radius` and `burst`): within `_zone_radius` (a frag's blast radius + `evade_margin`, a stun's flash radius) and not shielded.
 `escape(space, map, threat: GrenadeThreat, runner: GrenadeRunner, exclude)` (`GrenadeThreat`, `ai/perception/grenade_threat.gd`: the
 grenade's `kind`, `radius`, `burst` and `fuse_left`; `GrenadeRunner`, `ai/perception/grenade_runner.gd`: the NPC's `from` and `speed`) returns `{ spot, crouch, route }`: candidates are the circle just outside the zone (`zone + OUTSIDE_SLACK` 30 px), the shadows behind what the rays from the burst
 meet (the first stopper for a crouched and for a standing body, `Explosion.first_stop`, 32 and 72 px behind it) and rings round the NPC; each is snapped onto the navmesh (`NavBuilder.snap`, dropped
@@ -444,7 +445,7 @@ route measured once, `tests/ai/grenade/escape_spot_matches_plain_test.gd` pinnin
 stun or a heavy outfit; `tests/ai/grenade/throw_timing_counts_slowed_walk_test.gd`) wins; `spot` is `Vector2.INF` when none is in time. Cost: ~150 snaps, ~300 rays and ~100 routes, only when a plan is
 made; in the grenade match guard a plan made alone costs about 2.5 ms of burst work (the candidates round the burst, their snaps, the verdicts) and 1.2 ms of routes.
 `can_lob(space, at, to, max_range, exclude)` is the throw test of the GRENADE tactic, the shots' group, the throw's re-check and the bang (within range, and `throw_clear`: the lob from
-where the grenade leaves the thrower's hand, `release_point` (the thrower's hand as it faces the spot, `Character.inventory.throw_release_offset`: the `throw` stance's hand, 6 px behind and 15 px right of it, learned with the grenades carried in `learn_carried` (the centre until one is), held
+where the grenade leaves the thrower's hand, `_release_point` (the thrower's hand as it faces the spot, `Character.inventory.throw_release_offset`: the `throw` stance's hand, 6 px behind and 15 px right of it, learned with the grenades carried in `learn_carried` (the centre until one is), held
 off a wall like the character's own hand), and the band `LOB_MARGIN` 8 px either side of that line the whole way (parallel edges, not converging on the spot: a jamb far along is met with the grenade's full width), each with nothing taller than `LOB_CLEARANCE` 50 px, the release height, on the line: a centre line
 that grazes a jamb is a grenade that strikes it). `reach_of(kind)` is the range less `REACH_SLACK` 15 px: how far from its spot a thrower lets go, and the reach a throw spot is chosen in.
 `throw_clear_on_arrival(space, at, to, exclude)` is `throw_clear` from `at` and from `ARRIVAL_SLACK` (6 px, the walk's own arrival) off it in the four axis directions: the test for a

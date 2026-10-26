@@ -79,7 +79,7 @@ func bind(character: Node) -> void:
 ## Which hostile to fight: one option per known hostile, with what makes it urgent or easy.
 func hostile_group(ctx: Dictionary, hostiles: Array, analyses: Dictionary) -> Dictionary:
 	var options: Array = []
-	for t in hostiles.slice(0, _v.max_options_per_level):
+	for t in hostiles.slice(0, _v.tuning.decision.max_options_per_level):
 		var a: Dictionary = analyses[t["id"]]
 		options.append({
 			"id": "t_%d" % t["id"], "label": t["name"],
@@ -106,7 +106,7 @@ func _hostile_parts(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Array:
 		"%s, %s of you"
 			% [_v.dist_band(self_pos.distance_to(t["pos"])), _v.compass(t["pos"] - self_pos)],
 	]
-	if (t.get("vel", Vector2.ZERO) as Vector2).length() >= _v.still_speed:
+	if (t.get("vel", Vector2.ZERO) as Vector2).length() >= _v.tuning.context.still_speed:
 		parts.append(_v.move_text(t, self_pos))
 	var aim := _v.aim_text(t, self_pos, ctx["allies"])
 	if aim != "":
@@ -147,6 +147,7 @@ func fire_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 	var self_pos: Vector2 = ctx["self_pos"]
 	var tpos: Vector2 = t["pos"]
 	var options: Array = []
+	var cap: int = _v.tuning.decision.max_options_per_level
 	if not f["here"].is_empty():
 		options.append(_spot_option(
 			"fire_here",
@@ -156,7 +157,7 @@ func fire_group(ctx: Dictionary, t: Dictionary, a: Dictionary) -> Dictionary:
 			false,
 		))
 	for s in f["spots"]:
-		if options.size() >= _v.max_options_per_level - (0 if f["ambush"].is_empty() else 1):
+		if options.size() >= cap - (0 if f["ambush"].is_empty() else 1):
 			break
 		var dir := _v.compass(s["point"] - tpos)
 		var place := _spot_place(s, dir)
@@ -513,7 +514,7 @@ func _throw_walk(ctx: Dictionary, p: Vector2) -> Dictionary:
 	var detour := false
 	if _views.avoid_views:
 		var cleared := func(key: String) -> bool:
-			return _memory.age_of(&"cleared_room", "key", key) <= _v.search_memory_ttl
+			return _memory.age_of(&"cleared_room", "key", key) <= _v.tuning.memory.search_ttl
 		detour = not _views.threshold_ahead(way["path"], 0, self_pos, cleared, INF).is_empty() \
 			or (not way["doors"] and not (way["views"] as Array).is_empty())
 	return { "path": way["path"], "len": way["len"], "detour": detour }
@@ -566,7 +567,7 @@ func melee_group(self_pos: Vector2, t: Dictionary) -> Dictionary:
 	var dist := self_pos.distance_to(t["pos"])
 	var summary := "they are %s and hold a %s" % [_v.dist_band(dist), t.get("item", "nothing")]
 	var options: Array = []
-	if dist <= _v.punch_range * 1.5:
+	if dist <= _v.tuning.combat.punch_range * 1.5:
 		options.append({ "id": "punch", "label": "punch them", "desc": "punch them — " + summary })
 	return { "summary": summary, "options": options }
 
@@ -625,7 +626,7 @@ func retreat_group(ctx: Dictionary, hostiles: Array, known_rooms: Array, dmg: fl
 	spots.sort_custom(_retreat_before)
 	var options: Array = []
 	for s in spots:
-		if options.size() >= _v.max_options_per_level:
+		if options.size() >= _v.tuning.decision.max_options_per_level:
 			break
 		var named := _retreat_name(s)
 		var id: String = named[0]
@@ -699,7 +700,7 @@ func lead_group(ctx: Dictionary, hostiles: Array, entered := {}) -> Dictionary:
 	)
 	leads.sort_custom(func(x, y): return x["age"] < y["age"])
 	var options: Array = []
-	for l in leads.slice(0, _v.max_options_per_level):
+	for l in leads.slice(0, _v.tuning.decision.max_options_per_level):
 		options.append({
 			"id": l["id"], "label": l["label"], "desc": l["desc"],
 			"params": { "point": l["point"], "lead": l["id"] },
@@ -722,7 +723,7 @@ func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 	for c in know["lost"].filter(
 			func(c): return not _entered_any(entered, _suspicion.lost_rooms(_v.rooms, c).keys()),
 	):
-		var moving: bool = (c["vel"] as Vector2).length() >= _v.still_speed
+		var moving: bool = (c["vel"] as Vector2).length() >= _v.tuning.context.still_speed
 		leads.append({
 			"age": c["age"], "id": "lead_seen_%d" % c["id"],
 			"label": "where you last saw %s" % c["name"],
@@ -736,7 +737,7 @@ func _lost_leads(ctx: Dictionary, entered: Dictionary) -> Array:
 		if moving:
 			var ahead: Vector2 = NavBuilder.snap(
 				ctx["map"],
-				c["pos"] + c["vel"] * minf(c["age"], _v.extrapolate_cap),
+				c["pos"] + c["vel"] * minf(c["age"], _v.tuning.context.extrapolate_cap),
 			)
 			leads.append({
 				"age": c["age"] + 0.01, "id": "lead_heading_%d" % c["id"],
@@ -879,7 +880,7 @@ func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := 
 			continue
 		var age: float = _memory.age_of(&"visited_room", "key", room["key"])
 		var point: Vector2 = NavBuilder.snap(ctx["map"], (room["rect"] as Rect2).get_center())
-		var stale := age > _v.search_memory_ttl
+		var stale := age > _v.tuning.memory.search_ttl
 		if stale:
 			unsearched += 1
 		candidates.append({
@@ -903,7 +904,7 @@ func search_group(ctx: Dictionary, known_rooms: Array, rooms: Array, entered := 
 			"params": { "point": know["entry_point"] }, "tags": { "inside": false },
 		})
 	for c in candidates:
-		if options.size() >= _v.max_options_per_level:
+		if options.size() >= _v.tuning.decision.max_options_per_level:
 			break
 		options.append(_search_option(c))
 	var summary := "%d of %d known rooms unsearched" % [unsearched, known_rooms.size()]
@@ -950,7 +951,7 @@ func entry_group(ctx: Dictionary, rooms: Array) -> Dictionary:
 			return not x["suspect"].is_empty()  # A room a hostile is suspected in first.
 		return x["len"] < y["len"])
 	var options: Array = []
-	for p in picks.slice(0, _v.max_options_per_level):
+	for p in picks.slice(0, _v.tuning.decision.max_options_per_level):
 		options.append(_entry_option(p, rooms, self_pos, here))
 	return { "summary": options[0]["desc"] if not options.is_empty() else "", "options": options }
 
@@ -964,7 +965,7 @@ func _entry_pick(ctx: Dictionary, e: Dictionary, known: Dictionary, why: Diction
 	var into: String = e["into"]
 	var status := "unexplored"
 	if known.has(into) or known.has(StringName(into)):
-		if _memory.age_of(&"cleared_room", "key", into) <= _v.search_memory_ttl:
+		if _memory.age_of(&"cleared_room", "key", into) <= _v.tuning.memory.search_ttl:
 			return {}  # Cleared lately: nothing to clear.
 		status = "unsearched"
 	var g: Dictionary = _entry.geometry(e["id"], into, ctx["map"], ctx["space"])
@@ -1380,7 +1381,7 @@ func _flank_summary(flanks: Array, open: Array, rooms: Array) -> String:
 ## How good an open flank looks at a glance (for the summary's "best" only — Von makes the pick).
 func _flank_rank(s: Dictionary) -> int:
 	return (int(s["clear_shot"]) * 4 + int(s["cover"] != "") * 2 + int(not s["route_exposed"])
-			+ int(s["route_len"] <= _v.route_buckets.x))
+			+ int(s["route_len"] <= _v.tuning.context.route_buckets.x))
 
 
 ## The RETREAT branch summary over `options` (best first): whether anywhere hides the NPC, the best
@@ -1398,12 +1399,14 @@ func _retreat_summary(options: Array, dmg: float) -> String:
 	]
 
 
-## The world point to investigate when under fire from an unseen shooter: `investigate_distance` px
+## The world point to investigate when under fire from an unseen shooter:
+## `tuning.context.investigate_distance` px
 ## from the NPC toward where the shots came from, snapped onto the navmesh unless `snap_to_navmesh`
 ## is false (the retreat group wants the raw direction as a threat position, not a reachable spot).
 func _shot_origin(ctx: Dictionary, snap_to_navmesh := true) -> Vector2:
 	var from: Vector2 = _memory.under_fire_from()
-	var p: Vector2 = (ctx["self_pos"] as Vector2) + from.normalized() * _v.investigate_distance
+	var reach: float = _v.tuning.context.investigate_distance
+	var p: Vector2 = (ctx["self_pos"] as Vector2) + from.normalized() * reach
 	return NavBuilder.snap(ctx["map"], p) if snap_to_navmesh else p
 
 
@@ -1420,6 +1423,6 @@ func _allies_on(ctx: Dictionary, t: Dictionary) -> String:
 		if c.get("target_id", 0) == t["id"]:
 			return c["name"]
 	for a in ctx["allies"]:
-		if (a["pos"] as Vector2).distance_to(t["pos"]) <= _v.flank_ally_radius * 0.5:
+		if (a["pos"] as Vector2).distance_to(t["pos"]) <= _v.tuning.tactics.flank_ally_radius * 0.5:
 			return a["name"]
 	return ""

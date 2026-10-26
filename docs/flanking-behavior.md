@@ -105,7 +105,7 @@ Terrace house                     Corridor spine                  Warehouse
 A side the AI will not take is still weighed: `debug_zones()` lists it with its words and tags, and the
 decision tree's `flank` node drops it through `drop_tags`. The tags, set in `snapshot/snapshot_options.gd`
 (`flank_group`), are `held` (B4), `crosses` (B2), `no_shot` (B5/B6), `heading` (B7) and `lane` (B3). The
-geometry behind them is in `agent_tactics.gd` (`flank_sides`, `ally_lane`, `route_exposed`, which takes the
+geometry behind them is in `agent_tactics.gd` (`flank_sides`, `_ally_lane`, `_route_exposed`, which takes the
 target's front for B1). A FLANK tactic whose every side is dropped is not offered at all.
 
 There are no known gaps. A new behaviour that the AI does not show yet is written as a red test tagged
