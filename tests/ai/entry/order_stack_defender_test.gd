@@ -18,6 +18,7 @@ extends GameTest
 ## only glimpsed through its doorway on the way is not seen: the plan's open risk).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const CORRIDOR := Rect2(0, 200, 900, 100)
 const ROOM_A := Rect2(0, 0, 300, 200)
@@ -99,7 +100,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	var through := func(): return Entry.first_call_time(t, "going_in", &"d", ORDERED) < INF
-	var samples := await Entry.watch(t, [&"d"], INTO_A, 100.0, through)
+	var samples := await EntryWatch.watch(t, [&"d"], INTO_A, 100.0, through)
 	var in_corridor := samples.any(func(s): return CORRIDOR.grow(-25.0).has_point(s["pos"][&"d"]))
 	var in_a := samples.any(func(s): return Entry.in_room(INTO_A, s["pos"][&"d"]))
 	if not t.require(
@@ -115,7 +116,7 @@ func run(t: TestContext) -> void:
 			),
 		"no entry at room C's doorway into the corridor, a room it has seen empty",
 	)
-	Entry.check_entered(t, samples, &"d", INTO_A)
+	EntryWatch.check_entered(t, samples, &"d", INTO_A)
 	var ordered_go := Entry.first_call_time(t, "going_in", &"d", ORDERED)
 	t.check(
 		not Order.ordered_claims(t, d, ORDERED).is_empty(),

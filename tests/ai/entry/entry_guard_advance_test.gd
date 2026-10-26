@@ -7,6 +7,7 @@ extends GameTest
 ## and goes in once it is down).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const START := Vector2(990, 190)    # in the back garden, in line with the door
 const TARGET := Vector2(620, 190)   # in the kitchen, in line with the door
@@ -37,7 +38,7 @@ func run(t: TestContext) -> void:
 		if claimed < INF and t.time > claimed + 0.3 and inv.movement.is_running():
 			ran[0] += 1.0 / 60.0
 		return Maps.HOUSE_KITCHEN.grow(-30).has_point(inv.global_position)
-	var samples: Array = await Entry.watch(t, [&"inv"], Entry.BACK, 55.0, in_kitchen)
+	var samples: Array = await EntryWatch.watch(t, [&"inv"], Entry.BACK, 55.0, in_kitchen)
 	if not t.require(
 			in_kitchen.call(),
 			"the invader reached the kitchen (act %s)" % Entry.brain(t, &"inv").current_act(),
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 		t.events.any(from_outside),
 		"it shot at the target from outside the doorway before it went in",
 	)
-	Entry.check_entered(t, samples, &"inv", Entry.BACK)
+	EntryWatch.check_entered(t, samples, &"inv", Entry.BACK)
 	t.check(
 		ran[0] == 0.0,
 		"it did not run once it had turned to the door (ran for %.2f s)" % ran[0],

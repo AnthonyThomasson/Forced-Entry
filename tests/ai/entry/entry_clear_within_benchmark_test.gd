@@ -5,6 +5,7 @@ extends GameTest
 ## stand in the back garden and decide for themselves to enter.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const IDS := [&"a", &"b"]
 ## The training target (s) from the point crossing to the room called clear.
@@ -31,7 +32,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var cleared := func(): return not Entry.calls(t, "clear").is_empty()
-	await Entry.watch(t, IDS, door, 70.0, cleared)
+	await EntryWatch.watch(t, IDS, door, 70.0, cleared)
 	var acts := ", ".join(IDS.map(func(id): return Entry.brain(t, id).current_act()))
 	if not t.require(
 			IDS.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF),

@@ -5,6 +5,7 @@ extends GameTest
 ## way.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const START := Vector2(960, 60)
 
@@ -27,7 +28,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
@@ -41,14 +42,14 @@ func run(t: TestContext) -> void:
 				% Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	var at := Entry.pos_at(samples, &"inv", ready_at)
+	var at := EntryWatch.pos_at(samples, &"inv", ready_at)
 	t.check(
 		Entry.beside_door(door, at),
 		"it stages against the wall beside the door, out of its view (%s: out %.0f, along %.0f)"
 			% [at.round(), Entry.outward(door, at), Entry.lateral(door, at)],
 	)
 	t.check(
-		not Entry.path_of(samples, &"inv").any(
+		not EntryWatch.path_of(samples, &"inv").any(
 			func(p): return Entry.in_room(door, p) or Entry.in_funnel(door, p)
 		),
 		"it never set foot in the doorway or the room on the way",

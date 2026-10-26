@@ -4,6 +4,7 @@ extends GameTest
 ## garden decide for themselves to stack on the back door.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const IDS := [&"a", &"b", &"c"]
 
@@ -30,7 +31,7 @@ func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var all_ready := func():
 		return IDS.all(func(id): return Entry.first_call_time(t, "ready", id, door["id"]) < INF)
-	await Entry.watch(t, IDS, door, 55.0, all_ready)
+	await EntryWatch.watch(t, IDS, door, 55.0, all_ready)
 	var acts := ", ".join(IDS.map(func(id): return Entry.brain(t, id).current_act()))
 	if not t.require(
 			IDS.all(func(id): return Entry.first_call_time(t, "claim", id, door["id"]) < INF),
@@ -47,9 +48,9 @@ func run(t: TestContext) -> void:
 			"slots 1, 2 and 3 are taken once each (%s)" % str(by_slot),
 	):
 		return
-	var samples := await Entry.watch(t, IDS, door, 3.0)
+	var samples := await EntryWatch.watch(t, IDS, door, 3.0)
 	var away_from_door := func(id: StringName) -> float:
-		return Entry.share_facing(
+		return EntryWatch.share_facing(
 			samples,
 			id,
 			func(

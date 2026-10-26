@@ -4,6 +4,7 @@ extends GameTest
 ## second to the other side.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -47,7 +48,7 @@ func run(t: TestContext) -> void:
 	var both_in := func():
 		return (not Entry.calls(t, "in", &"a").is_empty()
 				and not Entry.calls(t, "in", &"b").is_empty())
-	var samples := await Entry.watch(t, [&"a", &"b"], door, 50.0, func():
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], door, 50.0, func():
 		var at := maxf(Entry.first_call_time(t, "in", &"a"), Entry.first_call_time(t, "in", &"b"))
 		return both_in.call() and t.time - at > 3.0)
 	var claims := Entry.calls(t, "claim", &"b")
@@ -61,16 +62,18 @@ func run(t: TestContext) -> void:
 		"the point waited for the ally to be ready",
 	)
 	t.check(
-		Entry.first_in_funnel(samples, &"b", door)
-			> Entry.last_in_funnel(
-				samples.filter(func(s): return s["t"] < Entry.first_in_funnel(samples, &"b", door)),
+		EntryWatch.first_in_funnel(samples, &"b", door)
+			> EntryWatch.last_in_funnel(
+				samples.filter(
+					func(s): return s["t"] < EntryWatch.first_in_funnel(samples, &"b", door)
+				),
 				&"a",
 				door,
 			),
 		"the ally crossed after the point was through",
 	)
-	var sa := Entry.first_stop_in_room(samples, &"a", door)
-	var sb := Entry.first_stop_in_room(samples, &"b", door)
+	var sa := EntryWatch.first_stop_in_room(samples, &"a", door)
+	var sb := EntryWatch.first_stop_in_room(samples, &"b", door)
 	t.check(
 		sa != Vector2.INF
 			and sb != Vector2.INF

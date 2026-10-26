@@ -5,6 +5,7 @@ extends GameTest
 ## door's own wall (a far corner is always in view of the pie).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -26,7 +27,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
@@ -40,7 +41,7 @@ func run(t: TestContext) -> void:
 		return
 	var e := Entry.entry(Entry.brain(t, &"inv"))
 	t.check(
-		Entry.path_of(samples, &"inv").all(func(p): return Entry.outward(door, p) > 0.0),
+		EntryWatch.path_of(samples, &"inv").all(func(p): return Entry.outward(door, p) > 0.0),
 		"it stayed outside until then",
 	)
 	t.check(

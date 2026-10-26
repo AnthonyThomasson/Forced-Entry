@@ -4,6 +4,7 @@ extends GameTest
 ## doorway only after the point is through.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var both_in := func():
 		return (not Entry.calls(t, "in", &"a").is_empty()
 				and not Entry.calls(t, "in", &"b").is_empty())
-	var samples := await Entry.watch(t, [&"a", &"b"], door, 45.0, both_in)
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], door, 45.0, both_in)
 	var going := Entry.calls(t, "going_in")
 	if not t.require(not going.is_empty(), "a going-in callout was radioed"):
 		return
@@ -48,13 +49,17 @@ func run(t: TestContext) -> void:
 	var point: StringName = &"a" if radioed.get("speaker") == t.actor(&"a") else &"b"
 	var second: StringName = &"b" if point == &"a" else &"a"
 	var going_at := Entry.first_call_time(t, "going_in", point)
-	var second_in := Entry.first_in_funnel(samples, second, door)
+	var second_in := EntryWatch.first_in_funnel(samples, second, door)
 	t.check(
 		second_in > going_at,
 		"the second crossed after the call (%.1f > %.1f s)" % [second_in, going_at],
 	)
 	t.check(
 		second_in
-			> Entry.last_in_funnel(samples.filter(func(s): return s["t"] < second_in), point, door),
+			> EntryWatch.last_in_funnel(
+				samples.filter(func(s): return s["t"] < second_in),
+				point,
+				door,
+			),
 		"one at a time: the point was out of the doorway before the second stepped in",
 	)

@@ -4,6 +4,7 @@ extends GameTest
 ## nobody has cleared, the living room's and the hall's, before it moves on to its next entry.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -40,14 +41,14 @@ func _next_claim(t: TestContext, id: StringName, after: float, except: String) -
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var cleared := func(): return not Entry.calls(t, "clear", &"inv").is_empty()
-	await Entry.watch(t, [&"inv"], door, 60.0, cleared)
+	await EntryWatch.watch(t, [&"inv"], door, 60.0, cleared)
 	if not t.require(
 			cleared.call(),
 			"the invader cleared the kitchen (act %s)" % Entry.brain(t, &"inv").current_act(),
 	):
 		return
 	var cleared_at := Entry.first_call_time(t, "clear", &"inv")
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
@@ -62,7 +63,7 @@ func run(t: TestContext) -> void:
 	var before := samples.filter(func(sample): return sample["t"] < moved_on)
 	var in_kitchen := func(p: Vector2): return Maps.HOUSE_KITCHEN.has_point(p)
 	for d in [Entry.KITCHEN_LIVING, Entry.KITCHEN_HALL]:
-		var held := Entry.time_facing_through(before, &"inv", d, in_kitchen)
+		var held := EntryWatch.time_facing_through(before, &"inv", d, in_kitchen)
 		t.check(
 			held >= 0.5,
 			"before moving on it pointed its gun through %s from the kitchen (%.2f s)"

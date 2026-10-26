@@ -4,6 +4,7 @@ extends GameTest
 ## arrives along the wall to its staging point beside the door.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const START := Vector2(-130, 415)   # straight out from the front door, 130 px off the wall
 ## Close to the wall: within this distance (px) the axis is the line a shooter inside looks down.
@@ -28,7 +29,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.FRONT
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
@@ -42,13 +43,13 @@ func run(t: TestContext) -> void:
 				% Entry.brain(t, &"inv").current_act(),
 	):
 		return
-	var on_axis := Entry.path_of(samples, &"inv").filter(func(p): return _near_axis(door, p))
+	var on_axis := EntryWatch.path_of(samples, &"inv").filter(func(p): return _near_axis(door, p))
 	t.check(
 		on_axis.is_empty(),
 		"it never walks the door's axis close to the wall (%d samples, first %s)"
 			% [on_axis.size(), on_axis[0].round() if not on_axis.is_empty() else ""],
 	)
-	var at := Entry.pos_at(samples, &"inv", ready_at)
+	var at := EntryWatch.pos_at(samples, &"inv", ready_at)
 	t.check(Entry.beside_door(door, at), "it ends beside the door (%s)" % at.round())
 
 

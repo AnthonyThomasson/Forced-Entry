@@ -4,6 +4,7 @@ extends GameTest
 ## door to its second side must not make it start over from the other side's stack.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -24,7 +25,7 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	await Entry.watch(
+	await EntryWatch.watch(
 		t,
 		[&"inv"],
 		Entry.FRONT,

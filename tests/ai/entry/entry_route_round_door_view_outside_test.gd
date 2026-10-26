@@ -13,6 +13,7 @@ extends GameTest
 ## so it is in its first decision.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 const ROOM := Rect2(0, 0, 600, 300)
@@ -65,9 +66,11 @@ func run(t: TestContext) -> void:
 		return
 	var inv := t.actor(&"inv")
 	var far_side := func(): return inv.global_position.x > ROOM.end.x + 20.0
-	var samples := await Entry.watch(t, [&"inv"], FRONT, 75.0, far_side)
+	var samples := await EntryWatch.watch(t, [&"inv"], FRONT, 75.0, far_side)
 	var act := str(Entry.brain(t, &"inv").current_act())
-	var went_in := Entry.path_of(samples, &"inv").any(func(p: Vector2): return ROOM.has_point(p))
+	var went_in := EntryWatch.path_of(samples, &"inv").any(
+		func(p: Vector2): return ROOM.has_point(p)
+	)
 	if not t.require(
 			far_side.call() and not went_in,
 			("the invader went to the gunfire on the far side of the house without going in (act "
@@ -80,5 +83,7 @@ func run(t: TestContext) -> void:
 		"it never stood in the front door's view (first at %.2f s, %.1f s in it)"
 			% [seen_at, View.time_in_view(t, samples, &"inv", FRONT)],
 	)
-	var north := Entry.path_of(samples, &"inv").any(func(p: Vector2): return p.y < ROOM.position.y)
+	var north := EntryWatch.path_of(samples, &"inv").any(
+		func(p: Vector2): return p.y < ROOM.position.y
+	)
 	t.check(north, "it went round by the north side of the house (plain route %.0f px)" % plain_len)

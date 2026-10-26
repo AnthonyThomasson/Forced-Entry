@@ -4,6 +4,7 @@ extends GameTest
 ## from outside the wall, after it reached its slot.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var inv := t.actor(&"inv")
 	var shot_by_inv := func(d): return d.get("attacker") == inv
-	await Entry.watch(t, [&"inv"], door, 35.0, func(): return t.happened(&"shot", shot_by_inv))
+	await EntryWatch.watch(t, [&"inv"], door, 35.0, func(): return t.happened(&"shot", shot_by_inv))
 	var first := {}
 	for e in t.events:
 		if e["topic"] == &"shot" and shot_by_inv.call(e["data"]):

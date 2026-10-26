@@ -6,6 +6,7 @@ extends GameTest
 ## decides for itself.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/investigate_probe.gd")
 ## Seconds of gun through a doorway, from beside it, that count as having secured it.
@@ -35,10 +36,10 @@ func run(t: TestContext) -> void:
 	await t.seconds(1.0)
 	Probe.gunfire(Vector2(750, 100))
 	var in_c := func(): return Maps.SPINE_ROOM_C.grow(-30).has_point(inv.global_position)
-	var samples := await Entry.watch(t, [&"inv"], Entry.SPINE_C, 90.0, in_c)
+	var samples := await EntryWatch.watch(t, [&"inv"], Entry.SPINE_C, 90.0, in_c)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	var far_jamb := float(Entry.SPINE_A["pos"].x) + float(Entry.SPINE_A["width"]) * 0.5 + BODY
-	var passed_a := Entry.path_of(samples, &"inv").any(func(p: Vector2): return p.x > far_jamb)
+	var passed_a := EntryWatch.path_of(samples, &"inv").any(func(p: Vector2): return p.x > far_jamb)
 	if not t.require(
 			passed_a,
 			"the gunfire drew the invader down the corridor past room A's door (act %s)" % act,
@@ -60,7 +61,7 @@ func _check_door_secured(t: TestContext, samples: Array, door: Dictionary) -> vo
 		return  # Never walked past it: nothing was left behind.
 	var before := samples.filter(func(s): return s["t"] <= passed_at)
 	var entered := Entry.first_call_time(t, "going_in", &"inv", door["id"]) <= passed_at
-	var covered := Entry.time_facing_through(
+	var covered := EntryWatch.time_facing_through(
 		before,
 		&"inv",
 		door,

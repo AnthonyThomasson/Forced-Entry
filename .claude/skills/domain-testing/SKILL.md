@@ -570,12 +570,14 @@ and a joining ally, clearing, covering the doorways on and rear security. Script
 rooms so the geometry is clean), through `tests/_ai/entry_probe.gd` (`const Entry := preload(...)`): `rules(s, door)`
 (SEARCH > ENTER > that doorway, engage in a fight), `npc` (an invader that walks; a `tuning:decision:decide_interval` in its `gc` offsets its decide timer),
 `target`, `guard_rules(s, picks)` (a plain order that is not ENTER: for the E9 tests, with `asked(prefix)` to check the
-order was really the one scripted and `check_entered(t, samples, id, door)` for "it went in by entry"), the test's own
+order was really the one scripted), the test's own
 doorway frame (`BACK`, `FRONT`, `HALL_LIVING`, `KITCHEN_LIVING`, and the doorways on that a team covers once it holds the
 kitchen or living room, `KITCHEN_HALL`, `LIVING_KITCHEN`, with `out`, `outward`, `lateral`, `in_funnel`, `in_room`,
-`beside_door`, `corners`, `faces_through`), a per-frame sampler (`watch`, then `path_of`, `pos_at`, `first_stop_in_room`,
-`funnel_entries`, `first_in_funnel`, `longest_pause_in_funnel`, `time_facing_through`, `share_facing`) and the radio (`calls(t, step, id)`, `first_call_time`;
-callouts carry `entry_step`). The brain is read through `debug_entry()` and `debug_room_zones()`.
+`beside_door`, `corners`, `faces_through`) and the radio (`calls(t, step, id)`, `first_call_time`;
+callouts carry `entry_step`). The per-frame sampler and "it went in by entry" are `tests/_ai/entry_watch_probe.gd`
+(`const EntryWatch := preload(...)`): `watch`, then `path_of`, `pos_at`, `first_stop_in_room`, `funnel_entries`,
+`first_in_funnel`, `last_in_funnel`, `longest_pause_in_funnel`, `time_facing_through`, `share_facing`, and
+`check_entered(t, samples, id, door)` for the E9 tests. The brain is read through `debug_entry()` and `debug_room_zones()`.
 
 E10 to E15 are covered by `entry_clear_within_benchmark` (E10), `entry_reloads_before_crossing` (E11), `entry_stack_last_covers_rear`
 (E12), `entry_short_room_two_go_in` (E13), `entry_hostile_in_view_holds_outside` (E14) and `entry_corridor_doors_not_passed` (E15), which

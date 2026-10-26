@@ -7,6 +7,7 @@ extends GameTest
 ## Scripted Von: SEARCH > ENTER > C's doorway.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## Seconds of gun through a doorway, from beside it, that count as having secured it.
 const COVERED := 0.8
@@ -86,7 +87,7 @@ func _check_door_secured(
 	if not t.require(passed_at < INF, "%s was passed on the way" % door["id"]):
 		return false
 	var before := samples.filter(func(s): return s["t"] <= passed_at)
-	var covered := Entry.time_facing_through(
+	var covered := EntryWatch.time_facing_through(
 		before,
 		&"inv",
 		door,

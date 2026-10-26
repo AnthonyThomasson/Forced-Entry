@@ -9,6 +9,7 @@ extends GameTest
 ## both claimed the back door comes first, so a different Von choice reads as a set-up finding.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const View := preload("res://tests/_ai/door_view_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const IDS := [&"north", &"south"]
@@ -188,7 +189,7 @@ func _check_criss_cross(
 		var own_side := (signf(Entry.lateral(door, ready_at[id]))
 				if ready_at[id] != Vector2.INF
 				else 0.0)
-		var corner := Entry.first_stop_in_room(samples, id, door)
+		var corner := EntryWatch.first_stop_in_room(samples, id, door)
 		t.check(
 			corner != Vector2.INF
 				and own_side != 0.0

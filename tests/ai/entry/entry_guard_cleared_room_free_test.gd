@@ -5,6 +5,7 @@ extends GameTest
 ## cleared.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 # far south-east in the garden: the radio call is long since heard when it nears a door
 const START := Vector2(990, 600)
@@ -47,7 +48,7 @@ func run(t: TestContext) -> void:
 		},
 	)
 	var in_goal := func(): return Maps.HOUSE_LIVING.grow(-30).has_point(inv.global_position)
-	var samples: Array = await Entry.watch(t, [&"inv"], Entry.KITCHEN_LIVING, 100.0, in_goal)
+	var samples: Array = await EntryWatch.watch(t, [&"inv"], Entry.KITCHEN_LIVING, 100.0, in_goal)
 	if not t.require(
 			in_goal.call(),
 			"the invader reached the living room (act %s)" % Entry.brain(t, &"inv").current_act(),
@@ -57,4 +58,4 @@ func run(t: TestContext) -> void:
 		Entry.first_call_time(t, "claim", &"inv", Entry.BACK["id"]) == INF,
 		"it claimed no stack at the back door: the kitchen is cleared",
 	)
-	Entry.check_entered(t, samples, &"inv", Entry.KITCHEN_LIVING)
+	EntryWatch.check_entered(t, samples, &"inv", Entry.KITCHEN_LIVING)

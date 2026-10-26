@@ -4,6 +4,7 @@ extends GameTest
 ## to the fight. The defender fires once the invader is past the wall plane, still in the doorway.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -34,7 +35,7 @@ func run(t: TestContext) -> void:
 	gunman.aim_at(inv)
 	var hit_inv := func(d): return d.get("victim") == inv
 	var last_shot := [-1.0]
-	var samples := await Entry.watch(t, [&"inv"], door, 40.0, func():
+	var samples := await EntryWatch.watch(t, [&"inv"], door, 40.0, func():
 		var p: Vector2 = inv.global_position
 		if not t.happened(
 			&"hit",
@@ -59,7 +60,7 @@ func run(t: TestContext) -> void:
 
 ## Checks the hit landed as the invader crossed and it carried on through, in and off the doorway.
 func _check_crossed(t: TestContext, samples: Array, door: Dictionary, hits: Array) -> void:
-	var at := Entry.pos_at(samples, &"inv", hits[0])
+	var at := EntryWatch.pos_at(samples, &"inv", hits[0])
 	t.check(
 		Entry.in_funnel(door, at) or Entry.outward(door, at) < 0.0,
 		"the hit landed as it crossed (%s)" % at.round(),

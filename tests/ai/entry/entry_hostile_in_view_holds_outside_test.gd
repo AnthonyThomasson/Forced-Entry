@@ -6,6 +6,7 @@ extends GameTest
 ## stands in the back garden and decides for itself.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -32,12 +33,12 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var shot_by_inv := func(d): return d.get("attacker") == inv
 	var going := func(): return Entry.first_call_time(t, "going_in", &"inv", door["id"]) < INF
-	var samples := await Entry.watch(
+	var samples := await EntryWatch.watch(
 		t,
 		[&"inv"],
 		door,
 		45.0,
-		func(): return going.call() or Entry.funnel_entries([], &"inv", door) > 0,
+		func(): return going.call() or EntryWatch.funnel_entries([], &"inv", door) > 0,
 	)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	if not t.require(
@@ -54,7 +55,11 @@ func run(t: TestContext) -> void:
 		not going.call(),
 		"it never committed to the crossing with the defender standing in view (act %s)" % act,
 	)
-	t.expect_eq(Entry.funnel_entries(samples, &"inv", door), 0, "it never stepped into the doorway")
+	t.expect_eq(
+		EntryWatch.funnel_entries(samples, &"inv", door),
+		0,
+		"it never stepped into the doorway",
+	)
 	t.check(
 		not Entry.in_room(door, inv.global_position),
 		"it is still outside the kitchen (%s)" % inv.global_position.round(),

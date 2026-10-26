@@ -4,6 +4,7 @@ extends GameTest
 ## covering; `b` would hold for 30 s, but leaves its doorway soon after `a` radios that it is done.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -33,7 +34,7 @@ func run(t: TestContext) -> void:
 	var covering := func():
 		return (not Entry.calls(t, "cover", &"a").is_empty()
 				and not Entry.calls(t, "cover", &"b").is_empty())
-	await Entry.watch(t, [&"a", &"b"], Entry.BACK, 60.0, covering)
+	await EntryWatch.watch(t, [&"a", &"b"], Entry.BACK, 60.0, covering)
 	if not t.require(
 			covering.call(),
 			"both covered a doorway on (%s / %s)"

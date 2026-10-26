@@ -5,6 +5,7 @@ extends GameTest
 ## stays on the hall door as rear security, just inside it and facing back out the way they came.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var door := Entry.HALL_LIVING
 	var holding := func():
 		return not Entry.calls(t, "cover").is_empty() and not Entry.calls(t, "rear").is_empty()
-	await Entry.watch(t, [&"a", &"b"], door, 60.0, holding)
+	await EntryWatch.watch(t, [&"a", &"b"], door, 60.0, holding)
 	if not t.require(
 			holding.call(),
 			"one radioed it covers a doorway on and one that it holds the rear (%s / %s)"
@@ -41,7 +42,7 @@ func run(t: TestContext) -> void:
 		Entry.LIVING_KITCHEN["id"],
 		"the doorway covered is the kitchen's",
 	)
-	var samples := await Entry.watch(t, [&"a", &"b"], door, 3.0)
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], door, 3.0)
 	var guard: StringName = &""
 	var coverer: StringName = &""
 	var in_living := func(p: Vector2): return Maps.HOUSE_LIVING.has_point(p)
@@ -53,7 +54,12 @@ func run(t: TestContext) -> void:
 					and (s["facing"][id] as Vector2).dot(door["out"]) > 0.7))
 		if held.size() >= samples.size() * 0.5:
 			guard = id
-		elif Entry.time_facing_through(samples, id, Entry.LIVING_KITCHEN, in_living) >= 3.0 * 0.6:
+		elif EntryWatch.time_facing_through(
+			samples,
+			id,
+			Entry.LIVING_KITCHEN,
+			in_living,
+		) >= 3.0 * 0.6:
 			coverer = id
 	t.check(guard != &"", "one of them holds the hall door from inside, facing out")
 	t.check(

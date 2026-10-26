@@ -5,6 +5,7 @@ extends GameTest
 ## axis.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -28,7 +29,7 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
 	var stops := {}
-	var samples := await Entry.watch(t, [&"a", &"b"], door, 45.0, func():
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], door, 45.0, func():
 		if Entry.calls(t, "in", &"a").is_empty() or Entry.calls(t, "in", &"b").is_empty():
 			return false
 		var last_in := maxf(
@@ -37,7 +38,7 @@ func run(t: TestContext) -> void:
 		)
 		return t.time - last_in > 3.0)
 	for id in [&"a", &"b"]:
-		stops[id] = Entry.first_stop_in_room(samples, id, door)
+		stops[id] = EntryWatch.first_stop_in_room(samples, id, door)
 	if not t.require(
 			stops.values().all(func(p): return p != Vector2.INF),
 			"both went in and stopped at a corner (%s)" % str(stops),

@@ -6,6 +6,7 @@ extends GameTest
 ## option, so a plain walk would cross both with no stack and no pie.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 ## Whichever compass word the living room gets from the garden (the script takes the first one
 ## offered).
@@ -35,12 +36,12 @@ func configure(s: TestSetup) -> void:
 func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var in_goal := func(): return Maps.HOUSE_LIVING.grow(-30).has_point(inv.global_position)
-	var samples: Array = await Entry.watch(t, [&"inv"], Entry.FRONT, 100.0, in_goal)
+	var samples: Array = await EntryWatch.watch(t, [&"inv"], Entry.FRONT, 100.0, in_goal)
 	if not t.require(
 			in_goal.call(),
 			"the invader reached the living room (act %s)" % Entry.brain(t, &"inv").current_act(),
 	):
 		return
 	t.check(Entry.asked("explore_"), "the order was a plain explore, not ENTER")
-	Entry.check_entered(t, samples, &"inv", Entry.FRONT)
-	Entry.check_entered(t, samples, &"inv", Entry.HALL_LIVING)
+	EntryWatch.check_entered(t, samples, &"inv", Entry.FRONT)
+	EntryWatch.check_entered(t, samples, &"inv", Entry.HALL_LIVING)

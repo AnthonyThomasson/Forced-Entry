@@ -5,6 +5,7 @@ extends GameTest
 ## the garden they came from while a doorway on is unwatched.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var covering := func():
 		return (not Entry.calls(t, "cover", &"a").is_empty()
 				and not Entry.calls(t, "cover", &"b").is_empty())
-	await Entry.watch(t, [&"a", &"b"], Entry.BACK, 60.0, covering)
+	await EntryWatch.watch(t, [&"a", &"b"], Entry.BACK, 60.0, covering)
 	if not t.require(
 			covering.call(),
 			"both radioed that they cover a doorway on (%s / %s)"
@@ -49,12 +50,12 @@ func run(t: TestContext) -> void:
 		),
 		"each covers a doorway on out of the kitchen (%s)" % str(named.values()),
 	)
-	var samples := await Entry.watch(t, [&"a", &"b"], Entry.BACK, 3.0)
+	var samples := await EntryWatch.watch(t, [&"a", &"b"], Entry.BACK, 3.0)
 	var in_kitchen := func(p: Vector2): return Maps.HOUSE_KITCHEN.has_point(p)
 	var held := {}
 	for id in [&"a", &"b"]:
 		for door in [Entry.KITCHEN_LIVING, Entry.KITCHEN_HALL]:
-			var share := Entry.time_facing_through(samples, id, door, in_kitchen) / 3.0
+			var share := EntryWatch.time_facing_through(samples, id, door, in_kitchen) / 3.0
 			if share >= 0.7:
 				held[id] = door["id"]
 		t.check(
@@ -63,7 +64,7 @@ func run(t: TestContext) -> void:
 				% [id, Entry.brain(t, id).current_act()],
 		)
 		t.check(
-			Entry.time_facing_through(samples, id, Entry.BACK) < 0.3,
+			EntryWatch.time_facing_through(samples, id, Entry.BACK) < 0.3,
 			"%s did not watch the garden instead" % id,
 		)
 	if held.size() == 2:

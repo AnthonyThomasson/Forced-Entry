@@ -4,6 +4,7 @@ extends GameTest
 ## in without it.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const TIMEOUT := 8.0
 
@@ -34,7 +35,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	var door := Entry.BACK
-	await Entry.watch(
+	await EntryWatch.watch(
 		t,
 		[&"a", &"b"],
 		door,

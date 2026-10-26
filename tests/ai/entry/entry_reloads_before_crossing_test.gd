@@ -5,6 +5,7 @@ extends GameTest
 ## the back garden and decides for itself how to get into the kitchen.
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
+const EntryWatch := preload("res://tests/_ai/entry_watch_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 
 
@@ -29,7 +30,7 @@ func run(t: TestContext) -> void:
 	var inv := t.actor(&"inv")
 	var capacity: int = inv.ammo.capacity(inv.inventory.gun_slot())
 	var going := func(): return Entry.first_call_time(t, "going_in", &"inv", door["id"]) < INF
-	await Entry.watch(t, [&"inv"], door, 60.0, going)
+	await EntryWatch.watch(t, [&"inv"], door, 60.0, going)
 	var act: String = str(Entry.brain(t, &"inv").current_act())
 	if not t.require(
 			Entry.first_call_time(t, "claim", &"inv", door["id"]) < INF,
@@ -40,7 +41,7 @@ func run(t: TestContext) -> void:
 		return
 	var ammo_at_cross: int = inv.ammo.rounds()
 	var through := func(): return Entry.first_call_time(t, "in", &"inv", door["id"]) < INF
-	await Entry.watch(t, [&"inv"], door, 8.0, through)
+	await EntryWatch.watch(t, [&"inv"], door, 8.0, through)
 	_check_topped_off(t, inv, door, ammo_at_cross, capacity)
 
 
