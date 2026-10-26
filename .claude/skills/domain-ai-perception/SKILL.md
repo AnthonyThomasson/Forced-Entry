@@ -125,9 +125,9 @@ within the flash radius with a clear line from the burst as `flashed` for a few 
   reads, `claim`, `slot_for`, `settle`, `split_side`, `back_slot`, `crossing` / `ahead` / `behind`, `thrower`, `order_claim`, `released`,
   `move_up_vacancies`, `team_side`, with `StackLayout`'s statics over its `geometry` beside it (`holds_slot`, `is_tail`, ...); with `into` "" it has no geometry and answers only what the claims alone do, `team`, `claimed`, `stacking`, `going_in`,
   `released`, `crossing`, `order_claim`; "The stack" below),
-  `entry.side_of(g, p)` (the side of the door `g` (its geometry), 1 / -1 along its wall, a point is on: the radio claims' `side`),
+  `entry.side_of(geo, p)` (the side of the door `geo` (its geometry), 1 / -1 along its wall, a point is on: the radio claims' `side`),
   `entry.stack_side(door_stack)` (the side the NPC stacks on from where it stands in that `DoorStack`: the team's, or its own when its way
-  there crosses the doorway's view, E19), `entry.on_stack_side(g, p)` and `entry.slot_reach(to, bodies)` (from where the NPC stands,
+  there crosses the doorway's view, E19), `entry.on_stack_side(geo, p)` and `entry.slot_reach(to, bodies)` (from where the NPC stands,
   `AgentEntry.slot_reach`, below) (wrappers on `AgentEntry`, which the snapshot's `entries` and `order` groups also use; the behaviour never
   reaches into `agent_entry.gd` itself, but preloads the stack module, `StackClaim` and `DoorStack`, the seam it shares with the team; the
   other consumers are the human's `PlayerStack` and the `Squad` in `ai/team/` (`domain-ai-team`), which use `AgentEntry` directly through
@@ -380,7 +380,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   `HEARTBEAT` (2 s), and the two reaches named apart, `SLOT_REACH` (6 px: an NPC walks all the way into its slot, since a stride short of it
   stands on the next one) and `HUMAN_SLOT_REACH` (20 px: how near a hand-driven body counts as in its slot); `JOIN` (`join`); `by_slot`, the
   one comparator claims are sorted by (lowest slot, then lowest instance id).
-- **`ClaimLedger`** (`claim_ledger.gd`, `RefCounted`, one per listener: the perception's `_ledger`, `PlayerStack`'s, the `Squad`'s):
+- **`ClaimLedger`** (`claim_ledger.gd`, `RefCounted`, one per listener: the perception's `entry.ledger`, `PlayerStack`'s, the `Squad`'s):
   `setup({ faction, range, ttl, listener })`, `hear(data, listener_pos := Vector2.INF)` (its side only, within `range`, <= 0 unlimited,
   the squad's whole view; never the listener's own; `keeps_claim` leaves the speaker's claim standing, any other callout replaces it),
   `claims(opening)` (the live decoded claims, one per speaker, none `ENDED`, `by_slot`, `age` set; shared until the next frame: never

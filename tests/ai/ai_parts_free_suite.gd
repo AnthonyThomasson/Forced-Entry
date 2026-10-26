@@ -5,10 +5,9 @@ extends UnitSuite
 ## `radio`, each handed the entry at the call) and the combat's throw part hold no
 ## owner, the planner's parts and the controller's cadence are data that hold none, and the other
 ## parts of a node (the behaviour's, Locomotion's, the controller's, the perception's) hold it only
-## as a node. Every
-## preset, instanced, put in the tree (its controller builds the AI in `_ready`) and freed, leaves a
-## `WeakRef` to each piece that reads null. Each NPC is made inside `_built_then_freed`, so no
-## temporary of the calling test still holds a piece.
+## as a node. Every preset, instanced, put in the tree (its controller builds the AI in `_ready`)
+## and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
+## `_built_then_freed`, so no temporary of the calling test still holds a piece.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const NPCS := [

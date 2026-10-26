@@ -137,7 +137,7 @@ no-per-weapon-code rule — is `combat.gd`: the **`domain-ai-combat`** skill. `B
 
 ## The evade reflex (G16) and the blind NPC (G15)
 
-**Evade (`Behavior.grenades.set_evade(plan)`, called every tick by the orchestrator with the perception's `evade_plan`; `docs/grenades.md` G16).** Outside Von and over every primitive, like the
+**Evade (`Behavior.grenades.set_evade(plan)`, called every tick by the orchestrator with the perception's `grenades.evade_plan`; `docs/grenades.md` G16).** Outside Von and over every primitive, like the
 auto-reload, but for the NPC's own throw in its wind-up (`Combat`'s `throw.stage` `windup`: the grenade leaves the hand within 0.3 s toward its spot; the evade starts the tick it has, `grenades.poll_throw` running first; test `ai/grenade/evade_waits_for_own_windup`): while a live grenade threatens the NPC it is carried out instead of the running order, an entry (committed or not) and an interaction included. The first
 tick of a plan drops the detour, abandons the entry (the stack is told), and replaces the order with `evade` (path `["evade"]`, labels `EVADE - a live frag grenade`);
 no decision is started or adopted while it runs (the controller's `_should_decide` / `_on_decided`, `set_leaf`). An entry in its `bang` phase is left

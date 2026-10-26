@@ -90,10 +90,10 @@ func stack(opening_id: String, into := "") -> RefCounted:
 	return ledger.stack(opening_id, geometry(opening_id, into) if into != "" else {})
 
 
-## The side of a doorway (`g` from `geometry()`) point `p` is on, 1 / -1 along its wall: the radio
+## The side of a doorway (`geo` from `geometry()`) point `p` is on, 1 / -1 along its wall: the radio
 ## claims' `side` (see agent_entry.gd `side_of`).
-func side_of(g: Dictionary, p: Vector2) -> int:
-	return AgentEntry.side_of(g, p)
+func side_of(geo: Dictionary, p: Vector2) -> int:
+	return AgentEntry.side_of(geo, p)
 
 
 ## The side of a doorway the NPC stacks on from where it stands in `door_stack` (`stack()`): the
@@ -109,8 +109,8 @@ func stack_side(door_stack: RefCounted) -> int:
 	)
 
 
-## Whether point `p` is ground a stack going in by `g` (a doorway's geometry) may walk on to its
+## Whether point `p` is ground a stack going in by `geo` (a doorway's geometry) may walk on to its
 ## slot (`AgentEntry.slots.on_stack_side`: on the stack side, in its room, out of every other
 ## doorway's funnel).
-func on_stack_side(g: Dictionary, p: Vector2) -> bool:
-	return doorways.slots.on_stack_side(doorways, g, p)
+func on_stack_side(geo: Dictionary, p: Vector2) -> bool:
+	return doorways.slots.on_stack_side(doorways, geo, p)

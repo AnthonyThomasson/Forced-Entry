@@ -429,7 +429,7 @@ way round every view within the cap it goes round those two at least, and an ord
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
 (`NavBuilder.avoid_map`, on the worker thread, cached per set of views), and `Locomotion` walks that map (its third way, beside the
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
-route crosses; once the route on the avoid map passes no body it knows of, the walk goes back to it). A decision waits the few frames the avoid map takes to bake (`routes_ready`; a forced one does not) so its route bands are the
+route crosses; once the route on the avoid map passes no body it knows of, the walk goes back to it). A decision waits the few frames the avoid map takes to bake (`views.routes_ready`; a forced one does not) so its route bands are the
 walked ones.
 Tunables (the NPC's `tuning.entry_guard`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `pass_clear_time`. The entry plan overlay
 (`show_entry`) draws the views the NPC keeps out of.

@@ -93,7 +93,7 @@ INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → fo
 (`domain-ai-behavior`) and asks for no decision on the cadence.
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it
-`observe()` and return `contacts()`; hands those to **Behaviour** to resolve + honour commitments;
+`observe()` and return `contacts.known()`; hands those to **Behaviour** to resolve + honour commitments;
 when free (or forced), its routes can be measured as it will walk them (`AgentPerception.views.routes_ready`: the avoid map of the doorway views from the room it
 stands in is baked, a few frames at most, `docs/tactical-entry.md` E18) and the frame has a snapshot to spare (`DecisionBudget`: `per_frame` snapshots a physics frame, one by
 default, so NPCs deciding together spread over frames), asks **Perception** for a snapshot and starts a **Decision** walk

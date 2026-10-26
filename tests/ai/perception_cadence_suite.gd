@@ -4,7 +4,7 @@ extends UnitSuite
 ## character it keeps in view every `SIGHT_EVERY_FRAMES` frames, phased by
 ## `(frame + perception.get_instance_id() + id)`, and the house part's first look for rooms and
 ## furniture comes `1 + perception.get_instance_id() % LEARN_EVERY_FRAMES` frames after it is asked.
-## Keyed on anything else, the code still runs but every NPC looks on other frames than before, so
+## Keyed on anything else, the code still runs but every NPC looks on other frames, so
 ## a match plays another fight. Each case runs over several perceptions, so one whose ids happen to
 ## agree on the phase cannot hide a wrong key.
 

@@ -125,7 +125,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   (3 s) from `readiness.ready_at` before `pie.start_pie`, while a late reason could still turn it (`listen._may_turn`: the stack carries a stun, nobody crossing, no `bang_off`,
   not over a burst, not `secure`; `listen.maybe_upgrade` uses the same test). `state.hostile_in_view` or `AgentPerception.under_fire()` ends the hold for the entry (`listen._listen_over`). Tests:
   `ai/grenade/quiet_entry_listens_at_stack`, `quiet_entry_listen_turns_bang`, `quiet_entry_listen_ends_on_hit`, `quiet_entry_listen_ends_on_hostile_in_view` (scripted).
-- `Entry.expects_burst(plan)` (the evade reflex's plan, `AgentPerception.evade_plan`) makes `Behavior.grenades.set_evade` leave the stack to the bang's
+- `Entry.expects_burst(plan)` (the evade reflex's plan, `AgentPerception.grenades.evade_plan`) makes `Behavior.grenades.set_evade` leave the stack to the bang's
   hold: a stun of a stun bang while the phase runs; a frag of a frag bang (LD14) in flight, or come down (`landed`, at `lies`) where this
   member's slot is out of its zone (`AgentPerception.grenades.in_zone`; a frag that reaches the slot is evaded as anywhere).
 - **The stack moves up (E2).** `claim.move_up_now(delta)`, first in `readiness.tick_stack`, every `MOVE_UP_EVERY` (0.25 s) while this member
@@ -264,7 +264,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `bang_off` from a claim under the same order (`grenade.vetoed`); `grenade.banging` holds whatever a quiet member says, `grenade.tick_bang` gives up only on its
   own caps, and with the stack in and no stun in it (`grenade.stack_has_stun`) `grenade.due` gives the bang up (D1: quiet, `bang_off` radioed).
   **D7:** `readiness.stack_ready` waits for every other living recipient of the order (`orders.recipients`: the live order's `to` from
-  `AgentPerception.order()`, `Squad.alive` through `Entry.world.squad`, which `Behavior.apply_config` hands in from the controller's `squad`) to have radioed past
+  `AgentPerception.orders.current()`, `Squad.alive` through `Entry.world.squad`, which `Behavior.apply_config` hands in from the controller's `squad`) to have radioed past
   `claim`, and the human leader that gave the order while it holds a slot (`orders.waits_for` / `orders.leads`: its `PlayerStack` claim says `leader`
   and its id is `claim.leader_id`, the live order's `leader` at `begin`; `readiness.stack_ready` is false while that claim is at `claim`, LD17), an
   unordered member `tuning.entry.ready_timeout` from `readiness.all_in_at` (`readiness.note_all_in`, each step: when every living recipient, itself among them, is past
@@ -278,8 +278,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   cleared (`AgentPerception.entry.mark_cleared` ends it `done`). **The approach (D4, D11):** before the claim goes out `Behavior.entries` (`_begin_pending`)
   sets `state.held_back` (an ordered entry, not resumed from a detour, in `approach`) and `entries._detour_first` reads the whole way (`approach_points()`,
   leg by leg on `AgentPerception.views.walk_route(p, "<opening>><into>", from)`; up to `ROUTE_WAIT` s, standing, while that map is `pending`): a
-  threshold into a room not cleared (`threshold_ahead`, not the doorway it stacks at nor a doorway into the room it enters, nor one in
-  `entries._guard_off`), and, unless another recipient is coming (`entries._recipients_coming`), a nearer doorway view it passes (`passing_ahead`, not
+  threshold into a room not cleared (`views.threshold_ahead`, not the doorway it stacks at nor a doorway into the room it enters, nor one in
+  `entries._guard_off`), and, unless another recipient is coming (`entries._recipients_coming`), a nearer doorway view it passes (`views.passing_ahead`, not
   the room being entered, nor a doorway someone stacks at) secured. Either: `_entry.reset()` and `entries._begin_detour(gate)`, no claim made; none:
   the entry `reset`s and `begin`s again from the claims heard meanwhile and its claim goes out. On the walk `entries._guard_approach` catches what
   comes up (a threshold, team or none; a view only with no team coming). `Behavior.orders.ordered_stack()` (the
@@ -304,7 +304,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **Held for the leader's go (`docs/leadership.md` LD13).** An ordered stack with `wait_go` (`orders.hold`, from `begin` or the claim it
   follows) is `orders.held_for_go()` until its go is latched (`readiness.released`): in `readiness.tick_stack` each member then radios `ready` (`readiness.say_ready`) and holds
   in its slot (`readiness.holding`, read through `holding_for_go()` while in `stack`): no pie, no listen, no bang (`grenade.due` calls none) and no
-  crossing. `orders.note_go()`, each `step`, latches the go the first time any of these holds: the live order (`AgentPerception.order()`) has
+  crossing. `orders.note_go()`, each `step`, latches the go the first time any of these holds: the live order (`AgentPerception.orders.current()`) has
   `go: true` (the leader's `go`, D13, taken by `orders.process` whenever it came, before the stack was ready too), the stack's claims say it
   came (`DoorStack.released(order_id, into, since)`, `into` and `since` the order claim's room and `order_frame`: a claim under the same
   order says `order_go`, or a member of this stack, a claim under the order or the human's, is crossing or through into that room, D14: the
