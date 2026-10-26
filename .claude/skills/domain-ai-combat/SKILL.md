@@ -51,7 +51,7 @@ as the NPC went blind (`Behavior.set_blind_fire`, `docs/grenades.md` G15), no tr
 a dry gun is a click (below); otherwise it equips the gun and, **if `weapon.blocked()` (the barrel is against a wall or object), sets
 `_back_off_timer = back_off_time`, keeps the cooldown and returns false**, else calls `weapon.shoot()` and, only on success, notes engagement and starts
 the cooldown. `Behavior.apply()` ends each tick with `Combat.apply_back_off`: while the timer runs it overrides `movement.move_input = -facing` (away from where the gun
-points, less any part that heads into a body it knows of: `Locomotion.keep_off`) and clears `movement.run_input`, so the NPC steps back until the
+points, less any part that heads into a body it knows of: `Locomotion`'s `give_way.keep_off`) and clears `movement.run_input`, so the NPC steps back until the
 barrel is clear, then shoots. Callers that advance state on a shot (peek-and-cover
 switching to its cover phase) wait for the back-off to finish. A pistol never reports blocked, so a chair against it changes nothing. An
 `weapon.is_automatic()` gun's trigger pull is a **burst**: `_burst_left = fire_burst − 1` more rounds, fired from `Behavior.apply()` (`Combat.continue_burst`) as the gun's own

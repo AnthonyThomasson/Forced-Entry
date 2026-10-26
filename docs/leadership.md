@@ -754,8 +754,8 @@ The cases the behaviours above cite as D1 to D30.
 | A member in its slot looks for a lower slot to move up into every | 0.25 s | `Entry.MOVE_UP_EVERY` |
 | ... within (1.5 x the stack's spacing) | 66 px | `Entry.MOVE_UP_REACH` (`SPOT_SPACING` 44) |
 | ... by a plain walk no longer than 1.5 x the straight line plus | 32 px | `Locomotion.PASS_CLEARANCE` |
-| A walk round resting bodies may end this far short, the rest walked on the plain map | 64 px | `Locomotion.LAST_LEG` |
-| A walk held short of a body re-plans once the steering map shows the body this far off it, or after | 16 px, 2 s | `Locomotion.CARVED_GAP`, `CARVE_WAIT` |
+| A walk round resting bodies may end this far short, the rest walked on the plain map | 64 px | `Locomotion`'s `crowd.LAST_LEG` |
+| A walk held short of a body re-plans once the steering map shows the body this far off it, or after | 16 px, 2 s | `Locomotion`'s `crowd.CARVED_GAP`, `CARVE_WAIT` |
 | An unordered joiner is waited for, from when every recipient stands in its slot | 6 s | `tuning.entry.ready_timeout` |
 | The human's slot is withdrawn once its walk back to the doorway is longer than | 450 px (300 x 1.5) | `PlayerStack.reserve_range` x `leave_factor` |
 | The squad's view keeps a member's entry claim for | 6 s | `tuning.radio.callout_ttl` (handed to `Squad.setup` by the match builder) |

@@ -254,9 +254,9 @@ func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning
 	_perception = perception
 	tuning = npc_tuning
 	_loco = Locomotion.new()
-	_loco.setup(nav_agent)
+	_loco.setup(nav_agent, tuning)
 	_loco.rooms = rooms
-	_loco.views = perception
+	_loco.doors.views = perception
 	add_child(_loco)
 	_coverage = SearchCoverage.new()
 	_coverage.setup(_loco, perception)
@@ -301,7 +301,6 @@ func apply_config(npc_squad: Node = null) -> void:
 	watch_lost_gaze = tuning.watch.lost_gaze
 	low_ammo_fraction = tuning.context.low_ammo_fraction
 	squad = npc_squad
-	_loco.arrive_dist = tuning.pace.arrive_dist
 	_watch.look_ahead = tuning.watch.look_ahead
 	_watch.door_dwell = tuning.watch.door_dwell
 	_watch.lost_gaze = tuning.watch.lost_gaze
@@ -696,7 +695,7 @@ func debug_combat() -> Dictionary:
 
 ## Read-only: the movement-progress sample (seconds stalled, recent trail) for the stuck overlay.
 func debug_progress() -> Dictionary:
-	return _loco.debug_progress()
+	return _loco.stall.debug_progress()
 
 
 ## A params dict with points as [x, y] and objects as names, so an observer can serialize it.
@@ -1106,7 +1105,7 @@ func apply(delta: float) -> void:
 	if _awaiting_order and not committed() and _walking():
 		# The order is being decided on: stop the walk it replaces, as an arrived move stands.
 		_character.movement.move_input = Vector2.ZERO
-	if _loco.take_blocked():
+	if _loco.crowd.take_blocked():
 		_way_blocked()
 	_apply_watch(delta)
 	_guard_clock += delta
@@ -1123,14 +1122,14 @@ func apply(delta: float) -> void:
 ## Tell the locomotion what this tick's walk accounts for: the bodies it knows of, the one a melee
 ## closes on, and whether it keeps out of the doorway views (and the room an entry goes into).
 func _set_up_walk(delta: float) -> void:
-	_loco.sample(delta)  # Observation only (stuck overlay); never alters the tick.
+	_loco.stall.sample(delta)  # Observation only (stuck overlay); never alters the tick.
 	# Every walk accounts for the characters the NPC knows of, and only those.
-	_loco.bodies = _walk_bodies()
+	_loco.crowd.bodies = _walk_bodies()
 	# A melee closes on its target: no walk round it.
-	_loco.ignore_id = _engage_id if _primitive == &"melee" else 0
+	_loco.crowd.ignore_id = _engage_id if _primitive == &"melee" else 0
 	_perception.ordered_walk = _ordered_stack()
-	_loco.avoid_doors = _keeps_out_of_views()
-	_loco.avoid_entering = ("%s>%s" % [_entry.opening, _entry.into]
+	_loco.doors.avoid_doors = _keeps_out_of_views()
+	_loco.doors.avoid_entering = ("%s>%s" % [_entry.opening, _entry.into]
 			if _primitive == &"entry" and _entry.opening != ""
 			else "")
 
@@ -1188,13 +1187,13 @@ func _keeps_out_of_views() -> bool:
 			and bool(_params.get("entry_guard", true)))
 
 
-## A body seals the only way of the walk the primitive is on and stays (`Locomotion.take_blocked`):
-## re-plan, so the NPC is never held for ever. A move, an engage, a melee or an interact re-decides
-## (another walk, or the same one held), and so does a throw still walking to its throw spot or
-## closing on its spot (not once the wind-up has begun); an entry re-plans its own walk
-## (`Entry.way_blocked`) and, when it gives the entry up, re-decides too, or, as a detour, hands the
-## walk back to the order it paused. An evade (not a primitive: it replaces the order) holds the
-## best spot it has until the burst.
+## A body seals the only way of the walk the primitive is on and stays (`Locomotion`'s
+## `crowd.take_blocked`): re-plan, so the NPC is never held for ever. A move, an engage, a melee or
+## an interact re-decides (another walk, or the same one held), and so does a throw still walking to
+## its throw spot or closing on its spot (not once the wind-up has begun); an entry re-plans its own
+## walk (`Entry.way_blocked`) and, when it gives the entry up, re-decides too, or, as a detour,
+## hands the walk back to the order it paused. An evade (not a primitive: it replaces the order)
+## holds the best spot it has until the burst.
 func _way_blocked() -> void:
 	if _primitive in [&"move", &"engage", &"melee", &"interact", &"defend", &"ambush"]:
 		_resolved = true

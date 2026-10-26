@@ -245,7 +245,7 @@ func apply_back_off(delta: float) -> void:
 		return
 	_back_off_timer -= delta
 	_character.movement.move_input = -_character.facing
-	_loco.keep_off()  # Never back into a body it knows of.
+	_loco.give_way.keep_off()  # Never back into a body it knows of.
 	_character.movement.run_input = false
 
 

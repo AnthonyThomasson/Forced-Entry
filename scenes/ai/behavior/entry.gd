@@ -893,15 +893,16 @@ func _note_team(team: Array) -> void:
 
 
 ## The walk this phase is on has no way through: a body seals it and stays
-## (`Locomotion.take_blocked`, after a moment's wait and then every few seconds while it stays
-## held). The phase re-plans, so no member stands held for ever: the approach goes on to its next
-## point (or its slot) by whatever way there is; a member the stack itself keeps from its slot takes
-## the back of the stack (`_to_back`), and with no slot to take it gives the claim up; a pie step is
-## skipped; the thrower gives the bang up; a member crossing waits out the first signal (the one
-## ahead is still in the doorway and moves on in a moment), then takes its corner where it stands
-## once through, or gives the entry up when the doorway is still sealed; a corner, a cover spot or
-## the rear spot is held from where it stands, and the room is covered from where it stands. True
-## when the entry is given up (radioed `abort`): the caller re-decides because the way is blocked.
+## (`Locomotion`'s `crowd.take_blocked`, after a moment's wait and then every few seconds while it
+## stays held). The phase re-plans, so no member stands held for ever: the approach goes on to its
+## next point (or its slot) by whatever way there is; a member the stack itself keeps from its slot
+## takes the back of the stack (`_to_back`), and with no slot to take it gives the claim up; a pie
+## step is skipped; the thrower gives the bang up; a member crossing waits out the first signal (the
+## one ahead is still in the doorway and moves on in a moment), then takes its corner where it
+## stands once through, or gives the entry up when the doorway is still sealed; a corner, a cover
+## spot or the rear spot is held from where it stands, and the room is covered from where it stands.
+## True when the entry is given up (radioed `abort`): the caller re-decides because the way is
+## blocked.
 func way_blocked() -> bool:
 	_blocked_count += 1
 	match phase:
@@ -976,24 +977,24 @@ func _sealed_waypoint(p: Vector2, spot: Vector2) -> bool:
 ## the steering map does not show it yet (a teammate on its way still crossing it), is no seal. Nor
 ## is one not known yet (its map still being baked): the hold's next re-plan asks again.
 func _slot_sealed(spot: Vector2) -> bool:
-	if _loco.held_at().distance_to(spot) < Locomotion.PASS_CLEARANCE:
+	if _loco.crowd.held_at().distance_to(spot) < Locomotion.PASS_CLEARANCE:
 		return false
 	return _loco.seals(spot) and _perception.entry_slot_reach(spot, _standing_bodies()) == 0
 
 
 ## The bodies a hold's verdict on the slot weighs (`_slot_sealed`): the one the walk is held by, and
-## every other body at rest the walk knows of (`Locomotion.bodies`: the teammates standing in their
-## slots among them) that it sees now or saw within `SEEN_FRESH` s, but a teammate of this stack
-## still on its way to its slot (its claim at `claim`), which moves on. A body last seen longer ago
-## is only where it stood then (a teammate gone on into its slot), and a false "sealed" gives the
-## slot up, so it does not count.
+## every other body at rest the walk knows of (`Locomotion`'s `crowd.bodies`: the teammates standing
+## in their slots among them) that it sees now or saw within `SEEN_FRESH` s, but a teammate of this
+## stack still on its way to its slot (its claim at `claim`), which moves on. A body last seen
+## longer ago is only where it stood then (a teammate gone on into its slot), and a false "sealed"
+## gives the slot up, so it does not count.
 func _standing_bodies() -> Array:
 	var coming := {}
 	for m in _stack.team:
 		if m["step"] == "claim":
 			coming[int(m["id"])] = true
-	var out: Array = [_loco.held_at()]
-	for b in _loco.bodies:
+	var out: Array = [_loco.crowd.held_at()]
+	for b in _loco.crowd.bodies:
 		if (coming.has(int(b.get("id", 0)))
 				or (b.get("vel", Vector2.ZERO) as Vector2).length() >= Locomotion.REST_SPEED):
 			continue
@@ -1010,8 +1011,8 @@ func _standing_bodies() -> Array:
 ## by anyone else is the stack's or the way's, and so is a hold past the cap (two members holding
 ## each other wait it out together, then the sealed rule parts them, `_to_back_or_abort`).
 func _held_by_forming() -> bool:
-	var id: int = _loco.held_by()
-	if id == 0 or secure or _loco.held_time() >= HELD_BY_FORMING_CAP:
+	var id: int = _loco.crowd.held_by()
+	if id == 0 or secure or _loco.crowd.held_time() >= HELD_BY_FORMING_CAP:
 		return false
 	for m in _stack.team:
 		if int(m["id"]) == id:
@@ -1491,7 +1492,7 @@ func _tick_approach(team: Array, delta: float) -> void:
 		return
 	if _end_forming_wait():
 		return
-	if _loco.held_time() > 0.0:
+	if _loco.crowd.held_time() > 0.0:
 		# Held: the map the verdict on the slot is read from is asked for now, so it is baked by the
 		# re-plan.
 		_slot_sealed(_stack_point())
@@ -1520,7 +1521,7 @@ func _end_forming_wait() -> bool:
 	if not _forming_wait or _held_by_forming():
 		return false
 	_forming_wait = false
-	return _loco.held_by() != 0 and way_blocked()
+	return _loco.crowd.held_by() != 0 and way_blocked()
 
 
 ## Lay the approach again when its way has changed: a teammate has since claimed a slot the point
@@ -1637,15 +1638,16 @@ func _move_up_now(delta: float) -> bool:
 ## of the slot the move-up would hand it (this member's own, `_spot`), and its straight way from
 ## there to that slot passes `vacancy` closer than `Locomotion.PASS_CLEARANCE` (it would walk
 ## through the step). Where it may be is a worst-case bound: its newest known place, seen
-## (`Locomotion.bodies`) or radioed (its claim's `pos`), whichever is newer, brought nearer by the
-## ground it may have walked since straight at that slot, its age x its walking pace (an entry never
-## runs; its own `movement.walk_speed()` when the NPC knows its body, else this member's). A
-## latecomer coming up behind this member, on the same lane, does not cross: it follows in.
+## (`Locomotion`'s `crowd.bodies`) or radioed (its claim's `pos`), whichever is newer, brought
+## nearer by the ground it may have walked since straight at that slot, its age x its walking pace
+## (an entry never runs; its own `movement.walk_speed()` when the NPC knows its body, else this
+## member's). A latecomer coming up behind this member, on the same lane, does not cross: it follows
+## in.
 func _latecomer_crosses(h: Dictionary, vacancy: Vector2) -> bool:
 	var pos: Vector2 = h["pos"]
 	var age := float(h.get("age", 0.0))
 	var pace: float = _character.movement.walk_speed()
-	for b in _loco.bodies:
+	for b in _loco.crowd.bodies:
 		if int(b.get("id", 0)) != int(h["id"]):
 			continue
 		var seen := 0.0 if b.get("visible", false) else float(b.get("age", INF))
@@ -2533,7 +2535,7 @@ func _pick_corner(corners: Array, on: int, hard_first: bool) -> Vector2:
 ## and off the door's axis, then on to the corner.
 func _tick_cross(delta: float) -> void:
 	_loco.move_to(corner, CORNER_REACH)
-	if _character.movement.move_input == Vector2.ZERO and not _loco.holding():
+	if _character.movement.move_input == Vector2.ZERO and not _loco.crowd.holding():
 		# Never stand in the funnel (unless a body is in the way).
 		_character.movement.move_input = (corner - _character.global_position).normalized()
 	_look_toward(_across_from(corner), delta, 3.0)

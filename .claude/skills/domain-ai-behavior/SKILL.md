@@ -18,7 +18,9 @@ Files:
 - `search_coverage.gd` — covering a room by sight (`RefCounted`; `domain-ai-coverage`).
 - `watch.gd` + the watch stage of `behavior.gd` — where it looks and when it takes the shot, in every primitive (`RefCounted`; `domain-ai-watch`, spec `docs/gaze-and-fire.md`).
 - `entry.gd` — a tactical entry through a doorway, as a team member or alone (`RefCounted`; `domain-ai-entry`, spec `docs/tactical-entry.md`).
-- `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)` / `inside_house(p)`.
+- `locomotion.gd` — the pathing layer (a `Node` child of behaviour); owns the NavigationAgent2D and answers `room_key_at(p)` / `inside_house(p)`. Its parts, in
+  `locomotion/`, each built once with it and holding it (a node): `crowd` (`loco_crowd.gd`, the bodies a walk accounts for and the holds),
+  `give_way` (`loco_give_way.gd`), `stall` (`loco_stall.gd`, the stuck overlay's sampling) and `doors` (`loco_doors.gd`, the walk round the doorway views).
 
 The controller calls `setup(perception, nav_agent, tuning)`
 once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules and keep the NPC's tuning topics (`NpcTuning`, its `tuning`),
@@ -176,7 +178,7 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
   left side (kitchen)  · in position, looking for a shot  ⚠ under fire`), `activity_text()` (the same
   path + progress + how long, for Von's "current activity" line), `debug_state()` (JSON-safe).
 
-## Locomotion (`locomotion.gd`)
+## Locomotion (`locomotion.gd` and its parts in `locomotion/`)
 
 All movement flows through `move_to(dest, within := 0)` on a `NavigationAgent2D` (`within`: arrive closer than the agent's
 own 16 px; the entry's stack slots use `StackClaim.SLOT_REACH` 6 px, since a member a stride short of its slot stands on the next one). `path_ahead()` returns the walk it was just given
@@ -187,22 +189,22 @@ an unreachable target it steps toward the closest reachable point. Furniture phy
 (a piece shoved off its baked hole) is bulldozed by the character's own push physics; there is no RVO
 avoidance and no straight-at-the-destination fallback. `reachable(p)` snaps a point onto the navmesh
 (every leaf destination goes through it); `reached(point, within := 0)` reports arrival (at the free spot it took, below; never while held).
-Falls back to straight-line steering with no agent. It also holds the house `rooms` (set by `Behavior`) and answers `room_key_at(p)` /
+Falls back to straight-line steering with no agent (arriving within `tuning.pace.arrive_dist`, read live; `setup(agent, tuning)`). It also holds the house `rooms` (set by `Behavior`) and answers `room_key_at(p)` /
 `inside_house(p)` for the move's `arrive_room` test and the coverage and combat modules. `reachable` / `on_navmesh` always use the plain map.
 
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it
-the perception's contacts every tick (`bodies`, set in `Behavior.apply`: what it sees, or saw within `contact_memory_ttl`, with `pos`, `vel`, `facing`, `visible`);
+the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply`: what it sees, or saw within `contact_memory_ttl`, with `pos`, `vel`, `facing`, `visible`);
 a body it has not seen does not exist for the walk, and one out of sight whose last spot (within `WALK_BODY_RANGE`, 450 px) it can see
-now with nobody on it has moved on (`Behavior._walk_bodies`, via `AgentPerception.visible_points`). `ignore_id` leaves out the one a
+now with nobody on it has moved on (`Behavior._walk_bodies`, via `AgentPerception.visible_points`). `crowd.ignore_id` leaves out the one a
 `melee` closes on. A body whose track is slower than
 `REST_SPEED` (40 px/s) is at rest, any faster one a walker. Each walk (a new one when the destination moves more than `NEW_WALK` px) is in
 one of four ways, checked once a physics frame (`_check`):
 - **plain**: the world's own map (furniture only). The first known body at rest the path passes closer than `PASS_CLEARANCE` (32 px, and
   closer than the NPC stands to it now) within `LOOKAHEAD` (400 px), or one standing on the goal, ends it:
 - **doors**: the Navigation domain's avoid map (`NavBuilder.avoid_map`: the planning bake with the doorway views carved out, E18), for a walk
-  `Behavior` marks `avoid_doors` (above; `avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
-  room it goes into and its own doorway's view, cleared or not). `_update_doors` asks the perception for the route (`walk_route(goal, avoid_entering)`) each frame until
-  it is decided (plain while the avoid map bakes: `pending`), then every `DOORS_RECHECK` (2 s) while round the views (which keeps the map alive and follows
+  `Behavior` marks `doors.avoid_doors` (above; `doors.avoid_entering` = `"<opening>><into>"` while the primitive is an `entry`, so its approach keeps out of the
+  room it goes into and its own doorway's view, cleared or not). `doors.update` asks the perception (`doors.views`) for the route (`walk_route(goal, avoid_entering)`) each frame until
+  it is decided (plain while the avoid map bakes: `pending`), then every `doors`' `RECHECK` (2 s) while round the views (which keeps the map alive and follows
   the rooms as their clear lapses): the avoid map when the plain route comes into a view and the route round them is within `door_avoid_ratio` x plain +
   `door_avoid_slack`, else plain (and `passing_ahead` secures what it crosses). A walk that is not guarded (`avoid_doors` false) drops it. A body at rest on
   a doors walk's path takes it to the steering map (round) or holds it as on a plain one: the steering map has no views carved, so E15 secures what that
@@ -212,28 +214,28 @@ one of four ways, checked once a physics frame (`_check`):
   stretch is walked plain (`_last_stretch`; the walk is decided plain for the rest). Tests: `tests/ai/movement/npc_doors_walk_round_body`, `npc_doors_walk_body_on_goal` (scripted).
 - **round**: the Navigation domain's steering map, with every character at rest carved out, when its route reaches the goal (or ends within
   `LAST_LEG`, 64 px, of it with the plain way on passing no known body at rest: a stack slot between two taken ones lies inside their carved
-  margins) and passes no known body at rest (`_goes_round`), whatever the detour (out of the room and in by another door included). A round
-  walk done short of a goal no body stands on walks the rest plain (`_last_stretch`, `_last_leg`), held short of a body on it; held, it
+  margins) and passes no known body at rest (`crowd.goes_round`), whatever the detour (out of the room and in by another door included). A round
+  walk done short of a goal no body stands on walks the rest plain (`_last_stretch`, `crowd.last_leg`), held short of a body on it; held, it
   looks again every `RECHECK` s for a way round: a route that ends at the goal, or a new last leg whose plain way passes clear of every known
-  body at rest (`_goes_round(..., held_leg)`, `_resting(goal, INF)`), so it never takes one the body holding it, or another, stands on and
+  body at rest (`crowd.goes_round(..., held_leg)`, `crowd.at_rest(goal, INF)`), so it never takes one the body holding it, or another, stands on and
   cannot flip between two holders (test `ai/entry/entry_last_leg_sealed_goes_round`);
 - **held**: no way round (the body seals the only way, or has just stopped and the map, re-baked every 0.75 s, has not carved it yet),
   or the body stands on the goal: the NPC walks on until `STOP_GAP` (56 px) from the body and stands. It looks for a way round every
-  `RECHECK` s and walks on the moment nothing known is in the way. After `WAIT` (0.75 s), and every `REPLAN_EVERY` (4 s) after, it
-  re-plans (on its standing time: a hold that begins again within `HOLD_GAP` 0.5 s of game time (`GameClock`: a pause is no gap; test
+  `RECHECK` s and walks on the moment nothing known is in the way (`crowd.check_held`). After `crowd`'s `WAIT` (0.75 s), and every `REPLAN_EVERY` (4 s) after, it
+  re-plans (on its standing time: a hold that begins again within `crowd`'s `HOLD_GAP` 0.5 s of game time (`GameClock`: a pause is no gap; test
   `ai/movement/npc_hold_clock_across_pause`) of the last ending, the NPC within `HOLD_MOVED` 16 px of
-  where that one began, is the same hold and keeps its clocks, `_begin_hold`, so a walk aimed again, a free spot tried or a body read as
-  moving for a frame does not start the wait over), once the steering map shows the body it is held by (`_carved`: its centre more than `CARVED_GAP` 16 px off that map) or
-  `CARVE_WAIT` (2 s) past the re-plan time whatever the map shows: a body on the goal sends it to the nearest free spot near the destination (`_free_spot`: rings from 44 px, open floor, 40 px
-  clear of every body at rest, same side of the walls); any other hold raises `take_blocked()`, on which `Behavior._way_blocked`
+  where that one began, is the same hold and keeps its clocks, `crowd.begin_hold`, so a walk aimed again, a free spot tried or a body read as
+  moving for a frame does not start the wait over), once the steering map shows the body it is held by (`crowd`'s `_carved`: its centre more than `CARVED_GAP` 16 px off that map) or
+  `CARVE_WAIT` (2 s) past the re-plan time whatever the map shows: a body on the goal sends it to the nearest free spot near the destination (`give_way.free_spot`: rings from 44 px, open floor, 40 px
+  clear of every body at rest, same side of the walls); any other hold raises `crowd.take_blocked()`, on which `Behavior._way_blocked`
   re-plans whatever walks: a `move` / `engage` / `melee` / `interact` (and a `throw` still closing on its spot) ends with `resolve_reason()`
   "way blocked" and the controller re-decides; an `entry` re-plans its own walk (`Entry.way_blocked`, `domain-ai-entry`). The walk
   stays held meanwhile; an evade holds the best spot it has until the burst. So a held walk first re-plans within `WAIT` +
   `CARVE_WAIT` s, and again at most `REPLAN_EVERY` + `CARVE_WAIT` s after each re-plan. A walk done at the free spot beside a taken destination goes on to the destination once nobody stands on it (`_begin`,
   as the caller asks again: `_check` does not run once a walk is over).
   The steering map is the one `NavBuilder.steering_map` names when `setup` runs (a match places its NPCs only once both maps are
-  `NavBuilder.ready`, `domain-main`); `_goes_round` waits for `NavBuilder.ready` on both maps too.
-**Giving way (`_give_way`)**: of two walkers in view whose
+  `NavBuilder.ready`, `domain-main`; `setup` hands it to `crowd.steering_map`); `crowd.goes_round` waits for `NavBuilder.ready` on both maps too.
+**Giving way (`give_way.apply`)**: of two walkers in view whose
 courses come within `GIVE_CLEARANCE` (36 px) in the next `GIVE_HORIZON` (1.2 s), or in the time the NPC's own walk still takes when
 that is shorter (`_way_left`, along the agent's path to its end, at its pace: its course reckoned only to the end of its walk, so it never
 gives way to a walker its walk stops short of, as a follower closing on its spot behind a leader walking on, LD21; near the end of its walk
@@ -241,13 +243,13 @@ that short look-ahead holds for every walker, `GIVE_IMMINENT`'s stop included), 
 other sees it, by distance or its facing, and its instance id is the lower; one that cannot see it cannot give way, so the other does); the
 other steps aside off the walker's line when it stands on it (open floor, clear of other bodies, never toward the walker), else waits, until
 the walker has gone by (at most `GIVE_MAX` 3 s). Even with the right of way it stops for a walker on course closer than `GIVE_IMMINENT`
-(50 px), whose track may not show it setting off yet. Last of all, whatever the walk (and the combat back-off), `keep_off` drops the part of a step that heads
+(50 px), whose track may not show it setting off yet. Last of all, whatever the walk (and the combat back-off), `give_way.keep_off` drops the part of a step that heads
 into a known body closer than `KEEP_OFF` (36 px) so the NPC slides past it (the agent cuts a path's corners by up to its 16 px
-`path_desired_distance`); with nothing left of the step it stands. `holding()` is true whenever the walk stands or steps aside for a body (held, giving way, kept off, or at the free spot beside a taken destination): the entry's crossing then does not push on straight. `held_by()` (the instance id of the known body a held walk stands short of, 0 when not held), `held_at()` (where that body stands, INF when not held) and `held_time()` (s held, 0 when not) are what
+`path_desired_distance`); with nothing left of the step it stands. `crowd.holding()` is true whenever the walk stands or steps aside for a body (held, giving way, kept off, or at the free spot beside a taken destination): the entry's crossing then does not push on straight. `crowd.held_by()` (the instance id of the known body a held walk stands short of, 0 when not held), `crowd.held_at()` (where that body stands, INF when not held) and `crowd.held_time()` (s held, 0 when not) are what
 an entry asks before it gives its slot up for a hold (`Entry.way_blocked`, `domain-ai-entry`); `seals(p)` (the plain way from where the NPC
 stands to `p` passes the body the walk is held by, closer than `PASS_CLEARANCE`) is what it asks of each waypoint left. `debug_state()["loco"]` adds `way`, `held_for`, `giving_way`, `last_leg`. Cost: per walker per
 frame, the agent's path against the few known bodies near it; a steering route only on a change of way or every `RECHECK` while held; an
-avoid-map route every `RECHECK` while a walk that keeps out of the doorway views is round a body, and `walk_route` every `DOORS_RECHECK`
+avoid-map route every `RECHECK` while a walk that keeps out of the doorway views is round a body, and `walk_route` every `doors`' `RECHECK`
 while it is round the views; the free-spot search only on a re-plan. Tests: `tests/ai/movement/npc_detours_round_body_at_rest`, `npc_waits_at_doorway_held_by_teammate`,
 `npc_dest_taken_stops_nearby`, `npc_routes_only_round_bodies_it_sees`, `npc_walkers_give_way`, `npc_give_way_walk_ends_short`, `npc_routes_around_character`,
 `npc_own_hole_does_not_slow_it`, `npc_doors_walk_round_body`, `npc_doors_walk_body_on_goal`, and the scenario `tests/ai/entry/entry_team_no_bumping`

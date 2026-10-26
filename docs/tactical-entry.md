@@ -101,7 +101,7 @@ the stack forming, not the stack keeping the member out, and the member keeps it
 began (`entry.gd` `HELD_BY_FORMING_CAP`), after which, the walk still held, the whole rule above is weighed again; never for the human, whose claim stays at `claim` however long
 it takes (tests `ai/entry/entry_held_by_forming_stack_keeps_slot`, `entry_held_by_forming_stack_cap`). A hold is timed by how long the
 member has stood held: its walk aimed again while it stands (its slot's point moved by the claims), a free spot tried or a body read as
-moving for a frame is the same hold going on, not a new one (`Locomotion` `HOLD_GAP`, `HOLD_MOVED`), so the cap and the re-plans come on
+moving for a frame is the same hold going on, not a new one (`Locomotion`'s `crowd.HOLD_GAP`, `Locomotion.HOLD_MOVED`), so the cap and the re-plans come on
 time (test `ai/entry/entry_held_cap_despite_reaim`);
 a pie step is skipped; a corner, cover or rear spot is held from where it stands. Slots are claimed over the radio (the same claim pattern as a flank side), so two
 invaders never take the same one. The walk to the slot keeps out of the room being entered and out of its doorway's view (E18), and is
@@ -605,9 +605,9 @@ the stack toward the door's axis, clear of the slots.
   memory's age against `tuning.entry_guard.pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an
-  entry's approach (`entering`, `Locomotion.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
+  entry's approach (`entering`, `Locomotion`'s `doors.avoid_entering`) the set keeps that doorway's own view, and when the way round goes into the room being
   entered that room is carved too (`_with_room`; test `ai/entry/entry_ordered_approach_keeps_out_of_entered_room`); with no way round all of it, round those two (`_entering_set`), uncapped on an ordered approach
-  (`AgentDoorViews.ordered_approach`). `Locomotion._update_doors` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
+  (`AgentDoorViews.ordered_approach`). `Locomotion`'s `doors.update` puts a guarded walk on that map (`Behavior._keeps_out_of_views`:
   a move, engage or interact that is not a retreat, and an entry's approach), and walks the stretch past the avoid route's end (a slot at a
   view's edge) on the plain map (`_last_stretch`); `Behavior._passing_gate` (E15) secures what the plain
   walk still goes into. `SnapshotOptions._route_len` measures the same route for the bands Von reads.

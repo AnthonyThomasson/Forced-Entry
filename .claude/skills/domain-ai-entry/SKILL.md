@@ -120,7 +120,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   entry's: it takes the nearest vacancy not in `_moved_for` (one move per vacancy, `"<holder id>:<slot>"`), within `MOVE_UP_REACH` (66 px) and nearer than the holder's radioed `pos`; a plain walk
   (`walk_route(...)["plain_len"]`) at most 1.5 x the distance + `PASS_CLEARANCE`; and not while the holder's way to the slot it would
   take runs through the step (`_latecomer_crosses(h, vacancy)`: the holder's worst-case place, its newest known one, seen in
-  `Locomotion.bodies` or radioed, less its age x its `movement.walk_speed()`, is within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` (one more step) of
+  `Locomotion`'s `crowd.bodies` or radioed, less its age x its `movement.walk_speed()`, is within `MOVE_UP_REACH` + `MOVE_UP_MARGIN` (one more step) of
   this member's slot, and the straight way from there to that slot passes the vacancy closer than `Locomotion.PASS_CLEARANCE`: the
   crossing, not the distance alone, so a holder following on the same lane is let in; tests `stack_move_up_waits_for_near_latecomer`,
   `stack_move_up_lets_follower_in`). It keeps its `claim_frame`, sets `_move_up` to the slot it
@@ -168,8 +168,8 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   apart.
 - **Bodies on the way.** Every phase walks through `Locomotion.move_to`, so a member goes round a teammate at rest, stops short of
   one on its slot or spot and takes a free spot beside it (an approach waypoint counts as reached there too, `_loco.reached`), and gives
-  way to a walking one. The crossing never stands in the funnel except while `Locomotion.holding()` (a body in its way). A walk a body
-  seals and stays in re-plans (`Entry.way_blocked`, called by `Behavior._way_blocked` on `Locomotion.take_blocked`): the approach drops
+  way to a walking one. The crossing never stands in the funnel except while `Locomotion`'s `crowd.holding()` (a body in its way). A walk a body
+  seals and stays in re-plans (`Entry.way_blocked`, called by `Behavior._way_blocked` on `Locomotion`'s `crowd.take_blocked`): the approach drops
   the waypoint it was walking to and each next one the hold seals too (`_drop_sealed`: within `StackClaim.SLOT_REACH` of the slot, or whose plain way
   passes the body holding it, `Locomotion.seals`) and goes on to the first it does not (E19's point out from the wall on another way is
   still tried; test `entry_held_walks_unsealed_waypoint`). With none left, and on a held walk straight into the slot (no waypoints), it walks on
@@ -177,7 +177,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `Locomotion.PASS_CLEARANCE` of the slot is Locomotion's body on the goal, no seal: the walk goes on to a free spot beside it, test
   `ai/movement/npc_dest_taken_stops_nearby`; else `Locomotion.seals(slot)` and `AgentPerception.entry_slot_reach(slot, bodies)`
   is 0, no route on the plan map reaches the slot, or ends within a last leg of it walked plain clear of them, with `_standing_bodies()`
-  standing in it at body width: `Locomotion.held_at()`, the holder, and every body at rest in `Locomotion.bodies`, under `REST_SPEED`, seen
+  standing in it at body width: `Locomotion`'s `crowd.held_at()`, the holder, and every body at rest in `crowd.bodies`, under `Locomotion.REST_SPEED`, seen
   now or within `SEEN_FRESH` 0.5 s (a stale last-seen point must not give the slot up), but a teammate of this stack still at `claim`, on its way; a
   map not baked yet, -1, is no verdict: the member keeps its slot and its walk, and the next re-plan asks again; `_tick_approach` asks for the map as soon as
   the walk is held, so it is baked by the re-plan); a member walks round by the hall that way rather than give its slot up (test
@@ -186,7 +186,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `_tick_approach`), so a re-aim never undoes the drop. With the slot sealed, a member the stack keeps from its slot takes the back of the stack (`_to_back`, `DoorStack.back_slot`: the slot
   behind the last claimed, if the doorway has it, radioed as a new claim; E2 goes by arrival), and with no slot to take gives the claim up (`abort`; `Behavior`
   re-decides with `resolve_reason()` "way blocked", or a detour hands the walk back to its order); a member held by a teammate of the same stack still on its way to its own slot (`_held_by_forming`: `Locomotion.held_by()` is a
-  claim at `claim`, not `human`, held under `HELD_BY_FORMING_CAP` 3 s of standing held, `Locomotion.held_time()`, which a walk aimed
+  claim at `claim`, not `human`, held under `HELD_BY_FORMING_CAP` 3 s of standing held, `Locomotion`'s `crowd.held_time()`, which a walk aimed
   again while it stands does not restart: test `entry_held_cap_despite_reaim`) keeps its slot and waits (`_forming_wait`;
   `_tick_approach` ends the wait when that hold ends, and weighs the whole rule again, `way_blocked`, when the walk is still held: past
   the cap, or now held by someone else; two members holding each other wait out the cap; tests `entry_held_by_forming_stack_keeps_slot`,
@@ -309,9 +309,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   the release keeps `{ kind, point }` for `take_thrown()`, which `Behavior.poll_throw` hands the controller to radio `frag_out`; `_note_burst`
   ends the phase on a burst of `_kind`. Every member holds its slot crouched meanwhile (`holds_crouched()`: phase `bang`, a frag, not throwing,
   in its slot; `Behavior._wanted_posture`). Tests: `ai/grenade/order_frag_entry`, `order_frag_held_then_go`, `order_frag_no_frag_goes_quiet`.
-- **Keeping out of the views (E18).** `Behavior._keeps_out_of_views()` (set on `Locomotion.avoid_doors` each tick) says whether the walk the primitive
+- **Keeping out of the views (E18).** `Behavior._keeps_out_of_views()` (set on `Locomotion`'s `doors.avoid_doors` each tick) says whether the walk the primitive
   is on keeps out of the doorway views: a `move`, `engage` or `interact` that does not carry `entry_guard: false` (a retreat), an entry's `approach`
-  (with `Locomotion.avoid_entering` = `"<opening>><into>"`: the approach also keeps out of the room it is going into and its own doorway's view,
+  (with `doors.avoid_entering` = `"<opening>><into>"`: the approach also keeps out of the room it is going into and its own doorway's view,
   cleared or not; set for any `entry` primitive), while `tuning.entry_guard.enabled` and `tuning.entry.enabled` (or an ordered stack's walk, LD9) hold and the NPC
   is not under fire or evading. The rest of an entry (stack, pie, crossing) walks plain. `Locomotion` does the rest (`domain-ai-behavior`).
 - **Read-outs.** `Behavior.debug_entry()` (opening, into, slot, side, place, solo, secure, phase, seen_fraction, pie_sides, covering, watch_doors,
