@@ -46,7 +46,7 @@ and `VehicleRide.Hold` (4)):
 
 | File | Before | After |
 |---|---|---|
-| `order_probe` | 751 / 41 | 236 / 17, + `order_brain_probe` 67 / 9, `order_menu_probe` 475 / 11 |
+| `order_probe` | 751 / 41 | 233 / 17, + `order_brain_probe` 67 / 9, `order_menu_probe` 475 / 11 |
 | `slots_probe` | 1325 / 39 | 176 / 7, + `slot_rules_probe` 295 / 13, `slot_faults_probe` 553 / 5, `slot_capacity_probe` 375 / 7 |
 | `vehicle_probe` | 442 / 36 | 239 / 15, + `vehicle_frame_probe` 101 / 11, `vehicle_ride_probe` 114 / 7 |
 | `grenade_probe` | 331 / 34 | 166 / 17, + `grenade_spec_probe` 51 / 5, `grenade_ai_probe` 130 / 11 |
