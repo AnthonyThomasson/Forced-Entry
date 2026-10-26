@@ -586,7 +586,7 @@ the stack toward the door's axis, clear of the slots.
   still replaces it, or aborts it when Von is down).
   While crossing, the controller holds every decision (`Behavior.committed()`); a hit or a hostile seen
   in the doorway is acted on once the NPC is through. So it does while the bang's thrower is between its call and the stun leaving its
-  hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior._held`). The room is cleared by sight with
+  hand (`Entry.throwing()`, E17), and a decision that came back meanwhile is taken again once the stun is away (`Behavior.task.held`). The room is cleared by sight with
   `search_coverage.gd`. Posture and running stay code-owned: it stands throughout and never runs, not even
   under fire, because a running character cannot shoot (test `entry_never_runs`).
 - **The guard (E9).** `Behavior.entries.guard` (`behavior_entries.gd`) runs after the running primitive has steered and reads the

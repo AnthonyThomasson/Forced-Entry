@@ -737,7 +737,7 @@ The cases the behaviours above cite as D1 to D30.
 | ... along the wall past the jamb | 30 to 100 px, best 50 | `DEFEND_LATERALS`, `DEFEND_LATERAL` |
 | ... inside the room's walls by | 22 px | `DEFEND_INSET` |
 | The fatal funnel: within a body of a doorway's width, nearer its wall than | 14 px, 200 px | `DEFEND_BODY`, `DEFEND_FUNNEL_DEPTH` |
-| A defender walks into its spot to within, and back to it when pushed off by more than | 8 px, 24 px | `Behavior.DEFEND_REACH`, `DEFEND_DRIFT` |
+| A defender walks into its spot to within, and back to it when pushed off by more than | 8 px, 24 px | `DEFEND_REACH`, `DEFEND_DRIFT` (`behavior_orders.gd`) |
 | An ordered stack waits for its recipients at most (from the first ordered `ready`) | 60 s | `tuning.entry.order_ready_cap` |
 | A room seen empty counts as clear for a defender's ordered walk for | 60 s | `tuning.entry_guard.pass_clear_time` |
 | The command menu picks a teammate's body within | 28 px | `CommandMenu.PICK_RADIUS` |

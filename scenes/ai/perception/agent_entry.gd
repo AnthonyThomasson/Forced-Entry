@@ -59,7 +59,8 @@ const AMBUSH_INSET := 22.0
 ## clear of each other's footprint).
 const AMBUSH_SPACING := 44.0
 ## How far (px) round its post an ambusher may stand once there (it stops within a reach of the
-## spot, `Behavior.DEFEND_REACH`, and a little): a post is hidden only when it is hidden there too.
+## spot, the behaviour's `orders.DEFEND_REACH`, and a little): a post is hidden only when it is
+## hidden there too.
 const AMBUSH_SLACK := 12.0
 ## Where a stack may stand (`_lay_slots`, E20 to E22): a slot stays this far (px) inside its room's
 ## rect (half a wall and most of a body), within this far of where the navmesh snaps it, reached

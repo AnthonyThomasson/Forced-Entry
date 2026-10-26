@@ -28,13 +28,13 @@ extends Node
 ## gun and, with none, makes it look down its path or at its doors. It never chooses WHAT to do —
 ## the planner does — and applies no policy beyond the params it is handed (`confine_inside` keeps a
 ## territorial NPC from chasing out of the house). It owns a `Locomotion` child for all pathing, a
-## `Combat` module (shots, punches, bursts, the peek-and-cover cycle) and a `SearchCoverage` module,
-## reads the world only through the PERCEPTION sub-domain (known contacts, combat geometry,
-## engagement memory) and drives the character only through its public controller contract
-## (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`,
-## `weapon.melee`, `use.interact_with`, `use.end_interaction`). Every tunable is read live from the
-## NPC's tuning (`NpcTuning`, handed in by `setup`), by the behaviour and by each of its modules;
-## `apply_config(npc_squad)` hands in the side's squad.
+## `Combat` module (shots, punches, bursts, the peek-and-cover cycle) and, through its errand part,
+## a `SearchCoverage` module; it reads the world only through the PERCEPTION sub-domain (known
+## contacts, combat geometry, engagement memory) and drives the character only through its public
+## controller contract (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`,
+## `weapon.shoot`, `weapon.melee`, `use.interact_with`, `use.end_interaction`). Every tunable is
+## read live from the NPC's tuning (`NpcTuning`, handed in by `setup`), by the behaviour and by each
+## of its modules; `apply_config(npc_squad)` hands in the side's squad.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -139,7 +139,7 @@ func bind(character: Node) -> void:
 	_entry.bind(character)
 
 
-## Hand in its side's `squad`, to the behaviour and its entry module; they and the other modules
+## Hand in its side's `squad`, to its orders part and its entry module; they and the other modules
 ## read `tuning`, the NPC's topic nodes (the one authoring surface), live. Idempotent, so the
 ## controller may call it each decision.
 func apply_config(npc_squad: Node = null) -> void:
