@@ -15,6 +15,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const I_AT := Vector2(960, 190)
 const H_AT := Vector2(660, 120)
@@ -47,7 +48,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": (H_AT - I_AT).normalized() })
-	Probe.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
@@ -87,7 +88,7 @@ func _set_up(t: TestContext, inv: Node) -> bool:
 	):
 		return false
 	return t.require(
-		Probe.line_clear(t, I_AT, H_AT)
+		GrenadeAi.line_clear(t, I_AT, H_AT)
 			and Spot.hand_lob_clear(t, inv, I_AT, H_AT)
 			and I_AT.distance_to(H_AT) <= Probe.MAX_RANGE,
 		"set-up: in sight and in range, and the lob from the left hand clears the jamb",
@@ -134,7 +135,7 @@ func _check_throw_from_here(t: TestContext, zones: Array) -> bool:
 
 func _check_thrown_from_here(t: TestContext, inv: Node) -> void:
 	var throws := Probe.raw(t, &"throw", func(d): return d.get("attacker") == inv)
-	if t.check(not throws.is_empty(), "the invader threw (acts %s)" % Probe.acts(t, &"i")):
+	if t.check(not throws.is_empty(), "the invader threw (acts %s)" % GrenadeAi.acts(t, &"i")):
 		var at: Vector2 = throws[0]["data"]["position"]
 		t.check(
 			at.distance_to(I_AT) <= 30.0,

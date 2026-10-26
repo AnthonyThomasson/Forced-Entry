@@ -7,6 +7,8 @@ extends GameTest
 ## this test reads the blast hits only.)
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(100, 400)
 const AIM := Vector2(500, 400)
 ## the couches, 70 px south of the aim point (three across, 360 px wide)
@@ -72,7 +74,7 @@ func run(t: TestContext) -> void:
 				+ "blast radius (%.0f and %.0f px)") % [str(blast.round()), d_crouched, d_standing],
 	)
 	t.check(
-		Probe.shielded(t, blast, crouched) and not Probe.shielded(t, blast, standing),
+		GrenadeAi.shielded(t, blast, crouched) and not GrenadeAi.shielded(t, blast, standing),
 		"the couches shield the crouched dummy's body and not the standing one's (coverage 45 "
 			+ "against 35 and 60)",
 	)
@@ -92,7 +94,7 @@ func _check_hits(t: TestContext, blast: Vector2) -> void:
 			not hits.is_empty(),
 			"the standing dummy %.0f px from the blast takes a blast hit" % d_standing,
 	):
-		var want := Probe.blast_damage(d_standing)
+		var want := GrenadeSpec.blast_damage(d_standing)
 		t.check(
 			absf(float(hits[0]["data"]["damage"]) - want) <= SLACK,
 			"of the usual damage (%.1f, expected about %.1f)" % [hits[0]["data"]["damage"], want],

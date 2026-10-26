@@ -20,6 +20,7 @@ extends GameTest
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const PER_SIDE := 5
 ## Frag, stun, frag, stun, frag, stun: one throw every `THROW_EVERY` frames (0.6 s), the click
 ## `CLICK_AFTER` frames after the slot is picked and the aim set (the facing settles in a frame or
@@ -209,7 +210,7 @@ func _throw_from(t: TestContext, characters: Array) -> Vector2:
 	for a in 16:
 		var want := target.global_position + Vector2.from_angle(TAU * a / 16.0) * THROW_DISTANCE
 		var on := NavBuilder.snap(map, want)
-		if on.distance_to(want) < 30.0 and Probe.line_clear(t, on, target.global_position):
+		if on.distance_to(want) < 30.0 and GrenadeAi.line_clear(t, on, target.global_position):
 			spot = on
 			break
 	var thrower := t.actor(&"thrower")

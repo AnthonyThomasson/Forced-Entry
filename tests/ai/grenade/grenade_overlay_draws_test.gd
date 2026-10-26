@@ -8,6 +8,7 @@ extends GameTest
 ## error fails the test.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const Registry := preload("res://scenes/ui/overlays/overlay_registry.gd")
 const NPC_AT := Vector2(100, 250)
@@ -39,7 +40,7 @@ func configure(s: TestSetup) -> void:
 		],
 	)
 	Flank.npc(s, &"n", NPC_AT, {}, { "look_at": HOSTILE_AT })
-	Probe.hostile(s, &"h", HOSTILE_AT, NPC_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 	s.actor(&"d", &"defender", Vector2(600, 330), { "facing": Vector2.LEFT })
 	s.show_overlays(["show_grenades"])
 
@@ -83,7 +84,7 @@ func run(t: TestContext) -> void:
 # The plan: the throw it is about to make.
 func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 	var planned := await t.until(
-		func(): return not (Probe.grenades(nb).get("throw", {}) as Dictionary).is_empty(),
+		func(): return not (GrenadeAi.grenades(nb).get("throw", {}) as Dictionary).is_empty(),
 		8.0,
 	)
 	if not t.require(
@@ -92,7 +93,7 @@ func _check_planned_throw(t: TestContext, n: Node, nb: Node) -> bool:
 				% str(nb.current_act()),
 	):
 		return false
-	var plan: Dictionary = Probe.grenades(nb)["throw"]
+	var plan: Dictionary = GrenadeAi.grenades(nb)["throw"]
 	t.check(
 		(plan["to"] as Vector2).distance_to(HOSTILE_AT) < 60.0,
 		"the planned landing spot is the hostile's (%s)" % str(plan["to"]),
@@ -114,7 +115,7 @@ func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 	if not t.require(await t.until(func(): return t.happened(&"throw"), 6.0), "the invader throws"):
 		return false
 	await t.frames(10)
-	var own: Array = Probe.grenades(nb).get("known", [])
+	var own: Array = GrenadeAi.grenades(nb).get("known", [])
 	if t.check(not own.is_empty(), "the thrower knows the live grenade"):
 		t.check(own[0]["kind"] == &"frag" and own[0]["source"] == &"own", "a frag of its own")
 		t.check(
@@ -127,7 +128,7 @@ func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 		)
 	var before := float(own[0]["fuse_left"]) if not own.is_empty() else 0.0
 	await t.seconds(0.5)
-	var later: Array = Probe.grenades(nb).get("known", [])
+	var later: Array = GrenadeAi.grenades(nb).get("known", [])
 	t.check(
 		not later.is_empty() and float(later[0]["fuse_left"]) < before - 0.3,
 		"the fuse counts down",
@@ -138,23 +139,25 @@ func _check_live_grenade(t: TestContext, nb: Node) -> bool:
 # False when the grenade went off before the escape spot could be judged.
 func _check_escape(t: TestContext, db: Node) -> bool:
 	var fled := await t.until(
-		func(): return (Probe.grenades(db).get("escape", Vector2.INF) as Vector2) != Vector2.INF,
+		func(): return (
+			(GrenadeAi.grenades(db).get("escape", Vector2.INF) as Vector2) != Vector2.INF
+		),
 		2.0,
 	)
 	if t.check(fled, "the defender 100 px from the landing runs to an escape spot"):
-		var seen: Array = Probe.grenades(db).get("known", [])
+		var seen: Array = GrenadeAi.grenades(db).get("known", [])
 		t.check(
 			not seen.is_empty() and seen[0]["source"] in [&"seen", &"heard"],
 			"having seen or heard the grenade itself",
 		)
 		if not Probe.booms(t).is_empty():
 			return false
-		var escape: Vector2 = Probe.grenades(db)["escape"]
+		var escape: Vector2 = GrenadeAi.grenades(db)["escape"]
 		var landed: Vector2 = (Probe.rest_point(t)
 				if t.happened(&"grenade", func(e): return e.get("stage") == &"rest")
 				else HOSTILE_AT)
 		t.check(
-			not Probe.line_clear(t, landed, escape)
+			not GrenadeAi.line_clear(t, landed, escape)
 				or escape.distance_to(landed) >= Probe.BLAST_RADIUS,
 			"the escape spot is out of the grenade's line or beyond its radius",
 		)

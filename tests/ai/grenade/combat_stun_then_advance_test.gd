@@ -13,6 +13,7 @@ extends GameTest
 ## inventory, the way Main arms a spawn.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(450, 31)
 const HOSTILE_AT := Vector2(800, 31)
 
@@ -36,7 +37,7 @@ func configure(s: TestSetup) -> void:
 	)
 	s.object(&"sofa", "sofa", Vector2(700, 31))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
 func run(t: TestContext) -> void:
@@ -51,7 +52,7 @@ func run(t: TestContext) -> void:
 		return
 	var seen: Array = []
 	if not t.require(
-			await Probe.wait_act(t, &"i", "grenade", 60.0, seen),
+			await GrenadeAi.wait_act(t, &"i", "grenade", 60.0, seen),
 			"the AI took the GRENADE tactic (its acts: %s)" % str(seen),
 	):
 		return
@@ -70,7 +71,7 @@ func run(t: TestContext) -> void:
 		throw["data"].get("attacker") == inv and throw["data"].get("kind") == &"stun",
 		"the invader threw its stun",
 	)
-	t.check(not Probe.callouts(t, &"bang_out", &"i").is_empty(), "and radioed bang out")
+	t.check(not GrenadeAi.callouts(t, &"bang_out", &"i").is_empty(), "and radioed bang out")
 	await t.frames(3)
 	var flash := Probe.stuns(t, hostile)
 	if not t.require(
@@ -88,5 +89,5 @@ func run(t: TestContext) -> void:
 	t.check(
 		closest <= from - 150.0,
 		"while it was blind (%.1f s) the invader closed in from %.0f px to %.0f px (acting: %s)"
-			% [blind_for, from, closest, str(Probe.acts(t, &"i"))],
+			% [blind_for, from, closest, str(GrenadeAi.acts(t, &"i"))],
 	)

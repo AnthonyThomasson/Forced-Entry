@@ -14,6 +14,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(980, 140)
 const HOSTILE_AT := Vector2(700, 190)
 ## The sofa stood on end (`rotated`) across the line from the back doorway to the householder.
@@ -36,7 +37,7 @@ func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.object(&"sofa", "sofa", SOFA_AT, { "rotated": true })
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": (HOSTILE_AT - INVADER_AT).normalized() })
-	Probe.hostile(s, &"h", HOSTILE_AT, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
@@ -76,7 +77,7 @@ func _set_up(t: TestContext, inv: Node, hostile: Node) -> bool:
 	):
 		return false
 	return t.require(
-		not Probe.line_clear(t, INVADER_AT, HOSTILE_AT),
+		not GrenadeAi.line_clear(t, INVADER_AT, HOSTILE_AT),
 		"set-up: the sofa stands on the line from the invader to the householder",
 	)
 
@@ -89,13 +90,13 @@ func _watch_until_thrown(t: TestContext, inv: Node, target: String) -> Dictionar
 	var offered := [false]
 	var fighting_outside := [false]
 	var watch := func() -> bool:
-		var act := Probe.acts(t, &"i")
+		var act := GrenadeAi.acts(t, &"i")
 		if not seen.has(act):
 			seen.append(act)
 		if (act.begins_with("combat/%s" % target)
 				and not Maps.HOUSE_KITCHEN.has_point(inv.global_position)):
 			fighting_outside[0] = true
-		if Probe.offered(brain).has("grenade"):
+		if GrenadeAi.offered(brain).has("grenade"):
 			offered[0] = true
 		return t.happened(&"throw")
 	await t.until(watch, 60.0)

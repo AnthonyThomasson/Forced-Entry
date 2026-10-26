@@ -16,6 +16,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 ## Where the frag is thrown: the middle of the hall, among the defenders.
@@ -119,7 +120,7 @@ func _late_probe(t: TestContext, ctx: Dictionary) -> LateProbe:
 ## A new evade spot `npc` holds this frame, kept in `ctx.checked` beside its own plain search's.
 func _check_plan(t: TestContext, ctx: Dictionary, npc: Node, grenade: Node) -> void:
 	var brain := TestContext.controller_of(npc)
-	var seen: Dictionary = Probe.grenades(brain)
+	var seen: Dictionary = GrenadeAi.grenades(brain)
 	var spot: Vector2 = seen.get("escape", Vector2.INF)
 	var last: Dictionary = ctx["last"]
 	if spot == last.get(npc, Vector2.INF):
@@ -155,7 +156,7 @@ func _plain_for(
 	g.learn(grenade.call("throw_stats"))
 	var kind: StringName = known[0]["kind"]
 	var at: Dictionary = start[npc]
-	var search := { "space": space, "map": map, "exclude": Probe.character_rids(t) }
+	var search := { "space": space, "map": map, "exclude": GrenadeAi.character_rids(t) }
 	var threat := _threat(kind, g.radius_of(kind), known[0]["point"], float(start["fuse"]))
 	var plain := _plain_escape(g, search, threat, _runner(at["from"], float(at["speed"])))
 	return plain

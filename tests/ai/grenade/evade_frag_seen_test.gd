@@ -12,6 +12,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -77,7 +78,7 @@ func _throw_and_follow(t: TestContext, d: Node) -> Array:
 
 
 func _check_callout(t: TestContext, at: Vector2) -> void:
-	var calls := Probe.callouts(t, &"grenade", &"d")
+	var calls := GrenadeAi.callouts(t, &"grenade", &"d")
 	t.check(not calls.is_empty(), "the defender radioed a grenade callout")
 	if not calls.is_empty():
 		t.check(
@@ -90,7 +91,7 @@ func _check_callout(t: TestContext, at: Vector2) -> void:
 func _check_ran_clear(t: TestContext, d: Node, boom: Dictionary, path: Array) -> void:
 	var at: Vector2 = boom["data"]["position"]
 	var last: Array = path.filter(func(s): return float(s["t"]) >= float(boom["time"]) - 0.25)
-	var covered := last.all(func(s): return Probe.safe_from_frag(t, at, s["p"]))
+	var covered := last.all(func(s): return GrenadeAi.safe_from_frag(t, at, s["p"]))
 	t.check(
 		covered,
 		("for the last 0.25 s before it went off the defender was out of the grenade's line of "

@@ -14,6 +14,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const I_AT := Vector2(960, 190)
 const BEHIND := Vector2(900, 50)
 const H_AT := Vector2(660, 120)
@@ -48,7 +49,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"ai.hostile_on_trespass", false)
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": (H_AT - I_AT).normalized() })
-	Probe.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", H_AT, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:
@@ -104,7 +105,7 @@ func _kill_target_on_the_walk(t: TestContext, hh: Node, brain: Node) -> int:
 	if not t.require(
 			await t.until(walking, 20.0),
 			"set-up: the invader took GRENADE through a throw spot and walks to it (acts %s)"
-				% Probe.acts(t, &"i"),
+				% GrenadeAi.acts(t, &"i"),
 	):
 		return -1
 	var decisions := int(brain.debug_state().get("decisions", 0))
@@ -129,7 +130,7 @@ func _check_redecided(t: TestContext, inv: Node, brain: Node, decisions: int) ->
 	await t.until(thrown, 6.0)
 	t.check(
 		not thrown.call(),
-		"no grenade was thrown onto the dead householder (acts %s)" % Probe.acts(t, &"i"),
+		"no grenade was thrown onto the dead householder (acts %s)" % GrenadeAi.acts(t, &"i"),
 	)
 	t.check(
 		"grenade" not in brain.current_act(),

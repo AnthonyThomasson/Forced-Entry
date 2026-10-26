@@ -17,6 +17,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(980, 80)
 const HOSTILE_AT := Vector2(730, 190)
 ## From the stack slot to the crossing: "at once" is under this many seconds.
@@ -38,7 +39,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": (HOSTILE_AT - INVADER_AT).normalized() })
-	Probe.hostile(s, &"h", HOSTILE_AT, Maps.DOOR_BACK + Vector2(200, 0))
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, Maps.DOOR_BACK + Vector2(200, 0))
 
 
 func run(t: TestContext) -> void:

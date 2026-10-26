@@ -17,6 +17,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 
 
 func describe() -> Dictionary:
@@ -74,7 +75,7 @@ func run(t: TestContext) -> void:
 	var at: Vector2 = boom["data"]["position"]
 	await t.frames(3)
 	t.check(
-		not Probe.callouts(t, &"grenade", &"d").is_empty(),
+		not GrenadeAi.callouts(t, &"grenade", &"d").is_empty(),
 		"the defender radioed a grenade callout",
 	)
 	var last: Array = path.filter(func(s): return float(s["t"]) >= float(boom["time"]) - 0.25)
@@ -87,6 +88,6 @@ func run(t: TestContext) -> void:
 		("still inside the blast radius, so it is the couch that protects it and not distance "
 				+ "(%.0f px from the blast)") % d.global_position.distance_to(at),
 	)
-	t.check(Probe.shielded(t, at, d), "which shields a crouched body from the blast")
+	t.check(GrenadeAi.shielded(t, at, d), "which shields a crouched body from the blast")
 	t.check(Probe.blast_hits(t, d).is_empty(), "it took no blast")
 	t.check(not d.is_dead and d.health > 0.0, "and survived (%.0f HP)" % d.health)

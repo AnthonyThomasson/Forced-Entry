@@ -7,6 +7,7 @@ extends GameTest
 ## way (GRENADE is offered), then an ally beside the hostile (dropped).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const NPC_AT := Vector2(100, 250)
 const HOSTILE_AT := Vector2(520, 250)
@@ -34,7 +35,7 @@ func configure(s: TestSetup) -> void:
 		[{ "pick": "combat" }, { "pick": "engage" }, { "pick": "advance" }, { "pick": "retreat" }],
 	)
 	Flank.npc(s, &"n", NPC_AT, {}, { "look_at": HOSTILE_AT })
-	Probe.hostile(s, &"h", HOSTILE_AT, NPC_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 	Flank.ally(s, &"ally", ALLY_PARKED, { "movement:aim_point": HOSTILE_AT })
 
 
@@ -51,13 +52,13 @@ func run(t: TestContext) -> void:
 	if not t.require(await Flank.settle(t, brain), "the invader decides"):
 		return
 	t.check(
-		Probe.offered(brain).has("engage") or Probe.offered(brain).has("advance"),
-		"the tactic level is a real combat choice (%s)" % str(Probe.offered(brain)),
+		GrenadeAi.offered(brain).has("engage") or GrenadeAi.offered(brain).has("advance"),
+		"the tactic level is a real combat choice (%s)" % str(GrenadeAi.offered(brain)),
 	)
 	if not t.require(
-			Probe.offered(brain).has("grenade"),
+			GrenadeAi.offered(brain).has("grenade"),
 			"with nothing in the way GRENADE is offered against the hidden hostile (offered %s)"
-				% str(Probe.offered(brain)),
+				% str(GrenadeAi.offered(brain)),
 	):
 		return
 
@@ -65,8 +66,8 @@ func run(t: TestContext) -> void:
 	t.actor(&"ally").global_position = ALLY_AT
 	await Flank.settle(t, brain)
 	t.check(
-		not Probe.offered(brain).has("grenade"),
+		not GrenadeAi.offered(brain).has("grenade"),
 		"an ally 100 px from the hostile is in the blast: GRENADE is dropped (offered %s)"
-			% str(Probe.offered(brain)),
+			% str(GrenadeAi.offered(brain)),
 	)
 	t.check(not t.happened(&"throw"), "and nothing was thrown")

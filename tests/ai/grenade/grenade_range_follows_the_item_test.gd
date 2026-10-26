@@ -9,6 +9,7 @@ extends GameTest
 ## plain invader actor).
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Flank := preload("res://tests/_ai/flank_probe.gd")
 const NPC_AT := Vector2(100, 450)
 const HOSTILE_AT := Vector2(530, 450)
@@ -48,7 +49,7 @@ func configure(s: TestSetup) -> void:
 		],
 	)
 	s.actor(&"n", &"invader", NPC_AT, { "facing": (HOSTILE_AT - NPC_AT).normalized() })
-	Probe.hostile(s, &"h", HOSTILE_AT, NPC_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, NPC_AT)
 
 
 func run(t: TestContext) -> void:

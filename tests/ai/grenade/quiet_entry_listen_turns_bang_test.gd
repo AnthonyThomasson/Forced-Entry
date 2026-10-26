@@ -15,6 +15,7 @@ const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Listen := preload("res://tests/_ai/listen_probe.gd")
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 ## The householder's beat, inside the kitchen's east wall north of the door: behind the wall from
 ## every slot north of the door and from a thrower's spot in front of it, within the 250 px a walk
 ## is heard at.
@@ -37,7 +38,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Listen.world(s)
-	Probe.hostile(s, &"h", BEAT_A, Maps.DOOR_BACK)
+	GrenadeAi.hostile(s, &"h", BEAT_A, Maps.DOOR_BACK)
 
 
 func run(t: TestContext) -> void:

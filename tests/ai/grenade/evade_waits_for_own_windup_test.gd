@@ -14,6 +14,7 @@ extends GameTest
 ## armed at the start of `run`, the way Main arms a spawn.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const I_AT := Vector2(100, 150)
 const H_AT := Vector2(500, 150)
 ## Out of the zone of a stun on the puppet (an ally there would drop the throw).
@@ -51,7 +52,7 @@ func configure(s: TestSetup) -> void:
 	s.switch(&"projectile.flyover", false)
 	s.actor(&"i", &"invader", I_AT, { "facing": Vector2.RIGHT })
 	s.actor(&"mate", &"puppet", MATE_AT, { "faction": &"invader", "max_health": 1_000_000.0 })
-	Probe.hostile(s, &"h", H_AT, I_AT)
+	GrenadeAi.hostile(s, &"h", H_AT, I_AT)
 
 
 func run(t: TestContext) -> void:
@@ -67,7 +68,7 @@ func run(t: TestContext) -> void:
 		return item != null and item.hand_stance(0) == &"throw"
 	if not t.require(
 			await t.until(winding, 8.0),
-			"the invader winds up a throw (acts %s)" % Probe.acts(t, &"i"),
+			"the invader winds up a throw (acts %s)" % GrenadeAi.acts(t, &"i"),
 	):
 		return
 	var mate := t.actor(&"mate")
@@ -88,7 +89,7 @@ func run(t: TestContext) -> void:
 		func(): return not (brain.debug_state().get("evade", {}) as Dictionary).is_empty(),
 		1.0,
 	)
-	t.check(ran, "then it runs from the teammate's stun (acts %s)" % Probe.acts(t, &"i"))
+	t.check(ran, "then it runs from the teammate's stun (acts %s)" % GrenadeAi.acts(t, &"i"))
 	if not t.require(
 			await t.until(func(): return Probe.booms(t, &"stun").size() >= 2, 4.0),
 			"both stuns went off",

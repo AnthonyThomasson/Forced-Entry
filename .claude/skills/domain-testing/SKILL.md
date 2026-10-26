@@ -795,9 +795,12 @@ with `--include-von --require-von`. They are spread by domain (`tests/items/gren
 `grenade_friendly_fire`; `tests/physics/frag_blast_pushes`, `explosion_fx`; `tests/character/stun_*`; `tests/audio/grenade_sounds`;
 `tests/general/camera_shakes_on_explosion`; `tests/ui/stun_screen_whiteout`) with the AI ones in `tests/ai/grenade/`, all through
 `tests/_ai/grenade_probe.gd` (`const Probe := preload(...)`): `arm(character, stuns, frags)` (a test world keeps the default inventory, so each test
-arms the thrower the way Main does, at the start of `run`), `throw_at`, `live`, `raw` / `booms` / `stuns` (bus events with their sim time), the numbers of the spec
-(`MAX_RANGE`, `FLASH_RADIUS`, `expected_blind`, ...) so a test checks the doc and not the code, the AI reads (`offered`, `acts`, `callouts`), and `character_rids` (the rids of the `characters` group: what its rays and `throw_spot_probe.gd`'s look
-past). The scenario tests
+arms the thrower the way Main does, at the start of `run`), `throw_at`, `live`, `raw` / `booms` / `stuns` (bus events with their sim time) and the numbers of the spec
+(`MAX_RANGE`, `FLASH_RADIUS`, ...) so a test checks the doc and not the code. What a blast or a stun does at a distance by the spec is
+`tests/_ai/grenade_spec_probe.gd` (`const GrenadeSpec := preload(...)`: `blast_damage`, `flash_scale`, `expected_blind`, `expected_deaf`, and
+`everywhere`, the audio tests' range table); the AI reads and a scene round a grenade are `tests/_ai/grenade_ai_probe.gd` (`const GrenadeAi :=
+preload(...)`: `offered`, `acts`, `wait_act`, `callouts`, `grenades`, `hostile`, `place`, `line_clear`, `safe_from_frag`, `shielded`, and
+`character_rids`, the rids of the `characters` group: what its rays and `throw_spot_probe.gd`'s look past). The scenario tests
 in `tests/ai/grenade/` run the whole AI pipeline with the real Von server and `require` the premise first (that the AI took the GRENADE / STUN ENTRY path), so a
 different Von choice reads as a set-up finding. A hall of 100 px or less with a sofa in it is **sealed in the navmesh** (the lane left is under an agent body wide) and
 a route to the far side then runs outside the house: give a scenario hall at least 140 px when the NPC has to walk past a piece of furniture.

@@ -16,6 +16,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const LANDING := Vector2(450, 415)
 const A_AT := Vector2(560, 415)
 ## beside its chair, near the hall's east end
@@ -72,7 +73,7 @@ func run(t: TestContext) -> void:
 		return
 	var boom: Dictionary = Probe.booms(t, &"frag")[0]
 	var at: Vector2 = boom["data"]["position"]
-	var called := Probe.callouts(t, &"grenade", &"a")
+	var called := GrenadeAi.callouts(t, &"grenade", &"a")
 	if not t.require(not called.is_empty(), "defender A radioed a grenade callout"):
 		return
 	var call_at: float = called[0]["time"]
@@ -94,7 +95,7 @@ func _throw_and_watch_b(t: TestContext, b: Node, bb: Node) -> Dictionary:
 	var b_path: Array = []
 	while t.time < clicked + 6.0 and Probe.booms(t, &"frag").is_empty():
 		b_path.append({ "t": t.time, "p": b.global_position, "busy": b.use.is_busy() })
-		var g := Probe.grenades(bb)
+		var g := GrenadeAi.grenades(bb)
 		for k in g.get("known", []):
 			sources[k.get("source")] = true
 		if escape_at == INF and (g.get("escape", Vector2.INF) as Vector2) != Vector2.INF:
@@ -147,7 +148,7 @@ func _check_warned(
 	)
 	var last: Array = b_path.filter(func(s): return float(s["t"]) >= float(boom["time"]) - 0.25)
 	t.check(
-		last.all(func(s): return Probe.safe_from_frag(t, at, s["p"])),
+		last.all(func(s): return GrenadeAi.safe_from_frag(t, at, s["p"])),
 		("and it was out of the grenade's line of sight or past its radius before the burst (%.0f "
 				+ "px away)") % b.global_position.distance_to(at),
 	)
@@ -155,8 +156,9 @@ func _check_warned(
 
 
 ## G7 cover for a standing body at `p` (the height of B's surface while seated): whether a wall or a
-## piece of furniture taller than it stands on the straight line from the burst (`Probe.shielded`
-## reads a character's position, and B has left its seat by the time the test checks).
+## piece of furniture taller than it stands on the straight line from the burst
+## (`GrenadeAi.shielded` reads a character's position, and B has left its seat by the time the test
+## checks).
 func _shielded(t: TestContext, burst: Vector2, p: Vector2) -> bool:
 	var exclude: Array = []
 	for body in t.world.find_children("*", "CharacterBody2D", true, false):

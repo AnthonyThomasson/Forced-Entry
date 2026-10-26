@@ -10,6 +10,7 @@ extends GameTest
 ## flash radius when it went off.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const CORNER := Vector2(1150, 50)
 
 
@@ -97,7 +98,9 @@ func _check_back_turned(
 	var flash := Probe.stuns(t, d)
 	if t.require(not flash.is_empty(), "the defender was stunned"):
 		var blind := float(flash[0]["data"].get("blind", 99.0))
-		var back_turned := Probe.MAX_BLIND * Probe.flash_scale(pos_at_bang.distance_to(at)) * 0.25
+		var back_turned := (
+			Probe.MAX_BLIND * GrenadeSpec.flash_scale(pos_at_bang.distance_to(at)) * 0.25
+		)
 		t.check(
 			blind <= back_turned + 0.35,
 			"so it was blind for only %.2f s (a back turned gives about %.2f of the 5 s)"

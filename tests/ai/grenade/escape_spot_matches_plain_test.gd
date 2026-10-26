@@ -8,6 +8,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentVision := preload("res://scenes/ai/perception/agent_vision.gd")
 const SEED := 1717
@@ -47,7 +48,7 @@ func run(t: TestContext) -> void:
 		"geometry": geometry,
 		"space": npc.get_world_2d().direct_space_state,
 		"map": npc.get_world_2d().navigation_map,
-		"exclude": Probe.character_rids(t),
+		"exclude": GrenadeAi.character_rids(t),
 		"rng": rng,
 	}
 	var rooms: Array = t.rooms

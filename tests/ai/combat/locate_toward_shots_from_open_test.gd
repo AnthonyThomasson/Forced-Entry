@@ -9,7 +9,7 @@ extends GameTest
 ## walkable ground would give no LOCATE, issue #51 R12, `locate_never_where_it_stands`).
 
 const Entry := preload("res://tests/_ai/entry_probe.gd")
-const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Suspect := preload("res://tests/_ai/suspect_probe.gd")
 const AT := Vector2(980, -140)
 ## Where the shot came from (the open garden, east of the house, to the south) and where it landed
@@ -65,11 +65,11 @@ func run(t: TestContext) -> void:
 	)
 	var brain := Entry.brain(t, &"a")
 	if not t.require(
-			await t.until(func(): return not Probe.offered(brain).is_empty(), 10.0),
+			await t.until(func(): return not GrenadeAi.offered(brain).is_empty(), 10.0),
 			"the invader walked its COMBAT level after the shot (act %s)" % brain.current_act(),
 	):
 		return
-	var offered := Probe.offered(brain)
+	var offered := GrenadeAi.offered(brain)
 	t.check(
 		offered.has("locate"),
 		"LOCATE toward the shots from the open is offered (offered %s)" % str(offered),

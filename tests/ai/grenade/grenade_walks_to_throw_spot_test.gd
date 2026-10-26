@@ -19,6 +19,7 @@ extends GameTest
 
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const Spot := preload("res://tests/_ai/throw_spot_probe.gd")
 const INVADER_AT := Vector2(790, 120)
 const HOLDER_AT := Vector2(140, 150)
@@ -39,7 +40,7 @@ func describe() -> Dictionary:
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": (HOLDER_AT - INVADER_AT).normalized() })
-	Probe.hostile(s, &"h", HOLDER_AT, Maps.DOOR_LIVING_KITCHEN)
+	GrenadeAi.hostile(s, &"h", HOLDER_AT, Maps.DOOR_LIVING_KITCHEN)
 
 
 func run(t: TestContext) -> void:
@@ -52,7 +53,7 @@ func run(t: TestContext) -> void:
 	):
 		return
 	if not t.require(
-			Probe.line_clear(t, INVADER_AT, HOLDER_AT),
+			GrenadeAi.line_clear(t, INVADER_AT, HOLDER_AT),
 			"set-up: the invader sees the householder through the doorway",
 	):
 		return
@@ -91,7 +92,7 @@ func _watch_until_thrown(t: TestContext, inv: Node) -> Dictionary:
 	var from_kitchen := [false]
 	var watch := func() -> bool:
 		Spot.note(t, brain, inv, state, walks)
-		var act := Probe.acts(t, &"i")
+		var act := GrenadeAi.acts(t, &"i")
 		if not acts.has(act):
 			acts.append(act)
 		if act.begins_with(target) and Maps.HOUSE_KITCHEN.has_point(inv.global_position):

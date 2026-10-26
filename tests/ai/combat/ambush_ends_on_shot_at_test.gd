@@ -21,6 +21,7 @@ extends GameTest
 const Maps := preload("res://tests/_ai/flank_maps.gd")
 const Order := preload("res://tests/_ai/order_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 ## The click that orders the ambush: in the living room, on the doorway's axis.
 const CLICK := Vector2(150, 330)
 ## The intruder's walk along the hall's east end, behind the living room's south wall.
@@ -91,7 +92,7 @@ func _holds_through_footsteps(t: TestContext, a: Node, brain: Node) -> bool:
 	var seen := false
 	var end := t.time + HOLD
 	while t.time < end:
-		seen = seen or Probe.line_clear(t, a.global_position, intruder_node.global_position)
+		seen = seen or GrenadeAi.line_clear(t, a.global_position, intruder_node.global_position)
 		await t.frames(1)
 	if not t.require(
 			not seen,

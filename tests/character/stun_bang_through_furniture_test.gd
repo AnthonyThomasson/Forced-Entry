@@ -6,6 +6,8 @@ extends GameTest
 ## so the distance is known.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const FROM := Vector2(60, 350)
 const AIM := Vector2(450, 350)
 ## spans y 195 to 245 (coverage 45)
@@ -54,8 +56,8 @@ func run(t: TestContext) -> void:
 	if not t.require(await Probe.wait_rest(t, 1.4), "the grenade comes to rest before it goes off"):
 		return
 	var burst := Probe.rest_point(t)
-	Probe.place(t, &"couched", BEHIND_COUCH, burst)
-	Probe.place(t, &"cabinet", BEHIND_WARDROBE, burst)
+	GrenadeAi.place(t, &"couched", BEHIND_COUCH, burst)
+	GrenadeAi.place(t, &"cabinet", BEHIND_WARDROBE, burst)
 	if not t.require(await Probe.wait_boom(t, &"stun", 1.2), "the stun grenade goes off"):
 		return
 	var at: Vector2 = Probe.booms(t, &"stun")[0]["data"]["position"]
@@ -63,7 +65,7 @@ func run(t: TestContext) -> void:
 	for id in [&"couched", &"cabinet"]:
 		var c := t.actor(id)
 		t.check(
-			Probe.shielded(t, at, c),
+			GrenadeAi.shielded(t, at, c),
 			"set-up: %s has a piece of furniture over its height on the line from the burst" % id,
 		)
 		var events := Probe.stuns(t, c)
@@ -71,7 +73,7 @@ func run(t: TestContext) -> void:
 			continue
 		var d: float = c.global_position.distance_to(at)
 		var got := float(events[0]["data"].get("deaf", 0.0))
-		var want := Probe.expected_deaf(d)
+		var want := GrenadeSpec.expected_deaf(d)
 		t.check(
 			float(events[0]["data"].get("blind", -1.0)) == 0.0,
 			"%s is not flashed: the furniture at its face is between it and the burst" % id,

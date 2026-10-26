@@ -13,6 +13,7 @@ extends GameTest
 ## a spawn.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const INVADER_AT := Vector2(570, 56)
 const HOSTILE_AT := Vector2(800, 56)
 
@@ -39,7 +40,7 @@ func configure(s: TestSetup) -> void:
 	s.object(&"sofa", "sofa", Vector2(700, 31))
 	s.object(&"desk", "desk", Vector2(700, 81))
 	s.actor(&"i", &"invader", INVADER_AT, { "facing": Vector2.RIGHT })
-	Probe.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
+	GrenadeAi.hostile(s, &"h", HOSTILE_AT, INVADER_AT)
 
 
 func run(t: TestContext) -> void:
@@ -53,7 +54,7 @@ func run(t: TestContext) -> void:
 		return
 	var seen: Array = []
 	if not t.require(
-			await Probe.wait_act(t, &"i", "grenade", 60.0, seen),
+			await GrenadeAi.wait_act(t, &"i", "grenade", 60.0, seen),
 			"the AI took the GRENADE tactic (its acts: %s)" % str(seen),
 	):
 		return
@@ -67,7 +68,7 @@ func run(t: TestContext) -> void:
 		thrown["data"].get("attacker") == inv and thrown["data"].get("kind") == &"frag",
 		"the invader threw its frag",
 	)
-	t.check(not Probe.callouts(t, &"frag_out", &"i").is_empty(), "and radioed frag out")
+	t.check(not GrenadeAi.callouts(t, &"frag_out", &"i").is_empty(), "and radioed frag out")
 	var samples := await _posture_until_bang(t, inv, float(thrown["time"]))
 	if not t.require(not Probe.booms(t, &"frag").is_empty(), "the frag went off"):
 		return
@@ -98,7 +99,7 @@ func _check_covered(t: TestContext, inv: Node, samples: Array) -> void:
 			% str(last.map(func(s): return s["posture"]).slice(0, 3)),
 	)
 	t.check(
-		Probe.shielded(t, at, inv),
+		GrenadeAi.shielded(t, at, inv),
 		"behind the couch and desk, which shield a crouched body from the blast",
 	)
 	t.check(Probe.blast_hits(t, inv).is_empty(), "so the blast did not touch it")

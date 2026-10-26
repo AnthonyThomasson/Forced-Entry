@@ -6,6 +6,7 @@ extends GameTest
 ## blind-only stun, or a deafened character that is not the focus, adds neither.
 
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeSpec := preload("res://tests/_ai/grenade_spec_probe.gd")
 const SoundProbe := preload("res://tests/_audio/sound_probe.gd")
 const FROM := Vector2(60, 300)
 const AIM := Vector2(400, 300)
@@ -25,7 +26,7 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	s.arena(Rect2(0, 0, 1000, 600))
-	s.set_static(SoundConfig, &"category_range", Probe.everywhere(SoundProbe.EVERYWHERE))
+	s.set_static(SoundConfig, &"category_range", GrenadeSpec.everywhere(SoundProbe.EVERYWHERE))
 	s.actor(&"thrower", &"puppet", FROM, { "max_health": 100_000.0 })
 	s.actor(&"human", &"puppet", Vector2(900, 100), { "max_health": 100_000.0 })
 	s.actor(&"other", &"puppet", Vector2(900, 500), { "max_health": 100_000.0 })

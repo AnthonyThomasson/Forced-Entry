@@ -18,6 +18,7 @@ extends GameTest
 const Entry := preload("res://tests/_ai/entry_probe.gd")
 const Listen := preload("res://tests/_ai/listen_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const GrenadeAi := preload("res://tests/_ai/grenade_ai_probe.gd")
 const LONE_AT := Vector2(420, 415)
 const LISTEN_MAX := 4.5
 const AT_ONCE := 1.0
@@ -100,7 +101,7 @@ func _check_lone_at_once(t: TestContext, samples: Dictionary) -> void:
 	if t.check(
 			lone_ready < INF,
 			("the lone invader stacked at the hall's doorway into the living room (phases %s; acts "
-					+ "%s)") % [str(samples[&"lone"]), Probe.acts(t, &"lone")],
+					+ "%s)") % [str(samples[&"lone"]), GrenadeAi.acts(t, &"lone")],
 	):
 		var lone_pie := Listen.first(samples[&"lone"], "pie", lone_ready)
 		t.check(
