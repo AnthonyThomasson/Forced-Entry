@@ -17,7 +17,7 @@ coverage starts.
   (`behavior/entry.gd`, `domain-ai-entry`) measures the share of a room it saw from outside against the same grid, and reuses
   `begin`/`step` to clear the room once inside.
 - **Step:** each tick it drops from `unseen` every point now in view (perception's `visible_points`: view cone + line of sight), spends
-  `budget`, turns the gaze (`look_rate` rad/s, eased from where the NPC actually faces, so a threat that held its eyes meanwhile is not snapped back from) toward the nearest still-unseen point (`target`) and — when that point is farther than `approach` or
+  `budget`, turns the gaze (`tuning.coverage.look_rate` rad/s, eased from where the NPC actually faces, so a threat that held its eyes meanwhile is not snapped back from) toward the nearest still-unseen point (`target`) and — when that point is farther than `approach` or
   its line is blocked by furniture — walks toward it (`Locomotion.move_to`) so a new vantage reveals it; otherwise it stands and turns.
   It is done when `unseen` has shrunk to `1 − tuning.coverage.target` of the points or the budget (`tuning.coverage.budget`) is spent. So a searcher actively looks
   throughout the room until it has SEEN all of it, rather than looking from one spot.

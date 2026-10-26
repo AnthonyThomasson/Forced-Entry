@@ -36,7 +36,7 @@ composition root is `domain-main`.
 | **Navigation** | `navigation/` | `domain-navigation` | Baking the house into a walkable nav map so characters can path around walls. |
 | **General** | `general/` | `domain-general` | Infrastructure: input (Keybinds), saved settings (`Settings`), the event bus (`EventBus`), the log (`GameLog`), the pausable game clock (`GameClock`), despawner, camera, dev command server, shared physics-layer ids (`PhysicsLayers`), the draw-order ladder (`DrawLayers`), the light masks (`LightMasks`), the batched plain-colour drawing (`FillBatch`), the shared weighted roll (`WeightedPick`) and the match verdict (`MatchVerdict`). |
 | **UI** | `ui/` | `domain-ui` (+ `domain-ui-menus`, `-hud`, `-overlays`, `-testing` for `ui/<folder>/`) | All HUDs and menus, one sub-domain per folder: menus (pre-game setup window, settings page), hud (debug player panel, match HUD, spectator inspector and its contact markers, stun screen, stack markers, the human leader's command menu and order markers), overlays (overlay registry, toggle bar, performance overlay, the squad-leaders overlay) and testing (test browser window, test result banner). |
-| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). A doorway's stack as the radio describes it lives once, in perception's `ai/perception/stack/` (`StackClaim` the claim's wire format and step lists, `ClaimLedger` the claims one listener has heard, `DoorStack` every slot rule and the slots' points): the seam behaviour and the team read it through (`AgentPerception.entry_stack(opening, into := "") -> DoorStack`; behaviour, the orchestrator and the team preload `StackClaim` / `DoorStack` / `ClaimLedger` themselves). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
+| **AI** | `ai/` | `domain-ai` (+ `domain-ai-perception`, `-snapshot`, `-decision`, `-behavior`, `-combat`, `-coverage`, `-watch`, `-entry`, `-debug`, `-team`) | Non-player brains: one generic controller that drives every NPC. Plus `ai/team/`, the human's side of the entry radio (`PlayerStack`, interface 17) and each side's squad, its leader and its orders (`Squad`, interface 21): not a fifth sub-domain, but with a skill of its own, `domain-ai-team`. Internally split into four isolated **sub-domains** under `ai/` — perception (`ai/perception/`), decision (`ai/decision/`), behaviour (`ai/behavior/`), debug (`ai/debug/`) — around a thin orchestrator (`ai/goal_controller.gd`). A doorway's stack as the radio describes it lives once, in perception's `ai/perception/stack/` (`StackClaim` the claim's wire format and step lists, `ClaimLedger` the claims one listener has heard, `DoorStack` every slot rule and the slots' points): the seam behaviour and the team read it through (`AgentPerception.entry_stack(opening, into := "") -> DoorStack`; behaviour (`entry.gd` and its parts under `behavior/entry/`, the behaviour's `orders` and `entries` parts), the orchestrator (its radio part, `npc_comms.gd`) and the team preload `StackClaim` / `DoorStack` / `ClaimLedger` themselves). `domain-ai` is the overview; each sub-domain has a `domain-ai-<name>` skill. |
 | **Vehicles** | `vehicle/` | `domain-vehicle` | Drivable vehicles (a car and a van, only in the sandbox): the rigid body and its driving model, doors and seats, getting in and out (the character's `CharacterVehicleUse` component and the ride), collisions and the harm to a character struck, the dents, the vehicle art and its events. |
 | **Testing** | `testing/` | `domain-testing` | Game tests: a second composition root that builds a declared world (arena, hand-laid room layout or generated house) with chosen behaviour switches, runs a test's script against it and asserts what happened; the in-game test browser + runner, and the gdUnit4 suites the headless CLI runner (`tools/run_tests.sh`) and the editor's GdUnit panel run. Test cases live in `tests/<domain>/*_test.gd`, or one folder deeper by topic (`tests/ai/entry/`), each played through its folder's wrapper suite (`*_suite.gd`); pure-logic native suites (`tests/<domain>/<name>_suite.gd`) only add to them; sandboxes to play by hand (`GameTest` scripts with no assertions) live outside `scenes/` in `sandboxes/*_sandbox.gd`. |
 
@@ -822,7 +822,7 @@ interfaces it takes part in (by number) and describes how they're implemented.
       `follow_step` (45), `follow_caught_up` (20), `follow_ring` (80), `follow_still_time` (0.8 s), `follow_retarget` (20), `follow_arrive`
       (10), `leash` (320) and `leash_break` (1.3). The squad keeps the leader's trail every physics frame and lays the spots through its `SquadFollow`
       (`ai/team/squad_follow.gd`, the team module's own, which reads the tunables, `leader()`, `members()`, `alive` and `follows` off the
-      squad). The controller reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
+      squad). The controller (its reflexes part, `npc_reflexes.gd`) reads `follows`, `leader()`, `leash` and `leash_break`; the behaviour's `follow` primitive `follow_spot` and the
       follow tunables, and faces away from the leash centre the controller pushes (its leader's live position), reading no `leader()`.
     - `Squad.issue(request) -> Dictionary`: a leader's request in plain terms (`{ kind, to: [characters], pos?, room?, bang?, mode?, wait_go? }`:
       no `to` = every living member but the leader; a stack's `mode` one of `Squad.MODES`, `quiet` / `stun` / `frag`; `Squad.JOIN`, `join`, is
@@ -994,7 +994,7 @@ Physics debris / hit particles / blood / explosion fx, Projectile casings ─▶
 Projectile / Explosion / Character ──(&"hit" events)──▶ EventBus ──(posted)──▶ AIController
 AIController ──(&"callout" events)──▶ EventBus ──(posted)──▶ allied AIControllers
 PlayerStack (human) ◀──(&"callout" entry steps)── EventBus ──(&"callout": the human's claim)──▶ allied AIControllers;  StackMarkers (UI) ──(view())──▶ PlayerStack
-AI behaviour (entry.gd, behavior.gd) / orchestrator / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack, preloaded; AgentPerception.entry_stack)──▶ AI perception's stack/ (the stack seam)
+AI behaviour (entry.gd and its parts entry/entry_*.gd, behavior_orders.gd, behavior_entries.gd) / orchestrator (npc_comms.gd) / team (PlayerStack, Squad) ──(StackClaim / ClaimLedger / DoorStack, preloaded; AgentPerception.entry_stack)──▶ AI perception's stack/ (the stack seam)
 MatchBuilder ──(build_squads: Squad.setup, bind_squad; bind_player: PlayerStack.attach)──▶ Squad / PlayerStack (AI team);  Squad ──(&"order")──▶ EventBus ──(posted)──▶ AIControllers;  Squad ◀──(&"callout" order_step, entry claims)── EventBus;  MatchBuilder.bind_squad ──(squad)──▶ PlayerStack;  StackMarkers (UI) ──(view(): stacks)──▶ Squad
 CommandMenu (UI) ──(order_requested)──▶ main ──(issue)──▶ Squad;  CommandMenu / OrderMarkers / LeaderOverlay (UI) ──(view())──▶ Squad;  CommandMenu ──(resolve())──▶ Squad;  CommandMenu ─▶ Keybinds.COMMAND;  CommandMenu ─▶ ItemRegistry.STUN_SLOT / FRAG_SLOT (Items, via inventory.item_count)
 AI perception ──(Explosion.shields / first_stop: the blast's cover rule)──▶ Explosion (Projectile)
@@ -1089,11 +1089,26 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   state, and the contracts that name the body (`docs/adr/0004-the-character-split-into-typed-components.md`,
   `docs/adr/0005-items-and-vehicle-split-into-typed-parts.md`). A
   component is a `class_name` `RefCounted`, or a `class_name` Node child where a scene authors it (the character's
-  `Wardrobe`, `CharacterWardrobe`): the one scene script with a `class_name`, so the body can type it. A polymorphic
+  `Wardrobe`, `CharacterWardrobe`, and the NPC's tuning topic nodes, below): the scene scripts with a `class_name`, so
+  their holder can type them. A polymorphic
   base splits the same way, per concern: each part a small base its kinds subclass where they behave differently
   (`item.art`, `item.ammo`); what differs by kind only as data goes in the kind's config row; and no part holds a
   `RefCounted` owner (a cycle never frees: an item's parts are handed the user on each call), while a node's may hold
-  it (the vehicle's).
+  it (the vehicle's). The AI splits the same way (`docs/adr/0006-the-ai-orchestrator-and-behaviour-split.md`), with two
+  differences. Its tunables are per NPC, in typed topic nodes under the controller's `Tuning` child (`tuning: NpcTuning`,
+  fifteen `class_name` `Npc<Topic>Tuning` nodes holding only exports, since an export must name a global class), which
+  behaviour's modules read live (`tuning.<topic>.<name>`) and perception and the planner copy each decision. And its parts are
+  reached by preload const with **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and
+  `_reflexes`; behaviour's `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and
+  `world` and its ten parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`);
+  combat's `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; the launcher's
+  `_probe`. A part member read from outside its part is public on it, its underscore and any prefix the part's name says
+  dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage` `grenade.stage`); one used only inside its
+  part keeps its name. Behaviour's, locomotion's and the controller's parts hold their Node owner (`behavior`, `loco`,
+  `controller`). Entry is a `RefCounted`, so its parts hold only its `state` and `world` leaves: a part method that needs the
+  entry or a sibling takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. Combat's
+  `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and confines, the probe) hold
+  no owner (`tests/ai/ai_parts_free_suite.gd`).
 
 ## Running & verifying
 

@@ -749,7 +749,7 @@ asserts a behaviour the AI does not show yet is written first, left red and tagg
   (the nearest hostile is otherwise the first option and gets picked).
 - **Hold the NPC and settle** (`Flank.npc` + `Flank.settle`): `movement:speed` 0 and a 0.4 s commit and tactic
   cadence, so it re-decides from a fixed spot and `settle` waits for a finished walk. A walking test holds
-  the NPC until `settle`, then sets `brain.max_commit_time` back to 6 and `npc.movement.speed` to 150.
+  the NPC until `settle`, then sets `brain.tuning.decision.max_commit_time` back to 6 and `npc.movement.speed` to 150.
 - **Set the target's frame before the first frame** (`Flank.target`): its `facing` and `movement:aim_point` are
   props, because a puppet's `movement.aim_point` defaults to the origin and turns it that way until `aim_at` runs.
   Give targets and allies a huge `max_health`; the NPCs shoot while they wait.

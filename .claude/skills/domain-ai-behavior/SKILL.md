@@ -90,7 +90,7 @@ order's params: before its claim goes out `entries.apply` sets `Entry.state.held
 while that map is `pending`) for a threshold into a room not cleared and, unless another recipient is coming (`_recipients_coming`), a doorway
 view it passes: either is a detour first (`_entry.reset()`, the entries' `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
-`_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `orders.ordered_stack()` sets
+the entries' `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `orders.ordered_stack()` sets
 the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.world.squad` through `Behavior.apply_config(squad)`, with
 `tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`orders.same`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
@@ -144,7 +144,7 @@ no decision is started or adopted while it runs (the controller's `_should_decid
 to its own hold when `Entry.expects_burst(plan)` says the grenade is the bang's (a stun, or a frag whose burst leaves its slot out of the zone, LD14; `domain-ai-entry`). `grenades.apply_evade` runs all the way into `plan.spot` (`Locomotion.move_to`
 within `EVADE_REACH` 6 px: a spot is out of the burst's line with little room to spare, so a stride short of it can be in the line; looking where it
 goes, running when `run_enabled` and stamina allow), then holds it facing away from the grenade, **crouched when the spot is cover** (`plan.crouch`); the watch stage does not run (no
-turning to a threat, no shot). With no spot in time it stays, facing away (a stun then blinds it for the back-turned share only), crouched for a frag. When the plan ends (the burst) `_resolved` forces
+turning to a threat, no shot). With no spot in time it stays, facing away (a stun then blinds it for the back-turned share only), crouched for a frag. When the plan ends (the burst) `task.resolved` forces
 a new decision. Read-outs: `grenades.evading()`, `grenades.evade_spot()` (the controller's `debug_grenades().escape`), `debug_state()["evade"]`. Tests: `tests/ai/grenade/evade_*`.
 
 **A blinded NPC** (`Character.stun.is_blind()`): the orchestrator starts no new decision (`_should_decide`) and re-decides the tick its sight returns; the order it was carrying out goes on

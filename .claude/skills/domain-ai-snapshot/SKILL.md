@@ -114,7 +114,7 @@ controller ends it `refused` and the member follows, LD24), `ambush_<opening>` r
   or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).
   Options are places and things, never verbs; `tags.inside` drives the territorial filter. After the groups are built `tag_rooms` tags every
   option that names a place with the room it lies in (`tags.room`: the room key of its `from`, else its `point`; "" outside): the planner's
-  `confine_room` keeps a member ordered to defend a room to the options in it (LD8). Tags are not text.
+  `confines.room` keeps a member ordered to defend a room to the options in it (LD8). Tags are not text.
 
 
 ## Wording rules for Von (measured with `tools/von_probe.py`)
