@@ -52,7 +52,7 @@ It holds the NPC's body from one `bind(character)` (from `Behavior.bind`); only 
   node). A running character can neither shoot nor reload.
 - `Combat`: `can_fire_at`, `reload_due`, `_faces`; `peek_cover` shoots only once facing, ducks only after a shot or an empty click
   (not after a refused shot); `ambush` waits for the facing.
-- `Entry`: `gaze_held` (set from the watch's `threat` each tick) makes `_look_toward` report "settled", so a pie step the gaze cannot settle on
+- `Entry`: `state.gaze_held` (set from the watch's `threat` each tick) makes `_look_toward` report "settled", so a pie step the gaze cannot settle on
   because of a threat does not hold the entry. Every gaze turn goes through one static, `Watch.ease_gaze(character, point, rate, delta)`
   (the doors here, `Entry._look_toward`, `SearchCoverage.step`): it eases from the actual facing, not a private angle, so the gaze
   does not snap back when a threat lets go. `hostile_in_view` (set from the same `threat` plus a line of fire, `Behavior._hostile_in_view`)

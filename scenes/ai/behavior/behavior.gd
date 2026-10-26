@@ -32,9 +32,9 @@ extends Node
 ## reads the world only through the PERCEPTION sub-domain (known contacts, combat geometry,
 ## engagement memory) and drives the character only through its public controller contract
 ## (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`,
-## `weapon.melee`, `use.interact_with`, `use.end_interaction`). All tunables are set from the
-## NPC's tuning (`NpcTuning`, handed in by `setup`) by `apply_config(npc_squad)`; its `Combat` reads
-## its own live from that tuning.
+## `weapon.melee`, `use.interact_with`, `use.end_interaction`). Every tunable is read live from the
+## NPC's tuning (`NpcTuning`, handed in by `setup`), by the behaviour and by each of its modules;
+## `apply_config(npc_squad)` hands in the side's squad.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -181,8 +181,8 @@ var _awaiting_order := false
 
 
 ## Build the Locomotion child and capture the perception sub-domain and the NPC's `npc_tuning`. The
-## controller calls this once in its _ready(); it then calls apply_config(), which sets the tunables
-## from that tuning (here and again each decision).
+## controller calls this once in its _ready(); it then calls apply_config(), which hands in the
+## side's squad (here and again each decision).
 func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning) -> void:
 	_perception = perception
 	tuning = npc_tuning
@@ -199,6 +199,7 @@ func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning
 	_watch = Watch.new()
 	_watch.setup(_loco, perception, tuning)
 	_entry = Entry.new()
+	_entry.world.tuning = tuning
 	_entry.setup(_loco, perception, _coverage, _watch, _combat)
 
 
@@ -213,29 +214,12 @@ func bind(character: Node) -> void:
 	_entry.bind(character)
 
 
-## Set the entry module's tunables straight from `tuning`, the NPC's topic nodes (the one authoring
-## surface), and hand in its side's `squad`; the behaviour and its other modules read `tuning` live.
-## Idempotent, so the controller may call it each decision to pick up a tunable retuned at runtime.
+## Hand in its side's `squad`, to the behaviour and its entry module; they and the other modules
+## read `tuning`, the NPC's topic nodes (the one authoring surface), live. Idempotent, so the
+## controller may call it each decision.
 func apply_config(npc_squad: Node = null) -> void:
 	squad = npc_squad
-	_apply_entry_config(npc_squad)
-
-
-## Set the entry module's tunables from `tuning` (`apply_config`): its `entry` topic, the side's
-## `npc_squad` and the look rate.
-func _apply_entry_config(npc_squad: Node) -> void:
-	_entry.ready_timeout = tuning.entry.ready_timeout
-	_entry.listen_time = tuning.entry.listen_time
-	_entry.follow_gap = tuning.entry.follow_gap
-	_entry.pie_dwell = tuning.entry.pie_dwell
-	_entry.corner_dwell = tuning.entry.corner_dwell
-	_entry.rear_time = tuning.entry.rear_security_time
-	_entry.cover_time = tuning.entry.cover_time
-	_entry.watch_dwell = tuning.entry.watch_dwell
-	_entry.approach_time = tuning.entry.approach_time
-	_entry.order_ready_cap = tuning.entry.order_ready_cap
-	_entry.squad = npc_squad
-	_entry.look_rate = tuning.coverage.look_rate
+	_entry.world.squad = npc_squad
 
 
 # --- Read-only views -------------------------------------------------------------------------
@@ -292,7 +276,7 @@ func ongoing() -> bool:
 		&"reload":
 			return _reloading
 		&"entry":
-			return _entry_pending or _entry.phase not in ["", "done"]
+			return _entry_pending or _entry.state.phase not in ["", "done"]
 	return false
 
 
@@ -361,7 +345,7 @@ func _progress() -> String:
 		&"engage":
 			return _engage_progress()
 		&"entry":
-			return ENTRY_PROGRESS.get(_entry.phase, "heading for the door")
+			return ENTRY_PROGRESS.get(_entry.state.phase, "heading for the door")
 		&"throw":
 			return _throw_progress()
 		&"defend", &"ambush", &"follow":
@@ -529,10 +513,10 @@ func take_entry_calls() -> Array:
 	var out: Array = []
 	for c in _entry.take_calls():
 		c.merge({
-			"opening": _entry.opening,
-			"into": _entry.into,
-			"slot": _entry.slot,
-			"side": _entry.side,
+			"opening": _entry.state.opening,
+			"into": _entry.state.into,
+			"slot": _entry.state.slot,
+			"side": _entry.state.side,
 		})
 		out.append(c)
 	return out
@@ -546,7 +530,7 @@ func debug_coverage() -> Dictionary:
 	var out: Dictionary = _coverage.debug()
 	out["active"] = (
 		(task.primitive == &"move" and task.look_around and task.arrived and not task.resolved)
-		or (task.primitive == &"entry" and _entry.phase == "clear")
+		or (task.primitive == &"entry" and _entry.state.phase == "clear")
 	)
 	return out
 
@@ -647,7 +631,7 @@ func set_leaf(leaf: Dictionary) -> void:
 	var carry := {}
 	if (task.primitive == &"entry"
 			and not _resume.is_empty()
-			and (committed() or _guards(leaf, _entry.into))):
+			and (committed() or _guards(leaf, _entry.state.into))):
 		# A detour's entry carries on: the new order replaces the one paused behind it (a fight that
 		# began, the same order decided again), and the entry is not torn down at its stack or in
 		# its threshold.
@@ -676,7 +660,7 @@ func _same_order(leaf: Dictionary) -> bool:
 	if (running["primitive"] != &"entry"
 			or str((running["params"] as Dictionary).get("order_id", "")) != str(id)):
 		return false
-	return not _resume.is_empty() or _entry_pending or not _entry.phase in ["", "done"]
+	return not _resume.is_empty() or _entry_pending or not _entry.state.phase in ["", "done"]
 
 
 ## Whether the NPC is on an ordered stack's way to its door (`docs/leadership.md` LD9): running the
@@ -697,7 +681,7 @@ func _join_over() -> bool:
 	return (StackClaim.is_join(task.params)
 			and not _join_done
 			and not _order_live()
-			and _entry.phase in ["approach", "stack"])
+			and _entry.state.phase in ["approach", "stack"])
 
 
 ## Whether an entry leaf's `params` are an ordered stack's, which goes in the order's way (LD9): an
@@ -1021,8 +1005,8 @@ func _set_up_walk(delta: float) -> void:
 	_loco.crowd.ignore_id = _engage_id if task.primitive == &"melee" else 0
 	_perception.ordered_walk = _ordered_stack()
 	_loco.doors.avoid_doors = _keeps_out_of_views()
-	_loco.doors.avoid_entering = ("%s>%s" % [_entry.opening, _entry.into]
-			if task.primitive == &"entry" and _entry.opening != ""
+	_loco.doors.avoid_entering = ("%s>%s" % [_entry.state.opening, _entry.state.into]
+			if task.primitive == &"entry" and _entry.state.opening != ""
 			else "")
 
 
@@ -1047,7 +1031,7 @@ func _walking() -> bool:
 		&"move":
 			return not in_combat()
 		&"entry":
-			return _entry.phase == "approach"
+			return _entry.state.phase == "approach"
 		&"defend", &"ambush", &"follow":
 			return not task.arrived
 		&"throw":
@@ -1072,7 +1056,7 @@ func _keeps_out_of_views() -> bool:
 			or _perception.under_fire()):
 		return false
 	if task.primitive == &"entry":
-		return _entry.phase == "approach"
+		return _entry.state.phase == "approach"
 	if task.primitive == &"throw":
 		return _combat.throw.stage == "walk"
 	return (task.primitive in [&"move", &"engage", &"interact", &"defend", &"ambush"]
@@ -1336,11 +1320,11 @@ func _keeps_in(pos: Vector2) -> bool:
 ## a threat in sight in every one of them). Done (the room clear, or the entry given up) →
 ## re-decide.
 func _apply_entry(delta: float) -> void:
-	_entry.gaze_held = not _watch.threat.is_empty()
-	_entry.hostile_in_view = _hostile_in_view()
+	_entry.state.gaze_held = not _watch.threat.is_empty()
+	_entry.state.hostile_in_view = _hostile_in_view()
 	if _entry_pending and _begin_pending_entry(delta):
 		return
-	if _entry.held_back:
+	if _entry.state.held_back:
 		if _detour_first(delta):
 			return
 		# The way is clear: the entry begins again, from the claims heard meanwhile (others' held
@@ -1386,17 +1370,17 @@ func _begin_pending_entry(delta: float) -> bool:
 			_perception.end_order(task.params.get("order_id"), "refused")
 		_finish_entry()
 		return true
-	_entry.held_back = (_resume.is_empty()
+	_entry.state.held_back = (_resume.is_empty()
 			and _ordered_entry(task.params)
-			and _entry.phase == "approach")
+			and _entry.state.phase == "approach")
 	return false
 
 
 ## An ordered stack's way to its doorway (D4, LD9), read before the member's claim goes out: its
 ## entry has begun (its slot, its side and the approach's waypoints are worked out) and holds its
-## claim back (`Entry.held_back`) while the whole walk to the slot, leg by leg as the approach walks
-## it (`AgentPerception.walk_route`: out of the room being entered and its doorway's view), is read
-## for a threshold into a room not cleared (`threshold_ahead`; the room being entered and the
+## claim back (`Entry.state.held_back`) while the whole walk to the slot, leg by leg as the approach
+## walks it (`AgentPerception.walk_route`: out of the room being entered and its doorway's view), is
+## read for a threshold into a room not cleared (`threshold_ahead`; the room being entered and the
 ## doorway it stacks at left out), and, with no other recipient coming to the doorway, a doorway
 ## view it would cross (E15, `passing_ahead`; not one of the room being entered, which the stack
 ## clears). The first is gone through by entry first, as a detour (`_begin_detour`): the entry is
@@ -1407,8 +1391,8 @@ func _begin_pending_entry(delta: float) -> bool:
 func _detour_first(delta: float) -> bool:
 	if not tuning.entry_guard.enabled or _perception.under_fire():
 		return false
-	var opening: String = _entry.opening
-	var into: String = _entry.into
+	var opening: String = _entry.state.opening
+	var into: String = _entry.state.into
 	var entering := "%s>%s" % [opening, into]
 	var path := PackedVector2Array()
 	var from := Vector2.INF
@@ -1447,8 +1431,8 @@ func _other_threshold(path: PackedVector2Array, index: int, reach: float) -> Dic
 	var gate: Dictionary = _perception.threshold_ahead(path, index, reach)
 	if gate.is_empty():
 		return gate
-	if (gate["opening"] == _entry.opening
-			or str(gate["into"]) == _entry.into
+	if (gate["opening"] == _entry.state.opening
+			or str(gate["into"]) == _entry.state.into
 			or float(_guard_off.get(gate["opening"], -1.0)) > _guard_clock):
 		return {}
 	return gate
@@ -1488,11 +1472,11 @@ func _finish_entry() -> void:
 		task.primitive = &"hold"
 		task.resolved = true
 		return
-	if _entry.secured:
+	if _entry.state.secured:
 		# Secured in passing: not again for a while.
-		_guard_off[_entry.opening] = _guard_clock + tuning.entry_guard.secure_time
-	elif not _perception.is_cleared(_entry.into):
-		_guard_off[_entry.opening] = _guard_clock + tuning.entry_guard.rearm
+		_guard_off[_entry.state.opening] = _guard_clock + tuning.entry_guard.secure_time
+	elif not _perception.is_cleared(_entry.state.into):
+		_guard_off[_entry.state.opening] = _guard_clock + tuning.entry_guard.rearm
 	_resume_order()
 
 
@@ -1555,11 +1539,11 @@ func _guard_running_entry() -> void:
 	if (not _resume.is_empty()
 			and not _entry.committed()
 			and _perception.under_fire()
-			and not _into_the_shots(_entry.into)):
+			and not _into_the_shots(_entry.state.into)):
 		# Shot at before it crossed: no time to stack. (Once crossing it finishes the crossing; into
 		# the shots it stacks.)
 		_cancel_detour()
-	elif _resume.is_empty() and not _entry_pending and _entry.phase == "approach":
+	elif _resume.is_empty() and not _entry_pending and _entry.state.phase == "approach":
 		_guard_approach()
 
 
@@ -1606,12 +1590,12 @@ func _guard_approach() -> void:
 	var gate := {}
 	if ordered:
 		gate = _other_threshold(walk["path"], walk["index"], tuning.entry_guard.reach)
-	var team_coming: bool = (_perception.entry_stack(_entry.opening).claimed()
+	var team_coming: bool = (_perception.entry_stack(_entry.state.opening).claimed()
 			or (ordered and _entry_recipients_coming()))
 	var passing := {} if team_coming else _passing_gate(walk, gate)
 	if (not passing.is_empty()
-			and passing["opening"] != _entry.opening
-			and str(passing["into"]) != _entry.into):
+			and passing["opening"] != _entry.state.opening
+			and str(passing["into"]) != _entry.state.into):
 		gate = passing
 	if gate.is_empty():
 		return
@@ -1657,7 +1641,7 @@ func _begin_detour(gate: Dictionary) -> void:
 ## Give a detour's entry up (the stack is told) and carry on with the paused order, which walks
 ## straight through.
 func _cancel_detour() -> void:
-	var opening := str(task.params.get("opening", _entry.opening))
+	var opening := str(task.params.get("opening", _entry.state.opening))
 	_guard_off[opening] = _guard_clock + tuning.entry_guard.rearm
 	_entry_pending = false
 	_entry.abandon()
@@ -1682,7 +1666,7 @@ func _stash_order() -> void:
 func _drop_detour() -> void:
 	if _resume.is_empty():
 		return
-	var opening := str(task.params.get("opening", _entry.opening))
+	var opening := str(task.params.get("opening", _entry.state.opening))
 	_guard_off[opening] = _guard_clock + tuning.entry_guard.rearm
 	_resume = {}
 

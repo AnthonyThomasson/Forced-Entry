@@ -173,7 +173,7 @@ func _own_gaze(behavior: Node) -> bool:
 			# Taking the grenade in hand and throwing it: aimed at the spot, not shot at the threat.
 			return behavior._combat.throw.stage not in ["walk", "away"]
 		&"entry":
-			return behavior._entry.phase == "bang"  # Turned away from the door for the stun.
+			return behavior._entry.state.phase == "bang"  # Turned away from the door for the stun.
 	return false
 
 

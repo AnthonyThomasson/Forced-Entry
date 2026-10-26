@@ -17,21 +17,25 @@ claim** rule there); the room is cleared by sight with `search_coverage.gd`
 
 ## The module
 
-`entry.gd` is a `RefCounted` built in `Behavior.setup`: `setup(loco, perception, coverage, eyes, combat)` captures the locomotion, the
-perception, the room coverage, the watch module (where a walker looks) and the combat module (the tactical reload and the bang's throw);
-`bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config(squad)` sets the tunables from the NPC's tuning topics (below).
+`entry.gd` is a `RefCounted` built in `Behavior.setup`. It holds two data leaves, built once, in `scenes/ai/behavior/entry/`: `state`
+(`entry_state.gd`: the entry's own state, which `Behavior` reads, below, with the doorway's geometry `geo`, the phase's `clock` and the entry's
+`time`) and `world` (`entry_world.gd`: what it works with, `squad`, `loco`, `perception`, `coverage`, `combat`, `eyes`, `character`, `self_id`
+and `tuning`). `Behavior.setup` hands in the NPC's tuning (`world.tuning`, read live, below), then `setup(loco, perception, coverage, eyes, combat)`
+captures the locomotion, the perception, the room coverage, the watch module (where a walker looks) and the combat module (the tactical reload and
+the bang's throw); `bind(character)` (from `Behavior.bind`) hands in the NPC's body once. `Behavior.apply_config(squad)` hands in the squad
+(`world.squad`). Neither leaf holds the entry, so no reference cycle forms (`tests/ai/ai_parts_free_suite.gd`).
 - `begin(params) -> bool` — start from an ENTER leaf's `opening`, `into`, `slot` and `bang`, the guard's pass-by `secure`, or an ordered
   stack's `order_id`, `bang`, `mode`, `wait_go`, `go` and `stack_at` / `split` (below), a join's `join: true` (its order's id left out,
   below); false when the doorway is unknown (the leaf is dropped and the NPC re-decides).
   `step(delta) -> bool` — one tick; true once it is over.
 - `laid(params)` (the doorway's slots are laid: the geometry has `wall_n`, so only once the nav map is baked; `Behavior` waits up to
   `ROUTE_WAIT` before `begin`), `approach_points()` (the waypoints still to walk, then the slot: what `Behavior._detour_first` reads),
-  `held_back` (set by `Behavior` while it reads an ordered entry's way: `take_calls` gives nothing yet).
+  `state.held_back` (set by `Behavior` while it reads an ordered entry's way: `take_calls` gives nothing yet).
 - `abandon()` (radio `abort`, only once a step of this entry went out, `_on_air`; else the queued calls are dropped), `reset()`, `committed()`, `throwing()`, `take_turned()`, `take_calls()`, `take_thrown()`, `way_blocked() -> bool`,
   `expects_burst(plan)`, `holding_for_go()`, `holds_crouched()` (all below).
-- State read by `Behavior` and the overlays: `phase`, `opening`, `into`, `slot`, `side`, `solo`, `secure`, `secured`, `covering`, `bang`,
-  `seen_fraction`, `pie_sides`, `corner`; `debug()` / `debug_view()` (the read-outs, below).
-- Set by `Behavior` every tick from the watch stage (`_apply_entry`): `gaze_held` and `hostile_in_view` (below).
+- State read by `Behavior` and the overlays: `state.phase`, `.opening`, `.into`, `.slot`, `.side`, `.solo`, `.secure`, `.secured`, `.bang`,
+  and on the entry `covering`, `seen_fraction`, `pie_sides`, `corner`; `debug()` / `debug_view()` (the read-outs, below).
+- Set by `Behavior` every tick from the watch stage (`_apply_entry`): `state.gaze_held` and `state.hostile_in_view` (below).
 
 ## The phases and the team
 
@@ -55,7 +59,7 @@ point past the slot and along the wall into it, so it never walks the door's axi
 `Locomotion.PASS_CLEARANCE` (32 px) short of the next slot along that side a teammate claims (`_approach_lead`, `_lead`), worked out again in `_tick_approach` when a claim heard
 since brings it nearer, so the walk never aims at a teammate's body, E2; the lead shortened by `LEAD_STEP` until its points are good, each
 waypoint kept in the stack room `CROSS_INSET` off its walls and on the navmesh within `WAYPOINT_SNAP` on the stack's ground, `_waypoint`; given up,
-`abort`, past `_approach_cap` = `approach_time` + `_walk_time()`, the walk measured leg by leg on `walk_route` at walking pace, set in
+`abort`, past `_approach_cap` = `tuning.entry.approach_time` + `_walk_time()`, the walk measured leg by leg on `walk_route` at walking pace, set in
 `_enter_approach` at every re-plan), `stack` (in the slot facing
 the door; radios `ready`; stepped back into when more than `StackClaim.SLOT_REACH` off it, `_tick_stack`), `pie` (the point — the first still waiting in the crossing order — walks the pie arc, at each step turning its
 gaze through the door until it settles plus `tuning.entry.pie_dwell`, dropping room sample points (`SearchCoverage.sample_room`)
@@ -105,9 +109,9 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   this member knew when it joined a quiet stack, or a stun that joined the stack), or a teammate seen quiet in this entry (`_quiet_seen`) now says bang, it sets `bang` and `_upgraded` and radios its
   claim; a point in `pie` goes back to `stack`. An `_upgraded` member waits for the rest to follow (a quiet teammate is not a veto for it; `_banging` counts its own turn, so a point that turned in its slot holds for the bang rather than starting the pie) and gives the bang up if someone crosses first. A claim without `bang` (the human's
   `PlayerStack`) reads as bang, so it never holds a stack back nor turns one. Tests: `tests/ai/grenade/quiet_entry_turns_bang`, `quiet_entry_crossing_stays_quiet`, and `stun_entry_footsteps_heard` (real Von).
-- **A quiet stack listens first (E17, issue #51 R17).** In `_tick_stack` the point of a quiet entry holds in its slot (`_listening`) for `listen_time` s from `_ready_at`
-  (`tuning.entry.listen_time`, 3 s) before `_start_pie`, while a late reason could still turn it (`_may_turn`: the stack carries a stun, nobody crossing, no `bang_off`,
-  not over a burst, not `secure`; `_maybe_upgrade` uses the same test). `hostile_in_view` or `AgentPerception.under_fire()` ends the hold for the entry (`_listen_over`). Tests:
+- **A quiet stack listens first (E17, issue #51 R17).** In `_tick_stack` the point of a quiet entry holds in its slot (`_listening`) for `tuning.entry.listen_time` s
+  (3 s) from `_ready_at` before `_start_pie`, while a late reason could still turn it (`_may_turn`: the stack carries a stun, nobody crossing, no `bang_off`,
+  not over a burst, not `secure`; `_maybe_upgrade` uses the same test). `state.hostile_in_view` or `AgentPerception.under_fire()` ends the hold for the entry (`_listen_over`). Tests:
   `ai/grenade/quiet_entry_listens_at_stack`, `quiet_entry_listen_turns_bang`, `quiet_entry_listen_ends_on_hit`, `quiet_entry_listen_ends_on_hostile_in_view` (scripted).
 - `Entry.expects_burst(plan)` (the evade reflex's plan, `AgentPerception.evade_plan`) makes `Behavior.set_evade` leave the stack to the bang's
   hold: a stun of a stun bang while the phase runs; a frag of a frag bang (LD14) in flight, or come down (`landed`, at `lies`) where this
@@ -133,18 +137,18 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
 - **Top off at the stack (E11).** A member short of a full magazine with a spare swaps it in while `stack`ed, the one lull:
   `_topping_off` (entry.gd) calls `Combat.top_off` (a tactical reload: `inventory.select_slot(inventory.gun_slot())`, `ammo.reload()`) from `_tick_stack`
   before the point starts the pie or a follower crosses, and from `_tick_pie` before the point (or a split stack's other front man) crosses (a pie that fired),
-  standing still and waiting for the reload to end. Skipped while a hostile holds the entrant's eyes (`gaze_held`: it fires) and
+  standing still and waiting for the reload to end. Skipped while a hostile holds the entrant's eyes (`state.gaze_held`: it fires) and
   past `TOP_OFF_CAP` (8 s) per entry; never in `cross` (the watch stage's empty-gun reflex is off while committed too).
 - **The last man faces back (E12).** In `stack` a member that is the last of its side's file with two or more crossing ahead of it (`_covers_rear`;
   one per side on a split stack) looks along the wall away from the door (`spot + along * side * 300`,
-  at 3x `look_rate`) instead of at it, until the member ahead of it is through (`_turn_at`); then it looks at the door as every
+  at 3x `tuning.coverage.look_rate`) instead of at it, until the member ahead of it is through (`_turn_at`); then it looks at the door as every
   follower does. A threat in sight takes the eyes first (the watch stage).
 - **A short room takes two (E13).** The doorway geometry's `capacity` (perception, `domain-ai-perception`) is 2 for a room with a side under
   `tuning.entry_geometry.short_room` (150 px). A member with that many ahead of it in the crossing order, both sides counted (`_holds_outside`), stays in `stack` running `_tick_security`: still,
   facing back (E12), until the room is called clear by the team and a teammate that held it moves on (`_team_moved`) or
-  `rear_time` has run out since, then radios `done`. It never crosses. Not held back once nobody ahead of it is on the radio and
+  `tuning.entry.rear_security_time` has run out since, then radios `done`. It never crosses. Not held back once nobody ahead of it is on the radio and
   the room is not called clear (it takes the lead); gives up (`abort`) after `SECURITY_CAP` (30 s) with no clear call.
-- **No crossing on a hostile in view (E14).** `Behavior._apply_entry` hands the entry `hostile_in_view` (`_hostile_in_view`: the watch
+- **No crossing on a hostile in view (E14).** `Behavior._apply_entry` hands the entry `state.hostile_in_view` (`_hostile_in_view`: the watch
   stage's threat is seen now, or was within `tuning.watch.lost_gaze`, and `Combat.has_line_of_fire` holds: in range on a clear line, so it
   can be engaged from outside; a hostile seen over low cover with no line of fire holds nothing). While it is set the pie holds where it stands
   (no next step, no crossing; the watch stage fires), a follower does not cross after the member ahead, and nothing else changes: it
@@ -167,7 +171,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   on the other side from its own (on a split stack, the point's side). Later members: a spot inside off the axis, `SPOT_SPACING`
   apart.
 - **Bodies on the way.** Every phase walks through `Locomotion.move_to`, so a member goes round a teammate at rest, stops short of
-  one on its slot or spot and takes a free spot beside it (an approach waypoint counts as reached there too, `_loco.reached`), and gives
+  one on its slot or spot and takes a free spot beside it (an approach waypoint counts as reached there too, `world.loco.reached`), and gives
   way to a walking one. The crossing never stands in the funnel except while `Locomotion`'s `crowd.holding()` (a body in its way). A walk a body
   seals and stays in re-plans (`Entry.way_blocked`, called by `Behavior._way_blocked` on `Locomotion`'s `crowd.take_blocked`): the approach drops
   the waypoint it was walking to and each next one the hold seals too (`_drop_sealed`: within `StackClaim.SLOT_REACH` of the slot, or whose plain way
@@ -248,11 +252,11 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `bang_off` from a claim under the same order (`_vetoed`); `_banging` holds whatever a quiet member says, `_tick_bang` gives up only on its
   own caps, and with the stack in and no stun in it (`_stack_has_stun`) `_bang_due` gives the bang up (D1: quiet, `bang_off` radioed).
   **D7:** `_stack_ready` waits for every other living recipient of the order (`_recipients`: the live order's `to` from
-  `AgentPerception.order()`, `Squad.alive` through `Entry.squad`, which `Behavior.apply_config` sets from the controller's `squad`) to have radioed past
+  `AgentPerception.order()`, `Squad.alive` through `Entry.world.squad`, which `Behavior.apply_config` hands in from the controller's `squad`) to have radioed past
   `claim`, and the human leader that gave the order while it holds a slot (`_waits_for` / `_leads`: its `PlayerStack` claim says `leader`
   and its id is `_leader_id`, the live order's `leader` at `begin`; `_stack_ready` is false while that claim is at `claim`, LD17), an
-  unordered member `ready_timeout` from `_all_in_at` (`_note_all_in`, each step: when every living recipient, itself among them, is past
-  `claim`; or the stack last grew), all of it at most `order_ready_cap` s from the first ordered `ready`
+  unordered member `tuning.entry.ready_timeout` from `_all_in_at` (`_note_all_in`, each step: when every living recipient, itself among them, is past
+  `claim`; or the stack last grew), all of it at most `tuning.entry.order_ready_cap` s from the first ordered `ready`
   (`_order_ready_at`, `_order_capped`); `_ahead` drops a recipient still at `claim` only then; `solo` (`_alone`) is false while another
   recipient is coming; `_waits_for_bang` holds an ordered bang's point in its slot until the stack is in. The claim `_order_claim` reads is
   `{ order_id, order_bang, order_mode, order_hold, order_go, order_side, order_frame, into }` (`DoorStack.order_claim(_me())`), and `_radio`
@@ -260,7 +264,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   `_held_order_frame`, -1 when unknown). Every call carries `crossed_frame` (`_crossed_frame`, stamped by `_radio` the first time its step
   is `going_in` or a through step, -1 before it, cleared by `reset`: its `going_in` is committed, so its first crossing is its only one). The order ends when the room is
   cleared (`AgentPerception.mark_cleared` ends it `done`). **The approach (D4, D11):** before the claim goes out `Behavior._apply_entry`
-  sets `held_back` (an ordered entry, not resumed from a detour, in `approach`) and `_detour_first` reads the whole way (`approach_points()`,
+  sets `state.held_back` (an ordered entry, not resumed from a detour, in `approach`) and `_detour_first` reads the whole way (`approach_points()`,
   leg by leg on `AgentPerception.walk_route(p, "<opening>><into>", from)`; up to `ROUTE_WAIT` s, standing, while that map is `pending`): a
   threshold into a room not cleared (`threshold_ahead`, not the doorway it stacks at nor a doorway into the room it enters, nor one in
   `_guard_off`), and, unless another recipient is coming (`_entry_recipients_coming`), a nearer doorway view it passes (`passing_ahead`, not
@@ -277,7 +281,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   order with mode `join`, whose ORDER option is an `entry` with `{ opening, into, bang: false, join: true, order_id }` (`StackClaim.is_join(params)`,
   the one test of it the behaviour, the entry, the snapshot and the squad share, for an order, a leaf's params and a claim alike). `begin` leaves the
   order's id out (`_order_id` ""), so the entry is the member's own unordered one joining the leader's stack: the team's side and the first
-  claimer's mode (D10), E17's suspect-room bang and `_maybe_upgrade`, the listen, the joiner's `ready_timeout`, no order fields on its claims
+  claimer's mode (D10), E17's suspect-room bang and `_maybe_upgrade`, the listen, the joiner's `tuning.entry.ready_timeout`, no order fields on its claims
   and `_order_bang` false. `_join` marks every call `join: true` (`_radio`, encoded by `StackClaim.encode`), so its squad never takes a join's
   claim for its holder's own: one that takes over the lead holding it rallies nobody on it (D30). `Behavior` keeps the `order_id` in the leaf (the `moving` radio, `_order_live`) and leaves a join out of the ordered
   stack's guarded way (`_ordered_entry`); a join whose `begin` fails (no slot at a dead end) is ended `refused`. Its order ends `done` at the
@@ -328,15 +332,15 @@ Where the entrant looks is the entry's own (`_look_toward`, eased through the st
 `_aim_travel` via `Watch.travel_point`), but the watch stage still runs after it every tick and has the last word: a threat in sight takes
 the eyes and the gun in every phase but `bang` (the stack holds its slots turned away from the door for the stun, and the watch stage does
 not turn it back). While the entry is `committed()` (the crossing, and the thrower's wind-up) the watch stage's empty-gun reflex
-(`Combat.reload_if_dry`) is off. Two flags carry the stage's verdict back into the entry: `gaze_held` (a threat holds the eyes: a gaze step
-the threat will not let settle counts as settled, so the pie does not wait on it) and `hostile_in_view` (`Behavior._hostile_in_view`: E14,
+(`Combat.reload_if_dry`) is off. Two flags carry the stage's verdict back into the entry: `state.gaze_held` (a threat holds the eyes: a gaze step
+the threat will not let settle counts as settled, so the pie does not wait on it) and `state.hostile_in_view` (`Behavior._hostile_in_view`: E14,
 above).
 
 ## Tunables (the NPC's `tuning.entry`, `tuning.entry_geometry` and `tuning.entry_guard`)
 
 `tuning.entry`'s `ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`, `corner_dwell`, `rear_security_time`, `cover_time`,
-`watch_dwell`, `approach_time`, `order_ready_cap` → `Behavior.apply_config(squad)` → `Entry` (`ready_timeout`, `listen_time`, `follow_gap`, `pie_dwell`,
-`corner_dwell`, `rear_time`, `cover_time`, `watch_dwell`, `approach_time`, `order_ready_cap`; `look_rate` is `tuning.coverage.look_rate`; `squad`, the controller's, goes the same way). `tuning.entry.enabled` (ENTER
+`watch_dwell`, `approach_time` and `order_ready_cap` are read live by `Entry` off `world.tuning` (`world.tuning.entry.ready_timeout`, ...),
+and the gaze turn speed off `tuning.coverage.look_rate`; the controller's `squad` reaches `world.squad` through `Behavior.apply_config(squad)`. `tuning.entry.enabled` (ENTER
 offered, and the guard on) and `tuning.entry_geometry`'s `stack_spacing`, `wall_standoff`, `pie_radius`, `pie_steps`,
 `corner_inset` and `short_room` go through `AgentPerception.apply_config(tuning)` to `AgentEntry`. The guard's `tuning.entry_guard`
 `enabled`, `reach`, `rearm` and `secure_time` are read live by `Behavior` (`tuning.entry_guard.enabled`, `.reach`, `.rearm`, `.secure_time`).

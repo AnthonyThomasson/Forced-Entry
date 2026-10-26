@@ -24,9 +24,9 @@ Files:
 
 The controller calls `setup(perception, nav_agent, tuning)`
 once to build its `Locomotion`, `SearchCoverage`, `Combat`, `Watch` and `Entry` modules and keep the NPC's tuning topics (`NpcTuning`, its `tuning`),
-then `apply_config(npc_squad)`, which sets the entry module's tunables straight from those topics and hands in the squad — re-calling it each
-decision so a runtime retune takes effect. (The behaviour, `SearchCoverage`, `Combat`, `Watch` and `Locomotion` keep no copies: each is handed the
-same `tuning` and reads its topics live, `tuning.decision.max_commit_time`, `tuning.pace.run_enabled`, ..., so a retune holds from the next read.)
+then `apply_config(npc_squad)`, which hands in the squad, to the behaviour and the entry module (`Entry.world.squad`) — re-called each
+decision. (The behaviour, `SearchCoverage`, `Combat`, `Watch`, `Locomotion` and `Entry` keep no copies: each is handed the
+same `tuning` (the entry's in its `world` leaf) and reads its topics live, `tuning.decision.max_commit_time`, `tuning.pace.run_enabled`, ..., so a retune holds from the next read.)
 The running leaf is the data leaf `task` (`running_leaf.gd`: `primitive`, `params`, `path`, `labels`, `leaf_ms`, `point`, `arrive_room`,
 `arrived`, `look_around`, `commit_timer`, `tactic_timer`, `resolved`, `resolve_reason`, `held`, and `take_resolved()`). On its first `control()` the controller calls `bind(character)`: the
 behaviour keeps the NPC's body and hands it to each module's own `bind`, so none of their functions takes the character.
@@ -77,13 +77,13 @@ advance, a retreat, a locate, whose path starts at `combat`),
 and so does the rest of an entry (pie, crossing, corner, clear, cover, rear: stopped there it would stand in the doorway's funnel); an evade
 or a committed step is never touched. The watch stage still looks and shoots. Tests `ai/decision/order_stops_walk`,
 `order_fight_goes_on`, `order_retreat_goes_on`. An ordered stack (LD9) is an `entry` leaf with the
-order's params: before its claim goes out `_apply_entry` sets `Entry.held_back` and `_detour_first(delta)` reads the whole way to the slot
+order's params: before its claim goes out `_apply_entry` sets `Entry.state.held_back` and `_detour_first(delta)` reads the whole way to the slot
 (`Entry.approach_points()`, each leg on `AgentPerception.walk_route(p, "<opening>><into>", from)`; standing up to `ROUTE_WAIT` 2 s, `_route_wait`,
 while that map is `pending`) for a threshold into a room not cleared and, unless another recipient is coming (`_entry_recipients_coming`), a doorway
 view it passes: either is a detour first (`_entry.reset()`, `_begin_detour`), no claim made; else the entry begins afresh and claims. The
 same `ROUTE_WAIT` covers the doorway's slots not laid yet (`Entry.laid(params)` false: the nav map not baked). On the walk its guard is
 `_guard_approach` (thresholds as well as views, whatever `entry_enabled` says; `_ordered_stack()` sets
-the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.squad` through `Behavior.apply_config(squad)`, with
+the perception's `ordered_walk` each tick, D4 / D11), the controller's `squad` reaches `Entry.world.squad` through `Behavior.apply_config(squad)`, with
 `tuning.entry.order_ready_cap`, and the same order decided again leaves the running entry alone (`_same_order`). A leaf whose params carry `refused` (the
 dead-end `hold_<opening>`, LD9 D21) says `refused` instead of `moving`. The rest is `domain-ai-entry`. **A join** (an entry leaf with
 `join: true`, the squad's rally, LD24) (`StackClaim.is_join(params)`) keeps its `order_id` in the params, so `_same_order`, `_order_live` and the `moving` radio treat it as
@@ -154,8 +154,8 @@ The entry phase machine, its team radio, the entry guard's detours and the entry
 
 ## Public interface (what the orchestrator calls)
 
-- `setup(perception, nav_agent, tuning)` (build the Locomotion, coverage, combat, watch and entry modules; keep the NPC's `NpcTuning` topics as `tuning`), `apply_config(npc_squad := null)` (set the entry module's
-  tunables from `tuning`, and the squad; re-callable each decision), `bind(character)` (the body, once); `rooms` (set each tick; forwarded to Locomotion).
+- `setup(perception, nav_agent, tuning)` (build the Locomotion, coverage, combat, watch and entry modules; keep the NPC's `NpcTuning` topics as `tuning`), `apply_config(npc_squad := null)` (hand in the squad, to
+  the behaviour and the entry module; re-callable each decision), `bind(character)` (the body, once); `rooms` (set each tick; forwarded to Locomotion).
 - `set_leaf(leaf)` — adopt: snap the point onto the navmesh, capture the target (a fight whose target
   is no longer known drops to hold and forces a re-decision), commit.
 - `update_known(known, delta) -> bool` — adopt the perception's hostiles; retarget a lost engaged

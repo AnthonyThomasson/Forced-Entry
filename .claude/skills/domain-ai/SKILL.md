@@ -22,8 +22,8 @@ skill for detail.
 AI domain). It holds the NPC's tunables, the AI's single **authoring surface**, as `tuning` (`NpcTuning`,
 `ai/tuning/`: its `Tuning` child, one topic node per concern, `tuning.<topic>.<name>`, so a defender or
 invader preset is all data on those nodes), it wires the sub-domains and hands that hub to each facade (the
-perception's `apply_config(tuning)`; the behaviour's `setup`, whose `apply_config` reads it), which sets that sub-domain's fields and its
-modules' straight from the topics (the behaviour's `Combat` keeps none: it reads `tuning.combat` live) — building
+perception's `apply_config(tuning)`; the behaviour's `setup`), which sets that sub-domain's fields and its
+modules' straight from the topics (the behaviour and its modules keep none: each reads its topics live, `tuning.combat`, `tuning.entry`, ...) — building
 them once, then applying the config again each decision so a tunable retuned at runtime
 (a behaviour test, the dev command server) takes effect without a rebuild, and on its first `control(character, delta)` hands the NPC's
 body to perception and behaviour once (`bind(character)`, which each passes on to its modules), so no sub-domain function takes the

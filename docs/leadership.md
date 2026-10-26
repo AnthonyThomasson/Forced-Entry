@@ -187,7 +187,7 @@ to keeps its own (D10).
   not go in alone (no second side of the pie) while another recipient is coming, and an ordered bang holds the point in its slot until
   the stack is in.
 - **The way there is guarded (D4).** Before its claim goes out the ordered entry works out its slot, its side and its approach and holds
-  the claim back (`Entry.held_back`), and the whole walk to the slot, leg by leg as the approach walks it (out of the room being entered and
+  the claim back (`Entry.state.held_back`), and the whole walk to the slot, leg by leg as the approach walks it (out of the room being entered and
   its doorway's view, E18), is read (`Behavior._detour_first`; at most `ROUTE_WAIT`, 2 s, waiting for the map round the views): a threshold
   into a room that is not cleared, other than the room being entered, is entered first, as a detour (E9), and with no other recipient of
   the order coming, a doorway view the walk would cross is secured first (E15; not one of the room being entered, nor one a stack already
