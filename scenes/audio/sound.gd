@@ -192,8 +192,10 @@ func _on_posted(topic: StringName, data: Dictionary) -> void:
 				_start_tinnitus(data)
 		&"vehicle":
 			_vehicle_sound(data)
-		&"engine", &"skid":
-			_loop_event(topic, data)
+		&"engine":
+			_loop_event(ENGINE, data)
+		&"skid":
+			_loop_event(SKID, data)
 
 
 ## Play `profile` for the category at the event, unless the event named no sound (`&""`).
