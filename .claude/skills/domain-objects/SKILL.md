@@ -197,6 +197,12 @@ damage is placed in the world (below), so no mark repeats on the tile's grid.
   `ObjectArtLayerConfig` (the floor, rug and overhang z-indices), `ObjectArtFloorConfig` and `ObjectArtWallConfig` (the tiles),
   `ObjectArtDecayConfig` (the grade and grime), `ObjectArtWearConfig` (the wear marks) and `ObjectArtStreetConfig` (the street)
   (the shared light and shadows are `ArtCanvasConfig`, the tones and finishes `ArtSurfaceConfig`).
+  Their keys (ADR 0003): a holder's own topic word is dropped, but inside a holder that serves several painters a key keeps
+  its painter's name as its prefix even where the holder names that word too: that wins where the two meet
+  (`ObjectArtTableConfig.table_plank_px` beside `chair_slats`, `ObjectArtClinicConfig.clinic_*`, `ObjectArtTechConfig.tech_*`).
+  A holder of one painter or module drops its topic word (`ObjectArtFloorConfig.plank_px`, `ObjectArtWallConfig.pattern`, `ObjectArtStreetConfig.asphalt_px`,
+  `ObjectArtWearConfig.spread`, `ObjectArtLightConfig.specs`), and a key several painters share is named for what it is
+  (`ObjectArtDecorConfig.prop_colors`, `ObjectArtLightConfig.neon_*`).
 
 ## Wear and the street's marks (`objects/decals/`, interface 2)
 

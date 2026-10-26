@@ -11,10 +11,12 @@ named `<family stem><Topic>Config` (`CharacterStunConfig`, `ObjectArtFloorConfig
 is one grep. A family's old name stays only where it holds the family's master switch or its per-kind rows (`BloodConfig`,
 `PhysicsConfig`, `SoundConfig`, `LightingConfig`, `VehicleConfig`), and keeps only those values and what every file of
 the family shares. The other five go. A var keeps its name, except that a prefix the holder's name already says is
-dropped (`CharacterConfig`'s `stun_speed` → `CharacterStunConfig.speed`), never into the name of a GDScript global. A holder
-sits beside the one it came from, or in the sub-domain folder whose files alone read it. Nested tables (styles,
-stances, light specs, kinds) move whole, inside their var. Ten holders became seventy; with the five that were not over,
-the game has seventy-five.
+dropped (`CharacterConfig`'s `stun_speed` → `CharacterStunConfig.speed`), never into the name of a GDScript global. Inside
+a holder that serves several painters, a key keeps its painter's name as its prefix even where the holder names that word
+too (`ObjectArtTableConfig.table_plank_px` beside `chair_slats`): that prefix names the painter, not the holder, so it
+stays; a prefix that names only the holder is dropped. A holder sits beside the one it came from, or in the sub-domain
+folder whose files alone read it. Nested tables (styles, stances, light specs, kinds) move whole, inside their var. Ten
+holders became seventy; with the five that were not over, the game had seventy-five at this split.
 
 ## Consequences
 
