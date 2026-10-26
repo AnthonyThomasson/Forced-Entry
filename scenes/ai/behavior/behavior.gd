@@ -114,7 +114,7 @@ func setup(perception: Node, nav_agent: NavigationAgent2D, npc_tuning: NpcTuning
 	_loco = Locomotion.new()
 	_loco.setup(nav_agent, tuning)
 	_loco.rooms = rooms
-	_loco.doors.views = perception
+	_loco.doors.views = perception.views
 	add_child(_loco)
 	errand.coverage = SearchCoverage.new()
 	errand.coverage.setup(_loco, perception, tuning)

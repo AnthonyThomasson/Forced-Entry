@@ -35,7 +35,7 @@ const CARVE_WAIT := 2.0
 ## The Locomotion it belongs to.
 var loco: Node
 ## The characters the NPC knows of, set each tick by `Behavior` from the perception's contacts
-## (`AgentPerception.contacts`: seen within its contact memory, each with `id`, `pos`, `vel`,
+## (`AgentPerception.contacts.known`: seen within its contact memory, each with `id`, `pos`, `vel`,
 ## `facing` and `visible`): the only bodies a walk accounts for.
 var bodies: Array = []
 ## A character no walk treats as an obstacle (the one a melee closes on), by instance id; 0 = none.

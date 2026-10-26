@@ -50,7 +50,7 @@ var _team_side := 0
 ## The side the point stacked on, as last seen while the stack formed: the side every member counts
 ## the rear spots from.
 var lead_side := 0
-## The doorway's stack this tick (`AgentPerception.entry_stack`; a pass-by's has no claims): the
+## The doorway's stack this tick (`AgentPerception.entry.stack`; a pass-by's has no claims): the
 ## claims heard and every slot rule on them.
 var stack: RefCounted = DoorStack.new()
 ## The slot this member moved up from (E2) until it stands in the one it stepped into, else 0: its
@@ -167,12 +167,12 @@ func ask_side(entry: Entry, n: int, first: bool) -> int:
 		_team_side = want
 	elif first:
 		_team_side = stack.team_side(world.character.global_position)
-		want = world.perception.entry_stack_side(stack)
+		want = world.perception.entry.stack_side(stack)
 	elif n != 1:
 		var team_side: int = stack.team_side(world.character.global_position)
 		if team_side != _team_side:
 			_team_side = team_side
-			want = world.perception.entry_stack_side(stack)
+			want = world.perception.entry.stack_side(stack)
 	return want
 
 
@@ -194,7 +194,7 @@ func read_stack() -> void:
 	stack = DoorStack.new(
 		state.geo,
 		[],
-	) if state.secure else world.perception.entry_stack(state.opening, state.into)
+	) if state.secure else world.perception.entry.stack(state.opening, state.into)
 
 
 ## Give the slot up: a dead end holds no slot for this NPC (E20, rule 6). Its claim is withdrawn and
@@ -270,7 +270,7 @@ func move_up_now(entry: Entry, delta: float) -> bool:
 				or d >= (h["pos"] as Vector2).distance_to(point)):
 			continue
 		var entering := "%s>%s" % [state.opening, state.into]
-		var walk := float(world.perception.walk_route(point, entering)["plain_len"])
+		var walk := float(world.perception.views.walk_route(point, entering)["plain_len"])
 		if walk <= 0.0 or walk > d * 1.5 + Locomotion.PASS_CLEARANCE:
 			continue  # No short way there: a body or a wall between.
 		if _latecomer_crosses(h, point):

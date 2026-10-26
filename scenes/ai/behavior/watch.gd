@@ -238,7 +238,7 @@ func _doors_of(room: String) -> Array:
 	var points: Array = []
 	if room == "":
 		return points
-	for d in _perception.room_doorways(room):
+	for d in _perception.entry.room_doorways(room):
 		var p: Vector2 = d["pos"]
 		if here.distance_to(p) >= DOOR_MIN_DISTANCE and _perception.has_line_to(null, p):
 			points.append(p)

@@ -72,7 +72,7 @@ func begin() -> void:
 ## line is blocked (behind furniture), walk toward it so a new vantage reveals it. True once
 ## `tuning.coverage.target` of the points are seen or the budget runs out.
 func step(delta: float) -> bool:
-	for p in _perception.visible_points(unseen):
+	for p in _perception.sight.visible_points(unseen):
 		unseen.erase(p)
 	budget -= delta
 	if unseen.size() <= floori(points.size() * (1.0 - tuning.coverage.target)) or budget <= 0.0:

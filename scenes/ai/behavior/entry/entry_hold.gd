@@ -52,7 +52,7 @@ func reset() -> void:
 ## the doorway it came by, facing back out. A room with no doorway on leaves only the last of the
 ## team in on the rear; everyone else is done. Alone, it looks through each doorway on in turn.
 func finish(entry: Entry, team: Array) -> void:
-	world.perception.mark_cleared(state.into)
+	world.perception.entry.mark_cleared(state.into)
 	entry.sweep.watch = entry.sweep.watch_doors()
 	if entry.sweep.watch.is_empty():
 		_hold_rear_or_done(entry)

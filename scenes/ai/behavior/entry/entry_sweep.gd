@@ -67,7 +67,7 @@ func reset() -> void:
 
 ## Drop every room point and corner now in sight from the unseen sets, and update the share seen.
 func note_seen(entry: Entry) -> void:
-	for p in world.perception.visible_points(unseen):
+	for p in world.perception.sight.visible_points(unseen):
 		unseen.erase(p)
 	if not points.is_empty():
 		entry.pie.seen_fraction = 1.0 - float(unseen.size()) / float(points.size())
@@ -76,7 +76,7 @@ func note_seen(entry: Entry) -> void:
 	for i in corners.size():
 		if not corners_seen.get(i, false):
 			unseen_corners.append(corners[i]["pos"])
-	for p in world.perception.visible_points(unseen_corners):
+	for p in world.perception.sight.visible_points(unseen_corners):
 		for i in corners.size():
 			if corners[i]["pos"] == p:
 				corners_seen[i] = true
@@ -211,8 +211,8 @@ func cleared_by_team(team: Array) -> bool:
 func watch_doors() -> Array:
 	var out: Array = []
 	var room: Rect2 = (state.geo["room"] as Rect2).grow(-COVER_INSET)
-	for d in world.perception.entry_watch_doors(state.into, state.opening):
-		var g: Dictionary = world.perception.entry_geometry(d["id"], d["into"])
+	for d in world.perception.entry.watch_doors(state.into, state.opening):
+		var g: Dictionary = world.perception.entry.geometry(d["id"], d["into"])
 		if g.is_empty():
 			continue
 		var pos: Vector2 = g["pos"]

@@ -7,7 +7,7 @@ description: Deep implementation detail for the AI TEAM module (scenes/ai/team/:
 
 Not a fifth AI sub-domain: two small modules beside them, the human's side of the entry radio and each side's squad. Only the
 composition root's match builder (`match_builder.gd`, `MatchBuilder`, for Main's match and the Testing world alike) builds them, the AI controllers hear them over the EventBus, and the UI reads them through
-`view()` (and the command menu `resolve()`). How the NPCs carry an order out (the ORDER node, `process_order`, the ordered entry and ambush)
+`view()` (and the command menu `resolve()`). How the NPCs carry an order out (the ORDER node, the perception's `orders.process`, the ordered entry and ambush)
 is the `domain-ai` overview's Orders section and `domain-ai-entry`.
 
 **The human's stack (`ai/team/player_stack.gd`).** Not a fifth sub-domain: one small module, the human's side of the entry radio

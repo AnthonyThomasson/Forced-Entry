@@ -15,7 +15,7 @@ follow yet is written the same way before it is built: the behaviour here, and a
 An *opening* is a doorway in a wall (`WorldGen.get_openings`: `pos`, `width`, `front`/`exit`, the rooms it
 joins). Doorways are open archways; there are no door objects yet (issue #21), so forced breaching is not
 modelled (see *Not modelled*). The AI's side lives in `scenes/ai/`: `perception/` (what it knows of the
-opening, `visible_points`), `decision/` (the ENTER tactic) and `behavior/` (the entry phases and their aim in `entry.gd`,
+opening, `sight.visible_points`), `decision/` (the ENTER tactic) and `behavior/` (the entry phases and their aim in `entry.gd`,
 `search_coverage.gd` for clearing). See `domain-ai-perception`, `domain-ai-decision`, `domain-ai-entry` (the entry phases),
 `domain-ai-behavior` and `domain-ai-coverage`.
 
@@ -91,7 +91,7 @@ and its slot, not on it (one standing within `Locomotion.PASS_CLEARANCE` of the 
 at a free spot beside it, test `ai/movement/npc_dest_taken_stops_nearby`): its plain way passes that body and no way reaches it with the holder and every other body at rest the member sees, or saw within half a second,
 standing in the way at body width, teammates of this stack still at `claim` (on their way) left out: no route on the plan map that ends at
 the slot, or short of it by a last stretch walked straight and clear of those bodies, as a walk goes into a slot between two taken ones
-(`approach._slot_sealed`, `AgentPerception.entry_slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
+(`approach._slot_sealed`, `AgentPerception.entry.slot_reach`). So a member walks round by another way (out by the hall and in) rather than give
 its slot up. A walk round the bodies that ends short of the slot and walks the rest straight, held there, keeps looking for a way round:
 one that ends at the slot, or another last stretch clear of every body at rest it knows of (`Locomotion`, test
 `ai/entry/entry_last_leg_sealed_goes_round`). One the stack itself keeps
@@ -141,7 +141,7 @@ across the door's front close in when a way round exists, and never bumping a te
 **E3. Slice the pie.** The first in the stack walks a short arc outside the opening (`tuning.entry_geometry.pie_steps` points, 100 px from
 the threshold, from 55° to 25° off the door's axis), turning its gaze through the doorway at each, before it crosses. What it sees from outside it engages from
 outside, and it notes the share of the room seen and which corners are still hidden. Why: it is the cheapest way
-to learn the room, and the farthest the entrant ever is from a threat. Built on `visible_points` and the
+to learn the room, and the farthest the entrant ever is from a threat. Built on the perception's `sight.visible_points` and the
 search-coverage sweep.
 It fires in every phase, the approach and the stack as much as the pie (`docs/gaze-and-fire.md` W2); a threat in sight holds the
 entrant's eyes there, and a pie step the gaze cannot settle on because of it counts as settled; with a line of fire to the hostile the pie then holds and nobody crosses (E14), and without one the entry goes on.
@@ -429,7 +429,7 @@ way round every view within the cap it goes round those two at least, and an ord
 characters) and the route (`walk_route`); the Navigation domain bakes the house's planning bake with those views as extra holes
 (`NavBuilder.avoid_map`, on the worker thread, cached per set of views), and `Locomotion` walks that map (its third way, beside the
 plain and steering ones; a body at rest in the way still takes the walk to the steering map or holds it, and E15 secures the views that
-route crosses; once the route on the avoid map passes no body it knows of, the walk goes back to it). A decision waits the few frames the avoid map takes to bake (`routes_ready`; a forced one does not) so its route bands are the
+route crosses; once the route on the avoid map passes no body it knows of, the walk goes back to it). A decision waits the few frames the avoid map takes to bake (`views.routes_ready`; a forced one does not) so its route bands are the
 walked ones.
 Tunables (the NPC's `tuning.entry_guard`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack`, `pass_clear_time`. The entry plan overlay
 (`show_entry`) draws the views the NPC keeps out of.
@@ -457,7 +457,7 @@ cannot see, and the crossing paths keep each entrant's sector clear of the other
 team's side (`StackLayout.stack_side`, `scenes/ai/perception/stack/stack_layout.gd`: the point's, else the side whose wall holds more of the file against it (E21), else its own) unless `cuts_view` says the member's plain route there
 starts outside the doorway's view (E18) and crosses the door's axis inside it (a walk that starts in the view, or goes round it, does not
 split the stack); `StackLayout.place` is a member's place in its side's file (its slot less the claims ahead of it on the other side), and
-`StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry_stack`;
+`StackLayout.crossing_order` the order the stack crosses in. `entry.gd` reads both off the doorway's `DoorStack` (`AgentPerception.entry.stack`;
 `readiness.members_before`, `readiness.slices_own_half`, `readiness.follow`, `sweep._corner_for`); `PlayerStack` asks its own `DoorStack` the same for the human.
 Test: `entry_split_stack_criss_cross` (two invaders at the Terrace house's back door from its north and south; real Von, `requires_von`).
 
@@ -597,11 +597,11 @@ the stack toward the door's axis, clear of the slots.
   ally radios `cleared_room`, and when a search covers its room). The guard then stashes the order, runs an `entry`
   primitive for that doorway (the same one ENTER runs) and puts the order back when it ends. Exempt are the nodes that
   carry `entry_guard: false` (RETREAT) and an NPC under fire, but for a doorway into the room the shots came from
-  (`Behavior.fight.into_the_shots`, over `AgentPerception.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.room_suspicion`,
+  (`Behavior.fight.into_the_shots`, over `AgentPerception.hearing.shots_from_room`). Any entry into a room the NPC suspects (`AgentPerception.hearing.room_suspicion`,
   the shots' room among them) is a bang one when the stack carries a stun (`Entry.begin`, E17). The NPC's tuning holds `tuning.entry_guard.enabled`, `reach`
   and `rearm` (test switch `ai.entry_guard`). It acts only where entry does, on invaders (`tuning.entry.enabled`).
 - **The views (E18).** `AgentDoorViews.door_view(opening, into)` lays out a doorway's view once (walls do not move); `avoided(here)` is
-  the set of views of the doorways into rooms not clear for passing (`AgentPerception._is_pass_clear`, from the `cleared_room`
+  the set of views of the doorways into rooms not clear for passing (`AgentPerception.views._is_pass_clear`, from the `cleared_room`
   memory's age against `tuning.entry_guard.pass_clear_time`), less the room the NPC stands in; `walk_route(from, to, entering)` weighs the plain route
   against the one on `NavBuilder.avoid_map` (planning bake plus the views as holes, async, cached by the set) with
   `door_avoid_ratio` and `door_avoid_slack`, its length the whole walk (onto the avoid route and from its end on to the goal). For an

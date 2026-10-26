@@ -40,8 +40,8 @@ func _init(npc_behavior: Node) -> void:
 
 ## The hostile a running throw order was offered on (its `target_id`), also while an entry detour
 ## has paused it, while the perception still holds it as lost (aged out of the contacts, not dead:
-## `lost_hostiles()` drops the dead); 0 for none. The throw is aimed at that hostile's last-known
-## spot and keeps it when the contact ages out on the way (G17).
+## `contacts.lost_hostiles()` drops the dead); 0 for none. The throw is aimed at that hostile's
+## last-known spot and keeps it when the contact ages out on the way (G17).
 func throw_target() -> int:
 	var task: RunningLeaf = behavior.task
 	var perception: Node = behavior._perception
@@ -52,7 +52,7 @@ func throw_target() -> int:
 		id = int((behavior.entries.resume["params"] as Dictionary).get("target_id", 0))
 	if (id == 0
 			or perception == null
-			or not perception.lost_hostiles().any(func(c): return c["id"] == id)):
+			or not perception.contacts.lost_hostiles().any(func(c): return c["id"] == id)):
 		return 0
 	return id
 
@@ -79,7 +79,7 @@ func begin_throw_order() -> void:
 	behavior._combat.throw.begin(
 		int(task.params.get("slot", -1)),
 		_throw_spot,
-		behavior._perception.grenade_reach(_throw_kind),
+		behavior._perception.grenades.reach(_throw_kind),
 		Vector2.INF if from == Vector2.INF else behavior._loco.reachable(from),
 	)
 
@@ -112,7 +112,7 @@ func apply_throw(delta: float) -> void:
 	var combat: RefCounted = behavior._combat
 	if combat.throw.stage != "away":
 		var blocked: bool = (combat.throw.stage == "aim"
-				and not perception.throw_clear(character.global_position, _throw_spot))
+				and not perception.grenades.throw_clear(character.global_position, _throw_spot))
 		if blocked or combat.throw.step(delta) == &"failed":
 			end_throw()
 		return
@@ -121,7 +121,7 @@ func apply_throw(delta: float) -> void:
 		end_throw()
 		return
 	throw_wait -= delta
-	var live: bool = perception.known_grenades().any(func(g): return g["source"] == &"own")
+	var live: bool = perception.grenades.known().any(func(g): return g["source"] == &"own")
 	_throw_seen = _throw_seen or live
 	if (_throw_seen and not live) or throw_wait <= 0.0:
 		end_throw()
@@ -136,7 +136,7 @@ func poll_throw() -> void:
 	var task: RunningLeaf = behavior.task
 	if task.primitive == &"throw" and behavior._combat.throw.released():
 		_throw_calls.append({ "kind": _throw_kind, "point": _throw_spot })
-		throw_wait = behavior._perception.grenade_fuse(_throw_kind) + THROW_WAIT_MARGIN
+		throw_wait = behavior._perception.grenades.fuse(_throw_kind) + THROW_WAIT_MARGIN
 	elif task.primitive == &"entry":
 		var thrown: Dictionary = behavior._entry.take_thrown()
 		if not thrown.is_empty():

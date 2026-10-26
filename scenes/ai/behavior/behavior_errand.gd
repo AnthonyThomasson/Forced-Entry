@@ -71,7 +71,7 @@ func _walk_bodies() -> Array:
 			spots.append(c["pos"])
 	if spots.is_empty():
 		return behavior.fight.known
-	var empty: Array = behavior._perception.visible_points(spots)
+	var empty: Array = behavior._perception.sight.visible_points(spots)
 	if empty.is_empty():
 		return behavior.fight.known
 	return behavior.fight.known.filter(func(c): return c["visible"] or not empty.has(c["pos"]))
@@ -114,7 +114,7 @@ func set_up_walk(delta: float) -> void:
 	loco.crowd.bodies = _walk_bodies()
 	# A melee closes on its target: no walk round it.
 	loco.crowd.ignore_id = behavior.fight.engage_id if task.primitive == &"melee" else 0
-	behavior._perception.ordered_walk = behavior.orders.ordered_stack()
+	behavior._perception.views.ordered = behavior.orders.ordered_stack()
 	loco.doors.avoid_doors = behavior.entries.keeps_out_of_views()
 	var entry_state: RefCounted = behavior._entry.state
 	loco.doors.avoid_entering = ("%s>%s" % [entry_state.opening, entry_state.into]
@@ -145,7 +145,7 @@ func apply_move(delta: float) -> void:
 			var covered: String = loco.room_key_at(character.global_position)
 			if covered != "":
 				# Seen all of it: cleared, as by an entry.
-				behavior._perception.mark_cleared(covered)
+				behavior._perception.entry.mark_cleared(covered)
 		return
 	aim_move()
 

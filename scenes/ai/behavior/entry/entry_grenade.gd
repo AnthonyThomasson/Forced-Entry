@@ -188,7 +188,7 @@ func _throw_bang(entry: Entry) -> bool:
 func _enter_bang(entry: Entry) -> void:
 	kind = _bang_kind(entry)
 	entry.approach.set_phase("bang")
-	_burst_seen = int(world.perception.last_burst.get("frame", -1))
+	_burst_seen = int(world.perception.grenades.last_burst.get("frame", -1))
 	_burst_at = -INF
 
 
@@ -268,21 +268,21 @@ func _bang_kind(entry: Entry) -> StringName:
 
 
 ## Plan the throw: a spot to throw from and a target in the room, a clear lob from the thrower's
-## hand there to the target (one that clears the jamb: `AgentPerception.can_lob`, from the hand with
-## room to spare either side). The target is the room's far side, `BANG_DEPTHS` of the way in and
-## `BANG_ACROSS` of the way across, or, in a room deeper than a stun reaches from the spot, the
-## farthest point along that line it reaches (`_bang_aim`); at least `BANG_MIN_DEPTH` from the door.
-## The first of them that some spot reaches with a clear lob wins, the thrower's own slot before a
-## step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14, D16) aims only where its burst
-## leaves every claimed slot of the stack, the thrower's own too, out of its danger zone
-## (`AgentPerception.in_grenade_zone`: the wall between shields it). False when nowhere gives a
+## hand there to the target (one that clears the jamb: `AgentPerception.grenades.can_lob`, from the
+## hand with room to spare either side). The target is the room's far side, `BANG_DEPTHS` of the way
+## in and `BANG_ACROSS` of the way across, or, in a room deeper than a stun reaches from the spot,
+## the farthest point along that line it reaches (`_bang_aim`); at least `BANG_MIN_DEPTH` from the
+## door. The first of them that some spot reaches with a clear lob wins, the thrower's own slot
+## before a step out in front of the door (`BANG_STEP_ALONG`). A frag (LD14, D16) aims only where
+## its burst leaves every claimed slot of the stack, the thrower's own too, out of its danger zone
+## (`AgentPerception.grenades.in_zone`: the wall between shields it). False when nowhere gives a
 ## clear lob (for a frag, a safe one).
 func _plan_bang(entry: Entry) -> bool:
 	var type := _bang_kind(entry)
 	var depth := _bang_room_depth()
 	var width := absf((state.geo["room"] as Rect2).size.dot((state.geo["along"] as Vector2).abs()))
 	var spots := _bang_spots(entry)
-	var reach: float = world.perception.grenade_reach(type)
+	var reach: float = world.perception.grenades.reach(type)
 	var slots := _slot_points(entry) if type == &"frag" else []
 	for d: float in BANG_DEPTHS:
 		for a: float in BANG_ACROSS:
@@ -330,7 +330,7 @@ func _bang_target_ok(target: Vector2, grenade_kind: StringName, slots: Array) ->
 	if (not (state.geo["room"] as Rect2).grow(-30.0).has_point(target)
 			or target.distance_to(state.geo["pos"]) < BANG_MIN_DEPTH):
 		return false
-	return not slots.any(func(p): return world.perception.in_grenade_zone(grenade_kind, target, p))
+	return not slots.any(func(p): return world.perception.grenades.in_zone(grenade_kind, target, p))
 
 
 ## Take the bang's plan: thrown from `spot` at `target`, walked to out from the slot first (clear
@@ -372,13 +372,13 @@ func _bang_aim(spot: Vector2, deep: float, across: float, reach: float) -> Vecto
 
 
 ## Whether a grenade of `grenade_kind` thrown by a thrower that walks to `spot` and faces `target`
-## flies to it clear of the jamb (`AgentPerception.can_lob`: from its hand, with room to spare
-## either side, wherever its walk into the spot may end). The target is within the grenade's throw
-## reach (`reach`, `AgentPerception.grenade_reach`) of the spot, so the thrower throws from where it
-## stands and does not close in.
+## flies to it clear of the jamb (`AgentPerception.grenades.can_lob`: from its hand, with room to
+## spare either side, wherever its walk into the spot may end). The target is within the grenade's
+## throw reach (`reach`, `AgentPerception.grenades.reach`) of the spot, so the thrower throws from
+## where it stands and does not close in.
 func _clear_lob(spot: Vector2, target: Vector2, reach: float, grenade_kind: StringName) -> bool:
 	return (spot.distance_to(target) <= reach
-			and world.perception.can_lob(spot, target, grenade_kind, true))
+			and world.perception.grenades.can_lob(spot, target, grenade_kind, true))
 
 
 ## The bang phase. Everyone holds its slot turned away from the door while the stun is thrown and
@@ -426,7 +426,7 @@ func _bang_go(entry: Entry, delta: float) -> void:
 	world.combat.throw.begin(
 		ItemRegistry.FRAG_SLOT if kind == &"frag" else ItemRegistry.STUN_SLOT,
 		_bang_target,
-		world.perception.grenade_reach(kind),
+		world.perception.grenades.reach(kind),
 	)
 	stage = "throw"
 
@@ -465,7 +465,7 @@ func _bang_back(entry: Entry, delta: float) -> void:
 ## stack, the pie), a stun or frag its own team threw (the NPC or an ally): the entry goes in on it
 ## (E17), no pie, as after a bang.
 func note_burst() -> void:
-	var burst: Dictionary = world.perception.last_burst
+	var burst: Dictionary = world.perception.grenades.last_burst
 	if (state.secure
 			or burst.is_empty()
 			or int(burst["frame"]) <= _burst_seen
@@ -487,7 +487,7 @@ func note_burst() -> void:
 ## its own team's in the room a moment before (within `BANG_WINDOW`) counts, so an entry begun on
 ## the heels of a stun or frag thrown into the room goes in on it (a GRENADE, then the walk in).
 func note_burst_before() -> void:
-	var burst: Dictionary = world.perception.last_burst
+	var burst: Dictionary = world.perception.grenades.last_burst
 	if burst.is_empty():
 		return
 	_burst_seen = int(burst["frame"])

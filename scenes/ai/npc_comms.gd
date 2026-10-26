@@ -39,23 +39,23 @@ func process_events() -> void:
 			&"hit":
 				if deaf and ev[1].get("victim") != controller._character:
 					continue
-				if perception.process_hit(ev[1]) and not behavior.in_combat():
+				if perception.hearing.process_hit(ev[1]) and not behavior.in_combat():
 					cadence.force("attacked")
 			&"callout":
 				if controller.tuning.radio.hear_callouts and not deaf:
-					perception.process_callout(ev[1])
+					perception.hearing.process_callout(ev[1])
 			&"footfall":
 				if not deaf:
-					perception.process_footfall(ev[1])
+					perception.hearing.process_footfall(ev[1])
 			&"grenade":
-				perception.process_grenade(ev[1], deaf)
+				perception.grenades.process(ev[1], deaf)
 			&"explosion":
-				perception.process_explosion(ev[1])
+				perception.grenades.process_explosion(ev[1])
 			&"order":
 				# An order (LD5) reaches its recipients whatever their state, deaf included, and is
 				# decided on at once, as a hit is (after a crossing or an evade, which hold every
 				# decision).
-				if perception.process_order(ev[1]):
+				if perception.orders.process(ev[1]):
 					cadence.force("ordered")
 					# A walk it replaces stands until a decision started from here on lands
 					# (the controller's `_on_decided`).
@@ -69,7 +69,7 @@ func process_events() -> void:
 ## has ended so; on the team radio, so only with `tuning.radio.send_callouts`.
 func report_order() -> void:
 	var steps: Array = controller._behavior.orders.take_steps()
-	var ended: Dictionary = controller._perception.take_ended_order()
+	var ended: Dictionary = controller._perception.orders.take_ended()
 	if not ended.is_empty():
 		steps.append({ "order_id": ended["id"], "step": ended["why"] })
 	if controller.tuning.radio.send_callouts:
@@ -113,7 +113,7 @@ func post_callout(leaf: Dictionary) -> void:
 	if str(leaf["path"][0]) == "combat":
 		# Where the hostile is, as the speaker knows it: an ally weighing the room it is in hears it
 		# (docs/grenades.md G18).
-		radio["target_pos"] = controller._perception.target_pos(params.get("target_id", 0))
+		radio["target_pos"] = controller._perception.contacts.target_pos(params.get("target_id", 0))
 	EventBus.post(&"callout", radio)
 
 

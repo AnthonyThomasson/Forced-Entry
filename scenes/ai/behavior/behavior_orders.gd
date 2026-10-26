@@ -159,11 +159,12 @@ func apply_defend() -> void:
 
 
 ## Whether the order the running leaf carries out (its `order_id`) is still the NPC's live order
-## (`AgentPerception.order`).
+## (`AgentPerception.orders.current`).
 func _live() -> bool:
 	var task: RunningLeaf = behavior.task
 	return (task.params.has("order_id")
-			and str(behavior._perception.order().get("id", "")) == str(task.params["order_id"]))
+			and str(behavior._perception.orders.current().get("id", ""))
+					== str(task.params["order_id"]))
 
 
 ## Note step `step` of the order the running leaf carries out (its `order_id`), once until the next

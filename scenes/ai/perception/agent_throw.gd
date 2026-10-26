@@ -120,16 +120,6 @@ func bind(character: Node) -> void:
 # --- The grenades it carries ----------------------------------------------------------------------
 
 
-## How many grenades of `kind` `character` carries (`Character.inventory.item_count`).
-static func count(character: Node, kind: StringName) -> int:
-	return int(character.inventory.item_count(SLOTS[kind]))
-
-
-## The kinds `character` carries, a frag first: `[&"frag", &"stun"]` less those it has none of.
-static func carried(character: Node) -> Array:
-	return SLOTS.keys().filter(func(k): return count(character, k) > 0)
-
-
 ## Learn a grenade's numbers (`{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind
 ## }`): off one it carries or one it sees fly. The AI keeps no copy of the tuning; what it knows of
 ## a kind is what a grenade of that kind last told it, and stays known after the last one is thrown.

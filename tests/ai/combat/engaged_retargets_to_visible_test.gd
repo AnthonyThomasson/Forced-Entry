@@ -6,6 +6,7 @@ extends GameTest
 ## stand-in contacts and perception (no world).
 
 const Behavior := preload("res://scenes/ai/behavior/behavior.gd")
+const PerceptionViews := preload("res://scenes/ai/perception/perception_views.gd")
 
 
 func describe() -> Dictionary:
@@ -99,6 +100,10 @@ func _contact(node: Node2D, pos: Vector2, visible_now: bool) -> Dictionary:
 
 ## Perception with what `Behavior` asks of it on adopting a fight.
 class FakePerception extends Node:
+	## The perception's doorway views part, which `Behavior.setup` hands its locomotion (unused
+	## here).
+	var views: PerceptionViews = null
+
 	func note_engaged() -> void:
 		pass
 

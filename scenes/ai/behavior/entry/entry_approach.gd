@@ -20,7 +20,7 @@ const CROSS_DEPTH := 140.0
 ## stays.
 const CROSS_INSET := 24.0
 ## The step (px) the approach's lead past the slot (`claim.lead`) is shortened by where that
-## point is off the stack's ground (`AgentPerception.entry_on_stack_side`).
+## point is off the stack's ground (`AgentPerception.entry.on_stack_side`).
 const LEAD_STEP := 8.0
 ## The farthest (px) an approach waypoint may be moved onto the navmesh and still stand for the
 ## point it was asked for.
@@ -103,7 +103,7 @@ func _sealed_waypoint(p: Vector2, spot: Vector2) -> bool:
 ## Whether the hold seals the slot (at `spot`) for good: a body between the member and its slot, not
 ## on it. Its plain way passes the body the walk is held by (`Locomotion.seals`) and no way at all
 ## reaches it with that body and each other body standing still in the way at body width
-## (`_standing_bodies`, `AgentPerception.entry_slot_reach`). A body standing on the slot (within
+## (`_standing_bodies`, `AgentPerception.entry.slot_reach`). A body standing on the slot (within
 ## `Locomotion.PASS_CLEARANCE` of it, Locomotion's own read of a body on the goal) is no seal: the
 ## walk goes on, and Locomotion ends it at a free spot beside the slot. A way round there is, though
 ## the steering map does not show it yet (a teammate on its way still crossing it), is no seal. Nor
@@ -112,7 +112,7 @@ func _slot_sealed(entry: Entry, spot: Vector2) -> bool:
 	if world.loco.crowd.held_at().distance_to(spot) < Locomotion.PASS_CLEARANCE:
 		return false
 	return (world.loco.seals(spot)
-			and world.perception.entry_slot_reach(spot, _standing_bodies(entry)) == 0)
+			and world.perception.entry.slot_reach(spot, _standing_bodies(entry)) == 0)
 
 
 ## The bodies a hold's verdict on the slot weighs (`_slot_sealed`): the one the walk is held by, and
@@ -269,9 +269,9 @@ func _wall_point(out_px: float, lat_px: float) -> Vector2:
 
 
 ## How long (s) the approach's walk takes at walking pace: the way the NPC walks it
-## (`AgentPerception.walk_route`, this entry's approach), leg by leg through the waypoints into the
-## slot, so a long way round (an ordered approach keeps out of the room being entered however long
-## it is) is not cut short by the cap (E2).
+## (`AgentPerception.views.walk_route`, this entry's approach), leg by leg through the waypoints
+## into the slot, so a long way round (an ordered approach keeps out of the room being entered
+## however long it is) is not cut short by the cap (E2).
 func walk_time(entry: Entry) -> float:
 	var speed: float = world.character.movement.walk_speed()
 	if speed <= 0.0:
@@ -280,7 +280,7 @@ func walk_time(entry: Entry) -> float:
 	var length := 0.0
 	var at: Vector2 = world.character.global_position
 	for p in waypoints + [entry.claim.spot]:
-		length += float(world.perception.walk_route(p, entering, at)["len"])
+		length += float(world.perception.views.walk_route(p, entering, at)["len"])
 		at = p
 	return length / speed
 
@@ -292,13 +292,13 @@ func _lead_ok(p: Vector2) -> bool:
 
 ## Approach waypoint `p` as the walk goes to it: kept inside the room the stack stands in
 ## (`_in_stack_room`) and onto the navmesh, or INF when that lands off the stack's ground
-## (`AgentPerception.entry_on_stack_side`: another doorway's funnel, or across a wall) or more than
+## (`AgentPerception.entry.on_stack_side`: another doorway's funnel, or across a wall) or more than
 ## `WAYPOINT_SNAP` px from where it was asked (the nearest walkable point lies somewhere else).
 func _waypoint(p: Vector2) -> Vector2:
 	var kept := _in_stack_room(p)
 	var on: Vector2 = world.loco.reachable(kept)
 	if (on.distance_to(kept) > WAYPOINT_SNAP
-			or not world.perception.entry_on_stack_side(state.geo, on)):
+			or not world.perception.entry.on_stack_side(state.geo, on)):
 		return Vector2.INF
 	return on
 
@@ -332,11 +332,12 @@ func _cross_depth() -> float:
 
 
 ## Whether the walk from here to `target` has a way round this doorway's view (E18): 1 when the way
-## the NPC walks (`AgentPerception.walk_route`, the approach of this entry: out of the room being
-## entered and its doorway's view) goes round it or the plain way never goes into it, 0 when it has
-## none (the front is crossed far out), -1 while the map round the views is still being baked.
+## the NPC walks (`AgentPerception.views.walk_route`, the approach of this entry: out of the room
+## being entered and its doorway's view) goes round it or the plain way never goes into it, 0 when
+## it has none (the front is crossed far out), -1 while the map round the views is still being
+## baked.
 func _way_round(target: Vector2) -> int:
-	var route: Dictionary = world.perception.walk_route(
+	var route: Dictionary = world.perception.views.walk_route(
 		target,
 		"%s>%s" % [state.opening, state.into],
 	)

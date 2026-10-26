@@ -32,7 +32,7 @@ extends RefCounted
 ##
 ## Its role comes from its slot. Slots, readiness and progress travel on the team radio: the
 ## behaviour queues each step (`take_calls()`) and the controller radios it; the team is read back
-## through the perception (`entry_stack`). The point crosses when every member of the stack is ready
+## through the perception (`entry.stack`). The point crosses when every member of the stack is ready
 ## or `tuning.entry.ready_timeout` runs out (E6); a follower crosses `tuning.entry.follow_gap` after
 ## the member ahead of it is through. With nobody else claiming the doorway the NPC goes alone; an
 ## ally that claims a slot before it commits joins the stack (E7). In a **bang entry** the stack
@@ -130,7 +130,7 @@ func begin(params: Dictionary) -> bool:
 	state.opening = str(params.get("opening", ""))
 	state.into = str(params.get("into", ""))
 	state.secure = bool(params.get("secure", false))
-	state.geo = world.perception.entry_geometry(state.opening, state.into)
+	state.geo = world.perception.entry.geometry(state.opening, state.into)
 	if state.geo.is_empty():
 		state.phase = "done"
 		return false
@@ -208,10 +208,10 @@ func abandon() -> void:
 
 
 ## Whether the entry `params` names can begin on its doorway's slots: they are laid (`wall_n` and
-## the rest, `AgentPerception.entry_geometry`) only on a baked nav map, and a stack claims by them.
+## the rest, `AgentPerception.entry.geometry`) only on a baked nav map, and a stack claims by them.
 ## True for a doorway the perception does not know (`begin` then fails at once).
 func laid(params: Dictionary) -> bool:
-	var g: Dictionary = world.perception.entry_geometry(
+	var g: Dictionary = world.perception.entry.geometry(
 		str(params.get("opening", "")), str(params.get("into", "")),
 	)
 	return g.is_empty() or g.has("wall_n")
@@ -513,18 +513,18 @@ func way_blocked() -> bool:
 	return false
 
 
-## Whether the live grenade of the evade reflex's `plan` (`AgentPerception.evade_plan`) is the one
-## this entry is waiting for (the evade reflex then leaves the stack to its own turned-away hold,
-## beside the wall and out of the burst's line): any stun, while a stun's bang phase runs (in flight
-## it is at the doorway, where its landing is not known to those who did not throw it); a frag,
-## while a frag's bang phase runs, in flight (the stack's own, aimed where no slot is in its zone,
-## D16) or come down where this member's slot is out of its danger zone (LD14: the slot is its
+## Whether the live grenade of the evade reflex's `plan` (`AgentPerception.grenades.evade_plan`) is
+## the one this entry is waiting for (the evade reflex then leaves the stack to its own turned-away
+## hold, beside the wall and out of the burst's line): any stun, while a stun's bang phase runs (in
+## flight it is at the doorway, where its landing is not known to those who did not throw it); a
+## frag, while a frag's bang phase runs, in flight (the stack's own, aimed where no slot is in its
+## zone, D16) or come down where this member's slot is out of its danger zone (LD14: the slot is its
 ## cover; one the frag reaches, a frag that came back to the door, is evaded as anywhere).
 func expects_burst(plan: Dictionary) -> bool:
 	if state.phase != "bang" or plan.get("kind") != grenade.kind:
 		return false
 	return grenade.kind == &"stun" or not bool(plan.get("landed", false)) \
-		or not world.perception.in_grenade_zone(
+		or not world.perception.grenades.in_zone(
 			grenade.kind,
 			plan.get("lies", plan["point"]),
 			claim.spot,
