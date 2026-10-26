@@ -7,9 +7,12 @@ extends UnitSuite
 ## parts of a node (the behaviour's, Locomotion's, the controller's, the perception's) hold it only
 ## as a node. Every preset, instanced, put in the tree (its controller builds the AI in `_ready`)
 ## and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
-## `_built_then_freed`, so no temporary of the calling test still holds a piece.
+## `_built_then_freed`, so no temporary of the calling test still holds a piece. The doorway
+## geometry (`AgentEntry`) and its three parts (`posts`, `slots`, `layouts`, each handed it at the
+## call) free themselves the same way, both bare (as `PlayerStack` builds one) and an NPC's.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
+const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const NPCS := [
 	"res://scenes/ai/npc.tscn",
 	"res://scenes/ai/npc_defender.tscn",
@@ -70,6 +73,39 @@ func _held(controller: Node) -> Dictionary:
 	return held
 
 
+## The doorway geometry `entry` and each of its parts, by name, held by a `WeakRef`.
+func _geometry_held(entry: AgentEntry) -> Dictionary:
+	var pieces := {
+		"geometry": entry, "geometry.posts": entry.posts, "geometry.slots": entry.slots,
+		"geometry.layouts": entry.layouts,
+	}
+	var held := {}
+	for key: String in pieces:
+		held[key] = weakref(pieces[key])
+	return held
+
+
+## A bare doorway geometry, built as `PlayerStack` builds its own and handed to its parts at a call
+## (no map: nothing is laid), dropped: what is left of each piece.
+func _bare_geometry_dropped() -> Dictionary:
+	var entry := AgentEntry.new()
+	entry.set_house([], [])
+	entry.geometry("door_0_0", "room", RID(), null)
+	entry.posts.defend_spot(entry, "room", Vector2i(0, 1), RID(), null)
+	return _geometry_held(entry)
+
+
+## The doorway geometry of the NPC at `path` (its perception's), with the NPC freed: what is left
+## of each piece.
+func _npc_geometry_freed(path: String) -> Dictionary:
+	var npc: Node = (load(path) as PackedScene).instantiate()
+	add_child(npc)
+	var perception: Object = npc.get_node("GoalController").get("_perception")
+	var held := _geometry_held(perception.get("entry").doorways)
+	npc.free()
+	return held
+
+
 ## An entry whose world leaf holds it: the cycle the parts must never make.
 func _entry_held_by_its_world() -> WeakRef:
 	var entry := Entry.new()
@@ -82,6 +118,20 @@ func test_premise_a_leaf_holding_its_entry_keeps_it_alive() -> void:
 	assert_object(held.get_ref()).is_not_null()
 	var entry: Entry = held.get_ref()
 	entry.world.remove_meta(&"entry")  # Break the cycle: nothing leaks.
+
+
+func test_a_doorway_geometry_and_its_parts_free_themselves() -> void:
+	var cases := { "bare": _bare_geometry_dropped() }
+	for path: String in NPCS:
+		cases[path] = _npc_geometry_freed(path)
+	for label: String in cases:
+		var held: Dictionary = cases[label]
+		assert_int(held.size()).is_equal(4)
+		for key: String in held:
+			var ref: WeakRef = held[key]
+			assert_object(ref.get_ref()) \
+				.override_failure_message("%s: %s is still alive" % [label, key]) \
+				.is_null()
 
 
 func test_every_npcs_ai_frees_itself_with_the_npc() -> void:

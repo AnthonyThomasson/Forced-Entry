@@ -29,7 +29,7 @@ Files:
   `ORDER` (`gunfire`, `footsteps`, `shot_from`, `ally_fight`, `seen_in`, `lost_by_door`, `heading_in`), `lost_rooms`, `shot_rooms` (the rooms `shot_line` runs through: the line back from a shot, counted from where it leaves the room the shot
   landed in, which is only where the NPC stood; the whole line when it never leaves that room). A pure read of the memory, the lost
   hostiles and the radio, shared by the snapshot (which words it) and, through `hearing.room_suspicion(key)`, the behaviour's entry (any entry into a suspect room is a bang one, and a late reason turns a quiet entry, E17).
-- `agent_entry.gd` (+ its part `entry/entry_slots.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
+- `agent_entry.gd` (+ its parts `entry/entry_posts.gd`, `entry/entry_slots.gd`, `entry/entry_layouts.gd`) — doorway geometry for a tactical entry (`docs/tactical-entry.md`) (see "Entry geometry" below).
 - `house_rooms.gd` — `HouseRooms`, the static room lookups over the house's rooms (`at(p, rooms)`, `key_at(p, rooms)`, `by_key(rooms, key)`) the
   perception, its snapshot, the doorway views and the entry geometry share.
 - `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
@@ -264,7 +264,7 @@ the doorway's geometry. **A split stack (E19):** `stack_side_from(stack, from, m
 unless `cuts_view(g, from, to, map, space)` (the plain route from `from`, starting outside the doorway's view, `views.door_view`, crosses the door's axis inside the view: a walk
 that starts in the view or goes round it does not) says the way there crosses the view; then the member's own side (`side_of`). An `AgentEntry` built outside the perception (`PlayerStack`'s, the `Squad`'s) makes its own `AgentVision` and `AgentDoorViews` for the view rays. Tunables: the NPC's `tuning.entry_geometry`.
 
-**Where a stack stands (E20 to E22, `_lay_slots`).** On a baked map with a physics space `_build` also lays the slots: `from` / `from_room` (the
+**Where a stack stands (E20 to E22, `slots.lay`).** On a baked map with a physics space `_build` also lays the slots: `from` / `from_room` (the
 room the stack stands in, "" / a zero rect outside), `kind` and its layout, `wall_n` (how many slots the wall, or the fewest-seen spots,
 hold), and past them `seq` (the overflow: open floor, then the tail from `tail_from`) and `capped`; `spacing`. `kind`: `wall` (a spot against
 the wall beside the door out of every other doorway's view, `_has_wall_spot`): `files { 1: [{ point, row }], -1: [...] }` packed exactly at
@@ -279,14 +279,18 @@ navmesh carved round solid furniture skips it (E22). `_overflow`: `_open_floor` 
 `OUTDOOR_FLOOR` 300 px; past a short wall or a `views` way in, `strict`: off the wall band and out of other doorways' views; exact when
 capped), then `_tail_spots` (in the room beyond the stack room's nearest other doorway, within `TAIL_REACH` 140 px of it); `capped` (a dead
 end, or outdoors past a short wall) takes no tail. The layout statics every stack reads from this geometry (`slots`, `side_for`, `point`, `holds_slot`, `is_tail`) are
-`StackLayout`'s ("The stack" below); and its part `slots` (`entry/entry_slots.gd`, `EntrySlots`, built once with it, holding nothing of it:
-`slots.on_stack_side(entry, g, p)`, the entry handed in at the call).
-**Shared, and laid ahead.** `geometry` keeps each doorway's layout in the instance's `_cache` and in the static `_shared` (navigation map RID
--> `"<_tuning()>|<id>><into>"` -> geometry, `_tuning()` being `_tuning_inputs()` (the house and the tunables `_build` reads) as a string), dropped
-when the map's planning region leaves the tree; only a layout snapped on a baked map is kept. `warm_geometry(map, space)` lays at most one
-missing way in per physics frame among every NPC (`_warmed_frame`), so a house's doorways are laid in the frames after the bake, not in a
-decision. Once a pass finds every way in laid it remembers that shared dictionary and the `_tuning_inputs()` array (`_warm_done_in`,
-`_warm_done_for`) and returns at once until either changes: comparing the array costs about 0.2 us against about 3 us to format the key, and
+`StackLayout`'s ("The stack" below). The laying is `AgentEntry`'s part `slots` (`entry/entry_slots.gd`, `EntrySlots`, built once with it,
+holding nothing of it: `slots.lay(entry, g, opening, map, space)` and `slots.on_stack_side(entry, g, p)`, the entry handed in at the call;
+`slots.frames`, every way into a room framed, cleared by `set_house`). Its helpers over the style's five parameters (`_overflow`,
+`_open_floor`, `_slot_ok`) read the entry from the stack context they already take (`c["entry"]`, set by `_stack_context`), which dies with
+the call.
+**Shared, and laid ahead.** `geometry` keeps each doorway's layout in its part `layouts` (`entry/entry_layouts.gd`, `EntryLayouts`, built
+once with it, holding nothing of it): in the instance's `layouts.cache` and in the static `_shared` (`layouts.shared_on(map)`: navigation map
+RID -> `"<layouts.key(entry)>|<id>><into>"` -> geometry, `key` being `tuning_inputs(entry)` (the house and the tunables `_build` reads) as a
+string), dropped when the map's planning region leaves the tree; only a layout snapped on a baked map is kept. `warm_geometry(map, space)`
+lays at most one missing way in per physics frame among every NPC (the static `EntryLayouts.warmed_frame`), so a house's doorways are laid in
+the frames after the bake, not in a decision. Once a pass finds every way in laid it remembers that shared dictionary and the
+`tuning_inputs` array (`layouts.warm_done_in`, `layouts.warm_done_for`) and returns at once until either changes: comparing the array costs about 0.2 us against about 3 us to format the key, and
 scanning every opening x room per NPC per tick cost 0.1 to 0.2 ms a frame in the match guards. Laying one way in costs 7 to 52 ms
 (garage_home's ten: `_band` 2 to 15 ms, `_overflow` 10 to 28 ms); all ten are laid by 0.22 s into a match, before the perf guards measure
 (`docs/leadership.md`, Performance).
@@ -327,18 +331,21 @@ Locomotion's last leg, the way into a slot between two taken ones, which lies in
 bakes (asking starts it), 1 with no planning region or the plan map not baked yet (no verdict: not sealed). It is what the entry asks before it reads a hold as sealing its slot (E2, `domain-ai-entry`).
 Config (the NPC's `tuning.entry_guard`, through `apply_config(tuning)`): `door_view_depth`, `door_avoid_ratio`, `door_avoid_slack` (set on `AgentDoorViews`), `pass_clear_time` (read live by the perception); views are
 avoided only where `tuning.entry.enabled` and `tuning.entry_guard.enabled` are.
-**Defend spots (`docs/leadership.md` LD8, D2).** `defend_spot(room_key, nth, count, map, space)` is where member `nth` of `count` ordered to
+**Defend spots (`docs/leadership.md` LD8, D2).** `AgentEntry`'s part `posts` (`entry/entry_posts.gd`, `EntryPosts`, built once with it,
+holding nothing of it) lays the posts an order stands at, the entry handed in at the call, and the member's place in its order as one
+`Vector2i` (`place`: x `nth`, which post, y `count`, of how many). `posts.defend_spot(entry, room_key, place, map, space)` is where member `nth` of `count` ordered to
 defend a room holds it: the room's doorways sorted by id, member `nth` taking doorway `nth` mod their number (the extras doubling up on its
 other side), the spot `DEFEND_DEPTHS` back from its wall and `DEFEND_LATERALS` past its jamb (best 100 / 50 px), inside the room by
 `DEFEND_INSET`, snapped onto the navmesh, scored out of every doorway's fatal funnel first (within `DEFEND_BODY` of its width, nearer its wall
 than `DEFEND_FUNNEL_DEPTH`), then with a sight line to its doorway, low furniture on that line (cover seen over), its side and the distance
 from the best; a lone member of a room with several doorways takes the spot that sees the most. `{ spot, door, door_pos, doors }` (`door` ""
-and `door_pos` INF for that lone member, who turns among them). The snapshot's `order` group calls it. `static normal_into(rect, pos)` (the
+and `door_pos` INF for that lone member, who turns among them). The snapshot's `order` group calls it. `AgentEntry`'s `static normal_into(rect, pos)` (the
 unit normal into a room from the edge a doorway lies on, `AgentDoorViews.normal_into`) is also read by the squad (`ai/team/squad.gd`).
-**Ambush posts (`docs/leadership.md` LD15, D17).** `ambush_spot(g, nth, count, map, space)` (`g` the entry geometry `geometry(id, room_key, map, space)`) is where member `nth` of `count` ordered
+**Ambush posts (`docs/leadership.md` LD15, D17).** `posts.ambush_spot(entry, g, place, map, space)` (`g` the entry geometry `geometry(id, room_key, map, space)`) is where member `nth` of `count` ordered
 to ambush doorway `id` from room `room_key` waits: `{ spot, door_pos, seen }` (`door_pos` the doorway's centre, where its gun goes; `seen` how
 many lookouts see the post, 0 hidden), {} for a doorway or room it does not know or no post. The candidates (`_ambush_posts`, kept per
-doorway and room side in `_posts` once worked out on a baked map, cleared by `set_house`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
+doorway and room side in `posts.cache` once worked out on a baked map, cleared by `set_house`; `_ambush_post` reads the entry from the frame
+it takes, `f["entry"]`, set by `_ambush_posts`) lie `AMBUSH_DEPTHS` (40 to 160 px) back from the
 wall and `AMBUSH_LATERALS` (30 to 260 px) past the jamb, either side, inside the room by `AMBUSH_INSET` (22 px), through `_defend_candidate`
 (snapped, its funnel, its sight line and cover on the line to each doorway); one off the doorway's sight line or on its axis (within half the
 width + `DEFEND_BODY`) is dropped. Each is scored `seen` x 1000 + funnel x 500 + (no cover on its line to the threshold) 300 + |depth -
@@ -487,7 +494,7 @@ it just left, so the zone it is in is the one the burst will have. **Replanning*
 `AgentThrow.escape` takes the NPC's own position as the first candidate (already behind cover that shields a crouched body, it need not move).
 
 **What it knows of a grenade it carries (`AgentThrow`).** No copy of the tuning: `learn(stats)` takes in what a grenade tells (`{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`, interface 6/7) from `Character.inventory.throw_stats(slot)` of every grenade the NPC carries (`learn_carried()`, every `observe`) and from each live grenade it notes (`ThrownGrenade.throw_stats()`, in `agent_grenades.gd`), and keeps it by kind, so it outlives the last grenade thrown. `range_of(kind)`, `radius_of(kind)`, `fuse_of(kind)`, `max_blind_of(kind)` and `cover_reach(kind)` answer from it (0 / 0 / 0 / 0 / INF for a kind never met; the flash a hostile is taken to be blind for is `FLASH_SHARE` 0.8 of `max_blind_of(&"stun")`); the perception's `grenades` part's `can_lob(at, to, kind)` (range and `throw_clear`), `throw_clear(at, to)` (the lob alone, from the hand), `reach(kind)` and `fuse(kind)` wrap them for the behaviour sub-domain; beside them its static `carried(character)` (`PerceptionGrenades.carried`: the kinds with a count, a frag
-first, via `Character.inventory.item_count` of `AgentThrow.SLOTS`, `ItemRegistry.FRAG_SLOT / STUN_SLOT`). `AgentThrow` is also the geometry the snapshot's `grenade_group` uses (`can_lob`, `in_zone`, `escape`, `run_speed`).
+first, via `Character.inventory.item_count` of `AgentThrow.SLOTS`, `ItemRegistry.FRAG_SLOT / STUN_SLOT`). `AgentThrow` is also the geometry the snapshot's `SnapshotThrows.grenade_group` uses (`can_lob`, `in_zone`, `escape`, `run_speed`).
 
 **The plan (`evade_plan()`).** For the known grenade that goes off first among those the NPC is in the zone of (or is already running from): `{ id, point, kind, radius, spot,
 crouch, fuse_left, landed, lies }` (`landed` whether it has come down, `lies` where it is known to be now; `point` is where it was when the plan was made: a frag entry's stack

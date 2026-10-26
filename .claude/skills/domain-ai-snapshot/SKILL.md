@@ -14,16 +14,17 @@ Files:
 - `agent_snapshot.gd` — `build(rooms, goal, activity, knowledge) -> { facts, sections, sections_per_target,
   options, gun }`: the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
   `_option_groups`); `fill_goal(goal)`; `setup(sources: SnapshotSources)` (once, from the perception's `setup()`), which builds the
-  vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`);
-  `bind(character)` (from the perception's own `bind`) hands the NPC's body to it and to the vocabulary, the sections and the option
-  groups, each holding it as `_character`, so none of their functions takes the character.
+  vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`, and the same for `SnapshotThrows` and
+  `SnapshotOrders`);
+  `bind(character)` (from the perception's own `bind`) hands the NPC's body to it, the sections, the option groups and the order group
+  (`SnapshotOrders`), each holding it as `_character`, and sets the vocabulary's `character`, so none of their functions takes the character.
 - `snapshot/snapshot_sources.gd` — `SnapshotSources`, the perception's modules the snapshot reads (`memory`, `tactics`, `entry`, `views`,
   `ledger`, `throw`, `suspicion`), filled once by the perception's `setup()`.
 - `snapshot/snapshot_vocab.gd` — the shared vocabulary and tuning: `COMPASS`, `SIDE_WORDS`, `tuning` (the NPC's `NpcTuning` topics, handed in
   by the perception's `apply_config`; every tunable the snapshot reads, read live: `tuning.combat.shoot_range` / `punch_range`,
   `tuning.tactics.flank_ally_radius`, `tuning.decision.max_options_per_level`, `tuning.memory.search_ttl`, and the `tuning.context` ones,
   `recency_bands`, `route_buckets`, `aim_cone`, `still_speed`, `investigate_distance`, `extrapolate_cap`, `hurt_threshold`,
-  `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, and the band / wording helpers
+  `critical_threshold`, `low_ammo_fraction`, `max_contacts_in_state`), the house `rooms` of the decision being built, the NPC's body (`character`, set by `AgentSnapshot.bind`), and the band / wording helpers
   (`dist_band, recency, route_band, route_text, move_text, coming_text, aim_text, where, room_suffix, room_name, health_band,
   wound_band, compass, place, own_posture_text, contact_posture_text, blind_text, gun_noun, side_status, is_inside`; the room lookups are `HouseRooms`'s,
   `perception/house_rooms.gd`: `at`, `key_at`, `by_key`).
@@ -31,9 +32,12 @@ Files:
   surface) and its reads (`_v.tuning.<topic>.x` in the sections and option groups, `vocab.tuning.<topic>.x` in `agent_snapshot.gd`).
 - `snapshot/snapshot_sections.gd` — the state text: `situation_text, loadout_text, odds_text, contacts_text, exposure_text,
   unseen_fire_text, allies_text, flanks_text, awareness_text, order_text, threat_summary`.
-- `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group, grenade_group, shots_grenade_group,
+- `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group,
   melee_group, advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group,
-  explore_group, interaction_group, room_group, order_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
+  explore_group, interaction_group, room_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
+- `snapshot/snapshot_throws.gd` — the grenade option groups (`_throws`): `grenade_group, shots_grenade_group` and their helpers, and
+  `begin()` (once per decision, from `build()`: forgets the throw spots of the last one). Reads `know` too (set by `build()`).
+- `snapshot/snapshot_orders.gd` — the ORDER option group (`_orders`): `group` (the live order's one option) and its helpers.
 
 Add a **fact** in the `facts` literal of `_facts()`; a **section** as a `*_text` function in `snapshot_sections.gd` plus a key in
 `_state_sections()`'s `sections` dict (and list it in the tree level that shows it); an **option group** as a `*_group` function in
@@ -102,13 +106,13 @@ lives in `agent_snapshot.gd`.
   only, minus those an entry leads into),
   `interactions` (deduped by label, uncapped), `rooms` (uncapped). The other groups are capped at `max_options_per_level`
   (`explore` at two).
-  `order` (`order_group`, LD6): the ORDER node's one option, the live order, carrying its own `primitive` and params with `order_id`:
-  `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `AgentEntry.defend_spot`, the member's place being its index in
+  `order` (`SnapshotOrders.group`, LD6): the ORDER node's one option, the live order, carrying its own `primitive` and params with `order_id`:
+  `defend_<room>` runs `defend` (`room`, `spot`, `door`, `door_pos` from `EntryPosts.defend_spot`, the member's place being its index in
   the order's `to`), `stack_<opening>` runs `entry` (`opening`, `into`, `bang`, `mode` (LD14), `wait_go` and `go` (LD13), `split`,
   `stack_at`; its label "the doorway into the kitchen" adds " with a stun" / " with a frag"; a join's params are `opening`, `into`, `bang`
 false and `join: true` with the `order_id`, no side or mode, and at a dead end with no slot for the member it has no option at all, so the
 controller ends it `refused` and the member follows, LD24), `ambush_<opening>` runs `ambush` (`opening`,
-  `room`, `spot`, `door_pos` from `AgentEntry.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
+  `room`, `spot`, `door_pos` from `EntryPosts.ambush_spot`, the member's place being its index in the order's `to`; LD15). A stack at a
   dead end with no slot for this member (`StackLayout.holds_slot` false at `DoorStack.order_place`, `_has_place`: its index among the living recipients in `to`,
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
@@ -135,7 +139,7 @@ compare numbers, and an encoder reads "no cover" as "cover". So:
    and the contacts section on a bind level blur the match.
 5. **Only perceived facts** — facing, aim and wounds only while visible; unknown rooms by direction.
 A seen character's `reloading` flag (read via `ammo.is_reloading()` only while visible) joins its contact line ("…, reloading").
-**Grenades** (`docs/grenades.md`): per target the group `grenade_throws` (`grenade_group`): one option `frag` / `stun` per kind carried, only against a hostile whose last-known spot is hidden from the NPC's line of fire
+**Grenades** (`docs/grenades.md`): per target the group `grenade_throws` (`SnapshotThrows.grenade_group`): one option `frag` / `stun` per kind carried, only against a hostile whose last-known spot is hidden from the NPC's line of fire
 (`line.clear` false: "frag X behind their cover", group `situation` "Your line to X is blocked") or lies in a room the NPC is outside of (`_held_room`, issue #51 R7: "frag X in the kitchen",
 `situation` "X holds a room you are outside of", `held_room` the room, and the exposure section adds "X holds the kitchen, a room you are outside of." before the throw sentence), within that kind's throw range (`AgentThrow.range_of`, off the grenade carried) with a clear lob from the thrower's hand (`AgentThrow.can_lob`), judged per kind, from where the NPC stands or else
 from a **throw spot** a short walk away (`_throw_option(ctx, kind, spot, keep_out, walk)` asks `AgentTactics.throw_spot`, with a `ThrowAim` (`ai/perception/throw_aim.gd`: the spot, the reach, `keep_out`, the lob and route tests), within `AgentThrow.reach_of`, never inside `keep_out`, the room the
@@ -145,8 +149,8 @@ spot); the option keeps `route_len` (the walk), its desc adds " — from the hal
 nearby" when every option needs the walk, "within throwing range" otherwise (`_throw_reach_text`; measured: the walk's words change nothing, `docs/grenades.md` G17); `tags` `ally_in_blast` (a known ally, seen or on the radio, in the
 grenade's danger zone at the spot: `AgentThrow.in_zone`), `no_safe_spot` (the NPC itself is in the zone standing **at `from`** and `AgentThrow.escape` from there finds no spot or cover within the fuse) which the tree's `grenade` node drops by, and `inside` (`_throw_option`, shared).
 `debug_zones()` (`ZoneList`) lists every throw weighed, dropped ones too, as zones of category `grenade` with `from`. A throw spot is worked out once per decision for a burst spot,
-reach and room kept out of (`_throw_spots`, cleared by `SnapshotOptions.begin()`, which `build()` calls): a frag and a stun of the same reach share it.
-Globally, `grenade_throws` is also `shots_grenade_group` (R10): with no hostile known and under fire, a throw per kind onto the stretch, inside the first room along it the NPC is
+reach and room kept out of (`_throw_spots`, cleared by `SnapshotThrows.begin()`, which `build()` calls): a frag and a stun of the same reach share it.
+Globally, `grenade_throws` is also `SnapshotThrows.shots_grenade_group` (R10): with no hostile known and under fire, a throw per kind onto the stretch, inside the first room along it the NPC is
 outside of, of a `shot_from` line (`AgentSuspicion.shot_line`: from where it leaves the room the shot landed in; `_shots_aim`: the point nearest its middle, `SHOT_AIM_SHARES`, it can lob onto from where it stands, else, issue #51 R15, from a throw spot outside that room), `situation` "The shots came from a room you
 are outside of"; the unseen-fire exposure then adds "The shots came from the kitchen, a room you are outside of. You can throw a stun grenade where the shots came from." The fact
 `grenade_ready` holds for either. A group's `situation` fills the tree's `{situation}` (`domain-ai-decision`).

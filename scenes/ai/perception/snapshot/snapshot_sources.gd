@@ -1,8 +1,9 @@
 class_name SnapshotSources extends RefCounted
 ## The perception's modules the decision snapshot reads (`AgentSnapshot.setup`, and through it
-## `SnapshotOptions.setup`): the event memory, the combat geometry, the doorway geometry, the
-## doorway views, the grenade geometry, why a room is suspect and the entry claims heard. The
-## perception fills it once in its `setup()`, after it has built them.
+## `SnapshotOptions.setup`, `SnapshotThrows.setup` and `SnapshotOrders.setup`): the event memory,
+## the combat geometry, the doorway geometry, the doorway views, the grenade geometry, why a room is
+## suspect and the entry claims heard. The perception fills it once in its `setup()`, after it has
+## built them.
 
 const AgentThrow = preload("res://scenes/ai/perception/agent_throw.gd")
 const AgentSuspicion = preload("res://scenes/ai/perception/agent_suspicion.gd")

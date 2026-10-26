@@ -65,7 +65,7 @@ lands a walk the order replaces stops, while a fight goes on (the cadence's `ord
 `_maybe_interrupt` restarts a decision walk in flight, and `_on_decided` drops a leaf from a walk begun before the order (LD6). The entry rule `ordered → order` sits after the fight rules
 and before `hostile_known`, so an ordered member shot at fights, then goes back to its order. The ORDER node's one option (the snapshot's
 `order` group) is auto-picked: `defend` for a room (the behaviour's `defend` primitive, at its D2 spot), an `entry` for a stack, an `ambush`
-for an ambush (the behaviour's `ambush` primitive, at its post from `AgentEntry.ambush_spot`, LD15). A `go` is no new order: perception
+for an ambush (the behaviour's `ambush` primitive, at its post from `EntryPosts.ambush_spot`, LD15). A `go` is no new order: perception
 latches it on the held stack it releases (`go: true`) and no decision is forced. Each
 decision the controller pushes a defend order's room into the planner's `confines` (`confines.room`), which keeps the fight to options inside it, and
 radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
