@@ -441,8 +441,8 @@ orchestrator and the team preload these files themselves; this folder is that se
   which `DoorStack.layout` reads). `NO_FILE_OUT` (28 px): how far out in front of the door a slot stands when the
   doorway has no file to lay it in.
 
-The unit suite `tests/ai/door_stack_suite.gd` (`UnitSuite`, plain claim dicts, beneath the simulation tests per ADR-0002) pins the codec,
-the ledger and the slot rules.
+Two unit suites (`UnitSuite`, plain claim dicts, beneath the simulation tests per ADR-0002) pin the module: `tests/ai/stack_claim_suite.gd`
+the codec and the ledger, `tests/ai/door_stack_suite.gd` the slot rules.
 
 
 ## Grenades (`agent_grenades.gd`, `agent_throw.gd`; spec `docs/grenades.md` G15, G16)

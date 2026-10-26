@@ -693,9 +693,11 @@ the other doorways' views and funnels): `frames` / `frame` (a way in's door fram
 by path), `layout(g, count, side)` (the slots, read only through the published rule `StackLayout.slots`, perception's
 `stack/stack_layout.gd` loaded by path), and one check per rule
 (`in_stack_room`, `on_navmesh`, `reachable`, `clear_of_other_doors`, `in_other_funnel`, `in_other_view`, `clear_of_furniture`, `side_has_room`,
-`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them the native suite
-`tests/ai/door_stack_suite.gd` feeds plain claim dicts to the stack module (`StackClaim`'s codec and its not-a-claim rule, a `ClaimLedger`,
-`DoorStack`'s slot rules: same-frame ties, move-up, the human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
+`room_for_one`, `way_kind`). `tests/ai/entry/stack_slots_sweep` runs it over every generated floorplan. Beneath them two native suites
+feed plain claim dicts to the stack module, over the shared speakers and callouts of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
+preload(...)`: `speaker(suite, dead)`, freed with the suite's case, and `callout`): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
+not-a-claim, step and join rules, a `ClaimLedger`) and `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
+human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
 (`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, lead, side,
 starts)`, the members the keys of `starts`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
 walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of
