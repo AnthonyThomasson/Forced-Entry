@@ -39,7 +39,7 @@ func run(t: TestContext) -> void:
 		return
 	_check_soaked(t, on_carpet, covered_before)
 	_check_tile(t, on_tile)
-	t.screenshot("carpet_soaked")
+	t.bundle.screenshot("carpet_soaked")
 
 
 ## A carpet floor on the left of the room and glazed tile on the right.
@@ -82,7 +82,7 @@ func _spread(t: TestContext, on_carpet: Node, on_tile: Node) -> bool:
 		not on_carpet.flow.settled(),
 		"the pool on carpet is still spreading when the tile one has finished",
 	)
-	t.screenshot("carpet_soaking")
+	t.bundle.screenshot("carpet_soaking")
 	if not t.require(
 			await t.until(
 				func(): return on_carpet.flow.settled(),

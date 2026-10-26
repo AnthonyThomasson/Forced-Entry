@@ -1,6 +1,9 @@
 class_name TestContext extends Object
 ## Testing domain: what a running test sees — handed to `GameTest.run(t)`. Waiting (in sim time),
-## looking up what the setup placed, the event log of what happened, and the assertions.
+## looking up what the setup placed, the event log of what happened, and the assertions. Its
+## `verdict` part (test_verdict.gd) keeps the checks and judges the run; its `bundle` part
+## (test_bundle.gd) keeps what a failed run's bundle carries (traces, screenshots, the plain-data
+## state). The session sets `world`, `rooms` and `time` and appends to `events`.
 ##
 ## Once the test has ended (a failed `require`, a logged error, a timeout, `skip`), every wait
 ## suspends until the runner frees this context (an Object, so freeing it discards the parked
@@ -18,66 +21,33 @@ signal _never
 ## Marks an input event a test sent itself, so a locked interaction (`TestSetup.lock_interaction`)
 ## lets it through while still dropping the same kind of event from a person.
 const INJECTED_META := &"test_injected"
+const TestVerdict = preload("res://scenes/testing/test_verdict.gd")
+const TestBundle = preload("res://scenes/testing/test_bundle.gd")
 
 ## The built world (a TestWorld node) and its rooms (`{ key, type, rect }`, world-space).
 var world: Node2D
 var rooms: Array = []
 ## Sim seconds since the test started (advanced by the runner each physics frame).
 var time := 0.0
-## Assertion records: `{ ok, message, time }`.
-var checks: Array = []
-## Unexpected logged errors/warnings: `{ severity, message, location }`.
-var logs: Array = []
 ## Everything observed, in order: `{ topic, data, time }`. Topics: every EventBus topic (`&"hit"`,
 ## `&"callout"`, …), plus `&"died"` / `&"hit_landed"` per actor (`data.actor` = its id) and
 ## `&"spawned"` / `&"removed"` for nodes entering/leaving the world root (`data.node`, `data.name`).
 var events: Array = []
-## Sampled series from `trace()`: name → Array of `[time, value]`.
-var traces: Dictionary = {}
-## Where `screenshot()` saves PNGs, as a path prefix ("" = screenshots off; the runner's `--shots`
-## sets it on a rendering run). `shots` lists the files written.
-var shot_prefix := ""
-var shots: Array = []
-## "PASS" | "FAIL" | "SKIPPED" | "TIMEOUT" | "GAP" once ended ("" while running). GAP is a test
-## tagged `gap` (a behaviour the code does not show yet, written first and left red) that failed or
-## timed out as expected; one that passes is a FAIL ("drop the gap tag").
-var status := ""
-## Why it was skipped / timed out.
-var reason := ""
 ## Whether the test has ended (`finish`: a verdict, a failed `require`, a skip); a wait then parks
 ## for good.
 var is_finished := false
-## The world's placed actors, objects and vehicles by id (what `actor`, `object` and `vehicle`
-## read).
-var _actors: Dictionary = {}
-var _objects: Dictionary = {}
-var _vehicles: Dictionary = {}
+## The checks and the verdict (test_verdict.gd).
+var verdict: TestVerdict
+## What a failed run's bundle carries (test_bundle.gd).
+var bundle: TestBundle
 ## The tree whose physics frames the waits count.
 var _tree: SceneTree
-## Outstanding expected log lines: `{ pattern, count }`.
-var _expected_logs: Array = []
-## Patterns of log lines the test lets pass (its `allowed_logs`).
-var _allowed_logs: Array = []
-## Whether a logged engine error / warning fails the test (its `fail_on_errors` /
-## `fail_on_warnings`).
-var _fail_on_errors := true
-var _fail_on_warnings := true
-## Whether `conclude` has already run its one-time checks (expected logs, no assertions).
-var _concluded := false
-## Tagged `gap`: failing is the expected verdict (GAP), passing is the failure.
-var _gap := false
-## A gap test passed, which is reported as the failing check "drop the gap tag" (once).
-var _gap_passed := false
-## The test ended by timing out; its verdict stays TIMEOUT whatever the checks say.
-var _timed_out := false
 
 
 func _init(tree: SceneTree, description: Dictionary) -> void:
 	_tree = tree
-	_allowed_logs = description.get("allowed_logs", [])
-	_fail_on_errors = description.get("fail_on_errors", true)
-	_fail_on_warnings = description.get("fail_on_warnings", true)
-	_gap = Array(description.get("tags", [])).has("gap")
+	verdict = TestVerdict.new(description)
+	bundle = TestBundle.new(tree)
 
 
 # --- Lookup -------------------------------------------------------------------------------
@@ -85,7 +55,8 @@ func _init(tree: SceneTree, description: Dictionary) -> void:
 
 ## The character placed as `id` (null if unknown or freed).
 func actor(id: StringName) -> Node:
-	var n: Variant = _actors.get(id)  # untyped: a freed node may not be assigned to a Node
+	# untyped: a freed node may not be assigned to a Node
+	var n: Variant = world.actors.get(id) if is_instance_valid(world) else null
 	return n if is_instance_valid(n) else null
 
 
@@ -103,14 +74,15 @@ func puppet(id: StringName) -> Node:
 ## The object placed as `id` (null if unknown or freed).
 func object(id: StringName) -> Node:
 	# untyped: assigning a freed object to a Node variable is an engine error
-	var n = _objects.get(id)
+	var n = world.objects.get(id) if is_instance_valid(world) else null
 	return n if is_instance_valid(n) else null
 
 
 ## The vehicle placed as `id` (`TestSetup.vehicle`; null if unknown, freed, or its kind has no
 ## scene).
 func vehicle(id: StringName) -> Node:
-	var n = _vehicles.get(id)  # untyped, as in `object`
+	# untyped, as in `object`
+	var n = world.vehicles.get(id) if is_instance_valid(world) else null
 	return n if is_instance_valid(n) else null
 
 
@@ -205,27 +177,9 @@ func spawned(name_part: String) -> Array:
 ## later misses. Failed runs print each series' range and last value and keep it in the failure
 ## bundle.
 func trace(trace_name: String, value: float) -> void:
-	var series: Array = traces.get(trace_name, [])
+	var series: Array = bundle.traces.get(trace_name, [])
 	series.append([snappedf(time, 0.01), snappedf(value, 0.001)])
-	traces[trace_name] = series
-
-
-## Save the current frame as a PNG named after `label` and return its absolute path, or "" when
-## screenshots are off (`--shots` not given) or there is no rendering (headless). Failed runs under
-## `--shots` also get one automatically.
-func screenshot(label: String) -> String:
-	if shot_prefix == "" or DisplayServer.get_name() == "headless":
-		return ""
-	var image := _tree.root.get_texture().get_image()
-	if image == null:
-		return ""
-	var path := "%s__%s.png" % [shot_prefix, label.validate_filename()]
-	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
-	if image.save_png(path) != OK:
-		return ""
-	var absolute := ProjectSettings.globalize_path(path)
-	shots.append(absolute)
-	return absolute
+	bundle.traces[trace_name] = series
 
 
 # --- Assertions -----------------------------------------------------------------------------
@@ -233,7 +187,7 @@ func screenshot(label: String) -> String:
 
 ## Record `condition` as a check; returns it. A failure fails the test but lets it continue.
 func check(condition: bool, message: String) -> bool:
-	checks.append({ "ok": condition, "message": message, "time": time })
+	verdict.checks.append({ "ok": condition, "message": message, "time": time })
 	return condition
 
 
@@ -256,15 +210,9 @@ func expect_near(actual: float, expected: float, tolerance: float, message: Stri
 		"%s (got %.3f, expected %.3f ± %.3f)" % [message, actual, expected, tolerance])
 
 
-## Declare that this test means to log a line matching `pattern` (regex) `count` times: those lines
-## don't fail it, and the test fails if they never appear.
-func expect_log(pattern: String, count := 1) -> void:
-	_expected_logs.append({ "pattern": pattern, "count": count })
-
-
 ## End the test as SKIPPED.
 func skip(why: String) -> void:
-	reason = why
+	verdict.reason = why
 	finish("SKIPPED")
 
 
@@ -276,194 +224,5 @@ func finish(result: String) -> void:
 	if is_finished:
 		return
 	is_finished = true
-	status = result
-	_timed_out = _timed_out or result == "TIMEOUT"
+	verdict.end(result)
 	finished.emit()
-
-
-## Handle one logged entry from LogWatch: allowed or expected lines pass, anything else fails.
-func on_log(entry: Dictionary) -> void:
-	if entry["severity"] == "error" and not _fail_on_errors:
-		return
-	if entry["severity"] == "warning" and not _fail_on_warnings:
-		return
-	var LogWatch := preload("res://scenes/testing/log_watch.gd")
-	for e in _expected_logs:
-		if e["count"] > 0 and LogWatch.matches_any(entry, [e["pattern"]]):
-			e["count"] -= 1
-			return
-	if LogWatch.matches_any(entry, _allowed_logs):
-		return
-	logs.append(entry)
-	var where: String = entry["location"]
-	check(
-		false,
-		"Logged %s: %s%s"
-			% [entry["severity"], entry["message"], "" if where == "" else " (at %s)" % where],
-	)
-	finish("FAIL")
-
-
-## Final verdict once the run is over: fails unmet expected logs, and a non-manual test that
-## asserted nothing. A test tagged `gap` is expected to fail: its FAIL or TIMEOUT is reported as GAP
-## (the failed checks say what the code does not do yet) and a pass is a FAIL that says to drop the
-## tag. Safe to call again (a late logged error re-decides it). Returns the status.
-func conclude(manual: bool) -> String:
-	if not _concluded:
-		_concluded = true
-		_close_checks(manual)
-	if status == "SKIPPED":
-		return status
-	if _timed_out:
-		status = "TIMEOUT"
-	else:
-		status = "FAIL" if checks.any(func(c): return not c["ok"]) else "PASS"
-	if _gap:
-		_gap_verdict()
-	return status
-
-
-## The checks the end of a run adds, once: one failed per expected log that never appeared, and one
-## for a test that asserted nothing (not `manual`, not skipped).
-func _close_checks(manual: bool) -> void:
-	for e in _expected_logs:
-		if e["count"] > 0:
-			check(
-				false,
-				"Expected log never appeared: /%s/ (%d more)" % [e["pattern"], e["count"]],
-			)
-	if checks.is_empty() and not manual and status != "SKIPPED":
-		check(false, "The test made no assertions")
-
-
-## A `gap` test's status: its FAIL or TIMEOUT is GAP (with a default reason), a pass a FAIL with a
-## failed check that says to drop the tag (added once).
-func _gap_verdict() -> void:
-	if _gap_passed or status == "PASS":
-		if not _gap_passed:
-			_gap_passed = true
-			check(false, "passes: drop the gap tag")
-		status = "FAIL"
-	else:
-		status = "GAP"
-		if reason == "":
-			reason = "expected to fail (tagged gap)"
-
-
-## Register what the world placed (called by the runner after the build).
-func bind(
-	built_world: Node2D,
-	actors: Dictionary,
-	objects: Dictionary,
-	world_rooms: Array,
-	vehicles: Dictionary = {},
-) -> void:
-	world = built_world
-	_actors = actors
-	_objects = objects
-	_vehicles = vehicles
-	rooms = world_rooms
-
-
-## The state of every placed actor and object right now, as plain data for a failure bundle:
-## position, health/death, held item, and an NPC brain's decision path (its controller child in the
-## group `npc_controllers`). Freed nodes are skipped, so take it before the world is torn down.
-func snapshot() -> Dictionary:
-	var out := { "actors": {}, "objects": {}, "vehicles": {} }
-	for id in _actors:
-		var a: Node = actor(id)
-		if a != null:
-			out["actors"][String(id)] = _actor_state(a)
-	for id in _objects:
-		var o: Node = object(id)
-		if o is Node2D:
-			out["objects"][String(id)] = { "position": _vec(o.global_position) }
-	for id in _vehicles:
-		var v: Node = vehicle(id)
-		if v is Node2D:
-			out["vehicles"][String(id)] = _vehicle_state(v)
-	return out
-
-
-## One actor's row of `snapshot`: its position, health/death, faction and move input, and an NPC
-## brain's decision path and status.
-func _actor_state(a: Node) -> Dictionary:
-	var s := { "position": _vec(a.global_position) if a is Node2D else "" }
-	for prop in ["health", "max_health", "is_dead", "faction"]:
-		if prop in a:
-			s[prop] = _plain(a.get(prop))
-	if "movement" in a:
-		s["move_input"] = _plain(a.movement.move_input)
-	for child in a.get_children():
-		if child.is_in_group(&"npc_controllers"):
-			var act: Variant = child.current_act()
-			s["act"] = ("/".join(PackedStringArray(act.map(func(x): return str(x))))
-					if act is Array
-					else str(act))
-			s["status"] = str(child.debug_status())
-	return s
-
-
-## One vehicle's row of `snapshot`: its position, rotation and, when it has one, speed.
-func _vehicle_state(v: Node2D) -> Dictionary:
-	var row := {
-		"position": _vec(v.global_position),
-		"rotation": snappedf(v.global_rotation, 0.01),
-	}
-	if v.has_method("speed"):
-		row["speed"] = snappedf(v.speed(), 0.1)
-	return row
-
-
-## The event log as JSON-safe rows `{ topic, time, data }` (nodes become their names).
-func plain_events() -> Array:
-	return events.map(
-		func(e):
-			return {
-				"topic": String(e["topic"]),
-				"time": snappedf(e["time"], 0.01),
-				"data": _plain(e["data"]),
-			}
-	)
-
-
-## Formats a Vector2 as a rounded "(x, y)" string.
-static func _vec(v: Vector2) -> String:
-	return "(%.0f, %.0f)" % [v.x, v.y]
-
-
-## `v` reduced to JSON-safe values: nodes → their names, vectors → text, containers recursed.
-static func _plain(v: Variant) -> Variant:
-	if typeof(v) == TYPE_OBJECT:
-		return _plain_object(v)
-	if v is Vector2:
-		return _vec(v)
-	if v is Dictionary or v is Array:
-		return _plain_container(v)
-	if v is StringName:
-		return String(v)
-	if v == null or v is bool or v is int or v is float or v is String:
-		return v
-	return str(v)
-
-
-## An object reduced as `_plain` does: a node its name, a freed one "<freed>", any other its text.
-static func _plain_object(v: Variant) -> String:
-	if not is_instance_valid(v):
-		return "<freed>"
-	return String(v.name) if v is Node else str(v)
-
-
-## A Dictionary (keys as text) or an Array with each value reduced by `_plain`.
-static func _plain_container(v: Variant) -> Variant:
-	if v is Array:
-		return v.map(func(x): return _plain(x))
-	var d := {}
-	for k in v:
-		d[str(k)] = _plain(v[k])
-	return d
-
-
-## Append an observed event.
-func record(topic: StringName, data: Dictionary) -> void:
-	events.append({ "topic": topic, "data": data, "time": time })

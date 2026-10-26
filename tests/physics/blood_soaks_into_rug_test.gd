@@ -53,7 +53,7 @@ func run(t: TestContext) -> void:
 			"soaking ends",
 	):
 		return
-	t.screenshot("rug_soaked")
+	t.bundle.screenshot("rug_soaked")
 	_check_soaked(t, on_rug, covered_before)
 	_check_floor(t, on_floor)
 	await _check_rug_gone(t, rug)

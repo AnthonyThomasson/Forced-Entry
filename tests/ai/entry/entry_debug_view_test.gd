@@ -37,7 +37,7 @@ func run(t: TestContext) -> void:
 	if not t.require(done.call(), "the pair cleared the kitchen and covered its doorways on"):
 		return
 	await t.seconds(1.0)
-	t.screenshot("cover")
+	t.bundle.screenshot("cover")
 
 	_check_stacked(t, seen)
 	_check_pie(t, seen)
@@ -65,7 +65,7 @@ func _record_views(t: TestContext, seen: Dictionary, done: Callable) -> Dictiona
 				shoot_at[phase] = t.time + 1.0
 		for phase in shoot_at.keys():
 			if t.time >= shoot_at[phase]:
-				t.screenshot(phase)  # With --shots: what the overlays draw in each phase.
+				t.bundle.screenshot(phase)  # With --shots: what the overlays draw in each phase.
 				shoot_at.erase(phase)
 		await t.frames(1)
 	return guard_before

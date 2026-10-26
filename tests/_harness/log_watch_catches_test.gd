@@ -18,8 +18,8 @@ func configure(s: TestSetup) -> void:
 
 
 func run(t: TestContext) -> void:
-	t.expect_log("harness probe warning")
-	t.expect_log("harness probe error")
+	t.verdict.expect_log("harness probe warning")
+	t.verdict.expect_log("harness probe error")
 	await t.seconds(0.1)
 	push_warning("harness probe warning")
 	push_error("harness probe error")

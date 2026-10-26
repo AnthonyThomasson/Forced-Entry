@@ -138,7 +138,7 @@ interface 23), the module Main builds its matches with, so a test world is stage
   `warning_hold_probe`, `log_gate_probe`). Run it after editing `scenes/testing/`. `--changed` does this
   automatically when `scenes/testing/` changed.
 - **`--shots`:** `tools/run_tests.sh --shots words` runs windowed (not headless) and saves
-  `<bundle dir>/<id>__fail.png` for each failed test (printed as `shot:`); `t.screenshot(label)` saves one
+  `<bundle dir>/<id>__fail.png` for each failed test (printed as `shot:`); `t.bundle.screenshot(label)` saves one
   on demand (returns "" when headless or `--shots` is off). Read the PNG to see what went wrong.
 - **`--windowed`:** `tools/run_tests.sh --windowed [words]` runs gdUnit in a window with vsync off (`--disable-vsync`), always in one
   process (no shard competes with what it measures, and one window), headless staying the default. A perf test's frame times then
@@ -373,8 +373,8 @@ func run(t: TestContext) -> void:
     (blood splatters and pools, debris, projectiles, dropped items).
   - `t.trace(name, value)` samples a number over time (a distance, a health) for the failure output.
   - Assertions: `check(cond, msg)` (soft), `require(cond, msg)` (ends the test; follow it with
-    `if not …: return`), `expect_eq`, `expect_near`, `expect_log(pattern, count)`, `skip(why)`.
-    A test that asserts nothing fails.
+    `if not …: return`), `expect_eq`, `expect_near`, `skip(why)`, and on its `verdict` part
+    `t.verdict.expect_log(pattern, count)`. A test that asserts nothing fails.
 - Puppet (`scripted_controller.gd`): `aim_at(node_or_point)`, `walk_to(point)` + `has_arrived()`
   (straight line, no pathing), `walk(dir)`, `set_run(on)` (holds run while moving), `set_posture(p)` (wants `stand` / `crouch`, written every frame like the AI does; `&""` stops asking), `toggle_crouch()` (one press of C), `stop()`, `select_slot(n)`, `punch()`, `kick()` (the leg kick), `shoot()` (one click), `hold_fire(on)` (hold the trigger: an automatic gun fires at its rate; a semi-auto one is unaffected), `reload()`,
   `interact(object, id)` (refusals land in `failed_interactions`), `end_interaction()`, `use_vehicle()` (one press of E: get in
@@ -848,8 +848,8 @@ or the runner starts, and parses
 `ERROR:` / `SCRIPT ERROR:` / `USER ERROR:` / `WARNING:` / … headers with their `at:` lines.
 
 - The test session (`test_session.gd`, under the in-game runner and under each gdUnit suite) polls it every physics
-  frame and hands each entry to the open test (`TestContext.on_log`).
-  An expected (`expect_log`) or allowed (`allowed_logs`, or the global `[von] ` launcher diagnostics)
+  frame and hands each entry to the open test (its context's `verdict.on_log(ctx, entry)`).
+  An expected (`t.verdict.expect_log`) or allowed (`allowed_logs`, or the global `[von] ` launcher diagnostics)
   line passes; anything else is a failed check, `Logged error: … (at …)`, and ends the test at once (under gdUnit too,
   not at its timeout). A native suite's test (`UnitSuite`) reads the log after it ends, two physics frames on, and
   fails on any entry.
@@ -942,7 +942,9 @@ domain's config holder, guarded at its one spawn point (the way `BloodConfig.ena
 |---|---|
 | `game_test.gd` (`GameTest`) | Base class. |
 | `test_setup.gd` (`TestSetup`) | The declarative builder. |
-| `test_context.gd` (`TestContext`, an **Object**) | Waits, lookup, event log, assertions, verdict (`conclude`: PASS / FAIL / TIMEOUT / SKIPPED, and GAP for a `gap`-tagged test that failed as expected). The test session frees it at close, which discards any test coroutine still parked on it. |
+| `test_context.gd` (`TestContext`, an **Object**) | What `run(t)` calls: waits, lookup (the actors, objects and vehicles read off `t.world`), the event log, assertions and `finish`; the session sets `world`, `rooms` and `time` and appends to `events`. Two parts, each a `RefCounted` built once that holds nothing of the context: `verdict` and `bundle`. The test session frees it at close, which discards any test coroutine still parked on it. |
+| `test_verdict.gd` | The context's `verdict`: `checks`, `logs`, `status`, `reason`, `expect_log(pattern, count)`, `on_log(ctx, entry)` (the session hands it each logged line), `conclude(ctx, manual)` (PASS / FAIL / TIMEOUT / SKIPPED, and GAP for a `gap`-tagged test that failed as expected) and `end(result)` (`finish` records the verdict). A method that records a check or ends the test takes the context at the call. |
+| `test_bundle.gd` | The context's `bundle`: what a failed run's bundle carries, `traces` (`t.trace`), `shot_prefix` / `shots` and `screenshot(label)`, `snapshot(world)` (the actors', objects' and vehicles' state as plain data) and `plain_events(events)`. |
 | `test_world.gd` | Builds a TestSetup into a sub-tree: statics and switches first, then the house, layout or arena with its objects, then the world stage as Main's match has it (`MatchBuilder.stage` with `wait_nav`: nav plus updater and the `NavDebug`, the dusk lighting, interface 20, none with `lighting.enabled` off, two physics frames (walls solid, navmesh live), then a wait, real time, at most `MatchBuilder.NAV_SYNC_MS`, until the planning map and the steering map are `NavBuilder.ready`), actors (each NPC bound by `MatchBuilder.bind_npc` before `_ready` — `rooms`, the house's `openings`, an invader's front entrance — positioned before they join the tree so one never overlaps origin furniture for a frame), a declared match (`MatchBuilder.populate`, `match_handle`) or declared squads (`squads`, `player_stack`, the `LeaderOverlay`), then world switches. Vehicles (`TestSetup.vehicle`) are placed after the nav wait and before the actors, followed by one more
 physics frame so they are in the space. `build` is a coroutine. Also `restore()`, `set_overlay()` (through `MatchBuilder.set_overlay`) and `squad(faction)` (the declared squad of that faction, or null), which tests read as `t.world.squad(faction)` beside `t.world.match_handle` and `t.world.player_stack`. It has no bake, light, nav-wait or bind code of its own. |
 | `arena_builder.gd` | The walled arena via `FloorFactory` / `WallFactory` + `WorldGen.wall_style()`, annotated with `WorldGen.annotate_layout`. |

@@ -58,13 +58,13 @@ func _push_across(t: TestContext) -> void:
 		10.0,
 		"the chair is pushed out of the pool",
 	)
-	t.screenshot("chair_smear_pool")
+	t.bundle.screenshot("chair_smear_pool")
 	await t.until(
 		func(): return t.object(&"chair").global_position.x > 520.0,
 		10.0,
 		"the chair is well clear of the pool",
 	)
-	t.screenshot("chair_smear_pool_clear")
+	t.bundle.screenshot("chair_smear_pool_clear")
 	await t.until(
 		func(): return t.object(&"chair").global_position.x > 650.0,
 		10.0,

@@ -68,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		ctx.time += delta
 		if (not entry.get("manual", false)
 				and ctx.time >= float(entry.get("timeout", TestCatalog.DEFAULT_TIMEOUT))):
-			ctx.reason = "timed out after %.1fs" % float(entry["timeout"])
+			ctx.verdict.reason = "timed out after %.1fs" % float(entry["timeout"])
 			ctx.finish("TIMEOUT")
 
 
@@ -101,7 +101,7 @@ func start(test_entry: Dictionary) -> void:
 		ctx.finish("FAIL")
 		return
 	if shots:
-		ctx.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
+		ctx.bundle.shot_prefix = "%s/%s" % [bundle_dir, String(entry["id"]).replace("/", "__")]
 	if entry["error"] != "":
 		ctx.check(false, "Test script " + String(entry["error"]))
 		ctx.finish("FAIL")
@@ -119,7 +119,8 @@ func start(test_entry: Dictionary) -> void:
 	_building = false
 	if not is_instance_valid(world):
 		return
-	ctx.bind(world, world.actors, world.objects, world.rooms, world.vehicles)
+	ctx.world = world
+	ctx.rooms = world.rooms
 	for id in world.actors:
 		_observe_actor(id, world.actors[id])
 	world_built.emit(setup)
@@ -147,10 +148,12 @@ func _open_world() -> void:
 ## Free the open world (restoring statics), let any logs from the teardown land on the test, then
 ## close it. Returns its verdict record ({} when nothing was open).
 func close() -> Dictionary:
-	var snapshot := ctx.snapshot() if ctx != null and is_instance_valid(world) else {}
+	var snapshot := (ctx.bundle.snapshot(ctx.world)
+			if ctx != null and is_instance_valid(world)
+			else {})
 	if shots and ctx != null and is_instance_valid(world):
-		if BUNDLED.has(ctx.conclude(entry.get("manual", false))):
-			ctx.screenshot("fail")
+		if BUNDLED.has(ctx.verdict.conclude(ctx, entry.get("manual", false))):
+			ctx.bundle.screenshot("fail")
 	if EventBus.posted.is_connected(_on_event):
 		EventBus.posted.disconnect(_on_event)
 	if is_instance_valid(world):
@@ -172,19 +175,21 @@ func close() -> Dictionary:
 ## `snapshot` (the final actor / object state, taken before teardown when `snapshot` is passed) and
 ## `traces`, so the cause can be read without a rerun.
 func result(snapshot := {}) -> Dictionary:
-	ctx.conclude(entry.get("manual", false))
+	ctx.verdict.conclude(ctx, entry.get("manual", false))
 	_concluded = true
 	var record := {
 		"id": entry["id"], "name": entry["name"], "domain": entry["domain"],
-		"status": ctx.status, "reason": ctx.reason, "time": snappedf(ctx.time, 0.01),
-		"checks": ctx.checks.duplicate(), "logs": ctx.logs.duplicate(),
+		"status": ctx.verdict.status, "reason": ctx.verdict.reason,
+		"time": snappedf(ctx.time, 0.01),
+		"checks": ctx.verdict.checks.duplicate(), "logs": ctx.verdict.logs.duplicate(),
 		"manual": entry.get("manual", false),
 	}
-	if BUNDLED.has(ctx.status):
-		record["events"] = ctx.plain_events()
-		record["snapshot"] = snapshot if not snapshot.is_empty() else ctx.snapshot()
-		record["traces"] = ctx.traces.duplicate(true)
-		record["shots"] = ctx.shots.duplicate()
+	if BUNDLED.has(ctx.verdict.status):
+		record["events"] = ctx.bundle.plain_events(ctx.events)
+		record["snapshot"] = (snapshot if not snapshot.is_empty()
+				else ctx.bundle.snapshot(ctx.world))
+		record["traces"] = ctx.bundle.traces.duplicate(true)
+		record["shots"] = ctx.bundle.shots.duplicate()
 	return record
 
 
@@ -213,7 +218,7 @@ func restore() -> void:
 		world.restore()
 
 
-## Run the test coroutine; returning normally ends the test (verdict decided in `conclude`).
+## Run the test coroutine; returning normally ends the test (verdict decided in `verdict.conclude`).
 func _drive(test: GameTest, test_ctx: TestContext) -> void:
 	# GameTest.run is not a coroutine itself; the tests that override it are.
 	await Callable(test, &"run").call(test_ctx)
@@ -223,9 +228,9 @@ func _drive(test: GameTest, test_ctx: TestContext) -> void:
 ## Send a logged line to the open test, or keep it as a stray line.
 func _route_log(e: Dictionary) -> void:
 	if ctx != null:
-		var before := ctx.checks.size()
-		ctx.on_log(e)
-		if _concluded and ctx.checks.size() != before:
+		var before := ctx.verdict.checks.size()
+		ctx.verdict.on_log(ctx, e)
+		if _concluded and ctx.verdict.checks.size() != before:
 			verdict_changed.emit(result())  # a late error flips a verdict already taken
 	elif not LogWatch.matches_any(e, []):
 		stray_logs.append(e)
@@ -234,7 +239,7 @@ func _route_log(e: Dictionary) -> void:
 ## Log an observed event on the open test (dropped between tests).
 func _on_event(topic: StringName, data: Dictionary) -> void:
 	if ctx != null:
-		ctx.record(topic, data)
+		ctx.events.append({ "topic": topic, "data": data, "time": ctx.time })
 
 
 ## Log an actor's `died` / `hit_landed` signals under its test id.
