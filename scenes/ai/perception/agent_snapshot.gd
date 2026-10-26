@@ -28,8 +28,8 @@ const SnapshotThrows = preload("res://scenes/ai/perception/snapshot/snapshot_thr
 const SnapshotOrders = preload("res://scenes/ai/perception/snapshot/snapshot_orders.gd")
 const StackClaim = preload("res://scenes/ai/perception/stack/stack_claim.gd")
 
-## The shared vocabulary and tuning. The perception's apply_config() sets the tunables here (like it
-## does on its other modules).
+## The shared vocabulary and tuning. The perception's apply_config() hands it the NPC's tuning
+## (`vocab.tuning`), which it reads live; only the perception's geometry modules take copies.
 var vocab := SnapshotVocab.new()
 ## The state text; see snapshot_sections.gd.
 var _sections := SnapshotSections.new()

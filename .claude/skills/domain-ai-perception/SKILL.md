@@ -10,8 +10,9 @@ snapshot the decision planner walks. It holds no policy — it never decides, pi
 owns nine internal modules and presents one public face, `agent_perception.gd` (a `Node`).
 
 Files:
-- `agent_perception.gd` — the public face: SEE (observe), the contacts view, event intake, and the
-  BUILD entry (`sense`) that gathers knowledge and delegates to the snapshot author.
+- `agent_perception.gd` — the public face: the lifecycle (`setup`, `apply_config`, `bind`), SEE (`observe`, through its
+  `sight` and `house` parts), the reads the controller and combat make every tick, and the BUILD entry (`sense`) that gathers knowledge and
+  delegates to the snapshot author; the contacts view and the event intake are its parts' (below).
 - `perception_sight.gd`, `perception_house.gd`, `perception_hearing.gd`, `perception_orders.gd`, `perception_contacts.gd`,
   `perception_grenades.gd`, `perception_entry.gd`, `perception_views.gd` — the face's parts, held as `sight` (the sight sense
   `vision`, what is in view `visible_now`, the tracks, `blind` and the sight cadence), `house` (the rooms, `openings` and

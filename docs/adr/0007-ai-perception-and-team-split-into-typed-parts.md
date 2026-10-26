@@ -2,10 +2,10 @@
 
 `agent_perception.gd`, the NPC's perception facade, had 51 vars and 60 public methods in 1527 lines, against gdstyle's
 `max-class-variables` (15), `max-public-methods` (20) and `max-file-length` (1000), which issue #76 turns on with no
-exclusion. Its doorway geometry `agent_entry.gd` had 18 vars in 1735 lines; the snapshot's `snapshot_options.gd` 22
-public methods in 1426 lines and `snapshot_vocab.gd` 17 vars and 24 public methods; the stack seam's `door_stack.gd` 31
-public methods; `agent_throw.gd` 24 and `agent_tactics.gd` 21; and the team's `player_stack.gd` and `squad.gd` 30 and
-26 vars.
+exclusion (lines as gdstyle counts them, one more than `wc -l`, here and below). Its doorway geometry `agent_entry.gd`
+had 18 vars in 1735 lines; the snapshot's `snapshot_options.gd` 22 public methods in 1426 lines and `snapshot_vocab.gd`
+17 vars and 24 public methods; the stack seam's `door_stack.gd` 31 public methods; `agent_throw.gd` 24 and
+`agent_tactics.gd` 21; and the team's `player_stack.gd` and `squad.gd` 30 and 26 vars.
 
 Perception copied 17 of the NPC's tunables into its own fields and 15 into the snapshot's vocabulary on every
 decision. ADR 0006 moved every tunable into per-NPC topic nodes that behaviour reads live. The controller applies the
@@ -41,8 +41,9 @@ call and never store it. `geometry` and `warm_geometry` stay on it. The snapshot
 to two sibling modules, `SnapshotThrows` (`_throws`) and `SnapshotOrders` (`_orders`), unchanged, and
 `SnapshotOptions.begin()` goes. The vocabulary's room lookups move to a static helper, `HouseRooms`, and its `bind` to
 a plain `character` var. The stack's slot statics move to a static helper, `StackLayout`, and its three one-line
-forwards go. AgentTactics privatises six methods only it calls, and AgentThrow `release_point` and `zone_radius`, its
-`carried` and `count` moving to the `grenades` part.
+forwards go. AgentTactics privatises six methods only it calls, and AgentThrow `release_point` (in-file only) and
+`zone_radius` (two reference tests read it, as they read its other privates), its `carried` and `count` moving to the
+`grenades` part.
 
 The squad's nine follow tunables are the same for every squad and nothing writes them. They become a static holder,
 `SquadFollowConfig` (ADR 0003), and the squad's stack reads become a `stacks` part holding the squad. The human's stack
