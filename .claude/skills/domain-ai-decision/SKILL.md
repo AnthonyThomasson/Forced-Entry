@@ -13,11 +13,15 @@ perception sub-domain (the snapshot); the chosen leaf is RUN by the behaviour su
 
 Files:
 - `decision_tree.gd` — the tree, `const NODES` (data only).
-- `decision_planner.gd` — the walk (a `Node`): gating, entry rules, per-level state, Von calls.
+- `decision_planner.gd` — the walk (a `Node`): gating, entry rules, per-level state, Von calls. It holds two data leaves, each built once
+  and preloaded (no `class_name`): `decision_walk.gd` (`DecisionWalk`, its private `_walk`: the walk in flight's `snap`, `node`, `binding`,
+  `confine`, `steps`, `offered`, `bind_level`, `levels` and `asked_ms`, reset by `begin`) and `decision_confines.gd` (`DecisionConfines`, its
+  public `confines`: `inside_only`, `confine_room`, `leash_center`, `leash`, below).
 - `decision_client.gd` — the Von HTTP transport (a `Node` owning its `HTTPRequest`; the planner's child, built in its `setup`).
 - `decision_stub.gd` (`class_name DecisionStub`) — test seam: scripted picks that stand in for the server.
 - `decision_budget.gd` (`class_name DecisionBudget`) — how many decision snapshots may start in one frame, shared by every NPC (below).
-- `decision_server_launcher.gd` — dev-only `von serve` launcher (a node in `main.tscn`).
+- `decision_server_launcher.gd` — dev-only `von serve` launcher (a node in `main.tscn`); its readiness probe is the data leaf
+  `server_probe.gd` (`ServerProbe`, its private `_probe`: the HTTP `request`, `attempts_left`, `waiting_ready`, `ready_deadline_ms`).
 
 ## `decision_tree.gd` — the tree as data
 
@@ -115,7 +119,7 @@ phrasings were chosen by measurement with `tools/von_probe.py` — re-run it aft
 ## `decision_planner.gd` — the walk
 
 Config (pushed in from the controller; the tunables among it from the NPC's `tuning.decision`): `disabled_nodes`, `node_overrides` (per-node field merge),
-`entry_rules` (ordered fact → start node), `skip_single_option`, `inside_only` (territory), `confine_room` (the room a member ordered to
+`entry_rules` (ordered fact → start node), `skip_single_option`, and in its `confines`: `inside_only` (territory), `confine_room` (the room a member ordered to
 defend it keeps to, `docs/leadership.md` LD8: inside a `confine` subtree an option whose `tags.room` is another room or outside is dropped,
 as `inside_only` drops one outside the house; an option naming no place stays; the leaf's params then carry `confine_room`), and
 `leash_center` / `leash` (a squad follower's leader's live position, `Vector2.INF` for none: no squad, or a member holding an order, which

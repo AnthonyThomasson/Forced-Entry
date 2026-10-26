@@ -162,9 +162,9 @@ func _apply_config() -> void:
 		if not rules.has(&"hostile_known") and not rules.has("hostile_known"):
 			rules[&"hostile_known"] = &"combat"
 	_planner.skip_single_option = tuning.decision.skip_single_option
-	_planner.inside_only = tuning.decision.defend_territory
+	_planner.confines.inside_only = tuning.decision.defend_territory
 	var held: Dictionary = _perception.order()
-	_planner.confine_room = (String(held.get("room", ""))
+	_planner.confines.confine_room = (String(held.get("room", ""))
 			if String(held.get("kind", "")) == "defend_room"
 			else "")
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
@@ -179,8 +179,9 @@ func _apply_config() -> void:
 	_planner.disabled_nodes = disabled
 	_planner.entry_rules = rules
 	var leash_lead: Node2D = _reflexes.leash_lead()
-	_planner.leash_center = leash_lead.global_position if leash_lead != null else Vector2.INF
-	_planner.leash = float(squad.leash) if leash_lead != null else 0.0
+	var lead_at: Vector2 = leash_lead.global_position if leash_lead != null else Vector2.INF
+	_planner.confines.leash_center = lead_at
+	_planner.confines.leash = float(squad.leash) if leash_lead != null else 0.0
 	_behavior.apply_config(tuning, squad)
 
 
@@ -541,7 +542,7 @@ func _start_decision() -> void:
 		_perception.end_order(held["id"], "refused")
 		_cadence.last_facts["ordered"] = false
 		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
-		_planner.confine_room = ""
+		_planner.confines.confine_room = ""
 	_planner.begin(snapshot, _behavior.ongoing())
 
 

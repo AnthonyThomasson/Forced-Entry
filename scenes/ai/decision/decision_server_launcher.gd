@@ -23,6 +23,8 @@ signal resolved(live: bool)
 
 ## Where the server output is appended.
 const LOG_PATH := "user://von_server.log"
+## The readiness probe (`_probe`).
+const ServerProbe := preload("res://scenes/ai/decision/server_probe.gd")
 
 ## Absolute path to the `von` executable (the editor-launched game doesn't see the shell PATH).
 ## Empty = never auto-start. Defaults to the `application/von/server_path` project setting, so the
@@ -62,14 +64,9 @@ var _pid := -1
 var _pipe: FileAccess
 ## Drains `_pipe` into the log file (and Output).
 var _reader: Thread
-## Reused across probe attempts; freed once the server answers or we give up.
-var _probe: HTTPRequest
-## Reuse-probe attempts remaining before we launch our own server.
-var _attempts_left := 0
-## True once we launched and are polling for the server's first answer.
-var _waiting_ready := false
-## When to stop polling a launched server (see `ready_timeout`).
-var _ready_deadline_ms := 0
+## The readiness probe: its HTTP request (freed once the server answers or we give up), the reuse
+## attempts left, and whether (and until when) we are polling a server we launched.
+var _probe := ServerProbe.new()
 ## Scene-load time, so the ready line can report how long the brain took.
 var _start_ms := 0
 ## Whether the server question has settled (see `resolved`).
@@ -88,13 +85,13 @@ func _ready() -> void:
 	# Fall back to the per-machine project setting when no explicit path is set on the node.
 	if von_path.is_empty():
 		von_path = ProjectSettings.get_setting("application/von/server_path", "")
-	_probe = HTTPRequest.new()
+	_probe.request = HTTPRequest.new()
 	# Generous: the probe is a real inference, and the first one also pays for loading the weights.
 	# A refused connection still returns immediately, so this doesn't slow cold-start detection.
-	_probe.timeout = 15.0
-	add_child(_probe)
-	_probe.request_completed.connect(_on_probe_completed)
-	_attempts_left = maxi(1, probe_attempts)
+	_probe.request.timeout = 15.0
+	add_child(_probe.request)
+	_probe.request.request_completed.connect(_on_probe_completed)
+	_probe.attempts_left = maxi(1, probe_attempts)
 	_probe_once()
 
 
@@ -121,7 +118,7 @@ func _resolve(live: bool) -> void:
 	if _resolved:
 		return
 	_resolved = true
-	_waiting_ready = false
+	_probe.waiting_ready = false
 	_end_probing()
 	resolved.emit(live)
 
@@ -130,7 +127,7 @@ func _resolve(live: bool) -> void:
 ## launch, or "up but useless". This is a real POST to `health_path` rather than a `GET /` so that
 ## only a server that can actually DECIDE counts as live.
 func _probe_once() -> void:
-	_attempts_left -= 1
+	_probe.attempts_left -= 1
 	var payload := {
 		"model": health_model,
 		"state": "Readiness check.",
@@ -144,7 +141,7 @@ func _probe_once() -> void:
 	}
 	var headers := PackedStringArray(["Content-Type: application/json"])
 	var url := "http://127.0.0.1:%d%s" % [port, health_path]
-	if _probe.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload)) != OK:
+	if _probe.request.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload)) != OK:
 		# The request couldn't even start (not expected for a fixed localhost URL); treat it as
 		# a failed attempt so the retry/launch path still runs.
 		_on_probe_completed(
@@ -172,15 +169,15 @@ func _on_probe_completed(
 		_announce_ready()
 		return
 	if result == HTTPRequest.RESULT_SUCCESS:
-		if _attempts_left > 0:
+		if _probe.attempts_left > 0:
 			await _wait_then_probe()
 			return
 		push_warning("[von] Server on port %d is up but cannot decide (HTTP %d): %s"
 				% [port, code, _detail(body)])
 		_resolve(false)
 		return
-	if _waiting_ready:
-		if Time.get_ticks_msec() >= _ready_deadline_ms:
+	if _probe.waiting_ready:
+		if Time.get_ticks_msec() >= _probe.ready_deadline_ms:
 			push_warning(
 				"[von] Server has not answered within %.0fs; NPCs hold steady until it does."
 				% ready_timeout,
@@ -189,7 +186,7 @@ func _on_probe_completed(
 			return
 		await _wait_then_probe()
 		return
-	if result == HTTPRequest.RESULT_CANT_CONNECT or _attempts_left <= 0:
+	if result == HTTPRequest.RESULT_CANT_CONNECT or _probe.attempts_left <= 0:
 		_launch_and_await_ready()
 		return
 	await _wait_then_probe()
@@ -211,7 +208,7 @@ func _detail(body: PackedByteArray) -> String:
 ## quit while we were polling).
 func _wait_then_probe() -> void:
 	await get_tree().create_timer(probe_interval).timeout
-	if _probe == null:
+	if _probe.request == null:
 		return
 	_probe_once()
 
@@ -224,8 +221,8 @@ func _launch_and_await_ready() -> void:
 	if _pid <= 0:
 		_resolve(false)  # Nothing started (blank von_path or a failed spawn) — nothing to wait for.
 		return
-	_waiting_ready = true
-	_ready_deadline_ms = Time.get_ticks_msec() + int(ready_timeout * 1000.0)
+	_probe.waiting_ready = true
+	_probe.ready_deadline_ms = Time.get_ticks_msec() + int(ready_timeout * 1000.0)
 	await _wait_then_probe()
 
 
@@ -242,9 +239,9 @@ func _announce_ready() -> void:
 
 ## Free the probe node once probing is done (reuse found, attempts exhausted, or on exit).
 func _end_probing() -> void:
-	if _probe != null:
-		_probe.queue_free()
-		_probe = null
+	if _probe.request != null:
+		_probe.request.queue_free()
+		_probe.request = null
 
 
 ## Start `von serve` with its output piped back to us, and a thread to read it.

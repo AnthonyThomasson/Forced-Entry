@@ -21,6 +21,10 @@ signal failed()
 const DecisionTree := preload("res://scenes/ai/decision/decision_tree.gd")
 ## The Von transport it builds and owns (`setup`).
 const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
+## The walk in flight (`_walk`).
+const DecisionWalk := preload("res://scenes/ai/decision/decision_walk.gd")
+## What keeps a `confine` subtree in bounds (`confines`).
+const DecisionConfines := preload("res://scenes/ai/decision/decision_confines.gd")
 
 # --- Config fields the controller copies from the NPC's tuning before setup(). ---
 ## Node ids never offered for this NPC (e.g. &"idle" for one that hunts instead of doing chores).
@@ -32,51 +36,25 @@ var node_overrides: Dictionary = {}
 var entry_rules: Dictionary = {}
 ## Take a level's only option without asking Von.
 var skip_single_option: bool = true
-## Territory: inside a `confine` subtree (combat), drop options outside the house.
-var inside_only: bool = false
-## The room a member ordered to defend it keeps to (`docs/leadership.md` LD8; "" = none): inside a
-## `confine` subtree, drop options whose `tags.room` is another room or outside, as `inside_only`
-## drops those outside the house. Pushed each decision from the live order.
-var confine_room: String = ""
-## The point a squad member following its leader keeps to (the leader's position, `Vector2.INF` =
-## none) and how far from it (px): inside a `confine` subtree, drop options placed farther than
-## `leash` from it, as `confine_room` drops those outside its room. Pushed each decision from the
-## squad.
-var leash_center: Vector2 = Vector2.INF
-## The leash (px) round `leash_center` (0 with no leash).
-var leash: float = 0.0
+## What keeps a `confine` subtree in bounds: the territory (`inside_only`), the room a member keeps
+## to (`confine_room`) and a follower's leash (`leash_center`, `leash`), pushed each decision.
+var confines := DecisionConfines.new()
 ## The Von transport (decision_client.gd), its own child.
 var _client: Node
 ## The tree with overrides merged, keyed by node id.
 var _nodes := {}
-## The perception snapshot the walk in flight decides over.
-var _snap := {}
-## The node whose level is being decided.
-var _node: StringName = &""
-## Bound values so far (e.g. { "target": "Intruder", "target_id": 123 }).
-var _binding := {}
-## Whether the walk is inside a confined subtree for a territorial NPC or one keeping to a room.
-var _confine := false
 ## Where the walk in flight started.
 var _entry: StringName = &"root"
-## The path chosen so far: [{ id, label }].
-var _steps: Array = []
-## The in-flight level's options: id → { kind, desc, label, … }.
-var _offered := {}
-## Whether the in-flight level is a bind step.
-var _bind_level := false
-## Per-level records of the walk in flight.
-var _levels: Array = []
 ## The last finished walk's records, for the debug snapshot.
 var _last_levels: Array = []
 ## Ids of the last adopted path, for the "(your current plan)" cue.
 var _prev_path: Array = []
-## When the in-flight question was sent.
-var _asked_ms := 0
 ## Whether a walk is in flight.
 var _pending := false
 ## Whether the last finished walk failed (Von down / bad pick) rather than decided.
 var _last_failed := false
+## The walk in flight: its snapshot, level, bindings, path, options and per-level records.
+var _walk := DecisionWalk.new()
 
 
 ## Build the Von transport (its own child, asking `decision`'s `server_url` with its `model`) and
@@ -135,11 +113,11 @@ func begin(snapshot: Dictionary, continuing: bool = true) -> void:
 	cancel()
 	if not continuing:
 		_prev_path = []
-	_snap = snapshot
-	_binding = {}
-	_steps = []
-	_levels = []
-	_confine = false
+	_walk.snap = snapshot
+	_walk.binding = {}
+	_walk.steps = []
+	_walk.levels = []
+	_walk.confine = false
 	_entry = &"root"
 	for fact in entry_rules:
 		var start := StringName(entry_rules[fact])
@@ -165,8 +143,8 @@ func debug_state() -> Dictionary:
 		"entry": String(_entry),
 		"pending": _pending,
 		"last_failed": _last_failed,
-		"path": " - ".join(_steps.map(func(s): return s["label"])),
-		"levels": _levels if _pending else _last_levels,
+		"path": " - ".join(_walk.steps.map(func(s): return s["label"])),
+		"levels": _walk.levels if _pending else _last_levels,
 	}
 
 
@@ -190,11 +168,11 @@ func walk_digest() -> String:
 ## Step into node `id`: record it on the path, enter its confinement, and decide its level (or
 ## finish at once when it is itself a leaf).
 func _enter(id: StringName) -> void:
-	_node = id
+	_walk.node = id
 	var node: Dictionary = _nodes[id]
 	if node.has("label"):
-		_steps.append({ "id": String(id), "label": node["label"] })
-	_confine = _confine or (_confines() and node.get("confine", false))
+		_walk.steps.append({ "id": String(id), "label": node["label"] })
+	_walk.confine = _walk.confine or (_confines() and node.get("confine", false))
 	if _is_leaf_node(node):
 		_finish(id, { "id": String(id), "label": node.get("label", String(id)) })
 		return
@@ -204,40 +182,42 @@ func _enter(id: StringName) -> void:
 ## Decide the current node's level: list what is on offer, take a lone option without asking, else
 ## ask Von. An entry node that turns out empty falls back to a walk from the root.
 func _step() -> void:
-	var node: Dictionary = _nodes[_node]
-	_bind_level = _needs_bind(node)
-	_offered = _bind_offers(node) if _bind_level else {}
-	if _offered.is_empty():
+	var node: Dictionary = _nodes[_walk.node]
+	_walk.bind_level = _needs_bind(node)
+	_walk.offered = _bind_offers(node) if _walk.bind_level else {}
+	if _walk.offered.is_empty():
 		# Nothing worth binding: offer the node's unbound children (e.g. RETREAT).
-		_bind_level = false
-		_offered = _offers(_node)
-	if _offered.is_empty():
-		if _node == _entry and _entry != &"root":
+		_walk.bind_level = false
+		_walk.offered = _offers(_walk.node)
+	if _walk.offered.is_empty():
+		if _walk.node == _entry and _entry != &"root":
 			_entry = &"root"
-			_steps = []
-			_confine = false
+			_walk.steps = []
+			_walk.confine = false
 			_enter(&"root")
 		else:
 			_fail_walk()
 		return
 	_mark_current_plan()
-	if _offered.size() == 1 and skip_single_option and not _must_ask(node):
-		_levels.append({ "node": String(_node), "offered": _criteria(), "auto": true, "ms": 0 })
-		_choose(_offered.keys()[0])
+	if _walk.offered.size() == 1 and skip_single_option and not _must_ask(node):
+		_walk.levels.append({
+			"node": String(_walk.node), "offered": _criteria(), "auto": true, "ms": 0,
+		})
+		_choose(_walk.offered.keys()[0])
 		return
 	var question := _fill(
-		node.get("bind_question" if _bind_level else "question", "Choose one."),
-		_node,
+		node.get("bind_question" if _walk.bind_level else "question", "Choose one."),
+		_walk.node,
 	)
-	var state := _state_text(node, _bind_level)
-	_levels.append({
-		"node": String(_node),
+	var state := _state_text(node, _walk.bind_level)
+	_walk.levels.append({
+		"node": String(_walk.node),
 		"question": question,
 		"state": state,
 		"offered": _criteria(),
 		"auto": false,
 	})
-	_asked_ms = Time.get_ticks_msec()
+	_walk.asked_ms = Time.get_ticks_msec()
 	_client.ask(state, question, _criteria())
 
 
@@ -246,7 +226,7 @@ func _step() -> void:
 func _must_ask(node: Dictionary) -> bool:
 	if node.get("ask", false):
 		return true
-	var only: Dictionary = _offered[_offered.keys()[0]]
+	var only: Dictionary = _walk.offered[_walk.offered.keys()[0]]
 	return only["kind"] == "node" and _nodes[only["node"]].get("ask", false)
 
 
@@ -254,13 +234,13 @@ func _must_ask(node: Dictionary) -> bool:
 func _on_answered(pick: String, probabilities: Dictionary) -> void:
 	if not _pending:
 		return
-	if not _offered.has(pick):
+	if not _walk.offered.has(pick):
 		_fail_walk()  # Never leave a walk hanging: a stuck walk would block every later decision.
 		return
-	var level: Dictionary = _levels[-1]
+	var level: Dictionary = _walk.levels[-1]
 	level["pick"] = pick
 	level["probabilities"] = probabilities
-	level["ms"] = Time.get_ticks_msec() - _asked_ms
+	level["ms"] = Time.get_ticks_msec() - _walk.asked_ms
 	_choose(pick)
 
 
@@ -273,13 +253,13 @@ func _on_failed() -> void:
 ## Follow the chosen option: bind it and re-decide the same node, step into a child node, or finish
 ## at a leaf.
 func _choose(id: String) -> void:
-	var entry: Dictionary = _offered[id]
-	if _levels[-1].get("auto", false):
-		_levels[-1]["pick"] = id
+	var entry: Dictionary = _walk.offered[id]
+	if _walk.levels[-1].get("auto", false):
+		_walk.levels[-1]["pick"] = id
 	match entry["kind"]:
 		"bind":
-			_binding.merge(entry["bind"], true)
-			_steps.append({ "id": id, "label": entry["label"] })
+			_walk.binding.merge(entry["bind"], true)
+			_walk.steps.append({ "id": id, "label": entry["label"] })
 			_step()
 		"node":
 			_enter(entry["node"])
@@ -293,22 +273,22 @@ func _finish(node_id: StringName, option: Dictionary) -> void:
 	var node: Dictionary = _nodes[node_id]
 	var params: Dictionary = node.get("params", {}).duplicate(true)
 	params.merge(option.get("params", {}), true)
-	if _binding.has("target_id") and not params.has("target_id"):
-		params["target_id"] = _binding["target_id"]
-	params["confine_inside"] = _confine and inside_only
-	if _confine and confine_room != "":
-		params["confine_room"] = confine_room
+	if _walk.binding.has("target_id") and not params.has("target_id"):
+		params["target_id"] = _walk.binding["target_id"]
+	params["confine_inside"] = _walk.confine and confines.inside_only
+	if _walk.confine and confines.confine_room != "":
+		params["confine_room"] = confines.confine_room
 	if option["id"] != String(node_id):
-		_steps.append({ "id": option["id"], "label": option.get("label", option["id"]) })
+		_walk.steps.append({ "id": option["id"], "label": option.get("label", option["id"]) })
 	var leaf := {
-		"path": _steps.map(func(s): return s["id"]),
-		"labels": _steps.map(func(s): return s["label"]),
+		"path": _walk.steps.map(func(s): return s["id"]),
+		"labels": _walk.steps.map(func(s): return s["label"]),
 		"primitive": option.get("primitive", node.get("primitive", &"hold")),
 		"params": params,
 	}
 	_pending = false
 	_last_failed = false
-	_last_levels = _levels
+	_last_levels = _walk.levels
 	_prev_path = leaf["path"]
 	decided.emit(leaf)
 
@@ -317,7 +297,7 @@ func _finish(node_id: StringName, option: Dictionary) -> void:
 func _fail_walk() -> void:
 	_pending = false
 	_last_failed = true
-	_last_levels = _levels
+	_last_levels = _walk.levels
 	failed.emit()
 
 
@@ -329,7 +309,7 @@ func _fail_walk() -> void:
 func _bind_offers(node: Dictionary) -> Dictionary:
 	var out := {}
 	for opt in _group(node["bind_options"]).get("options", []):
-		if _leaf_under_binding(_node, opt.get("bind", {}), _confine):
+		if _leaf_under_binding(_walk.node, opt.get("bind", {}), _walk.confine):
 			out[opt["id"]] = {
 				"kind": "bind",
 				"bind": opt.get("bind", {}),
@@ -345,7 +325,7 @@ func _offers(id: StringName) -> Dictionary:
 	var node: Dictionary = _nodes[id]
 	var out := {}
 	for child in node.get("children", []):
-		if _available(child, _confine):
+		if _available(child, _walk.confine):
 			out[String(child)] = {
 				"kind": "node", "node": child, "label": _nodes[child].get("label", String(child)),
 				"desc": _fill(_nodes[child].get("desc", String(child)), child),
@@ -353,7 +333,7 @@ func _offers(id: StringName) -> Dictionary:
 	for group_name in node.get("options", []):
 		for opt in _allowed(
 				_group(group_name).get("options", []),
-				_confine,
+				_walk.confine,
 				node.get("drop_tags", []),
 		):
 			var key: String = opt["id"]
@@ -389,16 +369,16 @@ func _available(id: StringName, confine: bool) -> bool:
 ## bind. With nothing to bind (e.g. under fire from an unseen shooter) its unbound children are
 ## offered.
 func _needs_bind(node: Dictionary) -> bool:
-	return node.has("bind") and not _binding.has(String(node["bind"])) \
+	return node.has("bind") and not _walk.binding.has(String(node["bind"])) \
 		and not _group(node["bind_options"]).get("options", []).is_empty()
 
 
 ## Whether node `id` holds a leaf once `extra` is added to the bindings (restored afterwards).
 func _leaf_under_binding(id: StringName, extra: Dictionary, confine: bool) -> bool:
-	var saved := _binding.duplicate()
-	_binding.merge(extra, true)
+	var saved := _walk.binding.duplicate()
+	_walk.binding.merge(extra, true)
 	var ok := _has_leaf(id, confine)
-	_binding = saved
+	_walk.binding = saved
 	return ok
 
 
@@ -428,7 +408,9 @@ func _is_leaf_node(node: Dictionary) -> bool:
 ## Whether a `confine` subtree confines this NPC: it is territorial, keeps to the room it was
 ## ordered to defend, or keeps within its leash.
 func _confines() -> bool:
-	return inside_only or confine_room != "" or leash_center != Vector2.INF
+	return (confines.inside_only
+			or confines.confine_room != ""
+			or confines.leash_center != Vector2.INF)
 
 
 ## `options` minus those carrying any `drop` tag, and, when `confine` applies, minus those outside
@@ -438,17 +420,19 @@ func _confines() -> bool:
 func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
 	return options.filter(func(o):
 		var tags: Dictionary = o.get("tags", {})
-		if confine and inside_only and not tags.get("inside", true):
+		if confine and confines.inside_only and not tags.get("inside", true):
 			return false
 		if (confine
-				and confine_room != ""
+				and confines.confine_room != ""
 				and tags.has("room")
-				and String(tags["room"]) != confine_room):
+				and String(tags["room"]) != confines.confine_room):
 			return false
-		if confine and leash_center != Vector2.INF:
+		if confine and confines.leash_center != Vector2.INF:
 			var params: Dictionary = o.get("params", {})
 			var at = params.get("from", params.get("point"))
-			if at is Vector2 and at != Vector2.INF and leash_center.distance_to(at) > leash:
+			if (at is Vector2
+					and at != Vector2.INF
+					and confines.leash_center.distance_to(at) > confines.leash):
 				return false
 		for tag in drop:
 			if tags.get(String(tag), false):
@@ -458,12 +442,12 @@ func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
 
 ## Whether every named fact holds ("!" negates); a bound name (e.g. "target") counts as true.
 func _requires_ok(names: Array) -> bool:
-	var facts: Dictionary = _snap.get("facts", {})
+	var facts: Dictionary = _walk.snap.get("facts", {})
 	for n in names:
 		var fact := String(n)
 		var negate := fact.begins_with("!")
 		var key := fact.trim_prefix("!")
-		var value: bool = _binding.has(key) or bool(facts.get(key, false))
+		var value: bool = _walk.binding.has(key) or bool(facts.get(key, false))
 		if value == negate:
 			return false
 	return true
@@ -472,9 +456,9 @@ func _requires_ok(names: Array) -> bool:
 ## An option group from the snapshot: the bound target's own group of that name first, else the
 ## global one. Each group is { summary, options: [{ id, label, desc, params, tags }] }.
 func _group(group_name: StringName) -> Dictionary:
-	var options: Dictionary = _snap.get("options", {})
-	if _binding.has("target_id"):
-		var per: Dictionary = options.get("per_target", {}).get(_binding["target_id"], {})
+	var options: Dictionary = _walk.snap.get("options", {})
+	if _walk.binding.has("target_id"):
+		var per: Dictionary = options.get("per_target", {}).get(_walk.binding["target_id"], {})
 		if per.has(String(group_name)):
 			return per[String(group_name)]
 	return options.get(String(group_name), {})
@@ -498,14 +482,17 @@ func _fill(template: String, id: StringName) -> String:
 	var situation := ""
 	if summary_group != &"":
 		var group := _group(summary_group)
-		var confined: bool = inside_only and (_confine or node.get("confine", false))
+		var confined: bool = confines.inside_only and (_walk.confine or node.get("confine", false))
 		summary = (group.get("summary_inside", group.get("summary", ""))
 				if confined
 				else group.get("summary", ""))
 		situation = group.get("situation", "")
 	var text := template.format({
-		"target": _binding.get("target", "the hostile"), "blinded": _binding.get("blinded", ""),
-		"gun": _snap.get("gun", "gun"), "summary": summary, "situation": situation,
+		"target": _walk.binding.get(
+			"target",
+			"the hostile",
+		), "blinded": _walk.binding.get("blinded", ""),
+		"gun": _walk.snap.get("gun", "gun"), "summary": summary, "situation": situation,
 	})
 	return text.trim_suffix(" — ").trim_suffix(" ()").strip_edges()
 
@@ -522,37 +509,41 @@ func _state_text(node: Dictionary, bind_level: bool) -> String:
 		var text := _section(String(section_name))
 		if text != "":
 			lines.append(text)
-	if not _steps.is_empty():
-		lines.append("Decided so far: %s." % " → ".join(_steps.map(func(s): return s["label"])))
+	if not _walk.steps.is_empty():
+		var labels: Array = _walk.steps.map(func(s): return s["label"])
+		lines.append("Decided so far: %s." % " → ".join(labels))
 	return "\n".join(lines)
 
 
 ## A state section: the bound target's version when it has one, else the global one.
 func _section(section_name: String) -> String:
-	if _binding.has("target_id"):
-		var per: Dictionary = _snap.get("sections_per_target", {}).get(_binding["target_id"], {})
+	if _walk.binding.has("target_id"):
+		var per: Dictionary = _walk.snap.get(
+			"sections_per_target",
+			{},
+		).get(_walk.binding["target_id"], {})
 		if per.has(section_name):
 			return per[section_name]
-	return _snap.get("sections", {}).get(section_name, "")
+	return _walk.snap.get("sections", {}).get(section_name, "")
 
 
 ## Mark the offered option that continues the last adopted plan, so Von can keep a plan rather than
 ## flip between near-equal options each decision.
 func _mark_current_plan() -> void:
-	var depth := _steps.size()
+	var depth := _walk.steps.size()
 	if _prev_path.size() <= depth:
 		return
 	for i in depth:
-		if _prev_path[i] != _steps[i]["id"]:
+		if _prev_path[i] != _walk.steps[i]["id"]:
 			return
 	var id: String = _prev_path[depth]
-	if _offered.has(id):
-		_offered[id]["desc"] += " (your current plan)"
+	if _walk.offered.has(id):
+		_walk.offered[id]["desc"] += " (your current plan)"
 
 
 ## The in-flight level's options as id → description (what Von ranks).
 func _criteria() -> Dictionary:
 	var out := {}
-	for id in _offered:
-		out[id] = _offered[id]["desc"]
+	for id in _walk.offered:
+		out[id] = _walk.offered[id]["desc"]
 	return out
