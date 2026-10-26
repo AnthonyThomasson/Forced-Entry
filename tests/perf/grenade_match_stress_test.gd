@@ -98,7 +98,7 @@ func _set_up(t: TestContext, characters: Array) -> bool:
 			"ten combatants spawned (%d)" % characters.size(),
 	):
 		return false
-	_player_screen(t)
+	Perf.player_screen(t)
 	var camera := t.world.get_viewport().get_camera_2d()
 	if not t.require(
 			camera != null and camera.has_method("frame"),
@@ -218,17 +218,3 @@ func _throw_from(t: TestContext, characters: Array) -> Vector2:
 	thrower.velocity = Vector2.ZERO
 	t.puppet(&"thrower").aim_at(target.global_position)
 	return target.global_position.round()
-
-
-## Headless, the runner's viewport is 64 px square (the camera sees ~160 px of the world), so every
-## body a player would see is culled and never drawn. For this test give it the screen a player has
-## (the project's window size, 1152x648), put back as the world goes. A windowed run already has
-## that window.
-func _player_screen(t: TestContext) -> void:
-	if DisplayServer.get_name() != "headless":
-		return
-	var root := t.world.get_tree().root
-	var was := root.size
-	root.size = Vector2i(int(ProjectSettings.get_setting("display/window/size/viewport_width")),
-		int(ProjectSettings.get_setting("display/window/size/viewport_height")))
-	t.world.tree_exiting.connect(func() -> void: root.size = was)

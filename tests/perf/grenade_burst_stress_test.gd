@@ -80,7 +80,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	_player_screen(t)
+	Perf.player_screen(t)
 	var thrower := t.actor(&"thrower")
 	Probe.arm(thrower, 1, 1)
 	if not t.require(
@@ -162,17 +162,3 @@ func _check_struck(t: TestContext, nodes_before: int) -> void:
 		hits >= 4 and stunned >= 4,
 		"the burst struck the crowd (%d blast hits, %d stuns)" % [hits, stunned],
 	)
-
-
-## Headless, the runner's viewport is 64 px square (the camera sees ~160 px of the world), so every
-## body a player would see is culled and never drawn. For this test give it the screen a player has
-## (the project's window size, 1152x648), put back as the world goes. A windowed run already has
-## that window.
-func _player_screen(t: TestContext) -> void:
-	if DisplayServer.get_name() != "headless":
-		return
-	var root := t.world.get_tree().root
-	var was := root.size
-	root.size = Vector2i(int(ProjectSettings.get_setting("display/window/size/viewport_width")),
-		int(ProjectSettings.get_setting("display/window/size/viewport_height")))
-	t.world.tree_exiting.connect(func() -> void: root.size = was)

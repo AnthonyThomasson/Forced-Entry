@@ -440,7 +440,8 @@ across shards by measured cost like every test, and `--changed` adds the domain 
 preload(...)`; not a test), with the match guards' contact: `await_contact(t, label, characters, limit_s)` runs a guard's warm-up
 on until a shot has been fired and some NPC among `characters` knows a hostile at once (at most `limit_s` s more), logs `PERF
 <label> contact at <s> s` and returns whether contact came (the guard `require`s it), and `knows_hostile(c)` (an NPC knowing a
-hostile now, `known_contacts_for_display()`; false for a dead or freed one). The three match guards share one match and one warm-up:
+hostile now, `known_contacts_for_display()`; false for a dead or freed one). `player_screen(t)` gives a headless run the screen a player has (the project's window size, put back as the world
+goes), so the bodies a player would see are drawn (the grenade guards). The three match guards share one match and one warm-up:
 `configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.declared_match` with `per_side` a side, scripted Von, the
 callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` (6 s) and then `await_contact` (at most
 `MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `character/standing_body_repaints_on_change` keeps a count but is
