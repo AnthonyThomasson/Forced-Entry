@@ -4,21 +4,25 @@ a mismatch, reuses the cached binary after that, and hands gdstyle its arguments
 
 Each case runs the script with GDSTYLE_CACHE (the cache) in a temp folder of its own and GDSTYLE_RELEASE_URL (where the
 assets are fetched from) pointing at a temp folder (a file:// URL) holding what the case serves, so nothing touches the
-real cache. The last case fetches the real release from GitHub.
+real cache. The last case fetches the real release from GitHub, and skips where github.com does not resolve (the Bash
+sandbox).
 """
 import io
 import platform
+import socket
 import subprocess
 import tarfile
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.coverage.tests.support import clean_env
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools" / "gdstyle.sh"
 VERSION = "0.4.0"
+NO_NETWORK = "no network (the Bash sandbox?): the pinned release cannot be fetched"
 
 FAKE_GDSTYLE = """#!/usr/bin/env bash
 touch "$GDSTYLE_TEST_MARKER"
@@ -101,7 +105,19 @@ class GdStyleScriptTests(unittest.TestCase):
         self.assertEqual(Path(lines[0]).resolve(), sub.resolve())
         self.assertEqual(lines[1:], ["arg[fmt]", "arg[--check]", "arg[a b]", "arg[]", "arg[res://x.gd]"])
 
+    def test_the_pinned_release_case_skips_where_github_does_not_resolve(self):
+        case = GdStyleScriptTests("test_the_pinned_release_is_fetched_verified_and_cached")
+        result = unittest.TestResult()
+        with mock.patch("socket.getaddrinfo", side_effect=socket.gaierror(8, "nodename nor servname provided")):
+            case.run(result)
+        self.assertEqual([reason for _case, reason in result.skipped], [NO_NETWORK],
+                         [text for _case, text in result.failures + result.errors])
+
     def test_the_pinned_release_is_fetched_verified_and_cached(self):
+        try:
+            socket.getaddrinfo("github.com", 443)
+        except OSError:
+            self.skipTest(NO_NETWORK)
         env = clean_env(GDSTYLE_CACHE=str(self.cache))
         r = subprocess.run(["bash", str(SCRIPT), "--version"], cwd=ROOT, env=env, capture_output=True, text=True,
                            timeout=300)

@@ -447,15 +447,15 @@ IMPORT_LOG_LINES = 40   # what the fake import prints before it fails: more than
 
 def failing_import(d: Path, hang: bool) -> Path:
     """A Godot stand-in whose `--import` prints IMPORT_LOG_LINES numbered lines and an error, then exits 3 or, with
-    `hang`, never ends; any other run is the real Godot's, so the fixture's matches still play."""
+    `hang`, never ends; any other run is the real Godot's, so the fixture's matches still play. The lines are one
+    builtin printf (no fork): on a loaded machine they are all written long before a timeout."""
     path = d / "fake_godot"
     end = "exec sleep 60" if hang else "exit 3"
     path.write_text(
         "#!/bin/bash\n"
         'for a in "$@"; do\n'
         '\tif [ "$a" = "--import" ]; then\n'
-        f"\t\tfor i in $(seq 1 {IMPORT_LOG_LINES}); do echo \"import line $i\"; done\n"
-        '\t\techo "ERROR: the fake import broke"\n'
+        f"\t\tprintf '%s\\n' \"import line \"{{1..{IMPORT_LOG_LINES}}} \"ERROR: the fake import broke\"\n"
         f"\t\t{end}\n"
         "\tfi\n"
         "done\n"
@@ -497,8 +497,8 @@ class ImportFailureTests(unittest.TestCase):
 
     def test_a_timed_out_import_is_reported_with_the_end_of_its_log(self):
         with TempDir() as d:
-            code, _said, shouted, left = self.run_with(failing_import(d, hang=True), timeout=3.0)
-        self.check_reported(code, shouted, "did not finish within 3 s")
+            code, _said, shouted, left = self.run_with(failing_import(d, hang=True), timeout=10.0)
+        self.check_reported(code, shouted, "did not finish within 10 s")
         self.assertEqual(left, [])
 
     def test_a_failed_import_that_leaves_main_unparsed_is_said_with_the_runs_failure(self):
