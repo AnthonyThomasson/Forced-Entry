@@ -278,8 +278,10 @@ func _post_order(order: Dictionary) -> Dictionary:
 ## `{ opening, pos, into, split, stack_at? }` (the doorway, its centre, the room it goes into, the
 ## side, D3), for `go` `{ opening, pos }` (the doorway) and for `ambush`
 ## `{ opening, pos, room, beyond }` (the doorway, the room on the click's side of its wall plane,
-## D17, and the room on its other side, "" for an exterior door); {} when it names nothing (an
-## unknown room, no doorway near `pos`, another kind). The command menu names the room a stack goes
+## D17, and the room on its other side, "" for an exterior door; an ambush may instead name its
+## doorway by id and the room it is laid from, `{ opening, room }`, resolved the same way); {} when
+## it names nothing (an unknown room, no doorway near `pos`, a doorway id the house lacks or a room
+## it does not join, another kind). The command menu names the room a stack goes
 ## into, and the room an ambush is laid from, from it, so its labels and the orders agree.
 func resolve(request: Dictionary) -> Dictionary:
 	var pos = request.get("pos")
@@ -295,7 +297,7 @@ func resolve(request: Dictionary) -> Dictionary:
 			var door := _door_for(pos) if pos is Vector2 else {}
 			return {} if door.is_empty() else { "opening": door["opening"], "pos": door["pos"] }
 		AMBUSH:
-			var door := _door_for(pos) if pos is Vector2 else {}
+			var door := _ambush_door(request)
 			if door.is_empty():
 				return {}
 			return { "opening": door["opening"], "pos": door["pos"], "room": door["from"],
@@ -381,9 +383,10 @@ func _centre_of(key: String) -> Vector2:
 
 ## Where a click at `pos` stacks (D3): the doorway nearest it within its width (`opening`, and its
 ## centre as the order's `pos`), the room it goes into (`into`: the room on the far side of the wall
-## plane from the click, the house's room for an exterior door), and the side of the door: `split`
-## for a click on the opening itself (within its half-width along the wall), else `stack_at`, the
-## click, whose side along the wall the stack forms on. {} when no doorway is that near.
+## plane from the click, the house's room for an exterior door), the room on the click's side
+## (`from`, an ambush's, D17), and the side of the door: `split` for a click on the opening itself
+## (within its half-width along the wall), else `stack_at`, the click, whose side along the wall the
+## stack forms on. {} when no doorway is that near.
 func _door_for(pos: Vector2) -> Dictionary:
 	if pos == Vector2.INF:
 		return {}
@@ -399,26 +402,42 @@ func _door_for(pos: Vector2) -> Dictionary:
 	if joins.is_empty():
 		return {}
 	var door: Vector2 = best["pos"]
-	var into: String = joins[0]
 	var first: Rect2 = HouseRooms.by_key(_rooms, joins[0]).get("rect", Rect2())
 	var into_first := AgentEntry.normal_into(first, door)
-	if joins.size() == 2 and (pos - door).dot(into_first) > 0.0:
-		# The click is on the first room's side of the wall: the stack forms there and goes into the
-		# other.
-		into = joins[1]
-	var along := into_first.orthogonal()
-	# The room on the click's side (an ambush's, D17).
-	var from: String = joins[0] if into != joins[0] or joins.size() == 1 else joins[1]
-	var out := {
-		"opening": AgentEntry.opening_id(best),
-		"pos": door,
-		"into": into,
-		"from": from,
-		"split": absf((pos - door).dot(along)) <= float(best.get("width", 80.0)) * 0.5,
-	}
+	# The click on the first room's side of the wall: the stack forms there and goes into the other
+	# (an exterior door's one room is both).
+	var on_first: bool = joins.size() == 1 or (pos - door).dot(into_first) > 0.0
+	var out := _door_of(best, joins[0] if on_first else joins[1])
+	out["split"] = absf((pos - door).dot(into_first.orthogonal())) <= float(
+		best.get("width", 80.0),
+	) * 0.5
 	if not out["split"]:
 		out["stack_at"] = pos
 	return out
+
+
+## The doorway an ambush request names (`_door_of`): by id, its `opening` and the room it is laid
+## from (`room`, a room the doorway joins), else the click at its `pos` (`_door_for`); {} for none.
+func _ambush_door(request: Dictionary) -> Dictionary:
+	if not request.has("opening"):
+		var pos = request.get("pos")
+		return _door_for(pos) if pos is Vector2 else {}
+	var room := String(request.get("room", ""))
+	for o: Dictionary in _openings:
+		if AgentEntry.opening_id(o) == String(request["opening"]):
+			var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
+			return _door_of(o, room) if joins.has(room) else {}
+	return {}
+
+
+## Doorway `o` seen from room `from`, one of the rooms it joins: `{ opening, pos, into, from }`,
+## `into` the room on its other side (an exterior door's: its one room, `from`).
+func _door_of(o: Dictionary, from: String) -> Dictionary:
+	var joins: Array = (o.get("rooms", []) as Array).map(func(k): return String(k))
+	var into := from
+	if joins.size() == 2:
+		into = joins[1] if joins[0] == from else joins[0]
+	return { "opening": AgentEntry.opening_id(o), "pos": o["pos"], "into": into, "from": from }
 
 
 ## The leader by the rule (LD3): the human while it leads and lives; else the living member of the
