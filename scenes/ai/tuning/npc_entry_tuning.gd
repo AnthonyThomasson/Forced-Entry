@@ -16,9 +16,9 @@ class_name NpcEntryTuning extends Node
 ## slot, before the point slices the pie: time for a late reason to suspect the room to come up and
 ## turn it into a bang one (E17). A hostile in view or coming under fire ends it early.
 @export var listen_time: float = 3.0
-## Seconds a follower leaves after the member ahead of it is through, so the stack crosses one at a
-## time.
-@export var follow_gap: float = 0.3
+## Seconds a follower leaves after the member ahead of it goes (starts its crossing, on its own side
+## of the door; is through, across the door or the human), so the file walks in on its back.
+@export var follow_gap: float = 0.0
 ## Seconds the point looks through the door from each step of the arc.
 @export var pie_dwell: float = 0.35
 ## Seconds an entrant holds its corner, looking across the room, before it clears the rest by sight.

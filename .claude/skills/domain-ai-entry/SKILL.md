@@ -156,7 +156,7 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   past `TOP_OFF_CAP` (8 s) per entry; never in `cross` (the watch stage's empty-gun reflex is off while committed too).
 - **The last man faces back (E12).** In `stack` a member that is the last of its side's file with two or more crossing ahead of it (`readiness._covers_rear`;
   one per side on a split stack) looks along the wall away from the door (`spot + along * side * 300`,
-  at 3x `tuning.coverage.look_rate`) instead of at it, until the member ahead of it is through (`readiness.turn_at`); then it looks at the door as every
+  at 3x `tuning.coverage.look_rate`) instead of at it, until the member ahead of it goes (`readiness.turn_at`); then it looks at the door as every
   follower does. A threat in sight takes the eyes first (the watch stage).
 - **A short room takes two (E13).** The doorway geometry's `capacity` (perception, `domain-ai-perception`) is 2 for a room with a side under
   `tuning.entry_geometry.short_room` (150 px). A member with that many ahead of it in the crossing order, both sides counted (`readiness._holds_outside`), stays in `stack` running `readiness._tick_security`: still,
@@ -172,8 +172,11 @@ with `cleared_room` once the rest of the stack is in), `cover` (the room is held
   a detour and walks in (the guard's exemption), but not into the room the shots came from (E9); for `BANG_WINDOW` after its own team's
   burst in the room the hold is lifted (R8, below).
 - **Barrier and order.** The point crosses when every other claimant has radioed past `claim`, or `tuning.entry.ready_timeout`
-  after it was ready (restarted when the stack grows; under an order, from `readiness.all_in_at`, LD17 below). A follower crosses `tuning.entry.follow_gap` after the member ahead of
-  it in the crossing order radioed `in` (`readiness.follow`). A member still at `claim` once the one behind has waited the timeout is dropped from the order.
+  after it was ready (restarted when the stack grows; under an order, from `readiness.all_in_at`, LD17 below). A follower crosses `tuning.entry.follow_gap` (0) after the member just ahead of
+  it in the crossing order goes (`readiness.follow`, `readiness._ahead_gone`): an AI on its own side of the door as soon as its claim says
+  `going_in`, so the file walks in together, one behind the other (test `entry_team_flows_in`); one across the door (E19) or the human (E16)
+  once it radioed `in`. `sweep.start_cross` picks its corner by its place in the crossing order, the members ahead of it crossing or through
+  (`StackClaim.crossing`), so a file that sets off together still takes the point's corner, the hard corner and the spots in turn. A member still at `claim` once the one behind has waited the timeout is dropped from the order.
   The crossing order is the stack's (`DoorStack.crossing` / `ahead`, read by `readiness.members_before` / `readiness.members_ahead`): by slot, or on a split stack the point, the other side's front man, then the sides in turn.
 - **A split stack (E19).** A member whose way to the team's side crosses the doorway's view stacks on its own side (the claim carries
   it); `claim.keep_slot` weighs the side again only when the team's side changes (`DoorStack.team_side`, the point's once known). Its place in its

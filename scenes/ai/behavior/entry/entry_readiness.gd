@@ -31,7 +31,7 @@ var ready_at := -1.0
 var team_size := 0
 ## `state.time` the stack last grew.
 var team_grew_at := 0.0
-## `state.time` the member ahead of this one was first seen through (-1 = not yet).
+## `state.time` the member ahead of this one was first seen gone (`_ahead_gone`; -1 = not yet).
 var turn_at := -1.0
 ## Allies seen through this doorway this entry: instance id -> slot (kept when they move on).
 var through := {}
@@ -178,15 +178,25 @@ func _take_turn(entry: Entry, team: Array) -> void:
 
 
 ## A follower's turn (E6): it crosses `tuning.entry.follow_gap` after the member just ahead of it in
-## the crossing order is through, unless a hostile stands in view (E14; not in the moments after the
-## stack's stun went off).
+## the crossing order goes (`_ahead_gone`), unless a hostile stands in view (E14; not in the moments
+## after the stack's stun went off).
 func follow(entry: Entry, team: Array, ahead: Array) -> void:
-	if StackClaim.through(ahead[-1]["step"]):
+	if _ahead_gone(ahead[-1]):
 		if turn_at < 0.0:
 			turn_at = state.time
 		if (state.time - turn_at >= world.tuning.entry.follow_gap
 				and (not state.hostile_in_view or entry.grenade.in_bang_window())):
 			entry.sweep.start_cross(entry, team)
+
+
+## Whether member `m`, just ahead of this one in the crossing order, has gone far enough for this
+## one to follow: an AI on this member's side of the door as soon as it starts its crossing, so the
+## file walks in on its back; one across the door (a split stack's criss-cross, E19) or the human
+## (E16) once it is through, so two never cross the doorway abreast nor walk into the human.
+func _ahead_gone(m: Dictionary) -> bool:
+	if int(m["side"]) == state.side and not bool(m.get("human", false)):
+		return StackClaim.crossing(m["step"])
+	return StackClaim.through(m["step"])
 
 
 ## Whether this member slices its own half of the pie before it follows the point (E19): the stack

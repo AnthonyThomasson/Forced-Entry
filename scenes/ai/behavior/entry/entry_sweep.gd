@@ -86,7 +86,7 @@ func note_seen(entry: Entry) -> void:
 ## go.
 func start_cross(entry: Entry, team: Array) -> void:
 	var order := entry.readiness.members_before(entry).filter(
-		func(m): return StackClaim.through(m["step"]),
+		func(m): return StackClaim.crossing(m["step"]),
 	).size()
 	corner = _corner_for(entry,
 		order,

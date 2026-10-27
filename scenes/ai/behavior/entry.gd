@@ -34,8 +34,9 @@ extends RefCounted
 ## behaviour queues each step (`take_calls()`) and the controller radios it; the team is read back
 ## through the perception (`entry.stack`). The point crosses when every member of the stack is ready
 ## or `tuning.entry.ready_timeout` runs out (E6); a follower crosses `tuning.entry.follow_gap` after
-## the member ahead of it is through. With nobody else claiming the doorway the NPC goes alone; an
-## ally that claims a slot before it commits joins the stack (E7). In a **bang entry** the stack
+## the member ahead of it goes (as it starts its crossing on the same side of the door, once it is
+## through across it). With nobody else claiming the doorway the NPC goes alone; an ally that claims
+## a slot before it commits joins the stack (E7). In a **bang entry** the stack
 ## throws a stun grenade into the room first (the `bang` phase, below): the point skips the pie and
 ## crosses the moment it goes off. Any entry into a room the NPC suspects a hostile in, with a stun
 ## in the stack, is a bang one, whatever order brought it to the doorway; a quiet entry turns into a

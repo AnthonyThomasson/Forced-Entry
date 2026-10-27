@@ -164,13 +164,16 @@ Tests: `entry_pair_take_opposite_corners`, `entry_pair_hard_corner_first`.
 
 **E6. Ready barrier and "going in".** The point does not cross until every invader in range holds its
 slot (or a ready timeout runs out), on either side of the door (the other side's front man of a split stack is ready once it has
-sliced its half of the pie, E19), and it radios that it is going in. Followers cross after it, one at a
-time, not together, each after the member ahead of it in the crossing order (on a split stack the sides take turns, E19). A member killed is dropped from the barrier at once; one that never arrives is dropped by the ready timeout (or gives
+sliced its half of the pie, E19), and it radios that it is going in. Followers pour in behind it: each
+sets off the moment the member just ahead of it in the crossing order starts its own crossing, so the whole file moves at once at
+walking pace, one behind the other through the doorway, never two shoulder to shoulder; each still takes its own corner or spot
+(E5), by its place in the crossing order. Across the door (a split stack's criss-cross, E19) or behind the human (E16) a follower
+waits until that member is through, so two never cross the doorway abreast nor does an AI walk into the human. A member killed is dropped from the barrier at once; one that never arrives is dropped by the ready timeout (or gives
 its own approach up after its walk there plus `tuning.entry.approach_time`, E2). Why: a team that
 trickles through the funnel is a series of solo entries; the radio is the team's only signal. The barrier is a
 hold-until-ready, not a fixed delay. A stack its leader ordered to hold for the go holds past the barrier, no pie and no bang, until that
 go (`docs/leadership.md` LD13).
-Tests: `entry_waits_for_stack`, `entry_ready_timeout`, `entry_going_in_callout`.
+Tests: `entry_waits_for_stack`, `entry_ready_timeout`, `entry_going_in_callout`, `entry_team_flows_in`.
 
 **E7. Solo entry.** An invader with no ally in radio range runs the same sequence without a barrier (it still
 claims slot 1 on the radio, so an ally that turns up joins its stack): stage (E1), slice the pie from one side then the other (E3), and, if nothing is hostile in
@@ -254,7 +257,7 @@ reload; real Von, `requires_von`).
 the team came and holds the approach; the point and the second face the door. Why: the stack's rear is its blind side
 (the "The stack" paragraph above: the last man faces back and holds the hallway behind). In the code, the last slot of a
 stack of three or more (`Entry.readiness._covers_rear`: the last of its side's file, with two or more crossing ahead of it) turns its gaze
-along the wall away from the door, the line the team came by, from `stack` until the member ahead of it is through; then
+along the wall away from the door, the line the team came by, from `stack` until the member ahead of it goes (E6); then
 it turns to cross in its turn (a threat in sight still takes its eyes first, `docs/gaze-and-fire.md`). A stack of two has no
 rear guard, and the last man in the room still takes the rear watch there (E8). A stack split across the door (E19) has a rear guard
 per side: the last of each side's file that is not one of the two front men.
