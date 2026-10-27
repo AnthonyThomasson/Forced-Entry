@@ -5,7 +5,9 @@ extends GameTest
 ## members holding no order, the leader included; with three or more of them the last in spawn order
 ## (never the leader) is kept back as rear guard. It re-orders only on a new doorway, at most every
 ## `reorder_gap` (8 s), to members holding no order, with at least `min_recipients` (2) of them; the
-## key and the cool-down start afresh with a new leader, and a dead AI leader's ambushes stand.
+## key and the cool-down start afresh with a new leader, and a dead AI leader's ambushes stand. A
+## member that radioed its order `refused` (no post for it) holds none for the rule: it is a
+## recipient of the next.
 ##
 ## Mechanism test (scripted): the radio calls are the test's own, posted by a household puppet that
 ## is a squad member but no NPC (so never a recipient), and the cancels are the test's, issued as
@@ -35,7 +37,7 @@ func describe() -> Dictionary:
 			+ "doorway, past the cool-down, to members holding no order; a new leader starts "
 			+ "afresh and a dead leader's ambushes stand (#128).",
 		"tags": ["ai", "leadership", "squad", "order", "ambush"],
-		"timeout": 40.0,
+		"timeout": 60.0,
 	}
 
 
@@ -75,7 +77,9 @@ func run(t: TestContext) -> void:
 		str(second.get("id", "")),
 		"d1, holding an order, is skipped and keeps it",
 	)
-	await _new_leader(t, squad, third)
+	var fresh := await _new_leader(t, squad, third)
+	if not fresh.is_empty():
+		await _refused(t, fresh)
 
 
 ## The first threat: the doorway its attack comes by, to d1 and d2, d3 kept back as rear guard and
@@ -124,8 +128,8 @@ func _cool_down(t: TestContext, squad: Node, first: Dictionary) -> void:
 
 ## d1 dies holding its order: the ambushes it gave stand; d2 leads, and the key and the cool-down
 ## start afresh, so the same doorway as the last order, called within its cool-down, is ordered
-## again to the members then free.
-func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> void:
+## again to the members then free. Returns that order ({} when the test ended).
+func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> Dictionary:
 	var d1 := t.actor(&"d1")
 	var d2 := t.actor(&"d2")
 	var d3 := t.actor(&"d3")
@@ -133,7 +137,7 @@ func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> void:
 	d1.take_damage(1.0e9)
 	await t.frames(2)
 	if not t.require(d1.is_dead and squad.leader() == d2, "d1 dead, d2 leads (premise)"):
-		return
+		return {}
 	t.check(
 		Order.orders(t).slice(before).is_empty(),
 		"the leader's death posts no order (its ambushes are not cancelled)",
@@ -150,6 +154,26 @@ func _new_leader(t: TestContext, squad: Node, third: Dictionary) -> void:
 		_is_ambush(fresh, FRONT_CHAIN) and _names(fresh.get("to", [])) == ["d2", "d3"],
 		"the new leader's own call, the same doorway within the cool-down, orders it again (%s)"
 			% _describe(fresh),
+	)
+	return fresh
+
+
+## d2 and d3 radio the order they hold `refused` (there is no post for them): past the cool-down a
+## new doorway is ordered to both, members that refused their order holding none for the rule.
+func _refused(t: TestContext, held: Dictionary) -> void:
+	await _wait_past(t, held)
+	for id in [&"d2", &"d3"]:
+		var m := t.actor(id)
+		EventBus.post(&"callout", {
+			"speaker": m, "faction": &"household", "position": m.global_position,
+			"status": "", "path": "", "label": "", "target_id": 0, "point": m.global_position,
+			"order_id": held["id"], "order_step": "refused",
+		})
+	var next := await _call(t, IN_KITCHEN, t.actor(&"d2"))
+	t.check(
+		_is_ambush(next, KITCHEN_DOOR) and _names(next.get("to", [])) == ["d2", "d3"],
+		"having refused their order, d2 and d3 are ordered the kitchen's doorway (%s)"
+			% _describe(next),
 	)
 
 

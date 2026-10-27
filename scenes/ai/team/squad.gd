@@ -599,12 +599,16 @@ func _own_claim(claim: Dictionary) -> bool:
 
 
 ## The living NPC members holding no order, in spawn order, the leader included: whom the ambush
-## rule may order.
+## rule may order. A member that radioed the order it holds `refused` (it cannot carry it out) holds
+## none for the rule, though the squad keeps it held (D21) for the leader's menu.
 func _free() -> Array:
 	return _members.filter(func(m): return (
 		alive(m)
 		and _npcs.has(m.get_instance_id())
-		and (_orders.get(m.get_instance_id(), {}) as Dictionary).is_empty()
+		and (
+			(_orders.get(m.get_instance_id(), {}) as Dictionary).is_empty()
+			or _steps.get(m.get_instance_id(), "") == "refused"
+		)
 	))
 
 

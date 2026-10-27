@@ -7,13 +7,13 @@ extends RefCounted
 ## hostile); a point in the leader's own room, `Vector2.INF` or a leader in no room orders nothing.
 ## The doorway is `AttackDoor.doorway` (the last doorway on the shortest way from the point's room
 ## into the leader's). The order is an `ambush` of that doorway from the leader's room, through
-## `Squad.issue` as a human leader's request is, to the living NPC members holding no order, the
-## leader included; with three or more of them the last in spawn order (never the leader) is left
-## out, the rear guard, which follows as any member with no order does. A re-order needs a new
-## doorway, `SquadAmbushConfig.reorder_gap` s since the last order and at least
-## `SquadAmbushConfig.min_recipients` recipients; the last doorway and the clock move only when an
-## order is posted, and start afresh with a new leader (`reset`). It holds its squad (a node, so no
-## reference cycle) for the leader and `issue`.
+## `Squad.issue` as a human leader's request is, to the living NPC members holding no order (one
+## that radioed its order `refused` holds none), the leader included; with three or more of them the
+## last in spawn order (never the leader) is left out, the rear guard, which follows as any member
+## with no order does. A re-order needs a new doorway, `SquadAmbushConfig.reorder_gap` s since the
+## last order and at least `SquadAmbushConfig.min_recipients` recipients; the last doorway and the
+## clock move only when an order is posted, and start afresh with a new leader (`reset`). It holds
+## its squad (a node, so no reference cycle) for the leader and `issue`.
 
 const AttackDoor := preload("res://scenes/ai/team/attack_door.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
