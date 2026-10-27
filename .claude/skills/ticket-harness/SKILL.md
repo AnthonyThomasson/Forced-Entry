@@ -12,6 +12,9 @@ Follow every `ticket-story` phase; only what gets tested differs. Writing or edi
 agent reads: load `mattpocock-skills:writing-for-agents` (a description is an always-loaded pointer: short, one
 trigger per case).
 
+Line width: only GDScript has one (gdstyle's 100 columns, enforced by lint). Lines in Markdown, Python and shell run as
+long as they need; nothing checks their width, so leave it unmeasured.
+
 ## What is tested
 
 - **Skills and instructions: no tests.** A skill, `AGENTS.md`, a doc, a hook's wording, a checklist, or a tool change
