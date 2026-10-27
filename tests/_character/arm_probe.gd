@@ -1,7 +1,7 @@
 extends RefCounted
 ## Shared helper for the long-gun Character tests (not a test itself):
 ## `const Arms := preload("res://tests/_character/arm_probe.gd")`. Whatever a held gun does to the
-## hands, both arms keep (about) their configured length.
+## hands, both arms keep (about) their configured length (`check_lengths`).
 
 const Rig = preload("res://scenes/character/body/character_rig.gd")
 ## How far a bone may differ from its configured length (fraction), as in the standing-body rig
@@ -10,7 +10,7 @@ const BONE_TOLERANCE := 0.06
 
 
 ## Both arms of character `c` keep (about) their configured length; `when` heads each message.
-static func check(t: TestContext, c: Node, when: String) -> void:
+static func check_lengths(t: TestContext, c: Node, when: String) -> void:
 	var rig = c.anatomy.rig()
 	var r: float = c.radius
 	var bones := [

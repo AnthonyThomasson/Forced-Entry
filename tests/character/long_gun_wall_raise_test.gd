@@ -66,7 +66,7 @@ func _check_against_wall(t: TestContext) -> void:
 		var c = t.actor(id)
 		t.check(c.weapon.blocked(), "%s: its barrel is against the wall" % id)
 		t.check(c.weapon.raise() > 0.95, "%s: the gun is raised (%.2f)" % [id, c.weapon.raise()])
-		Arms.check(t, c, "%s raised" % id)
+		Arms.check_lengths(t, c, "%s raised" % id)
 	var pistol = t.actor(&"pistol_wall")
 	t.check(
 		not pistol.weapon.blocked() and pistol.weapon.raise() == 0.0,
