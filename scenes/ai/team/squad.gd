@@ -53,6 +53,12 @@ extends Node
 ## `abort` there cancels them (D25); when the human leader dies, the members holding its defend and
 ## ambush orders are told `cancel` (LD26).
 ##
+## **The defenders' ambush rule.** A squad whose roster has `ambush_attacks` (the defenders'), while
+## an AI leads it, orders its free NPC members, the leader included, to ambush the doorway into the
+## leader's room an attack comes through, on a threat its side's radio places outside that room
+## (`ambush`, squad_ambush.gd): the only orders it posts of its own besides the rally's and the
+## takeover's.
+##
 ## **Its stacks (LD18).** Every stack its side is forming, ordered or its own, read off the members'
 ## entry claims on the radio (the human's `PlayerStack` among them) and laid where the AI stands
 ## them (`DoorStack.layout`): `view()["stacks"]`, which the stack markers draw,
@@ -66,6 +72,7 @@ const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
 const HouseRooms := preload("res://scenes/ai/perception/house_rooms.gd")
 ## The entry claim's wire format and step lists (scenes/ai/perception/stack/).
 const StackClaim := preload("res://scenes/ai/perception/stack/stack_claim.gd")
+const SquadAmbush := preload("res://scenes/ai/team/squad_ambush.gd")
 const SquadFollow := preload("res://scenes/ai/team/squad_follow.gd")
 const SquadStacks := preload("res://scenes/ai/team/squad_stacks.gd")
 ## The order kinds.
@@ -112,6 +119,8 @@ var _follow: SquadFollow = null
 ## "<leader instance id>:<opening>" -> true for each doorway a leader's own claim has rallied its
 ## team to, until that stack is given up (`_rally`).
 var _rallied := {}
+## The defenders' ambush rule (squad_ambush.gd): run while an AI leads a squad whose roster says so.
+var ambush: SquadAmbush = SquadAmbush.new(self)
 
 
 ## Take the leader's trail every physics frame (`SquadFollow.track`).
@@ -132,6 +141,7 @@ func setup(roster: SquadRoster, openings: Array, rooms: Array) -> void:
 	_openings = openings
 	_rooms = rooms
 	stacks.entry.set_house(openings, rooms)
+	ambush.setup(roster.ambush_attacks, openings, rooms)
 	var human := roster.human
 	_human = human if human != null and _members.has(human) else null
 	for m: Node in _members:
@@ -467,6 +477,7 @@ func _on_died(member: Node) -> void:
 		_leader = _next_leader()
 		if _follow != null:
 			_follow.reset()
+		ambush.reset()
 		EventBus.post(&"leader", { "faction": _faction, "leader": _leader, "previous": previous })
 		if previous == _human:
 			_take_over()
@@ -504,22 +515,14 @@ func _cancel_held(holds: Callable) -> void:
 ## The radio (LD7): a member's progress on the order it holds (`order_id`, `order_step`) is kept as
 ## its latest step. An order radioed `done` is no longer held (the step `done` stays, the order
 ## goes), so nothing offers to cancel it; a `refused` one is still held (D21), but for a join
-## (LD25). The leader's own entry steps rally its team (`_rally`).
+## (LD25). A callout from its own side is heard first (`_hear_side`).
 func _on_event(topic: StringName, data: Dictionary) -> void:
 	if topic != &"callout":
 		return
-	var speaker = data.get("speaker")
 	stacks.ledger.hear(data)
-	if StringName(data.get("faction", &"")) == _faction and not StackClaim.keeps_claim(data):
-		stacks.invalidate()  # A member's place in a stack (LD18), or its claim gone.
-		if StackClaim.is_claim(data):
-			_latch_go(StackClaim.decode(data)["opening"])
-	if (StackClaim.is_claim(data)
-			and speaker == _leader
-			and StringName(data.get("faction", &"")) == _faction):
-		var claim := StackClaim.decode(data)
-		if _own_claim(claim):
-			_rally(claim)
+	if StringName(data.get("faction", &"")) == _faction:
+		_hear_side(data)
+	var speaker = data.get("speaker")
 	var step := String(data.get("order_step", ""))
 	if step == "" or not speaker is Node or not is_instance_valid(speaker):
 		return
@@ -530,6 +533,23 @@ func _on_event(topic: StringName, data: Dictionary) -> void:
 		if step == "done" or (step == "refused" and StackClaim.is_join(held)):
 			# (A join refused, no slot for it, is over too: the member follows again.)
 			_orders.erase(id)
+
+
+## A callout `data` from its own side: a member's place in a stack (LD18), or its claim gone,
+## redraws its stacks and a claim latches a go given there; the leader's own entry steps rally its
+## team (`_rally`); while an AI leads, the ambush rule hears it (`ambush`, with the members it may
+## order).
+func _hear_side(data: Dictionary) -> void:
+	if not StackClaim.keeps_claim(data):
+		stacks.invalidate()
+		if StackClaim.is_claim(data):
+			_latch_go(StackClaim.decode(data)["opening"])
+	if StackClaim.is_claim(data) and data.get("speaker") == _leader:
+		var claim := StackClaim.decode(data)
+		if _own_claim(claim):
+			_rally(claim)
+	if _leader != null and _leader != _human:
+		ambush.hear(data, _free())
 
 
 ## The leader's own entry steps (no order behind them, LD24, LD25). Its claim at a doorway rallies
@@ -576,6 +596,16 @@ func _own_claim(claim: Dictionary) -> bool:
 	if claim["order_id"] != "" or claim["join"]:
 		return false
 	return not claim["human"] or claim["own"]
+
+
+## The living NPC members holding no order, in spawn order, the leader included: whom the ambush
+## rule may order.
+func _free() -> Array:
+	return _members.filter(func(m): return (
+		alive(m)
+		and _npcs.has(m.get_instance_id())
+		and (_orders.get(m.get_instance_id(), {}) as Dictionary).is_empty()
+	))
 
 
 ## The centre of the house's doorway `opening`, or `Vector2.INF` when it has none by that id.
