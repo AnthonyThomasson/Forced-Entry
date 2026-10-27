@@ -66,10 +66,11 @@ lands a walk the order replaces stops, while a fight goes on (the cadence's `ord
 and before `hostile_known`, so an ordered member shot at fights, then goes back to its order. The ORDER node's one option (the snapshot's
 `order` group) is auto-picked: `defend` for a room (the behaviour's `defend` primitive, at its D2 spot), an `entry` for a stack, an `ambush`
 for an ambush (the behaviour's `ambush` primitive, at its post from `EntryPosts.ambush_spot`, LD15). A `go` is no new order: perception
-latches it on the held stack it releases (`go: true`) and no decision is forced. Each
-decision the controller pushes a defend order's room into the planner's `confines` (`confines.room`), which keeps the fight to options inside it, and
-radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
-An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, and `confines.room` is cleared for that walk;
+latches it on the held stack it releases (`go: true`) and no decision is forced. A
+defend order's room is a rule of the NPC's confinement (perception's `confinement.room`, refreshed each tick by the reflexes, below), which
+keeps the fight to options inside it, and the controller radios the order's progress (`order_id`, `order_step`: `moving` / `in_position` from the behaviour, `done` / `refused` from the perception).
+An order the NPC cannot carry out (no option built) is ended `refused` as `_start_decision` begins the walk, which refreshes the confinement
+(`_reflexes.refresh_confinement()`: no room now) and puts its copy in the snapshot, so that walk decides with no room;
 a stack at a dead end with no slot for the member is kept instead, its option a `hold` whose params carry `refused` (LD9, D21). An ordered stack (LD9) is an entry that goes in the order's way (its
 side, its mode, a wait for every living recipient, and for the human leader holding a slot, up to `order_ready_cap`, LD17), from anywhere and for a defender too, its way read before
 it claims and its walk guarded, its claims (the radio's `post_entry_call`) carrying `order_id` / `order_bang` / `order_mode` / `order_hold` / `order_go` / `order_side` / `order_frame`
@@ -82,14 +83,18 @@ unordered entry joining the leader's stack (`domain-ai-entry`); the order's id s
 A join with no slot at a dead end has no option and ends `refused`. A join that ends (done, cancelled on the leader's `abort`, refused)
 leaves the member to follow again, at once while its entry is still in `approach` or `stack` (`Behavior.orders.join_over`, LD25).
 
-**Following (`docs/leadership.md` LD19 to LD23).** Each tick the reflexes' `follow_squad` (in SENSE, before `observe`) reads the controller's `squad`:
+**Following (`docs/leadership.md` LD19 to LD23).** Each tick the reflexes' `follow_squad` (in SENSE, after `observe`, so after the whole order intake, an ambush ended on contact
+included) reads the controller's `squad`:
 `follows(character)` into `AgentPerception.follows` (the snapshot's and `quick_facts()`'s `follows`), forcing a decision when it changes
-("follows its leader" / "leads its squad"), and the leash (`Behavior.orders.set_leash(leader position, SquadFollowConfig.leash)`, `Vector2.INF` when it does
-not follow or holds an order: `leash_lead`, LD23, the leash binds only a follower holding no order, so an ordered member fights where its
-order takes it); a leashed follower in a fight (`in_combat`) further than `SquadFollowConfig.leash_break` leashes from its leader, neither `committed()` nor
+("follows its leader" / "leads its squad"), and refreshes the **confinement** (`refresh_confinement()`: perception's `confinement.refresh`
+with the territory, `tuning.decision.defend_territory`, the live order, `perception.orders.current()`, and the leash,
+`SquadFollowConfig.leash` round the live position of `leash_lead()`, `Vector2.INF` when it does not follow or holds an order: LD23, the
+leash binds only a follower holding no order, so an ordered member fights where its order takes it); a leashed follower in a fight (`in_combat`) further than `SquadFollowConfig.leash_break` leashes from the confinement's `leash_center`, neither `committed()` nor
 `orders.walk_pending()`, forces one decision ("off the leash", the reflexes' `_leash_broke` re-armed once it is back within that). `_apply_config` disables
-INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`) and pushes the planner's
-`leash_center` (the leader's live position) and `leash`, for a follower holding no order only (`leash_lead`; INF and 0 otherwise). The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
+INVESTIGATE, SEARCH and IDLE for a follower, adds the entry rule `follows → follow` (after `hostile_known`); it pushes no confinement: the planner reads the snapshot's frozen copy
+(`snapshot["confinement"]`, `domain-ai-decision`), behaviour and Combat the live one. `debug_state()["confinement"]` is its `view()`
+(`inside_only`, `room`, `leash_center`, `leash`, `confines`), and `debug_state()["decision"]["confinement"]` the copy the last walk
+decided over. The FOLLOW leaf's `follow` primitive keeps the member to `Squad.follow_spot`
 (`domain-ai-behavior`) and asks for no decision on the cadence.
 
 Data flow each tick: the orchestrator folds queued hits and callouts into **Perception**, has it

@@ -1,6 +1,6 @@
 ---
 name: domain-ai-decision
-description: Deep implementation detail for the AI DECISION sub-domain (scenes/ai/decision/) — the decision tree (broad mode → tactic → option → primitive) as GDScript data, the planner that walks it with Von one `choice` request per level (entry rules, gating, territorial filter, auto-picked single options, continuity cue, per-level state), the single-question Von transport with argmax/top-pick, and the dev-only server launcher. Use when editing scenes/ai/decision/ or working on the decision tree, adding a mode/tactic, entry rules (under fire → combat), what Von is asked at each level, how a pick is chosen, the server-down fallback, or auto-starting/reusing the Von server. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
+description: Deep implementation detail for the AI DECISION sub-domain (scenes/ai/decision/) — the decision tree (broad mode → tactic → option → primitive) as GDScript data, the planner that walks it with Von one `choice` request per level (entry rules, gating, the confinement filter (territory, ordered room, leash), auto-picked single options, continuity cue, per-level state), the single-question Von transport with argmax/top-pick, and the dev-only server launcher. Use when editing scenes/ai/decision/ or working on the decision tree, adding a mode/tactic, entry rules (under fire → combat), what Von is asked at each level, how a pick is chosen, the server-down fallback, or auto-starting/reusing the Von server. Complements the light `domain-ai` overview and the `architecture` skill (cross-domain interfaces).
 ---
 
 # AI · Decision sub-domain (`scenes/ai/decision/`)
@@ -13,10 +13,10 @@ perception sub-domain (the snapshot); the chosen leaf is RUN by the behaviour su
 
 Files:
 - `decision_tree.gd` — the tree, `const NODES` (data only).
-- `decision_planner.gd` — the walk (a `Node`): gating, entry rules, per-level state, Von calls. It holds two data leaves, each built once
+- `decision_planner.gd` — the walk (a `Node`): gating, entry rules, per-level state, Von calls. It holds one data leaf, built once
   and preloaded (no `class_name`): `decision_walk.gd` (`DecisionWalk`, its private `_walk`: the walk in flight's `snap`, `node`, `binding`,
-  `confine`, `steps`, `offered`, `bind_level`, `levels` and `asked_ms`, reset by `begin`) and `decision_confines.gd` (`DecisionConfines`, its
-  public `confines`: `inside_only`, `room`, `leash_center`, `leash`, below).
+  `confine`, `steps`, `offered`, `bind_level`, `levels` and `asked_ms`, reset by `begin`). Where the NPC may act it reads off the snapshot
+  the walk decides over: `snap["confinement"]`, perception's `confinement` frozen as the snapshot was built (below).
 - `decision_client.gd` — the Von HTTP transport (a `Node` owning its `HTTPRequest`; the planner's child, built in its `setup`).
 - `decision_stub.gd` (`class_name DecisionStub`) — test seam: scripted picks that stand in for the server.
 - `decision_budget.gd` (`class_name DecisionBudget`) — how many decision snapshots may start in one frame, shared by every NPC (below).
@@ -49,11 +49,11 @@ Node fields: `label` (path tag), `desc`, `question` (what Von answers when choos
 children/options — it names the trade-off), `context` (which perception sections Von sees at that
 level; the goal is always shown), `children` (static node ids), `options` (perception option-group
 names → leaves; looked up under the bound target first, then globally), `summary` (group whose
-summary fills `{summary}`; `summary_inside` within a confined subtree; `{gun}` in a template is what the NPC calls its gun, from the
+summary fills `{summary}`; `summary_inside` within a confined subtree of a territorial NPC; `{gun}` in a template is what the NPC calls its gun, from the
 snapshot's `gun`: "pistol", "assault rifle"; `{blinded}` the bound hostile's "X is blinded by a flash and cannot see you, or " clause, empty unless it is, from the `blinded` key of its `hostiles` bind), `bind` + `bind_options` +
 `bind_question` + `bind_context` (pick and bind one option first, e.g. which hostile — with a leaner
 state, since the options carry each candidate's details), `requires` (fact names, `!` negates; a bound
-name counts as true), `confine` (combat subtree: a territorial NPC drops options outside the house),
+name counts as true), `confine` (combat subtree: the options the NPC's confinement does not allow are dropped, below),
 `drop_tags` (options carrying these tags are never offered — a flank side an ally holds, one whose
 route passes a known hostile, one with no shot at the target, one the target is walking toward, or one
 whose point or route lies in an ally's line of fire), `primitive` (move / engage / melee / interact / hold / reload / entry / throw / defend / ambush / follow), `params` (defaults merged under each option's own params; `run: true` on flank, advance, retreat and investigate lets the behaviour sprint to the destination — Von never sees it; `run_through_fire: true` on retreat lets it keep sprinting with a shot available (every other walk drops to a walk to take it, `docs/gaze-and-fire.md` W6); `entry_guard: false` on retreat exempts the walk from the behaviour's entry guard, which sends every other walk into an uncleared room through a tactical entry first).
@@ -119,13 +119,19 @@ phrasings were chosen by measurement with `tools/von_probe.py` — re-run it aft
 ## `decision_planner.gd` — the walk
 
 Config (pushed in from the controller; the tunables among it from the NPC's `tuning.decision`): `disabled_nodes`, `node_overrides` (per-node field merge),
-`entry_rules` (ordered fact → start node), `skip_single_option`, and in its `confines`: `inside_only` (territory), `room` (the room a member ordered to
-defend it keeps to, `docs/leadership.md` LD8: inside a `confine` subtree an option whose `tags.room` is another room or outside is dropped,
-as `inside_only` drops one outside the house; an option naming no place stays; the leaf's params then carry `confine_room`), and
-`leash_center` / `leash` (a squad follower's leader's live position, `Vector2.INF` for none: no squad, or a member holding an order, which
-the leash never binds; and the leash in px, LD23: inside a `confine`
-subtree an option placed farther than `leash` from it is dropped, its place being `params.from`, else `params.point`; an option naming no
-place stays; `_confines()` is true while a leash is set).
+`entry_rules` (ordered fact → start node) and `skip_single_option`.
+**The confinement filter.** Where the NPC may act is no config of the planner's: it reads perception's `confinement`
+(`perception_confinement.gd`, `domain-ai-perception`) as the snapshot froze it, `snapshot["confinement"]` (`_confinement()`, null in a
+snapshot without one), so a walk decides over one state and a hand-made snapshot drives it. Its three rules are the territory
+(`inside_only`, from `tuning.decision.defend_territory`), the room a member ordered to defend it keeps to (`room`, `docs/leadership.md`
+LD8) and a squad follower's leash (`leash_center`, its leader's live position, `Vector2.INF` for none: no squad, or a member holding an
+order, which the leash never binds; `leash` in px, LD23). `_confines()` is the copy's `confines()`: true while any rule is set. Inside a
+`confine` subtree (COMBAT) `_allowed` drops every option the copy's `allows_option(o)` refuses: an option is judged where it acts, its
+`params.from` (the spot a grenade is thrown from), else its `params.point`, so a territorial defender inside may throw onto a spot outside
+(`docs/grenades.md` G17); an option naming no place (a reload, a punch) stays. The planner reads neither `tags.inside` nor a room tag for
+it, and adds no confinement to the leaf's params: behaviour asks the live confinement itself. `summary_inside` fills `{summary}` while the
+copy's `inside_only` is on and the subtree is confined. An order refused as the walk begins (LD6) leaves the snapshot a copy with no room:
+the controller refreshes the confinement and replaces the snapshot's copy before the walk starts.
 **ORDER** (`order`, a root child, `requires: ordered`, LD6): its one option is the snapshot's `order` group, so it is taken without asking Von;
 the option names its own `primitive` (`_finish` takes an option's `primitive` over the node's). The controller's entry rules put
 `ordered → order` after `under_fire` / `engaged` and before `hostile_known`. A member's live order is shown at every level after the goal
@@ -133,14 +139,14 @@ the option names its own `primitive` (`_finish` takes an option's `primitive` ov
 `follow`, LD20): for a squad member following its leader the controller adds the entry rule `follows → follow` after `hostile_known` and
 disables `investigate`, `search` and `idle`, so with no fight, order or hostile known the walk starts at the leaf and takes it without
 asking Von. The
-controller maps `tuning.decision.pursue_hostiles` → `idle` disabled + `hostile_known → combat`; `tuning.decision.defend_territory` →
-`inside_only`. All but `node_overrides` are re-pushed each decision, so retuning them at runtime takes
+controller maps `tuning.decision.pursue_hostiles` → `idle` disabled + `hostile_known → combat` (`tuning.decision.defend_territory` is
+the confinement's `inside_only`, refreshed by the controller's reflexes each tick). All but `node_overrides` are re-pushed each decision, so retuning them at runtime takes
 effect; `node_overrides` is baked into the tree at `setup()` and is construction-time only.
 
 - `begin(snapshot, continuing)` — starts a walk (abandoning any in flight) at the first entry rule
   whose fact holds and whose node has a leaf, else `root`. Per level: list what's on offer (bind
   options, or gated children whose subtree still holds a leaf, plus the node's option groups through
-  the territorial + `drop_tags` filters); when `continuing` (the behaviour's last choice is still in
+  the confinement + `drop_tags` filters); when `continuing` (the behaviour's last choice is still in
   progress) mark the option continuing it "(your current plan)" — never a finished one, or Von
   re-picks a completed tactic (a flank it already reached); take a lone option without asking; else
   `client.ask(state, question, criteria)` where state = the goal + the node's `context` sections (the
@@ -148,14 +154,17 @@ effect; `node_overrides` is baked into the tree at `setup()` and is construction
   nothing to bind (under fire, shooter unseen) falls through to the node's unbound children (RETREAT
   / LOCATE). An empty entry node falls back to `root`; an empty root fails.
 - `signal decided(leaf)` — `{ path (ids), labels, primitive, params (node params ⊕ option params +
-  target_id + confine_inside) }`. `signal failed()` — transport failure or nothing to
+  target_id) }`. `signal failed()` — transport failure or nothing to
   choose; the controller wires it to the behaviour's `fallback()`.
 - `entry_for(facts)` / `current_entry()` — the cheap check the controller uses to interrupt a walk
   in flight when the situation now calls for a different start (e.g. came under fire mid-search).
 - `label_of(id)` — a tree node's label ("STUN ENTRY"), or its id when it has none: the controller names an entry it turned into a bang
   with it.
 - `cancel()`, `is_pending()`, `debug_state()` (per level: node, question, state, offered, Von's
-  probabilities and pick, `auto`, `ms` — enough to replay offline), `walk_digest()` for the log line.
+  probabilities and pick, `auto`, `ms` — enough to replay offline; and `confinement`, the `view()` of the confinement the walk decided
+  over, {} before any walk), `walk_digest()` for the log line. The planner's confinement filter is pinned on a hand-made snapshot with
+  `DecisionStub` in `tests/ai/perception/confinement_suite.gd` (COMBAT offers only allowed options; a territorial NPC's throw from inside
+  onto an outside spot is offered; nothing confining drops nothing).
 
 ## `decision_budget.gd` — snapshots spread over frames
 

@@ -101,10 +101,13 @@ leader's sight (`AgentVision.wall_hit`) and out of doorways (`_open_at`, `_in_do
 doorway. `_clear_of_way` then moves a follower or spot out of the lane ahead of the leader's `facing` (`_in_way`): beside it, own side first
 (`_taken`), else further ahead (170 / 215 / 260 px), only into `_visited` rooms; kept in `_aside` (member -> `{ spot, from, way }`: the spot,
 where the leader stood and the way it faced) while it clears the way, until the leader has moved a ring or turned back. The controller
-reads `follows`, `leader()` and the holder's `leash` and `leash_break`; the behaviour's `follow` primitive reads `follow_spot` and the
-holder's `retarget`, `arrive`, `still_time`, `step` and `caught_up` (LD21's catch-up run), and faces away from the leash centre the controller pushes. The leash binds only a
-follower holding no order (LD23, the controller's reflexes' `leash_lead`): `follows` stays true for a member carrying an order (its follow spot, its
-place in the file and the rally's choice of followers still count it), but its controller pushes no leash while it holds one, so a member
+reads `follows`, `leader()` and the holder's `leash` and `leash_break`: each tick its reflexes refresh the NPC's **confinement** (perception's
+`confinement` part, `domain-ai-perception`) with the leash, `SquadFollowConfig.leash` round the leader's live position (`leash_center`), which
+the planner's COMBAT filter (on the snapshot's frozen copy), the behaviour's fight, Combat's spots and the leash break all read; the behaviour's
+`follow` primitive reads `follow_spot` and the holder's `retarget`, `arrive`, `still_time`, `step` and `caught_up` (LD21's catch-up run), and
+faces away from the confinement's `leash_center`. The leash binds only a follower holding no order (LD23, the controller's reflexes'
+`leash_lead`): `follows` stays true for a member carrying an order (its follow spot, its place in the file and the rally's choice of followers
+still count it), but its confinement carries no leash while it holds one, so a member
 defending a room, ambushing or in a stack (held or a join) fights where the order takes it, however far its leader is.
 
 **The rally, the abort cancel and the takeover (LD24 to LD26).** `_on_event` hands an entry callout of the current leader's (same

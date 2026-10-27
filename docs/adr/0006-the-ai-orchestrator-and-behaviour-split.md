@@ -23,7 +23,8 @@ decision. Behaviour, entry, combat, locomotion, the planner and the launcher spl
 preload const, as the AI's modules always were, with no global name: behaviour's running leaf (`task`), `fight`,
 `errand`, `entries`, `grenades`, `orders` and `gait`; entry's shared leaves `state` and `world` and its parts `claim`,
 `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold` and `radio`; combat's `throw`;
-locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; the launcher's `_probe`.
+locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk`; the launcher's `_probe` (where an NPC may act is
+perception's `confinement`, ADR 0007's parts).
 
 Two rules were settled while the parts were built:
 - **Who names a member.** A part member read from outside its part is public on it: no underscore, and any prefix the
@@ -35,14 +36,14 @@ Two rules were settled while the parts were built:
   hold them: entry's parts hold only the `state` and `world` leaves, and a part method that needs the entry or a sibling
   part takes the `Entry` facade as its first parameter, `entry`, at the call, and never stores it. Combat's `throw`
   holds only the locomotion and the body, and entry's leaves and the data leaves (the cadence, the running leaf, the
-  planner's walk and confines, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`: an NPC's behaviour, entry,
+  planner's walk, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`: an NPC's behaviour, entry,
   combat, locomotion and planner, with their parts and leaves, 36 pieces, all free with it).
 
 ## Consequences
 
 Callers name the topic or the part: `tuning.senses.view_distance`, `brain.tuning.radio.callout_ttl`,
 `_behavior.grenades.poll_throw()`, `_behavior.entries.take_calls()`, `_entry.state.phase`, `_combat.throw.stage`,
-`_loco.crowd.held_by()`, `_planner.confines.room`. Tests set a tunable as an indexed path (`set_props(id,
+`_loco.crowd.held_by()`, `_perception.confinement.room`. Tests set a tunable as an indexed path (`set_props(id,
 "GoalController", {"tuning:entry:ready_timeout": 3.0})`), and the Testing world sets switch and child props with
 `set_indexed`; `tests/ai/npc_tuning_suite.gd` proves the topic refs are there before the NPC joins the tree and that two
 NPCs share no value. The spectator inspector rings a point by setting the controller's `debug_focus`. Von reads the

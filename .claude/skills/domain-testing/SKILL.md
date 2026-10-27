@@ -713,7 +713,11 @@ every generated floorplan. Beneath them two native suites
 feed plain claim dicts to the stack module, over the shared speakers and callouts of `tests/_ai/stack_radio_probe.gd` (`const StackRadio :=
 preload(...)`: `speaker(suite, dead)`, freed with the suite's case, and `callout`): `tests/ai/stack_claim_suite.gd` (`StackClaim`'s codec, its
 not-a-claim, step and join rules, a `ClaimLedger`) and `tests/ai/door_stack_suite.gd` (`DoorStack`'s slot rules: same-frame ties, move-up, the
-human's slot, a split stack's crossing order, `released`, layout rows). `tests/_ai/reach_probe.gd`
+human's slot, a split stack's crossing order, `released`, layout rows). Where an NPC may act has its native suite too,
+`tests/ai/perception/confinement_suite.gd` (perception's `confinement` part, `domain-ai-perception`: each rule alone and combined, an option
+judged at `from` else `point`, the snapshot's frozen copy, the planner's COMBAT filter on a hand-made snapshot with `DecisionStub`, and
+Combat's spot choice through the module's answers), beside its simulation tests `ai/grenade/territorial_throw_from_inside` and
+`ai/combat/ambush_contact_leashes_follower`. `tests/_ai/reach_probe.gd`
 (`const Reach := preload(...)`) runs an ordered stack, held for the go, from given starting places (`frame`, `click`, `run(t, f, lead, side,
 starts)`, the members the keys of `starts`) and checks each member by its own measure: in the slot it last claimed within `SLOT_REACH`, in time (its keep-out route's
 walk, `keep_out_route`, plus slack, timed from its last D4 detour), never the back of the stack nor an `abort` (a rise only as the other half of

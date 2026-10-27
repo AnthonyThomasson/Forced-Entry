@@ -12,7 +12,7 @@ and calls `build()` once per decision; its `apply_config(tuning)` hands `snapsho
 
 Files:
 - `agent_snapshot.gd` — `build(rooms, goal, activity, knowledge) -> { facts, sections, sections_per_target,
-  options, gun }`: the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
+  options, gun }` (to which `AgentPerception.sense()` adds `confinement`, the frozen copy of its confinement the planner filters by): the **facts** literal (`_facts`), the per-hostile loop (`_analyze`), and the assembly of the dict (`_state_sections`,
   `_option_groups`); `fill_goal(goal)`; `setup(sources: SnapshotSources)` (once, from the perception's `setup()`), which builds the
   vocabulary, the sections and the option groups (`SnapshotOptions.setup(vocab, sources)`, and the same for `SnapshotThrows` and
   `SnapshotOrders`);
@@ -34,7 +34,7 @@ Files:
   unseen_fire_text, allies_text, flanks_text, awareness_text, order_text, threat_summary`.
 - `snapshot/snapshot_options.gd` — the option groups: `hostile_group, reload_group, fire_group, flank_group,
   melee_group, advance_group, retreat_group, lead_group, shooter_group, entry_group` (with the static `entry_rooms`)`, search_group,
-  explore_group, interaction_group, room_group` and their helpers (the static `tag_rooms` among them). Reads the per-decision knowledge from `know` (set by `build()`).
+  explore_group, interaction_group, room_group` and their helpers. Reads the per-decision knowledge from `know` (set by `build()`).
 - `snapshot/snapshot_throws.gd` — the grenade option groups (`_throws`): `grenade_group, shots_grenade_group` and their helpers, and
   `begin()` (once per decision, from `build()`: forgets the throw spots of the last one). Reads `know` too (set by `build()`).
 - `snapshot/snapshot_orders.gd` — the ORDER option group (`_orders`): `group` (the live order's one option) and its helpers.
@@ -117,9 +117,11 @@ controller ends it `refused` and the member follows, LD24), `ambush_<opening>` r
   after every other claim heard on that doorway; E20) is `hold_<opening>` instead, a `hold` labelled "hold where you are: no room at the
   doorway into the <room>" with params `{ order_id, refused: true }`, the order kept (the behaviour radios `refused`, LD9 D21); empty with no order
   or one it cannot carry out (a room or doorway it does not know, or no ambush post: the controller ends it `refused`).
-  Options are places and things, never verbs; `tags.inside` drives the territorial filter. After the groups are built `tag_rooms` tags every
-  option that names a place with the room it lies in (`tags.room`: the room key of its `from`, else its `point`; "" outside): the planner's
-  `confines.room` keeps a member ordered to defend a room to the options in it (LD8). Tags are not text.
+  Options are places and things, never verbs. `tags.inside` is wording and overlay data (the territory overlay, `lead_outside`,
+  `summary_inside`, the flank tests' zones), not the filter: which options a confined NPC is offered is decided by its **confinement**, which
+  `AgentPerception.sense()` freezes into the snapshot beside the groups (`snapshot["confinement"]`, a `copy()` of perception's
+  `confinement` part, `domain-ai-perception`); the planner's COMBAT filter judges each option by it where the option acts (`params.from`,
+  else `params.point`). Tags are not text.
 
 
 ## Wording rules for Von (measured with `tools/von_probe.py`)

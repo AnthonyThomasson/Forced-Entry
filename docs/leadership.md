@@ -12,11 +12,12 @@ document.
 
 The pieces: `general/game_clock.gd` (the pausable clock every AI timer reads), `ai/team/squad.gd` (the squad: roster, leader, succession,
 `issue` and `view`; the leader's trail, the follow spots and the leash; the rally, the abort cancel and the takeover), `goal_controller.gd`
-(the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the leash it
-pushes for a follower holding no order and the leash break), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; the `follows` fact),
+(the order intake, the `ordered → order` and `follows → follow` entry rules, the progress radio, the squad's follow reads, the confinement it
+refreshes each tick, `npc_reflexes.gd` `refresh_confinement`, with the leash for a follower holding no order, and the leash break), `agent_perception.gd` (its `orders` part, `perception_orders.gd`: the live order, its end, the ambush's end on contact; its `views` part, `perception_views.gd`: `_stack_room`; the `follows` fact),
 `entry/entry_posts.gd` (`defend_spot`, `ambush_spot`), `stack/` (`stack_layout.gd`'s `slots`, `door_stack.gd`'s `layout` and `released`), the snapshot
-(`snapshot_orders.gd` `group`, `snapshot_options.gd` `tag_rooms`, `snapshot_sections.gd` `order_text`), the decision tree's `order` and `follow` nodes and
-the planner's `confines` (`room` and the leash), the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`, `combat.gd`: the leash)
+(`snapshot_orders.gd` `group`, `snapshot_sections.gd` `order_text`), the perception's `confinement` (`perception_confinement.gd`: the
+ordered room and the leash, frozen into the snapshot), the decision tree's `order` and `follow` nodes and the planner's confinement filter,
+the behaviour's `defend`, `ambush` and `follow` primitives (`behavior_orders.gd`; `behavior_fight.gd` and `combat.gd` ask the confinement)
 and its ordered stack and joins (`entry.gd`: the hold for go, the frag entry, a join run as the member's own entry; the entry guard in
 `behavior_entries.gd`, and the perception's `views.ordered` and `views._seen_empty`), and the human's `PlayerStack` (`ai/team/player_stack.gd`) in a held
 stack, as the leader a stack waits for (LD17) and as the leader's own claim (LD24). The match builder (`match_builder.gd`, `MatchBuilder`,
@@ -144,7 +145,8 @@ it and the command menu offers no "Cancel order" for it. A `refused` order is st
 Tests: `ai/decision/order_progress_radio` (a defender radios `in_position` in the living room, an invader `done` once it has cleared the
 kitchen; each callout names its order; the squads' views show the steps), `general/squad_done_order_not_cancellable` (a member's order
 radioed done is held no more and the menu offers no cancel for it; a refused one is still held), `ai/decision/order_refused_unconfined`
-(a defender refuses a defend order for a room it does not know and still engages from its own room, no `confine_room` in the leaf).
+(a defender refuses a defend order for a room it does not know and still engages from its own room; the confinement its walk decided over,
+`debug_state()["decision"]["confinement"]`, keeps it to no room).
 
 **LD8. Defend a room.** Ordered to defend a room, the members share out its doorways (D2): member `n` of the order's recipients (in the
 order `to` names them) takes doorway `n` (by id) of the room, the extras doubling up on the other side of the doorways in turn. Each walks
@@ -153,9 +155,12 @@ on that line where there is some (`EntryPosts.defend_spot`): a guarded walk for 
 defender. There it holds, still, its gun on its doorway; a lone member of a room with several doorways takes the spot from which it sees
 the most of them and turns among them. The watch stage turns it to a threat in sight and shoots, as in every primitive. A fight its own
 shots begin (a hostile in its sector) is the decision's to weigh, as is one where it is shot at: in a fight Von still picks the tactic, but
-only among the options inside that room (every option naming a place is tagged with its room, `tags.room`; the planner's `confines.room`
-drops the engage, flank, advance, retreat and locate spots and the throw spots outside it), and `fight.hold_ground` and `Combat.peek_cover` keep
-it inside against a contact outside the room. A live grenade (D8) sets off the evade reflex as it would anywhere, which may take the member
+only among the options inside that room: the room is a rule of the member's **confinement** (perception's `confinement.room`, refreshed each
+tick from the live order), and the planner's COMBAT filter, on the snapshot's frozen copy, drops every option it does not allow where the option
+acts (`params.from`, else `params.point`): the engage, flank, advance, retreat and locate spots outside the room, and a throw made from
+outside it. In the fight the behaviour asks the live confinement: `fight.hold_ground` holds it where it is against a contact outside the room,
+`Combat`'s peek and cover spots are always kept inside the room, and with no fire spot the peek holds where it stands when the contact is
+outside the room and closes on it when it is inside; melee closes in only on a contact inside the room. A live grenade (D8) sets off the evade reflex as it would anywhere, which may take the member
 out of the room; once the grenade has burst it decides again, takes its order up and walks back in to its spot. "Never leaves the room" is
 a rule on its fight options, not on the reflex. The order lasts until it is cancelled or replaced.
 
@@ -420,7 +425,9 @@ side ("" for an exterior door). The member waits in that room for whoever comes 
   asks for no decision while its order stands (on the way, the walk's commit cap).
 - **The end (D18).** On first contact the perception ends the order `done` (`orders.end_ambush_on_contact`, every observe): a hostile in sight,
   wherever it stands, or the member under fire (hit, or a round landing by it), wherever the shots come from. Footsteps heard and callouts
-  are no contact. It radios `done` and decides on its own (Von; a fight is COMBAT). It is no defend: no `confine_room` follows.
+  are no contact. It radios `done` and decides on its own (Von; a fight is COMBAT). It is no defend: its confinement keeps it to no room. The order ends in
+the perception's SEE pass, before the controller refreshes the confinement that tick, so the decision that contact forces is already made
+within the follower's leash (LD23).
 - **The wording.** "Your leader ordered you to ambush the doorway into the hall from the living room." (into `beyond` from `room`); an
   exterior door's, "Your leader ordered you to ambush the outside doorway of the kitchen from inside." (the plan's "the doorway into the
   <room> from the <room>" has no room beyond an exterior door). The combat top pick unchanged in 18 of 18 levels for both, the expected
@@ -433,7 +440,9 @@ unseen from every slot and pie step by the test's own copy of the entry geometry
 doorway, it fires, its order ends and it fights on), `ai/combat/ambush_ends_on_shot_at` (scripted, D18: an intruder's footsteps behind the
 wall do not end it, gunfire landing beside it does), `ai/combat/ambush_vs_stack` (real Von, `--include-von --require-von`: an ambushing
 defender against a real invader stack, posted before the first `going_in`, shoots the first of them into the funnel before any of them
-fires), `general/squad_go_and_ambush` (the click side's room, the same doorway, an exterior door's kitchen), `ui/command_menu_items`,
+fires), `ai/combat/ambush_contact_leashes_follower` (scripted, LD23: once an intruder in sight ends the ambush `done`, the first decision walk
+begun after it decides over a confinement carrying the leash round its leader), `general/squad_go_and_ambush` (the click side's room, the
+same doorway, an exterior door's kitchen), `ui/command_menu_items`,
 `ui/order_markers_draw` (LD16).
 
 **LD16. The menu's new entries.** On a doorway the command menu (LD11) offers, in this order: "Go into the <room>" while a member of the
@@ -566,14 +575,16 @@ and reloads there, at rest, while its decision walks put no question to Von).
 **LD23. The leash.** A follower holding no order fights within `SquadFollowConfig.leash` (320 px) of its leader's live position. A member carrying an order
 (defending a room, an ambush, a stack, a held one or a join included) is not leashed: it fights where its order takes it, whatever the
 distance to its leader, and is leashed again once its order ends. It still follows (LD19: its follow spot, its place in the file); only the
-leash is dropped (the controller's reflexes' `leash_lead` hands the planner and the behaviour its leader while its order is empty, and none
-otherwise). For a leashed follower:
-- **Its options.** Inside a `confine` subtree (COMBAT) the planner drops every option placed beyond the leash (`leash_center`, pushed each
-  decision as the leader's position, and `leash`, beside `inside_only` and `room`): where the option acts from (`params.from`, else
-  `params.point`), so the fire spots, flank sides, advances, retreats and throw spots out there are not offered; an option that names no
-  place (a reload, a punch) stays.
-- **Its spots.** The combat module keeps its peek and cover spots within the leash; with none there it holds where it is instead of
-  closing in, and melee holds its ground while its target is off the leash.
+leash is dropped. The leash is a rule of the follower's **confinement** (perception's `confinement`, `perception_confinement.gd`): the
+controller's reflexes refresh it each tick after the whole order intake, `leash_center` the live position of its leader (`leash_lead`)
+while its order is empty, `Vector2.INF` otherwise, and `leash` `SquadFollowConfig.leash`, beside the territory and the ordered room. For a
+leashed follower:
+- **Its options.** Inside a `confine` subtree (COMBAT) the planner, on the snapshot's frozen copy of the confinement, drops every option
+  placed beyond the leash: where the option acts from (`params.from`, else `params.point`), so the fire spots, flank sides, advances,
+  retreats and throw spots out there are not offered; an option that names no place (a reload, a punch) stays.
+- **Its spots.** Combat, asking the live confinement, keeps its peek and cover spots within the leash; with no fire spot there it closes
+  on the contact when the contact is within the leash and holds where it is when it is beyond; melee closes in only on a target within
+  the leash. The follow primitive faces away from the confinement's `leash_center`.
 - **The break.** A fighting follower (`in_combat`) further than `SquadFollowConfig.leash_break` (1.3) leashes from its leader, neither committed nor on its
   way somewhere it chose (`Behavior.orders.walk_pending`: a move or an engage not there yet, a throw's walk), decides again ("off the leash"),
   once until it has been back within that; with no COMBAT option left within the leash the decision is FOLLOW, which fires at what it sees
@@ -586,7 +597,9 @@ FOLLOW at or after the break and comes back within the leash), `ai/combat/leash_
 from cover within the leash, or follows, never more than the leash and 40 px from its leader). An ordered member off the leash:
 `ai/combat/ordered_melee_off_leash` (real Von: ordered to defend an open hall with a dry gun, its puppet leader more than two leashes off,
 it closes on a gunman beyond the leash and strikes it, which a leash would hold it short of) and `ai/combat/defend_room_stays_inside`
-(LD8: its leader about 510 px off, the ordered defender still fights from inside the kitchen).
+(LD8: its leader about 510 px off, the ordered defender still fights from inside the kitchen). The leash after an ambush's contact:
+`ai/combat/ambush_contact_leashes_follower` (LD15). The rules alone and combined (a leash circle crossing a room's wall), the planner's
+filter and Combat's spot choice: `ai/perception/confinement_suite` (a `UnitSuite`).
 
 **LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
 `entry_step` `claim`, no `order_id` and no `join`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the

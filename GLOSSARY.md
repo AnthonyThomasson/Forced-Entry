@@ -115,6 +115,18 @@ Hits in the matches, none in the tests: live code no test holds in place.
 Code that is not play: the test harness, the dev command server, the debug overlays, the settings menu. Tagged, never
 hidden; matches never drive it, so its zeros say little.
 
+### Where an NPC acts
+
+**Confinement**:
+An NPC's three rules for where it may act: its territory (a defender keeps inside the house), the room a `defend_room`
+order keeps it to (`docs/leadership.md` LD8) and its squad leash (a follower holding no order fights within the leash of
+its leader, LD23). All of them must hold at a point. It is one perception part, `confinement`
+(`scenes/ai/perception/perception_confinement.gd`), refreshed each tick by the controller; the planner's COMBAT filter
+reads the copy frozen into the decision snapshot, behaviour and Combat the live one. An option is judged where it acts
+(the spot a grenade is thrown from, else its point), so a territorial defender inside may throw onto a spot outside.
+_Avoid_: confines, territory (one of its three rules), leash (another), hold ground (the fight's answer to a contact
+where it may not act)
+
 ### Tactical entry
 
 **Stack**:

@@ -66,7 +66,8 @@ weighed against the gain.
 Tests: `flank_target_moving_toward_side`.
 
 **B8. A territorial defender does not leave its house to flank.** Sides outside the house are weighed and
-dropped for a NPC that defends territory, and offered when it does not.
+dropped for a NPC that defends territory, and offered when it does not. The territory is a rule of the NPC's confinement (perception's
+`confinement`, `GLOSSARY.md`), which the planner's COMBAT filter asks of each option where it acts (a side's `params.point`).
 Tests: `flank_territory_confines_sides`, `flank_territory_off_offers_outside` (contrast).
 
 **B9. Commit.** Once a side is chosen the NPC walks the route, reaches the target's side in the target's
@@ -137,5 +138,5 @@ How far each is to be trusted:
   answer to suppression. Review, not design material.
 - Shardpunk devlog, [Tweaking the AI](https://bryqu.itch.io/shardpunk/devlog/56198/tweaking-the-ai): scoring
   flank options against the risk of being flanked (B7). Hobbyist devlog.
-- B8 and B9 are this game's own requirements (the territory rule in `domain-ai-decision` / `domain-ai-snapshot` / `domain-ai-behavior`; the commit
+- B8 and B9 are this game's own requirements (the territory rule in `domain-ai-perception` (the confinement) / `domain-ai-decision` / `domain-ai-behavior`; the commit
   rule in `domain-ai-behavior`), not sourced.

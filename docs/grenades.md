@@ -297,6 +297,11 @@ captured out-of-range levels GRENADE ranks first in 18 ("within throwing range f
   safe, being inside the zone does not drop the option;
 - against a hostile in its line of fire in the NPC's own room, or outdoors with it (it shoots).
 
+A **confined** NPC (its territory, the room a defend order keeps it to, its squad leash: its confinement, `GLOSSARY.md`) has a throw judged
+where it is thrown from, `params.from` (where it stands, or the throw spot), as every COMBAT option is judged where it acts, never where the
+grenade bursts: a territorial defender inside the house may throw onto a spot outside it, while a throw spot outside the house, the
+ordered room or the leash is not offered.
+
 The leaf runs the new `throw` primitive: with a throw spot it first walks all the way to it (6 px: the lob was judged from there) with its gun in hand,
 the watch stage on any threat in sight, a walk the entry guard covers like an ENGAGE walk (it keeps out of doorway views or secures a doorway it must
 pass, and goes into an uncleared room by entry, E9 / E15 / E18; then the walk goes on, test `ai/grenade/grenade_throw_walk_secures_doorway`); then it selects the grenade, aims at the spot, throws, radios `frag_out` / `bang_out` (callout `status`, as the
@@ -346,7 +351,9 @@ the left hand, whose lob clears the jamb: thrown from where it stands), `ai/gren
 from the living room, then in the hall: the living room is suspect and grenaded, the kitchen neither),
 `ai/grenade/grenade_walks_to_throw_spot` (real Von: a householder holding the living room 650 px off through a doorway, fragged from a throw spot) and
 `ai/grenade/grenade_shots_origin_throw_spot` (real Von: shot at from the kitchen while beside its back door, the frag thrown from in front of the doorway),
-`ai/grenade/grenade_range_follows_the_item` (the frag's range retuned to 300 px: thrown from within 300 px after a walk).
+`ai/grenade/grenade_range_follows_the_item` (the frag's range retuned to 300 px: thrown from within 300 px after a walk),
+`ai/grenade/territorial_throw_from_inside` (scripted: a territorial defender with a frag inside by the front door, its hostile just outside
+behind a desk that stops its rounds: GRENADE is offered at COMBAT and the throw leaf's `from` is inside the house).
 
 **G18. Bang entry (SEARCH, then ENTER).** When the NPC (or its stack, by the claims on the radio) carries a stun, SEARCH offers two entry
 tactics: **ENTER** (quiet, as before) and **STUN ENTRY** (`stun_entry`: "a doorway leads into a room where a hostile was heard, seen, radioed or shooting from";

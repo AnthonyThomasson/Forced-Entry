@@ -8,14 +8,15 @@ description: Deep implementation detail for the AI COMBAT module (scenes/ai/beha
 A `RefCounted` that `Behavior` owns (built in `setup()`, handed the NPC's `NpcTuning` there: `setup(loco, perception, tuning)`, its tunables read live from `tuning.combat`). It owns the fire cooldown and the
 peek-and-cover cycle (`phase` `"peek"`/`"cover"`, `cover_timer`, `fire_timer`, the committed `dest` and `dest_timer`, the burst and
 back-off counters) and executes every combat action on the character. `Behavior` decides WHICH fight is on — it holds the engaged
-contact (node, last-known position) and the `hold_ground` flag — and passes them in each call, so combat never picks a target. It reads
-the world only through the perception (`has_line_to`, `combat_spots`, `note_engaged`) and `Locomotion` (`move_to`, `inside_house`).
+contact (node, last-known position) — and passes it in each call, so combat never picks a target. It reads
+the world only through the perception (`has_line_to`, `combat_spots`, `note_engaged`, and its `confinement`: where it may act, `allows(p)`)
+and `Locomotion` (`move_to`, `give_way`).
 
 `bind(character)` (from `Behavior.bind`) hands it the NPC's body once; no other function takes the character. API: `tick(delta)`
 (cooldown), `begin_fight()` (reset to the peek phase), `can_fire_at(target)` (a
 loaded gun, the known contact in range on a clear line: a shot is on), `fire_at_will(target)`
 (shoot it when `can_fire_at`, once facing settles; aims at it; the watch stage calls it for the threat in every primitive, `domain-ai-watch`), `reload_due()`, `has_line_of_fire(target) -> bool` (in range on a clear line, whatever the gun's state; what `can_fire_at` adds a loaded gun to, and the entry reads for E14), `top_off() -> bool` (a tactical reload of a part-spent gun, called by the entry at the stack: starts it, true while it runs or is wanted; `docs/tactical-entry.md` E11), `ambush(node, pos)`,
-`peek_cover(delta, node, pos, hold_ground, room := "")`, `melee(pos, hold_ground)` (its blow is the private `_strike` / `_punch` / `_kick`), `shoot() -> bool`,
+`peek_cover(delta, node, pos)`, `melee(pos)` (its blow is the private `_strike` / `_punch` / `_kick`), `shoot() -> bool`,
 `continue_burst()`, `apply_back_off(delta)`, `reload_if_dry()`; `signal dry`
 (an empty gun was pulled on — `Behavior` flags the task resolved so the controller re-decides). Tunables, read live from the NPC's
 `tuning.combat` (no copy kept, so a tunable retuned at runtime holds from the next read): `shoot_range`, `punch_range`, `ring_radius` (the radius of the ring of candidate spots; the perception's `combat_spots` lays `tuning.combat.ring_count` points on it), `cover_time`,
@@ -30,16 +31,23 @@ of an empty gun, where the cover phase reloads it), not after a refused one. **A
 the ordered `ambush` primitive, `docs/leadership.md` LD15, is not this module's: it is `Behavior.orders.apply_defend`'s walk and hold at a post,
 and its shots are the watch stage's, `domain-ai-behavior`.) **Melee** closes to `punch_range` and strikes on the
 cooldown (no cover cycle): its blow (`_strike`) kicks (`_kick`, the character's `anatomy.leg_kick()`) while standing with a gun in hand, so the gun stays in hand,
-and otherwise (crouched, or no gun held) equips the fists and punches (`_punch`). With `hold_ground` (a territorial NPC fighting a contact outside), spots are restricted to inside
-the house, the peek fallback holds instead of advancing, and melee won't chase out of the house. With a `room` (a member ordered to defend
-it, `docs/leadership.md` LD8) the peek and cover spots are restricted to inside that room whatever the contact, and `hold_ground` is set
-against a contact outside the room. **The leash** (a squad member following its leader and holding no order, `docs/leadership.md` LD23): `leash_center` (the
-leader's live position, `Vector2.INF` for none: no squad, the leader itself, or a member carrying an order, which fights where the order
-takes it) and `leash` (px), set every tick through `Behavior.orders.set_leash` (the controller's reflexes, `npc_reflexes.gd` `leash_lead`); with one, `_choose_dest` keeps
-the peek and cover spots within it (`_on_leash`) and, with no fire spot left, the peek fallback holds where it stands instead of closing on
-the contact, and `melee` holds its ground rather than walk to a target off the leash. Which COMBAT options are offered at all is the
-planner's leash filter (`domain-ai-decision`). Tests: `tests/ai/combat/leash_*` (a follower held to its leash) and
-`ordered_melee_off_leash` (real Von: a member ordered to defend a hall closes on and strikes a gunman beyond its leader's leash, which a
+and otherwise (crouched, or no gun held) equips the fists and punches (`_punch`).
+
+**Where it may fight** is the perception's `confinement` (`perception_confinement.gd`, `domain-ai-perception`), asked live: its territory
+(a territorial NPC keeps inside the house), the room a member ordered to defend keeps to (`docs/leadership.md` LD8) and the leash (a squad
+member following its leader and holding no order fights within `SquadFollowConfig.leash` of the leader's live position, LD23; a member
+carrying an order fights where the order takes it). Combat keeps no copy of any of them. The edge rules:
+- `_choose_dest` always keeps the peek and cover spots to those `confinement.allows` accepts, whatever the contact: a territorial NPC's
+  spots stay in the house against a contact inside it too.
+- With no fire spot left the peek falls back to closing on the contact when the confinement allows the contact's spot, and to holding
+  where it stands when it does not (a leashed NPC closes on a contact within its leash); with no cover spot the cover phase holds.
+- `melee` closes in only while `confinement.allows(pos)`; otherwise it swings only at a contact already in reach.
+
+`Behavior`'s `fight.hold_ground` (`not confinement.allows(engage_pos)`) is the behaviour's read-out of the same answer, not an argument.
+Which COMBAT options are offered at all is the planner's confinement filter, on the snapshot's frozen copy (`domain-ai-decision`).
+The module's answers that `_choose_dest` relies on are pinned in `tests/ai/perception/confinement_suite.gd`. Tests: `tests/ai/combat/leash_*` (a follower held to its leash),
+`ambush_contact_leashes_follower` (LD15 / LD23: the decision an ambush's first contact forces is walked over a confinement already
+carrying the leash, `debug_state()["decision"]["confinement"]`) and `ordered_melee_off_leash` (real Von: a member ordered to defend a hall closes on and strikes a gunman beyond its leader's leash, which a
 leash on it would hold short; with `defend_room_stays_inside`, the planner's half). `magazine_low(fraction) -> bool`: whether the gun it fights with is at or below that share
 of its magazine, which a follower at rest tops up (`Behavior.orders.apply_follow` with `tuning.context.low_ammo_fraction`, `top_off`; LD22).
 

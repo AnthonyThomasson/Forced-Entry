@@ -358,7 +358,8 @@ interfaces it takes part in (by number) and describes how they're implemented.
    the HUDs find an NPC's controller as its child in that group (the UI's `hud_probe.gd`; a player's controller is never one). The AI controller also exposes
    `current_act()` (its live decision path as ids, e.g. `combat/t_12/flank/side_left`) and
    `debug_status()` (the same path as labels, every level: `COMBAT - Intruder - FLANK - their left
-   side (kitchen)`), `debug_state() -> Dictionary` (the deep snapshot the dev command server's `ai` verb dumps), `debug_zones() -> Array`
+   side (kitchen)`), `debug_state() -> Dictionary` (the deep snapshot the dev command server's `ai` verb dumps; its `confinement` is where the NPC may act now, its
+   `decision.confinement` the copy the last decision walk decided over), `debug_zones() -> Array`
    (the tactical points the spectator inspector picks from; it rings the one it describes on the NPC's tactics overlay through the
    controller's `debug_focus`, the point, `Vector2.INF` clearing it), the draw-only overlays' `debug_*` getters (e.g. `debug_entry_view()` for the tactical-entry ones), `known_contacts_for_display()` (the spectator inspector's contact list) for those observers to show. Each overlay is a child of the NPC with a `show_<x>` export named in the UI's `OverlayRegistry` (`show_grenades` reads `debug_grenades()`: `{ known: [{ point, kind, fuse_left, fuse, radius, source }], escape: Vector2 (INF: none), throw: {} }`);
    `MatchBuilder.set_overlay` (interface 23: Main's match and the Testing world's alike), the spectator inspector and the Testing world's
@@ -1112,21 +1113,23 @@ Three conventions hold across domains; the per-domain specifics live in each dom
   **no `class_name`**, as its modules always were: the controller's `_cadence`, `_comms` and `_reflexes`; behaviour's
   `task`, `fight`, `errand`, `entries`, `grenades`, `orders` and `gait`; entry's leaves `state` and `world` and its ten
   parts (`claim`, `approach`, `readiness`, `orders`, `grenade`, `listen`, `pie`, `sweep`, `hold`, `radio`); combat's
-  `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk` and `confines`; perception's
-  `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry` and `views`; the launcher's `_probe`; the doorway
+  `throw`; locomotion's `crowd`, `give_way`, `stall` and `doors`; the planner's `_walk`; perception's
+  `sight`, `house`, `contacts`, `hearing`, `orders`, `grenades`, `entry`, `views` and `confinement` (where the NPC may act: its
+  territory, the room a defend order keeps it to and its squad leash, refreshed each tick by the controller's reflexes, frozen into
+  the decision snapshot for the planner and read live by behaviour and Combat); the launcher's `_probe`; the doorway
   geometry's `posts`, `slots` and `layouts`; the snapshot author's `_throws` and `_orders`; the squad's `stacks` and the
   human's stack's `reservation` and `step_up`. A part member read from outside its part is public on it, its underscore and
   any prefix the part's name says dropped (`entry_ready_timeout` is `tuning.entry.ready_timeout`, `_bang_stage`
   `grenade.stage`); one used only inside its part keeps its name. Behaviour's, locomotion's, the controller's, perception's
-  and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
+  (but its `confinement`) and the team's working parts hold their Node owner (`behavior`, `loco`, `controller`, `perception`, the squad's `stacks`
   its `squad`, the human's stack's `step_up` its `stack`). Entry is a `RefCounted`, so its parts hold only its `state` and
   `world` leaves: a part method that needs the entry or a sibling takes the `Entry` facade as its first parameter, `entry`,
   at the call, and never stores it. The doorway geometry (`AgentEntry`) is a `RefCounted` too: its parts take it as `entry`
   at the call and hold nothing of it. Where gdstyle's `max-parameters` (5) leaves no room for it, a public method folds two
   arguments into one (`EntryPosts.defend_spot` / `ambush_spot` take the member's `place: Vector2i`, x which post, y of how
   many) and a private chain reads it from the per-call context dict it already takes (`c["entry"]` / `f["entry"]`), never
-  stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk and
-  confines, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
+  stored. Combat's `throw`, entry's leaves and the data leaves (the cadence, the running leaf, the planner's walk,
+  perception's confinement, the probe) hold no owner (`tests/ai/ai_parts_free_suite.gd`, which holds the doorway geometry's parts too), nor
   does the human's stack's `reservation` leaf. The shell splits the same way
   (`docs/adr/0008-the-shell-split-into-parts.md`), each file by its kind: tuning that no scene authors becomes an ADR 0003
   holder (the camera's `CameraConfig` and `CameraShakeConfig`); a scene script's authoring surface that one instance owns
