@@ -145,13 +145,16 @@ static func slots() -> Array:
 
 
 ## What a grenade of `kind` tells whoever holds it or watches it fly, from `source` (its row; a
-## thrown grenade passes the row it was thrown with): `{ kind, max_range, danger_radius, fuse,
-## flash_cover_reach, max_blind }`. `flash_cover_reach` is INF for a frag (furniture shields from
-## its blast at any distance); `max_blind` (s) is the longest a stun blinds anyone, 0 for a frag.
-## The one place this dictionary is made: `GrenadeItem.throw_stats()` and
-## `ThrownGrenade.throw_stats()` both return it, and the AI reads it (through
-## `Character.inventory.throw_stats`) instead of keeping a copy of the numbers.
-static func stats_of(kind: StringName, source: Dictionary) -> Dictionary:
+## thrown grenade passes the row it was thrown with; none: the kind's row here, what the AI reads of
+## a grenade no one holds, such as one an entry may throw in):
+## `{ kind, max_range, danger_radius, fuse, flash_cover_reach, max_blind }`. `flash_cover_reach` is
+## INF for a frag (furniture shields from its blast at any distance); `max_blind` (s) is the longest
+## a stun blinds anyone, 0 for a frag. The one place this dictionary is made:
+## `GrenadeItem.throw_stats()` and `ThrownGrenade.throw_stats()` both return it, and the AI reads it
+## (through `Character.inventory.throw_stats`) instead of keeping a copy of the numbers.
+static func stats_of(kind: StringName, source: Dictionary = {}) -> Dictionary:
+	if source.is_empty():
+		source = row(kind)
 	return {
 		"kind": kind,
 		"max_range": float(source.get("max_range", 0.0)),

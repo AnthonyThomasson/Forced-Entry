@@ -9,6 +9,9 @@ extends RefCounted
 
 ## The entry geometry this part is one of, handed in at the call (never held: it holds the part).
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
+const AgentThrow := preload("res://scenes/ai/perception/agent_throw.gd")
+## Where an entry's grenade into the room by the doorway may land (the bang's own rule).
+const EntryLandings := preload("res://scenes/ai/perception/entry/entry_landings.gd")
 ## A defend spot (`defend_spot`, `docs/leadership.md` D2): how far back from its doorway's wall (px)
 ## it is sought, at best `DEFEND_DEPTH`...
 const DEFEND_DEPTHS := [60.0, 90.0, 120.0, 150.0]
@@ -43,10 +46,26 @@ const AMBUSH_SPACING := 44.0
 ## spot, the behaviour's `orders.DEFEND_REACH`, and a little): a post is hidden only when it is
 ## hidden there too.
 const AMBUSH_SLACK := 12.0
+## The weight of each rank of an ambush post (`_ambush_post`; the lower its score the better), each
+## above everything the ranks below it can add up to: seen from outside, then reached by a frag
+## thrown in by the doorway (landings), then by a stun's flash, then in a funnel, then no cover on
+## its line to the threshold; the side of the axis (`ambush_spot`) above them all.
+const RANK_SIDE := 1.0e9
+const RANK_SEEN := 1.0e7
+const RANK_FRAG := 1.0e5
+const RANK_STUN := 1.0e4
+const RANK_FUNNEL := 500.0
+const RANK_NO_COVER := 300.0
+## The grenades an entry may throw in, in the order an ambush post is shielded from them.
+const BANG_KINDS: Array[StringName] = [&"frag", &"stun"]
 
 ## "<opening id>><room key>" -> the ambush post candidates of that doorway, room side
 ## (`_ambush_posts`).
 var cache := {}
+## How tall (the coverage scale) the ambusher's body is crouched at its post
+## (`CharacterMovement.posture_coverage`), handed in by the perception once it knows its body: what
+## a piece of furniture must stand above to shield it from a grenade's burst.
+var crouch := 0.0
 
 
 ## Where member `nth` of `count` (`place`: x which post, y of how many) holds room `room_key` it was
@@ -238,13 +257,15 @@ func _defend_candidate(
 ## room, off the doorway's axis, back from its wall and inside the room's walls, out of the fatal
 ## funnel of every doorway of the room, with a sight line to the threshold, and unseen from outside:
 ## no sight line to it from any slot or pie step of an entry into the room by that doorway. Among
-## the hidden posts, one with low furniture on its line to the threshold (cover it sees over) wins,
-## then the nearest `AMBUSH_DEPTH` back; with none hidden, the least seen. Hidden means hidden
-## wherever within `AMBUSH_SLACK` of the post the ambusher stops. Members alternate sides of the
-## axis (member `nth`: the side with more wall first), and two on one side stand `AMBUSH_SPACING`
-## apart. `{ spot, door_pos, seen }`: `door_pos` is the doorway's centre, where its gun goes, `seen`
-## how many of those slots and pie steps see the post (0: hidden). {} for an empty `g` (a doorway or
-## room it does not know), or no post.
+## the hidden posts, the one the fewest landings of an entry's grenade into the room by that doorway
+## reach wins (`_exposures`: a frag's burst counted first, then a stun's flash), then one out of
+## every doorway's funnel, then one with low furniture on its line to the threshold (cover it sees
+## over), then the nearest `AMBUSH_DEPTH` back; with none hidden, the least seen. Hidden means
+## hidden wherever within `AMBUSH_SLACK` of the post the ambusher stops. Members alternate sides of
+## the axis (member `nth`: the side with more wall first), and two on one side stand
+## `AMBUSH_SPACING` apart. `{ spot, door_pos, seen }`: `door_pos` is the doorway's centre, where its
+## gun goes, `seen` how many of those slots and pie steps see the post (0: hidden). {} for an empty
+## `g` (a doorway or room it does not know), or no post.
 func ambush_spot(
 	entry: AgentEntry,
 	g: Dictionary,
@@ -268,7 +289,7 @@ func ambush_spot(
 		for c: Dictionary in posts:
 			if taken.any(func(t): return (t as Vector2).distance_to(c["spot"]) < AMBUSH_SPACING):
 				continue
-			var score := float(c["score"]) + (0.0 if int(c["side"]) == wanted else 50_000.0)
+			var score := float(c["score"]) + (0.0 if int(c["side"]) == wanted else RANK_SIDE)
 			if pick.is_empty() or score < float(pick["score"]):
 				pick = { "score": score, "spot": c["spot"], "seen": c["seen"] }
 		if pick.is_empty():
@@ -280,8 +301,8 @@ func ambush_spot(
 ## The candidate ambush posts of entry geometry `g` (into its room `into`, the side the ambusher
 ## waits on), kept once worked out on a baked map: `{ spot, side, seen, score }`, `side` the side of
 ## the axis it lies on, `seen` how many slots and pie steps see it, `score` the post's rank before
-## the side is weighed (the lower the better: hidden first, out of every funnel, cover on its line,
-## then nearest `AMBUSH_DEPTH`).
+## the side is weighed (the lower the better: hidden first, shielded from an entry's grenade, out of
+## every funnel, cover on its line, then nearest `AMBUSH_DEPTH`).
 func _ambush_posts(
 	entry: AgentEntry,
 	g: Dictionary,
@@ -301,6 +322,8 @@ func _ambush_posts(
 		"room": g["room"],
 		"doors": entry.room_doorways(room_key),
 		"entry": entry,
+		"landings": _bang_landings(g),
+		"bodies": _bodies(),
 	}
 	var observers := _observers_of(g)
 	var out: Array = []
@@ -314,8 +337,9 @@ func _ambush_posts(
 
 
 ## The ambush post at offset `at` (`_offsets`) in frame `f` (`_ambush_posts`: the doorway, its room
-## and the room's doorways, and the entry geometry it is one of, `entry`), seen from
-## `observers` (`_observers_of`): `{ spot, side, seen, score }`,
+## and the room's doorways, the entry geometry it is one of, `entry`, where an entry's grenades land
+## and the bodies a burst's line passes through), seen from `observers` (`_observers_of`):
+## `{ spot, side, seen, score }`,
 ## or {} when it is no post (outside the room's inset, no spot there, no sight line to the doorway,
 ## or on its axis).
 func _ambush_post(
@@ -337,9 +361,63 @@ func _ambush_post(
 	if absf((p - (f["pos"] as Vector2)).dot(f["along"])) < float(f["width"]) * 0.5 + DEFEND_BODY:
 		return {}  # On the axis.
 	var seen := _seen_by(entry, space, observers, p)
-	var score := (float(seen) * 1000.0 + float(c["funnel"]) * 500.0
-			+ (0.0 if c["cover"].has(f["id"]) else 300.0) + absf(float(at[0]) - AMBUSH_DEPTH))
+	var exposed := _exposures(f, p, space)
+	var score := (float(seen) * RANK_SEEN + float(exposed[&"frag"]) * RANK_FRAG
+			+ float(exposed[&"stun"]) * RANK_STUN + float(c["funnel"]) * RANK_FUNNEL
+			+ (0.0 if c["cover"].has(f["id"]) else RANK_NO_COVER)
+			+ absf(float(at[0]) - AMBUSH_DEPTH))
 	return { "spot": p, "side": at[2], "seen": seen, "score": score }
+
+
+## Where an entry's grenade of each kind (`BANG_KINDS`) thrown into the room of entry geometry `g`
+## by its doorway may land (`EntryLandings.spots`, within the kind's throw reach): kind ->
+## `{ landings, radius, reach }`, `radius` its danger radius and `reach` how near furniture must be
+## to shield a body from it (a stun's flash), from the grenade's own numbers
+## (`GrenadeConfig.stats_of`).
+func _bang_landings(g: Dictionary) -> Dictionary:
+	var out := {}
+	for kind: StringName in BANG_KINDS:
+		var stats := GrenadeConfig.stats_of(kind)
+		out[kind] = {
+			"landings": EntryLandings.spots(
+				g, maxf(float(stats["max_range"]) - AgentThrow.REACH_SLACK, 0.0),
+			),
+			"radius": float(stats["danger_radius"]),
+			"reach": float(stats["flash_cover_reach"]),
+		}
+	return out
+
+
+## How many landings of an entry's grenade of each kind (frame `f`'s `landings`) reach a body
+## crouched at `p`: within the kind's danger radius and not shielded from the burst by the blast's
+## own cover rule (`Explosion.shields`: a wall, or furniture above `crouch`, for a stun's flash only
+## within its reach of it), the bodies' lines passed through. Kind -> count.
+func _exposures(f: Dictionary, p: Vector2, space: PhysicsDirectSpaceState2D) -> Dictionary:
+	var out := {}
+	for kind: StringName in BANG_KINDS:
+		var bang: Dictionary = f["landings"][kind]
+		var cover := CoverRule.new()
+		cover.height = crouch
+		cover.exclude = f["bodies"]
+		cover.cover_reach = bang["reach"]
+		out[kind] = (bang["landings"] as Array).filter(
+			func(l): return (
+				(l as Vector2).distance_to(p) <= float(bang["radius"])
+				and (space == null or not Explosion.shields(space, l, p, cover))
+			),
+		).size()
+	return out
+
+
+## The rids of every character in the scene (a grenade's line passes through bodies, and who stands
+## where while a post is worked out has no say in where it is).
+static func _bodies() -> Array:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return []
+	return tree.get_nodes_in_group(&"characters").filter(
+		func(c): return c is CollisionObject2D,
+	).map(func(c): return (c as CollisionObject2D).get_rid())
 
 
 ## Who could see an ambush post of entry geometry `g` from outside: its `lookouts`, then each side's
