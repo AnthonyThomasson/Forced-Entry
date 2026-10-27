@@ -5,8 +5,9 @@ PickTests pin the mapping on this checkout's own tools: a hook-only commit picks
 or a tool file no test names picks everything, a file outside the tools picks only the tests that read it from the
 checkout, a staged test module runs itself, and naming carries through the tools (a change to tools/lint.sh picks the
 tests of what runs it) and through the helper symbols a test imports (not the rest of the helper). This module's code
-names many of those files as sample paths, so it is among their picks. ScriptTests run the script in a throwaway repo
-with sentinel test modules, staged files and git, where each rule's picks are exact.
+names many of those files as sample paths, so it is among their picks. ScriptTests run the script, and the picker on
+its own, in a throwaway repo with sentinel test modules, staged files and git, where each rule's picks are exact, and
+the picker refuses an argument holding several paths.
 """
 import os
 import subprocess
@@ -278,6 +279,22 @@ class ScriptTests(unittest.TestCase):
         code, out, ran = self.run_script("--stagd")
         self.assertEqual((code, ran), (2, []), out)
         self.assertIn("unknown argument: --stagd", out)
+
+    def run_picker(self, *args):
+        return subprocess.run(["python3", str(self.root / "tools" / "tool_tests_pick.py"), *args], cwd=self.root,
+                              capture_output=True, text=True, timeout=120, env=clean_env())
+
+    def test_the_picker_refuses_two_paths_joined_in_one_argument(self):
+        # zsh does not word-split `$var`: a list of paths in one variable reaches the picker as one argument.
+        r = self.run_picker("tools/a.sh tools/kit/plugins/p.py")
+        self.assertEqual((r.returncode, r.stdout), (2, ""), r.stderr)
+        self.assertIn("one path per argument: tools/a.sh tools/kit/plugins/p.py", r.stderr)
+        self.assertIn("xargs, or ${=var} in zsh", r.stderr)
+        self.assertIn("a path with whitespace is not supported", r.stderr)
+
+    def test_the_picker_picks_the_same_paths_given_one_per_argument(self):
+        r = self.run_picker("tools/a.sh", "tools/kit/plugins/p.py")
+        self.assertEqual((r.returncode, r.stdout), (0, "tools.tests.test_a\ntools.tests.test_kit\n"), r.stderr)
 
 
 if __name__ == "__main__":

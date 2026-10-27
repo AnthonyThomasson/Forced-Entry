@@ -5,7 +5,8 @@
 
 Prints one test module a line (dotted, as `python3 -m unittest` takes it), nothing when no tool test can break, or the
 single line `all` followed by `# <why>` lines when the whole discovery must run. A path is one of the changed files,
-repo-relative.
+repo-relative, one per argument: an argument holding a space, tab or newline (several paths in one, as zsh passes an
+unsplit `$var`) exits 2, picking nothing; a path with whitespace is not supported.
 
 The test modules are what `python3 -m unittest discover -s tools -t .` loads: every test*.py in a package (a folder
 with an __init__.py) under the folders tools/__init__.py's `load_tests` keeps the discovery to (its TEST_PACKAGES), or
@@ -185,15 +186,9 @@ class Code:
         if path in self.text:
             return True
         folder, _, file_name = path.rpartition("/")
-        # Every way below needs the file's or a listed folder's name in the code, or (a Python module) an import:
-        # checking that first spares a large commit a scan of every source per way.
-        listed = listed_folders(path)
-        if (file_name not in self.text and not any(f.rpartition("/")[2] in self.text for f in listed)
-                and not (path.endswith(".py") and self.imports)):
-            return False
         if self._beside(folder.rpartition("/")[2], file_name) if shared else self._word(file_name):
             return True
-        return self._imports(path) or any(self.names_folder(f) for f in listed)
+        return self._imports(path) or any(self.names_folder(f) for f in listed_folders(path))
 
     def reads(self, path: str) -> bool:
         """Whether this code builds `path`, or a listed folder holding it, on the checkout."""
@@ -411,6 +406,11 @@ def pick(changed: list[str]) -> tuple[list[str], list[str]]:
 
 
 def main(argv: list[str]) -> int:
+    for arg in argv:
+        if re.search(r"[ \t\n]", arg):
+            print(f"one path per argument: {arg[:60]}\n  (several paths in one argument: split them, with xargs, or "
+                  "${=var} in zsh; a path with whitespace is not supported)", file=sys.stderr)
+            return 2
     modules, why = pick([p for p in argv if p])
     if why:
         print("all")
