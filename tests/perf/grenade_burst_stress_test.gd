@@ -11,6 +11,7 @@ extends GameTest
 
 const Perf := preload("res://tests/_perf/perf_probe.gd")
 const Probe := preload("res://tests/_ai/grenade_probe.gd")
+const OrderMenu := preload("res://tests/_ai/order_menu_probe.gd")
 const CENTRE := Vector2(600, 400)
 ## 400 px off, inside the throw range, outside the blast; the lane along y = 400 is kept clear
 const THROWER_AT := Vector2(200, 400)
@@ -80,7 +81,7 @@ func configure(s: TestSetup) -> void:
 
 func run(t: TestContext) -> void:
 	Perf.warm_sounds()
-	Perf.player_screen(t)
+	OrderMenu.player_screen(t)
 	var thrower := t.actor(&"thrower")
 	Probe.arm(thrower, 1, 1)
 	if not t.require(

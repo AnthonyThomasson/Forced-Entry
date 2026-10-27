@@ -441,8 +441,7 @@ across shards by measured cost like every test, and `--changed` adds the domain 
 preload(...)`; not a test), with the match guards' contact: `await_contact(t, label, characters, limit_s)` runs a guard's warm-up
 on until a shot has been fired and some NPC among `characters` knows a hostile at once (at most `limit_s` s more), logs `PERF
 <label> contact at <s> s` and returns whether contact came (the guard `require`s it), and `knows_hostile(c)` (an NPC knowing a
-hostile now, `known_contacts_for_display()`; false for a dead or freed one). `player_screen(t)` gives a headless run the screen a player has (the project's window size, put back as the world
-goes), so the bodies a player would see are drawn (the grenade guards). The three match guards share one match and one warm-up:
+hostile now, `known_contacts_for_display()`; false for a dead or freed one). The three match guards share one match and one warm-up:
 `configure_match(s, per_side)` declares it (the house `MATCH_SEED` on `MATCH_PLAN`, `s.declared_match` with `per_side` a side, scripted Von, the
 callouts, vision and pursuit on), `warm_until_contact(t, label, characters)` runs `MATCH_WARMUP_S` (6 s) and then `await_contact` (at most
 `MATCH_CONTACT_WITHIN`, 20 s) and `require`s it as the premise, and `MATCH_LOGS` is their `allowed_logs` (the re-bake's nav lines). `character/standing_body_repaints_on_change` keeps a count but is
@@ -677,7 +676,8 @@ members, leader)`, a squad built and bound by the match's own rule (`MatchBuilde
 `tests/_ai/order_menu_probe.gd` (`const OrderMenu := preload(...)`: `command_menu`, `items`, `item`, `labels`, `choose`, `tick`, `click`,
 `view_still`; `player_screen` sizes a headless root
 viewport to the project's window, as a real screen is (a real window keeps its own size unless `exact`, for a premise built on the
-project's size: that size is then stretched over the window, and `click` maps through the stretch), and `check_dock` is the dock-side tests' run: the panel's rect covers neither
+project's size: that size is then stretched over the window, and `click` maps through the stretch; the grenade perf guards
+read it too, so the bodies a player would see are drawn headless), and `check_dock` is the dock-side tests' run: the panel's rect covers neither
 the click nor a selected teammate; `check_clear_of_bar` the overlay-bar ones, Debug on: with a real `OverlayToggles`, the panel
 clears the bar too). The squad,
 menu and markers are loaded by path and read duck-typed, so a missing piece fails an assertion that names it.

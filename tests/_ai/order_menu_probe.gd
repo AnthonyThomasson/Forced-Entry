@@ -90,11 +90,13 @@ static func tick(menu: Node, name: String, on: bool) -> bool:
 
 ## Give the run the screen a player has: the project's window size (1152x648), put back as the
 ## world goes. Headless the root viewport is 64 px square, so the camera frames the world into a
-## view no window has, and a click aimed in it lands off screen: the root is resized to it. A real
-## window keeps its own size (the play window opens maximized, so the bodies a test clicks sit clear
-## of the result banner at its top-left), unless `exact`: a premise built on the project's size (a
-## panel that cannot fit beside the click) then sees that size stretched over the window. With this
-## a headless run and a windowed one see the world, and the menu over it, alike.
+## view no window has, and a click aimed in it lands off screen: the root is resized to it, which
+## also gets the bodies a player would see drawn, not culled (what the grenade perf guards need,
+## `tests/perf/grenade_*_stress_test.gd`). A real window keeps its own size (the play window opens
+## maximized, so the bodies a test clicks sit clear of the result banner at its top-left), unless
+## `exact`: a premise built on the project's size (a panel that cannot fit beside the click) then
+## sees that size stretched over the window. With this a headless run and a windowed one see the
+## world, and the menu over it, alike.
 static func player_screen(t: TestContext, exact := false) -> void:
 	var root := t.world.get_tree().root
 	var want := Vector2i(

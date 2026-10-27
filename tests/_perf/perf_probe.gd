@@ -94,20 +94,6 @@ static func warm_sounds() -> void:
 		SoundBank.sound(pair[0], pair[1])
 
 
-## Headless, the runner's viewport is 64 px square (the camera sees ~160 px of the world), so every
-## body a player would see is culled and never drawn. Give the test the screen a player has
-## (the project's window size, 1152x648), put back as the world goes. A windowed run already has
-## that window.
-static func player_screen(t: TestContext) -> void:
-	if DisplayServer.get_name() != "headless":
-		return
-	var root := t.world.get_tree().root
-	var was := root.size
-	root.size = Vector2i(int(ProjectSettings.get_setting("display/window/size/viewport_width")),
-		int(ProjectSettings.get_setting("display/window/size/viewport_height")))
-	t.world.tree_exiting.connect(func() -> void: root.size = was)
-
-
 ## Wall-clock milliseconds one synchronous `work.call()` takes.
 static func time_ms(work: Callable) -> float:
 	var start := Time.get_ticks_usec()
