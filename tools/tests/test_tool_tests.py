@@ -4,7 +4,8 @@ tools/tool_tests_pick.py picks them.
 PickTests pin the mapping on this checkout's own tools: a hook-only commit picks the hook's test, a shared test helper
 or a tool file no test names picks everything, a file outside the tools picks only the tests that read it from the
 checkout, a staged test module runs itself, and naming carries through the tools (a change to tools/lint.sh picks the
-tests of what runs it) and through the helper symbols a test imports (not the rest of the helper). This module's code
+tests of what runs it) and through the helper symbols a test imports (not the rest of the helper), and every game file
+at once picks only GAME_COMMIT_PICKS, the cheap tool tests the hook may run on a game commit. This module's code
 names many of those files as sample paths, so it is among their picks. ScriptTests run the script, and the picker on
 its own, in a throwaway repo with sentinel test modules, staged files and git, where each rule's picks are exact, and
 the picker refuses an argument holding several paths.
@@ -22,6 +23,9 @@ SELF = "tools.tests.test_tool_tests"
 # A tool file and a file outside the tools no test names: built here, so not even this module's code names them.
 UNNAMED = f"tools/no_tool_{os.getpid()}.py"
 OUTSIDE = f"docs/no_tool_{os.getpid()}.md"
+# The tool test modules a game-only commit (scenes/, tests/, project.godot) can make the pre-commit hook run. Adding a
+# module here means the hook runs it on game commits: time it first.
+GAME_COMMIT_PICKS = {"tools.tests.test_dump_sounds", "tools.tests.test_load_check", "tools.tests.test_run_tests_flags"}
 
 
 class PickTests(unittest.TestCase):
@@ -83,6 +87,26 @@ class PickTests(unittest.TestCase):
         picked = self.modules("scenes/ai/brain.gd")
         self.assertNotIn("tools.lint_rules.tests.test_coverage_isolation", picked, "it lints a temp tree's scenes/ai")
         self.assertNotIn("tools.lint_rules.tests.test_comment_ticket_refs", picked)
+
+    def test_a_game_commit_picks_only_the_cheap_tool_tests(self):
+        game = subprocess.run(["git", "ls-files", "scenes", "tests", "project.godot"], cwd=ROOT, capture_output=True,
+                              text=True, check=True).stdout.splitlines()
+        self.assertGreater(len(game), 100, "premise: the game files are listed")
+        modules, why = tool_tests_pick.pick(game)
+        self.assertEqual(why, [])
+        outside = sorted(set(modules) - GAME_COMMIT_PICKS)
+        if outside:
+            # Only on failure: one path that picks each module outside the set, by halving the paths (the picks of a
+            # set of paths are the union of each path's).
+            by = {}
+            for m in outside:
+                paths = game
+                while len(paths) > 1:
+                    half = paths[:len(paths) // 2]
+                    paths = half if m in tool_tests_pick.pick(half)[0] else paths[len(paths) // 2:]
+                by[m] = paths[0]
+            self.fail("a game commit picks tool tests outside GAME_COMMIT_PICKS (the hook would run them): "
+                      + "; ".join(f"{m} (picked by {p})" for m, p in by.items()))
 
     def test_a_game_file_a_test_runs_a_tool_on_picks_it(self):
         self.assertIn("tools.tests.test_load_check", self.modules("scenes/general/command_server.gd"),
