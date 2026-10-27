@@ -5,10 +5,10 @@ extends RefCounted
 ## with its committed firing / cover spot, and throwing a grenade (`docs/grenades.md` G17: take it
 ## in hand, aim at the spot, throw, put the gun back: its part `throw`, `combat_throw.gd`). Owns the
 ## fire cooldown and that cycle's phase and timers, and reads its tunables live from the NPC's
-## `tuning.combat`. `Behavior` decides WHICH fight is on (it holds the engaged
-## contact and the hold-ground flag) and passes the target in each call; this class never chooses a
-## target and reads the world only through the perception (`has_line_to`, `combat_spots`,
-## `note_engaged`) and the character's public contract. It knows no gun from another: the gun it
+## `tuning.combat`. `Behavior` decides WHICH fight is on (it holds the engaged contact) and passes
+## the target in each call; this class never chooses a target and reads the world only through the
+## perception (`has_line_to`, `combat_spots`, `note_engaged`, and its `confinement`: where it may
+## act) and the character's public contract. It knows no gun from another: the gun it
 ## fights with is `Character.inventory.gun_slot()`.
 
 ## The gun is empty: the shot was not taken (a click is not a shot), so the caller should re-decide.
@@ -38,18 +38,13 @@ var cover_timer := 0.0
 var fire_timer := 0.0
 ## Committed fire/cover position the NPC is steering toward.
 var dest := Vector2.ZERO
-## A squad member following its leader fights within `leash` px of this, the leader's live
-## position (`Vector2.INF`: no leash), set every tick by `Behavior.orders.set_leash` (LD23).
-var leash_center := Vector2.INF
-## The leash (px) round `leash_center` a follower fights within (0 with no leash).
-var leash := 0.0
 ## Seconds left before a new combat position may be chosen.
 var dest_timer := 0.0
 ## Rounds still to fire in the automatic gun's current burst.
 var _burst_left := 0
 ## Seconds left stepping back from whatever the gun's barrel is against.
 var _back_off_timer := 0.0
-## The Locomotion child (pathing, rooms).
+## The Locomotion child (pathing, giving way).
 var _loco: Node
 ## The perception sub-domain (line of fire, candidate spots, engagement memory).
 var _perception: Node
@@ -136,16 +131,15 @@ func ambush(node: Node2D, pos: Vector2) -> void:
 ## with a clear shot and fire, then duck; in the COVER phase, hold behind a shielding object for
 ## `tuning.combat.cover_time` before peeking again. The fire/cover destination is committed for
 ## `tuning.combat.reposition_interval` rather than re-picked every frame, so the NPC steers smoothly
-## instead of vibrating between near-equal candidates. `hold_ground` keeps the chosen spots inside
-## the house, or inside room `room` when given (a member ordered to defend it, `docs/leadership.md`
-## LD8), and a leash (`leash_center`) within it.
-func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, room := "") -> void:
+## instead of vibrating between near-equal candidates. The perception's confinement keeps the
+## chosen spots where it may act (`_choose_dest`).
+func peek_cover(delta: float, node: Node2D, pos: Vector2) -> void:
 	var dist: float = _character.global_position.distance_to(pos)
 	dest_timer -= delta
 	if phase == "cover":
 		cover_timer -= delta
 		if dest_timer <= 0.0:
-			dest = _choose_dest("cover", node, pos, hold_ground, room)
+			dest = _choose_dest("cover", node, pos)
 			dest_timer = tuning.combat.reposition_interval
 		_loco.move_to(dest)
 		reload_if_dry()
@@ -169,17 +163,17 @@ func peek_cover(delta: float, node: Node2D, pos: Vector2, hold_ground: bool, roo
 				dest_timer = 0.0  # Pick a cover spot immediately after shooting.
 		return
 	if dest_timer <= 0.0:
-		dest = _choose_dest("peek", node, pos, hold_ground, room)
+		dest = _choose_dest("peek", node, pos)
 		dest_timer = tuning.combat.reposition_interval
 	_loco.move_to(dest)
 
 
 ## Melee at the known position `pos`: close to punch range and strike on the fire cooldown (no cover
-## cycle for fists). While holding ground it won't chase a contact out of the house, nor off its
-## leash — it only swings if one is already in reach.
-func melee(pos: Vector2, hold_ground: bool) -> void:
+## cycle for fists). It closes in only while its confinement lets it act at `pos`; otherwise it
+## only swings if the contact is already in reach.
+func melee(pos: Vector2) -> void:
 	if _character.global_position.distance_to(pos) > tuning.combat.punch_range:
-		if not hold_ground and _on_leash(pos):
+		if _perception.confinement.allows(pos):
 			_loco.move_to(pos)
 		else:
 			_character.movement.move_input = Vector2.ZERO
@@ -328,36 +322,17 @@ static func faces(character: Node, pos: Vector2) -> bool:
 
 
 ## The committed destination for the current phase `kind`: the nearest spot with a clear shot
-## ("peek") or the nearest shielded spot ("cover") around the known contact; falls back to closing
-## on the contact (peek) or holding (cover) when no suitable spot exists this sample. While holding
-## ground, spots are restricted to inside the house and the peek fallback holds position instead of
-## advancing out; with a `room` (kept to by order) spots are restricted to inside that room in any
-## case; on a leash, spots are restricted to within it and the peek fallback holds position too.
-func _choose_dest(
-	kind: String,
-	node: Node2D,
-	pos: Vector2,
-	hold_ground: bool,
-	room := "",
-) -> Vector2:
+## ("peek") or the nearest shielded spot ("cover") around the known contact, among those its
+## confinement lets it act at; falls back to holding (cover), and in the peek to closing on the
+## contact where it may act there, else holding where it stands, when no such spot exists this
+## sample.
+func _choose_dest(kind: String, node: Node2D, pos: Vector2) -> Vector2:
+	var confinement: RefCounted = _perception.confinement
 	var spots: Dictionary = _perception.combat_spots(node, pos, tuning.combat.ring_radius)
-	var fire: Array = spots["fire"]
-	var cover: Array = spots["cover"]
-	if hold_ground or room != "":
-		var keep := func(p):
-			return _loco.room_key_at(p) == room if room != "" else _loco.inside_house(p)
-		fire = fire.filter(keep)
-		cover = cover.filter(keep)
-	if leash_center != Vector2.INF:
-		fire = fire.filter(_on_leash)
-		cover = cover.filter(_on_leash)
+	var fire: Array = spots["fire"].filter(confinement.allows)
+	var cover: Array = spots["cover"].filter(confinement.allows)
 	if kind == "cover":
 		return cover[0] if not cover.is_empty() else _character.global_position
 	if not fire.is_empty():
 		return fire[0]
-	return _character.global_position if hold_ground or leash_center != Vector2.INF else pos
-
-
-## Whether point `p` is within the leash (true with none).
-func _on_leash(p: Vector2) -> bool:
-	return leash_center == Vector2.INF or leash_center.distance_to(p) <= leash
+	return pos if confinement.allows(pos) else _character.global_position

@@ -45,6 +45,7 @@ const PerceptionContacts := preload("res://scenes/ai/perception/perception_conta
 const PerceptionGrenades := preload("res://scenes/ai/perception/perception_grenades.gd")
 const PerceptionEntry := preload("res://scenes/ai/perception/perception_entry.gd")
 const PerceptionViews := preload("res://scenes/ai/perception/perception_views.gd")
+const PerceptionConfinement := preload("res://scenes/ai/perception/perception_confinement.gd")
 ## The entry claims heard on the radio (scenes/ai/perception/stack/).
 const ClaimLedger := preload("res://scenes/ai/perception/stack/claim_ledger.gd")
 ## The BUILD half: turns what the NPC knows + the combat geometry into the decision snapshot Von
@@ -82,6 +83,9 @@ var grenades: PerceptionGrenades
 var entry: PerceptionEntry
 ## The doorway views and the walk that keeps out of them; see perception_views.gd.
 var views: PerceptionViews
+## Where it may act (its territory, the room it defends, its leash), refreshed each tick by the
+## controller; see perception_confinement.gd.
+var confinement: PerceptionConfinement
 
 
 ## Build the owned sensing modules. The controller calls this once in its _ready(); it then hands
@@ -98,6 +102,7 @@ func setup() -> void:
 	grenades = PerceptionGrenades.new(self)
 	entry = PerceptionEntry.new(self)
 	views = PerceptionViews.new(self)
+	confinement = PerceptionConfinement.new()
 	contacts.hostility = AgentHostility.new()
 	_memory = AgentMemory.new()
 	_tactics = AgentTactics.new()
@@ -327,6 +332,7 @@ func _debug_fresh() -> Dictionary:
 ## are never seeded — they are known only once seen.
 func observe(rooms: Array) -> void:
 	house.take_in(rooms)
+	confinement.rooms = rooms
 	var self_pos: Vector2 = _character.global_position
 	var space: PhysicsDirectSpaceState2D = _character.get_world_2d().direct_space_state
 	var exclude := [_character.get_rid()]
@@ -356,7 +362,8 @@ func observe(rooms: Array) -> void:
 ## BUILD pass — run at the start of each decision. Gather what the NPC currently knows (contacts,
 ## allies' callouts, learned house knowledge, lost hostiles) and hand it, with the goal and the
 ## behaviour's current-activity line, to the snapshot author (agent_snapshot.gd), which turns it
-## into the decision snapshot the planner walks: { facts, sections, sections_per_target, options }.
+## into the decision snapshot the planner walks: { facts, sections, sections_per_target, options },
+## with a frozen copy of its `confinement`.
 ## The author reads this knowledge and the combat geometry only — it writes no memory and holds no
 ## policy.
 func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
@@ -381,7 +388,10 @@ func sense(rooms: Array, goal: String, activity: String) -> Dictionary:
 	}
 	knowledge["contacts"] = contacts.known(self_pos)
 	knowledge["callouts"] = hearing.callouts()
-	return _snapshot.build(rooms, goal, activity, knowledge)
+	var snapshot: Dictionary = _snapshot.build(rooms, goal, activity, knowledge)
+	# The walk decides over where it may act as it is now, whatever a later tick refreshes.
+	snapshot["confinement"] = confinement.copy()
+	return snapshot
 
 
 ## The goal text as Von reads it: `{gun}` filled with what the NPC calls its gun.

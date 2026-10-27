@@ -1,8 +1,8 @@
 extends RefCounted
 ## AI orchestrator: the controller's reflexes, a part it builds once in its `_ready` and holds as
 ## `_reflexes`. What the NPC does every tick outside the decision walk: it follows its squad's
-## leader and fights within its leash (`docs/leadership.md` LD19, LD23), gets clear of the live
-## grenade that threatens it (G16), and, flash-blinded, rolls once whether it fires blind and
+## leader and keeps its confinement current (`docs/leadership.md` LD19, LD23), gets clear of the
+## live grenade that threatens it (G16), and, flash-blinded, rolls once whether it fires blind and
 ## re-decides the moment its sight returns (G15). Built once with its controller, it holds it (a
 ## node, so no reference cycle) for the NPC's body, perception, behaviour, cadence, tuning and
 ## squad.
@@ -32,10 +32,10 @@ func bind(character: Node) -> void:
 
 ## The squad's follow reads, every tick (LD19, LD23): whether the NPC follows its leader (the
 ## perception's `follows`), deciding at once when that changes (it joined a squad's file, or the
-## leader it followed died and it leads now), and the leash it fights within while it holds no
-## order (`leash_lead`). A leashed follower fighting farther than `SquadFollowConfig.leash_break`
-## leashes from its leader, neither committed nor on its way somewhere, decides again, once until it
-## has been back within that.
+## leader it followed died and it leads now), then the confinement's rules (`refresh_confinement`).
+## A leashed follower fighting farther than `SquadFollowConfig.leash_break` leashes from its leader,
+## neither committed nor on its way somewhere, decides again, once until it has been back within
+## that.
 func follow_squad() -> void:
 	var squad: Node = controller.squad
 	var behavior: Node = controller._behavior
@@ -47,14 +47,12 @@ func follow_squad() -> void:
 	if follows != _follows:
 		_follows = follows
 		controller._cadence.force("follows its leader" if follows else "leads its squad")
-	var lead := leash_lead()
-	if lead == null:
-		behavior.orders.set_leash(Vector2.INF, 0.0)
+	var confinement: RefCounted = refresh_confinement()
+	if confinement.leash_center == Vector2.INF:
 		_leash_broke = false
 		return
-	behavior.orders.set_leash(lead.global_position, SquadFollowConfig.leash)
-	if (controller._character.global_position.distance_to(lead.global_position)
-			<= SquadFollowConfig.leash * SquadFollowConfig.leash_break):
+	if (controller._character.global_position.distance_to(confinement.leash_center)
+			<= confinement.leash * SquadFollowConfig.leash_break):
 		_leash_broke = false
 	elif (not _leash_broke
 			and behavior.in_combat()
@@ -62,6 +60,21 @@ func follow_squad() -> void:
 			and not behavior.orders.walk_pending()):
 		_leash_broke = true
 		controller._cadence.force("off the leash")
+
+
+## Refreshes the perception's confinement from this tick's rules and returns it: the preset's
+## territory (`tuning.decision.defend_territory`), the live order, and the leash round the leader it
+## fights within (`SquadFollowConfig.leash` round `leash_lead`; none while it holds an order).
+func refresh_confinement() -> RefCounted:
+	var confinement: RefCounted = controller._perception.confinement
+	var lead := leash_lead()
+	confinement.refresh(
+		controller.tuning.decision.defend_territory,
+		controller._perception.orders.current(),
+		lead.global_position if lead != null else Vector2.INF,
+		SquadFollowConfig.leash,
+	)
+	return confinement
 
 
 ## The leader the NPC follows (`Squad.leader`), or null when it follows none.

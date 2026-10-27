@@ -2,14 +2,14 @@ extends UnitSuite
 ## Native unit suite (pure logic): an NPC's AI frees itself once the NPC is freed. Its modules and
 ## their parts hold no reference back to a `RefCounted` that holds them, so no `RefCounted` cycle
 ## keeps any of it alive: the entry's leaves (`state`, `world`) and its ten parts (`claim`, ...,
-## `radio`, each handed the entry at the call) and the combat's throw part hold no
-## owner, the planner's parts and the controller's cadence are data that hold none, and the other
-## parts of a node (the behaviour's, Locomotion's, the controller's, the perception's) hold it only
-## as a node. Every preset, instanced, put in the tree (its controller builds the AI in `_ready`)
-## and freed, leaves a `WeakRef` to each piece that reads null. Each NPC is made inside
-## `_built_then_freed`, so no temporary of the calling test still holds a piece. The doorway
-## geometry (`AgentEntry`) and its three parts (`posts`, `slots`, `layouts`, each handed it at the
-## call) free themselves the same way, both bare (as `PlayerStack` builds one) and an NPC's.
+## `radio`, each handed the entry at the call) and the combat's throw part hold no owner, the
+## planner's walk, the perception's confinement and the controller's cadence are data that hold
+## none, and the other parts of a node (the behaviour's, Locomotion's, the controller's, the
+## perception's) hold it only as a node. Every preset, instanced, put in the tree (its controller
+## builds the AI in `_ready`) and freed, leaves a `WeakRef` to each piece that reads null. Each NPC
+## is made inside `_built_then_freed`, so no temporary of the calling test still holds a piece. The
+## doorway geometry (`AgentEntry`) and its three parts (`posts`, `slots`, `layouts`, each handed it
+## at the call) free themselves the same way, both bare (as `PlayerStack` builds one) and an NPC's.
 
 const Entry := preload("res://scenes/ai/behavior/entry.gd")
 const AgentEntry := preload("res://scenes/ai/perception/agent_entry.gd")
@@ -31,7 +31,7 @@ func _built_then_freed(path: String) -> Dictionary:
 
 
 ## Each piece of the AI under `controller` (the behaviour with its parts, its modules and theirs,
-## the perception's parts, the planner's parts and the controller's own), by name, held by a
+## the perception's parts, the planner's walk and the controller's own), by name, held by a
 ## `WeakRef`.
 func _held(controller: Node) -> Dictionary:
 	var behavior: Node = controller.get("_behavior")
@@ -56,7 +56,6 @@ func _held(controller: Node) -> Dictionary:
 		"loco": loco, "loco.crowd": loco.get("crowd"), "loco.give_way": loco.get("give_way"),
 		"loco.stall": loco.get("stall"), "loco.doors": loco.get("doors"),
 		"planner": planner, "planner.walk": planner.get("_walk"),
-		"planner.confines": planner.get("confines"),
 		"controller.cadence": controller.get("_cadence"),
 		"controller.comms": controller.get("_comms"),
 		"controller.reflexes": controller.get("_reflexes"),
@@ -66,6 +65,7 @@ func _held(controller: Node) -> Dictionary:
 		"perception.contacts": perception.get("contacts"),
 		"perception.grenades": perception.get("grenades"),
 		"perception.entry": perception.get("entry"), "perception.views": perception.get("views"),
+		"perception.confinement": perception.get("confinement"),
 	}
 	var held := {}
 	for key: String in pieces:

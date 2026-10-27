@@ -23,7 +23,8 @@ var engage_node: Node2D
 var engage_pos := Vector2.ZERO
 ## Whether that contact was last seen inside the house.
 var engage_inside := false
-## Combat: stay inside the house (territorial vs. an outsider).
+## The contact's last-known spot is where its confinement does not let it act (outside the house,
+## the room it defends or its leash): it holds its ground instead of chasing there.
 var hold_ground := false
 ## The character was reloading last tick (for the status line and overlay).
 var reloading := false
@@ -161,8 +162,8 @@ func fights_in_place() -> bool:
 
 
 ## Engage: walk to the chosen spot (shooting on the way when a line opens), then fight from it —
-## peek-and-cover, or an ambush that holds the covered spot and fires the moment a line opens. A
-## territorial NPC fighting a contact outside the house stays inside (`hold_ground`).
+## peek-and-cover, or an ambush that holds the covered spot and fires the moment a line opens. Its
+## confinement keeps where it fights (`hold_ground` against a contact where it may not act).
 func apply_engage(delta: float) -> void:
 	var task: RunningLeaf = behavior.task
 	var combat: RefCounted = behavior._combat
@@ -184,36 +185,25 @@ func apply_engage(delta: float) -> void:
 	if task.params.get("style", &"peek_cover") == &"ambush":
 		combat.ambush(engage_node, engage_pos)
 		return
-	combat.peek_cover(
-		delta,
-		engage_node,
-		engage_pos,
-		hold_ground,
-		str(task.params.get("confine_room", "")),
-	)
+	combat.peek_cover(delta, engage_node, engage_pos)
 
 
 ## Melee: close to punch range and swing on the fire cooldown (no cover cycle for fists). While
-## holding ground it won't chase a contact out of the house — it only swings if one is already in
-## reach.
+## holding ground it won't chase a contact where its confinement does not let it act — it only
+## swings if one is already in reach.
 func apply_melee() -> void:
 	if engage_id == 0:
 		behavior.errand.apply_hold()
 		return
 	behavior._character.movement.aim_point = engage_pos
 	hold_ground = _keeps_in(engage_pos)
-	behavior._combat.melee(engage_pos, hold_ground)
+	behavior._combat.melee(engage_pos)
 
 
-## Whether the fight is held where it is against a contact at `pos`: a member ordered to defend a
-## room (`confine_room`, LD8) against one outside that room; a territorial NPC (`confine_inside`)
-## against one last seen outside the house.
+## Whether the fight is held where it is against a contact at `pos`: its confinement does not let
+## it act there.
 func _keeps_in(pos: Vector2) -> bool:
-	var task: RunningLeaf = behavior.task
-	var room := str(task.params.get("confine_room", ""))
-	if room != "":
-		return behavior._loco.room_key_at(pos) != room
-	return task.params.get("confine_inside", false) and not engage_inside
+	return not behavior._perception.confinement.allows(pos)
 
 
 ## Reload: stand and swap magazines, its eyes where the watch stage puts them (a threat, else the

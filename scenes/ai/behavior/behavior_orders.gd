@@ -1,9 +1,9 @@
 extends RefCounted
 ## AI BEHAVIOUR sub-domain — the behaviour's orders, its part `orders` (`docs/leadership.md`): the
 ## squad, the `defend`, `ambush` and `follow` primitives, the order steps it radios, the walk an
-## order replaces (`await_next`), an ordered stack and a join, the leash it fights within and their
-## read-outs. Built once with its `Behavior`, it holds it (a node, so no reference cycle) for the
-## running leaf, the body, the perception, the locomotion and `Combat`.
+## order replaces (`await_next`), an ordered stack and a join, and their read-outs. Built once with
+## its `Behavior`, it holds it (a node, so no reference cycle) for the running leaf, the body, the
+## perception, the locomotion and `Combat`.
 
 ## The running leaf's data (the behaviour's `task`).
 const RunningLeaf := preload("res://scenes/ai/behavior/running_leaf.gd")
@@ -193,9 +193,9 @@ func take_steps() -> Array:
 ## and is over within `arrive` of it or where its path ends short of one it cannot reach; a
 ## follower catching up (`gait.catching_up`) whose walk target lagged its live spot re-aims at that
 ## spot there, until it is within `caught_up` of it. Its walk over, its catch-up is over too.
-## There it stands facing away from its leader (the leash's centre, its live position) and, at rest
-## with nothing to fight, tops up a low magazine. The watch stage shoots what it sees on the way.
-## Its spot gone (it leads now, or left the squad): re-decide.
+## There it stands facing away from its leader (its confinement's leash centre, the leader's live
+## position) and, at rest with nothing to fight, tops up a low magazine. The watch stage shoots what
+## it sees on the way. Its spot gone (it leads now, or left the squad): re-decide.
 func apply_follow() -> void:
 	var task: RunningLeaf = behavior.task
 	var character: Node = behavior._character
@@ -228,7 +228,7 @@ func apply_follow() -> void:
 	behavior.gait.catching_up = false
 	character.movement.move_input = Vector2.ZERO
 	var here: Vector2 = character.global_position
-	var lead: Vector2 = combat.leash_center
+	var lead: Vector2 = behavior._perception.confinement.leash_center
 	if lead != Vector2.INF and here.distance_to(lead) > 1.0:
 		character.movement.aim_point = here + (here - lead).normalized() * 100.0
 	# At rest once it has stood as long as a still leader does (a file walk stops between re-aims).
@@ -237,14 +237,6 @@ func apply_follow() -> void:
 			and not behavior._perception.under_fire()
 			and combat.magazine_low(behavior.tuning.context.low_ammo_fraction)):
 		combat.top_off()
-
-
-## The leash the NPC fights within (LD23), set every tick by the controller: `radius` px of
-## `center`, its leader's live position (`Vector2.INF`: none, it does not follow).
-func set_leash(center: Vector2, radius: float) -> void:
-	var combat: RefCounted = behavior._combat
-	combat.leash_center = center
-	combat.leash = radius
 
 
 ## Whether the running primitive is on its way somewhere it chose: a move or an engage not yet

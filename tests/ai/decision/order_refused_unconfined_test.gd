@@ -1,10 +1,10 @@
 extends GameTest
 ## LD6 and LD8 (`docs/leadership.md`): an order the NPC cannot carry out is refused, and the
 ## decision walk it starts with is its own, not the order's. A `defend_room` order keeps the
-## member's fight to options inside that room (`confine_room`); one naming a room the NPC does not
-## know is ended `refused` as the walk starts, and that walk is then not confined to the refused
-## room: the defender fighting a hostile in its living room still has its living-room firing spots,
-## so it engages, with no `confine_room` in the leaf.
+## member's fight to options inside that room (its confinement's `room`); one naming a room the NPC
+## does not know is ended `refused` as the walk starts, and that walk is then not confined to the
+## refused room: the defender fighting a hostile in its living room still has its living-room firing
+## spots, so it engages, and the confinement the walk decided over keeps it to no room.
 ##
 ## Scripted Von (COMBAT, then ENGAGE): a defender in the Terrace house's living room sees an invader
 ## puppet across the room (unkillable, never shoots). The order is posted straight onto the bus, as
@@ -22,8 +22,8 @@ func describe() -> Dictionary:
 	return {
 		"name": "A refused order leaves the walk unconfined",
 		"description": "A defender given a defend order for a room it does not know radios "
-			+ "refused, and the decision it then makes fights from its own room with no "
-			+ "confine_room in the leaf (LD6, LD8).",
+			+ "refused, and the decision it then makes fights from its own room, confined to "
+			+ "no room (LD6, LD8).",
 		"tags": ["ai", "decision", "leadership", "order", "scripted"],
 		"timeout": 20.0,
 	}
@@ -87,7 +87,8 @@ func run(t: TestContext) -> void:
 		"the defender still fights from its living room: COMBAT - ENGAGE (act %s)"
 			% brain.current_act(),
 	)
+	var confined: Dictionary = brain.debug_state().get("decision", {}).get("confinement", {})
 	t.check(
-		not OrderBrain.params(brain).has("confine_room"),
-		"the leaf carries no confine_room (params %s)" % str(OrderBrain.params(brain)),
+		confined.get("room", "?") == "",
+		"the walk's confinement keeps it to no room (confinement %s)" % str(confined),
 	)

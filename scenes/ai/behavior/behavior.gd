@@ -26,15 +26,16 @@ extends Node
 ## behind cover, holds facing away until the burst, and re-decides. Whatever the primitive, a final
 ## WATCH stage (`watch.gd`, `docs/gaze-and-fire.md`) puts a threat in sight under the NPC's eyes and
 ## gun and, with none, makes it look down its path or at its doors. It never chooses WHAT to do —
-## the planner does — and applies no policy beyond the params it is handed (`confine_inside` keeps a
-## territorial NPC from chasing out of the house). It owns a `Locomotion` child for all pathing, a
-## `Combat` module (shots, punches, bursts, the peek-and-cover cycle) and, through its errand part,
-## a `SearchCoverage` module; it reads the world only through the PERCEPTION sub-domain (known
-## contacts, combat geometry, engagement memory) and drives the character only through its public
-## controller contract (`movement.move_input` / `movement.aim_point`, `inventory.select_slot`,
-## `weapon.shoot`, `weapon.melee`, `use.interact_with`, `use.end_interaction`). Every tunable is
-## read live from the NPC's tuning (`NpcTuning`, handed in by `setup`), by the behaviour and by each
-## of its modules; `apply_config(npc_squad)` hands in the side's squad.
+## the planner does — and applies no policy beyond the params it is handed and where its
+## perception's confinement lets it act (a territorial NPC does not chase out of the house). It owns
+## a `Locomotion` child for all pathing, a `Combat` module (shots, punches, bursts, the
+## peek-and-cover cycle) and, through its errand part, a `SearchCoverage` module; it reads the world
+## only through the PERCEPTION sub-domain (known contacts, combat geometry, engagement memory) and
+## drives the character only through its public controller contract (`movement.move_input` /
+## `movement.aim_point`, `inventory.select_slot`, `weapon.shoot`, `weapon.melee`,
+## `use.interact_with`, `use.end_interaction`). Every tunable is read live from the NPC's tuning
+## (`NpcTuning`, handed in by `setup`), by the behaviour and by each of its modules;
+## `apply_config(npc_squad)` hands in the side's squad.
 
 const Locomotion := preload("res://scenes/ai/behavior/locomotion.gd")
 const Combat := preload("res://scenes/ai/behavior/combat.gd")
@@ -73,7 +74,7 @@ var gait: Gait
 ## The grenades: the throw primitive and the evade reflex; see behavior_grenades.gd.
 var grenades: Grenades
 ## The orders: the squad, the defend, ambush and follow primitives, the order steps, an ordered
-## stack and the leash; see behavior_orders.gd.
+## stack and a join; see behavior_orders.gd.
 var orders: Orders
 ## The entries: the entry primitive over `Entry`, the entry guard and its detours, and the entry
 ## read-outs; see behavior_entries.gd.

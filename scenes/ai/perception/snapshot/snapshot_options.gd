@@ -790,26 +790,6 @@ func room_group(ctx: Dictionary, known_rooms: Array, rooms: Array) -> Dictionary
 	return { "summary": "", "options": options }
 
 
-## Tag every option that names a place with the room it lies in (`tags.room`, the room key, ""
-## outside): where its walk ends, the spot a throw is made `from` or else its `point`. The planner
-## keeps a member ordered to defend a room to the options in it (LD8). Tags are not text: what Von
-## reads is unchanged.
-static func tag_rooms(groups: Dictionary, rooms: Array) -> void:
-	for name in groups:
-		var group = groups[name]
-		if name == "per_target":
-			for per in (group as Dictionary).values():
-				tag_rooms(per, rooms)
-			continue
-		if not group is Dictionary:
-			continue
-		for o in group.get("options", []):
-			var params: Dictionary = o.get("params", {})
-			var at = params.get("from", params.get("point"))
-			if at is Vector2 and at != Vector2.INF and o.get("tags") is Dictionary:
-				o["tags"]["room"] = HouseRooms.key_at(at, rooms)
-
-
 ## `tags` plus the spot's geometry, kept for the routes debug overlay (`clear_shot`,
 ## `route_exposed`, `cover`, and the flank `ally_lane` / `held_by` / `crosses` names). Planner
 ## filters read only the boolean tags (`inside` / `hidden`, and on a flank side `held` / `crosses` /

@@ -88,7 +88,6 @@ func build(rooms: Array, goal: String, activity: String, knowledge: Dictionary) 
 	var facts := _facts(ctx, parts, knowledge)
 	var sections := _state_sections(ctx, parts, goal, activity, knowledge)
 	var options := _option_groups(ctx, parts, knowledge)
-	SnapshotOptions.tag_rooms(options, rooms)
 	return {
 		"facts": facts, "sections": sections, "sections_per_target": parts["per_sections"],
 		"options": options, "gun": vocab.gun_noun(parts["gun"]),

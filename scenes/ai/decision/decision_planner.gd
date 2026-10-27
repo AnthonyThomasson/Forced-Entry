@@ -8,10 +8,11 @@ extends Node
 ## with a single option is taken without asking.
 ##
 ## It owns the decision POLICY as data: which nodes are offered (`requires` facts, `disabled_nodes`,
-## the territorial `inside_only` filter), where a walk starts (`entry_rules` — e.g. under fire →
-## straight to combat) and which state sections Von sees per level. It never builds knowledge (the
-## snapshot comes from perception) and never interprets a leaf (behaviour runs it). A branch is
-## offered only when its subtree still holds a leaf, so a walk never dead-ends.
+## and, inside a `confine` subtree, the options the snapshot's confinement allows), where a walk
+## starts (`entry_rules` — e.g. under fire → straight to combat) and which state sections Von sees
+## per level. It never builds knowledge (the snapshot comes from perception) and never interprets a
+## leaf (behaviour runs it). A branch is offered only when its subtree still holds a leaf, so a walk
+## never dead-ends.
 
 ## The walk finished: `leaf` = { path, labels, primitive, params }.
 signal decided(leaf: Dictionary)
@@ -23,8 +24,6 @@ const DecisionTree := preload("res://scenes/ai/decision/decision_tree.gd")
 const DecisionClient := preload("res://scenes/ai/decision/decision_client.gd")
 ## The walk in flight (`_walk`).
 const DecisionWalk := preload("res://scenes/ai/decision/decision_walk.gd")
-## What keeps a `confine` subtree in bounds (`confines`).
-const DecisionConfines := preload("res://scenes/ai/decision/decision_confines.gd")
 
 # --- Config fields the controller copies from the NPC's tuning before setup(). ---
 ## Node ids never offered for this NPC (e.g. &"idle" for one that hunts instead of doing chores).
@@ -36,9 +35,6 @@ var node_overrides: Dictionary = {}
 var entry_rules: Dictionary = {}
 ## Take a level's only option without asking Von.
 var skip_single_option: bool = true
-## What keeps a `confine` subtree in bounds: the territory (`inside_only`), the room a member keeps
-## to (`confines.room`) and a follower's leash (`leash_center`, `leash`), pushed each decision.
-var confines := DecisionConfines.new()
 ## The Von transport (decision_client.gd), its own child.
 var _client: Node
 ## The tree with overrides merged, keyed by node id.
@@ -104,11 +100,12 @@ func entry_for(facts: Dictionary) -> StringName:
 	return &"root"
 
 
-## Start a walk over `snapshot` ({ sections, sections_per_target, facts, options }), abandoning any
-## walk in flight. `continuing` = the last adopted choice is still in progress, so the option that
-## continues it is marked "(your current plan)"; a finished choice (arrived, interaction over) is
-## not — otherwise Von would re-pick a completed tactic. Answers arrive asynchronously; the result
-## is `decided` or `failed`.
+## Start a walk over `snapshot` ({ sections, sections_per_target, facts, options, confinement }: the
+## NPC's confinement frozen as the snapshot was built, which keeps a `confine` subtree in bounds),
+## abandoning any walk in flight. `continuing` = the last adopted choice is still in progress, so
+## the option that continues it is marked "(your current plan)"; a finished choice (arrived,
+## interaction over) is not — otherwise Von would re-pick a completed tactic. Answers arrive
+## asynchronously; the result is `decided` or `failed`.
 func begin(snapshot: Dictionary, continuing: bool = true) -> void:
 	cancel()
 	if not continuing:
@@ -137,7 +134,8 @@ func cancel() -> void:
 
 ## Read-only: the walk in flight (or the last finished one) as structured data — per level, the
 ## exact state and question Von saw, the options offered, its probabilities, the pick, whether it
-## was taken without asking, and how long Von took. Enough to replay any level offline.
+## was taken without asking, and how long Von took. Enough to replay any level offline. With it, the
+## confinement the walk decided over (`confinement`, its `view()`; {} before any walk).
 func debug_state() -> Dictionary:
 	return {
 		"entry": String(_entry),
@@ -145,6 +143,7 @@ func debug_state() -> Dictionary:
 		"last_failed": _last_failed,
 		"path": " - ".join(_walk.steps.map(func(s): return s["label"])),
 		"levels": _walk.levels if _pending else _last_levels,
+		"confinement": _confinement().view() if _confinement() != null else {},
 	}
 
 
@@ -268,16 +267,13 @@ func _choose(id: String) -> void:
 
 
 ## Finish the walk at `option` under node `node_id`: merge the node's primitive params under the
-## option's own, add the bound target and confinement, and emit the leaf.
+## option's own, add the bound target, and emit the leaf.
 func _finish(node_id: StringName, option: Dictionary) -> void:
 	var node: Dictionary = _nodes[node_id]
 	var params: Dictionary = node.get("params", {}).duplicate(true)
 	params.merge(option.get("params", {}), true)
 	if _walk.binding.has("target_id") and not params.has("target_id"):
 		params["target_id"] = _walk.binding["target_id"]
-	params["confine_inside"] = _walk.confine and confines.inside_only
-	if _walk.confine and confines.room != "":
-		params["confine_room"] = confines.room
 	if option["id"] != String(node_id):
 		_walk.steps.append({ "id": option["id"], "label": option.get("label", option["id"]) })
 	var leaf := {
@@ -320,7 +316,7 @@ func _bind_offers(node: Dictionary) -> Dictionary:
 
 
 ## A node's options: its available child nodes, then every option of its option groups that passes
-## the territorial filter.
+## the confinement filter.
 func _offers(id: StringName) -> Dictionary:
 	var node: Dictionary = _nodes[id]
 	var out := {}
@@ -405,35 +401,28 @@ func _is_leaf_node(node: Dictionary) -> bool:
 			and node.get("children", []).is_empty())
 
 
-## Whether a `confine` subtree confines this NPC: it is territorial, keeps to the room it was
-## ordered to defend, or keeps within its leash.
+## The NPC's confinement the walk decides over: the snapshot's frozen copy (null in a snapshot
+## without one).
+func _confinement() -> RefCounted:
+	return _walk.snap.get("confinement")
+
+
+## Whether a `confine` subtree confines this NPC: its confinement has a rule (its territory, the
+## room it was ordered to defend, its leash).
 func _confines() -> bool:
-	return (confines.inside_only
-			or confines.room != ""
-			or confines.leash_center != Vector2.INF)
+	var confinement := _confinement()
+	return confinement != null and confinement.confines()
 
 
-## `options` minus those carrying any `drop` tag, and, when `confine` applies, minus those outside
-## the house (a territorial NPC), those placed outside the room it keeps to (`confines.room`) and
-## those placed beyond its leash (where it acts from, `params.from`, else `params.point`; an option
-## that names no place, a reload or a punch, stays).
+## `options` minus those carrying any `drop` tag, and, when `confine` applies, minus those the
+## confinement does not allow where they act (`allows_option`: `params.from`, else `params.point`;
+## an option that names no place, a reload or a punch, stays).
 func _allowed(options: Array, confine: bool, drop: Array = []) -> Array:
+	var confinement := _confinement()
 	return options.filter(func(o):
 		var tags: Dictionary = o.get("tags", {})
-		if confine and confines.inside_only and not tags.get("inside", true):
+		if confine and not confinement.allows_option(o):
 			return false
-		if (confine
-				and confines.room != ""
-				and tags.has("room")
-				and String(tags["room"]) != confines.room):
-			return false
-		if confine and confines.leash_center != Vector2.INF:
-			var params: Dictionary = o.get("params", {})
-			var at = params.get("from", params.get("point"))
-			if (at is Vector2
-					and at != Vector2.INF
-					and confines.leash_center.distance_to(at) > confines.leash):
-				return false
 		for tag in drop:
 			if tags.get(String(tag), false):
 				return false
@@ -482,7 +471,10 @@ func _fill(template: String, id: StringName) -> String:
 	var situation := ""
 	if summary_group != &"":
 		var group := _group(summary_group)
-		var confined: bool = confines.inside_only and (_walk.confine or node.get("confine", false))
+		var confinement := _confinement()
+		var confined: bool = (confinement != null
+				and confinement.inside_only
+				and (_walk.confine or node.get("confine", false)))
 		summary = (group.get("summary_inside", group.get("summary", ""))
 				if confined
 				else group.get("summary", ""))

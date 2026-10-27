@@ -116,8 +116,7 @@ func _ready() -> void:
 	# THINK: the planner that walks the decision tree, through the Von transport it builds.
 	# node_overrides is baked into the tree at setup() (construction-time only); the rest of the
 	# planner's config is applied by _apply_config(), which turns the policy primitives into tree
-	# config (pursuit starts at COMBAT once a hostile is known and never idles; territory keeps
-	# combat options inside the house).
+	# config (pursuit starts at COMBAT once a hostile is known and never idles).
 	_planner = DecisionPlanner.new()
 	_planner.node_overrides = tuning.decision.node_overrides
 	add_child(_planner)
@@ -146,8 +145,9 @@ func _ready() -> void:
 ## behaviour test) takes effect on the next one.
 func _apply_config() -> void:
 	_perception.apply_config(tuning)
-	# The pursuit/territory primitives become planner config: pursuit disables IDLE and starts a
-	# walk at COMBAT once a hostile is known; territory confines combat options inside the house.
+	# The pursuit primitive becomes planner config: pursuit disables IDLE and starts a walk at
+	# COMBAT once a hostile is known. Where it may fight is the perception's confinement, which the
+	# reflexes refresh each tick.
 	var disabled: Array[StringName] = []
 	disabled.assign(tuning.decision.disabled_nodes)
 	var rules := tuning.decision.entry_rules.duplicate()
@@ -162,13 +162,8 @@ func _apply_config() -> void:
 		if not rules.has(&"hostile_known") and not rules.has("hostile_known"):
 			rules[&"hostile_known"] = &"combat"
 	_planner.skip_single_option = tuning.decision.skip_single_option
-	_planner.confines.inside_only = tuning.decision.defend_territory
-	var held: Dictionary = _perception.orders.current()
-	_planner.confines.room = (String(held.get("room", ""))
-			if String(held.get("kind", "")) == "defend_room"
-			else "")
 	# A follower picks no goal of its own (LD20): it follows its leader after the fight and order
-	# rules, and, holding no order, fights only within its leash of the leader (LD23).
+	# rules.
 	var lead: Node2D = _reflexes.leader_followed()
 	if lead != null:
 		for id in [&"investigate", &"search", &"idle"]:
@@ -178,10 +173,6 @@ func _apply_config() -> void:
 			rules[&"follows"] = &"follow"
 	_planner.disabled_nodes = disabled
 	_planner.entry_rules = rules
-	var leash_lead: Node2D = _reflexes.leash_lead()
-	var lead_at: Vector2 = leash_lead.global_position if leash_lead != null else Vector2.INF
-	_planner.confines.leash_center = lead_at
-	_planner.confines.leash = float(SquadFollowConfig.leash) if leash_lead != null else 0.0
 	_behavior.apply_config(squad)
 
 
@@ -229,8 +220,9 @@ func debug_status() -> String:
 ## last walk (the exact state and question Von saw, the options, its probabilities and pick,
 ## auto-picks and timings), what the NPC knows (`contacts`), the running primitive and pathing, how
 ## many decision walks it has started and why the latest one started (`decisions`,
-## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"). Pure
-## reads — never perturbs the loop.
+## `decision_reason`: the force reason, e.g. "task resolved" or "way blocked", or "cadence"), and
+## where it may act now (`confinement`, the perception's confinement's `view()`). Pure reads —
+## never perturbs the loop.
 func debug_state() -> Dictionary:
 	var out := {
 		"npc": _npc_name(),
@@ -249,6 +241,7 @@ func debug_state() -> Dictionary:
 		out["engaged_fresh"] = _perception.engaged_fresh()
 		out["memory_size"] = _perception.memory_size()
 		out["contacts"] = _contact_digest()
+		out["confinement"] = _perception.confinement.view()
 	if _behavior != null:
 		out.merge(_behavior.debug_state())
 	return out
@@ -434,13 +427,15 @@ func _bind_body(character: Node) -> void:
 	_planner.bind(_npc_name())
 
 
-## SENSE: folds the queued events in, perceives, and lets the behaviour adopt the hostiles it knows
-## (reconsidering at once when the engaged contact is lost) before the salient-event check.
+## SENSE: folds the queued events in, perceives, takes the squad's follow reads and refreshes the
+## confinement (after the whole order intake: the SEE pass ends an ambush on contact), and lets the
+## behaviour adopt the hostiles it knows (reconsidering at once when the engaged contact is lost)
+## before the salient-event check.
 func _sense(character: Node, delta: float) -> void:
 	_comms.process_events()
-	_reflexes.follow_squad()
 	_perception.house.openings = openings
 	_perception.observe(rooms)
+	_reflexes.follow_squad()
 	_reflexes.react_to_grenades()
 	_behavior.rooms = rooms
 	if entry_point != Vector2.ZERO:
@@ -542,8 +537,9 @@ func _start_decision() -> void:
 		# An order it cannot carry out (a room or doorway it does not know): said so, and dropped.
 		_perception.orders.end(held["id"], "refused")
 		_cadence.last_facts["ordered"] = false
-		# `_apply_config` confined the walk to the order's room: the walk is the NPC's own now.
-		_planner.confines.room = ""
+		# The walk is the NPC's own now: its confinement holds no order's rules, from this tick on
+		# and in the snapshot the walk decides over.
+		snapshot["confinement"] = _reflexes.refresh_confinement().copy()
 	_planner.begin(snapshot, _behavior.ongoing())
 
 

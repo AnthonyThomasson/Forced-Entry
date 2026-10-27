@@ -29,11 +29,11 @@ func run(t: TestContext) -> void:
 	var combat: RefCounted = rig[0]
 	var me: FakeCharacter = rig[1]
 	me.facing = Vector2.LEFT
-	combat.peek_cover(0.016, null, CONTACT, false)
+	combat.peek_cover(0.016, null, CONTACT)
 	t.expect_eq(me.shots, 0, "peek: turned away, it holds its fire")
 	t.expect_eq(combat.phase, "peek", "peek: and keeps peeking")
 	me.facing = Vector2.RIGHT
-	combat.peek_cover(0.016, null, CONTACT, false)
+	combat.peek_cover(0.016, null, CONTACT)
 	t.expect_eq(me.shots, 1, "peek: facing the contact, it fires")
 	t.expect_eq(combat.phase, "cover", "peek: and ducks to cover after the shot")
 
@@ -42,10 +42,10 @@ func run(t: TestContext) -> void:
 	combat = rig[0]
 	me = rig[1]
 	me.reloading = true
-	combat.peek_cover(0.016, null, CONTACT, false)
+	combat.peek_cover(0.016, null, CONTACT)
 	t.expect_eq(combat.phase, "peek", "peek: a refused shot does not send it ducking")
 	me.reloading = false
-	combat.peek_cover(0.016, null, CONTACT, false)
+	combat.peek_cover(0.016, null, CONTACT)
 	t.expect_eq(combat.phase, "cover", "peek: it ducks once the shot leaves")
 
 	# An empty gun ducks: the cover phase is where it is reloaded.
@@ -53,7 +53,7 @@ func run(t: TestContext) -> void:
 	combat = rig[0]
 	me = rig[1]
 	me.rounds = 0
-	combat.peek_cover(0.016, null, CONTACT, false)
+	combat.peek_cover(0.016, null, CONTACT)
 	t.expect_eq(combat.phase, "cover", "peek: the click of an empty gun ducks to reload")
 
 	# Ambush.
