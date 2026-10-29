@@ -1,14 +1,16 @@
 extends GameTest
 ## The defenders' ambush rule (#128), the scenario: a defender crew of three in the bare Terrace
-## house's living room, declared as a match declares its squads (`s.squads`: the first spawned
-## leads), and an invader come in by the front door (it starts in the hall's west end, by the door:
-## an invader still outside slices the pie of the front door for some seconds, long enough for the
-## crew's own search to take its leader into the hall). Once the crew's radio places it (a COMBAT
-## callout: the invader seen, or where its shots came from), the leader orders the ambush of the
-## doorway into its room the attack comes through, the hall's doorway into the living room
-## (`door_150_360`), to itself and the next member; the last spawned, the rear guard, holds no order
-## and follows. Each of the two holds the ambush at its post (`in_position`), or, in contact as it
-## takes the order up, ends it `done` at once (D18).
+## house's living room, in its north-west corner, declared as a match declares its squads
+## (`s.squads`: the first spawned leads), and an invader come in by the front door (it starts in the
+## hall's west end, by the door: an invader still outside slices the pie of the front door for some
+## seconds, long enough for the crew's own search to take its leader into the hall). The corner is
+## out of the line through the hall's doorway from where the invader starts: a crew in that line is
+## shot at once, and its fight takes the leader into the hall before its radio places the invader.
+## Once the crew's radio places it (a COMBAT callout: the invader seen, or where its shots came
+## from), the leader orders the ambush of the doorway into its room the attack comes through, the
+## hall's doorway into the living room (`door_150_360`), to itself and the next member; the last
+## spawned, the rear guard, holds no order and follows. Each of the two holds the ambush at its post
+## (`in_position`), or, in contact as it takes the order up, ends it `done` at once (D18).
 ##
 ## Real Von, the whole pipeline. Required first (set-up findings otherwise): the radio places the
 ## invader, and the leader is still in the living room when it orders. Premise: the
@@ -36,9 +38,9 @@ func describe() -> Dictionary:
 
 func configure(s: TestSetup) -> void:
 	Maps.house(s, false)
-	s.actor(&"d1", &"defender", Vector2(240, 180), { "max_health": TOUGH })
-	s.actor(&"d2", &"defender", Vector2(320, 250), { "max_health": TOUGH })
-	s.actor(&"d3", &"defender", Vector2(380, 120), { "max_health": TOUGH })
+	s.actor(&"d1", &"defender", Vector2(60, 60), { "max_health": TOUGH })
+	s.actor(&"d2", &"defender", Vector2(120, 110), { "max_health": TOUGH })
+	s.actor(&"d3", &"defender", Vector2(60, 150), { "max_health": TOUGH })
 	s.actor(&"inv", &"invader", Vector2(30, 415))
 	s.squads()
 
