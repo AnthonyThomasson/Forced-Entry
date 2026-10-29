@@ -61,8 +61,8 @@ Files:
   doorway `o` joins, as Strings) and `beyond(o, here)` (the room it leads into from `here`, "" = outside: the other room, "" for an exterior
   door gone out by, null when it is no doorway of `here`), which the doorway geometry (`entries_from`, `room_doorways`), the doorway views
   and the team (`Squad`, `attack_door.gd`) read alike.
-- `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
-  format and step lists, the claims one listener has heard, and every slot rule and slot point (see "The stack" below). The one folder of
+- `stack/` (`stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`, `stack_member.gd`) — a doorway's stack as the radio describes it: the entry claim's wire
+  format and step lists, the claims one listener has heard, every slot rule and slot point, and one member's own claim (see "The stack" below). The one folder of
   perception's that behaviour and the team (`ai/team/`) preload themselves: the stack seam.
 - `agent_door_views.gd` — each doorway's view and the walk that keeps out of the views (E18), and the first doorway or view a walk comes
   to, which the entry guard secures (see "Doorway views and the walked route" below).
@@ -135,7 +135,10 @@ and `evade_margin` among them, `apply_config` sets on the module that reads them
   `refused`, `cancelled`: kept in the memory as ended, so never a ttl); `orders.take_ended()` is one that ended done or refused since the last
   call, for the controller to radio (LD7). `entry.mark_cleared(key)` ends a `stack` order whose `into` is `key` as done, the NPC's own clear or an
   ally's. A `go` (LD13) replaces nothing: when the live order is a `stack` at the go's `opening` it is kept again with `go: true` (latched,
-  whenever the go came), and `orders.process` returns false (no decision is forced). An `ambush` (LD15) ends `done` on first contact:
+  whenever the go came; `go_mode` the go's `mode` when it names one, the mode a held rally goes in, D31), and `orders.process` returns false (no decision is forced).
+  `orders.held_room()` (LD13, D31) is the room the live `stack` order (`wait_go`, a join of the human leader's rally too) is held to enter while
+  its go has come neither on the order nor off the radio (`DoorStack.held` over `entry.stack(opening, into)`), else "": the controller pushes it
+  to the planner's `confines.keep_out`, so a held member fights on the stack's side of the doorway. An `ambush` (LD15) ends `done` on first contact:
   `orders.end_ambush_on_contact`, run at the end of every `observe`, ends it when the NPC is `under_fire()` or sees a character it holds hostile
   (D18); footsteps heard and callouts are no contact. `quick_facts()` carries `ordered`, and `follows` (the var the controller sets every tick from `Squad.follows`, `docs/leadership.md` LD19; also handed to the snapshot as the knowledge's `follows`). A callout that is only an order's progress (`order_step` with no `entry_step`) is the squad's to
   hear: `hearing.process_callout` returns before the memory, so it never replaces what that ally last said it is doing (its entry claim).
@@ -419,14 +422,14 @@ time); `avoided` keys its per-frame cache on the `pass_clear` rule too. On an or
 an ordered walk with entry on; `_passable` adds `_seen_empty`), D20. An invader's walks are otherwise unchanged. The team's claims (`StackClaim.decode`)
 carry an ordered member's `order_id`, `order_bang`, `order_mode` (LD14), `order_hold` and
 `order_go` (LD13), `order_side` and `order_frame` (the frame the order was issued on, D14) ("" / false / quiet / false / false / 0 / -1
-for others), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
+for others; a held join of the human leader's rally says `order_hold`, `order_go`, `order_mode` and `order_frame` with no `order_id`, D31), which `entry.gd` reads, and every member's `crossed_frame` (the frame its crossing began on, -1 before it).
 `entry.room_doorways(room_key)` (over `AgentEntry.room_doorways`) lists every doorway of a room, outer doors
 included, as `{ id, pos, width }`: the places a resting NPC watches (`Watch.idle_gaze`, `domain-ai-watch`).
 
 
-## The stack (`stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`)
+## The stack (`stack/`: `stack_claim.gd`, `claim_ledger.gd`, `door_stack.gd`, `stack_layout.gd`, `stack_member.gd`)
 
-A doorway's stack as the radio describes it (`docs/tactical-entry.md` E2, E6, E16 to E22; `docs/leadership.md` LD13, LD18), held once for
+A doorway's stack as the radio describes it (`docs/tactical-entry.md` E2, E6, E16 to E22; `docs/leadership.md` LD13, LD18, D31), held once for
 every reader: the NPC's entry and its snapshot, the human's `PlayerStack` and the side's `Squad` (`domain-ai-team`). Behaviour, the
 orchestrator and the team preload these files themselves; this folder is that seam.
 
@@ -458,24 +461,32 @@ orchestrator and the team preload these files themselves; this folder is that se
   doorway, which counts for nothing.
 - **`DoorStack`** (`door_stack.gd`, `RefCounted`, `new(geometry, team)`): the doorway's `geometry` (`AgentEntry.geometry`; {} for the
   claims alone) and its claims (`team`), every slot rule settled the one way for whoever asks. A member asking about itself passes `me`,
-  its own claim as it stands (`{ id, slot, side, want, frame, pos, move_up, stuns, frags, order_*, step }`, each optional): it never hears
-  its own on the radio. `slot_for(me)` (E2: the lowest free slot, `StackLayout.free_slot`; two claims on one slot made on the same frame and side settle
+  its own claim as it stands in the radio's field names (`StackMember.me()`: `{ id, slot, side, want, claim_frame, claim_pos, move_up, step,
+  crossed_frame, stuns, frags, into, order_*, join, human, leader, own }`, each optional): it never hears its own on the radio. `slot_for(me)` (E2: the lowest free slot, `StackLayout.free_slot`; two claims on one slot made on the same frame and side settle
   by distance to the slot's point, laid among the rest, `StackLayout`'s `_verdict` / `_settles`, within 0.5 px or otherwise the lower instance id, and a slot claimed on
   that frame by someone farther is taken from them, so the settling runs down the stack; a move-up holds against a plain claim and its
   holder takes the freed slot); `settle(me) -> { slot, side, place, point }` (E19 to E22, with the move-up rewrite, `_moved_up`: a claim
   still on a slot a member moved up into counts at the slot that member freed, for every reader); `points(me)`; `layout(me := {})` (the
-  markers' `[{ n, point, holder, held, there, mine, side, row }]`, the same points `settle` gives); `crossing(me := {})` / `ahead(me)` /
-  `behind(me)` (E6, E19); `claimed()`, `stacking()` (a claim at a `STACKING` step: one on its `bang` still holds a place), `going_in()`;
+  markers' `[{ n, point, holder, held, there, mine, side, row }]`, the same points `settle` gives); `crossing(me := {})` / `ahead(me)`
+  (E6, E19); `stacking()` (a claim at a `STACKING` step: one on its `bang` still holds a place), `going_in()`;
   `thrower(kind, me := {})` (E17, LD14: slot 2 if it carries one, else the lowest slot that does; never the human); `order_claim(me := {})`
   (LD9: `me`'s order, its `order_frame` and `into` too, else the lowest slot's that carries one, D10); `released(order_id, into, since)`
   (LD13, `_releases`: a claim under the order says `order_go`, or a member of that stack, a claim under the order or the human's, is
   crossing or through into room `into`, D14, the human's only on a crossing begun on or after `since`, the order's frame: its
   `crossed_frame` at or after it, since the human's claim carries no order to scope it by, and a -1 on either releases nothing; a claim
-  left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing);
-  `team_side(from)`; `claim(me, want) -> { slot, held, side, place,
-  point }` (the chain every member claims and keeps its slot by, an NPC's entry (and the slot its snapshot's `entries` group offers it) and the human's `PlayerStack` alike: `slot_for`,
-  `held` = `StackLayout.holds_slot` over its geometry, E20, the side asked for in that slot, `want` called with it, the member's own weighing, then
-  `settle`; a member whose slot changes is no longer moving up); `split_side(me, own)` (D6, E19: `own` unless that side would hold two
+  left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; `order_id` "" is the
+  human leader's rally whose joins were posted on frame `since`, `_releases_rally`: a joiner of it, its `order_frame` `since`, saying `order_go` or
+  crossing, or the human crossing on a crossing begun since, D31); `hold(me)` (LD13, D31: the go `me`'s stack holds for, `{ order_id, into,
+  since }`: its order's when that order says `order_hold`, else the human leader's rally it joined, `me`'s own held join or the lowest slot's,
+  `order_id` "" and `since` its joins' frame; {} for a stack that holds for nobody, an AI leader's rally among them); `held(me)` (it holds for a
+  go, `me` has not latched it, `order_go`, and `released` says it has not come: nobody in it slices the pie, listens, calls a bang or crosses);
+  `mode(me)` (LD9, LD14, D31, E17: `quiet` / `stun` / `frag`, an order's, quiet once a member under it gave its grenade up; a rally's the mode
+  its go named, `_rally_mode`, `me`'s latched one else a joiner's of that rally, quiet before it, on a go naming none or once a member of the
+  rally gave its grenade up; else the first claimer's, `stun` while every claim says bang and none gave it up; "" with nobody claiming);
+  `team_side(from)`; `claim(me) -> { slot, held, side, place,
+  point }` (the chain every member claims and keeps its slot by, through its `StackMember`: an NPC's entry (and the slot its snapshot's `entries` group offers it) and the human's `PlayerStack` alike: `slot_for`,
+  `held` = `StackLayout.holds_slot` over its geometry, E20, then `settle` on the side `me.want` asks for, weighed by the member for that slot and
+  handed in as a value; a member whose slot changes is no longer moving up); `split_side(me, own)` (D6, E19: `own` unless that side would hold two
   more than the other with `me` there, when its last claimer, the highest slot then the highest instance id, takes the other);
   `back_slot(slot)` (E2: the slot behind the last claimed, 0 when `slot` is the last already or the doorway has no slot there, E20);
   `order_place(to_ids, self_id)` (E20, LD9: an ordered member's slot, after the order's living recipients named before it and every claim
@@ -484,6 +495,17 @@ orchestrator and the team preload these files themselves; this folder is that se
   itself, its slot staying on `me`'s side with the two swapped, as `{ holder, slot, point, stack }`; none once a claim says `pie`, `bang`,
   `going_in` or through; the walk and the latecomer are the entry's).
   Read-only: it never changes the claims it was built from.
+- **`StackMember`** (`stack_member.gd`, `RefCounted`, preloaded, no `class_name`): one member's own claim, which it never hears on the
+  radio, and the one way it claims, keeps and settles its slot against a `DoorStack`. The NPC's entry owns one (`state.member`,
+  `domain-ai-entry`), the human's `PlayerStack` one (its `reservation.member`, `domain-ai-team`), and the snapshot's slot guess
+  (`snapshot_options.gd` `_entry_pick`) builds a transient one. Fields `id`, `slot`, `side`, `want`, `team_side`, `claim_frame`, `claim_pos`,
+  `move_up`, `step`, `place`, `point`, `crossed_frame` and `terms` (the rest of its claim by the radio's names: `into`, `stuns`, `frags`, the
+  `order_*` fields, `join`, `human`, `leader`, `own`; a key left out says its `StackClaim.DEFAULTS`). `begin(frame, at)` starts a claim
+  (step `claim`, no slot, no side asked; its terms kept), `clear()` gives it up; `slot_in(stack)` (`DoorStack.slot_for`); `weighs_side(n, now)`
+  (E19: on its claim; after that never for the point, slot 1, and for any other slot only when the team's side, `DoorStack.team_side`,
+  changed) and `ask(asked, now)`: the caller weighs the side it asks for and hands it in as a value; `claim(stack)` (`DoorStack.claim`: takes
+  the slot, side, place and point, drops `move_up` when the slot changes; returns `{ slot, held, side, place, point }`); `settle(stack)`
+  (where its slot stands, no new claim); `me()` (the member as a `DoorStack` reads one asking about itself).
 - **`StackLayout`** (`stack_layout.gd`, static, preloaded, no `class_name`): the layout and claim rules, the one place a slot becomes a point,
   which `DoorStack` settles its doorway by and the entry, the snapshot and `PlayerStack` read beside it:
   `slots(g, count, side) -> [{ n, point, side, row }]` (only as many as `holds_slot`), `side_for(g, claims, slot, preferred)` (E21:
@@ -496,8 +518,8 @@ orchestrator and the team preload these files themselves; this folder is that se
   which `DoorStack.layout` reads). `NO_FILE_OUT` (28 px): how far out in front of the door a slot stands when the
   doorway has no file to lay it in.
 
-Two unit suites (`UnitSuite`, plain claim dicts, beneath the simulation tests per ADR-0002) pin the module: `tests/ai/stack_claim_suite.gd`
-the codec and the ledger, `tests/ai/door_stack_suite.gd` the slot rules.
+Three unit suites (`UnitSuite`, plain claim dicts, beneath the simulation tests per ADR-0002) pin the module: `tests/ai/stack_claim_suite.gd`
+the codec and the ledger, `tests/ai/door_stack_suite.gd` the slot rules (and `hold` / `held` / `mode`), `tests/ai/stack_member_suite.gd` a member's claim.
 
 
 ## Grenades (`agent_grenades.gd`, `agent_throw.gd`; spec `docs/grenades.md` G15, G16)

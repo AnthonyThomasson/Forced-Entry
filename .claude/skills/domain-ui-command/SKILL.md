@@ -1,6 +1,6 @@
 ---
 name: domain-ui-command
-description: Deep implementation detail for the UI command sub-domain (scenes/ui/command/) — how the human leader orders its teammates and sees those orders (docs/leadership.md LD11, LD12, D5): the command menu (CommandMenu, command_menu.gd: right-click orders on Keybinds.COMMAND, pausing the tree, hit-testing a teammate, a doorway or a room, the stack items quiet / with stun / with frag greyed when nobody carries the grenade, "Go into the <room>", the held stack's go, the ambush and defend items, "Cancel order", the selection, the docked panel kept clear of the overlay bar), its widget panel (CommandPanel, command_panel.gd: the "Hold for my go" checkbox, the teammate boxes, the dock) and the order markers (OrderMarkers, order_markers.gd: a dashed line and label per member's order target, the selection rings). Use when editing scenes/ui/command/ or working on the command menu, right-click orders, held stack go, "Hold for my go" or the order markers. Plain requests out, the squad's view() / resolve() callables in. Complements the `domain-ui` overview and the `architecture` skill.
+description: Deep implementation detail for the UI command sub-domain (scenes/ui/command/) — how the human leader orders its teammates and sees those orders (docs/leadership.md LD11, LD12, D5): the command menu (CommandMenu, command_menu.gd: right-click orders on Keybinds.COMMAND, pausing the tree, hit-testing a teammate, a doorway or a room, the stack items quiet / with stun / with frag greyed when nobody carries the grenade, "Go into the <room>", the held stack's go, a held rally's go quiet / with stun / with frag (D31), the ambush and defend items, "Cancel order", the selection, the docked panel kept clear of the overlay bar), its widget panel (CommandPanel, command_panel.gd: the "Hold for my go" checkbox, the teammate boxes, the dock) and the order markers (OrderMarkers, order_markers.gd: a dashed line and label per member's order target, the selection rings). Use when editing scenes/ui/command/ or working on the command menu, right-click orders, held stack go, "Hold for my go" or the order markers. Plain requests out, the squad's view() / resolve() callables in. Complements the `domain-ui` overview and the `architecture` skill.
 ---
 
 # UI · command sub-domain (`scenes/ui/command/`)
@@ -18,9 +18,12 @@ The human leader's orders (`docs/leadership.md` LD11, LD12, D5), built by `main.
   click the toggle bar or the panel takes never opens it) or `open_at(world)` pauses the whole tree (unpaused on close only if it paused it, and
   in `_exit_tree` if freed open) and fills the panel for what is under the point, hit-tested in this order: a living teammate within `PICK_RADIUS`
   (28 px) — "Select <name>" / "Deselect <name>", the menu staying open, then "Go into the <room>" while that teammate holds a held stack in the
-  view that has had no go (`_held_order_of`: its view row's `held`, LD13), its go at that order's doorway; a doorway, the one the
+  view that has had no go (`_held_order_of`: its view row's `held`, LD13), its go at that order's doorway (`_go_items`, below); a doorway, the one the
   squad resolves a stack at the click to (`resolve({ kind: "stack", pos })`: the nearest within its width; no `resolve`, no doorway) — first
-  "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`: a row's `held`, D13), then
+  "Go into the <room>" while any member of the view holds a held stack there that has had no go, whoever is selected (`_held_at`: the held row's
+  order, D13; for a held join of the human's rally, mode `join`, `_go_items` offers "Go into the <room> (quiet)", "Go into the <room> with stun" and
+  "Go into the <room> with frag" in its place, D31: stun / frag greyed while none of the living teammates the view shows holding that join, `_holders`,
+  carries one, tooltip "Nobody holding it carries a stun grenade." / "... a frag grenade."), then
   "Stack into the <room> (quiet)", "Stack into the <room> with stun" and "Stack into the <room> with frag", `<room>` the type of the room it
   resolves the stack into (`into`), so the label names the room of the order (`tests/ui/command_menu_label_matches_order_test.gd`), the stun item
   disabled while no recipient's `inventory.item_count(ItemRegistry.STUN_SLOT)` is above 0 (D1) and the frag item while none's `FRAG_SLOT` is (D15)
@@ -33,7 +36,8 @@ The human leader's orders (`docs/leadership.md` LD11, LD12, D5), built by `main.
   closes, and drops a dead teammate (its box disabled) on the next open. Choosing an item (a `Button`, `pressed`, `FOCUS_NONE` so Space stays
   INTERACT; each item is `_item(label, disabled, act, why)`) emits `order_requested` — `{ kind: "stack", to, pos, bang, mode, wait_go }` (`pos`
   the raw click: the squad resolves the doorway's side and room; `mode` quiet / stun / frag, `bang` mode != quiet, `wait_go` the checkbox),
-  `{ kind: "go", pos }` (no `to`: the squad sends it to whoever holds the held stack there, LD13), `{ kind: "ambush", to, pos }`,
+  `{ kind: "go", pos, mode? }` (`_go(at, mode)`; no `to`: the squad sends it to whoever holds the held stack there, LD13; `mode` quiet / stun / frag
+  for a held rally's go, D31), `{ kind: "ambush", to, pos }`,
   `{ kind: "defend_room", to, room }`, `{ kind: "cancel", to }` (the recipients holding an order) — and closes it. Escape (`Keybinds.MENU`)
   closes it in `_input` and is set handled, so Main's "back to setup" never sees it. `selection_changed(nodes)` carries the selection while open
   and [] on close (Main connects it to the order markers). Layout: a panel docked on the side away from the click (the panel's `dock`, handed the click's and the selected bodies' screen points at the end of every `_refresh`, so on each `open_at` and each selection
@@ -46,9 +50,9 @@ The human leader's orders (`docs/leadership.md` LD11, LD12, D5), built by `main.
   away: a body is covered only in that crowded case (LD11; the panel is about 520 x 524 on the 1152 x 648 window, so a vertical dock leaves a
   band of about 100 px at the top or bottom free); title 28pt naming the target, a "Orders go to:" line 22pt, the items 26pt, the "Hold for my go" box 22pt, a "Teammates" list 22pt, a hint 18pt), so it
   never covers the bodies and doorway it is about, and a ring on the clicked point (a full-rect, mouse-ignoring `Control`). `items()` is
-  `[{ label, disabled }]` (empty while closed), `is_open()`, `close()`. It holds no AI reference and computes no AI id. Tested by
+  `[{ label, disabled, why }]` (`why` the tooltip a greyed item shows, "" for one never greyed; empty while closed), `is_open()`, `close()`. It holds no AI reference and computes no AI id. Tested by
   `tests/ui/command_menu_items_test.gd` (plain dicts, a fake view and a real squad's `resolve`: the items, the frag item greyed, Go on a held
-  doorway and teammate, the ambush item, the checkbox; on the project's window size, `OrderMenu.player_screen`),
+  doorway and teammate, a held rally's three go items and their `mode`, the ambush item, the checkbox; on the project's window size, `OrderMenu.player_screen`),
   `tests/ui/command_menu_docks_right_test.gd` / `_left_test.gd` (a click in the left half docks it right, one in the right half
   left: its rect covers neither the click nor a selected teammate, `OrderMenu.check_dock`), `tests/ui/command_menu_clear_of_overlay_bar_test.gd`
   / `_centre_test.gd` / `_crowded_test.gd` (Debug on, a real `OverlayToggles`: docked right `right_clear` + 24 in, beside the click and bodies,
