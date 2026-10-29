@@ -45,7 +45,8 @@ carrying an order fights where the order takes it). Combat keeps no copy of any 
 
 `Behavior`'s `fight.hold_ground` (`not confinement.allows(engage_pos)`) is the behaviour's read-out of the same answer, not an argument.
 Which COMBAT options are offered at all is the planner's confinement filter, on the snapshot's frozen copy (`domain-ai-decision`).
-The module's answers that `_choose_dest` relies on are pinned in `tests/ai/perception/confinement_suite.gd`. Tests: `tests/ai/combat/leash_*` (a follower held to its leash),
+The module's answers that `_choose_dest` relies on are pinned in `tests/ai/perception/confinement_suite.gd`, and its choice of spot through
+them in `tests/ai/combat/combat_spot_within_confinement_test.gd` (stand-ins, no world). Tests: `tests/ai/combat/leash_*` (a follower held to its leash),
 `ambush_contact_leashes_follower` (LD15 / LD23: the decision an ambush's first contact forces is walked over a confinement already
 carrying the leash, `debug_state()["decision"]["confinement"]`) and `ordered_melee_off_leash` (real Von: a member ordered to defend a hall closes on and strikes a gunman beyond its leader's leash, which a
 leash on it would hold short; with `defend_room_stays_inside`, the planner's half). `magazine_low(fraction) -> bool`: whether the gun it fights with is at or below that share

@@ -163,7 +163,7 @@ effect; `node_overrides` is baked into the tree at `setup()` and is construction
 - `cancel()`, `is_pending()`, `debug_state()` (per level: node, question, state, offered, Von's
   probabilities and pick, `auto`, `ms` — enough to replay offline; and `confinement`, the `view()` of the confinement the walk decided
   over, {} before any walk), `walk_digest()` for the log line. The planner's confinement filter is pinned on a hand-made snapshot with
-  `DecisionStub` in `tests/ai/perception/confinement_suite.gd` (COMBAT offers only allowed options; a territorial NPC's throw from inside
+  `DecisionStub` in `tests/ai/decision/combat_options_within_confinement_test.gd` (COMBAT offers only allowed options; a territorial NPC's throw from inside
   onto an outside spot is offered; nothing confining drops nothing).
 
 ## `decision_budget.gd` — snapshots spread over frames

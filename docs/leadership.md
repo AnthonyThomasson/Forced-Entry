@@ -598,8 +598,9 @@ from cover within the leash, or follows, never more than the leash and 40 px fro
 `ai/combat/ordered_melee_off_leash` (real Von: ordered to defend an open hall with a dry gun, its puppet leader more than two leashes off,
 it closes on a gunman beyond the leash and strikes it, which a leash would hold it short of) and `ai/combat/defend_room_stays_inside`
 (LD8: its leader about 510 px off, the ordered defender still fights from inside the kitchen). The leash after an ambush's contact:
-`ai/combat/ambush_contact_leashes_follower` (LD15). The rules alone and combined (a leash circle crossing a room's wall), the planner's
-filter and Combat's spot choice: `ai/perception/confinement_suite` (a `UnitSuite`).
+`ai/combat/ambush_contact_leashes_follower` (LD15). The rules alone and combined (a leash circle crossing a room's wall):
+`ai/perception/confinement_suite` (a `UnitSuite`); the planner's filter: `ai/decision/combat_options_within_confinement`; Combat's
+spot choice: `ai/combat/combat_spot_within_confinement`.
 
 **LD24. The leader's stack brings the team in.** When the leader makes an entry claim of its own at a doorway (a callout from it with
 `entry_step` `claim`, no `order_id` and no `join`: an AI leader's ENTER or STUN ENTRY, or the human's own claim through its `PlayerStack`, below), the

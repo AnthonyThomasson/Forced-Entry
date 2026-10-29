@@ -1,9 +1,9 @@
 extends "res://scenes/ai/debug/debug_overlay.gd"
 ## AI domain, debug: the territorial leash. Outlines the house (the union of the rooms), shows
-## whether the NPC is holding ground (`hold_ground` — it will not chase an outside contact out) and
-## whether the engaged contact was last seen inside or outside, and marks every tactical zone that
-## sits outside the house (the ones a territorial NPC filters out). Reads the controller's
-## `debug_combat()`, `debug_room_zones()` and `debug_zones()` only.
+## whether the NPC is holding ground (`hold_ground` — its confinement does not let it act at the
+## contact's last-known spot) and whether the engaged contact was last seen inside or outside, and
+## marks every tactical zone that sits outside the house (the ones a territorial NPC filters out).
+## Reads the controller's `debug_combat()`, `debug_room_zones()` and `debug_zones()` only.
 
 const INSIDE := Color(0.4, 0.85, 0.5)
 const OUTSIDE := Color(1.0, 0.5, 0.3)

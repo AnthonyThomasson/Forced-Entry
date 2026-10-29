@@ -103,11 +103,6 @@ func room_key_at(p: Vector2) -> String:
 	return ""
 
 
-## Whether a world point lies within any of the house's rooms (the "inside the house" test).
-func inside_house(p: Vector2) -> bool:
-	return room_key_at(p) != ""
-
-
 ## Keep the NPC's `npc_tuning`, and resolve + wire the navigation agent. `agent` may be null (then
 ## everything falls back to straight line steering). The agent starts on the world's own map
 ## (`_plan_map`: furniture only, which points are snapped to and tested on); `_set_way` moves it to

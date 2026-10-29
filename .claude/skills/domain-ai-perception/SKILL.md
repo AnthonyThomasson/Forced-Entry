@@ -42,7 +42,9 @@ Files:
   spots and melee (`domain-ai-combat`) and the `follow` primitive (its `leash_center`) read the live one, and the reflexes' leash break
   its `leash_center` / `leash`. The controller's `debug_state()["confinement"]` is the live `view()`, its `debug_state()["decision"]
   ["confinement"]` the copy the last walk decided over. Pinned by `tests/ai/perception/confinement_suite.gd` (each rule, their
-  combination, an option's place, the frozen copy, the planner's filter on a hand-made snapshot, Combat's spot choice).
+  combination, an option's place, the frozen copy), and through its answers by the game tests
+  `ai/decision/combat_options_within_confinement` (the planner's filter on a hand-made snapshot) and
+  `ai/combat/combat_spot_within_confinement` (Combat's spot choice).
 - `agent_vision.gd` — the sight sense and the single owner of the ray query (`blocked` / `raycast`).
 - `agent_hostility.gd` — the hostility rules (categorization).
 - `agent_memory.gd` — a generic, behaviour-agnostic event log.
