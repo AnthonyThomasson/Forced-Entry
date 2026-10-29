@@ -123,7 +123,7 @@ holding one rallies nobody on it), and from the human only one marked `own` (`_o
 `wait_go` the claim's `human` (the human leader's rally is held for its go, D31; an AI leader's is not), to every follower whose `_orders` entry is empty (D24); on the leader's `abort` the key is erased and one `cancel` goes to
 the living members holding a join of that leader at that opening (D25). A join radioed `refused` is dropped from `_orders`, as a `done`.
 `_on_died`, when the dead member led and was the human, calls `_take_over(previous)`: one `cancel` to the living members holding a `defend_room`,
-an `ambush` or a join of `previous`'s rally (D31: no automatic go for a rally); the held stacks it ordered are released as before (D12).
+an `ambush` or a join of `previous`'s rally (D31: no automatic go for a rally); the held stacks it ordered are released (an `auto` go, D12).
 
 **The defenders' ambush rule (`docs/leadership.md` LD29, D31 to D36).** The squad's `ambush` part (`ai/team/squad_ambush.gd`, built with
 the squad, holding it; `setup(roster.ambush_attacks, openings, rooms)` from `Squad.setup`; the roster flag is set by

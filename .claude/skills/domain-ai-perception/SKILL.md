@@ -477,7 +477,7 @@ orchestrator and the team preload these files themselves; this folder is that se
   left from an earlier entry through the doorway, under no order or another, or into the other room, releases nothing; `order_id` "" is the
   human leader's rally whose joins were posted on frame `since`, `_releases_rally`: a joiner of it, its `order_frame` `since`, saying `order_go` or
   crossing, or the human crossing on a crossing begun since, D31); `hold(me)` (LD13, D31: the go `me`'s stack holds for, `{ order_id, into,
-  since }`: its order's when that order says `order_hold`, else the human leader's rally it joined, `me`'s own held join or the lowest slot's,
+  since }`: its order's when it goes under one, {} unless that order says `order_hold`; with no order, the human leader's rally it joined, `me`'s own held join or the lowest slot's,
   `order_id` "" and `since` its joins' frame; {} for a stack that holds for nobody, an AI leader's rally among them); `held(me)` (it holds for a
   go, `me` has not latched it, `order_go`, and `released` says it has not come: nobody in it slices the pie, listens, calls a bang or crosses);
   `mode(me)` (LD9, LD14, D31, E17: `quiet` / `stun` / `frag`, an order's, quiet once a member under it gave its grenade up; a rally's the mode
@@ -498,7 +498,8 @@ orchestrator and the team preload these files themselves; this folder is that se
 - **`StackMember`** (`stack_member.gd`, `RefCounted`, preloaded, no `class_name`): one member's own claim, which it never hears on the
   radio, and the one way it claims, keeps and settles its slot against a `DoorStack`. The NPC's entry owns one (`state.member`,
   `domain-ai-entry`), the human's `PlayerStack` one (its `reservation.member`, `domain-ai-team`), and the snapshot's slot guess
-  (`snapshot_options.gd` `_entry_pick`) builds a transient one. Fields `id`, `slot`, `side`, `want`, `team_side`, `claim_frame`, `claim_pos`,
+  (`snapshot_options.gd` `_entry_pick`), `AgentPerception.orders.held_room()` and `PlayerStack._look_for_team` each build a
+  transient one. Fields `id`, `slot`, `side`, `want`, `team_side`, `claim_frame`, `claim_pos`,
   `move_up`, `step`, `place`, `point`, `crossed_frame` and `terms` (the rest of its claim by the radio's names: `into`, `stuns`, `frags`, the
   `order_*` fields, `join`, `human`, `leader`, `own`; a key left out says its `StackClaim.DEFAULTS`). `begin(frame, at)` starts a claim
   (step `claim`, no slot, no side asked; its terms kept), `clear()` gives it up; `slot_in(stack)` (`DoorStack.slot_for`); `weighs_side(n, now)`

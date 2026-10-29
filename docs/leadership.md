@@ -401,7 +401,7 @@ stack holds and `view()` says held until the leader's go), `ai/stack/stack_playe
 funnel before the order and steps in after it; the squad's `view()` then no longer says held), `ai/door_stack_suite` (the rule:
 `released` against the order's frame), `general/command_menu_wiring` (LD16), `order_stack_hold_fights_stack_side` (real Von: a defender in
 the kitchen seen through the back door and then hidden, the held members unkillable as the premise: each fires from its side and none
-walks into the kitchen while held). Part 1's `order_stack_*` tests, unchanged, cover a stack that goes when ready.
+walks into the kitchen while held). The `order_stack_*` tests cover a stack that goes when ready.
 
 **LD14. Frag entry.** The stack order's `mode` is `quiet`, `stun` or `frag` (LD5). With `frag` the stack throws a frag into the room
 before the point crosses, the bang of E17 (`docs/tactical-entry.md`) with a frag:
@@ -519,7 +519,7 @@ human leader's held rally, "Go into the <room> (quiet)", "... with stun" and "..
 member holding that join carries one, its tooltip saying so; each go names its `mode`); "Stack into the
 <room> (quiet)", "... with stun", "... with frag" (each grenade item greyed while no recipient carries one, its tooltip saying which);
 "Ambush the doorway from the <room>" (`<room>` the room `Squad.resolve` names for an ambush at the click: its side of the wall); then
-"Cancel order" as before. On a teammate that holds a held stack it offers "Go into the <room>" too (a held rally's three), after "Select" / "Deselect". The
+"Cancel order". On a teammate that holds a held stack it offers "Go into the <room>" too (a held rally's three), after "Select" / "Deselect". The
 panel's "Hold for my go" checkbox (D19: off at first, kept across opens while the match runs) sets `wait_go` on the stack chosen. The
 requests: `{ kind: "stack", to, pos, bang, mode, wait_go }` (`bang` = mode != quiet), `{ kind: "go", pos }` (the click, or the doorway's
 centre for a teammate's item), `{ kind: "ambush", to, pos }`. The order markers name a stack's mode and hold and an ambush (LD12).
@@ -707,15 +707,14 @@ takes over the lead while it holds a join rallies nobody on it; its next claim o
     AI is the point and the human goes in when it likes.
 
   The human's claim withdrawn frees the joiners to follow, never to go in: walking away is LD25's cancel and its death LD26's; there is no
-  automatic go (D12 is a held order's). An AI leader's rally is unchanged: its joins carry no `wait_go`, it takes the point and goes in, and
+  automatic go (D12 is a held order's). An AI leader's rally is not held: its joins carry no `wait_go`, it takes the point and goes in, and
   its team follows it.
 - **No slot.** A join at a dead end with no slot for the member offers no option (and a join whose entry cannot begin is ended), so it ends
   `refused` and the member follows again (LD25), instead of an ordered stack's refused hold (D21).
 - **The wording.** "Your leader ordered you to go into the kitchen by its doorway with them." (LD6): measured with `tools/von_probe.py` over
   the 38 `tools/von_scenarios` levels in spike #66, it moved no combat level's top pick (the expected pick's probability moving 0.020 on
-  average). A held join, until its go, ends " when they give the go" as a held order does (LD13): "Your leader ordered you to go into the
-  kitchen by its doorway with them when they give the go." Measured the same way, the sentence inserted after the goal (by the coding
-  worker, #127, 2026-10-29): it keeps the combat top pick in 18 of 18 levels, the expected pick moving 0.023 on average (0.092 at most;
+  average). A held join, until the squad's go reaches it (`go` on the order), ends " when they give the go" as a held order does (LD13): "Your leader ordered you to go into the
+  kitchen by its doorway with them when they give the go." Measured the same way, the sentence inserted after the goal (2026-10-29): it keeps the combat top pick in 18 of 18 levels, the expected pick moving 0.023 on average (0.092 at most;
   the plain join sentence, measured beside it, 0.020 and 0.076). At the levels an ordered member never reaches it moves the same two the
   plain join sentence moves, by about as much: `investigate_outside_lead_invader_goes` to `stay` (0.51 to 0.49) and
   `stun_entry_quiet_unexplored` to STUN ENTRY.
@@ -769,7 +768,7 @@ sergeant have cleared the room: it follows within 1 s and never goes in).
 
 **LD26. Taking over from a dead human leader.** When the human leader dies the next in line leads (LD4) and the squad posts one `cancel` to
 the living members holding a `defend_room` or an `ambush` order, or a join of the human's rally (D31: it goes in only on the human's go,
-which never comes), (`_take_over`), so each follows the new AI leader. The human's held stacks
+which never comes; `_take_over`), so each follows the new AI leader. The human's held stacks
 are released as any dead leader's (D12) and its other stack orders are carried to their end (the room cleared); each member follows once
 its order ends, and the new leader's next own claim rallies the members then holding no order (LD24).
 
@@ -926,7 +925,7 @@ The cases the behaviours above cite as D1 to D38.
 | D35 | Re-orders | Only for a new doorway, at least 8 s after the last order, to the members then holding no order, with at least two of them after the rear guard is left out; the doorway and the clock move only when an order is posted, and start afresh with a new leader; a dead leader's ambushes stand. | LD29 |
 | D36 | A member that refused its order | Free for the ambush rule: a member whose held order it radioed `refused` (no post for it) is a recipient of the next, as a refused join is dropped (LD25); the human's held orders and `view()` keep D21. | LD29 |
 | D37 | The primed ambusher | At its post, holding the ambush of its live order, it tests its sight on every character in its view cone every frame and moves after every other body (`process_physics_priority` 1): a same-frame tie with an entrant is the ambusher's. Nobody else changes, but its own children that process at the default priority (its hands, its blood wound) run before its body on those frames: its hands read the body a frame behind, harmless at a post, where it holds still and does not punch. | LD15 |
-| D38 | A stack the human leader's own claim rallied | Held for the human's go, with no cap: no joiner slices the pie, listens, calls a bang or crosses; it fights only on the stack's side of the doorway. The human stepping in releases it quietly and the joiners follow it in; the menu's go names quiet / stun / frag, the mode wins as an order's, and the human is no longer waited for. The human's claim withdrawn (it walked away, it died) cancels the joins: no automatic go. An AI leader's rally is unchanged. | LD13, LD24, LD26 |
+| D38 | A stack the human leader's own claim rallied | Held for the human's go, with no cap: no joiner slices the pie, listens, calls a bang or crosses; it fights only on the stack's side of the doorway. The human stepping in releases it quietly and the joiners follow it in; the menu's go names quiet / stun / frag, the mode wins as an order's, and the human is no longer waited for. The human's claim withdrawn (it walked away, it died) cancels the joins: no automatic go. An AI leader's rally is not held (its joins carry no `wait_go`). | LD13, LD24, LD26 |
 
 ## Numbers
 

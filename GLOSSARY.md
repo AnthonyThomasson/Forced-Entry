@@ -159,7 +159,7 @@ _Avoid_: stack layout (its `layout()`, what the markers draw), slot rules
 One member's own claim in a stack, as it keeps it: a `StackMember` (`scenes/ai/perception/stack/stack_member.gd`)
 holding its slot, side, claim frame and spot, step, grenades and order fields, and running claim, keep and settle
 against a `DoorStack`, the side it asks for handed in. Each NPC's entry and the human's `PlayerStack` own one, and the
-snapshot's slot guess builds one for a moment; its `me()` is what a `DoorStack` reads of a member asking about itself.
+snapshot's slot guess, the perception's held room and the human's look for a team build one for a moment; its `me()` is what a `DoorStack` reads of a member asking about itself.
 _Avoid_: me dict, reservation (the human's E16 slot is one stack member's claim)
 
 ### Squads and orders
