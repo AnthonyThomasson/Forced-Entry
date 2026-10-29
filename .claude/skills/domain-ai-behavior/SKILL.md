@@ -200,8 +200,9 @@ an unreachable target it steps toward the closest reachable point. Furniture phy
 (a piece shoved off its baked hole) is bulldozed by the character's own push physics; there is no RVO
 avoidance and no straight-at-the-destination fallback. `reachable(p)` snaps a point onto the navmesh
 (every leaf destination goes through it); `reached(point, within := 0)` reports arrival (at the free spot it took, below; never while held).
-Falls back to straight-line steering with no agent (arriving within `tuning.pace.arrive_dist`, read live; `setup(agent, tuning)`). It also holds the house `rooms` (set by `Behavior`) and answers `room_key_at(p)` /
-`inside_house(p)` for the move's `arrive_room` test and the coverage and combat modules. `reachable` / `on_navmesh` always use the plain map.
+Falls back to straight-line steering with no agent (arriving within `tuning.pace.arrive_dist`, read live; `setup(agent, tuning)`). It also holds the house `rooms` (set by `Behavior`) and answers `room_key_at(p)`
+for the move's `arrive_room` test, the coverage module and the watch, and `inside_house(p)`, which no caller asks (where an NPC
+may fight is the perception's `confinement`). `reachable` / `on_navmesh` always use the plain map.
 
 **Characters (issue #53).** A walk accounts for the characters the NPC KNOWS of and never walks into one: `Behavior` hands it
 the perception's contacts every tick (`crowd.bodies`, set in `Behavior.apply` by `errand.set_up_walk`: what it sees, or saw within `tuning.memory.contact_ttl`, with `pos`, `vel`, `facing`, `visible`);
