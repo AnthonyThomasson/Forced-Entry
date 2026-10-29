@@ -151,8 +151,16 @@ _Avoid_: claims cache, heard callouts (the perception's memory of what allies sa
 **Door stack**:
 A doorway's stack built from its geometry and the claims a ledger holds: a `DoorStack`, the one place every slot rule is
 settled (same-frame ties and move-up, the human's slot, sides, files, tail and dead ends, the crossing order, the
-thrower, a held stack's release) and a slot becomes a point, so every reader gets the same answer.
+thrower, whether the stack is held for its leader's go and its release, the mode it goes in) and a slot becomes a
+point, so every reader gets the same answer.
 _Avoid_: stack layout (its `layout()`, what the markers draw), slot rules
+
+**Stack member**:
+One member's own claim in a stack, as it keeps it: a `StackMember` (`scenes/ai/perception/stack/stack_member.gd`)
+holding its slot, side, claim frame and spot, step, grenades and order fields, and running claim, keep and settle
+against a `DoorStack`, the side it asks for handed in. Each NPC's entry and the human's `PlayerStack` own one, and the
+snapshot's slot guess builds one for a moment; its `me()` is what a `DoorStack` reads of a member asking about itself.
+_Avoid_: me dict, reservation (the human's E16 slot is one stack member's claim)
 
 ### Squads and orders
 
